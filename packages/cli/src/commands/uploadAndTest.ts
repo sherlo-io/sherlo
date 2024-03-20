@@ -34,7 +34,7 @@ async function uploadAndTest(parameters?: GetConfigParameters): Promise<void> {
         description: 'Path to Android build in .apk format',
         type: 'string',
       })
-      .option('iosPath', {
+      .option('ios', {
         description: 'Path to iOS simulator build in .app or .tar.gz file format',
         type: 'string',
       }).argv;
@@ -42,7 +42,7 @@ async function uploadAndTest(parameters?: GetConfigParameters): Promise<void> {
     const config = await getConfig({
       config: parameters?.config || args.config,
       token: parameters?.token || args.token,
-      iosPath: parameters?.iosPath || args.iosPath,
+      ios: parameters?.ios || args.ios,
       android: parameters?.android || args.android,
     });
 

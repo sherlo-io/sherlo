@@ -7,7 +7,7 @@ export interface GetConfigParameters {
   config: string;
   token?: string;
   android?: string;
-  iosPath?: string;
+  ios?: string;
 }
 
 async function getConfig(parameters: GetConfigParameters): Promise<Config> {
@@ -17,8 +17,8 @@ async function getConfig(parameters: GetConfigParameters): Promise<Config> {
     config.android.path = parameters.android;
   }
 
-  if (parameters?.iosPath && config.ios) {
-    config.ios.path = parameters.iosPath;
+  if (parameters?.ios && config.ios) {
+    config.ios.path = parameters.ios;
   }
 
   if (parameters?.token) {
