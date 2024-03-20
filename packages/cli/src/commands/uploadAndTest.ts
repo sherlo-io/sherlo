@@ -12,26 +12,39 @@ import {
   printHeader,
   uploadMobileBuilds,
 } from '../utils';
+import { GetConfigParameters } from '../utils/getConfig/getConfig';
 
 const DEFAULT_CONFIG_PATH = 'sherlo.config.json';
 
-async function uploadAndTest(parameters?: {
-  config?: string;
-  android?: string;
-  ios?: string;
-}): Promise<void> {
+async function uploadAndTest(parameters?: GetConfigParameters): Promise<void> {
   try {
     printHeader();
 
-    const args = await yargs(hideBin(process.argv)).option('config', {
-      default: DEFAULT_CONFIG_PATH,
-      description: 'Path to Sherlo config',
-      type: 'string',
-    }).argv;
+    const args = await yargs(hideBin(process.argv))
+      .option('config', {
+        default: DEFAULT_CONFIG_PATH,
+        description: 'Path to Sherlo config',
+        type: 'string',
+      })
+      .option('token', {
+        description: 'Sherlo project token',
+        type: 'string',
+      })
+      .option('androidPath', {
+        description: 'Path to Android build in .apk format',
+        type: 'string',
+      })
+      .option('iosPath', {
+        description: 'Path to iOS simulator build in .app or .tar.gz file format',
+        type: 'string',
+      }).argv;
 
-    const configPath = args.config;
-
-    const config = await getConfig(configPath, parameters);
+    const config = await getConfig({
+      config: parameters?.config || args.config,
+      token: parameters?.token || args.token,
+      iosPath: parameters?.iosPath || args.iosPath,
+      androidPath: parameters?.androidPath || args.androidPath,
+    });
 
     const { apiToken, projectIndex, teamId } = getProjectTokenParts(config.projectToken);
 

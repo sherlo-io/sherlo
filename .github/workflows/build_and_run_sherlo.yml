@@ -137,3 +137,5 @@ jobs:
           ios: ci-builds/ios.tar.gz
           android: ci-builds/android.apk
           config: examples/expo-example/sherlo.config.json
+        env:
+          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
