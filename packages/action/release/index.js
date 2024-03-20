@@ -74420,12 +74420,12 @@ const cli_1 = __nccwpck_require__(80313);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const androidPath = core.getInput('android', { required: false });
-            const iosPath = core.getInput('ios', { required: false });
+            const android = core.getInput('android', { required: false });
+            const ios = core.getInput('ios', { required: false });
             const config = core.getInput('config', { required: false });
             yield (0, cli_1.uploadAndTest)({
-                androidPath,
-                iosPath,
+                android,
+                ios,
                 config,
                 token: process.env.SHERLO_TOKEN || undefined,
             });
@@ -74469,21 +74469,21 @@ async function uploadAndTest(parameters) {
             description: 'Sherlo project token',
             type: 'string',
         })
-            .option('androidPath', {
+            .option('android', {
             description: 'Path to Android build in .apk format',
             type: 'string',
         })
-            .option('iosPath', {
+            .option('ios', {
             description: 'Path to iOS simulator build in .app or .tar.gz file format',
             type: 'string',
         }).argv;
         const config = await (0, utils_1.getConfig)({
             config: parameters?.config || args.config,
             token: parameters?.token || args.token,
-            iosPath: parameters?.iosPath || args.iosPath,
-            androidPath: parameters?.androidPath || args.androidPath,
+            ios: parameters?.ios || args.ios,
+            android: parameters?.android || args.android,
         });
-        const { apiToken, projectIndex, teamId } = (0, utils_1.getProjectTokenParts)(config.projectToken);
+        const { apiToken, projectIndex, teamId } = (0, utils_1.getProjectTokenParts)(config.token);
         const client = (0, sdk_client_1.default)(apiToken);
         const { buildPresignedUploadUrls } = await client
             .initBuild({
@@ -74593,14 +74593,14 @@ const parse_1 = __importDefault(__nccwpck_require__(95586));
 const validate_1 = __importDefault(__nccwpck_require__(22240));
 async function getConfig(parameters) {
     const config = await (0, parse_1.default)(parameters.config);
-    if (parameters?.androidPath && config.android) {
-        config.android.path = parameters.androidPath;
+    if (parameters?.android && config.android) {
+        config.android.path = parameters.android;
     }
-    if (parameters?.iosPath && config.ios) {
-        config.ios.path = parameters.iosPath;
+    if (parameters?.ios && config.ios) {
+        config.ios.path = parameters.ios;
     }
     if (parameters?.token) {
-        config.projectToken = parameters.token;
+        config.token = parameters.token;
     }
     if ((0, validate_1.default)(config)) {
         return config;
@@ -74729,7 +74729,7 @@ function validate(config) {
     return true;
 }
 const learnMoreLink = {
-    projectToken: 'https://docs.sherlo.io/getting-started/config#project-token',
+    token: 'https://docs.sherlo.io/getting-started/config#project-token',
     android: 'https://docs.sherlo.io/getting-started/config#android',
     ios: 'https://docs.sherlo.io/getting-started/config#ios',
     // TODO: update
@@ -74739,16 +74739,16 @@ const learnMoreLink = {
     // TODO: update
     exclude: 'https://docs.sherlo.io/getting-started/config',
 };
-function validateProjectToken({ projectToken }) {
-    if (!projectToken || typeof projectToken !== 'string') {
-        throw new Error((0, getConfigErrorMessage_1.default)('projectToken must be defined string', learnMoreLink.projectToken));
+function validateProjectToken({ token }) {
+    if (!token || typeof token !== 'string') {
+        throw new Error((0, getConfigErrorMessage_1.default)('token must be defined string', learnMoreLink.token));
     }
-    const { apiToken, projectIndex, teamId } = (0, getProjectTokenParts_1.default)(projectToken);
+    const { apiToken, projectIndex, teamId } = (0, getProjectTokenParts_1.default)(token);
     if (apiToken.length !== shared_1.projectApiTokenLength ||
         teamId.length !== shared_1.teamIdLength ||
         !Number.isInteger(projectIndex) ||
         projectIndex < 1) {
-        throw new Error((0, getConfigErrorMessage_1.default)('projectToken is not valid', learnMoreLink.projectToken));
+        throw new Error((0, getConfigErrorMessage_1.default)('token is not valid', learnMoreLink.token));
     }
 }
 function validatePlatforms(config) {
