@@ -132,7 +132,7 @@ jobs:
           path: ci-builds
 
       - name: Run Sherlo Action
-        uses: sherlo-io/sherlo@latest
+        uses: . # This is a relative path to the action in the same repository
         with:
           ios: ci-builds/ios.tar.gz
           android: ci-builds/android.apk
