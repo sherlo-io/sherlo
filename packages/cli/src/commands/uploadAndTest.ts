@@ -46,7 +46,7 @@ async function uploadAndTest(parameters?: GetConfigParameters): Promise<void> {
       androidPath: parameters?.androidPath || args.androidPath,
     });
 
-    const { apiToken, projectIndex, teamId } = getProjectTokenParts(config.projectToken);
+    const { apiToken, projectIndex, teamId } = getProjectTokenParts(config.token);
 
     const client = SDKApiClient(apiToken);
 

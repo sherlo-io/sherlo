@@ -18,9 +18,9 @@ function validate(config: InvalidatedConfig): config is Config {
 }
 
 const learnMoreLink: {
-  [type in Platform | 'projectToken' | 'devices' | 'include' | 'exclude']: string;
+  [type in Platform | 'token' | 'devices' | 'include' | 'exclude']: string;
 } = {
-  projectToken: 'https://docs.sherlo.io/getting-started/config#project-token',
+  token: 'https://docs.sherlo.io/getting-started/config#project-token',
   android: 'https://docs.sherlo.io/getting-started/config#android',
   ios: 'https://docs.sherlo.io/getting-started/config#ios',
   // TODO: update
@@ -31,14 +31,12 @@ const learnMoreLink: {
   exclude: 'https://docs.sherlo.io/getting-started/config',
 };
 
-function validateProjectToken({ projectToken }: InvalidatedConfig): void {
-  if (!projectToken || typeof projectToken !== 'string') {
-    throw new Error(
-      getConfigErrorMessage('projectToken must be defined string', learnMoreLink.projectToken)
-    );
+function validateProjectToken({ token }: InvalidatedConfig): void {
+  if (!token || typeof token !== 'string') {
+    throw new Error(getConfigErrorMessage('token must be defined string', learnMoreLink.token));
   }
 
-  const { apiToken, projectIndex, teamId } = getProjectTokenParts(projectToken);
+  const { apiToken, projectIndex, teamId } = getProjectTokenParts(token);
 
   if (
     apiToken.length !== projectApiTokenLength ||
@@ -46,7 +44,7 @@ function validateProjectToken({ projectToken }: InvalidatedConfig): void {
     !Number.isInteger(projectIndex) ||
     projectIndex < 1
   ) {
-    throw new Error(getConfigErrorMessage('projectToken is not valid', learnMoreLink.projectToken));
+    throw new Error(getConfigErrorMessage('token is not valid', learnMoreLink.token));
   }
 }
 

@@ -22,7 +22,7 @@ async function getConfig(parameters: GetConfigParameters): Promise<Config> {
   }
 
   if (parameters?.token) {
-    config.projectToken = parameters.token;
+    config.token = parameters.token;
   }
 
   if (validate(config)) {
