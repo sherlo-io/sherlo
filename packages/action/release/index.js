@@ -78607,6 +78607,7 @@ function run() {
             const ios = core.getInput('ios', { required: false });
             const config = core.getInput('config', { required: false });
             // The GITHUB_TOKEN is automatically available as an environment variable in all runner environments
+            console.log(`GITHUB_TOKEN: ${process.env.GITHUB_TOKEN}`);
             const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
             const { context } = github;
             const commitSha = context.sha; // or any other SHA you're interested in
