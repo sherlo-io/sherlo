@@ -30,7 +30,7 @@ async function uploadAndTest(parameters?: GetConfigParameters): Promise<void> {
         description: 'Sherlo project token',
         type: 'string',
       })
-      .option('androidPath', {
+      .option('android', {
         description: 'Path to Android build in .apk format',
         type: 'string',
       })
@@ -43,7 +43,7 @@ async function uploadAndTest(parameters?: GetConfigParameters): Promise<void> {
       config: parameters?.config || args.config,
       token: parameters?.token || args.token,
       iosPath: parameters?.iosPath || args.iosPath,
-      androidPath: parameters?.androidPath || args.androidPath,
+      android: parameters?.android || args.android,
     });
 
     const { apiToken, projectIndex, teamId } = getProjectTokenParts(config.token);

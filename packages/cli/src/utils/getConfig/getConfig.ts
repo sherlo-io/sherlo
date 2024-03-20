@@ -6,15 +6,15 @@ import validate from './validate';
 export interface GetConfigParameters {
   config: string;
   token?: string;
-  androidPath?: string;
+  android?: string;
   iosPath?: string;
 }
 
 async function getConfig(parameters: GetConfigParameters): Promise<Config> {
   const config = await parse(parameters.config);
 
-  if (parameters?.androidPath && config.android) {
-    config.android.path = parameters.androidPath;
+  if (parameters?.android && config.android) {
+    config.android.path = parameters.android;
   }
 
   if (parameters?.iosPath && config.ios) {
