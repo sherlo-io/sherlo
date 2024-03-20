@@ -78606,6 +78606,7 @@ function run() {
             const android = core.getInput('android', { required: false });
             const ios = core.getInput('ios', { required: false });
             const config = core.getInput('config', { required: false });
+            console.log(JSON.stringify(github.context, null, 2));
             const commitName = github.context.payload.head_commit.message;
             const commitHash = github.context.sha;
             let branchName;

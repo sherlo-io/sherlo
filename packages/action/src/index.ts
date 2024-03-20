@@ -9,6 +9,8 @@ async function run(): Promise<void> {
     const ios: string = core.getInput('ios', { required: false });
     const config: string = core.getInput('config', { required: false });
 
+    console.log(JSON.stringify(github.context, null, 2));
+
     const commitName = github.context.payload.head_commit.message;
     const commitHash = github.context.sha;
 
