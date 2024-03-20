@@ -78606,29 +78606,28 @@ function run() {
             const android = core.getInput('android', { required: false });
             const ios = core.getInput('ios', { required: false });
             const config = core.getInput('config', { required: false });
-            console.log(JSON.stringify(github.context, null, 2));
-            const commitName = github.context.payload.head_commit.message;
-            const commitHash = github.context.sha;
-            let branchName;
-            // Check if the event that triggered the workflow is a pull request or a push
-            if (github.context.payload.pull_request) {
-                // For pull requests, the branch name is stored differently
-                branchName = github.context.payload.pull_request.head.ref;
-            }
-            else {
-                // For push events, the branch reference is split to get the branch name
-                branchName = github.context.ref.split('/').pop();
-            }
+            // The GITHUB_TOKEN is automatically available as an environment variable in all runner environments
+            const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
+            const { context } = github;
+            const commitSha = context.sha; // or any other SHA you're interested in
+            // Fetch commit information using the Octokit library
+            const { data: commitData } = yield octokit.rest.git.getCommit({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                commit_sha: commitSha,
+            });
+            const commitMessage = commitData.message;
+            console.log(`Commit Message: ${commitMessage}`);
             yield (0, cli_1.uploadAndTest)({
                 android,
                 ios,
                 config,
                 token: process.env.SHERLO_TOKEN || undefined,
-                gitInfo: {
-                    commitName,
-                    commitHash,
-                    branchName,
-                },
+                // gitInfo: {
+                //   commitName:,
+                //   commitHash,
+                //   branchName,
+                // },
             });
         }
         catch (error) {

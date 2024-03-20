@@ -9,31 +9,32 @@ async function run(): Promise<void> {
     const ios: string = core.getInput('ios', { required: false });
     const config: string = core.getInput('config', { required: false });
 
-    console.log(JSON.stringify(github.context, null, 2));
+    // The GITHUB_TOKEN is automatically available as an environment variable in all runner environments
+    const octokit = github.getOctokit(process.env.GITHUB_TOKEN!);
 
-    const commitName = github.context.payload.head_commit.message;
-    const commitHash = github.context.sha;
+    const { context } = github;
+    const commitSha = context.sha; // or any other SHA you're interested in
 
-    let branchName;
-    // Check if the event that triggered the workflow is a pull request or a push
-    if (github.context.payload.pull_request) {
-      // For pull requests, the branch name is stored differently
-      branchName = github.context.payload.pull_request.head.ref;
-    } else {
-      // For push events, the branch reference is split to get the branch name
-      branchName = github.context.ref.split('/').pop();
-    }
+    // Fetch commit information using the Octokit library
+    const { data: commitData } = await octokit.rest.git.getCommit({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      commit_sha: commitSha,
+    });
+
+    const commitMessage = commitData.message;
+    console.log(`Commit Message: ${commitMessage}`);
 
     await uploadAndTest({
       android,
       ios,
       config,
       token: process.env.SHERLO_TOKEN || undefined,
-      gitInfo: {
-        commitName,
-        commitHash,
-        branchName,
-      },
+      // gitInfo: {
+      //   commitName:,
+      //   commitHash,
+      //   branchName,
+      // },
     });
   } catch (error) {
     if (error instanceof Error) core.setFailed(error.message);
