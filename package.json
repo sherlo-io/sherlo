@@ -1,0 +1,60 @@
+{
+  "name": "@sherlo/root",
+  "version": "1.0.3",
+  "private": true,
+  "description": "Sherlo is a Visual Testing tool for React Native Storybook",
+  "keywords": [
+    "testing",
+    "visual testing",
+    "visual regression testing",
+    "components",
+    "documentation",
+    "frontend",
+    "react-native",
+    "storybook",
+    "storybookjs",
+    "tool",
+    "ui",
+    "user interface"
+  ],
+  "homepage": "https://sherlo.io",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sherlo-io/sherlo.git"
+  },
+  "workspaces": {
+    "packages": [
+      "packages/*",
+      "examples/*"
+    ]
+  },
+  "scripts": {
+    "build": "lerna run build",
+    "dev": "lerna run dev",
+    "dev:check-types": "tsc --noEmit",
+    "lint": "cross-env NODE_ENV=production eslint --cache --cache-location=.cache/eslint --ext .js,.jsx,.html,.ts,.tsx,.mjs --report-unused-disable-directives",
+    "lint:fix": "yarn lint . --fix",
+    "publish:alpha": "lerna publish from-git --dist-tag alpha",
+    "publish:latest": "lerna publish from-git --dist-tag latest",
+    "publish:next": "lerna publish from-git --dist-tag next",
+    "test:ci": "lerna run test:ci",
+    "test": "lerna run test",
+    "switch-env": "./scripts/switch-env.sh"
+  },
+  "devDependencies": {
+    "@react-native/eslint-config": "^0.72.1",
+    "cross-env": "^7.0.3",
+    "eslint": "8.24.0",
+    "lerna": "^8.1.2",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.3.3"
+  },
+  "resolutions": {
+    "react-docgen-typescript": "2.2.2"
+  },
+  "engines": {
+    "node": ">=18.18.0",
+    "yarn": ">=1.22.19"
+  },
+  "packageManager": "yarn@1.22.19"
+}

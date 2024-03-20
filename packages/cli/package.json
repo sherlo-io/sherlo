@@ -1,0 +1,59 @@
+{
+  "name": "@sherlo/cli",
+  "version": "1.0.10",
+  "description": "A CLI that uploads provided iOS & Android builds to Sherlo and starts a test run",
+  "keywords": [
+    "visual testing",
+    "react-native",
+    "storybook"
+  ],
+  "license": "MIT",
+  "author": "Sherlo",
+  "homepage": "https://sherlo.io",
+  "bugs": {
+    "url": "https://github.com/sherlo-io/sherlo/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sherlo-io/sherlo.git",
+    "directory": "packages/cli"
+  },
+  "main": "./dist/index.js",
+  "bin": {
+    "sherlo": "./dist/uploadAndTest.js"
+  },
+  "files": [
+    "dist/**/*"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.json && chmod u+x ./dist/uploadAndTest.js"
+  },
+  "dependencies": {
+    "@sherlo/api-types": "^1.0.1",
+    "@sherlo/common-client": "^1.0.1",
+    "@sherlo/sdk-client": "^1.0.1",
+    "@sherlo/shared": "^1.0.1",
+    "chalk": "4.1.2",
+    "git-rev-sync": "3.0.2",
+    "gradient-string": "2.0.1",
+    "graphql": "^16.6.0",
+    "node-fetch": "2.6.11",
+    "tar": "6.1.15",
+    "yargs": "17.7.2"
+  },
+  "devDependencies": {
+    "@types/git-rev-sync": "2.0.0",
+    "@types/gradient-string": "1.1.2",
+    "@types/node": "16.11.7",
+    "@types/node-fetch": "2.6.4",
+    "@types/tar": "6.1.5",
+    "@types/yargs": "17.0.24",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=8.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

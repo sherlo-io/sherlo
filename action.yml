@@ -1,0 +1,21 @@
+# https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions
+name: Run Sherlo
+description: This is an action that uploads provided iOS & Android builds to Sherlo and starts a test run.
+author: Sherlo
+branding:
+  icon: upload-cloud
+  color: blue
+runs:
+  using: 'node12'
+  main: 'packages/action/release/index.js'
+
+inputs:
+  android:
+    description: 'path to android build (.apk file)'
+    required: false
+  ios:
+    description: 'path to ios simulator build (.app directory or .tar.gz file)'
+    required: false
+  config:
+    description: 'path to your sherlo.config.ts file'
+    required: false
