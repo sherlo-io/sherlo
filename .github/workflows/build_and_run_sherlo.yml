@@ -132,7 +132,7 @@ jobs:
           path: ci-builds
 
       - name: Run Sherlo Action
-        uses: ./action.yml
+        uses: ./.
         with:
           ios: ci-builds/ios.tar.gz
           android: ci-builds/android.apk
