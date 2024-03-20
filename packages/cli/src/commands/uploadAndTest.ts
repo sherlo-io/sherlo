@@ -13,10 +13,13 @@ import {
   uploadMobileBuilds,
 } from '../utils';
 import { GetConfigParameters } from '../utils/getConfig/getConfig';
+import { Build } from '@sherlo/api-types';
 
 const DEFAULT_CONFIG_PATH = 'sherlo.config.json';
 
-async function uploadAndTest(parameters?: GetConfigParameters): Promise<void> {
+async function uploadAndTest(
+  parameters?: GetConfigParameters & { gitInfo?: Build['gitInfo'] }
+): Promise<void> {
   try {
     printHeader();
 
@@ -77,7 +80,7 @@ async function uploadAndTest(parameters?: GetConfigParameters): Promise<void> {
         teamId,
         projectIndex,
         buildRunConfig: getBuildRunConfig({ config, buildPresignedUploadUrls }),
-        gitInfo: getGitInfo(),
+        gitInfo: parameters?.gitInfo || getGitInfo(),
       })
       .catch((error) => {
         throw new Error(getErrorMessage({ type: 'unexpected', message: error.message }));
