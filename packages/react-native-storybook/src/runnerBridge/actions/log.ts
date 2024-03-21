@@ -1,8 +1,8 @@
-import { getSherloModule } from '../../nativeModule';
+import sherloModule from '../../sherloModule';
 import getGlobalStates from '../../utils/getGlobalStates';
 import { LogFn } from '../types';
 
-const sherloModule = getSherloModule();
+const { appendFile } = sherloModule;
 
 /**
  * Creates a log function that logs messages to the console and appends them to a file.
@@ -21,7 +21,7 @@ const log =
     }
 
     if (!getGlobalStates().isIntegrationTest) {
-      sherloModule.appendFile(path, logMsg);
+      appendFile(path, logMsg);
     }
   };
 

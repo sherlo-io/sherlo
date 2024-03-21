@@ -1,8 +1,8 @@
-import { getSherloModule } from '../../nativeModule';
+import sherloModule from '../../sherloModule';
 import getGlobalStates from '../../utils/getGlobalStates';
 import { LogFn, SendFn, RunnerProtocolItem } from '../types';
 
-const sherloModule = getSherloModule();
+const { appendFile, readFile } = sherloModule;
 
 const ACK_READ_INTERVAL = 500;
 
@@ -17,7 +17,7 @@ const send =
 
     log('appendingToProtocol', { contentString });
 
-    await sherloModule.appendFile(path, `${contentString}\n`);
+    await appendFile(path, `${contentString}\n`);
 
     await new Promise<void>((resolve) => {
       let ackReadInterval: NodeJS.Timeout;
@@ -32,7 +32,7 @@ const send =
 
       ackReadInterval = setInterval(async () => {
         try {
-          const response = await sherloModule.readFile(path);
+          const response = await readFile(path);
           if (response) {
             const responseLines = response.split('\n');
             const lastLine = responseLines[responseLines.length - 2];
