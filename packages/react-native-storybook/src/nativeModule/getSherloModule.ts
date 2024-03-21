@@ -6,7 +6,7 @@ import { normalizeFilePath } from './utils/normalizeFilePath';
 
 let isExpoGo = false;
 try {
-  const Constants = await import('expo-constants');
+  const Constants = require('expo-constants');
   isExpoGo = Constants?.default?.appOwnership === 'expo';
 } catch (error) {
   // Optional module is not installed.
