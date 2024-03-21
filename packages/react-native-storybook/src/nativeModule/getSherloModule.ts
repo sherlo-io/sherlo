@@ -1,11 +1,16 @@
 import { NativeModules, Platform } from 'react-native';
 import base64 from 'base-64';
 import utf8 from 'utf8';
-import Constants from 'expo-constants';
 
 import { normalizeFilePath } from './utils/normalizeFilePath';
 
-const isExpoGo = Constants.appOwnership === 'expo';
+let isExpoGo = false;
+try {
+  const Constants = await import('expo-constants');
+  isExpoGo = Constants?.default?.appOwnership === 'expo';
+} catch (error) {
+  // Optional module is not installed.
+}
 
 const { RNSherlo } = NativeModules;
 
@@ -19,6 +24,7 @@ interface SherloModule {
 function getSherloModule(): SherloModule {
   if (RNSherlo === null) {
     if (isExpoGo) {
+      // ExpoGo apps are not uploaded to Sherlo so we allow dummy version of SherloModule to be used as no tests should be run in ExpoGo
       return {
         mkdir: async () => {},
         appendFile: async () => {},
