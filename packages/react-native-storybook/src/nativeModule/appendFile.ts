@@ -1,9 +1,7 @@
 import base64 from 'base-64';
-import { NativeModules } from 'react-native';
 import utf8 from 'utf8';
 import { normalizeFilePath } from './utils/normalizeFilePath';
-
-const { RNSherlo } = NativeModules;
+import { getModule } from './getModule';
 
 function appendFile(filepath: string, contents: string, encodingOrOptions?: any): Promise<void> {
   let b64;
@@ -30,7 +28,7 @@ function appendFile(filepath: string, contents: string, encodingOrOptions?: any)
     throw new Error(`Invalid encoding type "${options.encoding}"`);
   }
 
-  return RNSherlo.appendFile(normalizeFilePath(filepath), b64);
+  return getModule().appendFile(normalizeFilePath(filepath), b64);
 }
 
 export default appendFile;

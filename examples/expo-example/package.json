@@ -6,9 +6,11 @@
   "scripts": {
     "start": "expo start --dev-client",
     "android": "adb install .builds/android.apk && expo start --android --dev-client",
+    "android:go": "expo start --android --go",
     "android:build": "eas build --platform android --local --profile=development --output=.builds/android.apk",
     "android:preview": "eas build --platform android --local --profile=preview --output=.builds/preview/android.apk",
     "ios": "tar -xzvf .builds/ios.tar.gz -C .builds/ && xcrun simctl install booted .builds/sherloexpoexample.app && expo start --ios --dev-client",
+    "ios:go": "expo start --ios --go",
     "ios:build": "eas build --platform ios --local --profile=development --output=.builds/ios.tar.gz",
     "ios:preview": "eas build --platform ios --local --profile=preview --output=.builds/preview/ios.tar.gz",
     "update": "eas update --branch preview --message update",

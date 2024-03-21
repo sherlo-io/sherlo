@@ -1,9 +1,7 @@
 import base64 from 'base-64';
-import { NativeModules } from 'react-native';
 import utf8 from 'utf8';
 import { normalizeFilePath } from './utils/normalizeFilePath';
-
-const { RNSherlo } = NativeModules;
+import { getModule } from './getModule';
 
 function writeFile(filepath: string, contents: string, encodingOrOptions?: any): Promise<void> {
   let b64;
@@ -33,7 +31,9 @@ function writeFile(filepath: string, contents: string, encodingOrOptions?: any):
     throw new Error(`Invalid encoding type "${options.encoding}"`);
   }
 
-  return RNSherlo.writeFile(normalizeFilePath(filepath), b64, options).then(() => void 0);
+  return getModule()
+    .writeFile(normalizeFilePath(filepath), b64, options)
+    .then(() => void 0);
 }
 
 export default writeFile;

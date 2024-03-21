@@ -1,12 +1,11 @@
-import { NativeModules, Platform } from 'react-native';
-
-const { RNSherlo } = NativeModules;
+import { Platform } from 'react-native';
+import { getModule } from './getModule';
 
 export function getSherloDirectoryPath(): string {
   let path =
     Platform.OS === 'android'
-      ? RNSherlo.getConstants().RNExternalDirectoryPath
-      : RNSherlo.getConstants().RNDocumentDirectoryPath;
+      ? getModule().getConstants().RNExternalDirectoryPath
+      : getModule().getConstants().RNDocumentDirectoryPath;
 
   path += '/sherlo';
 

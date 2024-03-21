@@ -1,7 +1,5 @@
-import { NativeModules } from 'react-native';
 import { normalizeFilePath } from './utils/normalizeFilePath';
-
-const { RNSherlo } = NativeModules;
+import { getModule } from './getModule';
 
 type MkdirOptions = {
   NSFileProtectionKey?: string; // iOS only
@@ -9,7 +7,9 @@ type MkdirOptions = {
 };
 
 function mkdir(filepath: string, options: MkdirOptions = {}): Promise<void> {
-  return RNSherlo.mkdir(normalizeFilePath(filepath), options).then(() => void 0);
+  return getModule()
+    .mkdir(normalizeFilePath(filepath), options)
+    .then(() => void 0);
 }
 
 export default mkdir;
