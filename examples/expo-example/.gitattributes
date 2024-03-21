@@ -1,2 +1,2 @@
-.builds/ios.tar.gz filter=lfs diff=lfs merge=lfs -text
-.builds/android.apk filter=lfs diff=lfs merge=lfs -text
+builds/ios.tar.gz filter=lfs diff=lfs merge=lfs -text
+builds/android.apk filter=lfs diff=lfs merge=lfs -text
