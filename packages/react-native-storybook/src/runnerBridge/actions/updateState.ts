@@ -1,6 +1,8 @@
-import { writeFile } from '../../nativeModule';
+import { getSherloModule } from '../../nativeModule';
 import { getGlobalStates } from '../../utils';
 import { LogFn, SendFn, RunnerState } from '../types';
+
+const sherloModule = getSherloModule();
 
 const updateState =
   (path: string, send: SendFn, log: LogFn) =>
@@ -9,7 +11,7 @@ const updateState =
       const stateString = JSON.stringify(state);
 
       await Promise.all([
-        writeFile(path, stateString),
+        sherloModule.writeFile(path, stateString),
         ...(onlyFile ? [] : [send({ action: 'UPDATE_STATE', ...state })]),
       ]);
 

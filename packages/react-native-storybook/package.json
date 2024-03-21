@@ -65,6 +65,9 @@
     "react": "*",
     "react-native": ">=0.57.0"
   },
+  "optionalDependencies": {
+    "expo-constants": "*"
+  },
   "engines": {
     "node": ">=8.0.0"
   },
