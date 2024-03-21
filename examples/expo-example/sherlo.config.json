@@ -1,7 +1,7 @@
 {
   "projectToken": "<YOUR_PROJECT_TOKEN>",
   "android": {
-    "path": ".builds/preview/android.apk",
+    "path": "builds/preview/android.apk",
     "packageName": "com.sherlo.example",
     "devices": [
       {
@@ -19,7 +19,7 @@
     ]
   },
   "ios": {
-    "path": "./.builds/preview/ios.tar.gz",
+    "path": "./builds/preview/ios.tar.gz",
     "bundleIdentifier": "com.sherlo.example",
     "devices": [
       {

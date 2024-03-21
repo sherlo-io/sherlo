@@ -28,7 +28,7 @@ const config: Config = {
   exclude: ['screen'], // Exclude stories containing 'screen' in their names.
   include: ['base'], // Only include stories containing 'base' in their names.
   android: {
-    path: '.builds/preview/android.apk', // Path to the Android APK file.
+    path: 'builds/preview/android.apk', // Path to the Android APK file.
     packageName: 'com.sherlo.example', // Android package name.
     devices: [
       // Array of Android devices to test on.
@@ -47,7 +47,7 @@ const config: Config = {
     ],
   },
   ios: {
-    path: './.builds/preview/ios.tar.gz', // Path to the iOS build file (.app or .tar.gz).
+    path: './builds/preview/ios.tar.gz', // Path to the iOS build file (.app or .tar.gz).
     bundleIdentifier: 'com.sherlo.example', // iOS bundle identifier.
     devices: [
       // Array of iOS devices to test on.

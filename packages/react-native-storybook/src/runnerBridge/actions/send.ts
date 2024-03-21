@@ -1,6 +1,8 @@
-import { appendFile, readFile } from '../../nativeModule';
+import sherloModule from '../../sherloModule';
 import getGlobalStates from '../../utils/getGlobalStates';
 import { LogFn, SendFn, RunnerProtocolItem } from '../types';
+
+const { appendFile, readFile } = sherloModule;
 
 const ACK_READ_INTERVAL = 500;
 

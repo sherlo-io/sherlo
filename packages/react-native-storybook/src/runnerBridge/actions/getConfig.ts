@@ -1,7 +1,9 @@
-import { readFile } from '../../nativeModule';
+import sherloModule from '../../sherloModule';
 import { getGlobalStates, isObject } from '../../utils';
 import { LogFn } from '../types';
 import { verifySignature } from '../utils';
+
+const { readFile } = sherloModule;
 
 // TODO: change name to getDeviceConfig? + return type fix
 const getConfig = (path: string, log?: LogFn) => async (): Promise<any> => {
