@@ -44,8 +44,8 @@ To use the `@sherlo/expo-example` package in your project, follow these steps:
 8. **React Native Code Changes**: If you make changes to the React Native code, rebuild the app with the following commands before running visual tests:
 
    ```bash
-   yarn android:preview
-   yarn ios:preview
+   yarn android:build:preview
+   yarn ios:build:preview
    ```
 
    These builds are then uploaded and tested via `npx @sherlo/cli` command.

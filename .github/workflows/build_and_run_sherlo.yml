@@ -49,7 +49,7 @@ jobs:
 
       - name: Build Android example app
         if: ${{ github.event.inputs.MAKE_BUILDS == 'true' }}
-        run: yarn workspace @sherlo/expo-example android:preview
+        run: yarn workspace @sherlo/expo-example android:build:preview
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v2
@@ -103,7 +103,7 @@ jobs:
 
       - name: Build iOS example app
         if: ${{ github.event.inputs.MAKE_BUILDS == 'true' }}
-        run: yarn workspace @sherlo/expo-example ios:preview
+        run: yarn workspace @sherlo/expo-example ios:build:preview
 
       - name: Upload iOS Artifact
         uses: actions/upload-artifact@v2
