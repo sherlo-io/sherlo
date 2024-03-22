@@ -1,5 +1,5 @@
 import React, { ReactElement, useEffect, useState } from 'react';
-import { DevSettings } from 'react-native';
+import { AppState, AppStateStatus, DevSettings } from 'react-native';
 import * as DevMenu from 'expo-dev-menu';
 
 import { TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM } from '../../data/constants';
@@ -37,15 +37,33 @@ const withStorybook =
             }
           })
           .catch(() => {
-            storage?.getItem('sherloPersistedMode').then((sherloPersistedMode) => {
-              if (sherloPersistedMode === 'original') {
-                setMode('original');
-              }
-            });
+            if (__DEV__) {
+              storage?.getItem('sherloPersistedMode').then((sherloPersistedMode) => {
+                if (sherloPersistedMode === 'original') {
+                  setMode('original');
+                }
+              });
+            }
           });
       };
 
       checkIfSherloIsEnabled();
+
+      if (__DEV__) {
+        const handleAppStateChange = (nextAppState: AppStateStatus) => {
+          if (nextAppState === 'background') {
+            storage?.setItem('sherloPersistedMode', 'app');
+          } else {
+            storage?.setItem('sherloPersistedMode', mode);
+          }
+        };
+
+        const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+        return () => {
+          subscription.remove();
+        };
+      }
     }, []);
 
     /**
@@ -69,9 +87,9 @@ const withStorybook =
               shouldCollapse: false,
             },
           ]);
-        } else {
-          DevSettings.addMenuItem(TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM, callback);
         }
+
+        DevSettings.addMenuItem(TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM, callback);
       }
     }, []);
 
