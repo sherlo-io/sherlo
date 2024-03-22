@@ -9,6 +9,8 @@ import { getGlobalStates } from '../../utils';
 import ModeProvider, { Mode } from './ModeProvider';
 import { StorybookParams } from '../../types';
 
+const MODE_STORAGE_KEY = 'sherloPersistedMode';
+
 /**
  * Higher-order component that wraps the given App and Storybook components.
  * If Sherlo or Storybook is enabled, it renders the Storybook component, otherwise it renders the App component.
@@ -38,9 +40,9 @@ const withStorybook =
           })
           .catch(() => {
             if (__DEV__) {
-              storage?.getItem('sherloPersistedMode').then((sherloPersistedMode) => {
-                if (sherloPersistedMode === 'original') {
-                  setMode('original');
+              storage?.getItem(MODE_STORAGE_KEY).then((sherloPersistedMode) => {
+                if (sherloPersistedMode === 'original' || sherloPersistedMode === 'app') {
+                  setMode(sherloPersistedMode);
                 }
               });
             }
@@ -48,13 +50,15 @@ const withStorybook =
       };
 
       checkIfSherloIsEnabled();
+    }, []);
 
+    useEffect(() => {
       if (__DEV__) {
         const handleAppStateChange = (nextAppState: AppStateStatus) => {
-          if (nextAppState === 'background') {
-            storage?.setItem('sherloPersistedMode', 'app');
-          } else {
-            storage?.setItem('sherloPersistedMode', mode);
+          if (nextAppState === 'inactive') {
+            storage?.setItem(MODE_STORAGE_KEY, 'app');
+          } else if (nextAppState === 'active') {
+            storage?.setItem(MODE_STORAGE_KEY, mode);
           }
         };
 
@@ -64,7 +68,7 @@ const withStorybook =
           subscription.remove();
         };
       }
-    }, []);
+    }, [mode]);
 
     /**
      * Adds a menu item to toggle Storybook in the development settings menu.
@@ -74,7 +78,9 @@ const withStorybook =
         const callback = () => {
           setMode((prevMode) => {
             const newMode = prevMode === 'app' ? 'original' : 'app';
-            storage?.setItem('sherloPersistedMode', newMode);
+
+            setMode(newMode);
+            storage?.setItem(MODE_STORAGE_KEY, newMode);
             return newMode;
           });
         };
