@@ -15,7 +15,7 @@ To integrate Sherlo with your React Native app and run tests via CLI or GitHub A
 1. **Install `@sherlo/react-native-storybook`** to enable Sherlo's visual testing with Storybook in your React Native application.
 
    ```bash
-   yarn add @sherlo/react-native-storybook @react-native-async-storage/async-storage
+   yarn add @sherlo/react-native-storybook
    ```
 
 2. **Wrap Your Application with `withStorybook`** to toggle between your app and Storybook based on Sherlo's testing environment.

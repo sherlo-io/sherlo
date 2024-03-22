@@ -6,7 +6,6 @@ This package is a critical component of the Visual Testing solution provided by 
 
 - `@storybook/react-native` version `>= 7.6.15`
 - `react-native` version `>=0.57.0`
-- `@react-native-async-storage/async-storage` version `*`
 
 ## Features
 
@@ -21,13 +20,13 @@ To install the package along with its dependency, use the following commands via
 **npm**
 
 ```npm
-npm install @sherlo/react-native-storybook @react-native-async-storage/async-storage
+npm install @sherlo/react-native-storybook
 ```
 
 **yarn**
 
 ```yarn
-yarn add @sherlo/react-native-storybook @react-native-async-storage/async-storage
+yarn add @sherlo/react-native-storybook
 ```
 
 ## Integration

@@ -1,4 +1,4 @@
-import { Mode } from '../hoc/withSherlo/withSherlo';
+import { Mode } from '../hoc/withStorybook/ModeProvider';
 import { create, getConfig, getState, log, send, updateState } from './actions';
 import { Config, LogFn, RunnerState, SendFn } from './types';
 
