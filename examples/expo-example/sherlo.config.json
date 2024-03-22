@@ -1,5 +1,5 @@
 {
-  "projectToken": "<YOUR_PROJECT_TOKEN>",
+  "projectToken": "yuQIFHRulvSa-IdKoOv993lzvBsziCWSkg6Hq__g4",
   "android": {
     "path": "builds/preview/android.apk",
     "packageName": "com.sherlo.example",

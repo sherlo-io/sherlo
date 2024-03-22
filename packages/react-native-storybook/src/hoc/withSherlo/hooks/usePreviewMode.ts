@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { RunnerBridge } from '../../../runnerBridge';
 import { Story } from '../../../types';
-import { Mode } from '../withSherlo';
 import useSherloEffectExecutionEffect from './useSherloEffectExecutionEffect';
+import { Mode } from '../../withStorybook/ModeProvider';
 
 const PREVIEW_TIMEOUT = 5 * 1000;
 

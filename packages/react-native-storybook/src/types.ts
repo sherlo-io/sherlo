@@ -13,7 +13,12 @@ export type Story = {
 
 export type StorybookView = ReturnType<typeof start>;
 
-export type getStorybookUIType = StorybookView['getStorybookUI'];
+type StorybookParamsRaw = Parameters<StorybookView['getStorybookUI']>[0];
+export type StorybookParams = StorybookParamsRaw extends infer U
+  ? U extends undefined
+    ? never
+    : U
+  : never;
 
 export interface Config {
   projectToken: string;
