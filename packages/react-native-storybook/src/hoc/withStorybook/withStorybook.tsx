@@ -87,9 +87,9 @@ const withStorybook =
               shouldCollapse: false,
             },
           ]);
+        } else {
+          DevSettings.addMenuItem(TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM, callback);
         }
-
-        DevSettings.addMenuItem(TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM, callback);
       }
     }, []);
 
