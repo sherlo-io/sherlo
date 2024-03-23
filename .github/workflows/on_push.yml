@@ -18,3 +18,6 @@ jobs:
           echo '${{ toJson(github) }}' | jq
         # Using jq to format the JSON output for better readability
         shell: bash
+
+      - name: Run Sherlo Action
+        uses: ./.

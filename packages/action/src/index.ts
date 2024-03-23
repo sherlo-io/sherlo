@@ -1,5 +1,5 @@
 import * as core from '@actions/core';
-// import * as github from '@actions/github';
+import * as github from '@actions/github';
 
 import { uploadAndTest } from '@sherlo/cli';
 
@@ -9,33 +9,32 @@ async function run(): Promise<void> {
     const ios: string = core.getInput('ios', { required: false });
     const config: string = core.getInput('config', { required: false });
 
-    // // The GITHUB_TOKEN is automatically available as an environment variable in all runner environments
-    // console.log(`GITHUB_TOKEN: ${process.env.GITHUB_TOKEN}`);
-    // const octokit = github.getOctokit(process.env.GITHUB_TOKEN!);
+    const { context } = github;
+    console.log(JSON.stringify(context, null, 2));
 
-    // const { context } = github;
-    // const commitSha = context.sha; // or any other SHA you're interested in
+    let gitInfo = {
+      commitHash: context?.sha.slice(0, 7) || 'unknown',
+      branchName: 'unknown',
+      commitName: 'unknown',
+    };
 
-    // // Fetch commit information using the Octokit library
-    // const { data: commitData } = await octokit.rest.git.getCommit({
-    //   owner: context.repo.owner,
-    //   repo: context.repo.repo,
-    //   commit_sha: commitSha,
-    // });
+    switch (context?.eventName) {
+      case 'push':
+        // const commitName = context?.payload.break;
+        break;
+      default:
+        break;
+    }
 
-    // const commitMessage = commitData.message;
-    // console.log(`Commit Message: ${commitMessage}`);
+    const test = true;
+    if (test) return;
 
     await uploadAndTest({
       android,
       ios,
       config,
       token: process.env.SHERLO_TOKEN || undefined,
-      // gitInfo: {
-      //   commitName:,
-      //   commitHash,
-      //   branchName,
-      // },
+      gitInfo,
     });
   } catch (error) {
     if (error instanceof Error) core.setFailed(error.message);
