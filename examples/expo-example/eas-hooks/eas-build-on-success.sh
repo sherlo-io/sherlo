@@ -7,7 +7,16 @@ set -eox pipefail
 # List of available environment variables: https://docs.expo.dev/build-reference/variables/#built-in-environment-variables
 # How to add secrets to environment variables: https://docs.expo.dev/build-reference/variables/#using-secrets-in-environment-variables
 
+# We only execute this command if the build runner is EAS Build
+# If user builds the app localy they need to manually choose when to run Sherlo tests
+if [[ "$EAS_BUILD_RUNNER" != "eas-build" ]]; then
+    exit
+fi
+
 if [[ "$EAS_BUILD_PROFILE" == "preview" ]]; then
+
+    # Install jq to parse JSON
+    sudo apt-get install jq
 
     if [[ "$EAS_BUILD_PLATFORM" == "android" ]]; then
 
