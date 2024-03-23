@@ -19,3 +19,7 @@ inputs:
   config:
     description: 'path to your sherlo.config.ts file'
     required: false
+  lazyUpload:
+    description: 'if 'true' you don't need to provide android and ios builds, they can be uploaded independently with separate action'
+    required: false
+    default: false

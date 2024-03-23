@@ -26,7 +26,7 @@ if [[ "$EAS_BUILD_PROFILE" == "preview" ]]; then
             android_path="android/app/build/outputs/apk/release/app-release.apk"
         fi
 
-        yarn sherlo --token=$SHERLO_TOKEN --android=$android_path 
+        yarn sherlo --commitHash=$EAS_BUILD_GIT_COMMIT_HASH --token=$SHERLO_TOKEN --android=$android_path 
     fi
 
     if [[ "$EAS_BUILD_PLATFORM" == "ios" ]]; then
@@ -37,10 +37,10 @@ if [[ "$EAS_BUILD_PROFILE" == "preview" ]]; then
         # Details on iOS build paths: https://docs.expo.dev/build-reference/ios-builds/
         ios_path=$(jq -r '.builds.ios."'"$EAS_BUILD_PROFILE"'"."applicationArchivePath"' eas.json)
         if [[ -z "$ios_path" || "$ios_path" == "null" ]]; then
-            ios_path=$(find /path/to/ios/build/Build/Products/Release-iphonesimulator -name "*.app" -print -quit)
+            ios_path=$(find ios/build/Build/Products/Release-iphonesimulator -name "*.app" -print -quit)
         fi
 
-        yarn sherlo --token=$SHERLO_TOKEN --ios=$ios_path 
+        yarn sherlo --commitHash=$EAS_BUILD_GIT_COMMIT_HASH --token=$SHERLO_TOKEN --ios=$ios_path 
     fi
 fi
 

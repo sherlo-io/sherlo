@@ -13,7 +13,7 @@ async function run(): Promise<void> {
     console.log(JSON.stringify(context, null, 2));
 
     let gitInfo = {
-      commitHash: context?.sha.slice(0, 7) || 'unknown',
+      commitHash: context?.sha || 'unknown',
       branchName: context?.ref.split('refs/heads/')[1] || 'unknown',
       commitName: 'unknown',
     };
