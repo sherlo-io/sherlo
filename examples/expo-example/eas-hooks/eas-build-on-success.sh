@@ -37,7 +37,7 @@ if [[ "$EAS_BUILD_PROFILE" == "preview" ]]; then
         # Details on iOS build paths: https://docs.expo.dev/build-reference/ios-builds/
         ios_path=$(jq -r '.builds.ios."'"$EAS_BUILD_PROFILE"'"."applicationArchivePath"' eas.json)
         if [[ -z "$ios_path" || "$ios_path" == "null" ]]; then
-            ios_path="ios/build/App.ipa"
+            ios_path=$(find /path/to/ios/build/Build/Products/Release-iphonesimulator -name "*.app" -print -quit)
         fi
 
         yarn sherlo --token=$SHERLO_TOKEN --ios=$ios_path 
