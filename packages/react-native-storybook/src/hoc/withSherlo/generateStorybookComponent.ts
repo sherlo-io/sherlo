@@ -1,23 +1,23 @@
-import { StorybookView, getStorybookUIType } from '../../types';
-import { Mode } from './withSherlo';
+import { StorybookParams, StorybookView } from '../../types';
+import { Mode } from '../withStorybook/ModeProvider';
 
 interface GenerateStorybookInput {
   mode: Mode;
   initialSelection?: string;
   view: StorybookView;
-  getStorybookUIArgs: Parameters<getStorybookUIType>[0];
+  params?: StorybookParams;
 }
 
 const generateStorybookComponent = ({
   initialSelection,
   view,
-  getStorybookUIArgs = {},
+  params = {},
   mode,
 }: GenerateStorybookInput): (() => JSX.Element) => {
   let props: Parameters<typeof view.getStorybookUI>[0] = {};
 
-  if (getStorybookUIArgs) {
-    props = { ...props, ...getStorybookUIArgs };
+  if (params) {
+    props = { ...props, ...params };
   }
 
   if (initialSelection) {

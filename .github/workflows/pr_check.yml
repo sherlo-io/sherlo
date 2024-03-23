@@ -18,7 +18,7 @@ jobs:
           scopes: |
             action
             cli
-            storybook-react-native
+            react-native-storybook
             expo-example
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

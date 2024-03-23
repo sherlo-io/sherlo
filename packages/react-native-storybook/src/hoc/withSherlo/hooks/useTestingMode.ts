@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { RunnerBridge } from '../../../runnerBridge';
 import { Story } from '../../../types';
-import { Mode } from '../withSherlo';
 import { prepareStories } from '../utils';
 import { start } from '@storybook/react-native';
-import { u } from 'tar';
+import { Mode } from '../../withStorybook/ModeProvider';
 
 function useTestingMode(
   view: ReturnType<typeof start>,

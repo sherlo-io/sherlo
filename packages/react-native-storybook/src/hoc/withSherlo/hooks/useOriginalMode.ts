@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { Story } from '../../../types';
-import { Mode } from '../withSherlo';
 import { prepareStories } from '../utils';
 import { start } from '@storybook/react-native';
+import { Mode } from '../../withStorybook/ModeProvider';
 
 function useOriginalMode(
   view: ReturnType<typeof start>,

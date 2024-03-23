@@ -18,15 +18,12 @@ import {
 } from './hooks';
 import setupErrorSilencing from './utils/setupErrorSilecing';
 
-import { Story, StorybookView, getStorybookUIType } from '../../types';
+import { Story, StorybookParams, StorybookView } from '../../types';
 
 setupErrorSilencing();
 
-export type Mode = 'app' | 'testing' | 'preview' | 'original' | 'verification';
-
-const withSherlo =
-  (view: StorybookView, getStorybookUIArgs: Parameters<getStorybookUIType>[0]) =>
-  (): ReactElement => {
+const withSherlo = (view: StorybookView, params?: StorybookParams) => {
+  const Storybook = (): ReactElement => {
     const [testedIndex, setTestedIndex] = useState<number>();
     const [renderedStoryId, setRenderedStoryId] = useState<string>();
     const [stories, setStories] = useState<Story[]>();
@@ -219,7 +216,7 @@ const withSherlo =
       // create storybook component for specific mode
       const Storybook = generateStorybookComponent({
         view,
-        getStorybookUIArgs,
+        params,
         mode,
         initialSelection: testedStory?.storyId,
       });
@@ -269,5 +266,10 @@ const withSherlo =
       </SherloContext.Provider>
     );
   };
+
+  Storybook.storage = params?.storage as any;
+
+  return Storybook;
+};
 
 export default withSherlo;

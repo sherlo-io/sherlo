@@ -7,7 +7,7 @@ node_modules/
 .expo/
 dist/
 web-build/
-.builds/sherloexpoexample.app
+sherloexpoexample.app
 
 # Native
 *.orig.*

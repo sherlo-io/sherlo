@@ -1,15 +1,13 @@
-import { Mode } from '../hoc/withSherlo/withSherlo';
-import { getSherloDirectoryPath } from '../nativeModule';
+import { Mode } from '../hoc/withStorybook/ModeProvider';
 import { create, getConfig, getState, log, send, updateState } from './actions';
 import { Config, LogFn, RunnerState, SendFn } from './types';
 
-const path = getSherloDirectoryPath();
+export const configPath = 'config.sherlo';
 
-const logPath = `${path}/log.sherlo`;
-export const configPath = `${path}/config.sherlo`;
-const statePath = `${path}/state.sherlo`;
-const protocolPath = `${path}/protocol.sherlo`;
-const snapshotsDirectory = `${path}/snapshots`;
+const logPath = 'log.sherlo';
+const statePath = 'state.sherlo';
+const protocolPath = 'protocol.sherlo';
+const snapshotsDirectory = 'snapshots';
 
 export interface RunnerBridge {
   create: () => Promise<void>;

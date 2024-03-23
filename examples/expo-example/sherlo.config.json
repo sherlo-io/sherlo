@@ -1,7 +1,7 @@
 {
   "android": {
+    "path": "builds/preview/android.apk",
     "packageName": "com.sherlo.example",
-    "path": ".builds/preview/android.apk",
     "devices": [
       {
         "id": "galaxy.s23.ultra",
@@ -18,8 +18,8 @@
     ]
   },
   "ios": {
+    "path": "./builds/preview/ios.tar.gz",
     "bundleIdentifier": "com.sherlo.example",
-    "path": "./.builds/preview/ios.tar.gz",
     "devices": [
       {
         "id": "iphone.15.pro",

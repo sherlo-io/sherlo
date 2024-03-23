@@ -1,8 +1,8 @@
-import { mkdir } from '../../nativeModule';
+import sherloModule from '../../sherloModule';
 import { LogFn } from '../types';
 
 const create = (path: string, log: LogFn) => async (): Promise<void> => {
-  await mkdir(path).catch(() => {
+  await sherloModule.mkdir(path).catch(() => {
     log('create:bridgeDirectoryExists', { path });
   });
 };

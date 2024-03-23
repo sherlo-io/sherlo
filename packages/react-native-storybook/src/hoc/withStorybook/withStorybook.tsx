@@ -1,12 +1,13 @@
 import React, { ReactElement, useEffect, useState } from 'react';
 import { DevSettings } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as DevMenu from 'expo-dev-menu';
+
 import { TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM } from '../../data/constants';
-import { Mode } from '../withSherlo/withSherlo';
 import { configPath } from '../../runnerBridge';
 import { getConfig } from '../../runnerBridge/actions';
 import { getGlobalStates } from '../../utils';
-import ModeProvider from './ModeProvider';
+import ModeProvider, { Mode } from './ModeProvider';
+import { StorybookParams } from '../../types';
 
 /**
  * Higher-order component that wraps the given App and Storybook components.
@@ -18,6 +19,10 @@ import ModeProvider from './ModeProvider';
 const withStorybook =
   (App: React.ComponentType<any>, Storybook: () => ReactElement) => (): ReactElement => {
     const [mode, setMode] = useState<Mode>('app');
+
+    // We don't want to contain storage in parameter type itself because it breaks
+    // the way typescript considers Storybook as ReactElement when rendering JSX.
+    const { storage } = Storybook as { storage?: StorybookParams['storage'] };
 
     useEffect(() => {
       const checkIfSherloIsEnabled = async (): Promise<void> => {
@@ -32,7 +37,7 @@ const withStorybook =
             }
           })
           .catch(() => {
-            AsyncStorage.getItem('sherloPersistedMode').then((sherloPersistedMode) => {
+            storage?.getItem('sherloPersistedMode').then((sherloPersistedMode) => {
               if (sherloPersistedMode === 'original') {
                 setMode('original');
               }
@@ -48,25 +53,33 @@ const withStorybook =
      */
     useEffect(() => {
       if (__DEV__) {
-        DevSettings.addMenuItem(TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM, () => {
+        const callback = () => {
           setMode((prevMode) => {
             const newMode = prevMode === 'app' ? 'original' : 'app';
-            AsyncStorage.setItem('sherloPersistedMode', newMode);
+            storage?.setItem('sherloPersistedMode', newMode);
             return newMode;
           });
-        });
+        };
+
+        if (DevMenu) {
+          DevMenu.registerDevMenuItems([
+            {
+              name: TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM,
+              callback,
+              shouldCollapse: false,
+            },
+          ]);
+        } else {
+          DevSettings.addMenuItem(TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM, callback);
+        }
       }
     }, []);
 
-    if (mode !== 'app') {
-      return (
-        <ModeProvider mode={mode}>
-          <Storybook />
-        </ModeProvider>
-      );
-    }
-
-    return <App />;
+    return (
+      <ModeProvider mode={mode} setMode={setMode}>
+        {mode !== 'app' ? <Storybook /> : <App />}
+      </ModeProvider>
+    );
   };
 
 export default withStorybook;

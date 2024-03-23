@@ -49,13 +49,13 @@ jobs:
 
       - name: Build Android example app
         if: ${{ github.event.inputs.MAKE_BUILDS == 'true' }}
-        run: yarn workspace @sherlo/expo-example android:preview
+        run: yarn workspace @sherlo/expo-example android:build:preview
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v2
         with:
           name: android-preview
-          path: examples/expo-example/.builds/preview/android.apk
+          path: examples/expo-example/builds/preview/android.apk
 
   ios_preview_build:
     runs-on: macos-13
@@ -103,13 +103,13 @@ jobs:
 
       - name: Build iOS example app
         if: ${{ github.event.inputs.MAKE_BUILDS == 'true' }}
-        run: yarn workspace @sherlo/expo-example ios:preview
+        run: yarn workspace @sherlo/expo-example ios:build:preview
 
       - name: Upload iOS Artifact
         uses: actions/upload-artifact@v2
         with:
           name: ios-preview
-          path: examples/expo-example/.builds/preview/ios.tar.gz
+          path: examples/expo-example/builds/preview/ios.tar.gz
 
   run_sherlo_action:
     runs-on: ubuntu-latest

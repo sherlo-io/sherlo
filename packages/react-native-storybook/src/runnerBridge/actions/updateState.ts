@@ -1,6 +1,8 @@
-import { writeFile } from '../../nativeModule';
+import sherloModule from '../../sherloModule';
 import { getGlobalStates } from '../../utils';
 import { LogFn, SendFn, RunnerState } from '../types';
+
+const { writeFile } = sherloModule;
 
 const updateState =
   (path: string, send: SendFn, log: LogFn) =>
