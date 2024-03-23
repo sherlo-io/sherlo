@@ -15,10 +15,10 @@ fi
 
 if [[ "$EAS_BUILD_PROFILE" == "preview" ]]; then
 
-    # Install jq to parse JSON
-    sudo apt-get install jq -y
 
     if [[ "$EAS_BUILD_PLATFORM" == "android" ]]; then
+        # Install jq to parse JSON
+        sudo apt-get install jq -y
 
         # Details on Android build paths: https://docs.expo.dev/build-reference/android-builds/
         android_path=$(jq -r '.builds.android."'"$EAS_BUILD_PROFILE"'"."applicationArchivePath"' eas.json)
@@ -30,6 +30,9 @@ if [[ "$EAS_BUILD_PROFILE" == "preview" ]]; then
     fi
 
     if [[ "$EAS_BUILD_PLATFORM" == "ios" ]]; then
+        # Install jq to parse JSON
+        brew update
+        brew install jq
 
         # Details on iOS build paths: https://docs.expo.dev/build-reference/ios-builds/
         ios_path=$(jq -r '.builds.ios."'"$EAS_BUILD_PROFILE"'"."applicationArchivePath"' eas.json)
