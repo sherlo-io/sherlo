@@ -78602,6 +78602,7 @@ const github = __importStar(__nccwpck_require__(81207));
 const cli_1 = __nccwpck_require__(80313);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b;
         try {
             const android = core.getInput('android', { required: false });
             const ios = core.getInput('ios', { required: false });
@@ -78610,16 +78611,20 @@ function run() {
             console.log(JSON.stringify(context, null, 2));
             let gitInfo = {
                 commitHash: (context === null || context === void 0 ? void 0 : context.sha.slice(0, 7)) || 'unknown',
-                branchName: 'unknown',
+                branchName: (context === null || context === void 0 ? void 0 : context.ref.split('refs/heads/')[1]) || 'unknown',
                 commitName: 'unknown',
             };
             switch (context === null || context === void 0 ? void 0 : context.eventName) {
                 case 'push':
-                    // const commitName = context?.payload.break;
+                    const commitName = (_b = (_a = context === null || context === void 0 ? void 0 : context.payload) === null || _a === void 0 ? void 0 : _a.head_commit) === null || _b === void 0 ? void 0 : _b.message;
+                    if (commitName) {
+                        gitInfo = Object.assign(Object.assign({}, gitInfo), { commitName });
+                    }
                     break;
                 default:
                     break;
             }
+            console.log('gitInfo', gitInfo);
             const test = true;
             if (test)
                 return;
