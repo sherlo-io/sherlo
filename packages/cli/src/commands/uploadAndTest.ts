@@ -42,11 +42,14 @@ async function uploadAndTest(
         type: 'string',
       }).argv;
 
+    const hasPassedPlatofrmsInParams = parameters?.ios || parameters?.android;
+
     const config = await getConfig({
       config: parameters?.config || args.config,
       token: parameters?.token || args.token,
-      ios: parameters?.ios || args.ios,
-      android: parameters?.android || args.android,
+      // If user passed at least one platform via CLI argument or Giithub Action input we invalidate config values for both platforms
+      ios: hasPassedPlatofrmsInParams ? parameters?.ios : args.ios,
+      android: hasPassedPlatofrmsInParams ? parameters?.android : args.android,
     });
 
     const { apiToken, projectIndex, teamId } = getProjectTokenParts(config.token);
