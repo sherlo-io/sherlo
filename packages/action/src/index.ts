@@ -14,17 +14,26 @@ async function run(): Promise<void> {
 
     let gitInfo = {
       commitHash: context?.sha.slice(0, 7) || 'unknown',
-      branchName: 'unknown',
+      branchName: context?.ref.split('refs/heads/')[1] || 'unknown',
       commitName: 'unknown',
     };
 
     switch (context?.eventName) {
       case 'push':
-        // const commitName = context?.payload.break;
+        const commitName = context?.payload?.head_commit?.message;
+
+        if (commitName) {
+          gitInfo = {
+            ...gitInfo,
+            commitName,
+          };
+        }
         break;
       default:
         break;
     }
+
+    console.log('gitInfo', gitInfo);
 
     const test = true;
     if (test) return;
