@@ -16,7 +16,7 @@ fi
 if [[ "$EAS_BUILD_PROFILE" == "preview" ]]; then
 
     # Install jq to parse JSON
-    sudo apt-get install jq
+    sudo apt-get install jq -y
 
     if [[ "$EAS_BUILD_PLATFORM" == "android" ]]; then
 
