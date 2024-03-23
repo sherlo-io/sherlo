@@ -1,0 +1,20 @@
+name: Context Information
+
+# Trigger the workflow on push to any branch
+on: push
+
+jobs:
+  print-context:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout your repository under $GITHUB_WORKSPACE, so your workflow can access it
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Print GitHub context data in formatted JSON
+      - name: Print GitHub Context
+        run: |
+          echo "GitHub Context:"
+          echo '${{ toJson(github) }}' | jq
+        # Using jq to format the JSON output for better readability
+        shell: bash
