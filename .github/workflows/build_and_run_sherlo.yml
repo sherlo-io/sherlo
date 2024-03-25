@@ -134,6 +134,7 @@ jobs:
       - name: Run Sherlo Action
         uses: ./.
         with:
+          project_root: examples/expo-example # .sherlo/build.json / .sherlo { "buildIndex" : 0 }
           ios: ci-builds/ios.tar.gz
           android: ci-builds/android.apk
           config: examples/expo-example/sherlo.config.json

@@ -8,7 +8,7 @@ async function run(): Promise<void> {
     const android: string = core.getInput('android', { required: false });
     const ios: string = core.getInput('ios', { required: false });
     const config: string = core.getInput('config', { required: false });
-    const lazyUpload: string = core.getInput('lazyUpload', { required: false });
+    const lazyUpload: boolean = core.getInput('lazyUpload', { required: false }) === 'true';
 
     const { context } = github;
     console.log(JSON.stringify(context, null, 2));
