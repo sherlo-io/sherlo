@@ -51,7 +51,7 @@ To integrate Sherlo with your React Native app and run tests via CLI or GitHub A
    import { Config } from '@sherlo/react-native-storybook';
 
    const config: Config = {
-     projectToken: 'your_project_token_here',
+     token: 'your_project_token_here',
      android: {
        path: 'path/to/android/app.apk',
        packageName: 'com.yourapp.package',

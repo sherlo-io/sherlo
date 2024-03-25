@@ -1,4 +1,6 @@
 import * as core from '@actions/core';
+import * as github from '@actions/github';
+
 import { uploadAndTest } from '@sherlo/cli';
 
 async function run(): Promise<void> {
@@ -7,7 +9,37 @@ async function run(): Promise<void> {
     const ios: string = core.getInput('ios', { required: false });
     const config: string = core.getInput('config', { required: false });
 
-    await uploadAndTest({ android, ios, config: config });
+    const { context } = github;
+
+    let gitInfo = {
+      commitHash: context?.sha || 'unknown',
+      branchName: context?.ref.split('refs/heads/')[1] || 'unknown',
+      commitName: 'unknown',
+    };
+
+    switch (context?.eventName) {
+      case 'push':
+        const commitName = context?.payload?.head_commit?.message;
+
+        if (commitName) {
+          gitInfo = {
+            ...gitInfo,
+            commitName,
+          };
+        }
+        break;
+      default:
+        console.log(JSON.stringify(context, null, 2));
+        break;
+    }
+
+    await uploadAndTest({
+      android,
+      ios,
+      config,
+      token: process.env.SHERLO_TOKEN || undefined,
+      gitInfo,
+    });
   } catch (error) {
     if (error instanceof Error) core.setFailed(error.message);
   }

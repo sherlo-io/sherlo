@@ -4,7 +4,7 @@ import git from 'git-rev-sync';
 function getGitInfo(): Build['gitInfo'] {
   return {
     commitName: git.message(),
-    commitHash: git.short(),
+    commitHash: git.long(),
     branchName: git.branch(),
   };
 }

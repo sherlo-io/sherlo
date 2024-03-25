@@ -2,7 +2,7 @@ import { DeviceLocale, DeviceTheme } from '@sherlo/api-types';
 import { PartialDeep } from 'type-fest';
 
 export interface Config {
-  projectToken: string;
+  token: string;
   android?: {
     devices: {
       id: string;

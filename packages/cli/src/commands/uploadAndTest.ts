@@ -12,28 +12,44 @@ import {
   printHeader,
   uploadMobileBuilds,
 } from '../utils';
+import { GetConfigParameters } from '../utils/getConfig/getConfig';
+import { Build } from '@sherlo/api-types';
 
 const DEFAULT_CONFIG_PATH = 'sherlo.config.json';
 
-async function uploadAndTest(parameters?: {
-  config?: string;
-  android?: string;
-  ios?: string;
-}): Promise<void> {
+async function uploadAndTest(
+  parameters?: Partial<GetConfigParameters> & { gitInfo?: Build['gitInfo'] }
+): Promise<void> {
   try {
     printHeader();
 
-    const args = await yargs(hideBin(process.argv)).option('config', {
-      default: DEFAULT_CONFIG_PATH,
-      description: 'Path to Sherlo config',
-      type: 'string',
-    }).argv;
+    const args = await yargs(hideBin(process.argv))
+      .option('config', {
+        default: DEFAULT_CONFIG_PATH,
+        description: 'Path to Sherlo config',
+        type: 'string',
+      })
+      .option('token', {
+        description: 'Sherlo project token',
+        type: 'string',
+      })
+      .option('android', {
+        description: 'Path to Android build in .apk format',
+        type: 'string',
+      })
+      .option('ios', {
+        description: 'Path to iOS simulator build in .app or .tar.gz file format',
+        type: 'string',
+      }).argv;
 
-    const configPath = args.config;
+    const config = await getConfig({
+      config: parameters?.config || args.config,
+      token: parameters?.token || args.token,
+      ios: parameters?.ios || args.ios,
+      android: parameters?.android || args.android,
+    });
 
-    const config = await getConfig(configPath, parameters);
-
-    const { apiToken, projectIndex, teamId } = getProjectTokenParts(config.projectToken);
+    const { apiToken, projectIndex, teamId } = getProjectTokenParts(config.token);
 
     const client = SDKApiClient(apiToken);
 
@@ -64,7 +80,7 @@ async function uploadAndTest(parameters?: {
         teamId,
         projectIndex,
         buildRunConfig: getBuildRunConfig({ config, buildPresignedUploadUrls }),
-        gitInfo: getGitInfo(),
+        gitInfo: parameters?.gitInfo || getGitInfo(),
       })
       .catch((error) => {
         throw new Error(getErrorMessage({ type: 'unexpected', message: error.message }));
