@@ -47,8 +47,8 @@ jobs:
           git config --global user.email 'admin@sherlo.io'
           git config --global http.https://github.com/.extraheader "AUTHORIZATION: bearer ${{ steps.github_app_token.outputs.token }}"
           git add .
-          git commit -m "Builds and bundles for ${NEW_VERSION_NUMBER}"
-          git push origin HEAD:dev
+          git commit -m "Version updates and builds for ${NEW_VERSION_NUMBER}"
+          git push origin ${{ github.ref_name }}
 
       - name: Configure npm
         run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
