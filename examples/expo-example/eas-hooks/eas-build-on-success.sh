@@ -13,26 +13,16 @@ if [[ "$EAS_BUILD_RUNNER" != "eas-build" ]]; then
     exit
 fi
 
-BUILD_DATA_FILE="./.sherlo/build.json"
-BUILD_DATA_EXPO_FILE="./.expo/build.json"
+BUILD_DATA_EXPO_FILE="./.expo/sherlo.json"
 
-# TODO
 if [[ "$EAS_BUILD_PROFILE" == "preview" ]]; then
-
-    # Check if the file exists
-    if [ -f "$BUILD_DATA_FILE" ]; then
-        echo "Displaying contents of $BUILD_DATA_FILE:"
-        cat "$BUILD_DATA_FILE"
-    else
-        echo "Error: File $BUILD_DATA_FILE does not exist. If you're using monorepo make sure to provide valid 'project_root' option"
-    fi
 
     # Check if the file exists
     if [ -f "$BUILD_DATA_EXPO_FILE" ]; then
         echo "Displaying contents of $BUILD_DATA_EXPO_FILE:"
         cat "$BUILD_DATA_EXPO_FILE"
     else
-        echo "Error: File $BUILD_DATA_EXPO_FILE does not exist. If you're using monorepo make sure to provide valid 'project_root' option"
+        echo "Error: File $BUILD_DATA_EXPO_FILE does not exist. If you're using monorepo make sure to provide valid 'projectRoot' option in CLI or Github Action"
     fi
 
     if [[ "$EAS_BUILD_PLATFORM" == "android" ]]; then
