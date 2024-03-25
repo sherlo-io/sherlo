@@ -6,13 +6,10 @@
   "scripts": {
     "android:build:dev": "eas build --platform android --local --profile=development --output=builds/android.apk",
     "android:build:preview": "eas build --platform android --local --profile=preview --output=builds/preview/android.apk",
-    "android:eas:preview": "eas build --platform android --profile=preview",
     "android:start:dev": "adb install builds/android.apk && expo start --android --dev-client",
     "android:start:go": "expo start --android --go",
-    "eas-build-on-success": "./eas-hooks/eas-build-on-success.sh",
     "ios:build:dev": "eas build --platform ios --local --profile=development --output=builds/ios.tar.gz",
     "ios:build:preview": "eas build --platform ios --local --profile=preview --output=builds/preview/ios.tar.gz",
-    "ios:eas:preview": "eas build --platform ios --profile=preview",
     "ios:start:dev": "tar -xzvf builds/ios.tar.gz -C builds/ && xcrun simctl install booted builds/sherloexpoexample.app && expo start --ios --dev-client",
     "ios:start:go": "expo start --ios --go",
     "sherlo": "sherlo --config sherlo.config.json",

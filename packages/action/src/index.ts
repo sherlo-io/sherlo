@@ -10,7 +10,6 @@ async function run(): Promise<void> {
     const config: string = core.getInput('config', { required: false });
 
     const { context } = github;
-    console.log(JSON.stringify(context, null, 2));
 
     let gitInfo = {
       commitHash: context?.sha || 'unknown',
@@ -30,13 +29,9 @@ async function run(): Promise<void> {
         }
         break;
       default:
+        console.log(JSON.stringify(context, null, 2));
         break;
     }
-
-    console.log('gitInfo', gitInfo);
-
-    const test = true;
-    if (test) return;
 
     await uploadAndTest({
       android,
