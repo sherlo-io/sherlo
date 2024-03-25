@@ -9,9 +9,11 @@ async function run(): Promise<void> {
     const ios: string = core.getInput('ios', { required: false });
     const config: string = core.getInput('config', { required: false });
     const projectRoot: string = core.getInput('projectRoot', { required: false });
-    const asyncUploadBuildIndex: string = core.getInput('asyncUploadBuildIndex', {
-      required: false,
-    });
+    const asyncUploadBuildIndex: number = Number(
+      core.getInput('asyncUploadBuildIndex', {
+        required: false,
+      })
+    );
     const asyncUpload: boolean = core.getInput('asyncUpload', { required: false }) === 'true';
 
     const { context } = github;

@@ -78607,6 +78607,10 @@ function run() {
             const android = core.getInput('android', { required: false });
             const ios = core.getInput('ios', { required: false });
             const config = core.getInput('config', { required: false });
+            const projectRoot = core.getInput('projectRoot', { required: false });
+            const asyncUploadBuildIndex = Number(core.getInput('asyncUploadBuildIndex', {
+                required: false,
+            }));
             const asyncUpload = core.getInput('asyncUpload', { required: false }) === 'true';
             const { context } = github;
             let gitInfo = {
@@ -78630,6 +78634,8 @@ function run() {
                 ios,
                 config,
                 asyncUpload,
+                asyncUploadBuildIndex,
+                projectRoot,
                 token: process.env.SHERLO_TOKEN || undefined,
                 gitInfo,
             });
