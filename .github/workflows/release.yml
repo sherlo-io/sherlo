@@ -42,13 +42,15 @@ jobs:
           private_key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
 
       - name: Commit and push updated files
-        run: |
-          git config --global user.name 'Sherlo Bot'
-          git config --global user.email 'admin@sherlo.io'
-          git config --global http.https://github.com/.extraheader "AUTHORIZATION: bearer ${{ steps.github_app_token.outputs.token }}"
-          git add .
-          git commit -m "Version updates and builds for ${NEW_VERSION_NUMBER}"
-          git push origin ${{ github.ref_name }}
+        uses: EndBug/add-and-commit@v7
+        with:
+          author_name: Sherlo Bot
+          author_email: admin@sherlo.io
+          message: 'Version updates and builds for ${NEW_VERSION_NUMBER}'
+          push: true
+          branch: ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ steps.github_app_token.outputs.token }}
 
       - name: Configure npm
         run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc

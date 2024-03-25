@@ -161,7 +161,6 @@ jobs:
           author_email: admin@sherlo.io
           message: 'Update Preview builds'
           add: 'examples/expo-example/builds/preview/*'
-          cwd: './'
           push: true
           branch: ${{ github.head_ref || github.ref_name }}
         env:
