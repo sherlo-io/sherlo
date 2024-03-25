@@ -148,13 +148,13 @@ jobs:
         if: ${{ !contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build') }}
         env:
           BRANCH_NAME: ${{ github.event_name == 'pull_request' && github.head_ref || format('refs/heads/{0}', github.ref_name) }}
+          GITHUB_APP_TOKEN: ${{ steps.github_app_token.outputs.token }}
         run: |
           git config --global user.name 'Sherlo Bot'
           git config --global user.email 'admin@sherlo.io'
-          git config --global http.https://github.com/.extraheader "AUTHORIZATION: bearer ${{ steps.github_app_token.outputs.token }}"
           git add examples/expo-example/builds/preview
           git commit -m "Update Preview builds"
-          git push origin ${{ env.BRANCH_NAME }}
+          git -c http.https://github.com/.extraheader="AUTHORIZATION: bearer ${GITHUB_APP_TOKEN}" push origin "${BRANCH_NAME}"
 
       - name: Run Sherlo Action
         uses: ./.
