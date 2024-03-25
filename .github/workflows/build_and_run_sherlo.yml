@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - dev
+      # temp
+      - michal/add-optional-cli-path-arguments
   pull_request:
     branches:
       - dev
@@ -43,8 +45,9 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build Android example app
-        run: yarn workspace @sherlo/expo-example android:build:preview
+      # - name: Build Android example app
+      # add condition to not build if sherlo:only_test
+      #   run: yarn workspace @sherlo/expo-example android:build:preview
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v2
@@ -90,8 +93,8 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build iOS example app
-        run: yarn workspace @sherlo/expo-example ios:build:preview
+      # - name: Build iOS example app
+      #   run: yarn workspace @sherlo/expo-example ios:build:preview
 
       - name: Upload iOS Artifact
         uses: actions/upload-artifact@v2
@@ -111,19 +114,35 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: android-preview
-          path: ci-builds
+          path: examples/expo-example/builds/preview
 
       - name: Download iOS Artifact
         uses: actions/download-artifact@v2
         with:
           name: ios-preview
-          path: ci-builds
+          path: examples/expo-example/builds/preview
+
+      - name: Create GH App Token
+        id: github_app_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.SHERLO_BOT_APP_ID }}
+          private_key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
+
+      - name: Commit and push Preview builds
+        run: |
+          git config --global user.name 'Sherlo Bot'
+          git config --global user.email 'admin@sherlo.io'
+          git config --global http.https://github.com/.extraheader "AUTHORIZATION: bearer ${{ steps.github_app_token.outputs.token }}"
+          git add examples/expo-example/builds/preview
+          git commit -m "Builds and bundles for ${NEW_VERSION_NUMBER}"
+          git push origin HEAD:dev
 
       - name: Run Sherlo Action
         uses: ./.
         with:
-          ios: ci-builds/ios.tar.gz
-          android: ci-builds/android.apk
+          ios: examples/expo-example/builds/preview/ios.tar.gz
+          android: examples/expo-example/builds/preview/android.apk
           config: examples/expo-example/sherlo.config.json
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
