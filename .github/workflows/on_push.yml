@@ -32,13 +32,13 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Run Sherlo with Lazy Upload
-        uses: ./.
-        with:
-          config: examples/expo-example/sherlo.config.json
-          lazyUpload: true
-        env:
-          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
+      # - name: Run Sherlo with Lazy Upload
+      #   uses: ./.
+      #   with:
+      #     config: examples/expo-example/sherlo.config.json
+      #     lazyUpload: true
+      #   env:
+      #     SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
 
       - name: Trigger EAS builds
         run: eas build --profile=preview --non-interactive --no-wait

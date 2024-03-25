@@ -8,6 +8,7 @@ async function run(): Promise<void> {
     const android: string = core.getInput('android', { required: false });
     const ios: string = core.getInput('ios', { required: false });
     const config: string = core.getInput('config', { required: false });
+    const lazyUpload: string = core.getInput('lazyUpload', { required: false });
 
     const { context } = github;
     console.log(JSON.stringify(context, null, 2));
@@ -42,6 +43,7 @@ async function run(): Promise<void> {
       android,
       ios,
       config,
+      lazyUpload,
       token: process.env.SHERLO_TOKEN || undefined,
       gitInfo,
     });

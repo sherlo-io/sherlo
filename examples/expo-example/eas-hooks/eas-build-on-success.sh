@@ -13,8 +13,8 @@ if [[ "$EAS_BUILD_RUNNER" != "eas-build" ]]; then
     exit
 fi
 
+# TODO
 if [[ "$EAS_BUILD_PROFILE" == "preview" ]]; then
-
 
     if [[ "$EAS_BUILD_PLATFORM" == "android" ]]; then
         # Install jq to parse JSON
@@ -26,7 +26,7 @@ if [[ "$EAS_BUILD_PROFILE" == "preview" ]]; then
             android_path="android/app/build/outputs/apk/release/app-release.apk"
         fi
 
-        yarn sherlo --commitHash=$EAS_BUILD_GIT_COMMIT_HASH --token=$SHERLO_TOKEN --android=$android_path 
+        yarn sherlo --lazyUploadCommitHash=$EAS_BUILD_GIT_COMMIT_HASH --token=$SHERLO_TOKEN --android=$android_path 
     fi
 
     if [[ "$EAS_BUILD_PLATFORM" == "ios" ]]; then
@@ -40,7 +40,7 @@ if [[ "$EAS_BUILD_PROFILE" == "preview" ]]; then
             ios_path=$(find ios/build/Build/Products/Release-iphonesimulator -name "*.app" -print -quit)
         fi
 
-        yarn sherlo --commitHash=$EAS_BUILD_GIT_COMMIT_HASH --token=$SHERLO_TOKEN --ios=$ios_path 
+        yarn sherlo --lazyUploadCommitHash=$EAS_BUILD_GIT_COMMIT_HASH --token=$SHERLO_TOKEN --ios=$ios_path 
     fi
 fi
 

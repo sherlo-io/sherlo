@@ -8,6 +8,7 @@ export interface GetConfigParameters {
   token?: string;
   android?: string;
   ios?: string;
+  lazyUpload?: boolean;
 }
 
 async function getConfig(parameters: GetConfigParameters): Promise<Config> {
@@ -25,7 +26,7 @@ async function getConfig(parameters: GetConfigParameters): Promise<Config> {
     config.token = parameters.token;
   }
 
-  if (validate(config)) {
+  if (validate(config, parameters.lazyUpload)) {
     return config;
   }
 

@@ -29,6 +29,12 @@ async function uploadAndTest(
         description: 'Path to Sherlo config',
         type: 'string',
       })
+      .option('lazyUpload', {
+        default: false,
+        description:
+          'Run Sherlo in lazy upload mode, meaning you don’t have to provide builds immidiately. You can send them with the same command later on',
+        type: 'boolean',
+      })
       .option('token', {
         description: 'Sherlo project token',
         type: 'string',
@@ -45,6 +51,7 @@ async function uploadAndTest(
     const hasPassedPlatofrmsInParams = parameters?.ios || parameters?.android;
 
     const config = await getConfig({
+      lazyUpload: parameters?.lazyUpload || args.lazyUpload,
       config: parameters?.config || args.config,
       token: parameters?.token || args.token,
       // If user passed at least one platform via CLI argument or Giithub Action input we invalidate config values for both platforms
