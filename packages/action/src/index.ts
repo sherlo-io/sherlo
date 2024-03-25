@@ -8,7 +8,11 @@ async function run(): Promise<void> {
     const android: string = core.getInput('android', { required: false });
     const ios: string = core.getInput('ios', { required: false });
     const config: string = core.getInput('config', { required: false });
-    const lazyUpload: boolean = core.getInput('lazyUpload', { required: false }) === 'true';
+    const projectRoot: string = core.getInput('projectRoot', { required: false });
+    const asyncUploadBuildIndex: string = core.getInput('asyncUploadBuildIndex', {
+      required: false,
+    });
+    const asyncUpload: boolean = core.getInput('asyncUpload', { required: false }) === 'true';
 
     const { context } = github;
 
@@ -34,14 +38,19 @@ async function run(): Promise<void> {
         break;
     }
 
-    await uploadAndTest({
+    const { buildIndex, url } = await uploadAndTest({
       android,
       ios,
       config,
-      lazyUpload,
+      asyncUpload,
+      asyncUploadBuildIndex,
+      projectRoot,
       token: process.env.SHERLO_TOKEN || undefined,
       gitInfo,
     });
+
+    core.setOutput('buildIndex', buildIndex);
+    core.setOutput('url', url);
   } catch (error) {
     if (error instanceof Error) core.setFailed(error.message);
   }

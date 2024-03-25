@@ -13,13 +13,19 @@ import {
   uploadMobileBuilds,
 } from '../utils';
 import { GetConfigParameters } from '../utils/getConfig/getConfig';
+import fs from 'fs';
 import { Build } from '@sherlo/api-types';
+import path from 'path';
 
 const DEFAULT_CONFIG_PATH = 'sherlo.config.json';
 
 async function uploadAndTest(
-  parameters?: Partial<GetConfigParameters> & { gitInfo?: Build['gitInfo'] }
-): Promise<void> {
+  parameters?: Partial<GetConfigParameters> & {
+    gitInfo?: Build['gitInfo'];
+    projectRoot?: string;
+    asyncUploadBuildIndex?: number;
+  }
+): Promise<{ buildIndex: number; url: string }> {
   try {
     printHeader();
 
@@ -29,11 +35,17 @@ async function uploadAndTest(
         description: 'Path to Sherlo config',
         type: 'string',
       })
-      .option('lazyUpload', {
+      .option('asyncUpload', {
         default: false,
         description:
           'Run Sherlo in lazy upload mode, meaning you don’t have to provide builds immidiately. You can send them with the same command later on',
         type: 'boolean',
+      })
+      .option('projectRoot', {
+        default: '.',
+        description:
+          'use this option to specify the root of the react native project when working with monorepo',
+        type: 'string',
       })
       .option('token', {
         description: 'Sherlo project token',
@@ -48,8 +60,11 @@ async function uploadAndTest(
         type: 'string',
       }).argv;
 
+    const asyncUpload = parameters?.asyncUpload || args.asyncUpload;
+    const projectRoot = parameters?.projectRoot || args.projectRoot;
+
     const config = await getConfig({
-      lazyUpload: parameters?.lazyUpload || args.lazyUpload,
+      asyncUpload,
       config: parameters?.config || args.config,
       token: parameters?.token || args.token,
       ios: parameters?.ios || args.ios,
@@ -93,13 +108,22 @@ async function uploadAndTest(
         throw new Error(getErrorMessage({ type: 'unexpected', message: error.message }));
       });
 
-    console.log(
-      `View your test results at: https://app.sherlo.io/build?${getUrlParams({
-        teamId,
-        projectIndex,
-        buildIndex: build.index,
-      })}\n`
-    );
+    const url = `https://app.sherlo.io/build?${getUrlParams({
+      teamId,
+      projectIndex,
+      buildIndex: build.index,
+    })}`;
+
+    const output = { buildIndex: build.index, url };
+
+    const expoDir = path.join(projectRoot, '.expo');
+    if (asyncUpload && fs.existsSync(expoDir)) {
+      fs.writeFileSync(path.join(expoDir, 'sherlo.json'), JSON.stringify(output));
+    }
+
+    console.log(`View your test results at: ${url}\n`);
+
+    return output;
   } catch (error) {
     console.error((error as Error).message);
   } finally {

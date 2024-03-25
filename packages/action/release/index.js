@@ -78607,10 +78607,10 @@ function run() {
             const android = core.getInput('android', { required: false });
             const ios = core.getInput('ios', { required: false });
             const config = core.getInput('config', { required: false });
+            const asyncUpload = core.getInput('asyncUpload', { required: false }) === 'true';
             const { context } = github;
-            console.log(JSON.stringify(context, null, 2));
             let gitInfo = {
-                commitHash: (context === null || context === void 0 ? void 0 : context.sha.slice(0, 7)) || 'unknown',
+                commitHash: (context === null || context === void 0 ? void 0 : context.sha) || 'unknown',
                 branchName: (context === null || context === void 0 ? void 0 : context.ref.split('refs/heads/')[1]) || 'unknown',
                 commitName: 'unknown',
             };
@@ -78622,19 +78622,19 @@ function run() {
                     }
                     break;
                 default:
+                    console.log(JSON.stringify(context, null, 2));
                     break;
             }
-            console.log('gitInfo', gitInfo);
-            const test = true;
-            if (test)
-                return;
-            yield (0, cli_1.uploadAndTest)({
+            const { buildIndex, url } = yield (0, cli_1.uploadAndTest)({
                 android,
                 ios,
                 config,
+                asyncUpload,
                 token: process.env.SHERLO_TOKEN || undefined,
                 gitInfo,
             });
+            core.setOutput('buildIndex', buildIndex);
+            core.setOutput('url', url);
         }
         catch (error) {
             if (error instanceof Error)
@@ -78661,6 +78661,8 @@ const shared_1 = __nccwpck_require__(37178);
 const yargs_1 = __importDefault(__nccwpck_require__(97712));
 const helpers_1 = __nccwpck_require__(872);
 const utils_1 = __nccwpck_require__(14302);
+const fs_1 = __importDefault(__nccwpck_require__(57147));
+const path_1 = __importDefault(__nccwpck_require__(71017));
 const DEFAULT_CONFIG_PATH = 'sherlo.config.json';
 async function uploadAndTest(parameters) {
     try {
@@ -78669,6 +78671,16 @@ async function uploadAndTest(parameters) {
             .option('config', {
             default: DEFAULT_CONFIG_PATH,
             description: 'Path to Sherlo config',
+            type: 'string',
+        })
+            .option('asyncUpload', {
+            default: false,
+            description: 'Run Sherlo in lazy upload mode, meaning you don’t have to provide builds immidiately. You can send them with the same command later on',
+            type: 'boolean',
+        })
+            .option('projectRoot', {
+            default: '.',
+            description: 'use this option to specify the root of the react native project when working with monorepo',
             type: 'string',
         })
             .option('token', {
@@ -78683,7 +78695,10 @@ async function uploadAndTest(parameters) {
             description: 'Path to iOS simulator build in .app or .tar.gz file format',
             type: 'string',
         }).argv;
+        const asyncUpload = parameters?.asyncUpload || args.asyncUpload;
+        const projectRoot = parameters?.projectRoot || args.projectRoot;
         const config = await (0, utils_1.getConfig)({
+            asyncUpload,
             config: parameters?.config || args.config,
             token: parameters?.token || args.token,
             ios: parameters?.ios || args.ios,
@@ -78718,11 +78733,18 @@ async function uploadAndTest(parameters) {
             .catch((error) => {
             throw new Error((0, utils_1.getErrorMessage)({ type: 'unexpected', message: error.message }));
         });
-        console.log(`View your test results at: https://app.sherlo.io/build?${(0, shared_1.getUrlParams)({
+        const url = `https://app.sherlo.io/build?${(0, shared_1.getUrlParams)({
             teamId,
             projectIndex,
             buildIndex: build.index,
-        })}\n`);
+        })}`;
+        const output = { buildIndex: build.index, url };
+        const expoDir = path_1.default.join(projectRoot, '.expo');
+        if (asyncUpload && fs_1.default.existsSync(expoDir)) {
+            fs_1.default.writeFileSync(path_1.default.join(expoDir, 'sherlo.json'), JSON.stringify(output));
+        }
+        console.log(`View your test results at: ${url}\n`);
+        return output;
     }
     catch (error) {
         console.error(error.message);
@@ -78808,7 +78830,7 @@ async function getConfig(parameters) {
     if (parameters?.token) {
         config.token = parameters.token;
     }
-    if ((0, validate_1.default)(config)) {
+    if ((0, validate_1.default)(config, parameters.asyncUpload)) {
         return config;
     }
     throw new Error((0, getErrorMessage_1.default)({ type: 'unexpected', message: 'getConfig error' }));
@@ -78928,9 +78950,9 @@ const shared_1 = __nccwpck_require__(37178);
 const getErrorMessage_1 = __importDefault(__nccwpck_require__(62315));
 const getProjectTokenParts_1 = __importDefault(__nccwpck_require__(50599));
 const getConfigErrorMessage_1 = __importDefault(__nccwpck_require__(48797));
-function validate(config) {
+function validate(config, asyncUpload) {
     validateProjectToken(config);
-    validatePlatforms(config);
+    validatePlatforms(config, asyncUpload);
     validateFilters(config);
     return true;
 }
@@ -78957,19 +78979,19 @@ function validateProjectToken({ token }) {
         throw new Error((0, getConfigErrorMessage_1.default)('token is not valid', learnMoreLink.token));
     }
 }
-function validatePlatforms(config) {
+function validatePlatforms(config, asyncUpload) {
     const { android, ios } = config;
     if (!android && !ios) {
         throw new Error((0, getConfigErrorMessage_1.default)('at least one of the platforms must be defined'));
     }
     if (android)
-        validatePlatform(config, 'android');
+        validatePlatform(config, 'android', asyncUpload);
     if (ios)
-        validatePlatform(config, 'ios');
+        validatePlatform(config, 'ios', asyncUpload);
 }
-function validatePlatform(config, platform) {
+function validatePlatform(config, platform, asyncUpload) {
     validatePlatformSpecificParameters(config, platform);
-    validatePlatformPath(config, platform);
+    validatePlatformPath(config, platform, asyncUpload);
     validatePlatformDevices(config, platform);
 }
 function validatePlatformSpecificParameters(config, platform) {
@@ -79005,9 +79027,11 @@ function validatePlatformSpecificParameters(config, platform) {
         }
     }
 }
-function validatePlatformPath(config, platform) {
+function validatePlatformPath(config, platform, asyncUpload) {
     const { path: platformPath } = config[platform] ?? {};
     if (!platformPath || typeof platformPath !== 'string') {
+        if (asyncUpload)
+            return;
         throw new Error((0, getConfigErrorMessage_1.default)(`for ${platform}, path must be defined string`, learnMoreLink[platform]));
     }
     const fileType = {
@@ -79126,7 +79150,7 @@ const git_rev_sync_1 = __importDefault(__nccwpck_require__(27504));
 function getGitInfo() {
     return {
         commitName: git_rev_sync_1.default.message(),
-        commitHash: git_rev_sync_1.default.short(),
+        commitHash: git_rev_sync_1.default.long(),
         branchName: git_rev_sync_1.default.branch(),
     };
 }

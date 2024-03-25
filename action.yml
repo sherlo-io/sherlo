@@ -19,7 +19,12 @@ inputs:
   config:
     description: 'path to your sherlo.config.ts file'
     required: false
-  lazyUpload:
+  asyncUpload:
     description: 'if 'true' you don't need to provide android and ios builds, they can be uploaded independently with separate action'
     required: false
     default: false
+outputs:
+  buildIndex:
+    description: 'The index of the created Sherlo build'
+  url:
+    description: 'URL to Sherlo test results'

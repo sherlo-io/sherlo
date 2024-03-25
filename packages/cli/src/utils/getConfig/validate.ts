@@ -7,10 +7,10 @@ import getErrorMessage from '../getErrorMessage';
 import getProjectTokenParts from '../getProjectTokenParts';
 import getConfigErrorMessage from './getConfigErrorMessage';
 
-function validate(config: InvalidatedConfig, lazyUpload?: boolean): config is Config {
+function validate(config: InvalidatedConfig, asyncUpload?: boolean): config is Config {
   validateProjectToken(config);
 
-  validatePlatforms(config, lazyUpload);
+  validatePlatforms(config, asyncUpload);
 
   validateFilters(config);
 
@@ -48,25 +48,25 @@ function validateProjectToken({ token }: InvalidatedConfig): void {
   }
 }
 
-function validatePlatforms(config: InvalidatedConfig, lazyUpload?: boolean): void {
+function validatePlatforms(config: InvalidatedConfig, asyncUpload?: boolean): void {
   const { android, ios } = config;
 
   if (!android && !ios) {
     throw new Error(getConfigErrorMessage('at least one of the platforms must be defined'));
   }
 
-  if (android) validatePlatform(config, 'android', lazyUpload);
+  if (android) validatePlatform(config, 'android', asyncUpload);
 
-  if (ios) validatePlatform(config, 'ios', lazyUpload);
+  if (ios) validatePlatform(config, 'ios', asyncUpload);
 }
 
 function validatePlatform(
   config: InvalidatedConfig,
   platform: Platform,
-  lazyUpload?: boolean
+  asyncUpload?: boolean
 ): void {
   validatePlatformSpecificParameters(config, platform);
-  validatePlatformPath(config, platform, lazyUpload);
+  validatePlatformPath(config, platform, asyncUpload);
   validatePlatformDevices(config, platform);
 }
 
@@ -129,12 +129,12 @@ function validatePlatformSpecificParameters(config: InvalidatedConfig, platform:
 function validatePlatformPath(
   config: InvalidatedConfig,
   platform: Platform,
-  lazyUpload?: boolean
+  asyncUpload?: boolean
 ): void {
   const { path: platformPath } = config[platform] ?? {};
 
   if (!platformPath || typeof platformPath !== 'string') {
-    if (lazyUpload) return;
+    if (asyncUpload) return;
 
     throw new Error(
       getConfigErrorMessage(`for ${platform}, path must be defined string`, learnMoreLink[platform])
