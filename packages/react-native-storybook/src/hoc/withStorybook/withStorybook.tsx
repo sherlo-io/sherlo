@@ -1,5 +1,5 @@
 import React, { ReactElement, useEffect, useState } from 'react';
-import { DevSettings } from 'react-native';
+import { AppState, AppStateStatus, DevSettings } from 'react-native';
 import * as DevMenu from 'expo-dev-menu';
 
 import { TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM } from '../../data/constants';
@@ -8,6 +8,8 @@ import { getConfig } from '../../runnerBridge/actions';
 import { getGlobalStates } from '../../utils';
 import ModeProvider, { Mode } from './ModeProvider';
 import { StorybookParams } from '../../types';
+
+const MODE_STORAGE_KEY = 'sherloPersistedMode';
 
 /**
  * Higher-order component that wraps the given App and Storybook components.
@@ -37,16 +39,36 @@ const withStorybook =
             }
           })
           .catch(() => {
-            storage?.getItem('sherloPersistedMode').then((sherloPersistedMode) => {
-              if (sherloPersistedMode === 'original') {
-                setMode('original');
-              }
-            });
+            if (__DEV__) {
+              storage?.getItem(MODE_STORAGE_KEY).then((sherloPersistedMode) => {
+                if (sherloPersistedMode === 'original' || sherloPersistedMode === 'app') {
+                  setMode(sherloPersistedMode);
+                }
+              });
+            }
           });
       };
 
       checkIfSherloIsEnabled();
     }, []);
+
+    useEffect(() => {
+      if (__DEV__) {
+        const handleAppStateChange = (nextAppState: AppStateStatus) => {
+          if (nextAppState === 'inactive') {
+            storage?.setItem(MODE_STORAGE_KEY, 'app');
+          } else if (nextAppState === 'active') {
+            storage?.setItem(MODE_STORAGE_KEY, mode);
+          }
+        };
+
+        const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+        return () => {
+          subscription.remove();
+        };
+      }
+    }, [mode]);
 
     /**
      * Adds a menu item to toggle Storybook in the development settings menu.
@@ -56,7 +78,9 @@ const withStorybook =
         const callback = () => {
           setMode((prevMode) => {
             const newMode = prevMode === 'app' ? 'original' : 'app';
-            storage?.setItem('sherloPersistedMode', newMode);
+
+            setMode(newMode);
+            storage?.setItem(MODE_STORAGE_KEY, newMode);
             return newMode;
           });
         };

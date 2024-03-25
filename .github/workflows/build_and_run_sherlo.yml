@@ -1,18 +1,20 @@
 name: Build Example Apps & Run Sherlo
 
+# Trigger the workflow on push to the 'dev' branch and pull request labeled 'sherlo' targeting 'dev' branch
 on:
-  workflow_dispatch:
-    inputs:
-      MAKE_BUILDS:
-        description: 'Make new preview builds'
-        type: boolean
-        required: true
-        default: true
+  push:
     branches:
-      - '**'
+      - dev
+  pull_request:
+    branches:
+      - dev
+    types: [labeled]
+    paths-ignore:
+      - '**/*'
 
 jobs:
   android_preview_build:
+    if: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'sherlo') || contains(github.event.pull_request.labels.*.name, 'sherlo:skip_build'))) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -20,35 +22,35 @@ jobs:
           ref: ${{ github.ref }}
 
       - name: Set up Node.js
-        if: ${{ github.event.inputs.MAKE_BUILDS == 'true' }}
+        if: ${{ !contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build') }}
         uses: actions/setup-node@v2
         with:
           node-version: '18.18.0'
 
       - name: Setup Java Environment
-        if: ${{ github.event.inputs.MAKE_BUILDS == 'true' }}
+        if: ${{ !contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build') }}
         uses: actions/setup-java@v2
         with:
           java-version: '17'
           distribution: 'temurin'
 
       - name: Install dependencies
-        if: ${{ github.event.inputs.MAKE_BUILDS == 'true' }}
+        if: ${{ !contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build') }}
         run: yarn
 
       - name: Build dependencies
-        if: ${{ github.event.inputs.MAKE_BUILDS == 'true' }}
+        if: ${{ !contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build') }}
         run: yarn build
 
       - name: Setup EAS
-        if: ${{ github.event.inputs.MAKE_BUILDS == 'true' }}
+        if: ${{ !contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build') }}
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build Android example app
-        if: ${{ github.event.inputs.MAKE_BUILDS == 'true' }}
+        if: ${{ !contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build') }}
         run: yarn workspace @sherlo/expo-example android:build:preview
 
       - name: Upload Android Artifact
@@ -58,6 +60,7 @@ jobs:
           path: examples/expo-example/builds/preview/android.apk
 
   ios_preview_build:
+    if: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'sherlo') || contains(github.event.pull_request.labels.*.name, 'sherlo:skip_build'))) }}
     runs-on: macos-13
     steps:
       - uses: actions/checkout@v2
@@ -65,13 +68,13 @@ jobs:
           ref: ${{ github.ref }}
 
       - name: Set up Node.js
-        if: ${{ github.event.inputs.MAKE_BUILDS == 'true' }}
+        if: ${{ !contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build') }}
         uses: actions/setup-node@v2
         with:
           node-version: '18.18.0'
 
       - name: Select Xcode Version
-        if: ${{ github.event.inputs.MAKE_BUILDS == 'true' }}
+        if: ${{ !contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build') }}
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: '15.0.1'
@@ -81,28 +84,28 @@ jobs:
           xcodebuild -version
 
       - name: Setup Cocoapods
-        if: ${{ github.event.inputs.MAKE_BUILDS == 'true' }}
+        if: ${{ !contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build') }}
         uses: maxim-lobanov/setup-cocoapods@v1
         with:
           version: latest
 
       - name: Install dependencies
-        if: ${{ github.event.inputs.MAKE_BUILDS == 'true' }}
+        if: ${{ !contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build') }}
         run: yarn
 
       - name: Build dependencies
-        if: ${{ github.event.inputs.MAKE_BUILDS == 'true' }}
+        if: ${{ !contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build') }}
         run: yarn build
 
       - name: Setup EAS
-        if: ${{ github.event.inputs.MAKE_BUILDS == 'true' }}
+        if: ${{ !contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build') }}
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build iOS example app
-        if: ${{ github.event.inputs.MAKE_BUILDS == 'true' }}
+        if: ${{ !contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build') }}
         run: yarn workspace @sherlo/expo-example ios:build:preview
 
       - name: Upload iOS Artifact
@@ -112,6 +115,7 @@ jobs:
           path: examples/expo-example/builds/preview/ios.tar.gz
 
   run_sherlo_action:
+    if: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'sherlo') || contains(github.event.pull_request.labels.*.name, 'sherlo:skip_build'))) }}
     runs-on: ubuntu-latest
     needs: [android_preview_build, ios_preview_build]
     steps:
@@ -119,24 +123,54 @@ jobs:
         with:
           ref: ${{ github.ref }}
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18.18.0'
+
+      - name: Install dependencies
+        run: yarn
+
+      - name: Build dependencies
+        run: yarn build
+
       - name: Download Android Artifact
         uses: actions/download-artifact@v2
         with:
           name: android-preview
-          path: ci-builds
+          path: examples/expo-example/builds/preview
 
       - name: Download iOS Artifact
         uses: actions/download-artifact@v2
         with:
           name: ios-preview
-          path: ci-builds
+          path: examples/expo-example/builds/preview
+
+      - name: Create GH App Token
+        id: github_app_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.SHERLO_BOT_APP_ID }}
+          private_key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
+
+      - name: Commit and push Preview builds
+        if: ${{ !contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build') }}
+        uses: EndBug/add-and-commit@v7
+        with:
+          author_name: Sherlo Bot
+          author_email: admin@sherlo.io
+          message: 'Update Preview builds'
+          add: 'examples/expo-example/builds/preview/*'
+          push: true
+          branch: ${{ github.head_ref || github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ steps.github_app_token.outputs.token }}
 
       - name: Run Sherlo Action
         uses: ./.
         with:
-          project_root: examples/expo-example # .sherlo/build.json / .sherlo { "buildIndex" : 0 }
-          ios: ci-builds/ios.tar.gz
-          android: ci-builds/android.apk
+          ios: examples/expo-example/builds/preview/ios.tar.gz
+          android: examples/expo-example/builds/preview/android.apk
           config: examples/expo-example/sherlo.config.json
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
