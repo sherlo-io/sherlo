@@ -22,28 +22,28 @@ jobs:
         with:
           ref: ${{ github.ref }}
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '18.18.0'
+      # - name: Set up Node.js
+      #   uses: actions/setup-node@v2
+      #   with:
+      #     node-version: '18.18.0'
 
-      - name: Setup Java Environment
-        uses: actions/setup-java@v2
-        with:
-          java-version: '17'
-          distribution: 'temurin'
+      # - name: Setup Java Environment
+      #   uses: actions/setup-java@v2
+      #   with:
+      #     java-version: '17'
+      #     distribution: 'temurin'
 
-      - name: Install dependencies
-        run: yarn
+      # - name: Install dependencies
+      #   run: yarn
 
-      - name: Build dependencies
-        run: yarn build
+      # - name: Build dependencies
+      #   run: yarn build
 
-      - name: Setup EAS
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+      # - name: Setup EAS
+      #   uses: expo/expo-github-action@v8
+      #   with:
+      #     eas-version: latest
+      #     token: ${{ secrets.EXPO_TOKEN }}
 
       # - name: Build Android example app
       # add condition to not build if sherlo:only_test
@@ -62,36 +62,36 @@ jobs:
         with:
           ref: ${{ github.ref }}
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '18.18.0'
+      # - name: Set up Node.js
+      #   uses: actions/setup-node@v2
+      #   with:
+      #     node-version: '18.18.0'
 
-      - name: Select Xcode Version
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: '15.0.1'
-      - run: |
-          xcode-select -print-path
-      - run: |
-          xcodebuild -version
+      # - name: Select Xcode Version
+      #   uses: maxim-lobanov/setup-xcode@v1
+      #   with:
+      #     xcode-version: '15.0.1'
+      # - run: |
+      #     xcode-select -print-path
+      # - run: |
+      #     xcodebuild -version
 
-      - name: Setup Cocoapods
-        uses: maxim-lobanov/setup-cocoapods@v1
-        with:
-          version: latest
+      # - name: Setup Cocoapods
+      #   uses: maxim-lobanov/setup-cocoapods@v1
+      #   with:
+      #     version: latest
 
-      - name: Install dependencies
-        run: yarn
+      # - name: Install dependencies
+      #   run: yarn
 
-      - name: Build dependencies
-        run: yarn build
+      # - name: Build dependencies
+      #   run: yarn build
 
-      - name: Setup EAS
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+      # - name: Setup EAS
+      #   uses: expo/expo-github-action@v8
+      #   with:
+      #     eas-version: latest
+      #     token: ${{ secrets.EXPO_TOKEN }}
 
       # - name: Build iOS example app
       #   run: yarn workspace @sherlo/expo-example ios:build:preview
@@ -130,13 +130,15 @@ jobs:
           private_key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
 
       - name: Commit and push Preview builds
+        env:
+          BRANCH_NAME: ${{ github.event_name == 'pull_request' && github.head_ref || 'refs/heads/' + github.ref_name }}
         run: |
           git config --global user.name 'Sherlo Bot'
           git config --global user.email 'admin@sherlo.io'
           git config --global http.https://github.com/.extraheader "AUTHORIZATION: bearer ${{ steps.github_app_token.outputs.token }}"
           git add examples/expo-example/builds/preview
-          git commit -m "Builds and bundles for ${NEW_VERSION_NUMBER}"
-          git push origin HEAD:dev
+          git commit -m "Update Preview builds"
+          git push origin ${{ env.BRANCH_NAME }}
 
       - name: Run Sherlo Action
         uses: ./.
