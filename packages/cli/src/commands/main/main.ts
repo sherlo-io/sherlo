@@ -90,22 +90,13 @@ async function main(ghActionArgs?: GHActionArgs): Promise<MainOutput> {
 
       const buildIndex = args.asyncUploadBuildIndex!;
 
-      console.log('asyncUpload', {
-        buildIndex,
-        projectIndex,
-        teamId,
-        uploadUrls,
-        androidS3Key: uploadUrls.android?.url,
-        iosS3Key: uploadUrls.ios?.url,
-      });
-
       await client
         .asyncUpload({
           buildIndex,
           projectIndex,
           teamId,
-          androidS3Key: uploadUrls.android?.url,
-          iosS3Key: uploadUrls.ios?.url,
+          androidS3Key: uploadUrls.android?.s3Key,
+          iosS3Key: uploadUrls.ios?.s3Key,
         })
         .catch((error) => {
           throw new Error(getErrorMessage({ type: 'unexpected', message: error.message }));
