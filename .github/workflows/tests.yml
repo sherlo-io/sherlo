@@ -30,6 +30,8 @@ jobs:
   update_builds:
     if: ${{ !github.event.inputs.skip_build || github.event_name == 'push' }}
     uses: sherlo-io/sherlo/.github/workflows/update_builds.yml@michal/eas-build-hooks
+    with:
+      profile: 'preview'
 
   run_sherlo_sync_tests:
     if: ${{ github.event.inputs.run_sherlo_sync_tests || github.event_name == 'push' }}
