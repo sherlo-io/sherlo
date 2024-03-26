@@ -39,16 +39,6 @@ jobs:
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
 
-      - name: Check directory and print file content
-        run: |
-          if [ -d examples/expo-example/.expo ]; then
-            echo "The directory 'examples/expo-example/.expo' exists."
-            cat examples/expo-example/.expo/sherlo.json
-          else
-            echo "The directory 'examples/expo-example/.expo' does not exist."
-          fi
-        shell: bash
-
       - name: Trigger EAS builds for both platforms
         working-directory: examples/expo-example
         run: eas build --profile=preview --platform=all --non-interactive --no-wait

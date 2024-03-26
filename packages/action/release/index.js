@@ -78780,7 +78780,6 @@ function getArguments(ghActionArgs) {
         args.ios = path_1.default.join(args.projectRoot, args.ios);
     if (args.config)
         args.config = path_1.default.join(args.projectRoot, args.config);
-    const gitInfo = ghActionArgs?.gitInfo || (0, utils_1.getGitInfo)();
     // parse config
     const config = (0, parse_1.default)(args.config);
     // adjust config paths for projectRoot path
@@ -78807,6 +78806,7 @@ function getArguments(ghActionArgs) {
         const include = config.include;
         const exclude = config.exclude;
         (0, validate_1.validateFilters)({ include, exclude });
+        const gitInfo = ghActionArgs?.gitInfo || (0, utils_1.getGitInfo)();
         if (mode === 'asyncInit') {
             return {
                 mode,
@@ -78918,9 +78918,13 @@ async function main(ghActionArgs) {
             });
             const output = createOutput({ buildIndex: build.index, projectIndex, teamId });
             const expoDir = path_1.default.join(args.projectRoot, '.expo');
-            if (fs_1.default.existsSync(expoDir)) {
-                fs_1.default.writeFileSync(path_1.default.join(expoDir, 'sherlo.json'), JSON.stringify(output));
+            // Check if the directory exists
+            if (!fs_1.default.existsSync(expoDir)) {
+                // If the directory does not exist, create it
+                fs_1.default.mkdirSync(expoDir, { recursive: true });
             }
+            // Now that we've ensured the directory exists, write the file
+            fs_1.default.writeFileSync(path_1.default.join(expoDir, 'sherlo.json'), JSON.stringify(output));
             console.log(`Sherlo is awaiting your builds to be uploaded asynchronously.\nView your test results at: ${output.url}\n`);
             return output;
         }

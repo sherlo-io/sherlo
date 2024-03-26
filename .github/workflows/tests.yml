@@ -27,16 +27,16 @@ on:
         default: true
 
 jobs:
-  update_builds:
-    if: ${{ !github.event.inputs.skip_build || github.event_name == 'push' }}
-    uses: sherlo-io/sherlo/.github/workflows/update_builds.yml@michal/eas-build-hooks
-    secrets: inherit
-    with:
-      profile: 'preview'
+  # update_builds:
+  #   if: ${{ !github.event.inputs.skip_build || github.event_name == 'push' }}
+  #   uses: sherlo-io/sherlo/.github/workflows/update_builds.yml@michal/eas-build-hooks
+  #   secrets: inherit
+  #   with:
+  #     profile: 'preview'
 
   run_sherlo_sync_tests:
     if: ${{ github.event.inputs.run_sherlo_sync_tests || github.event_name == 'push' }}
-    needs: [update_builds]
+    # needs: [update_builds]
     uses: sherlo-io/sherlo/.github/workflows/run_sherlo_sync.yml@michal/eas-build-hooks
     secrets: inherit
     with:
