@@ -9,14 +9,14 @@ on:
       skip_build:
         description: 'Skip the build steps'
         required: false
-        default: 'false'
+        default: false
         type: boolean
   workflow_dispatch:
     inputs:
       skip_build:
         description: 'Skip the build steps'
         required: false
-        default: 'false'
+        default: false
         type: boolean
 
 jobs:
