@@ -20,13 +20,14 @@
   },
   "main": "./dist/index.js",
   "bin": {
-    "sherlo": "./dist/uploadAndTest.js"
+    "sherlo": "./dist/command.js",
+    "sherlo-eas-build-on-success": "./eas-hooks/eas-build-on-success.sh"
   },
   "files": [
     "dist/**/*"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.json && chmod u+x ./dist/uploadAndTest.js"
+    "build": "rm -rf dist && tsc -p tsconfig.json && chmod u+x ./dist/command.js"
   },
   "dependencies": {
     "@sherlo/api-types": "^1.0.1",
