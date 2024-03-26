@@ -1,16 +1,18 @@
 name: Update builds in repository
 
 on:
+  workflow_call:
+    inputs:
+      profile:
+        required: true
+        type: string
+        description: 'Build profile to use (development, preview, production)'
   workflow_dispatch:
     inputs:
       profile:
         required: true
-        type: choice
-        description: 'Build profile to use'
-        options:
-          - development
-          - preview
-          - production
+        type: string
+        description: 'Build profile to use (development, preview, production)'
 
 jobs:
   android_build:

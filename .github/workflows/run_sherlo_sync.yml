@@ -4,6 +4,13 @@ on:
   pull_request:
     branches: [dev]
     types: [labeled]
+  workflow_call:
+    inputs:
+      skip_build:
+        description: 'Skip the build steps'
+        required: false
+        default: 'false'
+        type: boolean
   workflow_dispatch:
     inputs:
       skip_build:
@@ -21,7 +28,7 @@ jobs:
       (github.event_name == 'workflow_dispatch')
     uses: sherlo-io/sherlo/.github/workflows/android_build.yml@michal/eas-build-hooks
     with:
-      skip_build: ${{ github.event.inputs.skip_build || github.event.label.name == 'sherlo:sync:skip_build' }}
+      skip_build: ${{ github.event.inputs.skip_build || inputs.skip_build || github.event.label.name == 'sherlo:sync:skip_build' }}
       profile: 'preview'
 
   ## iOS
@@ -32,7 +39,7 @@ jobs:
       (github.event_name == 'workflow_dispatch')
     uses: sherlo-io/sherlo/.github/workflows/ios_build.yml@michal/eas-build-hooks
     with:
-      skip_build: ${{ github.event.inputs.skip_build || github.event.label.name == 'sherlo:sync:skip_build' }}
+      skip_build: ${{ github.event.inputs.skip_build || inputs.skip_build || github.event.label.name == 'sherlo:sync:skip_build' }}
       profile: 'preview'
 
   ## Sherlo
