@@ -21,35 +21,35 @@ jobs:
           ref: ${{ github.ref }}
 
       - name: Set up Node.js
-        if: ${{ !github.event.inputs.skip_build }}
+        if: ${{ !inputs.skip_build }}
         uses: actions/setup-node@v2
         with:
           node-version: '18.18.0'
 
       - name: Setup Java Environment
-        if: ${{ !github.event.inputs.skip_build }}
+        if: ${{ !inputs.skip_build }}
         uses: actions/setup-java@v2
         with:
           java-version: '17'
           distribution: 'temurin'
 
       - name: Install dependencies
-        if: ${{ !github.event.inputs.skip_build }}
+        if: ${{ !inputs.skip_build }}
         run: yarn
 
       - name: Build dependencies
-        if: ${{ !github.event.inputs.skip_build }}
+        if: ${{ !inputs.skip_build }}
         run: yarn build
 
       - name: Setup EAS
-        if: ${{ !github.event.inputs.skip_build }}
+        if: ${{ !inputs.skip_build }}
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build Android example app
-        if: ${{ !github.event.inputs.skip_build }}
+        if: ${{ !inputs.skip_build }}
         run: eas build --platform android --local --profile=${{ inputs.profile }} --output=builds/${{ inputs.profile }}/android.apk
 
       - name: Upload Android Artifact
