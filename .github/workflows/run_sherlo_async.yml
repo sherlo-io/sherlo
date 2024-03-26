@@ -56,7 +56,7 @@ jobs:
     needs: [run_sherlo_async]
     uses: ./.github/workflows/android_build.yml
     with:
-      skip_build: ${{ github.event.inputs.skip_build || github.event.label.name === 'sherlo:async:skip_build' || (github.event_name == 'push' && github.ref == 'refs/heads/michal/eas-build-hooks') }}
+      skip_build: ${{ github.event.inputs.skip_build || github.event.label.name == 'sherlo:async:skip_build' || (github.event_name == 'push' && github.ref == 'refs/heads/michal/eas-build-hooks') }}
       profile: 'preview'
 
   android_preview_build_upload:
@@ -99,7 +99,7 @@ jobs:
     needs: [run_sherlo_async]
     uses: ./.github/workflows/ios_build.yml
     with:
-      skip_build: ${{ github.event.inputs.skip_build || github.event.label.name === 'sherlo:async:skip_build' || (github.event_name == 'push' && github.ref == 'refs/heads/michal/eas-build-hooks') }}
+      skip_build: ${{ github.event.inputs.skip_build || github.event.label.name == 'sherlo:async:skip_build' || (github.event_name == 'push' && github.ref == 'refs/heads/michal/eas-build-hooks') }}
       profile: 'preview'
 
   ios_preview_build_upload:
