@@ -38,4 +38,5 @@ jobs:
           SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
 
       - name: Trigger EAS builds for both platforms
+        working-directory: examples/expo-example
         run: eas build --profile=preview --platform=all --non-interactive --no-wait
