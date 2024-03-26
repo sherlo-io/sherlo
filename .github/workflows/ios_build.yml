@@ -1,0 +1,72 @@
+name: iOS Build
+on:
+  workflow_call:
+    inputs:
+      skip_build:
+        description: 'Skip the build steps'
+        required: false
+        type: boolean
+        default: false
+      profile:
+        required: true
+        type: choice
+        description: 'Build profile to use'
+        options:
+          - development
+          - preview
+          - production
+
+jobs:
+  ios_build:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up Node.js
+        if: ${{ github.event.inputs.skip_build != 'true' }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18.18.0'
+
+      - name: Select Xcode Version
+        if: ${{ github.event.inputs.skip_build != 'true' }}
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '15.0.1'
+      - run: |
+          xcode-select -print-path
+      - run: |
+          xcodebuild -version
+
+      - name: Setup Cocoapods
+        if: ${{ github.event.inputs.skip_build != 'true' }}
+        uses: maxim-lobanov/setup-cocoapods@v1
+        with:
+          version: latest
+
+      - name: Install dependencies
+        if: ${{ github.event.inputs.skip_build != 'true' }}
+        run: yarn
+
+      - name: Build dependencies
+        if: ${{ github.event.inputs.skip_build != 'true' }}
+        run: yarn build
+
+      - name: Setup EAS
+        if: ${{ github.event.inputs.skip_build != 'true' }}
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build iOS example app
+        if: ${{ github.event.inputs.skip_build != 'true' }}
+        run: eas build --platform ios --local --profile=${{ inputs.profile }} --output=builds/${{ inputs.profile }}/ios.tar.gz
+
+      - name: Upload Android Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ios
+          path: builds/${{ inputs.profile }}/ios.tar.gz
