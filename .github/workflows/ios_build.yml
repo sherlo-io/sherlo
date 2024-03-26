@@ -11,10 +11,6 @@ on:
         required: true
         type: string
         description: 'Build profile to use (development, preview, production)'
-      EXPO_TOKEN:
-        description: 'EXPO_TOKEN'
-        required: true
-        type: string
 
 jobs:
   ios_build:
