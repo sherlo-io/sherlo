@@ -22,106 +22,100 @@ import {
 type MainOutput = { buildIndex: number; url: string };
 
 async function main(overrideArguments?: OverrideArguments): Promise<MainOutput> {
-  try {
-    printHeader();
+  printHeader();
 
-    const args = await getArguments(overrideArguments);
+  const args = await getArguments(overrideArguments);
 
-    switch (args.mode) {
-      case 'sync': {
-        const config = await getConfig<'withPaths'>(args);
-        const { apiToken, projectIndex, teamId } = getProjectTokenParts(config.token);
-        const client = SDKApiClient(apiToken);
+  switch (args.mode) {
+    case 'sync': {
+      const config = await getConfig<'withPaths'>(args);
+      const { apiToken, projectIndex, teamId } = getProjectTokenParts(config.token);
+      const client = SDKApiClient(apiToken);
 
-        const uploadUrls = await getUploadUrlsAndUploadBuilds(
-          client,
-          { platforms: getConfigPlatforms(config), projectIndex, teamId },
-          args
-        );
+      const uploadUrls = await getUploadUrlsAndUploadBuilds(
+        client,
+        { platforms: getConfigPlatforms(config), projectIndex, teamId },
+        args
+      );
 
-        const build = await openBuild(client, {
-          teamId,
-          projectIndex,
-          buildRunConfig: getBuildRunConfig({ config, buildPresignedUploadUrls: uploadUrls }),
-          gitInfo: args.gitInfo,
-        });
+      const build = await openBuild(client, {
+        teamId,
+        projectIndex,
+        buildRunConfig: getBuildRunConfig({ config, buildPresignedUploadUrls: uploadUrls }),
+        gitInfo: args.gitInfo,
+      });
 
-        const output = createOutput({ buildIndex: build.index, projectIndex, teamId });
+      const output = createOutput({ buildIndex: build.index, projectIndex, teamId });
 
-        console.log(`View your test results at: ${output.url}\n`);
+      console.log(`View your test results at: ${output.url}\n`);
 
-        return output;
-      }
-      case 'asyncInit': {
-        const config = await getConfig<'withoutPaths'>(args);
-        const { apiToken, projectIndex, teamId } = getProjectTokenParts(config.token);
-        const client = SDKApiClient(apiToken);
-
-        const build = await openBuild(client, {
-          teamId,
-          projectIndex,
-          buildRunConfig: getBuildRunConfig({ config }),
-          asyncUpload: true,
-          gitInfo: args.gitInfo,
-        });
-
-        const output = createOutput({ buildIndex: build.index, projectIndex, teamId });
-
-        createExpoSherloFile(args, output);
-
-        console.log(
-          `Sherlo is awaiting your builds to be uploaded asynchronously.\nView your test results at: ${output.url}\n`
-        );
-
-        return output;
-      }
-      case 'asyncUpload': {
-        let token = args.token;
-        if (!token) {
-          const config = await getConfig<'withoutPaths'>(args);
-          token = config.token;
-        }
-
-        const { apiToken, projectIndex, teamId } = getProjectTokenParts(token);
-        const client = SDKApiClient(apiToken);
-
-        const platforms = getPlatformsForAsyncUpload(args);
-
-        const uploadUrls = await getUploadUrlsAndUploadBuilds(
-          client,
-          {
-            platforms,
-            projectIndex,
-            teamId,
-          },
-          args
-        );
-
-        const buildIndex = args.asyncUploadBuildIndex!;
-
-        await client
-          .asyncUpload({
-            buildIndex,
-            projectIndex,
-            teamId,
-            androidS3Key: uploadUrls.android?.url,
-            iosS3Key: uploadUrls.ios?.url,
-          })
-          .catch((error) => {
-            throw new Error(getErrorMessage({ type: 'unexpected', message: error.message }));
-          });
-
-        const output = createOutput({ buildIndex, projectIndex, teamId });
-
-        return output;
-      }
-      default:
-        break;
+      return output;
     }
-  } catch (error) {
-    console.error((error as Error).message);
-  } finally {
-    process.exit();
+    case 'asyncInit': {
+      const config = await getConfig<'withoutPaths'>(args);
+      const { apiToken, projectIndex, teamId } = getProjectTokenParts(config.token);
+      const client = SDKApiClient(apiToken);
+
+      const build = await openBuild(client, {
+        teamId,
+        projectIndex,
+        buildRunConfig: getBuildRunConfig({ config }),
+        asyncUpload: true,
+        gitInfo: args.gitInfo,
+      });
+
+      const output = createOutput({ buildIndex: build.index, projectIndex, teamId });
+
+      createExpoSherloFile(args, output);
+
+      console.log(
+        `Sherlo is awaiting your builds to be uploaded asynchronously.\nView your test results at: ${output.url}\n`
+      );
+
+      return output;
+    }
+    case 'asyncUpload': {
+      let token = args.token;
+      if (!token) {
+        const config = await getConfig<'withoutPaths'>(args);
+        token = config.token;
+      }
+
+      const { apiToken, projectIndex, teamId } = getProjectTokenParts(token);
+      const client = SDKApiClient(apiToken);
+
+      const platforms = getPlatformsForAsyncUpload(args);
+
+      const uploadUrls = await getUploadUrlsAndUploadBuilds(
+        client,
+        {
+          platforms,
+          projectIndex,
+          teamId,
+        },
+        args
+      );
+
+      const buildIndex = args.asyncUploadBuildIndex!;
+
+      await client
+        .asyncUpload({
+          buildIndex,
+          projectIndex,
+          teamId,
+          androidS3Key: uploadUrls.android?.url,
+          iosS3Key: uploadUrls.ios?.url,
+        })
+        .catch((error) => {
+          throw new Error(getErrorMessage({ type: 'unexpected', message: error.message }));
+        });
+
+      const output = createOutput({ buildIndex, projectIndex, teamId });
+
+      return output;
+    }
+    default:
+      throw new Error(getErrorMessage({ type: 'default', message: 'Unknown mode' }));
   }
 }
 

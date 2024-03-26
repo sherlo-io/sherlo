@@ -78700,6 +78700,7 @@ function run() {
             core.setOutput('url', url);
         }
         catch (error) {
+            console.log('error', error);
             if (error instanceof Error)
                 core.setFailed(error.message);
         }
@@ -78807,79 +78808,71 @@ const fs_1 = __importDefault(__nccwpck_require__(57147));
 const path_1 = __importDefault(__nccwpck_require__(71017));
 const _getArguments_1 = __importDefault(__nccwpck_require__(35128));
 async function main(overrideArguments) {
-    try {
-        (0, utils_1.printHeader)();
-        const args = await (0, _getArguments_1.default)(overrideArguments);
-        switch (args.mode) {
-            case 'sync': {
-                const config = await (0, utils_1.getConfig)(args);
-                const { apiToken, projectIndex, teamId } = (0, utils_1.getProjectTokenParts)(config.token);
-                const client = (0, sdk_client_1.default)(apiToken);
-                const uploadUrls = await getUploadUrlsAndUploadBuilds(client, { platforms: (0, utils_1.getConfigPlatforms)(config), projectIndex, teamId }, args);
-                const build = await openBuild(client, {
-                    teamId,
-                    projectIndex,
-                    buildRunConfig: (0, utils_1.getBuildRunConfig)({ config, buildPresignedUploadUrls: uploadUrls }),
-                    gitInfo: args.gitInfo,
-                });
-                const output = createOutput({ buildIndex: build.index, projectIndex, teamId });
-                console.log(`View your test results at: ${output.url}\n`);
-                return output;
-            }
-            case 'asyncInit': {
-                const config = await (0, utils_1.getConfig)(args);
-                const { apiToken, projectIndex, teamId } = (0, utils_1.getProjectTokenParts)(config.token);
-                const client = (0, sdk_client_1.default)(apiToken);
-                const build = await openBuild(client, {
-                    teamId,
-                    projectIndex,
-                    buildRunConfig: (0, utils_1.getBuildRunConfig)({ config }),
-                    asyncUpload: true,
-                    gitInfo: args.gitInfo,
-                });
-                const output = createOutput({ buildIndex: build.index, projectIndex, teamId });
-                createExpoSherloFile(args, output);
-                console.log(`Sherlo is awaiting your builds to be uploaded asynchronously.\nView your test results at: ${output.url}\n`);
-                return output;
-            }
-            case 'asyncUpload': {
-                let token = args.token;
-                if (!token) {
-                    const config = await (0, utils_1.getConfig)(args);
-                    token = config.token;
-                }
-                const { apiToken, projectIndex, teamId } = (0, utils_1.getProjectTokenParts)(token);
-                const client = (0, sdk_client_1.default)(apiToken);
-                const platforms = getPlatformsForAsyncUpload(args);
-                const uploadUrls = await getUploadUrlsAndUploadBuilds(client, {
-                    platforms,
-                    projectIndex,
-                    teamId,
-                }, args);
-                const buildIndex = args.asyncUploadBuildIndex;
-                await client
-                    .asyncUpload({
-                    buildIndex,
-                    projectIndex,
-                    teamId,
-                    androidS3Key: uploadUrls.android?.url,
-                    iosS3Key: uploadUrls.ios?.url,
-                })
-                    .catch((error) => {
-                    throw new Error((0, utils_1.getErrorMessage)({ type: 'unexpected', message: error.message }));
-                });
-                const output = createOutput({ buildIndex, projectIndex, teamId });
-                return output;
-            }
-            default:
-                break;
+    (0, utils_1.printHeader)();
+    const args = await (0, _getArguments_1.default)(overrideArguments);
+    switch (args.mode) {
+        case 'sync': {
+            const config = await (0, utils_1.getConfig)(args);
+            const { apiToken, projectIndex, teamId } = (0, utils_1.getProjectTokenParts)(config.token);
+            const client = (0, sdk_client_1.default)(apiToken);
+            const uploadUrls = await getUploadUrlsAndUploadBuilds(client, { platforms: (0, utils_1.getConfigPlatforms)(config), projectIndex, teamId }, args);
+            const build = await openBuild(client, {
+                teamId,
+                projectIndex,
+                buildRunConfig: (0, utils_1.getBuildRunConfig)({ config, buildPresignedUploadUrls: uploadUrls }),
+                gitInfo: args.gitInfo,
+            });
+            const output = createOutput({ buildIndex: build.index, projectIndex, teamId });
+            console.log(`View your test results at: ${output.url}\n`);
+            return output;
         }
-    }
-    catch (error) {
-        console.error(error.message);
-    }
-    finally {
-        process.exit();
+        case 'asyncInit': {
+            const config = await (0, utils_1.getConfig)(args);
+            const { apiToken, projectIndex, teamId } = (0, utils_1.getProjectTokenParts)(config.token);
+            const client = (0, sdk_client_1.default)(apiToken);
+            const build = await openBuild(client, {
+                teamId,
+                projectIndex,
+                buildRunConfig: (0, utils_1.getBuildRunConfig)({ config }),
+                asyncUpload: true,
+                gitInfo: args.gitInfo,
+            });
+            const output = createOutput({ buildIndex: build.index, projectIndex, teamId });
+            createExpoSherloFile(args, output);
+            console.log(`Sherlo is awaiting your builds to be uploaded asynchronously.\nView your test results at: ${output.url}\n`);
+            return output;
+        }
+        case 'asyncUpload': {
+            let token = args.token;
+            if (!token) {
+                const config = await (0, utils_1.getConfig)(args);
+                token = config.token;
+            }
+            const { apiToken, projectIndex, teamId } = (0, utils_1.getProjectTokenParts)(token);
+            const client = (0, sdk_client_1.default)(apiToken);
+            const platforms = getPlatformsForAsyncUpload(args);
+            const uploadUrls = await getUploadUrlsAndUploadBuilds(client, {
+                platforms,
+                projectIndex,
+                teamId,
+            }, args);
+            const buildIndex = args.asyncUploadBuildIndex;
+            await client
+                .asyncUpload({
+                buildIndex,
+                projectIndex,
+                teamId,
+                androidS3Key: uploadUrls.android?.url,
+                iosS3Key: uploadUrls.ios?.url,
+            })
+                .catch((error) => {
+                throw new Error((0, utils_1.getErrorMessage)({ type: 'unexpected', message: error.message }));
+            });
+            const output = createOutput({ buildIndex, projectIndex, teamId });
+            return output;
+        }
+        default:
+            throw new Error((0, utils_1.getErrorMessage)({ type: 'default', message: 'Unknown mode' }));
     }
 }
 async function getUploadUrlsAndUploadBuilds(client, getBuildUploadUrlsRequest, args) {
