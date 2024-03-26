@@ -32,6 +32,9 @@ jobs:
     uses: sherlo-io/sherlo/.github/workflows/update_builds.yml@michal/eas-build-hooks
     with:
       profile: 'preview'
+      SHERLO_BOT_APP_ID: ${{ secrets.SHERLO_BOT_APP_ID }}
+      SHERLO_BOT_PRIVATE_KEY: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
   run_sherlo_sync_tests:
     if: ${{ github.event.inputs.run_sherlo_sync_tests || github.event_name == 'push' }}
@@ -39,6 +42,7 @@ jobs:
     uses: sherlo-io/sherlo/.github/workflows/run_sherlo_sync.yml@michal/eas-build-hooks
     with:
       skip_build: true
+      SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
 
   run_sherlo_async_tests:
     if: ${{ github.event.inputs.run_sherlo_async_tests || github.event_name == 'push' }}
@@ -46,7 +50,11 @@ jobs:
     uses: sherlo-io/sherlo/.github/workflows/run_sherlo_async.yml@michal/eas-build-hooks
     with:
       skip_build: true
+      SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
 
   run_sherlo_eas_hooks_tests:
     if: ${{ github.event.inputs.run_sherlo_eas_hooks_tests || github.event_name == 'push' }}
     uses: sherlo-io/sherlo/.github/workflows/run_sherlo_eas_hooks.yml@michal/eas-build-hooks
+    with:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}

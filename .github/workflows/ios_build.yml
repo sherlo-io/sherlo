@@ -11,6 +11,10 @@ on:
         required: true
         type: string
         description: 'Build profile to use (development, preview, production)'
+      EXPO_TOKEN:
+        description: 'EXPO_TOKEN'
+        required: true
+        type: string
 
 jobs:
   ios_build:
@@ -55,7 +59,7 @@ jobs:
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+          token: ${{ secrets.EXPO_TOKEN || inputs.EXPO_TOKEN }}
 
       - name: Build iOS example app
         if: ${{ !inputs.skip_build }}

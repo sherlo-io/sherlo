@@ -11,6 +11,10 @@ on:
         required: false
         default: false
         type: boolean
+      SHERLO_TOKEN:
+        description: 'SHERLO_TOKEN'
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       skip_build:
@@ -82,4 +86,4 @@ jobs:
           android: examples/expo-example/builds/preview/android.apk
           config: examples/expo-example/sherlo.config.json
         env:
-          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
+          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN || inputs.SHERLO_TOKEN }}

@@ -5,6 +5,15 @@ on:
     branches: [dev]
     types: [labeled]
   workflow_call:
+    inputs:
+      EXPO_TOKEN:
+        description: 'EXPO_TOKEN'
+        required: true
+        type: string
+      SHERLO_TOKEN:
+        description: 'SHERLO_TOKEN'
+        required: true
+        type: string
   workflow_dispatch:
 
 jobs:
@@ -27,7 +36,7 @@ jobs:
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+          token: ${{ secrets.EXPO_TOKEN || inputs.EXPO_TOKEN }}
 
       - name: Run Sherlo with Async Upload
         uses: ./.
@@ -35,7 +44,7 @@ jobs:
           projectRoot: examples/expo-example
           asyncUpload: true
         env:
-          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
+          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN || inputs.SHERLO_TOKEN }}
 
       - name: Trigger EAS builds for both platforms
         run: eas build --profile=preview --non-interactive --no-wait

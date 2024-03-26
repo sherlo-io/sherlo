@@ -11,6 +11,10 @@ on:
         required: false
         default: false
         type: boolean
+      SHERLO_TOKEN:
+        description: 'SHERLO_TOKEN'
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       skip_build:
@@ -52,7 +56,7 @@ jobs:
           projectRoot: examples/expo-example
           asyncUpload: true
         env:
-          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
+          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN || inputs.SHERLO_TOKEN }}
 
   ## Android
   android_preview_build:
@@ -96,7 +100,7 @@ jobs:
           android: builds/preview/android.apk
           asyncUploadBuildIndex: ${{ needs.run_sherlo_async.outputs.buildIndex }}
         env:
-          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
+          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN || inputs.SHERLO_TOKEN }}
 
   ## iOS
   ios_preview_build:
@@ -140,4 +144,4 @@ jobs:
           ios: builds/preview/ios.tar.gz
           asyncUploadBuildIndex: ${{ needs.run_sherlo_async.outputs.buildIndex }}
         env:
-          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
+          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN || inputs.SHERLO_TOKEN }}
