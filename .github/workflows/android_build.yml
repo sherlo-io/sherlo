@@ -9,12 +9,8 @@ on:
         default: false
       profile:
         required: true
-        type: choice
-        description: 'Build profile to use'
-        options:
-          - development
-          - preview
-          - production
+        type: string
+        description: 'Build profile to use (development, preview, production)'
 
 jobs:
   android_build:
