@@ -69,7 +69,11 @@ function validatePlatform(
   withoutPaths?: boolean
 ): void {
   validatePlatformSpecificParameters(config, platform);
-  validatePlatformPath(config, platform, withoutPaths);
+
+  if (!withoutPaths) {
+    validatePlatformPath(config, platform);
+  }
+
   validatePlatformDevices(config, platform);
 }
 
@@ -129,16 +133,10 @@ function validatePlatformSpecificParameters(config: InvalidatedConfig, platform:
   }
 }
 
-function validatePlatformPath(
-  config: InvalidatedConfig,
-  platform: Platform,
-  withoutPaths?: boolean
-): void {
+function validatePlatformPath(config: InvalidatedConfig, platform: Platform): void {
   const { path: platformPath } = config[platform] ?? {};
 
   if (!platformPath || typeof platformPath !== 'string') {
-    if (withoutPaths) return;
-
     throw new Error(
       getConfigErrorMessage(`for ${platform}, path must be defined string`, learnMoreLink[platform])
     );

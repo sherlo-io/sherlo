@@ -8,6 +8,8 @@ import { Config, ConfigMode } from '../../types';
 async function getConfig<M extends ConfigMode>(parameters: Arguments): Promise<Config<M>> {
   const config = await parse(path.join(parameters.projectRoot, parameters.config));
 
+  const withoutPaths = parameters.mode !== 'sync';
+
   if (parameters?.android && config.android) {
     config.android.path = path.join(parameters.projectRoot, parameters.android);
   }
@@ -20,7 +22,12 @@ async function getConfig<M extends ConfigMode>(parameters: Arguments): Promise<C
     config.token = parameters.token;
   }
 
-  if (validate<M>(config, parameters.mode !== 'sync')) {
+  if (withoutPaths) {
+    if (config.ios) config.ios.path = undefined;
+    if (config.android) config.android.path = undefined;
+  }
+
+  if (validate<M>(config, withoutPaths)) {
     return config;
   }
 

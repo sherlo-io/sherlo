@@ -78998,6 +78998,7 @@ const parse_1 = __importDefault(__nccwpck_require__(95586));
 const validate_1 = __importDefault(__nccwpck_require__(22240));
 async function getConfig(parameters) {
     const config = await (0, parse_1.default)(path_1.default.join(parameters.projectRoot, parameters.config));
+    const withoutPaths = parameters.mode !== 'sync';
     if (parameters?.android && config.android) {
         config.android.path = path_1.default.join(parameters.projectRoot, parameters.android);
     }
@@ -79007,7 +79008,13 @@ async function getConfig(parameters) {
     if (parameters?.token) {
         config.token = parameters.token;
     }
-    if ((0, validate_1.default)(config, parameters.mode !== 'sync')) {
+    if (withoutPaths) {
+        if (config.ios)
+            config.ios.path = undefined;
+        if (config.android)
+            config.android.path = undefined;
+    }
+    if ((0, validate_1.default)(config, withoutPaths)) {
         return config;
     }
     throw new Error((0, getErrorMessage_1.default)({ type: 'unexpected', message: 'getConfig error' }));
@@ -79170,7 +79177,9 @@ function validatePlatforms(config, withoutPaths) {
 }
 function validatePlatform(config, platform, withoutPaths) {
     validatePlatformSpecificParameters(config, platform);
-    validatePlatformPath(config, platform, withoutPaths);
+    if (!withoutPaths) {
+        validatePlatformPath(config, platform);
+    }
     validatePlatformDevices(config, platform);
 }
 function validatePlatformSpecificParameters(config, platform) {
@@ -79206,11 +79215,9 @@ function validatePlatformSpecificParameters(config, platform) {
         }
     }
 }
-function validatePlatformPath(config, platform, withoutPaths) {
+function validatePlatformPath(config, platform) {
     const { path: platformPath } = config[platform] ?? {};
     if (!platformPath || typeof platformPath !== 'string') {
-        if (withoutPaths)
-            return;
         throw new Error((0, getConfigErrorMessage_1.default)(`for ${platform}, path must be defined string`, learnMoreLink[platform]));
     }
     const fileType = {
