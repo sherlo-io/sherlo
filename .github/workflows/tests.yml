@@ -30,42 +30,27 @@ jobs:
   update_builds:
     if: ${{ !github.event.inputs.skip_build || github.event_name == 'push' }}
     uses: sherlo-io/sherlo/.github/workflows/update_builds.yml@michal/eas-build-hooks
-    env:
-      SHERLO_BOT_APP_ID: ${{ secrets.SHERLO_BOT_APP_ID }}
-      SHERLO_BOT_PRIVATE_KEY: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    secrets: inherit
     with:
       profile: 'preview'
-      SHERLO_BOT_APP_ID: ${{ env.SHERLO_BOT_APP_ID }}
-      SHERLO_BOT_PRIVATE_KEY: ${{ env.SHERLO_BOT_PRIVATE_KEY }}
-      EXPO_TOKEN: ${{ env.EXPO_TOKEN }}
 
   run_sherlo_sync_tests:
     if: ${{ github.event.inputs.run_sherlo_sync_tests || github.event_name == 'push' }}
     needs: [update_builds]
     uses: sherlo-io/sherlo/.github/workflows/run_sherlo_sync.yml@michal/eas-build-hooks
-    env:
-      SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
+    secrets: inherit
     with:
       skip_build: true
-      SHERLO_TOKEN: ${{ env.SHERLO_TOKEN }}
 
   run_sherlo_async_tests:
     if: ${{ github.event.inputs.run_sherlo_async_tests || github.event_name == 'push' }}
     needs: [update_builds]
     uses: sherlo-io/sherlo/.github/workflows/run_sherlo_async.yml@michal/eas-build-hooks
-    env:
-      SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
+    secrets: inherit
     with:
       skip_build: true
-      SHERLO_TOKEN: ${{ env.SHERLO_TOKEN }}
 
   run_sherlo_eas_hooks_tests:
     if: ${{ github.event.inputs.run_sherlo_eas_hooks_tests || github.event_name == 'push' }}
     uses: sherlo-io/sherlo/.github/workflows/run_sherlo_eas_hooks.yml@michal/eas-build-hooks
-    env:
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
-    with:
-      EXPO_TOKEN: ${{ env.EXPO_TOKEN }}
-      SHERLO_TOKEN: ${{ env.SHERLO_TOKEN }}
+    secrets: inherit

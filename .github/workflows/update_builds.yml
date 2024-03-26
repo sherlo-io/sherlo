@@ -7,18 +7,6 @@ on:
         required: true
         type: string
         description: 'Build profile to use (development, preview, production)'
-      SHERLO_BOT_APP_ID:
-        description: 'SHERLO_BOT_APP_ID'
-        required: true
-        type: string
-      SHERLO_BOT_PRIVATE_KEY:
-        description: 'SHERLO_BOT_PRIVATE_KEY'
-        required: true
-        type: string
-      EXPO_TOKEN:
-        description: 'EXPO_TOKEN'
-        required: true
-        type: string
   workflow_dispatch:
     inputs:
       profile:
@@ -29,19 +17,15 @@ on:
 jobs:
   android_build:
     uses: ./.github/workflows/android_build.yml
-    env:
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN || inputs.EXPO_TOKEN }}
+    secrets: inherit
     with:
       profile: ${{ github.event.inputs.profile || inputs.profile }}
-      EXPO_TOKEN: ${{ env.EXPO_TOKEN }}
 
   ios_build:
     uses: ./.github/workflows/ios_build.yml
-    env:
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN || inputs.EXPO_TOKEN }}
+    secrets: inherit
     with:
       profile: ${{ github.event.inputs.profile || inputs.profile }}
-      EXPO_TOKEN: ${{ env.EXPO_TOKEN }}
 
   update_in_repo:
     runs-on: ubuntu-latest
