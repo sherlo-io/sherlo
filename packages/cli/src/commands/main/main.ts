@@ -24,7 +24,7 @@ type MainOutput = { buildIndex: number; url: string };
 async function main(ghActionArgs?: GHActionArgs): Promise<MainOutput> {
   printHeader();
 
-  const args = await getArguments(ghActionArgs);
+  const args = getArguments(ghActionArgs);
   const { apiToken, projectIndex, teamId } = getProjectTokenParts(args.token);
   const client = SDKApiClient(apiToken);
 

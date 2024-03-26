@@ -15,15 +15,18 @@ import {
 const DEFAULT_CONFIG_PATH = 'sherlo.config.json';
 const DEFAULT_PROJECT_ROOT = '.';
 
-export type GHActionArgs = {
+export type CLIArgs = {
   config?: string;
   asyncUpload?: boolean;
   projectRoot?: string;
-  gitInfo?: Build['gitInfo'];
   asyncUploadBuildIndex?: number;
   token?: string;
   android?: string;
   ios?: string;
+};
+
+export type GHActionArgs = CLIArgs & {
+  gitInfo?: Build['gitInfo'];
 };
 
 export type Arguments =
@@ -48,44 +51,44 @@ export type Arguments =
       token: string;
     };
 
-async function getArguments(ghActionArgs?: GHActionArgs): Promise<Arguments> {
+function getArguments(ghActionArgs?: GHActionArgs): Arguments {
   // get arguments from github action or yargs
-  const args =
-    ghActionArgs ||
-    (await yargs(hideBin(process.argv))
-      .option('config', {
-        default: DEFAULT_CONFIG_PATH,
-        description: 'Path to Sherlo config',
-        type: 'string',
-      })
-      .option('asyncUpload', {
-        description:
-          'Run Sherlo in lazy upload mode, meaning you don’t have to provide builds immidiately. You can send them with the same command later on',
-        type: 'boolean',
-      })
-      .option('asyncUploadBuildIndex', {
-        description:
-          'if you want to upload android or ios build to existing sherlo build in async upload mode, you need to provide index of build you want to update',
-        type: 'number',
-      })
-      .option('projectRoot', {
-        default: '.',
-        description:
-          'use this option to specify the root of the react native project when working with monorepo',
-        type: 'string',
-      })
-      .option('token', {
-        description: 'Sherlo project token',
-        type: 'string',
-      })
-      .option('android', {
-        description: 'Path to Android build in .apk format',
-        type: 'string',
-      })
-      .option('ios', {
-        description: 'Path to iOS simulator build in .app or .tar.gz file format',
-        type: 'string',
-      }).argv);
+  const cliArgs = yargs(hideBin(process.argv))
+    .option('config', {
+      default: DEFAULT_CONFIG_PATH,
+      description: 'Path to Sherlo config',
+      type: 'string',
+    })
+    .option('asyncUpload', {
+      description:
+        'Run Sherlo in lazy upload mode, meaning you don’t have to provide builds immidiately. You can send them with the same command later on',
+      type: 'boolean',
+    })
+    .option('asyncUploadBuildIndex', {
+      description:
+        'if you want to upload android or ios build to existing sherlo build in async upload mode, you need to provide index of build you want to update',
+      type: 'number',
+    })
+    .option('projectRoot', {
+      default: '.',
+      description:
+        'use this option to specify the root of the react native project when working with monorepo',
+      type: 'string',
+    })
+    .option('token', {
+      description: 'Sherlo project token',
+      type: 'string',
+    })
+    .option('android', {
+      description: 'Path to Android build in .apk format',
+      type: 'string',
+    })
+    .option('ios', {
+      description: 'Path to iOS simulator build in .app or .tar.gz file format',
+      type: 'string',
+    }).argv;
+
+  const args = ghActionArgs || (cliArgs as CLIArgs);
 
   // set defaults
   if (!args.config) args.config = DEFAULT_CONFIG_PATH;
@@ -107,7 +110,7 @@ async function getArguments(ghActionArgs?: GHActionArgs): Promise<Arguments> {
   const gitInfo = ghActionArgs?.gitInfo || getGitInfo();
 
   // parse config
-  const config = await parse(args.config);
+  const config = parse(args.config);
 
   // adjust config paths for projectRoot path
   if (config.android?.path) config.android.path = path.join(args.projectRoot, config.android?.path);

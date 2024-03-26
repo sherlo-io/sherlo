@@ -78726,40 +78726,40 @@ const parse_1 = __importDefault(__nccwpck_require__(95586));
 const validate_1 = __nccwpck_require__(22240);
 const DEFAULT_CONFIG_PATH = 'sherlo.config.json';
 const DEFAULT_PROJECT_ROOT = '.';
-async function getArguments(ghActionArgs) {
+function getArguments(ghActionArgs) {
     // get arguments from github action or yargs
-    const args = ghActionArgs ||
-        (await (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
-            .option('config', {
-            default: DEFAULT_CONFIG_PATH,
-            description: 'Path to Sherlo config',
-            type: 'string',
-        })
-            .option('asyncUpload', {
-            description: 'Run Sherlo in lazy upload mode, meaning you don’t have to provide builds immidiately. You can send them with the same command later on',
-            type: 'boolean',
-        })
-            .option('asyncUploadBuildIndex', {
-            description: 'if you want to upload android or ios build to existing sherlo build in async upload mode, you need to provide index of build you want to update',
-            type: 'number',
-        })
-            .option('projectRoot', {
-            default: '.',
-            description: 'use this option to specify the root of the react native project when working with monorepo',
-            type: 'string',
-        })
-            .option('token', {
-            description: 'Sherlo project token',
-            type: 'string',
-        })
-            .option('android', {
-            description: 'Path to Android build in .apk format',
-            type: 'string',
-        })
-            .option('ios', {
-            description: 'Path to iOS simulator build in .app or .tar.gz file format',
-            type: 'string',
-        }).argv);
+    const cliArgs = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
+        .option('config', {
+        default: DEFAULT_CONFIG_PATH,
+        description: 'Path to Sherlo config',
+        type: 'string',
+    })
+        .option('asyncUpload', {
+        description: 'Run Sherlo in lazy upload mode, meaning you don’t have to provide builds immidiately. You can send them with the same command later on',
+        type: 'boolean',
+    })
+        .option('asyncUploadBuildIndex', {
+        description: 'if you want to upload android or ios build to existing sherlo build in async upload mode, you need to provide index of build you want to update',
+        type: 'number',
+    })
+        .option('projectRoot', {
+        default: '.',
+        description: 'use this option to specify the root of the react native project when working with monorepo',
+        type: 'string',
+    })
+        .option('token', {
+        description: 'Sherlo project token',
+        type: 'string',
+    })
+        .option('android', {
+        description: 'Path to Android build in .apk format',
+        type: 'string',
+    })
+        .option('ios', {
+        description: 'Path to iOS simulator build in .app or .tar.gz file format',
+        type: 'string',
+    }).argv;
+    const args = ghActionArgs || cliArgs;
     // set defaults
     if (!args.config)
         args.config = DEFAULT_CONFIG_PATH;
@@ -78782,7 +78782,7 @@ async function getArguments(ghActionArgs) {
         args.config = path_1.default.join(args.projectRoot, args.config);
     const gitInfo = ghActionArgs?.gitInfo || (0, utils_1.getGitInfo)();
     // parse config
-    const config = await (0, parse_1.default)(args.config);
+    const config = (0, parse_1.default)(args.config);
     // adjust config paths for projectRoot path
     if (config.android?.path)
         config.android.path = path_1.default.join(args.projectRoot, config.android?.path);
@@ -78886,7 +78886,7 @@ const path_1 = __importDefault(__nccwpck_require__(71017));
 const _getArguments_1 = __importDefault(__nccwpck_require__(35128));
 async function main(ghActionArgs) {
     (0, utils_1.printHeader)();
-    const args = await (0, _getArguments_1.default)(ghActionArgs);
+    const args = (0, _getArguments_1.default)(ghActionArgs);
     const { apiToken, projectIndex, teamId } = (0, utils_1.getProjectTokenParts)(args.token);
     const client = (0, sdk_client_1.default)(apiToken);
     switch (args.mode) {
@@ -78936,8 +78936,8 @@ async function main(ghActionArgs) {
                 buildIndex,
                 projectIndex,
                 teamId,
-                androidS3Key: uploadUrls.android?.url,
-                iosS3Key: uploadUrls.ios?.url,
+                androidS3Key: uploadUrls.android?.s3Key,
+                iosS3Key: uploadUrls.ios?.s3Key,
             })
                 .catch((error) => {
                 throw new Error((0, utils_1.getErrorMessage)({ type: 'unexpected', message: error.message }));
@@ -79071,7 +79071,7 @@ const fs_1 = __importDefault(__nccwpck_require__(57147));
  * 1. Both `include` and `exclude` can be defined as a string or an array of
  *    strings in the config. However, the output should always be an array.
  * */
-async function parse(path) {
+function parse(path) {
     try {
         const config = JSON.parse(fs_1.default.readFileSync(path, 'utf8'));
         if (!config)
