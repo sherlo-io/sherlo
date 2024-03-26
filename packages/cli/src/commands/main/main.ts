@@ -2,7 +2,6 @@ import SDKApiClient from '@sherlo/sdk-client';
 import { getUrlParams } from '@sherlo/shared';
 import {
   getBuildRunConfig,
-  getConfig,
   getConfigPlatforms,
   getErrorMessage,
   getProjectTokenParts,
@@ -11,37 +10,42 @@ import {
 } from '../../utils';
 import fs from 'fs';
 import path from 'path';
-import getArguments, { Arguments, OverrideArguments } from './_getArguments';
+import getArguments, { GHActionArgs } from './_getArguments';
 import {
   GetBuildUploadUrlsRequest,
   GetBuildUploadUrlsReturn,
   OpenBuildRequest,
   OpenBuildReturn,
 } from '@sherlo/api-types';
+import { UploadMobileBuilsPaths } from '../../utils/uploadMobileBuilds';
 
 type MainOutput = { buildIndex: number; url: string };
 
-async function main(overrideArguments?: OverrideArguments): Promise<MainOutput> {
+async function main(ghActionArgs?: GHActionArgs): Promise<MainOutput> {
   printHeader();
 
-  const args = await getArguments(overrideArguments);
+  const args = await getArguments(ghActionArgs);
+  const { apiToken, projectIndex, teamId } = getProjectTokenParts(args.token);
+  const client = SDKApiClient(apiToken);
 
   switch (args.mode) {
     case 'sync': {
-      const config = await getConfig<'withPaths'>(args);
-      const { apiToken, projectIndex, teamId } = getProjectTokenParts(config.token);
-      const client = SDKApiClient(apiToken);
-
       const uploadUrls = await getUploadUrlsAndUploadBuilds(
         client,
-        { platforms: getConfigPlatforms(config), projectIndex, teamId },
-        args
+        { platforms: getConfigPlatforms(args.config), projectIndex, teamId },
+        {
+          android: args.config.android?.path,
+          ios: args.config.ios?.path,
+        }
       );
 
       const build = await openBuild(client, {
         teamId,
         projectIndex,
-        buildRunConfig: getBuildRunConfig({ config, buildPresignedUploadUrls: uploadUrls }),
+        buildRunConfig: getBuildRunConfig({
+          config: args.config,
+          buildPresignedUploadUrls: uploadUrls,
+        }),
         gitInfo: args.gitInfo,
       });
 
@@ -52,21 +56,20 @@ async function main(overrideArguments?: OverrideArguments): Promise<MainOutput> 
       return output;
     }
     case 'asyncInit': {
-      const config = await getConfig<'withoutPaths'>(args);
-      const { apiToken, projectIndex, teamId } = getProjectTokenParts(config.token);
-      const client = SDKApiClient(apiToken);
-
       const build = await openBuild(client, {
         teamId,
         projectIndex,
-        buildRunConfig: getBuildRunConfig({ config }),
+        buildRunConfig: getBuildRunConfig({ config: args.config }),
         asyncUpload: true,
         gitInfo: args.gitInfo,
       });
 
       const output = createOutput({ buildIndex: build.index, projectIndex, teamId });
 
-      createExpoSherloFile(args, output);
+      const expoDir = path.join(args.projectRoot, '.expo');
+      if (fs.existsSync(expoDir)) {
+        fs.writeFileSync(path.join(expoDir, 'sherlo.json'), JSON.stringify(output));
+      }
 
       console.log(
         `Sherlo is awaiting your builds to be uploaded asynchronously.\nView your test results at: ${output.url}\n`
@@ -75,25 +78,14 @@ async function main(overrideArguments?: OverrideArguments): Promise<MainOutput> 
       return output;
     }
     case 'asyncUpload': {
-      let token = args.token;
-      if (!token) {
-        const config = await getConfig<'withoutPaths'>(args);
-        token = config.token;
-      }
-
-      const { apiToken, projectIndex, teamId } = getProjectTokenParts(token);
-      const client = SDKApiClient(apiToken);
-
-      const platforms = getPlatformsForAsyncUpload(args);
-
       const uploadUrls = await getUploadUrlsAndUploadBuilds(
         client,
         {
-          platforms,
+          platforms: args.platform === 'android' ? ['android'] : ['ios'],
           projectIndex,
           teamId,
         },
-        args
+        args.platform === 'android' ? { android: args.path } : { ios: args.path }
       );
 
       const buildIndex = args.asyncUploadBuildIndex!;
@@ -122,7 +114,7 @@ async function main(overrideArguments?: OverrideArguments): Promise<MainOutput> 
 async function getUploadUrlsAndUploadBuilds(
   client: ReturnType<typeof SDKApiClient>,
   getBuildUploadUrlsRequest: GetBuildUploadUrlsRequest,
-  args: Arguments
+  paths: UploadMobileBuilsPaths
 ): Promise<GetBuildUploadUrlsReturn['buildPresignedUploadUrls']> {
   const { buildPresignedUploadUrls } = await client
     .getBuildUploadUrls(getBuildUploadUrlsRequest)
@@ -140,7 +132,7 @@ async function getUploadUrlsAndUploadBuilds(
       throw new Error(getErrorMessage({ type: 'unexpected', message: error.message }));
     });
 
-  await uploadMobileBuilds(args, buildPresignedUploadUrls);
+  await uploadMobileBuilds(paths, buildPresignedUploadUrls);
 
   return buildPresignedUploadUrls;
 }
@@ -154,39 +146,6 @@ async function openBuild(
   });
 
   return build;
-}
-
-function getPlatformsForAsyncUpload(args: Arguments): GetBuildUploadUrlsRequest['platforms'] {
-  const platforms: GetBuildUploadUrlsRequest['platforms'] = [];
-
-  if (args.android) platforms.push('android');
-  if (args.ios) platforms.push('ios');
-
-  if (platforms.length > 1) {
-    throw new Error(
-      getErrorMessage({
-        type: 'default',
-        message:
-          "Don't use 'asyncUploadBuildIndex' if you're providing android and ios at the same time",
-      })
-    );
-  } else if (platforms.length === 0) {
-    throw new Error(
-      getErrorMessage({
-        type: 'default',
-        message:
-          "When using 'asyncUploadBuildIndex' you need to provide one build path, ios or android",
-      })
-    );
-  }
-
-  return platforms;
-}
-function createExpoSherloFile(args: Arguments, output: MainOutput): void {
-  const expoDir = path.join(args.projectRoot, '.expo');
-  if (args.asyncUpload && fs.existsSync(expoDir)) {
-    fs.writeFileSync(path.join(expoDir, 'sherlo.json'), JSON.stringify(output));
-  }
 }
 
 function createOutput({

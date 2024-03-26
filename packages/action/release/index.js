@@ -78695,12 +78695,10 @@ function run() {
                 token: process.env.SHERLO_TOKEN || undefined,
                 gitInfo,
             });
-            console.log('setOutput', { buildIndex, url });
             core.setOutput('buildIndex', buildIndex);
             core.setOutput('url', url);
         }
         catch (error) {
-            console.log('error', error);
             if (error instanceof Error)
                 core.setFailed(error.message);
         }
@@ -78723,53 +78721,132 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const yargs_1 = __importDefault(__nccwpck_require__(97712));
 const helpers_1 = __nccwpck_require__(872);
 const utils_1 = __nccwpck_require__(14302);
+const path_1 = __importDefault(__nccwpck_require__(71017));
+const parse_1 = __importDefault(__nccwpck_require__(95586));
+const validate_1 = __nccwpck_require__(22240);
 const DEFAULT_CONFIG_PATH = 'sherlo.config.json';
-async function getArguments(overrideArguments) {
-    const args = await (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
-        .option('config', {
-        default: DEFAULT_CONFIG_PATH,
-        description: 'Path to Sherlo config',
-        type: 'string',
-    })
-        .option('asyncUpload', {
-        default: false,
-        description: 'Run Sherlo in lazy upload mode, meaning you don’t have to provide builds immidiately. You can send them with the same command later on',
-        type: 'boolean',
-    })
-        .option('asyncUploadBuildIndex', {
-        description: 'if you want to upload android or ios build to existing sherlo build in async upload mode, you need to provide index of build you want to update',
-        type: 'number',
-    })
-        .option('projectRoot', {
-        default: '.',
-        description: 'use this option to specify the root of the react native project when working with monorepo',
-        type: 'string',
-    })
-        .option('token', {
-        description: 'Sherlo project token',
-        type: 'string',
-    })
-        .option('android', {
-        description: 'Path to Android build in .apk format',
-        type: 'string',
-    })
-        .option('ios', {
-        description: 'Path to iOS simulator build in .app or .tar.gz file format',
-        type: 'string',
-    }).argv;
-    const asyncUpload = overrideArguments?.asyncUpload || args.asyncUpload;
-    const asyncUploadBuildIndex = overrideArguments?.asyncUploadBuildIndex || args.asyncUploadBuildIndex;
-    return {
-        mode: asyncUpload ? (asyncUploadBuildIndex ? 'asyncUpload' : 'asyncInit') : 'sync',
-        config: overrideArguments?.config || args.config,
-        asyncUpload,
-        asyncUploadBuildIndex,
-        projectRoot: overrideArguments?.projectRoot || args.projectRoot,
-        token: overrideArguments?.token || args.token,
-        android: overrideArguments?.android || args.android,
-        ios: overrideArguments?.ios || args.ios,
-        gitInfo: overrideArguments?.gitInfo || (0, utils_1.getGitInfo)(),
-    };
+const DEFAULT_PROJECT_ROOT = '.';
+async function getArguments(ghActionArgs) {
+    // get arguments from github action or yargs
+    const args = ghActionArgs ||
+        (await (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
+            .option('config', {
+            default: DEFAULT_CONFIG_PATH,
+            description: 'Path to Sherlo config',
+            type: 'string',
+        })
+            .option('asyncUpload', {
+            description: 'Run Sherlo in lazy upload mode, meaning you don’t have to provide builds immidiately. You can send them with the same command later on',
+            type: 'boolean',
+        })
+            .option('asyncUploadBuildIndex', {
+            description: 'if you want to upload android or ios build to existing sherlo build in async upload mode, you need to provide index of build you want to update',
+            type: 'number',
+        })
+            .option('projectRoot', {
+            default: '.',
+            description: 'use this option to specify the root of the react native project when working with monorepo',
+            type: 'string',
+        })
+            .option('token', {
+            description: 'Sherlo project token',
+            type: 'string',
+        })
+            .option('android', {
+            description: 'Path to Android build in .apk format',
+            type: 'string',
+        })
+            .option('ios', {
+            description: 'Path to iOS simulator build in .app or .tar.gz file format',
+            type: 'string',
+        }).argv);
+    // set defaults
+    if (!args.config)
+        args.config = DEFAULT_CONFIG_PATH;
+    if (!args.projectRoot)
+        args.projectRoot = DEFAULT_PROJECT_ROOT;
+    // set mode based on async upload
+    let mode = 'sync';
+    if (args.asyncUploadBuildIndex) {
+        mode = 'asyncUpload';
+    }
+    else if (args.asyncUpload) {
+        mode = 'asyncInit';
+    }
+    // adjust paths for projectRoot path
+    if (args.android)
+        args.android = path_1.default.join(args.projectRoot, args.android);
+    if (args.ios)
+        args.ios = path_1.default.join(args.projectRoot, args.ios);
+    if (args.config)
+        args.config = path_1.default.join(args.projectRoot, args.config);
+    const gitInfo = ghActionArgs?.gitInfo || (0, utils_1.getGitInfo)();
+    // parse config
+    const config = await (0, parse_1.default)(args.config);
+    // adjust config paths for projectRoot path
+    if (config.android?.path)
+        config.android.path = path_1.default.join(args.projectRoot, config.android?.path);
+    if (config.ios?.path)
+        config.ios.path = path_1.default.join(args.projectRoot, config.ios?.path);
+    const token = args.token || config.token;
+    (0, validate_1.validateProjectToken)(token);
+    if (mode === 'asyncUpload') {
+        const asyncUploadArgs = getAsyncUploadArgs(args);
+        return {
+            mode,
+            token: token,
+            path: asyncUploadArgs.path,
+            platform: asyncUploadArgs.platform,
+            asyncUploadBuildIndex: args.asyncUploadBuildIndex, // it's impossible for asyncUploadBuildIndex to be undefined in 'asyncUpload' mode
+        };
+    }
+    else {
+        const android = config.android;
+        const ios = config.ios;
+        (0, validate_1.validatePlatforms)({ android, ios }, mode !== 'sync');
+        const include = config.include;
+        const exclude = config.exclude;
+        (0, validate_1.validateFilters)({ include, exclude });
+        if (mode === 'asyncInit') {
+            return {
+                mode,
+                config: config,
+                gitInfo,
+                projectRoot: args.projectRoot,
+                token: token,
+            };
+        }
+        else {
+            return {
+                mode,
+                config: config,
+                gitInfo,
+                token: token,
+            };
+        }
+    }
+}
+function getAsyncUploadArgs(args) {
+    if (args.android && args.ios) {
+        throw new Error((0, utils_1.getErrorMessage)({
+            type: 'default',
+            message: "Don't use 'asyncUploadBuildIndex' if you're providing android and ios at the same time",
+        }));
+    }
+    else if (!args.android && !args.ios) {
+        throw new Error((0, utils_1.getErrorMessage)({
+            type: 'default',
+            message: "When using 'asyncUploadBuildIndex' you need to provide one build path, ios or android",
+        }));
+    }
+    else if (args.android) {
+        (0, validate_1.validatePlatformPath)(args.android, 'android');
+        return { path: args.android, platform: 'android' };
+    }
+    else {
+        (0, validate_1.validatePlatformPath)(args.ios, 'ios');
+        return { path: args.ios, platform: 'ios' };
+    }
 }
 exports["default"] = getArguments;
 
@@ -78807,19 +78884,24 @@ const utils_1 = __nccwpck_require__(14302);
 const fs_1 = __importDefault(__nccwpck_require__(57147));
 const path_1 = __importDefault(__nccwpck_require__(71017));
 const _getArguments_1 = __importDefault(__nccwpck_require__(35128));
-async function main(overrideArguments) {
+async function main(ghActionArgs) {
     (0, utils_1.printHeader)();
-    const args = await (0, _getArguments_1.default)(overrideArguments);
+    const args = await (0, _getArguments_1.default)(ghActionArgs);
+    const { apiToken, projectIndex, teamId } = (0, utils_1.getProjectTokenParts)(args.token);
+    const client = (0, sdk_client_1.default)(apiToken);
     switch (args.mode) {
         case 'sync': {
-            const config = await (0, utils_1.getConfig)(args);
-            const { apiToken, projectIndex, teamId } = (0, utils_1.getProjectTokenParts)(config.token);
-            const client = (0, sdk_client_1.default)(apiToken);
-            const uploadUrls = await getUploadUrlsAndUploadBuilds(client, { platforms: (0, utils_1.getConfigPlatforms)(config), projectIndex, teamId }, args);
+            const uploadUrls = await getUploadUrlsAndUploadBuilds(client, { platforms: (0, utils_1.getConfigPlatforms)(args.config), projectIndex, teamId }, {
+                android: args.config.android?.path,
+                ios: args.config.ios?.path,
+            });
             const build = await openBuild(client, {
                 teamId,
                 projectIndex,
-                buildRunConfig: (0, utils_1.getBuildRunConfig)({ config, buildPresignedUploadUrls: uploadUrls }),
+                buildRunConfig: (0, utils_1.getBuildRunConfig)({
+                    config: args.config,
+                    buildPresignedUploadUrls: uploadUrls,
+                }),
                 gitInfo: args.gitInfo,
             });
             const output = createOutput({ buildIndex: build.index, projectIndex, teamId });
@@ -78827,35 +78909,27 @@ async function main(overrideArguments) {
             return output;
         }
         case 'asyncInit': {
-            const config = await (0, utils_1.getConfig)(args);
-            const { apiToken, projectIndex, teamId } = (0, utils_1.getProjectTokenParts)(config.token);
-            const client = (0, sdk_client_1.default)(apiToken);
             const build = await openBuild(client, {
                 teamId,
                 projectIndex,
-                buildRunConfig: (0, utils_1.getBuildRunConfig)({ config }),
+                buildRunConfig: (0, utils_1.getBuildRunConfig)({ config: args.config }),
                 asyncUpload: true,
                 gitInfo: args.gitInfo,
             });
             const output = createOutput({ buildIndex: build.index, projectIndex, teamId });
-            createExpoSherloFile(args, output);
+            const expoDir = path_1.default.join(args.projectRoot, '.expo');
+            if (fs_1.default.existsSync(expoDir)) {
+                fs_1.default.writeFileSync(path_1.default.join(expoDir, 'sherlo.json'), JSON.stringify(output));
+            }
             console.log(`Sherlo is awaiting your builds to be uploaded asynchronously.\nView your test results at: ${output.url}\n`);
             return output;
         }
         case 'asyncUpload': {
-            let token = args.token;
-            if (!token) {
-                const config = await (0, utils_1.getConfig)(args);
-                token = config.token;
-            }
-            const { apiToken, projectIndex, teamId } = (0, utils_1.getProjectTokenParts)(token);
-            const client = (0, sdk_client_1.default)(apiToken);
-            const platforms = getPlatformsForAsyncUpload(args);
             const uploadUrls = await getUploadUrlsAndUploadBuilds(client, {
-                platforms,
+                platforms: args.platform === 'android' ? ['android'] : ['ios'],
                 projectIndex,
                 teamId,
-            }, args);
+            }, args.platform === 'android' ? { android: args.path } : { ios: args.path });
             const buildIndex = args.asyncUploadBuildIndex;
             await client
                 .asyncUpload({
@@ -78875,7 +78949,7 @@ async function main(overrideArguments) {
             throw new Error((0, utils_1.getErrorMessage)({ type: 'default', message: 'Unknown mode' }));
     }
 }
-async function getUploadUrlsAndUploadBuilds(client, getBuildUploadUrlsRequest, args) {
+async function getUploadUrlsAndUploadBuilds(client, getBuildUploadUrlsRequest, paths) {
     const { buildPresignedUploadUrls } = await client
         .getBuildUploadUrls(getBuildUploadUrlsRequest)
         .catch((error) => {
@@ -78888,7 +78962,7 @@ async function getUploadUrlsAndUploadBuilds(client, getBuildUploadUrlsRequest, a
         }
         throw new Error((0, utils_1.getErrorMessage)({ type: 'unexpected', message: error.message }));
     });
-    await (0, utils_1.uploadMobileBuilds)(args, buildPresignedUploadUrls);
+    await (0, utils_1.uploadMobileBuilds)(paths, buildPresignedUploadUrls);
     return buildPresignedUploadUrls;
 }
 async function openBuild(client, openBuildRequest) {
@@ -78896,32 +78970,6 @@ async function openBuild(client, openBuildRequest) {
         throw new Error((0, utils_1.getErrorMessage)({ type: 'unexpected', message: error.message }));
     });
     return build;
-}
-function getPlatformsForAsyncUpload(args) {
-    const platforms = [];
-    if (args.android)
-        platforms.push('android');
-    if (args.ios)
-        platforms.push('ios');
-    if (platforms.length > 1) {
-        throw new Error((0, utils_1.getErrorMessage)({
-            type: 'default',
-            message: "Don't use 'asyncUploadBuildIndex' if you're providing android and ios at the same time",
-        }));
-    }
-    else if (platforms.length === 0) {
-        throw new Error((0, utils_1.getErrorMessage)({
-            type: 'default',
-            message: "When using 'asyncUploadBuildIndex' you need to provide one build path, ios or android",
-        }));
-    }
-    return platforms;
-}
-function createExpoSherloFile(args, output) {
-    const expoDir = path_1.default.join(args.projectRoot, '.expo');
-    if (args.asyncUpload && fs_1.default.existsSync(expoDir)) {
-        fs_1.default.writeFileSync(path_1.default.join(expoDir, 'sherlo.json'), JSON.stringify(output));
-    }
 }
 function createOutput({ buildIndex, projectIndex, teamId, }) {
     const url = `https://app.sherlo.io/build?${(0, shared_1.getUrlParams)({
@@ -78985,47 +79033,6 @@ exports["default"] = getBuildRunConfig;
 
 /***/ }),
 
-/***/ 12636:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-const path_1 = __importDefault(__nccwpck_require__(71017));
-const getErrorMessage_1 = __importDefault(__nccwpck_require__(62315));
-const parse_1 = __importDefault(__nccwpck_require__(95586));
-const validate_1 = __importDefault(__nccwpck_require__(22240));
-async function getConfig(parameters) {
-    const config = await (0, parse_1.default)(path_1.default.join(parameters.projectRoot, parameters.config));
-    const withoutPaths = parameters.mode !== 'sync';
-    if (parameters?.android && config.android) {
-        config.android.path = path_1.default.join(parameters.projectRoot, parameters.android);
-    }
-    if (parameters?.ios && config.ios) {
-        config.ios.path = path_1.default.join(parameters.projectRoot, parameters.ios);
-    }
-    if (parameters?.token) {
-        config.token = parameters.token;
-    }
-    if (withoutPaths) {
-        if (config.ios)
-            config.ios.path = undefined;
-        if (config.android)
-            config.android.path = undefined;
-    }
-    if ((0, validate_1.default)(config, withoutPaths)) {
-        return config;
-    }
-    throw new Error((0, getErrorMessage_1.default)({ type: 'unexpected', message: 'getConfig error' }));
-}
-exports["default"] = getConfig;
-
-
-/***/ }),
-
 /***/ 48797:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -79044,22 +79051,6 @@ function getConfigErrorMessage(message, learnMoreLink) {
     });
 }
 exports["default"] = getConfigErrorMessage;
-
-
-/***/ }),
-
-/***/ 15620:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports["default"] = void 0;
-var getConfig_1 = __nccwpck_require__(12636);
-Object.defineProperty(exports, "default", ({ enumerable: true, get: function () { return __importDefault(getConfig_1).default; } }));
 
 
 /***/ }),
@@ -79129,7 +79120,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.validateProjectToken = void 0;
+exports.validateFilters = exports.validatePlatformPath = exports.validatePlatforms = exports.validateProjectToken = void 0;
 const fs_1 = __importDefault(__nccwpck_require__(57147));
 const path_1 = __importDefault(__nccwpck_require__(71017));
 const api_types_1 = __nccwpck_require__(5927);
@@ -79137,12 +79128,6 @@ const shared_1 = __nccwpck_require__(37178);
 const getErrorMessage_1 = __importDefault(__nccwpck_require__(62315));
 const getProjectTokenParts_1 = __importDefault(__nccwpck_require__(50599));
 const getConfigErrorMessage_1 = __importDefault(__nccwpck_require__(48797));
-function validate(config, withoutPaths) {
-    validateProjectToken(config);
-    validatePlatforms(config, withoutPaths);
-    validateFilters(config);
-    return true;
-}
 const learnMoreLink = {
     token: 'https://docs.sherlo.io/getting-started/config#project-token',
     android: 'https://docs.sherlo.io/getting-started/config#android',
@@ -79154,7 +79139,7 @@ const learnMoreLink = {
     // TODO: update
     exclude: 'https://docs.sherlo.io/getting-started/config',
 };
-function validateProjectToken({ token }) {
+function validateProjectToken(token) {
     if (!token || typeof token !== 'string') {
         throw new Error((0, getConfigErrorMessage_1.default)('token must be defined string', learnMoreLink.token));
     }
@@ -79165,6 +79150,7 @@ function validateProjectToken({ token }) {
         projectIndex < 1) {
         throw new Error((0, getConfigErrorMessage_1.default)('token is not valid', learnMoreLink.token));
     }
+    return true;
 }
 exports.validateProjectToken = validateProjectToken;
 function validatePlatforms(config, withoutPaths) {
@@ -79177,10 +79163,11 @@ function validatePlatforms(config, withoutPaths) {
     if (ios)
         validatePlatform(config, 'ios', withoutPaths);
 }
+exports.validatePlatforms = validatePlatforms;
 function validatePlatform(config, platform, withoutPaths) {
     validatePlatformSpecificParameters(config, platform);
     if (!withoutPaths) {
-        validatePlatformPath(config, platform);
+        validatePlatformPath(config[platform]?.path, platform);
     }
     validatePlatformDevices(config, platform);
 }
@@ -79217,8 +79204,7 @@ function validatePlatformSpecificParameters(config, platform) {
         }
     }
 }
-function validatePlatformPath(config, platform) {
-    const { path: platformPath } = config[platform] ?? {};
+function validatePlatformPath(platformPath, platform) {
     if (!platformPath || typeof platformPath !== 'string') {
         throw new Error((0, getConfigErrorMessage_1.default)(`for ${platform}, path must be defined string`, learnMoreLink[platform]));
     }
@@ -79230,6 +79216,7 @@ function validatePlatformPath(config, platform) {
         throw new Error((0, getConfigErrorMessage_1.default)(`for ${platform}, path must be a valid ${fileType[platform].join(', ')} file`, learnMoreLink[platform]));
     }
 }
+exports.validatePlatformPath = validatePlatformPath;
 function validatePlatformDevices(config, platform) {
     const { devices: platformDevices } = config[platform] ?? {};
     if (!platformDevices || !Array.isArray(platformDevices) || platformDevices.length === 0) {
@@ -79264,6 +79251,7 @@ function validateFilters(config) {
         throw new Error((0, getConfigErrorMessage_1.default)('exclude is invalid', learnMoreLink.exclude));
     }
 }
+exports.validateFilters = validateFilters;
 function isArrayOfStrings(arr) {
     if (!Array.isArray(arr)) {
         // not an array
@@ -79276,7 +79264,6 @@ function isArrayOfStrings(arr) {
     // all items are strings
     return arr.every((item) => typeof item === 'string');
 }
-exports["default"] = validate;
 
 
 /***/ }),
@@ -79385,11 +79372,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.uploadMobileBuilds = exports.printHeader = exports.getProjectTokenParts = exports.getGitInfo = exports.getErrorMessage = exports.getConfigPlatforms = exports.getConfig = exports.getBuildRunConfig = void 0;
+exports.uploadMobileBuilds = exports.printHeader = exports.getProjectTokenParts = exports.getGitInfo = exports.getErrorMessage = exports.getConfigPlatforms = exports.getBuildRunConfig = void 0;
 var getBuildRunConfig_1 = __nccwpck_require__(8727);
 Object.defineProperty(exports, "getBuildRunConfig", ({ enumerable: true, get: function () { return __importDefault(getBuildRunConfig_1).default; } }));
-var getConfig_1 = __nccwpck_require__(15620);
-Object.defineProperty(exports, "getConfig", ({ enumerable: true, get: function () { return __importDefault(getConfig_1).default; } }));
 var getConfigPlatforms_1 = __nccwpck_require__(37435);
 Object.defineProperty(exports, "getConfigPlatforms", ({ enumerable: true, get: function () { return __importDefault(getConfigPlatforms_1).default; } }));
 var getErrorMessage_1 = __nccwpck_require__(62315);

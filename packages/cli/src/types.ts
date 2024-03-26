@@ -5,7 +5,7 @@ export type Mode = 'sync' | 'asyncInit' | 'asyncUpload';
 
 export type ConfigMode = 'withPaths' | 'withoutPaths';
 
-interface WithPaths {
+export interface Paths {
   android: {
     path: string;
   };
@@ -40,8 +40,6 @@ export interface BaseConfig {
   };
 }
 
-export type Config<M extends ConfigMode> = M extends 'withPaths'
-  ? BaseConfig & WithPaths
-  : BaseConfig;
+export type Config<M extends ConfigMode> = M extends 'withPaths' ? BaseConfig & Paths : BaseConfig;
 
 export type InvalidatedConfig = PartialDeep<Config<'withPaths'>, { recurseIntoArrays: true }>;
