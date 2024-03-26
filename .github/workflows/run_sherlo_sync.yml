@@ -75,6 +75,9 @@ jobs:
           name: ios
           path: examples/expo-example/builds/preview
 
+      - name: List files in preview directory
+        run: ls -la examples/expo-example/builds/preview/
+
       - name: Run Sherlo Action
         uses: ./.
         with:

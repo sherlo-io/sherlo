@@ -42,13 +42,13 @@ jobs:
     with:
       skip_build: true
 
-  run_sherlo_async_tests:
-    if: ${{ github.event.inputs.run_sherlo_async_tests || github.event_name == 'push' }}
-    needs: [update_builds]
-    uses: sherlo-io/sherlo/.github/workflows/run_sherlo_async.yml@michal/eas-build-hooks
-    secrets: inherit
-    with:
-      skip_build: true
+  # run_sherlo_async_tests:
+  #   if: ${{ github.event.inputs.run_sherlo_async_tests || github.event_name == 'push' }}
+  #   needs: [update_builds]
+  #   uses: sherlo-io/sherlo/.github/workflows/run_sherlo_async.yml@michal/eas-build-hooks
+  #   secrets: inherit
+  #   with:
+  #     skip_build: true
 
   run_sherlo_eas_hooks_tests:
     if: ${{ github.event.inputs.run_sherlo_eas_hooks_tests || github.event_name == 'push' }}

@@ -29,6 +29,8 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
+      # It's important to run Sherlo in the same job as the EAS build,
+      # because we're pushing temporary files to .expo directory used during the build
       - name: Run Sherlo with Async Upload
         uses: ./.
         with:
@@ -36,6 +38,16 @@ jobs:
           asyncUpload: true
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
+
+      - name: Check directory and print file content
+        run: |
+          if [ -d examples/expo-example/.expo ]; then
+            echo "The directory 'examples/expo-example/.expo' exists."
+            cat examples/expo-example/.expo/sherlo.json
+          else
+            echo "The directory 'examples/expo-example/.expo' does not exist."
+          fi
+        shell: bash
 
       - name: Trigger EAS builds for both platforms
         working-directory: examples/expo-example

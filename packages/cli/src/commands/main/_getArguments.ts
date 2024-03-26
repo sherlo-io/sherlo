@@ -107,8 +107,6 @@ function getArguments(ghActionArgs?: GHActionArgs): Arguments {
   if (args.ios) args.ios = path.join(args.projectRoot, args.ios);
   if (args.config) args.config = path.join(args.projectRoot, args.config);
 
-  const gitInfo = ghActionArgs?.gitInfo || getGitInfo();
-
   // parse config
   const config = parse(args.config);
 
@@ -137,6 +135,8 @@ function getArguments(ghActionArgs?: GHActionArgs): Arguments {
     const include = config.include;
     const exclude = config.exclude;
     validateFilters({ include, exclude });
+
+    const gitInfo = ghActionArgs?.gitInfo || getGitInfo();
 
     if (mode === 'asyncInit') {
       return {
