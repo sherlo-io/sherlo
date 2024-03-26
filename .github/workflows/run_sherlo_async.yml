@@ -88,7 +88,8 @@ jobs:
       - name: Upload Android to Sherlo
         uses: ./.
         with:
-          android: examples/expo-example/builds/preview/android.apk
+          projectRoot: examples/expo-example
+          android: builds/preview/android.apk
           asyncUploadBuildIndex: ${{ needs.run_sherlo_async.outputs.buildIndex }}
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
@@ -131,7 +132,8 @@ jobs:
       - name: Upload iOS to Sherlo
         uses: ./.
         with:
-          ios: examples/expo-example/builds/preview/ios.tar.gz
+          projectRoot: examples/expo-example
+          ios: builds/preview/ios.tar.gz
           asyncUploadBuildIndex: ${{ needs.run_sherlo_async.outputs.buildIndex }}
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}

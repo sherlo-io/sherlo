@@ -18,7 +18,6 @@ import {
   OpenBuildRequest,
   OpenBuildReturn,
 } from '@sherlo/api-types';
-import { BaseConfig } from '../../types';
 
 type MainOutput = { buildIndex: number; url: string };
 
@@ -77,11 +76,16 @@ async function main(overrideArguments?: OverrideArguments): Promise<MainOutput> 
         return output;
       }
       case 'asyncUpload': {
-        const config = await getConfig<'withoutPaths'>(args);
-        const { apiToken, projectIndex, teamId } = getProjectTokenParts(config.token);
+        let token = args.token;
+        if (!token) {
+          const config = await getConfig<'withoutPaths'>(args);
+          token = config.token;
+        }
+
+        const { apiToken, projectIndex, teamId } = getProjectTokenParts(token);
         const client = SDKApiClient(apiToken);
 
-        const platforms = getPlatformsForAsyncUpload(config);
+        const platforms = getPlatformsForAsyncUpload(args);
 
         const uploadUrls = await getUploadUrlsAndUploadBuilds(
           client,
@@ -158,8 +162,11 @@ async function openBuild(
   return build;
 }
 
-function getPlatformsForAsyncUpload(config: BaseConfig): GetBuildUploadUrlsRequest['platforms'] {
-  const platforms = getConfigPlatforms(config);
+function getPlatformsForAsyncUpload(args: Arguments): GetBuildUploadUrlsRequest['platforms'] {
+  const platforms: GetBuildUploadUrlsRequest['platforms'] = [];
+
+  if (args.android) platforms.push('android');
+  if (args.ios) platforms.push('ios');
 
   if (platforms.length > 1) {
     throw new Error(

@@ -59,10 +59,11 @@ jobs:
 
       - name: Build iOS example app
         if: ${{ !inputs.skip_build }}
+        working-directory: examples/expo-example
         run: eas build --platform ios --local --profile=${{ inputs.profile }} --output=builds/${{ inputs.profile }}/ios.tar.gz
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v2
         with:
           name: ios
-          path: builds/${{ inputs.profile }}/ios.tar.gz
+          path: examples/expo-example/builds/${{ inputs.profile }}/ios.tar.gz
