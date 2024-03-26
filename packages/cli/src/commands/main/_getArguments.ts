@@ -62,8 +62,15 @@ async function getArguments(overrideArguments?: OverrideArguments): Promise<Argu
   const asyncUploadBuildIndex =
     overrideArguments?.asyncUploadBuildIndex || args.asyncUploadBuildIndex;
 
+  let mode: Mode = 'sync';
+  if (asyncUploadBuildIndex) {
+    mode = 'asyncUpload';
+  } else if (asyncUpload) {
+    mode = 'asyncInit';
+  }
+
   return {
-    mode: asyncUpload ? (asyncUploadBuildIndex ? 'asyncUpload' : 'asyncInit') : 'sync',
+    mode,
     config: overrideArguments?.config || args.config,
     asyncUpload,
     asyncUploadBuildIndex,
