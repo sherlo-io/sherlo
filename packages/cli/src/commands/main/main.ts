@@ -67,9 +67,15 @@ async function main(ghActionArgs?: GHActionArgs): Promise<MainOutput> {
       const output = createOutput({ buildIndex: build.index, projectIndex, teamId });
 
       const expoDir = path.join(args.projectRoot, '.expo');
-      if (fs.existsSync(expoDir)) {
-        fs.writeFileSync(path.join(expoDir, 'sherlo.json'), JSON.stringify(output));
+
+      // Check if the directory exists
+      if (!fs.existsSync(expoDir)) {
+        // If the directory does not exist, create it
+        fs.mkdirSync(expoDir, { recursive: true });
       }
+
+      // Now that we've ensured the directory exists, write the file
+      fs.writeFileSync(path.join(expoDir, 'sherlo.json'), JSON.stringify(output));
 
       console.log(
         `Sherlo is awaiting your builds to be uploaded asynchronously.\nView your test results at: ${output.url}\n`
