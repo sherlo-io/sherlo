@@ -70,7 +70,9 @@ async function main(overrideArguments?: OverrideArguments): Promise<MainOutput> 
 
         createExpoSherloFile(args, output);
 
-        console.log(`View your test results at: ${output.url}\n`);
+        console.log(
+          `Sherlo is awaiting your builds to be uploaded asynchronously.\nView your test results at: ${output.url}\n`
+        );
 
         return output;
       }

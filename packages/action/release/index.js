@@ -78723,59 +78723,51 @@ const helpers_1 = __nccwpck_require__(872);
 const utils_1 = __nccwpck_require__(14302);
 const DEFAULT_CONFIG_PATH = 'sherlo.config.json';
 async function getArguments(overrideArguments) {
-    try {
-        const args = await (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
-            .option('config', {
-            default: DEFAULT_CONFIG_PATH,
-            description: 'Path to Sherlo config',
-            type: 'string',
-        })
-            .option('asyncUpload', {
-            default: false,
-            description: 'Run Sherlo in lazy upload mode, meaning you don’t have to provide builds immidiately. You can send them with the same command later on',
-            type: 'boolean',
-        })
-            .option('asyncUploadBuildIndex', {
-            description: 'if you want to upload android or ios build to existing sherlo build in async upload mode, you need to provide index of build you want to update',
-            type: 'number',
-        })
-            .option('projectRoot', {
-            default: '.',
-            description: 'use this option to specify the root of the react native project when working with monorepo',
-            type: 'string',
-        })
-            .option('token', {
-            description: 'Sherlo project token',
-            type: 'string',
-        })
-            .option('android', {
-            description: 'Path to Android build in .apk format',
-            type: 'string',
-        })
-            .option('ios', {
-            description: 'Path to iOS simulator build in .app or .tar.gz file format',
-            type: 'string',
-        }).argv;
-        const asyncUpload = overrideArguments?.asyncUpload || args.asyncUpload;
-        const asyncUploadBuildIndex = overrideArguments?.asyncUploadBuildIndex || args.asyncUploadBuildIndex;
-        return {
-            mode: asyncUpload ? (asyncUploadBuildIndex ? 'asyncUpload' : 'asyncInit') : 'sync',
-            config: overrideArguments?.config || args.config,
-            asyncUpload,
-            asyncUploadBuildIndex,
-            projectRoot: overrideArguments?.projectRoot || args.projectRoot,
-            token: overrideArguments?.token || args.token,
-            android: overrideArguments?.android || args.android,
-            ios: overrideArguments?.ios || args.ios,
-            gitInfo: overrideArguments?.gitInfo || (0, utils_1.getGitInfo)(),
-        };
-    }
-    catch (error) {
-        console.error(error.message);
-    }
-    finally {
-        process.exit();
-    }
+    const args = await (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
+        .option('config', {
+        default: DEFAULT_CONFIG_PATH,
+        description: 'Path to Sherlo config',
+        type: 'string',
+    })
+        .option('asyncUpload', {
+        default: false,
+        description: 'Run Sherlo in lazy upload mode, meaning you don’t have to provide builds immidiately. You can send them with the same command later on',
+        type: 'boolean',
+    })
+        .option('asyncUploadBuildIndex', {
+        description: 'if you want to upload android or ios build to existing sherlo build in async upload mode, you need to provide index of build you want to update',
+        type: 'number',
+    })
+        .option('projectRoot', {
+        default: '.',
+        description: 'use this option to specify the root of the react native project when working with monorepo',
+        type: 'string',
+    })
+        .option('token', {
+        description: 'Sherlo project token',
+        type: 'string',
+    })
+        .option('android', {
+        description: 'Path to Android build in .apk format',
+        type: 'string',
+    })
+        .option('ios', {
+        description: 'Path to iOS simulator build in .app or .tar.gz file format',
+        type: 'string',
+    }).argv;
+    const asyncUpload = overrideArguments?.asyncUpload || args.asyncUpload;
+    const asyncUploadBuildIndex = overrideArguments?.asyncUploadBuildIndex || args.asyncUploadBuildIndex;
+    return {
+        mode: asyncUpload ? (asyncUploadBuildIndex ? 'asyncUpload' : 'asyncInit') : 'sync',
+        config: overrideArguments?.config || args.config,
+        asyncUpload,
+        asyncUploadBuildIndex,
+        projectRoot: overrideArguments?.projectRoot || args.projectRoot,
+        token: overrideArguments?.token || args.token,
+        android: overrideArguments?.android || args.android,
+        ios: overrideArguments?.ios || args.ios,
+        gitInfo: overrideArguments?.gitInfo || (0, utils_1.getGitInfo)(),
+    };
 }
 exports["default"] = getArguments;
 
@@ -78846,7 +78838,7 @@ async function main(overrideArguments) {
                 });
                 const output = createOutput({ buildIndex: build.index, projectIndex, teamId });
                 createExpoSherloFile(args, output);
-                console.log(`View your test results at: ${output.url}\n`);
+                console.log(`Sherlo is awaiting your builds to be uploaded asynchronously. View your test results at: ${output.url}\n`);
                 return output;
             }
             case 'asyncUpload': {
