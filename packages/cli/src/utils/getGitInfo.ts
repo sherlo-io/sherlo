@@ -3,9 +3,9 @@ import git from 'git-rev-sync';
 
 function getGitInfo(): Build['gitInfo'] {
   return {
-    commitName: git.message(),
-    commitHash: git.long(),
-    branchName: git.branch(),
+    commitName: git.message() || 'unknown',
+    commitHash: git.long() || 'unknown',
+    branchName: git.branch() || 'unknown',
   };
 }
 

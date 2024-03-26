@@ -1,4 +1,4 @@
-import { Config, InvalidatedConfig } from '../../types';
+import { BaseConfig, InvalidatedConfig } from '../../types';
 import getErrorMessage from '../getErrorMessage';
 import getConfigErrorMessage from './getConfigErrorMessage';
 import fs from 'fs';
@@ -9,7 +9,7 @@ import fs from 'fs';
  * */
 async function parse(path: string): Promise<InvalidatedConfig> {
   try {
-    const config: Config = JSON.parse(fs.readFileSync(path, 'utf8'));
+    const config: BaseConfig = JSON.parse(fs.readFileSync(path, 'utf8'));
 
     if (!config) throw new Error('config is undefined');
 

@@ -1,7 +1,21 @@
 import { DeviceLocale, DeviceTheme } from '@sherlo/api-types';
 import { PartialDeep } from 'type-fest';
 
-export interface Config {
+export type Mode = 'sync' | 'asyncInit' | 'asyncUpload';
+
+export type ConfigMode = 'withPaths' | 'withoutPaths';
+
+interface WithPaths {
+  android: {
+    path: string;
+  };
+  ios: {
+    path: string;
+  };
+}
+
+// Base configuration interface without paths specified
+export interface BaseConfig {
   token: string;
   android?: {
     devices: {
@@ -11,7 +25,6 @@ export interface Config {
       theme: DeviceTheme;
     }[];
     packageName: string;
-    path: string;
     activity?: string;
   };
   exclude?: string[];
@@ -24,8 +37,11 @@ export interface Config {
       osVersion: string;
       theme: DeviceTheme;
     }[];
-    path: string;
   };
 }
 
-export type InvalidatedConfig = PartialDeep<Config, { recurseIntoArrays: true }>;
+export type Config<M extends ConfigMode> = M extends 'withPaths'
+  ? BaseConfig & WithPaths
+  : BaseConfig;
+
+export type InvalidatedConfig = PartialDeep<Config<'withPaths'>, { recurseIntoArrays: true }>;

@@ -1,10 +1,9 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { InitBuildReturn, Platform } from '@sherlo/api-types';
+import { GetBuildUploadUrlsReturn, Platform } from '@sherlo/api-types';
 import chalk from 'chalk';
 import fetch from 'node-fetch';
 import tar from 'tar';
-import { Config } from '../types';
 import getErrorMessage from './getErrorMessage';
 
 const platformLabel: { [platform in Platform]: string } = {
@@ -12,13 +11,16 @@ const platformLabel: { [platform in Platform]: string } = {
   ios: 'iOS',
 };
 
-async function uploadMobileBuilds(
-  config: Config,
-  buildPresignedUploadUrls: InitBuildReturn['buildPresignedUploadUrls']
-): Promise<void> {
-  const { android, ios } = config;
+export type UploadMobileBuilsPaths = {
+  android?: string;
+  ios?: string;
+};
 
-  if (android) {
+async function uploadMobileBuilds(
+  paths: UploadMobileBuilsPaths,
+  buildPresignedUploadUrls: GetBuildUploadUrlsReturn['buildPresignedUploadUrls']
+): Promise<void> {
+  if (paths.android) {
     if (!buildPresignedUploadUrls.android) {
       throw new Error(
         getErrorMessage({
@@ -28,10 +30,10 @@ async function uploadMobileBuilds(
       );
     }
 
-    await uploadFile(android.path, buildPresignedUploadUrls.android.url, 'android');
+    await uploadFile(paths.android, buildPresignedUploadUrls.android.url, 'android');
   }
 
-  if (ios) {
+  if (paths.ios) {
     if (!buildPresignedUploadUrls.ios) {
       throw new Error(
         getErrorMessage({
@@ -41,16 +43,15 @@ async function uploadMobileBuilds(
       );
     }
 
-    const iosPath = ios.path;
-    const pathFileName = path.basename(iosPath);
+    const pathFileName = path.basename(paths.ios);
 
     let compressedIosPath;
     if (pathFileName.endsWith('.tar.gz')) {
-      compressedIosPath = iosPath;
+      compressedIosPath = paths.ios;
     } else {
-      compressedIosPath = path.join(iosPath, '..', `${pathFileName}.tar.gz`);
+      compressedIosPath = path.join(paths.ios, '..', `${pathFileName}.tar.gz`);
 
-      await compressDirectory(iosPath, compressedIosPath).catch(() => {
+      await compressDirectory(paths.ios, compressedIosPath).catch(() => {
         throw new Error(
           getErrorMessage({
             type: 'unexpected',

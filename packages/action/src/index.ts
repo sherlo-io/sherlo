@@ -1,7 +1,7 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
 
-import { uploadAndTest } from '@sherlo/cli';
+import { main } from '@sherlo/cli';
 
 async function run(): Promise<void> {
   try {
@@ -40,7 +40,7 @@ async function run(): Promise<void> {
         break;
     }
 
-    const { buildIndex, url } = await uploadAndTest({
+    const { buildIndex, url } = await main({
       android,
       ios,
       config,

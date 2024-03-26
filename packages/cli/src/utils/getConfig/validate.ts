@@ -2,15 +2,18 @@ import fs from 'fs';
 import path from 'path';
 import { Platform, deviceLocaleValues, deviceThemeValues } from '@sherlo/api-types';
 import { devices, projectApiTokenLength, teamIdLength } from '@sherlo/shared';
-import { Config, InvalidatedConfig } from '../../types';
+import { Config, ConfigMode, InvalidatedConfig } from '../../types';
 import getErrorMessage from '../getErrorMessage';
 import getProjectTokenParts from '../getProjectTokenParts';
 import getConfigErrorMessage from './getConfigErrorMessage';
 
-function validate(config: InvalidatedConfig, asyncUpload?: boolean): config is Config {
+function validate<M extends ConfigMode>(
+  config: InvalidatedConfig,
+  withoutPaths?: boolean
+): config is Config<M> {
   validateProjectToken(config);
 
-  validatePlatforms(config, asyncUpload);
+  validatePlatforms(config, withoutPaths);
 
   validateFilters(config);
 
@@ -31,7 +34,7 @@ const learnMoreLink: {
   exclude: 'https://docs.sherlo.io/getting-started/config',
 };
 
-function validateProjectToken({ token }: InvalidatedConfig): void {
+export function validateProjectToken({ token }: InvalidatedConfig): void {
   if (!token || typeof token !== 'string') {
     throw new Error(getConfigErrorMessage('token must be defined string', learnMoreLink.token));
   }
@@ -48,25 +51,25 @@ function validateProjectToken({ token }: InvalidatedConfig): void {
   }
 }
 
-function validatePlatforms(config: InvalidatedConfig, asyncUpload?: boolean): void {
+function validatePlatforms(config: InvalidatedConfig, withoutPaths?: boolean): void {
   const { android, ios } = config;
 
   if (!android && !ios) {
     throw new Error(getConfigErrorMessage('at least one of the platforms must be defined'));
   }
 
-  if (android) validatePlatform(config, 'android', asyncUpload);
+  if (android) validatePlatform(config, 'android', withoutPaths);
 
-  if (ios) validatePlatform(config, 'ios', asyncUpload);
+  if (ios) validatePlatform(config, 'ios', withoutPaths);
 }
 
 function validatePlatform(
   config: InvalidatedConfig,
   platform: Platform,
-  asyncUpload?: boolean
+  withoutPaths?: boolean
 ): void {
   validatePlatformSpecificParameters(config, platform);
-  validatePlatformPath(config, platform, asyncUpload);
+  validatePlatformPath(config, platform, withoutPaths);
   validatePlatformDevices(config, platform);
 }
 
@@ -129,12 +132,12 @@ function validatePlatformSpecificParameters(config: InvalidatedConfig, platform:
 function validatePlatformPath(
   config: InvalidatedConfig,
   platform: Platform,
-  asyncUpload?: boolean
+  withoutPaths?: boolean
 ): void {
   const { path: platformPath } = config[platform] ?? {};
 
   if (!platformPath || typeof platformPath !== 'string') {
-    if (asyncUpload) return;
+    if (withoutPaths) return;
 
     throw new Error(
       getConfigErrorMessage(`for ${platform}, path must be defined string`, learnMoreLink[platform])

@@ -10,10 +10,17 @@ set -eox pipefail
 # We only execute this command if the build runner is EAS Build
 # If user builds the app localy they need to manually choose when to run Sherlo tests
 if [[ "$EAS_BUILD_RUNNER" != "eas-build" ]]; then
-    exit
+    echo "Skipping. Local builds are not supported by this script."
+    exit 0
+fi
+
+if [ -z "$SHERLO_TOKEN" ]; then
+    echo "Error: You must provide valid sherlo project token under SHERLO_TOKEN secret variable in Expo."
+    exit 1
 fi
 
 SHERLO_BUILD_PROFILE=$1
+
 if [ -z "$SHERLO_BUILD_PROFILE" ]; then
     echo "Error: You must provide the EAS profile as an argument to this script."
     exit 1
@@ -29,7 +36,7 @@ if [[ "$EAS_BUILD_PROFILE" == "$SHERLO_BUILD_PROFILE" ]]; then
         brew install jq
     else
         # Sherlo is not supported on this platform
-        echo "The platform '$EAS_BUILD_PLATFORM' is not supported by this script."
+        echo "Skipping. The platform '$EAS_BUILD_PLATFORM' is not supported by this script."
         exit 0
     fi
 
@@ -55,7 +62,12 @@ if [[ "$EAS_BUILD_PROFILE" == "$SHERLO_BUILD_PROFILE" ]]; then
             android_path="android/app/build/outputs/apk/release/app-release.apk"
         fi
 
-        yarn sherlo --asyncUploadCommitHash=$buildIndex --token=$SHERLO_TOKEN --android=$android_path 
+        if [ -z "$android_path" ]; then
+            echo "Error: We couldn't find the Android build under default path or the path provided in eas.json. Please make sure the build is successful."
+            exit 1
+        fi
+
+        yarn sherlo --asyncUploadBuildIndex=$buildIndex --token=$SHERLO_TOKEN --android=$android_path 
     fi
 
     if [[ "$EAS_BUILD_PLATFORM" == "ios" ]]; then
@@ -65,7 +77,12 @@ if [[ "$EAS_BUILD_PROFILE" == "$SHERLO_BUILD_PROFILE" ]]; then
             ios_path=$(find ios/build/Build/Products/Release-iphonesimulator -name "*.app" -print -quit)
         fi
 
-        yarn sherlo --asyncUploadCommitHash=$EAS_BUILD_GIT_COMMIT_HASH --token=$SHERLO_TOKEN --ios=$ios_path 
+        if [ -z "$ios_path" ]; then
+            echo "Error: We couldn't find the iOS build under default path or the path provided in eas.json. Please make sure the build is successful."
+            exit 1
+        fi
+
+        yarn sherlo --asyncUploadBuildIndex=$buildIndex --token=$SHERLO_TOKEN --ios=$ios_path 
     fi
 fi
 

@@ -1,4 +1,4 @@
 #!/usr/bin/env node
-import uploadAndTest from './commands/uploadAndTest';
+import main from './commands/main';
 
-uploadAndTest();
+main();

@@ -1,7 +1,7 @@
 import { Platform } from '@sherlo/api-types';
-import { Config } from '../types';
+import { BaseConfig, Config } from '../types';
 
-function getConfigPlatforms(config: Config): Platform[] {
+function getConfigPlatforms(config: BaseConfig): Platform[] {
   const result: Platform[] = [];
 
   if (config.android) result.push('android');
