@@ -78842,10 +78842,14 @@ async function main(overrideArguments) {
                 return output;
             }
             case 'asyncUpload': {
-                const config = await (0, utils_1.getConfig)(args);
-                const { apiToken, projectIndex, teamId } = (0, utils_1.getProjectTokenParts)(config.token);
+                let token = args.token;
+                if (!token) {
+                    const config = await (0, utils_1.getConfig)(args);
+                    token = config.token;
+                }
+                const { apiToken, projectIndex, teamId } = (0, utils_1.getProjectTokenParts)(token);
                 const client = (0, sdk_client_1.default)(apiToken);
-                const platforms = getPlatformsForAsyncUpload(config);
+                const platforms = getPlatformsForAsyncUpload(args);
                 const uploadUrls = await getUploadUrlsAndUploadBuilds(client, {
                     platforms,
                     projectIndex,
@@ -78899,8 +78903,12 @@ async function openBuild(client, openBuildRequest) {
     });
     return build;
 }
-function getPlatformsForAsyncUpload(config) {
-    const platforms = (0, utils_1.getConfigPlatforms)(config);
+function getPlatformsForAsyncUpload(args) {
+    const platforms = [];
+    if (args.android)
+        platforms.push('android');
+    if (args.ios)
+        platforms.push('ios');
     if (platforms.length > 1) {
         throw new Error((0, utils_1.getErrorMessage)({
             type: 'default',

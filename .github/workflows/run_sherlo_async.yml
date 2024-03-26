@@ -50,6 +50,11 @@ jobs:
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
 
+      - name: Print Sherlo Action Outputs
+        run: |
+          echo "Build Index: ${{ steps.sherlo_action.outputs.buildIndex }}"
+          echo "URL: ${{ steps.sherlo_action.outputs.url }}"
+
   ## Android
   android_preview_build:
     name: Prepare Android Preview Build
