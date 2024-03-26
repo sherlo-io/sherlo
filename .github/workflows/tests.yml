@@ -1,6 +1,8 @@
 name: Sherlo Tests
 
 on:
+  push:
+    branches: [michal/eas-build-hooks]
   workflow_dispatch:
     inputs:
       skip_build:
@@ -26,23 +28,23 @@ on:
 
 jobs:
   update_builds:
-    if: ${{ !github.event.inputs.skip_build }}
-    uses: ./.github/workflows/update_builds.yml
+    if: ${{ !github.event.inputs.skip_build || github.event_name == 'push' }}
+    uses: sherlo-io/sherlo/.github/workflows/update_builds.yml@michal/eas-build-hooks
 
   run_sherlo_sync_tests:
-    if: ${{ github.event.inputs.run_sherlo_sync_tests }}
+    if: ${{ github.event.inputs.run_sherlo_sync_tests || github.event_name == 'push' }}
     needs: [update_builds]
-    uses: ./.github/workflows/run_sherlo_sync.yml
+    uses: sherlo-io/sherlo/.github/workflows/run_sherlo_sync.yml@michal/eas-build-hooks
     with:
       skip_build: true
 
   run_sherlo_async_tests:
-    if: ${{ github.event.inputs.run_sherlo_async_tests }}
+    if: ${{ github.event.inputs.run_sherlo_async_tests || github.event_name == 'push' }}
     needs: [update_builds]
-    uses: ./.github/workflows/run_sherlo_async.yml
+    uses: sherlo-io/sherlo/.github/workflows/run_sherlo_async.yml@michal/eas-build-hooks
     with:
       skip_build: true
 
   run_sherlo_eas_hooks_tests:
-    if: ${{ github.event.inputs.run_sherlo_eas_hooks_tests }}
-    uses: ./.github/workflows/run_sherlo_eas_hooks.yml
+    if: ${{ github.event.inputs.run_sherlo_eas_hooks_tests || github.event_name == 'push' }}
+    uses: sherlo-io/sherlo/.github/workflows/run_sherlo_eas_hooks.yml@michal/eas-build-hooks

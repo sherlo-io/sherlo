@@ -19,7 +19,7 @@ jobs:
     if: >
       (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:sync')) ||
       (github.event_name == 'workflow_dispatch')
-    uses: ./.github/workflows/android_build.yml
+    uses: sherlo-io/sherlo/.github/workflows/android_build.yml@michal/eas-build-hooks
     with:
       skip_build: ${{ github.event.inputs.skip_build || github.event.label.name == 'sherlo:sync:skip_build' }}
       profile: 'preview'
@@ -30,7 +30,7 @@ jobs:
     if: >
       (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:sync')) ||
       (github.event_name == 'workflow_dispatch')
-    uses: ./.github/workflows/ios_build.yml
+    uses: sherlo-io/sherlo/.github/workflows/ios_build.yml@michal/eas-build-hooks
     with:
       skip_build: ${{ github.event.inputs.skip_build || github.event.label.name == 'sherlo:sync:skip_build' }}
       profile: 'preview'
