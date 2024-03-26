@@ -66,7 +66,7 @@ jobs:
 
   android_preview_build_upload:
     name: Upload Android Preview Build to Sherlo
-    needs: [android_preview_build]
+    needs: [run_sherlo_async, android_preview_build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -110,7 +110,7 @@ jobs:
 
   ios_preview_build_upload:
     name: Upload iOS Preview Build to Sherlo
-    needs: [ios_preview_build]
+    needs: [run_sherlo_async, ios_preview_build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
