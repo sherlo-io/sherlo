@@ -38,4 +38,4 @@ jobs:
           SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
 
       - name: Trigger EAS builds for both platforms
-        run: eas build --profile=preview --non-interactive --no-wait
+        run: eas build --profile=preview --platform=all --non-interactive --no-wait
