@@ -3,6 +3,11 @@ name: Sherlo Tests
 on:
   workflow_dispatch:
     inputs:
+      skip_build:
+        description: 'Skip the build steps'
+        required: false
+        default: 'false'
+        type: boolean
       run_sherlo_sync_tests:
         description: 'Sherlo Sync upload tests'
         required: true
@@ -21,6 +26,7 @@ on:
 
 jobs:
   update_builds:
+    if: ${{ !github.event.inputs.skip_build }}
     uses: ./.github/workflows/update_builds.yml
 
   run_sherlo_sync_tests:

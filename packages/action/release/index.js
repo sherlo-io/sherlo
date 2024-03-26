@@ -78838,7 +78838,7 @@ async function main(overrideArguments) {
                 });
                 const output = createOutput({ buildIndex: build.index, projectIndex, teamId });
                 createExpoSherloFile(args, output);
-                console.log(`Sherlo is awaiting your builds to be uploaded asynchronously. View your test results at: ${output.url}\n`);
+                console.log(`Sherlo is awaiting your builds to be uploaded asynchronously.\nView your test results at: ${output.url}\n`);
                 return output;
             }
             case 'asyncUpload': {
@@ -79327,11 +79327,21 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const git_rev_sync_1 = __importDefault(__nccwpck_require__(27504));
 function getGitInfo() {
-    return {
-        commitName: git_rev_sync_1.default.message() || 'unknown',
-        commitHash: git_rev_sync_1.default.long() || 'unknown',
-        branchName: git_rev_sync_1.default.branch() || 'unknown',
-    };
+    try {
+        return {
+            commitName: git_rev_sync_1.default.message() || 'unknown',
+            commitHash: git_rev_sync_1.default.long() || 'unknown',
+            branchName: git_rev_sync_1.default.branch() || 'unknown',
+        };
+    }
+    catch (error) {
+        console.warn("Couldn't get git info", error);
+        return {
+            commitName: 'unknown',
+            commitHash: 'unknown',
+            branchName: 'unknown',
+        };
+    }
 }
 exports["default"] = getGitInfo;
 
