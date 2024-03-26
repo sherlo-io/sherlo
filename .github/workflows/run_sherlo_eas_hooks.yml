@@ -37,7 +37,7 @@ jobs:
           projectRoot: examples/expo-example
           asyncUpload: true
         env:
-          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
+          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN_EAS }}
 
       - name: Trigger EAS builds for both platforms
         working-directory: examples/expo-example
