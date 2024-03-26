@@ -90,6 +90,15 @@ async function main(ghActionArgs?: GHActionArgs): Promise<MainOutput> {
 
       const buildIndex = args.asyncUploadBuildIndex!;
 
+      console.log('asyncUpload', {
+        buildIndex,
+        projectIndex,
+        teamId,
+        uploadUrls,
+        androidS3Key: uploadUrls.android?.url,
+        iosS3Key: uploadUrls.ios?.url,
+      });
+
       await client
         .asyncUpload({
           buildIndex,
