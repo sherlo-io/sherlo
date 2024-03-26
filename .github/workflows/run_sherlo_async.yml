@@ -54,7 +54,7 @@ jobs:
   android_preview_build:
     name: Prepare Android Preview Build
     needs: [run_sherlo_async]
-    uses: ./.github/workflows/android_build.yml
+    uses: sherlo-io/sherlo/.github/workflows/android_build.yml@${{ github.ref_name }}
     with:
       skip_build: ${{ github.event.inputs.skip_build || github.event.label.name == 'sherlo:async:skip_build' || (github.event_name == 'push' && github.ref == 'refs/heads/michal/eas-build-hooks') }}
       profile: 'preview'
@@ -97,7 +97,7 @@ jobs:
   ios_preview_build:
     name: Prepare iOS Preview Build
     needs: [run_sherlo_async]
-    uses: ./.github/workflows/ios_build.yml
+    uses: sherlo-io/sherlo/.github/workflows/ios_build.yml@${{ github.ref_name }}
     with:
       skip_build: ${{ github.event.inputs.skip_build || github.event.label.name == 'sherlo:async:skip_build' || (github.event_name == 'push' && github.ref == 'refs/heads/michal/eas-build-hooks') }}
       profile: 'preview'
