@@ -51,6 +51,8 @@ async function run(): Promise<void> {
       gitInfo,
     });
 
+    console.log('setOutput', { buildIndex, url });
+
     core.setOutput('buildIndex', buildIndex);
     core.setOutput('url', url);
   } catch (error) {

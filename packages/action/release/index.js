@@ -78695,6 +78695,7 @@ function run() {
                 token: process.env.SHERLO_TOKEN || undefined,
                 gitInfo,
             });
+            console.log('setOutput', { buildIndex, url });
             core.setOutput('buildIndex', buildIndex);
             core.setOutput('url', url);
         }
