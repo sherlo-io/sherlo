@@ -29,15 +29,19 @@ on:
 jobs:
   android_build:
     uses: ./.github/workflows/android_build.yml
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN || inputs.EXPO_TOKEN }}
     with:
       profile: ${{ github.event.inputs.profile || inputs.profile }}
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN || inputs.EXPO_TOKEN }}
+      EXPO_TOKEN: ${{ env.EXPO_TOKEN }}
 
   ios_build:
     uses: ./.github/workflows/ios_build.yml
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN || inputs.EXPO_TOKEN }}
     with:
       profile: ${{ github.event.inputs.profile || inputs.profile }}
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN || inputs.EXPO_TOKEN }}
+      EXPO_TOKEN: ${{ env.EXPO_TOKEN }}
 
   update_in_repo:
     runs-on: ubuntu-latest
