@@ -25,8 +25,7 @@ jobs:
     name: Run Sherlo in async mode
     if: >
       (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:async')) ||
-      (github.event_name == 'workflow_dispatch') ||
-      (github.event_name == 'workflow_call')
+      (github.event_name != 'pull_request')
     runs-on: ubuntu-latest
     outputs:
       buildIndex: ${{ steps.sherlo_action.outputs.buildIndex }} # Map step output to job output

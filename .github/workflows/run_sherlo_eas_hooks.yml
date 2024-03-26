@@ -11,8 +11,7 @@ jobs:
   start_sherlo_and_make_builds_with_eas:
     if: >
       (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:eas')) ||
-      (github.event_name == 'workflow_dispatch') ||
-      (github.event_name == 'workflow_call')
+      (github.event_name != 'pull_request')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

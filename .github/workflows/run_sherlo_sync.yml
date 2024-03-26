@@ -25,8 +25,7 @@ jobs:
     name: Prepare Android Preview Build
     if: >
       (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:sync')) ||
-      (github.event_name == 'workflow_dispatch') ||
-      (github.event_name == 'workflow_call')
+      (github.event_name != 'pull_request')
     uses: sherlo-io/sherlo/.github/workflows/android_build.yml@michal/eas-build-hooks
     with:
       skip_build: ${{ github.event.inputs.skip_build || inputs.skip_build || github.event.label.name == 'sherlo:sync:skip_build' }}
@@ -37,8 +36,7 @@ jobs:
     name: Prepare iOS Preview Build
     if: >
       (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:sync')) ||
-      (github.event_name == 'workflow_dispatch') ||
-      (github.event_name == 'workflow_call')
+      (github.event_name != 'pull_request')
     uses: sherlo-io/sherlo/.github/workflows/ios_build.yml@michal/eas-build-hooks
     with:
       skip_build: ${{ github.event.inputs.skip_build || inputs.skip_build || github.event.label.name == 'sherlo:sync:skip_build' }}

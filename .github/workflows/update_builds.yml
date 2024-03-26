@@ -18,12 +18,12 @@ jobs:
   android_build:
     uses: ./.github/workflows/android_build.yml
     with:
-      profile: ${{ github.event.inputs.profile }}
+      profile: ${{ github.event.inputs.profile || inputs.profile }}
 
   ios_build:
     uses: ./.github/workflows/ios_build.yml
     with:
-      profile: ${{ github.event.inputs.profile }}
+      profile: ${{ github.event.inputs.profile || inputs.profile }}
 
   update_in_repo:
     runs-on: ubuntu-latest
@@ -45,20 +45,20 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: android
-          path: examples/expo-example/builds/${{ github.event.inputs.profile }}
+          path: examples/expo-example/builds/${{ github.event.inputs.profile || inputs.profile }}
 
       - name: Download iOS Artifact
         uses: actions/download-artifact@v2
         with:
           name: ios
-          path: examples/expo-example/builds/${{ github.event.inputs.profile }}
+          path: examples/expo-example/builds/${{ github.event.inputs.profile || inputs.profile }}
 
-      - name: Commit and push '${{ github.event.inputs.profile }}' builds
+      - name: Commit and push '${{ github.event.inputs.profile || inputs.profile }}' builds
         uses: EndBug/add-and-commit@v7
         with:
           author_name: Sherlo Bot
           author_email: admin@sherlo.io
           message: 'Update Preview builds'
-          add: 'examples/expo-example/builds/${{ github.event.inputs.profile }}/*'
+          add: 'examples/expo-example/builds/${{ github.event.inputs.profile || inputs.profile }}/*'
           push: true
           branch: ${{ github.head_ref || github.ref_name }}
