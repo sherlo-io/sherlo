@@ -1,15 +1,23 @@
-name: Build Example Apps & Run Sherlo
+name: Run Sherlo with Sync Upload
+id: run_sherlo_sync
 
 on:
   pull_request:
     branches: [dev]
-    types: [closed, labeled]
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      skip_build:
+        description: 'Skip the build steps'
+        required: false
+        default: 'false'
+        type: boolean
 
 jobs:
   android_preview_build:
     if: >
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
-      (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:'))
+      (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:sync:')) ||
+      (github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -18,14 +26,16 @@ jobs:
 
       - name: Set up Node.js
         if: >
-          !(github.event.action == 'labeled' && contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build'))
+          !(github.event_name == 'pull_request' && github.event.action == 'labeled' && contains(github.event.label.name, 'skip_build')) &&
+          !(github.event_name == 'workflow_dispatch' && github.event.inputs.skip_build == 'true')
         uses: actions/setup-node@v2
         with:
           node-version: '18.18.0'
 
       - name: Setup Java Environment
         if: >
-          !(github.event.action == 'labeled' && contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build'))
+          !(github.event_name == 'pull_request' && github.event.action == 'labeled' && contains(github.event.label.name, 'skip_build')) &&
+          !(github.event_name == 'workflow_dispatch' && github.event.inputs.skip_build == 'true')
         uses: actions/setup-java@v2
         with:
           java-version: '17'
@@ -33,17 +43,20 @@ jobs:
 
       - name: Install dependencies
         if: >
-          !(github.event.action == 'labeled' && contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build'))
+          !(github.event_name == 'pull_request' && github.event.action == 'labeled' && contains(github.event.label.name, 'skip_build')) &&
+          !(github.event_name == 'workflow_dispatch' && github.event.inputs.skip_build == 'true')
         run: yarn
 
       - name: Build dependencies
         if: >
-          !(github.event.action == 'labeled' && contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build'))
+          !(github.event_name == 'pull_request' && github.event.action == 'labeled' && contains(github.event.label.name, 'skip_build')) &&
+          !(github.event_name == 'workflow_dispatch' && github.event.inputs.skip_build == 'true')
         run: yarn build
 
       - name: Setup EAS
         if: >
-          !(github.event.action == 'labeled' && contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build'))
+          !(github.event_name == 'pull_request' && github.event.action == 'labeled' && contains(github.event.label.name, 'skip_build')) &&
+          !(github.event_name == 'workflow_dispatch' && github.event.inputs.skip_build == 'true')
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
@@ -51,7 +64,8 @@ jobs:
 
       - name: Build Android example app
         if: >
-          !(github.event.action == 'labeled' && contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build'))
+          !(github.event_name == 'pull_request' && github.event.action == 'labeled' && contains(github.event.label.name, 'skip_build')) &&
+          !(github.event_name == 'workflow_dispatch' && github.event.inputs.skip_build == 'true')
         run: yarn workspace @sherlo/expo-example android:build:preview
 
       - name: Upload Android Artifact
@@ -62,8 +76,8 @@ jobs:
 
   ios_preview_build:
     if: >
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
-      (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:'))
+      (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:sync:')) ||
+      (github.event_name == 'workflow_dispatch')
     runs-on: macos-13
     steps:
       - uses: actions/checkout@v2
@@ -72,14 +86,16 @@ jobs:
 
       - name: Set up Node.js
         if: >
-          !(github.event.action == 'labeled' && contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build'))
+          !(github.event_name == 'pull_request' && github.event.action == 'labeled' && contains(github.event.label.name, 'skip_build')) &&
+          !(github.event_name == 'workflow_dispatch' && github.event.inputs.skip_build == 'true')
         uses: actions/setup-node@v2
         with:
           node-version: '18.18.0'
 
       - name: Select Xcode Version
         if: >
-          !(github.event.action == 'labeled' && contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build'))
+          !(github.event_name == 'pull_request' && github.event.action == 'labeled' && contains(github.event.label.name, 'skip_build')) &&
+          !(github.event_name == 'workflow_dispatch' && github.event.inputs.skip_build == 'true')
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: '15.0.1'
@@ -90,24 +106,28 @@ jobs:
 
       - name: Setup Cocoapods
         if: >
-          !(github.event.action == 'labeled' && contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build'))
+          !(github.event_name == 'pull_request' && github.event.action == 'labeled' && contains(github.event.label.name, 'skip_build')) &&
+          !(github.event_name == 'workflow_dispatch' && github.event.inputs.skip_build == 'true')
         uses: maxim-lobanov/setup-cocoapods@v1
         with:
           version: latest
 
       - name: Install dependencies
         if: >
-          !(github.event.action == 'labeled' && contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build'))
+          !(github.event_name == 'pull_request' && github.event.action == 'labeled' && contains(github.event.label.name, 'skip_build')) &&
+          !(github.event_name == 'workflow_dispatch' && github.event.inputs.skip_build == 'true')
         run: yarn
 
       - name: Build dependencies
         if: >
-          !(github.event.action == 'labeled' && contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build'))
+          !(github.event_name == 'pull_request' && github.event.action == 'labeled' && contains(github.event.label.name, 'skip_build')) &&
+          !(github.event_name == 'workflow_dispatch' && github.event.inputs.skip_build == 'true')
         run: yarn build
 
       - name: Setup EAS
         if: >
-          !(github.event.action == 'labeled' && contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build'))
+          !(github.event_name == 'pull_request' && github.event.action == 'labeled' && contains(github.event.label.name, 'skip_build')) &&
+          !(github.event_name == 'workflow_dispatch' && github.event.inputs.skip_build == 'true')
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
@@ -115,7 +135,8 @@ jobs:
 
       - name: Build iOS example app
         if: >
-          !(github.event.action == 'labeled' && contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build'))
+          !(github.event_name == 'pull_request' && github.event.action == 'labeled' && contains(github.event.label.name, 'skip_build')) &&
+          !(github.event_name == 'workflow_dispatch' && github.event.inputs.skip_build == 'true')
         run: yarn workspace @sherlo/expo-example ios:build:preview
 
       - name: Upload iOS Artifact
@@ -126,8 +147,8 @@ jobs:
 
   run_sherlo_action:
     if: >
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
-      (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:'))
+      (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:sync:')) ||
+      (github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     needs: [android_preview_build, ios_preview_build]
     steps:
@@ -168,7 +189,8 @@ jobs:
 
       - name: Commit and push Preview builds
         if: >
-          !(github.event.action == 'labeled' && contains(join(github.event.pull_request.labels.*.name), 'sherlo:skip_build'))
+          !(github.event_name == 'pull_request' && github.event.action == 'labeled' && contains(github.event.label.name, 'skip_build')) &&
+          !(github.event_name == 'workflow_dispatch' && github.event.inputs.skip_build == 'true')
         uses: EndBug/add-and-commit@v7
         with:
           author_name: Sherlo Bot

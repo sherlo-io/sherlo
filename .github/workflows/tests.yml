@@ -1,0 +1,40 @@
+name: Sherlo Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_sherlo_sync_tests:
+        description: 'Sherlo Sync upload tests'
+        required: true
+        type: boolean
+        default: true
+      run_sherlo_eas_hook_tests:
+        description: 'Sherlo EAS hooks tests'
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  triggerWorkflows:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GH App Token
+        id: github_app_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.SHERLO_BOT_APP_ID }}
+          private_key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
+
+      - name: Trigger Workflow - Sherlo Sync upload tests
+        if: ${{ github.event.inputs.run_sherlo_sync_tests }}
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: run_sherlo_sync
+          token: ${{ steps.github_app_token.outputs.token }}
+
+      - name: Trigger Workflow - Sherlo EAS hooks tests
+        if: ${{ github.event.inputs.run_sherlo_eas_hook_tests }}
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: run_sherlo_eas_hooks
+          token: ${{ steps.github_app_token.outputs.token }}

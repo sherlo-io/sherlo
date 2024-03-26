@@ -1,0 +1,41 @@
+name: Run Sherlo with EAS hooks
+id: run_sherlo_eas_hooks
+
+on:
+  pull_request:
+    branches: [dev]
+    types: [labeled]
+  workflow_dispatch:
+
+jobs:
+  start_sherlo_and_make_builds_with_eas:
+    if: >
+      (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:async:')) ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: yarn
+
+      - name: Build dependencies
+        run: yarn build
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Run Sherlo with Async Upload
+        uses: ./.
+        with:
+          projectRoot: examples/expo-example
+          asyncUpload: true
+        env:
+          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
+
+      - name: Trigger EAS builds
+        run: eas build --profile=preview --non-interactive --no-wait
