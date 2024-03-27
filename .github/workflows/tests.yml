@@ -26,14 +26,16 @@ on:
 
 jobs:
   update_builds:
-    if: ${{ !github.event.inputs.skip_build || github.event_name == 'push' }}
-    uses: ./.github/workflows/update_builds.yml
-    secrets: inherit
-    with:
-      profile: 'preview'
+    steps:
+      - name: Update builds
+        if: ${{ !github.event.inputs.skip_build }}
+        uses: ./.github/workflows/update_builds.yml
+        secrets: inherit
+        with:
+          profile: 'preview'
 
   run_sherlo_sync_tests:
-    if: ${{ github.event.inputs.run_sherlo_sync_tests || github.event_name == 'push' }}
+    if: ${{ github.event.inputs.run_sherlo_sync_tests }}
     needs: [update_builds]
     uses: ./.github/workflows/run_sherlo_sync.yml
     secrets: inherit
@@ -41,7 +43,7 @@ jobs:
       skip_build: true
 
   run_sherlo_async_tests:
-    if: ${{ github.event.inputs.run_sherlo_async_tests || github.event_name == 'push' }}
+    if: ${{ github.event.inputs.run_sherlo_async_tests }}
     needs: [update_builds]
     uses: ./.github/workflows/run_sherlo_async.yml
     secrets: inherit
@@ -49,6 +51,6 @@ jobs:
       skip_build: true
 
   run_sherlo_eas_hooks_tests:
-    if: ${{ github.event.inputs.run_sherlo_eas_hooks_tests || github.event_name == 'push' }}
+    if: ${{ github.event.inputs.run_sherlo_eas_hooks_tests }}
     uses: ./.github/workflows/run_sherlo_eas_hooks.yml
     secrets: inherit
