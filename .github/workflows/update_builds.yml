@@ -16,13 +16,13 @@ on:
 
 jobs:
   android_build:
-    uses: ./.github/workflows/android_build.yml
+    uses: ./.github/workflows/android_build.yml@dev
     secrets: inherit
     with:
       profile: ${{ github.event.inputs.profile || inputs.profile }}
 
   ios_build:
-    uses: ./.github/workflows/ios_build.yml
+    uses: ./.github/workflows/ios_build.yml@dev
     secrets: inherit
     with:
       profile: ${{ github.event.inputs.profile || inputs.profile }}
