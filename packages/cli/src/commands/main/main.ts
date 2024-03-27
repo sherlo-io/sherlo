@@ -78,7 +78,8 @@ async function main(ghActionArgs?: GHActionArgs): Promise<MainOutput> {
       fs.writeFileSync(path.join(expoDir, 'sherlo.json'), JSON.stringify(output));
 
       console.log(
-        `Sherlo is awaiting your builds to be uploaded asynchronously.\nView your test results at: ${output.url}\n`
+        `Sherlo is awaiting your builds to be uploaded asynchronously.\n
+        Send your build files using --asyncUploadBuildIndex=${output.buildIndex} option\n`
       );
 
       return output;

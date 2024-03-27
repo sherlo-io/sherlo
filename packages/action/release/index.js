@@ -78930,7 +78930,8 @@ async function main(ghActionArgs) {
             }
             // Now that we've ensured the directory exists, write the file
             fs_1.default.writeFileSync(path_1.default.join(expoDir, 'sherlo.json'), JSON.stringify(output));
-            console.log(`Sherlo is awaiting your builds to be uploaded asynchronously.\nView your test results at: ${output.url}\n`);
+            console.log(`Sherlo is awaiting your builds to be uploaded asynchronously.\n
+        Send your build files using --asyncUploadBuildIndex=${output.buildIndex} option\n`);
             return output;
         }
         case 'asyncUpload': {
