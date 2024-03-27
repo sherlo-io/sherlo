@@ -114,11 +114,11 @@ function getArguments(ghActionArgs?: GHActionArgs): Arguments {
   if (config.android?.path) config.android.path = path.join(args.projectRoot, config.android?.path);
   if (config.ios?.path) config.ios.path = path.join(args.projectRoot, config.ios?.path);
 
-  // override config paths paths with CLI / GH action args
+  // override config paths with CLI / GH action args
   if (args.android && config.android) config.android.path = args.android;
   if (args.ios && config.ios) config.ios.path = args.ios;
 
-  const token = args.token || config.token;
+  const token = args.token ?? config.token;
   validateProjectToken(token);
 
   if (mode === 'asyncUpload') {

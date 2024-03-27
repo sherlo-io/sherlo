@@ -19,10 +19,19 @@ if [ -z "$SHERLO_TOKEN" ]; then
     exit 1
 fi
 
-SHERLO_BUILD_PROFILE=$1
+# Loop through all arguments
+for arg in "$@"
+do
+    # Check if argument is --profile=*
+    if [[ $arg == --profile=* ]]; then
+        # Extract the profile value from --profile=value
+        SHERLO_BUILD_PROFILE="${arg#*=}"
+        break # Exit loop once the profile is found
+    fi
+done
 
 if [ -z "$SHERLO_BUILD_PROFILE" ]; then
-    echo "Error: You must provide the EAS profile as an argument to this script."
+    echo "Error: You must provide the EAS profile that you use for Sherlo tests as an argument to this script (--profile=<PROFILE_NAME>)"
     exit 1
 fi
 

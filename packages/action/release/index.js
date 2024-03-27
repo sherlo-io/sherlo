@@ -78787,12 +78787,12 @@ function getArguments(ghActionArgs) {
         config.android.path = path_1.default.join(args.projectRoot, config.android?.path);
     if (config.ios?.path)
         config.ios.path = path_1.default.join(args.projectRoot, config.ios?.path);
-    // override config paths paths with CLI / GH action args
+    // override config paths with CLI / GH action args
     if (args.android && config.android)
         config.android.path = args.android;
     if (args.ios && config.ios)
         config.ios.path = args.ios;
-    const token = args.token || config.token;
+    const token = args.token ?? config.token;
     (0, validate_1.validateProjectToken)(token);
     if (mode === 'asyncUpload') {
         const asyncUploadArgs = getAsyncUploadArgs(args);
@@ -78922,16 +78922,9 @@ async function main(ghActionArgs) {
                 gitInfo: args.gitInfo,
             });
             const output = createOutput({ buildIndex: build.index, projectIndex, teamId });
-            const expoDir = path_1.default.join(args.projectRoot, '.expo');
-            // Check if the directory exists
-            if (!fs_1.default.existsSync(expoDir)) {
-                // If the directory does not exist, create it
-                fs_1.default.mkdirSync(expoDir, { recursive: true });
-            }
-            // Now that we've ensured the directory exists, write the file
-            fs_1.default.writeFileSync(path_1.default.join(expoDir, 'sherlo.json'), JSON.stringify(output));
+            createExpoSherloFile({ projectRoot: args.projectRoot, output });
             console.log(`Sherlo is awaiting your builds to be uploaded asynchronously.\n
-        Send your build files using --asyncUploadBuildIndex=${output.buildIndex} option\n`);
+        Build index is ${output.buildIndex}.\n`);
             return output;
         }
         case 'asyncUpload': {
@@ -78988,6 +78981,31 @@ function createOutput({ buildIndex, projectIndex, teamId, }) {
         buildIndex,
     })}`;
     return { buildIndex, url };
+}
+function createExpoSherloFile({ projectRoot, output, }) {
+    const packageJsonPath = path_1.default.join(projectRoot, 'package.json');
+    if (!fs_1.default.existsSync(packageJsonPath)) {
+        throw new Error('No package.json found in the current directory.');
+    }
+    try {
+        const packageJsonData = fs_1.default.readFileSync(packageJsonPath, 'utf8');
+        const packageJson = JSON.parse(packageJsonData);
+        // Check if the scripts section is defined and if 'eas-build-on-success' script exists
+        if (packageJson.scripts && packageJson.scripts['eas-build-on-success']) {
+            const expoDir = path_1.default.join(projectRoot, '.expo');
+            // Check if the directory exists
+            if (!fs_1.default.existsSync(expoDir)) {
+                // If the directory does not exist, create it
+                fs_1.default.mkdirSync(expoDir, { recursive: true });
+            }
+            // Now that we've ensured the directory exists, write the file
+            fs_1.default.writeFileSync(path_1.default.join(expoDir, 'sherlo.json'), JSON.stringify(output));
+        }
+    }
+    catch (err) {
+        console.error('Error parsing package.json:', err);
+        process.exit(1);
+    }
 }
 exports["default"] = main;
 

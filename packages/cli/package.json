@@ -20,11 +20,14 @@
   },
   "main": "./dist/index.js",
   "bin": {
-    "sherlo": "./dist/command.js",
+    "sherlo": "./start.sh",
+    "sherlo-cli": "./dist/command.js",
     "sherlo-eas-build-on-success": "./eas-hooks/eas-build-on-success.sh"
   },
   "files": [
-    "dist/**/*"
+    "dist/**/*",
+    "eas-hooks/**/*",
+    "start.sh"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.json && chmod u+x ./dist/command.js"
