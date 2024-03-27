@@ -7594,6 +7594,16 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 /***/ }),
 
+/***/ 73216:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+
 /***/ 19035:
 /***/ ((__unused_webpack_module, exports) => {
 
@@ -7714,6 +7724,16 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 /***/ }),
 
+/***/ 87660:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+
 /***/ 26090:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -7736,6 +7756,7 @@ __exportStar(__nccwpck_require__(25424), exports);
 __exportStar(__nccwpck_require__(83857), exports);
 __exportStar(__nccwpck_require__(94868), exports);
 __exportStar(__nccwpck_require__(59124), exports);
+__exportStar(__nccwpck_require__(73216), exports);
 __exportStar(__nccwpck_require__(19035), exports);
 __exportStar(__nccwpck_require__(57482), exports);
 __exportStar(__nccwpck_require__(34255), exports);
@@ -7748,7 +7769,7 @@ __exportStar(__nccwpck_require__(98122), exports);
 __exportStar(__nccwpck_require__(81293), exports);
 __exportStar(__nccwpck_require__(49150), exports);
 __exportStar(__nccwpck_require__(84514), exports);
-__exportStar(__nccwpck_require__(75477), exports);
+__exportStar(__nccwpck_require__(87660), exports);
 __exportStar(__nccwpck_require__(81214), exports);
 __exportStar(__nccwpck_require__(76616), exports);
 __exportStar(__nccwpck_require__(39793), exports);
@@ -7758,16 +7779,6 @@ __exportStar(__nccwpck_require__(12530), exports);
 __exportStar(__nccwpck_require__(84991), exports);
 __exportStar(__nccwpck_require__(21557), exports);
 __exportStar(__nccwpck_require__(26867), exports);
-
-
-/***/ }),
-
-/***/ 75477:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 
 /***/ }),
@@ -8787,25 +8798,48 @@ __exportStar(__nccwpck_require__(54970), exports);
 
 /***/ }),
 
-/***/ 54970:
+/***/ 37097:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
+var __makeTemplateObject = (this && this.__makeTemplateObject) || function (cooked, raw) {
+    if (Object.defineProperty) { Object.defineProperty(cooked, "raw", { value: raw }); } else { cooked.raw = raw; }
+    return cooked;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.openBuild = exports.initBuild = void 0;
-var initBuild_1 = __nccwpck_require__(37560);
-Object.defineProperty(exports, "initBuild", ({ enumerable: true, get: function () { return __importDefault(initBuild_1).default; } }));
-var openBuild_1 = __nccwpck_require__(83010);
-Object.defineProperty(exports, "openBuild", ({ enumerable: true, get: function () { return __importDefault(openBuild_1).default; } }));
+var common_client_1 = __nccwpck_require__(89526);
+var graphql_tag_1 = __importDefault(__nccwpck_require__(74957));
+var mutation = graphql_tag_1.default(templateObject_1 || (templateObject_1 = __makeTemplateObject(["\n  mutation asyncUpload(\n    $buildIndex: Int!\n    $projectIndex: Int!\n    $teamId: String!\n    $androidS3Key: String\n    $iosS3Key: String\n  ) {\n    asyncUpload(\n      buildIndex: $buildIndex\n      projectIndex: $projectIndex\n      teamId: $teamId\n      androidS3Key: $androidS3Key\n      iosS3Key: $iosS3Key\n    ) {\n      activeBuildRun {\n        ...ActiveBuildRunFragment\n      }\n      build {\n        ...BuildFragment\n      }\n      buildRun {\n        ...BuildRunFragment\n      }\n      buildRunToken\n      queuedBuildRun {\n        ...QueuedBuildRunFragment\n      }\n      runner {\n        ...RunnerFragment\n      }\n    }\n  }\n  ", "\n  ", "\n  ", "\n  ", "\n  ", "\n"], ["\n  mutation asyncUpload(\n    $buildIndex: Int!\n    $projectIndex: Int!\n    $teamId: String!\n    $androidS3Key: String\n    $iosS3Key: String\n  ) {\n    asyncUpload(\n      buildIndex: $buildIndex\n      projectIndex: $projectIndex\n      teamId: $teamId\n      androidS3Key: $androidS3Key\n      iosS3Key: $iosS3Key\n    ) {\n      activeBuildRun {\n        ...ActiveBuildRunFragment\n      }\n      build {\n        ...BuildFragment\n      }\n      buildRun {\n        ...BuildRunFragment\n      }\n      buildRunToken\n      queuedBuildRun {\n        ...QueuedBuildRunFragment\n      }\n      runner {\n        ...RunnerFragment\n      }\n    }\n  }\n  ", "\n  ", "\n  ", "\n  ", "\n  ", "\n"])), common_client_1.ActiveBuildRunFragment, common_client_1.BuildFragment, common_client_1.BuildRunFragment, common_client_1.QueuedBuildRunFragment, common_client_1.RunnerFragment);
+var asyncUpload = function (client) {
+    return function (variables) {
+        return client
+            .mutate({
+            mutation: mutation,
+            variables: variables,
+        })
+            .then(function (_a) {
+            var data = _a.data;
+            return data.asyncUpload;
+        })
+            .catch(function (error) {
+            if (error.graphQLErrors[0]) {
+                throw error.graphQLErrors[0];
+            }
+            throw error;
+        });
+    };
+};
+exports["default"] = asyncUpload;
+var templateObject_1;
 
 
 /***/ }),
 
-/***/ 37560:
+/***/ 91123:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -8819,8 +8853,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 var graphql_tag_1 = __importDefault(__nccwpck_require__(74957));
-var mutation = graphql_tag_1.default(templateObject_1 || (templateObject_1 = __makeTemplateObject(["\n  mutation initBuild(\n    $platforms: [Platform]!\n    $projectIndex: Int!\n    $teamId: String!\n  ) {\n    initBuild(\n      platforms: $platforms\n      projectIndex: $projectIndex\n      teamId: $teamId\n    ) {\n      buildPresignedUploadUrls {\n        android {\n          s3Key\n          url\n        }\n        ios {\n          s3Key\n          url\n        }\n      }\n    }\n  }\n"], ["\n  mutation initBuild(\n    $platforms: [Platform]!\n    $projectIndex: Int!\n    $teamId: String!\n  ) {\n    initBuild(\n      platforms: $platforms\n      projectIndex: $projectIndex\n      teamId: $teamId\n    ) {\n      buildPresignedUploadUrls {\n        android {\n          s3Key\n          url\n        }\n        ios {\n          s3Key\n          url\n        }\n      }\n    }\n  }\n"])));
-var initBuild = function (client) {
+var mutation = graphql_tag_1.default(templateObject_1 || (templateObject_1 = __makeTemplateObject(["\n  mutation getBuildUploadUrls(\n    $platforms: [Platform]!\n    $projectIndex: Int!\n    $teamId: String!\n  ) {\n    getBuildUploadUrls(\n      platforms: $platforms\n      projectIndex: $projectIndex\n      teamId: $teamId\n    ) {\n      buildPresignedUploadUrls {\n        android {\n          s3Key\n          url\n        }\n        ios {\n          s3Key\n          url\n        }\n      }\n    }\n  }\n"], ["\n  mutation getBuildUploadUrls(\n    $platforms: [Platform]!\n    $projectIndex: Int!\n    $teamId: String!\n  ) {\n    getBuildUploadUrls(\n      platforms: $platforms\n      projectIndex: $projectIndex\n      teamId: $teamId\n    ) {\n      buildPresignedUploadUrls {\n        android {\n          s3Key\n          url\n        }\n        ios {\n          s3Key\n          url\n        }\n      }\n    }\n  }\n"])));
+var getBuildUploadUrls = function (client) {
     return function (variables) {
         return client
             .mutate({
@@ -8829,7 +8863,7 @@ var initBuild = function (client) {
         })
             .then(function (_a) {
             var data = _a.data;
-            return data.initBuild;
+            return data.getBuildUploadUrls;
         })
             .catch(function (error) {
             if (error.graphQLErrors[0]) {
@@ -8839,8 +8873,28 @@ var initBuild = function (client) {
         });
     };
 };
-exports["default"] = initBuild;
+exports["default"] = getBuildUploadUrls;
 var templateObject_1;
+
+
+/***/ }),
+
+/***/ 54970:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.openBuild = exports.getBuildUploadUrls = exports.asyncUpload = void 0;
+var asyncUpload_1 = __nccwpck_require__(37097);
+Object.defineProperty(exports, "asyncUpload", ({ enumerable: true, get: function () { return __importDefault(asyncUpload_1).default; } }));
+var getBuildUploadUrls_1 = __nccwpck_require__(91123);
+Object.defineProperty(exports, "getBuildUploadUrls", ({ enumerable: true, get: function () { return __importDefault(getBuildUploadUrls_1).default; } }));
+var openBuild_1 = __nccwpck_require__(83010);
+Object.defineProperty(exports, "openBuild", ({ enumerable: true, get: function () { return __importDefault(openBuild_1).default; } }));
 
 
 /***/ }),
@@ -8860,7 +8914,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 var common_client_1 = __nccwpck_require__(89526);
 var graphql_tag_1 = __importDefault(__nccwpck_require__(74957));
-var mutation = graphql_tag_1.default(templateObject_1 || (templateObject_1 = __makeTemplateObject(["\n  mutation openBuild(\n    $buildRunConfig: BuildRunConfigInput!\n    $gitInfo: GitInfoInput!\n    $projectIndex: Int!\n    $teamId: String!\n  ) {\n    openBuild(\n      buildRunConfig: $buildRunConfig\n      gitInfo: $gitInfo\n      projectIndex: $projectIndex\n      teamId: $teamId\n    ) {\n      activeBuildRun {\n        ...ActiveBuildRunFragment\n      }\n      build {\n        ...BuildFragment\n      }\n      buildRun {\n        ...BuildRunFragment\n      }\n      buildRunToken\n      project {\n        ...ProjectFragment\n      }\n      projectIndex\n      queuedBuildRun {\n        ...QueuedBuildRunFragment\n      }\n      runner {\n        ...RunnerFragment\n      }\n      teamId\n    }\n  }\n  ", "\n  ", "\n  ", "\n  ", "\n  ", "\n  ", "\n"], ["\n  mutation openBuild(\n    $buildRunConfig: BuildRunConfigInput!\n    $gitInfo: GitInfoInput!\n    $projectIndex: Int!\n    $teamId: String!\n  ) {\n    openBuild(\n      buildRunConfig: $buildRunConfig\n      gitInfo: $gitInfo\n      projectIndex: $projectIndex\n      teamId: $teamId\n    ) {\n      activeBuildRun {\n        ...ActiveBuildRunFragment\n      }\n      build {\n        ...BuildFragment\n      }\n      buildRun {\n        ...BuildRunFragment\n      }\n      buildRunToken\n      project {\n        ...ProjectFragment\n      }\n      projectIndex\n      queuedBuildRun {\n        ...QueuedBuildRunFragment\n      }\n      runner {\n        ...RunnerFragment\n      }\n      teamId\n    }\n  }\n  ", "\n  ", "\n  ", "\n  ", "\n  ", "\n  ", "\n"])), common_client_1.ActiveBuildRunFragment, common_client_1.BuildFragment, common_client_1.BuildRunFragment, common_client_1.ProjectFragment, common_client_1.QueuedBuildRunFragment, common_client_1.RunnerFragment);
+var mutation = graphql_tag_1.default(templateObject_1 || (templateObject_1 = __makeTemplateObject(["\n  mutation openBuild(\n    $buildRunConfig: BuildRunConfigInput!\n    $gitInfo: GitInfoInput!\n    $projectIndex: Int!\n    $teamId: String!\n    $asyncUpload: Boolean\n  ) {\n    openBuild(\n      buildRunConfig: $buildRunConfig\n      gitInfo: $gitInfo\n      projectIndex: $projectIndex\n      teamId: $teamId\n      asyncUpload: $asyncUpload\n    ) {\n      activeBuildRun {\n        ...ActiveBuildRunFragment\n      }\n      build {\n        ...BuildFragment\n      }\n      buildRun {\n        ...BuildRunFragment\n      }\n      buildRunToken\n      project {\n        ...ProjectFragment\n      }\n      projectIndex\n      queuedBuildRun {\n        ...QueuedBuildRunFragment\n      }\n      runner {\n        ...RunnerFragment\n      }\n      teamId\n    }\n  }\n  ", "\n  ", "\n  ", "\n  ", "\n  ", "\n  ", "\n"], ["\n  mutation openBuild(\n    $buildRunConfig: BuildRunConfigInput!\n    $gitInfo: GitInfoInput!\n    $projectIndex: Int!\n    $teamId: String!\n    $asyncUpload: Boolean\n  ) {\n    openBuild(\n      buildRunConfig: $buildRunConfig\n      gitInfo: $gitInfo\n      projectIndex: $projectIndex\n      teamId: $teamId\n      asyncUpload: $asyncUpload\n    ) {\n      activeBuildRun {\n        ...ActiveBuildRunFragment\n      }\n      build {\n        ...BuildFragment\n      }\n      buildRun {\n        ...BuildRunFragment\n      }\n      buildRunToken\n      project {\n        ...ProjectFragment\n      }\n      projectIndex\n      queuedBuildRun {\n        ...QueuedBuildRunFragment\n      }\n      runner {\n        ...RunnerFragment\n      }\n      teamId\n    }\n  }\n  ", "\n  ", "\n  ", "\n  ", "\n  ", "\n  ", "\n"])), common_client_1.ActiveBuildRunFragment, common_client_1.BuildFragment, common_client_1.BuildRunFragment, common_client_1.ProjectFragment, common_client_1.QueuedBuildRunFragment, common_client_1.RunnerFragment);
 var openBuild = function (client) {
     return function (variables) {
         return client
@@ -8911,6 +8965,7 @@ var aws_appsync_auth_link_1 = __nccwpck_require__(40091);
 var env_json_1 = __importDefault(__nccwpck_require__(72547));
 var requests_1 = __nccwpck_require__(76375);
 __nccwpck_require__(27163);
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type,@typescript-eslint/explicit-module-boundary-types
 var SdkClient = function (authToken, testToken) {
     var headers = { authorization: authToken };
     if (testToken) {
@@ -8937,7 +8992,8 @@ var SdkClient = function (authToken, testToken) {
         cache: new core_1.InMemoryCache(),
     });
     return {
-        initBuild: requests_1.initBuild(client),
+        asyncUpload: requests_1.asyncUpload(client),
+        getBuildUploadUrls: requests_1.getBuildUploadUrls(client),
         openBuild: requests_1.openBuild(client),
     };
 };
@@ -51929,7 +51985,7 @@ function symbolObservablePonyfill(root) {
 /***/ 30121:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-const tinycolor = __nccwpck_require__(36158);
+const tinycolor = __nccwpck_require__(15914);
 
 /**
  * @typedef {Object} TinyGradient.StopInput
@@ -77212,7 +77268,7 @@ module.exports.implForWrapper = function (wrapper) {
 
 /***/ }),
 
-/***/ 15914:
+/***/ 53772:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
@@ -78607,10 +78663,14 @@ function run() {
             const android = core.getInput('android', { required: false });
             const ios = core.getInput('ios', { required: false });
             const config = core.getInput('config', { required: false });
+            const projectRoot = core.getInput('projectRoot', { required: false });
+            const asyncUploadBuildIndex = Number(core.getInput('asyncUploadBuildIndex', {
+                required: false,
+            }));
+            const asyncUpload = core.getInput('asyncUpload', { required: false }) === 'true';
             const { context } = github;
-            console.log(JSON.stringify(context, null, 2));
             let gitInfo = {
-                commitHash: (context === null || context === void 0 ? void 0 : context.sha.slice(0, 7)) || 'unknown',
+                commitHash: (context === null || context === void 0 ? void 0 : context.sha) || 'unknown',
                 branchName: (context === null || context === void 0 ? void 0 : context.ref.split('refs/heads/')[1]) || 'unknown',
                 commitName: 'unknown',
             };
@@ -78622,19 +78682,21 @@ function run() {
                     }
                     break;
                 default:
+                    console.log(JSON.stringify(context, null, 2));
                     break;
             }
-            console.log('gitInfo', gitInfo);
-            const test = true;
-            if (test)
-                return;
-            yield (0, cli_1.uploadAndTest)({
+            const { buildIndex, url } = yield (0, cli_1.main)({
                 android,
                 ios,
                 config,
+                asyncUpload,
+                asyncUploadBuildIndex,
+                projectRoot,
                 token: process.env.SHERLO_TOKEN || undefined,
                 gitInfo,
             });
+            core.setOutput('buildIndex', buildIndex);
+            core.setOutput('url', url);
         }
         catch (error) {
             if (error instanceof Error)
@@ -78647,7 +78709,172 @@ run();
 
 /***/ }),
 
-/***/ 70780:
+/***/ 35128:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const yargs_1 = __importDefault(__nccwpck_require__(97712));
+const helpers_1 = __nccwpck_require__(872);
+const utils_1 = __nccwpck_require__(14302);
+const path_1 = __importDefault(__nccwpck_require__(71017));
+const parse_1 = __importDefault(__nccwpck_require__(95586));
+const validate_1 = __nccwpck_require__(22240);
+const DEFAULT_CONFIG_PATH = 'sherlo.config.json';
+const DEFAULT_PROJECT_ROOT = '.';
+function getArguments(ghActionArgs) {
+    // get arguments from github action or yargs
+    const cliArgs = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
+        .option('config', {
+        default: DEFAULT_CONFIG_PATH,
+        description: 'Path to Sherlo config',
+        type: 'string',
+    })
+        .option('asyncUpload', {
+        description: 'Run Sherlo in lazy upload mode, meaning you don’t have to provide builds immidiately. You can send them with the same command later on',
+        type: 'boolean',
+    })
+        .option('asyncUploadBuildIndex', {
+        description: 'if you want to upload android or ios build to existing sherlo build in async upload mode, you need to provide index of build you want to update',
+        type: 'number',
+    })
+        .option('projectRoot', {
+        default: '.',
+        description: 'use this option to specify the root of the react native project when working with monorepo',
+        type: 'string',
+    })
+        .option('token', {
+        description: 'Sherlo project token',
+        type: 'string',
+    })
+        .option('android', {
+        description: 'Path to Android build in .apk format',
+        type: 'string',
+    })
+        .option('ios', {
+        description: 'Path to iOS simulator build in .app or .tar.gz file format',
+        type: 'string',
+    }).argv;
+    const args = ghActionArgs || cliArgs;
+    // set defaults
+    if (!args.config)
+        args.config = DEFAULT_CONFIG_PATH;
+    if (!args.projectRoot)
+        args.projectRoot = DEFAULT_PROJECT_ROOT;
+    // set mode based on async upload
+    let mode = 'sync';
+    if (args.asyncUploadBuildIndex) {
+        mode = 'asyncUpload';
+    }
+    else if (args.asyncUpload) {
+        mode = 'asyncInit';
+    }
+    // adjust paths for projectRoot path
+    if (args.android)
+        args.android = path_1.default.join(args.projectRoot, args.android);
+    if (args.ios)
+        args.ios = path_1.default.join(args.projectRoot, args.ios);
+    if (args.config)
+        args.config = path_1.default.join(args.projectRoot, args.config);
+    // parse config
+    const config = (0, parse_1.default)(args.config);
+    // adjust config paths for projectRoot path
+    if (config.android?.path)
+        config.android.path = path_1.default.join(args.projectRoot, config.android?.path);
+    if (config.ios?.path)
+        config.ios.path = path_1.default.join(args.projectRoot, config.ios?.path);
+    // override config paths with CLI / GH action args
+    if (args.android && config.android)
+        config.android.path = args.android;
+    if (args.ios && config.ios)
+        config.ios.path = args.ios;
+    const token = args.token ?? config.token;
+    (0, validate_1.validateProjectToken)(token);
+    if (mode === 'asyncUpload') {
+        const asyncUploadArgs = getAsyncUploadArgs(args);
+        return {
+            mode,
+            token: token,
+            path: asyncUploadArgs.path,
+            platform: asyncUploadArgs.platform,
+            asyncUploadBuildIndex: args.asyncUploadBuildIndex, // it's impossible for asyncUploadBuildIndex to be undefined in 'asyncUpload' mode
+        };
+    }
+    else {
+        const android = config.android;
+        const ios = config.ios;
+        (0, validate_1.validatePlatforms)({ android, ios }, mode !== 'sync');
+        const include = config.include;
+        const exclude = config.exclude;
+        (0, validate_1.validateFilters)({ include, exclude });
+        const gitInfo = ghActionArgs?.gitInfo || (0, utils_1.getGitInfo)();
+        if (mode === 'asyncInit') {
+            return {
+                mode,
+                config: config,
+                gitInfo,
+                projectRoot: args.projectRoot,
+                token: token,
+            };
+        }
+        else {
+            return {
+                mode,
+                config: config,
+                gitInfo,
+                token: token,
+            };
+        }
+    }
+}
+function getAsyncUploadArgs(args) {
+    if (args.android && args.ios) {
+        throw new Error((0, utils_1.getErrorMessage)({
+            type: 'default',
+            message: "Don't use 'asyncUploadBuildIndex' if you're providing android and ios at the same time",
+        }));
+    }
+    else if (!args.android && !args.ios) {
+        throw new Error((0, utils_1.getErrorMessage)({
+            type: 'default',
+            message: "When using 'asyncUploadBuildIndex' you need to provide one build path, ios or android",
+        }));
+    }
+    else if (args.android) {
+        (0, validate_1.validatePlatformPath)(args.android, 'android');
+        return { path: args.android, platform: 'android' };
+    }
+    else {
+        (0, validate_1.validatePlatformPath)(args.ios, 'ios');
+        return { path: args.ios, platform: 'ios' };
+    }
+}
+exports["default"] = getArguments;
+
+
+/***/ }),
+
+/***/ 3177:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports["default"] = void 0;
+var main_1 = __nccwpck_require__(40767);
+Object.defineProperty(exports, "default", ({ enumerable: true, get: function () { return __importDefault(main_1).default; } }));
+
+
+/***/ }),
+
+/***/ 40767:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -78658,80 +78885,129 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const sdk_client_1 = __importDefault(__nccwpck_require__(13137));
 const shared_1 = __nccwpck_require__(37178);
-const yargs_1 = __importDefault(__nccwpck_require__(97712));
-const helpers_1 = __nccwpck_require__(872);
 const utils_1 = __nccwpck_require__(14302);
-const DEFAULT_CONFIG_PATH = 'sherlo.config.json';
-async function uploadAndTest(parameters) {
-    try {
-        (0, utils_1.printHeader)();
-        const args = await (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv))
-            .option('config', {
-            default: DEFAULT_CONFIG_PATH,
-            description: 'Path to Sherlo config',
-            type: 'string',
-        })
-            .option('token', {
-            description: 'Sherlo project token',
-            type: 'string',
-        })
-            .option('android', {
-            description: 'Path to Android build in .apk format',
-            type: 'string',
-        })
-            .option('ios', {
-            description: 'Path to iOS simulator build in .app or .tar.gz file format',
-            type: 'string',
-        }).argv;
-        const config = await (0, utils_1.getConfig)({
-            config: parameters?.config || args.config,
-            token: parameters?.token || args.token,
-            ios: parameters?.ios || args.ios,
-            android: parameters?.android || args.android,
-        });
-        const { apiToken, projectIndex, teamId } = (0, utils_1.getProjectTokenParts)(config.token);
-        const client = (0, sdk_client_1.default)(apiToken);
-        const { buildPresignedUploadUrls } = await client
-            .initBuild({
-            platforms: (0, utils_1.getConfigPlatforms)(config),
-            projectIndex,
-            teamId,
-        })
-            .catch((error) => {
-            if (error.networkError.statusCode === 401) {
-                throw new Error((0, utils_1.getErrorMessage)({
-                    type: 'auth',
-                    message: 'project token is invalid',
-                    learnMoreLink: 'https://docs.sherlo.io/getting-started/config#project-token',
-                }));
-            }
-            throw new Error((0, utils_1.getErrorMessage)({ type: 'unexpected', message: error.message }));
-        });
-        await (0, utils_1.uploadMobileBuilds)(config, buildPresignedUploadUrls);
-        const { build } = await client
-            .openBuild({
-            teamId,
-            projectIndex,
-            buildRunConfig: (0, utils_1.getBuildRunConfig)({ config, buildPresignedUploadUrls }),
-            gitInfo: parameters?.gitInfo || (0, utils_1.getGitInfo)(),
-        })
-            .catch((error) => {
-            throw new Error((0, utils_1.getErrorMessage)({ type: 'unexpected', message: error.message }));
-        });
-        console.log(`View your test results at: https://app.sherlo.io/build?${(0, shared_1.getUrlParams)({
-            teamId,
-            projectIndex,
-            buildIndex: build.index,
-        })}\n`);
-    }
-    catch (error) {
-        console.error(error.message);
-    }
-    finally {
-        process.exit();
+const fs_1 = __importDefault(__nccwpck_require__(57147));
+const path_1 = __importDefault(__nccwpck_require__(71017));
+const _getArguments_1 = __importDefault(__nccwpck_require__(35128));
+async function main(ghActionArgs) {
+    (0, utils_1.printHeader)();
+    const args = (0, _getArguments_1.default)(ghActionArgs);
+    const { apiToken, projectIndex, teamId } = (0, utils_1.getProjectTokenParts)(args.token);
+    const client = (0, sdk_client_1.default)(apiToken);
+    switch (args.mode) {
+        case 'sync': {
+            const uploadUrls = await getUploadUrlsAndUploadBuilds(client, { platforms: (0, utils_1.getConfigPlatforms)(args.config), projectIndex, teamId }, {
+                android: args.config.android?.path,
+                ios: args.config.ios?.path,
+            });
+            const build = await openBuild(client, {
+                teamId,
+                projectIndex,
+                buildRunConfig: (0, utils_1.getBuildRunConfig)({
+                    config: args.config,
+                    buildPresignedUploadUrls: uploadUrls,
+                }),
+                gitInfo: args.gitInfo,
+            });
+            const output = createOutput({ buildIndex: build.index, projectIndex, teamId });
+            console.log(`View your test results at: ${output.url}\n`);
+            return output;
+        }
+        case 'asyncInit': {
+            const build = await openBuild(client, {
+                teamId,
+                projectIndex,
+                buildRunConfig: (0, utils_1.getBuildRunConfig)({ config: args.config }),
+                asyncUpload: true,
+                gitInfo: args.gitInfo,
+            });
+            const output = createOutput({ buildIndex: build.index, projectIndex, teamId });
+            createExpoSherloFile({ projectRoot: args.projectRoot, output });
+            console.log(`Sherlo is awaiting your builds to be uploaded asynchronously.\n
+        Build index is ${output.buildIndex}.\n`);
+            return output;
+        }
+        case 'asyncUpload': {
+            const uploadUrls = await getUploadUrlsAndUploadBuilds(client, {
+                platforms: args.platform === 'android' ? ['android'] : ['ios'],
+                projectIndex,
+                teamId,
+            }, args.platform === 'android' ? { android: args.path } : { ios: args.path });
+            const buildIndex = args.asyncUploadBuildIndex;
+            await client
+                .asyncUpload({
+                buildIndex,
+                projectIndex,
+                teamId,
+                androidS3Key: uploadUrls.android?.s3Key,
+                iosS3Key: uploadUrls.ios?.s3Key,
+            })
+                .catch((error) => {
+                throw new Error((0, utils_1.getErrorMessage)({ type: 'unexpected', message: error.message }));
+            });
+            const output = createOutput({ buildIndex, projectIndex, teamId });
+            return output;
+        }
+        default:
+            throw new Error((0, utils_1.getErrorMessage)({ type: 'default', message: 'Unknown mode' }));
     }
 }
-exports["default"] = uploadAndTest;
+async function getUploadUrlsAndUploadBuilds(client, getBuildUploadUrlsRequest, paths) {
+    const { buildPresignedUploadUrls } = await client
+        .getBuildUploadUrls(getBuildUploadUrlsRequest)
+        .catch((error) => {
+        if (error.networkError.statusCode === 401) {
+            throw new Error((0, utils_1.getErrorMessage)({
+                type: 'auth',
+                message: 'project token is invalid',
+                learnMoreLink: 'https://docs.sherlo.io/getting-started/config#project-token',
+            }));
+        }
+        throw new Error((0, utils_1.getErrorMessage)({ type: 'unexpected', message: error.message }));
+    });
+    await (0, utils_1.uploadMobileBuilds)(paths, buildPresignedUploadUrls);
+    return buildPresignedUploadUrls;
+}
+async function openBuild(client, openBuildRequest) {
+    const { build } = await client.openBuild(openBuildRequest).catch((error) => {
+        throw new Error((0, utils_1.getErrorMessage)({ type: 'unexpected', message: error.message }));
+    });
+    return build;
+}
+function createOutput({ buildIndex, projectIndex, teamId, }) {
+    const url = `https://app.sherlo.io/build?${(0, shared_1.getUrlParams)({
+        teamId,
+        projectIndex,
+        buildIndex,
+    })}`;
+    return { buildIndex, url };
+}
+function createExpoSherloFile({ projectRoot, output, }) {
+    const packageJsonPath = path_1.default.join(projectRoot, 'package.json');
+    if (!fs_1.default.existsSync(packageJsonPath)) {
+        throw new Error('No package.json found in the current directory.');
+    }
+    try {
+        const packageJsonData = fs_1.default.readFileSync(packageJsonPath, 'utf8');
+        const packageJson = JSON.parse(packageJsonData);
+        // Check if the scripts section is defined and if 'eas-build-on-success' script exists
+        if (packageJson.scripts && packageJson.scripts['eas-build-on-success']) {
+            const expoDir = path_1.default.join(projectRoot, '.expo');
+            // Check if the directory exists
+            if (!fs_1.default.existsSync(expoDir)) {
+                // If the directory does not exist, create it
+                fs_1.default.mkdirSync(expoDir, { recursive: true });
+            }
+            // Now that we've ensured the directory exists, write the file
+            fs_1.default.writeFileSync(path_1.default.join(expoDir, 'sherlo.json'), JSON.stringify(output));
+        }
+    }
+    catch (err) {
+        console.error('Error parsing package.json:', err);
+        process.exit(1);
+    }
+}
+exports["default"] = main;
 
 
 /***/ }),
@@ -78745,9 +79021,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.uploadAndTest = void 0;
-var uploadAndTest_1 = __nccwpck_require__(70780);
-Object.defineProperty(exports, "uploadAndTest", ({ enumerable: true, get: function () { return __importDefault(uploadAndTest_1).default; } }));
+exports.main = void 0;
+var main_1 = __nccwpck_require__(3177);
+Object.defineProperty(exports, "main", ({ enumerable: true, get: function () { return __importDefault(main_1).default; } }));
 
 
 /***/ }),
@@ -78763,57 +79039,24 @@ function getBuildRunConfig({ buildPresignedUploadUrls, config, }) {
     return {
         include,
         exclude,
-        android: android && buildPresignedUploadUrls.android
+        android: android
             ? {
                 devices: android.devices,
                 packageName: android.packageName,
                 activity: android.activity,
-                s3Key: buildPresignedUploadUrls.android.s3Key,
+                s3Key: buildPresignedUploadUrls?.android?.s3Key || '',
             }
             : undefined,
-        ios: ios && buildPresignedUploadUrls.ios
+        ios: ios
             ? {
                 devices: ios.devices,
                 bundleIdentifier: ios.bundleIdentifier,
-                s3Key: buildPresignedUploadUrls.ios.s3Key,
+                s3Key: buildPresignedUploadUrls?.ios?.s3Key || '',
             }
             : undefined,
     };
 }
 exports["default"] = getBuildRunConfig;
-
-
-/***/ }),
-
-/***/ 12636:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-const getErrorMessage_1 = __importDefault(__nccwpck_require__(62315));
-const parse_1 = __importDefault(__nccwpck_require__(95586));
-const validate_1 = __importDefault(__nccwpck_require__(22240));
-async function getConfig(parameters) {
-    const config = await (0, parse_1.default)(parameters.config);
-    if (parameters?.android && config.android) {
-        config.android.path = parameters.android;
-    }
-    if (parameters?.ios && config.ios) {
-        config.ios.path = parameters.ios;
-    }
-    if (parameters?.token) {
-        config.token = parameters.token;
-    }
-    if ((0, validate_1.default)(config)) {
-        return config;
-    }
-    throw new Error((0, getErrorMessage_1.default)({ type: 'unexpected', message: 'getConfig error' }));
-}
-exports["default"] = getConfig;
 
 
 /***/ }),
@@ -78840,22 +79083,6 @@ exports["default"] = getConfigErrorMessage;
 
 /***/ }),
 
-/***/ 15620:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports["default"] = void 0;
-var getConfig_1 = __nccwpck_require__(12636);
-Object.defineProperty(exports, "default", ({ enumerable: true, get: function () { return __importDefault(getConfig_1).default; } }));
-
-
-/***/ }),
-
 /***/ 95586:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -78872,7 +79099,7 @@ const fs_1 = __importDefault(__nccwpck_require__(57147));
  * 1. Both `include` and `exclude` can be defined as a string or an array of
  *    strings in the config. However, the output should always be an array.
  * */
-async function parse(path) {
+function parse(path) {
     try {
         const config = JSON.parse(fs_1.default.readFileSync(path, 'utf8'));
         if (!config)
@@ -78921,6 +79148,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.validateFilters = exports.validatePlatformPath = exports.validatePlatforms = exports.validateProjectToken = void 0;
 const fs_1 = __importDefault(__nccwpck_require__(57147));
 const path_1 = __importDefault(__nccwpck_require__(71017));
 const api_types_1 = __nccwpck_require__(5927);
@@ -78928,12 +79156,6 @@ const shared_1 = __nccwpck_require__(37178);
 const getErrorMessage_1 = __importDefault(__nccwpck_require__(62315));
 const getProjectTokenParts_1 = __importDefault(__nccwpck_require__(50599));
 const getConfigErrorMessage_1 = __importDefault(__nccwpck_require__(48797));
-function validate(config) {
-    validateProjectToken(config);
-    validatePlatforms(config);
-    validateFilters(config);
-    return true;
-}
 const learnMoreLink = {
     token: 'https://docs.sherlo.io/getting-started/config#project-token',
     android: 'https://docs.sherlo.io/getting-started/config#android',
@@ -78945,7 +79167,7 @@ const learnMoreLink = {
     // TODO: update
     exclude: 'https://docs.sherlo.io/getting-started/config',
 };
-function validateProjectToken({ token }) {
+function validateProjectToken(token) {
     if (!token || typeof token !== 'string') {
         throw new Error((0, getConfigErrorMessage_1.default)('token must be defined string', learnMoreLink.token));
     }
@@ -78956,20 +79178,25 @@ function validateProjectToken({ token }) {
         projectIndex < 1) {
         throw new Error((0, getConfigErrorMessage_1.default)('token is not valid', learnMoreLink.token));
     }
+    return true;
 }
-function validatePlatforms(config) {
+exports.validateProjectToken = validateProjectToken;
+function validatePlatforms(config, withoutPaths) {
     const { android, ios } = config;
     if (!android && !ios) {
         throw new Error((0, getConfigErrorMessage_1.default)('at least one of the platforms must be defined'));
     }
     if (android)
-        validatePlatform(config, 'android');
+        validatePlatform(config, 'android', withoutPaths);
     if (ios)
-        validatePlatform(config, 'ios');
+        validatePlatform(config, 'ios', withoutPaths);
 }
-function validatePlatform(config, platform) {
+exports.validatePlatforms = validatePlatforms;
+function validatePlatform(config, platform, withoutPaths) {
     validatePlatformSpecificParameters(config, platform);
-    validatePlatformPath(config, platform);
+    if (!withoutPaths) {
+        validatePlatformPath(config[platform]?.path, platform);
+    }
     validatePlatformDevices(config, platform);
 }
 function validatePlatformSpecificParameters(config, platform) {
@@ -79005,8 +79232,7 @@ function validatePlatformSpecificParameters(config, platform) {
         }
     }
 }
-function validatePlatformPath(config, platform) {
-    const { path: platformPath } = config[platform] ?? {};
+function validatePlatformPath(platformPath, platform) {
     if (!platformPath || typeof platformPath !== 'string') {
         throw new Error((0, getConfigErrorMessage_1.default)(`for ${platform}, path must be defined string`, learnMoreLink[platform]));
     }
@@ -79018,6 +79244,7 @@ function validatePlatformPath(config, platform) {
         throw new Error((0, getConfigErrorMessage_1.default)(`for ${platform}, path must be a valid ${fileType[platform].join(', ')} file`, learnMoreLink[platform]));
     }
 }
+exports.validatePlatformPath = validatePlatformPath;
 function validatePlatformDevices(config, platform) {
     const { devices: platformDevices } = config[platform] ?? {};
     if (!platformDevices || !Array.isArray(platformDevices) || platformDevices.length === 0) {
@@ -79052,6 +79279,7 @@ function validateFilters(config) {
         throw new Error((0, getConfigErrorMessage_1.default)('exclude is invalid', learnMoreLink.exclude));
     }
 }
+exports.validateFilters = validateFilters;
 function isArrayOfStrings(arr) {
     if (!Array.isArray(arr)) {
         // not an array
@@ -79064,7 +79292,6 @@ function isArrayOfStrings(arr) {
     // all items are strings
     return arr.every((item) => typeof item === 'string');
 }
-exports["default"] = validate;
 
 
 /***/ }),
@@ -79124,11 +79351,21 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const git_rev_sync_1 = __importDefault(__nccwpck_require__(27504));
 function getGitInfo() {
-    return {
-        commitName: git_rev_sync_1.default.message(),
-        commitHash: git_rev_sync_1.default.short(),
-        branchName: git_rev_sync_1.default.branch(),
-    };
+    try {
+        return {
+            commitName: git_rev_sync_1.default.message() || 'unknown',
+            commitHash: git_rev_sync_1.default.long() || 'unknown',
+            branchName: git_rev_sync_1.default.branch() || 'unknown',
+        };
+    }
+    catch (error) {
+        console.warn("Couldn't get git info", error);
+        return {
+            commitName: 'unknown',
+            commitHash: 'unknown',
+            branchName: 'unknown',
+        };
+    }
 }
 exports["default"] = getGitInfo;
 
@@ -79163,11 +79400,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.uploadMobileBuilds = exports.printHeader = exports.getProjectTokenParts = exports.getGitInfo = exports.getErrorMessage = exports.getConfigPlatforms = exports.getConfig = exports.getBuildRunConfig = void 0;
+exports.uploadMobileBuilds = exports.printHeader = exports.getProjectTokenParts = exports.getGitInfo = exports.getErrorMessage = exports.getConfigPlatforms = exports.getBuildRunConfig = void 0;
 var getBuildRunConfig_1 = __nccwpck_require__(8727);
 Object.defineProperty(exports, "getBuildRunConfig", ({ enumerable: true, get: function () { return __importDefault(getBuildRunConfig_1).default; } }));
-var getConfig_1 = __nccwpck_require__(15620);
-Object.defineProperty(exports, "getConfig", ({ enumerable: true, get: function () { return __importDefault(getConfig_1).default; } }));
 var getConfigPlatforms_1 = __nccwpck_require__(37435);
 Object.defineProperty(exports, "getConfigPlatforms", ({ enumerable: true, get: function () { return __importDefault(getConfigPlatforms_1).default; } }));
 var getErrorMessage_1 = __nccwpck_require__(62315);
@@ -79238,33 +79473,31 @@ const platformLabel = {
     android: 'Android',
     ios: 'iOS',
 };
-async function uploadMobileBuilds(config, buildPresignedUploadUrls) {
-    const { android, ios } = config;
-    if (android) {
+async function uploadMobileBuilds(paths, buildPresignedUploadUrls) {
+    if (paths.android) {
         if (!buildPresignedUploadUrls.android) {
             throw new Error((0, getErrorMessage_1.default)({
                 type: 'unexpected',
                 message: `${platformLabel.android} presigned url is undefined`,
             }));
         }
-        await uploadFile(android.path, buildPresignedUploadUrls.android.url, 'android');
+        await uploadFile(paths.android, buildPresignedUploadUrls.android.url, 'android');
     }
-    if (ios) {
+    if (paths.ios) {
         if (!buildPresignedUploadUrls.ios) {
             throw new Error((0, getErrorMessage_1.default)({
                 type: 'unexpected',
                 message: `${platformLabel.ios} presigned url is undefined`,
             }));
         }
-        const iosPath = ios.path;
-        const pathFileName = path_1.default.basename(iosPath);
+        const pathFileName = path_1.default.basename(paths.ios);
         let compressedIosPath;
         if (pathFileName.endsWith('.tar.gz')) {
-            compressedIosPath = iosPath;
+            compressedIosPath = paths.ios;
         }
         else {
-            compressedIosPath = path_1.default.join(iosPath, '..', `${pathFileName}.tar.gz`);
-            await compressDirectory(iosPath, compressedIosPath).catch(() => {
+            compressedIosPath = path_1.default.join(paths.ios, '..', `${pathFileName}.tar.gz`);
+            await compressDirectory(paths.ios, compressedIosPath).catch(() => {
                 throw new Error((0, getErrorMessage_1.default)({
                     type: 'unexpected',
                     message: `failed to compress ${platformLabel.ios} build`,
@@ -88553,7 +88786,7 @@ module.exports = parseParams
 
 /***/ }),
 
-/***/ 36158:
+/***/ 15914:
 /***/ (function(module) {
 
 // This file is autogenerated. It's used to publish CJS to npm.
@@ -97436,7 +97669,7 @@ function cliui(opts, _mixin) {
 // Bootstrap cliui with CommonJS dependencies:
 const stringWidth = __nccwpck_require__(31908);
 const stripAnsi = __nccwpck_require__(34544);
-const wrap = __nccwpck_require__(15914);
+const wrap = __nccwpck_require__(53772);
 function ui(opts) {
     return cliui(opts, {
         stringWidth,

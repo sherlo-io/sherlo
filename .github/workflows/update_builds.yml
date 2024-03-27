@@ -1,0 +1,66 @@
+name: Update builds in repository
+
+on:
+  workflow_call:
+    inputs:
+      profile:
+        required: true
+        type: string
+        description: 'Build profile to use (development, preview, production)'
+  workflow_dispatch:
+    inputs:
+      profile:
+        required: true
+        type: string
+        description: 'Build profile to use (development, preview, production)'
+
+jobs:
+  android_build:
+    uses: ./.github/workflows/android_build.yml
+    secrets: inherit
+    with:
+      profile: ${{ github.event.inputs.profile || inputs.profile }}
+
+  ios_build:
+    uses: ./.github/workflows/ios_build.yml
+    secrets: inherit
+    with:
+      profile: ${{ github.event.inputs.profile || inputs.profile }}
+
+  update_in_repo:
+    runs-on: ubuntu-latest
+    needs: [android_build, ios_build]
+    steps:
+      - name: Create GH App Token
+        id: github_app_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.SHERLO_BOT_APP_ID }}
+          private_key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v2
+        with:
+          token: ${{ steps.github_app_token.outputs.token }}
+          ref: ${{ github.ref }}
+
+      - name: Download Android Artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: android
+          path: examples/expo-example/builds/${{ github.event.inputs.profile || inputs.profile }}
+
+      - name: Download iOS Artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ios
+          path: examples/expo-example/builds/${{ github.event.inputs.profile || inputs.profile }}
+
+      - name: Commit and push '${{ github.event.inputs.profile || inputs.profile }}' builds
+        uses: EndBug/add-and-commit@v7
+        with:
+          author_name: Sherlo Bot
+          author_email: admin@sherlo.io
+          message: 'Update Preview builds'
+          add: 'examples/expo-example/builds/${{ github.event.inputs.profile || inputs.profile }}/*'
+          push: true
+          branch: ${{ github.head_ref || github.ref_name }}

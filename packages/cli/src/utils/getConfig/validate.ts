@@ -2,20 +2,10 @@ import fs from 'fs';
 import path from 'path';
 import { Platform, deviceLocaleValues, deviceThemeValues } from '@sherlo/api-types';
 import { devices, projectApiTokenLength, teamIdLength } from '@sherlo/shared';
-import { Config, InvalidatedConfig } from '../../types';
+import { InvalidatedConfig } from '../../types';
 import getErrorMessage from '../getErrorMessage';
 import getProjectTokenParts from '../getProjectTokenParts';
 import getConfigErrorMessage from './getConfigErrorMessage';
-
-function validate(config: InvalidatedConfig): config is Config {
-  validateProjectToken(config);
-
-  validatePlatforms(config);
-
-  validateFilters(config);
-
-  return true;
-}
 
 const learnMoreLink: {
   [type in Platform | 'token' | 'devices' | 'include' | 'exclude']: string;
@@ -31,7 +21,7 @@ const learnMoreLink: {
   exclude: 'https://docs.sherlo.io/getting-started/config',
 };
 
-function validateProjectToken({ token }: InvalidatedConfig): void {
+export function validateProjectToken(token: InvalidatedConfig['token']): token is string {
   if (!token || typeof token !== 'string') {
     throw new Error(getConfigErrorMessage('token must be defined string', learnMoreLink.token));
   }
@@ -46,23 +36,33 @@ function validateProjectToken({ token }: InvalidatedConfig): void {
   ) {
     throw new Error(getConfigErrorMessage('token is not valid', learnMoreLink.token));
   }
+
+  return true;
 }
 
-function validatePlatforms(config: InvalidatedConfig): void {
+export function validatePlatforms(config: InvalidatedConfig, withoutPaths?: boolean): void {
   const { android, ios } = config;
 
   if (!android && !ios) {
     throw new Error(getConfigErrorMessage('at least one of the platforms must be defined'));
   }
 
-  if (android) validatePlatform(config, 'android');
+  if (android) validatePlatform(config, 'android', withoutPaths);
 
-  if (ios) validatePlatform(config, 'ios');
+  if (ios) validatePlatform(config, 'ios', withoutPaths);
 }
 
-function validatePlatform(config: InvalidatedConfig, platform: Platform): void {
+function validatePlatform(
+  config: InvalidatedConfig,
+  platform: Platform,
+  withoutPaths?: boolean
+): void {
   validatePlatformSpecificParameters(config, platform);
-  validatePlatformPath(config, platform);
+
+  if (!withoutPaths) {
+    validatePlatformPath(config[platform]?.path, platform);
+  }
+
   validatePlatformDevices(config, platform);
 }
 
@@ -122,9 +122,7 @@ function validatePlatformSpecificParameters(config: InvalidatedConfig, platform:
   }
 }
 
-function validatePlatformPath(config: InvalidatedConfig, platform: Platform): void {
-  const { path: platformPath } = config[platform] ?? {};
-
+export function validatePlatformPath(platformPath: string | undefined, platform: Platform): void {
   if (!platformPath || typeof platformPath !== 'string') {
     throw new Error(
       getConfigErrorMessage(`for ${platform}, path must be defined string`, learnMoreLink[platform])
@@ -201,7 +199,7 @@ function validatePlatformDevices(config: InvalidatedConfig, platform: Platform):
   }
 }
 
-function validateFilters(config: InvalidatedConfig): void {
+export function validateFilters(config: InvalidatedConfig): void {
   const { exclude, include } = config;
 
   if (include && !isArrayOfStrings(include)) {
@@ -227,5 +225,3 @@ function isArrayOfStrings(arr: unknown): boolean {
   // all items are strings
   return arr.every((item) => typeof item === 'string');
 }
-
-export default validate;
