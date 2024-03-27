@@ -18,15 +18,19 @@ import {
 } from './hooks';
 import setupErrorSilencing from './utils/setupErrorSilecing';
 
-import { Story, StorybookParams, StorybookView } from '../../types';
+import { Snapshot, StorybookParams, StorybookView } from '../../types';
 
 setupErrorSilencing();
 
 const withSherlo = (view: StorybookView, params?: StorybookParams) => {
   const Storybook = (): ReactElement => {
+    // Index of a snapshots that we want to render and test
     const [testedIndex, setTestedIndex] = useState<number>();
+    // Index of a snapshots that is currently rendered
     const [renderedStoryId, setRenderedStoryId] = useState<string>();
-    const [stories, setStories] = useState<Story[]>();
+    // List of all snapshots that we want to test
+    const [snapshots, setSnapshots] = useState<Snapshot[]>();
+
     const { mode, setMode } = useMode();
     const runnerBridge = useRunnerBridge(mode);
 
@@ -34,6 +38,7 @@ const withSherlo = (view: StorybookView, params?: StorybookParams) => {
 
     const { waitForKeyboardStatus } = useKeyboardStatusEffect(runnerBridge.log);
     const sherloEffectExecution = useSherloEffectExecutionEffect(runnerBridge.log);
+
     const emitStory = useStoryEmitter((id) => {
       runnerBridge.log('rendered story', { id });
       setRenderedStoryId(id);
@@ -42,15 +47,14 @@ const withSherlo = (view: StorybookView, params?: StorybookParams) => {
     useAddon({
       onPreviewStoryPress: () => {
         runnerBridge.log('setting preview mode');
-
         setMode('preview');
       },
     });
 
-    const prepareStory = async (story: any): Promise<boolean> => {
-      runnerBridge.log('prepareStory', { storyId: story.id });
+    const prepareSnapshotForTesting = async (snapshot: Snapshot): Promise<boolean> => {
+      runnerBridge.log('prepareSnapshotForTesting', { viewId: snapshot.viewId });
 
-      if (story.parameters.sherlo?.defocus) {
+      if (snapshot.sherloParameters?.defocus) {
         runnerBridge.log('defocusing focused input');
 
         await waitForKeyboardStatus('shown');
@@ -78,130 +82,108 @@ const withSherlo = (view: StorybookView, params?: StorybookParams) => {
       runnerBridge,
       renderedStoryId,
       testedIndex,
-      stories,
+      snapshots,
       setMode,
       emitStory,
-      prepareStory,
+      prepareSnapshotForTesting,
       sherloEffectExecution,
       mode
     );
 
     // Testing mode
-    useTestingMode(view, mode, setStories, setTestedIndex, runnerBridge);
+    useTestingMode(view, mode, setSnapshots, setTestedIndex, runnerBridge);
 
+    // When testedIndex changes and it's not equal to renderedStoryId, emit story
     useEffect(() => {
       if (
         mode === 'testing' &&
-        stories &&
+        snapshots?.length &&
         testedIndex !== undefined &&
+        // we only want to emit story if first story was already rendered by storybook initialization process
         renderedStoryId !== undefined
       ) {
-        const testedStory = stories[testedIndex];
+        const testedSnapshot = snapshots[testedIndex];
 
-        if (testedStory.storyId !== renderedStoryId) {
+        if (testedSnapshot.storyId !== renderedStoryId) {
           runnerBridge.log('emitting story', {
-            id: testedStory.storyId,
+            storyId: testedSnapshot.storyId,
             testedIndex,
           });
 
-          emitStory(testedStory.storyId);
+          emitStory(testedSnapshot.storyId);
         }
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mode, renderedStoryId, testedIndex]);
 
     // make screenshot attempts every time renderedStoryId is set
     useEffect(() => {
       if (
-        !stories ||
+        !snapshots?.length ||
         renderedStoryId === undefined ||
         testedIndex === undefined ||
-        renderedStoryId !== stories[testedIndex].storyId
+        renderedStoryId !== snapshots[testedIndex].storyId
       ) {
         return;
       }
 
-      const selectedStory = stories[testedIndex];
+      const renderedSnapshot = snapshots[testedIndex];
 
       runnerBridge.log('attempt to test story', {
-        storiesLength: stories?.length,
         testedIndex,
         renderedStoryId,
-        selectedStoryId: selectedStory.id,
+        renderedSnapshotViewId: renderedSnapshot.viewId,
       });
 
-      if (selectedStory.storyId === renderedStoryId) {
-        const testStory = async (): Promise<void> => {
-          const hasSherloEffect = await prepareStory(stories[testedIndex]);
+      const testStory = async (): Promise<void> => {
+        const hasSherloEffect = await prepareSnapshotForTesting(renderedSnapshot);
 
-          setTimeout(
-            async () => {
-              try {
-                runnerBridge.log('requesting screenshot from master script');
+        setTimeout(
+          async () => {
+            try {
+              runnerBridge.log('requesting screenshot from master script', {
+                action: 'REQUEST_SNAPSHOT',
+                snapshotIndex: testedIndex,
+                hasError: renderedStoryHasError.current,
+              });
 
-                const testedStory = stories[testedIndex];
+              const response = await runnerBridge.send({
+                action: 'REQUEST_SNAPSHOT',
+                snapshotIndex: testedIndex,
+                hasError: renderedStoryHasError.current,
+              });
 
-                if (testedStory !== undefined) {
-                  // dont change to destructed arguments, it will fail when sherlo object is undefined
-                  const figmaUrl = testedStory.parameters?.sherlo?.figmaUrl;
+              runnerBridge.log('received screenshot from master script', response);
 
-                  const nextIndex = testedIndex + 1;
-                  const nextStory = stories[nextIndex];
-
-                  const nextState = {
-                    index: nextIndex,
-                    storyId: nextStory?.id,
-                    storyDisplayName: nextStory?.displayName,
-                    timestamp: Date.now(),
-                  };
-
-                  await runnerBridge.send({
-                    action: 'REQUEST_SNAPSHOT',
-                    displayName: testedStory.displayName,
-                    id: testedStory.id,
-                    figmaUrl,
-                    hasError: renderedStoryHasError.current,
-                    nextState,
-                  });
-
-                  runnerBridge.updateState(nextState, true);
-
-                  runnerBridge.log('received screenshot from master script');
-
-                  // for android we dont go to next story because runner resets the app with new statexp
-                  if (Platform.OS === 'ios') {
-                    // go to next story
-                    if (testedIndex + 1 < stories.length) {
-                      setTestedIndex(nextIndex);
-                      emitStory(nextStory.storyId);
-                    } else {
-                      await runnerBridge.send({ action: 'END' });
-                    }
-                  }
-                } else {
-                  runnerBridge.log('will send END signal', {
-                    testedIndex,
-                    storiesLength: stories.length,
-                  });
-                  await runnerBridge.send({ action: 'END' });
-                }
-              } catch (error) {
-                runnerBridge.log('story capturing failed', { error });
+              // This is to please TS, we should change typings so it's obvious what should be returned
+              if (response?.action !== 'ACK_REQUEST_SNAPSHOT') {
+                throw new Error('ACK_REQUEST_SNAPSHOT not received');
               }
-            },
-            hasSherloEffect ? 10 * 1000 : 100
-          );
-        };
 
-        testStory();
-      }
+              if (response.nextSnapshotIndex) {
+                setTestedIndex(response.nextSnapshotIndex);
+
+                const nextSnpashot = snapshots[response.nextSnapshotIndex];
+                emitStory(nextSnpashot.storyId);
+              }
+            } catch (error) {
+              runnerBridge.log('story capturing failed', { error });
+            }
+          },
+          hasSherloEffect ? 10 * 1000 : 100
+        );
+      };
+
+      testStory();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [testedIndex, renderedStoryId]);
 
     // Original mode
-    useOriginalMode(view, mode, setStories);
+    useOriginalMode(view, mode, setSnapshots);
 
     // Storybook memoized for specific mode
     const memoizedStorybook = React.useMemo(() => {
-      const testedStory = stories?.[testedIndex || 0];
+      const testedStory = snapshots?.[testedIndex || 0];
       runnerBridge.log('memoizing storybook', {
         mode,
         testedIndex,
@@ -222,7 +204,8 @@ const withSherlo = (view: StorybookView, params?: StorybookParams) => {
       });
 
       return <Storybook />;
-    }, [mode, testedIndex === undefined, stories === undefined]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mode, testedIndex === undefined, snapshots === undefined]);
 
     // Verification test
     if (getGlobalStates().isVerifySetupTest) {
@@ -242,7 +225,7 @@ const withSherlo = (view: StorybookView, params?: StorybookParams) => {
     return (
       <SherloContext.Provider
         value={{
-          renderedStory: stories?.find(({ id }) => id === renderedStoryId),
+          renderedSnapshot: snapshots?.find(({ storyId }) => storyId === renderedStoryId),
           mode,
         }}
       >

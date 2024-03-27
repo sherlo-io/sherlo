@@ -16,9 +16,9 @@ const generateParamText = (name: string, value: string, description: string): Re
 );
 
 const AddonPanel = ({ onPreviewStoryPress }: AddonPanelProps): ReactElement => {
-  const { renderedStory } = useContext(SherloContext);
+  const { renderedSnapshot } = useContext(SherloContext);
 
-  const params = renderedStory?.parameters?.sherlo || {};
+  const params = renderedSnapshot?.sherloParameters || {};
 
   return (
     <View style={styles.container}>

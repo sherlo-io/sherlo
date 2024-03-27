@@ -1,7 +1,6 @@
 import { addons } from '@storybook/manager-api';
 import { SET_CURRENT_STORY } from '@storybook/core-events';
 import { useEffect } from 'react';
-import { Story } from '../../../types';
 
 const useStoryEmitter = (
   updateRenderedStoryId: (storyId: string) => void

@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { RunnerBridge } from '../../../runnerBridge';
-import { Story } from '../../../types';
 import useSherloEffectExecutionEffect from './useSherloEffectExecutionEffect';
 import { Mode } from '../../withStorybook/ModeProvider';
+import { Snapshot } from '../../../types';
 
 const PREVIEW_TIMEOUT = 5 * 1000;
 
@@ -10,15 +10,15 @@ function usePreviewMode(
   bridge: RunnerBridge,
   renderedStoryId: string | undefined,
   testedIndex: number | undefined,
-  stories: Story[] | undefined,
+  snapshots: Snapshot[] | undefined,
   setMode: (m: Mode) => void,
   emitStory: (id: string) => void,
   prepareStory: (story: any) => Promise<boolean>,
   sherloEffectExecution: ReturnType<typeof useSherloEffectExecutionEffect>,
   mode?: Mode
 ): void {
-  const getStoryById = (id: string): Story | undefined => {
-    return stories?.find((story) => story.storyId === id);
+  const getStoryById = (id: string): Snapshot | undefined => {
+    return snapshots?.find((story) => story.storyId === id);
   };
 
   useEffect(() => {

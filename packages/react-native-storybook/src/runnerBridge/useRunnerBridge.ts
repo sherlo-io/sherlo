@@ -1,5 +1,5 @@
 import { Mode } from '../hoc/withStorybook/ModeProvider';
-import { create, getConfig, getState, log, send, updateState } from './actions';
+import { create, getConfig, getState, log, send } from './actions';
 import { Config, LogFn, RunnerState, SendFn } from './types';
 
 export const configPath = 'config.sherlo';
@@ -15,7 +15,6 @@ export interface RunnerBridge {
   getState: () => Promise<RunnerState>;
   log: LogFn;
   send: SendFn;
-  updateState: (state: RunnerState, onlyFile?: boolean) => Promise<void>;
 }
 
 const useRunnerBridge = (mode: Mode | undefined): RunnerBridge => {
@@ -28,7 +27,6 @@ const useRunnerBridge = (mode: Mode | undefined): RunnerBridge => {
     getState: getState(statePath, logFn),
     log: logFn,
     send: sendFn,
-    updateState: updateState(statePath, sendFn, logFn),
   };
 };
 

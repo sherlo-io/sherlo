@@ -78923,8 +78923,7 @@ async function main(ghActionArgs) {
             });
             const output = createOutput({ buildIndex: build.index, projectIndex, teamId });
             createExpoSherloFile({ projectRoot: args.projectRoot, output });
-            console.log(`Sherlo is awaiting your builds to be uploaded asynchronously.\n
-        Build index is ${output.buildIndex}.\n`);
+            console.log(`Sherlo is awaiting your builds to be uploaded asynchronously.\nBuild index is ${output.buildIndex}.\n`);
             return output;
         }
         case 'asyncUpload': {
@@ -78985,7 +78984,7 @@ function createOutput({ buildIndex, projectIndex, teamId, }) {
 function createExpoSherloFile({ projectRoot, output, }) {
     const packageJsonPath = path_1.default.join(projectRoot, 'package.json');
     if (!fs_1.default.existsSync(packageJsonPath)) {
-        throw new Error('No package.json found in the current directory.');
+        throw new Error(`No package.json found in projectRoot directory (${projectRoot}).`);
     }
     try {
         const packageJsonData = fs_1.default.readFileSync(packageJsonPath, 'utf8');
@@ -79003,8 +79002,7 @@ function createExpoSherloFile({ projectRoot, output, }) {
         }
     }
     catch (err) {
-        console.error('Error parsing package.json:', err);
-        process.exit(1);
+        // If there's an error, continue
     }
 }
 exports["default"] = main;

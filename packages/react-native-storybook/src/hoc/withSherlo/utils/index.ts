@@ -1,2 +1,2 @@
-export { default as prepareStories } from './prepareStories';
+export { default as prepareSnapshots } from './prepareSnapshots';
 export { default as setupErrorSilecing } from './setupErrorSilecing';

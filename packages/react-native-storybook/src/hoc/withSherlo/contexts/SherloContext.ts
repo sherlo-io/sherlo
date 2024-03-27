@@ -1,10 +1,10 @@
 import { createContext } from 'react';
-import { Story } from '../../../types';
+import { Snapshot } from '../../../types';
 import { Mode } from '../../withStorybook/ModeProvider';
 
 interface SherloContextType {
   mode?: Mode;
-  renderedStory?: Story;
+  renderedSnapshot?: Snapshot;
 }
 
 const SherloContext = createContext<SherloContextType>({});

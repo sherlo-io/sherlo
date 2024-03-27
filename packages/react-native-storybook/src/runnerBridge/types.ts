@@ -1,9 +1,8 @@
+import { Snapshot } from '../types';
+
 export type RunnerState = {
-  index: number;
-  storyDisplayName: string;
-  storyId: string;
-  timestamp: number;
-  launchTimestamp?: number;
+  snapshotIndex: number;
+  updateTimestamp: number;
   retry?: boolean;
 };
 
@@ -14,29 +13,18 @@ export type Config = {
 };
 
 export type LogFn = (key: string, parameters?: Record<string, any>) => void;
-export type SendFn = (protocolItem: AppProtocolItem) => Promise<void>;
+export type SendFn = (protocolItem: AppProtocolItem) => Promise<RunnerProtocolItem | undefined>;
 
 export type AppProtocolItem =
   | {
       action: 'START';
-      stories: string;
+      snapshots: Snapshot[];
     }
   | {
       action: 'REQUEST_SNAPSHOT';
-      displayName: string;
-      id: string;
-      nextState: RunnerState;
-      figmaUrl?: string;
+      snapshotIndex: number;
+      // if error we want to restart the app before going to next snapshot
       hasError?: boolean;
-      restart?: boolean;
-    }
-  | {
-      action: 'UPDATE_STATE';
-      index: number;
-      storyDisplayName: string;
-      storyId: string;
-      timestamp: number;
-      launchTimestamp?: number;
     }
   | {
       action: 'END';
@@ -47,10 +35,10 @@ export type RunnerProtocolItem =
       action: 'ACK_START';
     }
   | {
-      action: 'ACK_UPDATE_STATE';
-    }
-  | {
       action: 'ACK_REQUEST_SNAPSHOT';
+      nextSnapshotIndex?: number;
+      // finish is dumb, runner should just finish the app
+      finish?: boolean;
     }
   | {
       action: 'ACK_END';
