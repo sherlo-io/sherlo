@@ -53,7 +53,10 @@ const send =
                 break;
               case 'REQUEST_SNAPSHOT':
                 hasAck = responseItem.action === 'ACK_REQUEST_SNAPSHOT';
-                await resolveForTestMode(1 * 1000, { action: 'ACK_REQUEST_SNAPSHOT' });
+                await resolveForTestMode(1 * 1000, {
+                  action: 'ACK_REQUEST_SNAPSHOT',
+                  nextSnapshotIndex: protocolItem.snapshotIndex + 1,
+                });
                 break;
               case 'END':
                 hasAck = responseItem.action === 'ACK_END';
