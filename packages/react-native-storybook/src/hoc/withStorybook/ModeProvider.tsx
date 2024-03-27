@@ -1,6 +1,6 @@
 import React, { PropsWithChildren, ReactElement, useContext } from 'react';
 
-export type Mode = 'app' | 'testing' | 'preview' | 'original' | 'verification';
+export type Mode = 'app' | 'testing' | 'preview' | 'original';
 
 const ModeContext = React.createContext({} as ModeContextValue);
 

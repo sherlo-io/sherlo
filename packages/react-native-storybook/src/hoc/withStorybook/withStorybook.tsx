@@ -5,7 +5,6 @@ import * as DevMenu from 'expo-dev-menu';
 import { TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM } from '../../data/constants';
 import { configPath } from '../../runnerBridge';
 import { getConfig } from '../../runnerBridge/actions';
-import { getGlobalStates } from '../../utils';
 import ModeProvider, { Mode } from './ModeProvider';
 import { StorybookParams } from '../../types';
 
@@ -31,11 +30,7 @@ const withStorybook =
         await getConfig(configPath)()
           .then((config) => {
             if (config !== undefined) {
-              if (getGlobalStates().isIntegrationTest) {
-                setMode('verification');
-              } else {
-                setMode('testing');
-              }
+              setMode('testing');
             }
           })
           .catch(() => {

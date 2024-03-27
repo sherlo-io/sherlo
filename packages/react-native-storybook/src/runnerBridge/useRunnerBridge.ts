@@ -18,7 +18,7 @@ export interface RunnerBridge {
 }
 
 const useRunnerBridge = (mode: Mode | undefined): RunnerBridge => {
-  const logFn = log(logPath, mode === 'testing');
+  const logFn = mode === 'testing' ? log(logPath) : () => {};
   const sendFn = send(protocolPath, logFn);
 
   return {

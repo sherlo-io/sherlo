@@ -7,8 +7,10 @@ const { readFile } = sherloModule;
 
 // TODO: change name to getDeviceConfig? + return type fix
 const getConfig = (path: string, log?: LogFn) => async (): Promise<any> => {
-  if (getGlobalStates().isIntegrationTest) {
-    return getGlobalStates().testConfig;
+  const { testConfig } = getGlobalStates();
+
+  if (testConfig) {
+    return testConfig;
   }
 
   // TODO: add comment to explain replaceAll code

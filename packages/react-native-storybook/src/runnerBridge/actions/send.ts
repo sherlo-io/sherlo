@@ -29,7 +29,7 @@ const send =
         ms: number,
         mockedResponseItem: RunnerProtocolItem
       ): Promise<void> => {
-        if (getGlobalStates().isIntegrationTest) {
+        if (getGlobalStates().testConfig) {
           await new Promise<void>((r) => setTimeout(() => r(), ms));
           clearInterval(ackReadInterval);
           resolve(mockedResponseItem);
