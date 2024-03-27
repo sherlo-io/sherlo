@@ -23,7 +23,7 @@ import { Snapshot, StorybookParams, StorybookView } from '../../types';
 setupErrorSilencing();
 
 const withSherlo = (view: StorybookView, params?: StorybookParams) => {
-  const Storybook = (): ReactElement => {
+  const SherloStorybook = (): ReactElement => {
     // Index of a snapshots that we want to render and test
     const [testedIndex, setTestedIndex] = useState<number>();
     // Index of a snapshots that is currently rendered
@@ -250,9 +250,9 @@ const withSherlo = (view: StorybookView, params?: StorybookParams) => {
     );
   };
 
-  Storybook.storage = params?.storage as any;
+  SherloStorybook.storage = params?.storage as any;
 
-  return Storybook;
+  return SherloStorybook;
 };
 
 export default withSherlo;
