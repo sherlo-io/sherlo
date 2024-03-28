@@ -16,7 +16,7 @@ export type LogFn = (key: string, parameters?: Record<string, any>) => void;
 export type SendFn = (protocolItem: AppProtocolItem) => Promise<RunnerProtocolItem | undefined>;
 
 export type ProtocolItemMetadata = {
-  timestamp: string;
+  timestamp: number;
   time: string;
   entity: 'app' | 'runner';
 };
