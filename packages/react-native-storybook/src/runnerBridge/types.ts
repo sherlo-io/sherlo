@@ -15,6 +15,12 @@ export type Config = {
 export type LogFn = (key: string, parameters?: Record<string, any>) => void;
 export type SendFn = (protocolItem: AppProtocolItem) => Promise<RunnerProtocolItem | undefined>;
 
+export type ProtocolItemMetadata = {
+  timestamp: string;
+  time: string;
+  entity: 'app' | 'runner';
+};
+
 export type AppProtocolItem =
   | {
       action: 'START';
@@ -23,7 +29,7 @@ export type AppProtocolItem =
   | {
       action: 'REQUEST_SNAPSHOT';
       snapshotIndex: number;
-      // if error we want to restart the app before going to next snapshot
+      snapshotBase64?: string;
       hasError?: boolean;
     }
   | {
@@ -37,8 +43,6 @@ export type RunnerProtocolItem =
   | {
       action: 'ACK_REQUEST_SNAPSHOT';
       nextSnapshotIndex?: number;
-      // finish is dumb, runner should just finish the app
-      finish?: boolean;
     }
   | {
       action: 'ACK_END';

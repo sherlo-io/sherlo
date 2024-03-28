@@ -1,6 +1,6 @@
 import sherloModule from '../../sherloModule';
 import getGlobalStates from '../../utils/getGlobalStates';
-import { LogFn, SendFn, RunnerProtocolItem } from '../types';
+import { LogFn, SendFn, RunnerProtocolItem, AppProtocolItem, ProtocolItemMetadata } from '../types';
 
 const { appendFile, readFile } = sherloModule;
 
@@ -9,8 +9,9 @@ const ACK_READ_INTERVAL = 500;
 const send =
   (path: string, log: LogFn): SendFn =>
   async (protocolItem): Promise<RunnerProtocolItem | undefined> => {
-    const content = {
+    const content: AppProtocolItem & ProtocolItemMetadata = {
       ...protocolItem,
+      timestamp: Date.now(),
       time: new Date().toTimeString().split(' ')[0],
       entity: 'app',
     };
