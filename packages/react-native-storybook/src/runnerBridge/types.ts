@@ -10,6 +10,8 @@ export type Config = {
   exclude: string[] | string;
   include: string[] | string;
   initSnapshotIndex: number;
+  executorIndex: number;
+  executorsCount: number;
 };
 
 export type LogFn = (key: string, parameters?: Record<string, any>) => void;
@@ -25,6 +27,8 @@ export type AppProtocolItem =
   | {
       action: 'START';
       snapshots: Snapshot[];
+      initialSelectionIndex: number;
+      finishIndex: number;
     }
   | {
       action: 'REQUEST_SNAPSHOT';

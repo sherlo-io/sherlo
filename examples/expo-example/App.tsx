@@ -14,6 +14,9 @@ import { withStorybook, useSherlo } from '@sherlo/react-native-storybook';
 
 SplashScreen.preventAutoHideAsync();
 
+// global.SHERLO_VERIFY_SETUP = true;
+// global.SHERLO_TEST_CONFIG = {};
+
 export default function App() {
   let [fontsLoaded, fontError] = useFonts({
     Urbanist_400Regular,

@@ -27,7 +27,7 @@ function useTestingMode(
         setStoriesSet(true);
 
         bridge.getConfig().then(async (config) => {
-          const { exclude, include, initSnapshotIndex } = config;
+          const { exclude, include, initSnapshotIndex, executorIndex, executorsCount } = config;
 
           bridge.log('config parsing succeeded', {
             exclude,
@@ -46,7 +46,43 @@ function useTestingMode(
             snapshotsCount: snapshots.length,
           });
 
-          let initialSelectionIndex = initSnapshotIndex || 0;
+          const initSnapshotIndexForTarget = initSnapshotIndex || 0;
+          const snpashotsForTargetCount = snapshots.length - (initSnapshotIndexForTarget + 1);
+
+          const defaultSnapshotsPerJob = Math.floor(snpashotsForTargetCount / executorsCount);
+          const jobsWithUpperBound = snpashotsForTargetCount % executorsCount;
+
+          const snapshotsPerJob = Array.from({ length: executorIndex + 1 }).map(
+            (_, index) => defaultSnapshotsPerJob + (index < jobsWithUpperBound ? 1 : 0)
+          );
+
+          const jobsSnapshotCount = snapshotsPerJob.reduce(
+            (acc, jobSnapshotsCount) => acc + jobSnapshotsCount,
+            0
+          );
+          const finishIndex = initSnapshotIndexForTarget + jobsSnapshotCount - 1;
+
+          const previousJobsSnapshotCount =
+            snapshotsPerJob.length > 1
+              ? snapshotsPerJob
+                  .slice(0, executorIndex)
+                  .reduce((acc, jobSnapshotsCount) => acc + jobSnapshotsCount, 0)
+              : 0;
+
+          let initialSelectionIndex = initSnapshotIndexForTarget + previousJobsSnapshotCount;
+
+          bridge.log('snapshot indexes calculations', {
+            initSnapshotIndexForTarget,
+            snpashotsForTargetCount,
+            defaultSnapshotsPerJob,
+            jobsWithUpperBound,
+            snapshotsPerJob,
+            jobsSnapshotCount,
+            finishIndex,
+            previousJobsSnapshotCount,
+            initialSelectionIndex,
+          });
+
           let isFreshStart = true;
           let state;
           try {
@@ -74,6 +110,8 @@ function useTestingMode(
 
               await bridge.send({
                 action: 'START',
+                initialSelectionIndex,
+                finishIndex,
                 snapshots,
               });
             }
