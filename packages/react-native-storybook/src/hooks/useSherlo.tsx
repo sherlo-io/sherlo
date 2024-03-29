@@ -9,7 +9,7 @@ const useSherlo = (): UseSherlo => {
 
   return {
     openStorybook: () => {
-      setMode('original');
+      setMode('storybook');
     },
   };
 };

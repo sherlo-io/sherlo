@@ -1,10 +1,12 @@
 import React, { PropsWithChildren, ReactElement, useContext } from 'react';
-
-export type Mode = 'app' | 'testing' | 'preview' | 'original';
+import { WithStorybookMode } from './withStorybook';
 
 const ModeContext = React.createContext({} as ModeContextValue);
 
-export type ModeContextValue = { mode: Mode; setMode: (mode: Mode) => void };
+export type ModeContextValue = {
+  mode: WithStorybookMode;
+  setMode: (mode: WithStorybookMode) => void;
+};
 
 const ModeProvider = ({
   children,

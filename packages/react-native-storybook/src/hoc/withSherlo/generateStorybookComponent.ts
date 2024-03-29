@@ -1,8 +1,8 @@
 import { StorybookParams, StorybookView } from '../../types';
-import { Mode } from '../withStorybook/ModeProvider';
+import { SherloMode } from './withSherlo';
 
 interface GenerateStorybookInput {
-  mode: Mode;
+  mode: SherloMode;
   initialSelection?: string;
   view: StorybookView;
   params?: StorybookParams;

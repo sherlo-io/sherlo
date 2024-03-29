@@ -2,11 +2,11 @@ import { useEffect } from 'react';
 import { Snapshot } from '../../../types';
 import { prepareSnapshots } from '../utils';
 import { start } from '@storybook/react-native';
-import { Mode } from '../../withStorybook/ModeProvider';
+import { SherloMode } from '../withSherlo';
 
 function useOriginalMode(
   view: ReturnType<typeof start>,
-  mode: Mode,
+  mode: SherloMode,
   setSnapshots: (snapshots: Snapshot[]) => void
 ): void {
   useEffect(() => {

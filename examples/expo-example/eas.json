@@ -5,18 +5,31 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal",
-      "channel": "development",
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": true
+      }
+    },
+    "storybook": {
+      "env": {
+        "EXPO_PUBLIC_STORYBOOK_BUILD": "true"
+      },
+      "android": {
+        "buildType": "apk"
+      },
       "ios": {
         "simulator": true
       }
     },
     "preview": {
-      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
       "ios": {
         "simulator": true
-      },
-      "channel": "preview"
+      }
     },
     "production": {
       "channel": "production"

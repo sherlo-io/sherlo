@@ -1,8 +1,7 @@
 import React, { ReactElement, useEffect, useRef, useState } from 'react';
 import { Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
 import SherloEffectContext from '../../contexts/SherloEffectContext';
-import { useMode } from '../withStorybook/ModeProvider';
-import useRunnerBridge from '../../runnerBridge/useRunnerBridge';
+import createRunnerBridge from '../../runnerBridge/createRunnerBridge';
 import getGlobalStates from '../../utils/getGlobalStates';
 import ErrorBoundary from './components/ErrorBoundry';
 import SherloContext from './contexts/SherloContext';
@@ -22,6 +21,10 @@ import { Snapshot, StorybookParams, StorybookView } from '../../types';
 
 setupErrorSilencing();
 
+export type SherloMode = 'preview' | 'testing' | 'original' | 'loading';
+
+const runnerBridge = createRunnerBridge();
+
 const withSherlo = (view: StorybookView, params?: StorybookParams) => {
   const SherloStorybook = (): ReactElement => {
     // Index of a snapshots that we want to render and test
@@ -31,8 +34,7 @@ const withSherlo = (view: StorybookView, params?: StorybookParams) => {
     // List of all snapshots that we want to test
     const [snapshots, setSnapshots] = useState<Snapshot[]>();
 
-    const { mode, setMode } = useMode();
-    const runnerBridge = useRunnerBridge(mode);
+    const [mode, setMode] = useState<SherloMode>('loading');
 
     const renderedStoryHasError = useRef(false);
 
@@ -50,6 +52,17 @@ const withSherlo = (view: StorybookView, params?: StorybookParams) => {
         setMode('preview');
       },
     });
+
+    useEffect(() => {
+      runnerBridge
+        .getConfig()
+        .then(() => {
+          setMode('testing');
+        })
+        .catch(() => {
+          setMode('original');
+        });
+    }, []);
 
     const prepareSnapshotForTesting = async (snapshot: Snapshot): Promise<boolean> => {
       runnerBridge.log('prepareSnapshotForTesting', { viewId: snapshot.viewId });

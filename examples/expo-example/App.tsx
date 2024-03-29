@@ -1,5 +1,3 @@
-import Storybook from './.storybook';
-
 import { useCallback } from 'react';
 import { View, Text, StyleSheet, Button } from 'react-native';
 import {
@@ -56,11 +54,18 @@ export default function App() {
     );
   };
 
-  const AppWithStorybook = withStorybook(App, Storybook);
+  let EntryPoint;
+  if (process.env.EXPO_PUBLIC_STORYBOOK_BUILD === 'true') {
+    const Storybook = require('./.storybook').default;
+    EntryPoint = Storybook;
+  } else {
+    const Storybook = require('./.storybook').default;
+    EntryPoint = withStorybook(App, Storybook);
+  }
 
   return (
     <View style={StyleSheet.absoluteFill} onLayout={onLayoutRootView}>
-      <AppWithStorybook />
+      <EntryPoint />
     </View>
   );
 }

@@ -1,9 +1,9 @@
 import { createContext } from 'react';
 import { Snapshot } from '../../../types';
-import { Mode } from '../../withStorybook/ModeProvider';
+import { SherloMode } from '../withSherlo';
 
 interface SherloContextType {
-  mode?: Mode;
+  mode?: SherloMode;
   renderedSnapshot?: Snapshot;
 }
 

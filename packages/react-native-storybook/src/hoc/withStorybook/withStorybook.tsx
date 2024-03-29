@@ -3,12 +3,12 @@ import { AppState, AppStateStatus, DevSettings } from 'react-native';
 import * as DevMenu from 'expo-dev-menu';
 
 import { TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM } from '../../data/constants';
-import { configPath } from '../../runnerBridge';
-import { getConfig } from '../../runnerBridge/actions';
-import ModeProvider, { Mode } from './ModeProvider';
 import { StorybookParams } from '../../types';
+import ModeProvider from './ModeProvider';
 
 const MODE_STORAGE_KEY = 'sherloPersistedMode';
+
+export type WithStorybookMode = 'app' | 'storybook';
 
 /**
  * Higher-order component that wraps the given App and Storybook components.
@@ -19,60 +19,18 @@ const MODE_STORAGE_KEY = 'sherloPersistedMode';
  */
 const withStorybook =
   (App: React.ComponentType<any>, Storybook: () => ReactElement) => (): ReactElement => {
-    const [mode, setMode] = useState<Mode>('app');
+    const [mode, setMode] = useState<WithStorybookMode>('app');
 
     // We don't want to contain storage in parameter type itself because it breaks
     // the way typescript considers Storybook as ReactElement when rendering JSX.
     const { storage } = Storybook as { storage?: StorybookParams['storage'] };
 
     useEffect(() => {
-      const checkIfSherloIsEnabled = async (): Promise<void> => {
-        await getConfig(configPath)()
-          .then((config) => {
-            if (config !== undefined) {
-              setMode('testing');
-            }
-          })
-          .catch(() => {
-            if (__DEV__) {
-              storage?.getItem(MODE_STORAGE_KEY).then((sherloPersistedMode) => {
-                if (sherloPersistedMode === 'original' || sherloPersistedMode === 'app') {
-                  setMode(sherloPersistedMode);
-                }
-              });
-            }
-          });
-      };
-
-      checkIfSherloIsEnabled();
-    }, []);
-
-    useEffect(() => {
       if (__DEV__) {
-        const handleAppStateChange = (nextAppState: AppStateStatus) => {
-          if (nextAppState === 'inactive') {
-            storage?.setItem(MODE_STORAGE_KEY, 'app');
-          } else if (nextAppState === 'active') {
-            storage?.setItem(MODE_STORAGE_KEY, mode);
-          }
-        };
-
-        const subscription = AppState.addEventListener('change', handleAppStateChange);
-
-        return () => {
-          subscription.remove();
-        };
-      }
-    }, [mode]);
-
-    /**
-     * Adds a menu item to toggle Storybook in the development settings menu.
-     */
-    useEffect(() => {
-      if (__DEV__) {
+        // Add Dev Menu item to toggle between app and storybook
         const callback = () => {
           setMode((prevMode) => {
-            const newMode = prevMode === 'app' ? 'original' : 'app';
+            const newMode = prevMode === 'app' ? 'storybook' : 'app';
 
             setMode(newMode);
             storage?.setItem(MODE_STORAGE_KEY, newMode);
@@ -91,7 +49,30 @@ const withStorybook =
         } else {
           DevSettings.addMenuItem(TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM, callback);
         }
+
+        // Get stored mode from storage
+        storage?.getItem(MODE_STORAGE_KEY).then((sherloPersistedMode) => {
+          if (sherloPersistedMode === 'storybook' || sherloPersistedMode === 'app') {
+            setMode(sherloPersistedMode);
+          }
+        });
+
+        // Register AppState listener to persist mode if app is not in background
+        const handleAppStateChange = (nextAppState: AppStateStatus) => {
+          if (nextAppState === 'inactive') {
+            storage?.setItem(MODE_STORAGE_KEY, 'app');
+          } else if (nextAppState === 'active') {
+            storage?.setItem(MODE_STORAGE_KEY, mode);
+          }
+        };
+
+        const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+        return () => {
+          subscription.remove();
+        };
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (
