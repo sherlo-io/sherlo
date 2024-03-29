@@ -47,7 +47,7 @@ function useTestingMode(
           });
 
           const initSnapshotIndexForTarget = initSnapshotIndex || 0;
-          const snpashotsForTargetCount = snapshots.length - (initSnapshotIndexForTarget + 1);
+          const snpashotsForTargetCount = snapshots.length - initSnapshotIndexForTarget;
 
           const defaultSnapshotsPerJob = Math.floor(snpashotsForTargetCount / executorsCount);
           const jobsWithUpperBound = snpashotsForTargetCount % executorsCount;
