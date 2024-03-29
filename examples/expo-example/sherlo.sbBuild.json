@@ -1,0 +1,38 @@
+{
+  "android": {
+    "path": "builds/storybook/android.apk",
+    "packageName": "com.sherlo.example",
+    "devices": [
+      {
+        "id": "galaxy.s23.ultra",
+        "osVersion": "12.0",
+        "theme": "dark",
+        "locale": "en_US"
+      },
+      {
+        "id": "galaxy.tab.s9",
+        "osVersion": "12.0",
+        "theme": "dark",
+        "locale": "en_US"
+      }
+    ]
+  },
+  "/ios": {
+    "path": "./builds/storybook/ios.tar.gz",
+    "bundleIdentifier": "com.sherlo.example",
+    "devices": [
+      {
+        "id": "iphone.15.pro",
+        "osVersion": "16.4",
+        "theme": "dark",
+        "locale": "en_US"
+      },
+      {
+        "id": "ipad.pro.12.9.2022",
+        "osVersion": "16.4",
+        "theme": "dark",
+        "locale": "en_US"
+      }
+    ]
+  }
+}

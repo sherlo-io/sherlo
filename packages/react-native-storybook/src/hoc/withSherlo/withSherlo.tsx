@@ -197,8 +197,8 @@ const withSherlo = (view: StorybookView, params?: StorybookParams) => {
     let storybookRenderMode: StorybookRenderMode = 'original';
     if (
       (mode === 'testing' || mode === 'preview') &&
-      testedIndex === undefined &&
-      snapshots === undefined
+      testedIndex !== undefined &&
+      snapshots !== undefined
     ) {
       storybookRenderMode = 'sherlo';
     }
