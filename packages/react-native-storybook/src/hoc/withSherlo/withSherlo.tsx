@@ -5,7 +5,7 @@ import createRunnerBridge from '../../runnerBridge/createRunnerBridge';
 import getGlobalStates from '../../utils/getGlobalStates';
 import ErrorBoundary from './components/ErrorBoundry';
 import SherloContext from './contexts/SherloContext';
-import generateStorybookComponent from './generateStorybookComponent';
+import generateStorybookComponent, { StorybookRenderMode } from './generateStorybookComponent';
 import {
   useAddon,
   useKeyboardStatusEffect,
@@ -194,14 +194,23 @@ const withSherlo = (view: StorybookView, params?: StorybookParams) => {
     // Original mode
     useOriginalMode(view, mode, setSnapshots);
 
+    let storybookRenderMode: StorybookRenderMode = 'original';
+    if (
+      (mode === 'testing' || mode === 'preview') &&
+      testedIndex === undefined &&
+      snapshots === undefined
+    ) {
+      storybookRenderMode = 'sherlo';
+    }
+
     // Storybook memoized for specific mode
     const memoizedStorybook = React.useMemo(() => {
       const testedStory = snapshots?.[testedIndex || 0];
+
       runnerBridge.log('memoizing storybook', {
-        mode,
+        storybookRenderMode,
         testedIndex,
-        testedStory,
-        nullStorybook: testedStory === undefined || testedIndex === undefined || mode === undefined,
+        testedStoryViewId: testedStory?.viewId,
       });
 
       if (testedStory) {
@@ -212,13 +221,15 @@ const withSherlo = (view: StorybookView, params?: StorybookParams) => {
       const Storybook = generateStorybookComponent({
         view,
         params,
-        mode,
-        initialSelection: testedStory?.storyId,
+        storybookRenderMode,
+        initialSelection: testedStory
+          ? { kind: testedStory?.componentTitle, name: testedStory?.storyTitle }
+          : undefined,
       });
 
       return <Storybook />;
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mode, testedIndex === undefined, snapshots === undefined]);
+    }, [storybookRenderMode]);
 
     // Verification test
     if (getGlobalStates().isVerifySetupTest) {

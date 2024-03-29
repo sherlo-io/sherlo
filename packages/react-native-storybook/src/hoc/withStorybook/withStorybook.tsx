@@ -76,7 +76,13 @@ const withStorybook =
     }, []);
 
     return (
-      <ModeProvider mode={mode} setMode={setMode}>
+      <ModeProvider
+        mode={mode}
+        setMode={(newMode) => {
+          setMode(newMode);
+          storage?.setItem(MODE_STORAGE_KEY, newMode);
+        }}
+      >
         {mode !== 'app' ? <Storybook /> : <App />}
       </ModeProvider>
     );
