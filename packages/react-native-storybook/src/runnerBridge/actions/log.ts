@@ -1,5 +1,4 @@
 import sherloModule from '../../sherloModule';
-import getGlobalStates from '../../utils/getGlobalStates';
 import { LogFn } from '../types';
 
 const { appendFile } = sherloModule;
@@ -10,19 +9,14 @@ const { appendFile } = sherloModule;
  * @returns A log function that takes a key and optional parameters, logs them to the console, and appends them to the specified file.
  */
 const log =
-  (path: string, logToConsole: boolean): LogFn =>
+  (path: string): LogFn =>
   (key, parameters): void => {
     const time = new Date().toTimeString().split(' ')[0];
 
     const logMsg = `${time}: ${key}${parameters ? ` : ${JSON.stringify(parameters)}` : ''}\n`;
 
-    if (logToConsole) {
-      console.log(`${logMsg}\n`);
-    }
-
-    if (!getGlobalStates().isIntegrationTest) {
-      appendFile(path, logMsg);
-    }
+    console.log(`${logMsg}\n`);
+    appendFile(path, logMsg);
   };
 
 export default log;

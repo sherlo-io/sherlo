@@ -1,9 +1,8 @@
+import { Snapshot } from '../types';
+
 export type RunnerState = {
-  index: number;
-  storyDisplayName: string;
-  storyId: string;
-  timestamp: number;
-  launchTimestamp?: number;
+  snapshotIndex: number;
+  updateTimestamp: number;
   retry?: boolean;
 };
 
@@ -11,32 +10,31 @@ export type Config = {
   exclude: string[] | string;
   include: string[] | string;
   initSnapshotIndex: number;
+  executorIndex: number;
+  executorsCount: number;
 };
 
 export type LogFn = (key: string, parameters?: Record<string, any>) => void;
-export type SendFn = (protocolItem: AppProtocolItem) => Promise<void>;
+export type SendFn = (protocolItem: AppProtocolItem) => Promise<RunnerProtocolItem | undefined>;
+
+export type ProtocolItemMetadata = {
+  timestamp: number;
+  time: string;
+  entity: 'app' | 'runner';
+};
 
 export type AppProtocolItem =
   | {
       action: 'START';
-      stories: string;
+      snapshots: Snapshot[];
+      initialSelectionIndex: number;
+      finishIndex: number;
     }
   | {
       action: 'REQUEST_SNAPSHOT';
-      displayName: string;
-      id: string;
-      nextState: RunnerState;
-      figmaUrl?: string;
+      snapshotIndex: number;
+      snapshotBase64?: string;
       hasError?: boolean;
-      restart?: boolean;
-    }
-  | {
-      action: 'UPDATE_STATE';
-      index: number;
-      storyDisplayName: string;
-      storyId: string;
-      timestamp: number;
-      launchTimestamp?: number;
     }
   | {
       action: 'END';
@@ -47,10 +45,8 @@ export type RunnerProtocolItem =
       action: 'ACK_START';
     }
   | {
-      action: 'ACK_UPDATE_STATE';
-    }
-  | {
       action: 'ACK_REQUEST_SNAPSHOT';
+      nextSnapshotIndex?: number;
     }
   | {
       action: 'ACK_END';

@@ -1,5 +1,3 @@
-import Storybook from './.storybook';
-
 import { useCallback } from 'react';
 import { View, Text, StyleSheet, Button } from 'react-native';
 import {
@@ -13,6 +11,9 @@ import * as SplashScreen from 'expo-splash-screen';
 import { withStorybook, useSherlo } from '@sherlo/react-native-storybook';
 
 SplashScreen.preventAutoHideAsync();
+
+// global.SHERLO_VERIFY_SETUP = true;
+// global.SHERLO_TEST_CONFIG = {};
 
 export default function App() {
   let [fontsLoaded, fontError] = useFonts({
@@ -53,11 +54,18 @@ export default function App() {
     );
   };
 
-  const AppWithStorybook = withStorybook(App, Storybook);
+  let EntryPoint;
+  if (process.env.EXPO_PUBLIC_STORYBOOK_ONLY === 'true') {
+    const Storybook = require('./.storybook').default;
+    EntryPoint = Storybook;
+  } else {
+    const Storybook = require('./.storybook').default;
+    EntryPoint = withStorybook(App, Storybook);
+  }
 
   return (
     <View style={StyleSheet.absoluteFill} onLayout={onLayoutRootView}>
-      <AppWithStorybook />
+      <EntryPoint />
     </View>
   );
 }
