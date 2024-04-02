@@ -17,7 +17,7 @@
       }
     ]
   },
-  "/ios": {
+  "ios": {
     "path": "./builds/storybook/ios.tar.gz",
     "bundleIdentifier": "com.sherlo.example",
     "devices": [

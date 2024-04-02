@@ -14,7 +14,7 @@
     },
     "storybook": {
       "env": {
-        "EXPO_PUBLIC_STORYBOOK_BUILD": "true"
+        "EXPO_PUBLIC_STORYBOOK_ONLY": "true"
       },
       "android": {
         "buildType": "apk"
