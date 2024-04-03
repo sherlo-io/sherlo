@@ -1,9 +1,9 @@
-name: Run Sherlo with Async Upload
+name: Run Sherlo in async mode
 
 on:
   pull_request:
-    branches: [dev]
-    types: [labeled]
+    branches: [ dev ]
+    types: [ labeled ]
   workflow_call:
     inputs:
       skip_build:
@@ -45,19 +45,19 @@ jobs:
       - name: Build dependencies
         run: yarn build
 
-      - name: Run Sherlo Action with Async Upload
+      - name: Run Sherlo Action in async mode
         id: sherlo_action # This ID is used to reference the output
         uses: ./.
         with:
           projectRoot: examples/expo-example
-          asyncUpload: true
+          async: true
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN_ASYNC }}
 
   ## Android
   android_preview_build:
     name: Prepare Android Preview Build
-    needs: [run_sherlo_async]
+    needs: [ run_sherlo_async ]
     uses: ./.github/workflows/android_build.yml
     with:
       skip_build: ${{ github.event.inputs.skip_build || inputs.skip_build || github.event.label.name == 'sherlo:async:skip_build' }}
@@ -65,7 +65,7 @@ jobs:
 
   android_preview_build_upload:
     name: Upload Android Preview Build to Sherlo
-    needs: [run_sherlo_async, android_preview_build]
+    needs: [ run_sherlo_async, android_preview_build ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -94,14 +94,14 @@ jobs:
         with:
           projectRoot: examples/expo-example
           android: builds/preview/android.apk
-          asyncUploadBuildIndex: ${{ needs.run_sherlo_async.outputs.buildIndex }}
+          asyncBuildIndex: ${{ needs.run_sherlo_async.outputs.buildIndex }}
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN_ASYNC }}
 
   ## iOS
   ios_preview_build:
     name: Prepare iOS Preview Build
-    needs: [run_sherlo_async]
+    needs: [ run_sherlo_async ]
     uses: ./.github/workflows/ios_build.yml
     with:
       skip_build: ${{ github.event.inputs.skip_build || inputs.skip_build || github.event.label.name == 'sherlo:async:skip_build' }}
@@ -109,7 +109,7 @@ jobs:
 
   ios_preview_build_upload:
     name: Upload iOS Preview Build to Sherlo
-    needs: [run_sherlo_async, ios_preview_build]
+    needs: [ run_sherlo_async, ios_preview_build ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -138,6 +138,6 @@ jobs:
         with:
           projectRoot: examples/expo-example
           ios: builds/preview/ios.tar.gz
-          asyncUploadBuildIndex: ${{ needs.run_sherlo_async.outputs.buildIndex }}
+          asyncBuildIndex: ${{ needs.run_sherlo_async.outputs.buildIndex }}
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN_ASYNC }}

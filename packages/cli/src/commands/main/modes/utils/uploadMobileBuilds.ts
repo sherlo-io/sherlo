@@ -1,23 +1,23 @@
-import fs from 'fs/promises';
-import path from 'path';
 import { GetBuildUploadUrlsReturn, Platform } from '@sherlo/api-types';
 import chalk from 'chalk';
+import fs from 'fs/promises';
 import fetch from 'node-fetch';
+import path from 'path';
 import tar from 'tar';
-import getErrorMessage from './getErrorMessage';
+import { getErrorMessage } from '../../utils';
 
 const platformLabel: { [platform in Platform]: string } = {
   android: 'Android',
   ios: 'iOS',
 };
 
-export type UploadMobileBuilsPaths = {
+export type UploadMobileBuildsPaths = {
   android?: string;
   ios?: string;
 };
 
 async function uploadMobileBuilds(
-  paths: UploadMobileBuilsPaths,
+  paths: UploadMobileBuildsPaths,
   buildPresignedUploadUrls: GetBuildUploadUrlsReturn['buildPresignedUploadUrls']
 ): Promise<void> {
   if (paths.android) {

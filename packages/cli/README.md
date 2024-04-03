@@ -1,10 +1,15 @@
 # @sherlo/cli
 
-`@sherlo/cli` is a vital component of the Visual Testing solution offered by Sherlo, tailored for automating the process of uploading Android and iOS builds to Sherlo and initiating the testing procedure based on a specified configuration file. This CLI tool is designed for both manual execution by developers and integration into Continuous Integration (CI) setups. For GitHub Actions integration, please refer to `packages/sherlo-action`.
+`@sherlo/cli` is a vital component of the Visual Testing solution offered by Sherlo, tailored for automating the process
+of uploading Android and iOS builds to Sherlo and initiating the testing procedure based on a specified configuration
+file. This CLI tool is designed for both manual execution by developers and integration into Continuous Integration (CI)
+setups. For GitHub Actions integration, please refer to `packages/sherlo-action`.
 
 ## Prerequisites
 
-To utilize this CLI, ensure you have a `sherlo.config.ts` file in your project. The CLI will automatically detect this configuration file if it's placed at the root of your project. If located elsewhere, the path to the configuration file must be specified using the `--config <path>` argument.
+To utilize this CLI, ensure you have a `sherlo.config.ts` file in your project. The CLI will automatically detect this
+configuration file if it's placed at the root of your project. If located elsewhere, the path to the configuration file
+must be specified using the `--config <path>` argument.
 
 ## Installation and Usage
 
@@ -14,7 +19,8 @@ To run the CLI, use the following command:
 npx @sherlo/cli
 ```
 
-Upon execution, the CLI will upload your builds and commence testing, ultimately providing a URL to access the test results.
+Upon execution, the CLI will upload your builds and commence testing, ultimately providing a URL to access the test
+results.
 
 ## Configuration File (`sherlo.config.ts`)
 
@@ -24,7 +30,7 @@ Below is an example of a `sherlo.config.ts` file with explanations for each fiel
 import { Config } from '@sherlo/react-native-storybook';
 
 const config: Config = {
-  projectToken: 'XXXX', // Your Sherlo project token.
+  token: 'XXXX', // Your Sherlo project token.
   exclude: ['screen'], // Exclude stories containing 'screen' in their names.
   include: ['base'], // Only include stories containing 'base' in their names.
   android: {
@@ -72,12 +78,13 @@ export default config;
 
 ### Config File Explained
 
-- **projectToken**: The token associated with your Sherlo project.
+- **token**: The token associated with your Sherlo project.
 - **exclude**: An array of patterns to exclude specific stories from testing.
 - **include**: An array of patterns to include specific stories for testing. If not provided, all stories are tested.
 - **android** & **ios**: Configuration options for Android and iOS testing, respectively, including:
-  - **path**: Location of the build file.
-  - **packageName**/**bundleIdentifier**: Unique identifier for the app.
-  - **devices**: A list of device configurations for testing.
+    - **path**: Location of the build file.
+    - **packageName**/**bundleIdentifier**: Unique identifier for the app.
+    - **devices**: A list of device configurations for testing.
 
-For a comprehensive list of supported devices and their IDs, visit [Sherlo Devices Documentation](https://docs.sherlo.io/getting-started/devices).
+For a comprehensive list of supported devices and their IDs,
+visit [Sherlo Devices Documentation](https://docs.sherlo.io/getting-started/devices).

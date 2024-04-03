@@ -2,8 +2,8 @@ name: Run Sherlo with EAS hooks
 
 on:
   pull_request:
-    branches: [dev]
-    types: [labeled]
+    branches: [ dev ]
+    types: [ labeled ]
   workflow_call:
   workflow_dispatch:
 
@@ -31,11 +31,11 @@ jobs:
 
       # It's important to run Sherlo in the same job as the EAS build,
       # because we're pushing temporary files to .expo directory used during the build
-      - name: Run Sherlo with Async Upload
+      - name: Run Sherlo in async mode
         uses: ./.
         with:
           projectRoot: examples/expo-example
-          asyncUpload: true
+          async: true
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN_EAS }}
 
