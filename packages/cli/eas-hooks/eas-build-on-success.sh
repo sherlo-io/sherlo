@@ -76,7 +76,7 @@ if [[ "$EAS_BUILD_PROFILE" == "$SHERLO_BUILD_PROFILE" ]]; then
             exit 1
         fi
 
-        yarn sherlo --asyncUploadBuildIndex=$buildIndex --token=$SHERLO_TOKEN --android=$android_path 
+        yarn sherlo --asyncBuildIndex=$buildIndex --token=$SHERLO_TOKEN --android=$android_path
     fi
 
     if [[ "$EAS_BUILD_PLATFORM" == "ios" ]]; then
@@ -91,7 +91,7 @@ if [[ "$EAS_BUILD_PROFILE" == "$SHERLO_BUILD_PROFILE" ]]; then
             exit 1
         fi
 
-        yarn sherlo --asyncUploadBuildIndex=$buildIndex --token=$SHERLO_TOKEN --ios=$ios_path 
+        yarn sherlo --asyncBuildIndex=$buildIndex --token=$SHERLO_TOKEN --ios=$ios_path
     fi
 fi
 

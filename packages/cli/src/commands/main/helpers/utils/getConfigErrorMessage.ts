@@ -1,4 +1,4 @@
-import getErrorMessage from '../getErrorMessage';
+import { getErrorMessage } from '../../utils';
 
 function getConfigErrorMessage(message: string, learnMoreLink?: string): string {
   return getErrorMessage({

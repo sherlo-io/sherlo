@@ -9,12 +9,12 @@ async function run(): Promise<void> {
     const ios: string = core.getInput('ios', { required: false });
     const config: string = core.getInput('config', { required: false });
     const projectRoot: string = core.getInput('projectRoot', { required: false });
-    const asyncUploadBuildIndex: number = Number(
-      core.getInput('asyncUploadBuildIndex', {
+    const asyncBuildIndex: number = Number(
+      core.getInput('asyncBuildIndex', {
         required: false,
       })
     );
-    const asyncUpload: boolean = core.getInput('asyncUpload', { required: false }) === 'true';
+    const async: boolean = core.getInput('async', { required: false }) === 'true';
 
     const { context } = github;
 
@@ -44,8 +44,8 @@ async function run(): Promise<void> {
       android,
       ios,
       config,
-      asyncUpload,
-      asyncUploadBuildIndex,
+      async,
+      asyncBuildIndex,
       projectRoot,
       token: process.env.SHERLO_TOKEN || undefined,
       gitInfo,

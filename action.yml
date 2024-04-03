@@ -23,12 +23,12 @@ inputs:
     description: 'use this option to specify the root of the react native project when working with monorepo'
     required: false
     default: '.'
-  asyncUpload:
+  async:
     description: "if 'true' you don't need to provide android and ios builds, they can be uploaded independently with separate action"
     required: false
     default: false
-  asyncUploadBuildIndex:
-    description: 'if you want to upload android or ios build to existing sherlo build in async upload mode, you need to provide index of build you want to update'
+  asyncBuildIndex:
+    description: 'if you want to upload android or ios build to existing sherlo build in async mode, you need to provide index of build you want to update'
     required: false
 
 outputs:

@@ -39,7 +39,9 @@
     "publish:next": "lerna publish from-git --dist-tag next",
     "test:ci": "lerna run test:ci",
     "test": "lerna run test",
-    "switch-env": "./scripts/switch-env.sh"
+    "switch-env:test": "./scripts/switch-env.sh test",
+    "switch-env:dev": "./scripts/switch-env.sh dev",
+    "switch-env:prod": "./scripts/switch-env.sh prod"
   },
   "devDependencies": {
     "@react-native/eslint-config": "^0.72.1",

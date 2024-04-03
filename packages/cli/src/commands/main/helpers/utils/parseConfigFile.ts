@@ -1,23 +1,22 @@
-import { BaseConfig, InvalidatedConfig } from '../../types';
-import getErrorMessage from '../getErrorMessage';
-import getConfigErrorMessage from './getConfigErrorMessage';
 import fs from 'fs';
+import { InvalidatedConfig } from '../../types';
+import { getErrorMessage } from '../../utils';
+import getConfigErrorMessage from './getConfigErrorMessage';
 
 /*
  * 1. Both `include` and `exclude` can be defined as a string or an array of
  *    strings in the config. However, the output should always be an array.
  * */
-function parse(path: string): InvalidatedConfig {
+function parseConfigFile(path: string): InvalidatedConfig {
   try {
-    const config: BaseConfig = JSON.parse(fs.readFileSync(path, 'utf8'));
+    const config = JSON.parse(fs.readFileSync(path, 'utf8'));
 
     if (!config) throw new Error('config is undefined');
 
-    const { exclude, include } = config;
-
     /* 1 */
-    if (include && !Array.isArray(include)) config.include = [include];
-    if (exclude && !Array.isArray(exclude)) config.exclude = [exclude];
+    // const { exclude, include } = config;
+    // if (include && !Array.isArray(include)) config.include = [include];
+    // if (exclude && !Array.isArray(exclude)) config.exclude = [exclude];
 
     return config;
   } catch (error) {
@@ -45,4 +44,4 @@ function parse(path: string): InvalidatedConfig {
   }
 }
 
-export default parse;
+export default parseConfigFile;
