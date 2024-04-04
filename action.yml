@@ -3,8 +3,8 @@ name: Run Sherlo
 description: This is an action that uploads provided iOS & Android builds to Sherlo and starts a test run.
 author: Sherlo
 branding:
-  icon: upload-cloud
-  color: blue
+  icon: play
+  color: gray-dark
 runs:
   using: 'node12'
   main: 'packages/action/release/index.js'
