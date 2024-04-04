@@ -27,6 +27,7 @@ jobs:
       (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:sync')) ||
       (github.event_name != 'pull_request')
     uses: ./.github/workflows/android_build.yml
+    secrets: inherit
     with:
       skip_build: ${{ github.event.inputs.skip_build || inputs.skip_build || github.event.label.name == 'sherlo:sync:skip_build' }}
       profile: 'preview'
@@ -38,6 +39,7 @@ jobs:
       (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:sync')) ||
       (github.event_name != 'pull_request')
     uses: ./.github/workflows/ios_build.yml
+    secrets: inherit
     with:
       skip_build: ${{ github.event.inputs.skip_build || inputs.skip_build || github.event.label.name == 'sherlo:sync:skip_build' }}
       profile: 'preview'
