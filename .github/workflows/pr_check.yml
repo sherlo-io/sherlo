@@ -1,7 +1,7 @@
 name: 'PR Lint Check'
 on:
   pull_request:
-    types: [opened, edited, synchronize, reopened]
+    types: [ opened, edited, synchronize, reopened ]
 
 jobs:
   lint:
@@ -13,6 +13,7 @@ jobs:
         uses: amannn/action-semantic-pull-request@v3.4.2
         with:
           types: |
+            chore
             fix
             feat
           scopes: |
