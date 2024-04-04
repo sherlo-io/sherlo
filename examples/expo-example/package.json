@@ -36,7 +36,6 @@
     "expo-linear-gradient": "~12.7.2",
     "expo-splash-screen": "^0.26.4",
     "expo-status-bar": "^1.11.1",
-    "expo-updates": "~0.24.11",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-native": "0.73.4",

@@ -1,10 +1,11 @@
 import React, { ReactElement, useEffect, useState } from 'react';
-import { AppState, AppStateStatus, DevSettings } from 'react-native';
+import { AppState, AppStateStatus, DevSettings, Platform } from 'react-native';
 import * as DevMenu from 'expo-dev-menu';
 
 import { TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM } from '../../data/constants';
 import { StorybookParams } from '../../types';
 import ModeProvider from './ModeProvider';
+import runnerBridge from '../../runnerBridge/runnerBridge';
 
 const MODE_STORAGE_KEY = 'sherloPersistedMode';
 
@@ -26,6 +27,44 @@ const withStorybook =
     const { storage } = Storybook as { storage?: StorybookParams['storage'] };
 
     useEffect(() => {
+      if (Platform.OS !== 'android') {
+        // Register AppState listener to persist mode if app is not in background
+        const handleAppStateChange = (nextAppState: AppStateStatus) => {
+          if (nextAppState === 'inactive') {
+            storage?.setItem(MODE_STORAGE_KEY, 'app');
+          } else if (nextAppState === 'active') {
+            storage?.setItem(MODE_STORAGE_KEY, mode);
+          }
+        };
+
+        const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+        return () => {
+          subscription.remove();
+        };
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mode]);
+
+    useEffect(() => {
+      runnerBridge
+        .getConfig()
+        .then(() => {
+          setMode('storybook');
+        })
+        .catch(() => {
+          if (__DEV__ && Platform.OS !== 'android') {
+            // Get stored mode from storage
+            storage?.getItem(MODE_STORAGE_KEY).then((sherloPersistedMode) => {
+              if (sherloPersistedMode === 'storybook' || sherloPersistedMode === 'app') {
+                setMode(sherloPersistedMode);
+              }
+            });
+          } else {
+            setMode('app');
+          }
+        });
+
       if (__DEV__) {
         // Add Dev Menu item to toggle between app and storybook
         const callback = () => {
@@ -49,28 +88,6 @@ const withStorybook =
         } else {
           DevSettings.addMenuItem(TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM, callback);
         }
-
-        // Get stored mode from storage
-        storage?.getItem(MODE_STORAGE_KEY).then((sherloPersistedMode) => {
-          if (sherloPersistedMode === 'storybook' || sherloPersistedMode === 'app') {
-            setMode(sherloPersistedMode);
-          }
-        });
-
-        // Register AppState listener to persist mode if app is not in background
-        const handleAppStateChange = (nextAppState: AppStateStatus) => {
-          if (nextAppState === 'inactive') {
-            storage?.setItem(MODE_STORAGE_KEY, 'app');
-          } else if (nextAppState === 'active') {
-            storage?.setItem(MODE_STORAGE_KEY, mode);
-          }
-        };
-
-        const subscription = AppState.addEventListener('change', handleAppStateChange);
-
-        return () => {
-          subscription.remove();
-        };
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
