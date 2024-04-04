@@ -17,7 +17,7 @@
     "ios:eas:preview": "eas build --platform ios --profile=preview",
     "ios:start:dev": "tar -xzvf builds/ios.tar.gz -C builds/ && xcrun simctl install booted builds/sherloexpoexample.app && expo start --ios --dev-client",
     "ios:start:go": "expo start --ios --go",
-    "sherlo": "sherlo --config sherlo.config.json",
+    "sherlo": "sherlo",
     "sherlo:storybookOnly": "sherlo --config sherlo.storybookOnly.json",
     "storybook:web": "storybook dev -p 6006 -c .storybook-web",
     "storybook:native:generate": "sb-rn-get-stories --config-path .storybook"

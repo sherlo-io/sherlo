@@ -4,10 +4,18 @@ import nodePath from 'path';
 import { docsLink } from '../../constants';
 import getConfigErrorMessage from './getConfigErrorMessage';
 
+const learnMoreLink: { [platform in Platform]: string } = {
+  android: docsLink.configAndroid,
+  ios: docsLink.configIos,
+};
+
 export function validateConfigPlatformPath(path: string | undefined, platform: Platform): void {
   if (!path || typeof path !== 'string') {
     throw new Error(
-      getConfigErrorMessage(`for ${platform}, path must be a defined string`, docsLink[platform])
+      getConfigErrorMessage(
+        `for ${platform}, path must be a defined string`,
+        learnMoreLink[platform]
+      )
     );
   }
 
@@ -20,7 +28,7 @@ export function validateConfigPlatformPath(path: string | undefined, platform: P
     throw new Error(
       getConfigErrorMessage(
         `for ${platform}, path must be a valid ${fileType[platform].join(', ')} file`,
-        docsLink[platform]
+        learnMoreLink[platform]
       )
     );
   }

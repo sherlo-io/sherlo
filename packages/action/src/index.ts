@@ -5,16 +5,13 @@ import { main } from '@sherlo/cli';
 
 async function run(): Promise<void> {
   try {
-    const android: string = core.getInput('android', { required: false });
-    const ios: string = core.getInput('ios', { required: false });
-    const config: string = core.getInput('config', { required: false });
-    const projectRoot: string = core.getInput('projectRoot', { required: false });
-    const asyncBuildIndex: number = Number(
-      core.getInput('asyncBuildIndex', {
-        required: false,
-      })
-    );
-    const async: boolean = core.getInput('async', { required: false }) === 'true';
+    const projectRoot = getOptionalInput('projectRoot');
+    const config = getOptionalInput('config');
+    const android = getOptionalInput('android');
+    const ios = getOptionalInput('ios');
+    const async = getOptionalInput('async') === 'true';
+    const asyncBuildIndexString = getOptionalInput('asyncBuildIndex');
+    const asyncBuildIndex = asyncBuildIndexString ? Number(asyncBuildIndexString) : undefined;
 
     const { context } = github;
 
@@ -35,6 +32,7 @@ async function run(): Promise<void> {
           };
         }
         break;
+
       default:
         console.log(JSON.stringify(context, null, 2));
         break;
@@ -47,7 +45,7 @@ async function run(): Promise<void> {
       async,
       asyncBuildIndex,
       projectRoot,
-      token: process.env.SHERLO_TOKEN || undefined,
+      token: emptyStringToUndefined(process.env.SHERLO_TOKEN), // Action returns an empty string if not defined
       gitInfo,
     });
 
@@ -56,6 +54,15 @@ async function run(): Promise<void> {
   } catch (error) {
     if (error instanceof Error) core.setFailed(error.message);
   }
+}
+
+function getOptionalInput(name: string): string | undefined {
+  const value = core.getInput(name, { required: false });
+  return emptyStringToUndefined(value);
+}
+
+function emptyStringToUndefined(input?: string): string | undefined {
+  return input === '' ? undefined : input;
 }
 
 run();
