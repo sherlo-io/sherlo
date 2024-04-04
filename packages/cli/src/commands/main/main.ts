@@ -11,7 +11,12 @@ async function main(githubActionParameters?: Parameters<typeof getArguments>[0])
 
   switch (args.mode) {
     case 'sync': {
-      return syncMode(args);
+      console.log('sync mode', args);
+
+      // @ts-ignore
+      return null;
+
+      // return syncMode(args);
     }
 
     case 'asyncInit': {
