@@ -11,7 +11,7 @@ async function main(githubActionParameters?: Parameters<typeof getArguments>[0])
 
   switch (args.mode) {
     case 'sync': {
-      console.log('sync mode', args);
+      console.log('sync mode', JSON.stringify(args, null, 2));
 
       // @ts-ignore
       return null;
