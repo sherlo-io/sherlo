@@ -8,9 +8,7 @@ export function validateConfigDevices(config: InvalidatedConfig): void {
   const { devices } = config;
 
   if (!devices || !Array.isArray(devices) || devices.length === 0) {
-    throw new Error(
-      getConfigErrorMessage('devices must be a non-empty array', docsLink.deviceList)
-    );
+    throw new Error(getConfigErrorMessage('devices must be a non-empty array', docsLink.devices));
   }
 
   for (let i = 0; i < devices.length; i++) {
@@ -20,7 +18,7 @@ export function validateConfigDevices(config: InvalidatedConfig): void {
       throw new Error(
         getConfigErrorMessage(
           'each device must have defined "id" and "osVersion" as strings',
-          docsLink.deviceList
+          docsLink.devices
         )
       );
     }
@@ -28,14 +26,14 @@ export function validateConfigDevices(config: InvalidatedConfig): void {
     const sherloDevice = sherloDevices[id];
 
     if (!sherloDevice) {
-      throw new Error(getConfigErrorMessage(`device "${id}" is invalid`, docsLink.deviceList));
+      throw new Error(getConfigErrorMessage(`device "${id}" is invalid`, docsLink.devices));
     }
 
     if (!sherloDevice.osVersions.some(({ version }) => version === osVersion)) {
       throw new Error(
         getConfigErrorMessage(
           `the osVersion "${osVersion}" is not supported by the device "${id}"`,
-          docsLink.deviceList
+          docsLink.devices
         )
       );
     }

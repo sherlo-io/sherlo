@@ -29,4 +29,4 @@ const createRunnerBridge = (): RunnerBridge => {
   };
 };
 
-export default createRunnerBridge;
+export default createRunnerBridge();

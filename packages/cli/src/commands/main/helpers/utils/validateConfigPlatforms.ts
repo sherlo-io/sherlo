@@ -9,7 +9,9 @@ export function validateConfigPlatforms(config: InvalidatedConfig, mode: ConfigM
   const { android, ios } = config.apps ?? {};
 
   if (!android && !ios) {
-    throw new Error(getConfigErrorMessage('at least one platform must be defined', docsLink.apps));
+    throw new Error(
+      getConfigErrorMessage('at least one platform must be defined', docsLink.configApps)
+    );
   }
 
   if (android) validatePlatform(config, 'android', mode);
@@ -43,7 +45,10 @@ function validatePlatformSpecificParameters(config: InvalidatedConfig, platform:
       !android.packageName.includes('.')
     ) {
       throw new Error(
-        getConfigErrorMessage('for android, packageName must be a valid string', docsLink.android)
+        getConfigErrorMessage(
+          'for android, packageName must be a valid string',
+          docsLink.configAndroid
+        )
       );
     }
 
@@ -51,7 +56,7 @@ function validatePlatformSpecificParameters(config: InvalidatedConfig, platform:
       throw new Error(
         getConfigErrorMessage(
           'for android, if activity is defined, it must be a string',
-          docsLink.android
+          docsLink.configAndroid
         )
       );
     }
@@ -72,7 +77,10 @@ function validatePlatformSpecificParameters(config: InvalidatedConfig, platform:
       !ios.bundleIdentifier.includes('.')
     ) {
       throw new Error(
-        getConfigErrorMessage('for ios, bundleIdentifier must be a valid string', docsLink.ios)
+        getConfigErrorMessage(
+          'for ios, bundleIdentifier must be a valid string',
+          docsLink.configIos
+        )
       );
     }
   }

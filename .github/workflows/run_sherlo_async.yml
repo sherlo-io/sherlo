@@ -2,8 +2,8 @@ name: Run Sherlo in async mode
 
 on:
   pull_request:
-    branches: [ dev ]
-    types: [ labeled ]
+    branches: [dev]
+    types: [labeled]
   workflow_call:
     inputs:
       skip_build:
@@ -57,15 +57,16 @@ jobs:
   ## Android
   android_preview_build:
     name: Prepare Android Preview Build
-    needs: [ run_sherlo_async ]
+    needs: [run_sherlo_async]
     uses: ./.github/workflows/android_build.yml
+    secrets: inherit
     with:
       skip_build: ${{ github.event.inputs.skip_build || inputs.skip_build || github.event.label.name == 'sherlo:async:skip_build' }}
       profile: 'preview'
 
   android_preview_build_upload:
     name: Upload Android Preview Build to Sherlo
-    needs: [ run_sherlo_async, android_preview_build ]
+    needs: [run_sherlo_async, android_preview_build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -101,15 +102,16 @@ jobs:
   ## iOS
   ios_preview_build:
     name: Prepare iOS Preview Build
-    needs: [ run_sherlo_async ]
+    needs: [run_sherlo_async]
     uses: ./.github/workflows/ios_build.yml
+    secrets: inherit
     with:
       skip_build: ${{ github.event.inputs.skip_build || inputs.skip_build || github.event.label.name == 'sherlo:async:skip_build' }}
       profile: 'preview'
 
   ios_preview_build_upload:
     name: Upload iOS Preview Build to Sherlo
-    needs: [ run_sherlo_async, ios_preview_build ]
+    needs: [run_sherlo_async, ios_preview_build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

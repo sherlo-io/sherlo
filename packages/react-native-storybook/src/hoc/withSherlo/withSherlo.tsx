@@ -1,7 +1,7 @@
 import React, { ReactElement, useEffect, useRef, useState } from 'react';
 import { Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
 import SherloEffectContext from '../../contexts/SherloEffectContext';
-import createRunnerBridge from '../../runnerBridge/createRunnerBridge';
+import runnerBridge from '../../runnerBridge/runnerBridge';
 import getGlobalStates from '../../utils/getGlobalStates';
 import ErrorBoundary from './components/ErrorBoundry';
 import SherloContext from './contexts/SherloContext';
@@ -22,8 +22,6 @@ import { Snapshot, StorybookParams, StorybookView } from '../../types';
 setupErrorSilencing();
 
 export type SherloMode = 'preview' | 'testing' | 'original' | 'loading';
-
-const runnerBridge = createRunnerBridge();
 
 const withSherlo = (view: StorybookView, params?: StorybookParams) => {
   const SherloStorybook = (): ReactElement => {

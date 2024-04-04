@@ -41,7 +41,12 @@ function getBuildRunConfig({
 function getConvertedDevices(devices: BaseConfig['devices'], platform: Platform): Device[] {
   return devices
     .filter(({ id }) => sherloDevices[id]?.os === platform)
-    .map((device) => ({ ...device, locale: device.osLanguage, theme: device.osTheme }));
+    .map((device) => ({
+      id: device.id,
+      osVersion: device.osVersion,
+      locale: device.osLanguage,
+      theme: device.osTheme,
+    }));
 }
 
 export default getBuildRunConfig;

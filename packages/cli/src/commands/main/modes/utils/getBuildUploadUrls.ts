@@ -15,7 +15,7 @@ async function getBuildUploadUrls(
           getErrorMessage({
             type: 'auth',
             message: 'token is invalid',
-            learnMoreLink: docsLink.token,
+            learnMoreLink: docsLink.configToken,
           })
         );
       }
