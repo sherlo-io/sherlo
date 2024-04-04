@@ -72,6 +72,8 @@ async function uploadFile(
 ): Promise<void> {
   const platformLabelValue = platformLabel[platform];
 
+  console.log(`${chalk.blue('→')} Reading ${platformLabelValue} build`, pathToFile);
+
   const fileData = await fs.readFile(pathToFile).catch(() => {
     throw new Error(
       getErrorMessage({
@@ -80,6 +82,8 @@ async function uploadFile(
       })
     );
   });
+
+  console.log(`${chalk.blue('→')} Read ${platformLabelValue} build`, fileData.length);
 
   console.log(`${chalk.blue('→')} Started ${platformLabelValue} upload`);
 
