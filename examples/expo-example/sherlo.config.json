@@ -11,28 +11,20 @@
   },
   "devices": [
     {
-      "id": "galaxy.s23.ultra",
-      "osVersion": "12",
-      "osLanguage": "en_US",
-      "osTheme": "dark"
-    },
-    {
-      "id": "galaxy.tab.s9",
-      "osVersion": "12",
-      "osLanguage": "en_US",
-      "osTheme": "dark"
-    },
-    {
       "id": "iphone.15.pro",
-      "osVersion": "16",
-      "osLanguage": "en_US",
-      "osTheme": "dark"
+      "osVersion": "17"
     },
     {
-      "id": "ipad.pro.12.9.2022",
-      "osVersion": "16",
-      "osLanguage": "en_US",
-      "osTheme": "dark"
+      "id": "iphone.se.3",
+      "osVersion": "16"
+    },
+    {
+      "id": "pixel.8.pro",
+      "osVersion": "13"
+    },
+    {
+      "id": "pixel.7",
+      "osVersion": "12"
     }
   ]
 }

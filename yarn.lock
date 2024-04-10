@@ -5002,10 +5002,10 @@
   resolved "https://registry.yarnpkg.com/@storybook/preview/-/preview-7.6.17.tgz#e0c9727c7cfbd8f1d504848a57acaab8e54abe90"
   integrity "sha1-4MlyfHz72PHVBISKV6yquOVKvpA= sha512-LvkMYK/y6alGjwRVNDIKL1lFlbyZ0H0c8iAbcQkiMoaFiujMQyVswMDKlWcj42Upfr/B1igydiruomc+eUt0mw=="
 
-"@storybook/react-docgen-typescript-plugin@1.0.6--canary.9.0c3f3b7.0":
-  version "1.0.6--canary.9.0c3f3b7.0"
-  resolved "https://registry.yarnpkg.com/@storybook/react-docgen-typescript-plugin/-/react-docgen-typescript-plugin-1.0.6--canary.9.0c3f3b7.0.tgz#7f10f3c641f32e4513a8b6ffb5036933e7059534"
-  integrity "sha1-fxDzxkHzLkUTqLb/tQNpM+cFlTQ= sha512-KUqXC3oa9JuQ0kZJLBhVdS4lOneKTOopnNBK4tUAgoxWQ3u/IjzdueZjFr7gyBrXMoU6duutk3RQR9u8ZpYJ4Q=="
+"@storybook/react-docgen-typescript-plugin@1.0.6--canary.9.0c3f3b7.0", "@storybook/react-docgen-typescript-plugin@1.0.6--canary.9.cd77847.0":
+  version "1.0.6--canary.9.cd77847.0"
+  resolved "https://registry.yarnpkg.com/@storybook/react-docgen-typescript-plugin/-/react-docgen-typescript-plugin-1.0.6--canary.9.cd77847.0.tgz#35beed1bd0813569fc8852b372c92069fe74a448"
+  integrity sha512-I4oBYmnUCX5IsrZhg+ST72dubSIV4wdwY+SfqJiJ3NHvDpdb240ZjdHAmjIy/yJh5rh42Fl4jbG8Tr4SzwV53Q==
   dependencies:
     debug "^4.1.1"
     endent "^2.0.1"
@@ -10392,10 +10392,10 @@ expo-splash-screen@~0.17.0:
     "@expo/configure-splash-screen" "^0.6.0"
     "@expo/prebuild-config" "5.0.7"
 
-expo-status-bar@^1.11.1:
+expo-status-bar@~1.11.1:
   version "1.11.1"
   resolved "https://registry.yarnpkg.com/expo-status-bar/-/expo-status-bar-1.11.1.tgz#a11318741d361048c11db2b16c4364a79a74af30"
-  integrity "sha1-oRMYdB02EEjBHbKxbENkp5p0rzA= sha512-ddQEtCOgYHTLlFUe/yH67dDBIoct5VIULthyT3LRJbEwdpzAgueKsX2FYK02ldh440V87PWKCamh7R9evk1rrg=="
+  integrity sha512-ddQEtCOgYHTLlFUe/yH67dDBIoct5VIULthyT3LRJbEwdpzAgueKsX2FYK02ldh440V87PWKCamh7R9evk1rrg==
 
 expo-updates-interface@~0.15.1:
   version "0.15.3"
