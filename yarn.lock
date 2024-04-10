@@ -3923,32 +3923,32 @@
     component-type "^1.2.1"
     join-component "^1.1.0"
 
-"@sherlo/api-types@^1.1.1":
-  version "1.1.1"
-  resolved "https://registry.yarnpkg.com/@sherlo/api-types/-/api-types-1.1.1.tgz#9f58fbb30ff7bd36cc30aa276f400fc167bf01e1"
-  integrity sha512-vUtaUC0f4HGNYvSPPI4UJHHUvwVxy+g9FrL/fHFV0h4ZXjXnMgKeWNldrrkOynheEbluaehTzsIpjk3z1Nd2GQ==
+"@sherlo/api-types@1.1.2":
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/@sherlo/api-types/-/api-types-1.1.2.tgz#82fd242a68d9794d26b76ace6115bd39bd7fc202"
+  integrity sha512-XKwtl0YJxAxtb09vRmuwHynki2l18eWSNPYLGluY5fszEHJZVBNvjlWVFP6L3rnTFKIJhWwIiI+Sv38TVe+HyA==
 
-"@sherlo/common-client@^1.1.1":
-  version "1.1.1"
-  resolved "https://registry.yarnpkg.com/@sherlo/common-client/-/common-client-1.1.1.tgz#734e67f5dce45166b59359353532bb363d632193"
-  integrity sha512-b/knBS2MaYvXX6YW55vw9KZdq3XK8m3H58ia19tkl4nc7VTfRbXed3OA5ofvEOGp/zrppTr+pp0heigiT9+W9w==
+"@sherlo/common-client@1.1.2":
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/@sherlo/common-client/-/common-client-1.1.2.tgz#429d0f02e51e9fc951a86422523d0714bb3b08ee"
+  integrity sha512-dX2qOpNTM2PN6TfLMz6sxWy+wSvDW0tcC1ZAH7o1CYS/W9NH9XYXDUdtG3laQ/xT1szvsO04NnT2YQQQ2Pf3zg==
   dependencies:
     graphql-tag "2.12.6"
 
-"@sherlo/sdk-client@^1.1.1":
-  version "1.1.1"
-  resolved "https://registry.yarnpkg.com/@sherlo/sdk-client/-/sdk-client-1.1.1.tgz#22ffaab03c5f57ab51229f2c2abd4ad885a58d1f"
-  integrity sha512-JQWE0/37tpkI74mN4EWb2ngoXqIyRcJiA+XHMzqqpNTpuU4dN0WEtaezfQRV5EkGPV+zDNI2J3TAG1d7gbd+Hw==
+"@sherlo/sdk-client@1.1.2":
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/@sherlo/sdk-client/-/sdk-client-1.1.2.tgz#9ba126d082ba60a9539a6b390046f29043a3ef0a"
+  integrity sha512-b0XpEPnqK1PCgZSsOEh0HMN5DdQWiRrpXEk1v81NAnqHnNPbo53uYheZL3nazfxEwOH0fSKWSZR6Exi+ZVM6MQ==
   dependencies:
     "@apollo/client" "3.7.0"
     aws-appsync-auth-link "3.0.7"
     graphql-tag "2.12.6"
     isomorphic-fetch "3.0.0"
 
-"@sherlo/shared@^1.1.1":
-  version "1.1.1"
-  resolved "https://registry.yarnpkg.com/@sherlo/shared/-/shared-1.1.1.tgz#a40e5fbaaded462bdb75c6ad5db68aa9bfcabbfa"
-  integrity sha512-Yf/kIWVtOhUYR3IeNAuTrJRdB1Bbl68Lny+PYzNT3tcW75LcBhwoh3gauCglgE/8b4tNG+OkbWFO4VwmMT2XvQ==
+"@sherlo/shared@1.1.2":
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/@sherlo/shared/-/shared-1.1.2.tgz#6e459920e4b50f947811b6420969b466dac8815d"
+  integrity sha512-SqIvwVIa84W9MvWTELL+kr6ObP5lB/+nIWNnHl7+GrKsNuifZopmakQg/0DfmxtTB5Q12CKg74Fyxsr5xBwLyQ==
 
 "@shopify/flash-list@1.6.3":
   version "1.6.3"
@@ -5002,10 +5002,10 @@
   resolved "https://registry.yarnpkg.com/@storybook/preview/-/preview-7.6.17.tgz#e0c9727c7cfbd8f1d504848a57acaab8e54abe90"
   integrity "sha1-4MlyfHz72PHVBISKV6yquOVKvpA= sha512-LvkMYK/y6alGjwRVNDIKL1lFlbyZ0H0c8iAbcQkiMoaFiujMQyVswMDKlWcj42Upfr/B1igydiruomc+eUt0mw=="
 
-"@storybook/react-docgen-typescript-plugin@1.0.6--canary.9.0c3f3b7.0", "@storybook/react-docgen-typescript-plugin@1.0.6--canary.9.cd77847.0":
-  version "1.0.6--canary.9.cd77847.0"
-  resolved "https://registry.yarnpkg.com/@storybook/react-docgen-typescript-plugin/-/react-docgen-typescript-plugin-1.0.6--canary.9.cd77847.0.tgz#35beed1bd0813569fc8852b372c92069fe74a448"
-  integrity sha512-I4oBYmnUCX5IsrZhg+ST72dubSIV4wdwY+SfqJiJ3NHvDpdb240ZjdHAmjIy/yJh5rh42Fl4jbG8Tr4SzwV53Q==
+"@storybook/react-docgen-typescript-plugin@1.0.6--canary.9.0c3f3b7.0":
+  version "1.0.6--canary.9.0c3f3b7.0"
+  resolved "https://registry.yarnpkg.com/@storybook/react-docgen-typescript-plugin/-/react-docgen-typescript-plugin-1.0.6--canary.9.0c3f3b7.0.tgz#7f10f3c641f32e4513a8b6ffb5036933e7059534"
+  integrity sha512-KUqXC3oa9JuQ0kZJLBhVdS4lOneKTOopnNBK4tUAgoxWQ3u/IjzdueZjFr7gyBrXMoU6duutk3RQR9u8ZpYJ4Q==
   dependencies:
     debug "^4.1.1"
     endent "^2.0.1"
@@ -10392,7 +10392,7 @@ expo-splash-screen@~0.17.0:
     "@expo/configure-splash-screen" "^0.6.0"
     "@expo/prebuild-config" "5.0.7"
 
-expo-status-bar@~1.11.1:
+expo-status-bar@^1.11.1:
   version "1.11.1"
   resolved "https://registry.yarnpkg.com/expo-status-bar/-/expo-status-bar-1.11.1.tgz#a11318741d361048c11db2b16c4364a79a74af30"
   integrity sha512-ddQEtCOgYHTLlFUe/yH67dDBIoct5VIULthyT3LRJbEwdpzAgueKsX2FYK02ldh440V87PWKCamh7R9evk1rrg==
