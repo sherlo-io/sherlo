@@ -16,8 +16,16 @@ jobs:
       NEW_VERSION_NUMBER: ${{ github.event.inputs.NEW_VERSION_NUMBER }}
     concurrency: release-to-prod
     steps:
+      - name: Create GH App Token
+        id: github_app_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.SHERLO_BOT_APP_ID }}
+          private_key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
+
       - uses: actions/checkout@v2
         with:
+          token: ${{ steps.github_app_token.outputs.token }}
           ref: ${{ github.ref }}
 
       - name: Set up Node.js
