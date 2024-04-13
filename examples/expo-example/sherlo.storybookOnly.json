@@ -19,12 +19,12 @@
       "osVersion": "16"
     },
     {
-      "id": "pixel.8.pro",
+      "id": "pixel.7",
       "osVersion": "13"
     },
     {
-      "id": "pixel.7",
-      "osVersion": "12"
+      "id": "pixel.7.pro",
+      "osVersion": "13"
     }
   ]
 }
