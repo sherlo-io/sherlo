@@ -8,7 +8,7 @@ const ACK_READ_INTERVAL = 500;
 
 const send =
   (path: string, log: LogFn): SendFn =>
-  async (protocolItem): Promise<RunnerProtocolItem | undefined> => {
+  async (protocolItem): Promise<RunnerProtocolItem> => {
     const content: AppProtocolItem & ProtocolItemMetadata = {
       ...protocolItem,
       timestamp: Date.now(),
@@ -22,7 +22,7 @@ const send =
 
     await appendFile(path, `${contentString}\n`);
 
-    return new Promise<RunnerProtocolItem | undefined>((resolve) => {
+    return new Promise<RunnerProtocolItem>((resolve) => {
       let ackReadInterval: NodeJS.Timeout;
       let responseItem: RunnerProtocolItem | undefined;
 
@@ -50,7 +50,7 @@ const send =
             switch (protocolItem.action) {
               case 'START':
                 hasAck = responseItem.action === 'ACK_START';
-                await resolveForTestMode(1000, { action: 'ACK_START' });
+                await resolveForTestMode(1000, { action: 'ACK_START', nextSnapshotIndex: 0 });
                 break;
               case 'REQUEST_SNAPSHOT':
                 hasAck = responseItem.action === 'ACK_REQUEST_SNAPSHOT';
@@ -58,10 +58,6 @@ const send =
                   action: 'ACK_REQUEST_SNAPSHOT',
                   nextSnapshotIndex: protocolItem.snapshotIndex + 1,
                 });
-                break;
-              case 'END':
-                hasAck = responseItem.action === 'ACK_END';
-                await resolveForTestMode(1000, { action: 'ACK_END' });
                 break;
               default:
             }
