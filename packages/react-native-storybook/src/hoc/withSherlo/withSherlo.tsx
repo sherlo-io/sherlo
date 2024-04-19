@@ -166,15 +166,10 @@ const withSherlo = (view: StorybookView, params?: StorybookParams) => {
 
               runnerBridge.log('received screenshot from master script', response);
 
-              // This is to please TS, we should change typings so it's obvious what should be returned
-              if (response?.action !== 'ACK_REQUEST_SNAPSHOT') {
-                throw new Error('ACK_REQUEST_SNAPSHOT not received');
-              }
-
               if (response.nextSnapshotIndex) {
-                setTestedIndex(response.nextSnapshotIndex);
-
                 const nextSnpashot = snapshots[response.nextSnapshotIndex];
+
+                setTestedIndex(response.nextSnapshotIndex);
                 emitStory(nextSnpashot.storyId);
               }
             } catch (error) {
