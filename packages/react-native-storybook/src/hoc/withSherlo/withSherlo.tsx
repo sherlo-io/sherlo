@@ -166,7 +166,7 @@ const withSherlo = (view: StorybookView, params?: StorybookParams) => {
 
               runnerBridge.log('received screenshot from master script', response);
 
-              if (response.nextSnapshotIndex) {
+              if (response.nextSnapshotIndex !== undefined) {
                 const nextSnpashot = snapshots[response.nextSnapshotIndex];
 
                 setTestedIndex(response.nextSnapshotIndex);

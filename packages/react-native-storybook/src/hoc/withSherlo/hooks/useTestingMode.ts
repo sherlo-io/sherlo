@@ -45,31 +45,6 @@ function useTestingMode(
             snapshotsCount: snapshots.length,
           });
 
-          // const initSnapshotIndexForTarget = 0;
-          // const snpashotsForTargetCount = snapshots.length - initSnapshotIndexForTarget;
-
-          // const defaultSnapshotsPerJob = Math.floor(snpashotsForTargetCount / executorsCount);
-          // const jobsWithUpperBound = snpashotsForTargetCount % executorsCount;
-
-          // const snapshotsPerJob = Array.from({ length: executorIndex + 1 }).map(
-          //   (_, index) => defaultSnapshotsPerJob + (index < jobsWithUpperBound ? 1 : 0)
-          // );
-
-          // const jobsSnapshotCount = snapshotsPerJob.reduce(
-          //   (acc, jobSnapshotsCount) => acc + jobSnapshotsCount,
-          //   0
-          // );
-          // const finishIndex = initSnapshotIndexForTarget + jobsSnapshotCount - 1;
-
-          // const previousJobsSnapshotCount =
-          //   snapshotsPerJob.length > 1
-          //     ? snapshotsPerJob
-          //         .slice(0, executorIndex)
-          //         .reduce((acc, jobSnapshotsCount) => acc + jobSnapshotsCount, 0)
-          //     : 0;
-
-          // let initialSelectionIndex = initSnapshotIndexForTarget + previousJobsSnapshotCount;
-
           let initialSelectionIndex: number | undefined;
           let state;
 
