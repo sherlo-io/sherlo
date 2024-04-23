@@ -5,9 +5,11 @@ function createExpoSherloTempFile({
   projectRoot,
   buildIndex,
   url,
+  token,
 }: {
   projectRoot: string;
   buildIndex: number;
+  token: string;
   url: string;
 }): void {
   const packageJsonPath = path.join(projectRoot, 'package.json');
@@ -30,7 +32,10 @@ function createExpoSherloTempFile({
       }
 
       // Now that we've ensured the directory exists, write the file
-      fs.writeFileSync(path.join(expoDir, 'sherlo.json'), JSON.stringify({ buildIndex, url }));
+      fs.writeFileSync(
+        path.join(expoDir, 'sherlo.json'),
+        JSON.stringify({ buildIndex, token, url })
+      );
     }
   } catch (err) {
     // If there's an error, continue
