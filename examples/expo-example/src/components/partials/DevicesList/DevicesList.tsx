@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { MasonryFlashList } from '@shopify/flash-list';
-import DevicesListItem, { DevicesListItemProps } from './components/DevicesListItem';
+import DevicesListItem, { DevicesListItemProps } from './DevicesListItem/DevicesListItem';
 import useScrollOverlays from '../../../hooks/useScrollOverlays';
 import { dimensions } from '../../../theme/dimensions';
 

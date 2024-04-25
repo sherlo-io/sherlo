@@ -1,14 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import ListGradient from './ListGradient';
+import ScrollOverlay from './ScrollOverlay';
 
 const meta = {
-  component: ListGradient,
+  component: ScrollOverlay,
   parameters: {
     backgrounds: {
       default: 'white',
     },
   },
-} satisfies Meta<typeof ListGradient>;
+} satisfies Meta<typeof ScrollOverlay>;
 
 export default meta;
 

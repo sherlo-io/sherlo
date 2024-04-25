@@ -9,7 +9,7 @@ import { ROOMS_DATA } from '../../../../fixtures/rooms';
 interface TabsProps {
   pagerRef?: React.RefObject<PagerView>;
   handlePageChange: (event: any) => void;
-  initialPage: number;
+  initialPage?: number;
 }
 
 const Tabs = ({ pagerRef, handlePageChange, initialPage }: TabsProps) => {

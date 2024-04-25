@@ -7,7 +7,7 @@ export default {
 
 export const Tabs = {
   args: {
-    avatarSource: require('../../../../assets/Images/GabeTheDog.jpeg'),
+    avatarSource: require('../../../../assets/Images/AvatarImage.png'),
     title: 'Heating',
     onBackPress: () => console.log('Pressed'),
   },
@@ -15,7 +15,7 @@ export const Tabs = {
 
 export const Settings = {
   args: {
-    avatarSource: require('../../../../assets/Images/GabeTheDog.jpeg'),
-    userName: 'Jakupik',
+    avatarSource: require('../../../../assets/Images/AvatarImage.png'),
+    userName: 'User',
   },
 };

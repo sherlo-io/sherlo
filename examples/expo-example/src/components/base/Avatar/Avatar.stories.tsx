@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import IconButton from './IconButton';
+import Avatar from './Avatar';
 import StoryDecorator from '../../../decorators/StoryDecorator';
 
-const meta: Meta<typeof IconButton> = {
-  component: IconButton,
+const meta: Meta<typeof Avatar> = {
+  component: Avatar,
   decorators: [StoryDecorator],
 };
 
@@ -11,8 +11,10 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {
-  args: { name: 'arrowRight', size: 'big' },
+export const Basic: Story = {
+  args: {
+    path: require('../../../../assets/Images/AvatarImage.png'),
+  },
   parameters: {
     design: {
       type: 'figma',

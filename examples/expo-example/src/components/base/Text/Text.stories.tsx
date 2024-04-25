@@ -1,52 +1,51 @@
-import type { Meta } from "@storybook/react";
-import Text from "./Text";
-import StoryDecorator from "../../../decorators/StoryDecorator";
-import { StyleSheet, View } from "react-native";
+import type { Meta, StoryObj } from '@storybook/react';
+import Text from './Text';
+import StoryDecorator from '../../../decorators/StoryDecorator';
+import GridDecorator from 'decorators/GridDecorator';
 
-export default {
+const meta: Meta<typeof Text> = {
   component: Text,
   decorators: [StoryDecorator],
-} as Meta<typeof Text>;
+};
 
-const styles = StyleSheet.create({
-  marginBottom10: {
-    marginBottom: 30,
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {
+  args: {
+    variant: 'headline',
+    children:
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer vel enim elit. Donec pulvinar aliquet mauris, sit amet sagittis nisl imperdiet nec. ',
   },
-});
+  parameters: {
+    design: {
+      type: 'figma',
+      url: 'https://www.figma.com/file/MQKuH5Z7IrlnltVk4ox3oB/Sherlo-Expo-Example?type=design&node-id=2017-22&mode=design&t=Nw5xn7GoX2Yayamq-4',
+    },
+  },
+};
 
-export const Primary = {
-  render: () => (
-    <View>
-      <View style={styles.marginBottom10}>
-        <Text variant="headline">headline text</Text>
-      </View>
-      <View style={styles.marginBottom10}>
-        <Text variant="headlineInactive">headlineInactive text</Text>
-      </View>
-      <View style={styles.marginBottom10}>
-        <Text variant="subtitle">subtitle text</Text>
-      </View>
-      <View style={styles.marginBottom10}>
-        <Text variant="tutorialHeadline">tutorialHeadline text</Text>
-      </View>
-      <View style={styles.marginBottom10}>
-        <Text variant="tutorialSubtitle">tutorialSubtitle text</Text>
-      </View>
-      <View style={styles.marginBottom10}>
-        <Text variant="tutorialButton">tutorialButton text</Text>
-      </View>
-      <View style={styles.marginBottom10}>
-        <Text variant="usernameText">usernameText text</Text>
-      </View>
-      <View style={styles.marginBottom10}>
-        <Text variant="displayBox">displayBox text</Text>
-      </View>
-      <View style={styles.marginBottom10}>
-        <Text variant="displayBoxValue">displayBoxValue text</Text>
-      </View>
-      <View style={styles.marginBottom10}>
-        <Text variant="time">time text</Text>
-      </View>
-    </View>
-  ),
+const texts = [
+  <Text variant="headline">Text</Text>,
+  <Text variant="headlineInactive">Text</Text>,
+  <Text variant="subtitle">Text</Text>,
+  <Text variant="tutorialHeadline">Text</Text>,
+  <Text variant="tutorialSubtitle">Text</Text>,
+  <Text variant="tutorialButton">Text</Text>,
+  <Text variant="usernameText">Text</Text>,
+  <Text variant="displayBox">Text</Text>,
+  <Text variant="displayBoxValue">Text</Text>,
+  <Text variant="time">Text</Text>,
+];
+
+export const Variants: Story = {
+  render: () => <GridDecorator items={texts} columns={2.5} />,
+
+  parameters: {
+    design: {
+      type: 'figma',
+      url: 'https://www.figma.com/file/MQKuH5Z7IrlnltVk4ox3oB/Sherlo-Expo-Example?type=design&node-id=2017-22&mode=design&t=Nw5xn7GoX2Yayamq-4',
+    },
+  },
 };

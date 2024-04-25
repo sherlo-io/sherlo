@@ -1,2 +1,2 @@
-export { default } from "./DevicesList";
-export * from "./components/DevicesListItem";
+export { default } from './DevicesList';
+export * from './DevicesListItem/DevicesListItem';
