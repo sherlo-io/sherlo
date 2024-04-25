@@ -1,24 +1,24 @@
-import React, { PropsWithChildren, ReactElement, useContext, useEffect, useState } from 'react';
-import { Mode } from '../withSherlo/withSherlo';
+import React, { PropsWithChildren, ReactElement, useContext } from 'react';
+import { WithStorybookMode } from './withStorybook';
 
 const ModeContext = React.createContext({} as ModeContextValue);
 
-export type ModeContextValue = { mode: Mode };
-
-const ModeProvider = ({ children, mode }: PropsWithChildren<ModeContextValue>): ReactElement => {
-  return <ModeContext.Provider value={{ mode }}>{children}</ModeContext.Provider>;
+export type ModeContextValue = {
+  mode: WithStorybookMode;
+  setMode: (mode: WithStorybookMode) => void;
 };
 
-export const useMode = (): { mode: Mode; setMode: (mode: Mode) => void } => {
-  const { mode: initialMode } = useContext(ModeContext);
+const ModeProvider = ({
+  children,
+  mode,
+  setMode,
+}: PropsWithChildren<ModeContextValue>): ReactElement => {
+  return <ModeContext.Provider value={{ mode, setMode }}>{children}</ModeContext.Provider>;
+};
 
-  const [mode, setMode] = useState<Mode | undefined>();
-
-  useEffect(() => {
-    setMode(initialMode);
-  }, [initialMode]);
-
-  return { mode: mode || initialMode, setMode };
+export const useMode = (): ModeContextValue => {
+  const modeContext = useContext(ModeContext);
+  return modeContext;
 };
 
 export default ModeProvider;

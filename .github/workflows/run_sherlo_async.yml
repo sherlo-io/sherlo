@@ -1,0 +1,145 @@
+name: Run Sherlo in async mode
+
+on:
+  pull_request:
+    branches: [dev]
+    types: [labeled]
+  workflow_call:
+    inputs:
+      skip_build:
+        description: 'Skip the build steps'
+        required: false
+        default: false
+        type: boolean
+  workflow_dispatch:
+    inputs:
+      skip_build:
+        description: 'Skip the build steps'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  ## Sherlo
+  run_sherlo_async:
+    name: Run Sherlo in async mode
+    if: >
+      (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:async')) ||
+      (github.event_name != 'pull_request')
+    runs-on: ubuntu-latest
+    outputs:
+      buildIndex: ${{ steps.sherlo_action.outputs.buildIndex }} # Map step output to job output
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18.18.0'
+
+      - name: Install dependencies
+        run: yarn
+
+      - name: Build dependencies
+        run: yarn build
+
+      - name: Run Sherlo Action in async mode
+        id: sherlo_action # This ID is used to reference the output
+        uses: ./.
+        with:
+          projectRoot: examples/expo-example
+          async: true
+        env:
+          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN_ASYNC }}
+
+  ## Android
+  android_preview_build:
+    name: Prepare Android Preview Build
+    needs: [run_sherlo_async]
+    uses: ./.github/workflows/android_build.yml
+    secrets: inherit
+    with:
+      skip_build: ${{ github.event.inputs.skip_build || inputs.skip_build || github.event.label.name == 'sherlo:async:skip_build' }}
+      profile: 'preview'
+
+  android_preview_build_upload:
+    name: Upload Android Preview Build to Sherlo
+    needs: [run_sherlo_async, android_preview_build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18.18.0'
+
+      - name: Install dependencies
+        run: yarn
+
+      - name: Build dependencies
+        run: yarn build
+
+      - name: Download Android Artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: android
+          path: examples/expo-example/builds/preview
+
+      - name: Upload Android to Sherlo
+        uses: ./.
+        with:
+          projectRoot: examples/expo-example
+          android: builds/preview/android.apk
+          asyncBuildIndex: ${{ needs.run_sherlo_async.outputs.buildIndex }}
+        env:
+          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN_ASYNC }}
+
+  ## iOS
+  ios_preview_build:
+    name: Prepare iOS Preview Build
+    needs: [run_sherlo_async]
+    uses: ./.github/workflows/ios_build.yml
+    secrets: inherit
+    with:
+      skip_build: ${{ github.event.inputs.skip_build || inputs.skip_build || github.event.label.name == 'sherlo:async:skip_build' }}
+      profile: 'preview'
+
+  ios_preview_build_upload:
+    name: Upload iOS Preview Build to Sherlo
+    needs: [run_sherlo_async, ios_preview_build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18.18.0'
+
+      - name: Install dependencies
+        run: yarn
+
+      - name: Build dependencies
+        run: yarn build
+
+      - name: Download iOS Artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: ios
+          path: examples/expo-example/builds/preview
+
+      - name: Upload iOS to Sherlo
+        uses: ./.
+        with:
+          projectRoot: examples/expo-example
+          ios: builds/preview/ios.tar.gz
+          asyncBuildIndex: ${{ needs.run_sherlo_async.outputs.buildIndex }}
+        env:
+          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN_ASYNC }}

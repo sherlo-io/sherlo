@@ -1,3 +1,3 @@
-export { default } from './useRunnerBridge';
-export * from './useRunnerBridge';
+export { default } from './runnerBridge';
+export * from './runnerBridge';
 export * from './types';

@@ -1,42 +1,40 @@
-import { StorybookView, getStorybookUIType } from '../../types';
-import { Mode } from './withSherlo';
+import { StorybookParams, StorybookView } from '../../types';
+
+export type StorybookRenderMode = 'sherlo' | 'original';
 
 interface GenerateStorybookInput {
-  mode: Mode;
-  initialSelection?: string;
+  storybookRenderMode: StorybookRenderMode;
+  initialSelection?: StorybookParams['initialSelection'];
   view: StorybookView;
-  getStorybookUIArgs: Parameters<getStorybookUIType>[0];
+  params?: StorybookParams;
 }
 
 const generateStorybookComponent = ({
   initialSelection,
   view,
-  getStorybookUIArgs = {},
-  mode,
+  params = {},
+  storybookRenderMode,
 }: GenerateStorybookInput): (() => JSX.Element) => {
-  let props: Parameters<typeof view.getStorybookUI>[0] = {};
-
-  if (getStorybookUIArgs) {
-    props = { ...props, ...getStorybookUIArgs };
-  }
-
-  if (initialSelection) {
-    // @ts-ignore
-    props = { ...props, initialSelection, resetStorybook: true };
-  }
-
-  if (mode === 'preview' || mode === 'testing') {
-    props = {
-      ...props,
+  if (storybookRenderMode === 'sherlo') {
+    params = {
+      ...params,
       isUIHidden: true,
+      host: undefined,
+      enableWebsockets: false,
+      isSplitPanelVisible: false,
+      tabOpen: 0, // Canvas tab
       onDeviceUI: false,
       shouldDisableKeyboardAvoidingView: true,
       keyboardAvoidingViewVerticalOffset: 0,
       shouldPersistSelection: false,
     };
+
+    if (initialSelection) {
+      params = { ...params, initialSelection };
+    }
   }
 
-  return view.getStorybookUI(props);
+  return view.getStorybookUI(params);
 };
 
 export default generateStorybookComponent;

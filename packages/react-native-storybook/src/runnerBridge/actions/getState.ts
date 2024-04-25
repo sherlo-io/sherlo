@@ -5,7 +5,7 @@ import { LogFn, RunnerState } from '../types';
 const { readFile } = sherloModule;
 
 const getState = (path: string, log: LogFn) => async (): Promise<RunnerState> => {
-  if (getGlobalStates().isIntegrationTest) {
+  if (getGlobalStates().testConfig) {
     throw new Error("We're not using cached state in render test mode");
   }
 

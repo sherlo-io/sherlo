@@ -16,8 +16,16 @@ jobs:
       NEW_VERSION_NUMBER: ${{ github.event.inputs.NEW_VERSION_NUMBER }}
     concurrency: release-to-prod
     steps:
+      - name: Create GH App Token
+        id: github_app_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.SHERLO_BOT_APP_ID }}
+          private_key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
+
       - uses: actions/checkout@v2
         with:
+          token: ${{ steps.github_app_token.outputs.token }}
           ref: ${{ github.ref }}
 
       - name: Set up Node.js
@@ -35,12 +43,13 @@ jobs:
         run: yarn build
 
       - name: Commit and push updated files
-        run: |
-          git config --global user.name 'GitHub Actions'
-          git config --global user.email 'actions@github.com'
-          git add .
-          git commit -m "Builds and bundles for ${NEW_VERSION_NUMBER}"
-          git push origin HEAD:dev
+        uses: EndBug/add-and-commit@v7
+        with:
+          author_name: Sherlo Bot
+          author_email: admin@sherlo.io
+          message: 'Version updates and builds for ${NEW_VERSION_NUMBER}'
+          push: true
+          branch: ${{ github.ref_name }}
 
       - name: Configure npm
         run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc

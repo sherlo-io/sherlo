@@ -1,1 +1,1 @@
-export { default as uploadAndTest } from './commands/uploadAndTest';
+export { default as main } from './commands/main';

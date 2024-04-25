@@ -1,6 +1,6 @@
 {
   "name": "@sherlo/react-native-storybook",
-  "version": "1.0.11",
+  "version": "1.0.13",
   "description": "Sherlo is a Visual Testing tool for React Native Storybook",
   "keywords": [
     "visual testing",
@@ -59,14 +59,14 @@
     "typescript": "^5.3.3"
   },
   "peerDependencies": {
-    "@react-native-async-storage/async-storage": "*",
     "@storybook/core-events": ">=7.6.15",
     "@storybook/react-native": ">=7.6.15",
     "react": "*",
     "react-native": ">=0.57.0"
   },
   "optionalDependencies": {
-    "expo-constants": "*"
+    "expo-constants": "*",
+    "expo-dev-menu": "*"
   },
   "engines": {
     "node": ">=8.0.0"

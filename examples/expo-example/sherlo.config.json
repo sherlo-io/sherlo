@@ -1,39 +1,30 @@
 {
-  "projectToken": "<YOUR_PROJECT_TOKEN>",
-  "android": {
-    "path": "builds/preview/android.apk",
-    "packageName": "com.sherlo.example",
-    "devices": [
-      {
-        "id": "galaxy.s23.ultra",
-        "osVersion": "12.0",
-        "theme": "dark",
-        "locale": "en_US"
-      },
-      {
-        "id": "galaxy.tab.s9",
-        "osVersion": "12.0",
-        "theme": "dark",
-        "locale": "en_US"
-      }
-    ]
+  "apps": {
+    "android": {
+      "path": "builds/preview/android.apk",
+      "packageName": "com.sherlo.example"
+    },
+    "ios": {
+      "path": "./builds/preview/ios.tar.gz",
+      "bundleIdentifier": "com.sherlo.example"
+    }
   },
-  "ios": {
-    "path": "./builds/preview/ios.tar.gz",
-    "bundleIdentifier": "com.sherlo.example",
-    "devices": [
-      {
-        "id": "iphone.15.pro",
-        "osVersion": "16.4",
-        "theme": "dark",
-        "locale": "en_US"
-      },
-      {
-        "id": "ipad.pro.12.9.2022",
-        "osVersion": "16.4",
-        "theme": "dark",
-        "locale": "en_US"
-      }
-    ]
-  }
+  "devices": [
+    {
+      "id": "iphone.15.pro",
+      "osVersion": "17"
+    },
+    {
+      "id": "iphone.se.3",
+      "osVersion": "16"
+    },
+    {
+      "id": "pixel.7",
+      "osVersion": "13"
+    },
+    {
+      "id": "pixel.7.pro",
+      "osVersion": "13"
+    }
+  ]
 }

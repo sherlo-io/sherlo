@@ -1,7 +1,5 @@
-import Storybook from './.storybook';
-
 import { useCallback } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Button } from 'react-native';
 import {
   useFonts,
   Urbanist_400Regular,
@@ -10,9 +8,13 @@ import {
   Urbanist_700Bold,
 } from '@expo-google-fonts/urbanist';
 import * as SplashScreen from 'expo-splash-screen';
-import { withStorybook } from '@sherlo/react-native-storybook';
+import { StatusBar } from 'expo-status-bar';
+import { withStorybook, useSherlo } from '@sherlo/react-native-storybook';
 
 SplashScreen.preventAutoHideAsync();
+
+// global.SHERLO_VERIFY_SETUP = true;
+// global.SHERLO_TEST_CONFIG = {};
 
 export default function App() {
   let [fontsLoaded, fontError] = useFonts({
@@ -33,24 +35,39 @@ export default function App() {
   }
 
   // eslint-disable-next-line react/no-unstable-nested-components
-  const App = () => (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: '#fff',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Text>Open dev menu and toggle storybook</Text>
-    </View>
-  );
+  const App = () => {
+    const { openStorybook } = useSherlo();
 
-  const AppWithStorybook = withStorybook(App, Storybook);
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#fff',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Text style={{ textAlign: 'center' }}>
+          {'Open Dev Menu and select "Toggle Storybook" \nor click the button below'}
+        </Text>
+        <Button title="Open Storybook" onPress={openStorybook} />
+      </View>
+    );
+  };
+
+  let EntryPoint;
+  if (process.env.EXPO_PUBLIC_STORYBOOK_ONLY === 'true') {
+    const Storybook = require('./.storybook').default;
+    EntryPoint = Storybook;
+  } else {
+    const Storybook = require('./.storybook').default;
+    EntryPoint = withStorybook(App, Storybook);
+  }
 
   return (
     <View style={StyleSheet.absoluteFill} onLayout={onLayoutRootView}>
-      <AppWithStorybook />
+      <StatusBar style="light" />
+      <EntryPoint />
     </View>
   );
 }

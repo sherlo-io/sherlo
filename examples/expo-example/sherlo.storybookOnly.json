@@ -1,0 +1,30 @@
+{
+  "apps": {
+    "android": {
+      "path": "builds/storybook/android.apk",
+      "packageName": "com.sherlo.example"
+    },
+    "ios": {
+      "path": "./builds/storybook/ios.tar.gz",
+      "bundleIdentifier": "com.sherlo.example"
+    }
+  },
+  "devices": [
+    {
+      "id": "iphone.15.pro",
+      "osVersion": "17"
+    },
+    {
+      "id": "iphone.se.3",
+      "osVersion": "16"
+    },
+    {
+      "id": "pixel.7",
+      "osVersion": "13"
+    },
+    {
+      "id": "pixel.7.pro",
+      "osVersion": "13"
+    }
+  ]
+}

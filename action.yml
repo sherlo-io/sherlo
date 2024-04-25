@@ -3,8 +3,8 @@ name: Run Sherlo
 description: This is an action that uploads provided iOS & Android builds to Sherlo and starts a test run.
 author: Sherlo
 branding:
-  icon: upload-cloud
-  color: blue
+  icon: play
+  color: gray-dark
 runs:
   using: 'node12'
   main: 'packages/action/release/index.js'
@@ -19,3 +19,20 @@ inputs:
   config:
     description: 'path to your sherlo.config.ts file'
     required: false
+  projectRoot:
+    description: 'use this option to specify the root of the react native project when working with monorepo'
+    default: '.'
+    required: false
+  async:
+    description: "if 'true' you don't need to provide android and ios builds, they can be uploaded independently with separate action"
+    default: 'false'
+    required: false
+  asyncBuildIndex:
+    description: 'if you want to upload android or ios build to existing sherlo build in async mode, you need to provide index of build you want to update'
+    required: false
+
+outputs:
+  buildIndex:
+    description: 'The index of the created Sherlo build'
+  url:
+    description: 'URL to Sherlo test results'

@@ -1,12 +1,15 @@
 import React, { ReactElement, useEffect, useState } from 'react';
-import { DevSettings } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AppState, AppStateStatus, DevSettings, Platform } from 'react-native';
+import * as DevMenu from 'expo-dev-menu';
+
 import { TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM } from '../../data/constants';
-import { Mode } from '../withSherlo/withSherlo';
-import { configPath } from '../../runnerBridge';
-import { getConfig } from '../../runnerBridge/actions';
-import { getGlobalStates } from '../../utils';
+import { StorybookParams } from '../../types';
 import ModeProvider from './ModeProvider';
+import runnerBridge from '../../runnerBridge/runnerBridge';
+
+const MODE_STORAGE_KEY = 'sherloPersistedMode';
+
+export type WithStorybookMode = 'app' | 'storybook';
 
 /**
  * Higher-order component that wraps the given App and Storybook components.
@@ -17,56 +20,89 @@ import ModeProvider from './ModeProvider';
  */
 const withStorybook =
   (App: React.ComponentType<any>, Storybook: () => ReactElement) => (): ReactElement => {
-    const [mode, setMode] = useState<Mode>('app');
+    const [mode, setMode] = useState<WithStorybookMode>('app');
+
+    // We don't want to contain storage in parameter type itself because it breaks
+    // the way typescript considers Storybook as ReactElement when rendering JSX.
+    const { storage } = Storybook as { storage?: StorybookParams['storage'] };
 
     useEffect(() => {
-      const checkIfSherloIsEnabled = async (): Promise<void> => {
-        await getConfig(configPath)()
-          .then((config) => {
-            if (config !== undefined) {
-              if (getGlobalStates().isIntegrationTest) {
-                setMode('verification');
-              } else {
-                setMode('testing');
-              }
-            }
-          })
-          .catch(() => {
-            AsyncStorage.getItem('sherloPersistedMode').then((sherloPersistedMode) => {
-              if (sherloPersistedMode === 'original') {
-                setMode('original');
+      if (Platform.OS !== 'android') {
+        // Register AppState listener to persist mode if app is not in background
+        const handleAppStateChange = (nextAppState: AppStateStatus) => {
+          if (nextAppState === 'inactive') {
+            storage?.setItem(MODE_STORAGE_KEY, 'app');
+          } else if (nextAppState === 'active') {
+            storage?.setItem(MODE_STORAGE_KEY, mode);
+          }
+        };
+
+        const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+        return () => {
+          subscription.remove();
+        };
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mode]);
+
+    useEffect(() => {
+      runnerBridge
+        .getConfig()
+        .then(() => {
+          setMode('storybook');
+        })
+        .catch(() => {
+          if (__DEV__ && Platform.OS !== 'android') {
+            // Get stored mode from storage
+            storage?.getItem(MODE_STORAGE_KEY).then((sherloPersistedMode) => {
+              if (sherloPersistedMode === 'storybook' || sherloPersistedMode === 'app') {
+                setMode(sherloPersistedMode);
               }
             });
-          });
-      };
+          } else {
+            setMode('app');
+          }
+        });
 
-      checkIfSherloIsEnabled();
-    }, []);
-
-    /**
-     * Adds a menu item to toggle Storybook in the development settings menu.
-     */
-    useEffect(() => {
       if (__DEV__) {
-        DevSettings.addMenuItem(TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM, () => {
+        // Add Dev Menu item to toggle between app and storybook
+        const callback = () => {
           setMode((prevMode) => {
-            const newMode = prevMode === 'app' ? 'original' : 'app';
-            AsyncStorage.setItem('sherloPersistedMode', newMode);
+            const newMode = prevMode === 'app' ? 'storybook' : 'app';
+
+            setMode(newMode);
+            storage?.setItem(MODE_STORAGE_KEY, newMode);
             return newMode;
           });
-        });
+        };
+
+        if (DevMenu) {
+          DevMenu.registerDevMenuItems([
+            {
+              name: TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM,
+              callback,
+              shouldCollapse: false,
+            },
+          ]);
+        } else {
+          DevSettings.addMenuItem(TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM, callback);
+        }
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    if (mode !== 'app') {
-      return (
-        <ModeProvider mode={mode}>
-          <Storybook />
-        </ModeProvider>
-      );
-    }
-
-    return <App />;
+    return (
+      <ModeProvider
+        mode={mode}
+        setMode={(newMode) => {
+          setMode(newMode);
+          storage?.setItem(MODE_STORAGE_KEY, newMode);
+        }}
+      >
+        {mode !== 'app' ? <Storybook /> : <App />}
+      </ModeProvider>
+    );
   };
 
 export default withStorybook;

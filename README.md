@@ -1,101 +1,63 @@
-# Sherlo Monorepo
+<p align="center">
+  <a href="https://sherlo.io/">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="./assets/logo-dark.svg">
+      <img src="./assets/logo-light.svg" alt="Sherlo" width="200" />
+    </picture>
+  </a>
+</p>
 
-Welcome to the Sherlo Monorepo, your comprehensive solution for integrating visual testing into your React Native projects. Sherlo streamlines the visual testing process, offering seamless integration with Storybook for React Native, automation through a CLI tool, and GitHub Actions for CI/CD pipelines.
+<p align="center">Visual Testing & Review Tool for React Native Storybook</p>
 
-## Quick Guide
+<br />
 
-To integrate Sherlo with your React Native app and run tests via CLI or GitHub Actions, ensure you follow these steps:
+<div align="center">
+    <img src="./assets/app.webp" width="800" alt="Screenshot of Sherlo web application" />
+</div>
 
-### Prerequisites
+## ℹ️ About
 
-- Ensure you have **Storybook for React Native** configured in your project. Sherlo requires Storybook version `>=7.6.15`. Sherlo integrates with Storybook but does not operate independently.
+[Sherlo](https://sherlo.io) is a Cloud-based Visual Testing and Review Tool that integrates
+with [Storybook for React Native](https://github.com/storybookjs/react-native).
 
-### Step 1: Integrate with Storybook
+Designed to detect every change in your UI components, Sherlo empowers your team to confidently release apps with no
+visual bugs.
 
-1. **Install `@sherlo/react-native-storybook`** to enable Sherlo's visual testing with Storybook in your React Native application.
+Discover more on the [Sherlo website](https://sherlo.io).
 
-   ```bash
-   yarn add @sherlo/react-native-storybook @react-native-async-storage/async-storage
-   ```
+<br />
 
-2. **Wrap Your Application with `withStorybook`** to toggle between your app and Storybook based on Sherlo's testing environment.
+## 📖 Documentation
 
-   ```tsx
-   // App.tsx
-   import { withStorybook } from '@sherlo/react-native-storybook';
-   import StorybookUIRoot from './.storybook';
+Visit the [Sherlo Docs](https://docs.sherlo.io) for a detailed guide on integrating Sherlo with your
+projects.
 
-   export default withStorybook(AppRoot, StorybookUIRoot);
-   ```
+<br />
 
-3. **Configure Storybook with `withSherlo`** for development or testing modes, enabling control over the testing process.
+## 📦 Packages
 
-   ```tsx
-   // .storybook/index.tsx
-   import { withSherlo } from '@sherlo/react-native-storybook';
-   import StorybookUI from './storybook';
+- [@sherlo/react-native-storybook](packages/react-native-storybook): Integration with React Native Storybook
+- [@sherlo/cli](packages/cli): Command-line tool for running Sherlo tests
+- [@sherlo/action](packages/action): GitHub Action for automating Sherlo tests
 
-   export default withSherlo(StorybookUI, {
-     /* Configuration options */
-   });
-   ```
+<br />
 
-### Step 2: Configure `sherlo.config.ts`
+## 💡 Examples
 
-1. **Obtain a Project Token** by signing up for early access at [Sherlo.io](https://sherlo.io).
+- [expo-example](examples/expo-example): Expo project with Sherlo integration
 
-2. **Set Up Your Configuration File**, specifying your project token, devices, and app information.
+<br />
 
-   ```typescript
-   // sherlo.config.ts
-   import { Config } from '@sherlo/react-native-storybook';
+## 🤝 Contributions
 
-   const config: Config = {
-     projectToken: 'your_project_token_here',
-     android: {
-       path: 'path/to/android/app.apk',
-       packageName: 'com.yourapp.package',
-       devices: [
-         /* Your Android Devices Here */
-       ],
-     },
-     ios: {
-       path: 'path/to/ios/app.tar.gz',
-       bundleIdentifier: 'your.ios.bundle.identifier',
-       devices: [
-         /* Your iOS Devices Here */
-       ],
-     },
-   };
+Contributions are welcome!
 
-   export default config;
-   ```
+Fork the repository, make your changes, and submit a pull request.
+<br />
+For significant updates, please first open an issue to discuss proposed changes.
 
-### Step 3: Running Tests
+<br />
 
-- **Manually with CLI**: Install `@sherlo/cli` and run it in your project directory to upload builds and start tests.
+## ©️ License
 
-  ```bash
-  yarn global add @sherlo/cli
-  npx @sherlo/cli
-  ```
-
-- **Automate with GitHub Actions**: Use `@sherlo/sherlo-action` in your `.github/workflows` to automate the testing process in your CI/CD pipeline.
-
-### Packages
-
-- **[@sherlo/react-native-storybook](packages/react-native-storybook/README.md)**: Integrate Storybook with Sherlo for React Native apps.
-- **[@sherlo/cli](packages/cli/README.md)**: CLI tool for uploading builds and initiating tests.
-- **[@sherlo/action](packages/cli/README.md)**: GitHub Action for automating visual testing workflows.
-
-### Example
-
-- **[@sherlo/expo-example](example/expo-example/README.md)**: Fully configured example showcasing integration in an Expo project.
-
-### Contribution
-
-Contributions are welcome! Please fork the repository, make your changes, and submit a pull request. For major changes, open an issue first to discuss what you would like to change.
-
-### License
-
-Sherlo is released under the MIT License. See the LICENSE file in each package for more details.
+[MIT](LICENSE)

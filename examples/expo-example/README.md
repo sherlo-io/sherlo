@@ -29,7 +29,7 @@ To use the `@sherlo/expo-example` package in your project, follow these steps:
    yarn build
    ```
 
-4. **Configure Project Token**: Obtain a valid `projectToken` by signing up for early access at [Sherlo](https://sherlo.io). Replace the placeholder token in `sherlo.config.ts` with your actual project token.
+4. **Configure Project Token**: Obtain a valid `token` by signing up for early access at [Sherlo](https://sherlo.io). Replace the placeholder token in `sherlo.config.ts` with your actual project token.
 
 5. **Customize Configuration**: You can modify `sherlo.config.ts` to fit the specific needs of your project. Refer to `@sherlo/cli` documentation for detailed configuration options.
 

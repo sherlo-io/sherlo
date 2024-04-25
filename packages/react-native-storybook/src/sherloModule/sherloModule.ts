@@ -32,43 +32,45 @@ if (RNSherlo === null) {
       readFile: async () => '',
       writeFile: async () => {},
     };
+  } else {
+    throw new Error(
+      '@sherlo/react-natve-storybook: Sherlo native module is not accessible. Rebuild the app to link it on the native side.'
+    );
   }
+} else {
+  let basePath =
+    Platform.OS === 'android'
+      ? RNSherlo.getConstants().RNExternalDirectoryPath
+      : RNSherlo.getConstants().RNDocumentDirectoryPath;
 
-  throw new Error(
-    '@sherlo/react-natve-storybook: Sherlo native module is not accessible. Rebuild the app to link it on the native side.'
-  );
+  basePath += '/sherlo';
+
+  sherloModule = {
+    appendFile: (filepath: string, contents: string) => {
+      const b64 = base64.encode(utf8.encode(contents));
+      const normalizedFilePath = normalizeFilePath(`${basePath}/${filepath}`);
+
+      return RNSherlo.appendFile(normalizedFilePath, b64);
+    },
+    writeFile: (filepath: string, contents: string) => {
+      const b64 = base64.encode(utf8.encode(contents));
+      const normalizedFilePath = normalizeFilePath(`${basePath}/${filepath}`);
+
+      return RNSherlo.writeFile(normalizedFilePath, b64, { encoding: 'utf8' });
+    },
+    readFile: (filepath: string) => {
+      const normalizedFilePath = normalizeFilePath(`${basePath}/${filepath}`);
+
+      return RNSherlo.readFile(normalizedFilePath).then((b64: string) => {
+        return utf8.decode(base64.decode(b64));
+      });
+    },
+    mkdir: (path: string) => {
+      const normalizedFilePath = normalizeFilePath(`${basePath}/${path}`);
+
+      return RNSherlo.mkdir(normalizedFilePath, {});
+    },
+  };
 }
-
-const basePath =
-  Platform.OS === 'android'
-    ? RNSherlo.getConstants().RNExternalDirectoryPath
-    : RNSherlo.getConstants().RNDocumentDirectoryPath;
-
-sherloModule = {
-  appendFile: (filepath: string, contents: string) => {
-    const b64 = base64.encode(utf8.encode(contents));
-    const normalizedFilePath = normalizeFilePath(`${basePath}/${filepath}`);
-
-    return RNSherlo.appendFile(normalizedFilePath, b64);
-  },
-  writeFile: (filepath: string, contents: string) => {
-    const b64 = base64.encode(utf8.encode(contents));
-    const normalizedFilePath = normalizeFilePath(`${basePath}/${filepath}`);
-
-    return RNSherlo.writeFile(normalizedFilePath, b64, { encoding: 'utf8' });
-  },
-  readFile: (filepath: string) => {
-    const normalizedFilePath = normalizeFilePath(`${basePath}/${filepath}`);
-
-    return RNSherlo.readFile(normalizedFilePath).then((b64: string) => {
-      return utf8.decode(base64.decode(b64));
-    });
-  },
-  mkdir: (path: string) => {
-    const normalizedFilePath = normalizeFilePath(`${basePath}/${path}`);
-
-    return RNSherlo.mkdir(normalizedFilePath, {});
-  },
-};
 
 export default sherloModule;

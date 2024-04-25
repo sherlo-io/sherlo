@@ -1,43 +1,29 @@
-import { constants } from './data';
-import type { ReactRenderer } from '@storybook/react';
-import type { PreparedStory } from '@storybook/types';
-import { DeviceLocale, DeviceTheme } from '@sherlo/api-types';
 import { start } from '@storybook/react-native';
+import { SherloParameters } from './getSherloParameters';
+import { SnapshotMode } from './data/constants';
 
-export type Story = {
-  displayName: string;
-  id: string;
-  mode: typeof constants.modes.DEFAULT_MODE | typeof constants.modes.FULL_HEIGHT_MODE;
-  storyId: string;
-} & PreparedStory<ReactRenderer>;
+export type Snapshot = {
+  // sherlo exclusive parameters
+  viewId: string; // components-avatar--basic-deviceHeight
+  mode: SnapshotMode; // deviceHeight
+  displayName: string; // components/Avatar - Basic
+  sherloParameters?: SherloParameters;
+
+  // storybook parameters
+  componentId: string; // components-avatar
+  componentTitle: string; // components/Avatar
+  storyId: string; // components-avatar--basic
+  storyTitle: string; // Basic
+  parameters: any;
+  argTypes: any;
+  args: any;
+};
 
 export type StorybookView = ReturnType<typeof start>;
 
-export type getStorybookUIType = StorybookView['getStorybookUI'];
-
-export interface Config {
-  projectToken: string;
-  android?: {
-    devices: {
-      id: string;
-      locale: DeviceLocale;
-      osVersion: string;
-      theme: DeviceTheme;
-    }[];
-    packageName: string;
-    path: string;
-    activity?: string;
-  };
-  exclude?: string[];
-  include?: string[];
-  ios?: {
-    bundleIdentifier: string;
-    devices: {
-      id: string;
-      locale: DeviceLocale;
-      osVersion: string;
-      theme: DeviceTheme;
-    }[];
-    path: string;
-  };
-}
+type StorybookParamsRaw = Parameters<StorybookView['getStorybookUI']>[0];
+export type StorybookParams = StorybookParamsRaw extends infer U
+  ? U extends undefined
+    ? never
+    : U
+  : never;

@@ -1,4 +1,2 @@
-./examples/expo-example/builds/ios.tar.gz filter=lfs diff=lfs merge=lfs -text
-./examples/expo-example/builds/android.apk filter=lfs diff=lfs merge=lfs -text
-./examples/expo-example/builds/preview/ios.tar.gz filter=lfs diff=lfs merge=lfs -text
-./examples/expo-example/builds/preview/android.apk filter=lfs diff=lfs merge=lfs -text
+./examples/expo-example/**/*.apk filter=lfs diff=lfs merge=lfs -text
+./examples/expo-example/**/*.tar.gz filter=lfs diff=lfs merge=lfs -text

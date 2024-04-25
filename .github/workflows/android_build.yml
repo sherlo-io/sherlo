@@ -1,0 +1,60 @@
+name: Android Build
+on:
+  workflow_call:
+    inputs:
+      skip_build:
+        description: 'Skip the build steps'
+        required: false
+        type: boolean
+        default: false
+      profile:
+        required: true
+        type: string
+        description: 'Build profile to use (development, preview, production)'
+
+jobs:
+  android_build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up Node.js
+        if: ${{ !inputs.skip_build }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18.18.0'
+
+      - name: Setup Java Environment
+        if: ${{ !inputs.skip_build }}
+        uses: actions/setup-java@v2
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install dependencies
+        if: ${{ !inputs.skip_build }}
+        run: yarn
+
+      - name: Build dependencies
+        if: ${{ !inputs.skip_build }}
+        run: yarn build
+
+      - name: Setup EAS
+        if: ${{ !inputs.skip_build }}
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build Android example app
+        if: ${{ !inputs.skip_build }}
+        working-directory: examples/expo-example
+        run: eas build --platform android --local --profile=${{ inputs.profile }} --output=builds/${{ inputs.profile }}/android.apk
+
+      - name: Upload Android Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: android
+          path: examples/expo-example/builds/${{ inputs.profile }}/android.apk
