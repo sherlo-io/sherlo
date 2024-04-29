@@ -1,8 +1,8 @@
-import { deviceThemeValues } from '@sherlo/api-types';
 import { devices as sherloDevices } from '@sherlo/shared';
 import { docsLink } from '../../constants';
 import { InvalidatedConfig } from '../../types';
 import getConfigErrorMessage from './getConfigErrorMessage';
+import { DeviceTheme } from '@sherlo/api-types';
 
 export function validateConfigDevices(config: InvalidatedConfig): void {
   const { devices } = config;
@@ -68,7 +68,8 @@ export function validateConfigDevices(config: InvalidatedConfig): void {
       );
     }
 
-    if (!deviceThemeValues.includes(osTheme)) {
+    const deviceThemes: [DeviceTheme, DeviceTheme] = ['light', 'dark'];
+    if (!deviceThemes.includes(osTheme)) {
       throw new Error(
         getConfigErrorMessage(`device osTheme "${osTheme}" is invalid`, docsLink.configDevices)
       );

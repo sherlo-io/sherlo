@@ -5,7 +5,7 @@ SHERLO_LIB_DIR="sherlo-lib"
 NODE_MODULES="node_modules"
 
 # S3 base URL for downloading packages
-GET_PACKAGE_URL="https://8gbu9wv7jd.execute-api.eu-central-1.amazonaws.com/dev/get-package"
+GET_PACKAGE_URL="https://8gbu9wv7jd.execute-api.eu-central-1.amazonaws.com/dev/get-package-endpoint"
 
 # Read GET_PACKAGE_TOKEN from .env file
 ENV_PATH=./.env
@@ -36,6 +36,7 @@ download_extract_link() {
 
         # Get url to the .tgz file
         url=$(curl -X GET "$GET_PACKAGE_URL?token=$PACKAGE_TOKEN&objectKey=$ref/$filename.tgz")
+        echo "url: $url"
 
         # Download the .tgz file
         curl -o "$SHERLO_LIB_DIR/$filename.tgz" -L "$url" --silent
