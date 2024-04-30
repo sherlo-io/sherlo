@@ -30,6 +30,8 @@ download_extract_link() {
     local ref=$1
     echo "Handling packages for environment: $ref"
 
+    rm -rf $SHERLO_LIB_DIR/extracted
+
     for i in "${!FILENAMES[@]}"; do
         filename=${FILENAMES[$i]}
         packagename=${PACKAGE_NAMES[$i]}
