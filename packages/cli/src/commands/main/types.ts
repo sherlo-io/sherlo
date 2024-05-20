@@ -1,4 +1,4 @@
-import { DeviceTheme } from '@sherlo/api-types';
+import { DeviceID, DeviceTheme } from '@sherlo/api-types';
 import { PartialDeep } from 'type-fest';
 
 export type Mode = 'sync' | 'asyncInit' | 'asyncUpload';
@@ -23,7 +23,7 @@ export type BaseConfig = {
     };
   };
   devices: {
-    id: string;
+    id: DeviceID;
     osVersion: string;
     osTheme: DeviceTheme;
     osLanguage: string;
