@@ -14,7 +14,7 @@ inputs:
     description: 'path to android build (.apk file)'
     required: false
   ios:
-    description: 'path to ios simulator build (.app directory or .tar.gz file)'
+    description: 'path to ios simulator build (.app directory or .tar/.tar.gz file)'
     required: false
   config:
     description: 'path to your sherlo.config.ts file'

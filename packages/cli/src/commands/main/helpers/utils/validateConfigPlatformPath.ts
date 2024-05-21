@@ -1,12 +1,16 @@
 import { Platform } from '@sherlo/api-types';
 import fs from 'fs';
-import nodePath from 'path';
-import { docsLink } from '../../constants';
+import { docsLink, iOSFileTypes } from '../../constants';
 import getConfigErrorMessage from './getConfigErrorMessage';
 
 const learnMoreLink: { [platform in Platform]: string } = {
   android: docsLink.configAndroid,
   ios: docsLink.configIos,
+};
+
+const fileType: { [platformName in Platform]: readonly string[] } = {
+  android: ['.apk'],
+  ios: iOSFileTypes,
 };
 
 export function validateConfigPlatformPath(path: string | undefined, platform: Platform): void {
@@ -19,19 +23,30 @@ export function validateConfigPlatformPath(path: string | undefined, platform: P
     );
   }
 
-  const fileType: { [platformName in Platform]: string[] } = {
-    android: ['.apk'],
-    ios: ['.app', '.gz'],
-  };
-
-  if (!fs.existsSync(path) || !fileType[platform].includes(nodePath.extname(path))) {
+  if (!fs.existsSync(path) || !hasValidExtension({ path, platform })) {
     throw new Error(
       getConfigErrorMessage(
-        `for ${platform}, path must be a valid ${fileType[platform].join(', ')} file`,
+        `for ${platform}, path must be a valid ${formatValidFileTypes(platform)} file`,
         learnMoreLink[platform]
       )
     );
   }
+}
+
+function hasValidExtension({ path, platform }: { path: string; platform: Platform }) {
+  return fileType[platform].some((extension) => path.endsWith(extension));
+}
+
+function formatValidFileTypes(platform: Platform) {
+  const fileTypes = fileType[platform];
+
+  if (fileTypes.length === 1) {
+    return fileTypes[0];
+  }
+
+  const formattedFileTypes = [...fileTypes];
+  const lastType = formattedFileTypes.pop();
+  return `${formattedFileTypes.join(', ')} or ${lastType}`;
 }
 
 export default validateConfigPlatformPath;

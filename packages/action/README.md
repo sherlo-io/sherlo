@@ -49,7 +49,7 @@ jobs:
 ### Inputs
 
 - `android`: The path to the Android build file (.apk). _Optional_
-- `ios`: The path to the iOS simulator build file (.app directory or .tar.gz file). _Optional_
+- `ios`: The path to the iOS simulator build file (.app directory or .tar/.tar.gz file). _Optional_
 - `config`: The path to your `sherlo.config.json` file. This input is optional; if not provided, the action searches for
   the config file at the root of your repository.
 

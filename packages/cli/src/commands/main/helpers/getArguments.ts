@@ -140,7 +140,7 @@ program
   )
   .option('--token <token>', 'Sherlo project token')
   .option('--android <path>', 'Path to Android build in .apk format')
-  .option('--ios <path>', 'Path to iOS simulator build in .app or .tar.gz file format');
+  .option('--ios <path>', 'Path to iOS simulator build in .app or .tar/.tar.gz file format');
 
 function updateParameters(parameters: Parameters): Parameters<'withDefaults'> {
   // Set defaults if are not defined (can happen in GitHub action case)
