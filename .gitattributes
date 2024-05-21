@@ -1,2 +1,2 @@
-./examples/expo-example/**/*.apk filter=lfs diff=lfs merge=lfs -text
-./examples/expo-example/**/*.tar.gz filter=lfs diff=lfs merge=lfs -text
+*.apk filter=lfs diff=lfs merge=lfs -text
+*.tar.gz filter=lfs diff=lfs merge=lfs -text
