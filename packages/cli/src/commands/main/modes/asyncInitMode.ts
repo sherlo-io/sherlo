@@ -33,7 +33,7 @@ async function asyncInitMode({
   const buildIndex = build.index;
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
-  createExpoSherloTempFile({ projectRoot, buildIndex, url });
+  createExpoSherloTempFile({ projectRoot, buildIndex, url, token });
 
   console.log(
     `Sherlo is awaiting your builds to be uploaded asynchronously.\nBuild index is ${buildIndex}.\n`
