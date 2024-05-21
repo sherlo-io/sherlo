@@ -1,18 +1,15 @@
 import { BuildRunConfig, Device, GetBuildUploadUrlsReturn, Platform } from '@sherlo/api-types';
 import { devices as sherloDevices } from '@sherlo/shared';
-import { BaseConfig } from '../../types';
+import { Config } from '../../types';
 
 function getBuildRunConfig({
   buildPresignedUploadUrls,
   config,
 }: {
   buildPresignedUploadUrls?: GetBuildUploadUrlsReturn['buildPresignedUploadUrls'];
-  config: BaseConfig;
+  config: Config<'withPaths'> | Config<'withoutPaths'>;
 }): BuildRunConfig {
-  const {
-    apps: { android, ios },
-    devices,
-  } = config;
+  const { android, ios, devices } = config;
 
   const androidDevices = getConvertedDevices(devices, 'android');
   const iosDevices = getConvertedDevices(devices, 'ios');
@@ -38,7 +35,11 @@ function getBuildRunConfig({
   };
 }
 
-function getConvertedDevices(devices: BaseConfig['devices'], platform: Platform): Device[] {
+export default getBuildRunConfig;
+
+/* ========================================================================== */
+
+function getConvertedDevices(devices: Config['devices'], platform: Platform): Device[] {
   return devices
     .filter(({ id }) => sherloDevices[id]?.os === platform)
     .map((device) => ({
@@ -48,5 +49,3 @@ function getConvertedDevices(devices: BaseConfig['devices'], platform: Platform)
       theme: device.osTheme,
     }));
 }
-
-export default getBuildRunConfig;

@@ -10,3 +10,5 @@ export const docsLink = {
   configDevices: `${docsDomain}/getting-started/config#devices`,
   devices: `${docsDomain}/devices`,
 };
+
+export const iOSFileTypes = ['.app', '.tar', '.tar.gz'] as const;

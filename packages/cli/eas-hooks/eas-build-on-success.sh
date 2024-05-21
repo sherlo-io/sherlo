@@ -14,11 +14,6 @@ if [[ "$EAS_BUILD_RUNNER" != "eas-build" ]]; then
     exit 0
 fi
 
-if [ -z "$SHERLO_TOKEN" ]; then
-    echo "Error: You must provide valid sherlo project token under SHERLO_TOKEN secret variable in Expo."
-    exit 1
-fi
-
 # Loop through all arguments
 for arg in "$@"
 do
@@ -57,9 +52,16 @@ if [[ "$EAS_BUILD_PROFILE" == "$SHERLO_BUILD_PROFILE" ]]; then
     fi
 
     # Extract buildIndex from sherlo.json
-    buildIndex=$(jq '.buildIndex' "$SHERLO_BUILD_FILE")
+    buildIndex=$(jq -r '.buildIndex' "$SHERLO_BUILD_FILE")
     if [ "$buildIndex" = "null" ] || ! [[ "$buildIndex" =~ ^[0-9]+$ ]]; then
         echo "Error: 'buildIndex' is either not present or not a valid number in $SHERLO_BUILD_FILE."
+        exit 1
+    fi
+
+    # Extract token from sherlo.json
+    token=$(jq -r '.token' "$SHERLO_BUILD_FILE")
+    if [ "$token" = "null" ] || ! [[ "$token" =~ ^[A-Za-z0-9_\-@.]+$ ]]; then
+        echo "Error: 'token' is either not present or not a valid token in $SHERLO_BUILD_FILE."
         exit 1
     fi
 
@@ -76,7 +78,7 @@ if [[ "$EAS_BUILD_PROFILE" == "$SHERLO_BUILD_PROFILE" ]]; then
             exit 1
         fi
 
-        yarn sherlo --asyncBuildIndex=$buildIndex --token=$SHERLO_TOKEN --android=$android_path
+        yarn sherlo --asyncBuildIndex=$buildIndex --token=$token --android=$android_path
     fi
 
     if [[ "$EAS_BUILD_PLATFORM" == "ios" ]]; then
@@ -91,7 +93,7 @@ if [[ "$EAS_BUILD_PROFILE" == "$SHERLO_BUILD_PROFILE" ]]; then
             exit 1
         fi
 
-        yarn sherlo --asyncBuildIndex=$buildIndex --token=$SHERLO_TOKEN --ios=$ios_path
+        yarn sherlo --asyncBuildIndex=$buildIndex --token=$token --ios=$ios_path
     fi
 fi
 

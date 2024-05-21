@@ -27,12 +27,11 @@ function useTestingMode(
         setStoriesSet(true);
 
         bridge.getConfig().then(async (config) => {
-          const { exclude, include, initSnapshotIndex, executorIndex, executorsCount } = config;
+          const { exclude, include } = config;
 
           bridge.log('config parsing succeeded', {
             exclude,
             include,
-            initSnapshotIndex,
           });
 
           const snapshots = prepareSnapshots({
@@ -46,79 +45,33 @@ function useTestingMode(
             snapshotsCount: snapshots.length,
           });
 
-          const initSnapshotIndexForTarget = initSnapshotIndex || 0;
-          const snpashotsForTargetCount = snapshots.length - initSnapshotIndexForTarget;
-
-          const defaultSnapshotsPerJob = Math.floor(snpashotsForTargetCount / executorsCount);
-          const jobsWithUpperBound = snpashotsForTargetCount % executorsCount;
-
-          const snapshotsPerJob = Array.from({ length: executorIndex + 1 }).map(
-            (_, index) => defaultSnapshotsPerJob + (index < jobsWithUpperBound ? 1 : 0)
-          );
-
-          const jobsSnapshotCount = snapshotsPerJob.reduce(
-            (acc, jobSnapshotsCount) => acc + jobSnapshotsCount,
-            0
-          );
-          const finishIndex = initSnapshotIndexForTarget + jobsSnapshotCount - 1;
-
-          const previousJobsSnapshotCount =
-            snapshotsPerJob.length > 1
-              ? snapshotsPerJob
-                  .slice(0, executorIndex)
-                  .reduce((acc, jobSnapshotsCount) => acc + jobSnapshotsCount, 0)
-              : 0;
-
-          let initialSelectionIndex = initSnapshotIndexForTarget + previousJobsSnapshotCount;
-
-          bridge.log('snapshot indexes calculations', {
-            initSnapshotIndexForTarget,
-            snpashotsForTargetCount,
-            defaultSnapshotsPerJob,
-            jobsWithUpperBound,
-            snapshotsPerJob,
-            jobsSnapshotCount,
-            finishIndex,
-            previousJobsSnapshotCount,
-            initialSelectionIndex,
-          });
-
-          let isFreshStart = true;
+          let initialSelectionIndex: number | undefined;
           let state;
+
           try {
             state = await bridge.getState();
             initialSelectionIndex = state.snapshotIndex;
-            isFreshStart = false;
+
+            bridge.log('existing state', {
+              state,
+            });
           } catch (error) {
             // no state found
           }
 
-          bridge.log('checked for existing state', {
-            state,
-            isFreshStart,
-            initialSelectionIndex,
-          });
+          if (initialSelectionIndex === undefined) {
+            await bridge.create();
 
-          // there is no next snapshot
-          // this can happen if previous snapshot had errors, was screenshot by master script
-          // and we reboot to screenshot next snapshot
-          if (initialSelectionIndex >= snapshots.length) {
-            await bridge.send({ action: 'END' });
-          } else {
-            if (isFreshStart) {
-              await bridge.create();
+            const startResponse = await bridge.send({
+              action: 'START',
+              snapshots,
+            });
 
-              await bridge.send({
-                action: 'START',
-                initialSelectionIndex,
-                finishIndex,
-                snapshots,
-              });
-            }
-
-            setTestedIndex(initialSelectionIndex);
-            setSnapshots(snapshots);
+            initialSelectionIndex = startResponse.nextSnapshotIndex;
           }
+
+          setTestedIndex(initialSelectionIndex);
+          setSnapshots(snapshots);
         });
       }
     };

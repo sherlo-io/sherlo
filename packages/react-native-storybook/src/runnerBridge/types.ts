@@ -9,13 +9,10 @@ export type RunnerState = {
 export type Config = {
   exclude: string[] | string;
   include: string[] | string;
-  initSnapshotIndex: number;
-  executorIndex: number;
-  executorsCount: number;
 };
 
 export type LogFn = (key: string, parameters?: Record<string, any>) => void;
-export type SendFn = (protocolItem: AppProtocolItem) => Promise<RunnerProtocolItem | undefined>;
+export type SendFn = (protocolItem: AppProtocolItem) => Promise<RunnerProtocolItem>;
 
 export type ProtocolItemMetadata = {
   timestamp: number;
@@ -27,27 +24,19 @@ export type AppProtocolItem =
   | {
       action: 'START';
       snapshots: Snapshot[];
-      initialSelectionIndex: number;
-      finishIndex: number;
     }
   | {
       action: 'REQUEST_SNAPSHOT';
       snapshotIndex: number;
-      snapshotBase64?: string;
       hasError?: boolean;
-    }
-  | {
-      action: 'END';
     };
 
 export type RunnerProtocolItem =
   | {
       action: 'ACK_START';
+      nextSnapshotIndex: number;
     }
   | {
       action: 'ACK_REQUEST_SNAPSHOT';
-      nextSnapshotIndex?: number;
-    }
-  | {
-      action: 'ACK_END';
+      nextSnapshotIndex: number;
     };
