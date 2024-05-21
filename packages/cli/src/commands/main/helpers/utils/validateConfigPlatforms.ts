@@ -5,8 +5,8 @@ import { ConfigMode, InvalidatedConfig } from '../../types';
 import getConfigErrorMessage from './getConfigErrorMessage';
 import validateConfigPlatformPath from './validateConfigPlatformPath';
 
-export function validateConfigPlatforms(config: InvalidatedConfig, mode: ConfigMode): void {
-  const { android, ios } = config.apps ?? {};
+function validateConfigPlatforms(config: InvalidatedConfig, mode: ConfigMode): void {
+  const { android, ios } = config;
 
   if (!android && !ios) {
     throw new Error(
@@ -19,17 +19,21 @@ export function validateConfigPlatforms(config: InvalidatedConfig, mode: ConfigM
   if (ios) validatePlatform(config, 'ios', mode);
 }
 
+export default validateConfigPlatforms;
+
+/* ========================================================================== */
+
 function validatePlatform(config: InvalidatedConfig, platform: Platform, mode: ConfigMode): void {
   validatePlatformSpecificParameters(config, platform);
 
   if (mode === 'withPaths') {
-    validateConfigPlatformPath(config?.apps?.[platform]?.path, platform);
+    validateConfigPlatformPath(config[platform]?.path, platform);
   }
 }
 
 function validatePlatformSpecificParameters(config: InvalidatedConfig, platform: Platform): void {
   if (platform === 'android') {
-    const { android } = config.apps ?? {};
+    const { android } = config;
     if (!android) {
       throw new Error(
         getErrorMessage({
@@ -61,7 +65,7 @@ function validatePlatformSpecificParameters(config: InvalidatedConfig, platform:
       );
     }
   } else if (platform === 'ios') {
-    const { ios } = config.apps ?? {};
+    const { ios } = config;
     if (!ios) {
       throw new Error(
         getErrorMessage({
@@ -85,5 +89,3 @@ function validatePlatformSpecificParameters(config: InvalidatedConfig, platform:
     }
   }
 }
-
-export default validateConfigPlatforms;

@@ -34,7 +34,7 @@ type Arguments = SyncArguments | AsyncInitArguments | AsyncUploadArguments;
 type SyncArguments = {
   mode: 'sync';
   token: string;
-  config: Config;
+  config: Config<'withPaths'>;
   gitInfo: Build['gitInfo'];
 };
 type AsyncInitArguments = {
@@ -78,7 +78,7 @@ function getArguments(githubActionParameters?: Parameters): Arguments {
       return {
         mode,
         token,
-        config: updatedConfig as Config,
+        config: updatedConfig as Config<'withPaths'>,
         gitInfo: githubActionParameters?.gitInfo ?? getGitInfo(),
       } satisfies SyncArguments;
     }
@@ -120,6 +120,10 @@ function getArguments(githubActionParameters?: Parameters): Arguments {
     }
   }
 }
+
+export default getArguments;
+
+/* ========================================================================== */
 
 const DEFAULT_CONFIG_PATH = 'sherlo.config.json';
 const DEFAULT_PROJECT_ROOT = '.';
@@ -168,12 +172,12 @@ function updateConfig(
   let androidPath: string | undefined;
   if (updatedParameters.android) {
     androidPath = updatedParameters.android;
-  } else if (config.apps?.android?.path) {
-    androidPath = nodePath.join(updatedParameters.projectRoot, config.apps.android.path);
+  } else if (config.android?.path) {
+    androidPath = nodePath.join(updatedParameters.projectRoot, config.android.path);
   }
-  const android = config.apps?.android
+  const android = config.android
     ? {
-        ...config.apps.android,
+        ...config.android,
         path: androidPath,
       }
     : undefined;
@@ -182,12 +186,12 @@ function updateConfig(
   let iosPath: string | undefined;
   if (updatedParameters.ios) {
     iosPath = updatedParameters.ios;
-  } else if (config.apps?.ios?.path) {
-    iosPath = nodePath.join(updatedParameters.projectRoot, config.apps.ios.path);
+  } else if (config.ios?.path) {
+    iosPath = nodePath.join(updatedParameters.projectRoot, config.ios.path);
   }
-  const ios = config.apps?.ios
+  const ios = config.ios
     ? {
-        ...config.apps.ios,
+        ...config.ios,
         path: iosPath,
       }
     : undefined;
@@ -203,11 +207,8 @@ function updateConfig(
   return {
     ...config,
     token,
-    apps: {
-      ...config.apps,
-      android,
-      ios,
-    },
+    android,
+    ios,
     devices,
   };
 }
@@ -251,5 +252,3 @@ function getAsyncUploadArguments(parameters: Parameters): { path: string; platfo
     })
   );
 }
-
-export default getArguments;
