@@ -16,7 +16,7 @@ async function syncMode({
   gitInfo,
 }: {
   token: string;
-  config: Config;
+  config: Config<'withPaths'>;
   gitInfo: Build['gitInfo'];
 }): Promise<{ buildIndex: number; url: string }> {
   const { apiToken, projectIndex, teamId } = getTokenParts(token);
@@ -30,8 +30,8 @@ async function syncMode({
 
   await uploadMobileBuilds(
     {
-      android: config.apps.android?.path,
-      ios: config.apps.ios?.path,
+      android: config.android?.path,
+      ios: config.ios?.path,
     },
     buildUploadUrls
   );

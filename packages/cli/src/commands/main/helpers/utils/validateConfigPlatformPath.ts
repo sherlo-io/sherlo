@@ -13,7 +13,7 @@ const fileType: { [platformName in Platform]: readonly string[] } = {
   ios: iOSFileTypes,
 };
 
-export function validateConfigPlatformPath(path: string | undefined, platform: Platform): void {
+function validateConfigPlatformPath(path: string | undefined, platform: Platform): void {
   if (!path || typeof path !== 'string') {
     throw new Error(
       getConfigErrorMessage(
@@ -33,6 +33,10 @@ export function validateConfigPlatformPath(path: string | undefined, platform: P
   }
 }
 
+export default validateConfigPlatformPath;
+
+/* ========================================================================== */
+
 function hasValidExtension({ path, platform }: { path: string; platform: Platform }) {
   return fileType[platform].some((extension) => path.endsWith(extension));
 }
@@ -48,5 +52,3 @@ function formatValidFileTypes(platform: Platform) {
   const lastType = formattedFileTypes.pop();
   return `${formattedFileTypes.join(', ')} or ${lastType}`;
 }
-
-export default validateConfigPlatformPath;

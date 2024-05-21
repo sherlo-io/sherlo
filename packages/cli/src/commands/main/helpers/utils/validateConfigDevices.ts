@@ -4,7 +4,7 @@ import { InvalidatedConfig } from '../../types';
 import getConfigErrorMessage from './getConfigErrorMessage';
 import { DeviceTheme } from '@sherlo/api-types';
 
-export function validateConfigDevices(config: InvalidatedConfig): void {
+function validateConfigDevices(config: InvalidatedConfig): void {
   const { devices } = config;
 
   if (!devices || !Array.isArray(devices) || devices.length === 0) {

@@ -4,7 +4,7 @@ import { getTokenParts } from '../../utils';
 import { InvalidatedConfig } from '../../types';
 import getConfigErrorMessage from './getConfigErrorMessage';
 
-export function validateConfigToken<T extends InvalidatedConfig>(
+function validateConfigToken<T extends InvalidatedConfig>(
   config: InvalidatedConfig
 ): asserts config is T & { token: string } {
   const { token } = config;
