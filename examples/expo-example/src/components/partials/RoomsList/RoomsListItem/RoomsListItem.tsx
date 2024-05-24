@@ -23,7 +23,7 @@ const RoomsListItem = ({ id, activeDevicesCount, onArrowPress }: RoomsListItemPr
           <Text variant="headline">{roomName}</Text>
           <Text variant="subtitle">{`${activeDevicesCount} Active devices`}</Text>
         </View>
-        <IconButton name="arrowRight" size="medium" onPress={onArrowPress} />
+        <IconButton name="arrowRight" size="medium" onPress={onArrowPress} isActive={true} />
       </CardItem>
     </View>
   );

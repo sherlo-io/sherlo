@@ -9,7 +9,6 @@ export interface SwitchProps {
 }
 
 const Switch = ({ state, setState }: SwitchProps) => {
-  // const [switchState, setSwitchState] = useState(false);
   const styles = StyleSheet.create({
     container: {
       width: 45,

@@ -1,20 +1,42 @@
-import React from "react";
-import { StyleSheet, View } from "react-native";
+import React from 'react';
+import { SafeAreaView, StyleSheet } from 'react-native';
 
+const StoryDecorator =
+  ({ placement }: { placement?: 'top' | 'center' | 'bottom' } = {}) =>
+  (Story: React.FC) => {
+    let containerStyle = {};
 
-//const StorybookDecorator = (centerType: "center" | "bottom) => (Story: React.FC) => {
-const StoryDecorator = (Story: React.FC) => (
-  <View style={styles.container}>
-    <Story />
-  </View>
-);
+    switch (placement) {
+      case 'top':
+        containerStyle = styles.top;
+        break;
+      case 'center':
+        containerStyle = styles.center;
+        break;
+      case 'bottom':
+        containerStyle = styles.bottom;
+        break;
+      default:
+        break;
+    }
+
+    return (
+      <SafeAreaView style={[containerStyle, { flex: 1 }]}>
+        <Story />
+      </SafeAreaView>
+    );
+  };
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 8,
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+  top: {
+    justifyContent: 'flex-start',
+  },
+  center: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bottom: {
+    justifyContent: 'flex-end',
   },
 });
 

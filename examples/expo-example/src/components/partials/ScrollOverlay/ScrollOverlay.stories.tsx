@@ -1,14 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import ScrollOverlay from './ScrollOverlay';
 
-const meta = {
+const meta: Meta<typeof ScrollOverlay> = {
   component: ScrollOverlay,
   parameters: {
     backgrounds: {
       default: 'white',
     },
   },
-} satisfies Meta<typeof ScrollOverlay>;
+};
 
 export default meta;
 

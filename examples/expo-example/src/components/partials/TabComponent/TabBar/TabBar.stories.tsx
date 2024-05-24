@@ -1,8 +1,19 @@
-import type { Meta } from "@storybook/react";
-import TabBar from "./TabBar";
+import type { Meta, StoryObj } from '@storybook/react';
+import TabBar from './TabBar';
+import StoryDecorator from 'decorators/StoryDecorator';
 
-export default {
+const meta: Meta<typeof TabBar> = {
   component: TabBar,
-} as Meta<typeof TabBar>;
+  decorators: [StoryDecorator()],
+};
 
-export const Basic = {};
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {
+  args: {
+    goToPage: () => console.log('clicked'),
+    activePage: 0,
+  },
+};

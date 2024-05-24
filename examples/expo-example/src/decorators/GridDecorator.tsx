@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { SafeAreaView, StyleSheet, View } from 'react-native';
 
 interface StoryDecoratorProps {
   items: React.ReactNode[];
@@ -28,7 +28,7 @@ const GridDecorator: React.FC<StoryDecoratorProps> = ({ items, columns }) => {
   });
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.grid}>
         {items.map((item, index) => (
           <View key={index} style={styles.itemContainer}>
@@ -36,7 +36,7 @@ const GridDecorator: React.FC<StoryDecoratorProps> = ({ items, columns }) => {
           </View>
         ))}
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 

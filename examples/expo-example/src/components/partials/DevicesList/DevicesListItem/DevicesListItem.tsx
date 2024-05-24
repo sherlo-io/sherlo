@@ -25,7 +25,7 @@ const DevicesListItem = ({ id, onPress }: DevicesListItemProps) => {
               <Text variant="headline">{deviceName}</Text>
             </View>
 
-            <IconButton name="arrowRight" size="small" onPress={onPress} />
+            <IconButton name="arrowRight" size="small" onPress={onPress} isActive={true}/>
           </View>
           <Text variant="subtitle">{roomName}</Text>
         </View>

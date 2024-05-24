@@ -1,11 +1,17 @@
-import type { Meta } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react';
 import Header from './Header';
+import StoryDecorator from 'decorators/StoryDecorator';
 
-export default {
+const meta: Meta<typeof Header> = {
   component: Header,
-} as Meta<typeof Header>;
+  decorators: [StoryDecorator({ placement: 'top' })],
+};
 
-export const Tabs = {
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
+export const Tabs: Story = {
   args: {
     avatarSource: require('../../../../assets/Images/AvatarImage.png'),
     title: 'Heating',
@@ -13,7 +19,7 @@ export const Tabs = {
   },
 };
 
-export const Settings = {
+export const Settings: Story = {
   args: {
     avatarSource: require('../../../../assets/Images/AvatarImage.png'),
     userName: 'User',

@@ -24,7 +24,7 @@ const Header = ({ avatarSource, userName, title, onBackPress }: HeaderProps) => 
       )}
       {title && (
         <>
-          <IconButton name="arrowLeft" size="big" onPress={onBackPress} />
+          <IconButton name="arrowLeft" size="big" onPress={onBackPress} isActive={true}/>
           <Text variant="headline">{title}</Text>
           <Avatar path={avatarSource} />
         </>

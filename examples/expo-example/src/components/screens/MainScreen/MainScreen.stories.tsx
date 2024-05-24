@@ -1,12 +1,12 @@
-import type { Meta } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react';
 import { MainScreen } from './MainScreen';
 
-export default {
+const meta: Meta<typeof MainScreen> = {
   component: MainScreen,
-} as Meta<typeof MainScreen>;
-
-type Story = {
-  args?: Record<string, any>;
 };
 
-export const Basic: Story = {};
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {};

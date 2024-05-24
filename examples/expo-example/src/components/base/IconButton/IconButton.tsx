@@ -6,10 +6,10 @@ interface IconButtonProps extends IconProps {
   onPress?: () => void;
 }
 
-const IconButton = ({ name, size, onPress }: IconButtonProps) => {
+const IconButton = ({ name, size, isActive ,onPress }: IconButtonProps) => {
   return (
     <TouchableOpacity onPress={onPress}>
-      <Icon name={name} size={size} />
+      <Icon name={name} size={size} isActive={isActive}/>
     </TouchableOpacity>
   );
 };

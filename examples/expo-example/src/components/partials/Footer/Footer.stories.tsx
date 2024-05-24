@@ -1,12 +1,14 @@
-import type { Meta } from "@storybook/react";
-import Footer from "./Footer";
+import type { Meta, StoryObj } from '@storybook/react';
+import Footer from './Footer';
+import StoryDecorator from 'decorators/StoryDecorator';
 
-export default {
+const meta: Meta<typeof Footer> = {
   component: Footer,
-} as Meta<typeof Footer>;
-
-type Story = {
-  args?: Record<string, any>;
+  decorators: [StoryDecorator({ placement: 'bottom' })],
 };
 
-export const Basic: Story = {};
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {};

@@ -5,7 +5,7 @@ import { useState } from 'react';
 
 const meta: Meta<typeof Switch> = {
   component: Switch,
-  decorators: [StoryDecorator],
+  decorators: [StoryDecorator({ placement: 'center' })],
 };
 
 export default meta;
@@ -32,10 +32,4 @@ export const active: Story = {
 };
 export const inactive: Story = {
   render: () => <SwitchWithState startstate={false} />,
-  parameters: {
-    design: {
-      type: 'figma',
-      url: 'https://www.figma.com/file/MQKuH5Z7IrlnltVk4ox3oB/Sherlo-Expo-Example?type=design&node-id=2017-30&mode=design&t=Nw5xn7GoX2Yayamq-4',
-    },
-  },
 };
