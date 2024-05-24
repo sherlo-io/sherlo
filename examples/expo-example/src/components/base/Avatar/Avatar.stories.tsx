@@ -4,14 +4,14 @@ import StoryDecorator from '../../../decorators/StoryDecorator';
 
 const meta: Meta<typeof Avatar> = {
   component: Avatar,
-  decorators: [StoryDecorator],
+  decorators: [StoryDecorator({ placement: 'center' })],
 };
 
 export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-export const Basic: Story = {
+export const Default: Story = {
   args: {
     path: require('../../../../assets/Images/AvatarImage.png'),
   },
