@@ -1,11 +1,16 @@
 import React, { ReactElement, useEffect, useState } from 'react';
 import { AppState, AppStateStatus, DevSettings, Platform } from 'react-native';
-import * as DevMenu from 'expo-dev-menu';
-
 import { TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM } from '../../data/constants';
 import { StorybookParams } from '../../types';
 import ModeProvider from './ModeProvider';
 import runnerBridge from '../../runnerBridge/runnerBridge';
+
+let ExpoDevMenu: any;
+try {
+  ExpoDevMenu = require('expo-dev-menu');
+} catch (error) {
+  // Do nothing
+}
 
 const MODE_STORAGE_KEY = 'sherloPersistedMode';
 
@@ -65,30 +70,7 @@ const withStorybook =
           }
         });
 
-      if (__DEV__) {
-        // Add Dev Menu item to toggle between app and storybook
-        const callback = () => {
-          setMode((prevMode) => {
-            const newMode = prevMode === 'app' ? 'storybook' : 'app';
-
-            setMode(newMode);
-            storage?.setItem(MODE_STORAGE_KEY, newMode);
-            return newMode;
-          });
-        };
-
-        if (DevMenu) {
-          DevMenu.registerDevMenuItems([
-            {
-              name: TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM,
-              callback,
-              shouldCollapse: false,
-            },
-          ]);
-        } else {
-          DevSettings.addMenuItem(TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM, callback);
-        }
-      }
+      addToggleStorybookToDevMenu({ setMode, storage });
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -106,3 +88,37 @@ const withStorybook =
   };
 
 export default withStorybook;
+
+/* ========================================================================== */
+
+function addToggleStorybookToDevMenu({
+  setMode,
+  storage,
+}: {
+  setMode: (value: React.SetStateAction<WithStorybookMode>) => void;
+  storage: StorybookParams['storage'] | undefined;
+}) {
+  if (!__DEV__) return;
+
+  const toggleBetweenAppAndStorybook = () => {
+    setMode((prevMode) => {
+      const newMode = prevMode === 'app' ? 'storybook' : 'app';
+
+      setMode(newMode);
+      storage?.setItem(MODE_STORAGE_KEY, newMode);
+      return newMode;
+    });
+  };
+
+  if (ExpoDevMenu) {
+    ExpoDevMenu.registerDevMenuItems([
+      {
+        name: TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM,
+        toggleBetweenAppAndStorybook,
+        shouldCollapse: false,
+      },
+    ]);
+  }
+
+  DevSettings.addMenuItem(TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM, toggleBetweenAppAndStorybook);
+}
