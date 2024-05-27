@@ -169,7 +169,13 @@ async function compressDirectoryToTarGzip(directoryPath: string): Promise<Buffer
 
   return new Promise<Buffer>((resolve, reject) => {
     tar
-      .c({ gzip: true, C: path.dirname(directoryPath) }, [path.basename(directoryPath)])
+      .c(
+        {
+          gzip: true,
+          cwd: path.dirname(directoryPath),
+        },
+        [path.basename(directoryPath)]
+      )
       .on('data', (data) => buffers.push(data))
       .on('end', () => resolve(Buffer.concat(buffers)))
       .on('error', reject);
