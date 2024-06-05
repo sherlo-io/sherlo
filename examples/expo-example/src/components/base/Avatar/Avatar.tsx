@@ -3,14 +3,14 @@ import { StyleSheet, Image, ImageSourcePropType } from 'react-native';
 import { colors } from '../../../theme/colors';
 import { dimensions } from '../../../theme/dimensions';
 
-interface AvatarImageProps {
+interface AvatarProps {
   path: ImageSourcePropType;
 }
 
-const AvatarImage = ({ path }: AvatarImageProps) => {
+const Avatar = ({ path }: AvatarProps) => {
   return <Image source={path} style={styles.image} />;
 };
-export default AvatarImage;
+export default Avatar;
 
 const styles = StyleSheet.create({
   image: {

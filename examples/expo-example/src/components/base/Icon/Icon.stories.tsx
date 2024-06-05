@@ -1,88 +1,96 @@
-import type { Meta } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react';
 import Icon from './Icon';
 import StoryDecorator from '../../../decorators/StoryDecorator';
-import { StyleSheet, Text, View } from 'react-native';
-import { ReactNode } from 'react';
+import { StyleSheet, View } from 'react-native';
+import GridDecorator from 'decorators/GridDecorator';
 
-export default {
+const meta: Meta<typeof Icon> = {
   component: Icon,
-  decorators: [StoryDecorator],
-} as Meta<typeof Icon>;
-
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  textColor: {
-    color: 'white',
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
-
-export const Primary = {
-  render: () => (
-    <View>
-      <IconDecorator name="Arrow Right">
-        <Icon name="arrowRight" size="medium" />
-      </IconDecorator>
-      <IconDecorator name="Arrow Left">
-        <Icon name="arrowLeft" size="big" />
-      </IconDecorator>
-
-      {/* 
-      <View style={styles.iconContainer}>
-        <Icon name="arrowDown" size="small" />
-        <Text style={styles.textColor}>Arrow Down</Text>
-      </View>
-
-      <View style={styles.iconContainer}>
-        <Icon name="cog" size="big" />
-        <Text style={styles.textColor}>Cog</Text>
-      </View>
-
-      <View style={styles.iconContainer}>
-        <Icon name="account" size="big" />
-        <Text style={styles.textColor}>Account</Text>
-      </View>
-
-      <View style={styles.iconContainer}>
-        <Icon name="sliders" size="big" />
-        <Text style={styles.textColor}>Sliders</Text>
-      </View>
-
-      <View style={styles.iconContainer}>
-        <Icon name="plusBox" size="big" />
-        <Text style={styles.textColor}>Plus Box</Text>
-      </View>
-
-      <View style={styles.iconContainer}>
-        <Icon name="splotch" size="big" />
-        <Text style={styles.textColor}>Splotch</Text>
-      </View>
-
-      <View style={styles.iconContainer}>
-        <Icon name="plus" size="big" />
-        <Text style={styles.textColor}>Plus</Text>
-      </View>
-
-      <View style={styles.iconContainer}>
-        <Icon name="minus" size="big" />
-        <Text style={styles.textColor}>Minus</Text>
-      </View> */}
-    </View>
-  ),
 };
 
-const IconDecorator = ({ children, name }: { children: ReactNode; name: string }) => (
-  <View style={styles.container}>
-    <View style={styles.iconContainer}>{children}</View>
-    <Text style={styles.textColor}>{name}</Text>
-  </View>
-);
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {
+  args: { name: 'arrowRight', size: 'big', isActive: true },
+  decorators: [StoryDecorator({ placement: 'center' })],
+  parameters: {
+    design: {
+      type: 'figma',
+      url: 'https://www.figma.com/file/MQKuH5Z7IrlnltVk4ox3oB/Sherlo-Expo-Example?type=design&node-id=2017-22&mode=design&t=Nw5xn7GoX2Yayamq-4',
+    },
+  },
+};
+
+export const Sizes: Story = {
+  render: () => (
+    <View style={styles.sizesContainer}>
+      <Icon name="arrowRight" size="small" isActive={true} />
+      <Icon name="arrowRight" size="medium" isActive={true} />
+      <Icon name="arrowRight" size="big" isActive={true} />
+    </View>
+  ),
+  decorators: [StoryDecorator({ placement: 'center' })],
+  parameters: {
+    design: {
+      type: 'figma',
+      url: 'https://www.figma.com/file/MQKuH5Z7IrlnltVk4ox3oB/Sherlo-Expo-Example?type=design&node-id=2017-22&mode=design&t=Nw5xn7GoX2Yayamq-4',
+    },
+  },
+};
+
+const iconsActive = [
+  <Icon name="arrowRight" size="big" isActive={true} />,
+  <Icon name="arrowLeft" size="big" isActive={true} />,
+  <Icon name="arrowDown" size="big" isActive={true} />,
+  <Icon name="sliders" size="big" isActive={true} />,
+  <Icon name="splotch" size="big" isActive={true} />,
+  <Icon name="cog" size="big" isActive={true} />,
+  <Icon name="plusBox" size="big" isActive={true} />,
+  <Icon name="account" size="big" isActive={true} />,
+  <Icon name="plus" size="big" isActive={true} />,
+  <Icon name="minus" size="big" isActive={true} />,
+];
+
+export const IconsActive: Story = {
+  render: () => <GridDecorator items={iconsActive} columns={4} />,
+  parameters: {
+    design: {
+      type: 'figma',
+      url: 'https://www.figma.com/file/MQKuH5Z7IrlnltVk4ox3oB/Sherlo-Expo-Example?type=design&node-id=2017-22&mode=design&t=Nw5xn7GoX2Yayamq-4',
+    },
+  },
+};
+
+const iconsInactive = [
+  <Icon name="arrowRight" size="big" isActive={false} />,
+  <Icon name="arrowLeft" size="big" isActive={false} />,
+  <Icon name="arrowDown" size="big" isActive={false} />,
+  <Icon name="sliders" size="big" isActive={false} />,
+  <Icon name="splotch" size="big" isActive={false} />,
+  <Icon name="cog" size="big" isActive={false} />,
+  <Icon name="plusBox" size="big" isActive={false} />,
+  <Icon name="account" size="big" isActive={false} />,
+  <Icon name="plus" size="big" isActive={false} />,
+  <Icon name="minus" size="big" isActive={false} />,
+];
+
+export const IconsInactive: Story = {
+  render: () => <GridDecorator items={iconsInactive} columns={4} />,
+  parameters: {
+    design: {
+      type: 'figma',
+      url: 'https://www.figma.com/file/MQKuH5Z7IrlnltVk4ox3oB/Sherlo-Expo-Example?type=design&node-id=2017-22&mode=design&t=Nw5xn7GoX2Yayamq-4',
+    },
+  },
+};
+
+const styles = StyleSheet.create({
+  sizesContainer: {
+    width: 200,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+});

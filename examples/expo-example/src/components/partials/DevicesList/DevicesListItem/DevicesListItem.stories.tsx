@@ -1,7 +1,7 @@
 import { Dimensions, StyleSheet, View } from 'react-native';
 import StoryDecorator from '../../../../decorators/StoryDecorator';
 import DevicesListItem from './DevicesListItem';
-import type { Meta } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react';
 
 const DevicesListItemDecorator = (Story: React.FC) => (
   <View style={styles.container}>
@@ -9,22 +9,14 @@ const DevicesListItemDecorator = (Story: React.FC) => (
   </View>
 );
 
-const styles = StyleSheet.create({
-  container: {
-    width: Dimensions.get('screen').width / 2,
-  },
-});
-
-export default {
+const meta: Meta<typeof DevicesListItem> = {
   component: DevicesListItem,
-  decorators: [DevicesListItemDecorator, StoryDecorator],
-} as Meta<typeof DevicesListItem>;
-
-type Story = {
-  args: {
-    id: string;
-  };
+  decorators: [DevicesListItemDecorator, StoryDecorator({ placement: 'center' })],
 };
+
+export default meta;
+
+type Story = StoryObj<typeof meta>;
 
 export const TopLights: Story = {
   args: {
@@ -61,3 +53,9 @@ export const Heating: Story = {
     id: 'heating',
   },
 };
+
+const styles = StyleSheet.create({
+  container: {
+    width: Dimensions.get('screen').width / 2,
+  },
+});

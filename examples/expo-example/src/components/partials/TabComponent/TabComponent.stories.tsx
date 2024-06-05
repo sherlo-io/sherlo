@@ -1,9 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import TabComponent from './TabComponent';
+import StoryDecorator from 'decorators/StoryDecorator';
 
-const meta = {
+const meta: Meta<typeof TabComponent> = {
   component: TabComponent,
-} satisfies Meta<typeof TabComponent>;
+  decorators: [StoryDecorator()],
+};
 
 export default meta;
 

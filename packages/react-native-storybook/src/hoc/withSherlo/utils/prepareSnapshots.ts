@@ -33,11 +33,17 @@ const prepareSnapshots = ({
 
     modesArray.forEach((mode: string) => {
       if (mode === constants.modes.DEFAULT_MODE || mode === constants.modes.FULL_HEIGHT_MODE) {
+        let sherloParameters = rawStory.parameters.sherlo || {};
+
+        if (rawStory.parameters?.design?.url) {
+          sherloParameters = { figmaUrl: rawStory.parameters.design.url, ...sherloParameters };
+        }
+
         snapshots.push({
           viewId: `${rawStory.id}-${mode}`,
           mode: constants.modes.DEFAULT_MODE,
           displayName: `${rawStory.title} - ${rawStory.name}`,
-          sherloParameters: rawStory.parameters.sherlo,
+          sherloParameters,
 
           componentId: rawStory.componentId,
           componentTitle: rawStory.title,

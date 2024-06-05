@@ -1,52 +1,38 @@
-import type { Meta } from "@storybook/react";
-import Text from "./Text";
-import StoryDecorator from "../../../decorators/StoryDecorator";
-import { StyleSheet, View } from "react-native";
+import type { Meta, StoryObj } from '@storybook/react';
+import Text from './Text';
+import GridDecorator from 'decorators/GridDecorator';
+import StoryDecorator from 'decorators/StoryDecorator';
 
-export default {
+const meta: Meta<typeof Text> = {
   component: Text,
-  decorators: [StoryDecorator],
-} as Meta<typeof Text>;
+};
 
-const styles = StyleSheet.create({
-  marginBottom10: {
-    marginBottom: 30,
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {
+  args: {
+    variant: 'headline',
+    children:
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer vel enim elit. Donec pulvinar aliquet mauris, sit amet sagittis nisl imperdiet nec. ',
   },
-});
+  decorators: [StoryDecorator({ placement: 'center' })],
+};
 
-export const Primary = {
-  render: () => (
-    <View>
-      <View style={styles.marginBottom10}>
-        <Text variant="headline">headline text</Text>
-      </View>
-      <View style={styles.marginBottom10}>
-        <Text variant="headlineInactive">headlineInactive text</Text>
-      </View>
-      <View style={styles.marginBottom10}>
-        <Text variant="subtitle">subtitle text</Text>
-      </View>
-      <View style={styles.marginBottom10}>
-        <Text variant="tutorialHeadline">tutorialHeadline text</Text>
-      </View>
-      <View style={styles.marginBottom10}>
-        <Text variant="tutorialSubtitle">tutorialSubtitle text</Text>
-      </View>
-      <View style={styles.marginBottom10}>
-        <Text variant="tutorialButton">tutorialButton text</Text>
-      </View>
-      <View style={styles.marginBottom10}>
-        <Text variant="usernameText">usernameText text</Text>
-      </View>
-      <View style={styles.marginBottom10}>
-        <Text variant="displayBox">displayBox text</Text>
-      </View>
-      <View style={styles.marginBottom10}>
-        <Text variant="displayBoxValue">displayBoxValue text</Text>
-      </View>
-      <View style={styles.marginBottom10}>
-        <Text variant="time">time text</Text>
-      </View>
-    </View>
-  ),
+const texts = [
+  <Text variant="headline">headline</Text>,
+  <Text variant="headlineInactive">headlineInactive</Text>,
+  <Text variant="subtitle">subtitle</Text>,
+  <Text variant="tutorialHeadline">tutorialHeadline</Text>,
+  <Text variant="tutorialSubtitle">tutorialSubtitle</Text>,
+  <Text variant="tutorialButton">tutorialButton</Text>,
+  <Text variant="usernameText">usernameText</Text>,
+  <Text variant="displayBox">displayBox</Text>,
+  <Text variant="displayBoxValue">displayBoxValue</Text>,
+  <Text variant="time">time</Text>,
+];
+
+export const Variants: Story = {
+  render: () => <GridDecorator items={texts} columns={2.3} />,
 };

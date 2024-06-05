@@ -1,17 +1,16 @@
-import type { Meta, StoryObj } from "@storybook/react";
-import IconButton from "./IconButton";
+import type { Meta, StoryObj } from '@storybook/react';
+import IconButton from './IconButton';
+import StoryDecorator from '../../../decorators/StoryDecorator';
 
-const meta = {
+const meta: Meta<typeof IconButton> = {
   component: IconButton,
-} satisfies Meta<typeof IconButton>;
+  decorators: [StoryDecorator({ placement: 'center' })],
+};
 
 export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-export const ArrowRight: Story = {
-  args: {
-    name: "arrowRight",
-    size: "medium",
-  },
+export const Default: Story = {
+  args: { name: 'arrowRight', size: 'big' },
 };

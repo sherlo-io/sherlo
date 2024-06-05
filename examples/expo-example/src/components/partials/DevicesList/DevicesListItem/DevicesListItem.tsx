@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import CardItem from '../../CardItem/CardItem';
 import Text from '../../../base/Text/Text';
@@ -14,6 +14,7 @@ export interface DevicesListItemProps {
 
 const DevicesListItem = ({ id, onPress }: DevicesListItemProps) => {
   const { imageKey, roomName, deviceName } = getDeviceData(id);
+  const [switchState, setSwitchState] = useState(false);
 
   return (
     <View style={styles.shape}>
@@ -24,11 +25,11 @@ const DevicesListItem = ({ id, onPress }: DevicesListItemProps) => {
               <Text variant="headline">{deviceName}</Text>
             </View>
 
-            <IconButton name="arrowRight" size="small" onPress={onPress} />
+            <IconButton name="arrowRight" size="small" onPress={onPress} isActive={true}/>
           </View>
           <Text variant="subtitle">{roomName}</Text>
         </View>
-        <Switch />
+        <Switch state={switchState} setState={setSwitchState} />
       </CardItem>
     </View>
   );

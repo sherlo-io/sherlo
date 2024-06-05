@@ -1,10 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import DevicesList from './DevicesList';
-import { DEVICES_DATA } from '../../../fixtures/devices';
+import TabBar from './TabBar';
 import StoryDecorator from 'decorators/StoryDecorator';
 
-const meta: Meta<typeof DevicesList> = {
-  component: DevicesList,
+const meta: Meta<typeof TabBar> = {
+  component: TabBar,
   decorators: [StoryDecorator()],
 };
 
@@ -14,6 +13,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   args: {
-    DATA: DEVICES_DATA,
+    goToPage: () => console.log('clicked'),
+    activePage: 0,
   },
 };

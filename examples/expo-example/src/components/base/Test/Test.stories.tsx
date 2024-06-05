@@ -4,7 +4,7 @@ import StoryDecorator from '../../../decorators/StoryDecorator';
 
 export default {
   component: Test,
-  decorators: [StoryDecorator],
+  decorators: [StoryDecorator({ placement: 'center' })],
 } as Meta<typeof Test>;
 
 export const Basic = {};

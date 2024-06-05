@@ -14,7 +14,7 @@ export const dimensions = {
   footerHeight: { M: 113, L: 180 }[breakpoint],
   infoDisplayGap: { M: 17, L: 60 }[breakpoint],
   infoDisplayBoxPadding: { M: 14, L: 24 }[breakpoint],
-  listGradientHeight: { M: 100, L: 175 }[breakpoint],
+  scrollOverlayHeight: { M: 100, L: 175 }[breakpoint],
   timeBoxPadding: { M: 16, L: 28 }[breakpoint],
   timeBoxGap: { M: 22, L: 38 }[breakpoint],
   settingsButtonPadding: { M: 22, L: 38 }[breakpoint],

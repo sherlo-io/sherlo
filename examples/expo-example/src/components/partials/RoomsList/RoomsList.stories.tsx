@@ -1,18 +1,18 @@
-import type { Meta } from "@storybook/react";
-import RoomsList from "./RoomsList";
-import { ROOMS_DATA } from "../../../fixtures/rooms";
+import type { Meta, StoryObj } from '@storybook/react';
+import RoomsList from './RoomsList';
+import { ROOMS_DATA } from '../../../fixtures/rooms';
+import StoryDecorator from 'decorators/StoryDecorator';
 
-export default {
+const meta: Meta<typeof RoomsList> = {
   component: RoomsList,
-} as Meta<typeof RoomsList>;
-
-type Story = {
-  args: {
-    DATA: typeof ROOMS_DATA;
-  };
+  decorators: [StoryDecorator()],
 };
 
-export const Basic: Story = {
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {
   args: {
     DATA: ROOMS_DATA,
   },
