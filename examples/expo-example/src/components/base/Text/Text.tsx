@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text as TextComponent, StyleSheet } from 'react-native';
 import { colors } from '../../../theme/colors';
+import { dimensions } from 'theme/dimensions';
 
 interface TextProps {
   variant:
@@ -55,61 +56,62 @@ export default Text;
 const styles = StyleSheet.create({
   headline: {
     fontFamily: 'Urbanist_600SemiBold',
-    fontSize: 20.25,
+    fontSize: dimensions.fontSize4,
     letterSpacing: 0,
     color: colors.textHighlight,
   },
   headlineInactive: {
     fontFamily: 'Urbanist_600SemiBold',
-    fontSize: 20.25,
+    fontSize: dimensions.fontSize4,
     letterSpacing: 0,
     color: colors.textSubtle,
   },
   subtitle: {
     fontFamily: 'Urbanist_500Medium',
-    fontSize: 16.2,
+    fontSize: dimensions.fontSize2,
     letterSpacing: 0,
     color: colors.textSubtle,
   },
   tutorialHeadline: {
     fontFamily: 'Urbanist_700Bold',
-    fontSize: 24.3,
+    fontSize: dimensions.fontSize6,
     letterSpacing: 0,
     color: colors.textHighlight,
   },
   tutorialSubtitle: {
     fontFamily: 'Urbanist_400Regular',
-    fontSize: 21.6,
+    fontSize: dimensions.fontSize5,
     letterSpacing: 0,
     color: colors.textHighlight,
+    textAlign: 'center',
   },
   tutorialButton: {
     fontFamily: 'Urbanist_700Bold',
-    fontSize: 17.5,
+    fontSize: dimensions.fontSize3,
     letterSpacing: 0,
     color: colors.textHighlight,
   },
   usernameText: {
     fontFamily: 'Urbanist_600SemiBold',
-    fontSize: 24.3,
+    fontSize: dimensions.fontSize6,
     letterSpacing: 0,
     color: colors.textHighlight,
   },
   displayBox: {
     fontFamily: 'Urbanist_500Medium',
-    fontSize: 13.5,
+    fontSize: dimensions.fontSize1,
     letterSpacing: 0,
     color: colors.textDisplayBox,
   },
   displayBoxValue: {
     fontFamily: 'Urbanist_700Bold',
-    fontSize: 16.2,
+    fontSize: dimensions.fontSize2,
     letterSpacing: 0,
     color: colors.textHighlight,
   },
   time: {
     fontFamily: 'Urbanist_500Medium',
-    fontSize: 16.2,
+    fontSize: dimensions.fontSize2,
     letterSpacing: 0,
     color: colors.textHighlight,
   },

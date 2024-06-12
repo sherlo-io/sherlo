@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-evenly',
   },
   mockmiddlecomponent: {
-    height: 304,
+    height: 400,
     backgroundColor: 'lightblue',
   },
 });
