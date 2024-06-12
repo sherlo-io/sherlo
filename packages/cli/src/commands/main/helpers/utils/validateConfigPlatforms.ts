@@ -43,19 +43,6 @@ function validatePlatformSpecificParameters(config: InvalidatedConfig, platform:
       );
     }
 
-    if (
-      !android.packageName ||
-      typeof android.packageName !== 'string' ||
-      !android.packageName.includes('.')
-    ) {
-      throw new Error(
-        getConfigErrorMessage(
-          'for android, packageName must be a valid string',
-          docsLink.configAndroid
-        )
-      );
-    }
-
     if (android.activity && typeof android.activity !== 'string') {
       throw new Error(
         getConfigErrorMessage(
@@ -72,19 +59,6 @@ function validatePlatformSpecificParameters(config: InvalidatedConfig, platform:
           type: 'unexpected',
           message: 'ios should be defined',
         })
-      );
-    }
-
-    if (
-      !ios.bundleIdentifier ||
-      typeof ios.bundleIdentifier !== 'string' ||
-      !ios.bundleIdentifier.includes('.')
-    ) {
-      throw new Error(
-        getConfigErrorMessage(
-          'for ios, bundleIdentifier must be a valid string',
-          docsLink.configIos
-        )
       );
     }
   }

@@ -7,8 +7,14 @@ import Header from '../../partials/Header/Header';
 import TabComponent from '../../partials/TabComponent/TabComponent';
 import { RadialBackground } from 'components/screens/MainScreen/RadialBackground';
 
-export const MainScreen = () => {
-  const [activePage, setActivePage] = useState(0);
+type MainScreenProps = {
+  initialActivePage?: number;
+};
+
+export const MainScreen = ({ initialActivePage = 0 }: MainScreenProps) => {
+  const [activePage, setActivePage] = useState(initialActivePage);
+
+  console.log('MainScreen', activePage);
 
   return (
     <>

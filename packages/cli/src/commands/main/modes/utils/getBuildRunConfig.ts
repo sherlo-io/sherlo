@@ -9,18 +9,18 @@ function getBuildRunConfig({
   buildPresignedUploadUrls?: GetBuildUploadUrlsReturn['buildPresignedUploadUrls'];
   config: Config<'withPaths'> | Config<'withoutPaths'>;
 }): BuildRunConfig {
-  const { android, ios, devices } = config;
+  const { android, ios, devices, include, exclude } = config;
 
   const androidDevices = getConvertedDevices(devices, 'android');
   const iosDevices = getConvertedDevices(devices, 'ios');
 
   return {
-    // include,
-    // exclude,
+    include,
+    exclude,
     android: android
       ? {
           devices: androidDevices,
-          packageName: android.packageName,
+          packageName: android.packageName || '',
           activity: android.activity,
           s3Key: buildPresignedUploadUrls?.android?.s3Key || '',
         }
@@ -28,7 +28,7 @@ function getBuildRunConfig({
     ios: ios
       ? {
           devices: iosDevices,
-          bundleIdentifier: ios.bundleIdentifier,
+          bundleIdentifier: ios.bundleIdentifier || '',
           s3Key: buildPresignedUploadUrls?.ios?.s3Key || '',
         }
       : undefined,

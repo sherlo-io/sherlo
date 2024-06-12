@@ -1,0 +1,94 @@
+{
+  "android": {
+    "path": "builds/storybook/android.apk",
+    "packageName": "com.sherlo.example"
+  },
+  "ios": {
+    "path": "./builds/storybook/ios.tar.gz",
+    "bundleIdentifier": "com.sherlo.example"
+  },
+  "devices": [
+    {
+      "id": "pixel.tablet",
+      "osVersion": "13",
+      "osLanguage": "fr_FR",
+      "osTheme": "dark"
+    },
+    {
+      "id": "ipad.9.gen",
+      "osVersion": "15"
+    },
+    {
+      "id": "ipad.9.gen",
+      "osVersion": "16"
+    },
+    {
+      "id": "ipad.9.gen",
+      "osVersion": "17"
+    },
+    {
+      "id": "ipad.10.gen",
+      "osVersion": "16"
+    },
+    {
+      "id": "ipad.10.gen",
+      "osVersion": "17"
+    },
+    {
+      "id": "ipad.air.5.gen",
+      "osVersion": "15"
+    },
+    {
+      "id": "ipad.air.5.gen",
+      "osVersion": "16"
+    },
+    {
+      "id": "ipad.air.5.gen",
+      "osVersion": "17"
+    },
+    {
+      "id": "ipad.air.11.m2",
+      "osVersion": "17"
+    },
+    {
+      "id": "ipad.air.13.m2",
+      "osVersion": "17"
+    },
+    {
+      "id": "ipad.mini.6.gen",
+      "osVersion": "15"
+    },
+    {
+      "id": "ipad.mini.6.gen",
+      "osVersion": "16"
+    },
+    {
+      "id": "ipad.mini.6.gen",
+      "osVersion": "17"
+    },
+    {
+      "id": "ipad.pro.11.4.gen",
+      "osVersion": "16"
+    },
+    {
+      "id": "ipad.pro.11.4.gen",
+      "osVersion": "17"
+    },
+    {
+      "id": "ipad.pro.11.m4",
+      "osVersion": "17"
+    },
+    {
+      "id": "ipad.pro.12.9.6.gen",
+      "osVersion": "16"
+    },
+    {
+      "id": "ipad.pro.12.9.6.gen",
+      "osVersion": "17"
+    },
+    {
+      "id": "ipad.pro.13.m4",
+      "osVersion": "17"
+    }
+  ]
+}

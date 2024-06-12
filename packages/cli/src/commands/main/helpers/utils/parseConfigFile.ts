@@ -14,9 +14,9 @@ function parseConfigFile(path: string): InvalidatedConfig {
     if (!config) throw new Error('config is undefined');
 
     /* 1 */
-    // const { exclude, include } = config;
-    // if (include && !Array.isArray(include)) config.include = [include];
-    // if (exclude && !Array.isArray(exclude)) config.exclude = [exclude];
+    const { exclude, include } = config;
+    if (include && !Array.isArray(include)) config.include = [include];
+    if (exclude && !Array.isArray(exclude)) config.exclude = [exclude];
 
     return config;
   } catch (error) {

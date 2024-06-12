@@ -21,12 +21,8 @@ const Tabs = ({ pagerRef, handlePageChange, initialPage }: TabsProps) => {
       onPageSelected={handlePageChange}
       pageMargin={40}
     >
-      <View key="devices">
-        <DevicesList DATA={DEVICES_DATA} />
-      </View>
-      <View key="rooms">
-        <RoomsList DATA={ROOMS_DATA} />
-      </View>
+      <DevicesList key="devices" DATA={DEVICES_DATA} />
+      <RoomsList key="rooms" DATA={ROOMS_DATA} />
     </PagerView>
   );
 };

@@ -8,12 +8,14 @@ export type ConfigMode = 'withPaths' | 'withoutPaths';
 
 export type Config<CM extends ConfigMode = 'withPaths'> = {
   token: string;
+  include?: string[];
+  exclude?: string[];
   android?: {
-    packageName: string;
+    packageName?: string;
     activity?: string;
   } & PathProperty<CM>;
   ios?: {
-    bundleIdentifier: string;
+    bundleIdentifier?: string;
   } & PathProperty<CM>;
   devices: {
     id: DeviceID;
