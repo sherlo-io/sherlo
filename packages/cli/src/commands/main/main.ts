@@ -14,8 +14,9 @@ async function main(githubActionParameters?: Parameters<typeof getArguments>[0])
       return syncMode(args);
     }
 
+    case 'remoteExpo':
     case 'asyncInit': {
-      return asyncInitMode(args);
+      return asyncInitMode(args, args.mode === 'remoteExpo');
     }
 
     case 'asyncUpload': {

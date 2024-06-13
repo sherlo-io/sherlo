@@ -1,12 +1,13 @@
 import { Build } from '@sherlo/api-types';
 import SDKApiClient from '@sherlo/sdk-client';
-import { getErrorMessage, getTokenParts } from '../utils';
+import { docsLink } from '../constants';
 import { Config } from '../types';
+import { getConfigErrorMessage, getErrorMessage, getTokenParts } from '../utils';
 import {
   getAppBuildUrl,
   getBuildRunConfig,
   getBuildUploadUrls,
-  getConfigPlatforms,
+  getPlatformsToTest,
   uploadMobileBuilds,
 } from './utils';
 
@@ -16,22 +17,42 @@ async function syncMode({
   gitInfo,
 }: {
   token: string;
-  config: Config<'withPaths'>;
+  config: Config<'withBuildPaths'>;
   gitInfo: Build['gitInfo'];
 }): Promise<{ buildIndex: number; url: string }> {
   const { apiToken, projectIndex, teamId } = getTokenParts(token);
   const client = SDKApiClient(apiToken);
 
+  const platformsToTest = getPlatformsToTest(config);
+
+  if (platformsToTest.includes('android') && !config.android) {
+    throw new Error(
+      getConfigErrorMessage(
+        'path to the Android build is not provided, despite at least one Android testing device having been defined',
+        docsLink.configAndroid
+      )
+    );
+  }
+
+  if (platformsToTest.includes('ios') && !config.ios) {
+    throw new Error(
+      getConfigErrorMessage(
+        'path to the iOS build is not provided, despite at least one iOS testing device having been defined',
+        docsLink.configIos
+      )
+    );
+  }
+
   const buildUploadUrls = await getBuildUploadUrls(client, {
-    platforms: getConfigPlatforms(config),
+    platforms: platformsToTest,
     projectIndex,
     teamId,
   });
 
   await uploadMobileBuilds(
     {
-      android: config.android?.path,
-      ios: config.ios?.path,
+      android: platformsToTest.includes('android') ? config.android : undefined,
+      ios: platformsToTest.includes('ios') ? config.ios : undefined,
     },
     buildUploadUrls
   );
@@ -40,9 +61,9 @@ async function syncMode({
     .openBuild({
       teamId,
       projectIndex,
-      gitInfo: gitInfo,
+      gitInfo,
       buildRunConfig: getBuildRunConfig({
-        config: config,
+        config,
         buildPresignedUploadUrls: buildUploadUrls,
       }),
     })

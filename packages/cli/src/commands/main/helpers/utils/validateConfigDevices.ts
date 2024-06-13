@@ -1,8 +1,8 @@
+import { DeviceTheme } from '@sherlo/api-types';
 import { devices as sherloDevices } from '@sherlo/shared';
 import { docsLink } from '../../constants';
 import { InvalidatedConfig } from '../../types';
-import getConfigErrorMessage from './getConfigErrorMessage';
-import { DeviceTheme } from '@sherlo/api-types';
+import { getConfigErrorMessage } from '../../utils';
 
 function validateConfigDevices(config: InvalidatedConfig): void {
   const { devices } = config;
