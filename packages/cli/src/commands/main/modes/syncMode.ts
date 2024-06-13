@@ -38,7 +38,7 @@ async function syncMode({
     throw new Error(
       getConfigErrorMessage(
         'path to the iOS build is not provided, despite at least one iOS testing device having been defined',
-        docsLink.configAndroid
+        docsLink.configIos
       )
     );
   }
