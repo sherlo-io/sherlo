@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { docsLink } from '../../constants';
 import { InvalidatedConfig } from '../../types';
 import { getErrorMessage } from '../../utils';
 import getConfigErrorMessage from './getConfigErrorMessage';
@@ -11,7 +12,14 @@ function parseConfigFile(path: string): InvalidatedConfig {
   try {
     const config = JSON.parse(fs.readFileSync(path, 'utf8'));
 
-    if (!config) throw new Error('config is undefined');
+    if (!config) {
+      throw new Error(
+        getErrorMessage({
+          type: 'unexpected',
+          message: `parsed config file "${path}" is undefined`,
+        })
+      );
+    }
 
     /* 1 */
     // const { exclude, include } = config;
@@ -24,14 +32,19 @@ function parseConfigFile(path: string): InvalidatedConfig {
 
     switch (nodeError.code) {
       case 'ENOENT':
-        throw new Error(getConfigErrorMessage(`file "${path}" not found`));
+        throw new Error(
+          getConfigErrorMessage(
+            `config file "${path}" not found; make sure the path is correct or pass the \`--projectRoot\` flag to the script`,
+            docsLink.scriptFlags
+          )
+        );
       case 'EACCES':
-        throw new Error(getConfigErrorMessage(`file "${path}" cannot be accessed`));
+        throw new Error(getConfigErrorMessage(`config file "${path}" cannot be accessed`));
       case 'EISDIR':
         throw new Error(getConfigErrorMessage(`"${path}" is a directory, not a config file`));
       default:
         if (error instanceof SyntaxError) {
-          throw new Error(getConfigErrorMessage(`file "${path}" is not valid JSON`));
+          throw new Error(getConfigErrorMessage(`config file "${path}" is not valid JSON`));
         } else {
           throw new Error(
             getErrorMessage({

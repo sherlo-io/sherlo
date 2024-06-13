@@ -2,19 +2,16 @@ import { DeviceID, DeviceTheme } from '@sherlo/api-types';
 import { PartialDeep } from 'type-fest';
 import { iOSFileTypes } from './constants';
 
-export type Mode = 'sync' | 'asyncInit' | 'asyncUpload';
+export type Mode = 'sync' | 'remoteExpo' | 'asyncInit' | 'asyncUpload';
 
-export type ConfigMode = 'withPaths' | 'withoutPaths';
+export type ConfigMode = 'withBuildPaths' | 'withoutBuildPaths';
 
-export type Config<CM extends ConfigMode = 'withPaths'> = {
+export type Config<CM extends ConfigMode = 'withBuildPaths'> = CM extends 'withBuildPaths'
+  ? BaseConfig & ConfigBuildPaths
+  : BaseConfig;
+
+type BaseConfig = {
   token: string;
-  android?: {
-    packageName: string;
-    activity?: string;
-  } & PathProperty<CM>;
-  ios?: {
-    bundleIdentifier: string;
-  } & PathProperty<CM>;
   devices: {
     id: DeviceID;
     osVersion: string;
@@ -23,7 +20,10 @@ export type Config<CM extends ConfigMode = 'withPaths'> = {
   }[];
 };
 
-type PathProperty<CM extends ConfigMode> = CM extends 'withPaths' ? { path: string } : {};
+type ConfigBuildPaths = {
+  android?: string;
+  ios?: string;
+};
 
 export type InvalidatedConfig = PartialDeep<Config, { recurseIntoArrays: true }>;
 

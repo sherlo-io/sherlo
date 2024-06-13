@@ -3,12 +3,14 @@ const docsDomain = 'https://docs.sherlo.io';
 
 export const docsLink = {
   config: `${docsDomain}/getting-started/config`,
+  configProperties: `${docsDomain}/getting-started/config#properties`,
   configToken: `${docsDomain}/getting-started/config#token`,
-  configApps: `${docsDomain}/getting-started/config#apps`,
   configAndroid: `${docsDomain}/getting-started/config#android`,
   configIos: `${docsDomain}/getting-started/config#ios`,
   configDevices: `${docsDomain}/getting-started/config#devices`,
   devices: `${docsDomain}/devices`,
+  remoteExpoBuilds: `${docsDomain}/getting-started/builds?framework=expo&eas-build=remote`,
+  scriptFlags: `${docsDomain}/getting-started/testing#supported-flags`,
 };
 
-export const iOSFileTypes = ['.app', '.tar', '.tar.gz'] as const;
+export const iOSFileTypes = ['.app', '.tar.gz', '.tar'] as const;

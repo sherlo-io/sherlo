@@ -6,7 +6,7 @@ import {
   getAppBuildUrl,
   getBuildRunConfig,
   getBuildUploadUrls,
-  getConfigPlatforms,
+  getPlatformsToTest,
   uploadMobileBuilds,
 } from './utils';
 
@@ -16,22 +16,24 @@ async function syncMode({
   gitInfo,
 }: {
   token: string;
-  config: Config<'withPaths'>;
+  config: Config<'withBuildPaths'>;
   gitInfo: Build['gitInfo'];
 }): Promise<{ buildIndex: number; url: string }> {
   const { apiToken, projectIndex, teamId } = getTokenParts(token);
   const client = SDKApiClient(apiToken);
 
+  const platformsToTest = getPlatformsToTest(config);
+
   const buildUploadUrls = await getBuildUploadUrls(client, {
-    platforms: getConfigPlatforms(config),
+    platforms: platformsToTest,
     projectIndex,
     teamId,
   });
 
   await uploadMobileBuilds(
     {
-      android: config.android?.path,
-      ios: config.ios?.path,
+      android: platformsToTest.includes('android') ? config.android : undefined,
+      ios: platformsToTest.includes('ios') ? config.ios : undefined,
     },
     buildUploadUrls
   );
@@ -40,9 +42,9 @@ async function syncMode({
     .openBuild({
       teamId,
       projectIndex,
-      gitInfo: gitInfo,
+      gitInfo,
       buildRunConfig: getBuildRunConfig({
-        config: config,
+        config,
         buildPresignedUploadUrls: buildUploadUrls,
       }),
     })

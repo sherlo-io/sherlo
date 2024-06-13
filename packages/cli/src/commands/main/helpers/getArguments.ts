@@ -14,33 +14,27 @@ import {
 } from './utils';
 
 type Parameters<T extends 'default' | 'withDefaults' = 'default'> = {
-  async?: boolean;
-  asyncBuildIndex?: number;
   token?: string;
   android?: string;
   ios?: string;
+  remoteExpo?: boolean;
+  async?: boolean;
+  asyncBuildIndex?: number;
   gitInfo?: Build['gitInfo']; // Can be passed only in GitHub Action
-} & (T extends 'withDefaults'
-  ? {
-      config: string;
-      projectRoot: string;
-    }
-  : {
-      config?: string;
-      projectRoot?: string;
-    });
+} & (T extends 'withDefaults' ? ParameterDefaults : Partial<ParameterDefaults>);
+type ParameterDefaults = { config: string; projectRoot: string };
 
 type Arguments = SyncArguments | AsyncInitArguments | AsyncUploadArguments;
 type SyncArguments = {
   mode: 'sync';
   token: string;
-  config: Config<'withPaths'>;
+  config: Config<'withBuildPaths'>;
   gitInfo: Build['gitInfo'];
 };
 type AsyncInitArguments = {
-  mode: 'asyncInit';
+  mode: 'asyncInit' | 'remoteExpo';
   token: string;
-  config: Config<'withoutPaths'>;
+  config: Config<'withoutBuildPaths'>;
   gitInfo: Build['gitInfo'];
   projectRoot: string;
 };
@@ -53,53 +47,57 @@ type AsyncUploadArguments = {
 };
 
 function getArguments(githubActionParameters?: Parameters): Arguments {
-  const parameters = githubActionParameters ?? program.parse(process.argv).opts();
-  const updatedParameters = updateParameters(parameters);
+  const params = githubActionParameters ?? command.parse(process.argv).opts();
+  const parameters = applyParameterDefaults(params);
 
-  const config = parseConfigFile(updatedParameters.config);
-  const updatedConfig = updateConfig(config, updatedParameters);
+  const configPath = nodePath.resolve(parameters.projectRoot, parameters.config);
+  const configFile = parseConfigFile(configPath);
+  const config = getConfig(configFile, parameters);
 
   let mode: Mode = 'sync';
-  if (updatedParameters.async && !updatedParameters.asyncBuildIndex) {
+  if (parameters.remoteExpo) {
+    mode = 'remoteExpo';
+  } else if (parameters.async && !parameters.asyncBuildIndex) {
     mode = 'asyncInit';
-  } else if (updatedParameters.asyncBuildIndex) {
+  } else if (parameters.asyncBuildIndex) {
     mode = 'asyncUpload';
   }
 
-  validateConfigToken(updatedConfig);
-  const { token } = updatedConfig;
+  validateConfigToken(config);
+  const { token } = config;
 
   switch (mode) {
     case 'sync': {
-      validateConfigPlatforms(updatedConfig, 'withPaths');
-      validateConfigDevices(updatedConfig);
+      validateConfigPlatforms(config, 'withBuildPaths');
+      validateConfigDevices(config);
       // validateFilters(updatedConfig);
 
       return {
         mode,
         token,
-        config: updatedConfig as Config<'withPaths'>,
+        config: config as Config<'withBuildPaths'>,
         gitInfo: githubActionParameters?.gitInfo ?? getGitInfo(),
       } satisfies SyncArguments;
     }
 
+    case 'remoteExpo':
     case 'asyncInit': {
-      validateConfigPlatforms(updatedConfig, 'withoutPaths');
-      validateConfigDevices(updatedConfig);
+      // validateConfigPlatforms(config, 'withoutBuildPaths');
+      validateConfigDevices(config);
       // validateFilters(updatedConfig);
 
       return {
         mode,
         token,
-        config: updatedConfig as Config<'withoutPaths'>,
+        config: config as Config<'withoutBuildPaths'>,
         gitInfo: githubActionParameters?.gitInfo ?? getGitInfo(),
-        projectRoot: updatedParameters.projectRoot,
+        projectRoot: parameters.projectRoot,
       } satisfies AsyncInitArguments;
     }
 
     case 'asyncUpload': {
-      const { path, platform } = getAsyncUploadArguments(updatedParameters);
-      const { asyncBuildIndex } = updatedParameters;
+      const { path, platform } = getAsyncUploadArguments(parameters);
+      const { asyncBuildIndex } = parameters;
 
       if (!asyncBuildIndex) {
         throw new Error(
@@ -128,84 +126,64 @@ export default getArguments;
 const DEFAULT_CONFIG_PATH = 'sherlo.config.json';
 const DEFAULT_PROJECT_ROOT = '.';
 
-const program = new Command();
-
-program
-  .option('--config <path>', 'Path to Sherlo config', DEFAULT_CONFIG_PATH)
+const command = new Command();
+command
+  .option('--token <token>', 'Project token')
+  .option('--android <path>', 'Path to Android build in .apk format')
+  .option('--ios <path>', 'Path to iOS build in .app (or compressed .tar.gz / .tar) format')
+  .option('--config <path>', 'Config file path', DEFAULT_CONFIG_PATH)
+  .option('--projectRoot <path>', 'Root of the React Native project', DEFAULT_PROJECT_ROOT)
+  .option(
+    '--remoteExpo',
+    'Run Sherlo in remote Expo mode, waiting for the builds to complete on the Expo servers'
+  )
   .option(
     '--async',
-    'Run Sherlo in async mode, meaning you don’t have to provide builds immediately'
+    "Run Sherlo in async mode, meaning you don't have to provide builds immediately"
   )
-  .option('--asyncBuildIndex <number>', 'Index of build you want to update in async mode', parseInt)
   .option(
-    '--projectRoot <path>',
-    'Root of the react native project when working with monorepo',
-    DEFAULT_PROJECT_ROOT
-  )
-  .option('--token <token>', 'Sherlo project token')
-  .option('--android <path>', 'Path to Android build in .apk format')
-  .option('--ios <path>', 'Path to iOS simulator build in .app or .tar/.tar.gz file format');
+    '--asyncBuildIndex <number>',
+    'Index of build you want to update in async mode',
+    parseInt
+  );
 
-function updateParameters(parameters: Parameters): Parameters<'withDefaults'> {
-  // Set defaults if are not defined (can happen in GitHub action case)
-  const projectRoot = parameters.projectRoot ?? DEFAULT_PROJECT_ROOT;
-  const config = parameters.config ?? DEFAULT_CONFIG_PATH;
+function applyParameterDefaults(params: Parameters): Parameters<'withDefaults'> {
+  const projectRoot = params.projectRoot ?? DEFAULT_PROJECT_ROOT;
+  const config = params.config ?? DEFAULT_CONFIG_PATH;
 
-  // Update paths based on project root
   return {
-    ...parameters,
+    ...params,
     projectRoot,
-    config: nodePath.join(projectRoot, config),
-    android: parameters.android ? nodePath.join(projectRoot, parameters.android) : undefined,
-    ios: parameters.ios ? nodePath.join(projectRoot, parameters.ios) : undefined,
+    config,
   };
 }
 
-function updateConfig(
-  config: InvalidatedConfig,
-  updatedParameters: Parameters<'withDefaults'>
+function getConfig(
+  configFile: InvalidatedConfig,
+  parameters: Parameters<'withDefaults'>
 ): InvalidatedConfig {
+  const { projectRoot } = parameters;
+
   // Take token from parameters or config file
-  const token = updatedParameters.token ?? config.token;
+  const token = parameters.token ?? configFile.token;
 
   // Set a proper android path
-  let androidPath: string | undefined;
-  if (updatedParameters.android) {
-    androidPath = updatedParameters.android;
-  } else if (config.android?.path) {
-    androidPath = nodePath.join(updatedParameters.projectRoot, config.android.path);
-  }
-  const android = config.android
-    ? {
-        ...config.android,
-        path: androidPath,
-      }
-    : undefined;
+  let android = parameters.android ?? configFile.android;
+  android = android ? nodePath.resolve(projectRoot, android) : undefined;
 
   // Set a proper ios path
-  let iosPath: string | undefined;
-  if (updatedParameters.ios) {
-    iosPath = updatedParameters.ios;
-  } else if (config.ios?.path) {
-    iosPath = nodePath.join(updatedParameters.projectRoot, config.ios.path);
-  }
-  const ios = config.ios
-    ? {
-        ...config.ios,
-        path: iosPath,
-      }
-    : undefined;
+  let ios = parameters.ios ?? configFile.ios;
+  ios = ios ? nodePath.resolve(projectRoot, ios) : undefined;
 
   // Set defaults for devices
-  let { devices } = config;
-  devices = devices?.map((device) => ({
+  const devices = configFile.devices?.map((device) => ({
     ...device,
     osLanguage: device?.osLanguage ?? defaultDeviceOsLanguage,
     osTheme: device?.osTheme ?? defaultDeviceOsTheme,
   }));
 
   return {
-    ...config,
+    ...configFile,
     token,
     android,
     ios,
@@ -217,9 +195,8 @@ function getAsyncUploadArguments(parameters: Parameters): { path: string; platfo
   if (parameters.android && parameters.ios) {
     throw new Error(
       getErrorMessage({
-        type: 'default',
         message:
-          'Don\'t use "asyncBuildIndex" if you\'re providing android and ios at the same time',
+          'If you are providing both Android and iOS at the same time, use Sherlo in regular mode (without the `--async` flag)',
       })
     );
   }
@@ -227,7 +204,6 @@ function getAsyncUploadArguments(parameters: Parameters): { path: string; platfo
   if (!parameters.android && !parameters.ios) {
     throw new Error(
       getErrorMessage({
-        type: 'default',
         message: 'When using "asyncBuildIndex" you need to provide one build path, ios or android',
       })
     );
