@@ -1,7 +1,8 @@
 import { Build } from '@sherlo/api-types';
 import SDKApiClient from '@sherlo/sdk-client';
-import { getErrorMessage, getTokenParts } from '../utils';
+import { docsLink } from '../constants';
 import { Config } from '../types';
+import { getConfigErrorMessage, getErrorMessage, getTokenParts } from '../utils';
 import {
   getAppBuildUrl,
   getBuildRunConfig,
@@ -23,6 +24,24 @@ async function syncMode({
   const client = SDKApiClient(apiToken);
 
   const platformsToTest = getPlatformsToTest(config);
+
+  if (platformsToTest.includes('android') && !config.android) {
+    throw new Error(
+      getConfigErrorMessage(
+        'path to the Android build is not provided, despite at least one Android testing device having been defined',
+        docsLink.configAndroid
+      )
+    );
+  }
+
+  if (platformsToTest.includes('ios') && !config.ios) {
+    throw new Error(
+      getConfigErrorMessage(
+        'path to the iOS build is not provided, despite at least one iOS testing device having been defined',
+        docsLink.configAndroid
+      )
+    );
+  }
 
   const buildUploadUrls = await getBuildUploadUrls(client, {
     platforms: platformsToTest,

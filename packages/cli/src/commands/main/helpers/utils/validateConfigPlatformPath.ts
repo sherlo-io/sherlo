@@ -1,7 +1,7 @@
 import { Platform } from '@sherlo/api-types';
 import fs from 'fs';
 import { docsLink, iOSFileTypes } from '../../constants';
-import getConfigErrorMessage from './getConfigErrorMessage';
+import { getConfigErrorMessage } from '../../utils';
 
 const learnMoreLink: { [platform in Platform]: string } = {
   android: docsLink.configAndroid,

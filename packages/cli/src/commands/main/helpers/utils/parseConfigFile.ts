@@ -1,8 +1,7 @@
 import fs from 'fs';
 import { docsLink } from '../../constants';
 import { InvalidatedConfig } from '../../types';
-import { getErrorMessage } from '../../utils';
-import getConfigErrorMessage from './getConfigErrorMessage';
+import { getConfigErrorMessage, getErrorMessage } from '../../utils';
 
 /*
  * 1. Both `include` and `exclude` can be defined as a string or an array of
