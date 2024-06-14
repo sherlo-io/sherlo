@@ -15,7 +15,7 @@
   },
   "main": "release/index.js",
   "scripts": {
-    "build": "tsc && npx @vercel/ncc build -o release"
+    "build-skip": "tsc && npx @vercel/ncc build -o release"
   },
   "keywords": [
     "github",

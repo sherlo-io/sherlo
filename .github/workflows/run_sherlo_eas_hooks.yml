@@ -21,7 +21,7 @@ jobs:
         run: yarn
 
       - name: Build dependencies
-        run: yarn build
+        run: yarn switch-env:dev
 
       - name: Setup EAS
         uses: expo/expo-github-action@v8

@@ -43,7 +43,7 @@ jobs:
         run: yarn
 
       - name: Build dependencies
-        run: yarn build
+        run: yarn switch-env:dev
 
       - name: Run Sherlo Action in async mode
         id: sherlo_action # This ID is used to reference the output

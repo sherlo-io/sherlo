@@ -56,7 +56,7 @@ jobs:
     needs: [android_preview_build, ios_preview_build]
     strategy:
       matrix:
-        node-version: ${{ fromJson(github.event.inputs.test_all_nodes && '["18.18.0", "20.20.0", "22.0.0"]' || '["18.18.0"]') }}
+        node-version: ${{ fromJson(github.event.inputs.test_all_nodes && '["18.18.0", "20.11.0"]' || '["18.18.0", "20.11.0"]') }}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -71,7 +71,7 @@ jobs:
         run: yarn
 
       - name: Build dependencies
-        run: yarn build
+        run: yarn switch-env:dev
 
       - name: Download Android Artifact
         uses: actions/download-artifact@v2
