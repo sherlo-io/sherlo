@@ -1,7 +1,7 @@
 import { Platform } from '@sherlo/api-types';
 import fs from 'fs';
 import { docsLink, iOSFileTypes } from '../../constants';
-import getConfigErrorMessage from './getConfigErrorMessage';
+import { getConfigErrorMessage } from '../../utils';
 
 const learnMoreLink: { [platform in Platform]: string } = {
   android: docsLink.configAndroid,
@@ -16,17 +16,14 @@ const fileType: { [platformName in Platform]: readonly string[] } = {
 function validateConfigPlatformPath(path: string | undefined, platform: Platform): void {
   if (!path || typeof path !== 'string') {
     throw new Error(
-      getConfigErrorMessage(
-        `for ${platform}, path must be a defined string`,
-        learnMoreLink[platform]
-      )
+      getConfigErrorMessage(`${platform} must be a defined string`, learnMoreLink[platform])
     );
   }
 
   if (!fs.existsSync(path) || !hasValidExtension({ path, platform })) {
     throw new Error(
       getConfigErrorMessage(
-        `for ${platform}, path must be a valid ${formatValidFileTypes(platform)} file`,
+        `${platform} must be a valid ${formatValidFileTypes(platform)} file`,
         learnMoreLink[platform]
       )
     );

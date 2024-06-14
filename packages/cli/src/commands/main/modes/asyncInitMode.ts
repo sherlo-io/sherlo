@@ -1,20 +1,30 @@
 import { Build } from '@sherlo/api-types';
 import SDKApiClient from '@sherlo/sdk-client';
+import fs from 'fs';
+import path from 'path';
+import { docsLink } from '../constants';
 import { getErrorMessage, getTokenParts } from '../utils';
 import { Config } from '../types';
-import { createExpoSherloTempFile, getAppBuildUrl, getBuildRunConfig } from './utils';
+import { getAppBuildUrl, getBuildRunConfig } from './utils';
 
-async function asyncInitMode({
-  token,
-  config,
-  gitInfo,
-  projectRoot,
-}: {
-  token: string;
-  config: Config<'withoutPaths'>;
-  gitInfo: Build['gitInfo'];
-  projectRoot: string;
-}): Promise<{ buildIndex: number; url: string }> {
+async function asyncInitMode(
+  {
+    token,
+    config,
+    gitInfo,
+    projectRoot,
+  }: {
+    token: string;
+    config: Config<'withoutBuildPaths'>;
+    gitInfo: Build['gitInfo'];
+    projectRoot: string;
+  },
+  isExpoRemoteMode: boolean
+): Promise<{ buildIndex: number; url: string }> {
+  if (isExpoRemoteMode) {
+    validateEasBuildOnSuccessScript(projectRoot);
+  }
+
   const { apiToken, projectIndex, teamId } = getTokenParts(token);
   const client = SDKApiClient(apiToken);
 
@@ -22,7 +32,7 @@ async function asyncInitMode({
     .openBuild({
       teamId,
       projectIndex,
-      gitInfo: gitInfo,
+      gitInfo,
       asyncUpload: true,
       buildRunConfig: getBuildRunConfig({ config }),
     })
@@ -33,7 +43,9 @@ async function asyncInitMode({
   const buildIndex = build.index;
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
-  createExpoSherloTempFile({ projectRoot, buildIndex, url, token });
+  if (isExpoRemoteMode) {
+    createExpoSherloTempFile({ buildIndex, projectRoot, token, url });
+  }
 
   console.log(
     `Sherlo is awaiting your builds to be uploaded asynchronously.\nBuild index is ${buildIndex}.\n`
@@ -43,3 +55,55 @@ async function asyncInitMode({
 }
 
 export default asyncInitMode;
+
+/* ========================================================================== */
+
+function validateEasBuildOnSuccessScript(projectRoot: string): void {
+  const packageJsonPath = path.resolve(projectRoot, 'package.json');
+  if (!fs.existsSync(packageJsonPath)) {
+    throw new Error(
+      getErrorMessage({
+        message: `package.json file not found at location "${projectRoot}"; make sure the directory is correct or pass the \`--projectRoot\` flag to the script`,
+        learnMoreLink: docsLink.scriptFlags,
+      })
+    );
+  }
+
+  const packageJsonData = fs.readFileSync(packageJsonPath, 'utf8');
+  const packageJson = JSON.parse(packageJsonData);
+
+  if (!packageJson.scripts || !packageJson.scripts['eas-build-on-success']) {
+    throw new Error(
+      getErrorMessage({
+        message: '"eas-build-on-success" script is not defined in package.json',
+        learnMoreLink: docsLink.remoteExpoBuilds,
+      })
+    );
+  }
+}
+
+function createExpoSherloTempFile({
+  projectRoot,
+  buildIndex,
+  url,
+  token,
+}: {
+  projectRoot: string;
+  buildIndex: number;
+  token: string;
+  url: string;
+}): void {
+  const expoDir = path.resolve(projectRoot, '.expo');
+
+  // Check if the directory exists
+  if (!fs.existsSync(expoDir)) {
+    // If the directory does not exist, create it
+    fs.mkdirSync(expoDir, { recursive: true });
+  }
+
+  // Now that we've ensured the directory exists, write the file
+  fs.writeFileSync(
+    path.resolve(expoDir, 'sherlo.json'),
+    JSON.stringify({ buildIndex, token, url })
+  );
+}

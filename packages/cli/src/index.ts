@@ -1,1 +1,1 @@
-export { default as main } from './commands/main';
+export { main } from './commands';

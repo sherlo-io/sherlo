@@ -7,31 +7,33 @@ function getBuildRunConfig({
   config,
 }: {
   buildPresignedUploadUrls?: GetBuildUploadUrlsReturn['buildPresignedUploadUrls'];
-  config: Config<'withPaths'> | Config<'withoutPaths'>;
+  config: Config<'withBuildPaths'> | Config<'withoutBuildPaths'>;
 }): BuildRunConfig {
-  const { android, ios, devices, include, exclude } = config;
+  const { devices, include, exclude } = config;
 
-  const androidDevices = getConvertedDevices(devices, 'android');
-  const iosDevices = getConvertedDevices(devices, 'ios');
+  const androidDevices = getPlatformDevices(devices, 'android');
+  const iosDevices = getPlatformDevices(devices, 'ios');
 
   return {
     include,
     exclude,
-    android: android
-      ? {
-          devices: androidDevices,
-          packageName: android.packageName || '',
-          activity: android.activity,
-          s3Key: buildPresignedUploadUrls?.android?.s3Key || '',
-        }
-      : undefined,
-    ios: ios
-      ? {
-          devices: iosDevices,
-          bundleIdentifier: ios.bundleIdentifier || '',
-          s3Key: buildPresignedUploadUrls?.ios?.s3Key || '',
-        }
-      : undefined,
+    android:
+      androidDevices.length > 0
+        ? {
+            devices: androidDevices,
+            // packageName: android.packageName,
+            // activity: android.activity,
+            s3Key: buildPresignedUploadUrls?.android?.s3Key || '',
+          }
+        : undefined,
+    ios:
+      iosDevices.length > 0
+        ? {
+            devices: iosDevices,
+            // bundleIdentifier: ios.bundleIdentifier,
+            s3Key: buildPresignedUploadUrls?.ios?.s3Key || '',
+          }
+        : undefined,
   };
 }
 
@@ -39,8 +41,8 @@ export default getBuildRunConfig;
 
 /* ========================================================================== */
 
-function getConvertedDevices(devices: Config['devices'], platform: Platform): Device[] {
-  return devices
+function getPlatformDevices(configDevices: Config['devices'], platform: Platform): Device[] {
+  return configDevices
     .filter(({ id }) => sherloDevices[id]?.os === platform)
     .map((device) => ({
       id: device.id,
