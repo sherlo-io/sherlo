@@ -1,7 +1,7 @@
 import { Platform } from '@sherlo/api-types';
 import SDKApiClient from '@sherlo/sdk-client';
-import { getErrorMessage, getTokenParts } from '../utils';
-import { getAppBuildUrl, getBuildUploadUrls, uploadMobileBuilds } from './utils';
+import { getTokenParts } from '../utils';
+import { getAppBuildUrl, getBuildUploadUrls, uploadMobileBuilds, handleClientError } from './utils';
 
 async function asyncUploadMode({
   token,
@@ -39,9 +39,7 @@ async function asyncUploadMode({
       androidS3Key: buildUploadUrls.android?.s3Key,
       iosS3Key: buildUploadUrls.ios?.s3Key,
     })
-    .catch((error) => {
-      throw new Error(getErrorMessage({ type: 'unexpected', message: error.message }));
-    });
+    .catch(handleClientError);
 
   return { buildIndex, url };
 }

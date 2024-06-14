@@ -2,13 +2,14 @@ import { Build } from '@sherlo/api-types';
 import SDKApiClient from '@sherlo/sdk-client';
 import { docsLink } from '../constants';
 import { Config } from '../types';
-import { getConfigErrorMessage, getErrorMessage, getTokenParts } from '../utils';
+import { getConfigErrorMessage, getTokenParts } from '../utils';
 import {
   getAppBuildUrl,
   getBuildRunConfig,
   getBuildUploadUrls,
   getPlatformsToTest,
   uploadMobileBuilds,
+  handleClientError,
 } from './utils';
 
 async function syncMode({
@@ -67,9 +68,7 @@ async function syncMode({
         buildPresignedUploadUrls: buildUploadUrls,
       }),
     })
-    .catch((error) => {
-      throw new Error(getErrorMessage({ type: 'unexpected', message: error.message }));
-    });
+    .catch(handleClientError);
 
   const buildIndex = build.index;
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
