@@ -22,6 +22,8 @@ jobs:
 
       - name: Build dependencies
         run: yarn switch-env:dev
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Setup EAS
         uses: expo/expo-github-action@v8

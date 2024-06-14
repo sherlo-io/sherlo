@@ -72,6 +72,8 @@ jobs:
 
       - name: Build dependencies
         run: yarn switch-env:dev
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Download Android Artifact
         uses: actions/download-artifact@v2
