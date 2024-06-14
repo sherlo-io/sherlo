@@ -1,0 +1,13 @@
+{
+  "token": "dEM3XuKI5xX_yEMkkeVzbipjSCwXfkFPByOmN9tT3",
+  "android": "builds/preview/android.apk",
+  "ios": "builds/preview/ios.tar.gz",
+  "devices": [
+    {
+      "id": "pixel.7.pro",
+      "osVersion": "13",
+      "osLanguage": "en_US",
+      "osTheme": "light"
+    }
+  ]
+}

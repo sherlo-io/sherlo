@@ -1,5 +1,5 @@
-import { addons } from '@storybook/manager-api';
-import React, { useRef } from 'react';
+/* import { addons } from '@storybook/manager-api';
+import { useRef } from 'react';
 import AddonPanel from '../components/AddonPanel';
 
 const PANEL_TITLE = 'Sherlo';
@@ -28,3 +28,4 @@ const useAddon = ({ onPreviewStoryPress }: RegisterAddonInput): void => {
 };
 
 export default useAddon;
+ */
