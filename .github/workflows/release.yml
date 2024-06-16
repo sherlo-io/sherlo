@@ -40,7 +40,7 @@ jobs:
         run: npx lerna version $NEW_VERSION_NUMBER --yes --no-git-tag-version --no-push
 
       - name: Build packages
-        run: yarn build
+        run: yarn switch-env:dev
 
       - name: Commit and push updated files
         uses: EndBug/add-and-commit@v7

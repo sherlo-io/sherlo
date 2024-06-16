@@ -85,7 +85,7 @@ jobs:
         run: yarn
 
       - name: Build dependencies
-        run: yarn build
+        run: yarn switch-env:dev
 
       - name: Download Android Artifact
         uses: actions/download-artifact@v2
@@ -131,7 +131,7 @@ jobs:
         run: yarn
 
       - name: Build dependencies
-        run: yarn build
+        run: yarn switch-env:dev
 
       - name: Download iOS Artifact
         uses: actions/download-artifact@v2

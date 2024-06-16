@@ -39,7 +39,7 @@ jobs:
 
       - name: Build dependencies
         if: ${{ !inputs.skip_build }}
-        run: yarn build
+        run: yarn switch-env:dev
 
       - name: Setup EAS
         if: ${{ !inputs.skip_build }}
