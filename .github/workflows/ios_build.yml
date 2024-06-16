@@ -49,6 +49,8 @@ jobs:
       - name: Build dependencies
         if: ${{ !inputs.skip_build }}
         run: yarn switch-env:dev
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Setup EAS
         if: ${{ !inputs.skip_build }}

@@ -41,6 +41,8 @@ jobs:
 
       - name: Build packages
         run: yarn switch-env:dev
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Commit and push updated files
         uses: EndBug/add-and-commit@v7
