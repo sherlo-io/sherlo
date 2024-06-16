@@ -125,6 +125,7 @@ async function uploadFile({
 
   const platformLabelValue = platformLabel[platform];
 
+  console.log('uploadFile', { platform, iosFileType, fileDataByteLength: fileData.byteLength });
   console.log(`${chalk.blue('→')} Started ${platformLabelValue} upload`);
 
   const response = await fetch(uploadUrl, {
