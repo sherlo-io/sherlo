@@ -7,6 +7,7 @@
     "path": "./builds/preview/ios.tar.gz",
     "bundleIdentifier": "com.sherlo.example"
   },
+  "include": ["components/screens/"],
   "devices": [
     {
       "id": "pixel.6a",

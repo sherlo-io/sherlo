@@ -7,6 +7,7 @@
     "path": "./builds/storybook/ios.tar.gz",
     "bundleIdentifier": "com.sherlo.example"
   },
+  "include": ["components/screens/"],
   "devices": [
     {
       "id": "pixel.tablet",
