@@ -56,11 +56,6 @@ jobs:
         working-directory: examples/expo-example
         run: eas build --platform android --local --profile=${{ inputs.profile }} --output=builds/${{ inputs.profile }}/android.apk
 
-      - name: Echo Directory Path
-        run: |
-          echo "Directory Path: examples/expo-example/builds/${{ inputs.profile }}"
-          ls -la examples/expo-example/builds/${{ inputs.profile }}
-
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v2
         with:
