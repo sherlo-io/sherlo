@@ -22,7 +22,7 @@ const TabComponent: React.FC<TabComponentProps> = ({ activePage, setActivePage }
   return (
     <>
       <TabBar goToPage={goToPage} activePage={activePage} />
-      <Tabs pagerRef={pagerRef} handlePageChange={handlePageChange} />
+      <Tabs pagerRef={pagerRef} handlePageChange={handlePageChange} initialPage={activePage} />
     </>
   );
 };

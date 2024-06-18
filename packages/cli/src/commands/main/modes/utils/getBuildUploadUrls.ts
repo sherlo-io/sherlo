@@ -1,7 +1,6 @@
 import SDKApiClient from '@sherlo/sdk-client/dist/sdkClient';
 import { GetBuildUploadUrlsRequest, GetBuildUploadUrlsReturn } from '@sherlo/api-types';
-import { getErrorMessage } from '../../utils';
-import { docsLink } from '../../constants';
+import handleClientError from './handleClientError';
 
 async function getBuildUploadUrls(
   client: ReturnType<typeof SDKApiClient>,
@@ -9,19 +8,7 @@ async function getBuildUploadUrls(
 ): Promise<GetBuildUploadUrlsReturn['buildPresignedUploadUrls']> {
   const { buildPresignedUploadUrls } = await client
     .getBuildUploadUrls(getBuildUploadUrlsRequest)
-    .catch((error) => {
-      if (error.networkError.statusCode === 401) {
-        throw new Error(
-          getErrorMessage({
-            type: 'auth',
-            message: 'token is invalid',
-            learnMoreLink: docsLink.configToken,
-          })
-        );
-      }
-
-      throw new Error(getErrorMessage({ type: 'unexpected', message: error.message }));
-    });
+    .catch(handleClientError);
 
   return buildPresignedUploadUrls;
 }

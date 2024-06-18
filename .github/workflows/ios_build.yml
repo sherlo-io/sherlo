@@ -19,6 +19,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.ref }}
+          lfs: true
 
       - name: Set up Node.js
         if: ${{ !inputs.skip_build }}
@@ -48,7 +49,9 @@ jobs:
 
       - name: Build dependencies
         if: ${{ !inputs.skip_build }}
-        run: yarn build
+        run: yarn switch-env:dev
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Setup EAS
         if: ${{ !inputs.skip_build }}

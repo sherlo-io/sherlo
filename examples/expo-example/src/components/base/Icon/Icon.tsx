@@ -9,6 +9,7 @@ import PlusBoxIcon from './Icons/PlusBoxIcon';
 import SplotchIcon from './Icons/SplotchIcon';
 import PlusIcon from './Icons/PlusIcon';
 import MinusIcon from './Icons/MinusIcon';
+import { dimensions } from 'theme/dimensions';
 
 export interface IconProps {
   name:
@@ -31,13 +32,13 @@ const Icon = ({ name, size, isActive }: IconProps) => {
 
   switch (size) {
     case 'small':
-      sizePx = 16;
+      sizePx = dimensions.iconsSizeSmall;
       break;
     case 'medium':
-      sizePx = 22;
+      sizePx = dimensions.iconsSizeMedium;
       break;
     case 'big':
-      sizePx = 27;
+      sizePx = dimensions.iconsSizeBig;
       break;
   }
 

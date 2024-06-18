@@ -1,6 +1,7 @@
 import { Snapshot } from '../types';
 
 export type RunnerState = {
+  filteredSnapshots: Snapshot[];
   snapshotIndex: number;
   updateTimestamp: number;
   retry?: boolean;
@@ -31,12 +32,15 @@ export type AppProtocolItem =
       hasError?: boolean;
     };
 
-export type RunnerProtocolItem =
-  | {
-      action: 'ACK_START';
-      nextSnapshotIndex: number;
-    }
-  | {
-      action: 'ACK_REQUEST_SNAPSHOT';
-      nextSnapshotIndex: number;
-    };
+export type AckStartProtocolItem = {
+  action: 'ACK_START';
+  filteredSnapshots: Snapshot[];
+  nextSnapshotIndex: number;
+};
+
+export type AckRequestSnapshotProtocolItem = {
+  action: 'ACK_REQUEST_SNAPSHOT';
+  nextSnapshotIndex: number;
+};
+
+export type RunnerProtocolItem = AckStartProtocolItem | AckRequestSnapshotProtocolItem;

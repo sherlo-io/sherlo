@@ -14,7 +14,6 @@ function useOriginalMode(
       const snpashots = prepareSnapshots({
         view,
         splitByMode: false,
-        dontFilter: true,
       });
 
       setSnapshots(snpashots);

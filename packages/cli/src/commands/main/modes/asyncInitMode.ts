@@ -5,7 +5,7 @@ import path from 'path';
 import { docsLink } from '../constants';
 import { getErrorMessage, getTokenParts } from '../utils';
 import { Config } from '../types';
-import { getAppBuildUrl, getBuildRunConfig } from './utils';
+import { getAppBuildUrl, getBuildRunConfig, handleClientError } from './utils';
 
 async function asyncInitMode(
   {
@@ -36,9 +36,7 @@ async function asyncInitMode(
       asyncUpload: true,
       buildRunConfig: getBuildRunConfig({ config }),
     })
-    .catch((error) => {
-      throw new Error(getErrorMessage({ type: 'unexpected', message: error.message }));
-    });
+    .catch(handleClientError);
 
   const buildIndex = build.index;
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });

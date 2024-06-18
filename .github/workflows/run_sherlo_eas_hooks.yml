@@ -2,8 +2,8 @@ name: Run Sherlo with EAS hooks
 
 on:
   pull_request:
-    branches: [ dev ]
-    types: [ labeled ]
+    branches: [dev]
+    types: [labeled]
   workflow_call:
   workflow_dispatch:
 
@@ -21,7 +21,9 @@ jobs:
         run: yarn
 
       - name: Build dependencies
-        run: yarn build
+        run: yarn switch-env:dev
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Setup EAS
         uses: expo/expo-github-action@v8
@@ -35,6 +37,7 @@ jobs:
         uses: ./.
         with:
           projectRoot: examples/expo-example
+          config: ../../configs/eas.preview.json
           async: true
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN_EAS }}

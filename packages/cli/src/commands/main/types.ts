@@ -12,6 +12,8 @@ export type Config<CM extends ConfigMode = 'withBuildPaths'> = CM extends 'withB
 
 type BaseConfig = {
   token: string;
+  include?: string[];
+  exclude?: string[];
   devices: {
     id: DeviceID;
     osVersion: string;

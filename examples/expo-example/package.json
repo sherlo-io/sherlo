@@ -18,7 +18,10 @@
     "ios:start:dev": "tar -xzvf builds/development/ios.tar.gz -C builds/ && xcrun simctl install booted builds/sherloexpoexample.app && expo start --ios --dev-client",
     "ios:start:go": "expo start --ios --go",
     "sherlo": "sherlo",
-    "sherlo:storybookOnly": "sherlo --config sherlo.storybookOnly.json",
+    "sherlo:async": "sherlo --config ../../configs/demo.storybook.json",
+    "sherlo:demo": "sherlo --config ../../configs/demo.preview.json",
+    "sherlo:eas": "sherlo --config ../../configs/eas.preview.json",
+    "sherlo:sync": "sherlo --config ../../configs/sync.preview.json",
     "storybook:web": "storybook dev -p 6006 -c .storybook-web",
     "storybook:native:generate": "sb-rn-get-stories --config-path .storybook"
   },

@@ -4,6 +4,7 @@ import { Snapshot } from '../../../types';
 import { prepareSnapshots } from '../utils';
 import { start } from '@storybook/react-native';
 import { SherloMode } from '../withSherlo';
+import { AckStartProtocolItem } from '../../../runnerBridge/types';
 
 function useTestingMode(
   view: ReturnType<typeof start>,
@@ -21,58 +22,50 @@ function useTestingMode(
       checkForTestingStories();
     }, 500);
 
-    const checkForTestingStories = () => {
+    const checkForTestingStories = async () => {
       if (mode === 'testing' && Object.keys(view._idToPrepared).length > 0) {
         clearInterval(inter);
         setStoriesSet(true);
 
-        bridge.getConfig().then(async (config) => {
-          const { exclude, include } = config;
-
-          bridge.log('config parsing succeeded', {
-            exclude,
-            include,
-          });
-
-          const snapshots = prepareSnapshots({
-            view,
-            include,
-            exclude,
-            splitByMode: true,
-          });
-
-          bridge.log('snapshots prepared', {
-            snapshotsCount: snapshots.length,
-          });
-
-          let initialSelectionIndex: number | undefined;
-          let state;
-
-          try {
-            state = await bridge.getState();
-            initialSelectionIndex = state.snapshotIndex;
-
-            bridge.log('existing state', {
-              state,
-            });
-          } catch (error) {
-            // no state found
-          }
-
-          if (initialSelectionIndex === undefined) {
-            await bridge.create();
-
-            const startResponse = await bridge.send({
-              action: 'START',
-              snapshots,
-            });
-
-            initialSelectionIndex = startResponse.nextSnapshotIndex;
-          }
-
-          setTestedIndex(initialSelectionIndex);
-          setSnapshots(snapshots);
+        const snapshots = prepareSnapshots({
+          view,
+          splitByMode: true,
         });
+
+        bridge.log('snapshots prepared', {
+          snapshotsCount: snapshots.length,
+        });
+
+        let initialSelectionIndex: number | undefined;
+        let filteredSnapshots: Snapshot[] | undefined;
+        let state;
+
+        try {
+          state = await bridge.getState();
+          initialSelectionIndex = state.snapshotIndex;
+          filteredSnapshots = state.filteredSnapshots;
+
+          bridge.log('existing state', {
+            state,
+          });
+        } catch (error) {
+          // no state found
+        }
+
+        if (initialSelectionIndex === undefined || filteredSnapshots === undefined) {
+          await bridge.create();
+
+          const startResponse = (await bridge.send({
+            action: 'START',
+            snapshots,
+          })) as AckStartProtocolItem;
+
+          initialSelectionIndex = startResponse.nextSnapshotIndex;
+          filteredSnapshots = startResponse.filteredSnapshots;
+        }
+
+        setTestedIndex(initialSelectionIndex);
+        setSnapshots(filteredSnapshots);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

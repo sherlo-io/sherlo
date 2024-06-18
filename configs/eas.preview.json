@@ -1,0 +1,85 @@
+{
+  "android": "builds/preview/android.apk",
+  "ios": "builds/preview/ios.tar.gz",
+  "include": ["components/screens/"],
+  "devices": [
+    {
+      "id": "pixel.6a",
+      "osVersion": "13",
+      "osLanguage": "en_US",
+      "osTheme": "light"
+    },
+    {
+      "id": "pixel.6",
+      "osVersion": "13",
+      "osLanguage": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "pixel.6.pro",
+      "osVersion": "13",
+      "osLanguage": "fr_FR",
+      "osTheme": "dark"
+    },
+    {
+      "id": "pixel.7",
+      "osVersion": "13",
+      "osLanguage": "en_US",
+      "osTheme": "light"
+    },
+    {
+      "id": "pixel.7.pro",
+      "osVersion": "13",
+      "osLanguage": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.13.mini",
+      "osVersion": "15"
+    },
+    {
+      "id": "iphone.13.mini",
+      "osVersion": "16"
+    },
+    {
+      "id": "iphone.13.mini",
+      "osVersion": "17"
+    },
+    {
+      "id": "iphone.13.pro.max",
+      "osVersion": "15"
+    },
+    {
+      "id": "iphone.13.pro.max",
+      "osVersion": "16"
+    },
+    {
+      "id": "iphone.13.pro.max",
+      "osVersion": "17"
+    },
+    {
+      "id": "iphone.13.pro",
+      "osVersion": "15"
+    },
+    {
+      "id": "iphone.13.pro",
+      "osVersion": "16"
+    },
+    {
+      "id": "iphone.13.pro",
+      "osVersion": "17"
+    },
+    {
+      "id": "iphone.13",
+      "osVersion": "15"
+    },
+    {
+      "id": "iphone.13",
+      "osVersion": "16"
+    },
+    {
+      "id": "iphone.13",
+      "osVersion": "17"
+    }
+  ]
+}

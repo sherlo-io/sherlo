@@ -9,14 +9,14 @@ function getBuildRunConfig({
   buildPresignedUploadUrls?: GetBuildUploadUrlsReturn['buildPresignedUploadUrls'];
   config: Config<'withBuildPaths'> | Config<'withoutBuildPaths'>;
 }): BuildRunConfig {
-  const { devices } = config;
+  const { devices, include, exclude } = config;
 
   const androidDevices = getPlatformDevices(devices, 'android');
   const iosDevices = getPlatformDevices(devices, 'ios');
 
   return {
-    // include,
-    // exclude,
+    include,
+    exclude,
     android:
       androidDevices.length > 0
         ? {

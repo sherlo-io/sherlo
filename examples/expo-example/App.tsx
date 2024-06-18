@@ -59,6 +59,8 @@ export default function App() {
   if (process.env.EXPO_PUBLIC_STORYBOOK_ONLY === 'true') {
     const Storybook = require('./.storybook').default;
     EntryPoint = Storybook;
+  } else if (process.env.PROD_BUILD === 'true') {
+    EntryPoint = App;
   } else {
     const Storybook = require('./.storybook').default;
     EntryPoint = withStorybook(App, Storybook);
