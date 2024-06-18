@@ -1,12 +1,6 @@
 {
-  "android": {
-    "path": "builds/preview/android.apk",
-    "packageName": "com.sherlo.example"
-  },
-  "ios": {
-    "path": "./builds/preview/ios.tar.gz",
-    "bundleIdentifier": "com.sherlo.example"
-  },
+  "android": "builds/preview/android.apk",
+  "ios": "builds/preview/ios.tar.gz",
   "include": ["components/screens/"],
   "devices": [
     {

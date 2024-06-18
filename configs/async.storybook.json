@@ -1,12 +1,6 @@
 {
-  "android": {
-    "path": "builds/storybook/android.apk",
-    "packageName": "com.sherlo.example"
-  },
-  "ios": {
-    "path": "./builds/storybook/ios.tar.gz",
-    "bundleIdentifier": "com.sherlo.example"
-  },
+  "android": "builds/storybook/android.apk",
+  "ios": "builds/storybook/ios.tar.gz",
   "include": ["components/screens/"],
   "devices": [
     {
