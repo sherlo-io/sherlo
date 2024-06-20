@@ -1,4 +1,4 @@
-export { default as useAddon } from './useAddon';
+// export { default as useAddon } from './useAddon';
 export { default as useKeyboardStatusEffect } from './useKeyboardStatusEffect';
 export { default as useOriginalMode } from './useOriginalMode';
 export { default as usePreviewMode } from './usePreviewMode';

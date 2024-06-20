@@ -2,14 +2,12 @@ import { NativeModules, Platform } from 'react-native';
 import base64 from 'base-64';
 import utf8 from 'utf8';
 
-import { normalizeFilePath } from './utils/normalizeFilePath';
-
 let isExpoGo = false;
 try {
-  const Constants = require('expo-constants');
+  const Constants = require('expo-constants').default;
   isExpoGo = Constants?.default?.appOwnership === 'expo';
 } catch (error) {
-  // Optional module is not installed.
+  // Optional module is not installed
 }
 
 const { RNSherlo } = NativeModules;
@@ -34,7 +32,7 @@ if (RNSherlo === null) {
     };
   } else {
     throw new Error(
-      '@sherlo/react-natve-storybook: Sherlo native module is not accessible. Rebuild the app to link it on the native side.'
+      '@sherlo/react-native-storybook: Sherlo native module is not accessible. Rebuild the app to link it on the native side.'
     );
   }
 } else {
@@ -74,3 +72,10 @@ if (RNSherlo === null) {
 }
 
 export default sherloModule;
+
+/* ========================================================================== */
+
+const filePathPrefix = 'file://';
+function normalizeFilePath(path: string): string {
+  return path.startsWith(filePathPrefix) ? path.slice(filePathPrefix.length) : path;
+}

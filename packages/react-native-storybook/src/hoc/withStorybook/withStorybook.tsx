@@ -1,15 +1,14 @@
 import React, { ReactElement, useEffect, useState } from 'react';
 import { AppState, AppStateStatus, DevSettings, Platform } from 'react-native';
-import { TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM } from '../../data/constants';
+import runnerBridge from '../../runnerBridge';
 import { StorybookParams } from '../../types';
 import ModeProvider from './ModeProvider';
-import runnerBridge from '../../runnerBridge/runnerBridge';
 
 let ExpoDevMenu: any;
 try {
   ExpoDevMenu = require('expo-dev-menu');
 } catch (error) {
-  // Do nothing
+  // Optional module is not installed
 }
 
 const MODE_STORAGE_KEY = 'sherloPersistedMode';
@@ -91,6 +90,8 @@ export default withStorybook;
 
 /* ========================================================================== */
 
+const TOGGLE_STORYBOOK_DEV_MENU_ITEM_NAME = 'Toggle Storybook';
+
 function addToggleStorybookToDevMenu({
   setMode,
   storage,
@@ -113,12 +114,11 @@ function addToggleStorybookToDevMenu({
   if (ExpoDevMenu) {
     ExpoDevMenu.registerDevMenuItems([
       {
-        name: TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM,
-        toggleBetweenAppAndStorybook,
-        shouldCollapse: false,
+        name: TOGGLE_STORYBOOK_DEV_MENU_ITEM_NAME,
+        callback: toggleBetweenAppAndStorybook,
       },
     ]);
   }
 
-  DevSettings.addMenuItem(TOGGLE_STORYBOOK_DEV_SETTINGS_MENU_ITEM, toggleBetweenAppAndStorybook);
+  DevSettings.addMenuItem(TOGGLE_STORYBOOK_DEV_MENU_ITEM_NAME, toggleBetweenAppAndStorybook);
 }

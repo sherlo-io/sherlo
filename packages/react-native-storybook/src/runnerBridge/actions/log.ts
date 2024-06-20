@@ -15,7 +15,8 @@ const log =
 
     const logMsg = `${time}: ${key}${parameters ? ` : ${JSON.stringify(parameters)}` : ''}\n`;
 
-    console.log(`${logMsg}\n`);
+    if (!__DEV__) console.log(`${logMsg}\n`);
+
     appendFile(path, logMsg);
   };
 
