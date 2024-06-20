@@ -3920,32 +3920,32 @@
     component-type "^1.2.1"
     join-component "^1.1.0"
 
-"@sherlo/api-types@1.1.4":
-  version "1.1.4"
-  resolved "https://registry.yarnpkg.com/@sherlo/api-types/-/api-types-1.1.4.tgz#987059db8a1a472ca8fd7a2263c367dd0b3893fb"
-  integrity sha512-zL5/pZXr49j+asBUTMU2us32A2lkhxQvSPqomte8k9u+tRM+wfhYpULSMVbzRoOmiof4vJjh73R0L3Q/ITl3Fg==
+"@sherlo/api-types@1.1.5":
+  version "1.1.5"
+  resolved "https://registry.yarnpkg.com/@sherlo/api-types/-/api-types-1.1.5.tgz#4f714b0f9f9fbffc75ae563b1a3d2f808d9c1614"
+  integrity sha512-QnnCoD8MQHwhbohwRk6N2ASvxyYSCnNCr6r4HZhe2mgaDvkXJyKux9KS5uHv7rC/7NJWggMo/WuYnEskiXcqOg==
 
-"@sherlo/common-client@1.1.4":
-  version "1.1.4"
-  resolved "https://registry.yarnpkg.com/@sherlo/common-client/-/common-client-1.1.4.tgz#7c567726a8a881d79bbcffadf186ed46bb2216a4"
-  integrity sha512-1rBOxY6XmJdfsw4PoBFydEqkSWJcv7AVwkpQ+afj+Vvh+b8hMhqAJb2r+xV83YytZsfdWrQBv8IiTMo+/R9WVg==
+"@sherlo/common-client@1.1.5":
+  version "1.1.5"
+  resolved "https://registry.yarnpkg.com/@sherlo/common-client/-/common-client-1.1.5.tgz#ceb6fb4527afdfbbcdc3306091fb3477a5a9c121"
+  integrity sha512-GsmZxp0ziYqnSh+UTzO+L1207dzORkU3rBDRO0L+0z1n4I1KVWloNGP9rc5WtROV0ZoZn2PG31/AF45+8072dA==
   dependencies:
     graphql-tag "2.12.6"
 
-"@sherlo/sdk-client@1.1.4":
-  version "1.1.4"
-  resolved "https://registry.yarnpkg.com/@sherlo/sdk-client/-/sdk-client-1.1.4.tgz#3d36305b3b959ab097a7b130ef4c34b7ca7c8e05"
-  integrity sha512-1jSMlOfba/Bb5Tql9XRn/cgBLeQGR6/wKdyOUzEnx88H25NFW0qDZ3JRKL3sTblaXOz5LRWE5nn2GNkYHC7Z7g==
+"@sherlo/sdk-client@1.1.5":
+  version "1.1.5"
+  resolved "https://registry.yarnpkg.com/@sherlo/sdk-client/-/sdk-client-1.1.5.tgz#77df5e0a80afee9b1893f34cee470bf02cae2591"
+  integrity sha512-PikrH5kTV0P96VG50JuFvZ9KvtzfZebmDW//wAAv7ywMkR4x2syqwRediBh0kCI5SB/IGv0SBG4DqTkON+3f8A==
   dependencies:
     "@apollo/client" "3.7.0"
     aws-appsync-auth-link "3.0.7"
     graphql-tag "2.12.6"
     isomorphic-fetch "3.0.0"
 
-"@sherlo/shared@1.1.4":
-  version "1.1.4"
-  resolved "https://registry.yarnpkg.com/@sherlo/shared/-/shared-1.1.4.tgz#37ad911d424db8aa67312f68f65ec6f7dc62e9d5"
-  integrity sha512-EzQXht29qYFJT7wkAqlQkZtZHv/pzRBeqkS7rOsnvu0fEhdqUsnc5ZgkcNKMxnpg/vrd3/y0ANAB3o3rWe5h0Q==
+"@sherlo/shared@1.1.5":
+  version "1.1.5"
+  resolved "https://registry.yarnpkg.com/@sherlo/shared/-/shared-1.1.5.tgz#1954feb29556537f5c1f55e0f0dd05b18bbe6592"
+  integrity sha512-fcm22MQ0QKDX6tNO5gBYTWACEpGhQehXU9A7OyfVx128bgpw4fFPYOViYd5nBu8QtdOh1vAOiTluK7q7x0+Sag==
 
 "@shopify/flash-list@1.6.3":
   version "1.6.3"
