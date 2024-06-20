@@ -85,7 +85,9 @@ jobs:
         run: yarn
 
       - name: Build dependencies
-        run: yarn build
+        run: yarn switch-env:dev
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Download Android Artifact
         uses: actions/download-artifact@v2
@@ -131,7 +133,9 @@ jobs:
         run: yarn
 
       - name: Build dependencies
-        run: yarn build
+        run: yarn switch-env:dev
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Download iOS Artifact
         uses: actions/download-artifact@v2

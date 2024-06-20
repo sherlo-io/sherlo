@@ -1,11 +1,7 @@
 {
   "token": "twQUoTOqxJa5zSNQQz4z1ZrCGJAPlnEnucyN_GCY6",
-  "android": {
-    "path": "builds/preview/android.apk"
-  },
-  "ios": {
-    "path": "./builds/preview/ios.tar.gz"
-  },
+  "android": "builds/preview/android.apk",
+  "ios": "builds/preview/ios.tar.gz",
   "include": ["components/screens/"],
   "devices": [
     {
