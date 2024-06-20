@@ -1,3 +1,4 @@
+/*
 import { addons } from '@storybook/manager-api';
 import React, { useRef } from 'react';
 import AddonPanel from '../components/AddonPanel';
@@ -28,3 +29,4 @@ const useAddon = ({ onPreviewStoryPress }: RegisterAddonInput): void => {
 };
 
 export default useAddon;
+*/

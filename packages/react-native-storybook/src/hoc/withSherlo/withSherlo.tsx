@@ -7,7 +7,7 @@ import ErrorBoundary from './components/ErrorBoundry';
 import SherloContext from './contexts/SherloContext';
 import generateStorybookComponent, { StorybookRenderMode } from './generateStorybookComponent';
 import {
-  useAddon,
+  // useAddon,
   useKeyboardStatusEffect,
   useOriginalMode,
   usePreviewMode,
@@ -44,12 +44,12 @@ const withSherlo = (view: StorybookView, params?: StorybookParams) => {
       setRenderedStoryId(id);
     });
 
-    useAddon({
-      onPreviewStoryPress: () => {
-        runnerBridge.log('setting preview mode');
-        setMode('preview');
-      },
-    });
+    // useAddon({
+    //   onPreviewStoryPress: () => {
+    //     runnerBridge.log('setting preview mode');
+    //     setMode('preview');
+    //   },
+    // });
 
     useEffect(() => {
       runnerBridge

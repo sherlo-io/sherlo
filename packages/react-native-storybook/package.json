@@ -57,14 +57,8 @@
     "typescript": "^5.3.3"
   },
   "peerDependencies": {
-    "@storybook/core-events": ">=7.6.11",
     "@storybook/react-native": ">=7.6.11",
-    "react": "*",
-    "react-native": ">=0.60.0"
-  },
-  "optionalDependencies": {
-    "expo-constants": "*",
-    "expo-dev-menu": "*"
+    "react-native": ">=0.64.0"
   },
   "engines": {
     "node": ">=8.0.0"
