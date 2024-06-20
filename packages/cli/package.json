@@ -33,10 +33,10 @@
     "build": "rm -rf dist && tsc -p tsconfig.json && chmod u+x ./dist/command.js"
   },
   "dependencies": {
-    "@sherlo/api-types": "1.1.4",
-    "@sherlo/common-client": "1.1.4",
-    "@sherlo/sdk-client": "1.1.4",
-    "@sherlo/shared": "1.1.4",
+    "@sherlo/api-types": "1.1.5",
+    "@sherlo/common-client": "1.1.5",
+    "@sherlo/sdk-client": "1.1.5",
+    "@sherlo/shared": "1.1.5",
     "chalk": "4.1.2",
     "commander": "12.0.0",
     "git-rev-sync": "3.0.2",
