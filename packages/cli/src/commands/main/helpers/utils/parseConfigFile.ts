@@ -33,7 +33,7 @@ function parseConfigFile(path: string): InvalidatedConfig {
       case 'ENOENT':
         throw new Error(
           getConfigErrorMessage(
-            `config file "${path}" not found; make sure the path is correct or pass the \`--projectRoot\` flag to the script`,
+            `config file "${path}" not found - make sure the path is correct or pass the \`--projectRoot\` flag to the script`,
             docsLink.scriptFlags
           )
         );
