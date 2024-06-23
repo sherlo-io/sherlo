@@ -55,7 +55,7 @@
     "react-docgen-typescript": "2.2.2"
   },
   "engines": {
-    "node": ">=18.18.0",
+    "node": ">=10.24.1",
     "yarn": ">=1.22.22"
   },
   "packageManager": "yarn@1.22.22"
