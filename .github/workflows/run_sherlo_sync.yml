@@ -34,7 +34,7 @@ jobs:
     uses: ./.github/workflows/android_build.yml
     secrets: inherit
     with:
-      skip_build: ${{ true }}
+      skip_build: ${{ github.event.inputs.skip_build == true || inputs.skip_build == true || github.event.label.name == 'sherlo:sync:skip_build' }}
       profile: 'preview'
 
   ## iOS
@@ -46,7 +46,7 @@ jobs:
     uses: ./.github/workflows/ios_build.yml
     secrets: inherit
     with:
-      skip_build: ${{ true }}
+      skip_build: ${{ github.event.inputs.skip_build == true || inputs.skip_build == true || github.event.label.name == 'sherlo:sync:skip_build' }}
       profile: 'preview'
 
   ## Sherlo
