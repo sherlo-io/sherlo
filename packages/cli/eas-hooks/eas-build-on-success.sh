@@ -68,7 +68,10 @@ if [[ "$EAS_BUILD_PROFILE" == "$SHERLO_BUILD_PROFILE" ]]; then
 
     # Extract token from sherlo.json
     token=$(jq -r '.token' "$SHERLO_BUILD_FILE")
-    if [ "$token" = "null" ] || ! [[ "$token" =~ ^[A-Za-z0-9_\-@.]+$ ]]; then
+    
+    # Token can contain alphanumeric characters and punctuation
+    pattern="^[a-zA-Z0-9[:punct:]]+$"
+    if [ "$token" = "null" ] || ! [[ $token =~ $pattern ]]; then
         echo "Error: 'token' is either not present or not a valid token in $SHERLO_BUILD_FILE."
         exit 1
     fi
