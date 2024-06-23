@@ -36,15 +36,16 @@ jobs:
         run: |
           if [[ "${{ github.event.inputs.skip_build }}" == "true" || "${{ inputs.skip_build }}" == "true" || "${{ github.event.label.name }}" == "sherlo:sync:skip_build" ]]; then
             echo "skip_build=true" >> $GITHUB_ENV
-            echo "::set-output name=skip_build::true"
+            echo "skip_build=true" >> $GITHUB_OUTPUT
           else
             echo "skip_build=false" >> $GITHUB_ENV
-            echo "::set-output name=skip_build::false"
+            echo "skip_build=false" >> $GITHUB_OUTPUT
           fi
 
   ## Android
   android_preview_build:
     name: Prepare Android Preview Build
+    needs: set_skip_build
     if: >
       (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:sync')) ||
       (github.event_name != 'pull_request')
@@ -57,6 +58,7 @@ jobs:
   ## iOS
   ios_preview_build:
     name: Prepare iOS Preview Build
+    needs: set_skip_build
     if: >
       (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:sync')) ||
       (github.event_name != 'pull_request')
