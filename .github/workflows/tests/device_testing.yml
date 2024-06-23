@@ -1,0 +1,47 @@
+name: Device Testing
+
+# This workflow is triggered by a pull request labeled with 'device_testing'
+# and also by a workflow call or a manual dispatch
+on:
+  pull_request:
+    branches: [dev]
+    types: [labeled]
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  run:
+    name: Run
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: ['ios-17', 'ios-16', 'ios-15', 'android-13']
+        deviceType: ['phones', 'tablets']
+        variant: ['dark.en_US', 'light.de_DE']
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18.18.0'
+
+      - name: Install dependencies
+        run: yarn
+
+      - name: Build dependencies
+        run: yarn switch-env:dev
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Run Sherlo Action
+        uses: ./.
+        with:
+          ios: examples/expo-example/builds/preview/ios.tar.gz
+          android: examples/expo-example/builds/preview/android.apk
+          config: configs/device-testing/${{ matrix.os }}/${{ matrix.deviceType }}.${{ matrix.variant }}.json
+          commitName: ${{ matrix.os }} - ${{ matrix.deviceType }} - ${{ matrix.variant }}
+        env:
+          SHERLO_TOKEN: ${{ secrets.SHERLO_DEVICE_TESTING_TOKEN }}
