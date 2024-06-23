@@ -29,14 +29,16 @@ jobs:
   set_skip_build:
     runs-on: ubuntu-latest
     outputs:
-      skip_build: ${{ steps.set-skip-build.outputs.skip_build }}
+      skip_build: ${{ steps.set_skip_build.outputs.skip_build }}
     steps:
       - name: Set skip_build value
-        id: set-skip-build
+        id: set_skip_build
         run: |
           if [[ "${{ github.event.inputs.skip_build }}" == "true" || "${{ inputs.skip_build }}" == "true" || "${{ github.event.label.name }}" == "sherlo:sync:skip_build" ]]; then
+            echo "skip_build=true" >> $GITHUB_ENV
             echo "::set-output name=skip_build::true"
           else
+            echo "skip_build=false" >> $GITHUB_ENV
             echo "::set-output name=skip_build::false"
           fi
 
