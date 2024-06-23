@@ -1,4 +1,4 @@
-name: Stress Testing
+name: Node Testing
 
 on:
   pull_request:
