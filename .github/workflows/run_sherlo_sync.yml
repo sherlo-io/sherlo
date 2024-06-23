@@ -100,3 +100,22 @@ jobs:
           config: configs/sync.preview.json
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN_SYNC }}
+        continue-on-error: true # Continue even if this step fails
+        id: sherlo
+
+      - name: Record result
+        run: echo "sherlo_sync_result=${{ steps.sherlo.outcome }}" >> $GITHUB_ENV
+
+  fail_check:
+    name: Fail Check
+    runs-on: ubuntu-latest
+    needs: [run_sherlo_sync]
+    steps:
+      - name: Check for failures
+        run: |
+          if grep -q "failure" <<< "${{ needs.run_sherlo_sync.outputs.sherlo_sync_result }}"; then
+            echo "One or more instances failed"
+            exit 1
+          else
+            echo "All instances passed"
+          fi
