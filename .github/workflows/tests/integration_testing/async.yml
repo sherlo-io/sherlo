@@ -1,4 +1,4 @@
-name: Run Sherlo in async mode
+name: Run Sherlo with Async Upload
 
 on:
   pull_request:

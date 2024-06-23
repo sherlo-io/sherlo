@@ -8,6 +8,7 @@ async function run(): Promise<void> {
     const projectRoot = getOptionalInput('projectRoot');
     const config = getOptionalInput('config');
     const android = getOptionalInput('android');
+    const overrideCommitName = getOptionalInput('commitName');
     const ios = getOptionalInput('ios');
     const async = getOptionalInput('async') === 'true';
     const asyncBuildIndexString = getOptionalInput('asyncBuildIndex');
@@ -36,6 +37,10 @@ async function run(): Promise<void> {
       default:
         console.log(JSON.stringify(context, null, 2));
         break;
+    }
+
+    if (overrideCommitName) {
+      gitInfo.commitName = overrideCommitName;
     }
 
     const { buildIndex, url } = await main({

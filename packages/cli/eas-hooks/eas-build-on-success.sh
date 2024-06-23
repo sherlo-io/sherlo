@@ -15,14 +15,22 @@ if [[ "$EAS_BUILD_RUNNER" != "eas-build" ]]; then
 fi
 
 # Loop through all arguments
-for arg in "$@"
+while [[ $# -gt 0 ]]
 do
-    # Check if argument is --profile=*
-    if [[ $arg == --profile=* ]]; then
-        # Extract the profile value from --profile=value
-        SHERLO_BUILD_PROFILE="${arg#*=}"
-        break # Exit loop once the profile is found
-    fi
+    arg="$1"
+    case $arg in
+        --profile=*)
+            SHERLO_BUILD_PROFILE="${arg#*=}"
+            shift # Remove argument from processing
+            ;;
+        --profile)
+            SHERLO_BUILD_PROFILE="$2"
+            shift 2 # Remove both --profile and its value from processing
+            ;;
+        *)
+            shift # Remove generic argument from processing
+            ;;
+    esac
 done
 
 if [ -z "$SHERLO_BUILD_PROFILE" ]; then
@@ -60,7 +68,10 @@ if [[ "$EAS_BUILD_PROFILE" == "$SHERLO_BUILD_PROFILE" ]]; then
 
     # Extract token from sherlo.json
     token=$(jq -r '.token' "$SHERLO_BUILD_FILE")
-    if [ "$token" = "null" ] || ! [[ "$token" =~ ^[A-Za-z0-9_\-@.]+$ ]]; then
+    
+    # Token can contain alphanumeric characters and punctuation
+    pattern="^[a-zA-Z0-9[:punct:]]+$"
+    if [ "$token" = "null" ] || ! [[ $token =~ $pattern ]]; then
         echo "Error: 'token' is either not present or not a valid token in $SHERLO_BUILD_FILE."
         exit 1
     fi

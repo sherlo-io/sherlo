@@ -6,13 +6,13 @@ on:
       profile:
         required: true
         type: string
-        description: 'Build profile to use (development, preview, production)'
+        description: 'Build profile to use (development, preview, storybook)'
   workflow_dispatch:
     inputs:
       profile:
         required: true
         type: string
-        description: 'Build profile to use (development, preview, production)'
+        description: 'Build profile to use (development, preview, storybook)'
 
 jobs:
   android_build:

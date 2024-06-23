@@ -1,0 +1,12 @@
+{
+  "android": "builds/preview/android.apk",
+  "include": ["components/screens/"],
+  "devices": [
+    {
+      "id": "pixel.tablet",
+      "osVersion": "13",
+      "osLanguage": "en_US",
+      "osTheme": "dark"
+    }
+  ]
+}
