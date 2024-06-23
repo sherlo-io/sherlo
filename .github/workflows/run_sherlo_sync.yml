@@ -25,45 +25,28 @@ on:
         type: boolean
 
 jobs:
-  ## Evaluate Skip Build
-  set_skip_build:
-    runs-on: ubuntu-latest
-    outputs:
-      skip_build: ${{ steps.set_skip_build.outputs.skip_build }}
-    steps:
-      - name: Set skip_build value
-        id: set_skip_build
-        run: |
-          if [[ "${{ github.event.inputs.skip_build }}" == "true" || "${{ inputs.skip_build }}" == "true" || "${{ github.event.label.name }}" == "sherlo:sync:skip_build" ]]; then
-            echo "skip_build=true" >> $GITHUB_ENV
-          else
-            echo "skip_build=false" >> $GITHUB_ENV
-          fi
-
   ## Android
   android_preview_build:
     name: Prepare Android Preview Build
-    needs: set_skip_build
     if: >
       (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:sync')) ||
       (github.event_name != 'pull_request')
     uses: ./.github/workflows/android_build.yml
     secrets: inherit
     with:
-      skip_build: ${{ env.skip_build }}
+      skip_build: true
       profile: 'preview'
 
   ## iOS
   ios_preview_build:
     name: Prepare iOS Preview Build
-    needs: set_skip_build
     if: >
       (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:sync')) ||
       (github.event_name != 'pull_request')
     uses: ./.github/workflows/ios_build.yml
     secrets: inherit
     with:
-      skip_build: ${{ env.skip_build }}
+      skip_build: true
       profile: 'preview'
 
   ## Sherlo
