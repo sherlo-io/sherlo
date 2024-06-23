@@ -65,7 +65,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v2
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: '18.18.0' # Default version
 
       - name: Install dependencies
         run: yarn
@@ -87,10 +87,10 @@ jobs:
           name: ios
           path: examples/expo-example/builds/preview
 
-      - name: Echo Directory Path
-        run: |
-          echo "Directory Path: examples/expo-example/builds/preview"
-          ls -la examples/expo-example/builds/preview
+      - name: Set up Node.js for testing
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
 
       - name: Run Sherlo Action
         uses: ./.
