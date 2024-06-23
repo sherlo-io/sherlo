@@ -5,7 +5,7 @@ import utf8 from 'utf8';
 let isExpoGo = false;
 try {
   const Constants = require('expo-constants').default;
-  isExpoGo = Constants?.default?.appOwnership === 'expo';
+  isExpoGo = Constants.appOwnership === 'expo';
 } catch (error) {
   // Optional module is not installed
 }
