@@ -1,6 +1,6 @@
 {
   "ios": "builds/preview/ios.tar.gz",
-  "include": ["components/screens/"],
+  "include": ["components/base/Test"],
   "devices": [
     {
       "id": "ipad.pro.12.9.6.gen",

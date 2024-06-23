@@ -1,6 +1,6 @@
 {
   "android": "builds/preview/android.apk",
-  "include": ["components/screens/"],
+  "include": ["components/base/Test"],
   "devices": [
     {
       "id": "pixel.tablet",
