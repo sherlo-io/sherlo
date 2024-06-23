@@ -36,10 +36,8 @@ jobs:
         run: |
           if [[ "${{ github.event.inputs.skip_build }}" == "true" || "${{ inputs.skip_build }}" == "true" || "${{ github.event.label.name }}" == "sherlo:sync:skip_build" ]]; then
             echo "skip_build=true" >> $GITHUB_ENV
-            echo "skip_build=true" >> $GITHUB_OUTPUT
           else
             echo "skip_build=false" >> $GITHUB_ENV
-            echo "skip_build=false" >> $GITHUB_OUTPUT
           fi
 
   ## Android
@@ -52,7 +50,7 @@ jobs:
     uses: ./.github/workflows/android_build.yml
     secrets: inherit
     with:
-      skip_build: ${{ needs.set_skip_build.outputs.skip_build }}
+      skip_build: ${{ env.skip_build }}
       profile: 'preview'
 
   ## iOS
@@ -65,7 +63,7 @@ jobs:
     uses: ./.github/workflows/ios_build.yml
     secrets: inherit
     with:
-      skip_build: ${{ needs.set_skip_build.outputs.skip_build }}
+      skip_build: ${{ env.skip_build }}
       profile: 'preview'
 
   ## Sherlo
