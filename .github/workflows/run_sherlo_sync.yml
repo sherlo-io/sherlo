@@ -25,6 +25,21 @@ on:
         type: boolean
 
 jobs:
+  ## Evaluate Skip Build
+  set_skip_build:
+    runs-on: ubuntu-latest
+    outputs:
+      skip_build: ${{ steps.set-skip-build.outputs.skip_build }}
+    steps:
+      - name: Set skip_build value
+        id: set-skip-build
+        run: |
+          if [[ "${{ github.event.inputs.skip_build }}" == "true" || "${{ inputs.skip_build }}" == "true" || "${{ github.event.label.name }}" == "sherlo:sync:skip_build" ]]; then
+            echo "::set-output name=skip_build::true"
+          else
+            echo "::set-output name=skip_build::false"
+          fi
+
   ## Android
   android_preview_build:
     name: Prepare Android Preview Build
@@ -34,7 +49,7 @@ jobs:
     uses: ./.github/workflows/android_build.yml
     secrets: inherit
     with:
-      skip_build: ${{ github.event.inputs.skip_build || inputs.skip_build || github.event.label.name == 'sherlo:sync:skip_build' }}
+      skip_build: ${{ needs.set_skip_build.outputs.skip_build }}
       profile: 'preview'
 
   ## iOS
@@ -46,7 +61,7 @@ jobs:
     uses: ./.github/workflows/ios_build.yml
     secrets: inherit
     with:
-      skip_build: ${{ github.event.inputs.skip_build || inputs.skip_build || github.event.label.name == 'sherlo:sync:skip_build' }}
+      skip_build: ${{ needs.set_skip_build.outputs.skip_build }}
       profile: 'preview'
 
   ## Sherlo
