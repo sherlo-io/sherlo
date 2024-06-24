@@ -23,7 +23,7 @@ function validateConfigPlatformPath(path: string | undefined, platform: Platform
   if (!fs.existsSync(path) || !hasValidExtension({ path, platform })) {
     throw new Error(
       getConfigErrorMessage(
-        `${platform} must be a valid ${formatValidFileTypes(platform)} file`,
+        `${platform} path must point to an ${formatValidFileTypes(platform)} file`,
         learnMoreLink[platform]
       )
     );
@@ -47,5 +47,5 @@ function formatValidFileTypes(platform: Platform) {
 
   const formattedFileTypes = [...fileTypes];
   const lastType = formattedFileTypes.pop();
-  return `${formattedFileTypes.join(', ')} or ${lastType}`;
+  return `${formattedFileTypes.join(', ')}, or ${lastType}`;
 }

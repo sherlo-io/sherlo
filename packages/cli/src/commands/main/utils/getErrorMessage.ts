@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import logLink from './logLink';
 
 type ErrorType = 'auth' | 'config' | 'default' | 'unexpected';
 
@@ -19,7 +20,7 @@ function getErrorMessage({
   type?: ErrorType;
 }): string {
   return `${chalk.red(`${typeLabel[type]}: ${message}`)}
-${learnMoreLink ? `↳ Learn more at ${learnMoreLink}\n` : ''}`;
+${learnMoreLink ? `↳ Learn more: ${logLink(learnMoreLink)}\n` : ''}`;
 }
 
 export default getErrorMessage;

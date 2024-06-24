@@ -43,11 +43,13 @@ async function asyncInitMode(
 
   if (isExpoRemoteMode) {
     createExpoSherloTempFile({ buildIndex, projectRoot, token, url });
-  }
 
-  console.log(
-    `Sherlo is awaiting your builds to be uploaded asynchronously.\nBuild index is ${buildIndex}.\n`
-  );
+    console.log('Sherlo is waiting for your builds to be completed on the Expo servers.');
+  } else {
+    console.log(
+      `Sherlo is waiting for your builds to be uploaded asynchronously.\nCurrent build index: ${buildIndex}.\n`
+    );
+  }
 
   return { buildIndex, url };
 }
