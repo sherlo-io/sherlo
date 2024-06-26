@@ -1,6 +1,6 @@
 import { DeviceTheme } from '@sherlo/api-types';
 import { devices as sherloDevices } from '@sherlo/shared';
-import { docsLink } from '../../constants';
+import { DOCS_LINK } from '../../constants';
 import { InvalidatedConfig } from '../../types';
 import { getConfigErrorMessage } from '../../utils';
 
@@ -8,7 +8,9 @@ function validateConfigDevices(config: InvalidatedConfig): void {
   const { devices } = config;
 
   if (!devices || !Array.isArray(devices) || devices.length === 0) {
-    throw new Error(getConfigErrorMessage('`devices` must be a non-empty array', docsLink.devices));
+    throw new Error(
+      getConfigErrorMessage('`devices` must be a non-empty array', DOCS_LINK.devices)
+    );
   }
 
   for (let i = 0; i < devices.length; i++) {
@@ -18,7 +20,7 @@ function validateConfigDevices(config: InvalidatedConfig): void {
       throw new Error(
         getConfigErrorMessage(
           'each device must have defined `id` and `osVersion` as strings',
-          docsLink.devices
+          DOCS_LINK.devices
         )
       );
     }
@@ -26,21 +28,21 @@ function validateConfigDevices(config: InvalidatedConfig): void {
     const sherloDevice = sherloDevices[id];
 
     if (!sherloDevice) {
-      throw new Error(getConfigErrorMessage(`device "${id}" is invalid`, docsLink.devices));
+      throw new Error(getConfigErrorMessage(`device "${id}" is invalid`, DOCS_LINK.devices));
     }
 
     if (!sherloDevice.osVersions.some(({ version }) => version === osVersion)) {
       throw new Error(
         getConfigErrorMessage(
           `the osVersion "${osVersion}" is not supported by the device "${id}"`,
-          docsLink.devices
+          DOCS_LINK.devices
         )
       );
     }
 
     if (!osLanguage) {
       throw new Error(
-        getConfigErrorMessage('device `osLanguage` must be defined', docsLink.configDevices)
+        getConfigErrorMessage('device `osLanguage` must be defined', DOCS_LINK.configDevices)
       );
     }
 
@@ -57,21 +59,21 @@ function validateConfigDevices(config: InvalidatedConfig): void {
       throw new Error(
         getConfigErrorMessage(
           `device osLanguage "${osLanguage}" is invalid`,
-          docsLink.configDevices
+          DOCS_LINK.configDevices
         )
       );
     }
 
     if (!osTheme) {
       throw new Error(
-        getConfigErrorMessage('device `osTheme` must be defined', docsLink.configDevices)
+        getConfigErrorMessage('device `osTheme` must be defined', DOCS_LINK.configDevices)
       );
     }
 
     const deviceThemes: [DeviceTheme, DeviceTheme] = ['light', 'dark'];
     if (!deviceThemes.includes(osTheme)) {
       throw new Error(
-        getConfigErrorMessage(`device osTheme "${osTheme}" is invalid`, docsLink.configDevices)
+        getConfigErrorMessage(`device osTheme "${osTheme}" is invalid`, DOCS_LINK.configDevices)
       );
     }
 
@@ -79,7 +81,7 @@ function validateConfigDevices(config: InvalidatedConfig): void {
       throw new Error(
         getConfigErrorMessage(
           `device property "${Object.keys(rest)[0]}" is not supported`,
-          docsLink.configDevices
+          DOCS_LINK.configDevices
         )
       );
     }

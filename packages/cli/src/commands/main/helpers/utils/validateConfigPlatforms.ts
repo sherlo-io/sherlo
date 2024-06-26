@@ -1,5 +1,5 @@
 import { Platform } from '@sherlo/api-types';
-import { docsLink } from '../../constants';
+import { DOCS_LINK } from '../../constants';
 import { ConfigMode, InvalidatedConfig } from '../../types';
 import { getConfigErrorMessage } from '../../utils';
 import validateConfigPlatformPath from './validateConfigPlatformPath';
@@ -9,7 +9,7 @@ function validateConfigPlatforms(config: InvalidatedConfig, configMode: ConfigMo
 
   if (configMode === 'withBuildPaths' && !android && !ios) {
     throw new Error(
-      getConfigErrorMessage('at least one platform build path must be defined', docsLink.config)
+      getConfigErrorMessage('at least one platform build path must be defined', DOCS_LINK.config)
     );
   }
 
