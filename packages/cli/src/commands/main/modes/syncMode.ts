@@ -1,6 +1,6 @@
 import { Build } from '@sherlo/api-types';
 import SDKApiClient from '@sherlo/sdk-client';
-import { docsLink } from '../constants';
+import { DOCS_LINK } from '../constants';
 import { Config } from '../types';
 import { getConfigErrorMessage, getTokenParts, logLink } from '../utils';
 import {
@@ -30,7 +30,7 @@ async function syncMode({
     throw new Error(
       getConfigErrorMessage(
         '`android` path is not provided, despite at least one Android testing device being defined',
-        docsLink.configAndroid
+        DOCS_LINK.configAndroid
       )
     );
   }
@@ -39,7 +39,7 @@ async function syncMode({
     throw new Error(
       getConfigErrorMessage(
         '`ios` path is not provided, despite at least one iOS testing device being defined',
-        docsLink.configIos
+        DOCS_LINK.configIos
       )
     );
   }

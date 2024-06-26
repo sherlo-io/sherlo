@@ -3,7 +3,7 @@ import SDKApiClient from '@sherlo/sdk-client';
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { docsLink } from '../constants';
+import { DOCS_LINK, DEFAULT_PROJECT_ROOT } from '../constants';
 import { getErrorMessage, getTokenParts } from '../utils';
 import { Config } from '../types';
 import { getAppBuildUrl, getBuildRunConfig, handleClientError } from './utils';
@@ -51,7 +51,7 @@ async function asyncInitMode({
   if (isExpoRemoteMode) {
     createSherloTempFolder({ buildIndex, projectRoot, token });
 
-    console.log('Sherlo is waiting for your builds to be completed on the Expo servers.');
+    console.log('Sherlo is waiting for your app to be built on Expo servers.\n');
 
     if (remoteExpoBuildScript) {
       runScript({
@@ -81,8 +81,8 @@ function validateEasBuildOnSuccessScript(projectRoot: string): void {
   validatePackageJsonScript({
     projectRoot,
     scriptName: scriptName,
-    errorMessage: `"${scriptName}" script is not defined in package.json`,
-    learnMoreLink: docsLink.remoteExpoBuilds,
+    errorMessage: `script "${scriptName}" is not defined in package.json`,
+    learnMoreLink: DOCS_LINK.remoteExpoBuilds,
   });
 }
 
@@ -92,8 +92,8 @@ function validateRemoteExpoBuildScript(projectRoot: string, remoteExpoBuildScrip
   validatePackageJsonScript({
     projectRoot,
     scriptName: scriptName,
-    errorMessage: `"${scriptName}" script passed by --remoteExpoBuildScript is not defined in package.json`,
-    learnMoreLink: docsLink.sherloScript,
+    errorMessage: `script "${scriptName}" passed by \`--remoteExpoBuildScript\` is not defined in package.json`,
+    learnMoreLink: DOCS_LINK.sherloScriptRemoteExpo,
   });
 }
 
@@ -114,7 +114,7 @@ function validatePackageJsonScript({
     throw new Error(
       getErrorMessage({
         message: `package.json file not found at location "${projectRoot}" - make sure the directory is correct or pass the \`--projectRoot\` flag to the script`,
-        learnMoreLink: docsLink.scriptFlags,
+        learnMoreLink: DOCS_LINK.sherloScriptFlags,
       })
     );
   }
@@ -160,8 +160,8 @@ This folder appears when you run Sherlo in remote Expo mode using:
 - \`sherlo --remoteExpo\`, or
 - \`sherlo --remoteExpoBuildScript <scriptName>\`
 
-If you use \`--remoteExpoBuildScript\`, the folder is auto-deleted at the end of
-the command execution. With \`--remoteExpo\`, you need to handle it yourself.
+If you use \`--remoteExpoBuildScript\`, the folder is auto-deleted when the build
+script completes. With \`--remoteExpo\`, you need to handle it yourself.
 
 ### What does it contain?
 
@@ -200,15 +200,34 @@ function runScript({
   scriptName: string;
   onExit: () => void;
 }) {
-  let command = 'npm';
-  let args = ['run', scriptName];
+  let command = '';
+  let args: string[] = [];
 
-  const packageManager = getPackageManager(projectRoot);
-  if (packageManager === 'yarn') {
+  const packageManager = detectPackageManager();
+
+  if (packageManager === 'npm') {
+    command = 'npm';
+
+    if (projectRoot !== DEFAULT_PROJECT_ROOT) {
+      args = ['--prefix', projectRoot];
+    }
+
+    args = [...args, 'run', scriptName];
+  } else if (packageManager === 'yarn') {
     command = 'yarn';
-    args = [scriptName];
+
+    if (projectRoot !== DEFAULT_PROJECT_ROOT) {
+      args = ['--cwd', projectRoot];
+    }
+
+    args = [...args, scriptName];
   } else if (packageManager === 'pnpm') {
     command = 'pnpm';
+
+    if (projectRoot !== DEFAULT_PROJECT_ROOT) {
+      args = ['--dir', projectRoot];
+    }
+
     args = ['run', scriptName];
   }
 
@@ -218,12 +237,47 @@ function runScript({
   process.on('error', onExit);
 }
 
-function getPackageManager(projectRoot: string): 'npm' | 'yarn' | 'pnpm' {
-  if (fs.existsSync(path.resolve(projectRoot, 'yarn.lock'))) {
-    return 'yarn';
-  } else if (fs.existsSync(path.resolve(projectRoot, 'pnpm-lock.yaml'))) {
-    return 'pnpm';
-  } else {
-    return 'npm';
+function detectPackageManager(): 'npm' | 'yarn' | 'pnpm' {
+  if (process.env.npm_config_user_agent) {
+    const userAgent = process.env.npm_config_user_agent.toLowerCase();
+
+    if (userAgent.includes('yarn')) {
+      return 'yarn';
+    }
+    if (userAgent.includes('pnpm')) {
+      return 'pnpm';
+    }
+    if (userAgent.includes('npm')) {
+      return 'npm';
+    }
   }
+
+  // Fallback: Check for lock files in current, parent, and grandparent directories
+  function detectByLockFile() {
+    const depth = 3; // Check current, parent, and grandparent directories to cover monorepo cases
+    const lockFiles = ['yarn.lock', 'pnpm-lock.yaml', 'package-lock.json'];
+    let currentPath = process.cwd();
+
+    for (let i = 0; i < depth; i++) {
+      for (const lockFile of lockFiles) {
+        const filePath = path.join(currentPath, lockFile);
+        if (fs.existsSync(filePath)) {
+          if (lockFile === 'yarn.lock') {
+            return 'yarn';
+          }
+          if (lockFile === 'pnpm-lock.yaml') {
+            return 'pnpm';
+          }
+          if (lockFile === 'package-lock.json') {
+            return 'npm';
+          }
+        }
+      }
+      currentPath = path.resolve(currentPath, '..');
+    }
+    return null;
+  }
+
+  const detectedByLockFile = detectByLockFile();
+  return detectedByLockFile ?? 'npm';
 }

@@ -12,6 +12,7 @@ import {
   validateConfigPlatforms,
   validateConfigToken,
 } from './utils';
+import { DEFAULT_CONFIG_PATH, DEFAULT_PROJECT_ROOT } from '../constants';
 
 type ParameterDefaults = { config: string; projectRoot: string };
 type Parameters<T extends 'default' | 'withDefaults' = 'default'> = {
@@ -129,9 +130,6 @@ export default getArguments;
 
 /* ========================================================================== */
 
-const DEFAULT_CONFIG_PATH = 'sherlo.config.json';
-const DEFAULT_PROJECT_ROOT = '.';
-
 const command = new Command();
 command
   .name('sherlo')
@@ -141,12 +139,12 @@ command
   .option('--config <path>', 'Config file path', DEFAULT_CONFIG_PATH)
   .option('--projectRoot <path>', 'Root of the React Native project', DEFAULT_PROJECT_ROOT)
   .option(
-    '--remoteExpoBuildScript <scriptName>',
-    'Run Sherlo in remote Expo mode, using the script from package.json to build the app on the Expo server. Temporary files will be auto-deleted.'
-  )
-  .option(
     '--remoteExpo',
     'Run Sherlo in remote Expo mode, waiting for you to manually build the app on the Expo server. Temporary files will not be auto-deleted.'
+  )
+  .option(
+    '--remoteExpoBuildScript <scriptName>',
+    'Run Sherlo in remote Expo mode, using the script from package.json to build the app on the Expo server. Temporary files will be auto-deleted.'
   )
   .option(
     '--async',

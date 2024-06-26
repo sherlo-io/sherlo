@@ -1,16 +1,16 @@
 import { Platform } from '@sherlo/api-types';
 import fs from 'fs';
-import { docsLink, iOSFileTypes } from '../../constants';
+import { DOCS_LINK, IOS_FILE_TYPES } from '../../constants';
 import { getConfigErrorMessage } from '../../utils';
 
 const learnMoreLink: { [platform in Platform]: string } = {
-  android: docsLink.configAndroid,
-  ios: docsLink.configIos,
+  android: DOCS_LINK.configAndroid,
+  ios: DOCS_LINK.configIos,
 };
 
 const fileType: { [platformName in Platform]: readonly string[] } = {
   android: ['.apk'],
-  ios: iOSFileTypes,
+  ios: IOS_FILE_TYPES,
 };
 
 function validateConfigPlatformPath(path: string | undefined, platform: Platform): void {

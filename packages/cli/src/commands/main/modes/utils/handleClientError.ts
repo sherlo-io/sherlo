@@ -1,5 +1,5 @@
 import { getErrorMessage } from '../../utils';
-import { docsLink } from '../../constants';
+import { DOCS_LINK } from '../../constants';
 
 function handleClientError(error: any) {
   if (error.networkError?.statusCode === 401) {
@@ -7,7 +7,7 @@ function handleClientError(error: any) {
       getErrorMessage({
         type: 'auth',
         message: 'token is invalid',
-        learnMoreLink: docsLink.configToken,
+        learnMoreLink: DOCS_LINK.configToken,
       })
     );
   }
