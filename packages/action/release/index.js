@@ -81933,11 +81933,12 @@ function run() {
             const projectRoot = getOptionalInput('projectRoot');
             const config = getOptionalInput('config');
             const android = getOptionalInput('android');
-            const overrideCommitName = getOptionalInput('commitName');
             const ios = getOptionalInput('ios');
-            const async = getOptionalInput('async') === 'true';
-            const asyncBuildIndexString = getOptionalInput('asyncBuildIndex');
-            const asyncBuildIndex = asyncBuildIndexString ? Number(asyncBuildIndexString) : undefined;
+            const remoteExpo = getOptionalInput('remoteExpo');
+            const remoteExpoBuildScript = getOptionalInput('remoteExpoBuildScript');
+            const async = getOptionalInput('async');
+            const asyncBuildIndex = getOptionalInput('asyncBuildIndex');
+            const overrideCommitName = getOptionalInput('commitName');
             const { context } = github;
             let gitInfo = {
                 commitHash: (context === null || context === void 0 ? void 0 : context.sha) || 'unknown',
@@ -81959,13 +81960,15 @@ function run() {
                 gitInfo.commitName = overrideCommitName;
             }
             const { buildIndex, url } = yield (0, cli_1.main)({
+                projectRoot,
+                config,
+                token: emptyStringToUndefined(process.env.SHERLO_TOKEN), // Action returns an empty string if not defined
                 android,
                 ios,
-                config,
-                async,
-                asyncBuildIndex,
-                projectRoot,
-                token: emptyStringToUndefined(process.env.SHERLO_TOKEN), // Action returns an empty string if not defined
+                remoteExpo: remoteExpo === 'true',
+                remoteExpoBuildScript,
+                async: async === 'true',
+                asyncBuildIndex: asyncBuildIndex ? Number(asyncBuildIndex) : undefined,
                 gitInfo,
             });
             core.setOutput('buildIndex', buildIndex);
@@ -82023,6 +82026,7 @@ exports.docsLink = {
     configDevices: `${docsDomain}/getting-started/config#devices`,
     devices: `${docsDomain}/devices`,
     remoteExpoBuilds: `${docsDomain}/getting-started/builds?framework=expo&eas-build=remote`,
+    sherloScript: `${docsDomain}/getting-started/testing#sherlo-script`,
     scriptFlags: `${docsDomain}/getting-started/testing#supported-flags`,
 };
 exports.iOSFileTypes = ['.app', '.tar.gz', '.tar'];
@@ -82051,10 +82055,10 @@ function getArguments(githubActionParameters) {
     const configFile = (0, utils_2.parseConfigFile)(configPath);
     const config = getConfig(configFile, parameters);
     let mode = 'sync';
-    if (parameters.remoteExpo) {
-        mode = 'remoteExpo';
-    }
-    else if (parameters.async && !parameters.asyncBuildIndex) {
+    if (parameters.remoteExpo ||
+        parameters.remoteExpoBuildScript ||
+        (parameters.async && !parameters.asyncBuildIndex) // Allows to pass `asyncBuildIndex` along with `async` -> "asyncUpload" mode
+    ) {
         mode = 'asyncInit';
     }
     else if (parameters.asyncBuildIndex) {
@@ -82074,7 +82078,6 @@ function getArguments(githubActionParameters) {
                 gitInfo: githubActionParameters?.gitInfo ?? (0, utils_2.getGitInfo)(),
             };
         }
-        case 'remoteExpo':
         case 'asyncInit': {
             // validateConfigPlatforms(config, 'withoutBuildPaths');
             (0, utils_2.validateConfigDevices)(config);
@@ -82085,6 +82088,8 @@ function getArguments(githubActionParameters) {
                 config: config,
                 gitInfo: githubActionParameters?.gitInfo ?? (0, utils_2.getGitInfo)(),
                 projectRoot: parameters.projectRoot,
+                remoteExpo: parameters.remoteExpo,
+                remoteExpoBuildScript: parameters.remoteExpoBuildScript,
             };
         }
         case 'asyncUpload': {
@@ -82112,12 +82117,14 @@ const DEFAULT_CONFIG_PATH = 'sherlo.config.json';
 const DEFAULT_PROJECT_ROOT = '.';
 const command = new commander_1.Command();
 command
+    .name('sherlo')
     .option('--token <token>', 'Project token')
-    .option('--android <path>', 'Path to Android build in .apk format')
-    .option('--ios <path>', 'Path to iOS build in .app (or compressed .tar.gz / .tar) format')
+    .option('--android <path>', 'Path to the Android build in .apk format')
+    .option('--ios <path>', 'Path to the iOS build in .app (or compressed .tar.gz / .tar) format')
     .option('--config <path>', 'Config file path', DEFAULT_CONFIG_PATH)
     .option('--projectRoot <path>', 'Root of the React Native project', DEFAULT_PROJECT_ROOT)
-    .option('--remoteExpo', 'Run Sherlo in remote Expo mode, waiting for the builds to complete on the Expo servers')
+    .option('--remoteExpoBuildScript <scriptName>', 'Run Sherlo in remote Expo mode, using the script from package.json to build the app on the Expo server. Temporary files will be auto-deleted.')
+    .option('--remoteExpo', 'Run Sherlo in remote Expo mode, waiting for you to manually build the app on the Expo server. Temporary files will not be auto-deleted.')
     .option('--async', "Run Sherlo in async mode, meaning you don't have to provide builds immediately")
     .option('--asyncBuildIndex <number>', 'Index of build you want to update in async mode', parseInt);
 function applyParameterDefaults(params) {
@@ -82364,12 +82371,12 @@ const utils_1 = __nccwpck_require__(91897);
 function validateConfigDevices(config) {
     const { devices } = config;
     if (!devices || !Array.isArray(devices) || devices.length === 0) {
-        throw new Error((0, utils_1.getConfigErrorMessage)('devices must be a non-empty array', constants_1.docsLink.devices));
+        throw new Error((0, utils_1.getConfigErrorMessage)('`devices` must be a non-empty array', constants_1.docsLink.devices));
     }
     for (let i = 0; i < devices.length; i++) {
         const { id, osLanguage, osVersion, osTheme, ...rest } = devices[i] ?? {};
         if (!id || typeof id !== 'string' || !osVersion || typeof osVersion !== 'string') {
-            throw new Error((0, utils_1.getConfigErrorMessage)('each device must have defined "id" and "osVersion" as strings', constants_1.docsLink.devices));
+            throw new Error((0, utils_1.getConfigErrorMessage)('each device must have defined `id` and `osVersion` as strings', constants_1.docsLink.devices));
         }
         const sherloDevice = shared_1.devices[id];
         if (!sherloDevice) {
@@ -82379,7 +82386,7 @@ function validateConfigDevices(config) {
             throw new Error((0, utils_1.getConfigErrorMessage)(`the osVersion "${osVersion}" is not supported by the device "${id}"`, constants_1.docsLink.devices));
         }
         if (!osLanguage) {
-            throw new Error((0, utils_1.getConfigErrorMessage)('device osLanguage must be defined', constants_1.docsLink.configDevices));
+            throw new Error((0, utils_1.getConfigErrorMessage)('device `osLanguage` must be defined', constants_1.docsLink.configDevices));
         }
         const osLanguageRegex = /^[a-z]{2}(_[A-Z]{2})?$/;
         // ^ - start of the string
@@ -82393,7 +82400,7 @@ function validateConfigDevices(config) {
             throw new Error((0, utils_1.getConfigErrorMessage)(`device osLanguage "${osLanguage}" is invalid`, constants_1.docsLink.configDevices));
         }
         if (!osTheme) {
-            throw new Error((0, utils_1.getConfigErrorMessage)('device osTheme must be defined', constants_1.docsLink.configDevices));
+            throw new Error((0, utils_1.getConfigErrorMessage)('device `osTheme` must be defined', constants_1.docsLink.configDevices));
         }
         const deviceThemes = ['light', 'dark'];
         if (!deviceThemes.includes(osTheme)) {
@@ -82431,10 +82438,10 @@ const fileType = {
 };
 function validateConfigPlatformPath(path, platform) {
     if (!path || typeof path !== 'string') {
-        throw new Error((0, utils_1.getConfigErrorMessage)(`${platform} must be a defined string`, learnMoreLink[platform]));
+        throw new Error((0, utils_1.getConfigErrorMessage)(`\`${platform}\` must be a defined string`, learnMoreLink[platform]));
     }
     if (!fs_1.default.existsSync(path) || !hasValidExtension({ path, platform })) {
-        throw new Error((0, utils_1.getConfigErrorMessage)(`${platform} path must point to an ${formatValidFileTypes(platform)} file`, learnMoreLink[platform]));
+        throw new Error((0, utils_1.getConfigErrorMessage)(`\`${platform}\` path must point to an ${formatValidFileTypes(platform)} file`, learnMoreLink[platform]));
     }
 }
 exports["default"] = validateConfigPlatformPath;
@@ -82556,14 +82563,14 @@ const utils_1 = __nccwpck_require__(91897);
 function validateConfigToken(config) {
     const { token } = config;
     if (!token || typeof token !== 'string') {
-        throw new Error((0, utils_1.getConfigErrorMessage)('token must be a defined string', constants_1.docsLink.configToken));
+        throw new Error((0, utils_1.getConfigErrorMessage)('`token` must be a defined string', constants_1.docsLink.configToken));
     }
     const { apiToken, projectIndex, teamId } = (0, utils_1.getTokenParts)(token);
     if (apiToken.length !== shared_1.projectApiTokenLength ||
         teamId.length !== shared_1.teamIdLength ||
         !Number.isInteger(projectIndex) ||
         projectIndex < 1) {
-        throw new Error((0, utils_1.getConfigErrorMessage)('token is not valid', constants_1.docsLink.configToken));
+        throw new Error((0, utils_1.getConfigErrorMessage)('`token` is not valid', constants_1.docsLink.configToken));
     }
 }
 exports["default"] = validateConfigToken;
@@ -82602,9 +82609,8 @@ async function main(githubActionParameters) {
         case 'sync': {
             return (0, modes_1.syncMode)(args);
         }
-        case 'remoteExpo':
         case 'asyncInit': {
-            return (0, modes_1.asyncInitMode)(args, args.mode === 'remoteExpo');
+            return (0, modes_1.asyncInitMode)(args);
         }
         case 'asyncUpload': {
             return (0, modes_1.asyncUploadMode)(args);
@@ -82626,14 +82632,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const sdk_client_1 = __importDefault(__nccwpck_require__(32646));
+const child_process_1 = __nccwpck_require__(32081);
 const fs_1 = __importDefault(__nccwpck_require__(57147));
 const path_1 = __importDefault(__nccwpck_require__(71017));
 const constants_1 = __nccwpck_require__(93473);
 const utils_1 = __nccwpck_require__(91897);
 const utils_2 = __nccwpck_require__(54243);
-async function asyncInitMode({ token, config, gitInfo, projectRoot, }, isExpoRemoteMode) {
+async function asyncInitMode({ projectRoot, config, token, gitInfo, remoteExpo, remoteExpoBuildScript, }) {
+    const isExpoRemoteMode = remoteExpo || remoteExpoBuildScript;
     if (isExpoRemoteMode) {
         validateEasBuildOnSuccessScript(projectRoot);
+        if (remoteExpoBuildScript) {
+            validateRemoteExpoBuildScript(projectRoot, remoteExpoBuildScript);
+        }
     }
     const { apiToken, projectIndex, teamId } = (0, utils_1.getTokenParts)(token);
     const client = (0, sdk_client_1.default)(apiToken);
@@ -82647,44 +82658,125 @@ async function asyncInitMode({ token, config, gitInfo, projectRoot, }, isExpoRem
     })
         .catch(utils_2.handleClientError);
     const buildIndex = build.index;
-    const url = (0, utils_2.getAppBuildUrl)({ buildIndex, projectIndex, teamId });
     if (isExpoRemoteMode) {
-        createExpoSherloTempFile({ buildIndex, projectRoot, token, url });
+        createSherloTempFolder({ buildIndex, projectRoot, token });
         console.log('Sherlo is waiting for your builds to be completed on the Expo servers.');
+        if (remoteExpoBuildScript) {
+            runScript({
+                projectRoot,
+                scriptName: remoteExpoBuildScript,
+                onExit: () => removeSherloTempFolder(projectRoot),
+            });
+        }
     }
     else {
         console.log(`Sherlo is waiting for your builds to be uploaded asynchronously.\nCurrent build index: ${buildIndex}.\n`);
     }
+    const url = (0, utils_2.getAppBuildUrl)({ buildIndex, projectIndex, teamId });
     return { buildIndex, url };
 }
 exports["default"] = asyncInitMode;
 /* ========================================================================== */
 function validateEasBuildOnSuccessScript(projectRoot) {
+    const scriptName = 'eas-build-on-success';
+    validatePackageJsonScript({
+        projectRoot,
+        scriptName: scriptName,
+        errorMessage: `"${scriptName}" script is not defined in package.json`,
+        learnMoreLink: constants_1.docsLink.remoteExpoBuilds,
+    });
+}
+function validateRemoteExpoBuildScript(projectRoot, remoteExpoBuildScript) {
+    const scriptName = remoteExpoBuildScript;
+    validatePackageJsonScript({
+        projectRoot,
+        scriptName: scriptName,
+        errorMessage: `"${scriptName}" script passed by --remoteExpoBuildScript is not defined in package.json`,
+        learnMoreLink: constants_1.docsLink.sherloScript,
+    });
+}
+function validatePackageJsonScript({ projectRoot, scriptName, errorMessage, learnMoreLink, }) {
     const packageJsonPath = path_1.default.resolve(projectRoot, 'package.json');
     if (!fs_1.default.existsSync(packageJsonPath)) {
         throw new Error((0, utils_1.getErrorMessage)({
-            message: `package.json file not found at location "${projectRoot}"; make sure the directory is correct or pass the \`--projectRoot\` flag to the script`,
+            message: `package.json file not found at location "${projectRoot}" - make sure the directory is correct or pass the \`--projectRoot\` flag to the script`,
             learnMoreLink: constants_1.docsLink.scriptFlags,
         }));
     }
     const packageJsonData = fs_1.default.readFileSync(packageJsonPath, 'utf8');
     const packageJson = JSON.parse(packageJsonData);
-    if (!packageJson.scripts || !packageJson.scripts['eas-build-on-success']) {
+    if (!packageJson.scripts || !packageJson.scripts[scriptName]) {
         throw new Error((0, utils_1.getErrorMessage)({
-            message: '"eas-build-on-success" script is not defined in package.json',
-            learnMoreLink: constants_1.docsLink.remoteExpoBuilds,
+            message: errorMessage,
+            learnMoreLink,
         }));
     }
 }
-function createExpoSherloTempFile({ projectRoot, buildIndex, url, token, }) {
-    const expoDir = path_1.default.resolve(projectRoot, '.expo');
-    // Check if the directory exists
-    if (!fs_1.default.existsSync(expoDir)) {
-        // If the directory does not exist, create it
-        fs_1.default.mkdirSync(expoDir, { recursive: true });
+function createSherloTempFolder({ projectRoot, buildIndex, token, }) {
+    const sherloDir = path_1.default.resolve(projectRoot, '.sherlo');
+    if (!fs_1.default.existsSync(sherloDir)) {
+        fs_1.default.mkdirSync(sherloDir);
     }
-    // Now that we've ensured the directory exists, write the file
-    fs_1.default.writeFileSync(path_1.default.resolve(expoDir, 'sherlo.json'), JSON.stringify({ buildIndex, token, url }));
+    fs_1.default.writeFileSync(path_1.default.resolve(sherloDir, 'data.json'), JSON.stringify({ buildIndex, token }, null, 2));
+    fs_1.default.writeFileSync(path_1.default.resolve(sherloDir, 'README.md'), `### Why do I have a folder named ".sherlo" in my project?
+
+This folder appears when you run Sherlo in remote Expo mode using:
+- \`sherlo --remoteExpo\`, or
+- \`sherlo --remoteExpoBuildScript <scriptName>\`
+
+If you use \`--remoteExpoBuildScript\`, the folder is auto-deleted at the end of
+the command execution. With \`--remoteExpo\`, you need to handle it yourself.
+
+### What does it contain?
+
+It contains data necessary for Sherlo to authenticate and identify builds
+created on Expo servers.
+
+### Should I commit it?
+
+No, you don't need to. However, it must be uploaded to Expo for remote builds.
+
+To exclude it from version control:
+1. Add it to \`.gitignore\`.
+2. Create an \`.easignore\` file at the root of your git project, and list the
+   files and directories you don't want to upload to Expo. Make sure \`.sherlo\`
+   is not listed, as it needs to be uploaded during the build process.
+
+Alternatively, you can manually delete the folder after it has been uploaded
+during the EAS build process.`);
+}
+function removeSherloTempFolder(projectRoot) {
+    const sherloDir = path_1.default.resolve(projectRoot, '.sherlo');
+    if (fs_1.default.existsSync(sherloDir)) {
+        fs_1.default.rmSync(sherloDir, { recursive: true, force: true });
+    }
+}
+function runScript({ projectRoot, scriptName, onExit, }) {
+    let command = 'npm';
+    let args = ['run', scriptName];
+    const packageManager = getPackageManager(projectRoot);
+    if (packageManager === 'yarn') {
+        command = 'yarn';
+        args = [scriptName];
+    }
+    else if (packageManager === 'pnpm') {
+        command = 'pnpm';
+        args = ['run', scriptName];
+    }
+    const process = (0, child_process_1.spawn)(command, args, { stdio: 'inherit' });
+    process.on('exit', onExit);
+    process.on('error', onExit);
+}
+function getPackageManager(projectRoot) {
+    if (fs_1.default.existsSync(path_1.default.resolve(projectRoot, 'yarn.lock'))) {
+        return 'yarn';
+    }
+    else if (fs_1.default.existsSync(path_1.default.resolve(projectRoot, 'pnpm-lock.yaml'))) {
+        return 'pnpm';
+    }
+    else {
+        return 'npm';
+    }
 }
 
 
@@ -82767,10 +82859,10 @@ async function syncMode({ token, config, gitInfo, }) {
     const client = (0, sdk_client_1.default)(apiToken);
     const platformsToTest = (0, utils_2.getPlatformsToTest)(config);
     if (platformsToTest.includes('android') && !config.android) {
-        throw new Error((0, utils_1.getConfigErrorMessage)('android path is not provided, despite at least one Android testing device being defined', constants_1.docsLink.configAndroid));
+        throw new Error((0, utils_1.getConfigErrorMessage)('`android` path is not provided, despite at least one Android testing device being defined', constants_1.docsLink.configAndroid));
     }
     if (platformsToTest.includes('ios') && !config.ios) {
-        throw new Error((0, utils_1.getConfigErrorMessage)('ios path is not provided, despite at least one iOS testing device being defined', constants_1.docsLink.configIos));
+        throw new Error((0, utils_1.getConfigErrorMessage)('`ios` path is not provided, despite at least one iOS testing device being defined', constants_1.docsLink.configIos));
     }
     const buildUploadUrls = await (0, utils_2.getBuildUploadUrls)(client, {
         platforms: platformsToTest,
@@ -82794,7 +82886,7 @@ async function syncMode({ token, config, gitInfo, }) {
         .catch(utils_2.handleClientError);
     const buildIndex = build.index;
     const url = (0, utils_2.getAppBuildUrl)({ buildIndex, projectIndex, teamId });
-    console.log(`View your test results at: ${(0, utils_1.logLink)(url)}\n`);
+    console.log(`Test results: ${(0, utils_1.logLink)(url)}\n`);
     return { buildIndex, url };
 }
 exports["default"] = syncMode;
