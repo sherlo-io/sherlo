@@ -29,7 +29,7 @@ async function syncMode({
   if (platformsToTest.includes('android') && !config.android) {
     throw new Error(
       getConfigErrorMessage(
-        'android path is not provided, despite at least one Android testing device being defined',
+        '`android` path is not provided, despite at least one Android testing device being defined',
         docsLink.configAndroid
       )
     );
@@ -38,7 +38,7 @@ async function syncMode({
   if (platformsToTest.includes('ios') && !config.ios) {
     throw new Error(
       getConfigErrorMessage(
-        'ios path is not provided, despite at least one iOS testing device being defined',
+        '`ios` path is not provided, despite at least one iOS testing device being defined',
         docsLink.configIos
       )
     );
@@ -73,7 +73,7 @@ async function syncMode({
   const buildIndex = build.index;
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
-  console.log(`View your test results at: ${logLink(url)}\n`);
+  console.log(`Test results: ${logLink(url)}\n`);
 
   return { buildIndex, url };
 }

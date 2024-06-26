@@ -16,14 +16,14 @@ const fileType: { [platformName in Platform]: readonly string[] } = {
 function validateConfigPlatformPath(path: string | undefined, platform: Platform): void {
   if (!path || typeof path !== 'string') {
     throw new Error(
-      getConfigErrorMessage(`${platform} must be a defined string`, learnMoreLink[platform])
+      getConfigErrorMessage(`\`${platform}\` must be a defined string`, learnMoreLink[platform])
     );
   }
 
   if (!fs.existsSync(path) || !hasValidExtension({ path, platform })) {
     throw new Error(
       getConfigErrorMessage(
-        `${platform} path must point to an ${formatValidFileTypes(platform)} file`,
+        `\`${platform}\` path must point to an ${formatValidFileTypes(platform)} file`,
         learnMoreLink[platform]
       )
     );

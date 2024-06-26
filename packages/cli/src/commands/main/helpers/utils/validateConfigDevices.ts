@@ -8,7 +8,7 @@ function validateConfigDevices(config: InvalidatedConfig): void {
   const { devices } = config;
 
   if (!devices || !Array.isArray(devices) || devices.length === 0) {
-    throw new Error(getConfigErrorMessage('devices must be a non-empty array', docsLink.devices));
+    throw new Error(getConfigErrorMessage('`devices` must be a non-empty array', docsLink.devices));
   }
 
   for (let i = 0; i < devices.length; i++) {
@@ -17,7 +17,7 @@ function validateConfigDevices(config: InvalidatedConfig): void {
     if (!id || typeof id !== 'string' || !osVersion || typeof osVersion !== 'string') {
       throw new Error(
         getConfigErrorMessage(
-          'each device must have defined "id" and "osVersion" as strings',
+          'each device must have defined `id` and `osVersion` as strings',
           docsLink.devices
         )
       );
@@ -40,7 +40,7 @@ function validateConfigDevices(config: InvalidatedConfig): void {
 
     if (!osLanguage) {
       throw new Error(
-        getConfigErrorMessage('device osLanguage must be defined', docsLink.configDevices)
+        getConfigErrorMessage('device `osLanguage` must be defined', docsLink.configDevices)
       );
     }
 
@@ -64,7 +64,7 @@ function validateConfigDevices(config: InvalidatedConfig): void {
 
     if (!osTheme) {
       throw new Error(
-        getConfigErrorMessage('device osTheme must be defined', docsLink.configDevices)
+        getConfigErrorMessage('device `osTheme` must be defined', docsLink.configDevices)
       );
     }
 

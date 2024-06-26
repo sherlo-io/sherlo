@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Runs the "sherlo-eas-build-on-success" or "sherlo-cli" script
+
 # Get the directory of the current script
 DIR=$(dirname "$0")
 

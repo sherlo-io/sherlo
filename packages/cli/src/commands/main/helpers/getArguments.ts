@@ -13,16 +13,17 @@ import {
   validateConfigToken,
 } from './utils';
 
+type ParameterDefaults = { config: string; projectRoot: string };
 type Parameters<T extends 'default' | 'withDefaults' = 'default'> = {
-  token?: string;
+  token?: string; // only CLI
   android?: string;
   ios?: string;
   remoteExpo?: boolean;
+  remoteExpoBuildScript?: string;
   async?: boolean;
   asyncBuildIndex?: number;
-  gitInfo?: Build['gitInfo']; // Can be passed only in GitHub Action
+  gitInfo?: Build['gitInfo']; // only GitHub Action
 } & (T extends 'withDefaults' ? ParameterDefaults : Partial<ParameterDefaults>);
-type ParameterDefaults = { config: string; projectRoot: string };
 
 type Arguments = SyncArguments | AsyncInitArguments | AsyncUploadArguments;
 type SyncArguments = {
@@ -32,11 +33,13 @@ type SyncArguments = {
   gitInfo: Build['gitInfo'];
 };
 type AsyncInitArguments = {
-  mode: 'asyncInit' | 'remoteExpo';
+  mode: 'asyncInit';
   token: string;
   config: Config<'withoutBuildPaths'>;
   gitInfo: Build['gitInfo'];
   projectRoot: string;
+  remoteExpo: boolean | undefined;
+  remoteExpoBuildScript: string | undefined;
 };
 type AsyncUploadArguments = {
   mode: 'asyncUpload';
@@ -55,9 +58,11 @@ function getArguments(githubActionParameters?: Parameters): Arguments {
   const config = getConfig(configFile, parameters);
 
   let mode: Mode = 'sync';
-  if (parameters.remoteExpo) {
-    mode = 'remoteExpo';
-  } else if (parameters.async && !parameters.asyncBuildIndex) {
+  if (
+    parameters.remoteExpo ||
+    parameters.remoteExpoBuildScript ||
+    (parameters.async && !parameters.asyncBuildIndex) // Allows to pass `asyncBuildIndex` along with `async` -> "asyncUpload" mode
+  ) {
     mode = 'asyncInit';
   } else if (parameters.asyncBuildIndex) {
     mode = 'asyncUpload';
@@ -80,7 +85,6 @@ function getArguments(githubActionParameters?: Parameters): Arguments {
       } satisfies SyncArguments;
     }
 
-    case 'remoteExpo':
     case 'asyncInit': {
       // validateConfigPlatforms(config, 'withoutBuildPaths');
       validateConfigDevices(config);
@@ -92,6 +96,8 @@ function getArguments(githubActionParameters?: Parameters): Arguments {
         config: config as Config<'withoutBuildPaths'>,
         gitInfo: githubActionParameters?.gitInfo ?? getGitInfo(),
         projectRoot: parameters.projectRoot,
+        remoteExpo: parameters.remoteExpo,
+        remoteExpoBuildScript: parameters.remoteExpoBuildScript,
       } satisfies AsyncInitArguments;
     }
 
@@ -128,14 +134,19 @@ const DEFAULT_PROJECT_ROOT = '.';
 
 const command = new Command();
 command
+  .name('sherlo')
   .option('--token <token>', 'Project token')
-  .option('--android <path>', 'Path to Android build in .apk format')
-  .option('--ios <path>', 'Path to iOS build in .app (or compressed .tar.gz / .tar) format')
+  .option('--android <path>', 'Path to the Android build in .apk format')
+  .option('--ios <path>', 'Path to the iOS build in .app (or compressed .tar.gz / .tar) format')
   .option('--config <path>', 'Config file path', DEFAULT_CONFIG_PATH)
   .option('--projectRoot <path>', 'Root of the React Native project', DEFAULT_PROJECT_ROOT)
   .option(
+    '--remoteExpoBuildScript <scriptName>',
+    'Run Sherlo in remote Expo mode, using the script from package.json to build the app on the Expo server. Temporary files will be auto-deleted.'
+  )
+  .option(
     '--remoteExpo',
-    'Run Sherlo in remote Expo mode, waiting for the builds to complete on the Expo servers'
+    'Run Sherlo in remote Expo mode, waiting for you to manually build the app on the Expo server. Temporary files will not be auto-deleted.'
   )
   .option(
     '--async',
