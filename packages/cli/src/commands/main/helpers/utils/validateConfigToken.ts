@@ -9,7 +9,9 @@ function validateConfigToken<T extends InvalidatedConfig>(
   const { token } = config;
 
   if (!token || typeof token !== 'string') {
-    throw new Error(getConfigErrorMessage('token must be a defined string', docsLink.configToken));
+    throw new Error(
+      getConfigErrorMessage('`token` must be a defined string', docsLink.configToken)
+    );
   }
 
   const { apiToken, projectIndex, teamId } = getTokenParts(token);
@@ -20,7 +22,7 @@ function validateConfigToken<T extends InvalidatedConfig>(
     !Number.isInteger(projectIndex) ||
     projectIndex < 1
   ) {
-    throw new Error(getConfigErrorMessage('token is not valid', docsLink.configToken));
+    throw new Error(getConfigErrorMessage('`token` is not valid', docsLink.configToken));
   }
 }
 
