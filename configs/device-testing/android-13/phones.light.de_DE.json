@@ -1,6 +1,6 @@
 {
   "android": "builds/preview/android.apk",
-  "include": ["components/base/Test"],
+  "include": ["components/screens/Test"],
   "devices": [
     {
       "id": "pixel.7.pro",

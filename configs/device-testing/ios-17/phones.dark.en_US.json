@@ -1,6 +1,6 @@
 {
   "ios": "builds/preview/ios.tar.gz",
-  "include": ["components/base/Test"],
+  "include": ["components/screens/Test"],
   "devices": [
     {
       "id": "iphone.15.pro.max",
