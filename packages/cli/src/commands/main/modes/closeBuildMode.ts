@@ -2,27 +2,27 @@ import SDKApiClient from '@sherlo/sdk-client';
 import { getTokenParts } from '../utils';
 import { handleClientError, getAppBuildUrl } from './utils';
 
-async function closeBuildMode({
+async function cancelBuildMode({
   token,
-  closeBuildIndex,
+  cancelBuildIndex,
 }: {
   token: string;
-  closeBuildIndex: number;
+  cancelBuildIndex: number;
 }): Promise<{ buildIndex: number; url: string }> {
   const { apiToken, projectIndex, teamId } = getTokenParts(token);
   const client = SDKApiClient(apiToken);
 
   await client
-    .closeBuild({
-      buildIndex: closeBuildIndex,
+    .cancelBuild({
+      buildIndex: cancelBuildIndex,
       projectIndex,
       teamId,
       runError: 'user_expoBuildError',
     })
     .catch(handleClientError);
 
-  const url = getAppBuildUrl({ buildIndex: closeBuildIndex, projectIndex, teamId });
-  return { buildIndex: closeBuildIndex, url };
+  const url = getAppBuildUrl({ buildIndex: cancelBuildIndex, projectIndex, teamId });
+  return { buildIndex: cancelBuildIndex, url };
 }
 
-export default closeBuildMode;
+export default cancelBuildMode;

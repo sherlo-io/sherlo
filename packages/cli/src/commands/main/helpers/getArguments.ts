@@ -20,7 +20,7 @@ type Parameters<T extends 'default' | 'withDefaults' = 'default'> = {
   remoteExpo?: boolean;
   async?: boolean;
   asyncBuildIndex?: number;
-  closeBuildIndex?: number;
+  cancelBuildIndex?: number;
   gitInfo?: Build['gitInfo']; // Can be passed only in GitHub Action
 } & (T extends 'withDefaults' ? ParameterDefaults : Partial<ParameterDefaults>);
 type ParameterDefaults = { config: string; projectRoot: string };
@@ -47,9 +47,9 @@ type AsyncUploadArguments = {
   platform: Platform;
 };
 type CloseBuildArguments = {
-  mode: 'closeBuild';
+  mode: 'cancelBuild';
   token: string;
-  closeBuildIndex: number;
+  cancelBuildIndex: number;
 };
 
 function getArguments(githubActionParameters?: Parameters): Arguments {
@@ -67,8 +67,8 @@ function getArguments(githubActionParameters?: Parameters): Arguments {
     mode = 'asyncInit';
   } else if (parameters.asyncBuildIndex) {
     mode = 'asyncUpload';
-  } else if (parameters.closeBuildIndex) {
-    mode = 'closeBuild';
+  } else if (parameters.cancelBuildIndex) {
+    mode = 'cancelBuild';
   }
 
   validateConfigToken(config);
@@ -125,14 +125,14 @@ function getArguments(githubActionParameters?: Parameters): Arguments {
       } satisfies AsyncUploadArguments;
     }
 
-    case 'closeBuild': {
-      const { closeBuildIndex } = parameters;
+    case 'cancelBuild': {
+      const { cancelBuildIndex } = parameters;
 
-      if (!closeBuildIndex) {
+      if (!cancelBuildIndex) {
         throw new Error(
           getErrorMessage({
             type: 'unexpected',
-            message: 'closeBuildIndex is undefined',
+            message: 'cancelBuildIndex is undefined',
           })
         );
       }
@@ -140,7 +140,7 @@ function getArguments(githubActionParameters?: Parameters): Arguments {
       return {
         mode,
         token,
-        closeBuildIndex,
+        cancelBuildIndex,
       } satisfies CloseBuildArguments;
     }
   }
@@ -169,7 +169,7 @@ command
     "Run Sherlo in async mode, meaning you don't have to provide builds immediately"
   )
   .option('--asyncBuildIndex <number>', 'Index of build you want to update in async mode', parseInt)
-  .option('--closeBuildIndex <number>', 'Index of build you want to close with error', parseInt);
+  .option('--cancelBuildIndex <number>', 'Index of build you want to cancel', parseInt);
 
 function applyParameterDefaults(params: Parameters): Parameters<'withDefaults'> {
   const projectRoot = params.projectRoot ?? DEFAULT_PROJECT_ROOT;

@@ -78,7 +78,7 @@ if [[ "$EAS_BUILD_PROFILE" == "$SHERLO_BUILD_PROFILE" ]]; then
 
     if [[ "$EAS_BUILD_STATUS" == "errored" ]]; then
         ## If the build failed, we don't want to run the tests
-        yarn sherlo --closeBuildIndex=$buildIndex --token=$token
+        yarn sherlo --cancelBuildIndex=$buildIndex --token=$token
     else
         if [[ "$EAS_BUILD_PLATFORM" == "android" ]]; then
             # Details on Android build paths: https://docs.expo.dev/build-reference/android-builds/
