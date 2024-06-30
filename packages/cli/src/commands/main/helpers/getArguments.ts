@@ -20,11 +20,12 @@ type Parameters<T extends 'default' | 'withDefaults' = 'default'> = {
   remoteExpo?: boolean;
   async?: boolean;
   asyncBuildIndex?: number;
+  closeBuildIndex?: number;
   gitInfo?: Build['gitInfo']; // Can be passed only in GitHub Action
 } & (T extends 'withDefaults' ? ParameterDefaults : Partial<ParameterDefaults>);
 type ParameterDefaults = { config: string; projectRoot: string };
 
-type Arguments = SyncArguments | AsyncInitArguments | AsyncUploadArguments;
+type Arguments = SyncArguments | AsyncInitArguments | AsyncUploadArguments | CloseBuildArguments;
 type SyncArguments = {
   mode: 'sync';
   token: string;
@@ -45,6 +46,11 @@ type AsyncUploadArguments = {
   path: string;
   platform: Platform;
 };
+type CloseBuildArguments = {
+  mode: 'closeBuild';
+  token: string;
+  closeBuildIndex: number;
+};
 
 function getArguments(githubActionParameters?: Parameters): Arguments {
   const params = githubActionParameters ?? command.parse(process.argv).opts();
@@ -61,6 +67,8 @@ function getArguments(githubActionParameters?: Parameters): Arguments {
     mode = 'asyncInit';
   } else if (parameters.asyncBuildIndex) {
     mode = 'asyncUpload';
+  } else if (parameters.closeBuildIndex) {
+    mode = 'closeBuild';
   }
 
   validateConfigToken(config);
@@ -115,6 +123,25 @@ function getArguments(githubActionParameters?: Parameters): Arguments {
         path,
         platform,
       } satisfies AsyncUploadArguments;
+    }
+
+    case 'closeBuild': {
+      const { closeBuildIndex } = parameters;
+
+      if (!closeBuildIndex) {
+        throw new Error(
+          getErrorMessage({
+            type: 'unexpected',
+            message: 'closeBuildIndex is undefined',
+          })
+        );
+      }
+
+      return {
+        mode,
+        token,
+        closeBuildIndex,
+      } satisfies CloseBuildArguments;
     }
   }
 }

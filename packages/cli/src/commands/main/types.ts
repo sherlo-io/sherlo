@@ -2,7 +2,7 @@ import { DeviceID, DeviceTheme } from '@sherlo/api-types';
 import { PartialDeep } from 'type-fest';
 import { iOSFileTypes } from './constants';
 
-export type Mode = 'sync' | 'remoteExpo' | 'asyncInit' | 'asyncUpload';
+export type Mode = 'sync' | 'remoteExpo' | 'asyncInit' | 'asyncUpload' | 'closeBuild';
 
 export type ConfigMode = 'withBuildPaths' | 'withoutBuildPaths';
 
