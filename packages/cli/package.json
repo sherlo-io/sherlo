@@ -22,7 +22,7 @@
   "bin": {
     "sherlo": "./start.sh",
     "sherlo-cli": "./dist/command.js",
-    "sherlo-eas-build-on-success": "./eas-hooks/eas-build-on-success.sh"
+    "sherlo-eas-build-on-complete": "./eas-hooks/eas-build-on-complete.sh"
   },
   "files": [
     "dist/**/*",

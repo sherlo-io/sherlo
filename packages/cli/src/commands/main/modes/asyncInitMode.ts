@@ -70,10 +70,10 @@ function validateEasBuildOnSuccessScript(projectRoot: string): void {
   const packageJsonData = fs.readFileSync(packageJsonPath, 'utf8');
   const packageJson = JSON.parse(packageJsonData);
 
-  if (!packageJson.scripts || !packageJson.scripts['eas-build-on-success']) {
+  if (!packageJson.scripts || !packageJson.scripts['eas-build-on-complete']) {
     throw new Error(
       getErrorMessage({
-        message: '"eas-build-on-success" script is not defined in package.json',
+        message: '"eas-build-on-complete" script is not defined in package.json',
         learnMoreLink: docsLink.remoteExpoBuilds,
       })
     );
