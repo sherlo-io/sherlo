@@ -168,11 +168,8 @@ command
     '--async',
     "Run Sherlo in async mode, meaning you don't have to provide builds immediately"
   )
-  .option(
-    '--asyncBuildIndex <number>',
-    'Index of build you want to update in async mode',
-    parseInt
-  );
+  .option('--asyncBuildIndex <number>', 'Index of build you want to update in async mode', parseInt)
+  .option('--closeBuildIndex <number>', 'Index of build you want to close with error', parseInt);
 
 function applyParameterDefaults(params: Parameters): Parameters<'withDefaults'> {
   const projectRoot = params.projectRoot ?? DEFAULT_PROJECT_ROOT;
