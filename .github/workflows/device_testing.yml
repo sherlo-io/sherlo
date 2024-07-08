@@ -13,11 +13,6 @@ jobs:
   run:
     name: Run
     runs-on: ubuntu-latest
-    # strategy:
-    #   matrix:
-    #     os: ['ios-17', 'ios-16', 'ios-15', 'android-13']
-    #     deviceType: ['phones', 'tablets']
-    #     variant: ['dark.en_US', 'light.de_DE']
     steps:
       - uses: actions/checkout@v2
         with:
@@ -43,7 +38,5 @@ jobs:
           ios: examples/expo-example/builds/preview/ios.tar.gz
           android: examples/expo-example/builds/preview/android.apk
           config: configs/device-testing.json
-          # config: configs/device-testing/${{ matrix.os }}/${{ matrix.deviceType }}.${{ matrix.variant }}.json
-          # commitName: ${{ matrix.os }} - ${{ matrix.deviceType }} - ${{ matrix.variant }}
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_DEVICE_TESTING_TOKEN }}

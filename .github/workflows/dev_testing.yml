@@ -1,0 +1,71 @@
+name: dev_testing
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_call:
+    inputs:
+      skip_build:
+        description: 'Skip the build steps'
+        required: false
+        default: false
+        type: boolean
+  workflow_dispatch:
+    inputs:
+      skip_build:
+        description: 'Skip the build steps'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  ## Android
+  android_preview_build:
+    name: Prepare Android Preview Build
+    uses: ./.github/workflows/android_build.yml
+    secrets: inherit
+    with:
+      skip_build: ${{ github.event.inputs.skip_build == true || inputs.skip_build == true || github.event.label.name == 'sherlo:sync:skip_build' }}
+      profile: 'preview'
+
+  ## iOS
+  ios_preview_build:
+    name: Prepare iOS Preview Build
+    uses: ./.github/workflows/ios_build.yml
+    secrets: inherit
+    with:
+      skip_build: ${{ github.event.inputs.skip_build == true || inputs.skip_build == true || github.event.label.name == 'sherlo:sync:skip_build' }}
+      profile: 'preview'
+
+  device_testing:
+    name: Device Testing
+    uses: ./.github/workflows/device_testing.yml
+    secrets: inherit
+    with:
+      skip_build: true
+      profile: 'preview'
+
+  sync:
+    name: Integration Testing - Sync
+    uses: ./.github/workflows/sync.yml
+    secrets: inherit
+    with:
+      skip_build: true
+      profile: 'preview'
+
+  async:
+    name: Integration Testing - Async
+    uses: ./.github/workflows/async.yml
+    secrets: inherit
+    with:
+      skip_build: true
+      profile: 'preview'
+
+  sync:
+    name: Integration Testing - EAS hooks
+    uses: ./.github/workflows/eas_hooks.yml
+    secrets: inherit
+    with:
+      skip_build: true
+      profile: 'preview'
