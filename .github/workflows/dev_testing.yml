@@ -62,7 +62,7 @@ jobs:
       skip_build: true
       profile: 'preview'
 
-  sync:
+  eas:
     name: Integration Testing - EAS hooks
     uses: ./.github/workflows/eas_hooks.yml
     secrets: inherit
