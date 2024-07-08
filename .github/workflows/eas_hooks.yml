@@ -38,7 +38,7 @@ jobs:
         with:
           projectRoot: examples/expo-example
           config: ../../configs/eas.preview.json
-          async: true
+          remoteExpo: true
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN_EAS }}
 
