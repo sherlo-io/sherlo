@@ -1,14 +1,8 @@
 {
   "android": "builds/preview/android.apk",
   "ios": "builds/preview/ios.tar.gz",
-  "include": ["components/screens/"],
+  "include": ["components/screens/Test"],
   "devices": [
-    {
-      "id": "pixel.4a",
-      "osVersion": "13",
-      "osLanguage": "en_US",
-      "osTheme": "light"
-    },
     {
       "id": "pixel.7.pro",
       "osVersion": "13",
@@ -20,12 +14,6 @@
       "osVersion": "13",
       "osLanguage": "fr_FR",
       "osTheme": "dark"
-    },
-    {
-      "id": "iphone.13.mini",
-      "osVersion": "15",
-      "osLanguage": "en_US",
-      "osTheme": "light"
     },
     {
       "id": "iphone.15.pro",
