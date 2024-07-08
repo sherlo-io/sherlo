@@ -1,6 +1,6 @@
 {
   "name": "@sherlo/cli",
-  "version": "1.0.16",
+  "version": "1.0.18",
   "description": "A CLI that uploads provided iOS & Android builds to Sherlo and starts a test run",
   "keywords": [
     "visual testing",
@@ -37,20 +37,21 @@
     "@sherlo/common-client": "1.1.5",
     "@sherlo/sdk-client": "1.1.5",
     "@sherlo/shared": "1.1.5",
-    "chalk": "4.1.2",
-    "commander": "12.0.0",
-    "git-rev-sync": "3.0.2",
-    "gradient-string": "2.0.1",
-    "graphql": "16.6.0",
-    "node-fetch": "2.6.11",
-    "tar": "6.1.15"
+    "chalk": "^4.1.2",
+    "commander": "^12.0.0",
+    "git-rev-sync": "^3.0.2",
+    "gradient-string": "^2.0.1",
+    "graphql": "^16.6.0",
+    "node-fetch": "^2.6.11",
+    "tar": "^6.1.15"
   },
   "devDependencies": {
-    "@types/git-rev-sync": "2.0.0",
-    "@types/gradient-string": "1.1.2",
-    "@types/node": "16.11.7",
-    "@types/node-fetch": "2.6.4",
-    "@types/tar": "6.1.5",
+    "@types/git-rev-sync": "^2.0.0",
+    "@types/gradient-string": "^1.1.2",
+    "@types/node": "^16.11.7",
+    "@types/node-fetch": "^2.6.4",
+    "@types/tar": "^6.1.5",
+    "type-fest": "^4.20.1",
     "typescript": "^5.3.3"
   },
   "engines": {

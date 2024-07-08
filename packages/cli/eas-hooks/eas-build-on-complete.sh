@@ -52,8 +52,8 @@ if [[ "$EAS_BUILD_PROFILE" == "$SHERLO_BUILD_PROFILE" ]]; then
         exit 0
     fi
 
-    # Check for sherlo.json file
-    SHERLO_BUILD_FILE="./.expo/sherlo.json"
+    # Check for sherlo data temp file
+    SHERLO_BUILD_FILE="./.sherlo/data.json"
     if [ ! -f "$SHERLO_BUILD_FILE" ]; then
         echo "Error: File $SHERLO_BUILD_FILE does not exist. If you're using monorepo make sure to provide a valid 'projectRoot' option in CLI or Github Action"
         exit 1

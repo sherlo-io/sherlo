@@ -1,8 +1,8 @@
 import { Build } from '@sherlo/api-types';
 import SDKApiClient from '@sherlo/sdk-client';
-import { docsLink } from '../constants';
+import { DOCS_LINK } from '../constants';
 import { Config } from '../types';
-import { getConfigErrorMessage, getTokenParts } from '../utils';
+import { getConfigErrorMessage, getTokenParts, logLink } from '../utils';
 import {
   getAppBuildUrl,
   getBuildRunConfig,
@@ -29,8 +29,8 @@ async function syncMode({
   if (platformsToTest.includes('android') && !config.android) {
     throw new Error(
       getConfigErrorMessage(
-        'path to the Android build is not provided, despite at least one Android testing device having been defined',
-        docsLink.configAndroid
+        '`android` path is not provided, despite at least one Android testing device being defined',
+        DOCS_LINK.configAndroid
       )
     );
   }
@@ -38,8 +38,8 @@ async function syncMode({
   if (platformsToTest.includes('ios') && !config.ios) {
     throw new Error(
       getConfigErrorMessage(
-        'path to the iOS build is not provided, despite at least one iOS testing device having been defined',
-        docsLink.configIos
+        '`ios` path is not provided, despite at least one iOS testing device being defined',
+        DOCS_LINK.configIos
       )
     );
   }
@@ -73,7 +73,7 @@ async function syncMode({
   const buildIndex = build.index;
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
-  console.log(`View your test results at: ${url}\n`);
+  console.log(`Test results: ${logLink(url)}\n`);
 
   return { buildIndex, url };
 }

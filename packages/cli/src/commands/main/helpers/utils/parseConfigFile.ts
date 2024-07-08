@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { docsLink } from '../../constants';
+import { DOCS_LINK } from '../../constants';
 import { InvalidatedConfig } from '../../types';
 import { getConfigErrorMessage, getErrorMessage } from '../../utils';
 
@@ -33,8 +33,8 @@ function parseConfigFile(path: string): InvalidatedConfig {
       case 'ENOENT':
         throw new Error(
           getConfigErrorMessage(
-            `config file "${path}" not found - make sure the path is correct or pass the \`--projectRoot\` flag to the script`,
-            docsLink.scriptFlags
+            `config file "${path}" not found - verify the path or use the \`--projectRoot\` flag`,
+            DOCS_LINK.sherloScriptFlags
           )
         );
       case 'EACCES':

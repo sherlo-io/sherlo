@@ -1,6 +1,6 @@
 import { DeviceID, DeviceTheme } from '@sherlo/api-types';
 import { PartialDeep } from 'type-fest';
-import { iOSFileTypes } from './constants';
+import { IOS_FILE_TYPES } from './constants';
 
 export type Mode = 'sync' | 'remoteExpo' | 'asyncInit' | 'asyncUpload' | 'closeBuild';
 
@@ -29,4 +29,4 @@ type ConfigBuildPaths = {
 
 export type InvalidatedConfig = PartialDeep<Config, { recurseIntoArrays: true }>;
 
-export type IOSFileType = (typeof iOSFileTypes)[number];
+export type IOSFileType = (typeof IOS_FILE_TYPES)[number];

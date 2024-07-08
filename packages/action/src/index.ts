@@ -8,11 +8,12 @@ async function run(): Promise<void> {
     const projectRoot = getOptionalInput('projectRoot');
     const config = getOptionalInput('config');
     const android = getOptionalInput('android');
-    const overrideCommitName = getOptionalInput('commitName');
     const ios = getOptionalInput('ios');
-    const async = getOptionalInput('async') === 'true';
-    const asyncBuildIndexString = getOptionalInput('asyncBuildIndex');
-    const asyncBuildIndex = asyncBuildIndexString ? Number(asyncBuildIndexString) : undefined;
+    const remoteExpo = getOptionalInput('remoteExpo');
+    const remoteExpoBuildScript = getOptionalInput('remoteExpoBuildScript');
+    const async = getOptionalInput('async');
+    const asyncBuildIndex = getOptionalInput('asyncBuildIndex');
+    const overrideCommitName = getOptionalInput('commitName');
 
     const { context } = github;
 
@@ -44,13 +45,15 @@ async function run(): Promise<void> {
     }
 
     const { buildIndex, url } = await main({
+      projectRoot,
+      config,
+      token: emptyStringToUndefined(process.env.SHERLO_TOKEN), // Action returns an empty string if not defined
       android,
       ios,
-      config,
-      async,
-      asyncBuildIndex,
-      projectRoot,
-      token: emptyStringToUndefined(process.env.SHERLO_TOKEN), // Action returns an empty string if not defined
+      remoteExpo: remoteExpo === 'true',
+      remoteExpoBuildScript,
+      async: async === 'true',
+      asyncBuildIndex: asyncBuildIndex ? Number(asyncBuildIndex) : undefined,
       gitInfo,
     });
 
