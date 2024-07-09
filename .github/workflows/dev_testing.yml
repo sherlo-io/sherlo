@@ -14,27 +14,31 @@ on:
 
 jobs:
   update_builds:
-    name: Update Builds
     uses: ./.github/workflows/update_builds.yml
+    if: ${{ github.event.inputs.skip_build != 'true'}}
+    name: Update Builds
     secrets: inherit
     with:
-      skip_build: ${{ github.event.inputs.skip_build == 'true'}}
       profile: 'preview'
 
   device_testing:
-    needs: [update_builds]
-    name: Device Testing
     uses: ./.github/workflows/device_testing.yml
+    needs: [update_builds]
+    ## skipped or successful jobs are ok
+    if: ${{ always() && !failure() && !cancelled() }}
+    name: Device Testing
     secrets: inherit
 
   stress_testing:
-    needs: [update_builds]
-    name: Stress Testing
     uses: ./.github/workflows/stress_testing.yml
+    needs: [update_builds]
+    if: ${{ always() && !failure() && !cancelled() }}
+    name: Stress Testing
     secrets: inherit
 
   sync:
-    needs: [update_builds]
-    name: Integration Testing - Sync
     uses: ./.github/workflows/sync.yml
+    needs: [update_builds]
+    if: ${{ always() && !failure() && !cancelled() }}
+    name: Integration Testing - Sync
     secrets: inherit
