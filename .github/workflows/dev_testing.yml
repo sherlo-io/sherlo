@@ -20,47 +20,27 @@ on:
         type: boolean
 
 jobs:
-  ## Android
-  android_preview_build:
-    name: Prepare Android Preview Build
-    uses: ./.github/workflows/android_build.yml
+  update_builds:
+    name: Update Builds
+    uses: ./.github/workflows/update_builds.yml
     secrets: inherit
     with:
-      skip_build: ${{ github.event.inputs.skip_build == true || inputs.skip_build == true || github.event.label.name == 'sherlo:sync:skip_build' }}
-      profile: 'preview'
-
-  ## iOS
-  ios_preview_build:
-    name: Prepare iOS Preview Build
-    uses: ./.github/workflows/ios_build.yml
-    secrets: inherit
-    with:
-      skip_build: ${{ github.event.inputs.skip_build == true || inputs.skip_build == true || github.event.label.name == 'sherlo:sync:skip_build' }}
       profile: 'preview'
 
   device_testing:
     name: Device Testing
     uses: ./.github/workflows/device_testing.yml
     secrets: inherit
-    with:
-      skip_build: true
-      profile: 'preview'
 
   stress_testing:
     name: Stress Testing
     uses: ./.github/workflows/stress_testing.yml
     secrets: inherit
-    with:
-      skip_build: true
-      profile: 'preview'
 
   sync:
     name: Integration Testing - Sync
     uses: ./.github/workflows/sync.yml
     secrets: inherit
-    with:
-      skip_build: true
-      profile: 'preview'
 
   # async:
   #   name: Integration Testing - Async
