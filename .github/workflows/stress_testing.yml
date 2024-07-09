@@ -43,4 +43,4 @@ jobs:
           config: configs/stress-testing.json
           commitName: Attempt ${{ matrix.attemptNumber }}
         env:
-          SHERLO_TOKEN: ${{ secrets.SHERLO_DEVICE_TESTING_TOKEN }}
+          SHERLO_TOKEN: ${{ secrets.SHERLO_STRESS_TESTING_TOKEN }}
