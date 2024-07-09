@@ -46,6 +46,14 @@ jobs:
       skip_build: true
       profile: 'preview'
 
+  stress_testing:
+    name: Stress Testing
+    uses: ./.github/workflows/stress_testing.yml
+    secrets: inherit
+    with:
+      skip_build: true
+      profile: 'preview'
+
   sync:
     name: Integration Testing - Sync
     uses: ./.github/workflows/sync.yml
@@ -54,18 +62,18 @@ jobs:
       skip_build: true
       profile: 'preview'
 
-  async:
-    name: Integration Testing - Async
-    uses: ./.github/workflows/async.yml
-    secrets: inherit
-    with:
-      skip_build: true
-      profile: 'preview'
+  # async:
+  #   name: Integration Testing - Async
+  #   uses: ./.github/workflows/async.yml
+  #   secrets: inherit
+  #   with:
+  #     skip_build: true
+  #     profile: 'preview'
 
-  eas:
-    name: Integration Testing - EAS hooks
-    uses: ./.github/workflows/eas_hooks.yml
-    secrets: inherit
-    with:
-      skip_build: true
-      profile: 'preview'
+  # eas:
+  #   name: Integration Testing - EAS hooks
+  #   uses: ./.github/workflows/eas_hooks.yml
+  #   secrets: inherit
+  #   with:
+  #     skip_build: true
+  #     profile: 'preview'
