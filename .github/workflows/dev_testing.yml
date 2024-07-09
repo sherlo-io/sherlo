@@ -4,13 +4,6 @@ on:
   push:
     branches:
       - dev
-  workflow_call:
-    inputs:
-      skip_build:
-        description: 'Skip the build steps'
-        required: false
-        default: false
-        type: boolean
   workflow_dispatch:
     inputs:
       skip_build:
@@ -25,7 +18,7 @@ jobs:
     uses: ./.github/workflows/update_builds.yml
     secrets: inherit
     with:
-      skip_build: ${{ github.event.inputs.skip_build || inputs.skip_build }}
+      skip_build: ${{ github.event.inputs.skip_build }}
       profile: 'preview'
 
   device_testing:
