@@ -12,6 +12,13 @@ on:
         required: true
         type: string
         description: 'Build profile to use (development, preview, production)'
+  workflow_dispatch:
+    inputs:
+      skip_build:
+        description: 'Skip the build steps'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   android_build:
