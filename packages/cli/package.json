@@ -23,9 +23,7 @@
     "sherlo": "./dist/index.js"
   },
   "files": [
-    "dist/**/*",
-    "eas-hooks/**/*",
-    "start.sh"
+    "dist/**/*"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.json && chmod u+x ./dist/index.js"
