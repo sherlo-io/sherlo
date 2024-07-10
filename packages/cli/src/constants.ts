@@ -10,7 +10,8 @@ export const DOCS_LINK = {
   configDevices: `${DOCS_DOMAIN}/getting-started/config#devices`,
   devices: `${DOCS_DOMAIN}/devices`,
   remoteExpoBuilds: `${DOCS_DOMAIN}/getting-started/builds?framework=expo&eas-build=remote#preparing-builds`,
-  sherloScriptRemoteExpo: `${DOCS_DOMAIN}/getting-started/testing?builds-type=expo-remote#sherlo-script`,
+  sherloScriptLocalBuilds: `${DOCS_DOMAIN}/getting-started/testing?builds-type=local#sherlo-script`,
+  sherloScriptExpoRemoteBuilds: `${DOCS_DOMAIN}/getting-started/testing?builds-type=expo-remote#sherlo-script`,
   sherloScriptFlags: `${DOCS_DOMAIN}/getting-started/testing#supported-flags`,
 };
 

@@ -1,6 +1,6 @@
 import SDKApiClient from '@sherlo/sdk-client/dist/sdkClient';
 import { GetBuildUploadUrlsRequest, GetBuildUploadUrlsReturn } from '@sherlo/api-types';
-import handleClientError from './handleClientError';
+import { handleClientError } from '../../../utils';
 
 async function getBuildUploadUrls(
   client: ReturnType<typeof SDKApiClient>,

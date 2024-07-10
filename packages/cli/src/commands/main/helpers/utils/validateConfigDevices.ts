@@ -1,6 +1,6 @@
 import { DeviceTheme } from '@sherlo/api-types';
 import { devices as sherloDevices } from '@sherlo/shared';
-import { DOCS_LINK } from '../../constants';
+import { DOCS_LINK } from '../../../../constants';
 import { InvalidatedConfig } from '../../types';
 import { getConfigErrorMessage } from '../../utils';
 

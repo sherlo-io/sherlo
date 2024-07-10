@@ -3,10 +3,11 @@ import SDKApiClient from '@sherlo/sdk-client';
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { DOCS_LINK, DEFAULT_PROJECT_ROOT } from '../constants';
-import { getErrorMessage, getTokenParts } from '../utils';
+import { getErrorMessage } from '../../../utils';
+import { DOCS_LINK, DEFAULT_PROJECT_ROOT } from '../../../constants';
+import { getTokenParts, handleClientError } from '../../utils';
 import { Config } from '../types';
-import { getAppBuildUrl, getBuildRunConfig, handleClientError } from './utils';
+import { getAppBuildUrl, getBuildRunConfig } from './utils';
 
 async function asyncInitMode({
   projectRoot,
@@ -93,7 +94,7 @@ function validateRemoteExpoBuildScript(projectRoot: string, remoteExpoBuildScrip
     projectRoot,
     scriptName: scriptName,
     errorMessage: `script "${scriptName}" passed by \`--remoteExpoBuildScript\` is not defined in package.json`,
-    learnMoreLink: DOCS_LINK.sherloScriptRemoteExpo,
+    learnMoreLink: DOCS_LINK.sherloScriptExpoRemoteBuilds,
   });
 }
 

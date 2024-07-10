@@ -1,7 +1,6 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
-
-import { main } from '@sherlo/cli';
+import sherlo from '@sherlo/cli';
 
 async function run(): Promise<void> {
   try {
@@ -44,7 +43,7 @@ async function run(): Promise<void> {
       gitInfo.commitName = overrideCommitName;
     }
 
-    const { buildIndex, url } = await main({
+    const { buildIndex, url } = await sherlo({
       projectRoot,
       config,
       token: emptyStringToUndefined(process.env.SHERLO_TOKEN), // Action returns an empty string if not defined

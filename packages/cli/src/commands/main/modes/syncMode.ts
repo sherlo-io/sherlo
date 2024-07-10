@@ -1,15 +1,16 @@
 import { Build } from '@sherlo/api-types';
 import SDKApiClient from '@sherlo/sdk-client';
-import { DOCS_LINK } from '../constants';
+import { logLink } from '../../../utils';
+import { DOCS_LINK } from '../../../constants';
+import { getTokenParts, handleClientError } from '../../utils';
 import { Config } from '../types';
-import { getConfigErrorMessage, getTokenParts, logLink } from '../utils';
+import { getConfigErrorMessage } from '../utils';
 import {
   getAppBuildUrl,
   getBuildRunConfig,
   getBuildUploadUrls,
   getPlatformsToTest,
   uploadMobileBuilds,
-  handleClientError,
 } from './utils';
 
 async function syncMode({

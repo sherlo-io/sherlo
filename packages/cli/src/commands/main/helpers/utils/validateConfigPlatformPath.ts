@@ -1,6 +1,6 @@
 import { Platform } from '@sherlo/api-types';
 import fs from 'fs';
-import { DOCS_LINK, IOS_FILE_TYPES } from '../../constants';
+import { DOCS_LINK, IOS_FILE_TYPES } from '../../../../constants';
 import { getConfigErrorMessage } from '../../utils';
 
 const learnMoreLink: { [platform in Platform]: string } = {

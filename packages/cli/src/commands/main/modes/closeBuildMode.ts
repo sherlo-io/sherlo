@@ -1,6 +1,6 @@
 import SDKApiClient from '@sherlo/sdk-client';
-import { getTokenParts } from '../utils';
-import { handleClientError, getAppBuildUrl } from './utils';
+import { getTokenParts, handleClientError } from '../../utils';
+import { getAppBuildUrl } from './utils';
 
 async function closeBuildMode({
   token,

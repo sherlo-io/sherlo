@@ -1,5 +1,5 @@
-import { DOCS_LINK } from '../constants';
-import getErrorMessage from './getErrorMessage';
+import { getErrorMessage } from '../../../utils';
+import { DOCS_LINK } from '../../../constants';
 
 function getConfigErrorMessage(message: string, learnMoreLink?: string): string {
   return getErrorMessage({
