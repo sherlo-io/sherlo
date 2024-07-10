@@ -6,24 +6,37 @@ on:
       - dev
   workflow_dispatch:
     inputs:
-      skip_build:
-        description: 'Skip the build steps'
+      skip_preview_builds:
+        description: 'Skip Preview builds'
+        required: false
+        default: false
+        type: boolean
+      skip_storybook_builds:
+        description: 'Skip Storybook builds'
         required: false
         default: false
         type: boolean
 
 jobs:
-  update_builds:
+  update_preview_builds:
     uses: ./.github/workflows/update_builds.yml
-    if: ${{ github.event.inputs.skip_build != 'true'}}
-    name: Update Builds
+    if: ${{ github.event.inputs.skip_preview_builds != 'true'}}
+    name: Update Preview Builds
     secrets: inherit
     with:
       profile: 'preview'
 
+  update_storybook_builds:
+    uses: ./.github/workflows/update_builds.yml
+    if: ${{ github.event.inputs.skip_storybook_builds != 'true'}}
+    name: Update Storybook Builds
+    secrets: inherit
+    with:
+      profile: 'storybook'
+
   device_testing:
     uses: ./.github/workflows/device_testing.yml
-    needs: [update_builds]
+    needs: [update_preview_builds, update_storybook_builds]
     ## skipped or successful jobs are ok
     if: ${{ always() && !failure() && !cancelled() }}
     name: Device Testing
@@ -31,14 +44,14 @@ jobs:
 
   stress_testing:
     uses: ./.github/workflows/stress_testing.yml
-    needs: [update_builds]
+    needs: [update_preview_builds, update_storybook_builds]
     if: ${{ always() && !failure() && !cancelled() }}
     name: Stress Testing
     secrets: inherit
 
-  sync:
-    uses: ./.github/workflows/sync.yml
-    needs: [update_builds]
-    if: ${{ always() && !failure() && !cancelled() }}
-    name: Integration Testing - Sync
-    secrets: inherit
+  # sync:
+  #   uses: ./.github/workflows/sync.yml
+  #   needs: [update_builds]
+  #   if: ${{ always() && !failure() && !cancelled() }}
+  #   name: Integration Testing - Sync
+  #   secrets: inherit

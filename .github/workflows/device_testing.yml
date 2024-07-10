@@ -1,11 +1,6 @@
 name: Device Testing
 
-# This workflow is triggered by a pull request labeled with 'device_testing'
-# and also by a workflow call or a manual dispatch
 on:
-  pull_request:
-    branches: [dev]
-    types: [labeled]
   workflow_call:
   workflow_dispatch:
 
