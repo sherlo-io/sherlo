@@ -1,11 +1,6 @@
 name: Stress Testing
 
-# This workflow is triggered by a pull request labeled with 'stress_testing'
-# and also by a workflow call or a manual dispatch
 on:
-  pull_request:
-    branches: [dev]
-    types: [labeled]
   workflow_call:
   workflow_dispatch:
 
@@ -15,29 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        attemptNumber:
-          [
-            '1',
-            '2',
-            '3',
-            '4',
-            '5',
-            '6',
-            '7',
-            '8',
-            '9',
-            '10',
-            '11',
-            '12',
-            '13',
-            '14',
-            '15',
-            '16',
-            '17',
-            '18',
-            '19',
-            '20',
-          ]
+        attemptNumber: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -65,4 +38,4 @@ jobs:
           config: configs/stress-testing.json
           commitName: Attempt ${{ matrix.attemptNumber }}
         env:
-          SHERLO_TOKEN: ${{ secrets.SHERLO_DEVICE_TESTING_TOKEN }}
+          SHERLO_TOKEN: ${{ secrets.SHERLO_STRESS_TESTING_TOKEN }}

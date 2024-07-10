@@ -1,67 +1,13 @@
 name: Run Sherlo with Sync Upload
 
 on:
-  pull_request:
-    branches: [dev]
-    types: [labeled]
   workflow_call:
-    inputs:
-      skip_build:
-        description: 'Skip the build steps'
-        required: false
-        default: false
-        type: boolean
-      test_all_nodes:
-        description: 'Test all Node versions'
-        required: false
-        default: false
-        type: boolean
   workflow_dispatch:
-    inputs:
-      skip_build:
-        description: 'Skip the build steps'
-        required: false
-        default: false
-        type: boolean
-      test_all_nodes:
-        description: 'Test all Node versions'
-        required: false
-        default: false
-        type: boolean
 
 jobs:
-  ## Android
-  android_preview_build:
-    name: Prepare Android Preview Build
-    if: >
-      (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:sync')) ||
-      (github.event_name != 'pull_request')
-    uses: ./.github/workflows/android_build.yml
-    secrets: inherit
-    with:
-      skip_build: ${{ github.event.inputs.skip_build == true || inputs.skip_build == true || github.event.label.name == 'sherlo:sync:skip_build' }}
-      profile: 'preview'
-
-  ## iOS
-  ios_preview_build:
-    name: Prepare iOS Preview Build
-    if: >
-      (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:sync')) ||
-      (github.event_name != 'pull_request')
-    uses: ./.github/workflows/ios_build.yml
-    secrets: inherit
-    with:
-      skip_build: ${{ github.event.inputs.skip_build == true || inputs.skip_build == true || github.event.label.name == 'sherlo:sync:skip_build' }}
-      profile: 'preview'
-
-  ## Sherlo
   run_sherlo_sync:
     name: Run Sherlo in sync mode
     runs-on: ubuntu-latest
-    needs: [android_preview_build, ios_preview_build]
-    strategy:
-      matrix:
-        node-version: ${{ fromJSON(github.event.inputs.test_all_nodes == 'true' || inputs.test_all_nodes == 'true' && '["22.3.0", "21.7.3", "20.14.0", "19.9.0", "18.20.3", "17.9.1", "16.20.2", "15.14.0", "14.21.3", "13.14.0", "12.22.12", "11.15.0", "10.24.1"]' || '["18.18.0"]') }}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -70,7 +16,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v2
         with:
-          node-version: '18.18.0' # Default version
+          node-version: '18.18.0'
 
       - name: Install dependencies
         run: yarn
@@ -80,23 +26,6 @@ jobs:
         env:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
-      - name: Download Android Artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: android
-          path: examples/expo-example/builds/preview
-
-      - name: Download iOS Artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: ios
-          path: examples/expo-example/builds/preview
-
-      - name: Set up Node.js for testing
-        uses: actions/setup-node@v2
-        with:
-          node-version: ${{ matrix.node-version }}
-
       - name: Run Sherlo Action
         uses: ./.
         with:
@@ -105,22 +34,3 @@ jobs:
           config: configs/sync.preview.json
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN_SYNC }}
-        continue-on-error: true # Continue even if this step fails
-        id: sherlo
-
-      - name: Record result
-        run: echo "sherlo_sync_result=${{ steps.sherlo.outcome }}" >> $GITHUB_ENV
-
-  fail_check:
-    name: Fail Check
-    runs-on: ubuntu-latest
-    needs: [run_sherlo_sync]
-    steps:
-      - name: Check for failures
-        run: |
-          if grep -q "failure" <<< "${{ needs.run_sherlo_sync.outputs.sherlo_sync_result }}"; then
-            echo "One or more instances failed"
-            exit 1
-          else
-            echo "All instances passed"
-          fi
