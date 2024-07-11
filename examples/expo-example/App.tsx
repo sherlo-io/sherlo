@@ -16,9 +16,6 @@ SplashScreen.preventAutoHideAsync();
 // global.SHERLO_VERIFY_SETUP = true;
 // global.SHERLO_TEST_CONFIG = {};
 
-// TODO: usunac
-const foo = ;
-
 export default function App() {
   let [fontsLoaded, fontError] = useFonts({
     Urbanist_400Regular,

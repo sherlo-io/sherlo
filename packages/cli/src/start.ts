@@ -4,9 +4,6 @@ import { getErrorMessage } from './utils';
 
 async function start() {
   try {
-    // TODO: usunac
-    console.log('### NEW CLI ###');
-
     const cliArgument = process.argv[2];
 
     if (cliArgument === undefined || cliArgument.startsWith('--')) {
