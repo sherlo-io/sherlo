@@ -33,7 +33,7 @@
     "@react-native-community/datetimepicker": "7.7.0",
     "@react-native-community/slider": "4.4.2",
     "@shopify/flash-list": "1.6.3",
-    "expo": "~50.0.8",
+    "expo": "15.0.0",
     "expo-app-loading": "^2.1.1",
     "expo-dev-client": "~3.3.9",
     "expo-font": "~11.10.3",
