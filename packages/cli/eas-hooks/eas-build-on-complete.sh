@@ -76,35 +76,39 @@ if [[ "$EAS_BUILD_PROFILE" == "$SHERLO_BUILD_PROFILE" ]]; then
         exit 1
     fi
 
+    if [[ "$EAS_BUILD_STATUS" == "errored" ]]; then
+        ## If the build failed, we don't want to run the tests
+        yarn sherlo --closeBuildIndex=$buildIndex --token=$token
+    else
+        if [[ "$EAS_BUILD_PLATFORM" == "android" ]]; then
+            # Details on Android build paths: https://docs.expo.dev/build-reference/android-builds/
+            android_path=$(jq -r '.builds.android."'"$EAS_BUILD_PROFILE"'"."applicationArchivePath"' eas.json)
+            if [[ -z "$android_path" || "$android_path" == "null" ]]; then
+                android_path="android/app/build/outputs/apk/release/app-release.apk"
+            fi
 
-    if [[ "$EAS_BUILD_PLATFORM" == "android" ]]; then
-        # Details on Android build paths: https://docs.expo.dev/build-reference/android-builds/
-        android_path=$(jq -r '.builds.android."'"$EAS_BUILD_PROFILE"'"."applicationArchivePath"' eas.json)
-        if [[ -z "$android_path" || "$android_path" == "null" ]]; then
-            android_path="android/app/build/outputs/apk/release/app-release.apk"
+            if [ -z "$android_path" ]; then
+                echo "Error: We couldn't find the Android build under default path or the path provided in eas.json. Please make sure the build is successful."
+                exit 1
+            fi
+
+            yarn sherlo --asyncBuildIndex=$buildIndex --token=$token --android=$android_path
         fi
 
-        if [ -z "$android_path" ]; then
-            echo "Error: We couldn't find the Android build under default path or the path provided in eas.json. Please make sure the build is successful."
-            exit 1
+        if [[ "$EAS_BUILD_PLATFORM" == "ios" ]]; then
+            # Details on iOS build paths: https://docs.expo.dev/build-reference/ios-builds/
+            ios_path=$(jq -r '.builds.ios."'"$EAS_BUILD_PROFILE"'"."applicationArchivePath"' eas.json)
+            if [[ -z "$ios_path" || "$ios_path" == "null" ]]; then
+                ios_path=$(find ios/build/Build/Products/Release-iphonesimulator -name "*.app" -print -quit)
+            fi
+
+            if [ -z "$ios_path" ]; then
+                echo "Error: We couldn't find the iOS build under default path or the path provided in eas.json. Please make sure the build is successful."
+                exit 1
+            fi
+
+            yarn sherlo --asyncBuildIndex=$buildIndex --token=$token --ios=$ios_path
         fi
-
-        yarn sherlo --asyncBuildIndex=$buildIndex --token=$token --android=$android_path
-    fi
-
-    if [[ "$EAS_BUILD_PLATFORM" == "ios" ]]; then
-        # Details on iOS build paths: https://docs.expo.dev/build-reference/ios-builds/
-        ios_path=$(jq -r '.builds.ios."'"$EAS_BUILD_PROFILE"'"."applicationArchivePath"' eas.json)
-        if [[ -z "$ios_path" || "$ios_path" == "null" ]]; then
-            ios_path=$(find ios/build/Build/Products/Release-iphonesimulator -name "*.app" -print -quit)
-        fi
-
-        if [ -z "$ios_path" ]; then
-            echo "Error: We couldn't find the iOS build under default path or the path provided in eas.json. Please make sure the build is successful."
-            exit 1
-        fi
-
-        yarn sherlo --asyncBuildIndex=$buildIndex --token=$token --ios=$ios_path
     fi
 fi
 

@@ -76,7 +76,7 @@ export default asyncInitMode;
 /* ========================================================================== */
 
 function validateEasBuildOnSuccessScript(projectRoot: string): void {
-  const scriptName = 'eas-build-on-success';
+  const scriptName = 'eas-build-on-complete';
 
   validatePackageJsonScript({
     projectRoot,

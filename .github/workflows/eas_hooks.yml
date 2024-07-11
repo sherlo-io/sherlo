@@ -1,9 +1,6 @@
 name: Run Sherlo with EAS hooks
 
 on:
-  pull_request:
-    branches: [dev]
-    types: [labeled]
   workflow_call:
   workflow_dispatch:
 
@@ -38,7 +35,7 @@ jobs:
         with:
           projectRoot: examples/expo-example
           config: ../../configs/eas.preview.json
-          async: true
+          remoteExpo: true
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN_EAS }}
 

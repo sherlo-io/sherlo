@@ -81933,6 +81933,7 @@ function run() {
             const projectRoot = getOptionalInput('projectRoot');
             const config = getOptionalInput('config');
             const android = getOptionalInput('android');
+            const overrideCommitName = getOptionalInput('commitName');
             const ios = getOptionalInput('ios');
             const remoteExpo = getOptionalInput('remoteExpo');
             const remoteExpoBuildScript = getOptionalInput('remoteExpoBuildScript');

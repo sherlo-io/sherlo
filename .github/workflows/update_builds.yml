@@ -3,31 +3,33 @@ name: Update builds in repository
 on:
   workflow_call:
     inputs:
+      skip_build:
+        description: 'Skip the build steps'
+        required: false
+        type: boolean
+        default: false
       profile:
         required: true
         type: string
-        description: 'Build profile to use (development, preview, storybook)'
-  workflow_dispatch:
-    inputs:
-      profile:
-        required: true
-        type: string
-        description: 'Build profile to use (development, preview, storybook)'
+        description: 'Build profile to use (development, preview, production)'
 
 jobs:
   android_build:
     uses: ./.github/workflows/android_build.yml
+    if: ${{ !inputs.skip_build }}
     secrets: inherit
     with:
-      profile: ${{ github.event.inputs.profile || inputs.profile }}
+      profile: ${{ inputs.profile }}
 
   ios_build:
     uses: ./.github/workflows/ios_build.yml
+    if: ${{ !inputs.skip_build }}
     secrets: inherit
     with:
-      profile: ${{ github.event.inputs.profile || inputs.profile }}
+      profile: ${{ inputs.profile }}
 
   update_in_repo:
+    if: ${{ !inputs.skip_build }}
     runs-on: ubuntu-latest
     needs: [android_build, ios_build]
     steps:
@@ -47,20 +49,20 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: android
-          path: examples/expo-example/builds/${{ github.event.inputs.profile || inputs.profile }}
+          path: examples/expo-example/builds/${{ inputs.profile }}
 
       - name: Download iOS Artifact
         uses: actions/download-artifact@v2
         with:
           name: ios
-          path: examples/expo-example/builds/${{ github.event.inputs.profile || inputs.profile }}
+          path: examples/expo-example/builds/${{ inputs.profile }}
 
-      - name: Commit and push '${{ github.event.inputs.profile || inputs.profile }}' builds
+      - name: Commit and push '${{ inputs.profile }}' builds
         uses: EndBug/add-and-commit@v7
         with:
           author_name: Sherlo Bot
           author_email: admin@sherlo.io
           message: 'Update Preview builds'
-          add: 'examples/expo-example/builds/${{ github.event.inputs.profile || inputs.profile }}/*'
+          add: 'examples/expo-example/builds/${{ inputs.profile }}/*'
           push: true
           branch: ${{ github.head_ref || github.ref_name }}

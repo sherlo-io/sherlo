@@ -4,68 +4,68 @@ on:
   push:
     branches:
       - dev
-  workflow_call:
+  workflow_dispatch:
     inputs:
-      skip_build:
-        description: 'Skip the build steps'
+      skip_preview_builds:
+        description: 'Skip Preview builds'
         required: false
         default: false
         type: boolean
-  workflow_dispatch:
-    inputs:
-      skip_build:
-        description: 'Skip the build steps'
+      skip_storybook_builds:
+        description: 'Skip Storybook builds'
         required: false
         default: false
         type: boolean
 
 jobs:
-  ## Android
-  android_preview_build:
-    name: Prepare Android Preview Build
-    uses: ./.github/workflows/android_build.yml
+  update_preview_builds:
+    uses: ./.github/workflows/update_builds.yml
+    if: ${{ github.event.inputs.skip_preview_builds != 'true'}}
+    name: Update Preview Builds
     secrets: inherit
     with:
-      skip_build: ${{ github.event.inputs.skip_build == true || inputs.skip_build == true || github.event.label.name == 'sherlo:sync:skip_build' }}
       profile: 'preview'
 
-  ## iOS
-  ios_preview_build:
-    name: Prepare iOS Preview Build
-    uses: ./.github/workflows/ios_build.yml
+  update_storybook_builds:
+    uses: ./.github/workflows/update_builds.yml
+    if: ${{ github.event.inputs.skip_storybook_builds != 'true'}}
+    name: Update Storybook Builds
     secrets: inherit
     with:
-      skip_build: ${{ github.event.inputs.skip_build == true || inputs.skip_build == true || github.event.label.name == 'sherlo:sync:skip_build' }}
-      profile: 'preview'
+      profile: 'storybook'
 
   device_testing:
-    name: Device Testing
     uses: ./.github/workflows/device_testing.yml
+    needs: [update_preview_builds, update_storybook_builds]
+    ## skipped or successful jobs are ok
+    if: ${{ always() && !failure() && !cancelled() }}
+    name: Device Testing
     secrets: inherit
-    with:
-      skip_build: true
-      profile: 'preview'
 
-  sync:
-    name: Integration Testing - Sync
+  stress_testing:
+    uses: ./.github/workflows/stress_testing.yml
+    needs: [update_preview_builds, update_storybook_builds]
+    if: ${{ always() && !failure() && !cancelled() }}
+    name: Stress Testing
+    secrets: inherit
+
+  integration_testing_sync:
     uses: ./.github/workflows/sync.yml
+    needs: [update_preview_builds, update_storybook_builds]
+    if: ${{ always() && !failure() && !cancelled() }}
+    name: Integration Testing - Sync
     secrets: inherit
-    with:
-      skip_build: true
-      profile: 'preview'
 
-  async:
-    name: Integration Testing - Async
+  integration_testing_async:
     uses: ./.github/workflows/async.yml
+    needs: [update_preview_builds, update_storybook_builds]
+    if: ${{ always() && !failure() && !cancelled() }}
+    name: Integration Testing - Async
     secrets: inherit
-    with:
-      skip_build: true
-      profile: 'preview'
 
-  eas:
-    name: Integration Testing - EAS hooks
+  integration_testing_eas:
     uses: ./.github/workflows/eas_hooks.yml
+    needs: [update_preview_builds, update_storybook_builds]
+    if: ${{ always() && !failure() && !cancelled() }}
+    name: Integration Testing - EAS
     secrets: inherit
-    with:
-      skip_build: true
-      profile: 'preview'

@@ -1,5 +1,5 @@
 import { getArguments, printHeader } from './helpers';
-import { asyncInitMode, asyncUploadMode, syncMode } from './modes';
+import { asyncInitMode, asyncUploadMode, closeBuildMode, syncMode } from './modes';
 
 async function main(githubActionParameters?: Parameters<typeof getArguments>[0]): Promise<{
   buildIndex: number;
@@ -20,6 +20,10 @@ async function main(githubActionParameters?: Parameters<typeof getArguments>[0])
 
     case 'asyncUpload': {
       return asyncUploadMode(args);
+    }
+
+    case 'closeBuild': {
+      return closeBuildMode(args);
     }
   }
 }
