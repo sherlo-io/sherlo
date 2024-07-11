@@ -10,9 +10,11 @@ import { getErrorMessage, logLink } from '../utils';
 import { getTokenParts, handleClientError } from './utils';
 import { asyncUploadMode } from './main/modes';
 
-// Build lifecycle hooks: https://docs.expo.dev/build-reference/npm-hooks/
-// Environment variables: https://docs.expo.dev/build-reference/variables/#built-in-environment-variables
-// Add secrets to environment variables: https://docs.expo.dev/build-reference/variables/#using-secrets-in-environment-variables
+/**
+ * Build lifecycle hooks: https://docs.expo.dev/build-reference/npm-hooks/
+ * Environment variables: https://docs.expo.dev/build-reference/variables/#built-in-environment-variables
+ * Secrets in environment variables: https://docs.expo.dev/build-reference/variables/#using-secrets-in-environment-variables
+ */
 
 async function easBuildOnComplete() {
   // Skip if the app was built locally
@@ -178,14 +180,14 @@ async function asyncUploadPlatformBuild({
 
   let platformPath = '';
   if (platform === 'android') {
-    // Android build path details: https://docs.expo.dev/build-reference/android-builds/
+    // Android build details: https://docs.expo.dev/build-reference/android-builds/
 
     const defaultPath = 'android/app/build/outputs/apk/release/app-release.apk';
 
     platformPath =
       getPlatformPathFromEasJson({ platform: 'android', sherloBuildProfile }) ?? defaultPath;
   } else if (platform === 'ios') {
-    // iOS build path details: https://docs.expo.dev/build-reference/ios-builds/
+    // iOS build details: https://docs.expo.dev/build-reference/ios-builds/
 
     platformPath =
       getPlatformPathFromEasJson({ platform: 'ios', sherloBuildProfile }) ??

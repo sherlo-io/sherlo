@@ -11,6 +11,7 @@
     "android:start:dev": "adb install builds/development/android.apk && expo start --android --dev-client",
     "android:start:go": "expo start --android --go",
     "eas-build-on-complete": "sherlo eas-build-on-complete --profile=preview",
+    "eas-build-post-install": "yarn --cwd ../../ switch-env:dev",
     "ios:build:dev": "eas build --platform ios --local --profile=development --output=builds/development/ios.tar.gz",
     "ios:build:preview": "eas build --platform ios --local --profile=preview --output=builds/preview/ios.tar.gz",
     "ios:build:storybook": "eas build --platform ios --local --profile=storybook --output=builds/storybook/ios.tar.gz",

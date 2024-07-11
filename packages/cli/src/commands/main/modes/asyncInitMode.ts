@@ -27,7 +27,7 @@ async function asyncInitMode({
   const isExpoRemoteMode = remoteExpo || remoteExpoBuildScript;
 
   if (isExpoRemoteMode) {
-    validateEasBuildOnSuccessScript(projectRoot);
+    validateEasBuildOnCompleteScript(projectRoot);
 
     if (remoteExpoBuildScript) {
       validateRemoteExpoBuildScript(projectRoot, remoteExpoBuildScript);
@@ -76,7 +76,7 @@ export default asyncInitMode;
 
 /* ========================================================================== */
 
-function validateEasBuildOnSuccessScript(projectRoot: string): void {
+function validateEasBuildOnCompleteScript(projectRoot: string): void {
   const scriptName = 'eas-build-on-complete';
 
   validatePackageJsonScript({
