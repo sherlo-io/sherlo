@@ -20,11 +20,15 @@
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "sherlo": "./cli.js"
+  },
   "files": [
     "dist/**/*",
     "android/**/*",
     "ios/**/*",
-    "sherlo-react-native-storybook.podspec"
+    "sherlo-react-native-storybook.podspec",
+    "cli.js"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p .",

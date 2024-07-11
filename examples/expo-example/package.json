@@ -53,7 +53,6 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "@sherlo/cli": "^1.0.19",
     "@sherlo/react-native-storybook": "^1.0.19",
     "@storybook/addon-actions": "^7.6.10",
     "@storybook/addon-controls": "^7.6.10",
