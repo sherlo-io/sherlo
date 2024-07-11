@@ -5,7 +5,7 @@ import fetch from 'node-fetch';
 import path from 'path';
 import tar from 'tar';
 import zlib from 'zlib';
-import { getErrorMessage } from '../../utils';
+import { getErrorMessage } from '../../../../utils';
 import { IOSFileType } from '../../types';
 
 const platformLabel: { [platform in Platform]: string } = {

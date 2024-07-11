@@ -1,7 +1,7 @@
 import { Platform } from '@sherlo/api-types';
 import SDKApiClient from '@sherlo/sdk-client';
-import { getTokenParts } from '../utils';
-import { getAppBuildUrl, getBuildUploadUrls, uploadMobileBuilds, handleClientError } from './utils';
+import { getTokenParts, handleClientError } from '../../utils';
+import { getAppBuildUrl, getBuildUploadUrls, uploadMobileBuilds } from './utils';
 
 async function asyncUploadMode({
   token,

@@ -18,19 +18,15 @@
     "url": "https://github.com/sherlo-io/sherlo.git",
     "directory": "packages/cli"
   },
-  "main": "./dist/index.js",
+  "main": "./dist/commands/main/index.js",
   "bin": {
-    "sherlo": "./start.sh",
-    "sherlo-cli": "./dist/command.js",
-    "sherlo-eas-build-on-complete": "./eas-hooks/eas-build-on-complete.sh"
+    "sherlo": "./dist/index.js"
   },
   "files": [
-    "dist/**/*",
-    "eas-hooks/**/*",
-    "start.sh"
+    "dist/**/*"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.json && chmod u+x ./dist/command.js"
+    "build": "rm -rf dist && tsc -p tsconfig.json && chmod u+x ./dist/index.js"
   },
   "dependencies": {
     "@sherlo/api-types": "1.1.5",
