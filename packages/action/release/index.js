@@ -81922,13 +81922,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(3326));
 const github = __importStar(__nccwpck_require__(2312));
-const cli_1 = __importDefault(__nccwpck_require__(17569));
+const cli_1 = __nccwpck_require__(33786);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         var _a, _b;
@@ -81962,7 +81959,7 @@ function run() {
             if (overrideCommitName) {
                 gitInfo.commitName = overrideCommitName;
             }
-            const { buildIndex, url } = yield (0, cli_1.default)({
+            const { buildIndex, url } = yield (0, cli_1.mainCommand)({
                 projectRoot,
                 config,
                 token: emptyStringToUndefined(process.env.SHERLO_TOKEN), // Action returns an empty string if not defined
@@ -81991,6 +81988,192 @@ function emptyStringToUndefined(input) {
     return input === '' ? undefined : input;
 }
 run();
+
+
+/***/ }),
+
+/***/ 95638:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const sdk_client_1 = __importDefault(__nccwpck_require__(32646));
+const chalk_1 = __importDefault(__nccwpck_require__(14547));
+const fs_1 = __importDefault(__nccwpck_require__(57147));
+const path_1 = __importDefault(__nccwpck_require__(71017));
+const process_1 = __importDefault(__nccwpck_require__(77282));
+const constants_1 = __nccwpck_require__(44582);
+const helpers_1 = __nccwpck_require__(8543);
+const utils_1 = __nccwpck_require__(28970);
+const utils_2 = __nccwpck_require__(55193);
+const modes_1 = __nccwpck_require__(73928);
+/**
+ * Build lifecycle hooks: https://docs.expo.dev/build-reference/npm-hooks/
+ * Environment variables: https://docs.expo.dev/build-reference/variables/#built-in-environment-variables
+ * Secrets in environment variables: https://docs.expo.dev/build-reference/variables/#using-secrets-in-environment-variables
+ */
+async function easBuildOnComplete() {
+    // Skip if the app was built locally
+    if (process_1.default.env.EAS_BUILD_RUNNER !== 'eas-build') {
+        console.log('\n' +
+            getInfoMessage({
+                message: 'Sherlo automatically tests only remote Expo builds - if you want to test your local builds, run Sherlo manually',
+                learnMoreLink: constants_1.DOCS_LINK.sherloScriptLocalBuilds,
+            }));
+        return;
+    }
+    const sherloBuildProfile = getSherloBuildProfile();
+    const easBuildProfile = process_1.default.env.EAS_BUILD_PROFILE;
+    // Skip if EAS build profile doesn't match
+    if (sherloBuildProfile && sherloBuildProfile !== easBuildProfile) {
+        console.log('\n' +
+            getInfoMessage({
+                message: `Sherlo skipped testing - current EAS build profile "${easBuildProfile}" doesn't match the profile "${sherloBuildProfile}" defined in \`eas-build-on-complete\` script`,
+                learnMoreLink: constants_1.DOCS_LINK.remoteExpoBuilds,
+            }));
+        return;
+    }
+    (0, helpers_1.printHeader)();
+    // Sherlo build profile is not defined
+    if (!sherloBuildProfile) {
+        throw new Error((0, utils_1.getErrorMessage)({
+            message: 'in `eas-build-on-complete` script you must define the same EAS `--profile` that you use for your Sherlo test builds',
+            learnMoreLink: constants_1.DOCS_LINK.remoteExpoBuilds,
+        }));
+    }
+    const { buildIndex, token } = getSherloData();
+    // Build failed on Expo servers
+    if (process_1.default.env.EAS_BUILD_STATUS === 'errored') {
+        const { apiToken, projectIndex, teamId } = (0, utils_2.getTokenParts)(token);
+        const client = (0, sdk_client_1.default)(apiToken);
+        await client
+            .closeBuild({
+            buildIndex,
+            projectIndex,
+            teamId,
+            runError: 'user_expoBuildError',
+        })
+            .catch(utils_2.handleClientError);
+        throw new Error((0, utils_1.getErrorMessage)({ message: 'canceled due to error on Expo servers' }));
+    }
+    // Upload the platform build
+    await asyncUploadPlatformBuild({ buildIndex, sherloBuildProfile, token });
+}
+exports["default"] = easBuildOnComplete;
+/* ========================================================================== */
+function getInfoMessage({ learnMoreLink, message, }) {
+    return ([
+        chalk_1.default.blue(`Info: ${message}`),
+        learnMoreLink ? `↳ Learn more: ${(0, utils_1.logLink)(learnMoreLink)}` : null,
+    ]
+        .filter((v) => v !== null)
+        .join('\n') + '\n');
+}
+function getSherloBuildProfile() {
+    const flagPrefix = '--';
+    const flagName = 'profile';
+    const flag = [flagPrefix, flagName].join('');
+    const args = process_1.default.argv.slice(3);
+    for (let i = 0; i < args.length; i++) {
+        const currentArgument = args[i];
+        const nextArgument = args[i + 1];
+        if (currentArgument.startsWith(`${flag}=`)) {
+            const value = currentArgument.split('=')[1];
+            return value;
+        }
+        else if (currentArgument === flag) {
+            if (nextArgument && !nextArgument.startsWith(flagPrefix)) {
+                const value = nextArgument;
+                return value;
+            }
+        }
+    }
+    return null;
+}
+function getSherloData() {
+    const SHERLO_TEMP_FILE_PATH = './.sherlo/data.json';
+    if (!fs_1.default.existsSync(SHERLO_TEMP_FILE_PATH)) {
+        throw new Error((0, utils_1.getErrorMessage)({
+            message: `temporary file "${SHERLO_TEMP_FILE_PATH}" not found - ensure it isn't filtered out by \`.gitignore\`, or use the \`--projectRoot\` flag when working with a monorepo`,
+            learnMoreLink: constants_1.DOCS_LINK.sherloScriptFlags,
+        }));
+    }
+    const { buildIndex, token } = JSON.parse(fs_1.default.readFileSync(SHERLO_TEMP_FILE_PATH, 'utf8'));
+    if (typeof buildIndex !== 'number') {
+        throw new Error((0, utils_1.getErrorMessage)({
+            type: 'unexpected',
+            message: `field \`buildIndex\` in temporary file "${SHERLO_TEMP_FILE_PATH}" is not valid`,
+        }));
+    }
+    const tokenRegex = /^[A-Za-z0-9_-]{40}[0-9]{1,4}$/;
+    if (!tokenRegex.test(token)) {
+        throw new Error((0, utils_1.getErrorMessage)({
+            message: `passed \`token\` ("${token}") is not valid`,
+            learnMoreLink: constants_1.DOCS_LINK.configToken,
+        }));
+    }
+    return { buildIndex, token };
+}
+async function asyncUploadPlatformBuild({ buildIndex, sherloBuildProfile, token, }) {
+    const platform = process_1.default.env.EAS_BUILD_PLATFORM;
+    let platformPath = '';
+    if (platform === 'android') {
+        // Android build details: https://docs.expo.dev/build-reference/android-builds/
+        const defaultPath = 'android/app/build/outputs/apk/release/app-release.apk';
+        platformPath =
+            getPlatformPathFromEasJson({ platform: 'android', sherloBuildProfile }) ?? defaultPath;
+    }
+    else if (platform === 'ios') {
+        // iOS build details: https://docs.expo.dev/build-reference/ios-builds/
+        platformPath =
+            getPlatformPathFromEasJson({ platform: 'ios', sherloBuildProfile }) ??
+                findDefaultIosAppPath();
+    }
+    const { url } = await (0, modes_1.asyncUploadMode)({
+        asyncBuildIndex: buildIndex,
+        path: platformPath,
+        platform,
+        token,
+    });
+    console.log(`Tests start after all builds are uploaded ➜ ${(0, utils_1.logLink)(url)}\n`);
+}
+function getPlatformPathFromEasJson({ platform, sherloBuildProfile, }) {
+    const easJsonData = JSON.parse(fs_1.default.readFileSync('eas.json', 'utf8'));
+    return easJsonData?.builds?.[platform]?.[sherloBuildProfile]?.applicationArchivePath ?? null;
+}
+function findDefaultIosAppPath() {
+    const iosBuildPath = 'ios/build/Build/Products/Release-iphonesimulator';
+    const fileNames = fs_1.default.readdirSync(iosBuildPath);
+    for (let i = 0; i < fileNames.length; i++) {
+        const fileName = fileNames[i];
+        if (fileName.endsWith('.app')) {
+            return path_1.default.join(iosBuildPath, fileName);
+        }
+    }
+    return '';
+}
+
+
+/***/ }),
+
+/***/ 77736:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.easBuildOnComplete = exports.main = void 0;
+var main_1 = __nccwpck_require__(17569);
+Object.defineProperty(exports, "main", ({ enumerable: true, get: function () { return __importDefault(main_1).default; } }));
+var easBuildOnComplete_1 = __nccwpck_require__(95638);
+Object.defineProperty(exports, "easBuildOnComplete", ({ enumerable: true, get: function () { return __importDefault(easBuildOnComplete_1).default; } }));
 
 
 /***/ }),
@@ -83312,6 +83495,58 @@ function printHeader() {
     console.log((0, gradient_string_1.default)(color.unreviewed, color.approved, color.noChanges)(header));
 }
 exports["default"] = printHeader;
+
+
+/***/ }),
+
+/***/ 33786:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.mainCommand = void 0;
+const start_1 = __importDefault(__nccwpck_require__(50386));
+const commands_1 = __nccwpck_require__(77736);
+Object.defineProperty(exports, "mainCommand", ({ enumerable: true, get: function () { return commands_1.main; } }));
+exports["default"] = start_1.default;
+
+
+/***/ }),
+
+/***/ 50386:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const commands_1 = __nccwpck_require__(77736);
+const helpers_1 = __nccwpck_require__(8543);
+const utils_1 = __nccwpck_require__(28970);
+async function start() {
+    try {
+        const cliArgument = process.argv[2];
+        if (cliArgument === undefined || cliArgument.startsWith('--')) {
+            await (0, commands_1.main)();
+        }
+        else if (cliArgument === 'eas-build-on-complete') {
+            await (0, commands_1.easBuildOnComplete)();
+        }
+        else {
+            (0, helpers_1.printHeader)();
+            // TODO: add learnMore link to the CLI documentation
+            throw new Error((0, utils_1.getErrorMessage)({ message: `CLI argument \`${cliArgument}\` is not supported` }));
+        }
+    }
+    catch (e) {
+        console.error(e.message);
+        process.exit(e.code || 1);
+    }
+}
+exports["default"] = start;
 
 
 /***/ }),
