@@ -18,10 +18,7 @@
     "url": "https://github.com/sherlo-io/sherlo.git",
     "directory": "packages/cli"
   },
-  "main": "./dist/commands/main/index.js",
-  "bin": {
-    "sherlo": "./dist/index.js"
-  },
+  "main": "./dist/index.js",
   "files": [
     "dist/**/*"
   ],

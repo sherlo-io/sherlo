@@ -1,5 +1,5 @@
-#!/usr/bin/env node
-
 import start from './start';
+import { main as mainCommand } from './commands';
 
-start();
+export { mainCommand };
+export default start;
