@@ -1,9 +1,6 @@
 name: dev_testing
 
 on:
-  push:
-    branches:
-      - dev
   workflow_dispatch:
     inputs:
       skip_preview_builds:
