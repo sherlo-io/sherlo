@@ -8,7 +8,6 @@ import {
   Urbanist_700Bold,
 } from '@expo-google-fonts/urbanist';
 import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
 import { withStorybook, useSherlo } from '@sherlo/react-native-storybook';
 
 SplashScreen.preventAutoHideAsync();
@@ -68,7 +67,6 @@ export default function App() {
 
   return (
     <View style={StyleSheet.absoluteFill} onLayout={onLayoutRootView}>
-      <StatusBar style="light" />
       <EntryPoint />
     </View>
   );
