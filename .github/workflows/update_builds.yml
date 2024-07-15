@@ -44,6 +44,7 @@ jobs:
         with:
           token: ${{ steps.github_app_token.outputs.token }}
           ref: ${{ github.ref }}
+          lfs: true
 
       - name: Download Android Artifact
         uses: actions/download-artifact@v2
