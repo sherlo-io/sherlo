@@ -67,7 +67,7 @@ jobs:
         with:
           projectRoot: examples/expo-example
           config: ../../configs/async.storybook.json
-          android: builds/preview/android.apk
+          android: builds/storybook/android.apk
           asyncBuildIndex: ${{ needs.run_sherlo_async.outputs.buildIndex }}
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN_ASYNC }}
@@ -100,7 +100,7 @@ jobs:
         with:
           projectRoot: examples/expo-example
           config: ../../configs/async.storybook.json
-          ios: builds/preview/ios.tar.gz
+          ios: builds/storybook/ios.tar.gz
           asyncBuildIndex: ${{ needs.run_sherlo_async.outputs.buildIndex }}
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN_ASYNC }}
