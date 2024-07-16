@@ -1,5 +1,3 @@
-/* eslint-disable react-hooks/rules-of-hooks */
-
 import React, { ReactElement, useEffect, useState } from 'react';
 import { AppState, AppStateStatus, DevSettings, Platform } from 'react-native';
 import { AppOrStorybookModeContext } from './contexts';
@@ -17,69 +15,71 @@ function getAppOrStorybook({
 }: {
   App: React.ComponentType<any>;
   Storybook: () => ReactElement;
-}): ReactElement {
-  const [mode, setMode] = useState<AppOrStorybookMode>('app');
+}): () => ReactElement {
+  return () => {
+    const [mode, setMode] = useState<AppOrStorybookMode>('app');
 
-  // We don't want to contain storage in parameter type itself because it breaks
-  // the way typescript considers Storybook as ReactElement when rendering JSX.
-  const { storage } = Storybook as { storage?: StorybookParams['storage'] };
+    // We don't want to contain storage in parameter type itself because it breaks
+    // the way typescript considers Storybook as ReactElement when rendering JSX.
+    const { storage } = Storybook as { storage?: StorybookParams['storage'] };
 
-  useEffect(() => {
-    if (Platform.OS !== 'android') {
-      // Register AppState listener to persist mode if app is not in background
-      const handleAppStateChange = (nextAppState: AppStateStatus) => {
-        if (nextAppState === 'inactive') {
-          storage?.setItem(MODE_STORAGE_KEY, 'app');
-        } else if (nextAppState === 'active') {
-          storage?.setItem(MODE_STORAGE_KEY, mode);
-        }
-      };
+    useEffect(() => {
+      if (Platform.OS !== 'android') {
+        // Register AppState listener to persist mode if app is not in background
+        const handleAppStateChange = (nextAppState: AppStateStatus) => {
+          if (nextAppState === 'inactive') {
+            storage?.setItem(MODE_STORAGE_KEY, 'app');
+          } else if (nextAppState === 'active') {
+            storage?.setItem(MODE_STORAGE_KEY, mode);
+          }
+        };
 
-      const subscription = AppState.addEventListener('change', handleAppStateChange);
+        const subscription = AppState.addEventListener('change', handleAppStateChange);
 
-      return () => {
-        subscription.remove();
-      };
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode]);
+        return () => {
+          subscription.remove();
+        };
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mode]);
 
-  useEffect(() => {
-    runnerBridge
-      .getConfig()
-      .then(() => {
-        setMode('storybook');
-      })
-      .catch(() => {
-        if (__DEV__ && Platform.OS !== 'android') {
-          // Get stored mode from storage
-          storage?.getItem(MODE_STORAGE_KEY).then((sherloPersistedMode) => {
-            if (sherloPersistedMode === 'storybook' || sherloPersistedMode === 'app') {
-              setMode(sherloPersistedMode);
-            }
-          });
-        } else {
-          setMode('app');
-        }
-      });
+    useEffect(() => {
+      runnerBridge
+        .getConfig()
+        .then(() => {
+          setMode('storybook');
+        })
+        .catch(() => {
+          if (__DEV__ && Platform.OS !== 'android') {
+            // Get stored mode from storage
+            storage?.getItem(MODE_STORAGE_KEY).then((sherloPersistedMode) => {
+              if (sherloPersistedMode === 'storybook' || sherloPersistedMode === 'app') {
+                setMode(sherloPersistedMode);
+              }
+            });
+          } else {
+            setMode('app');
+          }
+        });
 
-    addToggleStorybookToDevMenu({ setMode, storage });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      addToggleStorybookToDevMenu({ setMode, storage });
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-  return (
-    <AppOrStorybookModeContext.Provider
-      value={{
-        mode,
-        setMode: (newMode) => {
-          setMode(newMode);
-          storage?.setItem(MODE_STORAGE_KEY, newMode);
-        },
-      }}
-    >
-      {mode === 'app' ? <App /> : <Storybook />}
-    </AppOrStorybookModeContext.Provider>
-  );
+    return (
+      <AppOrStorybookModeContext.Provider
+        value={{
+          mode,
+          setMode: (newMode) => {
+            setMode(newMode);
+            storage?.setItem(MODE_STORAGE_KEY, newMode);
+          },
+        }}
+      >
+        {mode === 'app' ? <App /> : <Storybook />}
+      </AppOrStorybookModeContext.Provider>
+    );
+  };
 }
 
 export default getAppOrStorybook;
