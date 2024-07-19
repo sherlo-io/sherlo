@@ -13,6 +13,7 @@ import {
   validateConfigToken,
 } from './utils';
 import { DEFAULT_CONFIG_PATH, DEFAULT_PROJECT_ROOT } from '../../../constants';
+import chalk from 'chalk';
 
 type ParameterDefaults = { config: string; projectRoot: string };
 type Parameters<T extends 'default' | 'withDefaults' = 'default'> = {
@@ -184,12 +185,14 @@ function getConfig(
   let ios = parameters.ios ?? configFile.ios;
   ios = ios ? nodePath.resolve(projectRoot, ios) : undefined;
 
-  // Set defaults for devices
-  const devices = configFile.devices?.map((device) => ({
-    ...device,
-    osLanguage: device?.osLanguage ?? defaultDeviceOsLanguage,
-    osTheme: device?.osTheme ?? defaultDeviceOsTheme,
-  }));
+  // Set defaults for devices and remove duplicates
+  const devices = removeDuplicateDevices(
+    configFile.devices?.map((device) => ({
+      ...device,
+      osLanguage: device?.osLanguage ?? defaultDeviceOsLanguage,
+      osTheme: device?.osTheme ?? defaultDeviceOsTheme,
+    }))
+  );
 
   return {
     ...configFile,
@@ -198,6 +201,39 @@ function getConfig(
     ios,
     devices,
   };
+}
+
+/**
+ * Removes duplicate devices while keeping all entries, including incomplete ones.
+ * Validation of devices will be performed at a later stage.
+ */
+function removeDuplicateDevices(
+  devices: InvalidatedConfig['devices']
+): InvalidatedConfig['devices'] {
+  if (!devices || !Array.isArray(devices)) {
+    return devices;
+  }
+
+  const uniqueDevices = new Set<string>();
+
+  return devices.filter((device) => {
+    if (!device) return true; // Keep even undefined devices
+
+    const { id, osVersion, osTheme, osLanguage } = device;
+    const key = JSON.stringify({ id, osVersion, osTheme, osLanguage }, null, 1)
+      .replace(/\n/g, '')
+      .replace(/}$/, ' }');
+
+    if (uniqueDevices.has(key)) {
+      console.log(chalk.yellow('Config Warning: duplicated device', key, '\n'));
+
+      return false;
+    }
+
+    uniqueDevices.add(key);
+
+    return true;
+  });
 }
 
 function getAsyncUploadArguments(parameters: Parameters): { path: string; platform: Platform } {

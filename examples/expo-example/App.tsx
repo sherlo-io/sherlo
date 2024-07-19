@@ -8,7 +8,7 @@ import {
   Urbanist_700Bold,
 } from '@expo-google-fonts/urbanist';
 import * as SplashScreen from 'expo-splash-screen';
-import { getAppOrStorybook, useSherlo } from '@sherlo/react-native-storybook';
+import { getAppWithStorybook, openStorybook } from '@sherlo/react-native-storybook';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -35,8 +35,6 @@ export default function App() {
 
   // eslint-disable-next-line react/no-unstable-nested-components
   const App = () => {
-    const { openStorybook } = useSherlo();
-
     return (
       <View
         style={{
@@ -62,7 +60,7 @@ export default function App() {
     EntryPoint = App;
   } else {
     const Storybook = require('./.storybook').default;
-    EntryPoint = getAppOrStorybook({ App, Storybook });
+    EntryPoint = getAppWithStorybook({ App, Storybook });
   }
 
   return (

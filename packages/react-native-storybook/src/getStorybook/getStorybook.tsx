@@ -1,9 +1,9 @@
-import React, { ReactElement, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
 import { SherloEffectContext } from '../contexts';
 import { runnerBridge } from '../helpers';
 import { getGlobalStates } from '../utils';
-import { Snapshot, StorybookParams, StorybookView } from '../types';
+import { Snapshot, StorybookParams, StorybookView, StorybookWithSherlo } from '../types';
 import { ErrorBoundary } from './components';
 import { SherloContext } from './contexts';
 import generateStorybookComponent, { StorybookRenderMode } from './generateStorybookComponent';
@@ -22,8 +22,8 @@ setupErrorSilencing();
 
 export type SherloMode = 'preview' | 'testing' | 'original' | 'loading';
 
-function getStorybook(view: StorybookView, params?: StorybookParams) {
-  const SherloStorybook = (): ReactElement => {
+function getStorybook(view: StorybookView, params?: StorybookParams): StorybookWithSherlo {
+  const SherloStorybook = () => {
     // Index of a snapshots that we want to render and test
     const [testedIndex, setTestedIndex] = useState<number>();
     // Index of a snapshots that is currently rendered
@@ -266,7 +266,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams) {
     );
   };
 
-  SherloStorybook.storage = params?.storage as any;
+  SherloStorybook.storage = params?.storage;
 
   return SherloStorybook;
 }
