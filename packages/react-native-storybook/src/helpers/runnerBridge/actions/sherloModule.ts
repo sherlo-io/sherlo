@@ -1,9 +1,12 @@
 import base64 from 'base-64';
 import { NativeModules, Platform } from 'react-native';
 import utf8 from 'utf8';
+import { AppOrStorybookMode } from '../../../types';
 
 type SherloModule = {
   mkdir: (path: string) => Promise<void>;
+  setAppOrStorybookMode: (appOrStorybookMode: AppOrStorybookMode) => Promise<void>;
+  getAppOrStorybookMode: () => Promise<AppOrStorybookMode>;
   appendFile: (path: string, base64: string) => Promise<void>;
   readFile: (path: string) => Promise<string>;
   writeFile: (path: string, data: string) => Promise<void>;
@@ -40,6 +43,8 @@ function isExpoGoApp(): boolean {
 
 function createDummySherloModule(): SherloModule {
   return {
+    getAppOrStorybookMode: async () => 'app',
+    setAppOrStorybookMode: async () => {},
     mkdir: async () => {},
     appendFile: async () => {},
     readFile: async () => '',
@@ -51,6 +56,12 @@ function createRealSherloModule(RNSherlo: any): SherloModule {
   const basePath = getBasePath(RNSherlo);
 
   return {
+    getAppOrStorybookMode: () => {
+      return RNSherlo.getAppOrStorybookMode();
+    },
+    setAppOrStorybookMode: (appOrStorybookMode: AppOrStorybookMode) => {
+      return RNSherlo.setAppOrStorybookMode(appOrStorybookMode);
+    },
     appendFile: (filepath: string, contents: string) => {
       const encodedContents = base64.encode(utf8.encode(contents));
       const normalizedFilePath = normalizeFilePath(`${basePath}/${filepath}`);

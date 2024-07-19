@@ -3,6 +3,7 @@ import { AppState, AppStateStatus, DevSettings, Platform } from 'react-native';
 import { isSherloServer } from './helpers';
 import { passSetModeToOpenStorybook } from './openStorybook';
 import { AppOrStorybookMode, StorybookParams, StorybookWithSherlo } from './types';
+import sherloModule from './helpers/runnerBridge/actions/sherloModule';
 
 /**
  * Storage - uzywamy do trzymania odpowiedniego mode'u do wyswietlenia podczas RELOAD'u appki
@@ -43,6 +44,11 @@ function getAppWithStorybook({
             newMode = mode;
           }
 
+          // TODO: remove - test usage
+          if (newMode === 'storybook') {
+            sherloModule.setAppOrStorybookMode(newMode);
+          }
+
           setStorageMode(newMode);
           return newMode;
         });
@@ -55,6 +61,11 @@ function getAppWithStorybook({
     usePersistModeWhileHotReload({ visibleMode, storage });
 
     useEffect(() => {
+      // TODO: remove - test usage
+      sherloModule.getAppOrStorybookMode().then((appOrStorybookMode) => {
+        console.log('sherloModule.getAppOrStorybookMode()', appOrStorybookMode);
+      });
+
       passSetModeToOpenStorybook(setVisibleAndStorageMode);
     }, [setVisibleAndStorageMode]);
 

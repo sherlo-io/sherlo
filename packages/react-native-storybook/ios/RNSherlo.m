@@ -6,6 +6,8 @@
 #endif
 #import <React/RCTBridge.h>
 
+static NSString *appOrStorybookMode = @"app"; // Static variable to hold the mode throughout the app lifecycle
+
 @implementation RNSherlo
 
 RCT_EXPORT_MODULE()
@@ -20,6 +22,20 @@ RCT_EXPORT_MODULE()
 + (BOOL)requiresMainQueueSetup
 {
   return NO;
+}
+
+RCT_EXPORT_METHOD(getAppOrStorybookMode:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+  resolve(appOrStorybookMode);
+}
+
+RCT_EXPORT_METHOD(setAppOrStorybookMode:(NSString *)mode
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+  appOrStorybookMode = mode;
+  resolve(nil);
 }
 
 RCT_EXPORT_METHOD(checkIfShowsRedbox: (NSDictionary *)options
