@@ -1,7 +1,5 @@
+import SherloModule from '../../SherloModule';
 import { LogFn } from '../types';
-import sherloModule from './sherloModule';
-
-const { appendFile } = sherloModule;
 
 /**
  * Creates a log function that logs messages to the console and appends them to a file.
@@ -16,7 +14,7 @@ function log(path: string): LogFn {
 
     if (!__DEV__) console.log(`${logMsg}\n`);
 
-    appendFile(path, logMsg);
+    SherloModule.appendFile(path, logMsg);
   };
 }
 

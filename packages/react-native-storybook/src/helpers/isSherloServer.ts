@@ -1,10 +1,10 @@
-import runnerBridge from './runnerBridge';
+import RunnerBridge from './RunnerBridge';
 
 async function isSherloServer() {
   let result;
 
   try {
-    await runnerBridge.getConfig();
+    await RunnerBridge.getConfig();
 
     result = true;
   } catch {

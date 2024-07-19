@@ -1,9 +1,7 @@
 import { getGlobalStates, isObject } from '../../../utils';
+import SherloModule from '../../SherloModule';
 import { verifySignature } from '../utils';
 import { LogFn } from '../types';
-import sherloModule from './sherloModule';
-
-const { readFile } = sherloModule;
 
 // TODO: change name to getDeviceConfig? + return type fix
 function getConfig(path: string, log?: LogFn): () => Promise<any> {
@@ -15,8 +13,8 @@ function getConfig(path: string, log?: LogFn): () => Promise<any> {
     }
 
     // TODO: add comment to explain replaceAll code
-    const configString = (await readFile(path)).replaceAll('\n', '');
-    const signature = (await readFile(`${path}.sig`)).replaceAll('\n', '');
+    const configString = (await SherloModule.readFile(path)).replaceAll('\n', '');
+    const signature = (await SherloModule.readFile(`${path}.sig`)).replaceAll('\n', '');
 
     const isSignatureValid = verifySignature(configString, signature);
     if (!isSignatureValid) {

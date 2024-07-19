@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { RunnerBridge } from '../../helpers/runnerBridge';
+import { RunnerBridge } from '../../helpers/RunnerBridge';
 import { Snapshot, StorybookViewMode } from '../../types';
 import useSherloEffectExecutionEffect from './useSherloEffectExecutionEffect';
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
 import { SherloEffectContext } from '../contexts';
-import { runnerBridge } from '../helpers';
+import { RunnerBridge } from '../helpers';
 import { getGlobalStates } from '../utils';
 import {
   Snapshot,
@@ -39,11 +39,11 @@ function getStorybook(view: StorybookView, params?: StorybookParams): StorybookW
 
     const renderedStoryHasError = useRef(false);
 
-    const { waitForKeyboardStatus } = useKeyboardStatusEffect(runnerBridge.log);
-    const sherloEffectExecution = useSherloEffectExecutionEffect(runnerBridge.log);
+    const { waitForKeyboardStatus } = useKeyboardStatusEffect(RunnerBridge.log);
+    const sherloEffectExecution = useSherloEffectExecutionEffect(RunnerBridge.log);
 
     const emitStory = useStoryEmitter((id) => {
-      runnerBridge.log('rendered story', { id });
+      RunnerBridge.log('rendered story', { id });
       setRenderedStoryId(id);
     });
 
@@ -55,8 +55,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): StorybookW
     // });
 
     useEffect(() => {
-      runnerBridge
-        .getConfig()
+      RunnerBridge.getConfig()
         .then(() => {
           setMode('testing');
         })
@@ -66,10 +65,10 @@ function getStorybook(view: StorybookView, params?: StorybookParams): StorybookW
     }, []);
 
     const prepareSnapshotForTesting = async (snapshot: Snapshot): Promise<boolean> => {
-      runnerBridge.log('prepareSnapshotForTesting', { viewId: snapshot.viewId });
+      RunnerBridge.log('prepareSnapshotForTesting', { viewId: snapshot.viewId });
 
       if (snapshot.sherloParameters?.defocus) {
-        runnerBridge.log('defocusing focused input');
+        RunnerBridge.log('defocusing focused input');
 
         await waitForKeyboardStatus('shown');
 
@@ -93,7 +92,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): StorybookW
 
     // Preview mode
     usePreviewMode(
-      runnerBridge,
+      RunnerBridge,
       renderedStoryId,
       testedIndex,
       snapshots,
@@ -105,7 +104,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): StorybookW
     );
 
     // Testing mode
-    useTestingMode(view, mode, setSnapshots, setTestedIndex, runnerBridge);
+    useTestingMode(view, mode, setSnapshots, setTestedIndex, RunnerBridge);
 
     // When testedIndex changes and it's not equal to renderedStoryId, emit story
     useEffect(() => {
@@ -119,7 +118,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): StorybookW
         const testedSnapshot = snapshots[testedIndex];
 
         if (testedSnapshot.storyId !== renderedStoryId) {
-          runnerBridge.log('emitting story', {
+          RunnerBridge.log('emitting story', {
             storyId: testedSnapshot.storyId,
             testedIndex,
           });
@@ -143,7 +142,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): StorybookW
 
       const renderedSnapshot = snapshots[testedIndex];
 
-      runnerBridge.log('attempt to test story', {
+      RunnerBridge.log('attempt to test story', {
         testedIndex,
         renderedStoryId,
         renderedSnapshotViewId: renderedSnapshot.viewId,
@@ -155,19 +154,19 @@ function getStorybook(view: StorybookView, params?: StorybookParams): StorybookW
         setTimeout(
           async () => {
             try {
-              runnerBridge.log('requesting screenshot from master script', {
+              RunnerBridge.log('requesting screenshot from master script', {
                 action: 'REQUEST_SNAPSHOT',
                 snapshotIndex: testedIndex,
                 hasError: renderedStoryHasError.current,
               });
 
-              const response = await runnerBridge.send({
+              const response = await RunnerBridge.send({
                 action: 'REQUEST_SNAPSHOT',
                 snapshotIndex: testedIndex,
                 hasError: renderedStoryHasError.current,
               });
 
-              runnerBridge.log('received screenshot from master script', response);
+              RunnerBridge.log('received screenshot from master script', response);
 
               if (response.nextSnapshotIndex !== undefined) {
                 const nextSnpashot = snapshots[response.nextSnapshotIndex];
@@ -176,7 +175,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): StorybookW
                 emitStory(nextSnpashot.storyId);
               }
             } catch (error) {
-              runnerBridge.log('story capturing failed', { error });
+              RunnerBridge.log('story capturing failed', { error });
             }
           },
           hasSherloEffect ? 10 * 1000 : 100
@@ -203,7 +202,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): StorybookW
     const memoizedStorybook = React.useMemo(() => {
       const testedStory = snapshots?.[testedIndex || 0];
 
-      runnerBridge.log('memoizing storybook', {
+      RunnerBridge.log('memoizing storybook', {
         storybookRenderMode,
         testedIndex,
         testedStoryViewId: testedStory?.viewId,
@@ -254,11 +253,11 @@ function getStorybook(view: StorybookView, params?: StorybookParams): StorybookW
             onError={() => {
               renderedStoryHasError.current = true;
             }}
-            log={runnerBridge.log}
+            log={RunnerBridge.log}
           >
             <SherloEffectContext.Provider
               value={{
-                log: runnerBridge.log,
+                log: RunnerBridge.log,
                 handleSherloEffect: sherloEffectExecution.register,
               }}
             >
