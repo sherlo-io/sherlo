@@ -1,15 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, ReactElement } from 'react';
 import { Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
 import { SherloEffectContext } from '../contexts';
 import { RunnerBridge } from '../helpers';
 import { getGlobalStates } from '../utils';
-import {
-  Snapshot,
-  StorybookParams,
-  StorybookView,
-  StorybookViewMode,
-  StorybookWithSherlo,
-} from '../types';
+import { Snapshot, StorybookParams, StorybookView, StorybookViewMode } from '../types';
 import { ErrorBoundary } from './components';
 import { SherloContext } from './contexts';
 import generateStorybookComponent, { StorybookRenderMode } from './generateStorybookComponent';
@@ -26,7 +20,7 @@ import { setupErrorSilencing } from './utils';
 
 setupErrorSilencing();
 
-function getStorybook(view: StorybookView, params?: StorybookParams): StorybookWithSherlo {
+function getStorybook(view: StorybookView, params?: StorybookParams): () => ReactElement {
   const SherloStorybook = () => {
     // Index of a snapshots that we want to render and test
     const [testedIndex, setTestedIndex] = useState<number>();
@@ -199,7 +193,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): StorybookW
     }
 
     // Storybook memoized for specific mode
-    const memoizedStorybook = React.useMemo(() => {
+    const memoizedStorybook = useMemo(() => {
       const testedStory = snapshots?.[testedIndex || 0];
 
       RunnerBridge.log('memoizing storybook', {
@@ -268,8 +262,6 @@ function getStorybook(view: StorybookView, params?: StorybookParams): StorybookW
       </SherloContext.Provider>
     );
   };
-
-  SherloStorybook.storage = params?.storage;
 
   return SherloStorybook;
 }
