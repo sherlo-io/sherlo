@@ -1,6 +1,5 @@
 import { AppOrStorybookMode } from './types';
 
-// TODO: czy tez trzeba zapisywac do storage? -> chyba tak bo w SB podczas hotreload wywaliloby do appki
 function openStorybook(): void {
   if (setMode) {
     setMode('storybook');

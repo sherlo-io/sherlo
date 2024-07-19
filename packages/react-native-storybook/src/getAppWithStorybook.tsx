@@ -1,8 +1,8 @@
 import React, { ReactElement, useCallback, useEffect, useState } from 'react';
 import { AppState, AppStateStatus, DevSettings, Platform } from 'react-native';
+import { isSherloServer } from './helpers';
 import { passSetModeToOpenStorybook } from './openStorybook';
 import { AppOrStorybookMode, StorybookParams, StorybookWithSherlo } from './types';
-import { isSherloServer } from './utils';
 
 /**
  * Storage - uzywamy do trzymania odpowiedniego mode'u do wyswietlenia podczas RELOAD'u appki

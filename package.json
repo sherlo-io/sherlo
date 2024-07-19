@@ -33,6 +33,7 @@
     "dev": "lerna run dev",
     "dev:check-types": "tsc --noEmit",
     "lint": "cross-env NODE_ENV=production eslint --cache --cache-location=.cache/eslint --ext .js,.jsx,.html,.ts,.tsx,.mjs --report-unused-disable-directives",
+    "lint:circular-dependencies": "npx madge --extensions ts --circular .",
     "lint:fix": "yarn lint . --fix",
     "publish:alpha": "lerna publish from-git --dist-tag alpha",
     "publish:latest": "lerna publish from-git --dist-tag latest",

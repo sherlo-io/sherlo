@@ -32,6 +32,8 @@ export type StorybookParams = StorybookParamsRaw extends infer U
 
 export type AppOrStorybookMode = 'app' | 'storybook';
 
+export type StorybookViewMode = 'preview' | 'testing' | 'original' | 'loading';
+
 export type StorybookWithSherlo = {
   (): ReactElement;
   storage?: StorybookParams['storage'];

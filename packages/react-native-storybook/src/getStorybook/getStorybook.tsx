@@ -3,7 +3,13 @@ import { Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
 import { SherloEffectContext } from '../contexts';
 import { runnerBridge } from '../helpers';
 import { getGlobalStates } from '../utils';
-import { Snapshot, StorybookParams, StorybookView, StorybookWithSherlo } from '../types';
+import {
+  Snapshot,
+  StorybookParams,
+  StorybookView,
+  StorybookViewMode,
+  StorybookWithSherlo,
+} from '../types';
 import { ErrorBoundary } from './components';
 import { SherloContext } from './contexts';
 import generateStorybookComponent, { StorybookRenderMode } from './generateStorybookComponent';
@@ -20,8 +26,6 @@ import { setupErrorSilencing } from './utils';
 
 setupErrorSilencing();
 
-export type SherloMode = 'preview' | 'testing' | 'original' | 'loading';
-
 function getStorybook(view: StorybookView, params?: StorybookParams): StorybookWithSherlo {
   const SherloStorybook = () => {
     // Index of a snapshots that we want to render and test
@@ -31,7 +35,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): StorybookW
     // List of all snapshots that we want to test
     const [snapshots, setSnapshots] = useState<Snapshot[]>();
 
-    const [mode, setMode] = useState<SherloMode>('loading');
+    const [mode, setMode] = useState<StorybookViewMode>('loading');
 
     const renderedStoryHasError = useRef(false);
 

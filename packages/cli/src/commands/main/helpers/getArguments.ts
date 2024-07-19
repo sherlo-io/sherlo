@@ -1,7 +1,9 @@
 import { Build, Platform } from '@sherlo/api-types';
 import { defaultDeviceOsLanguage, defaultDeviceOsTheme } from '@sherlo/shared';
-import nodePath from 'path';
+import chalk from 'chalk';
 import { Command } from 'commander';
+import nodePath from 'path';
+import { DEFAULT_CONFIG_PATH, DEFAULT_PROJECT_ROOT } from '../../../constants';
 import { getErrorMessage } from '../../../utils';
 import { Config, InvalidatedConfig, Mode } from '../types';
 import {
@@ -12,8 +14,6 @@ import {
   validateConfigPlatforms,
   validateConfigToken,
 } from './utils';
-import { DEFAULT_CONFIG_PATH, DEFAULT_PROJECT_ROOT } from '../../../constants';
-import chalk from 'chalk';
 
 type ParameterDefaults = { config: string; projectRoot: string };
 type Parameters<T extends 'default' | 'withDefaults' = 'default'> = {

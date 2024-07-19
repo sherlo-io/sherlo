@@ -1,13 +1,12 @@
 import { start } from '@storybook/react-native';
 import { useEffect, useState } from 'react';
 import { AckStartProtocolItem, RunnerBridge } from '../../helpers/runnerBridge';
-import { Snapshot } from '../../types';
-import { SherloMode } from '../getStorybook';
+import { Snapshot, StorybookViewMode } from '../../types';
 import { prepareSnapshots } from '../utils';
 
 function useTestingMode(
   view: ReturnType<typeof start>,
-  mode: SherloMode,
+  mode: StorybookViewMode,
   setSnapshots: (snapshots: Snapshot[]) => void,
   setTestedIndex: (index: number) => void,
   bridge: RunnerBridge
