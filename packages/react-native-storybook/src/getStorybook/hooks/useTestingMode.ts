@@ -1,6 +1,6 @@
 import { start } from '@storybook/react-native';
 import { useEffect, useState } from 'react';
-import { AckStartProtocolItem, RunnerBridge } from '../../helpers/RunnerBridge';
+import { AckStartProtocolItem, RunnerBridge } from '../../helpers/RunnerBridge2';
 import { Snapshot, StorybookViewMode } from '../../types';
 import { prepareSnapshots } from '../utils';
 

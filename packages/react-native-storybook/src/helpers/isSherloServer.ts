@@ -1,4 +1,4 @@
-import RunnerBridge from './RunnerBridge';
+import RunnerBridge from './RunnerBridge2';
 
 async function isSherloServer() {
   let result;
