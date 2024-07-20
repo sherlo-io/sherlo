@@ -82188,11 +82188,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const shared_1 = __nccwpck_require__(35482);
-const path_1 = __importDefault(__nccwpck_require__(71017));
+const chalk_1 = __importDefault(__nccwpck_require__(14547));
 const commander_1 = __nccwpck_require__(89976);
+const path_1 = __importDefault(__nccwpck_require__(71017));
+const constants_1 = __nccwpck_require__(44582);
 const utils_1 = __nccwpck_require__(28970);
 const utils_2 = __nccwpck_require__(57722);
-const constants_1 = __nccwpck_require__(44582);
 function getArguments(githubActionParameters) {
     const params = githubActionParameters ?? command.parse(process.argv).opts();
     const parameters = applyParameterDefaults(params);
@@ -82289,12 +82290,12 @@ function getConfig(configFile, parameters) {
     // Set a proper ios path
     let ios = parameters.ios ?? configFile.ios;
     ios = ios ? path_1.default.resolve(projectRoot, ios) : undefined;
-    // Set defaults for devices
-    const devices = configFile.devices?.map((device) => ({
+    // Set defaults for devices and remove duplicates
+    const devices = removeDuplicateDevices(configFile.devices?.map((device) => ({
         ...device,
         osLanguage: device?.osLanguage ?? shared_1.defaultDeviceOsLanguage,
         osTheme: device?.osTheme ?? shared_1.defaultDeviceOsTheme,
-    }));
+    })));
     return {
         ...configFile,
         token,
@@ -82302,6 +82303,30 @@ function getConfig(configFile, parameters) {
         ios,
         devices,
     };
+}
+/**
+ * Removes duplicate devices while keeping all entries, including incomplete ones.
+ * Validation of devices will be performed at a later stage.
+ */
+function removeDuplicateDevices(devices) {
+    if (!devices || !Array.isArray(devices)) {
+        return devices;
+    }
+    const uniqueDevices = new Set();
+    return devices.filter((device) => {
+        if (!device)
+            return true; // Keep even undefined devices
+        const { id, osVersion, osTheme, osLanguage } = device;
+        const key = JSON.stringify({ id, osVersion, osTheme, osLanguage }, null, 1)
+            .replace(/\n/g, '')
+            .replace(/}$/, ' }');
+        if (uniqueDevices.has(key)) {
+            console.log(chalk_1.default.yellow('Config Warning: duplicated device', key, '\n'));
+            return false;
+        }
+        uniqueDevices.add(key);
+        return true;
+    });
 }
 function getAsyncUploadArguments(parameters) {
     if (parameters.android && parameters.ios) {

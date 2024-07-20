@@ -1,6 +1,6 @@
 {
   "name": "@sherlo/cli",
-  "version": "1.0.22",
+  "version": "1.0.23",
   "description": "A CLI that uploads provided iOS & Android builds to Sherlo and starts a test run",
   "keywords": [
     "visual testing",
