@@ -30,3 +30,5 @@ export type StorybookParams = StorybookParamsRaw extends infer U
   : never;
 
 export type AppOrStorybookMode = 'app' | 'storybook';
+
+export type StorybookViewMode = 'preview' | 'testing' | 'original' | 'loading';

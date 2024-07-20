@@ -22,6 +22,8 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
 
     private final ReactApplicationContext reactContext;
 
+    private static String appOrStorybookMode = "app"; // Static variable to hold the mode throughout the app lifecycle
+
     public RNSherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
         this.reactContext = reactContext;
@@ -31,6 +33,18 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
     public String getName() {
         return RNSHERLO;
     }
+
+    @ReactMethod
+    public void setAppOrStorybookMode(String appOrStorybookMode, Promise promise) {
+        this.appOrStorybookMode = appOrStorybookMode;
+        promise.resolve(null);
+    }
+
+    @ReactMethod
+    public void getAppOrStorybookMode(Promise promise) {
+        promise.resolve(this.appOrStorybookMode);
+    }
+    
 
     private void reject(Promise promise, String filepath, Exception ex) {
         if (ex instanceof FileNotFoundException) {
