@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Keyboard } from 'react-native';
-import { LogFn } from '../../helpers/RunnerBridge2';
+import { LogFn } from '../../helpers/RunnerBridge';
 
 type KeyboardStatus = 'willShow' | 'willHide' | 'shown' | 'hidden';
 

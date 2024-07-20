@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { LogFn } from '../../helpers/RunnerBridge2';
+import { LogFn } from '../../helpers/RunnerBridge';
 
 class ErrorBoundary extends React.Component<{
   children: ReactNode;

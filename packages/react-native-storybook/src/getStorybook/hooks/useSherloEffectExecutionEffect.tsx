@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { LogFn } from '../../helpers/RunnerBridge2';
+import { LogFn } from '../../helpers/RunnerBridge';
 
 const REGISTRATION_TIMEOUT = 500;
 
