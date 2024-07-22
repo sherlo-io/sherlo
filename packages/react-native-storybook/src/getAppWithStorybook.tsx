@@ -15,9 +15,10 @@ function getAppWithStorybook({
 }: {
   App: () => ReactElement;
   Storybook: () => ReactElement;
-}): () => ReactElement {
+}): () => ReactElement | null {
   return () => {
-    const [visibleMode, setVisibleMode] = useState<AppOrStorybookMode>('app');
+    const [visibleMode, setVisibleMode] = useState<AppOrStorybookMode | null>('app');
+    const [pendingMode, setPendingMode] = useState<AppOrStorybookMode | null>(null);
 
     const setMode = (mode: AppOrStorybookMode | 'toggle') => {
       setVisibleMode((prevMode) => {
@@ -28,11 +29,40 @@ function getAppWithStorybook({
           newMode = mode;
         }
 
-        // Save the current mode to restore it if the app restarts
-        SherloModule.setAppOrStorybookMode(newMode);
-        return newMode;
+        if (newMode === prevMode) {
+          /**
+           * Simply return previous mode if it didn't change
+           */
+
+          return prevMode;
+        } else {
+          /**
+           * If the mode has changed, temporarily set visibleMode to `null` and
+           * set the new mode as pending. This ensures a one cycle pause to
+           * avoid rendering issues on Android emulators during the transition
+           * between `app` and `storybook` modes.
+           */
+
+          SherloModule.setAppOrStorybookMode(newMode); // Persist the new mode for future app restarts
+          setPendingMode(newMode); // Set the new mode as pending
+          return null; // Temporarily set visibleMode to null
+        }
       });
     };
+
+    useEffect(() => {
+      if (pendingMode !== null) {
+        /**
+         * If pendingMode is defined, set it as the visible mode.
+         * At this point, we know the render cycle has completed rendering
+         * `null`, so we can safely set the target mode, preventing rendering
+         * issues on Android emulators.
+         */
+
+        setVisibleMode(pendingMode);
+        setPendingMode(null);
+      }
+    }, [pendingMode]);
 
     useEffect(() => {
       (async () => {
@@ -66,6 +96,8 @@ function getAppWithStorybook({
     useEffect(() => {
       passSetModeToOpenStorybook(setMode);
     }, []);
+
+    if (visibleMode === null) return null;
 
     if (visibleMode === 'storybook') return <Storybook />;
 
