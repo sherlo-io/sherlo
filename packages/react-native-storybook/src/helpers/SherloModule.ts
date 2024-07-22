@@ -12,12 +12,20 @@ type SherloModule = {
   writeFile: (path: string, data: string) => Promise<void>;
 };
 
-let SherloModule: SherloModule;
-
 const { RNSherlo } = NativeModules;
 
+let isExpoGo;
+try {
+  const Constants = require('expo-constants').default;
+  isExpoGo = Constants.appOwnership === 'expo';
+} catch {
+  isExpoGo = false;
+}
+
+let SherloModule: SherloModule;
+
 if (RNSherlo === null) {
-  if (isExpoGoApp()) {
+  if (isExpoGo) {
     SherloModule = createDummySherloModule();
   } else {
     throw new Error(
@@ -31,16 +39,6 @@ if (RNSherlo === null) {
 export default SherloModule;
 
 /* ========================================================================== */
-
-function isExpoGoApp(): boolean {
-  try {
-    const Constants = require('expo-constants').default;
-    return Constants.appOwnership === 'expo';
-  } catch (error) {
-    // Optional module is not installed
-    return false;
-  }
-}
 
 function createDummySherloModule(): SherloModule {
   return {

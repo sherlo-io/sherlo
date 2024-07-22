@@ -77,14 +77,14 @@ export default getAppWithStorybook;
 
 /* ========================================================================== */
 
+let ExpoDevMenu: any;
+try {
+  ExpoDevMenu = require('expo-dev-menu');
+} catch {}
+
 function addToggleStorybookToDevMenu(setMode: (newMode: AppOrStorybookMode | 'toggle') => void) {
   const TOGGLE_STORYBOOK_DEV_MENU_ITEM_NAME = 'Toggle Storybook';
   const toggleBetweenAppAndStorybook = () => setMode('toggle');
-
-  let ExpoDevMenu: any;
-  try {
-    ExpoDevMenu = require('expo-dev-menu');
-  } catch {}
 
   if (ExpoDevMenu) {
     ExpoDevMenu.registerDevMenuItems([
