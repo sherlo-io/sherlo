@@ -18,7 +18,7 @@ type BaseConfig = {
     id: DeviceID;
     osVersion: string;
     osTheme: DeviceTheme;
-    osLanguage: string;
+    osLocale: string;
   }[];
 };
 
