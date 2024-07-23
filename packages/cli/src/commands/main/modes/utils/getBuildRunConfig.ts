@@ -47,7 +47,7 @@ function getPlatformDevices(configDevices: Config['devices'], platform: Platform
     .map((device) => ({
       id: device.id,
       osVersion: device.osVersion,
-      locale: device.osLanguage,
+      locale: device.osLocale,
       theme: device.osTheme,
     }));
 }

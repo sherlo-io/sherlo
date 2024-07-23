@@ -5,25 +5,25 @@
     {
       "id": "pixel.7.pro",
       "osVersion": "13",
-      "osLanguage": "en_US",
+      "osLocale": "en_US",
       "osTheme": "light"
     },
     {
       "id": "pixel.tablet",
       "osVersion": "13",
-      "osLanguage": "fr_FR",
+      "osLocale": "fr_FR",
       "osTheme": "dark"
     },
     {
       "id": "iphone.15.pro",
       "osVersion": "17",
-      "osLanguage": "en_US",
+      "osLocale": "en_US",
       "osTheme": "light"
     },
     {
       "id": "ipad.pro.13.m4",
       "osVersion": "17",
-      "osLanguage": "en_US",
+      "osLocale": "en_US",
       "osTheme": "light"
     }
   ]

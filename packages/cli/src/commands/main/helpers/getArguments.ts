@@ -1,5 +1,5 @@
 import { Build, Platform } from '@sherlo/api-types';
-import { defaultDeviceOsLanguage, defaultDeviceOsTheme } from '@sherlo/shared';
+import { defaultDeviceOsLocale, defaultDeviceOsTheme } from '@sherlo/shared';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import nodePath from 'path';
@@ -189,7 +189,7 @@ function getConfig(
   const devices = removeDuplicateDevices(
     configFile.devices?.map((device) => ({
       ...device,
-      osLanguage: device?.osLanguage ?? defaultDeviceOsLanguage,
+      osLocale: device?.osLocale ?? defaultDeviceOsLocale,
       osTheme: device?.osTheme ?? defaultDeviceOsTheme,
     }))
   );
@@ -219,8 +219,8 @@ function removeDuplicateDevices(
   return devices.filter((device) => {
     if (!device) return true; // Keep even undefined devices
 
-    const { id, osVersion, osTheme, osLanguage } = device;
-    const key = JSON.stringify({ id, osVersion, osTheme, osLanguage }, null, 1)
+    const { id, osVersion, osTheme, osLocale } = device;
+    const key = JSON.stringify({ id, osVersion, osTheme, osLocale }, null, 1)
       .replace(/\n/g, '')
       .replace(/}$/, ' }');
 

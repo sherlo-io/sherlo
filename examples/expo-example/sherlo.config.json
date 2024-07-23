@@ -5,7 +5,7 @@
     {
       "id": "iphone.13.mini",
       "osVersion": "15",
-      "osLanguage": "en_US",
+      "osLocale": "en_US",
       "osTheme": "light"
     }
   ]

@@ -14,7 +14,7 @@ function validateConfigDevices(config: InvalidatedConfig): void {
   }
 
   for (let i = 0; i < devices.length; i++) {
-    const { id, osLanguage, osVersion, osTheme, ...rest } = devices[i] ?? {};
+    const { id, osLocale, osVersion, osTheme, ...rest } = devices[i] ?? {};
 
     if (!id || typeof id !== 'string' || !osVersion || typeof osVersion !== 'string') {
       throw new Error(
@@ -40,13 +40,13 @@ function validateConfigDevices(config: InvalidatedConfig): void {
       );
     }
 
-    if (!osLanguage) {
+    if (!osLocale) {
       throw new Error(
-        getConfigErrorMessage('device `osLanguage` must be defined', DOCS_LINK.configDevices)
+        getConfigErrorMessage('device `osLocale` must be defined', DOCS_LINK.configDevices)
       );
     }
 
-    const osLanguageRegex = /^[a-z]{2}(_[A-Z]{2})?$/;
+    const osLocaleRegex = /^[a-z]{2}(_[A-Z]{2})?$/;
     // ^ - start of the string
     // [a-z]{2} - exactly two lowercase letters
     // (- start of a group
@@ -55,12 +55,9 @@ function validateConfigDevices(config: InvalidatedConfig): void {
     // )? - end of the group, ? makes this group optional
     // $ - end of the string
 
-    if (!osLanguageRegex.test(osLanguage)) {
+    if (!osLocaleRegex.test(osLocale)) {
       throw new Error(
-        getConfigErrorMessage(
-          `device osLanguage "${osLanguage}" is invalid`,
-          DOCS_LINK.configDevices
-        )
+        getConfigErrorMessage(`device osLocale "${osLocale}" is invalid`, DOCS_LINK.configDevices)
       );
     }
 
