@@ -35,13 +35,13 @@ function useTestingMode(
         });
 
         let initialSelectionIndex: number | undefined;
-        let filteredSnapshots: Snapshot[] | undefined;
+        let filteredViewIds: String[] | undefined;
         let state;
 
         try {
           state = await bridge.getState();
           initialSelectionIndex = state.snapshotIndex;
-          filteredSnapshots = state.filteredSnapshots;
+          filteredViewIds = state.filteredViewIds;
 
           bridge.log('existing state', {
             state,
@@ -50,7 +50,7 @@ function useTestingMode(
           // no state found
         }
 
-        if (initialSelectionIndex === undefined || filteredSnapshots === undefined) {
+        if (initialSelectionIndex === undefined || filteredViewIds === undefined) {
           await bridge.create();
 
           const startResponse = (await bridge.send({
@@ -59,11 +59,11 @@ function useTestingMode(
           })) as AckStartProtocolItem;
 
           initialSelectionIndex = startResponse.nextSnapshotIndex;
-          filteredSnapshots = startResponse.filteredSnapshots;
+          filteredViewIds = startResponse.filteredViewIds;
         }
 
         setTestedIndex(initialSelectionIndex);
-        setSnapshots(filteredSnapshots);
+        setSnapshots(snapshots.filter(({ viewId }) => filteredViewIds?.includes(viewId)));
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

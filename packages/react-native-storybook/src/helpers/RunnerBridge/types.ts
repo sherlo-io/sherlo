@@ -1,7 +1,7 @@
 import { Snapshot } from '../../types';
 
 export type RunnerState = {
-  filteredSnapshots: Snapshot[];
+  filteredViewIds: String[];
   snapshotIndex: number;
   updateTimestamp: number;
   retry?: boolean;
@@ -34,7 +34,7 @@ export type AppProtocolItem =
 
 export type AckStartProtocolItem = {
   action: 'ACK_START';
-  filteredSnapshots: Snapshot[];
+  filteredViewIds: String[];
   nextSnapshotIndex: number;
 };
 

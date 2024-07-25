@@ -50,7 +50,7 @@ function send(path: string, log: LogFn): SendFn {
                 await resolveForTestMode(1000, {
                   action: 'ACK_START',
                   nextSnapshotIndex: 0,
-                  filteredSnapshots: protocolItem.snapshots,
+                  filteredViewIds: protocolItem.snapshots.map((snapshot) => snapshot.viewId),
                 });
                 break;
               case 'REQUEST_SNAPSHOT':
