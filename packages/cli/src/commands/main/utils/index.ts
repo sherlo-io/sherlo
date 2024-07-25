@@ -1,1 +1,1 @@
-export { default as getConfigErrorMessage } from './getConfigErrorMessage';
+export { default as throwConfigError } from './throwConfigError';

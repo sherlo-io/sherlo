@@ -6,9 +6,9 @@ import path from 'path';
 import process from 'process';
 import { DOCS_LINK } from '../constants';
 import { printHeader } from '../helpers';
-import { getErrorMessage, logLink } from '../utils';
-import { getTokenParts, handleClientError } from './utils';
+import { getLogLink, throwError } from '../utils';
 import { asyncUploadMode } from './main/modes';
+import { getTokenParts, handleClientError } from './utils';
 
 /**
  * Build lifecycle hooks: https://docs.expo.dev/build-reference/npm-hooks/
@@ -51,13 +51,11 @@ async function easBuildOnComplete() {
 
   // Sherlo build profile is not defined
   if (!sherloBuildProfile) {
-    throw new Error(
-      getErrorMessage({
-        message:
-          'in `eas-build-on-complete` script you must define the same EAS `--profile` that you use for your Sherlo test builds',
-        learnMoreLink: DOCS_LINK.remoteExpoBuilds,
-      })
-    );
+    throwError({
+      message:
+        'in `eas-build-on-complete` script you must define the same EAS `--profile` that you use for your Sherlo test builds',
+      learnMoreLink: DOCS_LINK.remoteExpoBuilds,
+    });
   }
 
   const { buildIndex, token } = getSherloData();
@@ -76,7 +74,7 @@ async function easBuildOnComplete() {
       })
       .catch(handleClientError);
 
-    throw new Error(getErrorMessage({ message: 'canceled due to error on Expo servers' }));
+    throwError({ message: 'canceled due to error on Expo servers' });
   }
 
   // Upload the platform build
@@ -97,7 +95,7 @@ function getInfoMessage({
   return (
     [
       chalk.blue(`Info: ${message}`),
-      learnMoreLink ? `↳ Learn more: ${logLink(learnMoreLink)}` : null,
+      learnMoreLink ? `↳ Learn more: ${getLogLink(learnMoreLink)}` : null,
     ]
       .filter((v) => v !== null)
       .join('\n') + '\n'
@@ -135,33 +133,27 @@ function getSherloData(): { buildIndex: number; token: string } {
   const SHERLO_TEMP_FILE_PATH = './.sherlo/data.json';
 
   if (!fs.existsSync(SHERLO_TEMP_FILE_PATH)) {
-    throw new Error(
-      getErrorMessage({
-        message: `temporary file "${SHERLO_TEMP_FILE_PATH}" not found - ensure it isn't filtered out by \`.gitignore\`, or use the \`--projectRoot\` flag when working with a monorepo`,
-        learnMoreLink: DOCS_LINK.sherloScriptFlags,
-      })
-    );
+    throwError({
+      message: `temporary file "${SHERLO_TEMP_FILE_PATH}" not found - ensure it isn't filtered out by \`.gitignore\`, or use the \`--projectRoot\` flag when working with a monorepo`,
+      learnMoreLink: DOCS_LINK.sherloScriptFlags,
+    });
   }
 
   const { buildIndex, token } = JSON.parse(fs.readFileSync(SHERLO_TEMP_FILE_PATH, 'utf8'));
 
   if (typeof buildIndex !== 'number') {
-    throw new Error(
-      getErrorMessage({
-        type: 'unexpected',
-        message: `field \`buildIndex\` in temporary file "${SHERLO_TEMP_FILE_PATH}" is not valid`,
-      })
-    );
+    throwError({
+      type: 'unexpected',
+      message: `field \`buildIndex\` in temporary file "${SHERLO_TEMP_FILE_PATH}" is not valid`,
+    });
   }
 
   const tokenRegex = /^[A-Za-z0-9_-]{40}[0-9]{1,4}$/;
   if (!tokenRegex.test(token)) {
-    throw new Error(
-      getErrorMessage({
-        message: `passed \`token\` ("${token}") is not valid`,
-        learnMoreLink: DOCS_LINK.configToken,
-      })
-    );
+    throwError({
+      message: `passed \`token\` ("${token}") is not valid`,
+      learnMoreLink: DOCS_LINK.configToken,
+    });
   }
 
   return { buildIndex, token };
@@ -201,7 +193,7 @@ async function asyncUploadPlatformBuild({
     token,
   });
 
-  console.log(`Tests start after all builds are uploaded ➜ ${logLink(url)}\n`);
+  console.log(`Tests start after all builds are uploaded ➜ ${getLogLink(url)}\n`);
 }
 
 function getPlatformPathFromEasJson({

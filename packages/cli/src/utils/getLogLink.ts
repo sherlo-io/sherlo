@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 
-function logLink(link: string) {
+function getLogLink(link: string) {
   return chalk.underline(link);
 }
 
-export default logLink;
+export default getLogLink;

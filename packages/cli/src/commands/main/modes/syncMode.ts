@@ -1,10 +1,10 @@
 import { Build } from '@sherlo/api-types';
 import SDKApiClient from '@sherlo/sdk-client';
-import { logLink } from '../../../utils';
+import { getLogLink } from '../../../utils';
 import { DOCS_LINK } from '../../../constants';
 import { getTokenParts, handleClientError } from '../../utils';
 import { Config } from '../types';
-import { getConfigErrorMessage } from '../utils';
+import { throwConfigError } from '../utils';
 import {
   getAppBuildUrl,
   getBuildRunConfig,
@@ -28,20 +28,16 @@ async function syncMode({
   const platformsToTest = getPlatformsToTest(config);
 
   if (platformsToTest.includes('android') && !config.android) {
-    throw new Error(
-      getConfigErrorMessage(
-        '`android` path is not provided, despite at least one Android testing device being defined',
-        DOCS_LINK.configAndroid
-      )
+    throwConfigError(
+      '`android` path is not provided, despite at least one Android testing device being defined',
+      DOCS_LINK.configAndroid
     );
   }
 
   if (platformsToTest.includes('ios') && !config.ios) {
-    throw new Error(
-      getConfigErrorMessage(
-        '`ios` path is not provided, despite at least one iOS testing device being defined',
-        DOCS_LINK.configIos
-      )
+    throwConfigError(
+      '`ios` path is not provided, despite at least one iOS testing device being defined',
+      DOCS_LINK.configIos
     );
   }
 
@@ -74,7 +70,7 @@ async function syncMode({
   const buildIndex = build.index;
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
-  console.log(`Test results: ${logLink(url)}\n`);
+  console.log(`Test results: ${getLogLink(url)}\n`);
 
   return { buildIndex, url };
 }

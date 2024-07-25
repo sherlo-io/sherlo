@@ -1,10 +1,9 @@
 import { Build, Platform } from '@sherlo/api-types';
 import { defaultDeviceOsLocale, defaultDeviceOsTheme } from '@sherlo/shared';
-import chalk from 'chalk';
 import { Command } from 'commander';
 import nodePath from 'path';
 import { DEFAULT_CONFIG_PATH, DEFAULT_PROJECT_ROOT } from '../../../constants';
-import { getErrorMessage } from '../../../utils';
+import { logWarning, throwError } from '../../../utils';
 import { Config, InvalidatedConfig, Mode } from '../types';
 import {
   getGitInfo,
@@ -12,6 +11,7 @@ import {
   validateConfigDevices,
   validateConfigPlatformPath,
   validateConfigPlatforms,
+  validateConfigProperties,
   validateConfigToken,
 } from './utils';
 
@@ -70,6 +70,7 @@ function getArguments(githubActionParameters?: Parameters): Arguments {
     mode = 'asyncUpload';
   }
 
+  validateConfigProperties(config);
   validateConfigToken(config);
   const { token } = config;
 
@@ -108,12 +109,10 @@ function getArguments(githubActionParameters?: Parameters): Arguments {
       const { asyncBuildIndex } = parameters;
 
       if (!asyncBuildIndex) {
-        throw new Error(
-          getErrorMessage({
-            type: 'unexpected',
-            message: 'asyncBuildIndex is undefined',
-          })
-        );
+        throwError({
+          type: 'unexpected',
+          message: 'asyncBuildIndex is undefined',
+        });
       }
 
       return {
@@ -225,7 +224,7 @@ function removeDuplicateDevices(
       .replace(/}$/, ' }');
 
     if (uniqueDevices.has(key)) {
-      console.log(chalk.yellow('Config Warning: duplicated device', key, '\n'));
+      logWarning({ type: 'config', message: `duplicated device ${key}` });
 
       return false;
     }
@@ -238,20 +237,16 @@ function removeDuplicateDevices(
 
 function getAsyncUploadArguments(parameters: Parameters): { path: string; platform: Platform } {
   if (parameters.android && parameters.ios) {
-    throw new Error(
-      getErrorMessage({
-        message:
-          'If you are providing both Android and iOS at the same time, use Sherlo in regular mode (without the `--async` flag)',
-      })
-    );
+    throwError({
+      message:
+        'If you are providing both Android and iOS at the same time, use Sherlo in regular mode (without the `--async` flag)',
+    });
   }
 
   if (!parameters.android && !parameters.ios) {
-    throw new Error(
-      getErrorMessage({
-        message: 'When using "asyncBuildIndex" you need to provide one build path, ios or android',
-      })
-    );
+    throwError({
+      message: 'When using "asyncBuildIndex" you need to provide one build path, ios or android',
+    });
   }
 
   if (parameters.android) {
@@ -266,10 +261,8 @@ function getAsyncUploadArguments(parameters: Parameters): { path: string; platfo
     return { path: parameters.ios, platform: 'ios' };
   }
 
-  throw new Error(
-    getErrorMessage({
-      type: 'unexpected',
-      message: 'Unexpected error in getAsyncUploadArguments function',
-    })
-  );
+  throwError({
+    type: 'unexpected',
+    message: 'Unexpected error in getAsyncUploadArguments function',
+  });
 }

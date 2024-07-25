@@ -1,8 +1,8 @@
 import fs from 'fs';
-import { getErrorMessage } from '../../../../utils';
 import { DOCS_LINK } from '../../../../constants';
+import { throwError } from '../../../../utils';
 import { InvalidatedConfig } from '../../types';
-import { getConfigErrorMessage } from '../../utils';
+import { throwConfigError } from '../../utils';
 
 /*
  * 1. Both `include` and `exclude` can be defined as a string or an array of
@@ -13,12 +13,10 @@ function parseConfigFile(path: string): InvalidatedConfig {
     const config = JSON.parse(fs.readFileSync(path, 'utf8'));
 
     if (!config) {
-      throw new Error(
-        getErrorMessage({
-          type: 'unexpected',
-          message: `parsed config file "${path}" is undefined`,
-        })
-      );
+      throwError({
+        type: 'unexpected',
+        message: `parsed config file "${path}" is undefined`,
+      });
     }
 
     /* 1 */
@@ -32,26 +30,28 @@ function parseConfigFile(path: string): InvalidatedConfig {
 
     switch (nodeError.code) {
       case 'ENOENT':
-        throw new Error(
-          getConfigErrorMessage(
-            `config file "${path}" not found - verify the path or use the \`--projectRoot\` flag`,
-            DOCS_LINK.sherloScriptFlags
-          )
+        throwConfigError(
+          `config file "${path}" not found - verify the path or use the \`--projectRoot\` flag`,
+          DOCS_LINK.sherloScriptFlags
         );
+        break;
+
       case 'EACCES':
-        throw new Error(getConfigErrorMessage(`config file "${path}" cannot be accessed`));
+        throwConfigError(`config file "${path}" cannot be accessed`);
+        break;
+
       case 'EISDIR':
-        throw new Error(getConfigErrorMessage(`"${path}" is a directory, not a config file`));
+        throwConfigError(`"${path}" is a directory, not a config file`);
+        break;
+
       default:
         if (error instanceof SyntaxError) {
-          throw new Error(getConfigErrorMessage(`config file "${path}" is not valid JSON`));
+          throwConfigError(`config file "${path}" is not valid JSON`);
         } else {
-          throw new Error(
-            getErrorMessage({
-              type: 'unexpected',
-              message: `issue reading config file "${path}"`,
-            })
-          );
+          throwError({
+            type: 'unexpected',
+            message: `issue reading config file "${path}"`,
+          });
         }
     }
   }
