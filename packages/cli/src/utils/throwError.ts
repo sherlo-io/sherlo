@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import logLink from './logLink';
+import getLogLink from './getLogLink';
 
 type ErrorType = 'auth' | 'config' | 'default' | 'unexpected';
 
@@ -10,7 +10,7 @@ const typeLabel: { [type in ErrorType]: string } = {
   unexpected: 'Unexpected Error',
 };
 
-function getErrorMessage({
+function throwError({
   learnMoreLink,
   message,
   type = 'default',
@@ -18,9 +18,15 @@ function getErrorMessage({
   message: string;
   learnMoreLink?: string;
   type?: ErrorType;
-}): string {
-  return `${chalk.red(`${typeLabel[type]}: ${message}`)}
-${learnMoreLink ? `↳ Learn more: ${logLink(learnMoreLink)}\n` : ''}`;
+}): never {
+  throw new Error(
+    [
+      chalk.red(`${typeLabel[type]}: ${message}`),
+      learnMoreLink ? `↳ Learn more: ${getLogLink(learnMoreLink)}` : null,
+    ]
+      .filter((v) => v !== null)
+      .join('\n') + '\n'
+  );
 }
 
-export default getErrorMessage;
+export default throwError;

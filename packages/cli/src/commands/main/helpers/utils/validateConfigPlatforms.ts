@@ -1,16 +1,14 @@
 import { Platform } from '@sherlo/api-types';
 import { DOCS_LINK } from '../../../../constants';
 import { ConfigMode, InvalidatedConfig } from '../../types';
-import { getConfigErrorMessage } from '../../utils';
+import { throwConfigError } from '../../utils';
 import validateConfigPlatformPath from './validateConfigPlatformPath';
 
 function validateConfigPlatforms(config: InvalidatedConfig, configMode: ConfigMode): void {
   const { android, ios } = config;
 
   if (configMode === 'withBuildPaths' && !android && !ios) {
-    throw new Error(
-      getConfigErrorMessage('at least one platform build path must be defined', DOCS_LINK.config)
-    );
+    throwConfigError('at least one platform build path must be defined', DOCS_LINK.config);
   }
 
   if (android) validatePlatform(config, 'android', configMode);
@@ -38,12 +36,10 @@ function validatePlatform(
 //   if (platform === 'android') {
 //     const { android } = config;
 //     if (!android) {
-//       throw new Error(
-//         getErrorMessage({
+//         throwError({
 //           type: 'unexpected',
 //           message: 'android should be defined',
 //         })
-//       );
 //     }
 
 //     if (
@@ -51,31 +47,25 @@ function validatePlatform(
 //       typeof android.packageName !== 'string' ||
 //       !android.packageName.includes('.')
 //     ) {
-//       throw new Error(
-//         getConfigErrorMessage(
+//         throwConfigError(
 //           'for android, packageName must be a valid string',
 //           docsLink.configAndroid
 //         )
-//       );
 //     }
 
 //     if (android.activity && typeof android.activity !== 'string') {
-//       throw new Error(
-//         getConfigErrorMessage(
+//         throwConfigError(
 //           'for android, if activity is defined, it must be a string',
 //           docsLink.configAndroid
 //         )
-//       );
 //     }
 //   } else if (platform === 'ios') {
 //     const { ios } = config;
 //     if (!ios) {
-//       throw new Error(
-//         getErrorMessage({
+//         throwError({
 //           type: 'unexpected',
 //           message: 'ios should be defined',
 //         })
-//       );
 //     }
 
 //     if (
@@ -83,12 +73,10 @@ function validatePlatform(
 //       typeof ios.bundleIdentifier !== 'string' ||
 //       !ios.bundleIdentifier.includes('.')
 //     ) {
-//       throw new Error(
-//         getConfigErrorMessage(
+//         throwConfigError(
 //           'for ios, bundleIdentifier must be a valid string',
 //           docsLink.configIos
 //         )
-//       );
 //     }
 //   }
 // }

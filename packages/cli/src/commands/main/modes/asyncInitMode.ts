@@ -3,8 +3,8 @@ import SDKApiClient from '@sherlo/sdk-client';
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { getErrorMessage } from '../../../utils';
 import { DOCS_LINK, DEFAULT_PROJECT_ROOT } from '../../../constants';
+import { throwError } from '../../../utils';
 import { getTokenParts, handleClientError } from '../../utils';
 import { Config } from '../types';
 import { getAppBuildUrl, getBuildRunConfig } from './utils';
@@ -112,24 +112,20 @@ function validatePackageJsonScript({
   const packageJsonPath = path.resolve(projectRoot, 'package.json');
 
   if (!fs.existsSync(packageJsonPath)) {
-    throw new Error(
-      getErrorMessage({
-        message: `package.json file not found at location "${projectRoot}" - make sure the directory is correct or pass the \`--projectRoot\` flag to the script`,
-        learnMoreLink: DOCS_LINK.sherloScriptFlags,
-      })
-    );
+    throwError({
+      message: `package.json file not found at location "${projectRoot}" - make sure the directory is correct or pass the \`--projectRoot\` flag to the script`,
+      learnMoreLink: DOCS_LINK.sherloScriptFlags,
+    });
   }
 
   const packageJsonData = fs.readFileSync(packageJsonPath, 'utf8');
   const packageJson = JSON.parse(packageJsonData);
 
   if (!packageJson.scripts || !packageJson.scripts[scriptName]) {
-    throw new Error(
-      getErrorMessage({
-        message: errorMessage,
-        learnMoreLink,
-      })
-    );
+    throwError({
+      message: errorMessage,
+      learnMoreLink,
+    });
   }
 }
 

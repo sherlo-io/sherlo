@@ -5,7 +5,7 @@ import fetch from 'node-fetch';
 import path from 'path';
 import tar from 'tar';
 import zlib from 'zlib';
-import { getErrorMessage } from '../../../../utils';
+import { throwError } from '../../../../utils';
 import { IOSFileType } from '../../types';
 
 const platformLabel: { [platform in Platform]: string } = {
@@ -24,12 +24,10 @@ async function uploadMobileBuilds(
 ): Promise<void> {
   if (paths.android) {
     if (!buildPresignedUploadUrls.android) {
-      throw new Error(
-        getErrorMessage({
-          type: 'unexpected',
-          message: `${platformLabel.android} presigned url is undefined`,
-        })
-      );
+      throwError({
+        type: 'unexpected',
+        message: `${platformLabel.android} presigned url is undefined`,
+      });
     }
 
     await uploadFile({
@@ -41,12 +39,10 @@ async function uploadMobileBuilds(
 
   if (paths.ios) {
     if (!buildPresignedUploadUrls.ios) {
-      throw new Error(
-        getErrorMessage({
-          type: 'unexpected',
-          message: `${platformLabel.ios} presigned url is undefined`,
-        })
-      );
+      throwError({
+        type: 'unexpected',
+        message: `${platformLabel.ios} presigned url is undefined`,
+      });
     }
 
     const iosPath = paths.ios as string;
@@ -92,12 +88,10 @@ async function uploadFile({
     fileData = await fs.promises.readFile(filePath);
   } else if (platform === 'ios') {
     if (!iosFileType) {
-      throw new Error(
-        getErrorMessage({
-          type: 'unexpected',
-          message: 'iosFileType is undefined',
-        })
-      );
+      throwError({
+        type: 'unexpected',
+        message: 'iosFileType is undefined',
+      });
     }
 
     if (iosFileType === '.tar.gz') {
@@ -107,20 +101,16 @@ async function uploadFile({
     } else if (iosFileType === '.app') {
       fileData = await compressDirectoryToTarGzip(filePath);
     } else {
-      throw new Error(
-        getErrorMessage({
-          type: 'unexpected',
-          message: `invalid iOS file type: ${iosFileType}`,
-        })
-      );
+      throwError({
+        type: 'unexpected',
+        message: `invalid iOS file type: ${iosFileType}`,
+      });
     }
   } else {
-    throw new Error(
-      getErrorMessage({
-        type: 'unexpected',
-        message: `platform ${platform} is not supported`,
-      })
-    );
+    throwError({
+      type: 'unexpected',
+      message: `platform ${platform} is not supported`,
+    });
   }
 
   const platformLabelValue = platformLabel[platform];
@@ -131,21 +121,17 @@ async function uploadFile({
     method: 'PUT',
     body: fileData,
   }).catch(() => {
-    throw new Error(
-      getErrorMessage({
-        type: 'unexpected',
-        message: `failed to upload ${platformLabelValue} build`,
-      })
-    );
+    throwError({
+      type: 'unexpected',
+      message: `failed to upload ${platformLabelValue} build`,
+    });
   });
 
   if (!response.ok) {
-    throw new Error(
-      getErrorMessage({
-        type: 'unexpected',
-        message: `failed to upload ${platformLabelValue} build`,
-      })
-    );
+    throwError({
+      type: 'unexpected',
+      message: `failed to upload ${platformLabelValue} build`,
+    });
   }
 
   console.log(`${chalk.green('✓')} Finished ${platformLabelValue} upload\n`);

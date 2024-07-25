@@ -1,6 +1,6 @@
 import { main, easBuildOnComplete } from './commands';
 import { printHeader } from './helpers';
-import { getErrorMessage } from './utils';
+import { throwError } from './utils';
 
 async function start() {
   try {
@@ -14,9 +14,7 @@ async function start() {
       printHeader();
 
       // TODO: add learnMore link to the CLI documentation
-      throw new Error(
-        getErrorMessage({ message: `CLI argument \`${cliArgument}\` is not supported` })
-      );
+      throwError({ message: `CLI argument \`${cliArgument}\` is not supported` });
     }
   } catch (e) {
     console.error((e as Error).message);
