@@ -82009,8 +82009,8 @@ const process_1 = __importDefault(__nccwpck_require__(77282));
 const constants_1 = __nccwpck_require__(44582);
 const helpers_1 = __nccwpck_require__(8543);
 const utils_1 = __nccwpck_require__(28970);
-const utils_2 = __nccwpck_require__(55193);
 const modes_1 = __nccwpck_require__(73928);
+const utils_2 = __nccwpck_require__(55193);
 /**
  * Build lifecycle hooks: https://docs.expo.dev/build-reference/npm-hooks/
  * Environment variables: https://docs.expo.dev/build-reference/variables/#built-in-environment-variables
@@ -82040,10 +82040,10 @@ async function easBuildOnComplete() {
     (0, helpers_1.printHeader)();
     // Sherlo build profile is not defined
     if (!sherloBuildProfile) {
-        throw new Error((0, utils_1.getErrorMessage)({
+        (0, utils_1.throwError)({
             message: 'in `eas-build-on-complete` script you must define the same EAS `--profile` that you use for your Sherlo test builds',
             learnMoreLink: constants_1.DOCS_LINK.remoteExpoBuilds,
-        }));
+        });
     }
     const { buildIndex, token } = getSherloData();
     // Build failed on Expo servers
@@ -82058,7 +82058,7 @@ async function easBuildOnComplete() {
             runError: 'user_expoBuildError',
         })
             .catch(utils_2.handleClientError);
-        throw new Error((0, utils_1.getErrorMessage)({ message: 'canceled due to error on Expo servers' }));
+        (0, utils_1.throwError)({ message: 'canceled due to error on Expo servers' });
     }
     // Upload the platform build
     await asyncUploadPlatformBuild({ buildIndex, sherloBuildProfile, token });
@@ -82068,7 +82068,7 @@ exports["default"] = easBuildOnComplete;
 function getInfoMessage({ learnMoreLink, message, }) {
     return ([
         chalk_1.default.blue(`Info: ${message}`),
-        learnMoreLink ? `↳ Learn more: ${(0, utils_1.logLink)(learnMoreLink)}` : null,
+        learnMoreLink ? `↳ Learn more: ${(0, utils_1.getLogLink)(learnMoreLink)}` : null,
     ]
         .filter((v) => v !== null)
         .join('\n') + '\n');
@@ -82097,24 +82097,24 @@ function getSherloBuildProfile() {
 function getSherloData() {
     const SHERLO_TEMP_FILE_PATH = './.sherlo/data.json';
     if (!fs_1.default.existsSync(SHERLO_TEMP_FILE_PATH)) {
-        throw new Error((0, utils_1.getErrorMessage)({
+        (0, utils_1.throwError)({
             message: `temporary file "${SHERLO_TEMP_FILE_PATH}" not found - ensure it isn't filtered out by \`.gitignore\`, or use the \`--projectRoot\` flag when working with a monorepo`,
             learnMoreLink: constants_1.DOCS_LINK.sherloScriptFlags,
-        }));
+        });
     }
     const { buildIndex, token } = JSON.parse(fs_1.default.readFileSync(SHERLO_TEMP_FILE_PATH, 'utf8'));
     if (typeof buildIndex !== 'number') {
-        throw new Error((0, utils_1.getErrorMessage)({
+        (0, utils_1.throwError)({
             type: 'unexpected',
             message: `field \`buildIndex\` in temporary file "${SHERLO_TEMP_FILE_PATH}" is not valid`,
-        }));
+        });
     }
     const tokenRegex = /^[A-Za-z0-9_-]{40}[0-9]{1,4}$/;
     if (!tokenRegex.test(token)) {
-        throw new Error((0, utils_1.getErrorMessage)({
+        (0, utils_1.throwError)({
             message: `passed \`token\` ("${token}") is not valid`,
             learnMoreLink: constants_1.DOCS_LINK.configToken,
-        }));
+        });
     }
     return { buildIndex, token };
 }
@@ -82139,7 +82139,7 @@ async function asyncUploadPlatformBuild({ buildIndex, sherloBuildProfile, token,
         platform,
         token,
     });
-    console.log(`Tests start after all builds are uploaded ➜ ${(0, utils_1.logLink)(url)}\n`);
+    console.log(`Tests start after all builds are uploaded ➜ ${(0, utils_1.getLogLink)(url)}\n`);
 }
 function getPlatformPathFromEasJson({ platform, sherloBuildProfile, }) {
     const easJsonData = JSON.parse(fs_1.default.readFileSync('eas.json', 'utf8'));
@@ -82188,7 +82188,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const shared_1 = __nccwpck_require__(35482);
-const chalk_1 = __importDefault(__nccwpck_require__(14547));
 const commander_1 = __nccwpck_require__(89976);
 const path_1 = __importDefault(__nccwpck_require__(71017));
 const constants_1 = __nccwpck_require__(44582);
@@ -82210,6 +82209,7 @@ function getArguments(githubActionParameters) {
     else if (parameters.asyncBuildIndex) {
         mode = 'asyncUpload';
     }
+    (0, utils_2.validateConfigProperties)(config);
     (0, utils_2.validateConfigToken)(config);
     const { token } = config;
     switch (mode) {
@@ -82242,10 +82242,10 @@ function getArguments(githubActionParameters) {
             const { path, platform } = getAsyncUploadArguments(parameters);
             const { asyncBuildIndex } = parameters;
             if (!asyncBuildIndex) {
-                throw new Error((0, utils_1.getErrorMessage)({
+                (0, utils_1.throwError)({
                     type: 'unexpected',
                     message: 'asyncBuildIndex is undefined',
-                }));
+                });
             }
             return {
                 mode,
@@ -82321,7 +82321,7 @@ function removeDuplicateDevices(devices) {
             .replace(/\n/g, '')
             .replace(/}$/, ' }');
         if (uniqueDevices.has(key)) {
-            console.log(chalk_1.default.yellow('Config Warning: duplicated device', key, '\n'));
+            (0, utils_1.logWarning)({ type: 'config', message: `duplicated device ${key}` });
             return false;
         }
         uniqueDevices.add(key);
@@ -82330,14 +82330,14 @@ function removeDuplicateDevices(devices) {
 }
 function getAsyncUploadArguments(parameters) {
     if (parameters.android && parameters.ios) {
-        throw new Error((0, utils_1.getErrorMessage)({
+        (0, utils_1.throwError)({
             message: 'If you are providing both Android and iOS at the same time, use Sherlo in regular mode (without the `--async` flag)',
-        }));
+        });
     }
     if (!parameters.android && !parameters.ios) {
-        throw new Error((0, utils_1.getErrorMessage)({
+        (0, utils_1.throwError)({
             message: 'When using "asyncBuildIndex" you need to provide one build path, ios or android',
-        }));
+        });
     }
     if (parameters.android) {
         (0, utils_2.validateConfigPlatformPath)(parameters.android, 'android');
@@ -82347,10 +82347,10 @@ function getAsyncUploadArguments(parameters) {
         (0, utils_2.validateConfigPlatformPath)(parameters.ios, 'ios');
         return { path: parameters.ios, platform: 'ios' };
     }
-    throw new Error((0, utils_1.getErrorMessage)({
+    (0, utils_1.throwError)({
         type: 'unexpected',
         message: 'Unexpected error in getAsyncUploadArguments function',
-    }));
+    });
 }
 
 
@@ -82413,7 +82413,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.validateConfigToken = exports.validateConfigPlatforms = exports.validateConfigPlatformPath = exports.validateConfigDevices = exports.parseConfigFile = exports.getGitInfo = void 0;
+exports.validateConfigToken = exports.validateConfigProperties = exports.validateConfigPlatforms = exports.validateConfigPlatformPath = exports.validateConfigDevices = exports.parseConfigFile = exports.getGitInfo = void 0;
 var getGitInfo_1 = __nccwpck_require__(67935);
 Object.defineProperty(exports, "getGitInfo", ({ enumerable: true, get: function () { return __importDefault(getGitInfo_1).default; } }));
 var parseConfigFile_1 = __nccwpck_require__(51713);
@@ -82424,6 +82424,8 @@ var validateConfigPlatformPath_1 = __nccwpck_require__(24575);
 Object.defineProperty(exports, "validateConfigPlatformPath", ({ enumerable: true, get: function () { return __importDefault(validateConfigPlatformPath_1).default; } }));
 var validateConfigPlatforms_1 = __nccwpck_require__(32233);
 Object.defineProperty(exports, "validateConfigPlatforms", ({ enumerable: true, get: function () { return __importDefault(validateConfigPlatforms_1).default; } }));
+var validateConfigProperties_1 = __nccwpck_require__(57422);
+Object.defineProperty(exports, "validateConfigProperties", ({ enumerable: true, get: function () { return __importDefault(validateConfigProperties_1).default; } }));
 var validateConfigToken_1 = __nccwpck_require__(71462);
 Object.defineProperty(exports, "validateConfigToken", ({ enumerable: true, get: function () { return __importDefault(validateConfigToken_1).default; } }));
 
@@ -82440,8 +82442,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const fs_1 = __importDefault(__nccwpck_require__(57147));
-const utils_1 = __nccwpck_require__(28970);
 const constants_1 = __nccwpck_require__(44582);
+const utils_1 = __nccwpck_require__(28970);
 const utils_2 = __nccwpck_require__(91897);
 /*
  * 1. Both `include` and `exclude` can be defined as a string or an array of
@@ -82451,10 +82453,10 @@ function parseConfigFile(path) {
     try {
         const config = JSON.parse(fs_1.default.readFileSync(path, 'utf8'));
         if (!config) {
-            throw new Error((0, utils_1.getErrorMessage)({
+            (0, utils_1.throwError)({
                 type: 'unexpected',
                 message: `parsed config file "${path}" is undefined`,
-            }));
+            });
         }
         /* 1 */
         const { exclude, include } = config;
@@ -82468,20 +82470,23 @@ function parseConfigFile(path) {
         const nodeError = error;
         switch (nodeError.code) {
             case 'ENOENT':
-                throw new Error((0, utils_2.getConfigErrorMessage)(`config file "${path}" not found - verify the path or use the \`--projectRoot\` flag`, constants_1.DOCS_LINK.sherloScriptFlags));
+                (0, utils_2.throwConfigError)(`config file "${path}" not found - verify the path or use the \`--projectRoot\` flag`, constants_1.DOCS_LINK.sherloScriptFlags);
+                break;
             case 'EACCES':
-                throw new Error((0, utils_2.getConfigErrorMessage)(`config file "${path}" cannot be accessed`));
+                (0, utils_2.throwConfigError)(`config file "${path}" cannot be accessed`);
+                break;
             case 'EISDIR':
-                throw new Error((0, utils_2.getConfigErrorMessage)(`"${path}" is a directory, not a config file`));
+                (0, utils_2.throwConfigError)(`"${path}" is a directory, not a config file`);
+                break;
             default:
                 if (error instanceof SyntaxError) {
-                    throw new Error((0, utils_2.getConfigErrorMessage)(`config file "${path}" is not valid JSON`));
+                    (0, utils_2.throwConfigError)(`config file "${path}" is not valid JSON`);
                 }
                 else {
-                    throw new Error((0, utils_1.getErrorMessage)({
+                    (0, utils_1.throwError)({
                         type: 'unexpected',
                         message: `issue reading config file "${path}"`,
-                    }));
+                    });
                 }
         }
     }
@@ -82499,26 +82504,27 @@ exports["default"] = parseConfigFile;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const shared_1 = __nccwpck_require__(35482);
 const constants_1 = __nccwpck_require__(44582);
-const utils_1 = __nccwpck_require__(91897);
+const utils_1 = __nccwpck_require__(28970);
+const utils_2 = __nccwpck_require__(91897);
 function validateConfigDevices(config) {
     const { devices } = config;
     if (!devices || !Array.isArray(devices) || devices.length === 0) {
-        throw new Error((0, utils_1.getConfigErrorMessage)('`devices` must be a non-empty array', constants_1.DOCS_LINK.devices));
+        (0, utils_2.throwConfigError)('`devices` must be a non-empty array', constants_1.DOCS_LINK.devices);
     }
     for (let i = 0; i < devices.length; i++) {
-        const { id, osLocale, osVersion, osTheme, ...rest } = devices[i] ?? {};
+        const { id, osLocale, osVersion, osTheme, ...unsupportedProperties } = devices[i] ?? {};
         if (!id || typeof id !== 'string' || !osVersion || typeof osVersion !== 'string') {
-            throw new Error((0, utils_1.getConfigErrorMessage)('each device must have defined `id` and `osVersion` as strings', constants_1.DOCS_LINK.devices));
+            (0, utils_2.throwConfigError)('each device must have defined `id` and `osVersion` as strings', constants_1.DOCS_LINK.devices);
         }
         const sherloDevice = shared_1.devices[id];
         if (!sherloDevice) {
-            throw new Error((0, utils_1.getConfigErrorMessage)(`device "${id}" is invalid`, constants_1.DOCS_LINK.devices));
+            (0, utils_2.throwConfigError)(`device "${id}" is invalid`, constants_1.DOCS_LINK.devices);
         }
         if (!sherloDevice.osVersions.some(({ version }) => version === osVersion)) {
-            throw new Error((0, utils_1.getConfigErrorMessage)(`the osVersion "${osVersion}" is not supported by the device "${id}"`, constants_1.DOCS_LINK.devices));
+            (0, utils_2.throwConfigError)(`the osVersion "${osVersion}" is not supported by the device "${id}"`, constants_1.DOCS_LINK.devices);
         }
         if (!osLocale) {
-            throw new Error((0, utils_1.getConfigErrorMessage)('device `osLocale` must be defined', constants_1.DOCS_LINK.configDevices));
+            (0, utils_2.throwConfigError)('device `osLocale` must be defined', constants_1.DOCS_LINK.configDevices);
         }
         const osLocaleRegex = /^[a-z]{2}(_[A-Z]{2})?$/;
         // ^ - start of the string
@@ -82529,18 +82535,22 @@ function validateConfigDevices(config) {
         // )? - end of the group, ? makes this group optional
         // $ - end of the string
         if (!osLocaleRegex.test(osLocale)) {
-            throw new Error((0, utils_1.getConfigErrorMessage)(`device osLocale "${osLocale}" is invalid`, constants_1.DOCS_LINK.configDevices));
+            (0, utils_2.throwConfigError)(`device osLocale "${osLocale}" is invalid`, constants_1.DOCS_LINK.configDevices);
         }
         if (!osTheme) {
-            throw new Error((0, utils_1.getConfigErrorMessage)('device `osTheme` must be defined', constants_1.DOCS_LINK.configDevices));
+            (0, utils_2.throwConfigError)('device `osTheme` must be defined', constants_1.DOCS_LINK.configDevices);
         }
         const deviceThemes = ['light', 'dark'];
         if (!deviceThemes.includes(osTheme)) {
-            throw new Error((0, utils_1.getConfigErrorMessage)(`device osTheme "${osTheme}" is invalid`, constants_1.DOCS_LINK.configDevices));
+            (0, utils_2.throwConfigError)(`device osTheme "${osTheme}" is invalid`, constants_1.DOCS_LINK.configDevices);
         }
-        if (Object.keys(rest).length > 0) {
-            throw new Error((0, utils_1.getConfigErrorMessage)(`device property "${Object.keys(rest)[0]}" is not supported`, constants_1.DOCS_LINK.configDevices));
-        }
+        Object.keys(unsupportedProperties).forEach((property) => {
+            (0, utils_1.logWarning)({
+                type: 'config',
+                message: `device property "${property}" is not supported`,
+                learnMoreLink: constants_1.DOCS_LINK.configDevices,
+            });
+        });
     }
 }
 exports["default"] = validateConfigDevices;
@@ -82570,10 +82580,10 @@ const fileType = {
 };
 function validateConfigPlatformPath(path, platform) {
     if (!path || typeof path !== 'string') {
-        throw new Error((0, utils_1.getConfigErrorMessage)(`\`${platform}\` must be a defined string`, learnMoreLink[platform]));
+        (0, utils_1.throwConfigError)(`\`${platform}\` must be a defined string`, learnMoreLink[platform]);
     }
     if (!fs_1.default.existsSync(path) || !hasValidExtension({ path, platform })) {
-        throw new Error((0, utils_1.getConfigErrorMessage)(`\`${platform}\` path must point to an ${formatValidFileTypes(platform)} file`, learnMoreLink[platform]));
+        (0, utils_1.throwConfigError)(`\`${platform}\` path must point to an ${formatValidFileTypes(platform)} file`, learnMoreLink[platform]);
     }
 }
 exports["default"] = validateConfigPlatformPath;
@@ -82609,7 +82619,7 @@ const validateConfigPlatformPath_1 = __importDefault(__nccwpck_require__(24575))
 function validateConfigPlatforms(config, configMode) {
     const { android, ios } = config;
     if (configMode === 'withBuildPaths' && !android && !ios) {
-        throw new Error((0, utils_1.getConfigErrorMessage)('at least one platform build path must be defined', constants_1.DOCS_LINK.config));
+        (0, utils_1.throwConfigError)('at least one platform build path must be defined', constants_1.DOCS_LINK.config);
     }
     if (android)
         validatePlatform(config, 'android', configMode);
@@ -82628,57 +82638,71 @@ function validatePlatform(config, platform, configMode) {
 //   if (platform === 'android') {
 //     const { android } = config;
 //     if (!android) {
-//       throw new Error(
-//         getErrorMessage({
+//         throwError({
 //           type: 'unexpected',
 //           message: 'android should be defined',
 //         })
-//       );
 //     }
 //     if (
 //       !android.packageName ||
 //       typeof android.packageName !== 'string' ||
 //       !android.packageName.includes('.')
 //     ) {
-//       throw new Error(
-//         getConfigErrorMessage(
+//         throwConfigError(
 //           'for android, packageName must be a valid string',
 //           docsLink.configAndroid
 //         )
-//       );
 //     }
 //     if (android.activity && typeof android.activity !== 'string') {
-//       throw new Error(
-//         getConfigErrorMessage(
+//         throwConfigError(
 //           'for android, if activity is defined, it must be a string',
 //           docsLink.configAndroid
 //         )
-//       );
 //     }
 //   } else if (platform === 'ios') {
 //     const { ios } = config;
 //     if (!ios) {
-//       throw new Error(
-//         getErrorMessage({
+//         throwError({
 //           type: 'unexpected',
 //           message: 'ios should be defined',
 //         })
-//       );
 //     }
 //     if (
 //       !ios.bundleIdentifier ||
 //       typeof ios.bundleIdentifier !== 'string' ||
 //       !ios.bundleIdentifier.includes('.')
 //     ) {
-//       throw new Error(
-//         getConfigErrorMessage(
+//         throwConfigError(
 //           'for ios, bundleIdentifier must be a valid string',
 //           docsLink.configIos
 //         )
-//       );
 //     }
 //   }
 // }
+
+
+/***/ }),
+
+/***/ 57422:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const constants_1 = __nccwpck_require__(44582);
+const utils_1 = __nccwpck_require__(28970);
+const supportedProperties = ['android', 'devices', 'ios', 'token'];
+function validateConfigProperties(config) {
+    const unsupportedProperties = Object.keys(config).filter((property) => !supportedProperties.includes(property));
+    unsupportedProperties.forEach((property) => {
+        (0, utils_1.logWarning)({
+            type: 'config',
+            message: `property "${property}" is not supported`,
+            learnMoreLink: constants_1.DOCS_LINK.configProperties,
+        });
+    });
+}
+exports["default"] = validateConfigProperties;
 
 
 /***/ }),
@@ -82696,14 +82720,14 @@ const utils_2 = __nccwpck_require__(91897);
 function validateConfigToken(config) {
     const { token } = config;
     if (!token || typeof token !== 'string') {
-        throw new Error((0, utils_2.getConfigErrorMessage)('`token` must be a defined string', constants_1.DOCS_LINK.configToken));
+        (0, utils_2.throwConfigError)('`token` must be a defined string', constants_1.DOCS_LINK.configToken);
     }
     const { apiToken, projectIndex, teamId } = (0, utils_1.getTokenParts)(token);
     if (apiToken.length !== shared_1.projectApiTokenLength ||
         teamId.length !== shared_1.teamIdLength ||
         !Number.isInteger(projectIndex) ||
         projectIndex < 1) {
-        throw new Error((0, utils_2.getConfigErrorMessage)('`token` is not valid', constants_1.DOCS_LINK.configToken));
+        (0, utils_2.throwConfigError)('`token` is not valid', constants_1.DOCS_LINK.configToken);
     }
 }
 exports["default"] = validateConfigToken;
@@ -82769,8 +82793,8 @@ const sdk_client_1 = __importDefault(__nccwpck_require__(32646));
 const child_process_1 = __nccwpck_require__(32081);
 const fs_1 = __importDefault(__nccwpck_require__(57147));
 const path_1 = __importDefault(__nccwpck_require__(71017));
-const utils_1 = __nccwpck_require__(28970);
 const constants_1 = __nccwpck_require__(44582);
+const utils_1 = __nccwpck_require__(28970);
 const utils_2 = __nccwpck_require__(55193);
 const utils_3 = __nccwpck_require__(54243);
 async function asyncInitMode({ projectRoot, config, token, gitInfo, remoteExpo, remoteExpoBuildScript, }) {
@@ -82833,18 +82857,18 @@ function validateRemoteExpoBuildScript(projectRoot, remoteExpoBuildScript) {
 function validatePackageJsonScript({ projectRoot, scriptName, errorMessage, learnMoreLink, }) {
     const packageJsonPath = path_1.default.resolve(projectRoot, 'package.json');
     if (!fs_1.default.existsSync(packageJsonPath)) {
-        throw new Error((0, utils_1.getErrorMessage)({
+        (0, utils_1.throwError)({
             message: `package.json file not found at location "${projectRoot}" - make sure the directory is correct or pass the \`--projectRoot\` flag to the script`,
             learnMoreLink: constants_1.DOCS_LINK.sherloScriptFlags,
-        }));
+        });
     }
     const packageJsonData = fs_1.default.readFileSync(packageJsonPath, 'utf8');
     const packageJson = JSON.parse(packageJsonData);
     if (!packageJson.scripts || !packageJson.scripts[scriptName]) {
-        throw new Error((0, utils_1.getErrorMessage)({
+        (0, utils_1.throwError)({
             message: errorMessage,
             learnMoreLink,
-        }));
+        });
     }
 }
 function createSherloTempFolder({ projectRoot, buildIndex, token, }) {
@@ -83038,10 +83062,10 @@ async function syncMode({ token, config, gitInfo, }) {
     const client = (0, sdk_client_1.default)(apiToken);
     const platformsToTest = (0, utils_4.getPlatformsToTest)(config);
     if (platformsToTest.includes('android') && !config.android) {
-        throw new Error((0, utils_3.getConfigErrorMessage)('`android` path is not provided, despite at least one Android testing device being defined', constants_1.DOCS_LINK.configAndroid));
+        (0, utils_3.throwConfigError)('`android` path is not provided, despite at least one Android testing device being defined', constants_1.DOCS_LINK.configAndroid);
     }
     if (platformsToTest.includes('ios') && !config.ios) {
-        throw new Error((0, utils_3.getConfigErrorMessage)('`ios` path is not provided, despite at least one iOS testing device being defined', constants_1.DOCS_LINK.configIos));
+        (0, utils_3.throwConfigError)('`ios` path is not provided, despite at least one iOS testing device being defined', constants_1.DOCS_LINK.configIos);
     }
     const buildUploadUrls = await (0, utils_4.getBuildUploadUrls)(client, {
         platforms: platformsToTest,
@@ -83065,7 +83089,7 @@ async function syncMode({ token, config, gitInfo, }) {
         .catch(utils_2.handleClientError);
     const buildIndex = build.index;
     const url = (0, utils_4.getAppBuildUrl)({ buildIndex, projectIndex, teamId });
-    console.log(`Test results: ${(0, utils_1.logLink)(url)}\n`);
+    console.log(`Test results: ${(0, utils_1.getLogLink)(url)}\n`);
     return { buildIndex, url };
 }
 exports["default"] = syncMode;
@@ -83227,10 +83251,10 @@ const platformLabel = {
 async function uploadMobileBuilds(paths, buildPresignedUploadUrls) {
     if (paths.android) {
         if (!buildPresignedUploadUrls.android) {
-            throw new Error((0, utils_1.getErrorMessage)({
+            (0, utils_1.throwError)({
                 type: 'unexpected',
                 message: `${platformLabel.android} presigned url is undefined`,
-            }));
+            });
         }
         await uploadFile({
             platform: 'android',
@@ -83240,10 +83264,10 @@ async function uploadMobileBuilds(paths, buildPresignedUploadUrls) {
     }
     if (paths.ios) {
         if (!buildPresignedUploadUrls.ios) {
-            throw new Error((0, utils_1.getErrorMessage)({
+            (0, utils_1.throwError)({
                 type: 'unexpected',
                 message: `${platformLabel.ios} presigned url is undefined`,
-            }));
+            });
         }
         const iosPath = paths.ios;
         const pathFileName = path_1.default.basename(iosPath);
@@ -83274,10 +83298,10 @@ async function uploadFile({ path: filePath, uploadUrl, platform, iosFileType, })
     }
     else if (platform === 'ios') {
         if (!iosFileType) {
-            throw new Error((0, utils_1.getErrorMessage)({
+            (0, utils_1.throwError)({
                 type: 'unexpected',
                 message: 'iosFileType is undefined',
-            }));
+            });
         }
         if (iosFileType === '.tar.gz') {
             fileData = await fs_1.default.promises.readFile(filePath);
@@ -83289,17 +83313,17 @@ async function uploadFile({ path: filePath, uploadUrl, platform, iosFileType, })
             fileData = await compressDirectoryToTarGzip(filePath);
         }
         else {
-            throw new Error((0, utils_1.getErrorMessage)({
+            (0, utils_1.throwError)({
                 type: 'unexpected',
                 message: `invalid iOS file type: ${iosFileType}`,
-            }));
+            });
         }
     }
     else {
-        throw new Error((0, utils_1.getErrorMessage)({
+        (0, utils_1.throwError)({
             type: 'unexpected',
             message: `platform ${platform} is not supported`,
-        }));
+        });
     }
     const platformLabelValue = platformLabel[platform];
     console.log(`${chalk_1.default.blue('→')} Started ${platformLabelValue} upload`);
@@ -83307,16 +83331,16 @@ async function uploadFile({ path: filePath, uploadUrl, platform, iosFileType, })
         method: 'PUT',
         body: fileData,
     }).catch(() => {
-        throw new Error((0, utils_1.getErrorMessage)({
+        (0, utils_1.throwError)({
             type: 'unexpected',
             message: `failed to upload ${platformLabelValue} build`,
-        }));
+        });
     });
     if (!response.ok) {
-        throw new Error((0, utils_1.getErrorMessage)({
+        (0, utils_1.throwError)({
             type: 'unexpected',
             message: `failed to upload ${platformLabelValue} build`,
-        }));
+        });
     }
     console.log(`${chalk_1.default.green('✓')} Finished ${platformLabelValue} upload\n`);
 }
@@ -83348,26 +83372,6 @@ async function compressDirectoryToTarGzip(directoryPath) {
 
 /***/ }),
 
-/***/ 70365:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-const utils_1 = __nccwpck_require__(28970);
-const constants_1 = __nccwpck_require__(44582);
-function getConfigErrorMessage(message, learnMoreLink) {
-    return (0, utils_1.getErrorMessage)({
-        type: 'config',
-        message,
-        learnMoreLink: learnMoreLink ?? constants_1.DOCS_LINK.config,
-    });
-}
-exports["default"] = getConfigErrorMessage;
-
-
-/***/ }),
-
 /***/ 91897:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -83377,9 +83381,29 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getConfigErrorMessage = void 0;
-var getConfigErrorMessage_1 = __nccwpck_require__(70365);
-Object.defineProperty(exports, "getConfigErrorMessage", ({ enumerable: true, get: function () { return __importDefault(getConfigErrorMessage_1).default; } }));
+exports.throwConfigError = void 0;
+var throwConfigError_1 = __nccwpck_require__(23935);
+Object.defineProperty(exports, "throwConfigError", ({ enumerable: true, get: function () { return __importDefault(throwConfigError_1).default; } }));
+
+
+/***/ }),
+
+/***/ 23935:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const utils_1 = __nccwpck_require__(28970);
+const constants_1 = __nccwpck_require__(44582);
+function throwConfigError(message, learnMoreLink) {
+    return (0, utils_1.throwError)({
+        type: 'config',
+        message,
+        learnMoreLink: learnMoreLink ?? constants_1.DOCS_LINK.config,
+    });
+}
+exports["default"] = throwConfigError;
 
 
 /***/ }),
@@ -83409,17 +83433,17 @@ exports["default"] = getTokenParts;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const utils_1 = __nccwpck_require__(28970);
 const constants_1 = __nccwpck_require__(44582);
+const utils_1 = __nccwpck_require__(28970);
 function handleClientError(error) {
     if (error.networkError?.statusCode === 401) {
-        throw new Error((0, utils_1.getErrorMessage)({
+        (0, utils_1.throwError)({
             type: 'auth',
             message: 'token is invalid',
             learnMoreLink: constants_1.DOCS_LINK.configToken,
-        }));
+        });
     }
-    throw new Error((0, utils_1.getErrorMessage)({ type: 'unexpected', message: error.message }));
+    (0, utils_1.throwError)({ type: 'unexpected', message: error.message });
 }
 exports["default"] = handleClientError;
 
@@ -83563,7 +83587,7 @@ async function start() {
         else {
             (0, helpers_1.printHeader)();
             // TODO: add learnMore link to the CLI documentation
-            throw new Error((0, utils_1.getErrorMessage)({ message: `CLI argument \`${cliArgument}\` is not supported` }));
+            (0, utils_1.throwError)({ message: `CLI argument \`${cliArgument}\` is not supported` });
         }
     }
     catch (e) {
@@ -83576,7 +83600,7 @@ exports["default"] = start;
 
 /***/ }),
 
-/***/ 2929:
+/***/ 73570:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -83586,18 +83610,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const chalk_1 = __importDefault(__nccwpck_require__(14547));
-const logLink_1 = __importDefault(__nccwpck_require__(65793));
-const typeLabel = {
-    default: 'Error',
-    auth: 'Auth Error',
-    config: 'Config Error',
-    unexpected: 'Unexpected Error',
-};
-function getErrorMessage({ learnMoreLink, message, type = 'default', }) {
-    return `${chalk_1.default.red(`${typeLabel[type]}: ${message}`)}
-${learnMoreLink ? `↳ Learn more: ${(0, logLink_1.default)(learnMoreLink)}\n` : ''}`;
+function getLogLink(link) {
+    return chalk_1.default.underline(link);
 }
-exports["default"] = getErrorMessage;
+exports["default"] = getLogLink;
 
 
 /***/ }),
@@ -83611,16 +83627,18 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.logLink = exports.getErrorMessage = void 0;
-var getErrorMessage_1 = __nccwpck_require__(2929);
-Object.defineProperty(exports, "getErrorMessage", ({ enumerable: true, get: function () { return __importDefault(getErrorMessage_1).default; } }));
-var logLink_1 = __nccwpck_require__(65793);
-Object.defineProperty(exports, "logLink", ({ enumerable: true, get: function () { return __importDefault(logLink_1).default; } }));
+exports.throwError = exports.logWarning = exports.getLogLink = void 0;
+var getLogLink_1 = __nccwpck_require__(73570);
+Object.defineProperty(exports, "getLogLink", ({ enumerable: true, get: function () { return __importDefault(getLogLink_1).default; } }));
+var logWarning_1 = __nccwpck_require__(38165);
+Object.defineProperty(exports, "logWarning", ({ enumerable: true, get: function () { return __importDefault(logWarning_1).default; } }));
+var throwError_1 = __nccwpck_require__(84286);
+Object.defineProperty(exports, "throwError", ({ enumerable: true, get: function () { return __importDefault(throwError_1).default; } }));
 
 
 /***/ }),
 
-/***/ 65793:
+/***/ 38165:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -83630,10 +83648,50 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const chalk_1 = __importDefault(__nccwpck_require__(14547));
-function logLink(link) {
-    return chalk_1.default.underline(link);
+const getLogLink_1 = __importDefault(__nccwpck_require__(73570));
+const typeLabel = {
+    default: 'Warning',
+    config: 'Config Warning',
+};
+function logWarning({ learnMoreLink, message, type = 'default', }) {
+    console.log([
+        chalk_1.default.yellow(`${typeLabel[type]}: ${message}`),
+        learnMoreLink ? `↳ Learn more: ${(0, getLogLink_1.default)(learnMoreLink)}` : null,
+    ]
+        .filter((v) => v !== null)
+        .join('\n') + '\n');
 }
-exports["default"] = logLink;
+exports["default"] = logWarning;
+
+
+/***/ }),
+
+/***/ 84286:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const chalk_1 = __importDefault(__nccwpck_require__(14547));
+const getLogLink_1 = __importDefault(__nccwpck_require__(73570));
+const typeLabel = {
+    default: 'Error',
+    auth: 'Auth Error',
+    config: 'Config Error',
+    unexpected: 'Unexpected Error',
+};
+function throwError({ learnMoreLink, message, type = 'default', }) {
+    throw new Error([
+        chalk_1.default.red(`${typeLabel[type]}: ${message}`),
+        learnMoreLink ? `↳ Learn more: ${(0, getLogLink_1.default)(learnMoreLink)}` : null,
+    ]
+        .filter((v) => v !== null)
+        .join('\n') + '\n');
+}
+exports["default"] = throwError;
 
 
 /***/ }),
