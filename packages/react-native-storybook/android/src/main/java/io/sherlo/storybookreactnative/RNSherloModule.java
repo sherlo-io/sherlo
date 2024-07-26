@@ -7,6 +7,9 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.ReactApplication;
+import com.facebook.react.ReactInstanceManager;
+import android.content.Context;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.OutputStream;
@@ -17,16 +20,29 @@ import java.util.Map;
 import java.util.HashMap;
 
 public class RNSherloModule extends ReactContextBaseJavaModule {
-    private static final String RNExternalDirectoryPath = "RNExternalDirectoryPath";
     public static final String RNSHERLO = "RNSherlo";
+    private static final String CONFIG_FILENAME = "config.sherlo";
 
     private final ReactApplicationContext reactContext;
 
     private static String appOrStorybookMode = "app"; // Static variable to hold the mode throughout the app lifecycle
+    private static String sherloDirectoryPath = "";
 
     public RNSherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
         this.reactContext = reactContext;
+
+        // Set Sherlo directory path
+        File externalDirectory = this.getReactApplicationContext().getExternalFilesDir(null);
+        if (externalDirectory != null) {
+            this.sherloDirectoryPath = externalDirectory.getAbsolutePath() + "/sherlo";
+        }
+
+        // If it's running on Sherlo server set Storybook mode
+        String configPath = this.sherloDirectoryPath + "/" + CONFIG_FILENAME;
+        if (new File(configPath).isFile()) {
+            this.appOrStorybookMode = "storybook";
+        }
     }
 
     @Override
@@ -35,14 +51,25 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void setAppOrStorybookMode(String appOrStorybookMode, Promise promise) {
+    public void setAppOrStorybookModeAndRestart(String appOrStorybookMode, Promise promise) {
         this.appOrStorybookMode = appOrStorybookMode;
+
+        // Restart JS
+        getReactInstanceManager().recreateReactContextInBackground();
         promise.resolve(null);
     }
 
     @ReactMethod
     public void getAppOrStorybookMode(Promise promise) {
         promise.resolve(this.appOrStorybookMode);
+    }
+
+    private ReactInstanceManager getReactInstanceManager() {
+        Context context = getReactApplicationContext().getApplicationContext();
+        if (context instanceof ReactApplication) {
+            return ((ReactApplication) context).getReactNativeHost().getReactInstanceManager();
+        }
+        return null;
     }
     
 
@@ -125,20 +152,6 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
         }
     }
 
-    @Override
-    public Map<String, Object> getConstants() {
-        final Map<String, Object> constants = new HashMap<>();
-
-        File externalDirectory = this.getReactApplicationContext().getExternalFilesDir(null);
-        if (externalDirectory != null) {
-            constants.put(RNExternalDirectoryPath, externalDirectory.getAbsolutePath());
-        } else {
-            constants.put(RNExternalDirectoryPath, null);
-        }
-
-        return constants;
-    }
-
     private OutputStream getOutputStream(String filepath, boolean append) throws IORejectionException {
         Uri uri = getFileUri(filepath, false);
         OutputStream stream;
@@ -204,5 +217,15 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
             }
         }
         return bytesResult;
+    }
+
+    @Override
+    public Map<String, Object> getConstants() {
+        final Map<String, Object> constants = new HashMap<>();
+
+        constants.put("appOrStorybookMode", this.appOrStorybookMode);
+        constants.put("sherloDirectoryPath", this.sherloDirectoryPath);
+
+        return constants;
     }
 }

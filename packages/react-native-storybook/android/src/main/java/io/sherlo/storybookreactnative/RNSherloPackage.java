@@ -1,4 +1,3 @@
-
 package io.sherlo.storybookreactnative;
 
 import java.util.Arrays;

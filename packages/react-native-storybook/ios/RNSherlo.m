@@ -1,18 +1,38 @@
 #import "RNSherlo.h"
+#import <Foundation/Foundation.h>
 #import <React/RCTUtils.h>
 #import <React/RCTUIManager.h>
 #if __has_include(<React/RCTUIManagerUtils.h>)
-#import <React/RCTUIManagerUtils.h>
+  #import <React/RCTUIManagerUtils.h>
 #endif
 #import <React/RCTBridge.h>
 
 static NSString *appOrStorybookMode = @"app"; // Static variable to hold the mode throughout the app lifecycle
+static NSString *sherloDirectoryPath = @"";
+static NSString *CONFIG_FILENAME = @"config.sherlo";
 
 @implementation RNSherlo
 
 RCT_EXPORT_MODULE()
 
 @synthesize bridge = _bridge;
+
+- (instancetype)init
+{
+  self = [super init];
+  if (self) {
+    // Set Sherlo directory path
+    sherloDirectoryPath = [[self getPathForDirectory:NSDocumentDirectory] stringByAppendingPathComponent:@"sherlo"];
+
+    // If it's running on Sherlo server set Storybook mode
+    NSString *configPath = [sherloDirectoryPath stringByAppendingPathComponent:CONFIG_FILENAME];
+    BOOL doesSherloConfigFileExist = [[NSFileManager defaultManager] fileExistsAtPath:configPath isDirectory:NO];
+    if (doesSherloConfigFileExist) {
+        appOrStorybookMode = @"storybook";
+    }
+  }
+  return self;
+}
 
 - (dispatch_queue_t)methodQueue
 {
@@ -30,11 +50,14 @@ RCT_EXPORT_METHOD(getAppOrStorybookMode:(RCTPromiseResolveBlock)resolve
   resolve(appOrStorybookMode);
 }
 
-RCT_EXPORT_METHOD(setAppOrStorybookMode:(NSString *)mode
+RCT_EXPORT_METHOD(setAppOrStorybookModeAndRestart:(NSString *)mode
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
   appOrStorybookMode = mode;
+
+  // Restart JS
+  [_bridge reload];
   resolve(nil);
 }
 
@@ -201,7 +224,8 @@ RCT_EXPORT_METHOD(writeFile:(NSString *)filepath
 - (NSDictionary *)constantsToExport
 {
   return @{
-           @"RNDocumentDirectoryPath": [self getPathForDirectory:NSDocumentDirectory],
+           @"sherloDirectoryPath": sherloDirectoryPath,
+           @"appOrStorybookMode": appOrStorybookMode,
           };
 }
 
