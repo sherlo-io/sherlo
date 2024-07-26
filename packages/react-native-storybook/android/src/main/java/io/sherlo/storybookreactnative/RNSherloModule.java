@@ -7,6 +7,9 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.ReactApplication;
+import com.facebook.react.ReactInstanceManager;
+import android.content.Context;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.OutputStream;
@@ -37,12 +40,23 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void setAppOrStorybookMode(String appOrStorybookMode, Promise promise) {
         this.appOrStorybookMode = appOrStorybookMode;
+
+        // Restart JS
+        getReactInstanceManager().recreateReactContextInBackground();
         promise.resolve(null);
     }
 
     @ReactMethod
     public void getAppOrStorybookMode(Promise promise) {
         promise.resolve(this.appOrStorybookMode);
+    }
+
+    private ReactInstanceManager getReactInstanceManager() {
+        Context context = getReactApplicationContext().getApplicationContext();
+        if (context instanceof ReactApplication) {
+            return ((ReactApplication) context).getReactNativeHost().getReactInstanceManager();
+        }
+        return null;
     }
     
 

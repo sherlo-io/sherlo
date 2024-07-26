@@ -35,6 +35,9 @@ RCT_EXPORT_METHOD(setAppOrStorybookMode:(NSString *)mode
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
   appOrStorybookMode = mode;
+
+  // Restart JS
+  [_bridge reload];
   resolve(nil);
 }
 

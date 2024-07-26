@@ -17,55 +17,75 @@ function getAppWithStorybook({
   Storybook: () => ReactElement;
 }): () => ReactElement | null {
   return () => {
-    const [visibleMode, setVisibleMode] = useState<AppOrStorybookMode | null>('app');
-    const [pendingMode, setPendingMode] = useState<AppOrStorybookMode | null>(null);
+    const [visibleMode, setVisibleMode] = useState<AppOrStorybookMode | null>(null);
+    // const [hasModeChanged, setHasModeChanged] = useState<boolean>(false);
+    // const [pendingMode, setPendingMode] = useState<AppOrStorybookMode | null>(null);
 
-    const setMode = (mode: AppOrStorybookMode | 'toggle') => {
-      setVisibleMode((prevMode) => {
-        let newMode: AppOrStorybookMode;
-        if (mode === 'toggle') {
-          newMode = prevMode === 'app' ? 'storybook' : 'app';
-        } else {
-          newMode = mode;
-        }
+    const setMode = async (mode: AppOrStorybookMode | 'toggle') => {
+      const prevMode = await SherloModule.getAppOrStorybookMode();
 
-        if (newMode === prevMode) {
-          /**
-           * Simply return previous mode if it didn't change
-           */
+      // setVisibleMode((prevMode) => {
+      let newMode: AppOrStorybookMode;
+      if (mode === 'toggle') {
+        newMode = prevMode === 'app' ? 'storybook' : 'app';
+      } else {
+        newMode = mode;
+      }
 
-          return prevMode;
-        } else {
-          /**
-           * If the mode has changed, temporarily set visibleMode to `null` and
-           * set the new mode as pending. This ensures a one cycle pause to
-           * avoid rendering issues on Android emulators during the transition
-           * between `app` and `storybook` modes.
-           */
+      // if (newMode === prevMode) {
+      //   /**
+      //    * Simply return previous mode if it didn't change
+      //    */
 
-          SherloModule.setAppOrStorybookMode(newMode); // Persist the new mode for future app restarts
-          setPendingMode(newMode); // Set the new mode as pending
-          return null; // Temporarily set visibleMode to null
-        }
-      });
+      //   return prevMode;
+      // } else {
+      //   /**
+      //    * If the mode has changed, temporarily set visibleMode to `null` and
+      //    * set the new mode as pending. This ensures a one cycle pause to
+      //    * avoid rendering issues on Android emulators during the transition
+      //    * between `app` and `storybook` modes.
+      //    */
+
+      if (newMode !== prevMode) {
+        SherloModule.setAppOrStorybookMode(newMode); // Persist the new mode for future app restarts
+      }
+      // setHasModeChanged(true);
+      //     setPendingMode(newMode); // Set the new mode as pending
+      //     return null; // Temporarily set visibleMode to null
+      //   }
+      // });
     };
 
-    useEffect(() => {
-      if (pendingMode !== null) {
-        /**
-         * If pendingMode is defined, set it as the visible mode.
-         * At this point, we know the render cycle has completed rendering
-         * `null`, so we can safely set the target mode, preventing rendering
-         * issues on Android emulators.
-         */
+    // useEffect(() => {
+    //   if (pendingMode !== null) {
+    //     /**
+    //      * If pendingMode is defined, set it as the visible mode.
+    //      * At this point, we know the render cycle has completed rendering
+    //      * `null`, so we can safely set the target mode, preventing rendering
+    //      * issues on Android emulators.
+    //      */
 
-        setVisibleMode(pendingMode);
-        setPendingMode(null);
-      }
-    }, [pendingMode]);
+    //     setVisibleMode(pendingMode);
+    //     setPendingMode(null);
+    //   }
+    // }, [pendingMode]);
+
+    // Ustawiamy mode czytany z natywnego kodu
+    // useEffect(() => {
+    //   (async () => {
+    //     // if (hasModeChanged) {
+    //     // default jest ustawiany w czesci natywnej
+    //     const mode = await SherloModule.getAppOrStorybookMode();
+    //     setVisibleMode(mode);
+    //     // }
+    //   })();
+    // }, []);
 
     useEffect(() => {
       (async () => {
+        const mode = await SherloModule.getAppOrStorybookMode();
+        setVisibleMode(mode);
+
         if (await isSherloServer()) {
           /**
            * If the app is running on a Sherlo server, switch to Storybook
@@ -79,17 +99,19 @@ function getAppWithStorybook({
            * selected mode if the app was reset, otherwise default to the App
            */
 
-          const selectedModeBeforeReset = await SherloModule.getAppOrStorybookMode();
-          setMode(selectedModeBeforeReset ?? 'app');
+          // const selectedModeBeforeReset = await SherloModule.getAppOrStorybookMode();
+          // setMode(selectedModeBeforeReset ?? 'app');
 
           addToggleStorybookToDevMenu(setMode);
-        } else {
-          /**
-           * If the app is running in production mode, display the App
-           */
-
-          setMode('app');
         }
+
+        // else {
+        //   /**
+        //    * If the app is running in production mode, display the App
+        //    */
+
+        //   setMode('app');
+        // }
       })();
     }, []);
 
