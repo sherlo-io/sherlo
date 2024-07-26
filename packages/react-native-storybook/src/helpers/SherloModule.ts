@@ -1,11 +1,13 @@
 import base64 from 'base-64';
-import { NativeModules, Platform } from 'react-native';
+import { NativeModules } from 'react-native';
 import utf8 from 'utf8';
 import { AppOrStorybookMode } from '../types';
+import isExpoGo from './isExpoGo';
 
 type SherloModule = {
+  appOrStorybookMode: AppOrStorybookMode;
   getAppOrStorybookMode: () => Promise<AppOrStorybookMode>;
-  setAppOrStorybookMode: (appOrStorybookMode: AppOrStorybookMode) => Promise<void>;
+  setAppOrStorybookModeAndRestart: (appOrStorybookMode: AppOrStorybookMode) => Promise<void>;
   mkdir: (path: string) => Promise<void>;
   appendFile: (path: string, base64: string) => Promise<void>;
   readFile: (path: string) => Promise<string>;
@@ -13,14 +15,6 @@ type SherloModule = {
 };
 
 const { RNSherlo } = NativeModules;
-
-let isExpoGo;
-try {
-  const Constants = require('expo-constants').default;
-  isExpoGo = Constants.appOwnership === 'expo';
-} catch {
-  isExpoGo = false;
-}
 
 let SherloModule: SherloModule;
 
@@ -42,8 +36,9 @@ export default SherloModule;
 
 function createDummySherloModule(): SherloModule {
   return {
+    appOrStorybookMode: 'app',
     getAppOrStorybookMode: async () => 'app',
-    setAppOrStorybookMode: async () => {},
+    setAppOrStorybookModeAndRestart: async () => {},
     mkdir: async () => {},
     appendFile: async () => {},
     readFile: async () => '',
@@ -52,49 +47,41 @@ function createDummySherloModule(): SherloModule {
 }
 
 function createSherloModule(RNSherlo: any): SherloModule {
-  const basePath = getBasePath(RNSherlo);
+  const { appOrStorybookMode, sherloDirectoryPath } = RNSherlo.getConstants();
 
   return {
+    appOrStorybookMode,
     getAppOrStorybookMode: () => {
       return RNSherlo.getAppOrStorybookMode();
     },
-    setAppOrStorybookMode: (appOrStorybookMode: AppOrStorybookMode) => {
-      return RNSherlo.setAppOrStorybookMode(appOrStorybookMode);
+    setAppOrStorybookModeAndRestart: (appOrStorybookMode: AppOrStorybookMode) => {
+      return RNSherlo.setAppOrStorybookModeAndRestart(appOrStorybookMode);
     },
     mkdir: (path: string) => {
-      const normalizedFilePath = normalizeFilePath(`${basePath}/${path}`);
+      const normalizedFilePath = normalizeFilePath(`${sherloDirectoryPath}/${path}`);
 
       return RNSherlo.mkdir(normalizedFilePath, {});
     },
     appendFile: (filepath: string, contents: string) => {
       const encodedContents = base64.encode(utf8.encode(contents));
-      const normalizedFilePath = normalizeFilePath(`${basePath}/${filepath}`);
+      const normalizedFilePath = normalizeFilePath(`${sherloDirectoryPath}/${filepath}`);
 
       return RNSherlo.appendFile(normalizedFilePath, encodedContents);
     },
     writeFile: (filepath: string, contents: string) => {
       const encodedContents = base64.encode(utf8.encode(contents));
-      const normalizedFilePath = normalizeFilePath(`${basePath}/${filepath}`);
+      const normalizedFilePath = normalizeFilePath(`${sherloDirectoryPath}/${filepath}`);
 
       return RNSherlo.writeFile(normalizedFilePath, encodedContents, { encoding: 'utf8' });
     },
     readFile: (filepath: string) => {
-      const normalizedFilePath = normalizeFilePath(`${basePath}/${filepath}`);
+      const normalizedFilePath = normalizeFilePath(`${sherloDirectoryPath}/${filepath}`);
 
       return RNSherlo.readFile(normalizedFilePath).then((b64: string) => {
         return utf8.decode(base64.decode(b64));
       });
     },
   };
-}
-
-function getBasePath(RNSherlo: any): string {
-  const path =
-    Platform.OS === 'android'
-      ? RNSherlo.getConstants().RNExternalDirectoryPath
-      : RNSherlo.getConstants().RNDocumentDirectoryPath;
-
-  return `${path}/sherlo`;
 }
 
 const filePathPrefix = 'file://';
