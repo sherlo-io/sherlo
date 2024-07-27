@@ -2,8 +2,18 @@ name: Run Sherlo with Sync Upload
 
 on:
   workflow_call:
+    inputs:
+      env:
+        description: 'Environment (dev, test, prod)'
+        required: true
+        type: string
   workflow_dispatch:
-
+    inputs:
+      env:
+        description: 'Environment (dev, test, prod)'
+        required: true
+        default: 'dev'
+        type: string
 jobs:
   run_sherlo_sync:
     name: Run Sherlo in sync mode
@@ -23,7 +33,7 @@ jobs:
         run: yarn
 
       - name: Build dependencies
-        run: yarn switch-env:dev
+        run: yarn switch-env:${{ inputs.env }}
         env:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
