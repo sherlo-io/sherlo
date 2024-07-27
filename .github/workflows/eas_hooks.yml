@@ -49,7 +49,7 @@ jobs:
           config: ../../configs/eas.preview.json
           remoteExpo: true
         env:
-          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN_EAS }}
+          SHERLO_TOKEN: ${{ secrets.SHERLO_INTEGRATION_TESTING_EAS_TOKEN }}
 
       - name: Trigger EAS builds for both platforms
         working-directory: examples/expo-example

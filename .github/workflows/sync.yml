@@ -45,4 +45,4 @@ jobs:
           android: examples/expo-example/builds/preview/android.apk
           config: configs/sync.preview.json
         env:
-          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN_SYNC }}
+          SHERLO_TOKEN: ${{ secrets.SHERLO_INTEGRATION_TESTING_SYNC_TOKEN }}
