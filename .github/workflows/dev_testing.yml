@@ -18,6 +18,11 @@ on:
         required: false
         default: false
         type: boolean
+      skip_integration_testing_eas:
+        description: 'Skip EAS Integration Testing'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   update_preview_builds:
@@ -76,7 +81,7 @@ jobs:
   integration_testing_eas:
     uses: ./.github/workflows/eas_hooks.yml
     needs: [update_preview_builds, update_storybook_builds]
-    if: ${{ always() && !failure() && !cancelled() }}
+    if: ${{ github.event.inputs.skip_integration_testing_eas != 'true' && always() && !failure() && !cancelled() }}
     name: Integration Testing - EAS
     secrets: inherit
     with:
