@@ -21,6 +21,7 @@ jobs:
       (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:eas')) ||
       (github.event_name != 'pull_request')
     runs-on: ubuntu-latest
+    environment: ${{ inputs.env }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v2

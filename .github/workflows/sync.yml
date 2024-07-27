@@ -17,6 +17,7 @@ on:
 jobs:
   run_sherlo_sync:
     name: Run Sherlo in sync mode
+    environment: ${{ inputs.env }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

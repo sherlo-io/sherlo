@@ -19,6 +19,7 @@ jobs:
   ## Sherlo
   run_sherlo_async:
     name: Run Sherlo in async mode
+    environment: ${{ inputs.env }}
     runs-on: ubuntu-latest
     outputs:
       buildIndex: ${{ steps.sherlo_action.outputs.buildIndex }} # Map step output to job output
@@ -52,6 +53,7 @@ jobs:
 
   android_preview_build_upload:
     name: Upload Android Preview Build to Sherlo
+    environment: ${{ inputs.env }}
     needs: [run_sherlo_async]
     runs-on: ubuntu-latest
     steps:
@@ -88,6 +90,7 @@ jobs:
 
   ios_preview_build_upload:
     name: Upload iOS Preview Build to Sherlo
+    environment: ${{ inputs.env }}
     needs: [run_sherlo_async]
     runs-on: ubuntu-latest
     steps:

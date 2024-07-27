@@ -18,6 +18,7 @@ on:
 jobs:
   run:
     name: Run
+    environment: ${{ inputs.env }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
