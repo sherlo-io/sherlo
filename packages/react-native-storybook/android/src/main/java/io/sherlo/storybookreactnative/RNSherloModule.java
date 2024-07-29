@@ -1,5 +1,7 @@
 package io.sherlo.storybookreactnative;
 
+import android.os.Handler;
+import android.os.Looper;
 import android.net.Uri;
 import android.util.Base64;
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -40,6 +42,7 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
 
         // If it's running on Sherlo server set Storybook mode
         String configPath = this.sherloDirectoryPath + "/" + CONFIG_FILENAME;
+
         if (new File(configPath).isFile()) {
             this.appOrStorybookMode = "storybook";
         }
@@ -54,8 +57,16 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
     public void setAppOrStorybookModeAndRestart(String appOrStorybookMode, Promise promise) {
         this.appOrStorybookMode = appOrStorybookMode;
 
-        // Restart JS
-        getReactInstanceManager().recreateReactContextInBackground();
+        // Ensure running on the UI thread
+        Handler mainHandler = new Handler(Looper.getMainLooper());
+        mainHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                // Restart JS on the UI Thread
+                getReactInstanceManager().recreateReactContextInBackground();
+                promise.resolve(null);
+            }
+        });
         promise.resolve(null);
     }
 

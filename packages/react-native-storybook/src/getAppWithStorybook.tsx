@@ -18,11 +18,11 @@ function getAppWithStorybook({
 }): () => ReactElement {
   return () => {
     /**
-     * Depending on `appOrStorybookMode`, the following component is rendered:
-     * - by default, returns the App
-     * - returns Storybook if running on Sherlo servers
-     * - on reload, returns last selected mode: Storybook if the developer was
-     *   working on it, or App otherwise
+     * Depending on `appOrStorybookMode`, the following mode is returned:
+     * - by default, returns App
+     * - if running on Sherlo servers, returns Storybook
+     * - if toggled Storybook via Dev Menu or openStorybook(), returns the selected mode
+     * - on reload, returns the last selected mode
      */
     const { appOrStorybookMode } = SherloModule;
 
