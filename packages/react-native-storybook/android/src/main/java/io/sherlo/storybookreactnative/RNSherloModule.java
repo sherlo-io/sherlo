@@ -1,34 +1,48 @@
 package io.sherlo.storybookreactnative;
 
+// Android OS and system utilities
+import android.app.Activity;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
-import android.net.Uri;
 import android.util.Base64;
+import android.util.Log;
+
+// React Native bridge and application context
+import com.facebook.react.ReactApplication;
+import com.facebook.react.ReactInstanceManager;
+import com.facebook.react.bridge.LifecycleEventListener;
+import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
-import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.ReactApplication;
 import com.facebook.react.ReactInstanceManager;
 import android.content.Context;
+
+// Java I/O and utility classes
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.OutputStream;
-import java.io.InputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.Map;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.lang.System;
 import java.util.HashMap;
+import java.util.Map;
 
 public class RNSherloModule extends ReactContextBaseJavaModule {
     public static final String RNSHERLO = "RNSherlo";
     private static final String CONFIG_FILENAME = "config.sherlo";
 
-    private final ReactApplicationContext reactContext;
-
-    private static String appOrStorybookMode = "app"; // Static variable to hold the mode throughout the app lifecycle
-    private static String sherloDirectoryPath = "";
+    private final ReactApplicationContext reactContext;    
+    private static String sherloDirectoryPath = "";  
 
     public RNSherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -44,7 +58,7 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
         String configPath = this.sherloDirectoryPath + "/" + CONFIG_FILENAME;
 
         if (new File(configPath).isFile()) {
-            this.appOrStorybookMode = "storybook";
+            this.openStorybook(true);
         }
     }
 
@@ -54,35 +68,21 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void setAppOrStorybookModeAndRestart(String appOrStorybookMode, Promise promise) {
-        this.appOrStorybookMode = appOrStorybookMode;
-
-        // Ensure running on the UI thread
-        Handler mainHandler = new Handler(Looper.getMainLooper());
-        mainHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                // Restart JS on the UI Thread
-                getReactInstanceManager().recreateReactContextInBackground();
-                promise.resolve(null);
+    public void openStorybook(boolean singleActivity) {
+        final Activity currentActivity = getCurrentActivity();
+        if (currentActivity != null) {
+            Intent intent = new Intent(currentActivity, StorybookActivity.class);
+            if (singleActivity) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
             }
-        });
-        promise.resolve(null);
-    }
-
-    @ReactMethod
-    public void getAppOrStorybookMode(Promise promise) {
-        promise.resolve(this.appOrStorybookMode);
-    }
-
-    private ReactInstanceManager getReactInstanceManager() {
-        Context context = getReactApplicationContext().getApplicationContext();
-        if (context instanceof ReactApplication) {
-            return ((ReactApplication) context).getReactNativeHost().getReactInstanceManager();
+            currentActivity.startActivity(intent);
         }
-        return null;
     }
     
+    @ReactMethod
+    public void closeStorybook() {
+        StorybookActivity.close();
+    }
 
     private void reject(Promise promise, String filepath, Exception ex) {
         if (ex instanceof FileNotFoundException) {
@@ -234,7 +234,6 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
     public Map<String, Object> getConstants() {
         final Map<String, Object> constants = new HashMap<>();
 
-        constants.put("appOrStorybookMode", this.appOrStorybookMode);
         constants.put("sherloDirectoryPath", this.sherloDirectoryPath);
 
         return constants;

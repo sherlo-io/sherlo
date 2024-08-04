@@ -1,8 +1,10 @@
 import { ReactElement, useEffect, useState } from 'react';
-import { DevSettings } from 'react-native';
+import { DevSettings, NativeModules } from 'react-native';
 import { isExpoGo, SherloModule } from './helpers';
 import { passSetModeToOpenStorybook } from './openStorybook';
 import { AppOrStorybookMode } from './types';
+
+const { RNSherlo } = NativeModules;
 
 /**
  * This function returns either the App or Storybook component based on the
@@ -46,7 +48,13 @@ function getAppWithStorybook({
 
         if (newMode === appOrStorybookMode) return;
 
-        SherloModule.setAppOrStorybookModeAndRestart(newMode);
+        if (newMode === 'storybook') {
+          console.log('openStorybook() called');
+          RNSherlo.openStorybook();
+        } else {
+          console.log('closeStorybook() called');
+          RNSherlo.closeStorybook();
+        }
       } else {
         /**
          * For Expo Go, use a simpler method due to lack of native module access
@@ -61,7 +69,7 @@ function getAppWithStorybook({
     useEffect(() => {
       (async () => {
         if (__DEV__) {
-          addToggleStorybookToDevMenu(setMode);
+          addToggleStorybookToDevMenu();
         }
 
         passSetModeToOpenStorybook(setMode);
@@ -86,18 +94,21 @@ try {
   ExpoDevMenu = require('expo-dev-menu');
 } catch {}
 
-function addToggleStorybookToDevMenu(setMode: (newMode: AppOrStorybookMode | 'toggle') => void) {
-  const TOGGLE_STORYBOOK_DEV_MENU_ITEM_NAME = 'Toggle Storybook';
-  const toggleBetweenAppAndStorybook = () => setMode('toggle');
+function addToggleStorybookToDevMenu() {
+  // if (ExpoDevMenu) {
+  //   ExpoDevMenu.registerDevMenuItems([
+  //     {
+  //       name: 'Open Storybook',
+  //       callback: () => RNSherlo.openStorybook(),
+  //     },
+  //     {
+  //       name: 'Close Storybook',
+  //       callback: () => RNSherlo.closeStorybook(),
+  //     },
+  //   ]);
+  // }
 
-  if (ExpoDevMenu) {
-    ExpoDevMenu.registerDevMenuItems([
-      {
-        name: TOGGLE_STORYBOOK_DEV_MENU_ITEM_NAME,
-        callback: toggleBetweenAppAndStorybook,
-      },
-    ]);
-  }
-
-  DevSettings.addMenuItem(TOGGLE_STORYBOOK_DEV_MENU_ITEM_NAME, toggleBetweenAppAndStorybook);
+  DevSettings.addMenuItem('Open Storybook', () => RNSherlo.openStorybook(false));
+  DevSettings.addMenuItem('Open Storybook - Single Activity', () => RNSherlo.openStorybook(true));
+  DevSettings.addMenuItem('Close Storybook', () => RNSherlo.closeStorybook());
 }

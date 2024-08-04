@@ -1,4 +1,5 @@
 #import "RNSherlo.h"
+#import "StorybookViewController.h"
 #import <Foundation/Foundation.h>
 #import <React/RCTUtils.h>
 #import <React/RCTUIManager.h>
@@ -7,9 +8,9 @@
 #endif
 #import <React/RCTBridge.h>
 
-static NSString *appOrStorybookMode = @"app"; // Static variable to hold the mode throughout the app lifecycle
 static NSString *sherloDirectoryPath = @"";
 static NSString *CONFIG_FILENAME = @"config.sherlo";
+static StorybookViewController *currentStorybookViewController = nil;
 
 @implementation RNSherlo
 
@@ -28,7 +29,7 @@ RCT_EXPORT_MODULE()
     NSString *configPath = [sherloDirectoryPath stringByAppendingPathComponent:CONFIG_FILENAME];
     BOOL doesSherloConfigFileExist = [[NSFileManager defaultManager] fileExistsAtPath:configPath isDirectory:NO];
     if (doesSherloConfigFileExist) {
-        appOrStorybookMode = @"storybook";
+        [self openStorybook : YES];
     }
   }
   return self;
@@ -44,21 +45,54 @@ RCT_EXPORT_MODULE()
   return NO;
 }
 
-RCT_EXPORT_METHOD(getAppOrStorybookMode:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXPORT_METHOD(openStorybook:(BOOL)singleRootController)
 {
-  resolve(appOrStorybookMode);
+    dispatch_async(dispatch_get_main_queue(), ^{
+        RCTBridge *bridge = [self.bridge valueForKey:@"parentBridge"];
+        if (!bridge) {
+            bridge = self.bridge;
+        }
+
+        // create a new view controller and set the root view to the storybook
+        StorybookViewController *storybookViewController = [[StorybookViewController alloc] init];
+        RCTRootView *rootView = [[RCTRootView alloc] initWithBridge:bridge moduleName:@"Storybook" initialProperties:nil];
+        storybookViewController.view = rootView;
+        
+        // Set the modal presentation style to full screen
+        storybookViewController.modalPresentationStyle = UIModalPresentationFullScreen;
+
+        if (singleRootController) {
+            // Replace the root view controller
+            UIWindow *window = [UIApplication sharedApplication].delegate.window;
+            window.rootViewController = storybookViewController;
+
+            // Animate the transition (optional)
+            [UIView transitionWithView:window
+                              duration:0.5
+                               options:UIViewAnimationOptionTransitionCrossDissolve
+                            animations:nil
+                            completion:nil];
+        } else {
+            UIViewController *rootViewController = [UIApplication sharedApplication].delegate.window.rootViewController;
+            // Present the view controller
+            [rootViewController presentViewController:storybookViewController animated:YES completion:nil];
+        }
+
+        // Store reference to the presented view controller
+        currentStorybookViewController = storybookViewController;
+    });
 }
 
-RCT_EXPORT_METHOD(setAppOrStorybookModeAndRestart:(NSString *)mode
-                  resolver:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject)
+RCT_EXPORT_METHOD(closeStorybook)
 {
-  appOrStorybookMode = mode;
-
-  // Restart JS
-  [_bridge reload];
-  resolve(nil);
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (currentStorybookViewController) {
+            [currentStorybookViewController dismissViewControllerAnimated:YES completion:^{
+                currentStorybookViewController = nil;
+            }];
+        }
+    });
 }
 
 RCT_EXPORT_METHOD(checkIfShowsRedbox: (NSDictionary *)options
@@ -225,7 +259,6 @@ RCT_EXPORT_METHOD(writeFile:(NSString *)filepath
 {
   return @{
            @"sherloDirectoryPath": sherloDirectoryPath,
-           @"appOrStorybookMode": appOrStorybookMode,
           };
 }
 
