@@ -8,9 +8,7 @@ import {
   Urbanist_700Bold,
 } from '@expo-google-fonts/urbanist';
 import * as SplashScreen from 'expo-splash-screen';
-import { getAppWithStorybook, openStorybook } from '@sherlo/react-native-storybook';
-import Storybook from './.storybook';
-AppRegistry.registerComponent('Storybook', () => Storybook);
+import { openStorybook } from '@sherlo/react-native-storybook';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -54,15 +52,20 @@ export default function App() {
     );
   };
 
-  let EntryPoint;
-  if (process.env.EXPO_PUBLIC_STORYBOOK_ONLY === 'true') {
+  let EntryPoint = App;
+
+  const isStandaloneStorybookBuild = process.env.EXPO_PUBLIC_STORYBOOK_ONLY === 'true';
+  const isDevelopmentBuild = process.env.PROD_BUILD === 'false';
+
+  if (isStandaloneStorybookBuild) {
     const Storybook = require('./.storybook').default;
+
     EntryPoint = Storybook;
-  } else if (process.env.PROD_BUILD === 'true') {
-    EntryPoint = App;
-  } else {
+  } else if (isDevelopmentBuild) {
+    const registerStorybook = require('@sherlo/react-native-storybook').registerStorybook;
     const Storybook = require('./.storybook').default;
-    EntryPoint = getAppWithStorybook({ App, Storybook });
+
+    registerStorybook(() => <Storybook />);
   }
 
   return (

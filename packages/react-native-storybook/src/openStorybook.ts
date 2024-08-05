@@ -1,25 +1,16 @@
-import { NativeModules } from 'react-native';
-import { AppOrStorybookMode } from './types';
+import { SherloModule } from './helpers';
 
-const { RNSherlo } = NativeModules;
-
-function openStorybook(): void {
-  RNSherlo.openStorybook(false);
-  // if (setMode) {
-  //   setMode('storybook');
-  // } else {
-  //   throw new Error(
-  //     'If you want to use `openStorybook()`, you need to wrap your application with `getAppWithStorybook()`.\n\nLearn more: https://docs.sherlo.io/getting-started/setup?storybook-entry-point=integrated#storybook-entry-point'
-  //   );
-  // }
-}
-
-type SetMode = (mode: AppOrStorybookMode) => void;
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-let setMode: SetMode;
-export function passSetModeToOpenStorybook(setModeFn: SetMode): void {
-  setMode = setModeFn;
+function openStorybook(): Promise<void> {
+  return SherloModule.openStorybook().catch((error) => {
+    // TODO: fix error.hasNoRegister
+    if (error.hasNoRegister) {
+      throw new Error(
+        'To use `openStorybook()`, you need to first call `registerStorybook()`.\n\nLearn more: https://docs.sherlo.io/getting-started/setup?storybook-entry-point=integrated#storybook-entry-point'
+      );
+    } else {
+      throw error;
+    }
+  });
 }
 
 export default openStorybook;

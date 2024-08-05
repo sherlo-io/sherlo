@@ -12,7 +12,7 @@ function usePreviewMode(
   snapshots: Snapshot[] | undefined,
   setMode: (m: StorybookViewMode) => void,
   emitStory: (id: string) => void,
-  prepareStory: (story: any) => Promise<boolean>,
+  prepareStory: (story: any) => Promise<void>,
   sherloEffectExecution: ReturnType<typeof useSherloEffectExecutionEffect>,
   mode?: StorybookViewMode
 ): void {
