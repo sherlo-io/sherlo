@@ -58,7 +58,7 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
         // Set Sherlo directory path
         File externalDirectory = this.getReactApplicationContext().getExternalFilesDir(null);
         if (externalDirectory != null) {
-            this.sherloDirectoryPath = externalDirectory.getAbsolutePath() + "/sherlo";
+            this.sherloDirectoryPath = externalDirectory.getAbsolutePath() + "/sherlo/target_files";
         }
 
         // If it's running on Sherlo server set Storybook mode
