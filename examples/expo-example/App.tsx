@@ -16,12 +16,15 @@ const isStandaloneStorybookBuild = process.env.EXPO_PUBLIC_STORYBOOK_ONLY === 't
 // @ts-ignore
 const isDevelopmentBuild = process.env.PROD_BUILD === 'false';
 
-if (!isStandaloneStorybookBuild && isDevelopmentBuild) {
-  const registerStorybook = require('@sherlo/react-native-storybook').registerStorybook;
-  const Storybook = require('./.storybook').default;
+console.log('isStandaloneStorybookBuild', isStandaloneStorybookBuild);
+console.log('isDevelopmentBuild', isDevelopmentBuild);
 
-  registerStorybook(() => <Storybook />);
-}
+// if (!isStandaloneStorybookBuild && isDevelopmentBuild) {
+const registerStorybook = require('@sherlo/react-native-storybook').registerStorybook;
+const Storybook = require('./.storybook').default;
+
+registerStorybook(() => <Storybook />);
+// }
 
 SplashScreen.preventAutoHideAsync();
 

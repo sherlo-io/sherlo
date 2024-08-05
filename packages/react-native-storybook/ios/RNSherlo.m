@@ -14,8 +14,6 @@ static NSString *CONFIG_FILENAME = @"config.sherlo";
 static StorybookViewController *currentStorybookViewController = nil;
 static UIViewController *originalRootViewController = nil;
 
-// na ios lepiej by bylo zeby przy trybie single task original view byl kompletnie zniszczony
-
 @implementation RNSherlo
 
 RCT_EXPORT_MODULE()
@@ -33,7 +31,7 @@ RCT_EXPORT_MODULE()
     NSString *configPath = [sherloDirectoryPath stringByAppendingPathComponent:CONFIG_FILENAME];
     BOOL doesSherloConfigFileExist = [[NSFileManager defaultManager] fileExistsAtPath:configPath isDirectory:NO];
     if (doesSherloConfigFileExist) {
-        [self openStorybook:YES];
+        [self openStorybookInternal:YES];
     }
   }
   return self;
@@ -49,23 +47,66 @@ RCT_EXPORT_MODULE()
   return NO;
 }
 
-RCT_EXPORT_METHOD(toggleStorybook)
+RCT_EXPORT_METHOD(toggleStorybook:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 {
     dispatch_async(dispatch_get_main_queue(), ^{
         if (currentStorybookViewController) {
-            [self closeStorybook];
+            [self closeStorybookWithResolver:resolve rejecter:reject];
         } else {
-            [self openStorybook:NO];
+            [self openStorybookWithResolver:resolve rejecter:reject];
         }
     });
 }
 
-RCT_EXPORT_METHOD(openStorybook:(BOOL)singleRootController)
+RCT_EXPORT_METHOD(openStorybook:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+    [self openStorybookInternal:NO];
+    resolve(nil);
+}
+
+- (void)openStorybookWithResolver:(RCTPromiseResolveBlock)resolve
+                         rejecter:(RCTPromiseRejectBlock)reject
+{
+    [self openStorybookInternal:NO];
+    resolve(nil);
+}
+
+- (void)closeStorybookWithResolver:(RCTPromiseResolveBlock)resolve
+                          rejecter:(RCTPromiseRejectBlock)reject
+{
+    if (currentStorybookViewController) {
+        UIWindow *window = [UIApplication sharedApplication].delegate.window;
+
+        if (originalRootViewController) {
+            // Restore the original root view controller
+            window.rootViewController = originalRootViewController;
+
+            // Animate the transition (optional)
+            [UIView transitionWithView:window
+                              duration:0.5
+                               options:UIViewAnimationOptionTransitionCrossDissolve
+                            animations:nil
+                            completion:nil];
+
+            originalRootViewController = nil;
+        } else {
+            [currentStorybookViewController dismissViewControllerAnimated:YES completion:nil];
+        }
+
+        currentStorybookViewController = nil;
+    }
+
+    resolve(nil);
+}
+
+RCT_EXPORT_METHOD(openStorybookInternal:(BOOL)singleRootController)
 {
     dispatch_async(dispatch_get_main_queue(), ^{
         // create a new view controller and set the root view to the storybook
         StorybookViewController *storybookViewController = [[StorybookViewController alloc] init];
-        RCTRootView *rootView = [[RCTRootView alloc] initWithBridge:_bridge moduleName:@"Storybook" initialProperties:nil];
+        RCTRootView *rootView = [[RCTRootView alloc] initWithBridge:_bridge moduleName:@"SherloStorybook" initialProperties:nil];
         storybookViewController.view = rootView;
         
         // Set the modal presentation style to full screen
@@ -96,7 +137,8 @@ RCT_EXPORT_METHOD(openStorybook:(BOOL)singleRootController)
     });
 }
 
-RCT_EXPORT_METHOD(closeStorybook)
+RCT_EXPORT_METHOD(closeStorybook:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 {
     dispatch_async(dispatch_get_main_queue(), ^{
         if (currentStorybookViewController) {
@@ -120,6 +162,8 @@ RCT_EXPORT_METHOD(closeStorybook)
 
             currentStorybookViewController = nil;
         }
+
+        resolve(nil);
     });
 }
 
@@ -183,10 +227,6 @@ RCT_EXPORT_METHOD(mkdir:(NSString *)filepath
 
   NSMutableDictionary *attributes = [[NSMutableDictionary alloc] init];
 
-  if ([options objectForKey:@"NSFileProtectionKey"]) {
-      [attributes setValue:[options objectForKey:@"NSFileProtectionKey"] forKey:@"NSFileProtectionKey"];
-  }
-
   NSError *error = nil;
     BOOL success = [manager createDirectoryAtPath:filepath withIntermediateDirectories:YES attributes:attributes error:&error];
 
@@ -195,15 +235,6 @@ RCT_EXPORT_METHOD(mkdir:(NSString *)filepath
   }
 
   NSURL *url = [NSURL fileURLWithPath:filepath];
-
-  if ([[options allKeys] containsObject:@"NSURLIsExcludedFromBackupKey"]) {
-    NSNumber *value = options[@"NSURLIsExcludedFromBackupKey"];
-    success = [url setResourceValue: value forKey: NSURLIsExcludedFromBackupKey error: &error];
-
-    if (!success) {
-      return [self reject:reject withError:error];
-    }
-  }
 
   resolve(nil);
 }

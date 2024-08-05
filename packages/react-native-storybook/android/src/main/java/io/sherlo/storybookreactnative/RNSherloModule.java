@@ -65,9 +65,7 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
         String configPath = this.sherloDirectoryPath + "/" + CONFIG_FILENAME;
 
         if (new File(configPath).isFile()) {
-            Intent intent = new Intent(reactContext, StorybookActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-            this.reactContext.startActivity(intent);
+            openStorybookInternal(true);
         }
     }
 
@@ -77,20 +75,25 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
     }
     
     @ReactMethod
-    public void toggleStorybook() {
+    public void toggleStorybook(Promise promise) {
         if(StorybookActivity.instance != null) {
-            closeStorybook();
+            closeStorybook(promise);
         } else {
-            openStorybook(true);
+            openStorybook(promise);
         }
     }
-    
+
     @ReactMethod
-    public void openStorybook(boolean singleActivity) {
+    public void openStorybook(Promise promise) {
+        openStorybookInternal(false);
+        promise.resolve(null);
+    }
+    
+    private void openStorybookInternal(boolean singleActivity) {
         final Activity currentActivity = getCurrentActivity();
         if (currentActivity != null) {
             if (singleActivity) {
-                Intent intent = new Intent(currentActivity, StorybookActivity.class);
+                Intent intent = new Intent(this.reactContext, StorybookActivity.class);
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
                 this.reactContext.startActivity(intent);
             } else {
@@ -113,26 +116,15 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); 
                 this.reactContext.startActivity(intent);
             }
-            
-            this.storybookInSingleActivity = singleActivity;
         } else {
             Log.e(RNSHERLO, "Current activity is null");
         }
     }
 
     @ReactMethod
-    public void closeStorybook() {
-        final Activity currentActivity = getCurrentActivity();
-        if (currentActivity != null) {
-            if(this.storybookInSingleActivity) {
-                Intent intent = new Intent();
-                intent.setClassName(currentActivity.getPackageName(), currentActivity.getPackageName() + ".MainActivity");
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-                this.reactContext.startActivity(intent);
-            } else {
-                StorybookActivity.close();
-            }
-        }
+    public void closeStorybook(Promise promise) {
+        StorybookActivity.close();
+        promise.resolve(null);
     }
 
     private ReactInstanceManager getReactInstanceManager() {

@@ -55,7 +55,7 @@ public class StorybookActivity extends ReactActivity {
     @Override
     protected String getMainComponentName() {
         Log.d(TAG, "getMainComponentName called");
-        return "Storybook";
+        return "SherloStorybook";
     }
 
     public static void close() {
