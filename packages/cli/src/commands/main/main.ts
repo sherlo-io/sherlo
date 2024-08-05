@@ -8,8 +8,10 @@ async function main(githubActionParameters?: Parameters<typeof getArguments>[0])
 }> {
   printHeader();
 
+  console.log('githubActionParameters', JSON.stringify(githubActionParameters, null, 2));
   const args = getArguments(githubActionParameters);
 
+  console.log('args', JSON.stringify(args, null, 2));
   switch (args.mode) {
     case 'sync': {
       return syncMode(args);

@@ -43,7 +43,7 @@ async function run(): Promise<void> {
       gitInfo.commitName = overrideCommitName;
     }
 
-    console.log(process.env.SHERLO_TOKEN);
+    console.log('process.env.SHERLO_TOKEN', process.env.SHERLO_TOKEN);
 
     const { buildIndex, url } = await mainCommand({
       projectRoot,
