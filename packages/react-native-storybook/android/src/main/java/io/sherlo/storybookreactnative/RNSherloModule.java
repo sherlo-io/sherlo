@@ -1,5 +1,7 @@
 package io.sherlo.storybookreactnative;
 
+import androidx.lifecycle.LifecycleOwner;
+
 // Android OS and system utilities
 import android.app.Activity;
 import android.app.AlarmManager;
@@ -16,6 +18,7 @@ import android.util.Log;
 // React Native bridge and application context
 import com.facebook.react.ReactApplication;
 import com.facebook.react.ReactInstanceManager;
+import com.facebook.react.ReactActivityDelegate;
 import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -23,7 +26,6 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.ReactApplication;
-import com.facebook.react.ReactInstanceManager;
 import android.content.Context;
 
 // Java I/O and utility classes
@@ -37,13 +39,17 @@ import java.lang.System;
 import java.util.HashMap;
 import java.util.Map;
 
+
+/// Pomysl 1 - przy zabijaniu activity zapisywac jego stan i uzyc go przy odtworzeniu
+/// Pomysl 2 - resetowac wszyscy property status bara przy switchu na storybook activity
+
 public class RNSherloModule extends ReactContextBaseJavaModule {
     public static final String RNSHERLO = "RNSherlo";
     private static final String CONFIG_FILENAME = "config.sherlo";
 
-    private final ReactApplicationContext reactContext;    
-    private static String sherloDirectoryPath = "";  
-    private Boolean storybookInSingleActivity = false;  
+    private final ReactApplicationContext reactContext;
+    private static String sherloDirectoryPath = "";
+    private Boolean storybookInSingleActivity = false;
 
     public RNSherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -61,7 +67,7 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
         if (new File(configPath).isFile()) {
             Intent intent = new Intent(reactContext, StorybookActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-            reactContext.startActivity(intent);
+            this.reactContext.startActivity(intent);
         }
     }
 
@@ -71,16 +77,41 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
     }
     
     @ReactMethod
+    public void toggleStorybook() {
+        if(StorybookActivity.instance != null) {
+            closeStorybook();
+        } else {
+            openStorybook(true);
+        }
+    }
+    
+    @ReactMethod
     public void openStorybook(boolean singleActivity) {
         final Activity currentActivity = getCurrentActivity();
         if (currentActivity != null) {
             if (singleActivity) {
                 Intent intent = new Intent(currentActivity, StorybookActivity.class);
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-                currentActivity.startActivity(intent);
+                this.reactContext.startActivity(intent);
             } else {
+
+                // Ensure this runs on the main thread
+                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (currentActivity instanceof LifecycleOwner) {
+                            MyLifecycleObserver lifecycleObserver = new MyLifecycleObserver();
+                            LifecycleOwner lifecycleOwner = (LifecycleOwner) currentActivity;
+                            lifecycleOwner.getLifecycle().addObserver(lifecycleObserver);
+                        }
+                    }
+                });
+
+                // getReactActivityDelegate().onPause();
+
                 Intent intent = new Intent(currentActivity, StorybookActivity.class);
-                currentActivity.startActivity(intent);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); 
+                this.reactContext.startActivity(intent);
             }
             
             this.storybookInSingleActivity = singleActivity;
@@ -97,12 +128,28 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
                 Intent intent = new Intent();
                 intent.setClassName(currentActivity.getPackageName(), currentActivity.getPackageName() + ".MainActivity");
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-                currentActivity.startActivity(intent);
+                this.reactContext.startActivity(intent);
             } else {
                 StorybookActivity.close();
             }
         }
     }
+
+    private ReactInstanceManager getReactInstanceManager() {
+        Context context = getReactApplicationContext().getApplicationContext();
+        if (context instanceof ReactApplication) {
+            return ((ReactApplication) context).getReactNativeHost().getReactInstanceManager();
+        }
+        return null;
+    }
+
+    // private ReactActivityDelegate getReactActivityDelegate() {
+    //     Context context = getReactApplicationContext().getApplicationContext();
+    //     if (context instanceof ReactApplication) {
+    //         return ((ReactApplication) context).getReactNativeHost().getReactActivityDelegate();
+    //     }
+    //     return null;
+    // }
 
     private void reject(Promise promise, String filepath, Exception ex) {
         if (ex instanceof FileNotFoundException) {
@@ -129,22 +176,6 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
 
             if (!exists)
                 throw new Exception("Directory could not be created");
-
-            promise.resolve(null);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            reject(promise, filepath, ex);
-        }
-    }
-
-    @ReactMethod
-    public void writeFile(String filepath, String base64Content, ReadableMap options, Promise promise) {
-        try {
-            byte[] bytes = Base64.decode(base64Content, Base64.DEFAULT);
-
-            OutputStream outputStream = getOutputStream(filepath, false);
-            outputStream.write(bytes);
-            outputStream.close();
 
             promise.resolve(null);
         } catch (Exception ex) {

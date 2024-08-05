@@ -14,6 +14,8 @@ static NSString *CONFIG_FILENAME = @"config.sherlo";
 static StorybookViewController *currentStorybookViewController = nil;
 static UIViewController *originalRootViewController = nil;
 
+// na ios lepiej by bylo zeby przy trybie single task original view byl kompletnie zniszczony
+
 @implementation RNSherlo
 
 RCT_EXPORT_MODULE()
@@ -45,6 +47,17 @@ RCT_EXPORT_MODULE()
 + (BOOL)requiresMainQueueSetup
 {
   return NO;
+}
+
+RCT_EXPORT_METHOD(toggleStorybook)
+{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (currentStorybookViewController) {
+            [self closeStorybook];
+        } else {
+            [self openStorybook:NO];
+        }
+    });
 }
 
 RCT_EXPORT_METHOD(openStorybook:(BOOL)singleRootController)
@@ -163,7 +176,6 @@ RCT_EXPORT_METHOD(readFile:(NSString *)filepath
 
 
 RCT_EXPORT_METHOD(mkdir:(NSString *)filepath
-                  options:(NSDictionary *)options
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
@@ -233,29 +245,6 @@ RCT_EXPORT_METHOD(appendFile:(NSString *)filepath
     NSError *err = [NSError errorWithDomain:@"RNFS" code:0 userInfo:info];
     return [self reject:reject withError:err];
   }
-}
-
-RCT_EXPORT_METHOD(writeFile:(NSString *)filepath
-                  contents:(NSString *)base64Content
-                  options:(NSDictionary *)options
-                  resolver:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject)
-{
-  NSData *data = [[NSData alloc] initWithBase64EncodedString:base64Content options:NSDataBase64DecodingIgnoreUnknownCharacters];
-
-  NSMutableDictionary *attributes = [[NSMutableDictionary alloc] init];
-
-  if ([options objectForKey:@"NSFileProtectionKey"]) {
-    [attributes setValue:[options objectForKey:@"NSFileProtectionKey"] forKey:@"NSFileProtectionKey"];
-  }
-
-  BOOL success = [[NSFileManager defaultManager] createFileAtPath:filepath contents:data attributes:attributes];
-
-  if (!success) {
-    return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: no such file or directory, open '%@'", filepath], nil);
-  }
-
-  return resolve(nil);
 }
 
 - (NSString *)getPathForDirectory:(int)directory
