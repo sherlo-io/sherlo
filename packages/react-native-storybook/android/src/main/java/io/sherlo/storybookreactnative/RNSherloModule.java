@@ -43,6 +43,7 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
 
     private final ReactApplicationContext reactContext;    
     private static String sherloDirectoryPath = "";  
+    private Boolean storybookInSingleActivity = false;  
 
     public RNSherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -66,22 +67,37 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
     public String getName() {
         return RNSHERLO;
     }
-
+    
     @ReactMethod
     public void openStorybook(boolean singleActivity) {
         final Activity currentActivity = getCurrentActivity();
         if (currentActivity != null) {
-            Intent intent = new Intent(currentActivity, StorybookActivity.class);
             if (singleActivity) {
+                Intent intent = new Intent(currentActivity, StorybookActivity.class);
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+                currentActivity.startActivity(intent);
+            } else {
+                Intent intent = new Intent(currentActivity, StorybookActivity.class);
+                currentActivity.startActivity(intent);
             }
-            currentActivity.startActivity(intent);
+            
+            this.storybookInSingleActivity = singleActivity;
         }
     }
-    
+
     @ReactMethod
     public void closeStorybook() {
-        StorybookActivity.close();
+        final Activity currentActivity = getCurrentActivity();
+        if (currentActivity != null) {
+            if(this.storybookInSingleActivity) {
+                Intent intent = new Intent();
+                intent.setClassName(currentActivity.getPackageName(), currentActivity.getPackageName() + ".MainActivity");
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+                currentActivity.startActivity(intent);
+            } else {
+                StorybookActivity.close();
+            }
+        }
     }
 
     private void reject(Promise promise, String filepath, Exception ex) {

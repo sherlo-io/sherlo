@@ -10,7 +10,9 @@
 
 static NSString *sherloDirectoryPath = @"";
 static NSString *CONFIG_FILENAME = @"config.sherlo";
+
 static StorybookViewController *currentStorybookViewController = nil;
+static UIViewController *originalRootViewController = nil;
 
 @implementation RNSherlo
 
@@ -29,7 +31,7 @@ RCT_EXPORT_MODULE()
     NSString *configPath = [sherloDirectoryPath stringByAppendingPathComponent:CONFIG_FILENAME];
     BOOL doesSherloConfigFileExist = [[NSFileManager defaultManager] fileExistsAtPath:configPath isDirectory:NO];
     if (doesSherloConfigFileExist) {
-        [self openStorybook : YES];
+        [self openStorybook:YES];
     }
   }
   return self;
@@ -45,26 +47,24 @@ RCT_EXPORT_MODULE()
   return NO;
 }
 
-
 RCT_EXPORT_METHOD(openStorybook:(BOOL)singleRootController)
 {
     dispatch_async(dispatch_get_main_queue(), ^{
-        RCTBridge *bridge = [self.bridge valueForKey:@"parentBridge"];
-        if (!bridge) {
-            bridge = self.bridge;
-        }
-
         // create a new view controller and set the root view to the storybook
         StorybookViewController *storybookViewController = [[StorybookViewController alloc] init];
-        RCTRootView *rootView = [[RCTRootView alloc] initWithBridge:bridge moduleName:@"Storybook" initialProperties:nil];
+        RCTRootView *rootView = [[RCTRootView alloc] initWithBridge:_bridge moduleName:@"Storybook" initialProperties:nil];
         storybookViewController.view = rootView;
         
         // Set the modal presentation style to full screen
         storybookViewController.modalPresentationStyle = UIModalPresentationFullScreen;
 
+        UIWindow *window = [UIApplication sharedApplication].delegate.window;
+        
         if (singleRootController) {
-            // Replace the root view controller
-            UIWindow *window = [UIApplication sharedApplication].delegate.window;
+            // Save the original root view controller
+            originalRootViewController = window.rootViewController;
+
+            // Replace the root view controller with the storybook view controller
             window.rootViewController = storybookViewController;
 
             // Animate the transition (optional)
@@ -74,9 +74,8 @@ RCT_EXPORT_METHOD(openStorybook:(BOOL)singleRootController)
                             animations:nil
                             completion:nil];
         } else {
-            UIViewController *rootViewController = [UIApplication sharedApplication].delegate.window.rootViewController;
             // Present the view controller
-            [rootViewController presentViewController:storybookViewController animated:YES completion:nil];
+            [window.rootViewController presentViewController:storybookViewController animated:YES completion:nil];
         }
 
         // Store reference to the presented view controller
@@ -88,9 +87,25 @@ RCT_EXPORT_METHOD(closeStorybook)
 {
     dispatch_async(dispatch_get_main_queue(), ^{
         if (currentStorybookViewController) {
-            [currentStorybookViewController dismissViewControllerAnimated:YES completion:^{
-                currentStorybookViewController = nil;
-            }];
+            UIWindow *window = [UIApplication sharedApplication].delegate.window;
+
+            if (originalRootViewController) {
+                // Restore the original root view controller
+                window.rootViewController = originalRootViewController;
+
+                // Animate the transition (optional)
+                [UIView transitionWithView:window
+                                  duration:0.5
+                                   options:UIViewAnimationOptionTransitionCrossDissolve
+                                animations:nil
+                                completion:nil];
+
+                originalRootViewController = nil;
+            } else {
+                [currentStorybookViewController dismissViewControllerAnimated:YES completion:nil];
+            }
+
+            currentStorybookViewController = nil;
         }
     });
 }
