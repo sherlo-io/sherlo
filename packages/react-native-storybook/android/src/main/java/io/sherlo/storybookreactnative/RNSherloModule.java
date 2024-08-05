@@ -59,7 +59,9 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
         String configPath = this.sherloDirectoryPath + "/" + CONFIG_FILENAME;
 
         if (new File(configPath).isFile()) {
-            this.openStorybook(true);
+            Intent intent = new Intent(reactContext, StorybookActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+            reactContext.startActivity(intent);
         }
     }
 
@@ -82,6 +84,8 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
             }
             
             this.storybookInSingleActivity = singleActivity;
+        } else {
+            Log.e(RNSHERLO, "Current activity is null");
         }
     }
 

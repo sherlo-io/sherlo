@@ -9,6 +9,8 @@ import {
 } from '@expo-google-fonts/urbanist';
 import * as SplashScreen from 'expo-splash-screen';
 import { getAppWithStorybook, openStorybook } from '@sherlo/react-native-storybook';
+import Storybook from './.storybook';
+AppRegistry.registerComponent('Storybook', () => Storybook);
 
 SplashScreen.preventAutoHideAsync();
 
