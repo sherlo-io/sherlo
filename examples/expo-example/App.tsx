@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { View, Text, StyleSheet, Button } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Button, StatusBar as RNStatusBar } from 'react-native';
 import {
   useFonts,
   Urbanist_400Regular,
@@ -9,6 +9,19 @@ import {
 } from '@expo-google-fonts/urbanist';
 import * as SplashScreen from 'expo-splash-screen';
 import { openStorybook } from '@sherlo/react-native-storybook';
+import { StatusBar } from 'expo-status-bar';
+
+// @ts-ignore
+const isStandaloneStorybookBuild = process.env.EXPO_PUBLIC_STORYBOOK_ONLY === 'true';
+// @ts-ignore
+const isDevelopmentBuild = process.env.PROD_BUILD === 'false';
+
+if (!isStandaloneStorybookBuild && isDevelopmentBuild) {
+  const registerStorybook = require('@sherlo/react-native-storybook').registerStorybook;
+  const Storybook = require('./.storybook').default;
+
+  registerStorybook(() => <Storybook />);
+}
 
 SplashScreen.preventAutoHideAsync();
 
@@ -29,9 +42,23 @@ export default function App() {
     }
   }, [fontsLoaded, fontError]);
 
+  const [counter, setCounter] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCounter((c) => c + 1);
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, []);
+
   if (!fontsLoaded && !fontError) {
     return null;
   }
+
+  console.log('counter', counter);
 
   // eslint-disable-next-line react/no-unstable-nested-components
   const App = () => {
@@ -44,8 +71,11 @@ export default function App() {
           justifyContent: 'center',
         }}
       >
+        <StatusBar backgroundColor="red" />
+        <RNStatusBar backgroundColor="red" />
         <Text style={{ textAlign: 'center' }}>
           {'Open Dev Menu and select "Toggle Storybook" \nor click the button below'}
+          {counter}
         </Text>
         <Button title="Open Storybook" onPress={openStorybook} />
       </View>
@@ -53,19 +83,10 @@ export default function App() {
   };
 
   let EntryPoint = App;
-
-  const isStandaloneStorybookBuild = process.env.EXPO_PUBLIC_STORYBOOK_ONLY === 'true';
-  const isDevelopmentBuild = process.env.PROD_BUILD === 'false';
-
   if (isStandaloneStorybookBuild) {
     const Storybook = require('./.storybook').default;
 
     EntryPoint = Storybook;
-  } else if (isDevelopmentBuild) {
-    const registerStorybook = require('@sherlo/react-native-storybook').registerStorybook;
-    const Storybook = require('./.storybook').default;
-
-    registerStorybook(() => <Storybook />);
   }
 
   return (
