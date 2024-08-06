@@ -126,15 +126,9 @@ public class SherloModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void closeStorybook(Promise promise) {
         try {
-            // SherloStorybookActivity is a singleton, so we can close it with a 
-            // static method
-            if (SherloStorybookActivity.instance != null) {
-                SherloStorybookActivity.close();
+            SherloStorybookActivity.close();
 
-                promise.resolve(null);
-            } else {
-                throw new IllegalStateException("SherloStorybookActivity is not active");
-            }
+            promise.resolve(null);
         } catch (Exception e) {
             promise.reject("Error closing Storybook", e.getMessage());
             Log.e(TAG, "Error closing Storybook", e);

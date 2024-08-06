@@ -15,6 +15,13 @@ public class SherloStorybookActivity extends ReactActivity {
         instance = this;
         Log.i(TAG, "activity created");
     }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        instance = null;
+    }
+
     @Override
     protected String getMainComponentName() {
         return "SherloStorybook";
@@ -23,7 +30,6 @@ public class SherloStorybookActivity extends ReactActivity {
     public static void close() {
         if (instance != null) {
             instance.finish();
-            instance = null;
             Log.i(TAG, "closing activity");
         }
     }
