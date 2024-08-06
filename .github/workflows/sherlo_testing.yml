@@ -18,8 +18,28 @@ on:
         required: false
         default: false
         type: boolean
+      skip_device_testing:
+        description: 'Skip Device Testing'
+        required: false
+        default: false
+        type: boolean
+      skip_stress_testing:
+        description: 'Skip Stress Testing'
+        required: false
+        default: false
+        type: boolean
+      skip_integration_testing_sync:
+        description: 'Skip Integration Testing - Sync'
+        required: false
+        default: false
+        type: boolean
+      skip_integration_testing_async:
+        description: 'Skip Integration Testing - Async'
+        required: false
+        default: false
+        type: boolean
       skip_integration_testing_eas:
-        description: 'Skip EAS Integration Testing'
+        description: 'Skip Integration Testing - EAS'
         required: false
         default: false
         type: boolean
@@ -44,8 +64,7 @@ jobs:
   device_testing:
     uses: ./.github/workflows/device_testing.yml
     needs: [update_preview_builds, update_storybook_builds]
-    ## skipped or successful jobs are ok
-    if: ${{ always() && !failure() && !cancelled() }}
+    if: ${{ github.event.inputs.skip_device_testing != 'true' && always() && !failure() && !cancelled() }}
     name: Device Testing
     secrets: inherit
     with:
@@ -54,7 +73,7 @@ jobs:
   stress_testing:
     uses: ./.github/workflows/stress_testing.yml
     needs: [update_preview_builds, update_storybook_builds]
-    if: ${{ always() && !failure() && !cancelled() }}
+    if: ${{ github.event.inputs.skip_stress_testing != 'true' && always() && !failure() && !cancelled() }}
     name: Stress Testing
     secrets: inherit
     with:
@@ -63,7 +82,7 @@ jobs:
   integration_testing_sync:
     uses: ./.github/workflows/sync.yml
     needs: [update_preview_builds, update_storybook_builds]
-    if: ${{ always() && !failure() && !cancelled() }}
+    if: ${{ github.event.inputs.skip_integration_testing_sync != 'true' && always() && !failure() && !cancelled() }}
     name: Integration Testing - Sync
     secrets: inherit
     with:
@@ -72,7 +91,7 @@ jobs:
   integration_testing_async:
     uses: ./.github/workflows/async.yml
     needs: [update_preview_builds, update_storybook_builds]
-    if: ${{ always() && !failure() && !cancelled() }}
+    if: ${{ github.event.inputs.skip_integration_testing_async != 'true' && always() && !failure() && !cancelled() }}
     name: Integration Testing - Async
     secrets: inherit
     with:
