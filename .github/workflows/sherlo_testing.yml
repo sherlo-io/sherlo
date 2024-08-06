@@ -1,8 +1,13 @@
-name: dev_testing
+name: 'Sherlo Testing'
 
 on:
   workflow_dispatch:
     inputs:
+      env:
+        description: 'Environment (dev, test, prod)'
+        required: true
+        default: 'dev'
+        type: string
       skip_preview_builds:
         description: 'Skip Preview builds'
         required: false
@@ -10,6 +15,11 @@ on:
         type: boolean
       skip_storybook_builds:
         description: 'Skip Storybook builds'
+        required: false
+        default: false
+        type: boolean
+      skip_integration_testing_eas:
+        description: 'Skip EAS Integration Testing'
         required: false
         default: false
         type: boolean
@@ -38,6 +48,8 @@ jobs:
     if: ${{ always() && !failure() && !cancelled() }}
     name: Device Testing
     secrets: inherit
+    with:
+      env: ${{ github.event.inputs.env }}
 
   stress_testing:
     uses: ./.github/workflows/stress_testing.yml
@@ -45,6 +57,8 @@ jobs:
     if: ${{ always() && !failure() && !cancelled() }}
     name: Stress Testing
     secrets: inherit
+    with:
+      env: ${{ github.event.inputs.env }}
 
   integration_testing_sync:
     uses: ./.github/workflows/sync.yml
@@ -52,6 +66,8 @@ jobs:
     if: ${{ always() && !failure() && !cancelled() }}
     name: Integration Testing - Sync
     secrets: inherit
+    with:
+      env: ${{ github.event.inputs.env }}
 
   integration_testing_async:
     uses: ./.github/workflows/async.yml
@@ -59,10 +75,14 @@ jobs:
     if: ${{ always() && !failure() && !cancelled() }}
     name: Integration Testing - Async
     secrets: inherit
+    with:
+      env: ${{ github.event.inputs.env }}
 
   integration_testing_eas:
     uses: ./.github/workflows/eas_hooks.yml
     needs: [update_preview_builds, update_storybook_builds]
-    if: ${{ always() && !failure() && !cancelled() }}
+    if: ${{ github.event.inputs.skip_integration_testing_eas != 'true' && always() && !failure() && !cancelled() }}
     name: Integration Testing - EAS
     secrets: inherit
+    with:
+      env: ${{ github.event.inputs.env }}

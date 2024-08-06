@@ -2,7 +2,18 @@ name: Run Sherlo with EAS hooks
 
 on:
   workflow_call:
+    inputs:
+      env:
+        description: 'Environment (dev, test, prod)'
+        required: true
+        type: string
   workflow_dispatch:
+    inputs:
+      env:
+        description: 'Environment (dev, test, prod)'
+        required: true
+        default: 'dev'
+        type: string
 
 jobs:
   start_sherlo_and_make_builds_with_eas:
@@ -10,6 +21,7 @@ jobs:
       (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:eas')) ||
       (github.event_name != 'pull_request')
     runs-on: ubuntu-latest
+    environment: ${{ inputs.env }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -18,7 +30,7 @@ jobs:
         run: yarn
 
       - name: Build dependencies
-        run: yarn switch-env:dev
+        run: yarn switch-env:${{ inputs.env }}
         env:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
@@ -37,7 +49,7 @@ jobs:
           config: ../../configs/eas.preview.json
           remoteExpo: true
         env:
-          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN_EAS }}
+          SHERLO_TOKEN: ${{ secrets.SHERLO_INTEGRATION_TESTING_EAS_TOKEN }}
 
       - name: Trigger EAS builds for both platforms
         working-directory: examples/expo-example
