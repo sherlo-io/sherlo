@@ -39,7 +39,6 @@ import java.lang.System;
 import java.util.HashMap;
 import java.util.Map;
 
-
 /// Pomysl 1 - przy zabijaniu activity zapisywac jego stan i uzyc go przy odtworzeniu
 /// Pomysl 2 - resetowac wszyscy property status bara przy switchu na storybook activity
 
@@ -58,12 +57,11 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
         // Set Sherlo directory path
         File externalDirectory = this.getReactApplicationContext().getExternalFilesDir(null);
         if (externalDirectory != null) {
-            this.sherloDirectoryPath = externalDirectory.getAbsolutePath() + "/sherlo/target_files";
+            this.sherloDirectoryPath = externalDirectory.getAbsolutePath() + "/sherlo";
         }
 
         // If it's running on Sherlo server set Storybook mode
         String configPath = this.sherloDirectoryPath + "/" + CONFIG_FILENAME;
-
         if (new File(configPath).isFile()) {
             openStorybookInternal(true);
         }
@@ -73,10 +71,10 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
     public String getName() {
         return RNSHERLO;
     }
-    
+
     @ReactMethod
     public void toggleStorybook(Promise promise) {
-        if(StorybookActivity.instance != null) {
+        if (StorybookActivity.instance != null) {
             closeStorybook(promise);
         } else {
             openStorybook(promise);
@@ -88,7 +86,7 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
         openStorybookInternal(false);
         promise.resolve(null);
     }
-    
+
     private void openStorybookInternal(boolean singleActivity) {
         final Activity currentActivity = getCurrentActivity();
         if (currentActivity != null) {
@@ -113,7 +111,7 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
                 // getReactActivityDelegate().onPause();
 
                 Intent intent = new Intent(currentActivity, StorybookActivity.class);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); 
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 this.reactContext.startActivity(intent);
             }
         } else {
@@ -136,11 +134,12 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
     }
 
     // private ReactActivityDelegate getReactActivityDelegate() {
-    //     Context context = getReactApplicationContext().getApplicationContext();
-    //     if (context instanceof ReactApplication) {
-    //         return ((ReactApplication) context).getReactNativeHost().getReactActivityDelegate();
-    //     }
-    //     return null;
+    // Context context = getReactApplicationContext().getApplicationContext();
+    // if (context instanceof ReactApplication) {
+    // return ((ReactApplication)
+    // context).getReactNativeHost().getReactActivityDelegate();
+    // }
+    // return null;
     // }
 
     private void reject(Promise promise, String filepath, Exception ex) {
