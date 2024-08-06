@@ -1,7 +1,6 @@
 package io.sherlo.storybookreactnative;
 
 import android.net.Uri;
-import android.util.Log;
 import android.util.Base64;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
@@ -36,12 +35,11 @@ public class RNSherloModule extends ReactContextBaseJavaModule {
         // Set Sherlo directory path
         File externalDirectory = this.getReactApplicationContext().getExternalFilesDir(null);
         if (externalDirectory != null) {
-            this.sherloDirectoryPath = externalDirectory.getAbsolutePath() + "/sherlo/target_files";
+            this.sherloDirectoryPath = externalDirectory.getAbsolutePath() + "/sherlo";
         }
 
         // If it's running on Sherlo server set Storybook mode
         String configPath = this.sherloDirectoryPath + "/" + CONFIG_FILENAME;
-
         if (new File(configPath).isFile()) {
             this.appOrStorybookMode = "storybook";
         }
