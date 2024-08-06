@@ -1,4 +1,4 @@
-name: dev_testing
+name: 'Sherlo Testing'
 
 on:
   workflow_dispatch:
