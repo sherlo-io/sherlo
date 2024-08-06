@@ -4,6 +4,8 @@ import utf8 from 'utf8';
 import isExpoGo from './isExpoGo';
 
 type SherloModule = {
+  getInitialMode: () => 'testing' | 'default';
+  getConfigFileBase64: () => string | null;
   appendFile: (path: string, base64: string) => Promise<void>;
   mkdir: (path: string) => Promise<void>;
   readFile: (path: string) => Promise<string>;
@@ -12,9 +14,9 @@ type SherloModule = {
 };
 
 let SherloModule: SherloModule;
-const { RNSherlo } = NativeModules;
+const { Sherlo: SherloNativeModule } = NativeModules;
 
-if (RNSherlo !== null) {
+if (SherloNativeModule !== null) {
   SherloModule = createSherloModule();
 } else {
   if (isExpoGo) {
@@ -32,25 +34,27 @@ export default SherloModule;
 
 function createSherloModule(): SherloModule {
   return {
+    getConfigFileBase64: () => SherloNativeModule.getConfigFileBase64(),
+    getInitialMode: () => SherloNativeModule.getConstants().initialMode,
     appendFile: (path: string, data: string) => {
       const encodedData = base64.encode(utf8.encode(data));
 
-      return RNSherlo.appendFile(normalizePath(path), encodedData);
+      return SherloNativeModule.appendFile(normalizePath(path), encodedData);
     },
-    mkdir: (path: string) => RNSherlo.mkdir(normalizePath(path)),
+    mkdir: (path: string) => SherloNativeModule.mkdir(normalizePath(path)),
     readFile: (path: string) => {
       const decodeData = (data: string) => utf8.decode(base64.decode(data));
 
-      return RNSherlo.readFile(normalizePath(path)).then(decodeData);
+      return SherloNativeModule.readFile(normalizePath(path)).then(decodeData);
     },
-    openStorybook: () => RNSherlo.openStorybook(),
-    toggleStorybook: () => RNSherlo.toggleStorybook(),
+    openStorybook: () => SherloNativeModule.openStorybook(),
+    toggleStorybook: () => SherloNativeModule.toggleStorybook(),
   };
 }
 
 function normalizePath(path: string): string {
-  const { sherloDirectoryPath } = RNSherlo.getConstants();
-  const sherloPath = `${sherloDirectoryPath}/${path}`;
+  const { syncDirectoryPath } = SherloNativeModule.getConstants();
+  const sherloPath = `${syncDirectoryPath}/${path}`;
   const filePathPrefix = 'file://';
 
   return sherloPath.startsWith(filePathPrefix)
@@ -60,6 +64,8 @@ function normalizePath(path: string): string {
 
 function createDummySherloModule(): SherloModule {
   return {
+    getInitialMode: () => 'default',
+    getConfigFileBase64: () => null,
     appendFile: async () => {},
     mkdir: async () => {},
     readFile: async () => '',

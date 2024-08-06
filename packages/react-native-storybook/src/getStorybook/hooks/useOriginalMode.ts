@@ -9,7 +9,7 @@ function useOriginalMode(
   setSnapshots: (snapshots: Snapshot[]) => void
 ): void {
   useEffect(() => {
-    if (mode === 'original' && Object.keys(view._idToPrepared).length > 0) {
+    if (mode === 'default' && Object.keys(view._idToPrepared).length > 0) {
       const snapshots = prepareSnapshots({
         view,
         splitByMode: false,

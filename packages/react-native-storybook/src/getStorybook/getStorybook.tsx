@@ -1,19 +1,12 @@
 import { useEffect, useMemo, useRef, useState, ReactElement } from 'react';
 import { Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
-import { RunnerBridge } from '../helpers';
+import { RunnerBridge, SherloModule } from '../helpers';
 import { getGlobalStates } from '../utils';
-import { Snapshot, StorybookParams, StorybookView, StorybookViewMode } from '../types';
+import { Snapshot, StorybookParams, StorybookView } from '../types';
 import { ErrorBoundary } from './components';
 import { SherloContext } from './contexts';
-import generateStorybookComponent, { StorybookRenderMode } from './generateStorybookComponent';
-import {
-  useKeyboardStatusEffect,
-  useOriginalMode,
-  usePreviewMode,
-  useSherloEffectExecutionEffect,
-  useStoryEmitter,
-  useTestingMode,
-} from './hooks';
+import generateStorybookComponent from './generateStorybookComponent';
+import { useKeyboardStatusEffect, useOriginalMode, useStoryEmitter, useTestingMode } from './hooks';
 import { setupErrorSilencing } from './utils';
 
 setupErrorSilencing();
@@ -27,27 +20,17 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     // List of all snapshots that we want to test
     const [snapshots, setSnapshots] = useState<Snapshot[]>();
 
-    const [mode, setMode] = useState<StorybookViewMode>('loading');
+    const mode = SherloModule.getInitialMode();
+    console.log('SherloModule.initialMode', mode);
 
     const renderedStoryHasError = useRef(false);
 
     const { waitForKeyboardStatus } = useKeyboardStatusEffect(RunnerBridge.log);
-    const sherloEffectExecution = useSherloEffectExecutionEffect(RunnerBridge.log);
 
     const emitStory = useStoryEmitter((id) => {
       RunnerBridge.log('rendered story', { id });
       setRenderedStoryId(id);
     });
-
-    useEffect(() => {
-      RunnerBridge.getConfig()
-        .then(() => {
-          setMode('testing');
-        })
-        .catch(() => {
-          setMode('original');
-        });
-    }, []);
 
     const prepareSnapshotForTesting = async (snapshot: Snapshot): Promise<void> => {
       RunnerBridge.log('prepareSnapshotForTesting', { viewId: snapshot.viewId });
@@ -67,19 +50,6 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
         }
       }
     };
-
-    // Preview mode
-    usePreviewMode(
-      RunnerBridge,
-      renderedStoryId,
-      testedIndex,
-      snapshots,
-      setMode,
-      emitStory,
-      prepareSnapshotForTesting,
-      sherloEffectExecution,
-      mode
-    );
 
     // Testing mode
     useTestingMode(view, mode, setSnapshots, setTestedIndex, RunnerBridge);
@@ -164,21 +134,12 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     // Original mode
     useOriginalMode(view, mode, setSnapshots);
 
-    let storybookRenderMode: StorybookRenderMode = 'original';
-    if (
-      (mode === 'testing' || mode === 'preview') &&
-      testedIndex !== undefined &&
-      snapshots !== undefined
-    ) {
-      storybookRenderMode = 'sherlo';
-    }
-
     // Storybook memoized for specific mode
     const memoizedStorybook = useMemo(() => {
       const testedStory = snapshots?.[testedIndex || 0];
 
       RunnerBridge.log('memoizing storybook', {
-        storybookRenderMode,
+        mode,
         testedIndex,
         testedStoryViewId: testedStory?.viewId,
       });
@@ -191,7 +152,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
       const Storybook = generateStorybookComponent({
         view,
         params,
-        storybookRenderMode,
+        storybookRenderMode: mode === 'testing' ? 'sherlo' : 'default',
         initialSelection: testedStory
           ? { kind: testedStory?.componentTitle, name: testedStory?.storyTitle }
           : undefined,
@@ -199,7 +160,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 
       return <Storybook />;
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [storybookRenderMode]);
+    }, [mode]);
 
     // Verification test
     if (getGlobalStates().isVerifySetupTest) {
