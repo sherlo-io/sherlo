@@ -32,7 +32,15 @@
       }
     },
     "production": {
-      "channel": "production"
+      "env": {
+        "EXCLUDE_SHERLO": "true"
+      },
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": true
+      }
     }
   },
   "submit": {

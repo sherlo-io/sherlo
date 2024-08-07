@@ -19,10 +19,10 @@ const { Sherlo: SherloNativeModule } = NativeModules;
 if (SherloNativeModule !== null) {
   SherloModule = createSherloModule();
 } else {
-  if (isExpoGo) {
-    SherloModule = createDummySherloModule();
-  } else {
-    throw new Error(
+  SherloModule = createDummySherloModule();
+
+  if (!isExpoGo) {
+    console.warn(
       '@sherlo/react-native-storybook: Sherlo native module is not accessible. Rebuild the app to link it on the native side.'
     );
   }

@@ -56,13 +56,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 
     // When testedIndex changes and it's not equal to renderedStoryId, emit story
     useEffect(() => {
-      if (
-        mode === 'testing' &&
-        snapshots?.length &&
-        testedIndex !== undefined &&
-        // we only want to emit story if first story was already rendered by storybook initialization process
-        renderedStoryId !== undefined
-      ) {
+      if (mode === 'testing' && snapshots?.length && testedIndex !== undefined) {
         const testedSnapshot = snapshots[testedIndex];
 
         if (testedSnapshot.storyId !== renderedStoryId) {
@@ -75,7 +69,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
         }
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mode, renderedStoryId, testedIndex]);
+    }, [mode, renderedStoryId, testedIndex, snapshots?.length]);
 
     // make screenshot attempts every time renderedStoryId is set
     useEffect(() => {
@@ -136,30 +130,18 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 
     // Storybook memoized for specific mode
     const memoizedStorybook = useMemo(() => {
-      const testedStory = snapshots?.[testedIndex || 0];
-
       RunnerBridge.log('memoizing storybook', {
         mode,
-        testedIndex,
-        testedStoryViewId: testedStory?.viewId,
       });
-
-      if (testedStory) {
-        emitStory(testedStory.storyId);
-      }
 
       // create storybook component for specific mode
       const Storybook = generateStorybookComponent({
         view,
         params,
         storybookRenderMode: mode === 'testing' ? 'sherlo' : 'default',
-        initialSelection: testedStory
-          ? { kind: testedStory?.componentTitle, name: testedStory?.storyTitle }
-          : undefined,
       });
 
       return <Storybook />;
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mode]);
 
     // Verification test
