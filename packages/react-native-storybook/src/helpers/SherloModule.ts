@@ -14,7 +14,7 @@ type SherloModule = {
 };
 
 let SherloModule: SherloModule;
-const { Sherlo: SherloNativeModule } = NativeModules;
+const { SherloModule: SherloNativeModule } = NativeModules;
 
 if (SherloNativeModule !== null) {
   SherloModule = createSherloModule();

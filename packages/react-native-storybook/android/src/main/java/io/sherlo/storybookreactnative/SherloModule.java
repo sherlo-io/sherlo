@@ -30,7 +30,6 @@ public class SherloModule extends ReactContextBaseJavaModule {
     private final ReactApplicationContext reactContext;
     private static String syncDirectoryPath = "";
     private static String initialMode = "default"; // "default" or "testing"
-    private static String configFileBase64 = null;
 
     public SherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -49,13 +48,13 @@ public class SherloModule extends ReactContextBaseJavaModule {
             }
     
             // This is the path to the config file created by the Sherlo Runner
+            String configPath = this.syncDirectoryPath + "/" + CONFIG_FILENAME;
+            
             // If the file exists, we are it testing mode and will open the 
             // Storybook in single activity mode, without launching the app
-            String configPath = this.syncDirectoryPath + "/" + CONFIG_FILENAME;
-            File configFile = new File(configPath);
-            if (configFile.isFile()) {
+            Boolean doesSherloConfigFileExist = new File(configPath).isFile();
+            if (doesSherloConfigFileExist) {
                 this.initialMode = "testing";
-                // this.configFileBase64 = Base64.encodeToString(configFile.getAbsolutePath().getBytes(), Base64.NO_WRAP);
 
                 Intent intent = new Intent(this.reactContext, SherloStorybookActivity.class);
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -69,7 +68,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
     @Override
     public String getName() {
-        return "Sherlo";
+        return "SherloModule";
     }
 
     @Override
@@ -78,7 +77,6 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
         constants.put("syncDirectoryPath", this.syncDirectoryPath);
         constants.put("initialMode", this.initialMode);
-        constants.put("configFileBase64", this.configFileBase64);
 
         return constants;
     }
