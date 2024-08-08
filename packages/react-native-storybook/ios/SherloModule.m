@@ -7,7 +7,7 @@
 #import <React/RCTUIManager.h>
 #import <React/RCTBridge.h>
 
-// a safeguard to ensure compatibility with different versions of React Native
+// A safeguard to ensure compatibility with different versions of React Native
 #if __has_include(<React/RCTUIManagerUtils.h>)
 // These are necessary for any interactions with the React Native UI Manager 
 // (e.g., operations on RCTRootView).
@@ -20,7 +20,7 @@ static NSString *const LOG_TAG = @"SherloModule";
 static NSString *sherloDirectoryPath = @"";
 static NSString *initialMode = @"default"; // "default" or "testing"
 
-// we keep this reference to determine if the Storybook is currently open
+// We keep this reference to determine if the Storybook is currently open
 // and to be able to close it
 static UIViewController *currentStorybookViewController = nil;
 
@@ -29,6 +29,10 @@ static UIViewController *currentStorybookViewController = nil;
 RCT_EXPORT_MODULE()
 
 @synthesize bridge = _bridge;
+
+// Initializes the Sherlo module, sets up necessary directory paths, and checks if testing mode is required.
+// If a configuration file exists, the module sets up the application in testing mode and presents the Storybook view.
+// Exceptions are caught and logged.
 - (instancetype)init {
   self = [super init];
   if (self) {
@@ -61,7 +65,7 @@ RCT_EXPORT_MODULE()
       if (doesSherloConfigFileExist) {
         initialMode = @"testing";
 
-        // present the view controller replacing the root view controller, 
+        // Present the view controller replacing the root view controller, 
         // the application root controller will never be shown
         dispatch_async(dispatch_get_main_queue(), ^{
           @try {
@@ -103,18 +107,19 @@ RCT_EXPORT_MODULE()
   return self;
 }
 
+// Indicates whether the module needs to be initialized on the main thread.
+// This is necessary for modules that interact with the UI or need to perform any setup that affects the UI.
 + (BOOL)requiresMainQueueSetup {
-  // This method returns a Boolean value indicating whether the module needs to be initialized on the main thread.
-  // Returning YES ensures that the module's setup (initialization) is executed on the main UI thread.
-  // This is required for modules that interact with the UI or need to perform any setup that affects the UI.
   return YES;
 }
+
+// Specifies the dispatch queue on which the module's methods should be executed.
+// This ensures that UI updates from native modules are thread-safe and responsive.
 - (dispatch_queue_t)methodQueue {
-  // This method specifies the dispatch queue on which the module's methods should be executed.
-  // This is crucial for UI updates from native modules that need to be thread-safe and responsive
   return RCTGetUIManagerQueue();
 }
 
+// Exports constants to JavaScript. In this case, it exports the sync directory path and initial mode.
 - (NSDictionary *)constantsToExport {
   return @{
     @"syncDirectoryPath": sherloDirectoryPath,
@@ -122,8 +127,9 @@ RCT_EXPORT_MODULE()
   };
 }
 
+// Toggles the Storybook view. If the Storybook is currently open, it closes it. Otherwise, it opens it.
+// Exceptions during the toggle are caught and handled.
 RCT_EXPORT_METHOD(toggleStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  // if view controller reference exists, close the Storybook
   if (currentStorybookViewController) {
     [self closeStorybookInternal:resolve rejecter:reject];
   } else {
@@ -131,17 +137,18 @@ RCT_EXPORT_METHOD(toggleStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTP
   }
 }
 
-
+// Opens the Storybook view in a separate view controller on top of the root view controller,
+// allowing the user to return to the same app state after closing the Storybook.
+// Exceptions during the opening process are caught and handled.
 RCT_EXPORT_METHOD(openStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   [self openStorybookInternal:resolve rejecter:reject];
 }
 
+// Internal method to handle opening the Storybook view. This method is executed on the main queue.
+// If any errors occur, they are caught and the reject block is called with the appropriate error message.
 - (void)openStorybookInternal:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
   dispatch_async(dispatch_get_main_queue(), ^{
     @try {
-      // We launch the Storybook in separate view controller, on top of the 
-      // root view controller so that the app is not closed and user can
-      // go back to the same app state after closing the Storybook
       UIViewController *storybookViewController = [[UIViewController alloc] init];
       if (!storybookViewController) {
         return reject(@"E_CREATE_VC", @"Failed to create Storybook view controller", nil);
@@ -174,16 +181,16 @@ RCT_EXPORT_METHOD(openStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
   });
 }
 
+// Internal method to handle closing the Storybook view. This method is executed on the main queue.
+// If any errors occur during the closing process, they are caught and the reject block is called with the appropriate error message.
 - (void)closeStorybookInternal:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
   dispatch_async(dispatch_get_main_queue(), ^{
     @try {
-      // Check if there is a Storybook view controller to dismiss
       if (!currentStorybookViewController) {
         NSLog(@"[%@] Error: There is no active storybook view controller to close.", LOG_TAG);
       }
 
-      // Dismiss the Storybook view controller
-      [currentStorybookViewController dismissViewControllerAnimated:YES completion:nil ];
+      [currentStorybookViewController dismissViewControllerAnimated:YES completion:nil];
       currentStorybookViewController = nil;
       resolve(nil);
     } @catch (NSException *exception) {
@@ -192,7 +199,8 @@ RCT_EXPORT_METHOD(openStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
   });
 }
 
-// Create a directory at the specified path
+// Creates a directory at the specified filepath.
+// If the directory creation fails, the reject block is called with an appropriate error message.
 RCT_EXPORT_METHOD(mkdir:(NSString *)filepath resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   @try {
     NSError *error = nil;
@@ -207,8 +215,9 @@ RCT_EXPORT_METHOD(mkdir:(NSString *)filepath resolver:(RCTPromiseResolveBlock)re
   }
 }
 
-
-// Append a base64 encoded file to the specified path
+// Appends a base64 encoded file to the specified filepath.
+// If the file does not exist, it creates a new file.
+// If any errors occur during the append process, the reject block is called with an appropriate error message.
 RCT_EXPORT_METHOD(appendFile:(NSString *)filepath contents:(NSString *)base64Content resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   @try {
     NSData *data = [[NSData alloc] initWithBase64EncodedString:base64Content options:0];
@@ -248,8 +257,8 @@ RCT_EXPORT_METHOD(appendFile:(NSString *)filepath contents:(NSString *)base64Con
   }
 }
 
-
-// Read a byte array from the specified file and return it as a base64 string
+// Reads a byte array from the specified file and returns it as a base64 string.
+// If the file does not exist or if any errors occur during the read process, the reject block is called with an appropriate error message.
 RCT_EXPORT_METHOD(readFile:(NSString *)filepath resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   @try {
     if (![[NSFileManager defaultManager] fileExistsAtPath:filepath]) {
@@ -273,7 +282,7 @@ RCT_EXPORT_METHOD(readFile:(NSString *)filepath resolver:(RCTPromiseResolveBlock
   }
 }
 
-
+// Handles exceptions by logging the error and rejecting the promise with an appropriate error message.
 - (void)handleException:(NSException *)exception rejecter:(RCTPromiseRejectBlock)reject {
   NSMutableDictionary *info = [NSMutableDictionary dictionary];
   [info setValue:exception.name forKey:@"ExceptionName"];
