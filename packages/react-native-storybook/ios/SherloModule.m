@@ -1,49 +1,102 @@
 #import "SherloModule.h"
-#import "StorybookViewController.h"
 
 #import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
+
 #import <React/RCTUtils.h>
-#import <React/RCTBundleURLProvider.h>
 #import <React/RCTUIManager.h>
-#if __has_include(<React/RCTUIManagerUtils.h>)
-#import <React/RCTUIManagerUtils.h>
-#endif
 #import <React/RCTBridge.h>
 
+// a safeguard to ensure compatibility with different versions of React Native
+#if __has_include(<React/RCTUIManagerUtils.h>)
+// These are necessary for any interactions with the React Native UI Manager 
+// (e.g., operations on RCTRootView).
+#import <React/RCTUIManagerUtils.h>
+#endif
+
 static NSString *CONFIG_FILENAME = @"config.sherlo";
+static NSString *const LOG_TAG = @"SherloModule";
 
 static NSString *sherloDirectoryPath = @"";
 static NSString *initialMode = @"default"; // "default" or "testing"
 
-static StorybookViewController *currentStorybookViewController = nil;
+// we keep this reference to determine if the Storybook is currently open
+// and to be able to close it
+static UIViewController *currentStorybookViewController = nil;
 
 @implementation SherloModule
 
 RCT_EXPORT_MODULE()
 
 @synthesize bridge = _bridge;
-
 - (instancetype)init {
   self = [super init];
   if (self) {
-    // Set Sherlo directory path
-    sherloDirectoryPath = [[self getPathForDirectory:NSDocumentDirectory] stringByAppendingPathComponent:@"sherlo"];
+    @try {
+      // Set Sherlo directory path, this is the directory that will be 
+      // used to sync files between the emulator and Sherlo Runner
+      NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+      NSString *documentsPath = [paths firstObject];
+      if (!documentsPath) {
+        NSLog(@"[%@] Error: Failed to get the documents directory path.", LOG_TAG);
+        return nil;
+      }
 
-    // If it's running on Sherlo server set Storybook mode
-    NSString *configPath = [sherloDirectoryPath stringByAppendingPathComponent:CONFIG_FILENAME];
-    BOOL doesSherloConfigFileExist = [[NSFileManager defaultManager] fileExistsAtPath:configPath];
-    if (doesSherloConfigFileExist) {
-      initialMode = @"testing";
+      sherloDirectoryPath = [documentsPath stringByAppendingPathComponent:@"sherlo"];
+      if (!sherloDirectoryPath) {
+        NSLog(@"[%@] Error: Failed to set the Sherlo directory path.", LOG_TAG);
+        return nil;
+      }
 
-      // present the view controller replacing the root view controller
-      dispatch_async(dispatch_get_main_queue(), ^{
-        UIWindow *window = [UIApplication sharedApplication].windows.firstObject;
-        if (window) {
-          // Determine if running in development or production
-          window.rootViewController.view = [[RCTRootView alloc] initWithBridge:self.bridge moduleName:@"SherloStorybook" initialProperties:nil];
-          [UIView transitionWithView:window duration:0.5 options:UIViewAnimationOptionTransitionCrossDissolve animations:nil completion:nil];
-        }
-      });
+      // This is the path to the config file created by the Sherlo Runner
+      NSString *configPath = [sherloDirectoryPath stringByAppendingPathComponent:CONFIG_FILENAME];
+      if (!configPath) {
+        NSLog(@"[%@] Error: Failed to set the config file path.", LOG_TAG);
+        return nil;
+      }
+      
+      // If the file exists, we are in testing mode and will open the 
+      // Storybook in single activity mode, without launching the app
+      BOOL doesSherloConfigFileExist = [[NSFileManager defaultManager] fileExistsAtPath:configPath];
+      if (doesSherloConfigFileExist) {
+        initialMode = @"testing";
+
+        // present the view controller replacing the root view controller, 
+        // the application root controller will never be shown
+        dispatch_async(dispatch_get_main_queue(), ^{
+          @try {
+            UIWindow *window = [UIApplication sharedApplication].windows.firstObject;
+            if (!window) {
+              NSLog(@"[%@] Error: Failed to get the application window.", LOG_TAG);
+              return;
+            }
+
+            UIViewController *rootViewController = window.rootViewController;
+            if (!rootViewController) {
+              NSLog(@"[%@] Error: No root view controller available.", LOG_TAG);
+              return;
+            }
+
+            RCTRootView *rootView = [[RCTRootView alloc] initWithBridge:self.bridge moduleName:@"SherloStorybook" initialProperties:nil];
+            if (!rootView) {
+              NSLog(@"[%@] Error: Failed to create RCTRootView.", LOG_TAG);
+              return;
+            }
+
+            rootViewController.view = rootView;
+            [UIView transitionWithView:window duration:0.5 options:UIViewAnimationOptionTransitionCrossDissolve animations:nil completion:^(BOOL finished) {
+              if (!finished) {
+                NSLog(@"[%@] Error: UIView transition failed.", LOG_TAG);
+              }
+            }];
+          } @catch (NSException *exception) {
+            NSLog(@"[%@] Exception occurred while setting up Storybook view: %@, %@", LOG_TAG, exception.reason, exception.userInfo);
+          }
+        });
+      }
+    } @catch (NSException *exception) {
+      NSLog(@"[%@] Exception occurred: %@, %@", LOG_TAG, exception.reason, exception.userInfo);
+      return nil;
     }
   }
   
@@ -51,115 +104,15 @@ RCT_EXPORT_MODULE()
 }
 
 + (BOOL)requiresMainQueueSetup {
+  // This method returns a Boolean value indicating whether the module needs to be initialized on the main thread.
+  // Returning YES ensures that the module's setup (initialization) is executed on the main UI thread.
+  // This is required for modules that interact with the UI or need to perform any setup that affects the UI.
   return YES;
 }
-
 - (dispatch_queue_t)methodQueue {
+  // This method specifies the dispatch queue on which the module's methods should be executed.
+  // This is crucial for UI updates from native modules that need to be thread-safe and responsive
   return RCTGetUIManagerQueue();
-}
-
-RCT_EXPORT_METHOD(toggleStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    if (currentStorybookViewController) {
-      [self closeStorybookWithResolver:resolve rejecter:reject];
-    } else {
-      [self openStorybookWithResolver:resolve rejecter:reject];
-    }
-  });
-}
-
-RCT_EXPORT_METHOD(openStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  [self openStorybookWithResolver:resolve rejecter:reject];
-}
-
-- (void)openStorybookWithResolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    // present the view controller on top of the current view controller
-    StorybookViewController *storybookViewController = [[StorybookViewController alloc] init];
-    RCTRootView *rootView = [[RCTRootView alloc] initWithBridge:self.bridge moduleName:@"SherloStorybook" initialProperties:nil];
-    storybookViewController.view = rootView;
-    storybookViewController.modalPresentationStyle = UIModalPresentationFullScreen;
-
-    UIViewController *rootVC = [UIApplication sharedApplication].windows.firstObject.rootViewController;
-    if (rootVC) {
-      [rootVC presentViewController:storybookViewController animated:YES completion:nil];
-    }
-    currentStorybookViewController = storybookViewController;
-    resolve(nil);
-  });
-}
-
-- (void)closeStorybookWithResolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    [currentStorybookViewController dismissViewControllerAnimated:YES completion:nil];
-    currentStorybookViewController = nil;
-    resolve(nil);
-  });
-}
-
-RCT_EXPORT_METHOD(mkdir:(NSString *)filepath resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  NSError *error = nil;
-  [[NSFileManager defaultManager] createDirectoryAtPath:filepath withIntermediateDirectories:YES attributes:nil error:&error];
-  if (error) {
-    reject(@"E_MKDIR", [NSString stringWithFormat:@"Failed to create directory at path %@", filepath], error);
-  } else {
-    resolve(nil);
-  }
-}
-
-RCT_EXPORT_METHOD(appendFile:(NSString *)filepath contents:(NSString *)base64Content resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  NSData *data = [[NSData alloc] initWithBase64EncodedString:base64Content options:0];
-  if (!data) {
-    return reject(@"E_INVALIDBASE64", @"Invalid base64 content", nil);
-  }
-
-  if (![[NSFileManager defaultManager] fileExistsAtPath:filepath]) {
-    BOOL success = [[NSFileManager defaultManager] createFileAtPath:filepath contents:data attributes:nil];
-    if (!success) {
-      return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: no such file or directory, open '%@'", filepath], nil);
-    } else {
-      return resolve(nil);
-    }
-  }
-
-  @try {
-    NSFileHandle *fileHandle = [NSFileHandle fileHandleForUpdatingAtPath:filepath];
-    [fileHandle seekToEndOfFile];
-    [fileHandle writeData:data];
-    [fileHandle closeFile];
-    resolve(nil);
-  } @catch (NSException *exception) {
-    NSMutableDictionary *info = [NSMutableDictionary dictionary];
-    [info setValue:exception.name forKey:@"ExceptionName"];
-    [info setValue:exception.reason forKey:@"ExceptionReason"];
-    NSError *error = [NSError errorWithDomain:@"SherloModule" code:0 userInfo:info];
-    reject(@"E_WRITEFILE", @"Failed to append data to file", error);
-  }
-}
-
-RCT_EXPORT_METHOD(readFile:(NSString *)filepath resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  if (![[NSFileManager defaultManager] fileExistsAtPath:filepath]) {
-    return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: no such file or directory, open '%@'", filepath], nil);
-  }
-
-  NSError *error = nil;
-  NSData *content = [NSData dataWithContentsOfFile:filepath options:0 error:&error];
-  if (error) {
-    return [self reject:reject withError:error];
-  }
-
-  NSString *base64Content = [content base64EncodedStringWithOptions:0];
-  resolve(base64Content);
-}
-
-- (NSString *)getPathForDirectory:(NSSearchPathDirectory)directory {
-  NSArray *paths = NSSearchPathForDirectoriesInDomains(directory, NSUserDomainMask, YES);
-  return [paths firstObject];
-}
-
-- (void)reject:(RCTPromiseRejectBlock)reject withError:(NSError *)error {
-  NSString *codeWithDomain = [NSString stringWithFormat:@"E%@%zd", error.domain.uppercaseString, error.code];
-  reject(codeWithDomain, error.localizedDescription, error);
 }
 
 - (NSDictionary *)constantsToExport {
@@ -167,6 +120,167 @@ RCT_EXPORT_METHOD(readFile:(NSString *)filepath resolver:(RCTPromiseResolveBlock
     @"syncDirectoryPath": sherloDirectoryPath,
     @"initialMode": initialMode
   };
+}
+
+RCT_EXPORT_METHOD(toggleStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  // if view controller reference exists, close the Storybook
+  if (currentStorybookViewController) {
+    [self closeStorybookInternal:resolve rejecter:reject];
+  } else {
+    [self openStorybookInternal:resolve rejecter:reject];
+  }
+}
+
+
+RCT_EXPORT_METHOD(openStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  [self openStorybookInternal:resolve rejecter:reject];
+}
+
+- (void)openStorybookInternal:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
+  dispatch_async(dispatch_get_main_queue(), ^{
+    @try {
+      // We launch the Storybook in separate view controller, on top of the 
+      // root view controller so that the app is not closed and user can
+      // go back to the same app state after closing the Storybook
+      UIViewController *storybookViewController = [[UIViewController alloc] init];
+      if (!storybookViewController) {
+        return reject(@"E_CREATE_VC", @"Failed to create Storybook view controller", nil);
+      }
+
+      RCTRootView *rootView = [[RCTRootView alloc] initWithBridge:self.bridge moduleName:@"SherloStorybook" initialProperties:nil];
+      if (!rootView) {
+        return reject(@"E_CREATE_ROOTVIEW", @"Failed to create RCTRootView for Storybook", nil);
+      }
+      storybookViewController.view = rootView;
+      storybookViewController.modalPresentationStyle = UIModalPresentationFullScreen;
+
+      UIWindow *window = [UIApplication sharedApplication].windows.firstObject;
+      if (!window) {
+        return reject(@"E_NO_WINDOW", @"Failed to get the application window", nil);
+      }
+
+      UIViewController *rootVC = window.rootViewController;
+      if (!rootVC) {
+        return reject(@"E_NO_ROOTVC", @"No root view controller available", nil);
+      }
+
+      [rootVC presentViewController:storybookViewController animated:YES completion:nil];
+
+      currentStorybookViewController = storybookViewController;
+      resolve(nil);
+    } @catch (NSException *exception) {
+      [self handleException:exception rejecter:reject];
+    }
+  });
+}
+
+- (void)closeStorybookInternal:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
+  dispatch_async(dispatch_get_main_queue(), ^{
+    @try {
+      // Check if there is a Storybook view controller to dismiss
+      if (!currentStorybookViewController) {
+        NSLog(@"[%@] Error: There is no active storybook view controller to close.", LOG_TAG);
+      }
+
+      // Dismiss the Storybook view controller
+      [currentStorybookViewController dismissViewControllerAnimated:YES completion:nil ];
+      currentStorybookViewController = nil;
+      resolve(nil);
+    } @catch (NSException *exception) {
+      [self handleException:exception rejecter:reject];
+    }
+  });
+}
+
+// Create a directory at the specified path
+RCT_EXPORT_METHOD(mkdir:(NSString *)filepath resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  @try {
+    NSError *error = nil;
+    [[NSFileManager defaultManager] createDirectoryAtPath:filepath withIntermediateDirectories:YES attributes:nil error:&error];
+    if (error) {
+      return reject(@"E_MKDIR", [NSString stringWithFormat:@"Failed to create directory at path %@", filepath], error);
+    } else {
+      resolve(nil);
+    }
+  } @catch (NSException *exception) {
+    [self handleException:exception rejecter:reject];
+  }
+}
+
+
+// Append a base64 encoded file to the specified path
+RCT_EXPORT_METHOD(appendFile:(NSString *)filepath contents:(NSString *)base64Content resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  @try {
+    NSData *data = [[NSData alloc] initWithBase64EncodedString:base64Content options:0];
+    if (!data) {
+      return reject(@"E_INVALIDBASE64", @"Invalid base64 content", nil);
+    }
+
+    if (![[NSFileManager defaultManager] fileExistsAtPath:filepath]) {
+      BOOL success = [[NSFileManager defaultManager] createFileAtPath:filepath contents:data attributes:nil];
+      if (!success) {
+        NSError *error = [NSError errorWithDomain:NSCocoaErrorDomain code:NSFileWriteUnknownError userInfo:nil];
+        return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: no such file or directory, open '%@'", filepath], error);
+      } else {
+        return resolve(nil);
+      }
+    }
+
+    @try {
+      NSFileHandle *fileHandle = [NSFileHandle fileHandleForUpdatingAtPath:filepath];
+      if (!fileHandle) {
+        return reject(@"E_NOFILEHANDLE", [NSString stringWithFormat:@"Failed to get file handle for path %@", filepath], nil);
+      }
+      [fileHandle seekToEndOfFile];
+      [fileHandle writeData:data];
+      [fileHandle closeFile];
+      
+      resolve(nil);
+    } @catch (NSException *exception) {
+      NSMutableDictionary *info = [NSMutableDictionary dictionary];
+      [info setValue:exception.name forKey:@"ExceptionName"];
+      [info setValue:exception.reason forKey:@"ExceptionReason"];
+      NSError *error = [NSError errorWithDomain:@"SherloModule" code:0 userInfo:info];
+      reject(@"E_WRITEFILE", @"Failed to append data to file", error);
+    }
+  } @catch (NSException *exception) {
+    [self handleException:exception rejecter:reject];
+  }
+}
+
+
+// Read a byte array from the specified file and return it as a base64 string
+RCT_EXPORT_METHOD(readFile:(NSString *)filepath resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  @try {
+    if (![[NSFileManager defaultManager] fileExistsAtPath:filepath]) {
+      return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: no such file or directory, open '%@'", filepath], nil);
+    }
+
+    NSError *error = nil;
+    NSData *content = [NSData dataWithContentsOfFile:filepath options:0 error:&error];
+    if (error) {
+      return reject([NSString stringWithFormat:@"%ld", (long)error.code], error.localizedDescription ?: @"Unknown error occurred", error);
+    }
+
+    NSString *base64Content = [content base64EncodedStringWithOptions:0];
+    if (!base64Content) {
+      return reject(@"E_ENCODING", @"Failed to encode file content to base64", nil);
+    }
+
+    resolve(base64Content);
+  } @catch (NSException *exception) {
+    [self handleException:exception rejecter:reject];
+  }
+}
+
+
+- (void)handleException:(NSException *)exception rejecter:(RCTPromiseRejectBlock)reject {
+  NSMutableDictionary *info = [NSMutableDictionary dictionary];
+  [info setValue:exception.name forKey:@"ExceptionName"];
+  [info setValue:exception.reason forKey:@"ExceptionReason"];
+
+  NSError *error = [NSError errorWithDomain:@"SherloModule" code:0 userInfo:info];
+  reject(@"E_EXCEPTION", @"Exception occurred", error);
 }
 
 @end
