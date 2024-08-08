@@ -18,6 +18,9 @@ try {
 } catch {}
 
 function addToggleStorybookToDevMenu() {
+  // Only add the menu item in development builds
+  if (!__DEV__) return;
+
   const MENU_LABEL = 'Toggle Storybook';
   const toggleStorybook = () => SherloModule.toggleStorybook();
 

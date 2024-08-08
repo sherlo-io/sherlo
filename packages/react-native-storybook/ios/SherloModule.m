@@ -1,7 +1,9 @@
 #import "SherloModule.h"
 #import "StorybookViewController.h"
+
 #import <Foundation/Foundation.h>
 #import <React/RCTUtils.h>
+#import <React/RCTBundleURLProvider.h>
 #import <React/RCTUIManager.h>
 #if __has_include(<React/RCTUIManagerUtils.h>)
 #import <React/RCTUIManagerUtils.h>
@@ -37,9 +39,8 @@ RCT_EXPORT_MODULE()
       dispatch_async(dispatch_get_main_queue(), ^{
         UIWindow *window = [UIApplication sharedApplication].windows.firstObject;
         if (window) {
-          RCTRootView *rootView = [[RCTRootView alloc] initWithBridge:self.bridge moduleName:@"SherloStorybook" initialProperties:nil];
-          window.rootViewController.view = rootView;
-
+          // Determine if running in development or production
+          window.rootViewController.view = [[RCTRootView alloc] initWithBridge:self.bridge moduleName:@"SherloStorybook" initialProperties:nil];
           [UIView transitionWithView:window duration:0.5 options:UIViewAnimationOptionTransitionCrossDissolve animations:nil completion:nil];
         }
       });
