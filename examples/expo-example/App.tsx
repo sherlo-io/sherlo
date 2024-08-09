@@ -45,13 +45,13 @@ export default function App() {
       <View
         style={{
           flex: 1,
-          backgroundColor: '#fff',
+          backgroundColor: 'red',
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <StatusBar backgroundColor="red" />
-        <RNStatusBar backgroundColor="red" />
+        <StatusBar backgroundColor="#f00" />
+        <RNStatusBar backgroundColor="#f00" />
         <Text style={{ textAlign: 'center' }}>
           {'Open Dev Menu and select "Toggle Storybook" \nor click the button below'}
         </Text>
