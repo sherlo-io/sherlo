@@ -65,9 +65,13 @@ RCT_EXPORT_MODULE()
       if (doesSherloConfigFileExist) {
         initialMode = @"testing";
 
+        // Delay the execution of the Storybook presentation
+        double delayInSeconds = 2.0;  // Adjust time based on expected load times
+        dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC));
+
         // Present the view controller replacing the root view controller, 
         // the application root controller will never be shown
-        dispatch_async(dispatch_get_main_queue(), ^{
+        dispatch_after(popTime, dispatch_get_main_queue(), ^{
           @try {
             UIWindow *window = [UIApplication sharedApplication].windows.firstObject;
             if (!window) {
