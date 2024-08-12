@@ -8,7 +8,8 @@ function registerStorybook(StorybookComponent: () => ReactElement) {
   AppRegistry.registerComponent('SherloStorybook', () => StorybookComponent);
 
   addToggleStorybookToDevMenu();
-
+}
+export function loaded() {
   SherloNativeModule.loaded();
 }
 

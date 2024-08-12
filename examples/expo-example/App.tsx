@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, Button, StatusBar as RNStatusBar } from 'react-native';
 import {
   useFonts,
@@ -8,7 +8,7 @@ import {
   Urbanist_700Bold,
 } from '@expo-google-fonts/urbanist';
 import * as SplashScreen from 'expo-splash-screen';
-import { openStorybook } from '@sherlo/react-native-storybook';
+import { openStorybook, loaded } from '@sherlo/react-native-storybook';
 import { StatusBar } from 'expo-status-bar';
 
 // @ts-ignore
@@ -61,6 +61,10 @@ export default function App() {
     const Storybook = require('./.storybook').default;
     EntryPoint = Storybook;
   }
+
+  useEffect(() => {
+    loaded();
+  }, []);
 
   return (
     <View style={StyleSheet.absoluteFill} onLayout={onLayoutRootView}>
