@@ -64,43 +64,6 @@ RCT_EXPORT_MODULE()
       BOOL doesSherloConfigFileExist = [[NSFileManager defaultManager] fileExistsAtPath:configPath];
       if (doesSherloConfigFileExist) {
         initialMode = @"testing";
-
-        // Delay the execution of the Storybook presentation
-        double delayInSeconds = 2.0;  // Adjust time based on expected load times
-        dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayInSeconds * NSEC_PER_SEC));
-
-        // Present the view controller replacing the root view controller, 
-        // the application root controller will never be shown
-        dispatch_after(popTime, dispatch_get_main_queue(), ^{
-          @try {
-            UIWindow *window = [UIApplication sharedApplication].windows.firstObject;
-            if (!window) {
-              NSLog(@"[%@] Error: Failed to get the application window.", LOG_TAG);
-              return;
-            }
-
-            UIViewController *rootViewController = window.rootViewController;
-            if (!rootViewController) {
-              NSLog(@"[%@] Error: No root view controller available.", LOG_TAG);
-              return;
-            }
-
-            RCTRootView *rootView = [[RCTRootView alloc] initWithBridge:self.bridge moduleName:@"SherloStorybook" initialProperties:nil];
-            if (!rootView) {
-              NSLog(@"[%@] Error: Failed to create RCTRootView.", LOG_TAG);
-              return;
-            }
-
-            rootViewController.view = rootView;
-            [UIView transitionWithView:window duration:0.5 options:UIViewAnimationOptionTransitionCrossDissolve animations:nil completion:^(BOOL finished) {
-              if (!finished) {
-                NSLog(@"[%@] Error: UIView transition failed.", LOG_TAG);
-              }
-            }];
-          } @catch (NSException *exception) {
-            NSLog(@"[%@] Exception occurred while setting up Storybook view: %@, %@", LOG_TAG, exception.reason, exception.userInfo);
-          }
-        });
       }
     } @catch (NSException *exception) {
       NSLog(@"[%@] Exception occurred: %@, %@", LOG_TAG, exception.reason, exception.userInfo);
@@ -129,6 +92,40 @@ RCT_EXPORT_MODULE()
     @"syncDirectoryPath": sherloDirectoryPath,
     @"initialMode": initialMode
   };
+}
+
+RCT_EXPORT_METHOD(loaded:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  if (initialMode == @"testing") {
+    // Present the view controller replacing the root view controller, 
+    // the application root controller will never be shown
+    dispatch_async(dispatch_get_main_queue(), ^{
+      @try {
+        UIWindow *window = [UIApplication sharedApplication].windows.firstObject;
+        if (!window) {
+          return reject(@"E_NO_WINDOW", @"Failed to get the application window", nil);
+        }
+
+        UIViewController *rootViewController = window.rootViewController;
+        if (!rootViewController) {
+          return reject(@"E_NO_ROOTVC", @"No root view controller available", nil);
+        }
+
+        RCTRootView *rootView = [[RCTRootView alloc] initWithBridge:self.bridge moduleName:@"SherloStorybook" initialProperties:nil];
+        if (!rootView) {
+          return reject(@"E_CREATE_ROOTVIEW", @"Failed to create RCTRootView for Storybook", nil);
+        }
+
+        rootViewController.view = rootView;
+        [UIView transitionWithView:window duration:0.5 options:UIViewAnimationOptionTransitionCrossDissolve animations:nil completion:^(BOOL finished) {
+          if (!finished) {
+            return reject(@"E_NO_WINDOW", @"Failed to transition into storybook view", nil);
+          }
+        }];
+      } @catch (NSException *exception) {
+        [self handleException:exception rejecter:reject];
+      }
+    });
+  }
 }
 
 // Toggles the Storybook view. If the Storybook is currently open, it closes it. Otherwise, it opens it.

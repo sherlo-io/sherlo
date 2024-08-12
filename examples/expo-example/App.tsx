@@ -12,14 +12,9 @@ import { openStorybook } from '@sherlo/react-native-storybook';
 import { StatusBar } from 'expo-status-bar';
 
 // @ts-ignore
-const isStandaloneStorybookBuild = process.env.EXPO_PUBLIC_STORYBOOK_ONLY === 'true';
-// @ts-ignore
-const isDevelopmentBuild = process.env.PROD_BUILD !== 'true';
-
-if (!isStandaloneStorybookBuild && isDevelopmentBuild) {
+if (!process.env.EXPO_PUBLIC_STORYBOOK_ONLY && process.env.PROD_BUILD !== 'true') {
   const registerStorybook = require('@sherlo/react-native-storybook').registerStorybook;
   const Storybook = require('./.storybook').default;
-
   registerStorybook(() => <Storybook />);
 }
 
@@ -61,9 +56,9 @@ export default function App() {
   };
 
   let EntryPoint = App;
-  if (isStandaloneStorybookBuild) {
+  // @ts-ignore
+  if (process.env.EXPO_PUBLIC_STORYBOOK_ONLY === 'true') {
     const Storybook = require('./.storybook').default;
-
     EntryPoint = Storybook;
   }
 

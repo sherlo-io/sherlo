@@ -55,10 +55,6 @@ public class SherloModule extends ReactContextBaseJavaModule {
             Boolean doesSherloConfigFileExist = new File(configPath).isFile();
             if (doesSherloConfigFileExist) {
                 this.initialMode = "testing";
-
-                Intent intent = new Intent(this.reactContext, SherloStorybookActivity.class);
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-                this.reactContext.startActivity(intent);
             }
         } catch (Exception e) {
             Log.e(TAG, "Failed to initialize SherloModule", e);
@@ -79,6 +75,21 @@ public class SherloModule extends ReactContextBaseJavaModule {
         constants.put("initialMode", this.initialMode);
 
         return constants;
+    }
+
+    @ReactMethod
+    public void loaded(Promise promise) {
+        try {
+            if (this.initialMode == "testing") {
+                Intent intent = new Intent(this.reactContext, SherloStorybookActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+                this.reactContext.startActivity(intent);
+            }
+        } catch (Exception e) {
+            promise.reject("Error opening Storybook in testing mode", e.getMessage());
+            Log.e(TAG, "Error opening Storybook in testing mode", e);
+            e.printStackTrace();
+        }
     }
 
     @ReactMethod
