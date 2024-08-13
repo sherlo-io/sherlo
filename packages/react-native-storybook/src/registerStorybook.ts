@@ -1,5 +1,11 @@
 import { ReactElement } from 'react';
-import { AppRegistry, DevSettings, NativeModules } from 'react-native';
+import {
+  AppRegistry,
+  AppState,
+  DevSettings,
+  NativeEventSubscription,
+  NativeModules,
+} from 'react-native';
 import { SherloModule } from './helpers';
 
 const { SherloModule: SherloNativeModule } = NativeModules;
@@ -8,11 +14,16 @@ function registerStorybook(StorybookComponent: () => ReactElement) {
   AppRegistry.registerComponent('SherloStorybook', () => StorybookComponent);
 
   addToggleStorybookToDevMenu();
-}
-export function loaded() {
-  SherloNativeModule.loaded();
-}
 
+  let subscription: NativeEventSubscription;
+
+  const listener = () => {
+    SherloNativeModule.loaded();
+    subscription.remove();
+  };
+
+  subscription = AppState.addEventListener('change', listener);
+}
 export default registerStorybook;
 
 /* ========================================================================== */
