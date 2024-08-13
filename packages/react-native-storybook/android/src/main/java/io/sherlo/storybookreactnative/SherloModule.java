@@ -85,6 +85,8 @@ public class SherloModule extends ReactContextBaseJavaModule {
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
                 this.reactContext.startActivity(intent);
             }
+            
+            promise.resolve(null);
         } catch (Exception e) {
             promise.reject("Error opening Storybook in testing mode", e.getMessage());
             Log.e(TAG, "Error opening Storybook in testing mode", e);

@@ -34,6 +34,10 @@ export default function App() {
     }
   }, [fontsLoaded, fontError]);
 
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
+
   // eslint-disable-next-line react/no-unstable-nested-components
   const App = () => {
     return (

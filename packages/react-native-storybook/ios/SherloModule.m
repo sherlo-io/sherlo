@@ -95,37 +95,39 @@ RCT_EXPORT_MODULE()
 }
 
 RCT_EXPORT_METHOD(loaded:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  if (initialMode == @"testing") {
     // Present the view controller replacing the root view controller, 
     // the application root controller will never be shown
     dispatch_async(dispatch_get_main_queue(), ^{
       @try {
-        UIWindow *window = [UIApplication sharedApplication].windows.firstObject;
-        if (!window) {
-          return reject(@"E_NO_WINDOW", @"Failed to get the application window", nil);
-        }
-
-        UIViewController *rootViewController = window.rootViewController;
-        if (!rootViewController) {
-          return reject(@"E_NO_ROOTVC", @"No root view controller available", nil);
-        }
-
-        RCTRootView *rootView = [[RCTRootView alloc] initWithBridge:self.bridge moduleName:@"SherloStorybook" initialProperties:nil];
-        if (!rootView) {
-          return reject(@"E_CREATE_ROOTVIEW", @"Failed to create RCTRootView for Storybook", nil);
-        }
-
-        rootViewController.view = rootView;
-        [UIView transitionWithView:window duration:0.5 options:UIViewAnimationOptionTransitionCrossDissolve animations:nil completion:^(BOOL finished) {
-          if (!finished) {
-            return reject(@"E_NO_WINDOW", @"Failed to transition into storybook view", nil);
+        if (initialMode == @"testing") {
+          UIWindow *window = [UIApplication sharedApplication].windows.firstObject;
+          if (!window) {
+            return reject(@"E_NO_WINDOW", @"Failed to get the application window", nil);
           }
-        }];
+
+          UIViewController *rootViewController = window.rootViewController;
+          if (!rootViewController) {
+            return reject(@"E_NO_ROOTVC", @"No root view controller available", nil);
+          }
+
+          RCTRootView *rootView = [[RCTRootView alloc] initWithBridge:self.bridge moduleName:@"SherloStorybook" initialProperties:nil];
+          if (!rootView) {
+            return reject(@"E_CREATE_ROOTVIEW", @"Failed to create RCTRootView for Storybook", nil);
+          }
+
+          rootViewController.view = rootView;
+          [UIView transitionWithView:window duration:0.5 options:UIViewAnimationOptionTransitionCrossDissolve animations:nil completion:^(BOOL finished) {
+            if (!finished) {
+              return reject(@"E_NO_WINDOW", @"Failed to transition into storybook view", nil);
+            }
+          }];
+
+          resolve(nil);
+        }
       } @catch (NSException *exception) {
         [self handleException:exception rejecter:reject];
       }
     });
-  }
 }
 
 // Toggles the Storybook view. If the Storybook is currently open, it closes it. Otherwise, it opens it.
