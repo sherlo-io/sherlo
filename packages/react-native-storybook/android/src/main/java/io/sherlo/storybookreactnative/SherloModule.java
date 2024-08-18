@@ -30,6 +30,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
     private final ReactApplicationContext reactContext;
     private static String syncDirectoryPath = "";
     private static String initialMode = "default"; // "default" or "testing"
+    private static Boolean isStorybookRegistered = false;
 
     public SherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -78,8 +79,10 @@ public class SherloModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void loaded(Promise promise) {
+    public void registered(Promise promise) {
         try {
+            this.isStorybookRegistered = true;
+
             if (this.initialMode == "testing") {
                 Intent intent = new Intent(this.reactContext, SherloStorybookActivity.class);
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -112,6 +115,11 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void openStorybook(Promise promise) {
+        if(!this.isStorybookRegistered) {
+            promise.reject("NOT_REGISTERED", "Storybook is not registered");
+            return;
+        }
+
         try {
             final Activity currentActivity = getCurrentActivity();
             if (currentActivity == null) {

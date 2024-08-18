@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { View, Text, StyleSheet, Button, StatusBar as RNStatusBar } from 'react-native';
+import { View, Text, StyleSheet, Button } from 'react-native';
 import {
   useFonts,
   Urbanist_400Regular,
@@ -9,7 +9,6 @@ import {
 } from '@expo-google-fonts/urbanist';
 import * as SplashScreen from 'expo-splash-screen';
 import { openStorybook } from '@sherlo/react-native-storybook';
-import { StatusBar } from 'expo-status-bar';
 
 // @ts-ignore
 if (!process.env.EXPO_PUBLIC_STORYBOOK_ONLY && process.env.PROD_BUILD !== 'true') {
@@ -44,13 +43,10 @@ export default function App() {
       <View
         style={{
           flex: 1,
-          backgroundColor: 'red',
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <StatusBar backgroundColor="#f00" />
-        <RNStatusBar backgroundColor="#f00" />
         <Text style={{ textAlign: 'center' }}>
           {'Open Dev Menu and select "Toggle Storybook" \nor click the button below'}
         </Text>

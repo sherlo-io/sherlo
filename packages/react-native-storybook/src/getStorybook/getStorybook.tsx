@@ -21,7 +21,6 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     const [snapshots, setSnapshots] = useState<Snapshot[]>();
 
     const mode = SherloModule.getInitialMode();
-    console.log('SherloModule.initialMode', mode);
 
     const renderedStoryHasError = useRef(false);
 

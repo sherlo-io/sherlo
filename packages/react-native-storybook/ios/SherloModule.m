@@ -19,6 +19,7 @@ static NSString *const LOG_TAG = @"SherloModule";
 
 static NSString *sherloDirectoryPath = @"";
 static NSString *initialMode = @"default"; // "default" or "testing"
+static BOOL isStorybookRegistered = NO;
 
 // We keep this reference to determine if the Storybook is currently open
 // and to be able to close it
@@ -94,7 +95,9 @@ RCT_EXPORT_MODULE()
   };
 }
 
-RCT_EXPORT_METHOD(loaded:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+RCT_EXPORT_METHOD(registered:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+    isStorybookRegistered = YES;
+
     // Present the view controller replacing the root view controller, 
     // the application root controller will never be shown
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -144,6 +147,10 @@ RCT_EXPORT_METHOD(toggleStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTP
 // allowing the user to return to the same app state after closing the Storybook.
 // Exceptions during the opening process are caught and handled.
 RCT_EXPORT_METHOD(openStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  if(!isStorybookRegistered) {
+    return reject(@"NOT_REGISTERED", @"Storybook is not registered", nil);
+  }
+
   [self openStorybookInternal:resolve rejecter:reject];
 }
 
