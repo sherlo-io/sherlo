@@ -157,8 +157,8 @@ This folder appears when you run Sherlo in remote Expo mode using:
 - \`sherlo --remoteExpo\`, or
 - \`sherlo --remoteExpoBuildScript <scriptName>\`
 
-If you use \`--remoteExpoBuildScript\`, the folder is auto-deleted when the build
-script completes. With \`--remoteExpo\`, you need to handle it yourself.
+If you use \`--remoteExpoBuildScript\`, the folder should be auto-deleted when the
+build script completes. With \`--remoteExpo\`, you need to handle it yourself.
 
 ### What does it contain?
 

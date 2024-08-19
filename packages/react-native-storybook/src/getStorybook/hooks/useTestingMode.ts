@@ -62,8 +62,17 @@ function useTestingMode(
           filteredViewIds = startResponse.filteredViewIds;
         }
 
+        const filteredSnapshots = snapshots.filter(({ viewId }) =>
+          filteredViewIds?.includes(viewId)
+        );
+
+        bridge.log('set initial testing state', {
+          initialSelectionIndex,
+          filteredSnapshots,
+        });
+
         setTestedIndex(initialSelectionIndex);
-        setSnapshots(snapshots.filter(({ viewId }) => filteredViewIds?.includes(viewId)));
+        setSnapshots(filteredSnapshots);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -8,12 +8,16 @@ import {
   Urbanist_700Bold,
 } from '@expo-google-fonts/urbanist';
 import * as SplashScreen from 'expo-splash-screen';
-import { getAppWithStorybook, openStorybook } from '@sherlo/react-native-storybook';
+import { openStorybook } from '@sherlo/react-native-storybook';
+
+// @ts-ignore
+if (!process.env.EXPO_PUBLIC_STORYBOOK_ONLY && process.env.PROD_BUILD !== 'true') {
+  const registerStorybook = require('@sherlo/react-native-storybook').registerStorybook;
+  const Storybook = require('./.storybook').default;
+  registerStorybook(() => <Storybook />);
+}
 
 SplashScreen.preventAutoHideAsync();
-
-// global.SHERLO_VERIFY_SETUP = true;
-// global.SHERLO_TEST_CONFIG = {};
 
 export default function App() {
   let [fontsLoaded, fontError] = useFonts({
@@ -39,7 +43,6 @@ export default function App() {
       <View
         style={{
           flex: 1,
-          backgroundColor: '#fff',
           alignItems: 'center',
           justifyContent: 'center',
         }}
@@ -52,15 +55,11 @@ export default function App() {
     );
   };
 
-  let EntryPoint;
+  let EntryPoint = App;
+  // @ts-ignore
   if (process.env.EXPO_PUBLIC_STORYBOOK_ONLY === 'true') {
     const Storybook = require('./.storybook').default;
     EntryPoint = Storybook;
-  } else if (process.env.PROD_BUILD === 'true') {
-    EntryPoint = App;
-  } else {
-    const Storybook = require('./.storybook').default;
-    EntryPoint = getAppWithStorybook({ App, Storybook });
   }
 
   return (

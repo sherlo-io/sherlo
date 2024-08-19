@@ -1,9 +1,7 @@
 import { StorybookParams, StorybookView } from '../types';
 
-export type StorybookRenderMode = 'sherlo' | 'original';
-
 interface GenerateStorybookInput {
-  storybookRenderMode: StorybookRenderMode;
+  storybookRenderMode: 'sherlo' | 'default';
   initialSelection?: StorybookParams['initialSelection'];
   view: StorybookView;
   params?: StorybookParams;

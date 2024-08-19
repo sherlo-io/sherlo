@@ -1,20 +1,15 @@
-import { AppOrStorybookMode } from './types';
+import { SherloModule } from './helpers';
 
-function openStorybook(): void {
-  if (setMode) {
-    setMode('storybook');
-  } else {
-    throw new Error(
-      'If you want to use `openStorybook()`, you need to wrap your application with `getAppWithStorybook()`.\n\nLearn more: https://docs.sherlo.io/getting-started/setup?storybook-entry-point=integrated#storybook-entry-point'
-    );
-  }
-}
-
-type SetMode = (mode: AppOrStorybookMode) => void;
-
-let setMode: SetMode;
-export function passSetModeToOpenStorybook(setModeFn: SetMode): void {
-  setMode = setModeFn;
+function openStorybook(): Promise<void> {
+  return SherloModule.openStorybook().catch((error) => {
+    if (error.code === 'NOT_REGISTERED') {
+      console.log(
+        'To use `openStorybook()`, you need to first call `registerStorybook()`.\n\nLearn more: https://docs.sherlo.io/getting-started/setup?storybook-entry-point=integrated#storybook-entry-point'
+      );
+    } else {
+      throw error;
+    }
+  });
 }
 
 export default openStorybook;

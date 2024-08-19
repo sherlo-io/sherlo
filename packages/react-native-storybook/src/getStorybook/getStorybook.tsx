@@ -1,21 +1,12 @@
 import { useEffect, useMemo, useRef, useState, ReactElement } from 'react';
 import { Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
-import { SherloEffectContext } from '../contexts';
-import { RunnerBridge } from '../helpers';
+import { RunnerBridge, SherloModule } from '../helpers';
 import { getGlobalStates } from '../utils';
-import { Snapshot, StorybookParams, StorybookView, StorybookViewMode } from '../types';
+import { Snapshot, StorybookParams, StorybookView } from '../types';
 import { ErrorBoundary } from './components';
 import { SherloContext } from './contexts';
-import generateStorybookComponent, { StorybookRenderMode } from './generateStorybookComponent';
-import {
-  // useAddon,
-  useKeyboardStatusEffect,
-  useOriginalMode,
-  usePreviewMode,
-  useSherloEffectExecutionEffect,
-  useStoryEmitter,
-  useTestingMode,
-} from './hooks';
+import generateStorybookComponent from './generateStorybookComponent';
+import { useKeyboardStatusEffect, useOriginalMode, useStoryEmitter, useTestingMode } from './hooks';
 import { setupErrorSilencing } from './utils';
 
 setupErrorSilencing();
@@ -29,36 +20,18 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     // List of all snapshots that we want to test
     const [snapshots, setSnapshots] = useState<Snapshot[]>();
 
-    const [mode, setMode] = useState<StorybookViewMode>('loading');
+    const mode = SherloModule.getInitialMode();
 
     const renderedStoryHasError = useRef(false);
 
     const { waitForKeyboardStatus } = useKeyboardStatusEffect(RunnerBridge.log);
-    const sherloEffectExecution = useSherloEffectExecutionEffect(RunnerBridge.log);
 
     const emitStory = useStoryEmitter((id) => {
       RunnerBridge.log('rendered story', { id });
       setRenderedStoryId(id);
     });
 
-    // useAddon({
-    //   onPreviewStoryPress: () => {
-    //     runnerBridge.log('setting preview mode');
-    //     setMode('preview');
-    //   },
-    // });
-
-    useEffect(() => {
-      RunnerBridge.getConfig()
-        .then(() => {
-          setMode('testing');
-        })
-        .catch(() => {
-          setMode('original');
-        });
-    }, []);
-
-    const prepareSnapshotForTesting = async (snapshot: Snapshot): Promise<boolean> => {
+    const prepareSnapshotForTesting = async (snapshot: Snapshot): Promise<void> => {
       RunnerBridge.log('prepareSnapshotForTesting', { viewId: snapshot.viewId });
 
       if (snapshot.sherloParameters?.defocus) {
@@ -69,46 +42,20 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
         if (Platform.OS === 'ios') {
           await waitForKeyboardStatus('hidden');
         } else {
-          Keyboard.dismiss();
-          Keyboard.dismiss();
-          Keyboard.dismiss();
-          Keyboard.dismiss();
-          Keyboard.dismiss();
-          Keyboard.dismiss();
-          Keyboard.dismiss();
+          // We call Keyboard.dismiss() multiple times because for some reason it sometimes doesn't work on the first try
+          for (let i = 0; i < 7; i++) {
+            Keyboard.dismiss();
+          }
         }
       }
-
-      const hasSherloEffect = await sherloEffectExecution.execute();
-
-      return hasSherloEffect;
     };
-
-    // Preview mode
-    usePreviewMode(
-      RunnerBridge,
-      renderedStoryId,
-      testedIndex,
-      snapshots,
-      setMode,
-      emitStory,
-      prepareSnapshotForTesting,
-      sherloEffectExecution,
-      mode
-    );
 
     // Testing mode
     useTestingMode(view, mode, setSnapshots, setTestedIndex, RunnerBridge);
 
     // When testedIndex changes and it's not equal to renderedStoryId, emit story
     useEffect(() => {
-      if (
-        mode === 'testing' &&
-        snapshots?.length &&
-        testedIndex !== undefined &&
-        // we only want to emit story if first story was already rendered by storybook initialization process
-        renderedStoryId !== undefined
-      ) {
+      if (mode === 'testing' && snapshots?.length && testedIndex !== undefined) {
         const testedSnapshot = snapshots[testedIndex];
 
         if (testedSnapshot.storyId !== renderedStoryId) {
@@ -121,7 +68,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
         }
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mode, renderedStoryId, testedIndex]);
+    }, [mode, renderedStoryId, testedIndex, snapshots?.length]);
 
     // make screenshot attempts every time renderedStoryId is set
     useEffect(() => {
@@ -143,37 +90,34 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
       });
 
       const testStory = async (): Promise<void> => {
-        const hasSherloEffect = await prepareSnapshotForTesting(renderedSnapshot);
+        await prepareSnapshotForTesting(renderedSnapshot);
 
-        setTimeout(
-          async () => {
-            try {
-              RunnerBridge.log('requesting screenshot from master script', {
-                action: 'REQUEST_SNAPSHOT',
-                snapshotIndex: testedIndex,
-                hasError: renderedStoryHasError.current,
-              });
+        setTimeout(async () => {
+          try {
+            RunnerBridge.log('requesting screenshot from master script', {
+              action: 'REQUEST_SNAPSHOT',
+              snapshotIndex: testedIndex,
+              hasError: renderedStoryHasError.current,
+            });
 
-              const response = await RunnerBridge.send({
-                action: 'REQUEST_SNAPSHOT',
-                snapshotIndex: testedIndex,
-                hasError: renderedStoryHasError.current,
-              });
+            const response = await RunnerBridge.send({
+              action: 'REQUEST_SNAPSHOT',
+              snapshotIndex: testedIndex,
+              hasError: renderedStoryHasError.current,
+            });
 
-              RunnerBridge.log('received screenshot from master script', response);
+            RunnerBridge.log('received screenshot from master script', response);
 
-              if (response.nextSnapshotIndex !== undefined) {
-                const nextSnpashot = snapshots[response.nextSnapshotIndex];
+            if (response.nextSnapshotIndex !== undefined) {
+              const nextSnapshot = snapshots[response.nextSnapshotIndex];
 
-                setTestedIndex(response.nextSnapshotIndex);
-                emitStory(nextSnpashot.storyId);
-              }
-            } catch (error) {
-              RunnerBridge.log('story capturing failed', { error });
+              setTestedIndex(response.nextSnapshotIndex);
+              emitStory(nextSnapshot.storyId);
             }
-          },
-          hasSherloEffect ? 10 * 1000 : 100
-        );
+          } catch (error) {
+            RunnerBridge.log('story capturing failed', { error });
+          }
+        }, 100);
       };
 
       testStory();
@@ -183,42 +127,21 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     // Original mode
     useOriginalMode(view, mode, setSnapshots);
 
-    let storybookRenderMode: StorybookRenderMode = 'original';
-    if (
-      (mode === 'testing' || mode === 'preview') &&
-      testedIndex !== undefined &&
-      snapshots !== undefined
-    ) {
-      storybookRenderMode = 'sherlo';
-    }
-
     // Storybook memoized for specific mode
     const memoizedStorybook = useMemo(() => {
-      const testedStory = snapshots?.[testedIndex || 0];
-
       RunnerBridge.log('memoizing storybook', {
-        storybookRenderMode,
-        testedIndex,
-        testedStoryViewId: testedStory?.viewId,
+        mode,
       });
-
-      if (testedStory) {
-        emitStory(testedStory.storyId);
-      }
 
       // create storybook component for specific mode
       const Storybook = generateStorybookComponent({
         view,
         params,
-        storybookRenderMode,
-        initialSelection: testedStory
-          ? { kind: testedStory?.componentTitle, name: testedStory?.storyTitle }
-          : undefined,
+        storybookRenderMode: mode === 'testing' ? 'sherlo' : 'default',
       });
 
       return <Storybook />;
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [storybookRenderMode]);
+    }, [mode]);
 
     // Verification test
     if (getGlobalStates().isVerifySetupTest) {
@@ -249,14 +172,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
             }}
             log={RunnerBridge.log}
           >
-            <SherloEffectContext.Provider
-              value={{
-                log: RunnerBridge.log,
-                handleSherloEffect: sherloEffectExecution.register,
-              }}
-            >
-              {memoizedStorybook}
-            </SherloEffectContext.Provider>
+            {memoizedStorybook}
           </ErrorBoundary>
         </View>
       </SherloContext.Provider>
