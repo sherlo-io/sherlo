@@ -79,12 +79,13 @@ public class SherloModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void registered(Promise promise) {
+    public void storybookRegistered(Promise promise) {
         try {
             this.isStorybookRegistered = true;
 
             if (this.initialMode == "testing") {
                 Intent intent = new Intent(this.reactContext, SherloStorybookActivity.class);
+                // we use these flags to clear the current activity stack and start the new activity
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
                 this.reactContext.startActivity(intent);
             }

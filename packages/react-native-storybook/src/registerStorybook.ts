@@ -7,7 +7,7 @@ function registerStorybook(StorybookComponent: () => ReactElement) {
 
   addToggleStorybookToDevMenu();
 
-  SherloModule.registered();
+  SherloModule.storybookRegistered();
 }
 export default registerStorybook;
 

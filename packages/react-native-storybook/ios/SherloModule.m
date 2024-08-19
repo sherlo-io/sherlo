@@ -17,7 +17,7 @@
 static NSString *CONFIG_FILENAME = @"config.sherlo";
 static NSString *const LOG_TAG = @"SherloModule";
 
-static NSString *sherloDirectoryPath = @"";
+static NSString *syncDirectoryPath = @"";
 static NSString *initialMode = @"default"; // "default" or "testing"
 static BOOL isStorybookRegistered = NO;
 
@@ -47,14 +47,14 @@ RCT_EXPORT_MODULE()
         return nil;
       }
 
-      sherloDirectoryPath = [documentsPath stringByAppendingPathComponent:@"sherlo"];
-      if (!sherloDirectoryPath) {
+      syncDirectoryPath = [documentsPath stringByAppendingPathComponent:@"sherlo"];
+      if (!syncDirectoryPath) {
         NSLog(@"[%@] Error: Failed to set the Sherlo directory path.", LOG_TAG);
         return nil;
       }
 
       // This is the path to the config file created by the Sherlo Runner
-      NSString *configPath = [sherloDirectoryPath stringByAppendingPathComponent:CONFIG_FILENAME];
+      NSString *configPath = [syncDirectoryPath stringByAppendingPathComponent:CONFIG_FILENAME];
       if (!configPath) {
         NSLog(@"[%@] Error: Failed to set the config file path.", LOG_TAG);
         return nil;
@@ -90,12 +90,12 @@ RCT_EXPORT_MODULE()
 // Exports constants to JavaScript. In this case, it exports the sync directory path and initial mode.
 - (NSDictionary *)constantsToExport {
   return @{
-    @"syncDirectoryPath": sherloDirectoryPath,
+    @"syncDirectoryPath": syncDirectoryPath,
     @"initialMode": initialMode
   };
 }
 
-RCT_EXPORT_METHOD(registered:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+RCT_EXPORT_METHOD(storybookRegistered:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
     isStorybookRegistered = YES;
 
     // Present the view controller replacing the root view controller, 
@@ -154,8 +154,8 @@ RCT_EXPORT_METHOD(openStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
   [self openStorybookInternal:resolve rejecter:reject];
 }
 
-// Internal method to handle opening the Storybook view. This method is executed on the main queue.
-// If any errors occur, they are caught and the reject block is called with the appropriate error message.
+// Internal method to handle opening the Storybook view. We create a separate view controller
+// and display it on top of the root view controller, so that user can go back to the app state
 - (void)openStorybookInternal:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
   dispatch_async(dispatch_get_main_queue(), ^{
     @try {

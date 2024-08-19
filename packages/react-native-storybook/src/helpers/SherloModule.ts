@@ -5,7 +5,7 @@ import isExpoGo from './isExpoGo';
 
 type SherloModule = {
   getInitialMode: () => 'testing' | 'default';
-  registered: () => Promise<void>;
+  storybookRegistered: () => Promise<void>;
   appendFile: (path: string, base64: string) => Promise<void>;
   mkdir: (path: string) => Promise<void>;
   readFile: (path: string) => Promise<string>;
@@ -34,8 +34,8 @@ export default SherloModule;
 
 function createSherloModule(): SherloModule {
   return {
-    registered: async () => {
-      await SherloNativeModule.registered();
+    storybookRegistered: async () => {
+      await SherloNativeModule.storybookRegistered();
     },
     getInitialMode: () => SherloNativeModule.getConstants().initialMode,
     appendFile: (path: string, data: string) => {
@@ -66,7 +66,7 @@ function normalizePath(path: string): string {
 
 function createDummySherloModule(): SherloModule {
   return {
-    registered: async () => {},
+    storybookRegistered: async () => {},
     getInitialMode: () => 'default',
     appendFile: async () => {},
     mkdir: async () => {},
