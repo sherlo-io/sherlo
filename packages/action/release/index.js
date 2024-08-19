@@ -82883,8 +82883,8 @@ This folder appears when you run Sherlo in remote Expo mode using:
 - \`sherlo --remoteExpo\`, or
 - \`sherlo --remoteExpoBuildScript <scriptName>\`
 
-If you use \`--remoteExpoBuildScript\`, the folder is auto-deleted when the build
-script completes. With \`--remoteExpo\`, you need to handle it yourself.
+If you use \`--remoteExpoBuildScript\`, the folder should be auto-deleted when the
+build script completes. With \`--remoteExpo\`, you need to handle it yourself.
 
 ### What does it contain?
 
@@ -83926,7 +83926,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 var graphql_tag_1 = __importDefault(__nccwpck_require__(1355));
-var RunnerFragment = (0, graphql_tag_1.default)(templateObject_1 || (templateObject_1 = __makeTemplateObject(["\n  fragment RunnerFragment on Runner {\n    activeBuildRunBuildKey\n    activeBuildRunEnv\n    id\n    ip\n    isIdle\n    username\n  }\n"], ["\n  fragment RunnerFragment on Runner {\n    activeBuildRunBuildKey\n    activeBuildRunEnv\n    id\n    ip\n    isIdle\n    username\n  }\n"])));
+var RunnerFragment = (0, graphql_tag_1.default)(templateObject_1 || (templateObject_1 = __makeTemplateObject(["\n  fragment RunnerFragment on Runner {\n    activeBuildRunBuildKey\n    activeBuildRunEnv\n    id\n    ip\n    isAvailable\n    username\n  }\n"], ["\n  fragment RunnerFragment on Runner {\n    activeBuildRunBuildKey\n    activeBuildRunEnv\n    id\n    ip\n    isAvailable\n    username\n  }\n"])));
 exports["default"] = RunnerFragment;
 var templateObject_1;
 
@@ -85180,7 +85180,7 @@ var device = {
         screenY: 119,
     },
     ignoredRegions: {
-        top: { x: 0, y: 0, w: 1600, h: 48 },
+        top: { x: 5, y: 0, w: 1600 - 2 * 5, h: 48 },
         bottom: { x: 0, y: 2432, w: 1600, h: 128 },
     },
     year: 2023,
