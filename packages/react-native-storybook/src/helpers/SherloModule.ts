@@ -1,12 +1,7 @@
 import base64 from 'base-64';
 import { NativeModules } from 'react-native';
 import utf8 from 'utf8';
-
-let isExpoGo = false;
-try {
-  const Constants = require('expo-constants').default;
-  isExpoGo = Constants.appOwnership === 'expo';
-} catch {}
+import isExpoGo from './isExpoGo';
 
 type SherloModule = {
   getInitialMode: () => 'testing' | 'default';
@@ -25,6 +20,12 @@ if (SherloNativeModule !== null) {
   SherloModule = createSherloModule();
 } else {
   SherloModule = createDummySherloModule();
+
+  if (!isExpoGo) {
+    console.warn(
+      '@sherlo/react-native-storybook: Sherlo native module is not accessible. Rebuild the app to link it on the native side.'
+    );
+  }
 }
 
 export default SherloModule;
@@ -64,30 +65,13 @@ function normalizePath(path: string): string {
 }
 
 function createDummySherloModule(): SherloModule {
-  const noNativeModuleErrorMessage = getNoNativeModuleErrorMessage();
-
   return {
     storybookRegistered: async () => {},
     getInitialMode: () => 'default',
     appendFile: async () => {},
     mkdir: async () => {},
     readFile: async () => '',
-    openStorybook: async () => {
-      throw new Error(noNativeModuleErrorMessage);
-    },
-    toggleStorybook: async () => {
-      throw new Error(noNativeModuleErrorMessage);
-    },
+    openStorybook: async () => {},
+    toggleStorybook: async () => {},
   };
-}
-
-function getNoNativeModuleErrorMessage() {
-  if (isExpoGo) {
-    return [
-      '@sherlo/react-native-storybook: Accessing Storybook via Expo Go is not supported. Use a developer build or set up Storybook as a standalone app.',
-      'Learn more: https://docs.sherlo.io/getting-started/setup#storybook-entry-point',
-    ].join('\n\n');
-  } else {
-    return '@sherlo/react-native-storybook: Sherlo native module is not accessible. Rebuild the app to link it on the native side.';
-  }
 }
