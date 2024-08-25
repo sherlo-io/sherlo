@@ -21,6 +21,7 @@
     "sherlo:demo": "sherlo --config ../../configs/demo.preview.json",
     "sherlo:eas": "sherlo --config ../../configs/eas.preview.json",
     "sherlo:sync": "sherlo --config ../../configs/sync.preview.json",
+    "start": "expo start",
     "start:android:dev": "adb install builds/development/android.apk && expo start --android --dev-client",
     "start:android:go": "expo start --android --go",
     "start:ios:dev": "tar -xzvf builds/development/ios.tar.gz -C builds/ && xcrun simctl install booted builds/sherloexpoexample.app && expo start --ios --dev-client",
