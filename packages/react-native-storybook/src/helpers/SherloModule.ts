@@ -2,9 +2,10 @@ import base64 from 'base-64';
 import { NativeModules } from 'react-native';
 import utf8 from 'utf8';
 import isExpoGo from './isExpoGo';
+import { StorybookViewMode } from '../types/types';
 
 type SherloModule = {
-  getInitialMode: () => 'testing' | 'default';
+  getMode: () => StorybookViewMode;
   storybookRegistered: () => Promise<void>;
   appendFile: (path: string, base64: string) => Promise<void>;
   mkdir: (path: string) => Promise<void>;
@@ -37,7 +38,7 @@ function createSherloModule(): SherloModule {
     storybookRegistered: async () => {
       await SherloNativeModule.storybookRegistered();
     },
-    getInitialMode: () => SherloNativeModule.getConstants().initialMode,
+    getMode: () => SherloNativeModule.getConstants().mode,
     appendFile: (path: string, data: string) => {
       const encodedData = base64.encode(utf8.encode(data));
 
@@ -67,7 +68,7 @@ function normalizePath(path: string): string {
 function createDummySherloModule(): SherloModule {
   return {
     storybookRegistered: async () => {},
-    getInitialMode: () => 'default',
+    getMode: () => 'default',
     appendFile: async () => {},
     mkdir: async () => {},
     readFile: async () => '',

@@ -6,6 +6,9 @@
 #import <React/RCTUtils.h>
 #import <React/RCTUIManager.h>
 #import <React/RCTBridge.h>
+#import <React/RCTRootView.h>
+#import <React/RCTBundleURLProvider.h>
+
 
 // A safeguard to ensure compatibility with different versions of React Native
 #if __has_include(<React/RCTUIManagerUtils.h>)
@@ -18,12 +21,9 @@ static NSString *CONFIG_FILENAME = @"config.sherlo";
 static NSString *const LOG_TAG = @"SherloModule";
 
 static NSString *syncDirectoryPath = @"";
-static NSString *initialMode = @"default"; // "default" or "testing"
+static NSString *mode = @"default"; // "default" / "storybook" / "testing"
+static NSString *originalComponentName;
 static BOOL isStorybookRegistered = NO;
-
-// We keep this reference to determine if the Storybook is currently open
-// and to be able to close it
-static UIViewController *currentStorybookViewController = nil;
 
 @implementation SherloModule
 
@@ -64,7 +64,7 @@ RCT_EXPORT_MODULE()
       // Storybook in single activity mode, without launching the app
       BOOL doesSherloConfigFileExist = [[NSFileManager defaultManager] fileExistsAtPath:configPath];
       if (doesSherloConfigFileExist) {
-        initialMode = @"testing";
+        mode = @"testing";
       }
     } @catch (NSException *exception) {
       NSLog(@"[%@] Exception occurred: %@, %@", LOG_TAG, exception.reason, exception.userInfo);
@@ -91,55 +91,25 @@ RCT_EXPORT_MODULE()
 - (NSDictionary *)constantsToExport {
   return @{
     @"syncDirectoryPath": syncDirectoryPath,
-    @"initialMode": initialMode
+    @"mode": mode
   };
 }
 
 RCT_EXPORT_METHOD(storybookRegistered:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-    isStorybookRegistered = YES;
+  isStorybookRegistered = YES;
 
-    // Present the view controller replacing the root view controller, 
-    // the application root controller will never be shown
-    dispatch_async(dispatch_get_main_queue(), ^{
-      @try {
-        if (initialMode == @"testing") {
-          UIWindow *window = [UIApplication sharedApplication].windows.firstObject;
-          if (!window) {
-            return reject(@"E_NO_WINDOW", @"Failed to get the application window", nil);
-          }
-
-          UIViewController *rootViewController = window.rootViewController;
-          if (!rootViewController) {
-            return reject(@"E_NO_ROOTVC", @"No root view controller available", nil);
-          }
-
-          RCTRootView *rootView = [[RCTRootView alloc] initWithBridge:self.bridge moduleName:@"SherloStorybook" initialProperties:nil];
-          if (!rootView) {
-            return reject(@"E_CREATE_ROOTVIEW", @"Failed to create RCTRootView for Storybook", nil);
-          }
-
-          rootViewController.view = rootView;
-          [UIView transitionWithView:window duration:0.5 options:UIViewAnimationOptionTransitionCrossDissolve animations:nil completion:^(BOOL finished) {
-            if (!finished) {
-              return reject(@"E_NO_WINDOW", @"Failed to transition into storybook view", nil);
-            }
-          }];
-
-          resolve(nil);
-        }
-      } @catch (NSException *exception) {
-        [self handleException:exception rejecter:reject];
-      }
-    });
+  if ([mode isEqualToString:@"testing"]) {
+    [self switchToComponent:@"SherloStorybook" resolve:resolve rejecter:reject];
+  }
 }
 
 // Toggles the Storybook view. If the Storybook is currently open, it closes it. Otherwise, it opens it.
 // Exceptions during the toggle are caught and handled.
 RCT_EXPORT_METHOD(toggleStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  if (currentStorybookViewController) {
-    [self closeStorybookInternal:resolve rejecter:reject];
+  if ([mode isEqualToString:@"storybook"]) {
+    [self closeStorybook:resolve rejecter:reject];
   } else {
-    [self openStorybookInternal:resolve rejecter:reject];
+    [self openStorybook:resolve rejecter:reject];
   }
 }
 
@@ -147,66 +117,28 @@ RCT_EXPORT_METHOD(toggleStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTP
 // allowing the user to return to the same app state after closing the Storybook.
 // Exceptions during the opening process are caught and handled.
 RCT_EXPORT_METHOD(openStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  if(!isStorybookRegistered) {
-    return reject(@"NOT_REGISTERED", @"Storybook is not registered", nil);
+  if (!originalComponentName) {
+    UIWindow *window = [UIApplication sharedApplication].windows.firstObject;
+    UIViewController *rootViewController = window.rootViewController;
+    RCTRootView *currentRootView = (RCTRootView *)rootViewController.view;
+    originalComponentName = currentRootView.moduleName;
   }
-
-  [self openStorybookInternal:resolve rejecter:reject];
-}
-
-// Internal method to handle opening the Storybook view. We create a separate view controller
-// and display it on top of the root view controller, so that user can go back to the app state
-- (void)openStorybookInternal:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    @try {
-      UIViewController *storybookViewController = [[UIViewController alloc] init];
-      if (!storybookViewController) {
-        return reject(@"E_CREATE_VC", @"Failed to create Storybook view controller", nil);
-      }
-
-      RCTRootView *rootView = [[RCTRootView alloc] initWithBridge:self.bridge moduleName:@"SherloStorybook" initialProperties:nil];
-      if (!rootView) {
-        return reject(@"E_CREATE_ROOTVIEW", @"Failed to create RCTRootView for Storybook", nil);
-      }
-      storybookViewController.view = rootView;
-      storybookViewController.modalPresentationStyle = UIModalPresentationFullScreen;
-
-      UIWindow *window = [UIApplication sharedApplication].windows.firstObject;
-      if (!window) {
-        return reject(@"E_NO_WINDOW", @"Failed to get the application window", nil);
-      }
-
-      UIViewController *rootVC = window.rootViewController;
-      if (!rootVC) {
-        return reject(@"E_NO_ROOTVC", @"No root view controller available", nil);
-      }
-
-      [rootVC presentViewController:storybookViewController animated:YES completion:nil];
-
-      currentStorybookViewController = storybookViewController;
-      resolve(nil);
-    } @catch (NSException *exception) {
-      [self handleException:exception rejecter:reject];
-    }
-  });
+  
+  [self switchToComponent:@"SherloStorybook" resolve:resolve rejecter:reject];
+  mode = @"storybook";
 }
 
 // Internal method to handle closing the Storybook view. This method is executed on the main queue.
 // If any errors occur during the closing process, they are caught and the reject block is called with the appropriate error message.
-- (void)closeStorybookInternal:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    @try {
-      if (!currentStorybookViewController) {
-        NSLog(@"[%@] Error: There is no active storybook view controller to close.", LOG_TAG);
-      }
+RCT_EXPORT_METHOD(closeStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  if (!originalComponentName) {
+    NSLog(@"[%@] Error: There is no saved original component name.", LOG_TAG);
+    return reject(@"E_NO_ORIGINAL_COMPONENT", @"No original component name saved", nil);
+  }
 
-      [currentStorybookViewController dismissViewControllerAnimated:YES completion:nil];
-      currentStorybookViewController = nil;
-      resolve(nil);
-    } @catch (NSException *exception) {
-      [self handleException:exception rejecter:reject];
-    }
-  });
+  [self switchToComponent:originalComponentName resolve:resolve rejecter:reject];
+  originalComponentName = nil;
+  mode = @"default";
 }
 
 // Creates a directory at the specified filepath.
@@ -290,6 +222,48 @@ RCT_EXPORT_METHOD(readFile:(NSString *)filepath resolver:(RCTPromiseResolveBlock
   } @catch (NSException *exception) {
     [self handleException:exception rejecter:reject];
   }
+}
+
+// Helper method to switch components (private)
+- (void)switchToComponent:(NSString *)componentName resolve:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
+  dispatch_async(dispatch_get_main_queue(), ^{
+    @try {
+      // Get the main window
+      UIWindow *window = [UIApplication sharedApplication].windows.firstObject;
+      if (!window) {
+        return reject(@"E_NO_WINDOW", @"Failed to get the application window", nil);
+      }
+
+      // Get the root view controller
+      UIViewController *rootViewController = window.rootViewController;
+      if (!rootViewController) {
+        return reject(@"E_NO_ROOTVC", @"No root view controller available", nil);
+      }
+
+      // Get the bundle URL for the JS code
+      NSURL *jsCodeLocation = [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@"index"];
+      if (!jsCodeLocation) {
+        return reject(@"E_NO_BUNDLE_URL", @"Failed to get JS bundle URL", nil);
+      }
+
+      // Create a new RCTBridge with a fresh JS context
+      RCTBridge *newBridge = [[RCTBridge alloc] initWithBundleURL:jsCodeLocation
+                                                    moduleProvider:nil
+                                                     launchOptions:nil];
+
+      // Create a new root view with the new bridge and component
+      RCTRootView *newRootView = [[RCTRootView alloc] initWithBridge:newBridge moduleName:componentName initialProperties:nil];
+      if (!newRootView) {
+        return reject(@"E_CREATE_ROOTVIEW", @"Failed to create RCTRootView for component", nil);
+      }
+
+      // Replace the current root view with the new one
+      rootViewController.view = newRootView;
+      resolve(nil);
+    } @catch (NSException *exception) {
+      [self handleException:exception rejecter:reject];
+    }
+  });
 }
 
 // Handles exceptions by logging the error and rejecting the promise with an appropriate error message.

@@ -20,7 +20,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     // List of all snapshots that we want to test
     const [snapshots, setSnapshots] = useState<Snapshot[]>();
 
-    const mode = SherloModule.getInitialMode();
+    const mode = SherloModule.getMode();
 
     const renderedStoryHasError = useRef(false);
 

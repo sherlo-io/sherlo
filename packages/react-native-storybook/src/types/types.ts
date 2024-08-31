@@ -68,4 +68,4 @@ export type StorybookParams = StorybookParamsRaw extends infer U
     : U
   : never;
 
-export type StorybookViewMode = 'testing' | 'default';
+export type StorybookViewMode = 'testing' | 'default' | 'storybook';

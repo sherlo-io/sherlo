@@ -1,18 +1,28 @@
 package io.sherlo.storybookreactnative;
 
 // Android Framework Imports
+import android.app.Application;
 import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.util.Base64;
 import android.util.Log;
+import android.view.View;
+import android.view.ViewGroup;
+import android.os.Bundle;
 
 // React Native Bridge Imports
+import com.facebook.react.ReactInstanceManager;
+import com.facebook.react.ReactNativeHost;
+import com.facebook.react.ReactRootView;
+import com.facebook.react.ReactApplication;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReadableMap;
+
+
 
 // Java Utility and IO Imports
 import java.io.ByteArrayOutputStream;
@@ -29,8 +39,10 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
     private final ReactApplicationContext reactContext;
     private static String syncDirectoryPath = "";
-    private static String initialMode = "default"; // "default" or "testing"
+    private static String mode = "default"; // "default" / "storybook" / "testing"
     private static Boolean isStorybookRegistered = false;
+    private static Class<?> mainActivityClass; 
+
 
     public SherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -55,7 +67,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
             // Storybook in single activity mode, without launching the app
             Boolean doesSherloConfigFileExist = new File(configPath).isFile();
             if (doesSherloConfigFileExist) {
-                this.initialMode = "testing";
+                this.mode = "testing";
             }
         } catch (Exception e) {
             Log.e(TAG, "Failed to initialize SherloModule", e);
@@ -73,7 +85,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
         final Map<String, Object> constants = new HashMap<>();
 
         constants.put("syncDirectoryPath", this.syncDirectoryPath);
-        constants.put("initialMode", this.initialMode);
+        constants.put("mode", this.mode);
 
         return constants;
     }
@@ -81,13 +93,9 @@ public class SherloModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void storybookRegistered(Promise promise) {
         try {
-            this.isStorybookRegistered = true;
-
-            if (this.initialMode == "testing") {
-                Intent intent = new Intent(this.reactContext, SherloStorybookActivity.class);
-                // we use these flags to clear the current activity stack and start the new activity
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-                this.reactContext.startActivity(intent);
+            if(this.mode == "testing") {
+                this.isStorybookRegistered = true;
+                switchToComponent(SherloStorybookActivity.class, promise);
             }
             
             promise.resolve(null);
@@ -100,6 +108,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void toggleStorybook(Promise promise) {
+        Log.i(TAG, "toggleStorybook, SherloStorybookActivity instance: " + SherloStorybookActivity.instance);
         try {
             // SherloStorybookActivity is a singleton, so we can check if it is open
             if (SherloStorybookActivity.instance != null) {
@@ -114,45 +123,36 @@ public class SherloModule extends ReactContextBaseJavaModule {
         }
     }
 
+    // Open Storybook and save original component
     @ReactMethod
     public void openStorybook(Promise promise) {
-        if(!this.isStorybookRegistered) {
-            promise.reject("NOT_REGISTERED", "Storybook is not registered");
+        Activity currentActivity = getCurrentActivity();
+        if (currentActivity == null) {
+            promise.reject("E_NO_ACTIVITY", "No current activity found");
             return;
         }
 
-        try {
-            final Activity currentActivity = getCurrentActivity();
-            if (currentActivity == null) {
-                throw new IllegalStateException("Current activity is null, cannot start SherloStorybookActivity");
-            }
-
-            // We launch the SherloStorybookActivity in a new task, on top of the 
-            // current activity so that the app is not closed and user can
-            // go back to the same app state after closing the Storybook
-            Intent intent = new Intent(currentActivity, SherloStorybookActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            this.reactContext.startActivity(intent);
-
-            promise.resolve(null);
-        } catch (Exception e) {
-            promise.reject("Error opening Storybook", e.getMessage());
-            Log.e(TAG, "Error opening Storybook", e);
-            e.printStackTrace();
+        if (mainActivityClass == null) {
+            mainActivityClass = currentActivity.getClass();
         }
-    }
-    
 
+        Log.i(TAG, "openStorybook, mainActivityClass: " + mainActivityClass);
+        switchToComponent(SherloStorybookActivity.class, promise);
+        this.mode = "storybook";
+    }
+
+
+
+    // Close Storybook and return to the original component
     @ReactMethod
     public void closeStorybook(Promise promise) {
-        try {
-            SherloStorybookActivity.close();
-
-            promise.resolve(null);
-        } catch (Exception e) {
-            promise.reject("Error closing Storybook", e.getMessage());
-            Log.e(TAG, "Error closing Storybook", e);
-            e.printStackTrace();
+        Log.i(TAG, "closeStorybook, mainActivityClass: " + mainActivityClass);
+        if (mainActivityClass != null) {
+            switchToComponent(mainActivityClass, promise);
+            mainActivityClass = null;
+            this.mode = "default";
+        } else {
+            promise.reject("E_NO_ORIGINAL_COMPONENT", "No original component name saved");
         }
     }
 
@@ -221,7 +221,56 @@ public class SherloModule extends ReactContextBaseJavaModule {
             e.printStackTrace();
         }
     }
+    private void switchToComponent(Class<?> activityClass, Promise promise) {
+        Activity currentActivity = getCurrentActivity();
+        if (currentActivity == null) {
+            promise.reject("E_NO_ACTIVITY", "No current activity found");
+            return;
+        }
 
+        currentActivity.runOnUiThread(() -> {
+            Application application = (Application) currentActivity.getApplication();
+            application.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
+                @Override
+                public void onActivityResumed(Activity activity) {
+                    if (activity.getClass().equals(activityClass)) {
+                        // New activity is resumed
+                        ReactInstanceManager manager = ((ReactApplication) activity.getApplication()).getReactNativeHost().getReactInstanceManager();
+                        manager.recreateReactContextInBackground();
+
+                        // Unregister the lifecycle callback
+                        application.unregisterActivityLifecycleCallbacks(this);
+                    }
+                }
+
+                // Unused methods must be implemented
+                @Override
+                public void onActivityCreated(Activity activity, Bundle savedInstanceState) {}
+
+                @Override
+                public void onActivityStarted(Activity activity) {}
+
+                @Override
+                public void onActivityPaused(Activity activity) {}
+
+                @Override
+                public void onActivityStopped(Activity activity) {}
+
+                @Override
+                public void onActivitySaveInstanceState(Activity activity, Bundle outState) {}
+
+                @Override
+                public void onActivityDestroyed(Activity activity) {}
+            });
+
+            Intent intent = new Intent(this.reactContext, activityClass);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+            this.reactContext.startActivity(intent);
+
+            promise.resolve(null);
+        });
+    }
+    
     /*
      * Get the URI for the specified absolute file path
      */
