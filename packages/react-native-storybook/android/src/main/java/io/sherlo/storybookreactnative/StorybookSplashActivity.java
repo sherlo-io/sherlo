@@ -36,9 +36,9 @@ public class StorybookSplashActivity extends AppCompatActivity {
         getApplication().registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
             // we are required to implement all the methods of the interface
             @Override public void onActivityCreated(Activity activity, Bundle savedInstanceState) {}
-            @Override public void onActivityStarted(Activity Activity) {}
-            @Override public void onActivityPaused(Activity Activity) {}
-            @Override public void onActivityStopped(Activity Activity) {}
+            @Override public void onActivityStarted(Activity activity) {}
+            @Override public void onActivityPaused(Activity activity) {}
+            @Override public void onActivityStopped(Activity activity) {}
             @Override public void onActivitySaveInstanceState(Activity activity, Bundle savedInstanceState) {}
 
             @Override
@@ -53,7 +53,7 @@ public class StorybookSplashActivity extends AppCompatActivity {
             public void onActivityDestroyed(Activity activity) {
                 // If original activity (user's app) is destroyed, recreate the React Context
                 if(activity.getClass() != StorybookSplashActivity.class && activity.getClass() != StorybookSplashActivity.this.activityClassToTransition) {
-                    if(mode == "testing") {
+                    if("testing".equals(StorybookSplashActivity.this.mode)) {
                         // We add delay when testing with Sherlo to make sure the app is fully initialized before recreating the React Context
                         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                             @Override
