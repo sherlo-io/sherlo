@@ -3,17 +3,7 @@
           package="io.sherlo.storybookreactnative">
 
     <application>
-        <activity android:name=".SherloStorybookActivity" android:exported="true">
-            <intent-filter>
-                <action android:name="io.sherlo.storybookreactnative.STORYBOOK_ACTIVITY" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
-        <activity android:name=".StorybookSplashActivity" android:exported="true">
-            <intent-filter>
-                <action android:name="io.sherlo.storybookreactnative.STORYBOOK_SPLASH_ACTIVITY" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
+        <activity android:name=".SherloStorybookActivity" android:exported="true" />
+        <activity android:name=".StorybookSplashActivity" android:exported="true" />
     </application>
 </manifest>

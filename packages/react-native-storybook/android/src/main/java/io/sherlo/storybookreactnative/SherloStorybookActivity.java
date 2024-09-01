@@ -13,7 +13,6 @@ public class SherloStorybookActivity extends ReactActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         instance = this;
-        Log.i(TAG, "activity created");
     }
 
     @Override

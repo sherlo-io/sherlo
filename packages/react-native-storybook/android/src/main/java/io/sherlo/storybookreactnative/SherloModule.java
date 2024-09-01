@@ -1,30 +1,18 @@
 package io.sherlo.storybookreactnative;
 
 // Android Framework Imports
-import android.app.Application;
 import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.util.Base64;
 import android.util.Log;
-import android.view.View;
-import android.view.ViewGroup;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 
 
 // React Native Bridge Imports
-import com.facebook.react.ReactInstanceManager;
-import com.facebook.react.ReactNativeHost;
-import com.facebook.react.ReactRootView;
-import com.facebook.react.ReactApplication;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Promise;
-import com.facebook.react.bridge.ReadableMap;
-import com.facebook.react.bridge.ReactContext;
 
 // Java Utility and IO Imports
 import java.io.ByteArrayOutputStream;
@@ -43,7 +31,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
     private static String syncDirectoryPath = "";
     private static String mode = "default"; // "default" / "storybook" / "testing"
     private static Boolean isStorybookRegistered = false;
-    private static Class<?> mainActivityClass; 
+    private static Class<?> mainActivityClass;  
 
 
     public SherloModule(ReactApplicationContext reactContext) {
@@ -96,9 +84,8 @@ public class SherloModule extends ReactContextBaseJavaModule {
     public void storybookRegistered(Promise promise) {
         try {
             if(this.mode == "testing" && !this.isStorybookRegistered) {
-                this.isStorybookRegistered = true;
-                Log.i(TAG, "storybookRegistered");
                 switchToComponent(SherloStorybookActivity.class, promise);
+                this.isStorybookRegistered = true;
             }
             
             promise.resolve(null);
@@ -111,7 +98,6 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void toggleStorybook(Promise promise) {
-        Log.i(TAG, "toggleStorybook, SherloStorybookActivity instance: " + SherloStorybookActivity.instance);
         try {
             // SherloStorybookActivity is a singleton, so we can check if it is open
             if (SherloStorybookActivity.instance != null) {
@@ -139,17 +125,14 @@ public class SherloModule extends ReactContextBaseJavaModule {
             mainActivityClass = currentActivity.getClass();
         }
 
-        Log.i(TAG, "openStorybook, mainActivityClass: " + mainActivityClass);
         switchToComponent(SherloStorybookActivity.class, promise);
         this.mode = "storybook";
     }
 
 
 
-    // Close Storybook and return to the original component
     @ReactMethod
     public void closeStorybook(Promise promise) {
-        Log.i(TAG, "closeStorybook, mainActivityClass: " + mainActivityClass);
         if (mainActivityClass != null) {
             switchToComponent(mainActivityClass, promise);
             mainActivityClass = null;
@@ -228,80 +211,19 @@ public class SherloModule extends ReactContextBaseJavaModule {
     private void switchToComponent(Class<?> activityClass, Promise promise) {
         Activity currentActivity = getCurrentActivity();
         if (currentActivity == null) {
-            Log.e(TAG, "No current activity found");
             promise.reject("E_NO_ACTIVITY", "No current activity found");
             return;
         }
-    
-        Log.i(TAG, "switchToComponent");
-    
+
         currentActivity.runOnUiThread(() -> {
-            // Navigate to the StorybookSplash activity
             Intent intent = new Intent(currentActivity, StorybookSplashActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-            intent.putExtra("activityClass", activityClass);
+            intent.putExtra("activityClassToTransition", activityClass);
             intent.putExtra("mode", mode);
+
             currentActivity.startActivity(intent);
     
-            Log.i(TAG, "Navigated to StorybookSplash activity");
             promise.resolve(null);
-        });
-    }
-    
-
-    private void switchToComponentOld(Class<?> activityClass, Promise promise) {
-        Activity currentActivity = getCurrentActivity();
-        if (currentActivity == null) {
-            Log.e(TAG, "No current activity found");
-            promise.reject("E_NO_ACTIVITY", "No current activity found");
-            return;
-        }
-
-        Log.i(TAG, "switchToComponent, activityClass: " + activityClass);
-        currentActivity.runOnUiThread(() -> {
-            ReactInstanceManager manager = ((ReactApplication) currentActivity.getApplication()).getReactNativeHost().getReactInstanceManager();
-            if (manager == null) {
-                Log.e(TAG, "No ReactInstanceManager found");
-                promise.reject("E_NO_REACT_INSTANCE_MANAGER", "No ReactInstanceManager found");
-                return;
-            }
-
-            Log.i(TAG, "switchToComponent, currentActivity: " + currentActivity);
-
-            // Finish the current activity
-            currentActivity.finish();
-
-            Log.i(TAG, "switchToComponent, currentActivity finished");
-
-            // Add a listener to know when the React context has been fully recreated
-            manager.addReactInstanceEventListener(new ReactInstanceManager.ReactInstanceEventListener() {
-                @Override
-                public void onReactContextInitialized(ReactContext context) {
-                    // React context is fully reloaded
-                    Log.i(TAG, "React context reloaded");
-
-                    // Start the new activity
-                    Intent intent = new Intent(reactContext, activityClass);
-                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-                    reactContext.startActivity(intent);
-
-                    Log.i(TAG, "Activity started");
-
-                    // Resolve the promise
-                    promise.resolve(null);
-
-                    // Remove listener to avoid memory leaks
-                    manager.removeReactInstanceEventListener(this);
-
-                    Log.i(TAG, "Listener removed");
-                }
-            });
-            
-
-            // Recreate the React context
-            manager.recreateReactContextInBackground();
-
-            Log.i(TAG, "React context recreated");
         });
     }
     

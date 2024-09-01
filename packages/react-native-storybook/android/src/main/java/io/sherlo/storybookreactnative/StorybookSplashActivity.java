@@ -8,9 +8,6 @@ import android.util.Log;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import android.graphics.Color; // Import for Color
-import android.view.View; // Import for View
-
 import com.facebook.react.ReactApplication;
 import com.facebook.react.ReactInstanceManager;
 import com.facebook.react.bridge.ReactContext;
@@ -26,57 +23,38 @@ public class StorybookSplashActivity extends AppCompatActivity {
 
     private static final String TAG = "StorybookSplashActivity";
 
+    private static String mode;
+    private static Class<?> activityClassToTransition;  
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        String mode = getIntent().getStringExtra("mode");
-        Class<?> activityClass = (Class<?>) getIntent().getSerializableExtra("activityClass");
+        StorybookSplashActivity.this.mode = getIntent().getStringExtra("mode");
+        StorybookSplashActivity.this.activityClassToTransition = (Class<?>) getIntent().getSerializableExtra("activityClassToTransition");
 
-        
+        getApplication().registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
+            // we are required to implement all the methods of the interface
+            @Override public void onActivityCreated(Activity activity, Bundle savedInstanceState) {}
+            @Override public void onActivityStarted(Activity Activity) {}
+            @Override public void onActivityPaused(Activity Activity) {}
+            @Override public void onActivityStopped(Activity Activity) {}
+            @Override public void onActivitySaveInstanceState(Activity activity, Bundle savedInstanceState) {}
 
-        // Set the background color directly
-        View view = new View(this);
-        view.setBackgroundColor(Color.parseColor("#FF5733")); // Set your desired color here
-        setContentView(view);
-
-        Application application = (Application) getApplication();
-        application.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
-            @Override
-            public void onActivityCreated(Activity activity, Bundle savedInstanceState) {
-                Log.i(TAG, "onActivityCreated, activity: " + activity);
-            }
-
-            @Override
-            public void onActivityStarted(Activity activity) {
-                Log.i(TAG, "onActivityStarted, activity: " + activity);
-            }
-            
             @Override
             public void onActivityResumed(Activity activity) {
-                Log.i(TAG, "onActivityResumed, activity: " + activity);
-            }
-
-            @Override
-            public void onActivityPaused(Activity activity) {
-                Log.i(TAG, "onActivityPaused, activity: " + activity);
-            }
-
-            @Override
-            public void onActivityStopped(Activity activity) {
-                Log.i(TAG, "onActivityStopped, activity: " + activity);
-            }
-
-            @Override
-            public void onActivitySaveInstanceState(Activity activity, Bundle outState) {
-                Log.i(TAG, "onActivitySaveInstanceState, activity: " + activity);
+                // If final activity is reached, finish the splash activity
+                if(activity.getClass() == StorybookSplashActivity.this.activityClassToTransition) {
+                    StorybookSplashActivity.this.finish();
+                }
             }
 
             @Override
             public void onActivityDestroyed(Activity activity) {
-                Log.i(TAG, "onActivityDestroyed, activity: " + activity);
-                if(activity.getClass() != StorybookSplashActivity.class && activity.getClass() != activityClass) {
-                    if("testing".equals(mode)) {
+                // If original activity (user's app) is destroyed, recreate the React Context
+                if(activity.getClass() != StorybookSplashActivity.class && activity.getClass() != StorybookSplashActivity.this.activityClassToTransition) {
+                    if(mode == "testing") {
+                        // We add delay when testing with Sherlo to make sure the app is fully initialized before recreating the React Context
                         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                             @Override
                             public void run() {
@@ -84,91 +62,33 @@ public class StorybookSplashActivity extends AppCompatActivity {
                             }
                         }, 1000);
                     } else {
+                        // we don't need to add delay as user is launching this manually when app is initialized
                         StorybookSplashActivity.this.recreateReactContext();
                     }
                 }
             }
         });
-
-        Log.i(TAG, "Splash screen displayed, React context recreation will start in 2 seconds");
     }
 
+    // Recreate React Context and navigate to the final activity when the React Context is initialized
     private void recreateReactContext() {
-        Class<?> activityClass = (Class<?>) getIntent().getSerializableExtra("activityClass");
-
-
-        // Get the ReactInstanceManager
-        ReactInstanceManager manager = ((ReactApplication) getApplication()).getReactNativeHost().getReactInstanceManager();
+        ReactApplication application = (ReactApplication) getApplication();
+        ReactInstanceManager manager = application.getReactNativeHost().getReactInstanceManager();
         if (manager == null) {
             Log.e(TAG, "No ReactInstanceManager found");
             return;
         }
 
-        Log.i(TAG, "Recreating React context in background");
-
-        // Add a listener to know when the React context has been fully recreated
         manager.addReactInstanceEventListener(new ReactInstanceManager.ReactInstanceEventListener() {
             @Override
             public void onReactContextInitialized(ReactContext context) {
-                // React context is fully reloaded
-                Log.i(TAG, "React context reloaded");
-
-                // Navigate to SherloStorybookActivity
-                Intent intent = new Intent(StorybookSplashActivity.this, activityClass);
-                // intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+                Intent intent = new Intent(StorybookSplashActivity.this, StorybookSplashActivity.this.activityClassToTransition);
                 startActivity(intent);
 
-                Log.i(TAG, "Navigated to SherloStorybookActivity");
-
-                // Remove listener to avoid memory leaks
                 manager.removeReactInstanceEventListener(this);
-
-                Application application = (Application) getApplication();
-                application.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
-                    @Override
-                    public void onActivityCreated(Activity activity, Bundle savedInstanceState) {
-                        Log.i(TAG, "onActivityCreated, activity: " + activity);
-                    }
-
-                    @Override
-                    public void onActivityStarted(Activity activity) {
-                        Log.i(TAG, "onActivityStarted, activity: " + activity);
-                    }
-                    
-                    @Override
-                    public void onActivityResumed(Activity activity) {
-                        Log.i(TAG, "onActivityResumed, activity: " + activity);
-                        StorybookSplashActivity.this.finish(); // Finish the current StorybookSplashActivity
-                    }
-
-                    @Override
-                    public void onActivityPaused(Activity activity) {
-                        Log.i(TAG, "onActivityPaused, activity: " + activity);
-                    }
-
-                    @Override
-                    public void onActivityStopped(Activity activity) {
-                        Log.i(TAG, "onActivityStopped, activity: " + activity);
-                    }
-
-                    @Override
-                    public void onActivitySaveInstanceState(Activity activity, Bundle outState) {
-                        Log.i(TAG, "onActivitySaveInstanceState, activity: " + activity);
-                    }
-
-                    @Override
-                    public void onActivityDestroyed(Activity activity) {
-                        Log.i(TAG, "onActivityDestroyed, activity: " + activity);
-                    }
-                });
-
-                Log.i(TAG, "Listener removed");
             }
         });
 
-        // Recreate the React context
         manager.recreateReactContextInBackground();
-
-        Log.i(TAG, "React context recreation started");
     }
 }
