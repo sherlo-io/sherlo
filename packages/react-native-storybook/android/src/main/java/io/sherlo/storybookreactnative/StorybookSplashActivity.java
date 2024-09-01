@@ -19,6 +19,13 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
+/**
+ * This class is used to show a splash screen when the user wants to switch between the user's app and the Storybook.
+ * It listens to the activity lifecycle events and recreates the React Context when the original activity is destroyed.
+ * 
+ * When the React Context is initialized, it navigates to the final activity passed in the intent, and
+ * finishes the splash activity when the final activity is fully initialized.
+ */
 public class StorybookSplashActivity extends AppCompatActivity {
 
     private static final String TAG = "StorybookSplashActivity";

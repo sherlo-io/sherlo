@@ -83,7 +83,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void storybookRegistered(Promise promise) {
         try {
-            if(this.mode == "testing" && !this.isStorybookRegistered) {
+            if("testing".equals(this.mode) && !this.isStorybookRegistered) {
                 switchToComponent(SherloStorybookActivity.class, promise);
                 this.isStorybookRegistered = true;
             }
