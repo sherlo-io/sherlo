@@ -96,11 +96,13 @@ RCT_EXPORT_MODULE()
 }
 
 RCT_EXPORT_METHOD(storybookRegistered:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  isStorybookRegistered = YES;
-
-  if ([mode isEqualToString:@"testing"]) {
-    [self switchToComponent:@"SherloStorybook" resolve:resolve rejecter:reject];
+  if ([mode isEqualToString:@"testing"] && !isStorybookRegistered) {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+      [self switchToComponent:@"SherloStorybook" resolve:resolve rejecter:reject];
+    });
   }
+  
+  isStorybookRegistered = YES;
 }
 
 // Toggles the Storybook view. If the Storybook is currently open, it closes it. Otherwise, it opens it.

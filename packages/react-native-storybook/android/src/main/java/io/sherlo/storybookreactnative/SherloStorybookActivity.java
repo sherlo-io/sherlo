@@ -26,11 +26,4 @@ public class SherloStorybookActivity extends ReactActivity {
     protected String getMainComponentName() {
         return "SherloStorybook";
     }
-
-    public static void close() {
-        if (instance != null) {
-            instance.finish();
-            Log.i(TAG, "closing activity");
-        }
-    }
 }
