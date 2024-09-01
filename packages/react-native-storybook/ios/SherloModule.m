@@ -97,7 +97,7 @@ RCT_EXPORT_MODULE()
 
 RCT_EXPORT_METHOD(storybookRegistered:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   if ([mode isEqualToString:@"testing"] && !isStorybookRegistered) {
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
       [self switchToComponent:@"SherloStorybook" resolve:resolve rejecter:reject];
     });
   }
