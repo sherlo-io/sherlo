@@ -2,6 +2,6 @@ import { NativeModules } from 'react-native';
 
 const { SherloModule } = NativeModules;
 
-const isRunningVisualTests = SherloModule?.getConstants().mode === 'storybook';
+const isRunningStorybook = ['storybook', 'testing'].includes(SherloModule?.getConstants().mode);
 
-export default isRunningVisualTests;
+export default isRunningStorybook;

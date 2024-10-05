@@ -226,6 +226,124 @@ RCT_EXPORT_METHOD(readFile:(NSString *)filepath resolver:(RCTPromiseResolveBlock
   }
 }
 
+
+RCT_EXPORT_METHOD(dumpBoundries:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  dispatch_async(dispatch_get_main_queue(), ^{
+    @try {
+      UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+      if (!keyWindow) {
+        reject(@"no_key_window", @"Could not find the key window", nil);
+        return;
+      }
+
+      UIView *rootView = keyWindow.rootViewController.view;
+      if (!rootView) {
+        reject(@"no_root_view", @"Could not find the root view", nil);
+        return;
+      }
+
+      NSMutableArray *viewList = [NSMutableArray array];
+      [self collectViewInfo:rootView intoArray:viewList];
+
+      NSError *error;
+      NSData *jsonData = [NSJSONSerialization dataWithJSONObject:viewList options:0 error:&error];
+      if (error) {
+        reject(@"json_error", @"Could not serialize view data to JSON", error);
+        return;
+      }
+
+      NSString *jsonString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+      if (!jsonString) {
+        reject(@"string_error", @"Could not convert JSON data to string", nil);
+        return;
+      }
+
+      resolve(jsonString);
+    }
+    @catch (NSException *exception) {
+      reject(@"exception", exception.reason, nil);
+    }
+  });
+}
+
+- (void)collectViewInfo:(UIView *)view intoArray:(NSMutableArray *)array
+{
+    NSMutableDictionary *viewDict = [NSMutableDictionary dictionary];
+
+    // Class name
+    NSString *className = NSStringFromClass([view class]);
+    [viewDict setObject:className forKey:@"className"];
+
+    // Check visibility
+    BOOL isVisible = !view.hidden && view.alpha > 0.01 && view.window != nil;
+    [viewDict setObject:@(isVisible) forKey:@"isVisible"];
+
+    if (isVisible) {
+        // Frame in window coordinates
+        CGRect windowFrame = [view convertRect:view.bounds toView:nil];
+        [viewDict setObject:@(windowFrame.origin.x) forKey:@"x"];
+        [viewDict setObject:@(windowFrame.origin.y) forKey:@"y"];
+        [viewDict setObject:@(windowFrame.size.width) forKey:@"width"];
+        [viewDict setObject:@(windowFrame.size.height) forKey:@"height"];
+
+        // Accessibility Identifier (optional)
+        if (view.accessibilityIdentifier) {
+            [viewDict setObject:view.accessibilityIdentifier forKey:@"accessibilityIdentifier"];
+        }
+
+        // Background Color (optional)
+        if (view.backgroundColor) {
+            CGFloat red, green, blue, alpha;
+            [view.backgroundColor getRed:&red green:&green blue:&blue alpha:&alpha];
+            NSString *hexColor = [NSString stringWithFormat:@"#%02lX%02lX%02lX",
+                                   lroundf(red * 255),
+                                   lroundf(green * 255),
+                                   lroundf(blue * 255)];
+            [viewDict setObject:hexColor forKey:@"backgroundColor"];
+        }
+
+        // Text and Font Size (for UILabel, UIButton, UITextField, etc.)
+        if ([view isKindOfClass:[UILabel class]]) {
+            UILabel *label = (UILabel *)view;
+            if (label.text) {
+                [viewDict setObject:label.text forKey:@"text"];
+            }
+            [viewDict setObject:@(label.font.pointSize) forKey:@"fontSize"];
+        }
+        else if ([view isKindOfClass:[UIButton class]]) {
+            UIButton *button = (UIButton *)view;
+            NSString *buttonText = [button titleForState:UIControlStateNormal];
+            if (buttonText) {
+                [viewDict setObject:buttonText forKey:@"text"];
+            }
+            [viewDict setObject:@(button.titleLabel.font.pointSize) forKey:@"fontSize"];
+        }
+        else if ([view isKindOfClass:[UITextField class]]) {
+            UITextField *textField = (UITextField *)view;
+            if (textField.text) {
+                [viewDict setObject:textField.text forKey:@"text"];
+            }
+            [viewDict setObject:@(textField.font.pointSize) forKey:@"fontSize"];
+        }
+        // Add more view types as needed
+    }
+
+    [array addObject:viewDict];
+
+    // Recursively collect subviews
+    for (UIView *subview in view.subviews) {
+        [self collectViewInfo:subview intoArray:array];
+    }
+}
+
+- (NSString *)getSyncDirectoryPath
+{
+  // Use the app's documents directory
+  NSArray<NSString *> *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+  NSString *documentsDirectory = [paths firstObject];
+  return documentsDirectory;
+}
+
 // Helper method to switch components (private)
 - (void)switchToComponent:(NSString *)componentName resolve:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
   dispatch_async(dispatch_get_main_queue(), ^{

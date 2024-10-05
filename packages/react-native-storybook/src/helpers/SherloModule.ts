@@ -7,6 +7,7 @@ import { StorybookViewMode } from '../types/types';
 type SherloModule = {
   getMode: () => StorybookViewMode;
   storybookRegistered: () => Promise<void>;
+  dumpBoundries: () => Promise<string>;
   appendFile: (path: string, base64: string) => Promise<void>;
   mkdir: (path: string) => Promise<void>;
   readFile: (path: string) => Promise<string>;
@@ -35,6 +36,9 @@ export default SherloModule;
 
 function createSherloModule(): SherloModule {
   return {
+    dumpBoundries: async () => {
+      return SherloNativeModule.dumpBoundries();
+    },
     storybookRegistered: async () => {
       await SherloNativeModule.storybookRegistered();
     },
@@ -67,6 +71,7 @@ function normalizePath(path: string): string {
 
 function createDummySherloModule(): SherloModule {
   return {
+    dumpBoundries: async () => '',
     storybookRegistered: async () => {},
     getMode: () => 'default',
     appendFile: async () => {},

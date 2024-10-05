@@ -6,7 +6,15 @@ import android.content.Intent;
 import android.net.Uri;
 import android.util.Base64;
 import android.util.Log;
-
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.Rect;
+import android.view.View;
+import android.view.ViewGroup;
+import android.os.Environment;
+import android.graphics.drawable.ColorDrawable;
+import android.widget.TextView;
 
 // React Native Bridge Imports
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -20,8 +28,14 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.FileOutputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
+import org.json.JSONObject;
+import org.json.JSONArray;
+
 
 public class SherloModule extends ReactContextBaseJavaModule {
     public static final String TAG = "SherloModule";
@@ -31,15 +45,14 @@ public class SherloModule extends ReactContextBaseJavaModule {
     private static String syncDirectoryPath = "";
     private static String mode = "default"; // "default" / "storybook" / "testing"
     private static Boolean isStorybookRegistered = false;
-    private static Class<?> mainActivityClass;  
-
+    private static Class<?> mainActivityClass;
 
     public SherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
         this.reactContext = reactContext;
-    
+
         try {
-            // Set Sherlo directory path, this is the directory that will be 
+            // Set Sherlo directory path, this is the directory that will be
             // used to sync files between the emulator and Sherlo Runner
 
             // https://developer.android.com/reference/android/content/Context#getExternalFilesDir(java.lang.String)
@@ -49,11 +62,11 @@ public class SherloModule extends ReactContextBaseJavaModule {
             } else {
                 Log.e(TAG, "External storage is not accessible");
             }
-    
+
             // This is the path to the config file created by the Sherlo Runner
             String configPath = this.syncDirectoryPath + "/" + CONFIG_FILENAME;
-            
-            // If the file exists, we are it testing mode and will open the 
+
+            // If the file exists, we are it testing mode and will open the
             // Storybook in single activity mode, without launching the app
             Boolean doesSherloConfigFileExist = new File(configPath).isFile();
             if (doesSherloConfigFileExist) {
@@ -82,12 +95,26 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void storybookRegistered(Promise promise) {
+        Log.d(TAG, "Setting Storybook as registered");
         try {
-            if("testing".equals(this.mode) && !this.isStorybookRegistered) {
-                switchToComponent(SherloStorybookActivity.class, promise);
+            if ("testing".equals(this.mode) && !this.isStorybookRegistered) {
+                Activity currentActivity = getCurrentActivity();
+                if (currentActivity == null) {
+                    Log.e(TAG, "No current activity found");
+                    promise.reject("E_NO_ACTIVITY", "No current activity found");
+                    return;
+                }
+
+                if (mainActivityClass == null) {
+                    mainActivityClass = currentActivity.getClass();
+                    Log.d(TAG, "Saving original component name: " + mainActivityClass.getName());
+                }
+
+                Log.d(TAG, "Opening Storybook in testing mode");
+                switchToComponent(SherloStorybookActivity.class, mainActivityClass, promise);
                 this.isStorybookRegistered = true;
             }
-            
+
             promise.resolve(null);
         } catch (Exception e) {
             promise.reject("Error opening Storybook in testing mode", e.getMessage());
@@ -98,6 +125,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void toggleStorybook(Promise promise) {
+        Log.d(TAG, "Toggling Storybook");
         try {
             // SherloStorybookActivity is a singleton, so we can check if it is open
             if (SherloStorybookActivity.instance != null) {
@@ -115,29 +143,33 @@ public class SherloModule extends ReactContextBaseJavaModule {
     // Open Storybook and save original component
     @ReactMethod
     public void openStorybook(Promise promise) {
+        Log.d(TAG, "Opening Storybook");
+
         Activity currentActivity = getCurrentActivity();
         if (currentActivity == null) {
+            Log.e(TAG, "No current activity found");
             promise.reject("E_NO_ACTIVITY", "No current activity found");
             return;
         }
 
         if (mainActivityClass == null) {
             mainActivityClass = currentActivity.getClass();
+            Log.d(TAG, "Saving original component name: " + mainActivityClass.getName());
         }
 
-        switchToComponent(SherloStorybookActivity.class, promise);
+        switchToComponent(SherloStorybookActivity.class, mainActivityClass, promise);
         this.mode = "storybook";
     }
-
-
 
     @ReactMethod
     public void closeStorybook(Promise promise) {
         if (mainActivityClass != null) {
-            switchToComponent(mainActivityClass, promise);
+            Log.d(TAG, "Switching back to original component");
+            switchToComponent(mainActivityClass, SherloStorybookActivity.class, promise);
             mainActivityClass = null;
             this.mode = "default";
         } else {
+            Log.e(TAG, "No original component name saved");
             promise.reject("E_NO_ORIGINAL_COMPONENT", "No original component name saved");
         }
     }
@@ -208,7 +240,101 @@ public class SherloModule extends ReactContextBaseJavaModule {
         }
     }
 
-    private void switchToComponent(Class<?> activityClass, Promise promise) {
+    @ReactMethod
+    public void dumpBoundries(Promise promise) {
+        Activity activity = getCurrentActivity();
+        if (activity == null) {
+            promise.reject("no_activity", "No current activity");
+            return;
+        }
+
+        activity.runOnUiThread(() -> {
+            try {
+                View rootView = activity.getWindow().getDecorView().getRootView();
+
+                // List to hold all view information
+                List<JSONObject> viewList = new ArrayList<>();
+
+                // Traverse and collect view information
+                collectViewInfo(rootView, viewList);
+
+                // Create JSON array
+                JSONArray jsonArray = new JSONArray(viewList);
+
+                // Serialize JSON array to string
+                String jsonString = jsonArray.toString();
+
+                // Resolve the promise with the JSON string
+                promise.resolve(jsonString);
+            } catch (Exception e) {
+                promise.reject("error", e.getMessage(), e);
+            }
+        });
+    }
+    
+    private void collectViewInfo(View view, List<JSONObject> viewList) throws Exception {
+        JSONObject viewObject = new JSONObject();
+    
+        // Class name
+        String className = view.getClass().getSimpleName();
+        viewObject.put("className", className);
+    
+        // Check visibility
+        Rect rect = new Rect();
+        boolean isVisible = view.getGlobalVisibleRect(rect);
+        viewObject.put("isVisible", isVisible);
+    
+        if (isVisible) {
+            // Position on screen
+            viewObject.put("x", rect.left);
+            viewObject.put("y", rect.top);
+    
+            // Dimensions
+            viewObject.put("width", rect.width());
+            viewObject.put("height", rect.height());
+    
+            // Tag (optional)
+            Object tag = view.getTag();
+            if (tag != null) {
+                viewObject.put("tag", tag.toString());
+            }
+    
+            // Content Description (optional)
+            CharSequence contentDescription = view.getContentDescription();
+            if (contentDescription != null) {
+                viewObject.put("contentDescription", contentDescription.toString());
+            }
+    
+            // Background Color (optional)
+            if (view.getBackground() instanceof ColorDrawable) {
+                int color = ((ColorDrawable) view.getBackground()).getColor();
+                String hexColor = String.format("#%06X", (0xFFFFFF & color));
+                viewObject.put("backgroundColor", hexColor);
+            }
+    
+            // Text and Font Size (for TextView and its subclasses)
+            if (view instanceof TextView) {
+                TextView textView = (TextView) view;
+                CharSequence text = textView.getText();
+                if (text != null) {
+                    viewObject.put("text", text.toString());
+                }
+                viewObject.put("fontSize", textView.getTextSize());
+            }
+        }
+    
+        viewList.add(viewObject);
+    
+        // If the view is a ViewGroup, recurse
+        if (view instanceof ViewGroup) {
+            ViewGroup viewGroup = (ViewGroup) view;
+            for (int i = 0; i < viewGroup.getChildCount(); i++) {
+                collectViewInfo(viewGroup.getChildAt(i), viewList);
+            }
+        }
+    }
+
+    private void switchToComponent(Class<?> activityClassToTransition, Class<?> closingActivityClass, Promise promise) {
         Activity currentActivity = getCurrentActivity();
         if (currentActivity == null) {
             promise.reject("E_NO_ACTIVITY", "No current activity found");
@@ -218,15 +344,16 @@ public class SherloModule extends ReactContextBaseJavaModule {
         currentActivity.runOnUiThread(() -> {
             Intent intent = new Intent(currentActivity, StorybookSplashActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-            intent.putExtra("activityClassToTransition", activityClass);
+            intent.putExtra("activityClassToTransition", activityClassToTransition);
+            intent.putExtra("closingActivityClass", closingActivityClass);
             intent.putExtra("mode", mode);
 
             currentActivity.startActivity(intent);
-    
+
             promise.resolve(null);
         });
     }
-    
+
     /*
      * Get the URI for the specified absolute file path
      */

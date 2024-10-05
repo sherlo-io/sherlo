@@ -32,6 +32,7 @@ public class StorybookSplashActivity extends AppCompatActivity {
 
     private static String mode;
     private static Class<?> activityClassToTransition;  
+    private static Class<?> closingActivityClass;  
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,29 +40,42 @@ public class StorybookSplashActivity extends AppCompatActivity {
 
         StorybookSplashActivity.this.mode = getIntent().getStringExtra("mode");
         StorybookSplashActivity.this.activityClassToTransition = (Class<?>) getIntent().getSerializableExtra("activityClassToTransition");
+        StorybookSplashActivity.this.closingActivityClass = (Class<?>) getIntent().getSerializableExtra("closingActivityClass");
 
         getApplication().registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
             // we are required to implement all the methods of the interface
-            @Override public void onActivityCreated(Activity activity, Bundle savedInstanceState) {}
-            @Override public void onActivityStarted(Activity activity) {}
-            @Override public void onActivityPaused(Activity activity) {}
-            @Override public void onActivityStopped(Activity activity) {}
+            @Override public void onActivityCreated(Activity activity, Bundle savedInstanceState) {
+                Log.d(TAG, "Activity created: " + activity.getClass().getName());
+            }
+            @Override public void onActivityStarted(Activity activity) {
+                Log.d(TAG, "Activity started: " + activity.getClass().getName());
+            }
+            @Override public void onActivityPaused(Activity activity) {
+                Log.d(TAG, "Activity paused: " + activity.getClass().getName());
+            }
+            @Override public void onActivityStopped(Activity activity) {
+                Log.d(TAG, "Activity stopped: " + activity.getClass().getName());
+            }
             @Override public void onActivitySaveInstanceState(Activity activity, Bundle savedInstanceState) {}
 
             @Override
             public void onActivityResumed(Activity activity) {
+                Log.d(TAG, "Activity resumed: " + activity.getClass().getName());
                 // If final activity is reached, finish the splash activity
-                if(activity.getClass() == StorybookSplashActivity.this.activityClassToTransition) {
+                if(activity.getClass().getName().equals(StorybookSplashActivity.this.activityClassToTransition.getName())) {
+                    Log.d(TAG, "Finishing StorybookSplashActivity");
                     StorybookSplashActivity.this.finish();
                 }
             }
 
             @Override
             public void onActivityDestroyed(Activity activity) {
+                Log.d(TAG, "Activity destroyed: " + activity.getClass().getName());
                 // If original activity (user's app) is destroyed, recreate the React Context
-                if(activity.getClass() != StorybookSplashActivity.class && activity.getClass() != StorybookSplashActivity.this.activityClassToTransition) {
+                if(activity.getClass().getName().equals(StorybookSplashActivity.this.closingActivityClass.getName())) {
                     if("testing".equals(StorybookSplashActivity.this.mode)) {
                         // We add delay when testing with Sherlo to make sure the app is fully initialized before recreating the React Context
+                        Log.d(TAG, "Recreating React Context with delay");
                         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                             @Override
                             public void run() {
@@ -70,6 +84,7 @@ public class StorybookSplashActivity extends AppCompatActivity {
                         }, 1000);
                     } else {
                         // we don't need to add delay as user is launching this manually when app is initialized
+                        Log.d(TAG, "Recreating React Context");
                         StorybookSplashActivity.this.recreateReactContext();
                     }
                 }
@@ -89,6 +104,7 @@ public class StorybookSplashActivity extends AppCompatActivity {
         manager.addReactInstanceEventListener(new ReactInstanceManager.ReactInstanceEventListener() {
             @Override
             public void onReactContextInitialized(ReactContext context) {
+                Log.d(TAG, "React Context initialized");
                 Intent intent = new Intent(StorybookSplashActivity.this, StorybookSplashActivity.this.activityClassToTransition);
                 startActivity(intent);
 
@@ -96,6 +112,7 @@ public class StorybookSplashActivity extends AppCompatActivity {
             }
         });
 
+        Log.d(TAG, "Recreating React Context in background");
         manager.recreateReactContextInBackground();
     }
 }
