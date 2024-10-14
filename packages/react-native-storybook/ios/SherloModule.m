@@ -60,11 +60,42 @@ RCT_EXPORT_MODULE()
         return nil;
       }
       
-      // If the file exists, we are in testing mode and will open the 
-      // Storybook in single activity mode, without launching the app
+      // If the file exists, we are in testing mode
       BOOL doesSherloConfigFileExist = [[NSFileManager defaultManager] fileExistsAtPath:configPath];
       if (doesSherloConfigFileExist) {
-        mode = @"testing";
+        
+        NSError *error = nil;
+        NSString *configContent = [NSString stringWithContentsOfFile:configPath encoding:NSUTF8StringEncoding error:&error];
+        if (error) {
+          NSLog(@"[%@] Error reading config file: %@", LOG_TAG, error.localizedDescription);
+        } else {
+          NSData *jsonData = [configContent dataUsingEncoding:NSUTF8StringEncoding];
+          NSDictionary *jsonDict = [NSJSONSerialization JSONObjectWithData:jsonData options:0 error:&error];
+          if (error) {
+            NSLog(@"[%@] Error parsing JSON: %@", LOG_TAG, error.localizedDescription);
+          } else {
+            NSString *url = jsonDict[@"url"];
+            if (url) {
+              // Only process the URL if it's present in the config and hasn't been consumed twice yet
+              if (urlConsumeCount < 2) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                  NSURL *nsurl = [NSURL URLWithString:url];
+                  if ([[UIApplication sharedApplication] canOpenURL:nsurl]) {
+                    [[UIApplication sharedApplication] openURL:nsurl options:@{} completionHandler:nil];
+                    urlConsumeCount++; // Increment the counter after opening the URL
+                    NSLog(@"[%@] URL consumed %d time(s)", LOG_TAG, urlConsumeCount);
+                  } else {
+                    NSLog(@"[%@] Cannot open URL: %@", LOG_TAG, url);
+                  }
+                });
+              } else {
+                mode = @"testing";
+              }
+            } else {
+              mode = @"testing";
+            }
+          }
+        }
       }
     } @catch (NSException *exception) {
       NSLog(@"[%@] Exception occurred: %@, %@", LOG_TAG, exception.reason, exception.userInfo);
@@ -95,16 +126,6 @@ RCT_EXPORT_MODULE()
   };
 }
 
-RCT_EXPORT_METHOD(storybookRegistered:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  if ([mode isEqualToString:@"testing"] && !isStorybookRegistered) {
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-      [self switchToComponent:@"SherloStorybook" resolve:resolve rejecter:reject];
-    });
-  }
-  
-  isStorybookRegistered = YES;
-}
-
 // Toggles the Storybook view. If the Storybook is currently open, it closes it. Otherwise, it opens it.
 // Exceptions during the toggle are caught and handled.
 RCT_EXPORT_METHOD(toggleStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
@@ -119,28 +140,17 @@ RCT_EXPORT_METHOD(toggleStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTP
 // allowing the user to return to the same app state after closing the Storybook.
 // Exceptions during the opening process are caught and handled.
 RCT_EXPORT_METHOD(openStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  if (!originalComponentName) {
-    UIWindow *window = [UIApplication sharedApplication].windows.firstObject;
-    UIViewController *rootViewController = window.rootViewController;
-    RCTRootView *currentRootView = (RCTRootView *)rootViewController.view;
-    originalComponentName = currentRootView.moduleName;
-  }
-  
-  [self switchToComponent:@"SherloStorybook" resolve:resolve rejecter:reject];
   mode = @"storybook";
+  
+  [self reload];
 }
 
 // Internal method to handle closing the Storybook view. This method is executed on the main queue.
 // If any errors occur during the closing process, they are caught and the reject block is called with the appropriate error message.
 RCT_EXPORT_METHOD(closeStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  if (!originalComponentName) {
-    NSLog(@"[%@] Error: There is no saved original component name.", LOG_TAG);
-    return reject(@"E_NO_ORIGINAL_COMPONENT", @"No original component name saved", nil);
-  }
-
-  [self switchToComponent:originalComponentName resolve:resolve rejecter:reject];
-  originalComponentName = nil;
   mode = @"default";
+
+  [self reload];
 }
 
 // Creates a directory at the specified filepath.
@@ -342,48 +352,6 @@ RCT_EXPORT_METHOD(dumpBoundries:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
   NSArray<NSString *> *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
   NSString *documentsDirectory = [paths firstObject];
   return documentsDirectory;
-}
-
-// Helper method to switch components (private)
-- (void)switchToComponent:(NSString *)componentName resolve:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    @try {
-      // Get the main window
-      UIWindow *window = [UIApplication sharedApplication].windows.firstObject;
-      if (!window) {
-        return reject(@"E_NO_WINDOW", @"Failed to get the application window", nil);
-      }
-
-      // Get the root view controller
-      UIViewController *rootViewController = window.rootViewController;
-      if (!rootViewController) {
-        return reject(@"E_NO_ROOTVC", @"No root view controller available", nil);
-      }
-
-      // Get the bundle URL for the JS code
-      NSURL *jsCodeLocation = [[RCTBundleURLProvider sharedSettings] jsBundleURLForBundleRoot:@"index"];
-      if (!jsCodeLocation) {
-        return reject(@"E_NO_BUNDLE_URL", @"Failed to get JS bundle URL", nil);
-      }
-
-      // Create a new RCTBridge with a fresh JS context
-      RCTBridge *newBridge = [[RCTBridge alloc] initWithBundleURL:jsCodeLocation
-                                                    moduleProvider:nil
-                                                     launchOptions:nil];
-
-      // Create a new root view with the new bridge and component
-      RCTRootView *newRootView = [[RCTRootView alloc] initWithBridge:newBridge moduleName:componentName initialProperties:nil];
-      if (!newRootView) {
-        return reject(@"E_CREATE_ROOTVIEW", @"Failed to create RCTRootView for component", nil);
-      }
-
-      // Replace the current root view with the new one
-      rootViewController.view = newRootView;
-      resolve(nil);
-    } @catch (NSException *exception) {
-      [self handleException:exception rejecter:reject];
-    }
-  });
 }
 
 // Handles exceptions by logging the error and rejecting the promise with an appropriate error message.

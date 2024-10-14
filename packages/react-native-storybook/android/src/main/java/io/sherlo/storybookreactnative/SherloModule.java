@@ -21,6 +21,8 @@ import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Promise;
+import com.facebook.react.ReactInstanceManager;
+import com.facebook.react.devsupport.interfaces.DevSupportManager;
 
 // Java Utility and IO Imports
 import java.io.ByteArrayOutputStream;
@@ -35,7 +37,6 @@ import java.util.List;
 import java.util.ArrayList;
 import org.json.JSONObject;
 import org.json.JSONArray;
-
 
 public class SherloModule extends ReactContextBaseJavaModule {
     public static final String TAG = "SherloModule";
@@ -271,47 +272,63 @@ public class SherloModule extends ReactContextBaseJavaModule {
             }
         });
     }
-    
+
+    private void reloadJSBundle(Promise promise) {
+        if (reactInstanceManager != null) {
+            DevSupportManager devSupportManager = reactInstanceManager.getDevSupportManager();
+            if (devSupportManager != null) {
+                getCurrentActivity().runOnUiThread(() -> {
+                    devSupportManager.handleReloadJS();
+                    promise.resolve(true);
+                });
+            } else {
+                promise.reject("DEV_SUPPORT_MANAGER_NULL", "DevSupportManager is null");
+            }
+        } else {
+            promise.reject("REACT_INSTANCE_MANAGER_NULL", "ReactInstanceManager is null");
+        }
+    }
+
     private void collectViewInfo(View view, List<JSONObject> viewList) throws Exception {
         JSONObject viewObject = new JSONObject();
-    
+
         // Class name
         String className = view.getClass().getSimpleName();
         viewObject.put("className", className);
-    
+
         // Check visibility
         Rect rect = new Rect();
         boolean isVisible = view.getGlobalVisibleRect(rect);
         viewObject.put("isVisible", isVisible);
-    
+
         if (isVisible) {
             // Position on screen
             viewObject.put("x", rect.left);
             viewObject.put("y", rect.top);
-    
+
             // Dimensions
             viewObject.put("width", rect.width());
             viewObject.put("height", rect.height());
-    
+
             // Tag (optional)
             Object tag = view.getTag();
             if (tag != null) {
                 viewObject.put("tag", tag.toString());
             }
-    
+
             // Content Description (optional)
             CharSequence contentDescription = view.getContentDescription();
             if (contentDescription != null) {
                 viewObject.put("contentDescription", contentDescription.toString());
             }
-    
+
             // Background Color (optional)
             if (view.getBackground() instanceof ColorDrawable) {
                 int color = ((ColorDrawable) view.getBackground()).getColor();
                 String hexColor = String.format("#%06X", (0xFFFFFF & color));
                 viewObject.put("backgroundColor", hexColor);
             }
-    
+
             // Text and Font Size (for TextView and its subclasses)
             if (view instanceof TextView) {
                 TextView textView = (TextView) view;
@@ -322,9 +339,9 @@ public class SherloModule extends ReactContextBaseJavaModule {
                 viewObject.put("fontSize", textView.getTextSize());
             }
         }
-    
+
         viewList.add(viewObject);
-    
+
         // If the view is a ViewGroup, recurse
         if (view instanceof ViewGroup) {
             ViewGroup viewGroup = (ViewGroup) view;

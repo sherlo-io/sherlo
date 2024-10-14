@@ -1,13 +1,12 @@
-import { ReactElement } from 'react';
-import { AppRegistry, DevSettings } from 'react-native';
+import { DevSettings } from 'react-native';
 import { SherloModule } from './helpers';
 
-function registerStorybook(StorybookComponent: () => ReactElement) {
-  AppRegistry.registerComponent('SherloStorybook', () => StorybookComponent);
+function registerStorybook() {
+  // AppRegistry.registerComponent('SherloStorybook', () => StorybookComponent);
 
   addToggleStorybookToDevMenu();
 
-  SherloModule.storybookRegistered();
+  // SherloModule.storybookRegistered();
 }
 export default registerStorybook;
 
@@ -31,3 +30,7 @@ function addToggleStorybookToDevMenu() {
     ExpoDevMenu.registerDevMenuItems([{ name: MENU_LABEL, callback: toggleStorybook }]);
   }
 }
+
+// public fun handleReloadJS()
+
+// public fun reloadJSFromServer(bundleURL: String, callback: BundleLoadCallback)
