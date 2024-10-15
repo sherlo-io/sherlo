@@ -15,6 +15,8 @@ import android.view.ViewGroup;
 import android.os.Environment;
 import android.graphics.drawable.ColorDrawable;
 import android.widget.TextView;
+import android.os.Handler;
+import android.os.Looper;
 
 // React Native Bridge Imports
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -22,7 +24,7 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.ReactInstanceManager;
-import com.facebook.react.devsupport.interfaces.DevSupportManager;
+import com.facebook.react.ReactApplication;
 
 // Java Utility and IO Imports
 import java.io.ByteArrayOutputStream;
@@ -45,8 +47,6 @@ public class SherloModule extends ReactContextBaseJavaModule {
     private final ReactApplicationContext reactContext;
     private static String syncDirectoryPath = "";
     private static String mode = "default"; // "default" / "storybook" / "testing"
-    private static Boolean isStorybookRegistered = false;
-    private static Class<?> mainActivityClass;
 
     public SherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -95,41 +95,10 @@ public class SherloModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void storybookRegistered(Promise promise) {
-        Log.d(TAG, "Setting Storybook as registered");
-        try {
-            if ("testing".equals(this.mode) && !this.isStorybookRegistered) {
-                Activity currentActivity = getCurrentActivity();
-                if (currentActivity == null) {
-                    Log.e(TAG, "No current activity found");
-                    promise.reject("E_NO_ACTIVITY", "No current activity found");
-                    return;
-                }
-
-                if (mainActivityClass == null) {
-                    mainActivityClass = currentActivity.getClass();
-                    Log.d(TAG, "Saving original component name: " + mainActivityClass.getName());
-                }
-
-                Log.d(TAG, "Opening Storybook in testing mode");
-                switchToComponent(SherloStorybookActivity.class, mainActivityClass, promise);
-                this.isStorybookRegistered = true;
-            }
-
-            promise.resolve(null);
-        } catch (Exception e) {
-            promise.reject("Error opening Storybook in testing mode", e.getMessage());
-            Log.e(TAG, "Error opening Storybook in testing mode", e);
-            e.printStackTrace();
-        }
-    }
-
-    @ReactMethod
     public void toggleStorybook(Promise promise) {
         Log.d(TAG, "Toggling Storybook");
         try {
-            // SherloStorybookActivity is a singleton, so we can check if it is open
-            if (SherloStorybookActivity.instance != null) {
+            if (this.mode == "storybook") {
                 closeStorybook(promise);
             } else {
                 openStorybook(promise);
@@ -141,38 +110,16 @@ public class SherloModule extends ReactContextBaseJavaModule {
         }
     }
 
-    // Open Storybook and save original component
     @ReactMethod
     public void openStorybook(Promise promise) {
-        Log.d(TAG, "Opening Storybook");
-
-        Activity currentActivity = getCurrentActivity();
-        if (currentActivity == null) {
-            Log.e(TAG, "No current activity found");
-            promise.reject("E_NO_ACTIVITY", "No current activity found");
-            return;
-        }
-
-        if (mainActivityClass == null) {
-            mainActivityClass = currentActivity.getClass();
-            Log.d(TAG, "Saving original component name: " + mainActivityClass.getName());
-        }
-
-        switchToComponent(SherloStorybookActivity.class, mainActivityClass, promise);
         this.mode = "storybook";
+        loadBundle();
     }
 
     @ReactMethod
     public void closeStorybook(Promise promise) {
-        if (mainActivityClass != null) {
-            Log.d(TAG, "Switching back to original component");
-            switchToComponent(mainActivityClass, SherloStorybookActivity.class, promise);
-            mainActivityClass = null;
-            this.mode = "default";
-        } else {
-            Log.e(TAG, "No original component name saved");
-            promise.reject("E_NO_ORIGINAL_COMPONENT", "No original component name saved");
-        }
+        this.mode = "default";
+        loadBundle();
     }
 
     /**
@@ -273,19 +220,47 @@ public class SherloModule extends ReactContextBaseJavaModule {
         });
     }
 
-    private void reloadJSBundle(Promise promise) {
-        if (reactInstanceManager != null) {
-            DevSupportManager devSupportManager = reactInstanceManager.getDevSupportManager();
-            if (devSupportManager != null) {
-                getCurrentActivity().runOnUiThread(() -> {
-                    devSupportManager.handleReloadJS();
-                    promise.resolve(true);
-                });
-            } else {
-                promise.reject("DEV_SUPPORT_MANAGER_NULL", "DevSupportManager is null");
+    private void loadBundleLegacy() {
+        final Activity currentActivity = getCurrentActivity();
+        if (currentActivity == null) {
+            return;
+        }
+
+        currentActivity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                currentActivity.recreate();
             }
-        } else {
-            promise.reject("REACT_INSTANCE_MANAGER_NULL", "ReactInstanceManager is null");
+        });
+    }
+
+    private void loadBundle() {
+        try {
+            final Activity currentActivity = getCurrentActivity();
+            if (currentActivity == null) {
+                return;
+            }
+    
+            ReactApplication reactApplication = (ReactApplication) currentActivity.getApplication();
+            final ReactInstanceManager instanceManager = reactApplication.getReactNativeHost().getReactInstanceManager();
+            
+            if (instanceManager == null) {
+                return;
+            }
+
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        instanceManager.recreateReactContextInBackground();
+                    } catch (Throwable t) {
+                        loadBundleLegacy();
+                    }
+                }
+            });
+
+        } catch (Throwable t) {
+            loadBundleLegacy();
         }
     }
 
@@ -349,26 +324,6 @@ public class SherloModule extends ReactContextBaseJavaModule {
                 collectViewInfo(viewGroup.getChildAt(i), viewList);
             }
         }
-    }
-
-    private void switchToComponent(Class<?> activityClassToTransition, Class<?> closingActivityClass, Promise promise) {
-        Activity currentActivity = getCurrentActivity();
-        if (currentActivity == null) {
-            promise.reject("E_NO_ACTIVITY", "No current activity found");
-            return;
-        }
-
-        currentActivity.runOnUiThread(() -> {
-            Intent intent = new Intent(currentActivity, StorybookSplashActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-            intent.putExtra("activityClassToTransition", activityClassToTransition);
-            intent.putExtra("closingActivityClass", closingActivityClass);
-            intent.putExtra("mode", mode);
-
-            currentActivity.startActivity(intent);
-
-            promise.resolve(null);
-        });
     }
 
     /*

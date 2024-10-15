@@ -1,9 +1,0 @@
-
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          package="io.sherlo.storybookreactnative">
-
-    <application>
-        <activity android:name=".SherloStorybookActivity" android:exported="true" />
-        <activity android:name=".StorybookSplashActivity" android:exported="true" />
-    </application>
-</manifest>

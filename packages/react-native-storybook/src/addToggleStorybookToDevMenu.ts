@@ -1,15 +1,6 @@
 import { DevSettings } from 'react-native';
 import { SherloModule } from './helpers';
 
-function registerStorybook() {
-  // AppRegistry.registerComponent('SherloStorybook', () => StorybookComponent);
-
-  addToggleStorybookToDevMenu();
-
-  // SherloModule.storybookRegistered();
-}
-export default registerStorybook;
-
 /* ========================================================================== */
 
 let ExpoDevMenu: any;
@@ -17,9 +8,10 @@ try {
   ExpoDevMenu = require('expo-dev-menu');
 } catch {}
 
+let devMenuToggleInitialized = false;
+
 function addToggleStorybookToDevMenu() {
-  // Only add the menu item in development builds
-  if (!__DEV__) return;
+  if (!__DEV__ || devMenuToggleInitialized) return;
 
   const MENU_LABEL = 'Toggle Storybook';
   const toggleStorybook = () => SherloModule.toggleStorybook();
@@ -29,7 +21,11 @@ function addToggleStorybookToDevMenu() {
   if (ExpoDevMenu) {
     ExpoDevMenu.registerDevMenuItems([{ name: MENU_LABEL, callback: toggleStorybook }]);
   }
+
+  devMenuToggleInitialized = true;
 }
+
+export default addToggleStorybookToDevMenu;
 
 // public fun handleReloadJS()
 

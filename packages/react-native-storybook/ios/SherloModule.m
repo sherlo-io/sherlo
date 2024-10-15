@@ -8,7 +8,7 @@
 #import <React/RCTBridge.h>
 #import <React/RCTRootView.h>
 #import <React/RCTBundleURLProvider.h>
-
+#import <React/RCTReloadCommand.h>
 
 // A safeguard to ensure compatibility with different versions of React Native
 #if __has_include(<React/RCTUIManagerUtils.h>)
@@ -24,6 +24,7 @@ static NSString *syncDirectoryPath = @"";
 static NSString *mode = @"default"; // "default" / "storybook" / "testing"
 static NSString *originalComponentName;
 static BOOL isStorybookRegistered = NO;
+static int urlConsumeCount = 0;
 
 @implementation SherloModule
 
@@ -274,6 +275,17 @@ RCT_EXPORT_METHOD(dumpBoundries:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
       reject(@"exception", exception.reason, nil);
     }
   });
+}
+
+- (void)reload
+{
+  if ([NSThread isMainThread]) {
+    RCTTriggerReloadCommandListeners(@"Sherlo: Reload");
+  } else {
+    dispatch_sync(dispatch_get_main_queue(), ^{
+    RCTTriggerReloadCommandListeners(@"Sherlo: Reload");
+    });
+  }
 }
 
 - (void)collectViewInfo:(UIView *)view intoArray:(NSMutableArray *)array
