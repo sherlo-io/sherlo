@@ -1,5 +1,4 @@
-import { DevSettings } from 'react-native';
-import { SherloModule } from './helpers';
+import { DevSettings, NativeModules } from 'react-native';
 
 let devMenuToggleInitialized = false;
 
@@ -8,11 +7,13 @@ try {
   ExpoDevMenu = require('expo-dev-menu');
 } catch {}
 
+const { SherloModule: SherloNativeModule } = NativeModules;
+
 function addToggleStorybookToDevMenu() {
   if (!__DEV__ || devMenuToggleInitialized) return;
 
   const MENU_LABEL = 'Toggle Storybook';
-  const toggleStorybook = () => SherloModule.toggleStorybook();
+  const toggleStorybook = () => SherloNativeModule.toggleStorybook();
 
   DevSettings.addMenuItem(MENU_LABEL, toggleStorybook);
 

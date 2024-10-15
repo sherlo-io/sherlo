@@ -45,6 +45,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
     public SherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
         this.reactContext = reactContext;
+        Log.i(TAG, "Initializing SherloModule with default mode: " + this.mode);
 
         try {
             // Set Sherlo directory path, this is the directory that will be
@@ -106,14 +107,18 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void openStorybook(Promise promise) {
+        Log.d(TAG, "Opening Storybook");
         this.mode = "storybook";
         loadBundle();
+        promise.resolve(null);
     }
 
     @ReactMethod
     public void closeStorybook(Promise promise) {
+        Log.d(TAG, "Closing Storybook");
         this.mode = "default";
         loadBundle();
+        promise.resolve(null);
     }
 
     /**
