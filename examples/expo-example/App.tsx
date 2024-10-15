@@ -10,13 +10,6 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 import { openStorybook } from '@sherlo/react-native-storybook';
 
-// @ts-ignore
-if (!process.env.EXPO_PUBLIC_STORYBOOK_ONLY && process.env.PROD_BUILD !== 'true') {
-  const registerStorybook = require('@sherlo/react-native-storybook').registerStorybook;
-  const Storybook = require('./.storybook').default;
-  registerStorybook(() => <Storybook />);
-}
-
 SplashScreen.preventAutoHideAsync();
 
 export default function App() {
@@ -39,6 +32,16 @@ export default function App() {
 
   // eslint-disable-next-line react/no-unstable-nested-components
   const App = () => {
+    // @ts-ignore
+    if (process.env.PROD_BUILD !== 'true') {
+      const { isRunningStorybook } = require('@sherlo/react-native-storybook');
+      const Storybook = require('./.storybook').default;
+      // @ts-ignore
+      if (process.env.EXPO_PUBLIC_STORYBOOK_ONLY || isRunningStorybook) {
+        return <Storybook />;
+      }
+    }
+
     return (
       <View
         style={{
@@ -55,16 +58,9 @@ export default function App() {
     );
   };
 
-  let EntryPoint = App;
-  // @ts-ignore
-  if (process.env.EXPO_PUBLIC_STORYBOOK_ONLY === 'true') {
-    const Storybook = require('./.storybook').default;
-    EntryPoint = Storybook;
-  }
-
   return (
     <View style={StyleSheet.absoluteFill} onLayout={onLayoutRootView}>
-      <EntryPoint />
+      <App />
     </View>
   );
 }

@@ -2,17 +2,12 @@ package io.sherlo.storybookreactnative;
 
 // Android Framework Imports
 import android.app.Activity;
-import android.content.Intent;
 import android.net.Uri;
 import android.util.Base64;
 import android.util.Log;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Paint;
 import android.graphics.Rect;
 import android.view.View;
 import android.view.ViewGroup;
-import android.os.Environment;
 import android.graphics.drawable.ColorDrawable;
 import android.widget.TextView;
 import android.os.Handler;
@@ -32,7 +27,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.FileOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
@@ -238,13 +232,15 @@ public class SherloModule extends ReactContextBaseJavaModule {
         try {
             final Activity currentActivity = getCurrentActivity();
             if (currentActivity == null) {
+                Log.e(TAG, "Current activity is null");
                 return;
             }
-    
+
             ReactApplication reactApplication = (ReactApplication) currentActivity.getApplication();
             final ReactInstanceManager instanceManager = reactApplication.getReactNativeHost().getReactInstanceManager();
             
             if (instanceManager == null) {
+                Log.e(TAG, "ReactInstanceManager is null");
                 return;
             }
 
@@ -253,13 +249,15 @@ public class SherloModule extends ReactContextBaseJavaModule {
                 public void run() {
                     try {
                         instanceManager.recreateReactContextInBackground();
-                    } catch (Throwable t) {
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error loading bundle", e);
                         loadBundleLegacy();
                     }
                 }
             });
 
-        } catch (Throwable t) {
+        } catch (Exception e) {
+            Log.e(TAG, "Error in loadBundle", e);
             loadBundleLegacy();
         }
     }
