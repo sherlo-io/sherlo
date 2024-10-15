@@ -24,7 +24,7 @@ static NSString *syncDirectoryPath = @"";
 static NSString *mode = @"default"; // "default" / "storybook" / "testing"
 static NSString *originalComponentName;
 static BOOL isStorybookRegistered = NO;
-static int urlConsumeCount = 0;
+static int expoUpdateUrlConsumeCount = 0;
 
 @implementation SherloModule
 
@@ -61,38 +61,42 @@ RCT_EXPORT_MODULE()
         return nil;
       }
       
-      // If the file exists, we are in testing mode
       BOOL doesSherloConfigFileExist = [[NSFileManager defaultManager] fileExistsAtPath:configPath];
       if (doesSherloConfigFileExist) {
-        
         NSError *error = nil;
         NSString *configContent = [NSString stringWithContentsOfFile:configPath encoding:NSUTF8StringEncoding error:&error];
+
         if (error) {
           NSLog(@"[%@] Error reading config file: %@", LOG_TAG, error.localizedDescription);
         } else {
           NSData *jsonData = [configContent dataUsingEncoding:NSUTF8StringEncoding];
           NSDictionary *jsonDict = [NSJSONSerialization JSONObjectWithData:jsonData options:0 error:&error];
+
           if (error) {
             NSLog(@"[%@] Error parsing JSON: %@", LOG_TAG, error.localizedDescription);
           } else {
-            NSString *url = jsonDict[@"url"];
-            if (url) {
-              // Only process the URL if it's present in the config and hasn't been consumed twice yet
-              if (urlConsumeCount < 2) {
+            NSString *expoUpdateUrl = jsonDict[@"expoUpdateUrl"];
+            // If the expoUpdateUrl is present in the config, we will open the url twice to make sure
+            // the app is restarted with new update bundle and second time to make sure we dismiss the
+            // initial expo dev client modal
+            if (expoUpdateUrl) {
+              if (expoUpdateUrlConsumeCount < 2) {
                 dispatch_async(dispatch_get_main_queue(), ^{
-                  NSURL *nsurl = [NSURL URLWithString:url];
+                  NSURL *nsurl = [NSURL URLWithString:expoUpdateUrl];
                   if ([[UIApplication sharedApplication] canOpenURL:nsurl]) {
                     [[UIApplication sharedApplication] openURL:nsurl options:@{} completionHandler:nil];
-                    urlConsumeCount++; // Increment the counter after opening the URL
-                    NSLog(@"[%@] URL consumed %d time(s)", LOG_TAG, urlConsumeCount);
+                    expoUpdateUrlConsumeCount++; // Increment the counter after opening the URL
+                    NSLog(@"[%@] URL consumed %d time(s)", LOG_TAG, expoUpdateUrlConsumeCount);
                   } else {
-                    NSLog(@"[%@] Cannot open URL: %@", LOG_TAG, url);
+                    NSLog(@"[%@] Cannot open URL: %@", LOG_TAG, expoUpdateUrl);
                   }
                 });
               } else {
+                // After the URL has been consumed twice, we are in testing mode
                 mode = @"testing";
               }
             } else {
+              // If the expoUpdateUrl is not present in the config, we are immidiately in testing mode
               mode = @"testing";
             }
           }
@@ -144,6 +148,7 @@ RCT_EXPORT_METHOD(openStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
   mode = @"storybook";
   
   [self reload];
+  resolve(nil);
 }
 
 // Internal method to handle closing the Storybook view. This method is executed on the main queue.
@@ -152,6 +157,7 @@ RCT_EXPORT_METHOD(closeStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPr
   mode = @"default";
 
   [self reload];
+  resolve(nil);
 }
 
 // Creates a directory at the specified filepath.
@@ -283,7 +289,7 @@ RCT_EXPORT_METHOD(dumpBoundries:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
     RCTTriggerReloadCommandListeners(@"Sherlo: Reload");
   } else {
     dispatch_sync(dispatch_get_main_queue(), ^{
-    RCTTriggerReloadCommandListeners(@"Sherlo: Reload");
+      RCTTriggerReloadCommandListeners(@"Sherlo: Reload");
     });
   }
 }
