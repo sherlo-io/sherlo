@@ -24,7 +24,7 @@ static NSString *syncDirectoryPath = @"";
 static NSString *mode = @"default"; // "default" / "storybook" / "testing"
 static NSString *originalComponentName;
 static BOOL isStorybookRegistered = NO;
-static int expoUpdateUrlConsumeCount = 0;
+static int expoUpdateDeeplinkConsumeCount = 0;
 
 @implementation SherloModule
 
@@ -75,20 +75,20 @@ RCT_EXPORT_MODULE()
           if (error) {
             NSLog(@"[%@] Error parsing JSON: %@", LOG_TAG, error.localizedDescription);
           } else {
-            NSString *expoUpdateUrl = jsonDict[@"expoUpdateUrl"];
-            // If the expoUpdateUrl is present in the config, we will open the url twice to make sure
+            NSString *expoUpdateDeeplink = jsonDict[@"expoUpdateDeeplink"];
+            // If the expoUpdateDeeplink is present in the config, we will open the url twice to make sure
             // the app is restarted with new update bundle and second time to make sure we dismiss the
             // initial expo dev client modal
-            if (expoUpdateUrl) {
-              if (expoUpdateUrlConsumeCount < 2) {
+            if (expoUpdateDeeplink) {
+              if (expoUpdateDeeplinkConsumeCount < 2) {
                 dispatch_async(dispatch_get_main_queue(), ^{
-                  NSURL *nsurl = [NSURL URLWithString:expoUpdateUrl];
+                  NSURL *nsurl = [NSURL URLWithString:expoUpdateDeeplink];
                   if ([[UIApplication sharedApplication] canOpenURL:nsurl]) {
                     [[UIApplication sharedApplication] openURL:nsurl options:@{} completionHandler:nil];
-                    expoUpdateUrlConsumeCount++; // Increment the counter after opening the URL
-                    NSLog(@"[%@] URL consumed %d time(s)", LOG_TAG, expoUpdateUrlConsumeCount);
+                    expoUpdateDeeplinkConsumeCount++; // Increment the counter after opening the URL
+                    NSLog(@"[%@] URL consumed %d time(s)", LOG_TAG, expoUpdateDeeplinkConsumeCount);
                   } else {
-                    NSLog(@"[%@] Cannot open URL: %@", LOG_TAG, expoUpdateUrl);
+                    NSLog(@"[%@] Cannot open URL: %@", LOG_TAG, expoUpdateDeeplink);
                   }
                 });
               } else {
@@ -96,7 +96,7 @@ RCT_EXPORT_MODULE()
                 mode = @"testing";
               }
             } else {
-              // If the expoUpdateUrl is not present in the config, we are immidiately in testing mode
+              // If the expoUpdateDeeplink is not present in the config, we are immidiately in testing mode
               mode = @"testing";
             }
           }
