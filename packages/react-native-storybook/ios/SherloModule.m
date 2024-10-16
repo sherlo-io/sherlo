@@ -39,6 +39,8 @@ RCT_EXPORT_MODULE()
   self = [super init];
   if (self) {
     @try {
+      NSLog(@"[%@] Initializing SherloModule", LOG_TAG);
+      
       // Set Sherlo directory path, this is the directory that will be 
       // used to sync files between the emulator and Sherlo Runner
       NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
@@ -80,12 +82,16 @@ RCT_EXPORT_MODULE()
             // the app is restarted with new update bundle and second time to make sure we dismiss the
             // initial expo dev client modal
             if (expoUpdateDeeplink) {
+              NSLog(@"[%@] Consuming expo update deeplink", LOG_TAG);
+
               if (expoUpdateDeeplinkConsumeCount < 2) {
                 dispatch_async(dispatch_get_main_queue(), ^{
                   NSURL *nsurl = [NSURL URLWithString:expoUpdateDeeplink];
+
                   if ([[UIApplication sharedApplication] canOpenURL:nsurl]) {
                     [[UIApplication sharedApplication] openURL:nsurl options:@{} completionHandler:nil];
                     expoUpdateDeeplinkConsumeCount++; // Increment the counter after opening the URL
+
                     NSLog(@"[%@] URL consumed %d time(s)", LOG_TAG, expoUpdateDeeplinkConsumeCount);
                   } else {
                     NSLog(@"[%@] Cannot open URL: %@", LOG_TAG, expoUpdateDeeplink);

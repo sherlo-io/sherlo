@@ -54,19 +54,23 @@ public class SherloModule extends ReactContextBaseJavaModule {
             // https://developer.android.com/reference/android/content/Context#getExternalFilesDir(java.lang.String)
             File externalDirectory = this.getReactApplicationContext().getExternalFilesDir(null);
             if (externalDirectory != null) {
-                this.syncDirectoryPath = externalDirectory.getAbsolutePath() + "/sherlo";
+                // TODO: Think this through, this might be a problem if the user
+                // has previous version of SDK and we're using new runner that creates target_files directory
+                this.syncDirectoryPath = externalDirectory.getAbsolutePath() + "/sherlo/target_files";
             } else {
                 Log.e(TAG, "External storage is not accessible");
             }
 
             // This is the path to the config file created by the Sherlo Runner
             String configPath = this.syncDirectoryPath + "/" + CONFIG_FILENAME;
+            Log.i(TAG, "Looking for config file at: " + configPath);
 
             // If the file exists, we are it testing mode and will open the
             // Storybook in single activity mode, without launching the app
             Boolean doesSherloConfigFileExist = new File(configPath).isFile();
             if (doesSherloConfigFileExist) {
                 this.mode = "testing";
+                Log.i(TAG, "Config file exists, running in testing mode");
             }
         } catch (Exception e) {
             Log.e(TAG, "Failed to initialize SherloModule", e);
