@@ -45,7 +45,8 @@
             "../../node_modules/@expo-google-fonts/urbanist"
           ]
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "extra": {
       "eas": {
