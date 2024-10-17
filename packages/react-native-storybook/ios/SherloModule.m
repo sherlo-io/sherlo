@@ -12,6 +12,13 @@
 #import <React/RCTRootView.h>
 #import <React/RCTBundleURLProvider.h>
 
+// A safeguard to ensure compatibility with different versions of React Native
+#if __has_include(<React/RCTUIManagerUtils.h>)
+// These are necessary for any interactions with the React Native UI Manager 
+// (e.g., operations on RCTRootView).
+#import <React/RCTUIManagerUtils.h>
+#endif
+
 static NSString *CONFIG_FILENAME = @"config.sherlo";
 static NSString *const LOG_TAG = @"SherloModule";
 
@@ -156,6 +163,7 @@ RCT_EXPORT_METHOD(toggleStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTP
 // Exceptions during the opening process are caught and handled.
 RCT_EXPORT_METHOD(openStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   mode = @"storybook";
+  
   [RestartHelper reloadWithBridge:self.bridge];
   resolve(nil);
 }
@@ -164,6 +172,7 @@ RCT_EXPORT_METHOD(openStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
 // If any errors occur during the closing process, they are caught and the reject block is called with the appropriate error message.
 RCT_EXPORT_METHOD(closeStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   mode = @"default";
+  
   [RestartHelper reloadWithBridge:self.bridge];
   resolve(nil);
 }
