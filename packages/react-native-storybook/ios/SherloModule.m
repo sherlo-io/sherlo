@@ -23,7 +23,7 @@ static NSString *CONFIG_FILENAME = @"config.sherlo";
 static NSString *const LOG_TAG = @"SherloModule";
 
 static NSString *syncDirectoryPath = @"";
-static NSString *mode = @"default"; // "default" / "storybook" / "testing"
+static NSString *mode = @"default"; // "default" / "storybook" / "testing" / "verification"
 static NSString *originalComponentName;
 static BOOL isStorybookRegistered = NO;
 static int expoUpdateDeeplinkConsumeCount = 0;
@@ -86,13 +86,6 @@ RCT_EXPORT_MODULE()
             // the app is restarted with new update bundle and second time to make sure we dismiss the
             // initial expo dev client modal
             if (expoUpdateDeeplink) {
-              // If app is not built with expo-dev-client, log error and continue
-              if (![self checkIfExpoDevClient]) {
-                NSLog(@"[%@] Error: App is not built with expo-dev-client", LOG_TAG);
-                [self writeErrorToFile:@"ERROR_EXPO_DEV_CLIENT"];
-                return nil;
-              }
-
               NSLog(@"[%@] Consuming expo update deeplink", LOG_TAG);
 
               if (expoUpdateDeeplinkConsumeCount < 2) {
@@ -150,6 +143,13 @@ RCT_EXPORT_MODULE()
   };
 }
 
+RCT_EXPORT_METHOD(verifyIntegration:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+  mode = @"verification";
+
+  [RestartHelper reloadWithBridge:self.bridge];
+  resolve(nil);
+}
+
 // Toggles the Storybook view. If the Storybook is currently open, it closes it. Otherwise, it opens it.
 // Exceptions during the toggle are caught and handled.
 RCT_EXPORT_METHOD(toggleStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
@@ -158,15 +158,6 @@ RCT_EXPORT_METHOD(toggleStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTP
   } else {
     [self openStorybook:resolve rejecter:reject];
   }
-}
-
-- (BOOL)checkIfExpoDevClient {
-    // Check for Expo Dev Client-specific classes
-    Class devMenuClass = NSClassFromString(@"EXDevMenu");
-    if (devMenuClass) {
-        return YES;
-    }
-    return NO;
 }
 
 // Opens the Storybook view in a separate view controller on top of the root view controller,
@@ -278,6 +269,55 @@ RCT_EXPORT_METHOD(dumpBoundries:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
   NSError *error = [NSError errorWithDomain:@"SherloModule" code:0 userInfo:info];
   reject(@"E_EXCEPTION", @"Exception occurred", error);
 }
+
+// schedule verification in 5 seconds
+// if visible views contain at least one view that has test id equal to "sherlo-getStorybook-verification"
+- (void)scheduleVerification {
+    dispatch_async(dispatch_get_main_queue(), ^{
+  // dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+    
+    UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+    if (!keyWindow) {
+      reject(@"no_key_window", @"Could not find the key window", nil);
+      return;
+    }
+
+    UIView *rootView = keyWindow.rootViewController.view;
+    if (!rootView) {
+      reject(@"no_root_view", @"Could not find the root view", nil);
+      return;
+    }
+
+    NSMutableArray *verificationIds = [NSMutableArray array];
+    [self findVerificationIds:rootView intoArray:verificationIds];
+
+    if ([verificationIds count] == 0) {
+      if ([mode isEqualToString:@"testing"]) {
+        [self writeErrorToFile:@"VERIFICATION_FAILED"];
+      }
+
+      if ([mode isEqualToString:@"verification"]) {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Verification failed" message:@"Could not find Sherlo verification view" preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+        [[UIApplication sharedApplication].keyWindow.rootViewController presentViewController:alert animated:YES completion:nil];
+      }
+    }
+  });
+}
+
+
++ (void)findVerificationIds:(UIView *)view intoArray:(NSMutableArray *)array {
+    NSString *accessibilityIdentifier = view.accessibilityIdentifier;
+
+    if (accessibilityIdentifier && [accessibilityIdentifier containsString:@"sherlo-getStorybook-verification"]) {
+        [array addObject:accessibilityIdentifier];
+    }
+
+    for (UIView *subview in view.subviews) {
+        [self findVerificationIds:subview intoArray:array];
+    }
+}
+
 
 // A function that writes an error code to error.sherlo file in sync directory
 - (void)writeErrorToFile:(NSString *)errorCode {

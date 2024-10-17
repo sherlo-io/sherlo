@@ -8,9 +8,11 @@ import {
   Urbanist_700Bold,
 } from '@expo-google-fonts/urbanist';
 import * as SplashScreen from 'expo-splash-screen';
-import { openStorybook } from '@sherlo/react-native-storybook';
+import { openStorybook, verifyIntegration } from '@sherlo/react-native-storybook';
 
 SplashScreen.preventAutoHideAsync();
+
+verifyIntegration();
 
 export default function App() {
   let [fontsLoaded, fontError] = useFonts({

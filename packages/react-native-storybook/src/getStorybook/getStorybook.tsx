@@ -151,9 +151,10 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     }, [mode]);
 
     // Verification test
-    if (getGlobalStates().isVerifySetupTest) {
+    if (mode === 'verification') {
       return (
         <View
+          testID="sherlo-getStorybook-verification"
           style={{
             ...StyleSheet.absoluteFillObject,
             justifyContent: 'center',
@@ -161,6 +162,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
           }}
         >
           <Text>✔️ SHERLO SETUP WAS DONE CORRECTLY</Text>
+          <Text>make sure to remove addVerificationMenuItem from your code now</Text>
         </View>
       );
     }
@@ -172,7 +174,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
           mode,
         }}
       >
-        <View style={StyleSheet.absoluteFillObject}>
+        <View testID="sherlo-getStorybook-verification" style={StyleSheet.absoluteFillObject}>
           <ErrorBoundary
             onError={() => {
               renderedStoryHasError.current = true;

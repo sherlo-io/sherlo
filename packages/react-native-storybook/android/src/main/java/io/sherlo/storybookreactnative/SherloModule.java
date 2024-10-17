@@ -28,7 +28,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
     private final ReactApplicationContext reactContext;
     private static String syncDirectoryPath = "";
-    private static String mode = "default"; // "default" / "storybook" / "testing"
+    private static String mode = "default"; // "default" / "storybook" / "testing" / "verification"
     private FileSystemHelper fileSystemHelper;
 
     public SherloModule(ReactApplicationContext reactContext) {
@@ -83,16 +83,13 @@ public class SherloModule extends ReactContextBaseJavaModule {
         return constants;
     }
 
-
-    private boolean checkIfExpoDevClient() {
-        try {
-            Class.forName("host.exp.exponent.modules.api.devmenu.DevMenuManager");
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
+    @ReactMethod
+    public void verifyIntegration(Promise promise) {
+        Log.d(TAG, "Verifying integration");
+        this.mode = "verification";
+        RestartHelper.loadBundle(getCurrentActivity());
+        promise.resolve(null);
     }
-    
 
     @ReactMethod
     public void toggleStorybook(Promise promise) {
