@@ -2,14 +2,7 @@ package io.sherlo.storybookreactnative;
 
 // Android Framework Imports
 import android.app.Activity;
-import android.net.Uri;
-import android.util.Base64;
 import android.util.Log;
-import android.graphics.Rect;
-import android.view.View;
-import android.view.ViewGroup;
-import android.graphics.drawable.ColorDrawable;
-import android.widget.TextView;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -22,17 +15,12 @@ import com.facebook.react.ReactInstanceManager;
 import com.facebook.react.ReactApplication;
 
 // Java Utility and IO Imports
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.List;
-import java.util.ArrayList;
-import org.json.JSONObject;
-import org.json.JSONArray;
+
+import io.sherlo.storybookreactnative.InspectorHelper;
+import io.sherlo.storybookreactnative.RestartHelper;
 
 public class SherloModule extends ReactContextBaseJavaModule {
     public static final String TAG = "SherloModule";
@@ -41,10 +29,12 @@ public class SherloModule extends ReactContextBaseJavaModule {
     private final ReactApplicationContext reactContext;
     private static String syncDirectoryPath = "";
     private static String mode = "default"; // "default" / "storybook" / "testing"
+    private FileSystemHelper fileSystemHelper;
 
     public SherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
         this.reactContext = reactContext;
+        this.fileSystemHelper = new FileSystemHelper(reactContext);
         Log.i(TAG, "Initializing SherloModule with default mode: " + this.mode);
 
         try {
@@ -93,6 +83,17 @@ public class SherloModule extends ReactContextBaseJavaModule {
         return constants;
     }
 
+
+    private boolean checkIfExpoDevClient() {
+        try {
+            Class.forName("host.exp.exponent.modules.api.devmenu.DevMenuManager");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+    
+
     @ReactMethod
     public void toggleStorybook(Promise promise) {
         Log.d(TAG, "Toggling Storybook");
@@ -113,7 +114,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
     public void openStorybook(Promise promise) {
         Log.d(TAG, "Opening Storybook");
         this.mode = "storybook";
-        loadBundle();
+        RestartHelper.loadBundle(getCurrentActivity());
         promise.resolve(null);
     }
 
@@ -121,7 +122,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
     public void closeStorybook(Promise promise) {
         Log.d(TAG, "Closing Storybook");
         this.mode = "default";
-        loadBundle();
+        RestartHelper.loadBundle(getCurrentActivity());
         promise.resolve(null);
     }
 
@@ -131,15 +132,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void mkdir(String filepath, Promise promise) {
         try {
-            File file = new File(filepath);
-
-            file.mkdirs();
-
-            boolean exists = file.exists();
-
-            if (!exists)
-                throw new Exception("Directory could not be created");
-
+            fileSystemHelper.mkdir(filepath);
             promise.resolve(null);
         } catch (Exception e) {
             promise.reject("Error creating directory", e.getMessage());
@@ -154,15 +147,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void appendFile(String filepath, String base64Content, Promise promise) {
         try {
-            byte[] bytes = Base64.decode(base64Content, Base64.DEFAULT);
-
-            Uri uri = getFileUri(filepath);
-            // Open the file in write and append mode
-            OutputStream stream = reactContext.getContentResolver().openOutputStream(uri, "wa");
-
-            stream.write(bytes);
-            stream.close();
-
+            fileSystemHelper.appendFile(filepath, base64Content);
             promise.resolve(null);
         } catch (Exception e) {
             promise.reject("Error appending file", e.getMessage());
@@ -177,12 +162,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void readFile(String filepath, Promise promise) {
         try {
-            Uri uri = getFileUri(filepath);
-            InputStream stream = reactContext.getContentResolver().openInputStream(uri);
-
-            byte[] inputData = getInputStreamBytes(stream);
-            String base64Content = Base64.encodeToString(inputData, Base64.NO_WRAP);
-
+            String base64Content = fileSystemHelper.readFile(filepath);
             promise.resolve(base64Content);
         } catch (Exception e) {
             promise.reject("Error reading file", e.getMessage());
@@ -201,174 +181,11 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
         activity.runOnUiThread(() -> {
             try {
-                View rootView = activity.getWindow().getDecorView().getRootView();
-
-                // List to hold all view information
-                List<JSONObject> viewList = new ArrayList<>();
-
-                // Traverse and collect view information
-                collectViewInfo(rootView, viewList);
-
-                // Create JSON array
-                JSONArray jsonArray = new JSONArray(viewList);
-
-                // Serialize JSON array to string
-                String jsonString = jsonArray.toString();
-
-                // Resolve the promise with the JSON string
+                String jsonString = InspectorHelper.dumpBoundries(activity);
                 promise.resolve(jsonString);
             } catch (Exception e) {
                 promise.reject("error", e.getMessage(), e);
             }
         });
-    }
-
-    private void loadBundleLegacy() {
-        final Activity currentActivity = getCurrentActivity();
-        if (currentActivity == null) {
-            return;
-        }
-
-        currentActivity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                currentActivity.recreate();
-            }
-        });
-    }
-
-    private void loadBundle() {
-        try {
-            final Activity currentActivity = getCurrentActivity();
-            if (currentActivity == null) {
-                Log.e(TAG, "Current activity is null");
-                return;
-            }
-
-            ReactApplication reactApplication = (ReactApplication) currentActivity.getApplication();
-            final ReactInstanceManager instanceManager = reactApplication.getReactNativeHost().getReactInstanceManager();
-            
-            if (instanceManager == null) {
-                Log.e(TAG, "ReactInstanceManager is null");
-                return;
-            }
-
-            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        instanceManager.recreateReactContextInBackground();
-                    } catch (Exception e) {
-                        Log.e(TAG, "Error loading bundle", e);
-                        loadBundleLegacy();
-                    }
-                }
-            });
-
-        } catch (Exception e) {
-            Log.e(TAG, "Error in loadBundle", e);
-            loadBundleLegacy();
-        }
-    }
-
-    private void collectViewInfo(View view, List<JSONObject> viewList) throws Exception {
-        JSONObject viewObject = new JSONObject();
-
-        // Class name
-        String className = view.getClass().getSimpleName();
-        viewObject.put("className", className);
-
-        // Check visibility
-        Rect rect = new Rect();
-        boolean isVisible = view.getGlobalVisibleRect(rect);
-        viewObject.put("isVisible", isVisible);
-
-        if (isVisible) {
-            // Position on screen
-            viewObject.put("x", rect.left);
-            viewObject.put("y", rect.top);
-
-            // Dimensions
-            viewObject.put("width", rect.width());
-            viewObject.put("height", rect.height());
-
-            // Tag (optional)
-            Object tag = view.getTag();
-            if (tag != null) {
-                viewObject.put("tag", tag.toString());
-            }
-
-            // Content Description (optional)
-            CharSequence contentDescription = view.getContentDescription();
-            if (contentDescription != null) {
-                viewObject.put("contentDescription", contentDescription.toString());
-            }
-
-            // Background Color (optional)
-            if (view.getBackground() instanceof ColorDrawable) {
-                int color = ((ColorDrawable) view.getBackground()).getColor();
-                String hexColor = String.format("#%06X", (0xFFFFFF & color));
-                viewObject.put("backgroundColor", hexColor);
-            }
-
-            // Text and Font Size (for TextView and its subclasses)
-            if (view instanceof TextView) {
-                TextView textView = (TextView) view;
-                CharSequence text = textView.getText();
-                if (text != null) {
-                    viewObject.put("text", text.toString());
-                }
-                viewObject.put("fontSize", textView.getTextSize());
-            }
-        }
-
-        viewList.add(viewObject);
-
-        // If the view is a ViewGroup, recurse
-        if (view instanceof ViewGroup) {
-            ViewGroup viewGroup = (ViewGroup) view;
-            for (int i = 0; i < viewGroup.getChildCount(); i++) {
-                collectViewInfo(viewGroup.getChildAt(i), viewList);
-            }
-        }
-    }
-
-    /*
-     * Get the URI for the specified absolute file path
-     */
-    private Uri getFileUri(String absoluteFilepath) throws Exception {
-        Uri uri = Uri.parse(absoluteFilepath);
-        File file = new File(absoluteFilepath);
-
-        return Uri.parse("file://" + absoluteFilepath);
-    }
-
-    /*
-     * Get the byte array from an input stream
-     */
-    private static byte[] getInputStreamBytes(InputStream inputStream) throws IOException {
-        byte[] bytesResult;
-        ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
-        int bufferSize = 1024;
-        byte[] buffer = new byte[bufferSize];
-
-        try {
-            int len;
-
-            while ((len = inputStream.read(buffer)) != -1) {
-                byteBuffer.write(buffer, 0, len);
-            }
-
-            bytesResult = byteBuffer.toByteArray();
-        } finally {
-            try {
-                byteBuffer.close();
-            } catch (IOException e) {
-                // We ignore this exception
-                Log.e(TAG, "Error closing byteBuffer", e);
-            }
-        }
-
-        return bytesResult;
     }
 }
