@@ -2,8 +2,8 @@
 
 @interface FileSystemHelper : NSObject
 
-+ (void)mkdir:(NSString *)filepath error:(NSError **)error;
-+ (void)appendFile:(NSString *)filepath contents:(NSString *)base64Content error:(NSError **)error;
++ (NSError *)mkdir:(NSString *)path;
++ (NSError *)appendFile:(NSString *)filepath contents:(NSString *)base64Content;
 + (NSString *)readFile:(NSString *)filepath error:(NSError **)error;
 
 @end

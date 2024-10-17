@@ -2,39 +2,37 @@
 
 @implementation FileSystemHelper
 
-+ (void)mkdir:(NSString *)filepath error:(NSError **)error {
-    [[NSFileManager defaultManager] createDirectoryAtPath:filepath withIntermediateDirectories:YES attributes:nil error:error];
++ (NSError *)mkdir:(NSString *)path {
+    NSError *error = nil;
+    [[NSFileManager defaultManager] createDirectoryAtPath:path
+                              withIntermediateDirectories:YES
+                                               attributes:nil
+                                                    error:&error];
+    return error;
 }
 
-+ (void)appendFile:(NSString *)filepath contents:(NSString *)base64Content error:(NSError **)error {
++ (NSError *)appendFile:(NSString *)filepath contents:(NSString *)base64Content {
     NSData *data = [[NSData alloc] initWithBase64EncodedString:base64Content options:0];
     if (!data) {
-        if (error) {
-            *error = [NSError errorWithDomain:@"FileSystemHelper" code:1 userInfo:@{NSLocalizedDescriptionKey: @"Invalid base64 content"}];
-        }
-        return;
+        return [NSError errorWithDomain:@"FileSystemHelper" code:1 userInfo:@{NSLocalizedDescriptionKey: @"Invalid base64 content"}];
     }
 
     if (![[NSFileManager defaultManager] fileExistsAtPath:filepath]) {
         BOOL success = [[NSFileManager defaultManager] createFileAtPath:filepath contents:data attributes:nil];
         if (!success) {
-            if (error) {
-                *error = [NSError errorWithDomain:NSCocoaErrorDomain code:NSFileWriteUnknownError userInfo:nil];
-            }
-            return;
+            return [NSError errorWithDomain:NSCocoaErrorDomain code:NSFileWriteUnknownError userInfo:nil];
         }
     } else {
         NSFileHandle *fileHandle = [NSFileHandle fileHandleForUpdatingAtPath:filepath];
         if (!fileHandle) {
-            if (error) {
-                *error = [NSError errorWithDomain:@"FileSystemHelper" code:2 userInfo:@{NSLocalizedDescriptionKey: @"Failed to get file handle"}];
-            }
-            return;
+            return [NSError errorWithDomain:@"FileSystemHelper" code:2 userInfo:@{NSLocalizedDescriptionKey: @"Failed to get file handle"}];
         }
         [fileHandle seekToEndOfFile];
         [fileHandle writeData:data];
         [fileHandle closeFile];
     }
+    
+    return nil;
 }
 
 + (NSString *)readFile:(NSString *)filepath error:(NSError **)error {

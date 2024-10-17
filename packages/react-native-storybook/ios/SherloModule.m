@@ -171,8 +171,8 @@ RCT_EXPORT_METHOD(closeStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPr
 // Creates a directory at the specified filepath.
 // If the directory creation fails, the reject block is called with an appropriate error message.
 RCT_EXPORT_METHOD(mkdir:(NSString *)filepath resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  NSError *error = nil;
-  [FileSystemHelper mkdir:filepath error:&error];
+  NSError *error = [FileSystemHelper mkdir:filepath];
+  
   if (error) {
     reject(@"E_MKDIR", [NSString stringWithFormat:@"Failed to create directory at path %@", filepath], error);
   } else {
@@ -184,26 +184,35 @@ RCT_EXPORT_METHOD(mkdir:(NSString *)filepath resolver:(RCTPromiseResolveBlock)re
 // If the file does not exist, it creates a new file.
 // If any errors occur during the append process, the reject block is called with an appropriate error message.
 RCT_EXPORT_METHOD(appendFile:(NSString *)filepath contents:(NSString *)base64Content resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  NSError *error = nil;
-  [FileSystemHelper appendFile:filepath contents:base64Content error:&error];
-  if (error) {
-    reject(@"E_APPENDFILE", @"Failed to append data to file", error);
-  } else {
-    resolve(nil);
+  @try {
+    NSError *error = [FileSystemHelper appendFile:filepath contents:base64Content];
+    
+    if (error) {
+      reject(@"E_APPENDFILE", [NSString stringWithFormat:@"Failed to append to file at path %@", filepath], error);
+    } else {
+      resolve(nil);
+    }
+  } @catch (NSException *exception) {
+    [self handleException:exception rejecter:reject];
   }
 }
 
 // Reads a byte array from the specified file and returns it as a base64 string.
 // If the file does not exist or if any errors occur during the read process, the reject block is called with an appropriate error message.
 RCT_EXPORT_METHOD(readFile:(NSString *)filepath resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  NSError *error = nil;
-  NSString *base64Content = [FileSystemHelper readFile:filepath error:&error];
-  if (error) {
-    reject([NSString stringWithFormat:@"%ld", (long)error.code], error.localizedDescription ?: @"Unknown error occurred", error);
-  } else if (!base64Content) {
-    reject(@"E_ENCODING", @"Failed to encode file content to base64", nil);
-  } else {
-    resolve(base64Content);
+  @try {
+    NSError *error = nil;
+    NSString *base64Content = [FileSystemHelper readFile:filepath error:&error];
+    
+    if (error) {
+      reject(@"E_READFILE", [NSString stringWithFormat:@"Failed to read file at path %@", filepath], error);
+    } else if (!base64Content) {
+      reject(@"E_READFILE", @"File content is empty or could not be encoded to base64", nil);
+    } else {
+      resolve(base64Content);
+    }
+  } @catch (NSException *exception) {
+    [self handleException:exception rejecter:reject];
   }
 }
 
