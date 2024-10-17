@@ -282,7 +282,12 @@ RCT_EXPORT_METHOD(dumpBoundries:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
 // A function that writes an error code to error.sherlo file in sync directory
 - (void)writeErrorToFile:(NSString *)errorCode {
   NSString *errorFilePath = [syncDirectoryPath stringByAppendingPathComponent:@"error.sherlo"];
-  NSError *error = [FileSystemHelper appendFile:errorFilePath contents:errorCode];
+  
+  // Encode the error code as base64
+  NSData *errorData = [errorCode dataUsingEncoding:NSUTF8StringEncoding];
+  NSString *base64ErrorCode = [errorData base64EncodedStringWithOptions:0];
+  
+  NSError *error = [FileSystemHelper appendFile:errorFilePath contents:base64ErrorCode];
   if (error) {
     NSLog(@"[%@] Error writing to error file: %@", LOG_TAG, error.localizedDescription);
   }
