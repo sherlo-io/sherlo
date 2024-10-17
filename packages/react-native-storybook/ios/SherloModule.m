@@ -72,18 +72,27 @@ RCT_EXPORT_MODULE()
 
         if (error) {
           NSLog(@"[%@] Error reading config file: %@", LOG_TAG, error.localizedDescription);
+          [self writeErrorToFile:@"ERROR_READING_CONFIG_FILE"];
         } else {
           NSData *jsonData = [configContent dataUsingEncoding:NSUTF8StringEncoding];
           NSDictionary *jsonDict = [NSJSONSerialization JSONObjectWithData:jsonData options:0 error:&error];
 
           if (error) {
             NSLog(@"[%@] Error parsing JSON: %@", LOG_TAG, error.localizedDescription);
+            [self writeErrorToFile:@"ERROR_PARSING_JSON"];
           } else {
             NSString *expoUpdateDeeplink = jsonDict[@"expoUpdateDeeplink"];
             // If the expoUpdateDeeplink is present in the config, we will open the url twice to make sure
             // the app is restarted with new update bundle and second time to make sure we dismiss the
             // initial expo dev client modal
             if (expoUpdateDeeplink) {
+              // If app is not built with expo-dev-client, log error and continue
+              if (![self checkIfExpoDevClient]) {
+                NSLog(@"[%@] Error: App is not built with expo-dev-client", LOG_TAG);
+                [self writeErrorToFile:@"ERROR_EXPO_DEV_CLIENT"];
+                return nil;
+              }
+
               NSLog(@"[%@] Consuming expo update deeplink", LOG_TAG);
 
               if (expoUpdateDeeplinkConsumeCount < 2) {
@@ -97,6 +106,7 @@ RCT_EXPORT_MODULE()
                     NSLog(@"[%@] URL consumed %d time(s)", LOG_TAG, expoUpdateDeeplinkConsumeCount);
                   } else {
                     NSLog(@"[%@] Cannot open URL: %@", LOG_TAG, expoUpdateDeeplink);
+                    [self writeErrorToFile:@"ERROR_OPENING_URL"];
                   }
                 });
               } else {
@@ -112,6 +122,7 @@ RCT_EXPORT_MODULE()
       }
     } @catch (NSException *exception) {
       NSLog(@"[%@] Exception occurred: %@, %@", LOG_TAG, exception.reason, exception.userInfo);
+      [self writeErrorToFile:@"ERROR_MODULE_INIT_EXCEPTION"];
       return nil;
     }
   }
@@ -266,6 +277,12 @@ RCT_EXPORT_METHOD(dumpBoundries:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
 
   NSError *error = [NSError errorWithDomain:@"SherloModule" code:0 userInfo:info];
   reject(@"E_EXCEPTION", @"Exception occurred", error);
+}
+
+// A function that writes an error code to error.sherlo file in sync directory
+- (void)writeErrorToFile:(NSString *)errorCode {
+  NSString *errorFilePath = [syncDirectoryPath stringByAppendingPathComponent:@"error.sherlo"];
+  [FileSystemHelper writeFile:errorFilePath contents:errorCode];
 }
 
 @end
