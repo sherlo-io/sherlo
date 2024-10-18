@@ -96,7 +96,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
           try {
             let boundaries;
             if (!renderedStoryHasError.current) {
-              boundaries = await SherloModule.dumpBoundries();
+              boundaries = await SherloModule.getInspectorData();
             }
 
             RunnerBridge.log('requesting screenshot from master script', {

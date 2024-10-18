@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, Button } from 'react-native';
 import {
   useFonts,
@@ -11,8 +11,6 @@ import * as SplashScreen from 'expo-splash-screen';
 import { openStorybook, verifyIntegration } from '@sherlo/react-native-storybook';
 
 SplashScreen.preventAutoHideAsync();
-
-verifyIntegration();
 
 export default function App() {
   let [fontsLoaded, fontError] = useFonts({
@@ -34,6 +32,10 @@ export default function App() {
 
   // eslint-disable-next-line react/no-unstable-nested-components
   const App = () => {
+    // useEffect(() => {
+    //   verifyIntegration();
+    // }, []);
+
     // @ts-ignore
     if (process.env.PROD_BUILD !== 'true') {
       const { isRunningStorybook } = require('@sherlo/react-native-storybook');

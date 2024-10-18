@@ -42,7 +42,22 @@ const Test = () => {
 
           <View style={styles.infoContainer}>
             <MaterialIcons name="update" size={24} color={textColor} />
-            <Text style={[styles.text, { color: textColor }]}>Update ID:</Text>
+            <Text style={[styles.text, { color: textColor }]}>
+              Update (
+              {Updates.createdAt?.toLocaleString('en-US', {
+                month: '2-digit',
+                day: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false,
+              })}
+              ) with ID:
+            </Text>
+          </View>
+
+          <View style={styles.infoContainer}>
             <Text style={[styles.text, { color: textColor }]}>{Updates.updateId}</Text>
           </View>
         </>

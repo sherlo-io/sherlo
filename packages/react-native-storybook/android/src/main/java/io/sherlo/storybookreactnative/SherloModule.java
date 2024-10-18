@@ -169,7 +169,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void dumpBoundries(Promise promise) {
+    public void getInspectorData(Promise promise) {
         Activity activity = getCurrentActivity();
         if (activity == null) {
             promise.reject("no_activity", "No current activity");
@@ -178,7 +178,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
         activity.runOnUiThread(() -> {
             try {
-                String jsonString = InspectorHelper.dumpBoundries(activity);
+                String jsonString = InspectorHelper.getInspectorData(activity);
                 promise.resolve(jsonString);
             } catch (Exception e) {
                 promise.reject("error", e.getMessage(), e);

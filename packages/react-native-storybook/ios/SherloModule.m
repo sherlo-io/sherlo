@@ -2,6 +2,9 @@
 #import "FileSystemHelper.h"
 #import "InspectorHelper.h"
 #import "RestartHelper.h"
+#import "ConfigHelper.h"
+#import "ExpoUpdateHelper.h"
+#import "VerificationHelper.h"
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
@@ -19,14 +22,11 @@
 #import <React/RCTUIManagerUtils.h>
 #endif
 
-static NSString *CONFIG_FILENAME = @"config.sherlo";
+static NSString *ERROR_FILENAME = @"error.sherlo";
 static NSString *const LOG_TAG = @"SherloModule";
 
 static NSString *syncDirectoryPath = @"";
 static NSString *mode = @"default"; // "default" / "storybook" / "testing" / "verification"
-static NSString *originalComponentName;
-static BOOL isStorybookRegistered = NO;
-static int expoUpdateDeeplinkConsumeCount = 0;
 
 @implementation SherloModule
 
@@ -43,83 +43,47 @@ RCT_EXPORT_MODULE()
     @try {
       NSLog(@"[%@] Initializing SherloModule", LOG_TAG);
 
-      // Set Sherlo directory path, this is the directory that will be 
-      // used to sync files between the emulator and Sherlo Runner
-      NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-      NSString *documentsPath = [paths firstObject];
-      if (!documentsPath) {
-        NSLog(@"[%@] Error: Failed to get the documents directory path.", LOG_TAG);
+      NSError *getSyncDirectoryPathError = nil;
+      syncDirectoryPath = [ConfigHelper getSyncDirectoryPath:&getSyncDirectoryPathError];
+      if (getSyncDirectoryPathError) {
+        [self handleError:@"ERROR_MODULE_INIT" error:getSyncDirectoryPathError];
         return nil;
       }
 
-      syncDirectoryPath = [documentsPath stringByAppendingPathComponent:@"sherlo"];
-      if (!syncDirectoryPath) {
-        NSLog(@"[%@] Error: Failed to set the Sherlo directory path.", LOG_TAG);
-        return nil;
-      }
-
-      // This is the path to the config file created by the Sherlo Runner
-      NSString *configPath = [syncDirectoryPath stringByAppendingPathComponent:CONFIG_FILENAME];
-      if (!configPath) {
-        NSLog(@"[%@] Error: Failed to set the config file path.", LOG_TAG);
+      NSError *loadConfigError = nil;
+      NSDictionary *config = [ConfigHelper loadConfig:&loadConfigError syncDirectoryPath:syncDirectoryPath];
+      if (loadConfigError) {
+        [self handleError:@"ERROR_MODULE_INIT" error:loadConfigError];
         return nil;
       }
       
-      BOOL doesSherloConfigFileExist = [[NSFileManager defaultManager] fileExistsAtPath:configPath];
-      if (doesSherloConfigFileExist) {
-        NSError *error = nil;
-        NSString *configContent = [NSString stringWithContentsOfFile:configPath encoding:NSUTF8StringEncoding error:&error];
+      // if there's a config, we are in testing mode
+      if(config) {
+        NSString *expoUpdateDeeplink = config[@"expoUpdateDeeplink"];
+        
+        if (expoUpdateDeeplink) {
+          NSLog(@"[%@] Consuming expo update deeplink", LOG_TAG);
 
-        if (error) {
-          NSLog(@"[%@] Error reading config file: %@", LOG_TAG, error.localizedDescription);
-          [self writeErrorToFile:@"ERROR_READING_CONFIG_FILE"];
-        } else {
-          NSData *jsonData = [configContent dataUsingEncoding:NSUTF8StringEncoding];
-          NSDictionary *jsonDict = [NSJSONSerialization JSONObjectWithData:jsonData options:0 error:&error];
-
-          if (error) {
-            NSLog(@"[%@] Error parsing JSON: %@", LOG_TAG, error.localizedDescription);
-            [self writeErrorToFile:@"ERROR_PARSING_JSON"];
-          } else {
-            NSString *expoUpdateDeeplink = jsonDict[@"expoUpdateDeeplink"];
-            // If the expoUpdateDeeplink is present in the config, we will open the url twice to make sure
-            // the app is restarted with new update bundle and second time to make sure we dismiss the
-            // initial expo dev client modal
-            if (expoUpdateDeeplink) {
-              NSLog(@"[%@] Consuming expo update deeplink", LOG_TAG);
-
-              if (expoUpdateDeeplinkConsumeCount < 2) {
-                dispatch_async(dispatch_get_main_queue(), ^{
-                  NSURL *nsurl = [NSURL URLWithString:expoUpdateDeeplink];
-
-                  if ([[UIApplication sharedApplication] canOpenURL:nsurl]) {
-                    [[UIApplication sharedApplication] openURL:nsurl options:@{} completionHandler:nil];
-                    expoUpdateDeeplinkConsumeCount++; // Increment the counter after opening the URL
-
-                    NSLog(@"[%@] URL consumed %d time(s)", LOG_TAG, expoUpdateDeeplinkConsumeCount);
-                  } else {
-                    NSLog(@"[%@] Cannot open URL: %@", LOG_TAG, expoUpdateDeeplink);
-                    [self writeErrorToFile:@"ERROR_OPENING_URL"];
-                  }
-                });
-              } else {
-                // After the URL has been consumed twice, we are in testing mode
-                mode = @"testing";
-              }
-            } else {
-              // If the expoUpdateDeeplink is not present in the config, we are immidiately in testing mode
-              mode = @"testing";
-            }
-
-            if([mode isEqualToString:@"testing"]) {
-              [self scheduleVerification];
-            }
+          NSError *expoUpdateError = nil;
+          NSString *tempMode = mode;
+          // This function will set the mode to "testing" if it consumes the expo update deeplink
+          [ExpoUpdateHelper consumeExpoUpdateDeeplink:expoUpdateDeeplink modeRef:&tempMode error:&expoUpdateError];
+          mode = tempMode;
+          
+          if (expoUpdateError) {
+            [self handleError:@"ERROR_OPENING_EXPO_DEEPLINK" error:expoUpdateError];
           }
+        } else {
+          // If the expoUpdateDeeplink is not present in the config, we are immediately in testing mode
+          mode = @"testing";
+        }
+
+        if([mode isEqualToString:@"testing"]) {
+          [self scheduleVerification];
         }
       }
     } @catch (NSException *exception) {
-      NSLog(@"[%@] Exception occurred: %@, %@", LOG_TAG, exception.reason, exception.userInfo);
-      [self writeErrorToFile:@"ERROR_MODULE_INIT_EXCEPTION"];
+      [self handleError:@"ERROR_MODULE_INIT" error:exception.reason];
       return nil;
     }
   }
@@ -147,6 +111,10 @@ RCT_EXPORT_MODULE()
   };
 }
 
+// Verifies the integration with the Sherlo SDK.
+// It sets the mode to "verification" and reloads the bridge which should load the storybook in verification mode
+// If we cannot detect sherlo wrapper view that means that the integration is not correct
+// and user will be presented with error modal, if it's triggered in testing mode the error will be written to error.sherlo
 RCT_EXPORT_METHOD(verifyIntegration:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   NSLog(@"[%@] Verifying integration", LOG_TAG);
   if(![mode isEqualToString:@"verification"]) {
@@ -158,8 +126,7 @@ RCT_EXPORT_METHOD(verifyIntegration:(RCTPromiseResolveBlock)resolve rejecter:(RC
   resolve(nil);
 }
 
-// Toggles the Storybook view. If the Storybook is currently open, it closes it. Otherwise, it opens it.
-// Exceptions during the toggle are caught and handled.
+// Toggles the mode between "storybook" and "default"
 RCT_EXPORT_METHOD(toggleStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   if ([mode isEqualToString:@"storybook"]) {
     [self closeStorybook:resolve rejecter:reject];
@@ -168,9 +135,7 @@ RCT_EXPORT_METHOD(toggleStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTP
   }
 }
 
-// Opens the Storybook view in a separate view controller on top of the root view controller,
-// allowing the user to return to the same app state after closing the Storybook.
-// Exceptions during the opening process are caught and handled.
+// Switches the mode to "storybook" and reloads the bridge
 RCT_EXPORT_METHOD(openStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   mode = @"storybook";
   
@@ -178,8 +143,7 @@ RCT_EXPORT_METHOD(openStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
   resolve(nil);
 }
 
-// Internal method to handle closing the Storybook view. This method is executed on the main queue.
-// If any errors occur during the closing process, they are caught and the reject block is called with the appropriate error message.
+// Switches the mode to "default" and reloads the bridge
 RCT_EXPORT_METHOD(closeStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   mode = @"default";
   
@@ -212,7 +176,7 @@ RCT_EXPORT_METHOD(appendFile:(NSString *)filepath contents:(NSString *)base64Con
       resolve(nil);
     }
   } @catch (NSException *exception) {
-    [self handleException:exception rejecter:reject];
+    [self handleError:@"ERROR_APPEND_FILE" error:exception.reason];
   }
 }
 
@@ -231,126 +195,69 @@ RCT_EXPORT_METHOD(readFile:(NSString *)filepath resolver:(RCTPromiseResolveBlock
       resolve(base64Content);
     }
   } @catch (NSException *exception) {
-    [self handleException:exception rejecter:reject];
+    [self handleError:@"ERROR_READ_FILE" error:exception.reason];
   }
 }
 
-RCT_EXPORT_METHOD(dumpBoundries:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
+// Dumps the boundaries of the root view as a JSON string.
+// If any errors occur during the dump process, the reject block is called with an appropriate error message.
+RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   dispatch_async(dispatch_get_main_queue(), ^{
-    UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
-    if (!keyWindow) {
-      reject(@"no_key_window", @"Could not find the key window", nil);
-      return;
-    }
-
-    UIView *rootView = keyWindow.rootViewController.view;
-    if (!rootView) {
-      reject(@"no_root_view", @"Could not find the root view", nil);
-      return;
-    }
-
     NSError *error = nil;
-    NSString *jsonString = [InspectorHelper dumpBoundaries:rootView error:&error];
+    NSString *jsonString = [InspectorHelper dumpBoundaries:&error];
+
     if (error) {
       reject(@"json_error", @"Could not serialize view data to JSON", error);
-    } else if (!jsonString) {
-      reject(@"string_error", @"Could not convert JSON data to string", nil);
     } else {
       resolve(jsonString);
     }
   });
 }
 
-- (NSString *)getSyncDirectoryPath
-{
-  // Use the app's documents directory
-  NSArray<NSString *> *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-  return [paths firstObject];
-}
-
-// Handles exceptions by logging the error and rejecting the promise with an appropriate error message.
-- (void)handleException:(NSException *)exception rejecter:(RCTPromiseRejectBlock)reject {
-  NSMutableDictionary *info = [NSMutableDictionary dictionary];
-  [info setValue:exception.name forKey:@"ExceptionName"];
-  [info setValue:exception.reason forKey:@"ExceptionReason"];
-
-  NSError *error = [NSError errorWithDomain:@"SherloModule" code:0 userInfo:info];
-  reject(@"E_EXCEPTION", @"Exception occurred", error);
-}
-
-// schedule verification in 5 seconds
-// if visible views contain at least one view that has test id equal to "sherlo-getStorybook-verification"
 - (void)scheduleVerification {
-    // dispatch_async(dispatch_get_main_queue(), ^{
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-    
-    UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
-    if (!keyWindow) {
-      [self writeErrorToFile:@"VERIFICATION_FAILED_NO_KEY_WINDOW"];
-      return;
+    NSError *error = nil;
+    [VerificationHelper verifyIntegrationWithMode:mode
+                                syncDirectoryPath:syncDirectoryPath
+                                          error: &error];
+    if (error) {
+      [self handleError:@"ERROR_VERIFY_INTEGRATION" error:error];
     }
-
-    UIView *rootView = keyWindow.rootViewController.view;
-    if (!rootView) {
-      [self writeErrorToFile:@"VERIFICATION_FAILED_NO_ROOT_VIEW"];
-      return;
-    }
-
-    NSMutableArray *verificationIds = [NSMutableArray array];
-    [self findVerificationIds:rootView intoArray:verificationIds];
-
-      if ([mode isEqualToString:@"testing"]) {
-        if ([verificationIds count] == 0) {
-          [self writeErrorToFile:@"VERIFICATION_FAILED_NO_VERIFICATION_VIEW"];
-        } else {
-          NSLog(@"[%@] Verification passed, writing to integration_verified.sherlo", LOG_TAG);
-          NSString *integrationVerifiedFilePath = [syncDirectoryPath stringByAppendingPathComponent:@"integration_verified.sherlo"];
-          NSData *content = [@"{\"integrationVerified\": true}" dataUsingEncoding:NSUTF8StringEncoding];
-          NSString *base64Content = [content base64EncodedStringWithOptions:0];
-          [FileSystemHelper appendFile:integrationVerifiedFilePath contents:base64Content];
-        }
-      }
-
-      if ([mode isEqualToString:@"verification"]) {
-        if ([verificationIds count] == 0) {
-          NSLog(@"[%@] Verification failed, no verification view found", LOG_TAG);
-          UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Verification failed" message:@"Could not find Sherlo verification view" preferredStyle:UIAlertControllerStyleAlert];
-          [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-          [[UIApplication sharedApplication].keyWindow.rootViewController presentViewController:alert animated:YES completion:nil];
-        }
-      }
   });
 }
 
-
-- (void)findVerificationIds:(UIView *)view intoArray:(NSMutableArray *)array {
-    NSString *accessibilityIdentifier = view.accessibilityIdentifier;
-
-    if (accessibilityIdentifier) {
-      NSLog(@"[%@] View accessibility identifier: %@", LOG_TAG, accessibilityIdentifier);
-
-      if ([accessibilityIdentifier containsString:@"sherlo-getStorybook-verification"]) {
-          [array addObject:accessibilityIdentifier];
-      }
-    }
-
-    for (UIView *subview in view.subviews) {
-        [self findVerificationIds:subview intoArray:array];
-    }
-}
-
-
 // A function that writes an error code to error.sherlo file in sync directory
-- (void)writeErrorToFile:(NSString *)errorCode {
-  NSString *errorFilePath = [syncDirectoryPath stringByAppendingPathComponent:@"error.sherlo"];
+- (void)handleError:(NSString *)errorCode error:(NSError *)error {
+  NSLog(@"[%@] Error occurred: %@, Error: %@", LOG_TAG, errorCode, error.localizedDescription ?: @"N/A");
+
+  NSString *errorFilePath = [syncDirectoryPath stringByAppendingPathComponent:ERROR_FILENAME];
   
-  // Encode the error code as base64
-  NSData *errorData = [errorCode dataUsingEncoding:NSUTF8StringEncoding];
-  NSString *base64ErrorCode = [errorData base64EncodedStringWithOptions:0];
-  
-  NSError *error = [FileSystemHelper appendFile:errorFilePath contents:base64ErrorCode];
+  // Create a dictionary for the error data
+  NSMutableDictionary *errorDict = [@{@"code": errorCode} mutableCopy];
   if (error) {
-    NSLog(@"[%@] Error writing to error file: %@", LOG_TAG, error.localizedDescription);
+    errorDict[@"subcode"] = error.localizedDescription;
+    errorDict[@"domain"] = error.domain;
+    errorDict[@"code"] = @(error.code);
+    if (error.userInfo) {
+      errorDict[@"userInfo"] = error.userInfo;
+    }
+  }
+  
+  // Convert the dictionary to JSON data
+  NSError *jsonError;
+  NSData *jsonData = [NSJSONSerialization dataWithJSONObject:errorDict options:0 error:&jsonError];
+  
+  if (jsonError) {
+    NSLog(@"[%@] Error creating JSON: %@", LOG_TAG, jsonError.localizedDescription);
+    return;
+  }
+  
+  // Convert JSON data to base64 string
+  NSString *base64ErrorData = [jsonData base64EncodedStringWithOptions:0];
+  
+  NSError *writeError = [FileSystemHelper appendFile:errorFilePath contents:base64ErrorData];
+  if (writeError) {
+    NSLog(@"[%@] Error writing to error file: %@", LOG_TAG, writeError.localizedDescription);
   }
 }
 

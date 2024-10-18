@@ -1,13 +1,27 @@
 #import "InspectorHelper.h"
+#import <UIKit/UIKit.h>
 
 @implementation InspectorHelper
 
-+ (NSString *)dumpBoundaries:(UIView *)rootView error:(NSError **)error {
++ (NSString *)dumpBoundaries:(NSError **)error {
+    UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+    if (!keyWindow) {
+      *error = [NSError errorWithDomain:@"InspectorHelper" code:1 userInfo:@{NSLocalizedDescriptionKey: @"Could not find the key window"}];
+      return nil;
+    }
+
+    UIView *rootView = keyWindow.rootViewController.view;
+    if (!rootView) {
+      *error = [NSError errorWithDomain:@"InspectorHelper" code:2 userInfo:@{NSLocalizedDescriptionKey: @"Could not find the root view"}];
+      return nil;
+    }
+
     NSMutableArray *viewList = [NSMutableArray array];
     [self collectViewInfo:rootView intoArray:viewList];
 
     NSData *jsonData = [NSJSONSerialization dataWithJSONObject:viewList options:0 error:error];
     if (!jsonData) {
+        *error = [NSError errorWithDomain:@"InspectorHelper" code:3 userInfo:@{NSLocalizedDescriptionKey: @"Could not serialize view data to JSON"}];
         return nil;
     }
 

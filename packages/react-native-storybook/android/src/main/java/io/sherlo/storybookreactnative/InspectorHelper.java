@@ -17,7 +17,7 @@ import java.util.List;
 public class InspectorHelper {
     private static final String TAG = "InspectorHelper";
 
-    public static String dumpBoundries(Activity activity) throws JSONException {
+    public static String getInspectorData(Activity activity) throws JSONException {
         View rootView = activity.getWindow().getDecorView().getRootView();
 
         // List to hold all view information

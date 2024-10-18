@@ -3,6 +3,6 @@
 
 @interface InspectorHelper : NSObject
 
-+ (NSString *)dumpBoundaries:(UIView *)rootView error:(NSError **)error;
++ (NSString *)dumpBoundaries:(NSError **)error;
 
 @end
