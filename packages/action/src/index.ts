@@ -1,6 +1,6 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
-import { mainCommand } from '@sherlo/cli';
+import { localBuilds } from '@sherlo/cli';
 
 async function run(): Promise<void> {
   try {
@@ -43,16 +43,18 @@ async function run(): Promise<void> {
       gitInfo.commitName = overrideCommitName;
     }
 
-    const { buildIndex, url } = await mainCommand({
+    // TODO: odpalic localBuilds, lub expoRemoteBuilds, lub easBuildOnComplete
+
+    const { buildIndex, url } = await localBuilds({
       projectRoot,
       config,
       token: emptyStringToUndefined(process.env.SHERLO_TOKEN), // Action returns an empty string if not defined
       android,
       ios,
-      remoteExpo: remoteExpo === 'true',
-      remoteExpoBuildScript,
-      async: async === 'true',
-      asyncBuildIndex: asyncBuildIndex ? Number(asyncBuildIndex) : undefined,
+      // remoteExpo: remoteExpo === 'true',
+      // remoteExpoBuildScript,
+      // async: async === 'true',
+      // asyncBuildIndex: asyncBuildIndex ? Number(asyncBuildIndex) : undefined,
       gitInfo,
     });
 
