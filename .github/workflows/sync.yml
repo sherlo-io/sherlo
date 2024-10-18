@@ -41,7 +41,7 @@ jobs:
       - name: Run sherlo local-builds
         run: |
           yarn sherlo local-builds \
-            --config configs/sync.preview.json \
+            --config configs/local-builds.json \
             --android examples/expo-example/builds/preview/android.apk \
             --ios examples/expo-example/builds/preview/ios.tar.gz \
             --token ${{ secrets.SHERLO_INTEGRATION_TESTING_SYNC_TOKEN }}

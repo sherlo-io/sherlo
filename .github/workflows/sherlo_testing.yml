@@ -13,6 +13,11 @@ on:
         required: false
         default: false
         type: boolean
+      skip_development_builds:
+        description: 'Skip Development builds'
+        required: false
+        default: false
+        type: boolean
       skip_storybook_builds:
         description: 'Skip Storybook builds'
         required: false
@@ -47,6 +52,14 @@ jobs:
     secrets: inherit
     with:
       profile: 'preview'
+
+  update_development_builds:
+    uses: ./.github/workflows/update_builds.yml
+    if: ${{ github.event.inputs.skip_development_builds != 'true'}}
+    name: Update Development Builds
+    secrets: inherit
+    with:
+      profile: 'development'
 
   update_storybook_builds:
     uses: ./.github/workflows/update_builds.yml

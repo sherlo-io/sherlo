@@ -1,0 +1,61 @@
+name: Run Sherlo with Expo Update mode
+
+on:
+  workflow_call:
+    inputs:
+      env:
+        description: 'Environment (dev, test, prod)'
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Environment (dev, test, prod)'
+        required: true
+        default: 'dev'
+        type: string
+jobs:
+  run_sherlo_sync:
+    name: Run Sherlo in sync mode
+    environment: ${{ inputs.env }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.ref }}
+          lfs: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18.18.0'
+
+      - name: Install dependencies
+        run: yarn
+
+      - name: Build dependencies
+        run: yarn switch-env:${{ inputs.env }}
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Trigger EAS update and capture manifest URLs
+        run: |
+          UPDATE_RESULT=$(eas update --branch "development" --message "${{ github.event.head_commit.message }}" --json)
+          echo "ANDROID_EXPO_UPDATE_URL=$(echo "$UPDATE_RESULT" | jq -r '.[] | select(.platform == "android") | .manifestUrl')" >> $GITHUB_ENV
+          echo "IOS_EXPO_UPDATE_URL=$(echo "$UPDATE_RESULT" | jq -r '.[] | select(.platform == "ios") | .manifestUrl')" >> $GITHUB_ENV
+
+      - name: Run sherlo local-builds
+        run: |
+          yarn sherlo local-builds \
+            --config configs/local-builds.json \
+            --android examples/expo-example/builds/development/android.apk \
+            --androidExpoUpdateUrl ${{ env.ANDROID_EXPO_UPDATE_URL }} \
+            --ios examples/expo-example/builds/development/ios.tar.gz \
+            --iosExpoUpdateUrl ${{ env.IOS_EXPO_UPDATE_URL }} \
+            --token ${{ secrets.SHERLO_INTEGRATION_TESTING_EXPO_UPDATE_TOKEN }}

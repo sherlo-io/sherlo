@@ -1,6 +1,4 @@
 {
-  "android": "builds/preview/android.apk",
-  "ios": "builds/preview/ios.tar.gz",
   "include": ["components/screens/"],
   "devices": [
     {

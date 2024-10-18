@@ -45,7 +45,7 @@ jobs:
       - name: Run sherlo expo-remote-builds
         run: |
           yarn sherlo expo-remote-builds \
-            --config ../../configs/eas.preview.json \
+            --config ../../configs/expo-remote-builds.json \
             --projectRoot examples/expo-example \
             --token ${{ secrets.SHERLO_INTEGRATION_TESTING_EAS_TOKEN }}
 
