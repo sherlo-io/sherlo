@@ -13,6 +13,7 @@ export const DOCS_LINK = {
   sherloScriptLocalBuilds: `${DOCS_DOMAIN}/getting-started/testing?builds-type=local#sherlo-script`,
   sherloScriptExpoRemoteBuilds: `${DOCS_DOMAIN}/getting-started/testing?builds-type=expo-remote#sherlo-script`,
   sherloScriptFlags: `${DOCS_DOMAIN}/getting-started/testing#supported-flags`,
+  expoUpdate: `${DOCS_DOMAIN}/getting-started/expo-update`, // TODO: Add correct documentation link for expo-update
 };
 
 export const IOS_FILE_TYPES = ['.app', '.tar.gz', '.tar'] as const;

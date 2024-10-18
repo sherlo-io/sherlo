@@ -1,14 +1,20 @@
-import { BuildRunConfig, Device, GetBuildUploadUrlsReturn, Platform } from '@sherlo/api-types';
+import { BuildRun, Device, GetBuildUploadUrlsReturn, Platform } from '@sherlo/api-types';
 import { devices as sherloDevices } from '@sherlo/shared';
 import { Config } from '../types';
 
 function getBuildRunConfig({
-  buildPresignedUploadUrls,
   config,
+  buildPresignedUploadUrls,
+  expoUpdateInfo,
 }: {
-  buildPresignedUploadUrls?: GetBuildUploadUrlsReturn['buildPresignedUploadUrls'];
   config: Config<'withBuildPaths'> | Config<'withoutBuildPaths'>;
-}): BuildRunConfig {
+  buildPresignedUploadUrls?: GetBuildUploadUrlsReturn['buildPresignedUploadUrls'];
+  expoUpdateInfo?: {
+    slug: string;
+    androidUrl?: string;
+    iosUrl?: string;
+  };
+}): BuildRun['config'] {
   const { devices, include, exclude } = config;
 
   const androidDevices = getPlatformDevices(devices, 'android');
@@ -17,12 +23,12 @@ function getBuildRunConfig({
   return {
     include,
     exclude,
+    expoUpdateSlug: expoUpdateInfo?.slug,
     android:
       androidDevices.length > 0
         ? {
             devices: androidDevices,
-            // packageName: android.packageName,
-            // activity: android.activity,
+            expoUpdateUrl: expoUpdateInfo?.androidUrl,
             s3Key: buildPresignedUploadUrls?.android?.s3Key || '',
           }
         : undefined,
@@ -30,7 +36,7 @@ function getBuildRunConfig({
       iosDevices.length > 0
         ? {
             devices: iosDevices,
-            // bundleIdentifier: ios.bundleIdentifier,
+            expoUpdateUrl: expoUpdateInfo?.iosUrl,
             s3Key: buildPresignedUploadUrls?.ios?.s3Key || '',
           }
         : undefined,

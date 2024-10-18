@@ -12,4 +12,5 @@ export { default as handleClientError } from './handleClientError';
 export { default as printHeader } from './printHeader';
 export { default as throwConfigError } from './throwConfigError';
 export { default as throwError } from './throwError';
+export { default as uploadBuildsAndRunTests } from './uploadBuildsAndRunTests';
 export { default as uploadMobileBuilds } from './uploadMobileBuilds';

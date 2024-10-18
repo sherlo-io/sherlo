@@ -1,25 +1,29 @@
 import { Build } from '@sherlo/api-types';
 import SDKApiClient from '@sherlo/sdk-client';
-import { DOCS_LINK } from '../../constants';
-import {
-  getAppBuildUrl,
-  getBuildRunConfig,
-  getBuildUploadUrls,
-  getPlatformsToTest,
-  getTokenParts,
-  handleClientError,
-  uploadMobileBuilds,
-  getLogLink,
-  throwConfigError,
-} from '../../helpers';
-import { Config } from '../../types';
+import { DOCS_LINK } from '../constants';
+import { Config } from '../types';
+import getAppBuildUrl from './getAppBuildUrl';
+import getBuildRunConfig from './getBuildRunConfig';
+import getBuildUploadUrls from './getBuildUploadUrls';
+import getPlatformsToTest from './getPlatformsToTest';
+import getTokenParts from './getTokenParts';
+import handleClientError from './handleClientError';
+import uploadMobileBuilds from './uploadMobileBuilds';
+import getLogLink from './getLogLink';
+import throwConfigError from './throwConfigError';
 
 async function uploadBuildsAndRunTests({
   config,
   gitInfo,
+  expoUpdateInfo,
 }: {
   config: Config<'withBuildPaths'>;
   gitInfo: Build['gitInfo'];
+  expoUpdateInfo?: {
+    slug: string;
+    androidUrl?: string;
+    iosUrl?: string;
+  };
 }): Promise<{ buildIndex: number; url: string }> {
   const { apiToken, projectIndex, teamId } = getTokenParts(config.token);
   const client = SDKApiClient(apiToken);
@@ -50,6 +54,7 @@ async function uploadBuildsAndRunTests({
       buildRunConfig: getBuildRunConfig({
         config,
         buildPresignedUploadUrls: buildUploadUrls,
+        expoUpdateInfo,
       }),
     })
     .catch(handleClientError);
