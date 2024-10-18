@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { version } from '../package.json';
-import { localBuilds, expoRemoteBuilds, easBuildOnComplete } from './commands';
+import { localBuilds, expoRemoteBuilds, easBuildOnComplete, expoUpdate } from './commands';
 import { printHeader } from './helpers';
 
 async function start() {
@@ -22,6 +22,20 @@ async function start() {
       .option('--projectRoot <path>', 'Root of the React Native project')
       .action(async (options) => {
         await localBuilds(options);
+      });
+
+    program
+      .command('expo-update')
+      .description('Run Sherlo with Expo update')
+      .option('--androidUrl <url>', 'URL for the Android Expo update')
+      .option('--iosUrl <url>', 'URL for the iOS Expo update')
+      .option('--android <path>', 'Path to the Android build in .apk format')
+      .option('--ios <path>', 'Path to the iOS build in .app (or compressed .tar.gz / .tar) format')
+      .option('--token <token>', 'Project token')
+      .option('--config <path>', 'Config file path')
+      .option('--projectRoot <path>', 'Root of the React Native project')
+      .action(async (options) => {
+        await expoUpdate(options);
       });
 
     program

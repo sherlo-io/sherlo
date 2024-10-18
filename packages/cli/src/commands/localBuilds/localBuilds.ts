@@ -5,9 +5,9 @@ import {
   getOptionsWithDefaults,
   printHeader,
   validateConfig,
+  uploadBuildsAndRunTests,
 } from '../../helpers';
 import { OptionDefaults } from '../../types';
-import uploadBuildsAndRunTests from './uploadBuildsAndRunTests';
 
 type Options = {
   android?: string;
@@ -25,7 +25,7 @@ async function localBuilds(passedOptions: Options): Promise<{ buildIndex: number
 
   validateConfig(config, { validateBuildPaths: true });
 
-  const gitInfo = passedOptions.gitInfo ?? getGitInfo();
+  const gitInfo = getGitInfo(passedOptions.gitInfo);
 
   return uploadBuildsAndRunTests({
     config,

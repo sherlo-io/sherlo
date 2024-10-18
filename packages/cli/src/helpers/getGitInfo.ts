@@ -1,7 +1,11 @@
 import { Build } from '@sherlo/api-types';
 import git from 'git-rev-sync';
 
-function getGitInfo(): Build['gitInfo'] {
+function getGitInfo(passedGitInfo?: Build['gitInfo']): Build['gitInfo'] {
+  if (passedGitInfo) {
+    return passedGitInfo;
+  }
+
   try {
     return {
       commitName: git.message() || 'unknown',
