@@ -110,6 +110,10 @@ RCT_EXPORT_MODULE()
               // If the expoUpdateDeeplink is not present in the config, we are immidiately in testing mode
               mode = @"testing";
             }
+
+            if([mode isEqualToString:@"testing"]) {
+              [self scheduleVerification];
+            }
           }
         }
       }
@@ -144,9 +148,13 @@ RCT_EXPORT_MODULE()
 }
 
 RCT_EXPORT_METHOD(verifyIntegration:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  mode = @"verification";
+  NSLog(@"[%@] Verifying integration", LOG_TAG);
+  if(![mode isEqualToString:@"verification"]) {
+    mode = @"verification";
+    [RestartHelper reloadWithBridge:self.bridge];
+    [self scheduleVerification];
+  }
 
-  [RestartHelper reloadWithBridge:self.bridge];
   resolve(nil);
 }
 
@@ -273,44 +281,57 @@ RCT_EXPORT_METHOD(dumpBoundries:(RCTPromiseResolveBlock)resolve rejecter:(RCTPro
 // schedule verification in 5 seconds
 // if visible views contain at least one view that has test id equal to "sherlo-getStorybook-verification"
 - (void)scheduleVerification {
-    dispatch_async(dispatch_get_main_queue(), ^{
-  // dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+    // dispatch_async(dispatch_get_main_queue(), ^{
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
     
     UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
     if (!keyWindow) {
-      reject(@"no_key_window", @"Could not find the key window", nil);
+      [self writeErrorToFile:@"VERIFICATION_FAILED_NO_KEY_WINDOW"];
       return;
     }
 
     UIView *rootView = keyWindow.rootViewController.view;
     if (!rootView) {
-      reject(@"no_root_view", @"Could not find the root view", nil);
+      [self writeErrorToFile:@"VERIFICATION_FAILED_NO_ROOT_VIEW"];
       return;
     }
 
     NSMutableArray *verificationIds = [NSMutableArray array];
     [self findVerificationIds:rootView intoArray:verificationIds];
 
-    if ([verificationIds count] == 0) {
       if ([mode isEqualToString:@"testing"]) {
-        [self writeErrorToFile:@"VERIFICATION_FAILED"];
+        if ([verificationIds count] == 0) {
+          [self writeErrorToFile:@"VERIFICATION_FAILED_NO_VERIFICATION_VIEW"];
+        } else {
+          NSLog(@"[%@] Verification passed, writing to integration_verified.sherlo", LOG_TAG);
+          NSString *integrationVerifiedFilePath = [syncDirectoryPath stringByAppendingPathComponent:@"integration_verified.sherlo"];
+          NSData *content = [@"{\"integrationVerified\": true}" dataUsingEncoding:NSUTF8StringEncoding];
+          NSString *base64Content = [content base64EncodedStringWithOptions:0];
+          [FileSystemHelper appendFile:integrationVerifiedFilePath contents:base64Content];
+        }
       }
 
       if ([mode isEqualToString:@"verification"]) {
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Verification failed" message:@"Could not find Sherlo verification view" preferredStyle:UIAlertControllerStyleAlert];
-        [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-        [[UIApplication sharedApplication].keyWindow.rootViewController presentViewController:alert animated:YES completion:nil];
+        if ([verificationIds count] == 0) {
+          NSLog(@"[%@] Verification failed, no verification view found", LOG_TAG);
+          UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Verification failed" message:@"Could not find Sherlo verification view" preferredStyle:UIAlertControllerStyleAlert];
+          [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+          [[UIApplication sharedApplication].keyWindow.rootViewController presentViewController:alert animated:YES completion:nil];
+        }
       }
-    }
   });
 }
 
 
-+ (void)findVerificationIds:(UIView *)view intoArray:(NSMutableArray *)array {
+- (void)findVerificationIds:(UIView *)view intoArray:(NSMutableArray *)array {
     NSString *accessibilityIdentifier = view.accessibilityIdentifier;
 
-    if (accessibilityIdentifier && [accessibilityIdentifier containsString:@"sherlo-getStorybook-verification"]) {
-        [array addObject:accessibilityIdentifier];
+    if (accessibilityIdentifier) {
+      NSLog(@"[%@] View accessibility identifier: %@", LOG_TAG, accessibilityIdentifier);
+
+      if ([accessibilityIdentifier containsString:@"sherlo-getStorybook-verification"]) {
+          [array addObject:accessibilityIdentifier];
+      }
     }
 
     for (UIView *subview in view.subviews) {
