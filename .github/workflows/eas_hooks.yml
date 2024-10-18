@@ -42,14 +42,12 @@ jobs:
 
       # It's important to run Sherlo in the same job as the EAS build,
       # because we're pushing temporary files to .expo directory used during the build
-      - name: Run Sherlo in async mode
-        uses: ./.
-        with:
-          projectRoot: examples/expo-example
-          config: ../../configs/eas.preview.json
-          remoteExpo: true
-        env:
-          SHERLO_TOKEN: ${{ secrets.SHERLO_INTEGRATION_TESTING_EAS_TOKEN }}
+      - name: Run sherlo expo-remote-builds
+        run: |
+          yarn sherlo expo-remote-builds \
+            --config ../../configs/eas.preview.json \
+            --projectRoot examples/expo-example \
+            --token ${{ secrets.SHERLO_INTEGRATION_TESTING_EAS_TOKEN }}
 
       - name: Trigger EAS builds for both platforms
         working-directory: examples/expo-example
