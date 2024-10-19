@@ -1,0 +1,12 @@
+{
+  "ios": "builds/preview/ios.tar.gz",
+  "include": ["components/screens/"],
+  "devices": [
+    {
+      "id": "iphone.13.mini",
+      "osVersion": "15",
+      "osLocale": "en_US",
+      "osTheme": "light"
+    }
+  ]
+}
