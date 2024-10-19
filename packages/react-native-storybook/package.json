@@ -49,6 +49,7 @@
     "preset": "react-native"
   },
   "dependencies": {
+    "@storybook/core": "8.3.6",
     "@sherlo/cli": "^1.0.34",
     "base-64": "^0.1.0",
     "jsencrypt": "^3.3.2",
