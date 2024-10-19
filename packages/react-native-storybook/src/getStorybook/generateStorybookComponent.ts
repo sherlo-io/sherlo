@@ -16,14 +16,9 @@ function generateStorybookComponent({
   if (storybookRenderMode === 'sherlo') {
     params = {
       ...params,
-      isUIHidden: true,
       host: undefined,
       enableWebsockets: false,
-      isSplitPanelVisible: false,
-      tabOpen: 0, // Canvas tab
       onDeviceUI: false,
-      shouldDisableKeyboardAvoidingView: true,
-      keyboardAvoidingViewVerticalOffset: 0,
       shouldPersistSelection: false,
     };
 

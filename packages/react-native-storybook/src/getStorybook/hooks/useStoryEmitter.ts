@@ -1,5 +1,5 @@
-import { SET_CURRENT_STORY } from '@storybook/core-events';
-import { addons } from '@storybook/manager-api';
+import { SET_CURRENT_STORY } from '@storybook/core/core-events';
+import { addons } from '@storybook/core/manager-api';
 import { useEffect } from 'react';
 
 function useStoryEmitter(updateRenderedStoryId: (storyId: string) => void): (id: string) => void {
