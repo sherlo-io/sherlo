@@ -44,7 +44,7 @@ projects.
 
 ## 💡 Examples
 
-- [expo-storybook-8](testing/expo-storybook-8): Expo project with Sherlo integration
+- [expo-example](examples/expo-example): Expo project with Sherlo integration
 
 <br />
 

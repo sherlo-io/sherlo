@@ -20,6 +20,13 @@ function generateStorybookComponent({
       enableWebsockets: false,
       onDeviceUI: false,
       shouldPersistSelection: false,
+
+      // These properties are only valid for Storybook 7
+      isUIHidden: true,
+      isSplitPanelVisible: false,
+      tabOpen: 0, // Canvas tab
+      shouldDisableKeyboardAvoidingView: true,
+      keyboardAvoidingViewVerticalOffset: 0,
     };
 
     if (initialSelection) {
