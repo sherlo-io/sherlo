@@ -44,9 +44,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
             // https://developer.android.com/reference/android/content/Context#getExternalFilesDir(java.lang.String)
             File externalDirectory = this.getReactApplicationContext().getExternalFilesDir(null);
             if (externalDirectory != null) {
-                // TODO: Think this through, this might be a problem if the user
-                // has previous version of SDK and we're using new runner that creates target_files directory
-                this.syncDirectoryPath = externalDirectory.getAbsolutePath() + "/sherlo/target_files";
+                this.syncDirectoryPath = externalDirectory.getAbsolutePath() + "/sherlo";
             } else {
                 Log.e(TAG, "External storage is not accessible");
             }
