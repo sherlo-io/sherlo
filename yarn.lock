@@ -18759,7 +18759,7 @@ storybook@^7.6.17:
   dependencies:
     "@storybook/cli" "7.6.20"
 
-storybook@^8.3.5:
+storybook@^8.3.5, storybook@^8.3.6:
   version "8.3.6"
   resolved "https://registry.yarnpkg.com/storybook/-/storybook-8.3.6.tgz#c5e733504fac26c1a31c527a645c04ec7da4222f"
   integrity sha512-9GVbtej6ZzPRUM7KRQ7848506FfHrUiJGqPuIQdoSJd09EmuEoLjmLAgEOmrHBQKgGYMaM7Vh9GsTLim6vwZTQ==
