@@ -1,5 +1,4 @@
 {
-  "include": ["components/screens/"],
   "devices": [
     {
       "id": "pixel.4a",

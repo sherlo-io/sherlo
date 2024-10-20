@@ -1,5 +1,4 @@
 {
-  "include": ["components/screens/Test"],
   "devices": [
     {
       "id": "pixel.7.pro",

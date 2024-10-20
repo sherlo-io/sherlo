@@ -12,7 +12,7 @@
 <br />
 
 <div align="center">
-    <img src="./assets/app.webp" width="800" alt="Screenshot of Sherlo web application" />
+    <img src="./assets/app.webp" alt="Screenshot of Sherlo web application" />
 </div>
 
 ## ℹ️ About

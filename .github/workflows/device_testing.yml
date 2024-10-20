@@ -43,6 +43,6 @@ jobs:
         run: |
           yarn sherlo local-builds \
             --config configs/device-testing.json \
-            --android examples/expo-example/builds/preview/android.apk \
-            --ios examples/expo-example/builds/preview/ios.tar.gz \
+            --android testing/expo-storybook-8/builds/preview/android.apk \
+            --ios testing/expo-storybook-8/builds/preview/ios.tar.gz \
             --token ${{ secrets.SHERLO_DEVICE_TESTING_TOKEN }}

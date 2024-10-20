@@ -54,9 +54,9 @@ jobs:
         run: |
           yarn sherlo local-builds \
             --config configs/local-builds.json \
-            --android examples/expo-example/builds/development/android.apk \
+            --android testing/expo-storybook-8/builds/development/android.apk \
             --androidExpoUpdateUrl ${{ env.ANDROID_EXPO_UPDATE_URL }} \
-            --ios examples/expo-example/builds/development/ios.tar.gz \
+            --ios testing/expo-storybook-8/builds/development/ios.tar.gz \
             --iosExpoUpdateUrl ${{ env.IOS_EXPO_UPDATE_URL }} \
             --token ${{ secrets.SHERLO_INTEGRATION_TESTING_EXPO_UPDATE_TOKEN }}
 
