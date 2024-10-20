@@ -18,7 +18,6 @@
     "eas-build-post-install": "node ./scripts/setDevEnvOnExpoServer.js",
     "sherlo": "sherlo",
     "sherlo:async": "sherlo --config ../../configs/demo.storybook.json",
-    "sherlo:demo": "sherlo --config ../../configs/demo.preview.json",
     "sherlo:eas": "sherlo --config ../../configs/eas.preview.json",
     "sherlo:sync": "sherlo --config ../../configs/sync.preview.json",
     "start:android:dev": "adb install builds/development/android.apk && expo start --android --dev-client",

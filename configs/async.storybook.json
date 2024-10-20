@@ -1,7 +1,4 @@
 {
-  "android": "builds/storybook/android.apk",
-  "ios": "builds/storybook/ios.tar.gz",
-  "include": ["components/screens/Test"],
   "devices": [
     {
       "id": "pixel.7.pro",

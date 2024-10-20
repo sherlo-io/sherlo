@@ -1,6 +1,4 @@
 {
-  "android": "builds/preview/android.apk",
-  "ios": "builds/preview/ios.tar.gz",
   "devices": [
     {
       "id": "pixel.7.pro",
