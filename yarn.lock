@@ -4340,40 +4340,12 @@
   resolved "https://registry.yarnpkg.com/@sherlo/api-types/-/api-types-1.1.9.tgz#1728336ff5ca35c5a0d21cf7c4d8604de7e2693b"
   integrity sha512-hTX+D1oFFmfNY5icZ2g6xVbBpSAwFv568kOV8hWozAcUdSbULSB4VOHGQK/wQW59kLeseXYZHYNCxyoFLUD8aQ==
 
-"@sherlo/cli@^1.0.36-alpha":
-  version "1.0.36-alpha"
-  resolved "https://registry.yarnpkg.com/@sherlo/cli/-/cli-1.0.36-alpha.tgz#ce3518bd0a67b5eb78b1aac3351c10afd51cc1b1"
-  integrity sha512-RAEdWPGayKpIE2soC90pfhy9udjuIHlZ34wo+bsrgJ1XP2p9HLfFEqsfJGWUrzmmaeChOV20Jx0nV08kixC8gQ==
-  dependencies:
-    "@sherlo/api-types" "1.1.9"
-    "@sherlo/common-client" "1.1.9"
-    "@sherlo/sdk-client" "1.1.9"
-    "@sherlo/shared" "1.1.9"
-    chalk "^4.1.2"
-    commander "^12.0.0"
-    git-rev-sync "^3.0.2"
-    gradient-string "^2.0.1"
-    graphql "^16.6.0"
-    node-fetch "^2.6.11"
-    tar "^6.1.15"
-
 "@sherlo/common-client@1.1.9":
   version "1.1.9"
   resolved "https://registry.yarnpkg.com/@sherlo/common-client/-/common-client-1.1.9.tgz#d4eb7fb961713943dab1901a30454731b8e2478a"
   integrity sha512-9y8IQcu90ePK2MRcvJ5FZ59W4n939z8om6NgBFstXm5+tRUh2bqQmCoe7Ywv7qKJmOe55bVZk3su2qDvFTGChQ==
   dependencies:
     graphql-tag "2.12.6"
-
-"@sherlo/react-native-storybook@^1.0.36-alpha":
-  version "1.0.36-alpha"
-  resolved "https://registry.yarnpkg.com/@sherlo/react-native-storybook/-/react-native-storybook-1.0.36-alpha.tgz#4792b517ec438564de0def0656431b0ad727476c"
-  integrity sha512-Bz0Pjh4q9R/r1qci7DVHNltRQBj8MFVxkbFQBq3kBphKYhZIWWRS3U3hwAhAPt58KuT1BCkgphGNARVJXZinGg==
-  dependencies:
-    "@sherlo/cli" "^1.0.36-alpha"
-    base-64 "^0.1.0"
-    jsencrypt "^3.3.2"
-    node-forge "^1.3.1"
-    utf8 "^3.0.0"
 
 "@sherlo/sdk-client@1.1.9":
   version "1.1.9"

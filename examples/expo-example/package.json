@@ -1,6 +1,6 @@
 {
   "name": "@sherlo/expo-example",
-  "version": "1.0.36-alpha",
+  "version": "1.0.34",
   "private": true,
   "main": "index.ts",
   "scripts": {
@@ -57,7 +57,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "@sherlo/react-native-storybook": "^1.0.36-alpha",
+    "@sherlo/react-native-storybook": "^1.0.34",
     "@storybook/addon-actions": "^7.6.10",
     "@storybook/addon-controls": "^7.6.10",
     "@storybook/addon-designs": "^7.0.9",
