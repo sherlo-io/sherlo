@@ -53,11 +53,11 @@ jobs:
 
       - name: Build Android example app
         if: ${{ !inputs.skip_build }}
-        working-directory: examples/expo-storybook-8
+        working-directory: testing/expo-storybook-8
         run: eas build --platform android --local --profile=${{ inputs.profile }} --output=builds/${{ inputs.profile }}/android.apk
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v2
         with:
           name: android
-          path: examples/expo-storybook-8/builds/${{ inputs.profile }}/android.apk
+          path: testing/expo-storybook-8/builds/${{ inputs.profile }}/android.apk

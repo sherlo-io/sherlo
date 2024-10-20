@@ -53,8 +53,8 @@ jobs:
       - name: Run Sherlo Action
         uses: ./.
         with:
-          ios: examples/expo-storybook-8/builds/preview/ios.tar.gz
-          android: examples/expo-storybook-8/builds/preview/android.apk
+          ios: testing/expo-storybook-8/builds/preview/ios.tar.gz
+          android: testing/expo-storybook-8/builds/preview/android.apk
           config: configs/sync.preview.json
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_NODE_TESTING_TOKEN }}
