@@ -47,13 +47,13 @@ jobs:
           lfs: true
 
       - name: Download Android Artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: android
           path: testing/expo-storybook-8/builds/${{ inputs.profile }}
 
       - name: Download iOS Artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: ios
           path: testing/expo-storybook-8/builds/${{ inputs.profile }}
