@@ -1,13 +1,3 @@
-
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           package="io.sherlo.storybookreactnative">
-
-    <application>
-        <activity android:name=".SherloStorybookActivity" android:exported="true">
-            <intent-filter>
-                <action android:name="io.sherlo.storybookreactnative.STORYBOOK_ACTIVITY" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
-    </application>
 </manifest>

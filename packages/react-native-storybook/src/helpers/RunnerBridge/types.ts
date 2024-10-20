@@ -30,6 +30,7 @@ export type AppProtocolItem =
       action: 'REQUEST_SNAPSHOT';
       snapshotIndex: number;
       hasError?: boolean;
+      boundaries?: string;
     };
 
 export type AckStartProtocolItem = {

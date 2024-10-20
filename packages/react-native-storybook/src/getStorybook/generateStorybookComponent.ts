@@ -16,15 +16,17 @@ function generateStorybookComponent({
   if (storybookRenderMode === 'sherlo') {
     params = {
       ...params,
-      isUIHidden: true,
       host: undefined,
       enableWebsockets: false,
+      onDeviceUI: false,
+      shouldPersistSelection: false,
+
+      // These properties are only valid for Storybook 7
+      isUIHidden: true,
       isSplitPanelVisible: false,
       tabOpen: 0, // Canvas tab
-      onDeviceUI: false,
       shouldDisableKeyboardAvoidingView: true,
       keyboardAvoidingViewVerticalOffset: 0,
-      shouldPersistSelection: false,
     };
 
     if (initialSelection) {

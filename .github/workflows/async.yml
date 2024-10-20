@@ -1,4 +1,4 @@
-name: Run Sherlo with Async Upload
+name: Run Sherlo with Expo Update mode
 
 on:
   workflow_call:
@@ -14,19 +14,16 @@ on:
         required: true
         default: 'dev'
         type: string
-
 jobs:
-  ## Sherlo
-  run_sherlo_async:
-    name: Run Sherlo in async mode
+  run_sherlo_sync:
+    name: Run Sherlo in sync mode
     environment: ${{ inputs.env }}
     runs-on: ubuntu-latest
-    outputs:
-      buildIndex: ${{ steps.sherlo_action.outputs.buildIndex }} # Map step output to job output
     steps:
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.ref }}
+          lfs: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v2
@@ -41,86 +38,26 @@ jobs:
         env:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
-      - name: Run Sherlo Action in async mode
-        id: sherlo_action # This ID is used to reference the output
-        uses: ./.
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
         with:
-          projectRoot: examples/expo-example
-          config: ../../configs/async.storybook.json
-          async: true
-        env:
-          SHERLO_TOKEN: ${{ secrets.SHERLO_INTEGRATION_TESTING_ASYNC_TOKEN }}
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
 
-  android_preview_build_upload:
-    name: Upload Android Preview Build to Sherlo
-    environment: ${{ inputs.env }}
-    needs: [run_sherlo_async]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.ref }}
-          lfs: true
+      - name: Trigger EAS update and capture manifest URLs
+        run: |
+          EXPO_UPDATE_JSON=$(eas update --branch "development" --message "${{ github.event.head_commit.message }}" --json)
+          echo "ANDROID_EXPO_UPDATE_URL=$(echo "$EXPO_UPDATE_JSON" | jq -r '.[] | select(.platform == "android") | .manifestPermalink')" >> $GITHUB_ENV
+          echo "IOS_EXPO_UPDATE_URL=$(echo "$EXPO_UPDATE_JSON" | jq -r '.[] | select(.platform == "ios") | .manifestPermalink')" >> $GITHUB_ENV
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '18.18.0'
+      - name: Run sherlo local-builds
+        run: |
+          yarn sherlo local-builds \
+            --config configs/local-builds.json \
+            --android testing/expo-storybook-8/builds/development/android.apk \
+            --androidExpoUpdateUrl ${{ env.ANDROID_EXPO_UPDATE_URL }} \
+            --ios testing/expo-storybook-8/builds/development/ios.tar.gz \
+            --iosExpoUpdateUrl ${{ env.IOS_EXPO_UPDATE_URL }} \
+            --token ${{ secrets.SHERLO_INTEGRATION_TESTING_EXPO_UPDATE_TOKEN }}
 
-      - name: Install dependencies
-        run: yarn
-
-      - name: Build dependencies
-        run: yarn switch-env:dev
-        env:
-          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-
-      - name: Upload Android to Sherlo
-        uses: ./.
-        with:
-          # TODO: project root is not respected for some reason when looking for the Android build
-          # projectRoot: examples/expo-example
-          # config: ../../configs/async.storybook.json
-          # android: builds/storybook/android.apk
-          config: configs/async.storybook.json
-          android: examples/expo-example/builds/storybook/android.apk
-          asyncBuildIndex: ${{ needs.run_sherlo_async.outputs.buildIndex }}
-        env:
-          SHERLO_TOKEN: ${{ secrets.SHERLO_INTEGRATION_TESTING_ASYNC_TOKEN }}
-
-  ios_preview_build_upload:
-    name: Upload iOS Preview Build to Sherlo
-    environment: ${{ inputs.env }}
-    needs: [run_sherlo_async]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.ref }}
-          lfs: true
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '18.18.0'
-
-      - name: Install dependencies
-        run: yarn
-
-      - name: Build dependencies
-        run: yarn switch-env:dev
-        env:
-          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-
-      - name: Upload iOS to Sherlo
-        uses: ./.
-        with:
-          # TODO: project root is not respected for some reason when looking for the ios build
-          # projectRoot: examples/expo-example
-          # config: ../../configs/async.storybook.json
-          # ios: builds/storybook/ios.tar.gz
-          config: configs/async.storybook.json
-          ios: examples/expo-example/builds/storybook/ios.tar.gz
-          asyncBuildIndex: ${{ needs.run_sherlo_async.outputs.buildIndex }}
-        env:
-          SHERLO_TOKEN: ${{ secrets.SHERLO_INTEGRATION_TESTING_ASYNC_TOKEN }}
+# --expoUpdateJson ${{ env.EXPO_UPDATE_JSON }} \

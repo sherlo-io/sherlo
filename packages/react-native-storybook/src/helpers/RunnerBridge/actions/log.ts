@@ -14,7 +14,9 @@ function log(path: string): LogFn {
 
     if (!__DEV__) console.log(`${logMsg}\n`);
 
-    SherloModule.appendFile(path, logMsg);
+    if (SherloModule.getMode() === 'testing') {
+      SherloModule.appendFile(path, logMsg);
+    }
   };
 }
 

@@ -47,16 +47,16 @@ jobs:
           lfs: true
 
       - name: Download Android Artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: android
-          path: examples/expo-example/builds/${{ inputs.profile }}
+          path: testing/expo-storybook-8/builds/${{ inputs.profile }}
 
       - name: Download iOS Artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: ios
-          path: examples/expo-example/builds/${{ inputs.profile }}
+          path: testing/expo-storybook-8/builds/${{ inputs.profile }}
 
       - name: Commit and push '${{ inputs.profile }}' builds
         uses: EndBug/add-and-commit@v7
@@ -64,6 +64,6 @@ jobs:
           author_name: Sherlo Bot
           author_email: admin@sherlo.io
           message: 'Update Preview builds'
-          add: 'examples/expo-example/builds/${{ inputs.profile }}/*'
+          add: 'testing/expo-storybook-8/builds/${{ inputs.profile }}/*'
           push: true
           branch: ${{ github.head_ref || github.ref_name }}

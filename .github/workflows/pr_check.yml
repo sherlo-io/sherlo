@@ -1,7 +1,7 @@
 name: 'PR Lint Check'
 on:
   pull_request:
-    types: [ opened, edited, synchronize, reopened ]
+    types: [opened, edited, synchronize, reopened]
 
 jobs:
   lint:
@@ -20,6 +20,6 @@ jobs:
             action
             cli
             react-native-storybook
-            expo-example
+            expo-storybook-8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

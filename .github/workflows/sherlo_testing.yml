@@ -13,6 +13,11 @@ on:
         required: false
         default: false
         type: boolean
+      skip_development_builds:
+        description: 'Skip Development builds'
+        required: false
+        default: false
+        type: boolean
       skip_storybook_builds:
         description: 'Skip Storybook builds'
         required: false
@@ -33,11 +38,6 @@ on:
         required: false
         default: false
         type: boolean
-      skip_integration_testing_async:
-        description: 'Skip Integration Testing - Async'
-        required: false
-        default: false
-        type: boolean
       skip_integration_testing_eas:
         description: 'Skip Integration Testing - EAS'
         required: false
@@ -52,6 +52,14 @@ jobs:
     secrets: inherit
     with:
       profile: 'preview'
+
+  update_development_builds:
+    uses: ./.github/workflows/update_builds.yml
+    if: ${{ github.event.inputs.skip_development_builds != 'true'}}
+    name: Update Development Builds
+    secrets: inherit
+    with:
+      profile: 'development'
 
   update_storybook_builds:
     uses: ./.github/workflows/update_builds.yml
@@ -84,15 +92,6 @@ jobs:
     needs: [update_preview_builds, update_storybook_builds]
     if: ${{ github.event.inputs.skip_integration_testing_sync != 'true' && always() && !failure() && !cancelled() }}
     name: Integration Testing - Sync
-    secrets: inherit
-    with:
-      env: ${{ github.event.inputs.env }}
-
-  integration_testing_async:
-    uses: ./.github/workflows/async.yml
-    needs: [update_preview_builds, update_storybook_builds]
-    if: ${{ github.event.inputs.skip_integration_testing_async != 'true' && always() && !failure() && !cancelled() }}
-    name: Integration Testing - Async
     secrets: inherit
     with:
       env: ${{ github.event.inputs.env }}

@@ -20,7 +20,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     // List of all snapshots that we want to test
     const [snapshots, setSnapshots] = useState<Snapshot[]>();
 
-    const mode = SherloModule.getInitialMode();
+    const mode = SherloModule.getMode();
 
     const renderedStoryHasError = useRef(false);
 
@@ -94,16 +94,23 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 
         setTimeout(async () => {
           try {
+            let boundaries;
+            if (!renderedStoryHasError.current) {
+              boundaries = await SherloModule.getInspectorData();
+            }
+
             RunnerBridge.log('requesting screenshot from master script', {
               action: 'REQUEST_SNAPSHOT',
               snapshotIndex: testedIndex,
               hasError: renderedStoryHasError.current,
+              boundaries: !!boundaries,
             });
 
             const response = await RunnerBridge.send({
               action: 'REQUEST_SNAPSHOT',
               snapshotIndex: testedIndex,
               hasError: renderedStoryHasError.current,
+              boundaries,
             });
 
             RunnerBridge.log('received screenshot from master script', response);
@@ -144,9 +151,10 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     }, [mode]);
 
     // Verification test
-    if (getGlobalStates().isVerifySetupTest) {
+    if (mode === 'verification') {
       return (
         <View
+          testID="sherlo-getStorybook-verification"
           style={{
             ...StyleSheet.absoluteFillObject,
             justifyContent: 'center',
@@ -154,6 +162,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
           }}
         >
           <Text>✔️ SHERLO SETUP WAS DONE CORRECTLY</Text>
+          <Text>make sure to remove addVerificationMenuItem from your code now</Text>
         </View>
       );
     }
@@ -165,7 +174,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
           mode,
         }}
       >
-        <View style={StyleSheet.absoluteFillObject}>
+        <View testID="sherlo-getStorybook-verification" style={StyleSheet.absoluteFillObject}>
           <ErrorBoundary
             onError={() => {
               renderedStoryHasError.current = true;

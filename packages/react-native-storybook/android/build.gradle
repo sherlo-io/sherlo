@@ -17,6 +17,12 @@ android {
         versionCode 1
         versionName "1.0"
     }
+
+    sourceSets {
+        main {
+            assets.srcDirs = ['src/main/assets']
+        }
+    }
 }
 
 repositories{
