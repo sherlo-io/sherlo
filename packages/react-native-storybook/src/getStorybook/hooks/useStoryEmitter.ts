@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { getAddons, getSetCurrentStory } from './adapter';
+import { getAddons, getSetCurrentStory } from '../utils/storybookImports';
 
 function useStoryEmitter(updateRenderedStoryId: (storyId: string) => void): (id: string) => void {
   useEffect(() => {
