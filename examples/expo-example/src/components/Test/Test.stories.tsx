@@ -1,6 +1,6 @@
 import type { Meta } from '@storybook/react';
 import Test from './Test';
-import StoryDecorator from '../../../decorators/StoryDecorator';
+import StoryDecorator from '../../decorators/StoryDecorator';
 
 export default {
   component: Test,
