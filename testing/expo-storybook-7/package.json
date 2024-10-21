@@ -1,6 +1,6 @@
 {
   "name": "@sherlo/expo-storybook-7",
-  "version": "1.0.34",
+  "version": "1.0.37",
   "private": true,
   "main": "index.ts",
   "scripts": {
@@ -54,7 +54,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "@sherlo/react-native-storybook": "^1.0.34",
+    "@sherlo/react-native-storybook": "^1.0.37",
     "@storybook/addon-actions": "^7.6.10",
     "@storybook/addon-controls": "^7.6.10",
     "@storybook/addon-designs": "^7.0.9",
