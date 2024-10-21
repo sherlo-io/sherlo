@@ -1,6 +1,12 @@
 import { ReactElement } from 'react';
 import { AppRegistry, DevSettings } from 'react-native';
 import { SherloModule } from './helpers';
+import { handleAsyncError } from './utils';
+
+let ExpoDevMenu: any;
+try {
+  ExpoDevMenu = require('expo-dev-menu');
+} catch {}
 
 function registerStorybook(StorybookComponent: () => ReactElement) {
   AppRegistry.registerComponent('SherloStorybook', () => StorybookComponent);
@@ -13,21 +19,22 @@ export default registerStorybook;
 
 /* ========================================================================== */
 
-let ExpoDevMenu: any;
-try {
-  ExpoDevMenu = require('expo-dev-menu');
-} catch {}
+let hasAddedDevMenuItem = false;
 
 function addToggleStorybookToDevMenu() {
-  // Only add the menu item in development builds
-  if (!__DEV__) return;
+  // Add menu item once in development build
+  if (!__DEV__ || hasAddedDevMenuItem) return;
 
   const MENU_LABEL = 'Toggle Storybook';
-  const toggleStorybook = () => SherloModule.toggleStorybook();
+  const toggleStorybook = () => {
+    SherloModule.toggleStorybook().catch(handleAsyncError);
+  };
 
   DevSettings.addMenuItem(MENU_LABEL, toggleStorybook);
 
   if (ExpoDevMenu) {
     ExpoDevMenu.registerDevMenuItems([{ name: MENU_LABEL, callback: toggleStorybook }]);
   }
+
+  hasAddedDevMenuItem = true;
 }

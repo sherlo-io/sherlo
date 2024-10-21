@@ -1,8 +1,7 @@
-import React from 'react';
-import { Text, View, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { isRunningVisualTests } from '@sherlo/react-native-storybook';
 import * as Localization from 'expo-localization';
-import { useColorScheme } from 'react-native';
+import { Text, View, StyleSheet, useColorScheme } from 'react-native';
 
 const Test = () => {
   const theme = useColorScheme(); // 'light' or 'dark'
@@ -17,15 +16,28 @@ const Test = () => {
     <View style={[styles.container, { backgroundColor }]}>
       <View style={styles.infoContainer}>
         <MaterialIcons name="record-voice-over" size={24} color={textColor} />
+
         <Text style={[styles.text, { color: textColor }]}>Language: {language}</Text>
       </View>
+
       <View style={styles.infoContainer}>
         <MaterialIcons name="place" size={24} color={textColor} />
+
         <Text style={[styles.text, { color: textColor }]}>Country: {country}</Text>
       </View>
+
       <View style={styles.infoContainer}>
         <MaterialIcons name="brightness-4" size={24} color={textColor} />
+
         <Text style={[styles.text, { color: textColor }]}>Theme: {theme || 'undefined'}</Text>
+      </View>
+
+      <View style={styles.infoContainer}>
+        <MaterialIcons name="directions-run" size={24} color={textColor} />
+
+        <Text style={[styles.text, { color: textColor }]}>
+          isRunningVisualTests: {isRunningVisualTests.toString()}
+        </Text>
       </View>
     </View>
   );
