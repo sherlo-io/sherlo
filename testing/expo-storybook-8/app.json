@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "sherlo-expo-example",
+    "slug": "sherlo-expo-example",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "updates": {
+      "enabled": true,
+      "fallbackToCacheTimeout": 300000,
+      "url": "https://u.expo.dev/4cb166d7-f774-49a9-9aa0-e5533347bcd1"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sherlo.example"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.sherlo.example"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "owner": "sherlo",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "plugins": [
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "../../node_modules/@expo-google-fonts/urbanist"
+          ]
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "4cb166d7-f774-49a9-9aa0-e5533347bcd1"
+      }
+    }
+  }
+}

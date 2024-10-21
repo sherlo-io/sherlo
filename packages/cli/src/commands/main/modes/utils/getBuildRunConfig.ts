@@ -1,4 +1,4 @@
-import { BuildRunConfig, Device, GetBuildUploadUrlsReturn, Platform } from '@sherlo/api-types';
+import { BuildRun, Device, GetBuildUploadUrlsReturn, Platform } from '@sherlo/api-types';
 import { devices as sherloDevices } from '@sherlo/shared';
 import { Config } from '../../types';
 
@@ -8,7 +8,7 @@ function getBuildRunConfig({
 }: {
   buildPresignedUploadUrls?: GetBuildUploadUrlsReturn['buildPresignedUploadUrls'];
   config: Config<'withBuildPaths'> | Config<'withoutBuildPaths'>;
-}): BuildRunConfig {
+}): BuildRun['config'] {
   const { devices, include, exclude } = config;
 
   const androidDevices = getPlatformDevices(devices, 'android');
