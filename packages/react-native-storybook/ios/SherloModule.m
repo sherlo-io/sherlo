@@ -22,7 +22,7 @@
 #import <React/RCTUIManagerUtils.h>
 #endif
 
-static NSString *ERROR_FILENAME = @"error.sherlo";
+static NSString *PROTOCOL_FILENAME = @"protocol.sherlo";
 static NSString *const LOG_TAG = @"SherloModule";
 
 static NSString *syncDirectoryPath = @"";
@@ -76,10 +76,6 @@ RCT_EXPORT_MODULE()
         } else {
           // If the expoUpdateDeeplink is not present in the config, we are immediately in testing mode
           mode = @"testing";
-        }
-
-        if([mode isEqualToString:@"testing"]) {
-          [self scheduleVerification];
         }
       }
     } @catch (NSException *exception) {
@@ -167,16 +163,12 @@ RCT_EXPORT_METHOD(mkdir:(NSString *)filepath resolver:(RCTPromiseResolveBlock)re
 // If the file does not exist, it creates a new file.
 // If any errors occur during the append process, the reject block is called with an appropriate error message.
 RCT_EXPORT_METHOD(appendFile:(NSString *)filepath contents:(NSString *)base64Content resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  @try {
-    NSError *error = [FileSystemHelper appendFile:filepath contents:base64Content];
-    
-    if (error) {
-      reject(@"E_APPENDFILE", [NSString stringWithFormat:@"Failed to append to file at path %@", filepath], error);
-    } else {
-      resolve(nil);
-    }
-  } @catch (NSException *exception) {
-    [self handleError:@"ERROR_APPEND_FILE" error:exception.reason];
+  NSError *error = [FileSystemHelper appendFile:filepath contents:base64Content];
+  
+  if (error) {
+    reject(@"E_APPENDFILE", [NSString stringWithFormat:@"Failed to append to file at path %@", filepath], error);
+  } else {
+    resolve(nil);
   }
 }
 
@@ -216,13 +208,7 @@ RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCT
 
 - (void)scheduleVerification {
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-    NSError *error = nil;
-    [VerificationHelper verifyIntegrationWithMode:mode
-                                syncDirectoryPath:syncDirectoryPath
-                                          error: &error];
-    if (error) {
-      [self handleError:@"ERROR_VERIFY_INTEGRATION" error:error];
-    }
+    [VerificationHelper verifyIntegrationWithMode:mode syncDirectoryPath:syncDirectoryPath ];
   });
 }
 
@@ -230,22 +216,20 @@ RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCT
 - (void)handleError:(NSString *)errorCode error:(NSError *)error {
   NSLog(@"[%@] Error occurred: %@, Error: %@", LOG_TAG, errorCode, error.localizedDescription ?: @"N/A");
 
-  NSString *errorFilePath = [syncDirectoryPath stringByAppendingPathComponent:ERROR_FILENAME];
+  NSString *protocolFilePath = [syncDirectoryPath stringByAppendingPathComponent:PROTOCOL_FILENAME];
   
-  // Create a dictionary for the error data
-  NSMutableDictionary *errorDict = [@{@"code": errorCode} mutableCopy];
-  if (error) {
-    errorDict[@"subcode"] = error.localizedDescription;
-    errorDict[@"domain"] = error.domain;
-    errorDict[@"code"] = @(error.code);
-    if (error.userInfo) {
-      errorDict[@"userInfo"] = error.userInfo;
-    }
-  }
-  
+  // Create the new JSON object with the specified properties
+  NSMutableDictionary *nativeErrorDict = [@{
+    @"action": @"NATIVE_ERROR",
+    @"errorCode": errorCode,
+    @"error": [NSString stringWithFormat:@"%@", error],
+    @"timestamp": @((long long)([[NSDate date] timeIntervalSince1970] * 1000)),
+    @"entity": @"app"
+  } mutableCopy];
+
   // Convert the dictionary to JSON data
   NSError *jsonError;
-  NSData *jsonData = [NSJSONSerialization dataWithJSONObject:errorDict options:0 error:&jsonError];
+  NSData *jsonData = [NSJSONSerialization dataWithJSONObject:nativeErrorDict options:0 error:&jsonError];
   
   if (jsonError) {
     NSLog(@"[%@] Error creating JSON: %@", LOG_TAG, jsonError.localizedDescription);
@@ -255,7 +239,7 @@ RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCT
   // Convert JSON data to base64 string
   NSString *base64ErrorData = [jsonData base64EncodedStringWithOptions:0];
   
-  NSError *writeError = [FileSystemHelper appendFile:errorFilePath contents:base64ErrorData];
+  NSError *writeError = [FileSystemHelper appendFile:protocolFilePath contents:base64ErrorData];
   if (writeError) {
     NSLog(@"[%@] Error writing to error file: %@", LOG_TAG, writeError.localizedDescription);
   }

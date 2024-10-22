@@ -9,7 +9,6 @@ function send(path: string, log: LogFn): SendFn {
     const content: AppProtocolItem & ProtocolItemMetadata = {
       ...protocolItem,
       timestamp: Date.now(),
-      time: new Date().toTimeString().split(' ')[0],
       entity: 'app',
     };
 

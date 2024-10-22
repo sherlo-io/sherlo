@@ -25,6 +25,7 @@ import io.sherlo.storybookreactnative.RestartHelper;
 public class SherloModule extends ReactContextBaseJavaModule {
     public static final String TAG = "SherloModule";
     private static final String CONFIG_FILENAME = "config.sherlo";
+    private static final String PROTOCOL_FILENAME = "protocol.sherlo";
 
     private final ReactApplicationContext reactContext;
     private static String syncDirectoryPath = "";
@@ -46,7 +47,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
             if (externalDirectory != null) {
                 this.syncDirectoryPath = externalDirectory.getAbsolutePath() + "/sherlo";
             } else {
-                Log.e(TAG, "External storage is not accessible");
+                this.handleError("ERROR_MODULE_INIT", "External storage is not accessible");
             }
 
             // This is the path to the config file created by the Sherlo Runner
@@ -63,6 +64,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
         } catch (Exception e) {
             Log.e(TAG, "Failed to initialize SherloModule", e);
             e.printStackTrace();
+            this.handleError("ERROR_MODULE_INIT", e.getMessage());
         }
     }
 
@@ -182,5 +184,32 @@ public class SherloModule extends ReactContextBaseJavaModule {
                 promise.reject("error", e.getMessage(), e);
             }
         });
+    }
+
+    private void handleError(String errorCode, String errorMessage) {
+        Log.e(TAG, "Error occurred: " + errorCode + ", Error: " + errorMessage);
+
+        String protocolFilePath = this.syncDirectoryPath + "/" + PROTOCOL_FILENAME;
+
+        // Create the new JSON object with the specified properties
+        Map<String, Object> nativeErrorMap = new HashMap<>();
+        nativeErrorMap.put("action", "NATIVE_ERROR");
+        nativeErrorMap.put("errorCode", errorCode);
+        nativeErrorMap.put("error", errorMessage);
+        nativeErrorMap.put("timestamp", System.currentTimeMillis());
+        nativeErrorMap.put("entity", "app");
+
+        try {
+            // Convert the map to JSON string
+            String jsonString = new org.json.JSONObject(nativeErrorMap).toString();
+
+            // Convert JSON string to base64
+            String base64ErrorData = android.util.Base64.encodeToString(jsonString.getBytes("UTF-8"), android.util.Base64.NO_WRAP);
+
+            // Append the base64 encoded error data to the protocol file
+            fileSystemHelper.appendFile(protocolFilePath, base64ErrorData);
+        } catch (Exception e) {
+            Log.e(TAG, "Error writing to error file: " + e.getMessage());
+        }
     }
 }

@@ -17,7 +17,6 @@ export type SendFn = (protocolItem: AppProtocolItem) => Promise<RunnerProtocolIt
 
 export type ProtocolItemMetadata = {
   timestamp: number;
-  time: string;
   entity: 'app' | 'runner';
 };
 

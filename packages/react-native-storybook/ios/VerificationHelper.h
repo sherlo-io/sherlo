@@ -4,7 +4,6 @@
 @interface VerificationHelper : NSObject
 
 + (void)verifyIntegrationWithMode:(NSString *)mode
-                 syncDirectoryPath:(NSString *)syncDirectoryPath
-                           error:(NSError **)error;
+                 syncDirectoryPath:(NSString *)syncDirectoryPath;
 
 @end
