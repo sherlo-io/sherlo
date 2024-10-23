@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { getAddons, getSetCurrentStory } from '../utils/storybookImports';
+import { getAddons } from '../utils/storybookImports';
 
 function useStoryEmitter(updateRenderedStoryId: (storyId: string) => void): (id: string) => void {
   useEffect(() => {
@@ -10,17 +10,18 @@ function useStoryEmitter(updateRenderedStoryId: (storyId: string) => void): (id:
 
     const initialize = async (): Promise<void> => {
       const _channel = await getAddons().ready();
-      _channel.on(getSetCurrentStory(), handleStoryRendered);
+      _channel.on('setCurrentStory', handleStoryRendered);
     };
 
     setTimeout(() => initialize(), 500);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return async (storyId: string) => {
     const _channel = await getAddons().ready();
-    _channel.emit(getSetCurrentStory(), { storyId });
+    _channel.emit('setCurrentStory', { storyId });
     // if we don't call it twice going back from preview to original mode doesn't work
-    _channel.emit(getSetCurrentStory(), { storyId });
+    _channel.emit('setCurrentStory', { storyId });
   };
 }
 

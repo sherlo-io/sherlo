@@ -8,3 +8,5 @@ export default {
 } as Meta<typeof Test>;
 
 export const Basic = {};
+
+export const Secondary = { args: { variant: 'secondary' } };

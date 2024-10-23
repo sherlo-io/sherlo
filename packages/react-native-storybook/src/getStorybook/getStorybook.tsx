@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, ReactElement } from 'react';
 import { Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RunnerBridge, SherloModule } from '../helpers';
 import { getGlobalStates } from '../utils';
 import { Snapshot, StorybookParams, StorybookView } from '../types';
@@ -159,23 +160,25 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     }
 
     return (
-      <SherloContext.Provider
-        value={{
-          renderedSnapshot: snapshots?.find(({ storyId }) => storyId === renderedStoryId),
-          mode,
-        }}
-      >
-        <View style={StyleSheet.absoluteFillObject}>
-          <ErrorBoundary
-            onError={() => {
-              renderedStoryHasError.current = true;
-            }}
-            log={RunnerBridge.log}
-          >
-            {memoizedStorybook}
-          </ErrorBoundary>
-        </View>
-      </SherloContext.Provider>
+      <SafeAreaProvider>
+        <SherloContext.Provider
+          value={{
+            renderedSnapshot: snapshots?.find(({ storyId }) => storyId === renderedStoryId),
+            mode,
+          }}
+        >
+          <View style={StyleSheet.absoluteFillObject}>
+            <ErrorBoundary
+              onError={() => {
+                renderedStoryHasError.current = true;
+              }}
+              log={RunnerBridge.log}
+            >
+              {memoizedStorybook}
+            </ErrorBoundary>
+          </View>
+        </SherloContext.Provider>
+      </SafeAreaProvider>
     );
   };
 

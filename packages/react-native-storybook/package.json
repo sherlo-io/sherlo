@@ -63,7 +63,8 @@
   },
   "peerDependencies": {
     "@storybook/react-native": ">=7.6.11",
-    "react-native": ">=0.64.0"
+    "react-native": ">=0.64.0",
+    "react-native-safe-area-context": "*"
   },
   "engines": {
     "node": ">=8.0.0"
