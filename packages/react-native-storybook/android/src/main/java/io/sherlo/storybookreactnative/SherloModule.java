@@ -56,10 +56,19 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
             // If the file exists, we are it testing mode and will open the
             // Storybook in single activity mode, without launching the app
-            Boolean doesSherloConfigFileExist = new File(configPath).isFile();
-            if (doesSherloConfigFileExist) {
-                this.mode = "testing";
-                Log.i(TAG, "Config file exists, running in testing mode");
+            File sherloConfigFile  = new File(configPath);
+            if (sherloConfigFile.exists()) {
+                Log.i(TAG, "Config file exists");
+                String configJson = fileSystemHelper.readFile(configPath);
+                JSONObject config = new JSONObject(configJson);
+
+                if (config.has("overrideMode")) {
+                    Log.i(TAG, "Running in " + config.getString("overrideMode") + " mode");
+                    this.mode = config.getString("overrideMode");
+                } else {
+                    Log.i(TAG, "Running in testing mode");
+                    this.mode = "testing";
+                }
             }
         } catch (Exception e) {
             Log.e(TAG, "Failed to initialize SherloModule", e);

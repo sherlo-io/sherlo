@@ -47,18 +47,24 @@ RCT_EXPORT_MODULE()
       syncDirectoryPath = [ConfigHelper getSyncDirectoryPath:&getSyncDirectoryPathError];
       if (getSyncDirectoryPathError) {
         [self handleError:@"ERROR_MODULE_INIT" error:getSyncDirectoryPathError];
-        return nil;
+        return self;
       }
 
       NSError *loadConfigError = nil;
       NSDictionary *config = [ConfigHelper loadConfig:&loadConfigError syncDirectoryPath:syncDirectoryPath];
       if (loadConfigError) {
         [self handleError:@"ERROR_MODULE_INIT" error:loadConfigError];
-        return nil;
+        return self;
       }
       
       // if there's a config, we are in testing mode
       if(config) {
+        NSString *overrideMode = config[@"overrideMode"];
+        if (overrideMode) {
+          mode = overrideMode;
+          return self;
+        }
+
         NSString *expoUpdateDeeplink = config[@"expoUpdateDeeplink"];
         
         if (expoUpdateDeeplink) {
@@ -80,7 +86,7 @@ RCT_EXPORT_MODULE()
       }
     } @catch (NSException *exception) {
       [self handleError:@"ERROR_MODULE_INIT" error:exception.reason];
-      return nil;
+      return self;
     }
   }
   
