@@ -2,6 +2,7 @@ import base64 from 'base-64';
 import { NativeModules } from 'react-native';
 import utf8 from 'utf8';
 import isExpoGo from './isExpoGo';
+import { getGlobalStates } from '../utils';
 
 type SherloModule = {
   getInitialMode: () => 'testing' | 'default';
@@ -37,7 +38,14 @@ function createSherloModule(): SherloModule {
     storybookRegistered: async () => {
       await SherloNativeModule.storybookRegistered();
     },
-    getInitialMode: () => SherloNativeModule.getConstants().initialMode,
+    getInitialMode: () => {
+      const { testConfig, isVerifySetupTest } = getGlobalStates();
+      if (testConfig && !isVerifySetupTest) {
+        return 'testing';
+      }
+
+      return SherloNativeModule.getConstants().initialMode;
+    },
     appendFile: (path: string, data: string) => {
       const encodedData = base64.encode(utf8.encode(data));
 

@@ -3,10 +3,8 @@ import { getAddons, SET_CURRENT_STORY } from '../utils/storybookImports';
 import { Snapshot } from '../../types';
 
 function useStoryEmitter({
-  onEmit,
   updateRenderedStoryId,
 }: {
-  onEmit: (snapshot: Snapshot) => void;
   updateRenderedStoryId: (snapshot: Snapshot) => void;
 }): (snapshot: Snapshot) => void {
   useEffect(() => {
@@ -25,7 +23,6 @@ function useStoryEmitter({
   }, []);
 
   return async (snapshot: Snapshot) => {
-    onEmit(snapshot);
     const _channel = await getAddons().ready();
     _channel.emit(SET_CURRENT_STORY, { storyId: snapshot.storyId });
     // if we don't call it twice going back from preview to original mode doesn't work

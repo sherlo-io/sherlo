@@ -32,9 +32,6 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     const { waitForKeyboardStatus } = useKeyboardStatusEffect(RunnerBridge.log);
 
     const emitStory = useStoryEmitter({
-      onEmit: (snapshot) => {
-        setShouldAddSafeArea(!snapshot.parameters?.noSafeArea);
-      },
       updateRenderedStoryId: (snapshot) => {
         RunnerBridge.log('rendered story', { id: snapshot.storyId });
         setRenderedStoryId(snapshot.storyId);
@@ -74,6 +71,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
             testedIndex,
           });
 
+          setShouldAddSafeArea(!testedSnapshot.parameters?.noSafeArea);
           emitStory(testedSnapshot);
         }
       }
@@ -121,6 +119,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
             if (response.nextSnapshotIndex !== undefined) {
               const nextSnapshot = snapshots[response.nextSnapshotIndex];
 
+              setShouldAddSafeArea(!nextSnapshot.parameters?.noSafeArea);
               setTestedIndex(response.nextSnapshotIndex);
               emitStory(nextSnapshot);
             }
