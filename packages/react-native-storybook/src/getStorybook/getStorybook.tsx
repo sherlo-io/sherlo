@@ -177,7 +177,10 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
           }}
         >
           <View
-            style={[StyleSheet.absoluteFillObject, shouldAddSafeArea && { paddingTop: insets.top }]}
+            style={[
+              StyleSheet.absoluteFillObject,
+              shouldAddSafeArea && { paddingTop: insets.top, paddingBottom: insets.bottom },
+            ]}
           >
             <ErrorBoundary
               onError={() => {
