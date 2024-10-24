@@ -25,6 +25,7 @@ function useStoryEmitter({
   }, []);
 
   return async (snapshot: Snapshot) => {
+    onEmit(snapshot);
     const _channel = await getAddons().ready();
     _channel.emit(SET_CURRENT_STORY, { storyId: snapshot.storyId });
     // if we don't call it twice going back from preview to original mode doesn't work
