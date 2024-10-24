@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, ReactElement } from 'react';
 import { Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RunnerBridge, SherloModule } from '../helpers';
 import { getGlobalStates } from '../utils';
 import { Snapshot, StorybookParams, StorybookView } from '../types';
@@ -9,6 +9,7 @@ import { SherloContext } from './contexts';
 import generateStorybookComponent from './generateStorybookComponent';
 import { useKeyboardStatusEffect, useOriginalMode, useStoryEmitter, useTestingMode } from './hooks';
 import { setupErrorSilencing } from './utils';
+import { Layout } from './components/Layout';
 
 setupErrorSilencing();
 
@@ -25,7 +26,6 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 
     // Safe area handling
     const [shouldAddSafeArea, setShouldAddSafeArea] = useState(mode === 'testing');
-    const insets = useSafeAreaInsets();
 
     const renderedStoryHasError = useRef(false);
 
@@ -175,12 +175,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
             mode,
           }}
         >
-          <View
-            style={[
-              StyleSheet.absoluteFillObject,
-              shouldAddSafeArea && { paddingTop: insets.top, paddingBottom: insets.bottom },
-            ]}
-          >
+          <Layout shouldAddSafeArea={shouldAddSafeArea}>
             <ErrorBoundary
               onError={() => {
                 renderedStoryHasError.current = true;
@@ -189,7 +184,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
             >
               {memoizedStorybook}
             </ErrorBoundary>
-          </View>
+          </Layout>
         </SherloContext.Provider>
       </SafeAreaProvider>
     );
