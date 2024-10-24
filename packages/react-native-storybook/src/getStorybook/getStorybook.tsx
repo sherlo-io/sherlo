@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, ReactElement } from 'react';
 import { Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RunnerBridge, SherloModule } from '../helpers';
 import { getGlobalStates } from '../utils';
 import { Snapshot, StorybookParams, StorybookView } from '../types';
@@ -23,13 +23,22 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 
     const mode = SherloModule.getInitialMode();
 
+    // Safe area handling
+    const [shouldAddSafeArea, setShouldAddSafeArea] = useState(mode === 'testing');
+    const insets = useSafeAreaInsets();
+
     const renderedStoryHasError = useRef(false);
 
     const { waitForKeyboardStatus } = useKeyboardStatusEffect(RunnerBridge.log);
 
-    const emitStory = useStoryEmitter((id) => {
-      RunnerBridge.log('rendered story', { id });
-      setRenderedStoryId(id);
+    const emitStory = useStoryEmitter({
+      onEmit: (snapshot) => {
+        setShouldAddSafeArea(!snapshot.parameters?.noSafeArea);
+      },
+      updateRenderedStoryId: (snapshot) => {
+        RunnerBridge.log('rendered story', { id: snapshot.storyId });
+        setRenderedStoryId(snapshot.storyId);
+      },
     });
 
     const prepareSnapshotForTesting = async (snapshot: Snapshot): Promise<void> => {
@@ -65,7 +74,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
             testedIndex,
           });
 
-          emitStory(testedSnapshot.storyId);
+          emitStory(testedSnapshot);
         }
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -113,7 +122,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
               const nextSnapshot = snapshots[response.nextSnapshotIndex];
 
               setTestedIndex(response.nextSnapshotIndex);
-              emitStory(nextSnapshot.storyId);
+              emitStory(nextSnapshot);
             }
           } catch (error) {
             RunnerBridge.log('story capturing failed', { error });
@@ -167,7 +176,9 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
             mode,
           }}
         >
-          <View style={StyleSheet.absoluteFillObject}>
+          <View
+            style={[StyleSheet.absoluteFillObject, shouldAddSafeArea && { paddingTop: insets.top }]}
+          >
             <ErrorBoundary
               onError={() => {
                 renderedStoryHasError.current = true;

@@ -1,7 +1,14 @@
 import { useEffect } from 'react';
 import { getAddons, SET_CURRENT_STORY } from '../utils/storybookImports';
+import { Snapshot } from '../../types';
 
-function useStoryEmitter(updateRenderedStoryId: (storyId: string) => void): (id: string) => void {
+function useStoryEmitter({
+  onEmit,
+  updateRenderedStoryId,
+}: {
+  onEmit: (snapshot: Snapshot) => void;
+  updateRenderedStoryId: (snapshot: Snapshot) => void;
+}): (snapshot: Snapshot) => void {
   useEffect(() => {
     const handleStoryRendered = (...args: any[]): void => {
       const storyId = args?.[0]?.storyId;
@@ -17,11 +24,11 @@ function useStoryEmitter(updateRenderedStoryId: (storyId: string) => void): (id:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return async (storyId: string) => {
+  return async (snapshot: Snapshot) => {
     const _channel = await getAddons().ready();
-    _channel.emit(SET_CURRENT_STORY, { storyId });
+    _channel.emit(SET_CURRENT_STORY, { storyId: snapshot.storyId });
     // if we don't call it twice going back from preview to original mode doesn't work
-    _channel.emit(SET_CURRENT_STORY, { storyId });
+    _channel.emit(SET_CURRENT_STORY, { storyId: snapshot.storyId });
   };
 }
 
