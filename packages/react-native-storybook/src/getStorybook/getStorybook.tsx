@@ -32,9 +32,9 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     const { waitForKeyboardStatus } = useKeyboardStatusEffect(RunnerBridge.log);
 
     const emitStory = useStoryEmitter({
-      updateRenderedStoryId: (snapshot) => {
-        RunnerBridge.log('rendered story', { id: snapshot.storyId });
-        setRenderedStoryId(snapshot.storyId);
+      updateRenderedStoryId: (storyId) => {
+        RunnerBridge.log('rendered story', { id: storyId });
+        setRenderedStoryId(storyId);
       },
     });
 

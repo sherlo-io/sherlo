@@ -5,7 +5,7 @@ import { Snapshot } from '../../types';
 function useStoryEmitter({
   updateRenderedStoryId,
 }: {
-  updateRenderedStoryId: (snapshot: Snapshot) => void;
+  updateRenderedStoryId: (storyId: string) => void;
 }): (snapshot: Snapshot) => void {
   useEffect(() => {
     const handleStoryRendered = (...args: any[]): void => {
