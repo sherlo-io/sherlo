@@ -1,2 +1,1 @@
-export { default as TestScreen } from './TestScreen';
-export { default as HomeScreen } from './HomeScreen';
+export { default as TestInfo } from './TestInfo';

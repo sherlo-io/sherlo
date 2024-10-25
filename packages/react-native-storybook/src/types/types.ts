@@ -29,15 +29,6 @@ export interface SherloParameters {
    * platforms specified in sherlo.config.json.
    */
   platform?: 'ios' | 'android';
-
-  /**
-   * Setting restart to true restarts the app after testing this story before
-   * resuming testing other stories. This might be helpful if the story alters
-   * the view in a way that's persistent for other stories, such as displaying
-   * an overlay modal that doesn't hide when changing stories and thus will
-   * always be visible in other screenshots.
-   */
-  restart?: boolean;
 }
 
 export type Snapshot = {

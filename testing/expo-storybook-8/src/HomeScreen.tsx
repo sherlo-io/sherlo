@@ -8,6 +8,10 @@ const HomeScreen = () => {
         {'Open Dev Menu and select "Toggle Storybook" \nor click the button below'}
       </Text>
 
+      {/**
+       * This button will reload the app
+       * and open it again in Storybook mode
+       */}
       <Button title="Open Storybook" onPress={openStorybook} />
     </View>
   );

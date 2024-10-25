@@ -5,4 +5,8 @@ export default {
   component: TestScreen,
 } as Meta<typeof TestScreen>;
 
-export const Basic = {};
+export const Basic = {
+  parameters: {
+    sherlo: {},
+  },
+};
