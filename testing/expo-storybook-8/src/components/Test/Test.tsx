@@ -1,7 +1,6 @@
 import React from 'react';
 import { Text, View, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import * as Updates from 'expo-updates';
 import * as Localization from 'expo-localization';
 import { useColorScheme } from 'react-native';
 
