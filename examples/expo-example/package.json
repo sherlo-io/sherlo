@@ -1,6 +1,6 @@
 {
   "name": "@sherlo/expo-example",
-  "version": "1.0.34",
+  "version": "1.0.37",
   "private": true,
   "main": "index.ts",
   "scripts": {
@@ -19,7 +19,6 @@
     "eas-build-post-install": "node ./scripts/setDevEnvOnExpoServer.js",
     "sherlo": "sherlo",
     "sherlo:async": "sherlo --config ../../configs/demo.storybook.json",
-    "sherlo:demo": "sherlo --config ../../configs/demo.preview.json",
     "sherlo:eas": "sherlo --config ../../configs/eas.preview.json",
     "sherlo:sync": "sherlo --config ../../configs/sync.preview.json",
     "start:android:dev": "adb install builds/development/android.apk && expo start --android --dev-client",
@@ -57,7 +56,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "@sherlo/react-native-storybook": "^1.0.34",
+    "@sherlo/react-native-storybook": "^1.0.37",
     "@storybook/addon-actions": "^7.6.10",
     "@storybook/addon-controls": "^7.6.10",
     "@storybook/addon-designs": "^7.0.9",

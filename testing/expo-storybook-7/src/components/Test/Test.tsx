@@ -20,12 +20,10 @@ const Test = () => {
         <MaterialIcons name="record-voice-over" size={24} color={textColor} />
         <Text style={[styles.text, { color: textColor }]}>Language: {language}</Text>
       </View>
-
       <View style={styles.infoContainer}>
         <MaterialIcons name="place" size={24} color={textColor} />
         <Text style={[styles.text, { color: textColor }]}>Country: {country}</Text>
       </View>
-
       <View style={styles.infoContainer}>
         <MaterialIcons name="brightness-4" size={24} color={textColor} />
         <Text style={[styles.text, { color: textColor }]}>Theme: {theme || 'undefined'}</Text>

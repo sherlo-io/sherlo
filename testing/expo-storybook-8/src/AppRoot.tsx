@@ -1,14 +1,10 @@
 import { View, Text, Button } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
-import { openStorybook, verifyIntegration } from '@sherlo/react-native-storybook';
+import { openStorybook } from '@sherlo/react-native-storybook';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function AppRoot() {
-  // useEffect(() => {
-  //   verifyIntegration();
-  // }, []);
-
   return (
     <View
       style={{

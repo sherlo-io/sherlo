@@ -3,6 +3,7 @@ import { NativeModules } from 'react-native';
 import utf8 from 'utf8';
 import isExpoGo from './isExpoGo';
 import { StorybookViewMode } from '../types/types';
+import { getGlobalStates } from '../utils';
 
 type SherloModule = {
   getMode: () => StorybookViewMode;
@@ -43,7 +44,14 @@ function createSherloModule(): SherloModule {
     storybookRegistered: async () => {
       await SherloNativeModule.storybookRegistered();
     },
-    getMode: () => SherloNativeModule.getConstants().mode,
+    getMode: () => {
+      const { testConfig, isVerifySetupTest } = getGlobalStates();
+      if (testConfig && !isVerifySetupTest) {
+        return 'testing';
+      }
+
+      return SherloNativeModule.getConstants().mode;
+    },
     appendFile: (path: string, data: string) => {
       const encodedData = base64.encode(utf8.encode(data));
 
