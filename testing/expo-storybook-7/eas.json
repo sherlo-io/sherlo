@@ -25,17 +25,7 @@
       }
     },
     "preview": {
-      "android": {
-        "buildType": "apk"
-      },
-      "ios": {
-        "simulator": true
-      }
-    },
-    "production": {
-      "env": {
-        "EXCLUDE_SHERLO": "true"
-      },
+      "channel": "preview",
       "android": {
         "buildType": "apk"
       },
@@ -43,8 +33,5 @@
         "simulator": true
       }
     }
-  },
-  "submit": {
-    "production": {}
   }
 }

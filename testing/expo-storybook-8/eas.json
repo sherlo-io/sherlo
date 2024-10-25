@@ -32,20 +32,6 @@
       "ios": {
         "simulator": true
       }
-    },
-    "production": {
-      "env": {
-        "EXCLUDE_SHERLO": "true"
-      },
-      "android": {
-        "buildType": "apk"
-      },
-      "ios": {
-        "simulator": true
-      }
     }
-  },
-  "submit": {
-    "production": {}
   }
 }

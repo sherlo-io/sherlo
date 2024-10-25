@@ -1,4 +1,4 @@
-name: Test expo-updates flow
+name: TEST - expo-update mode
 
 on:
   workflow_call:
@@ -14,12 +14,51 @@ on:
         required: true
         default: 'dev'
         type: string
-
 jobs:
-  dummy_job:
+  run_sherlo_expo_update:
+    name: Run Sherlo in expo-update mode
+    environment: ${{ inputs.env }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.ref }}
           lfs: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18.18.0'
+
+      - name: Install dependencies
+        run: yarn
+
+      - name: Build dependencies
+        run: yarn switch-env:${{ inputs.env }}
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Trigger EAS update and capture manifest URLs
+        run: |
+          EXPO_UPDATE_JSON=$(eas update --branch "development" --message "${{ github.event.head_commit.message }}" --json)
+          echo "EXPO_UPDATE_JSON=$EXPO_UPDATE_JSON" >> $GITHUB_ENV
+          echo "ANDROID_EXPO_UPDATE_URL=$(echo "$EXPO_UPDATE_JSON" | jq -r '.[] | select(.platform == "android") | .manifestPermalink')" >> $GITHUB_ENV
+          echo "IOS_EXPO_UPDATE_URL=$(echo "$EXPO_UPDATE_JSON" | jq -r '.[] | select(.platform == "ios") | .manifestPermalink')" >> $GITHUB_ENV
+
+      - name: Run sherlo expo-update
+        run: |
+          yarn sherlo expo-update \
+            --config configs/default-devices.json \
+            --android testing/expo-storybook-8/builds/development/android.apk \
+            --androidUrl ${{ env.ANDROID_EXPO_UPDATE_URL }} \
+            --ios testing/expo-storybook-8/builds/development/ios.tar.gz \
+            --iosUrl ${{ env.IOS_EXPO_UPDATE_URL }} \
+            --token ${{ secrets.SHERLO_INTEGRATION_TESTING_EXPO_UPDATE_TOKEN }}
+
+# --expoUpdateJson ${{ env.EXPO_UPDATE_JSON }}

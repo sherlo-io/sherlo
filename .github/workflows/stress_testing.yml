@@ -1,4 +1,4 @@
-name: Stress Testing
+name: TEST - Stress Testing (20 builds)
 
 on:
   workflow_call:
@@ -45,7 +45,7 @@ jobs:
       - name: Run sherlo local-builds
         run: |
           yarn sherlo local-builds \
-            --config configs/stress-testing.json \
+            --config configs/default-devices.json \
             --android testing/expo-storybook-8/builds/preview/android.apk \
             --ios testing/expo-storybook-8/builds/preview/ios.tar.gz \
             --token ${{ secrets.SHERLO_STRESS_TESTING_TOKEN }}

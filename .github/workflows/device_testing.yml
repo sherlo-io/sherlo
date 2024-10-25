@@ -1,4 +1,4 @@
-name: Device Testing
+name: TEST - All Devices Testing
 
 on:
   workflow_call:
@@ -42,7 +42,7 @@ jobs:
       - name: Run sherlo local-builds
         run: |
           yarn sherlo local-builds \
-            --config configs/device-testing.json \
+            --config configs/all-devices.json \
             --android testing/expo-storybook-8/builds/preview/android.apk \
             --ios testing/expo-storybook-8/builds/preview/ios.tar.gz \
             --token ${{ secrets.SHERLO_DEVICE_TESTING_TOKEN }}

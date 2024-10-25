@@ -1,0 +1,24 @@
+{
+  "name": "@sherlo/testing-components",
+  "version": "1.0.0",
+  "description": "Shared components for the monorepo",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "@sherlo/react-native-storybook": "^1.0.34",
+    "react-native": "^0.71.8"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.7",
+    "@types/react-native": "^0.72.2",
+    "typescript": "^5.0.4"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-native": "^0.71.8"
+  }
+}
