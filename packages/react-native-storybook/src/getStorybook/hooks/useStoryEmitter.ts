@@ -1,7 +1,12 @@
 import { useEffect } from 'react';
-import { getAddons, getSetCurrentStory } from '../utils/storybookImports';
+import { getAddons, SET_CURRENT_STORY } from '../utils/storybookImports';
+import { Snapshot } from '../../types';
 
-function useStoryEmitter(updateRenderedStoryId: (storyId: string) => void): (id: string) => void {
+function useStoryEmitter({
+  updateRenderedStoryId,
+}: {
+  updateRenderedStoryId: (storyId: string) => void;
+}): (snapshot: Snapshot) => void {
   useEffect(() => {
     const handleStoryRendered = (...args: any[]): void => {
       const storyId = args?.[0]?.storyId;
@@ -10,17 +15,18 @@ function useStoryEmitter(updateRenderedStoryId: (storyId: string) => void): (id:
 
     const initialize = async (): Promise<void> => {
       const _channel = await getAddons().ready();
-      _channel.on(getSetCurrentStory(), handleStoryRendered);
+      _channel.on(SET_CURRENT_STORY, handleStoryRendered);
     };
 
     setTimeout(() => initialize(), 500);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return async (storyId: string) => {
+  return async (snapshot: Snapshot) => {
     const _channel = await getAddons().ready();
-    _channel.emit(getSetCurrentStory(), { storyId });
+    _channel.emit(SET_CURRENT_STORY, { storyId: snapshot.storyId });
     // if we don't call it twice going back from preview to original mode doesn't work
-    _channel.emit(getSetCurrentStory(), { storyId });
+    _channel.emit(SET_CURRENT_STORY, { storyId: snapshot.storyId });
   };
 }
 
