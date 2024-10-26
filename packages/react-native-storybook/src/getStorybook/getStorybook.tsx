@@ -27,6 +27,9 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     // Safe area handling
     const [shouldAddSafeArea, setShouldAddSafeArea] = useState(mode === 'testing');
 
+    // Safe area handling
+    const [shouldAddSafeArea, setShouldAddSafeArea] = useState(mode === 'testing');
+
     const renderedStoryHasError = useRef(false);
 
     const { waitForKeyboardStatus } = useKeyboardStatusEffect(RunnerBridge.log);
