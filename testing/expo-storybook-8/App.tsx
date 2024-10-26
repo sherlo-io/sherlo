@@ -28,7 +28,7 @@ export default function App() {
    * Returns true if any of the following conditions are met:
    * 1. It's a Storybook-specific build (Constants.expoConfig?.extra?.storybookEnabled)
    * 2. User selected "Toggle Storybook" in Dev Menu
-   * 3. User call "openStorybook" function imported from "@sherlo/react-native-storybook"
+   * 3. User called "openStorybook" function imported from "@sherlo/react-native-storybook"
    * 4. Build is running tests on Sherlo
    *
    * Note: If called without parameters, like "shouldShowStorybook()",

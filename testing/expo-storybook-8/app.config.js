@@ -1,7 +1,7 @@
 module.exports = () => ({
   expo: {
     owner: 'sherlo',
-    name: process.env.APP_NAME || 'sherlo-expo-example',
+    name: 'Sherlo Expo Example',
     slug: 'sherlo-expo-example',
     version: '1.0.0',
     orientation: 'portrait',
