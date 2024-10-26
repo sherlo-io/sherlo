@@ -2,6 +2,7 @@ import { shouldShowStorybook } from '@sherlo/react-native-storybook';
 import Storybook from './.storybook';
 import { PropsWithChildren } from 'react';
 import HomeScreen from './src/HomeScreen';
+import Constants from 'expo-constants';
 
 /**
  * You should specify common UI providers that will be relevant for
@@ -25,7 +26,7 @@ export default function App() {
    * shouldShowStorybook determines whether to show Storybook.
    *
    * Returns true if any of the following conditions are met:
-   * 1. It's a Storybook-specific build (EXPO_PUBLIC_STORYBOOK_ONLY === "true")
+   * 1. It's a Storybook-specific build (Constants.expoConfig?.extra?.storybookEnabled)
    * 2. User selected "Toggle Storybook" in Dev Menu
    * 3. User call "openStorybook" function imported from "@sherlo/react-native-storybook"
    * 4. Build is running tests on Sherlo
@@ -33,7 +34,7 @@ export default function App() {
    * Note: If called without parameters, like "shouldShowStorybook()",
    * only conditions 2, 3 and 4 apply.
    */
-  if (shouldShowStorybook(process.env.EXPO_PUBLIC_STORYBOOK_ONLY === 'true')) {
+  if (shouldShowStorybook(Constants.expoConfig?.extra?.storybookEnabled)) {
     return (
       <CommonProviders>
         <Storybook />
