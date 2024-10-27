@@ -1,0 +1,47 @@
+{
+  "name": "@sherlo/example-local-builds",
+  "version": "1.0.34",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "build:android:dev": "eas build --platform android --local --profile=development --output=builds/development/android.apk",
+    "build:android:eas": "eas build --platform android --profile=preview",
+    "build:android:storybook": "eas build --platform android --local --profile=storybook --output=builds/storybook/android.apk",
+    "build:android:preview": "eas build --platform android --local --profile=preview --output=builds/preview/android.apk",
+    "build:ios:dev": "eas build --platform ios --local --profile=development --output=builds/development/ios.tar.gz",
+    "build:ios:eas": "eas build --platform ios --profile=preview",
+    "build:ios:storybook": "eas build --platform ios --local --profile=storybook --output=builds/storybook/ios.tar.gz",
+    "build:ios:preview": "eas build --platform ios --local --profile=preview --output=builds/preview/ios.tar.gz",
+    "update:development": "eas update --channel=development --json --non-interactive --message='Update message'",
+    "eas-build-on-complete": "sherlo eas-build-on-complete --profile=preview",
+    "eas-build-post-install": "node ./scripts/setDevEnvOnExpoServer.js",
+    "start:android:dev": "adb install builds/development/android.apk && expo start --android --dev-client",
+    "start:android:go": "expo start --android --go",
+    "start:ios:dev": "tar -xzvf builds/development/ios.tar.gz -C builds/ && xcrun simctl install booted builds/sherloexpoexample.app && expo start --ios --dev-client",
+    "start:ios:go": "expo start --ios --go",
+    "storybook:generate": "sb-rn-get-stories"
+  },
+  "dependencies": {
+    "@gorhom/bottom-sheet": "^5.0.2",
+    "@react-native-async-storage/async-storage": "1.23.1",
+    "@sherlo/testing-components": "1.0.0",
+    "expo": "^51.0.38",
+    "expo-localization": "~15.0.3",
+    "expo-updates": "~0.25.24",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-native": "0.74.5",
+    "react-native-gesture-handler": "~2.16.1",
+    "react-native-reanimated": "~3.10.1",
+    "react-native-safe-area-context": "4.10.5",
+    "react-native-svg": "15.2.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "@sherlo/react-native-storybook": "^1.0.34",
+    "@storybook/react-native": "^8.3.9",
+    "babel-loader": "^8.2.3",
+    "storybook": "^8.3.6",
+    "typescript": "~5.3.3"
+  }
+}
