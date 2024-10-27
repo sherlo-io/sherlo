@@ -10,25 +10,17 @@ update_directory() {
   local excludeCopy=("${!2}")
   echo "Updating $dir"
 
-  # Delete existing files in $dir, except excluded ones
-  find "$dir" -mindepth 1 -maxdepth 1 | while read item; do
-    base_name=$(basename "$item")
-    if [[ ! " ${excludeCopy[@]} " =~ " ${base_name} " ]]; then
-      rm -rf "$item"
-    fi
+  # Create exclude file for rsync
+  local exclude_file=$(mktemp)
+  for item in "${excludeCopy[@]}"; do
+    echo "$item" >> "$exclude_file"
   done
 
-  # Copy files from BASE_PROJECT to $dir, except excluded ones
-  for item in "$BASE_PROJECT"/*; do
-    base_name=$(basename "$item")
-    if [[ ! " ${excludeCopy[@]} " =~ " ${base_name} " ]]; then
-      if [ -d "$item" ]; then
-        cp -R "$item" "$dir/"
-      else
-        cp "$item" "$dir/"
-      fi
-    fi
-  done
+  # Use rsync to copy files, including hidden ones, and delete files not in source
+  rsync -av --delete --exclude-from="$exclude_file" "$BASE_PROJECT/" "$dir/"
+
+  # Clean up temporary file
+  rm "$exclude_file"
 }
 
 # Update examples/* directories
