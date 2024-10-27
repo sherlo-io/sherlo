@@ -2,7 +2,7 @@
 
 BASE_PROJECT='testing/expo-storybook-8'
 EXCLUDE_IN_EXAMPLES=("package.json" "README.md" "builds" "dist" ".expo" "scripts" ".github")
-EXCLUDE_IN_TESTING=("package.json" "README.md" "builds" "dist" ".expo" "metro.config.js")
+EXCLUDE_IN_TESTING=("package.json" "README.md" "builds" "dist" ".expo" "metro.config.js" ".storybook")
 
 # Function to update a directory
 update_directory() {

@@ -1,6 +1,6 @@
-import { shouldShowStorybook, verifyIntegration } from '@sherlo/react-native-storybook';
+import { shouldShowStorybook } from '@sherlo/react-native-storybook';
 import Storybook from './.storybook';
-import { PropsWithChildren, useEffect } from 'react';
+import { PropsWithChildren } from 'react';
 import HomeScreen from './src/HomeScreen';
 import Constants from 'expo-constants';
 
@@ -22,10 +22,6 @@ import Constants from 'expo-constants';
 const CommonProviders = ({ children }: PropsWithChildren) => children;
 
 export default function App() {
-  // useEffect(() => {
-  //   verifyIntegration();
-  // }, []);
-
   /**
    * shouldShowStorybook determines whether to show Storybook.
    *

@@ -12,7 +12,6 @@
     "build:ios:eas": "eas build --platform ios --profile=preview",
     "build:ios:storybook": "eas build --platform ios --local --profile=storybook --output=builds/storybook/ios.tar.gz",
     "build:ios:preview": "eas build --platform ios --local --profile=preview --output=builds/preview/ios.tar.gz",
-    "build:ios:production": "eas build --platform ios --local --profile=production --output=builds/production/ios.tar.gz",
     "update:development": "eas update --channel=development --json --non-interactive --message='Update message'",
     "eas-build-on-complete": "sherlo eas-build-on-complete --profile=preview",
     "eas-build-post-install": "node ./scripts/setDevEnvOnExpoServer.js",
@@ -23,14 +22,10 @@
     "storybook:generate": "sb-rn-get-stories"
   },
   "dependencies": {
-    "@expo/metro-runtime": "~3.2.3",
     "@gorhom/bottom-sheet": "^5.0.2",
     "@react-native-async-storage/async-storage": "1.23.1",
-    "@react-native-community/datetimepicker": "8.0.1",
-    "@react-native-community/slider": "4.5.2",
     "@sherlo/testing-components": "1.0.0",
     "expo": "^51.0.38",
-    "expo-dev-client": "~4.0.28",
     "expo-localization": "~15.0.3",
     "expo-updates": "~0.25.24",
     "react": "18.2.0",
@@ -44,42 +39,9 @@
   "devDependencies": {
     "@babel/core": "^7.20.0",
     "@sherlo/react-native-storybook": "^1.0.34",
-    "@storybook/addon-essentials": "^8.3.5",
-    "@storybook/addon-interactions": "^8.3.5",
-    "@storybook/addon-links": "^8.3.5",
-    "@storybook/addon-ondevice-actions": "^8.3.9",
-    "@storybook/addon-ondevice-backgrounds": "^8.3.9",
-    "@storybook/addon-ondevice-controls": "^8.3.9",
-    "@storybook/addon-ondevice-notes": "^8.3.9",
-    "@storybook/addon-react-native-server": "0.0.6",
-    "@storybook/addon-react-native-web": "^0.0.22",
-    "@storybook/addon-webpack5-compiler-babel": "^3.0.3",
-    "@storybook/blocks": "^8.3.5",
-    "@storybook/builder-webpack5": "^8.3.5",
-    "@storybook/global": "^5.0.0",
-    "@storybook/react": "^8.3.6",
     "@storybook/react-native": "^8.3.9",
-    "@storybook/react-native-theming": "^8.3.9",
-    "@storybook/react-webpack5": "^8.3.5",
-    "@storybook/test": "^8.3.5",
     "babel-loader": "^8.2.3",
-    "babel-plugin-module-resolver": "^5.0.0",
-    "babel-plugin-react-docgen-typescript": "^1.5.1",
     "storybook": "^8.3.6",
     "typescript": "~5.3.3"
-  },
-  "resolutions": {
-    "react-docgen-typescript": "2.2.2",
-    "@storybook/react-docgen-typescript-plugin": "1.0.6--canary.9.cd77847.0"
-  },
-  "overrides": {
-    "react-docgen-typescript": "2.2.2",
-    "@storybook/react-docgen-typescript-plugin": "1.0.6--canary.9.cd77847.0"
-  },
-  "pnpm": {
-    "overrides": {
-      "react-docgen-typescript": "2.2.2",
-      "@storybook/react-docgen-typescript-plugin": "1.0.6--canary.9.cd77847.0"
-    }
   }
 }
