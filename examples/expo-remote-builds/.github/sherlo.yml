@@ -1,0 +1,28 @@
+name: Example of a Sherlo workflow for expo-remote-builds
+
+on:
+  workflow_dispatch:
+
+jobs:
+  sherlo_expo_remote_builds:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: yarn
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # It's important to run Sherlo in the same job as the EAS build,
+      # because we're pushing temporary files to .expo directory used during the build
+      - name: Run sherlo expo-remote-builds
+        run: yarn sherlo expo-remote-builds --manual --token ${{ secrets.SHERLO_TOKEN }}
+
+      - name: Trigger EAS builds for both platforms
+        run: eas build --profile=preview --platform=all --non-interactive --no-wait

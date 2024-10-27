@@ -1,7 +1,7 @@
 #!/bin/bash
 
 BASE_PROJECT='testing/expo-storybook-8'
-EXCLUDE_IN_EXAMPLES=("package.json" "README.md" "builds" "dist" ".expo" "scripts")
+EXCLUDE_IN_EXAMPLES=("package.json" "README.md" "builds" "dist" ".expo" "scripts" ".github")
 EXCLUDE_IN_TESTING=("package.json" "README.md" "builds" "dist" ".expo" "metro.config.js")
 
 # Function to update a directory
