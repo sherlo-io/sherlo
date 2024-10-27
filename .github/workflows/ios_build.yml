@@ -67,5 +67,5 @@ jobs:
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ios
+          name: ios-${{ inputs.profile }}
           path: testing/expo-storybook-8/builds/${{ inputs.profile }}/ios.tar.gz

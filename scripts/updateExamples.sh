@@ -1,17 +1,40 @@
 #!/bin/bash
 
 BASE_PROJECT='testing/expo-storybook-8'
+EXCLUDE_IN_EXAMPLES=("package.json" "README.md" "builds" "dist" ".expo")
+EXCLUDE_IN_TESTING=("package.json" "README.md" "builds" "dist" ".expo" "metro.config.js")
 
+# Function to update a directory
+update_directory() {
+  local dir="$1"
+  local excludeCopy="$2"
+  echo "Updating $dir"
+
+  # Delete existing files in $dir, except excluded ones
+  find "$dir" -mindepth 1 -maxdepth 1 | while read item; do
+    base_name=$(basename "$item")
+    if [[ ! " ${excludeCopy[@]} " =~ " ${base_name} " ]]; then
+      rm -rf "$item"
+    fi
+  done
+
+  # Copy files from BASE_PROJECT to $dir, except excluded ones
+  for item in "$BASE_PROJECT"/*; do
+    base_name=$(basename "$item")
+    if [[ ! " ${excludeCopy[@]} " =~ " ${base_name} " ]]; then
+      cp -R "$item" "$dir/"
+    fi
+  done
+}
+
+# Update examples/* directories
 for dir in examples/*; do
   if [ -d "$dir" ]; then
-    echo "Updating $dir"
-    # Remove existing src directory
-    rm -rf "$dir/src"
-    # Copy new src directory
-    cp -R "$BASE_PROJECT/src" "$dir/"
-    # Copy App.tsx file
-    cp "$BASE_PROJECT/App.tsx" "$dir/App.tsx"
+    update_directory "$dir" "${EXCLUDE_IN_EXAMPLES[@]}"
   fi
 done
 
-echo "All examples updated successfully!"
+# Update testing/expo-storybook-7 directory
+update_directory "testing/expo-storybook-7"
+
+echo "All examples and testing/expo-storybook-7 updated successfully!"

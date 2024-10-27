@@ -14,6 +14,14 @@ function generateStorybookComponent({
   storybookRenderMode,
 }: GenerateStorybookInput): () => JSX.Element {
   if (storybookRenderMode === 'sherlo') {
+    const sb7Params = {
+      isUIHidden: true,
+      isSplitPanelVisible: false,
+      tabOpen: 0,
+      shouldDisableKeyboardAvoidingView: true,
+      keyboardAvoidingViewVerticalOffset: 0,
+    };
+
     params = {
       ...params,
       host: undefined,
@@ -22,11 +30,7 @@ function generateStorybookComponent({
       shouldPersistSelection: false,
 
       // These properties are only valid for Storybook 7
-      isUIHidden: true,
-      isSplitPanelVisible: false,
-      tabOpen: 0, // Canvas tab
-      shouldDisableKeyboardAvoidingView: true,
-      keyboardAvoidingViewVerticalOffset: 0,
+      ...sb7Params,
     };
 
     if (initialSelection) {

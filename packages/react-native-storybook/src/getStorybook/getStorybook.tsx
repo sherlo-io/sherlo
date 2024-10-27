@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState, ReactElement } from 'react';
 import { Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RunnerBridge, SherloModule } from '../helpers';
-import { getGlobalStates } from '../utils';
 import { Snapshot, StorybookParams, StorybookView } from '../types';
 import { ErrorBoundary } from './components';
 import { SherloContext } from './contexts';
@@ -23,9 +22,6 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     const [snapshots, setSnapshots] = useState<Snapshot[]>();
 
     const mode = SherloModule.getMode();
-
-    // Safe area handling
-    const [shouldAddSafeArea, setShouldAddSafeArea] = useState(mode === 'testing');
 
     // Safe area handling
     const [shouldAddSafeArea, setShouldAddSafeArea] = useState(mode === 'testing');

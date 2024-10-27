@@ -92,13 +92,15 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
         return constants;
     }
-
+    
     @ReactMethod
     public void verifyIntegration(Promise promise) {
         Log.d(TAG, "Verifying integration");
-        this.mode = "verification";
-        RestartHelper.loadBundle(getCurrentActivity());
-        promise.resolve(null);
+        if (this.mode != "verification") {
+            this.mode = "verification";
+            RestartHelper.loadBundle(getCurrentActivity());
+            promise.resolve(null);
+        }
     }
 
     @ReactMethod

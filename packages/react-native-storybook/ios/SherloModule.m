@@ -119,11 +119,11 @@ RCT_EXPORT_MODULE()
 // and user will be presented with error modal, if it's triggered in testing mode the error will be written to error.sherlo
 RCT_EXPORT_METHOD(verifyIntegration:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
   NSLog(@"[%@] Verifying integration", LOG_TAG);
-  if(![mode isEqualToString:@"verification"]) {
+  // if(![mode isEqualToString:@"verification"]) {
     mode = @"verification";
     [RestartHelper reloadWithBridge:self.bridge];
     [self scheduleVerification];
-  }
+  // }
 
   resolve(nil);
 }

@@ -23,13 +23,13 @@
     "storybook:generate": "sb-rn-get-stories"
   },
   "dependencies": {
-    "@sherlo/testing-components": "1.0.0",
     "@expo/metro-runtime": "~3.2.3",
     "@gorhom/bottom-sheet": "^5.0.2",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/datetimepicker": "8.0.1",
     "@react-native-community/slider": "4.5.2",
-    "expo": "~51.0.31",
+    "@sherlo/testing-components": "1.0.0",
+    "expo": "^51.0.38",
     "expo-dev-client": "~4.0.28",
     "expo-localization": "~15.0.3",
     "expo-updates": "~0.25.24",
@@ -65,7 +65,6 @@
     "babel-loader": "^8.2.3",
     "babel-plugin-module-resolver": "^5.0.0",
     "babel-plugin-react-docgen-typescript": "^1.5.1",
-    "eas-cli": "^7.2.0",
     "storybook": "^8.3.6",
     "typescript": "~5.3.3"
   },

@@ -59,5 +59,5 @@ jobs:
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android
+          name: android-${{ inputs.profile }}
           path: testing/expo-storybook-8/builds/${{ inputs.profile }}/android.apk
