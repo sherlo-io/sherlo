@@ -57,18 +57,37 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
             // If the file exists, we are it testing mode and will open the
             // Storybook in single activity mode, without launching the app
-            File sherloConfigFile  = new File(configPath);
+            File sherloConfigFile = new File(configPath);
             if (sherloConfigFile.exists()) {
                 Log.i(TAG, "Config file exists");
                 String configJson = fileSystemHelper.readFile(configPath);
-                JSONObject config = new JSONObject(configJson);
+                
+                // Add validation for the config content
+                if (configJson == null || configJson.trim().isEmpty()) {
+                    Log.w(TAG, "Config file is empty");
+                    return;
+                }
 
-                if (config.has("overrideMode")) {
-                    Log.i(TAG, "Running in " + config.getString("overrideMode") + " mode");
-                    this.mode = config.getString("overrideMode");
-                } else {
-                    Log.i(TAG, "Running in testing mode");
-                    this.mode = "testing";
+                try {
+                    // Try to decode if the content is base64 encoded
+                    byte[] decodedBytes = android.util.Base64.decode(configJson, android.util.Base64.DEFAULT);
+                    configJson = new String(decodedBytes, "UTF-8");
+                } catch (Exception e) {
+                    Log.w(TAG, "Config is not base64 encoded, trying to parse as plain JSON");
+                }
+
+                try {
+                    JSONObject config = new JSONObject(configJson);
+                    if (config.has("overrideMode")) {
+                        Log.i(TAG, "Running in " + config.getString("overrideMode") + " mode");
+                        this.mode = config.getString("overrideMode");
+                    } else {
+                        Log.i(TAG, "Running in testing mode");
+                        this.mode = "testing";
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Invalid JSON in config file: " + configJson);
+                    this.handleError("ERROR_INVALID_CONFIG", "Config file contains invalid JSON: " + e.getMessage());
                 }
             }
         } catch (Exception e) {
