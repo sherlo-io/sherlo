@@ -49,13 +49,13 @@ jobs:
       - name: Download Android Artifact
         uses: actions/download-artifact@v4
         with:
-          name: android
+          name: android-${{ inputs.profile }}
           path: testing/expo-storybook-8/builds/${{ inputs.profile }}
 
       - name: Download iOS Artifact
         uses: actions/download-artifact@v4
         with:
-          name: ios
+          name: ios-${{ inputs.profile }}
           path: testing/expo-storybook-8/builds/${{ inputs.profile }}
 
       - name: Commit and push '${{ inputs.profile }}' builds
