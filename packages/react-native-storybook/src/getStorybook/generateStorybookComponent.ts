@@ -13,6 +13,14 @@ function generateStorybookComponent({
   params = {},
   storybookRenderMode,
 }: GenerateStorybookInput): () => JSX.Element {
+  const sb7Params = {
+    isUIHidden: true,
+    isSplitPanelVisible: false,
+    tabOpen: 0, // Canvas tab
+    shouldDisableKeyboardAvoidingView: true,
+    keyboardAvoidingViewVerticalOffset: 0,
+  };
+
   if (storybookRenderMode === 'sherlo') {
     const sb7Params = {
       isUIHidden: true,
