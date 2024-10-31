@@ -13,7 +13,7 @@ async function uploadMobileBuilds(
   buildPresignedUploadUrls: GetBuildUploadUrlsReturn['buildPresignedUploadUrls']
 ): Promise<void> {
   if (paths.android) {
-    if (!buildPresignedUploadUrls.android) {
+    if (!buildPresignedUploadUrls.android?.url) {
       throwError({
         type: 'unexpected',
         message: `${platformLabel.android} presigned url is undefined`,
@@ -28,7 +28,7 @@ async function uploadMobileBuilds(
   }
 
   if (paths.ios) {
-    if (!buildPresignedUploadUrls.ios) {
+    if (!buildPresignedUploadUrls.ios?.url) {
       throwError({
         type: 'unexpected',
         message: `${platformLabel.ios} presigned url is undefined`,
