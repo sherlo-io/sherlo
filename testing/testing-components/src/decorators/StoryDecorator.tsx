@@ -1,5 +1,5 @@
 import React from 'react';
-import { SafeAreaView, StyleSheet, useColorScheme } from 'react-native';
+import { SafeAreaView, StyleSheet, useColorScheme, StatusBar } from 'react-native';
 
 const StoryDecorator =
   ({ placement }: { placement?: 'top' | 'center' | 'bottom' } = {}) =>
@@ -29,6 +29,7 @@ const StoryDecorator =
           { flex: 1, backgroundColor: theme === 'dark' ? '#333' : '#dfdfdf' },
         ]}
       >
+        <StatusBar barStyle={theme === 'dark' ? 'light-content' : 'dark-content'} />
         <Story />
       </SafeAreaView>
     );

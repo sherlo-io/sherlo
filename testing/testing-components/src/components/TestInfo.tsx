@@ -25,7 +25,6 @@ const TestScreen = () => {
 
   return (
     <View style={[styles.container]}>
-      <StatusBar barStyle="light-content" />
       <InfoItem iconName="record-voice-over" text={`Language: ${language}`} />
 
       <InfoItem iconName="place" text={`Country: ${country}`} />
