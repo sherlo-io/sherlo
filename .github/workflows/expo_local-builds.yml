@@ -15,8 +15,8 @@ on:
         default: 'dev'
         type: string
 jobs:
-  run_sherlo_sync:
-    name: Run Sherlo in sync mode
+  sherlo_local_builds:
+    name: Run sherlo local-builds (expo)
     environment: ${{ inputs.env }}
     runs-on: ubuntu-latest
     steps:
@@ -44,4 +44,4 @@ jobs:
             --config configs/default-devices.json \
             --android testing/expo-storybook-8/builds/preview/android.apk \
             --ios testing/expo-storybook-8/builds/preview/ios.tar.gz \
-            --token ${{ secrets.SHERLO_INTEGRATION_TESTING_SYNC_TOKEN }}
+            --token ${{ secrets.SHERLO_LOCAL_BUILDS_EXPO_TOKEN }}
