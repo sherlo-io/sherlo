@@ -1,9 +1,14 @@
 import SDKApiClient from '@sherlo/sdk-client';
 import process from 'process';
 import { DOCS_LINK } from '../../constants';
-import { getTokenParts, handleClientError, printHeader, throwError } from '../../helpers';
+import {
+  getTokenParts,
+  handleClientError,
+  logInfoMessage,
+  printHeader,
+  throwError,
+} from '../../helpers';
 import asyncUploadPlatformBuild from './asyncUploadPlatformBuild';
-import getInfoMessage from './getInfoMessage';
 import getSherloData from './getSherloData';
 
 /**
@@ -15,15 +20,13 @@ import getSherloData from './getSherloData';
 async function easBuildOnComplete(options: { profile?: string }) {
   // Skip if the app was built locally
   if (process.env.EAS_BUILD_RUNNER !== 'eas-build') {
-    console.log(
-      '\n' +
-        getInfoMessage({
-          message:
-            '`sherlo eas-build-on-complete` command works only with `sherlo expo-remote-builds`; to test builds available locally, use `sherlo local-builds`',
-          // TODO: link do poprawy?
-          learnMoreLink: DOCS_LINK.sherloScriptLocalBuilds,
-        })
-    );
+    logInfoMessage({
+      message:
+        '`sherlo eas-build-on-complete` command works only with `sherlo expo-cloud`; to test builds available locally, use `sherlo local-builds`',
+      // TODO: link do poprawy?
+      learnMoreLink: DOCS_LINK.sherloScriptLocalBuilds,
+      startWithNewLine: true,
+    });
 
     return;
   }
@@ -42,13 +45,11 @@ async function easBuildOnComplete(options: { profile?: string }) {
 
   // Skip if EAS build profile doesn't match
   if (optionProfile !== easBuildProfile) {
-    console.log(
-      '\n' +
-        getInfoMessage({
-          message: `Sherlo skipped testing - current EAS build profile "${easBuildProfile}" doesn't match the profile "${optionProfile}" specified in \`sherlo eas-build-on-complete\` command`,
-          learnMoreLink: DOCS_LINK.remoteExpoBuilds,
-        })
-    );
+    logInfoMessage({
+      message: `Sherlo skipped testing - current EAS build profile "${easBuildProfile}" doesn't match the profile "${optionProfile}" specified in \`sherlo eas-build-on-complete\` command`,
+      learnMoreLink: DOCS_LINK.remoteExpoBuilds,
+      startWithNewLine: true,
+    });
 
     return;
   }

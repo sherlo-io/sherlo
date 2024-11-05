@@ -1,9 +1,9 @@
 import fs from 'fs';
-import { DOCS_LINK } from '../../constants';
+import { DOCS_LINK, SHERLO_TEMP_DIRECTORY, SHERLO_TEMP_DATA_FILE } from '../../constants';
 import { throwError } from '../../helpers';
 
 function getSherloData(): { buildIndex: number; token: string } {
-  const SHERLO_TEMP_FILE_PATH = './.sherlo/data.json';
+  const SHERLO_TEMP_FILE_PATH = ['.', SHERLO_TEMP_DIRECTORY, SHERLO_TEMP_DATA_FILE].join('/');
 
   if (!fs.existsSync(SHERLO_TEMP_FILE_PATH)) {
     throwError({

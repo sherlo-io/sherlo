@@ -1,5 +1,5 @@
 {
-  "name": "@sherlo/example-expo-updates",
+  "name": "@sherlo/example-expo-update",
   "version": "1.0.34",
   "private": true,
   "main": "index.ts",
@@ -7,7 +7,7 @@
     "android": "eas build --platform android --local --profile=development --output=builds/android.apk",
     "ios": "eas build --platform ios --local --profile=development --output=builds/ios.tar.gz",
     "update": "eas update --channel=development --json --non-interactive --message='Update message'",
-    "sherlo": "sherlo expo-updates --android builds/android.apk --ios builds/ios.tar.gz ",
+    "sherlo": "sherlo expo-update --android builds/android.apk --ios builds/ios.tar.gz ",
     "storybook:generate": "sb-rn-get-stories"
   },
   "dependencies": {

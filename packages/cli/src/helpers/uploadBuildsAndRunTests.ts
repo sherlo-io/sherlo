@@ -1,16 +1,13 @@
 import { Build } from '@sherlo/api-types';
 import SDKApiClient from '@sherlo/sdk-client';
-import { DOCS_LINK } from '../constants';
 import { Config } from '../types';
 import getAppBuildUrl from './getAppBuildUrl';
 import getBuildRunConfig from './getBuildRunConfig';
-import getBuildUploadUrls from './getBuildUploadUrls';
-import getPlatformsToTest from './getPlatformsToTest';
+import getLogLink from './getLogLink';
 import getTokenParts from './getTokenParts';
 import handleClientError from './handleClientError';
-import uploadMobileBuilds from './uploadMobileBuilds';
-import getLogLink from './getLogLink';
-import throwConfigError from './throwConfigError';
+import uploadOrLogBinaryReuse from './uploadOrLogBinaryReuse';
+import getValidatedBinariesInfo from './getValidatedBinariesInfo';
 
 async function uploadBuildsAndRunTests({
   config,
@@ -28,34 +25,37 @@ async function uploadBuildsAndRunTests({
   const { apiToken, projectIndex, teamId } = getTokenParts(config.token);
   const client = SDKApiClient(apiToken);
 
-  const platformsToTest = getPlatformsToTest(config);
-
-  validatePlatforms(platformsToTest, config);
-
-  const buildUploadUrls = await getBuildUploadUrls(client, {
-    platforms: platformsToTest,
+  const binariesInfo = await getValidatedBinariesInfo({
+    client,
+    config,
+    isExpoUpdate: !!expoUpdateInfo,
     projectIndex,
     teamId,
   });
 
-  await uploadMobileBuilds(
-    {
-      android: platformsToTest.includes('android') ? config.android : undefined,
-      ios: platformsToTest.includes('ios') ? config.ios : undefined,
-    },
-    buildUploadUrls
-  );
+  console.log('binariesInfo');
+  console.log(binariesInfo);
+
+  await uploadOrLogBinaryReuse(config, binariesInfo);
 
   const { build } = await client
     .openBuild({
+      sdkVersion: binariesInfo.sdkVersion,
       teamId,
       projectIndex,
-      gitInfo,
+      binaryHashes: {
+        android: binariesInfo.android?.hash,
+        ios: binariesInfo.ios?.hash,
+      },
       buildRunConfig: getBuildRunConfig({
         config,
-        buildPresignedUploadUrls: buildUploadUrls,
+        binaryS3Keys: {
+          android: binariesInfo.android?.s3Key,
+          ios: binariesInfo.ios?.s3Key,
+        },
         expoUpdateInfo,
       }),
+      gitInfo,
     })
     .catch(handleClientError);
 
@@ -65,22 +65,6 @@ async function uploadBuildsAndRunTests({
   console.log(`Test results: ${getLogLink(url)}\n`);
 
   return { buildIndex, url };
-}
-
-function validatePlatforms(platformsToTest: string[], config: Config<'withBuildPaths'>): void {
-  if (platformsToTest.includes('android') && !config.android) {
-    throwConfigError(
-      '`android` path is not provided, despite at least one Android testing device being defined',
-      DOCS_LINK.configAndroid
-    );
-  }
-
-  if (platformsToTest.includes('ios') && !config.ios) {
-    throwConfigError(
-      '`ios` path is not provided, despite at least one iOS testing device being defined',
-      DOCS_LINK.configIos
-    );
-  }
 }
 
 export default uploadBuildsAndRunTests;

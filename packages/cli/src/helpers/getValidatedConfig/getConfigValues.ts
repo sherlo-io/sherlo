@@ -1,37 +1,11 @@
 import { defaultDeviceOsLocale, defaultDeviceOsTheme } from '@sherlo/shared';
 import path from 'path';
-import { InvalidatedConfig } from '../../types';
+import { InvalidatedConfig, Options } from '../../types';
 import logWarning from '../logWarning';
-import parseConfigFile from './parseConfigFile';
-
-// TODO: wyniesc do wspolnego miejsca
-type Options<T extends 'default' | 'withDefaults' = 'default'> = {
-  token?: string; // only CLI
-  android?: string;
-  ios?: string;
-  // remoteExpo?: boolean;
-  // remoteExpoBuildScript?: string;
-  // async?: boolean;
-  // asyncBuildIndex?: number;
-  // TODO: gitInfo?: Build['gitInfo']; // Can be passed only in GitHub Action
-} & (T extends 'withDefaults' ? OptionDefaults : Partial<OptionDefaults>);
-type OptionDefaults = { config: string; projectRoot: string };
-
-function getConfig(options: Options<'withDefaults'>): InvalidatedConfig {
-  const configPath = path.resolve(options.projectRoot, options.config);
-
-  const configFile = parseConfigFile(configPath);
-
-  return getConfigValues(configFile, options);
-}
-
-export default getConfig;
-
-/* ========================================================================== */
 
 function getConfigValues(
   configFile: InvalidatedConfig,
-  options: Options<'withDefaults'>
+  options: Options<'any', 'withDefaults'>
 ): InvalidatedConfig {
   const { projectRoot } = options;
 
@@ -63,6 +37,10 @@ function getConfigValues(
     devices,
   };
 }
+
+export default getConfigValues;
+
+/* ========================================================================== */
 
 /**
  * Removes duplicate devices while keeping all entries, including incomplete ones.

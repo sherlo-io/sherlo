@@ -4,8 +4,8 @@ This directory contains examples for different build strategies and app delivery
 
 ## Available Examples
 
-### 1. Expo Remote Builds
-**[expo-remote-builds](./expo-remote-builds)**
+### 1. Expo Cloud
+**[expo-cloud](./expo-cloud)**
 
 Use this example if you want to build your app through remote EAS (Expo Application Services) builds.
 
@@ -16,10 +16,10 @@ This example is suitable for:
 - Building your Expo app locally
 - Bare React Native apps
 
-### 3. Expo Updates
-**[expo-updates](./expo-updates)**
+### 3. Expo Update
+**[expo-update](./expo-update)**
 
-Ideal for testing without creating a new native build each time. This example demonstrates how to use Expo Updates for efficient testing cycles.
+Ideal for testing without creating a new native build each time. This example demonstrates how to use Expo Update for efficient testing cycles.
 
 ## Choosing the Right Example
 

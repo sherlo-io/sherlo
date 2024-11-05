@@ -1,8 +1,8 @@
 import { projectApiTokenLength, teamIdLength } from '@sherlo/shared';
-import { DOCS_LINK } from '../../constants';
-import { InvalidatedConfig } from '../../types';
-import getTokenParts from '../getTokenParts';
-import throwConfigError from '../throwConfigError';
+import { DOCS_LINK } from '../../../constants';
+import { InvalidatedConfig } from '../../../types';
+import getTokenParts from '../../getTokenParts';
+import throwConfigError from '../../throwConfigError';
 
 function validateConfigToken<T extends InvalidatedConfig>(
   config: InvalidatedConfig

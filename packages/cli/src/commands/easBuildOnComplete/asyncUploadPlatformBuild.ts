@@ -8,8 +8,9 @@ import {
   getTokenParts,
   handleClientError,
   getAppBuildUrl,
-  getBuildUploadUrls,
-  uploadMobileBuilds,
+  getBinariesUploadInfo,
+  uploadOrLogBinaryReuse,
+  throwError,
 } from '../../helpers';
 
 async function asyncUploadPlatformBuild({
@@ -23,21 +24,7 @@ async function asyncUploadPlatformBuild({
 }) {
   const platform = process.env.EAS_BUILD_PLATFORM as Platform;
 
-  let platformPath = '';
-  if (platform === 'android') {
-    // Android build details: https://docs.expo.dev/build-reference/android-builds/
-
-    const defaultPath = 'android/app/build/outputs/apk/release/app-release.apk';
-
-    platformPath =
-      getPlatformPathFromEasJson({ platform: 'android', sherloBuildProfile }) ?? defaultPath;
-  } else if (platform === 'ios') {
-    // iOS build details: https://docs.expo.dev/build-reference/ios-builds/
-
-    platformPath =
-      getPlatformPathFromEasJson({ platform: 'ios', sherloBuildProfile }) ??
-      findDefaultIosAppPath();
-  }
+  const platformPath = getPlatformPath({ platform, sherloBuildProfile });
 
   const { url } = await asyncUploadMode({
     asyncBuildIndex: buildIndex,
@@ -52,6 +39,37 @@ async function asyncUploadPlatformBuild({
 export default asyncUploadPlatformBuild;
 
 /* ========================================================================== */
+
+function getPlatformPath({
+  platform,
+  sherloBuildProfile,
+}: {
+  platform: Platform;
+  sherloBuildProfile: string;
+}) {
+  let platformPath: string;
+
+  if (platform === 'android') {
+    /* Android build details: https://docs.expo.dev/build-reference/android-builds/ */
+
+    const defaultPath = 'android/app/build/outputs/apk/release/app-release.apk';
+
+    platformPath =
+      getPlatformPathFromEasJson({ platform: 'android', sherloBuildProfile }) ?? defaultPath;
+  } else if (platform === 'ios') {
+    /* iOS build details: https://docs.expo.dev/build-reference/ios-builds/ */
+
+    platformPath =
+      getPlatformPathFromEasJson({ platform: 'ios', sherloBuildProfile }) ??
+      findDefaultIosAppPath();
+  } else {
+    throwError({
+      message: `unsupported platform: ${platform}`,
+    });
+  }
+
+  return platformPath;
+}
 
 function getPlatformPathFromEasJson({
   platform,
@@ -94,15 +112,15 @@ async function asyncUploadMode({
   const { apiToken, projectIndex, teamId } = getTokenParts(token);
   const client = SDKApiClient(apiToken);
 
-  const buildUploadUrls = await getBuildUploadUrls(client, {
+  const binariesUploadInfo = await getBinariesUploadInfo(client, {
     platforms: platform === 'android' ? ['android'] : ['ios'],
     projectIndex,
     teamId,
   });
 
-  await uploadMobileBuilds(
+  await uploadOrLogBinaryReuse(
     platform === 'android' ? { android: buildPath } : { ios: buildPath },
-    buildUploadUrls
+    binariesUploadInfo
   );
 
   const buildIndex = asyncBuildIndex;
@@ -113,8 +131,8 @@ async function asyncUploadMode({
       buildIndex,
       projectIndex,
       teamId,
-      androidS3Key: buildUploadUrls.android?.s3Key,
-      iosS3Key: buildUploadUrls.ios?.s3Key,
+      androidS3Key: binariesUploadInfo.android?.s3Key,
+      iosS3Key: binariesUploadInfo.ios?.s3Key,
     })
     .catch(handleClientError);
 

@@ -1,15 +1,16 @@
 import { DeviceTheme } from '@sherlo/api-types';
 import { devices as sherloDevices } from '@sherlo/shared';
-import { DOCS_LINK } from '../../constants';
-import { InvalidatedConfig } from '../../types';
-import logWarning from '../logWarning';
-import throwConfigError from '../throwConfigError';
+import { DOCS_LINK } from '../../../constants';
+import { InvalidatedConfig } from '../../../types';
+import logWarning from '../../logWarning';
+import throwConfigError from '../../throwConfigError';
+import throwError from '../../throwError';
 
 function validateConfigDevices(config: InvalidatedConfig): void {
   const { devices } = config;
 
   if (!devices || !Array.isArray(devices) || devices.length === 0) {
-    throwConfigError('`devices` must be a non-empty array', DOCS_LINK.devices);
+    throwConfigError('`devices` must be a non-empty array', DOCS_LINK.configDevices);
   }
 
   for (let i = 0; i < devices.length; i++) {
@@ -18,7 +19,7 @@ function validateConfigDevices(config: InvalidatedConfig): void {
     if (!id || typeof id !== 'string' || !osVersion || typeof osVersion !== 'string') {
       throwConfigError(
         'each device must have defined `id` and `osVersion` as strings',
-        DOCS_LINK.devices
+        DOCS_LINK.configDevices
       );
     }
 
@@ -36,7 +37,7 @@ function validateConfigDevices(config: InvalidatedConfig): void {
     }
 
     if (!osLocale) {
-      throwConfigError('device `osLocale` must be defined', DOCS_LINK.configDevices);
+      throwError({ type: 'unexpected', message: 'device `osLocale` is undefined' });
     }
 
     const osLocaleRegex = /^[a-z]{2}(_[A-Z]{2})?$/;
@@ -53,7 +54,7 @@ function validateConfigDevices(config: InvalidatedConfig): void {
     }
 
     if (!osTheme) {
-      throwConfigError('device `osTheme` must be defined', DOCS_LINK.configDevices);
+      throwError({ type: 'unexpected', message: 'device `osTheme` is undefined' });
     }
 
     const deviceThemes: [DeviceTheme, DeviceTheme] = ['light', 'dark'];

@@ -43,13 +43,13 @@ on:
         required: false
         default: true
         type: boolean
-      expo_remote_builds:
-        description: 'Test: expo-remote-builds'
+      expo_cloud:
+        description: 'Test: expo-cloud'
         required: false
         default: true
         type: boolean
-      expo_updates:
-        description: 'Test: expo-updates'
+      expo_update:
+        description: 'Test: expo-update'
         required: false
         default: true
         type: boolean
@@ -115,20 +115,20 @@ jobs:
     with:
       env: ${{ github.event.inputs.env }}
 
-  expo_remote_builds:
-    uses: ./.github/workflows/expo-remote-builds.yml
+  expo_cloud:
+    uses: ./.github/workflows/expo-cloud.yml
     needs: [update_preview_builds]
-    if: ${{ github.event.inputs.expo_remote_builds != 'true' && always() && !failure() && !cancelled() }}
-    name: expo-remote-builds
+    if: ${{ github.event.inputs.expo_cloud != 'true' && always() && !failure() && !cancelled() }}
+    name: expo-cloud
     secrets: inherit
     with:
       env: ${{ github.event.inputs.env }}
 
-  expo_updates:
-    uses: ./.github/workflows/expo-updates.yml
+  expo_update:
+    uses: ./.github/workflows/expo-update.yml
     needs: [update_development_builds]
-    if: ${{ github.event.inputs.expo_updates != 'true' && always() && !failure() && !cancelled() }}
-    name: expo-updates
+    if: ${{ github.event.inputs.expo_update != 'true' && always() && !failure() && !cancelled() }}
+    name: expo-update
     secrets: inherit
     with:
       env: ${{ github.event.inputs.env }}

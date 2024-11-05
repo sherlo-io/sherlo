@@ -20,3 +20,8 @@ export const IOS_FILE_TYPES = ['.app', '.tar.gz', '.tar'] as const;
 
 export const DEFAULT_CONFIG_PATH = 'sherlo.config.json';
 export const DEFAULT_PROJECT_ROOT = '.';
+
+export const SHERLO_TEMP_DIRECTORY = '.sherlo';
+export const SHERLO_TEMP_DATA_FILE = 'data.json';
+
+export const PACKAGE_NAME = '@sherlo/react-native-storybook';

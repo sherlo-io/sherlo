@@ -8,34 +8,49 @@ import zlib from 'zlib';
 import { IOSFileType } from '../types';
 import throwError from './throwError';
 
-async function uploadMobileBuilds(
+async function uploadOrLogBinaryReuse(
   paths: { android?: string; ios?: string },
-  buildPresignedUploadUrls: GetBuildUploadUrlsReturn['buildPresignedUploadUrls']
+  binariesInfo: {
+    android?: {
+      s3Key: string;
+      binaryBuildCreatedAt?: string;
+      binaryBuildIndex?: number;
+      url?: string;
+    };
+    ios?: {
+      s3Key: string;
+      binaryBuildCreatedAt?: string;
+      binaryBuildIndex?: number;
+      url?: string;
+    };
+  }
 ): Promise<void> {
-  if (paths.android) {
-    if (!buildPresignedUploadUrls.android?.url) {
+  if (binariesInfo.android?.url) {
+    if (!paths.android) {
       throwError({
         type: 'unexpected',
-        message: `${platformLabel.android} presigned url is undefined`,
+        message: `${platformLabel.android} path is undefined`,
       });
     }
 
     await uploadFile({
       platform: 'android',
       path: paths.android,
-      uploadUrl: buildPresignedUploadUrls.android.url,
+      uploadUrl: binariesInfo.android.url,
     });
+  } else if (binariesInfo.android?.s3Key) {
+    logBinaryReuse({ platform: 'android', binariesInfo });
   }
 
-  if (paths.ios) {
-    if (!buildPresignedUploadUrls.ios?.url) {
+  if (binariesInfo.ios?.url) {
+    if (!paths.ios) {
       throwError({
         type: 'unexpected',
-        message: `${platformLabel.ios} presigned url is undefined`,
+        message: `${platformLabel.ios} path is undefined`,
       });
     }
 
-    const iosPath = paths.ios as string;
+    const iosPath = paths.ios;
     const pathFileName = path.basename(iosPath);
 
     let iosFileType: IOSFileType;
@@ -52,12 +67,14 @@ async function uploadMobileBuilds(
       platform: 'ios',
       path: iosPath,
       iosFileType,
-      uploadUrl: buildPresignedUploadUrls.ios.url,
+      uploadUrl: binariesInfo.ios.url,
     });
+  } else if (binariesInfo.ios?.s3Key) {
+    logBinaryReuse({ platform: 'ios', binariesInfo });
   }
 }
 
-export default uploadMobileBuilds;
+export default uploadOrLogBinaryReuse;
 
 /* ========================================================================== */
 
@@ -161,4 +178,27 @@ async function compressDirectoryToTarGzip(directoryPath: string): Promise<Buffer
       .on('end', () => resolve(Buffer.concat(buffers)))
       .on('error', reject);
   });
+}
+
+function logBinaryReuse({
+  platform,
+  binariesInfo,
+}: {
+  platform: Platform;
+  binariesInfo: GetBuildUploadUrlsReturn['buildPresignedUploadUrls'];
+}) {
+  const platformInfo = binariesInfo[platform];
+
+  if (!platformInfo?.binaryBuildIndex || !platformInfo?.binaryBuildCreatedAt) {
+    throwError({
+      type: 'unexpected',
+      message: `${platformLabel[platform]} binary build info is incomplete`,
+    });
+  }
+
+  console.log(
+    `${chalk.blue('→')} ${platformLabel[platform]} unchanged, reusing build #${
+      platformInfo.binaryBuildIndex
+    } (${platformInfo.binaryBuildCreatedAt})`
+  );
 }

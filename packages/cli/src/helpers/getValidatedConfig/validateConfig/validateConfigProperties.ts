@@ -1,6 +1,6 @@
-import { DOCS_LINK } from '../../constants';
-import { InvalidatedConfig } from '../../types';
-import logWarning from '../logWarning';
+import { DOCS_LINK } from '../../../constants';
+import { InvalidatedConfig } from '../../../types';
+import logWarning from '../../logWarning';
 
 const supportedProperties = ['android', 'devices', 'ios', 'token'];
 

@@ -1,8 +1,8 @@
-import SDKApiClient from '@sherlo/sdk-client/dist/sdkClient';
 import { GetBuildUploadUrlsRequest, GetBuildUploadUrlsReturn } from '@sherlo/api-types';
+import SDKApiClient from '@sherlo/sdk-client';
 import handleClientError from './handleClientError';
 
-async function getBuildUploadUrls(
+async function getBinariesUploadInfo(
   client: ReturnType<typeof SDKApiClient>,
   getBuildUploadUrlsRequest: GetBuildUploadUrlsRequest
 ): Promise<GetBuildUploadUrlsReturn['buildPresignedUploadUrls']> {
@@ -13,4 +13,4 @@ async function getBuildUploadUrls(
   return buildPresignedUploadUrls;
 }
 
-export default getBuildUploadUrls;
+export default getBinariesUploadInfo;

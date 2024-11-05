@@ -1,4 +1,4 @@
-name: TEST - expo-remote-builds mode
+name: TEST - expo-cloud mode
 
 on:
   workflow_call:
@@ -16,7 +16,7 @@ on:
         type: string
 
 jobs:
-  start_sherlo_expo_remote_builds:
+  start_sherlo_expo_cloud:
     if: >
       (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:eas')) ||
       (github.event_name != 'pull_request')
@@ -42,9 +42,9 @@ jobs:
 
       # It's important to run Sherlo in the same job as the EAS build,
       # because we're pushing temporary files to .expo directory used during the build
-      - name: Run sherlo expo-remote-builds
+      - name: Run sherlo expo-cloud
         run: |
-          yarn sherlo expo-remote-builds \
+          yarn sherlo expo-cloud \
             --manual \
             --config ../../configs/default-devices.json \
             --projectRoot testing/expo-storybook-8 \
