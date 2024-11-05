@@ -46,7 +46,7 @@ jobs:
 
       - name: Trigger EAS update and capture manifest URLs
         run: |
-          EXPO_UPDATE_JSON=$(eas update --branch "development" --message "${{ github.event.head_commit.message }}" --json --non-interactive)
+          EXPO_UPDATE_JSON=$(eas update --channel "development" --message "Expo Update ${GITHUB_SHA}" --json --non-interactive)
           echo "EXPO_UPDATE_JSON=$EXPO_UPDATE_JSON" >> $GITHUB_ENV
           echo "ANDROID_EXPO_UPDATE_URL=$(echo "$EXPO_UPDATE_JSON" | jq -r '.[] | select(.platform == "android") | .manifestPermalink')" >> $GITHUB_ENV
           echo "IOS_EXPO_UPDATE_URL=$(echo "$EXPO_UPDATE_JSON" | jq -r '.[] | select(.platform == "ios") | .manifestPermalink')" >> $GITHUB_ENV
