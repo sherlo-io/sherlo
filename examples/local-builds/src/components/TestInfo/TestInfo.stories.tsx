@@ -1,4 +1,4 @@
-import { TestInfo } from '@sherlo/testing-components';
+import { TestInfo, StoryDecorator } from '@sherlo/testing-components';
 import type { Meta } from '@storybook/react';
 
 /**
@@ -7,12 +7,10 @@ import type { Meta } from '@storybook/react';
  */
 export default {
   component: TestInfo,
-} as Meta<typeof TestInfo>;
-
-export const Basic = {
+  decorators: [StoryDecorator({ placement: 'center' })],
   parameters: {
     noSafeArea: true,
   },
-};
+} as Meta<typeof TestInfo>;
 
-export const WithSafeArea = {};
+export const Basic = {};

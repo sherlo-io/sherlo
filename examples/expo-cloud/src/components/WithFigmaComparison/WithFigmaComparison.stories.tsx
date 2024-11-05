@@ -1,9 +1,11 @@
 import type { Meta } from '@storybook/react';
 import WithFigmaComparison from './WithFigmaComparison';
 import { SherloParameters } from '@sherlo/react-native-storybook';
+import { StoryDecorator } from '@sherlo/testing-components';
 
 export default {
   component: WithFigmaComparison,
+  decorators: [StoryDecorator({ placement: 'center' })],
 } as Meta<typeof WithFigmaComparison>;
 
 export const Basic = {

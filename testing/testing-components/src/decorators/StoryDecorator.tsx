@@ -1,9 +1,11 @@
 import React from 'react';
-import { SafeAreaView, StyleSheet } from 'react-native';
+import { SafeAreaView, StyleSheet, useColorScheme } from 'react-native';
 
 const StoryDecorator =
   ({ placement }: { placement?: 'top' | 'center' | 'bottom' } = {}) =>
   (Story: React.FC) => {
+    const theme = useColorScheme();
+
     let containerStyle = {};
 
     switch (placement) {
@@ -21,7 +23,12 @@ const StoryDecorator =
     }
 
     return (
-      <SafeAreaView style={[containerStyle, { flex: 1 }]}>
+      <SafeAreaView
+        style={[
+          containerStyle,
+          { flex: 1, backgroundColor: theme === 'dark' ? '#333' : '#dfdfdf' },
+        ]}
+      >
         <Story />
       </SafeAreaView>
     );

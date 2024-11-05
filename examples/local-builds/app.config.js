@@ -10,6 +10,9 @@ module.exports = () => ({
       resizeMode: 'contain',
       backgroundColor: '#ffffff',
     },
+    androidStatusBar: {
+      translucent: true,
+    },
     updates: {
       enabled: true,
       fallbackToCacheTimeout: 300000,
