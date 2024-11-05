@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, View, StyleSheet } from 'react-native';
+import { Text, View, StyleSheet, StatusBar } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Updates from 'expo-updates';
 import * as Localization from 'expo-localization';
@@ -25,6 +25,7 @@ const TestScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme === 'dark' ? '#333' : '#dfdfdf' }]}>
+      <StatusBar barStyle="light-content" />
       <InfoItem iconName="record-voice-over" text={`Language: ${language}`} />
 
       <InfoItem iconName="place" text={`Country: ${country}`} />

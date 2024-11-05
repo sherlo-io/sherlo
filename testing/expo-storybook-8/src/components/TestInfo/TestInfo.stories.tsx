@@ -7,12 +7,9 @@ import type { Meta } from '@storybook/react';
  */
 export default {
   component: TestInfo,
-} as Meta<typeof TestInfo>;
-
-export const Basic = {
   parameters: {
     noSafeArea: true,
   },
-};
+} as Meta<typeof TestInfo>;
 
-export const WithSafeArea = {};
+export const Basic = {};

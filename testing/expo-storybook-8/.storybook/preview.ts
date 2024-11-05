@@ -9,10 +9,6 @@ const preview: Preview = {
       values: [
         {
           name: 'default',
-          value: '#16171A',
-        },
-        {
-          name: 'white',
           value: '#fff',
         },
       ],
