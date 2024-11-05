@@ -66,20 +66,22 @@ jobs:
 
       - name: Run sherlo expo-update (with native builds)
         if: inputs.with_builds == true
+        working-directory: testing/expo-storybook-8
         run: |
           yarn sherlo expo-update \
-            --config configs/default-devices.json \
-            --android testing/expo-storybook-8/builds/development/android.apk \
+            --config ../default-devices.json \
+            --android builds/development/android.apk \
+            --ios builds/development/ios.tar.gz \
             --androidUpdateUrl ${{ env.ANDROID_EXPO_UPDATE_URL }} \
-            --ios testing/expo-storybook-8/builds/development/ios.tar.gz \
             --iosUpdateUrl ${{ env.IOS_EXPO_UPDATE_URL }} \
             --token ${{ secrets.SHERLO_EXPO_UPDATE_TOKEN }}
 
       - name: Run sherlo expo-update (without native builds)
         if: inputs.with_builds == false
+        working-directory: testing/expo-storybook-8
         run: |
           yarn sherlo expo-update \
-            --config configs/default-devices.json \
+            --config ../default-devices.json \
             --androidUpdateUrl ${{ env.ANDROID_EXPO_UPDATE_URL }} \
             --iosUpdateUrl ${{ env.IOS_EXPO_UPDATE_URL }} \
             --token ${{ secrets.SHERLO_EXPO_UPDATE_TOKEN }}
