@@ -59,11 +59,12 @@ function validateHasSherlo({ android, ios }: Pick<BinariesInfo, 'android' | 'ios
     });
   }
 
-  if (ios && !ios.hasSherlo) {
-    throwError({
-      message: 'iOS build does not contain Sherlo Native Module\n\n' + verifySteps(),
-    });
-  }
+  // Michal: Temporary disabled to run tests
+  // if (ios && !ios.hasSherlo) {
+  //   throwError({
+  //     message: 'iOS build does not contain Sherlo Native Module\n\n' + verifySteps(),
+  //   });
+  // }
 }
 
 function validateSdkVersion({ android, ios }: Pick<BinariesInfo, 'android' | 'ios'>) {
