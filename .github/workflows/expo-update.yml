@@ -70,9 +70,9 @@ jobs:
           yarn sherlo expo-update \
             --config configs/default-devices.json \
             --android testing/expo-storybook-8/builds/development/android.apk \
-            --androidUrl ${{ env.ANDROID_EXPO_UPDATE_URL }} \
+            --androidUpdateUrl ${{ env.ANDROID_EXPO_UPDATE_URL }} \
             --ios testing/expo-storybook-8/builds/development/ios.tar.gz \
-            --iosUrl ${{ env.IOS_EXPO_UPDATE_URL }} \
+            --iosUpdateUrl ${{ env.IOS_EXPO_UPDATE_URL }} \
             --token ${{ secrets.SHERLO_EXPO_UPDATE_TOKEN }}
 
       - name: Run sherlo expo-update (without native builds)
@@ -80,8 +80,8 @@ jobs:
         run: |
           yarn sherlo expo-update \
             --config configs/default-devices.json \
-            --androidUrl ${{ env.ANDROID_EXPO_UPDATE_URL }} \
-            --iosUrl ${{ env.IOS_EXPO_UPDATE_URL }} \
+            --androidUpdateUrl ${{ env.ANDROID_EXPO_UPDATE_URL }} \
+            --iosUpdateUrl ${{ env.IOS_EXPO_UPDATE_URL }} \
             --token ${{ secrets.SHERLO_EXPO_UPDATE_TOKEN }}
 
 # --expoUpdateJson ${{ env.EXPO_UPDATE_JSON }}
