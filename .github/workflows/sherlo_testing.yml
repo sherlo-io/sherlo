@@ -48,13 +48,13 @@ on:
         required: false
         default: false
         type: boolean
-      expo_update_with_native_builds:
-        description: 'Test: expo-update (with native builds)'
+      expo_update_with_builds:
+        description: 'Test: expo-update (with builds)'
         required: false
         default: false
         type: boolean
-      expo_update_without_native_builds:
-        description: 'Test: expo-update (without native builds)'
+      expo_update:
+        description: 'Test: expo-update'
         required: false
         default: false
         type: boolean
@@ -129,22 +129,22 @@ jobs:
     with:
       env: ${{ github.event.inputs.env }}
 
-  expo_update_with_native_builds:
+  expo_update_with_builds:
     uses: ./.github/workflows/expo-update.yml
     needs: [update_development_builds]
-    if: ${{ github.event.inputs.expo_update_with_native_builds == 'true' && always() && !failure() && !cancelled() }}
+    if: ${{ github.event.inputs.expo_update_with_builds == 'true' && always() && !failure() && !cancelled() }}
     name: expo-update (with native builds)
     secrets: inherit
     with:
       env: ${{ github.event.inputs.env }}
-      with_native_builds: true
+      withe_builds: true
 
-  expo_update_without_native_builds:
+  expo_update:
     uses: ./.github/workflows/expo-update.yml
     needs: [update_development_builds]
-    if: ${{ github.event.inputs.expo_update_without_native_builds == 'true' && always() && !failure() && !cancelled() }}
+    if: ${{ github.event.inputs.expo_update == 'true' && always() && !failure() && !cancelled() }}
     name: expo-update (without native builds)
     secrets: inherit
     with:
       env: ${{ github.event.inputs.env }}
-      with_native_builds: false
+      with_builds: false
