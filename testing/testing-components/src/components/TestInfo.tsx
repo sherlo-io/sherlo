@@ -24,7 +24,7 @@ const TestScreen = () => {
   const [language, country] = Localization.locale.split('-');
 
   return (
-    <View style={[styles.container, { backgroundColor: theme === 'dark' ? '#333' : '#FFF' }]}>
+    <View style={[styles.container, { backgroundColor: theme === 'dark' ? '#333' : '#dfdfdf' }]}>
       <InfoItem iconName="record-voice-over" text={`Language: ${language}`} />
 
       <InfoItem iconName="place" text={`Country: ${country}`} />
