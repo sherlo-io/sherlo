@@ -69,7 +69,7 @@ jobs:
         working-directory: testing/expo-storybook-8
         run: |
           yarn sherlo expo-update \
-            --config ../default-devices.json \
+            --config ../../configs/default-devices.json \
             --android builds/development/android.apk \
             --ios builds/development/ios.tar.gz \
             --androidUpdateUrl ${{ env.ANDROID_EXPO_UPDATE_URL }} \
@@ -81,7 +81,7 @@ jobs:
         working-directory: testing/expo-storybook-8
         run: |
           yarn sherlo expo-update \
-            --config ../default-devices.json \
+            --config ../../configs/default-devices.json \
             --androidUpdateUrl ${{ env.ANDROID_EXPO_UPDATE_URL }} \
             --iosUpdateUrl ${{ env.IOS_EXPO_UPDATE_URL }} \
             --token ${{ secrets.SHERLO_EXPO_UPDATE_TOKEN }}
