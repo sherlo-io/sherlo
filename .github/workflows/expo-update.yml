@@ -57,13 +57,12 @@ jobs:
       - name: Trigger EAS update and capture manifest URLs
         working-directory: testing/expo-storybook-8
         run: |
-          # Store the JSON in a file first to handle potential special characters
-          eas update --channel "development" --message "Expo Update ${GITHUB_SHA}" --json --non-interactive > update_output.json
-          
-          # Set environment variables using the file
-          echo "EXPO_UPDATE_JSON=$(cat update_output.json)" >> $GITHUB_ENV
-          echo "ANDROID_EXPO_UPDATE_URL=$(cat update_output.json | jq -r '.[] | select(.platform == "android") | .manifestPermalink')" >> $GITHUB_ENV
-          echo "IOS_EXPO_UPDATE_URL=$(cat update_output.json | jq -r '.[] | select(.platform == "ios") | .manifestPermalink')" >> $GITHUB_ENV
+          EXPO_UPDATE_JSON=$(eas update --channel "development" --message "Expo Update ${GITHUB_SHA}" --json --non-interactive)
+          # echo "EXPO_UPDATE_JSON<<EOF" >> $GITHUB_ENV
+          # echo "$EXPO_UPDATE_JSON" >> $GITHUB_ENV
+          # echo "EOF" >> $GITHUB_ENV
+          echo "ANDROID_EXPO_UPDATE_URL=$(echo "$EXPO_UPDATE_JSON" | jq -r '.[] | select(.platform == "android") | .manifestPermalink')" >> $GITHUB_ENV
+          echo "IOS_EXPO_UPDATE_URL=$(echo "$EXPO_UPDATE_JSON" | jq -r '.[] | select(.platform == "ios") | .manifestPermalink')" >> $GITHUB_ENV
 
       - name: Run sherlo expo-update (with native builds)
         if: inputs.with_builds == true
