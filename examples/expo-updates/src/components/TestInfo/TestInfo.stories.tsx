@@ -14,3 +14,5 @@ export const Basic = {
     noSafeArea: true,
   },
 };
+
+export const WithSafeArea = {};
