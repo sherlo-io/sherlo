@@ -46,7 +46,7 @@ jobs:
 
       - name: Trigger EAS update and capture manifest URLs
         run: |
-          EXPO_UPDATE_JSON=$(eas update --branch "development" --message "${{ github.event.head_commit.message }}" --json)
+          EXPO_UPDATE_JSON=$(eas update --branch "development" --message "${{ github.event.head_commit.message }}" --json --non-interactive)
           echo "EXPO_UPDATE_JSON=$EXPO_UPDATE_JSON" >> $GITHUB_ENV
           echo "ANDROID_EXPO_UPDATE_URL=$(echo "$EXPO_UPDATE_JSON" | jq -r '.[] | select(.platform == "android") | .manifestPermalink')" >> $GITHUB_ENV
           echo "IOS_EXPO_UPDATE_URL=$(echo "$EXPO_UPDATE_JSON" | jq -r '.[] | select(.platform == "ios") | .manifestPermalink')" >> $GITHUB_ENV
@@ -59,6 +59,6 @@ jobs:
             --androidUrl ${{ env.ANDROID_EXPO_UPDATE_URL }} \
             --ios testing/expo-storybook-8/builds/development/ios.tar.gz \
             --iosUrl ${{ env.IOS_EXPO_UPDATE_URL }} \
-            --token ${{ secrets.SHERLO_INTEGRATION_TESTING_EXPO_UPDATE_TOKEN }}
+            --token ${{ secrets.SHERLO_EXPO_UPDATE_TOKEN }}
 
 # --expoUpdateJson ${{ env.EXPO_UPDATE_JSON }}
