@@ -45,6 +45,7 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Trigger EAS update and capture manifest URLs
+        working-directory: testing/expo-storybook-8
         run: |
           EXPO_UPDATE_JSON=$(eas update --channel "development" --message "Expo Update ${GITHUB_SHA}" --json --non-interactive)
           echo "EXPO_UPDATE_JSON=$EXPO_UPDATE_JSON" >> $GITHUB_ENV
