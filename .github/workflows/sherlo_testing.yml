@@ -137,7 +137,7 @@ jobs:
     secrets: inherit
     with:
       env: ${{ github.event.inputs.env }}
-      withe_builds: true
+      with_builds: true
 
   expo_update:
     uses: ./.github/workflows/expo-update.yml
