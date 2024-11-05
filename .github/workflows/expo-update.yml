@@ -7,7 +7,7 @@ on:
         description: 'Environment (dev, test, prod)'
         required: true
         type: string
-      withe_builds:
+      with_builds:
         description: 'With builds'
         required: false
         default: false
@@ -19,7 +19,7 @@ on:
         required: true
         default: 'dev'
         type: string
-      withe_builds:
+      with_builds:
         description: 'With builds'
         required: false
         default: false
@@ -63,7 +63,7 @@ jobs:
           echo "IOS_EXPO_UPDATE_URL=$(echo "$EXPO_UPDATE_JSON" | jq -r '.[] | select(.platform == "ios") | .manifestPermalink')" >> $GITHUB_ENV
 
       - name: Run sherlo expo-update (with native builds)
-        if: inputs.withe_builds == true
+        if: inputs.with_builds == true
         run: |
           yarn sherlo expo-update \
             --config configs/default-devices.json \
@@ -74,7 +74,7 @@ jobs:
             --token ${{ secrets.SHERLO_EXPO_UPDATE_TOKEN }}
 
       - name: Run sherlo expo-update (without native builds)
-        if: inputs.withe_builds == false
+        if: inputs.with_builds == false
         run: |
           yarn sherlo expo-update \
             --config configs/default-devices.json \
