@@ -26,13 +26,13 @@ function validateHasSherlo({ android, ios }: Pick<BinariesInfo, 'android' | 'ios
     (hasIosStep ? '3. `pod install` was run in `ios` folder (non-Expo only)\n' : '') +
     `${hasIosStep ? '4' : '3'}. A new build was created after above steps`;
 
-  if (android && !android.hasSherlo && ios && !ios.hasSherlo) {
+  if (android && !android.sdkVersion && ios && !ios.sdkVersion) {
     throwError({
       message: 'Neither Android nor iOS builds contain Sherlo Native Module\n\n' + verifySteps(),
     });
   }
 
-  if (android && !android.hasSherlo) {
+  if (android && !android.sdkVersion) {
     throwError({
       message:
         'Android build does not contain Sherlo Native Module\n\n' +
@@ -41,7 +41,7 @@ function validateHasSherlo({ android, ios }: Pick<BinariesInfo, 'android' | 'ios
   }
 
   // TODO: przetestowac - Michalowi rzucalo error
-  if (ios && !ios.hasSherlo) {
+  if (ios && !ios.sdkVersion) {
     throwError({
       message: 'iOS build does not contain Sherlo Native Module\n\n' + verifySteps(),
     });

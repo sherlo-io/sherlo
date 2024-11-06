@@ -33,25 +33,16 @@ async function accessFileInArchive({
     },
   };
 
-  console.log('\n\naccessFileInArchive commands[type][operation]');
-  console.log(commands[type][operation]);
-
   try {
     const { stdout } = await execAsync(commands[type][operation]);
 
-    console.log('accessFileInArchive stdout');
-    console.log(stdout);
-
     return operation === 'exists' ? true : stdout;
   } catch (error) {
-    console.log('accessFileInArchive error');
-    console.log(error);
-
     if (operation === 'exists') return false;
 
     throwError({
       type: 'unexpected',
-      message: `Failed to ${operation} file "${file}" in ${type} archive "${archive}"`,
+      message: error.message,
     });
   }
 }

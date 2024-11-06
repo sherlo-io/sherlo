@@ -15,7 +15,6 @@ type LocalBinariesInfo = {
 };
 
 type LocalBinaryInfo = {
-  hasSherlo: boolean;
   isExpoDev: boolean;
   sdkVersion?: string;
 };
@@ -112,32 +111,8 @@ async function getLocalBinaryInfoForPlatform({
     });
   }
 
-  try {
-    const isExpoDev = await checkIsExpoDev();
-    let hasSherlo = false;
-    let sdkVersion;
+  const isExpoDev = await checkIsExpoDev();
+  const sdkVersion = JSON.parse(await readSherloFile()).version;
 
-    try {
-      const sherloContent = await readSherloFile();
-      hasSherlo = true;
-
-      try {
-        sdkVersion = JSON.parse(sherloContent).version;
-      } catch {
-        throwError({
-          type: 'unexpected',
-          message: `Invalid ${SHERLO_JSON_FILENAME} format in ${platformPath}`,
-        });
-      }
-    } catch {
-      hasSherlo = false;
-    }
-
-    return { hasSherlo, isExpoDev, sdkVersion };
-  } catch {
-    throwError({
-      type: 'unexpected',
-      message: `Failed to read files from ${platformPath}`,
-    });
-  }
+  return { isExpoDev, sdkVersion };
 }

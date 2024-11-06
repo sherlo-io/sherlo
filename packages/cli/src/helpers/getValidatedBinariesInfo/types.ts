@@ -6,7 +6,6 @@ export type BinariesInfo = {
 
 type BinaryInfo = {
   hash: string;
-  hasSherlo: boolean;
   isExpoDev: boolean;
   s3Key: string;
   binaryBuildCreatedAt?: string;

@@ -28,12 +28,12 @@ async function accessFileInDirectory({
 
     const content = await fs.promises.readFile(filePath, 'utf8');
     return content;
-  } catch {
+  } catch (error) {
     if (operation === 'exists') return false;
 
     throwError({
       type: 'unexpected',
-      message: `Failed to ${operation} file "${file}" in directory "${directory}"`,
+      message: error.message,
     });
   }
 }
