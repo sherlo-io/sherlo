@@ -33,8 +33,14 @@ async function accessFileInArchive({
     },
   };
 
+  console.log('accessFileInArchive commands');
+  console.log(commands);
+
   try {
     const { stdout } = await execAsync(commands[type][operation]);
+
+    console.log('accessFileInArchive stdout');
+    console.log(stdout);
 
     return operation === 'exists' ? true : stdout;
   } catch {
