@@ -14,33 +14,27 @@ type BaseOptions = {
 
 const execAsync = promisify(exec);
 
-function accessFileInArchive(options: ReadOptions): Promise<string>;
+function accessFileInArchive(options: ReadOptions): Promise<string | undefined>;
 function accessFileInArchive(options: ExistsOptions): Promise<boolean>;
 async function accessFileInArchive({
   archive,
   file,
   type,
   operation,
-}: Options): Promise<string | boolean> {
+}: Options): Promise<string | undefined | boolean> {
+  const tarVersion = await detectTarVersion();
+
   const commands = {
     tar: {
-      /**
-       * Extracts file content to stdout:
-       * - --to-stdout: Write extracted files to stdout (works on GNU/BSD tar)
-       * - -xf: Extract from archive file
-       * - $(tar -tf): List all files and pipe to grep to find exact path
-       * - grep -F: Treat pattern as fixed string, not regex
-       */
-      read: `tar --to-stdout -xf "${archive}" $(tar -tf "${archive}" | grep -F "${file}")`,
-
-      /**
-       * Checks if file exists in archive:
-       * - -tf: List all files in archive
-       * - grep -F: Treat pattern as fixed string
-       * - -q: Quiet mode (no output, just exit code)
-       * - --: Marks end of options to handle filenames starting with dash
-       */
-      exists: `tar -tf "${archive}" | grep -F -q -- "${file}"`,
+      // read: `tar -tf "${archive}" | grep -F "${file}" | xargs -I {} tar -xOf "${archive}" "{}"`,
+      read:
+        tarVersion === 'BSD'
+          ? `tar -xOf "${archive}" "*${file}"`
+          : `tar --wildcards -xOf "${archive}" "*${file}"`,
+      exists:
+        tarVersion === 'BSD'
+          ? `tar -tf "${archive}" "*${file}"`
+          : `tar --wildcards -tf "${archive}" "*${file}"`,
     },
     unzip: {
       read: `unzip -p "${archive}" "${file}"`,
@@ -48,18 +42,48 @@ async function accessFileInArchive({
     },
   };
 
+  console.log('=== DEBUG ===');
+  console.log('Tar version:', tarVersion);
+  console.log('Operation:', operation);
+  console.log('Archive:', archive);
+  console.log('File:', file);
+  console.log('Command:', commands[type][operation]);
+
   try {
-    const { stdout } = await execAsync(commands[type][operation]);
+    const { stdout, stderr } = await execAsync(commands[type][operation]);
+    console.log('Command succeeded');
+    console.log('Stdout length:', stdout?.length);
+    console.log('Stderr:', stderr);
 
     return operation === 'exists' ? true : stdout;
   } catch (error) {
-    if (operation === 'exists') return false;
+    console.log('Command failed');
+    console.log('Error code:', error.code);
+    console.log('Error message:', error.message);
 
-    throwError({
-      type: 'unexpected',
-      message: error.message,
-    });
+    const isUnexpectedTarError = type === 'tar' && error.code !== 1;
+    const isUnexpectedUnzipError = type === 'unzip' && error.code !== 11;
+
+    if (isUnexpectedTarError || isUnexpectedUnzipError) {
+      throwError({
+        type: 'unexpected',
+        message: error.message,
+      });
+    }
+
+    if (operation === 'exists') return false;
+    return undefined;
   }
 }
 
 export default accessFileInArchive;
+
+/* ========================================================================== */
+
+async function detectTarVersion() {
+  const defaultTarVersion = 'BSD';
+
+  const { stdout } = await execAsync('tar --version');
+
+  return stdout.toLowerCase().includes('GNU') ? 'GNU' : defaultTarVersion;
+}

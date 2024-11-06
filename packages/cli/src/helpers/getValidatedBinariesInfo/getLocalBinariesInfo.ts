@@ -25,13 +25,13 @@ async function getLocalBinariesInfo({
 }): Promise<LocalBinariesInfo> {
   const result: LocalBinariesInfo = {};
 
-  if (paths.android && platformsToTest.includes('android')) {
-    result.android = await getLocalBinaryInfoForPlatform({
-      platformPath: paths.android,
-      sherloFilePath: SHERLO_JSON_PATH,
-      expoDevFilePath: ANDROID_EXPO_DEV_MENU_FILE_PATH,
-    });
-  }
+  // if (paths.android && platformsToTest.includes('android')) {
+  //   result.android = await getLocalBinaryInfoForPlatform({
+  //     platformPath: paths.android,
+  //     sherloFilePath: SHERLO_JSON_PATH,
+  //     expoDevFilePath: ANDROID_EXPO_DEV_MENU_FILE_PATH,
+  //   });
+  // }
 
   if (paths.ios && platformsToTest.includes('ios')) {
     result.ios = await getLocalBinaryInfoForPlatform({
@@ -40,6 +40,18 @@ async function getLocalBinariesInfo({
       expoDevFilePath: IOS_EXPO_DEV_MENU_FILE_PATH,
     });
   }
+
+  throw new Error(`iOS git: ${JSON.stringify(result.ios, null, 2)}`);
+
+  /**
+   * iOS:
+   * - sherlo.json
+   * -- valid [ ]
+   * -- invalid [ ]
+   * - EXDevMenuApp.ios.js
+   * -- valid [ ]
+   * -- invalid [ ]
+   */
 
   return result;
 }
@@ -106,7 +118,12 @@ async function getLocalBinaryInfoForPlatform({
   }
 
   const isExpoDev = await checkIsExpoDev();
-  const sdkVersion = JSON.parse(await readSherloFile()).version;
+
+  const sherloFileContent = await readSherloFile();
+
+  console.log('sherloFileContent', JSON.stringify(sherloFileContent, null, 2));
+
+  const sdkVersion = sherloFileContent ? JSON.parse(sherloFileContent).version : undefined;
 
   return { isExpoDev, sdkVersion };
 }

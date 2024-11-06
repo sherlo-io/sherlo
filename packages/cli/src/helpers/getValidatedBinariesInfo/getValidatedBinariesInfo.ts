@@ -41,7 +41,7 @@ async function getValidatedBinariesInfo({
   let ios;
 
   if (platformsToTest.includes('android')) {
-    if (!binariesUploadInfo.android || !localBinariesInfo.android || !binaryHashes.android) {
+    if (!binaryHashes.android || !binariesUploadInfo.android || !localBinariesInfo.android) {
       throwError({
         type: 'unexpected',
         message: 'Android binary info is missing',
@@ -56,7 +56,7 @@ async function getValidatedBinariesInfo({
   }
 
   if (platformsToTest.includes('ios')) {
-    if (!binariesUploadInfo.ios || !localBinariesInfo.ios || !binaryHashes.ios) {
+    if (!binaryHashes.ios || !binariesUploadInfo.ios || !localBinariesInfo.ios) {
       throwError({
         type: 'unexpected',
         message: 'iOS binary info is missing',
