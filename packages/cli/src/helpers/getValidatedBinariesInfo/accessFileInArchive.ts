@@ -24,7 +24,22 @@ async function accessFileInArchive({
 }: Options): Promise<string | boolean> {
   const commands = {
     tar: {
+      /**
+       * Extracts file content to stdout:
+       * - --to-stdout: Write extracted files to stdout (works on GNU/BSD tar)
+       * - -xf: Extract from archive file
+       * - $(tar -tf): List all files and pipe to grep to find exact path
+       * - grep -F: Treat pattern as fixed string, not regex
+       */
       read: `tar --to-stdout -xf "${archive}" $(tar -tf "${archive}" | grep -F "${file}")`,
+
+      /**
+       * Checks if file exists in archive:
+       * - -tf: List all files in archive
+       * - grep -F: Treat pattern as fixed string
+       * - -q: Quiet mode (no output, just exit code)
+       * - --: Marks end of options to handle filenames starting with dash
+       */
       exists: `tar -tf "${archive}" | grep -F -q -- "${file}"`,
     },
     unzip: {

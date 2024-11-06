@@ -7,7 +7,8 @@ import throwConfigError from '../../throwConfigError';
 
 function validateConfigPlatforms(config: InvalidatedConfig): void {
   const platformsToTest = getPlatformsToTest(
-    config.devices as Config['devices'] /* At this point we know that config.devices is validated */
+    /* At this point we know that config.devices is validated */
+    config.devices as Config['devices']
   );
 
   if (
@@ -59,7 +60,7 @@ function validatePlatformPath(path: string | undefined, platform: Platform): voi
 
   if (!fs.existsSync(path) || !hasValidExtension({ path, platform })) {
     throwConfigError(
-      `\`${platform}\` path must point to an ${formatValidFileTypes(platform)} file`,
+      `\`${platform}\` path ("${path}") must point to an ${formatValidFileTypes(platform)} file`,
       learnMoreLink[platform]
     );
   }

@@ -4,7 +4,7 @@ import throwError from '../throwError';
 import { BinariesInfo } from './types';
 
 function validateBinariesInfo(
-  { android, ios }: Pick<BinariesInfo, 'android' | 'ios'>,
+  { android, ios }: BinariesInfo,
   { isExpoUpdate }: { isExpoUpdate: boolean }
 ) {
   validateHasSherlo({ android, ios });
@@ -18,7 +18,7 @@ export default validateBinariesInfo;
 
 /* ========================================================================== */
 
-function validateHasSherlo({ android, ios }: Pick<BinariesInfo, 'android' | 'ios'>) {
+function validateHasSherlo({ android, ios }: BinariesInfo) {
   const verifySteps = ({ hasIosStep } = { hasIosStep: true }) =>
     'Please verify:\n' +
     `1. \`${PACKAGE_NAME}\` is installed\n` +
@@ -40,7 +40,6 @@ function validateHasSherlo({ android, ios }: Pick<BinariesInfo, 'android' | 'ios
     });
   }
 
-  // TODO: przetestowac - Michalowi rzucalo error
   if (ios && !ios.sdkVersion) {
     throwError({
       message: 'iOS build does not contain Sherlo Native Module\n\n' + verifySteps(),
@@ -52,7 +51,7 @@ function validateIsExpoDev({
   android,
   ios,
   isExpoUpdate,
-}: Pick<BinariesInfo, 'android' | 'ios'> & { isExpoUpdate: boolean }) {
+}: BinariesInfo & { isExpoUpdate: boolean }) {
   if (isExpoUpdate) {
     if (android && ios && !android.isExpoDev && ios && !ios.isExpoDev) {
       // TODO: dodac learnMore link + lepsze objasnienie (musi byc zainstalowana expo-dev paczka + musi byc eas profile pod development) - zrobic liste krokow jak przy hasSherlo
@@ -67,7 +66,6 @@ function validateIsExpoDev({
       });
     }
 
-    // TODO: przetestowac - Michalowi rzucalo error
     if (ios && !ios.isExpoDev) {
       throwError({
         message: 'iOS build must be a development build for Expo update',
@@ -95,7 +93,7 @@ function validateIsExpoDev({
   }
 }
 
-function validateSdkVersion({ android, ios }: Pick<BinariesInfo, 'android' | 'ios'>) {
+function validateSdkVersion({ android, ios }: BinariesInfo) {
   const sdkVersions: { platform: string; sdkVersion: string }[] = [];
 
   if (android?.sdkVersion) {

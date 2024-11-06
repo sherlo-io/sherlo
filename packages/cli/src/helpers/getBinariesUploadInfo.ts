@@ -4,13 +4,13 @@ import handleClientError from './handleClientError';
 
 async function getBinariesUploadInfo(
   client: ReturnType<typeof SDKApiClient>,
-  getBuildUploadUrlsRequest: GetBuildUploadUrlsRequest
+  request: GetBuildUploadUrlsRequest
 ): Promise<GetBuildUploadUrlsReturn['buildPresignedUploadUrls']> {
-  const { buildPresignedUploadUrls } = await client
-    .getBuildUploadUrls(getBuildUploadUrlsRequest)
+  const { buildPresignedUploadUrls: binariesUploadInfo } = await client
+    .getBuildUploadUrls(request)
     .catch(handleClientError);
 
-  return buildPresignedUploadUrls;
+  return binariesUploadInfo;
 }
 
 export default getBinariesUploadInfo;

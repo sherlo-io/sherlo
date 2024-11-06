@@ -20,7 +20,7 @@ async function getValidatedBinariesInfo({
   isExpoUpdate: boolean;
   projectIndex: number;
   teamId: string;
-}): Promise<BinariesInfo> {
+}): Promise<BinariesInfo & { sdkVersion: string }> {
   const platformsToTest = getPlatformsToTest(config.devices);
 
   const binaryHashes = await getBinaryHashes({ platformsToTest, config });

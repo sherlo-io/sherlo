@@ -3,21 +3,15 @@ import path from 'path';
 import throwError from '../throwError';
 import accessFileInArchive from './accessFileInArchive';
 import accessFileInDirectory from './accessFileInDirectory';
+import { BinaryInfo } from './types';
 
 const SHERLO_JSON_FILENAME = 'sherlo.json';
 const SHERLO_JSON_PATH = `assets/${SHERLO_JSON_FILENAME}`;
 const ANDROID_EXPO_DEV_MENU_FILE_PATH = 'assets/EXDevMenuApp.android.js';
 const IOS_EXPO_DEV_MENU_FILE_PATH = 'EXDevMenu.bundle/EXDevMenuApp.ios.js';
 
-type LocalBinariesInfo = {
-  android?: LocalBinaryInfo;
-  ios?: LocalBinaryInfo;
-};
-
-type LocalBinaryInfo = {
-  isExpoDev: boolean;
-  sdkVersion?: string;
-};
+type LocalBinariesInfo = { android?: LocalBinaryInfo; ios?: LocalBinaryInfo };
+type LocalBinaryInfo = Pick<BinaryInfo, 'isExpoDev' | 'sdkVersion'>;
 
 async function getLocalBinariesInfo({
   paths,

@@ -3,6 +3,10 @@ import path from 'path';
 import { InvalidatedConfig, Options } from '../../types';
 import logWarning from '../logWarning';
 
+/**
+ * 1. `android` and `ios` can be defined as any value in the config.
+ *    Converting to string is required as path.resolve accepts only strings.
+ */
 function getConfigValues(
   configFile: InvalidatedConfig,
   options: Options<'any', 'withDefaults'>
@@ -14,11 +18,11 @@ function getConfigValues(
 
   // Set a proper android path
   let android = options.android ?? configFile.android;
-  android = android ? path.resolve(projectRoot, android) : undefined;
+  android = android ? path.resolve(projectRoot, android.toString() /* 1 */) : undefined;
 
   // Set a proper ios path
   let ios = options.ios ?? configFile.ios;
-  ios = ios ? path.resolve(projectRoot, ios) : undefined;
+  ios = ios ? path.resolve(projectRoot, ios.toString() /* 1 */) : undefined;
 
   // Set defaults for devices and remove duplicates
   const devices = removeDuplicateDevices(

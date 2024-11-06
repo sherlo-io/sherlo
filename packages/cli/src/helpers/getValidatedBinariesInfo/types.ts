@@ -1,10 +1,9 @@
 export type BinariesInfo = {
-  sdkVersion: string;
   android?: BinaryInfo;
   ios?: BinaryInfo;
 };
 
-type BinaryInfo = {
+export type BinaryInfo = {
   hash: string;
   isExpoDev: boolean;
   s3Key: string;

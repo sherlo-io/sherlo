@@ -33,9 +33,6 @@ async function uploadBuildsAndRunTests({
     teamId,
   });
 
-  console.log('binariesInfo');
-  console.log(binariesInfo);
-
   await uploadOrLogBinaryReuse(config, binariesInfo);
 
   const { build } = await client

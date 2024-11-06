@@ -8,8 +8,6 @@ function validateConfig(
   config: InvalidatedConfig,
   { validatePlatformPaths }: { validatePlatformPaths: boolean }
 ): asserts config is Config {
-  validateConfigProperties(config);
-
   validateConfigToken(config);
 
   validateConfigDevices(config);
@@ -17,6 +15,8 @@ function validateConfig(
   if (validatePlatformPaths) {
     validateConfigPlatforms(config);
   }
+
+  validateConfigProperties(config);
 }
 
 export default validateConfig;
