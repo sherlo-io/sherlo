@@ -18,14 +18,15 @@ export const Basic = {
        * You can get the url by pressing on a frame in Figma
        * -> "Copy / Paste as" -> "Copy link to selection"
        */
-      figmaUrl: 'https://www.figma.com/design/...',
+      figmaUrl:
+        'https://www.figma.com/design/nJB9htRxaHZaAWuX7S412g/Sherlo-Figma-Comparison?node-id=3-16&t=pzAGXGNHHQcosemI-4',
       /**
        * This is an alternative to "figmaUrl" that is a standard for @storybook/addon-designs
        * Sherlo also supports this format but will prioritize "figmaUrl"
        */
       design: {
         type: 'figma',
-        url: 'https://www.figma.com/design/...',
+        url: 'https://www.figma.com/design/nJB9htRxaHZaAWuX7S412g/Sherlo-Figma-Comparison?node-id=3-16&t=pzAGXGNHHQcosemI-4',
       },
     } as SherloParameters,
   },

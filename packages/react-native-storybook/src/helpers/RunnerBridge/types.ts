@@ -29,7 +29,7 @@ export type AppProtocolItem =
       action: 'REQUEST_SNAPSHOT';
       snapshotIndex: number;
       hasError?: boolean;
-      boundaries?: string;
+      inspectorData?: string;
     };
 
 export type AckStartProtocolItem = {

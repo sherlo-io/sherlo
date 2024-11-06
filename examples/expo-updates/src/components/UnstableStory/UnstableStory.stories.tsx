@@ -1,6 +1,5 @@
 import type { Meta } from '@storybook/react';
 import UnstableStory from './UnstableStory';
-import { SherloParameters } from '@sherlo/react-native-storybook';
 import { StoryDecorator } from '@sherlo/testing-components';
 
 export default {
