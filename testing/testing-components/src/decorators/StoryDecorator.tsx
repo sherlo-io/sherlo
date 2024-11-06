@@ -1,10 +1,29 @@
-import React from 'react';
-import { SafeAreaView, StyleSheet, useColorScheme, StatusBar } from 'react-native';
+import React, { useEffect } from 'react';
+import { SafeAreaView, StyleSheet, useColorScheme } from 'react-native';
+import {
+  setStatusBarTranslucent,
+  setStatusBarStyle,
+  setStatusBarBackgroundColor,
+} from 'expo-status-bar';
 
 const StoryDecorator =
-  ({ placement }: { placement?: 'top' | 'center' | 'bottom' } = {}) =>
+  ({
+    placement,
+    translucent,
+  }: { placement?: 'top' | 'center' | 'bottom'; translucent?: boolean } = {}) =>
   (Story: React.FC) => {
     const theme = useColorScheme();
+
+    useEffect(() => {
+      if (translucent) {
+        setStatusBarTranslucent(true);
+        setStatusBarStyle(theme === 'dark' ? 'light' : 'dark');
+      } else {
+        setStatusBarTranslucent(false);
+        setStatusBarBackgroundColor(theme === 'dark' ? '#000' : '#fff', false);
+        setStatusBarStyle(theme === 'dark' ? 'light' : 'dark');
+      }
+    }, [translucent, theme]);
 
     let containerStyle = {};
 
@@ -29,7 +48,6 @@ const StoryDecorator =
           { flex: 1, backgroundColor: theme === 'dark' ? '#333' : '#dfdfdf' },
         ]}
       >
-        <StatusBar barStyle={theme === 'dark' ? 'light-content' : 'dark-content'} />
         <Story />
       </SafeAreaView>
     );

@@ -4,8 +4,6 @@ import { PropsWithChildren } from 'react';
 import HomeScreen from './src/HomeScreen';
 import Constants from 'expo-constants';
 
-global.SHERLO_TEST_CONFIG = {};
-
 /**
  * You should specify common UI providers that will be relevant for
  * components in Storybook mode but also in App mode of your build
