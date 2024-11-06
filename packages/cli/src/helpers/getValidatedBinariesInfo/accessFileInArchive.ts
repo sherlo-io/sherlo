@@ -80,10 +80,10 @@ export default accessFileInArchive;
 
 /* ========================================================================== */
 
-async function detectTarVersion() {
+async function detectTarVersion(): Promise<'GNU' | 'BSD'> {
   const defaultTarVersion = 'BSD';
 
   const { stdout } = await execAsync('tar --version');
 
-  return stdout.toLowerCase().includes('GNU') ? 'GNU' : defaultTarVersion;
+  return stdout.toLowerCase().includes('gnu') ? 'GNU' : defaultTarVersion;
 }
