@@ -33,8 +33,8 @@ async function accessFileInArchive({
     },
   };
 
-  console.log('accessFileInArchive commands');
-  console.log(commands);
+  console.log('accessFileInArchive commands[type][operation]');
+  console.log(commands[type][operation]);
 
   try {
     const { stdout } = await execAsync(commands[type][operation]);
