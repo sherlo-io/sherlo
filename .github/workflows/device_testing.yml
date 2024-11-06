@@ -45,4 +45,4 @@ jobs:
             --config configs/all-devices.json \
             --android testing/expo-storybook-8/builds/preview/android.apk \
             --ios testing/expo-storybook-8/builds/preview/ios.tar.gz \
-            --token ${{ secrets.SHERLO_DEVICE_TESTING_TOKEN }}
+            --token ${{ secrets.SHERLO_ALL_DEVICES_TOKEN }}

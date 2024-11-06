@@ -48,7 +48,7 @@ jobs:
             --manual \
             --config ../../configs/default-devices.json \
             --projectRoot testing/expo-storybook-8 \
-            --token ${{ secrets.SHERLO_INTEGRATION_TESTING_EAS_TOKEN }}
+            --token ${{ secrets.SHERLO_EXPO_CLOUD_TOKEN }}
 
       - name: Trigger EAS builds for both platforms
         working-directory: testing/expo-storybook-8
