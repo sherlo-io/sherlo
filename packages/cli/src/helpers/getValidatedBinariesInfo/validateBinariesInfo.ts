@@ -9,29 +9,9 @@ function validateBinariesInfo(
 ) {
   validateHasSherlo({ android, ios });
 
+  validateIsExpoDev({ android, ios, isExpoUpdate });
+
   validateSdkVersion({ android, ios });
-
-  if (isExpoUpdate) {
-    if (android && ios && !android.isExpoDev && ios && !ios.isExpoDev) {
-      // TODO: dodac learnMore link + lepsze objasnienie (musi byc zainstalowana expo-dev paczka + musi byc eas profile pod development) - zrobic liste krokow jak przy hasSherlo
-      throwError({
-        message: 'Both Android and iOS builds must be development builds for Expo update',
-      });
-    }
-
-    if (android && !android.isExpoDev) {
-      throwError({
-        message: 'Android build must be a development build for Expo update',
-      });
-    }
-
-    // Michal: Temporary disabled to run tests
-    // if (ios && !ios.isExpoDev) {
-    //   throwError({
-    //     message: 'iOS build must be a development build for Expo update',
-    //   });
-    // }
-  }
 }
 
 export default validateBinariesInfo;
@@ -60,12 +40,59 @@ function validateHasSherlo({ android, ios }: Pick<BinariesInfo, 'android' | 'ios
     });
   }
 
-  // Michal: Temporary disabled to run tests
-  // if (ios && !ios.hasSherlo) {
-  //   throwError({
-  //     message: 'iOS build does not contain Sherlo Native Module\n\n' + verifySteps(),
-  //   });
-  // }
+  // TODO: przetestowac - Michalowi rzucalo error
+  if (ios && !ios.hasSherlo) {
+    throwError({
+      message: 'iOS build does not contain Sherlo Native Module\n\n' + verifySteps(),
+    });
+  }
+}
+
+function validateIsExpoDev({
+  android,
+  ios,
+  isExpoUpdate,
+}: Pick<BinariesInfo, 'android' | 'ios'> & { isExpoUpdate: boolean }) {
+  if (isExpoUpdate) {
+    if (android && ios && !android.isExpoDev && ios && !ios.isExpoDev) {
+      // TODO: dodac learnMore link + lepsze objasnienie (musi byc zainstalowana expo-dev paczka + musi byc eas profile pod development) - zrobic liste krokow jak przy hasSherlo
+      throwError({
+        message: 'Both Android and iOS builds must be development builds for Expo update',
+      });
+    }
+
+    if (android && !android.isExpoDev) {
+      throwError({
+        message: 'Android build must be a development build for Expo update',
+      });
+    }
+
+    // TODO: przetestowac - Michalowi rzucalo error
+    if (ios && !ios.isExpoDev) {
+      throwError({
+        message: 'iOS build must be a development build for Expo update',
+      });
+    }
+  } else {
+    if (android && ios && android.isExpoDev && ios.isExpoDev) {
+      // TODO: powinnismy tutaj pisac o `local-builds`
+      throwError({
+        message: 'Both Android and iOS builds must not be development builds for non-Expo update',
+      });
+    }
+
+    if (android && android.isExpoDev) {
+      throwError({
+        message: 'Android build must not be a development build for non-Expo update',
+      });
+    }
+
+    if (ios && ios.isExpoDev) {
+      throwError({
+        message: 'iOS build must not be a development build for non-Expo update',
+      });
+    }
+  }
 }
 
 function validateSdkVersion({ android, ios }: Pick<BinariesInfo, 'android' | 'ios'>) {
@@ -85,7 +112,7 @@ function validateSdkVersion({ android, ios }: Pick<BinariesInfo, 'android' | 'io
 
   if (incompatibleSdkVersions.length > 0) {
     const versionsInfo = incompatibleSdkVersions
-      .map(({ platform, sdkVersion }) => `${platform}: ${sdkVersion}`)
+      .map(({ platform, sdkVersion }) => `${sdkVersion} (${platform})`)
       .join(', ');
 
     const isSinglePlatform = incompatibleSdkVersions.length === 1;
