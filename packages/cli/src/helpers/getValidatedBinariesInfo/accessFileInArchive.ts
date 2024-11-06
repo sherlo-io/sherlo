@@ -24,8 +24,8 @@ async function accessFileInArchive({
 }: Options): Promise<string | boolean> {
   const commands = {
     tar: {
-      read: `tar -zxOf "${archive}" "*${file}"`,
-      exists: `tar -ztf "${archive}" "*${file}"`,
+      read: `tar -zxOf --wildcards "${archive}" "*${file}"`,
+      exists: `tar -ztf --wildcards "${archive}" "*${file}"`,
     },
     unzip: {
       read: `unzip -p "${archive}" "${file}"`,
