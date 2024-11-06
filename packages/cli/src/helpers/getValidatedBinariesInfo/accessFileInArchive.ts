@@ -33,7 +33,7 @@ async function accessFileInArchive({
     },
   };
 
-  console.log('accessFileInArchive commands[type][operation]');
+  console.log('\n\naccessFileInArchive commands[type][operation]');
   console.log(commands[type][operation]);
 
   try {
@@ -43,7 +43,10 @@ async function accessFileInArchive({
     console.log(stdout);
 
     return operation === 'exists' ? true : stdout;
-  } catch {
+  } catch (error) {
+    console.log('accessFileInArchive error');
+    console.log(error);
+
     if (operation === 'exists') return false;
 
     throwError({
