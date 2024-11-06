@@ -101,23 +101,23 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 
         setTimeout(async () => {
           try {
-            let boundaries;
+            let inspectorData;
             if (!renderedStoryHasError.current) {
-              boundaries = await SherloModule.getInspectorData();
+              inspectorData = await SherloModule.getInspectorData();
             }
 
             RunnerBridge.log('requesting screenshot from master script', {
               action: 'REQUEST_SNAPSHOT',
               snapshotIndex: testedIndex,
               hasError: renderedStoryHasError.current,
-              boundaries: !!boundaries,
+              inspectorData: !!inspectorData,
             });
 
             const response = await RunnerBridge.send({
               action: 'REQUEST_SNAPSHOT',
               snapshotIndex: testedIndex,
               hasError: renderedStoryHasError.current,
-              boundaries,
+              inspectorData,
             });
 
             RunnerBridge.log('received screenshot from master script', response);

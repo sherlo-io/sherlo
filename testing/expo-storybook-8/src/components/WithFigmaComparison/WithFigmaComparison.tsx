@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-const PlatformSpecificComponent = () => {
+const WithFigmaComparison = () => {
   return (
     <View style={styles.container}>
       <View style={styles.purpleBar}>
@@ -60,4 +60,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default PlatformSpecificComponent;
+export default WithFigmaComparison;
