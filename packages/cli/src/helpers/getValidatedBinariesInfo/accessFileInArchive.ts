@@ -42,7 +42,7 @@ async function accessFileInArchive({
     },
   };
 
-  console.log('=== DEBUG ===');
+  console.log('\n\n=== DEBUG ===');
   console.log('Tar version:', tarVersion);
   console.log('Operation:', operation);
   console.log('Archive:', archive);
@@ -85,5 +85,5 @@ async function detectTarVersion(): Promise<'GNU' | 'BSD'> {
 
   const { stdout } = await execAsync('tar --version');
 
-  return stdout.toLowerCase().includes('gnu') ? 'GNU' : defaultTarVersion;
+  return stdout.toUpperCase().includes('GNU') ? 'GNU' : defaultTarVersion;
 }

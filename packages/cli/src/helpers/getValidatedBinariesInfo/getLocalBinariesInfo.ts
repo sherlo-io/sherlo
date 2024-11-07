@@ -5,7 +5,7 @@ import accessFileInArchive from './accessFileInArchive';
 import accessFileInDirectory from './accessFileInDirectory';
 import { BinaryInfo } from './types';
 
-const SHERLO_JSON_FILENAME = 'sherlo2.json';
+const SHERLO_JSON_FILENAME = 'sherlo.json';
 const SHERLO_JSON_PATH = `assets/${SHERLO_JSON_FILENAME}`;
 const ANDROID_EXPO_DEV_MENU_FILE_PATH = 'assets/EXDevMenuApp.android.js';
 const IOS_EXPO_DEV_MENU_FILE_PATH = 'EXDevMenu.bundle/EXDevMenuApp.ios.js';
@@ -25,13 +25,13 @@ async function getLocalBinariesInfo({
 }): Promise<LocalBinariesInfo> {
   const result: LocalBinariesInfo = {};
 
-  // if (paths.android && platformsToTest.includes('android')) {
-  //   result.android = await getLocalBinaryInfoForPlatform({
-  //     platformPath: paths.android,
-  //     sherloFilePath: SHERLO_JSON_PATH,
-  //     expoDevFilePath: ANDROID_EXPO_DEV_MENU_FILE_PATH,
-  //   });
-  // }
+  if (paths.android && platformsToTest.includes('android')) {
+    result.android = await getLocalBinaryInfoForPlatform({
+      platformPath: paths.android,
+      sherloFilePath: SHERLO_JSON_PATH,
+      expoDevFilePath: ANDROID_EXPO_DEV_MENU_FILE_PATH,
+    });
+  }
 
   if (paths.ios && platformsToTest.includes('ios')) {
     result.ios = await getLocalBinaryInfoForPlatform({
@@ -41,7 +41,10 @@ async function getLocalBinariesInfo({
     });
   }
 
-  throw new Error(`iOS git: ${JSON.stringify(result.ios, null, 2)}`);
+  throw new Error(
+    `\n\nAndroid git: ${JSON.stringify(result.android, null, 2)}
+    iOS git: ${JSON.stringify(result.ios, null, 2)}`
+  );
 
   /**
    * iOS:
