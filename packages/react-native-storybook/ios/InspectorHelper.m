@@ -19,7 +19,20 @@
     NSMutableArray *viewList = [NSMutableArray array];
     [self collectViewInfo:rootView intoArray:viewList];
 
-    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:viewList options:0 error:error];
+    // Create the root JSON object
+    NSMutableDictionary *rootObject = [NSMutableDictionary dictionary];
+    CGFloat screenScale = [UIScreen mainScreen].scale;
+    
+    // Use the system's default font size for body text
+    UIFont *defaultFont = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+    CGFloat defaultFontSize = defaultFont.pointSize;
+    CGFloat fontScale = defaultFontSize / [UIFont systemFontSize];
+    
+    [rootObject setObject:@(screenScale) forKey:@"density"];
+    [rootObject setObject:@(fontScale) forKey:@"fontScale"];
+    [rootObject setObject:viewList forKey:@"viewInfo"];
+
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:rootObject options:0 error:error];
     if (!jsonData) {
         *error = [NSError errorWithDomain:@"InspectorHelper" code:3 userInfo:@{NSLocalizedDescriptionKey: @"Could not serialize view data to JSON"}];
         return nil;
