@@ -21,7 +21,12 @@
 
     // Create the root JSON object
     NSMutableDictionary *rootObject = [NSMutableDictionary dictionary];
-    CGFloat screenScale = [UIScreen mainScreen].scale;
+    CGFloat screenScale = [UIScreen mainScreen].nativeScale;
+    CGRect nativeBounds = [UIScreen mainScreen].nativeBounds;
+    
+    // Calculate the scale factor based on the native dimensions
+    CGFloat widthScale = nativeBounds.size.width / keyWindow.bounds.size.width;
+    CGFloat heightScale = nativeBounds.size.height / keyWindow.bounds.size.height;
     
     // Use the system's default font size for body text
     UIFont *defaultFont = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
@@ -52,8 +57,9 @@
 
     if (isVisible) {
         CGRect windowFrame = [view convertRect:view.bounds toView:nil];
-        CGFloat screenScale = [UIScreen mainScreen].scale;
+        CGFloat screenScale = [UIScreen mainScreen].nativeScale;
         
+        // Adjust the coordinates and size using the native scale
         [viewDict setObject:@(windowFrame.origin.x * screenScale) forKey:@"x"];
         [viewDict setObject:@(windowFrame.origin.y * screenScale) forKey:@"y"];
         [viewDict setObject:@(windowFrame.size.width * screenScale) forKey:@"width"];
