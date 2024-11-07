@@ -60,15 +60,15 @@ async function accessFileInArchive({
     console.log('Error code:', error.code);
     console.log('Error message:', error.message);
 
-    const isUnexpectedBsdTarError = type === 'tar' && tarVersion === 'BSD' && error.code !== 1;
-    const isUnexpectedGnuTarError = type === 'tar' && tarVersion === 'GNU' && error.code !== 2;
-    const isUnexpectedTarError = isUnexpectedBsdTarError || isUnexpectedGnuTarError;
+    const isExpectedBsdTarError = type === 'tar' && tarVersion === 'BSD' && error.code === 1;
+    const isExpectedGnuTarError = type === 'tar' && tarVersion === 'GNU' && error.code === 2;
+    const isExpectedTarError = isExpectedBsdTarError || isExpectedGnuTarError;
 
-    const isUnexpectedUnzipError = type === 'unzip' && error.code !== 11;
+    const isExpectedUnzipError = type === 'unzip' && error.code === 11;
 
-    const isUnexpectedError = isUnexpectedTarError || isUnexpectedUnzipError;
+    const isExpectedError = isExpectedTarError || isExpectedUnzipError;
 
-    if (isUnexpectedError) {
+    if (!isExpectedError) {
       throwError({
         type: 'unexpected',
         message: error.message,
