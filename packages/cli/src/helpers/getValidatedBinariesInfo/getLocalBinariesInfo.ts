@@ -5,7 +5,7 @@ import accessFileInArchive from './accessFileInArchive';
 import accessFileInDirectory from './accessFileInDirectory';
 import { BinaryInfo } from './types';
 
-const SHERLO_JSON_FILENAME = 'sherlo2.json';
+const SHERLO_JSON_FILENAME = 'sherlo.json';
 const SHERLO_JSON_PATH = `assets/${SHERLO_JSON_FILENAME}`;
 const ANDROID_EXPO_DEV_MENU_FILE_PATH = 'assets/EXDevMenuApp.android.js';
 const IOS_EXPO_DEV_MENU_FILE_PATH = 'EXDevMenu.bundle/EXDevMenuApp.ios.js';
