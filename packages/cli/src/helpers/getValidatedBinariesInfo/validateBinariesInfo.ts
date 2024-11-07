@@ -19,31 +19,35 @@ export default validateBinariesInfo;
 /* ========================================================================== */
 
 function validateHasSherlo({ android, ios }: BinariesInfo) {
-  const verifySteps = ({ hasIosStep } = { hasIosStep: true }) =>
-    'Please verify:\n' +
-    `1. \`${PACKAGE_NAME}\` is installed\n` +
-    '2. Package is not excluded in `react-native.config.js`\n' +
-    (hasIosStep ? '3. `pod install` was run in `ios` folder (non-Expo only)\n' : '') +
-    `${hasIosStep ? '4' : '3'}. A new build was created after above steps`;
+  const getSherloModuleError = ({ android, ios }: { android?: boolean; ios?: boolean }) => {
+    const platforms = [android && 'Android', ios && 'iOS'].filter(Boolean);
+    const message =
+      platforms.length > 1
+        ? 'Neither Android nor iOS builds contain Sherlo Native Module'
+        : `${platforms[0]} build does not contain Sherlo Native Module`;
+
+    return {
+      message:
+        message +
+        '\n\n' +
+        'Please verify:\n' +
+        `1. \`${PACKAGE_NAME}\` is installed\n` +
+        '2. Package is not excluded in `react-native.config.js`\n' +
+        (ios ? '3. `pod install` was run in `ios` folder (non-Expo only)\n' : '') +
+        `${ios ? '4' : '3'}. A new build was created after above steps`,
+    };
+  };
 
   if (android && !android.sdkVersion && ios && !ios.sdkVersion) {
-    throwError({
-      message: 'Neither Android nor iOS builds contain Sherlo Native Module\n\n' + verifySteps(),
-    });
+    throwError(getSherloModuleError({ android: true, ios: true }));
   }
 
   if (android && !android.sdkVersion) {
-    throwError({
-      message:
-        'Android build does not contain Sherlo Native Module\n\n' +
-        verifySteps({ hasIosStep: false }),
-    });
+    throwError(getSherloModuleError({ android: true }));
   }
 
   if (ios && !ios.sdkVersion) {
-    throwError({
-      message: 'iOS build does not contain Sherlo Native Module\n\n' + verifySteps(),
-    });
+    throwError(getSherloModuleError({ ios: true }));
   }
 }
 
@@ -53,74 +57,78 @@ function validateIsExpoDev({
   isExpoUpdate,
 }: BinariesInfo & { isExpoUpdate: boolean }) {
   if (isExpoUpdate) {
-    if (android && ios && !android.isExpoDev && ios && !ios.isExpoDev) {
-      // TODO: dodac learnMore link + lepsze objasnienie (musi byc zainstalowana expo-dev paczka + musi byc eas profile pod development) - zrobic liste krokow jak przy hasSherlo
-      throwError({
-        message: 'Both Android and iOS builds must be development builds for Expo update',
-      });
+    const getExpoUpdateError = ({ android, ios }: { android?: boolean; ios?: boolean }) => {
+      const platforms = [android && 'Android', ios && 'iOS'].filter(Boolean);
+
+      return {
+        message:
+          '`sherlo expo-update` command requires development builds ' +
+          `(${platforms.join(' and ')} ${platforms.length > 1 ? 'are' : 'is'} invalid)\n\n` +
+          'Please verify:\n' +
+          '1. Required `expo-dev-client` package is installed\n' +
+          '2. EAS build profile is configured for development\n' +
+          `3. ${platforms.join(' and ')} ${platforms.length > 1 ? 'are' : 'is'} built using development profile\n`,
+        learnMoreLink: 'TODO: DOCS_LINK.expoUpdate',
+      };
+    };
+
+    if (android && !android.isExpoDev && ios && !ios.isExpoDev) {
+      throwError(getExpoUpdateError({ android: true, ios: true }));
     }
 
     if (android && !android.isExpoDev) {
-      throwError({
-        message: 'Android build must be a development build for Expo update',
-      });
+      throwError(getExpoUpdateError({ android: true }));
     }
 
     if (ios && !ios.isExpoDev) {
-      throwError({
-        message: 'iOS build must be a development build for Expo update',
-      });
+      throwError(getExpoUpdateError({ ios: true }));
     }
   } else {
-    if (android && ios && android.isExpoDev && ios.isExpoDev) {
-      // TODO: powinnismy tutaj pisac o `local-builds`
-      throwError({
-        message: 'Both Android and iOS builds must not be development builds for non-Expo update',
-      });
+    const getLocalBuildsError = ({ android, ios }: { android?: boolean; ios?: boolean }) => {
+      const platforms = [android && 'Android', ios && 'iOS'].filter(Boolean);
+
+      return {
+        message: `\`sherlo local-builds\` command requires non-development builds (${platforms.join(' and ')} ${platforms.length > 1 ? 'are' : 'is'} invalid)`,
+        learnMoreLink: 'TODO: DOCS_LINK.localBuilds',
+      };
+    };
+
+    if (android && android.isExpoDev && ios && ios.isExpoDev) {
+      throwError(getLocalBuildsError({ android: true, ios: true }));
     }
 
     if (android && android.isExpoDev) {
-      throwError({
-        message: 'Android build must not be a development build for non-Expo update',
-      });
+      throwError(getLocalBuildsError({ android: true }));
     }
 
     if (ios && ios.isExpoDev) {
-      throwError({
-        message: 'iOS build must not be a development build for non-Expo update',
-      });
+      throwError(getLocalBuildsError({ ios: true }));
     }
   }
 }
 
 function validateSdkVersion({ android, ios }: BinariesInfo) {
-  const sdkVersions: { platform: string; sdkVersion: string }[] = [];
-
-  if (android?.sdkVersion) {
-    sdkVersions.push({ platform: 'Android', sdkVersion: android.sdkVersion });
-  }
-
-  if (ios?.sdkVersion) {
-    sdkVersions.push({ platform: 'iOS', sdkVersion: ios.sdkVersion });
-  }
-
-  const incompatibleSdkVersions = sdkVersions.filter(
-    ({ sdkVersion }) => !isSdkVersionCompatible(sdkVersion)
-  );
-
-  if (incompatibleSdkVersions.length > 0) {
-    const versionsInfo = incompatibleSdkVersions
-      .map(({ platform, sdkVersion }) => `${sdkVersion} (${platform})`)
-      .join(', ');
-
-    const isSinglePlatform = incompatibleSdkVersions.length === 1;
-
+  // Check if Android and iOS versions match
+  if (android?.sdkVersion && ios?.sdkVersion && android.sdkVersion !== ios.sdkVersion) {
     throwError({
       message:
-        `Your ${isSinglePlatform ? 'build contains' : 'builds contain'} outdated \`${PACKAGE_NAME}\` ${isSinglePlatform ? 'version' : 'versions'}\n\n` +
-        `Found ${isSinglePlatform ? 'version' : 'versions'}: ${versionsInfo}\n` +
-        `Minimum required version: ${REQUIRED_MIN_SDK_VERSION}\n` +
-        `\nPlease rebuild your ${isSinglePlatform ? 'app' : 'apps'}`,
+        `Android and iOS builds contain different \`${PACKAGE_NAME}\` versions\n\n` +
+        `Android version: ${android.sdkVersion}\n` +
+        `iOS version: ${ios.sdkVersion}\n\n` +
+        'Please rebuild both apps to ensure they use the same version',
+    });
+  }
+
+  // Check if versions are compatible with minimum required version
+  const sdkVersion = android?.sdkVersion || ios?.sdkVersion;
+  if (sdkVersion && !isSdkVersionCompatible(sdkVersion)) {
+    const hasBothPlatforms = android?.sdkVersion && ios?.sdkVersion;
+    throwError({
+      message:
+        `Your ${hasBothPlatforms ? 'builds contain' : 'build contains'} outdated \`${PACKAGE_NAME}\` version\n\n` +
+        `Found version: ${sdkVersion}\n` +
+        `Minimum required version: ${REQUIRED_MIN_SDK_VERSION}\n\n` +
+        `Please rebuild your ${hasBothPlatforms ? 'apps' : 'app'}`,
     });
   }
 }

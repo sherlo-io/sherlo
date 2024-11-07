@@ -6,6 +6,7 @@ import path from 'path';
 import tar from 'tar';
 import zlib from 'zlib';
 import { IOSFileType } from '../types';
+import getTimeAgo from './getTimeAgo';
 import throwError from './throwError';
 
 async function uploadOrLogBinaryReuse(
@@ -127,7 +128,7 @@ async function uploadFile({
 
   const platformLabelValue = platformLabel[platform];
 
-  console.log(`${chalk.blue('→')} Started ${platformLabelValue} upload`);
+  console.log(`${chalk.blue('→')} ${platformLabelValue}: upload started`);
 
   const response = await fetch(uploadUrl, {
     method: 'PUT',
@@ -146,7 +147,7 @@ async function uploadFile({
     });
   }
 
-  console.log(`${chalk.green('✓')} Finished ${platformLabelValue} upload\n`);
+  console.log(`${chalk.green('✓')} ${platformLabelValue}: upload finished\n`);
 }
 
 async function compressFileToGzip(filePath: string): Promise<Buffer> {
@@ -197,8 +198,8 @@ function logBinaryReuse({
   }
 
   console.log(
-    `${chalk.blue('→')} ${platformLabel[platform]} unchanged, reusing build #${
-      platformInfo.binaryBuildIndex
-    } (${platformInfo.binaryBuildCreatedAt})`
+    `${chalk.green('✓')} ${platformLabel[platform]}: reusing ${chalk.green(
+      `Build ${platformInfo.binaryBuildIndex}`
+    )} (unchanged, ${getTimeAgo(platformInfo.binaryBuildCreatedAt)})\n`
   );
 }

@@ -1,6 +1,8 @@
 import { Build } from '@sherlo/api-types';
 import SDKApiClient from '@sherlo/sdk-client';
+import chalk from 'chalk';
 import { Config } from '../types';
+import countDevicesByPlatform from './countDevicesByPlatform';
 import getAppBuildUrl from './getAppBuildUrl';
 import getBuildRunConfig from './getBuildRunConfig';
 import getLogLink from './getLogLink';
@@ -33,6 +35,8 @@ async function uploadBuildsAndRunTests({
     teamId,
   });
 
+  introMessage(config);
+
   await uploadOrLogBinaryReuse(config, binariesInfo);
 
   const { build } = await client
@@ -59,9 +63,35 @@ async function uploadBuildsAndRunTests({
   const buildIndex = build.index;
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
-  console.log(`Test results: ${getLogLink(url)}\n`);
+  console.log(`Results: ${getLogLink(url)}\n`);
 
   return { buildIndex, url };
 }
 
 export default uploadBuildsAndRunTests;
+
+/* ========================================================================== */
+
+function introMessage(config: Config) {
+  const platformCounts = countDevicesByPlatform(config.devices);
+
+  const platformCountsMessage = [];
+  let lastCount = 0;
+
+  if (platformCounts.android) {
+    platformCountsMessage.push(`${chalk.blue(`${platformCounts.android} Android`)}`);
+    lastCount = platformCounts.android;
+  }
+
+  if (platformCounts.ios) {
+    platformCountsMessage.push(`${chalk.blue(`${platformCounts.ios} iOS`)}`);
+    lastCount = platformCounts.ios;
+  }
+
+  if (platformCountsMessage.length > 0) {
+    const deviceText = lastCount === 1 ? 'device' : 'devices';
+    console.log(
+      `${chalk.green('Build 42069')} tests will run on ${platformCountsMessage.join(' and ')} ${deviceText}\n`
+    );
+  }
+}
