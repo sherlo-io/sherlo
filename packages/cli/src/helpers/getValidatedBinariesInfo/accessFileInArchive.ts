@@ -29,11 +29,11 @@ async function accessFileInArchive({
       // read: `tar -tf "${archive}" | grep -F "${file}" | xargs -I {} tar -xOf "${archive}" "{}"`,
       read:
         tarVersion === 'BSD' || tarVersion === 'GNU'
-          ? `tar -xOf "${archive}" "*${file}"`
+          ? `tarX -xOf "${archive}" "*${file}"`
           : `tar --wildcards -xOf "${archive}" "*${file}"`,
       exists:
         tarVersion === 'BSD' || tarVersion === 'GNU'
-          ? `tar -tf "${archive}" "*${file}"`
+          ? `tarX -tf "${archive}" "*${file}"`
           : `tar --wildcards -tf "${archive}" "*${file}"`,
     },
     unzip: {
