@@ -22,18 +22,17 @@ async function accessFileInArchive({
   type,
   operation,
 }: Options): Promise<string | undefined | boolean> {
-  const tarVersion = await detectTarVersion();
+  const tarVersion = type === 'tar' ? await detectTarVersion() : DEFAULT_TAR_VERSION;
 
   const commands = {
     tar: {
-      // read: `tar -tf "${archive}" | grep -F "${file}" | xargs -I {} tar -xOf "${archive}" "{}"`,
       read:
-        tarVersion === 'BSD' || tarVersion === 'GNU'
-          ? `tarX -xOf "${archive}" "*${file}"`
+        tarVersion === 'BSD'
+          ? `tar -xOf "${archive}" "*${file}"`
           : `tar --wildcards -xOf "${archive}" "*${file}"`,
       exists:
-        tarVersion === 'BSD' || tarVersion === 'GNU'
-          ? `tarX -tf "${archive}" "*${file}"`
+        tarVersion === 'BSD'
+          ? `tar -tf "${archive}" "*${file}"`
           : `tar --wildcards -tf "${archive}" "*${file}"`,
     },
     unzip: {
@@ -61,10 +60,15 @@ async function accessFileInArchive({
     console.log('Error code:', error.code);
     console.log('Error message:', error.message);
 
-    const isUnexpectedTarError = type === 'tar' && error.code !== 1;
+    const isUnexpectedBsdTarError = type === 'tar' && tarVersion === 'BSD' && error.code !== 1;
+    const isUnexpectedGnuTarError = type === 'tar' && tarVersion === 'GNU' && error.code !== 2;
+    const isUnexpectedTarError = isUnexpectedBsdTarError || isUnexpectedGnuTarError;
+
     const isUnexpectedUnzipError = type === 'unzip' && error.code !== 11;
 
-    if (isUnexpectedTarError || isUnexpectedUnzipError) {
+    const isUnexpectedError = isUnexpectedTarError || isUnexpectedUnzipError;
+
+    if (isUnexpectedError) {
       throwError({
         type: 'unexpected',
         message: error.message,
@@ -80,10 +84,10 @@ export default accessFileInArchive;
 
 /* ========================================================================== */
 
-async function detectTarVersion(): Promise<'GNU' | 'BSD'> {
-  const defaultTarVersion = 'BSD';
+const DEFAULT_TAR_VERSION = 'BSD';
 
+async function detectTarVersion(): Promise<'GNU' | 'BSD'> {
   const { stdout } = await execAsync('tar --version');
 
-  return stdout.toUpperCase().includes('GNU') ? 'GNU' : defaultTarVersion;
+  return stdout.toUpperCase().includes('GNU') ? 'GNU' : DEFAULT_TAR_VERSION;
 }
