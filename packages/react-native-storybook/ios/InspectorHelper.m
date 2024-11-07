@@ -52,10 +52,12 @@
 
     if (isVisible) {
         CGRect windowFrame = [view convertRect:view.bounds toView:nil];
-        [viewDict setObject:@(windowFrame.origin.x) forKey:@"x"];
-        [viewDict setObject:@(windowFrame.origin.y) forKey:@"y"];
-        [viewDict setObject:@(windowFrame.size.width) forKey:@"width"];
-        [viewDict setObject:@(windowFrame.size.height) forKey:@"height"];
+        CGFloat screenScale = [UIScreen mainScreen].scale;
+        
+        [viewDict setObject:@(windowFrame.origin.x * screenScale) forKey:@"x"];
+        [viewDict setObject:@(windowFrame.origin.y * screenScale) forKey:@"y"];
+        [viewDict setObject:@(windowFrame.size.width * screenScale) forKey:@"width"];
+        [viewDict setObject:@(windowFrame.size.height * screenScale) forKey:@"height"];
 
         if (view.accessibilityIdentifier) {
             [viewDict setObject:view.accessibilityIdentifier forKey:@"accessibilityIdentifier"];
