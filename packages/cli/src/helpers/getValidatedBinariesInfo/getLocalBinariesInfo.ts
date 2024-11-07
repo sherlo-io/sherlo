@@ -5,7 +5,7 @@ import accessFileInArchive from './accessFileInArchive';
 import accessFileInDirectory from './accessFileInDirectory';
 import { BinaryInfo } from './types';
 
-const SHERLO_JSON_FILENAME = 'sherlo2.json';
+const SHERLO_JSON_FILENAME = 'sherlo.json';
 const SHERLO_JSON_PATH = `assets/${SHERLO_JSON_FILENAME}`;
 const ANDROID_EXPO_DEV_MENU_FILE_PATH = 'assets/EXDevMenuApp.android.js';
 const IOS_EXPO_DEV_MENU_FILE_PATH = 'EXDevMenu.bundle/EXDevMenuApp.ios.js';
@@ -40,21 +40,6 @@ async function getLocalBinariesInfo({
       expoDevFilePath: IOS_EXPO_DEV_MENU_FILE_PATH,
     });
   }
-
-  throw new Error(
-    `\n\nAndroid git: ${JSON.stringify(result.android, null, 2)}
-    iOS git: ${JSON.stringify(result.ios, null, 2)}`
-  );
-
-  /**
-   * iOS:
-   * - sherlo.json
-   * -- valid [ ]
-   * -- invalid [ ]
-   * - EXDevMenuApp.ios.js
-   * -- valid [ ]
-   * -- invalid [ ]
-   */
 
   return result;
 }
@@ -123,9 +108,6 @@ async function getLocalBinaryInfoForPlatform({
   const isExpoDev = await checkIsExpoDev();
 
   const sherloFileContent = await readSherloFile();
-
-  console.log('sherloFileContent', JSON.stringify(sherloFileContent, null, 2));
-
   const sdkVersion = sherloFileContent ? JSON.parse(sherloFileContent).version : undefined;
 
   return { isExpoDev, sdkVersion };
