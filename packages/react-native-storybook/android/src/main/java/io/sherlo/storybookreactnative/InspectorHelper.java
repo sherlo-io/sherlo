@@ -49,43 +49,61 @@ public class InspectorHelper {
         boolean isVisible = view.getGlobalVisibleRect(rect);
         viewObject.put("isVisible", isVisible);
 
-        if (isVisible) {
-            // Position on screen
-            viewObject.put("x", rect.left);
-            viewObject.put("y", rect.top);
+        // Position on screen
+        viewObject.put("x", rect.left);
+        viewObject.put("y", rect.top);
 
-            // Dimensions
-            viewObject.put("width", rect.width());
-            viewObject.put("height", rect.height());
+        // Dimensions
+        viewObject.put("width", rect.width());
+        viewObject.put("height", rect.height());
 
-            // Tag (optional)
-            Object tag = view.getTag();
-            if (tag != null) {
-                viewObject.put("tag", tag.toString());
+        // Tag (optional)
+        Object tag = view.getTag();
+        if (tag != null) {
+            viewObject.put("tag", tag.toString());
+        }
+
+        // Content Description (optional)
+        CharSequence contentDescription = view.getContentDescription();
+        if (contentDescription != null) {
+            viewObject.put("contentDescription", contentDescription.toString());
+        }
+
+        // Enhanced Background Color detection
+        int backgroundColor = getBackgroundColor(view);
+        if (backgroundColor != 0) {
+            String hexColor = String.format("#%08X", backgroundColor); // Using 8 digits for ARGB
+            viewObject.put("backgroundColor", hexColor);
+        }
+
+        // Text and Font information (for TextView and its subclasses)
+        if (view instanceof TextView) {
+            TextView textView = (TextView) view;
+            CharSequence text = textView.getText();
+            if (text != null) {
+                viewObject.put("text", text.toString());
             }
 
-            // Content Description (optional)
-            CharSequence contentDescription = view.getContentDescription();
-            if (contentDescription != null) {
-                viewObject.put("contentDescription", contentDescription.toString());
+            // Create font object to hold all font-related properties
+            JSONObject fontObject = new JSONObject();
+            fontObject.put("size", textView.getTextSize());
+            fontObject.put("color", String.format("#%08X", textView.getCurrentTextColor()));
+            
+            if (textView.getTypeface() != null) {
+                fontObject.put("isBold", textView.getTypeface().isBold());
+                fontObject.put("isItalic", textView.getTypeface().isItalic());
+                fontObject.put("style", textView.getTypeface().getStyle());
             }
 
-            // Enhanced Background Color detection
-            int backgroundColor = getBackgroundColor(view);
-            if (backgroundColor != 0) {
-                String hexColor = String.format("#%08X", backgroundColor); // Using 8 digits for ARGB
-                viewObject.put("backgroundColor", hexColor);
+            fontObject.put("alignment", textView.getTextAlignment());
+            fontObject.put("lineSpacingExtra", textView.getLineSpacingExtra());
+            fontObject.put("lineSpacingMultiplier", textView.getLineSpacingMultiplier());
+            
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                fontObject.put("letterSpacing", textView.getLetterSpacing());
             }
 
-            // Text and Font Size (for TextView and its subclasses)
-            if (view instanceof TextView) {
-                TextView textView = (TextView) view;
-                CharSequence text = textView.getText();
-                if (text != null) {
-                    viewObject.put("text", text.toString());
-                }
-                viewObject.put("fontSize", textView.getTextSize());
-            }
+            viewObject.put("font", fontObject);
         }
 
         viewList.add(viewObject);
@@ -102,21 +120,33 @@ public class InspectorHelper {
     private static int getBackgroundColor(View view) {
         int color = 0;
         
-        // Try getting color from background drawable
-        if (view.getBackground() instanceof ColorDrawable) {
-            color = ((ColorDrawable) view.getBackground()).getColor();
-        }
-        
-        // If no color found, try getting solid color
-        if (color == 0) {
-            try {
-                color = view.getSolidColor();
-            } catch (Exception ignored) {}
-        }
-        
-        // Try getting background tint color
-        if (color == 0 && view.getBackgroundTintList() != null) {
-            color = view.getBackgroundTintList().getDefaultColor();
+        // Check if it's a React Native view
+        if (view.getClass().getName().startsWith("com.facebook.react")) {
+            // Try to get the background color from the view's background
+            if (view.getBackground() instanceof ColorDrawable) {
+                color = ((ColorDrawable) view.getBackground()).getColor();
+            }
+            
+            // For React Native views, check if there's a background color property
+            Object backgroundColor = view.getTag(com.facebook.react.R.id.view_tag_native_id);
+            if (backgroundColor instanceof Integer) {
+                color = (Integer) backgroundColor;
+            }
+        } else {
+            // Original native Android view handling
+            if (view.getBackground() instanceof ColorDrawable) {
+                color = ((ColorDrawable) view.getBackground()).getColor();
+            }
+            
+            if (color == 0) {
+                try {
+                    color = view.getSolidColor();
+                } catch (Exception ignored) {}
+            }
+            
+            if (color == 0 && view.getBackgroundTintList() != null) {
+                color = view.getBackgroundTintList().getDefaultColor();
+            }
         }
         
         return color;
