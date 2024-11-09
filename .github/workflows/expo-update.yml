@@ -7,6 +7,11 @@ on:
         description: 'Environment (dev, test, prod)'
         required: true
         type: string
+      config:
+        description: 'Config (default-devices, all-devices, many-stories)'
+        required: true
+        default: 'default-devices'
+        type: string
       with_builds:
         description: 'With builds'
         required: false
@@ -57,29 +62,31 @@ jobs:
       - name: Trigger EAS update and capture manifest URLs
         working-directory: testing/expo-storybook-8
         run: |
-          echo "EXPO_UPDATE_JSON=$(eas update --channel 'development' --message 'Expo Update' --json --non-interactive | jq -c .)" >> $GITHUB_ENV
+          # new flow
+          # echo "EXPO_UPDATE_JSON=$(eas update --channel 'development' --message 'Expo Update' --json --non-interactive | jq -c .)" >> $GITHUB_ENV
+          # old flow
+          EXPO_UPDATE_JSON=$(eas update --channel "development" --message "Expo Update ${GITHUB_SHA}" --json --non-interactive)
+          echo "ANDROID_EXPO_UPDATE_URL=$(echo "$EXPO_UPDATE_JSON" | jq -r '.[] | select(.platform == "android") | .manifestPermalink')" >> $GITHUB_ENV
+          echo "IOS_EXPO_UPDATE_URL=$(echo "$EXPO_UPDATE_JSON" | jq -r '.[] | select(.platform == "ios") | .manifestPermalink')" >> $GITHUB_ENV
 
-      - name: Test
-        run: echo ${{ env.EXPO_UPDATE_JSON }}
+      - name: Run sherlo expo-update (with native builds)
+        if: inputs.with_builds == true
+        working-directory: testing/expo-storybook-8
+        run: |
+          yarn sherlo expo-update \
+            --config ../../configs/${{ inputs.config }}.json \
+            --android builds/development/android.apk \
+            --ios builds/development/ios.tar.gz \
+            --androidUpdateUrl ${{ env.ANDROID_EXPO_UPDATE_URL }} \
+            --iosUpdateUrl ${{ env.IOS_EXPO_UPDATE_URL }} \
+            --token ${{ secrets.SHERLO_EXPO_UPDATE_TOKEN }}
 
-      # - name: Run sherlo expo-update (with native builds)
-      #   if: inputs.with_builds == true
-      #   working-directory: testing/expo-storybook-8
-      #   run: |
-      #     yarn sherlo expo-update \
-      #       --config ../../configs/default-devices.json \
-      #       --android builds/development/android.apk \
-      #       --ios builds/development/ios.tar.gz \
-      #       --androidUpdateUrl ${{ env.ANDROID_EXPO_UPDATE_URL }} \
-      #       --iosUpdateUrl ${{ env.IOS_EXPO_UPDATE_URL }} \
-      #       --token ${{ secrets.SHERLO_EXPO_UPDATE_TOKEN }}
-
-      # - name: Run sherlo expo-update (without native builds)
-      #   if: inputs.with_builds == false
-      #   working-directory: testing/expo-storybook-8
-      #   run: |
-      #     yarn sherlo expo-update \
-      #       --config ../../configs/default-devices.json \
-      #       --androidUpdateUrl ${{ env.ANDROID_EXPO_UPDATE_URL }} \
-      #       --iosUpdateUrl ${{ env.IOS_EXPO_UPDATE_URL }} \
-      #       --token ${{ secrets.SHERLO_EXPO_UPDATE_TOKEN }}
+      - name: Run sherlo expo-update (without native builds)
+        if: inputs.with_builds == false
+        working-directory: testing/expo-storybook-8
+        run: |
+          yarn sherlo expo-update \
+            --config ../../configs/${{ inputs.config }}.json \
+            --androidUpdateUrl ${{ env.ANDROID_EXPO_UPDATE_URL }} \
+            --iosUpdateUrl ${{ env.IOS_EXPO_UPDATE_URL }} \
+            --token ${{ secrets.SHERLO_EXPO_UPDATE_TOKEN }}

@@ -1,4 +1,5 @@
 {
+  "exclude": ["ManyStories"],
   "devices": [
     {
       "id": "pixel.7.pro",

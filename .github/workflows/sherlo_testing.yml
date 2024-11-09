@@ -23,6 +23,11 @@ on:
         required: false
         default: false
         type: boolean
+      many_stories:
+        description: 'Test: Many Stories'
+        required: false
+        default: false
+        type: boolean
       stress_testing:
         description: 'Test: Stress Testing (20 builds)'
         required: false
@@ -72,13 +77,26 @@ jobs:
       profile: 'development'
 
   device_testing:
-    uses: ./.github/workflows/device_testing.yml
+    uses: ./.github/workflows/expo-update.yml
     needs: [update_preview_builds]
     if: ${{ github.event.inputs.device_testing == 'true' && always() && !failure() && !cancelled() }}
     name: Device Testing
     secrets: inherit
     with:
       env: ${{ github.event.inputs.env }}
+      config: 'all-devices'
+      with_builds: true
+
+  many_stories:
+    uses: ./.github/workflows/expo-update.yml
+    needs: [update_preview_builds]
+    if: ${{ github.event.inputs.many_stories == 'true' && always() && !failure() && !cancelled() }}
+    name: Many Stories
+    secrets: inherit
+    with:
+      env: ${{ github.event.inputs.env }}
+      config: 'many-stories'
+      with_builds: true
 
   stress_testing:
     uses: ./.github/workflows/stress_testing.yml
