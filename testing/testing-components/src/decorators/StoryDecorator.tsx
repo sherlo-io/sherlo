@@ -1,11 +1,12 @@
 import React, { useEffect } from 'react';
-import { SafeAreaView, StyleSheet, useColorScheme } from 'react-native';
+import { StyleSheet, useColorScheme, View } from 'react-native';
 import { setStatusBarStyle } from 'expo-status-bar';
-
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const StoryDecorator =
   ({ placement }: { placement?: 'top' | 'center' | 'bottom' } = {}) =>
   (Story: React.FC) => {
     const theme = useColorScheme();
+    const insets = useSafeAreaInsets();
 
     useEffect(() => {
       setStatusBarStyle(theme === 'dark' ? 'light' : 'dark');
@@ -28,14 +29,19 @@ const StoryDecorator =
     }
 
     return (
-      <SafeAreaView
+      <View
         style={[
           containerStyle,
-          { flex: 1, backgroundColor: theme === 'dark' ? '#333' : '#dfdfdf' },
+          {
+            flex: 1,
+            backgroundColor: theme === 'dark' ? '#333' : '#dfdfdf',
+            paddingBottom: insets.bottom,
+            paddingTop: insets.top,
+          },
         ]}
       >
         <Story />
-      </SafeAreaView>
+      </View>
     );
   };
 
