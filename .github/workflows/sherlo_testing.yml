@@ -28,16 +28,16 @@ on:
         required: false
         default: false
         type: boolean
-      stress_testing:
-        description: 'Test: Stress Testing (20 builds)'
-        required: false
-        default: false
-        type: boolean
-      rn_local_builds:
-        description: 'Test: local-builds (React Native)'
-        required: false
-        default: false
-        type: boolean
+      # stress_testing:
+      #   description: 'Test: Stress Testing (20 builds)'
+      #   required: false
+      #   default: false
+      #   type: boolean
+      # rn_local_builds:
+      #   description: 'Test: local-builds (React Native)'
+      #   required: false
+      #   default: false
+      #   type: boolean
       expo_local_builds:
         description: 'Test: local-builds (Expo)'
         required: false
