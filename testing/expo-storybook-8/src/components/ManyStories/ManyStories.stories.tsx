@@ -178,3 +178,192 @@ export const Turquoise = {
     },
   },
 };
+
+export const Coral = {
+  args: {
+    style: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#FF7F50',
+    },
+  },
+};
+
+export const Crimson = {
+  args: {
+    style: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#DC143C',
+    },
+  },
+};
+
+export const Gold = {
+  args: {
+    style: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#FFD700',
+    },
+  },
+};
+
+export const Silver = {
+  args: {
+    style: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#C0C0C0',
+    },
+  },
+};
+
+export const Plum = {
+  args: {
+    style: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#DDA0DD',
+    },
+  },
+};
+
+export const Salmon = {
+  args: {
+    style: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#FA8072',
+    },
+  },
+};
+
+export const Sienna = {
+  args: {
+    style: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#A0522D',
+    },
+  },
+};
+
+export const Tan = {
+  args: {
+    style: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#D2B48C',
+    },
+  },
+};
+
+export const Thistle = {
+  args: {
+    style: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#D8BFD8',
+    },
+  },
+};
+
+export const Tomato = {
+  args: {
+    style: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#FF6347',
+    },
+  },
+};
+
+export const Wheat = {
+  args: {
+    style: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#F5DEB3',
+    },
+  },
+};
+
+export const Azure = {
+  args: {
+    style: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#F0FFFF',
+    },
+  },
+};
+
+export const Beige = {
+  args: {
+    style: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#F5F5DC',
+    },
+  },
+};
+
+export const Chocolate = {
+  args: {
+    style: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#D2691E',
+    },
+  },
+};
+
+export const Khaki = {
+  args: {
+    style: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#F0E68C',
+    },
+  },
+};
+
+export const Lavender = {
+  args: {
+    style: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#E6E6FA',
+    },
+  },
+};
+
+export const Orchid = {
+  args: {
+    style: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#DA70D6',
+    },
+  },
+};
+
+export const Peru = {
+  args: {
+    style: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#CD853F',
+    },
+  },
+};
+
+export const Ruby = {
+  args: {
+    style: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#E0115F',
+    },
+  },
+};
+
+export const Slate = {
+  args: {
+    style: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#708090',
+    },
+  },
+};
+
+export const Wine = {
+  args: {
+    style: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#722F37',
+    },
+  },
+};
