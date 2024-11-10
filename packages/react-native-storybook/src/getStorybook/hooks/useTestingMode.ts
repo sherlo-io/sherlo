@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { AckStartProtocolItem, RunnerBridge } from '../../helpers/RunnerBridge';
 import { Snapshot, StorybookViewMode } from '../../types';
 import { prepareSnapshots } from '../utils';
+import { getLastState } from '../../helpers/RunnerBridge/actions';
 
 function useTestingMode(
   view: ReturnType<typeof start>,
@@ -36,21 +37,12 @@ function useTestingMode(
 
         let initialSelectionIndex: number | undefined;
         let filteredViewIds: String[] | undefined;
-        let state;
 
-        try {
-          state = await bridge.getState();
-          initialSelectionIndex = state.snapshotIndex;
-          filteredViewIds = state.filteredViewIds;
-
-          bridge.log('existing state', {
-            state,
-          });
-        } catch (error) {
-          // no state found
-        }
-
-        if (initialSelectionIndex === undefined || filteredViewIds === undefined) {
+        const lastState = await bridge.getLastState();
+        if (lastState) {
+          initialSelectionIndex = lastState?.nextSnapshotIndex;
+          filteredViewIds = lastState.filteredViewIds;
+        } else {
           await bridge.create();
 
           const startResponse = (await bridge.send({
