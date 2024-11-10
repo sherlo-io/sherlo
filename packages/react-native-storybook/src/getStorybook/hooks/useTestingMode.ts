@@ -50,6 +50,14 @@ function useTestingMode(
           // no state found
         }
 
+        // This is the new way of getting the last state
+        // We will delete the "getState" function once people migrate to the new runner
+        const lastState = await bridge.getLastState();
+        if (lastState) {
+          initialSelectionIndex = lastState.nextSnapshotIndex;
+          filteredViewIds = lastState.filteredViewIds;
+        }
+
         if (initialSelectionIndex === undefined || filteredViewIds === undefined) {
           await bridge.create();
 
