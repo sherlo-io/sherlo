@@ -14,13 +14,7 @@ export type Config = {
 
 export type LogFn = (key: string, parameters?: Record<string, any>) => void;
 export type SendFn = (protocolItem: AppProtocolItem) => Promise<RunnerProtocolItem>;
-export type GetLastStateFn = () => Promise<
-  | {
-      nextSnapshotIndex: number;
-      filteredViewIds: String[];
-    }
-  | undefined
->;
+
 export type ProtocolItemMetadata = {
   timestamp: number;
   entity: 'app' | 'runner';
