@@ -3,6 +3,9 @@ import { StyleSheet, View } from 'react-native';
 
 export default {
   component: View,
+  parameters: {
+    noSafeArea: true,
+  },
 } as Meta<typeof View>;
 
 export const Red = {

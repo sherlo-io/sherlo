@@ -85,6 +85,7 @@ jobs:
     with:
       env: ${{ github.event.inputs.env }}
       config: 'all-devices'
+      project: 'device-testing'
       with_builds: true
 
   many_stories:
@@ -97,7 +98,7 @@ jobs:
       env: ${{ github.event.inputs.env }}
       config: 'many-stories'
       with_builds: true
-
+      project: 'many-stories'
   stress_testing:
     uses: ./.github/workflows/stress_testing.yml
     needs: [update_preview_builds]
@@ -143,6 +144,7 @@ jobs:
     with:
       env: ${{ github.event.inputs.env }}
       with_builds: true
+      project: 'expo-update'
 
   expo_update:
     uses: ./.github/workflows/expo-update.yml
