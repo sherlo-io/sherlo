@@ -8,9 +8,6 @@ import type { Meta } from '@storybook/react';
 export default {
   component: TestInfo,
   decorators: [StoryDecorator({ placement: 'center' })],
-  parameters: {
-    noSafeArea: true,
-  },
 } as Meta<typeof TestInfo>;
 
 export const Basic = {};

@@ -1,16 +1,11 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { StyleSheet, useColorScheme, View } from 'react-native';
-import { setStatusBarStyle } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const StoryDecorator =
   ({ placement }: { placement?: 'top' | 'center' | 'bottom' } = {}) =>
   (Story: React.FC) => {
     const theme = useColorScheme();
     const insets = useSafeAreaInsets();
-
-    useEffect(() => {
-      setStatusBarStyle(theme === 'dark' ? 'light' : 'dark');
-    }, [theme]);
 
     let containerStyle = {};
 
