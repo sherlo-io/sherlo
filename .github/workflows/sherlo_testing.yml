@@ -155,3 +155,4 @@ jobs:
     with:
       env: ${{ github.event.inputs.env }}
       with_builds: false
+      project: 'expo-update'
