@@ -78,7 +78,7 @@ jobs:
 
   device_testing:
     uses: ./.github/workflows/expo-update.yml
-    needs: [update_preview_builds]
+    needs: [update_development_builds]
     if: ${{ github.event.inputs.device_testing == 'true' && always() && !failure() && !cancelled() }}
     name: Device Testing
     secrets: inherit
@@ -90,7 +90,7 @@ jobs:
 
   many_stories:
     uses: ./.github/workflows/expo-update.yml
-    needs: [update_preview_builds]
+    needs: [update_development_builds]
     if: ${{ github.event.inputs.many_stories == 'true' && always() && !failure() && !cancelled() }}
     name: Many Stories
     secrets: inherit
@@ -99,6 +99,7 @@ jobs:
       config: 'many-stories'
       with_builds: true
       project: 'many-stories'
+      
   stress_testing:
     uses: ./.github/workflows/stress_testing.yml
     needs: [update_preview_builds]
