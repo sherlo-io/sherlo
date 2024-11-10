@@ -72,7 +72,7 @@ jobs:
             --ios builds/development/ios.tar.gz \
             --androidUpdateUrl ${{ env.ANDROID_EXPO_UPDATE_URL }} \
             --iosUpdateUrl ${{ env.IOS_EXPO_UPDATE_URL }} \
-            --token ${{ inputs.project == 'expo-update' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_DEVICE_TESTING_TOKEN }}
+            --token ${{ inputs.project == 'expo-update' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}
 
       - name: Run sherlo expo-update (without native builds)
         if: inputs.with_builds == false
@@ -82,4 +82,4 @@ jobs:
             --config ../../configs/${{ inputs.config }}.json \
             --androidUpdateUrl ${{ env.ANDROID_EXPO_UPDATE_URL }} \
             --iosUpdateUrl ${{ env.IOS_EXPO_UPDATE_URL }} \
-            --token ${{ inputs.project == 'expo-update' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_DEVICE_TESTING_TOKEN }}
+            --token ${{ inputs.project == 'expo-update' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}
