@@ -9,7 +9,7 @@ on:
         type: string
       config:
         description: 'Config (default-devices, all-devices, many-stories)'
-        required: true
+        required: false
         default: 'default-devices'
         type: string
       with_builds:
@@ -17,18 +17,7 @@ on:
         required: false
         default: false
         type: boolean
-  workflow_dispatch:
-    inputs:
-      env:
-        description: 'Environment (dev, test, prod)'
-        required: true
-        default: 'dev'
-        type: string
-      with_builds:
-        description: 'With builds'
-        required: false
-        default: false
-        type: boolean
+
 jobs:
   run_sherlo_expo_update:
     name: Run Sherlo in expo-update mode
