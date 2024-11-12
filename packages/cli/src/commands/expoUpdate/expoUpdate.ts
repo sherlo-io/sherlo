@@ -1,60 +1,41 @@
-import { DOCS_LINK } from '../../constants';
 import {
   getValidatedConfig,
   getGitInfo,
   getOptionsWithDefaults,
   printHeader,
-  throwError,
   uploadBuildsAndRunTests,
-  getPlatformsToTest,
+  validatePackages,
 } from '../../helpers';
 import { Options } from '../../types';
-import verifyExpoProject from './verifyExpoProject';
 import getExpoSlug from './getExpoSlug';
+import validatePlatformUpdateUrls from './validatePlatformUpdateUrls';
 
 async function expoUpdate(
   passedOptions: Options<'expo-update', 'withoutDefaults'>
 ): Promise<{ buildIndex: number; url: string }> {
   printHeader();
 
+  validatePackages('expo-update');
+
   const options = getOptionsWithDefaults(passedOptions);
+
   // TODO: byc moze nie powinnismy tego wymagac tylko rzucac error na pozniejszym etapie jezeli sie okaze ze API nie zwrocilo nam buildow (ktore powinny byc trzymane na naszym serwerze)
   const config = getValidatedConfig(options, { validatePlatformPaths: true });
 
-  const { androidUpdateUrl, gitInfo, iosUpdateUrl, projectRoot } = options;
-
-  verifyExpoProject(projectRoot);
-
-  const platformsToTest = getPlatformsToTest(config.devices);
-
-  if (platformsToTest.includes('android') && !androidUpdateUrl) {
-    throwError({
-      message:
-        '`--androidUpdateUrl` must be provided for `sherlo expo-update` command when testing Android (based on devices defined in the config)',
-      learnMoreLink: DOCS_LINK.expoUpdate,
-    });
-  }
-
-  if (platformsToTest.includes('ios') && !iosUpdateUrl) {
-    throwError({
-      message:
-        '`--iosUpdateUrl` must be provided for `sherlo expo-update` command when testing iOS (based on devices defined in the config)',
-      learnMoreLink: DOCS_LINK.expoUpdate,
-    });
-  }
+  validatePlatformUpdateUrls({ config, options });
 
   // TODO: poprawic
-  const slug = getExpoSlug(projectRoot);
+  const slug = getExpoSlug(options.projectRoot);
 
   const expoUpdateInfo = {
     slug,
-    androidUpdateUrl,
-    iosUpdateUrl,
+    androidUpdateUrl: options.androidUpdateUrl,
+    iosUpdateUrl: options.iosUpdateUrl,
   };
 
   return uploadBuildsAndRunTests({
     config,
-    gitInfo: gitInfo ?? getGitInfo(),
+    gitInfo: options.gitInfo ?? getGitInfo(),
     expoUpdateInfo,
   });
 }

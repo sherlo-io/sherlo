@@ -10,6 +10,7 @@ import {
   handleClientError,
   printHeader,
   throwError,
+  validatePackages,
 } from '../../helpers';
 import { Options } from '../../types';
 import createSherloTempDirectory from './createSherloTempDirectory';
@@ -26,6 +27,8 @@ async function expoCloud(passedOptions: Options<'expo-cloud', 'withoutDefaults'>
   }
 
   printHeader();
+
+  validatePackages('expo-cloud');
 
   const options = getOptionsWithDefaults(passedOptions);
   const config = getValidatedConfig(options, { validatePlatformPaths: false });

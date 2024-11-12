@@ -49,8 +49,8 @@ async function start() {
     program
       .command('expo-cloud')
       .description('Run Sherlo with Expo cloud builds')
-      .option('--buildScript <script>', 'Name of the EAS build script in package.json') // TODO: -> --easBuildScript ???
-      .option('--manual', 'Run in manual mode, waiting for you to build the app on Expo servers')
+      .option('--buildScript <script>', 'Name of the EAS build script in package.json') // TODO: --scriptName / --easBuildScriptName
+      .option('--manual', 'Run in manual mode, waiting for you to build the app on Expo servers') // TODO: --waiting / --waitForBuild
       .option(...sharedOptions.token)
       .option(...sharedOptions.config)
       .option(...sharedOptions.projectRoot)

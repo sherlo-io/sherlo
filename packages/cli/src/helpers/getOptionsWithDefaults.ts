@@ -1,7 +1,7 @@
 import { DEFAULT_CONFIG_PATH, DEFAULT_PROJECT_ROOT } from '../constants';
-import { Options, OptionsCommand } from '../types';
+import { Options, Command } from '../types';
 
-function getOptionsWithDefaults<C extends OptionsCommand>(
+function getOptionsWithDefaults<C extends Command>(
   options: Options<C, 'withoutDefaults'>
 ): Options<C, 'withDefaults'> {
   return {

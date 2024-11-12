@@ -2,6 +2,12 @@ import { Build, DeviceID, DeviceTheme } from '@sherlo/api-types';
 import { PartialDeep } from 'type-fest';
 import { IOS_FILE_TYPES } from './constants';
 
+/* === GENERAL === */
+
+export type Command = 'local-builds' | 'expo-update' | 'expo-cloud';
+
+export type IOSFileType = (typeof IOS_FILE_TYPES)[number];
+
 /* === CONFIG === */
 
 export type Config<CM extends ConfigMode = 'withBuildPaths'> = CM extends 'withBuildPaths'
@@ -31,11 +37,10 @@ export type InvalidatedConfig = PartialDeep<Config, { recurseIntoArrays: true }>
 
 /* === OPTIONS === */
 
-export type Options<C extends OptionsCommand, M extends OptionsMode> = BaseOptions &
+export type Options<C extends Command | 'any', M extends OptionsMode> = BaseOptions &
   CommandOptions[C] &
   DefaultOptions[M];
 
-export type OptionsCommand = 'local-builds' | 'expo-update' | 'expo-cloud' | 'any';
 type OptionsMode = 'withDefaults' | 'withoutDefaults';
 
 type BaseOptions = { token?: string; gitInfo?: Build['gitInfo'] };
@@ -71,7 +76,3 @@ type DefaultOptions = {
 };
 
 type OptionDefaults = { config: string; projectRoot: string };
-
-/* === OTHER === */
-
-export type IOSFileType = (typeof IOS_FILE_TYPES)[number];

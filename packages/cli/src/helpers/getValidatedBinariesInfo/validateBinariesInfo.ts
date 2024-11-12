@@ -1,5 +1,6 @@
 import { REQUIRED_MIN_SDK_VERSION } from '../../../sdk-compatibility.json';
 import { PACKAGE_NAME } from '../../constants';
+import isPackageVersionCompatible from '../isPackageVersionCompatible';
 import throwError from '../throwError';
 import { BinariesInfo } from './types';
 
@@ -121,7 +122,10 @@ function validateSdkVersion({ android, ios }: BinariesInfo) {
 
   // Check if versions are compatible with minimum required version
   const sdkVersion = android?.sdkVersion || ios?.sdkVersion;
-  if (sdkVersion && !isSdkVersionCompatible(sdkVersion)) {
+  if (
+    sdkVersion &&
+    !isPackageVersionCompatible({ version: sdkVersion, minVersion: REQUIRED_MIN_SDK_VERSION })
+  ) {
     const hasBothPlatforms = android?.sdkVersion && ios?.sdkVersion;
     throwError({
       message:
@@ -131,23 +135,4 @@ function validateSdkVersion({ android, ios }: BinariesInfo) {
         `Please rebuild your ${hasBothPlatforms ? 'apps' : 'app'}`,
     });
   }
-}
-
-function isSdkVersionCompatible(sdkVersion: string): boolean {
-  const sdkParts = sdkVersion.split('.').map(Number);
-  const minParts = REQUIRED_MIN_SDK_VERSION.split('.').map(Number);
-
-  if (sdkParts.length !== 3 || minParts.length !== 3) {
-    throwError({
-      type: 'unexpected',
-      message: 'SDK version must contain exactly 3 numbers',
-    });
-  }
-
-  for (let i = 0; i < 3; i++) {
-    if (sdkParts[i] > minParts[i]) return true;
-    if (sdkParts[i] < minParts[i]) return false;
-  }
-
-  return true; // Versions are equal
 }

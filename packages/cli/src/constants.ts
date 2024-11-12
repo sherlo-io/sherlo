@@ -25,3 +25,7 @@ export const SHERLO_TEMP_DIRECTORY = '.sherlo';
 export const SHERLO_TEMP_DATA_FILE = 'data.json';
 
 export const PACKAGE_NAME = '@sherlo/react-native-storybook';
+
+export const MIN_REACT_NATIVE_VERSION = '0.64.0';
+export const MIN_STORYBOOK_REACT_NATIVE_VERSION = '7.6.11';
+export const MIN_EXPO_UPDATE_EXPO_VERSION = '51.0.0';

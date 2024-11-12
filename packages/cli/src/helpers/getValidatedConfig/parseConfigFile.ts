@@ -23,6 +23,7 @@ function parseConfigFile(path: string): InvalidatedConfig {
       case 'ENOENT':
         throwConfigError(
           `config file "${path}" not found - verify the path or use the \`--projectRoot\` flag`,
+          // TODO: czy ten link nadal bedzie mial sens?
           DOCS_LINK.sherloScriptFlags
         );
 
