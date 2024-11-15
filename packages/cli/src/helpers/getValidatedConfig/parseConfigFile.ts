@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { DOCS_LINK } from '../../constants';
+import { DOCS_LINK, PROJECT_ROOT_OPTION } from '../../constants';
 import { InvalidatedConfig } from '../../types';
 import throwConfigError from '../throwConfigError';
 
@@ -22,7 +22,7 @@ function parseConfigFile(path: string): InvalidatedConfig {
     switch (nodeError.code) {
       case 'ENOENT':
         throwConfigError(
-          `config file "${path}" not found - verify the path or use the \`--projectRoot\` flag`,
+          `config file "${path}" not found - verify the path or use the \`--${PROJECT_ROOT_OPTION}\` flag`,
           // TODO: czy ten link nadal bedzie mial sens?
           DOCS_LINK.sherloScriptFlags
         );

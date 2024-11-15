@@ -11,8 +11,7 @@ function getBuildRunConfig({
   binaryS3Keys?: { android?: string; ios?: string };
   expoUpdateInfo?: {
     slug: string;
-    androidUpdateUrl?: string;
-    iosUpdateUrl?: string;
+    platformUpdateUrls: { android?: string; ios?: string };
   };
 }): BuildRun['config'] {
   const { devices, include, exclude } = config;
@@ -28,7 +27,7 @@ function getBuildRunConfig({
       androidDevices.length > 0
         ? {
             devices: androidDevices,
-            expoUpdateUrl: expoUpdateInfo?.androidUpdateUrl,
+            expoUpdateUrl: expoUpdateInfo?.platformUpdateUrls.android,
             s3Key: binaryS3Keys?.android || ASYNC_UPLOAD_S3_KEY_PLACEHOLDER,
           }
         : undefined,
@@ -36,7 +35,7 @@ function getBuildRunConfig({
       iosDevices.length > 0
         ? {
             devices: iosDevices,
-            expoUpdateUrl: expoUpdateInfo?.iosUpdateUrl,
+            expoUpdateUrl: expoUpdateInfo?.platformUpdateUrls.ios,
             s3Key: binaryS3Keys?.ios || ASYNC_UPLOAD_S3_KEY_PLACEHOLDER,
           }
         : undefined,

@@ -19,8 +19,7 @@ async function uploadBuildsAndRunTests({
   gitInfo: Build['gitInfo'];
   expoUpdateInfo?: {
     slug: string;
-    androidUrl?: string;
-    iosUrl?: string;
+    platformUpdateUrls: { android?: string; ios?: string };
   };
 }): Promise<{ buildIndex: number; url: string }> {
   const { apiToken, projectIndex, teamId } = getTokenParts(config.token);

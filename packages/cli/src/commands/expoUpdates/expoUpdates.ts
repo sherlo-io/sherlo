@@ -9,36 +9,42 @@ import {
 } from '../../helpers';
 import { Options } from '../../types';
 import getExpoSlug from './getExpoSlug';
+import getPlatformUpdateUrls from './getPlatformUpdateUrls';
 import validatePlatformUpdateUrls from './validatePlatformUpdateUrls';
+import validateRequiredOptions from './validateRequiredOptions';
 
-async function expoUpdate(
+// TODO:
+// - lepsze info odnosnie reuzywania wczesniej zupladowanych DEVELOPERSKICH buildow + info o update'ach
+
+async function expoUpdates(
   passedOptions: Options<typeof EXPO_UPDATES_COMMAND, 'withoutDefaults'>
 ): Promise<{ buildIndex: number; url: string }> {
   printHeader();
 
   validatePackages(EXPO_UPDATES_COMMAND);
 
+  validateRequiredOptions(passedOptions);
+
   const options = getOptionsWithDefaults(passedOptions);
 
   // TODO: byc moze nie powinnismy tego wymagac tylko rzucac error na pozniejszym etapie jezeli sie okaze ze API nie zwrocilo nam buildow (ktore powinny byc trzymane na naszym serwerze)
   const config = getValidatedConfig(options, { validatePlatformPaths: true });
 
-  validatePlatformUpdateUrls({ config, options });
+  const { channel, easUpdateJsonOutput, gitInfo, projectRoot } = options;
 
-  // TODO: poprawic
-  const slug = getExpoSlug(options.projectRoot);
+  const platformUpdateUrls = getPlatformUpdateUrls({ channel, easUpdateJsonOutput });
 
-  const expoUpdateInfo = {
-    slug,
-    androidUpdateUrl: options.androidUpdateUrl,
-    iosUpdateUrl: options.iosUpdateUrl,
-  };
+  // TODO: pozbyc sie na rzecz getValidatedPlatformUpdateUrls - powinno walidowac czy zwracane sa url'e dla wszystkich platform ktore sa w config.devices (podobnie jak w validateConfigPlatforms())
+  validatePlatformUpdateUrls({ config, platformUpdateUrls });
 
   return uploadBuildsAndRunTests({
     config,
-    gitInfo: options.gitInfo ?? getGitInfo(),
-    expoUpdateInfo,
+    gitInfo: gitInfo ?? getGitInfo(),
+    expoUpdateInfo: {
+      platformUpdateUrls,
+      slug: getExpoSlug(projectRoot),
+    },
   });
 }
 
-export default expoUpdate;
+export default expoUpdates;

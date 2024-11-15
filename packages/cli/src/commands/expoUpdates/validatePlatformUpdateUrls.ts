@@ -4,23 +4,23 @@ import { Config } from '../../types';
 
 function validatePlatformUpdateUrls({
   config,
-  options: { androidUpdateUrl, iosUpdateUrl },
+  platformUpdateUrls,
 }: {
   config: Config;
-  options: { androidUpdateUrl?: string; iosUpdateUrl?: string };
+  platformUpdateUrls: { android?: string; ios?: string };
 }) {
   const platformsToTest = getPlatformsToTest(config.devices);
   const platformConfigs = [
     {
       platform: 'android',
       label: PLATFORM_LABEL.android,
-      url: androidUpdateUrl,
+      url: platformUpdateUrls.android,
       flagName: '--androidUpdateUrl',
     },
     {
       platform: 'ios',
       label: PLATFORM_LABEL.ios,
-      url: iosUpdateUrl,
+      url: platformUpdateUrls.ios,
       flagName: '--iosUpdateUrl',
     },
   ] as const;
@@ -28,6 +28,7 @@ function validatePlatformUpdateUrls({
   platformConfigs.forEach(({ platform, label, url, flagName }) => {
     if (!platformsToTest.includes(platform)) return;
 
+    // TODO: do poprawy
     if (!url) {
       throwError({
         message: `\`sherlo ${EXPO_UPDATES_COMMAND}\` requires \`${flagName}\` to test ${label} devices (defined in sherlo.config.json)`,

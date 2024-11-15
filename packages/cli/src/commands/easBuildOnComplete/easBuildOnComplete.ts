@@ -5,6 +5,7 @@ import {
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EXPO_CLOUD_BUILDS_COMMAND,
   LOCAL_BUILDS_COMMAND,
+  PROFILE_OPTION,
 } from '../../constants';
 import {
   getTokenParts,
@@ -41,7 +42,7 @@ async function easBuildOnComplete(options: { profile?: string }) {
   if (!optionProfile) {
     throwError({
       // TODO: poprawic tekst?
-      message: `you must use the same EAS \`--profile\` in the \`sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND}\` command as the one configured for Sherlo test builds`,
+      message: `you must use the same EAS \`--${PROFILE_OPTION}\` in the \`sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND}\` command as the one configured for Sherlo test builds`,
       // TODO: poprawic link?
       learnMoreLink: DOCS_LINK.remoteExpoBuilds,
     });

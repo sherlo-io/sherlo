@@ -1,12 +1,19 @@
 import { Build, DeviceID, DeviceTheme } from '@sherlo/api-types';
 import { PartialDeep } from 'type-fest';
 import {
+  ANDROID_OPTION,
+  CHANNEL_OPTION,
+  CONFIG_OPTION,
   EAS_BUILD_SCRIPT_NAME_OPTION,
+  EAS_UPDATE_JSON_OUTPUT_OPTION,
   EXPO_CLOUD_BUILDS_COMMAND,
   EXPO_UPDATES_COMMAND,
   IOS_FILE_TYPES,
+  IOS_OPTION,
   LOCAL_BUILDS_COMMAND,
+  PROJECT_ROOT_OPTION,
   WAIT_FOR_EAS_BUILD_OPTION,
+  TOKEN_OPTION,
 } from './constants';
 
 /* === GENERAL === */
@@ -48,23 +55,30 @@ export type InvalidatedConfig = PartialDeep<Config, { recurseIntoArrays: true }>
 /* === OPTIONS === */
 
 export type Options<C extends Command | 'any', M extends OptionsMode> = BaseOptions &
-  CommandOptions[C] &
-  DefaultOptions[M];
+  DefaultOptions[M] &
+  CommandOptions[C];
 
 type OptionsMode = 'withDefaults' | 'withoutDefaults';
 
-type BaseOptions = { token?: string; gitInfo?: Build['gitInfo'] };
+type BaseOptions = { [TOKEN_OPTION]?: string; gitInfo?: Build['gitInfo'] };
+
+type DefaultOptions = {
+  withDefaults: OptionDefaults;
+  withoutDefaults: Partial<OptionDefaults>;
+};
+
+type OptionDefaults = { [CONFIG_OPTION]: string; [PROJECT_ROOT_OPTION]: string };
 
 type CommandOptions = {
   [LOCAL_BUILDS_COMMAND]: {
-    android?: string;
-    ios?: string;
+    [ANDROID_OPTION]?: string;
+    [IOS_OPTION]?: string;
   };
   [EXPO_UPDATES_COMMAND]: {
-    androidUpdateUrl?: string;
-    iosUpdateUrl?: string;
-    android?: string;
-    ios?: string;
+    [ANDROID_OPTION]?: string;
+    [IOS_OPTION]?: string;
+    [CHANNEL_OPTION]?: string;
+    [EAS_UPDATE_JSON_OUTPUT_OPTION]?: string;
   };
   [EXPO_CLOUD_BUILDS_COMMAND]: {
     [EAS_BUILD_SCRIPT_NAME_OPTION]?: string;
@@ -74,10 +88,3 @@ type CommandOptions = {
     CommandOptions[typeof EXPO_UPDATES_COMMAND] &
     CommandOptions[typeof EXPO_CLOUD_BUILDS_COMMAND];
 };
-
-type DefaultOptions = {
-  withDefaults: OptionDefaults;
-  withoutDefaults: Partial<OptionDefaults>;
-};
-
-type OptionDefaults = { config: string; projectRoot: string };
