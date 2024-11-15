@@ -1,3 +1,4 @@
+import { EXPO_UPDATES_COMMAND, PLATFORM_LABEL } from '../../constants';
 import { getPlatformsToTest, throwError } from '../../helpers';
 import { Config } from '../../types';
 
@@ -12,13 +13,13 @@ function validatePlatformUpdateUrls({
   const platformConfigs = [
     {
       platform: 'android',
-      label: 'Android',
+      label: PLATFORM_LABEL.android,
       url: androidUpdateUrl,
       flagName: '--androidUpdateUrl',
     },
     {
       platform: 'ios',
-      label: 'iOS',
+      label: PLATFORM_LABEL.ios,
       url: iosUpdateUrl,
       flagName: '--iosUpdateUrl',
     },
@@ -29,7 +30,7 @@ function validatePlatformUpdateUrls({
 
     if (!url) {
       throwError({
-        message: `\`sherlo expo-update\` requires \`${flagName}\` to test ${label} devices (defined in sherlo.config.json)`,
+        message: `\`sherlo ${EXPO_UPDATES_COMMAND}\` requires \`${flagName}\` to test ${label} devices (defined in sherlo.config.json)`,
         learnMoreLink: 'TODO: add link to docs',
       });
     }

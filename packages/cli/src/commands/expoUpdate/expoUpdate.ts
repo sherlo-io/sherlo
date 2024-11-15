@@ -1,3 +1,4 @@
+import { EXPO_UPDATES_COMMAND } from '../../constants';
 import {
   getValidatedConfig,
   getGitInfo,
@@ -11,11 +12,11 @@ import getExpoSlug from './getExpoSlug';
 import validatePlatformUpdateUrls from './validatePlatformUpdateUrls';
 
 async function expoUpdate(
-  passedOptions: Options<'expo-update', 'withoutDefaults'>
+  passedOptions: Options<typeof EXPO_UPDATES_COMMAND, 'withoutDefaults'>
 ): Promise<{ buildIndex: number; url: string }> {
   printHeader();
 
-  validatePackages('expo-update');
+  validatePackages(EXPO_UPDATES_COMMAND);
 
   const options = getOptionsWithDefaults(passedOptions);
 

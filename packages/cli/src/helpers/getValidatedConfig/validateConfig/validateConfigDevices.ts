@@ -1,5 +1,5 @@
 import { DeviceTheme } from '@sherlo/api-types';
-import { devices as sherloDevices } from '@sherlo/shared';
+import { DEVICES } from '@sherlo/shared';
 import { DOCS_LINK } from '../../../constants';
 import { InvalidatedConfig } from '../../../types';
 import logWarning from '../../logWarning';
@@ -23,7 +23,7 @@ function validateConfigDevices(config: InvalidatedConfig): void {
       );
     }
 
-    const sherloDevice = sherloDevices[id];
+    const sherloDevice = DEVICES[id];
 
     if (!sherloDevice) {
       throwConfigError(`device "${id}" is invalid`, DOCS_LINK.devices);

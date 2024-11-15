@@ -1,4 +1,4 @@
-import { projectApiTokenLength, teamIdLength } from '@sherlo/shared';
+import { PROJECT_API_TOKEN_LENGTH, TEAM_ID_LENGTH } from '@sherlo/shared';
 
 function getTokenParts(token: string): {
   apiToken: string;
@@ -6,9 +6,9 @@ function getTokenParts(token: string): {
   teamId: string;
 } {
   return {
-    apiToken: token.slice(0, projectApiTokenLength),
-    teamId: token.slice(projectApiTokenLength, projectApiTokenLength + teamIdLength),
-    projectIndex: Number(token.slice(projectApiTokenLength + teamIdLength)),
+    apiToken: token.slice(0, PROJECT_API_TOKEN_LENGTH),
+    teamId: token.slice(PROJECT_API_TOKEN_LENGTH, PROJECT_API_TOKEN_LENGTH + TEAM_ID_LENGTH),
+    projectIndex: Number(token.slice(PROJECT_API_TOKEN_LENGTH + TEAM_ID_LENGTH)),
   };
 }
 

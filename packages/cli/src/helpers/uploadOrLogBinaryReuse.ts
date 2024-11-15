@@ -5,8 +5,10 @@ import fetch from 'node-fetch';
 import path from 'path';
 import tar from 'tar';
 import zlib from 'zlib';
+import { PLATFORM_LABEL } from '../constants';
 import { IOSFileType } from '../types';
 import getTimeAgo from './getTimeAgo';
+import logPlatformMessage from './logPlatformMessage';
 import throwError from './throwError';
 
 async function uploadOrLogBinaryReuse(
@@ -30,7 +32,7 @@ async function uploadOrLogBinaryReuse(
     if (!paths.android) {
       throwError({
         type: 'unexpected',
-        message: `${platformLabel.android} path is undefined`,
+        message: `${PLATFORM_LABEL.android} path is undefined`,
       });
     }
 
@@ -47,7 +49,7 @@ async function uploadOrLogBinaryReuse(
     if (!paths.ios) {
       throwError({
         type: 'unexpected',
-        message: `${platformLabel.ios} path is undefined`,
+        message: `${PLATFORM_LABEL.ios} path is undefined`,
       });
     }
 
@@ -78,11 +80,6 @@ async function uploadOrLogBinaryReuse(
 export default uploadOrLogBinaryReuse;
 
 /* ========================================================================== */
-
-const platformLabel: { [platform in Platform]: string } = {
-  android: 'Android',
-  ios: 'iOS',
-};
 
 async function uploadFile({
   path: filePath,
@@ -116,7 +113,7 @@ async function uploadFile({
     } else {
       throwError({
         type: 'unexpected',
-        message: `invalid iOS file type: ${iosFileType}`,
+        message: `invalid ${PLATFORM_LABEL.ios} file type: ${iosFileType}`,
       });
     }
   } else {
@@ -126,9 +123,9 @@ async function uploadFile({
     });
   }
 
-  const platformLabelValue = platformLabel[platform];
+  const platformLabelValue = PLATFORM_LABEL[platform];
 
-  console.log(`${chalk.blue('→')} ${platformLabelValue}: upload started`);
+  logPlatformMessage({ platform, message: 'upload started', type: 'info' });
 
   const response = await fetch(uploadUrl, {
     method: 'PUT',
@@ -147,7 +144,12 @@ async function uploadFile({
     });
   }
 
-  console.log(`${chalk.green('✓')} ${platformLabelValue}: upload finished\n`);
+  logPlatformMessage({
+    platform,
+    message: 'upload finished',
+    type: 'success',
+    endsWithNewLine: true,
+  });
 }
 
 async function compressFileToGzip(filePath: string): Promise<Buffer> {
@@ -193,13 +195,17 @@ function logBinaryReuse({
   if (!platformInfo?.binaryBuildIndex || !platformInfo?.binaryBuildCreatedAt) {
     throwError({
       type: 'unexpected',
-      message: `${platformLabel[platform]} binary build info is incomplete`,
+      message: `${PLATFORM_LABEL[platform]} binary build info is incomplete`,
     });
   }
 
-  console.log(
-    `${chalk.green('✓')} ${platformLabel[platform]}: reusing ${chalk.green(
-      `Build ${platformInfo.binaryBuildIndex}`
-    )} (unchanged, ${getTimeAgo(platformInfo.binaryBuildCreatedAt)})\n`
-  );
+  const buildIndex = platformInfo.binaryBuildIndex;
+  const timeAgo = getTimeAgo(platformInfo.binaryBuildCreatedAt);
+
+  logPlatformMessage({
+    platform,
+    message: `reusing ${chalk.green(`Build ${buildIndex}`)} (unchanged, ${timeAgo})`,
+    type: 'success',
+    endsWithNewLine: true,
+  });
 }

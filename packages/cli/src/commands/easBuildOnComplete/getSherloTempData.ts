@@ -1,14 +1,19 @@
 import fs from 'fs';
-import { DOCS_LINK, SHERLO_TEMP_DIRECTORY, SHERLO_TEMP_DATA_FILE } from '../../constants';
+import {
+  DOCS_LINK,
+  EXPO_UPDATES_COMMAND,
+  SHERLO_TEMP_DIRECTORY,
+  SHERLO_TEMP_DATA_FILE,
+} from '../../constants';
 import { throwError } from '../../helpers';
 
-function getSherloData(): { buildIndex: number; token: string } {
+function getSherloTempData(): { buildIndex: number; token: string } {
   const SHERLO_TEMP_FILE_PATH = ['.', SHERLO_TEMP_DIRECTORY, SHERLO_TEMP_DATA_FILE].join('/');
 
   if (!fs.existsSync(SHERLO_TEMP_FILE_PATH)) {
     throwError({
-      // TODO: zastapic wszystkie wystapienia "remoteExpoBuildScript" itp. itd.
-      message: `temp file "${SHERLO_TEMP_FILE_PATH}" not found - run tests with \`sherlo --remoteExpoBuildScript\`, or check \`.gitignore\``,
+      // TODO: tekst do poprawy?
+      message: `temp file "${SHERLO_TEMP_FILE_PATH}" not found - run tests with \`sherlo ${EXPO_UPDATES_COMMAND}\`, or check \`.gitignore\``,
       learnMoreLink: DOCS_LINK.sherloScriptExpoRemoteBuilds,
     });
   }
@@ -33,4 +38,4 @@ function getSherloData(): { buildIndex: number; token: string } {
   return { buildIndex, token };
 }
 
-export default getSherloData;
+export default getSherloTempData;

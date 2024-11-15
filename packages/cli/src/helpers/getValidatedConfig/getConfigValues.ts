@@ -1,4 +1,4 @@
-import { defaultDeviceOsLocale, defaultDeviceOsTheme } from '@sherlo/shared';
+import { DEFAULT_DEVICE_OS_LOCALE, DEFAULT_DEVICE_OS_THEME } from '@sherlo/shared';
 import path from 'path';
 import { InvalidatedConfig, Options } from '../../types';
 import logWarning from '../logWarning';
@@ -28,8 +28,8 @@ function getConfigValues(
   const devices = removeDuplicateDevices(
     configFile.devices?.map((device) => ({
       ...device,
-      osLocale: device?.osLocale ?? defaultDeviceOsLocale,
-      osTheme: device?.osTheme ?? defaultDeviceOsTheme,
+      osLocale: device?.osLocale ?? DEFAULT_DEVICE_OS_LOCALE,
+      osTheme: device?.osTheme ?? DEFAULT_DEVICE_OS_THEME,
     }))
   );
 

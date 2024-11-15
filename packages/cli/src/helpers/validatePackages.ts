@@ -1,4 +1,6 @@
 import {
+  EXPO_CLOUD_BUILDS_COMMAND,
+  EXPO_UPDATES_COMMAND,
   MIN_REACT_NATIVE_VERSION,
   MIN_STORYBOOK_REACT_NATIVE_VERSION,
   MIN_EXPO_UPDATE_EXPO_VERSION,
@@ -35,7 +37,7 @@ function validatePackages(command: Command) {
     });
   }
 
-  if (command === 'expo-update') {
+  if (command === EXPO_UPDATES_COMMAND) {
     const expoVersion = getPackageVersion('expo');
     const expoDevClientVersion = getPackageVersion('expo-dev-client');
 
@@ -47,23 +49,23 @@ function validatePackages(command: Command) {
       })
     ) {
       throwError({
-        message: `\`sherlo expo-update\` requires \`expo\` package version \`${MIN_EXPO_UPDATE_EXPO_VERSION}\` or higher`,
+        message: `\`sherlo ${EXPO_UPDATES_COMMAND}\` requires \`expo\` package version \`${MIN_EXPO_UPDATE_EXPO_VERSION}\` or higher`,
         learnMoreLink: 'TODO: add link to docs',
       });
     }
 
     if (!expoDevClientVersion) {
       throwError({
-        message: `\`sherlo expo-update\` requires \`expo-dev-client\` package`,
+        message: `\`sherlo ${EXPO_UPDATES_COMMAND}\` requires \`expo-dev-client\` package`,
         learnMoreLink: 'TODO: add link to docs',
       });
     }
-  } else if (command === 'expo-cloud') {
+  } else if (command === EXPO_CLOUD_BUILDS_COMMAND) {
     const expoVersion = getPackageVersion('expo');
 
-    if (expoVersion) {
+    if (!expoVersion) {
       throwError({
-        message: `\`sherlo expo-cloud\` requires \`expo\` package`,
+        message: `\`sherlo ${EXPO_CLOUD_BUILDS_COMMAND}\` requires \`expo\` package`,
       });
     }
   }

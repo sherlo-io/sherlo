@@ -1,18 +1,29 @@
 import { Command } from 'commander';
 import { version } from '../package.json';
-import { localBuilds, expoCloud, easBuildOnComplete, expoUpdate } from './commands';
+import { localBuilds, expoCloudBuilds, easBuildOnComplete, expoUpdate } from './commands';
+import {
+  EAS_BUILD_ON_COMPLETE_COMMAND,
+  EAS_BUILD_SCRIPT_NAME_OPTION,
+  EXPO_CLOUD_BUILDS_COMMAND,
+  EXPO_UPDATES_COMMAND,
+  LOCAL_BUILDS_COMMAND,
+  PLATFORM_LABEL,
+  WAIT_FOR_EAS_BUILD_OPTION,
+} from './constants';
 import { printHeader } from './helpers';
-
 async function start() {
   try {
     const program = new Command();
 
     const sharedOptions = {
-      android: ['--android <path>', 'Path to the Android build in .apk format'],
-      ios: ['--ios <path>', 'Path to the iOS build in .app (or compressed .tar.gz / .tar) format'],
-      token: ['--token <token>', 'Project token'],
-      config: ['--config <path>', 'Config file path'],
-      projectRoot: ['--projectRoot <path>', 'Root of the React Native project'],
+      android: ['--android <path>', `Path to the ${PLATFORM_LABEL.android} build in .apk format`],
+      ios: [
+        '--ios <path>',
+        `Path to the ${PLATFORM_LABEL.ios} build in .app (or compressed .tar.gz / .tar) format`,
+      ],
+      token: ['--token <token>', 'Authentication token for the project'],
+      config: ['--config <path>', 'Path to the config file'],
+      projectRoot: ['--projectRoot <path>', 'Root directory of the React Native project'],
     } as const;
 
     program
@@ -21,7 +32,7 @@ async function start() {
       .description('Sherlo CLI for automating visual testing of React Native Storybook');
 
     program
-      .command('local-builds')
+      .command(LOCAL_BUILDS_COMMAND)
       .description('Run Sherlo with locally available builds')
       .option(...sharedOptions.android)
       .option(...sharedOptions.ios)
@@ -33,10 +44,42 @@ async function start() {
       });
 
     program
-      .command('expo-update')
-      .description('Run Sherlo with Expo update')
-      .option('--androidUpdateUrl <url>', 'URL for the Android Expo update')
-      .option('--iosUpdateUrl <url>', 'URL for the iOS Expo update')
+      .command(EXPO_CLOUD_BUILDS_COMMAND)
+      .description('Run Sherlo with builds created in the Expo cloud')
+      .option(
+        `--${EAS_BUILD_SCRIPT_NAME_OPTION} <script_name>`,
+        'Name of the script in package.json that triggers `eas build`'
+      )
+      .option(`--${WAIT_FOR_EAS_BUILD_OPTION}`, 'Wait mode for user-triggered `eas build`')
+      .option(...sharedOptions.token)
+      .option(...sharedOptions.config)
+      .option(...sharedOptions.projectRoot)
+      .action(async (options) => {
+        await expoCloudBuilds(options);
+      });
+
+    program
+      .command(EAS_BUILD_ON_COMPLETE_COMMAND)
+      .description(
+        `Process completion of Expo cloud builds; required for \`sherlo ${EXPO_CLOUD_BUILDS_COMMAND}\``
+      )
+      .option(
+        '--profile <profile_name>',
+        `EAS build profile matching the one used in \`sherlo ${EXPO_CLOUD_BUILDS_COMMAND}\`` // TODO: EAS build profile used with the `eas build` command
+      )
+      .action(easBuildOnComplete);
+
+    program
+      .command(EXPO_UPDATES_COMMAND)
+      .description('Run Sherlo with Expo updates')
+      .option(
+        '--channel <channel_name>',
+        'Name of the Expo update channel to retrieve the latest update'
+      )
+      .option('--json <json_output>', 'JSON output from the `eas update --json` command') // TODO: --easUpdateJsonOutput ?
+      // TODO: pozbyc sie tych opcji
+      .option('--androidUpdateUrl <url>', `URL for the ${PLATFORM_LABEL.android} Expo update`)
+      .option('--iosUpdateUrl <url>', `URL for the ${PLATFORM_LABEL.ios} Expo update`)
       .option(...sharedOptions.android)
       .option(...sharedOptions.ios)
       .option(...sharedOptions.token)
@@ -45,24 +88,6 @@ async function start() {
       .action(async (options) => {
         await expoUpdate(options);
       });
-
-    program
-      .command('expo-cloud')
-      .description('Run Sherlo with Expo cloud builds')
-      .option('--buildScript <script>', 'Name of the EAS build script in package.json') // TODO: --scriptName / --easBuildScriptName
-      .option('--manual', 'Run in manual mode, waiting for you to build the app on Expo servers') // TODO: --waiting / --waitForBuild
-      .option(...sharedOptions.token)
-      .option(...sharedOptions.config)
-      .option(...sharedOptions.projectRoot)
-      .action(async (options) => {
-        await expoCloud(options);
-      });
-
-    program
-      .command('eas-build-on-complete')
-      .description('Process Sherlo EAS builds after completion (required for expo-cloud)')
-      .option('--profile <profile>', 'EAS build profile to use')
-      .action(easBuildOnComplete);
 
     if (process.argv.length === 2) {
       printHeader();

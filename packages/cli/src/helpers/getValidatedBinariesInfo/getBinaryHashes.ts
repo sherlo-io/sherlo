@@ -1,16 +1,17 @@
 import { Platform } from '@sherlo/api-types';
 import crypto from 'crypto';
 import fs from 'fs';
-import { Config } from '../../types';
 
 type BinaryHashes = { android?: string; ios?: string };
 
 async function getBinaryHashes({
-  platformsToTest,
-  config,
+  platforms,
+  androidPath,
+  iosPath,
 }: {
-  platformsToTest: Platform[];
-  config: Config<'withBuildPaths'>;
+  platforms: Platform[];
+  androidPath: string | undefined;
+  iosPath: string | undefined;
 }): Promise<BinaryHashes> {
   const hashes: BinaryHashes = {};
 
@@ -27,17 +28,17 @@ async function getBinaryHashes({
 
   const hashPromises: Promise<void>[] = [];
 
-  if (platformsToTest.includes('android') && config.android) {
+  if (platforms.includes('android') && androidPath) {
     hashPromises.push(
-      calculateHash(config.android).then((hash) => {
+      calculateHash(androidPath).then((hash) => {
         hashes.android = hash;
       })
     );
   }
 
-  if (platformsToTest.includes('ios') && config.ios) {
+  if (platforms.includes('ios') && iosPath) {
     hashPromises.push(
-      calculateHash(config.ios).then((hash) => {
+      calculateHash(iosPath).then((hash) => {
         hashes.ios = hash;
       })
     );

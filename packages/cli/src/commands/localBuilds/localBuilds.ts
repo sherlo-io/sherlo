@@ -1,3 +1,4 @@
+import { LOCAL_BUILDS_COMMAND } from '../../constants';
 import {
   getValidatedConfig,
   getGitInfo,
@@ -9,11 +10,11 @@ import {
 import { Options } from '../../types';
 
 async function localBuilds(
-  passedOptions: Options<'local-builds', 'withoutDefaults'>
+  passedOptions: Options<typeof LOCAL_BUILDS_COMMAND, 'withoutDefaults'>
 ): Promise<{ buildIndex: number; url: string }> {
   printHeader();
 
-  validatePackages('local-builds');
+  validatePackages(LOCAL_BUILDS_COMMAND);
 
   const options = getOptionsWithDefaults(passedOptions);
 

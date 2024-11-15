@@ -15,17 +15,17 @@ type LocalBinaryInfo = Pick<BinaryInfo, 'isExpoDev' | 'sdkVersion'>;
 
 async function getLocalBinariesInfo({
   paths,
-  platformsToTest,
+  platforms,
 }: {
   paths: {
     android?: string;
     ios?: string;
   };
-  platformsToTest: Platform[];
+  platforms: Platform[];
 }): Promise<LocalBinariesInfo> {
   const result: LocalBinariesInfo = {};
 
-  if (paths.android && platformsToTest.includes('android')) {
+  if (platforms.includes('android') && paths.android) {
     result.android = await getLocalBinaryInfoForPlatform({
       platformPath: paths.android,
       sherloFilePath: SHERLO_JSON_PATH,
@@ -33,7 +33,7 @@ async function getLocalBinariesInfo({
     });
   }
 
-  if (paths.ios && platformsToTest.includes('ios')) {
+  if (platforms.includes('ios') && paths.ios) {
     result.ios = await getLocalBinaryInfoForPlatform({
       platformPath: paths.ios,
       sherloFilePath: SHERLO_JSON_PATH,

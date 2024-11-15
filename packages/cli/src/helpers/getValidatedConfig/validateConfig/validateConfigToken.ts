@@ -1,4 +1,4 @@
-import { projectApiTokenLength, teamIdLength } from '@sherlo/shared';
+import { PROJECT_API_TOKEN_LENGTH, TEAM_ID_LENGTH } from '@sherlo/shared';
 import { DOCS_LINK } from '../../../constants';
 import { InvalidatedConfig } from '../../../types';
 import getTokenParts from '../../getTokenParts';
@@ -16,8 +16,8 @@ function validateConfigToken<T extends InvalidatedConfig>(
   const { apiToken, projectIndex, teamId } = getTokenParts(token);
 
   if (
-    apiToken.length !== projectApiTokenLength ||
-    teamId.length !== teamIdLength ||
+    apiToken.length !== PROJECT_API_TOKEN_LENGTH ||
+    teamId.length !== TEAM_ID_LENGTH ||
     !Number.isInteger(projectIndex) ||
     projectIndex < 1
   ) {

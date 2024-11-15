@@ -1,13 +1,12 @@
 import { Build } from '@sherlo/api-types';
 import SDKApiClient from '@sherlo/sdk-client';
-import chalk from 'chalk';
 import { Config } from '../types';
-import countDevicesByPlatform from './countDevicesByPlatform';
 import getAppBuildUrl from './getAppBuildUrl';
 import getBuildRunConfig from './getBuildRunConfig';
-import getLogLink from './getLogLink';
 import getTokenParts from './getTokenParts';
 import handleClientError from './handleClientError';
+import logBuildIntroMessage from './logBuildIntroMessage';
+import logBuildResultsMessage from './logBuildResultsMessage';
 import uploadOrLogBinaryReuse from './uploadOrLogBinaryReuse';
 import getValidatedBinariesInfo from './getValidatedBinariesInfo';
 
@@ -29,13 +28,13 @@ async function uploadBuildsAndRunTests({
 
   const binariesInfo = await getValidatedBinariesInfo({
     client,
+    command: expoUpdateInfo ? 'expo-updates' : 'local-builds',
     config,
-    isExpoUpdate: !!expoUpdateInfo,
     projectIndex,
     teamId,
   });
 
-  introMessage(config);
+  logBuildIntroMessage(config);
 
   await uploadOrLogBinaryReuse(config, binariesInfo);
 
@@ -63,35 +62,9 @@ async function uploadBuildsAndRunTests({
   const buildIndex = build.index;
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
-  console.log(`Results: ${getLogLink(url)}\n`);
+  logBuildResultsMessage(url);
 
   return { buildIndex, url };
 }
 
 export default uploadBuildsAndRunTests;
-
-/* ========================================================================== */
-
-function introMessage(config: Config) {
-  const platformCounts = countDevicesByPlatform(config.devices);
-
-  const platformCountsMessage = [];
-  let lastCount = 0;
-
-  if (platformCounts.android) {
-    platformCountsMessage.push(`${chalk.blue(`${platformCounts.android} Android`)}`);
-    lastCount = platformCounts.android;
-  }
-
-  if (platformCounts.ios) {
-    platformCountsMessage.push(`${chalk.blue(`${platformCounts.ios} iOS`)}`);
-    lastCount = platformCounts.ios;
-  }
-
-  if (platformCountsMessage.length > 0) {
-    const deviceText = lastCount === 1 ? 'device' : 'devices';
-    console.log(
-      `${chalk.green('Build 42069')} tests will run on ${platformCountsMessage.join(' and ')} ${deviceText}\n`
-    );
-  }
-}

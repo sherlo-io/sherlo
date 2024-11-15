@@ -1,16 +1,14 @@
 import { REQUIRED_MIN_SDK_VERSION } from '../../../sdk-compatibility.json';
-import { PACKAGE_NAME } from '../../constants';
+import { EXPO_UPDATES_COMMAND, PACKAGE_NAME, PLATFORM_LABEL } from '../../constants';
+import { Command } from '../../types';
 import isPackageVersionCompatible from '../isPackageVersionCompatible';
 import throwError from '../throwError';
 import { BinariesInfo } from './types';
 
-function validateBinariesInfo(
-  { android, ios }: BinariesInfo,
-  { isExpoUpdate }: { isExpoUpdate: boolean }
-) {
+function validateBinariesInfo({ android, ios, command }: BinariesInfo & { command: Command }) {
   validateHasSherlo({ android, ios });
 
-  validateIsExpoDev({ android, ios, isExpoUpdate });
+  validateIsExpoDev({ android, ios, command });
 
   validateSdkVersion({ android, ios });
 }
@@ -21,11 +19,12 @@ export default validateBinariesInfo;
 
 function validateHasSherlo({ android, ios }: BinariesInfo) {
   const getSherloModuleError = ({ android, ios }: { android?: boolean; ios?: boolean }) => {
-    const platforms = [android && 'Android', ios && 'iOS'].filter(Boolean);
+    const platformLabels = getPlatformLabels({ android, ios });
+
     const message =
-      platforms.length > 1
-        ? 'Neither Android nor iOS builds contain Sherlo Native Module'
-        : `${platforms[0]} build does not contain Sherlo Native Module`;
+      platformLabels.length > 1
+        ? `Neither ${platformLabels.join(' nor ')} builds contain Sherlo Native Module`
+        : `${platformLabels[0]} build does not contain Sherlo Native Module`;
 
     return {
       message:
@@ -52,23 +51,19 @@ function validateHasSherlo({ android, ios }: BinariesInfo) {
   }
 }
 
-function validateIsExpoDev({
-  android,
-  ios,
-  isExpoUpdate,
-}: BinariesInfo & { isExpoUpdate: boolean }) {
-  if (isExpoUpdate) {
+function validateIsExpoDev({ android, ios, command }: BinariesInfo & { command: Command }) {
+  if (command === EXPO_UPDATES_COMMAND) {
     const getExpoUpdateError = ({ android, ios }: { android?: boolean; ios?: boolean }) => {
-      const platforms = [android && 'Android', ios && 'iOS'].filter(Boolean);
+      const platformLabels = getPlatformLabels({ android, ios });
 
       return {
         message:
-          '`sherlo expo-update` command requires development builds ' +
-          `(${platforms.join(' and ')} ${platforms.length > 1 ? 'are' : 'is'} invalid)\n\n` +
+          `\`sherlo ${EXPO_UPDATES_COMMAND}\` command requires development builds ` +
+          `(${platformLabels.join(' and ')} ${platformLabels.length > 1 ? 'are' : 'is'} invalid)\n\n` +
           'Please verify:\n' +
           '1. Required `expo-dev-client` package is installed\n' +
           '2. EAS build profile is configured for development\n' +
-          `3. ${platforms.join(' and ')} ${platforms.length > 1 ? 'are' : 'is'} built using development profile\n`,
+          `3. ${platformLabels.join(' and ')} ${platformLabels.length > 1 ? 'are' : 'is'} built using development profile\n`,
         learnMoreLink: 'TODO: DOCS_LINK.expoUpdate',
       };
     };
@@ -86,11 +81,11 @@ function validateIsExpoDev({
     }
   } else {
     const getLocalBuildsError = ({ android, ios }: { android?: boolean; ios?: boolean }) => {
-      const platforms = [android && 'Android', ios && 'iOS'].filter(Boolean);
+      const platformLabels = getPlatformLabels({ android, ios });
 
       return {
-        message: `\`sherlo local-builds\` command requires non-development builds (${platforms.join(' and ')} ${platforms.length > 1 ? 'are' : 'is'} invalid)`,
-        learnMoreLink: 'TODO: DOCS_LINK.localBuilds',
+        message: `\`sherlo ${command}\` command requires non-development builds (${platformLabels.join(' and ')} ${platformLabels.length > 1 ? 'are' : 'is'} invalid)`,
+        learnMoreLink: 'TODO: DOCS_LINK.localBuilds / DOCS_LINK.expoCloudBuilds',
       };
     };
 
@@ -113,9 +108,9 @@ function validateSdkVersion({ android, ios }: BinariesInfo) {
   if (android?.sdkVersion && ios?.sdkVersion && android.sdkVersion !== ios.sdkVersion) {
     throwError({
       message:
-        `Android and iOS builds contain different \`${PACKAGE_NAME}\` versions\n\n` +
-        `Android version: ${android.sdkVersion}\n` +
-        `iOS version: ${ios.sdkVersion}\n\n` +
+        `${PLATFORM_LABEL.android} and ${PLATFORM_LABEL.ios} builds contain different \`${PACKAGE_NAME}\` versions\n\n` +
+        `${PLATFORM_LABEL.android} version: ${android.sdkVersion}\n` +
+        `${PLATFORM_LABEL.ios} version: ${ios.sdkVersion}\n\n` +
         'Please rebuild both apps to ensure they use the same version',
     });
   }
@@ -135,4 +130,13 @@ function validateSdkVersion({ android, ios }: BinariesInfo) {
         `Please rebuild your ${hasBothPlatforms ? 'apps' : 'app'}`,
     });
   }
+}
+
+function getPlatformLabels({ android, ios }: { android?: boolean; ios?: boolean }): string[] {
+  const platforms = [];
+
+  if (android) platforms.push(PLATFORM_LABEL.android);
+  if (ios) platforms.push(PLATFORM_LABEL.ios);
+
+  return platforms;
 }

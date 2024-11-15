@@ -1,10 +1,20 @@
 import { Build, DeviceID, DeviceTheme } from '@sherlo/api-types';
 import { PartialDeep } from 'type-fest';
-import { IOS_FILE_TYPES } from './constants';
+import {
+  EAS_BUILD_SCRIPT_NAME_OPTION,
+  EXPO_CLOUD_BUILDS_COMMAND,
+  EXPO_UPDATES_COMMAND,
+  IOS_FILE_TYPES,
+  LOCAL_BUILDS_COMMAND,
+  WAIT_FOR_EAS_BUILD_OPTION,
+} from './constants';
 
 /* === GENERAL === */
 
-export type Command = 'local-builds' | 'expo-update' | 'expo-cloud';
+export type Command =
+  | typeof LOCAL_BUILDS_COMMAND
+  | typeof EXPO_UPDATES_COMMAND
+  | typeof EXPO_CLOUD_BUILDS_COMMAND;
 
 export type IOSFileType = (typeof IOS_FILE_TYPES)[number];
 
@@ -46,28 +56,23 @@ type OptionsMode = 'withDefaults' | 'withoutDefaults';
 type BaseOptions = { token?: string; gitInfo?: Build['gitInfo'] };
 
 type CommandOptions = {
-  'local-builds': {
+  [LOCAL_BUILDS_COMMAND]: {
     android?: string;
     ios?: string;
   };
-  'expo-update': {
+  [EXPO_UPDATES_COMMAND]: {
     androidUpdateUrl?: string;
     iosUpdateUrl?: string;
     android?: string;
     ios?: string;
   };
-  'expo-cloud': {
-    buildScript?: string;
-    manual?: boolean;
+  [EXPO_CLOUD_BUILDS_COMMAND]: {
+    [EAS_BUILD_SCRIPT_NAME_OPTION]?: string;
+    [WAIT_FOR_EAS_BUILD_OPTION]?: boolean;
   };
-  any: {
-    android?: string;
-    ios?: string;
-    androidUpdateUrl?: string;
-    iosUpdateUrl?: string;
-    buildScript?: string;
-    manual?: boolean;
-  };
+  any: CommandOptions[typeof LOCAL_BUILDS_COMMAND] &
+    CommandOptions[typeof EXPO_UPDATES_COMMAND] &
+    CommandOptions[typeof EXPO_CLOUD_BUILDS_COMMAND];
 };
 
 type DefaultOptions = {

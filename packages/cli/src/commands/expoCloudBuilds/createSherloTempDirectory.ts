@@ -1,6 +1,12 @@
 import fs from 'fs';
 import path from 'path';
-import { SHERLO_TEMP_DIRECTORY, SHERLO_TEMP_DATA_FILE } from '../../constants';
+import {
+  EAS_BUILD_SCRIPT_NAME_OPTION,
+  EXPO_CLOUD_BUILDS_COMMAND,
+  SHERLO_TEMP_DATA_FILE,
+  SHERLO_TEMP_DIRECTORY,
+  WAIT_FOR_EAS_BUILD_OPTION,
+} from '../../constants';
 
 function createSherloTempDirectory({
   projectRoot,
@@ -22,17 +28,16 @@ function createSherloTempDirectory({
     JSON.stringify({ buildIndex, token }, null, 2)
   );
 
-  // TODO: poprawic komendy + "remote Expo mode"
   fs.writeFileSync(
     path.resolve(sherloDir, 'README.md'),
-    `### Why do I have a folder named "${SHERLO_TEMP_DIRECTORY}" in my project?
+    `### Why do I have a directory named "${SHERLO_TEMP_DIRECTORY}" in my project?
 
-This folder appears when you run Sherlo in remote Expo mode using:
-- \`sherlo --remoteExpo\`, or
-- \`sherlo --remoteExpoBuildScript <scriptName>\`
+This directory appears when you run Sherlo in Expo Cloud Builds mode using:
+- \`sherlo ${EXPO_CLOUD_BUILDS_COMMAND} --${EAS_BUILD_SCRIPT_NAME_OPTION} <script_name>\`, or
+- \`sherlo ${EXPO_CLOUD_BUILDS_COMMAND} --${WAIT_FOR_EAS_BUILD_OPTION}\`
 
-If you use \`--remoteExpoBuildScript\`, the folder should be auto-deleted when the
-build script completes. With \`--remoteExpo\`, you need to handle it yourself.
+If you use \`--${EAS_BUILD_SCRIPT_NAME_OPTION}\`, the directory should be auto-deleted when the
+build script completes. With \`--${WAIT_FOR_EAS_BUILD_OPTION}\`, you need to handle it yourself.
 
 ### What does it contain?
 

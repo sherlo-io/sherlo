@@ -1,5 +1,5 @@
 import { BuildRun, Device, Platform } from '@sherlo/api-types';
-import { devices as sherloDevices } from '@sherlo/shared';
+import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER, DEVICES } from '@sherlo/shared';
 import { Config } from '../types';
 
 function getBuildRunConfig({
@@ -29,7 +29,7 @@ function getBuildRunConfig({
         ? {
             devices: androidDevices,
             expoUpdateUrl: expoUpdateInfo?.androidUpdateUrl,
-            s3Key: binaryS3Keys?.android || 'WAITING_FOR_ASYNC_UPLOAD',
+            s3Key: binaryS3Keys?.android || ASYNC_UPLOAD_S3_KEY_PLACEHOLDER,
           }
         : undefined,
     ios:
@@ -37,7 +37,7 @@ function getBuildRunConfig({
         ? {
             devices: iosDevices,
             expoUpdateUrl: expoUpdateInfo?.iosUpdateUrl,
-            s3Key: binaryS3Keys?.ios || 'WAITING_FOR_ASYNC_UPLOAD',
+            s3Key: binaryS3Keys?.ios || ASYNC_UPLOAD_S3_KEY_PLACEHOLDER,
           }
         : undefined,
   };
@@ -49,7 +49,7 @@ export default getBuildRunConfig;
 
 function getPlatformDevices(configDevices: Config['devices'], platform: Platform): Device[] {
   return configDevices
-    .filter(({ id }) => sherloDevices[id]?.os === platform)
+    .filter(({ id }) => DEVICES[id]?.os === platform)
     .map((device) => ({
       id: device.id,
       osVersion: device.osVersion,

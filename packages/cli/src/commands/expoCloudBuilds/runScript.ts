@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { DEFAULT_PROJECT_ROOT } from '../../constants';
 
-function runBuildScript({
+function runScript({
   projectRoot,
   scriptName,
   onExit,
@@ -43,13 +43,13 @@ function runBuildScript({
     args = ['run', scriptName];
   }
 
-  const process = spawn(command, args, { stdio: 'inherit' });
+  const childProcess = spawn(command, args, { stdio: 'inherit' });
 
-  process.on('exit', onExit);
-  process.on('error', onExit);
+  ['close', 'exit'].forEach((event) => childProcess.on(event, onExit));
+  ['beforeExit', 'exit', 'SIGINT'].forEach((event) => process.on(event, onExit));
 }
 
-export default runBuildScript;
+export default runScript;
 
 /* ========================================================================== */
 

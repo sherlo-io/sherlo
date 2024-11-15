@@ -1,6 +1,11 @@
 import SDKApiClient from '@sherlo/sdk-client';
 import process from 'process';
-import { DOCS_LINK } from '../../constants';
+import {
+  DOCS_LINK,
+  EAS_BUILD_ON_COMPLETE_COMMAND,
+  EXPO_CLOUD_BUILDS_COMMAND,
+  LOCAL_BUILDS_COMMAND,
+} from '../../constants';
 import {
   getTokenParts,
   handleClientError,
@@ -9,7 +14,7 @@ import {
   throwError,
 } from '../../helpers';
 import asyncUploadPlatformBuild from './asyncUploadPlatformBuild';
-import getSherloData from './getSherloData';
+import getSherloTempData from './getSherloTempData';
 
 /**
  * Build lifecycle hooks: https://docs.expo.dev/build-reference/npm-hooks/
@@ -18,11 +23,10 @@ import getSherloData from './getSherloData';
  */
 
 async function easBuildOnComplete(options: { profile?: string }) {
-  // Skip if the app was built locally
-  if (process.env.EAS_BUILD_RUNNER !== 'eas-build') {
+  const wasAppBuiltLocally = process.env.EAS_BUILD_RUNNER !== 'eas-build';
+  if (wasAppBuiltLocally) {
     logInfoMessage({
-      message:
-        '`sherlo eas-build-on-complete` command works only with `sherlo expo-cloud`; to test builds available locally, use `sherlo local-builds`',
+      message: `\`sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND}\` command works only with \`sherlo ${EXPO_CLOUD_BUILDS_COMMAND}\`; to test builds available locally, use \`sherlo ${LOCAL_BUILDS_COMMAND}\``,
       // TODO: link do poprawy?
       learnMoreLink: DOCS_LINK.sherloScriptLocalBuilds,
       startWithNewLine: true,
@@ -36,8 +40,8 @@ async function easBuildOnComplete(options: { profile?: string }) {
 
   if (!optionProfile) {
     throwError({
-      message:
-        'you must use the same EAS `--profile` in the `eas-build-on-complete` command as the one configured for Sherlo test builds',
+      // TODO: poprawic tekst?
+      message: `you must use the same EAS \`--profile\` in the \`sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND}\` command as the one configured for Sherlo test builds`,
       // TODO: poprawic link?
       learnMoreLink: DOCS_LINK.remoteExpoBuilds,
     });
@@ -46,7 +50,8 @@ async function easBuildOnComplete(options: { profile?: string }) {
   // Skip if EAS build profile doesn't match
   if (optionProfile !== easBuildProfile) {
     logInfoMessage({
-      message: `Sherlo skipped testing - current EAS build profile "${easBuildProfile}" doesn't match the profile "${optionProfile}" specified in \`sherlo eas-build-on-complete\` command`,
+      // TODO: poprawic tekst?
+      message: `Sherlo skipped testing - current EAS build profile "${easBuildProfile}" doesn't match the profile "${optionProfile}" specified in \`sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND}\` command`,
       learnMoreLink: DOCS_LINK.remoteExpoBuilds,
       startWithNewLine: true,
     });
@@ -56,7 +61,7 @@ async function easBuildOnComplete(options: { profile?: string }) {
 
   printHeader();
 
-  const { buildIndex, token } = getSherloData();
+  const { buildIndex, token } = getSherloTempData();
 
   // Build failed on Expo servers
   if (process.env.EAS_BUILD_STATUS === 'errored') {
