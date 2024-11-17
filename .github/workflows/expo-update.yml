@@ -55,7 +55,8 @@ jobs:
       - name: Trigger EAS update and capture manifest URLs
         working-directory: testing/expo-storybook-8
         run: |
-          echo "EXPO_UPDATE_JSON=$(eas update --channel 'development' --message 'Expo Update' --json --non-interactive | jq -c .)" >> $GITHUB_ENV
+          EXPO_UPDATE_JSON=$(eas update --channel 'development' --message 'Expo Update' --json --non-interactive | jq -c '.')
+          echo "EXPO_UPDATE_JSON=$EXPO_UPDATE_JSON" >> $GITHUB_ENV
 
       - name: Run sherlo expo-updates (with native builds)
         if: inputs.with_builds == true
