@@ -1,5 +1,6 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
+// @ts-ignore
 import { localBuilds } from '@sherlo/cli';
 
 async function run(): Promise<void> {
