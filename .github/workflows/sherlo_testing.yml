@@ -140,20 +140,20 @@ jobs:
     uses: ./.github/workflows/expo-update.yml
     needs: [update_development_builds]
     if: ${{ github.event.inputs.expo_update_with_builds == 'true' && always() && !failure() && !cancelled() }}
-    name: expo-update (with native builds)
+    name: expo-updates (with native builds)
     secrets: inherit
     with:
       env: ${{ github.event.inputs.env }}
       with_builds: true
-      project: 'expo-update'
+      project: 'expo-updates'
 
   expo_update:
     uses: ./.github/workflows/expo-update.yml
     needs: [update_development_builds]
     if: ${{ github.event.inputs.expo_update == 'true' && always() && !failure() && !cancelled() }}
-    name: expo-update (without native builds)
+    name: expo-updates (without native builds)
     secrets: inherit
     with:
       env: ${{ github.event.inputs.env }}
       with_builds: false
-      project: 'expo-update'
+      project: 'expo-updates'
