@@ -55,12 +55,7 @@ jobs:
       - name: Trigger EAS update and capture manifest URLs
         working-directory: testing/expo-storybook-8
         run: |
-          # new flow
-          # echo "EXPO_UPDATE_JSON=$(eas update --channel 'development' --message 'Expo Update' --json --non-interactive | jq -c .)" >> $GITHUB_ENV
-          # old flow
-          EXPO_UPDATE_JSON=$(eas update --channel "development" --message "Expo Update ${GITHUB_SHA}" --json --non-interactive)
-          echo "ANDROID_EXPO_UPDATE_URL=$(echo "$EXPO_UPDATE_JSON" | jq -r '.[] | select(.platform == "android") | .manifestPermalink')" >> $GITHUB_ENV
-          echo "IOS_EXPO_UPDATE_URL=$(echo "$EXPO_UPDATE_JSON" | jq -r '.[] | select(.platform == "ios") | .manifestPermalink')" >> $GITHUB_ENV
+          echo "EXPO_UPDATE_JSON=$(eas update --channel 'development' --message 'Expo Update' --json --non-interactive | jq -c .)" >> $GITHUB_ENV
 
       - name: Run sherlo expo-updates (with native builds)
         if: inputs.with_builds == true
@@ -70,8 +65,7 @@ jobs:
             --config ../../configs/${{ inputs.config }}.json \
             --android builds/development/android.apk \
             --ios builds/development/ios.tar.gz \
-            --androidUpdateUrl ${{ env.ANDROID_EXPO_UPDATE_URL }} \
-            --iosUpdateUrl ${{ env.IOS_EXPO_UPDATE_URL }} \
+            --easUpdateJsonOutput ${{ env.EXPO_UPDATE_JSON }} \
             --token ${{ inputs.project == 'expo-updates' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}
 
       - name: Run sherlo expo-updates (without native builds)
@@ -80,6 +74,5 @@ jobs:
         run: |
           yarn sherlo expo-updates \
             --config ../../configs/${{ inputs.config }}.json \
-            --androidUpdateUrl ${{ env.ANDROID_EXPO_UPDATE_URL }} \
-            --iosUpdateUrl ${{ env.IOS_EXPO_UPDATE_URL }} \
+            --easUpdateJsonOutput ${{ env.EXPO_UPDATE_JSON }} \
             --token ${{ inputs.project == 'expo-updates' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}
