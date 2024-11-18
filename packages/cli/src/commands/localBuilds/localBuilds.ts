@@ -22,7 +22,7 @@ async function localBuilds(
 
   return uploadBuildsAndRunTests({
     config,
-    gitInfo: options.gitInfo ?? getGitInfo(),
+    gitInfo: options.gitInfo ?? getGitInfo(options.projectRoot),
   });
 }
 

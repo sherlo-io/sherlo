@@ -94,7 +94,7 @@ async function expoCloudBuilds(
     .openBuild({
       teamId,
       projectIndex,
-      gitInfo: gitInfo ?? getGitInfo(),
+      gitInfo: gitInfo ?? getGitInfo(projectRoot),
       asyncUpload: true,
       buildRunConfig: getBuildRunConfig({ config }),
     })

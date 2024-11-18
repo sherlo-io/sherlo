@@ -16,6 +16,28 @@ import validateRequiredOptions from './validateRequiredOptions';
 // TODO:
 // - lepsze info odnosnie reuzywania wczesniej zupladowanych DEVELOPERSKICH buildow + info o update'ach
 
+// TODO: lepiej ogarnac ponizszy error: (np. "your previously uploaded Android build ..." -> "rebuild your app and pass it through `--android`")
+/**
+ * Error: Your build contains outdated `@sherlo/react-native-storybook` version
+ *
+ * Found version: 1.0.43
+ * Minimum required version: 1.0.43
+ *
+ * Please rebuild your app
+ */
+
+// TODO: lepiej ogarnac ponizszy error (np. "missing `android` path to your Android build"? / "pass through `--android` or in sherlo.config.json")
+/**
+ * Config Error: missing `android` path (based on devices defined in config)
+ * ↳ Learn more: https://docs.sherlo.io/getting-started/config#android
+ */
+
+// TODO: "last uploaded build is not development" (isExpoDev === false)
+
+// TODO: latest update for "development" channel was done only for iOS platform (2 hours ago) - you need to update both platforms if you want to test both platforms (config devices)
+
+// TODO: channel vs branch => + napisac do bbgun'a
+
 async function expoUpdates(
   passedOptions: Options<typeof EXPO_UPDATES_COMMAND, 'withoutDefaults'>
 ): Promise<{ buildIndex: number; url: string }> {
@@ -28,18 +50,22 @@ async function expoUpdates(
   const options = getOptionsWithDefaults(passedOptions);
 
   // TODO: byc moze nie powinnismy tego wymagac tylko rzucac error na pozniejszym etapie jezeli sie okaze ze API nie zwrocilo nam buildow (ktore powinny byc trzymane na naszym serwerze)
-  const config = getValidatedConfig(options, { validatePlatformPaths: true });
+  // TODO: mozemy zostawic to wymagane ALE mozemy tez przekazywac dodatkowe info (i jezeli mamy binarki na serwerze to nie rzucac errora)
+  // TODO: lub mozemy ustawiac to na true/false
+  // const config = getValidatedConfig(options, { validatePlatformPaths: true }); // TODO: validatePlatformPaths -> requirePlatformPaths?
+  const config = getValidatedConfig(options, { validatePlatformPaths: false }); // TODO: validatePlatformPaths -> requirePlatformPaths?
 
   const { channel, easUpdateJsonOutput, gitInfo, projectRoot } = options;
 
-  const platformUpdateUrls = getPlatformUpdateUrls({ channel, easUpdateJsonOutput });
+  const platformUpdateUrls = getPlatformUpdateUrls({ channel, easUpdateJsonOutput, projectRoot });
 
   // TODO: pozbyc sie na rzecz getValidatedPlatformUpdateUrls - powinno walidowac czy zwracane sa url'e dla wszystkich platform ktore sa w config.devices (podobnie jak w validateConfigPlatforms())
   validatePlatformUpdateUrls({ config, platformUpdateUrls });
 
+  // TODO: uploadOrReuseBuildsAndRunTests?
   return uploadBuildsAndRunTests({
     config,
-    gitInfo: gitInfo ?? getGitInfo(),
+    gitInfo: gitInfo ?? getGitInfo(projectRoot),
     expoUpdateInfo: {
       platformUpdateUrls,
       slug: getExpoSlug(projectRoot),

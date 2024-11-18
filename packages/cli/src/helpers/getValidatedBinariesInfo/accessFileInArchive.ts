@@ -54,6 +54,8 @@ type TarVersion = 'GNU' | 'BSD';
 
 const DEFAULT_TAR_VERSION = 'BSD';
 
+// TODO: czy to musi byc asynchroniczne? Nie mozemy tutaj uzyc runShellCommand?
+// TODO: projectRoot? (chyba niepotrzebne - bo juz dzialamy na pliku z uwzglednieniem projectRoot?)
 const execAsync = promisify(exec);
 
 async function detectTarVersion(): Promise<TarVersion> {

@@ -1,13 +1,13 @@
 import { Build } from '@sherlo/api-types';
-import { execSync } from 'child_process';
+import { runShellCommand } from './runShellCommand';
 
-function getGitInfo(): Build['gitInfo'] {
+function getGitInfo(projectRoot: string): Build['gitInfo'] {
   try {
-    return {
-      commitName: execSync('git log -1 --pretty=format:%s').toString().trim() || 'unknown',
-      commitHash: execSync('git rev-parse HEAD').toString().trim() || 'unknown',
-      branchName: execSync('git rev-parse --abbrev-ref HEAD').toString().trim() || 'unknown',
-    };
+    const commitName = runShellCommand({ command: 'git log -1 --pretty=format:%s', projectRoot });
+    const commitHash = runShellCommand({ command: 'git rev-parse HEAD', projectRoot });
+    const branchName = runShellCommand({ command: 'git rev-parse --abbrev-ref HEAD', projectRoot });
+
+    return { commitName, commitHash, branchName };
   } catch (error) {
     console.warn("Couldn't get git info", error);
 

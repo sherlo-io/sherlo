@@ -1,5 +1,4 @@
-import { execSync } from 'child_process';
-import { throwError } from '../../helpers';
+import { runShellCommand, throwError } from '../../helpers';
 
 const LEAR_MORE_LINK = 'https://docs.expo.dev/workflow/configuration/';
 
@@ -7,9 +6,9 @@ function getExpoSlug(projectRoot: string): string {
   let config;
 
   try {
-    const output = execSync('npx --yes expo config --json', {
-      encoding: 'utf-8',
-      cwd: projectRoot,
+    const output = runShellCommand({
+      command: 'npx --yes expo config --json',
+      projectRoot,
     });
 
     config = JSON.parse(output);

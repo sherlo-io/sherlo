@@ -1,14 +1,15 @@
-import { execSync } from 'child_process';
-import { throwError } from '../../helpers';
+import { runShellCommand, throwError } from '../../helpers';
 
 function getPlatformUpdateUrls({
   channel,
   easUpdateJsonOutput,
+  projectRoot,
 }: {
   channel?: string;
   easUpdateJsonOutput?: string;
+  projectRoot: string;
 }) {
-  if (channel) return getByChannel(channel);
+  if (channel) return getByChannel({ channel, projectRoot });
 
   if (easUpdateJsonOutput) return getByEasUpdateJsonOutput(easUpdateJsonOutput);
 
@@ -22,14 +23,14 @@ export default getPlatformUpdateUrls;
 
 /* ========================================================================== */
 
-function getByChannel(channel: string) {
+function getByChannel({ channel, projectRoot }: { channel: string; projectRoot: string }) {
   const urls: { android?: string; ios?: string } = {};
 
   try {
     // Run EAS channel view command and capture output
-    // TODO: dodac {cwd: projectRoot} we wszystkich execSync oraz execAsync (+ czemu one musza byc async????)
-    const result = execSync(`npx --yes eas channel:view ${channel} --json --non-interactive`, {
-      encoding: 'utf8',
+    const result = runShellCommand({
+      command: `npx --yes eas channel:view ${channel} --json --non-interactive`,
+      projectRoot,
     });
 
     const data = JSON.parse(result);
@@ -44,6 +45,8 @@ function getByChannel(channel: string) {
 
     // Extract URLs from update groups
     updateGroups.forEach((update: { platform: 'android' | 'ios'; manifestPermalink: string }) => {
+      // TODO: oprocz `manifestPermalink` wyciagac tez `createdAt`
+
       if (update.platform === 'android') {
         urls.android = update.manifestPermalink;
       } else if (update.platform === 'ios') {

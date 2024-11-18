@@ -1,4 +1,4 @@
-import { GetBuildUploadUrlsReturn, Platform } from '@sherlo/api-types';
+import { Platform } from '@sherlo/api-types';
 import chalk from 'chalk';
 import fs from 'fs';
 import fetch from 'node-fetch';
@@ -14,66 +14,60 @@ import throwError from './throwError';
 async function uploadOrLogBinaryReuse(
   paths: { android?: string; ios?: string },
   binariesInfo: {
-    android?: {
-      s3Key: string;
-      binaryBuildCreatedAt?: string;
-      binaryBuildIndex?: number;
-      url?: string;
-    };
-    ios?: {
-      s3Key: string;
-      binaryBuildCreatedAt?: string;
-      binaryBuildIndex?: number;
-      url?: string;
-    };
+    android?: { url?: string; buildIndex?: number; buildCreatedAt?: string };
+    ios?: { url?: string; buildIndex?: number; buildCreatedAt?: string };
   }
 ): Promise<void> {
-  if (binariesInfo.android?.url) {
-    if (!paths.android) {
-      throwError({
-        type: 'unexpected',
-        message: `${PLATFORM_LABEL.android} path is undefined`,
+  if (binariesInfo.android) {
+    if (!binariesInfo.android.url) {
+      logBinaryReuse({ platform: 'android', binariesInfo });
+    } else {
+      if (!paths.android) {
+        throwError({
+          type: 'unexpected',
+          message: `${PLATFORM_LABEL.android} path is undefined`,
+        });
+      }
+
+      await uploadFile({
+        platform: 'android',
+        path: paths.android,
+        uploadUrl: binariesInfo.android.url,
       });
     }
-
-    await uploadFile({
-      platform: 'android',
-      path: paths.android,
-      uploadUrl: binariesInfo.android.url,
-    });
-  } else if (binariesInfo.android?.s3Key) {
-    logBinaryReuse({ platform: 'android', binariesInfo });
   }
 
-  if (binariesInfo.ios?.url) {
-    if (!paths.ios) {
-      throwError({
-        type: 'unexpected',
-        message: `${PLATFORM_LABEL.ios} path is undefined`,
+  if (binariesInfo.ios) {
+    if (!binariesInfo.ios.url) {
+      logBinaryReuse({ platform: 'ios', binariesInfo });
+    } else {
+      if (!paths.ios) {
+        throwError({
+          type: 'unexpected',
+          message: `${PLATFORM_LABEL.ios} path is undefined`,
+        });
+      }
+
+      const iosPath = paths.ios;
+      const pathFileName = path.basename(iosPath);
+
+      let iosFileType: IOSFileType;
+
+      if (pathFileName.endsWith('.tar.gz')) {
+        iosFileType = '.tar.gz';
+      } else if (pathFileName.endsWith('.tar')) {
+        iosFileType = '.tar';
+      } else {
+        iosFileType = '.app';
+      }
+
+      await uploadFile({
+        platform: 'ios',
+        path: iosPath,
+        iosFileType,
+        uploadUrl: binariesInfo.ios.url,
       });
     }
-
-    const iosPath = paths.ios;
-    const pathFileName = path.basename(iosPath);
-
-    let iosFileType: IOSFileType;
-
-    if (pathFileName.endsWith('.tar.gz')) {
-      iosFileType = '.tar.gz';
-    } else if (pathFileName.endsWith('.tar')) {
-      iosFileType = '.tar';
-    } else {
-      iosFileType = '.app';
-    }
-
-    await uploadFile({
-      platform: 'ios',
-      path: iosPath,
-      iosFileType,
-      uploadUrl: binariesInfo.ios.url,
-    });
-  } else if (binariesInfo.ios?.s3Key) {
-    logBinaryReuse({ platform: 'ios', binariesInfo });
   }
 }
 
@@ -188,19 +182,22 @@ function logBinaryReuse({
   binariesInfo,
 }: {
   platform: Platform;
-  binariesInfo: GetBuildUploadUrlsReturn['buildPresignedUploadUrls'];
+  binariesInfo: {
+    android?: { buildIndex?: number; buildCreatedAt?: string };
+    ios?: { buildIndex?: number; buildCreatedAt?: string };
+  };
 }) {
   const platformInfo = binariesInfo[platform];
 
-  if (!platformInfo?.binaryBuildIndex || !platformInfo?.binaryBuildCreatedAt) {
+  if (!platformInfo?.buildIndex || !platformInfo?.buildCreatedAt) {
     throwError({
       type: 'unexpected',
       message: `${PLATFORM_LABEL[platform]} binary build info is incomplete`,
     });
   }
 
-  const buildIndex = platformInfo.binaryBuildIndex;
-  const timeAgo = getTimeAgo(platformInfo.binaryBuildCreatedAt);
+  const buildIndex = platformInfo.buildIndex;
+  const timeAgo = getTimeAgo(platformInfo.buildCreatedAt);
 
   logPlatformMessage({
     platform,

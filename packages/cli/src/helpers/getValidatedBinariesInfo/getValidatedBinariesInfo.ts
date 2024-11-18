@@ -1,14 +1,13 @@
-import { Platform } from '@sherlo/api-types';
+import { GetNextBuildInfoReturn, Platform } from '@sherlo/api-types';
 import SDKApiClient from '@sherlo/sdk-client';
-import { EXPO_CLOUD_BUILDS_COMMAND, PLATFORM_LABEL } from '../../constants';
+import { EXPO_CLOUD_BUILDS_COMMAND, EXPO_UPDATES_COMMAND, PLATFORM_LABEL } from '../../constants';
 import { Command, Config } from '../../types';
-import getBinariesUploadInfo from '../getBinariesUploadInfo';
 import getPlatformsToTest from '../getPlatformsToTest';
 import throwError from '../throwError';
-import getBinaryHashes from './getBinaryHashes';
-import getLocalBinariesInfo from './getLocalBinariesInfo';
+import getLocalBinariesInfo, { LocalBinariesInfo } from './getLocalBinariesInfo';
 import { BinariesInfo, BinaryInfo } from './types';
 import validateBinariesInfo from './validateBinariesInfo';
+import handleClientError from '../handleClientError';
 
 type Params = ExpoCloudBuildsParams | NonExpoCloudBuildsParams;
 
@@ -37,7 +36,9 @@ async function getValidatedBinariesInfo(
   let androidPath: string | undefined;
   let iosPath: string | undefined;
 
-  if (params.command === EXPO_CLOUD_BUILDS_COMMAND) {
+  const { client, command, projectIndex, teamId } = params;
+
+  if (command === EXPO_CLOUD_BUILDS_COMMAND) {
     platforms = [params.platform];
     androidPath = params.platform === 'android' ? params.buildPath : undefined;
     iosPath = params.platform === 'ios' ? params.buildPath : undefined;
@@ -47,54 +48,39 @@ async function getValidatedBinariesInfo(
     iosPath = params.config.ios;
   }
 
-  const binaryHashes = await getBinaryHashes({ platforms, androidPath, iosPath });
-
-  const binariesUploadInfo = await getBinariesUploadInfo(params.client, {
-    binaryHashes,
-    platforms,
-    projectIndex: params.projectIndex,
-    teamId: params.teamId,
-  });
-
   const localBinariesInfo = await getLocalBinariesInfo({
     paths: { android: androidPath, ios: iosPath },
     platforms,
   });
 
-  let android: BinaryInfo | undefined;
-  let ios: BinaryInfo | undefined;
+  const { binariesInfo: remoteBinariesInfoOrUploadInfo } = await client
+    .getNextBuildInfo({
+      binaryHashes: { android: localBinariesInfo.android?.hash, ios: localBinariesInfo.ios?.hash },
+      platforms,
+      projectIndex,
+      teamId,
+      binaryReuseMode:
+        command === EXPO_UPDATES_COMMAND ? 'requireHashMatchOrLatestIfMissing' : 'requireHashMatch',
+    })
+    .catch(handleClientError);
 
-  if (platforms.includes('android')) {
-    if (!binaryHashes.android || !binariesUploadInfo.android || !localBinariesInfo.android) {
-      throwError({
-        type: 'unexpected',
-        message: `${PLATFORM_LABEL.android} binary info is missing`,
-      });
-    }
+  const android = getBinaryInfo({
+    platform: 'android',
+    platforms,
+    localBinariesInfo,
+    remoteBinariesInfoOrUploadInfo,
+    command,
+  });
 
-    android = {
-      ...binariesUploadInfo.android,
-      ...localBinariesInfo.android,
-      hash: binaryHashes.android,
-    };
-  }
+  const ios = getBinaryInfo({
+    platform: 'ios',
+    platforms,
+    localBinariesInfo,
+    remoteBinariesInfoOrUploadInfo,
+    command,
+  });
 
-  if (platforms.includes('ios')) {
-    if (!binaryHashes.ios || !binariesUploadInfo.ios || !localBinariesInfo.ios) {
-      throwError({
-        type: 'unexpected',
-        message: `${PLATFORM_LABEL.ios} binary info is missing`,
-      });
-    }
-
-    ios = {
-      ...binariesUploadInfo.ios,
-      ...localBinariesInfo.ios,
-      hash: binaryHashes.ios,
-    };
-  }
-
-  validateBinariesInfo({ android, ios, command: params.command });
+  validateBinariesInfo({ android, ios, command });
 
   const sdkVersion = android?.sdkVersion || ios?.sdkVersion;
   if (!sdkVersion) {
@@ -108,3 +94,52 @@ async function getValidatedBinariesInfo(
 }
 
 export default getValidatedBinariesInfo;
+
+/* ========================================================================== */
+
+function getBinaryInfo({
+  platform,
+  platforms,
+  localBinariesInfo,
+  remoteBinariesInfoOrUploadInfo,
+  command,
+}: {
+  platform: Platform;
+  platforms: Platform[];
+  localBinariesInfo: LocalBinariesInfo;
+  remoteBinariesInfoOrUploadInfo: GetNextBuildInfoReturn['binariesInfo'];
+  command: Command;
+}): BinaryInfo | undefined {
+  if (!platforms.includes(platform)) {
+    return;
+  }
+
+  if (!remoteBinariesInfoOrUploadInfo[platform]) {
+    throwError({
+      type: 'unexpected',
+      message: `${PLATFORM_LABEL[platform]} remote binary info is missing`,
+    });
+  }
+
+  if (command !== EXPO_UPDATES_COMMAND && !localBinariesInfo[platform]) {
+    throwError({
+      type: 'unexpected',
+      message: `${PLATFORM_LABEL[platform]} local binary info or upload info is missing`,
+    });
+  }
+
+  const binaryInfo = {
+    ...remoteBinariesInfoOrUploadInfo[platform],
+    ...localBinariesInfo[platform],
+  };
+
+  // TODO: tutaj powinnismy rzucac error dla ExpoUpdates ze musi zauploadowac binarke
+  if (!binaryInfo.hash || !binaryInfo.isExpoDev) {
+    throwError({
+      type: 'unexpected',
+      message: `${PLATFORM_LABEL[platform]} binary info is missing required fields`,
+    });
+  }
+
+  return { ...binaryInfo, hash: binaryInfo.hash!, isExpoDev: binaryInfo.isExpoDev! };
+}

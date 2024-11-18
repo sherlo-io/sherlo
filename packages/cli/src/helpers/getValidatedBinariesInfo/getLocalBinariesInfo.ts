@@ -1,4 +1,6 @@
 import { Platform } from '@sherlo/api-types';
+import crypto from 'crypto';
+import fs from 'fs';
 import path from 'path';
 import throwError from '../throwError';
 import accessFileInArchive from './accessFileInArchive';
@@ -10,8 +12,8 @@ const SHERLO_JSON_PATH = `assets/${SHERLO_JSON_FILENAME}`;
 const ANDROID_EXPO_DEV_MENU_FILE_PATH = 'assets/EXDevMenuApp.android.js';
 const IOS_EXPO_DEV_MENU_FILE_PATH = 'EXDevMenu.bundle/EXDevMenuApp.ios.js';
 
-type LocalBinariesInfo = { android?: LocalBinaryInfo; ios?: LocalBinaryInfo };
-type LocalBinaryInfo = Pick<BinaryInfo, 'isExpoDev' | 'sdkVersion'>;
+export type LocalBinariesInfo = { android?: LocalBinaryInfo; ios?: LocalBinaryInfo };
+type LocalBinaryInfo = Pick<BinaryInfo, 'hash' | 'isExpoDev' | 'sdkVersion'>;
 
 async function getLocalBinariesInfo({
   paths,
@@ -65,16 +67,16 @@ async function getLocalBinaryInfoForPlatform({
   if (fileName.endsWith('.app')) {
     checkIsExpoDev = () =>
       accessFileInDirectory({
-        directory: platformPath,
-        file: expoDevFilePath,
         operation: 'exists',
+        file: expoDevFilePath,
+        directory: platformPath,
       });
 
     readSherloFile = () =>
       accessFileInDirectory({
-        directory: platformPath,
-        file: sherloFilePath,
         operation: 'read',
+        file: sherloFilePath,
+        directory: platformPath,
       });
   } else if (
     fileName.endsWith('.apk') ||
@@ -85,18 +87,18 @@ async function getLocalBinaryInfoForPlatform({
 
     checkIsExpoDev = () =>
       accessFileInArchive({
-        archive: platformPath,
-        file: expoDevFilePath,
-        type: archiveType,
         operation: 'exists',
+        file: expoDevFilePath,
+        archive: platformPath,
+        type: archiveType,
       });
 
     readSherloFile = () =>
       accessFileInArchive({
-        archive: platformPath,
-        file: sherloFilePath,
-        type: archiveType,
         operation: 'read',
+        file: sherloFilePath,
+        archive: platformPath,
+        type: archiveType,
       });
   } else {
     throwError({
@@ -105,10 +107,23 @@ async function getLocalBinaryInfoForPlatform({
     });
   }
 
+  const hash = await getBinaryHash(platformPath);
+
   const isExpoDev = await checkIsExpoDev();
 
   const sherloFileContent = await readSherloFile();
   const sdkVersion = sherloFileContent ? JSON.parse(sherloFileContent).version : undefined;
 
-  return { isExpoDev, sdkVersion };
+  return { hash, isExpoDev, sdkVersion };
+}
+
+async function getBinaryHash(filePath: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha256');
+    const stream = fs.createReadStream(filePath);
+
+    stream.on('data', (data) => hash.update(data));
+    stream.on('end', () => resolve(hash.digest('hex')));
+    stream.on('error', reject);
+  });
 }
