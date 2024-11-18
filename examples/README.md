@@ -5,7 +5,7 @@ This directory contains examples for different build strategies and app delivery
 ## Available Examples
 
 ### 1. Expo Cloud
-**[expo-cloud](./expo-cloud)**
+**[expo-cloud-builds](./expo-cloud-builds)**
 
 Use this example if you want to build your app through remote EAS (Expo Application Services) builds.
 

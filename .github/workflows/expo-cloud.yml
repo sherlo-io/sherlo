@@ -1,4 +1,4 @@
-name: TEST - expo-cloud mode
+name: TEST - expo-cloud-builds mode
 
 on:
   workflow_call:
@@ -42,10 +42,10 @@ jobs:
 
       # It's important to run Sherlo in the same job as the EAS build,
       # because we're pushing temporary files to .expo directory used during the build
-      - name: Run sherlo expo-cloud
+      - name: Run sherlo expo-cloud-builds
         run: |
-          yarn sherlo expo-cloud \
-            --manual \
+          yarn sherlo expo-cloud-builds \
+            --waitForEasBuild \
             --config ../../configs/default-devices.json \
             --projectRoot testing/expo-storybook-8 \
             --token ${{ secrets.SHERLO_EXPO_CLOUD_TOKEN }}

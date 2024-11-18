@@ -1,11 +1,11 @@
 {
-  "name": "@sherlo/example-expo-cloud",
+  "name": "@sherlo/example-expo-cloud-builds",
   "version": "1.0.34",
   "private": true,
   "main": "index.ts",
   "scripts": {
     "build:eas": "eas build --platform ios --profile=preview",
-    "sherlo": "sherlo expo-cloud --buildScript build:eas",
+    "sherlo": "sherlo expo-cloud-builds --buildScript build:eas",
     "eas-build-on-complete": "sherlo eas-build-on-complete --profile=preview"
   },
   "dependencies": {

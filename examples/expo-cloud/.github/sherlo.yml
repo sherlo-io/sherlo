@@ -1,4 +1,4 @@
-name: Example of a Sherlo workflow for expo-cloud
+name: Example of a Sherlo workflow for expo-cloud-builds
 
 on:
   workflow_dispatch:
@@ -21,8 +21,8 @@ jobs:
 
       # It's important to run Sherlo in the same job as the EAS build,
       # because we're pushing temporary files to .expo directory used during the build
-      - name: Run sherlo expo-cloud
-        run: yarn sherlo expo-cloud --manual --token ${{ secrets.SHERLO_TOKEN }}
+      - name: Run sherlo expo-cloud-builds
+        run: yarn sherlo expo-cloud-builds --manual --token ${{ secrets.SHERLO_TOKEN }}
 
       - name: Trigger EAS builds for both platforms
         run: eas build --profile=preview --platform=all --non-interactive --no-wait
