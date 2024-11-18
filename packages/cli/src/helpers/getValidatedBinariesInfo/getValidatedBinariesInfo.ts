@@ -133,8 +133,15 @@ function getBinaryInfo({
     ...localBinariesInfo[platform],
   };
 
+  console.log('\n\nlocalBinariesInfo', localBinariesInfo[platform]);
+
+  console.log('\n\nremoteBinariesInfoOrUploadInfo', remoteBinariesInfoOrUploadInfo[platform]);
+
+  console.log('\n\nbinaryInfo', binaryInfo);
+
   // TODO: tutaj powinnismy rzucac error dla ExpoUpdates ze musi zauploadowac binarke
-  if (!binaryInfo.hash || !binaryInfo.isExpoDev) {
+  // TODO: potrzeba null i undefined?
+  if (!binaryInfo.hash || binaryInfo.isExpoDev === undefined || binaryInfo.isExpoDev === null) {
     throwError({
       type: 'unexpected',
       message: `${PLATFORM_LABEL[platform]} binary info is missing required fields`,
