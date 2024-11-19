@@ -36,6 +36,8 @@ function getByChannel({ channel, projectRoot }: { channel: string; projectRoot: 
     const data = JSON.parse(result);
     const updateGroups = data.currentPage?.updateBranches?.[0]?.updateGroups?.[0];
 
+    console.log('getByChannel:data', data);
+
     if (!updateGroups) {
       throwError({
         message: `No updates found for channel "${channel}"`,
@@ -63,6 +65,8 @@ function getByChannel({ channel, projectRoot }: { channel: string; projectRoot: 
 
     return urls;
   } catch (error) {
+    console.log('getByChannel:error', error);
+
     throwError({
       message: `Failed to get update URLs for channel "${channel}"`,
       learnMoreLink: 'TODO: add link to docs',
