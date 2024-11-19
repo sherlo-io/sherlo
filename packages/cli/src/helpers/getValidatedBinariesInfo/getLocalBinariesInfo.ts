@@ -118,12 +118,51 @@ async function getLocalBinaryInfoForPlatform({
 }
 
 async function getBinaryHash(filePath: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const hash = crypto.createHash('sha256');
-    const stream = fs.createReadStream(filePath);
+  const stats = await fs.promises.stat(filePath);
 
-    stream.on('data', (data) => hash.update(data));
-    stream.on('end', () => resolve(hash.digest('hex')));
-    stream.on('error', reject);
-  });
+  if (!stats.isDirectory()) {
+    return new Promise((resolve, reject) => {
+      const hash = crypto.createHash('sha256');
+      const stream = fs.createReadStream(filePath);
+
+      stream.on('data', (data) => hash.update(data));
+      stream.on('end', () => resolve(hash.digest('hex')));
+      stream.on('error', reject);
+    });
+  }
+
+  // Directory handling
+  const hash = crypto.createHash('sha256');
+  const files = await getFilesRecursively(filePath);
+
+  // Sort files to ensure consistent order
+  files.sort();
+
+  for (const file of files) {
+    const relativePath = path.relative(filePath, file);
+    const content = await fs.promises.readFile(file);
+
+    // Update hash with relative path and content
+    hash.update(relativePath);
+    hash.update(content);
+  }
+
+  return hash.digest('hex');
+}
+
+async function getFilesRecursively(dir: string): Promise<string[]> {
+  const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+  const files: string[] = [];
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      files.push(...(await getFilesRecursively(fullPath)));
+    } else if (entry.isFile()) {
+      files.push(fullPath);
+    }
+  }
+
+  return files;
 }
