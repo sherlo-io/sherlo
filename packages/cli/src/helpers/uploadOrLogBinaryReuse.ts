@@ -1,9 +1,10 @@
 import { Platform } from '@sherlo/api-types';
 import chalk from 'chalk';
+import { exec } from 'child_process';
 import fs from 'fs';
 import fetch from 'node-fetch';
 import path from 'path';
-import tar from 'tar';
+import { promisify } from 'util';
 import zlib from 'zlib';
 import { PLATFORM_LABEL } from '../constants';
 import { IOSFileType } from '../types';
@@ -160,21 +161,37 @@ async function compressFileToGzip(filePath: string): Promise<Buffer> {
 }
 
 async function compressDirectoryToTarGzip(directoryPath: string): Promise<Buffer> {
-  const buffers: Buffer[] = [];
+  const execAsync = promisify(exec);
 
-  return new Promise<Buffer>((resolve, reject) => {
-    tar
-      .c(
-        {
-          gzip: true,
-          cwd: path.dirname(directoryPath),
-        },
-        [path.basename(directoryPath)]
-      )
-      .on('data', (data) => buffers.push(data))
-      .on('end', () => resolve(Buffer.concat(buffers)))
-      .on('error', reject);
-  });
+  try {
+    /**
+     * Create tar command that outputs gzipped tar to stdout:
+     * -c: create new archive
+     * -z: compress using gzip
+     * -f -: write to stdout (- is a special file meaning stdout)
+     * -C dir: change to directory before adding files (preserves relative paths)
+     * last arg: file/directory to add to archive
+     *
+     * Example for path "/foo/bar/myapp.app":
+     * - changes to "/foo/bar" directory (-C)
+     * - adds "myapp.app" to archive
+     * - results in archive with single top-level "myapp.app" entry
+     */
+    const command = `tar -czf - -C "${path.dirname(directoryPath)}" "${path.basename(directoryPath)}"`;
+
+    // Execute and get buffer directly
+    const { stdout } = await execAsync(command, {
+      encoding: 'buffer',
+      maxBuffer: 1 * 1024 * 1024 * 1024, // 1GB max buffer - very safe limit
+    });
+
+    return stdout;
+  } catch (error) {
+    throwError({
+      type: 'unexpected',
+      message: `Failed to compress directory: ${error.message}`,
+    });
+  }
 }
 
 function logBinaryReuse({
