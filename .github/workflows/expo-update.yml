@@ -55,8 +55,7 @@ jobs:
       - name: Trigger EAS update and capture manifest URLs
         working-directory: testing/expo-storybook-8
         run: |
-          EXPO_UPDATE_JSON=$(eas update --channel 'development' --message 'Expo Update' --json --non-interactive | jq -c '.')
-          echo "EXPO_UPDATE_JSON=$EXPO_UPDATE_JSON" >> $GITHUB_ENV
+          eas update --channel 'development' --message 'Expo Update' --json --non-interactive
 
       - name: Run sherlo expo-updates (with native builds)
         if: inputs.with_builds == true
@@ -66,7 +65,7 @@ jobs:
             --config ../../configs/${{ inputs.config }}.json \
             --android builds/development/android.apk \
             --ios builds/development/ios.tar.gz \
-            --easUpdateJsonOutput '${{ env.EXPO_UPDATE_JSON }}' \
+            --channel development \
             --token ${{ inputs.project == 'expo-updates' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}
 
       - name: Run sherlo expo-updates (without native builds)
@@ -75,5 +74,5 @@ jobs:
         run: |
           yarn sherlo expo-updates \
             --config ../../configs/${{ inputs.config }}.json \
-            --easUpdateJsonOutput '${{ env.EXPO_UPDATE_JSON }}' \
+            --channel development \
             --token ${{ inputs.project == 'expo-updates' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}
