@@ -23,6 +23,12 @@ async function asyncUploadPlatformBuild({
   sherloBuildProfile: string;
   token: string;
 }) {
+  console.log('[DEBUG] asyncUploadPlatformBuild CWD:', {
+    cwd: process.cwd(),
+    dirname: __dirname,
+    platform: process.env.EAS_BUILD_PLATFORM,
+  });
+
   const platform = process.env.EAS_BUILD_PLATFORM as Platform;
 
   const platformPath = getPlatformPath({ platform, sherloBuildProfile });
@@ -69,6 +75,20 @@ function getPlatformPath({
     });
   }
 
+  console.log('[DEBUG] Platform path resolved:', {
+    platform,
+    platformPath,
+    exists: fs.existsSync(platformPath),
+    stats: fs.existsSync(platformPath) ? fs.statSync(platformPath) : null,
+  });
+
+  console.log('[DEBUG] getPlatformPath CWD and resolved path:', {
+    cwd: process.cwd(),
+    dirname: __dirname,
+    platformPath,
+    absolutePath: path.resolve(platformPath),
+  });
+
   return platformPath;
 }
 
@@ -79,24 +99,56 @@ function getPlatformPathFromEasJson({
   platform: Platform;
   sherloBuildProfile: string;
 }): string | null {
-  const easJsonData = JSON.parse(fs.readFileSync('eas.json', 'utf8'));
+  console.log('[DEBUG] Attempting to read eas.json:', {
+    cwd: process.cwd(),
+    exists: fs.existsSync('eas.json'),
+    stats: fs.existsSync('eas.json') ? fs.statSync('eas.json') : null,
+  });
 
-  return easJsonData?.builds?.[platform]?.[sherloBuildProfile]?.applicationArchivePath ?? null;
+  try {
+    const easJsonData = JSON.parse(fs.readFileSync('eas.json', 'utf8'));
+    return easJsonData?.builds?.[platform]?.[sherloBuildProfile]?.applicationArchivePath ?? null;
+  } catch (error) {
+    console.error('[DEBUG] Error reading eas.json:', {
+      error: error.message,
+      code: error.code,
+      stack: error.stack,
+    });
+    return null;
+  }
 }
 
 function findDefaultIosAppPath() {
   const IOS_BUILD_PATH = 'ios/build/Build/Products/Release-iphonesimulator';
-  const fileNames = fs.readdirSync(IOS_BUILD_PATH);
 
-  for (let i = 0; i < fileNames.length; i++) {
-    const fileName = fileNames[i];
+  console.log('[DEBUG] Attempting to read iOS build directory:', {
+    path: IOS_BUILD_PATH,
+    cwd: process.cwd(),
+    exists: fs.existsSync(IOS_BUILD_PATH),
+    stats: fs.existsSync(IOS_BUILD_PATH) ? fs.statSync(IOS_BUILD_PATH) : null,
+  });
 
-    if (fileName.endsWith('.app')) {
-      return path.join(IOS_BUILD_PATH, fileName);
+  try {
+    const fileNames = fs.readdirSync(IOS_BUILD_PATH);
+    console.log('[DEBUG] iOS build directory contents:', fileNames);
+
+    for (let i = 0; i < fileNames.length; i++) {
+      const fileName = fileNames[i];
+
+      if (fileName.endsWith('.app')) {
+        return path.join(IOS_BUILD_PATH, fileName);
+      }
     }
-  }
 
-  return '';
+    return '';
+  } catch (error) {
+    console.error('[DEBUG] Error reading iOS build directory:', {
+      error: error.message,
+      code: error.code,
+      stack: error.stack,
+    });
+    return '';
+  }
 }
 
 async function asyncUploadMode({
@@ -110,6 +162,21 @@ async function asyncUploadMode({
   buildPath: string;
   platform: Platform;
 }): Promise<{ buildIndex: number; url: string }> {
+  console.log('[DEBUG] Starting asyncUploadMode:', {
+    buildIndex,
+    buildPath,
+    platform,
+    exists: fs.existsSync(buildPath),
+    stats: fs.existsSync(buildPath) ? fs.statSync(buildPath) : null,
+  });
+
+  console.log('[DEBUG] asyncUploadMode CWD and paths:', {
+    cwd: process.cwd(),
+    dirname: __dirname,
+    buildPath,
+    absoluteBuildPath: path.resolve(buildPath),
+  });
+
   const { apiToken, projectIndex, teamId } = getTokenParts(token);
   const client = SDKApiClient(apiToken);
 
