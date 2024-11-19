@@ -11,11 +11,11 @@ interface RunShellCommandOptions {
  */
 export function runShellCommand({ command, projectRoot }: RunShellCommandOptions): string {
   // Redirect stderr to null to suppress logs and warning messages
-  const silentCommand =
-    process.platform === 'win32' ? `${command} 2>NUL` : `${command} 2>/dev/null`;
+  // const silentCommand =
+  //   process.platform === 'win32' ? `${command} 2>NUL` : `${command} 2>/dev/null`;
 
   return (
-    execSync(silentCommand, {
+    execSync(command, {
       encoding: 'utf8',
       cwd: projectRoot,
     })
