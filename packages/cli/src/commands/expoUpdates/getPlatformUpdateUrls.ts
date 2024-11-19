@@ -29,7 +29,9 @@ function getByChannel({ channel, projectRoot }: { channel: string; projectRoot: 
   try {
     // Run EAS channel view command and capture output
     const result = runShellCommand({
-      command: `npx --yes eas channel:view ${channel} --json --non-interactive`,
+      // Commented out temporarily
+      // command: `npx --yes eas channel:view ${channel} --json --non-interactive`,
+      command: `eas channel:view ${channel} --json --non-interactive`,
       projectRoot,
     });
 
