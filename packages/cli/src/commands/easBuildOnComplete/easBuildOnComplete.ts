@@ -24,17 +24,6 @@ import getSherloTempData from './getSherloTempData';
  */
 
 async function easBuildOnComplete(options: { profile?: string }) {
-  console.log('[DEBUG] easBuildOnComplete started:', {
-    options,
-    env: {
-      EAS_BUILD_RUNNER: process.env.EAS_BUILD_RUNNER,
-      EAS_BUILD_PROFILE: process.env.EAS_BUILD_PROFILE,
-      EAS_BUILD_PLATFORM: process.env.EAS_BUILD_PLATFORM,
-      EAS_BUILD_STATUS: process.env.EAS_BUILD_STATUS,
-    },
-    cwd: process.cwd(),
-  });
-
   const wasAppBuiltLocally = process.env.EAS_BUILD_RUNNER !== 'eas-build';
   if (wasAppBuiltLocally) {
     logInfoMessage({

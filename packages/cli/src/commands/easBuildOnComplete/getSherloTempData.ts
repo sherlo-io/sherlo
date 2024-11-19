@@ -8,14 +8,8 @@ import {
 import { throwError } from '../../helpers';
 
 function getSherloTempData(): { buildIndex: number; token: string } {
+  // TODO: po co ta "."? + czy nie powinnismy tutaj przekazywac projectRoot? (najwidoczniej nie, bo dziala bez tego - czemu?)
   const SHERLO_TEMP_FILE_PATH = ['.', SHERLO_TEMP_DIRECTORY, SHERLO_TEMP_DATA_FILE].join('/');
-
-  console.log('[DEBUG] Attempting to read temp file:', {
-    path: SHERLO_TEMP_FILE_PATH,
-    cwd: process.cwd(),
-    exists: fs.existsSync(SHERLO_TEMP_FILE_PATH),
-    stats: fs.existsSync(SHERLO_TEMP_FILE_PATH) ? fs.statSync(SHERLO_TEMP_FILE_PATH) : null,
-  });
 
   if (!fs.existsSync(SHERLO_TEMP_FILE_PATH)) {
     throwError({
