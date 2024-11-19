@@ -1,4 +1,4 @@
-export { default as getValidatedBinariesInfo } from './getValidatedBinariesInfo';
+export { default as getValidatedBinariesInfoAndNextBuildIndex } from './getValidatedBinariesInfoAndNextBuildIndex';
 export { default as getValidatedConfig } from './getValidatedConfig';
 
 export { default as countDevicesByPlatform } from './countDevicesByPlatform';
@@ -20,6 +20,6 @@ export { default as printHeader } from './printHeader';
 export { default as runShellCommand } from './runShellCommand';
 export { default as throwConfigError } from './throwConfigError';
 export { default as throwError } from './throwError';
-export { default as uploadBuildsAndRunTests } from './uploadBuildsAndRunTests';
 export { default as uploadOrLogBinaryReuse } from './uploadOrLogBinaryReuse';
+export { default as uploadOrReuseBuildsAndRunTests } from './uploadOrReuseBuildsAndRunTests';
 export { default as validatePackages } from './validatePackages';

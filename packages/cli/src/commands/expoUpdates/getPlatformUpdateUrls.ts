@@ -2,16 +2,16 @@ import { runShellCommand, throwError } from '../../helpers';
 
 function getPlatformUpdateUrls({
   channel,
-  easUpdateJsonOutput,
+  // easUpdateJsonOutput,
   projectRoot,
 }: {
   channel?: string;
-  easUpdateJsonOutput?: string;
+  // easUpdateJsonOutput?: string;
   projectRoot: string;
 }) {
   if (channel) return getByChannel({ channel, projectRoot });
 
-  if (easUpdateJsonOutput) return getByEasUpdateJsonOutput(easUpdateJsonOutput);
+  // if (easUpdateJsonOutput) return getByEasUpdateJsonOutput(easUpdateJsonOutput);
 
   throwError({
     message: 'No channel or EAS update JSON output provided',
@@ -70,7 +70,7 @@ function getByChannel({ channel, projectRoot }: { channel: string; projectRoot: 
   }
 }
 
-function getByEasUpdateJsonOutput(easUpdateJsonOutput: string) {
+/* function getByEasUpdateJsonOutput(easUpdateJsonOutput: string) {
   const urls: { android?: string; ios?: string } = {};
 
   try {
@@ -111,4 +111,4 @@ function getByEasUpdateJsonOutput(easUpdateJsonOutput: string) {
   }
 
   return urls;
-}
+} */

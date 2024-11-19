@@ -6,13 +6,13 @@ import validateConfigToken from './validateConfigToken';
 
 function validateConfig(
   config: InvalidatedConfig,
-  { validatePlatformPaths }: { validatePlatformPaths: boolean }
+  { requirePlatformPaths }: { requirePlatformPaths: boolean }
 ): asserts config is Config {
   validateConfigToken(config);
 
   validateConfigDevices(config);
 
-  if (validatePlatformPaths) {
+  if (requirePlatformPaths) {
     validateConfigPlatforms(config);
   }
 

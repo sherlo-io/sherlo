@@ -4,7 +4,7 @@ import {
   getGitInfo,
   getOptionsWithDefaults,
   printHeader,
-  uploadBuildsAndRunTests,
+  uploadOrReuseBuildsAndRunTests,
   validatePackages,
 } from '../../helpers';
 import { Options } from '../../types';
@@ -18,9 +18,9 @@ async function localBuilds(
 
   const options = getOptionsWithDefaults(passedOptions);
 
-  const config = getValidatedConfig(options, { validatePlatformPaths: true });
+  const config = getValidatedConfig(options, { requirePlatformPaths: true });
 
-  return uploadBuildsAndRunTests({
+  return uploadOrReuseBuildsAndRunTests({
     config,
     gitInfo: options.gitInfo ?? getGitInfo(options.projectRoot),
   });

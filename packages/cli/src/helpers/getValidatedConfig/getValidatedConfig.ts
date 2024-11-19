@@ -6,7 +6,7 @@ import validateConfig from './validateConfig';
 
 function getValidatedConfig(
   options: Options<'any', 'withDefaults'>,
-  { validatePlatformPaths }: { validatePlatformPaths: boolean }
+  { requirePlatformPaths }: { requirePlatformPaths: boolean }
 ): Config {
   const configPath = path.resolve(options.projectRoot, options.config);
 
@@ -14,7 +14,7 @@ function getValidatedConfig(
 
   const config = getConfigValues(configFile, options);
 
-  validateConfig(config, { validatePlatformPaths });
+  validateConfig(config, { requirePlatformPaths });
 
   return config;
 }

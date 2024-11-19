@@ -4,7 +4,7 @@ import {
   getGitInfo,
   getOptionsWithDefaults,
   printHeader,
-  uploadBuildsAndRunTests,
+  uploadOrReuseBuildsAndRunTests,
   validatePackages,
 } from '../../helpers';
 import { Options } from '../../types';
@@ -36,8 +36,6 @@ import validateRequiredOptions from './validateRequiredOptions';
 
 // TODO: latest update for "development" channel was done only for iOS platform (2 hours ago) - you need to update both platforms if you want to test both platforms (config devices)
 
-// TODO: channel vs branch => + napisac do bbgun'a
-
 async function expoUpdates(
   passedOptions: Options<typeof EXPO_UPDATES_COMMAND, 'withoutDefaults'>
 ): Promise<{ buildIndex: number; url: string }> {
@@ -49,21 +47,22 @@ async function expoUpdates(
 
   const options = getOptionsWithDefaults(passedOptions);
 
-  // TODO: byc moze nie powinnismy tego wymagac tylko rzucac error na pozniejszym etapie jezeli sie okaze ze API nie zwrocilo nam buildow (ktore powinny byc trzymane na naszym serwerze)
-  // TODO: mozemy zostawic to wymagane ALE mozemy tez przekazywac dodatkowe info (i jezeli mamy binarki na serwerze to nie rzucac errora)
-  // TODO: lub mozemy ustawiac to na true/false
-  // const config = getValidatedConfig(options, { validatePlatformPaths: true }); // TODO: validatePlatformPaths -> requirePlatformPaths?
-  const config = getValidatedConfig(options, { validatePlatformPaths: false }); // TODO: validatePlatformPaths -> requirePlatformPaths?
+  const config = getValidatedConfig(options, {
+    requirePlatformPaths: false /* Platform paths are validated in getValidatedBinariesInfo() */,
+  });
 
-  const { channel, easUpdateJsonOutput, gitInfo, projectRoot } = options;
+  const { channel, /* easUpdateJsonOutput, */ gitInfo, projectRoot } = options;
 
-  const platformUpdateUrls = getPlatformUpdateUrls({ channel, easUpdateJsonOutput, projectRoot });
+  const platformUpdateUrls = getPlatformUpdateUrls({
+    channel,
+    // easUpdateJsonOutput,
+    projectRoot,
+  });
 
   // TODO: pozbyc sie na rzecz getValidatedPlatformUpdateUrls - powinno walidowac czy zwracane sa url'e dla wszystkich platform ktore sa w config.devices (podobnie jak w validateConfigPlatforms())
   validatePlatformUpdateUrls({ config, platformUpdateUrls });
 
-  // TODO: uploadOrReuseBuildsAndRunTests?
-  return uploadBuildsAndRunTests({
+  return uploadOrReuseBuildsAndRunTests({
     config,
     gitInfo: gitInfo ?? getGitInfo(projectRoot),
     expoUpdateInfo: {

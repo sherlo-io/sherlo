@@ -4,13 +4,13 @@ import { Config } from '../types';
 import getAppBuildUrl from './getAppBuildUrl';
 import getBuildRunConfig from './getBuildRunConfig';
 import getTokenParts from './getTokenParts';
+import getValidatedBinariesInfoAndNextBuildIndex from './getValidatedBinariesInfoAndNextBuildIndex';
 import handleClientError from './handleClientError';
 import logBuildIntroMessage from './logBuildIntroMessage';
 import logBuildResultsMessage from './logBuildResultsMessage';
 import uploadOrLogBinaryReuse from './uploadOrLogBinaryReuse';
-import getValidatedBinariesInfo from './getValidatedBinariesInfo';
 
-async function uploadBuildsAndRunTests({
+async function uploadOrReuseBuildsAndRunTests({
   config,
   gitInfo,
   expoUpdateInfo,
@@ -25,7 +25,7 @@ async function uploadBuildsAndRunTests({
   const { apiToken, projectIndex, teamId } = getTokenParts(config.token);
   const client = SDKApiClient(apiToken);
 
-  const binariesInfo = await getValidatedBinariesInfo({
+  const { binariesInfo, nextBuildIndex } = await getValidatedBinariesInfoAndNextBuildIndex({
     client,
     command: expoUpdateInfo ? 'expo-updates' : 'local-builds',
     config,
@@ -33,7 +33,8 @@ async function uploadBuildsAndRunTests({
     teamId,
   });
 
-  logBuildIntroMessage(config);
+  // TODO: zwracany nextBuildIndex jest nieprawidlowy -> rzucilo mi 91, a powinno byc 93 (widac ze na liscie projektow pokazuje 91 buildow, a jak sie wejdzie to widac ze aktualnie jest testowany 93.)
+  logBuildIntroMessage({ config, nextBuildIndex });
 
   await uploadOrLogBinaryReuse(config, binariesInfo);
 
@@ -66,4 +67,4 @@ async function uploadBuildsAndRunTests({
   return { buildIndex, url };
 }
 
-export default uploadBuildsAndRunTests;
+export default uploadOrReuseBuildsAndRunTests;

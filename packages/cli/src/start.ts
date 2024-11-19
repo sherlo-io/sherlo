@@ -7,7 +7,6 @@ import {
   CONFIG_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EAS_BUILD_SCRIPT_NAME_OPTION,
-  EAS_UPDATE_JSON_OUTPUT_OPTION,
   EXPO_CLOUD_BUILDS_COMMAND,
   EXPO_UPDATES_COMMAND,
   LOCAL_BUILDS_COMMAND,
@@ -79,21 +78,21 @@ async function start() {
       )
       .option(
         `--${PROFILE_OPTION} <profile_name>`,
-        `EAS build profile matching the one used in \`sherlo ${EXPO_CLOUD_BUILDS_COMMAND}\`` // TODO: EAS build profile used with the `eas build` command
+        `EAS build profile matching the one used with \`sherlo ${EXPO_CLOUD_BUILDS_COMMAND}\``
       )
       .action(easBuildOnComplete);
 
     program
       .command(EXPO_UPDATES_COMMAND)
-      .description('Run Sherlo with Expo updates')
+      .description('Run Sherlo with Expo Updates')
       .option(
         `--${CHANNEL_OPTION} <channel_name>`,
         'Name of the Expo update channel to retrieve the latest update'
       )
-      .option(
-        `--${EAS_UPDATE_JSON_OUTPUT_OPTION} <json_output>`,
-        'JSON output from the `eas update --json` command'
-      )
+      // .option(
+      //   `--${EAS_UPDATE_JSON_OUTPUT_OPTION} <json_output>`,
+      //   'JSON output from the `eas update --json` command'
+      // )
       .option(...sharedOptions[ANDROID_OPTION])
       .option(...sharedOptions[IOS_OPTION])
       .option(...sharedOptions[TOKEN_OPTION])

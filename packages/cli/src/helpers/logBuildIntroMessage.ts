@@ -3,7 +3,13 @@ import { Config } from '../types';
 import countDevicesByPlatform from './countDevicesByPlatform';
 import { PLATFORM_LABEL } from '../constants';
 
-function logBuildIntroMessage(config: Config) {
+function logBuildIntroMessage({
+  config,
+  nextBuildIndex,
+}: {
+  config: Config;
+  nextBuildIndex: number;
+}) {
   const platformCounts = countDevicesByPlatform(config.devices);
 
   const platformCountsMessage = [];
@@ -23,8 +29,7 @@ function logBuildIntroMessage(config: Config) {
 
   const deviceText = lastCount === 1 ? 'device' : 'devices';
   console.log(
-    // TODO: buildIndex
-    `${chalk.green('Build 42069')} tests will run on ${platformCountsMessage.join(' and ')} ${deviceText}\n`
+    `${chalk.green(`Build ${nextBuildIndex}`)} tests will run on ${platformCountsMessage.join(' and ')} ${deviceText}\n`
   );
 }
 

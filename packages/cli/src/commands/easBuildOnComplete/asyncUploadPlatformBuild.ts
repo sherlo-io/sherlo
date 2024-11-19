@@ -9,7 +9,7 @@ import {
   getTokenParts,
   handleClientError,
   getAppBuildUrl,
-  getValidatedBinariesInfo,
+  getValidatedBinariesInfoAndNextBuildIndex,
   uploadOrLogBinaryReuse,
   throwError,
 } from '../../helpers';
@@ -115,7 +115,7 @@ async function asyncUploadMode({
 
   // TODO: czy zipowac odrazu wszystko + czy hash jest zawsze identyczny?
 
-  const binariesInfo = await getValidatedBinariesInfo({
+  const { binariesInfo } = await getValidatedBinariesInfoAndNextBuildIndex({
     buildPath,
     client,
     command: EXPO_CLOUD_BUILDS_COMMAND,

@@ -54,7 +54,7 @@ async function expoCloudBuilds(
   validatePackages(EXPO_CLOUD_BUILDS_COMMAND);
 
   const options = getOptionsWithDefaults(passedOptions);
-  const config = getValidatedConfig(options, { validatePlatformPaths: false });
+  const config = getValidatedConfig(options, { requirePlatformPaths: false });
 
   const { easBuildScriptName, gitInfo, projectRoot, token } = { ...options, ...config };
 
@@ -75,7 +75,8 @@ async function expoCloudBuilds(
     });
   }
 
-  logBuildIntroMessage(config);
+  // TODO: nextBuildIndex
+  logBuildIntroMessage({ config, nextBuildIndex: 42069 });
 
   const platformsToTest = getPlatformsToTest(config.devices);
   platformsToTest.forEach((platform) => {

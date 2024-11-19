@@ -1,6 +1,12 @@
 import { GetNextBuildInfoReturn, Platform } from '@sherlo/api-types';
 import SDKApiClient from '@sherlo/sdk-client';
-import { EXPO_CLOUD_BUILDS_COMMAND, EXPO_UPDATES_COMMAND, PLATFORM_LABEL } from '../../constants';
+import {
+  ANDROID_OPTION,
+  EXPO_CLOUD_BUILDS_COMMAND,
+  EXPO_UPDATES_COMMAND,
+  IOS_OPTION,
+  PLATFORM_LABEL,
+} from '../../constants';
 import { Command, Config } from '../../types';
 import getPlatformsToTest from '../getPlatformsToTest';
 import throwError from '../throwError';
@@ -29,9 +35,9 @@ type BaseParams = {
   teamId: string;
 };
 
-async function getValidatedBinariesInfo(
+async function getValidatedBinariesInfoAndNextBuildIndex(
   params: Params
-): Promise<BinariesInfo & { sdkVersion: string }> {
+): Promise<{ binariesInfo: BinariesInfo & { sdkVersion: string }; nextBuildIndex: number }> {
   let platforms: Platform[];
   let androidPath: string | undefined;
   let iosPath: string | undefined;
@@ -53,14 +59,14 @@ async function getValidatedBinariesInfo(
     platforms,
   });
 
-  const { binariesInfo: remoteBinariesInfoOrUploadInfo } = await client
+  const { binariesInfo: remoteBinariesInfoOrUploadInfo, nextBuildIndex } = await client
     .getNextBuildInfo({
       binaryHashes: { android: localBinariesInfo.android?.hash, ios: localBinariesInfo.ios?.hash },
       platforms,
       projectIndex,
       teamId,
       binaryReuseMode:
-        command === EXPO_UPDATES_COMMAND ? 'requireHashMatchOrLatestIfMissing' : 'requireHashMatch',
+        command === EXPO_UPDATES_COMMAND ? 'requireHashMatchOrLatestExpoDev' : 'requireHashMatch',
     })
     .catch(handleClientError);
 
@@ -90,10 +96,10 @@ async function getValidatedBinariesInfo(
     });
   }
 
-  return { android, ios, sdkVersion };
+  return { binariesInfo: { android, ios, sdkVersion }, nextBuildIndex };
 }
 
-export default getValidatedBinariesInfo;
+export default getValidatedBinariesInfoAndNextBuildIndex;
 
 /* ========================================================================== */
 
@@ -117,14 +123,15 @@ function getBinaryInfo({
   if (!remoteBinariesInfoOrUploadInfo[platform]) {
     throwError({
       type: 'unexpected',
-      message: `${PLATFORM_LABEL[platform]} remote binary info is missing`,
+      message: `${PLATFORM_LABEL[platform]} remote binary info or upload info is missing`,
     });
   }
 
-  if (command !== EXPO_UPDATES_COMMAND && !localBinariesInfo[platform]) {
+  // Local binary info is always required for every non Expo Updates command
+  if (!localBinariesInfo[platform] && command !== EXPO_UPDATES_COMMAND) {
     throwError({
       type: 'unexpected',
-      message: `${PLATFORM_LABEL[platform]} local binary info or upload info is missing`,
+      message: `${PLATFORM_LABEL[platform]} local binary info is missing`,
     });
   }
 
@@ -133,19 +140,24 @@ function getBinaryInfo({
     ...localBinariesInfo[platform],
   };
 
-  console.log('\n\nlocalBinariesInfo', localBinariesInfo[platform]);
+  if (!binaryInfo.hash) {
+    if (command === EXPO_UPDATES_COMMAND) {
+      const pathFlag = `--${platform === 'android' ? ANDROID_OPTION : IOS_OPTION}`;
 
-  console.log('\n\nremoteBinariesInfoOrUploadInfo', remoteBinariesInfoOrUploadInfo[platform]);
-
-  console.log('\n\nbinaryInfo', binaryInfo);
-
-  // TODO: tutaj powinnismy rzucac error dla ExpoUpdates ze musi zauploadowac binarke
-  // TODO: potrzeba null i undefined?
-  if (!binaryInfo.hash || binaryInfo.isExpoDev === undefined || binaryInfo.isExpoDev === null) {
-    throwError({
-      type: 'unexpected',
-      message: `${PLATFORM_LABEL[platform]} binary info is missing required fields`,
-    });
+      throwError({
+        message:
+          `Missing path to development ${PLATFORM_LABEL[platform]} build (based on devices defined in config)` +
+          '\n\n' +
+          'You can provide it:\n' +
+          `• Using \`${pathFlag}\` flag\n` +
+          `• In Sherlo config file under "${platform}" key`,
+      });
+    } else {
+      throwError({
+        type: 'unexpected',
+        message: `${PLATFORM_LABEL[platform]} binary info is missing required fields`,
+      });
+    }
   }
 
   return { ...binaryInfo, hash: binaryInfo.hash!, isExpoDev: binaryInfo.isExpoDev! };
