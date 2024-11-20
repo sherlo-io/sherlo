@@ -64,11 +64,9 @@ function getByChannel({ channel, projectRoot }: { channel: string; projectRoot: 
 
     return urls;
   } catch (error) {
-    console.log('getByChannel:error', error);
-
     throwError({
-      message: `Failed to get update URLs for channel "${channel}"`,
-      learnMoreLink: 'TODO: add link to docs',
+      type: 'unexpected',
+      message: error.message,
     });
   }
 }
