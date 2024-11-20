@@ -5,6 +5,8 @@ import android.app.Activity;
 import android.util.Log;
 import android.os.Handler;
 import android.os.Looper;
+import android.content.Intent;
+import android.net.Uri;
 
 // React Native Bridge Imports
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -32,6 +34,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
     private static String syncDirectoryPath = "";
     private static String mode = "default"; // "default" / "storybook" / "testing" / "verification"
     private FileSystemHelper fileSystemHelper;
+    private static int expoUpdateDeeplinkConsumeCount = 0;
 
     public SherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -40,36 +43,31 @@ public class SherloModule extends ReactContextBaseJavaModule {
         Log.i(TAG, "Initializing SherloModule with default mode: " + this.mode);
 
         try {
-            // Set Sherlo directory path, this is the directory that will be
-            // used to sync files between the emulator and Sherlo Runner
-
-            // https://developer.android.com/reference/android/content/Context#getExternalFilesDir(java.lang.String)
+            // Set Sherlo directory path
             File externalDirectory = this.getReactApplicationContext().getExternalFilesDir(null);
             if (externalDirectory != null) {
                 this.syncDirectoryPath = externalDirectory.getAbsolutePath() + "/sherlo";
             } else {
                 this.handleError("ERROR_MODULE_INIT", "External storage is not accessible");
+                return;
             }
 
-            // This is the path to the config file created by the Sherlo Runner
             String configPath = this.syncDirectoryPath + "/" + CONFIG_FILENAME;
             Log.i(TAG, "Looking for config file at: " + configPath);
 
-            // If the file exists, we are it testing mode and will open the
-            // Storybook in single activity mode, without launching the app
+            // If the file exists, we are in testing mode
             File sherloConfigFile = new File(configPath);
             if (sherloConfigFile.exists()) {
                 Log.i(TAG, "Config file exists");
                 String configJson = fileSystemHelper.readFile(configPath);
                 
-                // Add validation for the config content
                 if (configJson == null || configJson.trim().isEmpty()) {
                     Log.w(TAG, "Config file is empty");
                     return;
                 }
 
                 try {
-                    // Try to decode if the content is base64 encoded
+                    // Try to decode if base64 encoded
                     byte[] decodedBytes = android.util.Base64.decode(configJson, android.util.Base64.DEFAULT);
                     configJson = new String(decodedBytes, "UTF-8");
                 } catch (Exception e) {
@@ -78,11 +76,27 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
                 try {
                     JSONObject config = new JSONObject(configJson);
+                    
+                    // Check for override mode first
                     if (config.has("overrideMode")) {
                         Log.i(TAG, "Running in " + config.getString("overrideMode") + " mode");
                         this.mode = config.getString("overrideMode");
+                        return;
+                    }
+
+                    // Check for expo update deeplink
+                    if (config.has("expoUpdateDeeplink")) {
+                        Log.i(TAG, "Consuming expo update deeplink");
+                        
+                        if (expoUpdateDeeplinkConsumeCount < 1) {
+                            expoUpdateDeeplinkConsumeCount++;
+                        } else {
+                            // After the URL has been consumed twice, we are in testing mode
+                            this.mode = "testing";
+                        }
                     } else {
-                        Log.i(TAG, "Running in testing mode");
+                        // If no expo update deeplink, immediately set to testing mode
+                        Log.i(TAG, "No expo update deeplink, setting to testing mode");
                         this.mode = "testing";
                     }
                 } catch (Exception e) {

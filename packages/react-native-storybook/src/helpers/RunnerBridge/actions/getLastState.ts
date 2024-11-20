@@ -17,6 +17,7 @@ function getLastState(path: string, log: LogFn): GetLastStateFn {
   > {
     try {
       const response = await SherloModule.readFile(path);
+
       if (response) {
         const responseLines = response.split('\n');
         let ackStart: AckStartProtocolItem | undefined;
@@ -62,7 +63,7 @@ function getLastState(path: string, log: LogFn): GetLastStateFn {
 
       return undefined;
     } catch (error) {
-      log('await ack message error', { error });
+      log('getLastState error', { error });
     }
   };
 }
