@@ -8,6 +8,9 @@ import type { Meta } from '@storybook/react';
 export default {
   component: ExpoUpdateInfo,
   decorators: [StoryDecorator({ placement: 'center' })],
+  parameters: {
+    noSafeArea: true,
+  },
 } as Meta<typeof ExpoUpdateInfo>;
 
 export const Basic = {};
