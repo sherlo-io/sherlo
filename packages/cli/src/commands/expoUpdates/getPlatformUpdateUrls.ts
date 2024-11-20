@@ -29,14 +29,13 @@ function getByChannel({ channel, projectRoot }: { channel: string; projectRoot: 
   try {
     // Run EAS channel view command and capture output
     const result = runShellCommand({
-      command: `npx --yes eas-cli channel:view ${channel} --json --non-interactive`,
+      // command: `npx --yes eas-cli channel:view ${channel} --json --non-interactive`,
+      command: `npx --yes eas channel:view ${channel} --json --non-interactive`,
       projectRoot,
     });
 
     const data = JSON.parse(result);
     const updateGroups = data.currentPage?.updateBranches?.[0]?.updateGroups?.[0];
-
-    console.log('getByChannel:data', data);
 
     if (!updateGroups) {
       throwError({
