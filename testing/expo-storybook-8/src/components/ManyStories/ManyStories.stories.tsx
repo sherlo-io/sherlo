@@ -7,14 +7,11 @@ export default {
   parameters: {
     noSafeArea: true,
   },
-} as Meta<typeof View>;
+} as Meta<typeof TestInfo>;
 
 const storyOfColor = (hexColor: string) => ({
   args: {
-    style: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: hexColor,
-    },
+    backgroundColor: hexColor,
   },
 });
 
