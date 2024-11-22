@@ -4,8 +4,8 @@ import * as Localization from 'expo-localization';
 import { useColorScheme } from 'react-native';
 import { InfoItem } from './InfoItem';
 
-const getContrastTextColor = (backgroundColor: string = '') => {
-  if (!backgroundColor) return '#000000';
+const getContrastTextColor = (backgroundColor: string | undefined) => {
+  if (!backgroundColor) return undefined;
 
   const hex = backgroundColor.replace('#', '');
   const r = parseInt(hex.substr(0, 2), 16) / 255;
