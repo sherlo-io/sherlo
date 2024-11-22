@@ -1,6 +1,5 @@
 import { TestInfo } from '@sherlo/testing-components';
 import type { Meta } from '@storybook/react';
-import { StyleSheet, View } from 'react-native';
 
 export default {
   component: TestInfo,
