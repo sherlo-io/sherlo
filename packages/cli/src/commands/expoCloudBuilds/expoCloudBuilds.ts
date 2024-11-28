@@ -1,124 +1,99 @@
 import SDKApiClient from '@sherlo/sdk-client';
-import chalk from 'chalk';
-import {
-  DOCS_LINK,
-  EXPO_CLOUD_BUILDS_COMMAND,
-  EAS_BUILD_SCRIPT_NAME_OPTION,
-  WAIT_FOR_EAS_BUILD_OPTION,
-} from '../../constants';
+import { EXPO_CLOUD_BUILDS_COMMAND } from '../../constants';
 import {
   getAppBuildUrl,
   getBuildRunConfig,
   getGitInfo,
-  getOptionsWithDefaults,
   getTokenParts,
-  getValidatedConfig,
   handleClientError,
   logBuildIntroMessage,
-  logBuildResultsMessage,
-  logPlatformMessage,
+  logBuildMessage,
+  logBuildPlatformLabel,
+  logResultsUrl,
   printHeader,
-  throwError,
   validatePackages,
   getPlatformsToTest,
+  getValidatedCommandParams,
 } from '../../helpers';
 import { Options } from '../../types';
-import assertPackageJsonScriptExists from './assertPackageJsonScriptExists';
-import createSherloTempDirectory from './createSherloTempDirectory';
-import removeSherloTempDirectory from './removeSherloTempDirectory';
-import runScript from './runScript';
+import { THIS_COMMAND } from './constants';
+import {
+  createSherloTempDirectory,
+  removeSherloTempDirectory,
+  runScript,
+  validatePackageJsonScripts,
+} from './helpers';
 
-const EAS_BUILD_SCRIPT_NAME_FLAG = `--${EAS_BUILD_SCRIPT_NAME_OPTION}`;
-const WAIT_FOR_EAS_BUILD_FLAG = `--${WAIT_FOR_EAS_BUILD_OPTION}`;
-
-async function expoCloudBuilds(
-  passedOptions: Options<typeof EXPO_CLOUD_BUILDS_COMMAND, 'withoutDefaults'>
-) {
+async function expoCloudBuilds(passedOptions: Options<THIS_COMMAND>) {
   printHeader();
-
-  if (!passedOptions[EAS_BUILD_SCRIPT_NAME_OPTION] && !passedOptions[WAIT_FOR_EAS_BUILD_OPTION]) {
-    throwError({
-      message: `either \`${EAS_BUILD_SCRIPT_NAME_FLAG}\` or \`${WAIT_FOR_EAS_BUILD_FLAG}\` must be provided`,
-      learnMoreLink: 'TODO: dodac link do docsow',
-    });
-  } else if (
-    passedOptions[EAS_BUILD_SCRIPT_NAME_OPTION] &&
-    passedOptions[WAIT_FOR_EAS_BUILD_OPTION]
-  ) {
-    throwError({
-      message: `\`${EAS_BUILD_SCRIPT_NAME_FLAG}\` and \`${WAIT_FOR_EAS_BUILD_FLAG}\` cannot be used together`,
-      learnMoreLink: 'TODO: dodac link do docsow',
-    });
-  }
 
   validatePackages(EXPO_CLOUD_BUILDS_COMMAND);
 
-  const options = getOptionsWithDefaults(passedOptions);
-  const config = getValidatedConfig(options, { requirePlatformPaths: false });
+  const commandParams = getValidatedCommandParams(
+    { command: EXPO_CLOUD_BUILDS_COMMAND, passedOptions },
+    {
+      /*
+       * We don't require platform paths here because builds are uploaded later
+       * from Expo servers using the easBuildOnComplete command
+       */
+      requirePlatformPaths: false,
+    }
+  );
 
-  const { easBuildScriptName, gitInfo, projectRoot, token } = { ...options, ...config };
+  validatePackageJsonScripts(commandParams);
 
-  const easBuildOnCompleteScriptName = 'eas-build-on-complete';
-  assertPackageJsonScriptExists({
-    projectRoot,
-    scriptName: easBuildOnCompleteScriptName,
-    errorMessage: `script "${easBuildOnCompleteScriptName}" is not defined in package.json`,
-    learnMoreLink: DOCS_LINK.remoteExpoBuilds,
-  });
+  // TODO: callOpenBuild ?
 
-  if (easBuildScriptName) {
-    assertPackageJsonScriptExists({
-      projectRoot,
-      scriptName: easBuildScriptName,
-      errorMessage: `script "${easBuildScriptName}" passed by \`${EAS_BUILD_SCRIPT_NAME_FLAG}\` is not defined in package.json`,
-      learnMoreLink: DOCS_LINK.sherloScriptExpoRemoteBuilds,
-    });
-  }
-
-  // TODO: nextBuildIndex
-  logBuildIntroMessage({ config, nextBuildIndex: 42069 });
-
-  const platformsToTest = getPlatformsToTest(config.devices);
-  platformsToTest.forEach((platform) => {
-    logPlatformMessage({
-      platform,
-      message: 'EAS build pending...',
-      type: 'info',
-      endsWithNewLine: true,
-    });
-  });
-
-  const { apiToken, projectIndex, teamId } = getTokenParts(token);
+  const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
   const client = SDKApiClient(apiToken);
 
   const { build } = await client
     .openBuild({
       teamId,
       projectIndex,
-      gitInfo: gitInfo ?? getGitInfo(projectRoot),
+      gitInfo: commandParams.gitInfo ?? getGitInfo(commandParams.projectRoot),
       asyncUpload: true,
-      buildRunConfig: getBuildRunConfig({ config }),
+      buildRunConfig: getBuildRunConfig({ commandParams }),
     })
     .catch(handleClientError);
 
   const buildIndex = build.index;
 
-  createSherloTempDirectory({ buildIndex, projectRoot, token });
+  logBuildIntroMessage({ commandParams, nextBuildIndex: buildIndex });
+
+  const platformsToTest = getPlatformsToTest(commandParams.devices);
+  platformsToTest.forEach((platform) => {
+    logBuildPlatformLabel(platform);
+
+    logBuildMessage({
+      message: 'EAS build pending...',
+      type: 'info',
+      endsWithNewLine: true,
+    });
+  });
+
+  if (commandParams.easBuildScriptName) {
+    console.log(`🚀 Initiating EAS build via script "${commandParams.easBuildScriptName}"...\n`);
+  } else {
+    console.log('⏳ Waiting for EAS build initiation...\n');
+  }
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
-  logBuildResultsMessage(url);
+  logResultsUrl(url);
 
-  if (easBuildScriptName) {
-    console.log(chalk.gray(`Starting EAS build script "${easBuildScriptName}":\n`));
+  createSherloTempDirectory({
+    buildIndex,
+    projectRoot: commandParams.projectRoot,
+    token: commandParams.token,
+  });
 
+  if (commandParams.easBuildScriptName) {
     runScript({
-      projectRoot,
-      scriptName: easBuildScriptName,
-      onExit: () => removeSherloTempDirectory(projectRoot),
+      projectRoot: commandParams.projectRoot,
+      scriptName: commandParams.easBuildScriptName,
+      onExit: () => removeSherloTempDirectory(commandParams.projectRoot),
     });
-  } else {
-    console.log(chalk.gray('Please run `eas build` to start the cloud build process...\n'));
   }
 
   return { buildIndex, url };

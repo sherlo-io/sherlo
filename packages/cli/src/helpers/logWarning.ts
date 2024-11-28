@@ -1,30 +1,16 @@
 import chalk from 'chalk';
-import getLogLink from './getLogLink';
+import { getLogLink } from './shared';
 
-type WarningType = 'config' | 'default';
+function logWarning({ learnMoreLink, message }: { message: string; learnMoreLink?: string }): void {
+  const warningMessage = chalk.yellow(`WARNING: ${message}`);
 
-const typeLabel: { [type in WarningType]: string } = {
-  default: 'Warning',
-  config: 'Config Warning',
-};
+  const warningLines = [warningMessage];
 
-function logWarning({
-  learnMoreLink,
-  message,
-  type = 'default',
-}: {
-  message: string;
-  learnMoreLink?: string;
-  type?: WarningType;
-}): void {
-  console.log(
-    [
-      chalk.yellow(`${typeLabel[type]}: ${message}`),
-      learnMoreLink ? `↳ Learn more: ${getLogLink(learnMoreLink)}` : null,
-    ]
-      .filter((v) => v !== null)
-      .join('\n') + '\n'
-  );
+  if (learnMoreLink) {
+    warningLines.push(`↳ Learn more: ${getLogLink(learnMoreLink)}`);
+  }
+
+  console.log(warningLines.join('\n') + '\n');
 }
 
 export default logWarning;

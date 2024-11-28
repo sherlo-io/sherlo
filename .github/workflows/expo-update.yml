@@ -1,4 +1,4 @@
-name: TEST - expo-updates mode
+name: TEST - expo-update mode
 
 on:
   workflow_call:
@@ -13,7 +13,7 @@ on:
         default: 'default-devices'
         type: string
       project:
-        description: 'Project (expo-updates, device-testing, many-stories)'
+        description: 'Project (expo-update, device-testing, many-stories)'
         required: true
         type: string
       with_builds:
@@ -24,7 +24,7 @@ on:
 
 jobs:
   run_sherlo_expo_update:
-    name: Run Sherlo in expo-updates mode
+    name: Run Sherlo in expo-update mode
     environment: ${{ inputs.env }}
     runs-on: ubuntu-latest
     steps:
@@ -57,22 +57,22 @@ jobs:
         run: |
           eas update --channel 'development' --message 'Expo Update' --json --non-interactive
 
-      - name: Run sherlo expo-updates (with native builds)
+      - name: Run sherlo expo-update (with native builds)
         if: inputs.with_builds == true
         working-directory: testing/expo-storybook-8
         run: |
-          yarn sherlo expo-updates \
+          yarn sherlo expo-update \
             --config ../../configs/${{ inputs.config }}.json \
             --android builds/development/android.apk \
             --ios builds/development/ios.tar.gz \
             --channel development \
-            --token ${{ inputs.project == 'expo-updates' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}
+            --token ${{ inputs.project == 'expo-update' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}
 
-      - name: Run sherlo expo-updates (without native builds)
+      - name: Run sherlo expo-update (without native builds)
         if: inputs.with_builds == false
         working-directory: testing/expo-storybook-8
         run: |
-          yarn sherlo expo-updates \
+          yarn sherlo expo-update \
             --config ../../configs/${{ inputs.config }}.json \
             --channel development \
-            --token ${{ inputs.project == 'expo-updates' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}
+            --token ${{ inputs.project == 'expo-update' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}

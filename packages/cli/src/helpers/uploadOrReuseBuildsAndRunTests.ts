@@ -1,42 +1,47 @@
-import { Build } from '@sherlo/api-types';
 import SDKApiClient from '@sherlo/sdk-client';
-import { Config } from '../types';
+import chalk from 'chalk';
+import { EXPO_UPDATE_COMMAND, LOCAL_BUILDS_COMMAND } from '../constants';
+import { CommandParams, ExpoUpdateData } from '../types';
 import getAppBuildUrl from './getAppBuildUrl';
-import getBuildRunConfig from './getBuildRunConfig';
 import getTokenParts from './getTokenParts';
 import getValidatedBinariesInfoAndNextBuildIndex from './getValidatedBinariesInfoAndNextBuildIndex';
-import handleClientError from './handleClientError';
 import logBuildIntroMessage from './logBuildIntroMessage';
-import logBuildResultsMessage from './logBuildResultsMessage';
+import logResultsUrl from './logResultsUrl';
+import handleClientError from './handleClientError';
+import getBuildRunConfig from './getBuildRunConfig';
+import getGitInfo from './getGitInfo';
 import uploadOrLogBinaryReuse from './uploadOrLogBinaryReuse';
 
 async function uploadOrReuseBuildsAndRunTests({
-  config,
-  gitInfo,
-  expoUpdateInfo,
+  commandParams,
+  expoUpdateData,
 }: {
-  config: Config<'withBuildPaths'>;
-  gitInfo: Build['gitInfo'];
-  expoUpdateInfo?: {
-    slug: string;
-    platformUpdateUrls: { android?: string; ios?: string };
-  };
+  commandParams: CommandParams;
+  expoUpdateData?: ExpoUpdateData;
 }): Promise<{ buildIndex: number; url: string }> {
-  const { apiToken, projectIndex, teamId } = getTokenParts(config.token);
+  const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
   const client = SDKApiClient(apiToken);
 
   const { binariesInfo, nextBuildIndex } = await getValidatedBinariesInfoAndNextBuildIndex({
     client,
-    command: expoUpdateInfo ? 'expo-updates' : 'local-builds',
-    config,
+    command: expoUpdateData ? EXPO_UPDATE_COMMAND : LOCAL_BUILDS_COMMAND,
+    commandParams,
     projectIndex,
     teamId,
   });
 
-  // TODO: zwracany nextBuildIndex jest nieprawidlowy -> rzucilo mi 91, a powinno byc 93 (widac ze na liscie projektow pokazuje 91 buildow, a jak sie wejdzie to widac ze aktualnie jest testowany 93.)
-  logBuildIntroMessage({ config, nextBuildIndex });
+  logBuildIntroMessage({ commandParams, nextBuildIndex });
 
-  await uploadOrLogBinaryReuse(config, binariesInfo);
+  await uploadOrLogBinaryReuse({
+    binariesInfo,
+    projectRoot: commandParams.projectRoot,
+    android: commandParams.android,
+    ios: commandParams.ios,
+  });
+
+  if (expoUpdateData) {
+    logExpoUpdateData(expoUpdateData);
+  }
 
   const { build } = await client
     .openBuild({
@@ -48,23 +53,36 @@ async function uploadOrReuseBuildsAndRunTests({
         ios: binariesInfo.ios?.hash,
       },
       buildRunConfig: getBuildRunConfig({
-        config,
+        commandParams,
         binaryS3Keys: {
           android: binariesInfo.android?.s3Key,
           ios: binariesInfo.ios?.s3Key,
         },
-        expoUpdateInfo,
+        expoUpdateData,
       }),
-      gitInfo,
+      gitInfo: commandParams.gitInfo ?? getGitInfo(commandParams.projectRoot),
     })
     .catch(handleClientError);
 
   const buildIndex = build.index;
+
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
-  logBuildResultsMessage(url);
+  logResultsUrl(url);
 
   return { buildIndex, url };
 }
 
 export default uploadOrReuseBuildsAndRunTests;
+
+/* ========================================================================== */
+
+function logExpoUpdateData(expoUpdateData: ExpoUpdateData) {
+  console.log(
+    `🔄 ${chalk.bold('Expo Update')}\n` +
+      `└─ message: ${expoUpdateData.message}\n` +
+      `└─ created: ${chalk.blue(expoUpdateData.timeAgo)}\n` +
+      `└─ author: ${chalk.blue(expoUpdateData.author)}\n` +
+      `└─ branch: ${chalk.blue(expoUpdateData.branch)}\n`
+  );
+}

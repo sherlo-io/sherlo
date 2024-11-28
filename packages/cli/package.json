@@ -24,7 +24,7 @@
     "sdk-compatibility.json"
   ],
   "scripts": {
-    "build": "rm -rf dist && ncc build src/index.ts -o dist && chmod u+x ./dist/index.js"
+    "build": "rm -rf dist && ncc build src/index.ts --source-map --minify && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js"
   },
   "devDependencies": {
     "@sherlo/api-types": "1.1.9",

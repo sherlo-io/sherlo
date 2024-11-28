@@ -2,20 +2,14 @@ import SDKApiClient from '@sherlo/sdk-client';
 import process from 'process';
 import {
   DOCS_LINK,
-  EAS_BUILD_ON_COMPLETE_COMMAND,
   EXPO_CLOUD_BUILDS_COMMAND,
   LOCAL_BUILDS_COMMAND,
   PROFILE_OPTION,
 } from '../../constants';
-import {
-  getTokenParts,
-  handleClientError,
-  logInfoMessage,
-  printHeader,
-  throwError,
-} from '../../helpers';
-import asyncUploadPlatformBuild from './asyncUploadPlatformBuild';
-import getSherloTempData from './getSherloTempData';
+import { getTokenParts, handleClientError, logInfo, printHeader, throwError } from '../../helpers';
+import { Options } from '../../types';
+import { THIS_COMMAND } from './constants';
+import { asyncUploadBuildAndRunTests, getSherloTempData } from './helpers';
 
 /**
  * Build lifecycle hooks: https://docs.expo.dev/build-reference/npm-hooks/
@@ -23,46 +17,56 @@ import getSherloTempData from './getSherloTempData';
  * Secrets in environment variables: https://docs.expo.dev/build-reference/variables/#using-secrets-in-environment-variables
  */
 
-async function easBuildOnComplete(options: { profile?: string }) {
+async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
+  printHeader();
+
   const wasAppBuiltLocally = process.env.EAS_BUILD_RUNNER !== 'eas-build';
+  const passedProfile = passedOptions.profile;
+  const easBuildProfile = process.env.EAS_BUILD_PROFILE;
+
   if (wasAppBuiltLocally) {
-    logInfoMessage({
-      message: `\`sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND}\` command works only with \`sherlo ${EXPO_CLOUD_BUILDS_COMMAND}\`; to test builds available locally, use \`sherlo ${LOCAL_BUILDS_COMMAND}\``,
+    logInfo({
+      message:
+        'EAS builds were created locally\n\n' +
+        `The \`sherlo ${THIS_COMMAND}\` command works only with \`sherlo ${EXPO_CLOUD_BUILDS_COMMAND}\`\n` +
+        `To test builds available locally, use \`sherlo ${LOCAL_BUILDS_COMMAND}\` instead\n`,
       // TODO: link do poprawy?
       learnMoreLink: DOCS_LINK.sherloScriptLocalBuilds,
-      startWithNewLine: true,
     });
 
     return;
   }
 
-  const optionProfile = options.profile;
-  const easBuildProfile = process.env.EAS_BUILD_PROFILE;
-
-  if (!optionProfile) {
+  if (!passedProfile) {
     throwError({
-      // TODO: poprawic tekst?
-      message: `you must use the same EAS \`--${PROFILE_OPTION}\` in the \`sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND}\` command as the one configured for Sherlo test builds`,
-      // TODO: poprawic link?
+      message:
+        `The \`--${PROFILE_OPTION}\` flag is required for \`sherlo ${THIS_COMMAND}\`\n\n` +
+        'Please specify the EAS profile that will be used for testing your builds with Sherlo\n',
+      // TODO: ?
       learnMoreLink: DOCS_LINK.remoteExpoBuilds,
     });
   }
 
   // Skip if EAS build profile doesn't match
-  if (optionProfile !== easBuildProfile) {
-    logInfoMessage({
-      // TODO: poprawic tekst?
-      message: `Sherlo skipped testing - current EAS build profile "${easBuildProfile}" doesn't match the profile "${optionProfile}" specified in \`sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND}\` command`,
+  if (passedProfile !== easBuildProfile) {
+    logInfo({
+      message:
+        'Sherlo tests skipped - EAS profiles mismatch\n\n' +
+        `Current build used "${easBuildProfile}" profile while \`sherlo ${THIS_COMMAND}\` was called with "${passedProfile}"\n`,
+      // TODO: ?
       learnMoreLink: DOCS_LINK.remoteExpoBuilds,
-      startWithNewLine: true,
     });
 
     return;
   }
 
-  printHeader();
+  const sherloTempData = getSherloTempData();
 
-  const { buildIndex, token } = getSherloTempData();
+  if (!sherloTempData) {
+    return;
+  }
+
+  const { buildIndex, token } = sherloTempData;
 
   // Build failed on Expo servers
   if (process.env.EAS_BUILD_STATUS === 'errored') {
@@ -78,11 +82,14 @@ async function easBuildOnComplete(options: { profile?: string }) {
       })
       .catch(handleClientError);
 
-    throwError({ message: 'canceled due to error on Expo servers' });
+    throwError({
+      message:
+        "Sherlo test can't be executed - EAS build failed on Expo servers\n\n" +
+        'The test has been marked as errored in Sherlo web app',
+    });
   }
 
-  // Upload the platform build
-  await asyncUploadPlatformBuild({ buildIndex, sherloBuildProfile: optionProfile, token });
+  await asyncUploadBuildAndRunTests({ buildIndex, easBuildProfile: passedProfile, token });
 }
 
 export default easBuildOnComplete;

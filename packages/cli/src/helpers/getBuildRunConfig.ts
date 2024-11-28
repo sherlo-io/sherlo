@@ -1,20 +1,17 @@
 import { BuildRun, Device, Platform } from '@sherlo/api-types';
 import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER, DEVICES } from '@sherlo/shared';
-import { Config } from '../types';
+import { CommandParams, Config, ExpoUpdateData } from '../types';
 
 function getBuildRunConfig({
-  config,
+  commandParams,
   binaryS3Keys,
-  expoUpdateInfo,
+  expoUpdateData,
 }: {
-  config: Config<'withBuildPaths'> | Config<'withoutBuildPaths'>;
+  commandParams: CommandParams;
   binaryS3Keys?: { android?: string; ios?: string };
-  expoUpdateInfo?: {
-    slug: string;
-    platformUpdateUrls: { android?: string; ios?: string };
-  };
+  expoUpdateData?: ExpoUpdateData;
 }): BuildRun['config'] {
-  const { devices, include, exclude } = config;
+  const { devices, include, exclude } = commandParams;
 
   const androidDevices = getPlatformDevices(devices, 'android');
   const iosDevices = getPlatformDevices(devices, 'ios');
@@ -22,12 +19,12 @@ function getBuildRunConfig({
   return {
     include,
     exclude,
-    expoUpdateSlug: expoUpdateInfo?.slug,
+    expoUpdateSlug: expoUpdateData?.slug,
     android:
       androidDevices.length > 0
         ? {
             devices: androidDevices,
-            expoUpdateUrl: expoUpdateInfo?.platformUpdateUrls.android,
+            expoUpdateUrl: expoUpdateData?.updateUrls.android,
             s3Key: binaryS3Keys?.android || ASYNC_UPLOAD_S3_KEY_PLACEHOLDER,
           }
         : undefined,
@@ -35,7 +32,7 @@ function getBuildRunConfig({
       iosDevices.length > 0
         ? {
             devices: iosDevices,
-            expoUpdateUrl: expoUpdateInfo?.platformUpdateUrls.ios,
+            expoUpdateUrl: expoUpdateData?.updateUrls.ios,
             s3Key: binaryS3Keys?.ios || ASYNC_UPLOAD_S3_KEY_PLACEHOLDER,
           }
         : undefined,

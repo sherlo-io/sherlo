@@ -2,65 +2,64 @@ import { Build, DeviceID, DeviceTheme } from '@sherlo/api-types';
 import { PartialDeep } from 'type-fest';
 import {
   ANDROID_OPTION,
-  CHANNEL_OPTION,
+  BRANCH_OPTION,
   CONFIG_OPTION,
   EAS_BUILD_SCRIPT_NAME_OPTION,
   // EAS_UPDATE_JSON_OUTPUT_OPTION,
   EXPO_CLOUD_BUILDS_COMMAND,
-  EXPO_UPDATES_COMMAND,
+  EXPO_UPDATE_COMMAND,
   IOS_FILE_TYPES,
   IOS_OPTION,
   LOCAL_BUILDS_COMMAND,
   PROJECT_ROOT_OPTION,
   WAIT_FOR_EAS_BUILD_OPTION,
   TOKEN_OPTION,
+  EAS_BUILD_ON_COMPLETE_COMMAND,
+  PROFILE_OPTION,
 } from './constants';
 
 /* === GENERAL === */
 
 export type Command =
   | typeof LOCAL_BUILDS_COMMAND
-  | typeof EXPO_UPDATES_COMMAND
-  | typeof EXPO_CLOUD_BUILDS_COMMAND;
+  | typeof EXPO_UPDATE_COMMAND
+  | typeof EXPO_CLOUD_BUILDS_COMMAND
+  | typeof EAS_BUILD_ON_COMPLETE_COMMAND;
 
 export type IOSFileType = (typeof IOS_FILE_TYPES)[number];
 
 /* === CONFIG === */
 
-export type Config<CM extends ConfigMode = 'withBuildPaths'> = CM extends 'withBuildPaths'
-  ? BaseConfig & ConfigBuildPaths
-  : BaseConfig;
-
-export type ConfigMode = 'withBuildPaths' | 'withoutBuildPaths';
-
-type BaseConfig = {
-  token: string;
-  include?: string[];
-  exclude?: string[];
+export type Config = {
   devices: {
     id: DeviceID;
     osVersion: string;
     osTheme: DeviceTheme;
     osLocale: string;
   }[];
-};
-
-type ConfigBuildPaths = {
+  token?: string;
   android?: string;
   ios?: string;
+  include?: string[];
+  exclude?: string[];
 };
 
 export type InvalidatedConfig = PartialDeep<Config, { recurseIntoArrays: true }>;
 
 /* === OPTIONS === */
 
-export type Options<C extends Command | 'any', M extends OptionsMode> = BaseOptions &
-  DefaultOptions[M] &
-  CommandOptions[C];
+export type Options<
+  C extends Command | 'any',
+  M extends OptionsMode = 'withoutDefaults',
+> = BaseOptions & DefaultOptions[M] & CommandOptions[C];
 
-type OptionsMode = 'withDefaults' | 'withoutDefaults';
+type BaseOptions = {
+  [TOKEN_OPTION]?: string;
+  /** Can be passed in GitHub Actions */
+  gitInfo?: Build['gitInfo'];
+};
 
-type BaseOptions = { [TOKEN_OPTION]?: string; gitInfo?: Build['gitInfo'] };
+type OptionsMode = 'withoutDefaults' | 'withDefaults';
 
 type DefaultOptions = {
   withDefaults: OptionDefaults;
@@ -74,17 +73,64 @@ type CommandOptions = {
     [ANDROID_OPTION]?: string;
     [IOS_OPTION]?: string;
   };
-  [EXPO_UPDATES_COMMAND]: {
+  [EXPO_UPDATE_COMMAND]: {
+    [BRANCH_OPTION]: string;
     [ANDROID_OPTION]?: string;
     [IOS_OPTION]?: string;
-    [CHANNEL_OPTION]?: string;
     // [EAS_UPDATE_JSON_OUTPUT_OPTION]?: string;
   };
   [EXPO_CLOUD_BUILDS_COMMAND]: {
     [EAS_BUILD_SCRIPT_NAME_OPTION]?: string;
     [WAIT_FOR_EAS_BUILD_OPTION]?: boolean;
   };
-  any: CommandOptions[typeof LOCAL_BUILDS_COMMAND] &
-    CommandOptions[typeof EXPO_UPDATES_COMMAND] &
-    CommandOptions[typeof EXPO_CLOUD_BUILDS_COMMAND];
+  [EAS_BUILD_ON_COMPLETE_COMMAND]: {
+    [PROFILE_OPTION]: string;
+  };
+  any: Partial<
+    CommandOptions[typeof LOCAL_BUILDS_COMMAND] &
+      CommandOptions[typeof EXPO_UPDATE_COMMAND] &
+      CommandOptions[typeof EXPO_CLOUD_BUILDS_COMMAND] &
+      CommandOptions[typeof EAS_BUILD_ON_COMPLETE_COMMAND]
+  >;
+};
+
+/* === COMMAND PARAMS === */
+
+export type CommandParams<C extends Command | 'any' = 'any'> = Config &
+  Options<C, 'withDefaults'> & { token: string };
+
+export type InvalidatedCommandParams<C extends Command | 'any' = 'any'> = InvalidatedConfig &
+  Options<C, 'withDefaults'>;
+
+/* === OTHERS === */
+
+export type BinariesInfo = {
+  android?: BinaryInfo;
+  ios?: BinaryInfo;
+};
+
+export type BinaryInfo = {
+  hash: string;
+  isExpoDev: boolean;
+  s3Key: string;
+  buildCreatedAt?: string;
+  buildIndex?: number;
+  sdkVersion?: string;
+  url?: string;
+};
+
+export type ExpoUpdateInfo = {
+  branch: string;
+  group: string;
+  message: string;
+  platforms: string;
+};
+
+export type ExpoUpdateData = {
+  branch: string;
+  message: string;
+  updateUrls: { android?: string; ios?: string };
+  slug: string;
+  author?: string;
+  timeAgo?: string;
 };

@@ -17,6 +17,8 @@ export const DOCS_LINK = {
   expoUpdate: `${DOCS_DOMAIN}/getting-started/expo-update`, // TODO: Add correct documentation link for expo-update
 };
 
+export const PLATFORMS: readonly Platform[] = ['android', 'ios'];
+
 export const PLATFORM_LABEL: { [platform in Platform]: string } = {
   android: 'Android',
   ios: 'iOS',
@@ -30,23 +32,29 @@ export const DEFAULT_PROJECT_ROOT = '.';
 export const SHERLO_TEMP_DIRECTORY = '.sherlo';
 export const SHERLO_TEMP_DATA_FILE = 'data.json';
 
-export const PACKAGE_NAME = '@sherlo/react-native-storybook';
+/* PACKAGES */
 
+export const EXPO_PACKAGE_NAME = 'expo';
+export const EXPO_DEV_CLIENT_PACKAGE_NAME = 'expo-dev-client';
+export const REACT_NATIVE_PACKAGE_NAME = 'react-native';
+export const SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME = '@sherlo/react-native-storybook';
+export const STORYBOOK_REACT_NATIVE_PACKAGE_NAME = '@storybook/react-native';
+
+export const MIN_EXPO_UPDATE_EXPO_VERSION = '51.0.0';
 export const MIN_REACT_NATIVE_VERSION = '0.64.0';
 export const MIN_STORYBOOK_REACT_NATIVE_VERSION = '7.6.11';
-export const MIN_EXPO_UPDATE_EXPO_VERSION = '51.0.0';
 
 /* COMMANDS */
 
 export const LOCAL_BUILDS_COMMAND = 'local-builds';
-export const EXPO_UPDATES_COMMAND = 'expo-updates';
+export const EXPO_UPDATE_COMMAND = 'expo-update';
 export const EXPO_CLOUD_BUILDS_COMMAND = 'expo-cloud-builds';
 export const EAS_BUILD_ON_COMPLETE_COMMAND = 'eas-build-on-complete';
 
 /* OPTIONS */
 
 export const ANDROID_OPTION = 'android';
-export const CHANNEL_OPTION = 'channel';
+export const BRANCH_OPTION = 'branch';
 export const CONFIG_OPTION = 'config';
 export const EAS_BUILD_SCRIPT_NAME_OPTION = 'easBuildScriptName';
 // export const EAS_UPDATE_JSON_OUTPUT_OPTION = 'easUpdateJsonOutput';

@@ -16,8 +16,8 @@ This example is suitable for:
 - Building your Expo app locally
 - Bare React Native apps
 
-### 3. Expo Updates
-**[expo-updates](./expo-updates)**
+### 3. Expo Update
+**[expo-update](./expo-update)**
 
 Ideal for testing without creating a new native build each time. This example demonstrates how to use Expo Update for efficient testing cycles.
 

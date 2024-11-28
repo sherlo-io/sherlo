@@ -1,29 +1,21 @@
-import { LOCAL_BUILDS_COMMAND } from '../../constants';
-import {
-  getValidatedConfig,
-  getGitInfo,
-  getOptionsWithDefaults,
-  printHeader,
-  uploadOrReuseBuildsAndRunTests,
-  validatePackages,
-} from '../../helpers';
+import { printHeader, uploadOrReuseBuildsAndRunTests, validatePackages } from '../../helpers';
 import { Options } from '../../types';
+import { getValidatedCommandParams } from '../../helpers';
+import { THIS_COMMAND } from './constants';
 
 async function localBuilds(
-  passedOptions: Options<typeof LOCAL_BUILDS_COMMAND, 'withoutDefaults'>
+  passedOptions: Options<THIS_COMMAND>
 ): Promise<{ buildIndex: number; url: string }> {
   printHeader();
 
-  validatePackages(LOCAL_BUILDS_COMMAND);
+  validatePackages(THIS_COMMAND);
 
-  const options = getOptionsWithDefaults(passedOptions);
+  const commandParams = getValidatedCommandParams(
+    { command: THIS_COMMAND, passedOptions },
+    { requirePlatformPaths: true }
+  );
 
-  const config = getValidatedConfig(options, { requirePlatformPaths: true });
-
-  return uploadOrReuseBuildsAndRunTests({
-    config,
-    gitInfo: options.gitInfo ?? getGitInfo(options.projectRoot),
-  });
+  return uploadOrReuseBuildsAndRunTests({ commandParams });
 }
 
 export default localBuilds;
