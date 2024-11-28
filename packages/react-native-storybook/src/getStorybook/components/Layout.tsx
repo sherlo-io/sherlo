@@ -6,7 +6,7 @@ interface LayoutProps extends ViewProps {
   shouldAddSafeArea: boolean;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ shouldAddSafeArea, children, ...props }) => {
+const Layout: React.FC<LayoutProps> = ({ shouldAddSafeArea, children, ...props }) => {
   const insets = useSafeAreaInsets();
 
   const showSafeArea = shouldAddSafeArea && Platform.OS === 'ios';
@@ -24,3 +24,5 @@ export const Layout: React.FC<LayoutProps> = ({ shouldAddSafeArea, children, ...
     </View>
   );
 };
+
+export default Layout;
