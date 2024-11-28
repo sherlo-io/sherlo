@@ -18,22 +18,11 @@ const header = `
     '88888P' 888  888  "Y8888  888     888  "Y88P"
 `;
 
-const LINE1 = `\n	`;
-const LINE2 = `\n `;
-const LINE3 = `\n `;
-const LINE4 = `\n؜`;
-const LINE5 = `\n‎`;
-
 function printHeader(): void {
   console.log(gradientString(color.reported, color.approved, color.noChanges)(header));
 
   console.log(chalk.dim(chalk.italic('Make sure your mobile app looks perfect on every device')));
-
-  console.log(`LINE1${LINE1}`);
-  console.log(`LINE2${LINE2}`);
-  console.log(`LINE3${LINE3}`);
-  console.log(`LINE4${LINE4}`);
-  console.log(`LINE5${LINE5}`);
+  console.log();
 }
 
 export default printHeader;
