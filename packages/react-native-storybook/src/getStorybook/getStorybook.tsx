@@ -111,7 +111,8 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
               emitStory(nextSnapshot);
             }
           } catch (error) {
-            RunnerBridge.log('story capturing failed', { error });
+            // @ts-ignore
+            RunnerBridge.log('story capturing failed', { errorMessage: error?.message });
           }
         }, 100);
       };
