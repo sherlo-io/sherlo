@@ -6,7 +6,7 @@ import { Snapshot, StorybookParams, StorybookView } from '../types';
 import { ErrorBoundary } from './components';
 import { SherloContext } from './contexts';
 import generateStorybookComponent from './generateStorybookComponent';
-import { useKeyboardStatusEffect, useOriginalMode, useStoryEmitter, useTestingMode } from './hooks';
+import { useOriginalMode, useStoryEmitter, useTestingMode } from './hooks';
 import { setupErrorSilencing } from './utils';
 import { Layout } from './components/Layout';
 
@@ -27,8 +27,6 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     const [shouldAddSafeArea, setShouldAddSafeArea] = useState(mode === 'testing');
 
     const renderedStoryHasError = useRef(false);
-
-    const { waitForKeyboardStatus } = useKeyboardStatusEffect(RunnerBridge.log);
 
     const emitStory = useStoryEmitter({
       updateRenderedStoryId: (storyId) => {
