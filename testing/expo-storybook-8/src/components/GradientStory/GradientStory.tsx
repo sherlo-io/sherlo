@@ -19,20 +19,13 @@ const GradientStory = ({
   return library === 'expo-linear-gradient' ? (
     <LinearGradient
       colors={colors}
-      style={styles.container}
+      style={StyleSheet.absoluteFillObject}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
     />
   ) : (
-    <ReactNativeLinearGradient colors={[...colors]} style={styles.container} />
+    <ReactNativeLinearGradient colors={[...colors]} style={StyleSheet.absoluteFillObject} />
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    width: '100%',
-  },
-});
 
 export default GradientStory;

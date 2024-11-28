@@ -318,19 +318,14 @@ RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCT
 
 // Recursively searches through views to find Storybook error text
 - (BOOL)searchForStorybookError:(UIView *)view {
-    // Check if view is a label or text view
-    if ([view isKindOfClass:[UILabel class]]) {
-        UILabel *label = (UILabel *)view;
-        if ([label.text containsString:@"Something went wrong rendering your story"]) {
-            return YES;
-        }
-    } else if ([view isKindOfClass:[UITextView class]]) {
-        UITextView *textView = (UITextView *)view;
-        if ([textView.text containsString:@"Something went wrong rendering your story"]) {
+    // Check for RCTTextView specifically
+    if ([NSStringFromClass([view class]) isEqualToString:@"RCTTextView"]) {
+        NSString *text = view.accessibilityLabel;
+        if (text && [text containsString:@"Something went wrong rendering your story"]) {
             return YES;
         }
     }
-    
+
     // Recursively search through subviews
     for (UIView *subview in view.subviews) {
         if ([self searchForStorybookError:subview]) {
@@ -343,15 +338,20 @@ RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCT
 
 // Checks if any visible view contains the Storybook error message
 RCT_EXPORT_METHOD(checkIfContainsStorybookError:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        @try {
-            UIWindow *window = UIApplication.sharedApplication.keyWindow;
-            BOOL containsError = [self searchForStorybookError:window];
-            resolve(@(containsError));
-        } @catch (NSException *exception) {
-            reject(@"error", @"Error checking for Storybook error", nil);
+  dispatch_async(dispatch_get_main_queue(), ^{
+    @try {
+        UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+        if (!keyWindow) {
+            resolve(@NO);
+            return;
         }
-    });
+
+        BOOL containsError = [self searchForStorybookError:keyWindow];
+        resolve(@(containsError));
+    } @catch (NSException *exception) {
+        reject(@"error", @"Error checking for Storybook error", nil);
+    }
+  });
 }
 
 @end
