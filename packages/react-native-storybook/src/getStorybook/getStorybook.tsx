@@ -3,12 +3,11 @@ import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RunnerBridge, SherloModule } from '../helpers';
 import { Snapshot, StorybookParams, StorybookView } from '../types';
-import { ErrorBoundary } from './components';
 import { SherloContext } from './contexts';
 import generateStorybookComponent from './generateStorybookComponent';
 import { useOriginalMode, useStoryEmitter, useTestingMode } from './hooks';
 import { setupErrorSilencing } from './utils';
-import { Layout } from './components/Layout';
+import { Layout } from './components';
 
 setupErrorSilencing();
 
@@ -25,8 +24,6 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 
     // Safe area handling
     const [shouldAddSafeArea, setShouldAddSafeArea] = useState(mode === 'testing');
-
-    const renderedStoryHasError = useRef(false);
 
     const emitStory = useStoryEmitter({
       updateRenderedStoryId: (storyId) => {
@@ -83,21 +80,21 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
             const containsError = await SherloModule.checkIfContainsStorybookError();
 
             let inspectorData;
-            if (!renderedStoryHasError.current && !containsError) {
+            if (!containsError) {
               inspectorData = await SherloModule.getInspectorData();
             }
 
             RunnerBridge.log('requesting screenshot from master script', {
               action: 'REQUEST_SNAPSHOT',
               snapshotIndex: testedIndex,
-              hasError: renderedStoryHasError.current || containsError,
+              hasError: containsError,
               inspectorData: !!inspectorData,
             });
 
             const response = await RunnerBridge.send({
               action: 'REQUEST_SNAPSHOT',
               snapshotIndex: testedIndex,
-              hasError: renderedStoryHasError.current || containsError,
+              hasError: containsError,
               inspectorData,
             });
 
@@ -165,16 +162,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
             mode,
           }}
         >
-          <Layout shouldAddSafeArea={shouldAddSafeArea}>
-            <ErrorBoundary
-              onError={() => {
-                renderedStoryHasError.current = true;
-              }}
-              log={RunnerBridge.log}
-            >
-              {memoizedStorybook}
-            </ErrorBoundary>
-          </Layout>
+          <Layout shouldAddSafeArea={shouldAddSafeArea}>{memoizedStorybook}</Layout>
         </SherloContext.Provider>
       </SafeAreaProvider>
     );

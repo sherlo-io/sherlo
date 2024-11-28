@@ -16,15 +16,16 @@ const GradientStory = ({
 }: {
   library: 'expo-linear-gradient' | 'react-native-linear-gradient';
 }) => {
+  const props = {
+    start: { x: 0, y: 0 },
+    end: { x: 1, y: 1 },
+    style: StyleSheet.absoluteFillObject,
+  };
+
   return library === 'expo-linear-gradient' ? (
-    <LinearGradient
-      colors={colors}
-      style={StyleSheet.absoluteFillObject}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-    />
+    <LinearGradient colors={colors} {...props} />
   ) : (
-    <ReactNativeLinearGradient colors={[...colors]} style={StyleSheet.absoluteFillObject} />
+    <ReactNativeLinearGradient colors={[...colors]} {...props} />
   );
 };
 
