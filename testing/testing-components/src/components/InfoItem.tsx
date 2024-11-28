@@ -5,13 +5,14 @@ import { MaterialIcons } from '@expo/vector-icons';
 export const InfoItem: React.FC<{
   iconName?: React.ComponentProps<typeof MaterialIcons>['name'];
   text?: string;
-}> = ({ iconName, text }) => {
+  textColor?: string;
+}> = ({ iconName, text, textColor }) => {
   const theme = useColorScheme();
-  const textColor = theme === 'dark' ? '#FFF' : '#333';
+  const calculatedTextColor = textColor || (theme === 'dark' ? '#FFF' : '#333');
   return (
     <View style={styles.infoContainer}>
       {iconName ? <MaterialIcons name={iconName} size={24} color={textColor} /> : null}
-      <Text style={[styles.text, { color: textColor }]}>{text}</Text>
+      <Text style={[styles.text, { color: calculatedTextColor }]}>{text}</Text>
     </View>
   );
 };

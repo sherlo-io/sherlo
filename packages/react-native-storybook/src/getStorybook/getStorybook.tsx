@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState, ReactElement } from 'react';
-import { Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RunnerBridge, SherloModule } from '../helpers';
 import { Snapshot, StorybookParams, StorybookView } from '../types';
 import { ErrorBoundary } from './components';
 import { SherloContext } from './contexts';
 import generateStorybookComponent from './generateStorybookComponent';
-import { useKeyboardStatusEffect, useOriginalMode, useStoryEmitter, useTestingMode } from './hooks';
+import { useOriginalMode, useStoryEmitter, useTestingMode } from './hooks';
 import { setupErrorSilencing } from './utils';
 import { Layout } from './components/Layout';
 
@@ -28,33 +28,12 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 
     const renderedStoryHasError = useRef(false);
 
-    const { waitForKeyboardStatus } = useKeyboardStatusEffect(RunnerBridge.log);
-
     const emitStory = useStoryEmitter({
       updateRenderedStoryId: (storyId) => {
         RunnerBridge.log('rendered story', { id: storyId });
         setRenderedStoryId(storyId);
       },
     });
-
-    const prepareSnapshotForTesting = async (snapshot: Snapshot): Promise<void> => {
-      RunnerBridge.log('prepareSnapshotForTesting', { viewId: snapshot.viewId });
-
-      if (snapshot.sherloParameters?.defocus) {
-        RunnerBridge.log('defocusing focused input');
-
-        await waitForKeyboardStatus('shown');
-
-        if (Platform.OS === 'ios') {
-          await waitForKeyboardStatus('hidden');
-        } else {
-          // We call Keyboard.dismiss() multiple times because for some reason it sometimes doesn't work on the first try
-          for (let i = 0; i < 7; i++) {
-            Keyboard.dismiss();
-          }
-        }
-      }
-    };
 
     // Testing mode
     useTestingMode(view, mode, setSnapshots, setTestedIndex, RunnerBridge);
@@ -97,26 +76,28 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
       });
 
       const testStory = async (): Promise<void> => {
-        await prepareSnapshotForTesting(renderedSnapshot);
-
         setTimeout(async () => {
           try {
+            await SherloModule.clearFocus();
+
+            const containsError = await SherloModule.checkIfContainsStorybookError();
+
             let inspectorData;
-            if (!renderedStoryHasError.current) {
+            if (!renderedStoryHasError.current && !containsError) {
               inspectorData = await SherloModule.getInspectorData();
             }
 
             RunnerBridge.log('requesting screenshot from master script', {
               action: 'REQUEST_SNAPSHOT',
               snapshotIndex: testedIndex,
-              hasError: renderedStoryHasError.current,
+              hasError: renderedStoryHasError.current || containsError,
               inspectorData: !!inspectorData,
             });
 
             const response = await RunnerBridge.send({
               action: 'REQUEST_SNAPSHOT',
               snapshotIndex: testedIndex,
-              hasError: renderedStoryHasError.current,
+              hasError: renderedStoryHasError.current || containsError,
               inspectorData,
             });
 
@@ -130,7 +111,8 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
               emitStory(nextSnapshot);
             }
           } catch (error) {
-            RunnerBridge.log('story capturing failed', { error });
+            // @ts-ignore
+            RunnerBridge.log('story capturing failed', { errorMessage: error?.message });
           }
         }, 100);
       };

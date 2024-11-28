@@ -3,17 +3,14 @@ package io.sherlo.storybookreactnative;
 // Android Framework Imports
 import android.app.Activity;
 import android.util.Log;
-import android.os.Handler;
-import android.os.Looper;
-import android.content.Intent;
-import android.net.Uri;
+import android.content.Context;
+import android.view.View;
 
 // React Native Bridge Imports
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Promise;
-import com.facebook.react.ReactInstanceManager;
 import com.facebook.react.ReactApplication;
 
 // Java Utility and IO Imports
@@ -60,7 +57,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
             if (sherloConfigFile.exists()) {
                 Log.i(TAG, "Config file exists");
                 String configJson = fileSystemHelper.readFile(configPath);
-                
+
                 if (configJson == null || configJson.trim().isEmpty()) {
                     Log.w(TAG, "Config file is empty");
                     return;
@@ -76,7 +73,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
                 try {
                     JSONObject config = new JSONObject(configJson);
-                    
+
                     // Check for override mode first
                     if (config.has("overrideMode")) {
                         Log.i(TAG, "Running in " + config.getString("overrideMode") + " mode");
@@ -87,7 +84,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
                     // Check for expo update deeplink
                     if (config.has("expoUpdateDeeplink")) {
                         Log.i(TAG, "Consuming expo update deeplink");
-                        
+
                         if (expoUpdateDeeplinkConsumeCount < 1) {
                             expoUpdateDeeplinkConsumeCount++;
                         } else {
@@ -125,7 +122,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
         return constants;
     }
-    
+
     @ReactMethod
     public void verifyIntegration(Promise promise) {
         Log.d(TAG, "Verifying integration");
@@ -231,6 +228,73 @@ public class SherloModule extends ReactContextBaseJavaModule {
         });
     }
 
+    /**
+     * Clears focus from any currently focused input.
+     */
+    @ReactMethod
+    public void clearFocus(Promise promise) {
+        Activity activity = getCurrentActivity();
+        if (activity == null) {
+            promise.reject("no_activity", "No current activity");
+            return;
+        }
+
+        activity.runOnUiThread(() -> {
+            try {
+                View currentFocus = activity.getCurrentFocus();
+                if (currentFocus != null) {
+                    currentFocus.clearFocus();
+                }
+                
+                Log.i(TAG, "Focus cleared from current input");
+                promise.resolve(null);
+            } catch (Exception e) {
+                Log.e(TAG, "Error clearing focus: " + e.getMessage());
+                promise.reject("error", e.getMessage());
+            }
+        });
+    }
+
+    @ReactMethod
+    public void checkIfContainsStorybookError(Promise promise) {
+        Activity activity = getCurrentActivity();
+        if (activity == null) {
+            promise.reject("no_activity", "No current activity");
+            return;
+        }
+
+        activity.runOnUiThread(() -> {
+            try {
+                View rootView = activity.getWindow().getDecorView().getRootView();
+                boolean containsError = searchForStorybookError(rootView);
+                promise.resolve(containsError);
+            } catch (Exception e) {
+                Log.e(TAG, "Error checking for Storybook error: " + e.getMessage());
+                promise.reject("error", e.getMessage());
+            }
+        });
+    }
+
+    private boolean searchForStorybookError(View view) {
+        if (view instanceof android.widget.TextView) {
+            String text = ((android.widget.TextView) view).getText().toString();
+            if (text.contains("Something went wrong rendering your story")) {
+                return true;
+            }
+        }
+
+        if (view instanceof android.view.ViewGroup) {
+            android.view.ViewGroup viewGroup = (android.view.ViewGroup) view;
+            for (int i = 0; i < viewGroup.getChildCount(); i++) {
+                if (searchForStorybookError(viewGroup.getChildAt(i))) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     private void handleError(String errorCode, String errorMessage) {
         Log.e(TAG, "Error occurred: " + errorCode + ", Error: " + errorMessage);
 
@@ -249,7 +313,8 @@ public class SherloModule extends ReactContextBaseJavaModule {
             String jsonString = new org.json.JSONObject(nativeErrorMap).toString();
 
             // Convert JSON string to base64
-            String base64ErrorData = android.util.Base64.encodeToString(jsonString.getBytes("UTF-8"), android.util.Base64.NO_WRAP);
+            String base64ErrorData = android.util.Base64.encodeToString(jsonString.getBytes("UTF-8"),
+                    android.util.Base64.NO_WRAP);
 
             // Append the base64 encoded error data to the protocol file
             fileSystemHelper.appendFile(protocolFilePath, base64ErrorData);

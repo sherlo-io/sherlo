@@ -4,17 +4,29 @@ import * as Localization from 'expo-localization';
 import { useColorScheme } from 'react-native';
 import { InfoItem } from './InfoItem';
 
-const TestScreen = () => {
+const getContrastTextColor = (backgroundColor: string | undefined) => {
+  if (!backgroundColor) return undefined;
+
+  const hex = backgroundColor.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16) / 255;
+  const g = parseInt(hex.substr(2, 2), 16) / 255;
+  const b = parseInt(hex.substr(4, 2), 16) / 255;
+
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+  return luminance > 0.5 ? '#000000' : '#ffffff';
+};
+
+const TestScreen = ({ backgroundColor }: { backgroundColor?: string }) => {
   const theme = useColorScheme();
   const [language, country] = Localization.locale.split('-');
+  const textColor = getContrastTextColor(backgroundColor);
 
   return (
-    <View style={[styles.container]}>
-      <InfoItem iconName="record-voice-over" text={`Language: ${language}`} />
-
-      <InfoItem iconName="place" text={`Country: ${country}`} />
-
-      <InfoItem iconName="brightness-4" text={`Theme: ${theme}`} />
+    <View style={[styles.container, { backgroundColor }]}>
+      <InfoItem iconName="record-voice-over" text={`Language: ${language}`} textColor={textColor} />
+      <InfoItem iconName="place" text={`Country: ${country}`} textColor={textColor} />
+      <InfoItem iconName="brightness-4" text={`Theme: ${theme}`} textColor={textColor} />
     </View>
   );
 };
