@@ -80,6 +80,8 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
       const testStory = async (): Promise<void> => {
         setTimeout(async () => {
           try {
+            await SherloModule.clearFocus();
+
             let inspectorData;
             if (!renderedStoryHasError.current) {
               inspectorData = await SherloModule.getInspectorData();

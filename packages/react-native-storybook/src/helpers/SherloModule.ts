@@ -1,5 +1,5 @@
 import base64 from 'base-64';
-import { NativeModules } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 import utf8 from 'utf8';
 import isExpoGo from './isExpoGo';
 import { StorybookViewMode } from '../types/types';
@@ -15,6 +15,7 @@ type SherloModule = {
   openStorybook: () => Promise<void>;
   toggleStorybook: () => Promise<void>;
   verifyIntegration: () => Promise<void>;
+  clearFocus: () => Promise<void>;
 };
 
 let SherloModule: SherloModule;
@@ -38,6 +39,11 @@ export default SherloModule;
 
 function createSherloModule(): SherloModule {
   return {
+    clearFocus: async () => {
+      if (Platform.OS === 'android') {
+        await SherloNativeModule.clearFocus();
+      }
+    },
     getInspectorData: async () => {
       return SherloNativeModule.getInspectorData();
     },
@@ -81,6 +87,7 @@ function normalizePath(path: string): string {
 
 function createDummySherloModule(): SherloModule {
   return {
+    clearFocus: async () => {},
     getInspectorData: async () => '',
     storybookRegistered: async () => {},
     getMode: () => 'default',
