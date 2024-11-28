@@ -29,11 +29,11 @@ function printHeader(): void {
 
   console.log(chalk.dim(chalk.italic('Make sure your mobile app looks perfect on every device')));
 
-  console.log(`${LINE1}${LINE1}`);
-  console.log(`${LINE2}${LINE2}`);
-  console.log(`${LINE3}${LINE3}`);
-  console.log(`${LINE4}${LINE4}`);
-  console.log(`${LINE5}${LINE5}`);
+  console.log(`LINE1${LINE1}`);
+  console.log(`LINE2${LINE2}`);
+  console.log(`LINE3${LINE3}`);
+  console.log(`LINE4${LINE4}`);
+  console.log(`LINE5${LINE5}`);
 }
 
 export default printHeader;
