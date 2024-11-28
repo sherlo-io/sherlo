@@ -65,7 +65,7 @@ jobs:
             --config ../../configs/${{ inputs.config }}.json \
             --android builds/development/android.apk \
             --ios builds/development/ios.tar.gz \
-            --channel development \
+            --branch development \
             --token ${{ inputs.project == 'expo-update' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}
 
       - name: Run sherlo expo-update (without native builds)
@@ -74,5 +74,5 @@ jobs:
         run: |
           yarn sherlo expo-update \
             --config ../../configs/${{ inputs.config }}.json \
-            --channel development \
+            --branch development \
             --token ${{ inputs.project == 'expo-update' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}
