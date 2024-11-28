@@ -91,6 +91,7 @@ function normalizePath(path: string): string {
 
 function createDummySherloModule(): SherloModule {
   return {
+    checkIfContainsStorybookError: async () => false,
     clearFocus: async () => {},
     getInspectorData: async () => '',
     storybookRegistered: async () => {},
