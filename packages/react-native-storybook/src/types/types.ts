@@ -1,14 +1,6 @@
 import { start } from '@storybook/react-native';
 export interface SherloParameters {
   /**
-   * Setting defocus to true hides the keyboard and defocuses any focused input
-   * before taking the screenshot. This is useful because focused inputs have
-   * animated elements that will make screenshots unpredictable when compared
-   * to the baseline.
-   */
-  defocus?: boolean;
-
-  /**
    * Setting exclude to true skips the story during testing. This might be
    * useful if the story has animations that cannot be stabilized for testing
    * or the component behaves in less predictable ways.

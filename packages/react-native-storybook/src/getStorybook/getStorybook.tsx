@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, ReactElement } from 'react';
-import { Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RunnerBridge, SherloModule } from '../helpers';
 import { Snapshot, StorybookParams, StorybookView } from '../types';
@@ -36,25 +36,6 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
         setRenderedStoryId(storyId);
       },
     });
-
-    const prepareSnapshotForTesting = async (snapshot: Snapshot): Promise<void> => {
-      RunnerBridge.log('prepareSnapshotForTesting', { viewId: snapshot.viewId });
-
-      if (snapshot.sherloParameters?.defocus) {
-        RunnerBridge.log('defocusing focused input');
-
-        await waitForKeyboardStatus('shown');
-
-        if (Platform.OS === 'ios') {
-          await waitForKeyboardStatus('hidden');
-        } else {
-          // We call Keyboard.dismiss() multiple times because for some reason it sometimes doesn't work on the first try
-          for (let i = 0; i < 7; i++) {
-            Keyboard.dismiss();
-          }
-        }
-      }
-    };
 
     // Testing mode
     useTestingMode(view, mode, setSnapshots, setTestedIndex, RunnerBridge);
@@ -97,8 +78,6 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
       });
 
       const testStory = async (): Promise<void> => {
-        await prepareSnapshotForTesting(renderedSnapshot);
-
         setTimeout(async () => {
           try {
             let inspectorData;
