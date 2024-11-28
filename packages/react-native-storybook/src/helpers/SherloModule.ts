@@ -16,6 +16,7 @@ type SherloModule = {
   toggleStorybook: () => Promise<void>;
   verifyIntegration: () => Promise<void>;
   clearFocus: () => Promise<void>;
+  checkIfContainsStorybookError: () => Promise<boolean>;
 };
 
 let SherloModule: SherloModule;
@@ -39,6 +40,9 @@ export default SherloModule;
 
 function createSherloModule(): SherloModule {
   return {
+    checkIfContainsStorybookError: async () => {
+      return SherloNativeModule.checkIfContainsStorybookError();
+    },
     clearFocus: async () => {
       if (Platform.OS === 'android') {
         await SherloNativeModule.clearFocus();

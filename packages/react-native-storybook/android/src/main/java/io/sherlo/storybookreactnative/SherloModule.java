@@ -255,6 +255,46 @@ public class SherloModule extends ReactContextBaseJavaModule {
         });
     }
 
+    @ReactMethod
+    public void checkIfContainsStorybookError(Promise promise) {
+        Activity activity = getCurrentActivity();
+        if (activity == null) {
+            promise.reject("no_activity", "No current activity");
+            return;
+        }
+
+        activity.runOnUiThread(() -> {
+            try {
+                View rootView = activity.getWindow().getDecorView().getRootView();
+                boolean containsError = searchForStorybookError(rootView);
+                promise.resolve(containsError);
+            } catch (Exception e) {
+                Log.e(TAG, "Error checking for Storybook error: " + e.getMessage());
+                promise.reject("error", e.getMessage());
+            }
+        });
+    }
+
+    private boolean searchForStorybookError(View view) {
+        if (view instanceof android.widget.TextView) {
+            String text = ((android.widget.TextView) view).getText().toString();
+            if (text.contains("Something went wrong rendering your story")) {
+                return true;
+            }
+        }
+
+        if (view instanceof android.view.ViewGroup) {
+            android.view.ViewGroup viewGroup = (android.view.ViewGroup) view;
+            for (int i = 0; i < viewGroup.getChildCount(); i++) {
+                if (searchForStorybookError(viewGroup.getChildAt(i))) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     private void handleError(String errorCode, String errorMessage) {
         Log.e(TAG, "Error occurred: " + errorCode + ", Error: " + errorMessage);
 

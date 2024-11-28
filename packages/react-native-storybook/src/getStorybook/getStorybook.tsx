@@ -80,22 +80,24 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
           try {
             await SherloModule.clearFocus();
 
+            const containsError = await SherloModule.checkIfContainsStorybookError();
+
             let inspectorData;
-            if (!renderedStoryHasError.current) {
+            if (!renderedStoryHasError.current && !containsError) {
               inspectorData = await SherloModule.getInspectorData();
             }
 
             RunnerBridge.log('requesting screenshot from master script', {
               action: 'REQUEST_SNAPSHOT',
               snapshotIndex: testedIndex,
-              hasError: renderedStoryHasError.current,
+              hasError: renderedStoryHasError.current || containsError,
               inspectorData: !!inspectorData,
             });
 
             const response = await RunnerBridge.send({
               action: 'REQUEST_SNAPSHOT',
               snapshotIndex: testedIndex,
-              hasError: renderedStoryHasError.current,
+              hasError: renderedStoryHasError.current || containsError,
               inspectorData,
             });
 
