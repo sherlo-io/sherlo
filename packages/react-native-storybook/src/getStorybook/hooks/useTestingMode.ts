@@ -36,23 +36,11 @@ function useTestingMode(
 
         let initialSelectionIndex: number | undefined;
         let filteredViewIds: String[] | undefined;
-        let state;
 
-        try {
-          state = await bridge.getState();
-          initialSelectionIndex = state.snapshotIndex;
-          filteredViewIds = state.filteredViewIds;
-
-          bridge.log('existing state', {
-            state,
-          });
-        } catch (error) {
-          // no state found
-        }
-
-        // This is the new way of getting the last state
-        // We will delete the "getState" function once people migrate to the new runner
         const lastState = await bridge.getLastState();
+        bridge.log('last state from protocol', {
+          lastState,
+        });
         if (lastState) {
           initialSelectionIndex = lastState.nextSnapshotIndex;
           filteredViewIds = lastState.filteredViewIds;

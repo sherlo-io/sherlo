@@ -33,7 +33,7 @@ function getLastState(path: string, log: LogFn): GetLastStateFn {
 
             if (responseItem.action === 'ACK_START' && !ackStart) {
               ackStart = responseItem;
-            } else if (responseItem.action === 'ACK_REQUEST_SNAPSHOT') {
+            } else if (responseItem.action === 'ACK_REQUEST_SNAPSHOT' && !lastRequestSnapshot) {
               lastRequestSnapshot = responseItem;
             }
           } catch (parseError) {
