@@ -1,12 +1,8 @@
+export { default as addStorybookToDevMenu } from './addStorybookToDevMenu';
 export { default as getStorybook } from './getStorybook';
-export { default as isRunningStorybook } from './isRunningStorybook';
 export { default as isRunningVisualTests } from './isRunningVisualTests';
+export { default as isStorybookMode } from './isStorybookMode';
 export { default as openStorybook } from './openStorybook';
-export { default as shouldShowStorybook } from './shouldShowStorybook';
 export { default as verifyIntegration } from './verifyIntegration';
 
 export * from './types';
-
-import addToggleStorybookToDevMenu from './addToggleStorybookToDevMenu';
-
-addToggleStorybookToDevMenu();
