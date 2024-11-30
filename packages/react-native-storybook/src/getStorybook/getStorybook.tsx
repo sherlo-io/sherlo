@@ -91,6 +91,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
               inspectorData: !!inspectorData,
             });
 
+            await SherloModule.clearFocus();
             const response = await RunnerBridge.send({
               action: 'REQUEST_SNAPSHOT',
               snapshotIndex: testedIndex,
