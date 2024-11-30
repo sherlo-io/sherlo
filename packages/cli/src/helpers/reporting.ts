@@ -1,0 +1,21 @@
+import * as Sentry from '@sentry/node';
+import { ENV } from '@sherlo/sdk-client';
+
+const dsn = {
+  test: 'https://72524a664c779972513d9381c8637718@o1152742.ingest.us.sentry.io/4508388094574592',
+  dev: 'https://72524a664c779972513d9381c8637718@o1152742.ingest.us.sentry.io/4508388094574592',
+  prod: 'https://1b7943abebc4ece1377742c907b88ea0@o4507003083292672.ingest.us.sentry.io/4508388097916928',
+};
+
+const reporting = {
+  init: () =>
+    Sentry.init({
+      dsn: dsn[ENV],
+      environment: ENV,
+    }),
+  setContext: Sentry.setContext,
+  captureException: Sentry.captureException,
+  flush: Sentry.flush,
+};
+
+export default reporting;

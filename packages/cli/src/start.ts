@@ -19,8 +19,12 @@ import {
   TOKEN_OPTION,
   WAIT_FOR_EAS_BUILD_OPTION,
 } from './constants';
+import { reporting } from './helpers';
+
 async function start() {
   try {
+    reporting.init();
+
     const program = new Command();
 
     const sharedOptions = {
@@ -57,6 +61,7 @@ async function start() {
       .option(...sharedOptions[CONFIG_OPTION])
       .option(...sharedOptions[PROJECT_ROOT_OPTION])
       .action(async (options) => {
+        reporting.setContext('commandContext', { command: LOCAL_BUILDS_COMMAND, options });
         await localBuilds(options);
       });
 
@@ -74,6 +79,7 @@ async function start() {
       .option(...sharedOptions[CONFIG_OPTION])
       .option(...sharedOptions[PROJECT_ROOT_OPTION])
       .action(async (options) => {
+        reporting.setContext('commandContext', { command: EXPO_UPDATE_COMMAND, options });
         await expoUpdate(options);
       });
 
@@ -89,6 +95,7 @@ async function start() {
       .option(...sharedOptions[CONFIG_OPTION])
       .option(...sharedOptions[PROJECT_ROOT_OPTION])
       .action(async (options) => {
+        reporting.setContext('commandContext', { command: EXPO_CLOUD_BUILDS_COMMAND, options });
         await expoCloudBuilds(options);
       });
 
@@ -99,7 +106,10 @@ async function start() {
         `--${PROFILE_OPTION} <name>`,
         `EAS build profile (must match profile used in ${EXPO_CLOUD_BUILDS_COMMAND})`
       )
-      .action(easBuildOnComplete);
+      .action(async (options) => {
+        reporting.setContext('commandContext', { command: EAS_BUILD_ON_COMPLETE_COMMAND, options });
+        await easBuildOnComplete(options);
+      });
 
     if (process.argv.length === 2) {
       console.log('Choose a Sherlo command. Use --help for more information.');
@@ -108,8 +118,11 @@ async function start() {
 
     await program.parseAsync(process.argv);
   } catch (e) {
-    console.error((e as Error).message);
-    process.exit(e.code || 1);
+    reporting.captureException(e);
+    reporting.flush().finally(() => {
+      console.error((e as Error).message);
+      process.exit(e.code || 1);
+    });
   }
 }
 

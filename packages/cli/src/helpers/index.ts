@@ -19,3 +19,4 @@ export { default as printHeader } from './printHeader';
 export { default as runShellCommand } from './runShellCommand';
 export { default as throwError } from './throwError';
 export { default as uploadOrReuseBuildsAndRunTests } from './uploadOrReuseBuildsAndRunTests';
+export { default as reporting } from './reporting';

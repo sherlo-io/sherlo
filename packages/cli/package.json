@@ -27,6 +27,7 @@
     "build": "rm -rf dist && ncc build src/index.ts --source-map --minify && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js"
   },
   "devDependencies": {
+    "@sentry/node": "8.41.0",
     "@sherlo/api-types": "1.1.9",
     "@sherlo/common-client": "1.1.9",
     "@sherlo/sdk-client": "1.1.9",
