@@ -9,7 +9,7 @@ try {
 
 const { SherloModule: SherloNativeModule } = NativeModules;
 
-function addToggleStorybookToDevMenu() {
+function addStorybookToDevMenu() {
   if (!__DEV__ || devMenuToggleInitialized) return;
 
   const MENU_LABEL = 'Toggle Storybook';
@@ -24,4 +24,4 @@ function addToggleStorybookToDevMenu() {
   devMenuToggleInitialized = true;
 }
 
-export default addToggleStorybookToDevMenu;
+export default addStorybookToDevMenu;

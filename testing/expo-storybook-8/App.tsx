@@ -1,4 +1,4 @@
-import { shouldShowStorybook } from '@sherlo/react-native-storybook';
+import { isStorybookMode } from '@sherlo/react-native-storybook';
 import Storybook from './.storybook';
 import { PropsWithChildren } from 'react';
 import HomeScreen from './src/HomeScreen';
@@ -34,7 +34,7 @@ export default function App() {
    * Note: If called without parameters, like "shouldShowStorybook()",
    * only conditions 2, 3 and 4 apply.
    */
-  if (shouldShowStorybook(Constants.expoConfig?.extra?.storybookEnabled)) {
+  if (Constants.expoConfig?.extra?.storybookEnabled || isStorybookMode) {
     return (
       <CommonProviders>
         <Storybook />
