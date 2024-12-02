@@ -55,7 +55,7 @@ jobs:
       config: 'all-devices'
       project: 'device-testing'
       with_builds: true
-      use_github_action: ${{ github.event.inputs.use_github_action == true }}
+      use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
 
   many_stories:
     uses: ./.github/workflows/expo-update.yml
@@ -67,7 +67,7 @@ jobs:
       config: 'many-stories'
       with_builds: true
       project: 'many-stories'
-      use_github_action: ${{ github.event.inputs.use_github_action == true }}
+      use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
 
   expo_local_builds:
     uses: ./.github/workflows/expo_local-builds.yml
@@ -76,7 +76,7 @@ jobs:
     secrets: inherit
     with:
       env: ${{ github.event.inputs.env }}
-      use_github_action: ${{ github.event.inputs.use_github_action == true }}
+      use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
 
   expo_cloud:
     uses: ./.github/workflows/expo-cloud.yml
@@ -85,7 +85,7 @@ jobs:
     secrets: inherit
     with:
       env: ${{ github.event.inputs.env }}
-      use_github_action: ${{ github.event.inputs.use_github_action == true }}
+      use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
 
   expo_update_with_builds:
     uses: ./.github/workflows/expo-update.yml
@@ -94,7 +94,7 @@ jobs:
     secrets: inherit
     with:
       env: ${{ github.event.inputs.env }}
-      use_github_action: ${{ github.event.inputs.use_github_action == true }}
+      use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
       with_builds: true
       project: 'expo-update'
 
@@ -105,6 +105,6 @@ jobs:
     secrets: inherit
     with:
       env: ${{ github.event.inputs.env }}
-      use_github_action: ${{ github.event.inputs.use_github_action == true }}
+      use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
       with_builds: false
       project: 'expo-update'
