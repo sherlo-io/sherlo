@@ -1,7 +1,7 @@
 import * as core from '@actions/core';
 import { localBuilds, expoUpdate, expoCloudBuilds } from '@sherlo/cli';
-import * as github from '@actions/github';
 import { Build } from '@sherlo/api-types';
+import { getGitInfo } from './getGitInfo';
 
 type CommandOptions = {
   android?: string;
@@ -61,39 +61,6 @@ async function run(): Promise<void> {
 }
 
 /******************************************************************************/
-
-function getGitInfo(overrideCommitName?: string) {
-  const { context } = github;
-
-  let gitInfo = {
-    commitHash: context?.sha || 'unknown',
-    branchName: context?.ref.split('refs/heads/')[1] || 'unknown',
-    commitName: 'unknown',
-  };
-
-  switch (context?.eventName) {
-    case 'push':
-      const commitName = context?.payload?.head_commit?.message;
-
-      if (commitName) {
-        gitInfo = {
-          ...gitInfo,
-          commitName,
-        };
-      }
-      break;
-
-    default:
-      console.log(JSON.stringify(context, null, 2));
-      break;
-  }
-
-  if (overrideCommitName) {
-    gitInfo.commitName = overrideCommitName;
-  }
-
-  return gitInfo;
-}
 
 function getOptionalInput(name: string): string | undefined {
   const value = core.getInput(name, { required: false });
