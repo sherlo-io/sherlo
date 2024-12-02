@@ -118,7 +118,12 @@ async function start() {
 
     await program.parseAsync(process.argv);
   } catch (e) {
-    reporting.captureException(e);
+    if (e.originalError) {
+      reporting.captureException(e.originalError);
+    } else if (!e.dontReportToSentry) {
+      reporting.captureException(e);
+    }
+
     reporting.flush().finally(() => {
       console.error((e as Error).message);
       process.exit(e.code || 1);

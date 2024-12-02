@@ -36,6 +36,7 @@ async function accessFileInArchive({
       throwError({
         type: 'unexpected',
         message: error.message,
+        originalError: error,
       });
     }
 

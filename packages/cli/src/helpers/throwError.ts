@@ -13,18 +13,24 @@ function throwError({
   learnMoreLink,
   message,
   type = 'default',
+  originalError,
 }: {
   message: string;
   learnMoreLink?: string;
   type?: ErrorType;
+  originalError?: Error;
 }): never {
   const errorMessageParts = [chalk.red(`${typeLabel[type]}: ${message}`)];
+
+  let dontReportToSentry = false;
 
   if (type === 'unexpected') {
     const location = getCallerLocation();
     if (location) {
       errorMessageParts.push(chalk.dim(`(in ${location})`));
     }
+  } else {
+    dontReportToSentry = true;
   }
 
   const errorMessage = errorMessageParts.join(' ');
@@ -35,7 +41,15 @@ function throwError({
     errorLines.push(`↳ Learn more: ${getLogLink(learnMoreLink)}`);
   }
 
-  throw new Error(errorLines.join('\n') + '\n');
+  const error = new Error(errorLines.join('\n') + '\n');
+
+  if (originalError) {
+    error.originalError = originalError;
+  }
+
+  error.dontReportToSentry = dontReportToSentry;
+
+  throw error;
 }
 
 export default throwError;
