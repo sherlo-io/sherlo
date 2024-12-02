@@ -41,7 +41,7 @@ function throwError({
     errorLines.push(`↳ Learn more: ${getLogLink(learnMoreLink)}`);
   }
 
-  const error = new Error(errorLines.join('\n') + '\n');
+  const error = new SherloError(errorLines.join('\n') + '\n');
 
   if (originalError) {
     error.originalError = originalError;
@@ -53,6 +53,11 @@ function throwError({
 }
 
 export default throwError;
+
+class SherloError extends Error {
+  dontReportToSentry = false;
+  originalError?: Error;
+}
 
 /* ========================================================================== */
 
