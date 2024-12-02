@@ -1,5 +1,5 @@
 import * as core from '@actions/core';
-import { localBuilds, expoUpdate, expoCloudBuilds } from '@sherlo/cli';
+import { commands, constants } from '@sherlo/cli';
 import { Build } from '@sherlo/api-types';
 import { getGitInfo } from './getGitInfo';
 
@@ -21,28 +21,28 @@ async function run(): Promise<void> {
     const overrideCommitName = getOptionalInput('commitName');
 
     const options: CommandOptions = {
-      android: getOptionalInput('android'),
-      ios: getOptionalInput('ios'),
-      config: getOptionalInput('config'),
-      projectRoot: getOptionalInput('project-root'),
+      android: getOptionalInput(constants.ANDROID_OPTION),
+      ios: getOptionalInput(constants.IOS_OPTION),
+      config: getOptionalInput(constants.CONFIG_OPTION),
+      projectRoot: getOptionalInput(constants.PROJECT_ROOT_OPTION),
       token: emptyStringToUndefined(process.env.SHERLO_TOKEN),
     };
 
     let commandFunction;
     switch (command) {
-      case 'local-builds':
-        commandFunction = localBuilds;
+      case constants.LOCAL_BUILDS_COMMAND:
+        commandFunction = commands.localBuilds;
         break;
 
-      case 'expo-update':
-        options.branch = getOptionalInput('branch');
-        commandFunction = expoUpdate;
+      case constants.EXPO_UPDATE_COMMAND:
+        options.branch = getOptionalInput(constants.BRANCH_OPTION);
+        commandFunction = commands.expoUpdate;
         break;
 
-      case 'expo-cloud-builds':
-        options.easBuildScriptName = getOptionalInput('eas-build-script-name');
-        options.waitForEasBuild = core.getBooleanInput('wait-for-eas-build');
-        commandFunction = expoCloudBuilds;
+      case constants.EXPO_CLOUD_BUILDS_COMMAND:
+        options.easBuildScriptName = getOptionalInput(constants.EAS_BUILD_SCRIPT_NAME_OPTION);
+        options.waitForEasBuild = core.getBooleanInput(constants.WAIT_FOR_EAS_BUILD_OPTION);
+        commandFunction = commands.expoCloudBuilds;
         break;
 
       default:

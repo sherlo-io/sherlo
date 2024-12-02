@@ -1,5 +1,6 @@
 import start from './start';
 
-export * from './commands';
+export * as commands from './commands';
+export * as constants from './constants';
 
 export default start;
