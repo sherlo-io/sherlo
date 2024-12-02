@@ -118,8 +118,8 @@ async function start() {
 
     await program.parseAsync(process.argv);
   } catch (error) {
-    if (error.sentryError) {
-      reporting.captureException(error.sentryError);
+    if (error.unexpectedError) {
+      reporting.captureException(error.unexpectedError);
     }
 
     reporting.flush().finally(() => {

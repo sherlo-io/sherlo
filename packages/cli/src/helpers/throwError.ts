@@ -19,13 +19,13 @@ type ErrorType = 'default' | 'auth' | 'unexpected';
 function throwError(params: Params): never {
   let type: ErrorType;
   let message: string;
-  let originalError: Error | undefined;
+  let unexpectedError: Error | undefined;
   let learnMoreLink: string | undefined;
 
   if (params.type === 'unexpected') {
     type = 'unexpected';
-    originalError = params.error;
-    message = originalError.message;
+    unexpectedError = params.error;
+    message = unexpectedError.message;
   } else {
     type = params.type ?? 'default';
     message = params.message;
@@ -46,7 +46,7 @@ function throwError(params: Params): never {
   if (learnMoreLink) errorLines.push(`↳ Learn more: ${getLogLink(learnMoreLink)}`);
 
   const error = new Error(errorLines.join('\n') + '\n');
-  if (originalError) (error as any).sentryError = originalError;
+  if (unexpectedError) (error as any).unexpectedError = unexpectedError;
 
   throw error;
 }
