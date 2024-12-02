@@ -22,6 +22,7 @@ function printHeader(): void {
   console.log(gradientString(color.reported, color.approved, color.noChanges)(header));
 
   console.log(chalk.dim(chalk.italic('Make sure your mobile app looks perfect on every device')));
+
   console.log();
 }
 

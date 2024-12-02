@@ -49,10 +49,10 @@ async function getValidatedBinariesInfoAndNextBuildIndex(
   }
 
   const { binariesInfo, nextBuildIndex } = await getBinariesInfoAndNextBuildIndex({
+    ...params,
     android,
     ios,
     platforms,
-    ...params,
   });
 
   validateBinariesInfo({ binariesInfo, command });

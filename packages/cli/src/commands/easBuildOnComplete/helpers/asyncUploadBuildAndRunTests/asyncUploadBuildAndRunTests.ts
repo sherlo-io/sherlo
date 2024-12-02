@@ -23,11 +23,7 @@ async function asyncUploadBuildAndRunTests({
 }) {
   const platform = process.env.EAS_BUILD_PLATFORM as Platform;
 
-  console.log('platform', platform);
-
   const buildPath = getBuildPath({ easBuildProfile, platform });
-
-  console.log('buildPath', buildPath);
 
   const { apiToken, projectIndex, teamId } = getTokenParts(token);
   const client = SDKApiClient(apiToken);
@@ -40,8 +36,6 @@ async function asyncUploadBuildAndRunTests({
     projectIndex,
     teamId,
   });
-
-  console.log('binariesInfo', binariesInfo);
 
   await uploadOrLogBinaryReuse({
     binariesInfo,
