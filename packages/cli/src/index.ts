@@ -1,6 +1,5 @@
-import { localBuilds } from './commands';
 import start from './start';
 
-export { localBuilds };
+export * from './commands';
 
 export default start;

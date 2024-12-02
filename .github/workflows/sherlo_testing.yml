@@ -8,13 +8,8 @@ on:
         required: true
         default: 'dev'
         type: string
-      preview_builds:
-        description: 'Builds: Preview'
-        required: false
-        default: false
-        type: boolean
-      development_builds:
-        description: 'Builds: Development'
+      use_github_action:
+        description: 'Use Sherlo Github Action'
         required: false
         default: false
         type: boolean
@@ -28,16 +23,6 @@ on:
         required: false
         default: false
         type: boolean
-      # stress_testing:
-      #   description: 'Test: Stress Testing (20 builds)'
-      #   required: false
-      #   default: false
-      #   type: boolean
-      # rn_local_builds:
-      #   description: 'Test: local-builds (React Native)'
-      #   required: false
-      #   default: false
-      #   type: boolean
       expo_local_builds:
         description: 'Test: local-builds (Expo)'
         required: false
@@ -60,25 +45,8 @@ on:
         type: boolean
 
 jobs:
-  update_preview_builds:
-    uses: ./.github/workflows/update_builds.yml
-    if: ${{ github.event.inputs.preview_builds == 'true'}}
-    name: Update Preview Builds
-    secrets: inherit
-    with:
-      profile: 'preview'
-
-  update_development_builds:
-    uses: ./.github/workflows/update_builds.yml
-    if: ${{ github.event.inputs.development_builds == 'true'}}
-    name: Update Development Builds
-    secrets: inherit
-    with:
-      profile: 'development'
-
   device_testing:
     uses: ./.github/workflows/expo-update.yml
-    needs: [update_development_builds]
     if: ${{ github.event.inputs.device_testing == 'true' && always() && !failure() && !cancelled() }}
     name: Device Testing
     secrets: inherit
@@ -87,10 +55,10 @@ jobs:
       config: 'all-devices'
       project: 'device-testing'
       with_builds: true
+      use_github_action: ${{ github.event.inputs.use_github_action }}
 
   many_stories:
     uses: ./.github/workflows/expo-update.yml
-    needs: [update_development_builds]
     if: ${{ github.event.inputs.many_stories == 'true' && always() && !failure() && !cancelled() }}
     name: Many Stories
     secrets: inherit
@@ -99,61 +67,44 @@ jobs:
       config: 'many-stories'
       with_builds: true
       project: 'many-stories'
-
-  stress_testing:
-    uses: ./.github/workflows/stress_testing.yml
-    needs: [update_preview_builds]
-    if: ${{ github.event.inputs.stress_testing == 'true' && always() && !failure() && !cancelled() }}
-    name: Stress Testing
-    secrets: inherit
-    with:
-      env: ${{ github.event.inputs.env }}
-
-  rn_local_builds:
-    uses: ./.github/workflows/rn_local-builds.yml
-    needs: [update_preview_builds]
-    if: ${{ github.event.inputs.rn_local_builds == 'true' && always() && !failure() && !cancelled() }}
-    name: local-builds (React Native)
-    secrets: inherit
-    with:
-      env: ${{ github.event.inputs.env }}
+      use_github_action: ${{ github.event.inputs.use_github_action }}
 
   expo_local_builds:
     uses: ./.github/workflows/expo_local-builds.yml
-    needs: [update_preview_builds]
     if: ${{ github.event.inputs.expo_local_builds == 'true' && always() && !failure() && !cancelled() }}
     name: local-builds (Expo)
     secrets: inherit
     with:
       env: ${{ github.event.inputs.env }}
+      use_github_action: ${{ github.event.inputs.use_github_action }}
 
   expo_cloud:
     uses: ./.github/workflows/expo-cloud.yml
-    needs: [update_preview_builds]
     if: ${{ github.event.inputs.expo_cloud == 'true' && always() && !failure() && !cancelled() }}
     name: expo-cloud-builds
     secrets: inherit
     with:
       env: ${{ github.event.inputs.env }}
+      use_github_action: ${{ github.event.inputs.use_github_action }}
 
   expo_update_with_builds:
     uses: ./.github/workflows/expo-update.yml
-    needs: [update_development_builds]
     if: ${{ github.event.inputs.expo_update_with_builds == 'true' && always() && !failure() && !cancelled() }}
     name: expo-update (with native builds)
     secrets: inherit
     with:
       env: ${{ github.event.inputs.env }}
+      use_github_action: ${{ github.event.inputs.use_github_action }}
       with_builds: true
       project: 'expo-update'
 
   expo_update:
     uses: ./.github/workflows/expo-update.yml
-    needs: [update_development_builds]
     if: ${{ github.event.inputs.expo_update == 'true' && always() && !failure() && !cancelled() }}
     name: expo-update (without native builds)
     secrets: inherit
     with:
       env: ${{ github.event.inputs.env }}
+      use_github_action: ${{ github.event.inputs.use_github_action }}
       with_builds: false
       project: 'expo-update'

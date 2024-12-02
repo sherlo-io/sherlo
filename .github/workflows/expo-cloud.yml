@@ -7,6 +7,11 @@ on:
         description: 'Environment (dev, test, prod)'
         required: true
         type: string
+      use_github_action:
+        description: 'Use Sherlo Github Action'
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       env:
@@ -14,6 +19,11 @@ on:
         required: true
         default: 'dev'
         type: string
+      use_github_action:
+        description: 'Use Sherlo Github Action'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   start_sherlo_expo_cloud:
@@ -42,13 +52,25 @@ jobs:
 
       # It's important to run Sherlo in the same job as the EAS build,
       # because we're pushing temporary files to .expo directory used during the build
-      - name: Run sherlo expo-cloud-builds
+      - name: Run sherlo expo-cloud-builds with CLI
+        if: inputs.use_github_action == false
         run: |
           yarn sherlo expo-cloud-builds \
             --waitForEasBuild \
             --config ../../configs/default-devices.json \
             --projectRoot testing/expo-storybook-8 \
             --token ${{ secrets.SHERLO_EXPO_CLOUD_TOKEN }}
+
+      - name: Run sherlo expo-cloud-builds with Github Action
+        if: inputs.use_github_action == true
+        uses: ./.
+        with:
+          waitForEasBuild: true
+          command: expo-cloud-builds
+          config: ../../configs/default-devices.json
+          projectRoot: testing/expo-storybook-8
+        env:
+          SHERLO_TOKEN: ${{ secrets.SHERLO_EXPO_CLOUD_TOKEN }}
 
       - name: Trigger EAS builds for both platforms
         working-directory: testing/expo-storybook-8

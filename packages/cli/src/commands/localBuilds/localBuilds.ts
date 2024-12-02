@@ -3,9 +3,7 @@ import { Options } from '../../types';
 import { getValidatedCommandParams } from '../../helpers';
 import { THIS_COMMAND } from './constants';
 
-async function localBuilds(
-  passedOptions: Options<THIS_COMMAND>
-): Promise<{ buildIndex: number; url: string }> {
+async function localBuilds(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
   printHeader();
 
   validatePackages(THIS_COMMAND);

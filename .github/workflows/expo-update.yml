@@ -12,6 +12,11 @@ on:
         required: false
         default: 'default-devices'
         type: string
+      use_github_action:
+        description: 'Use Sherlo Github Action'
+        required: false
+        default: false
+        type: boolean
       project:
         description: 'Project (expo-update, device-testing, many-stories)'
         required: true
@@ -57,8 +62,8 @@ jobs:
         run: |
           eas update --channel 'development' --message 'Expo Update' --json --non-interactive
 
-      - name: Run sherlo expo-update (with native builds)
-        if: inputs.with_builds == true
+      - name: Run sherlo expo-update (with native builds) with CLI
+        if: inputs.with_builds == true && inputs.use_github_action == false
         working-directory: testing/expo-storybook-8
         run: |
           yarn sherlo expo-update \
@@ -68,11 +73,33 @@ jobs:
             --branch development \
             --token ${{ inputs.project == 'expo-update' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}
 
-      - name: Run sherlo expo-update (without native builds)
-        if: inputs.with_builds == false
+      - name: Run sherlo expo-update (with native builds) with Github Action
+        if: inputs.with_builds == true && inputs.use_github_action == true
+        uses: ./.
+        with:
+          command: expo-update
+          config: ../../configs/${{ inputs.config }}.json
+          android: builds/development/android.apk
+          ios: builds/development/ios.tar.gz
+          branch: development
+        env:
+          SHERLO_TOKEN: ${{ inputs.project == 'expo-update' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}
+
+      - name: Run sherlo expo-update (without native builds) with CLI
+        if: inputs.with_builds == false && inputs.use_github_action == false
         working-directory: testing/expo-storybook-8
         run: |
           yarn sherlo expo-update \
             --config ../../configs/${{ inputs.config }}.json \
             --branch development \
             --token ${{ inputs.project == 'expo-update' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}
+
+      - name: Run sherlo expo-update (without native builds) with Github Action
+        if: inputs.with_builds == false && inputs.use_github_action == true
+        uses: ./.
+        with:
+          command: expo-update
+          config: ../../configs/${{ inputs.config }}.json
+          branch: development
+        env:
+          SHERLO_TOKEN: ${{ inputs.project == 'expo-update' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}

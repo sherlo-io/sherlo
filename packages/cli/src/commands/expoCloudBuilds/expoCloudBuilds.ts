@@ -96,7 +96,7 @@ async function expoCloudBuilds(passedOptions: Options<THIS_COMMAND>) {
     });
   }
 
-  return { buildIndex, url };
+  return { url };
 }
 
 export default expoCloudBuilds;

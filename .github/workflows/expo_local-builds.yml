@@ -7,6 +7,11 @@ on:
         description: 'Environment (dev, test, prod)'
         required: true
         type: string
+      use_github_action:
+        description: 'Use Sherlo Github Action'
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       env:
@@ -14,6 +19,11 @@ on:
         required: true
         default: 'dev'
         type: string
+      use_github_action:
+        description: 'Use Sherlo Github Action'
+        required: false
+        type: boolean
+        default: false
 jobs:
   sherlo_local_builds:
     name: Run sherlo local-builds (expo)
@@ -38,10 +48,22 @@ jobs:
         env:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
-      - name: Run sherlo local-builds
+      - name: Run sherlo local-builds with CLI
+        if: inputs.use_github_action == false
         run: |
           yarn sherlo local-builds \
             --config configs/default-devices.json \
             --android testing/expo-storybook-8/builds/preview/android.apk \
             --ios testing/expo-storybook-8/builds/preview/ios.tar.gz \
             --token ${{ secrets.SHERLO_LOCAL_BUILDS_EXPO_TOKEN }}
+
+      - name: Run sherlo local-builds with Github Action
+        if: inputs.use_github_action == true
+        uses: ./.
+        with:
+          command: local-builds
+          config: configs/default-devices.json
+          android: testing/expo-storybook-8/builds/preview/android.apk
+          ios: testing/expo-storybook-8/builds/preview/ios.tar.gz
+        env:
+          SHERLO_TOKEN: ${{ secrets.SHERLO_LOCAL_BUILDS_EXPO_TOKEN }}

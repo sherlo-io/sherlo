@@ -8,9 +8,7 @@ import { Options } from '../../types';
 import { THIS_COMMAND } from './constants';
 import { getValidatedExpoUpdateData } from './helpers';
 
-async function expoUpdate(
-  passedOptions: Options<THIS_COMMAND>
-): Promise<{ buildIndex: number; url: string }> {
+async function expoUpdate(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
   printHeader();
 
   validatePackages(THIS_COMMAND);

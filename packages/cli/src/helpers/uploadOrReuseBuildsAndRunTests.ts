@@ -18,7 +18,7 @@ async function uploadOrReuseBuildsAndRunTests({
 }: {
   commandParams: CommandParams;
   expoUpdateData?: ExpoUpdateData;
-}): Promise<{ buildIndex: number; url: string }> {
+}): Promise<{ url: string }> {
   const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
   const client = SDKApiClient(apiToken);
 
@@ -70,7 +70,7 @@ async function uploadOrReuseBuildsAndRunTests({
 
   logResultsUrl(url);
 
-  return { buildIndex, url };
+  return { url };
 }
 
 export default uploadOrReuseBuildsAndRunTests;

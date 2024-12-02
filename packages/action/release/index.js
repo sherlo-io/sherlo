@@ -34,6 +34,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 const core = __importStar(require("@actions/core"));
 const github = __importStar(require("@actions/github"));
+// @ts-ignore
 const cli_1 = require("@sherlo/cli");
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
