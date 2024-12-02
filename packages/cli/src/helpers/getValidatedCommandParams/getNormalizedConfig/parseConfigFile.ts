@@ -30,10 +30,7 @@ function parseConfigFile(path: string): InvalidatedConfig {
         if (error instanceof SyntaxError) {
           throwError(getError({ type: 'invalid_json', path }));
         } else {
-          throwError({
-            type: 'unexpected',
-            message: error.message,
-          });
+          throwError({ type: 'unexpected', error });
         }
     }
   }

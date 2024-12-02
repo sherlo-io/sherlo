@@ -16,7 +16,7 @@ function logBuildReuse({
   if (!buildIndex || !buildCreatedAt) {
     throwError({
       type: 'unexpected',
-      message: `${PLATFORM_LABEL[platform]} binary build info is incomplete`,
+      error: new Error(`${PLATFORM_LABEL[platform]} binary build info is incomplete`),
     });
   }
 

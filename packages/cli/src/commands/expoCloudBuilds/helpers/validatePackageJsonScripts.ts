@@ -52,7 +52,7 @@ function getPackageJson(projectRoot: string) {
   try {
     return JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
   } catch (error) {
-    throwError({ type: 'unexpected', message: error.message });
+    throwError({ type: 'unexpected', error });
   }
 }
 

@@ -41,7 +41,7 @@ function getBinaryInfo(params: Params): BinaryInfo | undefined {
   if (!remoteBinariesInfoOrUploadInfo[platform]) {
     throwError({
       type: 'unexpected',
-      message: `${PLATFORM_LABEL[platform]} remote binary info or upload info is missing`,
+      error: new Error(`${PLATFORM_LABEL[platform]} remote binary info or upload info is missing`),
     });
   }
 
@@ -49,7 +49,7 @@ function getBinaryInfo(params: Params): BinaryInfo | undefined {
   if (!localBinariesInfo[platform] && command !== EXPO_UPDATE_COMMAND) {
     throwError({
       type: 'unexpected',
-      message: `${PLATFORM_LABEL[platform]} local binary info is missing`,
+      error: new Error(`${PLATFORM_LABEL[platform]} local binary info is missing`),
     });
   }
 
@@ -74,7 +74,7 @@ function getBinaryInfo(params: Params): BinaryInfo | undefined {
     } else {
       throwError({
         type: 'unexpected',
-        message: `${PLATFORM_LABEL[platform]} binary info is missing required fields`,
+        error: new Error(`${PLATFORM_LABEL[platform]} binary info is missing required fields`),
       });
     }
   }
@@ -82,7 +82,7 @@ function getBinaryInfo(params: Params): BinaryInfo | undefined {
   if (!isValidBinaryInfo(binaryInfo)) {
     throwError({
       type: 'unexpected',
-      message: `binaryInfo is invalid`,
+      error: new Error(`${PLATFORM_LABEL[platform]} binary info is invalid`),
     });
   }
 

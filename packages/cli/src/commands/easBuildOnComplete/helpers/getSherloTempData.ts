@@ -31,7 +31,9 @@ function getSherloTempData(): { buildIndex: number; token: string } | undefined 
   if (typeof buildIndex !== 'number') {
     throwError({
       type: 'unexpected',
-      message: `Field \`buildIndex\` in temporary file "${SHERLO_TEMP_FILE_PATH}" is not valid`,
+      error: new Error(
+        `Field \`buildIndex\` in temporary file "${SHERLO_TEMP_FILE_PATH}" is not valid`
+      ),
     });
   }
 
@@ -39,8 +41,9 @@ function getSherloTempData(): { buildIndex: number; token: string } | undefined 
   if (!tokenRegex.test(token)) {
     throwError({
       type: 'unexpected',
-      message: `Passed \`token\` ("${token}") in temporary file "${SHERLO_TEMP_FILE_PATH}" is not valid`,
-      learnMoreLink: DOCS_LINK.configToken,
+      error: new Error(
+        `Passed \`token\` ("${token}") in temporary file "${SHERLO_TEMP_FILE_PATH}" is not valid`
+      ),
     });
   }
 

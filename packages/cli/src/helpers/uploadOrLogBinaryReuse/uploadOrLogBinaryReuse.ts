@@ -23,7 +23,7 @@ async function uploadOrLogBinaryReuse(params: {
       if (!params[platform]) {
         throwError({
           type: 'unexpected',
-          message: `${PLATFORM_LABEL[platform]} path is undefined`,
+          error: new Error(`${PLATFORM_LABEL[platform]} path is undefined`),
         });
       }
 

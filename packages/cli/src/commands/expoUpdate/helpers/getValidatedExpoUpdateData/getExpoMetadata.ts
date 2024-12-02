@@ -16,10 +16,7 @@ function getExpoMetadata(commandParams: CommandParams<THIS_COMMAND>): {
 
     config = JSON.parse(output);
   } catch (error) {
-    throwError({
-      type: 'unexpected',
-      message: error.message,
-    });
+    throwError({ type: 'unexpected', error });
   }
 
   if (!config.slug) {

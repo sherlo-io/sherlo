@@ -41,7 +41,7 @@ function getBuildData({
 
   throwError({
     type: 'unexpected',
-    message: `Platform ${platform} is not supported`,
+    error: new Error(`Platform ${platform} is not supported`),
   });
 }
 

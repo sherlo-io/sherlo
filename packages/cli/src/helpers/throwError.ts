@@ -1,65 +1,65 @@
 import chalk from 'chalk';
 import { getLogLink } from './shared';
 
-type ErrorType = 'default' | 'auth' | 'unexpected';
+type Params = StandardErrorParams | UnexpectedErrorParams;
 
-const typeLabel: { [type in ErrorType]: string } = {
-  default: 'ERROR',
-  auth: 'AUTH ERROR',
-  unexpected: 'UNEXPECTED ERROR',
-};
-
-function throwError({
-  learnMoreLink,
-  message,
-  type = 'default',
-  originalError,
-}: {
+type StandardErrorParams = {
   message: string;
   learnMoreLink?: string;
-  type?: ErrorType;
-  originalError?: Error;
-}): never {
-  const errorMessageParts = [chalk.red(`${typeLabel[type]}: ${message}`)];
+  type?: Extract<ErrorType, 'default' | 'auth'>;
+};
 
-  let dontReportToSentry = false;
+type UnexpectedErrorParams = {
+  error: Error;
+  type: Extract<ErrorType, 'unexpected'>;
+};
+
+type ErrorType = 'default' | 'auth' | 'unexpected';
+
+function throwError(params: Params): never {
+  let type: ErrorType;
+  let message: string;
+  let originalError: Error | undefined;
+  let learnMoreLink: string | undefined;
+
+  if (params.type === 'unexpected') {
+    type = 'unexpected';
+    originalError = params.error;
+    message = originalError.message;
+  } else {
+    type = params.type ?? 'default';
+    message = params.message;
+    learnMoreLink = params.learnMoreLink;
+  }
+
+  const errorMessageParts = [chalk.red(`${LABEL[type]}: ${message}`)];
 
   if (type === 'unexpected') {
     const location = getCallerLocation();
-    if (location) {
-      errorMessageParts.push(chalk.dim(`(in ${location})`));
-    }
-  } else {
-    dontReportToSentry = true;
+    if (location) errorMessageParts.push(chalk.dim(`(in ${location})`));
   }
 
   const errorMessage = errorMessageParts.join(' ');
 
   const errorLines = [errorMessage];
 
-  if (learnMoreLink) {
-    errorLines.push(`↳ Learn more: ${getLogLink(learnMoreLink)}`);
-  }
+  if (learnMoreLink) errorLines.push(`↳ Learn more: ${getLogLink(learnMoreLink)}`);
 
-  const error = new SherloError(errorLines.join('\n') + '\n');
-
-  if (originalError) {
-    error.originalError = originalError;
-  }
-
-  error.dontReportToSentry = dontReportToSentry;
+  const error = new Error(errorLines.join('\n') + '\n');
+  if (originalError) (error as any).sentryError = originalError;
 
   throw error;
 }
 
 export default throwError;
 
-class SherloError extends Error {
-  dontReportToSentry = false;
-  originalError?: Error;
-}
-
 /* ========================================================================== */
+
+const LABEL: { [type in ErrorType]: string } = {
+  default: 'ERROR',
+  auth: 'AUTH ERROR',
+  unexpected: 'UNEXPECTED ERROR',
+};
 
 function getCallerLocation() {
   const stack = new Error().stack;

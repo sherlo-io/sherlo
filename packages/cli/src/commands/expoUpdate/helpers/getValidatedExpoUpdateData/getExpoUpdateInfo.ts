@@ -14,10 +14,7 @@ function getExpoUpdateInfo(commandParams: CommandParams<THIS_COMMAND>): ExpoUpda
 
     result = JSON.parse(output);
   } catch (error) {
-    throwError({
-      type: 'unexpected',
-      message: error.message,
-    });
+    throwError({ type: 'unexpected', error });
   }
 
   const expoUpdateInfo = result.currentPage?.[0];
@@ -31,7 +28,7 @@ function getExpoUpdateInfo(commandParams: CommandParams<THIS_COMMAND>): ExpoUpda
   ) {
     throwError({
       type: 'unexpected',
-      message: 'Invalid expo update info:\n' + JSON.stringify(result, null, 2),
+      error: new Error('Invalid expo update info:\n' + JSON.stringify(result, null, 2)),
     });
   }
 

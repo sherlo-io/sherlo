@@ -14,7 +14,7 @@ function handleClientError(error: any) {
     });
   }
 
-  throwError({ type: 'unexpected', message: error.message });
+  throwError({ type: 'unexpected', error });
 }
 
 export default handleClientError;

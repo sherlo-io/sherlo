@@ -34,7 +34,10 @@ function validateDevices(config: InvalidatedConfig): void {
     }
 
     if (!osLocale) {
-      throwError({ type: 'unexpected', message: 'osLocale is undefined' });
+      throwError({
+        type: 'unexpected',
+        error: new Error('osLocale is undefined'),
+      });
     }
 
     const osLocaleRegex = /^[a-z]{2}_[A-Z]{2}$/;
@@ -49,7 +52,10 @@ function validateDevices(config: InvalidatedConfig): void {
     }
 
     if (!osTheme) {
-      throwError({ type: 'unexpected', message: 'osTheme is undefined' });
+      throwError({
+        type: 'unexpected',
+        error: new Error('osTheme is undefined'),
+      });
     }
 
     const deviceThemes: [DeviceTheme, DeviceTheme] = ['light', 'dark'];

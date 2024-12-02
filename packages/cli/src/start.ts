@@ -117,16 +117,14 @@ async function start() {
     }
 
     await program.parseAsync(process.argv);
-  } catch (e) {
-    if (e.originalError) {
-      reporting.captureException(e.originalError);
-    } else if (!e.dontReportToSentry) {
-      reporting.captureException(e);
+  } catch (error) {
+    if (error.sentryError) {
+      reporting.captureException(error.sentryError);
     }
 
     reporting.flush().finally(() => {
-      console.error((e as Error).message);
-      process.exit(e.code || 1);
+      console.error((error as Error).message);
+      process.exit(error.code || 1);
     });
   }
 }

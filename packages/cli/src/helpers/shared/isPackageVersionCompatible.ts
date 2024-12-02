@@ -18,7 +18,7 @@ function isPackageVersionCompatible({
   ) {
     throwError({
       type: 'unexpected',
-      message: 'Package versions must contain exactly 3 numbers',
+      error: new Error('Package versions must contain exactly 3 numbers'),
     });
   }
 

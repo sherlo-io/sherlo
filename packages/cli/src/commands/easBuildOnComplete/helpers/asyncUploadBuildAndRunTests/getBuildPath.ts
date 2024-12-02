@@ -31,7 +31,7 @@ function getBuildPath({
   } else {
     throwError({
       type: 'unexpected',
-      message: `Unsupported platform: ${platform}`,
+      error: new Error(`Unsupported platform: ${platform}`),
     });
   }
 

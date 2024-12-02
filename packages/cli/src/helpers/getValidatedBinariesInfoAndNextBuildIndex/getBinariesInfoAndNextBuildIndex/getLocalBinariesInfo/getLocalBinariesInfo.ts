@@ -126,7 +126,7 @@ async function getLocalBinaryInfoForPlatform({
   } else {
     throwError({
       type: 'unexpected',
-      message: `Unsupported file format: ${fileName}`,
+      error: new Error(`Unsupported file format: ${fileName}`),
     });
   }
 

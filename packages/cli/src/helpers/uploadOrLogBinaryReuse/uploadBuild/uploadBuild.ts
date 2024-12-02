@@ -28,7 +28,7 @@ async function uploadBuild({
   if (!response || !response.ok) {
     throwError({
       type: 'unexpected',
-      message: `Failed to upload ${PLATFORM_LABEL[platform]} build`,
+      error: new Error(`Failed to upload ${PLATFORM_LABEL[platform]} build`),
     });
   }
 

@@ -33,11 +33,7 @@ async function accessFileInArchive({
     }
   } catch (error) {
     if (isUnexpectedError({ type, error, tarVersion })) {
-      throwError({
-        type: 'unexpected',
-        message: error.message,
-        originalError: error,
-      });
+      throwError({ type: 'unexpected', error });
     }
 
     if (operation === 'exists') {

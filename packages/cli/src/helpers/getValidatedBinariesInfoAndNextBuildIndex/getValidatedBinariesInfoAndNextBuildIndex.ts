@@ -61,7 +61,7 @@ async function getValidatedBinariesInfoAndNextBuildIndex(
   if (!sdkVersion) {
     throwError({
       type: 'unexpected',
-      message: 'SDK version is missing after validation',
+      error: new Error('SDK version is missing after validation'),
     });
   }
 

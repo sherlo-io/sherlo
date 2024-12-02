@@ -27,10 +27,7 @@ function compressDirectoryToTarGzip({
 
     return runShellCommand({ command, encoding: 'buffer', projectRoot });
   } catch (error) {
-    throwError({
-      type: 'unexpected',
-      message: `Failed to compress directory: ${error.message}`,
-    });
+    throwError({ type: 'unexpected', error });
   }
 }
 

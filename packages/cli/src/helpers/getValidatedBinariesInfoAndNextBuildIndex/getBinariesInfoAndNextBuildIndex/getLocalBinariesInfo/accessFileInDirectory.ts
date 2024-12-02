@@ -31,10 +31,7 @@ async function accessFileInDirectory({
   } catch (error) {
     if (operation === 'exists') return false;
 
-    throwError({
-      type: 'unexpected',
-      message: error.message,
-    });
+    throwError({ type: 'unexpected', error });
   }
 }
 

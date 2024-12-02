@@ -18,8 +18,6 @@ import { asyncUploadBuildAndRunTests, getSherloTempData } from './helpers';
  */
 
 async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
-  printHeader();
-
   const wasAppBuiltLocally = process.env.EAS_BUILD_RUNNER !== 'eas-build';
   const passedProfile = passedOptions.profile;
   const easBuildProfile = process.env.EAS_BUILD_PROFILE;
@@ -36,6 +34,8 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
 
     return;
   }
+
+  printHeader();
 
   if (!passedProfile) {
     throwError({
