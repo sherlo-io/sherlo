@@ -54,21 +54,21 @@ jobs:
       # because we're pushing temporary files to .expo directory used during the build
       - name: Run sherlo expo-cloud-builds with CLI
         if: inputs.use_github_action == false
+        working-directory: testing/expo-storybook-8
         run: |
           yarn sherlo expo-cloud-builds \
             --waitForEasBuild \
             --config ../../configs/default-devices.json \
-            --projectRoot testing/expo-storybook-8 \
             --token ${{ secrets.SHERLO_EXPO_CLOUD_TOKEN }}
 
       - name: Run sherlo expo-cloud-builds with Github Action
         if: inputs.use_github_action == true
         uses: ./.
         with:
-          waitForEasBuild: true
           command: expo-cloud-builds
-          config: ../../configs/default-devices.json
           projectRoot: testing/expo-storybook-8
+          waitForEasBuild: true
+          config: ../../configs/default-devices.json
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_EXPO_CLOUD_TOKEN }}
 

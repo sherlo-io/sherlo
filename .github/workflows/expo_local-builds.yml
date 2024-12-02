@@ -50,11 +50,12 @@ jobs:
 
       - name: Run sherlo local-builds with CLI
         if: inputs.use_github_action == false
+        working-directory: testing/expo-storybook-8
         run: |
           yarn sherlo local-builds \
-            --config configs/default-devices.json \
-            --android testing/expo-storybook-8/builds/preview/android.apk \
-            --ios testing/expo-storybook-8/builds/preview/ios.tar.gz \
+            --config ../../configs/default-devices.json \
+            --android builds/preview/android.apk \
+            --ios builds/preview/ios.tar.gz \
             --token ${{ secrets.SHERLO_LOCAL_BUILDS_EXPO_TOKEN }}
 
       - name: Run sherlo local-builds with Github Action
@@ -62,8 +63,9 @@ jobs:
         uses: ./.
         with:
           command: local-builds
-          config: configs/default-devices.json
-          android: testing/expo-storybook-8/builds/preview/android.apk
-          ios: testing/expo-storybook-8/builds/preview/ios.tar.gz
+          projectRoot: testing/expo-storybook-8
+          config: ../../configs/default-devices.json
+          android: builds/preview/android.apk
+          ios: builds/preview/ios.tar.gz
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_LOCAL_BUILDS_EXPO_TOKEN }}

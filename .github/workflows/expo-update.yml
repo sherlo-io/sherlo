@@ -78,6 +78,7 @@ jobs:
         uses: ./.
         with:
           command: expo-update
+          projectRoot: testing/expo-storybook-8
           config: ../../configs/${{ inputs.config }}.json
           android: builds/development/android.apk
           ios: builds/development/ios.tar.gz
@@ -99,6 +100,7 @@ jobs:
         uses: ./.
         with:
           command: expo-update
+          projectRoot: testing/expo-storybook-8
           config: ../../configs/${{ inputs.config }}.json
           branch: development
         env:
