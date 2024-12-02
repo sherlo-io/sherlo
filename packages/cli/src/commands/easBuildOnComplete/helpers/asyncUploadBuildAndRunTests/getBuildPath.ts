@@ -10,7 +10,7 @@ function getBuildPath({
   easBuildProfile: string;
   platform: Platform;
 }) {
-  let platformPath: string;
+  let platformPath: string | null = null;
 
   if (platform === 'android') {
     /**
@@ -35,6 +35,20 @@ function getBuildPath({
     });
   }
 
+  if (!platformPath) {
+    throwError({
+      type: 'unexpected',
+      error: new Error(`Could not find build path for platform: ${platform}`),
+    });
+  }
+
+  if (!fs.existsSync(platformPath)) {
+    throwError({
+      type: 'unexpected',
+      error: new Error(`Build file does not exist at path: ${platformPath}`),
+    });
+  }
+
   return platformPath;
 }
 
@@ -54,8 +68,13 @@ function getBuildPathFromEasJson({
   return easJsonData?.builds?.[platform]?.[easBuildProfile]?.applicationArchivePath ?? null;
 }
 
-function findDefaultIosAppPath() {
+function findDefaultIosAppPath(): string | null {
   const IOS_BUILD_PATH = 'ios/build/Build/Products/Release-iphonesimulator';
+
+  if (!fs.existsSync(IOS_BUILD_PATH)) {
+    return null;
+  }
+
   const fileNames = fs.readdirSync(IOS_BUILD_PATH);
 
   for (let i = 0; i < fileNames.length; i++) {
@@ -66,5 +85,5 @@ function findDefaultIosAppPath() {
     }
   }
 
-  return '';
+  return null;
 }

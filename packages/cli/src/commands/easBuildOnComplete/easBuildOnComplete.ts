@@ -1,5 +1,4 @@
 import SDKApiClient from '@sherlo/sdk-client';
-import process from 'process';
 import {
   DOCS_LINK,
   EXPO_CLOUD_BUILDS_COMMAND,

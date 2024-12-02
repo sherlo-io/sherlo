@@ -45,6 +45,8 @@ async function getBinariesInfoAndNextBuildIndex(params: Params) {
     command,
   });
 
+  console.log('localBinariesInfo', localBinariesInfo);
+
   let { binariesInfo: remoteBinariesInfoOrUploadInfo, nextBuildIndex } = await client
     .getNextBuildInfo({
       binaryHashes: { android: localBinariesInfo.android?.hash, ios: localBinariesInfo.ios?.hash },
@@ -55,6 +57,8 @@ async function getBinariesInfoAndNextBuildIndex(params: Params) {
         command === EXPO_UPDATE_COMMAND ? 'requireHashMatchOrLatestExpoDev' : 'requireHashMatch',
     })
     .catch(handleClientError);
+
+  console.log('remoteBinariesInfoOrUploadInfo', remoteBinariesInfoOrUploadInfo);
 
   const binariesInfo = {
     android: getBinaryInfo({
