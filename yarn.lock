@@ -3223,32 +3223,32 @@
   resolved "https://registry.yarnpkg.com/@sentry/types/-/types-8.41.0.tgz#db40c93bcedad26569c5dfe10a4b31253c349a10"
   integrity sha512-eqdnGr9k9H++b9CjVUoTNUVahPVWeNnMy0YGkqS5+cjWWC+x43p56202oidGFmWo6702ub/xwUNH6M5PC4kq6A==
 
-"@sherlo/api-types@1.1.11":
-  version "1.1.11"
-  resolved "https://registry.yarnpkg.com/@sherlo/api-types/-/api-types-1.1.11.tgz#b8e00f8da8bc2e4b8100038b87f0ee1aad4df03d"
-  integrity sha512-kLYCakuBuzGXw4mbOaFXsXZBNyvszXjlodGG8kz3fwPZEB6vlVrEEYHHCuKAnIGrOvFIqgWvnsQMsu8XiBKLXw==
+"@sherlo/api-types@1.1.12":
+  version "1.1.12"
+  resolved "https://registry.yarnpkg.com/@sherlo/api-types/-/api-types-1.1.12.tgz#f589f078fdc5aeab6673af95a89a71aa8afd33c4"
+  integrity sha512-xKwtW+SSxaFjMEB9pYOlXci6mFe6xlfFbfkWhb+DQCJ39IgEMc06Kb/rgHgaKMUQsUHKDlkAd3Fn/3KeckAlAA==
 
-"@sherlo/common-client@1.1.11":
-  version "1.1.11"
-  resolved "https://registry.yarnpkg.com/@sherlo/common-client/-/common-client-1.1.11.tgz#afecd53770485158c6281ed8f6048aebceb35661"
-  integrity sha512-dZEuIk4SSe3uxS4ZhsrP/QKnmlcXKhSeAkjsMpTSrmoLJFSGDrkqdtezsk6n6ILInQBmu3u3dK8Sv3V6mHAGcQ==
+"@sherlo/common-client@1.1.12":
+  version "1.1.12"
+  resolved "https://registry.yarnpkg.com/@sherlo/common-client/-/common-client-1.1.12.tgz#89df7d9fa34a3d5545b6978d91aeeded8c0d67be"
+  integrity sha512-V9T4XEEjGA6138L9Ck2OYeCLsSk8SUccY+qwM3cF/ZbPqQWmki6s8wFiOFaCHJ9bpsLUpS7GJdSHNfEnVBHN0A==
   dependencies:
     graphql-tag "2.12.6"
 
-"@sherlo/sdk-client@1.1.11":
-  version "1.1.11"
-  resolved "https://registry.yarnpkg.com/@sherlo/sdk-client/-/sdk-client-1.1.11.tgz#822099e5af75ddaa9c6c8d3d3859ae8353cd1f0a"
-  integrity sha512-Y7GtGiKdNIMjjyT6XKMzC46zZzueCKS0ac1dNB/QQCY7z+MZWpsNFvSFIvWRMWupCFAgfK2SiiapbVPOSfQPkw==
+"@sherlo/sdk-client@1.1.12":
+  version "1.1.12"
+  resolved "https://registry.yarnpkg.com/@sherlo/sdk-client/-/sdk-client-1.1.12.tgz#093bba853fa9b62ab31bfc825aa516c243f466dc"
+  integrity sha512-pOxGIPqDUiyThhTLMCK83bXhdl+3j5pNOW0sp3U6k5StOIpJq/iE4T9O0arSbkX77qvEFcS8LxCMNCfxBuPjUA==
   dependencies:
     "@apollo/client" "3.7.0"
     aws-appsync-auth-link "3.0.7"
     graphql-tag "2.12.6"
     isomorphic-fetch "3.0.0"
 
-"@sherlo/shared@1.1.11":
-  version "1.1.11"
-  resolved "https://registry.yarnpkg.com/@sherlo/shared/-/shared-1.1.11.tgz#f1c93ad559bfc3d96c57a7ae7b7bcdca2baaf5d1"
-  integrity sha512-ApWsXZ59AXHD888Xd/iPbeUVw37Sew5jnA7h2G+7zDmMEaXPshsIqEHP0NASN9/w3qNxV5RrCLp2/SOqJgv7YQ==
+"@sherlo/shared@1.1.12":
+  version "1.1.12"
+  resolved "https://registry.yarnpkg.com/@sherlo/shared/-/shared-1.1.12.tgz#b244c84b54582f7bb65649c22323402696e75e8d"
+  integrity sha512-K/EO8i7U721iCK7i12a11IAgxwEvxrqn98M1uepufhJR48CjLP2UHf8boMqJcTdAozcQdmNehZcoBLMKrApFDA==
 
 "@sideway/address@^4.1.5":
   version "4.1.5"
