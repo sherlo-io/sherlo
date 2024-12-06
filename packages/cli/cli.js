@@ -2,6 +2,6 @@
 
 'use strict';
 
-const cli = require('@sherlo/cli').default;
+const cli = require('./dist').default;
 
 cli();

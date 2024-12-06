@@ -34,7 +34,7 @@ async function start() {
       ],
       [IOS_OPTION]: [
         `--${IOS_OPTION} <path>`,
-        `Path to ${PLATFORM_LABEL.ios} build (.app or .tar.gz/.tar)`,
+        `Path to ${PLATFORM_LABEL.ios} build (.app, .tar.gz or .tar)`,
       ],
       [TOKEN_OPTION]: [`--${TOKEN_OPTION} <token>`, 'Authentication token for the project'],
       [CONFIG_OPTION]: [
@@ -43,7 +43,7 @@ async function start() {
       ],
       [PROJECT_ROOT_OPTION]: [
         `--${PROJECT_ROOT_OPTION} <path>`,
-        `Root directory of the React Native project (default: ${DEFAULT_PROJECT_ROOT})`,
+        `Path to the root directory of your project (default: ${DEFAULT_PROJECT_ROOT})`,
       ],
     } as const;
 
@@ -68,7 +68,10 @@ async function start() {
     program
       .command(EXPO_UPDATE_COMMAND)
       .description('Test builds with Expo Update')
-      .option(`--${BRANCH_OPTION} <name>`, 'EAS Update branch name')
+      .option(
+        `--${BRANCH_OPTION} <branch>`,
+        'Name of the EAS Update branch to fetch the latest update from'
+      )
       // .option(
       //   `--${EAS_UPDATE_JSON_OUTPUT_OPTION} <json_output>`,
       //   'JSON output from the `eas update --json` command'
@@ -88,9 +91,12 @@ async function start() {
       .description('Test builds from Expo cloud (EAS)')
       .option(
         `--${EAS_BUILD_SCRIPT_NAME_OPTION} <name>`,
-        'Package.json script name that triggers EAS build'
+        'Name of the package.json script that triggers EAS build'
       )
-      .option(`--${WAIT_FOR_EAS_BUILD_OPTION}`, 'Wait for manually triggered EAS build')
+      .option(
+        `--${WAIT_FOR_EAS_BUILD_OPTION}`,
+        'Start waiting for EAS build to be triggered manually'
+      )
       .option(...sharedOptions[TOKEN_OPTION])
       .option(...sharedOptions[CONFIG_OPTION])
       .option(...sharedOptions[PROJECT_ROOT_OPTION])
@@ -103,7 +109,7 @@ async function start() {
       .command(EAS_BUILD_ON_COMPLETE_COMMAND)
       .description(`Process Expo cloud builds (required for ${EXPO_CLOUD_BUILDS_COMMAND})`)
       .option(
-        `--${PROFILE_OPTION} <name>`,
+        `--${PROFILE_OPTION} <profile>`,
         `EAS build profile (must match profile used in ${EXPO_CLOUD_BUILDS_COMMAND})`
       )
       .action(async (options) => {

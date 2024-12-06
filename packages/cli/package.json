@@ -1,7 +1,7 @@
 {
-  "name": "@sherlo/cli",
+  "name": "sherlo",
   "version": "1.0.34",
-  "description": "A CLI that uploads provided iOS & Android builds to Sherlo and starts a test run",
+  "description": "Sherlo CLI for React Native Storybook visual testing",
   "keywords": [
     "visual testing",
     "react-native",
@@ -19,9 +19,13 @@
     "directory": "packages/cli"
   },
   "main": "dist/index.js",
+  "bin": {
+    "sherlo": "./cli.js"
+  },
   "files": [
     "dist",
-    "sdk-compatibility.json"
+    "sdk-compatibility.json",
+    "cli.js"
   ],
   "scripts": {
     "build": "rm -rf dist && ncc build src/index.ts --source-map --minify && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js"

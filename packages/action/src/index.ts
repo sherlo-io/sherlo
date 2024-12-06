@@ -1,6 +1,6 @@
 import * as core from '@actions/core';
-import { commands, constants } from '@sherlo/cli';
 import { Build } from '@sherlo/api-types';
+import { commands, constants } from 'sherlo';
 import { getGitInfo } from './getGitInfo';
 
 type CommandOptions = {
@@ -51,7 +51,7 @@ async function run(): Promise<void> {
 
     options.gitInfo = getGitInfo(overrideCommitName);
 
-    // We cast options as any to leverage validation in @sherlo/cli
+    // We cast options as any to leverage validation in Sherlo CLI
     const { url } = await commandFunction(options as any);
 
     core.setOutput('url', url);

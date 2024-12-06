@@ -22,6 +22,8 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
   const easBuildProfile = process.env.EAS_BUILD_PROFILE;
 
   if (wasAppBuiltLocally) {
+    console.log();
+
     logInfo({
       message:
         'EAS builds were created locally\n\n' +
