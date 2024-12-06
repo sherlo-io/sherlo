@@ -1,0 +1,37 @@
+name: 'Sherlo Testing'
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Environment (dev, test, prod)'
+        required: true
+        default: 'dev'
+        type: string
+      preview_builds:
+        description: 'Builds: Preview'
+        required: false
+        default: false
+        type: boolean
+      development_builds:
+        description: 'Builds: Development'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  update_preview_builds:
+    uses: ./.github/workflows/update_builds.yml
+    if: ${{ github.event.inputs.preview_builds == 'true'}}
+    name: Update Preview Builds
+    secrets: inherit
+    with:
+      profile: 'preview'
+
+  update_development_builds:
+    uses: ./.github/workflows/update_builds.yml
+    if: ${{ github.event.inputs.development_builds == 'true'}}
+    name: Update Development Builds
+    secrets: inherit
+    with:
+      profile: 'development'

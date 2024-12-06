@@ -6,17 +6,17 @@ interface LayoutProps extends ViewProps {
   shouldAddSafeArea: boolean;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ shouldAddSafeArea, children, style, ...props }) => {
+const Layout: React.FC<LayoutProps> = ({ shouldAddSafeArea, children, ...props }) => {
   const insets = useSafeAreaInsets();
 
   const showSafeArea = shouldAddSafeArea && Platform.OS === 'ios';
 
   return (
     <View
+      testID="sherlo-getStorybook-verification"
       style={[
         StyleSheet.absoluteFillObject,
         showSafeArea && { paddingTop: insets.top, paddingBottom: insets.bottom },
-        style,
       ]}
       {...props}
     >
@@ -24,3 +24,5 @@ export const Layout: React.FC<LayoutProps> = ({ shouldAddSafeArea, children, sty
     </View>
   );
 };
+
+export default Layout;

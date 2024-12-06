@@ -22,6 +22,14 @@ function generateStorybookComponent({
   };
 
   if (storybookRenderMode === 'sherlo') {
+    const sb7Params = {
+      isUIHidden: true,
+      isSplitPanelVisible: false,
+      tabOpen: 0,
+      shouldDisableKeyboardAvoidingView: true,
+      keyboardAvoidingViewVerticalOffset: 0,
+    };
+
     params = {
       ...params,
       host: undefined,

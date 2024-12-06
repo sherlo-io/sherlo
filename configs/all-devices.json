@@ -1,0 +1,665 @@
+{
+  "include": ["TestInfo", "FocusedInput"],
+  "devices": [
+    {
+      "id": "pixel.7.pro",
+      "osVersion": "13",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "pixel.7",
+      "osVersion": "13",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "pixel.6a",
+      "osVersion": "13",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "pixel.6.pro",
+      "osVersion": "13",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "pixel.5",
+      "osVersion": "13",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "pixel.4a",
+      "osVersion": "13",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "pixel.4.xl",
+      "osVersion": "13",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "pixel.4",
+      "osVersion": "13",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "pixel.7.pro",
+      "osVersion": "13",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "pixel.7",
+      "osVersion": "13",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "pixel.6a",
+      "osVersion": "13",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "pixel.6.pro",
+      "osVersion": "13",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "pixel.5",
+      "osVersion": "13",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "pixel.4a",
+      "osVersion": "13",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "pixel.4.xl",
+      "osVersion": "13",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "pixel.4",
+      "osVersion": "13",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "pixel.tablet",
+      "osVersion": "13",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "pixel.tablet",
+      "osVersion": "13",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.se.3.gen",
+      "osVersion": "15",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.13.pro.max",
+      "osVersion": "15",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.13.pro",
+      "osVersion": "15",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.13.mini",
+      "osVersion": "15",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.13",
+      "osVersion": "15",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.se.3.gen",
+      "osVersion": "15",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.13.pro.max",
+      "osVersion": "15",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.13.pro",
+      "osVersion": "15",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.13.mini",
+      "osVersion": "15",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.13",
+      "osVersion": "15",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "ipad.air.5.gen",
+      "osVersion": "15",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "ipad.mini.6.gen",
+      "osVersion": "15",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "ipad.9.gen",
+      "osVersion": "15",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "ipad.air.5.gen",
+      "osVersion": "15",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "ipad.mini.6.gen",
+      "osVersion": "15",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "ipad.9.gen",
+      "osVersion": "15",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.se.3.gen",
+      "osVersion": "16",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.14.pro.max",
+      "osVersion": "16",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.14.pro",
+      "osVersion": "16",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.14.plus",
+      "osVersion": "16",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.14",
+      "osVersion": "16",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.13.pro.max",
+      "osVersion": "16",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.13.pro",
+      "osVersion": "16",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.13.mini",
+      "osVersion": "16",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.13",
+      "osVersion": "16",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.se.3.gen",
+      "osVersion": "16",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.14.pro.max",
+      "osVersion": "16",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.14.pro",
+      "osVersion": "16",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.14.plus",
+      "osVersion": "16",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.14",
+      "osVersion": "16",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.13.pro.max",
+      "osVersion": "16",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.13.pro",
+      "osVersion": "16",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.13.mini",
+      "osVersion": "16",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.13",
+      "osVersion": "16",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "ipad.pro.12.9.6.gen",
+      "osVersion": "16",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "ipad.pro.11.4.gen",
+      "osVersion": "16",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "ipad.air.5.gen",
+      "osVersion": "16",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "ipad.10.gen",
+      "osVersion": "16",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "ipad.mini.6.gen",
+      "osVersion": "16",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "ipad.9.gen",
+      "osVersion": "16",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "ipad.pro.12.9.6.gen",
+      "osVersion": "16",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "ipad.pro.11.4.gen",
+      "osVersion": "16",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "ipad.air.5.gen",
+      "osVersion": "16",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "ipad.10.gen",
+      "osVersion": "16",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "ipad.mini.6.gen",
+      "osVersion": "16",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "ipad.9.gen",
+      "osVersion": "16",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.15.pro.max",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.15.pro",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.15.plus",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.15",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.se.3.gen",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.14.pro.max",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.14.pro",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.14.plus",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.14",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.13.pro.max",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.13.pro",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.13.mini",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.13",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "iphone.15.pro.max",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.15.pro",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.15.plus",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.15",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.se.3.gen",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.14.pro.max",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.14.pro",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.14.plus",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.14",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.13.pro.max",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.13.pro",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.13.mini",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "iphone.13",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "ipad.pro.13.m4",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "ipad.pro.11.m4",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "ipad.air.13.m2",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "ipad.air.11.m2",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "ipad.pro.12.9.6.gen",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "ipad.pro.11.4.gen",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "ipad.air.5.gen",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "ipad.10.gen",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "ipad.mini.6.gen",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "ipad.9.gen",
+      "osVersion": "17",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "ipad.pro.13.m4",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "ipad.pro.11.m4",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "ipad.air.13.m2",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "ipad.air.11.m2",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "ipad.pro.12.9.6.gen",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "ipad.pro.11.4.gen",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "ipad.air.5.gen",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "ipad.10.gen",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "ipad.mini.6.gen",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "ipad.9.gen",
+      "osVersion": "17",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    }
+  ]
+}

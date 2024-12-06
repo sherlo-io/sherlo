@@ -1,5 +1,5 @@
-import { create, getState, log, send } from './actions';
-import { LogFn, RunnerState, SendFn } from './types';
+import { create, getLastState, log, send } from './actions';
+import { GetLastStateFn, LogFn, SendFn } from './types';
 
 const logPath = 'log.sherlo';
 const statePath = 'state.sherlo';
@@ -8,7 +8,7 @@ const snapshotsDirectory = 'snapshots';
 
 export type RunnerBridge = {
   create: () => Promise<void>;
-  getState: () => Promise<RunnerState>;
+  getLastState: GetLastStateFn;
   log: LogFn;
   send: SendFn;
 };
@@ -18,7 +18,7 @@ const sendFn: SendFn = send(protocolPath, logFn);
 
 const runnerBridge: RunnerBridge = {
   create: create(snapshotsDirectory, logFn),
-  getState: getState(statePath, logFn),
+  getLastState: getLastState(protocolPath, logFn),
   log: logFn,
   send: sendFn,
 };

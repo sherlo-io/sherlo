@@ -1,0 +1,107 @@
+name: TEST - expo-update mode
+
+on:
+  workflow_call:
+    inputs:
+      env:
+        description: 'Environment (dev, test, prod)'
+        required: true
+        type: string
+      config:
+        description: 'Config (default-devices, all-devices, many-stories)'
+        required: false
+        default: 'default-devices'
+        type: string
+      use_github_action:
+        description: 'Use Sherlo Github Action'
+        required: false
+        default: false
+        type: boolean
+      project:
+        description: 'Project (expo-update, device-testing, many-stories)'
+        required: true
+        type: string
+      with_builds:
+        description: 'With builds'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  run_sherlo_expo_update:
+    name: Run Sherlo in expo-update mode
+    environment: ${{ inputs.env }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.ref }}
+          lfs: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18.18.0'
+
+      - name: Install dependencies
+        run: yarn
+
+      - name: Build dependencies
+        run: yarn switch-env:${{ inputs.env }}
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Trigger EAS update and capture manifest URLs
+        working-directory: testing/expo-storybook-8
+        run: |
+          eas update --channel 'development' --message 'Expo Update' --json --non-interactive
+
+      - name: Run sherlo expo-update (with native builds) with CLI
+        if: inputs.with_builds == true && inputs.use_github_action == false
+        working-directory: testing/expo-storybook-8
+        run: |
+          yarn sherlo expo-update \
+            --config ../../configs/${{ inputs.config }}.json \
+            --android builds/development/android.apk \
+            --ios builds/development/ios.tar.gz \
+            --branch development \
+            --token ${{ inputs.project == 'expo-update' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}
+
+      - name: Run sherlo expo-update (with native builds) with Github Action
+        if: inputs.with_builds == true && inputs.use_github_action == true
+        uses: ./.
+        with:
+          command: expo-update
+          projectRoot: testing/expo-storybook-8
+          config: ../../configs/${{ inputs.config }}.json
+          android: builds/development/android.apk
+          ios: builds/development/ios.tar.gz
+          branch: development
+        env:
+          SHERLO_TOKEN: ${{ inputs.project == 'expo-update' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}
+
+      - name: Run sherlo expo-update (without native builds) with CLI
+        if: inputs.with_builds == false && inputs.use_github_action == false
+        working-directory: testing/expo-storybook-8
+        run: |
+          yarn sherlo expo-update \
+            --config ../../configs/${{ inputs.config }}.json \
+            --branch development \
+            --token ${{ inputs.project == 'expo-update' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}
+
+      - name: Run sherlo expo-update (without native builds) with Github Action
+        if: inputs.with_builds == false && inputs.use_github_action == true
+        uses: ./.
+        with:
+          command: expo-update
+          projectRoot: testing/expo-storybook-8
+          config: ../../configs/${{ inputs.config }}.json
+          branch: development
+        env:
+          SHERLO_TOKEN: ${{ inputs.project == 'expo-update' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}

@@ -1,17 +1,22 @@
 import base64 from 'base-64';
-import { NativeModules } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 import utf8 from 'utf8';
 import isExpoGo from './isExpoGo';
+import { StorybookViewMode } from '../types/types';
 import { getGlobalStates } from '../utils';
 
 type SherloModule = {
-  getInitialMode: () => 'testing' | 'default';
+  getMode: () => StorybookViewMode;
   storybookRegistered: () => Promise<void>;
+  getInspectorData: () => Promise<string>;
   appendFile: (path: string, base64: string) => Promise<void>;
   mkdir: (path: string) => Promise<void>;
   readFile: (path: string) => Promise<string>;
   openStorybook: () => Promise<void>;
   toggleStorybook: () => Promise<void>;
+  verifyIntegration: () => Promise<void>;
+  clearFocus: () => Promise<void>;
+  checkIfContainsStorybookError: () => Promise<boolean>;
 };
 
 let SherloModule: SherloModule;
@@ -35,16 +40,27 @@ export default SherloModule;
 
 function createSherloModule(): SherloModule {
   return {
+    checkIfContainsStorybookError: async () => {
+      return SherloNativeModule.checkIfContainsStorybookError();
+    },
+    clearFocus: async () => {
+      if (Platform.OS === 'android') {
+        await SherloNativeModule.clearFocus();
+      }
+    },
+    getInspectorData: async () => {
+      return SherloNativeModule.getInspectorData();
+    },
     storybookRegistered: async () => {
       await SherloNativeModule.storybookRegistered();
     },
-    getInitialMode: () => {
+    getMode: () => {
       const { testConfig, isVerifySetupTest } = getGlobalStates();
       if (testConfig && !isVerifySetupTest) {
         return 'testing';
       }
 
-      return SherloNativeModule.getConstants().initialMode;
+      return SherloNativeModule.getConstants().mode;
     },
     appendFile: (path: string, data: string) => {
       const encodedData = base64.encode(utf8.encode(data));
@@ -59,6 +75,7 @@ function createSherloModule(): SherloModule {
     },
     openStorybook: () => SherloNativeModule.openStorybook(),
     toggleStorybook: () => SherloNativeModule.toggleStorybook(),
+    verifyIntegration: () => SherloNativeModule.verifyIntegration(),
   };
 }
 
@@ -74,12 +91,16 @@ function normalizePath(path: string): string {
 
 function createDummySherloModule(): SherloModule {
   return {
+    checkIfContainsStorybookError: async () => false,
+    clearFocus: async () => {},
+    getInspectorData: async () => '',
     storybookRegistered: async () => {},
-    getInitialMode: () => 'default',
+    getMode: () => 'default',
     appendFile: async () => {},
     mkdir: async () => {},
     readFile: async () => '',
     openStorybook: async () => {},
     toggleStorybook: async () => {},
+    verifyIntegration: async () => {},
   };
 }

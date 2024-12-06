@@ -2,64 +2,110 @@ package io.sherlo.storybookreactnative;
 
 // Android Framework Imports
 import android.app.Activity;
-import android.content.Intent;
-import android.net.Uri;
-import android.util.Base64;
 import android.util.Log;
+import android.content.Context;
+import android.view.View;
 
 // React Native Bridge Imports
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Promise;
-import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.ReactApplication;
 
 // Java Utility and IO Imports
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
+import org.json.JSONObject;
+
+import io.sherlo.storybookreactnative.InspectorHelper;
+import io.sherlo.storybookreactnative.RestartHelper;
+import io.sherlo.storybookreactnative.StorybookErrorHelper;
 
 public class SherloModule extends ReactContextBaseJavaModule {
     public static final String TAG = "SherloModule";
     private static final String CONFIG_FILENAME = "config.sherlo";
+    private static final String PROTOCOL_FILENAME = "protocol.sherlo";
 
     private final ReactApplicationContext reactContext;
     private static String syncDirectoryPath = "";
-    private static String initialMode = "default"; // "default" or "testing"
-    private static Boolean isStorybookRegistered = false;
+    private static String mode = "default"; // "default" / "storybook" / "testing" / "verification"
+    private FileSystemHelper fileSystemHelper;
+    private static int expoUpdateDeeplinkConsumeCount = 0;
 
     public SherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
         this.reactContext = reactContext;
-    
-        try {
-            // Set Sherlo directory path, this is the directory that will be 
-            // used to sync files between the emulator and Sherlo Runner
+        this.fileSystemHelper = new FileSystemHelper(reactContext);
+        Log.i(TAG, "Initializing SherloModule with default mode: " + this.mode);
 
-            // https://developer.android.com/reference/android/content/Context#getExternalFilesDir(java.lang.String)
+        try {
+            // Set Sherlo directory path
             File externalDirectory = this.getReactApplicationContext().getExternalFilesDir(null);
             if (externalDirectory != null) {
                 this.syncDirectoryPath = externalDirectory.getAbsolutePath() + "/sherlo";
             } else {
-                Log.e(TAG, "External storage is not accessible");
+                this.handleError("ERROR_MODULE_INIT", "External storage is not accessible");
+                return;
             }
-    
-            // This is the path to the config file created by the Sherlo Runner
+
             String configPath = this.syncDirectoryPath + "/" + CONFIG_FILENAME;
-            
-            // If the file exists, we are it testing mode and will open the 
-            // Storybook in single activity mode, without launching the app
-            Boolean doesSherloConfigFileExist = new File(configPath).isFile();
-            if (doesSherloConfigFileExist) {
-                this.initialMode = "testing";
+            Log.i(TAG, "Looking for config file at: " + configPath);
+
+            // If the file exists, we are in testing mode
+            File sherloConfigFile = new File(configPath);
+            if (sherloConfigFile.exists()) {
+                Log.i(TAG, "Config file exists");
+                String configJson = fileSystemHelper.readFile(configPath);
+
+                if (configJson == null || configJson.trim().isEmpty()) {
+                    Log.w(TAG, "Config file is empty");
+                    return;
+                }
+
+                try {
+                    // Try to decode if base64 encoded
+                    byte[] decodedBytes = android.util.Base64.decode(configJson, android.util.Base64.DEFAULT);
+                    configJson = new String(decodedBytes, "UTF-8");
+                } catch (Exception e) {
+                    Log.w(TAG, "Config is not base64 encoded, trying to parse as plain JSON");
+                }
+
+                try {
+                    JSONObject config = new JSONObject(configJson);
+
+                    // Check for override mode first
+                    if (config.has("overrideMode")) {
+                        Log.i(TAG, "Running in " + config.getString("overrideMode") + " mode");
+                        this.mode = config.getString("overrideMode");
+                        return;
+                    }
+
+                    // Check for expo update deeplink
+                    if (config.has("expoUpdateDeeplink")) {
+                        Log.i(TAG, "Consuming expo update deeplink");
+
+                        if (expoUpdateDeeplinkConsumeCount < 1) {
+                            expoUpdateDeeplinkConsumeCount++;
+                        } else {
+                            // After the URL has been consumed twice, we are in testing mode
+                            this.mode = "testing";
+                        }
+                    } else {
+                        // If no expo update deeplink, immediately set to testing mode
+                        Log.i(TAG, "No expo update deeplink, setting to testing mode");
+                        this.mode = "testing";
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Invalid JSON in config file: " + configJson);
+                    this.handleError("ERROR_INVALID_CONFIG", "Config file contains invalid JSON: " + e.getMessage());
+                }
             }
         } catch (Exception e) {
             Log.e(TAG, "Failed to initialize SherloModule", e);
             e.printStackTrace();
+            this.handleError("ERROR_MODULE_INIT", e.getMessage());
         }
     }
 
@@ -73,36 +119,26 @@ public class SherloModule extends ReactContextBaseJavaModule {
         final Map<String, Object> constants = new HashMap<>();
 
         constants.put("syncDirectoryPath", this.syncDirectoryPath);
-        constants.put("initialMode", this.initialMode);
+        constants.put("mode", this.mode);
 
         return constants;
     }
 
     @ReactMethod
-    public void storybookRegistered(Promise promise) {
-        try {
-            this.isStorybookRegistered = true;
-
-            if (this.initialMode == "testing") {
-                Intent intent = new Intent(this.reactContext, SherloStorybookActivity.class);
-                // we use these flags to clear the current activity stack and start the new activity
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-                this.reactContext.startActivity(intent);
-            }
-            
+    public void verifyIntegration(Promise promise) {
+        Log.d(TAG, "Verifying integration");
+        if (this.mode != "verification") {
+            this.mode = "verification";
+            RestartHelper.loadBundle(getCurrentActivity());
             promise.resolve(null);
-        } catch (Exception e) {
-            promise.reject("Error opening Storybook in testing mode", e.getMessage());
-            Log.e(TAG, "Error opening Storybook in testing mode", e);
-            e.printStackTrace();
         }
     }
 
     @ReactMethod
     public void toggleStorybook(Promise promise) {
+        Log.d(TAG, "Toggling Storybook");
         try {
-            // SherloStorybookActivity is a singleton, so we can check if it is open
-            if (SherloStorybookActivity.instance != null) {
+            if (this.mode == "storybook") {
                 closeStorybook(promise);
             } else {
                 openStorybook(promise);
@@ -116,44 +152,18 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void openStorybook(Promise promise) {
-        if(!this.isStorybookRegistered) {
-            promise.reject("NOT_REGISTERED", "Storybook is not registered");
-            return;
-        }
-
-        try {
-            final Activity currentActivity = getCurrentActivity();
-            if (currentActivity == null) {
-                throw new IllegalStateException("Current activity is null, cannot start SherloStorybookActivity");
-            }
-
-            // We launch the SherloStorybookActivity in a new task, on top of the 
-            // current activity so that the app is not closed and user can
-            // go back to the same app state after closing the Storybook
-            Intent intent = new Intent(currentActivity, SherloStorybookActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            this.reactContext.startActivity(intent);
-
-            promise.resolve(null);
-        } catch (Exception e) {
-            promise.reject("Error opening Storybook", e.getMessage());
-            Log.e(TAG, "Error opening Storybook", e);
-            e.printStackTrace();
-        }
+        Log.d(TAG, "Opening Storybook");
+        this.mode = "storybook";
+        RestartHelper.loadBundle(getCurrentActivity());
+        promise.resolve(null);
     }
-    
 
     @ReactMethod
     public void closeStorybook(Promise promise) {
-        try {
-            SherloStorybookActivity.close();
-
-            promise.resolve(null);
-        } catch (Exception e) {
-            promise.reject("Error closing Storybook", e.getMessage());
-            Log.e(TAG, "Error closing Storybook", e);
-            e.printStackTrace();
-        }
+        Log.d(TAG, "Closing Storybook");
+        this.mode = "default";
+        RestartHelper.loadBundle(getCurrentActivity());
+        promise.resolve(null);
     }
 
     /**
@@ -162,15 +172,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void mkdir(String filepath, Promise promise) {
         try {
-            File file = new File(filepath);
-
-            file.mkdirs();
-
-            boolean exists = file.exists();
-
-            if (!exists)
-                throw new Exception("Directory could not be created");
-
+            fileSystemHelper.mkdir(filepath);
             promise.resolve(null);
         } catch (Exception e) {
             promise.reject("Error creating directory", e.getMessage());
@@ -185,15 +187,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void appendFile(String filepath, String base64Content, Promise promise) {
         try {
-            byte[] bytes = Base64.decode(base64Content, Base64.DEFAULT);
-
-            Uri uri = getFileUri(filepath);
-            // Open the file in write and append mode
-            OutputStream stream = reactContext.getContentResolver().openOutputStream(uri, "wa");
-
-            stream.write(bytes);
-            stream.close();
-
+            fileSystemHelper.appendFile(filepath, base64Content);
             promise.resolve(null);
         } catch (Exception e) {
             promise.reject("Error appending file", e.getMessage());
@@ -208,12 +202,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void readFile(String filepath, Promise promise) {
         try {
-            Uri uri = getFileUri(filepath);
-            InputStream stream = reactContext.getContentResolver().openInputStream(uri);
-
-            byte[] inputData = getInputStreamBytes(stream);
-            String base64Content = Base64.encodeToString(inputData, Base64.NO_WRAP);
-
+            String base64Content = fileSystemHelper.readFile(filepath);
             promise.resolve(base64Content);
         } catch (Exception e) {
             promise.reject("Error reading file", e.getMessage());
@@ -222,42 +211,95 @@ public class SherloModule extends ReactContextBaseJavaModule {
         }
     }
 
-    /*
-     * Get the URI for the specified absolute file path
-     */
-    private Uri getFileUri(String absoluteFilepath) throws Exception {
-        Uri uri = Uri.parse(absoluteFilepath);
-        File file = new File(absoluteFilepath);
-
-        return Uri.parse("file://" + absoluteFilepath);
-    }
-
-    /*
-     * Get the byte array from an input stream
-     */
-    private static byte[] getInputStreamBytes(InputStream inputStream) throws IOException {
-        byte[] bytesResult;
-        ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
-        int bufferSize = 1024;
-        byte[] buffer = new byte[bufferSize];
-
-        try {
-            int len;
-
-            while ((len = inputStream.read(buffer)) != -1) {
-                byteBuffer.write(buffer, 0, len);
-            }
-
-            bytesResult = byteBuffer.toByteArray();
-        } finally {
-            try {
-                byteBuffer.close();
-            } catch (IOException e) {
-                // We ignore this exception
-                Log.e(TAG, "Error closing byteBuffer", e);
-            }
+    @ReactMethod
+    public void getInspectorData(Promise promise) {
+        Activity activity = getCurrentActivity();
+        if (activity == null) {
+            promise.reject("no_activity", "No current activity");
+            return;
         }
 
-        return bytesResult;
+        activity.runOnUiThread(() -> {
+            try {
+                String jsonString = InspectorHelper.getInspectorData(activity);
+                promise.resolve(jsonString);
+            } catch (Exception e) {
+                promise.reject("error", e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * Clears focus from any currently focused input.
+     */
+    @ReactMethod
+    public void clearFocus(Promise promise) {
+        Activity activity = getCurrentActivity();
+        if (activity == null) {
+            promise.reject("no_activity", "No current activity");
+            return;
+        }
+
+        activity.runOnUiThread(() -> {
+            try {
+                View currentFocus = activity.getCurrentFocus();
+                if (currentFocus != null) {
+                    currentFocus.clearFocus();
+                }
+                
+                Log.i(TAG, "Focus cleared from current input");
+                promise.resolve(null);
+            } catch (Exception e) {
+                Log.e(TAG, "Error clearing focus: " + e.getMessage());
+                promise.reject("error", e.getMessage());
+            }
+        });
+    }
+
+    @ReactMethod
+    public void checkIfContainsStorybookError(Promise promise) {
+        Activity activity = getCurrentActivity();
+        if (activity == null) {
+            promise.reject("no_activity", "No current activity");
+            return;
+        }
+
+        activity.runOnUiThread(() -> {
+            try {
+                boolean containsError = StorybookErrorHelper.checkIfContainsStorybookError(activity);
+                promise.resolve(containsError);
+            } catch (Exception e) {
+                Log.e(TAG, "Error checking for Storybook error: " + e.getMessage());
+                promise.reject("error", e.getMessage());
+            }
+        });
+    }
+
+    private void handleError(String errorCode, String errorMessage) {
+        Log.e(TAG, "Error occurred: " + errorCode + ", Error: " + errorMessage);
+
+        String protocolFilePath = this.syncDirectoryPath + "/" + PROTOCOL_FILENAME;
+
+        // Create the new JSON object with the specified properties
+        Map<String, Object> nativeErrorMap = new HashMap<>();
+        nativeErrorMap.put("action", "NATIVE_ERROR");
+        nativeErrorMap.put("errorCode", errorCode);
+        nativeErrorMap.put("error", errorMessage);
+        nativeErrorMap.put("timestamp", System.currentTimeMillis());
+        nativeErrorMap.put("entity", "app");
+
+        try {
+            // Convert the map to JSON string
+            String jsonString = new org.json.JSONObject(nativeErrorMap).toString();
+
+            // Convert JSON string to base64
+            String base64ErrorData = android.util.Base64.encodeToString(jsonString.getBytes("UTF-8"),
+                    android.util.Base64.NO_WRAP);
+
+            // Append the base64 encoded error data to the protocol file
+            fileSystemHelper.appendFile(protocolFilePath, base64ErrorData);
+        } catch (Exception e) {
+            Log.e(TAG, "Error writing to error file: " + e.getMessage());
+        }
     }
 }

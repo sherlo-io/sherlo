@@ -1,0 +1,19 @@
+import { logSherloIntro, uploadOrReuseBuildsAndRunTests, validatePackages } from '../../helpers';
+import { Options } from '../../types';
+import { getValidatedCommandParams } from '../../helpers';
+import { THIS_COMMAND } from './constants';
+
+async function localBuilds(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
+  logSherloIntro();
+
+  validatePackages(THIS_COMMAND);
+
+  const commandParams = getValidatedCommandParams(
+    { command: THIS_COMMAND, passedOptions },
+    { requirePlatformPaths: true }
+  );
+
+  return uploadOrReuseBuildsAndRunTests({ commandParams });
+}
+
+export default localBuilds;

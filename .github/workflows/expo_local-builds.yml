@@ -1,4 +1,4 @@
-name: Test expo local-builds flow
+name: TEST - local-builds mode (Expo)
 
 on:
   workflow_call:
@@ -7,6 +7,11 @@ on:
         description: 'Environment (dev, test, prod)'
         required: true
         type: string
+      use_github_action:
+        description: 'Use Sherlo Github Action'
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       env:
@@ -14,12 +19,53 @@ on:
         required: true
         default: 'dev'
         type: string
-
+      use_github_action:
+        description: 'Use Sherlo Github Action'
+        required: false
+        type: boolean
+        default: false
 jobs:
-  dummy_job:
+  sherlo_local_builds:
+    name: Run sherlo local-builds (expo)
+    environment: ${{ inputs.env }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.ref }}
           lfs: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18.18.0'
+
+      - name: Install dependencies
+        run: yarn
+
+      - name: Build dependencies
+        run: yarn switch-env:${{ inputs.env }}
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Run sherlo local-builds with CLI
+        if: inputs.use_github_action == false
+        working-directory: testing/expo-storybook-8
+        run: |
+          yarn sherlo local-builds \
+            --config ../../configs/default-devices.json \
+            --android builds/preview/android.apk \
+            --ios builds/preview/ios.tar.gz \
+            --token ${{ secrets.SHERLO_LOCAL_BUILDS_EXPO_TOKEN }}
+
+      - name: Run sherlo local-builds with Github Action
+        if: inputs.use_github_action == true
+        uses: ./.
+        with:
+          command: local-builds
+          projectRoot: testing/expo-storybook-8
+          config: ../../configs/default-devices.json
+          android: builds/preview/android.apk
+          ios: builds/preview/ios.tar.gz
+        env:
+          SHERLO_TOKEN: ${{ secrets.SHERLO_LOCAL_BUILDS_EXPO_TOKEN }}

@@ -1,1 +1,22 @@
-export { default as printHeader } from './printHeader';
+export { default as getValidatedBinariesInfoAndNextBuildIndex } from './getValidatedBinariesInfoAndNextBuildIndex';
+export { default as getValidatedCommandParams } from './getValidatedCommandParams';
+export { default as logBuildIntroMessage } from './logBuildIntroMessage';
+export { default as uploadOrLogBinaryReuse } from './uploadOrLogBinaryReuse';
+export { default as validatePackages } from './validatePackages';
+
+export { default as getAppBuildUrl } from './getAppBuildUrl';
+export { default as getBuildRunConfig } from './getBuildRunConfig';
+export { default as getGitInfo } from './getGitInfo';
+export { default as getPlatformsToTest } from './getPlatformsToTest';
+export { default as getTokenParts } from './getTokenParts';
+export { default as handleClientError } from './handleClientError';
+export { default as logBuildMessage } from './logBuildMessage';
+export { default as logBuildPlatformLabel } from './logBuildPlatformLabel';
+export { default as logInfo } from './logInfo';
+export { default as logResultsUrl } from './logResultsUrl';
+export { default as logSherloIntro } from './logSherloIntro';
+export { default as logWarning } from './logWarning';
+export { default as runShellCommand } from './runShellCommand';
+export { default as throwError } from './throwError';
+export { default as uploadOrReuseBuildsAndRunTests } from './uploadOrReuseBuildsAndRunTests';
+export { default as reporting } from './reporting';

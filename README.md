@@ -37,14 +37,8 @@ projects.
 ## 📦 Packages
 
 - [@sherlo/react-native-storybook](packages/react-native-storybook): Integration with React Native Storybook
-- [@sherlo/cli](packages/cli): Command-line tool for running Sherlo tests
 - [@sherlo/action](packages/action): GitHub Action for automating Sherlo tests
-
-<br />
-
-## 💡 Examples
-
-- [expo-example](examples/expo-example): Expo project with Sherlo integration
+- [sherlo](packages/cli): Command-line tool for running Sherlo tests
 
 <br />
 

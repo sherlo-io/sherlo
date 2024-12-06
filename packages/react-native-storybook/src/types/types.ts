@@ -1,14 +1,6 @@
 import { start } from '@storybook/react-native';
 export interface SherloParameters {
   /**
-   * Setting defocus to true hides the keyboard and defocuses any focused input
-   * before taking the screenshot. This is useful because focused inputs have
-   * animated elements that will make screenshots unpredictable when compared
-   * to the baseline.
-   */
-  defocus?: boolean;
-
-  /**
    * Setting exclude to true skips the story during testing. This might be
    * useful if the story has animations that cannot be stabilized for testing
    * or the component behaves in less predictable ways.
@@ -29,15 +21,6 @@ export interface SherloParameters {
    * platforms specified in sherlo.config.json.
    */
   platform?: 'ios' | 'android';
-
-  /**
-   * Setting restart to true restarts the app after testing this story before
-   * resuming testing other stories. This might be helpful if the story alters
-   * the view in a way that's persistent for other stories, such as displaying
-   * an overlay modal that doesn't hide when changing stories and thus will
-   * always be visible in other screenshots.
-   */
-  restart?: boolean;
 }
 
 export type Snapshot = {
@@ -68,4 +51,4 @@ export type StorybookParams = StorybookParamsRaw extends infer U
     : U
   : never;
 
-export type StorybookViewMode = 'testing' | 'default';
+export type StorybookViewMode = 'testing' | 'default' | 'storybook' | 'verification';

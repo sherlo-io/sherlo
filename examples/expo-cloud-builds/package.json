@@ -1,0 +1,33 @@
+{
+  "name": "@sherlo/example-expo-cloud-builds",
+  "version": "1.0.34",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "build:eas": "eas build --platform ios --profile=preview",
+    "sherlo": "sherlo expo-cloud-builds --buildScript build:eas",
+    "eas-build-on-complete": "sherlo eas-build-on-complete --profile=preview"
+  },
+  "dependencies": {
+    "@gorhom/bottom-sheet": "^5.0.2",
+    "@react-native-async-storage/async-storage": "1.23.1",
+    "@react-native-community/datetimepicker": "8.0.1",
+    "@react-native-community/slider": "4.5.2",
+    "@sherlo/testing-components": "1.0.0",
+    "expo": "^51.0.38",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-native": "0.74.5",
+    "react-native-gesture-handler": "~2.16.1",
+    "react-native-reanimated": "~3.10.1",
+    "react-native-svg": "15.2.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "@sherlo/react-native-storybook": "^1.0.34",
+    "@storybook/react-native": "^8.3.9",
+    "babel-loader": "^8.2.3",
+    "storybook": "^8.3.6",
+    "typescript": "~5.3.3"
+  }
+}

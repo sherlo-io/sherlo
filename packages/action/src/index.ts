@@ -1,67 +1,66 @@
 import * as core from '@actions/core';
-import * as github from '@actions/github';
-import { mainCommand } from '@sherlo/cli';
+import { Build } from '@sherlo/api-types';
+import { commands, constants } from 'sherlo';
+import { getGitInfo } from './getGitInfo';
+
+type CommandOptions = {
+  android?: string;
+  ios?: string;
+  token?: string;
+  config?: string;
+  projectRoot?: string;
+  branch?: string;
+  easBuildScriptName?: string;
+  waitForEasBuild?: boolean;
+  gitInfo?: Build['gitInfo'];
+};
 
 async function run(): Promise<void> {
   try {
-    const projectRoot = getOptionalInput('projectRoot');
-    const config = getOptionalInput('config');
-    const android = getOptionalInput('android');
-    const ios = getOptionalInput('ios');
-    const remoteExpo = getOptionalInput('remoteExpo');
-    const remoteExpoBuildScript = getOptionalInput('remoteExpoBuildScript');
-    const async = getOptionalInput('async');
-    const asyncBuildIndex = getOptionalInput('asyncBuildIndex');
+    const command = core.getInput('command', { required: true });
     const overrideCommitName = getOptionalInput('commitName');
 
-    const { context } = github;
-
-    let gitInfo = {
-      commitHash: context?.sha || 'unknown',
-      branchName: context?.ref.split('refs/heads/')[1] || 'unknown',
-      commitName: 'unknown',
+    const options: CommandOptions = {
+      android: getOptionalInput(constants.ANDROID_OPTION),
+      ios: getOptionalInput(constants.IOS_OPTION),
+      config: getOptionalInput(constants.CONFIG_OPTION),
+      projectRoot: getOptionalInput(constants.PROJECT_ROOT_OPTION),
+      token: emptyStringToUndefined(process.env.SHERLO_TOKEN),
     };
 
-    switch (context?.eventName) {
-      case 'push':
-        const commitName = context?.payload?.head_commit?.message;
+    let commandFunction;
+    switch (command) {
+      case constants.LOCAL_BUILDS_COMMAND:
+        commandFunction = commands.localBuilds;
+        break;
 
-        if (commitName) {
-          gitInfo = {
-            ...gitInfo,
-            commitName,
-          };
-        }
+      case constants.EXPO_UPDATE_COMMAND:
+        options.branch = getOptionalInput(constants.BRANCH_OPTION);
+        commandFunction = commands.expoUpdate;
+        break;
+
+      case constants.EXPO_CLOUD_BUILDS_COMMAND:
+        options.easBuildScriptName = getOptionalInput(constants.EAS_BUILD_SCRIPT_NAME_OPTION);
+        options.waitForEasBuild = core.getBooleanInput(constants.WAIT_FOR_EAS_BUILD_OPTION);
+        commandFunction = commands.expoCloudBuilds;
         break;
 
       default:
-        console.log(JSON.stringify(context, null, 2));
-        break;
+        throw new Error(`Unsupported command: ${command}`);
     }
 
-    if (overrideCommitName) {
-      gitInfo.commitName = overrideCommitName;
-    }
+    options.gitInfo = getGitInfo(overrideCommitName);
 
-    const { buildIndex, url } = await mainCommand({
-      projectRoot,
-      config,
-      token: emptyStringToUndefined(process.env.SHERLO_TOKEN), // Action returns an empty string if not defined
-      android,
-      ios,
-      remoteExpo: remoteExpo === 'true',
-      remoteExpoBuildScript,
-      async: async === 'true',
-      asyncBuildIndex: asyncBuildIndex ? Number(asyncBuildIndex) : undefined,
-      gitInfo,
-    });
+    // We cast options as any to leverage validation in Sherlo CLI
+    const { url } = await commandFunction(options as any);
 
-    core.setOutput('buildIndex', buildIndex);
     core.setOutput('url', url);
   } catch (error) {
     if (error instanceof Error) core.setFailed(error.message);
   }
 }
+
+/******************************************************************************/
 
 function getOptionalInput(name: string): string | undefined {
   const value = core.getInput(name, { required: false });
