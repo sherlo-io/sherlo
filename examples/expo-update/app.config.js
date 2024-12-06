@@ -33,7 +33,6 @@ module.exports = () => ({
       eas: {
         projectId: '4cb166d7-f774-49a9-9aa0-e5533347bcd1',
       },
-      storybookEnabled: process.env.EXPO_PUBLIC_STORYBOOK_ONLY === 'true',
     },
   },
 });

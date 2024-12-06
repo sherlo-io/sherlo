@@ -5,6 +5,7 @@
 #import "ConfigHelper.h"
 #import "ExpoUpdateHelper.h"
 #import "VerificationHelper.h"
+#import "StorybookErrorHelper.h"
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
@@ -316,42 +317,17 @@ RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCT
     NSLog(@"[%@] Enhanced keyboard swizzling enabled", LOG_TAG);
 }
 
-// Recursively searches through views to find Storybook error text
-- (BOOL)searchForStorybookError:(UIView *)view {
-    // Check for RCTTextView specifically
-    if ([NSStringFromClass([view class]) isEqualToString:@"RCTTextView"]) {
-        NSString *text = view.accessibilityLabel;
-        if (text && [text containsString:@"Something went wrong rendering your story"]) {
-            return YES;
-        }
-    }
-
-    // Recursively search through subviews
-    for (UIView *subview in view.subviews) {
-        if ([self searchForStorybookError:subview]) {
-            return YES;
-        }
-    }
-    
-    return NO;
-}
-
-// Checks if any visible view contains the Storybook error message
+// Update the checkIfContainsStorybookError method
 RCT_EXPORT_METHOD(checkIfContainsStorybookError:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    @try {
-        UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
-        if (!keyWindow) {
-            resolve(@NO);
-            return;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        @try {
+            UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+            BOOL containsError = [StorybookErrorHelper checkIfContainsStorybookError:keyWindow];
+            resolve(@(containsError));
+        } @catch (NSException *exception) {
+            reject(@"error", @"Error checking for Storybook error", nil);
         }
-
-        BOOL containsError = [self searchForStorybookError:keyWindow];
-        resolve(@(containsError));
-    } @catch (NSException *exception) {
-        reject(@"error", @"Error checking for Storybook error", nil);
-    }
-  });
+    });
 }
 
 @end

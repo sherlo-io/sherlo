@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-const PlatformSpecificComponent = () => {
+const WithFigmaComparison = () => {
   return (
     <View style={styles.container}>
       <View style={styles.purpleBar}>
@@ -32,17 +32,16 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   greyContainer: {
-    width: 282,
-    height: 282,
+    width: 320,
+    height: 320,
+    padding: 15,
     backgroundColor: '#D3D3D3',
     alignItems: 'center',
     justifyContent: 'center',
   },
   redRectangle: {
-    width: 230,
-    height: 230,
+    flex: 1,
     backgroundColor: '#FF0000',
-    alignItems: 'center',
     justifyContent: 'center',
   },
   greenBox: {
@@ -54,10 +53,13 @@ const styles = StyleSheet.create({
     left: 20,
   },
   text: {
+    margin: 10,
+    paddingVertical: 20,
     fontSize: 17,
-    color: '#FFFFFF',
+    backgroundColor: '#FFFF00',
+    color: '#000000',
     textAlign: 'center',
   },
 });
 
-export default PlatformSpecificComponent;
+export default WithFigmaComparison;

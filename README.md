@@ -44,7 +44,22 @@ projects.
 
 ## 💡 Examples
 
-- [expo-example](examples/expo-example): Expo project with Sherlo integration
+### 1. Expo Cloud Builds
+**[expo-cloud-builds](./expo-cloud-builds)**
+
+Use this example if you want to build your app through remote EAS (Expo Application Services) builds.
+
+### 2. Local Builds
+**[local-builds](./local-builds)**
+
+This example is suitable for:
+- Building your Expo app locally
+- Bare React Native apps
+
+### 3. Expo Update
+**[expo-update](./expo-update)**
+
+Ideal for testing without creating a new native build each time. This example demonstrates how to use Expo Update for efficient testing cycles.
 
 <br />
 

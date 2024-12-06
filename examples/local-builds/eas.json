@@ -3,29 +3,7 @@
     "version": ">= 5.9.3"
   },
   "build": {
-    "development": {
-      "channel": "development",
-      "developmentClient": true,
-      "android": {
-        "buildType": "apk"
-      },
-      "ios": {
-        "simulator": true
-      }
-    },
-    "storybook": {
-      "env": {
-        "EXPO_PUBLIC_STORYBOOK_ONLY": "true"
-      },
-      "android": {
-        "buildType": "apk"
-      },
-      "ios": {
-        "simulator": true
-      }
-    },
     "preview": {
-      "channel": "preview",
       "android": {
         "buildType": "apk"
       },

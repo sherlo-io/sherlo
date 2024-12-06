@@ -21,6 +21,7 @@ import org.json.JSONObject;
 
 import io.sherlo.storybookreactnative.InspectorHelper;
 import io.sherlo.storybookreactnative.RestartHelper;
+import io.sherlo.storybookreactnative.StorybookErrorHelper;
 
 public class SherloModule extends ReactContextBaseJavaModule {
     public static final String TAG = "SherloModule";
@@ -265,34 +266,13 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
         activity.runOnUiThread(() -> {
             try {
-                View rootView = activity.getWindow().getDecorView().getRootView();
-                boolean containsError = searchForStorybookError(rootView);
+                boolean containsError = StorybookErrorHelper.checkIfContainsStorybookError(activity);
                 promise.resolve(containsError);
             } catch (Exception e) {
                 Log.e(TAG, "Error checking for Storybook error: " + e.getMessage());
                 promise.reject("error", e.getMessage());
             }
         });
-    }
-
-    private boolean searchForStorybookError(View view) {
-        if (view instanceof android.widget.TextView) {
-            String text = ((android.widget.TextView) view).getText().toString();
-            if (text.contains("Something went wrong rendering your story")) {
-                return true;
-            }
-        }
-
-        if (view instanceof android.view.ViewGroup) {
-            android.view.ViewGroup viewGroup = (android.view.ViewGroup) view;
-            for (int i = 0; i < viewGroup.getChildCount(); i++) {
-                if (searchForStorybookError(viewGroup.getChildAt(i))) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 
     private void handleError(String errorCode, String errorMessage) {

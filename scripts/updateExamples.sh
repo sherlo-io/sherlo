@@ -1,8 +1,8 @@
 #!/bin/bash
 
 BASE_PROJECT='testing/expo-storybook-8'
-EXCLUDE_IN_EXAMPLES=("package.json" "README.md" "builds" "dist" ".expo" "scripts" ".github")
-EXCLUDE_IN_TESTING=("package.json" "README.md" "builds" "dist" ".expo" "metro.config.js" ".storybook")
+EXCLUDE_IN_EXAMPLES=("eas.json" "node_modules" "package.json" "README.md" "builds" "dist" ".expo" "scripts" ".github" "src/testing-components")
+EXCLUDE_IN_TESTING=("node_modules" "package.json" "README.md" "builds" "dist" ".expo" "metro.config.js" ".storybook")
 
 # Function to update a directory
 update_directory() {
@@ -16,7 +16,10 @@ update_directory() {
     echo "$item" >> "$exclude_file"
   done
 
-  # Use rsync to copy files, including hidden ones, and delete files not in source
+  echo "Debug: Content of exclude file:"
+  cat "$exclude_file"
+
+  # Use rsync with debug flag
   rsync -av --delete --exclude-from="$exclude_file" "$BASE_PROJECT/" "$dir/"
 
   # Clean up temporary file

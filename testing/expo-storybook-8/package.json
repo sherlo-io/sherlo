@@ -6,11 +6,9 @@
   "scripts": {
     "build:android:dev": "eas build --platform android --local --profile=development --output=builds/development/android.apk",
     "build:android:eas": "eas build --platform android --profile=preview",
-    "build:android:storybook": "eas build --platform android --local --profile=storybook --output=builds/storybook/android.apk",
     "build:android:preview": "eas build --platform android --local --profile=preview --output=builds/preview/android.apk",
     "build:ios:dev": "eas build --platform ios --local --profile=development --output=builds/development/ios.tar.gz",
     "build:ios:eas": "eas build --platform ios --profile=preview",
-    "build:ios:storybook": "eas build --platform ios --local --profile=storybook --output=builds/storybook/ios.tar.gz",
     "build:ios:preview": "eas build --platform ios --local --profile=preview --output=builds/preview/ios.tar.gz",
     "update:development": "eas update --channel=development --json --non-interactive --message='Update message'",
     "update:preview": "eas update --channel=preview --json --non-interactive --message='Update message'",

@@ -1,4 +1,4 @@
-import { TestInfo, StoryDecorator } from '@sherlo/testing-components';
+import { ExpoUpdateInfo, StoryDecorator } from '@sherlo/testing-components';
 import type { Meta } from '@storybook/react';
 
 /**
@@ -6,11 +6,11 @@ import type { Meta } from '@storybook/react';
  * to display information about device and app configuration
  */
 export default {
-  component: TestInfo,
+  component: ExpoUpdateInfo,
   decorators: [StoryDecorator({ placement: 'center' })],
   parameters: {
     noSafeArea: true,
   },
-} as Meta<typeof TestInfo>;
+} as Meta<typeof ExpoUpdateInfo>;
 
 export const Basic = {};
