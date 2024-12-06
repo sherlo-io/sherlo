@@ -43,7 +43,7 @@ function runScript({
     args = ['run', scriptName];
   }
 
-  // TODO: zastapic runShellCommand? (chyba nie bo nie bedzie formatowac outputu ze skryptu usera?) -> moze powinnismy uzywac spawn zamiast execSync?
+  // TODO: can be replaced with runShellCommand?
   const childProcess = spawn(command, args, { stdio: 'inherit' });
 
   ['close', 'exit'].forEach((event) => childProcess.on(event, onExit));
@@ -54,7 +54,6 @@ export default runScript;
 
 /* ========================================================================== */
 
-// TODO: dodac support dla bun
 function detectPackageManager(): 'npm' | 'yarn' | 'pnpm' {
   if (process.env.npm_config_user_agent) {
     const userAgent = process.env.npm_config_user_agent.toLowerCase();

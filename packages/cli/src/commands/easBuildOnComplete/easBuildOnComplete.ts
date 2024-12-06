@@ -5,7 +5,13 @@ import {
   LOCAL_BUILDS_COMMAND,
   PROFILE_OPTION,
 } from '../../constants';
-import { getTokenParts, handleClientError, logInfo, printHeader, throwError } from '../../helpers';
+import {
+  getTokenParts,
+  handleClientError,
+  logInfo,
+  logSherloIntro,
+  throwError,
+} from '../../helpers';
 import { Options } from '../../types';
 import { THIS_COMMAND } from './constants';
 import { asyncUploadBuildAndRunTests, getSherloTempData } from './helpers';
@@ -29,22 +35,20 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
         'EAS builds were created locally\n\n' +
         `The \`sherlo ${THIS_COMMAND}\` command works only with \`sherlo ${EXPO_CLOUD_BUILDS_COMMAND}\`\n` +
         `To test builds available locally, use \`sherlo ${LOCAL_BUILDS_COMMAND}\` instead\n`,
-      // TODO: link do poprawy?
-      learnMoreLink: DOCS_LINK.sherloScriptLocalBuilds,
+      learnMoreLink: DOCS_LINK.commandLocalBuilds,
     });
 
     return;
   }
 
-  printHeader();
+  logSherloIntro();
 
   if (!passedProfile) {
     throwError({
       message:
-        `The \`--${PROFILE_OPTION}\` flag is required for \`sherlo ${THIS_COMMAND}\`\n\n` +
+        `The \`--${PROFILE_OPTION}\` option is required for \`sherlo ${THIS_COMMAND}\`\n\n` +
         'Please specify the EAS profile that will be used for testing your builds with Sherlo\n',
-      // TODO: ?
-      learnMoreLink: DOCS_LINK.remoteExpoBuilds,
+      learnMoreLink: DOCS_LINK.commandExpoCloudBuilds,
     });
   }
 
@@ -54,8 +58,7 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
       message:
         'Sherlo tests skipped - EAS profiles mismatch\n\n' +
         `Current build used "${easBuildProfile}" profile while \`sherlo ${THIS_COMMAND}\` was called with "${passedProfile}"\n`,
-      // TODO: ?
-      learnMoreLink: DOCS_LINK.remoteExpoBuilds,
+      learnMoreLink: DOCS_LINK.commandExpoCloudBuilds,
     });
 
     return;

@@ -1,9 +1,13 @@
 import { REQUIRED_MIN_SDK_VERSION } from '../../../sdk-compatibility.json';
 import {
+  DOCS_LINK,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EXPO_CLOUD_BUILDS_COMMAND,
   EXPO_DEV_CLIENT_PACKAGE_NAME,
+  EXPO_PACKAGE_NAME,
   EXPO_UPDATE_COMMAND,
+  LOCAL_BUILDS_COMMAND,
+  MIN_EXPO_UPDATE_EXPO_VERSION,
   PLATFORM_LABEL,
   PROFILE_OPTION,
   SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME,
@@ -137,27 +141,30 @@ function getError(error: BinaryError) {
     case 'not_dev_build':
       return {
         message:
-          `Invalid ${error.platformLabels.join(' and ')} ${error.platformLabels.length > 1 ? 'builds' : 'build'}; \`sherlo ${EXPO_UPDATE_COMMAND}\` command requires development builds\n\n` +
+          `Invalid ${error.platformLabels.join(' and ')} ${error.platformLabels.length > 1 ? 'builds' : 'build'}; \`sherlo ${EXPO_UPDATE_COMMAND}\` command requires Development Simulator Builds\n\n` +
           'Please verify:\n' +
-          `1. Required \`${EXPO_DEV_CLIENT_PACKAGE_NAME}\` package is installed\n` +
-          '2. EAS build profile is configured for development\n' +
-          `3. ${error.platformLabels.length > 1 ? 'Builds are' : 'Build is'} created with this profile\n`,
-        learnMoreLink: 'TODO: DOCS_LINK.expoUpdate',
+          `1. \`${EXPO_PACKAGE_NAME}\` package is at version ${MIN_EXPO_UPDATE_EXPO_VERSION} or higher\n` +
+          `2. Required \`${EXPO_DEV_CLIENT_PACKAGE_NAME}\` package is installed\n` +
+          '3. EAS build profile is configured for Development Simulator Build\n' +
+          `4. ${error.platformLabels.length > 1 ? 'Builds are' : 'Build is'} created with this profile\n`,
+        learnMoreLink: DOCS_LINK.commandExpoUpdate,
       };
 
     case 'dev_build':
       return {
         message:
-          `Invalid ${error.platformLabels.join(' and ')} ${error.platformLabels.length > 1 ? 'builds' : 'build'}; \`sherlo ${error.command}\` command requires non-development builds` +
+          `Invalid ${error.platformLabels.join(' and ')} ${error.platformLabels.length > 1 ? 'builds' : 'build'}; \`sherlo ${error.command}\` command requires Preview Simulator Builds` +
           (error.command === EXPO_CLOUD_BUILDS_COMMAND
             ? '\n\n' +
               'Please verify:\n' +
-              '1. EAS build profile is configured for non-development\n' +
+              '1. EAS build profile is configured for Preview Simulator Build\n' +
               `2. ${error.platformLabels.length > 1 ? 'Builds are' : 'Build is'} created with this profile\n` +
-              // TODO: lepszy komentarz? script? pozbyc sie tego? na pewno walidujemy to w easBuildScriptName (nie wiem jak z waitForEasBuild)
-              `3. Same build profile is passed to \`sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND}\` using \`--${PROFILE_OPTION}\` flag\n`
+              `3. Same build profile is passed to \`sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND}\` using \`--${PROFILE_OPTION}\` option\n`
             : ''),
-        learnMoreLink: 'TODO: DOCS_LINK.localBuilds / DOCS_LINK.expoCloudBuilds',
+        learnMoreLink:
+          error.command === LOCAL_BUILDS_COMMAND
+            ? DOCS_LINK.commandLocalBuilds
+            : DOCS_LINK.commandExpoCloudBuilds,
       };
 
     case 'different_versions':

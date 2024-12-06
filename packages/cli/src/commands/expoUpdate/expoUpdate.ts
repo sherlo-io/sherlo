@@ -1,5 +1,5 @@
 import {
-  printHeader,
+  logSherloIntro,
   uploadOrReuseBuildsAndRunTests,
   validatePackages,
   getValidatedCommandParams,
@@ -9,7 +9,7 @@ import { THIS_COMMAND } from './constants';
 import { getValidatedExpoUpdateData } from './helpers';
 
 async function expoUpdate(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
-  printHeader();
+  logSherloIntro();
 
   validatePackages(THIS_COMMAND);
 

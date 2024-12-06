@@ -130,21 +130,21 @@ function getError(error: PlatformPathError, command: Command) {
     case 'missingBothPaths':
       return {
         message:
-          'Missing required Android and iOS build paths (based on devices in config). Pass them using `--android` and `--ios` flags or add them to the config file' +
+          'Missing required Android and iOS build paths (based on devices in config). Pass them using `--android` and `--ios` options or add them to the config file' +
           missingExpoUpdateNote,
         learnMoreLink: learnMoreLink.both,
       };
     case 'missingAndroidPath':
       return {
         message:
-          'Missing required Android build path (based on devices in config). Pass it using `--android` flag or add `android` to the config file' +
+          'Missing required Android build path (based on devices in config). Pass it using `--android` option or add `android` to the config file' +
           missingExpoUpdateNote,
         learnMoreLink: learnMoreLink.android,
       };
     case 'missingIosPath':
       return {
         message:
-          'Missing required iOS build path (based on devices in config). Pass it using `--ios` flag or add `ios` to the config file' +
+          'Missing required iOS build path (based on devices in config). Pass it using `--ios` option or add `ios` to the config file' +
           missingExpoUpdateNote,
         learnMoreLink: learnMoreLink.ios,
       };

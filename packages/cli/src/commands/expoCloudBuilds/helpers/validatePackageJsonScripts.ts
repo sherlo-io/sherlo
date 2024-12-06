@@ -45,7 +45,7 @@ function getPackageJson(projectRoot: string) {
         '\n\n' +
         'Please:' +
         `\n1. Make sure the ${PACKAGE_JSON_FILE_NAME} file exists in your project root` +
-        `\n2. If your project root is different, use the \`--${PROJECT_ROOT_OPTION}\` flag`,
+        `\n2. If your project root is different, use the \`--${PROJECT_ROOT_OPTION}\` option`,
     });
   }
 
@@ -76,11 +76,7 @@ function validateRequiredScript(
         type === 'easBuildScriptName'
           ? getEasBuildScriptError(scriptName, packageJsonPath)
           : getEasBuildOnCompleteError(packageJsonPath),
-      learnMoreLink:
-        // TODO: czy prawidlowe linki?
-        type === 'easBuildScriptName'
-          ? DOCS_LINK.sherloScriptExpoRemoteBuilds
-          : DOCS_LINK.remoteExpoBuilds,
+      learnMoreLink: DOCS_LINK.commandExpoCloudBuilds,
     });
   }
 }
@@ -90,7 +86,7 @@ function getEasBuildOnCompleteError(packageJsonPath: string): string {
     `Required script "${EAS_BUILD_ON_COMPLETE_SCRIPT_NAME}" is not defined in ${PACKAGE_JSON_FILE_NAME}\n\n` +
     'Please:\n' +
     `1. Make sure you're in the correct project directory (current: "${packageJsonPath}")\n` +
-    `2. If not, specify the correct path using \`--${PROJECT_ROOT_OPTION}\` flag\n` +
+    `2. If not, specify the correct path using \`--${PROJECT_ROOT_OPTION}\` option\n` +
     '3. Add the following script to your package.json:\n\n' +
     `"${EAS_BUILD_ON_COMPLETE_SCRIPT_NAME}": "sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND} --${PROFILE_OPTION} <your-eas-profile>"\n`
   );
@@ -101,7 +97,7 @@ function getEasBuildScriptError(scriptName: string, packageJsonPath: string): st
     `Script "${scriptName}" specified by \`${EAS_BUILD_SCRIPT_NAME_FLAG}\` is not defined in ${PACKAGE_JSON_FILE_NAME}\n\n` +
     'Please:\n' +
     `1. Make sure you're in the correct project directory (current: "${packageJsonPath}")\n` +
-    `2. If not, specify the correct path using \`--${PROJECT_ROOT_OPTION}\` flag\n` +
+    `2. If not, specify the correct path using \`--${PROJECT_ROOT_OPTION}\` option\n` +
     `3. Make sure the script name passed to \`${EAS_BUILD_SCRIPT_NAME_FLAG}\` is correct\n` +
     `4. Add the specified script to your ${PACKAGE_JSON_FILE_NAME} if it doesn't exist\n`
   );

@@ -10,7 +10,7 @@ import {
   logBuildMessage,
   logBuildPlatformLabel,
   logResultsUrl,
-  printHeader,
+  logSherloIntro,
   validatePackages,
   getPlatformsToTest,
   getValidatedCommandParams,
@@ -25,7 +25,7 @@ import {
 } from './helpers';
 
 async function expoCloudBuilds(passedOptions: Options<THIS_COMMAND>) {
-  printHeader();
+  logSherloIntro();
 
   validatePackages(EXPO_CLOUD_BUILDS_COMMAND);
 
@@ -41,8 +41,6 @@ async function expoCloudBuilds(passedOptions: Options<THIS_COMMAND>) {
   );
 
   validatePackageJsonScripts(commandParams);
-
-  // TODO: callOpenBuild ?
 
   const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
   const client = SDKApiClient(apiToken);

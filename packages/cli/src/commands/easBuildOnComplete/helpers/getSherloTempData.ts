@@ -19,8 +19,7 @@ function getSherloTempData(): { buildIndex: number; token: string } | undefined 
         `2. If you want to test your builds, make sure to:\n` +
         `   • Run \`sherlo ${EXPO_CLOUD_BUILDS_COMMAND}\` before starting EAS build\n` +
         `   • Check if ${SHERLO_TEMP_DIRECTORY} directory is not ignored in .gitignore\n`,
-      // TODO: ?
-      learnMoreLink: DOCS_LINK.sherloScriptExpoRemoteBuilds,
+      learnMoreLink: DOCS_LINK.commandExpoCloudBuilds,
     });
 
     return;

@@ -3,6 +3,9 @@ export const APP_DOMAIN = 'https://app.sherlo.io';
 const DOCS_DOMAIN = 'https://docs.sherlo.io';
 
 export const DOCS_LINK = {
+  commandLocalBuilds: `${DOCS_DOMAIN}/getting-started/testing?command=local-builds#sherlo-commands`,
+  commandExpoUpdate: `${DOCS_DOMAIN}/getting-started/testing?command=expo-update#sherlo-commands`,
+  commandExpoCloudBuilds: `${DOCS_DOMAIN}/getting-started/testing?command=expo-cloud-builds#sherlo-commands`,
   config: `${DOCS_DOMAIN}/getting-started/config`,
   configProperties: `${DOCS_DOMAIN}/getting-started/config#properties`,
   configToken: `${DOCS_DOMAIN}/getting-started/config#token`,
@@ -10,11 +13,6 @@ export const DOCS_LINK = {
   configIos: `${DOCS_DOMAIN}/getting-started/config#ios`,
   configDevices: `${DOCS_DOMAIN}/getting-started/config#devices`,
   devices: `${DOCS_DOMAIN}/devices`,
-  remoteExpoBuilds: `${DOCS_DOMAIN}/getting-started/builds?framework=expo&eas-build=remote#preparing-builds`,
-  sherloScriptLocalBuilds: `${DOCS_DOMAIN}/getting-started/testing?builds-type=local#sherlo-script`,
-  sherloScriptExpoRemoteBuilds: `${DOCS_DOMAIN}/getting-started/testing?builds-type=expo-remote#sherlo-script`,
-  sherloScriptFlags: `${DOCS_DOMAIN}/getting-started/testing#supported-flags`,
-  expoUpdate: `${DOCS_DOMAIN}/getting-started/expo-update`, // TODO: Add correct documentation link for expo-update
 };
 
 export const PLATFORMS: readonly Platform[] = ['android', 'ios'];

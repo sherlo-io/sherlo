@@ -3,7 +3,6 @@ export type BinariesInfo = {
   ios?: BinaryInfo;
 };
 
-// TODO: potrzebne to? mamy BinaryInfo w @sherlo/api-types
 export type BinaryInfo = {
   hash: string;
   isExpoDev: boolean;

@@ -18,7 +18,7 @@ const header = `
     '88888P' 888  888  "Y8888  888     888  "Y88P"
 `;
 
-function printHeader(): void {
+function logSherloIntro(): void {
   console.log(gradientString(color.reported, color.approved, color.noChanges)(header));
 
   console.log(chalk.dim(chalk.italic('Make sure your mobile app looks perfect on every device')));
@@ -26,4 +26,4 @@ function printHeader(): void {
   console.log();
 }
 
-export default printHeader;
+export default logSherloIntro;

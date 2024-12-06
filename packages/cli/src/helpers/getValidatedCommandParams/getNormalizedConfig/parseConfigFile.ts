@@ -53,7 +53,7 @@ function getError({
       '\n\n' +
       'Please:' +
       '\n1. Make sure the config file exists in your project root' +
-      `\n2. If your project root is different, use the \`--${PROJECT_ROOT_OPTION}\` flag\n`,
+      `\n2. If your project root is different, use the \`--${PROJECT_ROOT_OPTION}\` option\n`,
 
     no_access: `Config file \`${path}\` cannot be accessed`,
 
