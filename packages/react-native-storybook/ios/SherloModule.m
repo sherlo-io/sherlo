@@ -314,7 +314,21 @@ RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCT
         method_setImplementation(inputAccessoryMethod, newInputAccessoryImplementation);
     }
 
-    NSLog(@"[%@] Enhanced keyboard swizzling enabled", LOG_TAG);
+    // Prevent focus state changes
+    Method canBecomeFirstResponder = class_getInstanceMethod([UIResponder class], @selector(canBecomeFirstResponder));
+    IMP newCanBecomeFirstResponder = imp_implementationWithBlock(^BOOL(id _self) {
+        return NO;
+    });
+    method_setImplementation(canBecomeFirstResponder, newCanBecomeFirstResponder);
+    
+    // Prevent any existing first responder from keeping its state
+    Method isFirstResponder = class_getInstanceMethod([UIResponder class], @selector(isFirstResponder));
+    IMP newIsFirstResponder = imp_implementationWithBlock(^BOOL(id _self) {
+        return NO;
+    });
+    method_setImplementation(isFirstResponder, newIsFirstResponder);
+
+    NSLog(@"[%@] Enhanced keyboard and focus state swizzling enabled", LOG_TAG);
 }
 
 // Update the checkIfContainsStorybookError method
