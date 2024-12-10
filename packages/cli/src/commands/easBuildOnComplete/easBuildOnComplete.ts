@@ -73,7 +73,7 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
   const { buildIndex, token } = sherloTempData;
 
   // Build failed on Expo servers
-  if (process.env.EAS_BUILD_STATUS === 'errored') {
+  if (process.env.EAS_BUILD_STATUS === 'errored' || process.env.EAS_BUILD_PLATFORM === 'ios') {
     const { apiToken, projectIndex, teamId } = getTokenParts(token);
     const client = SDKApiClient(apiToken);
 
