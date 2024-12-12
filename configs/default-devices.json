@@ -2,7 +2,6 @@
   "exclude": ["ManyStories"],
   "devices": [
     {
-      "osLocale": "en_US",
       "id": "iphone.15.pro",
       "osVersion": "17",
       "osLocale": "fr_CH",
