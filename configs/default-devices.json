@@ -2,27 +2,10 @@
   "exclude": ["ManyStories"],
   "devices": [
     {
-      "id": "pixel.7.pro",
-      "osVersion": "13",
       "osLocale": "en_US",
-      "osTheme": "light"
-    },
-    {
-      "id": "pixel.tablet",
-      "osVersion": "13",
-      "osLocale": "fr_FR",
-      "osTheme": "dark"
-    },
-    {
-      "id": "iphone.13.mini",
-      "osVersion": "15",
-      "osLocale": "en_US",
-      "osTheme": "dark"
-    },
-    {
-      "id": "ipad.pro.13.m4",
+      "id": "iphone.15.pro",
       "osVersion": "17",
-      "osLocale": "en_US",
+      "osLocale": "fr_CH",
       "osTheme": "light"
     }
   ]
