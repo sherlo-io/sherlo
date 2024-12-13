@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState, ReactElement } from 'react';
+import { useEffect, useMemo, useState, ReactElement } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RunnerBridge, SherloModule } from '../helpers';
 import { Snapshot, StorybookParams, StorybookView } from '../types';
 import { SherloContext } from './contexts';
 import generateStorybookComponent from './generateStorybookComponent';
-import { useOriginalMode, useStoryEmitter, useTestingMode } from './hooks';
+import { useHideSplashScreen, useOriginalMode, useStoryEmitter, useTestingMode } from './hooks';
 import { setupErrorSilencing } from './utils';
 import { Layout } from './components';
 
@@ -31,6 +31,8 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
         setRenderedStoryId(storyId);
       },
     });
+
+    useHideSplashScreen();
 
     // Testing mode
     useTestingMode(view, mode, setSnapshots, setTestedIndex, RunnerBridge);
