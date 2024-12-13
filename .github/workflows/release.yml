@@ -67,6 +67,7 @@ jobs:
 
       - name: Publish to npm
         run: npx lerna publish from-package --yes --scope={@sherlo/react-native-storybook,sherlo}
+        continue-on-error: true
 
       - name: Tag Commit
         run: |
