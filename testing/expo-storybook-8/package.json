@@ -1,6 +1,6 @@
 {
   "name": "@sherlo/expo-storybook-8",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "main": "index.ts",
   "scripts": {
@@ -25,7 +25,7 @@
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/datetimepicker": "8.0.1",
     "@react-native-community/slider": "4.5.2",
-    "@sherlo/testing-components": "^1.1.0",
+    "@sherlo/testing-components": "^1.1.1",
     "expo": "^51.0.38",
     "expo-dev-client": "~4.0.28",
     "expo-linear-gradient": "~13.0.2",
@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "@sherlo/react-native-storybook": "^1.1.0",
+    "@sherlo/react-native-storybook": "^1.1.1",
     "@storybook/react-native": "^8.3.9",
     "babel-loader": "^8.2.3",
     "storybook": "^8.3.6",
