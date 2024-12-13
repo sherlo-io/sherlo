@@ -9,7 +9,9 @@ try {
     try {
       ExpoSplashScreen.hide();
     } catch {
-      ExpoSplashScreen.hideAsync();
+      try {
+        ExpoSplashScreen.hideAsync();
+      } catch {}
     }
   });
 } catch {
