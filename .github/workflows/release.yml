@@ -72,7 +72,7 @@ jobs:
         run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
 
       - name: Publish to npm
-        run: npx lerna publish from-package --yes --scope="@sherlo/react-native-storybook" --scope="sherlo"
+        run: npx lerna publish from-package --no-private --yes
 
       - name: Tag Commit
         run: |
