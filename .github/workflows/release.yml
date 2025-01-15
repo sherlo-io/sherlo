@@ -6,6 +6,11 @@ on:
       NEW_VERSION_NUMBER:
         description: 'New version number (e.g., 1.0.1)'
         required: false
+      BUMP_REQUIRED_SDK_VERSION:
+        description: 'SDK contains breaking changes'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   release-to-prod:
@@ -45,6 +50,7 @@ jobs:
           echo "{\"version\": \"$NEW_VERSION_NUMBER\"}" > packages/react-native-storybook/ios/Resources/assets/sherlo.json
 
       - name: Bump minimum required native dependencies version
+        if: ${{ github.event.inputs.BUMP_REQUIRED_SDK_VERSION == 'true' }}
         run: |
           echo "{\"REQUIRED_MIN_SDK_VERSION\": \"$NEW_VERSION_NUMBER\"}" > packages/cli/sdk-compatibility.json
 
