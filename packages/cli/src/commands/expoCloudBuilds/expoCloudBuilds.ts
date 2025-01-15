@@ -11,7 +11,6 @@ import {
   logBuildPlatformLabel,
   logResultsUrl,
   logSherloIntro,
-  validatePackages,
   getPlatformsToTest,
   getValidatedCommandParams,
 } from '../../helpers';
@@ -27,7 +26,7 @@ import {
 async function expoCloudBuilds(passedOptions: Options<THIS_COMMAND>) {
   logSherloIntro();
 
-  validatePackages(EXPO_CLOUD_BUILDS_COMMAND);
+  // validatePackages(EXPO_CLOUD_BUILDS_COMMAND);
 
   const commandParams = getValidatedCommandParams(
     { command: EXPO_CLOUD_BUILDS_COMMAND, passedOptions },
