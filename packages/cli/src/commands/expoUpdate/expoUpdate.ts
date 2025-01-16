@@ -2,6 +2,7 @@ import {
   logSherloIntro,
   uploadOrReuseBuildsAndRunTests,
   getValidatedCommandParams,
+  validatePackages,
 } from '../../helpers';
 import { Options } from '../../types';
 import { THIS_COMMAND } from './constants';
@@ -10,7 +11,7 @@ import { getValidatedExpoUpdateData } from './helpers';
 async function expoUpdate(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
   logSherloIntro();
 
-  // validatePackages(THIS_COMMAND);
+  validatePackages(THIS_COMMAND);
 
   const commandParams = getValidatedCommandParams(
     { command: THIS_COMMAND, passedOptions },
