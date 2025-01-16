@@ -16,6 +16,7 @@ jobs:
             chore
             fix
             feat
+            test
           scopes: |
             action
             cli
