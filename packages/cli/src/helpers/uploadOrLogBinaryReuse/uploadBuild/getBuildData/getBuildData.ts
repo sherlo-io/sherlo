@@ -1,6 +1,8 @@
 import { Platform } from '@sherlo/api-types';
 import fs from 'fs';
+import logBuildMessage from '../../../logBuildMessage';
 import throwError from '../../../throwError';
+import getSizeInMB from '../getSizeInMB';
 import compressDirectoryToTarGzip from './compressDirectoryToTarGzip';
 import compressFileToGzip from './compressFileToGzip';
 
@@ -26,16 +28,25 @@ function getBuildData({
        * .tar.gz file
        */
       return fs.readFileSync(buildPath);
-    } else if (buildPath.endsWith('.tar')) {
-      /**
-       * .tar file
-       */
-      return compressFileToGzip(buildPath);
     } else {
-      /**
-       * .app directory
-       */
-      return compressDirectoryToTarGzip({ directoryPath: buildPath, projectRoot });
+      const buildSizeMB = getSizeInMB({ path: buildPath, projectRoot });
+
+      logBuildMessage({
+        message: `compressing build... (${buildSizeMB} MB)`,
+        type: 'info',
+      });
+
+      if (buildPath.endsWith('.tar')) {
+        /**
+         * .tar file
+         */
+        return compressFileToGzip(buildPath);
+      } else {
+        /**
+         * .app directory
+         */
+        return compressDirectoryToTarGzip({ directoryPath: buildPath, projectRoot });
+      }
     }
   }
 
