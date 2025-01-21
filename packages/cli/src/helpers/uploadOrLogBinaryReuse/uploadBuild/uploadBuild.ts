@@ -5,6 +5,7 @@ import { PLATFORM_LABEL } from '../../../constants';
 import logBuildMessage from '../../logBuildMessage';
 import throwError from '../../throwError';
 import getBuildData from './getBuildData';
+import getSizeInMB from './getSizeInMB';
 
 const MAX_RETRIES = 3;
 const TIMEOUT = 5 * 60 * 1000; // 5 minutes
@@ -21,8 +22,9 @@ async function uploadBuild({
   uploadUrl: string;
 }): Promise<void> {
   const buildData = getBuildData({ buildPath, platform, projectRoot });
+  const buildSizeMB = getSizeInMB({ buffer: buildData, projectRoot });
 
-  logBuildMessage({ message: `uploading build...`, type: 'info' });
+  logBuildMessage({ message: `uploading build... (${buildSizeMB} MB)`, type: 'info' });
 
   /**
    * Configure HTTPS agent for optimized uploads:
