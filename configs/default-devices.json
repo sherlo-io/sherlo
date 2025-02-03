@@ -6,12 +6,6 @@
       "osVersion": "15",
       "osLocale": "en_US",
       "osTheme": "dark"
-    },
-    {
-      "id": "ipad.pro.13.m4",
-      "osVersion": "17",
-      "osLocale": "en_US",
-      "osTheme": "light"
     }
   ]
 }
