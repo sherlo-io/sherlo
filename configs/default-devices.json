@@ -1,6 +1,12 @@
 {
-  "include": ["TestInfo"],
+  "exclude": ["ManyStories"],
   "devices": [
+    {
+      "id": "pixel.7.pro",
+      "osVersion": "13",
+      "osLocale": "en_US",
+      "osTheme": "light"
+    },
     {
       "id": "pixel.tablet",
       "osVersion": "13",
