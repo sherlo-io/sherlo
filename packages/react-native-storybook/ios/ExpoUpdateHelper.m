@@ -8,7 +8,7 @@ static int expoUpdateDeeplinkConsumeCount = 0;
 // we will open the url twice to make sure the app is restarted with new update 
 // bundle and second time to make sure we dismiss the initial expo dev client modal
 + (void)consumeExpoUpdateDeeplink:(NSString *)expoUpdateDeeplink modeRef:(NSString **)modeRef error:(NSError **)error {
-    if (expoUpdateDeeplinkConsumeCount < 2) {
+    if (expoUpdateDeeplinkConsumeCount < 3) {
         dispatch_async(dispatch_get_main_queue(), ^{
             NSURL *nsurl = [NSURL URLWithString:expoUpdateDeeplink];
 
