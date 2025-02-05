@@ -57,7 +57,7 @@ jobs:
         if: ${{ !inputs.skip_build }}
         uses: expo/expo-github-action@v8
         with:
-          eas-version: latest
+          eas-version: 13.4.2
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build iOS example app
