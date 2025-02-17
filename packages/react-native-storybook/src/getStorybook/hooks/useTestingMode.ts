@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { AckStartProtocolItem, RunnerBridge } from '../../helpers/RunnerBridge';
 import { Snapshot, StorybookViewMode } from '../../types';
 import { prepareSnapshots } from '../utils';
+import { SherloModule } from '../../helpers';
 
 function useTestingMode(
   view: ReturnType<typeof start>,
@@ -48,6 +49,12 @@ function useTestingMode(
 
         if (initialSelectionIndex === undefined || filteredViewIds === undefined) {
           await bridge.create();
+
+          const inspectorData = await SherloModule.getInspectorData();
+
+          if (!inspectorData.includes('sherlo-getStorybook-verification')) {
+            throw new Error('Main view ID not found on screen');
+          }
 
           const startResponse = (await bridge.send({
             action: 'START',
