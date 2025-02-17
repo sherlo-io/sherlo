@@ -53,6 +53,7 @@ function useTestingMode(
           const inspectorData = await SherloModule.getInspectorData();
 
           if (!inspectorData.includes('sherlo-getStorybook-verification')) {
+            bridge.log('Main view ID not found on screen');
             throw new Error('Main view ID not found on screen');
           }
 
