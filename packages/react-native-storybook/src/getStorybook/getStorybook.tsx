@@ -79,14 +79,13 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
           try {
             await SherloModule.clearFocus();
 
+            const isStable = await SherloModule.checkIfStable(3, 1_000, 10_000);
             const containsError = await SherloModule.checkIfContainsStorybookError();
 
             let inspectorData;
-            let isStable = true;
 
             if (!containsError) {
               await SherloModule.clearFocus();
-              isStable = await SherloModule.checkIfStable(2, 1_000, 10_000);
               inspectorData = await SherloModule.getInspectorData();
             }
 
