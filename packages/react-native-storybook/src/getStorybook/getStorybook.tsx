@@ -8,7 +8,6 @@ import generateStorybookComponent from './generateStorybookComponent';
 import { useHideSplashScreen, useOriginalMode, useStoryEmitter, useTestingMode } from './hooks';
 import { setupErrorSilencing } from './utils';
 import { Layout } from './components';
-import useHeartbeat from './hooks/useHeartbeat';
 
 setupErrorSilencing();
 
