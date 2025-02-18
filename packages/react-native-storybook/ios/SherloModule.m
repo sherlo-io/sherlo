@@ -4,6 +4,7 @@
 #import "RestartHelper.h"
 #import "ConfigHelper.h"
 #import "ExpoUpdateHelper.h"
+#import "StableUIChecker.h"
 #import "VerificationHelper.h"
 #import "StorybookErrorHelper.h"
 
@@ -171,6 +172,21 @@ RCT_EXPORT_METHOD(mkdir:(NSString *)filepath resolver:(RCTPromiseResolveBlock)re
   } else {
     resolve(nil);
   }
+}
+
+RCT_EXPORT_METHOD(checkIfStable:(NSInteger)requiredMatches
+                  interval:(NSInteger)intervalMs
+                  timeout:(NSInteger)timeoutMs
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+  StableUIChecker *checker = [[StableUIChecker alloc] init];
+  [checker checkIfStableWithRequiredMatches:requiredMatches
+                                 intervalMs:intervalMs
+                                  timeoutMs:timeoutMs
+                                 completion:^(BOOL stable) {
+    resolve(@(stable));
+  }];
 }
 
 // Appends a base64 encoded file to the specified filepath.

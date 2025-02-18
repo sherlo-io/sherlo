@@ -82,7 +82,11 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
             const containsError = await SherloModule.checkIfContainsStorybookError();
 
             let inspectorData;
+            let isStable = true;
+
             if (!containsError) {
+              await SherloModule.clearFocus();
+              isStable = await SherloModule.checkIfStable(2, 1_000, 10_000);
               inspectorData = await SherloModule.getInspectorData();
             }
 
@@ -91,14 +95,15 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
               snapshotIndex: testedIndex,
               hasError: containsError,
               inspectorData: !!inspectorData,
+              isStable,
             });
 
-            await SherloModule.clearFocus();
             const response = await RunnerBridge.send({
               action: 'REQUEST_SNAPSHOT',
               snapshotIndex: testedIndex,
               hasError: containsError,
               inspectorData,
+              isStable,
             });
 
             RunnerBridge.log('received screenshot from master script', response);

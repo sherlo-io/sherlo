@@ -166,6 +166,32 @@ public class SherloModule extends ReactContextBaseJavaModule {
         promise.resolve(null);
     }
 
+
+    /**
+     * Exposed React Native method to check UI stability.
+     *
+     * @param requiredMatches The number of consecutive matching screenshots needed.
+     * @param intervalMs      The interval between each screenshot in milliseconds.
+     * @param timeoutMs       The overall timeout in milliseconds.
+     * @param promise         Promise to resolve with true (stable) or false (not stable).
+     */
+    @ReactMethod
+    public void checkIfStable(final int requiredMatches, final int intervalMs, final int timeoutMs, final Promise promise) {
+        final Activity activity = getCurrentActivity();
+        if (activity == null) {
+            promise.reject("NO_ACTIVITY", "Activity doesn't exist");
+            return;
+        }
+
+        StableUIChecker checker = new StableUIChecker(activity);
+        checker.checkIfStable(requiredMatches, intervalMs, timeoutMs, new StableUIChecker.StabilityCallback() {
+            @Override
+            public void onResult(boolean stable) {
+                promise.resolve(stable);
+            }
+        });
+    }
+
     /**
      * Create a directory at the specified path
      */

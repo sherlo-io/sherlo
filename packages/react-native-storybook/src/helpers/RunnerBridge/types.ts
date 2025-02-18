@@ -37,6 +37,7 @@ export type AppProtocolItem =
       snapshotIndex: number;
       hasError?: boolean;
       inspectorData?: string;
+      isStable?: boolean;
     };
 
 export type AckStartProtocolItem = {

@@ -17,6 +17,11 @@ type SherloModule = {
   verifyIntegration: () => Promise<void>;
   clearFocus: () => Promise<void>;
   checkIfContainsStorybookError: () => Promise<boolean>;
+  checkIfStable: (
+    requiredMatches: number,
+    intervalMs: number,
+    timeoutMs: number
+  ) => Promise<boolean>;
 };
 
 let SherloModule: SherloModule;
@@ -53,6 +58,9 @@ function createSherloModule(): SherloModule {
     },
     storybookRegistered: async () => {
       await SherloNativeModule.storybookRegistered();
+    },
+    checkIfStable: async (requiredMatches: number, intervalMs: number, timeoutMs: number) => {
+      return SherloNativeModule.checkIfStable(requiredMatches, intervalMs, timeoutMs);
     },
     getMode: () => {
       const { testConfig, isVerifySetupTest } = getGlobalStates();
@@ -102,5 +110,6 @@ function createDummySherloModule(): SherloModule {
     openStorybook: async () => {},
     toggleStorybook: async () => {},
     verifyIntegration: async () => {},
+    checkIfStable: async () => true,
   };
 }
