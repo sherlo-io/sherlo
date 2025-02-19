@@ -78,7 +78,6 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
         setTimeout(async () => {
           try {
             await SherloModule.clearFocus();
-
             const isStable = await SherloModule.checkIfStable(3, 1_000, 10_000);
             const containsError = await SherloModule.checkIfContainsStorybookError();
 
@@ -86,6 +85,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 
             if (!containsError) {
               inspectorData = await SherloModule.getInspectorData();
+              await SherloModule.clearFocus();
             }
 
             RunnerBridge.log('requesting screenshot from master script', {

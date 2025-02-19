@@ -1,10 +1,8 @@
 import { create, getLastState, log, send } from './actions';
-import sendHeartbeat from './actions/sendHeartbeat';
 import { GetLastStateFn, LogFn, SendFn } from './types';
 
 const logPath = 'log.sherlo';
 const protocolPath = 'protocol.sherlo';
-const heartbeatPath = 'heartbeat.sherlo';
 const snapshotsDirectory = 'snapshots';
 
 export type RunnerBridge = {
@@ -12,7 +10,6 @@ export type RunnerBridge = {
   getLastState: GetLastStateFn;
   log: LogFn;
   send: SendFn;
-  sendHeartbeat: () => Promise<void>;
 };
 
 const logFn: LogFn = log(logPath);
@@ -23,7 +20,6 @@ const runnerBridge: RunnerBridge = {
   getLastState: getLastState(protocolPath, logFn),
   log: logFn,
   send: sendFn,
-  sendHeartbeat: () => sendHeartbeat(heartbeatPath),
 };
 
 export default runnerBridge;

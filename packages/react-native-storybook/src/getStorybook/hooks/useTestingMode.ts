@@ -15,16 +15,6 @@ function useTestingMode(
   const [storiesSet, setStoriesSet] = useState(false);
 
   useEffect(() => {
-    if (mode === 'testing') {
-      const heartbeatInterval = setInterval(() => {
-        bridge.sendHeartbeat();
-      }, 1_000);
-
-      return () => clearInterval(heartbeatInterval);
-    }
-  }, []);
-
-  useEffect(() => {
     if (storiesSet) return;
 
     const inter = setInterval(() => {

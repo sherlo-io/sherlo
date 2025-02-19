@@ -22,6 +22,7 @@ import org.json.JSONObject;
 import io.sherlo.storybookreactnative.InspectorHelper;
 import io.sherlo.storybookreactnative.RestartHelper;
 import io.sherlo.storybookreactnative.StorybookErrorHelper;
+import io.sherlo.storybookreactnative.FocusCleaner;
 
 public class SherloModule extends ReactContextBaseJavaModule {
     public static final String TAG = "SherloModule";
@@ -268,12 +269,8 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
         activity.runOnUiThread(() -> {
             try {
-                View currentFocus = activity.getCurrentFocus();
-                if (currentFocus != null) {
-                    currentFocus.clearFocus();
-                }
-                
-                Log.i(TAG, "Focus cleared from current input");
+                boolean focusCleared = FocusCleaner.clearFocus(activity);
+                Log.i(TAG, focusCleared ? "Focus cleared from view" : "No focused view found");
                 promise.resolve(null);
             } catch (Exception e) {
                 Log.e(TAG, "Error clearing focus: " + e.getMessage());
