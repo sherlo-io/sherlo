@@ -1,5 +1,5 @@
 {
-  "exclude": ["ManyStories"],
+  "include": ["TestInfo", "FocusedInput"],
   "devices": [
     {
       "id": "pixel.7.pro",
