@@ -49,7 +49,11 @@ function useTestingMode(
           filteredViewIds = lastState.filteredViewIds;
         }
 
-        if (initialSelectionIndex === undefined || filteredViewIds === undefined) {
+        if (
+          initialSelectionIndex === undefined ||
+          filteredViewIds === undefined ||
+          currentRequestId === undefined
+        ) {
           await bridge.create();
 
           const inspectorData = await SherloModule.getInspectorData();
