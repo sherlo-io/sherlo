@@ -57,7 +57,7 @@ function getLastState(path: string, log: LogFn): GetLastStateFn {
               ? lastRequestSnapshot.nextSnapshotIndex
               : ackStart.nextSnapshotIndex,
             filteredViewIds: ackStart.filteredViewIds,
-            requestId: ackStart.requestId,
+            requestId: lastRequestSnapshot ? lastRequestSnapshot.requestId : ackStart.requestId,
           };
         }
 
