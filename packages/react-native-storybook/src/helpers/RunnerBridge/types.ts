@@ -18,6 +18,7 @@ export type GetLastStateFn = () => Promise<
   | {
       nextSnapshotIndex: number;
       filteredViewIds: String[];
+      requestId: string;
     }
   | undefined
 >;
@@ -38,17 +39,20 @@ export type AppProtocolItem =
       hasError?: boolean;
       inspectorData?: string;
       isStable?: boolean;
+      requestId: string;
     };
 
 export type AckStartProtocolItem = {
   action: 'ACK_START';
   filteredViewIds: String[];
   nextSnapshotIndex: number;
+  requestId: string;
 };
 
 export type AckRequestSnapshotProtocolItem = {
   action: 'ACK_REQUEST_SNAPSHOT';
   nextSnapshotIndex: number;
+  requestId: string;
 };
 
 export type RunnerProtocolItem = AckStartProtocolItem | AckRequestSnapshotProtocolItem;

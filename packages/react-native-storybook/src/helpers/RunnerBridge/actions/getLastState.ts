@@ -12,6 +12,7 @@ function getLastState(path: string, log: LogFn): GetLastStateFn {
     | {
         nextSnapshotIndex: number;
         filteredViewIds: String[];
+        requestId: string;
       }
     | undefined
   > {
@@ -46,6 +47,7 @@ function getLastState(path: string, log: LogFn): GetLastStateFn {
           | {
               nextSnapshotIndex: number;
               filteredViewIds: String[];
+              requestId: string;
             }
           | undefined = undefined;
 
@@ -55,6 +57,7 @@ function getLastState(path: string, log: LogFn): GetLastStateFn {
               ? lastRequestSnapshot.nextSnapshotIndex
               : ackStart.nextSnapshotIndex,
             filteredViewIds: ackStart.filteredViewIds,
+            requestId: ackStart.requestId,
           };
         }
 

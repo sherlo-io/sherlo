@@ -24,7 +24,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 
     // Safe area handling
     const [shouldAddSafeArea, setShouldAddSafeArea] = useState(mode === 'testing');
-
+    const [currentRequestId, setCurrentRequestId] = useState<string>();
     const emitStory = useStoryEmitter({
       updateRenderedStoryId: (storyId) => {
         RunnerBridge.log('rendered story', { id: storyId });
@@ -35,7 +35,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     useHideSplashScreen();
 
     // Testing mode
-    useTestingMode(view, mode, setSnapshots, setTestedIndex, RunnerBridge);
+    useTestingMode(view, mode, setSnapshots, setTestedIndex, setCurrentRequestId, RunnerBridge);
 
     // When testedIndex changes and it's not equal to renderedStoryId, emit story
     useEffect(() => {
@@ -77,6 +77,10 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
       const testStory = async (): Promise<void> => {
         setTimeout(async () => {
           try {
+            if (!currentRequestId) {
+              throw new Error('No current request ID');
+            }
+
             await new Promise((resolve) => setTimeout(resolve, 1_000));
             await SherloModule.clearFocus();
             const containsError = await SherloModule.checkIfContainsStorybookError();
@@ -103,6 +107,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
               hasError: containsError,
               inspectorData,
               isStable,
+              requestId: currentRequestId,
             });
 
             RunnerBridge.log('received screenshot from master script', response);
@@ -110,6 +115,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
             if (response.nextSnapshotIndex !== undefined) {
               const nextSnapshot = snapshots[response.nextSnapshotIndex];
 
+              setCurrentRequestId(response.requestId);
               setShouldAddSafeArea(!nextSnapshot.parameters?.noSafeArea);
               setTestedIndex(response.nextSnapshotIndex);
               emitStory(nextSnapshot);

@@ -10,6 +10,7 @@ function useTestingMode(
   mode: StorybookViewMode,
   setSnapshots: (snapshots: Snapshot[]) => void,
   setTestedIndex: (index: number) => void,
+  setCurrentRequestId: (requestId: string) => void,
   bridge: RunnerBridge
 ): void {
   const [storiesSet, setStoriesSet] = useState(false);
@@ -37,12 +38,13 @@ function useTestingMode(
 
         let initialSelectionIndex: number | undefined;
         let filteredViewIds: String[] | undefined;
-
+        let currentRequestId: string | undefined;
         const lastState = await bridge.getLastState();
         bridge.log('last state from protocol', {
           lastState,
         });
         if (lastState) {
+          currentRequestId = lastState.requestId;
           initialSelectionIndex = lastState.nextSnapshotIndex;
           filteredViewIds = lastState.filteredViewIds;
         }
@@ -62,6 +64,7 @@ function useTestingMode(
             snapshots,
           })) as AckStartProtocolItem;
 
+          currentRequestId = startResponse.requestId;
           initialSelectionIndex = startResponse.nextSnapshotIndex;
           filteredViewIds = startResponse.filteredViewIds;
         }
@@ -75,6 +78,7 @@ function useTestingMode(
           filteredSnapshots,
         });
 
+        setCurrentRequestId(currentRequestId);
         setTestedIndex(initialSelectionIndex);
         setSnapshots(filteredSnapshots);
       }
