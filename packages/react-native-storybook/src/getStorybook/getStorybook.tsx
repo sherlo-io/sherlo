@@ -81,17 +81,14 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
               throw new Error('No current request ID');
             }
 
-            await new Promise((resolve) => setTimeout(resolve, 1_000));
             await SherloModule.clearFocus();
-            const containsError = await SherloModule.checkIfContainsStorybookError();
+            const isStable = await SherloModule.checkIfStable(2, 1_000, 5_000);
+            await SherloModule.clearFocus();
 
-            const isStable = await SherloModule.checkIfStable(3, 1_000, 10_000);
-
-            let inspectorData;
-
-            if (!containsError) {
-              inspectorData = await SherloModule.getInspectorData();
-            }
+            const inspectorData = await SherloModule.getInspectorData();
+            const containsError = inspectorData.includes(
+              'Something went wrong rendering your story'
+            );
 
             RunnerBridge.log('requesting screenshot from master script', {
               action: 'REQUEST_SNAPSHOT',
