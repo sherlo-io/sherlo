@@ -49,169 +49,69 @@
 + (void)collectViewInfo:(UIView *)view intoArray:(NSMutableArray *)array {
     NSMutableDictionary *viewDict = [NSMutableDictionary dictionary];
 
+    // Class name - should always be valid as it's a system call
     NSString *className = NSStringFromClass([view class]);
-    [viewDict setObject:className forKey:@"className"];
+    if (className) {
+        [viewDict setObject:className forKey:@"className"];
+    } else {
+        [viewDict setObject:@"Unknown" forKey:@"className"];
+    }
 
+    // Visibility - using primitive bool, will always be valid
     BOOL isVisible = !view.hidden && view.alpha > 0.01 && view.window != nil;
     [viewDict setObject:@(isVisible) forKey:@"isVisible"];
 
     if (isVisible) {
+        // Frame calculations - check for infinity and NaN
         CGRect windowFrame = [view convertRect:view.bounds toView:nil];
         CGFloat screenScale = [UIScreen mainScreen].nativeScale;
         
-        // Adjust the coordinates and size using the native scale
-        [viewDict setObject:@(windowFrame.origin.x * screenScale) forKey:@"x"];
-        [viewDict setObject:@(windowFrame.origin.y * screenScale) forKey:@"y"];
-        [viewDict setObject:@(windowFrame.size.width * screenScale) forKey:@"width"];
-        [viewDict setObject:@(windowFrame.size.height * screenScale) forKey:@"height"];
+        CGFloat x = windowFrame.origin.x * screenScale;
+        CGFloat y = windowFrame.origin.y * screenScale;
+        CGFloat width = windowFrame.size.width * screenScale;
+        CGFloat height = windowFrame.size.height * screenScale;
+        
+        // Only add valid numerical values
+        if (isfinite(x)) [viewDict setObject:@(x) forKey:@"x"];
+        if (isfinite(y)) [viewDict setObject:@(y) forKey:@"y"];
+        if (isfinite(width)) [viewDict setObject:@(width) forKey:@"width"];
+        if (isfinite(height)) [viewDict setObject:@(height) forKey:@"height"];
 
-        if (view.accessibilityIdentifier) {
+        // Accessibility identifier - only add if non-nil and non-empty
+        if (view.accessibilityIdentifier.length > 0) {
             [viewDict setObject:view.accessibilityIdentifier forKey:@"accessibilityIdentifier"];
         }
 
+        // Background color
         if (view.backgroundColor) {
-            CGFloat red, green, blue, alpha;
-            [view.backgroundColor getRed:&red green:&green blue:&blue alpha:&alpha];
-            NSString *hexColor = [NSString stringWithFormat:@"#%02lX%02lX%02lX",
-                                   lroundf(red * 255),
-                                   lroundf(green * 255),
-                                   lroundf(blue * 255)];
-            [viewDict setObject:hexColor forKey:@"backgroundColor"];
+            CGFloat red = 0, green = 0, blue = 0, alpha = 0;
+            @try {
+                if ([view.backgroundColor getRed:&red green:&green blue:&blue alpha:&alpha]) {
+                    if (isfinite(red) && isfinite(green) && isfinite(blue)) {
+                        NSString *hexColor = [NSString stringWithFormat:@"#%02lX%02lX%02lX",
+                                           lroundf(red * 255),
+                                           lroundf(green * 255),
+                                           lroundf(blue * 255)];
+                        [viewDict setObject:hexColor forKey:@"backgroundColor"];
+                    }
+                }
+            } @catch (NSException *exception) {
+                // Ignore color conversion failures
+            }
         }
 
+        // Handle text-based views
         if ([view isKindOfClass:[UILabel class]]) {
             UILabel *label = (UILabel *)view;
-            if (label.text) {
-                [viewDict setObject:label.text forKey:@"text"];
-            }
-            
-            // Create font dictionary
-            NSMutableDictionary *fontDict = [NSMutableDictionary dictionary];
-            [fontDict setObject:@(label.font.pointSize) forKey:@"size"];
-            
-            // Font weight
-            UIFontDescriptor *descriptor = label.font.fontDescriptor;
-            NSDictionary *traits = [descriptor objectForKey:UIFontDescriptorTraitsAttribute];
-            CGFloat weight = [traits[UIFontWeightTrait] floatValue];
-            [fontDict setObject:@(weight) forKey:@"weight"];
-            
-            // Font style traits
-            UIFontDescriptorSymbolicTraits symbolicTraits = descriptor.symbolicTraits;
-            [fontDict setObject:@((symbolicTraits & UIFontDescriptorTraitItalic) != 0) forKey:@"isItalic"];
-            [fontDict setObject:@((symbolicTraits & UIFontDescriptorTraitBold) != 0) forKey:@"isBold"];
-            
-            // Font family and name
-            [fontDict setObject:label.font.familyName forKey:@"family"];
-            [fontDict setObject:label.font.fontName forKey:@"name"];
-            
-            // Text color
-            CGFloat red, green, blue, alpha;
-            [label.textColor getRed:&red green:&green blue:&blue alpha:&alpha];
-            NSString *textColor = [NSString stringWithFormat:@"#%02lX%02lX%02lX",
-                               lroundf(red * 255),
-                               lroundf(green * 255),
-                               lroundf(blue * 255)];
-            [fontDict setObject:textColor forKey:@"color"];
-            
-            // Text alignment
-            [fontDict setObject:@(label.textAlignment) forKey:@"alignment"];
-            
-            // Line height related
-            [fontDict setObject:@(label.numberOfLines) forKey:@"numberOfLines"];
-            if (@available(iOS 14.0, *)) {
-                [fontDict setObject:@(label.lineBreakStrategy) forKey:@"lineBreakStrategy"];
-            }
-            [fontDict setObject:@(label.lineBreakMode) forKey:@"lineBreakMode"];
-            
-            // Letter spacing (kern)
-            NSNumber *kernValue = @0;
-            if (label.attributedText.length > 0) {
-                kernValue = [label.attributedText attribute:NSKernAttributeName atIndex:0 effectiveRange:NULL] ?: @0;
-            }
-            [fontDict setObject:kernValue forKey:@"letterSpacing"];
-            
-            [viewDict setObject:fontDict forKey:@"font"];
+            [self addLabelInfo:label toDictionary:viewDict];
         }
         else if ([view isKindOfClass:[UIButton class]]) {
             UIButton *button = (UIButton *)view;
-            NSString *buttonText = [button titleForState:UIControlStateNormal];
-            if (buttonText) {
-                [viewDict setObject:buttonText forKey:@"text"];
-            }
-            
-            // Create font dictionary for button
-            NSMutableDictionary *fontDict = [NSMutableDictionary dictionary];
-            UIFont *buttonFont = button.titleLabel.font;
-            [fontDict setObject:@(buttonFont.pointSize) forKey:@"size"];
-            
-            // Font weight
-            UIFontDescriptor *buttonDescriptor = buttonFont.fontDescriptor;
-            NSDictionary *buttonTraits = [buttonDescriptor objectForKey:UIFontDescriptorTraitsAttribute];
-            CGFloat buttonWeight = [buttonTraits[UIFontWeightTrait] floatValue];
-            [fontDict setObject:@(buttonWeight) forKey:@"weight"];
-            
-            // Font style traits
-            UIFontDescriptorSymbolicTraits traits = buttonFont.fontDescriptor.symbolicTraits;
-            [fontDict setObject:@((traits & UIFontDescriptorTraitItalic) != 0) forKey:@"isItalic"];
-            [fontDict setObject:@((traits & UIFontDescriptorTraitBold) != 0) forKey:@"isBold"];
-            
-            // Font family and name
-            [fontDict setObject:buttonFont.familyName forKey:@"family"];
-            [fontDict setObject:buttonFont.fontName forKey:@"name"];
-            
-            // Text color
-            UIColor *textColor = [button titleColorForState:UIControlStateNormal];
-            CGFloat red, green, blue, alpha;
-            [textColor getRed:&red green:&green blue:&blue alpha:&alpha];
-            NSString *hexColor = [NSString stringWithFormat:@"#%02lX%02lX%02lX",
-                               lroundf(red * 255),
-                               lroundf(green * 255),
-                               lroundf(blue * 255)];
-            [fontDict setObject:hexColor forKey:@"color"];
-            
-            // Text alignment
-            [fontDict setObject:@(button.titleLabel.textAlignment) forKey:@"alignment"];
-            
-            [viewDict setObject:fontDict forKey:@"font"];
+            [self addButtonInfo:button toDictionary:viewDict];
         }
         else if ([view isKindOfClass:[UITextField class]]) {
             UITextField *textField = (UITextField *)view;
-            if (textField.text) {
-                [viewDict setObject:textField.text forKey:@"text"];
-            }
-            
-            // Create font dictionary for text field
-            NSMutableDictionary *fontDict = [NSMutableDictionary dictionary];
-            [fontDict setObject:@(textField.font.pointSize) forKey:@"size"];
-            
-            // Font weight
-            UIFontDescriptor *textFieldDescriptor = textField.font.fontDescriptor;
-            NSDictionary *textFieldTraits = [textFieldDescriptor objectForKey:UIFontDescriptorTraitsAttribute];
-            CGFloat textFieldWeight = [textFieldTraits[UIFontWeightTrait] floatValue];
-            [fontDict setObject:@(textFieldWeight) forKey:@"weight"];
-            
-            // Font style traits
-            UIFontDescriptorSymbolicTraits traits = textField.font.fontDescriptor.symbolicTraits;
-            [fontDict setObject:@((traits & UIFontDescriptorTraitItalic) != 0) forKey:@"isItalic"];
-            [fontDict setObject:@((traits & UIFontDescriptorTraitBold) != 0) forKey:@"isBold"];
-            
-            // Font family and name
-            [fontDict setObject:textField.font.familyName forKey:@"family"];
-            [fontDict setObject:textField.font.fontName forKey:@"name"];
-            
-            // Text color
-            CGFloat red, green, blue, alpha;
-            [textField.textColor getRed:&red green:&green blue:&blue alpha:&alpha];
-            NSString *hexColor = [NSString stringWithFormat:@"#%02lX%02lX%02lX",
-                               lroundf(red * 255),
-                               lroundf(green * 255),
-                               lroundf(blue * 255)];
-            [fontDict setObject:hexColor forKey:@"color"];
-            
-            // Text alignment
-            [fontDict setObject:@(textField.textAlignment) forKey:@"alignment"];
-            
-            [viewDict setObject:fontDict forKey:@"font"];
+            [self addTextFieldInfo:textField toDictionary:viewDict];
         }
     }
 
@@ -220,6 +120,126 @@
     for (UIView *subview in view.subviews) {
         [self collectViewInfo:subview intoArray:array];
     }
+}
+
+// New helper methods to handle different view types
++ (void)addLabelInfo:(UILabel *)label toDictionary:(NSMutableDictionary *)viewDict {
+    if (label.text.length > 0) {
+        [viewDict setObject:label.text forKey:@"text"];
+    }
+    
+    NSMutableDictionary *fontDict = [NSMutableDictionary dictionary];
+    [self addFontInfo:label.font color:label.textColor alignment:label.textAlignment toDictionary:fontDict];
+    
+    // Label-specific properties
+    if (label.numberOfLines >= 0) {
+        [fontDict setObject:@(label.numberOfLines) forKey:@"numberOfLines"];
+    }
+    
+    if (@available(iOS 14.0, *)) {
+        [fontDict setObject:@(label.lineBreakStrategy) forKey:@"lineBreakStrategy"];
+    }
+    [fontDict setObject:@(label.lineBreakMode) forKey:@"lineBreakMode"];
+    
+    // Letter spacing
+    if (label.attributedText.length > 0) {
+        NSNumber *kernValue = [label.attributedText attribute:NSKernAttributeName atIndex:0 effectiveRange:NULL];
+        if (kernValue) {
+            [fontDict setObject:kernValue forKey:@"letterSpacing"];
+        }
+    }
+    
+    if (fontDict.count > 0) {
+        [viewDict setObject:fontDict forKey:@"font"];
+    }
+}
+
++ (void)addButtonInfo:(UIButton *)button toDictionary:(NSMutableDictionary *)viewDict {
+    NSString *buttonText = [button titleForState:UIControlStateNormal];
+    if (buttonText.length > 0) {
+        [viewDict setObject:buttonText forKey:@"text"];
+    }
+    
+    NSMutableDictionary *fontDict = [NSMutableDictionary dictionary];
+    [self addFontInfo:button.titleLabel.font 
+               color:[button titleColorForState:UIControlStateNormal]
+           alignment:button.titleLabel.textAlignment 
+        toDictionary:fontDict];
+    
+    if (fontDict.count > 0) {
+        [viewDict setObject:fontDict forKey:@"font"];
+    }
+}
+
++ (void)addTextFieldInfo:(UITextField *)textField toDictionary:(NSMutableDictionary *)viewDict {
+    if (textField.text.length > 0) {
+        [viewDict setObject:textField.text forKey:@"text"];
+    }
+    
+    NSMutableDictionary *fontDict = [NSMutableDictionary dictionary];
+    [self addFontInfo:textField.font 
+               color:textField.textColor
+           alignment:textField.textAlignment 
+        toDictionary:fontDict];
+    
+    if (fontDict.count > 0) {
+        [viewDict setObject:fontDict forKey:@"font"];
+    }
+}
+
++ (void)addFontInfo:(UIFont *)font color:(UIColor *)textColor alignment:(NSTextAlignment)alignment toDictionary:(NSMutableDictionary *)fontDict {
+    if (!font) return;
+    
+    // Font size
+    if (isfinite(font.pointSize)) {
+        [fontDict setObject:@(font.pointSize) forKey:@"size"];
+    }
+    
+    // Font weight
+    UIFontDescriptor *descriptor = font.fontDescriptor;
+    if (descriptor) {
+        NSDictionary *traits = [descriptor objectForKey:UIFontDescriptorTraitsAttribute];
+        if (traits) {
+            NSNumber *weight = traits[UIFontWeightTrait];
+            if (weight && isfinite(weight.floatValue)) {
+                [fontDict setObject:weight forKey:@"weight"];
+            }
+        }
+        
+        // Font style traits
+        UIFontDescriptorSymbolicTraits symbolicTraits = descriptor.symbolicTraits;
+        [fontDict setObject:@((symbolicTraits & UIFontDescriptorTraitItalic) != 0) forKey:@"isItalic"];
+        [fontDict setObject:@((symbolicTraits & UIFontDescriptorTraitBold) != 0) forKey:@"isBold"];
+    }
+    
+    // Font family and name
+    if (font.familyName) {
+        [fontDict setObject:font.familyName forKey:@"family"];
+    }
+    if (font.fontName) {
+        [fontDict setObject:font.fontName forKey:@"name"];
+    }
+    
+    // Text color
+    if (textColor) {
+        CGFloat red = 0, green = 0, blue = 0, alpha = 0;
+        @try {
+            if ([textColor getRed:&red green:&green blue:&blue alpha:&alpha]) {
+                if (isfinite(red) && isfinite(green) && isfinite(blue)) {
+                    NSString *hexColor = [NSString stringWithFormat:@"#%02lX%02lX%02lX",
+                                       lroundf(red * 255),
+                                       lroundf(green * 255),
+                                       lroundf(blue * 255)];
+                    [fontDict setObject:hexColor forKey:@"color"];
+                }
+            }
+        } @catch (NSException *exception) {
+            // Ignore color conversion failures
+        }
+    }
+    
+    // Text alignment
+    [fontDict setObject:@(alignment) forKey:@"alignment"];
 }
 
 @end
