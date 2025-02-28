@@ -56,7 +56,20 @@ function useTestingMode(
         ) {
           await bridge.create();
 
-          const inspectorData = await SherloModule.getInspectorData();
+          const inspectorData = await SherloModule.getInspectorData().catch((error) => {
+            // Extract debug info from the native error
+            const errorDetails = {
+              message: error.message,
+              // The native error details are typically in the userInfo property
+              debugInfo: error.userInfo?.debugInfo || {},
+            };
+
+            bridge.log('error getting inspector data', {
+              error: errorDetails.message,
+              debugInfo: errorDetails.debugInfo,
+            });
+            throw error;
+          });
 
           if (!inspectorData.includes('sherlo-getStorybook-verification')) {
             bridge.log('Main view ID not found on screen');

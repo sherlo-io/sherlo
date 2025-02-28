@@ -47,17 +47,23 @@
     [rootObject setObject:viewList forKey:@"viewInfo"];
     
     // Add validation before JSON serialization
-    NSError *validationError = nil;
     if (![NSJSONSerialization isValidJSONObject:rootObject]) {
         NSMutableDictionary *debugInfo = [NSMutableDictionary dictionary];
         
+        // Add debug logging
+        NSLog(@"JSON serialization failed for rootObject");
+        
         // Check each main component
         if (![NSJSONSerialization isValidJSONObject:viewList]) {
+            NSLog(@"Invalid viewList detected");
             [debugInfo setObject:@"Invalid viewList" forKey:@"invalidComponent"];
             // Find problematic view entry
             for (NSInteger i = 0; i < viewList.count; i++) {
                 if (![NSJSONSerialization isValidJSONObject:viewList[i]]) {
                     NSDictionary *invalidView = viewList[i];
+                    NSLog(@"Found invalid view at index %ld", (long)i);
+                    NSLog(@"Invalid view class: %@", [invalidView[@"className"] description]);
+                    
                     [debugInfo setObject:[NSString stringWithFormat:@"View at index %ld", (long)i] forKey:@"invalidIndex"];
                     [debugInfo setObject:[invalidView[@"className"] description] forKey:@"viewClass"];
                     
@@ -65,7 +71,9 @@
                     for (NSString *key in invalidView) {
                         id value = invalidView[key];
                         if (![self isValidJSONValue:value]) {
-                            [debugInfo setObject:[NSString stringWithFormat:@"%@: %@", key, [value description]] forKey:@"invalidProperty"];
+                            NSString *debugValue = [NSString stringWithFormat:@"%@: %@", key, [value description]];
+                            NSLog(@"Invalid property found: %@", debugValue);
+                            [debugInfo setObject:debugValue forKey:@"invalidProperty"];
                             break;
                         }
                     }
@@ -81,6 +89,8 @@
                 NSLocalizedDescriptionKey: @"Could not serialize view data to JSON",
                 @"debugInfo": debugInfo
             }];
+            // Add debug logging for the error
+            NSLog(@"Created error with debug info: %@", debugInfo);
         }
         return nil;
     }

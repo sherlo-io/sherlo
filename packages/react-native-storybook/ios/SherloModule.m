@@ -229,7 +229,26 @@ RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCT
     NSString *jsonString = [InspectorHelper dumpBoundaries:&error];
 
     if (error) {
-      reject(@"json_error", @"Could not serialize view data to JSON", error);
+      // Get the debug info from the error's userInfo
+      NSDictionary *userInfo = error.userInfo;
+      NSDictionary *debugInfo = userInfo[@"debugInfo"];
+      
+      NSMutableDictionary *errorDetails = [NSMutableDictionary dictionaryWithDictionary:@{
+        @"code": @"json_error",
+        @"message": error.localizedDescription ?: @"Could not serialize view data to JSON"
+      }];
+      
+      // Add debug info if available
+      if (debugInfo) {
+        [errorDetails setObject:debugInfo forKey:@"debugInfo"];
+      }
+      
+      // Log the error details for debugging
+      NSLog(@"[InspectorHelper] Error details: %@", errorDetails);
+      
+      reject(@"json_error", error.localizedDescription, [NSError errorWithDomain:error.domain 
+                                                                          code:error.code 
+                                                                      userInfo:errorDetails]);
     } else {
       resolve(jsonString);
     }
