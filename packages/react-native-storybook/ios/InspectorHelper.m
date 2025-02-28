@@ -46,6 +46,45 @@
     }
     [rootObject setObject:viewList forKey:@"viewInfo"];
     
+    // Add validation before JSON serialization
+    NSError *validationError = nil;
+    if (![NSJSONSerialization isValidJSONObject:rootObject]) {
+        NSMutableDictionary *debugInfo = [NSMutableDictionary dictionary];
+        
+        // Check each main component
+        if (![NSJSONSerialization isValidJSONObject:viewList]) {
+            [debugInfo setObject:@"Invalid viewList" forKey:@"invalidComponent"];
+            // Find problematic view entry
+            for (NSInteger i = 0; i < viewList.count; i++) {
+                if (![NSJSONSerialization isValidJSONObject:viewList[i]]) {
+                    NSDictionary *invalidView = viewList[i];
+                    [debugInfo setObject:[NSString stringWithFormat:@"View at index %ld", (long)i] forKey:@"invalidIndex"];
+                    [debugInfo setObject:[invalidView[@"className"] description] forKey:@"viewClass"];
+                    
+                    // Try to identify which property is invalid
+                    for (NSString *key in invalidView) {
+                        id value = invalidView[key];
+                        if (![self isValidJSONValue:value]) {
+                            [debugInfo setObject:[NSString stringWithFormat:@"%@: %@", key, [value description]] forKey:@"invalidProperty"];
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        
+        if (error) {
+            *error = [NSError errorWithDomain:@"InspectorHelper" 
+                                       code:3 
+                                   userInfo:@{
+                NSLocalizedDescriptionKey: @"Could not serialize view data to JSON",
+                @"debugInfo": debugInfo
+            }];
+        }
+        return nil;
+    }
+    
     NSData *jsonData = [NSJSONSerialization dataWithJSONObject:rootObject options:0 error:error];
     if (!jsonData) {
         if (error) {
@@ -55,6 +94,26 @@
     }
     
     return [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+}
+
++ (BOOL)isValidJSONValue:(id)value {
+    if (!value) return YES;
+    
+    if ([value isKindOfClass:[NSString class]] ||
+        [value isKindOfClass:[NSNumber class]] ||
+        [value isKindOfClass:[NSNull class]]) {
+        return YES;
+    }
+    
+    if ([value isKindOfClass:[NSArray class]]) {
+        return [NSJSONSerialization isValidJSONObject:value];
+    }
+    
+    if ([value isKindOfClass:[NSDictionary class]]) {
+        return [NSJSONSerialization isValidJSONObject:value];
+    }
+    
+    return NO;
 }
 
 + (void)collectViewInfo:(UIView *)view intoArray:(NSMutableArray *)array {
