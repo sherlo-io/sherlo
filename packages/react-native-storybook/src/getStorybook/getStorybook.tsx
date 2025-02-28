@@ -82,10 +82,25 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
             }
 
             await SherloModule.clearFocus();
-            const isStable = await SherloModule.checkIfStable(2, 1_000, 5_000);
-            await SherloModule.clearFocus();
+            RunnerBridge.log('cleared focus');
 
-            const inspectorData = await SherloModule.getInspectorData();
+            const isStable = await SherloModule.checkIfStable(2, 1_000, 5_000).catch((error) => {
+              RunnerBridge.log('error checking if stable', { error: error.message });
+              throw error;
+            });
+
+            RunnerBridge.log('checked if stable', { isStable });
+
+            await SherloModule.clearFocus();
+            RunnerBridge.log('cleared focus again');
+
+            const inspectorData = await SherloModule.getInspectorData().catch((error) => {
+              RunnerBridge.log('error getting inspector data', { error: error.message });
+              throw error;
+            });
+
+            RunnerBridge.log('got inspector data', { inspectorData });
+
             const containsError = inspectorData.includes(
               'Something went wrong rendering your story'
             );
