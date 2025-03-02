@@ -21,6 +21,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     const [snapshots, setSnapshots] = useState<Snapshot[]>();
 
     const mode = SherloModule.getMode();
+    const config = SherloModule.getConfig();
 
     // Safe area handling
     const [shouldAddSafeArea, setShouldAddSafeArea] = useState(mode === 'testing');
@@ -84,7 +85,11 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
             await SherloModule.clearFocus();
             RunnerBridge.log('cleared focus');
 
-            const isStable = await SherloModule.checkIfStable(2, 1_000, 5_000).catch((error) => {
+            const isStable = await SherloModule.checkIfStable(
+              config.stabilization.requiredMatches,
+              config.stabilization.intervalMs,
+              config.stabilization.timeoutMs
+            ).catch((error) => {
               RunnerBridge.log('error checking if stable', { error: error.message });
               throw error;
             });

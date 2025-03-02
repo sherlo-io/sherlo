@@ -2,11 +2,16 @@ package io.sherlo.storybookreactnative;
 
 import android.app.Activity;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
 
 import java.util.Arrays;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
+import android.view.PixelCopy;
 
 public class StableUIChecker {
 
@@ -25,10 +30,38 @@ public class StableUIChecker {
      */
     public Bitmap captureScreenshot() {
         View rootView = activity.getWindow().getDecorView().getRootView();
-        // Enable drawing cache (deprecated in later Android versions; consider alternatives in production)
-        rootView.setDrawingCacheEnabled(true);
-        Bitmap bitmap = Bitmap.createBitmap(rootView.getDrawingCache());
-        rootView.setDrawingCacheEnabled(false);
+        int width = rootView.getWidth();
+        int height = rootView.getHeight();
+        
+        if (width <= 0 || height <= 0) {
+            throw new RuntimeException("Impossible to snapshot the view: view is invalid");
+        }
+
+        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        
+        // Draw the view hierarchy to the canvas
+        rootView.draw(canvas);
+
+        // Handle any SurfaceViews if they exist (Android N and above)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            final CountDownLatch latch = new CountDownLatch(1);
+            
+            PixelCopy.request(activity.getWindow(), bitmap, new PixelCopy.OnPixelCopyFinishedListener() {
+                @Override
+                public void onPixelCopyFinished(int copyResult) {
+                    latch.countDown();
+                }
+            }, new Handler(Looper.getMainLooper()));
+
+            try {
+                // Wait for the pixel copy to complete (timeout after 2 seconds)
+                latch.await(2, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                // Handle interruption
+            }
+        }
+
         return bitmap;
     }
 

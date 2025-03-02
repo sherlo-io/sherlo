@@ -4,9 +4,11 @@ import utf8 from 'utf8';
 import isExpoGo from './isExpoGo';
 import { StorybookViewMode } from '../types/types';
 import { getGlobalStates } from '../utils';
+import { Config } from './RunnerBridge/types';
 
 type SherloModule = {
   getMode: () => StorybookViewMode;
+  getConfig: () => Config;
   storybookRegistered: () => Promise<void>;
   getInspectorData: () => Promise<string>;
   appendFile: (path: string, base64: string) => Promise<void>;
@@ -70,6 +72,9 @@ function createSherloModule(): SherloModule {
 
       return SherloNativeModule.getConstants().mode;
     },
+    getConfig: () => {
+      return SherloNativeModule.getConstants().config;
+    },
     appendFile: (path: string, data: string) => {
       const encodedData = base64.encode(utf8.encode(data));
 
@@ -104,6 +109,7 @@ function createDummySherloModule(): SherloModule {
     getInspectorData: async () => '',
     storybookRegistered: async () => {},
     getMode: () => 'default',
+    getConfig: () => ({ stabilization: { requiredMatches: 3, intervalMs: 500, timeoutMs: 5_000 } }),
     appendFile: async () => {},
     mkdir: async () => {},
     readFile: async () => '',

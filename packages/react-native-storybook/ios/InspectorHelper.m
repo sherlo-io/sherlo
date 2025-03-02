@@ -4,7 +4,15 @@
 @implementation InspectorHelper
 
 + (NSString *)dumpBoundaries:(NSError **)error {
-    UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+    UIWindow *keyWindow = nil;
+    NSArray *windows = [UIApplication sharedApplication].windows;
+    for (UIWindow *window in windows) {
+        if (window.isKeyWindow) {
+            keyWindow = window;
+            break;
+        }
+    }
+    
     if (!keyWindow) {
         if (error) {
             *error = [NSError errorWithDomain:@"InspectorHelper" code:1 userInfo:@{NSLocalizedDescriptionKey: @"Could not find the key window"}];
@@ -26,11 +34,6 @@
     // Create the root JSON object
     NSMutableDictionary *rootObject = [NSMutableDictionary dictionary];
     CGFloat screenScale = [UIScreen mainScreen].nativeScale;
-    CGRect nativeBounds = [UIScreen mainScreen].nativeBounds;
-    
-    // Calculate the scale factor based on the native dimensions
-    CGFloat widthScale = keyWindow.bounds.size.width > 0 ? (nativeBounds.size.width / keyWindow.bounds.size.width) : 1.0;
-    CGFloat heightScale = keyWindow.bounds.size.height > 0 ? (nativeBounds.size.height / keyWindow.bounds.size.height) : 1.0;
     
     // Use the system's default font size for body text
     UIFont *defaultFont = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
@@ -201,6 +204,13 @@
         else if ([view isKindOfClass:[UITextField class]]) {
             UITextField *textField = (UITextField *)view;
             [self addTextFieldInfo:textField toDictionary:viewDict];
+        }
+        // Add RCTTextView handling
+        else if ([className isEqualToString:@"RCTTextView"]) {
+            NSString *text = view.accessibilityLabel;
+            if (text && text.length > 0) {
+                [viewDict setObject:text forKey:@"text"];
+            }
         }
     }
     

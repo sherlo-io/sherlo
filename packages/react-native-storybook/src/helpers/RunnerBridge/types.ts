@@ -8,8 +8,13 @@ export type RunnerState = {
 };
 
 export type Config = {
-  exclude: string[] | string;
-  include: string[] | string;
+  stabilization: {
+    requiredMatches: number;
+    intervalMs: number;
+    timeoutMs: number;
+  };
+  overrideMode?: 'default' | 'storybook' | 'testing' | 'verification';
+  expoUpdateDeeplink?: string;
 };
 
 export type LogFn = (key: string, parameters?: Record<string, any>) => void;

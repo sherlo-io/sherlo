@@ -12,9 +12,9 @@
     __block NSInteger consecutiveMatches = 0;
     __block NSInteger elapsedTime = 0;
     
-    __block NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:(intervalMs / 1000.0)
-                                                               repeats:YES
-                                                                 block:^(NSTimer * _Nonnull t) {
+    [NSTimer scheduledTimerWithTimeInterval:(intervalMs / 1000.0)
+                                  repeats:YES
+                                    block:^(NSTimer * _Nonnull t) {
       UIImage *currentScreenshot = [self captureScreenshot];
       
       if ([self image:currentScreenshot isEqualToImage:lastScreenshot]) {
@@ -43,9 +43,19 @@
 
 // Helper method to capture a screenshot of the key window.
 - (UIImage *)captureScreenshot {
-  UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
-  UIGraphicsBeginImageContextWithOptions(keyWindow.bounds.size, NO, [UIScreen mainScreen].scale);
-  [keyWindow drawViewHierarchyInRect:keyWindow.bounds afterScreenUpdates:NO];
+  UIWindow *window = nil;
+  NSSet<UIScene *> *scenes = UIApplication.sharedApplication.connectedScenes;
+  UIScene *scene = scenes.allObjects.firstObject;
+  if ([scene isKindOfClass:[UIWindowScene class]]) {
+    window = ((UIWindowScene *)scene).windows.firstObject;
+  }
+  
+  if (!window) {
+    return nil;
+  }
+  
+  UIGraphicsBeginImageContextWithOptions(window.bounds.size, NO, [UIScreen mainScreen].scale);
+  [window drawViewHierarchyInRect:window.bounds afterScreenUpdates:NO];
   UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
   UIGraphicsEndImageContext();
   return image;

@@ -6,7 +6,6 @@
 #import "ExpoUpdateHelper.h"
 #import "StableUIChecker.h"
 #import "VerificationHelper.h"
-#import "StorybookErrorHelper.h"
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
@@ -31,6 +30,7 @@ static NSString *const LOG_TAG = @"SherloModule";
 
 static NSString *syncDirectoryPath = @"";
 static NSString *mode = @"default"; // "default" / "storybook" / "testing" / "verification"
+static NSDictionary *config = nil;
 
 @implementation SherloModule
 
@@ -55,7 +55,7 @@ RCT_EXPORT_MODULE()
       }
 
       NSError *loadConfigError = nil;
-      NSDictionary *config = [ConfigHelper loadConfig:&loadConfigError syncDirectoryPath:syncDirectoryPath];
+      config = [ConfigHelper loadConfig:&loadConfigError syncDirectoryPath:syncDirectoryPath];
       if (loadConfigError) {
         [self handleError:@"ERROR_MODULE_INIT" error:loadConfigError];
         return self;
@@ -118,7 +118,8 @@ RCT_EXPORT_MODULE()
 - (NSDictionary *)constantsToExport {
   return @{
     @"syncDirectoryPath": syncDirectoryPath,
-    @"mode": mode
+    @"mode": mode,
+    @"config": config
   };
 }
 
@@ -262,16 +263,24 @@ RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCT
 }
 
 // A function that writes an error code to error.sherlo file in sync directory
-- (void)handleError:(NSString *)errorCode error:(NSError *)error {
-  NSLog(@"[%@] Error occurred: %@, Error: %@", LOG_TAG, errorCode, error.localizedDescription ?: @"N/A");
+- (void)handleError:(NSString *)errorCode error:(id)error {
+  NSString *errorDescription;
+  if ([error isKindOfClass:[NSError class]]) {
+    errorDescription = [(NSError *)error localizedDescription] ?: @"N/A";
+  } else if ([error isKindOfClass:[NSString class]]) {
+    errorDescription = (NSString *)error;
+  } else {
+    errorDescription = [NSString stringWithFormat:@"%@", error];
+  }
+  
+  NSLog(@"[%@] Error occurred: %@, Error: %@", LOG_TAG, errorCode, errorDescription);
 
   NSString *protocolFilePath = [syncDirectoryPath stringByAppendingPathComponent:PROTOCOL_FILENAME];
   
-  // Create the new JSON object with the specified properties
   NSMutableDictionary *nativeErrorDict = [@{
     @"action": @"NATIVE_ERROR",
     @"errorCode": errorCode,
-    @"error": [NSString stringWithFormat:@"%@", error],
+    @"error": errorDescription,
     @"timestamp": @((long long)([[NSDate date] timeIntervalSince1970] * 1000)),
     @"entity": @"app"
   } mutableCopy];
@@ -364,19 +373,6 @@ RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCT
     method_setImplementation(isFirstResponder, newIsFirstResponder);
 
     NSLog(@"[%@] Enhanced keyboard and focus state swizzling enabled", LOG_TAG);
-}
-
-// Update the checkIfContainsStorybookError method
-RCT_EXPORT_METHOD(checkIfContainsStorybookError:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        @try {
-            UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
-            BOOL containsError = [StorybookErrorHelper checkIfContainsStorybookError:keyWindow];
-            resolve(@(containsError));
-        } @catch (NSException *exception) {
-            reject(@"error", @"Error checking for Storybook error", nil);
-        }
-    });
 }
 
 @end
