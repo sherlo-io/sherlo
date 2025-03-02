@@ -73,7 +73,7 @@ function createSherloModule(): SherloModule {
       return SherloNativeModule.getConstants().mode;
     },
     getConfig: () => {
-      return SherloNativeModule.getConstants().config;
+      return JSON.parse(SherloNativeModule.getConstants().config);
     },
     appendFile: (path: string, data: string) => {
       const encodedData = base64.encode(utf8.encode(data));

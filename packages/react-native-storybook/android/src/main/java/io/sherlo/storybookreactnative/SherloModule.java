@@ -123,7 +123,8 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
         constants.put("syncDirectoryPath", this.syncDirectoryPath);
         constants.put("mode", this.mode);
-        constants.put("config", this.config);
+        // Keep config as stringified JSON
+        constants.put("config", this.config.toString());
         return constants;
     }
 

@@ -116,10 +116,19 @@ RCT_EXPORT_MODULE()
 
 // Exports constants to JavaScript. In this case, it exports the sync directory path and initial mode.
 - (NSDictionary *)constantsToExport {
+  NSString *configString = nil;
+  if (config) {
+    NSError *error = nil;
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:config options:0 error:&error];
+    if (!error) {
+      configString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+    }
+  }
+  
   return @{
     @"syncDirectoryPath": syncDirectoryPath,
     @"mode": mode,
-    @"config": config
+    @"config": configString ?: [NSNull null]
   };
 }
 
