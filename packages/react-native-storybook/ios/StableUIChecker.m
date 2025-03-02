@@ -43,22 +43,21 @@
 
 // Helper method to capture a screenshot of the key window.
 - (UIImage *)captureScreenshot {
-  UIWindow *window = nil;
-  NSSet<UIScene *> *scenes = UIApplication.sharedApplication.connectedScenes;
-  UIScene *scene = scenes.allObjects.firstObject;
-  if ([scene isKindOfClass:[UIWindowScene class]]) {
-    window = ((UIWindowScene *)scene).windows.firstObject;
-  }
-  
-  if (!window) {
-    return nil;
-  }
-  
-  UIGraphicsBeginImageContextWithOptions(window.bounds.size, NO, [UIScreen mainScreen].scale);
-  [window drawViewHierarchyInRect:window.bounds afterScreenUpdates:NO];
-  UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
-  UIGraphicsEndImageContext();
-  return image;
+    UIWindow *window = [[UIApplication sharedApplication] keyWindow];
+    if (!window) {
+        return nil;
+    }
+    
+    CGSize size = window.bounds.size;
+    UIGraphicsBeginImageContextWithOptions(size, NO, 0);
+    
+    // Using renderInContext for more reliable capture of large views
+    [window.layer renderInContext:UIGraphicsGetCurrentContext()];
+    
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    
+    return image;
 }
 
 // Helper method to compare two images by comparing their PNG representations.
