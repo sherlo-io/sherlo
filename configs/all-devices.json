@@ -2,7 +2,31 @@
   "include": ["TestInfo", "FocusedInput"],
   "devices": [
     {
+      "id": "pixel.7.pro",
+      "osVersion": "13",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
       "id": "pixel.7",
+      "osVersion": "13",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "pixel.6a",
+      "osVersion": "13",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "pixel.6.pro",
+      "osVersion": "13",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "pixel.5",
       "osVersion": "13",
       "osLocale": "en_US",
       "osTheme": "dark"
@@ -12,6 +36,24 @@
       "osVersion": "13",
       "osLocale": "en_US",
       "osTheme": "dark"
+    },
+    {
+      "id": "pixel.4.xl",
+      "osVersion": "13",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "pixel.4",
+      "osVersion": "13",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "pixel.7.pro",
+      "osVersion": "13",
+      "osLocale": "de_DE",
+      "osTheme": "light"
     },
     {
       "id": "pixel.7",
@@ -20,7 +62,49 @@
       "osTheme": "light"
     },
     {
+      "id": "pixel.6a",
+      "osVersion": "13",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "pixel.6.pro",
+      "osVersion": "13",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "pixel.5",
+      "osVersion": "13",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
       "id": "pixel.4a",
+      "osVersion": "13",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "pixel.4.xl",
+      "osVersion": "13",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "pixel.4",
+      "osVersion": "13",
+      "osLocale": "de_DE",
+      "osTheme": "light"
+    },
+    {
+      "id": "pixel.tablet",
+      "osVersion": "13",
+      "osLocale": "en_US",
+      "osTheme": "dark"
+    },
+    {
+      "id": "pixel.tablet",
       "osVersion": "13",
       "osLocale": "de_DE",
       "osTheme": "light"
