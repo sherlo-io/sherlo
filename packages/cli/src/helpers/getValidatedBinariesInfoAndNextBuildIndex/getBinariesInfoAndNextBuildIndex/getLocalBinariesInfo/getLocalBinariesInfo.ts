@@ -146,14 +146,42 @@ async function getLocalBinaryInfoForPlatform({
   let sdkVersion;
 
   if (sherloFileContent) {
-    console.log('[DEBUG] getLocalBinaryInfoForPlatform - Found sherlo file content');
+    console.log(`[DEBUG] Found sherlo file, length: ${sherloFileContent.length}`);
+
+    // Show raw content only if it's small
+    if (sherloFileContent.length < 100) {
+      console.log(`[DEBUG] Full content: "${sherloFileContent}"`);
+    } else {
+      console.log(`[DEBUG] Content preview: "${sherloFileContent.substring(0, 50)}..."`);
+    }
 
     try {
+      // Try standard parse
       const parsedContent = JSON.parse(sherloFileContent);
       sdkVersion = parsedContent.version;
+      console.log(`[DEBUG] Parse success. Version: ${sdkVersion}`);
     } catch (error) {
-      console.error('[DEBUG] getLocalBinaryInfoForPlatform - JSON parse error:', error.message);
+      console.error(`[DEBUG] Parse error: ${error.message}`);
+
+      // Simple extraction
+      try {
+        const startPos = sherloFileContent.indexOf('{');
+        const endPos = sherloFileContent.indexOf('}', startPos);
+
+        if (startPos >= 0 && endPos > startPos) {
+          const extractedJson = sherloFileContent.substring(startPos, endPos + 1);
+          console.log(`[DEBUG] Extracted JSON: ${extractedJson}`);
+
+          const parsed = JSON.parse(extractedJson);
+          sdkVersion = parsed.version;
+          console.log(`[DEBUG] Extracted version: ${sdkVersion}`);
+        }
+      } catch (e) {
+        console.error(`[DEBUG] Extraction failed: ${e.message}`);
+      }
     }
+  } else {
+    console.log('[DEBUG] No sherlo.json content found');
   }
 
   console.log('[DEBUG] getLocalBinaryInfoForPlatform - Results:', {

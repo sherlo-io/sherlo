@@ -63,9 +63,24 @@ function getBuildPathFromEasJson({
   easBuildProfile: string;
   platform: Platform;
 }): string | null {
-  const easJsonData = JSON.parse(fs.readFileSync('eas.json', 'utf8'));
+  console.log('[DEBUG JSON] Reading eas.json file');
+  try {
+    const fileContent = fs.readFileSync('eas.json', 'utf8');
+    console.log(`[DEBUG JSON] eas.json content (preview): ${fileContent.substring(0, 50)}...`);
 
-  return easJsonData?.builds?.[platform]?.[easBuildProfile]?.applicationArchivePath ?? null;
+    try {
+      const easJsonData = JSON.parse(fileContent);
+      console.log('[DEBUG JSON] Successfully parsed eas.json');
+
+      return easJsonData?.builds?.[platform]?.[easBuildProfile]?.applicationArchivePath ?? null;
+    } catch (parseError) {
+      console.error(`[DEBUG JSON] Error parsing eas.json: ${parseError.message}`);
+      throw parseError;
+    }
+  } catch (readError) {
+    console.error(`[DEBUG JSON] Error reading eas.json: ${readError.message}`);
+    throw readError;
+  }
 }
 
 function findDefaultIosAppPath(): string | null {

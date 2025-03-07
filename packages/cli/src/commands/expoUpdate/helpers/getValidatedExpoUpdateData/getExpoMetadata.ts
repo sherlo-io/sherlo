@@ -14,8 +14,18 @@ function getExpoMetadata(commandParams: CommandParams<THIS_COMMAND>): {
       projectRoot: commandParams.projectRoot,
     });
 
-    config = JSON.parse(output);
+    console.log('[DEBUG JSON] Parsing expo config output');
+    console.log(`[DEBUG JSON] Expo config output (preview): ${output.substring(0, 100)}...`);
+
+    try {
+      config = JSON.parse(output);
+      console.log('[DEBUG JSON] Successfully parsed expo config');
+    } catch (parseError) {
+      console.error(`[DEBUG JSON] Error parsing expo config: ${parseError.message}`);
+      throwError({ type: 'unexpected', error: parseError });
+    }
   } catch (error) {
+    console.error(`[DEBUG JSON] Error getting expo config: ${error.message}`);
     throwError({ type: 'unexpected', error });
   }
 

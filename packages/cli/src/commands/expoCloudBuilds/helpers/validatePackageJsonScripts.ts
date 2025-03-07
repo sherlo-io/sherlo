@@ -50,9 +50,21 @@ function getPackageJson(projectRoot: string) {
   }
 
   try {
-    return JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-  } catch (error) {
-    throwError({ type: 'unexpected', error });
+    console.log(`[DEBUG JSON] Reading package.json from: ${packageJsonPath}`);
+    const fileContent = fs.readFileSync(packageJsonPath, 'utf8');
+    console.log(`[DEBUG JSON] package.json content (preview): ${fileContent.substring(0, 50)}...`);
+
+    try {
+      const packageJson = JSON.parse(fileContent);
+      console.log('[DEBUG JSON] Successfully parsed package.json');
+      return packageJson;
+    } catch (parseError) {
+      console.error(`[DEBUG JSON] Error parsing package.json: ${parseError.message}`);
+      throwError({ type: 'unexpected', error: parseError });
+    }
+  } catch (readError) {
+    console.error(`[DEBUG JSON] Error reading package.json: ${readError.message}`);
+    throwError({ type: 'unexpected', error: readError });
   }
 }
 

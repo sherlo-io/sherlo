@@ -22,11 +22,20 @@ function getPackageVersion(packageName: string): string | null {
   while (!currentDir.endsWith('node_modules') && currentDir !== '/') {
     try {
       const currentPackageJsonPath = join(currentDir, PACKAGE_JSON);
-      const currentPackageJson = JSON.parse(readFileSync(currentPackageJsonPath, 'utf8'));
+      console.log(`[DEBUG JSON] Reading package.json from: ${currentPackageJsonPath}`);
+      const jsonContent = readFileSync(currentPackageJsonPath, 'utf8');
 
-      if (currentPackageJson.name === packageName) {
-        packageJson = currentPackageJson;
-        break;
+      try {
+        const currentPackageJson = JSON.parse(jsonContent);
+        console.log(`[DEBUG JSON] Successfully parsed package.json for: ${currentPackageJsonPath}`);
+
+        if (currentPackageJson.name === packageName) {
+          packageJson = currentPackageJson;
+          break;
+        }
+      } catch (parseError) {
+        console.error(`[DEBUG JSON] Error parsing package.json: ${parseError.message}`);
+        console.error(`[DEBUG JSON] Content preview: ${jsonContent.substring(0, 50)}...`);
       }
     } catch {}
 

@@ -5,17 +5,31 @@ import throwError from '../../throwError';
 
 function parseConfigFile(path: string): InvalidatedConfig {
   try {
-    const config = JSON.parse(fs.readFileSync(path, 'utf8'));
+    console.log(`[DEBUG JSON] Reading config file from: ${path}`);
+    const fileContent = fs.readFileSync(path, 'utf8');
+    console.log(`[DEBUG JSON] Config file content (preview): ${fileContent.substring(0, 50)}...`);
 
-    /**
-     * Both `include` and `exclude` can be defined as a string or an array of
-     * strings in the config. However, the output should always be an array.
-     */
-    const { exclude, include } = config;
-    if (include && !Array.isArray(include)) config.include = [include];
-    if (exclude && !Array.isArray(exclude)) config.exclude = [exclude];
+    try {
+      const config = JSON.parse(fileContent);
+      console.log(`[DEBUG JSON] Successfully parsed config file: ${path}`);
 
-    return config;
+      /**
+       * Both `include` and `exclude` can be defined as a string or an array of
+       * strings in the config. However, the output should always be an array.
+       */
+      const { exclude, include } = config;
+      if (include && !Array.isArray(include)) config.include = [include];
+      if (exclude && !Array.isArray(exclude)) config.exclude = [exclude];
+
+      return config;
+    } catch (parseError) {
+      console.error(`[DEBUG JSON] Error parsing config file: ${parseError.message}`);
+      if (parseError instanceof SyntaxError) {
+        throwError(getError({ type: 'invalid_json', path }));
+      } else {
+        throwError({ type: 'unexpected', error: parseError });
+      }
+    }
   } catch (error) {
     const nodeError = error as NodeJS.ErrnoException;
 
@@ -27,11 +41,7 @@ function parseConfigFile(path: string): InvalidatedConfig {
       case 'EISDIR':
         throwError(getError({ type: 'is_directory', path }));
       default:
-        if (error instanceof SyntaxError) {
-          throwError(getError({ type: 'invalid_json', path }));
-        } else {
-          throwError({ type: 'unexpected', error });
-        }
+        throwError({ type: 'unexpected', error });
     }
   }
 }

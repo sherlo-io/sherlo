@@ -12,8 +12,18 @@ function getExpoUpdateInfo(commandParams: CommandParams<THIS_COMMAND>): ExpoUpda
       projectRoot: commandParams.projectRoot,
     });
 
-    result = JSON.parse(output);
+    console.log('[DEBUG JSON] Parsing eas-cli branch output');
+    console.log(`[DEBUG JSON] eas-cli output (preview): ${output.substring(0, 100)}...`);
+
+    try {
+      result = JSON.parse(output);
+      console.log('[DEBUG JSON] Successfully parsed eas-cli output');
+    } catch (parseError) {
+      console.error(`[DEBUG JSON] Error parsing eas-cli output: ${parseError.message}`);
+      throwError({ type: 'unexpected', error: parseError });
+    }
   } catch (error) {
+    console.error(`[DEBUG JSON] Error getting eas-cli branch info: ${error.message}`);
     throwError({ type: 'unexpected', error });
   }
 
