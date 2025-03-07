@@ -34,6 +34,13 @@ function getBinaryInfo(params: Params): BinaryInfo | undefined {
   const { command, localBinariesInfo, platform, platforms, remoteBinariesInfoOrUploadInfo } =
     params;
 
+  console.log('[DEBUG] getBinaryInfo - Processing:', {
+    platform,
+    includeInPlatforms: platforms.includes(platform),
+    hasRemoteInfo: !!remoteBinariesInfoOrUploadInfo[platform],
+    hasLocalInfo: !!localBinariesInfo[platform],
+  });
+
   if (!platforms.includes(platform)) {
     return;
   }
@@ -57,6 +64,21 @@ function getBinaryInfo(params: Params): BinaryInfo | undefined {
     ...remoteBinariesInfoOrUploadInfo[platform],
     ...localBinariesInfo[platform],
   };
+
+  console.log('[DEBUG] getBinaryInfo for', platform, '- Combined info:', {
+    fromRemote: {
+      hash: remoteBinariesInfoOrUploadInfo[platform]?.hash?.substring(0, 8) + '...',
+      sdkVersion: remoteBinariesInfoOrUploadInfo[platform]?.sdkVersion,
+    },
+    fromLocal: {
+      hash: localBinariesInfo[platform]?.hash?.substring(0, 8) + '...',
+      sdkVersion: localBinariesInfo[platform]?.sdkVersion,
+    },
+    final: {
+      hash: binaryInfo?.hash?.substring(0, 8) + '...',
+      sdkVersion: binaryInfo?.sdkVersion,
+    },
+  });
 
   if (checkIfBinaryInfoIsMissingRequiredFields(binaryInfo)) {
     if (command === EXPO_UPDATE_COMMAND) {

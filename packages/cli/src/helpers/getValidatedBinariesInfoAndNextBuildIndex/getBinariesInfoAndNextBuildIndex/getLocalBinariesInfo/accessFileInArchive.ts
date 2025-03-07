@@ -22,9 +22,22 @@ async function accessFileInArchive({
 }: Options): Promise<string | undefined | boolean> {
   const tarVersion = await detectTarVersion(projectRoot);
 
+  console.log(
+    '[DEBUG] accessFileInArchive - Attempting to',
+    operation,
+    'file:',
+    file,
+    'from archive:',
+    archive,
+    'using',
+    type
+  );
+
   try {
     const command = await getCommand({ type, operation, tarVersion, archive, file });
-    const result = runShellCommand({ command, projectRoot });
+    console.log('[DEBUG] accessFileInArchive - Executing command:', command);
+
+    const result = await runShellCommand({ command, projectRoot });
 
     if (operation === 'exists') {
       return true;
@@ -32,6 +45,8 @@ async function accessFileInArchive({
       return result;
     }
   } catch (error) {
+    console.error('[DEBUG] Error in accessFileInArchive:', error.message || error, error.status);
+
     if (isUnexpectedError({ type, error, tarVersion })) {
       throwError({ type: 'unexpected', error });
     }

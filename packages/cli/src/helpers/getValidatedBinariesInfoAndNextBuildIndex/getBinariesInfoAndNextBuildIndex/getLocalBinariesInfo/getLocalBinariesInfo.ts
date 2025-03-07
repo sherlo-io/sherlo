@@ -36,6 +36,9 @@ async function getLocalBinariesInfo({
 }): Promise<LocalBinariesInfo> {
   const result: LocalBinariesInfo = {};
 
+  console.log('[DEBUG] getLocalBinariesInfo - Platforms to process:', platforms);
+  console.log('[DEBUG] getLocalBinariesInfo - Paths:', paths);
+
   for (const platform of PLATFORMS) {
     // Get the local binary info for the platform if it should be tested and there's a path for it
     if (platforms.includes(platform) && paths[platform]) {
@@ -81,6 +84,12 @@ async function getLocalBinaryInfoForPlatform({
   projectRoot: string;
 }): Promise<LocalBinaryInfo> {
   const fileName = path.basename(platformPath);
+
+  console.log('[DEBUG] getLocalBinaryInfoForPlatform - Processing file:', fileName);
+  console.log(
+    '[DEBUG] getLocalBinaryInfoForPlatform - Looking for sherlo file at:',
+    sherloFilePath
+  );
 
   let checkIsExpoDev;
   let readSherloFile;
@@ -131,11 +140,28 @@ async function getLocalBinaryInfoForPlatform({
   }
 
   const hash = await getBinaryHash(platformPath);
-
   const isExpoDev = await checkIsExpoDev();
-
   const sherloFileContent = await readSherloFile();
-  const sdkVersion = sherloFileContent ? JSON.parse(sherloFileContent).version : undefined;
+
+  let sdkVersion;
+
+  if (sherloFileContent) {
+    console.log('[DEBUG] getLocalBinaryInfoForPlatform - Found sherlo file content');
+
+    try {
+      const parsedContent = JSON.parse(sherloFileContent);
+      sdkVersion = parsedContent.version;
+    } catch (error) {
+      console.error('[DEBUG] getLocalBinaryInfoForPlatform - JSON parse error:', error.message);
+    }
+  }
+
+  console.log('[DEBUG] getLocalBinaryInfoForPlatform - Results:', {
+    hash: hash.substring(0, 8) + '...',
+    isExpoDev,
+    sdkVersion,
+    sherloFileFound: !!sherloFileContent,
+  });
 
   return { hash, isExpoDev, sdkVersion };
 }

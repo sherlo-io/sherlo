@@ -20,6 +20,8 @@ async function accessFileInDirectory({
 }: Options): Promise<string | boolean> {
   const filePath = path.join(directory, file);
 
+  console.log('[DEBUG] accessFileInDirectory - Attempting to', operation, 'file:', filePath);
+
   try {
     if (operation === 'exists') {
       await fs.promises.access(filePath);
@@ -29,6 +31,8 @@ async function accessFileInDirectory({
     const content = await fs.promises.readFile(filePath, 'utf8');
     return content;
   } catch (error) {
+    console.error('[DEBUG] Error in accessFileInDirectory:', error.message || error);
+
     if (operation === 'exists') return false;
 
     throwError({ type: 'unexpected', error });
