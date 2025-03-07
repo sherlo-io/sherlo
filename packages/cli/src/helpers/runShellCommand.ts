@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { exec, ExecException } from 'child_process';
 
 interface Options {
   command: string;
@@ -7,24 +7,50 @@ interface Options {
 }
 
 /**
- * Executes a shell command with suppressed stderr output
- * @returns The command output with removed leading/trailing whitespace
+ * Executes a shell command asynchronously with suppressed stderr output
+ * @returns Promise that resolves to the command output with removed leading/trailing whitespace
  */
-export function runShellCommand(options: Options & { encoding?: 'utf8' }): string;
-export function runShellCommand(options: Options & { encoding: 'buffer' }): Buffer;
-export function runShellCommand({
+async function runShellCommand(options: Options & { encoding?: 'utf8' }): Promise<string>;
+async function runShellCommand(options: Options & { encoding: 'buffer' }): Promise<Buffer>;
+async function runShellCommand({
   command,
   projectRoot,
   encoding = 'utf8',
-}: Options): string | Buffer {
-  const output = execSync(command, {
-    encoding: encoding,
-    cwd: projectRoot,
-    stdio: ['pipe', 'pipe', 'pipe'], // ['stdin', 'stdout', 'stderr'] - pipe all to suppress output but still capture errors
-    maxBuffer: 1 * 1024 * 1024 * 1024, // 1GB max buffer - very safe limit
-  });
+}: Options): Promise<string | Buffer> {
+  return new Promise((resolve, reject) => {
+    const options: {
+      cwd: string;
+      maxBuffer: number;
+      encoding?: BufferEncoding | null;
+    } = {
+      cwd: projectRoot,
+      maxBuffer: 1 * 1024 * 1024 * 1024, // 1GB max buffer - very safe limit
+    };
 
-  return typeof output === 'string' ? output.trim() : output;
+    // Set encoding only if it's 'utf8', for 'buffer' we don't set it to get Buffer output
+    if (encoding === 'utf8') {
+      options.encoding = 'utf8';
+    } else {
+      options.encoding = null; // This will make stdout a Buffer
+    }
+
+    exec(
+      command,
+      options,
+      (error: ExecException | null, stdout: string | Buffer, _stderr: string | Buffer) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        if (typeof stdout === 'string') {
+          resolve(stdout.trim());
+        } else {
+          resolve(stdout);
+        }
+      }
+    );
+  });
 }
 
 export default runShellCommand;

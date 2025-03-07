@@ -37,8 +37,10 @@ function getError(error: ExpoUpdateError) {
     case 'missing_platform':
       return {
         message:
-          `Missing required ${error.platform === 'ios' ? 'iOS' : 'Android'} (based on devices in config) in latest update\n\n` +
-          `Update Info\n` +
+          `Missing required ${
+            error.platform === 'ios' ? 'iOS' : 'Android'
+          } (based on devices in config) in latest update\n\n` +
+          'Update Info\n' +
           `└─ message: ${error.expoUpdateInfo.message}\n` +
           `└─ group: ${error.expoUpdateInfo.group}\n` +
           `└─ platforms: ${error.expoUpdateInfo.platforms}\n` +

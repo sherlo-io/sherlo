@@ -1,4 +1,4 @@
-import { DEFAULT_CONFIG_PATH, DEFAULT_PROJECT_ROOT } from '../../constants';
+import { DEFAULT_CONFIG_FILENAME, DEFAULT_PROJECT_ROOT } from '../../constants';
 import { Options, Command } from '../../types';
 
 function getOptionsWithDefaults<C extends Command>(
@@ -6,7 +6,7 @@ function getOptionsWithDefaults<C extends Command>(
 ): Options<C, 'withDefaults'> {
   return {
     ...options,
-    config: options.config || DEFAULT_CONFIG_PATH,
+    config: options.config || DEFAULT_CONFIG_FILENAME,
     projectRoot: options.projectRoot || DEFAULT_PROJECT_ROOT,
   };
 }

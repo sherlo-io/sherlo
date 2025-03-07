@@ -1,11 +1,11 @@
 import { Command } from 'commander';
 import { version } from '../package.json';
-import { localBuilds, expoCloudBuilds, easBuildOnComplete, expoUpdate } from './commands';
+import { localBuilds, expoCloudBuilds, easBuildOnComplete, expoUpdate, init } from './commands';
 import {
   ANDROID_OPTION,
   BRANCH_OPTION,
   CONFIG_OPTION,
-  DEFAULT_CONFIG_PATH,
+  DEFAULT_CONFIG_FILENAME,
   DEFAULT_PROJECT_ROOT,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EAS_BUILD_SCRIPT_NAME_OPTION,
@@ -18,8 +18,12 @@ import {
   PROJECT_ROOT_OPTION,
   TOKEN_OPTION,
   WAIT_FOR_EAS_BUILD_OPTION,
+  INIT_COMMAND,
 } from './constants';
 import { reporting } from './helpers';
+
+// Disable all Node.js warnings
+process.removeAllListeners('warning');
 
 async function start() {
   try {
@@ -39,13 +43,17 @@ async function start() {
       [TOKEN_OPTION]: [`--${TOKEN_OPTION} <token>`, 'Authentication token for the project'],
       [CONFIG_OPTION]: [
         `--${CONFIG_OPTION} <path>`,
-        `Path to the config file (default: ${DEFAULT_CONFIG_PATH})`,
+        `Path to the config file (default: ${DEFAULT_CONFIG_FILENAME})`,
       ],
       [PROJECT_ROOT_OPTION]: [
         `--${PROJECT_ROOT_OPTION} <path>`,
         `Path to the root directory of your project (default: ${DEFAULT_PROJECT_ROOT})`,
       ],
     } as const;
+
+    const setReportingContext = (command: string, options: Record<string, unknown>) => {
+      reporting.setContext('commandContext', { command, options });
+    };
 
     program
       .name('sherlo')
@@ -61,7 +69,7 @@ async function start() {
       .option(...sharedOptions[CONFIG_OPTION])
       .option(...sharedOptions[PROJECT_ROOT_OPTION])
       .action(async (options) => {
-        reporting.setContext('commandContext', { command: LOCAL_BUILDS_COMMAND, options });
+        setReportingContext(LOCAL_BUILDS_COMMAND, options);
         await localBuilds(options);
       });
 
@@ -82,7 +90,7 @@ async function start() {
       .option(...sharedOptions[CONFIG_OPTION])
       .option(...sharedOptions[PROJECT_ROOT_OPTION])
       .action(async (options) => {
-        reporting.setContext('commandContext', { command: EXPO_UPDATE_COMMAND, options });
+        setReportingContext(EXPO_UPDATE_COMMAND, options);
         await expoUpdate(options);
       });
 
@@ -101,7 +109,7 @@ async function start() {
       .option(...sharedOptions[CONFIG_OPTION])
       .option(...sharedOptions[PROJECT_ROOT_OPTION])
       .action(async (options) => {
-        reporting.setContext('commandContext', { command: EXPO_CLOUD_BUILDS_COMMAND, options });
+        setReportingContext(EXPO_CLOUD_BUILDS_COMMAND, options);
         await expoCloudBuilds(options);
       });
 
@@ -113,8 +121,17 @@ async function start() {
         `EAS build profile (must match profile used in ${EXPO_CLOUD_BUILDS_COMMAND})`
       )
       .action(async (options) => {
-        reporting.setContext('commandContext', { command: EAS_BUILD_ON_COMPLETE_COMMAND, options });
+        setReportingContext(EAS_BUILD_ON_COMPLETE_COMMAND, options);
         await easBuildOnComplete(options);
+      });
+
+    program
+      .command(INIT_COMMAND)
+      .description('Initialize Sherlo in your React Native or Expo project')
+      .option(...sharedOptions[TOKEN_OPTION])
+      .action(async (options) => {
+        setReportingContext(INIT_COMMAND, options);
+        await init(options);
       });
 
     if (process.argv.length === 2) {
@@ -123,12 +140,14 @@ async function start() {
     }
 
     await program.parseAsync(process.argv);
+
+    await reporting.flush();
   } catch (error) {
     if (error.unexpectedError) {
       reporting.captureException(error.unexpectedError);
     }
 
-    reporting.flush().finally(() => {
+    await reporting.flush().finally(() => {
       console.error((error as Error).message);
       process.exit(error.code || 1);
     });

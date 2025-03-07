@@ -11,9 +11,13 @@ function validateConfigProperties(config: InvalidatedConfig): void {
 
   unsupportedProperties.forEach((property) => {
     logWarning({
-      message: `Unsupported property \`${property}\` in config file (supported: \`${supportedProperties.join('`, `')}\`)`,
+      message: `Unsupported property \`${property}\` in config file (supported: \`${supportedProperties.join(
+        '`, `'
+      )}\`)`,
       learnMoreLink: DOCS_LINK.configProperties,
     });
+
+    console.log();
   });
 }
 

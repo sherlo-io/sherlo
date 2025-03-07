@@ -1,16 +1,16 @@
 import chalk from 'chalk';
-import { getLogLink } from './shared';
+import printLink from './printLink';
 
 function logWarning({ learnMoreLink, message }: { message: string; learnMoreLink?: string }): void {
   const warningMessage = chalk.yellow(`WARNING: ${message}`);
 
-  const warningLines = [warningMessage];
+  const lines = [warningMessage];
 
   if (learnMoreLink) {
-    warningLines.push(`↳ Learn more: ${getLogLink(learnMoreLink)}`);
+    lines.push(chalk.dim(`↳ Learn more: ${printLink(learnMoreLink)}`));
   }
 
-  console.log(warningLines.join('\n') + '\n');
+  console.log(lines.join('\n'));
 }
 
 export default logWarning;

@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { getLogLink } from './shared';
+import printLink from './printLink';
 
 type Params = StandardErrorParams | UnexpectedErrorParams;
 
@@ -41,11 +41,13 @@ function throwError(params: Params): never {
 
   const errorMessage = errorMessageParts.join(' ');
 
-  const errorLines = [errorMessage];
+  const lines = [errorMessage];
 
-  if (learnMoreLink) errorLines.push(`↳ Learn more: ${getLogLink(learnMoreLink)}`);
+  if (learnMoreLink) {
+    lines.push(chalk.dim(`↳ Learn more: ${printLink(learnMoreLink)}`));
+  }
 
-  const error = new Error(errorLines.join('\n') + '\n');
+  const error = new Error(lines.join('\n') + '\n');
   if (unexpectedError) (error as any).unexpectedError = unexpectedError;
 
   throw error;

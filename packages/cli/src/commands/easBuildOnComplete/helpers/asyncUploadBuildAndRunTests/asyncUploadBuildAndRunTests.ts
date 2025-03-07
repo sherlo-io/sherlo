@@ -1,13 +1,13 @@
 import { Platform } from '@sherlo/api-types';
-import SDKApiClient from '@sherlo/sdk-client';
+import sdkClient from '@sherlo/sdk-client';
 import { DEFAULT_PROJECT_ROOT, PLATFORM_LABEL } from '../../../../constants';
 import {
   getAppBuildUrl,
   getTokenParts,
   getValidatedBinariesInfoAndNextBuildIndex,
   handleClientError,
-  logResultsUrl,
-  uploadOrLogBinaryReuse,
+  printResultsUrl,
+  uploadOrPrintBinaryReuse,
 } from '../../../../helpers';
 import { THIS_COMMAND } from '../../constants';
 import getBuildPath from './getBuildPath';
@@ -26,7 +26,7 @@ async function asyncUploadBuildAndRunTests({
   const buildPath = getBuildPath({ easBuildProfile, platform });
 
   const { apiToken, projectIndex, teamId } = getTokenParts(token);
-  const client = SDKApiClient(apiToken);
+  const client = sdkClient(apiToken);
 
   const { binariesInfo } = await getValidatedBinariesInfoAndNextBuildIndex({
     buildPath,
@@ -37,7 +37,7 @@ async function asyncUploadBuildAndRunTests({
     teamId,
   });
 
-  await uploadOrLogBinaryReuse({
+  await uploadOrPrintBinaryReuse({
     binariesInfo,
     projectRoot: DEFAULT_PROJECT_ROOT,
     android: platform === 'android' ? buildPath : undefined,
@@ -59,12 +59,14 @@ async function asyncUploadBuildAndRunTests({
 
   if (!couldRunThisBuildRightNow) {
     console.log(
-      `⏳ Waiting for ${platform === 'android' ? PLATFORM_LABEL.ios : PLATFORM_LABEL.android} build to complete...\n`
+      `⏳ Waiting for ${
+        platform === 'android' ? PLATFORM_LABEL.ios : PLATFORM_LABEL.android
+      } build to complete...\n`
     );
   } else {
     console.log('🚀 All required platforms are ready - starting tests...\n');
 
-    logResultsUrl(url);
+    printResultsUrl(url);
   }
 
   return { buildIndex, url };

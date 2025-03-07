@@ -1,11 +1,17 @@
 import { Build } from '@sherlo/api-types';
-import { runShellCommand } from './runShellCommand';
+import runShellCommand from './runShellCommand';
 
-function getGitInfo(projectRoot: string): Build['gitInfo'] {
+async function getGitInfo(projectRoot: string): Promise<Build['gitInfo']> {
   try {
-    const commitName = runShellCommand({ command: 'git log -1 --pretty=format:%s', projectRoot });
-    const commitHash = runShellCommand({ command: 'git rev-parse HEAD', projectRoot });
-    const branchName = runShellCommand({ command: 'git rev-parse --abbrev-ref HEAD', projectRoot });
+    const commitName = await runShellCommand({
+      command: 'git log -1 --pretty=format:%s',
+      projectRoot,
+    });
+    const commitHash = await runShellCommand({ command: 'git rev-parse HEAD', projectRoot });
+    const branchName = await runShellCommand({
+      command: 'git rev-parse --abbrev-ref HEAD',
+      projectRoot,
+    });
 
     return { commitName, commitHash, branchName };
   } catch (error) {

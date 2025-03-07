@@ -3,11 +3,13 @@ import { runShellCommand } from '../../../../helpers';
 import { CommandParams, ExpoUpdateInfo } from '../../../../types';
 import { THIS_COMMAND } from '../../constants';
 
-function getExpoUpdateInfo(commandParams: CommandParams<THIS_COMMAND>): ExpoUpdateInfo {
+async function getExpoUpdateInfo(
+  commandParams: CommandParams<THIS_COMMAND>
+): Promise<ExpoUpdateInfo> {
   let result;
 
   try {
-    const output = runShellCommand({
+    const output = await runShellCommand({
       command: `npx --yes eas-cli branch:view ${commandParams.branch} --limit 1 --json --non-interactive`,
       projectRoot: commandParams.projectRoot,
     });

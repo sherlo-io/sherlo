@@ -1,5 +1,5 @@
 import {
-  logSherloIntro,
+  printSherloIntro,
   uploadOrReuseBuildsAndRunTests,
   getValidatedCommandParams,
   validatePackages,
@@ -9,7 +9,7 @@ import { THIS_COMMAND } from './constants';
 import { getValidatedExpoUpdateData } from './helpers';
 
 async function expoUpdate(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
-  logSherloIntro();
+  printSherloIntro();
 
   validatePackages(THIS_COMMAND);
 
@@ -26,7 +26,7 @@ async function expoUpdate(passedOptions: Options<THIS_COMMAND>): Promise<{ url: 
     }
   );
 
-  const expoUpdateData = getValidatedExpoUpdateData(commandParams);
+  const expoUpdateData = await getValidatedExpoUpdateData(commandParams);
 
   return uploadOrReuseBuildsAndRunTests({ commandParams, expoUpdateData });
 }

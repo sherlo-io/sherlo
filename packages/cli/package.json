@@ -44,11 +44,16 @@
     "@vercel/ncc": "latest",
     "chalk": "^4.1.2",
     "commander": "^12.0.0",
+    "fast-glob": "^3.3.3",
+    "find-up": "^7.0.0",
     "gradient-string": "^2.0.1",
     "graphql": "^16.6.0",
+    "ora": "^8.2.0",
+    "package-manager-detector": "^0.2.9",
     "node-fetch": "^2.6.11",
     "type-fest": "^4.20.1",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "wrap-ansi": "^9.0.0"
   },
   "engines": {
     "node": ">=8.0.0"

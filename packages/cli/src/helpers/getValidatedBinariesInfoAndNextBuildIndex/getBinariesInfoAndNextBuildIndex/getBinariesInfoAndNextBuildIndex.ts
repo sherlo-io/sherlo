@@ -1,5 +1,5 @@
 import { Platform } from '@sherlo/api-types';
-import SDKApiClient from '@sherlo/sdk-client';
+import sdkClient from '@sherlo/sdk-client';
 import {
   DEFAULT_PROJECT_ROOT,
   EXPO_UPDATE_COMMAND,
@@ -13,7 +13,7 @@ import getLocalBinariesInfo from './getLocalBinariesInfo';
 type Params = EasBuildOnCompleteCommandParams | OtherCommandParams;
 
 type BaseParams = {
-  client: ReturnType<typeof SDKApiClient>;
+  client: ReturnType<typeof sdkClient>;
   platforms: Platform[];
   projectIndex: number;
   teamId: string;

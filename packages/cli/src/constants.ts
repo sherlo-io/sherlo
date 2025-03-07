@@ -1,17 +1,27 @@
 import { Platform } from '@sherlo/api-types';
+
 export const APP_DOMAIN = 'https://app.sherlo.io';
 const DOCS_DOMAIN = 'https://docs.sherlo.io';
 
+export const CONTACT_EMAIL = 'contact@sherlo.io';
+export const DISCORD_URL = 'https://discord.gg/G7eqTBkWZt';
+
 export const DOCS_LINK = {
-  commandLocalBuilds: `${DOCS_DOMAIN}/getting-started/testing?command=local-builds#sherlo-commands`,
-  commandExpoUpdate: `${DOCS_DOMAIN}/getting-started/testing?command=expo-update#sherlo-commands`,
-  commandExpoCloudBuilds: `${DOCS_DOMAIN}/getting-started/testing?command=expo-cloud-builds#sherlo-commands`,
+  setupStorybookComponent: `${DOCS_DOMAIN}/getting-started/setup#storybook-component`,
+  setupStorybookAccess: `${DOCS_DOMAIN}/getting-started/setup#storybook-access`,
+
   config: `${DOCS_DOMAIN}/getting-started/config`,
   configProperties: `${DOCS_DOMAIN}/getting-started/config#properties`,
   configToken: `${DOCS_DOMAIN}/getting-started/config#token`,
   configAndroid: `${DOCS_DOMAIN}/getting-started/config#android`,
   configIos: `${DOCS_DOMAIN}/getting-started/config#ios`,
   configDevices: `${DOCS_DOMAIN}/getting-started/config#devices`,
+
+  testing: `${DOCS_DOMAIN}/getting-started/testing`,
+  commandLocalBuilds: `${DOCS_DOMAIN}/getting-started/testing?command=local-builds#sherlo-commands`,
+  commandExpoUpdate: `${DOCS_DOMAIN}/getting-started/testing?command=expo-update#sherlo-commands`,
+  commandExpoCloudBuilds: `${DOCS_DOMAIN}/getting-started/testing?command=expo-cloud-builds#sherlo-commands`,
+
   devices: `${DOCS_DOMAIN}/devices`,
 };
 
@@ -24,11 +34,11 @@ export const PLATFORM_LABEL: { [platform in Platform]: string } = {
 
 export const IOS_FILE_TYPES = ['.app', '.tar.gz', '.tar'] as const;
 
-export const DEFAULT_CONFIG_PATH = 'sherlo.config.json';
+export const DEFAULT_CONFIG_FILENAME = 'sherlo.config.json';
 export const DEFAULT_PROJECT_ROOT = '.';
 
 export const SHERLO_TEMP_DIRECTORY = '.sherlo';
-export const SHERLO_TEMP_DATA_FILE = 'data.json';
+export const SHERLO_TEMP_DATA_FILENAME = 'data.json';
 
 /* PACKAGES */
 
@@ -48,6 +58,7 @@ export const LOCAL_BUILDS_COMMAND = 'local-builds';
 export const EXPO_UPDATE_COMMAND = 'expo-update';
 export const EXPO_CLOUD_BUILDS_COMMAND = 'expo-cloud-builds';
 export const EAS_BUILD_ON_COMPLETE_COMMAND = 'eas-build-on-complete';
+export const INIT_COMMAND = 'init';
 
 /* OPTIONS */
 
@@ -61,3 +72,9 @@ export const PROFILE_OPTION = 'profile';
 export const PROJECT_ROOT_OPTION = 'projectRoot';
 export const TOKEN_OPTION = 'token';
 export const WAIT_FOR_EAS_BUILD_OPTION = 'waitForEasBuild';
+
+export const COLOR = {
+  reported: 'FFB36C',
+  approved: '79E8A5',
+  noChanges: '64B5F6',
+};

@@ -130,7 +130,9 @@ function getError(error: BinaryError) {
     case 'missing_sherlo':
       return {
         message:
-          `Invalid ${error.platformLabels.join(' and ')} ${error.platformLabels.length > 1 ? 'builds' : 'build'}; Sherlo Native Module is missing\n\n` +
+          `Invalid ${error.platformLabels.join(' and ')} ${
+            error.platformLabels.length > 1 ? 'builds' : 'build'
+          }; Sherlo Native Module is missing\n\n` +
           'Please verify:\n' +
           `1. \`${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}\` is installed\n` +
           '2. Package is not excluded in `react-native.config.js`\n' +
@@ -141,24 +143,32 @@ function getError(error: BinaryError) {
     case 'not_dev_build':
       return {
         message:
-          `Invalid ${error.platformLabels.join(' and ')} ${error.platformLabels.length > 1 ? 'builds' : 'build'}; \`sherlo ${EXPO_UPDATE_COMMAND}\` command requires Development Simulator Builds\n\n` +
+          `Invalid ${error.platformLabels.join(' and ')} ${
+            error.platformLabels.length > 1 ? 'builds' : 'build'
+          }; \`sherlo ${EXPO_UPDATE_COMMAND}\` command requires Development Simulator Builds\n\n` +
           'Please verify:\n' +
           `1. \`${EXPO_PACKAGE_NAME}\` package is at version ${MIN_EXPO_UPDATE_EXPO_VERSION} or higher\n` +
           `2. Required \`${EXPO_DEV_CLIENT_PACKAGE_NAME}\` package is installed\n` +
           '3. EAS build profile is configured for Development Simulator Build\n' +
-          `4. ${error.platformLabels.length > 1 ? 'Builds are' : 'Build is'} created with this profile\n`,
+          `4. ${
+            error.platformLabels.length > 1 ? 'Builds are' : 'Build is'
+          } created with this profile\n`,
         learnMoreLink: DOCS_LINK.commandExpoUpdate,
       };
 
     case 'dev_build':
       return {
         message:
-          `Invalid ${error.platformLabels.join(' and ')} ${error.platformLabels.length > 1 ? 'builds' : 'build'}; \`sherlo ${error.command}\` command requires Preview Simulator Builds` +
+          `Invalid ${error.platformLabels.join(' and ')} ${
+            error.platformLabels.length > 1 ? 'builds' : 'build'
+          }; \`sherlo ${error.command}\` command requires Preview Simulator Builds` +
           (error.command === EXPO_CLOUD_BUILDS_COMMAND
             ? '\n\n' +
               'Please verify:\n' +
               '1. EAS build profile is configured for Preview Simulator Build\n' +
-              `2. ${error.platformLabels.length > 1 ? 'Builds are' : 'Build is'} created with this profile\n` +
+              `2. ${
+                error.platformLabels.length > 1 ? 'Builds are' : 'Build is'
+              } created with this profile\n` +
               `3. Same build profile is passed to \`sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND}\` using \`--${PROFILE_OPTION}\` option\n`
             : ''),
         learnMoreLink:
@@ -179,10 +189,14 @@ function getError(error: BinaryError) {
     case 'outdated_version':
       return {
         message:
-          `${error.platformLabels.join(' and ')} ${error.platformLabels.length > 1 ? 'builds' : 'build'} use outdated \`${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}\` version\n\n` +
+          `${error.platformLabels.join(' and ')} ${
+            error.platformLabels.length > 1 ? 'builds' : 'build'
+          } use outdated \`${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}\` version\n\n` +
           `Found version: ${error.sdkVersion}\n` +
           `Minimum required version: ${REQUIRED_MIN_SDK_VERSION}\n\n` +
-          `Rebuild ${error.platformLabels.join(' and ')} ${error.platformLabels.length > 1 ? 'builds' : 'build'}`,
+          `Rebuild ${error.platformLabels.join(' and ')} ${
+            error.platformLabels.length > 1 ? 'builds' : 'build'
+          }`,
       };
   }
 }

@@ -1,8 +1,8 @@
 import { Command } from '../../types';
+import getPackageVersion from '../getPackageVersion';
 import { isPackageVersionCompatible } from '../shared';
 import throwError from '../throwError';
 import getPackageErrorMessage from './getPackageErrorMessage';
-import getPackageVersion from './getPackageVersion';
 import { PackageRequirement } from './types';
 
 function validatePackageRequirement(requirement: PackageRequirement, command?: Command) {

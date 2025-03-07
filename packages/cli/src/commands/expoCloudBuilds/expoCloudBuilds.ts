@@ -1,4 +1,4 @@
-import SDKApiClient from '@sherlo/sdk-client';
+import sdkClient from '@sherlo/sdk-client';
 import { EXPO_CLOUD_BUILDS_COMMAND } from '../../constants';
 import {
   getAppBuildUrl,
@@ -6,11 +6,11 @@ import {
   getGitInfo,
   getTokenParts,
   handleClientError,
-  logBuildIntroMessage,
-  logBuildMessage,
-  logBuildPlatformLabel,
-  logResultsUrl,
-  logSherloIntro,
+  printBuildIntroMessage,
+  printBuildMessage,
+  printBuildPlatformLabel,
+  printResultsUrl,
+  printSherloIntro,
   getPlatformsToTest,
   getValidatedCommandParams,
   validatePackages,
@@ -25,7 +25,7 @@ import {
 } from './helpers';
 
 async function expoCloudBuilds(passedOptions: Options<THIS_COMMAND>) {
-  logSherloIntro();
+  printSherloIntro();
 
   validatePackages(EXPO_CLOUD_BUILDS_COMMAND);
 
@@ -43,13 +43,13 @@ async function expoCloudBuilds(passedOptions: Options<THIS_COMMAND>) {
   validatePackageJsonScripts(commandParams);
 
   const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
-  const client = SDKApiClient(apiToken);
+  const client = sdkClient(apiToken);
 
   const { build } = await client
     .openBuild({
       teamId,
       projectIndex,
-      gitInfo: commandParams.gitInfo ?? getGitInfo(commandParams.projectRoot),
+      gitInfo: commandParams.gitInfo ?? (await getGitInfo(commandParams.projectRoot)),
       asyncUpload: true,
       buildRunConfig: getBuildRunConfig({ commandParams }),
     })
@@ -57,13 +57,13 @@ async function expoCloudBuilds(passedOptions: Options<THIS_COMMAND>) {
 
   const buildIndex = build.index;
 
-  logBuildIntroMessage({ commandParams, nextBuildIndex: buildIndex });
+  printBuildIntroMessage({ commandParams, nextBuildIndex: buildIndex });
 
   const platformsToTest = getPlatformsToTest(commandParams.devices);
   platformsToTest.forEach((platform) => {
-    logBuildPlatformLabel(platform);
+    printBuildPlatformLabel(platform);
 
-    logBuildMessage({
+    printBuildMessage({
       message: 'EAS build pending...',
       type: 'info',
       endsWithNewLine: true,
@@ -78,7 +78,7 @@ async function expoCloudBuilds(passedOptions: Options<THIS_COMMAND>) {
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
-  logResultsUrl(url);
+  printResultsUrl(url);
 
   createSherloTempDirectory({
     buildIndex,

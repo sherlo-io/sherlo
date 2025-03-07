@@ -1,16 +1,16 @@
-import SDKApiClient from '@sherlo/sdk-client';
+import sdkClient from '@sherlo/sdk-client';
 import chalk from 'chalk';
 import { EXPO_UPDATE_COMMAND, LOCAL_BUILDS_COMMAND } from '../constants';
 import { CommandParams, ExpoUpdateData } from '../types';
 import getAppBuildUrl from './getAppBuildUrl';
 import getTokenParts from './getTokenParts';
 import getValidatedBinariesInfoAndNextBuildIndex from './getValidatedBinariesInfoAndNextBuildIndex';
-import logBuildIntroMessage from './logBuildIntroMessage';
-import logResultsUrl from './logResultsUrl';
+import printBuildIntroMessage from './printBuildIntroMessage';
+import printResultsUrl from './printResultsUrl';
 import handleClientError from './handleClientError';
 import getBuildRunConfig from './getBuildRunConfig';
 import getGitInfo from './getGitInfo';
-import uploadOrLogBinaryReuse from './uploadOrLogBinaryReuse';
+import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
 
 async function uploadOrReuseBuildsAndRunTests({
   commandParams,
@@ -20,7 +20,7 @@ async function uploadOrReuseBuildsAndRunTests({
   expoUpdateData?: ExpoUpdateData;
 }): Promise<{ url: string }> {
   const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
-  const client = SDKApiClient(apiToken);
+  const client = sdkClient(apiToken);
 
   const { binariesInfo, nextBuildIndex } = await getValidatedBinariesInfoAndNextBuildIndex({
     client,
@@ -30,9 +30,9 @@ async function uploadOrReuseBuildsAndRunTests({
     teamId,
   });
 
-  logBuildIntroMessage({ commandParams, nextBuildIndex });
+  printBuildIntroMessage({ commandParams, nextBuildIndex });
 
-  await uploadOrLogBinaryReuse({
+  await uploadOrPrintBinaryReuse({
     binariesInfo,
     projectRoot: commandParams.projectRoot,
     android: commandParams.android,
@@ -40,7 +40,7 @@ async function uploadOrReuseBuildsAndRunTests({
   });
 
   if (expoUpdateData) {
-    logExpoUpdateData(expoUpdateData);
+    printExpoUpdateData(expoUpdateData);
   }
 
   const { build } = await client
@@ -60,7 +60,7 @@ async function uploadOrReuseBuildsAndRunTests({
         },
         expoUpdateData,
       }),
-      gitInfo: commandParams.gitInfo ?? getGitInfo(commandParams.projectRoot),
+      gitInfo: commandParams.gitInfo ?? (await getGitInfo(commandParams.projectRoot)),
     })
     .catch(handleClientError);
 
@@ -68,7 +68,7 @@ async function uploadOrReuseBuildsAndRunTests({
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
-  logResultsUrl(url);
+  printResultsUrl(url);
 
   return { url };
 }
@@ -77,7 +77,7 @@ export default uploadOrReuseBuildsAndRunTests;
 
 /* ========================================================================== */
 
-function logExpoUpdateData(expoUpdateData: ExpoUpdateData) {
+function printExpoUpdateData(expoUpdateData: ExpoUpdateData) {
   console.log(
     `🔄 ${chalk.bold('Expo Update')}\n` +
       `└─ message: ${expoUpdateData.message}\n` +

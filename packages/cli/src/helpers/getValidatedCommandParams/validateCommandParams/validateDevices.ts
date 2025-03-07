@@ -68,6 +68,8 @@ function validateDevices(config: InvalidatedConfig): void {
         message: `Unsupported device property \`${property}\` in config (supported: \`id\`, \`osVersion\`, \`osLocale\`, \`osTheme\`)`,
         learnMoreLink: DOCS_LINK.configDevices,
       });
+
+      console.log();
     });
   }
 }
@@ -85,7 +87,6 @@ type DeviceError =
   | { type: 'invalidOsLocale'; osLocale: string }
   | { type: 'invalidOsTheme'; osTheme: string };
 
-// TODO: properties + validValues -> CONSTs?
 function getError(error: DeviceError) {
   switch (error.type) {
     case 'missingDevices':

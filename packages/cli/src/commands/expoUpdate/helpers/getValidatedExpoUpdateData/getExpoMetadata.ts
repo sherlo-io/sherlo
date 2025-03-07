@@ -2,14 +2,14 @@ import { runShellCommand, throwError } from '../../../../helpers';
 import { CommandParams } from '../../../../types';
 import { THIS_COMMAND } from '../../constants';
 
-function getExpoMetadata(commandParams: CommandParams<THIS_COMMAND>): {
+async function getExpoMetadata(commandParams: CommandParams<THIS_COMMAND>): Promise<{
   slug: string;
   baseUpdateUrl: string;
-} {
+}> {
   let config;
 
   try {
-    const output = runShellCommand({
+    const output = await runShellCommand({
       command: 'npx --yes expo config --json',
       projectRoot: commandParams.projectRoot,
     });

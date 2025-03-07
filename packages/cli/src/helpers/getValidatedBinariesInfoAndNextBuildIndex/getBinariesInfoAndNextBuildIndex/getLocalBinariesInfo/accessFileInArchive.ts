@@ -11,8 +11,8 @@ type BaseOptions = {
 type ReadOptions = BaseOptions & { operation: 'read' };
 type ExistsOptions = BaseOptions & { operation: 'exists' };
 
-function accessFileInArchive(options: ReadOptions): Promise<string | undefined>;
-function accessFileInArchive(options: ExistsOptions): Promise<boolean>;
+async function accessFileInArchive(options: ReadOptions): Promise<string | undefined>;
+async function accessFileInArchive(options: ExistsOptions): Promise<boolean>;
 async function accessFileInArchive({
   archive,
   file,
@@ -24,7 +24,7 @@ async function accessFileInArchive({
 
   try {
     const command = await getCommand({ type, operation, tarVersion, archive, file });
-    const result = runShellCommand({ command, projectRoot });
+    const result = await runShellCommand({ command, projectRoot });
 
     if (operation === 'exists') {
       return true;
@@ -53,7 +53,7 @@ type TarVersion = 'GNU' | 'BSD';
 const DEFAULT_TAR_VERSION = 'BSD';
 
 async function detectTarVersion(projectRoot: string): Promise<TarVersion> {
-  const result = runShellCommand({ command: 'tar --version', projectRoot });
+  const result = await runShellCommand({ command: 'tar --version', projectRoot });
 
   return result.toUpperCase().includes('GNU') ? 'GNU' : DEFAULT_TAR_VERSION;
 }

@@ -8,6 +8,7 @@ import {
   // EAS_UPDATE_JSON_OUTPUT_OPTION,
   EXPO_CLOUD_BUILDS_COMMAND,
   EXPO_UPDATE_COMMAND,
+  INIT_COMMAND,
   IOS_FILE_TYPES,
   IOS_OPTION,
   LOCAL_BUILDS_COMMAND,
@@ -24,7 +25,8 @@ export type Command =
   | typeof LOCAL_BUILDS_COMMAND
   | typeof EXPO_UPDATE_COMMAND
   | typeof EXPO_CLOUD_BUILDS_COMMAND
-  | typeof EAS_BUILD_ON_COMPLETE_COMMAND;
+  | typeof EAS_BUILD_ON_COMPLETE_COMMAND
+  | typeof INIT_COMMAND;
 
 export type IOSFileType = (typeof IOS_FILE_TYPES)[number];
 
@@ -50,12 +52,12 @@ export type InvalidatedConfig = PartialDeep<Config, { recurseIntoArrays: true }>
 
 export type Options<
   C extends Command | 'any',
-  M extends OptionsMode = 'withoutDefaults',
+  M extends OptionsMode = 'withoutDefaults'
 > = BaseOptions & DefaultOptions[M] & CommandOptions[C];
 
 type BaseOptions = {
   [TOKEN_OPTION]?: string;
-  /** Can be passed in GitHub Actions */
+  /** Can be passed in GitHub Actions to localBuilds, expoUpdate or expoCloudBuilds commands */
   gitInfo?: Build['gitInfo'];
 };
 
@@ -86,6 +88,7 @@ type CommandOptions = {
   [EAS_BUILD_ON_COMPLETE_COMMAND]: {
     [PROFILE_OPTION]: string;
   };
+  [INIT_COMMAND]: {};
   any: Partial<
     CommandOptions[typeof LOCAL_BUILDS_COMMAND] &
       CommandOptions[typeof EXPO_UPDATE_COMMAND] &
