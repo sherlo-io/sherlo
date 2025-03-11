@@ -1,57 +1,87 @@
-import { throwError } from '../../helpers';
 import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
+import { join } from 'path';
 
 const PACKAGE_JSON = 'package.json';
 
-function getPackageVersion(packageName: string): string | null {
-  let packagePath;
-  let packageJson;
+function getPackageVersion(packageName: string, projectRoot: string): string | null {
+  console.log(`[DEBUG] getPackageVersion - Attempting to find "${packageName}" in ${projectRoot}`);
+  console.log(`[DEBUG] getPackageVersion - Current working directory: ${process.cwd()}`);
 
   try {
-    packagePath = require.resolve(packageName);
+    // Przed wywołaniem require.resolve
+    console.log(
+      `[DEBUG] getPackageVersion - Trying require.resolve for ${packageName}/package.json`
+    );
+
+    const packagePath = require.resolve(`${packageName}/package.json`, { paths: [projectRoot] });
+    console.log(`[DEBUG] getPackageVersion - Found package at path: ${packagePath}`);
+
+    const packageJson = require(packagePath);
+    console.log(`[DEBUG] getPackageVersion - Package version found: ${packageJson.version}`);
+
+    return packageJson.version;
   } catch (error) {
-    if (error.code === 'MODULE_NOT_FOUND') {
-      return null;
+    console.log(`[DEBUG] getPackageVersion - require.resolve failed with error: ${error.message}`);
+    console.log('[DEBUG] getPackageVersion - Stack trace:', error.stack);
+
+    // Spróbuj metodą fallback używając bezpośredniej ścieżki
+    try {
+      console.log(`[DEBUG] getPackageVersion - Trying fallback method with direct path`);
+
+      const directPath = join(projectRoot, 'node_modules', packageName, 'package.json');
+      console.log(`[DEBUG] getPackageVersion - Checking if file exists at: ${directPath}`);
+
+      if (readFileSync(directPath, 'utf8')) {
+        console.log(`[DEBUG] getPackageVersion - File exists at: ${directPath}`);
+
+        const packageJson = JSON.parse(readFileSync(directPath, 'utf8'));
+        console.log(
+          `[DEBUG] getPackageVersion - Package version found (fallback): ${packageJson.version}`
+        );
+
+        return packageJson.version;
+      }
+
+      console.log(`[DEBUG] getPackageVersion - File does not exist at: ${directPath}`);
+    } catch (fallbackError) {
+      console.log(
+        `[DEBUG] getPackageVersion - Fallback method failed with error: ${fallbackError.message}`
+      );
+      console.log('[DEBUG] getPackageVersion - Fallback stack trace:', fallbackError.stack);
     }
 
-    throwError({ type: 'unexpected', error });
-  }
+    // Wydrukuj path.resolve dla ścieżki, aby zobaczyć bezwzględną ścieżkę
+    console.log(`[DEBUG] getPackageVersion - Absolute project path: ${join(projectRoot)}`);
 
-  let currentDir = dirname(packagePath);
-  while (!currentDir.endsWith('node_modules') && currentDir !== '/') {
-    try {
-      const currentPackageJsonPath = join(currentDir, PACKAGE_JSON);
-      console.log(`[DEBUG JSON] Reading package.json from: ${currentPackageJsonPath}`);
-      const jsonContent = readFileSync(currentPackageJsonPath, 'utf8');
-
+    // Wypisz zawartość node_modules, jeśli istnieje
+    const nodeModulesPath = join(projectRoot, 'node_modules');
+    if (readFileSync(nodeModulesPath, 'utf8')) {
+      console.log(`[DEBUG] getPackageVersion - node_modules exists at: ${nodeModulesPath}`);
       try {
-        const currentPackageJson = JSON.parse(jsonContent);
-        console.log(`[DEBUG JSON] Successfully parsed package.json for: ${currentPackageJsonPath}`);
-
-        if (currentPackageJson.name === packageName) {
-          packageJson = currentPackageJson;
-          break;
-        }
-      } catch (parseError) {
-        console.error(`[DEBUG JSON] Error parsing package.json: ${parseError.message}`);
-        console.error(`[DEBUG JSON] Content preview: ${jsonContent.substring(0, 50)}...`);
+        const dirs = readFileSync(nodeModulesPath, 'utf8')
+          .split('\n')
+          .filter(
+            (dir) =>
+              dir.includes(packageName) || (packageName === 'react-native' && dir.includes('react'))
+          );
+        console.log(
+          `[DEBUG] getPackageVersion - Related directories in node_modules: ${JSON.stringify(dirs)}`
+        );
+      } catch (e) {
+        console.log(`[DEBUG] getPackageVersion - Could not read node_modules: ${e.message}`);
       }
-    } catch {}
+    } else {
+      console.log(`[DEBUG] getPackageVersion - node_modules does not exist at: ${nodeModulesPath}`);
+    }
 
-    currentDir = dirname(currentDir);
+    // Wypisz module.paths dla Node.js
+    console.log(
+      `[DEBUG] getPackageVersion - Node.js module paths:`,
+      require.resolve.paths(packageName)
+    );
+
+    return null;
   }
-
-  if (!packageJson) {
-    throwError({
-      type: 'unexpected',
-      error: new Error(
-        `Package ${packageName} was found at ${packagePath} but its ${PACKAGE_JSON} is invalid or inaccessible`
-      ),
-    });
-  }
-
-  return packageJson.version;
 }
 
 export default getPackageVersion;
