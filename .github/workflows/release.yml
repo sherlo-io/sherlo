@@ -84,7 +84,7 @@ jobs:
 
       - name: Publish to npm
         if: ${{ github.event.inputs.SKIP_PUBLISH_TO_NPM == 'false' }}
-        run: npx lerna publish from-package --no-private --yes --npm-tag ${{ github.event.inputs.IS_ALPHA && 'alpha' || 'latest' }}
+        run: npx lerna publish from-package --no-private --yes --npm-tag ${{ github.event.inputs.IS_ALPHA == 'true' && 'alpha' || 'latest' }}
 
       - name: Tag Commit
         run: |
@@ -95,7 +95,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.event.inputs.NEW_VERSION_NUMBER }}
-          make_latest: ${{ github.event.inputs.IS_ALPHA && 'false' || 'true' }}
+          make_latest: ${{ github.event.inputs.IS_ALPHA == 'true' && 'false' || 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
