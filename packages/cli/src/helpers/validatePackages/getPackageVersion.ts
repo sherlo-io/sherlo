@@ -5,58 +5,57 @@ import { join, dirname } from 'path';
 const PACKAGE_JSON = 'package.json';
 
 function getPackageVersion(packageName: string): string | null {
+  const projectRoot = process.cwd();
+  console.log(
+    `[DEBUG] getPackageVersion - Looking for "${packageName}" starting from ${projectRoot}`
+  );
+
   let packagePath;
-  let packageJson;
-
-  console.log(`\n\n[DEBUG] getPackageVersion(${packageName})`);
-
   try {
-    packagePath = require.resolve(packageName);
-    console.log(`[DEBUG] packagePath: ${packagePath}`);
+    // Explicite określamy paths żeby wspierać monorepo
+    packagePath = require.resolve(packageName, { paths: [projectRoot] });
+    console.log(`[DEBUG] getPackageVersion - Found package entry at: ${packagePath}`);
   } catch (error) {
-    console.log(`[DEBUG] error: ${error}`);
-
     if (error.code === 'MODULE_NOT_FOUND') {
+      console.log(`[DEBUG] getPackageVersion - Package "${packageName}" not found`);
       return null;
     }
-
     throwError({ type: 'unexpected', error });
   }
 
+  // Szukamy package.json idąc w górę drzewa katalogów
   let currentDir = dirname(packagePath);
-  console.log(`[DEBUG] currentDir: ${currentDir}`);
+  console.log(`[DEBUG] getPackageVersion - Starting search from: ${currentDir}`);
 
-  while (!currentDir.endsWith('node_modules') && currentDir !== '/') {
+  while (currentDir !== '/') {
+    console.log(`[DEBUG] getPackageVersion - Checking directory: ${currentDir}`);
+
     try {
       const currentPackageJsonPath = join(currentDir, PACKAGE_JSON);
-      console.log(`[DEBUG] currentPackageJsonPath: ${currentPackageJsonPath}`);
-
       const currentPackageJson = JSON.parse(readFileSync(currentPackageJsonPath, 'utf8'));
-      console.log(`[DEBUG] currentPackageJson: ${currentPackageJson}`);
 
+      // Sprawdzamy czy to właściwy package.json
       if (currentPackageJson.name === packageName) {
-        packageJson = currentPackageJson;
-        console.log(`[DEBUG] packageJson: ${packageJson}`);
-        break;
+        console.log(
+          `[DEBUG] getPackageVersion - Found matching package.json at: ${currentPackageJsonPath}`
+        );
+        console.log(`[DEBUG] getPackageVersion - Version: ${currentPackageJson.version}`);
+        return currentPackageJson.version;
       }
-    } catch {}
+    } catch (error) {
+      // Ignorujemy błędy - po prostu idziemy dalej w górę
+    }
 
     currentDir = dirname(currentDir);
-    console.log(`[DEBUG] currentDir: ${currentDir}`);
   }
 
-  if (!packageJson) {
-    throwError({
-      type: 'unexpected',
-      error: new Error(
-        `Package ${packageName} was found at ${packagePath} but its ${PACKAGE_JSON} is invalid or inaccessible`
-      ),
-    });
-  }
-
-  console.log(`[DEBUG] packageJson.version: ${packageJson.version}`);
-
-  return packageJson.version;
+  // Jeśli doszliśmy tutaj, znaleźliśmy pakiet ale nie jego package.json
+  throwError({
+    type: 'unexpected',
+    error: new Error(
+      `Package ${packageName} was found at ${packagePath} but its ${PACKAGE_JSON} is invalid or inaccessible`
+    ),
+  });
 }
 
 export default getPackageVersion;
