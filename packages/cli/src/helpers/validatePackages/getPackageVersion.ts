@@ -10,6 +10,14 @@ function getPackageVersion(packageName: string): string | null {
     `[DEBUG] getPackageVersion - Looking for "${packageName}" starting from ${projectRoot}`
   );
 
+  let dupa;
+  try {
+    dupa = require.resolve(packageName);
+    console.log(`[DEBUG] DUPA - Found: ${dupa}`);
+  } catch (error) {
+    console.log(`[DEBUG] DUPA - Error: ${error}`, { error });
+  }
+
   let packagePath;
   try {
     // Explicite określamy paths żeby wspierać monorepo
@@ -27,7 +35,7 @@ function getPackageVersion(packageName: string): string | null {
   let currentDir = dirname(packagePath);
   console.log(`[DEBUG] getPackageVersion - Starting search from: ${currentDir}`);
 
-  while (currentDir !== '/') {
+  while (!currentDir.endsWith('node_modules') && currentDir !== '/') {
     console.log(`[DEBUG] getPackageVersion - Checking directory: ${currentDir}`);
 
     try {

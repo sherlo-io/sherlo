@@ -95,6 +95,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.event.inputs.NEW_VERSION_NUMBER }}
+          make_latest: ${{ github.event.inputs.IS_ALPHA && 'false' || 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
