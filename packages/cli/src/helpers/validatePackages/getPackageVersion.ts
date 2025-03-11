@@ -3,7 +3,9 @@ import { join } from 'path';
 
 const PACKAGE_JSON = 'package.json';
 
-function getPackageVersion(packageName: string, projectRoot: string): string | null {
+function getPackageVersion(packageName: string): string | null {
+  const projectRoot = process.cwd();
+
   console.log(`[DEBUG] getPackageVersion - Attempting to find "${packageName}" in ${projectRoot}`);
   console.log(`[DEBUG] getPackageVersion - Current working directory: ${process.cwd()}`);
 
