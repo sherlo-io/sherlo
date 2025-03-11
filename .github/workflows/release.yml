@@ -16,6 +16,11 @@ on:
         required: false
         default: false
         type: boolean
+      IS_ALPHA:
+        description: 'Is alpha release'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   release-to-prod:
@@ -79,7 +84,7 @@ jobs:
 
       - name: Publish to npm
         if: ${{ github.event.inputs.SKIP_PUBLISH_TO_NPM == 'false' }}
-        run: npx lerna publish from-package --no-private --yes
+        run: npx lerna publish from-package --no-private --yes --npm-tag ${{ github.event.inputs.IS_ALPHA && 'alpha' || 'latest' }}
 
       - name: Tag Commit
         run: |
