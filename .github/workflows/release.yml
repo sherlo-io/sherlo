@@ -74,7 +74,7 @@ jobs:
         with:
           author_name: Sherlo Bot
           author_email: admin@sherlo.io
-          message: 'Version updates and builds for ${NEW_VERSION_NUMBER}'
+          message: Version updates and builds for ${{ github.event.inputs.NEW_VERSION_NUMBER }}
           push: true
           branch: ${{ github.ref_name }}
 
