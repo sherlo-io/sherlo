@@ -92,7 +92,7 @@ jobs:
           git push origin ${{ github.event.inputs.NEW_VERSION_NUMBER }}
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.NEW_VERSION_NUMBER }}
           make_latest: ${{ github.event.inputs.IS_ALPHA == 'true' && 'false' || 'true' }}
