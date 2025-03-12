@@ -8,6 +8,7 @@ import generateStorybookComponent from './generateStorybookComponent';
 import { useHideSplashScreen, useOriginalMode, useStoryEmitter, useTestingMode } from './hooks';
 import { setupErrorSilencing } from './utils';
 import { Layout } from './components';
+import { VERIFICATION_TEST_ID } from '../constants';
 
 setupErrorSilencing();
 
@@ -171,7 +172,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     if (mode === 'verification') {
       return (
         <View
-          testID="sherlo-getStorybook-verification"
+          testID={VERIFICATION_TEST_ID}
           style={{
             ...StyleSheet.absoluteFillObject,
             justifyContent: 'center',

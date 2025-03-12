@@ -4,6 +4,7 @@ import { AckStartProtocolItem, RunnerBridge } from '../../helpers/RunnerBridge';
 import { Snapshot, StorybookViewMode } from '../../types';
 import { prepareSnapshots } from '../utils';
 import { SherloModule } from '../../helpers';
+import { VERIFICATION_TEST_ID } from '../../constants';
 
 function useTestingMode(
   view: ReturnType<typeof start>,
@@ -71,7 +72,7 @@ function useTestingMode(
             throw error;
           });
 
-          if (!inspectorData.includes('sherlo-getStorybook-verification')) {
+          if (!inspectorData.includes(VERIFICATION_TEST_ID)) {
             bridge.log('Main view ID not found on screen');
             throw new Error('Main view ID not found on screen');
           }
