@@ -50,6 +50,7 @@ function send(path: string, log: LogFn): SendFn {
                   action: 'ACK_START',
                   nextSnapshotIndex: 0,
                   filteredViewIds: protocolItem.snapshots.map((snapshot) => snapshot.viewId),
+                  requestId: 'fake-request-id',
                 });
                 break;
               case 'REQUEST_SNAPSHOT':
@@ -57,6 +58,7 @@ function send(path: string, log: LogFn): SendFn {
                 await resolveForTestMode(1 * 1000, {
                   action: 'ACK_REQUEST_SNAPSHOT',
                   nextSnapshotIndex: protocolItem.snapshotIndex + 1,
+                  requestId: 'fake-request-id',
                 });
                 break;
               default:

@@ -4,9 +4,11 @@ import utf8 from 'utf8';
 import isExpoGo from './isExpoGo';
 import { StorybookViewMode } from '../types/types';
 import { getGlobalStates } from '../utils';
+import { Config } from './RunnerBridge/types';
 
 type SherloModule = {
   getMode: () => StorybookViewMode;
+  getConfig: () => Config;
   storybookRegistered: () => Promise<void>;
   getInspectorData: () => Promise<string>;
   appendFile: (path: string, base64: string) => Promise<void>;
@@ -17,6 +19,11 @@ type SherloModule = {
   verifyIntegration: () => Promise<void>;
   clearFocus: () => Promise<void>;
   checkIfContainsStorybookError: () => Promise<boolean>;
+  checkIfStable: (
+    requiredMatches: number,
+    intervalMs: number,
+    timeoutMs: number
+  ) => Promise<boolean>;
 };
 
 let SherloModule: SherloModule;
@@ -54,6 +61,9 @@ function createSherloModule(): SherloModule {
     storybookRegistered: async () => {
       await SherloNativeModule.storybookRegistered();
     },
+    checkIfStable: async (requiredMatches: number, intervalMs: number, timeoutMs: number) => {
+      return SherloNativeModule.checkIfStable(requiredMatches, intervalMs, timeoutMs);
+    },
     getMode: () => {
       const { testConfig, isVerifySetupTest } = getGlobalStates();
       if (testConfig && !isVerifySetupTest) {
@@ -61,6 +71,9 @@ function createSherloModule(): SherloModule {
       }
 
       return SherloNativeModule.getConstants().mode;
+    },
+    getConfig: () => {
+      return JSON.parse(SherloNativeModule.getConstants().config);
     },
     appendFile: (path: string, data: string) => {
       const encodedData = base64.encode(utf8.encode(data));
@@ -96,11 +109,13 @@ function createDummySherloModule(): SherloModule {
     getInspectorData: async () => '',
     storybookRegistered: async () => {},
     getMode: () => 'default',
+    getConfig: () => ({ stabilization: { requiredMatches: 3, intervalMs: 500, timeoutMs: 5_000 } }),
     appendFile: async () => {},
     mkdir: async () => {},
     readFile: async () => '',
     openStorybook: async () => {},
     toggleStorybook: async () => {},
     verifyIntegration: async () => {},
+    checkIfStable: async () => true,
   };
 }

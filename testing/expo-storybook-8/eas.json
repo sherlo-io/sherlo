@@ -4,6 +4,7 @@
   },
   "build": {
     "development": {
+      "environment": "development",
       "channel": "development",
       "developmentClient": true,
       "android": {
@@ -14,6 +15,7 @@
       }
     },
     "storybook": {
+      "environment": "preview",
       "env": {
         "EXPO_PUBLIC_STORYBOOK_ONLY": "true"
       },
@@ -25,6 +27,7 @@
       }
     },
     "preview": {
+      "environment": "preview",
       "channel": "preview",
       "android": {
         "buildType": "apk"
