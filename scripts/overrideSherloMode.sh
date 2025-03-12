@@ -12,7 +12,7 @@ AAPT_PATH="${ANDROID_SDK_PATH}/build-tools/34.0.0/aapt"
 ADB_PATH="${ANDROID_SDK_PATH}/platform-tools/adb"
 
 # Define sherlo config
-SHERLO_CONFIG_FILE="sherlo.config"
+SHERLO_CONFIG_FILE="config.sherlo"
 
 # Function to show usage
 show_usage() {
@@ -84,7 +84,9 @@ if [ "$platform" = "android" ]; then
     fi
 
     # Extract package name
-    package_name=$("$AAPT_PATH" dump badging "$buildPath" | grep "package: name" | awk -F"'" '{print $2}')
+    # Expand the buildPath if it contains tilde
+    expanded_path="${buildPath/#\~/$HOME}"
+    package_name=$("$AAPT_PATH" dump badging "$expanded_path" | grep "package: name" | awk -F"'" '{print $2}')
     
     if [ -z "$package_name" ]; then
         echo "Error: Could not extract package name from APK"
