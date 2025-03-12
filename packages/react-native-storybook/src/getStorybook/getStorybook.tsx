@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState, ReactElement } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Theme, ThemeProvider, darkTheme, theme } from '@storybook/react-native-theming';
 import { RunnerBridge, SherloModule } from '../helpers';
 import { Snapshot, StorybookParams, StorybookView } from '../types';
 import { SherloContext } from './contexts';
 import generateStorybookComponent from './generateStorybookComponent';
 import { useHideSplashScreen, useOriginalMode, useStoryEmitter, useTestingMode } from './hooks';
 import { setupErrorSilencing } from './utils';
+import deepmerge from 'deepmerge';
 import { Layout } from './components';
 
 setupErrorSilencing();
@@ -24,6 +26,10 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 
     // Safe area handling
     const [shouldAddSafeArea, setShouldAddSafeArea] = useState(mode === 'testing');
+
+    const colorScheme = useColorScheme();
+    const defaultTheme = colorScheme === 'dark' ? darkTheme : theme;
+    const [appliedTheme, setAppliedTheme] = useState(defaultTheme);
 
     const emitStory = useStoryEmitter({
       updateRenderedStoryId: (storyId) => {
@@ -49,6 +55,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
           });
 
           setShouldAddSafeArea(!testedSnapshot.parameters?.noSafeArea);
+          setAppliedTheme(deepmerge(defaultTheme, testedSnapshot.parameters?.theme ?? {}));
           emitStory(testedSnapshot);
         }
       }
@@ -107,6 +114,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
               const nextSnapshot = snapshots[response.nextSnapshotIndex];
 
               setShouldAddSafeArea(!nextSnapshot.parameters?.noSafeArea);
+              setAppliedTheme(deepmerge(defaultTheme, nextSnapshot.parameters?.theme ?? {}));
               setTestedIndex(response.nextSnapshotIndex);
               emitStory(nextSnapshot);
             }
@@ -157,17 +165,22 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
       );
     }
 
+    // ThemeProvider setup reflects original setup from the storybook package
+    // We need to replicate it to assure it's working in the same way as in onDeviceUI mode
+    // https://github.com/storybookjs/react-native/blob/next/packages/react-native/src/View.tsx
     return (
-      <SafeAreaProvider>
-        <SherloContext.Provider
-          value={{
-            renderedSnapshot: snapshots?.find(({ storyId }) => storyId === renderedStoryId),
-            mode,
-          }}
-        >
-          <Layout shouldAddSafeArea={shouldAddSafeArea}>{memoizedStorybook}</Layout>
-        </SherloContext.Provider>
-      </SafeAreaProvider>
+      <ThemeProvider theme={appliedTheme as Theme}>
+        <SafeAreaProvider>
+          <SherloContext.Provider
+            value={{
+              renderedSnapshot: snapshots?.find(({ storyId }) => storyId === renderedStoryId),
+              mode,
+            }}
+          >
+            <Layout shouldAddSafeArea={shouldAddSafeArea}>{memoizedStorybook}</Layout>
+          </SherloContext.Provider>
+        </SafeAreaProvider>
+      </ThemeProvider>
     );
   };
 
