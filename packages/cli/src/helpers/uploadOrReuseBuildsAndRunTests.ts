@@ -20,7 +20,7 @@ async function uploadOrReuseBuildsAndRunTests({
   expoUpdateData?: ExpoUpdateData;
 }): Promise<{ url: string }> {
   const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
-  const client = SDKApiClient(apiToken);
+  const client = SDKApiClient({ authToken: apiToken });
 
   const { binariesInfo, nextBuildIndex } = await getValidatedBinariesInfoAndNextBuildIndex({
     client,
