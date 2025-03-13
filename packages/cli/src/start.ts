@@ -123,12 +123,14 @@ async function start() {
     }
 
     await program.parseAsync(process.argv);
+
+    await reporting.flush();
   } catch (error) {
     if (error.unexpectedError) {
       reporting.captureException(error.unexpectedError);
     }
 
-    reporting.flush().finally(() => {
+    await reporting.flush().finally(() => {
       console.error((error as Error).message);
       process.exit(error.code || 1);
     });
