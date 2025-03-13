@@ -50,6 +50,7 @@ function useTestingMode(
           filteredViewIds = lastState.filteredViewIds;
         }
 
+        // TODO: check if can be an else case
         if (
           initialSelectionIndex === undefined ||
           filteredViewIds === undefined ||
@@ -87,6 +88,7 @@ function useTestingMode(
           filteredViewIds = startResponse.filteredViewIds;
         }
 
+        // TODO: check why there would be no viewId
         const filteredSnapshots = snapshots.filter(({ viewId }) =>
           filteredViewIds?.includes(viewId)
         );

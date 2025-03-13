@@ -4,7 +4,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Theme, ThemeProvider, darkTheme, theme } from '@storybook/react-native-theming';
 import { RunnerBridge, SherloModule } from '../helpers';
 import { Snapshot, StorybookParams, StorybookView } from '../types';
-import { SherloContext } from './contexts';
 import generateStorybookComponent from './generateStorybookComponent';
 import { useHideSplashScreen, useStoryEmitter, useTestingMode } from './hooks';
 import { setupErrorSilencing } from './utils';
@@ -41,6 +40,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
       },
     });
 
+    // TODO: maybe we should just do it for testing mode
     useHideSplashScreen();
 
     // Testing mode
@@ -67,6 +67,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 
     // make screenshot attempts every time renderedStoryId is set
     useEffect(() => {
+      // TODO: maybe inverse check would make more sense
       if (
         !snapshots?.length ||
         renderedStoryId === undefined ||
@@ -151,6 +152,8 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
             // @ts-ignore
             RunnerBridge.log('story capturing failed', { errorMessage: error?.message });
           }
+          // Sometimes even though the renderedStoryId is set, the story is not really yet rendered
+          // so we wait additional 100ms
         }, 100);
       };
 
@@ -197,14 +200,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     return (
       <ThemeProvider theme={appliedTheme as Theme}>
         <SafeAreaProvider>
-          <SherloContext.Provider
-            value={{
-              renderedSnapshot: snapshots?.find(({ storyId }) => storyId === renderedStoryId),
-              mode,
-            }}
-          >
-            <Layout shouldAddSafeArea={shouldAddSafeArea}>{memoizedStorybook}</Layout>
-          </SherloContext.Provider>
+          <Layout shouldAddSafeArea={shouldAddSafeArea}>{memoizedStorybook}</Layout>
         </SafeAreaProvider>
       </ThemeProvider>
     );
