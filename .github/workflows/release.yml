@@ -96,6 +96,7 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.NEW_VERSION_NUMBER }}
           make_latest: ${{ github.event.inputs.IS_ALPHA == 'true' && 'false' || 'true' }}
+          prerelease: ${{ github.event.inputs.IS_ALPHA == 'true' && true || false }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
