@@ -10,6 +10,7 @@ import { useHideSplashScreen, useOriginalMode, useStoryEmitter, useTestingMode }
 import { setupErrorSilencing } from './utils';
 import deepmerge from 'deepmerge';
 import { Layout } from './components';
+import { VERIFICATION_TEST_ID } from '../constants';
 
 setupErrorSilencing();
 
@@ -23,9 +24,11 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     const [snapshots, setSnapshots] = useState<Snapshot[]>();
 
     const mode = SherloModule.getMode();
+    const config = SherloModule.getConfig();
 
     // Safe area handling
     const [shouldAddSafeArea, setShouldAddSafeArea] = useState(mode === 'testing');
+    const [currentRequestId, setCurrentRequestId] = useState<string>();
 
     const colorScheme = useColorScheme();
     const defaultTheme = colorScheme === 'dark' ? darkTheme : theme;
@@ -41,7 +44,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     useHideSplashScreen();
 
     // Testing mode
-    useTestingMode(view, mode, setSnapshots, setTestedIndex, RunnerBridge);
+    useTestingMode(view, mode, setSnapshots, setTestedIndex, setCurrentRequestId, RunnerBridge);
 
     // When testedIndex changes and it's not equal to renderedStoryId, emit story
     useEffect(() => {
@@ -84,28 +87,53 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
       const testStory = async (): Promise<void> => {
         setTimeout(async () => {
           try {
-            await SherloModule.clearFocus();
-
-            const containsError = await SherloModule.checkIfContainsStorybookError();
-
-            let inspectorData;
-            if (!containsError) {
-              inspectorData = await SherloModule.getInspectorData();
+            if (!currentRequestId) {
+              throw new Error('No current request ID');
             }
+
+            await SherloModule.clearFocus();
+            RunnerBridge.log('cleared focus');
+
+            const isStable = await SherloModule.checkIfStable(
+              config.stabilization.requiredMatches,
+              config.stabilization.intervalMs,
+              config.stabilization.timeoutMs
+            ).catch((error) => {
+              RunnerBridge.log('error checking if stable', { error: error.message });
+              throw error;
+            });
+
+            RunnerBridge.log('checked if stable', { isStable });
+
+            await SherloModule.clearFocus();
+            RunnerBridge.log('cleared focus again');
+
+            const inspectorData = await SherloModule.getInspectorData().catch((error) => {
+              RunnerBridge.log('error getting inspector data', { error: error.message });
+              throw error;
+            });
+
+            RunnerBridge.log('got inspector data', { inspectorData });
+
+            const containsError = inspectorData.includes(
+              'Something went wrong rendering your story'
+            );
 
             RunnerBridge.log('requesting screenshot from master script', {
               action: 'REQUEST_SNAPSHOT',
               snapshotIndex: testedIndex,
               hasError: containsError,
               inspectorData: !!inspectorData,
+              isStable,
             });
 
-            await SherloModule.clearFocus();
             const response = await RunnerBridge.send({
               action: 'REQUEST_SNAPSHOT',
               snapshotIndex: testedIndex,
               hasError: containsError,
               inspectorData,
+              isStable,
+              requestId: currentRequestId,
             });
 
             RunnerBridge.log('received screenshot from master script', response);
@@ -113,6 +141,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
             if (response.nextSnapshotIndex !== undefined) {
               const nextSnapshot = snapshots[response.nextSnapshotIndex];
 
+              setCurrentRequestId(response.requestId);
               setShouldAddSafeArea(!nextSnapshot.parameters?.noSafeArea);
               setAppliedTheme(deepmerge(defaultTheme, nextSnapshot.parameters?.theme ?? {}));
               setTestedIndex(response.nextSnapshotIndex);
@@ -152,7 +181,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     if (mode === 'verification') {
       return (
         <View
-          testID="sherlo-getStorybook-verification"
+          testID={VERIFICATION_TEST_ID}
           style={{
             ...StyleSheet.absoluteFillObject,
             justifyContent: 'center',

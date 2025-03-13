@@ -39,7 +39,6 @@ public class InspectorHelper {
     private static void collectViewInfo(View view, List<JSONObject> viewList) throws JSONException {
         JSONObject viewObject = new JSONObject();
 
-
         // Class name
         String className = view.getClass().getSimpleName();
         viewObject.put("className", className);

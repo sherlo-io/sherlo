@@ -17,7 +17,13 @@ const getContrastTextColor = (backgroundColor: string | undefined) => {
   return luminance > 0.5 ? '#000000' : '#ffffff';
 };
 
-const TestScreen = ({ backgroundColor }: { backgroundColor?: string }) => {
+const TestScreen = ({
+  backgroundColor,
+  colorName,
+}: {
+  backgroundColor?: string;
+  colorName?: string;
+}) => {
   const theme = useColorScheme();
   const [language, country] = Localization.locale.split('-');
   const textColor = getContrastTextColor(backgroundColor);
@@ -27,6 +33,9 @@ const TestScreen = ({ backgroundColor }: { backgroundColor?: string }) => {
       <InfoItem iconName="record-voice-over" text={`Language: ${language}`} textColor={textColor} />
       <InfoItem iconName="place" text={`Country: ${country}`} textColor={textColor} />
       <InfoItem iconName="brightness-4" text={`Theme: ${theme}`} textColor={textColor} />
+      {colorName && (
+        <InfoItem iconName="palette" text={`Color: ${colorName}`} textColor={textColor} />
+      )}
     </View>
   );
 };

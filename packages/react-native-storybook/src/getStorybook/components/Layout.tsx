@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, StyleSheet, ViewProps, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { styled, useTheme } from '@storybook/react-native-theming';
+import { useTheme } from '@storybook/react-native-theming';
+import { VERIFICATION_TEST_ID } from '../../constants';
 
 interface LayoutProps extends ViewProps {
   shouldAddSafeArea: boolean;
@@ -15,7 +16,7 @@ const Layout: React.FC<LayoutProps> = ({ shouldAddSafeArea, children, ...props }
 
   return (
     <View
-      testID="sherlo-getStorybook-verification"
+      testID={VERIFICATION_TEST_ID}
       style={[
         StyleSheet.absoluteFillObject,
         // We are replicating the original setup from the storybook package

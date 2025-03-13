@@ -43,15 +43,18 @@ on:
         required: false
         default: false
         type: boolean
+  schedule:
+    - cron: '0 5 * * *'  # 5 AM UTC every day (6 AM in Poland)
+
 
 jobs:
   device_testing:
     uses: ./.github/workflows/expo-update.yml
-    if: ${{ github.event.inputs.device_testing == 'true' && always() && !failure() && !cancelled() }}
+    if: ${{ (github.event_name == 'schedule' || github.event.inputs.device_testing == 'true') && always() && !failure() && !cancelled() }}
     name: Device Testing
     secrets: inherit
     with:
-      env: ${{ github.event.inputs.env }}
+      env: ${{ github.event_name == 'schedule' && 'dev' || inputs.env }}
       config: 'all-devices'
       project: 'device-testing'
       with_builds: true
@@ -59,11 +62,11 @@ jobs:
 
   many_stories:
     uses: ./.github/workflows/expo-update.yml
-    if: ${{ github.event.inputs.many_stories == 'true' && always() && !failure() && !cancelled() }}
+    if: ${{ (github.event_name == 'schedule' || github.event.inputs.many_stories == 'true') && always() && !failure() && !cancelled() }}
     name: Many Stories
     secrets: inherit
     with:
-      env: ${{ github.event.inputs.env }}
+      env: ${{ github.event_name == 'schedule' && 'dev' || inputs.env }}
       config: 'many-stories'
       with_builds: true
       project: 'many-stories'
@@ -89,11 +92,11 @@ jobs:
 
   expo_update_with_builds:
     uses: ./.github/workflows/expo-update.yml
-    if: ${{ github.event.inputs.expo_update_with_builds == 'true' && always() && !failure() && !cancelled() }}
+    if: ${{ (github.event_name == 'schedule' || github.event.inputs.expo_update_with_builds == 'true') && always() && !failure() && !cancelled() }}
     name: expo-update (with native builds)
     secrets: inherit
     with:
-      env: ${{ github.event.inputs.env }}
+      env: ${{ github.event_name == 'schedule' && 'dev' || inputs.env }}
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
       with_builds: true
       project: 'expo-update'
