@@ -6,7 +6,7 @@ import { RunnerBridge, SherloModule } from '../helpers';
 import { Snapshot, StorybookParams, StorybookView } from '../types';
 import { SherloContext } from './contexts';
 import generateStorybookComponent from './generateStorybookComponent';
-import { useHideSplashScreen, useOriginalMode, useStoryEmitter, useTestingMode } from './hooks';
+import { useHideSplashScreen, useStoryEmitter, useTestingMode } from './hooks';
 import { setupErrorSilencing } from './utils';
 import deepmerge from 'deepmerge';
 import { Layout } from './components';
@@ -157,9 +157,6 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
       testStory();
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [testedIndex, renderedStoryId]);
-
-    // Original mode
-    useOriginalMode(view, mode, setSnapshots);
 
     // Storybook memoized for specific mode
     const memoizedStorybook = useMemo(() => {
