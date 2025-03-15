@@ -1,6 +1,6 @@
 import type { Meta } from '@storybook/react';
 import NoSafeArea from './NoSafeArea';
-import { StoryDecorator } from '@sherlo/testing-components';
+import { StoryDecorator } from '../../decorators';
 
 export default {
   component: NoSafeArea,

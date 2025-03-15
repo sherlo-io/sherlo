@@ -11,7 +11,7 @@ function getLastState(path: string, log: LogFn): GetLastStateFn {
   return async function (): Promise<
     | {
         nextSnapshotIndex: number;
-        filteredViewIds: String[];
+        filteredViewIds: string[];
         requestId: string;
       }
     | undefined
@@ -46,7 +46,7 @@ function getLastState(path: string, log: LogFn): GetLastStateFn {
         let state:
           | {
               nextSnapshotIndex: number;
-              filteredViewIds: String[];
+              filteredViewIds: string[];
               requestId: string;
             }
           | undefined = undefined;
