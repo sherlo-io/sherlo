@@ -1,10 +1,11 @@
 import { darkTheme, theme } from '@storybook/react-native-theming';
 import { useState, ReactElement } from 'react';
 import { useColorScheme } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StorybookParams, StorybookView } from '../../../types';
-import useTestAllStories from './useTestAllStories';
-import setupErrorSilencing from './setupErrorSilencing';
 import Storybook from './Storybook';
+import setupErrorSilencing from './setupErrorSilencing';
+import useTestAllStories from './useTestAllStories';
 
 setupErrorSilencing();
 
@@ -28,7 +29,11 @@ function TestingMode({
     view,
   });
 
-  return <Storybook params={params} uiSettings={uiSettings} view={view} />;
+  return (
+    <SafeAreaProvider>
+      <Storybook params={params} uiSettings={uiSettings} view={view} />
+    </SafeAreaProvider>
+  );
 }
 
 export default TestingMode;

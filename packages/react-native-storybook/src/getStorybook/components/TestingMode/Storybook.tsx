@@ -1,7 +1,7 @@
 import { Theme } from '@storybook/react-native-theming';
 import { useMemo } from 'react';
 import { View } from 'react-native';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VERIFICATION_TEST_ID } from '../../../constants';
 import { RunnerBridge } from '../../../helpers';
 import { StorybookParams, StorybookView } from '../../../types';
@@ -40,18 +40,16 @@ function Storybook({
   }, []);
 
   return (
-    <SafeAreaProvider>
-      <View
-        testID={VERIFICATION_TEST_ID}
-        style={{
-          flex: 1,
-          paddingTop: uiSettings.shouldAddSafeArea ? insets.top : 0,
-          backgroundColor: uiSettings.theme.background.content,
-        }}
-      >
-        <View style={{ flex: 1, overflow: 'hidden' }}>{memoizedStorybook}</View>
-      </View>
-    </SafeAreaProvider>
+    <View
+      testID={VERIFICATION_TEST_ID}
+      style={{
+        flex: 1,
+        paddingTop: uiSettings.shouldAddSafeArea ? insets.top : 0,
+        backgroundColor: uiSettings.theme.background.content,
+      }}
+    >
+      <View style={{ flex: 1, overflow: 'hidden' }}>{memoizedStorybook}</View>
+    </View>
   );
 }
 

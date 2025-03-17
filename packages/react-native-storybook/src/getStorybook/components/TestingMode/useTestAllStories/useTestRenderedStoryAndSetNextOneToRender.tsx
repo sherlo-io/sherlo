@@ -51,7 +51,7 @@ function useTestRenderedStoryAndSetNextOneToRender({
       renderedSnapshotViewId: storyToTest.viewId,
     });
 
-    const testRenderedStoryAndSetNextOneToRender = async (): Promise<void> => {
+    (async (): Promise<void> => {
       setTimeout(async () => {
         try {
           if (!storyToTestData.requestId) {
@@ -116,9 +116,7 @@ function useTestRenderedStoryAndSetNextOneToRender({
         // Sometimes even though the renderedStoryId is set, the story is not really yet rendered
         // so we wait additional 100ms
       }, 100);
-    };
-
-    testRenderedStoryAndSetNextOneToRender();
+    })();
   }, [renderedStoryId]);
 }
 
