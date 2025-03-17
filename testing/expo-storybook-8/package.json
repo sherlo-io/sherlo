@@ -25,6 +25,7 @@
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/datetimepicker": "8.0.1",
     "@react-native-community/slider": "4.5.2",
+    "@types/react": "~18.2.79",
     "expo": "^51.0.38",
     "expo-dev-client": "~4.0.28",
     "expo-linear-gradient": "~13.0.2",
@@ -43,11 +44,13 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "@sherlo/react-native-storybook": "file:../../packages/react-native-storybook",
-    "@storybook/react-native": "^8.6.0",
-    "@types/react": "^18.2.7",
+    "@sherlo/react-native-storybook": "^1.1.3",
+    "@storybook/addon-ondevice-actions": "^8.3.9",
+    "@storybook/addon-ondevice-backgrounds": "^8.3.9",
+    "@storybook/addon-ondevice-controls": "^8.3.9",
+    "@storybook/addon-ondevice-notes": "^8.3.9",
+    "@storybook/react-native": "^8.3.9",
     "babel-loader": "^8.2.3",
-    "ts-dedent": "^2.2.0",
     "typescript": "~5.3.3"
   }
 }

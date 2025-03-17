@@ -24,10 +24,8 @@
   },
   "workspaces": {
     "packages": [
-      "packages/*"
-    ],
-    "nohoist": [
-      "**/@storybook/**"
+      "packages/*",
+      "testing/*"
     ]
   },
   "scripts": {
