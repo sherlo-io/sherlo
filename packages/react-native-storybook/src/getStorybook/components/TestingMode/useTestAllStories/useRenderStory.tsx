@@ -17,7 +17,7 @@ function useRenderStory({
   setRenderedStoryId: React.Dispatch<React.SetStateAction<string | undefined>>;
   setUiSettings: React.Dispatch<
     React.SetStateAction<{
-      appliedTheme: Theme;
+      theme: Theme;
       shouldAddSafeArea: boolean;
     }>
   >;
@@ -55,7 +55,7 @@ function useRenderStory({
     });
 
     setUiSettings({
-      appliedTheme: deepmerge(defaultTheme, storyToTest.parameters?.theme ?? {}),
+      theme: deepmerge(defaultTheme, storyToTest.parameters?.theme ?? {}),
       shouldAddSafeArea: !storyToTest.parameters?.noSafeArea,
     });
 

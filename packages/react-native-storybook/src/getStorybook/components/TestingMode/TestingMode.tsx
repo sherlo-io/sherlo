@@ -18,7 +18,7 @@ function TestingMode({
   const defaultTheme = useColorScheme() === 'dark' ? darkTheme : theme;
 
   const [uiSettings, setUiSettings] = useState({
-    appliedTheme: defaultTheme,
+    theme: defaultTheme,
     shouldAddSafeArea: true,
   });
 

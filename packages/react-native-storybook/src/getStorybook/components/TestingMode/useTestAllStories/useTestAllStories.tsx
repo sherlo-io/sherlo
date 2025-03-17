@@ -13,7 +13,7 @@ function useTestAllStories({
   defaultTheme: Theme;
   setUiSettings: React.Dispatch<
     React.SetStateAction<{
-      appliedTheme: Theme;
+      theme: Theme;
       shouldAddSafeArea: boolean;
     }>
   >;
