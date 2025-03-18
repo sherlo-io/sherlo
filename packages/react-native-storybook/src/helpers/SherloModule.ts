@@ -3,7 +3,6 @@ import { NativeModules, Platform } from 'react-native';
 import utf8 from 'utf8';
 import isExpoGo from './isExpoGo';
 import { StorybookViewMode } from '../types/types';
-import { getGlobalStates } from '../utils';
 import { Config } from './RunnerBridge/types';
 
 type SherloModule = {
@@ -65,11 +64,6 @@ function createSherloModule(): SherloModule {
       return SherloNativeModule.checkIfStable(requiredMatches, intervalMs, timeoutMs);
     },
     getMode: () => {
-      const { testConfig, isVerifySetupTest } = getGlobalStates();
-      if (testConfig && !isVerifySetupTest) {
-        return 'testing';
-      }
-
       return SherloNativeModule.getConstants().mode;
     },
     getConfig: () => {

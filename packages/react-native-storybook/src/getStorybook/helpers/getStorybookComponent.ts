@@ -1,5 +1,5 @@
 import { StorybookParams, StorybookView } from '../../types';
-import {DUMMY_STORY_ID} from '../../constants';
+import { DUMMY_STORY_ID } from '../../constants';
 
 function getStorybookComponent({
   isTestingMode,
