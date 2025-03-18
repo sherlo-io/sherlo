@@ -120,7 +120,9 @@ async function startNewTestingSession(allStories: Snapshot[]): Promise<{
     RunnerBridge.log('Main view ID not found on screen');
 
     // Using setTimeout to throw outside React's event loop - this ensures the error crashes the app instead of being caught by error boundaries
-    setTimeout(() => { throw new Error('Main view ID not found on screen') }, 0);
+    setTimeout(() => {
+      throw new Error('Main view ID not found on screen');
+    }, 0);
   }
 
   const { filteredViewIds, nextSnapshotIndex, requestId } = (await RunnerBridge.send({
