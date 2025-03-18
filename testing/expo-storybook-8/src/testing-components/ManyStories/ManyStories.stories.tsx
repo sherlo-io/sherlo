@@ -1,11 +1,8 @@
-import { TestInfo } from '@sherlo/testing-components';
 import type { Meta } from '@storybook/react';
+import TestInfo from './TestInfo';
 
 export default {
   component: TestInfo,
-  parameters: {
-    noSafeArea: true,
-  },
 } as Meta<typeof TestInfo>;
 
 const storyOfColor = (hexColor: string, colorName: string) => ({

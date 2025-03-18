@@ -1,7 +1,7 @@
 import { Snapshot } from '../../types';
 
 export type RunnerState = {
-  filteredViewIds: String[];
+  filteredViewIds: string[];
   snapshotIndex: number;
   updateTimestamp: number;
   retry?: boolean;
@@ -22,7 +22,7 @@ export type SendFn = (protocolItem: AppProtocolItem) => Promise<RunnerProtocolIt
 export type GetLastStateFn = () => Promise<
   | {
       nextSnapshotIndex: number;
-      filteredViewIds: String[];
+      filteredViewIds: string[];
       requestId: string;
     }
   | undefined
@@ -49,7 +49,7 @@ export type AppProtocolItem =
 
 export type AckStartProtocolItem = {
   action: 'ACK_START';
-  filteredViewIds: String[];
+  filteredViewIds: string[];
   nextSnapshotIndex: number;
   requestId: string;
 };

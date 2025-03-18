@@ -1,7 +1,7 @@
 import type { Meta } from '@storybook/react';
 import WithFigmaComparison from './WithFigmaComparison';
 import { SherloParameters } from '@sherlo/react-native-storybook';
-import { StoryDecorator } from '@sherlo/testing-components';
+import { StoryDecorator } from '../../decorators';
 
 export default {
   component: WithFigmaComparison,

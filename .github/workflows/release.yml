@@ -16,6 +16,11 @@ on:
         required: false
         default: false
         type: boolean
+      IS_ALPHA:
+        description: 'Is alpha release'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   release-to-prod:
@@ -69,7 +74,7 @@ jobs:
         with:
           author_name: Sherlo Bot
           author_email: admin@sherlo.io
-          message: 'Version updates and builds for ${NEW_VERSION_NUMBER}'
+          message: Version updates and builds for ${{ github.event.inputs.NEW_VERSION_NUMBER }}
           push: true
           branch: ${{ github.ref_name }}
 
@@ -79,7 +84,7 @@ jobs:
 
       - name: Publish to npm
         if: ${{ github.event.inputs.SKIP_PUBLISH_TO_NPM == 'false' }}
-        run: npx lerna publish from-package --no-private --yes
+        run: npx lerna publish from-package --no-private --yes --npm-tag ${{ github.event.inputs.IS_ALPHA == 'true' && 'alpha' || 'latest' }}
 
       - name: Tag Commit
         run: |
@@ -87,9 +92,11 @@ jobs:
           git push origin ${{ github.event.inputs.NEW_VERSION_NUMBER }}
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.NEW_VERSION_NUMBER }}
+          make_latest: ${{ github.event.inputs.IS_ALPHA == 'true' && 'false' || 'true' }}
+          prerelease: ${{ github.event.inputs.IS_ALPHA == 'true' && true || false }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
