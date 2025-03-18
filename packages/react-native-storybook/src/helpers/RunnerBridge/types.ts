@@ -1,4 +1,4 @@
-import { Snapshot } from '../../types';
+import { Snapshot, StorybookParams } from '../../types';
 
 export type RunnerState = {
   filteredViewIds: string[];
@@ -14,6 +14,7 @@ export type Config = {
     timeoutMs: number;
   };
   overrideMode?: 'default' | 'storybook' | 'testing' | 'verification';
+  initialSelection?: StorybookParams['initialSelection'];
   expoUpdateDeeplink?: string;
 };
 

@@ -1,5 +1,6 @@
 import { StorybookParams, StorybookView } from '../../types';
 import {DUMMY_STORY_ID} from '../../constants';
+import { SherloModule } from '../../helpers';
 
 function getStorybookComponent({
   isTestingMode,
@@ -10,6 +11,9 @@ function getStorybookComponent({
   isTestingMode?: boolean;
   params?: StorybookParams;
 }): () => JSX.Element {
+
+  const config = SherloModule.getConfig();
+
   if (isTestingMode) {
     const storybook7Params = {
       isUIHidden: true,
@@ -25,7 +29,7 @@ function getStorybookComponent({
       enableWebsockets: false,
       onDeviceUI: false,
       shouldPersistSelection: false,
-      initialSelection: DUMMY_STORY_ID,
+      initialSelection: config.initialSelection || DUMMY_STORY_ID,
 
       // These properties are only valid for Storybook 7
       ...storybook7Params,
