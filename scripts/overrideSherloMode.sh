@@ -5,7 +5,6 @@ platform=""
 buildPath=""
 clear_mode=false
 override_mode="storybook"
-initial_selection=""
 
 # Define SDK and tool paths
 ANDROID_SDK_PATH=~/Library/Android/sdk
@@ -17,14 +16,13 @@ SHERLO_CONFIG_FILE="config.sherlo"
 
 # Function to show usage
 show_usage() {
-    echo "Usage: $0 (--android | --ios) --path=<build_path> [--clear] [--mode=<mode>] [--initialSelection=<selection>]"
+    echo "Usage: $0 (--android | --ios) --path=<build_path> [--clear] [--mode=<mode>]"
     echo "Options:"
-    echo "  --android                    Set platform to Android"
-    echo "  --ios                       Set platform to iOS"
-    echo "  --path=<path>               Specify the build path"
-    echo "  --clear                     Remove the config file instead of creating it"
-    echo "  --mode=<mode>               Set custom override mode (defaults to 'storybook')"
-    echo "  --initialSelection=<selection>  Set initial selection value"
+    echo "  --android          Set platform to Android"
+    echo "  --ios             Set platform to iOS"
+    echo "  --path=<path>     Specify the build path"
+    echo "  --clear           Remove the config file instead of creating it"
+    echo "  --mode=<mode>     Set custom override mode (defaults to 'storybook')"
     exit 1
 }
 
@@ -51,10 +49,6 @@ while [[ $# -gt 0 ]]; do
             override_mode="${1#*=}"
             shift
             ;;
-        --initialSelection=*)
-            initial_selection="${1#*=}"
-            shift
-            ;;
         *)
             echo "Error: Unknown parameter '$1'"
             show_usage
@@ -63,11 +57,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Set config content with the specified or default mode
-if [ -n "$initial_selection" ]; then
-    SHERLO_CONFIG_CONTENT="{ \"overrideMode\": \"$override_mode\", \"initialSelection\": \"$initial_selection\" }"
-else
-    SHERLO_CONFIG_CONTENT="{ \"overrideMode\": \"$override_mode\" }"
-fi
+SHERLO_CONFIG_CONTENT="{ \"overrideMode\": \"$override_mode\" }"
 
 # Validate required parameters
 if [ -z "$platform" ]; then
