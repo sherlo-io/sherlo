@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/node';
 import { ENV } from '@sherlo/sdk-client';
+import stripAnsi from './stripAnsi';
 
 const dsn = {
   test: 'https://72524a664c779972513d9381c8637718@o1152742.ingest.us.sentry.io/4508388094574592',
@@ -15,7 +16,15 @@ const reporting = {
       enabled: ENV !== 'test',
     }),
   setContext: Sentry.setContext,
-  captureException: Sentry.captureException,
+  captureException: (error: Error & { location?: string; stdout?: string; stderr?: string }) => {
+    if (error.location) Sentry.setExtra('location', error.location);
+
+    if (error.stdout) Sentry.setExtra('stdout', stripAnsi(error.stdout));
+
+    if (error.stderr) Sentry.setExtra('stderr', stripAnsi(error.stderr));
+
+    Sentry.captureException(error);
+  },
   flush: Sentry.flush,
 };
 

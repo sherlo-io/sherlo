@@ -43,9 +43,12 @@ async function runShellCommand({
         if (error) {
           const enhancedError = new Error(`\`${command}\` command failed`);
 
+          const stdoutStr = stdout.toString('utf8').trim();
+          const stderrStr = stderr.toString('utf8').trim();
+
           Object.assign(enhancedError, {
-            stdout: stdout.toString('utf8').trim(),
-            stderr: stderr.toString('utf8').trim(),
+            stdout: stdoutStr.length > 0 ? stdoutStr : undefined,
+            stderr: stderrStr.length > 0 ? stderrStr : undefined,
           });
 
           reject(enhancedError);

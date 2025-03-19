@@ -1,5 +1,4 @@
-import { throwError } from '../../../../helpers';
-import { runShellCommand } from '../../../../helpers';
+import { runShellCommand, throwError } from '../../../../helpers';
 import { CommandParams, ExpoUpdateInfo } from '../../../../types';
 import { THIS_COMMAND } from '../../constants';
 

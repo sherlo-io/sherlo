@@ -21,5 +21,6 @@ export { default as printResultsUrl } from './printResultsUrl';
 export { default as printSherloIntro } from './printSherloIntro';
 export { default as reporting } from './reporting';
 export { default as runShellCommand } from './runShellCommand';
+export { default as stripAnsi } from './stripAnsi';
 export { default as throwError } from './throwError';
 export { default as uploadOrReuseBuildsAndRunTests } from './uploadOrReuseBuildsAndRunTests';

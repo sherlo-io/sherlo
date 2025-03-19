@@ -38,17 +38,15 @@ function throwError(params: Params): never {
 
   if (unexpectedError) {
     const location = getCallerLocation();
-    if (location) lines.push(chalk.dim(`(in ${location})`));
-
     const { stdout, stderr } = unexpectedError;
 
-    if (stdout && stdout.length > 0) {
-      lines.push(`\n${stdout}`);
-    }
+    if (location) lines.push(chalk.dim(`(in ${location})`));
 
-    if (stderr && stderr.length > 0) {
-      lines.push(`\n${stderr}`);
-    }
+    if (stdout) lines.push(`\n${stdout}`);
+
+    if (stderr) lines.push(`\n${stderr}`);
+
+    Object.assign(unexpectedError, { location });
   }
 
   if (learnMoreLink) {

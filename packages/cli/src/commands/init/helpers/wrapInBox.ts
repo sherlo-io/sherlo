@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import wrapAnsi from 'wrap-ansi';
+import { stripAnsi } from '../../../helpers';
 
 type Type = 'default' | 'warning' | 'command';
 
@@ -127,6 +128,5 @@ function borderColor(char: string, type?: Type) {
 }
 
 function getVisibleLength(str: string): number {
-  // Remove all ANSI color codes
-  return str.replace(/\u001b\[[0-9;]*[a-zA-Z]/g, '').length;
+  return stripAnsi(str).length;
 }
