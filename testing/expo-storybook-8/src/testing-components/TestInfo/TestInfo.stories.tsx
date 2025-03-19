@@ -1,5 +1,6 @@
-import { TestInfo, StoryDecorator } from '@sherlo/testing-components';
 import type { Meta } from '@storybook/react';
+import { StoryDecorator } from '../../decorators';
+import TestInfo from './TestInfo';
 
 /**
  * This is a test screen that we add to our tests
@@ -8,9 +9,6 @@ import type { Meta } from '@storybook/react';
 export default {
   component: TestInfo,
   decorators: [StoryDecorator({ placement: 'center' })],
-  parameters: {
-    noSafeArea: true,
-  },
 } as Meta<typeof TestInfo>;
 
 export const Basic = {};

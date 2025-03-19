@@ -21,7 +21,8 @@ import org.json.JSONObject;
 
 import io.sherlo.storybookreactnative.InspectorHelper;
 import io.sherlo.storybookreactnative.RestartHelper;
-import io.sherlo.storybookreactnative.StorybookErrorHelper;
+import io.sherlo.storybookreactnative.StableUIChecker;
+import io.sherlo.storybookreactnative.FocusCleaner;
 
 public class SherloModule extends ReactContextBaseJavaModule {
     public static final String TAG = "SherloModule";
@@ -31,6 +32,8 @@ public class SherloModule extends ReactContextBaseJavaModule {
     private final ReactApplicationContext reactContext;
     private static String syncDirectoryPath = "";
     private static String mode = "default"; // "default" / "storybook" / "testing" / "verification"
+    private static JSONObject config = new JSONObject();
+
     private FileSystemHelper fileSystemHelper;
     private static int expoUpdateDeeplinkConsumeCount = 0;
 
@@ -73,7 +76,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
                 }
 
                 try {
-                    JSONObject config = new JSONObject(configJson);
+                    config = new JSONObject(configJson);
 
                     // Check for override mode first
                     if (config.has("overrideMode")) {
@@ -120,7 +123,8 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
         constants.put("syncDirectoryPath", this.syncDirectoryPath);
         constants.put("mode", this.mode);
-
+        // Keep config as stringified JSON
+        constants.put("config", this.config.toString());
         return constants;
     }
 
@@ -164,6 +168,32 @@ public class SherloModule extends ReactContextBaseJavaModule {
         this.mode = "default";
         RestartHelper.loadBundle(getCurrentActivity());
         promise.resolve(null);
+    }
+
+
+    /**
+     * Exposed React Native method to check UI stability.
+     *
+     * @param requiredMatches The number of consecutive matching screenshots needed.
+     * @param intervalMs      The interval between each screenshot in milliseconds.
+     * @param timeoutMs       The overall timeout in milliseconds.
+     * @param promise         Promise to resolve with true (stable) or false (not stable).
+     */
+    @ReactMethod
+    public void checkIfStable(final int requiredMatches, final int intervalMs, final int timeoutMs, final Promise promise) {
+        final Activity activity = getCurrentActivity();
+        if (activity == null) {
+            promise.reject("NO_ACTIVITY", "Activity doesn't exist");
+            return;
+        }
+
+        StableUIChecker checker = new StableUIChecker(activity);
+        checker.checkIfStable(requiredMatches, intervalMs, timeoutMs, new StableUIChecker.StabilityCallback() {
+            @Override
+            public void onResult(boolean stable) {
+                promise.resolve(stable);
+            }
+        });
     }
 
     /**
@@ -242,34 +272,11 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
         activity.runOnUiThread(() -> {
             try {
-                View currentFocus = activity.getCurrentFocus();
-                if (currentFocus != null) {
-                    currentFocus.clearFocus();
-                }
-                
-                Log.i(TAG, "Focus cleared from current input");
+                boolean focusCleared = FocusCleaner.clearFocus(activity);
+                Log.i(TAG, focusCleared ? "Focus cleared from view" : "No focused view found");
                 promise.resolve(null);
             } catch (Exception e) {
                 Log.e(TAG, "Error clearing focus: " + e.getMessage());
-                promise.reject("error", e.getMessage());
-            }
-        });
-    }
-
-    @ReactMethod
-    public void checkIfContainsStorybookError(Promise promise) {
-        Activity activity = getCurrentActivity();
-        if (activity == null) {
-            promise.reject("no_activity", "No current activity");
-            return;
-        }
-
-        activity.runOnUiThread(() -> {
-            try {
-                boolean containsError = StorybookErrorHelper.checkIfContainsStorybookError(activity);
-                promise.resolve(containsError);
-            } catch (Exception e) {
-                Log.e(TAG, "Error checking for Storybook error: " + e.getMessage());
                 promise.reject("error", e.getMessage());
             }
         });

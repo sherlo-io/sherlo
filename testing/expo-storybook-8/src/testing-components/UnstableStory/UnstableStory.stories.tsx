@@ -1,6 +1,6 @@
 import type { Meta } from '@storybook/react';
 import UnstableStory from './UnstableStory';
-import { StoryDecorator } from '@sherlo/testing-components';
+import { StoryDecorator } from '../../decorators';
 
 export default {
   component: UnstableStory,

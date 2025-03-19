@@ -9,7 +9,7 @@ function getPackageVersion(packageName: string): string | null {
   let packageJson;
 
   try {
-    packagePath = require.resolve(packageName);
+    packagePath = require.resolve(packageName, { paths: [process.cwd()] });
   } catch (error) {
     if (error.code === 'MODULE_NOT_FOUND') {
       return null;

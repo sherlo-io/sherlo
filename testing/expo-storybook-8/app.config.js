@@ -10,9 +10,6 @@ module.exports = () => ({
       resizeMode: 'contain',
       backgroundColor: '#ffffff',
     },
-    androidStatusBar: {
-      translucent: true,
-    },
     updates: {
       enabled: true,
       fallbackToCacheTimeout: 300000,
@@ -21,6 +18,7 @@ module.exports = () => ({
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.sherlo.example',
+      usesNonExemptEncryption: false,
     },
     android: {
       package: 'com.sherlo.example',

@@ -2,7 +2,6 @@ import { create, getLastState, log, send } from './actions';
 import { GetLastStateFn, LogFn, SendFn } from './types';
 
 const logPath = 'log.sherlo';
-const statePath = 'state.sherlo';
 const protocolPath = 'protocol.sherlo';
 const snapshotsDirectory = 'snapshots';
 

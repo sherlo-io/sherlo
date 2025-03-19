@@ -7,7 +7,14 @@
 
 + (void)verifyIntegrationWithMode:(NSString *)mode
                  syncDirectoryPath:(NSString *)syncDirectoryPath {
-    UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
+    UIWindow *keyWindow = nil;
+    NSSet<UIScene *> *scenes = UIApplication.sharedApplication.connectedScenes;
+    UIScene *scene = scenes.allObjects.firstObject;
+    if ([scene isKindOfClass:[UIWindowScene class]]) {
+        UIWindowScene *windowScene = (UIWindowScene *)scene;
+        keyWindow = windowScene.windows.firstObject;
+    }
+    
     if (!keyWindow) {
         NSLog(@"[VerificationHelper] Could not find key window");
         return;
@@ -24,10 +31,20 @@
     if ([verificationIds count] == 0) {
         NSLog(@"[VerificationHelper] Verification failed, no verification view found");
         
-        // Display error modal with error message
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Verification failed" message:@"Could not find Sherlo verification view" preferredStyle:UIAlertControllerStyleAlert];
         [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-        [[UIApplication sharedApplication].keyWindow.rootViewController presentViewController:alert animated:YES completion:nil];
+        
+        UIViewController *rootViewController = nil;
+        NSSet<UIScene *> *scenes = UIApplication.sharedApplication.connectedScenes;
+        UIScene *scene = scenes.allObjects.firstObject;
+        if ([scene isKindOfClass:[UIWindowScene class]]) {
+            UIWindowScene *windowScene = (UIWindowScene *)scene;
+            rootViewController = windowScene.windows.firstObject.rootViewController;
+        }
+        
+        if (rootViewController) {
+            [rootViewController presentViewController:alert animated:YES completion:nil];
+        }
     }
 }
 

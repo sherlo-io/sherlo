@@ -4,8 +4,8 @@
 #import "RestartHelper.h"
 #import "ConfigHelper.h"
 #import "ExpoUpdateHelper.h"
+#import "StableUIChecker.h"
 #import "VerificationHelper.h"
-#import "StorybookErrorHelper.h"
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
@@ -30,6 +30,7 @@ static NSString *const LOG_TAG = @"SherloModule";
 
 static NSString *syncDirectoryPath = @"";
 static NSString *mode = @"default"; // "default" / "storybook" / "testing" / "verification"
+static NSDictionary *config = nil;
 
 @implementation SherloModule
 
@@ -54,7 +55,7 @@ RCT_EXPORT_MODULE()
       }
 
       NSError *loadConfigError = nil;
-      NSDictionary *config = [ConfigHelper loadConfig:&loadConfigError syncDirectoryPath:syncDirectoryPath];
+      config = [ConfigHelper loadConfig:&loadConfigError syncDirectoryPath:syncDirectoryPath];
       if (loadConfigError) {
         [self handleError:@"ERROR_MODULE_INIT" error:loadConfigError];
         return self;
@@ -115,9 +116,19 @@ RCT_EXPORT_MODULE()
 
 // Exports constants to JavaScript. In this case, it exports the sync directory path and initial mode.
 - (NSDictionary *)constantsToExport {
+  NSString *configString = nil;
+  if (config) {
+    NSError *error = nil;
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:config options:0 error:&error];
+    if (!error) {
+      configString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+    }
+  }
+  
   return @{
     @"syncDirectoryPath": syncDirectoryPath,
-    @"mode": mode
+    @"mode": mode,
+    @"config": configString ?: [NSNull null]
   };
 }
 
@@ -173,6 +184,21 @@ RCT_EXPORT_METHOD(mkdir:(NSString *)filepath resolver:(RCTPromiseResolveBlock)re
   }
 }
 
+RCT_EXPORT_METHOD(checkIfStable:(NSInteger)requiredMatches
+                  interval:(NSInteger)intervalMs
+                  timeout:(NSInteger)timeoutMs
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+  StableUIChecker *checker = [[StableUIChecker alloc] init];
+  [checker checkIfStableWithRequiredMatches:requiredMatches
+                                 intervalMs:intervalMs
+                                  timeoutMs:timeoutMs
+                                 completion:^(BOOL stable) {
+    resolve(@(stable));
+  }];
+}
+
 // Appends a base64 encoded file to the specified filepath.
 // If the file does not exist, it creates a new file.
 // If any errors occur during the append process, the reject block is called with an appropriate error message.
@@ -213,7 +239,26 @@ RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCT
     NSString *jsonString = [InspectorHelper dumpBoundaries:&error];
 
     if (error) {
-      reject(@"json_error", @"Could not serialize view data to JSON", error);
+      // Get the debug info from the error's userInfo
+      NSDictionary *userInfo = error.userInfo;
+      NSDictionary *debugInfo = userInfo[@"debugInfo"];
+      
+      NSMutableDictionary *errorDetails = [NSMutableDictionary dictionaryWithDictionary:@{
+        @"code": @"json_error",
+        @"message": error.localizedDescription ?: @"Could not serialize view data to JSON"
+      }];
+      
+      // Add debug info if available
+      if (debugInfo) {
+        [errorDetails setObject:debugInfo forKey:@"debugInfo"];
+      }
+      
+      // Log the error details for debugging
+      NSLog(@"[InspectorHelper] Error details: %@", errorDetails);
+      
+      reject(@"json_error", error.localizedDescription, [NSError errorWithDomain:error.domain 
+                                                                          code:error.code 
+                                                                      userInfo:errorDetails]);
     } else {
       resolve(jsonString);
     }
@@ -227,16 +272,24 @@ RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCT
 }
 
 // A function that writes an error code to error.sherlo file in sync directory
-- (void)handleError:(NSString *)errorCode error:(NSError *)error {
-  NSLog(@"[%@] Error occurred: %@, Error: %@", LOG_TAG, errorCode, error.localizedDescription ?: @"N/A");
+- (void)handleError:(NSString *)errorCode error:(id)error {
+  NSString *errorDescription;
+  if ([error isKindOfClass:[NSError class]]) {
+    errorDescription = [(NSError *)error localizedDescription] ?: @"N/A";
+  } else if ([error isKindOfClass:[NSString class]]) {
+    errorDescription = (NSString *)error;
+  } else {
+    errorDescription = [NSString stringWithFormat:@"%@", error];
+  }
+  
+  NSLog(@"[%@] Error occurred: %@, Error: %@", LOG_TAG, errorCode, errorDescription);
 
   NSString *protocolFilePath = [syncDirectoryPath stringByAppendingPathComponent:PROTOCOL_FILENAME];
   
-  // Create the new JSON object with the specified properties
   NSMutableDictionary *nativeErrorDict = [@{
     @"action": @"NATIVE_ERROR",
     @"errorCode": errorCode,
-    @"error": [NSString stringWithFormat:@"%@", error],
+    @"error": errorDescription,
     @"timestamp": @((long long)([[NSDate date] timeIntervalSince1970] * 1000)),
     @"entity": @"app"
   } mutableCopy];
@@ -329,19 +382,6 @@ RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCT
     method_setImplementation(isFirstResponder, newIsFirstResponder);
 
     NSLog(@"[%@] Enhanced keyboard and focus state swizzling enabled", LOG_TAG);
-}
-
-// Update the checkIfContainsStorybookError method
-RCT_EXPORT_METHOD(checkIfContainsStorybookError:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        @try {
-            UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
-            BOOL containsError = [StorybookErrorHelper checkIfContainsStorybookError:keyWindow];
-            resolve(@(containsError));
-        } @catch (NSException *exception) {
-            reject(@"error", @"Error checking for Storybook error", nil);
-        }
-    });
 }
 
 @end

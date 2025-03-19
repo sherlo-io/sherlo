@@ -1,15 +1,20 @@
 import { Snapshot } from '../../types';
 
 export type RunnerState = {
-  filteredViewIds: String[];
+  filteredViewIds: string[];
   snapshotIndex: number;
   updateTimestamp: number;
   retry?: boolean;
 };
 
 export type Config = {
-  exclude: string[] | string;
-  include: string[] | string;
+  stabilization: {
+    requiredMatches: number;
+    intervalMs: number;
+    timeoutMs: number;
+  };
+  overrideMode?: 'default' | 'storybook' | 'testing' | 'verification';
+  expoUpdateDeeplink?: string;
 };
 
 export type LogFn = (key: string, parameters?: Record<string, any>) => void;
@@ -17,7 +22,8 @@ export type SendFn = (protocolItem: AppProtocolItem) => Promise<RunnerProtocolIt
 export type GetLastStateFn = () => Promise<
   | {
       nextSnapshotIndex: number;
-      filteredViewIds: String[];
+      filteredViewIds: string[];
+      requestId: string;
     }
   | undefined
 >;
@@ -37,17 +43,21 @@ export type AppProtocolItem =
       snapshotIndex: number;
       hasError?: boolean;
       inspectorData?: string;
+      isStable?: boolean;
+      requestId: string;
     };
 
 export type AckStartProtocolItem = {
   action: 'ACK_START';
-  filteredViewIds: String[];
+  filteredViewIds: string[];
   nextSnapshotIndex: number;
+  requestId: string;
 };
 
 export type AckRequestSnapshotProtocolItem = {
   action: 'ACK_REQUEST_SNAPSHOT';
   nextSnapshotIndex: number;
+  requestId: string;
 };
 
 export type RunnerProtocolItem = AckStartProtocolItem | AckRequestSnapshotProtocolItem;

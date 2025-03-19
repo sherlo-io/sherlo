@@ -26,7 +26,9 @@ function send(path: string, log: LogFn): SendFn {
         ms: number,
         mockedResponseItem: RunnerProtocolItem
       ): Promise<void> => {
-        if (getGlobalStates().testConfig) {
+        const shouldFakeRunner = getGlobalStates().testStoryId !== undefined;
+
+        if (shouldFakeRunner) {
           await new Promise<void>((r) => setTimeout(() => r(), ms));
           clearInterval(ackReadInterval);
           resolve(mockedResponseItem);
@@ -46,20 +48,25 @@ function send(path: string, log: LogFn): SendFn {
             switch (protocolItem.action) {
               case 'START':
                 hasAck = responseItem.action === 'ACK_START';
+
+                const storyIndex = protocolItem.snapshots.findIndex(
+                  (snapshot) => snapshot.storyId === getGlobalStates().testStoryId
+                );
+
                 await resolveForTestMode(1000, {
                   action: 'ACK_START',
-                  nextSnapshotIndex: 0,
+                  nextSnapshotIndex: storyIndex,
                   filteredViewIds: protocolItem.snapshots.map((snapshot) => snapshot.viewId),
+                  requestId: 'fake-request-id',
                 });
                 break;
+
               case 'REQUEST_SNAPSHOT':
                 hasAck = responseItem.action === 'ACK_REQUEST_SNAPSHOT';
-                await resolveForTestMode(1 * 1000, {
-                  action: 'ACK_REQUEST_SNAPSHOT',
-                  nextSnapshotIndex: protocolItem.snapshotIndex + 1,
-                });
                 break;
+
               default:
+                throw new Error('Unknown action');
             }
 
             if (hasAck) {
