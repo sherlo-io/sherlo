@@ -26,7 +26,7 @@ async function asyncUploadBuildAndRunTests({
   const buildPath = getBuildPath({ easBuildProfile, platform });
 
   const { apiToken, projectIndex, teamId } = getTokenParts(token);
-  const client = sdkClient(apiToken);
+  const client = sdkClient({ authToken: apiToken });
 
   const { binariesInfo } = await getValidatedBinariesInfoAndNextBuildIndex({
     buildPath,

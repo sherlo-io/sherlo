@@ -1,27 +1,12 @@
 import sdkClient from '@sherlo/sdk-client';
 import { getTokenParts, reporting } from '../../../helpers';
 
-async function trackProgress({}: {
-  event: string;
-  params: Record<string, any>;
-  sessionId: string | null;
-  hasStarted?: boolean;
-  hasFinished?: boolean;
-  token?: string;
-}): Promise<{ sessionId: string }> {
-  return { sessionId: '123' };
-}
-
-export default trackProgress;
-
-/* ========================================================================== */
-
-async function trackProgress2({
+async function trackProgress({
   event,
   hasStarted,
   hasFinished,
   params,
-  sessionId: passedSessionId,
+  sessionId,
   token,
 }: {
   event: string;
@@ -32,21 +17,18 @@ async function trackProgress2({
   token?: string;
 }): Promise<{ sessionId: string }> {
   const { apiToken, projectIndex, teamId } = token ? getTokenParts(token) : {};
-  // @ts-ignore
-  const client = sdkClient(apiToken);
 
-  const { sessionId } = await client
-    // @ts-ignore
+  return sdkClient({ authToken: apiToken })
     .trackCliInit({
       event,
       stringifiedParams: JSON.stringify(params),
       hasStarted,
       hasFinished,
-      sessionId: passedSessionId,
+      sessionId,
       teamId,
       projectIndex,
     })
     .catch((error: Error) => reporting.captureException(error));
-
-  return { sessionId };
 }
+
+export default trackProgress;

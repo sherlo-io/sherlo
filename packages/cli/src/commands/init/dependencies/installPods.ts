@@ -5,6 +5,7 @@ import { join } from 'path';
 import { logWarning, runShellCommand, throwError } from '../../../helpers';
 import { getCwd, trackProgress } from '../helpers';
 import { EVENT } from './constants';
+
 const IOS_DIR = 'ios';
 
 async function installPods(sessionId: string): Promise<void> {

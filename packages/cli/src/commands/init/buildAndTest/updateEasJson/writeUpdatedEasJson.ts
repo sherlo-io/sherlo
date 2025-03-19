@@ -42,7 +42,7 @@ async function writeEasJson(easJson: Record<string, any>): Promise<void> {
 async function getIndentStyle(): Promise<string> {
   const defaultIndentStyle = '  '; // Default to 2 spaces
 
-  if (!hasEasJsonFile()) return defaultIndentStyle; // Default to 2 spaces
+  if (!hasEasJsonFile()) return defaultIndentStyle;
 
   const easJsonPath = getEasJsonPath();
 

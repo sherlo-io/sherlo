@@ -6,7 +6,7 @@ async function hasDependency(
 ): Promise<boolean> {
   if (!packageJsonPath) return false;
 
-  const dependencies = await readDependencies(packageJsonPath);
+  const dependencies = await readAllDependencies(packageJsonPath);
 
   return !!dependencies[packageName];
 }
@@ -15,7 +15,7 @@ export default hasDependency;
 
 /* ========================================================================== */
 
-async function readDependencies(packageJsonPath: string): Promise<Record<string, string>> {
+async function readAllDependencies(packageJsonPath: string): Promise<Record<string, string>> {
   let packageJson;
 
   try {

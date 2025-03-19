@@ -79,7 +79,7 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
   // Build failed on Expo servers
   if (process.env.EAS_BUILD_STATUS === 'errored') {
     const { apiToken, projectIndex, teamId } = getTokenParts(token);
-    const client = sdkClient(apiToken);
+    const client = sdkClient({ authToken: apiToken });
 
     await client
       .closeBuild({

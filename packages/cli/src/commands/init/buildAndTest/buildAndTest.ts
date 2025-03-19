@@ -24,7 +24,7 @@ async function buildAndTest({
 }): Promise<void> {
   printTitle('🏗️ Build & Test');
 
-  printSubtitle('1) Build your app for simulators...', false);
+  printSubtitle('1) Build your app for simulators...', { hasTopMargin: false });
 
   printBuildWarning(hasUpdatedStorybookComponent);
 

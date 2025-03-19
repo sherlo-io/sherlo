@@ -5,7 +5,7 @@ async function printTitle(title: string) {
   console.log();
 
   console.log(chalk.bold(title));
-  console.log(chalk.dim('═'.repeat(title.length))); // longer
+  console.log(chalk.dim('═'.repeat(title.length)));
 
   console.log();
 }

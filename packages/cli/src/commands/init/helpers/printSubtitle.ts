@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 
-function printSubtitle(title: string, hasTopMargin = true) {
+function printSubtitle(title: string, { hasTopMargin = true }: { hasTopMargin?: boolean } = {}) {
   if (hasTopMargin) {
     console.log();
     console.log();

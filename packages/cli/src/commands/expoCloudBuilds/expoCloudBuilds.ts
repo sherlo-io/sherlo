@@ -43,7 +43,7 @@ async function expoCloudBuilds(passedOptions: Options<THIS_COMMAND>) {
   validatePackageJsonScripts(commandParams);
 
   const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
-  const client = sdkClient(apiToken);
+  const client = sdkClient({ authToken: apiToken });
 
   const { build } = await client
     .openBuild({

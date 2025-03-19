@@ -10,7 +10,6 @@ async function isAlreadyUpdated(): Promise<boolean> {
   const profileName = getBuildProfileName();
   const profileConfig = getBuildProfileConfig();
 
-  // Dynamically check all values from BUILD_PROFILE
   if (!easJson.build?.[profileName]) return false;
 
   const existingProfile = easJson.build[profileName];
