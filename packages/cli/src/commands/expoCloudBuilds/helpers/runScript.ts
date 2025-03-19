@@ -43,7 +43,10 @@ function runScript({
     args = ['run', scriptName];
   }
 
-  // TODO: can be replaced with runShellCommand?
+  /**
+   * Using spawn() instead of runShellCommand() to preserve output formatting
+   * and handle events like close/exit/SIGINT
+   */
   const childProcess = spawn(command, args, { stdio: 'inherit' });
 
   ['close', 'exit'].forEach((event) => childProcess.on(event, onExit));

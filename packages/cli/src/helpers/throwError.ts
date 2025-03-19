@@ -19,7 +19,7 @@ type ErrorType = 'default' | 'auth' | 'unexpected';
 function throwError(params: Params): never {
   let type: ErrorType;
   let message: string;
-  let unexpectedError: Error | undefined;
+  let unexpectedError: (Error & { stdout?: string; stderr?: string }) | undefined;
   let learnMoreLink: string | undefined;
 
   if (params.type === 'unexpected') {
@@ -32,16 +32,24 @@ function throwError(params: Params): never {
     learnMoreLink = params.learnMoreLink;
   }
 
-  const errorMessageParts = [chalk.red(`${LABEL[type]}: ${message}`)];
-
-  if (type === 'unexpected') {
-    const location = getCallerLocation();
-    if (location) errorMessageParts.push(chalk.dim(`(in ${location})`));
-  }
-
-  const errorMessage = errorMessageParts.join(' ');
+  const errorMessage = chalk.red(`${LABEL[type]}: ${message.trim()}`);
 
   const lines = [errorMessage];
+
+  if (unexpectedError) {
+    const location = getCallerLocation();
+    if (location) lines.push(chalk.dim(`(in ${location})`));
+
+    const { stdout, stderr } = unexpectedError;
+
+    if (stdout && stdout.length > 0) {
+      lines.push(`\n${stdout}`);
+    }
+
+    if (stderr && stderr.length > 0) {
+      lines.push(`\n${stderr}`);
+    }
+  }
 
   if (learnMoreLink) {
     lines.push(chalk.dim(`↳ Learn more: ${printLink(learnMoreLink)}`));

@@ -22,9 +22,11 @@ async function runShellCommand({
       cwd: string;
       maxBuffer: number;
       encoding?: BufferEncoding | null;
+      env: NodeJS.ProcessEnv;
     } = {
       cwd: projectRoot,
       maxBuffer: 1 * 1024 * 1024 * 1024, // 1GB max buffer - very safe limit
+      env: { ...process.env, FORCE_COLOR: 'true' },
     };
 
     // Set encoding only if it's 'utf8', for 'buffer' we don't set it to get Buffer output
@@ -37,10 +39,16 @@ async function runShellCommand({
     exec(
       command,
       options,
-      (error: ExecException | null, stdout: string | Buffer, _stderr: string | Buffer) => {
+      (error: ExecException | null, stdout: string | Buffer, stderr: string | Buffer) => {
         if (error) {
-          reject(error);
-          return;
+          const enhancedError = new Error(`\`${command}\` command failed`);
+
+          Object.assign(enhancedError, {
+            stdout: stdout.toString('utf8').trim(),
+            stderr: stderr.toString('utf8').trim(),
+          });
+
+          reject(enhancedError);
         }
 
         if (typeof stdout === 'string') {
