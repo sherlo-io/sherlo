@@ -1,4 +1,3 @@
-export { default as getCwd } from './getCwd';
 export { default as printMessage } from './printMessage';
 export { default as printSubtitle } from './printSubtitle';
 export { default as printTitle } from './printTitle';

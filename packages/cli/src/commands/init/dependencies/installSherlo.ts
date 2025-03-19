@@ -3,8 +3,8 @@ import { readFile } from 'fs/promises';
 import ora from 'ora';
 import { detect, resolveCommand } from 'package-manager-detector';
 import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../constants';
-import { runShellCommand, throwError } from '../../../helpers';
-import { getCwd, trackProgress } from '../helpers';
+import { getCwd, runShellCommand, throwError } from '../../../helpers';
+import { trackProgress } from '../helpers';
 import { EVENT } from './constants';
 
 async function installSherlo(sessionId: string): Promise<void> {

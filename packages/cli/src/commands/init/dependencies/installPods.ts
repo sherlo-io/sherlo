@@ -2,8 +2,8 @@ import chalk from 'chalk';
 import { existsSync } from 'fs';
 import ora from 'ora';
 import { join } from 'path';
-import { logWarning, runShellCommand, throwError } from '../../../helpers';
-import { getCwd, trackProgress } from '../helpers';
+import { getCwd, logWarning, runShellCommand, throwError } from '../../../helpers';
+import { trackProgress } from '../helpers';
 import { EVENT } from './constants';
 
 const IOS_DIR = 'ios';

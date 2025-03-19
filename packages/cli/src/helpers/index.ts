@@ -6,6 +6,7 @@ export { default as validatePackages } from './validatePackages';
 
 export { default as getAppBuildUrl } from './getAppBuildUrl';
 export { default as getBuildRunConfig } from './getBuildRunConfig';
+export { default as getCwd } from './getCwd';
 export { default as getGitInfo } from './getGitInfo';
 export { default as getPackageVersion } from './getPackageVersion';
 export { default as getPlatformsToTest } from './getPlatformsToTest';

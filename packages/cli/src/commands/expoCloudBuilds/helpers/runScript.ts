@@ -2,6 +2,7 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { DEFAULT_PROJECT_ROOT } from '../../../constants';
+import { getCwd } from '../../../helpers';
 
 function runScript({
   projectRoot,
@@ -76,7 +77,7 @@ function detectPackageManager(): 'npm' | 'yarn' | 'pnpm' {
   function detectByLockFile() {
     const depth = 3; // Check current, parent, and grandparent directories to cover monorepo cases
     const lockFiles = ['yarn.lock', 'pnpm-lock.yaml', 'package-lock.json'];
-    let currentPath = process.cwd();
+    let currentPath = getCwd();
 
     for (let i = 0; i < depth; i++) {
       for (const lockFile of lockFiles) {

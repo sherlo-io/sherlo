@@ -1,5 +1,4 @@
-import { runShellCommand, reporting } from '../../../helpers';
-import { getCwd } from '../helpers';
+import { getCwd, runShellCommand, reporting } from '../../../helpers';
 
 async function getEnvInfo(): Promise<Record<string, any>> {
   let result;

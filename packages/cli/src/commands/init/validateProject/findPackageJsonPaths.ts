@@ -2,7 +2,7 @@ import { findUp } from 'find-up';
 import { existsSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { dirname, join } from 'path';
-import { getCwd } from '../helpers';
+import { getCwd } from '../../../helpers';
 
 async function findPackageJsonPaths(): Promise<{
   current: string | null;

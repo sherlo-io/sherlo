@@ -1,6 +1,6 @@
 import { join } from 'path';
 import { DEFAULT_CONFIG_FILENAME } from '../../../constants';
-import { getCwd } from '../helpers';
+import { getCwd } from '../../../helpers';
 
 function getConfigPath(): string {
   const cwd = getCwd();

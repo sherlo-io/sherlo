@@ -1,6 +1,6 @@
 import fastGlob from 'fast-glob';
 import { readFile } from 'fs/promises';
-import { getCwd } from '../helpers';
+import { getCwd } from '../../../helpers';
 import {
   NEW_CALL_WITHOUT_PARAMS,
   OLD_CALL_WITHOUT_PARAMS,
