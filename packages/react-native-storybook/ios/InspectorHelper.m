@@ -1,7 +1,58 @@
 #import "InspectorHelper.h"
+#import "ErrorHelper.h"
+#import "StableUIChecker.h"
 #import <UIKit/UIKit.h>
 
 @implementation InspectorHelper
+
+#pragma mark - Instance Methods
+
+- (instancetype)initWithErrorHelper:(ErrorHelper *)errorHelper {
+    self = [super init];
+    if (self) {
+        _errorHelper = errorHelper;
+    }
+    return self;
+}
+
+- (void)getInspectorDataWithResolver:(RCTPromiseResolveBlock)resolve
+                            rejecter:(RCTPromiseRejectBlock)reject {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NSError *error = nil;
+        NSString *jsonString = [InspectorHelper dumpBoundaries:&error];
+        
+        if (error) {
+            reject(@"E_INSPECTOR", @"Error getting inspector data", error);
+            return;
+        }
+        
+        if (!jsonString) {
+            reject(@"E_INSPECTOR", @"Failed to generate inspector data", nil);
+            return;
+        }
+        
+        resolve(jsonString);
+    });
+}
+
+- (void)checkIfStableWithRequiredMatches:(NSInteger)requiredMatches
+                              intervalMs:(NSInteger)intervalMs
+                               timeoutMs:(NSInteger)timeoutMs
+                                resolver:(RCTPromiseResolveBlock)resolve
+                                rejecter:(RCTPromiseRejectBlock)reject {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        StableUIChecker *checker = [[StableUIChecker alloc] init];
+        
+        [checker checkIfStableWithRequiredMatches:requiredMatches
+                                      intervalMs:intervalMs
+                                       timeoutMs:timeoutMs
+                                      completion:^(BOOL isStable) {
+            resolve(@(isStable));
+        }];
+    });
+}
+
+#pragma mark - Class Methods
 
 + (NSString *)dumpBoundaries:(NSError **)error {
     UIWindow *keyWindow = nil;

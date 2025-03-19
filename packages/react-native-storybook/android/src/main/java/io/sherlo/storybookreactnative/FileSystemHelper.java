@@ -4,6 +4,7 @@ import android.content.Context;
 import android.net.Uri;
 import android.util.Base64;
 import android.util.Log;
+import com.facebook.react.bridge.Promise;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -14,10 +15,78 @@ import java.io.OutputStream;
 public class FileSystemHelper {
     private static final String TAG = "FileSystemHelper";
     private final Context context;
+    private final ErrorHelper errorHelper;
 
     public FileSystemHelper(Context context) {
         this.context = context;
+        this.errorHelper = null; // Will be properly set in other constructor
     }
+    
+    public FileSystemHelper(Context context, ErrorHelper errorHelper) {
+        this.context = context;
+        this.errorHelper = errorHelper;
+    }
+
+    /**
+     * Creates a directory at the specified path.
+     *
+     * @param filepath The path where to create the directory
+     * @param promise The promise to resolve or reject
+     */
+    public void mkdir(String filepath, Promise promise) {
+        try {
+            mkdir(filepath);
+            promise.resolve(null);
+        } catch (Exception e) {
+            handleError("ERROR_MKDIR", e, promise, "Error creating directory: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Appends base64 encoded data to a file.
+     *
+     * @param filepath The path of the file to append to
+     * @param base64Content The base64 encoded content to append
+     * @param promise The promise to resolve or reject
+     */
+    public void appendFile(String filepath, String base64Content, Promise promise) {
+        try {
+            appendFile(filepath, base64Content);
+            promise.resolve(null);
+        } catch (Exception e) {
+            handleError("ERROR_APPEND_FILE", e, promise, "Error appending to file: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Reads a file and returns its content as base64 encoded string.
+     *
+     * @param filepath The path of the file to read
+     * @param promise The promise to resolve or reject
+     */
+    public void readFile(String filepath, Promise promise) {
+        try {
+            String base64Content = readFile(filepath);
+            if (base64Content == null || base64Content.isEmpty()) {
+                promise.reject("error_read_file", "File content is empty or could not be encoded to base64");
+            } else {
+                promise.resolve(base64Content);
+            }
+        } catch (Exception e) {
+            handleError("ERROR_READ_FILE", e, promise, "Error reading file: " + e.getMessage());
+        }
+    }
+    
+    private void handleError(String errorCode, Exception e, Promise promise, String message) {
+        if (errorHelper != null) {
+            errorHelper.handleException(errorCode, e);
+        } else {
+            Log.e(TAG, message, e);
+        }
+        promise.reject(errorCode.toLowerCase(), message, e);
+    }
+
+    // Original methods preserved as they are called by the Promise-based methods
 
     public void mkdir(String filepath) throws Exception {
         File file = new File(filepath);
