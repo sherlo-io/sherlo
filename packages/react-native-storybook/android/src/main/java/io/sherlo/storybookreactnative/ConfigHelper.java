@@ -78,21 +78,4 @@ public class ConfigHelper {
         }
         return null;
     }
-
-    /**
-     * Check if the config has an Expo update deeplink.
-     * 
-     * @param config The config object
-     * @return The Expo update deeplink or null if not present
-     */
-    public String getExpoUpdateDeeplink(JSONObject config) {
-        try {
-            if (config.has("expoUpdateDeeplink")) {
-                return config.getString("expoUpdateDeeplink");
-            }
-        } catch (JSONException e) {
-            Log.e(TAG, "Error reading expoUpdateDeeplink: " + e.getMessage());
-        }
-        return null;
-    }
 } 

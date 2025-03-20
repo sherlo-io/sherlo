@@ -11,7 +11,6 @@ import java.io.File;
  */
 public class ModuleInitHelper {
     public static final String TAG = "ModuleInitHelper";
-    private static int expoUpdateDeeplinkConsumeCount = 0;
 
     /**
      * Initialize the Sherlo module.
@@ -52,22 +51,7 @@ public class ModuleInitHelper {
                     return result;
                 }
                 
-                // Check for expo update deeplink
-                String expoUpdateDeeplink = configHelper.getExpoUpdateDeeplink(result.config);
-                if (expoUpdateDeeplink != null) {
-                    Log.i(TAG, "Expo update deeplink found");
-                    
-                    if (expoUpdateDeeplinkConsumeCount < 1) {
-                        expoUpdateDeeplinkConsumeCount++;
-                    } else {
-                        // After the URL has been consumed twice, we are in testing mode
-                        result.mode = ModeHelper.MODE_TESTING;
-                    }
-                } else {
-                    // If no expo update deeplink, immediately set to testing mode
-                    Log.i(TAG, "No expo update deeplink, setting to testing mode");
-                    result.mode = ModeHelper.MODE_TESTING;
-                }
+                result.mode = ModeHelper.MODE_TESTING;
             }
         } catch (Exception e) {
             Log.e(TAG, "Failed to initialize SherloModule", e);
