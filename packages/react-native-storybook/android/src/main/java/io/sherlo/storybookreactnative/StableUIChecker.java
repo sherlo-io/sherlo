@@ -37,41 +37,23 @@ public class StableUIChecker {
             throw new RuntimeException("Impossible to snapshot the view: view is invalid");
         }
 
-        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        // Use RGB_565 instead of ARGB_8888 to reduce memory usage (half the bits per pixel)
+        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
         Canvas canvas = new Canvas(bitmap);
         
-        // Draw the view hierarchy to the canvas
         rootView.draw(canvas);
-
-        // Handle any SurfaceViews if they exist (Android N and above)
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-            final CountDownLatch latch = new CountDownLatch(1);
-            
-            PixelCopy.request(activity.getWindow(), bitmap, new PixelCopy.OnPixelCopyFinishedListener() {
-                @Override
-                public void onPixelCopyFinished(int copyResult) {
-                    latch.countDown();
-                }
-            }, new Handler(Looper.getMainLooper()));
-
-            try {
-                // Wait for the pixel copy to complete (timeout after 2 seconds)
-                latch.await(2, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                // Handle interruption
-            }
-        }
 
         return bitmap;
     }
 
     /**
-     * Compares two bitmaps by checking pixel arrays.
+     * Compares two bitmaps by checking pixel arrays with early exit on difference.
      */
     public boolean areBitmapsEqual(Bitmap bmp1, Bitmap bmp2) {
         if (bmp1.getWidth() != bmp2.getWidth() || bmp1.getHeight() != bmp2.getHeight()) {
             return false;
         }
+        
         int width = bmp1.getWidth();
         int height = bmp1.getHeight();
         int[] pixels1 = new int[width * height];
@@ -91,50 +73,46 @@ public class StableUIChecker {
      */
     public void checkIfStable(final int requiredMatches, final int intervalMs, final int timeoutMs,
                               final StabilityCallback callback) {
-        // Handler to post work on the main thread.
         final Handler handler = new Handler(Looper.getMainLooper());
-
-        // Capture the initial screenshot.
         final Bitmap[] lastScreenshot = new Bitmap[1];
+        final long startTime = System.currentTimeMillis();
+        
         lastScreenshot[0] = captureScreenshot();
+        startStabilityCheck(requiredMatches, intervalMs, timeoutMs, callback, handler, lastScreenshot, startTime);
+    }
 
+    private void startStabilityCheck(final int requiredMatches, final int intervalMs, final int timeoutMs,
+                                   final StabilityCallback callback, final Handler handler, 
+                                   final Bitmap[] lastScreenshot, final long startTime) {
         final int[] consecutiveMatches = {0};
-        final int[] elapsedTime = {0};
 
-        // Runnable that performs screenshot capturing and comparison.
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
                 Bitmap currentScreenshot = captureScreenshot();
+                long elapsedTime = System.currentTimeMillis() - startTime;
 
                 if (areBitmapsEqual(currentScreenshot, lastScreenshot[0])) {
                     consecutiveMatches[0]++;
                 } else {
-                    consecutiveMatches[0] = 0; // Reset if screenshots don't match.
+                    consecutiveMatches[0] = 0;
                 }
 
-                // Recycle the previous bitmap to free memory.
                 if (lastScreenshot[0] != null && !lastScreenshot[0].isRecycled()) {
                     lastScreenshot[0].recycle();
                 }
                 lastScreenshot[0] = currentScreenshot;
 
-                elapsedTime[0] += intervalMs;
-
                 if (consecutiveMatches[0] >= requiredMatches) {
-                    // Sufficient consecutive matches found.
                     callback.onResult(true);
-                } else if (elapsedTime[0] >= timeoutMs) {
-                    // Timeout reached without achieving stability.
+                } else if (elapsedTime >= timeoutMs) {
                     callback.onResult(false);
                 } else {
-                    // Schedule next check.
-                    handler.postDelayed(this, intervalMs);
+                    handler.postDelayed(this, Math.max(intervalMs, 1));
                 }
             }
         };
 
-        // Start the first delayed check.
-        handler.postDelayed(runnable, intervalMs);
+        handler.postDelayed(runnable, Math.max(intervalMs, 1));
     }
 }

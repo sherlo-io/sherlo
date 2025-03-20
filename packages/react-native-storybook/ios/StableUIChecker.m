@@ -10,12 +10,14 @@
   dispatch_async(dispatch_get_main_queue(), ^{
     __block UIImage *lastScreenshot = [self captureScreenshot];
     __block NSInteger consecutiveMatches = 0;
-    __block NSInteger elapsedTime = 0;
+    NSDate *startTime = [NSDate date];
     
-    [NSTimer scheduledTimerWithTimeInterval:(intervalMs / 1000.0)
+    [NSTimer scheduledTimerWithTimeInterval:(MAX(intervalMs, 1) / 1000.0)
                                   repeats:YES
                                     block:^(NSTimer * _Nonnull t) {
       UIImage *currentScreenshot = [self captureScreenshot];
+      NSTimeInterval elapsedSeconds = -[startTime timeIntervalSinceNow];
+      NSInteger elapsedMs = (NSInteger)(elapsedSeconds * 1000);
       
       if ([self image:currentScreenshot isEqualToImage:lastScreenshot]) {
         consecutiveMatches++;
@@ -25,7 +27,6 @@
       
       // Update the last screenshot for the next iteration.
       lastScreenshot = currentScreenshot;
-      elapsedTime += intervalMs;
       
       // Check if we have achieved the required number of consecutive matches.
       if (consecutiveMatches >= requiredMatches) {
@@ -33,7 +34,7 @@
         completion(YES);
       }
       // Check if we've exceeded the timeout.
-      else if (elapsedTime >= timeoutMs) {
+      else if (elapsedMs >= timeoutMs) {
         [t invalidate];
         completion(NO);
       }
@@ -43,9 +44,22 @@
 
 // Helper method to capture a screenshot of the key window.
 - (UIImage *)captureScreenshot {
-  UIWindow *keyWindow = [UIApplication sharedApplication].keyWindow;
-  UIGraphicsBeginImageContextWithOptions(keyWindow.bounds.size, NO, [UIScreen mainScreen].scale);
-  [keyWindow drawViewHierarchyInRect:keyWindow.bounds afterScreenUpdates:NO];
+  UIWindow *window = nil;
+  if (@available(iOS 13.0, *)) {
+    NSSet<UIScene *> *scenes = UIApplication.sharedApplication.connectedScenes;
+    UIScene *scene = scenes.allObjects.firstObject;
+    if ([scene isKindOfClass:[UIWindowScene class]]) {
+      UIWindowScene *windowScene = (UIWindowScene *)scene;
+      window = windowScene.windows.firstObject;
+    }
+  }
+  
+  if (!window) {
+    return nil;
+  }
+  
+  UIGraphicsBeginImageContextWithOptions(window.bounds.size, NO, [UIScreen mainScreen].scale);
+  [window drawViewHierarchyInRect:window.bounds afterScreenUpdates:NO];
   UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
   UIGraphicsEndImageContext();
   return image;
