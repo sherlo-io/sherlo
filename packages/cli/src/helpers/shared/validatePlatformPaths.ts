@@ -170,12 +170,16 @@ function getError(error: PlatformPathError, command: Command) {
       };
     case 'invalidAndroidFileType':
       return {
-        message: `Invalid Android build file type. Expected: ${formatValidFileTypes('android')} file, got: "${error.path}"`,
+        message: `Invalid Android build file type. Expected: ${formatValidFileTypes(
+          'android'
+        )} file, got: "${error.path}"`,
         learnMoreLink: learnMoreLink.android,
       };
     case 'invalidIosFileType':
       return {
-        message: `Invalid iOS build file type. Expected: ${formatValidFileTypes('ios')} file, got: "${error.path}"`,
+        message: `Invalid iOS build file type. Expected: ${formatValidFileTypes(
+          'ios'
+        )} file, got: "${error.path}"`,
         learnMoreLink: learnMoreLink.ios,
       };
   }

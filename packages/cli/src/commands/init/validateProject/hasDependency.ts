@@ -1,4 +1,5 @@
 import { readFile } from 'fs/promises';
+import { getEnhancedError, throwError } from '../../../helpers';
 
 async function hasDependency(
   packageJsonPath: string | null,
@@ -20,8 +21,11 @@ async function readAllDependencies(packageJsonPath: string): Promise<Record<stri
 
   try {
     packageJson = JSON.parse(await readFile(packageJsonPath, 'utf-8'));
-  } catch {
-    return {};
+  } catch (error) {
+    throwError({
+      type: 'unexpected',
+      error: getEnhancedError(`Invalid ${packageJsonPath}`, error),
+    });
   }
 
   return {

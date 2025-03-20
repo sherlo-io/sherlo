@@ -1,5 +1,5 @@
 import { readFile, writeFile } from 'fs/promises';
-import { throwError } from '../../../../helpers';
+import { getEnhancedError, throwError } from '../../../../helpers';
 import getBuildProfileName from './getBuildProfileName';
 import getBuildProfileConfig from './getBuildProfileConfig';
 import getEasJsonPath from './getEasJsonPath';
@@ -50,7 +50,10 @@ async function getIndentStyle(): Promise<string> {
   try {
     easJsonContent = await readFile(easJsonPath, 'utf-8');
   } catch (error) {
-    throwError({ type: 'unexpected', error });
+    throwError({
+      type: 'unexpected',
+      error: getEnhancedError(`Invalid ${easJsonPath}`, error),
+    });
   }
 
   /**

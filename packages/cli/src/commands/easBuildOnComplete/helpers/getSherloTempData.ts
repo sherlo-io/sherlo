@@ -5,7 +5,7 @@ import {
   SHERLO_TEMP_DATA_FILENAME,
   SHERLO_TEMP_DIRECTORY,
 } from '../../../constants';
-import { logWarning, throwError } from '../../../helpers';
+import { getEnhancedError, logWarning, throwError } from '../../../helpers';
 
 function getSherloTempData(): { buildIndex: number; token: string } | undefined {
   const SHERLO_TEMP_FILE_PATH = [SHERLO_TEMP_DIRECTORY, SHERLO_TEMP_DATA_FILENAME].join('/');
@@ -27,7 +27,17 @@ function getSherloTempData(): { buildIndex: number; token: string } | undefined 
     return;
   }
 
-  const { buildIndex, token } = JSON.parse(fs.readFileSync(SHERLO_TEMP_FILE_PATH, 'utf8'));
+  let sherloTempData;
+  try {
+    sherloTempData = JSON.parse(fs.readFileSync(SHERLO_TEMP_FILE_PATH, 'utf8'));
+  } catch (error) {
+    throwError({
+      type: 'unexpected',
+      error: getEnhancedError(`Invalid ${SHERLO_TEMP_FILE_PATH}`, error),
+    });
+  }
+
+  const { buildIndex, token } = sherloTempData;
 
   if (typeof buildIndex !== 'number') {
     throwError({

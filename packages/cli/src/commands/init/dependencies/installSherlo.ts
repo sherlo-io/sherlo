@@ -2,8 +2,9 @@ import chalk from 'chalk';
 import { readFile } from 'fs/promises';
 import ora from 'ora';
 import { detect, resolveCommand } from 'package-manager-detector';
+import { join } from 'path';
 import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../constants';
-import { getCwd, runShellCommand, throwError } from '../../../helpers';
+import { getCwd, getEnhancedError, runShellCommand, throwError } from '../../../helpers';
 import { trackProgress } from '../helpers';
 import { EVENT } from './constants';
 
@@ -12,7 +13,21 @@ async function installSherlo(sessionId: string): Promise<void> {
 
   const event = `${EVENT}:installSherlo`;
 
-  const packageJson = JSON.parse(await readFile('package.json', 'utf-8'));
+  let packageJson;
+  const packageJsonPath = join(getCwd(), 'package.json');
+  try {
+    packageJson = JSON.parse(await readFile(packageJsonPath, 'utf-8'));
+  } catch (error) {
+    spinner.fail();
+
+    console.log();
+
+    throwError({
+      type: 'unexpected',
+      error: getEnhancedError(`Invalid ${packageJsonPath}`, error),
+    });
+  }
+
   const isSherloAlreadyInDependencies =
     !!packageJson.dependencies[SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME];
 

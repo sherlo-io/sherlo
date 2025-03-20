@@ -1,26 +1,22 @@
 import { readFile } from 'fs/promises';
-import { throwError } from '../../../helpers';
+import { getEnhancedError, throwError } from '../../../helpers';
 import { InvalidatedConfig } from '../../../types';
 import getConfigPath from './getConfigPath';
 
 async function readConfig(): Promise<InvalidatedConfig> {
   const configPath = getConfigPath();
 
-  let content;
+  let sherloConfig: InvalidatedConfig;
   try {
-    content = await readFile(configPath, 'utf-8');
+    sherloConfig = JSON.parse(await readFile(configPath, 'utf-8'));
   } catch (error) {
-    throwError({ type: 'unexpected', error });
+    throwError({
+      type: 'unexpected',
+      error: getEnhancedError(`Invalid ${configPath}`, error),
+    });
   }
 
-  let parsedContent: InvalidatedConfig;
-  try {
-    parsedContent = JSON.parse(content);
-  } catch {
-    parsedContent = {}; // Return empty config if file exists but is invalid JSON
-  }
-
-  return parsedContent;
+  return sherloConfig;
 }
 
 export default readConfig;

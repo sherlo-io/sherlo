@@ -2,7 +2,8 @@ import { Platform } from '@sherlo/api-types';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { EXPO_UPDATE_COMMAND, PLATFORMS } from '../../../../constants';
+import { EXPO_UPDATE_COMMAND, PLATFORMS, PLATFORM_LABEL } from '../../../../constants';
+import { getEnhancedError } from '../../../../helpers';
 import { Command } from '../../../../types';
 import { validatePlatformPaths } from '../../../shared';
 import throwError from '../../../throwError';
@@ -54,6 +55,7 @@ async function getLocalBinariesInfo({
       }
 
       result[platform] = await getLocalBinaryInfoForPlatform({
+        platform,
         platformPath: paths[platform],
         sherloFilePath: SHERLO_JSON_PATH,
         expoDevFilePath: EXPO_DEV_FILE_PATH[platform],
@@ -70,11 +72,13 @@ export default getLocalBinariesInfo;
 /* ========================================================================== */
 
 async function getLocalBinaryInfoForPlatform({
+  platform,
   platformPath,
   sherloFilePath,
   expoDevFilePath,
   projectRoot,
 }: {
+  platform: Platform;
   platformPath: string;
   sherloFilePath: string;
   expoDevFilePath: string;
@@ -134,8 +138,21 @@ async function getLocalBinaryInfoForPlatform({
 
   const isExpoDev = await checkIsExpoDev();
 
+  let sdkVersion: string | undefined;
   const sherloFileContent = await readSherloFile();
-  const sdkVersion = sherloFileContent ? JSON.parse(sherloFileContent).version : undefined;
+  if (sherloFileContent) {
+    try {
+      sdkVersion = JSON.parse(sherloFileContent).version;
+    } catch (error) {
+      throwError({
+        type: 'unexpected',
+        error: getEnhancedError(
+          `Invalid ${SHERLO_JSON_PATH} in ${PLATFORM_LABEL[platform]} build`,
+          error
+        ),
+      });
+    }
+  }
 
   return { hash, isExpoDev, sdkVersion };
 }

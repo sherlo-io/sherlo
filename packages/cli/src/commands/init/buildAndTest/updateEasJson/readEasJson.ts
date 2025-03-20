@@ -1,25 +1,21 @@
 import { readFile } from 'fs/promises';
-import { throwError } from '../../../../helpers';
+import { getEnhancedError, throwError } from '../../../../helpers';
 import getEasJsonPath from './getEasJsonPath';
 
 async function readEasJson(): Promise<Record<string, any>> {
   const easJsonPath = getEasJsonPath();
 
-  let content;
+  let easJson: Record<string, any>;
   try {
-    content = await readFile(easJsonPath, 'utf-8');
+    easJson = JSON.parse(await readFile(easJsonPath, 'utf-8'));
   } catch (error) {
-    throwError({ type: 'unexpected', error });
+    throwError({
+      type: 'unexpected',
+      error: getEnhancedError(`Invalid ${easJsonPath}`, error),
+    });
   }
 
-  let parsedContent: Record<string, any>;
-  try {
-    parsedContent = JSON.parse(content);
-  } catch {
-    parsedContent = {}; // Return empty config if file exists but is invalid JSON
-  }
-
-  return parsedContent;
+  return easJson;
 }
 
 export default readEasJson;

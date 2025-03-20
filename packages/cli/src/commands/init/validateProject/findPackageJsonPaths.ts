@@ -2,7 +2,7 @@ import { findUp } from 'find-up';
 import { existsSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { dirname, join } from 'path';
-import { getCwd } from '../../../helpers';
+import { getCwd, getEnhancedError, throwError } from '../../../helpers';
 
 async function findPackageJsonPaths(): Promise<{
   current: string | null;
@@ -35,7 +35,16 @@ export default findPackageJsonPaths;
 const PACKAGE_JSON = 'package.json';
 
 async function isMonorepoRoot(packageJsonPath: string): Promise<boolean> {
-  const packageJson = JSON.parse(await readFile(packageJsonPath, 'utf-8'));
+  let packageJson;
+
+  try {
+    packageJson = JSON.parse(await readFile(packageJsonPath, 'utf-8'));
+  } catch (error) {
+    throwError({
+      type: 'unexpected',
+      error: getEnhancedError(`Invalid ${packageJsonPath}`, error),
+    });
+  }
 
   // Check for workspaces in package.json (npm/yarn/bun)
   if (packageJson.workspaces) return true;
