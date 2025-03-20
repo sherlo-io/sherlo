@@ -45,6 +45,8 @@ function Storybook({
       style={{
         flex: 1,
         paddingTop: uiSettings.shouldAddSafeArea ? insets.top : 0,
+        // TODO: Discuss with Dawid, this seems to fix the bottom pixel line issue on some iPhones
+        paddingBottom: 0,
         backgroundColor: uiSettings.theme.background.content,
       }}
     >
