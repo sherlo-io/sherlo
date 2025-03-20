@@ -47,6 +47,7 @@ async function runShellCommand({
           const stderrStr = stderr.toString('utf8').trim();
 
           Object.assign(enhancedError, {
+            ...error,
             stdout: stdoutStr.length > 0 ? stdoutStr : undefined,
             stderr: stderrStr.length > 0 ? stderrStr : undefined,
           });

@@ -99,14 +99,19 @@ function isUnexpectedError({
   tarVersion,
   type,
 }: Pick<Options, 'type'> & {
-  error: { status: number };
+  error: { code: number };
   tarVersion: TarVersion;
 }): boolean {
-  const isExpectedBsdTarError = type === 'tar' && tarVersion === 'BSD' && error.status === 1;
-  const isExpectedGnuTarError = type === 'tar' && tarVersion === 'GNU' && error.status === 2;
+  // https://man.openbsd.org/tar.1#EXIT_STATUS
+  const isExpectedBsdTarError = type === 'tar' && tarVersion === 'BSD' && error.code === 1;
+
+  // https://man7.org/linux/man-pages/man1/tar.1.html#RETURN_VALUE
+  const isExpectedGnuTarError = type === 'tar' && tarVersion === 'GNU' && error.code === 2;
+
   const isExpectedTarError = isExpectedBsdTarError || isExpectedGnuTarError;
 
-  const isExpectedUnzipError = type === 'unzip' && error.status === 11;
+  // https://linux.die.net/man/1/unzip
+  const isExpectedUnzipError = type === 'unzip' && error.code === 11;
 
   const isExpectedError = isExpectedTarError || isExpectedUnzipError;
 
