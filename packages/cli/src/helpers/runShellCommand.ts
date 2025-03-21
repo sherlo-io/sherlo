@@ -7,8 +7,9 @@ interface Options {
 }
 
 /**
- * Executes a shell command asynchronously with suppressed stderr output
- * @returns Promise that resolves to the command output with removed leading/trailing whitespace
+ * Executes a shell command asynchronously
+ * @returns Promise that resolves to the command stdout output with removed leading/trailing whitespace,
+ * or rejects with an enhanced error containing both stdout and stderr if the command fails
  */
 async function runShellCommand(options: Options & { encoding?: 'utf8' }): Promise<string>;
 async function runShellCommand(options: Options & { encoding: 'buffer' }): Promise<Buffer>;
