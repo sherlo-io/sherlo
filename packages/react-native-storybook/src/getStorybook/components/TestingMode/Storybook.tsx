@@ -1,6 +1,6 @@
 import { Theme } from '@storybook/react-native-theming';
 import { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VERIFICATION_TEST_ID } from '../../../constants';
 import { RunnerBridge } from '../../../helpers';
@@ -43,7 +43,7 @@ function Storybook({
     <View
       testID={VERIFICATION_TEST_ID}
       style={{
-        ...StyleSheet.absoluteFillObject,
+        flex: 1,
         paddingTop: uiSettings.shouldAddSafeArea ? insets.top : 0,
         backgroundColor: uiSettings.theme.background.content,
       }}
