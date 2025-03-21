@@ -25,7 +25,7 @@ function TestingMode({
 
   useTestAllStories({
     defaultTheme,
-    setUiSettings,
+    setUiSettings: () => {},
     view,
   });
 
