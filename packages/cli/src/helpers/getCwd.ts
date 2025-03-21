@@ -4,7 +4,7 @@ function getCwd(): string {
    * Package managers like yarn change process.cwd() to the directory with package.json
    * but we want to use the directory where user actually ran the command
    */
-  return process.env.INIT_CWD || process.cwd();
+  return process.env.INIT_CWD ?? process.cwd();
 }
 
 export default getCwd;
