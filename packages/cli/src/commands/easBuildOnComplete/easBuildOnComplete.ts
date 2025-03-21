@@ -1,4 +1,4 @@
-import SDKApiClient from '@sherlo/sdk-client';
+import sdkClient from '@sherlo/sdk-client';
 import {
   DOCS_LINK,
   EXPO_CLOUD_BUILDS_COMMAND,
@@ -9,7 +9,7 @@ import {
   getTokenParts,
   handleClientError,
   logInfo,
-  logSherloIntro,
+  printSherloIntro,
   throwError,
 } from '../../helpers';
 import { Options } from '../../types';
@@ -38,10 +38,12 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
       learnMoreLink: DOCS_LINK.commandLocalBuilds,
     });
 
+    console.log();
+
     return;
   }
 
-  logSherloIntro();
+  printSherloIntro();
 
   if (!passedProfile) {
     throwError({
@@ -61,6 +63,8 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
       learnMoreLink: DOCS_LINK.commandExpoCloudBuilds,
     });
 
+    console.log();
+
     return;
   }
 
@@ -75,7 +79,7 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
   // Build failed on Expo servers
   if (process.env.EAS_BUILD_STATUS === 'errored') {
     const { apiToken, projectIndex, teamId } = getTokenParts(token);
-    const client = SDKApiClient({ authToken: apiToken });
+    const client = sdkClient({ authToken: apiToken });
 
     await client
       .closeBuild({

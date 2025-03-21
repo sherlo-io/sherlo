@@ -1,5 +1,5 @@
 import { Platform } from '@sherlo/api-types';
-import SDKApiClient from '@sherlo/sdk-client';
+import sdkClient from '@sherlo/sdk-client';
 import { EAS_BUILD_ON_COMPLETE_COMMAND } from '../../constants';
 import { Command, CommandParams } from '../../types';
 import getPlatformsToTest from '../getPlatformsToTest';
@@ -11,7 +11,7 @@ import validateBinariesInfo from './validateBinariesInfo';
 type Params = EasBuildOnCompleteCommandParams | OtherCommandParams;
 
 type BaseParams = {
-  client: ReturnType<typeof SDKApiClient>;
+  client: ReturnType<typeof sdkClient>;
   projectIndex: number;
   teamId: string;
 };

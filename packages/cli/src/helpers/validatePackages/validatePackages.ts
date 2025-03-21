@@ -4,6 +4,7 @@ import {
   EXPO_DEV_CLIENT_PACKAGE_NAME,
   EXPO_PACKAGE_NAME,
   EXPO_UPDATE_COMMAND,
+  INIT_COMMAND,
   LOCAL_BUILDS_COMMAND,
   MIN_EXPO_UPDATE_EXPO_VERSION,
   MIN_REACT_NATIVE_VERSION,
@@ -45,6 +46,7 @@ const COMMAND_REQUIREMENTS: Record<Command, PackageRequirement[] | null> = {
   ],
   [EXPO_CLOUD_BUILDS_COMMAND]: [{ packageName: EXPO_PACKAGE_NAME }],
   [EAS_BUILD_ON_COMPLETE_COMMAND]: null,
+  [INIT_COMMAND]: null,
 };
 
 function validateCommandRequirements(command: Command) {

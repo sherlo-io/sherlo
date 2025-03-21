@@ -1,16 +1,16 @@
 import chalk from 'chalk';
-import { getLogLink } from './shared';
+import printLink from './printLink';
 
 function logInfo({ learnMoreLink, message }: { message: string; learnMoreLink?: string }): void {
   const infoMessage = chalk.blue(`INFO: ${message}`);
 
-  const infoLines = [infoMessage];
+  const lines = [infoMessage];
 
   if (learnMoreLink) {
-    infoLines.push(`↳ Learn more: ${getLogLink(learnMoreLink)}`);
+    lines.push(chalk.dim(`↳ Learn more: ${printLink(learnMoreLink)}`));
   }
 
-  console.log(infoLines.join('\n') + '\n');
+  console.log(lines.join('\n'));
 }
 
 export default logInfo;

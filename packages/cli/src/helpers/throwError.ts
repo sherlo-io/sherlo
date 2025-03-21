@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { getLogLink } from './shared';
+import printLink from './printLink';
 
 type Params = StandardErrorParams | UnexpectedErrorParams;
 
@@ -19,7 +19,7 @@ type ErrorType = 'default' | 'auth' | 'unexpected';
 function throwError(params: Params): never {
   let type: ErrorType;
   let message: string;
-  let unexpectedError: Error | undefined;
+  let unexpectedError: (Error & { stdout?: string; stderr?: string }) | undefined;
   let learnMoreLink: string | undefined;
 
   if (params.type === 'unexpected') {
@@ -32,20 +32,28 @@ function throwError(params: Params): never {
     learnMoreLink = params.learnMoreLink;
   }
 
-  const errorMessageParts = [chalk.red(`${LABEL[type]}: ${message}`)];
+  const errorMessage = chalk.red(`${LABEL[type]}: ${message.trim()}`);
 
-  if (type === 'unexpected') {
+  const lines = [errorMessage];
+
+  if (unexpectedError) {
     const location = getCallerLocation();
-    if (location) errorMessageParts.push(chalk.dim(`(in ${location})`));
+    const { stdout, stderr } = unexpectedError;
+
+    if (location) lines.push(chalk.dim(`(in ${location})`));
+
+    if (stdout) lines.push(`\n${stdout}`);
+
+    if (stderr) lines.push(`\n${stderr}`);
+
+    Object.assign(unexpectedError, { location });
   }
 
-  const errorMessage = errorMessageParts.join(' ');
+  if (learnMoreLink) {
+    lines.push(chalk.dim(`↳ Learn more: ${printLink(learnMoreLink)}`));
+  }
 
-  const errorLines = [errorMessage];
-
-  if (learnMoreLink) errorLines.push(`↳ Learn more: ${getLogLink(learnMoreLink)}`);
-
-  const error = new Error(errorLines.join('\n') + '\n');
+  const error = new Error(lines.join('\n') + '\n');
   if (unexpectedError) (error as any).unexpectedError = unexpectedError;
 
   throw error;

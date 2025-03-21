@@ -11,8 +11,8 @@ type BaseOptions = {
 type ReadOptions = BaseOptions & { operation: 'read' };
 type ExistsOptions = BaseOptions & { operation: 'exists' };
 
-function accessFileInArchive(options: ReadOptions): Promise<string | undefined>;
-function accessFileInArchive(options: ExistsOptions): Promise<boolean>;
+async function accessFileInArchive(options: ReadOptions): Promise<string | undefined>;
+async function accessFileInArchive(options: ExistsOptions): Promise<boolean>;
 async function accessFileInArchive({
   archive,
   file,
@@ -21,26 +21,31 @@ async function accessFileInArchive({
   projectRoot,
 }: Options): Promise<string | undefined | boolean> {
   const tarVersion = await detectTarVersion(projectRoot);
+  const command = await getCommand({ type, operation, tarVersion, archive, file });
 
+  let result;
   try {
-    const command = await getCommand({ type, operation, tarVersion, archive, file });
-    const result = runShellCommand({ command, projectRoot });
-
-    if (operation === 'exists') {
-      return true;
-    } else if (operation === 'read') {
-      return result;
-    }
+    result = await runShellCommand({ command, projectRoot });
   } catch (error) {
     if (isUnexpectedError({ type, error, tarVersion })) {
       throwError({ type: 'unexpected', error });
     }
 
-    if (operation === 'exists') {
-      return false;
-    } else if (operation === 'read') {
+    if (operation === 'read') {
       return undefined;
     }
+
+    if (operation === 'exists') {
+      return false;
+    }
+  }
+
+  if (operation === 'read') {
+    return result;
+  }
+
+  if (operation === 'exists') {
+    return true;
   }
 }
 
@@ -53,7 +58,12 @@ type TarVersion = 'GNU' | 'BSD';
 const DEFAULT_TAR_VERSION = 'BSD';
 
 async function detectTarVersion(projectRoot: string): Promise<TarVersion> {
-  const result = runShellCommand({ command: 'tar --version', projectRoot });
+  let result;
+  try {
+    result = await runShellCommand({ command: 'tar --version', projectRoot });
+  } catch (error) {
+    throwError({ type: 'unexpected', error });
+  }
 
   return result.toUpperCase().includes('GNU') ? 'GNU' : DEFAULT_TAR_VERSION;
 }
@@ -99,14 +109,19 @@ function isUnexpectedError({
   tarVersion,
   type,
 }: Pick<Options, 'type'> & {
-  error: { status: number };
+  error: { code: number };
   tarVersion: TarVersion;
 }): boolean {
-  const isExpectedBsdTarError = type === 'tar' && tarVersion === 'BSD' && error.status === 1;
-  const isExpectedGnuTarError = type === 'tar' && tarVersion === 'GNU' && error.status === 2;
+  // https://man.openbsd.org/tar.1#EXIT_STATUS
+  const isExpectedBsdTarError = type === 'tar' && tarVersion === 'BSD' && error.code === 1;
+
+  // https://man7.org/linux/man-pages/man1/tar.1.html#RETURN_VALUE
+  const isExpectedGnuTarError = type === 'tar' && tarVersion === 'GNU' && error.code === 2;
+
   const isExpectedTarError = isExpectedBsdTarError || isExpectedGnuTarError;
 
-  const isExpectedUnzipError = type === 'unzip' && error.status === 11;
+  // https://linux.die.net/man/1/unzip
+  const isExpectedUnzipError = type === 'unzip' && error.code === 11;
 
   const isExpectedError = isExpectedTarError || isExpectedUnzipError;
 
