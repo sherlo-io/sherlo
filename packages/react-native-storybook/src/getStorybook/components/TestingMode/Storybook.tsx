@@ -36,7 +36,7 @@ function Storybook({
       testID={VERIFICATION_TEST_ID}
       style={{
         flex: 1,
-        paddingTop: true ? insets.top : 0,
+        paddingTop: uiSettings.shouldAddSafeArea ? insets.top : 0,
         backgroundColor: 'green', // uiSettings.theme.background.content,
       }}
     >
