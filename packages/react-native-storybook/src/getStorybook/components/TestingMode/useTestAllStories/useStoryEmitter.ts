@@ -8,26 +8,25 @@ function useStoryEmitter({
   updateRenderedStoryId: (storyId: string) => void;
 }): (snapshot: Snapshot) => void {
   useEffect(() => {
-    // const handleStoryRendered = (...args: any[]): void => {
-    // const storyId = args?.[0]?.storyId;
-    // updateRenderedStoryId(storyId);
-    // };
+    const handleStoryRendered = (...args: any[]): void => {
+      const storyId = args?.[0]?.storyId;
+      updateRenderedStoryId(storyId);
+    };
 
     const initialize = async (): Promise<void> => {
-      // const _channel = await getAddons().ready();
-      // _channel.on(SET_CURRENT_STORY, handleStoryRendered);
+      const _channel = await getAddons().ready();
+      _channel.on(SET_CURRENT_STORY, handleStoryRendered);
     };
 
     setTimeout(() => initialize(), 500);
   }, []);
 
   return async (snapshot: Snapshot) => {
-    await getAddons().ready();
-    updateRenderedStoryId(snapshot.storyId);
+    const _channel = await getAddons().ready();
 
-    // _channel.emit(SET_CURRENT_STORY, { storyId: snapshot.storyId });
-    // // if we don't call it twice going back from preview to original mode doesn't work
-    // _channel.emit(SET_CURRENT_STORY, { storyId: snapshot.storyId });
+    _channel.emit(SET_CURRENT_STORY, { storyId: snapshot.storyId });
+    // if we don't call it twice going back from preview to original mode doesn't work
+    _channel.emit(SET_CURRENT_STORY, { storyId: snapshot.storyId });
   };
 }
 
