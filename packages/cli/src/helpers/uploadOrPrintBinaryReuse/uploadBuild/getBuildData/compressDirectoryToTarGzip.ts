@@ -9,6 +9,9 @@ async function compressDirectoryToTarGzip({
   directoryPath: string;
   projectRoot: string;
 }): Promise<Buffer> {
+  const parentDirectory = path.dirname(directoryPath);
+  const directoryToCompress = path.basename(directoryPath);
+
   /**
    * Create tar command that outputs gzipped tar to stdout:
    * -c: create new archive
@@ -22,9 +25,7 @@ async function compressDirectoryToTarGzip({
    * - adds "myapp.app" to archive
    * - results in archive with single top-level "myapp.app" entry
    */
-  const command = `tar -czf - -C "${path.dirname(directoryPath)}" "${path.basename(
-    directoryPath
-  )}"`;
+  const command = `tar -czf - -C "${parentDirectory}" "${directoryToCompress}"`;
 
   let output;
   try {
