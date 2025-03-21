@@ -1,22 +1,31 @@
-import { runShellCommand, throwError } from '../../../../helpers';
+import { getEnhancedError, runShellCommand, throwError } from '../../../../helpers';
 import { CommandParams } from '../../../../types';
 import { THIS_COMMAND } from '../../constants';
 
-function getExpoMetadata(commandParams: CommandParams<THIS_COMMAND>): {
+async function getExpoMetadata(commandParams: CommandParams<THIS_COMMAND>): Promise<{
   slug: string;
   baseUpdateUrl: string;
-} {
-  let config;
+}> {
+  const command = 'npx --yes expo config --json';
 
+  let output;
   try {
-    const output = runShellCommand({
-      command: 'npx --yes expo config --json',
+    output = await runShellCommand({
+      command,
       projectRoot: commandParams.projectRoot,
     });
-
-    config = JSON.parse(output);
   } catch (error) {
     throwError({ type: 'unexpected', error });
+  }
+
+  let config;
+  try {
+    config = JSON.parse(output);
+  } catch (error) {
+    throwError({
+      type: 'unexpected',
+      error: getEnhancedError(`Invalid \`${command}\` output`, error),
+    });
   }
 
   if (!config.slug) {

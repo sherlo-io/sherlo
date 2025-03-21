@@ -38,6 +38,8 @@ function removeDuplicatedDevices(
     if (uniqueDevices.has(deviceKey)) {
       logWarning({ message: `Duplicated device found in config: \`${deviceKey}\`` });
 
+      console.log();
+
       return false;
     }
 

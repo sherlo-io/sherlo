@@ -5,10 +5,12 @@ import getExpoUpdateData from './getExpoUpdateData';
 import getExpoUpdateInfo from './getExpoUpdateInfo';
 import validateExpoUpdateInfo from './validateExpoUpdateInfo';
 
-function getValidatedExpoUpdateData(commandParams: CommandParams<THIS_COMMAND>): ExpoUpdateData {
-  const { baseUpdateUrl, slug } = getExpoMetadata(commandParams);
+async function getValidatedExpoUpdateData(
+  commandParams: CommandParams<THIS_COMMAND>
+): Promise<ExpoUpdateData> {
+  const { baseUpdateUrl, slug } = await getExpoMetadata(commandParams);
 
-  const expoUpdateInfo = getExpoUpdateInfo(commandParams);
+  const expoUpdateInfo = await getExpoUpdateInfo(commandParams);
 
   validateExpoUpdateInfo({ commandParams, expoUpdateInfo });
 

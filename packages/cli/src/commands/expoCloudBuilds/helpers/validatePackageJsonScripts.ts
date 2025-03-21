@@ -7,7 +7,7 @@ import {
   PROFILE_OPTION,
   PROJECT_ROOT_OPTION,
 } from '../../../constants';
-import { throwError } from '../../../helpers';
+import { getEnhancedError, throwError } from '../../../helpers';
 import { CommandParams } from '../../../types';
 import { THIS_COMMAND } from '../constants';
 
@@ -49,11 +49,17 @@ function getPackageJson(projectRoot: string) {
     });
   }
 
+  let packageJson;
   try {
-    return JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+    packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
   } catch (error) {
-    throwError({ type: 'unexpected', error });
+    throwError({
+      type: 'unexpected',
+      error: getEnhancedError(`Invalid ${packageJsonPath}`, error),
+    });
   }
+
+  return packageJson;
 }
 
 function validateRequiredScript(

@@ -1,7 +1,6 @@
-import { PROJECT_API_TOKEN_LENGTH, TEAM_ID_LENGTH } from '@sherlo/shared';
 import { DOCS_LINK } from '../../../constants';
 import { InvalidatedConfig } from '../../../types';
-import getTokenParts from '../../getTokenParts';
+import isValidToken from '../../isValidToken';
 import throwError from '../../throwError';
 
 function validateToken<T extends InvalidatedConfig>(
@@ -17,14 +16,7 @@ function validateToken<T extends InvalidatedConfig>(
     throwError(getError('invalid_type'));
   }
 
-  const { apiToken, projectIndex, teamId } = getTokenParts(token);
-
-  if (
-    apiToken.length !== PROJECT_API_TOKEN_LENGTH ||
-    teamId.length !== TEAM_ID_LENGTH ||
-    !Number.isInteger(projectIndex) ||
-    projectIndex < 1
-  ) {
+  if (!isValidToken(token)) {
     throwError(getError('invalid_format'));
   }
 }

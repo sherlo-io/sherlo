@@ -3,7 +3,7 @@ import path from 'path';
 import {
   EAS_BUILD_SCRIPT_NAME_OPTION,
   EXPO_CLOUD_BUILDS_COMMAND,
-  SHERLO_TEMP_DATA_FILE,
+  SHERLO_TEMP_DATA_FILENAME,
   SHERLO_TEMP_DIRECTORY,
   WAIT_FOR_EAS_BUILD_OPTION,
 } from '../../../constants';
@@ -24,7 +24,7 @@ function createSherloTempDirectory({
   }
 
   fs.writeFileSync(
-    path.resolve(sherloDir, SHERLO_TEMP_DATA_FILE),
+    path.resolve(sherloDir, SHERLO_TEMP_DATA_FILENAME),
     JSON.stringify({ buildIndex, token }, null, 2)
   );
 

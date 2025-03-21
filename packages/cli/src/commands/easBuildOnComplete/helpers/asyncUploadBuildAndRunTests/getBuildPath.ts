@@ -1,7 +1,7 @@
 import { Platform } from '@sherlo/api-types';
 import fs from 'fs';
-import path from 'path';
-import { throwError } from '../../../../helpers';
+import path, { join } from 'path';
+import { getEnhancedError, throwError, getCwd } from '../../../../helpers';
 
 function getBuildPath({
   easBuildProfile,
@@ -63,7 +63,17 @@ function getBuildPathFromEasJson({
   easBuildProfile: string;
   platform: Platform;
 }): string | null {
-  const easJsonData = JSON.parse(fs.readFileSync('eas.json', 'utf8'));
+  const easJsonPath = join(getCwd(), 'eas.json');
+
+  let easJsonData;
+  try {
+    easJsonData = JSON.parse(fs.readFileSync(easJsonPath, 'utf8'));
+  } catch (error) {
+    throwError({
+      type: 'unexpected',
+      error: getEnhancedError(`Invalid ${easJsonPath}`, error),
+    });
+  }
 
   return easJsonData?.builds?.[platform]?.[easBuildProfile]?.applicationArchivePath ?? null;
 }

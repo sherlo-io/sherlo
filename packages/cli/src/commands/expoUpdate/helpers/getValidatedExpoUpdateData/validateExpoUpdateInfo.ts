@@ -1,5 +1,5 @@
 import { Platform } from '@sherlo/api-types';
-import { PLATFORMS } from '../../../../constants';
+import { PLATFORMS, PLATFORM_LABEL } from '../../../../constants';
 import { getPlatformsToTest, throwError } from '../../../../helpers';
 import { CommandParams, ExpoUpdateInfo } from '../../../../types';
 import { THIS_COMMAND } from '../../constants';
@@ -37,8 +37,10 @@ function getError(error: ExpoUpdateError) {
     case 'missing_platform':
       return {
         message:
-          `Missing required ${error.platform === 'ios' ? 'iOS' : 'Android'} (based on devices in config) in latest update\n\n` +
-          `Update Info\n` +
+          `Missing required ${
+            PLATFORM_LABEL[error.platform]
+          } (based on devices in config) in latest update\n\n` +
+          'Update Info\n' +
           `└─ message: ${error.expoUpdateInfo.message}\n` +
           `└─ group: ${error.expoUpdateInfo.group}\n` +
           `└─ platforms: ${error.expoUpdateInfo.platforms}\n` +
