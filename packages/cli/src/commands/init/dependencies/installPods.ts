@@ -13,9 +13,9 @@ async function installPods(sessionId: string): Promise<void> {
 
   const event = `${EVENT}:installPods`;
 
-  const iosDir = join(getCwd(), IOS_DIR);
+  const iosDirPath = join(getCwd(), IOS_DIR);
 
-  if (!existsSync(iosDir)) {
+  if (!existsSync(iosDirPath)) {
     spinner.fail();
 
     console.log();
