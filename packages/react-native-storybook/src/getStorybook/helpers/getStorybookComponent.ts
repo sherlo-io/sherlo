@@ -1,5 +1,6 @@
 import { StorybookParams, StorybookView } from '../../types';
 import { DUMMY_STORY_ID } from '../../constants';
+import { SherloModule } from '../../helpers';
 
 function getStorybookComponent({
   isTestingMode,
@@ -11,6 +12,8 @@ function getStorybookComponent({
   params?: StorybookParams;
 }): () => JSX.Element {
   if (isTestingMode) {
+    const lastState = SherloModule.getLastState();
+
     const storybook7Params = {
       isUIHidden: true,
       isSplitPanelVisible: false,
@@ -25,7 +28,8 @@ function getStorybookComponent({
       enableWebsockets: false,
       onDeviceUI: false,
       shouldPersistSelection: false,
-      initialSelection: DUMMY_STORY_ID,
+      initialSelection:
+        (lastState?.nextStoryId as StorybookParams['initialSelection']) || DUMMY_STORY_ID,
 
       // These properties are only valid for Storybook 7
       ...storybook7Params,
