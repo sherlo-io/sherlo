@@ -40,7 +40,7 @@ function Storybook({
         backgroundColor: 'green', // uiSettings.theme.background.content,
       }}
     >
-      <View style={{ flex: 1, overflow: 'hidden', backgroundColor: 'blue', marginBottom: -1 }}>
+      <View style={{ flex: 1, overflow: 'hidden', backgroundColor: 'blue', paddingBottom: -1 }}>
         <StorybookComponent />
       </View>
     </View>
