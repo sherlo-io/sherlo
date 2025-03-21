@@ -1,9 +1,7 @@
 import { Theme } from '@storybook/react-native-theming';
-import { useMemo } from 'react';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VERIFICATION_TEST_ID } from '../../../constants';
-import { RunnerBridge } from '../../../helpers';
 import { StorybookParams, StorybookView } from '../../../types';
 import { getStorybookComponent } from '../../helpers';
 
@@ -27,17 +25,11 @@ function Storybook({
 }) {
   const insets = useSafeAreaInsets();
 
-  const memoizedStorybook = useMemo(() => {
-    RunnerBridge.log('memoizing storybook');
-
-    const StorybookComponent = getStorybookComponent({
-      view,
-      params,
-      isTestingMode: true,
-    });
-
-    return <StorybookComponent />;
-  }, []);
+  const StorybookComponent = getStorybookComponent({
+    view,
+    params,
+    isTestingMode: true,
+  });
 
   return (
     <View
@@ -48,7 +40,9 @@ function Storybook({
         backgroundColor: 'red', // uiSettings.theme.background.content,
       }}
     >
-      <View style={{ flex: 1, overflow: 'hidden' }}>{memoizedStorybook}</View>
+      <View style={{ flex: 1, overflow: 'hidden' }}>
+        <StorybookComponent />
+      </View>
     </View>
   );
 }
