@@ -33,7 +33,7 @@ function useSetInitialTestingData({
 
       RunnerBridge.log('snapshots prepared', { snapshotsCount: allStories.length });
 
-      const lastState = await RunnerBridge.getLastState();
+      const lastState = SherloModule.getLastState();
 
       RunnerBridge.log('last state from protocol', { lastState });
 

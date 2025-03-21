@@ -3,11 +3,13 @@ import { NativeModules, Platform } from 'react-native';
 import utf8 from 'utf8';
 import isExpoGo from './isExpoGo';
 import { StorybookViewMode } from '../types/types';
-import { Config } from './RunnerBridge/types';
+import { Config, LastState } from './RunnerBridge/types';
+import RunnerBridge from './RunnerBridge';
 
 type SherloModule = {
   getMode: () => StorybookViewMode;
   getConfig: () => Config;
+  getLastState: () => LastState | undefined;
   storybookRegistered: () => Promise<void>;
   getInspectorData: () => Promise<string>;
   appendFile: (path: string, base64: string) => Promise<void>;
@@ -69,6 +71,21 @@ function createSherloModule(): SherloModule {
     getConfig: () => {
       return JSON.parse(SherloNativeModule.getConstants().config);
     },
+    getLastState: () => {
+      const lastState = SherloNativeModule.getConstants().lastState;
+      try {
+        RunnerBridge.log('lastState directly from native module', lastState);
+      } catch (error) {
+        ///
+      }
+      const parsedLastState = lastState ? JSON.parse(lastState) : undefined;
+
+      if (parsedLastState && Object.keys(parsedLastState).length === 0) {
+        return undefined;
+      }
+
+      return parsedLastState;
+    },
     appendFile: (path: string, data: string) => {
       const encodedData = base64.encode(utf8.encode(data));
 
@@ -103,6 +120,7 @@ function createDummySherloModule(): SherloModule {
     getInspectorData: async () => '',
     storybookRegistered: async () => {},
     getMode: () => 'default',
+    getLastState: () => undefined,
     getConfig: () => ({ stabilization: { requiredMatches: 3, intervalMs: 500, timeoutMs: 5_000 } }),
     appendFile: async () => {},
     mkdir: async () => {},

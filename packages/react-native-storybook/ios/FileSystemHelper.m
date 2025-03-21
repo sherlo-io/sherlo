@@ -46,6 +46,21 @@
     return [content base64EncodedStringWithOptions:0];
 }
 
+/**
+ * Reads a file and returns its content as a string.
+ * This is used for internal operations that need to work with text content.
+ *
+ * @param filepath The path of the file to read
+ * @param error A pointer to an NSError object
+ * @return The string content of the file, or nil if an error occurs
+ */
++ (NSString *)readFileAsString:(NSString *)filepath error:(NSError **)error {
+    NSString *content = [NSString stringWithContentsOfFile:filepath 
+                                                 encoding:NSUTF8StringEncoding 
+                                                    error:error];
+    return content;
+}
+
 #pragma mark - Instance Methods
 
 - (instancetype)initWithErrorHelper:(ErrorHelper *)errorHelper

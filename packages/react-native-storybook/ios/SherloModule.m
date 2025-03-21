@@ -10,6 +10,7 @@
 #import "ModeHelper.h"
 #import "KeyboardHelper.h"
 #import "ModuleInitHelper.h"
+#import "LastStateHelper.h"
 
 // Only keep the StorybookMethodHandler
 #import "StorybookMethodHandler.h"
@@ -34,6 +35,7 @@
 
 static NSString *syncDirectoryPath = @"";
 static NSDictionary *config = nil;
+static NSDictionary *lastState = nil;
 
 @interface SherloModule()
 
@@ -41,6 +43,7 @@ static NSDictionary *config = nil;
 @property (nonatomic, strong) StorybookMethodHandler *storybookHandler;
 @property (nonatomic, strong) FileSystemHelper *fileSystemHelper;
 @property (nonatomic, strong) InspectorHelper *inspectorHelper;
+@property (nonatomic, strong) LastStateHelper *lastStateHelper;
 
 @end
 
@@ -70,12 +73,20 @@ RCT_EXPORT_MODULE()
     
     // Initialize our handlers
     self.errorHelper = [[ErrorHelper alloc] init];
-    self.storybookHandler = [[StorybookMethodHandler alloc] initWithBridge:self.bridge
-                                                               errorHelper:self.errorHelper
-                                                          syncDirectoryPath:syncDirectoryPath];
     self.fileSystemHelper = [[FileSystemHelper alloc] initWithErrorHelper:self.errorHelper
                                                         syncDirectoryPath:syncDirectoryPath];
     self.inspectorHelper = [[InspectorHelper alloc] initWithErrorHelper:self.errorHelper];
+    self.lastStateHelper = [[LastStateHelper alloc] initWithFileSystemHelper:self.fileSystemHelper
+                                                                errorHelper:self.errorHelper
+                                                           syncDirectoryPath:syncDirectoryPath];
+    
+    // Get the last state
+    lastState = [self.lastStateHelper getLastState];
+    
+    // Initialize StorybookMethodHandler
+    self.storybookHandler = [[StorybookMethodHandler alloc] initWithBridge:self.bridge
+                                                               errorHelper:self.errorHelper
+                                                          syncDirectoryPath:syncDirectoryPath];
   }
   
   return self;
@@ -104,10 +115,20 @@ RCT_EXPORT_MODULE()
     }
   }
   
+  NSString *lastStateString = nil;
+  if (lastState) {
+    NSError *error = nil;
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:lastState options:0 error:&error];
+    if (!error) {
+      lastStateString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+    }
+  }
+  
   return @{
     @"syncDirectoryPath": syncDirectoryPath,
     @"mode": [ModeHelper currentMode],
-    @"config": configString ?: [NSNull null]
+    @"config": configString ?: [NSNull null],
+    @"lastState": lastStateString ?: [NSNull null]
   };
 }
 

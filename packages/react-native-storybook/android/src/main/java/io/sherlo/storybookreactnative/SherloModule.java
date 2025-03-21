@@ -28,10 +28,12 @@ public class SherloModule extends ReactContextBaseJavaModule {
     private final ErrorHelper errorHelper;
     private final InspectorHelper inspectorHelper;
     private final StorybookMethodHandler storybookHandler;
+    private final LastStateHelper lastStateHelper;
     
     // Module state
     private String syncDirectoryPath;
     private JSONObject config;
+    private JSONObject lastState;
 
     public SherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -58,6 +60,10 @@ public class SherloModule extends ReactContextBaseJavaModule {
         this.errorHelper = new ErrorHelper(tempFileSystemHelper, syncDirectoryPath);
         this.fileSystemHelper = new FileSystemHelper(reactContext, this.errorHelper);
         this.inspectorHelper = new InspectorHelper(this.errorHelper);
+        this.lastStateHelper = new LastStateHelper(this.fileSystemHelper, this.errorHelper, this.syncDirectoryPath);
+        
+        // Get the last state
+        this.lastState = this.lastStateHelper.getLastState();
         
         // StorybookMethodHandler still makes sense as a separate class
         this.storybookHandler = new StorybookMethodHandler(this.errorHelper);
@@ -74,6 +80,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
         constants.put("syncDirectoryPath", this.syncDirectoryPath);
         constants.put("mode", ModeHelper.getCurrentMode());
         constants.put("config", this.config.toString());
+        constants.put("lastState", this.lastState.toString());
         return constants;
     }
 

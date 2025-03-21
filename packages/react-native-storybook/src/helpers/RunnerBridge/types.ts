@@ -17,16 +17,15 @@ export type Config = {
   expoUpdateDeeplink?: string;
 };
 
+export type LastState = {
+  nextSnapshotIndex: number;
+  nextStoryId: string;
+  filteredViewIds: string[];
+  requestId: string;
+};
+
 export type LogFn = (key: string, parameters?: Record<string, any>) => void;
 export type SendFn = (protocolItem: AppProtocolItem) => Promise<RunnerProtocolItem>;
-export type GetLastStateFn = () => Promise<
-  | {
-      nextSnapshotIndex: number;
-      filteredViewIds: string[];
-      requestId: string;
-    }
-  | undefined
->;
 
 export type ProtocolItemMetadata = {
   timestamp: number;
