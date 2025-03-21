@@ -21,26 +21,31 @@ async function accessFileInArchive({
   projectRoot,
 }: Options): Promise<string | undefined | boolean> {
   const tarVersion = await detectTarVersion(projectRoot);
+  const command = await getCommand({ type, operation, tarVersion, archive, file });
 
+  let result;
   try {
-    const command = await getCommand({ type, operation, tarVersion, archive, file });
-    const result = await runShellCommand({ command, projectRoot });
-
-    if (operation === 'exists') {
-      return true;
-    } else if (operation === 'read') {
-      return result;
-    }
+    result = await runShellCommand({ command, projectRoot });
   } catch (error) {
     if (isUnexpectedError({ type, error, tarVersion })) {
       throwError({ type: 'unexpected', error });
     }
 
-    if (operation === 'exists') {
-      return false;
-    } else if (operation === 'read') {
+    if (operation === 'read') {
       return undefined;
     }
+
+    if (operation === 'exists') {
+      return false;
+    }
+  }
+
+  if (operation === 'read') {
+    return result;
+  }
+
+  if (operation === 'exists') {
+    return true;
   }
 }
 
@@ -53,7 +58,12 @@ type TarVersion = 'GNU' | 'BSD';
 const DEFAULT_TAR_VERSION = 'BSD';
 
 async function detectTarVersion(projectRoot: string): Promise<TarVersion> {
-  const result = await runShellCommand({ command: 'tar --version', projectRoot });
+  let result;
+  try {
+    result = await runShellCommand({ command: 'tar --version', projectRoot });
+  } catch (error) {
+    throwError({ type: 'unexpected', error });
+  }
 
   return result.toUpperCase().includes('GNU') ? 'GNU' : DEFAULT_TAR_VERSION;
 }
