@@ -1,5 +1,5 @@
 import { StorybookParams, StorybookView } from '../../types';
-// import { DUMMY_STORY_ID } from '../../constants';
+import { DUMMY_STORY_ID } from '../../constants';
 
 function getStorybookComponent({
   isTestingMode,
@@ -25,7 +25,7 @@ function getStorybookComponent({
       enableWebsockets: false,
       onDeviceUI: false,
       shouldPersistSelection: false,
-      // initialSelection: DUMMY_STORY_ID,
+      initialSelection: DUMMY_STORY_ID,
 
       // These properties are only valid for Storybook 7
       ...storybook7Params,
