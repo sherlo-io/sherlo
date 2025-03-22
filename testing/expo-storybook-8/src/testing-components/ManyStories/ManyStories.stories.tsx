@@ -1,5 +1,5 @@
-import { TestInfo } from '@sherlo/testing-components';
 import type { Meta } from '@storybook/react';
+import TestInfo from './TestInfo';
 
 export default {
   component: TestInfo,
