@@ -38,9 +38,10 @@ function Storybook({
         flex: 1,
         paddingTop: uiSettings.shouldAddSafeArea ? insets.top : 0,
         backgroundColor: 'green', // uiSettings.theme.background.content,
+        paddingBottom: -1,
       }}
     >
-      <View style={{ flex: 1, overflow: 'hidden', backgroundColor: 'blue', paddingBottom: -1 }}>
+      <View style={{ flex: 1, overflow: 'hidden', backgroundColor: 'blue' }}>
         <StorybookComponent />
       </View>
     </View>
