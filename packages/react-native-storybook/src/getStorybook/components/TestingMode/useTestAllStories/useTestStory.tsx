@@ -31,8 +31,11 @@ function useTestStory(): void {
 
         RunnerBridge.log('checked if stable', { isStable });
 
-        await SherloModule.clearFocus();
-        RunnerBridge.log('cleared focus again');
+        const clearedFocus = await SherloModule.clearFocus();
+        if (clearedFocus) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+        RunnerBridge.log('cleared focus again', { clearedFocus });
 
         const inspectorData = await SherloModule.getInspectorData().catch((error) => {
           RunnerBridge.log('error getting inspector data', { error: error.message });

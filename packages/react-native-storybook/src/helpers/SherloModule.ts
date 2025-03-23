@@ -18,7 +18,7 @@ type SherloModule = {
   openStorybook: () => Promise<void>;
   toggleStorybook: () => Promise<void>;
   verifyIntegration: () => Promise<void>;
-  clearFocus: () => Promise<void>;
+  clearFocus: () => Promise<boolean>;
   checkIfContainsStorybookError: () => Promise<boolean>;
   checkIfStable: (
     requiredMatches: number,
@@ -53,8 +53,10 @@ function createSherloModule(): SherloModule {
     },
     clearFocus: async () => {
       if (Platform.OS === 'android') {
-        await SherloNativeModule.clearFocus();
+        return SherloNativeModule.clearFocus();
       }
+
+      return false;
     },
     getInspectorData: async () => {
       return SherloNativeModule.getInspectorData();
@@ -116,7 +118,7 @@ function normalizePath(path: string): string {
 function createDummySherloModule(): SherloModule {
   return {
     checkIfContainsStorybookError: async () => false,
-    clearFocus: async () => {},
+    clearFocus: async () => false,
     getInspectorData: async () => '',
     storybookRegistered: async () => {},
     getMode: () => 'default',

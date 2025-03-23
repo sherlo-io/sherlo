@@ -92,7 +92,7 @@ public class InspectorHelper {
             try {
                 boolean focusCleared = FocusCleaner.clearFocus(activity);
                 Log.i(TAG, focusCleared ? "Focus cleared from view" : "No focused view found");
-                promise.resolve(null);
+                promise.resolve(focusCleared);
             } catch (Exception e) {
                 Log.e(TAG, "Error clearing focus: " + e.getMessage());
                 handleError("ERROR_CLEAR_FOCUS", e, promise, e.getMessage());
