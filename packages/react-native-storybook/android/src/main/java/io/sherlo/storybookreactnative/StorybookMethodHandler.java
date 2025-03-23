@@ -90,26 +90,4 @@ public class StorybookMethodHandler {
             promise.reject("error_close_storybook", "Error closing Storybook", e);
         }
     }
-    
-    /**
-     * Verifies integration with Sherlo.
-     *
-     * @param activity The current activity
-     * @param promise The promise to resolve or reject
-     */
-    public void verifyIntegration(Activity activity, Promise promise) {
-        try {
-            if (activity == null) {
-                promise.reject("ACTIVITY_NOT_FOUND", "Activity was not found");
-                return;
-            }
-            
-            Log.d(TAG, "Verifying integration");
-            ModeHelper.switchToVerificationMode(activity);
-            promise.resolve(true);
-        } catch (Exception e) {
-            errorHelper.handleException("ERROR_VERIFY_INTEGRATION", e);
-            promise.reject("error_verify_integration", "Error verifying integration", e);
-        }
-    }
 } 

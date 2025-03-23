@@ -87,12 +87,6 @@ public class SherloModule extends ReactContextBaseJavaModule {
     // ==== Storybook Methods ====
 
     @ReactMethod
-    public void verifyIntegration(Promise promise) {
-        Activity activity = getCurrentActivity();
-        storybookHandler.verifyIntegration(activity, promise);
-    }
-
-    @ReactMethod
     public void toggleStorybook(Promise promise) {
         Activity activity = getCurrentActivity();
         storybookHandler.toggleStorybook(activity, promise);
