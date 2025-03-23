@@ -47,6 +47,8 @@ function Storybook({
           flex: 1,
           overflow: 'hidden',
           backgroundColor: 'blue',
+          paddingBottom: -10,
+          marginBottom: -10,
         }}
       >
         <StorybookComponent />
