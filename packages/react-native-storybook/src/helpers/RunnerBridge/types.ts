@@ -19,7 +19,7 @@ export type Config = {
 
 export type LastState = {
   nextSnapshotIndex: number;
-  nextStoryId: string;
+  nextSnapshot: Snapshot;
   filteredViewIds: string[];
   requestId: string;
 };

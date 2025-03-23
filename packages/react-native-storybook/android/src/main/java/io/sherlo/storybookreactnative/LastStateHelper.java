@@ -108,16 +108,16 @@ public class LastStateHelper {
 
                 state.put("nextSnapshotIndex", nextSnapshotIndex);
 
-                String nextStoryId;
-                if (lastRequestSnapshot != null && lastRequestSnapshot.has("nextStoryId")) {
-                    nextStoryId = lastRequestSnapshot.getString("nextStoryId");
-                } else if (ackStart.has("nextStoryId")) {
-                    nextStoryId = ackStart.getString("nextStoryId");
+                JSONObject nextSnapshot;
+                if (lastRequestSnapshot != null && lastRequestSnapshot.has("nextSnapshot")) {
+                    nextSnapshot = lastRequestSnapshot.getJSONObject("nextSnapshot");
+                } else if (ackStart.has("nextSnapshot")) {
+                    nextSnapshot = ackStart.getJSONObject("nextSnapshot");
                 } else {
-                    nextStoryId = "";
+                    nextSnapshot = new JSONObject();
                 }
 
-                state.put("nextStoryId", nextStoryId);
+                state.put("nextSnapshot", nextSnapshot);
                 
                 if (ackStart.has("filteredViewIds")) {
                     state.put("filteredViewIds", ackStart.getJSONArray("filteredViewIds"));

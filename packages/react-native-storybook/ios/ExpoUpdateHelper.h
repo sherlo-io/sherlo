@@ -3,7 +3,7 @@
 @interface ExpoUpdateHelper : NSObject
 
 + (void)consumeExpoUpdateDeeplink:(NSString *)expoUpdateDeeplink
-                        modeRef:(NSString **)modeRef
                           error:(NSError **)error;
++ (BOOL)wasDeeplinkConsumed;
 
 @end

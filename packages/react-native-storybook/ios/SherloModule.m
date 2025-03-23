@@ -1,19 +1,13 @@
 #import "SherloModule.h"
 #import "FileSystemHelper.h"
 #import "InspectorHelper.h"
-#import "RestartHelper.h"
 #import "ConfigHelper.h"
 #import "ExpoUpdateHelper.h"
 #import "StableUIChecker.h"
-#import "VerificationHelper.h"
 #import "ErrorHelper.h"
-#import "ModeHelper.h"
 #import "KeyboardHelper.h"
-#import "ModuleInitHelper.h"
 #import "LastStateHelper.h"
-
-// Only keep the StorybookMethodHandler
-#import "StorybookMethodHandler.h"
+#import "RestartHelper.h"
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
@@ -36,11 +30,12 @@
 static NSString *syncDirectoryPath = @"";
 static NSDictionary *config = nil;
 static NSDictionary *lastState = nil;
+static NSString *mode = @"default"; // "default" / "storybook" / "testing"
+
 
 @interface SherloModule()
 
 @property (nonatomic, strong) ErrorHelper *errorHelper;
-@property (nonatomic, strong) StorybookMethodHandler *storybookHandler;
 @property (nonatomic, strong) FileSystemHelper *fileSystemHelper;
 @property (nonatomic, strong) InspectorHelper *inspectorHelper;
 @property (nonatomic, strong) LastStateHelper *lastStateHelper;
@@ -60,33 +55,78 @@ RCT_EXPORT_MODULE()
       [ErrorHelper handleError:errorCode error:error syncDirectoryPath:syncDirectoryPath];
     };
     
-    NSString *initMode = @"default";
-    NSString *newSyncDirectoryPath = @"";
-    NSString *newMode = @"default";
-    NSDictionary *newConfig = nil;
+    // Get sync directory path
+    NSError *getSyncDirectoryPathError = nil;
+    syncDirectoryPath = [ConfigHelper getSyncDirectoryPath:&getSyncDirectoryPathError];
+    if (getSyncDirectoryPathError) {
+      errorHandler(@"ERROR_MODULE_INIT", getSyncDirectoryPathError);
+      return self;
+    }
     
-    [ModuleInitHelper initialize:&newSyncDirectoryPath modeRef:&newMode configRef:&newConfig errorHandler:errorHandler];
+    // Load config
+    NSError *loadConfigError = nil;
+    config = [ConfigHelper loadConfig:&loadConfigError syncDirectoryPath:syncDirectoryPath];
+    if (loadConfigError) {
+      errorHandler(@"ERROR_MODULE_INIT", loadConfigError);
+      return self;
+    }
     
-    syncDirectoryPath = [newSyncDirectoryPath copy];
-    config = [newConfig copy];
-    [ModeHelper setMode:newMode];
+    // Check for Expo update deeplink if config exists
+    if (config) {
+      NSLog(@"[SherloModule] Config exists");
+
+      NSString *overrideMode = config[@"overrideMode"];
+      if (overrideMode) {
+        mode = overrideMode;
+      } else {
+        mode = @"testing";
+      }
+
+      NSLog(@"[SherloModule] Mode: %@", mode);
+    }
     
-    // Initialize our handlers
-    self.errorHelper = [[ErrorHelper alloc] init];
-    self.fileSystemHelper = [[FileSystemHelper alloc] initWithErrorHelper:self.errorHelper
-                                                        syncDirectoryPath:syncDirectoryPath];
-    self.inspectorHelper = [[InspectorHelper alloc] initWithErrorHelper:self.errorHelper];
-    self.lastStateHelper = [[LastStateHelper alloc] initWithFileSystemHelper:self.fileSystemHelper
-                                                                errorHelper:self.errorHelper
-                                                           syncDirectoryPath:syncDirectoryPath];
-    
-    // Get the last state
-    lastState = [self.lastStateHelper getLastState];
-    
-    // Initialize StorybookMethodHandler
-    self.storybookHandler = [[StorybookMethodHandler alloc] initWithBridge:self.bridge
-                                                               errorHelper:self.errorHelper
+
+    if ([mode isEqualToString:@"testing"]) {
+      [KeyboardHelper setupKeyboardSwizzling];
+
+       // Initialize our handlers
+      self.errorHelper = [[ErrorHelper alloc] init];
+      self.fileSystemHelper = [[FileSystemHelper alloc] initWithErrorHelper:self.errorHelper
                                                           syncDirectoryPath:syncDirectoryPath];
+      self.inspectorHelper = [[InspectorHelper alloc] initWithErrorHelper:self.errorHelper];
+      self.lastStateHelper = [[LastStateHelper alloc] initWithFileSystemHelper:self.fileSystemHelper
+                                                                  errorHelper:self.errorHelper
+                                                            syncDirectoryPath:syncDirectoryPath];
+      
+      // Get the last state
+      lastState = [self.lastStateHelper getLastState];
+
+
+      // Check for Expo update deeplink if config exists
+      NSString *expoUpdateDeeplink = config[@"expoUpdateDeeplink"];
+      
+      if (expoUpdateDeeplink) {
+        
+        BOOL wasDeeplinkConsumed = [ExpoUpdateHelper wasDeeplinkConsumed];
+
+        // If last state is present we don't need to consume the deeplink
+        // because expo dev client already points to the correct expo update
+        BOOL lastStateHasNextSnapshotIndex = lastState[@"nextSnapshotIndex"] != nil;
+
+        if(!wasDeeplinkConsumed && !lastStateHasNextSnapshotIndex) {
+          NSLog(@"[SherloModule] Consuming expo update deeplink");
+
+          NSError *expoUpdateError = nil;
+          [ExpoUpdateHelper consumeExpoUpdateDeeplink:expoUpdateDeeplink error:&expoUpdateError];
+        
+          if (expoUpdateError) {
+            errorHandler(@"ERROR_OPENING_EXPO_DEEPLINK", expoUpdateError);
+          }
+
+          return self;
+        }
+      }
+    }
   }
   
   return self;
@@ -126,33 +166,39 @@ RCT_EXPORT_MODULE()
   
   return @{
     @"syncDirectoryPath": syncDirectoryPath,
-    @"mode": [ModeHelper currentMode],
+    @"mode": mode,
     @"config": configString ?: [NSNull null],
     @"lastState": lastStateString ?: [NSNull null]
   };
 }
 
-// Verifies the integration with the Sherlo SDK.
-// It sets the mode to "verification" and reloads the bridge which should load the storybook in verification mode
-// If we cannot detect sherlo wrapper view that means that the integration is not correct
-// and user will be presented with error modal, if it's triggered in testing mode the error will be written to error.sherlo
-RCT_EXPORT_METHOD(verifyIntegration:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  [self.storybookHandler verifyIntegrationWithResolver:resolve rejecter:reject];
-}
-
 // Toggles the mode between "storybook" and "default"
 RCT_EXPORT_METHOD(toggleStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  [self.storybookHandler toggleStorybookWithResolver:resolve rejecter:reject];
+    if ([mode isEqualToString:@"storybook"]) {
+        // Switch to default mode
+        mode = @"default";
+        [RestartHelper reloadWithBridge:_bridge];
+    } else {
+        // Switch to storybook mode
+        mode = @"storybook";
+        [RestartHelper reloadWithBridge:_bridge];
+    }
+
+    resolve(nil);
 }
 
 // Switches the mode to "storybook" and reloads the bridge
 RCT_EXPORT_METHOD(openStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  [self.storybookHandler openStorybookWithResolver:resolve rejecter:reject];
+  mode = @"storybook";
+  [RestartHelper reloadWithBridge:_bridge];
+  resolve(nil);
 }
 
 // Switches the mode to "default" and reloads the bridge
 RCT_EXPORT_METHOD(closeStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  [self.storybookHandler closeStorybookWithResolver:resolve rejecter:reject];
+    mode = @"default";
+    [RestartHelper reloadWithBridge:_bridge];
+    resolve(nil);
 }
 
 // Creates a directory at the specified filepath.

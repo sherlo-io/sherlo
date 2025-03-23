@@ -118,16 +118,16 @@ static NSString *const PROTOCOL_FILENAME = @"protocol.sherlo";
 
       [state setObject:nextSnapshotIndex forKey:@"nextSnapshotIndex"];
 
-      NSString *nextStoryId;
-      if (lastRequestSnapshot && lastRequestSnapshot[@"nextStoryId"]) {
-        nextStoryId = lastRequestSnapshot[@"nextStoryId"];
-      } else if (ackStart[@"nextStoryId"]) {
-        nextStoryId = ackStart[@"nextStoryId"];
+      NSDictionary *nextSnapshot;
+      if (lastRequestSnapshot && lastRequestSnapshot[@"nextSnapshot"]) {
+        nextSnapshot = lastRequestSnapshot[@"nextSnapshot"];
+      } else if (ackStart[@"nextSnapshot"]) {
+        nextSnapshot = ackStart[@"nextSnapshot"];
       } else {
-        nextStoryId = @"";
+        nextSnapshot = @{};
       }
       
-      [state setObject:nextStoryId forKey:@"nextStoryId"];
+      [state setObject:nextSnapshot forKey:@"nextSnapshot"];
 
       if (ackStart[@"filteredViewIds"]) {
         [state setObject:ackStart[@"filteredViewIds"] forKey:@"filteredViewIds"];

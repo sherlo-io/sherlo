@@ -2,31 +2,16 @@ import { start } from '@storybook/react-native';
 import { useEffect, useState } from 'react';
 import { VERIFICATION_TEST_ID } from '../../../../constants';
 import { SherloModule, RunnerBridge } from '../../../../helpers';
-import { AckStartProtocolItem } from '../../../../helpers/RunnerBridge';
 import { Snapshot } from '../../../../types';
 import prepareSnapshots from './prepareSnapshots';
 
-function useSetInitialTestingData({
-  setStoriesToTest,
-  setStoryToTestData,
-  view,
-}: {
-  setStoriesToTest: React.Dispatch<React.SetStateAction<Snapshot[] | undefined>>;
-  setStoryToTestData: React.Dispatch<
-    React.SetStateAction<
-      | {
-          requestId: string;
-          storyIndex: number;
-        }
-      | undefined
-    >
-  >;
-  view: ReturnType<typeof start>;
-}): void {
+function useSetInitialTestingData({ view }: { view: ReturnType<typeof start> }): void {
+  const lastState = SherloModule.getLastState();
+
   const isStorybookReady = useIsStorybookReady(view);
 
   useEffect(() => {
-    if (!isStorybookReady) return;
+    if (!isStorybookReady || lastState) return;
 
     (async () => {
       const allStories = prepareSnapshots({ view, splitByMode: true });
@@ -37,27 +22,7 @@ function useSetInitialTestingData({
 
       RunnerBridge.log('last state from protocol', { lastState });
 
-      let filteredViewIds: string[] | undefined;
-      let nextSnapshotIndex: number | undefined;
-      let requestId: string | undefined;
-
-      if (lastState) {
-        ({ filteredViewIds, nextSnapshotIndex, requestId } = lastState);
-      } else {
-        ({ filteredViewIds, nextSnapshotIndex, requestId } = await startNewTestingSession(
-          allStories
-        ));
-      }
-
-      const filteredStories = allStories.filter(({ viewId }) => filteredViewIds?.includes(viewId));
-
-      RunnerBridge.log('set initial testing state', {
-        initialSelectionIndex: nextSnapshotIndex,
-        filteredSnapshots: filteredStories,
-      });
-
-      setStoriesToTest(filteredStories);
-      setStoryToTestData({ requestId, storyIndex: nextSnapshotIndex });
+      await startNewTestingSession(allStories);
     })();
   }, [isStorybookReady]);
 }
@@ -93,11 +58,7 @@ function useIsStorybookReady(view: ReturnType<typeof start>): boolean {
   return isReady;
 }
 
-async function startNewTestingSession(allStories: Snapshot[]): Promise<{
-  filteredViewIds: string[];
-  nextSnapshotIndex: number;
-  requestId: string;
-}> {
+async function startNewTestingSession(allStories: Snapshot[]): Promise<void> {
   await RunnerBridge.create();
 
   const inspectorData = await SherloModule.getInspectorData().catch((error) => {
@@ -125,10 +86,8 @@ async function startNewTestingSession(allStories: Snapshot[]): Promise<{
     }, 0);
   }
 
-  const { filteredViewIds, nextSnapshotIndex, requestId } = (await RunnerBridge.send({
+  await RunnerBridge.send({
     action: 'START',
     snapshots: allStories,
-  })) as AckStartProtocolItem;
-
-  return { filteredViewIds, nextSnapshotIndex, requestId };
+  });
 }

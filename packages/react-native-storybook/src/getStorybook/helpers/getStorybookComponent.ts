@@ -29,7 +29,7 @@ function getStorybookComponent({
       onDeviceUI: false,
       shouldPersistSelection: false,
       initialSelection:
-        (lastState?.nextStoryId as StorybookParams['initialSelection']) || DUMMY_STORY_ID,
+        (lastState?.nextSnapshot.storyId as StorybookParams['initialSelection']) || DUMMY_STORY_ID,
 
       // These properties are only valid for Storybook 7
       ...storybook7Params,
