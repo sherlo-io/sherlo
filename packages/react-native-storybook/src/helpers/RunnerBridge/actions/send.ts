@@ -56,8 +56,8 @@ function send(path: string, log: LogFn): SendFn {
                 await resolveForTestMode(1000, {
                   action: 'ACK_START',
                   nextSnapshotIndex: storyIndex,
-                  filteredViewIds: protocolItem.snapshots.map((snapshot) => snapshot.viewId),
                   requestId: 'fake-request-id',
+                  nextSnapshot: protocolItem.snapshots[storyIndex],
                 });
                 break;
 

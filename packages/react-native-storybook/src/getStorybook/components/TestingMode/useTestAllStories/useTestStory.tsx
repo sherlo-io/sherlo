@@ -10,12 +10,11 @@ function useTestStory(): void {
       try {
         if (!lastState) return;
 
-        const { nextSnapshot, requestId, nextSnapshotIndex } = lastState;
+        const { nextSnapshot, requestId } = lastState;
 
         RunnerBridge.log('attempt to test story', {
           nextSnapshot,
           requestId,
-          nextSnapshotIndex,
         });
 
         await SherloModule.clearFocus();
@@ -46,7 +45,6 @@ function useTestStory(): void {
 
         RunnerBridge.log('requesting screenshot from master script', {
           action: 'REQUEST_SNAPSHOT',
-          snapshotIndex: nextSnapshotIndex,
           hasError: containsError,
           inspectorData: !!inspectorData,
           isStable,
@@ -54,7 +52,6 @@ function useTestStory(): void {
 
         await RunnerBridge.send({
           action: 'REQUEST_SNAPSHOT',
-          snapshotIndex: nextSnapshotIndex,
           hasError: containsError,
           inspectorData,
           isStable,

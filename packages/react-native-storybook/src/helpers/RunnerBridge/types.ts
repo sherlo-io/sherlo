@@ -18,9 +18,7 @@ export type Config = {
 };
 
 export type LastState = {
-  nextSnapshotIndex: number;
   nextSnapshot: Snapshot;
-  filteredViewIds: string[];
   requestId: string;
 };
 
@@ -39,7 +37,6 @@ export type AppProtocolItem =
     }
   | {
       action: 'REQUEST_SNAPSHOT';
-      snapshotIndex: number;
       hasError?: boolean;
       inspectorData?: string;
       isStable?: boolean;
@@ -48,14 +45,13 @@ export type AppProtocolItem =
 
 export type AckStartProtocolItem = {
   action: 'ACK_START';
-  filteredViewIds: string[];
-  nextSnapshotIndex: number;
+  nextSnapshot: Snapshot;
   requestId: string;
 };
 
 export type AckRequestSnapshotProtocolItem = {
   action: 'ACK_REQUEST_SNAPSHOT';
-  nextSnapshotIndex: number;
+  nextSnapshot: Snapshot;
   requestId: string;
 };
 

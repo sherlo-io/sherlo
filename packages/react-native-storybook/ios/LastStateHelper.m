@@ -107,17 +107,6 @@ static NSString *const PROTOCOL_FILENAME = @"protocol.sherlo";
 
     NSMutableDictionary *state = [NSMutableDictionary dictionary];
     if (ackStart) {
-      NSNumber *nextSnapshotIndex;
-      if (lastRequestSnapshot && lastRequestSnapshot[@"nextSnapshotIndex"]) {
-        nextSnapshotIndex = lastRequestSnapshot[@"nextSnapshotIndex"];
-      } else if (ackStart[@"nextSnapshotIndex"]) {
-        nextSnapshotIndex = ackStart[@"nextSnapshotIndex"];
-      } else {
-        nextSnapshotIndex = @0;
-      }
-
-      [state setObject:nextSnapshotIndex forKey:@"nextSnapshotIndex"];
-
       NSDictionary *nextSnapshot;
       if (lastRequestSnapshot && lastRequestSnapshot[@"nextSnapshot"]) {
         nextSnapshot = lastRequestSnapshot[@"nextSnapshot"];
@@ -129,12 +118,6 @@ static NSString *const PROTOCOL_FILENAME = @"protocol.sherlo";
       
       [state setObject:nextSnapshot forKey:@"nextSnapshot"];
 
-      if (ackStart[@"filteredViewIds"]) {
-        [state setObject:ackStart[@"filteredViewIds"] forKey:@"filteredViewIds"];
-      } else {
-        [state setObject:@[] forKey:@"filteredViewIds"];
-      }
-
       NSString *requestId = @"";
       if (lastRequestSnapshot && lastRequestSnapshot[@"requestId"]) {
         requestId = lastRequestSnapshot[@"requestId"];
@@ -143,11 +126,6 @@ static NSString *const PROTOCOL_FILENAME = @"protocol.sherlo";
       }
 
       [state setObject:requestId forKey:@"requestId"];
-
-      // Add snapshots from START action if available
-      if (startItem && startItem[@"snapshots"]) {
-        [state setObject:startItem[@"snapshots"] forKey:@"snapshots"];
-      }
     }
 
     return state;

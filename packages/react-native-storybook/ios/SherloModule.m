@@ -111,9 +111,9 @@ RCT_EXPORT_MODULE()
 
         // If last state is present we don't need to consume the deeplink
         // because expo dev client already points to the correct expo update
-        BOOL lastStateHasNextSnapshotIndex = lastState[@"nextSnapshotIndex"] != nil;
+        BOOL lastStateHasRequestId = lastState[@"requestId"] != nil;
 
-        if(!wasDeeplinkConsumed && !lastStateHasNextSnapshotIndex) {
+        if(!wasDeeplinkConsumed && !lastStateHasRequestId) {
           NSLog(@"[SherloModule] Consuming expo update deeplink");
 
           NSError *expoUpdateError = nil;

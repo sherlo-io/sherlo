@@ -97,17 +97,6 @@ public class LastStateHelper {
 
             JSONObject state = new JSONObject();
             if (ackStart != null) {
-                int nextSnapshotIndex;
-                if (lastRequestSnapshot != null && lastRequestSnapshot.has("nextSnapshotIndex")) {
-                    nextSnapshotIndex = lastRequestSnapshot.getInt("nextSnapshotIndex");
-                } else if (ackStart.has("nextSnapshotIndex")) {
-                    nextSnapshotIndex = ackStart.getInt("nextSnapshotIndex");
-                } else {
-                    nextSnapshotIndex = 0;
-                }
-
-                state.put("nextSnapshotIndex", nextSnapshotIndex);
-
                 JSONObject nextSnapshot;
                 if (lastRequestSnapshot != null && lastRequestSnapshot.has("nextSnapshot")) {
                     nextSnapshot = lastRequestSnapshot.getJSONObject("nextSnapshot");
@@ -118,12 +107,6 @@ public class LastStateHelper {
                 }
 
                 state.put("nextSnapshot", nextSnapshot);
-                
-                if (ackStart.has("filteredViewIds")) {
-                    state.put("filteredViewIds", ackStart.getJSONArray("filteredViewIds"));
-                } else {
-                    state.put("filteredViewIds", new JSONArray());
-                }
 
                 String requestId = "";
                 if (lastRequestSnapshot != null && lastRequestSnapshot.has("requestId")) {
@@ -133,11 +116,6 @@ public class LastStateHelper {
                 }
 
                 state.put("requestId", requestId);
-
-                // Add snapshots from START action if available
-                if (startItem != null && startItem.has("snapshots")) {
-                    state.put("snapshots", startItem.getJSONArray("snapshots"));
-                }
             }
 
             return state;
