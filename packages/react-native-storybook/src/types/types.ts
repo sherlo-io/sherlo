@@ -33,7 +33,7 @@ export type Snapshot = {
   // storybook parameters
   componentId: string; // components-avatar
   componentTitle: string; // components/Avatar
-  storyId: string; // components-avatar--basic
+  storyId: `${string}--${string}`; // components-avatar--basic
   storyTitle: string; // Basic
   parameters: any;
   argTypes: any;

@@ -13,6 +13,7 @@ function getStorybookComponent({
 }): () => JSX.Element {
   if (isTestingMode) {
     const lastState = SherloModule.getLastState();
+    const storyId = lastState?.nextSnapshot.storyId;
 
     const storybook7Params = {
       isUIHidden: true,
@@ -28,8 +29,7 @@ function getStorybookComponent({
       enableWebsockets: false,
       onDeviceUI: false,
       shouldPersistSelection: false,
-      initialSelection:
-        (lastState?.nextSnapshot.storyId as StorybookParams['initialSelection']) || DUMMY_STORY_ID,
+      initialSelection: storyId || DUMMY_STORY_ID,
 
       // These properties are only valid for Storybook 7
       ...storybook7Params,
