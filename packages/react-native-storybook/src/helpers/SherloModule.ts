@@ -10,7 +10,6 @@ type SherloModule = {
   getMode: () => StorybookViewMode;
   getConfig: () => Config;
   getLastState: () => LastState | undefined;
-  storybookRegistered: () => Promise<void>;
   getInspectorData: () => Promise<string>;
   appendFile: (path: string, base64: string) => Promise<void>;
   mkdir: (path: string) => Promise<void>;
@@ -18,7 +17,6 @@ type SherloModule = {
   openStorybook: () => Promise<void>;
   toggleStorybook: () => Promise<void>;
   clearFocus: () => Promise<boolean>;
-  checkIfContainsStorybookError: () => Promise<boolean>;
   checkIfStable: (
     requiredMatches: number,
     intervalMs: number,
@@ -47,9 +45,6 @@ export default SherloModule;
 
 function createSherloModule(): SherloModule {
   return {
-    checkIfContainsStorybookError: async () => {
-      return SherloNativeModule.checkIfContainsStorybookError();
-    },
     clearFocus: async () => {
       if (Platform.OS === 'android') {
         return SherloNativeModule.clearFocus();
@@ -59,9 +54,6 @@ function createSherloModule(): SherloModule {
     },
     getInspectorData: async () => {
       return SherloNativeModule.getInspectorData();
-    },
-    storybookRegistered: async () => {
-      await SherloNativeModule.storybookRegistered();
     },
     checkIfStable: async (requiredMatches: number, intervalMs: number, timeoutMs: number) => {
       return SherloNativeModule.checkIfStable(requiredMatches, intervalMs, timeoutMs);
@@ -115,10 +107,8 @@ function normalizePath(path: string): string {
 
 function createDummySherloModule(): SherloModule {
   return {
-    checkIfContainsStorybookError: async () => false,
     clearFocus: async () => false,
     getInspectorData: async () => '',
-    storybookRegistered: async () => {},
     getMode: () => 'default',
     getLastState: () => undefined,
     getConfig: () => ({ stabilization: { requiredMatches: 3, intervalMs: 500, timeoutMs: 5_000 } }),
