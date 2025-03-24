@@ -13,7 +13,6 @@ import com.facebook.react.bridge.Promise;
 import java.util.HashMap;
 import java.util.Map;
 import org.json.JSONObject;
-import java.io.File;
 
 /**
  * Core implementation for the Sherlo module containing all business logic.

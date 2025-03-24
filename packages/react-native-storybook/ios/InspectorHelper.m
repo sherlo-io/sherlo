@@ -1,5 +1,4 @@
 #import "InspectorHelper.h"
-#import "StabilityHelper.h"
 #import <UIKit/UIKit.h>
 
 static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";

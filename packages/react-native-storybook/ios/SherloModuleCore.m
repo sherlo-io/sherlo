@@ -9,7 +9,6 @@
 #import "RestartHelper.h"
 
 #import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
 #import <React/RCTBridge.h>
 
 static NSString *const LOG_TAG = @"SherloModule:Core";
