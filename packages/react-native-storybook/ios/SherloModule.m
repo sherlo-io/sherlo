@@ -23,9 +23,8 @@ static SherloModuleCore *core;
 
 /**
  * Required method to initialize the module.
- * Creates the core instance and initializes it with the bridge.
+ * Creates the core instance and initializes it.
  *
- * @param bridge The React Native bridge
  * @return An initialized SherloModule instance
  */
 - (instancetype)init {
