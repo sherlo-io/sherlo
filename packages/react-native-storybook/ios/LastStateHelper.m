@@ -1,8 +1,8 @@
 #import "LastStateHelper.h"
 #import "FileSystemHelper.h"
 
-#define LOG_TAG @"LastStateHelper"
-#define PROTOCOL_FILENAME @"protocol.sherlo"
+static NSString *const LOG_TAG = @"SherloModule:LastStateHelper";
+static NSString *const PROTOCOL_FILENAME = @"protocol.sherlo";
 
 /**
  * Helper for managing the last state of the Sherlo module.
@@ -18,10 +18,10 @@
  * @param fileSystemHelper The file system helper for reading files
  * @return NSDictionary containing the state information or nil if not found
  */
-+ (NSDictionary *)loadStateWithFileSystemHelper:(FileSystemHelper *)fileSystemHelper {
++ (NSDictionary *)getLastState:(FileSystemHelper *)fileSystemHelper {
   @try {
     NSError *readError = nil;
-    NSString *protocolContent = [fileSystemHelper readFileAsString:PROTOCOL_FILENAME error:&readError];
+    NSString *protocolContent = [fileSystemHelper readFile:PROTOCOL_FILENAME error:&readError];
 
     if (readError || !protocolContent || [protocolContent stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]].length == 0) {
       NSLog(@"[%@] Protocol file is empty or doesn't exist", LOG_TAG);

@@ -2,18 +2,13 @@
 #import "StabilityHelper.h"
 #import <UIKit/UIKit.h>
 
+static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
+
 /**
  * Helper for inspecting the UI view hierarchy of a React Native application.
  * Provides functionality to collect information about views and their properties.
  */
 @implementation InspectorHelper
-
-#pragma mark - Instance Methods
-
-- (instancetype)init {
-    self = [super init];
-    return self;
-}
 
 /**
  * Gets UI inspector data from the current view hierarchy.
@@ -41,8 +36,6 @@
         resolve(jsonString);
     });
 }
-
-#pragma mark - Class Methods
 
 /**
  * Collects and serializes data about the view hierarchy.
@@ -102,18 +95,18 @@
         NSMutableDictionary *debugInfo = [NSMutableDictionary dictionary];
         
         // Add debug logging
-        NSLog(@"JSON serialization failed for rootObject");
+        NSLog(@"[%@] JSON serialization failed for rootObject", LOG_TAG);
         
         // Check each main component
         if (![NSJSONSerialization isValidJSONObject:viewList]) {
-            NSLog(@"Invalid viewList detected");
+            NSLog(@"[%@] Invalid viewList detected", LOG_TAG);
             [debugInfo setObject:@"Invalid viewList" forKey:@"invalidComponent"];
             // Find problematic view entry
             for (NSInteger i = 0; i < viewList.count; i++) {
                 if (![NSJSONSerialization isValidJSONObject:viewList[i]]) {
                     NSDictionary *invalidView = viewList[i];
-                    NSLog(@"Found invalid view at index %ld", (long)i);
-                    NSLog(@"Invalid view class: %@", [invalidView[@"className"] description]);
+                    NSLog(@"[%@] Found invalid view at index %ld", LOG_TAG, (long)i);
+                    NSLog(@"[%@] Invalid view class: %@", LOG_TAG, [invalidView[@"className"] description]);
                     
                     [debugInfo setObject:[NSString stringWithFormat:@"View at index %ld", (long)i] forKey:@"invalidIndex"];
                     [debugInfo setObject:[invalidView[@"className"] description] forKey:@"viewClass"];
@@ -123,7 +116,7 @@
                         id value = invalidView[key];
                         if (![self isValidJSONValue:value]) {
                             NSString *debugValue = [NSString stringWithFormat:@"%@: %@", key, [value description]];
-                            NSLog(@"Invalid property found: %@", debugValue);
+                            NSLog(@"[%@] Invalid property found: %@", LOG_TAG, debugValue);
                             [debugInfo setObject:debugValue forKey:@"invalidProperty"];
                             break;
                         }
@@ -141,7 +134,7 @@
                 @"debugInfo": debugInfo
             }];
             // Add debug logging for the error
-            NSLog(@"Created error with debug info: %@", debugInfo);
+            NSLog(@"[%@] Created error with debug info: %@", LOG_TAG, debugInfo);
         }
         return nil;
     }

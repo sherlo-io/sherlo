@@ -2,7 +2,7 @@
 #import "FileSystemHelper.h"
 
 static NSString *const CONFIG_FILENAME = @"config.sherlo";
-static NSString *const LOG_TAG = @"ConfigHelper";
+static NSString *const LOG_TAG = @"SherloModule:ConfigHelper";
 
 /**
  * Helper for loading and managing Sherlo configuration.
@@ -18,9 +18,9 @@ static NSString *const LOG_TAG = @"ConfigHelper";
  * @param fileSystemHelper Helper class for file system operations
  * @return The parsed configuration as a NSDictionary
  */
-+ (NSDictionary *)loadConfigWithFileSystemHelper:(FileSystemHelper *)fileSystemHelper {
++ (NSDictionary *)loadConfig:(FileSystemHelper *)fileSystemHelper {
     NSError *error = nil;
-    NSString *configContent = [fileSystemHelper readFileAsString:CONFIG_FILENAME error:&error];
+    NSString *configContent = [fileSystemHelper readFile:CONFIG_FILENAME error:&error];
     
     if (error) {
         NSLog(@"[%@] Error reading config file: %@", LOG_TAG, error.localizedDescription);

@@ -2,8 +2,8 @@
 
 @interface ExpoUpdateHelper : NSObject
 
-+ (void)consumeExpoUpdateDeeplink:(NSString *)expoUpdateDeeplink
-                          error:(NSError **)error;
-+ (BOOL)wasDeeplinkConsumed;
++ (void)consumeExpoUpdateDeeplinkIfNeeded:(NSString *)expoUpdateDeeplink
+                               lastState:(NSDictionary *)lastState
+                                 logTag:(NSString *)logTag;
 
 @end

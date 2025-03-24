@@ -12,6 +12,7 @@
 #import <UIKit/UIKit.h>
 #import <React/RCTBridge.h>
 
+static NSString *const LOG_TAG = @"SherloModule:Core";
 // Mode constants
 NSString * const MODE_DEFAULT = @"default";
 NSString * const MODE_STORYBOOK = @"storybook";
@@ -44,39 +45,22 @@ static FileSystemHelper *fileSystemHelper;
     
     fileSystemHelper = [[FileSystemHelper alloc] init];
     
-    config = [ConfigHelper loadConfigWithFileSystemHelper:fileSystemHelper];
+    config = [ConfigHelper loadConfig:fileSystemHelper];
 
     if (config) {
         currentMode = [ConfigHelper determineModeFromConfig:config];
         
-        NSLog(@"[SherloModuleCore] Initialized with mode: %@", currentMode);
+        NSLog(@"[%@] Initialized with mode: %@", LOG_TAG, currentMode);
         
         if ([currentMode isEqualToString:MODE_TESTING]) {
             [KeyboardHelper setupKeyboardSwizzling];
 
-            lastState = [LastStateHelper loadStateWithFileSystemHelper:fileSystemHelper];
+            lastState = [LastStateHelper getLastState:fileSystemHelper];
             
-            // Check for Expo update deeplink if config exists
             NSString *expoUpdateDeeplink = config[@"expoUpdateDeeplink"];
-            
-            if (expoUpdateDeeplink) {
-                BOOL wasDeeplinkConsumed = [ExpoUpdateHelper wasDeeplinkConsumed];
-                
-                // If last state is present we don't need to consume the deeplink
-                // because expo dev client already points to the correct expo update
-                BOOL lastStateHasRequestId = lastState[@"requestId"] != nil;
-                
-                if (!wasDeeplinkConsumed && !lastStateHasRequestId) {
-                    NSLog(@"[SherloModuleCore] Consuming expo update deeplink");
-                    
-                    NSError *expoUpdateError = nil;
-                    [ExpoUpdateHelper consumeExpoUpdateDeeplink:expoUpdateDeeplink error:&expoUpdateError];
-                    
-                    if (expoUpdateError) {
-                        NSLog(@"[SherloModuleCore] Error opening expo deeplink: %@", expoUpdateError.localizedDescription);
-                    }
-                }
-            }
+            [ExpoUpdateHelper consumeExpoUpdateDeeplinkIfNeeded:expoUpdateDeeplink 
+                                                     lastState:lastState 
+                                                       logTag:LOG_TAG];
         }
     }
 
@@ -128,7 +112,7 @@ static FileSystemHelper *fileSystemHelper;
         currentMode = MODE_STORYBOOK;
     }
 
-    [RestartHelper reloadWithBridge:bridge];
+    [RestartHelper restart:bridge];
 }
 
 /**
@@ -139,7 +123,7 @@ static FileSystemHelper *fileSystemHelper;
  */
 - (void)openStorybook:(RCTBridge *)bridge {
     currentMode = MODE_STORYBOOK;
-    [RestartHelper reloadWithBridge:bridge];
+    [RestartHelper restart:bridge];
 }
 
 /**
@@ -150,7 +134,7 @@ static FileSystemHelper *fileSystemHelper;
  */
 - (void)closeStorybook:(RCTBridge *)bridge {
     currentMode = MODE_DEFAULT;
-    [RestartHelper reloadWithBridge:bridge];
+    [RestartHelper restart:bridge];
 }
 
 /**

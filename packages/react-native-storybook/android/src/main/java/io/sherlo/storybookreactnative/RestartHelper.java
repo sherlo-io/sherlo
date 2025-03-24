@@ -14,7 +14,7 @@ import com.facebook.react.ReactInstanceManager;
  * Provides methods to reload the JavaScript bundle and recreate the React context.
  */
 public class RestartHelper {
-    private static final String TAG = "RestartHelper";
+    private static final String TAG = "SherloModule:RestartHelper";
 
     /**
      * Restarts the React Native application by reloading the JavaScript bundle.

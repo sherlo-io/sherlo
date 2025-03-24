@@ -1,5 +1,8 @@
 #import "ExpoUpdateHelper.h"
+#import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
+
+static NSString *const LOG_TAG = @"SherloModule:ExpoUpdateHelper";
 
 /**
  * Helper for handling Expo updates in the Sherlo module.
@@ -11,52 +14,44 @@
 static bool expoUpdateDeeplinkConsumed = false;
 
 /**
- * Consumes an Expo update deeplink by opening it in the application.
- * Uses the built-in URL handling mechanism to navigate to the specific update.
+ * Checks if an Expo update deeplink needs to be consumed and handles it if needed.
+ * Uses the lastState to determine if the deeplink should be consumed.
  *
- * @param expoUpdateDeeplink The Expo update deeplink URL to consume
- * @param error On input, a pointer to an error object. If an error occurs, this pointer is set to an actual error object
- * @return YES if the deeplink was successfully consumed, NO otherwise
+ * @param expoUpdateDeeplink The Expo update deeplink URL to potentially consume
+ * @param lastState The last state containing request ID information
+ * @param logTag The tag to use for logging
  */
-+ (BOOL)consumeExpoUpdateDeeplink:(NSString *)expoUpdateDeeplink
-                          error:(NSError **)error {
++ (void)consumeExpoUpdateDeeplinkIfNeeded:(NSString *)expoUpdateDeeplink
+                               lastState:(NSDictionary *)lastState
+                                 logTag:(NSString *)logTag {
+    // Return early if there's no deeplink to consume
     if (!expoUpdateDeeplink || expoUpdateDeeplink.length == 0) {
-        NSLog(@"[ExpoUpdateHelper] Invalid or empty deeplink provided");
-        if (error) {
-            *error = [NSError errorWithDomain:@"ExpoUpdateHelper" code:1 userInfo:@{
-                NSLocalizedDescriptionKey: @"Invalid or empty deeplink provided"
-            }];
-        }
-        return NO;
+        return;
     }
     
-    NSLog(@"[ExpoUpdateHelper] Consuming update deeplink: %@", expoUpdateDeeplink);
+    // If last state is present we don't need to consume the deeplink
+    // because expo dev client already points to the correct expo update
+    BOOL lastStateHasRequestId = lastState[@"requestId"] != nil;
     
-    // Create URL from the deeplink string
-    NSURL *deeplinkURL = [NSURL URLWithString:expoUpdateDeeplink];
-    
-    if (!deeplinkURL) {
-        NSLog(@"[ExpoUpdateHelper] Failed to create URL from deeplink: %@", expoUpdateDeeplink);
-        if (error) {
-            *error = [NSError errorWithDomain:@"ExpoUpdateHelper" code:2 userInfo:@{
-                NSLocalizedDescriptionKey: @"Failed to create URL from deeplink"
-            }];
+    // Only consume the deeplink if it hasn't been consumed yet and there's no request ID in the last state
+    if (!expoUpdateDeeplinkConsumed && !lastStateHasRequestId) {
+        NSLog(@"[%@] Consuming expo update deeplink", logTag);
+        
+        // Create URL from the deeplink string
+        NSURL *deeplinkURL = [NSURL URLWithString:expoUpdateDeeplink];
+        
+        if (!deeplinkURL) {
+            NSLog(@"[%@] Failed to create URL from deeplink: %@", logTag, expoUpdateDeeplink);
+            return;
         }
-        return NO;
+        
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [[UIApplication sharedApplication] openURL:deeplinkURL options:@{} completionHandler:nil];
+        });
+        
+        // Mark as consumed
+        expoUpdateDeeplinkConsumed = true;
     }
-    
-    // Open the URL to trigger the Expo update
-    // This is a bit hacky but it's the simplest way to trigger an update programmatically
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [[UIApplication sharedApplication] openURL:deeplinkURL options:@{} completionHandler:nil];
-    });
-    
-    expoUpdateDeeplinkConsumed = true;
-    return YES;
-}
-
-+ (BOOL)wasDeeplinkConsumed {
-    return expoUpdateDeeplinkConsumed;
 }
 
 @end

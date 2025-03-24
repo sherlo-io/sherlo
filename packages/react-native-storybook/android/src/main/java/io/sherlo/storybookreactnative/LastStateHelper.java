@@ -9,7 +9,7 @@ import android.util.Base64;
  * Used to maintain continuity between test runs or application restarts.
  */
 public class LastStateHelper {
-    private static final String TAG = "LastStateHelper";
+    private static final String TAG = "SherloModule:LastStateHelper";
     private static final String PROTOCOL_FILENAME = "protocol.sherlo";
     
     /**

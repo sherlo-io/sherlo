@@ -20,7 +20,7 @@ import java.io.File;
  * Manages application modes (default, storybook, testing) and provides access to helper utilities.
  */
 public class SherloModuleCore {
-    public static final String TAG = "SherloModuleCore";
+    private static final String TAG = "SherloModule:Core";
 
     private final ReactApplicationContext reactContext;
 

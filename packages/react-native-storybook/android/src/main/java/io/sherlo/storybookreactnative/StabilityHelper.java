@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * Used to determine when animations and rendering have completed.
  */
 public class StabilityHelper {
-    private static final String TAG = "StabilityHelper";
+    private static final String TAG = "SherloModule:StabilityHelper";
 
     /**
      * Checks if the UI is stable by taking consecutive screenshots and comparing them.
@@ -72,6 +72,7 @@ public class StabilityHelper {
                     boolean foundFocus = findAndClearFocus(rootView);
 
                     if(foundFocus) {
+                        Log.d(TAG, "Found and cleared focus");
                         startTime.set(System.currentTimeMillis());
                         consecutiveMatches.set(0);
                     }

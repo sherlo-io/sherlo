@@ -16,11 +16,6 @@
  */
 @interface SherloModuleCore : NSObject
 
-// Mode constants
-extern NSString * const MODE_DEFAULT;
-extern NSString * const MODE_STORYBOOK;
-extern NSString * const MODE_TESTING;
-
 /**
  * Standard initialization method
  * @return An initialized instance

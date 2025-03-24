@@ -13,11 +13,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * Helper for file system operations within the Sherlo module.
- * Manages file reading, writing, and directory setup in the app's external storage.
+ * Helper for file system operations in the Sherlo module.
+ * Manages a dedicated synchronization directory for storing and retrieving files,
+ * and provides methods for reading and writing data with Base64 encoding.
  */
 public class FileSystemHelper {
-    private static final String TAG = "FileSystemHelper";
+    private static final String TAG = "SherloModule:FileSystemHelper";
     private final Context context;
     private final String syncDirectoryPath;
 
@@ -43,7 +44,7 @@ public class FileSystemHelper {
             Log.e(TAG, "External storage is not accessible");
             return "";
         }
-        return externalDirectory.getAbsolutePath() + "/sherlo";
+        return externalDirectory.getFileUri() + "/sherlo";
     }
     
     /**
@@ -55,7 +56,12 @@ public class FileSystemHelper {
      */
     public void appendFileWithPromise(String filename, String base64Content, Promise promise) {
         try {
-            appendFile(filename, base64Content);
+            byte[] bytes = Base64.decode(base64Content, Base64.DEFAULT);
+            Uri uri = getFileUri(filename);
+            OutputStream stream = context.getContentResolver().openOutputStream(uri, "wa");
+            stream.write(bytes);
+            stream.close();
+
             promise.resolve(null);
         } catch (Exception e) {
             handleError("ERROR_APPEND_FILE", e, promise, "Error appending to file: " + e.getMessage());
@@ -79,22 +85,6 @@ public class FileSystemHelper {
         } catch (Exception e) {
             handleError("ERROR_READ_FILE", e, promise, "Error reading file: " + e.getMessage());
         }
-    }
-
-    /**
-     * Appends base64 encoded content to a file.
-     * The content is decoded from base64 before being written to the file.
-     *
-     * @param filename The name of the file to append to
-     * @param base64Content The base64 encoded content to append
-     * @throws Exception If there's an error during file access or writing
-     */
-    public void appendFile(String filename, String base64Content) throws Exception {
-        byte[] bytes = Base64.decode(base64Content, Base64.DEFAULT);
-        Uri uri = getFileUri(filename);
-        OutputStream stream = context.getContentResolver().openOutputStream(uri, "wa");
-        stream.write(bytes);
-        stream.close();
     }
 
     /**

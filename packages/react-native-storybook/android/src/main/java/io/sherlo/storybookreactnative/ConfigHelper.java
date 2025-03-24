@@ -11,7 +11,7 @@ import java.io.File;
  * Provides methods to read and parse configuration from the filesystem.
  */
 public class ConfigHelper {
-    public static final String TAG = "ConfigHelper";
+    public static final String TAG = "SherloModule:ConfigHelper";
     private static final String CONFIG_FILENAME = "config.sherlo";
 
     /**
@@ -71,7 +71,7 @@ public class ConfigHelper {
         try {
             if (config.length() > 0) {
                 // Check for override mode
-                String overrideMode = getOverrideMode(config);
+                String overrideMode = config.getString("overrideMode");
                 if (overrideMode != null) {
                     Log.i(TAG, "Running in " + overrideMode + " mode");
                     return overrideMode;
@@ -83,23 +83,5 @@ public class ConfigHelper {
             Log.e(TAG, "Failed to determine initial mode", e);
         }
         return SherloModuleCore.MODE_DEFAULT;
-    }
-
-    /**
-     * Checks if the configuration specifies an override mode.
-     * Reads the "overrideMode" property from the config object.
-     * 
-     * @param config The configuration object
-     * @return The override mode value or null if not present/valid
-     */
-    private static String getOverrideMode(JSONObject config) {
-        try {
-            if (config.has("overrideMode")) {
-                return config.getString("overrideMode");
-            }
-        } catch (JSONException e) {
-            Log.e(TAG, "Error reading overrideMode: " + e.getMessage());
-        }
-        return null;
     }
 } 

@@ -21,7 +21,7 @@ import java.util.List;
  * Provides functionality to collect information about views and their properties.
  */
 public class InspectorHelper {
-    private static final String TAG = "InspectorHelper";
+    private static final String TAG = "SherloModule:InspectorHelper";
     
     /**
      * Gets UI inspector data from the current view hierarchy.

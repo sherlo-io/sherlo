@@ -1,5 +1,7 @@
 #import "StabilityHelper.h"
 
+static NSString *const LOG_TAG = @"SherloModule:StabilityHelper";
+
 @implementation StabilityHelper
 
 /**
@@ -54,11 +56,13 @@
             
             // Check if we have achieved the required number of consecutive matches.
             if (consecutiveMatches >= requiredMatches) {
+                NSLog(@"[%@] UI is stable", LOG_TAG);
                 [t invalidate];
                 resolve(@YES);
             }
             // Check if we've exceeded the timeout.
             else if (elapsedMs >= timeoutMs) {
+                NSLog(@"[%@] UI is unstable", LOG_TAG);
                 [t invalidate];
                 resolve(@NO);
             }
