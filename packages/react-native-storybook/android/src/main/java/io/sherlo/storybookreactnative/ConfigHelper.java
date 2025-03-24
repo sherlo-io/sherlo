@@ -8,21 +8,21 @@ import java.io.File;
 
 /**
  * Helper class for loading and managing Sherlo configuration.
+ * Provides methods to read and parse configuration from the filesystem.
  */
 public class ConfigHelper {
     public static final String TAG = "ConfigHelper";
     private static final String CONFIG_FILENAME = "config.sherlo";
 
-    private final FileSystemHelper fileSystemHelper;
-
-    public ConfigHelper(FileSystemHelper fileSystemHelper) {
-        this.fileSystemHelper = fileSystemHelper;
-    }
-
     /**
-     * Load and parse the Sherlo configuration file.
+     * Loads and parses the Sherlo configuration file.
+     * Attempts to decode the file content as base64 before parsing as JSON.
+     * Returns an empty JSONObject if the file doesn't exist or cannot be parsed.
+     *
+     * @param fileSystemHelper Helper class for file system operations
+     * @return The parsed configuration as a JSONObject
      */
-    public JSONObject loadConfig() {
+    public static JSONObject loadConfig(FileSystemHelper fileSystemHelper) {
         if (!fileSystemHelper.fileExists(CONFIG_FILENAME)) {
             Log.i(TAG, "Config file does not exist");
             return new JSONObject();
@@ -60,12 +60,14 @@ public class ConfigHelper {
     }
 
     /**
-     * Determines the initial mode based on configuration
+     * Determines the initial application mode based on the configuration.
+     * Checks for an override mode in the config first, otherwise defaults to testing mode 
+     * if config exists, or default mode if there's no valid config.
      * 
-     * @param config The config object
+     * @param config The configuration object
      * @return The determined mode (default, storybook, or testing)
      */
-    public String determineInitialMode(JSONObject config) {
+    public static String determineInitialMode(JSONObject config) {
         try {
             if (config.length() > 0) {
                 // Check for override mode
@@ -84,12 +86,13 @@ public class ConfigHelper {
     }
 
     /**
-     * Check if the config has an override mode specified.
+     * Checks if the configuration specifies an override mode.
+     * Reads the "overrideMode" property from the config object.
      * 
-     * @param config The config object
-     * @return The override mode or null if not present
+     * @param config The configuration object
+     * @return The override mode value or null if not present/valid
      */
-    private String getOverrideMode(JSONObject config) {
+    private static String getOverrideMode(JSONObject config) {
         try {
             if (config.has("overrideMode")) {
                 return config.getString("overrideMode");

@@ -1,21 +1,28 @@
 #import "InspectorHelper.h"
-#import "ErrorHelper.h"
-#import "StableUIChecker.h"
+#import "StabilityHelper.h"
 #import <UIKit/UIKit.h>
 
+/**
+ * Helper for inspecting the UI view hierarchy of a React Native application.
+ * Provides functionality to collect information about views and their properties.
+ */
 @implementation InspectorHelper
 
 #pragma mark - Instance Methods
 
-- (instancetype)initWithErrorHelper:(ErrorHelper *)errorHelper {
+- (instancetype)init {
     self = [super init];
-    if (self) {
-        _errorHelper = errorHelper;
-    }
     return self;
 }
 
-- (void)getInspectorDataWithResolver:(RCTPromiseResolveBlock)resolve
+/**
+ * Gets UI inspector data from the current view hierarchy.
+ * Runs the data collection on the main thread and returns a serialized JSON string.
+ *
+ * @param resolve Promise resolver to call with the inspector data
+ * @param reject Promise rejecter to call if an error occurs
+ */
++ (void)getInspectorDataWithResolver:(RCTPromiseResolveBlock)resolve
                             rejecter:(RCTPromiseRejectBlock)reject {
     dispatch_async(dispatch_get_main_queue(), ^{
         NSError *error = nil;
@@ -35,25 +42,15 @@
     });
 }
 
-- (void)stabilizeWithRequiredMatches:(NSInteger)requiredMatches
-                              intervalMs:(NSInteger)intervalMs
-                               timeoutMs:(NSInteger)timeoutMs
-                                resolver:(RCTPromiseResolveBlock)resolve
-                                rejecter:(RCTPromiseRejectBlock)reject {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        StableUIChecker *checker = [[StableUIChecker alloc] init];
-        
-        [checker stabilizeWithRequiredMatches:requiredMatches
-                                      intervalMs:intervalMs
-                                       timeoutMs:timeoutMs
-                                      completion:^(BOOL isStable) {
-            resolve(@(isStable));
-        }];
-    });
-}
-
 #pragma mark - Class Methods
 
+/**
+ * Collects and serializes data about the view hierarchy.
+ * Creates a JSON object with device metrics and detailed view information.
+ *
+ * @param error Pointer to an NSError that will be populated if an error occurs
+ * @return JSON string representing the view hierarchy and device metrics
+ */
 + (NSString *)dumpBoundaries:(NSError **)error {
     UIWindow *keyWindow = nil;
     NSArray *windows = [UIApplication sharedApplication].windows;
@@ -160,6 +157,12 @@
     return [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
 }
 
+/**
+ * Validates if a value can be serialized as JSON.
+ *
+ * @param value The value to check
+ * @return YES if the value is valid for JSON serialization, NO otherwise
+ */
 + (BOOL)isValidJSONValue:(id)value {
     if (!value) return YES;
     
@@ -180,6 +183,13 @@
     return NO;
 }
 
+/**
+ * Recursively collects information about a view and its children.
+ * Extracts properties like position, size, visibility, text content, and styling.
+ *
+ * @param view The view to collect information from
+ * @param array The array to add view information objects to
+ */
 + (void)collectViewInfo:(UIView *)view intoArray:(NSMutableArray *)array {
     NSMutableDictionary *viewDict = [NSMutableDictionary dictionary];
     
@@ -272,125 +282,91 @@
     }
 }
 
-+ (void)addLabelInfo:(UILabel *)label toDictionary:(NSMutableDictionary *)viewDict {
+/**
+ * Adds label-specific information to a view dictionary.
+ *
+ * @param label The UILabel to extract information from
+ * @param dict The dictionary to add the information to
+ */
++ (void)addLabelInfo:(UILabel *)label toDictionary:(NSMutableDictionary *)dict {
     if (label.text && label.text.length > 0) {
-        [viewDict setObject:label.text forKey:@"text"];
+        [dict setObject:label.text forKey:@"text"];
     }
     
     NSMutableDictionary *fontDict = [NSMutableDictionary dictionary];
-    [self addFontInfo:label.font color:label.textColor alignment:label.textAlignment toDictionary:fontDict];
+    [fontDict setObject:@(label.font.pointSize) forKey:@"size"];
+    [fontDict setObject:[NSString stringWithFormat:@"#%08lX", (unsigned long)label.textColor.CGColor] forKey:@"color"];
     
-    // Label-specific properties
-    if (label.numberOfLines >= 0) {
-        [fontDict setObject:@(label.numberOfLines) forKey:@"numberOfLines"];
-    }
+    UIFont *font = label.font;
+    [fontDict setObject:@(font.fontDescriptor.symbolicTraits & UIFontDescriptorTraitBold ? YES : NO) forKey:@"isBold"];
+    [fontDict setObject:@(font.fontDescriptor.symbolicTraits & UIFontDescriptorTraitItalic ? YES : NO) forKey:@"isItalic"];
     
-    if (@available(iOS 14.0, *)) {
-        [fontDict setObject:@(label.lineBreakStrategy) forKey:@"lineBreakStrategy"];
-    }
-    [fontDict setObject:@(label.lineBreakMode) forKey:@"lineBreakMode"];
+    // Add text alignment
+    [fontDict setObject:@(label.textAlignment) forKey:@"alignment"];
     
-    // Letter spacing from attributedText
-    if (label.attributedText.length > 0) {
-        NSNumber *kernValue = [label.attributedText attribute:NSKernAttributeName atIndex:0 effectiveRange:NULL];
-        if (kernValue) {
-            [fontDict setObject:kernValue forKey:@"letterSpacing"];
-        }
-    }
-    
-    if (fontDict.count > 0) {
-        [viewDict setObject:fontDict forKey:@"font"];
-    }
+    [dict setObject:fontDict forKey:@"font"];
 }
 
-+ (void)addButtonInfo:(UIButton *)button toDictionary:(NSMutableDictionary *)viewDict {
-    NSString *buttonText = [button titleForState:UIControlStateNormal];
-    if (buttonText && buttonText.length > 0) {
-        [viewDict setObject:buttonText forKey:@"text"];
+/**
+ * Adds button-specific information to a view dictionary.
+ *
+ * @param button The UIButton to extract information from
+ * @param dict The dictionary to add the information to
+ */
++ (void)addButtonInfo:(UIButton *)button toDictionary:(NSMutableDictionary *)dict {
+    NSString *title = [button titleForState:UIControlStateNormal];
+    if (title && title.length > 0) {
+        [dict setObject:title forKey:@"text"];
     }
     
-    NSMutableDictionary *fontDict = [NSMutableDictionary dictionary];
-    [self addFontInfo:button.titleLabel.font
-                color:[button titleColorForState:UIControlStateNormal]
-            alignment:button.titleLabel.textAlignment
-         toDictionary:fontDict];
+    UIColor *titleColor = [button titleColorForState:UIControlStateNormal];
+    UIFont *titleFont = button.titleLabel.font;
     
-    if (fontDict.count > 0) {
-        [viewDict setObject:fontDict forKey:@"font"];
-    }
-}
-
-+ (void)addTextFieldInfo:(UITextField *)textField toDictionary:(NSMutableDictionary *)viewDict {
-    if (textField.text && textField.text.length > 0) {
-        [viewDict setObject:textField.text forKey:@"text"];
-    }
-    
-    NSMutableDictionary *fontDict = [NSMutableDictionary dictionary];
-    [self addFontInfo:textField.font
-                color:textField.textColor
-            alignment:textField.textAlignment
-         toDictionary:fontDict];
-    
-    if (fontDict.count > 0) {
-        [viewDict setObject:fontDict forKey:@"font"];
-    }
-}
-
-+ (void)addFontInfo:(UIFont *)font color:(UIColor *)textColor alignment:(NSTextAlignment)alignment toDictionary:(NSMutableDictionary *)fontDict {
-    if (!font) return;
-    
-    // Font size
-    if (isfinite(font.pointSize)) {
-        [fontDict setObject:@(font.pointSize) forKey:@"size"];
-    }
-    
-    // Font weight and style
-    UIFontDescriptor *descriptor = font.fontDescriptor;
-    if (descriptor) {
-        NSDictionary *traits = [descriptor objectForKey:UIFontDescriptorTraitsAttribute];
-        if (traits) {
-            NSNumber *weight = traits[UIFontWeightTrait];
-            if (weight && isfinite(weight.floatValue)) {
-                [fontDict setObject:weight forKey:@"weight"];
-            }
-        }
+    if (titleColor && titleFont) {
+        NSMutableDictionary *fontDict = [NSMutableDictionary dictionary];
+        [fontDict setObject:@(titleFont.pointSize) forKey:@"size"];
+        [fontDict setObject:[NSString stringWithFormat:@"#%08lX", (unsigned long)titleColor.CGColor] forKey:@"color"];
         
-        // Font style traits
-        UIFontDescriptorSymbolicTraits symbolicTraits = descriptor.symbolicTraits;
-        [fontDict setObject:@((symbolicTraits & UIFontDescriptorTraitItalic) != 0) forKey:@"isItalic"];
-        [fontDict setObject:@((symbolicTraits & UIFontDescriptorTraitBold) != 0) forKey:@"isBold"];
+        [fontDict setObject:@(titleFont.fontDescriptor.symbolicTraits & UIFontDescriptorTraitBold ? YES : NO) forKey:@"isBold"];
+        [fontDict setObject:@(titleFont.fontDescriptor.symbolicTraits & UIFontDescriptorTraitItalic ? YES : NO) forKey:@"isItalic"];
+        
+        [dict setObject:fontDict forKey:@"font"];
     }
     
-    // Font family and name
-    if (font.familyName && font.familyName.length > 0) {
-        [fontDict setObject:font.familyName forKey:@"family"];
-    }
-    if (font.fontName && font.fontName.length > 0) {
-        [fontDict setObject:font.fontName forKey:@"name"];
-    }
-    
-    // Text color conversion
-    if (textColor) {
-        CGFloat red = 0, green = 0, blue = 0, alpha = 0;
-        @try {
-            if ([textColor getRed:&red green:&green blue:&blue alpha:&alpha]) {
-                if (isfinite(red) && isfinite(green) && isfinite(blue)) {
-                    NSString *hexColor = [NSString stringWithFormat:@"#%02lX%02lX%02lX",
-                                          lroundf(red * 255),
-                                          lroundf(green * 255),
-                                          lroundf(blue * 255)];
-                    if (hexColor && hexColor.length > 0) {
-                        [fontDict setObject:hexColor forKey:@"color"];
-                    }
-                }
-            }
-        } @catch (NSException *exception) {
-            // Ignore color conversion failures
-        }
+    [dict setObject:@(button.state) forKey:@"state"];
+    [dict setObject:@(button.enabled) forKey:@"enabled"];
+}
+
+/**
+ * Adds text field-specific information to a view dictionary.
+ *
+ * @param textField The UITextField to extract information from
+ * @param dict The dictionary to add the information to
+ */
++ (void)addTextFieldInfo:(UITextField *)textField toDictionary:(NSMutableDictionary *)dict {
+    NSString *text = textField.text;
+    if (text && text.length > 0) {
+        [dict setObject:text forKey:@"text"];
     }
     
-    // Text alignment
-    [fontDict setObject:@(alignment) forKey:@"alignment"];
+    if (textField.placeholder && textField.placeholder.length > 0) {
+        [dict setObject:textField.placeholder forKey:@"placeholder"];
+    }
+    
+    NSMutableDictionary *fontDict = [NSMutableDictionary dictionary];
+    [fontDict setObject:@(textField.font.pointSize) forKey:@"size"];
+    [fontDict setObject:[NSString stringWithFormat:@"#%08lX", (unsigned long)textField.textColor.CGColor] forKey:@"color"];
+    
+    UIFont *font = textField.font;
+    [fontDict setObject:@(font.fontDescriptor.symbolicTraits & UIFontDescriptorTraitBold ? YES : NO) forKey:@"isBold"];
+    [fontDict setObject:@(font.fontDescriptor.symbolicTraits & UIFontDescriptorTraitItalic ? YES : NO) forKey:@"isItalic"];
+    
+    // Add text alignment
+    [fontDict setObject:@(textField.textAlignment) forKey:@"alignment"];
+    
+    [dict setObject:fontDict forKey:@"font"];
+    [dict setObject:@(textField.secureTextEntry) forKey:@"isSecure"];
+    [dict setObject:@(textField.enabled) forKey:@"enabled"];
 }
 
 @end

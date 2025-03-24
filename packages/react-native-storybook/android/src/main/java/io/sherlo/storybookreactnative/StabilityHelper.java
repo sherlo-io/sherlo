@@ -16,24 +16,24 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Helper class for checking UI stability between screenshots.
- * Provides methods to capture screenshots and check if the UI is stable.
+ * Helper for checking UI stability by comparing consecutive screenshots.
+ * Used to determine when animations and rendering have completed.
  */
 public class StabilityHelper {
     private static final String TAG = "StabilityHelper";
 
-    public StabilityHelper() {}
-
     /**
-     * Checks if the UI is stable by comparing consecutive screenshots.
+     * Checks if the UI is stable by taking consecutive screenshots and comparing them.
+     * Resolves the promise when the required number of matching screenshots is reached,
+     * or when the timeout is exceeded.
      *
-     * @param activity The current activity
-     * @param requiredMatches The number of consecutive matching screenshots needed
-     * @param intervalMs The interval between each screenshot (in milliseconds)
-     * @param timeoutMs The overall timeout (in milliseconds)
-     * @param promise The promise to resolve or reject
+     * @param activity The current activity to check for stability
+     * @param requiredMatches Number of consecutive matching screenshots needed to consider UI stable
+     * @param intervalMs Time interval between screenshots in milliseconds
+     * @param timeoutMs Maximum time to wait for stability in milliseconds
+     * @param promise Promise to resolve with true if UI becomes stable, false if timeout occurs
      */
-    public void stabilize(Activity activity, int requiredMatches, int intervalMs, int timeoutMs, Promise promise) {
+    public static void stabilize(Activity activity, int requiredMatches, int intervalMs, int timeoutMs, Promise promise) {
         if (activity == null) {
             Log.e(TAG, "Activity is null, cannot check stability");
             promise.reject("ACTIVITY_NOT_FOUND", "Activity is null, cannot check stability");
@@ -98,8 +98,13 @@ public class StabilityHelper {
 
     /**
      * Captures a screenshot of the activity's root view.
+     * Creates a bitmap representation of the current UI.
+     *
+     * @param activity The activity to capture
+     * @return A bitmap containing the screenshot
+     * @throws RuntimeException if the view dimensions are invalid
      */
-    private Bitmap captureScreenshot(Activity activity) {
+    private static Bitmap captureScreenshot(Activity activity) {
         View rootView = activity.getWindow().getDecorView().getRootView();
         int width = rootView.getWidth();
         int height = rootView.getHeight();
@@ -118,9 +123,14 @@ public class StabilityHelper {
     }
 
     /**
-     * Compares two bitmaps by checking pixel arrays with early exit on difference.
+     * Compares two bitmaps to determine if they are identical.
+     * Checks dimensions first, then compares all pixels for equality.
+     *
+     * @param bmp1 First bitmap to compare
+     * @param bmp2 Second bitmap to compare
+     * @return True if the bitmaps are identical, false otherwise
      */
-    private boolean areBitmapsEqual(Bitmap bmp1, Bitmap bmp2) {
+    private static boolean areBitmapsEqual(Bitmap bmp1, Bitmap bmp2) {
         if (bmp1.getWidth() != bmp2.getWidth() || bmp1.getHeight() != bmp2.getHeight()) {
             return false;
         }
@@ -134,7 +144,13 @@ public class StabilityHelper {
         return Arrays.equals(pixels1, pixels2);
     }
 
-
+    /**
+     * Recursively searches for and clears any focused view in the hierarchy.
+     * Helps ensure UI stability by removing any blinking cursors or focus highlights.
+     *
+     * @param view The view to check for focus and its children
+     * @return True if a focused view was found and cleared, false otherwise
+     */
     private static boolean findAndClearFocus(View view) {
         if (view == null) return false;
 

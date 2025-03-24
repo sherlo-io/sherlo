@@ -1,241 +1,146 @@
 #import "SherloModule.h"
-#import "FileSystemHelper.h"
-#import "InspectorHelper.h"
-#import "ConfigHelper.h"
-#import "ExpoUpdateHelper.h"
-#import "StableUIChecker.h"
-#import "ErrorHelper.h"
-#import "KeyboardHelper.h"
-#import "LastStateHelper.h"
-#import "RestartHelper.h"
-
-#import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
-
+#import "SherloModuleCore.h"
 #import <React/RCTUtils.h>
-#import <React/RCTUIManager.h>
-#import <React/RCTBridge.h>
-#import <React/RCTRootView.h>
-#import <React/RCTBundleURLProvider.h>
-
-// A safeguard to ensure compatibility with different versions of React Native
-#if __has_include(<React/RCTUIManagerUtils.h>)
-// These are necessary for any interactions with the React Native UI Manager 
-// (e.g., operations on RCTRootView).
 #import <React/RCTUIManagerUtils.h>
-#endif
+#import <React/RCTBridge.h>
 
-#import <objc/runtime.h>
-
-static NSString *syncDirectoryPath = @"";
-static NSDictionary *config = nil;
-static NSDictionary *lastState = nil;
-static NSString *mode = @"default"; // "default" / "storybook" / "testing"
-
-
-@interface SherloModule()
-
-@property (nonatomic, strong) ErrorHelper *errorHelper;
-@property (nonatomic, strong) FileSystemHelper *fileSystemHelper;
-@property (nonatomic, strong) InspectorHelper *inspectorHelper;
-@property (nonatomic, strong) LastStateHelper *lastStateHelper;
-
-@end
-
+/**
+ * Main entry point for the Sherlo React Native module.
+ * Implements the RCTBridgeModule protocol to provide JavaScript-accessible functionality
+ * and delegates to SherloModuleCore for core implementation.
+ */
 @implementation SherloModule
 
+/**
+ * Required method to register the module with React Native.
+ * Sets the module name that will be used to access it from JavaScript.
+ */
 RCT_EXPORT_MODULE()
 
-@synthesize bridge = _bridge;
+/**
+ * Core implementation of the Sherlo module.
+ */
+@synthesize core = _core;
 
-- (instancetype)init {
-  self = [super init];
-  if (self) {
-    void (^errorHandler)(NSString *, id) = ^(NSString *errorCode, id error) {
-      [ErrorHelper handleError:errorCode error:error syncDirectoryPath:syncDirectoryPath];
-    };
-    
-    // Get sync directory path
-    NSError *getSyncDirectoryPathError = nil;
-    syncDirectoryPath = [ConfigHelper getSyncDirectoryPath:&getSyncDirectoryPathError];
-    if (getSyncDirectoryPathError) {
-      errorHandler(@"ERROR_MODULE_INIT", getSyncDirectoryPathError);
-      return self;
+/**
+ * Required method to initialize the module.
+ * Creates the core instance and initializes it with the bridge.
+ *
+ * @param bridge The React Native bridge
+ * @return An initialized SherloModule instance
+ */
+- (instancetype)initWithBridge:(RCTBridge *)bridge {
+    self = [super init];
+    if (self) {
+        // Initialize the core module with the bridge
+        _core = [[SherloModuleCore alloc] initWithBridge:bridge];
     }
-    
-    // Load config
-    NSError *loadConfigError = nil;
-    config = [ConfigHelper loadConfig:&loadConfigError syncDirectoryPath:syncDirectoryPath];
-    if (loadConfigError) {
-      errorHandler(@"ERROR_MODULE_INIT", loadConfigError);
-      return self;
-    }
-    
-    // Check for Expo update deeplink if config exists
-    if (config) {
-      NSLog(@"[SherloModule] Config exists");
-
-      NSString *overrideMode = config[@"overrideMode"];
-      if (overrideMode) {
-        mode = overrideMode;
-      } else {
-        mode = @"testing";
-      }
-
-      NSLog(@"[SherloModule] Mode: %@", mode);
-    }
-    
-
-    if ([mode isEqualToString:@"testing"]) {
-      [KeyboardHelper setupKeyboardSwizzling];
-
-       // Initialize our handlers
-      self.errorHelper = [[ErrorHelper alloc] init];
-      self.fileSystemHelper = [[FileSystemHelper alloc] initWithErrorHelper:self.errorHelper
-                                                          syncDirectoryPath:syncDirectoryPath];
-      self.inspectorHelper = [[InspectorHelper alloc] initWithErrorHelper:self.errorHelper];
-      self.lastStateHelper = [[LastStateHelper alloc] initWithFileSystemHelper:self.fileSystemHelper
-                                                                  errorHelper:self.errorHelper
-                                                            syncDirectoryPath:syncDirectoryPath];
-      
-      // Get the last state
-      lastState = [self.lastStateHelper getLastState];
-
-
-      // Check for Expo update deeplink if config exists
-      NSString *expoUpdateDeeplink = config[@"expoUpdateDeeplink"];
-      
-      if (expoUpdateDeeplink) {
-        
-        BOOL wasDeeplinkConsumed = [ExpoUpdateHelper wasDeeplinkConsumed];
-
-        // If last state is present we don't need to consume the deeplink
-        // because expo dev client already points to the correct expo update
-        BOOL lastStateHasRequestId = lastState[@"requestId"] != nil;
-
-        if(!wasDeeplinkConsumed && !lastStateHasRequestId) {
-          NSLog(@"[SherloModule] Consuming expo update deeplink");
-
-          NSError *expoUpdateError = nil;
-          [ExpoUpdateHelper consumeExpoUpdateDeeplink:expoUpdateDeeplink error:&expoUpdateError];
-        
-          if (expoUpdateError) {
-            errorHandler(@"ERROR_OPENING_EXPO_DEEPLINK", expoUpdateError);
-          }
-
-          return self;
-        }
-      }
-    }
-  }
-  
-  return self;
+    return self;
 }
 
-// Indicates whether the module needs to be initialized on the main thread.
-// This is necessary for modules that interact with the UI or need to perform any setup that affects the UI.
+/**
+ * Provides constants that are accessible from JavaScript.
+ * These constants include mode values and other configuration.
+ *
+ * @return Dictionary of constant values
+ */
+- (NSDictionary *)constantsToExport {
+    // Delegate to core module to get constants
+    return [self.core getConstants];
+}
+
+/**
+ * Indicates that this module should be initialized on the main thread.
+ * This is necessary because the module interacts with UI components.
+ *
+ * @return YES to initialize on the main thread
+ */
 + (BOOL)requiresMainQueueSetup {
-  return YES;
+    return YES;
 }
 
 // Specifies the dispatch queue on which the module's methods should be executed.
-// This ensures that UI updates from native modules are thread-safe and responsive.
 - (dispatch_queue_t)methodQueue {
-  return RCTGetUIManagerQueue();
+    return RCTGetUIManagerQueue();
 }
 
-// Exports constants to JavaScript. In this case, it exports the sync directory path and initial mode.
-- (NSDictionary *)constantsToExport {
-  NSString *configString = nil;
-  if (config) {
-    NSError *error = nil;
-    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:config options:0 error:&error];
-    if (!error) {
-      configString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
-    }
-  }
-  
-  NSString *lastStateString = nil;
-  if (lastState) {
-    NSError *error = nil;
-    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:lastState options:0 error:&error];
-    if (!error) {
-      lastStateString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
-    }
-  }
-  
-  return @{
-    @"syncDirectoryPath": syncDirectoryPath,
-    @"mode": mode,
-    @"config": configString ?: [NSNull null],
-    @"lastState": lastStateString ?: [NSNull null]
-  };
+#pragma mark - Exported Methods
+
+/**
+ * Toggles between Storybook and default modes.
+ * If in default mode, switches to Storybook mode; if in Storybook mode, switches to default mode.
+ */
+RCT_EXPORT_METHOD(toggleStorybook) {
+    [self.core toggleStorybook];
 }
 
-// Toggles the mode between "storybook" and "default"
-RCT_EXPORT_METHOD(toggleStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-    if ([mode isEqualToString:@"storybook"]) {
-        // Switch to default mode
-        mode = @"default";
-        [RestartHelper reloadWithBridge:_bridge];
-    } else {
-        // Switch to storybook mode
-        mode = @"storybook";
-        [RestartHelper reloadWithBridge:_bridge];
-    }
-
-    resolve(nil);
+/**
+ * Explicitly switches to Storybook mode.
+ */
+RCT_EXPORT_METHOD(openStorybook) {
+    [self.core openStorybook];
 }
 
-// Switches the mode to "storybook" and reloads the bridge
-RCT_EXPORT_METHOD(openStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  mode = @"storybook";
-  [RestartHelper reloadWithBridge:_bridge];
-  resolve(nil);
+/**
+ * Explicitly switches to default mode.
+ */
+RCT_EXPORT_METHOD(closeStorybook) {
+    [self.core closeStorybook];
 }
 
-// Switches the mode to "default" and reloads the bridge
-RCT_EXPORT_METHOD(closeStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-    mode = @"default";
-    [RestartHelper reloadWithBridge:_bridge];
-    resolve(nil);
+/**
+ * Appends base64 encoded content to a file.
+ * Creates the file if it doesn't exist, and any necessary parent directories.
+ *
+ * @param path The file path relative to the sync directory
+ * @param content The base64 encoded content to append
+ * @param resolve Promise resolver called when the operation completes
+ * @param reject Promise rejecter called if an error occurs
+ */
+RCT_EXPORT_METHOD(appendFile:(NSString *)path
+                  withContent:(NSString *)content
+                     resolver:(RCTPromiseResolveBlock)resolve
+                     rejecter:(RCTPromiseRejectBlock)reject) {
+    [self.core appendFile:path withContent:content resolver:resolve rejecter:reject];
 }
 
-// Creates a directory at the specified filepath.
-// If the directory creation fails, the reject block is called with an appropriate error message.
-RCT_EXPORT_METHOD(mkdir:(NSString *)filepath resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  [self.fileSystemHelper mkdirWithPath:filepath resolver:resolve rejecter:reject];
-}
-
-RCT_EXPORT_METHOD(stabilize:(NSInteger)requiredMatches
-                  interval:(NSInteger)intervalMs
-                  timeout:(NSInteger)timeoutMs
+/**
+ * Reads a file and returns its contents as base64 encoded string.
+ *
+ * @param path The file path relative to the sync directory
+ * @param resolve Promise resolver called with the base64 encoded file content
+ * @param reject Promise rejecter called if an error occurs
+ */
+RCT_EXPORT_METHOD(readFile:(NSString *)path
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
-  [self.inspectorHelper stabilizeWithRequiredMatches:requiredMatches
-                                              intervalMs:intervalMs
-                                               timeoutMs:timeoutMs
-                                                resolver:resolve
-                                                rejecter:reject];
+    [self.core readFile:path resolver:resolve rejecter:reject];
 }
 
-// Appends a base64 encoded file to the specified filepath.
-// If the file does not exist, it creates a new file.
-// If any errors occur during the append process, the reject block is called with an appropriate error message.
-RCT_EXPORT_METHOD(appendFile:(NSString *)filepath contents:(NSString *)base64Content resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  [self.fileSystemHelper appendFileWithPath:filepath base64Content:base64Content resolver:resolve rejecter:reject];
+/**
+ * Gets UI inspector data from the current view hierarchy.
+ * Returns a promise with serialized JSON containing detailed view information.
+ *
+ * @param resolve Promise resolver called with the inspector data
+ * @param reject Promise rejecter called if an error occurs
+ */
+RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve
+                          rejecter:(RCTPromiseRejectBlock)reject) {
+    [self.core getInspectorData:resolve rejecter:reject];
 }
 
-// Reads a byte array from the specified file and returns it as a base64 string.
-// If the file does not exist or if any errors occur during the read process, the reject block is called with an appropriate error message.
-RCT_EXPORT_METHOD(readFile:(NSString *)filepath resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  [self.fileSystemHelper readFileWithPath:filepath resolver:resolve rejecter:reject];
-}
-
-// Dumps the boundaries of the root view as a JSON string.
-// If any errors occur during the dump process, the reject block is called with an appropriate error message.
-RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  [self.inspectorHelper getInspectorDataWithResolver:resolve rejecter:reject];
+/**
+ * Checks UI stability by comparing screenshots taken over a specified interval.
+ * Returns a promise with a boolean indicating if the UI is stable.
+ *
+ * @param delay The delay in milliseconds between stability checks
+ * @param resolve Promise resolver called with the stability result
+ * @param reject Promise rejecter called if an error occurs
+ */
+RCT_EXPORT_METHOD(stabilize:(nonnull NSNumber *)delay
+                   resolver:(RCTPromiseResolveBlock)resolve
+                   rejecter:(RCTPromiseRejectBlock)reject) {
+    [self.core stabilize:delay resolver:resolve rejecter:reject];
 }
 
 @end

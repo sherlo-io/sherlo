@@ -1,133 +1,221 @@
 #import "FileSystemHelper.h"
-#import "ErrorHelper.h"
+
+/**
+ * Helper for file system operations in the Sherlo module.
+ * Manages a dedicated synchronization directory for storing and retrieving files,
+ * and provides methods for reading and writing data with Base64 encoding.
+ */
+@interface FileSystemHelper()
+@property (nonatomic, copy) NSString *syncDirectoryPath;
+@end
 
 @implementation FileSystemHelper
 
-#pragma mark - Class Methods
-
-+ (NSError *)mkdir:(NSString *)path {
-    NSError *error = nil;
-    [[NSFileManager defaultManager] createDirectoryAtPath:path
-                              withIntermediateDirectories:YES
-                                               attributes:nil
-                                                    error:&error];
-    return error;
-}
-
-+ (NSError *)appendFile:(NSString *)filepath contents:(NSString *)base64Content {
-    NSData *data = [[NSData alloc] initWithBase64EncodedString:base64Content options:0];
-    if (!data) {
-        return [NSError errorWithDomain:@"FileSystemHelper" code:1 userInfo:@{NSLocalizedDescriptionKey: @"Invalid base64 content"}];
-    }
-
-    if (![[NSFileManager defaultManager] fileExistsAtPath:filepath]) {
-        BOOL success = [[NSFileManager defaultManager] createFileAtPath:filepath contents:data attributes:nil];
-        if (!success) {
-            return [NSError errorWithDomain:NSCocoaErrorDomain code:NSFileWriteUnknownError userInfo:nil];
-        }
-    } else {
-        NSFileHandle *fileHandle = [NSFileHandle fileHandleForUpdatingAtPath:filepath];
-        if (!fileHandle) {
-            return [NSError errorWithDomain:@"FileSystemHelper" code:2 userInfo:@{NSLocalizedDescriptionKey: @"Failed to get file handle"}];
-        }
-        [fileHandle seekToEndOfFile];
-        [fileHandle writeData:data];
-        [fileHandle closeFile];
-    }
-    
-    return nil;
-}
-
-+ (NSString *)readFile:(NSString *)filepath error:(NSError **)error {
-    NSData *content = [NSData dataWithContentsOfFile:filepath options:0 error:error];
-    if (!content) {
-        return nil;
-    }
-    return [content base64EncodedStringWithOptions:0];
-}
+#pragma mark - Initialization
 
 /**
- * Reads a file and returns its content as a string.
- * This is used for internal operations that need to work with text content.
+ * Initializes a new instance of the FileSystemHelper.
+ * Sets up the sync directory during initialization.
  *
- * @param filepath The path of the file to read
- * @param error A pointer to an NSError object
- * @return The string content of the file, or nil if an error occurs
+ * @return A new FileSystemHelper instance
  */
-+ (NSString *)readFileAsString:(NSString *)filepath error:(NSError **)error {
-    NSString *content = [NSString stringWithContentsOfFile:filepath 
-                                                 encoding:NSUTF8StringEncoding 
-                                                    error:error];
-    return content;
-}
-
-#pragma mark - Instance Methods
-
-- (instancetype)initWithErrorHelper:(ErrorHelper *)errorHelper
-                   syncDirectoryPath:(NSString *)syncDirectoryPath {
+- (instancetype)init {
     self = [super init];
     if (self) {
-        _errorHelper = errorHelper;
-        _syncDirectoryPath = [syncDirectoryPath copy];
+        _syncDirectoryPath = [self setupSyncDirectory];
     }
     return self;
 }
 
-- (void)mkdirWithPath:(NSString *)filepath
-              resolver:(RCTPromiseResolveBlock)resolve
-              rejecter:(RCTPromiseRejectBlock)reject {
-    NSError *error = [FileSystemHelper mkdir:filepath];
+/**
+ * Creates and sets up the synchronization directory in the app's documents folder.
+ * The directory will be used for all file operations performed by this helper.
+ *
+ * @return The absolute path to the sync directory
+ */
+- (NSString *)setupSyncDirectory {
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentsDirectory = [paths firstObject];
+    NSString *sherloDirectory = [documentsDirectory stringByAppendingPathComponent:@"sherlo"];
+    
+    // Create the directory if it doesn't exist
+    NSError *error = nil;
+    [[NSFileManager defaultManager] createDirectoryAtPath:sherloDirectory
+                              withIntermediateDirectories:YES
+                                               attributes:nil
+                                                    error:&error];
     
     if (error) {
-        reject(@"E_MKDIR", 
-               [NSString stringWithFormat:@"Failed to create directory at path %@", filepath],
-               error);
-    } else {
-        resolve(nil);
+        NSLog(@"[FileSystemHelper] Failed to create sync directory: %@", error.localizedDescription);
     }
-}
-
-- (void)appendFileWithPath:(NSString *)filepath
-              base64Content:(NSString *)base64Content
-                  resolver:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject {
-    NSError *error = [FileSystemHelper appendFile:filepath contents:base64Content];
     
-    if (error) {
-        reject(@"E_APPENDFILE", 
-               [NSString stringWithFormat:@"Failed to append to file at path %@", filepath],
-               error);
-    } else {
-        resolve(nil);
-    }
+    return sherloDirectory;
 }
 
-- (void)readFileWithPath:(NSString *)filepath
-                 resolver:(RCTPromiseResolveBlock)resolve
-                 rejecter:(RCTPromiseRejectBlock)reject {
-    @try {
-        NSError *error = nil;
-        NSString *base64Content = [FileSystemHelper readFile:filepath error:&error];
-        
-        if (error) {
-            reject(@"E_READFILE", 
-                  [NSString stringWithFormat:@"Failed to read file at path %@", filepath],
-                  error);
-        } else if (!base64Content) {
-            reject(@"E_READFILE", 
-                  @"File content is empty or could not be encoded to base64",
-                  nil);
-        } else {
-            resolve(base64Content);
+/**
+ * Returns the absolute path to the synchronization directory.
+ *
+ * @return The absolute path to the sync directory
+ */
+- (NSString *)getSyncDirectoryPath {
+    return self.syncDirectoryPath;
+}
+
+#pragma mark - File System Operations with Promise
+
+/**
+ * Appends base64 encoded content to a file, creating the file if it doesn't exist.
+ * Returns a promise that resolves when the operation completes or rejects on error.
+ *
+ * @param filename The relative path of the file to append to
+ * @param base64Content The base64 encoded content to append
+ * @param resolve Promise resolver to call when the operation completes
+ * @param reject Promise rejecter to call if an error occurs
+ */
+- (void)appendFileWithPath:(NSString *)filename base64Content:(NSString *)base64Content resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
+    NSString *absolutePath = [self getAbsolutePath:filename];
+    
+    // Decode base64 content
+    NSData *data = [[NSData alloc] initWithBase64EncodedString:base64Content options:0];
+    if (!data) {
+        reject(@"ERROR_APPEND_FILE", @"Invalid base64 content", nil);
+        return;
+    }
+    
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    
+    // Create parent directories if needed
+    NSString *directoryPath = [absolutePath stringByDeletingLastPathComponent];
+    NSError *directoryError = nil;
+    [fileManager createDirectoryAtPath:directoryPath withIntermediateDirectories:YES attributes:nil error:&directoryError];
+    
+    if (directoryError) {
+        reject(@"ERROR_APPEND_FILE", [NSString stringWithFormat:@"Error creating parent directory: %@", directoryError.localizedDescription], directoryError);
+        return;
+    }
+    
+    // Append data to file
+    if (![fileManager fileExistsAtPath:absolutePath]) {
+        // Create new file if it doesn't exist
+        BOOL success = [fileManager createFileAtPath:absolutePath contents:data attributes:nil];
+        if (!success) {
+            reject(@"ERROR_APPEND_FILE", @"Failed to create file", nil);
+            return;
         }
-    } @catch (NSException *exception) {
-        [self.errorHelper handleError:@"ERROR_READ_FILE" 
-                               error:exception.reason 
-                    syncDirectoryPath:self.syncDirectoryPath];
-        reject(@"E_READFILE", 
-              exception.reason,
-              nil);
+    } else {
+        // Append to existing file
+        NSFileHandle *fileHandle = [NSFileHandle fileHandleForUpdatingAtPath:absolutePath];
+        if (!fileHandle) {
+            reject(@"ERROR_APPEND_FILE", @"Failed to get file handle", nil);
+            return;
+        }
+        
+        @try {
+            [fileHandle seekToEndOfFile];
+            [fileHandle writeData:data];
+            [fileHandle closeFile];
+        } @catch (NSException *exception) {
+            reject(@"ERROR_APPEND_FILE", [NSString stringWithFormat:@"Exception while appending: %@", exception.reason], nil);
+            return;
+        }
     }
+    
+    resolve(nil);
+}
+
+/**
+ * Reads a file and returns its contents as a base64 encoded string.
+ * Returns a promise that resolves with the file content or rejects on error.
+ *
+ * @param filename The relative path of the file to read
+ * @param resolve Promise resolver to call with the base64 encoded file content
+ * @param reject Promise rejecter to call if an error occurs
+ */
+- (void)readFileWithPath:(NSString *)filename resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
+    NSString *absolutePath = [self getAbsolutePath:filename];
+    
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    if (![fileManager fileExistsAtPath:absolutePath]) {
+        reject(@"ERROR_READ_FILE", [NSString stringWithFormat:@"File not found: %@", filename], nil);
+        return;
+    }
+    
+    NSError *error = nil;
+    NSData *content = [NSData dataWithContentsOfFile:absolutePath options:0 error:&error];
+    
+    if (error) {
+        reject(@"ERROR_READ_FILE", [NSString stringWithFormat:@"Error reading file: %@", error.localizedDescription], error);
+        return;
+    }
+    
+    if (!content) {
+        resolve(@""); // Empty file
+        return;
+    }
+    
+    NSString *base64String = [content base64EncodedStringWithOptions:0];
+    resolve(base64String);
+}
+
+#pragma mark - Utility Methods
+
+/**
+ * Reads a file and returns its contents as a string.
+ * Assumes UTF-8 encoding for the file content.
+ *
+ * @param filename The relative path of the file to read
+ * @param error Pointer to an NSError that will be populated if an error occurs
+ * @return The file contents as a string, or nil if an error occurs
+ */
+- (NSString *)readFileAsString:(NSString *)filename error:(NSError **)error {
+    NSString *absolutePath = [self getAbsolutePath:filename];
+    return [NSString stringWithContentsOfFile:absolutePath encoding:NSUTF8StringEncoding error:error];
+}
+
+/**
+ * Writes a string to a file, creating the file and any necessary parent directories.
+ * Uses UTF-8 encoding for the file content.
+ *
+ * @param string The string to write to the file
+ * @param filename The relative path of the file to write to
+ * @param error Pointer to an NSError that will be populated if an error occurs
+ * @return YES if the operation was successful, NO otherwise
+ */
+- (BOOL)writeString:(NSString *)string toFile:(NSString *)filename error:(NSError **)error {
+    NSString *absolutePath = [self getAbsolutePath:filename];
+    
+    // Create parent directories if needed
+    NSString *directoryPath = [absolutePath stringByDeletingLastPathComponent];
+    NSError *directoryError = nil;
+    [[NSFileManager defaultManager] createDirectoryAtPath:directoryPath withIntermediateDirectories:YES attributes:nil error:&directoryError];
+    
+    if (directoryError) {
+        if (error) {
+            *error = directoryError;
+        }
+        return NO;
+    }
+    
+    return [string writeToFile:absolutePath atomically:YES encoding:NSUTF8StringEncoding error:error];
+}
+
+#pragma mark - Private Methods
+
+/**
+ * Converts a relative path to an absolute path in the sync directory.
+ * If the path is already absolute, it is returned unchanged.
+ *
+ * @param filename The file path to convert
+ * @return The absolute path to the file
+ */
+- (NSString *)getAbsolutePath:(NSString *)filename {
+    // If filename is already absolute, return it
+    if ([filename hasPrefix:@"/"]) {
+        return filename;
+    }
+    
+    // Otherwise, append to sync directory
+    return [self.syncDirectoryPath stringByAppendingPathComponent:filename];
 }
 
 @end

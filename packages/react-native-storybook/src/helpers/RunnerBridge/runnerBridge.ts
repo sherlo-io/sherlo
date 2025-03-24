@@ -1,4 +1,4 @@
-import { create, log, send } from './actions';
+import { log, send } from './actions';
 import { LogFn, SendFn } from './types';
 
 const logPath = 'log.sherlo';

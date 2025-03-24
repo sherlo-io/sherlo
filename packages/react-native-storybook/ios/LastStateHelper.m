@@ -1,46 +1,129 @@
 #import "LastStateHelper.h"
 #import "FileSystemHelper.h"
-#import "ErrorHelper.h"
 
-static NSString *const LOG_TAG = @"LastStateHelper";
-static NSString *const PROTOCOL_FILENAME = @"protocol.sherlo";
-
-@interface LastStateHelper()
-
-@property (nonatomic, strong) FileSystemHelper *fileSystemHelper;
-@property (nonatomic, strong) ErrorHelper *errorHelper;
-@property (nonatomic, strong) NSString *syncDirectoryPath;
-
-@end
-
+/**
+ * Helper for managing the last state of the Sherlo module.
+ * Provides functionality to save, load, and retrieve the last state 
+ * of the application, such as the active mode and other session-specific data.
+ */
 @implementation LastStateHelper
 
-- (instancetype)initWithFileSystemHelper:(FileSystemHelper *)fileSystemHelper
-                             errorHelper:(ErrorHelper *)errorHelper
-                        syncDirectoryPath:(NSString *)syncDirectoryPath {
-    self = [super init];
-    if (self) {
-        self.fileSystemHelper = fileSystemHelper;
-        self.errorHelper = errorHelper;
-        self.syncDirectoryPath = syncDirectoryPath;
+/**
+ * Loads the last state from the filesystem.
+ * Reads the state file, parses it as JSON, and returns the resulting object.
+ *
+ * @param fileSystemHelper The helper to use for file operations
+ * @return A dictionary containing the last state, or nil if loading fails
+ */
++ (NSDictionary *)loadStateWithFileSystemHelper:(FileSystemHelper *)fileSystemHelper {
+    // Try to read last state file
+    NSError *error = nil;
+    NSString *lastStateFilePath = @"last-state.json";
+    
+    NSString *jsonString = [fileSystemHelper readFileAsString:lastStateFilePath error:&error];
+    
+    // Handle file reading error or empty file
+    if (error || !jsonString || jsonString.length == 0) {
+        if (error) {
+            NSLog(@"[LastStateHelper] Error reading last state file: %@", error.localizedDescription);
+        } else {
+            NSLog(@"[LastStateHelper] No last state file found or file is empty");
+        }
+        return nil;
     }
-    return self;
+    
+    // Parse JSON content
+    NSData *jsonData = [jsonString dataUsingEncoding:NSUTF8StringEncoding];
+    id parsedState = [NSJSONSerialization JSONObjectWithData:jsonData options:0 error:&error];
+    
+    // Handle JSON parsing errors
+    if (error) {
+        NSLog(@"[LastStateHelper] Error parsing last state JSON: %@", error.localizedDescription);
+        return nil;
+    }
+    
+    // Ensure we have a dictionary
+    if (![parsedState isKindOfClass:[NSDictionary class]]) {
+        NSLog(@"[LastStateHelper] Last state is not a dictionary: %@", parsedState);
+        return nil;
+    }
+    
+    return parsedState;
+}
+
+/**
+ * Saves the provided state to the filesystem.
+ * Serializes the state as JSON and writes it to the state file.
+ *
+ * @param state The state to save
+ * @param fileSystemHelper The helper to use for file operations
+ * @return YES if the state was saved successfully, NO otherwise
+ */
++ (BOOL)saveState:(NSDictionary *)state withFileSystemHelper:(FileSystemHelper *)fileSystemHelper {
+    // Validate input
+    if (!state || ![state isKindOfClass:[NSDictionary class]]) {
+        NSLog(@"[LastStateHelper] Invalid state provided for saving");
+        return NO;
+    }
+    
+    // Serialize to JSON
+    NSError *error = nil;
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:state options:NSJSONWritingPrettyPrinted error:&error];
+    
+    if (error) {
+        NSLog(@"[LastStateHelper] Error serializing state to JSON: %@", error.localizedDescription);
+        return NO;
+    }
+    
+    // Convert JSON data to string
+    NSString *jsonString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+    if (!jsonString) {
+        NSLog(@"[LastStateHelper] Error converting JSON data to string");
+        return NO;
+    }
+    
+    // Write to file
+    NSString *lastStateFilePath = @"last-state.json";
+    BOOL success = [fileSystemHelper writeString:jsonString toFile:lastStateFilePath error:&error];
+    
+    if (!success) {
+        NSLog(@"[LastStateHelper] Error writing last state to file: %@", error.localizedDescription);
+        return NO;
+    }
+    
+    NSLog(@"[LastStateHelper] Successfully saved state");
+    return YES;
+}
+
+/**
+ * Gets data from the last state using the specified key.
+ * If the key is not found or the last state doesn't exist, returns nil.
+ *
+ * @param key The key to look for in the last state
+ * @param fileSystemHelper The helper to use for file operations
+ * @return The data associated with the key, or nil if not found
+ */
++ (id)getDataForKey:(NSString *)key withFileSystemHelper:(FileSystemHelper *)fileSystemHelper {
+    NSDictionary *lastState = [self loadStateWithFileSystemHelper:fileSystemHelper];
+    
+    if (!lastState) {
+        return nil;
+    }
+    
+    return [lastState objectForKey:key];
 }
 
 /**
  * Reads the protocol file and extracts the last state information.
  * This includes the next snapshot index, filtered view IDs, and request ID.
  * 
+ * @param fileSystemHelper The file system helper for reading files
  * @return NSDictionary containing the state information or nil if not found
  */
-- (NSDictionary *)getLastState {
++ (NSDictionary *)getLastStateWithFileSystemHelper:(FileSystemHelper *)fileSystemHelper {
   @try {
-    NSString *protocolPath = [self.syncDirectoryPath stringByAppendingPathComponent:PROTOCOL_FILENAME];
-    NSLog(@"[%@] Reading protocol file at: %@", LOG_TAG, protocolPath);
-
-    // Read file content using FileSystemHelper
     NSError *readError = nil;
-    NSString *protocolContent = [FileSystemHelper readFileAsString:protocolPath error:&readError];
+    NSString *protocolContent = [fileSystemHelper readFileAsString:PROTOCOL_FILENAME error:&readError];
 
     if (readError || !protocolContent || [protocolContent stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]].length == 0) {
       NSLog(@"[%@] Protocol file is empty or doesn't exist", LOG_TAG);
@@ -131,9 +214,6 @@ static NSString *const PROTOCOL_FILENAME = @"protocol.sherlo";
     return state;
   } @catch (NSException *exception) {
     NSLog(@"[%@] Error getting last state: %@", LOG_TAG, exception.reason);
-    if (self.errorHelper) {
-      [self.errorHelper handleError:@"ERROR_LAST_STATE" error:exception syncDirectoryPath:self.syncDirectoryPath];
-    }
     return [NSDictionary dictionary];
   }
 }

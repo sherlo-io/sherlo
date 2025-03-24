@@ -1,81 +1,138 @@
 #import "KeyboardHelper.h"
+#import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 
-static NSString *const LOG_TAG = @"KeyboardHelper";
-
+/**
+ * Helper for managing keyboard interactions in a React Native application.
+ * Provides functionality to intercept and modify keyboard behavior, particularly
+ * useful for testing scenarios where keyboard needs to be controlled programmatically.
+ */
 @implementation KeyboardHelper
 
 /**
- * Sets up keyboard prevention by swizzling (replacing) input-related methods.
- * 
- * What this does:
- * - Prevents keyboard from appearing for any input elements
- * - Prevents focus on text fields, text views, search bars, and webview inputs
- * - Removes keyboard accessory views
- * 
- * What this doesn't affect:
- * - Visual appearance of UI elements (colors, sizes, borders, etc.)
- * - Touch handling (elements can still be tapped)
- * - Any other UI behavior not related to keyboard/focus
- * 
- * This is used in testing mode to ensure keyboard doesn't interfere with UI testing.
+ * Sets up keyboard swizzling to intercept keyboard events.
+ * Replaces the original methods of UITextField and UITextView with custom implementations
+ * that can be controlled programmatically during testing.
  */
 + (void)setupKeyboardSwizzling {
-    // Swizzle UITextField
-    Method textFieldMethod = class_getInstanceMethod([UITextField class], @selector(becomeFirstResponder));
+    NSLog(@"[KeyboardHelper] Setting up keyboard swizzling");
     
-    IMP newTextFieldImplementation = imp_implementationWithBlock(^BOOL(id _self) {
-        return NO;
-    });
-    method_setImplementation(textFieldMethod, newTextFieldImplementation);
+    // Swizzle UITextField methods
+    [self swizzleUITextFieldMethods];
     
-    // Swizzle UITextView
-    Method textViewModel = class_getInstanceMethod([UITextView class], @selector(becomeFirstResponder));
+    // Swizzle UITextView methods
+    [self swizzleUITextViewMethods];
+}
+
+/**
+ * Swizzles methods of UITextField to intercept keyboard interactions.
+ * Replaces the original implementation of becomeFirstResponder to prevent
+ * keyboard from appearing during automated testing.
+ */
++ (void)swizzleUITextFieldMethods {
+    Class class = [UITextField class];
     
-    IMP newTextViewImplementation = imp_implementationWithBlock(^BOOL(id _self) {
-        return NO;
-    });
-    method_setImplementation(textViewModel, newTextViewImplementation);
+    // Swizzle becomeFirstResponder
+    SEL originalSelector = @selector(becomeFirstResponder);
+    SEL swizzledSelector = @selector(swizzled_becomeFirstResponder);
     
-    // Additional input elements that can trigger keyboard
-    Class searchBarClass = NSClassFromString(@"UISearchBar");
-    if (searchBarClass) {
-        Method searchBarMethod = class_getInstanceMethod(searchBarClass, @selector(becomeFirstResponder));
-        method_setImplementation(searchBarMethod, newTextFieldImplementation);
+    Method originalMethod = class_getInstanceMethod(class, originalSelector);
+    Method swizzledMethod = class_getInstanceMethod(class, swizzledSelector);
+    
+    if (originalMethod && swizzledMethod) {
+        BOOL didAddMethod = class_addMethod(class,
+                                         originalSelector,
+                                         method_getImplementation(swizzledMethod),
+                                         method_getTypeEncoding(swizzledMethod));
+        
+        if (didAddMethod) {
+            class_replaceMethod(class,
+                             swizzledSelector,
+                             method_getImplementation(originalMethod),
+                             method_getTypeEncoding(originalMethod));
+        } else {
+            method_exchangeImplementations(originalMethod, swizzledMethod);
+        }
+        
+        NSLog(@"[KeyboardHelper] Successfully swizzled UITextField's becomeFirstResponder");
+    } else {
+        NSLog(@"[KeyboardHelper] Failed to swizzle UITextField's becomeFirstResponder");
     }
+}
 
-    // WebView input fields
-    Class webViewClass = NSClassFromString(@"WKWebView");
-    if (webViewClass) {
-        Method webViewMethod = class_getInstanceMethod(webViewClass, @selector(becomeFirstResponder));
-        method_setImplementation(webViewMethod, newTextFieldImplementation);
-    }
-
-    // Custom input accessory views
-    Method inputAccessoryMethod = class_getInstanceMethod([UIResponder class], @selector(inputAccessoryView));
-    if (inputAccessoryMethod) {
-        IMP newInputAccessoryImplementation = imp_implementationWithBlock(^UIView*(id _self) {
-            return nil;
-        });
-        method_setImplementation(inputAccessoryMethod, newInputAccessoryImplementation);
-    }
-
-    // Prevent focus state changes
-    Method canBecomeFirstResponder = class_getInstanceMethod([UIResponder class], @selector(canBecomeFirstResponder));
-    IMP newCanBecomeFirstResponder = imp_implementationWithBlock(^BOOL(id _self) {
-        return NO;
-    });
-    method_setImplementation(canBecomeFirstResponder, newCanBecomeFirstResponder);
+/**
+ * Swizzles methods of UITextView to intercept keyboard interactions.
+ * Replaces the original implementation of becomeFirstResponder to prevent
+ * keyboard from appearing during automated testing.
+ */
++ (void)swizzleUITextViewMethods {
+    Class class = [UITextView class];
     
-    // Prevent any existing first responder from keeping its state
-    Method isFirstResponder = class_getInstanceMethod([UIResponder class], @selector(isFirstResponder));
-    IMP newIsFirstResponder = imp_implementationWithBlock(^BOOL(id _self) {
-        return NO;
-    });
-    method_setImplementation(isFirstResponder, newIsFirstResponder);
+    // Swizzle becomeFirstResponder
+    SEL originalSelector = @selector(becomeFirstResponder);
+    SEL swizzledSelector = @selector(swizzled_becomeFirstResponder);
+    
+    Method originalMethod = class_getInstanceMethod(class, originalSelector);
+    Method swizzledMethod = class_getInstanceMethod(class, swizzledSelector);
+    
+    if (originalMethod && swizzledMethod) {
+        BOOL didAddMethod = class_addMethod(class,
+                                         originalSelector,
+                                         method_getImplementation(swizzledMethod),
+                                         method_getTypeEncoding(swizzledMethod));
+        
+        if (didAddMethod) {
+            class_replaceMethod(class,
+                             swizzledSelector,
+                             method_getImplementation(originalMethod),
+                             method_getTypeEncoding(originalMethod));
+        } else {
+            method_exchangeImplementations(originalMethod, swizzledMethod);
+        }
+        
+        NSLog(@"[KeyboardHelper] Successfully swizzled UITextView's becomeFirstResponder");
+    } else {
+        NSLog(@"[KeyboardHelper] Failed to swizzle UITextView's becomeFirstResponder");
+    }
+}
 
-    NSLog(@"[%@] Enhanced keyboard and focus state swizzling enabled", LOG_TAG);
+@end
+
+/**
+ * Category that extends UITextField with swizzled methods.
+ * Used to replace the original becomeFirstResponder implementation.
+ */
+@implementation UITextField (Swizzled)
+
+/**
+ * Swizzled version of becomeFirstResponder that prevents keyboard from appearing.
+ * Called instead of the original method when keyboard swizzling is active.
+ *
+ * @return YES to indicate success
+ */
+- (BOOL)swizzled_becomeFirstResponder {
+    // Always return YES to simulate successful focus without showing keyboard
+    return YES;
+}
+
+@end
+
+/**
+ * Category that extends UITextView with swizzled methods.
+ * Used to replace the original becomeFirstResponder implementation.
+ */
+@implementation UITextView (Swizzled)
+
+/**
+ * Swizzled version of becomeFirstResponder that prevents keyboard from appearing.
+ * Called instead of the original method when keyboard swizzling is active.
+ *
+ * @return YES to indicate success
+ */
+- (BOOL)swizzled_becomeFirstResponder {
+    // Always return YES to simulate successful focus without showing keyboard
+    return YES;
 }
 
 @end 

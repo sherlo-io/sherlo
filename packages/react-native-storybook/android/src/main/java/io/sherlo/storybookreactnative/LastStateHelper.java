@@ -6,32 +6,22 @@ import org.json.JSONArray;
 import android.util.Base64;
 
 /**
- * Helper class for extracting the last state information from protocol files.
- * Provides methods to read and parse the latest state for snapshot management.
+ * Helper for extracting and processing state information from Sherlo protocol files.
+ * Used to maintain continuity between test runs or application restarts.
  */
 public class LastStateHelper {
     private static final String TAG = "LastStateHelper";
     private static final String PROTOCOL_FILENAME = "protocol.sherlo";
     
-    private final FileSystemHelper fileSystemHelper;
-    
-    /**
-     * Constructor for LastStateHelper
-     * 
-     * @param fileSystemHelper The file system helper for reading files
-     * @param syncDirectoryPath The path to the sync directory
-     */
-    public LastStateHelper(FileSystemHelper fileSystemHelper) {
-        this.fileSystemHelper = fileSystemHelper;
-    }
-    
     /**
      * Reads the protocol file and extracts the last state information.
-     * This includes the next snapshot index, filtered view IDs, and request ID.
+     * Processes the file to find the most recent relevant protocol entries and
+     * constructs a state object with snapshot and request information.
      * 
-     * @return JSONObject containing the state information or an empty JSONObject if not found
+     * @param fileSystemHelper The file system helper for reading the protocol file
+     * @return JSONObject containing the extracted state information or an empty JSONObject if not found
      */
-    public JSONObject getLastState() {
+    public static JSONObject getLastState(FileSystemHelper fileSystemHelper) {
         try {
             String protocolContent = null;
             try {

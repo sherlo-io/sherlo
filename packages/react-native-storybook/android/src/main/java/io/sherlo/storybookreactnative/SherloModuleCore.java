@@ -17,7 +17,7 @@ import java.io.File;
 
 /**
  * Core implementation for the Sherlo module containing all business logic.
- * This class centralizes all module functionality and state management.
+ * Manages application modes (default, storybook, testing) and provides access to helper utilities.
  */
 public class SherloModuleCore {
     public static final String TAG = "SherloModuleCore";
@@ -36,36 +36,31 @@ public class SherloModuleCore {
 
     // Helper instances
     private FileSystemHelper fileSystemHelper = null;
-    private ConfigHelper configHelper = null;
-    private RestartHelper restartHelper = null;
-    private InspectorHelper inspectorHelper = null;
-    private LastStateHelper lastStateHelper = null;
-    private StabilityHelper stabilityHelper = null;
 
     /**
-     * Constructor - initializes all helpers and module state
+     * Initializes the module with the React context and sets up all required helpers.
+     * Loads configuration and determines the initial mode to use.
+     * 
+     * @param reactContext The React application context
      */
     public SherloModuleCore(ReactApplicationContext reactContext) {
         this.reactContext = reactContext;
         
-        this.restartHelper = new RestartHelper();
         this.fileSystemHelper = new FileSystemHelper(reactContext);
-        this.configHelper = new ConfigHelper(this.fileSystemHelper);
 
-        this.config = this.configHelper.loadConfig();
-        this.currentMode = this.configHelper.determineInitialMode(this.config);
+        this.config = ConfigHelper.loadConfig(this.fileSystemHelper);
+        this.currentMode = ConfigHelper.determineInitialMode(this.config);
         
         if (currentMode.equals(MODE_TESTING)) {
-            this.inspectorHelper = new InspectorHelper();
-            this.stabilityHelper = new StabilityHelper();
-
-            this.lastStateHelper = new LastStateHelper(this.fileSystemHelper);
-            this.lastState = this.lastStateHelper.getLastState();
+            this.lastState = LastStateHelper.getLastState(this.fileSystemHelper);
         }
     }
     
     /**
-     * Get module constants
+     * Returns constants exposed to the JavaScript side.
+     * Provides access to the current mode, configuration and last state.
+     * 
+     * @return A map containing the module constants
      */
     public Map<String, Object> getConstants() {
         final Map<String, Object> constants = new HashMap<>();
@@ -76,7 +71,11 @@ public class SherloModuleCore {
     }
 
     /**
-     * Toggles between Storybook and default mode.
+     * Toggles between Storybook and default modes.
+     * If currently in Storybook mode, switches to default, otherwise switches to Storybook.
+     * 
+     * @param activity The current activity
+     * @param promise Promise to resolve or reject
      */
     public void toggleStorybook(Activity activity, Promise promise) {
         if (currentMode.equals(MODE_STORYBOOK)) {
@@ -85,44 +84,78 @@ public class SherloModuleCore {
             currentMode = MODE_STORYBOOK;
         }
 
-        this.restartHelper.restart(activity, promise);
+        RestartHelper.restart(activity, promise);
     }
 
     /**
-     * Opens Storybook mode.
+     * Switches to Storybook mode and restarts the React context.
+     * 
+     * @param activity The current activity
+     * @param promise Promise to resolve or reject
      */
     public void openStorybook(Activity activity, Promise promise) {
         currentMode = MODE_STORYBOOK;
-        this.restartHelper.restart(activity, promise);
+        RestartHelper.restart(activity, promise);
     }
 
     /**
-     * Closes Storybook and returns to default mode.
+     * Switches to default mode and restarts the React context.
+     * 
+     * @param activity The current activity
+     * @param promise Promise to resolve or reject
      */
     public void closeStorybook(Activity activity, Promise promise) {
         currentMode = MODE_DEFAULT;
-        this.restartHelper.restart(activity, promise);
+        RestartHelper.restart(activity, promise);
     }
 
+    /**
+     * Appends base64 encoded content to a file.
+     * 
+     * @param filename The name of the file to append to
+     * @param base64Content The base64 encoded content to append
+     * @param promise Promise to resolve or reject
+     */
     public void appendFile(String filename, String base64Content, Promise promise) {
         fileSystemHelper.appendFileWithPromise(filename, base64Content, promise);
     }
 
+    /**
+     * Reads a file and returns its content as a base64 encoded string.
+     * 
+     * @param filename The name of the file to read
+     * @param promise Promise to resolve with the content or reject with an error
+     */
     public void readFile(String filename, Promise promise) {
         fileSystemHelper.readFileWithPromise(filename, promise);
     }
 
+    /**
+     * Gets UI inspector data from the current view hierarchy.
+     * 
+     * @param activity The current activity
+     * @param promise Promise to resolve with the inspector data or reject with an error
+     */
     public void getInspectorData(Activity activity, Promise promise) {
-        if (inspectorHelper != null) {
-            inspectorHelper.getInspectorData(activity, promise);
+        if (currentMode.equals(MODE_TESTING)) {
+            InspectorHelper.getInspectorData(activity, promise);
         } else {
             promise.reject("INSPECTOR_NOT_AVAILABLE", "Inspector is not available");
         }
     }
 
+    /**
+     * Checks if the UI is stable by comparing consecutive screenshots.
+     * 
+     * @param activity The current activity
+     * @param requiredMatches The number of consecutive matching screenshots needed
+     * @param intervalMs The interval between each screenshot (in milliseconds)
+     * @param timeoutMs The overall timeout (in milliseconds)
+     * @param promise Promise to resolve with the stability result or reject with an error
+     */
     public void stabilize(Activity activity, int requiredMatches, int intervalMs, int timeoutMs, Promise promise) {
-        if (stabilityHelper != null) {
-            stabilityHelper.stabilize(activity, requiredMatches, intervalMs, timeoutMs, promise);
+        if (currentMode.equals(MODE_TESTING)) {
+            StabilityHelper.stabilize(activity, requiredMatches, intervalMs, timeoutMs, promise);
         } else {
             promise.reject("STABILITY_HELPER_NOT_AVAILABLE", "Stability helper is not available");
         }

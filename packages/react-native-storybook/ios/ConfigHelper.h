@@ -1,8 +1,15 @@
 #import <Foundation/Foundation.h>
 
+@class FileSystemHelper;
+
+// Forward declarations for mode constants
+extern NSString * const MODE_DEFAULT;
+extern NSString * const MODE_STORYBOOK;
+extern NSString * const MODE_TESTING;
+
 @interface ConfigHelper : NSObject
 
-+ (NSString *)getSyncDirectoryPath:(NSError **)error;
-+ (NSDictionary *)loadConfig:(NSError **)error syncDirectoryPath:(NSString *)syncDirectoryPath;
++ (NSDictionary *)loadConfigWithFileSystemHelper:(FileSystemHelper *)fileSystemHelper;
++ (NSString *)determineInitialMode:(NSDictionary *)config;
 
 @end
