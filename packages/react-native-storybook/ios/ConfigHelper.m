@@ -67,8 +67,8 @@ static NSString *const LOG_TAG = @"ConfigHelper";
 + (NSString *)determineInitialMode:(NSDictionary *)config {
     @try {
         if (config && config.count > 0) {
-            // Check for override mode
-            NSString *overrideMode = [self getOverrideMode:config];
+            NSString *overrideMode = config[@"overrideMode"];
+            
             if (overrideMode) {
                 NSLog(@"[%@] Running in %@ mode", LOG_TAG, overrideMode);
                 return overrideMode;
@@ -81,20 +81,6 @@ static NSString *const LOG_TAG = @"ConfigHelper";
     }
     
     return MODE_DEFAULT;
-}
-
-/**
- * Checks if the configuration specifies an override mode.
- * Reads the "overrideMode" property from the config object.
- * 
- * @param config The configuration object
- * @return The override mode value or nil if not present/valid
- */
-+ (NSString *)getOverrideMode:(NSDictionary *)config {
-    if (config[@"overrideMode"]) {
-        return config[@"overrideMode"];
-    }
-    return nil;
 }
 
 @end

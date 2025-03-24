@@ -23,7 +23,7 @@
  * @param reject Promise rejecter to call if an error occurs
  */
 + (void)getInspectorData:(RCTPromiseResolveBlock)resolve
-                            rejecter:(RCTPromiseRejectBlock)reject {
+                rejecter:(RCTPromiseRejectBlock)reject {
     dispatch_async(dispatch_get_main_queue(), ^{
         NSError *error = nil;
         NSString *jsonString = [InspectorHelper dumpBoundaries:&error];

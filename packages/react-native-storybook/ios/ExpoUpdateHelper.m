@@ -14,22 +14,34 @@ static bool expoUpdateDeeplinkConsumed = false;
  * Consumes an Expo update deeplink by opening it in the application.
  * Uses the built-in URL handling mechanism to navigate to the specific update.
  *
- * @param deeplink The Expo update deeplink URL to consume
+ * @param expoUpdateDeeplink The Expo update deeplink URL to consume
+ * @param error On input, a pointer to an error object. If an error occurs, this pointer is set to an actual error object
  * @return YES if the deeplink was successfully consumed, NO otherwise
  */
-+ (BOOL)consumeUpdateDeeplink:(NSString *)deeplink {
-    if (!deeplink || deeplink.length == 0) {
++ (BOOL)consumeExpoUpdateDeeplink:(NSString *)expoUpdateDeeplink
+                          error:(NSError **)error {
+    if (!expoUpdateDeeplink || expoUpdateDeeplink.length == 0) {
         NSLog(@"[ExpoUpdateHelper] Invalid or empty deeplink provided");
+        if (error) {
+            *error = [NSError errorWithDomain:@"ExpoUpdateHelper" code:1 userInfo:@{
+                NSLocalizedDescriptionKey: @"Invalid or empty deeplink provided"
+            }];
+        }
         return NO;
     }
     
-    NSLog(@"[ExpoUpdateHelper] Consuming update deeplink: %@", deeplink);
+    NSLog(@"[ExpoUpdateHelper] Consuming update deeplink: %@", expoUpdateDeeplink);
     
     // Create URL from the deeplink string
-    NSURL *deeplinkURL = [NSURL URLWithString:deeplink];
+    NSURL *deeplinkURL = [NSURL URLWithString:expoUpdateDeeplink];
     
     if (!deeplinkURL) {
-        NSLog(@"[ExpoUpdateHelper] Failed to create URL from deeplink: %@", deeplink);
+        NSLog(@"[ExpoUpdateHelper] Failed to create URL from deeplink: %@", expoUpdateDeeplink);
+        if (error) {
+            *error = [NSError errorWithDomain:@"ExpoUpdateHelper" code:2 userInfo:@{
+                NSLocalizedDescriptionKey: @"Failed to create URL from deeplink"
+            }];
+        }
         return NO;
     }
     
@@ -39,6 +51,7 @@ static bool expoUpdateDeeplinkConsumed = false;
         [[UIApplication sharedApplication] openURL:deeplinkURL options:@{} completionHandler:nil];
     });
     
+    expoUpdateDeeplinkConsumed = true;
     return YES;
 }
 

@@ -17,10 +17,9 @@
  */
 RCT_EXPORT_MODULE()
 
-/**
- * Core implementation of the Sherlo module.
- */
-@synthesize core = _core;
+@synthesize bridge = _bridge;
+
+static SherloModuleCore *core;
 
 /**
  * Required method to initialize the module.
@@ -29,12 +28,10 @@ RCT_EXPORT_MODULE()
  * @param bridge The React Native bridge
  * @return An initialized SherloModule instance
  */
-- (instancetype)initWithBridge:(RCTBridge *)bridge {
+- (instancetype)init {
     self = [super init];
     if (self) {
-        // Initialize the core module
-        _core = [[SherloModuleCore alloc] init];
-        _bridge = bridge;
+        core = [[SherloModuleCore alloc] init];
     }
     return self;
 }
@@ -46,8 +43,7 @@ RCT_EXPORT_MODULE()
  * @return Dictionary of constant values
  */
 - (NSDictionary *)constantsToExport {
-    // Delegate to core module to get constants
-    return [self.core getConstants];
+    return [core getConstants];
 }
 
 /**
@@ -72,21 +68,21 @@ RCT_EXPORT_MODULE()
  * If in default mode, switches to Storybook mode; if in Storybook mode, switches to default mode.
  */
 RCT_EXPORT_METHOD(toggleStorybook) {
-    [self.core toggleStorybook:self.bridge];
+    [core toggleStorybook:self.bridge];
 }
 
 /**
  * Explicitly switches to Storybook mode.
  */
 RCT_EXPORT_METHOD(openStorybook) {
-    [self.core openStorybook:self.bridge];
+    [core openStorybook:self.bridge];
 }
 
 /**
  * Explicitly switches to default mode.
  */
 RCT_EXPORT_METHOD(closeStorybook) {
-    [self.core closeStorybook:self.bridge];
+    [core closeStorybook:self.bridge];
 }
 
 /**
@@ -102,7 +98,7 @@ RCT_EXPORT_METHOD(appendFile:(NSString *)path
                   withContent:(NSString *)content
                      resolver:(RCTPromiseResolveBlock)resolve
                      rejecter:(RCTPromiseRejectBlock)reject) {
-    [self.core appendFile:path withContent:content resolver:resolve rejecter:reject];
+    [core appendFile:path withContent:content resolver:resolve rejecter:reject];
 }
 
 /**
@@ -115,7 +111,7 @@ RCT_EXPORT_METHOD(appendFile:(NSString *)path
 RCT_EXPORT_METHOD(readFile:(NSString *)path
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
-    [self.core readFile:path resolver:resolve rejecter:reject];
+    [core readFile:path resolver:resolve rejecter:reject];
 }
 
 /**
@@ -127,7 +123,7 @@ RCT_EXPORT_METHOD(readFile:(NSString *)path
  */
 RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve
                           rejecter:(RCTPromiseRejectBlock)reject) {
-    [self.core getInspectorData:resolve rejecter:reject];
+    [core getInspectorData:resolve rejecter:reject];
 }
 
 /**
@@ -145,7 +141,7 @@ RCT_EXPORT_METHOD(stabilize:(NSInteger)requiredMatches
                   timeoutMs:(NSInteger)timeoutMs
                    resolver:(RCTPromiseResolveBlock)resolve
                    rejecter:(RCTPromiseRejectBlock)reject) {
-    [self.core stabilize:requiredMatches intervalMs:intervalMs timeoutMs:timeoutMs resolver:resolve rejecter:reject];
+    [core stabilize:requiredMatches intervalMs:intervalMs timeoutMs:timeoutMs resolver:resolve rejecter:reject];
 }
 
 @end
