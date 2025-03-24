@@ -3,6 +3,7 @@
 #import <UIKit/UIKit.h>
 
 static NSString *const LOG_TAG = @"SherloModule:ExpoUpdateHelper";
+static NSString *const DEEPLINK_CONSUMED_KEY = @"ExpoUpdateDeeplinkConsumed";
 
 /**
  * Helper for handling Expo updates in the Sherlo module.
@@ -11,46 +12,53 @@ static NSString *const LOG_TAG = @"SherloModule:ExpoUpdateHelper";
  */
 @implementation ExpoUpdateHelper
 
-static bool expoUpdateDeeplinkConsumed = false;
+/**
+ * Checks if any deeplink has been consumed by retrieving from NSUserDefaults.
+ *
+ * @return YES if any deeplink has been consumed, NO otherwise
+ */
++ (BOOL)isDeeplinkConsumed {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    return [defaults boolForKey:DEEPLINK_CONSUMED_KEY];
+}
+
+/**
+ * Marks a deeplink as consumed by storing a boolean flag in NSUserDefaults.
+ */
++ (void)markDeeplinkAsConsumed {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    [defaults setBool:YES forKey:DEEPLINK_CONSUMED_KEY];
+    [defaults synchronize];
+}
 
 /**
  * Checks if an Expo update deeplink needs to be consumed and handles it if needed.
- * Uses the lastState to determine if the deeplink should be consumed.
+ * Uses persistent storage to track if any deeplink has been consumed.
  *
  * @param expoUpdateDeeplink The Expo update deeplink URL to potentially consume
- * @param lastState The last state containing request ID information
- * @param logTag The tag to use for logging
  */
-+ (void)consumeExpoUpdateDeeplinkIfNeeded:(NSString *)expoUpdateDeeplink
-                               lastState:(NSDictionary *)lastState
-                                 logTag:(NSString *)logTag {
-    // Return early if there's no deeplink to consume
++ (void)consumeExpoUpdateDeeplinkIfNeeded:(NSString *)expoUpdateDeeplink {
     if (!expoUpdateDeeplink || expoUpdateDeeplink.length == 0) {
         return;
     }
     
-    // If last state is present we don't need to consume the deeplink
-    // because expo dev client already points to the correct expo update
-    BOOL lastStateHasRequestId = lastState[@"requestId"] != nil;
+    BOOL isDeeplinkAlreadyConsumed = [self isDeeplinkConsumed];
     
-    // Only consume the deeplink if it hasn't been consumed yet and there's no request ID in the last state
-    if (!expoUpdateDeeplinkConsumed && !lastStateHasRequestId) {
-        NSLog(@"[%@] Consuming expo update deeplink", logTag);
+    if (!isDeeplinkAlreadyConsumed) {
+        NSLog(@"[%@] Consuming expo update deeplink", LOG_TAG);
         
-        // Create URL from the deeplink string
         NSURL *deeplinkURL = [NSURL URLWithString:expoUpdateDeeplink];
         
         if (!deeplinkURL) {
-            NSLog(@"[%@] Failed to create URL from deeplink: %@", logTag, expoUpdateDeeplink);
+            NSLog(@"[%@] Failed to create URL from deeplink: %@", LOG_TAG, expoUpdateDeeplink);
             return;
         }
+        
+        [self markDeeplinkAsConsumed];
         
         dispatch_async(dispatch_get_main_queue(), ^{
             [[UIApplication sharedApplication] openURL:deeplinkURL options:@{} completionHandler:nil];
         });
-        
-        // Mark as consumed
-        expoUpdateDeeplinkConsumed = true;
     }
 }
 

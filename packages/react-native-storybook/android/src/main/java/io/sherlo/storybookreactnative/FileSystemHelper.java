@@ -44,7 +44,7 @@ public class FileSystemHelper {
             Log.e(TAG, "External storage is not accessible");
             return "";
         }
-        return externalDirectory.getFileUri() + "/sherlo";
+        return externalDirectory.getAbsolutePath() + "/sherlo";
     }
     
     /**

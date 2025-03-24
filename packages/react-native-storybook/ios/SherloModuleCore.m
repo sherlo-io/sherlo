@@ -12,6 +12,7 @@
 #import <React/RCTBridge.h>
 
 static NSString *const LOG_TAG = @"SherloModule:Core";
+
 // Mode constants
 NSString * const MODE_DEFAULT = @"default";
 NSString * const MODE_STORYBOOK = @"storybook";
@@ -57,9 +58,9 @@ static FileSystemHelper *fileSystemHelper;
             lastState = [LastStateHelper getLastState:fileSystemHelper];
             
             NSString *expoUpdateDeeplink = config[@"expoUpdateDeeplink"];
-            [ExpoUpdateHelper consumeExpoUpdateDeeplinkIfNeeded:expoUpdateDeeplink 
-                                                     lastState:lastState 
-                                                       logTag:LOG_TAG];
+            if (expoUpdateDeeplink) {
+                [ExpoUpdateHelper consumeExpoUpdateDeeplinkIfNeeded:expoUpdateDeeplink];
+            }
         }
     }
 

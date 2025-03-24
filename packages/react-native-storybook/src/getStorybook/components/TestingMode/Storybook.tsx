@@ -1,11 +1,11 @@
 import { Theme } from '@storybook/react-native-theming';
+import { useMemo } from 'react';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VERIFICATION_TEST_ID } from '../../../constants';
+import { RunnerBridge } from '../../../helpers';
 import { StorybookParams, StorybookView } from '../../../types';
 import { getStorybookComponent } from '../../helpers';
-import { useMemo } from 'react';
-import RunnerBridge from '../../../helpers/RunnerBridge';
 
 /**
  * We applied styles based on how they are defined in the link below to ensure that user's stories
@@ -48,14 +48,7 @@ function Storybook({
         backgroundColor: uiSettings.theme.background.content,
       }}
     >
-      <View
-        style={{
-          flex: 1,
-          overflow: 'hidden',
-        }}
-      >
-        {memoizedStorybook}
-      </View>
+      <View style={{ flex: 1, overflow: 'hidden' }}>{memoizedStorybook}</View>
     </View>
   );
 }
