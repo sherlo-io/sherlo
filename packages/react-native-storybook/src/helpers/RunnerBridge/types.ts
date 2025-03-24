@@ -15,6 +15,7 @@ export type Config = {
   };
   overrideMode?: 'default' | 'storybook' | 'testing' | 'verification';
   expoUpdateDeeplink?: string;
+  overrideLastState?: LastState;
 };
 
 export type LastState = {

@@ -57,7 +57,20 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Set config content with the specified or default mode
-SHERLO_CONFIG_CONTENT="{ \"overrideMode\": \"$override_mode\" }"
+SHERLO_CONFIG_CONTENT="
+{ 
+    \"overrideMode\": \"$override_mode\", 
+    \"overrideLastState\": {
+        \"nextSnapshot\": {
+            \"storyId\": \"testing-components-testinfo--basic\",
+            \"parameters\": {
+                \"noSafeArea\": false
+            }
+        },
+        \"requestId\": \"fake-request-id\"
+    }
+}"
+
 
 # Validate required parameters
 if [ -z "$platform" ]; then

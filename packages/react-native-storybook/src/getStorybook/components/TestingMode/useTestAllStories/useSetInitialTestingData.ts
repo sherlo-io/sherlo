@@ -18,10 +18,6 @@ function useSetInitialTestingData({ view }: { view: ReturnType<typeof start> }):
 
       RunnerBridge.log('snapshots prepared', { snapshotsCount: allStories.length });
 
-      const lastState = SherloModule.getLastState();
-
-      RunnerBridge.log('last state from protocol', { lastState });
-
       await startNewTestingSession(allStories);
     })();
   }, [isStorybookReady]);
