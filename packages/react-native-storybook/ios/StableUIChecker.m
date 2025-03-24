@@ -2,7 +2,7 @@
 
 @implementation StableUIChecker
 
-- (void)checkIfStableWithRequiredMatches:(NSInteger)requiredMatches
+- (void)stabilizeWithRequiredMatches:(NSInteger)requiredMatches
                                 intervalMs:(NSInteger)intervalMs
                                  timeoutMs:(NSInteger)timeoutMs
                                 completion:(StableUICheckerCompletion)completion {

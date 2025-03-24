@@ -6,6 +6,7 @@ import android.graphics.Canvas;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
+import android.view.ViewGroup;
 import android.util.Log;
 import com.facebook.react.bridge.Promise;
 
@@ -32,7 +33,7 @@ public class StabilityHelper {
      * @param timeoutMs The overall timeout (in milliseconds)
      * @param promise The promise to resolve or reject
      */
-    public void checkIfStable(Activity activity, int requiredMatches, int intervalMs, int timeoutMs, Promise promise) {
+    public void stabilize(Activity activity, int requiredMatches, int intervalMs, int timeoutMs, Promise promise) {
         if (activity == null) {
             Log.e(TAG, "Activity is null, cannot check stability");
             promise.reject("ACTIVITY_NOT_FOUND", "Activity is null, cannot check stability");

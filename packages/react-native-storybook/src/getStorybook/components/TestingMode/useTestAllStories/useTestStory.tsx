@@ -17,7 +17,7 @@ function useTestStory(): void {
           requestId,
         });
 
-        const isStable = await SherloModule.checkIfStable(
+        const isStable = await SherloModule.stabilize(
           config.stabilization.requiredMatches,
           config.stabilization.intervalMs,
           config.stabilization.timeoutMs

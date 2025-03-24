@@ -207,12 +207,12 @@ RCT_EXPORT_METHOD(mkdir:(NSString *)filepath resolver:(RCTPromiseResolveBlock)re
   [self.fileSystemHelper mkdirWithPath:filepath resolver:resolve rejecter:reject];
 }
 
-RCT_EXPORT_METHOD(checkIfStable:(NSInteger)requiredMatches
+RCT_EXPORT_METHOD(stabilize:(NSInteger)requiredMatches
                   interval:(NSInteger)intervalMs
                   timeout:(NSInteger)timeoutMs
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
-  [self.inspectorHelper checkIfStableWithRequiredMatches:requiredMatches
+  [self.inspectorHelper stabilizeWithRequiredMatches:requiredMatches
                                               intervalMs:intervalMs
                                                timeoutMs:timeoutMs
                                                 resolver:resolve

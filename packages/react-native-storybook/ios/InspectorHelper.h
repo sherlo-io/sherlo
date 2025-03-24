@@ -14,7 +14,7 @@
 - (void)getInspectorDataWithResolver:(RCTPromiseResolveBlock)resolve
                             rejecter:(RCTPromiseRejectBlock)reject;
 
-- (void)checkIfStableWithRequiredMatches:(NSInteger)requiredMatches
+- (void)stabilizeWithRequiredMatches:(NSInteger)requiredMatches
                               intervalMs:(NSInteger)intervalMs
                                timeoutMs:(NSInteger)timeoutMs
                                 resolver:(RCTPromiseResolveBlock)resolve

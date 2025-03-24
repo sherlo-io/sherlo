@@ -14,7 +14,6 @@ public class LastStateHelper {
     private static final String PROTOCOL_FILENAME = "protocol.sherlo";
     
     private final FileSystemHelper fileSystemHelper;
-    private final String syncDirectoryPath;
     
     /**
      * Constructor for LastStateHelper
@@ -22,9 +21,8 @@ public class LastStateHelper {
      * @param fileSystemHelper The file system helper for reading files
      * @param syncDirectoryPath The path to the sync directory
      */
-    public LastStateHelper(FileSystemHelper fileSystemHelper, String syncDirectoryPath) {
+    public LastStateHelper(FileSystemHelper fileSystemHelper) {
         this.fileSystemHelper = fileSystemHelper;
-        this.syncDirectoryPath = syncDirectoryPath;
     }
     
     /**
@@ -35,12 +33,9 @@ public class LastStateHelper {
      */
     public JSONObject getLastState() {
         try {
-            String protocolPath = this.syncDirectoryPath + "/" + PROTOCOL_FILENAME;
-            Log.d(TAG, "Reading protocol file at: " + protocolPath);
-
             String protocolContent = null;
             try {
-                protocolContent = fileSystemHelper.readFile(protocolPath);
+                protocolContent = fileSystemHelper.readFile(PROTOCOL_FILENAME);
             } catch (Exception e) {
                 Log.w(TAG, "Protocol file doesn't exist or is not readable: " + e.getMessage());
                 return new JSONObject();

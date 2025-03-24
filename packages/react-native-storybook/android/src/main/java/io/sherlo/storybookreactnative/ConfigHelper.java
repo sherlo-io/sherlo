@@ -14,32 +14,28 @@ public class ConfigHelper {
     private static final String CONFIG_FILENAME = "config.sherlo";
 
     private final FileSystemHelper fileSystemHelper;
-    private final String syncDirectoryPath;
 
-    public ConfigHelper(FileSystemHelper fileSystemHelper, String syncDirectoryPath) {
+    public ConfigHelper(FileSystemHelper fileSystemHelper) {
         this.fileSystemHelper = fileSystemHelper;
-        this.syncDirectoryPath = syncDirectoryPath;
     }
 
     /**
      * Load and parse the Sherlo configuration file.
-     * 
-     * @return The parsed config as JSONObject, or empty JSONObject if no config exists
-     * @throws Exception if there's an error reading or parsing the config
      */
-    public JSONObject loadConfig() throws Exception {
-        String configPath = this.syncDirectoryPath + "/" + CONFIG_FILENAME;
-        Log.i(TAG, "Looking for config file at: " + configPath);
-
-        // Check if config file exists
-        File sherloConfigFile = new File(configPath);
-        if (!sherloConfigFile.exists()) {
+    public JSONObject loadConfig() {
+        if (!fileSystemHelper.fileExists(CONFIG_FILENAME)) {
             Log.i(TAG, "Config file does not exist");
             return new JSONObject();
         }
 
-        // Read config file
-        String configJson = fileSystemHelper.readFile(configPath);
+        String configJson = null;
+        try {
+            configJson = fileSystemHelper.readFile(CONFIG_FILENAME);
+        } catch (Exception e) {
+            Log.w(TAG, "Error reading config file: " + e.getMessage());
+            return new JSONObject();
+        }
+
         if (configJson == null || configJson.trim().isEmpty()) {
             Log.w(TAG, "Config file is empty");
             return new JSONObject();
@@ -51,6 +47,7 @@ public class ConfigHelper {
             configJson = new String(decodedBytes, "UTF-8");
         } catch (Exception e) {
             Log.w(TAG, "Config is not base64 encoded, trying to parse as plain JSON");
+            return new JSONObject();
         }
 
         // Parse JSON
@@ -58,7 +55,7 @@ public class ConfigHelper {
             return new JSONObject(configJson);
         } catch (JSONException e) {
             Log.e(TAG, "Invalid JSON in config file: " + configJson);
-            throw new Exception("Config file contains invalid JSON: " + e.getMessage());
+            return new JSONObject();
         }
     }
 

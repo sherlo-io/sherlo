@@ -16,7 +16,7 @@ typedef void(^StableUICheckerCompletion)(BOOL stable);
  @param timeoutMs The overall timeout in milliseconds.
  @param completion Called with YES if stable (matching screenshots are found), NO if timed out.
  */
-- (void)checkIfStableWithRequiredMatches:(NSInteger)requiredMatches
+- (void)stabilizeWithRequiredMatches:(NSInteger)requiredMatches
                                 intervalMs:(NSInteger)intervalMs
                                  timeoutMs:(NSInteger)timeoutMs
                                 completion:(StableUICheckerCompletion)completion;

@@ -22,25 +22,25 @@ import java.io.File;
 public class SherloModuleCore {
     public static final String TAG = "SherloModuleCore";
 
+    private final ReactApplicationContext reactContext;
+
     // Mode constants
     public static final String MODE_DEFAULT = "default";
     public static final String MODE_STORYBOOK = "storybook";
     public static final String MODE_TESTING = "testing";
 
     // Module state
-    private static String syncDirectoryPath;
     private static JSONObject config = new JSONObject();
     private static JSONObject lastState = new JSONObject();
     private static String currentMode = MODE_DEFAULT;
 
     // Helper instances
-    private final ReactApplicationContext reactContext;
-    private final FileSystemHelper fileSystemHelper;
-    private final InspectorHelper inspectorHelper;
-    private final LastStateHelper lastStateHelper;
-    private final ConfigHelper configHelper;
-    private final StabilityHelper stabilityHelper;
-    private final RestartHelper restartHelper;
+    private FileSystemHelper fileSystemHelper = null;
+    private ConfigHelper configHelper = null;
+    private RestartHelper restartHelper = null;
+    private InspectorHelper inspectorHelper = null;
+    private LastStateHelper lastStateHelper = null;
+    private StabilityHelper stabilityHelper = null;
 
     /**
      * Constructor - initializes all helpers and module state
@@ -48,21 +48,18 @@ public class SherloModuleCore {
     public SherloModuleCore(ReactApplicationContext reactContext) {
         this.reactContext = reactContext;
         
-        this.fileSystemHelper = new FileSystemHelper(reactContext);
-        this.syncDirectoryPath = this.fileSystemHelper.setupSyncDirectory();
-
-        this.configHelper = new ConfigHelper(this.fileSystemHelper, this.syncDirectoryPath);
-        this.config = this.configHelper.loadConfig();
-
         this.restartHelper = new RestartHelper();
-        
-        currentMode = this.configHelper.determineInitialMode(this.config);
+        this.fileSystemHelper = new FileSystemHelper(reactContext);
+        this.configHelper = new ConfigHelper(this.fileSystemHelper);
+
+        this.config = this.configHelper.loadConfig();
+        this.currentMode = this.configHelper.determineInitialMode(this.config);
         
         if (currentMode.equals(MODE_TESTING)) {
             this.inspectorHelper = new InspectorHelper();
             this.stabilityHelper = new StabilityHelper();
 
-            this.lastStateHelper = new LastStateHelper(this.fileSystemHelper, this.syncDirectoryPath);
+            this.lastStateHelper = new LastStateHelper(this.fileSystemHelper);
             this.lastState = this.lastStateHelper.getLastState();
         }
     }
@@ -72,7 +69,6 @@ public class SherloModuleCore {
      */
     public Map<String, Object> getConstants() {
         final Map<String, Object> constants = new HashMap<>();
-        constants.put("syncDirectoryPath", this.syncDirectoryPath);
         constants.put("mode", this.currentMode);
         constants.put("config", this.config.toString());
         constants.put("lastState", this.lastState.toString());
@@ -108,23 +104,27 @@ public class SherloModuleCore {
         this.restartHelper.restart(activity, promise);
     }
 
-    public void appendFile(String filepath, String base64Content, Promise promise) {
-        fileSystemHelper.appendFile(filepath, base64Content, promise);
+    public void appendFile(String filename, String base64Content, Promise promise) {
+        fileSystemHelper.appendFileWithPromise(filename, base64Content, promise);
     }
 
-    public void readFile(String filepath, Promise promise) {
-        fileSystemHelper.readFile(filepath, promise);
+    public void readFile(String filename, Promise promise) {
+        fileSystemHelper.readFileWithPromise(filename, promise);
     }
 
     public void getInspectorData(Activity activity, Promise promise) {
-        if (currentMode.equals(MODE_TESTING)) {
+        if (inspectorHelper != null) {
             inspectorHelper.getInspectorData(activity, promise);
+        } else {
+            promise.reject("INSPECTOR_NOT_AVAILABLE", "Inspector is not available");
         }
     }
 
-    public void checkIfStable(Activity activity, int requiredMatches, int intervalMs, int timeoutMs, Promise promise) {
-        if (currentMode.equals(MODE_TESTING)) {
-            stabilityHelper.checkIfStable(activity, requiredMatches, intervalMs, timeoutMs, promise);
+    public void stabilize(Activity activity, int requiredMatches, int intervalMs, int timeoutMs, Promise promise) {
+        if (stabilityHelper != null) {
+            stabilityHelper.stabilize(activity, requiredMatches, intervalMs, timeoutMs, promise);
+        } else {
+            promise.reject("STABILITY_HELPER_NOT_AVAILABLE", "Stability helper is not available");
         }
     }
 } 

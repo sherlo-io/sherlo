@@ -15,11 +15,7 @@ type SherloModule = {
   readFile: (path: string) => Promise<string>;
   openStorybook: () => Promise<void>;
   toggleStorybook: () => Promise<void>;
-  checkIfStable: (
-    requiredMatches: number,
-    intervalMs: number,
-    timeoutMs: number
-  ) => Promise<boolean>;
+  stabilize: (requiredMatches: number, intervalMs: number, timeoutMs: number) => Promise<boolean>;
 };
 
 let SherloModule: SherloModule;
@@ -46,8 +42,8 @@ function createSherloModule(): SherloModule {
     getInspectorData: async () => {
       return SherloNativeModule.getInspectorData();
     },
-    checkIfStable: async (requiredMatches: number, intervalMs: number, timeoutMs: number) => {
-      return SherloNativeModule.checkIfStable(requiredMatches, intervalMs, timeoutMs);
+    stabilize: async (requiredMatches: number, intervalMs: number, timeoutMs: number) => {
+      return SherloNativeModule.stabilize(requiredMatches, intervalMs, timeoutMs);
     },
     getMode: () => {
       return SherloNativeModule.getConstants().mode;
@@ -62,11 +58,6 @@ function createSherloModule(): SherloModule {
       }
 
       const lastState = SherloNativeModule.getConstants().lastState;
-      try {
-        RunnerBridge.log('lastState directly from native module', lastState);
-      } catch (error) {
-        ///
-      }
       const parsedLastState = lastState ? JSON.parse(lastState) : undefined;
 
       if (parsedLastState && Object.keys(parsedLastState).length === 0) {
@@ -75,29 +66,17 @@ function createSherloModule(): SherloModule {
 
       return parsedLastState;
     },
-    appendFile: (path: string, data: string) => {
+    appendFile: (filename: string, data: string) => {
       const encodedData = base64.encode(utf8.encode(data));
-
-      return SherloNativeModule.appendFile(normalizePath(path), encodedData);
+      return SherloNativeModule.appendFile(filename, encodedData);
     },
-    readFile: (path: string) => {
+    readFile: (filename: string) => {
       const decodeData = (data: string) => utf8.decode(base64.decode(data));
-
-      return SherloNativeModule.readFile(normalizePath(path)).then(decodeData);
+      return SherloNativeModule.readFile(filename).then(decodeData);
     },
     openStorybook: () => SherloNativeModule.openStorybook(),
     toggleStorybook: () => SherloNativeModule.toggleStorybook(),
   };
-}
-
-function normalizePath(path: string): string {
-  const { syncDirectoryPath } = SherloNativeModule.getConstants();
-  const sherloPath = `${syncDirectoryPath}/${path}`;
-  const filePathPrefix = 'file://';
-
-  return sherloPath.startsWith(filePathPrefix)
-    ? sherloPath.slice(filePathPrefix.length)
-    : sherloPath;
 }
 
 function createDummySherloModule(): SherloModule {
@@ -110,6 +89,6 @@ function createDummySherloModule(): SherloModule {
     readFile: async () => '',
     openStorybook: async () => {},
     toggleStorybook: async () => {},
-    checkIfStable: async () => true,
+    stabilize: async () => true,
   };
 }

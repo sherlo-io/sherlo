@@ -57,13 +57,13 @@ public class SherloModule extends ReactContextBaseJavaModule {
     // ==== File System Methods ====
 
     @ReactMethod
-    public void appendFile(String filepath, String base64Content, Promise promise) {
-        moduleCore.appendFile(filepath, base64Content, promise);
+    public void appendFile(String filename, String base64Content, Promise promise) {
+        moduleCore.appendFile(filename, base64Content, promise);
     }
 
     @ReactMethod
-    public void readFile(String filepath, Promise promise) {
-        moduleCore.readFile(filepath, promise);
+    public void readFile(String filename, Promise promise) {
+        moduleCore.readFile(filename, promise);
     }
 
     // ==== Inspector Methods ====
@@ -75,8 +75,8 @@ public class SherloModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void checkIfStable(int requiredMatches, int intervalMs, int timeoutMs, Promise promise) {
+    public void stabilize(int requiredMatches, int intervalMs, int timeoutMs, Promise promise) {
         Activity activity = getCurrentActivity();
-        moduleCore.checkIfStable(activity, requiredMatches, intervalMs, timeoutMs, promise);
+        moduleCore.stabilize(activity, requiredMatches, intervalMs, timeoutMs, promise);
     }
 }

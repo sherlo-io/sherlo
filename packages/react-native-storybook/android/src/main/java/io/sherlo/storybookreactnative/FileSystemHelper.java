@@ -15,9 +15,11 @@ import java.io.OutputStream;
 public class FileSystemHelper {
     private static final String TAG = "FileSystemHelper";
     private final Context context;
+    private final String syncDirectoryPath;
 
     public FileSystemHelper(Context context) {
         this.context = context;
+        this.syncDirectoryPath = setupSyncDirectory();
     }
 
     public String setupSyncDirectory() {
@@ -36,9 +38,9 @@ public class FileSystemHelper {
      * @param base64Content The base64 encoded content to append
      * @param promise The promise to resolve or reject
      */
-    public void appendFile(String filepath, String base64Content, Promise promise) {
+    public void appendFileWithPromise(String filename, String base64Content, Promise promise) {
         try {
-            appendFile(filepath, base64Content);
+            appendFile(filename, base64Content);
             promise.resolve(null);
         } catch (Exception e) {
             handleError("ERROR_APPEND_FILE", e, promise, "Error appending to file: " + e.getMessage());
@@ -51,9 +53,9 @@ public class FileSystemHelper {
      * @param filepath The path of the file to read
      * @param promise The promise to resolve or reject
      */
-    public void readFile(String filepath, Promise promise) {
+    public void readFileWithPromise(String filename, Promise promise) {
         try {
-            String base64Content = readFile(filepath);
+            String base64Content = readFile(filename);
             if (base64Content == null || base64Content.isEmpty()) {
                 promise.reject("error_read_file", "File content is empty or could not be encoded to base64");
             } else {
@@ -63,36 +65,28 @@ public class FileSystemHelper {
             handleError("ERROR_READ_FILE", e, promise, "Error reading file: " + e.getMessage());
         }
     }
-    
-    private void handleError(String errorCode, Exception e, Promise promise, String message) {
-        Log.e(TAG, message, e);
-        promise.reject(errorCode.toLowerCase(), message, e);
-    }
 
-    public void appendFile(String filepath, String base64Content) throws Exception {
+    public void appendFile(String filename, String base64Content) throws Exception {
         byte[] bytes = Base64.decode(base64Content, Base64.DEFAULT);
-        Uri uri = getFileUri(filepath);
+        Uri uri = getFileUri(filename);
         OutputStream stream = context.getContentResolver().openOutputStream(uri, "wa");
         stream.write(bytes);
         stream.close();
     }
 
-    public String readFile(String filepath) throws Exception {
-        Uri uri = getFileUri(filepath);
-        InputStream stream = context.getContentResolver().openInputStream(uri);
-        byte[] inputData = getInputStreamBytes(stream);
-        return Base64.encodeToString(inputData, Base64.NO_WRAP);
+    public boolean fileExists(String filename) {
+        Uri uri = getFileUri(filename);
+        return uri != null && new File(uri.getPath()).exists();
     }
 
-    public Uri getFileUri(String absoluteFilepath) {
-        return Uri.parse("file://" + absoluteFilepath);
-    }
-
-    public static byte[] getInputStreamBytes(InputStream inputStream) throws IOException {
-        byte[] bytesResult;
+    public String readFile(String filename) throws Exception {
+        Uri uri = getFileUri(filename);
+        
+        InputStream inputStream = context.getContentResolver().openInputStream(uri);
         ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
-        int bufferSize = 1024;
-        byte[] buffer = new byte[bufferSize];
+
+        byte[] bytesResult;
+        byte[] buffer = new byte[1024];
 
         try {
             int len;
@@ -108,6 +102,16 @@ public class FileSystemHelper {
             }
         }
 
-        return bytesResult;
+        return Base64.encodeToString(bytesResult, Base64.NO_WRAP);
+    }
+
+    private Uri getFileUri(String filename) {
+        String absoluteFilepath = this.syncDirectoryPath + "/" + filename;
+        return Uri.parse("file://" + absoluteFilepath);
+    }
+    
+    private void handleError(String errorCode, Exception e, Promise promise, String message) {
+        Log.e(TAG, message, e);
+        promise.reject(errorCode.toLowerCase(), message, e);
     }
 }

@@ -35,7 +35,7 @@
     });
 }
 
-- (void)checkIfStableWithRequiredMatches:(NSInteger)requiredMatches
+- (void)stabilizeWithRequiredMatches:(NSInteger)requiredMatches
                               intervalMs:(NSInteger)intervalMs
                                timeoutMs:(NSInteger)timeoutMs
                                 resolver:(RCTPromiseResolveBlock)resolve
@@ -43,7 +43,7 @@
     dispatch_async(dispatch_get_main_queue(), ^{
         StableUIChecker *checker = [[StableUIChecker alloc] init];
         
-        [checker checkIfStableWithRequiredMatches:requiredMatches
+        [checker stabilizeWithRequiredMatches:requiredMatches
                                       intervalMs:intervalMs
                                        timeoutMs:timeoutMs
                                       completion:^(BOOL isStable) {
