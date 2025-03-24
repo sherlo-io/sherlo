@@ -72,7 +72,7 @@
  * @param resolve Promise resolver to call when the operation completes
  * @param reject Promise rejecter to call if an error occurs
  */
-- (void)appendFileWithPath:(NSString *)filename base64Content:(NSString *)base64Content resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
+- (void)appendFileWithPromise:(NSString *)filename base64Content:(NSString *)base64Content resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
     NSString *absolutePath = [self getAbsolutePath:filename];
     
     // Decode base64 content
@@ -131,7 +131,7 @@
  * @param resolve Promise resolver to call with the base64 encoded file content
  * @param reject Promise rejecter to call if an error occurs
  */
-- (void)readFileWithPath:(NSString *)filename resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
+- (void)readFileWithPromise:(NSString *)filename resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
     NSString *absolutePath = [self getAbsolutePath:filename];
     
     NSFileManager *fileManager = [NSFileManager defaultManager];
@@ -155,6 +155,17 @@
     
     NSString *base64String = [content base64EncodedStringWithOptions:0];
     resolve(base64String);
+}
+
+/**
+ * Checks if a file exists in the sync directory.
+ *
+ * @param filename The relative path of the file to check
+ * @return YES if the file exists, NO otherwise
+ */
+- (BOOL)fileExists:(NSString *)filename {
+    NSString *absolutePath = [self getAbsolutePath:filename];
+    return [[NSFileManager defaultManager] fileExistsAtPath:absolutePath];
 }
 
 #pragma mark - Utility Methods
@@ -203,18 +214,11 @@
 
 /**
  * Converts a relative path to an absolute path in the sync directory.
- * If the path is already absolute, it is returned unchanged.
  *
  * @param filename The file path to convert
  * @return The absolute path to the file
  */
 - (NSString *)getAbsolutePath:(NSString *)filename {
-    // If filename is already absolute, return it
-    if ([filename hasPrefix:@"/"]) {
-        return filename;
-    }
-    
-    // Otherwise, append to sync directory
     return [self.syncDirectoryPath stringByAppendingPathComponent:filename];
 }
 

@@ -21,18 +21,6 @@ extern NSString * const MODE_DEFAULT;
 extern NSString * const MODE_STORYBOOK;
 extern NSString * const MODE_TESTING;
 
-/** Current configuration loaded from the config file */
-@property (nonatomic, readonly) NSDictionary *config;
-
-/** Last state information loaded from the protocol file */
-@property (nonatomic, readonly) NSDictionary *lastState;
-
-/** Current application mode (default, storybook, or testing) */
-@property (nonatomic, readonly) NSString *currentMode;
-
-/** Helper for file system operations */
-@property (nonatomic, strong, readonly) FileSystemHelper *fileSystemHelper;
-
 /**
  * Standard initialization method
  * @return An initialized instance

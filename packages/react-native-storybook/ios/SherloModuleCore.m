@@ -12,9 +12,18 @@
 #import <UIKit/UIKit.h>
 #import <React/RCTBridge.h>
 
+// Mode constants
 NSString * const MODE_DEFAULT = @"default";
 NSString * const MODE_STORYBOOK = @"storybook";
 NSString * const MODE_TESTING = @"testing";
+
+// Module state
+static NSDictionary *config;
+static NSDictionary *lastState;
+static NSString *currentMode;
+
+// Helper instances
+static FileSystemHelper *fileSystemHelper;
 
 /**
  * Core implementation for the Sherlo React Native module.
@@ -23,72 +32,37 @@ NSString * const MODE_TESTING = @"testing";
  */
 @implementation SherloModuleCore
 
-#pragma mark - Lifecycle Methods
-
 /**
  * Initializes a new instance of the SherloModuleCore.
- * Uses the default init method and calls setupCore to initialize dependencies.
+ * Sets up the core module by initializing helpers and loading configuration.
+ * Creates file system helper, loads configuration and last state, and determines initial mode.
  *
  * @return A new SherloModuleCore instance
  */
 - (instancetype)init {
     self = [super init];
-    if (self) {
-        [self setupCore];
-    }
-    return self;
-}
-
-/**
- * Initializes a new instance of the SherloModuleCore with a bridge.
- * Stores the bridge reference and calls setupCore to initialize dependencies.
- *
- * @param bridge The React Native bridge
- * @return A new SherloModuleCore instance
- */
-- (instancetype)initWithBridge:(RCTBridge *)bridge {
-    self = [super init];
-    if (self) {
-        _bridge = bridge;
-        [self setupCore];
-    }
-    return self;
-}
-
-/**
- * Sets up the core module by initializing helpers and loading configuration.
- * Creates file system helper, loads configuration and last state, and determines initial mode.
- */
-- (void)setupCore {
-    // Initialize helpers
-    _fileSystemHelper = [[FileSystemHelper alloc] init];
     
-    // Load configuration
-    _config = [ConfigHelper loadConfigWithFileSystemHelper:_fileSystemHelper];
+    fileSystemHelper = [[FileSystemHelper alloc] init];
     
-    // Load last state
-    _lastState = [LastStateHelper loadStateWithFileSystemHelper:_fileSystemHelper];
+    config = [ConfigHelper loadConfigWithFileSystemHelper:fileSystemHelper];
+    currentMode = [ConfigHelper determineInitialMode:config];
     
-    // Determine initial mode
-    _currentMode = [ConfigHelper determineInitialMode:_config];
+    NSLog(@"[SherloModuleCore] Initialized with mode: %ld", (long)currentMode);
     
-    // Log initialization
-    NSLog(@"[SherloModuleCore] Initialized with mode: %ld", (long)_currentMode);
-    
-    // Setup for testing mode
-    if ([_currentMode isEqualToString:MODE_TESTING]) {
-        // Setup keyboard swizzling
+    if ([currentMode isEqualToString:MODE_TESTING]) {
         [KeyboardHelper setupKeyboardSwizzling];
+
+        lastState = [LastStateHelper loadStateWithFileSystemHelper:fileSystemHelper];
         
         // Check for Expo update deeplink if config exists
-        NSString *expoUpdateDeeplink = _config[@"expoUpdateDeeplink"];
+        NSString *expoUpdateDeeplink = config[@"expoUpdateDeeplink"];
         
         if (expoUpdateDeeplink) {
             BOOL wasDeeplinkConsumed = [ExpoUpdateHelper wasDeeplinkConsumed];
             
             // If last state is present we don't need to consume the deeplink
             // because expo dev client already points to the correct expo update
-            BOOL lastStateHasRequestId = _lastState[@"requestId"] != nil;
+            BOOL lastStateHasRequestId = lastState[@"requestId"] != nil;
             
             if (!wasDeeplinkConsumed && !lastStateHasRequestId) {
                 NSLog(@"[SherloModuleCore] Consuming expo update deeplink");
@@ -102,6 +76,8 @@ NSString * const MODE_TESTING = @"testing";
             }
         }
     }
+
+    return self;
 }
 
 #pragma mark - Constants
@@ -114,11 +90,9 @@ NSString * const MODE_TESTING = @"testing";
  */
 - (NSDictionary *)getConstants {
     return @{
-        @"MODE_DEFAULT": @(MODE_DEFAULT),
-        @"MODE_STORYBOOK": @(MODE_STORYBOOK),
-        @"MODE_TESTING": @(MODE_TESTING),
-        @"currentMode": @(self.currentMode),
-        @"config": self.config ?: [NSNull null]
+        @"mode": currentMode,
+        @"config": config ?: [NSNull null],
+        @"lastState": lastState ?: [NSNull null]
     };
 }
 
@@ -129,11 +103,13 @@ NSString * const MODE_TESTING = @"testing";
  * If in default mode, switches to Storybook mode; if in Storybook mode, switches to default mode.
  */
 - (void)toggleStorybook {
-    if (self.currentMode == MODE_STORYBOOK) {
-        [self closeStorybook];
+    if ([currentMode isEqualToString:MODE_STORYBOOK]) {
+        currentMode = MODE_DEFAULT;
     } else {
-        [self openStorybook];
+        currentMode = MODE_STORYBOOK;
     }
+
+    [RestartHelper reloadWithBridge:self.bridge];
 }
 
 /**
@@ -141,15 +117,8 @@ NSString * const MODE_TESTING = @"testing";
  * Updates the current mode, saves state, and triggers a reload.
  */
 - (void)openStorybook {
-    if (self.currentMode != MODE_STORYBOOK) {
-        self.currentMode = MODE_STORYBOOK;
-        
-        // Save the new state
-        [LastStateHelper saveState:@{@"mode": @(self.currentMode)} withFileSystemHelper:self.fileSystemHelper];
-        
-        // Reload the application
-        [RestartHelper reloadWithBridge:self.bridge];
-    }
+    currentMode = MODE_STORYBOOK;
+    [RestartHelper reloadWithBridge:self.bridge];
 }
 
 /**
@@ -157,15 +126,8 @@ NSString * const MODE_TESTING = @"testing";
  * Updates the current mode, saves state, and triggers a reload.
  */
 - (void)closeStorybook {
-    if (self.currentMode != MODE_DEFAULT) {
-        self.currentMode = MODE_DEFAULT;
-        
-        // Save the new state
-        [LastStateHelper saveState:@{@"mode": @(self.currentMode)} withFileSystemHelper:self.fileSystemHelper];
-        
-        // Reload the application
-        [RestartHelper reloadWithBridge:self.bridge];
-    }
+    currentMode = MODE_DEFAULT;
+    [RestartHelper reloadWithBridge:self.bridge];
 }
 
 #pragma mark - File Operations
@@ -174,24 +136,24 @@ NSString * const MODE_TESTING = @"testing";
  * Appends base64 encoded content to a file.
  * Creates the file if it doesn't exist, and any necessary parent directories.
  *
- * @param path The file path relative to the sync directory
+ * @param filename The filename relative to the sync directory
  * @param content The base64 encoded content to append
  * @param resolve Promise resolver called when the operation completes
  * @param reject Promise rejecter called if an error occurs
  */
-- (void)appendFile:(NSString *)path withContent:(NSString *)content resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
-    [self.fileSystemHelper appendFileWithPath:path base64Content:content resolver:resolve rejecter:reject];
+- (void)appendFile:(NSString *)filename withContent:(NSString *)content resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
+    [fileSystemHelper appendFileWithPromise:filename base64Content:content resolver:resolve rejecter:reject];
 }
 
 /**
  * Reads a file and returns its contents as base64 encoded string.
  *
- * @param path The file path relative to the sync directory
+ * @param filename The filename relative to the sync directory
  * @param resolve Promise resolver called with the base64 encoded file content
  * @param reject Promise rejecter called if an error occurs
  */
-- (void)readFile:(NSString *)path resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
-    [self.fileSystemHelper readFileWithPath:path resolver:resolve rejecter:reject];
+- (void)readFile:(NSString *)filename resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
+    [fileSystemHelper readFileWithPromise:filename resolver:resolve rejecter:reject];
 }
 
 #pragma mark - Inspector Methods
@@ -204,11 +166,7 @@ NSString * const MODE_TESTING = @"testing";
  * @param reject Promise rejecter called if an error occurs
  */
 - (void)getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
-    if ([self.currentMode isEqualToString:MODE_TESTING]) {
-        [InspectorHelper getInspectorDataWithResolver:resolve rejecter:reject];
-    } else {
-        reject(@"INSPECTOR_NOT_AVAILABLE", @"Inspector is not available", nil);
-    }
+    [InspectorHelper getInspectorData:resolve rejecter:reject];
 }
 
 /**
@@ -220,11 +178,7 @@ NSString * const MODE_TESTING = @"testing";
  * @param reject Promise rejecter called if an error occurs
  */
 - (void)stabilize:(nonnull NSNumber *)delay resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
-    if ([self.currentMode isEqualToString:MODE_TESTING]) {
-        [StabilityHelper stabilizeWithDelay:delay resolve:resolve reject:reject];
-    } else {
-        reject(@"STABILITY_HELPER_NOT_AVAILABLE", @"Stability helper is not available", nil);
-    }
+    [StabilityHelper stabilizeWithDelay:delay resolve:resolve reject:reject];
 }
 
 @end 

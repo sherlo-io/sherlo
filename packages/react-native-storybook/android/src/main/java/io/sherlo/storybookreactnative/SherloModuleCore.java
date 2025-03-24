@@ -50,6 +50,8 @@ public class SherloModuleCore {
 
         this.config = ConfigHelper.loadConfig(this.fileSystemHelper);
         this.currentMode = ConfigHelper.determineInitialMode(this.config);
+
+        Log.d(TAG, "SherloModuleCore initialized with mode: " + currentMode);
         
         if (currentMode.equals(MODE_TESTING)) {
             this.lastState = LastStateHelper.getLastState(this.fileSystemHelper);
@@ -137,11 +139,7 @@ public class SherloModuleCore {
      * @param promise Promise to resolve with the inspector data or reject with an error
      */
     public void getInspectorData(Activity activity, Promise promise) {
-        if (currentMode.equals(MODE_TESTING)) {
-            InspectorHelper.getInspectorData(activity, promise);
-        } else {
-            promise.reject("INSPECTOR_NOT_AVAILABLE", "Inspector is not available");
-        }
+        InspectorHelper.getInspectorData(activity, promise);
     }
 
     /**
@@ -154,10 +152,6 @@ public class SherloModuleCore {
      * @param promise Promise to resolve with the stability result or reject with an error
      */
     public void stabilize(Activity activity, int requiredMatches, int intervalMs, int timeoutMs, Promise promise) {
-        if (currentMode.equals(MODE_TESTING)) {
-            StabilityHelper.stabilize(activity, requiredMatches, intervalMs, timeoutMs, promise);
-        } else {
-            promise.reject("STABILITY_HELPER_NOT_AVAILABLE", "Stability helper is not available");
-        }
+        StabilityHelper.stabilize(activity, requiredMatches, intervalMs, timeoutMs, promise);
     }
 } 

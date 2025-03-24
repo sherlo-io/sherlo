@@ -22,7 +22,7 @@
  * @param resolve Promise resolver to call with the inspector data
  * @param reject Promise rejecter to call if an error occurs
  */
-+ (void)getInspectorDataWithResolver:(RCTPromiseResolveBlock)resolve
++ (void)getInspectorData:(RCTPromiseResolveBlock)resolve
                             rejecter:(RCTPromiseRejectBlock)reject {
     dispatch_async(dispatch_get_main_queue(), ^{
         NSError *error = nil;

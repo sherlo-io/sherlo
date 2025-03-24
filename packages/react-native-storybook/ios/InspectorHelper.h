@@ -3,6 +3,6 @@
 
 @interface InspectorHelper : NSObject
 
-+ (void)getInspectorDataWithResolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject;
++ (void)getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject;
 
 @end
