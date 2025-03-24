@@ -55,8 +55,6 @@ function useIsStorybookReady(view: ReturnType<typeof start>): boolean {
 }
 
 async function startNewTestingSession(allStories: Snapshot[]): Promise<void> {
-  await RunnerBridge.create();
-
   const inspectorData = await SherloModule.getInspectorData().catch((error) => {
     // Extract debug info from the native error
     const errorDetails = {

@@ -14,19 +14,16 @@ public class LastStateHelper {
     private static final String PROTOCOL_FILENAME = "protocol.sherlo";
     
     private final FileSystemHelper fileSystemHelper;
-    private final ErrorHelper errorHelper;
     private final String syncDirectoryPath;
     
     /**
      * Constructor for LastStateHelper
      * 
      * @param fileSystemHelper The file system helper for reading files
-     * @param errorHelper The error helper for handling errors
      * @param syncDirectoryPath The path to the sync directory
      */
-    public LastStateHelper(FileSystemHelper fileSystemHelper, ErrorHelper errorHelper, String syncDirectoryPath) {
+    public LastStateHelper(FileSystemHelper fileSystemHelper, String syncDirectoryPath) {
         this.fileSystemHelper = fileSystemHelper;
-        this.errorHelper = errorHelper;
         this.syncDirectoryPath = syncDirectoryPath;
     }
     
@@ -121,7 +118,6 @@ public class LastStateHelper {
             return state;
         } catch (Exception e) {
             Log.e(TAG, "Error getting last state", e);
-            errorHelper.handleException("ERROR_LAST_STATE", e);
             return new JSONObject();
         }
     }

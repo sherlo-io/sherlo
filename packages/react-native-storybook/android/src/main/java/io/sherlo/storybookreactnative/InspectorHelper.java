@@ -18,16 +18,9 @@ import java.util.List;
 
 public class InspectorHelper {
     private static final String TAG = "InspectorHelper";
-    private final ErrorHelper errorHelper;
     
-    // Default constructor for static usage
     public InspectorHelper() {
-        this.errorHelper = null;
-    }
-    
-    // Constructor for promise-based usage
-    public InspectorHelper(ErrorHelper errorHelper) {
-        this.errorHelper = errorHelper;
+        // Default constructor
     }
     
     /**
@@ -53,11 +46,7 @@ public class InspectorHelper {
     }
     
     private void handleError(String errorCode, Exception e, Promise promise, String message) {
-        if (errorHelper != null) {
-            errorHelper.handleException(errorCode, e);
-        } else {
-            Log.e(TAG, message, e);
-        }
+        Log.e(TAG, message, e);
         promise.reject(errorCode.toLowerCase(), message, e);
     }
 

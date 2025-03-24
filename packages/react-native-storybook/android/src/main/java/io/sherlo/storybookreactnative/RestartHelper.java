@@ -5,19 +5,32 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
+import com.facebook.react.bridge.Promise;
 import com.facebook.react.ReactApplication;
 import com.facebook.react.ReactInstanceManager;
 
 public class RestartHelper {
     private static final String TAG = "RestartHelper";
 
-    public static void loadBundle(Activity currentActivity) {
+    public RestartHelper() {}
+
+    public void restart(Activity currentActivity, Promise promise) {
         try {
             if (currentActivity == null) {
-                Log.e(TAG, "Current activity is null");
+                promise.reject("ACTIVITY_NOT_FOUND", "Activity was not found");
                 return;
             }
 
+            RestartHelper.loadBundle(currentActivity);
+            promise.resolve(true);
+        } catch (Exception e) {
+            Log.e(TAG, "Error opening Storybook", e);
+            promise.reject("error_open_storybook", "Error opening Storybook: " + e.getMessage(), e);
+        }
+    }
+
+    private static void loadBundle(Activity currentActivity) {
+        try {
             ReactApplication reactApplication = (ReactApplication) currentActivity.getApplication();
             final ReactInstanceManager instanceManager = reactApplication.getReactNativeHost().getReactInstanceManager();
             
@@ -45,10 +58,6 @@ public class RestartHelper {
     }
 
     public static void loadBundleLegacy(final Activity currentActivity) {
-        if (currentActivity == null) {
-            return;
-        }
-
         currentActivity.runOnUiThread(new Runnable() {
             @Override
             public void run() {

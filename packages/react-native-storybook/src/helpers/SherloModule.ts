@@ -12,7 +12,6 @@ type SherloModule = {
   getLastState: () => LastState | undefined;
   getInspectorData: () => Promise<string>;
   appendFile: (path: string, base64: string) => Promise<void>;
-  mkdir: (path: string) => Promise<void>;
   readFile: (path: string) => Promise<string>;
   openStorybook: () => Promise<void>;
   toggleStorybook: () => Promise<void>;
@@ -81,7 +80,6 @@ function createSherloModule(): SherloModule {
 
       return SherloNativeModule.appendFile(normalizePath(path), encodedData);
     },
-    mkdir: (path: string) => SherloNativeModule.mkdir(normalizePath(path)),
     readFile: (path: string) => {
       const decodeData = (data: string) => utf8.decode(base64.decode(data));
 
@@ -109,7 +107,6 @@ function createDummySherloModule(): SherloModule {
     getLastState: () => undefined,
     getConfig: () => ({ stabilization: { requiredMatches: 3, intervalMs: 500, timeoutMs: 5_000 } }),
     appendFile: async () => {},
-    mkdir: async () => {},
     readFile: async () => '',
     openStorybook: async () => {},
     toggleStorybook: async () => {},

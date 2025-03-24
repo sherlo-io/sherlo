@@ -15,31 +15,18 @@ import java.io.OutputStream;
 public class FileSystemHelper {
     private static final String TAG = "FileSystemHelper";
     private final Context context;
-    private final ErrorHelper errorHelper;
 
     public FileSystemHelper(Context context) {
         this.context = context;
-        this.errorHelper = null; // Will be properly set in other constructor
-    }
-    
-    public FileSystemHelper(Context context, ErrorHelper errorHelper) {
-        this.context = context;
-        this.errorHelper = errorHelper;
     }
 
-    /**
-     * Creates a directory at the specified path.
-     *
-     * @param filepath The path where to create the directory
-     * @param promise The promise to resolve or reject
-     */
-    public void mkdir(String filepath, Promise promise) {
-        try {
-            mkdir(filepath);
-            promise.resolve(null);
-        } catch (Exception e) {
-            handleError("ERROR_MKDIR", e, promise, "Error creating directory: " + e.getMessage());
+    public String setupSyncDirectory() {
+        File externalDirectory = context.getExternalFilesDir(null);
+        if (externalDirectory == null) {
+            Log.e(TAG, "External storage is not accessible");
+            return "";
         }
+        return externalDirectory.getAbsolutePath() + "/sherlo";
     }
     
     /**
@@ -78,23 +65,8 @@ public class FileSystemHelper {
     }
     
     private void handleError(String errorCode, Exception e, Promise promise, String message) {
-        if (errorHelper != null) {
-            errorHelper.handleException(errorCode, e);
-        } else {
-            Log.e(TAG, message, e);
-        }
+        Log.e(TAG, message, e);
         promise.reject(errorCode.toLowerCase(), message, e);
-    }
-
-    // Original methods preserved as they are called by the Promise-based methods
-
-    public void mkdir(String filepath) throws Exception {
-        File file = new File(filepath);
-        file.mkdirs();
-
-        if (!file.exists()) {
-            throw new Exception("Directory could not be created");
-        }
     }
 
     public void appendFile(String filepath, String base64Content) throws Exception {

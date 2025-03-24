@@ -63,12 +63,36 @@ public class ConfigHelper {
     }
 
     /**
+     * Determines the initial mode based on configuration
+     * 
+     * @param config The config object
+     * @return The determined mode (default, storybook, or testing)
+     */
+    public String determineInitialMode(JSONObject config) {
+        try {
+            if (config.length() > 0) {
+                // Check for override mode
+                String overrideMode = getOverrideMode(config);
+                if (overrideMode != null) {
+                    Log.i(TAG, "Running in " + overrideMode + " mode");
+                    return overrideMode;
+                }
+                
+                return SherloModuleCore.MODE_TESTING;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to determine initial mode", e);
+        }
+        return SherloModuleCore.MODE_DEFAULT;
+    }
+
+    /**
      * Check if the config has an override mode specified.
      * 
      * @param config The config object
      * @return The override mode or null if not present
      */
-    public String getOverrideMode(JSONObject config) {
+    private String getOverrideMode(JSONObject config) {
         try {
             if (config.has("overrideMode")) {
                 return config.getString("overrideMode");
