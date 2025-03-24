@@ -68,8 +68,6 @@
         return NO;
     });
     method_setImplementation(isFirstResponder, newIsFirstResponder);
-
-    NSLog(@"[%@] Enhanced keyboard and focus state swizzling enabled", LOG_TAG);
 }
 
 @end 
