@@ -21,7 +21,7 @@
     
     // Ensure that UI operations are performed on the main thread.
     dispatch_async(dispatch_get_main_queue(), ^{
-        UIImage *lastScreenshot = [self captureScreenshot];
+        __block UIImage *lastScreenshot = [self captureScreenshot];
         if (!lastScreenshot) {
             reject(@"SCREENSHOT_FAILED", @"Failed to capture initial screenshot", nil);
             return;
