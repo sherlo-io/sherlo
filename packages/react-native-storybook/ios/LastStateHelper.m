@@ -1,6 +1,9 @@
 #import "LastStateHelper.h"
 #import "FileSystemHelper.h"
 
+#define LOG_TAG @"LastStateHelper"
+#define PROTOCOL_FILENAME @"protocol.sherlo"
+
 /**
  * Helper for managing the last state of the Sherlo module.
  * Provides functionality to save, load, and retrieve the last state 
