@@ -18,9 +18,9 @@ NSString * const MODE_STORYBOOK = @"storybook";
 NSString * const MODE_TESTING = @"testing";
 
 // Module state
-static NSDictionary *config;
-static NSDictionary *lastState;
-static NSString *currentMode;
+static NSDictionary *config = nil;
+static NSDictionary *lastState = nil;
+static NSString *currentMode = MODE_DEFAULT;
 
 // Helper instances
 static FileSystemHelper *fileSystemHelper;
@@ -45,33 +45,36 @@ static FileSystemHelper *fileSystemHelper;
     fileSystemHelper = [[FileSystemHelper alloc] init];
     
     config = [ConfigHelper loadConfigWithFileSystemHelper:fileSystemHelper];
-    currentMode = [ConfigHelper determineInitialMode:config];
-    
-    NSLog(@"[SherloModuleCore] Initialized with mode: %ld", (long)currentMode);
-    
-    if ([currentMode isEqualToString:MODE_TESTING]) {
-        [KeyboardHelper setupKeyboardSwizzling];
 
-        lastState = [LastStateHelper loadStateWithFileSystemHelper:fileSystemHelper];
+    if (config) {
+        currentMode = [ConfigHelper determineModeFromConfig:config];
         
-        // Check for Expo update deeplink if config exists
-        NSString *expoUpdateDeeplink = config[@"expoUpdateDeeplink"];
+        NSLog(@"[SherloModuleCore] Initialized with mode: %@", currentMode);
         
-        if (expoUpdateDeeplink) {
-            BOOL wasDeeplinkConsumed = [ExpoUpdateHelper wasDeeplinkConsumed];
+        if ([currentMode isEqualToString:MODE_TESTING]) {
+            [KeyboardHelper setupKeyboardSwizzling];
+
+            lastState = [LastStateHelper loadStateWithFileSystemHelper:fileSystemHelper];
             
-            // If last state is present we don't need to consume the deeplink
-            // because expo dev client already points to the correct expo update
-            BOOL lastStateHasRequestId = lastState[@"requestId"] != nil;
+            // Check for Expo update deeplink if config exists
+            NSString *expoUpdateDeeplink = config[@"expoUpdateDeeplink"];
             
-            if (!wasDeeplinkConsumed && !lastStateHasRequestId) {
-                NSLog(@"[SherloModuleCore] Consuming expo update deeplink");
+            if (expoUpdateDeeplink) {
+                BOOL wasDeeplinkConsumed = [ExpoUpdateHelper wasDeeplinkConsumed];
                 
-                NSError *expoUpdateError = nil;
-                [ExpoUpdateHelper consumeExpoUpdateDeeplink:expoUpdateDeeplink error:&expoUpdateError];
+                // If last state is present we don't need to consume the deeplink
+                // because expo dev client already points to the correct expo update
+                BOOL lastStateHasRequestId = lastState[@"requestId"] != nil;
                 
-                if (expoUpdateError) {
-                    NSLog(@"[SherloModuleCore] Error opening expo deeplink: %@", expoUpdateError.localizedDescription);
+                if (!wasDeeplinkConsumed && !lastStateHasRequestId) {
+                    NSLog(@"[SherloModuleCore] Consuming expo update deeplink");
+                    
+                    NSError *expoUpdateError = nil;
+                    [ExpoUpdateHelper consumeExpoUpdateDeeplink:expoUpdateDeeplink error:&expoUpdateError];
+                    
+                    if (expoUpdateError) {
+                        NSLog(@"[SherloModuleCore] Error opening expo deeplink: %@", expoUpdateError.localizedDescription);
+                    }
                 }
             }
         }
@@ -87,10 +90,28 @@ static FileSystemHelper *fileSystemHelper;
  * @return Dictionary of constants
  */
 - (NSDictionary *)getConstants {
+    NSString *configString = nil;
+    if (config) {
+        NSError *error = nil;
+        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:config options:0 error:&error];
+        if (!error) {
+        configString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+        }
+    }
+
+    NSString *lastStateString = nil;
+    if (lastState) {
+        NSError *error = nil;
+        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:lastState options:0 error:&error];
+        if (!error) {
+            lastStateString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+        }
+    }
+    
     return @{
         @"mode": currentMode,
-        @"config": config ?: [NSNull null],
-        @"lastState": lastState ?: [NSNull null]
+        @"config": configString ?: [NSNull null],
+        @"lastState": lastStateString ?: [NSNull null]
     };
 }
 

@@ -30,8 +30,8 @@ public class SherloModuleCore {
     public static final String MODE_TESTING = "testing";
 
     // Module state
-    private static JSONObject config = new JSONObject();
-    private static JSONObject lastState = new JSONObject();
+    private static JSONObject config = null;
+    private static JSONObject lastState = null;
     private static String currentMode = MODE_DEFAULT;
 
     // Helper instances
@@ -49,12 +49,15 @@ public class SherloModuleCore {
         this.fileSystemHelper = new FileSystemHelper(reactContext);
 
         this.config = ConfigHelper.loadConfig(this.fileSystemHelper);
-        this.currentMode = ConfigHelper.determineInitialMode(this.config);
 
-        Log.d(TAG, "SherloModuleCore initialized with mode: " + currentMode);
-        
-        if (currentMode.equals(MODE_TESTING)) {
-            this.lastState = LastStateHelper.getLastState(this.fileSystemHelper);
+        if (this.config != null) {
+            this.currentMode = ConfigHelper.determineModeFromConfig(this.config);
+
+            Log.d(TAG, "SherloModuleCore initialized with mode: " + currentMode);
+            
+            if (currentMode.equals(MODE_TESTING)) {
+                this.lastState = LastStateHelper.getLastState(this.fileSystemHelper);
+            }
         }
     }
     
@@ -67,8 +70,8 @@ public class SherloModuleCore {
     public Map<String, Object> getConstants() {
         final Map<String, Object> constants = new HashMap<>();
         constants.put("mode", this.currentMode);
-        constants.put("config", this.config.toString());
-        constants.put("lastState", this.lastState.toString());
+        constants.put("config", this.config != null ? this.config.toString() : null);
+        constants.put("lastState", this.lastState != null ? this.lastState.toString() : null);
         return constants;
     }
 

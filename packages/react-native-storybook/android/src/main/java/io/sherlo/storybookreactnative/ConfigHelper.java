@@ -25,7 +25,7 @@ public class ConfigHelper {
     public static JSONObject loadConfig(FileSystemHelper fileSystemHelper) {
         if (!fileSystemHelper.fileExists(CONFIG_FILENAME)) {
             Log.i(TAG, "Config file does not exist");
-            return new JSONObject();
+            return null;
         }
 
         String configJson = null;
@@ -33,12 +33,12 @@ public class ConfigHelper {
             configJson = fileSystemHelper.readFile(CONFIG_FILENAME);
         } catch (Exception e) {
             Log.w(TAG, "Error reading config file: " + e.getMessage());
-            return new JSONObject();
+            return null;
         }
 
         if (configJson == null || configJson.trim().isEmpty()) {
             Log.w(TAG, "Config file is empty");
-            return new JSONObject();
+            return null;
         }
 
         // Try to decode if base64 encoded
@@ -47,7 +47,7 @@ public class ConfigHelper {
             configJson = new String(decodedBytes, "UTF-8");
         } catch (Exception e) {
             Log.w(TAG, "Config is not base64 encoded, trying to parse as plain JSON");
-            return new JSONObject();
+            return null;
         }
 
         // Parse JSON
@@ -55,7 +55,7 @@ public class ConfigHelper {
             return new JSONObject(configJson);
         } catch (JSONException e) {
             Log.e(TAG, "Invalid JSON in config file: " + configJson);
-            return new JSONObject();
+            return null;
         }
     }
 
@@ -67,7 +67,7 @@ public class ConfigHelper {
      * @param config The configuration object
      * @return The determined mode (default, storybook, or testing)
      */
-    public static String determineInitialMode(JSONObject config) {
+    public static String determineModeFromConfig(JSONObject config) {
         try {
             if (config.length() > 0) {
                 // Check for override mode

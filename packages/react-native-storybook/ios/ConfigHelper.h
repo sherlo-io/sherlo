@@ -10,6 +10,6 @@ extern NSString * const MODE_TESTING;
 @interface ConfigHelper : NSObject
 
 + (NSDictionary *)loadConfigWithFileSystemHelper:(FileSystemHelper *)fileSystemHelper;
-+ (NSString *)determineInitialMode:(NSDictionary *)config;
++ (NSString *)determineModeFromConfig:(NSDictionary *)config;
 
 @end

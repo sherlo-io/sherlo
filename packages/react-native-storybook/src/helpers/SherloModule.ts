@@ -49,10 +49,16 @@ function createSherloModule(): SherloModule {
       return SherloNativeModule.getConstants().mode;
     },
     getConfig: () => {
-      return JSON.parse(SherloNativeModule.getConstants().config);
+      const configString = SherloNativeModule.getConstants().config;
+      const config = JSON.parse(configString) as Config | undefined;
+      if (!config) {
+        throw new Error('Config is undefined');
+      }
+      return config;
     },
     getLastState: () => {
-      const config = JSON.parse(SherloNativeModule.getConstants().config) as Config | undefined;
+      const configString = SherloNativeModule.getConstants().config;
+      const config = JSON.parse(configString) as Config | undefined;
       if (config?.overrideLastState) {
         return config.overrideLastState;
       }

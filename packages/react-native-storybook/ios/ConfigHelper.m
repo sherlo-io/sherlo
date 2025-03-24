@@ -24,12 +24,12 @@ static NSString *const LOG_TAG = @"ConfigHelper";
     
     if (error) {
         NSLog(@"[%@] Error reading config file: %@", LOG_TAG, error.localizedDescription);
-        return @{};
+        return nil;
     }
     
     if (!configContent || configContent.length == 0) {
         NSLog(@"[%@] Config file is empty", LOG_TAG);
-        return @{};
+        return nil;
     }
     
     // Try to decode if base64 encoded
@@ -50,7 +50,7 @@ static NSString *const LOG_TAG = @"ConfigHelper";
     
     if (jsonError) {
         NSLog(@"[%@] Invalid JSON in config file: %@", LOG_TAG, jsonError.localizedDescription);
-        return @{};
+        return nil;
     }
     
     return config;
@@ -64,11 +64,11 @@ static NSString *const LOG_TAG = @"ConfigHelper";
  * @param config The configuration object
  * @return The determined mode (default, storybook, or testing)
  */
-+ (NSString *)determineInitialMode:(NSDictionary *)config {
++ (NSString *)determineModeFromConfig:(NSDictionary *)config {
     @try {
         if (config && config.count > 0) {
             NSString *overrideMode = config[@"overrideMode"];
-            
+
             if (overrideMode) {
                 NSLog(@"[%@] Running in %@ mode", LOG_TAG, overrideMode);
                 return overrideMode;
