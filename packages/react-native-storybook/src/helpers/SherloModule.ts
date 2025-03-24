@@ -17,7 +17,6 @@ type SherloModule = {
   readFile: (path: string) => Promise<string>;
   openStorybook: () => Promise<void>;
   toggleStorybook: () => Promise<void>;
-  verifyIntegration: () => Promise<void>;
   clearFocus: () => Promise<boolean>;
   checkIfContainsStorybookError: () => Promise<boolean>;
   checkIfStable: (
@@ -101,7 +100,6 @@ function createSherloModule(): SherloModule {
     },
     openStorybook: () => SherloNativeModule.openStorybook(),
     toggleStorybook: () => SherloNativeModule.toggleStorybook(),
-    verifyIntegration: () => SherloNativeModule.verifyIntegration(),
   };
 }
 
@@ -129,7 +127,6 @@ function createDummySherloModule(): SherloModule {
     readFile: async () => '',
     openStorybook: async () => {},
     toggleStorybook: async () => {},
-    verifyIntegration: async () => {},
     checkIfStable: async () => true,
   };
 }
