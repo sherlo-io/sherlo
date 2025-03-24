@@ -89,6 +89,8 @@ public class StableUIChecker {
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
+                FocusCleaner.clearFocus(activity);
+                
                 Bitmap currentScreenshot = captureScreenshot();
                 long elapsedTime = System.currentTimeMillis() - startTime;
 

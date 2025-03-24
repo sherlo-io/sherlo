@@ -17,9 +17,6 @@ function useTestStory(): void {
           requestId,
         });
 
-        await SherloModule.clearFocus();
-        RunnerBridge.log('cleared focus');
-
         const isStable = await SherloModule.checkIfStable(
           config.stabilization.requiredMatches,
           config.stabilization.intervalMs,
@@ -30,12 +27,6 @@ function useTestStory(): void {
         });
 
         RunnerBridge.log('checked if stable', { isStable });
-
-        const clearedFocus = await SherloModule.clearFocus();
-        if (clearedFocus) {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
-        RunnerBridge.log('cleared focus again', { clearedFocus });
 
         const inspectorData = await SherloModule.getInspectorData().catch((error) => {
           RunnerBridge.log('error getting inspector data', { error: error.message });

@@ -13,7 +13,7 @@ export type Config = {
     intervalMs: number;
     timeoutMs: number;
   };
-  overrideMode?: 'default' | 'storybook' | 'testing' | 'verification';
+  overrideMode?: 'default' | 'storybook' | 'testing';
   expoUpdateDeeplink?: string;
   overrideLastState?: LastState;
 };

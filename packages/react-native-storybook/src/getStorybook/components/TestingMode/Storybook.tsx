@@ -45,7 +45,7 @@ function Storybook({
       style={{
         flex: 1,
         paddingTop: uiSettings.shouldAddSafeArea ? insets.top : 0,
-        backgroundColor: 'red', //uiSettings.theme.background.content,
+        backgroundColor: uiSettings.theme.background.content,
       }}
     >
       <View

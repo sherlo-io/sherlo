@@ -52,54 +52,6 @@ public class InspectorHelper {
         });
     }
     
-    /**
-     * Checks if the UI is stable by taking multiple screenshots and comparing them.
-     *
-     * @param activity The current activity
-     * @param requiredMatches The number of consecutive matching screenshots needed
-     * @param intervalMs The interval between screenshots in milliseconds
-     * @param timeoutMs The timeout for the whole operation in milliseconds
-     * @param promise The promise to resolve or reject
-     */
-    public void checkIfStable(Activity activity, int requiredMatches, int intervalMs, int timeoutMs, Promise promise) {
-        if (activity == null) {
-            promise.reject("no_activity", "Activity doesn't exist");
-            return;
-        }
-
-        StableUIChecker checker = new StableUIChecker(activity);
-        checker.checkIfStable(requiredMatches, intervalMs, timeoutMs, new StableUIChecker.StabilityCallback() {
-            @Override
-            public void onResult(boolean stable) {
-                promise.resolve(stable);
-            }
-        });
-    }
-    
-    /**
-     * Clears focus from any currently focused input element.
-     *
-     * @param activity The current activity
-     * @param promise The promise to resolve or reject
-     */
-    public void clearFocus(Activity activity, Promise promise) {
-        if (activity == null) {
-            promise.reject("no_activity", "No current activity");
-            return;
-        }
-
-        activity.runOnUiThread(() -> {
-            try {
-                boolean focusCleared = FocusCleaner.clearFocus(activity);
-                Log.i(TAG, focusCleared ? "Focus cleared from view" : "No focused view found");
-                promise.resolve(focusCleared);
-            } catch (Exception e) {
-                Log.e(TAG, "Error clearing focus: " + e.getMessage());
-                handleError("ERROR_CLEAR_FOCUS", e, promise, e.getMessage());
-            }
-        });
-    }
-    
     private void handleError(String errorCode, Exception e, Promise promise, String message) {
         if (errorHelper != null) {
             errorHelper.handleException(errorCode, e);

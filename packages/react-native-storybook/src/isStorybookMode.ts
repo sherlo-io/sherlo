@@ -10,8 +10,6 @@ const { SherloModule } = NativeModules;
  * 2. User called "openStorybook" function imported from "@sherlo/react-native-storybook"
  * 3. Build is running tests on Sherlo
  */
-const isStorybookMode = ['storybook', 'testing', 'verification'].includes(
-  SherloModule?.getConstants().mode
-);
+const isStorybookMode = ['storybook', 'testing'].includes(SherloModule?.getConstants().mode);
 
 export default isStorybookMode;

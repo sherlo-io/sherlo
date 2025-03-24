@@ -132,12 +132,12 @@ public class SherloModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void checkIfStable(int requiredMatches, int intervalMs, int timeoutMs, Promise promise) {
         Activity activity = getCurrentActivity();
-        inspectorHelper.checkIfStable(activity, requiredMatches, intervalMs, timeoutMs, promise);
-    }
-
-    @ReactMethod
-    public void clearFocus(Promise promise) {
-        Activity activity = getCurrentActivity();
-        inspectorHelper.clearFocus(activity, promise);
+        StableUIChecker checker = new StableUIChecker(activity);
+        checker.checkIfStable(requiredMatches, intervalMs, timeoutMs, new StableUIChecker.StabilityCallback() {
+            @Override
+            public void onResult(boolean stable) {
+                promise.resolve(stable);
+            }
+        });
     }
 }

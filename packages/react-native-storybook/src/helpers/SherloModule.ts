@@ -16,7 +16,6 @@ type SherloModule = {
   readFile: (path: string) => Promise<string>;
   openStorybook: () => Promise<void>;
   toggleStorybook: () => Promise<void>;
-  clearFocus: () => Promise<boolean>;
   checkIfStable: (
     requiredMatches: number,
     intervalMs: number,
@@ -45,13 +44,6 @@ export default SherloModule;
 
 function createSherloModule(): SherloModule {
   return {
-    clearFocus: async () => {
-      if (Platform.OS === 'android') {
-        return SherloNativeModule.clearFocus();
-      }
-
-      return false;
-    },
     getInspectorData: async () => {
       return SherloNativeModule.getInspectorData();
     },
@@ -65,6 +57,11 @@ function createSherloModule(): SherloModule {
       return JSON.parse(SherloNativeModule.getConstants().config);
     },
     getLastState: () => {
+      const config = JSON.parse(SherloNativeModule.getConstants().config) as Config | undefined;
+      if (config?.overrideLastState) {
+        return config.overrideLastState;
+      }
+
       const lastState = SherloNativeModule.getConstants().lastState;
       try {
         RunnerBridge.log('lastState directly from native module', lastState);
@@ -107,7 +104,6 @@ function normalizePath(path: string): string {
 
 function createDummySherloModule(): SherloModule {
   return {
-    clearFocus: async () => false,
     getInspectorData: async () => '',
     getMode: () => 'default',
     getLastState: () => undefined,
