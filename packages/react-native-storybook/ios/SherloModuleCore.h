@@ -34,37 +34,35 @@ extern NSString * const MODE_TESTING;
 - (NSDictionary *)getConstants;
 
 /**
- * Toggles between Storybook and default modes
- * @param bridge The React Native bridge
- * @param resolve Promise resolver
- * @param reject Promise rejecter
+ * Toggles between Storybook and default modes.
+ * If in default mode, switches to Storybook mode; if in Storybook mode, switches to default mode.
+ * 
+ * @param bridge The React Native bridge needed for reloading
  */
-- (void)toggleStorybook:(RCTBridge *)bridge resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject;
+- (void)toggleStorybook:(RCTBridge *)bridge;
 
 /**
- * Switches to Storybook mode
- * @param bridge The React Native bridge
- * @param resolve Promise resolver
- * @param reject Promise rejecter
+ * Switches to Storybook mode.
+ * 
+ * @param bridge The React Native bridge needed for reloading
  */
-- (void)openStorybook:(RCTBridge *)bridge resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject;
+- (void)openStorybook:(RCTBridge *)bridge;
 
 /**
- * Switches to default mode
- * @param bridge The React Native bridge
- * @param resolve Promise resolver
- * @param reject Promise rejecter
+ * Switches to default mode.
+ * 
+ * @param bridge The React Native bridge needed for reloading
  */
-- (void)closeStorybook:(RCTBridge *)bridge resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject;
+- (void)closeStorybook:(RCTBridge *)bridge;
 
 /**
  * Appends base64 encoded content to a file
  * @param filename Name of the file
- * @param base64Content Base64 encoded content to append
+ * @param content Base64 encoded content to append
  * @param resolve Promise resolver
  * @param reject Promise rejecter
  */
-- (void)appendFile:(NSString *)filename contents:(NSString *)base64Content resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject;
+- (void)appendFile:(NSString *)filename withContent:(NSString *)content resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject;
 
 /**
  * Reads a file and returns its content as base64

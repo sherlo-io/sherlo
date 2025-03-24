@@ -80,8 +80,6 @@ static FileSystemHelper *fileSystemHelper;
     return self;
 }
 
-#pragma mark - Constants
-
 /**
  * Returns constants that will be exposed to JavaScript.
  * Includes mode constants, current mode, and configuration.
@@ -96,41 +94,43 @@ static FileSystemHelper *fileSystemHelper;
     };
 }
 
-#pragma mark - Mode Management
-
 /**
  * Toggles between Storybook and default modes.
  * If in default mode, switches to Storybook mode; if in Storybook mode, switches to default mode.
+ *
+ * @param bridge The React Native bridge needed for reloading
  */
-- (void)toggleStorybook {
+- (void)toggleStorybook:(RCTBridge *)bridge {
     if ([currentMode isEqualToString:MODE_STORYBOOK]) {
         currentMode = MODE_DEFAULT;
     } else {
         currentMode = MODE_STORYBOOK;
     }
 
-    [RestartHelper reloadWithBridge:self.bridge];
+    [RestartHelper reloadWithBridge:bridge];
 }
 
 /**
  * Switches to Storybook mode and reloads the React Native application.
  * Updates the current mode, saves state, and triggers a reload.
+ *
+ * @param bridge The React Native bridge needed for reloading
  */
-- (void)openStorybook {
+- (void)openStorybook:(RCTBridge *)bridge {
     currentMode = MODE_STORYBOOK;
-    [RestartHelper reloadWithBridge:self.bridge];
+    [RestartHelper reloadWithBridge:bridge];
 }
 
 /**
  * Switches to default mode and reloads the React Native application.
  * Updates the current mode, saves state, and triggers a reload.
+ *
+ * @param bridge The React Native bridge needed for reloading
  */
-- (void)closeStorybook {
+- (void)closeStorybook:(RCTBridge *)bridge {
     currentMode = MODE_DEFAULT;
-    [RestartHelper reloadWithBridge:self.bridge];
+    [RestartHelper reloadWithBridge:bridge];
 }
-
-#pragma mark - File Operations
 
 /**
  * Appends base64 encoded content to a file.
@@ -156,8 +156,6 @@ static FileSystemHelper *fileSystemHelper;
     [fileSystemHelper readFileWithPromise:filename resolver:resolve rejecter:reject];
 }
 
-#pragma mark - Inspector Methods
-
 /**
  * Gets UI inspector data from the current view hierarchy.
  * Returns a promise with serialized JSON containing detailed view information.
@@ -173,12 +171,14 @@ static FileSystemHelper *fileSystemHelper;
  * Checks UI stability by comparing screenshots taken over a specified interval.
  * Returns a promise with a boolean indicating if the UI is stable.
  *
- * @param delay The delay in milliseconds between stability checks
+ * @param requiredMatches Number of consecutive matches needed
+ * @param intervalMs Time interval in milliseconds
+ * @param timeoutMs Timeout in milliseconds
  * @param resolve Promise resolver called with the stability result
  * @param reject Promise rejecter called if an error occurs
  */
-- (void)stabilize:(nonnull NSNumber *)delay resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
-    [StabilityHelper stabilizeWithDelay:delay resolve:resolve reject:reject];
+- (void)stabilize:(NSInteger)requiredMatches intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
+    [StabilityHelper stabilize:requiredMatches intervalMs:intervalMs timeoutMs:timeoutMs resolver:resolve rejecter:reject];
 }
 
 @end 

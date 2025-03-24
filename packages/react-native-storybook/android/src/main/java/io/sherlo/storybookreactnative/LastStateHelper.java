@@ -2,7 +2,6 @@ package io.sherlo.storybookreactnative;
 
 import android.util.Log;
 import org.json.JSONObject;
-import org.json.JSONArray;
 import android.util.Base64;
 
 /**

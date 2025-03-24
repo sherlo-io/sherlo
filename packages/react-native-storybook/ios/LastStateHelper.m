@@ -9,118 +9,13 @@
 @implementation LastStateHelper
 
 /**
- * Loads the last state from the filesystem.
- * Reads the state file, parses it as JSON, and returns the resulting object.
- *
- * @param fileSystemHelper The helper to use for file operations
- * @return A dictionary containing the last state, or nil if loading fails
- */
-+ (NSDictionary *)loadStateWithFileSystemHelper:(FileSystemHelper *)fileSystemHelper {
-    // Try to read last state file
-    NSError *error = nil;
-    NSString *lastStateFilePath = @"last-state.json";
-    
-    NSString *jsonString = [fileSystemHelper readFileAsString:lastStateFilePath error:&error];
-    
-    // Handle file reading error or empty file
-    if (error || !jsonString || jsonString.length == 0) {
-        if (error) {
-            NSLog(@"[LastStateHelper] Error reading last state file: %@", error.localizedDescription);
-        } else {
-            NSLog(@"[LastStateHelper] No last state file found or file is empty");
-        }
-        return nil;
-    }
-    
-    // Parse JSON content
-    NSData *jsonData = [jsonString dataUsingEncoding:NSUTF8StringEncoding];
-    id parsedState = [NSJSONSerialization JSONObjectWithData:jsonData options:0 error:&error];
-    
-    // Handle JSON parsing errors
-    if (error) {
-        NSLog(@"[LastStateHelper] Error parsing last state JSON: %@", error.localizedDescription);
-        return nil;
-    }
-    
-    // Ensure we have a dictionary
-    if (![parsedState isKindOfClass:[NSDictionary class]]) {
-        NSLog(@"[LastStateHelper] Last state is not a dictionary: %@", parsedState);
-        return nil;
-    }
-    
-    return parsedState;
-}
-
-/**
- * Saves the provided state to the filesystem.
- * Serializes the state as JSON and writes it to the state file.
- *
- * @param state The state to save
- * @param fileSystemHelper The helper to use for file operations
- * @return YES if the state was saved successfully, NO otherwise
- */
-+ (BOOL)saveState:(NSDictionary *)state withFileSystemHelper:(FileSystemHelper *)fileSystemHelper {
-    // Validate input
-    if (!state || ![state isKindOfClass:[NSDictionary class]]) {
-        NSLog(@"[LastStateHelper] Invalid state provided for saving");
-        return NO;
-    }
-    
-    // Serialize to JSON
-    NSError *error = nil;
-    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:state options:NSJSONWritingPrettyPrinted error:&error];
-    
-    if (error) {
-        NSLog(@"[LastStateHelper] Error serializing state to JSON: %@", error.localizedDescription);
-        return NO;
-    }
-    
-    // Convert JSON data to string
-    NSString *jsonString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
-    if (!jsonString) {
-        NSLog(@"[LastStateHelper] Error converting JSON data to string");
-        return NO;
-    }
-    
-    // Write to file
-    NSString *lastStateFilePath = @"last-state.json";
-    BOOL success = [fileSystemHelper writeString:jsonString toFile:lastStateFilePath error:&error];
-    
-    if (!success) {
-        NSLog(@"[LastStateHelper] Error writing last state to file: %@", error.localizedDescription);
-        return NO;
-    }
-    
-    NSLog(@"[LastStateHelper] Successfully saved state");
-    return YES;
-}
-
-/**
- * Gets data from the last state using the specified key.
- * If the key is not found or the last state doesn't exist, returns nil.
- *
- * @param key The key to look for in the last state
- * @param fileSystemHelper The helper to use for file operations
- * @return The data associated with the key, or nil if not found
- */
-+ (id)getDataForKey:(NSString *)key withFileSystemHelper:(FileSystemHelper *)fileSystemHelper {
-    NSDictionary *lastState = [self loadStateWithFileSystemHelper:fileSystemHelper];
-    
-    if (!lastState) {
-        return nil;
-    }
-    
-    return [lastState objectForKey:key];
-}
-
-/**
  * Reads the protocol file and extracts the last state information.
  * This includes the next snapshot index, filtered view IDs, and request ID.
  * 
  * @param fileSystemHelper The file system helper for reading files
  * @return NSDictionary containing the state information or nil if not found
  */
-+ (NSDictionary *)getLastStateWithFileSystemHelper:(FileSystemHelper *)fileSystemHelper {
++ (NSDictionary *)loadStateWithFileSystemHelper:(FileSystemHelper *)fileSystemHelper {
   @try {
     NSError *readError = nil;
     NSString *protocolContent = [fileSystemHelper readFileAsString:PROTOCOL_FILENAME error:&readError];

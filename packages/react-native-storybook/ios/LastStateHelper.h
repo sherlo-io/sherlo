@@ -15,6 +15,6 @@
  * @param fileSystemHelper The file system helper for reading files
  * @return NSDictionary containing the state information or nil if not found
  */
-+ (NSDictionary *)getLastStateWithFileSystemHelper:(FileSystemHelper *)fileSystemHelper;
++ (NSDictionary *)loadStateWithFileSystemHelper:(FileSystemHelper *)fileSystemHelper;
 
 @end 

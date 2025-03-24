@@ -32,8 +32,9 @@ RCT_EXPORT_MODULE()
 - (instancetype)initWithBridge:(RCTBridge *)bridge {
     self = [super init];
     if (self) {
-        // Initialize the core module with the bridge
-        _core = [[SherloModuleCore alloc] initWithBridge:bridge];
+        // Initialize the core module
+        _core = [[SherloModuleCore alloc] init];
+        _bridge = bridge;
     }
     return self;
 }
@@ -71,21 +72,21 @@ RCT_EXPORT_MODULE()
  * If in default mode, switches to Storybook mode; if in Storybook mode, switches to default mode.
  */
 RCT_EXPORT_METHOD(toggleStorybook) {
-    [self.core toggleStorybook];
+    [self.core toggleStorybook:self.bridge];
 }
 
 /**
  * Explicitly switches to Storybook mode.
  */
 RCT_EXPORT_METHOD(openStorybook) {
-    [self.core openStorybook];
+    [self.core openStorybook:self.bridge];
 }
 
 /**
  * Explicitly switches to default mode.
  */
 RCT_EXPORT_METHOD(closeStorybook) {
-    [self.core closeStorybook];
+    [self.core closeStorybook:self.bridge];
 }
 
 /**
@@ -133,14 +134,18 @@ RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve
  * Checks UI stability by comparing screenshots taken over a specified interval.
  * Returns a promise with a boolean indicating if the UI is stable.
  *
- * @param delay The delay in milliseconds between stability checks
+ * @param requiredMatches Number of consecutive matches needed
+ * @param intervalMs Time interval in milliseconds
+ * @param timeoutMs Timeout in milliseconds
  * @param resolve Promise resolver called with the stability result
  * @param reject Promise rejecter called if an error occurs
  */
-RCT_EXPORT_METHOD(stabilize:(nonnull NSNumber *)delay
+RCT_EXPORT_METHOD(stabilize:(NSInteger)requiredMatches
+                 intervalMs:(NSInteger)intervalMs
+                  timeoutMs:(NSInteger)timeoutMs
                    resolver:(RCTPromiseResolveBlock)resolve
                    rejecter:(RCTPromiseRejectBlock)reject) {
-    [self.core stabilize:delay resolver:resolve rejecter:reject];
+    [self.core stabilize:requiredMatches intervalMs:intervalMs timeoutMs:timeoutMs resolver:resolve rejecter:reject];
 }
 
 @end

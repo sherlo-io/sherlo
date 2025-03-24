@@ -16,123 +16,60 @@
  * that can be controlled programmatically during testing.
  */
 + (void)setupKeyboardSwizzling {
-    NSLog(@"[KeyboardHelper] Setting up keyboard swizzling");
+    // Swizzle UITextField
+    Method textFieldMethod = class_getInstanceMethod([UITextField class], @selector(becomeFirstResponder));
     
-    // Swizzle UITextField methods
-    [self swizzleUITextFieldMethods];
+    IMP newTextFieldImplementation = imp_implementationWithBlock(^BOOL(id _self) {
+        return NO;
+    });
+    method_setImplementation(textFieldMethod, newTextFieldImplementation);
     
-    // Swizzle UITextView methods
-    [self swizzleUITextViewMethods];
-}
-
-/**
- * Swizzles methods of UITextField to intercept keyboard interactions.
- * Replaces the original implementation of becomeFirstResponder to prevent
- * keyboard from appearing during automated testing.
- */
-+ (void)swizzleUITextFieldMethods {
-    Class class = [UITextField class];
+    // Swizzle UITextView
+    Method textViewModel = class_getInstanceMethod([UITextView class], @selector(becomeFirstResponder));
     
-    // Swizzle becomeFirstResponder
-    SEL originalSelector = @selector(becomeFirstResponder);
-    SEL swizzledSelector = @selector(swizzled_becomeFirstResponder);
+    IMP newTextViewImplementation = imp_implementationWithBlock(^BOOL(id _self) {
+        return NO;
+    });
+    method_setImplementation(textViewModel, newTextViewImplementation);
     
-    Method originalMethod = class_getInstanceMethod(class, originalSelector);
-    Method swizzledMethod = class_getInstanceMethod(class, swizzledSelector);
-    
-    if (originalMethod && swizzledMethod) {
-        BOOL didAddMethod = class_addMethod(class,
-                                         originalSelector,
-                                         method_getImplementation(swizzledMethod),
-                                         method_getTypeEncoding(swizzledMethod));
-        
-        if (didAddMethod) {
-            class_replaceMethod(class,
-                             swizzledSelector,
-                             method_getImplementation(originalMethod),
-                             method_getTypeEncoding(originalMethod));
-        } else {
-            method_exchangeImplementations(originalMethod, swizzledMethod);
-        }
-        
-        NSLog(@"[KeyboardHelper] Successfully swizzled UITextField's becomeFirstResponder");
-    } else {
-        NSLog(@"[KeyboardHelper] Failed to swizzle UITextField's becomeFirstResponder");
+    // Additional input elements that can trigger keyboard
+    Class searchBarClass = NSClassFromString(@"UISearchBar");
+    if (searchBarClass) {
+        Method searchBarMethod = class_getInstanceMethod(searchBarClass, @selector(becomeFirstResponder));
+        method_setImplementation(searchBarMethod, newTextFieldImplementation);
     }
-}
 
-/**
- * Swizzles methods of UITextView to intercept keyboard interactions.
- * Replaces the original implementation of becomeFirstResponder to prevent
- * keyboard from appearing during automated testing.
- */
-+ (void)swizzleUITextViewMethods {
-    Class class = [UITextView class];
-    
-    // Swizzle becomeFirstResponder
-    SEL originalSelector = @selector(becomeFirstResponder);
-    SEL swizzledSelector = @selector(swizzled_becomeFirstResponder);
-    
-    Method originalMethod = class_getInstanceMethod(class, originalSelector);
-    Method swizzledMethod = class_getInstanceMethod(class, swizzledSelector);
-    
-    if (originalMethod && swizzledMethod) {
-        BOOL didAddMethod = class_addMethod(class,
-                                         originalSelector,
-                                         method_getImplementation(swizzledMethod),
-                                         method_getTypeEncoding(swizzledMethod));
-        
-        if (didAddMethod) {
-            class_replaceMethod(class,
-                             swizzledSelector,
-                             method_getImplementation(originalMethod),
-                             method_getTypeEncoding(originalMethod));
-        } else {
-            method_exchangeImplementations(originalMethod, swizzledMethod);
-        }
-        
-        NSLog(@"[KeyboardHelper] Successfully swizzled UITextView's becomeFirstResponder");
-    } else {
-        NSLog(@"[KeyboardHelper] Failed to swizzle UITextView's becomeFirstResponder");
+    // WebView input fields
+    Class webViewClass = NSClassFromString(@"WKWebView");
+    if (webViewClass) {
+        Method webViewMethod = class_getInstanceMethod(webViewClass, @selector(becomeFirstResponder));
+        method_setImplementation(webViewMethod, newTextFieldImplementation);
     }
-}
 
-@end
+    // Custom input accessory views
+    Method inputAccessoryMethod = class_getInstanceMethod([UIResponder class], @selector(inputAccessoryView));
+    if (inputAccessoryMethod) {
+        IMP newInputAccessoryImplementation = imp_implementationWithBlock(^UIView*(id _self) {
+            return nil;
+        });
+        method_setImplementation(inputAccessoryMethod, newInputAccessoryImplementation);
+    }
 
-/**
- * Category that extends UITextField with swizzled methods.
- * Used to replace the original becomeFirstResponder implementation.
- */
-@implementation UITextField (Swizzled)
+    // Prevent focus state changes
+    Method canBecomeFirstResponder = class_getInstanceMethod([UIResponder class], @selector(canBecomeFirstResponder));
+    IMP newCanBecomeFirstResponder = imp_implementationWithBlock(^BOOL(id _self) {
+        return NO;
+    });
+    method_setImplementation(canBecomeFirstResponder, newCanBecomeFirstResponder);
+    
+    // Prevent any existing first responder from keeping its state
+    Method isFirstResponder = class_getInstanceMethod([UIResponder class], @selector(isFirstResponder));
+    IMP newIsFirstResponder = imp_implementationWithBlock(^BOOL(id _self) {
+        return NO;
+    });
+    method_setImplementation(isFirstResponder, newIsFirstResponder);
 
-/**
- * Swizzled version of becomeFirstResponder that prevents keyboard from appearing.
- * Called instead of the original method when keyboard swizzling is active.
- *
- * @return YES to indicate success
- */
-- (BOOL)swizzled_becomeFirstResponder {
-    // Always return YES to simulate successful focus without showing keyboard
-    return YES;
-}
-
-@end
-
-/**
- * Category that extends UITextView with swizzled methods.
- * Used to replace the original becomeFirstResponder implementation.
- */
-@implementation UITextView (Swizzled)
-
-/**
- * Swizzled version of becomeFirstResponder that prevents keyboard from appearing.
- * Called instead of the original method when keyboard swizzling is active.
- *
- * @return YES to indicate success
- */
-- (BOOL)swizzled_becomeFirstResponder {
-    // Always return YES to simulate successful focus without showing keyboard
-    return YES;
+    NSLog(@"[%@] Enhanced keyboard and focus state swizzling enabled", LOG_TAG);
 }
 
 @end 
