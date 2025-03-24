@@ -69,9 +69,8 @@ public class ConfigHelper {
     public static String determineModeFromConfig(JSONObject config) {
         try {
             if (config.length() > 0) {
-                // Check for override mode
-                String overrideMode = config.getString("overrideMode");
-                if (overrideMode != null) {
+                if (config.has("overrideMode")) {
+                    String overrideMode = config.getString("overrideMode");
                     Log.i(TAG, "Running in " + overrideMode + " mode");
                     return overrideMode;
                 }
