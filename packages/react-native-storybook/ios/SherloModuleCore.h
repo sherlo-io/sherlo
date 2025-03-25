@@ -1,0 +1,87 @@
+#import <Foundation/Foundation.h>
+#import <React/RCTBridgeModule.h>
+
+@class FileSystemHelper;
+@class InspectorHelper;
+@class ConfigHelper;
+@class LastStateHelper;
+@class KeyboardHelper;
+@class StabilityHelper;
+@class RCTBridge;
+
+/**
+ * Core implementation for Sherlo's React Native module.
+ * Manages application modes (default, storybook, testing) and provides
+ * functionality for file operations, UI inspection, and UI stability testing.
+ */
+@interface SherloModuleCore : NSObject
+
+/**
+ * Standard initialization method
+ * @return An initialized instance
+ */
+- (instancetype)init;
+
+/**
+ * Returns constants exposed to the JavaScript side
+ * @return Dictionary with mode, config, and lastState
+ */
+- (NSDictionary *)getConstants;
+
+/**
+ * Toggles between Storybook and default modes.
+ * If in default mode, switches to Storybook mode; if in Storybook mode, switches to default mode.
+ * 
+ * @param bridge The React Native bridge needed for reloading
+ */
+- (void)toggleStorybook:(RCTBridge *)bridge;
+
+/**
+ * Switches to Storybook mode.
+ * 
+ * @param bridge The React Native bridge needed for reloading
+ */
+- (void)openStorybook:(RCTBridge *)bridge;
+
+/**
+ * Switches to default mode.
+ * 
+ * @param bridge The React Native bridge needed for reloading
+ */
+- (void)closeStorybook:(RCTBridge *)bridge;
+
+/**
+ * Appends base64 encoded content to a file
+ * @param filename Name of the file
+ * @param content Base64 encoded content to append
+ * @param resolve Promise resolver
+ * @param reject Promise rejecter
+ */
+- (void)appendFile:(NSString *)filename withContent:(NSString *)content resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject;
+
+/**
+ * Reads a file and returns its content as base64
+ * @param filename Name of the file to read
+ * @param resolve Promise resolver
+ * @param reject Promise rejecter
+ */
+- (void)readFile:(NSString *)filename resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject;
+
+/**
+ * Gets inspector data from the current UI hierarchy
+ * @param resolve Promise resolver
+ * @param reject Promise rejecter
+ */
+- (void)getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject;
+
+/**
+ * Checks if the UI is stable by comparing screenshots
+ * @param requiredMatches Number of matching screenshots needed
+ * @param intervalMs Interval between checks in milliseconds
+ * @param timeoutMs Maximum time to wait in milliseconds
+ * @param resolve Promise resolver
+ * @param reject Promise rejecter
+ */
+- (void)stabilize:(NSInteger)requiredMatches intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject;
+
+@end 

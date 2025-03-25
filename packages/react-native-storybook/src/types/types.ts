@@ -23,6 +23,8 @@ export interface SherloParameters {
   platform?: 'ios' | 'android';
 }
 
+export type StoryId = `${string}--${string}`;
+
 export type Snapshot = {
   // sherlo exclusive parameters
   viewId: string; // components-avatar--basic-deviceHeight
@@ -33,7 +35,7 @@ export type Snapshot = {
   // storybook parameters
   componentId: string; // components-avatar
   componentTitle: string; // components/Avatar
-  storyId: string; // components-avatar--basic
+  storyId: StoryId; // components-avatar--basic
   storyTitle: string; // Basic
   parameters: any;
   argTypes: any;
@@ -51,4 +53,4 @@ export type StorybookParams = StorybookParamsRaw extends infer U
     : U
   : never;
 
-export type StorybookViewMode = 'testing' | 'default' | 'storybook' | 'verification';
+export type StorybookViewMode = 'testing' | 'default' | 'storybook';

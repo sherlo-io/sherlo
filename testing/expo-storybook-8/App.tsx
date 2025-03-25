@@ -29,7 +29,7 @@ export default App;
 function Wrapper({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <StatusBar translucent style={Platform.OS === 'android' ? 'dark' : 'auto'} />
+      <StatusBar translucent />
 
       {children}
     </>

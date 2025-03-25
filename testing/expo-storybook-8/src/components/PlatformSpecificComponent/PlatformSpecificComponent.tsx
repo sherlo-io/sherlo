@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-const PlatformSpecificComponent = () => {
+const PlatformSpecificComponent = ({ platform }: { platform: 'iOS' | 'Android' }) => {
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>This component should only be visible on iOS</Text>
+      <Text style={styles.text}>This component should only be visible on {platform}</Text>
     </View>
   );
 };

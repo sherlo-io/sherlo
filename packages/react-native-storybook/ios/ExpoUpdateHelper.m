@@ -1,33 +1,64 @@
 #import "ExpoUpdateHelper.h"
+#import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 
+static NSString *const LOG_TAG = @"SherloModule:ExpoUpdateHelper";
+static NSString *const DEEPLINK_CONSUMED_KEY = @"ExpoUpdateDeeplinkConsumed";
+
+/**
+ * Helper for handling Expo updates in the Sherlo module.
+ * Provides functionality to process and navigate to specific Expo updates
+ * when used with the Expo Update system.
+ */
 @implementation ExpoUpdateHelper
 
-static int expoUpdateDeeplinkConsumeCount = 0;
+/**
+ * Checks if any deeplink has been consumed by retrieving from NSUserDefaults.
+ *
+ * @return YES if any deeplink has been consumed, NO otherwise
+ */
++ (BOOL)isDeeplinkConsumed {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    return [defaults boolForKey:DEEPLINK_CONSUMED_KEY];
+}
 
-// we will open the url twice to make sure the app is restarted with new update 
-// bundle and second time to make sure we dismiss the initial expo dev client modal
-+ (void)consumeExpoUpdateDeeplink:(NSString *)expoUpdateDeeplink modeRef:(NSString **)modeRef error:(NSError **)error {
-    if (expoUpdateDeeplinkConsumeCount < 2) {
-        __block NSError *blockError = nil;
-        dispatch_time_t delayTime = dispatch_time(DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC);
-        dispatch_after(delayTime, dispatch_get_main_queue(), ^{
-            NSURL *nsurl = [NSURL URLWithString:expoUpdateDeeplink];
+/**
+ * Marks a deeplink as consumed by storing a boolean flag in NSUserDefaults.
+ */
++ (void)markDeeplinkAsConsumed {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    [defaults setBool:YES forKey:DEEPLINK_CONSUMED_KEY];
+    [defaults synchronize];
+}
 
-            if ([[UIApplication sharedApplication] canOpenURL:nsurl]) {
-                [[UIApplication sharedApplication] openURL:nsurl options:@{} completionHandler:nil];
-                expoUpdateDeeplinkConsumeCount++;
-            } else {
-                blockError = [NSError errorWithDomain:@"ExpoUpdateHelper" code:1 userInfo:@{NSLocalizedDescriptionKey: @"ERROR_OPENING_URL"}];
-            }
-        });
+/**
+ * Checks if an Expo update deeplink needs to be consumed and handles it if needed.
+ * Uses persistent storage to track if any deeplink has been consumed.
+ *
+ * @param expoUpdateDeeplink The Expo update deeplink URL to potentially consume
+ */
++ (void)consumeExpoUpdateDeeplinkIfNeeded:(NSString *)expoUpdateDeeplink {
+    if (!expoUpdateDeeplink || expoUpdateDeeplink.length == 0) {
+        return;
+    }
+    
+    BOOL isDeeplinkAlreadyConsumed = [self isDeeplinkConsumed];
+    
+    if (!isDeeplinkAlreadyConsumed) {
+        NSLog(@"[%@] Consuming expo update deeplink", LOG_TAG);
         
-        if (blockError && error) {
-            *error = blockError;
+        NSURL *deeplinkURL = [NSURL URLWithString:expoUpdateDeeplink];
+        
+        if (!deeplinkURL) {
+            NSLog(@"[%@] Failed to create URL from deeplink: %@", LOG_TAG, expoUpdateDeeplink);
+            return;
         }
-    } else {
-        // After the URL has been consumed twice, we are in testing mode
-        *modeRef = @"testing";
+        
+        [self markDeeplinkAsConsumed];
+        
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [[UIApplication sharedApplication] openURL:deeplinkURL options:@{} completionHandler:nil];
+        });
     }
 }
 

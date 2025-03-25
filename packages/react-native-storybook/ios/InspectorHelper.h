@@ -1,8 +1,8 @@
 #import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
+#import <React/RCTBridgeModule.h>
 
 @interface InspectorHelper : NSObject
 
-+ (NSString *)dumpBoundaries:(NSError **)error;
++ (void)getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject;
 
 @end

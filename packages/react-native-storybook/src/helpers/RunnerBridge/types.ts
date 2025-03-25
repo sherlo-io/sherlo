@@ -13,20 +13,18 @@ export type Config = {
     intervalMs: number;
     timeoutMs: number;
   };
-  overrideMode?: 'default' | 'storybook' | 'testing' | 'verification';
+  overrideMode?: 'default' | 'storybook' | 'testing';
   expoUpdateDeeplink?: string;
+  overrideLastState?: LastState;
+};
+
+export type LastState = {
+  nextSnapshot: Snapshot;
+  requestId: string;
 };
 
 export type LogFn = (key: string, parameters?: Record<string, any>) => void;
 export type SendFn = (protocolItem: AppProtocolItem) => Promise<RunnerProtocolItem>;
-export type GetLastStateFn = () => Promise<
-  | {
-      nextSnapshotIndex: number;
-      filteredViewIds: string[];
-      requestId: string;
-    }
-  | undefined
->;
 
 export type ProtocolItemMetadata = {
   timestamp: number;
@@ -40,7 +38,6 @@ export type AppProtocolItem =
     }
   | {
       action: 'REQUEST_SNAPSHOT';
-      snapshotIndex: number;
       hasError?: boolean;
       inspectorData?: string;
       isStable?: boolean;
@@ -49,14 +46,13 @@ export type AppProtocolItem =
 
 export type AckStartProtocolItem = {
   action: 'ACK_START';
-  filteredViewIds: string[];
-  nextSnapshotIndex: number;
+  nextSnapshot: Snapshot;
   requestId: string;
 };
 
 export type AckRequestSnapshotProtocolItem = {
   action: 'ACK_REQUEST_SNAPSHOT';
-  nextSnapshotIndex: number;
+  nextSnapshot: Snapshot;
   requestId: string;
 };
 

@@ -3,26 +3,19 @@ import { NativeModules, Platform } from 'react-native';
 import utf8 from 'utf8';
 import isExpoGo from './isExpoGo';
 import { StorybookViewMode } from '../types/types';
-import { Config } from './RunnerBridge/types';
+import { Config, LastState } from './RunnerBridge/types';
+import RunnerBridge from './RunnerBridge';
 
 type SherloModule = {
   getMode: () => StorybookViewMode;
   getConfig: () => Config;
-  storybookRegistered: () => Promise<void>;
+  getLastState: () => LastState | undefined;
   getInspectorData: () => Promise<string>;
   appendFile: (path: string, base64: string) => Promise<void>;
-  mkdir: (path: string) => Promise<void>;
   readFile: (path: string) => Promise<string>;
   openStorybook: () => Promise<void>;
   toggleStorybook: () => Promise<void>;
-  verifyIntegration: () => Promise<void>;
-  clearFocus: () => Promise<void>;
-  checkIfContainsStorybookError: () => Promise<boolean>;
-  checkIfStable: (
-    requiredMatches: number,
-    intervalMs: number,
-    timeoutMs: number
-  ) => Promise<boolean>;
+  stabilize: (requiredMatches: number, intervalMs: number, timeoutMs: number) => Promise<boolean>;
 };
 
 let SherloModule: SherloModule;
@@ -46,70 +39,62 @@ export default SherloModule;
 
 function createSherloModule(): SherloModule {
   return {
-    checkIfContainsStorybookError: async () => {
-      return SherloNativeModule.checkIfContainsStorybookError();
-    },
-    clearFocus: async () => {
-      if (Platform.OS === 'android') {
-        await SherloNativeModule.clearFocus();
-      }
-    },
     getInspectorData: async () => {
       return SherloNativeModule.getInspectorData();
     },
-    storybookRegistered: async () => {
-      await SherloNativeModule.storybookRegistered();
-    },
-    checkIfStable: async (requiredMatches: number, intervalMs: number, timeoutMs: number) => {
-      return SherloNativeModule.checkIfStable(requiredMatches, intervalMs, timeoutMs);
+    stabilize: async (requiredMatches: number, intervalMs: number, timeoutMs: number) => {
+      return SherloNativeModule.stabilize(requiredMatches, intervalMs, timeoutMs);
     },
     getMode: () => {
       return SherloNativeModule.getConstants().mode;
     },
     getConfig: () => {
-      return JSON.parse(SherloNativeModule.getConstants().config);
+      const configString = SherloNativeModule.getConstants().config;
+      const config = JSON.parse(configString) as Config | undefined;
+      if (!config) {
+        throw new Error('Config is undefined');
+      }
+      return config;
     },
-    appendFile: (path: string, data: string) => {
+    getLastState: () => {
+      const configString = SherloNativeModule.getConstants().config;
+      const config = JSON.parse(configString) as Config | undefined;
+      if (config?.overrideLastState) {
+        return config.overrideLastState;
+      }
+
+      const lastState = SherloNativeModule.getConstants().lastState;
+      const parsedLastState = lastState ? JSON.parse(lastState) : undefined;
+
+      if (parsedLastState && Object.keys(parsedLastState).length === 0) {
+        return undefined;
+      }
+
+      return parsedLastState;
+    },
+    appendFile: (filename: string, data: string) => {
       const encodedData = base64.encode(utf8.encode(data));
-
-      return SherloNativeModule.appendFile(normalizePath(path), encodedData);
+      return SherloNativeModule.appendFile(filename, encodedData);
     },
-    mkdir: (path: string) => SherloNativeModule.mkdir(normalizePath(path)),
-    readFile: (path: string) => {
+    readFile: (filename: string) => {
       const decodeData = (data: string) => utf8.decode(base64.decode(data));
-
-      return SherloNativeModule.readFile(normalizePath(path)).then(decodeData);
+      return SherloNativeModule.readFile(filename).then(decodeData);
     },
     openStorybook: () => SherloNativeModule.openStorybook(),
     toggleStorybook: () => SherloNativeModule.toggleStorybook(),
-    verifyIntegration: () => SherloNativeModule.verifyIntegration(),
   };
-}
-
-function normalizePath(path: string): string {
-  const { syncDirectoryPath } = SherloNativeModule.getConstants();
-  const sherloPath = `${syncDirectoryPath}/${path}`;
-  const filePathPrefix = 'file://';
-
-  return sherloPath.startsWith(filePathPrefix)
-    ? sherloPath.slice(filePathPrefix.length)
-    : sherloPath;
 }
 
 function createDummySherloModule(): SherloModule {
   return {
-    checkIfContainsStorybookError: async () => false,
-    clearFocus: async () => {},
     getInspectorData: async () => '',
-    storybookRegistered: async () => {},
     getMode: () => 'default',
+    getLastState: () => undefined,
     getConfig: () => ({ stabilization: { requiredMatches: 3, intervalMs: 500, timeoutMs: 5_000 } }),
     appendFile: async () => {},
-    mkdir: async () => {},
     readFile: async () => '',
     openStorybook: async () => {},
     toggleStorybook: async () => {},
-    verifyIntegration: async () => {},
-    checkIfStable: async () => true,
+    stabilize: async () => true,
   };
 }

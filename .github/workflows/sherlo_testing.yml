@@ -74,7 +74,7 @@ jobs:
 
   expo_local_builds:
     uses: ./.github/workflows/expo_local-builds.yml
-    if: ${{ github.event.inputs.expo_local_builds == 'true' && always() && !failure() && !cancelled() }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.expo_local_builds == 'true' && always() && !failure() && !cancelled() }}
     name: local-builds (Expo)
     secrets: inherit
     with:
@@ -83,7 +83,7 @@ jobs:
 
   expo_cloud:
     uses: ./.github/workflows/expo-cloud.yml
-    if: ${{ github.event.inputs.expo_cloud == 'true' && always() && !failure() && !cancelled() }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.expo_cloud == 'true' && always() && !failure() && !cancelled() }}
     name: expo-cloud-builds
     secrets: inherit
     with:

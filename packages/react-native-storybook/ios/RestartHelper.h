@@ -3,6 +3,6 @@
 
 @interface RestartHelper : NSObject
 
-+ (void)reloadWithBridge:(RCTBridge *)bridge;
++ (void)restart:(RCTBridge *)bridge;
 
 @end

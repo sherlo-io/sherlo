@@ -1,387 +1,146 @@
 #import "SherloModule.h"
-#import "FileSystemHelper.h"
-#import "InspectorHelper.h"
-#import "RestartHelper.h"
-#import "ConfigHelper.h"
-#import "ExpoUpdateHelper.h"
-#import "StableUIChecker.h"
-#import "VerificationHelper.h"
-
-#import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
-
+#import "SherloModuleCore.h"
 #import <React/RCTUtils.h>
-#import <React/RCTUIManager.h>
-#import <React/RCTBridge.h>
-#import <React/RCTRootView.h>
-#import <React/RCTBundleURLProvider.h>
-
-// A safeguard to ensure compatibility with different versions of React Native
-#if __has_include(<React/RCTUIManagerUtils.h>)
-// These are necessary for any interactions with the React Native UI Manager 
-// (e.g., operations on RCTRootView).
 #import <React/RCTUIManagerUtils.h>
-#endif
+#import <React/RCTBridge.h>
 
-#import <objc/runtime.h>
-
-static NSString *PROTOCOL_FILENAME = @"protocol.sherlo";
-static NSString *const LOG_TAG = @"SherloModule";
-
-static NSString *syncDirectoryPath = @"";
-static NSString *mode = @"default"; // "default" / "storybook" / "testing" / "verification"
-static NSDictionary *config = nil;
-
+/**
+ * Main entry point for the Sherlo React Native module.
+ * Implements the RCTBridgeModule protocol to provide JavaScript-accessible functionality
+ * and delegates to SherloModuleCore for core implementation.
+ */
 @implementation SherloModule
 
+/**
+ * Required method to register the module with React Native.
+ * Sets the module name that will be used to access it from JavaScript.
+ */
 RCT_EXPORT_MODULE()
 
 @synthesize bridge = _bridge;
 
-// Initializes the Sherlo module, sets up necessary directory paths, and checks if testing mode is required.
-// If a configuration file exists, the module sets up the application in testing mode and presents the Storybook view.
-// Exceptions are caught and logged.
+static SherloModuleCore *core;
+
+/**
+ * Required method to initialize the module.
+ * Creates the core instance and initializes it.
+ *
+ * @return An initialized SherloModule instance
+ */
 - (instancetype)init {
-  self = [super init];
-  if (self) {
-    @try {
-      NSLog(@"[%@] Initializing SherloModule", LOG_TAG);
-
-      NSError *getSyncDirectoryPathError = nil;
-      syncDirectoryPath = [ConfigHelper getSyncDirectoryPath:&getSyncDirectoryPathError];
-      if (getSyncDirectoryPathError) {
-        [self handleError:@"ERROR_MODULE_INIT" error:getSyncDirectoryPathError];
-        return self;
-      }
-
-      NSError *loadConfigError = nil;
-      config = [ConfigHelper loadConfig:&loadConfigError syncDirectoryPath:syncDirectoryPath];
-      if (loadConfigError) {
-        [self handleError:@"ERROR_MODULE_INIT" error:loadConfigError];
-        return self;
-      }
-      
-      // if there's a config, we are in testing mode
-      if(config) {
-        NSString *overrideMode = config[@"overrideMode"];
-        if (overrideMode) {
-          mode = overrideMode;
-          return self;
-        }
-
-        NSString *expoUpdateDeeplink = config[@"expoUpdateDeeplink"];
-        
-        if (expoUpdateDeeplink) {
-          NSLog(@"[%@] Consuming expo update deeplink", LOG_TAG);
-
-          NSError *expoUpdateError = nil;
-          NSString *tempMode = mode;
-          // This function will set the mode to "testing" if it consumes the expo update deeplink
-          [ExpoUpdateHelper consumeExpoUpdateDeeplink:expoUpdateDeeplink modeRef:&tempMode error:&expoUpdateError];
-          mode = tempMode;
-
-          if ([mode isEqualToString:@"testing"]) {
-            [self setupKeyboardSwizzling];
-          }
-          
-          if (expoUpdateError) {
-            [self handleError:@"ERROR_OPENING_EXPO_DEEPLINK" error:expoUpdateError];
-          }
-        } else {
-          [self setupKeyboardSwizzling];
-          // If the expoUpdateDeeplink is not present in the config, we are immediately in testing mode
-          mode = @"testing";
-        }
-      }
-    } @catch (NSException *exception) {
-      [self handleError:@"ERROR_MODULE_INIT" error:exception.reason];
-      return self;
+    self = [super init];
+    if (self) {
+        core = [[SherloModuleCore alloc] init];
     }
-  }
-  
-  return self;
-}
-
-// Indicates whether the module needs to be initialized on the main thread.
-// This is necessary for modules that interact with the UI or need to perform any setup that affects the UI.
-+ (BOOL)requiresMainQueueSetup {
-  return YES;
-}
-
-// Specifies the dispatch queue on which the module's methods should be executed.
-// This ensures that UI updates from native modules are thread-safe and responsive.
-- (dispatch_queue_t)methodQueue {
-  return RCTGetUIManagerQueue();
-}
-
-// Exports constants to JavaScript. In this case, it exports the sync directory path and initial mode.
-- (NSDictionary *)constantsToExport {
-  NSString *configString = nil;
-  if (config) {
-    NSError *error = nil;
-    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:config options:0 error:&error];
-    if (!error) {
-      configString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
-    }
-  }
-  
-  return @{
-    @"syncDirectoryPath": syncDirectoryPath,
-    @"mode": mode,
-    @"config": configString ?: [NSNull null]
-  };
-}
-
-// Verifies the integration with the Sherlo SDK.
-// It sets the mode to "verification" and reloads the bridge which should load the storybook in verification mode
-// If we cannot detect sherlo wrapper view that means that the integration is not correct
-// and user will be presented with error modal, if it's triggered in testing mode the error will be written to error.sherlo
-RCT_EXPORT_METHOD(verifyIntegration:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  NSLog(@"[%@] Verifying integration", LOG_TAG);
-  // if(![mode isEqualToString:@"verification"]) {
-    mode = @"verification";
-    [RestartHelper reloadWithBridge:self.bridge];
-    [self scheduleVerification];
-  // }
-
-  resolve(nil);
-}
-
-// Toggles the mode between "storybook" and "default"
-RCT_EXPORT_METHOD(toggleStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  if ([mode isEqualToString:@"storybook"]) {
-    [self closeStorybook:resolve rejecter:reject];
-  } else {
-    [self openStorybook:resolve rejecter:reject];
-  }
-}
-
-// Switches the mode to "storybook" and reloads the bridge
-RCT_EXPORT_METHOD(openStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  mode = @"storybook";
-  
-  [RestartHelper reloadWithBridge:self.bridge];
-  resolve(nil);
-}
-
-// Switches the mode to "default" and reloads the bridge
-RCT_EXPORT_METHOD(closeStorybook:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  mode = @"default";
-  
-  [RestartHelper reloadWithBridge:self.bridge];
-  resolve(nil);
-}
-
-// Creates a directory at the specified filepath.
-// If the directory creation fails, the reject block is called with an appropriate error message.
-RCT_EXPORT_METHOD(mkdir:(NSString *)filepath resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  NSError *error = [FileSystemHelper mkdir:filepath];
-  
-  if (error) {
-    reject(@"E_MKDIR", [NSString stringWithFormat:@"Failed to create directory at path %@", filepath], error);
-  } else {
-    resolve(nil);
-  }
-}
-
-RCT_EXPORT_METHOD(checkIfStable:(NSInteger)requiredMatches
-                  interval:(NSInteger)intervalMs
-                  timeout:(NSInteger)timeoutMs
-                  resolver:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject)
-{
-  StableUIChecker *checker = [[StableUIChecker alloc] init];
-  [checker checkIfStableWithRequiredMatches:requiredMatches
-                                 intervalMs:intervalMs
-                                  timeoutMs:timeoutMs
-                                 completion:^(BOOL stable) {
-    resolve(@(stable));
-  }];
-}
-
-// Appends a base64 encoded file to the specified filepath.
-// If the file does not exist, it creates a new file.
-// If any errors occur during the append process, the reject block is called with an appropriate error message.
-RCT_EXPORT_METHOD(appendFile:(NSString *)filepath contents:(NSString *)base64Content resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  NSError *error = [FileSystemHelper appendFile:filepath contents:base64Content];
-  
-  if (error) {
-    reject(@"E_APPENDFILE", [NSString stringWithFormat:@"Failed to append to file at path %@", filepath], error);
-  } else {
-    resolve(nil);
-  }
-}
-
-// Reads a byte array from the specified file and returns it as a base64 string.
-// If the file does not exist or if any errors occur during the read process, the reject block is called with an appropriate error message.
-RCT_EXPORT_METHOD(readFile:(NSString *)filepath resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  @try {
-    NSError *error = nil;
-    NSString *base64Content = [FileSystemHelper readFile:filepath error:&error];
-    
-    if (error) {
-      reject(@"E_READFILE", [NSString stringWithFormat:@"Failed to read file at path %@", filepath], error);
-    } else if (!base64Content) {
-      reject(@"E_READFILE", @"File content is empty or could not be encoded to base64", nil);
-    } else {
-      resolve(base64Content);
-    }
-  } @catch (NSException *exception) {
-    [self handleError:@"ERROR_READ_FILE" error:exception.reason];
-  }
-}
-
-// Dumps the boundaries of the root view as a JSON string.
-// If any errors occur during the dump process, the reject block is called with an appropriate error message.
-RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    NSError *error = nil;
-    NSString *jsonString = [InspectorHelper dumpBoundaries:&error];
-
-    if (error) {
-      // Get the debug info from the error's userInfo
-      NSDictionary *userInfo = error.userInfo;
-      NSDictionary *debugInfo = userInfo[@"debugInfo"];
-      
-      NSMutableDictionary *errorDetails = [NSMutableDictionary dictionaryWithDictionary:@{
-        @"code": @"json_error",
-        @"message": error.localizedDescription ?: @"Could not serialize view data to JSON"
-      }];
-      
-      // Add debug info if available
-      if (debugInfo) {
-        [errorDetails setObject:debugInfo forKey:@"debugInfo"];
-      }
-      
-      // Log the error details for debugging
-      NSLog(@"[InspectorHelper] Error details: %@", errorDetails);
-      
-      reject(@"json_error", error.localizedDescription, [NSError errorWithDomain:error.domain 
-                                                                          code:error.code 
-                                                                      userInfo:errorDetails]);
-    } else {
-      resolve(jsonString);
-    }
-  });
-}
-
-- (void)scheduleVerification {
-  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-    [VerificationHelper verifyIntegrationWithMode:mode syncDirectoryPath:syncDirectoryPath ];
-  });
-}
-
-// A function that writes an error code to error.sherlo file in sync directory
-- (void)handleError:(NSString *)errorCode error:(id)error {
-  NSString *errorDescription;
-  if ([error isKindOfClass:[NSError class]]) {
-    errorDescription = [(NSError *)error localizedDescription] ?: @"N/A";
-  } else if ([error isKindOfClass:[NSString class]]) {
-    errorDescription = (NSString *)error;
-  } else {
-    errorDescription = [NSString stringWithFormat:@"%@", error];
-  }
-  
-  NSLog(@"[%@] Error occurred: %@, Error: %@", LOG_TAG, errorCode, errorDescription);
-
-  NSString *protocolFilePath = [syncDirectoryPath stringByAppendingPathComponent:PROTOCOL_FILENAME];
-  
-  NSMutableDictionary *nativeErrorDict = [@{
-    @"action": @"NATIVE_ERROR",
-    @"errorCode": errorCode,
-    @"error": errorDescription,
-    @"timestamp": @((long long)([[NSDate date] timeIntervalSince1970] * 1000)),
-    @"entity": @"app"
-  } mutableCopy];
-
-  // Convert the dictionary to JSON data
-  NSError *jsonError;
-  NSData *jsonData = [NSJSONSerialization dataWithJSONObject:nativeErrorDict options:0 error:&jsonError];
-  
-  if (jsonError) {
-    NSLog(@"[%@] Error creating JSON: %@", LOG_TAG, jsonError.localizedDescription);
-    return;
-  }
-  
-  // Convert JSON data to base64 string
-  NSString *base64ErrorData = [jsonData base64EncodedStringWithOptions:0];
-  
-  NSError *writeError = [FileSystemHelper appendFile:protocolFilePath contents:base64ErrorData];
-  if (writeError) {
-    NSLog(@"[%@] Error writing to error file: %@", LOG_TAG, writeError.localizedDescription);
-  }
+    return self;
 }
 
 /**
- * Sets up keyboard prevention by swizzling (replacing) input-related methods.
- * 
- * What this does:
- * - Prevents keyboard from appearing for any input elements
- * - Prevents focus on text fields, text views, search bars, and webview inputs
- * - Removes keyboard accessory views
- * 
- * What this doesn't affect:
- * - Visual appearance of UI elements (colors, sizes, borders, etc.)
- * - Touch handling (elements can still be tapped)
- * - Any other UI behavior not related to keyboard/focus
- * 
- * This is used in testing mode to ensure keyboard doesn't interfere with UI testing.
+ * Provides constants that are accessible from JavaScript.
+ * These constants include mode values and other configuration.
+ *
+ * @return Dictionary of constant values
  */
-- (void)setupKeyboardSwizzling {
-    // Swizzle UITextField
-    Method textFieldMethod = class_getInstanceMethod([UITextField class], @selector(becomeFirstResponder));
-    
-    IMP newTextFieldImplementation = imp_implementationWithBlock(^BOOL(id _self) {
-        return NO;
-    });
-    method_setImplementation(textFieldMethod, newTextFieldImplementation);
-    
-    // Swizzle UITextView
-    Method textViewModel = class_getInstanceMethod([UITextView class], @selector(becomeFirstResponder));
-    
-    IMP newTextViewImplementation = imp_implementationWithBlock(^BOOL(id _self) {
-        return NO;
-    });
-    method_setImplementation(textViewModel, newTextViewImplementation);
-    
-    // Additional input elements that can trigger keyboard
-    Class searchBarClass = NSClassFromString(@"UISearchBar");
-    if (searchBarClass) {
-        Method searchBarMethod = class_getInstanceMethod(searchBarClass, @selector(becomeFirstResponder));
-        method_setImplementation(searchBarMethod, newTextFieldImplementation);
-    }
+- (NSDictionary *)constantsToExport {
+    return [core getConstants];
+}
 
-    // WebView input fields
-    Class webViewClass = NSClassFromString(@"WKWebView");
-    if (webViewClass) {
-        Method webViewMethod = class_getInstanceMethod(webViewClass, @selector(becomeFirstResponder));
-        method_setImplementation(webViewMethod, newTextFieldImplementation);
-    }
+/**
+ * Indicates that this module should be initialized on the main thread.
+ * This is necessary because the module interacts with UI components.
+ *
+ * @return YES to initialize on the main thread
+ */
++ (BOOL)requiresMainQueueSetup {
+    return YES;
+}
 
-    // Custom input accessory views
-    Method inputAccessoryMethod = class_getInstanceMethod([UIResponder class], @selector(inputAccessoryView));
-    if (inputAccessoryMethod) {
-        IMP newInputAccessoryImplementation = imp_implementationWithBlock(^UIView*(id _self) {
-            return nil;
-        });
-        method_setImplementation(inputAccessoryMethod, newInputAccessoryImplementation);
-    }
+// Specifies the dispatch queue on which the module's methods should be executed.
+- (dispatch_queue_t)methodQueue {
+    return RCTGetUIManagerQueue();
+}
 
-    // Prevent focus state changes
-    Method canBecomeFirstResponder = class_getInstanceMethod([UIResponder class], @selector(canBecomeFirstResponder));
-    IMP newCanBecomeFirstResponder = imp_implementationWithBlock(^BOOL(id _self) {
-        return NO;
-    });
-    method_setImplementation(canBecomeFirstResponder, newCanBecomeFirstResponder);
-    
-    // Prevent any existing first responder from keeping its state
-    Method isFirstResponder = class_getInstanceMethod([UIResponder class], @selector(isFirstResponder));
-    IMP newIsFirstResponder = imp_implementationWithBlock(^BOOL(id _self) {
-        return NO;
-    });
-    method_setImplementation(isFirstResponder, newIsFirstResponder);
+#pragma mark - Exported Methods
 
-    NSLog(@"[%@] Enhanced keyboard and focus state swizzling enabled", LOG_TAG);
+/**
+ * Toggles between Storybook and default modes.
+ * If in default mode, switches to Storybook mode; if in Storybook mode, switches to default mode.
+ */
+RCT_EXPORT_METHOD(toggleStorybook) {
+    [core toggleStorybook:self.bridge];
+}
+
+/**
+ * Explicitly switches to Storybook mode.
+ */
+RCT_EXPORT_METHOD(openStorybook) {
+    [core openStorybook:self.bridge];
+}
+
+/**
+ * Explicitly switches to default mode.
+ */
+RCT_EXPORT_METHOD(closeStorybook) {
+    [core closeStorybook:self.bridge];
+}
+
+/**
+ * Appends base64 encoded content to a file.
+ * Creates the file if it doesn't exist, and any necessary parent directories.
+ *
+ * @param path The file path relative to the sync directory
+ * @param content The base64 encoded content to append
+ * @param resolve Promise resolver called when the operation completes
+ * @param reject Promise rejecter called if an error occurs
+ */
+RCT_EXPORT_METHOD(appendFile:(NSString *)path
+                  withContent:(NSString *)content
+                     resolver:(RCTPromiseResolveBlock)resolve
+                     rejecter:(RCTPromiseRejectBlock)reject) {
+    [core appendFile:path withContent:content resolver:resolve rejecter:reject];
+}
+
+/**
+ * Reads a file and returns its contents as base64 encoded string.
+ *
+ * @param path The file path relative to the sync directory
+ * @param resolve Promise resolver called with the base64 encoded file content
+ * @param reject Promise rejecter called if an error occurs
+ */
+RCT_EXPORT_METHOD(readFile:(NSString *)path
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    [core readFile:path resolver:resolve rejecter:reject];
+}
+
+/**
+ * Gets UI inspector data from the current view hierarchy.
+ * Returns a promise with serialized JSON containing detailed view information.
+ *
+ * @param resolve Promise resolver called with the inspector data
+ * @param reject Promise rejecter called if an error occurs
+ */
+RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve
+                          rejecter:(RCTPromiseRejectBlock)reject) {
+    [core getInspectorData:resolve rejecter:reject];
+}
+
+/**
+ * Checks UI stability by comparing screenshots taken over a specified interval.
+ * Returns a promise with a boolean indicating if the UI is stable.
+ *
+ * @param requiredMatches Number of consecutive matches needed
+ * @param intervalMs Time interval in milliseconds
+ * @param timeoutMs Timeout in milliseconds
+ * @param resolve Promise resolver called with the stability result
+ * @param reject Promise rejecter called if an error occurs
+ */
+RCT_EXPORT_METHOD(stabilize:(NSInteger)requiredMatches
+                 intervalMs:(NSInteger)intervalMs
+                  timeoutMs:(NSInteger)timeoutMs
+                   resolver:(RCTPromiseResolveBlock)resolve
+                   rejecter:(RCTPromiseRejectBlock)reject) {
+    [core stabilize:requiredMatches intervalMs:intervalMs timeoutMs:timeoutMs resolver:resolve rejecter:reject];
 }
 
 @end

@@ -1,5 +1,5 @@
 import { View, Text, Button, StyleSheet } from 'react-native';
-import { verifyIntegration, openStorybook } from '@sherlo/react-native-storybook';
+import { openStorybook } from '@sherlo/react-native-storybook';
 
 const HomeScreen = () => {
   return (
@@ -13,7 +13,6 @@ const HomeScreen = () => {
        * and open it again in Storybook mode
        */}
       <Button title="Open Storybook" onPress={openStorybook} />
-      <Button title="Verify Integration" onPress={verifyIntegration} />
     </View>
   );
 };

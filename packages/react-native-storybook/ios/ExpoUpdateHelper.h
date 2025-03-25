@@ -2,8 +2,6 @@
 
 @interface ExpoUpdateHelper : NSObject
 
-+ (void)consumeExpoUpdateDeeplink:(NSString *)expoUpdateDeeplink
-                        modeRef:(NSString **)modeRef
-                          error:(NSError **)error;
++ (void)consumeExpoUpdateDeeplinkIfNeeded:(NSString *)expoUpdateDeeplink;
 
 @end

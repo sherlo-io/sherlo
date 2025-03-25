@@ -8,13 +8,30 @@ export default {
   decorators: [StoryDecorator({ placement: 'center' })],
 } as Meta<typeof PlatformSpecificComponent>;
 
-export const Basic = {
+export const iOS = {
+  args: {
+    platform: 'iOS',
+  },
   parameters: {
     sherlo: {
       /**
        * Sherlo will only test this story on iOS
        */
       platform: 'ios',
+    } as SherloParameters,
+  },
+};
+
+export const Android = {
+  args: {
+    platform: 'Android',
+  },
+  parameters: {
+    sherlo: {
+      /**
+       * Sherlo will only test this story on Android
+       */
+      platform: 'android',
     } as SherloParameters,
   },
 };

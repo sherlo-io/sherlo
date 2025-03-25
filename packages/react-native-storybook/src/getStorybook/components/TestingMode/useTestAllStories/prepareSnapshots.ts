@@ -1,4 +1,4 @@
-import { Snapshot, SnapshotMode, StorybookView } from '../../../../types';
+import { Snapshot, SnapshotMode, StorybookView, StoryId } from '../../../../types';
 
 function prepareSnapshots({
   view,
@@ -36,7 +36,7 @@ function prepareSnapshots({
 
           componentId: rawStory.componentId,
           componentTitle: rawStory.title,
-          storyId: rawStory.id,
+          storyId: rawStory.id as StoryId,
           storyTitle: rawStory.name,
 
           parameters: rawStory.parameters,

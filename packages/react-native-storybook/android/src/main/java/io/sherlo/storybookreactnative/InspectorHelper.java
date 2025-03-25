@@ -3,9 +3,11 @@ package io.sherlo.storybookreactnative;
 import android.app.Activity;
 import android.graphics.Rect;
 import android.graphics.drawable.ColorDrawable;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import com.facebook.react.bridge.Promise;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -14,10 +16,58 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Helper for inspecting the UI view hierarchy of a React Native application.
+ * Provides functionality to collect information about views and their properties.
+ */
 public class InspectorHelper {
-    private static final String TAG = "InspectorHelper";
+    private static final String TAG = "SherloModule:InspectorHelper";
+    
+    /**
+     * Gets UI inspector data from the current view hierarchy.
+     * Runs the data collection on the UI thread and returns a serialized JSON string.
+     *
+     * @param activity The current activity containing the view hierarchy
+     * @param promise Promise to resolve with the inspector data or reject with an error
+     */
+    public static void getInspectorData(Activity activity, Promise promise) {
+        if (activity == null) {
+            promise.reject("no_activity", "No current activity");
+            return;
+        }
 
-    public static String getInspectorData(Activity activity) throws JSONException {
+        activity.runOnUiThread(() -> {
+            try {
+                String jsonString = getInspectorDataString(activity);
+                promise.resolve(jsonString);
+            } catch (Exception e) {
+                handleError("ERROR_INSPECTOR_DATA", e, promise, e.getMessage());
+            }
+        });
+    }
+    
+    /**
+     * Handles errors by logging them and rejecting the promise with appropriate messages.
+     *
+     * @param errorCode The error code to include in the promise rejection
+     * @param e The exception that occurred
+     * @param promise The promise to reject
+     * @param message The error message
+     */
+    private static void handleError(String errorCode, Exception e, Promise promise, String message) {
+        Log.e(TAG, message, e);
+        promise.reject(errorCode.toLowerCase(), message, e);
+    }
+
+    /**
+     * Collects and serializes data about the view hierarchy.
+     * Creates a JSON object with device metrics and detailed view information.
+     *
+     * @param activity The activity containing the view hierarchy
+     * @return JSON string representing the view hierarchy and device metrics
+     * @throws JSONException If there's an error creating the JSON structure
+     */
+    private static String getInspectorDataString(Activity activity) throws JSONException {
         View rootView = activity.getWindow().getDecorView().getRootView();
         android.content.res.Resources resources = rootView.getResources();
         
@@ -36,6 +86,14 @@ public class InspectorHelper {
         return rootObject.toString();
     }
 
+    /**
+     * Recursively collects information about a view and its children.
+     * Extracts properties like position, size, visibility, text content, and styling.
+     *
+     * @param view The view to collect information from
+     * @param viewList The list to add view information objects to
+     * @throws JSONException If there's an error creating the JSON structure
+     */
     private static void collectViewInfo(View view, List<JSONObject> viewList) throws JSONException {
         JSONObject viewObject = new JSONObject();
 
@@ -116,6 +174,13 @@ public class InspectorHelper {
         }
     }
 
+    /**
+     * Detects the background color of a view.
+     * Handles both React Native views and native Android views with different detection strategies.
+     *
+     * @param view The view to extract background color from
+     * @return The background color as an integer, or 0 if no color could be detected
+     */
     private static int getBackgroundColor(View view) {
         int color = 0;
         
