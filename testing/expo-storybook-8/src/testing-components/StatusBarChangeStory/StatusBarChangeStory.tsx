@@ -5,7 +5,7 @@ import * as ExpoStatusBar from 'expo-status-bar';
 const StatusBarChangeStory = ({
   property,
 }: {
-  property: 'backgroundColor' | 'hidden' | 'style:dark' | 'style:light' | 'translucent';
+  property: 'backgroundColor' | 'hidden' | 'darkContent' | 'lightContent' | 'withoutTranslucent';
 }) => {
   const colorScheme = useColorScheme();
 
@@ -14,11 +14,11 @@ const StatusBarChangeStory = ({
       ExpoStatusBar.setStatusBarBackgroundColor('#f00', false);
     } else if (property === 'hidden') {
       ExpoStatusBar.setStatusBarHidden(true);
-    } else if (property === 'style:dark') {
+    } else if (property === 'darkContent') {
       ExpoStatusBar.setStatusBarStyle('dark');
-    } else if (property === 'style:light') {
+    } else if (property === 'lightContent') {
       ExpoStatusBar.setStatusBarStyle('light');
-    } else if (property === 'translucent') {
+    } else if (property === 'withoutTranslucent') {
       ExpoStatusBar.setStatusBarTranslucent(false);
     }
   }, [colorScheme, property]);

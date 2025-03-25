@@ -14,7 +14,7 @@ export default {
   },
 } as Meta<typeof StatusBarChangeStory>;
 
-export const BackgroundColor = {
+export const BackgroundColorOnlyOnAndroid = {
   args: {
     property: 'backgroundColor',
   },
@@ -32,21 +32,21 @@ export const Hidden = {
   },
 };
 
-export const StyleDark = {
+export const DarkContent = {
   args: {
-    property: 'style:dark',
+    property: 'darkContent',
   },
 };
 
-export const StyleLight = {
+export const LightContent = {
   args: {
-    property: 'style:light',
+    property: 'lightContent',
   },
 };
 
-export const Translucent = {
+export const WithoutTranslucentOnlyOnAndroid = {
   args: {
-    property: 'translucent',
+    property: 'withoutTranslucent',
   },
   parameters: {
     sherlo: {
