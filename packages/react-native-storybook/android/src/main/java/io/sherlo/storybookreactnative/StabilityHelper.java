@@ -62,7 +62,7 @@ public class StabilityHelper {
             throw new RuntimeException("Impossible to snapshot the view: view is invalid");
         }
 
-        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
         Canvas canvas = new Canvas(bitmap);
         
         rootView.draw(canvas);
