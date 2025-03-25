@@ -9,9 +9,6 @@ import { StoryDecorator } from 'decorators';
 export default {
   component: StatusBarChangeStory,
   decorators: [StoryDecorator({ placement: 'center' })],
-  parameters: {
-    noSafeArea: true,
-  },
 } as Meta<typeof StatusBarChangeStory>;
 
 export const BackgroundColorOnlyOnAndroid = {
