@@ -56,4 +56,4 @@ jobs:
 ## Configuration (`sherlo.config.json`)
 
 Your `sherlo.config.json` file dictates the testing configurations, such as token, apps data and devices to test on.
-Refer to [Sherlo Docs](https://docs.sherlo.io/getting-started/config) for detailed configuration options.
+Refer to [Sherlo Docs](https://docs.sherlo.io/setup/config) for detailed configuration options.

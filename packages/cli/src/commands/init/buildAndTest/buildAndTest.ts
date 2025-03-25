@@ -26,14 +26,12 @@ async function buildAndTest({
 
   printSubtitle('1) Build your app for simulators...', { hasTopMargin: false });
 
-  printBuildWarning(hasUpdatedStorybookComponent);
-
   let easJsonStatus;
   if (projectType === 'expo') {
     ({ status: easJsonStatus } = await updateEasJson());
-
-    console.log();
   }
+
+  printBuildWarning(hasUpdatedStorybookComponent);
 
   printBuildCommand(projectType);
 
