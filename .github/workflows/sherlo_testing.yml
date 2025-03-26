@@ -78,7 +78,7 @@ jobs:
     name: local-builds (Expo)
     secrets: inherit
     with:
-      env: ${{ github.event.inputs.env }}
+      env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
 
   expo_cloud:
@@ -87,7 +87,7 @@ jobs:
     name: expo-cloud-builds
     secrets: inherit
     with:
-      env: ${{ github.event.inputs.env }}
+      env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
 
   expo_update_with_builds:
