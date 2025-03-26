@@ -10,6 +10,7 @@ module.exports = () => ({
       resizeMode: 'contain',
       backgroundColor: '#ffffff',
     },
+    newArchEnabled: true,
     updates: {
       enabled: true,
       fallbackToCacheTimeout: 300000,

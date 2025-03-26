@@ -1,8 +1,15 @@
 #import "SherloModule.h"
 #import "SherloModuleCore.h"
+
+#if __has_include(<React/RCTUtils.h>)
 #import <React/RCTUtils.h>
 #import <React/RCTUIManagerUtils.h>
 #import <React/RCTBridge.h>
+#else
+#import "RCTUtils.h"
+#import "RCTUIManagerUtils.h"
+#import "RCTBridge.h"
+#endif
 
 /**
  * Main entry point for the Sherlo React Native module.
