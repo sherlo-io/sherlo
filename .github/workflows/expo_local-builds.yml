@@ -53,7 +53,7 @@ jobs:
         working-directory: testing/expo-storybook-8
         run: |
           yarn sherlo local-builds \
-            --config ../../configs/default-devices.json \
+            --config ../../configs/default-devices-without-expo-info.json \
             --android builds/preview/android.apk \
             --ios builds/preview/ios.tar.gz \
             --token ${{ secrets.SHERLO_LOCAL_BUILDS_EXPO_TOKEN }}
@@ -64,7 +64,7 @@ jobs:
         with:
           command: local-builds
           projectRoot: testing/expo-storybook-8
-          config: ../../configs/default-devices.json
+          config: ../../configs/default-devices-without-expo-info.json
           android: builds/preview/android.apk
           ios: builds/preview/ios.tar.gz
         env:
