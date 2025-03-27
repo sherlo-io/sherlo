@@ -3057,32 +3057,32 @@
   resolved "https://registry.npmjs.org/@sentry/types/-/types-8.41.0.tgz"
   integrity sha512-eqdnGr9k9H++b9CjVUoTNUVahPVWeNnMy0YGkqS5+cjWWC+x43p56202oidGFmWo6702ub/xwUNH6M5PC4kq6A==
 
-"@sherlo/api-types@1.1.12":
-  version "1.1.12"
-  resolved "https://registry.npmjs.org/@sherlo/api-types/-/api-types-1.1.12.tgz"
-  integrity sha512-xKwtW+SSxaFjMEB9pYOlXci6mFe6xlfFbfkWhb+DQCJ39IgEMc06Kb/rgHgaKMUQsUHKDlkAd3Fn/3KeckAlAA==
+"@sherlo/api-types@1.1.13":
+  version "1.1.13"
+  resolved "https://registry.yarnpkg.com/@sherlo/api-types/-/api-types-1.1.13.tgz#5fe0d4624bc533a6a276d593b052130c4400a2f8"
+  integrity sha512-nGdpRIL9QueozxosQxiaaoHe0187X19gp5cbMgQs2yCvYk8b3E3Di3zloGpK3LKIanJ79EJQhwT6DwVzr+ryyQ==
 
-"@sherlo/common-client@1.1.12":
-  version "1.1.12"
-  resolved "https://registry.npmjs.org/@sherlo/common-client/-/common-client-1.1.12.tgz"
-  integrity sha512-V9T4XEEjGA6138L9Ck2OYeCLsSk8SUccY+qwM3cF/ZbPqQWmki6s8wFiOFaCHJ9bpsLUpS7GJdSHNfEnVBHN0A==
+"@sherlo/common-client@1.1.13":
+  version "1.1.13"
+  resolved "https://registry.yarnpkg.com/@sherlo/common-client/-/common-client-1.1.13.tgz#9c965ed8502371b4ea641379d9c0347294cf05c0"
+  integrity sha512-a7n4yY45thP7FGXJEX1NVtpFDVvim32QoAg26Ha8+tl0UseJ0OFJwE9brzAW4YNYq6dukH3ZB8X7NQx6VP7vKw==
   dependencies:
     graphql-tag "2.12.6"
 
-"@sherlo/sdk-client@1.1.12":
-  version "1.1.12"
-  resolved "https://registry.npmjs.org/@sherlo/sdk-client/-/sdk-client-1.1.12.tgz"
-  integrity sha512-pOxGIPqDUiyThhTLMCK83bXhdl+3j5pNOW0sp3U6k5StOIpJq/iE4T9O0arSbkX77qvEFcS8LxCMNCfxBuPjUA==
+"@sherlo/sdk-client@1.1.13":
+  version "1.1.13"
+  resolved "https://registry.yarnpkg.com/@sherlo/sdk-client/-/sdk-client-1.1.13.tgz#197c694ecd5aa75b9eb54e11d79d2c81ac183f41"
+  integrity sha512-4Fjfqdm8zI+1h6svK+etILshQqLNZ6ZGJHIBmkPolwEiqO++gHYg97AG/p80ShEnT6DH29LTKRFrIBqQhSGjYw==
   dependencies:
     "@apollo/client" "3.7.0"
     aws-appsync-auth-link "3.0.7"
     graphql-tag "2.12.6"
     isomorphic-fetch "3.0.0"
 
-"@sherlo/shared@1.1.12":
-  version "1.1.12"
-  resolved "https://registry.npmjs.org/@sherlo/shared/-/shared-1.1.12.tgz"
-  integrity sha512-K/EO8i7U721iCK7i12a11IAgxwEvxrqn98M1uepufhJR48CjLP2UHf8boMqJcTdAozcQdmNehZcoBLMKrApFDA==
+"@sherlo/shared@1.1.13":
+  version "1.1.13"
+  resolved "https://registry.yarnpkg.com/@sherlo/shared/-/shared-1.1.13.tgz#e70dd81c56095ac5b78979f0fe3bf013cfdc8c86"
+  integrity sha512-C0pjB6suZafcQrJE4fHMOBnsSy0zZc2d/mTkocDKpiDfAcmNRpvzOWjo5q/OTlH14lHyxOnqsOcrS2Qy5Qhmow==
 
 "@sigstore/bundle@^2.3.2":
   version "2.3.2"
