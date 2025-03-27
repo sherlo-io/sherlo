@@ -4,6 +4,7 @@
 platform=""
 buildPath=""
 clear_mode=false
+clear_all=false
 override_mode="storybook"
 
 # Define SDK and tool paths
@@ -14,14 +15,19 @@ ADB_PATH="${ANDROID_SDK_PATH}/platform-tools/adb"
 # Define sherlo config
 SHERLO_CONFIG_FILE="config.sherlo"
 
+# Get script directory and project root
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROJECT_ROOT="$( cd "$SCRIPT_DIR/../testing/expo-storybook-8" && pwd )"
+
 # Function to show usage
 show_usage() {
-    echo "Usage: $0 (--android | --ios) --path=<build_path> [--clear] [--mode=<mode>]"
+    echo "Usage: $0 (--android | --ios) --path=<build_path> [--clear] [--clearAll] [--mode=<mode>]"
     echo "Options:"
     echo "  --android          Set platform to Android"
     echo "  --ios             Set platform to iOS"
     echo "  --path=<path>     Specify the build path"
     echo "  --clear           Remove the config file instead of creating it"
+    echo "  --clearAll        Clear all development and preview builds"
     echo "  --mode=<mode>     Set custom override mode (defaults to 'storybook')"
     exit 1
 }
@@ -41,12 +47,23 @@ while [[ $# -gt 0 ]]; do
             buildPath="${1#*=}"
             shift
             ;;
-        --clear)
-            clear_mode=true
-            shift
+        --path)
+            buildPath="$2"
+            shift 2
             ;;
         --mode=*)
             override_mode="${1#*=}"
+            shift
+            ;;
+        --mode)
+            override_mode="$2"
+            shift 2
+            ;;
+        --clear|--clearAll)
+            if [[ "$1" == "--clearAll" ]]; then
+                clear_all=true
+            fi
+            clear_mode=true
             shift
             ;;
         *)
@@ -55,6 +72,19 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Handle clearAll mode
+if [ "$clear_all" = true ]; then
+    echo "Clearing Android Dev:"
+    "$0" --android --path="$PROJECT_ROOT/builds/development/android.apk" --clear
+    echo -e "\nClearing Android Preview:"
+    "$0" --android --path="$PROJECT_ROOT/builds/preview/android.apk" --clear
+    echo -e "\nClearing iOS Dev:"
+    "$0" --ios --path="$PROJECT_ROOT/builds/development/SherloExpoExample.app" --clear
+    echo -e "\nClearing iOS Preview:"
+    "$0" --ios --path="$PROJECT_ROOT/builds/preview/SherloExpoExample.app" --clear
+    exit 0
+fi
 
 # Set config content with the specified or default mode
 SHERLO_CONFIG_CONTENT="
