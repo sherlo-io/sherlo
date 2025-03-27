@@ -15,5 +15,4 @@ development menu.
 
 ## Installation
 
-Visit the [Sherlo Docs website](https://docs.sherlo.io/getting-started/setup) to learn how to connect it to your
-project.
+Visit the [Sherlo Docs website](https://docs.sherlo.io) to learn how to connect it to your project.

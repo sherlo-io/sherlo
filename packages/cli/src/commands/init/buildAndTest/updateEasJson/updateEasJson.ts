@@ -12,19 +12,19 @@ type Status = 'alreadyUpdated' | 'updated' | 'created';
  * Creates or updates the eas.json file with the required simulator preview configuration
  */
 async function updateEasJson(): Promise<{ status: Status }> {
+  let status: Status;
+
   if (await isAlreadyUpdated()) {
-    const status = 'alreadyUpdated';
+    status = 'alreadyUpdated';
+  } else {
+    status = hasEasJsonFile() ? 'updated' : 'created';
 
-    printStatusMessage(status);
-
-    return { status };
+    await writeUpdatedEasJson();
   }
 
-  const status = hasEasJsonFile() ? 'updated' : 'created';
-
-  await writeUpdatedEasJson();
-
   printStatusMessage(status);
+
+  console.log();
 
   return { status };
 }
