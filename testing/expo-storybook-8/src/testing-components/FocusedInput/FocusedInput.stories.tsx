@@ -1,4 +1,4 @@
-import { StoryDecorator } from '../../decorators';
+import { StoryDecorator } from '@sherlo/testing-components';
 import type { Meta } from '@storybook/react';
 import FocusedInput from './FocusedInput';
 

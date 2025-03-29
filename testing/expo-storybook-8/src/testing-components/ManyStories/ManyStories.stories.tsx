@@ -1,5 +1,6 @@
 import type { Meta } from '@storybook/react';
-import TestInfo from './TestInfo';
+import { TestInfo } from '@sherlo/testing-components';
+import * as Localization from 'expo-localization';
 
 export default {
   component: TestInfo,
@@ -9,6 +10,7 @@ const storyOfColor = (hexColor: string, colorName: string) => ({
   args: {
     backgroundColor: hexColor,
     colorName,
+    locale: Localization.locale,
   },
 });
 

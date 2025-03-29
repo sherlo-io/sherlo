@@ -1,6 +1,6 @@
 import type { Meta } from '@storybook/react';
 import StatusBarChangeStory from './StatusBarChangeStory';
-import { StoryDecorator } from 'decorators';
+import { StoryDecorator } from '@sherlo/testing-components';
 
 /**
  * This is a test screen that we add to our tests

@@ -1,6 +1,6 @@
 import type { Meta } from '@storybook/react';
 import GradientStory from './GradientStory';
-import { StoryDecorator } from '../../decorators';
+import { StoryDecorator } from '@sherlo/testing-components';
 
 export default {
   component: GradientStory,

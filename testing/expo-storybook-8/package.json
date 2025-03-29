@@ -21,13 +21,15 @@
     "start:android:go": "expo start --android --go",
     "start:ios:dev": "tar -xzvf builds/development/ios.tar.gz -C builds/development && xcrun simctl install booted builds/development/SherloExpoExample.app && expo start --ios --dev-client",
     "start:ios:go": "expo start --ios --go",
-    "storybook:generate": "sb-rn-get-stories"
+    "storybook:generate": "sb-rn-get-stories",
+    "postinstall": "ln -sf ../testing-components node_modules/@sherlo/testing-components && ln -sf ../../packages/react-native-storybook node_modules/@sherlo/react-native-storybook"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.0.2",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/datetimepicker": "8.2.0",
     "@react-native-community/slider": "4.5.5",
+    "@sherlo/testing-components": "file:../testing-components",
     "@types/react": "~18.3.12",
     "expo": "^52.0.39",
     "expo-dev-client": "^5.0.14",
@@ -48,7 +50,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "@sherlo/react-native-storybook": "^1.2.0",
+    "@sherlo/react-native-storybook": "file:../../packages/react-native-storybook",
     "@storybook/addon-ondevice-actions": "^8.3.9",
     "@storybook/addon-ondevice-backgrounds": "^8.3.9",
     "@storybook/addon-ondevice-controls": "^8.3.9",

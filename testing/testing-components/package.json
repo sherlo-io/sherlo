@@ -1,0 +1,22 @@
+{
+  "name": "@sherlo/testing-components",
+  "private": true,
+  "version": "1.2.0",
+  "description": "Shared components for the monorepo",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "react": "18.2.0",
+    "react-native": "0.74.5",
+    "@expo/vector-icons": "14.0.4",
+    "@types/react": "^18.2.7",
+    "typescript": "^5.0.4"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*"
+  }
+}

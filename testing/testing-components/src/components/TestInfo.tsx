@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import * as Localization from 'expo-localization';
 import { useColorScheme } from 'react-native';
 import { InfoItem } from './InfoItem';
 
@@ -20,12 +19,14 @@ const getContrastTextColor = (backgroundColor: string | undefined) => {
 const TestScreen = ({
   backgroundColor,
   colorName,
+  locale,
 }: {
   backgroundColor?: string;
   colorName?: string;
+  locale?: string;
 }) => {
   const theme = useColorScheme();
-  const [language, country] = Localization.locale.split('-');
+  const [language, country] = locale?.split('-') ?? [];
   const textColor = getContrastTextColor(backgroundColor);
 
   return (

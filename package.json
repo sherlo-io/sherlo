@@ -25,14 +25,14 @@
   "workspaces": {
     "packages": [
       "packages/*",
-      "testing/*"
+      "testing/testing-components"
     ]
   },
   "scripts": {
     "build": "lerna run build",
     "dev": "lerna run dev",
     "dev:check-types": "tsc --noEmit",
-    "remove-all-node-modules": "rm -rf node_modules && rm -rf packages/*/node_modules && rm -rf examples/*/node_modules && rm -rf testing/*/node_modules",
+    "clean": "rm -rf node_modules && rm -rf packages/*/node_modules && rm -rf testing/*/node_modules && yarn cache clean && yarn && yarn build",
     "lint": "cross-env NODE_ENV=production eslint --cache --cache-location=.cache/eslint --ext .js,.jsx,.html,.ts,.tsx,.mjs --report-unused-disable-directives",
     "lint:circular-dependencies": "npx madge --extensions ts --circular .",
     "lint:fix": "yarn lint . --fix",
@@ -44,7 +44,8 @@
     "switch-env:test": "./scripts/switch-env.sh test && yarn build",
     "switch-env:dev": "./scripts/switch-env.sh dev && yarn build",
     "switch-env:prod": "./scripts/switch-env.sh prod && yarn build",
-    "update-examples": "bash scripts/updateExamples.sh"
+    "update-examples": "bash scripts/updateExamples.sh",
+    "postinstall": "cd testing/expo-storybook-8 && yarn && cd ../rn-storybook-7 && yarn"
   },
   "devDependencies": {
     "@react-native/eslint-config": "^0.72.1",

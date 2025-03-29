@@ -1,0 +1,58 @@
+{
+  "name": "@sherlo/rn-storybook-7",
+  "version": "1.2.0",
+  "private": true,
+  "scripts": {
+    "android": "react-native run-android",
+    "android:release": "react-native run-android --mode Release",
+    "ios": "react-native run-ios",
+    "ios:release": "react-native run-ios --mode Release --buildFolder app",
+    "lint": "eslint .",
+    "start": "react-native start",
+    "test": "jest",
+    "storybook-generate": "sb-rn-get-stories",
+    "postinstall": "ln -sf ../testing-components node_modules/@sherlo/testing-components && ln -sf ../../packages/react-native-storybook node_modules/@sherlo/react-native-storybook"
+  },
+  "dependencies": {
+    "@sherlo/testing-components": "file:../testing-components",
+    "react": "19.0.0",
+    "react-native": "0.78.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@babel/preset-env": "^7.25.3",
+    "@babel/runtime": "^7.25.0",
+    "@gorhom/bottom-sheet": "^5.1.2",
+    "@react-native-async-storage/async-storage": "^2.1.2",
+    "@react-native-community/cli": "15.0.1",
+    "@react-native-community/cli-platform-android": "15.0.1",
+    "@react-native-community/cli-platform-ios": "15.0.1",
+    "@react-native-community/datetimepicker": "^8.3.0",
+    "@react-native-community/slider": "^4.5.6",
+    "@react-native/babel-preset": "0.78.1",
+    "@react-native/eslint-config": "0.78.1",
+    "@react-native/metro-config": "0.78.1",
+    "@react-native/typescript-config": "0.78.1",
+    "@sherlo/react-native-storybook": "file:../../packages/react-native-storybook",
+    "@storybook/addon-ondevice-actions": "^8.6.2",
+    "@storybook/addon-ondevice-controls": "^8.6.2",
+    "@storybook/react-native": "^8.6.2",
+    "@types/jest": "^29.5.13",
+    "@types/react": "^19.0.0",
+    "@types/react-test-renderer": "^19.0.0",
+    "babel-loader": "^8.4.1",
+    "eslint": "^8.19.0",
+    "jest": "^29.6.3",
+    "prettier": "2.8.8",
+    "react-dom": "^19.1.0",
+    "react-native-gesture-handler": "^2.24.0",
+    "react-native-reanimated": "^3.17.1",
+    "react-native-safe-area-context": "^5.3.0",
+    "react-native-svg": "^15.11.2",
+    "react-test-renderer": "19.0.0",
+    "typescript": "5.0.4"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

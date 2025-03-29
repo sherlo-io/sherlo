@@ -1,19 +1,27 @@
-import { View, StyleSheet } from 'react-native';
-import * as Updates from 'expo-updates';
+import React from 'react';
+import {View, StyleSheet} from 'react-native';
 import InfoItem from './InfoItem';
 
-const ExpoUpdateInfo = () => {
+interface ExpoUpdateInfoProps {
+  update: {
+    id: string;
+    runtimeVersion: string;
+    createdAt: Date;
+  };
+}
+
+const ExpoUpdateInfo = ({update}: ExpoUpdateInfoProps) => {
   return (
     <View style={[styles.container]}>
-      {Updates.updateId ? (
+      {update.id ? (
         <>
           <InfoItem
             iconName="mobile-friendly"
-            text={`Runtime Version: ${Updates.runtimeVersion}`}
+            text={`Runtime Version: ${update.runtimeVersion}`}
           />
           <InfoItem
             iconName="update"
-            text={`Update (${Updates.createdAt?.toLocaleString('en-US', {
+            text={`Update (${update.createdAt?.toLocaleString('en-US', {
               month: '2-digit',
               day: '2-digit',
               year: 'numeric',
@@ -23,7 +31,7 @@ const ExpoUpdateInfo = () => {
               hour12: false,
             })}) with ID:`}
           />
-          <InfoItem text={Updates.updateId} />
+          <InfoItem text={update.id} />
         </>
       ) : (
         <InfoItem text={'No update available'} />
