@@ -22,7 +22,7 @@
     "start:ios:dev": "tar -xzvf builds/development/ios.tar.gz -C builds/development && xcrun simctl install booted builds/development/SherloExpoExample.app && expo start --ios --dev-client",
     "start:ios:go": "expo start --ios --go",
     "storybook:generate": "sb-rn-get-stories",
-    "postinstall": "ln -sf ../testing-components node_modules/@sherlo/testing-components && ln -sf ../../packages/react-native-storybook node_modules/@sherlo/react-native-storybook"
+    "postinstall": "[ \"$CI\" != \"true\" ] && ln -sf ../testing-components node_modules/@sherlo/testing-components && ln -sf ../../packages/react-native-storybook node_modules/@sherlo/react-native-storybook || exit 0"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.0.2",
