@@ -1899,8 +1899,10 @@
     invariant "^2.2.4"
     nullthrows "^1.1.1"
 
-"@sherlo/react-native-storybook@file:../../packages/react-native-storybook":
+"@sherlo/react-native-storybook@*":
   version "1.2.0"
+  resolved "https://registry.yarnpkg.com/@sherlo/react-native-storybook/-/react-native-storybook-1.2.0.tgz#b5e5966c30f31e1cd524296d0c4431c198f43e60"
+  integrity sha512-J65DmADo4chQrxNzNodp3VYnyeqp3JjETZaH4NooyQxvBhbpMiA7dQ+2brC1EX6A8hA4Sw/kc5uJLyhMmDGAaQ==
   dependencies:
     base-64 "^0.1.0"
     deepmerge "4.3.1"
