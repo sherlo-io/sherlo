@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "android": "react-native run-android",
-    "build:android:preview": "cd android && ./gradlew assembleRelease && mv app/build/outputs/apk/release/app-release.apk ../builds/preview/android.apk",
+    "build:android:preview": "cd android && ./gradlew assembleRelease && mkdir -p ../builds/preview && mv app/build/outputs/apk/release/app-release.apk ../builds/preview/android.apk",
     "ios": "react-native run-ios",
-    "build:ios:preview": "cd ios && xcodebuild -workspace SherloRNExample.xcworkspace -derivedDataPath app -configuration Release -scheme SherloRNExample -destination=\"generic/platform=iOS Simulator\" -sdk iphonesimulator && tar -czf ../builds/preview/ios.tar.gz -C app/Build/Products/Release-iphonesimulator SherloRNExample.app",
+    "build:ios:preview": "cd ios && xcodebuild -workspace SherloRNExample.xcworkspace -derivedDataPath app -configuration Release -scheme SherloRNExample -destination=\"generic/platform=iOS Simulator\" -sdk iphonesimulator && mkdir -p ../builds/preview && tar -czf ../builds/preview/ios.tar.gz -C app/Build/Products/Release-iphonesimulator SherloRNExample.app",
     "lint": "eslint .",
     "start": "react-native start",
     "install:android:preview": "adb install builds/preview/android.apk",
