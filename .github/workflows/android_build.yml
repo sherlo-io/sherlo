@@ -66,32 +66,22 @@ jobs:
         if: ${{ !inputs.skip_build && inputs.project == 'rn-storybook-7' }}
         working-directory: testing/rn-storybook-7
         run: |
-          cd ../../
           echo "Current directory: $(pwd)"
-          echo "Contents of packages/react-native-storybook:"
-          ls -la packages/react-native-storybook
-          echo "Running TypeScript check:"
-          cd packages/react-native-storybook && tsc --noEmit && cd ../..
-          yarn build
-          echo "After build - Contents of packages/react-native-storybook:"
-          ls -la packages/react-native-storybook
-          echo "Checking if dist exists:"
-          ls -la packages/react-native-storybook/dist || echo "dist directory not found"
-          cd testing/rn-storybook-7
-          echo "Copying built files to node_modules..."
+          echo "GitHub workspace: $GITHUB_WORKSPACE"
+          echo "Root directory structure:"
+          ls -la $GITHUB_WORKSPACE
+          echo "Node modules locations:"
+          find $GITHUB_WORKSPACE -name "node_modules" -type d
+          echo "Package location:"
+          ls -la $GITHUB_WORKSPACE/packages/react-native-storybook
+          echo "Current node_modules:"
+          ls -la node_modules
+          echo "Copying package..."
           rm -rf node_modules/@sherlo/react-native-storybook
-          mkdir -p node_modules/@sherlo/react-native-storybook
-          cp -r ../../packages/react-native-storybook/dist/* node_modules/@sherlo/react-native-storybook/
-          cp -r ../../packages/react-native-storybook/android node_modules/@sherlo/react-native-storybook/
-          cp -r ../../packages/react-native-storybook/ios node_modules/@sherlo/react-native-storybook/
-          cp ../../packages/react-native-storybook/package.json node_modules/@sherlo/react-native-storybook/
-          echo "Checking node_modules location:"
-          ls -la node_modules/@sherlo/react-native-storybook || echo "package not found in node_modules"
-
-      - name: Build "rn-storybook-7" Android example app
-        if: ${{ !inputs.skip_build && inputs.project == 'rn-storybook-7' }}
-        working-directory: testing/rn-storybook-7
-        run: yarn build:android:preview
+          cp -r $GITHUB_WORKSPACE/packages/react-native-storybook node_modules/@sherlo/react-native-storybook
+          echo "After copy - checking node_modules:"
+          ls -la node_modules/@sherlo/react-native-storybook
+          yarn build:android:preview
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
