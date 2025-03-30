@@ -65,7 +65,12 @@ jobs:
       - name: Build "rn-storybook-7" Android example app
         if: ${{ !inputs.skip_build && inputs.project == 'rn-storybook-7' }}
         working-directory: testing/rn-storybook-7
-        run: yarn build:android:preview
+        run: cat node_modules/@sherlo/react-native-storybook/dist/index.js
+
+      # - name: Build "rn-storybook-7" Android example app
+      #   if: ${{ !inputs.skip_build && inputs.project == 'rn-storybook-7' }}
+      #   working-directory: testing/rn-storybook-7
+      #   run: yarn build:android:preview
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
