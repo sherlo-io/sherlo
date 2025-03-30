@@ -12,6 +12,11 @@ on:
         required: false
         type: boolean
         default: false
+      project:
+        description: 'Project (expo-storybook-8, rn-storybook-7)'
+        required: true
+        type: string
+        default: 'expo-storybook-8'
   workflow_dispatch:
     inputs:
       env:
@@ -24,6 +29,11 @@ on:
         required: false
         type: boolean
         default: false
+      project:
+        description: 'Project (expo-storybook-8, rn-storybook-7)'
+        required: true
+        type: string
+        default: 'expo-storybook-8'
 jobs:
   sherlo_local_builds:
     name: Run sherlo local-builds (expo)
@@ -50,7 +60,7 @@ jobs:
 
       - name: Run sherlo local-builds with CLI
         if: inputs.use_github_action == false
-        working-directory: testing/expo-storybook-8
+        working-directory: testing/${{ inputs.project }}
         run: |
           yarn sherlo local-builds \
             --config ../../configs/default-devices-without-expo-info.json \
@@ -63,7 +73,7 @@ jobs:
         uses: ./.
         with:
           command: local-builds
-          projectRoot: testing/expo-storybook-8
+          projectRoot: testing/${{ inputs.project }}
           config: ../../configs/default-devices-without-expo-info.json
           android: builds/preview/android.apk
           ios: builds/preview/ios.tar.gz

@@ -28,6 +28,11 @@ on:
         required: false
         default: false
         type: boolean
+      rn_local_builds:
+        description: 'Test: local-builds (React Native)'
+        required: false
+        default: false
+        type: boolean
       expo_cloud:
         description: 'Test: expo-cloud-builds'
         required: false
@@ -44,8 +49,7 @@ on:
         default: false
         type: boolean
   schedule:
-    - cron: '0 5 * * *'  # 5 AM UTC every day (6 AM in Poland)
-
+    - cron: '0 5 * * *' # 5 AM UTC every day (6 AM in Poland)
 
 jobs:
   device_testing:
@@ -73,13 +77,23 @@ jobs:
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
 
   expo_local_builds:
-    uses: ./.github/workflows/expo_local-builds.yml
+    uses: ./.github/workflows/local-builds.yml
     if: ${{ github.event_name == 'schedule' || github.event.inputs.expo_local_builds == 'true' && always() && !failure() && !cancelled() }}
     name: local-builds (Expo)
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
+      project: 'expo-storybook-8'
+
+  rn_local_builds:
+    uses: ./.github/workflows/local-builds.yml
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.rn_local_builds == 'true' && always() && !failure() && !cancelled() }}
+    name: local-builds (React Native)
+    secrets: inherit
+    with:
+      env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
+      project: 'rn-storybook-7'
 
   expo_cloud:
     uses: ./.github/workflows/expo-cloud.yml
