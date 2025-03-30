@@ -78,9 +78,13 @@ jobs:
           echo "Checking if dist exists:"
           ls -la packages/react-native-storybook/dist || echo "dist directory not found"
           cd testing/rn-storybook-7
-          echo "Rebuilding symlinks..."
+          echo "Copying built files to node_modules..."
           rm -rf node_modules/@sherlo/react-native-storybook
-          ln -sf ../../packages/react-native-storybook node_modules/@sherlo/react-native-storybook
+          mkdir -p node_modules/@sherlo/react-native-storybook
+          cp -r ../../packages/react-native-storybook/dist/* node_modules/@sherlo/react-native-storybook/
+          cp -r ../../packages/react-native-storybook/android node_modules/@sherlo/react-native-storybook/
+          cp -r ../../packages/react-native-storybook/ios node_modules/@sherlo/react-native-storybook/
+          cp ../../packages/react-native-storybook/package.json node_modules/@sherlo/react-native-storybook/
           echo "Checking node_modules location:"
           ls -la node_modules/@sherlo/react-native-storybook || echo "package not found in node_modules"
 
