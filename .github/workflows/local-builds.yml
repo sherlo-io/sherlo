@@ -66,7 +66,7 @@ jobs:
             --config ../../configs/default-devices-without-expo-info.json \
             --android builds/preview/android.apk \
             --ios builds/preview/ios.tar.gz \
-            --token ${{ secrets.SHERLO_LOCAL_BUILDS_EXPO_TOKEN }}
+            --token ${{ inputs.project == 'expo-storybook-8' && secrets.SHERLO_LOCAL_BUILDS_EXPO_TOKEN || inputs.project == 'rn-storybook-7' && secrets.SHERLO_LOCAL_BUILDS_RN_TOKEN }}
 
       - name: Run sherlo local-builds with Github Action
         if: inputs.use_github_action == true
@@ -78,4 +78,4 @@ jobs:
           android: builds/preview/android.apk
           ios: builds/preview/ios.tar.gz
         env:
-          SHERLO_TOKEN: ${{ secrets.SHERLO_LOCAL_BUILDS_EXPO_TOKEN }}
+          SHERLO_TOKEN: ${{ inputs.project == 'expo-storybook-8' && secrets.SHERLO_LOCAL_BUILDS_EXPO_TOKEN || inputs.project == 'rn-storybook-7' && secrets.SHERLO_LOCAL_BUILDS_RN_TOKEN }}
