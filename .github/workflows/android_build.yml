@@ -78,13 +78,16 @@ jobs:
           echo "Checking if dist exists:"
           ls -la packages/react-native-storybook/dist || echo "dist directory not found"
           cd testing/rn-storybook-7
+          echo "Rebuilding symlinks..."
+          rm -rf node_modules/@sherlo/react-native-storybook
+          ln -sf ../../packages/react-native-storybook node_modules/@sherlo/react-native-storybook
           echo "Checking node_modules location:"
           ls -la node_modules/@sherlo/react-native-storybook || echo "package not found in node_modules"
 
-      # - name: Build "rn-storybook-7" Android example app
-      #   if: ${{ !inputs.skip_build && inputs.project == 'rn-storybook-7' }}
-      #   working-directory: testing/rn-storybook-7
-      #   run: yarn build:android:preview
+      - name: Build "rn-storybook-7" Android example app
+        if: ${{ !inputs.skip_build && inputs.project == 'rn-storybook-7' }}
+        working-directory: testing/rn-storybook-7
+        run: yarn build:android:preview
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
