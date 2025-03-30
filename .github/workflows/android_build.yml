@@ -76,11 +76,14 @@ jobs:
           ls -la $GITHUB_WORKSPACE/packages/react-native-storybook
           echo "Current node_modules:"
           ls -la node_modules
-          echo "Copying package..."
+          echo "Copying packages..."
           rm -rf node_modules/@sherlo/react-native-storybook
+          rm -rf node_modules/@sherlo/testing-components
           cp -r $GITHUB_WORKSPACE/packages/react-native-storybook node_modules/@sherlo/react-native-storybook
+          cp -r $GITHUB_WORKSPACE/testing/testing-components node_modules/@sherlo/testing-components
           echo "After copy - checking node_modules:"
           ls -la node_modules/@sherlo/react-native-storybook
+          ls -la node_modules/@sherlo/testing-components
           yarn build:android:preview
 
       - name: Upload Android Artifact
