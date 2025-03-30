@@ -1,5 +1,5 @@
 import React from 'react';
-import {View, StyleSheet} from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import InfoItem from './InfoItem';
 
 interface ExpoUpdateInfoProps {
@@ -10,15 +10,12 @@ interface ExpoUpdateInfoProps {
   };
 }
 
-const ExpoUpdateInfo = ({update}: ExpoUpdateInfoProps) => {
+const ExpoUpdateInfo = ({ update }: ExpoUpdateInfoProps) => {
   return (
     <View style={[styles.container]}>
       {update.id ? (
         <>
-          <InfoItem
-            iconName="mobile-friendly"
-            text={`Runtime Version: ${update.runtimeVersion}`}
-          />
+          <InfoItem iconName="mobile" text={`Runtime Version: ${update.runtimeVersion}`} />
           <InfoItem
             iconName="update"
             text={`Update (${update.createdAt?.toLocaleString('en-US', {

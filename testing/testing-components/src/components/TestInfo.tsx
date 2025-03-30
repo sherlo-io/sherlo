@@ -31,9 +31,9 @@ const TestScreen = ({
 
   return (
     <View style={[styles.container, { backgroundColor }]}>
-      <InfoItem iconName="record-voice-over" text={`Language: ${language}`} textColor={textColor} />
-      <InfoItem iconName="place" text={`Country: ${country}`} textColor={textColor} />
-      <InfoItem iconName="brightness-4" text={`Theme: ${theme}`} textColor={textColor} />
+      <InfoItem iconName="voice" text={`Language: ${language}`} textColor={textColor} />
+      <InfoItem iconName="location" text={`Country: ${country}`} textColor={textColor} />
+      <InfoItem iconName="theme" text={`Theme: ${theme}`} textColor={textColor} />
       {colorName && (
         <InfoItem iconName="palette" text={`Color: ${colorName}`} textColor={textColor} />
       )}

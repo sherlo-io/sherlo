@@ -4,6 +4,7 @@
 
 # Xcode
 #
+ios/app
 build/
 *.pbxuser
 !default.pbxuser
@@ -33,7 +34,6 @@ local.properties
 .cxx/
 *.keystore
 !debug.keystore
-.kotlin/
 
 # node.js
 #
@@ -73,3 +73,5 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+SherloRNExample.app

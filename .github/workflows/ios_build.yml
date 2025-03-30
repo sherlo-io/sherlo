@@ -2,6 +2,11 @@ name: iOS Build
 on:
   workflow_call:
     inputs:
+      project:
+        description: 'Project to build'
+        required: true
+        type: string # 'expo-storybook-8' or 'rn-storybook-7'
+        default: 'expo-storybook-8'
       skip_build:
         description: 'Skip the build steps'
         required: false
@@ -60,13 +65,18 @@ jobs:
           eas-version: 13.4.2
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build iOS example app
-        if: ${{ !inputs.skip_build }}
+      - name: Build "expo-storybook-8" iOS example app
+        if: ${{ !inputs.skip_build && inputs.project == 'expo-storybook-8' }}
         working-directory: testing/expo-storybook-8
         run: eas build --platform ios --local --profile=${{ inputs.profile }} --output=builds/${{ inputs.profile }}/ios.tar.gz
 
-      - name: Upload Android Artifact
+      - name: Build "rn-storybook-7" iOS example app
+        if: ${{ !inputs.skip_build && inputs.project == 'rn-storybook-7' }}
+        working-directory: testing/rn-storybook-7
+        run: yarn build:ios:preview
+
+      - name: Upload iOS Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-${{ inputs.profile }}
-          path: testing/expo-storybook-8/builds/${{ inputs.profile }}/ios.tar.gz
+          path: testing/${{ inputs.project }}/builds/${{ inputs.profile }}/ios.tar.gz

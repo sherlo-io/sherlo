@@ -3,6 +3,11 @@ name: Android Build
 on:
   workflow_call:
     inputs:
+      project:
+        description: 'Project to build'
+        required: true
+        type: string # 'expo-storybook-8' or 'rn-storybook-7'
+        default: 'expo-storybook-8'
       skip_build:
         description: 'Skip the build steps'
         required: false
@@ -52,13 +57,18 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build Android example app
-        if: ${{ !inputs.skip_build }}
+      - name: Build "expo-storybook-8" Android example app
+        if: ${{ !inputs.skip_build && inputs.project == 'expo-storybook-8' }}
         working-directory: testing/expo-storybook-8
         run: eas build --platform android --local --profile=${{ inputs.profile }} --output=builds/${{ inputs.profile }}/android.apk
+
+      - name: Build "rn-storybook-7" Android example app
+        if: ${{ !inputs.skip_build && inputs.project == 'rn-storybook-7' }}
+        working-directory: testing/rn-storybook-7
+        run: yarn build:android:preview
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-${{ inputs.profile }}
-          path: testing/expo-storybook-8/builds/${{ inputs.profile }}/android.apk
+          path: testing/${{ inputs.project }}/builds/${{ inputs.profile }}/android.apk
