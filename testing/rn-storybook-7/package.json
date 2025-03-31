@@ -13,7 +13,7 @@
     "install:ios:preview": "tar -xzvf builds/preview/ios.tar.gz -C builds/preview && xcrun simctl install booted builds/preview/SherloRNExample.app",
     "test": "jest",
     "storybook-generate": "sb-rn-get-stories",
-    "postinstall": "ln -sf ../testing-components node_modules/@sherlo/testing-components && ln -sf ../../packages/react-native-storybook node_modules/@sherlo/react-native-storybook"
+    "postinstall": "ln -sfn ../testing-components node_modules/@sherlo/testing-components && ln -sfn ../../packages/react-native-storybook node_modules/@sherlo/react-native-storybook"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.0.2",
