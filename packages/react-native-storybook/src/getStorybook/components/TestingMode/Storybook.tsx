@@ -7,6 +7,8 @@ import { RunnerBridge } from '../../../helpers';
 import { StorybookParams, StorybookView } from '../../../types';
 import { getStorybookComponent } from '../../helpers';
 
+const storybookPackageJson = require('@storybook/react-native/package.json');
+
 /**
  * We applied styles based on how they are defined in the link below to ensure that user's stories
  * look exactly the same in Sherlo as they do in their Storybook
@@ -39,16 +41,27 @@ function Storybook({
     return <StorybookComponent />;
   }, []);
 
+  let style;
+  if (storybookPackageJson.version.startsWith('7.')) {
+    style = {
+      flex: 1,
+      paddingBottom: uiSettings.shouldAddSafeArea ? insets.bottom : 0,
+      paddingTop: uiSettings.shouldAddSafeArea ? insets.top : 0,
+      // This is a format for Storybook 7, but it's not correct for Storybook 8
+      // so we need to ignore the error
+      // @ts-ignore
+      backgroundColor: uiSettings.theme.preview.backgroundColor,
+    };
+  } else {
+    style = {
+      flex: 1,
+      paddingTop: uiSettings.shouldAddSafeArea ? insets.top : 0,
+      backgroundColor: uiSettings.theme.background.content,
+    };
+  }
+
   return (
-    <View
-      testID={VERIFICATION_TEST_ID}
-      style={{
-        flex: 1,
-        paddingTop: uiSettings.shouldAddSafeArea ? insets.top : 0,
-        // TODO: I've added ? checks to fix Storybook 7 errors, but this is not the correct solution
-        backgroundColor: uiSettings.theme?.background?.content,
-      }}
-    >
+    <View testID={VERIFICATION_TEST_ID} style={style}>
       <View style={{ flex: 1, overflow: 'hidden' }}>{memoizedStorybook}</View>
     </View>
   );
