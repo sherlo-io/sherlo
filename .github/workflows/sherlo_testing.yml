@@ -94,6 +94,7 @@ jobs:
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       project: 'rn-storybook-7'
+      use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
 
   expo_cloud:
     uses: ./.github/workflows/expo-cloud.yml

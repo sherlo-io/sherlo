@@ -45,7 +45,7 @@
     "switch-env:dev": "./scripts/switch-env.sh dev && yarn build",
     "switch-env:prod": "./scripts/switch-env.sh prod && yarn build",
     "update-examples": "bash scripts/updateExamples.sh",
-    "postinstall": "cd testing/expo-storybook-8 && yarn && cd ../rn-storybook-7 && yarn"
+    "postinstall": "./scripts/setupLinks.sh"
   },
   "devDependencies": {
     "@react-native/eslint-config": "^0.72.1",
