@@ -58,14 +58,6 @@ jobs:
         env:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
-      - name: Copy packages
-        working-directory: testing/${{ inputs.project }}
-        run: |
-          rm -rf node_modules/@sherlo/react-native-storybook && mkdir -p node_modules/@sherlo/react-native-storybook
-          rm -rf node_modules/@sherlo/testing-components && mkdir -p node_modules/@sherlo/testing-components
-          cp -r ../../packages/react-native-storybook/. node_modules/@sherlo/react-native-storybook/
-          cp -r ../testing-components/. node_modules/@sherlo/testing-components/
-
       - name: Run sherlo local-builds with CLI
         if: inputs.use_github_action == false
         working-directory: testing/${{ inputs.project }}
