@@ -73,7 +73,13 @@ jobs:
       - name: Build "rn-storybook-7" iOS example app
         if: ${{ !inputs.skip_build && inputs.project == 'rn-storybook-7' }}
         working-directory: testing/rn-storybook-7
-        run: yarn build:ios:preview
+        run: |
+          rm -rf node_modules/@sherlo/react-native-storybook && mkdir -p node_modules/@sherlo/react-native-storybook
+          rm -rf node_modules/@sherlo/testing-components && mkdir -p node_modules/@sherlo/testing-components
+          cp -r ../../packages/react-native-storybook/. node_modules/@sherlo/react-native-storybook/
+          cp -r ../testing-components/. node_modules/@sherlo/testing-components/
+
+          yarn build:ios:preview
 
       # - name: Upload iOS Artifact
       #   uses: actions/upload-artifact@v4
