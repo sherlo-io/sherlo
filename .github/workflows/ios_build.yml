@@ -78,11 +78,10 @@ jobs:
           rm -rf node_modules/@sherlo/testing-components && mkdir -p node_modules/@sherlo/testing-components
           cp -r ../../packages/react-native-storybook/. node_modules/@sherlo/react-native-storybook/
           cp -r ../testing-components/. node_modules/@sherlo/testing-components/
-
           yarn build:ios:preview
 
-      # - name: Upload iOS Artifact
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: ios-${{ inputs.profile }}
-      #     path: testing/${{ inputs.project }}/builds/${{ inputs.profile }}/ios.tar.gz
+      - name: Upload iOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-${{ inputs.profile }}
+          path: testing/${{ inputs.project }}/builds/${{ inputs.profile }}/ios.tar.gz
