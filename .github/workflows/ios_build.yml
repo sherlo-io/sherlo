@@ -80,7 +80,7 @@ jobs:
           cp -r ../testing-components/. node_modules/@sherlo/testing-components/
 
           echo "Printing @sherlo directory structure:"
-          tree -L 4 node_modules/@sherlo
+          find node_modules/@sherlo -maxdepth 4 -print | sed -e 's;[^/]*/;|____;g;s;____|; |;g'
 
       #     yarn build:ios:preview
 
