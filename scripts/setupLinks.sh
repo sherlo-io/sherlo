@@ -26,3 +26,11 @@ echo "Linking shared packages into rn-storybook-7..."
 cd "$RN_STORYBOOK" && \
 yarn link @sherlo/react-native-storybook && \
 yarn link @sherlo/testing-components
+
+# Build testing components
+cd "$TESTING_COMPONENTS" && yarn build
+
+# Clear dist folders to avoid Metro resolution issues
+echo "Clear dist folders..."
+rm -rf "$REACT_NATIVE_STORYBOOK/dist"
+
