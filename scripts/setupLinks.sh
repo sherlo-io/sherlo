@@ -31,9 +31,10 @@ yarn link @sherlo/react-native-storybook && \
 yarn link @sherlo/testing-components && \
 yarn link sherlo 
 
-# Build testing components
+# We don't build the @sherlo/react-native-storybook package to avoid Metro resolution issues
 cd "$TESTING_COMPONENTS" && yarn build
+cd "$SHERLO_CLI" && yarn build
 
-# Clear dist folders to avoid Metro resolution issues
+# Clear  @sherlo/react-native-storybook dist folders to avoid Metro resolution issues if it was already built
 echo "Clear dist folders..."
 rm -rf "$REACT_NATIVE_STORYBOOK/dist"
