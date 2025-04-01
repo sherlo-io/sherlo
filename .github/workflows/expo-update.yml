@@ -66,7 +66,7 @@ jobs:
         if: inputs.with_builds == true && inputs.use_github_action == false
         working-directory: testing/expo-storybook-8
         run: |
-          yarn sherlo expo-update \
+          node ../../packages/cli/bin/sherlo.js expo-update \
             --config ../../configs/${{ inputs.config }}.json \
             --android builds/development/android.apk \
             --ios builds/development/ios.tar.gz \

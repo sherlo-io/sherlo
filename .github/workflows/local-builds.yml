@@ -62,7 +62,7 @@ jobs:
         if: inputs.use_github_action == false
         working-directory: testing/${{ inputs.project }}
         run: |
-          yarn sherlo local-builds \
+          node ../../packages/cli/bin/sherlo.js local-builds \
             --config ../../configs/default-devices-without-expo-info.json \
             --android builds/preview/android.apk \
             --ios builds/preview/ios.tar.gz \
