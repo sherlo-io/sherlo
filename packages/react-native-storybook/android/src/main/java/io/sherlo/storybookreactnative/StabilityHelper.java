@@ -75,8 +75,8 @@ public class StabilityHelper {
             }, new Handler(Looper.getMainLooper()));
 
             try {
-                // Reduced timeout to 1 second
-                if (!latch.await(1, TimeUnit.SECONDS)) {
+                // Reduced timeout to 5 second
+                if (!latch.await(5, TimeUnit.SECONDS)) {
                     // If timeout occurs, just use the canvas-based screenshot
                     return bitmap;
                 }
