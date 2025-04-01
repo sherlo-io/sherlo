@@ -56,7 +56,7 @@ jobs:
         if: inputs.use_github_action == false
         working-directory: testing/expo-storybook-8
         run: |
-          node ../../packages/cli/bin/sherlo.js expo-cloud-builds \
+          node ../../packages/cli/cli.js expo-cloud-builds \
             --waitForEasBuild \
             --config ../../configs/default-devices.json \
             --token ${{ secrets.SHERLO_EXPO_CLOUD_TOKEN }}
