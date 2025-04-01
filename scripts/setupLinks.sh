@@ -14,23 +14,6 @@ echo "Installing dependencies..."
 cd "$EXPO_STORYBOOK" && yarn
 cd "$RN_STORYBOOK" && yarn
 
-echo "Linking shared packages..."
-cd "$REACT_NATIVE_STORYBOOK" && yarn link
-cd "$SHERLO_CLI" && yarn link
-cd "$TESTING_COMPONENTS" && yarn link
-
-echo "Linking shared packages into expo-storybook-8..."
-cd "$EXPO_STORYBOOK" && \
-yarn link @sherlo/react-native-storybook && \
-yarn link @sherlo/testing-components && \
-yarn link sherlo 
-
-echo "Linking shared packages into rn-storybook-7..."
-cd "$RN_STORYBOOK" && \
-yarn link @sherlo/react-native-storybook && \
-yarn link @sherlo/testing-components && \
-yarn link sherlo 
-
 # We don't build the @sherlo/react-native-storybook package to avoid Metro resolution issues
 cd "$TESTING_COMPONENTS" && yarn build
 cd "$SHERLO_CLI" && yarn build
@@ -38,3 +21,24 @@ cd "$SHERLO_CLI" && yarn build
 # Clear  @sherlo/react-native-storybook dist folders to avoid Metro resolution issues if it was already built
 echo "Clear dist folders..."
 rm -rf "$REACT_NATIVE_STORYBOOK/dist"
+
+echo "Linking shared packages..."
+cd "$REACT_NATIVE_STORYBOOK" && yarn link
+cd "$TESTING_COMPONENTS" && yarn link
+
+echo "Linking shared packages into expo-storybook-8..."
+cd "$EXPO_STORYBOOK" && \
+yarn link @sherlo/react-native-storybook && \
+yarn link @sherlo/testing-components && \
+yarn link sherlo && \
+ln -sf "$SHERLO_CLI/bin/sherlo.js" "node_modules/.bin/sherlo"
+
+echo "Linking shared packages into rn-storybook-7..."
+cd "$RN_STORYBOOK" && \
+yarn link @sherlo/react-native-storybook && \
+yarn link @sherlo/testing-components && \
+yarn link sherlo && \
+ln -sf "$SHERLO_CLI/bin/sherlo.js" "node_modules/.bin/sherlo"
+
+
+
