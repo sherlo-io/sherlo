@@ -30,12 +30,14 @@ echo "Linking shared packages into expo-storybook-8..."
 cd "$EXPO_STORYBOOK" && \
 yarn link @sherlo/react-native-storybook && \
 yarn link @sherlo/testing-components && \
+rm -rf "node_modules/.bin/sherlo" && \
 ln -sf "$SHERLO_CLI/cli.js" "node_modules/.bin/sherlo"
 
 echo "Linking shared packages into rn-storybook-7..."
 cd "$RN_STORYBOOK" && \
 yarn link @sherlo/react-native-storybook && \
 yarn link @sherlo/testing-components && \
+rm -rf "node_modules/.bin/sherlo" && \
 ln -sf "$SHERLO_CLI/cli.js" "node_modules/.bin/sherlo"
 
 
