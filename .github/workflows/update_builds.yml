@@ -56,13 +56,13 @@ jobs:
       - name: Download Android Artifact
         uses: actions/download-artifact@v4
         with:
-          name: android-${{ inputs.profile }}
+          name: android-${{ inputs.profile }}-${{ inputs.project }}
           path: testing/${{ inputs.project }}/builds/${{ inputs.profile }}
 
       - name: Download iOS Artifact
         uses: actions/download-artifact@v4
         with:
-          name: ios-${{ inputs.profile }}
+          name: ios-${{ inputs.profile }}-${{ inputs.project }}
           path: testing/${{ inputs.project }}/builds/${{ inputs.profile }}
 
       - name: Commit and push '${{ inputs.profile }}' builds

@@ -70,5 +70,5 @@ jobs:
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-${{ inputs.profile }}
+          name: android-${{ inputs.profile }}-${{ inputs.project }}
           path: testing/${{ inputs.project }}/builds/${{ inputs.profile }}/android.apk

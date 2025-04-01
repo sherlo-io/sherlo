@@ -78,5 +78,5 @@ jobs:
       - name: Upload iOS Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ios-${{ inputs.profile }}
+          name: ios-${{ inputs.profile }}-${{ inputs.project }}
           path: testing/${{ inputs.project }}/builds/${{ inputs.profile }}/ios.tar.gz
