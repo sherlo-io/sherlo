@@ -173,8 +173,8 @@ public class StabilityHelper {
                 if (consecutiveMatches[0] >= requiredMatches) {
                     Log.d(TAG, "UI is stable");
                     callback.onResult(true);
-                } else if (elapsedTime >= timeoutMs) {
-                    Log.d(TAG, "UI is not stable");
+                } else if (elapsedTime >= timeoutMs && consecutiveMatches[0] == 0) {
+                    Log.d(TAG, "UI is not stable - timeout with no matches");
                     callback.onResult(false);
                 } else {
                     handler.postDelayed(this, Math.max(intervalMs, 1));
