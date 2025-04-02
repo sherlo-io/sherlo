@@ -67,27 +67,6 @@ public class StabilityHelper {
         
         rootView.draw(canvas);
 
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-            final CountDownLatch latch = new CountDownLatch(1);
-            
-            PixelCopy.request(activity.getWindow(), bitmap, copyResult -> {
-                latch.countDown();
-            }, new Handler(Looper.getMainLooper()));
-
-            try {
-                // Reduced timeout to 5 second
-                if (!latch.await(5, TimeUnit.SECONDS)) {
-                    Log.d(TAG, "PixelCopy failed to copy bitmap");
-                    // If timeout occurs, just use the canvas-based screenshot
-                    return bitmap;
-                }
-            } catch (InterruptedException e) {
-                Log.d(TAG, "PixelCopy interrupted");
-                // If interrupted, use the canvas-based screenshot
-                return bitmap;
-            }
-        }
-
         return bitmap;
     }
 
