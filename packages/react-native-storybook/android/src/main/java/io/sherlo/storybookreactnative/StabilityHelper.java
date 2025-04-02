@@ -77,10 +77,12 @@ public class StabilityHelper {
             try {
                 // Reduced timeout to 5 second
                 if (!latch.await(5, TimeUnit.SECONDS)) {
+                    Log.d(TAG, "PixelCopy failed to copy bitmap");
                     // If timeout occurs, just use the canvas-based screenshot
                     return bitmap;
                 }
             } catch (InterruptedException e) {
+                Log.d(TAG, "PixelCopy interrupted");
                 // If interrupted, use the canvas-based screenshot
                 return bitmap;
             }
@@ -90,10 +92,11 @@ public class StabilityHelper {
     }
 
     /**
-     * Compares two bitmaps by checking pixel arrays with early exit on difference.
+     * Compares two bitmaps by checking pixel arrays and counts different pixels.
      */
     public boolean areBitmapsEqual(Bitmap bmp1, Bitmap bmp2) {
         if (bmp1.getWidth() != bmp2.getWidth() || bmp1.getHeight() != bmp2.getHeight()) {
+            Log.d(TAG, "Bitmaps have different dimensions");
             return false;
         }
         
@@ -103,7 +106,16 @@ public class StabilityHelper {
         int[] pixels2 = new int[width * height];
         bmp1.getPixels(pixels1, 0, width, 0, 0, width, height);
         bmp2.getPixels(pixels2, 0, width, 0, 0, width, height);
-        return Arrays.equals(pixels1, pixels2);
+
+        int differentPixels = 0;
+        for (int i = 0; i < pixels1.length; i++) {
+            if (pixels1[i] != pixels2[i]) {
+                differentPixels++;
+            }
+        }
+
+        Log.d(TAG, "Different pixels: " + differentPixels + " out of " + (width * height) + " total pixels");
+        return differentPixels == 0;
     }
 
     /**
