@@ -7,7 +7,7 @@ const resolvePath = (relativePath) => path.resolve(__dirname, relativePath);
 // Linked packages pointing directly to source (not dist!)
 const linkedModules = {
   '@sherlo/react-native-storybook': resolvePath('../../packages/react-native-storybook/src'),
-  '@sherlo/testing-components': resolvePath('../testing-components'),
+  '@sherlo/testing-components': resolvePath('../testing-components/src'),
 };
 
 // Proxy to resolve only linked packages manually, everything else falls back to default node_modules

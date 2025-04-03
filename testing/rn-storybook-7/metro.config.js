@@ -9,7 +9,7 @@ const linkedModules = {
   '@sherlo/react-native-storybook': resolvePath(
     '../../packages/react-native-storybook/src',
   ),
-  '@sherlo/testing-components': resolvePath('../testing-components'),
+  '@sherlo/testing-components': resolvePath('../testing-components/src'),
 };
 
 // Tell Metro to resolve these package names to their real source paths

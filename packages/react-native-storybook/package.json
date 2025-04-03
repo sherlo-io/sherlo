@@ -20,14 +20,12 @@
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-
   "exports": {
     ".": {
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     }
   },
-
   "files": [
     "dist/**/*",
     "android/**/*",
@@ -70,8 +68,8 @@
   },
   "peerDependencies": {
     "@storybook/react-native": ">=7.6.11",
-    "react-native": ">=0.64.0",
     "react": "*",
+    "react-native": ">=0.64.0",
     "react-native-safe-area-context": "*"
   },
   "engines": {

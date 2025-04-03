@@ -19,9 +19,7 @@
     "directory": "packages/cli"
   },
   "main": "dist/index.js",
-  "bin": {
-    "sherlo": "./cli.js"
-  },
+  "bin": "./cli.js",
   "files": [
     "dist",
     "sdk-compatibility.json",

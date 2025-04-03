@@ -32,7 +32,7 @@
     "build": "lerna run build",
     "dev": "lerna run dev",
     "dev:check-types": "tsc --noEmit",
-    "clean": "rm -rf node_modules && rm -rf packages/*/node_modules && rm -rf testing/*/node_modules && yarn cache clean && yarn",
+    "clean": "rm -rf node_modules || true && rm -rf packages/*/node_modules || true && rm -rf testing/*/node_modules || true && yarn cache clean && yarn",
     "lint": "cross-env NODE_ENV=production eslint --cache --cache-location=.cache/eslint --ext .js,.jsx,.html,.ts,.tsx,.mjs --report-unused-disable-directives",
     "lint:circular-dependencies": "npx madge --extensions ts --circular .",
     "lint:fix": "yarn lint . --fix",
@@ -44,8 +44,7 @@
     "switch-env:test": "./scripts/switch-env.sh test && cd packages/cli && yarn build",
     "switch-env:dev": "./scripts/switch-env.sh dev && cd packages/cli && yarn build",
     "switch-env:prod": "./scripts/switch-env.sh prod && cd packages/cli && yarn build",
-    "update-examples": "bash scripts/updateExamples.sh",
-    "postinstall": "./scripts/setupLinks.sh"
+    "update-examples": "bash scripts/updateExamples.sh"
   },
   "devDependencies": {
     "@react-native/eslint-config": "^0.72.1",
@@ -57,7 +56,7 @@
   },
   "engines": {
     "node": ">=10.24.1",
-    "yarn": ">=1.22.0"
+    "yarn": ">=4.3.1"
   },
-  "packageManager": "yarn@1.22.22"
+  "packageManager": "yarn@4.3.1"
 }
