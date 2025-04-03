@@ -40,6 +40,11 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Add env specific dependencies
+        run: ./scripts/switch-env.sh dev
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
       - name: Install dependencies
         if: ${{ !inputs.skip_build }}
         run: yarn
