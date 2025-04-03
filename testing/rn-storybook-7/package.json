@@ -17,7 +17,7 @@
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.0.2",
     "@react-native-async-storage/async-storage": "^2.1.2",
-    "@sherlo/testing-components": "file:../testing-components",
+    "@sherlo/testing-components": "portal:../testing-components",
     "react": "18.3.1",
     "react-native": "0.77.2",
     "react-native-crash-tester": "^0.2.3",
@@ -39,7 +39,7 @@
     "@react-native/eslint-config": "0.77.2",
     "@react-native/metro-config": "0.77.2",
     "@react-native/typescript-config": "0.77.2",
-    "@sherlo/react-native-storybook": "file:../../packages/react-native-storybook",
+    "@sherlo/react-native-storybook": "portal:../../packages/react-native-storybook",
     "@storybook/addon-ondevice-actions": "^8.6.2",
     "@storybook/addon-ondevice-controls": "^8.6.2",
     "@storybook/react-native": "^8.6.2",
