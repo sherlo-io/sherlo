@@ -49,7 +49,7 @@ jobs:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Install dependencies
-        run: yarn
+        run: yarn && yarn build
 
       - name: Setup EAS
         uses: expo/expo-github-action@v8
