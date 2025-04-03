@@ -53,10 +53,14 @@ jobs:
       - name: Install dependencies
         run: yarn
 
-      - name: Build dependencies
+      - name: Add env specific dependencies
         run: yarn switch-env:${{ inputs.env }}
         env:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Install project dependencies
+        working-directory: testing/${{ inputs.project }}
+        run: yarn
 
       - name: Run sherlo local-builds with CLI
         if: inputs.use_github_action == false

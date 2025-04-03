@@ -39,10 +39,14 @@ jobs:
       - name: Install dependencies
         run: yarn
 
-      - name: Build dependencies
+      - name: Add env specific dependencies
         run: yarn switch-env:${{ inputs.env }}
         env:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Install project dependencies
+        working-directory: testing/expo-storybook-8
+        run: yarn
 
       - name: Setup EAS
         uses: expo/expo-github-action@v8
