@@ -3474,23 +3474,21 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@sherlo/api-types@npm:1.1.13":
-  version: 1.1.13
-  resolution: "@sherlo/api-types@npm:1.1.13"
-  checksum: 10/2171b9a0a73a516940da4686c2e65ae69ef6a94a263a3cbba31b48f2aa39ab6df122c5aa9a60babb0c0647429f09fae25c52df885a2dde2d4f6385d19078a73e
+"@sherlo/api-types@portal:/Users/michalziolkowski/sherlo-workspace/sherlo/sherlo-lib/extracted/@sherlo/api-types::locator=%40sherlo%2Froot%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "@sherlo/api-types@portal:/Users/michalziolkowski/sherlo-workspace/sherlo/sherlo-lib/extracted/@sherlo/api-types::locator=%40sherlo%2Froot%40workspace%3A."
   languageName: node
-  linkType: hard
+  linkType: soft
 
-"@sherlo/common-client@npm:1.1.13":
-  version: 1.1.13
-  resolution: "@sherlo/common-client@npm:1.1.13"
+"@sherlo/common-client@portal:/Users/michalziolkowski/sherlo-workspace/sherlo/sherlo-lib/extracted/@sherlo/common-client::locator=%40sherlo%2Froot%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "@sherlo/common-client@portal:/Users/michalziolkowski/sherlo-workspace/sherlo/sherlo-lib/extracted/@sherlo/common-client::locator=%40sherlo%2Froot%40workspace%3A."
   dependencies:
     graphql-tag: "npm:2.12.6"
   peerDependencies:
     "@apollo/client": 3.7.0
-  checksum: 10/37a9f33002882cd1c7bf5ba3c90ba2cb7fe197e6b6d5661e1d224860d345e26fdeb7913bc8780981b0c09cb06520c792e438fb0295a5663f468a5d792793d8e7
   languageName: node
-  linkType: hard
+  linkType: soft
 
 "@sherlo/react-native-storybook@workspace:packages/react-native-storybook":
   version: 0.0.0-use.local
@@ -3529,9 +3527,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@sherlo/sdk-client@npm:1.1.13":
-  version: 1.1.13
-  resolution: "@sherlo/sdk-client@npm:1.1.13"
+"@sherlo/sdk-client@portal:/Users/michalziolkowski/sherlo-workspace/sherlo/sherlo-lib/extracted/@sherlo/sdk-client::locator=%40sherlo%2Froot%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "@sherlo/sdk-client@portal:/Users/michalziolkowski/sherlo-workspace/sherlo/sherlo-lib/extracted/@sherlo/sdk-client::locator=%40sherlo%2Froot%40workspace%3A."
   dependencies:
     "@apollo/client": "npm:3.7.0"
     aws-appsync-auth-link: "npm:3.0.7"
@@ -3540,18 +3538,16 @@ __metadata:
   peerDependencies:
     "@sherlo/api-types": "*"
     "@sherlo/common-client": "*"
-  checksum: 10/add6c5dd00dafd5814e7a30f11bdd6594d41c27d0ec9efb3d99f461196c2247076df7fdef46f6d967e3ec52b854194b25a35702ca28581f1d7203d7ea18549ab
   languageName: node
-  linkType: hard
+  linkType: soft
 
-"@sherlo/shared@npm:1.1.13":
-  version: 1.1.13
-  resolution: "@sherlo/shared@npm:1.1.13"
+"@sherlo/shared@portal:/Users/michalziolkowski/sherlo-workspace/sherlo/sherlo-lib/extracted/@sherlo/shared::locator=%40sherlo%2Froot%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "@sherlo/shared@portal:/Users/michalziolkowski/sherlo-workspace/sherlo/sherlo-lib/extracted/@sherlo/shared::locator=%40sherlo%2Froot%40workspace%3A."
   peerDependencies:
     "@sherlo/api-types": "*"
-  checksum: 10/2295ed422189d8affb036ac13be3f5d56700d8733b8b0dc4e762a15471060d83c2ec5015a8c7321da5b94dcfbba9b3def380420a6f22aae1d37593e765fa54bd
   languageName: node
-  linkType: hard
+  linkType: soft
 
 "@sherlo/testing-components@workspace:testing/testing-components":
   version: 0.0.0-use.local
@@ -13411,10 +13407,10 @@ __metadata:
   resolution: "sherlo@workspace:packages/cli"
   dependencies:
     "@sentry/node": "npm:8.41.0"
-    "@sherlo/api-types": "npm:1.1.13"
-    "@sherlo/common-client": "npm:1.1.13"
-    "@sherlo/sdk-client": "npm:1.1.13"
-    "@sherlo/shared": "npm:1.1.13"
+    "@sherlo/api-types": "portal:../../sherlo-lib/packages/api-types"
+    "@sherlo/common-client": "portal:../../sherlo-lib/packages/common-client"
+    "@sherlo/sdk-client": "portal:../../sherlo-lib/packages/sdk-client"
+    "@sherlo/shared": "portal:../../sherlo-lib/packages/shared"
     "@types/git-rev-sync": "npm:^2.0.0"
     "@types/gradient-string": "npm:^1.1.2"
     "@types/node": "npm:^16.11.7"
