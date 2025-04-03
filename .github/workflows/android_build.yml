@@ -46,8 +46,7 @@ jobs:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Install dependencies
-        if: ${{ !inputs.skip_build }}
-        run: yarn
+        run: yarn && cd packages/cli && yarn build
 
       - name: Install project dependencies
         working-directory: testing/${{ inputs.project }}
