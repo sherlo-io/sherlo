@@ -2624,9 +2624,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sherlo/react-native-storybook@file:../../packages/react-native-storybook::locator=%40sherlo%2Frn-storybook-7%40workspace%3A.":
-  version: 1.2.0
-  resolution: "@sherlo/react-native-storybook@file:../../packages/react-native-storybook#../../packages/react-native-storybook::hash=8c185d&locator=%40sherlo%2Frn-storybook-7%40workspace%3A."
+"@sherlo/react-native-storybook@portal:../../packages/react-native-storybook::locator=%40sherlo%2Frn-storybook-7%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "@sherlo/react-native-storybook@portal:../../packages/react-native-storybook::locator=%40sherlo%2Frn-storybook-7%40workspace%3A."
   dependencies:
     base-64: "npm:^0.1.0"
     deepmerge: "npm:4.3.1"
@@ -2639,9 +2639,8 @@ __metadata:
     react: "*"
     react-native: ">=0.64.0"
     react-native-safe-area-context: "*"
-  checksum: 10/4a000fc67b2fa65976628c7ca2a7afd7bcd9672cef6db6ff86da47aeea29da8e69a78d5f7991a0a8b9879e42992e93e4c0c5879e83432167984c89470d7671f8
   languageName: node
-  linkType: hard
+  linkType: soft
 
 "@sherlo/rn-storybook-7@workspace:.":
   version: 0.0.0-use.local
@@ -2659,8 +2658,8 @@ __metadata:
     "@react-native/eslint-config": "npm:0.77.2"
     "@react-native/metro-config": "npm:0.77.2"
     "@react-native/typescript-config": "npm:0.77.2"
-    "@sherlo/react-native-storybook": "file:../../packages/react-native-storybook"
-    "@sherlo/testing-components": "file:../testing-components"
+    "@sherlo/react-native-storybook": "portal:../../packages/react-native-storybook"
+    "@sherlo/testing-components": "portal:../testing-components"
     "@storybook/addon-ondevice-actions": "npm:^8.6.2"
     "@storybook/addon-ondevice-controls": "npm:^8.6.2"
     "@storybook/react-native": "npm:^8.6.2"
@@ -2684,16 +2683,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@sherlo/testing-components@file:../testing-components::locator=%40sherlo%2Frn-storybook-7%40workspace%3A.":
-  version: 1.2.0
-  resolution: "@sherlo/testing-components@file:../testing-components#../testing-components::hash=3ca84d&locator=%40sherlo%2Frn-storybook-7%40workspace%3A."
+"@sherlo/testing-components@portal:../testing-components::locator=%40sherlo%2Frn-storybook-7%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "@sherlo/testing-components@portal:../testing-components::locator=%40sherlo%2Frn-storybook-7%40workspace%3A."
   peerDependencies:
     react: "*"
     react-native: "*"
     react-native-svg: "*"
-  checksum: 10/c9ecf278ddd39014ed41b8f50b6c18565ef7a00c6411b0927dd1ab9fbc2e71dbaf178673408c73922ab54354ee69bbbfbb96775f2adf3190791aa48230569b86
   languageName: node
-  linkType: hard
+  linkType: soft
 
 "@sideway/address@npm:^4.1.5":
   version: 4.1.5
