@@ -55,7 +55,7 @@
     "typescript": "^5.3.3"
   },
   "resolutions": {
-    "sherlo": "portal:../cli"
+    "sherlo": "portal:./packages/cli"
   },
   "engines": {
     "node": ">=10.24.1",
