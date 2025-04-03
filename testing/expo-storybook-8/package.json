@@ -22,7 +22,7 @@
     "start:ios:dev": "tar -xzvf builds/development/ios.tar.gz -C builds/development && xcrun simctl install booted builds/development/SherloExpoExample.app && expo start --ios --dev-client",
     "start:ios:go": "expo start --ios --go",
     "storybook:generate": "sb-rn-get-stories",
-    "sherlo": "sherlo"
+    "sherlo": "./node_modules/.bin/sherlo"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.0.2",
