@@ -48,12 +48,6 @@ jobs:
         with:
           version: latest
 
-      - name: Add env specific dependencies
-        if: ${{ !inputs.skip_build }}
-        run: yarn switch-env:dev
-        env:
-          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-
       - name: Install dependencies
         if: ${{ !inputs.skip_build }}
         run: yarn

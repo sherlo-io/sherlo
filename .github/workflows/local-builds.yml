@@ -51,7 +51,7 @@ jobs:
           node-version: '18.18.0'
 
       - name: Add env specific dependencies
-        run: yarn switch-env:${{ inputs.env }}
+        run: ./scripts/switch-env.sh ${{ inputs.env }}
         env:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
