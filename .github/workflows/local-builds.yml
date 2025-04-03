@@ -58,6 +58,9 @@ jobs:
         env:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
+      - name: Build dependencies
+        run: yarn build
+
       - name: Install project dependencies
         working-directory: testing/${{ inputs.project }}
         run: yarn
