@@ -68,12 +68,12 @@ jobs:
       - name: Build "expo-storybook-8" iOS example app
         if: ${{ !inputs.skip_build && inputs.project == 'expo-storybook-8' }}
         working-directory: testing/expo-storybook-8
-        run: eas build --platform ios --local --profile=${{ inputs.profile }} --output=builds/${{ inputs.profile }}/ios.tar.gz
+        run: yarn && eas build --platform ios --local --profile=${{ inputs.profile }} --output=builds/${{ inputs.profile }}/ios.tar.gz
 
       - name: Build "rn-storybook-7" iOS example app
         if: ${{ !inputs.skip_build && inputs.project == 'rn-storybook-7' }}
         working-directory: testing/rn-storybook-7
-        run: yarn build:ios:preview
+        run: yarn && yarn build:ios:preview
 
       - name: Upload iOS Artifact
         uses: actions/upload-artifact@v4
