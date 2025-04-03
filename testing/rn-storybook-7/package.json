@@ -12,7 +12,8 @@
     "install:android:preview": "adb install builds/preview/android.apk",
     "install:ios:preview": "tar -xzvf builds/preview/ios.tar.gz -C builds/preview && xcrun simctl install booted builds/preview/SherloRNExample.app",
     "test": "jest",
-    "storybook-generate": "sb-rn-get-stories"
+    "storybook-generate": "sb-rn-get-stories",
+    "sherlo": "sherlo"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.0.2",
