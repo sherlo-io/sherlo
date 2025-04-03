@@ -13402,15 +13402,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sherlo@portal:./packages/cli::locator=%40sherlo%2Froot%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "sherlo@portal:./packages/cli::locator=%40sherlo%2Froot%40workspace%3A."
-  bin:
-    sherlo: ./cli.js
-  languageName: node
-  linkType: soft
-
-"sherlo@workspace:packages/cli":
+"sherlo@npm:^1.2.0, sherlo@workspace:packages/cli":
   version: 0.0.0-use.local
   resolution: "sherlo@workspace:packages/cli"
   dependencies:

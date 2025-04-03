@@ -22,7 +22,7 @@
     "start:ios:dev": "tar -xzvf builds/development/ios.tar.gz -C builds/development && xcrun simctl install booted builds/development/SherloExpoExample.app && expo start --ios --dev-client",
     "start:ios:go": "expo start --ios --go",
     "storybook:generate": "sb-rn-get-stories",
-    "sherlo": "./node_modules/.bin/sherlo"
+    "sherlo": "sherlo"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.0.2",
@@ -58,6 +58,9 @@
     "@storybook/react-native": "^8.3.9",
     "babel-loader": "^8.2.3",
     "typescript": "~5.3.3"
+  },
+  "resolutions": {
+    "sherlo": "portal:../../packages/cli"
   },
   "engines": {
     "node": ">=18",

@@ -9359,14 +9359,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sherlo@npm:^1.2.0":
-  version: 1.2.0
-  resolution: "sherlo@npm:1.2.0"
+"sherlo@portal:../../packages/cli::locator=%40sherlo%2Frn-storybook-7%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "sherlo@portal:../../packages/cli::locator=%40sherlo%2Frn-storybook-7%40workspace%3A."
   bin:
     sherlo: ./cli.js
-  checksum: 10/2ebf87753fa6855997e3f13c777298ea9135cd567a89f0f81b2d2ed2d7370e79b5bdbb1c083c37a2e7dbf2682ba52c8135b7e88b55ad36ae733902d6c2a600af
   languageName: node
-  linkType: hard
+  linkType: soft
 
 "side-channel-list@npm:^1.0.0":
   version: 1.0.0
