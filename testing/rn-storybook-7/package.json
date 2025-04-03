@@ -13,7 +13,7 @@
     "install:ios:preview": "tar -xzvf builds/preview/ios.tar.gz -C builds/preview && xcrun simctl install booted builds/preview/SherloRNExample.app",
     "test": "jest",
     "storybook-generate": "sb-rn-get-stories",
-    "sherlo": "sherlo"
+    "sherlo": "./node_modules/.bin/sherlo"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.0.2",
