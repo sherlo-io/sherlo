@@ -9,17 +9,17 @@ on:
         default: 'dev'
         type: string
       expo_preview_builds:
-        description: 'Builds: Expo Storybook 8 Preview'
+        description: 'Builds: Expo SB 8 Preview'
         required: false
         default: false
         type: boolean
       expo_development_builds:
-        description: 'Builds: Expo Storybook 8 Development'
+        description: 'Builds: Expo SB 8 Development'
         required: false
         default: false
         type: boolean
       rn_preview_builds:
-        description: 'Builds: React Native Storybook 7 Preview'
+        description: 'Builds: RN SB 7 Preview'
         required: false
         default: false
         type: boolean

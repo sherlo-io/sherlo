@@ -14,37 +14,37 @@ on:
         default: false
         type: boolean
       device_testing:
-        description: 'Test: All Devices'
+        description: 'expo-update (sb8) / all-devices'
         required: false
         default: false
         type: boolean
       many_stories:
-        description: 'Test: Many Stories'
+        description: 'expo-update (sb8) / many-stories'
         required: false
         default: false
         type: boolean
       expo_local_builds:
-        description: 'Test: local-builds (Expo)'
+        description: 'local-builds (expo sb8) / default'
         required: false
         default: false
         type: boolean
       rn_local_builds:
-        description: 'Test: local-builds (React Native)'
+        description: 'local-builds (rn sb7) / default'
         required: false
         default: false
         type: boolean
       expo_cloud:
-        description: 'Test: expo-cloud-builds'
+        description: 'expo-cloud (sb8) / default'
         required: false
         default: false
         type: boolean
       expo_update_with_builds:
-        description: 'Test: expo-update (with builds)'
+        description: 'expo-update (sb8) / default (with builds)'
         required: false
         default: false
         type: boolean
       expo_update:
-        description: 'Test: expo-update'
+        description: 'expo-update (sb8) / default'
         required: false
         default: false
         type: boolean
