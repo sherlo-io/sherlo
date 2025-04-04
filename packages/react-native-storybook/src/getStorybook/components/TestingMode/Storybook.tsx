@@ -13,7 +13,8 @@ const storybookPackageJson = require('@storybook/react-native/package.json');
  * We applied styles based on how they are defined in the link below to ensure that user's stories
  * look exactly the same in Sherlo as they do in their Storybook
  *
- * https://github.com/storybookjs/react-native/blob/v8.6.0/packages/react-native/src/View.tsx
+ * Storybook 8: https://github.com/storybookjs/react-native/blob/v8.6.0/packages/react-native/src/View.tsx
+ * Storybook 7: https://github.com/storybookjs/react-native/blob/v7.6.20/packages/react-native/src/components/OnDeviceUI/OnDeviceUI.tsx
  */
 function Storybook({
   params,
@@ -47,8 +48,7 @@ function Storybook({
       flex: 1,
       paddingBottom: uiSettings.shouldAddSafeArea ? insets.bottom : 0,
       paddingTop: uiSettings.shouldAddSafeArea ? insets.top : 0,
-      // This is a format for Storybook 7, but it's not correct for Storybook 8
-      // so we need to ignore the error
+      // We are typechecking with Storybook 8 so we need to ignore the error
       // @ts-ignore
       backgroundColor: uiSettings.theme.preview.backgroundColor,
     };
