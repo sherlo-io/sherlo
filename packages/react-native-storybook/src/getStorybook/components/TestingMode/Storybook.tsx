@@ -7,7 +7,15 @@ import { RunnerBridge } from '../../../helpers';
 import { StorybookParams, StorybookView } from '../../../types';
 import { getStorybookComponent } from '../../helpers';
 
-const storybookPackageJson = require('@storybook/react-native/package.json');
+function isStorybook7(): boolean {
+  try {
+    require('@storybook/react-native/V6');
+  } catch (error) {
+    return false;
+  }
+
+  return true;
+}
 
 /**
  * We applied styles based on how they are defined in the link below to ensure that user's stories
@@ -31,7 +39,7 @@ function Storybook({
   const insets = useSafeAreaInsets();
 
   const memoizedStorybook = useMemo(() => {
-    RunnerBridge.log('memoizing storybook');
+    RunnerBridge.log('memoizing storybook', { isStorybook7: isStorybook7() });
 
     const StorybookComponent = getStorybookComponent({
       view,
@@ -43,7 +51,8 @@ function Storybook({
   }, []);
 
   let style;
-  if (storybookPackageJson.version.startsWith('7.')) {
+
+  if (isStorybook7()) {
     style = {
       flex: 1,
       paddingBottom: uiSettings.shouldAddSafeArea ? insets.bottom : 0,

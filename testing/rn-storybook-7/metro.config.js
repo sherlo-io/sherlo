@@ -1,6 +1,11 @@
 const path = require('path');
 const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
-const withStorybook = require('@storybook/react-native/metro/withStorybook');
+const {generate} = require('@storybook/react-native/scripts/generate');
+
+generate({
+  // update ./.storybook to your storybook folder
+  configPath: path.resolve(__dirname, './.storybook'),
+});
 
 const resolvePath = relativePath => path.resolve(__dirname, relativePath);
 
@@ -22,14 +27,18 @@ const extraNodeModules = new Proxy(
   },
 );
 
+const defaultConfig = getDefaultConfig(__dirname);
+
 /** @type {import('@react-native/metro-config').MetroConfig} */
 const config = {
+  transformer: {
+    unstable_allowRequireContext: true,
+  },
   resolver: {
     extraNodeModules,
+    sourceExts: [...defaultConfig.resolver.sourceExts, 'mjs'],
   },
   watchFolders: Object.values(linkedModules),
 };
 
-const defaultConfig = mergeConfig(getDefaultConfig(__dirname), config);
-
-module.exports = withStorybook(defaultConfig);
+module.exports = mergeConfig(defaultConfig, config);

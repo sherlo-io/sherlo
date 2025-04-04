@@ -62,7 +62,7 @@ jobs:
         run: |
           yarn sherlo expo-cloud-builds \
             --waitForEasBuild \
-            --config ../../configs/default-devices.json \
+            --config ../../configs/default-devices-without-expo-info.json \
             --token ${{ secrets.SHERLO_EXPO_CLOUD_TOKEN }}
 
       - name: Run sherlo expo-cloud-builds with Github Action
@@ -72,7 +72,7 @@ jobs:
           command: expo-cloud-builds
           projectRoot: testing/expo-storybook-8
           waitForEasBuild: true
-          config: ../../configs/default-devices.json
+          config: ../../configs/default-devices-without-expo-info.json
         env:
           SHERLO_TOKEN: ${{ secrets.SHERLO_EXPO_CLOUD_TOKEN }}
 
