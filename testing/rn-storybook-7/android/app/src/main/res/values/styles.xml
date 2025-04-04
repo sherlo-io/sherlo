@@ -6,8 +6,6 @@
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
         <!-- Make status bar translucent -->
         <item name="android:windowTranslucentStatus">true</item>
-        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
     </style>
 
 </resources>
