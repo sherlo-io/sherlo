@@ -9,6 +9,7 @@ import { getStorybookComponent } from '../../helpers';
 
 function isStorybook7(): boolean {
   try {
+    // This file is present only in Storybook 7
     require('@storybook/react-native/V6');
   } catch (error) {
     return false;
@@ -39,8 +40,6 @@ function Storybook({
   const insets = useSafeAreaInsets();
 
   const memoizedStorybook = useMemo(() => {
-    RunnerBridge.log('memoizing storybook', { isStorybook7: isStorybook7() });
-
     const StorybookComponent = getStorybookComponent({
       view,
       params,
@@ -69,7 +68,13 @@ function Storybook({
     };
   }
 
-  RunnerBridge.log('wrapping style', { style });
+  RunnerBridge.log('wrapping style', {
+    style,
+    isStorybook7: isStorybook7(),
+    shouldAddSafeArea: uiSettings.shouldAddSafeArea,
+    insetBottom: insets.bottom,
+    insetTop: insets.top,
+  });
 
   return (
     <View testID={VERIFICATION_TEST_ID} style={style}>
