@@ -3,7 +3,7 @@ import {
   isStorybookMode,
   addStorybookToDevMenu,
 } from '@sherlo/react-native-storybook';
-import {StatusBar} from 'react-native';
+// import {StatusBar} from 'react-native';
 import Storybook from './.storybook';
 import HomeScreen from './src/HomeScreen';
 
@@ -32,7 +32,7 @@ export default App;
 function Wrapper({children}: {children: React.ReactNode}) {
   return (
     <>
-      <StatusBar translucent />
+      {/* <StatusBar translucent /> */}
 
       {children}
     </>
