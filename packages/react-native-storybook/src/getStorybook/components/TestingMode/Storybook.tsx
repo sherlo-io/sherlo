@@ -7,15 +7,12 @@ import { RunnerBridge } from '../../../helpers';
 import { StorybookParams, StorybookView } from '../../../types';
 import { getStorybookComponent } from '../../helpers';
 
-function isStorybook7(): boolean {
-  try {
-    // This file is present only in Storybook 7
-    require('@storybook/react-native/V6');
-  } catch (error) {
-    return false;
-  }
-
-  return true;
+let isStorybook7 = true;
+try {
+  // This file is present only in Storybook 7
+  require('@storybook/react-native/V6');
+} catch (error) {
+  isStorybook7 = false;
 }
 
 /**
@@ -51,7 +48,7 @@ function Storybook({
 
   let style;
 
-  if (isStorybook7()) {
+  if (isStorybook7) {
     style = {
       flex: 1,
       paddingBottom: uiSettings.shouldAddSafeArea ? insets.bottom : 0,
@@ -70,7 +67,7 @@ function Storybook({
 
   RunnerBridge.log('wrapping style', {
     style,
-    isStorybook7: isStorybook7(),
+    isStorybook7,
     shouldAddSafeArea: uiSettings.shouldAddSafeArea,
     insetBottom: insets.bottom,
     insetTop: insets.top,
