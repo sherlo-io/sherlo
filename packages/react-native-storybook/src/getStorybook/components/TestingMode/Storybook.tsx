@@ -69,6 +69,8 @@ function Storybook({
     };
   }
 
+  RunnerBridge.log('wrapping style', { style });
+
   return (
     <View testID={VERIFICATION_TEST_ID} style={style}>
       <View style={{ flex: 1, overflow: 'hidden' }}>{memoizedStorybook}</View>
