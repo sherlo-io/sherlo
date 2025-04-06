@@ -112,6 +112,9 @@ public class InspectorHelper {
         viewObject.put("height", rect.height());
 
         // TODO: Add properties based on class
+        JSONObject properties = new JSONObject();
+        collectViewProperties(view, properties);
+        viewObject.put("properties", properties);
 
         // Add children array for hierarchical structure
         JSONArray children = new JSONArray();
@@ -124,6 +127,369 @@ public class InspectorHelper {
         viewObject.put("children", children);
 
         return viewObject;
+    }
+
+    /**
+     * Collects properties based on the view's class type.
+     * 
+     * @param view The view to extract properties from
+     * @param properties The JSON object to store properties in
+     * @throws JSONException If there's an error creating the JSON structure
+     */
+    private static void collectViewProperties(View view, JSONObject properties) throws JSONException {
+        // Common properties for all views
+        collectCommonViewProperties(view, properties);
+        
+        String className = view.getClass().getSimpleName();
+        
+        // Check specific view types
+        if (className.contains("ReactTextView")) {
+            collectReactTextViewProperties(view, properties);
+        } else if (className.contains("ReactImageView")) {
+            collectReactImageViewProperties(view, properties);
+        } else if (className.contains("ReactEditText")) {
+            collectReactEditTextProperties(view, properties);
+        } else if (className.contains("ReactScrollView") || className.contains("ReactHorizontalScrollView")) {
+            collectReactScrollViewProperties(view, properties);
+        } else if (className.contains("ReactSwitch")) {
+            collectReactSwitchProperties(view, properties);
+        } else if (view instanceof ViewGroup && className.contains("ReactViewGroup")) {
+            collectReactViewGroupProperties((ViewGroup)view, properties);
+        }
+    }
+    
+    /**
+     * Collects common properties available on all views.
+     *
+     * @param view The view to extract properties from
+     * @param properties The JSON object to store properties in
+     * @throws JSONException If there's an error creating the JSON structure
+     */
+    private static void collectCommonViewProperties(View view, JSONObject properties) throws JSONException {
+        // Background color
+        if (view.getBackground() instanceof ColorDrawable) {
+            int backgroundColor = ((ColorDrawable)view.getBackground()).getColor();
+            properties.put("backgroundColor", String.format("#%08X", backgroundColor));
+        }
+        
+        // Opacity/alpha
+        float alpha = view.getAlpha();
+        properties.put("opacity", alpha);
+        
+        // Elevation (for API 21+)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            properties.put("elevation", view.getElevation());
+        }
+        
+        // Transform properties
+        properties.put("rotation", view.getRotation());
+        properties.put("scaleX", view.getScaleX());
+        properties.put("scaleY", view.getScaleY());
+        
+        // Test ID (often stored as content description or tag)
+        if (view.getContentDescription() != null) {
+            properties.put("testID", view.getContentDescription().toString());
+        }
+        
+        // Add accessibility properties
+        JSONObject accessibilityProps = new JSONObject();
+        collectAccessibilityProperties(view, accessibilityProps);
+        if (accessibilityProps.length() > 0) {
+            properties.put("accessibility", accessibilityProps);
+        }
+    }
+    
+    /**
+     * Collects accessibility-related properties.
+     *
+     * @param view The view to extract properties from
+     * @param properties The JSON object to store properties in
+     * @throws JSONException If there's an error creating the JSON structure
+     */
+    private static void collectAccessibilityProperties(View view, JSONObject properties) throws JSONException {
+        // Content description (equivalent to accessibilityLabel)
+        if (view.getContentDescription() != null) {
+            properties.put("accessibilityLabel", view.getContentDescription().toString());
+        }
+        
+        // Is accessible (focusable by screen readers)
+        int importanceForA11y = view.getImportantForAccessibility();
+        properties.put("accessible", importanceForA11y != View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        
+        // Important for accessibility
+        properties.put("importantForAccessibility", view.getImportantForAccessibility());
+        
+        // Is focusable
+        properties.put("focusable", view.isFocusable());
+        
+        // Accessibility hint (if available)
+        try {
+            // Try to access accessibility hint via reflection
+            java.lang.reflect.Method getAccessibilityHintMethod = view.getClass().getMethod("getAccessibilityHint");
+            if (getAccessibilityHintMethod != null) {
+                Object hint = getAccessibilityHintMethod.invoke(view);
+                if (hint != null) {
+                    properties.put("accessibilityHint", hint.toString());
+                }
+            }
+        } catch (Exception e) {
+            // Method not available, skip
+        }
+        
+        // Accessibility role (if available)
+        try {
+            // Try to access accessibility role via reflection
+            java.lang.reflect.Method getAccessibilityRoleMethod = view.getClass().getMethod("getAccessibilityRole");
+            if (getAccessibilityRoleMethod != null) {
+                Object role = getAccessibilityRoleMethod.invoke(view);
+                if (role != null) {
+                    properties.put("accessibilityRole", role.toString());
+                }
+            }
+        } catch (Exception e) {
+            // Method not available, skip
+        }
+    }
+    
+    /**
+     * Collects properties specific to ReactViewGroup.
+     *
+     * @param viewGroup The ViewGroup to extract properties from
+     * @param properties The JSON object to store properties in
+     * @throws JSONException If there's an error creating the JSON structure
+     */
+    private static void collectReactViewGroupProperties(ViewGroup viewGroup, JSONObject properties) throws JSONException {
+        // Most view group properties are covered by the common properties
+        // Additional properties like padding can be added here
+        properties.put("paddingLeft", viewGroup.getPaddingLeft());
+        properties.put("paddingTop", viewGroup.getPaddingTop());
+        properties.put("paddingRight", viewGroup.getPaddingRight());
+        properties.put("paddingBottom", viewGroup.getPaddingBottom());
+    }
+    
+    /**
+     * Collects properties specific to ReactTextView.
+     *
+     * @param view The view to extract properties from
+     * @param properties The JSON object to store properties in
+     * @throws JSONException If there's an error creating the JSON structure
+     */
+    private static void collectReactTextViewProperties(View view, JSONObject properties) throws JSONException {
+        if (view instanceof TextView) {
+            TextView textView = (TextView) view;
+            
+            // Text content
+            properties.put("text", textView.getText().toString());
+            
+            // Text color
+            properties.put("color", String.format("#%08X", textView.getCurrentTextColor()));
+            
+            // Font size (in pixels)
+            properties.put("fontSize", textView.getTextSize());
+            
+            // Enhanced font properties extraction
+            if (textView.getTypeface() != null) {
+                int style = textView.getTypeface().getStyle();
+                boolean isBold = (style & android.graphics.Typeface.BOLD) != 0;
+                boolean isItalic = (style & android.graphics.Typeface.ITALIC) != 0;
+                
+                properties.put("fontWeight", isBold ? "bold" : "normal");
+                properties.put("fontStyle", isItalic ? "italic" : "normal");
+                
+                // Try to extract font family
+                try {
+                    // Using reflection to access private field in ReactTextView that might contain font info
+                    java.lang.reflect.Field mFontFamilyField = view.getClass().getDeclaredField("mFontFamily");
+                    if (mFontFamilyField != null) {
+                        mFontFamilyField.setAccessible(true);
+                        String fontFamily = (String) mFontFamilyField.get(view);
+                        if (fontFamily != null && !fontFamily.isEmpty()) {
+                            properties.put("fontFamily", fontFamily);
+                        }
+                    }
+                } catch (Exception e) {
+                    // Fall back to basic font detection
+                    if (textView.getTypeface() != null) {
+                        properties.put("fontFamily", "system");
+                    }
+                }
+            }
+            
+            // Text alignment
+            int gravity = textView.getGravity();
+            String textAlign = "start";
+            if ((gravity & android.view.Gravity.CENTER_HORIZONTAL) != 0) {
+                textAlign = "center";
+            } else if ((gravity & android.view.Gravity.END) != 0) {
+                textAlign = "end";
+            }
+            properties.put("textAlign", textAlign);
+            
+            // Line height
+            properties.put("lineHeight", textView.getLineHeight());
+            
+            // Letter spacing (for API 21+)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                properties.put("letterSpacing", textView.getLetterSpacing());
+            }
+            
+            // Max lines
+            properties.put("numberOfLines", textView.getMaxLines());
+            
+            // Ellipsize
+            if (textView.getEllipsize() != null) {
+                properties.put("ellipsizeMode", textView.getEllipsize().toString());
+            }
+            
+            // Selectable
+            properties.put("selectable", textView.isTextSelectable());
+        }
+    }
+    
+    /**
+     * Collects properties specific to ReactImageView.
+     *
+     * @param view The view to extract properties from
+     * @param properties The JSON object to store properties in
+     * @throws JSONException If there's an error creating the JSON structure
+     */
+    private static void collectReactImageViewProperties(View view, JSONObject properties) throws JSONException {
+        // For ReactImageView, many properties are internal to Fresco DraweeView
+        // We can extract what's accessible via the base View class
+        
+        try {
+            // Try to access scaleType if available via reflection
+            java.lang.reflect.Method getScaleTypeMethod = view.getClass().getMethod("getScaleType");
+            Object scaleType = getScaleTypeMethod.invoke(view);
+            properties.put("resizeMode", scaleType.toString());
+        } catch (Exception e) {
+            // Method not available, skip
+        }
+        
+        // Tint color (for API 21+)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            try {
+                // Need to use a safer approach - not all Views have getImageTintList()
+                // This method is available on ImageView subclasses
+                if (view instanceof android.widget.ImageView) {
+                    android.widget.ImageView imageView = (android.widget.ImageView) view;
+                    if (imageView.getImageTintList() != null) {
+                        properties.put("tintColor", String.format("#%08X", imageView.getImageTintList().getDefaultColor()));
+                    }
+                } else {
+                    // Try to access via reflection as fallback
+                    java.lang.reflect.Method getTintListMethod = view.getClass().getMethod("getImageTintList");
+                    if (getTintListMethod != null) {
+                        android.content.res.ColorStateList tintList = 
+                            (android.content.res.ColorStateList) getTintListMethod.invoke(view);
+                        if (tintList != null) {
+                            properties.put("tintColor", String.format("#%08X", tintList.getDefaultColor()));
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                // Method not available or reflection failed, skip
+            }
+        }
+    }
+    
+    /**
+     * Collects properties specific to ReactEditText.
+     *
+     * @param view The view to extract properties from
+     * @param properties The JSON object to store properties in
+     * @throws JSONException If there's an error creating the JSON structure
+     */
+    private static void collectReactEditTextProperties(View view, JSONObject properties) throws JSONException {
+        if (view instanceof TextView) {  // EditText extends TextView
+            TextView editText = (TextView) view;
+            
+            // Text content
+            properties.put("text", editText.getText().toString());
+            
+            // Placeholder
+            if (editText.getHint() != null) {
+                properties.put("placeholder", editText.getHint().toString());
+            }
+            
+            // Placeholder color
+            properties.put("placeholderTextColor", String.format("#%08X", editText.getCurrentHintTextColor()));
+            
+            // Selection color
+            properties.put("selectionColor", String.format("#%08X", editText.getHighlightColor()));
+            
+            // Input type
+            properties.put("keyboardType", editText.getInputType());
+            
+            // Secure text entry
+            boolean isPassword = (editText.getInputType() & android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD) != 0;
+            properties.put("secureTextEntry", isPassword);
+            
+            // Other text properties are inherited from TextView and will be included
+            collectReactTextViewProperties(view, properties);
+        }
+    }
+    
+    /**
+     * Collects properties specific to ReactScrollView.
+     *
+     * @param view The view to extract properties from
+     * @param properties The JSON object to store properties in
+     * @throws JSONException If there's an error creating the JSON structure
+     */
+    private static void collectReactScrollViewProperties(View view, JSONObject properties) throws JSONException {
+        // Content offset
+        properties.put("scrollX", view.getScrollX());
+        properties.put("scrollY", view.getScrollY());
+        
+        // Scroll enabled
+        properties.put("scrollEnabled", view.isEnabled());
+        
+        // Scroll indicators
+        properties.put("showsVerticalScrollIndicator", view.isVerticalScrollBarEnabled());
+        properties.put("showsHorizontalScrollIndicator", view.isHorizontalScrollBarEnabled());
+    }
+    
+    /**
+     * Collects properties specific to ReactSwitch.
+     *
+     * @param view The view to extract properties from
+     * @param properties The JSON object to store properties in
+     * @throws JSONException If there's an error creating the JSON structure
+     */
+    private static void collectReactSwitchProperties(View view, JSONObject properties) throws JSONException {
+        try {
+            // Attempt to use reflection to get Switch-specific properties
+            java.lang.reflect.Method isCheckedMethod = view.getClass().getMethod("isChecked");
+            boolean isChecked = (boolean) isCheckedMethod.invoke(view);
+            properties.put("value", isChecked);
+            
+            // Enabled state
+            properties.put("disabled", !view.isEnabled());
+            
+            // API 21+ properties for thumb and track color
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                try {
+                    java.lang.reflect.Method getThumbTintListMethod = view.getClass().getMethod("getThumbTintList");
+                    android.content.res.ColorStateList thumbTintList = 
+                        (android.content.res.ColorStateList) getThumbTintListMethod.invoke(view);
+                    if (thumbTintList != null) {
+                        properties.put("thumbColor", String.format("#%08X", thumbTintList.getDefaultColor()));
+                    }
+                    
+                    java.lang.reflect.Method getTrackTintListMethod = view.getClass().getMethod("getTrackTintList");
+                    android.content.res.ColorStateList trackTintList = 
+                        (android.content.res.ColorStateList) getTrackTintListMethod.invoke(view);
+                    if (trackTintList != null) {
+                        properties.put("trackColor", String.format("#%08X", trackTintList.getDefaultColor()));
+                    }
+                } catch (Exception e) {
+                    // Methods not available, skip
+                }
+            }
+        } catch (Exception e) {
+            // Methods not available, skip
+        }
     }
 
     /**
