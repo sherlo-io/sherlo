@@ -367,9 +367,9 @@ static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
         }
     }
     
-    // Test ID (often stored as accessibilityIdentifier)
+    // Accessibility Identifier
     if (view.accessibilityIdentifier) {
-        [properties setObject:view.accessibilityIdentifier forKey:@"testID"];
+        [properties setObject:view.accessibilityIdentifier forKey:@"accessibilityIdentifier"];
     }
     
     // Add accessibility properties

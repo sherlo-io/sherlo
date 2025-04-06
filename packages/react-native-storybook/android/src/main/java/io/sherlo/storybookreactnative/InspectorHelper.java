@@ -166,6 +166,12 @@ public class InspectorHelper {
      * @throws JSONException If there's an error creating the JSON structure
      */
     private static void collectCommonViewProperties(View view, JSONObject properties) throws JSONException {
+        // Content Description
+        CharSequence contentDescription = view.getContentDescription();
+        if (contentDescription != null) {
+            viewObject.put("contentDescription", contentDescription.toString());
+        }
+
         // Background color
         if (view.getBackground() instanceof ColorDrawable) {
             int backgroundColor = ((ColorDrawable)view.getBackground()).getColor();
