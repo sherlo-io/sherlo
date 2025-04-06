@@ -172,6 +172,12 @@ public class InspectorHelper {
             properties.put("contentDescription", contentDescription.toString());
         }
 
+        // Tag 
+        Object tag = view.getTag();
+        if (tag != null) {
+            properties.put("tag", tag.toString());
+        }
+
         // Background color
         if (view.getBackground() instanceof ColorDrawable) {
             int backgroundColor = ((ColorDrawable)view.getBackground()).getColor();
@@ -192,11 +198,6 @@ public class InspectorHelper {
         properties.put("scaleX", view.getScaleX());
         properties.put("scaleY", view.getScaleY());
         
-        // Test ID (often stored as content description or tag)
-        if (view.getContentDescription() != null) {
-            properties.put("testID", view.getContentDescription().toString());
-        }
-        
         // Add accessibility properties
         JSONObject accessibilityProps = new JSONObject();
         collectAccessibilityProperties(view, accessibilityProps);
@@ -213,11 +214,6 @@ public class InspectorHelper {
      * @throws JSONException If there's an error creating the JSON structure
      */
     private static void collectAccessibilityProperties(View view, JSONObject properties) throws JSONException {
-        // Content description (equivalent to accessibilityLabel)
-        if (view.getContentDescription() != null) {
-            properties.put("accessibilityLabel", view.getContentDescription().toString());
-        }
-        
         // Is accessible (focusable by screen readers)
         int importanceForA11y = view.getImportantForAccessibility();
         properties.put("accessible", importanceForA11y != View.IMPORTANT_FOR_ACCESSIBILITY_NO);
