@@ -723,6 +723,7 @@ static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
     }
     
     // Add text direction information
+    if (@available(iOS 9.0, *)) {
         NSWritingDirection writingDirection = NSWritingDirectionLeftToRight;
         if ([label.attributedText length] > 0) {
             NSDictionary *attributes = [label.attributedText attributesAtIndex:0 effectiveRange:NULL];
