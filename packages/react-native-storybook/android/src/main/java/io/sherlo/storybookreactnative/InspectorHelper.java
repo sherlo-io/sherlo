@@ -169,7 +169,7 @@ public class InspectorHelper {
         // Content Description
         CharSequence contentDescription = view.getContentDescription();
         if (contentDescription != null) {
-            viewObject.put("contentDescription", contentDescription.toString());
+            properties.put("contentDescription", contentDescription.toString());
         }
 
         // Background color
