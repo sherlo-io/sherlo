@@ -8,30 +8,46 @@ on:
         required: true
         default: 'dev'
         type: string
-      preview_builds:
-        description: 'Builds: Preview'
+      expo_preview_builds:
+        description: 'Builds: Expo SB 8 Preview'
         required: false
         default: false
         type: boolean
-      development_builds:
-        description: 'Builds: Development'
+      expo_development_builds:
+        description: 'Builds: Expo SB 8 Development'
+        required: false
+        default: false
+        type: boolean
+      rn_preview_builds:
+        description: 'Builds: RN SB 7 Preview'
         required: false
         default: false
         type: boolean
 
 jobs:
-  update_preview_builds:
+  update_rn_preview_builds:
     uses: ./.github/workflows/update_builds.yml
-    if: ${{ github.event.inputs.preview_builds == 'true'}}
-    name: Update Preview Builds
+    if: ${{ github.event.inputs.rn_preview_builds == 'true'}}
+    name: Update RN Preview Builds
     secrets: inherit
     with:
       profile: 'preview'
+      project: 'rn-storybook-7'
 
-  update_development_builds:
+  update_expo_preview_builds:
     uses: ./.github/workflows/update_builds.yml
-    if: ${{ github.event.inputs.development_builds == 'true'}}
-    name: Update Development Builds
+    if: ${{ github.event.inputs.expo_preview_builds == 'true'}}
+    name: Update Expo Preview Builds
+    secrets: inherit
+    with:
+      profile: 'preview'
+      project: 'expo-storybook-8'
+
+  update_expo_development_builds:
+    uses: ./.github/workflows/update_builds.yml
+    if: ${{ github.event.inputs.expo_development_builds == 'true'}}
+    name: Update Expo Development Builds
     secrets: inherit
     with:
       profile: 'development'
+      project: 'expo-storybook-8'

@@ -4,6 +4,7 @@ import { VERIFICATION_TEST_ID } from '../../../../constants';
 import { SherloModule, RunnerBridge } from '../../../../helpers';
 import { Snapshot } from '../../../../types';
 import prepareSnapshots from './prepareSnapshots';
+import { isStorybook7 } from '../../../helpers';
 
 function useSetInitialTestingData({ view }: { view: ReturnType<typeof start> }): void {
   const lastState = SherloModule.getLastState();
@@ -79,6 +80,10 @@ async function startNewTestingSession(allStories: Snapshot[]): Promise<void> {
       throw new Error('Main view ID not found on screen');
     }, 0);
   }
+
+  RunnerBridge.log('isStorybook7', {
+    isStorybook7,
+  });
 
   await RunnerBridge.send({
     action: 'START',

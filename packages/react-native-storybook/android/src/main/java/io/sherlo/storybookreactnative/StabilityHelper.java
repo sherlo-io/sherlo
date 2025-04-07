@@ -62,38 +62,20 @@ public class StabilityHelper {
             throw new RuntimeException("Impossible to snapshot the view: view is invalid");
         }
 
-        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
+        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
         
         rootView.draw(canvas);
-
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-            final CountDownLatch latch = new CountDownLatch(1);
-            
-            PixelCopy.request(activity.getWindow(), bitmap, copyResult -> {
-                latch.countDown();
-            }, new Handler(Looper.getMainLooper()));
-
-            try {
-                // Reduced timeout to 1 second
-                if (!latch.await(1, TimeUnit.SECONDS)) {
-                    // If timeout occurs, just use the canvas-based screenshot
-                    return bitmap;
-                }
-            } catch (InterruptedException e) {
-                // If interrupted, use the canvas-based screenshot
-                return bitmap;
-            }
-        }
 
         return bitmap;
     }
 
     /**
-     * Compares two bitmaps by checking pixel arrays with early exit on difference.
+     * Compares two bitmaps by checking pixel arrays and counts different pixels.
      */
     public boolean areBitmapsEqual(Bitmap bmp1, Bitmap bmp2) {
         if (bmp1.getWidth() != bmp2.getWidth() || bmp1.getHeight() != bmp2.getHeight()) {
+            Log.d(TAG, "Bitmaps have different dimensions");
             return false;
         }
         
@@ -103,7 +85,16 @@ public class StabilityHelper {
         int[] pixels2 = new int[width * height];
         bmp1.getPixels(pixels1, 0, width, 0, 0, width, height);
         bmp2.getPixels(pixels2, 0, width, 0, 0, width, height);
-        return Arrays.equals(pixels1, pixels2);
+
+        int differentPixels = 0;
+        for (int i = 0; i < pixels1.length; i++) {
+            if (pixels1[i] != pixels2[i]) {
+                differentPixels++;
+            }
+        }
+
+        Log.d(TAG, "Different pixels: " + differentPixels + " out of " + (width * height) + " total pixels");
+        return differentPixels == 0;
     }
 
     /**
@@ -161,8 +152,8 @@ public class StabilityHelper {
                 if (consecutiveMatches[0] >= requiredMatches) {
                     Log.d(TAG, "UI is stable");
                     callback.onResult(true);
-                } else if (elapsedTime >= timeoutMs) {
-                    Log.d(TAG, "UI is not stable");
+                } else if (elapsedTime >= timeoutMs && consecutiveMatches[0] == 0) {
+                    Log.d(TAG, "UI is not stable - timeout with no matches");
                     callback.onResult(false);
                 } else {
                     handler.postDelayed(this, Math.max(intervalMs, 1));

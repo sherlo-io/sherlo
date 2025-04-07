@@ -19,9 +19,7 @@
     "directory": "packages/cli"
   },
   "main": "dist/index.js",
-  "bin": {
-    "sherlo": "./cli.js"
-  },
+  "bin": "./cli.js",
   "files": [
     "dist",
     "sdk-compatibility.json",
@@ -32,10 +30,10 @@
   },
   "devDependencies": {
     "@sentry/node": "8.41.0",
-    "@sherlo/api-types": "1.1.13",
-    "@sherlo/common-client": "1.1.13",
-    "@sherlo/sdk-client": "1.1.13",
-    "@sherlo/shared": "1.1.13",
+    "@sherlo/api-types": "portal:../../sherlo-lib/extracted/@sherlo/api-types",
+    "@sherlo/common-client": "portal:../../sherlo-lib/extracted/@sherlo/common-client",
+    "@sherlo/sdk-client": "portal:../../sherlo-lib/extracted/@sherlo/sdk-client",
+    "@sherlo/shared": "portal:../../sherlo-lib/extracted/@sherlo/shared",
     "@types/git-rev-sync": "^2.0.0",
     "@types/gradient-string": "^1.1.2",
     "@types/node": "^16.11.7",

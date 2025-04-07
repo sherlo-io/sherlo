@@ -61,7 +61,7 @@ static NSString *const LOG_TAG = @"SherloModule:StabilityHelper";
                 resolve(@YES);
             }
             // Check if we've exceeded the timeout.
-            else if (elapsedMs >= timeoutMs) {
+            else if (elapsedMs >= timeoutMs && consecutiveMatches == 0) {
                 NSLog(@"[%@] UI is unstable", LOG_TAG);
                 [t invalidate];
                 resolve(@NO);
