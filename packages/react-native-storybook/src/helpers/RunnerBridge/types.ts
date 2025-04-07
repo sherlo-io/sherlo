@@ -42,6 +42,12 @@ export type AppProtocolItem =
       inspectorData?: string;
       isStable?: boolean;
       requestId: string;
+      safeAreaMetadata?: {
+        shouldAddSafeArea: boolean;
+        insetBottom: number;
+        insetTop: number;
+        isStorybook7: boolean;
+      };
     };
 
 export type AckStartProtocolItem = {

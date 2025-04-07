@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { RunnerBridge, SherloModule } from '../../../../helpers';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { isStorybook7 } from '../../../helpers';
 
 function useTestStory(): void {
   const config = SherloModule.getConfig();
@@ -52,6 +53,12 @@ function useTestStory(): void {
           inspectorData,
           isStable,
           requestId: requestId,
+          safeAreaMetadata: {
+            shouldAddSafeArea: !nextSnapshot.parameters?.noSafeArea,
+            insetBottom: insets.bottom,
+            insetTop: insets.top,
+            isStorybook7,
+          },
         });
       } catch (error) {
         // @ts-ignore
