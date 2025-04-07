@@ -3,7 +3,6 @@ import { useMemo } from 'react';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VERIFICATION_TEST_ID } from '../../../constants';
-import { RunnerBridge } from '../../../helpers';
 import { StorybookParams, StorybookView } from '../../../types';
 import { getStorybookComponent } from '../../helpers';
 
@@ -64,14 +63,6 @@ function Storybook({
       backgroundColor: uiSettings.theme.background.content,
     };
   }
-
-  RunnerBridge.log('wrapping style', {
-    style,
-    isStorybook7,
-    shouldAddSafeArea: uiSettings.shouldAddSafeArea,
-    insetBottom: insets.bottom,
-    insetTop: insets.top,
-  });
 
   return (
     <View testID={VERIFICATION_TEST_ID} style={style}>
