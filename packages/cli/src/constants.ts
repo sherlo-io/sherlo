@@ -17,10 +17,12 @@ export const DOCS_LINK = {
   configIos: `${DOCS_DOMAIN}/setup/config#ios`,
   configDevices: `${DOCS_DOMAIN}/setup/config#devices`,
 
+  builds: `${DOCS_DOMAIN}/setup/builds`,
+
   testing: `${DOCS_DOMAIN}/setup/testing`,
-  commandLocalBuilds: `${DOCS_DOMAIN}/setup/testing?command=local-builds#sherlo-commands`,
-  commandExpoUpdate: `${DOCS_DOMAIN}/setup/testing?command=expo-update#sherlo-commands`,
-  commandExpoCloudBuilds: `${DOCS_DOMAIN}/setup/testing?command=expo-cloud-builds#sherlo-commands`,
+  commandLocalBuilds: `${DOCS_DOMAIN}/setup/testing?command=local-builds#testing-commands`,
+  commandExpoCloudBuilds: `${DOCS_DOMAIN}/setup/testing?command=expo-cloud-builds#testing-commands`,
+  commandExpoUpdate: `${DOCS_DOMAIN}/setup/testing?command=expo-update#testing-commands`,
 
   devices: `${DOCS_DOMAIN}/devices`,
 };

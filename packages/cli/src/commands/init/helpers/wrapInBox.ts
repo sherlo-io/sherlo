@@ -57,7 +57,7 @@ function renderTopLine(title: string | undefined, maxLength: number, type?: Type
       BOX.TOP_LEFT,
       BOX.HORIZONTAL.repeat(PADDING),
       titlePart,
-      BOX.HORIZONTAL.repeat(maxLength - titlePart.length),
+      BOX.HORIZONTAL.repeat(maxLength - getVisibleLength(titlePart)),
       BOX.HORIZONTAL.repeat(PADDING),
       BOX.TOP_RIGHT,
     ].join(''),

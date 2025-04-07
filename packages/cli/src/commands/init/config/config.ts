@@ -4,34 +4,37 @@ import { printTitle, waitForKeyPress, trackProgress } from '../helpers';
 import { EVENT, TOKEN_PLACEHOLDER } from './constants';
 import createConfig from './createConfig';
 import hasConfigFile from './hasConfigFile';
+import printDevicesInfo from './printDevicesInfo';
 import updateConfig from './updateConfig';
 
-async function sherloConfig({
-  sessionId,
-  token,
-}: {
-  sessionId: string;
-  token?: string;
-}): Promise<void> {
-  printTitle('⚙️ Sherlo Config');
+async function config({ sessionId, token }: { sessionId: string; token?: string }): Promise<void> {
+  printTitle('📋 Config');
 
-  let action, config;
+  let configValue, hasAddedDefaultDevices, action;
 
   if (!hasConfigFile()) {
-    config = await createConfig(token);
+    ({ createdConfig: configValue, hasAddedDefaultDevices } = await createConfig(token));
+
     action = 'created';
   } else {
-    config = await updateConfig(token);
+    ({ updatedConfig: configValue, hasAddedDefaultDevices } = await updateConfig(token));
+
     action = 'updated';
   }
 
-  const { token: configToken, ...configWithoutToken } = config;
+  const { token: configToken, ...configWithoutToken } = configValue;
 
   await trackProgress({
     event: EVENT,
     params: { action, configWithoutToken },
     sessionId,
   });
+
+  if (hasAddedDefaultDevices) {
+    console.log();
+
+    printDevicesInfo();
+  }
 
   if (configToken === TOKEN_PLACEHOLDER) {
     console.log();
@@ -45,4 +48,4 @@ async function sherloConfig({
   }
 }
 
-export default sherloConfig;
+export default config;
