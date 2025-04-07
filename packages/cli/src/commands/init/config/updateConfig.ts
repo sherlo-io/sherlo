@@ -1,20 +1,23 @@
 import { DEFAULT_CONFIG_FILENAME } from '../../../constants';
 import { InvalidatedConfig } from '../../../types';
 import { printMessage } from '../helpers';
-import { DEFAULT_DEVICE, TOKEN_PLACEHOLDER } from './constants';
-import printDefaultDeviceInfo from './printDefaultDeviceInfo';
+import { DEFAULT_DEVICES, TOKEN_PLACEHOLDER } from './constants';
+import printDefaultDevicesMessage from './printDefaultDevicesMessage';
 import printPlaceholderTokenMessage from './printPlaceholderTokenMessage';
 import readConfig from './readConfig';
 import writeConfig from './writeConfig';
 
-async function updateConfig(token?: string): Promise<InvalidatedConfig> {
+async function updateConfig(
+  token?: string
+): Promise<{ updatedConfig: InvalidatedConfig; hasAddedDefaultDevices: boolean }> {
   const config = await readConfig();
-  const hasDevices = !!config.devices?.length;
+  const hasDevices = Array.isArray(config.devices) && config.devices.length > 0;
+  let hasAddedDefaultDevices = false;
 
   const updatedConfig = {
     ...config,
     token: token ?? config.token ?? TOKEN_PLACEHOLDER,
-    devices: hasDevices ? config.devices : [DEFAULT_DEVICE],
+    devices: hasDevices ? config.devices : DEFAULT_DEVICES,
   };
 
   await writeConfig(updatedConfig);
@@ -28,18 +31,18 @@ async function updateConfig(token?: string): Promise<InvalidatedConfig> {
   });
 
   if (!hasDevices) {
-    printDefaultDeviceInfo();
+    printDefaultDevicesMessage();
+    hasAddedDefaultDevices = true;
   }
 
   if (updatedConfig.token === TOKEN_PLACEHOLDER) {
-    if (!hasDevices) {
-      console.log();
-    }
-
     printPlaceholderTokenMessage();
   }
 
-  return updatedConfig;
+  return {
+    updatedConfig,
+    hasAddedDefaultDevices,
+  };
 }
 
 export default updateConfig;

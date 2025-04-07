@@ -1,6 +1,6 @@
 import { getCwd, runShellCommand, reporting } from '../../../helpers';
 
-async function getEnvInfo(): Promise<Record<string, any>> {
+async function getEnvInfo(): Promise<Record<string, any> | undefined> {
   let result;
 
   try {
