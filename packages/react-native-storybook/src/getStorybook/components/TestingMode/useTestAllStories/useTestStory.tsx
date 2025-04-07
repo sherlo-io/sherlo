@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { RunnerBridge, SherloModule } from '../../../../helpers';
+import { ViewInspectorRef } from '../ViewInspector';
 
-function useTestStory(): void {
+function useTestStory(viewInspectorRef: ViewInspectorRef): void {
   const config = SherloModule.getConfig();
   const lastState = SherloModule.getLastState();
 
@@ -34,6 +35,10 @@ function useTestStory(): void {
         });
 
         RunnerBridge.log('got inspector data', { inspectorData });
+
+        const jsInspectorData = viewInspectorRef?.getJSInspectorData();
+
+        RunnerBridge.log('got js inspector data', { jsInspectorData });
 
         const containsError = inspectorData.includes('Something went wrong rendering your story');
 
