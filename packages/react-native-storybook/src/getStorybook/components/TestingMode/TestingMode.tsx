@@ -37,11 +37,7 @@ function TestingMode({
         shouldAddSafeArea: true,
       };
 
-  return (
-    <SafeAreaProvider>
-      <Storybook params={params} uiSettings={uiSettings} view={view} />
-    </SafeAreaProvider>
-  );
+  return <Storybook params={params} uiSettings={uiSettings} view={view} />;
 }
 
 export default TestingMode;
