@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
 import { RunnerBridge, SherloModule } from '../../../../helpers';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function useTestStory(): void {
   const config = SherloModule.getConfig();
   const lastState = SherloModule.getLastState();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     (async (): Promise<void> => {

@@ -13,7 +13,7 @@
     "clear:devices": "../../scripts/overrideSherloMode.sh --clearAll",
     "update:development": "npx eas-cli update --channel=development --json --non-interactive --message='Update message'",
     "update:preview": "npx eas-cli update --channel=preview --json --non-interactive --message='Update message'",
-    "eas-build-on-complete": "./node_modules/.bin/sherlo eas-build-on-complete --profile=preview",
+    "eas-build-on-complete": "npx sherlo eas-build-on-complete --profile=preview",
     "eas-build-post-install": "node ./scripts/setDevEnvOnExpoServer.js",
     "install:android:preview": "adb install builds/preview/android.apk",
     "install:ios:preview": "tar -xzvf builds/preview/ios.tar.gz -C builds/preview && xcrun simctl install booted builds/preview/SherloExpoExample.app",
@@ -22,7 +22,7 @@
     "start:ios:dev": "tar -xzvf builds/development/ios.tar.gz -C builds/development && xcrun simctl install booted builds/development/SherloExpoExample.app && expo start --ios --dev-client",
     "start:ios:go": "expo start --ios --go",
     "storybook:generate": "sb-rn-get-stories",
-    "sherlo": "./node_modules/.bin/sherlo"
+    "sherlo": "npx sherlo"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.0.2",

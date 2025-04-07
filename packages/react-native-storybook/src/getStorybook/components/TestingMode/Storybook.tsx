@@ -4,15 +4,7 @@ import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VERIFICATION_TEST_ID } from '../../../constants';
 import { StorybookParams, StorybookView } from '../../../types';
-import { getStorybookComponent } from '../../helpers';
-
-let isStorybook7 = true;
-try {
-  // This file is present only in Storybook 7
-  require('@storybook/react-native/V6');
-} catch (error) {
-  isStorybook7 = false;
-}
+import { getStorybookComponent, isStorybook7 } from '../../helpers';
 
 /**
  * We applied styles based on how they are defined in the link below to ensure that user's stories
