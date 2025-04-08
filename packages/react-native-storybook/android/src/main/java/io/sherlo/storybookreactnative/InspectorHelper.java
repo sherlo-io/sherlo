@@ -23,6 +23,7 @@ import java.util.List;
  */
 public class InspectorHelper {
     private static final String TAG = "SherloModule:InspectorHelper";
+    public static final int SHERLO_META_TAG_KEY = 0xDEADBEEF;
     
     /**
      * Gets UI inspector data from the current view hierarchy.
@@ -111,10 +112,18 @@ public class InspectorHelper {
         viewObject.put("width", rect.width());
         viewObject.put("height", rect.height());
 
-        // TODO: Add properties based on class
-        JSONObject properties = new JSONObject();
-        collectViewProperties(view, properties);
-        viewObject.put("properties", properties);
+        // Native metadata from custom tag (safe in production)
+        try {
+            java.lang.reflect.Method getIdMethod = view.getClass().getMethod("getId");
+            int nativeTag = (int) getIdMethod.invoke(view);
+            viewObject.put("nativeTag", nativeTag);
+        } catch (Exception e) {
+            // Skip silently
+        }
+
+        // JSONObject properties = new JSONObject();
+        // collectViewProperties(view, properties);
+        // viewObject.put("properties", properties);
 
         // Add children array for hierarchical structure
         JSONArray children = new JSONArray();
@@ -170,12 +179,6 @@ public class InspectorHelper {
         CharSequence contentDescription = view.getContentDescription();
         if (contentDescription != null) {
             properties.put("contentDescription", contentDescription.toString());
-        }
-
-        // Tag 
-        Object tag = view.getTag();
-        if (tag != null) {
-            properties.put("tag", tag.toString());
         }
 
         // Background color

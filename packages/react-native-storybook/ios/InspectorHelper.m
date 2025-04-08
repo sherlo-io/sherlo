@@ -226,11 +226,16 @@ static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
     if (isfinite(height)) {
         [viewDict setObject:@(height) forKey:@"height"];
     }
+    
+    NSNumber *reactTag = [view valueForKey:@"reactTag"];
+    if (reactTag) {
+        [viewDict setObject:reactTag forKey:@"nativeTag"];
+    }
 
-    // TODO: Add properties based on class
-    NSMutableDictionary *properties = [NSMutableDictionary dictionary];
-    [self collectPropertiesFromView:view intoDict:properties];
-    [viewDict setObject:properties forKey:@"properties"];
+    // // TODO: Add properties based on class
+    // NSMutableDictionary *properties = [NSMutableDictionary dictionary];
+    // [self collectPropertiesFromView:view intoDict:properties];
+    // [viewDict setObject:properties forKey:@"properties"];
     
     // Add children array
     NSMutableArray *children = [NSMutableArray array];

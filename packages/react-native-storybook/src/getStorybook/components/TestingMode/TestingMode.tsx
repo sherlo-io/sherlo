@@ -1,5 +1,5 @@
 import { darkTheme, theme } from '@storybook/react-native-theming';
-import { ReactElement, useRef } from 'react';
+import { ReactElement, useEffect, useRef } from 'react';
 import { useColorScheme } from 'react-native';
 import { StorybookParams, StorybookView } from '../../../types';
 import Storybook from './Storybook';
@@ -7,7 +7,7 @@ import setupErrorSilencing from './setupErrorSilencing';
 import useTestAllStories from './useTestAllStories';
 import SherloModule from '../../../helpers/SherloModule';
 import deepmerge from 'deepmerge';
-import { ViewInspector, ViewInspectorRef } from './ViewInspector';
+import MetadataCollector, { MetadataCollectorRef } from './MetadataCollector';
 
 setupErrorSilencing();
 
@@ -21,13 +21,11 @@ function TestingMode({
   params?: StorybookParams;
 }): ReactElement {
   const defaultTheme = useColorScheme() === 'dark' ? darkTheme : theme;
-  const viewInspectorRef = useRef<ViewInspectorRef>(null);
+  const metadataCollectorRef = useRef<MetadataCollectorRef>(null);
 
   useTestAllStories({
     view,
-    viewInspectorRef: {
-      getJSInspectorData: () => viewInspectorRef.current?.getJSInspectorData() || null,
-    },
+    metadataCollectorRef,
   });
 
   const nextSnapshot = lastState?.nextSnapshot;
@@ -41,11 +39,15 @@ function TestingMode({
         shouldAddSafeArea: true,
       };
 
-  return (
-    <ViewInspector ref={viewInspectorRef}>
-      <Storybook params={params} uiSettings={uiSettings} view={view} />
-    </ViewInspector>
-  );
+  if (__DEV__) {
+    return (
+      <MetadataCollector ref={metadataCollectorRef}>
+        <Storybook params={params} uiSettings={uiSettings} view={view} />
+      </MetadataCollector>
+    );
+  }
+
+  return <Storybook params={params} uiSettings={uiSettings} view={view} />;
 }
 
 export default TestingMode;

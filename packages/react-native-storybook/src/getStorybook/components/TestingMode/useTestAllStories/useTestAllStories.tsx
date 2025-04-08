@@ -1,20 +1,20 @@
 import { StorybookView } from '../../../../types';
-import { ViewInspectorRef } from '../ViewInspector';
+import { MetadataCollectorRef } from '../MetadataCollector';
 import useSetInitialTestingData from './useSetInitialTestingData';
 import useTestStory from './useTestStory';
 
 function useTestAllStories({
   view,
-  viewInspectorRef,
+  metadataCollectorRef,
 }: {
   view: StorybookView;
-  viewInspectorRef: ViewInspectorRef;
+  metadataCollectorRef: React.RefObject<MetadataCollectorRef>;
 }) {
   useSetInitialTestingData({
     view,
   });
 
-  useTestStory(viewInspectorRef);
+  useTestStory(metadataCollectorRef);
 }
 
 export default useTestAllStories;

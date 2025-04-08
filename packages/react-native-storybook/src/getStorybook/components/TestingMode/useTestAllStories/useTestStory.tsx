@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
 import { RunnerBridge, SherloModule } from '../../../../helpers';
-import { ViewInspectorRef } from '../ViewInspector';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isStorybook7 } from '../../../helpers';
+import { MetadataCollectorRef } from '../MetadataCollector';
+import { enhanceInspectorDataWithJsProperties } from './enhanceInspectorData';
 
-function useTestStory(viewInspectorRef: ViewInspectorRef): void {
+function useTestStory(metadataCollectorRef: React.RefObject<MetadataCollectorRef>): void {
   const config = SherloModule.getConfig();
   const lastState = SherloModule.getLastState();
   const insets = useSafeAreaInsets();
@@ -37,25 +38,28 @@ function useTestStory(viewInspectorRef: ViewInspectorRef): void {
           throw error;
         });
 
-        RunnerBridge.log('got inspector data', { inspectorData });
+        const metadataTree = metadataCollectorRef.current?.collectMetadata();
 
-        const jsInspectorData = viewInspectorRef?.getJSInspectorData();
+        // Enhance the inspector data with JS properties from metadata
+        const enhancedInspectorData = metadataTree
+          ? enhanceInspectorDataWithJsProperties(JSON.parse(inspectorData), metadataTree)
+          : JSON.parse(inspectorData);
 
-        RunnerBridge.log('got js inspector data', { jsInspectorData });
+        RunnerBridge.log('got inspector data', { inspectorData: enhancedInspectorData });
 
         const containsError = inspectorData.includes('Something went wrong rendering your story');
 
         RunnerBridge.log('requesting screenshot from master script', {
           action: 'REQUEST_SNAPSHOT',
           hasError: containsError,
-          inspectorData: !!inspectorData,
+          inspectorData: !!enhancedInspectorData,
           isStable,
         });
 
         await RunnerBridge.send({
           action: 'REQUEST_SNAPSHOT',
           hasError: containsError,
-          inspectorData,
+          inspectorData: JSON.stringify(enhancedInspectorData),
           isStable,
           requestId: requestId,
           safeAreaMetadata: {
