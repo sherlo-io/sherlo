@@ -70,7 +70,7 @@ jobs:
         with:
           author_name: Sherlo Bot
           author_email: admin@sherlo.io
-          message: 'Update Preview builds'
+          message: 'Update ${{ inputs.project }} ${{ inputs.profile }} builds'
           add: 'testing/${{ inputs.project }}/builds/${{ inputs.profile }}/*'
           push: true
           branch: ${{ github.head_ref || github.ref_name }}

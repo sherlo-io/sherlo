@@ -44,9 +44,7 @@ function TestingMode({
 
   return (
     <ViewInspector ref={viewInspectorRef}>
-      <SafeAreaProvider>
-        <Storybook params={params} uiSettings={uiSettings} view={view} />
-      </SafeAreaProvider>
+      <Storybook params={params} uiSettings={uiSettings} view={view} />
     </ViewInspector>
   );
 }
