@@ -98,6 +98,35 @@ static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
     
     [rootObject setObject:viewHierarchy forKey:@"viewHierarchy"];
     
+    // Add validation before JSON serialization
+    if (![NSJSONSerialization isValidJSONObject:rootObject]) {
+        NSMutableDictionary *debugInfo = [NSMutableDictionary dictionary];
+        
+        // Add debug logging
+        NSLog(@"[%@] JSON serialization failed for rootObject", LOG_TAG);
+        
+        // Check if the hierarchy is valid
+        if (![NSJSONSerialization isValidJSONObject:viewHierarchy]) {
+            NSLog(@"[%@] Invalid viewHierarchy detected", LOG_TAG);
+            [debugInfo setObject:@"Invalid viewHierarchy" forKey:@"invalidComponent"];
+            
+            // Try to identify the problem
+            [self validateJsonObject:viewHierarchy withDebugInfo:debugInfo path:@"root"];
+        }
+        
+        if (error) {
+            *error = [NSError errorWithDomain:@"InspectorHelper" 
+                                       code:3 
+                                   userInfo:@{
+                NSLocalizedDescriptionKey: @"Could not serialize view data to JSON",
+                @"debugInfo": debugInfo
+            }];
+            // Add debug logging for the error
+            NSLog(@"[%@] Created error with debug info: %@", LOG_TAG, debugInfo);
+        }
+        return nil;
+    }
+    
     NSData *jsonData = [NSJSONSerialization dataWithJSONObject:rootObject options:0 error:error];
     if (!jsonData) {
         if (error) {
@@ -211,6 +240,32 @@ static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
     [viewDict setObject:children forKey:@"children"];
     
     return viewDict;
+}
+
+/**
+ * Validates if a value can be serialized as JSON.
+ *
+ * @param value The value to check
+ * @return YES if the value is valid for JSON serialization, NO otherwise
+ */
++ (BOOL)isValidJSONValue:(id)value {
+    if (!value) return YES;
+    
+    if ([value isKindOfClass:[NSString class]] ||
+        [value isKindOfClass:[NSNumber class]] ||
+        [value isKindOfClass:[NSNull class]]) {
+        return YES;
+    }
+    
+    if ([value isKindOfClass:[NSArray class]]) {
+        return [NSJSONSerialization isValidJSONObject:value];
+    }
+    
+    if ([value isKindOfClass:[NSDictionary class]]) {
+        return [NSJSONSerialization isValidJSONObject:value];
+    }
+    
+    return NO;
 }
 
 @end

@@ -5,6 +5,7 @@ import React, {
   isValidElement,
   useEffect,
   useRef,
+  ForwardRefExoticComponent,
 } from 'react';
 
 let counter = 1;
@@ -23,6 +24,17 @@ function getDisplayType(type: any): string {
     return 'anonymous';
   }
   return 'unknown';
+}
+
+// Type guard for forward ref components
+function isForwardRef(type: any): type is ForwardRefExoticComponent<any> {
+  return (
+    typeof type === 'object' &&
+    type !== null &&
+    '$$typeof' in type &&
+    type.$$typeof &&
+    type.$$typeof.toString() === 'Symbol(react.forward_ref)'
+  );
 }
 
 function injectMetadata(element: ReactNode, depth = 0): ReactNode {
@@ -46,10 +58,15 @@ function injectMetadata(element: ReactNode, depth = 0): ReactNode {
   }
 
   // Handle forwardRef
-  if (typeof type === 'object' && type?.$$typeof?.toString() === 'Symbol(react.forward_ref)') {
+  if (isForwardRef(type)) {
     let rendered;
     try {
-      rendered = type.render(props, null);
+      if ('render' in type && typeof type.render === 'function') {
+        rendered = type.render(props, null);
+      } else {
+        console.warn(`${'  '.repeat(depth)}⚠️ ForwardRef doesn't have a render method`);
+        return element;
+      }
     } catch (e) {
       console.warn(`${'  '.repeat(depth)}⚠️ Failed to render forwardRef:`, e);
       return element;
@@ -70,7 +87,8 @@ function injectMetadata(element: ReactNode, depth = 0): ReactNode {
   if (typeof type === 'function') {
     let rendered;
     try {
-      rendered = type(props);
+      const functionComponent = type as (props: any) => ReactNode;
+      rendered = functionComponent(props);
     } catch (e) {
       console.warn(`${'  '.repeat(depth)}⚠️ Failed to render component: ${displayType}`, e);
       return element;
