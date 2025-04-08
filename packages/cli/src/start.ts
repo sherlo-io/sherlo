@@ -20,7 +20,7 @@ import {
   WAIT_FOR_EAS_BUILD_OPTION,
   INIT_COMMAND,
 } from './constants';
-import { reporting } from './helpers';
+import { reporting, withCommandTimeout } from './helpers';
 
 // Disable all Node.js warnings
 process.removeAllListeners('warning');
@@ -70,7 +70,7 @@ async function start() {
       .option(...sharedOptions[PROJECT_ROOT_OPTION])
       .action(async (options) => {
         setReportingContext(LOCAL_BUILDS_COMMAND, options);
-        await localBuilds(options);
+        await withCommandTimeout(localBuilds)(options);
       });
 
     program
@@ -91,7 +91,7 @@ async function start() {
       .option(...sharedOptions[PROJECT_ROOT_OPTION])
       .action(async (options) => {
         setReportingContext(EXPO_UPDATE_COMMAND, options);
-        await expoUpdate(options);
+        await withCommandTimeout(expoUpdate)(options);
       });
 
     program
@@ -110,7 +110,7 @@ async function start() {
       .option(...sharedOptions[PROJECT_ROOT_OPTION])
       .action(async (options) => {
         setReportingContext(EXPO_CLOUD_BUILDS_COMMAND, options);
-        await expoCloudBuilds(options);
+        await withCommandTimeout(expoCloudBuilds)(options);
       });
 
     program
@@ -122,7 +122,7 @@ async function start() {
       )
       .action(async (options) => {
         setReportingContext(EAS_BUILD_ON_COMPLETE_COMMAND, options);
-        await easBuildOnComplete(options);
+        await withCommandTimeout(easBuildOnComplete)(options);
       });
 
     program

@@ -1,23 +1,17 @@
 import { exec, ExecException } from 'child_process';
 
-interface Options {
-  command: string;
-  projectRoot: string;
-  encoding?: 'utf8' | 'buffer';
-}
-
 /**
- * Executes a shell command asynchronously
- * @returns Promise that resolves to the command stdout output with removed leading/trailing whitespace,
- * or rejects with an enhanced error containing both stdout and stderr if the command fails
+ * Executes a command with the given options
  */
-async function runShellCommand(options: Options & { encoding?: 'utf8' }): Promise<string>;
-async function runShellCommand(options: Options & { encoding: 'buffer' }): Promise<Buffer>;
-async function runShellCommand({
+function executeCommand({
   command,
   projectRoot,
-  encoding = 'utf8',
-}: Options): Promise<string | Buffer> {
+  encoding,
+}: {
+  command: string;
+  projectRoot: string;
+  encoding: 'utf8' | 'buffer';
+}): Promise<string | Buffer> {
   return new Promise((resolve, reject) => {
     const options: {
       cwd: string;
@@ -66,4 +60,4 @@ async function runShellCommand({
   });
 }
 
-export default runShellCommand;
+export default executeCommand;

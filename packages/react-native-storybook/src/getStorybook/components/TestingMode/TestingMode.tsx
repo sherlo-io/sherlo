@@ -1,7 +1,6 @@
 import { darkTheme, theme } from '@storybook/react-native-theming';
 import { ReactElement, useRef } from 'react';
 import { useColorScheme } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StorybookParams, StorybookView } from '../../../types';
 import Storybook from './Storybook';
 import setupErrorSilencing from './setupErrorSilencing';
