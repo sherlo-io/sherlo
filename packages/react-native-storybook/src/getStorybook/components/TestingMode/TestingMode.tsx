@@ -7,7 +7,7 @@ import setupErrorSilencing from './setupErrorSilencing';
 import useTestAllStories from './useTestAllStories';
 import SherloModule from '../../../helpers/SherloModule';
 import deepmerge from 'deepmerge';
-import MetadataCollector, { MetadataCollectorRef } from './MetadataCollector';
+import { MetadataInjector } from './MetadataInjector';
 
 setupErrorSilencing();
 
@@ -21,11 +21,9 @@ function TestingMode({
   params?: StorybookParams;
 }): ReactElement {
   const defaultTheme = useColorScheme() === 'dark' ? darkTheme : theme;
-  const metadataCollectorRef = useRef<MetadataCollectorRef>(null);
 
   useTestAllStories({
     view,
-    metadataCollectorRef,
   });
 
   const nextSnapshot = lastState?.nextSnapshot;
@@ -39,15 +37,11 @@ function TestingMode({
         shouldAddSafeArea: true,
       };
 
-  if (__DEV__) {
-    return (
-      <MetadataCollector ref={metadataCollectorRef}>
-        <Storybook params={params} uiSettings={uiSettings} view={view} />
-      </MetadataCollector>
-    );
-  }
-
-  return <Storybook params={params} uiSettings={uiSettings} view={view} />;
+  return (
+    <MetadataInjector>
+      <Storybook params={params} uiSettings={uiSettings} view={view} />
+    </MetadataInjector>
+  );
 }
 
 export default TestingMode;

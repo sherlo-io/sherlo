@@ -18,7 +18,7 @@ export function enhanceInspectorDataWithJsProperties(
     if (!node) return;
 
     // Check if there's a matching entry in metadataTree for this node
-    const metadataEntry = metadataTree[node.nativeTag?.toString()];
+    const metadataEntry = metadataTree[node.nativeID];
 
     if (metadataEntry) {
       // Add metadata as jsProperties

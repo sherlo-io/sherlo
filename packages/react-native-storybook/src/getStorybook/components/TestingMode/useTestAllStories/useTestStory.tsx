@@ -2,10 +2,9 @@ import { useEffect } from 'react';
 import { RunnerBridge, SherloModule } from '../../../../helpers';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isStorybook7 } from '../../../helpers';
-import { MetadataCollectorRef } from '../MetadataCollector';
 import { enhanceInspectorDataWithJsProperties } from './enhanceInspectorData';
 
-function useTestStory(metadataCollectorRef: React.RefObject<MetadataCollectorRef>): void {
+function useTestStory(): void {
   const config = SherloModule.getConfig();
   const lastState = SherloModule.getLastState();
   const insets = useSafeAreaInsets();
@@ -38,14 +37,14 @@ function useTestStory(metadataCollectorRef: React.RefObject<MetadataCollectorRef
           throw error;
         });
 
-        const metadataTree = metadataCollectorRef.current?.collectMetadata();
+        const metadataTree = (global as any).__SHERLO_METADATA__;
 
         // Enhance the inspector data with JS properties from metadata
         const enhancedInspectorData = metadataTree
           ? enhanceInspectorDataWithJsProperties(JSON.parse(inspectorData), metadataTree)
           : JSON.parse(inspectorData);
 
-        RunnerBridge.log('got inspector data', { inspectorData: enhancedInspectorData });
+        RunnerBridge.log('enhanced inspector data', { inspectorData: enhancedInspectorData });
 
         const containsError = inspectorData.includes('Something went wrong rendering your story');
 
