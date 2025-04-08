@@ -20,6 +20,18 @@ const store: Record<string, any> = {};
 const MEMO_TYPE = Symbol.for('react.memo');
 const FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
 
+// Define interface for forwardRef component
+interface ForwardRefType {
+  $$typeof: symbol;
+  render: (props: any, ref: any) => ReactNode;
+}
+
+// Define interface for memo component
+interface MemoType {
+  $$typeof: symbol;
+  type: (props: any) => ReactNode;
+}
+
 // Check if a type is a primitive (e.g. "View", "Text", etc.)
 function isPrimitiveElement(type: any): boolean {
   return typeof type === 'string';
@@ -38,22 +50,22 @@ function getDisplayType(type: any): string {
 }
 
 // Helpers for type checking using React symbols.
-function isForwardRef(type: any): boolean {
+function isForwardRef(type: any): type is ForwardRefType {
   return type && typeof type === 'object' && type.$$typeof === FORWARD_REF_TYPE;
 }
-function isMemoComponent(type: any): boolean {
+function isMemoComponent(type: any): type is MemoType {
   return type && typeof type === 'object' && type.$$typeof === MEMO_TYPE;
 }
 
 /**
  * Repeatedly unwrap the element while it is a forwardRef or memo.
- * If unwrapping doesn’t produce a new element, break out of the loop.
+ * If unwrapping doesn't produce a new element, break out of the loop.
  */
 function unwrapComponent(element: ReactElement, depth: number): ReactNode {
   let current: ReactNode = element;
   let iterations = 0;
   while (isValidElement(current) && iterations < 10) {
-    const prev = current;
+    const prev: ReactNode = current;
     const { type, props } = current as ReactElement;
     if (isForwardRef(type)) {
       try {
@@ -67,7 +79,7 @@ function unwrapComponent(element: ReactElement, depth: number): ReactNode {
       try {
         log(`${'  '.repeat(depth)}🔄 Unwrapping memo`);
         const unwrapped = type.type(props);
-        // If unwrapping doesn’t change the element, break.
+        // If unwrapping doesn't change the element, break.
         if (unwrapped === current) break;
         current = unwrapped;
       } catch (e) {
@@ -92,9 +104,19 @@ function unwrapComponent(element: ReactElement, depth: number): ReactNode {
  */
 function withInjectedMetadata<P>(Component: React.ComponentType<P>) {
   return function MetadataInjectedComponent(props: P) {
-    const element = Component(props);
-    // Recursively inject metadata in the returned element.
-    return injectMetadata(element);
+    // Handle class and function components differently
+    if (Component.prototype && Component.prototype.isReactComponent) {
+      // For class components
+      const ClassComponent = Component as React.ComponentClass<P>;
+      const instance = new ClassComponent(props);
+      const element = instance.render();
+      return injectMetadata(element);
+    } else {
+      // For function components
+      const FunctionComponent = Component as React.FC<P>;
+      const element = FunctionComponent(props);
+      return injectMetadata(element);
+    }
   };
 }
 
@@ -158,8 +180,19 @@ function injectMetadata(element: ReactNode, depth = 0): ReactNode {
   // Handle function components that haven't been unwrapped.
   if (typeof type === 'function') {
     try {
-      const rendered = type(props);
-      return injectMetadata(rendered, depth + 1);
+      // Check if it's a class component
+      if (type.prototype && type.prototype.isReactComponent) {
+        // For class components, we need to instantiate and call render
+        const ClassComponent = type as React.ComponentClass<any>;
+        const instance = new ClassComponent(props);
+        const rendered = instance.render();
+        return injectMetadata(rendered, depth + 1);
+      } else {
+        // For function components, we can call directly
+        const FunctionComponent = type as React.FC<any>;
+        const rendered = FunctionComponent(props);
+        return injectMetadata(rendered, depth + 1);
+      }
     } catch (e) {
       warn(`${'  '.repeat(depth)}⚠️ Failed to render function component: ${displayType}`, e);
       return element;
