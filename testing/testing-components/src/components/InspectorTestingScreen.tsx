@@ -140,12 +140,6 @@ const InspectorTestingScreen: FC = () => {
           <RefBox />
         </View>
 
-        {/* FlatList with Styled Items */}
-        <View style={[styles.gridItem, { flex: 1 }]}>
-          <Text style={styles.label}>Styled FlatList</Text>
-          <StyleList />
-        </View>
-
         {/* Image with Styles */}
         <View style={styles.gridItem}>
           <Text style={styles.label}>Styled Image</Text>
@@ -167,6 +161,12 @@ const InspectorTestingScreen: FC = () => {
         <View style={styles.gridItem}>
           <Text style={styles.label}>Plain Text</Text>
           <Text style={styles.basicText}>This is a plain text block with custom styling.</Text>
+        </View>
+
+        {/* FlatList with Styled Items */}
+        <View style={[styles.gridItem, { flex: 1 }]}>
+          <Text style={styles.label}>Styled FlatList</Text>
+          <StyleList />
         </View>
       </View>
     </View>
