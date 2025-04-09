@@ -87,12 +87,14 @@ function unwrapComponent(element: ReactElement, depth: number): ReactNode {
       if (unwrapped !== null) {
         return unwrapped;
       }
+      log(`${'  '.repeat(depth)}Unwrapped forwardRef was null`);
     } else if (isMemoComponent(type)) {
       log(`${'  '.repeat(depth)}Unwrapping memo`);
       const unwrapped = unwrapMemo(type, props, depth);
       if (unwrapped !== null) {
         return unwrapped;
       }
+      log(`${'  '.repeat(depth)}Unwrapped memo was null`);
     } else {
       log(`${'  '.repeat(depth)}No unwrapping needed`);
     }
@@ -198,6 +200,68 @@ function processChildren(children: any, depth: number): any {
 }
 
 /**
+ * Check if node is a valid React element for processing
+ */
+function isReactElement(element: ReactNode, depth: number): boolean {
+  if (typeof element !== 'object' || element === null) {
+    log(`${'  '.repeat(depth)}Encountered primitive:`, element);
+    return false;
+  }
+
+  if (!isValidElement(element)) {
+    log(`${'  '.repeat(depth)}⛔️ Not a valid React element:`, element);
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Handle unresolved memo components
+ */
+function handleUnresolvedMemo(type: MemoType, props: any, depth: number): ReactNode {
+  if (typeof type.type !== 'function') {
+    warn(`${'  '.repeat(depth)}⚠️ Underlying memo type is not a function. Skipping this element.`);
+    return props.children;
+  }
+
+  const WrappedComponent = () =>
+    renderAndProcessComponent(type.type as React.ComponentType<any>, props, depth);
+
+  return <WrappedComponent />;
+}
+
+/**
+ * Render and process a function component
+ */
+function renderAndProcessComponent<P>(
+  type: React.ComponentType<P>,
+  props: P,
+  depth: number
+): ReactNode {
+  try {
+    let rendered: ReactNode;
+    if (type.prototype?.isReactComponent) {
+      // Class component
+      const ClassComponent = type as React.ComponentClass<P>;
+      const instance = new ClassComponent(props);
+      rendered = instance.render();
+      log(`${'  '.repeat(depth)}Class component rendered:`, rendered);
+    } else {
+      // Function component
+      const FunctionComponent = type as React.FC<P>;
+      rendered = FunctionComponent(props);
+      log(`${'  '.repeat(depth)}Function component rendered:`, rendered);
+    }
+
+    return injectMetadata(rendered, depth + 1);
+  } catch (e) {
+    warn(`${'  '.repeat(depth)}⚠️ Failed to render component`, e);
+    return null;
+  }
+}
+
+/**
  * Recursively traverse the React element tree to inject metadata
  */
 function injectMetadata(reactNode: ReactNode, depth = 0): ReactNode {
@@ -251,67 +315,6 @@ function injectMetadata(reactNode: ReactNode, depth = 0): ReactNode {
   log(`${'  '.repeat(depth)}❓ Unknown element type, skipping metadata injection.`);
 
   return reactElement;
-}
-
-/**
- * Check if node is a valid React element for processing
- */
-function isReactElement(element: ReactNode, depth: number): boolean {
-  if (typeof element !== 'object' || element === null) {
-    log(`${'  '.repeat(depth)}Encountered primitive:`, element);
-    return false;
-  }
-
-  if (!isValidElement(element)) {
-    log(`${'  '.repeat(depth)}⛔️ Not a valid React element:`, element);
-    return false;
-  }
-
-  return true;
-}
-
-/**
- * Handle unresolved memo components
- */
-function handleUnresolvedMemo(type: MemoType, props: any, depth: number): ReactNode {
-  if (typeof type.type !== 'function') {
-    warn(`${'  '.repeat(depth)}⚠️ Underlying memo type is not a function. Skipping this element.`);
-    return props.children;
-  }
-
-  const WrappedComponent = (passedProps: any) =>
-    renderAndProcessComponent(type.type, passedProps, depth);
-  return <WrappedComponent {...props} />;
-}
-
-/**
- * Render and process a function component
- */
-function renderAndProcessComponent<P>(
-  type: React.ComponentType<P>,
-  props: P,
-  depth: number
-): ReactNode {
-  try {
-    let rendered: ReactNode;
-    if (type.prototype?.isReactComponent) {
-      // Class component
-      const ClassComponent = type as React.ComponentClass<P>;
-      const instance = new ClassComponent(props);
-      rendered = instance.render();
-      log(`${'  '.repeat(depth)}Class component rendered:`, rendered);
-    } else {
-      // Function component
-      const FunctionComponent = type as React.FC<P>;
-      rendered = FunctionComponent(props);
-      log(`${'  '.repeat(depth)}Function component rendered:`, rendered);
-    }
-
-    return injectMetadata(rendered, depth + 1);
-  } catch (e) {
-    warn(`${'  '.repeat(depth)}⚠️ Failed to render component`, e);
-    return null;
-  }
 }
 
 /**
