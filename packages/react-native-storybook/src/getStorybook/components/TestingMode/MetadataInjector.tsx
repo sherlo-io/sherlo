@@ -88,7 +88,7 @@ function unwrapComponent(element: ReactElement, depth: number): ReactNode {
       log(`${'  '.repeat(depth)}Native component detected (${type}); abort unwrapping.`);
       break;
     }
-    if (type.$$typeof === CONTEXT_TYPE || type.$$typeof === PROVIDER_TYPE) {
+    if ((type as any).$$typeof === CONTEXT_TYPE || (type as any).$$typeof === PROVIDER_TYPE) {
       log(`${'  '.repeat(depth)}Context/Provider detected; abort unwrapping.`);
       break;
     }
@@ -201,7 +201,7 @@ function injectMetadata(element: ReactNode, depth = 0): ReactNode {
   const { type, props } = element;
   // Abort processing for Context Consumers/Providers to avoid their child-function issues.
   if (typeof type === 'object' && type !== null) {
-    if (type.$$typeof === CONTEXT_TYPE || type.$$typeof === PROVIDER_TYPE) {
+    if ((type as any).$$typeof === CONTEXT_TYPE || (type as any).$$typeof === PROVIDER_TYPE) {
       warn(
         `${'  '.repeat(
           depth
