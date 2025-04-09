@@ -5,7 +5,9 @@ import React, {
   isValidElement,
   useEffect,
   useRef,
+  ReactElement as RE,
 } from 'react';
+import { FlatList, TextInput } from 'react-native';
 
 // Toggle verbose logs (set to true for debugging)
 const SHOW_LOGS = true;
@@ -16,10 +18,9 @@ let counter = 1;
 const store: Record<string, any> = {};
 (global as any).__SHERLO_METADATA__ = store;
 
-// Use React symbols to detect memo and forwardRef wrappers.
+// React symbols for wrappers and context.
 const MEMO_TYPE = Symbol.for('react.memo');
 const FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
-// Additional symbols for context-related components.
 const CONTEXT_TYPE = Symbol.for('react.context');
 const PROVIDER_TYPE = Symbol.for('react.provider');
 
@@ -33,7 +34,7 @@ interface MemoType {
   type?: (props: any) => ReactNode;
 }
 
-// Check if a type is a primitive (e.g. "View", "Text", etc.)
+// Check if a type is a primitive (native element, e.g. "RCTView").
 function isPrimitiveElement(type: any): boolean {
   return typeof type === 'string';
 }
@@ -52,7 +53,7 @@ function getDisplayType(type: any): string {
   return 'unknown';
 }
 
-// Helpers for type checking using React symbols.
+// Helpers for type checking.
 function isForwardRef(type: any): type is ForwardRefType {
   return type && typeof type === 'object' && type.$$typeof === FORWARD_REF_TYPE;
 }
@@ -60,7 +61,7 @@ function isMemoComponent(type: any): type is MemoType {
   return type && typeof type === 'object' && type.$$typeof === MEMO_TYPE;
 }
 
-// Log additional type information for debugging.
+// Log extra type information for debugging.
 function logTypeInfo(type: any, depth: number) {
   log(`${'  '.repeat(depth)}Type Info:`, {
     keys: Object.keys(type),
@@ -72,9 +73,40 @@ function logTypeInfo(type: any, depth: number) {
 }
 
 /**
- * Repeatedly unwrap the element if it is a forwardRef or memo.
- * Extra guard: do not attempt to unwrap native components (string types) or
- * context-related components.
+ * Special-case FlatList:
+ * If the element is a FlatList, wrap its renderItem function so that each item is processed.
+ * Mark the element with __flatListProcessed so that it is only handled once.
+ */
+function processFlatList(element: ReactElement, depth: number): ReactElement {
+  const { props, type } = element;
+  const flatListName =
+    typeof type === 'function' ? type.displayName || type.name : type.displayName;
+  if (flatListName !== 'FlatList') return element;
+  log(`${'  '.repeat(depth)}Special processing for FlatList`);
+  // If already processed, return early.
+  if ((element as any).__flatListProcessed) {
+    log(`${'  '.repeat(depth)}FlatList already processed; skipping.`);
+    return element;
+  }
+  const originalRenderItem = props.renderItem;
+  if (typeof originalRenderItem === 'function' && !originalRenderItem.__wrapped) {
+    const wrappedRenderItem = (info: any) => {
+      const itemElement = originalRenderItem(info);
+      return injectMetadata(itemElement, depth + 1);
+    };
+    wrappedRenderItem.__wrapped = true;
+    const newProps = { ...props, renderItem: wrappedRenderItem };
+    const newElement = cloneElement(element, newProps);
+    (newElement as any).__flatListProcessed = true;
+    return newElement;
+  }
+  return element;
+}
+
+/**
+ * Unwrap the element if it is a forwardRef or memo.
+ * Abort unwrapping for native (string) or context-related components,
+ * or for components that we explicitly want to skip.
  */
 function unwrapComponent(element: ReactElement, depth: number): ReactNode {
   let current: ReactNode = element;
@@ -82,13 +114,25 @@ function unwrapComponent(element: ReactElement, depth: number): ReactNode {
 
   while (isValidElement(current) && iterations < 10) {
     const { type, props } = current as ReactElement;
-    // Abort unwrapping for native or context components.
+    // Abort unwrapping for native elements.
     if (typeof type === 'string') {
       log(`${'  '.repeat(depth)}Native component detected (${type}); abort unwrapping.`);
       break;
     }
+    // Abort for context-related elements.
     if ((type as any).$$typeof === CONTEXT_TYPE || (type as any).$$typeof === PROVIDER_TYPE) {
       log(`${'  '.repeat(depth)}Context/Provider detected; abort unwrapping.`);
+      break;
+    }
+    // Skip specific problematic components.
+    const compName = typeof type === 'function' ? type.displayName || type.name : '';
+    if (compName === 'unboundStoryFn') {
+      log(`${'  '.repeat(depth)}Skipping unwrapping for unboundStoryFn`);
+      break;
+    }
+    // Special-case FlatList: process its renderItem and then stop unwrapping.
+    if (compName === 'FlatList') {
+      current = processFlatList(current as ReactElement, depth);
       break;
     }
 
@@ -185,9 +229,10 @@ function withInjectedMetadata<P>(Component: React.ComponentType<P>) {
  * Recursively traverse the React element tree to inject metadata.
  * For primitives (strings, numbers) or context-related elements, returns the element unmodified.
  * When encountering unresolved memo components, wraps their inner function with our HOC.
+ * FlatList elements are processed by wrapping their renderItem (only once).
  */
 function injectMetadata(element: ReactNode, depth = 0): ReactNode {
-  // If element is a primitive (string, number, null), return it immediately.
+  // If element is a primitive, return it.
   if (typeof element !== 'object' || element === null) {
     log(`${'  '.repeat(depth)}Encountered primitive:`, element);
     return element;
@@ -197,8 +242,21 @@ function injectMetadata(element: ReactNode, depth = 0): ReactNode {
     return element;
   }
 
+  // If element is already marked as processed for FlatList, skip special processing.
+  if ((element as any).__flatListProcessed) {
+    log(`${'  '.repeat(depth)}FlatList already processed; skipping special handling.`);
+  } else {
+    // Special-case: if element is a FlatList, process its renderItem.
+    const { type } = element;
+    const compName =
+      typeof type === 'function' ? type.displayName || type.name : (type.displayName as string);
+    if (compName === 'FlatList') {
+      element = processFlatList(element as ReactElement, depth);
+    }
+  }
+
+  // Abort processing for Context Consumers/Providers.
   const { type, props } = element;
-  // Abort processing for Context Consumers/Providers to avoid their child-function issues.
   if (typeof type === 'object' && type !== null) {
     if ((type as any).$$typeof === CONTEXT_TYPE || (type as any).$$typeof === PROVIDER_TYPE) {
       warn(
@@ -292,11 +350,14 @@ type MetadataInjectorProps = {
 /**
  * MetadataInjector:
  *
- * This component wraps its children and recursively traverses the React element tree.
- * It attempts to unwrap forwardRef and memoized components and injects metadata
+ * This testing-only component recursively traverses the React element tree,
+ * attempting to unwrap forwardRef and memoized components and inject metadata
  * (such as styles, testID, nativeID) into a global store.
- * Enhanced logging and extra guards for native and context elements are provided
- * to prevent errors like "render is not a function (it is Object)".
+ *
+ * It includes special handling for context-related elements and for FlatList,
+ * ensuring that each FlatList item's renderItem output is processed only once.
+ *
+ * Detailed logging is provided to help debug issues such as "render is not a function" errors.
  */
 export function MetadataInjector({ children }: MetadataInjectorProps): ReactElement {
   const firstRender = useRef(true);
