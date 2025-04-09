@@ -17,8 +17,6 @@ const store: Record<string, any> = {};
 // React symbols for component types
 const MEMO_TYPE = Symbol.for('react.memo');
 const FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
-const CONTEXT_TYPE = Symbol.for('react.context');
-const PROVIDER_TYPE = Symbol.for('react.provider');
 
 // -----------------------------------------------------------------------------
 // Type Definitions and Guards
@@ -58,25 +56,6 @@ function isMemoComponent(type: any): type is MemoType {
 // -----------------------------------------------------------------------------
 
 /**
- * Get a displayable name for logging
- */
-function getDisplayType(type: any): string {
-  if (typeof type === 'string') return type;
-  if (typeof type === 'function') {
-    const component = type as ComponentWithDisplayName;
-    return component.displayName || component.name || 'anonymous';
-  }
-  if (typeof type === 'object' && type !== null) {
-    if (type.$$typeof === FORWARD_REF_TYPE) return 'forwardRef';
-    if (type.$$typeof === MEMO_TYPE) return 'memo';
-    if (type.$$typeof === CONTEXT_TYPE) return 'context';
-    if (type.$$typeof === PROVIDER_TYPE) return 'provider';
-    return 'unknownObj';
-  }
-  return 'unknown';
-}
-
-/**
  * Get component name safely
  */
 function getComponentName(type: any): string {
@@ -89,29 +68,6 @@ function getComponentName(type: any): string {
     return component.displayName || component.name || '';
   }
   return '';
-}
-
-// -----------------------------------------------------------------------------
-// FlatList Processing
-// -----------------------------------------------------------------------------
-
-/**
- * Special-case FlatList: Override its props to force rendering all items
- * and wrap renderItem to process each rendered item through metadata injection
- */
-function processFlatList(element: ReactElement, depth: number): ReactElement {
-  const { props } = element;
-  log(`${'  '.repeat(depth)}Special processing for FlatList`);
-
-  const newElement = cloneElement(element, {
-    ...props,
-    renderItem: (...args: any) => {
-      const itemElement = props.renderItem(...args);
-      return injectMetadata(itemElement, depth + 1);
-    },
-  });
-
-  return newElement;
 }
 
 // -----------------------------------------------------------------------------
@@ -207,38 +163,6 @@ function unwrapMemo(type: MemoType, props: any, depth: number): ReactNode | null
 // -----------------------------------------------------------------------------
 
 /**
- * HOC that wraps a component to process its output through metadata injection
- */
-function withInjectedMetadata<P>(Component: React.ComponentType<P>) {
-  return function MetadataInjectedComponent(props: P) {
-    log(`withInjectedMetadata: Rendering component with props:`, props);
-
-    try {
-      const element = renderComponent(Component, props);
-      log(`withInjectedMetadata: Rendered element:`, element);
-      return injectMetadata(element);
-    } catch (e) {
-      warn(`withInjectedMetadata: Error rendering component:`, e);
-      return <>{null}</>;
-    }
-  };
-}
-
-/**
- * Render a component with props
- */
-function renderComponent<P>(Component: React.ComponentType<P>, props: P): ReactNode {
-  if (Component.prototype && Component.prototype.isReactComponent) {
-    const ClassComponent = Component as React.ComponentClass<P>;
-    const instance = new ClassComponent(props);
-    return instance.render();
-  } else {
-    const FunctionComponent = Component as React.FC<P>;
-    return FunctionComponent(props);
-  }
-}
-
-/**
  * Process a primitive element by injecting metadata
  */
 function storeMetadataAndCloneElementWithNativeID(
@@ -283,39 +207,50 @@ function injectMetadata(reactNode: ReactNode, depth = 0): ReactNode {
 
   let reactElement = reactNode as ReactElement;
   const { type, props } = reactElement;
-  const compName = getComponentName(type);
 
   if (props.style !== undefined) {
     reactElement = storeMetadataAndCloneElementWithNativeID(reactElement, depth);
   }
 
   log(
-    `${'  '.repeat(depth)}🔥 processing "${compName}" of type ${getDisplayType(type)} that ${
+    `${'  '.repeat(depth)}🔥 processing "${getComponentName(type)}" that ${
       props.style !== undefined ? 'CONTAINS style props' : 'DOES NOT CONTAIN style props'
-    }`
+    }`,
+    reactElement
   );
-  log(`${'  '.repeat(depth)}reactElement:`, reactElement);
-
-  // Special handling for FlatList
-  if (compName === 'FlatList') {
-    return processFlatList(reactElement, depth);
-  }
 
   // Try to unwrap the component
   const unwrapped = unwrapComponent(reactElement, depth);
-  log(`${'  '.repeat(depth)}unwrapped:`, unwrapped);
 
   if (unwrapped !== reactElement) {
-    log(`${'  '.repeat(depth)}Element unwrapped. Processing the unwrapped element.`);
+    log(`${'  '.repeat(depth)}Element unwrapped. Processing the unwrapped element.`, unwrapped);
     return injectMetadata(unwrapped, depth);
   }
 
-  // Log element information
-  const displayType = getDisplayType(type);
-  log(`${'  '.repeat(depth)}🔍 Visiting element: { type: ${displayType} }`);
+  // Handle unresolved memo components
+  if (isMemoComponent(type)) {
+    log(`${'  '.repeat(depth)}⚠️ Unresolved memo detected. Wrapping with HOC.`);
+    return handleUnresolvedMemo(type, props, depth);
+  }
 
-  // Handle different component types
-  return processElementByType(reactElement, depth);
+  if (props?.children) {
+    log(
+      `${'  '.repeat(depth)}📦 Element with children, processing ${
+        props.children?.length ?? 0
+      } children`
+    );
+    const children = processChildren(props.children, depth + 1);
+    return cloneElement(reactElement, props, children);
+  }
+
+  if (typeof type === 'function') {
+    log(`${'  '.repeat(depth)}Rendering component:`, type);
+    return renderAndProcessComponent(type, props, depth);
+  }
+
+  log(`${'  '.repeat(depth)}❓ Unknown element type, skipping metadata injection.`);
+
+  return reactElement;
 }
 
 /**
@@ -336,88 +271,46 @@ function isReactElement(element: ReactNode, depth: number): boolean {
 }
 
 /**
- * Process an element based on its type
- */
-function processElementByType(element: ReactElement, depth: number): ReactNode {
-  const { type, props } = element;
-
-  // Handle unresolved memo components
-  if (isMemoComponent(type)) {
-    log(`${'  '.repeat(depth)}⚠️ Unresolved memo detected. Wrapping with HOC.`);
-    return handleUnresolvedMemo(type, props, depth);
-  }
-
-  // Handle React.Fragment
-  if (type === React.Fragment) {
-    log(`${'  '.repeat(depth)}📦 Fragment: ${getDisplayType(type)}, processing children`);
-    const children = processChildren(props.children, depth + 1);
-    return cloneElement(element, {}, children);
-  }
-
-  // Handle class components
-  if (typeof type === 'function' && type.prototype?.isReactComponent) {
-    log(`${'  '.repeat(depth)}📦 Class component: ${getDisplayType(type)}, processing children`);
-    const children = processChildren(props.children, depth + 1);
-    return cloneElement(element, props, children);
-  }
-
-  // Handle function components
-  if (typeof type === 'function') {
-    log(`${'  '.repeat(depth)}📦 Function component: ${getDisplayType(type)}, processing children`);
-    return renderAndProcessFunctionComponent(type, props, depth);
-  }
-
-  // Handle elements with children
-  if (props?.children) {
-    log(
-      `${'  '.repeat(depth)}📦 Element with children: ${getDisplayType(type)}, processing children`
-    );
-    const children = processChildren(props.children, depth + 1);
-    return cloneElement(element, props, children);
-  }
-
-  log(`${'  '.repeat(depth)}❓ Unknown element type, skipping metadata injection.`);
-  return element;
-}
-
-/**
  * Handle unresolved memo components
  */
 function handleUnresolvedMemo(type: MemoType, props: any, depth: number): ReactNode {
   if (typeof type.type !== 'function') {
     warn(`${'  '.repeat(depth)}⚠️ Underlying memo type is not a function. Skipping this element.`);
-    return <>{props.children}</>;
+    return props.children;
   }
 
-  const WrappedComponent = withInjectedMetadata(type.type);
+  const WrappedComponent = (passedProps: any) =>
+    renderAndProcessComponent(type.type, passedProps, depth);
   return <WrappedComponent {...props} />;
 }
 
 /**
  * Render and process a function component
  */
-function renderAndProcessFunctionComponent(
-  type: React.ComponentType<any>,
-  props: any,
+function renderAndProcessComponent<P>(
+  type: React.ComponentType<P>,
+  props: P,
   depth: number
 ): ReactNode {
   try {
     let rendered: ReactNode;
     if (type.prototype?.isReactComponent) {
       // Class component
-      const ClassComponent = type as React.ComponentClass<any>;
+      const ClassComponent = type as React.ComponentClass<P>;
       const instance = new ClassComponent(props);
       rendered = instance.render();
+      log(`${'  '.repeat(depth)}Class component rendered:`, rendered);
     } else {
       // Function component
-      const FunctionComponent = type as React.FC<any>;
+      const FunctionComponent = type as React.FC<P>;
       rendered = FunctionComponent(props);
+      log(`${'  '.repeat(depth)}Function component rendered:`, rendered);
     }
-    log(`${'  '.repeat(depth)}Function component rendered:`, rendered);
+
     return injectMetadata(rendered, depth + 1);
   } catch (e) {
-    warn(`${'  '.repeat(depth)}⚠️ Failed to render component: ${getDisplayType(type)}`, e);
-    return <>{props.children}</>;
+    warn(`${'  '.repeat(depth)}⚠️ Failed to render component`, e);
+    return null;
   }
 }
 
