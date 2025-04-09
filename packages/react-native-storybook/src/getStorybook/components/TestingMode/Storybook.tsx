@@ -27,15 +27,11 @@ function Storybook({
 }) {
   const insets = useSafeAreaInsets();
 
-  const memoizedStorybook = useMemo(() => {
-    const StorybookComponent = getStorybookComponent({
-      view,
-      params,
-      isTestingMode: true,
-    });
-
-    return <StorybookComponent />;
-  }, []);
+  const StorybookComponent = getStorybookComponent({
+    view,
+    params,
+    isTestingMode: true,
+  });
 
   let style;
 
@@ -58,7 +54,9 @@ function Storybook({
 
   return (
     <View testID={VERIFICATION_TEST_ID} style={style}>
-      <View style={{ flex: 1, overflow: 'hidden' }}>{memoizedStorybook}</View>
+      <View style={{ flex: 1, overflow: 'hidden' }}>
+        <StorybookComponent />
+      </View>
     </View>
   );
 }

@@ -101,6 +101,11 @@ public class InspectorHelper {
             viewObject.put("nativeID", nativeID.toString());
         }
 
+        Object tag = view.getTag();
+        if (tag != null) {
+            viewObject.put("tag", tag.toString());
+        }
+
         // Add children array for hierarchical structure
         JSONArray children = new JSONArray();
         if (view instanceof ViewGroup) {

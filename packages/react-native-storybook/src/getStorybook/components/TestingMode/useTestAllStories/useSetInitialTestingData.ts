@@ -9,50 +9,35 @@ import { isStorybook7 } from '../../../helpers';
 function useSetInitialTestingData({ view }: { view: ReturnType<typeof start> }): void {
   const lastState = SherloModule.getLastState();
 
-  const isStorybookReady = useIsStorybookReady(view);
-
   useEffect(() => {
-    if (!isStorybookReady || lastState) return;
+    if (lastState) return;
 
     (async () => {
+      await waitForStorybookReady(view);
+
       const allStories = prepareSnapshots({ view, splitByMode: true });
 
       RunnerBridge.log('snapshots prepared', { snapshotsCount: allStories.length });
 
       await startNewTestingSession(allStories);
     })();
-  }, [isStorybookReady]);
+  }, []);
 }
 
 export default useSetInitialTestingData;
 
 /* ========================================================================== */
 
-function useIsStorybookReady(view: ReturnType<typeof start>): boolean {
-  const [isReady, setIsReady] = useState(false);
+async function waitForStorybookReady(view: ReturnType<typeof start>): Promise<boolean> {
+  while (true) {
+    const isReady = Object.keys(view._idToPrepared).length > 0;
 
-  useEffect(() => {
-    const checkIfReady = () => {
-      const isReady = Object.keys(view._idToPrepared).length > 0;
+    if (isReady) {
+      return true;
+    }
 
-      if (isReady) {
-        setIsReady(true);
-        return true;
-      }
-
-      return false;
-    };
-
-    if (checkIfReady()) return;
-
-    const inter = setInterval(() => {
-      if (checkIfReady()) clearInterval(inter);
-    }, 500);
-
-    return () => clearInterval(inter);
-  }, []);
-
-  return isReady;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
 }
 
 async function startNewTestingSession(allStories: Snapshot[]): Promise<void> {

@@ -230,6 +230,11 @@ static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
     if (nativeID) {
         [viewDict setObject:nativeID forKey:@"nativeID"];
     }
+
+    NSString *accessibilityIdentifier = [view valueForKey:@"accessibilityIdentifier"];
+    if (accessibilityIdentifier) {
+        [viewDict setObject:accessibilityIdentifier forKey:@"accessibilityIdentifier"];
+    }
     
     // Add children array
     NSMutableArray *children = [NSMutableArray array];
