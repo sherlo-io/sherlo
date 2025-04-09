@@ -5,7 +5,6 @@ import React, {
   isValidElement,
   useEffect,
   useRef,
-  ReactElement as RE,
 } from 'react';
 
 // Toggle verbose logs (set to true for debugging)
