@@ -5,15 +5,42 @@ import {
 } from '@sherlo/react-native-storybook';
 import Storybook from './.storybook';
 import HomeScreen from './src/HomeScreen';
+import {StatusBar, useColorScheme} from 'react-native';
 
 addStorybookToDevMenu();
 
 function App() {
   if (isStorybookMode) {
-    return <Storybook />;
+    return (
+      <Wrapper>
+        <Storybook />
+      </Wrapper>
+    );
   }
 
-  return <HomeScreen />;
+  return (
+    <Wrapper>
+      <HomeScreen />
+    </Wrapper>
+  );
 }
 
 export default App;
+
+/* ========================================================================== */
+
+function Wrapper({children}: {children: React.ReactNode}) {
+  const colorScheme = useColorScheme();
+
+  return (
+    <>
+      <StatusBar
+        backgroundColor="transparent"
+        translucent
+        barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'}
+      />
+
+      {children}
+    </>
+  );
+}
