@@ -32,20 +32,29 @@ import {
   TouchableOpacity,
   Platform,
   LayoutChangeEvent,
+  ScrollView,
 } from 'react-native';
 
 // ----- Component Definitions -----
 
 // A memoized component that renders a styled box with various style props.
 const MemoBox: FC = memo(() => (
-  <View style={styles.memoBox}>
-    <Text style={styles.memoBoxText}>Memoized Box</Text>
+  <View style={styles.memoBox} testID="memo-styled-box">
+    <Text style={styles.memoBoxText} testID="memo-box-text">
+      Memoized Box
+    </Text>
   </View>
 ));
 
 // A forwardRef component that wraps a TextInput.
 const ForwardInput = forwardRef<TextInput, {}>((props, ref) => (
-  <TextInput ref={ref} style={styles.forwardInput} placeholder="Forwarded ref input" {...props} />
+  <TextInput
+    ref={ref}
+    style={styles.forwardInput}
+    placeholder="Forwarded ref input"
+    testID="forward-ref-input"
+    {...props}
+  />
 ));
 
 // A component that uses a ref to measure its layout.
@@ -71,10 +80,12 @@ const RefBox: FC = () => {
   };
 
   return (
-    <View ref={boxRef} style={styles.refBox} onLayout={onLayout}>
-      <Text style={styles.refBoxText}>Ref Box</Text>
+    <View ref={boxRef} style={styles.refBox} onLayout={onLayout} testID="ref-measurement-box">
+      <Text style={styles.refBoxText} testID="ref-box-text">
+        Ref Box
+      </Text>
       {layout && (
-        <Text style={styles.refLayoutText}>
+        <Text style={styles.refLayoutText} testID="ref-layout-dimensions-text">
           {`W: ${layout.width.toFixed(0)} | H: ${layout.height.toFixed(0)}`}
         </Text>
       )}
@@ -87,7 +98,7 @@ interface ListItem {
   id: string;
   title: string;
 }
-const flatListData: ListItem[] = Array.from({ length: 6 }, (_, i) => ({
+const flatListData: ListItem[] = Array.from({ length: 2 }, (_, i) => ({
   id: i.toString(),
   title: `Item ${i + 1}`,
 }));
@@ -98,13 +109,55 @@ const StyleList: FC = () => (
     data={flatListData}
     numColumns={2}
     columnWrapperStyle={styles.listColumn}
+    contentContainerStyle={styles.listContainer}
+    style={styles.list}
+    indicatorStyle="white"
+    ListFooterComponentStyle={styles.listFooter}
+    ListHeaderComponentStyle={styles.listHeader}
     keyExtractor={(item) => item.id}
-    renderItem={({ item }) => (
-      <TouchableOpacity style={styles.listItem}>
-        <Text style={styles.listItemText}>{item.title}</Text>
+    testID="style-flat-list"
+    renderItem={({ item, index }) => (
+      <TouchableOpacity style={styles.listItem} testID={`list-item-${index}`}>
+        <Text style={styles.listItemText} testID={`list-item-text-${index}`}>
+          {item.title}
+        </Text>
       </TouchableOpacity>
     )}
   />
+);
+
+// A component that renders a styled ScrollView with all possible styling properties.
+const StyledScrollView: FC = () => (
+  <ScrollView
+    style={styles.styledScrollView}
+    contentContainerStyle={styles.scrollViewContent}
+    horizontal={false}
+    showsVerticalScrollIndicator={true}
+    showsHorizontalScrollIndicator={false}
+    scrollEnabled={true}
+    bounces={true}
+    alwaysBounceVertical={true}
+    alwaysBounceHorizontal={false}
+    bouncesZoom={true}
+    decelerationRate="normal"
+    keyboardDismissMode="on-drag"
+    keyboardShouldPersistTaps="never"
+    directionalLockEnabled={true}
+    indicatorStyle="black"
+    maximumZoomScale={1.5}
+    minimumZoomScale={0.5}
+    scrollEventThrottle={16}
+    scrollsToTop={true}
+    testID="styled-scroll-view"
+  >
+    {Array.from({ length: 2 }).map((_, i) => (
+      <View key={i} style={styles.scrollItem} testID={`scroll-item-${i}`}>
+        <Text style={styles.scrollItemText} testID={`scroll-item-text-${i}`}>
+          Scroll Item {i + 1}
+        </Text>
+      </View>
+    ))}
+  </ScrollView>
 );
 
 // ----- Main InspectorTestingScreen Component -----
@@ -120,52 +173,79 @@ const InspectorTestingScreen: FC = () => {
   }, []);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>InspectorTestingScreen</Text>
+    <View style={styles.container} testID="inspector-testing-screen-container">
+      <Text style={styles.header} testID="inspector-screen-header">
+        InspectorTestingScreen
+      </Text>
 
       {/* Grid container to arrange components without scrolling */}
-      <View style={styles.grid}>
+      <View style={styles.grid} testID="components-grid-container">
         {/* Memoized Component */}
         <MemoBox />
 
         {/* ForwardRef TextInput */}
-        <View style={styles.gridItem}>
-          <Text style={styles.label}>ForwardRef Input</Text>
+        <View style={styles.gridItem} testID="forward-ref-input-container">
+          <Text style={styles.label} testID="forward-ref-input-label">
+            ForwardRef Input
+          </Text>
           <ForwardInput ref={inputRef} />
         </View>
 
         {/* Ref Measurement Example */}
-        <View style={styles.gridItem}>
-          <Text style={styles.label}>Ref Measurement</Text>
+        <View style={styles.gridItem} testID="ref-measurement-container">
+          <Text style={styles.label} testID="ref-measurement-label">
+            Ref Measurement
+          </Text>
           <RefBox />
         </View>
 
         {/* Image with Styles */}
-        <View style={styles.gridItem}>
-          <Text style={styles.label}>Styled Image</Text>
+        <View style={styles.gridItem} testID="styled-image-container">
+          <Text style={styles.label} testID="styled-image-label">
+            Styled Image
+          </Text>
           <Image
             source={{ uri: 'https://reactnative.dev/img/tiny_logo.png' }}
             style={styles.styledImage}
+            testID="react-native-logo-image"
           />
         </View>
 
         {/* Complex Styled View with Individual Border Radii */}
-        <View style={styles.gridItem}>
-          <Text style={styles.label}>Complex Styled Box</Text>
-          <View style={styles.complexBox}>
-            <Text style={styles.complexBoxText}>Rounded Corners, Shadow, Elevation</Text>
+        <View style={styles.gridItem} testID="complex-styled-box-container">
+          <Text style={styles.label} testID="complex-styled-box-label">
+            Complex Styled Box
+          </Text>
+          <View style={styles.complexBox} testID="complex-styled-box">
+            <Text style={styles.complexBoxText} testID="complex-box-text">
+              Rounded Corners, Shadow, Elevation
+            </Text>
           </View>
         </View>
 
         {/* Basic Text Element */}
-        <View style={styles.gridItem}>
-          <Text style={styles.label}>Plain Text</Text>
-          <Text style={styles.basicText}>This is a plain text block with custom styling.</Text>
+        <View style={styles.gridItem} testID="plain-text-container">
+          <Text style={styles.label} testID="plain-text-label">
+            Plain Text
+          </Text>
+          <Text style={styles.basicText} testID="plain-text-element">
+            This is a plain text block with custom styling.
+          </Text>
+        </View>
+
+        {/* Styled ScrollView */}
+        <View style={[styles.gridItem, { flex: 1 }]} testID="scroll-view-container">
+          <Text style={styles.label} testID="scroll-view-label">
+            Styled ScrollView
+          </Text>
+          <StyledScrollView />
         </View>
 
         {/* FlatList with Styled Items */}
-        <View style={[styles.gridItem, { flex: 1 }]}>
-          <Text style={styles.label}>Styled FlatList</Text>
+        <View style={[styles.gridItem, { flex: 1 }]} testID="flat-list-container">
+          <Text style={styles.label} testID="flat-list-label">
+            Styled FlatList
+          </Text>
           <StyleList />
         </View>
       </View>
@@ -265,6 +345,21 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   // FlatList item styling.
+  listContainer: {
+    backgroundColor: '#000',
+  },
+  list: {
+    backgroundColor: '#FF0',
+  },
+  listIndicator: {
+    backgroundColor: '#F00',
+  },
+  listFooter: {
+    backgroundColor: '#0F0',
+  },
+  listHeader: {
+    backgroundColor: '#00F',
+  },
   listColumn: {
     justifyContent: 'space-between',
     width: '100%',
@@ -333,6 +428,45 @@ const styles = StyleSheet.create({
     borderColor: '#CCC',
     borderRadius: 8,
     backgroundColor: '#FFF',
+    textAlign: 'center',
+  },
+  // Styled ScrollView
+  styledScrollView: {
+    width: '100%',
+    height: 120,
+    backgroundColor: '#F00',
+    borderWidth: 1,
+    borderColor: '#AAA',
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: Platform.OS === 'ios' ? 0.2 : 0,
+    shadowRadius: 3,
+    elevation: 3,
+    padding: 4,
+    marginVertical: 4,
+  },
+  scrollViewContent: {
+    padding: 10,
+    alignItems: 'center',
+    backgroundColor: '#0F0',
+  },
+  scrollItem: {
+    width: '100%',
+    padding: 8,
+    marginVertical: 4,
+    backgroundColor: '#FFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#DDD',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: Platform.OS === 'ios' ? 0.15 : 0,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  scrollItemText: {
+    fontSize: 14,
     textAlign: 'center',
   },
 });

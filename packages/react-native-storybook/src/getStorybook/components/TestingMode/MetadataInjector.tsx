@@ -265,19 +265,21 @@ function renderAndProcessComponent<P>(
  * Recursively traverse the React element tree to inject metadata
  */
 function injectMetadata(reactNode: ReactNode, depth = 0): ReactNode {
+  log(`------------------------------------------- injectMetadata:start, depth: ${depth}`);
   if (!isReactElement(reactNode, depth)) {
     return reactNode;
   }
 
   let reactElement = reactNode as ReactElement;
   const { type, props } = reactElement;
+  const componentName = getComponentName(type);
 
   if (props.style !== undefined) {
     reactElement = storeMetadataAndCloneElementWithNativeID(reactElement, depth);
   }
 
   log(
-    `${'  '.repeat(depth)}🔥 processing "${getComponentName(type)}" that ${
+    `${'  '.repeat(depth)}🔥 processing "${componentName}" that ${
       props.style !== undefined ? 'CONTAINS style props' : 'DOES NOT CONTAIN style props'
     }`,
     reactElement
@@ -297,7 +299,9 @@ function injectMetadata(reactNode: ReactNode, depth = 0): ReactNode {
     return handleUnresolvedMemo(type, props, depth);
   }
 
-  if (props?.children) {
+  // ScrollView is a special case because it can children but first we need to
+  // destructure the ScrollView into simpler components that also contain styles
+  if (props?.children && componentName !== 'ScrollView') {
     log(
       `${'  '.repeat(depth)}📦 Element with children, processing ${
         props.children?.length ?? 0
@@ -328,6 +332,5 @@ function injectMetadata(reactNode: ReactNode, depth = 0): ReactNode {
  * ensuring that each FlatList item's renderItem output is processed only once.
  */
 export function MetadataInjector({ children }: { children: ReactNode }): ReactNode {
-  log(`MetadataInjector`);
   return injectMetadata(children);
 }
