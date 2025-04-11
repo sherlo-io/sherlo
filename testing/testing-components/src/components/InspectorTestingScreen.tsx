@@ -234,7 +234,7 @@ const InspectorTestingScreen: FC = () => {
         </View>
 
         {/* Styled ScrollView */}
-        <View style={[styles.gridItem, { flex: 1 }]} testID="scroll-view-container">
+        <View style={styles.gridItem} testID="scroll-view-container">
           <Text style={styles.label} testID="scroll-view-label">
             Styled ScrollView
           </Text>
@@ -242,7 +242,7 @@ const InspectorTestingScreen: FC = () => {
         </View>
 
         {/* FlatList with Styled Items */}
-        <View style={[styles.gridItem, { flex: 1 }]} testID="flat-list-container">
+        <View style={styles.gridItem} testID="flat-list-container">
           <Text style={styles.label} testID="flat-list-label">
             Styled FlatList
           </Text>
@@ -259,7 +259,6 @@ export default InspectorTestingScreen;
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#EFEFEF',
   },
   container: {
     flex: 1,
@@ -293,7 +292,7 @@ const styles = StyleSheet.create({
   memoBox: {
     width: '90%',
     height: 80,
-    backgroundColor: '#FFF',
+    backgroundColor: '#98FB98', // Pale green
     borderRadius: 15,
     borderWidth: 2,
     borderColor: '#4CAF50',
@@ -309,6 +308,7 @@ const styles = StyleSheet.create({
   memoBoxText: {
     fontSize: 16,
     fontWeight: '600',
+    backgroundColor: '#FFDAB9', // Peachpuff
   },
   // ForwardInput styling.
   forwardInput: {
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 8,
-    backgroundColor: '#FFF',
+    backgroundColor: '#F0E68C', // Khaki
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: Platform.OS === 'ios' ? 0.3 : 0,
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
   refBox: {
     width: '100%',
     height: 60,
-    backgroundColor: '#FFD700',
+    backgroundColor: '#BA55D3', // Medium orchid
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
@@ -338,34 +338,37 @@ const styles = StyleSheet.create({
   refBoxText: {
     fontSize: 16,
     fontWeight: '500',
+    backgroundColor: '#B0E0E6', // Powder blue
   },
   refLayoutText: {
     marginTop: 2,
     fontSize: 12,
     color: '#333',
+    backgroundColor: '#FFFACD', // Lemon chiffon
   },
   // FlatList item styling.
   listContainer: {
-    backgroundColor: '#000',
+    backgroundColor: '#800080', // Purple
   },
   list: {
-    backgroundColor: '#FF0',
+    backgroundColor: '#87CEEB', // Sky blue
   },
   listIndicator: {
-    backgroundColor: '#F00',
+    backgroundColor: '#FFA07A', // Light salmon
   },
   listFooter: {
-    backgroundColor: '#0F0',
+    backgroundColor: '#7FFFD4', // Aquamarine
   },
   listHeader: {
-    backgroundColor: '#00F',
+    backgroundColor: '#FFC0CB', // Pink
   },
   listColumn: {
+    backgroundColor: '#00CED1', // Dark turquoise
     justifyContent: 'space-between',
     width: '100%',
   },
   listItem: {
-    backgroundColor: '#FFF',
+    backgroundColor: '#D8BFD8', // Thistle
     padding: 8,
     marginVertical: 4,
     borderRadius: 10,
@@ -382,6 +385,7 @@ const styles = StyleSheet.create({
   },
   listItemText: {
     fontSize: 14,
+    backgroundColor: '#E6E6FA', // Lavender
   },
   // Image styling with borderRadius and shadow.
   styledImage: {
@@ -400,7 +404,7 @@ const styles = StyleSheet.create({
   complexBox: {
     width: '100%',
     height: 80,
-    backgroundColor: '#FFF',
+    backgroundColor: '#FF6347', // Tomato
     borderTopLeftRadius: 20,
     borderTopRightRadius: 8,
     borderBottomLeftRadius: 8,
@@ -419,6 +423,7 @@ const styles = StyleSheet.create({
   complexBoxText: {
     fontSize: 14,
     textAlign: 'center',
+    backgroundColor: '#B0C4DE', // Light steel blue
   },
   // Basic text styling.
   basicText: {
@@ -427,14 +432,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#CCC',
     borderRadius: 8,
-    backgroundColor: '#FFF',
+    backgroundColor: '#9ACD32', // Yellow green
     textAlign: 'center',
   },
   // Styled ScrollView
   styledScrollView: {
     width: '100%',
     height: 120,
-    backgroundColor: '#F00',
+    backgroundColor: '#FF69B4', // Hot pink
     borderWidth: 1,
     borderColor: '#AAA',
     borderRadius: 10,
@@ -449,13 +454,13 @@ const styles = StyleSheet.create({
   scrollViewContent: {
     padding: 10,
     alignItems: 'center',
-    backgroundColor: '#0F0',
+    backgroundColor: '#20B2AA', // Light sea green
   },
   scrollItem: {
     width: '100%',
     padding: 8,
     marginVertical: 4,
-    backgroundColor: '#FFF',
+    backgroundColor: '#DDA0DD', // Plum
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#DDD',
@@ -468,5 +473,6 @@ const styles = StyleSheet.create({
   scrollItemText: {
     fontSize: 14,
     textAlign: 'center',
+    backgroundColor: '#FAEBD7', // Antique white
   },
 });

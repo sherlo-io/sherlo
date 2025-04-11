@@ -6,8 +6,8 @@ import React, { ReactElement, ReactNode, cloneElement, isValidElement } from 're
 
 // Toggle verbose logs (set to true for debugging)
 const SHOW_LOGS = true;
-const log = (msg: string, ...args: any[]) => SHOW_LOGS && console.log(msg, ...args);
-const warn = (msg: string, ...args: any[]) => SHOW_LOGS && console.warn(msg, ...args);
+const log = (depth: number, msg: string, ...args: any[]) =>
+  SHOW_LOGS && console.log(`${'  '.repeat(depth)}${msg}`, ...args);
 
 // Initialize global metadata store
 let counter = 1;
@@ -75,31 +75,64 @@ function getComponentName(type: any): string {
 // -----------------------------------------------------------------------------
 
 /**
+ * Render and process a function component
+ */
+function unwrapFunctionComponent<P>(
+  type: React.ComponentType<P>,
+  props: P,
+  depth: number
+): ReactNode {
+  try {
+    let unwrapped: ReactNode;
+    if (type.prototype?.isReactComponent) {
+      log(depth, `Unwrapping class component`);
+      const ClassComponent = type as React.ComponentClass<P>;
+      const instance = new ClassComponent(props);
+      unwrapped = instance.render();
+    } else {
+      log(depth, `Unwrapping function component`);
+      const FunctionComponent = type as React.FC<P>;
+      unwrapped = FunctionComponent(props);
+    }
+
+    return unwrapped;
+  } catch (e) {
+    log(depth, `⚠️ Failed to render component`, e);
+    return null;
+  }
+}
+
+/**
  * Unwrap the element if it is a forwardRef or memo
  */
 function unwrapComponent(element: ReactElement, depth: number): ReactNode {
   if (isValidElement(element)) {
     const { type, props } = element;
 
+    let unwrapped: ReactNode | null = null;
     if (isForwardRef(type)) {
-      log(`${'  '.repeat(depth)}Unwrapping forwardRef`);
-      const unwrapped = unwrapForwardRef(type, props, depth);
-      if (unwrapped !== null) {
-        return unwrapped;
-      }
-      log(`${'  '.repeat(depth)}Unwrapped forwardRef was null`);
+      log(depth, `Unwrapping forwardRef`);
+      unwrapped = unwrapForwardRef(type, props, depth);
     } else if (isMemoComponent(type)) {
-      log(`${'  '.repeat(depth)}Unwrapping memo`);
-      const unwrapped = unwrapMemo(type, props, depth);
-      if (unwrapped !== null) {
-        return unwrapped;
-      }
-      log(`${'  '.repeat(depth)}Unwrapped memo was null`);
+      log(depth, `Unwrapping memo`);
+      unwrapped = unwrapMemo(type, props, depth);
+    } else if (typeof type === 'function') {
+      log(depth, `Unwrapping function component`);
+      unwrapped = unwrapFunctionComponent(type, props, depth);
     } else {
-      log(`${'  '.repeat(depth)}No unwrapping needed`);
+      log(depth, `No unwrapping needed`);
+      return element;
+    }
+
+    if (unwrapped !== null) {
+      return unwrapped;
+    } else {
+      log(depth, `Unwrapped component was null`);
+      return element;
     }
   }
 
+  log(depth, `Component is not a valid React element. Returning original element.`);
   return element;
 }
 
@@ -108,11 +141,7 @@ function unwrapComponent(element: ReactElement, depth: number): ReactNode {
  */
 function unwrapForwardRef(type: ForwardRefType, props: any, depth: number): ReactNode | null {
   if (typeof type.render !== 'function') {
-    warn(
-      `${'  '.repeat(
-        depth
-      )}⚠️ ForwardRef detected but render is not a function. Aborting unwrapping.`
-    );
+    log(depth, `⚠️ ForwardRef detected but render is not a function. Aborting unwrapping.`);
     return null;
   }
 
@@ -120,17 +149,13 @@ function unwrapForwardRef(type: ForwardRefType, props: any, depth: number): Reac
     const unwrapped = type.render(props, null);
 
     if (!isValidElement(unwrapped)) {
-      warn(
-        `${'  '.repeat(
-          depth
-        )}⚠️ Unwrapped forwardRef result is not a valid React element. Aborting.`
-      );
+      log(depth, `⚠️ Unwrapped forwardRef result is not a valid React element. Aborting.`);
       return null;
     }
 
     return unwrapped;
   } catch (e) {
-    warn(`${'  '.repeat(depth)}⚠️ Exception while unwrapping forwardRef:`, e);
+    log(depth, `⚠️ Exception while unwrapping forwardRef:`, e);
     return null;
   }
 }
@@ -140,22 +165,22 @@ function unwrapForwardRef(type: ForwardRefType, props: any, depth: number): Reac
  */
 function unwrapMemo(type: MemoType, props: any, depth: number): ReactNode | null {
   if (typeof type.type !== 'function') {
-    warn(`${'  '.repeat(depth)}⚠️ Memo detected but type is not a function. Aborting unwrapping.`);
+    log(depth, `⚠️ Memo detected but type is not a function. Aborting unwrapping.`);
     return null;
   }
 
   try {
     const unwrapped = type.type(props);
-    log(`${'  '.repeat(depth)}Result of memo unwrapping:`, unwrapped);
+    log(depth, `Result of memo unwrapping:`, unwrapped);
 
     if (!isValidElement(unwrapped)) {
-      warn(`${'  '.repeat(depth)}⚠️ Unwrapped memo result is not a valid React element. Aborting.`);
+      log(depth, `⚠️ Unwrapped memo result is not a valid React element. Aborting.`);
       return null;
     }
 
     return unwrapped;
   } catch (e) {
-    warn(`${'  '.repeat(depth)}⚠️ Exception while unwrapping memo:`, e);
+    log(depth, `⚠️ Exception while unwrapping memo:`, e);
     return null;
   }
 }
@@ -182,7 +207,7 @@ function storeMetadataAndCloneElementWithNativeID(
     nativeID,
   };
 
-  log(`${'  '.repeat(depth)}✅ Injected metadata for ${nativeID}`);
+  log(depth, `✅ Injected metadata for ${nativeID}`);
 
   return cloneElement(element, { ...props, nativeID }, props.children);
 }
@@ -204,12 +229,12 @@ function processChildren(children: any, depth: number): any {
  */
 function isReactElement(element: ReactNode, depth: number): boolean {
   if (typeof element !== 'object' || element === null) {
-    log(`${'  '.repeat(depth)}Encountered primitive:`, element);
+    log(depth, `Encountered primitive:`, element);
     return false;
   }
 
   if (!isValidElement(element)) {
-    log(`${'  '.repeat(depth)}⛔️ Not a valid React element:`, element);
+    log(depth, `⛔️ Not a valid React element:`, element);
     return false;
   }
 
@@ -217,55 +242,10 @@ function isReactElement(element: ReactNode, depth: number): boolean {
 }
 
 /**
- * Handle unresolved memo components
- */
-function handleUnresolvedMemo(type: MemoType, props: any, depth: number): ReactNode {
-  if (typeof type.type !== 'function') {
-    warn(`${'  '.repeat(depth)}⚠️ Underlying memo type is not a function. Skipping this element.`);
-    return props.children;
-  }
-
-  const WrappedComponent = () =>
-    renderAndProcessComponent(type.type as React.ComponentType<any>, props, depth);
-
-  return <WrappedComponent />;
-}
-
-/**
- * Render and process a function component
- */
-function renderAndProcessComponent<P>(
-  type: React.ComponentType<P>,
-  props: P,
-  depth: number
-): ReactNode {
-  try {
-    let rendered: ReactNode;
-    if (type.prototype?.isReactComponent) {
-      // Class component
-      const ClassComponent = type as React.ComponentClass<P>;
-      const instance = new ClassComponent(props);
-      rendered = instance.render();
-      log(`${'  '.repeat(depth)}Class component rendered:`, rendered);
-    } else {
-      // Function component
-      const FunctionComponent = type as React.FC<P>;
-      rendered = FunctionComponent(props);
-      log(`${'  '.repeat(depth)}Function component rendered:`, rendered);
-    }
-
-    return injectMetadata(rendered, depth + 1);
-  } catch (e) {
-    warn(`${'  '.repeat(depth)}⚠️ Failed to render component`, e);
-    return null;
-  }
-}
-
-/**
  * Recursively traverse the React element tree to inject metadata
  */
 function injectMetadata(reactNode: ReactNode, depth = 0): ReactNode {
-  log(`------------------------------------------- injectMetadata:start, depth: ${depth}`);
+  log(depth, `------------------------------------------- injectMetadata:start, depth: ${depth}`);
   if (!isReactElement(reactNode, depth)) {
     return reactNode;
   }
@@ -274,49 +254,29 @@ function injectMetadata(reactNode: ReactNode, depth = 0): ReactNode {
   const { type, props } = reactElement;
   const componentName = getComponentName(type);
 
+  log(depth, `🔥 processing "${componentName}"`, reactElement);
+
   if (props.style !== undefined) {
     reactElement = storeMetadataAndCloneElementWithNativeID(reactElement, depth);
   }
 
-  log(
-    `${'  '.repeat(depth)}🔥 processing "${componentName}" that ${
-      props.style !== undefined ? 'CONTAINS style props' : 'DOES NOT CONTAIN style props'
-    }`,
-    reactElement
-  );
-
   // Try to unwrap the component
   const unwrapped = unwrapComponent(reactElement, depth);
 
+  // If unwrapped is different from reactElement, it means the component
+  // consists of other components that need to be processed.
   if (unwrapped !== reactElement) {
-    log(`${'  '.repeat(depth)}Element unwrapped. Processing the unwrapped element.`, unwrapped);
+    log(depth, `Element unwrapped. Processing the unwrapped element.`, unwrapped);
     return injectMetadata(unwrapped, depth);
   }
 
-  // Handle unresolved memo components
-  if (isMemoComponent(type)) {
-    log(`${'  '.repeat(depth)}⚠️ Unresolved memo detected. Wrapping with HOC.`);
-    return handleUnresolvedMemo(type, props, depth);
-  }
+  log(depth, `Element doesn't need unwrapping`);
 
-  // ScrollView is a special case because it can children but first we need to
-  // destructure the ScrollView into simpler components that also contain styles
-  if (props?.children && componentName !== 'ScrollView') {
-    log(
-      `${'  '.repeat(depth)}📦 Element with children, processing ${
-        props.children?.length ?? 0
-      } children`
-    );
+  if (props?.children) {
+    log(depth, `📦 Element with children, processing ${props.children?.length ?? 0} children`);
     const children = processChildren(props.children, depth + 1);
     return cloneElement(reactElement, props, children);
   }
-
-  if (typeof type === 'function') {
-    log(`${'  '.repeat(depth)}Rendering component:`, type);
-    return renderAndProcessComponent(type, props, depth);
-  }
-
-  log(`${'  '.repeat(depth)}❓ Unknown element type, skipping metadata injection.`);
 
   return reactElement;
 }
