@@ -7,7 +7,7 @@ import { RunnerBridge } from '../../../helpers';
 // -----------------------------------------------------------------------------
 
 // Toggle verbose logs (set to true for debugging)
-const SHOW_LOGS = true;
+const SHOW_LOGS = false;
 const log = (depth: number, msg: string, ...args: any[]) => {
   if (SHOW_LOGS) {
     const message = `${'  '.repeat(depth)}${msg}`;
@@ -159,7 +159,10 @@ function unwrapForwardRef(type: ForwardRefType, props: any, depth: number): Reac
   }
 
   try {
-    const unwrapped = type.render(props, null);
+    // Access ref from props.ref if available, otherwise create one
+    // Note: This might not have the original ref, as React handles refs specially
+    const ref = props.ref || React.createRef();
+    const unwrapped = type.render(props, ref);
 
     if (!isValidElement(unwrapped)) {
       log(depth, `⚠️ Unwrapped forwardRef result is not a valid React element. Aborting.`);
