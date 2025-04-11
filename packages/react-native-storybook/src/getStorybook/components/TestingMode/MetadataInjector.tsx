@@ -117,6 +117,8 @@ function unwrapComponent(element: ReactElement, depth: number): ReactNode {
     } else if (isMemoComponent(type)) {
       log(depth, `Unwrapping memo`);
       unwrapped = unwrapMemo(type, props, depth);
+
+      // @ts-ignore
       if (unwrapped === null && !element?.props?.children) {
         log(depth, `⚠️ Unresolved memo detected. Wrapping with HOC.`);
         unwrapped = handleUnresolvedMemo(type, props, depth);
