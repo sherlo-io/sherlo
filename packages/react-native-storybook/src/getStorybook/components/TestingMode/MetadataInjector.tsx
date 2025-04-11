@@ -1,4 +1,5 @@
 import React, { ReactElement, ReactNode, cloneElement, isValidElement } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 // -----------------------------------------------------------------------------
 // Constants and Setup
@@ -116,6 +117,10 @@ function unwrapComponent(element: ReactElement, depth: number): ReactNode {
     } else if (isMemoComponent(type)) {
       log(depth, `Unwrapping memo`);
       unwrapped = unwrapMemo(type, props, depth);
+      if (unwrapped === null) {
+        log(depth, `⚠️ Unresolved memo detected. Wrapping with HOC.`);
+        unwrapped = handleUnresolvedMemo(type, props, depth);
+      }
     } else if (typeof type === 'function') {
       log(depth, `Unwrapping function component`);
       unwrapped = unwrapFunctionComponent(type, props, depth);
@@ -242,6 +247,51 @@ function isReactElement(element: ReactNode, depth: number): boolean {
 }
 
 /**
+ * Handle unresolved memo components
+ */
+function handleUnresolvedMemo(type: MemoType, props: any, depth: number): ReactNode {
+  if (typeof type.type !== 'function') {
+    log(depth, `⚠️ Underlying memo type is not a function. Skipping this element.`);
+    return props.children;
+  }
+
+  const WrappedComponent = () =>
+    renderAndProcessComponent(type.type as React.ComponentType<any>, props, depth);
+
+  return <WrappedComponent />;
+}
+
+/**
+ * Render and process a function component
+ */
+function renderAndProcessComponent<P>(
+  type: React.ComponentType<P>,
+  props: P,
+  depth: number
+): ReactNode {
+  try {
+    let rendered: ReactNode;
+    if (type.prototype?.isReactComponent) {
+      // Class component
+      const ClassComponent = type as React.ComponentClass<P>;
+      const instance = new ClassComponent(props);
+      rendered = instance.render();
+      log(depth, `Class component rendered:`, rendered);
+    } else {
+      // Function component
+      const FunctionComponent = type as React.FC<P>;
+      rendered = FunctionComponent(props);
+      log(depth, `Function component rendered:`, rendered);
+    }
+
+    return injectMetadata(rendered, depth + 1);
+  } catch (e) {
+    log(depth, `⚠️ Failed to render component`, e);
+    return null;
+  }
+}
+
+/**
  * Recursively traverse the React element tree to inject metadata
  */
 function injectMetadata(reactNode: ReactNode, depth = 0): ReactNode {
@@ -292,5 +342,14 @@ function injectMetadata(reactNode: ReactNode, depth = 0): ReactNode {
  * ensuring that each FlatList item's renderItem output is processed only once.
  */
 export function MetadataInjector({ children }: { children: ReactNode }): ReactNode {
-  return injectMetadata(children);
+  const hiddenChildren = injectMetadata(children);
+
+  return (
+    <>
+      {children}
+      <View style={{ ...StyleSheet.absoluteFillObject, opacity: 0, overflow: 'hidden' }}>
+        {hiddenChildren}
+      </View>
+    </>
+  );
 }
