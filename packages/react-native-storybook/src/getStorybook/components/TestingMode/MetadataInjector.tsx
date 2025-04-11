@@ -209,7 +209,6 @@ function storeMetadataAndCloneElementWithNativeID(
   store[nativeID] = {
     style: props?.style,
     testID: props?.testID,
-    nativeID,
   };
 
   log(depth, `✅ Injected metadata for ${nativeID}`);
@@ -335,21 +334,16 @@ function injectMetadata(reactNode: ReactNode, depth = 0): ReactNode {
  * MetadataInjector:
  *
  * This testing-only component recursively traverses the React element tree,
- * attempting to unwrap forwardRef and memoized components and inject metadata
- * (such as styles, testID, nativeID) into a global store.
- *
- * It includes special handling for context-related elements and for FlatList,
- * ensuring that each FlatList item's renderItem output is processed only once.
+ * attempting to inject metadata (such as styles, testID) into a global store
+ * and add nativeID to the element so it can be matched with the native view.
  */
 export function MetadataInjector({ children }: { children: ReactNode }): ReactNode {
   const hiddenChildren = injectMetadata(children);
 
   return (
     <>
-      {children}
-      <View style={{ ...StyleSheet.absoluteFillObject, opacity: 0, overflow: 'hidden' }}>
-        {hiddenChildren}
-      </View>
+      {hiddenChildren}
+      {/* <View style={{ ...StyleSheet.absoluteFillObject, opacity: 0 }}>{hiddenChildren}</View> */}
     </>
   );
 }
