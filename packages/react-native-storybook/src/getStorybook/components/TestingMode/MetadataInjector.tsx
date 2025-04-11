@@ -1,5 +1,6 @@
 import React, { ReactElement, ReactNode, cloneElement, isValidElement } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { RunnerBridge } from '../../../helpers';
 
 // -----------------------------------------------------------------------------
 // Constants and Setup
@@ -7,8 +8,13 @@ import { StyleSheet, View } from 'react-native';
 
 // Toggle verbose logs (set to true for debugging)
 const SHOW_LOGS = true;
-const log = (depth: number, msg: string, ...args: any[]) =>
-  SHOW_LOGS && console.log(`${'  '.repeat(depth)}${msg}`, ...args);
+const log = (depth: number, msg: string, ...args: any[]) => {
+  if (SHOW_LOGS) {
+    const message = `${'  '.repeat(depth)}${msg}`;
+    RunnerBridge.log(message);
+    console.log(message, ...args);
+  }
+};
 
 // Initialize global metadata store
 let counter = 1;
@@ -340,12 +346,12 @@ function injectMetadata(reactNode: ReactNode, depth = 0): ReactNode {
  * and add nativeID to the element so it can be matched with the native view.
  */
 export function MetadataInjector({ children }: { children: ReactNode }): ReactNode {
-  const hiddenChildren = injectMetadata(children);
+  const childrenWithMetadata = injectMetadata(children);
 
   return (
     <>
       {children}
-      <View style={{ ...StyleSheet.absoluteFillObject, opacity: 0 }}>{hiddenChildren}</View>
+      <View style={{ ...StyleSheet.absoluteFillObject, opacity: 0 }}>{childrenWithMetadata}</View>
     </>
   );
 }
