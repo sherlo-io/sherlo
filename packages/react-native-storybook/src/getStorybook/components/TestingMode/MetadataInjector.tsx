@@ -117,7 +117,7 @@ function unwrapComponent(element: ReactElement, depth: number): ReactNode {
     } else if (isMemoComponent(type)) {
       log(depth, `Unwrapping memo`);
       unwrapped = unwrapMemo(type, props, depth);
-      if (unwrapped === null) {
+      if (unwrapped === null && !element?.props?.children) {
         log(depth, `⚠️ Unresolved memo detected. Wrapping with HOC.`);
         unwrapped = handleUnresolvedMemo(type, props, depth);
       }
@@ -305,7 +305,7 @@ function injectMetadata(reactNode: ReactNode, depth = 0): ReactNode {
 
   log(depth, `🔥 processing "${componentName}"`, reactElement);
 
-  if (props.style !== undefined) {
+  if (props.style !== undefined || props.testID !== undefined) {
     reactElement = storeMetadataAndCloneElementWithNativeID(reactElement, depth);
   }
 
@@ -342,8 +342,8 @@ export function MetadataInjector({ children }: { children: ReactNode }): ReactNo
 
   return (
     <>
-      {hiddenChildren}
-      {/* <View style={{ ...StyleSheet.absoluteFillObject, opacity: 0 }}>{hiddenChildren}</View> */}
+      {children}
+      <View style={{ ...StyleSheet.absoluteFillObject, opacity: 0 }}>{hiddenChildren}</View>
     </>
   );
 }
