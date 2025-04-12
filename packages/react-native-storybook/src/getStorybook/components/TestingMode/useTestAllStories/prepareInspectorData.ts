@@ -12,7 +12,10 @@ export function prepareInspectorData(
   storyId: string
 ): InspectorData {
   const { density } = inspectorData;
-  let foundNodeWithFirstChild: InspectorDataNode | null = null;
+
+  const inspectorDataCopy = JSON.parse(JSON.stringify(inspectorData)) as InspectorData;
+
+  let rootStoryNode: InspectorDataNode | null = null;
 
   function enhanceNode(node: InspectorDataNode): void {
     if (!node) return;
@@ -26,9 +29,9 @@ export function prepareInspectorData(
       node.properties = metadataEntry;
 
       if (metadataEntry.testID === storyId) {
-        const nodeAny = node as any;
-        if (nodeAny.children && Array.isArray(nodeAny.children) && nodeAny.children.length > 0) {
-          foundNodeWithFirstChild = nodeAny.children[0];
+        if (node.children && Array.isArray(node.children) && node.children.length > 0) {
+          rootStoryNode = node.children[0];
+          console.log('found story node', rootStoryNode);
         }
       }
     }
@@ -39,13 +42,13 @@ export function prepareInspectorData(
     }
   }
 
-  if (inspectorData.viewHierarchy) {
-    enhanceNode(inspectorData.viewHierarchy);
+  if (inspectorDataCopy.viewHierarchy) {
+    enhanceNode(inspectorDataCopy.viewHierarchy);
 
-    if (foundNodeWithFirstChild) {
-      inspectorData.viewHierarchy = foundNodeWithFirstChild;
+    if (rootStoryNode) {
+      inspectorDataCopy.viewHierarchy = rootStoryNode;
     }
   }
 
-  return inspectorData;
+  return inspectorDataCopy;
 }
