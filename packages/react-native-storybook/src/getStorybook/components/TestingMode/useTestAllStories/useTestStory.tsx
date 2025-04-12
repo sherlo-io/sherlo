@@ -42,7 +42,7 @@ function useTestStory({
           throw error;
         });
 
-        const metadataTree = (global as any).__SHERLO_METADATA__;
+        const metadataTree = metadataProviderRef?.current?.collectMetadata();
 
         // Enhance the inspector data with JS properties from metadata
         const enhancedInspectorData = metadataTree
