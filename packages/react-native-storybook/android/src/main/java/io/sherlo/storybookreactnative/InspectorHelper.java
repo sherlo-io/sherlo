@@ -98,12 +98,7 @@ public class InspectorHelper {
         // Native ID
         int nativeTag = view.getId();
         if (nativeTag > 0) {
-            viewObject.put("nativeTag", nativeTag);
-        }
-
-        Object tag = view.getTag();
-        if (tag != null) {
-            viewObject.put("tag", tag.toString());
+            viewObject.put("id", nativeTag);
         }
 
         // Add children array for hierarchical structure

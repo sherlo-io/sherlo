@@ -1,14 +1,15 @@
 import React, { ReactNode, forwardRef, useImperativeHandle } from 'react';
 import { FiberProvider, useFiber } from 'its-fine';
-
-const SHOW_LOGS = true;
-const log = (...args: any[]) => SHOW_LOGS && console.log('[MetadataProvider]', ...args);
+import { RunnerBridge } from '../../../helpers';
 
 export interface Metadata {
-  [nativeTag: number]: {
-    style?: any;
-    testID?: string;
+  viewProps: {
+    [nativeTag: number]: {
+      style?: any;
+      testID?: string;
+    };
   };
+  texts: string[];
 }
 
 export interface MetadataProviderRef {
@@ -22,11 +23,15 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
     useImperativeHandle(ref, () => ({
       collectMetadata: () => {
         if (!fiber) {
-          log('⚠️ No fiber node available.');
-          return {};
+          RunnerBridge.log('No fiber node available.');
+          return { viewProps: {}, texts: [] };
         }
 
-        const metadata: Metadata = {};
+        const metadata: Metadata = {
+          viewProps: {},
+          texts: [],
+        };
+
         const visited = new Set();
         const queue = [fiber];
 
@@ -35,38 +40,70 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
           if (!currentFiber || visited.has(currentFiber)) continue;
           visited.add(currentFiber);
 
-          const { type, pendingProps, stateNode } = currentFiber;
+          const { pendingProps, stateNode, memoizedProps } = currentFiber;
 
+          // Collect view props with native tags
           // @ts-expect-error
           if (stateNode && stateNode._nativeTag) {
             // @ts-expect-error
             const nativeTag = stateNode._nativeTag;
-            const componentName =
-              typeof type === 'function'
-                ? type.displayName || type.name || 'AnonymousFunction'
-                : typeof type === 'string'
-                ? type
-                : 'Unknown';
 
-            log(`🎯 Found nativeTag ${nativeTag} (${componentName})`, pendingProps);
-
-            metadata[nativeTag] = {
+            metadata.viewProps[nativeTag] = {
               style: pendingProps.style,
               testID: pendingProps.testID,
             };
           }
 
+          // Handle text in tag 6 nodes (text content)
+          if (currentFiber.tag === 6 && typeof memoizedProps === 'string') {
+            metadata.texts.push(memoizedProps);
+            continue;
+          }
+
+          // Extract text from props
+          extractTextFromProps(pendingProps, metadata.texts);
+          extractTextFromProps(memoizedProps, metadata.texts);
+
+          // Continue traversal
           if (currentFiber.child) queue.push(currentFiber.child);
           if (currentFiber.sibling) queue.push(currentFiber.sibling);
         }
 
-        log('✅ nativeTag collection completed.', metadata);
+        // Remove duplicates
+        metadata.texts = [...new Set(metadata.texts)];
 
         return metadata;
       },
     }));
 
-    return <>{children}</>;
+    // Simplified helper that focuses on children
+    function extractTextFromProps(props: any, texts: string[]) {
+      if (!props) return;
+
+      // Direct string
+      if (typeof props === 'string') {
+        texts.push(props);
+        return;
+      }
+
+      // Process object properties - focus on children
+      if (typeof props === 'object') {
+        // Check children
+        if (props.children) {
+          if (typeof props.children === 'string') {
+            texts.push(props.children);
+          } else if (Array.isArray(props.children)) {
+            props.children.forEach((child: any) => {
+              if (typeof child === 'string') {
+                texts.push(child);
+              }
+            });
+          }
+        }
+      }
+    }
+
+    return children;
   }
 );
 

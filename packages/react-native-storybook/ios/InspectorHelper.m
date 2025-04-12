@@ -229,12 +229,7 @@ static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
 
     NSNumber *reactTag = view.reactTag;
     if (reactTag != nil) {
-        [viewDict setObject:reactTag forKey:@"nativeTag"];
-    }
-
-    NSString *accessibilityIdentifier = [view valueForKey:@"accessibilityIdentifier"];
-    if (accessibilityIdentifier) {
-        [viewDict setObject:accessibilityIdentifier forKey:@"accessibilityIdentifier"];
+        [viewDict setObject:reactTag forKey:@"id"];
     }
     
     // Add children array

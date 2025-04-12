@@ -3,7 +3,7 @@ import { RunnerBridge, SherloModule } from '../../../../helpers';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isStorybook7 } from '../../../helpers';
 import { MetadataProviderRef } from '../MetadataProvider';
-import { enhanceInspectorDataWithJsProperties } from './enhanceInspectorData';
+import { prepareInspectorData } from './prepareInspectorData';
 
 function useTestStory({
   metadataProviderRef,
@@ -42,28 +42,29 @@ function useTestStory({
           throw error;
         });
 
-        const metadataTree = metadataProviderRef?.current?.collectMetadata();
+        const fabricMetadata = metadataProviderRef?.current?.collectMetadata();
 
-        // Enhance the inspector data with JS properties from metadata
-        const enhancedInspectorData = metadataTree
-          ? enhanceInspectorDataWithJsProperties(JSON.parse(inspectorData), metadataTree)
-          : JSON.parse(inspectorData);
+        const finalInspectorData = fabricMetadata
+          ? prepareInspectorData(inspectorData, fabricMetadata, nextSnapshot.storyId)
+          : inspectorData;
 
-        RunnerBridge.log('enhanced inspector data', { inspectorData: enhancedInspectorData });
+        console.log('fabricMetadata?.texts', { texts: fabricMetadata?.texts });
 
-        const containsError = inspectorData.includes('Something went wrong rendering your story');
+        const containsError = fabricMetadata?.texts.includes(
+          'Something went wrong rendering your story'
+        );
 
         RunnerBridge.log('requesting screenshot from master script', {
           action: 'REQUEST_SNAPSHOT',
           hasError: containsError,
-          inspectorData: !!enhancedInspectorData,
+          finalInspectorData: !!finalInspectorData,
           isStable,
         });
 
         await RunnerBridge.send({
           action: 'REQUEST_SNAPSHOT',
           hasError: containsError,
-          inspectorData: JSON.stringify(enhancedInspectorData),
+          inspectorData: JSON.stringify(finalInspectorData),
           isStable,
           requestId: requestId,
           safeAreaMetadata: {

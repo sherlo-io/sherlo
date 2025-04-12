@@ -1,5 +1,5 @@
 import { darkTheme, theme } from '@storybook/react-native-theming';
-import { ReactElement, useEffect, useRef } from 'react';
+import { ReactElement, useRef } from 'react';
 import { useColorScheme } from 'react-native';
 import { StorybookParams, StorybookView } from '../../../types';
 import Storybook from './Storybook';
@@ -22,12 +22,6 @@ function TestingMode({
 }): ReactElement {
   const defaultTheme = useColorScheme() === 'dark' ? darkTheme : theme;
   const metadataProviderRef = useRef<MetadataProviderRef>(null);
-
-  useEffect(() => {
-    console.log('dupa2');
-    const metadata = metadataProviderRef.current?.collectMetadata();
-    console.log(metadata);
-  }, []);
 
   useTestAllStories({
     view,
