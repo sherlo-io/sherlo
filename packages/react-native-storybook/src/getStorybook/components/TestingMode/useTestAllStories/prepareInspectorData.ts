@@ -1,5 +1,3 @@
-import { VERIFICATION_TEST_ID } from '../../../../constants';
-import { RunnerBridge } from '../../../../helpers';
 import { InspectorData, InspectorDataNode } from '../../../../types';
 import { Metadata } from '../MetadataProvider';
 
@@ -11,7 +9,8 @@ import { Metadata } from '../MetadataProvider';
  */
 export function prepareInspectorData(
   inspectorData: InspectorData,
-  fabricMetadata: Metadata
+  fabricMetadata: Metadata,
+  storyId: string
 ): InspectorData {
   const { density } = inspectorData;
 
@@ -30,7 +29,7 @@ export function prepareInspectorData(
     if (metadataEntry) {
       node.properties = metadataEntry;
 
-      if (node.properties.testID === VERIFICATION_TEST_ID) {
+      if (node.properties.testID === storyId) {
         if (node.children && Array.isArray(node.children) && node.children.length > 0) {
           rootStoryNode = node.children[0];
         }

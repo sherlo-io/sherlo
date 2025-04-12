@@ -52,7 +52,7 @@ function useTestStory({
 
         if (!containsError) {
           finalInspectorData = fabricMetadata
-            ? prepareInspectorData(inspectorData, fabricMetadata)
+            ? prepareInspectorData(inspectorData, fabricMetadata, nextSnapshot.storyId)
             : inspectorData;
         }
 
