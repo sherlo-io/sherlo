@@ -2,9 +2,14 @@ import { useEffect } from 'react';
 import { RunnerBridge, SherloModule } from '../../../../helpers';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isStorybook7 } from '../../../helpers';
+import { MetadataProviderRef } from '../MetadataProvider';
 import { enhanceInspectorDataWithJsProperties } from './enhanceInspectorData';
 
-function useTestStory(): void {
+function useTestStory({
+  metadataProviderRef,
+}: {
+  metadataProviderRef: React.RefObject<MetadataProviderRef>;
+}): void {
   const config = SherloModule.getConfig();
   const lastState = SherloModule.getLastState();
   const insets = useSafeAreaInsets();

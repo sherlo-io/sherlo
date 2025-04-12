@@ -7,7 +7,7 @@ import setupErrorSilencing from './setupErrorSilencing';
 import useTestAllStories from './useTestAllStories';
 import SherloModule from '../../../helpers/SherloModule';
 import deepmerge from 'deepmerge';
-import { MetadataInjector } from './MetadataInjector';
+import { MetadataProvider, MetadataProviderRef } from './MetadataProvider';
 
 setupErrorSilencing();
 
@@ -21,9 +21,17 @@ function TestingMode({
   params?: StorybookParams;
 }): ReactElement {
   const defaultTheme = useColorScheme() === 'dark' ? darkTheme : theme;
+  const metadataProviderRef = useRef<MetadataProviderRef>(null);
+
+  useEffect(() => {
+    console.log('dupa2');
+    const metadata = metadataProviderRef.current?.collectMetadata();
+    console.log(metadata);
+  }, []);
 
   useTestAllStories({
     view,
+    metadataProviderRef,
   });
 
   const nextSnapshot = lastState?.nextSnapshot;
@@ -38,9 +46,9 @@ function TestingMode({
       };
 
   return (
-    <MetadataInjector>
+    <MetadataProvider ref={metadataProviderRef}>
       <Storybook params={params} uiSettings={uiSettings} view={view} />
-    </MetadataInjector>
+    </MetadataProvider>
   );
 }
 

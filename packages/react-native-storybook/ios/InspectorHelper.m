@@ -226,9 +226,9 @@ static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
         [viewDict setObject:@(height) forKey:@"height"];
     }
 
-    NSString *nativeID = [view valueForKey:@"nativeID"];
-    if (nativeID) {
-        [viewDict setObject:nativeID forKey:@"nativeID"];
+    NSNumber *reactTag = view.reactTag;
+    if (reactTag != nil) {
+        [viewDict setObject:reactTag forKey:@"nativeTag"];
     }
 
     NSString *accessibilityIdentifier = [view valueForKey:@"accessibilityIdentifier"];

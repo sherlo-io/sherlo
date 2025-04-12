@@ -96,9 +96,9 @@ public class InspectorHelper {
         viewObject.put("height", rect.height());
 
         // Native ID
-        Object nativeID = view.getTag(R.id.view_tag_native_id);
-        if (nativeID != null) {
-            viewObject.put("nativeID", nativeID.toString());
+        int nativeTag = view.getId();
+        if (nativeTag > 0) {
+            viewObject.put("nativeTag", nativeTag);
         }
 
         Object tag = view.getTag();
