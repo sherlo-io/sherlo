@@ -1,6 +1,7 @@
 #import "InspectorHelper.h"
 #import <UIKit/UIKit.h>
 #import <React/UIView+React.h>
+#import <stdlib.h>
 
 static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
 
@@ -229,6 +230,10 @@ static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
 
     NSNumber *reactTag = view.reactTag;
     if (reactTag != nil) {
+        [viewDict setObject:reactTag forKey:@"id"];
+    } else {
+        // Generate a random id in range 10000 - 99999 to avoid collisions
+        reactTag = @(arc4random_uniform(90000) + 10000);
         [viewDict setObject:reactTag forKey:@"id"];
     }
     

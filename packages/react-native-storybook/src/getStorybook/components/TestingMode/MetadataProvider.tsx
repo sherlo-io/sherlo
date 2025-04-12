@@ -54,12 +54,6 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
             };
           }
 
-          // Handle text in tag 6 nodes (text content)
-          if (currentFiber.tag === 6 && typeof memoizedProps === 'string') {
-            metadata.texts.push(memoizedProps);
-            continue;
-          }
-
           // Extract text from props
           extractTextFromProps(pendingProps, metadata.texts);
           extractTextFromProps(memoizedProps, metadata.texts);

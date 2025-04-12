@@ -99,6 +99,9 @@ public class InspectorHelper {
         int nativeTag = view.getId();
         if (nativeTag > 0) {
             viewObject.put("id", nativeTag);
+        } else {
+            // Generate a random id in range 10000 - 99999 to avoid collisions
+            viewObject.put("id", (int) (Math.random() * 90000) + 10000);
         }
 
         // Add children array for hierarchical structure
