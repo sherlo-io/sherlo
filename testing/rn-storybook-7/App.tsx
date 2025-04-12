@@ -17,7 +17,20 @@ StatusBar.setBarStyle(
 
 function App() {
   if (isStorybookMode) {
-    return <Storybook />;
+    return (
+      <>
+        <StatusBar
+          translucent={true}
+          backgroundColor="transparent"
+          barStyle={
+            Appearance?.getColorScheme() === 'dark'
+              ? 'light-content'
+              : 'dark-content'
+          }
+        />
+        <Storybook />
+      </>
+    );
   }
 
   return <HomeScreen />;
