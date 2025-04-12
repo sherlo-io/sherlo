@@ -11,10 +11,14 @@ export function prepareInspectorData(
   fabricMetadata: Metadata,
   storyId: string
 ): InspectorData {
+  const { density } = inspectorData;
   let foundNodeWithFirstChild: InspectorDataNode | null = null;
 
   function enhanceNode(node: InspectorDataNode): void {
     if (!node) return;
+
+    node.adjustedWidth = Math.round(node.width / density);
+    node.adjustedHeight = Math.round(node.height / density);
 
     const metadataEntry = fabricMetadata.viewProps[node.id];
 

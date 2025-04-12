@@ -63,6 +63,8 @@ export type InspectorDataNode = {
   y: number;
   width: number;
   height: number;
+  adjustedWidth?: number;
+  adjustedHeight?: number;
   properties?: Record<string, any>;
   children?: InspectorDataNode[];
 };

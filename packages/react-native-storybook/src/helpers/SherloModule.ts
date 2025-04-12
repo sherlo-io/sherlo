@@ -88,7 +88,7 @@ function createDummySherloModule(): SherloModule {
   return {
     getInspectorData: async () => ({
       viewHierarchy: {
-        id: '1',
+        id: 1,
         className: 'View',
         isVisible: true,
         x: 0,
