@@ -33,7 +33,7 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
         };
 
         const visited = new Set();
-        const queue = [fiber];
+        const queue = [fiber, fiber.alternate];
 
         while (queue.length > 0) {
           const currentFiber = queue.shift();
