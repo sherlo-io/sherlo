@@ -1,5 +1,8 @@
+import { VERIFICATION_TEST_ID } from '../../../../constants';
+import { RunnerBridge } from '../../../../helpers';
 import { InspectorData, InspectorDataNode } from '../../../../types';
 import { Metadata } from '../MetadataProvider';
+
 /**
  * Enhances inspectorData with properties from fabricMetadata
  * by matching id values with fabricMetadata keys.
@@ -8,8 +11,7 @@ import { Metadata } from '../MetadataProvider';
  */
 export function prepareInspectorData(
   inspectorData: InspectorData,
-  fabricMetadata: Metadata,
-  storyId: string
+  fabricMetadata: Metadata
 ): InspectorData {
   const { density } = inspectorData;
 
@@ -28,10 +30,9 @@ export function prepareInspectorData(
     if (metadataEntry) {
       node.properties = metadataEntry;
 
-      if (metadataEntry.testID === storyId) {
+      if (node.properties.testID === VERIFICATION_TEST_ID) {
         if (node.children && Array.isArray(node.children) && node.children.length > 0) {
           rootStoryNode = node.children[0];
-          console.log('found story node', rootStoryNode);
         }
       }
     }

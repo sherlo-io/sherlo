@@ -44,15 +44,23 @@ function useTestStory({
 
         const fabricMetadata = metadataProviderRef?.current?.collectMetadata();
 
-        const finalInspectorData = fabricMetadata
-          ? prepareInspectorData(inspectorData, fabricMetadata, nextSnapshot.storyId)
-          : inspectorData;
-
-        console.log('fabricMetadata?.texts', { texts: fabricMetadata?.texts });
-
         const containsError = fabricMetadata?.texts.includes(
           'Something went wrong rendering your story'
         );
+
+        let finalInspectorData = undefined;
+
+        if (!containsError) {
+          finalInspectorData = fabricMetadata
+            ? prepareInspectorData(inspectorData, fabricMetadata)
+            : inspectorData;
+        }
+
+        RunnerBridge.log('inspector data', {
+          fabricMetadata,
+          inspectorData,
+          finalInspectorData,
+        });
 
         RunnerBridge.log('requesting screenshot from master script', {
           action: 'REQUEST_SNAPSHOT',
