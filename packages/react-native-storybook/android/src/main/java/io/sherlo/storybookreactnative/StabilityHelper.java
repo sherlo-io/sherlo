@@ -1,6 +1,7 @@
 package io.sherlo.storybookreactnative;
 
 import android.app.Activity;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.os.Handler;
@@ -11,12 +12,17 @@ import android.util.Log;
 import com.facebook.react.bridge.Promise;
 import android.view.PixelCopy;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Date;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+
 
 /**
  * Helper for checking UI stability by comparing consecutive screenshots.
@@ -24,6 +30,9 @@ import java.util.concurrent.TimeUnit;
  */
 public class StabilityHelper {
     private static final String TAG = "SherloModule:StabilityHelper";
+    
+    // Set to false to disable saving screenshots to storage
+    public static boolean SAVE_SCREENSHOTS = true;
 
     public interface StabilityCallback {
         void onResult(boolean isStable);
@@ -49,11 +58,11 @@ public class StabilityHelper {
             }
         });
     }
-
+    
     /**
      * Captures a screenshot of the activity's root view.
      */
-    public Bitmap captureScreenshot(Activity activity) {
+    public Bitmap captureScreenshot(Activity activity, boolean saveToFile, int screenshotNumber) {
         View rootView = activity.getWindow().getDecorView().getRootView();
         int width = rootView.getWidth();
         int height = rootView.getHeight();
@@ -62,12 +71,59 @@ public class StabilityHelper {
             throw new RuntimeException("Impossible to snapshot the view: view is invalid");
         }
 
-        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
         Canvas canvas = new Canvas(bitmap);
         
         rootView.draw(canvas);
 
+        final CountDownLatch latch = new CountDownLatch(1);
+        
+        PixelCopy.request(activity.getWindow(), bitmap, copyResult -> {
+            latch.countDown();
+        }, new Handler(Looper.getMainLooper()));
+
+        try {
+            // Reduced timeout to 1 second
+            if (!latch.await(1, TimeUnit.SECONDS)) {
+                Log.d(TAG, "Timeout occurred while waiting for PixelCopy");
+            }
+        } catch (InterruptedException e) {
+            Log.d(TAG, "Interrupted while waiting for PixelCopy");
+        }
+            
+        // Save bitmap to file if requested AND global saving is enabled
+        if (saveToFile && SAVE_SCREENSHOTS) {
+            saveBitmapToFile(activity, bitmap, screenshotNumber);
+        }
+
         return bitmap;
+    }
+    
+    /**
+     * Saves a bitmap to a file in the app's external files directory.
+     */
+    private void saveBitmapToFile(Context context, Bitmap bitmap, int screenshotNumber) {
+        try {
+            // Create directory if it doesn't exist
+            File externalDirectory = context.getExternalFilesDir(null);
+            File storageDir = new File(externalDirectory.getAbsolutePath() + "/sherlo/stabilization_screenshots");
+            if (!storageDir.exists()) {
+                storageDir.mkdirs();
+            }
+            
+            // Create file with timestamp
+            String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
+            File imageFile = new File(storageDir, "screenshot_" + screenshotNumber + "_" + timestamp + ".png");
+            
+            // Save bitmap to file
+            FileOutputStream fos = new FileOutputStream(imageFile);
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+            fos.close();
+            
+            Log.d(TAG, "Saved screenshot to: " + imageFile.getAbsolutePath());
+        } catch (IOException e) {
+            Log.e(TAG, "Failed to save screenshot", e);
+        }
     }
 
     /**
@@ -111,7 +167,7 @@ public class StabilityHelper {
         final Bitmap[] lastScreenshot = new Bitmap[1];
         final AtomicLong startTime = new AtomicLong(System.currentTimeMillis());
         
-        lastScreenshot[0] = captureScreenshot(activity);
+        lastScreenshot[0] = captureScreenshot(activity, SAVE_SCREENSHOTS, 0);
         startStabilityCheck(activity, requiredMatches, intervalMs, timeoutMs, callback, handler, lastScreenshot, startTime);
     }
 
@@ -119,12 +175,14 @@ public class StabilityHelper {
                                    final StabilityCallback callback, final Handler handler, 
                                    final Bitmap[] lastScreenshot, final AtomicLong startTime) {
         final int[] consecutiveMatches = {0};
+        final int[] screenshotCounter = {0};  // Add counter for screenshot filenames
 
 
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
-                Bitmap currentScreenshot = captureScreenshot(activity);
+                screenshotCounter[0]++;  // Increment counter
+                Bitmap currentScreenshot = captureScreenshot(activity, SAVE_SCREENSHOTS, screenshotCounter[0]);
                 long elapsedTime = System.currentTimeMillis() - startTime.get();
 
                 if (areBitmapsEqual(currentScreenshot, lastScreenshot[0])) {
