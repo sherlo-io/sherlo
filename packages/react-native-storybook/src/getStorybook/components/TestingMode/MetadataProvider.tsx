@@ -43,9 +43,7 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
           const { pendingProps, stateNode, memoizedProps } = currentFiber;
 
           // Collect view props with native tags
-          // @ts-expect-error
           if (stateNode && stateNode._nativeTag) {
-            // @ts-expect-error
             const nativeTag = stateNode._nativeTag;
 
             metadata.viewProps[nativeTag] = {
