@@ -12,6 +12,7 @@ export type Config = {
     requiredMatches: number;
     intervalMs: number;
     timeoutMs: number;
+    saveScreenshots?: boolean;
   };
   overrideMode?: 'default' | 'storybook' | 'testing';
   expoUpdateDeeplink?: string;

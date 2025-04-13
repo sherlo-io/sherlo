@@ -138,6 +138,7 @@ RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve
 RCT_EXPORT_METHOD(stabilize:(NSInteger)requiredMatches
                  intervalMs:(NSInteger)intervalMs
                   timeoutMs:(NSInteger)timeoutMs
+                  saveScreenshots:(BOOL)saveScreenshots
                    resolver:(RCTPromiseResolveBlock)resolve
                    rejecter:(RCTPromiseRejectBlock)reject) {
     [core stabilize:requiredMatches intervalMs:intervalMs timeoutMs:timeoutMs resolver:resolve rejecter:reject];

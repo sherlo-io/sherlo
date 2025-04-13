@@ -29,7 +29,8 @@ function useTestStory({
         const isStable = await SherloModule.stabilize(
           config.stabilization.requiredMatches,
           config.stabilization.intervalMs,
-          config.stabilization.timeoutMs
+          config.stabilization.timeoutMs,
+          config.stabilization.saveScreenshots
         ).catch((error) => {
           RunnerBridge.log('error checking if stable', { error: error.message });
           throw error;

@@ -13,7 +13,12 @@ type SherloModule = {
   readFile: (path: string) => Promise<string>;
   openStorybook: () => Promise<void>;
   toggleStorybook: () => Promise<void>;
-  stabilize: (requiredMatches: number, intervalMs: number, timeoutMs: number) => Promise<boolean>;
+  stabilize: (
+    requiredMatches: number,
+    intervalMs: number,
+    timeoutMs: number,
+    saveScreenshots: boolean
+  ) => Promise<boolean>;
 };
 
 let SherloModule: SherloModule;
@@ -41,8 +46,13 @@ function createSherloModule(): SherloModule {
       const inspectorDataString = await SherloNativeModule.getInspectorData();
       return JSON.parse(inspectorDataString) as InspectorData;
     },
-    stabilize: async (requiredMatches: number, intervalMs: number, timeoutMs: number) => {
-      return SherloNativeModule.stabilize(requiredMatches, intervalMs, timeoutMs);
+    stabilize: async (
+      requiredMatches: number,
+      intervalMs: number,
+      timeoutMs: number,
+      saveScreenshots: boolean
+    ) => {
+      return SherloNativeModule.stabilize(requiredMatches, intervalMs, timeoutMs, saveScreenshots);
     },
     getMode: () => {
       return SherloNativeModule.getConstants().mode;
@@ -101,7 +111,14 @@ function createDummySherloModule(): SherloModule {
     }),
     getMode: () => 'default',
     getLastState: () => undefined,
-    getConfig: () => ({ stabilization: { requiredMatches: 3, intervalMs: 500, timeoutMs: 5_000 } }),
+    getConfig: () => ({
+      stabilization: {
+        requiredMatches: 3,
+        intervalMs: 500,
+        timeoutMs: 5_000,
+        saveScreenshots: true,
+      },
+    }),
     appendFile: async () => {},
     readFile: async () => '',
     openStorybook: async () => {},
