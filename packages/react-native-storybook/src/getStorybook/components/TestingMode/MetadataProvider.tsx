@@ -5,6 +5,7 @@ import { RunnerBridge } from '../../../helpers';
 export interface Metadata {
   viewProps: {
     [nativeTag: number]: {
+      className?: string;
       style?: any;
       testID?: string;
     };
@@ -40,13 +41,14 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
           if (!currentFiber || visited.has(currentFiber)) continue;
           visited.add(currentFiber);
 
-          const { pendingProps, stateNode, memoizedProps } = currentFiber;
+          const { pendingProps, stateNode, memoizedProps, type } = currentFiber;
 
           // Collect view props with native tags
           if (stateNode && stateNode._nativeTag) {
             const nativeTag = stateNode._nativeTag;
 
             metadata.viewProps[nativeTag] = {
+              className: type?.name,
               style: pendingProps.style,
               testID: pendingProps.testID,
             };

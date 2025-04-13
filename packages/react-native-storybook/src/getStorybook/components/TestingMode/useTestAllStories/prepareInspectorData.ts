@@ -24,7 +24,11 @@ export function prepareInspectorData(
     node.adjustedWidth = Math.round(node.width / density);
     node.adjustedHeight = Math.round(node.height / density);
 
-    const metadataEntry = fabricMetadata.viewProps[node.id];
+    const { className, ...metadataEntry } = fabricMetadata.viewProps[node.id];
+
+    if (className) {
+      node.className = className;
+    }
 
     if (metadataEntry) {
       node.properties = metadataEntry;
