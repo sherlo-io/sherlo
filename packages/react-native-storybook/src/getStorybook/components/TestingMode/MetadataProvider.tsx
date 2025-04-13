@@ -50,11 +50,8 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
             metadata.viewProps[nativeTag] = {
               style: pendingProps.style,
               testID: pendingProps.testID,
+              className: type || undefined,
             };
-
-            if (type) {
-              metadata.viewProps[nativeTag].className = type.name;
-            }
           }
 
           // Extract text from props

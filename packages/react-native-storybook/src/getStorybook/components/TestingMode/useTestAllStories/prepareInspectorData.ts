@@ -24,14 +24,16 @@ export function prepareInspectorData(
     node.adjustedWidth = Math.round(node.width / density);
     node.adjustedHeight = Math.round(node.height / density);
 
-    const { className, ...metadataEntry } = fabricMetadata.viewProps[node.id];
-
-    if (className) {
-      node.className = className;
-    }
+    const metadataEntry = fabricMetadata.viewProps[node.id];
 
     if (metadataEntry) {
-      node.properties = metadataEntry;
+      const { className, ...properties } = metadataEntry;
+
+      if (className) {
+        node.className = className;
+      }
+
+      node.properties = properties;
 
       if (node.properties.testID === storyId) {
         if (node.children && Array.isArray(node.children) && node.children.length > 0) {
