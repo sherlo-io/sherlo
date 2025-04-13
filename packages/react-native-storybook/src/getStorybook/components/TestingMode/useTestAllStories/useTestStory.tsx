@@ -49,11 +49,19 @@ function useTestStory({
         );
 
         let finalInspectorData = undefined;
+        let safeAreaMetadata = undefined;
 
         if (!containsError) {
           finalInspectorData = fabricMetadata
             ? prepareInspectorData(inspectorData, fabricMetadata, nextSnapshot.storyId)
             : inspectorData;
+
+          safeAreaMetadata = {
+            shouldAddSafeArea: !nextSnapshot.parameters?.noSafeArea,
+            insetBottom: Math.round(insets.bottom * finalInspectorData.density),
+            insetTop: Math.round(insets.top * finalInspectorData.density),
+            isStorybook7,
+          };
         }
 
         RunnerBridge.log('inspector data', {
@@ -75,12 +83,7 @@ function useTestStory({
           inspectorData: JSON.stringify(finalInspectorData),
           isStable,
           requestId: requestId,
-          safeAreaMetadata: {
-            shouldAddSafeArea: !nextSnapshot.parameters?.noSafeArea,
-            insetBottom: insets.bottom,
-            insetTop: insets.top,
-            isStorybook7,
-          },
+          safeAreaMetadata,
         });
       } catch (error) {
         // @ts-ignore
