@@ -1,6 +1,6 @@
 {
   "name": "@sherlo/action",
-  "version": "1.2.0",
+  "version": "1.2.1-alpha.1",
   "description": "A github action that uploads provided iOS & Android builds to Sherlo and starts a test run",
   "license": "MIT",
   "author": "Sherlo",
@@ -28,7 +28,7 @@
   "dependencies": {
     "@actions/core": "^1.10.1",
     "@actions/github": "^6.0.0",
-    "sherlo": "^1.2.0"
+    "sherlo": "^1.2.1-alpha.1"
   },
   "devDependencies": {
     "@types/jest": "^26.0.15",
