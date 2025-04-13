@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useEffect} from 'react';
 import {
   isStorybookMode,
   addStorybookToDevMenu,
@@ -9,28 +9,19 @@ import {StatusBar, Appearance} from 'react-native';
 
 addStorybookToDevMenu();
 
-StatusBar.setTranslucent(true);
-StatusBar.setBackgroundColor('transparent');
-StatusBar.setBarStyle(
-  Appearance?.getColorScheme() === 'dark' ? 'light-content' : 'dark-content',
-);
-
 function App() {
-  if (isStorybookMode) {
-    return (
-      <>
-        <StatusBar
-          translucent={true}
-          backgroundColor="transparent"
-          barStyle={
-            Appearance?.getColorScheme() === 'dark'
-              ? 'light-content'
-              : 'dark-content'
-          }
-        />
-        <Storybook />
-      </>
+  useEffect(() => {
+    StatusBar.setTranslucent(true);
+    StatusBar.setBackgroundColor('transparent');
+    StatusBar.setBarStyle(
+      Appearance?.getColorScheme() === 'dark'
+        ? 'light-content'
+        : 'dark-content',
     );
+  }, []);
+
+  if (isStorybookMode) {
+    return <Storybook />;
   }
 
   return <HomeScreen />;
