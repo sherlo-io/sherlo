@@ -40,11 +40,12 @@ export function prepareInspectorData(
           rootStoryNode = node.children[0];
         }
       }
+    } else {
+      node.nativeOnly = true;
     }
 
-    const nodeAny = node as any;
-    if (nodeAny.children && Array.isArray(nodeAny.children)) {
-      nodeAny.children.forEach(enhanceNode);
+    if (node.children && Array.isArray(node.children)) {
+      node.children.forEach(enhanceNode);
     }
   }
 

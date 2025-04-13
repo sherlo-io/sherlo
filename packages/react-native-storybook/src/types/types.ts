@@ -67,6 +67,7 @@ export type InspectorDataNode = {
   adjustedHeight?: number;
   properties?: Record<string, any>;
   children?: InspectorDataNode[];
+  nativeOnly?: boolean;
 };
 
 export type InspectorData = {
