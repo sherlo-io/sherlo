@@ -40,8 +40,6 @@ export function prepareInspectorData(
           rootStoryNode = node.children[0];
         }
       }
-    } else {
-      node.nativeOnly = true;
     }
 
     if (node.children && Array.isArray(node.children)) {
