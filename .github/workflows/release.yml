@@ -90,16 +90,16 @@ jobs:
         run: npx lerna publish from-package --no-private --yes --npm-tag ${{ github.event.inputs.IS_ALPHA == 'true' && 'alpha' || 'latest' }}
 
       - name: Tag Commit
+        if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
         run: |
           git tag ${{ github.event.inputs.NEW_VERSION_NUMBER }}
           git push origin ${{ github.event.inputs.NEW_VERSION_NUMBER }}
 
       - name: Create Release
+        if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.NEW_VERSION_NUMBER }}
-          make_latest: ${{ github.event.inputs.IS_ALPHA == 'true' && 'false' || 'true' }}
-          prerelease: ${{ github.event.inputs.IS_ALPHA == 'true' && true || false }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
