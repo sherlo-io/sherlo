@@ -1,0 +1,64 @@
+{
+  "name": "@sherlo/rn-storybook-7",
+  "version": "1.2.0",
+  "private": true,
+  "scripts": {
+    "android": "react-native run-android --mode=Debug",
+    "build:android:preview": "cd android && ./gradlew assembleRelease && mkdir -p ../builds/preview && mv app/build/outputs/apk/release/app-release.apk ../builds/preview/android.apk",
+    "ios": "react-native run-ios --mode=Debug",
+    "build:ios:preview": "cd ios && pod install && xcodebuild -workspace SherloRNExample.xcworkspace -derivedDataPath app -configuration Release -scheme SherloRNExample -destination=\"generic/platform=iOS Simulator\" -sdk iphonesimulator && mkdir -p ../builds/preview && tar -czf ../builds/preview/ios.tar.gz -C app/Build/Products/Release-iphonesimulator SherloRNExample.app",
+    "lint": "eslint .",
+    "start": "react-native start",
+    "install:android:preview": "adb install builds/preview/android.apk",
+    "install:ios:preview": "tar -xzvf builds/preview/ios.tar.gz -C builds/preview && xcrun simctl install booted builds/preview/SherloRNExample.app",
+    "test": "jest",
+    "storybook-generate": "sb-rn-get-stories",
+    "sherlo": "npx sherlo"
+  },
+  "dependencies": {
+    "@gorhom/bottom-sheet": "^5.0.2",
+    "@react-native-async-storage/async-storage": "^2.1.2",
+    "@sherlo/testing-components": "portal:../testing-components",
+    "react": "18.3.1",
+    "react-native": "0.77.2",
+    "react-native-crash-tester": "^0.2.3",
+    "react-native-gesture-handler": "^2.24.0",
+    "react-native-linear-gradient": "^2.8.3",
+    "react-native-localize": "^3.4.1",
+    "react-native-reanimated": "^3.17.1",
+    "react-native-safe-area-context": "^5.3.0",
+    "react-native-svg": "^15.11.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@babel/preset-env": "^7.25.3",
+    "@babel/runtime": "^7.27.0",
+    "@react-native-community/cli": "15.0.1",
+    "@react-native-community/cli-platform-android": "15.0.1",
+    "@react-native-community/cli-platform-ios": "15.0.1",
+    "@react-native/babel-preset": "0.77.2",
+    "@react-native/eslint-config": "0.77.2",
+    "@react-native/metro-config": "0.77.2",
+    "@react-native/typescript-config": "0.77.2",
+    "@sherlo/react-native-storybook": "portal:../../packages/react-native-storybook",
+    "@storybook/addon-ondevice-actions": "7.6.20",
+    "@storybook/addon-ondevice-controls": "7.6.20",
+    "@storybook/react-native": "7.6.20",
+    "@types/jest": "^29.5.13",
+    "@types/react": "^18.2.6",
+    "@types/react-test-renderer": "^18.0.0",
+    "eslint": "^8.19.0",
+    "jest": "^29.6.3",
+    "prettier": "2.8.8",
+    "react-test-renderer": "18.3.1",
+    "typescript": "5.0.4"
+  },
+  "resolutions": {
+    "sherlo": "portal:../../packages/cli"
+  },
+  "engines": {
+    "node": ">=18",
+    "yarn": ">=4.3.1"
+  },
+  "packageManager": "yarn@4.3.1"
+}

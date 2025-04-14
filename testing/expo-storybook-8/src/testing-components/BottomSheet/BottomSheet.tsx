@@ -11,10 +11,10 @@ const BottomSheetComponent = () => {
   }, []);
 
   return (
-    <GestureHandlerRootView style={styles.container}>
+    <GestureHandlerRootView style={styles.container} testID="gesture-handler-root-view">
       <BottomSheet ref={bottomSheetRef}>
-        <BottomSheetView style={styles.contentContainer}>
-          <Text>Awesome 🎉</Text>
+        <BottomSheetView style={styles.contentContainer} testID="bottom-sheet-view">
+          <Text testID="bottom-sheet-text">Awesome 🎉</Text>
         </BottomSheetView>
       </BottomSheet>
     </GestureHandlerRootView>

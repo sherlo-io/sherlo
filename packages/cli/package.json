@@ -1,6 +1,6 @@
 {
   "name": "sherlo",
-  "version": "1.1.3",
+  "version": "1.2.1",
   "description": "Sherlo CLI for React Native Storybook visual testing",
   "keywords": [
     "visual testing",
@@ -19,9 +19,7 @@
     "directory": "packages/cli"
   },
   "main": "dist/index.js",
-  "bin": {
-    "sherlo": "./cli.js"
-  },
+  "bin": "./cli.js",
   "files": [
     "dist",
     "sdk-compatibility.json",
@@ -32,10 +30,10 @@
   },
   "devDependencies": {
     "@sentry/node": "8.41.0",
-    "@sherlo/api-types": "1.1.12",
-    "@sherlo/common-client": "1.1.12",
-    "@sherlo/sdk-client": "1.1.12",
-    "@sherlo/shared": "1.1.12",
+    "@sherlo/api-types": "portal:../../sherlo-lib/extracted/@sherlo/api-types",
+    "@sherlo/common-client": "portal:../../sherlo-lib/extracted/@sherlo/common-client",
+    "@sherlo/sdk-client": "portal:../../sherlo-lib/extracted/@sherlo/sdk-client",
+    "@sherlo/shared": "portal:../../sherlo-lib/extracted/@sherlo/shared",
     "@types/git-rev-sync": "^2.0.0",
     "@types/gradient-string": "^1.1.2",
     "@types/node": "^16.11.7",
@@ -48,9 +46,9 @@
     "find-up": "^7.0.0",
     "gradient-string": "^2.0.1",
     "graphql": "^16.6.0",
+    "node-fetch": "^2.6.11",
     "ora": "^8.2.0",
     "package-manager-detector": "^0.2.9",
-    "node-fetch": "^2.6.11",
     "type-fest": "^4.20.1",
     "typescript": "^5.3.3",
     "wrap-ansi": "^9.0.0"

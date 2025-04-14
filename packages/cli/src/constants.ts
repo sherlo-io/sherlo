@@ -7,20 +7,22 @@ export const CONTACT_EMAIL = 'contact@sherlo.io';
 export const DISCORD_URL = 'https://discord.gg/G7eqTBkWZt';
 
 export const DOCS_LINK = {
-  setupStorybookComponent: `${DOCS_DOMAIN}/getting-started/setup#storybook-component`,
-  setupStorybookAccess: `${DOCS_DOMAIN}/getting-started/setup#storybook-access`,
+  setupStorybookComponent: `${DOCS_DOMAIN}/setup/integration#storybook-component`,
+  setupStorybookAccess: `${DOCS_DOMAIN}/setup/integration#storybook-access`,
 
-  config: `${DOCS_DOMAIN}/getting-started/config`,
-  configProperties: `${DOCS_DOMAIN}/getting-started/config#properties`,
-  configToken: `${DOCS_DOMAIN}/getting-started/config#token`,
-  configAndroid: `${DOCS_DOMAIN}/getting-started/config#android`,
-  configIos: `${DOCS_DOMAIN}/getting-started/config#ios`,
-  configDevices: `${DOCS_DOMAIN}/getting-started/config#devices`,
+  config: `${DOCS_DOMAIN}/setup/config`,
+  configProperties: `${DOCS_DOMAIN}/setup/config#properties`,
+  configToken: `${DOCS_DOMAIN}/setup/config#token`,
+  configAndroid: `${DOCS_DOMAIN}/setup/config#android`,
+  configIos: `${DOCS_DOMAIN}/setup/config#ios`,
+  configDevices: `${DOCS_DOMAIN}/setup/config#devices`,
 
-  testing: `${DOCS_DOMAIN}/getting-started/testing`,
-  commandLocalBuilds: `${DOCS_DOMAIN}/getting-started/testing?command=local-builds#sherlo-commands`,
-  commandExpoUpdate: `${DOCS_DOMAIN}/getting-started/testing?command=expo-update#sherlo-commands`,
-  commandExpoCloudBuilds: `${DOCS_DOMAIN}/getting-started/testing?command=expo-cloud-builds#sherlo-commands`,
+  builds: `${DOCS_DOMAIN}/setup/builds`,
+
+  testing: `${DOCS_DOMAIN}/setup/testing`,
+  commandLocalBuilds: `${DOCS_DOMAIN}/setup/testing?command=local-builds#testing-commands`,
+  commandExpoCloudBuilds: `${DOCS_DOMAIN}/setup/testing?command=expo-cloud-builds#testing-commands`,
+  commandExpoUpdate: `${DOCS_DOMAIN}/setup/testing?command=expo-update#testing-commands`,
 
   devices: `${DOCS_DOMAIN}/devices`,
 };

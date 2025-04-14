@@ -1,6 +1,7 @@
 package io.sherlo.storybookreactnative;
 
 import android.app.Activity;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.os.Handler;
@@ -11,12 +12,17 @@ import android.util.Log;
 import com.facebook.react.bridge.Promise;
 import android.view.PixelCopy;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Date;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+
 
 /**
  * Helper for checking UI stability by comparing consecutive screenshots.
@@ -40,20 +46,20 @@ public class StabilityHelper {
      * @param timeoutMs Maximum time to wait for stability in milliseconds
      * @param promise Promise to resolve with true if UI becomes stable, false if timeout occurs
      */
-    public static void stabilize(Activity activity, int requiredMatches, int intervalMs, int timeoutMs, Promise promise) {
+    public static void stabilize(Activity activity, int requiredMatches, int intervalMs, int timeoutMs, boolean saveScreenshots, Promise promise) {
         StabilityHelper helper = new StabilityHelper();
-        helper.checkIfStable(activity, requiredMatches, intervalMs, timeoutMs, new StabilityCallback() {
+        helper.checkIfStable(activity, requiredMatches, intervalMs, timeoutMs, saveScreenshots, new StabilityCallback() {
             @Override
             public void onResult(boolean isStable) {
                 promise.resolve(isStable);
             }
         });
     }
-
+    
     /**
      * Captures a screenshot of the activity's root view.
      */
-    public Bitmap captureScreenshot(Activity activity) {
+    public Bitmap captureScreenshot(Activity activity, boolean saveToFile, int screenshotNumber) {
         View rootView = activity.getWindow().getDecorView().getRootView();
         int width = rootView.getWidth();
         int height = rootView.getHeight();
@@ -67,33 +73,62 @@ public class StabilityHelper {
         
         rootView.draw(canvas);
 
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-            final CountDownLatch latch = new CountDownLatch(1);
-            
-            PixelCopy.request(activity.getWindow(), bitmap, copyResult -> {
-                latch.countDown();
-            }, new Handler(Looper.getMainLooper()));
+        final CountDownLatch latch = new CountDownLatch(1);
+        
+        PixelCopy.request(activity.getWindow(), bitmap, copyResult -> {
+            latch.countDown();
+        }, new Handler(Looper.getMainLooper()));
 
-            try {
-                // Reduced timeout to 1 second
-                if (!latch.await(1, TimeUnit.SECONDS)) {
-                    // If timeout occurs, just use the canvas-based screenshot
-                    return bitmap;
-                }
-            } catch (InterruptedException e) {
-                // If interrupted, use the canvas-based screenshot
-                return bitmap;
+        try {
+            // Reduced timeout to 1 second
+            if (!latch.await(1, TimeUnit.SECONDS)) {
+                Log.d(TAG, "Timeout occurred while waiting for PixelCopy");
             }
+        } catch (InterruptedException e) {
+            Log.d(TAG, "Interrupted while waiting for PixelCopy");
+        }
+            
+        // Save bitmap to file if requested AND global saving is enabled
+        if (saveToFile) {
+            saveBitmapToFile(activity, bitmap, screenshotNumber);
         }
 
         return bitmap;
     }
+    
+    /**
+     * Saves a bitmap to a file in the app's external files directory.
+     */
+    private void saveBitmapToFile(Context context, Bitmap bitmap, int screenshotNumber) {
+        try {
+            // Create directory if it doesn't exist
+            File externalDirectory = context.getExternalFilesDir(null);
+            File storageDir = new File(externalDirectory.getAbsolutePath() + "/sherlo/stabilization_screenshots");
+            if (!storageDir.exists()) {
+                storageDir.mkdirs();
+            }
+            
+            // Create file with timestamp
+            String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
+            File imageFile = new File(storageDir, "screenshot_" + screenshotNumber + "_" + timestamp + ".png");
+            
+            // Save bitmap to file
+            FileOutputStream fos = new FileOutputStream(imageFile);
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+            fos.close();
+            
+            Log.d(TAG, "Saved screenshot to: " + imageFile.getAbsolutePath());
+        } catch (IOException e) {
+            Log.e(TAG, "Failed to save screenshot", e);
+        }
+    }
 
     /**
-     * Compares two bitmaps by checking pixel arrays with early exit on difference.
+     * Compares two bitmaps by checking pixel arrays and counts different pixels.
      */
     public boolean areBitmapsEqual(Bitmap bmp1, Bitmap bmp2) {
         if (bmp1.getWidth() != bmp2.getWidth() || bmp1.getHeight() != bmp2.getHeight()) {
+            Log.d(TAG, "Bitmaps have different dimensions");
             return false;
         }
         
@@ -103,7 +138,16 @@ public class StabilityHelper {
         int[] pixels2 = new int[width * height];
         bmp1.getPixels(pixels1, 0, width, 0, 0, width, height);
         bmp2.getPixels(pixels2, 0, width, 0, 0, width, height);
-        return Arrays.equals(pixels1, pixels2);
+
+        int differentPixels = 0;
+        for (int i = 0; i < pixels1.length; i++) {
+            if (pixels1[i] != pixels2[i]) {
+                differentPixels++;
+            }
+        }
+
+        Log.d(TAG, "Different pixels: " + differentPixels + " out of " + (width * height) + " total pixels");
+        return differentPixels == 0;
     }
 
     /**
@@ -114,26 +158,28 @@ public class StabilityHelper {
      * @param timeoutMs       The overall timeout (in milliseconds).
      * @param callback        Callback with the result: true if stable, false otherwise.
      */
-    public void checkIfStable(final Activity activity, final int requiredMatches, final int intervalMs, final int timeoutMs,
+    public void checkIfStable(final Activity activity, final int requiredMatches, final int intervalMs, final int timeoutMs, boolean saveScreenshots,
                               final StabilityCallback callback) {
         final Handler handler = new Handler(Looper.getMainLooper());
         final Bitmap[] lastScreenshot = new Bitmap[1];
         final AtomicLong startTime = new AtomicLong(System.currentTimeMillis());
         
-        lastScreenshot[0] = captureScreenshot(activity);
-        startStabilityCheck(activity, requiredMatches, intervalMs, timeoutMs, callback, handler, lastScreenshot, startTime);
+        lastScreenshot[0] = captureScreenshot(activity, saveScreenshots, 0);
+        startStabilityCheck(activity, requiredMatches, intervalMs, timeoutMs, saveScreenshots, callback, handler, lastScreenshot, startTime);
     }
 
-    private void startStabilityCheck(final Activity activity, final int requiredMatches, final int intervalMs, final int timeoutMs,
+    private void startStabilityCheck(final Activity activity, final int requiredMatches, final int intervalMs, final int timeoutMs, boolean saveScreenshots,
                                    final StabilityCallback callback, final Handler handler, 
                                    final Bitmap[] lastScreenshot, final AtomicLong startTime) {
         final int[] consecutiveMatches = {0};
+        final int[] screenshotCounter = {0};  // Add counter for screenshot filenames
 
 
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
-                Bitmap currentScreenshot = captureScreenshot(activity);
+                screenshotCounter[0]++;  // Increment counter
+                Bitmap currentScreenshot = captureScreenshot(activity, saveScreenshots, screenshotCounter[0]);
                 long elapsedTime = System.currentTimeMillis() - startTime.get();
 
                 if (areBitmapsEqual(currentScreenshot, lastScreenshot[0])) {
@@ -161,8 +207,8 @@ public class StabilityHelper {
                 if (consecutiveMatches[0] >= requiredMatches) {
                     Log.d(TAG, "UI is stable");
                     callback.onResult(true);
-                } else if (elapsedTime >= timeoutMs) {
-                    Log.d(TAG, "UI is not stable");
+                } else if (elapsedTime >= timeoutMs && consecutiveMatches[0] == 0) {
+                    Log.d(TAG, "UI is not stable - timeout with no matches");
                     callback.onResult(false);
                 } else {
                     handler.postDelayed(this, Math.max(intervalMs, 1));

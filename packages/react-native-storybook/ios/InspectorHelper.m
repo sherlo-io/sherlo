@@ -1,5 +1,7 @@
 #import "InspectorHelper.h"
 #import <UIKit/UIKit.h>
+#import <React/UIView+React.h>
+#import <stdlib.h>
 
 static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
 
@@ -76,8 +78,8 @@ static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
         return nil;
     }
     
-    NSMutableArray *viewList = [NSMutableArray array];
-    [self collectViewInfo:rootView intoArray:viewList];
+    // Instead of a flat array, get hierarchical view structure
+    NSDictionary *viewHierarchy = [self collectViewHierarchy:rootView];
     
     // Create the root JSON object
     NSMutableDictionary *rootObject = [NSMutableDictionary dictionary];
@@ -95,7 +97,8 @@ static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
     if (isfinite(fontScale)) {
         [rootObject setObject:@(fontScale) forKey:@"fontScale"];
     }
-    [rootObject setObject:viewList forKey:@"viewInfo"];
+    
+    [rootObject setObject:viewHierarchy forKey:@"viewHierarchy"];
     
     // Add validation before JSON serialization
     if (![NSJSONSerialization isValidJSONObject:rootObject]) {
@@ -104,33 +107,13 @@ static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
         // Add debug logging
         NSLog(@"[%@] JSON serialization failed for rootObject", LOG_TAG);
         
-        // Check each main component
-        if (![NSJSONSerialization isValidJSONObject:viewList]) {
-            NSLog(@"[%@] Invalid viewList detected", LOG_TAG);
-            [debugInfo setObject:@"Invalid viewList" forKey:@"invalidComponent"];
-            // Find problematic view entry
-            for (NSInteger i = 0; i < viewList.count; i++) {
-                if (![NSJSONSerialization isValidJSONObject:viewList[i]]) {
-                    NSDictionary *invalidView = viewList[i];
-                    NSLog(@"[%@] Found invalid view at index %ld", LOG_TAG, (long)i);
-                    NSLog(@"[%@] Invalid view class: %@", LOG_TAG, [invalidView[@"className"] description]);
-                    
-                    [debugInfo setObject:[NSString stringWithFormat:@"View at index %ld", (long)i] forKey:@"invalidIndex"];
-                    [debugInfo setObject:[invalidView[@"className"] description] forKey:@"viewClass"];
-                    
-                    // Try to identify which property is invalid
-                    for (NSString *key in invalidView) {
-                        id value = invalidView[key];
-                        if (![self isValidJSONValue:value]) {
-                            NSString *debugValue = [NSString stringWithFormat:@"%@: %@", key, [value description]];
-                            NSLog(@"[%@] Invalid property found: %@", LOG_TAG, debugValue);
-                            [debugInfo setObject:debugValue forKey:@"invalidProperty"];
-                            break;
-                        }
-                    }
-                    break;
-                }
-            }
+        // Check if the hierarchy is valid
+        if (![NSJSONSerialization isValidJSONObject:viewHierarchy]) {
+            NSLog(@"[%@] Invalid viewHierarchy detected", LOG_TAG);
+            [debugInfo setObject:@"Invalid viewHierarchy" forKey:@"invalidComponent"];
+            
+            // Try to identify the problem
+            [self validateJsonObject:viewHierarchy withDebugInfo:debugInfo path:@"root"];
         }
         
         if (error) {
@@ -158,6 +141,114 @@ static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
 }
 
 /**
+ * Validates a JSON object recursively to find invalid parts
+ *
+ * @param object The object to validate
+ * @param debugInfo Dictionary to collect debug information
+ * @param path Current path in the object hierarchy
+ */
++ (void)validateJsonObject:(id)object withDebugInfo:(NSMutableDictionary *)debugInfo path:(NSString *)path {
+    if ([object isKindOfClass:[NSDictionary class]]) {
+        NSDictionary *dict = (NSDictionary *)object;
+        for (NSString *key in dict) {
+            id value = dict[key];
+            NSString *newPath = [NSString stringWithFormat:@"%@.%@", path, key];
+            
+            if (![self isValidJSONValue:value]) {
+                NSString *debugValue = [NSString stringWithFormat:@"%@: %@", newPath, [value description]];
+                NSLog(@"[%@] Invalid property found: %@", LOG_TAG, debugValue);
+                [debugInfo setObject:debugValue forKey:@"invalidProperty"];
+                return;
+            }
+            
+            if ([value isKindOfClass:[NSDictionary class]] || [value isKindOfClass:[NSArray class]]) {
+                [self validateJsonObject:value withDebugInfo:debugInfo path:newPath];
+            }
+        }
+    } else if ([object isKindOfClass:[NSArray class]]) {
+        NSArray *array = (NSArray *)object;
+        for (NSInteger i = 0; i < array.count; i++) {
+            id value = array[i];
+            NSString *newPath = [NSString stringWithFormat:@"%@[%ld]", path, (long)i];
+            
+            if (![self isValidJSONValue:value]) {
+                NSString *debugValue = [NSString stringWithFormat:@"%@: %@", newPath, [value description]];
+                NSLog(@"[%@] Invalid array item found: %@", LOG_TAG, debugValue);
+                [debugInfo setObject:debugValue forKey:@"invalidProperty"];
+                return;
+            }
+            
+            if ([value isKindOfClass:[NSDictionary class]] || [value isKindOfClass:[NSArray class]]) {
+                [self validateJsonObject:value withDebugInfo:debugInfo path:newPath];
+            }
+        }
+    }
+}
+
+/**
+ * Collect information about a view and its children in a hierarchical structure.
+ *
+ * @param view The view to collect information from
+ * @return A dictionary representing the view and its children
+ */
++ (NSDictionary *)collectViewHierarchy:(UIView *)view {
+    NSMutableDictionary *viewDict = [NSMutableDictionary dictionary];
+    
+    // Class name - always valid
+    NSString *className = NSStringFromClass([view class]);
+    if (className && className.length > 0) {
+        [viewDict setObject:className forKey:@"className"];
+    } else {
+        [viewDict setObject:@"Unknown" forKey:@"className"];
+    }
+    
+    // Visibility
+    BOOL isVisible = !view.hidden && view.alpha > 0.01 && view.window != nil;
+    [viewDict setObject:@(isVisible) forKey:@"isVisible"];
+    
+    // Frame calculations
+    CGRect windowFrame = [view convertRect:view.bounds toView:nil];
+    CGFloat screenScale = [UIScreen mainScreen].nativeScale;
+    
+    CGFloat x = windowFrame.origin.x * screenScale;
+    CGFloat y = windowFrame.origin.y * screenScale;
+    CGFloat width = windowFrame.size.width * screenScale;
+    CGFloat height = windowFrame.size.height * screenScale;
+    
+    if (isfinite(x)) {
+        [viewDict setObject:@(x) forKey:@"x"];
+    }
+    if (isfinite(y)) {
+        [viewDict setObject:@(y) forKey:@"y"];
+    }
+    if (isfinite(width)) {
+        [viewDict setObject:@(width) forKey:@"width"];
+    }
+    if (isfinite(height)) {
+        [viewDict setObject:@(height) forKey:@"height"];
+    }
+
+    NSNumber *reactTag = view.reactTag;
+    if (reactTag != nil) {
+        [viewDict setObject:reactTag forKey:@"id"];
+    } else {
+        // Generate a random id in range 10000 - 99999 to avoid collisions
+        reactTag = @(arc4random_uniform(90000) + 10000);
+        [viewDict setObject:reactTag forKey:@"id"];
+    }
+    
+    // Add children array
+    NSMutableArray *children = [NSMutableArray array];
+    for (UIView *subview in view.subviews) {
+        NSDictionary *childInfo = [self collectViewHierarchy:subview];
+        [children addObject:childInfo];
+    }
+    [viewDict setObject:children forKey:@"children"];
+    
+    return viewDict;
+}
+
+/**
  * Validates if a value can be serialized as JSON.
  *
  * @param value The value to check
@@ -181,192 +272,6 @@ static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
     }
     
     return NO;
-}
-
-/**
- * Recursively collects information about a view and its children.
- * Extracts properties like position, size, visibility, text content, and styling.
- *
- * @param view The view to collect information from
- * @param array The array to add view information objects to
- */
-+ (void)collectViewInfo:(UIView *)view intoArray:(NSMutableArray *)array {
-    NSMutableDictionary *viewDict = [NSMutableDictionary dictionary];
-    
-    // Class name - always valid
-    NSString *className = NSStringFromClass([view class]);
-    if (className && className.length > 0) {
-        [viewDict setObject:className forKey:@"className"];
-    } else {
-        [viewDict setObject:@"Unknown" forKey:@"className"];
-    }
-    
-    // Visibility
-    BOOL isVisible = !view.hidden && view.alpha > 0.01 && view.window != nil;
-    [viewDict setObject:@(isVisible) forKey:@"isVisible"];
-    
-    if (isVisible) {
-        // Frame calculations
-        CGRect windowFrame = [view convertRect:view.bounds toView:nil];
-        CGFloat screenScale = [UIScreen mainScreen].nativeScale;
-        
-        CGFloat x = windowFrame.origin.x * screenScale;
-        CGFloat y = windowFrame.origin.y * screenScale;
-        CGFloat width = windowFrame.size.width * screenScale;
-        CGFloat height = windowFrame.size.height * screenScale;
-        
-        if (isfinite(x)) {
-            [viewDict setObject:@(x) forKey:@"x"];
-        }
-        if (isfinite(y)) {
-            [viewDict setObject:@(y) forKey:@"y"];
-        }
-        if (isfinite(width)) {
-            [viewDict setObject:@(width) forKey:@"width"];
-        }
-        if (isfinite(height)) {
-            [viewDict setObject:@(height) forKey:@"height"];
-        }
-        
-        // Accessibility identifier
-        if (view.accessibilityIdentifier && view.accessibilityIdentifier.length > 0) {
-            [viewDict setObject:view.accessibilityIdentifier forKey:@"accessibilityIdentifier"];
-        }
-        
-        // Background color
-        if (view.backgroundColor) {
-            CGFloat red = 0, green = 0, blue = 0, alpha = 0;
-            @try {
-                if ([view.backgroundColor getRed:&red green:&green blue:&blue alpha:&alpha]) {
-                    if (isfinite(red) && isfinite(green) && isfinite(blue)) {
-                        NSString *hexColor = [NSString stringWithFormat:@"#%02lX%02lX%02lX",
-                                              lroundf(red * 255),
-                                              lroundf(green * 255),
-                                              lroundf(blue * 255)];
-                        if (hexColor && hexColor.length > 0) {
-                            [viewDict setObject:hexColor forKey:@"backgroundColor"];
-                        }
-                    }
-                }
-            } @catch (NSException *exception) {
-                // Ignore conversion failures
-            }
-        }
-        
-        // Handle text-based views
-        if ([view isKindOfClass:[UILabel class]]) {
-            UILabel *label = (UILabel *)view;
-            [self addLabelInfo:label toDictionary:viewDict];
-        }
-        else if ([view isKindOfClass:[UIButton class]]) {
-            UIButton *button = (UIButton *)view;
-            [self addButtonInfo:button toDictionary:viewDict];
-        }
-        else if ([view isKindOfClass:[UITextField class]]) {
-            UITextField *textField = (UITextField *)view;
-            [self addTextFieldInfo:textField toDictionary:viewDict];
-        }
-        // Add RCTTextView handling
-        else if ([className isEqualToString:@"RCTTextView"]) {
-            NSString *text = view.accessibilityLabel;
-            if (text && text.length > 0) {
-                [viewDict setObject:text forKey:@"text"];
-            }
-        }
-    }
-    
-    [array addObject:viewDict];
-    
-    for (UIView *subview in view.subviews) {
-        [self collectViewInfo:subview intoArray:array];
-    }
-}
-
-/**
- * Adds label-specific information to a view dictionary.
- *
- * @param label The UILabel to extract information from
- * @param dict The dictionary to add the information to
- */
-+ (void)addLabelInfo:(UILabel *)label toDictionary:(NSMutableDictionary *)dict {
-    if (label.text && label.text.length > 0) {
-        [dict setObject:label.text forKey:@"text"];
-    }
-    
-    NSMutableDictionary *fontDict = [NSMutableDictionary dictionary];
-    [fontDict setObject:@(label.font.pointSize) forKey:@"size"];
-    [fontDict setObject:[NSString stringWithFormat:@"#%08lX", (unsigned long)label.textColor.CGColor] forKey:@"color"];
-    
-    UIFont *font = label.font;
-    [fontDict setObject:@(font.fontDescriptor.symbolicTraits & UIFontDescriptorTraitBold ? YES : NO) forKey:@"isBold"];
-    [fontDict setObject:@(font.fontDescriptor.symbolicTraits & UIFontDescriptorTraitItalic ? YES : NO) forKey:@"isItalic"];
-    
-    // Add text alignment
-    [fontDict setObject:@(label.textAlignment) forKey:@"alignment"];
-    
-    [dict setObject:fontDict forKey:@"font"];
-}
-
-/**
- * Adds button-specific information to a view dictionary.
- *
- * @param button The UIButton to extract information from
- * @param dict The dictionary to add the information to
- */
-+ (void)addButtonInfo:(UIButton *)button toDictionary:(NSMutableDictionary *)dict {
-    NSString *title = [button titleForState:UIControlStateNormal];
-    if (title && title.length > 0) {
-        [dict setObject:title forKey:@"text"];
-    }
-    
-    UIColor *titleColor = [button titleColorForState:UIControlStateNormal];
-    UIFont *titleFont = button.titleLabel.font;
-    
-    if (titleColor && titleFont) {
-        NSMutableDictionary *fontDict = [NSMutableDictionary dictionary];
-        [fontDict setObject:@(titleFont.pointSize) forKey:@"size"];
-        [fontDict setObject:[NSString stringWithFormat:@"#%08lX", (unsigned long)titleColor.CGColor] forKey:@"color"];
-        
-        [fontDict setObject:@(titleFont.fontDescriptor.symbolicTraits & UIFontDescriptorTraitBold ? YES : NO) forKey:@"isBold"];
-        [fontDict setObject:@(titleFont.fontDescriptor.symbolicTraits & UIFontDescriptorTraitItalic ? YES : NO) forKey:@"isItalic"];
-        
-        [dict setObject:fontDict forKey:@"font"];
-    }
-    
-    [dict setObject:@(button.state) forKey:@"state"];
-    [dict setObject:@(button.enabled) forKey:@"enabled"];
-}
-
-/**
- * Adds text field-specific information to a view dictionary.
- *
- * @param textField The UITextField to extract information from
- * @param dict The dictionary to add the information to
- */
-+ (void)addTextFieldInfo:(UITextField *)textField toDictionary:(NSMutableDictionary *)dict {
-    NSString *text = textField.text;
-    if (text && text.length > 0) {
-        [dict setObject:text forKey:@"text"];
-    }
-    
-    if (textField.placeholder && textField.placeholder.length > 0) {
-        [dict setObject:textField.placeholder forKey:@"placeholder"];
-    }
-    
-    NSMutableDictionary *fontDict = [NSMutableDictionary dictionary];
-    [fontDict setObject:@(textField.font.pointSize) forKey:@"size"];
-    [fontDict setObject:[NSString stringWithFormat:@"#%08lX", (unsigned long)textField.textColor.CGColor] forKey:@"color"];
-    
-    UIFont *font = textField.font;
-    [fontDict setObject:@(font.fontDescriptor.symbolicTraits & UIFontDescriptorTraitBold ? YES : NO) forKey:@"isBold"];
-    [fontDict setObject:@(font.fontDescriptor.symbolicTraits & UIFontDescriptorTraitItalic ? YES : NO) forKey:@"isItalic"];
-    
-    // Add text alignment
-    [fontDict setObject:@(textField.textAlignment) forKey:@"alignment"];
-    
-    [dict setObject:fontDict forKey:@"font"];
-    [dict setObject:@(textField.secureTextEntry) forKey:@"isSecure"];
-    [dict setObject:@(textField.enabled) forKey:@"enabled"];
 }
 
 @end

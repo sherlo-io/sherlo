@@ -2,7 +2,6 @@ node_modules
 *.log
 .idea
 *.iml
-*.sw*
 npm-shrinkwrap.json
 dist
 .tern-port
@@ -28,10 +27,12 @@ htpasswd
 storybook-out
 /addons/docs/common/config-*
 built-storybooks
+sherlo-lib
+
+# Yarn
 .yarn/*
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
-sherlo-lib

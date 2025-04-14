@@ -2,6 +2,11 @@ name: iOS Build
 on:
   workflow_call:
     inputs:
+      project:
+        description: 'Project to build'
+        required: true
+        type: string # 'expo-storybook-8' or 'rn-storybook-7'
+        default: 'expo-storybook-8'
       skip_build:
         description: 'Skip the build steps'
         required: false
@@ -14,7 +19,7 @@ on:
 
 jobs:
   ios_build:
-    runs-on: macos-13
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v2
         with:
@@ -31,7 +36,7 @@ jobs:
         if: ${{ !inputs.skip_build }}
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '15.1'
+          xcode-version: '16.2'
       - run: |
           xcode-select -print-path
       - run: |
@@ -43,15 +48,17 @@ jobs:
         with:
           version: latest
 
-      - name: Install dependencies
-        if: ${{ !inputs.skip_build }}
-        run: yarn
-
-      - name: Build dependencies
-        if: ${{ !inputs.skip_build }}
-        run: yarn switch-env:dev
+      - name: Add env specific dependencies
+        run: ./scripts/switch-env.sh dev
         env:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Install dependencies
+        run: yarn && cd packages/cli && yarn build
+
+      - name: Install project dependencies
+        working-directory: testing/${{ inputs.project }}
+        run: yarn
 
       - name: Setup EAS
         if: ${{ !inputs.skip_build }}
@@ -60,13 +67,18 @@ jobs:
           eas-version: 13.4.2
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build iOS example app
-        if: ${{ !inputs.skip_build }}
+      - name: Build "expo-storybook-8" iOS example app
+        if: ${{ !inputs.skip_build && inputs.project == 'expo-storybook-8' }}
         working-directory: testing/expo-storybook-8
         run: eas build --platform ios --local --profile=${{ inputs.profile }} --output=builds/${{ inputs.profile }}/ios.tar.gz
 
-      - name: Upload Android Artifact
+      - name: Build "rn-storybook-7" iOS example app
+        if: ${{ !inputs.skip_build && inputs.project == 'rn-storybook-7' }}
+        working-directory: testing/rn-storybook-7
+        run: yarn build:ios:preview
+
+      - name: Upload iOS Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ios-${{ inputs.profile }}
-          path: testing/expo-storybook-8/builds/${{ inputs.profile }}/ios.tar.gz
+          name: ios-${{ inputs.profile }}-${{ inputs.project }}
+          path: testing/${{ inputs.project }}/builds/${{ inputs.profile }}/ios.tar.gz

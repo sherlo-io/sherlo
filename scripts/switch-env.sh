@@ -1,8 +1,6 @@
 #!/bin/bash
 
-# Adjust path to monorepo root and sherlo-lib directory
-SHERLO_LIB_DIR="sherlo-lib"
-NODE_MODULES="node_modules"
+SHERLO_LIB_DIR="$(pwd)/sherlo-lib"
 
 # S3 base URL for downloading packages
 GET_PACKAGE_URL="https://8gbu9wv7jd.execute-api.eu-central-1.amazonaws.com/dev/get-package-endpoint"
@@ -50,39 +48,11 @@ download_extract_link() {
         tar -xzf "$SHERLO_LIB_DIR/$filename.tgz" -C "$extract_dir" --strip-components=1
         echo "Extracted $filename"
 
-        # Link the package globally using yarn
-        (cd "$extract_dir" && yarn link)
-        echo "Registered $packagename for linking"
-
-        # Link the package in the project where it's used
-        (cd "$NODE_MODULES/@sherlo" && yarn link "$packagename")
-        echo "Linked $packagename to $NODE_MODULES/@sherlo/$packagename"
+        # Add yarn.lock to the package so it's recognized as a package
+        (cd "$extract_dir" && touch yarn.lock)
     done
 
     echo "All packages handled for environment: $ref"
 }
 
-cleanup() {
-    echo "Cleaning up..."
-
-    for packagename in "${PACKAGE_NAMES[@]}"; do
-        # Unlink the package from the project
-        (cd "$NODE_MODULES" && yarn unlink "$packagename")
-        echo "Unlinked $packagename from $NODE_MODULES/$packagename"
-    done
-
-    # Optionally, remove the extracted directories
-    rm -rf "$SHERLO_LIB_DIR/extracted"
-    echo "Cleaned up extracted directories."
-
-    echo "Cleanup complete."
-
-    yarn install --force
-}
-
-# Check environment and execute the appropriate action
-if [[ "$env" == "prod" ]]; then
-    cleanup
-else
-    download_extract_link $env
-fi
+download_extract_link $env

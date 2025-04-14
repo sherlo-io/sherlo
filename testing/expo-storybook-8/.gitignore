@@ -34,3 +34,12 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+
+# Yarn
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions

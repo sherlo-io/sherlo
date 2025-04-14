@@ -3,6 +3,11 @@ name: Update builds in repository
 on:
   workflow_call:
     inputs:
+      project:
+        description: 'Project to build'
+        required: true
+        type: string # 'expo-storybook-8' or 'rn-storybook-7'
+        default: 'expo-storybook-8'
       skip_build:
         description: 'Skip the build steps'
         required: false
@@ -20,6 +25,7 @@ jobs:
     secrets: inherit
     with:
       profile: ${{ inputs.profile }}
+      project: ${{ inputs.project }}
 
   ios_build:
     uses: ./.github/workflows/ios_build.yml
@@ -27,6 +33,7 @@ jobs:
     secrets: inherit
     with:
       profile: ${{ inputs.profile }}
+      project: ${{ inputs.project }}
 
   update_in_repo:
     if: ${{ !inputs.skip_build }}
@@ -49,21 +56,21 @@ jobs:
       - name: Download Android Artifact
         uses: actions/download-artifact@v4
         with:
-          name: android-${{ inputs.profile }}
-          path: testing/expo-storybook-8/builds/${{ inputs.profile }}
+          name: android-${{ inputs.profile }}-${{ inputs.project }}
+          path: testing/${{ inputs.project }}/builds/${{ inputs.profile }}
 
       - name: Download iOS Artifact
         uses: actions/download-artifact@v4
         with:
-          name: ios-${{ inputs.profile }}
-          path: testing/expo-storybook-8/builds/${{ inputs.profile }}
+          name: ios-${{ inputs.profile }}-${{ inputs.project }}
+          path: testing/${{ inputs.project }}/builds/${{ inputs.profile }}
 
       - name: Commit and push '${{ inputs.profile }}' builds
         uses: EndBug/add-and-commit@v7
         with:
           author_name: Sherlo Bot
           author_email: admin@sherlo.io
-          message: 'Update Preview builds'
-          add: 'testing/expo-storybook-8/builds/${{ inputs.profile }}/*'
+          message: 'Update ${{ inputs.project }} ${{ inputs.profile }} builds'
+          add: 'testing/${{ inputs.project }}/builds/${{ inputs.profile }}/*'
           push: true
           branch: ${{ github.head_ref || github.ref_name }}

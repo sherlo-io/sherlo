@@ -12,6 +12,7 @@ export type Config = {
     requiredMatches: number;
     intervalMs: number;
     timeoutMs: number;
+    saveScreenshots?: boolean;
   };
   overrideMode?: 'default' | 'storybook' | 'testing';
   expoUpdateDeeplink?: string;
@@ -42,6 +43,12 @@ export type AppProtocolItem =
       inspectorData?: string;
       isStable?: boolean;
       requestId: string;
+      safeAreaMetadata?: {
+        shouldAddSafeArea: boolean;
+        insetBottom: number;
+        insetTop: number;
+        isStorybook7: boolean;
+      };
     };
 
 export type AckStartProtocolItem = {
