@@ -19,6 +19,8 @@ import java.util.Map;
 public class SherloModule extends ReactContextBaseJavaModule {
     private final SherloModuleCore moduleCore;
 
+    public static final String NAME = "SherloModule";
+
     /**
      * Initializes the module with the React context and creates the core implementation.
      *
@@ -36,7 +38,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
      */
     @Override
     public String getName() {
-        return "SherloModule";
+        return NAME;
     }
 
     /**
@@ -131,8 +133,8 @@ public class SherloModule extends ReactContextBaseJavaModule {
      * @param promise Promise to resolve with true if UI becomes stable, false if timeout occurs
      */
     @ReactMethod
-    public void stabilize(int requiredMatches, int intervalMs, int timeoutMs, Promise promise) {
+    public void stabilize(int requiredMatches, int intervalMs, int timeoutMs, boolean saveScreenshots, Promise promise) {
         Activity activity = getCurrentActivity();
-        moduleCore.stabilize(activity, requiredMatches, intervalMs, timeoutMs, promise);
+        moduleCore.stabilize(activity, requiredMatches, intervalMs, timeoutMs, saveScreenshots, promise);
     }
-} 
+}

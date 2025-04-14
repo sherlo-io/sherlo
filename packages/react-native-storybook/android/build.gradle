@@ -5,7 +5,6 @@ def safeExtGet(prop, fallback) {
     rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
 }
 
-// Add this function to check if new architecture is enabled
 def isNewArchitectureEnabled() {
     return project.hasProperty("newArchEnabled") && project.newArchEnabled == "true"
 }
@@ -41,8 +40,4 @@ repositories{
 
 dependencies {
     implementation "com.facebook.react:react-native:${safeExtGet('reactNativeVersion', '+')}"
-    
-    if (isNewArchitectureEnabled()) {
-        implementation project(':react-native-generated-jni')
-    }
 }

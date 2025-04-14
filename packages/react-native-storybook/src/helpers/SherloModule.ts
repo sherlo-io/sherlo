@@ -4,7 +4,7 @@ import utf8 from 'utf8';
 import isExpoGo from './isExpoGo';
 import { StorybookViewMode, InspectorData } from '../types/types';
 import { Config, LastState } from './RunnerBridge/types';
-import NativeSherloModule from './NativeSherloModule';
+import SherloTurboModule from './SherloTurboModule';
 
 type SherloModule = {
   getMode: () => StorybookViewMode;
@@ -27,7 +27,7 @@ let SherloModule: SherloModule;
 const { SherloModule: SherloNativeModule } = NativeModules;
 
 // Determine which module to use - Turbo Module (new arch) or Legacy Module
-const module = NativeSherloModule ?? SherloNativeModule;
+const module = SherloTurboModule ?? SherloNativeModule;
 
 if (module !== null) {
   SherloModule = createSherloModule(module);

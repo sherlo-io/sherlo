@@ -68,8 +68,8 @@ public class SherloModule extends NativeSherloModuleSpec {
     }
 
     @Override
-    public void stabilize(double requiredMatches, double intervalMs, double timeoutMs, Promise promise) {
+    public void stabilize(double requiredMatches, double intervalMs, double timeoutMs, boolean saveScreenshots, Promise promise) {
         Activity activity = getCurrentActivity();
-        moduleCore.stabilize(activity, (int)requiredMatches, (int)intervalMs, (int)timeoutMs, promise);
+        moduleCore.stabilize(activity, (int)requiredMatches, (int)intervalMs, (int)timeoutMs, saveScreenshots, promise);
     }
 } 
