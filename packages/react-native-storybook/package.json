@@ -82,7 +82,7 @@
   "codegenConfig": {
     "name": "SherloModuleSpec",
     "type": "modules",
-    "jsSrcsDir": "src/helpers",
+    "jsSrcsDir": "src/SherloTurboModule",
     "android": {
       "javaPackageName": "io.sherlo.storybookreactnative"
     }

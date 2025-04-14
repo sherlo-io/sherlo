@@ -10,6 +10,7 @@ def isNewArchitectureEnabled() {
 }
 
 apply plugin: 'com.android.library'
+apply plugin: "com.facebook.react"
 
 android {
     compileSdkVersion safeExtGet('compileSdkVersion', DEFAULT_COMPILE_SDK_VERSION)
@@ -32,12 +33,45 @@ android {
             }
         }
     }
+    
+    buildFeatures {
+        prefab true
+    }
+}
+
+// Set up the react-native configuration for code generation
+if (isNewArchitectureEnabled()) {
+    react {
+        jsRootDir = file("../")
+        libraryName = "sherlomodulespec"
+        codegenJavaPackageName = "io.sherlo.storybookreactnative"
+    }
+    
+    // Include the generated sources directory
+    android {
+        sourceSets {
+            main {
+                java {
+                    srcDirs += [
+                        project.file("$buildDir/generated/source/codegen/java")
+                    ]
+                }
+            }
+        }
+    }
 }
 
 repositories{
     mavenCentral()
+    google()
 }
 
 dependencies {
     implementation "com.facebook.react:react-native:${safeExtGet('reactNativeVersion', '+')}"
+    
+    if (isNewArchitectureEnabled()) {
+        implementation project(':ReactAndroid')
+        implementation "com.facebook.fbjni:fbjni:0.2.2"
+        implementation "com.facebook.react:react-native-gradle-plugin"
+    }
 }

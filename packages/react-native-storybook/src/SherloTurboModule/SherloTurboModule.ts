@@ -21,5 +21,4 @@ export interface Spec extends TurboModule {
   ): Promise<boolean>;
 }
 
-// This is used for type checking in development only
 export default TurboModuleRegistry.getEnforcing<Spec>('SherloModuleSpec');
