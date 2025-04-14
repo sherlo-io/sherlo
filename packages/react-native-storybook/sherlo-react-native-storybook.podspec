@@ -16,11 +16,25 @@ Pod::Spec.new do |s|
   s.authors      = { "Your Name" => "yourname@email.com" }
   s.platforms    = { :ios => "10.0" }
   s.source       = { :git => "https://github.com/github_account/sherlo-react-native-storybook.git", :tag => "#{s.version}" }
+  
+  # Define shared files used by both architectures
+  shared_files = [
+    "ios/SherloModuleCore.{h,m}", 
+    "ios/ExpoUpdateHelper.{h,m}",
+    "ios/ConfigHelper.{h,m}",
+    "ios/FileSystemHelper.{h,m}",
+    "ios/InspectorHelper.{h,m}",
+    "ios/StabilityHelper.{h,m}",
+    "ios/KeyboardHelper.{h,m}",
+    "ios/LastStateHelper.{h,m}",
+    "ios/RestartHelper.{h,m}"
+  ]
 
   # Conditionally include files based on architecture
   if ENV['RCT_NEW_ARCH_ENABLED'] == '1'
-    # Include both .m and .mm files for the new architecture
-    s.source_files = "ios/**/*.{h,m,mm}"
+    # Include TurboModule files for the new architecture
+    s.source_files = ["ios/SherloModule.h", 
+                     "ios/SherloTurboModule.{h,mm}"] + shared_files
     
     # Specify dependencies when new architecture is enabled
     s.compiler_flags = folly_compiler_flags + " -DRCT_NEW_ARCH_ENABLED=1"
@@ -38,7 +52,7 @@ Pod::Spec.new do |s|
     s.dependency "ReactCommon/turbomodule/core" 
   else
     # Only include non-TurboModule files for legacy architecture
-    s.source_files = "ios/!(SherloTurboModule*).{h,m}"
+    s.source_files = ["ios/SherloModule.{h,m}"] + shared_files
     
     # Specify dependencies for legacy architecture
     s.pod_target_xcconfig = {
@@ -47,4 +61,7 @@ Pod::Spec.new do |s|
     }
     s.dependency "React-Core"
   end
+  
+  # Required for UIKit
+  s.frameworks = "UIKit"
 end

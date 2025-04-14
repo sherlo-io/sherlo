@@ -24,4 +24,4 @@ export interface Spec extends TurboModule {
 }
 
 // This is used for type checking in development only
-export default TurboModuleRegistry.getEnforcing<Spec>('SherloModule');
+export default TurboModuleRegistry.getEnforcing<Spec>('SherloModuleSpec');

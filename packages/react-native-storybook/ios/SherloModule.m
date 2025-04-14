@@ -21,8 +21,9 @@
 /**
  * Required method to register the module with React Native.
  * Sets the module name that will be used to access it from JavaScript.
+ * IMPORTANT: Must match the name in codegenConfig for compatibility.
  */
-RCT_EXPORT_MODULE()
+RCT_EXPORT_MODULE("SherloModuleSpec")
 
 @synthesize bridge = _bridge;
 

@@ -1,6 +1,5 @@
 #ifdef RCT_NEW_ARCH_ENABLED
 
-#import "SherloModule.h"
 #import "SherloTurboModule.h"
 #import "SherloModuleCore.h"
 
@@ -11,7 +10,7 @@
  * Turbo Module implementation for Sherlo.
  * This file is only used when RCT_NEW_ARCH_ENABLED is defined.
  */
-@implementation SherloModule
+@implementation SherloTurboModule
 
 // Synthesize the turboModuleRegistry from RCTTurboModule protocol
 @synthesize turboModuleRegistry = _turboModuleRegistry;
@@ -19,8 +18,9 @@
 /**
  * Required method to register the module with React Native.
  * Sets the module name that will be used to access it from JavaScript.
+ * IMPORTANT: Use the same name as in the codegenConfig to ensure correct code generation.
  */
-RCT_EXPORT_MODULE()
+RCT_EXPORT_MODULE("SherloModuleSpec")
 
 @synthesize bridge = _bridge;
 
@@ -106,8 +106,10 @@ static SherloModuleCore *core;
 
 // Required method from RCTTurboModule protocol
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:(const facebook::react::ObjCTurboModule::InitParams &)params {
-    // To be implemented when codegen runs
-    return nullptr;
+  // For now, return nullptr - actual implementation requires codegen to run first
+  // When codegen runs successfully, replace this with:
+  // return std::make_shared<facebook::react::NativeSherloModuleSpecJSI>(params);
+  return nullptr;
 }
 
 @end
