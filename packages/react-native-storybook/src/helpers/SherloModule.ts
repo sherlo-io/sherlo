@@ -24,13 +24,10 @@ type SherloModule = {
 };
 
 let SherloModule: SherloModule;
-const { SherloModuleSpec, SherloModule: SherloLegacyModule } = NativeModules;
+const { SherloModule: NativeSherloModule } = NativeModules;
 
-// Determine which module to use - Turbo Module (new arch) or Legacy Module
-const module = SherloModuleSpec ?? SherloLegacyModule;
-
-if (module !== null) {
-  SherloModule = createSherloModule(module);
+if (NativeSherloModule !== null) {
+  SherloModule = createSherloModule(NativeSherloModule);
 } else {
   SherloModule = createDummySherloModule();
 
