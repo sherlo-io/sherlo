@@ -5,7 +5,9 @@ const WithFigmaComparison = () => {
   return (
     <View style={styles.container}>
       <View style={styles.purpleBar}>
-        <View style={styles.greenBox} />
+        <View style={styles.greenBox}>
+          <View style={styles.blackDot} />
+        </View>
       </View>
       <View style={styles.greyContainer}>
         <View style={styles.redRectangle}>
@@ -54,6 +56,13 @@ const styles = StyleSheet.create({
     borderColor: '#000000',
     bottom: 10,
     left: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  blackDot: {
+    width: 1,
+    height: 1,
+    backgroundColor: '#000000',
   },
   text: {
     margin: 10,
