@@ -43,8 +43,7 @@ android {
 if (isNewArchitectureEnabled()) {
     react {
         jsRootDir = file("../")
-        libraryName = "sherlomodulespec"
-        codegenJavaPackageName = "io.sherlo.storybookreactnative"
+        libraryName = "SherloModuleSpec"
     }
     
     // Include the generated sources directory
@@ -72,6 +71,5 @@ dependencies {
     if (isNewArchitectureEnabled()) {
         implementation project(':ReactAndroid')
         implementation "com.facebook.fbjni:fbjni:0.2.2"
-        implementation "com.facebook.react:react-native-gradle-plugin"
     }
 }
