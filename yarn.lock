@@ -3468,7 +3468,7 @@ __metadata:
     "@types/node": "npm:^14.14.6"
     eslint-plugin-github: "npm:^4.10.2"
     jest: "npm:^29.7.0"
-    sherlo: "npm:^1.2.0"
+    sherlo: "npm:^1.2.1-alpha.3"
     ts-jest: "npm:^29.1.2"
     typescript: "npm:^5.4.2"
   languageName: unknown
@@ -3500,10 +3500,11 @@ __metadata:
     "@types/utf8": "npm:^3.0.1"
     base-64: "npm:^0.1.0"
     deepmerge: "npm:4.3.1"
+    its-fine: "npm:^2.0.0"
     jsencrypt: "npm:^3.3.2"
     node-forge: "npm:^1.3.1"
     react-native-safe-area-context: "npm:4.11.0"
-    sherlo: "npm:^1.2.0"
+    sherlo: "npm:^1.2.1-alpha.3"
     typescript: "npm:^5.3.3"
     utf8: "npm:^3.0.0"
   peerDependencies:
@@ -4160,6 +4161,15 @@ __metadata:
   version: 15.7.14
   resolution: "@types/prop-types@npm:15.7.14"
   checksum: 10/d0c5407b9ccc3dd5fae0ccf9b1007e7622ba5e6f1c18399b4f24dff33619d469da4b9fa918a374f19dc0d9fe6a013362aab0b844b606cfc10676efba3f5f736d
+  languageName: node
+  linkType: hard
+
+"@types/react-reconciler@npm:^0.28.9":
+  version: 0.28.9
+  resolution: "@types/react-reconciler@npm:0.28.9"
+  peerDependencies:
+    "@types/react": "*"
+  checksum: 10/2450e3df6169fb887591f2a949ca8f08439ac76c756124feeee7370f1a79b5060ba8e5f612302dc70169433e043da7f617dd7ea3b14a3c2bb39559d66b7a0986
   languageName: node
   linkType: hard
 
@@ -9174,6 +9184,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"its-fine@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "its-fine@npm:2.0.0"
+  dependencies:
+    "@types/react-reconciler": "npm:^0.28.9"
+  peerDependencies:
+    react: ^19.0.0
+  checksum: 10/26a6005615e31a8c5cec64ea66d4357bfa274616ed3e8224dd118e14c3f16aaa5a6c9454ae92a7bde687a4af80b5cfe7681f7ecc44edc3e64ee603a16550c8ea
+  languageName: node
+  linkType: hard
+
 "jackspeak@npm:^3.1.2":
   version: 3.4.3
   resolution: "jackspeak@npm:3.4.3"
@@ -13402,7 +13423,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sherlo@npm:^1.2.0, sherlo@workspace:packages/cli":
+"sherlo@npm:^1.2.1-alpha.3, sherlo@workspace:packages/cli":
   version: 0.0.0-use.local
   resolution: "sherlo@workspace:packages/cli"
   dependencies:

@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VERIFICATION_TEST_ID } from '../../../constants';
 import { StorybookParams, StorybookView } from '../../../types';
 import { getStorybookComponent, isStorybook7 } from '../../helpers';
+import { RunnerBridge } from '../../../helpers';
 
 /**
  * We applied styles based on how they are defined in the link below to ensure that user's stories
@@ -27,15 +28,11 @@ function Storybook({
 }) {
   const insets = useSafeAreaInsets();
 
-  const memoizedStorybook = useMemo(() => {
-    const StorybookComponent = getStorybookComponent({
-      view,
-      params,
-      isTestingMode: true,
-    });
-
-    return <StorybookComponent />;
-  }, []);
+  const StorybookComponent = getStorybookComponent({
+    view,
+    params,
+    isTestingMode: true,
+  });
 
   let style;
 
@@ -56,9 +53,13 @@ function Storybook({
     };
   }
 
+  RunnerBridge.log('storybook style', { style });
+
   return (
     <View testID={VERIFICATION_TEST_ID} style={style}>
-      <View style={{ flex: 1, overflow: 'hidden' }}>{memoizedStorybook}</View>
+      <View style={{ flex: 1, overflow: 'hidden' }}>
+        <StorybookComponent />
+      </View>
     </View>
   );
 }

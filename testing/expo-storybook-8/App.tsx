@@ -1,6 +1,5 @@
 import { isStorybookMode, addStorybookToDevMenu } from '@sherlo/react-native-storybook';
 import { StatusBar } from 'expo-status-bar';
-import { Platform } from 'react-native';
 import Storybook from './.storybook';
 import HomeScreen from './src/HomeScreen';
 

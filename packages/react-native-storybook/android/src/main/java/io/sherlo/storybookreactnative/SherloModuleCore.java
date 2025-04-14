@@ -153,7 +153,7 @@ public class SherloModuleCore {
      * @param timeoutMs The overall timeout (in milliseconds)
      * @param promise Promise to resolve with the stability result or reject with an error
      */
-    public void stabilize(Activity activity, int requiredMatches, int intervalMs, int timeoutMs, Promise promise) {
-        StabilityHelper.stabilize(activity, requiredMatches, intervalMs, timeoutMs, promise);
+    public void stabilize(Activity activity, int requiredMatches, int intervalMs, int timeoutMs, boolean saveScreenshots, Promise promise) {
+        StabilityHelper.stabilize(activity, requiredMatches, intervalMs, timeoutMs, saveScreenshots, promise);
     }
 } 

@@ -54,3 +54,23 @@ export type StorybookParams = StorybookParamsRaw extends infer U
   : never;
 
 export type StorybookViewMode = 'testing' | 'default' | 'storybook';
+
+export type InspectorDataNode = {
+  id: number;
+  className: string;
+  isVisible: boolean;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  adjustedWidth?: number;
+  adjustedHeight?: number;
+  properties?: Record<string, any>;
+  children?: InspectorDataNode[];
+};
+
+export type InspectorData = {
+  viewHierarchy: InspectorDataNode;
+  density: number;
+  fontScale: number;
+};

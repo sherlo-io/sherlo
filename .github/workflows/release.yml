@@ -48,6 +48,11 @@ jobs:
         with:
           node-version: '18.18.0'
 
+      - name: Add env specific dependencies
+        run: ./scripts/switch-env.sh prod
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
       - name: Install dependencies
         run: yarn
 
@@ -65,9 +70,7 @@ jobs:
           echo "{\"REQUIRED_MIN_SDK_VERSION\": \"$NEW_VERSION_NUMBER\"}" > packages/cli/sdk-compatibility.json
 
       - name: Build packages
-        run: yarn switch-env:prod
-        env:
-          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+        run: yarn build
 
       - name: Commit and push updated files
         uses: EndBug/add-and-commit@v7

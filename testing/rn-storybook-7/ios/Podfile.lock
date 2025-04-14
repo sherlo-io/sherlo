@@ -1507,7 +1507,7 @@ PODS:
     - React-utils (= 0.77.2)
   - RNCAsyncStorage (2.1.2):
     - React-Core
-  - RNGestureHandler (2.24.0):
+  - RNGestureHandler (2.25.0):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1530,7 +1530,7 @@ PODS:
     - Yoga
   - RNLocalize (3.4.1):
     - React-Core
-  - RNReanimated (3.17.1):
+  - RNReanimated (3.17.2):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1552,10 +1552,10 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNReanimated/reanimated (= 3.17.1)
-    - RNReanimated/worklets (= 3.17.1)
+    - RNReanimated/reanimated (= 3.17.2)
+    - RNReanimated/worklets (= 3.17.2)
     - Yoga
-  - RNReanimated/reanimated (3.17.1):
+  - RNReanimated/reanimated (3.17.2):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1577,9 +1577,9 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNReanimated/reanimated/apple (= 3.17.1)
+    - RNReanimated/reanimated/apple (= 3.17.2)
     - Yoga
-  - RNReanimated/reanimated/apple (3.17.1):
+  - RNReanimated/reanimated/apple (3.17.2):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1602,7 +1602,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - RNReanimated/worklets (3.17.1):
+  - RNReanimated/worklets (3.17.2):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1624,9 +1624,9 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNReanimated/worklets/apple (= 3.17.1)
+    - RNReanimated/worklets/apple (= 3.17.2)
     - Yoga
-  - RNReanimated/worklets/apple (3.17.1):
+  - RNReanimated/worklets/apple (3.17.2):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1962,9 +1962,9 @@ SPEC CHECKSUMS:
   ReactCodegen: 6f764a42662ad6379fd3fbb9c09baff6e4797b20
   ReactCommon: 7763e59534d58e15f8f22121cdfe319040e08888
   RNCAsyncStorage: b9f5f78da5d16a853fe3dc22e8268d932fc45a83
-  RNGestureHandler: 9f3109e11ed88fe5bed280bf7762b25e4c52f396
+  RNGestureHandler: 92e89a04cd0d1c77f383a55d14c15e7f423f4c00
   RNLocalize: 15463c4d79c7da45230064b4adcf5e9bb984667e
-  RNReanimated: c70f884b0d7b5303f0dc85085e0119b7ade6fef3
+  RNReanimated: 8aeb349c745cc7ac075d907d45653f57c85e9dc6
   RNSVG: 67de7abef81f367387b708ba6d2acefe7d4f5895
   sherlo-react-native-storybook: 52165a8448adc7fd641681bacde5c4ad9f7e9340
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748

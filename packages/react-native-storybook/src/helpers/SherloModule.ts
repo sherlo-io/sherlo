@@ -1,21 +1,24 @@
 import base64 from 'base-64';
-import { NativeModules, Platform } from 'react-native';
+import { NativeModules } from 'react-native';
 import utf8 from 'utf8';
 import isExpoGo from './isExpoGo';
-import { StorybookViewMode } from '../types/types';
+import { StorybookViewMode, InspectorData } from '../types/types';
 import { Config, LastState } from './RunnerBridge/types';
-import RunnerBridge from './RunnerBridge';
-
 type SherloModule = {
   getMode: () => StorybookViewMode;
   getConfig: () => Config;
   getLastState: () => LastState | undefined;
-  getInspectorData: () => Promise<string>;
+  getInspectorData: () => Promise<InspectorData>;
   appendFile: (path: string, base64: string) => Promise<void>;
   readFile: (path: string) => Promise<string>;
   openStorybook: () => Promise<void>;
   toggleStorybook: () => Promise<void>;
-  stabilize: (requiredMatches: number, intervalMs: number, timeoutMs: number) => Promise<boolean>;
+  stabilize: (
+    requiredMatches: number,
+    intervalMs: number,
+    timeoutMs: number,
+    saveScreenshots: boolean
+  ) => Promise<boolean>;
 };
 
 let SherloModule: SherloModule;
@@ -40,10 +43,16 @@ export default SherloModule;
 function createSherloModule(): SherloModule {
   return {
     getInspectorData: async () => {
-      return SherloNativeModule.getInspectorData();
+      const inspectorDataString = await SherloNativeModule.getInspectorData();
+      return JSON.parse(inspectorDataString) as InspectorData;
     },
-    stabilize: async (requiredMatches: number, intervalMs: number, timeoutMs: number) => {
-      return SherloNativeModule.stabilize(requiredMatches, intervalMs, timeoutMs);
+    stabilize: async (
+      requiredMatches: number,
+      intervalMs: number,
+      timeoutMs: number,
+      saveScreenshots: boolean
+    ) => {
+      return SherloNativeModule.stabilize(requiredMatches, intervalMs, timeoutMs, saveScreenshots);
     },
     getMode: () => {
       return SherloNativeModule.getConstants().mode;
@@ -87,10 +96,29 @@ function createSherloModule(): SherloModule {
 
 function createDummySherloModule(): SherloModule {
   return {
-    getInspectorData: async () => '',
+    getInspectorData: async () => ({
+      viewHierarchy: {
+        id: 1,
+        className: 'View',
+        isVisible: true,
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+      },
+      density: 1,
+      fontScale: 1,
+    }),
     getMode: () => 'default',
     getLastState: () => undefined,
-    getConfig: () => ({ stabilization: { requiredMatches: 3, intervalMs: 500, timeoutMs: 5_000 } }),
+    getConfig: () => ({
+      stabilization: {
+        requiredMatches: 3,
+        intervalMs: 500,
+        timeoutMs: 5_000,
+        saveScreenshots: true,
+      },
+    }),
     appendFile: async () => {},
     readFile: async () => '',
     openStorybook: async () => {},
