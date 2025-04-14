@@ -78,13 +78,5 @@
   },
   "publishConfig": {
     "access": "public"
-  },
-  "codegenConfig": {
-    "name": "SherloModuleSpec",
-    "type": "modules",
-    "jsSrcsDir": "src/SherloTurboModule",
-    "android": {
-      "javaPackageName": "io.sherlo.storybookreactnative"
-    }
   }
 }

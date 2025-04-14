@@ -21,7 +21,7 @@ public class SherloPackage extends BaseReactPackage {
     @Nullable
     @Override
     public NativeModule getModule(String name, ReactApplicationContext reactContext) {
-        if (name.equals("SherloModule")) {
+        if (name.equals(SherloModule.NAME)) {
             return new SherloModule(reactContext);
         } else {
             return null;
@@ -34,10 +34,10 @@ public class SherloPackage extends BaseReactPackage {
             final Map<String, ReactModuleInfo> moduleInfos = new HashMap<>();
             boolean isTurboModule = BuildConfig.IS_NEW_ARCHITECTURE_ENABLED;
             moduleInfos.put(
-                    "SherloModule",
+                    SherloModule.NAME,
                     new ReactModuleInfo(
-                            "SherloModule",
-                            "SherloModule",
+                            SherloModule.NAME,
+                            SherloModule.NAME,
                             false, // canOverrideExistingModule
                             false, // needsEagerInit
                             false, // isCxxModule

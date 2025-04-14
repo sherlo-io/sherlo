@@ -4,7 +4,7 @@ import utf8 from 'utf8';
 import isExpoGo from './isExpoGo';
 import { StorybookViewMode, InspectorData } from '../types/types';
 import { Config, LastState } from './RunnerBridge/types';
-import SherloTurboModule from './SherloTurboModule';
+import SherloTurboModule from '../SherloTurboModule';
 
 type SherloModule = {
   getMode: () => StorybookViewMode;
@@ -24,10 +24,10 @@ type SherloModule = {
 };
 
 let SherloModule: SherloModule;
-const { SherloModule: SherloNativeModule } = NativeModules;
+const { SherloModuleSpec, SherloModule: SherloLegacyModule } = NativeModules;
 
 // Determine which module to use - Turbo Module (new arch) or Legacy Module
-const module = SherloTurboModule ?? SherloNativeModule;
+const module = SherloModuleSpec ?? SherloLegacyModule;
 
 if (module !== null) {
   SherloModule = createSherloModule(module);
@@ -48,7 +48,7 @@ export default SherloModule;
 function createSherloModule(nativeModule: any): SherloModule {
   return {
     getInspectorData: async () => {
-      const inspectorDataString = await SherloNativeModule.getInspectorData();
+      const inspectorDataString = await nativeModule.getInspectorData();
       return JSON.parse(inspectorDataString) as InspectorData;
     },
     stabilize: async (
@@ -57,7 +57,7 @@ function createSherloModule(nativeModule: any): SherloModule {
       timeoutMs: number,
       saveScreenshots: boolean
     ) => {
-      return SherloNativeModule.stabilize(requiredMatches, intervalMs, timeoutMs, saveScreenshots);
+      return nativeModule.stabilize(requiredMatches, intervalMs, timeoutMs, saveScreenshots);
     },
     getMode: () => {
       return nativeModule.getConstants().mode as StorybookViewMode;
