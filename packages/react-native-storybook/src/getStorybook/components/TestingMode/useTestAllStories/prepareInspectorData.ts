@@ -29,12 +29,17 @@ export function prepareInspectorData(
     if (metadataEntry) {
       const { className, ...properties } = metadataEntry;
 
+      // className coming from native side can be obfuscated so if we have
+      // access to the name from fiber we will use that instead
       if (className) {
         node.className = className;
       }
 
       node.properties = properties;
 
+      // we need to find the root story node that will be the first node user can inspect
+      // this is done to remove all boilerplate parent nodes from the hierarchy
+      // like the ones injected by Sherlo
       if (node.properties.testID === storyId) {
         if (node.children && Array.isArray(node.children) && node.children.length > 0) {
           rootStoryNode = node.children[0];
