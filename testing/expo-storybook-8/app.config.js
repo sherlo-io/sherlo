@@ -10,6 +10,7 @@ module.exports = () => ({
       resizeMode: 'contain',
       backgroundColor: '#ffffff',
     },
+    newArchEnabled: true,
     updates: {
       enabled: true,
       fallbackToCacheTimeout: 300000,
@@ -26,7 +27,7 @@ module.exports = () => ({
     runtimeVersion: {
       policy: 'appVersion',
     },
-    plugins: ['expo-localization'],
+    plugins: ['../../packages/react-native-storybook/app.plugin.js', 'expo-localization'],
     extra: {
       eas: {
         projectId: '4cb166d7-f774-49a9-9aa0-e5533347bcd1',
