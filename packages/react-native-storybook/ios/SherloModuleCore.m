@@ -73,7 +73,7 @@ static FileSystemHelper *fileSystemHelper;
  *
  * @return Dictionary of constants
  */
-- (NSDictionary *)getConstants {
+- (NSDictionary *)getSherloConstants {
     NSString *configString = nil;
     if (config) {
         NSError *error = nil;

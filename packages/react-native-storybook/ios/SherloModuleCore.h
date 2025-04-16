@@ -26,7 +26,7 @@
  * Returns constants exposed to the JavaScript side
  * @return Dictionary with mode, config, and lastState
  */
-- (NSDictionary *)getConstants;
+- (NSDictionary *)getSherloConstants;
 
 /**
  * Toggles between Storybook and default modes.
