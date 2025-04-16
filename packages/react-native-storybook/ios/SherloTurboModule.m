@@ -1,6 +1,6 @@
-#import "TurboSherloModule.h"
+#import "SherloTurboModule.h"
 
-@implementation TurboSherloModule
+@implementation SherloTurboModule
 
 RCT_EXPORT_MODULE(SherloTurbo)
 

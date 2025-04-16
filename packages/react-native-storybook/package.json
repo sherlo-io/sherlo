@@ -91,7 +91,7 @@
     },
     "ios": {
       "modulesProvider": {
-        "SherloTurbo": "TurboSherloModule"
+        "SherloTurbo": "SherloTurboModule"
       }
     }
   }
