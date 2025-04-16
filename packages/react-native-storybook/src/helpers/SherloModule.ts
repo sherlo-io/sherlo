@@ -4,7 +4,7 @@ import utf8 from 'utf8';
 import isExpoGo from './isExpoGo';
 import { StorybookViewMode, InspectorData } from '../types/types';
 import { Config, LastState } from './RunnerBridge/types';
-import TurboModule, { Spec } from '../specs/NativeSherloModule';
+import TurboModule, { SherloConstants, Spec } from '../specs/NativeSherloModule';
 
 type SherloModule = {
   getMode: () => StorybookViewMode;
@@ -45,6 +45,12 @@ export default SherloModule;
 /* ========================================================================== */
 
 function createSherloModule(): SherloModule {
+  const getConstants = (): SherloConstants => {
+    const turboModuleConstants = module.getSherloConstants() || {};
+    const nativeModuleConstants = module.getConstants?.() || {};
+    return { ...turboModuleConstants, ...nativeModuleConstants };
+  };
+
   return {
     getInspectorData: async () => {
       const inspectorDataString = await module.getInspectorData();
@@ -60,12 +66,11 @@ function createSherloModule(): SherloModule {
     },
     // @ts-ignore
     getMode: () => {
-      return module.getSherloConstants().mode;
+      return getConstants().mode;
     },
     getConfig: () => {
       // @ts-ignore
-      const configString = module.getSherloConstants().config;
-      console.log('configString', configString);
+      const configString = getConstants().config;
       const config = JSON.parse(configString) as Config | undefined;
       if (!config) {
         throw new Error('Config is undefined');
@@ -74,14 +79,14 @@ function createSherloModule(): SherloModule {
     },
     getLastState: () => {
       // @ts-ignore
-      const configString = module.getSherloConstants().config;
+      const configString = getConstants().config;
       const config = JSON.parse(configString) as Config | undefined;
       if (config?.overrideLastState) {
         return config.overrideLastState;
       }
 
       // @ts-ignore
-      const lastState = module.getSherloConstants().lastState;
+      const lastState = getConstants().lastState;
       const parsedLastState = lastState ? JSON.parse(lastState) : undefined;
 
       if (parsedLastState && Object.keys(parsedLastState).length === 0) {

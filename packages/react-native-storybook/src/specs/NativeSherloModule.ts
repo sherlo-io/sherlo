@@ -1,7 +1,7 @@
 import type { TurboModule } from 'react-native';
 import { TurboModuleRegistry } from 'react-native';
 
-interface SherloConstants {
+export interface SherloConstants {
   mode: string;
   config: string;
   lastState: string;
