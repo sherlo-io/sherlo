@@ -8,6 +8,7 @@ import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Promise;
+import com.facebook.react.bridge.WritableMap;
 
 // Java Utility and IO Imports
 import java.util.Map;
@@ -46,8 +47,8 @@ public class SherloModule extends ReactContextBaseJavaModule {
      *
      * @return A map of constants for the JavaScript side
      */
-    @Override
-    public Map<String, Object> getConstants() {
+    @ReactMethod
+    public WritableMap getSherloConstants() {
         return moduleCore.getConstants();
     }
 

@@ -60,11 +60,12 @@ function createSherloModule(): SherloModule {
     },
     getMode: () => {
       // @ts-ignore
-      return module.getConstants?.().mode;
+      return module.getSherloConstants().mode;
     },
     getConfig: () => {
       // @ts-ignore
-      const configString = module.getConstants?.().config;
+      const configString = module.getSherloConstants().config;
+      console.log('configString', configString);
       const config = JSON.parse(configString) as Config | undefined;
       if (!config) {
         throw new Error('Config is undefined');
@@ -72,15 +73,18 @@ function createSherloModule(): SherloModule {
       return config;
     },
     getLastState: () => {
+      console.log('module', module);
+      console.log('constants', module.getSherloConstants());
       // @ts-ignore
-      const configString = module.getConstants?.().config;
+      const configString = module.getSherloConstants().config;
+      console.log('configString', configString);
       const config = JSON.parse(configString) as Config | undefined;
       if (config?.overrideLastState) {
         return config.overrideLastState;
       }
 
       // @ts-ignore
-      const lastState = module.getConstants?.().lastState;
+      const lastState = module.getSherloConstants().lastState;
       const parsedLastState = lastState ? JSON.parse(lastState) : undefined;
 
       if (parsedLastState && Object.keys(parsedLastState).length === 0) {

@@ -6,6 +6,7 @@ import android.app.Activity;
 import androidx.annotation.NonNull;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.Promise;
+import com.facebook.react.bridge.WritableMap;
 
 // Java Utility and IO Imports
 import java.util.Map;
@@ -45,7 +46,7 @@ public class SherloModule extends NativeSherloModuleSpec {
      * @return A map of constants for the JavaScript side
      */
     @Override
-    public Map<String, Object> getConstants() {
+    public WritableMap getSherloConstants() {
         return moduleCore.getConstants();
     }
 

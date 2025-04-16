@@ -1,6 +1,12 @@
 import type { TurboModule } from 'react-native';
 import { TurboModuleRegistry } from 'react-native';
 
+interface SherloConstants {
+  mode: string;
+  config: string;
+  lastState: string;
+}
+
 export interface Spec extends TurboModule {
   getInspectorData: () => Promise<string>;
   appendFile: (path: string, base64: string) => Promise<void>;
@@ -14,6 +20,7 @@ export interface Spec extends TurboModule {
     timeoutMs: number,
     saveScreenshots: boolean
   ) => Promise<boolean>;
+  getSherloConstants: () => SherloConstants;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('SherloModule') as Spec | null;
