@@ -88,6 +88,11 @@
     "jsSrcsDir": "src/specs",
     "android": {
       "javaPackageName": "io.sherlo.storybookreactnative"
+    },
+    "ios": {
+      "modulesProvider": {
+        "SherloTurbo": "TurboSherloModule"
+      }
     }
   }
 }

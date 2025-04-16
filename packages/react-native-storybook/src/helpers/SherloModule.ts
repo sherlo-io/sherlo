@@ -27,8 +27,9 @@ let SherloModule: SherloModule;
 const { SherloModule: SherloNativeModule } = NativeModules;
 
 if (TurboModule) {
-  const result = TurboModule.hello('Sherlo');
-  console.log(result);
+  TurboModule.hello('Sherlo').then((result) => {
+    console.log(result);
+  });
 } else {
   console.warn('SherloTurbo module is not available');
 }

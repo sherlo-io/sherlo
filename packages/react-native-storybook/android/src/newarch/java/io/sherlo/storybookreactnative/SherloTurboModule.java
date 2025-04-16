@@ -2,6 +2,7 @@ package io.sherlo.storybookreactnative;
 
 import androidx.annotation.NonNull;
 import com.facebook.react.bridge.ReactApplicationContext;
+import com.facebook.react.bridge.Promise;
 
 /**
  * This implementation works with the New Architecture as a TurboModule.
@@ -22,7 +23,12 @@ public class SherloTurboModule extends NativeSherloTurboSpec {
     }
 
     @Override
-    public String hello(String name) {
-        return "Hello, " + name + " from TurboModule!";
+    public void hello(String name, Promise promise) {
+        try {
+            String result = "Hello, " + name + " from TurboModule!";
+            promise.resolve(result);
+        } catch (Exception e) {
+            promise.reject("ERR_UNEXPECTED_EXCEPTION", e);
+        }
     }
 } 
