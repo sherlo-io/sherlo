@@ -8,6 +8,7 @@ import android.util.Log;
 // React Native Bridge Imports
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.Promise;
+import com.facebook.react.bridge.WritableMap;
 
 // Java Utility and IO Imports
 import java.util.HashMap;
@@ -66,11 +67,11 @@ public class SherloModuleCore {
      * 
      * @return A map containing the module constants
      */
-    public Map<String, Object> getConstants() {
-        final Map<String, Object> constants = new HashMap<>();
-        constants.put("mode", this.currentMode);
-        constants.put("config", this.config != null ? this.config.toString() : null);
-        constants.put("lastState", this.lastState != null ? this.lastState.toString() : null);
+    public WritableMap getSherloConstants() {
+        final WritableMap constants = Arguments.createMap();
+        constants.putString("mode", this.currentMode);
+        constants.putString("config", this.config != null ? this.config.toString() : null);
+        constants.putString("lastState", this.lastState != null ? this.lastState.toString() : null);
         return constants;
     }
 
