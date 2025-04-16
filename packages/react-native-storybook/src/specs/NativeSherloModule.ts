@@ -1,12 +1,5 @@
 import type { TurboModule } from 'react-native';
 import { TurboModuleRegistry } from 'react-native';
-import { StorybookViewMode } from '../types/types';
-
-export interface SherloConstants {
-  mode: StorybookViewMode;
-  config: string;
-  lastState: string;
-}
 
 export interface Spec extends TurboModule {
   getInspectorData: () => Promise<string>;
@@ -21,7 +14,7 @@ export interface Spec extends TurboModule {
     timeoutMs: number,
     saveScreenshots: boolean
   ) => Promise<boolean>;
-  getSherloConstants: () => SherloConstants;
+  getSherloConstants: () => {};
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('SherloModule') as Spec | null;

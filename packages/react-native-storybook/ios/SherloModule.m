@@ -4,6 +4,7 @@
 #import <React/RCTUIManagerUtils.h>
 #import <React/RCTBridge.h>
 
+
 @implementation SherloModule
 
 RCT_EXPORT_MODULE(SherloModule)
@@ -12,15 +13,21 @@ RCT_EXPORT_MODULE(SherloModule)
 
 static SherloModuleCore *core;
 
+// This runs automatically when the dynamic library is loaded
+__attribute__((constructor))
+static void SherloEarlyInit(void) {
+    core = [[SherloModuleCore alloc] init];
+}
+
+// 👇 Export a dummy symbol to force the linker to keep this object file
+__attribute__((used)) static void *KeepSherloModule = (void *)&SherloEarlyInit;
+
 /**
  * Required method to initialize the module.
  * Creates the core instance and initializes it.
  */
 - (instancetype)init {
     self = [super init];
-    if (self) {
-        core = [[SherloModuleCore alloc] init];
-    }
     return self;
 }
 
@@ -115,12 +122,6 @@ RCT_EXPORT_METHOD(stabilize:(NSInteger)requiredMatches
 // New Architecture implementation for getSherloConstants
 - (NSDictionary *)getSherloConstants {
     return [core getSherloConstants];
-}
-
-// New Architecture implementation for hello
-- (NSString *)hello:(NSString *)name
-{
-  return [NSString stringWithFormat:@"Hello, %@!", name];
 }
 
 // New Architecture implementation for toggleStorybook

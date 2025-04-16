@@ -4,7 +4,13 @@ import utf8 from 'utf8';
 import isExpoGo from './isExpoGo';
 import { StorybookViewMode, InspectorData } from '../types/types';
 import { Config, LastState } from './RunnerBridge/types';
-import TurboModule, { SherloConstants, Spec } from '../specs/NativeSherloModule';
+import TurboModule, { Spec } from '../specs/NativeSherloModule';
+
+interface SherloConstants {
+  mode: StorybookViewMode;
+  config: string;
+  lastState: string;
+}
 
 type SherloModule = {
   getMode: () => StorybookViewMode;
@@ -48,10 +54,7 @@ function createSherloModule(): SherloModule {
   const getConstants = (): SherloConstants => {
     const turboModuleConstants = module.getSherloConstants?.() || {};
     const nativeModuleConstants = module.getConstants?.() || {};
-
-    console.log('turboModuleConstants', turboModuleConstants);
-    console.log('nativeModuleConstants', nativeModuleConstants);
-    return { ...turboModuleConstants, ...nativeModuleConstants };
+    return { ...turboModuleConstants, ...nativeModuleConstants } as SherloConstants;
   };
 
   return {
