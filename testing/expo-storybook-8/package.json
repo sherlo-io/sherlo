@@ -38,6 +38,7 @@
     "expo-status-bar": "~2.0.1",
     "expo-system-ui": "~4.0.8",
     "expo-updates": "~0.27.4",
+    "lodash": "^4.17.21",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-native": "0.76.7",
@@ -56,6 +57,7 @@
     "@storybook/addon-ondevice-controls": "^8.3.9",
     "@storybook/addon-ondevice-notes": "^8.3.9",
     "@storybook/react-native": "^8.3.9",
+    "@types/lodash": "^4",
     "babel-loader": "^8.2.3",
     "typescript": "~5.3.3"
   },

@@ -1,10 +1,10 @@
 import base64 from 'base-64';
-import { NativeModules, TurboModuleRegistry } from 'react-native';
+import { NativeModules } from 'react-native';
 import utf8 from 'utf8';
 import isExpoGo from './isExpoGo';
 import { StorybookViewMode, InspectorData } from '../types/types';
 import { Config, LastState } from './RunnerBridge/types';
-import { Spec } from '../../specs/NativeSherloTurbo';
+import TurboModule from '../specs/NativeSherloTurbo';
 
 type SherloModule = {
   getMode: () => StorybookViewMode;
@@ -25,8 +25,6 @@ type SherloModule = {
 
 let SherloModule: SherloModule;
 const { SherloModule: SherloNativeModule } = NativeModules;
-
-const TurboModule = TurboModuleRegistry.getEnforcing<Spec>('SherloTurbo') as Spec | null;
 
 if (TurboModule) {
   const result = TurboModule.hello('Sherlo');

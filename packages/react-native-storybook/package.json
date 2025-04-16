@@ -28,7 +28,7 @@
     "./app.plugin.js": "./app.plugin.js"
   },
   "files": [
-    "specs/**/*",
+    "src/specs/**/*",
     "dist/**/*",
     "android/**/*",
     "ios/**/*",
@@ -85,7 +85,7 @@
   "codegenConfig": {
     "name": "SherloTurboSpec",
     "type": "modules",
-    "jsSrcsDir": "specs",
+    "jsSrcsDir": "src/specs",
     "android": {
       "javaPackageName": "io.sherlo.storybookreactnative"
     }
