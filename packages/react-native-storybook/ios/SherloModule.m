@@ -19,9 +19,6 @@ static void SherloEarlyInit(void) {
     core = [[SherloModuleCore alloc] init];
 }
 
-// 👇 Export a dummy symbol to force the linker to keep this object file
-__attribute__((used)) static void *KeepSherloModule = (void *)&SherloEarlyInit;
-
 /**
  * Required method to initialize the module.
  * Creates the core instance and initializes it.
