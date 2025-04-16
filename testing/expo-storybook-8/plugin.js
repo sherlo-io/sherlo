@@ -1,19 +1,19 @@
 const { withMainApplication } = require('@expo/config-plugins');
 
-module.exports = function withSherloTurboModule(config) {
+module.exports = function withSherloModule(config) {
   return withMainApplication(config, (mod) => {
     let contents = mod.modResults.contents;
 
     // Add Kotlin import for TurboModule package
-    if (!contents.includes('import io.sherlo.storybookreactnative.SherloTurboPackage')) {
+    if (!contents.includes('import io.sherlo.storybookreactnative.SherloModulePackage')) {
       contents = contents.replace(
         /(import .*?\n\n)/s,
-        `$1import io.sherlo.storybookreactnative.SherloTurboPackage\n\n`
+        `$1import io.sherlo.storybookreactnative.SherloModulePackage\n\n`
       );
     }
 
     // Register TurboModule in getPackages() for Kotlin
-    if (!contents.includes('SherloTurboPackage()')) {
+    if (!contents.includes('SherloModulePackage()')) {
       contents = contents.replace(
         /(val packages = PackageList\(this\).packages(?:[\s\S]*?)return packages)/,
         (match) => {
@@ -24,7 +24,7 @@ module.exports = function withSherloTurboModule(config) {
           // Add the package before the return statement with proper indentation
           return match.replace(
             /return packages/,
-            `// Add Sherlo TurboModule\n${indent}packages.add(SherloTurboPackage())\n${indent}return packages`
+            `// Add Sherlo TurboModule\n${indent}packages.add(SherloModulePackage())\n${indent}return packages`
           );
         }
       );

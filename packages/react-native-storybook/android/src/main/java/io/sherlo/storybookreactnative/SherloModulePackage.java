@@ -13,16 +13,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Package for SherloTurbo module that works with both old and new architecture.
+ * Package for SherloModule module that works with both old and new architecture.
  * This class gets registered in the app's MainApplication.
  */
-public class SherloTurboPackage extends TurboReactPackage {
+public class SherloModulePackage extends TurboReactPackage {
 
     @Nullable
     @Override
     public NativeModule getModule(String name, ReactApplicationContext reactContext) {
-        if (name.equals(SherloTurboModule.NAME)) {
-            return new SherloTurboModule(reactContext);
+        if (name.equals(SherloModule.NAME)) {
+            return new SherloModule(reactContext);
         }
         return null;
     }
@@ -33,10 +33,10 @@ public class SherloTurboPackage extends TurboReactPackage {
             final Map<String, ReactModuleInfo> moduleInfos = new HashMap<>();
             
             moduleInfos.put(
-                SherloTurboModule.NAME,
+                SherloModule.NAME,
                 new ReactModuleInfo(
-                        SherloTurboModule.NAME,
-                        SherloTurboModule.NAME,
+                        SherloModule.NAME,
+                        SherloModule.NAME,
                         false, // canOverrideExistingModule
                         false, // needsEagerInit
                         false, // isCxxModule

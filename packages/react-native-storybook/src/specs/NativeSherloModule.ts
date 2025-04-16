@@ -5,4 +5,4 @@ export interface Spec extends TurboModule {
   hello(name: string): Promise<string>;
 }
 
-export default TurboModuleRegistry.getEnforcing<Spec>('SherloTurbo') as Spec | null;
+export default TurboModuleRegistry.getEnforcing<Spec>('SherloModule') as Spec | null;

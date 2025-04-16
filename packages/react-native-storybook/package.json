@@ -83,7 +83,7 @@
     "access": "public"
   },
   "codegenConfig": {
-    "name": "SherloTurboSpec",
+    "name": "SherloModuleSpec",
     "type": "modules",
     "jsSrcsDir": "src/specs",
     "android": {
@@ -91,7 +91,7 @@
     },
     "ios": {
       "modulesProvider": {
-        "SherloTurbo": "SherloTurboModule"
+        "SherloModule": "SherloModule"
       }
     }
   }

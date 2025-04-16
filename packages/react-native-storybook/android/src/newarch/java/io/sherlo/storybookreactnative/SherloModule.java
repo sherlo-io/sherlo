@@ -6,13 +6,13 @@ import com.facebook.react.bridge.Promise;
 
 /**
  * This implementation works with the New Architecture as a TurboModule.
- * This class needs to match the JS spec in NativeSherloTurbo.ts
+ * This class needs to match the JS spec in NativeSherloModule.ts
  * The actual generated interface will be created by codegen at build time.
  */
-public class SherloTurboModule extends NativeSherloTurboSpec {
-    public static final String NAME = "SherloTurbo";
+public class SherloModule extends NativeSherloModuleSpec {
+    public static final String NAME = "SherloModule";
 
-    public SherloTurboModule(ReactApplicationContext reactContext) {
+    public SherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
     }
 

@@ -10,10 +10,10 @@ import com.facebook.react.bridge.Promise;
  * This is the legacy Native Module implementation that will be used
  * when the New Architecture is not enabled.
  */
-public class SherloTurboModule extends ReactContextBaseJavaModule {
-    public static final String NAME = "SherloTurbo";
+public class SherloModule extends ReactContextBaseJavaModule {
+    public static final String NAME = "SherloModule";
 
-    public SherloTurboModule(ReactApplicationContext reactContext) {
+    public SherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
     }
 

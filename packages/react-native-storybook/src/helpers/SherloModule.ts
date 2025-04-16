@@ -4,7 +4,7 @@ import utf8 from 'utf8';
 import isExpoGo from './isExpoGo';
 import { StorybookViewMode, InspectorData } from '../types/types';
 import { Config, LastState } from './RunnerBridge/types';
-import TurboModule from '../specs/NativeSherloTurbo';
+import TurboModule from '../specs/NativeSherloModule';
 
 type SherloModule = {
   getMode: () => StorybookViewMode;
@@ -31,7 +31,7 @@ if (TurboModule) {
     console.log(result);
   });
 } else {
-  console.warn('SherloTurbo module is not available');
+  console.warn('SherloModule module is not available');
 }
 
 if (SherloNativeModule !== null) {
