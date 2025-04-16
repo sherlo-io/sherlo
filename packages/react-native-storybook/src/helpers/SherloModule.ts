@@ -58,8 +58,8 @@ function createSherloModule(): SherloModule {
     ) => {
       return module.stabilize(requiredMatches, intervalMs, timeoutMs, saveScreenshots);
     },
+    // @ts-ignore
     getMode: () => {
-      // @ts-ignore
       return module.getSherloConstants().mode;
     },
     getConfig: () => {
@@ -73,11 +73,8 @@ function createSherloModule(): SherloModule {
       return config;
     },
     getLastState: () => {
-      console.log('module', module);
-      console.log('constants', module.getSherloConstants());
       // @ts-ignore
       const configString = module.getSherloConstants().config;
-      console.log('configString', configString);
       const config = JSON.parse(configString) as Config | undefined;
       if (config?.overrideLastState) {
         return config.overrideLastState;

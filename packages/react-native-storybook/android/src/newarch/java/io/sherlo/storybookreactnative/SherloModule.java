@@ -47,7 +47,7 @@ public class SherloModule extends NativeSherloModuleSpec {
      */
     @Override
     public WritableMap getSherloConstants() {
-        return moduleCore.getConstants();
+        return moduleCore.getSherloConstants();
     }
 
     // ==== Storybook Methods ====

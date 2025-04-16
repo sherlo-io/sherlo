@@ -49,7 +49,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
      */
     @ReactMethod
     public WritableMap getSherloConstants() {
-        return moduleCore.getConstants();
+        return moduleCore.getSherloConstants();
     }
 
     // ==== Storybook Methods ====
