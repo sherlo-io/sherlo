@@ -6,6 +6,7 @@ import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.module.model.ReactModuleInfo;
 import com.facebook.react.module.model.ReactModuleInfoProvider;
 import com.facebook.react.TurboReactPackage;
+import io.sherlo.storybookreactnative.BuildConfig;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -31,6 +32,8 @@ public class SherloModulePackage extends TurboReactPackage {
     public ReactModuleInfoProvider getReactModuleInfoProvider() {
         return () -> {
             final Map<String, ReactModuleInfo> moduleInfos = new HashMap<>();
+
+            boolean isTurboModule = BuildConfig.IS_NEW_ARCHITECTURE_ENABLED;
             
             moduleInfos.put(
                 SherloModule.NAME,
@@ -40,7 +43,7 @@ public class SherloModulePackage extends TurboReactPackage {
                         false, // canOverrideExistingModule
                         false, // needsEagerInit
                         false, // isCxxModule
-                        true // isTurboModule
+                        isTurboModule
                 ));
             return moduleInfos;
         };
