@@ -1,7 +1,5 @@
-import { NativeModules } from 'react-native';
+import { SherloModule } from './helpers';
 
-const { SherloModule } = NativeModules;
-
-const isRunningVisualTests = SherloModule?.getConstants().mode === 'testing';
+const isRunningVisualTests = SherloModule.getMode() === 'testing';
 
 export default isRunningVisualTests;

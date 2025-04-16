@@ -46,8 +46,11 @@ export default SherloModule;
 
 function createSherloModule(): SherloModule {
   const getConstants = (): SherloConstants => {
-    const turboModuleConstants = module.getSherloConstants() || {};
+    const turboModuleConstants = module.getSherloConstants?.() || {};
     const nativeModuleConstants = module.getConstants?.() || {};
+
+    console.log('turboModuleConstants', turboModuleConstants);
+    console.log('nativeModuleConstants', nativeModuleConstants);
     return { ...turboModuleConstants, ...nativeModuleConstants };
   };
 
@@ -64,7 +67,6 @@ function createSherloModule(): SherloModule {
     ) => {
       return module.stabilize(requiredMatches, intervalMs, timeoutMs, saveScreenshots);
     },
-    // @ts-ignore
     getMode: () => {
       return getConstants().mode;
     },

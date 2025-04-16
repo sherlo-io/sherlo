@@ -1,8 +1,9 @@
 import type { TurboModule } from 'react-native';
 import { TurboModuleRegistry } from 'react-native';
+import { StorybookViewMode } from '../types/types';
 
 export interface SherloConstants {
-  mode: string;
+  mode: StorybookViewMode;
   config: string;
   lastState: string;
 }
