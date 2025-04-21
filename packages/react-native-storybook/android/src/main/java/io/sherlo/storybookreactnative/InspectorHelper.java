@@ -20,6 +20,19 @@ import org.json.JSONObject;
  */
 public class InspectorHelper {
     private static final String TAG = "SherloModule:InspectorHelper";
+    private static boolean nativeLibraryLoaded = false;
+    
+    // Load our JNI library
+    static {
+        try {
+            System.loadLibrary("sherlo_storybook");
+            nativeLibraryLoaded = true;
+            Log.d(TAG, "Native library 'sherlo_storybook' loaded successfully");
+        } catch (UnsatisfiedLinkError e) {
+            Log.e(TAG, "Failed to load native library 'sherlo_storybook': " + e.getMessage());
+            nativeLibraryLoaded = false;
+        }
+    }
     
     /**
      * Gets UI inspector data from the current view hierarchy.
@@ -72,24 +85,40 @@ public class InspectorHelper {
         
         Log.d(TAG, "Using surfaceId: " + surfaceId);
         
-        // For RN 0.77+, try some well-known surface IDs
-        // Typically 1 is the main app surface, 11 is often the Storybook surface
-        String[] shadowResponses = new String[3];
-        int[] surfaceIds = {surfaceId, 1, 11};
-        
-        for (int i = 0; i < surfaceIds.length; i++) {
-            shadowResponses[i] = nativeGetShadowTreeData(surfaceIds[i]);
-            if (!shadowResponses[i].contains("error")) {
-                // Found a valid surface ID
-                rootObject.put("shadow", shadowResponses[i]);
-                rootObject.put("surfaceId", surfaceIds[i]);
-                return rootObject.toString();
-            }
+        if (!nativeLibraryLoaded) {
+            rootObject.put("shadow", "{\"error\":\"Native library not loaded\"}");
+            rootObject.put("surfaceId", surfaceId);
+            return rootObject.toString();
         }
         
-        // If we get here, none of the surface IDs worked, use the first one
-        rootObject.put("shadow", shadowResponses[0]);
-        rootObject.put("surfaceId", surfaceIds[0]);
+        try {
+            // For RN 0.77+, try some well-known surface IDs
+            // Typically 1 is the main app surface, 11 is often the Storybook surface
+            String[] shadowResponses = new String[3];
+            int[] surfaceIds = {surfaceId, 1, 11};
+            
+            for (int i = 0; i < surfaceIds.length; i++) {
+                try {
+                    shadowResponses[i] = nativeGetShadowTreeData(surfaceIds[i]);
+                    if (!shadowResponses[i].contains("error")) {
+                        // Found a valid surface ID
+                        rootObject.put("shadow", shadowResponses[i]);
+                        rootObject.put("surfaceId", surfaceIds[i]);
+                        return rootObject.toString();
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error calling native method for surfaceId " + surfaceIds[i] + ": " + e.getMessage());
+                    shadowResponses[i] = "{\"error\":\"Exception: " + e.getMessage() + "\"}";
+                }
+            }
+            
+            // If we get here, none of the surface IDs worked, use the first one
+            rootObject.put("shadow", shadowResponses[0]);
+            rootObject.put("surfaceId", surfaceIds[0]);
+        } catch (Exception e) {
+            Log.e(TAG, "Error in shadow serialization: " + e.getMessage(), e);
+            rootObject.put("shadow", "{\"error\":\"" + e.getMessage() + "\"}");
+        }
         
         return rootObject.toString();
     }
@@ -168,11 +197,6 @@ public class InspectorHelper {
         viewObject.put("children", children);
 
         return viewObject;
-    }
-
-    // Load our JNI library
-    static {
-      System.loadLibrary("sherlo_storybook");
     }
     
     // Declare the native bridge

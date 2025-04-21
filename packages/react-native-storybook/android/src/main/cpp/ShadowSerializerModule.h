@@ -1,14 +1,15 @@
 #pragma once
-#include <jni.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#include <jni.h>
+
 JNIEXPORT jstring JNICALL
-Java_io_sherlo_storybookreactnative_shadowserializer_ShadowSerializerModule_nativeGetShadowTreeData(
+Java_io_sherlo_storybookreactnative_InspectorHelper_nativeGetShadowTreeData(
     JNIEnv *env,
-    jobject /* this */,
+    jclass clazz,
     jint surfaceId);
 
 #ifdef __cplusplus

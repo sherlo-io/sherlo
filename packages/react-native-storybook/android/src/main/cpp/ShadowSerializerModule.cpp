@@ -5,7 +5,7 @@
 JNIEXPORT jstring JNICALL
 Java_io_sherlo_storybookreactnative_InspectorHelper_nativeGetShadowTreeData(
     JNIEnv *env,
-    jobject /* this */,
+    jclass clazz,
     jint surfaceId) {
 
   // Add some logging for the surfaceId
