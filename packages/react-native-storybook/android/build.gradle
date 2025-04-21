@@ -24,6 +24,15 @@ android {
         versionCode 1
         versionName "1.0"
         buildConfigField("boolean", "IS_NEW_ARCHITECTURE_ENABLED", isNewArchitectureEnabled().toString())
+        
+        // Add these for the Prefab configuration
+        externalNativeBuild {
+            cmake {
+                arguments "-DREACT_ANDROID_DIR=${project.findProject(':ReactAndroid')?.projectDir ?: "${rootProject.projectDir}/node_modules/react-native/ReactAndroid"}",
+                          "-DFBJNI_DIR=${project.findProject(':fbjni')?.projectDir ?: "${rootProject.projectDir}/node_modules/react-native/ReactAndroid/src/main/jni/first-party/fbjni"}",
+                          "-DANDROID_STL=c++_shared"
+            }
+        }
     }
 
     sourceSets {
@@ -39,10 +48,19 @@ android {
     
     buildFeatures {
         buildConfig true
+        // Add prefab feature for C++ dependencies
+        prefab true
+    }
+
+    externalNativeBuild {
+        cmake {
+            path    = "src/main/cpp/CMakeLists.txt"
+            version = "3.22.1"
+        }
     }
 }
 
-repositories{
+repositories {
     mavenCentral()
 }
 
