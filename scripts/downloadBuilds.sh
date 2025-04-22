@@ -5,6 +5,7 @@ set -e
 PROJECT=""
 PROFILE=""
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+GITHUB_REPOSITORY="sherlo-io/sherlo"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do

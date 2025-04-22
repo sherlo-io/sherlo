@@ -83,7 +83,10 @@ jobs:
             --android builds/development-${{ inputs.arch }}/android.apk \
             --ios builds/development-${{ inputs.arch }}/ios.tar.gz \
             --branch development \
-            --token ${{ inputs.project == 'expo-update' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}
+            --token ${{ (inputs.project == 'expo-update' && inputs.arch == 'old' && secrets.SHERLO_EXPO_UPDATE_OLD_TOKEN) || 
+                        (inputs.project == 'expo-update' && inputs.arch == 'new' && secrets.SHERLO_EXPO_UPDATE_NEW_TOKEN) || 
+                        (inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN) || 
+                        (inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN) }}
 
       - name: Run sherlo expo-update (with native builds) with Github Action
         if: inputs.with_builds == true && inputs.use_github_action == true
@@ -96,7 +99,11 @@ jobs:
           ios: builds/development-${{ inputs.arch }}/ios.tar.gz
           branch: development
         env:
-          SHERLO_TOKEN: ${{ inputs.project == 'expo-update' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}
+          SHERLO_TOKEN:
+            ${{ (inputs.project == 'expo-update' && inputs.arch == 'old' && secrets.SHERLO_EXPO_UPDATE_OLD_TOKEN) ||
+            (inputs.project == 'expo-update' && inputs.arch == 'new' && secrets.SHERLO_EXPO_UPDATE_NEW_TOKEN) ||
+            (inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN) ||
+            (inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN) }}
 
       - name: Run sherlo expo-update (without native builds) with CLI
         if: inputs.with_builds == false && inputs.use_github_action == false
@@ -105,7 +112,10 @@ jobs:
           yarn sherlo expo-update \
             --config ../../configs/${{ inputs.config }}.json \
             --branch development \
-            --token ${{ inputs.project == 'expo-update' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}
+            --token ${{ (inputs.project == 'expo-update' && inputs.arch == 'old' && secrets.SHERLO_EXPO_UPDATE_OLD_TOKEN) || 
+                        (inputs.project == 'expo-update' && inputs.arch == 'new' && secrets.SHERLO_EXPO_UPDATE_NEW_TOKEN) || 
+                        (inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN) || 
+                        (inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN) }}
 
       - name: Run sherlo expo-update (without native builds) with Github Action
         if: inputs.with_builds == false && inputs.use_github_action == true
@@ -116,4 +126,8 @@ jobs:
           config: ../../configs/${{ inputs.config }}.json
           branch: development
         env:
-          SHERLO_TOKEN: ${{ inputs.project == 'expo-update' && secrets.SHERLO_EXPO_UPDATE_TOKEN || inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN || inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN }}
+          SHERLO_TOKEN:
+            ${{ (inputs.project == 'expo-update' && inputs.arch == 'old' && secrets.SHERLO_EXPO_UPDATE_OLD_TOKEN) ||
+            (inputs.project == 'expo-update' && inputs.arch == 'new' && secrets.SHERLO_EXPO_UPDATE_NEW_TOKEN) ||
+            (inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN) ||
+            (inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN) }}
