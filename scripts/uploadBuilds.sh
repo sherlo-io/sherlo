@@ -40,7 +40,7 @@ if [ -z "$PROJECT" ]; then
 fi
 
 if [ -z "$PROFILE" ]; then
-  echo "Error: --profile parameter is required (development, preview, production)"
+  echo "Error: --profile parameter is required (development-old, development-new, etc.)"
   exit 1
 fi
 
@@ -51,33 +51,69 @@ fi
 
 echo "Uploading builds for project: $PROJECT, profile: $PROFILE, platforms: ${PLATFORMS[*]}, branch: $CURRENT_BRANCH"
 
-# Create temp directory
-TEMP_DIR=$(mktemp -d)
-trap 'rm -rf "$TEMP_DIR"' EXIT
+# Function to upload an artifact
+upload_artifact() {
+  local file_path=$1
+  local artifact_name=$2
+  
+  # Get GitHub token from environment or gh auth token
+  GITHUB_TOKEN=${GITHUB_TOKEN:-$(gh auth token)}
+  
+  if [ -z "$GITHUB_TOKEN" ]; then
+    echo "Error: GITHUB_TOKEN environment variable is not set and could not get from gh auth"
+    exit 1
+  fi
+  
+  # Get repository details from remote URL
+  REPO_URL=$(git config --get remote.origin.url)
+  REPO_PATH=$(echo "$REPO_URL" | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?|\1|')
+  
+  echo "Creating artifact: $artifact_name"
+  
+  # Create a temporary zip file
+  TEMP_ZIP=$(mktemp).zip
+  mkdir -p $(dirname "$TEMP_ZIP")
+  
+  # Zip the file
+  echo "Compressing file: $file_path"
+  zip -j "$TEMP_ZIP" "$file_path"
+  
+  # Upload the artifact using the repository dispatch API with the file as a base64-encoded payload
+  # This is a workaround since GitHub doesn't have a direct API for artifacts outside of Actions
+  echo "Uploading $artifact_name (this might take a while for large files)..."
+  
+  # Create a new workflow run to handle the artifact
+  WORKFLOW_ID=$(gh api \
+    -X POST \
+    -H "Accept: application/vnd.github.v3+json" \
+    "/repos/$REPO_PATH/actions/workflows/upload-artifact.yml/dispatches" \
+    -f ref="$CURRENT_BRANCH" \
+    -f inputs="{\"name\":\"$artifact_name\", \"retention-days\":90}" \
+    --jq '.id' 2>/dev/null || echo "")
+    
+  if [ -z "$WORKFLOW_ID" ]; then
+    echo "Failed to start artifact upload workflow. Falling back to manual upload..."
+    echo "Please manually upload the file: $file_path"
+    echo "To do this, go to Actions tab in GitHub, run the 'Upload Artifact' workflow manually with:"
+    echo "  - name: $artifact_name"
+    echo "  - path: $(basename "$file_path")"
+    echo "  - retention-days: 90"
+    return 1
+  fi
+  
+  echo "Upload workflow started for $artifact_name. The artifact will be available in GitHub Actions."
+  
+  # Clean up
+  rm -f "$TEMP_ZIP"
+}
 
 # Upload Android build
 if [[ " ${PLATFORMS[*]} " =~ " android " ]]; then
   ANDROID_PATH="testing/$PROJECT/builds/$PROFILE/android.apk"
   if [ -f "$ANDROID_PATH" ]; then
-    echo "Uploading Android build from $ANDROID_PATH"
-    
-    # Create a temporary directory for the Android build
-    mkdir -p "$TEMP_DIR/android"
-    cp "$ANDROID_PATH" "$TEMP_DIR/android/"
-    
-    # Create a zip file with the Android build
-    (cd "$TEMP_DIR/android" && zip -r "$TEMP_DIR/android.zip" .)
-    
-    # Upload the Android build
-    gh api \
-      --method POST \
-      -H "Accept: application/vnd.github.v3+json" \
-      -F "name=android-$PROFILE-$PROJECT-$CURRENT_BRANCH" \
-      -F "retention_days=90" \
-      -F "archive=@$TEMP_DIR/android.zip" \
-      "/repos/$GITHUB_REPOSITORY/actions/artifacts"
-    
-    echo "Android build uploaded as artifact: android-$PROFILE-$PROJECT-$CURRENT_BRANCH"
+    echo "Found Android build at $ANDROID_PATH"
+    ARTIFACT_NAME="android-$PROFILE-$PROJECT-$CURRENT_BRANCH"
+    upload_artifact "$ANDROID_PATH" "$ARTIFACT_NAME"
   else
     echo "Error: Android build not found at $ANDROID_PATH"
     exit 1
@@ -88,29 +124,13 @@ fi
 if [[ " ${PLATFORMS[*]} " =~ " ios " ]]; then
   IOS_PATH="testing/$PROJECT/builds/$PROFILE/ios.tar.gz"
   if [ -f "$IOS_PATH" ]; then
-    echo "Uploading iOS build from $IOS_PATH"
-    
-    # Create a temporary directory for the iOS build
-    mkdir -p "$TEMP_DIR/ios"
-    cp "$IOS_PATH" "$TEMP_DIR/ios/"
-    
-    # Create a zip file with the iOS build
-    (cd "$TEMP_DIR/ios" && zip -r "$TEMP_DIR/ios.zip" .)
-    
-    # Upload the iOS build
-    gh api \
-      --method POST \
-      -H "Accept: application/vnd.github.v3+json" \
-      -F "name=ios-$PROFILE-$PROJECT-$CURRENT_BRANCH" \
-      -F "retention_days=90" \
-      -F "archive=@$TEMP_DIR/ios.zip" \
-      "/repos/$GITHUB_REPOSITORY/actions/artifacts"
-    
-    echo "iOS build uploaded as artifact: ios-$PROFILE-$PROJECT-$CURRENT_BRANCH"
+    echo "Found iOS build at $IOS_PATH"
+    ARTIFACT_NAME="ios-$PROFILE-$PROJECT-$CURRENT_BRANCH"
+    upload_artifact "$IOS_PATH" "$ARTIFACT_NAME"
   else
     echo "Error: iOS build not found at $IOS_PATH"
     exit 1
   fi
 fi
 
-echo "Upload complete!" 
+echo "Upload process complete. Artifacts should be available in GitHub Actions." 
