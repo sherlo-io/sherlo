@@ -7,7 +7,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.R;
-import com.facebook.react.ReactRootView;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -20,19 +19,6 @@ import org.json.JSONObject;
  */
 public class InspectorHelper {
     private static final String TAG = "SherloModule:InspectorHelper";
-    private static boolean nativeLibraryLoaded = false;
-    
-    // Load our JNI library
-    static {
-        try {
-            System.loadLibrary("sherlo_storybook");
-            nativeLibraryLoaded = true;
-            Log.d(TAG, "Native library 'sherlo_storybook' loaded successfully");
-        } catch (UnsatisfiedLinkError e) {
-            Log.e(TAG, "Failed to load native library 'sherlo_storybook': " + e.getMessage());
-            nativeLibraryLoaded = false;
-        }
-    }
     
     /**
      * Gets UI inspector data from the current view hierarchy.
@@ -78,76 +64,8 @@ public class InspectorHelper {
         rootObject.put("density", resources.getDisplayMetrics().density);
         rootObject.put("fontScale", resources.getConfiguration().fontScale);
         rootObject.put("viewHierarchy", viewHierarchy);
-
-        // Find react root view and get its id
-        ReactRootView reactRootView = findReactRootView(rootView);
-        int surfaceId = reactRootView != null ? reactRootView.getId() : 1;
-        
-        Log.d(TAG, "Using surfaceId: " + surfaceId);
-        
-        if (!nativeLibraryLoaded) {
-            rootObject.put("shadow", "{\"error\":\"Native library not loaded\"}");
-            rootObject.put("surfaceId", surfaceId);
-            return rootObject.toString();
-        }
-        
-        try {
-            // For RN 0.77+, try some well-known surface IDs
-            // Typically 1 is the main app surface, 11 is often the Storybook surface
-            String[] shadowResponses = new String[3];
-            int[] surfaceIds = {surfaceId, 1, 11};
-            
-            for (int i = 0; i < surfaceIds.length; i++) {
-                try {
-                    shadowResponses[i] = nativeGetShadowTreeData(surfaceIds[i]);
-                    if (!shadowResponses[i].contains("error")) {
-                        // Found a valid surface ID
-                        rootObject.put("shadow", shadowResponses[i]);
-                        rootObject.put("surfaceId", surfaceIds[i]);
-                        return rootObject.toString();
-                    }
-                } catch (Exception e) {
-                    Log.e(TAG, "Error calling native method for surfaceId " + surfaceIds[i] + ": " + e.getMessage());
-                    shadowResponses[i] = "{\"error\":\"Exception: " + e.getMessage() + "\"}";
-                }
-            }
-            
-            // If we get here, none of the surface IDs worked, use the first one
-            rootObject.put("shadow", shadowResponses[0]);
-            rootObject.put("surfaceId", surfaceIds[0]);
-        } catch (Exception e) {
-            Log.e(TAG, "Error in shadow serialization: " + e.getMessage(), e);
-            rootObject.put("shadow", "{\"error\":\"" + e.getMessage() + "\"}");
-        }
         
         return rootObject.toString();
-    }
-
-    /**
-     * Find a ReactRootView in the view hierarchy
-     * 
-     * @param view The root view to start searching from
-     * @return The first ReactRootView found, or null if none found
-     */
-    private static ReactRootView findReactRootView(View view) {
-        // If this is a ReactRootView, return it
-        if (view instanceof ReactRootView) {
-            return (ReactRootView) view;
-        }
-        
-        // Otherwise, traverse the view hierarchy
-        if (view instanceof ViewGroup) {
-            ViewGroup viewGroup = (ViewGroup) view;
-            for (int i = 0; i < viewGroup.getChildCount(); i++) {
-                ReactRootView reactRootView = findReactRootView(viewGroup.getChildAt(i));
-                if (reactRootView != null) {
-                    return reactRootView;
-                }
-            }
-        }
-        
-        // No ReactRootView found
-        return null;
     }
 
     /**
@@ -198,7 +116,4 @@ public class InspectorHelper {
 
         return viewObject;
     }
-    
-    // Declare the native bridge
-    private static native String nativeGetShadowTreeData(int surfaceId);
 }

@@ -43,11 +43,8 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
 
           const { pendingProps, stateNode, memoizedProps, type } = currentFiber;
 
-          let nativeTag = stateNode?._nativeTag;
-          if (!nativeTag) {
-            // In new architecture, the native tag is on the canonical fiber
-            nativeTag = stateNode?.canonical?.nativeTag;
-          }
+          // In new architecture, the native tag is on the canonical fiber
+          const nativeTag = stateNode?._nativeTag || stateNode?.canonical?.nativeTag;
 
           // Collect view props with native tags
           if (nativeTag) {
