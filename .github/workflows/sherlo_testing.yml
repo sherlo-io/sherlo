@@ -23,28 +23,53 @@ on:
         required: false
         default: false
         type: boolean
-      expo_local_builds:
-        description: 'local-builds (expo sb8) / default'
+      expo_local_builds_old_arch:
+        description: 'local-builds (expo sb8 old) / default'
         required: false
         default: false
         type: boolean
-      rn_local_builds:
-        description: 'local-builds (rn sb7) / default'
+      rn_local_builds_old_arch:
+        description: 'local-builds (rn sb7 old) / default'
         required: false
         default: false
         type: boolean
-      expo_cloud:
-        description: 'expo-cloud (sb8) / default'
+      expo_cloud_old_arch:
+        description: 'expo-cloud (sb8 old) / default'
         required: false
         default: false
         type: boolean
-      expo_update_with_builds:
-        description: 'expo-update (sb8) / default (with builds)'
+      expo_update_with_builds_old_arch:
+        description: 'expo-update (sb8 old) / default (with builds)'
         required: false
         default: false
         type: boolean
-      expo_update:
-        description: 'expo-update (sb8) / default'
+      expo_update_old_arch:
+        description: 'expo-update (sb8 old) / default'
+        required: false
+        default: false
+        type: boolean
+      expo_local_builds_new_arch:
+        description: 'local-builds (expo sb8 new) / default'
+        required: false
+        default: false
+        type: boolean
+      rn_local_builds_new_arch:
+        description: 'local-builds (rn sb7 new) / default'
+        required: false
+        default: false
+        type: boolean
+      expo_cloud_new_arch:
+        description: 'expo-cloud (sb8 new) / default'
+        required: false
+        default: false
+        type: boolean
+      expo_update_with_builds_new_arch:
+        description: 'expo-update (sb8 new) / default (with builds)'
+        required: false
+        default: false
+        type: boolean
+      expo_update_new_arch:
+        description: 'expo-update (sb8 new) / default'
         required: false
         default: false
         type: boolean
@@ -62,6 +87,7 @@ jobs:
       config: 'all-devices'
       project: 'device-testing'
       with_builds: true
+      arch: 'old'
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
 
   many_stories:
@@ -74,21 +100,33 @@ jobs:
       config: 'many-stories'
       with_builds: true
       project: 'many-stories'
+      arch: 'old'
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
 
-  expo_local_builds:
+  expo_local_builds_old_arch:
     uses: ./.github/workflows/local-builds.yml
-    if: ${{ github.event_name == 'schedule' || github.event.inputs.expo_local_builds == 'true' && always() && !failure() && !cancelled() }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.expo_local_builds_old_arch == 'true' && always() && !failure() && !cancelled() }}
     name: local-builds (Expo)
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
       project: 'expo-storybook-8'
+      arch: 'old'
 
-  rn_local_builds:
+  expo_local_builds_new_arch:
     uses: ./.github/workflows/local-builds.yml
-    if: ${{ github.event_name == 'schedule' || github.event.inputs.rn_local_builds == 'true' && always() && !failure() && !cancelled() }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.expo_local_builds_new_arch == 'true' && always() && !failure() && !cancelled() }}
+    name: local-builds (Expo)
+    secrets: inherit
+    with:
+      env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
+      project: 'expo-storybook-8'
+      arch: 'new'
+
+  rn_local_builds_old_arch:
+    uses: ./.github/workflows/local-builds.yml
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.rn_local_builds_old_arch == 'true' && always() && !failure() && !cancelled() }}
     name: local-builds (React Native)
     secrets: inherit
     with:
@@ -96,18 +134,40 @@ jobs:
       project: 'rn-storybook-7'
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
 
-  expo_cloud:
+  rn_local_builds_new_arch:
+    uses: ./.github/workflows/local-builds.yml
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.rn_local_builds_new_arch == 'true' && always() && !failure() && !cancelled() }}
+    name: local-builds (React Native)
+    secrets: inherit
+    with:
+      env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
+      project: 'rn-storybook-7'
+      arch: 'new'
+      use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
+
+  expo_cloud_old_arch:
     uses: ./.github/workflows/expo-cloud.yml
-    if: ${{ github.event_name == 'schedule' || github.event.inputs.expo_cloud == 'true' && always() && !failure() && !cancelled() }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.expo_cloud_old_arch == 'true' && always() && !failure() && !cancelled() }}
     name: expo-cloud-builds
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
+      arch: 'old'
 
-  expo_update_with_builds:
+  expo_cloud_new_arch:
+    uses: ./.github/workflows/expo-cloud.yml
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.expo_cloud_new_arch == 'true' && always() && !failure() && !cancelled() }}
+    name: expo-cloud-builds
+    secrets: inherit
+    with:
+      env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
+      arch: 'new'
+      use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
+
+  expo_update_with_builds_old_arch:
     uses: ./.github/workflows/expo-update.yml
-    if: ${{ (github.event_name == 'schedule' || github.event.inputs.expo_update_with_builds == 'true') && always() && !failure() && !cancelled() }}
+    if: ${{ (github.event_name == 'schedule' || github.event.inputs.expo_update_with_builds_old_arch == 'true') && always() && !failure() && !cancelled() }}
     name: expo-update (with native builds)
     secrets: inherit
     with:
@@ -115,10 +175,23 @@ jobs:
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
       with_builds: true
       project: 'expo-update'
+      arch: 'old'
 
-  expo_update:
+  expo_update_with_builds_new_arch:
     uses: ./.github/workflows/expo-update.yml
-    if: ${{ github.event.inputs.expo_update == 'true' && always() && !failure() && !cancelled() }}
+    if: ${{ (github.event_name == 'schedule' || github.event.inputs.expo_update_with_builds_new_arch == 'true') && always() && !failure() && !cancelled() }}
+    name: expo-update (with native builds)
+    secrets: inherit
+    with:
+      env: ${{ github.event_name == 'schedule' && 'dev' || inputs.env }}
+      use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
+      with_builds: true
+      project: 'expo-update'
+      arch: 'new'
+
+  expo_update_old_arch:
+    uses: ./.github/workflows/expo-update.yml
+    if: ${{ (github.event_name == 'schedule' || github.event.inputs.expo_update_old_arch == 'true') && always() && !failure() && !cancelled() }}
     name: expo-update (without native builds)
     secrets: inherit
     with:
@@ -126,3 +199,16 @@ jobs:
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
       with_builds: false
       project: 'expo-update'
+      arch: 'old'
+
+  expo_update_new_arch:
+    uses: ./.github/workflows/expo-update.yml
+    if: ${{ (github.event_name == 'schedule' || github.event.inputs.expo_update_new_arch == 'true') && always() && !failure() && !cancelled() }}
+    name: expo-update (without native builds)
+    secrets: inherit
+    with:
+      env: ${{ github.event.inputs.env }}
+      use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
+      with_builds: false
+      project: 'expo-update'
+      arch: 'new'

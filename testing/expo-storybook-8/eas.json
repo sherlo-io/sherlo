@@ -3,25 +3,70 @@
     "version": ">= 5.9.3"
   },
   "build": {
-    "development": {
+    "development-old": {
       "environment": "development",
       "channel": "development",
       "developmentClient": true,
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "env": {
+          "USE_NEW_ARCH": "false"
+        }
       },
       "ios": {
-        "simulator": true
+        "simulator": true,
+        "env": {
+          "USE_NEW_ARCH": "false"
+        }
       }
     },
-    "preview": {
+    "development-new": {
+      "environment": "development",
+      "channel": "development",
+      "developmentClient": true,
+      "android": {
+        "buildType": "apk",
+        "env": {
+          "USE_NEW_ARCH": "true"
+        }
+      },
+      "ios": {
+        "simulator": true,
+        "env": {
+          "USE_NEW_ARCH": "true"
+        }
+      }
+    },
+    "preview-old": {
       "environment": "preview",
       "channel": "preview",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "env": {
+          "USE_NEW_ARCH": "false"
+        }
       },
       "ios": {
-        "simulator": true
+        "simulator": true,
+        "env": {
+          "USE_NEW_ARCH": "false"
+        }
+      }
+    },
+    "preview-new": {
+      "environment": "preview",
+      "channel": "preview",
+      "android": {
+        "buildType": "apk",
+        "env": {
+          "USE_NEW_ARCH": "true"
+        }
+      },
+      "ios": {
+        "simulator": true,
+        "env": {
+          "USE_NEW_ARCH": "true"
+        }
       }
     }
   }

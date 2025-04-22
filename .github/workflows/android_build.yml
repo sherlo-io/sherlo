@@ -16,7 +16,12 @@ on:
       profile:
         required: true
         type: string
-        description: 'Build profile to use (development, preview, production)'
+        description: 'Build profile to use (development-old, development-new, preview-old, preview-new)'
+      arch:
+        required: false
+        type: string
+        description: 'Architecture to use (old, new)'
+        default: 'old'
 
 jobs:
   android_build:
@@ -25,7 +30,6 @@ jobs:
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.ref }}
-          lfs: true
 
       - name: Set up Node.js
         if: ${{ !inputs.skip_build }}
@@ -62,15 +66,17 @@ jobs:
       - name: Build "expo-storybook-8" Android example app
         if: ${{ !inputs.skip_build && inputs.project == 'expo-storybook-8' }}
         working-directory: testing/expo-storybook-8
-        run: eas build --platform android --local --profile=${{ inputs.profile }} --output=builds/${{ inputs.profile }}/android.apk
+        run: eas build --platform android --local --profile=${{ inputs.profile }}-${{ inputs.arch }} --output=builds/${{ inputs.profile }}-${{ inputs.arch }}/android.apk
 
       - name: Build "rn-storybook-7" Android example app
         if: ${{ !inputs.skip_build && inputs.project == 'rn-storybook-7' }}
         working-directory: testing/rn-storybook-7
-        run: yarn build:android:preview
+        run: yarn build:android:preview:${{ inputs.arch }}
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-${{ inputs.profile }}-${{ inputs.project }}
-          path: testing/${{ inputs.project }}/builds/${{ inputs.profile }}/android.apk
+          name: android-${{ inputs.profile }}-${{ inputs.arch }}-${{ inputs.project }}-${{ github.head_ref || github.ref_name }}
+          path: testing/${{ inputs.project }}/builds/${{ inputs.profile }}-${{ inputs.arch }}/android.apk
+          retention-days: 90
+          overwrite: true

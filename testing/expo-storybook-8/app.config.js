@@ -10,7 +10,7 @@ module.exports = () => ({
       resizeMode: 'contain',
       backgroundColor: '#ffffff',
     },
-    newArchEnabled: true,
+    newArchEnabled: process.env.USE_NEW_ARCH === 'true',
     updates: {
       enabled: true,
       fallbackToCacheTimeout: 300000,
