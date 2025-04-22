@@ -4,10 +4,22 @@ on:
   workflow_dispatch:
     inputs:
       env:
-        description: 'Environment (dev, test, prod)'
+        description: 'Environment'
         required: true
         default: 'dev'
-        type: string
+        type: choice
+        options:
+          - 'dev'
+          - 'test'
+          - 'prod'
+      arch:
+        description: 'Architecture'
+        required: true
+        default: 'old'
+        type: choice
+        options:
+          - 'old'
+          - 'new'
       use_github_action:
         description: 'Use Sherlo Github Action'
         required: false
@@ -23,53 +35,28 @@ on:
         required: false
         default: false
         type: boolean
-      expo_local_builds_old_arch:
-        description: 'local-builds (expo sb8 old) / default'
+      expo_local_builds:
+        description: 'local-builds (expo sb8) / default'
         required: false
         default: false
         type: boolean
-      rn_local_builds_old_arch:
-        description: 'local-builds (rn sb7 old) / default'
+      rn_local_builds:
+        description: 'local-builds (rn sb7) / default'
         required: false
         default: false
         type: boolean
-      expo_cloud_old_arch:
-        description: 'expo-cloud (sb8 old) / default'
+      expo_cloud:
+        description: 'expo-cloud (sb8) / default'
         required: false
         default: false
         type: boolean
-      expo_update_with_builds_old_arch:
-        description: 'expo-update (sb8 old) / default (with builds)'
+      expo_update_with_builds:
+        description: 'expo-update (sb8) / default (with builds)'
         required: false
         default: false
         type: boolean
-      expo_update_old_arch:
-        description: 'expo-update (sb8 old) / default'
-        required: false
-        default: false
-        type: boolean
-      expo_local_builds_new_arch:
-        description: 'local-builds (expo sb8 new) / default'
-        required: false
-        default: false
-        type: boolean
-      rn_local_builds_new_arch:
-        description: 'local-builds (rn sb7 new) / default'
-        required: false
-        default: false
-        type: boolean
-      expo_cloud_new_arch:
-        description: 'expo-cloud (sb8 new) / default'
-        required: false
-        default: false
-        type: boolean
-      expo_update_with_builds_new_arch:
-        description: 'expo-update (sb8 new) / default (with builds)'
-        required: false
-        default: false
-        type: boolean
-      expo_update_new_arch:
-        description: 'expo-update (sb8 new) / default'
+      expo_update:
+        description: 'expo-update (sb8) / default'
         required: false
         default: false
         type: boolean
@@ -77,6 +64,19 @@ on:
     - cron: '0 5 * * *' # 5 AM UTC every day (6 AM in Poland)
 
 jobs:
+  check_if_monday:
+    runs-on: ubuntu-latest
+    outputs:
+      is_monday: ${{ steps.check_day.outputs.is_monday }}
+    steps:
+      - id: check_day
+        run: |
+          if [[ $(date +%u) == 1 ]]; then
+            echo "is_monday=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_monday=false" >> $GITHUB_OUTPUT
+          fi
+
   device_testing:
     uses: ./.github/workflows/expo-update.yml
     if: ${{ (github.event_name == 'schedule' || github.event.inputs.device_testing == 'true') && always() && !failure() && !cancelled() }}
@@ -105,29 +105,27 @@ jobs:
 
   expo_local_builds_old_arch:
     uses: ./.github/workflows/local-builds.yml
-    if: ${{ github.event_name == 'schedule' || github.event.inputs.expo_local_builds_old_arch == 'true' && always() && !failure() && !cancelled() }}
-    name: local-builds (Expo)
+    if: ${{ (github.event_name == 'schedule' || (github.event.inputs.expo_local_builds == 'true' && github.event.inputs.arch == 'old')) && always() && !failure() && !cancelled() }}
+    name: local-builds (Expo - Old Arch)
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
       project: 'expo-storybook-8'
-      arch: 'old'
 
   expo_local_builds_new_arch:
     uses: ./.github/workflows/local-builds.yml
-    if: ${{ github.event_name == 'schedule' || github.event.inputs.expo_local_builds_new_arch == 'true' && always() && !failure() && !cancelled() }}
-    name: local-builds (Expo)
+    if: ${{ (github.event_name == 'schedule' || (github.event.inputs.expo_local_builds == 'true' && github.event.inputs.arch == 'new')) && always() && !failure() && !cancelled() }}
+    name: local-builds (Expo - New Arch)
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       project: 'expo-storybook-8'
-      arch: 'new'
 
   rn_local_builds_old_arch:
     uses: ./.github/workflows/local-builds.yml
-    if: ${{ github.event_name == 'schedule' || github.event.inputs.rn_local_builds_old_arch == 'true' && always() && !failure() && !cancelled() }}
-    name: local-builds (React Native)
+    if: ${{ (github.event_name == 'schedule' || (github.event.inputs.rn_local_builds == 'true' && github.event.inputs.arch == 'old')) && always() && !failure() && !cancelled() }}
+    name: local-builds (React Native - Old Arch)
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
@@ -136,39 +134,38 @@ jobs:
 
   rn_local_builds_new_arch:
     uses: ./.github/workflows/local-builds.yml
-    if: ${{ github.event_name == 'schedule' || github.event.inputs.rn_local_builds_new_arch == 'true' && always() && !failure() && !cancelled() }}
-    name: local-builds (React Native)
+    if: ${{ (github.event_name == 'schedule' || (github.event.inputs.rn_local_builds == 'true' && github.event.inputs.arch == 'new')) && always() && !failure() && !cancelled() }}
+    name: local-builds (React Native - New Arch)
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       project: 'rn-storybook-7'
-      arch: 'new'
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
 
   expo_cloud_old_arch:
+    needs: check_if_monday
     uses: ./.github/workflows/expo-cloud.yml
-    if: ${{ github.event_name == 'schedule' || github.event.inputs.expo_cloud_old_arch == 'true' && always() && !failure() && !cancelled() }}
-    name: expo-cloud-builds
+    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || (github.event.inputs.expo_cloud == 'true' && github.event.inputs.arch == 'old')) && always() && !failure() && !cancelled() }}
+    name: expo-cloud-builds (Old Arch)
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
-      arch: 'old'
 
   expo_cloud_new_arch:
+    needs: check_if_monday
     uses: ./.github/workflows/expo-cloud.yml
-    if: ${{ github.event_name == 'schedule' || github.event.inputs.expo_cloud_new_arch == 'true' && always() && !failure() && !cancelled() }}
-    name: expo-cloud-builds
+    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || (github.event.inputs.expo_cloud == 'true' && github.event.inputs.arch == 'new')) && always() && !failure() && !cancelled() }}
+    name: expo-cloud-builds (New Arch)
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
-      arch: 'new'
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
 
   expo_update_with_builds_old_arch:
     uses: ./.github/workflows/expo-update.yml
-    if: ${{ (github.event_name == 'schedule' || github.event.inputs.expo_update_with_builds_old_arch == 'true') && always() && !failure() && !cancelled() }}
-    name: expo-update (with native builds)
+    if: ${{ (github.event_name == 'schedule' || (github.event.inputs.expo_update_with_builds == 'true' && github.event.inputs.arch == 'old')) && always() && !failure() && !cancelled() }}
+    name: expo-update (with native builds - Old Arch)
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || inputs.env }}
@@ -179,8 +176,8 @@ jobs:
 
   expo_update_with_builds_new_arch:
     uses: ./.github/workflows/expo-update.yml
-    if: ${{ (github.event_name == 'schedule' || github.event.inputs.expo_update_with_builds_new_arch == 'true') && always() && !failure() && !cancelled() }}
-    name: expo-update (with native builds)
+    if: ${{ (github.event_name == 'schedule' || (github.event.inputs.expo_update_with_builds == 'true' && github.event.inputs.arch == 'new')) && always() && !failure() && !cancelled() }}
+    name: expo-update (with native builds - New Arch)
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || inputs.env }}
@@ -191,8 +188,8 @@ jobs:
 
   expo_update_old_arch:
     uses: ./.github/workflows/expo-update.yml
-    if: ${{ (github.event_name == 'schedule' || github.event.inputs.expo_update_old_arch == 'true') && always() && !failure() && !cancelled() }}
-    name: expo-update (without native builds)
+    if: ${{ (github.event_name == 'schedule' || (github.event.inputs.expo_update == 'true' && github.event.inputs.arch == 'old')) && always() && !failure() && !cancelled() }}
+    name: expo-update (without native builds - Old Arch)
     secrets: inherit
     with:
       env: ${{ github.event.inputs.env }}
@@ -203,8 +200,8 @@ jobs:
 
   expo_update_new_arch:
     uses: ./.github/workflows/expo-update.yml
-    if: ${{ (github.event_name == 'schedule' || github.event.inputs.expo_update_new_arch == 'true') && always() && !failure() && !cancelled() }}
-    name: expo-update (without native builds)
+    if: ${{ (github.event_name == 'schedule' || (github.event.inputs.expo_update == 'true' && github.event.inputs.arch == 'new')) && always() && !failure() && !cancelled() }}
+    name: expo-update (without native builds - New Arch)
     secrets: inherit
     with:
       env: ${{ github.event.inputs.env }}
