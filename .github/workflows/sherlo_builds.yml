@@ -3,184 +3,102 @@ name: 'Sherlo Builds'
 on:
   workflow_dispatch:
     inputs:
-      expo_preview_android_old_arch:
-        description: 'Expo SB 8 Preview | Android (old arch)'
+      arch:
+        description: 'Architecture'
+        required: true
+        default: 'old'
+        type: choice
+        options:
+          - 'old'
+          - 'new'
+      rn_preview_android:
+        description: 'RN SB 7 Preview | Android'
         required: false
         default: false
         type: boolean
-      expo_development_android_old_arch:
-        description: 'Expo SB 8 Dev | Android (old arch)'
+      rn_preview_ios:
+        description: 'RN SB 7 Preview | iOS'
         required: false
         default: false
         type: boolean
-      rn_preview_android_old_arch:
-        description: 'RN SB 7 Preview | Android (old arch)'
+      expo_preview_android:
+        description: 'Expo SB 8 Preview | Android'
         required: false
         default: false
         type: boolean
-      expo_preview_ios_old_arch:
-        description: 'Expo SB 8 Preview | iOS (old arch)'
+      expo_preview_ios:
+        description: 'Expo SB 8 Preview | iOS'
         required: false
         default: false
         type: boolean
-      expo_development_ios_old_arch:
-        description: 'Expo SB 8 Dev | iOS (old arch)'
+      expo_development_android:
+        description: 'Expo SB 8 Dev | Android'
         required: false
         default: false
         type: boolean
-      rn_preview_ios_old_arch:
-        description: 'RN SB 7 Preview | iOS (old arch)'
-        required: false
-        default: false
-        type: boolean
-      expo_preview_android_new_arch:
-        description: 'Expo SB 8 Preview | Android (new arch)'
-        required: false
-        default: false
-        type: boolean
-      expo_development_android_new_arch:
-        description: 'Expo SB 8 Dev | Android (new arch)'
-        required: false
-        default: false
-        type: boolean
-      rn_preview_android_new_arch:
-        description: 'RN SB 7 Preview | Android (new arch)'
-        required: false
-        default: false
-        type: boolean
-      expo_preview_ios_new_arch:
-        description: 'Expo SB 8 Preview | iOS (new arch)'
-        required: false
-        default: false
-        type: boolean
-      expo_development_ios_new_arch:
-        description: 'Expo SB 8 Dev | iOS (new arch)'
-        required: false
-        default: false
-        type: boolean
-      rn_preview_ios_new_arch:
-        description: 'RN SB 7 Preview | iOS (new arch)'
+      expo_development_ios:
+        description: 'Expo SB 8 Dev | iOS'
         required: false
         default: false
         type: boolean
 
 jobs:
-  rn_preview_ios_old_arch:
+  rn_preview_ios:
     uses: ./.github/workflows/ios_build.yml
-    if: ${{ github.event.inputs.rn_preview_ios_old_arch == 'true'}}
+    if: ${{ github.event.inputs.rn_preview_ios == 'true'}}
     name: RN Preview iOS Build
     secrets: inherit
     with:
       profile: 'preview'
       project: 'rn-storybook-7'
-      arch: 'old'
+      arch: ${{ github.event.inputs.arch }}
 
-  rn_preview_android_old_arch:
+  rn_preview_android:
     uses: ./.github/workflows/android_build.yml
-    if: ${{ github.event.inputs.rn_preview_android_old_arch == 'true'}}
+    if: ${{ github.event.inputs.rn_preview_android == 'true'}}
     name: RN Preview Android Build
     secrets: inherit
     with:
       profile: 'preview'
       project: 'rn-storybook-7'
-      arch: 'old'
+      arch: ${{ github.event.inputs.arch }}
 
-  expo_preview_ios_old_arch:
+  expo_preview_ios:
     uses: ./.github/workflows/ios_build.yml
-    if: ${{ github.event.inputs.expo_preview_ios_old_arch == 'true'}}
+    if: ${{ github.event.inputs.expo_preview_ios == 'true'}}
     name: Expo Preview iOS Build
     secrets: inherit
     with:
       profile: 'preview'
       project: 'expo-storybook-8'
-      arch: 'old'
+      arch: ${{ github.event.inputs.arch }}
 
-  expo_preview_android_old_arch:
+  expo_preview_android:
     uses: ./.github/workflows/android_build.yml
-    if: ${{ github.event.inputs.expo_preview_android_old_arch == 'true'}}
+    if: ${{ github.event.inputs.expo_preview_android == 'true'}}
     name: Expo Preview Android Build
     secrets: inherit
     with:
       profile: 'preview'
       project: 'expo-storybook-8'
-      arch: 'old'
+      arch: ${{ github.event.inputs.arch }}
 
-  expo_development_ios_old_arch:
+  expo_development_ios:
     uses: ./.github/workflows/ios_build.yml
-    if: ${{ github.event.inputs.expo_development_ios_old_arch == 'true'}}
+    if: ${{ github.event.inputs.expo_development_ios == 'true'}}
     name: Expo Development iOS Build
     secrets: inherit
     with:
       profile: 'development'
       project: 'expo-storybook-8'
-      arch: 'old'
+      arch: ${{ github.event.inputs.arch }}
 
-  expo_development_android_old_arch:
+  expo_development_android:
     uses: ./.github/workflows/android_build.yml
-    if: ${{ github.event.inputs.expo_development_android_old_arch == 'true'}}
+    if: ${{ github.event.inputs.expo_development_android == 'true'}}
     name: Expo Development Android Build
     secrets: inherit
     with:
       profile: 'development'
       project: 'expo-storybook-8'
-      arch: 'old'
-
-  rn_preview_ios_new_arch:
-    uses: ./.github/workflows/ios_build.yml
-    if: ${{ github.event.inputs.rn_preview_ios_new_arch == 'true'}}
-    name: RN Preview iOS Build
-    secrets: inherit
-    with:
-      profile: 'preview'
-      project: 'rn-storybook-7'
-      arch: 'new'
-
-  rn_preview_android_new_arch:
-    uses: ./.github/workflows/android_build.yml
-    if: ${{ github.event.inputs.rn_preview_android_new_arch == 'true'}}
-    name: RN Preview Android Build
-    secrets: inherit
-    with:
-      profile: 'preview'
-      project: 'rn-storybook-7'
-      arch: 'new'
-
-  expo_preview_ios_new_arch:
-    uses: ./.github/workflows/ios_build.yml
-    if: ${{ github.event.inputs.expo_preview_ios_new_arch == 'true'}}
-    name: Expo Preview iOS Build
-    secrets: inherit
-    with:
-      profile: 'preview'
-      project: 'expo-storybook-8'
-      arch: 'new'
-
-  expo_preview_android_new_arch:
-    uses: ./.github/workflows/android_build.yml
-    if: ${{ github.event.inputs.expo_preview_android_new_arch == 'true'}}
-    name: Expo Preview Android Build
-    secrets: inherit
-    with:
-      profile: 'preview'
-      project: 'expo-storybook-8'
-      arch: 'new'
-
-  expo_development_ios_new_arch:
-    uses: ./.github/workflows/ios_build.yml
-    if: ${{ github.event.inputs.expo_development_ios_new_arch == 'true'}}
-    name: Expo Development iOS Build
-    secrets: inherit
-    with:
-      profile: 'development'
-      project: 'expo-storybook-8'
-      arch: 'new'
-
-  expo_development_android_new_arch:
-    uses: ./.github/workflows/android_build.yml
-    if: ${{ github.event.inputs.expo_development_android_new_arch == 'true'}}
-    name: Expo Development Android Build
-    secrets: inherit
-    with:
-      profile: 'development'
-      project: 'expo-storybook-8'
-      arch: 'new'
+      arch: ${{ github.event.inputs.arch }}
