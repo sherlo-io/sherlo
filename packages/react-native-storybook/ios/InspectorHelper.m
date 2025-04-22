@@ -227,14 +227,15 @@ static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
     if (isfinite(height)) {
         [viewDict setObject:@(height) forKey:@"height"];
     }
-
-    NSNumber *reactTag = view.reactTag;
-    if (reactTag != nil) {
-        [viewDict setObject:reactTag forKey:@"id"];
+    
+    // Native ID - similar to Android implementation
+    NSInteger nativeTag = view.tag;
+    if (nativeTag > 0) {
+        [viewDict setObject:@(nativeTag) forKey:@"id"];
     } else {
         // Generate a random id in range 10000 - 99999 to avoid collisions
-        reactTag = @(arc4random_uniform(90000) + 10000);
-        [viewDict setObject:reactTag forKey:@"id"];
+        NSInteger randomId = arc4random_uniform(90000) + 10000;
+        [viewDict setObject:@(randomId) forKey:@"id"];
     }
     
     // Add children array

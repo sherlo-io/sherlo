@@ -16,45 +16,6 @@ function useTestStory({
 
   useEffect(() => {
     (async (): Promise<void> => {
-      setTimeout(async () => {
-        console.log('getInspectorData');
-
-        const inspectorData = await SherloModule.getInspectorData();
-
-        console.log(
-          JSON.stringify(
-            {
-              inspectorData,
-            },
-            null,
-            2
-          )
-        );
-
-        const fabricMetadata = await metadataProviderRef?.current?.collectMetadata();
-
-        if (fabricMetadata) {
-          const finalInspectorData = prepareInspectorData(
-            inspectorData,
-            fabricMetadata,
-            lastState?.nextSnapshot.storyId || ''
-          );
-
-          console.log(
-            JSON.stringify(
-              {
-                // storyId: lastState?.nextSnapshot.storyId,
-                fabricMetadata,
-                inspectorData,
-                finalInspectorData,
-              },
-              null,
-              2
-            )
-          );
-        }
-      }, 1000);
-
       try {
         if (!lastState) return;
 
