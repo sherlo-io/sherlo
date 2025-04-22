@@ -69,6 +69,8 @@ jobs:
 
       - name: Download builds
         run: ./scripts/downloadBuilds.sh --project ${{ inputs.project }} --profile preview-${{ inputs.arch }} --branch ${{ github.head_ref || github.ref_name }}
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Run sherlo local-builds with CLI
         if: inputs.use_github_action == false

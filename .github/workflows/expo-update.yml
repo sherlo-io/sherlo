@@ -73,6 +73,8 @@ jobs:
       - name: Download builds if needed
         if: inputs.with_builds == true
         run: ./scripts/downloadBuilds.sh --project expo-storybook-8 --profile development-${{ inputs.arch }} --branch ${{ github.head_ref || github.ref_name }}
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Run sherlo expo-update (with native builds) with CLI
         if: inputs.with_builds == true && inputs.use_github_action == false
