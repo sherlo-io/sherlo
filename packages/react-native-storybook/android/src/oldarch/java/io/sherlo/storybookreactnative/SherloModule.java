@@ -61,8 +61,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
      */
     @ReactMethod
     public void toggleStorybook(Promise promise) {
-        Activity activity = getCurrentActivity();
-        moduleCore.toggleStorybook(activity, promise);
+        moduleCore.toggleStorybook(promise);
     }
 
     /**
@@ -72,8 +71,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
      */
     @ReactMethod
     public void openStorybook(Promise promise) {
-        Activity activity = getCurrentActivity();
-        moduleCore.openStorybook(activity, promise);
+        moduleCore.openStorybook(promise);
     }
 
     /**
@@ -83,8 +81,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
      */
     @ReactMethod
     public void closeStorybook(Promise promise) {
-        Activity activity = getCurrentActivity();
-        moduleCore.closeStorybook(activity, promise);
+        moduleCore.closeStorybook(promise);
     }
 
     // ==== File System Methods ====
