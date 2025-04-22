@@ -1,21 +1,19 @@
-#import <React/RCTBridgeModule.h>
 
-#ifdef RCT_NEW_ARCH_ENABLED
-#if __has_include(<SherloModuleSpec/SherloModuleSpec.h>)
-#import <SherloModuleSpec/SherloModuleSpec.h>
-#endif
-#endif
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface SherloModule : NSObject <RCTBridgeModule>
-@end
-
 #ifdef RCT_NEW_ARCH_ENABLED
-#if __has_include(<SherloModuleSpec/SherloModuleSpec.h>)
-@interface SherloModule () <NativeSherloModuleSpec>
-@end
-#endif
+
+#import <sherlo_codegen/sherlo_codegen.h>
+@interface SherloModule : NSObject <NativeSherloModuleSpec>
+
+#else
+
+#import <React/RCTBridgeModule.h>
+@interface SherloModule : NSObject <RCTBridgeModule>
+
 #endif
 
-NS_ASSUME_NONNULL_END 
+@end
+
+NS_ASSUME_NONNULL_END

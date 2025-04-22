@@ -25,7 +25,8 @@
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./app.plugin.js": "./app.plugin.js"
+    "./app.plugin.js": "./app.plugin.js",
+    "./package.json": "./package.json"
   },
   "files": [
     "src/specs/**/*",
@@ -83,16 +84,11 @@
     "access": "public"
   },
   "codegenConfig": {
-    "name": "SherloModuleSpec",
+    "name": "sherlo_codegen",
     "type": "modules",
-    "jsSrcsDir": "src/specs",
+    "jsSrcsDir": "./src/specs",
     "android": {
       "javaPackageName": "io.sherlo.storybookreactnative"
-    },
-    "ios": {
-      "modulesProvider": {
-        "SherloModule": "SherloModule"
-      }
     }
   }
 }
