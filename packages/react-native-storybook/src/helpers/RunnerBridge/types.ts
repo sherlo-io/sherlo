@@ -10,6 +10,7 @@ export type RunnerState = {
 export type Config = {
   stabilization: {
     requiredMatches: number;
+    minScreenshotsCount: number;
     intervalMs: number;
     timeoutMs: number;
     saveScreenshots?: boolean;

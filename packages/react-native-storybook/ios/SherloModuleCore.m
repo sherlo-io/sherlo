@@ -177,13 +177,19 @@ static FileSystemHelper *fileSystemHelper;
  * Returns a promise with a boolean indicating if the UI is stable.
  *
  * @param requiredMatches Number of consecutive matches needed
+ * @param minScreenshotsCount Minimum number of screenshots to take when checking for stability
  * @param intervalMs Time interval in milliseconds
  * @param timeoutMs Timeout in milliseconds
  * @param resolve Promise resolver called with the stability result
  * @param reject Promise rejecter called if an error occurs
  */
-- (void)stabilize:(NSInteger)requiredMatches intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
-    [StabilityHelper stabilize:requiredMatches intervalMs:intervalMs timeoutMs:timeoutMs resolver:resolve rejecter:reject];
+- (void)stabilize:(NSInteger)requiredMatches
+        minScreenshotsCount:(NSInteger)minScreenshotsCount
+        intervalMs:(NSInteger)intervalMs
+         timeoutMs:(NSInteger)timeoutMs
+          resolver:(RCTPromiseResolveBlock)resolve
+          rejecter:(RCTPromiseRejectBlock)reject {
+    [StabilityHelper stabilize:requiredMatches minScreenshotsCount:minScreenshotsCount intervalMs:intervalMs timeoutMs:timeoutMs resolver:resolve rejecter:reject];
 }
 
 @end 

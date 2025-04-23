@@ -23,6 +23,7 @@ type SherloModule = {
   toggleStorybook: () => void;
   stabilize: (
     requiredMatches: number,
+    minScreenshotsCount: number,
     intervalMs: number,
     timeoutMs: number,
     saveScreenshots: boolean
@@ -64,11 +65,18 @@ function createSherloModule(): SherloModule {
     },
     stabilize: async (
       requiredMatches: number,
+      minScreenshotsCount: number,
       intervalMs: number,
       timeoutMs: number,
       saveScreenshots: boolean
     ) => {
-      return module.stabilize(requiredMatches, intervalMs, timeoutMs, saveScreenshots);
+      return module.stabilize(
+        requiredMatches,
+        minScreenshotsCount,
+        intervalMs,
+        timeoutMs,
+        saveScreenshots
+      );
     },
     getMode: () => {
       return getConstants().mode;
@@ -131,6 +139,7 @@ function createDummySherloModule(): SherloModule {
     getConfig: () => ({
       stabilization: {
         requiredMatches: 3,
+        minScreenshotsCount: 3,
         intervalMs: 500,
         timeoutMs: 5_000,
         saveScreenshots: true,

@@ -77,11 +77,17 @@
 /**
  * Checks if the UI is stable by comparing screenshots
  * @param requiredMatches Number of matching screenshots needed
+ * @param minScreenshotsCount Minimum number of screenshots to take when checking for stability
  * @param intervalMs Interval between checks in milliseconds
  * @param timeoutMs Maximum time to wait in milliseconds
  * @param resolve Promise resolver
  * @param reject Promise rejecter
  */
-- (void)stabilize:(NSInteger)requiredMatches intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject;
+- (void)stabilize:(NSInteger)requiredMatches
+        minScreenshotsCount:(NSInteger)minScreenshotsCount
+        intervalMs:(NSInteger)intervalMs
+         timeoutMs:(NSInteger)timeoutMs
+          resolver:(RCTPromiseResolveBlock)resolve
+          rejecter:(RCTPromiseRejectBlock)reject;
 
 @end 

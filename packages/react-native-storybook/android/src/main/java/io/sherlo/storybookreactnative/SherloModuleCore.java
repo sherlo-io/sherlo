@@ -157,11 +157,12 @@ public class SherloModuleCore {
      * 
      * @param activity The current activity
      * @param requiredMatches The number of consecutive matching screenshots needed
+     * @param minScreenshotsCount The minimum number of screenshots to take when checking for stability
      * @param intervalMs The interval between each screenshot (in milliseconds)
      * @param timeoutMs The overall timeout (in milliseconds)
      * @param promise Promise to resolve with the stability result or reject with an error
      */
-    public void stabilize(Activity activity, int requiredMatches, int intervalMs, int timeoutMs, boolean saveScreenshots, Promise promise) {
-        StabilityHelper.stabilize(activity, requiredMatches, intervalMs, timeoutMs, saveScreenshots, promise);
+    public void stabilize(Activity activity, int requiredMatches, int minScreenshotsCount, int intervalMs, int timeoutMs, boolean saveScreenshots, Promise promise) {
+        StabilityHelper.stabilize(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs, saveScreenshots, promise);
     }
 } 

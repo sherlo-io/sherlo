@@ -10,6 +10,7 @@ export interface Spec extends TurboModule {
   toggleStorybook: () => void;
   stabilize: (
     requiredMatches: number,
+    minScreenshotsCount: number,
     intervalMs: number,
     timeoutMs: number,
     saveScreenshots: boolean

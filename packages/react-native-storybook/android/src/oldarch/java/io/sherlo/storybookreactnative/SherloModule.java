@@ -126,14 +126,15 @@ public class SherloModule extends ReactContextBaseJavaModule {
      * Checks if the UI is stable by comparing consecutive screenshots.
      *
      * @param requiredMatches The number of consecutive matching screenshots needed
+     * @param minScreenshotsCount The minimum number of screenshots to take when checking for stability
      * @param intervalMs The interval between each screenshot in milliseconds
      * @param timeoutMs The overall timeout in milliseconds
      * @param saveScreenshots Whether to save screenshots to the file system
      * @param promise Promise to resolve with true if UI becomes stable, false if timeout occurs
      */
     @ReactMethod
-    public void stabilize(int requiredMatches, int intervalMs, int timeoutMs, boolean saveScreenshots, Promise promise) {
+    public void stabilize(int requiredMatches, int minScreenshotsCount, int intervalMs, int timeoutMs, boolean saveScreenshots, Promise promise) {
         Activity activity = getCurrentActivity();
-        moduleCore.stabilize(activity, requiredMatches, intervalMs, timeoutMs, saveScreenshots, promise);
+        moduleCore.stabilize(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs, saveScreenshots, promise);
     }
 }

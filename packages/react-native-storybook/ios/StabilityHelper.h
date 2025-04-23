@@ -12,12 +12,14 @@ NS_ASSUME_NONNULL_BEGIN
  * or when the timeout is exceeded.
  *
  * @param requiredMatches Number of consecutive matching screenshots needed to consider UI stable
+ * @param minScreenshotsCount Minimum number of screenshots to take when checking for stability
  * @param intervalMs Time interval between screenshots in milliseconds
  * @param timeoutMs Maximum time to wait for stability in milliseconds
  * @param resolve Promise resolver to call with true if UI becomes stable, false if timeout occurs
  * @param reject Promise rejecter to call if an error occurs
  */
 + (void)stabilize:(NSInteger)requiredMatches
+        minScreenshotsCount:(NSInteger)minScreenshotsCount
         intervalMs:(NSInteger)intervalMs
          timeoutMs:(NSInteger)timeoutMs
           resolver:(RCTPromiseResolveBlock)resolve

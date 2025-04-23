@@ -45,6 +45,7 @@ function useTestStory({
 
         const isStable = await SherloModule.stabilize(
           config.stabilization.requiredMatches,
+          config.stabilization.minScreenshotsCount,
           config.stabilization.intervalMs,
           config.stabilization.timeoutMs,
           !!config.stabilization.saveScreenshots

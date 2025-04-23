@@ -98,13 +98,14 @@ static void SherloEarlyInit(void) {
  * The saveScreenshots parameter is accepted for cross-platform compatibility but not used in iOS.
  */
 - (void)stabilize:(NSInteger)requiredMatches
+        minScreenshotsCount:(NSInteger)minScreenshotsCount
        intervalMs:(NSInteger)intervalMs
         timeoutMs:(NSInteger)timeoutMs
   saveScreenshots:(BOOL)saveScreenshots
          resolver:(RCTPromiseResolveBlock)resolve
          rejecter:(RCTPromiseRejectBlock)reject
 {
-  [core stabilize:requiredMatches intervalMs:intervalMs timeoutMs:timeoutMs resolver:resolve rejecter:reject];
+  [core stabilize:requiredMatches minScreenshotsCount:minScreenshotsCount intervalMs:intervalMs timeoutMs:timeoutMs resolver:resolve rejecter:reject];
 }
 
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
@@ -176,12 +177,13 @@ RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve
  * The saveScreenshots parameter is accepted for cross-platform compatibility but not used in iOS.
  */
 RCT_EXPORT_METHOD(stabilize:(NSInteger)requiredMatches
+                  minScreenshotsCount:(NSInteger)minScreenshotsCount
                  intervalMs:(NSInteger)intervalMs
                   timeoutMs:(NSInteger)timeoutMs
                   saveScreenshots:(BOOL)saveScreenshots
                    resolver:(RCTPromiseResolveBlock)resolve
                    rejecter:(RCTPromiseRejectBlock)reject) {
-  [core stabilize:requiredMatches intervalMs:intervalMs timeoutMs:timeoutMs resolver:resolve rejecter:reject];
+  [core stabilize:requiredMatches minScreenshotsCount:minScreenshotsCount intervalMs:intervalMs timeoutMs:timeoutMs resolver:resolve rejecter:reject];
 }
 
 #endif
