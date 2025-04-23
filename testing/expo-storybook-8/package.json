@@ -67,6 +67,7 @@
     "@storybook/react-native": "^8.3.9",
     "@types/lodash": "^4",
     "babel-loader": "^8.2.3",
+    "eas-cli": "16.3.2",
     "typescript": "~5.3.3"
   },
   "resolutions": {

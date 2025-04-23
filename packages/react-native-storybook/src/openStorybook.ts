@@ -1,6 +1,6 @@
 import { SherloModule } from './helpers';
 
-function openStorybook(): Promise<void> {
+function openStorybook(): void {
   return SherloModule.openStorybook();
 }
 

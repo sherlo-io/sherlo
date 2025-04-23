@@ -147,8 +147,8 @@ function createDummySherloModule(): SherloModule {
     }),
     appendFile: async () => {},
     readFile: async () => '',
-    openStorybook: async () => {},
-    toggleStorybook: async () => {},
+    openStorybook: () => {},
+    toggleStorybook: () => {},
     stabilize: async () => true,
   };
 }

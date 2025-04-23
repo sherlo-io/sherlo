@@ -19,7 +19,7 @@ function addStorybookToDevMenu() {
   if (ExpoDevMenu?.registerDevMenuItems) {
     // TODO: Problem with new arch, when this gets called for second time after user
     // toggles storybook, it doesn't work. The function is not called at all.
-    ExpoDevMenu.registerDevMenuItems([{ name: MENU_LABEL, callback: toggleStorybook() }]);
+    ExpoDevMenu.registerDevMenuItems([{ name: MENU_LABEL, callback: toggleStorybook }]);
   }
 
   devMenuToggleInitialized = true;
