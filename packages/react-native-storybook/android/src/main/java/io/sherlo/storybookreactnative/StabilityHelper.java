@@ -207,7 +207,7 @@ public class StabilityHelper {
                 if (consecutiveMatches[0] >= requiredMatches) {
                     Log.d(TAG, "UI is stable");
                     callback.onResult(true);
-                } else if (elapsedTime >= timeoutMs && consecutiveMatches[0] == 0) {
+                } else if (elapsedTime >= timeoutMs && consecutiveMatches[0] == 0 && screenshotCounter[0] >= 3) {
                     Log.d(TAG, "UI is not stable - timeout with no matches");
                     callback.onResult(false);
                 } else {
