@@ -169,7 +169,7 @@ public class StabilityHelper {
         startStabilityCheck(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs, saveScreenshots, callback, handler, lastScreenshot, startTime);
     }
 
-    private void startStabilityCheck(final Activity activity, final int requiredMatches, final int intervalMs, final int timeoutMs, boolean saveScreenshots,
+    private void startStabilityCheck(final Activity activity, final int requiredMatches, final int minScreenshotsCount, final int intervalMs, final int timeoutMs, boolean saveScreenshots,
                                    final StabilityCallback callback, final Handler handler, 
                                    final Bitmap[] lastScreenshot, final AtomicLong startTime) {
         final int[] consecutiveMatches = {0};
