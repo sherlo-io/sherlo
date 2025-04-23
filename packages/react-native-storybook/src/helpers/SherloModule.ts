@@ -19,8 +19,8 @@ type SherloModule = {
   getInspectorData: () => Promise<InspectorData>;
   appendFile: (path: string, base64: string) => Promise<void>;
   readFile: (path: string) => Promise<string>;
-  openStorybook: () => Promise<void>;
-  toggleStorybook: () => Promise<void>;
+  openStorybook: () => void;
+  toggleStorybook: () => void;
   stabilize: (
     requiredMatches: number,
     intervalMs: number,

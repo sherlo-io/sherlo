@@ -5,9 +5,9 @@ export interface Spec extends TurboModule {
   getInspectorData: () => Promise<string>;
   appendFile: (path: string, base64: string) => Promise<void>;
   readFile: (path: string) => Promise<string>;
-  openStorybook: () => Promise<void>;
-  closeStorybook: () => Promise<void>;
-  toggleStorybook: () => Promise<void>;
+  openStorybook: () => void;
+  closeStorybook: () => void;
+  toggleStorybook: () => void;
   stabilize: (
     requiredMatches: number,
     intervalMs: number,
