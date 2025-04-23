@@ -26,7 +26,9 @@ module.exports = () => {
       ios: {
         supportsTablet: true,
         bundleIdentifier: 'com.sherlo.example',
-        usesNonExemptEncryption: false,
+        config: {
+          usesNonExemptEncryption: false,
+        },
       },
       android: {
         package: 'com.sherlo.example',
