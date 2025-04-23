@@ -56,32 +56,26 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
     /**
      * Toggles between Storybook and default mode.
-     *
-     * @param promise Promise to resolve when the toggle is complete
      */
     @ReactMethod
-    public void toggleStorybook(Promise promise) {
-        moduleCore.toggleStorybook(promise);
+    public void toggleStorybook() {
+        moduleCore.toggleStorybook();
     }
 
     /**
      * Explicitly switches to Storybook mode.
-     *
-     * @param promise Promise to resolve when switching is complete
      */
     @ReactMethod
-    public void openStorybook(Promise promise) {
-        moduleCore.openStorybook(promise);
+    public void openStorybook() {
+        moduleCore.openStorybook();
     }
 
     /**
      * Explicitly switches to default mode.
-     *
-     * @param promise Promise to resolve when switching is complete
      */
     @ReactMethod
-    public void closeStorybook(Promise promise) {
-        moduleCore.closeStorybook(promise);
+    public void closeStorybook() {
+        moduleCore.closeStorybook();
     }
 
     // ==== File System Methods ====

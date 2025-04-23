@@ -89,36 +89,27 @@ public class SherloModuleCore {
     /**
      * Toggles between Storybook and default modes.
      * If currently in Storybook mode, switches to default, otherwise switches to Storybook.
-     * 
-     * @param activity The current activity
-     * @param promise Promise to resolve or reject
      */
-    public void toggleStorybook(Promise promise) {
+    public void toggleStorybook() {
         String newMode = currentMode.equals(MODE_STORYBOOK) ? MODE_DEFAULT : MODE_STORYBOOK;
         modePersistorHelper.persistMode(newMode);
-        RestartHelper.restart(reactContext, promise);
+        RestartHelper.restart(reactContext);
     }
 
     /**
      * Switches to Storybook mode and restarts the React context.
-     * 
-     * @param activity The current activity
-     * @param promise Promise to resolve or reject
      */
-    public void openStorybook(Promise promise) {
+    public void openStorybook() {
         modePersistorHelper.persistMode(MODE_STORYBOOK);
-        RestartHelper.restart(reactContext, promise);
+        RestartHelper.restart(reactContext);
     }
 
     /**
      * Switches to default mode and restarts the React context.
-     * 
-     * @param activity The current activity
-     * @param promise Promise to resolve or reject
      */
-    public void closeStorybook(Promise promise) {
+    public void closeStorybook() {
         modePersistorHelper.persistMode(MODE_DEFAULT);
-        RestartHelper.restart(reactContext, promise);
+        RestartHelper.restart(reactContext);
     }
 
     /**

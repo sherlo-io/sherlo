@@ -12,17 +12,7 @@ import com.facebook.react.bridge.Promise;
 public class RestartHelper {
     private static final String TAG = "SherloModule:RestartHelper";
 
-    public static void restart(ReactApplicationContext reactContext, Promise promise) {
-        try {
-            restartApp(reactContext);
-            promise.resolve(true);
-        } catch (Exception e) {
-            Log.e(TAG, "Error restarting React Native", e);
-            promise.reject("error_restart", "Error restarting React Native: " + e.getMessage(), e);
-        }
-    }
-    
-    public static void restartApp(ReactApplicationContext reactContext) {
+    public static void restart(ReactApplicationContext reactContext) {
         Intent intent = reactContext.getPackageManager().getLaunchIntentForPackage(reactContext.getPackageName());
 
         if (intent != null) {
