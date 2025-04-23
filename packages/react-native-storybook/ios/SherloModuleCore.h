@@ -57,7 +57,7 @@
  * @param resolve Promise resolver
  * @param reject Promise rejecter
  */
-- (void)appendFile:(NSString *)filename withContent:(NSString *)content resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject;
+- (void)appendFile:(NSString *)filename withContent:(NSString *)content resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
 
 /**
  * Reads a file and returns its content as base64
@@ -65,14 +65,14 @@
  * @param resolve Promise resolver
  * @param reject Promise rejecter
  */
-- (void)readFile:(NSString *)filename resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject;
+- (void)readFile:(NSString *)filename resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
 
 /**
  * Gets inspector data from the current UI hierarchy
  * @param resolve Promise resolver
  * @param reject Promise rejecter
  */
-- (void)getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject;
+- (void)getInspectorData:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
 
 /**
  * Checks if the UI is stable by comparing screenshots
@@ -87,7 +87,7 @@
         minScreenshotsCount:(NSInteger)minScreenshotsCount
         intervalMs:(NSInteger)intervalMs
          timeoutMs:(NSInteger)timeoutMs
-          resolver:(RCTPromiseResolveBlock)resolve
-          rejecter:(RCTPromiseRejectBlock)reject;
+          resolve:(RCTPromiseResolveBlock)resolve
+          reject:(RCTPromiseRejectBlock)reject;
 
 @end 

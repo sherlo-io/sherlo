@@ -71,7 +71,7 @@ static void SherloEarlyInit(void) {
           resolve:(RCTPromiseResolveBlock)resolve
            reject:(RCTPromiseRejectBlock)reject
 {
-  [core appendFile:path withContent:content resolver:resolve rejecter:reject];
+  [core appendFile:path withContent:content resolve:resolve reject:reject];
 }
 
 /**
@@ -81,7 +81,7 @@ static void SherloEarlyInit(void) {
         resolve:(RCTPromiseResolveBlock)resolve
          reject:(RCTPromiseRejectBlock)reject
 {
-  [core readFile:path resolver:resolve rejecter:reject];
+  [core readFile:path resolve:resolve reject:reject];
 }
 
 /**
@@ -90,7 +90,7 @@ static void SherloEarlyInit(void) {
 - (void)getInspectorData:(RCTPromiseResolveBlock)resolve
                  reject:(RCTPromiseRejectBlock)reject
 {
-  [core getInspectorData:resolve rejecter:reject];
+  [core getInspectorData:resolve reject:reject];
 }
 
 /**
@@ -105,7 +105,7 @@ static void SherloEarlyInit(void) {
          resolve:(RCTPromiseResolveBlock)resolve
           reject:(RCTPromiseRejectBlock)reject
 {
-  [core stabilize:requiredMatches minScreenshotsCount:minScreenshotsCount intervalMs:intervalMs timeoutMs:timeoutMs resolver:resolve rejecter:reject];
+  [core stabilize:requiredMatches minScreenshotsCount:minScreenshotsCount intervalMs:intervalMs timeoutMs:timeoutMs resolve:resolve reject:reject];
 }
 
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
@@ -152,7 +152,7 @@ RCT_EXPORT_METHOD(appendFile:(NSString *)path
                   withContent:(NSString *)content
                      resolver:(RCTPromiseResolveBlock)resolve
                      rejecter:(RCTPromiseRejectBlock)reject) {
-  [core appendFile:path withContent:content resolver:resolve rejecter:reject];
+  [core appendFile:path withContent:content resolve:resolve reject:reject];
 }
 
 /**
@@ -161,7 +161,7 @@ RCT_EXPORT_METHOD(appendFile:(NSString *)path
 RCT_EXPORT_METHOD(readFile:(NSString *)path
                   resolve:(RCTPromiseResolveBlock)resolve
                    reject:(RCTPromiseRejectBlock)reject) {
-  [core readFile:path resolver:resolve rejecter:reject];
+  [core readFile:path resolve:resolve reject:reject];
 }
 
 /**
@@ -169,7 +169,7 @@ RCT_EXPORT_METHOD(readFile:(NSString *)path
  */
 RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject) {
-  [core getInspectorData:resolve rejecter:reject];
+  [core getInspectorData:resolve reject:reject];
 }
 
 /**
@@ -183,7 +183,7 @@ RCT_EXPORT_METHOD(stabilize:(NSInteger)requiredMatches
                   saveScreenshots:(BOOL)saveScreenshots
                    resolver:(RCTPromiseResolveBlock)resolve
                    rejecter:(RCTPromiseRejectBlock)reject) {
-  [core stabilize:requiredMatches minScreenshotsCount:minScreenshotsCount intervalMs:intervalMs timeoutMs:timeoutMs resolver:resolve rejecter:reject];
+  [core stabilize:requiredMatches minScreenshotsCount:minScreenshotsCount intervalMs:intervalMs timeoutMs:timeoutMs resolve:resolve reject:reject];
 }
 
 #endif

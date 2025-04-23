@@ -146,7 +146,7 @@ static FileSystemHelper *fileSystemHelper;
  * @param resolve Promise resolver called when the operation completes
  * @param reject Promise rejecter called if an error occurs
  */
-- (void)appendFile:(NSString *)filename withContent:(NSString *)content resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
+- (void)appendFile:(NSString *)filename withContent:(NSString *)content resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
     [fileSystemHelper appendFileWithPromise:filename base64Content:content resolver:resolve rejecter:reject];
 }
 
@@ -157,7 +157,7 @@ static FileSystemHelper *fileSystemHelper;
  * @param resolve Promise resolver called with the base64 encoded file content
  * @param reject Promise rejecter called if an error occurs
  */
-- (void)readFile:(NSString *)filename resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
+- (void)readFile:(NSString *)filename resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
     [fileSystemHelper readFileWithPromise:filename resolver:resolve rejecter:reject];
 }
 
@@ -168,7 +168,7 @@ static FileSystemHelper *fileSystemHelper;
  * @param resolve Promise resolver called with the inspector data
  * @param reject Promise rejecter called if an error occurs
  */
-- (void)getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
+- (void)getInspectorData:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
     [InspectorHelper getInspectorData:resolve rejecter:reject];
 }
 
@@ -187,8 +187,8 @@ static FileSystemHelper *fileSystemHelper;
         minScreenshotsCount:(NSInteger)minScreenshotsCount
         intervalMs:(NSInteger)intervalMs
          timeoutMs:(NSInteger)timeoutMs
-          resolver:(RCTPromiseResolveBlock)resolve
-          rejecter:(RCTPromiseRejectBlock)reject {
+          resolve:(RCTPromiseResolveBlock)resolve
+          reject:(RCTPromiseRejectBlock)reject {
     [StabilityHelper stabilize:requiredMatches minScreenshotsCount:minScreenshotsCount intervalMs:intervalMs timeoutMs:timeoutMs resolver:resolve rejecter:reject];
 }
 
