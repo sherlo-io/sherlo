@@ -67,9 +67,9 @@ static void SherloEarlyInit(void) {
  * Appends base64 encoded content to a file.
  */
 - (void)appendFile:(NSString *)path
-      withContent:(NSString *)content
-         resolver:(RCTPromiseResolveBlock)resolve
-         rejecter:(RCTPromiseRejectBlock)reject
+          content:(NSString *)content
+          resolve:(RCTPromiseResolveBlock)resolve
+           reject:(RCTPromiseRejectBlock)reject
 {
   [core appendFile:path withContent:content resolver:resolve rejecter:reject];
 }
@@ -78,8 +78,8 @@ static void SherloEarlyInit(void) {
  * Reads a file and returns its contents as base64 encoded string.
  */
 - (void)readFile:(NSString *)path
-        resolver:(RCTPromiseResolveBlock)resolve
-        rejecter:(RCTPromiseRejectBlock)reject
+        resolve:(RCTPromiseResolveBlock)resolve
+         reject:(RCTPromiseRejectBlock)reject
 {
   [core readFile:path resolver:resolve rejecter:reject];
 }
@@ -88,7 +88,7 @@ static void SherloEarlyInit(void) {
  * Gets UI inspector data from the current view hierarchy.
  */
 - (void)getInspectorData:(RCTPromiseResolveBlock)resolve
-                rejecter:(RCTPromiseRejectBlock)reject
+                 reject:(RCTPromiseRejectBlock)reject
 {
   [core getInspectorData:resolve rejecter:reject];
 }
@@ -102,8 +102,8 @@ static void SherloEarlyInit(void) {
        intervalMs:(NSInteger)intervalMs
         timeoutMs:(NSInteger)timeoutMs
   saveScreenshots:(BOOL)saveScreenshots
-         resolver:(RCTPromiseResolveBlock)resolve
-         rejecter:(RCTPromiseRejectBlock)reject
+         resolve:(RCTPromiseResolveBlock)resolve
+          reject:(RCTPromiseRejectBlock)reject
 {
   [core stabilize:requiredMatches minScreenshotsCount:minScreenshotsCount intervalMs:intervalMs timeoutMs:timeoutMs resolver:resolve rejecter:reject];
 }
@@ -159,8 +159,8 @@ RCT_EXPORT_METHOD(appendFile:(NSString *)path
  * Reads a file and returns its contents as base64 encoded string.
  */
 RCT_EXPORT_METHOD(readFile:(NSString *)path
-                  resolver:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
+                  resolve:(RCTPromiseResolveBlock)resolve
+                   reject:(RCTPromiseRejectBlock)reject) {
   [core readFile:path resolver:resolve rejecter:reject];
 }
 
@@ -168,7 +168,7 @@ RCT_EXPORT_METHOD(readFile:(NSString *)path
  * Gets UI inspector data from the current view hierarchy.
  */
 RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve
-                          rejecter:(RCTPromiseRejectBlock)reject) {
+                  reject:(RCTPromiseRejectBlock)reject) {
   [core getInspectorData:resolve rejecter:reject];
 }
 
