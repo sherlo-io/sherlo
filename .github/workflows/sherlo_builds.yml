@@ -21,8 +21,13 @@ on:
         required: false
         default: false
         type: boolean
-      expo_preview_android:
-        description: 'Expo SB 8 Preview | Android'
+      rn_development_android:
+        description: 'RN SB 7 Dev | Android'
+        required: false
+        default: false
+        type: boolean
+      rn_development_ios:
+        description: 'RN SB 7 Dev | iOS'
         required: false
         default: false
         type: boolean
@@ -63,14 +68,24 @@ jobs:
       project: 'rn-storybook-7'
       arch: ${{ github.event.inputs.arch }}
 
-  expo_preview_ios:
+  rn_development_ios:
     uses: ./.github/workflows/ios_build.yml
-    if: ${{ github.event.inputs.expo_preview_ios == 'true'}}
-    name: Expo Preview iOS Build
+    if: ${{ github.event.inputs.rn_development_ios == 'true'}}
+    name: RN Development iOS Build
     secrets: inherit
     with:
-      profile: 'preview'
-      project: 'expo-storybook-8'
+      profile: 'development'
+      project: 'rn-storybook-7'
+      arch: ${{ github.event.inputs.arch }}
+
+  rn_development_android:
+    uses: ./.github/workflows/android_build.yml
+    if: ${{ github.event.inputs.rn_development_android == 'true'}}
+    name: RN Development Android Build
+    secrets: inherit
+    with:
+      profile: 'development'
+      project: 'rn-storybook-7'
       arch: ${{ github.event.inputs.arch }}
 
   expo_preview_android:

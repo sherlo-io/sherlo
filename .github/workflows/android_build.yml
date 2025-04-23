@@ -8,11 +8,6 @@ on:
         required: true
         type: string # 'expo-storybook-8' or 'rn-storybook-7'
         default: 'expo-storybook-8'
-      skip_build:
-        description: 'Skip the build steps'
-        required: false
-        type: boolean
-        default: false
       profile:
         required: true
         type: string
@@ -63,15 +58,9 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build "expo-storybook-8" Android example app
-        if: ${{ !inputs.skip_build && inputs.project == 'expo-storybook-8' }}
-        working-directory: testing/expo-storybook-8
-        run: eas build --platform android --local --profile=${{ inputs.profile }}-${{ inputs.arch }} --output=builds/${{ inputs.profile }}-${{ inputs.arch }}/android.apk
-
-      - name: Build "rn-storybook-7" Android example app
-        if: ${{ !inputs.skip_build && inputs.project == 'rn-storybook-7' }}
-        working-directory: testing/rn-storybook-7
-        run: yarn build:android:preview:${{ inputs.arch }}
+      - name: Build Android
+        working-directory: testing/${{ inputs.project }}
+        run: yarn build:android:${{ inputs.profile }}:${{ inputs.arch }}
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
