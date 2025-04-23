@@ -26,6 +26,23 @@ function useTestStory({
           requestId,
         });
 
+        // We wait until the story is displayed in the UI
+        // before we start stabilizing and taking screenshots
+        // This is to avoid taking screenshots of the loading state
+        let storyIsDisplayed = false;
+        while (!storyIsDisplayed) {
+          const controlFabricMetadata = JSON.stringify(
+            metadataProviderRef?.current?.collectMetadata()
+          );
+
+          if (controlFabricMetadata.includes(nextSnapshot.storyId)) {
+            storyIsDisplayed = true;
+            break;
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+
         const isStable = await SherloModule.stabilize(
           config.stabilization.requiredMatches,
           config.stabilization.intervalMs,
