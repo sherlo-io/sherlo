@@ -88,6 +88,16 @@ jobs:
       project: 'rn-storybook-7'
       arch: ${{ github.event.inputs.arch }}
 
+  expo_preview_ios:
+    uses: ./.github/workflows/ios_build.yml
+    if: ${{ github.event.inputs.expo_preview_ios == 'true'}}
+    name: Expo Preview iOS Build
+    secrets: inherit
+    with:
+      profile: 'preview'
+      project: 'expo-storybook-8'
+      arch: ${{ github.event.inputs.arch }}
+
   expo_preview_android:
     uses: ./.github/workflows/android_build.yml
     if: ${{ github.event.inputs.expo_preview_android == 'true'}}
