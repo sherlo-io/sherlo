@@ -36,6 +36,11 @@ on:
         required: false
         default: false
         type: boolean
+      expo_preview_android:
+        description: 'Expo SB 8 Preview | Android'
+        required: false
+        default: false
+        type: boolean
       expo_development_android:
         description: 'Expo SB 8 Dev | Android'
         required: false
