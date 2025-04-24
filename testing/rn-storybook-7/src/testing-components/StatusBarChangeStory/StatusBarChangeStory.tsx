@@ -1,5 +1,6 @@
 import {useEffect} from 'react';
-import {View, Text, StyleSheet, useColorScheme, StatusBar} from 'react-native';
+import {View, Text, StyleSheet, useColorScheme} from 'react-native';
+import * as ExpoStatusBar from 'expo-status-bar';
 
 const StatusBarChangeStory = ({
   property,
@@ -15,15 +16,15 @@ const StatusBarChangeStory = ({
 
   useEffect(() => {
     if (property === 'backgroundColor') {
-      StatusBar.setBackgroundColor('#f00', false);
+      ExpoStatusBar.setStatusBarBackgroundColor('#f00', false);
     } else if (property === 'hidden') {
-      StatusBar.setHidden(true);
+      ExpoStatusBar.setStatusBarHidden(true);
     } else if (property === 'darkContent') {
-      StatusBar.setBarStyle('dark-content');
+      ExpoStatusBar.setStatusBarStyle('dark');
     } else if (property === 'lightContent') {
-      StatusBar.setBarStyle('light-content');
+      ExpoStatusBar.setStatusBarStyle('light');
     } else if (property === 'withoutTranslucent') {
-      StatusBar.setTranslucent(false);
+      ExpoStatusBar.setStatusBarTranslucent(false);
     }
   }, [colorScheme, property]);
 

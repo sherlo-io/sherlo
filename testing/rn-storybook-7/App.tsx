@@ -1,30 +1,40 @@
-import React, {useEffect} from 'react';
+import React from 'react';
 import {
   isStorybookMode,
   addStorybookToDevMenu,
 } from '@sherlo/react-native-storybook';
+import {StatusBar} from 'expo-status-bar';
 import Storybook from './.storybook';
 import HomeScreen from './src/HomeScreen';
-import {StatusBar, Appearance} from 'react-native';
 
 addStorybookToDevMenu();
 
 function App() {
-  useEffect(() => {
-    StatusBar.setTranslucent(true);
-    StatusBar.setBackgroundColor('transparent');
-    StatusBar.setBarStyle(
-      Appearance?.getColorScheme() === 'dark'
-        ? 'light-content'
-        : 'dark-content',
-    );
-  }, []);
-
   if (isStorybookMode) {
-    return <Storybook />;
+    return (
+      <Wrapper>
+        <Storybook />
+      </Wrapper>
+    );
   }
 
-  return <HomeScreen />;
+  return (
+    <Wrapper>
+      <HomeScreen />
+    </Wrapper>
+  );
 }
 
 export default App;
+
+/* ========================================================================== */
+
+function Wrapper({children}: {children: React.ReactNode}) {
+  return (
+    <>
+      <StatusBar translucent />
+
+      {children}
+    </>
+  );
+}

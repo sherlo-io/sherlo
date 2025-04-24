@@ -3429,6 +3429,7 @@ __metadata:
     "@types/react": "npm:^18.2.6"
     "@types/react-test-renderer": "npm:^18.0.0"
     eslint: "npm:^8.19.0"
+    expo-status-bar: "npm:2.0.1"
     jest: "npm:^29.6.3"
     prettier: "npm:2.8.8"
     react: "npm:18.3.1"
@@ -6572,6 +6573,16 @@ __metadata:
     jest-message-util: "npm:^29.7.0"
     jest-util: "npm:^29.7.0"
   checksum: 10/63f97bc51f56a491950fb525f9ad94f1916e8a014947f8d8445d3847a665b5471b768522d659f5e865db20b6c2033d2ac10f35fcbd881a4d26407a4f6f18451a
+  languageName: node
+  linkType: hard
+
+"expo-status-bar@npm:2.0.1":
+  version: 2.0.1
+  resolution: "expo-status-bar@npm:2.0.1"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10/0b0e51bd847eac163d6d14c4589115dd83d93424c06e4729de5a773ec6c5ef074ad2d3221fa42daf4f2103b02f42a208371a282b7bfd39d9f7511d21982e0015
   languageName: node
   linkType: hard
 
