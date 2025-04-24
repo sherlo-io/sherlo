@@ -1,8 +1,14 @@
+const fs = require('fs');
+
 module.exports = () => {
   const plugins = ['expo-localization'];
 
   if (process.env.USE_NEW_ARCH === 'true') {
-    plugins.push('./plugin.js');
+    // We copy the plugin to the root of the project to avoid issues related to linking
+    // @sherlo/react-native-storybook during development.
+    // End users won't experience this issue.
+    fs.copyFileSync('../../packages/react-native-storybook/app.plugin.js', 'tmp_plugin.js');
+    plugins.push('./tmp_plugin.js');
   }
 
   return {
