@@ -21,7 +21,9 @@ class MainApplication : Application(), ReactApplication {
             PackageList(this).packages.apply {
               // Packages that cannot be autolinked yet can be added manually here, for example:
               // add(MyReactNativePackage())
-              add(SherloModulePackage())
+              if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
+                add(SherloModulePackage())
+              }
             }
 
         override fun getJSMainModuleName(): String = "index"
