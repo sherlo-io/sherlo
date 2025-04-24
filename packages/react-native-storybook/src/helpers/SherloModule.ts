@@ -13,6 +13,7 @@ interface SherloConstants {
 }
 
 type SherloModule = {
+  isTurboModule: boolean;
   getMode: () => StorybookViewMode;
   getConfig: () => Config;
   getLastState: () => LastState | undefined;
@@ -59,6 +60,7 @@ function createSherloModule(): SherloModule {
   };
 
   return {
+    isTurboModule: !!TurboModule,
     getInspectorData: async () => {
       const inspectorDataString = await module.getInspectorData();
       return JSON.parse(inspectorDataString) as InspectorData;
@@ -121,6 +123,7 @@ function createSherloModule(): SherloModule {
 
 function createDummySherloModule(): SherloModule {
   return {
+    isTurboModule: false,
     getInspectorData: async () => ({
       viewHierarchy: {
         id: 1,

@@ -14,7 +14,7 @@ public class ModePersistorHelper {
     private static final String TAG = "SherloModule:ModePersistor";
     private static final String PREFS_NAME = "SherloPreferences";
     private static final String MODE_KEY = "current_mode";
-    private static final long MODE_EXPIRATION_MS = 1000; // 1 second
+    private static final long MODE_EXPIRATION_MS = 5000; // 5 seconds
 
     private final ReactApplicationContext reactContext;
 

@@ -1,4 +1,4 @@
-import { DevSettings } from 'react-native';
+import { DevSettings, Platform } from 'react-native';
 import { SherloModule } from './helpers';
 
 let devMenuToggleInitialized = false;
@@ -11,26 +11,32 @@ try {
 function addStorybookToDevMenu() {
   if (!__DEV__ || devMenuToggleInitialized) return;
 
-  const MENU_LABEL = 'Toggle Storybook';
+  // Expo Bug present only on iOS in New Arch where custom dev menu items registered via registerDevMenuItems stop responding after a reload
+  // https://github.com/expo/expo/issues/36359
+  //
+  // The same thing happens if we choose "Toggle Storybook" from the dev menu because
+  // it reloads the app as a part of it's functionality. Because of that, once
+  // user enters Storybook mode, they cannot leave by selecting "Toggle Storybook"
+  // from the dev menu again.
+  //
+  // That's why we keep a workaround until this is fixed
+  const useOpenStorybookWorkaroundInExpoDevMenuItem =
+    SherloModule.isTurboModule && Platform.OS === 'ios';
+  const shouldAdExpoDevMenuItem =
+    !useOpenStorybookWorkaroundInExpoDevMenuItem || Platform.OS !== 'ios';
+
+  const MENU_LABEL_TOGGLE_STORYBOOK = 'Toggle Storybook';
+  const MENU_LABEL_OPEN_STORYBOOK = 'Open Storybook';
   const toggleStorybook = () => SherloModule.toggleStorybook();
+  const openStorybook = () => SherloModule.openStorybook();
 
-  DevSettings.addMenuItem(MENU_LABEL, toggleStorybook);
+  DevSettings.addMenuItem(MENU_LABEL_TOGGLE_STORYBOOK, toggleStorybook);
 
-  if (ExpoDevMenu?.registerDevMenuItems) {
-    // TODO: Expo Bug present only on New Arch
-    //
-    // 1. Open the dev menu
-    // 2. Select custom dev menu item
-    // Result: it behaves as expected
-    // 3. Choose "reload"
-    // 4. Again select custom dev menu item
-    // Result: it doesn't respond
-    //
-    // The same thing happens if we choose "Toggle Storybook" from the dev menu because
-    // it reloads the app as a part of it's functionality. Because of that, once
-    // user enters Storybook mode, they cannot leave by selecting "Toggle Storybook"
-    // from the dev menu again.
-    ExpoDevMenu.registerDevMenuItems([{ name: MENU_LABEL, callback: toggleStorybook }]);
+  if (ExpoDevMenu?.registerDevMenuItems && shouldAdExpoDevMenuItem) {
+    const devMenuItem = useOpenStorybookWorkaroundInExpoDevMenuItem
+      ? { name: MENU_LABEL_OPEN_STORYBOOK, callback: openStorybook }
+      : { name: MENU_LABEL_TOGGLE_STORYBOOK, callback: toggleStorybook };
+    ExpoDevMenu.registerDevMenuItems([devMenuItem]);
   }
 
   devMenuToggleInitialized = true;
