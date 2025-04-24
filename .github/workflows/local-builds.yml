@@ -17,23 +17,6 @@ on:
         required: true
         type: string
         default: 'expo-storybook-8'
-  workflow_dispatch:
-    inputs:
-      env:
-        description: 'Environment (dev, test, prod)'
-        required: true
-        default: 'dev'
-        type: string
-      use_github_action:
-        description: 'Use Sherlo Github Action'
-        required: false
-        type: boolean
-        default: false
-      project:
-        description: 'Project (expo-storybook-8, rn-storybook-7)'
-        required: true
-        type: string
-        default: 'expo-storybook-8'
       arch:
         description: 'Architecture to use (old, new)'
         required: false
