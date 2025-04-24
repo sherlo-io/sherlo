@@ -22,8 +22,8 @@ function addStorybookToDevMenu() {
   // That's why we keep a workaround until this is fixed
   const useOpenStorybookWorkaroundInExpoDevMenuItem =
     SherloModule.isTurboModule && Platform.OS === 'ios';
-  const shouldAdExpoDevMenuItem =
-    !useOpenStorybookWorkaroundInExpoDevMenuItem || Platform.OS !== 'ios';
+  const shouldAddExpoDevMenuItem =
+    !useOpenStorybookWorkaroundInExpoDevMenuItem || SherloModule.getMode() === 'default';
 
   const MENU_LABEL_TOGGLE_STORYBOOK = 'Toggle Storybook';
   const MENU_LABEL_OPEN_STORYBOOK = 'Open Storybook';
@@ -32,7 +32,7 @@ function addStorybookToDevMenu() {
 
   DevSettings.addMenuItem(MENU_LABEL_TOGGLE_STORYBOOK, toggleStorybook);
 
-  if (ExpoDevMenu?.registerDevMenuItems && shouldAdExpoDevMenuItem) {
+  if (ExpoDevMenu?.registerDevMenuItems && shouldAddExpoDevMenuItem) {
     const devMenuItem = useOpenStorybookWorkaroundInExpoDevMenuItem
       ? { name: MENU_LABEL_OPEN_STORYBOOK, callback: openStorybook }
       : { name: MENU_LABEL_TOGGLE_STORYBOOK, callback: toggleStorybook };
