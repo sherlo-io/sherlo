@@ -1,5 +1,5 @@
 import { getGlobalStates } from '../../../utils';
-import SherloModule from '../../SherloModule';
+import SherloModule from '../../../SherloModule';
 import { LogFn, SendFn, RunnerProtocolItem, AppProtocolItem, ProtocolItemMetadata } from '../types';
 
 const ACK_READ_INTERVAL = 500;

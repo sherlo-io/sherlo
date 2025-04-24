@@ -1,5 +1,5 @@
 import { DevSettings, Platform } from 'react-native';
-import { SherloModule } from './helpers';
+import SherloModule from './SherloModule';
 
 let devMenuToggleInitialized = false;
 

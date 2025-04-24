@@ -1,6 +1,6 @@
 import { StorybookParams, StorybookView } from '../../types';
 import { DUMMY_STORY_ID } from '../../constants';
-import { SherloModule } from '../../helpers';
+import SherloModule from '../../SherloModule';
 
 function getStorybookComponent({
   isTestingMode,

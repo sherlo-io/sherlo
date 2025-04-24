@@ -1,4 +1,4 @@
-import { SherloModule } from './helpers';
+import SherloModule from './SherloModule';
 
 function openStorybook(): void {
   return SherloModule.openStorybook();

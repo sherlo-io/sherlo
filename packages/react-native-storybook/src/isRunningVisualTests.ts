@@ -1,4 +1,4 @@
-import { SherloModule } from './helpers';
+import SherloModule from './SherloModule';
 
 const isRunningVisualTests = SherloModule.getMode() === 'testing';
 

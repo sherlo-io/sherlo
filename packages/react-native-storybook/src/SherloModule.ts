@@ -1,10 +1,10 @@
 import base64 from 'base-64';
 import { NativeModules } from 'react-native';
 import utf8 from 'utf8';
-import isExpoGo from './isExpoGo';
-import { StorybookViewMode, InspectorData } from '../types/types';
-import { Config, LastState } from './RunnerBridge/types';
-import TurboModule, { Spec } from '../specs/NativeSherloModule';
+import isExpoGo from './helpers/isExpoGo';
+import { StorybookViewMode, InspectorData } from './types/types';
+import { Config, LastState } from './helpers/RunnerBridge/types';
+import TurboModule, { Spec } from './specs/NativeSherloModule';
 
 interface SherloConstants {
   mode: StorybookViewMode;

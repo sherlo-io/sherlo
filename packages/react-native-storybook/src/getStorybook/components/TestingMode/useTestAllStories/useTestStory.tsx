@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { RunnerBridge, SherloModule } from '../../../../helpers';
+import { RunnerBridge } from '../../../../helpers';
+import SherloModule from '../../../../SherloModule';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isStorybook7 } from '../../../helpers';
 import { MetadataProviderRef } from '../MetadataProvider';

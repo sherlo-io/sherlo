@@ -1,4 +1,4 @@
-import { SherloModule } from './helpers';
+import SherloModule from './SherloModule';
 
 /**
  * isStorybookMode determines whether Storybook should be displayed.

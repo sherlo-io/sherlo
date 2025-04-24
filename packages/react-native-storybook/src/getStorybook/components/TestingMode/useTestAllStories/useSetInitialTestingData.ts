@@ -1,6 +1,7 @@
 import { start } from '@storybook/react-native';
 import { useEffect } from 'react';
-import { SherloModule, RunnerBridge } from '../../../../helpers';
+import { RunnerBridge } from '../../../../helpers';
+import SherloModule from '../../../../SherloModule';
 import prepareSnapshots from './prepareSnapshots';
 import { isStorybook7 } from '../../../helpers';
 
