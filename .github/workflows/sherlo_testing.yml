@@ -18,6 +18,7 @@ on:
         default: 'old'
         type: choice
         options:
+          - 'old & new'
           - 'old'
           - 'new'
       use_github_action:
@@ -77,6 +78,23 @@ jobs:
             echo "is_monday=false" >> $GITHUB_OUTPUT
           fi
 
+  setup-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      arch-matrix: ${{ steps.set-matrix.outputs.arch-matrix }}
+    steps:
+      - id: set-matrix
+        run: |
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            echo "arch-matrix=[\"old\"]" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.inputs.arch }}" == "old & new" ]; then
+            echo "arch-matrix=[\"old\", \"new\"]" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.inputs.arch }}" == "old" ]; then
+            echo "arch-matrix=[\"old\"]" >> $GITHUB_OUTPUT
+          else
+            echo "arch-matrix=[\"new\"]" >> $GITHUB_OUTPUT
+          fi
+
   device_testing:
     uses: ./.github/workflows/expo-update.yml
     if: ${{ (github.event_name == 'schedule' || github.event.inputs.device_testing == 'true') && always() && !failure() && !cancelled() }}
@@ -103,109 +121,78 @@ jobs:
       arch: 'old'
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
 
-  expo_local_builds_old_arch:
+  expo_local_builds:
+    needs: setup-matrix
     uses: ./.github/workflows/local-builds.yml
-    if: ${{ (github.event_name == 'schedule' || (github.event.inputs.expo_local_builds == 'true' && github.event.inputs.arch == 'old')) && always() && !failure() && !cancelled() }}
-    name: local-builds (Expo - Old Arch)
+    if: ${{ (github.event_name == 'schedule' || github.event.inputs.expo_local_builds == 'true') && always() && !failure() && !cancelled() }}
+    name: local-builds (Expo - ${{ matrix.arch }} Arch)
     secrets: inherit
+    strategy:
+      matrix:
+        arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
       project: 'expo-storybook-8'
+      arch: ${{ matrix.arch }}
 
-  expo_local_builds_new_arch:
+  rn_local_builds:
+    needs: setup-matrix
     uses: ./.github/workflows/local-builds.yml
-    if: ${{ (github.event_name == 'schedule' || (github.event.inputs.expo_local_builds == 'true' && github.event.inputs.arch == 'new')) && always() && !failure() && !cancelled() }}
-    name: local-builds (Expo - New Arch)
+    if: ${{ (github.event_name == 'schedule' || github.event.inputs.rn_local_builds == 'true') && always() && !failure() && !cancelled() }}
+    name: local-builds (React Native - ${{ matrix.arch }} Arch)
     secrets: inherit
-    with:
-      env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
-      project: 'expo-storybook-8'
-
-  rn_local_builds_old_arch:
-    uses: ./.github/workflows/local-builds.yml
-    if: ${{ (github.event_name == 'schedule' || (github.event.inputs.rn_local_builds == 'true' && github.event.inputs.arch == 'old')) && always() && !failure() && !cancelled() }}
-    name: local-builds (React Native - Old Arch)
-    secrets: inherit
+    strategy:
+      matrix:
+        arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       project: 'rn-storybook-7'
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
+      arch: ${{ matrix.arch }}
 
-  rn_local_builds_new_arch:
-    uses: ./.github/workflows/local-builds.yml
-    if: ${{ (github.event_name == 'schedule' || (github.event.inputs.rn_local_builds == 'true' && github.event.inputs.arch == 'new')) && always() && !failure() && !cancelled() }}
-    name: local-builds (React Native - New Arch)
-    secrets: inherit
-    with:
-      env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
-      project: 'rn-storybook-7'
-      use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
-
-  expo_cloud_old_arch:
-    needs: check_if_monday
+  expo_cloud:
+    needs: [check_if_monday, setup-matrix]
     uses: ./.github/workflows/expo-cloud.yml
-    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || (github.event.inputs.expo_cloud == 'true' && github.event.inputs.arch == 'old')) && always() && !failure() && !cancelled() }}
-    name: expo-cloud-builds (Old Arch)
+    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.expo_cloud == 'true') && always() && !failure() && !cancelled() }}
+    name: expo-cloud-builds (${{ matrix.arch }} Arch)
     secrets: inherit
+    strategy:
+      matrix:
+        arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
+      arch: ${{ matrix.arch }}
 
-  expo_cloud_new_arch:
-    needs: check_if_monday
-    uses: ./.github/workflows/expo-cloud.yml
-    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || (github.event.inputs.expo_cloud == 'true' && github.event.inputs.arch == 'new')) && always() && !failure() && !cancelled() }}
-    name: expo-cloud-builds (New Arch)
-    secrets: inherit
-    with:
-      env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
-      use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
-
-  expo_update_with_builds_old_arch:
+  expo_update_with_builds:
+    needs: setup-matrix
     uses: ./.github/workflows/expo-update.yml
-    if: ${{ (github.event_name == 'schedule' || (github.event.inputs.expo_update_with_builds == 'true' && github.event.inputs.arch == 'old')) && always() && !failure() && !cancelled() }}
-    name: expo-update (with native builds - Old Arch)
+    if: ${{ (github.event_name == 'schedule' || github.event.inputs.expo_update_with_builds == 'true') && always() && !failure() && !cancelled() }}
+    name: expo-update (with native builds - ${{ matrix.arch }} Arch)
     secrets: inherit
+    strategy:
+      matrix:
+        arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || inputs.env }}
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
       with_builds: true
       project: 'expo-update'
-      arch: 'old'
+      arch: ${{ matrix.arch }}
 
-  expo_update_with_builds_new_arch:
+  expo_update:
+    needs: setup-matrix
     uses: ./.github/workflows/expo-update.yml
-    if: ${{ (github.event_name == 'schedule' || (github.event.inputs.expo_update_with_builds == 'true' && github.event.inputs.arch == 'new')) && always() && !failure() && !cancelled() }}
-    name: expo-update (with native builds - New Arch)
+    if: ${{ (github.event_name == 'schedule' || github.event.inputs.expo_update == 'true') && always() && !failure() && !cancelled() }}
+    name: expo-update (without native builds - ${{ matrix.arch }} Arch)
     secrets: inherit
+    strategy:
+      matrix:
+        arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
     with:
-      env: ${{ github.event_name == 'schedule' && 'dev' || inputs.env }}
-      use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
-      with_builds: true
-      project: 'expo-update'
-      arch: 'new'
-
-  expo_update_old_arch:
-    uses: ./.github/workflows/expo-update.yml
-    if: ${{ (github.event_name == 'schedule' || (github.event.inputs.expo_update == 'true' && github.event.inputs.arch == 'old')) && always() && !failure() && !cancelled() }}
-    name: expo-update (without native builds - Old Arch)
-    secrets: inherit
-    with:
-      env: ${{ github.event.inputs.env }}
+      env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
       with_builds: false
       project: 'expo-update'
-      arch: 'old'
-
-  expo_update_new_arch:
-    uses: ./.github/workflows/expo-update.yml
-    if: ${{ (github.event_name == 'schedule' || (github.event.inputs.expo_update == 'true' && github.event.inputs.arch == 'new')) && always() && !failure() && !cancelled() }}
-    name: expo-update (without native builds - New Arch)
-    secrets: inherit
-    with:
-      env: ${{ github.event.inputs.env }}
-      use_github_action: ${{ github.event.inputs.use_github_action == 'true' }}
-      with_builds: false
-      project: 'expo-update'
-      arch: 'new'
+      arch: ${{ matrix.arch }}

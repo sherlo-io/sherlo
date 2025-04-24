@@ -29,8 +29,7 @@ storybook-out
 built-storybooks
 sherlo-lib
 
-# Builds directory (no longer using LFS)
-testing/*/builds/*/
+# Build directories
 testing/*/builds/*/
 
 # Yarn

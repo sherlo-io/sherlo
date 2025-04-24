@@ -84,7 +84,6 @@ function createSherloModule(): SherloModule {
       return getConstants().mode;
     },
     getConfig: () => {
-      // @ts-ignore
       const configString = getConstants().config;
       const config = JSON.parse(configString) as Config | undefined;
       if (!config) {

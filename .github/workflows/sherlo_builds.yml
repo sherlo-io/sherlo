@@ -9,6 +9,7 @@ on:
         default: 'old'
         type: choice
         options:
+          - 'old & new'
           - 'old'
           - 'new'
       rn_preview_android:
@@ -53,82 +54,129 @@ on:
         type: boolean
 
 jobs:
+  setup-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      arch-matrix: ${{ steps.set-matrix.outputs.arch-matrix }}
+    steps:
+      - id: set-matrix
+        run: |
+          if [ "${{ github.event.inputs.arch }}" == "old & new" ]; then
+            echo "arch-matrix=[\"old\", \"new\"]" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.inputs.arch }}" == "old" ]; then
+            echo "arch-matrix=[\"old\"]" >> $GITHUB_OUTPUT
+          else
+            echo "arch-matrix=[\"new\"]" >> $GITHUB_OUTPUT
+          fi
+
   rn_preview_ios:
+    needs: setup-matrix
     uses: ./.github/workflows/ios_build.yml
     if: ${{ github.event.inputs.rn_preview_ios == 'true'}}
-    name: RN Preview iOS Build
+    name: RN Preview iOS Build - ${{ matrix.arch }}
     secrets: inherit
+    strategy:
+      matrix:
+        arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
     with:
       profile: 'preview'
       project: 'rn-storybook-7'
-      arch: ${{ github.event.inputs.arch }}
+      arch: ${{ matrix.arch }}
 
   rn_preview_android:
+    needs: setup-matrix
     uses: ./.github/workflows/android_build.yml
     if: ${{ github.event.inputs.rn_preview_android == 'true'}}
-    name: RN Preview Android Build
+    name: RN Preview Android Build - ${{ matrix.arch }}
     secrets: inherit
+    strategy:
+      matrix:
+        arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
     with:
       profile: 'preview'
       project: 'rn-storybook-7'
-      arch: ${{ github.event.inputs.arch }}
+      arch: ${{ matrix.arch }}
 
   rn_development_ios:
+    needs: setup-matrix
     uses: ./.github/workflows/ios_build.yml
     if: ${{ github.event.inputs.rn_development_ios == 'true'}}
-    name: RN Development iOS Build
+    name: RN Development iOS Build - ${{ matrix.arch }}
     secrets: inherit
+    strategy:
+      matrix:
+        arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
     with:
       profile: 'development'
       project: 'rn-storybook-7'
-      arch: ${{ github.event.inputs.arch }}
+      arch: ${{ matrix.arch }}
 
   rn_development_android:
+    needs: setup-matrix
     uses: ./.github/workflows/android_build.yml
     if: ${{ github.event.inputs.rn_development_android == 'true'}}
-    name: RN Development Android Build
+    name: RN Development Android Build - ${{ matrix.arch }}
     secrets: inherit
+    strategy:
+      matrix:
+        arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
     with:
       profile: 'development'
       project: 'rn-storybook-7'
-      arch: ${{ github.event.inputs.arch }}
+      arch: ${{ matrix.arch }}
 
   expo_preview_ios:
+    needs: setup-matrix
     uses: ./.github/workflows/ios_build.yml
     if: ${{ github.event.inputs.expo_preview_ios == 'true'}}
-    name: Expo Preview iOS Build
+    name: Expo Preview iOS Build - ${{ matrix.arch }}
     secrets: inherit
+    strategy:
+      matrix:
+        arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
     with:
       profile: 'preview'
       project: 'expo-storybook-8'
-      arch: ${{ github.event.inputs.arch }}
+      arch: ${{ matrix.arch }}
 
   expo_preview_android:
+    needs: setup-matrix
     uses: ./.github/workflows/android_build.yml
     if: ${{ github.event.inputs.expo_preview_android == 'true'}}
-    name: Expo Preview Android Build
+    name: Expo Preview Android Build - ${{ matrix.arch }}
     secrets: inherit
+    strategy:
+      matrix:
+        arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
     with:
       profile: 'preview'
       project: 'expo-storybook-8'
-      arch: ${{ github.event.inputs.arch }}
+      arch: ${{ matrix.arch }}
 
   expo_development_ios:
+    needs: setup-matrix
     uses: ./.github/workflows/ios_build.yml
     if: ${{ github.event.inputs.expo_development_ios == 'true'}}
-    name: Expo Development iOS Build
+    name: Expo Development iOS Build - ${{ matrix.arch }}
     secrets: inherit
+    strategy:
+      matrix:
+        arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
     with:
       profile: 'development'
       project: 'expo-storybook-8'
-      arch: ${{ github.event.inputs.arch }}
+      arch: ${{ matrix.arch }}
 
   expo_development_android:
+    needs: setup-matrix
     uses: ./.github/workflows/android_build.yml
     if: ${{ github.event.inputs.expo_development_android == 'true'}}
-    name: Expo Development Android Build
+    name: Expo Development Android Build - ${{ matrix.arch }}
     secrets: inherit
+    strategy:
+      matrix:
+        arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
     with:
       profile: 'development'
       project: 'expo-storybook-8'
-      arch: ${{ github.event.inputs.arch }}
+      arch: ${{ matrix.arch }}
