@@ -64,7 +64,7 @@ public class InspectorHelper {
         rootObject.put("density", resources.getDisplayMetrics().density);
         rootObject.put("fontScale", resources.getConfiguration().fontScale);
         rootObject.put("viewHierarchy", viewHierarchy);
-
+        
         return rootObject.toString();
     }
 

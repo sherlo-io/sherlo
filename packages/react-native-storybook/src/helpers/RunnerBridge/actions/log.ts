@@ -1,4 +1,4 @@
-import SherloModule from '../../SherloModule';
+import SherloModule from '../../../SherloModule';
 import { LogFn } from '../types';
 
 /**

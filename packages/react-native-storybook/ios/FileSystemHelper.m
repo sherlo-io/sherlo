@@ -60,7 +60,7 @@ static NSString *syncDirectoryPath;
  * @param resolve Promise resolver to call when the operation completes
  * @param reject Promise rejecter to call if an error occurs
  */
-- (void)appendFileWithPromise:(NSString *)filename base64Content:(NSString *)base64Content resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
+- (void)appendFileWithPromise:(NSString *)filename base64Content:(NSString *)base64Content resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
     NSString *absolutePath = [self getFileUri:filename];
     
     // Decode base64 content
@@ -119,7 +119,7 @@ static NSString *syncDirectoryPath;
  * @param resolve Promise resolver to call with the base64 encoded file content
  * @param reject Promise rejecter to call if an error occurs
  */
-- (void)readFileWithPromise:(NSString *)filename resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
+- (void)readFileWithPromise:(NSString *)filename resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
     NSString *absolutePath = [self getFileUri:filename];
     
     NSFileManager *fileManager = [NSFileManager defaultManager];

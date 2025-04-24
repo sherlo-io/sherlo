@@ -1,5 +1,5 @@
 import { LogBox } from 'react-native';
-import { SherloModule } from '../../../helpers';
+import SherloModule from '../../../SherloModule';
 
 // TODO validate if every line here is valueable and necessary
 function setupErrorSilencing(): void {

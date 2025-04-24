@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { RunnerBridge, SherloModule } from '../../../../helpers';
+import { RunnerBridge } from '../../../../helpers';
+import SherloModule from '../../../../SherloModule';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isStorybook7 } from '../../../helpers';
 import { MetadataProviderRef } from '../MetadataProvider';
@@ -26,8 +27,26 @@ function useTestStory({
           requestId,
         });
 
+        // We wait until the story is displayed in the UI
+        // before we start stabilizing and taking screenshots
+        // This is to avoid taking screenshots of the loading state
+        let storyIsDisplayed = false;
+        while (!storyIsDisplayed) {
+          const controlFabricMetadata = JSON.stringify(
+            metadataProviderRef?.current?.collectMetadata()
+          );
+
+          if (controlFabricMetadata.includes(nextSnapshot.storyId)) {
+            storyIsDisplayed = true;
+            break;
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+
         const isStable = await SherloModule.stabilize(
           config.stabilization.requiredMatches,
+          config.stabilization.minScreenshotsCount,
           config.stabilization.intervalMs,
           config.stabilization.timeoutMs,
           !!config.stabilization.saveScreenshots

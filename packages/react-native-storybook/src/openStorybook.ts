@@ -1,6 +1,6 @@
-import { SherloModule } from './helpers';
+import SherloModule from './SherloModule';
 
-function openStorybook(): Promise<void> {
+function openStorybook(): void {
   return SherloModule.openStorybook();
 }
 

@@ -8,6 +8,8 @@ import android.util.Log;
 // React Native Bridge Imports
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.Promise;
+import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.bridge.Arguments;
 
 // Java Utility and IO Imports
 import java.util.HashMap;
@@ -35,6 +37,7 @@ public class SherloModuleCore {
 
     // Helper instances
     private FileSystemHelper fileSystemHelper = null;
+    private ModePersistorHelper modePersistorHelper = null;
 
     /**
      * Initializes the module with the React context and sets up all required helpers.
@@ -46,18 +49,27 @@ public class SherloModuleCore {
         this.reactContext = reactContext;
         
         this.fileSystemHelper = new FileSystemHelper(reactContext);
+        this.modePersistorHelper = new ModePersistorHelper(reactContext);
 
         this.config = ConfigHelper.loadConfig(this.fileSystemHelper);
 
-        if (this.config != null) {
+        // Check for persisted mode in SharedPreferences first
+        String persistedModeValue = modePersistorHelper.getPersistedMode();
+        if (persistedModeValue != null) {
+            // We have a valid persisted mode that hasn't expired, use it
+            this.currentMode = persistedModeValue;
+            Log.d(TAG, "Using persisted mode: " + currentMode);
+        } else if (this.config != null) {
+            // Fallback to config-based mode
             this.currentMode = ConfigHelper.determineModeFromConfig(this.config);
-
-            Log.d(TAG, "SherloModuleCore initialized with mode: " + currentMode);
+            Log.d(TAG, "Using config-based mode: " + currentMode);
             
             if (currentMode.equals(MODE_TESTING)) {
                 this.lastState = LastStateHelper.getLastState(this.fileSystemHelper);
             }
         }
+        
+        Log.d(TAG, "SherloModuleCore initialized with mode: " + currentMode);
     }
     
     /**
@@ -66,51 +78,38 @@ public class SherloModuleCore {
      * 
      * @return A map containing the module constants
      */
-    public Map<String, Object> getConstants() {
-        final Map<String, Object> constants = new HashMap<>();
-        constants.put("mode", this.currentMode);
-        constants.put("config", this.config != null ? this.config.toString() : null);
-        constants.put("lastState", this.lastState != null ? this.lastState.toString() : null);
+    public WritableMap getSherloConstants() {
+        final WritableMap constants = Arguments.createMap();
+        constants.putString("mode", this.currentMode);
+        constants.putString("config", this.config != null ? this.config.toString() : null);
+        constants.putString("lastState", this.lastState != null ? this.lastState.toString() : null);
         return constants;
     }
 
     /**
      * Toggles between Storybook and default modes.
      * If currently in Storybook mode, switches to default, otherwise switches to Storybook.
-     * 
-     * @param activity The current activity
-     * @param promise Promise to resolve or reject
      */
-    public void toggleStorybook(Activity activity, Promise promise) {
-        if (currentMode.equals(MODE_STORYBOOK)) {
-            currentMode = MODE_DEFAULT;
-        } else {
-            currentMode = MODE_STORYBOOK;
-        }
-
-        RestartHelper.restart(activity, promise);
+    public void toggleStorybook() {
+        String newMode = currentMode.equals(MODE_STORYBOOK) ? MODE_DEFAULT : MODE_STORYBOOK;
+        modePersistorHelper.persistMode(newMode);
+        RestartHelper.restart(reactContext);
     }
 
     /**
      * Switches to Storybook mode and restarts the React context.
-     * 
-     * @param activity The current activity
-     * @param promise Promise to resolve or reject
      */
-    public void openStorybook(Activity activity, Promise promise) {
-        currentMode = MODE_STORYBOOK;
-        RestartHelper.restart(activity, promise);
+    public void openStorybook() {
+        modePersistorHelper.persistMode(MODE_STORYBOOK);
+        RestartHelper.restart(reactContext);
     }
 
     /**
      * Switches to default mode and restarts the React context.
-     * 
-     * @param activity The current activity
-     * @param promise Promise to resolve or reject
      */
-    public void closeStorybook(Activity activity, Promise promise) {
-        currentMode = MODE_DEFAULT;
-        RestartHelper.restart(activity, promise);
+    public void closeStorybook() {
+        modePersistorHelper.persistMode(MODE_DEFAULT);
+        RestartHelper.restart(reactContext);
     }
 
     /**
@@ -149,11 +148,12 @@ public class SherloModuleCore {
      * 
      * @param activity The current activity
      * @param requiredMatches The number of consecutive matching screenshots needed
+     * @param minScreenshotsCount The minimum number of screenshots to take when checking for stability
      * @param intervalMs The interval between each screenshot (in milliseconds)
      * @param timeoutMs The overall timeout (in milliseconds)
      * @param promise Promise to resolve with the stability result or reject with an error
      */
-    public void stabilize(Activity activity, int requiredMatches, int intervalMs, int timeoutMs, boolean saveScreenshots, Promise promise) {
-        StabilityHelper.stabilize(activity, requiredMatches, intervalMs, timeoutMs, saveScreenshots, promise);
+    public void stabilize(Activity activity, int requiredMatches, int minScreenshotsCount, int intervalMs, int timeoutMs, boolean saveScreenshots, Promise promise) {
+        StabilityHelper.stabilize(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs, saveScreenshots, promise);
     }
 } 

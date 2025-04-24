@@ -73,7 +73,7 @@ static FileSystemHelper *fileSystemHelper;
  *
  * @return Dictionary of constants
  */
-- (NSDictionary *)getConstants {
+- (NSDictionary *)getSherloConstants {
     NSString *configString = nil;
     if (config) {
         NSError *error = nil;
@@ -146,8 +146,8 @@ static FileSystemHelper *fileSystemHelper;
  * @param resolve Promise resolver called when the operation completes
  * @param reject Promise rejecter called if an error occurs
  */
-- (void)appendFile:(NSString *)filename withContent:(NSString *)content resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
-    [fileSystemHelper appendFileWithPromise:filename base64Content:content resolver:resolve rejecter:reject];
+- (void)appendFile:(NSString *)filename withContent:(NSString *)content resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+    [fileSystemHelper appendFileWithPromise:filename base64Content:content resolve:resolve reject:reject];
 }
 
 /**
@@ -157,8 +157,8 @@ static FileSystemHelper *fileSystemHelper;
  * @param resolve Promise resolver called with the base64 encoded file content
  * @param reject Promise rejecter called if an error occurs
  */
-- (void)readFile:(NSString *)filename resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
-    [fileSystemHelper readFileWithPromise:filename resolver:resolve rejecter:reject];
+- (void)readFile:(NSString *)filename resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+    [fileSystemHelper readFileWithPromise:filename resolve:resolve reject:reject];
 }
 
 /**
@@ -168,8 +168,8 @@ static FileSystemHelper *fileSystemHelper;
  * @param resolve Promise resolver called with the inspector data
  * @param reject Promise rejecter called if an error occurs
  */
-- (void)getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
-    [InspectorHelper getInspectorData:resolve rejecter:reject];
+- (void)getInspectorData:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+    [InspectorHelper getInspectorData:resolve reject:reject];
 }
 
 /**
@@ -177,13 +177,19 @@ static FileSystemHelper *fileSystemHelper;
  * Returns a promise with a boolean indicating if the UI is stable.
  *
  * @param requiredMatches Number of consecutive matches needed
+ * @param minScreenshotsCount Minimum number of screenshots to take when checking for stability
  * @param intervalMs Time interval in milliseconds
  * @param timeoutMs Timeout in milliseconds
  * @param resolve Promise resolver called with the stability result
  * @param reject Promise rejecter called if an error occurs
  */
-- (void)stabilize:(NSInteger)requiredMatches intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject {
-    [StabilityHelper stabilize:requiredMatches intervalMs:intervalMs timeoutMs:timeoutMs resolver:resolve rejecter:reject];
+- (void)stabilize:(double)requiredMatches
+        minScreenshotsCount:(double)minScreenshotsCount
+        intervalMs:(double)intervalMs
+         timeoutMs:(double)timeoutMs
+          resolve:(RCTPromiseResolveBlock)resolve
+          reject:(RCTPromiseRejectBlock)reject {
+    [StabilityHelper stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs resolve:resolve reject:reject];
 }
 
 @end 

@@ -26,7 +26,7 @@
  * Returns constants exposed to the JavaScript side
  * @return Dictionary with mode, config, and lastState
  */
-- (NSDictionary *)getConstants;
+- (NSDictionary *)getSherloConstants;
 
 /**
  * Toggles between Storybook and default modes.
@@ -57,7 +57,7 @@
  * @param resolve Promise resolver
  * @param reject Promise rejecter
  */
-- (void)appendFile:(NSString *)filename withContent:(NSString *)content resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject;
+- (void)appendFile:(NSString *)filename withContent:(NSString *)content resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
 
 /**
  * Reads a file and returns its content as base64
@@ -65,23 +65,29 @@
  * @param resolve Promise resolver
  * @param reject Promise rejecter
  */
-- (void)readFile:(NSString *)filename resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject;
+- (void)readFile:(NSString *)filename resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
 
 /**
  * Gets inspector data from the current UI hierarchy
  * @param resolve Promise resolver
  * @param reject Promise rejecter
  */
-- (void)getInspectorData:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject;
+- (void)getInspectorData:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
 
 /**
  * Checks if the UI is stable by comparing screenshots
  * @param requiredMatches Number of matching screenshots needed
+ * @param minScreenshotsCount Minimum number of screenshots to take when checking for stability
  * @param intervalMs Interval between checks in milliseconds
  * @param timeoutMs Maximum time to wait in milliseconds
  * @param resolve Promise resolver
  * @param reject Promise rejecter
  */
-- (void)stabilize:(NSInteger)requiredMatches intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject;
+- (void)stabilize:(double)requiredMatches
+        minScreenshotsCount:(double)minScreenshotsCount
+        intervalMs:(double)intervalMs
+         timeoutMs:(double)timeoutMs
+          resolve:(RCTPromiseResolveBlock)resolve
+          reject:(RCTPromiseRejectBlock)reject;
 
 @end 

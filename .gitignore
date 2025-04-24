@@ -29,6 +29,9 @@ storybook-out
 built-storybooks
 sherlo-lib
 
+# Build directories
+testing/*/builds/*/
+
 # Yarn
 .yarn/*
 !.yarn/patches

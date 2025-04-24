@@ -1,20 +1,30 @@
 import base64 from 'base-64';
 import { NativeModules } from 'react-native';
 import utf8 from 'utf8';
-import isExpoGo from './isExpoGo';
-import { StorybookViewMode, InspectorData } from '../types/types';
-import { Config, LastState } from './RunnerBridge/types';
+import isExpoGo from './helpers/isExpoGo';
+import { StorybookViewMode, InspectorData } from './types/types';
+import { Config, LastState } from './helpers/RunnerBridge/types';
+import TurboModule, { Spec } from './specs/NativeSherloModule';
+
+interface SherloConstants {
+  mode: StorybookViewMode;
+  config: string;
+  lastState: string;
+}
+
 type SherloModule = {
+  isTurboModule: boolean;
   getMode: () => StorybookViewMode;
   getConfig: () => Config;
   getLastState: () => LastState | undefined;
   getInspectorData: () => Promise<InspectorData>;
   appendFile: (path: string, base64: string) => Promise<void>;
   readFile: (path: string) => Promise<string>;
-  openStorybook: () => Promise<void>;
-  toggleStorybook: () => Promise<void>;
+  openStorybook: () => void;
+  toggleStorybook: () => void;
   stabilize: (
     requiredMatches: number,
+    minScreenshotsCount: number,
     intervalMs: number,
     timeoutMs: number,
     saveScreenshots: boolean
@@ -24,7 +34,9 @@ type SherloModule = {
 let SherloModule: SherloModule;
 const { SherloModule: SherloNativeModule } = NativeModules;
 
-if (SherloNativeModule !== null) {
+const module: Spec = TurboModule || SherloNativeModule;
+
+if (module !== null) {
   SherloModule = createSherloModule();
 } else {
   SherloModule = createDummySherloModule();
@@ -41,24 +53,38 @@ export default SherloModule;
 /* ========================================================================== */
 
 function createSherloModule(): SherloModule {
+  const getConstants = (): SherloConstants => {
+    const turboModuleConstants = module.getSherloConstants?.() || {};
+    const nativeModuleConstants = module.getConstants?.() || {};
+    return { ...turboModuleConstants, ...nativeModuleConstants } as SherloConstants;
+  };
+
   return {
+    isTurboModule: !!TurboModule,
     getInspectorData: async () => {
-      const inspectorDataString = await SherloNativeModule.getInspectorData();
+      const inspectorDataString = await module.getInspectorData();
       return JSON.parse(inspectorDataString) as InspectorData;
     },
     stabilize: async (
       requiredMatches: number,
+      minScreenshotsCount: number,
       intervalMs: number,
       timeoutMs: number,
       saveScreenshots: boolean
     ) => {
-      return SherloNativeModule.stabilize(requiredMatches, intervalMs, timeoutMs, saveScreenshots);
+      return module.stabilize(
+        requiredMatches,
+        minScreenshotsCount,
+        intervalMs,
+        timeoutMs,
+        saveScreenshots
+      );
     },
     getMode: () => {
-      return SherloNativeModule.getConstants().mode;
+      return getConstants().mode;
     },
     getConfig: () => {
-      const configString = SherloNativeModule.getConstants().config;
+      const configString = getConstants().config;
       const config = JSON.parse(configString) as Config | undefined;
       if (!config) {
         throw new Error('Config is undefined');
@@ -66,13 +92,13 @@ function createSherloModule(): SherloModule {
       return config;
     },
     getLastState: () => {
-      const configString = SherloNativeModule.getConstants().config;
+      const configString = getConstants().config;
       const config = JSON.parse(configString) as Config | undefined;
       if (config?.overrideLastState) {
         return config.overrideLastState;
       }
 
-      const lastState = SherloNativeModule.getConstants().lastState;
+      const lastState = getConstants().lastState;
       const parsedLastState = lastState ? JSON.parse(lastState) : undefined;
 
       if (parsedLastState && Object.keys(parsedLastState).length === 0) {
@@ -83,19 +109,20 @@ function createSherloModule(): SherloModule {
     },
     appendFile: (filename: string, data: string) => {
       const encodedData = base64.encode(utf8.encode(data));
-      return SherloNativeModule.appendFile(filename, encodedData);
+      return module.appendFile(filename, encodedData);
     },
     readFile: (filename: string) => {
       const decodeData = (data: string) => utf8.decode(base64.decode(data));
-      return SherloNativeModule.readFile(filename).then(decodeData);
+      return module.readFile(filename).then(decodeData);
     },
-    openStorybook: () => SherloNativeModule.openStorybook(),
-    toggleStorybook: () => SherloNativeModule.toggleStorybook(),
+    openStorybook: () => module.openStorybook(),
+    toggleStorybook: () => module.toggleStorybook(),
   };
 }
 
 function createDummySherloModule(): SherloModule {
   return {
+    isTurboModule: false,
     getInspectorData: async () => ({
       viewHierarchy: {
         id: 1,
@@ -114,6 +141,7 @@ function createDummySherloModule(): SherloModule {
     getConfig: () => ({
       stabilization: {
         requiredMatches: 3,
+        minScreenshotsCount: 3,
         intervalMs: 500,
         timeoutMs: 5_000,
         saveScreenshots: true,
@@ -121,8 +149,8 @@ function createDummySherloModule(): SherloModule {
     }),
     appendFile: async () => {},
     readFile: async () => '',
-    openStorybook: async () => {},
-    toggleStorybook: async () => {},
+    openStorybook: () => {},
+    toggleStorybook: () => {},
     stabilize: async () => true,
   };
 }

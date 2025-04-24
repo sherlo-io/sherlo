@@ -46,9 +46,9 @@ public class StabilityHelper {
      * @param timeoutMs Maximum time to wait for stability in milliseconds
      * @param promise Promise to resolve with true if UI becomes stable, false if timeout occurs
      */
-    public static void stabilize(Activity activity, int requiredMatches, int intervalMs, int timeoutMs, boolean saveScreenshots, Promise promise) {
+    public static void stabilize(Activity activity, int requiredMatches, int minScreenshotsCount, int intervalMs, int timeoutMs, boolean saveScreenshots, Promise promise) {
         StabilityHelper helper = new StabilityHelper();
-        helper.checkIfStable(activity, requiredMatches, intervalMs, timeoutMs, saveScreenshots, new StabilityCallback() {
+        helper.checkIfStable(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs, saveScreenshots, new StabilityCallback() {
             @Override
             public void onResult(boolean isStable) {
                 promise.resolve(isStable);
@@ -154,21 +154,22 @@ public class StabilityHelper {
      * Checks for UI stability by comparing consecutive screenshots.
      *
      * @param requiredMatches The number of consecutive matching screenshots needed.
+     * @param minScreenshotsCount The minimum number of screenshots to take when checking for stability.
      * @param intervalMs      The interval between each screenshot (in milliseconds).
      * @param timeoutMs       The overall timeout (in milliseconds).
      * @param callback        Callback with the result: true if stable, false otherwise.
      */
-    public void checkIfStable(final Activity activity, final int requiredMatches, final int intervalMs, final int timeoutMs, boolean saveScreenshots,
+    public void checkIfStable(final Activity activity, final int requiredMatches, final int minScreenshotsCount, final int intervalMs, final int timeoutMs, boolean saveScreenshots,
                               final StabilityCallback callback) {
         final Handler handler = new Handler(Looper.getMainLooper());
         final Bitmap[] lastScreenshot = new Bitmap[1];
         final AtomicLong startTime = new AtomicLong(System.currentTimeMillis());
         
         lastScreenshot[0] = captureScreenshot(activity, saveScreenshots, 0);
-        startStabilityCheck(activity, requiredMatches, intervalMs, timeoutMs, saveScreenshots, callback, handler, lastScreenshot, startTime);
+        startStabilityCheck(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs, saveScreenshots, callback, handler, lastScreenshot, startTime);
     }
 
-    private void startStabilityCheck(final Activity activity, final int requiredMatches, final int intervalMs, final int timeoutMs, boolean saveScreenshots,
+    private void startStabilityCheck(final Activity activity, final int requiredMatches, final int minScreenshotsCount, final int intervalMs, final int timeoutMs, boolean saveScreenshots,
                                    final StabilityCallback callback, final Handler handler, 
                                    final Bitmap[] lastScreenshot, final AtomicLong startTime) {
         final int[] consecutiveMatches = {0};
@@ -207,7 +208,7 @@ public class StabilityHelper {
                 if (consecutiveMatches[0] >= requiredMatches) {
                     Log.d(TAG, "UI is stable");
                     callback.onResult(true);
-                } else if (elapsedTime >= timeoutMs && consecutiveMatches[0] == 0) {
+                } else if (elapsedTime >= timeoutMs && consecutiveMatches[0] == 0 && screenshotCounter[0] >= minScreenshotsCount) {
                     Log.d(TAG, "UI is not stable - timeout with no matches");
                     callback.onResult(false);
                 } else {

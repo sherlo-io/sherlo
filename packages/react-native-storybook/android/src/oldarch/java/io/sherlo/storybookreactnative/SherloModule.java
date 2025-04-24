@@ -8,15 +8,18 @@ import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Promise;
+import com.facebook.react.bridge.WritableMap;
 
 // Java Utility and IO Imports
 import java.util.Map;
 
 /**
+ * Legacy implementation of SherloModule for React Native for old architecture.
  * Native module that exposes Sherlo functionality to JavaScript.
  * Acts as a thin wrapper around SherloModuleCore which contains the actual implementation.
  */
 public class SherloModule extends ReactContextBaseJavaModule {
+    public static final String NAME = "SherloModule";
     private final SherloModuleCore moduleCore;
 
     /**
@@ -36,7 +39,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
      */
     @Override
     public String getName() {
-        return "SherloModule";
+        return NAME;
     }
 
     /**
@@ -46,42 +49,33 @@ public class SherloModule extends ReactContextBaseJavaModule {
      */
     @Override
     public Map<String, Object> getConstants() {
-        return moduleCore.getConstants();
+        return moduleCore.getSherloConstants().toHashMap();
     }
 
     // ==== Storybook Methods ====
 
     /**
      * Toggles between Storybook and default mode.
-     *
-     * @param promise Promise to resolve when the toggle is complete
      */
     @ReactMethod
-    public void toggleStorybook(Promise promise) {
-        Activity activity = getCurrentActivity();
-        moduleCore.toggleStorybook(activity, promise);
+    public void toggleStorybook() {
+        moduleCore.toggleStorybook();
     }
 
     /**
      * Explicitly switches to Storybook mode.
-     *
-     * @param promise Promise to resolve when switching is complete
      */
     @ReactMethod
-    public void openStorybook(Promise promise) {
-        Activity activity = getCurrentActivity();
-        moduleCore.openStorybook(activity, promise);
+    public void openStorybook() {
+        moduleCore.openStorybook();
     }
 
     /**
      * Explicitly switches to default mode.
-     *
-     * @param promise Promise to resolve when switching is complete
      */
     @ReactMethod
-    public void closeStorybook(Promise promise) {
-        Activity activity = getCurrentActivity();
-        moduleCore.closeStorybook(activity, promise);
+    public void closeStorybook() {
+        moduleCore.closeStorybook();
     }
 
     // ==== File System Methods ====
@@ -126,13 +120,15 @@ public class SherloModule extends ReactContextBaseJavaModule {
      * Checks if the UI is stable by comparing consecutive screenshots.
      *
      * @param requiredMatches The number of consecutive matching screenshots needed
+     * @param minScreenshotsCount The minimum number of screenshots to take when checking for stability
      * @param intervalMs The interval between each screenshot in milliseconds
      * @param timeoutMs The overall timeout in milliseconds
+     * @param saveScreenshots Whether to save screenshots to the file system
      * @param promise Promise to resolve with true if UI becomes stable, false if timeout occurs
      */
     @ReactMethod
-    public void stabilize(int requiredMatches, int intervalMs, int timeoutMs, boolean saveScreenshots, Promise promise) {
+    public void stabilize(int requiredMatches, int minScreenshotsCount, int intervalMs, int timeoutMs, boolean saveScreenshots, Promise promise) {
         Activity activity = getCurrentActivity();
-        moduleCore.stabilize(activity, requiredMatches, intervalMs, timeoutMs, saveScreenshots, promise);
+        moduleCore.stabilize(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs, saveScreenshots, promise);
     }
 }

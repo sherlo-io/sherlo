@@ -42,7 +42,7 @@ export function prepareInspectorData(
       // like the ones injected by Sherlo
       if (node.properties.testID === storyId) {
         if (node.children && Array.isArray(node.children) && node.children.length > 0) {
-          rootStoryNode = node.children[0];
+          rootStoryNode = node;
         }
       }
     }

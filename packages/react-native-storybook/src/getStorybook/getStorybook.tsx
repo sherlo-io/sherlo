@@ -1,5 +1,5 @@
 import { ReactElement } from 'react';
-import { SherloModule } from '../helpers';
+import SherloModule from '../SherloModule';
 import { StorybookParams, StorybookView } from '../types';
 import { TestingMode } from './components';
 import { getStorybookComponent } from './helpers';

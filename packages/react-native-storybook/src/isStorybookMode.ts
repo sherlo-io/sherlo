@@ -1,6 +1,4 @@
-import { NativeModules } from 'react-native';
-
-const { SherloModule } = NativeModules;
+import SherloModule from './SherloModule';
 
 /**
  * isStorybookMode determines whether Storybook should be displayed.
@@ -10,6 +8,6 @@ const { SherloModule } = NativeModules;
  * 2. User called "openStorybook" function imported from "@sherlo/react-native-storybook"
  * 3. Build is running tests on Sherlo
  */
-const isStorybookMode = ['storybook', 'testing'].includes(SherloModule?.getConstants().mode);
+const isStorybookMode = ['storybook', 'testing'].includes(SherloModule.getMode());
 
 export default isStorybookMode;

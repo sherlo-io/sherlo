@@ -5,7 +5,7 @@ import { StorybookParams, StorybookView } from '../../../types';
 import Storybook from './Storybook';
 import setupErrorSilencing from './setupErrorSilencing';
 import useTestAllStories from './useTestAllStories';
-import SherloModule from '../../../helpers/SherloModule';
+import SherloModule from '../../../SherloModule';
 import deepmerge from 'deepmerge';
 import { MetadataProvider, MetadataProviderRef } from './MetadataProvider';
 

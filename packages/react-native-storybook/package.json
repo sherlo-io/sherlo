@@ -24,12 +24,16 @@
     ".": {
       "require": "./dist/index.js",
       "default": "./dist/index.js"
-    }
+    },
+    "./app.plugin.js": "./app.plugin.js",
+    "./package.json": "./package.json"
   },
   "files": [
+    "src/specs/**/*",
     "dist/**/*",
     "android/**/*",
     "ios/**/*",
+    "app.plugin.js",
     "sherlo-react-native-storybook.podspec"
   ],
   "scripts": {
@@ -78,5 +82,13 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "codegenConfig": {
+    "name": "sherlo_codegen",
+    "type": "modules",
+    "jsSrcsDir": "./src/specs",
+    "android": {
+      "javaPackageName": "io.sherlo.storybookreactnative"
+    }
   }
 }

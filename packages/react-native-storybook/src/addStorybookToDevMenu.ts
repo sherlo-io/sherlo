@@ -1,4 +1,5 @@
-import { DevSettings, NativeModules } from 'react-native';
+import { DevSettings, Platform } from 'react-native';
+import SherloModule from './SherloModule';
 
 let devMenuToggleInitialized = false;
 
@@ -7,18 +8,35 @@ try {
   ExpoDevMenu = require('expo-dev-menu');
 } catch {}
 
-const { SherloModule: SherloNativeModule } = NativeModules;
-
 function addStorybookToDevMenu() {
   if (!__DEV__ || devMenuToggleInitialized) return;
 
-  const MENU_LABEL = 'Toggle Storybook';
-  const toggleStorybook = () => SherloNativeModule.toggleStorybook();
+  // Expo Bug present only on iOS in New Arch where custom dev menu items registered via registerDevMenuItems stop responding after a reload
+  // https://github.com/expo/expo/issues/36359
+  //
+  // The same thing happens if we choose "Toggle Storybook" from the dev menu because
+  // it reloads the app as a part of it's functionality. Because of that, once
+  // user enters Storybook mode, they cannot leave by selecting "Toggle Storybook"
+  // from the dev menu again.
+  //
+  // That's why we keep a workaround until this is fixed
+  const useOpenStorybookWorkaroundInExpoDevMenuItem =
+    SherloModule.isTurboModule && Platform.OS === 'ios';
+  const shouldAddExpoDevMenuItem =
+    !useOpenStorybookWorkaroundInExpoDevMenuItem || SherloModule.getMode() === 'default';
 
-  DevSettings.addMenuItem(MENU_LABEL, toggleStorybook);
+  const MENU_LABEL_TOGGLE_STORYBOOK = 'Toggle Storybook';
+  const MENU_LABEL_OPEN_STORYBOOK = 'Open Storybook';
+  const toggleStorybook = () => SherloModule.toggleStorybook();
+  const openStorybook = () => SherloModule.openStorybook();
 
-  if (ExpoDevMenu?.registerDevMenuItems) {
-    ExpoDevMenu.registerDevMenuItems([{ name: MENU_LABEL, callback: toggleStorybook }]);
+  DevSettings.addMenuItem(MENU_LABEL_TOGGLE_STORYBOOK, toggleStorybook);
+
+  if (ExpoDevMenu?.registerDevMenuItems && shouldAddExpoDevMenuItem) {
+    const devMenuItem = useOpenStorybookWorkaroundInExpoDevMenuItem
+      ? { name: MENU_LABEL_OPEN_STORYBOOK, callback: openStorybook }
+      : { name: MENU_LABEL_TOGGLE_STORYBOOK, callback: toggleStorybook };
+    ExpoDevMenu.registerDevMenuItems([devMenuItem]);
   }
 
   devMenuToggleInitialized = true;
