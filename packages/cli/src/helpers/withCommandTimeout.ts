@@ -24,12 +24,17 @@ function withCommandTimeout<T, P>(commandFn: (options: P) => Promise<T>) {
       // Race between the command execution and timeout
       return await Promise.race([commandFn(options), timeoutPromise]);
     } catch (error) {
-      console.log();
+      // Only handle TimeoutError here, let other errors propagate normally
+      if (error instanceof TimeoutError) {
+        console.log();
 
-      throwError({
-        type: 'unexpected',
-        error,
-      });
+        throwError({
+          type: 'unexpected',
+          error,
+        });
+      }
+
+      throw error;
     } finally {
       // Clear timeout if command completes successfully
       if (timeoutId) {
