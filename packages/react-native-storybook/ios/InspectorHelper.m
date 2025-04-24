@@ -19,7 +19,7 @@ static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
  * @param reject Promise rejecter to call if an error occurs
  */
 + (void)getInspectorData:(RCTPromiseResolveBlock)resolve
-                rejecter:(RCTPromiseRejectBlock)reject {
+                 reject:(RCTPromiseRejectBlock)reject {
     dispatch_async(dispatch_get_main_queue(), ^{
         NSError *error = nil;
         NSString *jsonString = [InspectorHelper dumpBoundaries:&error];

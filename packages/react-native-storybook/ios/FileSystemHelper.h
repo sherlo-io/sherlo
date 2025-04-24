@@ -13,15 +13,15 @@
  */
 - (void)appendFileWithPromise:(NSString *)filename 
                 base64Content:(NSString *)base64Content 
-                    resolver:(RCTPromiseResolveBlock)resolve 
-                    rejecter:(RCTPromiseRejectBlock)reject;
+                    resolve:(RCTPromiseResolveBlock)resolve 
+                    reject:(RCTPromiseRejectBlock)reject;
 
 /**
  * Reads a file and returns its contents as base64 encoded string.
  */
 - (void)readFileWithPromise:(NSString *)filename 
-                  resolver:(RCTPromiseResolveBlock)resolve 
-                  rejecter:(RCTPromiseRejectBlock)reject;
+                  resolve:(RCTPromiseResolveBlock)resolve 
+                  reject:(RCTPromiseRejectBlock)reject;
 
 /**
  * Checks if a file exists in the sync directory.

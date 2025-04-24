@@ -97,15 +97,15 @@ static void SherloEarlyInit(void) {
  * Checks UI stability by comparing screenshots taken over a specified interval.
  * The saveScreenshots parameter is accepted for cross-platform compatibility but not used in iOS.
  */
-- (void)stabilize:(NSInteger)requiredMatches
-        minScreenshotsCount:(NSInteger)minScreenshotsCount
-       intervalMs:(NSInteger)intervalMs
-        timeoutMs:(NSInteger)timeoutMs
+- (void)stabilize:(double)requiredMatches
+        minScreenshotsCount:(double)minScreenshotsCount
+       intervalMs:(double)intervalMs
+        timeoutMs:(double)timeoutMs
   saveScreenshots:(BOOL)saveScreenshots
          resolve:(RCTPromiseResolveBlock)resolve
           reject:(RCTPromiseRejectBlock)reject
 {
-  [core stabilize:requiredMatches minScreenshotsCount:minScreenshotsCount intervalMs:intervalMs timeoutMs:timeoutMs resolve:resolve reject:reject];
+  [core stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs resolve:resolve reject:reject];
 }
 
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
@@ -176,14 +176,14 @@ RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve
  * Checks UI stability by comparing screenshots taken over a specified interval.
  * The saveScreenshots parameter is accepted for cross-platform compatibility but not used in iOS.
  */
-RCT_EXPORT_METHOD(stabilize:(NSInteger)requiredMatches
-                  minScreenshotsCount:(NSInteger)minScreenshotsCount
-                 intervalMs:(NSInteger)intervalMs
-                  timeoutMs:(NSInteger)timeoutMs
+RCT_EXPORT_METHOD(stabilize:(double)requiredMatches
+                  minScreenshotsCount:(double)minScreenshotsCount
+                 intervalMs:(double)intervalMs
+                  timeoutMs:(double)timeoutMs
                   saveScreenshots:(BOOL)saveScreenshots
-                   resolver:(RCTPromiseResolveBlock)resolve
-                   rejecter:(RCTPromiseRejectBlock)reject) {
-  [core stabilize:requiredMatches minScreenshotsCount:minScreenshotsCount intervalMs:intervalMs timeoutMs:timeoutMs resolve:resolve reject:reject];
+                   resolve:(RCTPromiseResolveBlock)resolve
+                   reject:(RCTPromiseRejectBlock)reject) {
+  [core stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs resolve:resolve reject:reject];
 }
 
 #endif

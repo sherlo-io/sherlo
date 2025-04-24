@@ -16,12 +16,12 @@ static NSString *const LOG_TAG = @"SherloModule:StabilityHelper";
  * @param resolve Promise resolver to call with true if UI becomes stable, false if timeout occurs
  * @param reject Promise rejecter to call if an error occurs
  */
-+ (void)stabilize:(NSInteger)requiredMatches
-        minScreenshotsCount:(NSInteger)minScreenshotsCount
-        intervalMs:(NSInteger)intervalMs
-         timeoutMs:(NSInteger)timeoutMs
-          resolver:(RCTPromiseResolveBlock)resolve
-          rejecter:(RCTPromiseRejectBlock)reject {
++ (void)stabilize:(double)requiredMatches
+        minScreenshotsCount:(double)minScreenshotsCount
+        intervalMs:(double)intervalMs
+         timeoutMs:(double)timeoutMs
+          resolve:(RCTPromiseResolveBlock)resolve
+          reject:(RCTPromiseRejectBlock)reject {
     
     // Ensure that UI operations are performed on the main thread.
     dispatch_async(dispatch_get_main_queue(), ^{

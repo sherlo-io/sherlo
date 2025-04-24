@@ -83,10 +83,10 @@
  * @param resolve Promise resolver
  * @param reject Promise rejecter
  */
-- (void)stabilize:(NSInteger)requiredMatches
-        minScreenshotsCount:(NSInteger)minScreenshotsCount
-        intervalMs:(NSInteger)intervalMs
-         timeoutMs:(NSInteger)timeoutMs
+- (void)stabilize:(double)requiredMatches
+        minScreenshotsCount:(double)minScreenshotsCount
+        intervalMs:(double)intervalMs
+         timeoutMs:(double)timeoutMs
           resolve:(RCTPromiseResolveBlock)resolve
           reject:(RCTPromiseRejectBlock)reject;
 
