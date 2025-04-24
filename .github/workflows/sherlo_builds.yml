@@ -6,7 +6,7 @@ on:
       arch:
         description: 'Architecture'
         required: true
-        default: 'old'
+        default: 'old & new'
         type: choice
         options:
           - 'old & new'
