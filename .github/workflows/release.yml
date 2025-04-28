@@ -11,11 +11,6 @@ on:
         required: false
         default: false
         type: boolean
-      SKIP_PUBLISH_TO_NPM:
-        description: 'Skip publishing to npm'
-        required: false
-        default: false
-        type: boolean
       IS_ALPHA:
         description: 'Is alpha release'
         required: false
@@ -82,11 +77,9 @@ jobs:
           branch: ${{ github.ref_name }}
 
       - name: Configure npm
-        if: ${{ github.event.inputs.SKIP_PUBLISH_TO_NPM == 'false' }}
         run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
 
       - name: Publish to npm
-        if: ${{ github.event.inputs.SKIP_PUBLISH_TO_NPM == 'false' }}
         run: npx lerna publish from-package --no-private --yes --npm-tag ${{ github.event.inputs.IS_ALPHA == 'true' && 'alpha' || 'latest' }}
 
       - name: Tag Commit
