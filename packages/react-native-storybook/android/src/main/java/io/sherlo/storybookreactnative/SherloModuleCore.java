@@ -4,6 +4,7 @@ package io.sherlo.storybookreactnative;
 import android.app.Activity;
 import android.content.Context;
 import android.util.Log;
+import android.content.Intent;
 
 // React Native Bridge Imports
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -37,7 +38,6 @@ public class SherloModuleCore {
 
     // Helper instances
     private FileSystemHelper fileSystemHelper = null;
-    private ModePersistorHelper modePersistorHelper = null;
 
     /**
      * Initializes the module with the React context and sets up all required helpers.
@@ -45,19 +45,19 @@ public class SherloModuleCore {
      * 
      * @param reactContext The React application context
      */
-    public SherloModuleCore(ReactApplicationContext reactContext) {
+    public SherloModuleCore(ReactApplicationContext reactContext, Activity activity) {
         this.reactContext = reactContext;
         
         this.fileSystemHelper = new FileSystemHelper(reactContext);
-        this.modePersistorHelper = new ModePersistorHelper(reactContext);
 
         this.config = ConfigHelper.loadConfig(this.fileSystemHelper);
 
         // Check for persisted mode in SharedPreferences first
-        String persistedModeValue = modePersistorHelper.getPersistedMode();
-        if (persistedModeValue != null) {
+        Intent intent = activity.getIntent();
+        String persistedMode = intent.getStringExtra("persisted_mode");
+        if (persistedMode != null) {
             // We have a valid persisted mode that hasn't expired, use it
-            this.currentMode = persistedModeValue;
+            this.currentMode = persistedMode;
             Log.d(TAG, "Using persisted mode: " + currentMode);
         } else if (this.config != null) {
             // Fallback to config-based mode
@@ -92,24 +92,21 @@ public class SherloModuleCore {
      */
     public void toggleStorybook() {
         String newMode = currentMode.equals(MODE_STORYBOOK) ? MODE_DEFAULT : MODE_STORYBOOK;
-        modePersistorHelper.persistMode(newMode);
-        RestartHelper.restart(reactContext);
+        RestartHelper.restart(reactContext, newMode);
     }
 
     /**
      * Switches to Storybook mode and restarts the React context.
      */
     public void openStorybook() {
-        modePersistorHelper.persistMode(MODE_STORYBOOK);
-        RestartHelper.restart(reactContext);
+        RestartHelper.restart(reactContext, MODE_STORYBOOK);
     }
 
     /**
      * Switches to default mode and restarts the React context.
      */
     public void closeStorybook() {
-        modePersistorHelper.persistMode(MODE_DEFAULT);
-        RestartHelper.restart(reactContext);
+        RestartHelper.restart(reactContext, MODE_DEFAULT);
     }
 
     /**

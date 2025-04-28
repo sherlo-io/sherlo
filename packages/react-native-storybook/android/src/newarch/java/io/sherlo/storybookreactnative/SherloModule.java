@@ -26,7 +26,8 @@ public class SherloModule extends NativeSherloModuleSpec {
      */
     public SherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
-        this.moduleCore = new SherloModuleCore(reactContext);
+        Activity activity = getCurrentActivity();
+        this.moduleCore = new SherloModuleCore(reactContext, activity);
     }
 
     /**
