@@ -25,7 +25,6 @@
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./app.plugin.js": "./app.plugin.js",
     "./package.json": "./package.json"
   },
   "files": [

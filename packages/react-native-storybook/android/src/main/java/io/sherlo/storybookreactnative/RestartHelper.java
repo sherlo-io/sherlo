@@ -16,10 +16,7 @@ public class RestartHelper {
 
         if (intent != null) {
             Intent mainIntent = Intent.makeRestartActivityTask(intent.getComponent());
-
-            // Add custom extras here:
             mainIntent.putExtra("persisted_mode", mode);
-
             reactContext.startActivity(mainIntent);
             Runtime.getRuntime().exit(0);
         } else {
