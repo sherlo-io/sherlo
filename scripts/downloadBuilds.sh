@@ -50,6 +50,7 @@ trap 'rm -rf "$TEMP_DIR"' EXIT
 mkdir -p "testing/$PROJECT/builds/$PROFILE"
 
 # Download Android build
+echo ""
 echo "Downloading Android build..."
 gh api \
   -H "Accept: application/vnd.github.v3+json" \
@@ -86,6 +87,7 @@ else
 fi
 
 # Download iOS build
+echo ""
 echo "Downloading iOS build..."
 gh api \
   -H "Accept: application/vnd.github.v3+json" \
@@ -121,4 +123,5 @@ else
   fi
 fi
 
+echo ""
 echo "Done downloading builds!" 

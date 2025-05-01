@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { version } from '../package.json';
-import { localBuilds, expoCloudBuilds, easBuildOnComplete, expoUpdate, init } from './commands';
+import { easBuildOnComplete, expoCloudBuilds, expoUpdate, init, localBuilds } from './commands';
 import {
   ANDROID_OPTION,
   BRANCH_OPTION,
@@ -11,14 +11,15 @@ import {
   EAS_BUILD_SCRIPT_NAME_OPTION,
   EXPO_CLOUD_BUILDS_COMMAND,
   EXPO_UPDATE_COMMAND,
-  LOCAL_BUILDS_COMMAND,
+  INIT_COMMAND,
   IOS_OPTION,
+  LOCAL_BUILDS_COMMAND,
+  MESSAGE_OPTION,
   PLATFORM_LABEL,
   PROFILE_OPTION,
   PROJECT_ROOT_OPTION,
   TOKEN_OPTION,
   WAIT_FOR_EAS_BUILD_OPTION,
-  INIT_COMMAND,
 } from './constants';
 import { reporting, withCommandTimeout } from './helpers';
 
@@ -41,6 +42,7 @@ async function start() {
         `Path to ${PLATFORM_LABEL.ios} build (.app, .tar.gz or .tar)`,
       ],
       [TOKEN_OPTION]: [`--${TOKEN_OPTION} <token>`, 'Authentication token for the project'],
+      [MESSAGE_OPTION]: [`--${MESSAGE_OPTION} <message>`, 'Custom message to label the test'],
       [CONFIG_OPTION]: [
         `--${CONFIG_OPTION} <path>`,
         `Path to the config file (default: ${DEFAULT_CONFIG_FILENAME})`,
@@ -66,6 +68,7 @@ async function start() {
       .option(...sharedOptions[ANDROID_OPTION])
       .option(...sharedOptions[IOS_OPTION])
       .option(...sharedOptions[TOKEN_OPTION])
+      .option(...sharedOptions[MESSAGE_OPTION])
       .option(...sharedOptions[CONFIG_OPTION])
       .option(...sharedOptions[PROJECT_ROOT_OPTION])
       .action(async (options) => {
@@ -87,6 +90,7 @@ async function start() {
       .option(...sharedOptions[ANDROID_OPTION])
       .option(...sharedOptions[IOS_OPTION])
       .option(...sharedOptions[TOKEN_OPTION])
+      .option(...sharedOptions[MESSAGE_OPTION])
       .option(...sharedOptions[CONFIG_OPTION])
       .option(...sharedOptions[PROJECT_ROOT_OPTION])
       .action(async (options) => {
@@ -106,6 +110,7 @@ async function start() {
         'Start waiting for EAS build to be triggered manually'
       )
       .option(...sharedOptions[TOKEN_OPTION])
+      .option(...sharedOptions[MESSAGE_OPTION])
       .option(...sharedOptions[CONFIG_OPTION])
       .option(...sharedOptions[PROJECT_ROOT_OPTION])
       .action(async (options) => {
@@ -127,7 +132,7 @@ async function start() {
 
     program
       .command(INIT_COMMAND)
-      .description('Initialize Sherlo in your React Native or Expo project')
+      .description('Initialize Sherlo in your React Native project')
       .option(...sharedOptions[TOKEN_OPTION])
       .action(async (options) => {
         setReportingContext(INIT_COMMAND, options);

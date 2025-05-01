@@ -3,13 +3,13 @@ import chalk from 'chalk';
 import { EXPO_UPDATE_COMMAND, LOCAL_BUILDS_COMMAND } from '../constants';
 import { CommandParams, ExpoUpdateData } from '../types';
 import getAppBuildUrl from './getAppBuildUrl';
-import getTokenParts from './getTokenParts';
-import getValidatedBinariesInfoAndNextBuildIndex from './getValidatedBinariesInfoAndNextBuildIndex';
-import printBuildIntroMessage from './printBuildIntroMessage';
-import printResultsUrl from './printResultsUrl';
-import handleClientError from './handleClientError';
 import getBuildRunConfig from './getBuildRunConfig';
 import getGitInfo from './getGitInfo';
+import getTokenParts from './getTokenParts';
+import getValidatedBinariesInfoAndNextBuildIndex from './getValidatedBinariesInfoAndNextBuildIndex';
+import handleClientError from './handleClientError';
+import printBuildIntroMessage from './printBuildIntroMessage';
+import printResultsUrl from './printResultsUrl';
 import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
 
 async function uploadOrReuseBuildsAndRunTests({
@@ -45,7 +45,6 @@ async function uploadOrReuseBuildsAndRunTests({
 
   const { build } = await client
     .openBuild({
-      sdkVersion: binariesInfo.sdkVersion,
       teamId,
       projectIndex,
       binaryHashes: {
@@ -60,7 +59,9 @@ async function uploadOrReuseBuildsAndRunTests({
         },
         expoUpdateData,
       }),
-      gitInfo: commandParams.gitInfo ?? (await getGitInfo(commandParams.projectRoot)),
+      gitInfo: await getGitInfo(commandParams.projectRoot),
+      sdkVersion: binariesInfo.sdkVersion,
+      message: commandParams.message,
     })
     .catch(handleClientError);
 
