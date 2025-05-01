@@ -136,6 +136,9 @@ function createDummySherloModule(): SherloModule {
       density: 1,
       fontScale: 1,
     }),
+    // IMPORTANT: We should make sure that the mode is always 'default'
+    // because if user doesn't want to supply native library in their production
+    // build, this will be the value returned.
     getMode: () => 'default',
     getLastState: () => undefined,
     getConfig: () => ({
