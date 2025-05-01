@@ -70,6 +70,7 @@ export const CONFIG_OPTION = 'config';
 export const EAS_BUILD_SCRIPT_NAME_OPTION = 'easBuildScriptName';
 // export const EAS_UPDATE_JSON_OUTPUT_OPTION = 'easUpdateJsonOutput';
 export const IOS_OPTION = 'ios';
+export const MESSAGE_OPTION = 'message';
 export const PROFILE_OPTION = 'profile';
 export const PROJECT_ROOT_OPTION = 'projectRoot';
 export const TOKEN_OPTION = 'token';

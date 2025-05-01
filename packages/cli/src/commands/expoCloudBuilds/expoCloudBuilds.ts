@@ -49,9 +49,10 @@ async function expoCloudBuilds(passedOptions: Options<THIS_COMMAND>) {
     .openBuild({
       teamId,
       projectIndex,
-      gitInfo: await getGitInfo(commandParams.projectRoot),
       asyncUpload: true,
       buildRunConfig: getBuildRunConfig({ commandParams }),
+      gitInfo: await getGitInfo(commandParams.projectRoot),
+      message: commandParams.message,
     })
     .catch(handleClientError);
 

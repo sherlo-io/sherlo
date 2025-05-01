@@ -45,7 +45,6 @@ async function uploadOrReuseBuildsAndRunTests({
 
   const { build } = await client
     .openBuild({
-      sdkVersion: binariesInfo.sdkVersion,
       teamId,
       projectIndex,
       binaryHashes: {
@@ -61,6 +60,8 @@ async function uploadOrReuseBuildsAndRunTests({
         expoUpdateData,
       }),
       gitInfo: await getGitInfo(commandParams.projectRoot),
+      sdkVersion: binariesInfo.sdkVersion,
+      message: commandParams.message,
     })
     .catch(handleClientError);
 

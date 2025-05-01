@@ -6,13 +6,13 @@ import {
   CONFIG_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EAS_BUILD_SCRIPT_NAME_OPTION,
-  // EAS_UPDATE_JSON_OUTPUT_OPTION,
   EXPO_CLOUD_BUILDS_COMMAND,
   EXPO_UPDATE_COMMAND,
   INIT_COMMAND,
   IOS_FILE_TYPES,
   IOS_OPTION,
   LOCAL_BUILDS_COMMAND,
+  MESSAGE_OPTION,
   PROFILE_OPTION,
   PROJECT_ROOT_OPTION,
   TOKEN_OPTION,
@@ -53,18 +53,16 @@ export type InvalidatedConfig = PartialDeep<Config, { recurseIntoArrays: true }>
 export type Options<
   C extends Command | 'any',
   M extends OptionsMode = 'withoutDefaults'
-> = BaseOptions & DefaultOptions[M] & CommandOptions[C];
+> = CommonOptions<M> & CommandOptions[C];
 
 type OptionsMode = 'withoutDefaults' | 'withDefaults';
 
-type BaseOptions = { [TOKEN_OPTION]?: string };
-
-type DefaultOptions = {
-  withDefaults: OptionDefaults;
-  withoutDefaults: Partial<OptionDefaults>;
-};
-
-type OptionDefaults = { [CONFIG_OPTION]: string; [PROJECT_ROOT_OPTION]: string };
+type CommonOptions<M extends OptionsMode> = {
+  [MESSAGE_OPTION]?: string;
+  [TOKEN_OPTION]?: string;
+} & (M extends 'withDefaults'
+  ? { [CONFIG_OPTION]: string; [PROJECT_ROOT_OPTION]: string }
+  : { [CONFIG_OPTION]?: string; [PROJECT_ROOT_OPTION]?: string });
 
 type CommandOptions = {
   [LOCAL_BUILDS_COMMAND]: {
