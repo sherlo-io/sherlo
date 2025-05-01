@@ -132,7 +132,7 @@ async function start() {
 
     program
       .command(INIT_COMMAND)
-      .description('Initialize Sherlo in your React Native or Expo project')
+      .description('Initialize Sherlo in your React Native project')
       .option(...sharedOptions[TOKEN_OPTION])
       .action(async (options) => {
         setReportingContext(INIT_COMMAND, options);
