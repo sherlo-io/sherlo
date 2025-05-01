@@ -67,6 +67,11 @@ jobs:
       - name: Build packages
         run: yarn build
 
+      - name: Update yarn.lock files in test directories
+        run: |
+          cd testing/expo-storybook-8 && yarn install
+          cd ../rn-storybook-7 && yarn install
+
       - name: Commit and push updated files
         uses: EndBug/add-and-commit@v7
         with:

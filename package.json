@@ -41,9 +41,9 @@
     "publish:next": "lerna publish from-git --dist-tag next",
     "test:ci": "lerna run test:ci",
     "test": "lerna run test",
-    "switch-env:test": "./scripts/switch-env.sh test && yarn && yarn build",
-    "switch-env:dev": "./scripts/switch-env.sh dev && yarn && yarn build",
-    "switch-env:prod": "./scripts/switch-env.sh prod && yarn && yarn build",
+    "switch-env:test": "./scripts/switch-env.sh test && yarn build",
+    "switch-env:dev": "./scripts/switch-env.sh dev && yarn build",
+    "switch-env:prod": "./scripts/switch-env.sh prod && yarn build",
     "update-examples": "bash scripts/updateExamples.sh"
   },
   "devDependencies": {
