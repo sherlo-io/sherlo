@@ -1,9 +1,10 @@
-import { Build, DeviceID, DeviceTheme } from '@sherlo/api-types';
+import { DeviceID, DeviceTheme } from '@sherlo/api-types';
 import { PartialDeep } from 'type-fest';
 import {
   ANDROID_OPTION,
   BRANCH_OPTION,
   CONFIG_OPTION,
+  EAS_BUILD_ON_COMPLETE_COMMAND,
   EAS_BUILD_SCRIPT_NAME_OPTION,
   // EAS_UPDATE_JSON_OUTPUT_OPTION,
   EXPO_CLOUD_BUILDS_COMMAND,
@@ -12,11 +13,10 @@ import {
   IOS_FILE_TYPES,
   IOS_OPTION,
   LOCAL_BUILDS_COMMAND,
-  PROJECT_ROOT_OPTION,
-  WAIT_FOR_EAS_BUILD_OPTION,
-  TOKEN_OPTION,
-  EAS_BUILD_ON_COMPLETE_COMMAND,
   PROFILE_OPTION,
+  PROJECT_ROOT_OPTION,
+  TOKEN_OPTION,
+  WAIT_FOR_EAS_BUILD_OPTION,
 } from './constants';
 
 /* === GENERAL === */
@@ -55,13 +55,9 @@ export type Options<
   M extends OptionsMode = 'withoutDefaults'
 > = BaseOptions & DefaultOptions[M] & CommandOptions[C];
 
-type BaseOptions = {
-  [TOKEN_OPTION]?: string;
-  /** Can be passed in GitHub Actions to localBuilds, expoUpdate or expoCloudBuilds commands */
-  gitInfo?: Build['gitInfo'];
-};
-
 type OptionsMode = 'withoutDefaults' | 'withDefaults';
+
+type BaseOptions = { [TOKEN_OPTION]?: string };
 
 type DefaultOptions = {
   withDefaults: OptionDefaults;

@@ -4,15 +4,15 @@ import {
   getAppBuildUrl,
   getBuildRunConfig,
   getGitInfo,
+  getPlatformsToTest,
   getTokenParts,
+  getValidatedCommandParams,
   handleClientError,
   printBuildIntroMessage,
   printBuildMessage,
   printBuildPlatformLabel,
   printResultsUrl,
   printSherloIntro,
-  getPlatformsToTest,
-  getValidatedCommandParams,
   validatePackages,
 } from '../../helpers';
 import { Options } from '../../types';
@@ -49,7 +49,7 @@ async function expoCloudBuilds(passedOptions: Options<THIS_COMMAND>) {
     .openBuild({
       teamId,
       projectIndex,
-      gitInfo: commandParams.gitInfo ?? (await getGitInfo(commandParams.projectRoot)),
+      gitInfo: await getGitInfo(commandParams.projectRoot),
       asyncUpload: true,
       buildRunConfig: getBuildRunConfig({ commandParams }),
     })

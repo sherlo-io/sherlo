@@ -7,11 +7,6 @@ on:
         description: 'Environment (dev, test, prod)'
         required: true
         type: string
-      use_github_action:
-        description: 'Use Sherlo Github Action'
-        required: false
-        type: boolean
-        default: false
       project:
         description: 'Project (expo-storybook-8, rn-storybook-7)'
         required: true
@@ -56,7 +51,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
       - name: Run sherlo local-builds with CLI
-        if: inputs.use_github_action == false
         working-directory: testing/${{ inputs.project }}
         run: |
           yarn sherlo local-builds \
@@ -67,19 +61,3 @@ jobs:
                         (inputs.project == 'expo-storybook-8' && inputs.arch == 'new' && secrets.SHERLO_LOCAL_BUILDS_EXPO_NEW_TOKEN) || 
                         (inputs.project == 'rn-storybook-7' && inputs.arch == 'old' && secrets.SHERLO_LOCAL_BUILDS_RN_OLD_TOKEN) || 
                         (inputs.project == 'rn-storybook-7' && inputs.arch == 'new' && secrets.SHERLO_LOCAL_BUILDS_RN_NEW_TOKEN) }}
-
-      - name: Run sherlo local-builds with Github Action
-        if: inputs.use_github_action == true
-        uses: ./.
-        with:
-          command: local-builds
-          projectRoot: testing/${{ inputs.project }}
-          config: ../../configs/default-devices-without-expo-info.json
-          android: builds/preview-${{ inputs.arch }}/android.apk
-          ios: builds/preview-${{ inputs.arch }}/ios.tar.gz
-        env:
-          SHERLO_TOKEN:
-            ${{ (inputs.project == 'expo-storybook-8' && inputs.arch == 'old' && secrets.SHERLO_LOCAL_BUILDS_EXPO_OLD_TOKEN) ||
-            (inputs.project == 'expo-storybook-8' && inputs.arch == 'new' && secrets.SHERLO_LOCAL_BUILDS_EXPO_NEW_TOKEN) ||
-            (inputs.project == 'rn-storybook-7' && inputs.arch == 'old' && secrets.SHERLO_LOCAL_BUILDS_RN_OLD_TOKEN) ||
-            (inputs.project == 'rn-storybook-7' && inputs.arch == 'new' && secrets.SHERLO_LOCAL_BUILDS_RN_NEW_TOKEN) }}

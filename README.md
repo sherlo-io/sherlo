@@ -53,7 +53,6 @@ Visit the [Sherlo Docs](https://docs.sherlo.io) for a detailed guide on integrat
 
 - [sherlo](packages/cli): Command-line tool for project integration and running visual tests
 - [@sherlo/react-native-storybook](packages/react-native-storybook): Integration with React Native Storybook
-- [@sherlo/action](packages/action): GitHub Action for automating visual tests
 
 <br />
 
