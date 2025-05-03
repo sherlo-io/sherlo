@@ -99,6 +99,24 @@ public class FileSystemHelper {
     }
 
     /**
+     * Appends content to a file.
+     *
+     * @param filename The name of the file to append to
+     * @param content The content to append
+     */
+    public void appendFile(String filename, String content) {
+        try {
+            byte[] bytes = content.getBytes();
+            Uri uri = getFileUri(filename);
+            OutputStream stream = context.getContentResolver().openOutputStream(uri, "wa");
+            stream.write(bytes);
+            stream.close();
+        } catch (Exception e) {
+            Log.e(TAG, "Error appending to file: " + e.getMessage());
+        }
+    }
+
+    /**
      * Reads a file and returns its content as a base64 encoded string.
      *
      * @param filename The name of the file to read

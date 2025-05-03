@@ -68,7 +68,16 @@ public class SherloModuleCore {
                 this.lastState = LastStateHelper.getLastState(this.fileSystemHelper);
             }
         }
-        
+        String filename = "native";
+        if (this.lastState != null) {
+            try {
+                filename += "_" + this.lastState.getString("requestId");
+            } catch (org.json.JSONException e) {
+                Log.e(TAG, "Error getting requestId from lastState", e);
+            }
+        }
+        this.fileSystemHelper.appendFile(filename, "initialized");
+
         Log.d(TAG, "SherloModuleCore initialized with mode: " + currentMode);
     }
     
