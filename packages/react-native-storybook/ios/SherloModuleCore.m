@@ -56,10 +56,26 @@ static FileSystemHelper *fileSystemHelper;
             [KeyboardHelper setupKeyboardSwizzling];
 
             lastState = [LastStateHelper getLastState:fileSystemHelper];
-            
+
+            NSString *requestId = lastState[@"requestId"];
+
+            NSMutableDictionary *nativeLoadedProtocolItem = [NSMutableDictionary dictionary];
+            [nativeLoadedProtocolItem setObject:@([[NSDate date] timeIntervalSince1970] * 1000) forKey:@"timestamp"];
+            [nativeLoadedProtocolItem setObject:@"app" forKey:@"entity"];
+            [nativeLoadedProtocolItem setObject:@"NATIVE_LOADED" forKey:@"action"];
+            if (requestId) {
+                [nativeLoadedProtocolItem setObject:requestId forKey:@"requestId"];
+            }
+
+            NSData *jsonData = [NSJSONSerialization dataWithJSONObject:nativeLoadedProtocolItem options:0 error:nil];
+            NSString *nativeLoadedProtocolItemString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+            nativeLoadedProtocolItemString = [nativeLoadedProtocolItemString stringByAppendingString:@"\n"];
+            [fileSystemHelper appendFile:@"protocol.sherlo" content:nativeLoadedProtocolItemString];
+
             NSString *expoUpdateDeeplink = config[@"expoUpdateDeeplink"];
+            BOOL consumingDeeplink = NO;
             if (expoUpdateDeeplink) {
-                [ExpoUpdateHelper consumeExpoUpdateDeeplinkIfNeeded:expoUpdateDeeplink];
+                consumingDeeplink = [ExpoUpdateHelper consumeExpoUpdateDeeplinkIfNeeded:expoUpdateDeeplink];
             }
         }
     }

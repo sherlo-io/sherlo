@@ -112,6 +112,56 @@ static NSString *syncDirectoryPath;
 }
 
 /**
+ * Appends base64 encoded content to a file, creating the file if it doesn't exist.
+ *
+ * @param filename The relative path of the file to append to
+ * @param content The content to append
+ */
+- (void)appendFile:(NSString *)filename content:(NSString *)content {
+    NSString *absolutePath = [self getFileUri:filename];
+    
+    // Decode base64 content
+    NSData *data = [content dataUsingEncoding:NSUTF8StringEncoding];
+    if (!data) {
+        return;
+    }
+    
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    
+    // Create parent directories if needed
+    NSString *directoryPath = [absolutePath stringByDeletingLastPathComponent];
+    NSError *directoryError = nil;
+    [fileManager createDirectoryAtPath:directoryPath withIntermediateDirectories:YES attributes:nil error:&directoryError];
+    
+    if (directoryError) {
+        return;
+    }
+    
+    // Append data to file
+    if (![fileManager fileExistsAtPath:absolutePath]) {
+        // Create new file if it doesn't exist
+        BOOL success = [fileManager createFileAtPath:absolutePath contents:data attributes:nil];
+        if (!success) {
+            return;
+        }
+    } else {
+        // Append to existing file
+        NSFileHandle *fileHandle = [NSFileHandle fileHandleForUpdatingAtPath:absolutePath];
+        if (!fileHandle) {
+            return;
+        }
+        
+        @try {
+            [fileHandle seekToEndOfFile];
+            [fileHandle writeData:data];
+            [fileHandle closeFile];
+        } @catch (NSException *exception) {
+            return;
+        }
+    }
+}
+
+/**
  * Reads a file and returns its contents as a base64 encoded string.
  * Returns a promise that resolves with the file content or rejects on error.
  *

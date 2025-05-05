@@ -2,6 +2,6 @@
 
 @interface ExpoUpdateHelper : NSObject
 
-+ (void)consumeExpoUpdateDeeplinkIfNeeded:(NSString *)expoUpdateDeeplink;
++ (BOOL)consumeExpoUpdateDeeplinkIfNeeded:(NSString *)expoUpdateDeeplink;
 
 @end
