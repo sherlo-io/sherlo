@@ -100,7 +100,7 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
     });
   }
 
-  await asyncUploadBuildAndRunTests({ buildIndex, easBuildProfile: passedProfile, token });
+  await asyncUploadBuildAndRunTests({ buildIndex, easBuildProfile, token });
 }
 
 export default easBuildOnComplete;
