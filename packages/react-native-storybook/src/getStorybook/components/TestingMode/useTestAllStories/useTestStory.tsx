@@ -64,10 +64,12 @@ function useTestStory({
 
         RunnerBridge.log('checked if stable', { isStable });
 
-        const inspectorData = await SherloModule.getInspectorData().catch((error) => {
-          RunnerBridge.log('error getting inspector data', { error: error.message });
-          throw error;
-        });
+        let inspectorData;
+        while (!inspectorData) {
+          inspectorData = await SherloModule.getInspectorData().catch((error) => {
+            RunnerBridge.log('error getting inspector data', { error: JSON.stringify(error) });
+          });
+        }
 
         RunnerBridge.log('got inspector data');
 
