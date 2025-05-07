@@ -24,8 +24,11 @@ import { asyncUploadBuildAndRunTests, getSherloTempData } from './helpers';
 
 async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
   const wasAppBuiltLocally = process.env.EAS_BUILD_RUNNER !== 'eas-build';
-  const passedProfile = passedOptions.profile;
-  const easBuildProfile = process.env.EAS_BUILD_PROFILE;
+  const isMultiProfile = passedOptions.profile.includes(',');
+  const passedProfiles = isMultiProfile
+    ? passedOptions.profile.split(',')
+    : [passedOptions.profile];
+  const easBuildProfile = process.env.EAS_BUILD_PROFILE!;
 
   if (wasAppBuiltLocally) {
     console.log();
@@ -45,7 +48,7 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
 
   printSherloIntro();
 
-  if (!passedProfile) {
+  if (!passedProfiles) {
     throwError({
       message:
         `The \`--${PROFILE_OPTION}\` option is required for \`sherlo ${THIS_COMMAND}\`\n\n` +
@@ -55,11 +58,11 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
   }
 
   // Skip if EAS build profile doesn't match
-  if (passedProfile !== easBuildProfile) {
+  if (!passedProfiles.includes(easBuildProfile)) {
     logInfo({
       message:
         'Sherlo tests skipped - EAS profiles mismatch\n\n' +
-        `Current build used "${easBuildProfile}" profile while \`sherlo ${THIS_COMMAND}\` was called with "${passedProfile}"\n`,
+        `Current build used "${easBuildProfile}" profile while \`sherlo ${THIS_COMMAND}\` was called with "${passedOptions.profile}"\n`,
       learnMoreLink: DOCS_LINK.commandExpoCloudBuilds,
     });
 
