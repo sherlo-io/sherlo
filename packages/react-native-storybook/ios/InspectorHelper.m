@@ -47,27 +47,12 @@ static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
  */
 + (NSString *)dumpBoundaries:(NSError **)error {
     UIWindow *keyWindow = nil;
-    
-    // iOS 15+ approach using UIWindowScene.keyWindow directly
-    NSSet<UIScene *> *connectedScenes = [UIApplication sharedApplication].connectedScenes;
-    for (UIScene *scene in connectedScenes) {
-        if (scene.activationState == UISceneActivationStateForegroundActive && [scene isKindOfClass:[UIWindowScene class]]) {
+    if (@available(iOS 13.0, *)) {
+        NSSet<UIScene *> *scenes = UIApplication.sharedApplication.connectedScenes;
+        UIScene *scene = scenes.allObjects.firstObject;
+        if ([scene isKindOfClass:[UIWindowScene class]]) {
             UIWindowScene *windowScene = (UIWindowScene *)scene;
-            keyWindow = windowScene.keyWindow;
-            if (keyWindow) break;
-        }
-    }
-    
-    // Fallback: If no key window is found, try using any window from active scenes
-    if (!keyWindow) {
-        for (UIScene *scene in connectedScenes) {
-            if (scene.activationState == UISceneActivationStateForegroundActive && [scene isKindOfClass:[UIWindowScene class]]) {
-                UIWindowScene *windowScene = (UIWindowScene *)scene;
-                if (windowScene.windows.count > 0) {
-                    keyWindow = windowScene.windows[0];
-                    break;
-                }
-            }
+            keyWindow = windowScene.windows.firstObject;
         }
     }
     
