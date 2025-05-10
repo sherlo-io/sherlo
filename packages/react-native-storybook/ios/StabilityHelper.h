@@ -15,6 +15,7 @@ NS_ASSUME_NONNULL_BEGIN
  * @param minScreenshotsCount Minimum number of screenshots to take when checking for stability
  * @param intervalMs Time interval between screenshots in milliseconds
  * @param timeoutMs Maximum time to wait for stability in milliseconds
+ * @param saveScreenshots Whether to save screenshots to filesystem during tests
  * @param resolve Promise resolver to call with true if UI becomes stable, false if timeout occurs
  * @param reject Promise rejecter to call if an error occurs
  */
@@ -22,6 +23,7 @@ NS_ASSUME_NONNULL_BEGIN
         minScreenshotsCount:(double)minScreenshotsCount
         intervalMs:(double)intervalMs
          timeoutMs:(double)timeoutMs
+        saveScreenshots:(BOOL)saveScreenshots
           resolve:(RCTPromiseResolveBlock)resolve
           reject:(RCTPromiseRejectBlock)reject;
 
