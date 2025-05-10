@@ -124,20 +124,6 @@ function createSherloModule(): SherloModule {
     toggleStorybook: () => module.toggleStorybook(),
   };
 
-  const content: any = {
-    action: 'JS_LOADED',
-    timestamp: Date.now(),
-    entity: 'app',
-  };
-
-  const lastState = sherloModule.getLastState();
-  if (lastState?.requestId) {
-    content.requestId = lastState.requestId;
-  }
-
-  const contentString = JSON.stringify(content);
-  sherloModule.appendFile('protocol.sherlo', `${contentString}\n`);
-
   return sherloModule;
 }
 

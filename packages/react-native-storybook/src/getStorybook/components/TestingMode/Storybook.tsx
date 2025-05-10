@@ -1,11 +1,12 @@
 import { Theme } from '@storybook/react-native-theming';
-import { useMemo } from 'react';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VERIFICATION_TEST_ID } from '../../../constants';
 import { StorybookParams, StorybookView } from '../../../types';
 import { getStorybookComponent, isStorybook7 } from '../../helpers';
 import { RunnerBridge } from '../../../helpers';
+import { useRef } from 'react';
+import SherloModule from '../../../SherloModule';
 
 /**
  * We applied styles based on how they are defined in the link below to ensure that user's stories
@@ -27,6 +28,7 @@ function Storybook({
   params?: StorybookParams;
 }) {
   const insets = useSafeAreaInsets();
+  const reportedSherloJSLoaded = useRef(false);
 
   const StorybookComponent = getStorybookComponent({
     view,
@@ -51,6 +53,23 @@ function Storybook({
       paddingTop: uiSettings.shouldAddSafeArea ? insets.top : 0,
       backgroundColor: uiSettings.theme.background.content,
     };
+  }
+
+  if (!reportedSherloJSLoaded.current) {
+    reportedSherloJSLoaded.current = true;
+    const content: any = {
+      action: 'JS_LOADED',
+      timestamp: Date.now(),
+      entity: 'app',
+    };
+
+    const lastState = SherloModule.getLastState();
+    if (lastState?.requestId) {
+      content.requestId = lastState.requestId;
+    }
+
+    const contentString = JSON.stringify(content);
+    SherloModule.appendFile('protocol.sherlo', `${contentString}\n`);
   }
 
   RunnerBridge.log('storybook style', { style });
