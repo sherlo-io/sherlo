@@ -41,48 +41,75 @@ static NSString *const LOG_TAG = @"SherloModule:StabilityHelper";
         __block NSInteger screenshotCounter = 0;
         NSDate *startTime = [NSDate date];
         
-        [NSTimer scheduledTimerWithTimeInterval:(MAX(intervalMs, 1) / 1000.0)
+        // Create a weak reference to avoid retain cycles
+        __weak NSTimer *weakTimer;
+        NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:(MAX(intervalMs, 1) / 1000.0)
                                         repeats:YES
                                           block:^(NSTimer * _Nonnull t) {
-            screenshotCounter++;
-            UIImage *currentScreenshot = [self captureScreenshot];
-            if (!currentScreenshot) {
-                [t invalidate];
-                reject(@"SCREENSHOT_FAILED", @"Failed to capture screenshot during stability check", nil);
-                return;
-            }
-            
-            if (saveScreenshots) {
-                [self saveScreenshot:currentScreenshot withIndex:screenshotCounter];
-            }
-            
-            NSTimeInterval elapsedSeconds = -[startTime timeIntervalSinceNow];
-            NSInteger elapsedMs = (NSInteger)(elapsedSeconds * 1000);
-            
-            if ([self image:currentScreenshot isEqualToImage:lastScreenshot]) {
-                NSLog(@"[%@] Consecutive match number: %ld", LOG_TAG, (long)consecutiveMatches);
-                consecutiveMatches++;
-            } else {
-                NSLog(@"[%@] No consecutive match", LOG_TAG);
-                consecutiveMatches = 0; // Reset if the screenshots don't match.
-            }
-            
-            // Update the last screenshot for the next iteration.
-            lastScreenshot = currentScreenshot;
-            
-            // Check if we have achieved the required number of consecutive matches.
-            if (consecutiveMatches >= requiredMatches) {
-                NSLog(@"[%@] UI is stable", LOG_TAG);
-                [t invalidate];
-                resolve(@YES);
-            }
-            // Check if we've exceeded the timeout.
-            else if (elapsedMs >= timeoutMs && consecutiveMatches == 0 && screenshotCounter >= minScreenshotsCount) {
-                NSLog(@"[%@] UI is unstable", LOG_TAG);
-                [t invalidate];
-                resolve(@NO);
+            @autoreleasepool {
+                screenshotCounter++;
+                
+                // Check for timeout first to avoid unnecessary work
+                NSTimeInterval elapsedSeconds = -[startTime timeIntervalSinceNow];
+                NSInteger elapsedMs = (NSInteger)(elapsedSeconds * 1000);
+                if (elapsedMs >= timeoutMs && screenshotCounter >= minScreenshotsCount) {
+                    NSLog(@"[%@] Timeout reached after %ld ms", LOG_TAG, (long)elapsedMs);
+                    [t invalidate];
+                    resolve(@NO);
+                    return;
+                }
+                
+                UIImage *currentScreenshot = [self captureScreenshot];
+                if (!currentScreenshot) {
+                    [t invalidate];
+                    reject(@"SCREENSHOT_FAILED", @"Failed to capture screenshot during stability check", nil);
+                    return;
+                }
+                
+                if (saveScreenshots) {
+                    [self saveScreenshot:currentScreenshot withIndex:screenshotCounter];
+                }
+                
+                BOOL imagesMatch = [self image:currentScreenshot isEqualToImage:lastScreenshot];
+                
+                if (imagesMatch) {
+                    NSLog(@"[%@] Consecutive match number: %ld", LOG_TAG, (long)consecutiveMatches);
+                    consecutiveMatches++;
+                } else {
+                    NSLog(@"[%@] No consecutive match", LOG_TAG);
+                    consecutiveMatches = 0; // Reset if the screenshots don't match.
+                }
+                
+                // Release previous screenshot to free memory
+                UIImage *tempImage = lastScreenshot;
+                lastScreenshot = currentScreenshot;
+                tempImage = nil;
+                
+                // Check if we have achieved the required number of consecutive matches.
+                if (consecutiveMatches >= requiredMatches) {
+                    NSLog(@"[%@] UI is stable", LOG_TAG);
+                    [t invalidate];
+                    resolve(@YES);
+                }
+                // Check if we've exceeded the timeout for matching but have taken minimum screenshots
+                else if (elapsedMs >= timeoutMs && consecutiveMatches == 0 && screenshotCounter >= minScreenshotsCount) {
+                    NSLog(@"[%@] UI is unstable", LOG_TAG);
+                    [t invalidate];
+                    resolve(@NO);
+                }
             }
         }];
+        
+        weakTimer = timer;
+        
+        // Set a safety timeout to ensure the timer is invalidated
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(timeoutMs * 1.1 * NSEC_PER_MSEC)), dispatch_get_main_queue(), ^{
+            if (weakTimer && weakTimer.valid) {
+                [weakTimer invalidate];
+                NSLog(@"[%@] Safety timeout triggered", LOG_TAG);
+                resolve(@NO);
+            }
+        });
     });
 }
 
@@ -171,6 +198,13 @@ static NSString *const LOG_TAG = @"SherloModule:StabilityHelper";
 
 // Helper method to compare two images by comparing their PNG representations.
 + (BOOL)image:(UIImage *)image1 isEqualToImage:(UIImage *)image2 {
+    // Quick size comparison before expensive data comparison
+    if (!CGSizeEqualToSize(image1.size, image2.size)) {
+        return NO;
+    }
+    
+    // For better performance, you could compare pixel data directly instead of PNG representation
+    // But the PNG comparison is safer for this fix
     NSData *data1 = UIImagePNGRepresentation(image1);
     NSData *data2 = UIImagePNGRepresentation(image2);
     return [data1 isEqual:data2];
