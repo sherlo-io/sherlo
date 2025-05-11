@@ -41,8 +41,7 @@ static NSString *const LOG_TAG = @"SherloModule:StabilityHelper";
         __block NSInteger screenshotCounter = 0;
         NSDate *startTime = [NSDate date];
         
-        // Create a weak reference to avoid retain cycles
-        __weak NSTimer *weakTimer;
+        // Create a timer to check for UI stability
         NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:(MAX(intervalMs, 1) / 1000.0)
                                         repeats:YES
                                           block:^(NSTimer * _Nonnull t) {
@@ -99,17 +98,6 @@ static NSString *const LOG_TAG = @"SherloModule:StabilityHelper";
                 }
             }
         }];
-        
-        weakTimer = timer;
-        
-        // Set a safety timeout to ensure the timer is invalidated
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(timeoutMs * 1.1 * NSEC_PER_MSEC)), dispatch_get_main_queue(), ^{
-            if (weakTimer && weakTimer.valid) {
-                [weakTimer invalidate];
-                NSLog(@"[%@] Safety timeout triggered", LOG_TAG);
-                resolve(@NO);
-            }
-        });
     });
 }
 
