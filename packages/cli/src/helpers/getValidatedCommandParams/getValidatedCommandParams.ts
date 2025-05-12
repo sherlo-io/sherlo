@@ -1,6 +1,7 @@
 import { Command, CommandParams, Options } from '../../types';
 import getCommandParams from './getCommandParams';
 import getNormalizedConfig from './getNormalizedConfig';
+import getNormalizedOptions from './getNormalizedOptions';
 import getOptionsWithDefaults from './getOptionsWithDefaults';
 import validateCommandParams from './validateCommandParams';
 import validateRequiredOptions from './validateRequiredOptions';
@@ -11,7 +12,7 @@ function getValidatedCommandParams<C extends Command>(
 ): CommandParams<C> {
   validateRequiredOptions({ command, passedOptions });
 
-  const options = getOptionsWithDefaults(passedOptions);
+  const options = getNormalizedOptions(getOptionsWithDefaults(passedOptions));
 
   const config = getNormalizedConfig(options);
 

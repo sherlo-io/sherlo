@@ -5,10 +5,10 @@ import { InvalidatedConfig, Options } from '../../types';
  * 1. `android` and `ios` can be defined as any value in the config.
  *    Converting to string is required as path.resolve accepts only strings.
  */
-function getCommandParams<O extends Options<'any', 'withDefaults'>, C extends InvalidatedConfig>(
-  options: O,
-  config: C
-): O & C {
+function getCommandParams<
+  O extends Options<'any', 'withDefaults', 'normalized'>,
+  C extends InvalidatedConfig
+>(options: O, config: C): C & O {
   const { projectRoot } = options;
 
   const android = options.android ?? config.android;

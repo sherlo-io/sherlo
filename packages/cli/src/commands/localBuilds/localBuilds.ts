@@ -1,6 +1,10 @@
-import { printSherloIntro, uploadOrReuseBuildsAndRunTests, validatePackages } from '../../helpers';
+import {
+  getValidatedCommandParams,
+  printSherloIntro,
+  uploadOrReuseBuildsAndRunTests,
+  validatePackages,
+} from '../../helpers';
 import { Options } from '../../types';
-import { getValidatedCommandParams } from '../../helpers';
 import { THIS_COMMAND } from './constants';
 
 async function localBuilds(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
