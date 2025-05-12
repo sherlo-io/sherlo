@@ -1,21 +1,32 @@
+import type { Meta } from '@storybook/react';
+import TamaguiToast from './TamaguiToast';
 import { StoryDecorator } from '@sherlo/testing-components';
 import { createTamagui, TamaguiProvider } from 'tamagui';
 import { defaultConfig } from '@tamagui/config/v4';
-import TamaguiSheet from './TamaguiSheet';
+import { ToastProvider, ToastViewport } from '@tamagui/toast';
 
 export default {
-  component: TamaguiSheet,
+  component: TamaguiToast,
   decorators: [
     StoryDecorator({ placement: 'center' }),
     (Story: any) => {
       const config = createTamagui(defaultConfig);
       return (
         <TamaguiProvider config={config}>
-          <Story />
+          <ToastProvider>
+            <Story />
+            <ToastViewport />
+          </ToastProvider>
         </TamaguiProvider>
       );
     },
   ],
-};
+} as Meta<typeof TamaguiToast>;
 
-export const Default = {};
+export const Basic = {};
+
+export const Native = {
+  args: {
+    native: true,
+  },
+};

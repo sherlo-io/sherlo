@@ -40,6 +40,7 @@
     "@sherlo/testing-components": "portal:../testing-components",
     "@tamagui/config": "^1.126.12",
     "@tamagui/lucide-icons": "^1.126.12",
+    "@tamagui/toast": "^1.126.12",
     "@types/react": "~18.3.12",
     "expo": "^52.0.46",
     "expo-dev-client": "~5.0.20",
@@ -70,6 +71,7 @@
     "@storybook/react-native": "^8.3.9",
     "@types/lodash": "^4",
     "babel-loader": "^8.2.3",
+    "burnt": "^0.13.0",
     "eas-cli": "16.3.2",
     "typescript": "~5.3.3"
   },
