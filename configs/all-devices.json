@@ -1,5 +1,5 @@
 {
-  "include": ["TestInfo", "FocusedInput"],
+  "include": ["TestInfo", "FocusedInput", "Reanimated"],
   "devices": [
     {
       "id": "pixel.7.pro",
