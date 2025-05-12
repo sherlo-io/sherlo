@@ -56,10 +56,26 @@ static FileSystemHelper *fileSystemHelper;
             [KeyboardHelper setupKeyboardSwizzling];
 
             lastState = [LastStateHelper getLastState:fileSystemHelper];
-            
+
+            NSString *requestId = lastState[@"requestId"];
+
+            NSMutableDictionary *nativeLoadedProtocolItem = [NSMutableDictionary dictionary];
+            [nativeLoadedProtocolItem setObject:@([[NSDate date] timeIntervalSince1970] * 1000) forKey:@"timestamp"];
+            [nativeLoadedProtocolItem setObject:@"app" forKey:@"entity"];
+            [nativeLoadedProtocolItem setObject:@"NATIVE_LOADED" forKey:@"action"];
+            if (requestId) {
+                [nativeLoadedProtocolItem setObject:requestId forKey:@"requestId"];
+            }
+
+            NSData *jsonData = [NSJSONSerialization dataWithJSONObject:nativeLoadedProtocolItem options:0 error:nil];
+            NSString *nativeLoadedProtocolItemString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+            nativeLoadedProtocolItemString = [nativeLoadedProtocolItemString stringByAppendingString:@"\n"];
+            [fileSystemHelper appendFile:@"protocol.sherlo" content:nativeLoadedProtocolItemString];
+
             NSString *expoUpdateDeeplink = config[@"expoUpdateDeeplink"];
+            BOOL consumingDeeplink = NO;
             if (expoUpdateDeeplink) {
-                [ExpoUpdateHelper consumeExpoUpdateDeeplinkIfNeeded:expoUpdateDeeplink];
+                consumingDeeplink = [ExpoUpdateHelper consumeExpoUpdateDeeplinkIfNeeded:expoUpdateDeeplink];
             }
         }
     }
@@ -180,16 +196,18 @@ static FileSystemHelper *fileSystemHelper;
  * @param minScreenshotsCount Minimum number of screenshots to take when checking for stability
  * @param intervalMs Time interval in milliseconds
  * @param timeoutMs Timeout in milliseconds
+ * @param saveScreenshots Whether to save screenshots to filesystem during tests
  * @param resolve Promise resolver called with the stability result
  * @param reject Promise rejecter called if an error occurs
  */
 - (void)stabilize:(double)requiredMatches
         minScreenshotsCount:(double)minScreenshotsCount
         intervalMs:(double)intervalMs
-         timeoutMs:(double)timeoutMs
-          resolve:(RCTPromiseResolveBlock)resolve
-          reject:(RCTPromiseRejectBlock)reject {
-    [StabilityHelper stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs resolve:resolve reject:reject];
+        timeoutMs:(double)timeoutMs
+        saveScreenshots:(BOOL)saveScreenshots
+        resolve:(RCTPromiseResolveBlock)resolve
+        reject:(RCTPromiseRejectBlock)reject {
+    [StabilityHelper stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs saveScreenshots:saveScreenshots resolve:resolve reject:reject];
 }
 
 @end 

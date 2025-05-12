@@ -80,14 +80,16 @@
  * @param minScreenshotsCount Minimum number of screenshots to take when checking for stability
  * @param intervalMs Interval between checks in milliseconds
  * @param timeoutMs Maximum time to wait in milliseconds
+ * @param saveScreenshots Whether to save screenshots to filesystem during tests
  * @param resolve Promise resolver
  * @param reject Promise rejecter
  */
 - (void)stabilize:(double)requiredMatches
         minScreenshotsCount:(double)minScreenshotsCount
         intervalMs:(double)intervalMs
-         timeoutMs:(double)timeoutMs
-          resolve:(RCTPromiseResolveBlock)resolve
-          reject:(RCTPromiseRejectBlock)reject;
+        timeoutMs:(double)timeoutMs
+        saveScreenshots:(BOOL)saveScreenshots
+        resolve:(RCTPromiseResolveBlock)resolve
+        reject:(RCTPromiseRejectBlock)reject;
 
 @end 

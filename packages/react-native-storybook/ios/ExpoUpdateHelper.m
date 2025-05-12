@@ -37,9 +37,9 @@ static NSString *const DEEPLINK_CONSUMED_KEY = @"ExpoUpdateDeeplinkConsumed";
  *
  * @param expoUpdateDeeplink The Expo update deeplink URL to potentially consume
  */
-+ (void)consumeExpoUpdateDeeplinkIfNeeded:(NSString *)expoUpdateDeeplink {
++ (BOOL)consumeExpoUpdateDeeplinkIfNeeded:(NSString *)expoUpdateDeeplink {
     if (!expoUpdateDeeplink || expoUpdateDeeplink.length == 0) {
-        return;
+        return NO;
     }
     
     BOOL isDeeplinkAlreadyConsumed = [self isDeeplinkConsumed];
@@ -51,7 +51,7 @@ static NSString *const DEEPLINK_CONSUMED_KEY = @"ExpoUpdateDeeplinkConsumed";
         
         if (!deeplinkURL) {
             NSLog(@"[%@] Failed to create URL from deeplink: %@", LOG_TAG, expoUpdateDeeplink);
-            return;
+            return NO;
         }
         
         [self markDeeplinkAsConsumed];
@@ -59,7 +59,11 @@ static NSString *const DEEPLINK_CONSUMED_KEY = @"ExpoUpdateDeeplinkConsumed";
         dispatch_async(dispatch_get_main_queue(), ^{
             [[UIApplication sharedApplication] openURL:deeplinkURL options:@{} completionHandler:nil];
         });
+
+        return YES;
     }
+
+    return NO;
 }
 
 @end

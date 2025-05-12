@@ -35,6 +35,10 @@ export type ProtocolItemMetadata = {
 
 export type AppProtocolItem =
   | {
+      action: 'JS_LOADED';
+      requestId?: string;
+    }
+  | {
       action: 'START';
       snapshots: Snapshot[];
     }

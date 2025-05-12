@@ -3,7 +3,12 @@ import { NativeModules } from 'react-native';
 import utf8 from 'utf8';
 import isExpoGo from './helpers/isExpoGo';
 import { StorybookViewMode, InspectorData } from './types/types';
-import { Config, LastState } from './helpers/RunnerBridge/types';
+import {
+  Config,
+  LastState,
+  AppProtocolItem,
+  ProtocolItemMetadata,
+} from './helpers/RunnerBridge/types';
 import TurboModule, { Spec } from './specs/NativeSherloModule';
 
 interface SherloConstants {
@@ -59,7 +64,7 @@ function createSherloModule(): SherloModule {
     return { ...turboModuleConstants, ...nativeModuleConstants } as SherloConstants;
   };
 
-  return {
+  const sherloModule: SherloModule = {
     isTurboModule: !!TurboModule,
     getInspectorData: async () => {
       const inspectorDataString = await module.getInspectorData();
@@ -118,6 +123,8 @@ function createSherloModule(): SherloModule {
     openStorybook: () => module.openStorybook(),
     toggleStorybook: () => module.toggleStorybook(),
   };
+
+  return sherloModule;
 }
 
 function createDummySherloModule(): SherloModule {

@@ -17,6 +17,11 @@
                     reject:(RCTPromiseRejectBlock)reject;
 
 /**
+ * Appends content to a file.
+ */
+- (void)appendFile:(NSString *)filename content:(NSString *)content;
+
+/**
  * Reads a file and returns its contents as base64 encoded string.
  */
 - (void)readFileWithPromise:(NSString *)filename 

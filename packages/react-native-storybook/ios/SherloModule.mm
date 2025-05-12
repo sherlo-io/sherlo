@@ -95,7 +95,6 @@ static void SherloEarlyInit(void) {
 
 /**
  * Checks UI stability by comparing screenshots taken over a specified interval.
- * The saveScreenshots parameter is accepted for cross-platform compatibility but not used in iOS.
  */
 - (void)stabilize:(double)requiredMatches
         minScreenshotsCount:(double)minScreenshotsCount
@@ -105,7 +104,7 @@ static void SherloEarlyInit(void) {
          resolve:(RCTPromiseResolveBlock)resolve
           reject:(RCTPromiseRejectBlock)reject
 {
-  [core stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs resolve:resolve reject:reject];
+  [core stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs saveScreenshots:saveScreenshots resolve:resolve reject:reject];
 }
 
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
@@ -174,7 +173,6 @@ RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve
 
 /**
  * Checks UI stability by comparing screenshots taken over a specified interval.
- * The saveScreenshots parameter is accepted for cross-platform compatibility but not used in iOS.
  */
 RCT_EXPORT_METHOD(stabilize:(double)requiredMatches
                   minScreenshotsCount:(double)minScreenshotsCount
@@ -183,7 +181,7 @@ RCT_EXPORT_METHOD(stabilize:(double)requiredMatches
                   saveScreenshots:(BOOL)saveScreenshots
                    resolve:(RCTPromiseResolveBlock)resolve
                    reject:(RCTPromiseRejectBlock)reject) {
-  [core stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs resolve:resolve reject:reject];
+  [core stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs saveScreenshots:saveScreenshots resolve:resolve reject:reject];
 }
 
 #endif

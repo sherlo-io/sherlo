@@ -31,17 +31,24 @@ function useTestStory({
         // before we start stabilizing and taking screenshots
         // This is to avoid taking screenshots of the loading state
         let storyIsDisplayed = false;
+        let waitCount = 0;
         while (!storyIsDisplayed) {
           const controlFabricMetadata = JSON.stringify(
             metadataProviderRef?.current?.collectMetadata()
           );
 
           if (controlFabricMetadata.includes(nextSnapshot.storyId)) {
+            RunnerBridge.log('story is displayed');
             storyIsDisplayed = true;
             break;
           }
 
+          RunnerBridge.log('waiting for story to be displayed', {
+            waitCount,
+          });
+
           await new Promise((resolve) => setTimeout(resolve, 500));
+          waitCount++;
         }
 
         const isStable = await SherloModule.stabilize(
@@ -57,19 +64,25 @@ function useTestStory({
 
         RunnerBridge.log('checked if stable', { isStable });
 
-        const inspectorData = await SherloModule.getInspectorData().catch((error) => {
-          RunnerBridge.log('error getting inspector data', { error: error.message });
-          throw error;
-        });
+        let inspectorData;
+        while (!inspectorData) {
+          inspectorData = await SherloModule.getInspectorData().catch((error) => {
+            RunnerBridge.log('error getting inspector data', { error: JSON.stringify(error) });
+          });
+        }
+
+        RunnerBridge.log('got inspector data');
 
         const fabricMetadata = metadataProviderRef?.current?.collectMetadata();
+
+        RunnerBridge.log('got fabric metadata');
 
         const containsError = fabricMetadata?.texts.includes(
           'Something went wrong rendering your story'
         );
 
-        let finalInspectorData = undefined;
-        let safeAreaMetadata = undefined;
+        let finalInspectorData;
+        let safeAreaMetadata;
 
         if (!containsError) {
           finalInspectorData = fabricMetadata
@@ -95,6 +108,8 @@ function useTestStory({
           hasError: containsError,
           finalInspectorData: !!finalInspectorData,
           isStable,
+          requestId: requestId,
+          safeAreaMetadata,
         });
 
         await RunnerBridge.send({

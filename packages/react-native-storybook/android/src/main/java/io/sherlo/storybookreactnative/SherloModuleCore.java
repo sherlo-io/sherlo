@@ -66,17 +66,31 @@ public class SherloModuleCore {
             
             if (currentMode.equals(MODE_TESTING)) {
                 this.lastState = LastStateHelper.getLastState(this.fileSystemHelper);
+
+                String requestId = null;
+                if (this.lastState != null) {
+                    try {
+                        requestId = this.lastState.getString("requestId");
+                    } catch (org.json.JSONException e) {
+                        Log.e(TAG, "Error getting requestId from lastState", e);
+                    }
+                }
+
+                JSONObject nativeLoadedProtocolItem = new JSONObject();
+                try {
+                    nativeLoadedProtocolItem.put("action", "NATIVE_LOADED");
+                    if (requestId != null) {
+                        nativeLoadedProtocolItem.put("requestId", requestId);
+                    }
+                    nativeLoadedProtocolItem.put("timestamp", System.currentTimeMillis());
+                    nativeLoadedProtocolItem.put("entity", "app");
+
+                    this.fileSystemHelper.appendFile("protocol.sherlo", nativeLoadedProtocolItem.toString() + "\n");
+                } catch (org.json.JSONException e) {
+                    Log.e(TAG, "Error creating protocol item", e);
+                }
             }
         }
-        String filename = "native";
-        if (this.lastState != null) {
-            try {
-                filename += "_" + this.lastState.getString("requestId");
-            } catch (org.json.JSONException e) {
-                Log.e(TAG, "Error getting requestId from lastState", e);
-            }
-        }
-        this.fileSystemHelper.appendFile(filename, "initialized");
 
         Log.d(TAG, "SherloModuleCore initialized with mode: " + currentMode);
     }
