@@ -8,6 +8,7 @@ import {
   EAS_BUILD_SCRIPT_NAME_OPTION,
   EXPO_CLOUD_BUILDS_COMMAND,
   EXPO_UPDATE_COMMAND,
+  INCLUDE_OPTION,
   INIT_COMMAND,
   IOS_FILE_TYPES,
   IOS_OPTION,
@@ -52,14 +53,17 @@ export type InvalidatedConfig = PartialDeep<Config, { recurseIntoArrays: true }>
 
 export type Options<
   C extends Command | 'any',
-  M extends OptionsMode = 'withoutDefaults'
-> = CommonOptions<M> & CommandOptions[C];
+  M extends OptionsMode = 'withoutDefaults',
+  F extends OptionsFormat = 'raw'
+> = CommonOptions<M, F> & CommandOptions[C];
 
 type OptionsMode = 'withoutDefaults' | 'withDefaults';
+type OptionsFormat = 'raw' | 'normalized';
 
-type CommonOptions<M extends OptionsMode> = {
+type CommonOptions<M extends OptionsMode, F extends OptionsFormat> = {
   [MESSAGE_OPTION]?: string;
   [TOKEN_OPTION]?: string;
+  [INCLUDE_OPTION]?: F extends 'raw' ? string : string[];
 } & (M extends 'withDefaults'
   ? { [CONFIG_OPTION]: string; [PROJECT_ROOT_OPTION]: string }
   : { [CONFIG_OPTION]?: string; [PROJECT_ROOT_OPTION]?: string });
@@ -94,10 +98,10 @@ type CommandOptions = {
 /* === COMMAND PARAMS === */
 
 export type CommandParams<C extends Command | 'any' = 'any'> = Config &
-  Options<C, 'withDefaults'> & { token: string };
+  Options<C, 'withDefaults', 'normalized'> & { token: string };
 
 export type InvalidatedCommandParams<C extends Command | 'any' = 'any'> = InvalidatedConfig &
-  Options<C, 'withDefaults'>;
+  Options<C, 'withDefaults', 'normalized'>;
 
 /* === OTHERS === */
 

@@ -11,6 +11,7 @@ import {
   EAS_BUILD_SCRIPT_NAME_OPTION,
   EXPO_CLOUD_BUILDS_COMMAND,
   EXPO_UPDATE_COMMAND,
+  INCLUDE_OPTION,
   INIT_COMMAND,
   IOS_OPTION,
   LOCAL_BUILDS_COMMAND,
@@ -43,6 +44,10 @@ async function start() {
       ],
       [TOKEN_OPTION]: [`--${TOKEN_OPTION} <token>`, 'Authentication token for the project'],
       [MESSAGE_OPTION]: [`--${MESSAGE_OPTION} <message>`, 'Custom message to label the test'],
+      [INCLUDE_OPTION]: [
+        `--${INCLUDE_OPTION} <stories>`,
+        'List of story names to include in the test (e.g. "My Story","Another Story")',
+      ],
       [CONFIG_OPTION]: [
         `--${CONFIG_OPTION} <path>`,
         `Path to the config file (default: ${DEFAULT_CONFIG_FILENAME})`,
@@ -69,6 +74,7 @@ async function start() {
       .option(...sharedOptions[IOS_OPTION])
       .option(...sharedOptions[TOKEN_OPTION])
       .option(...sharedOptions[MESSAGE_OPTION])
+      .option(...sharedOptions[INCLUDE_OPTION])
       .option(...sharedOptions[CONFIG_OPTION])
       .option(...sharedOptions[PROJECT_ROOT_OPTION])
       .action(async (options) => {
@@ -91,6 +97,7 @@ async function start() {
       .option(...sharedOptions[IOS_OPTION])
       .option(...sharedOptions[TOKEN_OPTION])
       .option(...sharedOptions[MESSAGE_OPTION])
+      .option(...sharedOptions[INCLUDE_OPTION])
       .option(...sharedOptions[CONFIG_OPTION])
       .option(...sharedOptions[PROJECT_ROOT_OPTION])
       .action(async (options) => {
@@ -111,6 +118,7 @@ async function start() {
       )
       .option(...sharedOptions[TOKEN_OPTION])
       .option(...sharedOptions[MESSAGE_OPTION])
+      .option(...sharedOptions[INCLUDE_OPTION])
       .option(...sharedOptions[CONFIG_OPTION])
       .option(...sharedOptions[PROJECT_ROOT_OPTION])
       .action(async (options) => {
