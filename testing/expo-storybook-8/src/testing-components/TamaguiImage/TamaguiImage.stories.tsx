@@ -19,4 +19,14 @@ export default {
   ],
 } as Meta<typeof TamaguiImage>;
 
-export const Basic = {};
+export const Url = {
+  args: {
+    variant: 'url',
+  },
+};
+
+export const Static = {
+  args: {
+    variant: 'static',
+  },
+};
