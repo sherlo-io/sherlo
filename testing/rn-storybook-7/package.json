@@ -29,6 +29,11 @@
     "@gorhom/bottom-sheet": "^5.0.2",
     "@react-native-async-storage/async-storage": "^2.1.2",
     "@sherlo/testing-components": "portal:../testing-components",
+    "@tamagui/config": "^1.126.12",
+    "@tamagui/lucide-icons": "^1.126.12",
+    "@tamagui/toast": "^1.126.12",
+    "expo": "^53.0.9",
+    "expo-modules-core": "^2.3.13",
     "expo-status-bar": "2.0.1",
     "react": "18.3.1",
     "react-native": "0.77.2",
@@ -38,7 +43,8 @@
     "react-native-localize": "^3.4.1",
     "react-native-reanimated": "^3.17.1",
     "react-native-safe-area-context": "^5.3.0",
-    "react-native-svg": "^15.11.2"
+    "react-native-svg": "^15.11.2",
+    "tamagui": "^1.126.12"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
@@ -58,6 +64,7 @@
     "@types/jest": "^29.5.13",
     "@types/react": "^18.2.6",
     "@types/react-test-renderer": "^18.0.0",
+    "burnt": "^0.13.0",
     "eslint": "^8.19.0",
     "jest": "^29.6.3",
     "prettier": "2.8.8",
