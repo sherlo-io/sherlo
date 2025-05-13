@@ -3,6 +3,7 @@ import TamaguiImage from './TamaguiImage';
 import { StoryDecorator } from '@sherlo/testing-components';
 import { createTamagui, TamaguiProvider } from 'tamagui';
 import { defaultConfig } from '@tamagui/config/v4';
+import { Image } from 'react-native';
 
 export default {
   component: TamaguiImage,
@@ -21,12 +22,20 @@ export default {
 
 export const Url = {
   args: {
-    variant: 'url',
+    uri: 'https://picsum.photos/id/237/200/300',
   },
 };
 
 export const Static = {
   args: {
-    variant: 'static',
+    uri: require('./static_example.jpg'),
+  },
+};
+
+const uri = Image.resolveAssetSource(require('./static_example.jpg')).uri;
+console.log('uri', uri);
+export const Resolved = {
+  args: {
+    uri,
   },
 };

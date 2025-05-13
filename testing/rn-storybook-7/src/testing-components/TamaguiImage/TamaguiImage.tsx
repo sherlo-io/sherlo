@@ -1,22 +1,24 @@
+import React from 'react';
+import { Text } from 'react-native';
 import { Image } from 'tamagui';
 
-function TamaguiImage({ variant }: TamaguiImageProps) {
+function TamaguiImage({ uri }: TamaguiImageProps) {
   return (
-    <Image
-      source={{
-        uri:
-          variant === 'url'
-            ? 'https://picsum.photos/id/237/200/300'
-            : require('./static_example.jpg'),
-        width: 200,
-        height: 300,
-      }}
-    />
+    <>
+      <Image
+        source={{
+          uri,
+          width: 200,
+          height: 300,
+        }}
+      />
+      <Text>URI: {uri}</Text>
+    </>
   );
 }
 
 export type TamaguiImageProps = {
-  variant: 'url' | 'static';
+  uri: string;
 };
 
 export default TamaguiImage;
