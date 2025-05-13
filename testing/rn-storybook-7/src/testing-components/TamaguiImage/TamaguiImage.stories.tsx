@@ -1,14 +1,14 @@
-import type { Meta } from '@storybook/react';
+import type {Meta} from '@storybook/react';
 import TamaguiImage from './TamaguiImage';
-import { StoryDecorator } from '@sherlo/testing-components';
-import { createTamagui, TamaguiProvider } from 'tamagui';
-import { defaultConfig } from '@tamagui/config/v4';
-import { Image } from 'react-native';
+import {StoryDecorator} from '@sherlo/testing-components';
+import {createTamagui, TamaguiProvider} from 'tamagui';
+import {defaultConfig} from '@tamagui/config/v4';
+import {Image} from 'react-native';
 
 export default {
   component: TamaguiImage,
   decorators: [
-    StoryDecorator({ placement: 'center' }),
+    StoryDecorator({placement: 'center'}),
     (Story: any) => {
       const config = createTamagui(defaultConfig);
       return (
@@ -33,7 +33,6 @@ export const Static = {
 };
 
 const uri = Image.resolveAssetSource(require('./static_example.jpg')).uri;
-console.log('uri', uri);
 export const Resolved = {
   args: {
     uri,

@@ -33,7 +33,6 @@ export const Static = {
 };
 
 const uri = Image.resolveAssetSource(require('./static_example.jpg')).uri;
-console.log('uri', uri);
 export const Resolved = {
   args: {
     uri,
