@@ -1,13 +1,10 @@
 import { Image } from 'tamagui';
 
-function TamaguiImage({ variant }: TamaguiImageProps) {
+function TamaguiImage({ uri }: TamaguiImageProps) {
   return (
     <Image
       source={{
-        uri:
-          variant === 'url'
-            ? 'https://picsum.photos/id/237/200/300'
-            : require('./static_example.jpg'),
+        uri,
         width: 200,
         height: 300,
       }}
@@ -16,7 +13,7 @@ function TamaguiImage({ variant }: TamaguiImageProps) {
 }
 
 export type TamaguiImageProps = {
-  variant: 'url' | 'static';
+  uri: string;
 };
 
 export default TamaguiImage;

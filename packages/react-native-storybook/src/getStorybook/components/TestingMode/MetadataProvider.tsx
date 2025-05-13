@@ -11,10 +11,54 @@ export interface Metadata {
     };
   };
   texts: string[];
+  rendersRemoteImages: boolean;
 }
 
 export interface MetadataProviderRef {
   collectMetadata: () => Metadata;
+}
+
+const REMOTE_IMAGE_COMPONENTS = new Set([
+  'RCTImageView',
+  'ReactImageView',
+  'FFFastImageView',
+  'FastImageView',
+  'ExpoImageView',
+  'EXImageView',
+  'RNSVGImage',
+  'RNSVGSvgView',
+  'SvgView',
+]);
+
+function isRemoteImageSource(source: any): boolean {
+  if (!source) return false;
+
+  if (typeof source === 'string') {
+    return /^https?:\/\//.test(source);
+  }
+
+  if (typeof source === 'object') {
+    if (Array.isArray(source)) {
+      return source.some(isRemoteImageSource);
+    }
+    if (typeof source.uri === 'string' && /^https?:\/\//.test(source.uri)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isRemoteImageComponent(fiber: any): boolean {
+  const { type, pendingProps, memoizedProps } = fiber;
+  const componentName = typeof type === 'string' ? type : type?.displayName || type?.name;
+  if (!componentName || !REMOTE_IMAGE_COMPONENTS.has(componentName)) return false;
+
+  const props = pendingProps || memoizedProps;
+  if (!props) return false;
+
+  const source = props.source || props.src || props.srcSet || props.svgXmlData;
+  return isRemoteImageSource(source);
 }
 
 const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode }>(
@@ -25,12 +69,17 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
       collectMetadata: () => {
         if (!fiber) {
           RunnerBridge.log('No fiber node available.');
-          return { viewProps: {}, texts: [] };
+          return {
+            viewProps: {},
+            texts: [],
+            rendersRemoteImages: false,
+          };
         }
 
         const metadata: Metadata = {
           viewProps: {},
           texts: [],
+          rendersRemoteImages: false,
         };
 
         const visited = new Set();
@@ -59,7 +108,10 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
           extractTextFromProps(pendingProps, metadata.texts);
           extractTextFromProps(memoizedProps, metadata.texts);
 
-          // Continue traversal
+          if (!metadata.rendersRemoteImages && isRemoteImageComponent(currentFiber)) {
+            metadata.rendersRemoteImages = true;
+          }
+
           if (currentFiber.child) queue.push(currentFiber.child);
           if (currentFiber.sibling) queue.push(currentFiber.sibling);
         }

@@ -81,6 +81,8 @@ function useTestStory({
           'Something went wrong rendering your story'
         );
 
+        const rendersRemoteImages = !!fabricMetadata?.rendersRemoteImages;
+
         let finalInspectorData;
         let safeAreaMetadata;
 
@@ -110,6 +112,7 @@ function useTestStory({
           isStable,
           requestId: requestId,
           safeAreaMetadata,
+          rendersRemoteImages,
         });
 
         await RunnerBridge.send({
@@ -119,6 +122,7 @@ function useTestStory({
           isStable,
           requestId: requestId,
           safeAreaMetadata,
+          rendersRemoteImages,
         });
       } catch (error) {
         // @ts-ignore
