@@ -24,9 +24,3 @@ export default {
 } as Meta<typeof TamaguiToast>;
 
 export const Basic = {};
-
-export const Native = {
-  args: {
-    native: true,
-  },
-};
