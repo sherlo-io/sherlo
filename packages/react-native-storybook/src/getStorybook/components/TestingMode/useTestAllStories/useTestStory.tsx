@@ -32,24 +32,25 @@ function useTestStory({
         // This is to avoid taking screenshots of the loading state
         let storyIsDisplayed = false;
         let waitCount = 0;
-        while (!storyIsDisplayed) {
+        do {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          waitCount++;
+
           const controlFabricMetadata = JSON.stringify(
             metadataProviderRef?.current?.collectMetadata()
           );
 
           if (controlFabricMetadata.includes(nextSnapshot.storyId)) {
-            RunnerBridge.log('story is displayed');
+            RunnerBridge.log('story is displayed', {
+              waitCount,
+            });
             storyIsDisplayed = true;
-            break;
+          } else {
+            RunnerBridge.log('story is not displayed', {
+              waitCount,
+            });
           }
-
-          RunnerBridge.log('waiting for story to be displayed', {
-            waitCount,
-          });
-
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          waitCount++;
-        }
+        } while (!storyIsDisplayed);
 
         const isStable = await SherloModule.stabilize(
           config.stabilization.requiredMatches,
@@ -129,6 +130,7 @@ function useTestStory({
         RunnerBridge.log('story capturing failed', { errorMessage: error?.message });
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }
 
