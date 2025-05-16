@@ -7,8 +7,7 @@ const ToastDemo = () => {
   useEffect(() => {
     toast.show('Successfully saved!', {
       message: "Don't worry, we've got your data.",
-      demo: true,
-      duration: 30_000,
+      duration: Infinity,
     });
   }, [toast]);
 
