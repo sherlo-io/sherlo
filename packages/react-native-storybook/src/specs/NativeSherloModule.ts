@@ -18,10 +18,10 @@ export interface Spec extends TurboModule {
   getSherloConstants: () => {};
 }
 
-let SherloModule;
+let SherloModule: Spec | null = null;
 
 try {
-  SherloModule = TurboModuleRegistry.getEnforcing<Spec>('SherloModule') as Spec | null;
+  SherloModule = TurboModuleRegistry.getEnforcing<Spec>('SherloModule') as Spec;
 } catch (e) {
   // Ignore if module is not found
 }
