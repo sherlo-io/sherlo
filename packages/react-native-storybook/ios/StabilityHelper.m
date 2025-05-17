@@ -48,15 +48,8 @@ static NSString *const LOG_TAG = @"SherloModule:StabilityHelper";
             @autoreleasepool {
                 screenshotCounter++;
                 
-                // Check for timeout first to avoid unnecessary work
                 NSTimeInterval elapsedSeconds = -[startTime timeIntervalSinceNow];
                 NSInteger elapsedMs = (NSInteger)(elapsedSeconds * 1000);
-                if (elapsedMs >= timeoutMs && screenshotCounter >= minScreenshotsCount) {
-                    NSLog(@"[%@] Timeout reached after %ld ms", LOG_TAG, (long)elapsedMs);
-                    [t invalidate];
-                    resolve(@NO);
-                    return;
-                }
                 
                 UIImage *currentScreenshot = [self captureScreenshot];
                 if (!currentScreenshot) {
