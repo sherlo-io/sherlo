@@ -10,7 +10,7 @@ function getBuildRunConfig({
   commandParams: CommandParams;
   binaryS3Keys?: { android?: string; ios?: string };
   expoUpdateData?: ExpoUpdateData;
-}): BuildRun['config'] {
+}): BuildRun<'withS3KeyNoDebug'>['config'] {
   const { devices, include, exclude } = commandParams;
 
   const androidDevices = getPlatformDevices(devices, 'android');
