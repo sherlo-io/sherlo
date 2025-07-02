@@ -23,12 +23,12 @@
     "install:android:preview:new": "adb install builds/preview-new/android.apk",
     "install:ios:preview:old": "tar -xzvf builds/preview-old/ios.tar.gz -C builds/preview-old && xcrun simctl install booted builds/preview-old/SherloExpoExample.app",
     "install:ios:preview:new": "tar -xzvf builds/preview-new/ios.tar.gz -C builds/preview-new && xcrun simctl install booted builds/preview-new/SherloExpoExample.app",
-    "start:android:development:old": "adb install builds/development-old/android.apk && expo start --android --dev-client",
-    "start:android:development:new": "adb install builds/development-new/android.apk && expo start --android --dev-client",
-    "start:android:go": "expo start --android --go",
-    "start:ios:development:old": "tar -xzvf builds/development-old/ios.tar.gz -C builds/development-old && xcrun simctl install booted builds/development-old/SherloExpoExample.app && expo start --ios --dev-client",
-    "start:ios:development:new": "tar -xzvf builds/development-new/ios.tar.gz -C builds/development-new && xcrun simctl install booted builds/development-new/SherloExpoExample.app && expo start --ios --dev-client",
-    "start:ios:go": "expo start --ios --go",
+    "start:android:development:old": "adb install builds/development-old/android.apk && npx expo start --android --dev-client",
+    "start:android:development:new": "adb install builds/development-new/android.apk && npx expo start --android --dev-client",
+    "start:android:go": "npx expo start --android --go",
+    "start:ios:development:old": "tar -xzvf builds/development-old/ios.tar.gz -C builds/development-old && xcrun simctl install booted builds/development-old/SherloExpoExample.app && npx expo start --ios --dev-client",
+    "start:ios:development:new": "tar -xzvf builds/development-new/ios.tar.gz -C builds/development-new && xcrun simctl install booted builds/development-new/SherloExpoExample.app && npx expo start --ios --dev-client",
+    "start:ios:go": "npx expo start --ios --go",
     "storybook:generate": "sb-rn-get-stories",
     "sherlo": "npx sherlo"
   },
@@ -73,6 +73,7 @@
     "babel-loader": "^8.2.3",
     "burnt": "^0.13.0",
     "eas-cli": "16.3.2",
+    "storybook": "^8.3.9",
     "typescript": "~5.3.3"
   },
   "resolutions": {

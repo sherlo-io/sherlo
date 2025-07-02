@@ -89,7 +89,7 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
         buildIndex,
         projectIndex,
         teamId,
-        runError: 'user_expoBuildError',
+        runError: 'user_expoCloudBuild',
       })
       .catch(handleClientError);
 
