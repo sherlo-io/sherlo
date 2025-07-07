@@ -6,6 +6,7 @@ export type BinariesInfo = {
 export type BinaryInfo = {
   hash: string;
   isExpoDev: boolean;
+  originalName: string;
   s3Key: string;
   buildCreatedAt?: string;
   buildIndex?: number;

@@ -1,8 +1,8 @@
 import { GetNextBuildInfoReturn, Platform } from '@sherlo/api-types';
 import {
+  EAS_BUILD_ON_COMPLETE_COMMAND,
   EXPO_UPDATE_COMMAND,
   PLATFORM_LABEL,
-  EAS_BUILD_ON_COMPLETE_COMMAND,
 } from '../../../constants';
 import { Command, CommandParams } from '../../../types';
 import { validatePlatformPaths } from '../../shared';

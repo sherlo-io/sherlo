@@ -19,7 +19,7 @@ const EXPO_DEV_FILE_PATH = {
 };
 
 type LocalBinariesInfo = { android?: LocalBinaryInfo; ios?: LocalBinaryInfo };
-type LocalBinaryInfo = Pick<BinaryInfo, 'hash' | 'isExpoDev' | 'sdkVersion'>;
+type LocalBinaryInfo = Pick<BinaryInfo, 'hash' | 'isExpoDev' | 'sdkVersion' | 'originalName'>;
 
 async function getLocalBinariesInfo({
   paths,
@@ -154,7 +154,7 @@ async function getLocalBinaryInfoForPlatform({
     }
   }
 
-  return { hash, isExpoDev, sdkVersion };
+  return { hash, isExpoDev, sdkVersion, originalName: fileName };
 }
 
 async function getBinaryHash(filePath: string): Promise<string> {
