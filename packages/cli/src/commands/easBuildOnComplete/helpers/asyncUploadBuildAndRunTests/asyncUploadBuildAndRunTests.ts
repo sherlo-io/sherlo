@@ -52,6 +52,7 @@ async function asyncUploadBuildAndRunTests({
       androidS3Key: binariesInfo.android?.s3Key,
       iosS3Key: binariesInfo.ios?.s3Key,
       sdkVersion: binariesInfo.sdkVersion,
+      fileName: binariesInfo[platform]?.fileName,
     })
     .catch(handleClientError);
 
