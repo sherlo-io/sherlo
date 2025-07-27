@@ -7,11 +7,11 @@ export interface Metadata {
     [nativeTag: number]: {
       className?: string;
       style?: any;
+      source?: any;
       testID?: string;
     };
   };
   texts: string[];
-  rendersRemoteImages: boolean;
 }
 
 export interface MetadataProviderRef {
@@ -29,25 +29,6 @@ const REMOTE_IMAGE_COMPONENTS = new Set([
   'RNSVGSvgView',
   'SvgView',
 ]);
-
-function isRemoteImageSource(source: any): boolean {
-  if (!source) return false;
-
-  if (typeof source === 'string') {
-    return /^https?:\/\//.test(source);
-  }
-
-  if (typeof source === 'object') {
-    if (Array.isArray(source)) {
-      return source.some(isRemoteImageSource);
-    }
-    if (typeof source.uri === 'string' && /^https?:\/\//.test(source.uri)) {
-      return true;
-    }
-  }
-
-  return false;
-}
 
 function isRemoteImageComponent(fiber: any): boolean {
   const { type, pendingProps, memoizedProps } = fiber;
@@ -72,14 +53,12 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
           return {
             viewProps: {},
             texts: [],
-            rendersRemoteImages: false,
           };
         }
 
         const metadata: Metadata = {
           viewProps: {},
           texts: [],
-          rendersRemoteImages: false,
         };
 
         const visited = new Set();
@@ -101,16 +80,13 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
               style: pendingProps.style,
               testID: pendingProps.testID,
               className: type || undefined,
+              source: pendingProps.source,
             };
           }
 
           // Extract text from props
           extractTextFromProps(pendingProps, metadata.texts);
           extractTextFromProps(memoizedProps, metadata.texts);
-
-          if (!metadata.rendersRemoteImages && isRemoteImageComponent(currentFiber)) {
-            metadata.rendersRemoteImages = true;
-          }
 
           if (currentFiber.child) queue.push(currentFiber.child);
           if (currentFiber.sibling) queue.push(currentFiber.sibling);

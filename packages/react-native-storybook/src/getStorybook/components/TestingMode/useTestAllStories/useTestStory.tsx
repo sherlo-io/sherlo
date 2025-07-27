@@ -82,15 +82,20 @@ function useTestStory({
           'Something went wrong rendering your story'
         );
 
-        const rendersRemoteImages = !!fabricMetadata?.rendersRemoteImages;
-
-        let finalInspectorData;
+        let finalInspectorData = inspectorData;
+        let hasRemoteMedia = false;
         let safeAreaMetadata;
 
         if (!containsError) {
-          finalInspectorData = fabricMetadata
-            ? prepareInspectorData(inspectorData, fabricMetadata, nextSnapshot.storyId)
-            : inspectorData;
+          if (fabricMetadata) {
+            const preparedInspectorData = prepareInspectorData(
+              inspectorData,
+              fabricMetadata,
+              nextSnapshot.storyId
+            );
+            finalInspectorData = preparedInspectorData.inspectorData;
+            hasRemoteMedia = preparedInspectorData.hasRemoteMedia;
+          }
 
           safeAreaMetadata = {
             shouldAddSafeArea: !nextSnapshot.parameters?.noSafeArea,
@@ -113,7 +118,7 @@ function useTestStory({
           isStable,
           requestId: requestId,
           safeAreaMetadata,
-          rendersRemoteImages,
+          hasRemoteMedia,
         });
 
         await RunnerBridge.send({
@@ -123,7 +128,7 @@ function useTestStory({
           isStable,
           requestId: requestId,
           safeAreaMetadata,
-          rendersRemoteImages,
+          hasRemoteMedia,
         });
       } catch (error) {
         // @ts-ignore
