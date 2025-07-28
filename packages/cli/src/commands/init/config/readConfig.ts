@@ -1,5 +1,5 @@
 import { readFile } from 'fs/promises';
-import { getEnhancedError, throwError } from '../../../helpers';
+import { getErrorWithCustomMessage, throwError } from '../../../helpers';
 import { InvalidatedConfig } from '../../../types';
 import getConfigPath from './getConfigPath';
 
@@ -12,7 +12,7 @@ async function readConfig(): Promise<InvalidatedConfig> {
   } catch (error) {
     throwError({
       type: 'unexpected',
-      error: getEnhancedError(`Invalid ${configPath}`, error),
+      error: getErrorWithCustomMessage(error, `Invalid ${configPath}`),
     });
   }
 

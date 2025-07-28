@@ -1,7 +1,7 @@
 import { Platform } from '@sherlo/api-types';
 import fs from 'fs';
 import path, { join } from 'path';
-import { getEnhancedError, throwError, getCwd } from '../../../../helpers';
+import { getCwd, getErrorWithCustomMessage, throwError } from '../../../../helpers';
 
 function getBuildPath({
   easBuildProfile,
@@ -71,7 +71,7 @@ function getBuildPathFromEasJson({
   } catch (error) {
     throwError({
       type: 'unexpected',
-      error: getEnhancedError(`Invalid ${easJsonPath}`, error),
+      error: getErrorWithCustomMessage(error, `Invalid ${easJsonPath}`),
     });
   }
 

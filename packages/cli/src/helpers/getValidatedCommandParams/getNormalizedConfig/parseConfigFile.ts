@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { PROJECT_ROOT_OPTION, DOCS_LINK } from '../../../constants';
+import { DOCS_LINK, PROJECT_ROOT_OPTION } from '../../../constants';
 import { InvalidatedConfig } from '../../../types';
 import throwError from '../../throwError';
 

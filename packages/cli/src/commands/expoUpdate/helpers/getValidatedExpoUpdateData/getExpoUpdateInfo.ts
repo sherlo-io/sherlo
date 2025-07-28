@@ -1,4 +1,4 @@
-import { getEnhancedError, runShellCommand, throwError } from '../../../../helpers';
+import { getErrorWithCustomMessage, runShellCommand, throwError } from '../../../../helpers';
 import { CommandParams, ExpoUpdateInfo } from '../../../../types';
 import { THIS_COMMAND } from '../../constants';
 
@@ -23,7 +23,7 @@ async function getExpoUpdateInfo(
   } catch (error) {
     throwError({
       type: 'unexpected',
-      error: getEnhancedError(`Invalid \`${command}\` output`, error),
+      error: getErrorWithCustomMessage(error, `Invalid \`${command}\` output`),
     });
   }
 

@@ -2,7 +2,7 @@ import { findUp } from 'find-up';
 import { existsSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { dirname, join } from 'path';
-import { getCwd, getEnhancedError, throwError } from '../../../helpers';
+import { getCwd, getErrorWithCustomMessage, throwError } from '../../../helpers';
 
 async function findPackageJsonPaths(): Promise<{
   current: string | null;
@@ -42,7 +42,7 @@ async function isMonorepoRoot(packageJsonPath: string): Promise<boolean> {
   } catch (error) {
     throwError({
       type: 'unexpected',
-      error: getEnhancedError(`Invalid ${packageJsonPath}`, error),
+      error: getErrorWithCustomMessage(error, `Invalid ${packageJsonPath}`),
     });
   }
 

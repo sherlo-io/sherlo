@@ -1,4 +1,4 @@
-import { getEnhancedError, runShellCommand, throwError } from '../../../../helpers';
+import { getErrorWithCustomMessage, runShellCommand, throwError } from '../../../../helpers';
 import { CommandParams } from '../../../../types';
 import { THIS_COMMAND } from '../../constants';
 
@@ -24,7 +24,7 @@ async function getExpoMetadata(commandParams: CommandParams<THIS_COMMAND>): Prom
   } catch (error) {
     throwError({
       type: 'unexpected',
-      error: getEnhancedError(`Invalid \`${command}\` output`, error),
+      error: getErrorWithCustomMessage(error, `Invalid \`${command}\` output`),
     });
   }
 

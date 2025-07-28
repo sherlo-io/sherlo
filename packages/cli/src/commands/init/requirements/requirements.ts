@@ -6,27 +6,27 @@ import {
   STORYBOOK_REACT_NATIVE_PACKAGE_NAME,
 } from '../../../constants';
 import {
+  getPackageVersion,
   isValidToken,
   printLink,
   throwError,
   validatePackages,
-  getPackageVersion,
 } from '../../../helpers';
 import { THIS_COMMAND } from '../constants';
-import { printTitle, printMessage, trackProgress } from '../helpers';
+import { printMessage, printTitle, trackProgress } from '../helpers';
 import { EVENT } from './constants';
 import getEnvInfo from './getEnvInfo';
 import validateReactNativeProject from './validateReactNativeProject';
 import validateStorybook from './validateStorybook';
 
-async function requirements(token?: string): Promise<{ sessionId: string }> {
+async function requirements({ token, sessionId }: { token?: string; sessionId: string }) {
   await validateProject(token);
 
   printTitle('✅ Requirements', 15);
 
   const spinner = ora('Checking requirements').start();
 
-  const { sessionId } = await trackProgress({
+  await trackProgress({
     event: EVENT,
     params: {
       envInfo: await getEnvInfo(),
@@ -34,9 +34,7 @@ async function requirements(token?: string): Promise<{ sessionId: string }> {
       reactNativeVersion: getPackageVersion(REACT_NATIVE_PACKAGE_NAME),
       storybookReactNativeVersion: getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME),
     },
-    token,
-    sessionId: null,
-    hasStarted: true,
+    sessionId,
   });
 
   spinner.stop();
@@ -50,8 +48,6 @@ async function requirements(token?: string): Promise<{ sessionId: string }> {
     type: 'success',
     message: 'Storybook',
   });
-
-  return { sessionId };
 }
 
 export default requirements;
@@ -71,6 +67,7 @@ async function validateProject(token?: string): Promise<void> {
         message:
           'Invalid `--token`. Make sure you copied it correctly or generate a new one at ' +
           printLink(APP_DOMAIN),
+        errorToReport: new Error('Invalid token: ' + token),
       });
     }
   } catch (error) {

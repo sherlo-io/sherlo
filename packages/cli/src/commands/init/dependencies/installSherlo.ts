@@ -4,7 +4,8 @@ import ora from 'ora';
 import { detect, resolveCommand } from 'package-manager-detector';
 import { join } from 'path';
 import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../constants';
-import { getCwd, getEnhancedError, runShellCommand, throwError } from '../../../helpers';
+import { getCwd, getErrorWithCustomMessage, runShellCommand, throwError } from '../../../helpers';
+import { FULL_INIT_COMMAND } from '../constants';
 import { trackProgress } from '../helpers';
 import { EVENT } from './constants';
 
@@ -24,7 +25,7 @@ async function installSherlo(sessionId: string): Promise<void> {
 
     throwError({
       type: 'unexpected',
-      error: getEnhancedError(`Invalid ${packageJsonPath}`, error),
+      error: getErrorWithCustomMessage(error, `Invalid ${packageJsonPath}`),
     });
   }
 
@@ -60,7 +61,7 @@ async function installSherlo(sessionId: string): Promise<void> {
       command: commandToRun,
       projectRoot: getCwd(),
     });
-  } catch {
+  } catch (error) {
     spinner.fail();
 
     console.log();
@@ -76,7 +77,11 @@ async function installSherlo(sessionId: string): Promise<void> {
         'Failed to install Sherlo automatically\n' +
         '\n' +
         chalk.reset('Please install it manually:\n') +
-        chalk.cyan('  ' + commandToRun),
+        chalk.cyan(`  ${commandToRun}\n`) +
+        '\n' +
+        chalk.reset('Then re-run:\n') +
+        chalk.cyan(`  ${FULL_INIT_COMMAND}\n`),
+      errorToReport: error,
     });
   }
 
