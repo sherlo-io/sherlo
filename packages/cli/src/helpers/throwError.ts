@@ -1,60 +1,29 @@
 import chalk from 'chalk';
+import { CONTACT_EMAIL, DISCORD_URL } from '../constants';
 import printLink from './printLink';
+import reporting from './reporting';
 
 type Params = StandardErrorParams | UnexpectedErrorParams;
 
 type StandardErrorParams = {
   message: string;
+  errorToReport?: Error;
   learnMoreLink?: string;
   type?: Extract<ErrorType, 'default' | 'auth'>;
 };
 
 type UnexpectedErrorParams = {
-  error: Error;
+  error: Error & { stdout?: string; stderr?: string };
   type: Extract<ErrorType, 'unexpected'>;
 };
 
 type ErrorType = 'default' | 'auth' | 'unexpected';
 
 function throwError(params: Params): never {
-  let type: ErrorType;
-  let message: string;
-  let unexpectedError: (Error & { stdout?: string; stderr?: string }) | undefined;
-  let learnMoreLink: string | undefined;
+  reportError(params);
 
-  if (params.type === 'unexpected') {
-    type = 'unexpected';
-    unexpectedError = params.error;
-    message = unexpectedError.message;
-  } else {
-    type = params.type ?? 'default';
-    message = params.message;
-    learnMoreLink = params.learnMoreLink;
-  }
-
-  const errorMessage = chalk.red(`${LABEL[type]}: ${message.trim()}`);
-
-  const lines = [errorMessage];
-
-  if (unexpectedError) {
-    const location = getCallerLocation();
-    const { stdout, stderr } = unexpectedError;
-
-    if (location) lines.push(chalk.dim(`(in ${location})`));
-
-    if (stdout) lines.push(`\n${stdout}`);
-
-    if (stderr) lines.push(`\n${stderr}`);
-
-    Object.assign(unexpectedError, { location });
-  }
-
-  if (learnMoreLink) {
-    lines.push(chalk.dim(`↳ Learn more: ${printLink(learnMoreLink)}`));
-  }
-
-  const error = new Error(lines.join('\n') + '\n');
-  if (unexpectedError) (error as any).unexpectedError = unexpectedError;
+  const error: Error & { skipReporting?: boolean } = new Error(getErrorMessage(params));
+  error.skipReporting = true; // Don't report this error in the main catch
 
   throw error;
 }
@@ -69,7 +38,54 @@ const LABEL: { [type in ErrorType]: string } = {
   unexpected: 'UNEXPECTED ERROR',
 };
 
-function getCallerLocation() {
+function getErrorMessage(params: Params): string {
+  let message: string;
+  if (params.type !== 'unexpected') {
+    message = params.message;
+  } else {
+    message = params.error.message;
+  }
+
+  const messageWithLabel = chalk.red(`${LABEL[params.type ?? 'default']}: ${message.trim()}`);
+
+  const errorMessageParts = [messageWithLabel];
+
+  if (params.type === 'unexpected') {
+    const errorLocation = getErrorLocation();
+    if (errorLocation) errorMessageParts.push(chalk.dim(`(in ${errorLocation})`));
+
+    const { stdout, stderr } = params.error;
+    if (stdout) errorMessageParts.push(`\n${stdout}`);
+    if (stderr) errorMessageParts.push(`\n${stderr}`);
+
+    errorMessageParts.push(chalk.dim('\n' + '═'.repeat(10) + '\n'));
+
+    errorMessageParts.push(chalk.dim('Need Help?'));
+    errorMessageParts.push(chalk.dim('→ ') + chalk.dim(DISCORD_URL.replace('https://', '')));
+    errorMessageParts.push(chalk.dim('→ ') + chalk.dim(CONTACT_EMAIL));
+  } else if (params.learnMoreLink) {
+    errorMessageParts.push(chalk.dim(`↳ Learn more: ${printLink(params.learnMoreLink)}`));
+  }
+
+  return errorMessageParts.join('\n') + '\n';
+}
+
+function reportError(params: Params) {
+  let errorToReport: Error | undefined;
+
+  if (params.type === 'unexpected') {
+    errorToReport = params.error;
+  } else if (params.errorToReport) {
+    errorToReport = params.errorToReport;
+  }
+
+  if (errorToReport) {
+    Object.assign(errorToReport, { location: getErrorLocation() });
+    reporting.captureException(errorToReport);
+  }
+}
+
+function getErrorLocation() {
   const stack = new Error().stack;
   if (!stack) return null;
 

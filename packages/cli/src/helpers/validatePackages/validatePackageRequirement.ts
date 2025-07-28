@@ -6,37 +6,40 @@ import getPackageErrorMessage from './getPackageErrorMessage';
 import { PackageRequirement } from './types';
 
 function validatePackageRequirement(requirement: PackageRequirement, command?: Command) {
-  const version = getPackageVersion(requirement.packageName);
+  const { packageName, minVersion } = requirement;
+  const version = getPackageVersion(packageName);
 
   if (!version) {
     throwError({
       message: getPackageErrorMessage({
         command,
-        packageName: requirement.packageName,
+        packageName,
         type: 'missing',
       }),
     });
   }
 
   if (
-    requirement.minVersion &&
+    minVersion &&
     !isPackageVersionCompatible({
       version,
-      minVersion: requirement.minVersion,
+      minVersion,
     })
   ) {
     throwError({
       message: getPackageErrorMessage({
         command,
-        packageName: requirement.packageName,
+        packageName,
         type: 'version',
         versions: {
           current: version,
-          min: requirement.minVersion,
+          min: minVersion,
         },
       }),
     });
   }
+
+  return { packageName, version };
 }
 
 export default validatePackageRequirement;

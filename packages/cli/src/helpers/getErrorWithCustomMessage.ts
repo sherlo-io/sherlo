@@ -3,7 +3,7 @@
  * The custom message is used as the main error message, while the original error's message
  * is stored in the stderr property.
  */
-function getEnhancedError(message: string, error: Error) {
+function getErrorWithCustomMessage(error: Error, message: string) {
   const enhancedError = new Error(message);
 
   Object.assign(enhancedError, { ...error, stderr: error.message.trim() });
@@ -11,4 +11,4 @@ function getEnhancedError(message: string, error: Error) {
   return enhancedError;
 }
 
-export default getEnhancedError;
+export default getErrorWithCustomMessage;

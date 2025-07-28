@@ -51,6 +51,10 @@ async function uploadOrReuseBuildsAndRunTests({
         android: binariesInfo.android?.hash,
         ios: binariesInfo.ios?.hash,
       },
+      binaryFileNames: {
+        android: binariesInfo.android?.fileName,
+        ios: binariesInfo.ios?.fileName,
+      },
       buildRunConfig: getBuildRunConfig({
         commandParams,
         binaryS3Keys: {
