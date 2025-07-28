@@ -11,4 +11,4 @@ export const DEFAULT_DEVICES = [
   } as const,
 ];
 
-export const TOKEN_PLACEHOLDER = 'SHERLO_TOKEN';
+export const TOKEN_PLACEHOLDER = 'PROJECT_TOKEN';

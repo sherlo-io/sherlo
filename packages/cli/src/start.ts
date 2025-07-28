@@ -59,7 +59,11 @@ async function start() {
     } as const;
 
     const setReportingContext = (command: string, options: Record<string, unknown>) => {
-      reporting.setContext('commandContext', { command, options });
+      const optionsWithHiddenToken = options[TOKEN_OPTION]
+        ? { ...options, [TOKEN_OPTION]: '[hidden]' }
+        : options;
+
+      reporting.setContext('Command', { command, commandOptions: optionsWithHiddenToken });
     };
 
     program
@@ -156,8 +160,8 @@ async function start() {
 
     await reporting.flush();
   } catch (error) {
-    if (error.unexpectedError) {
-      reporting.captureException(error.unexpectedError);
+    if (!error.skipReporting) {
+      reporting.captureException(error);
     }
 
     await reporting.flush().finally(() => {

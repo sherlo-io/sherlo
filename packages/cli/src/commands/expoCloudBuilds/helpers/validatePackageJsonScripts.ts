@@ -7,7 +7,7 @@ import {
   PROFILE_OPTION,
   PROJECT_ROOT_OPTION,
 } from '../../../constants';
-import { getEnhancedError, throwError } from '../../../helpers';
+import { getErrorWithCustomMessage, throwError } from '../../../helpers';
 import { CommandParams } from '../../../types';
 import { THIS_COMMAND } from '../constants';
 
@@ -55,7 +55,7 @@ function getPackageJson(projectRoot: string) {
   } catch (error) {
     throwError({
       type: 'unexpected',
-      error: getEnhancedError(`Invalid ${packageJsonPath}`, error),
+      error: getErrorWithCustomMessage(error, `Invalid ${packageJsonPath}`),
     });
   }
 

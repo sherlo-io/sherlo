@@ -10,7 +10,7 @@ async function trackProgress({
   token,
 }: {
   event: string;
-  params: Record<string, any>;
+  params?: Record<string, any>;
   sessionId: string | null;
   hasStarted?: boolean;
   hasFinished?: boolean;
@@ -21,7 +21,7 @@ async function trackProgress({
   return sdkClient({ authToken: apiToken })
     .trackCliInit({
       event,
-      stringifiedParams: JSON.stringify(params),
+      stringifiedParams: JSON.stringify(params ?? {}),
       hasStarted,
       hasFinished,
       sessionId,

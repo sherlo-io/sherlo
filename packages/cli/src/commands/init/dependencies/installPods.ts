@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import ora from 'ora';
 import { getCwd, runShellCommand, throwError } from '../../../helpers';
+import { FULL_INIT_COMMAND } from '../constants';
 import { trackProgress } from '../helpers';
 import { EVENT, IOS_DIR } from './constants';
 
@@ -32,7 +33,11 @@ async function installPods(sessionId: string): Promise<void> {
         'Failed to install Pods automatically\n' +
         '\n' +
         chalk.reset('Please install them manually:\n') +
-        chalk.cyan('  ' + command),
+        chalk.cyan(`  ${command}\n`) +
+        '\n' +
+        chalk.reset('Then re-run:\n') +
+        chalk.cyan(`  ${FULL_INIT_COMMAND}\n`),
+      errorToReport: error,
     });
   }
 
