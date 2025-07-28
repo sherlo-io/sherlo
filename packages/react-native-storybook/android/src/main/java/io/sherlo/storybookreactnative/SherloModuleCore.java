@@ -24,8 +24,6 @@ import org.json.JSONObject;
 public class SherloModuleCore {
     private static final String TAG = "SherloModule:Core";
 
-    private final ReactApplicationContext reactContext;
-
     // Mode constants
     public static final String MODE_DEFAULT = "default";
     public static final String MODE_STORYBOOK = "storybook";
@@ -38,6 +36,7 @@ public class SherloModuleCore {
 
     // Helper instances
     private FileSystemHelper fileSystemHelper = null;
+    private RestartHelper restartHelper = null;
 
     /**
      * Initializes the module with the React context and sets up all required helpers.
@@ -46,15 +45,12 @@ public class SherloModuleCore {
      * @param reactContext The React application context
      */
     public SherloModuleCore(ReactApplicationContext reactContext, Activity activity) {
-        this.reactContext = reactContext;
-        
         this.fileSystemHelper = new FileSystemHelper(reactContext);
+        this.restartHelper = new RestartHelper(reactContext);
 
         this.config = ConfigHelper.loadConfig(this.fileSystemHelper);
 
-        // Check for persisted mode in SharedPreferences first
-        Intent intent = activity.getIntent();
-        String persistedMode = intent.getStringExtra("persisted_mode");
+        String persistedMode = restartHelper.getPersistedMode();
         if (persistedMode != null) {
             // We have a valid persisted mode that hasn't expired, use it
             this.currentMode = persistedMode;
@@ -115,21 +111,21 @@ public class SherloModuleCore {
      */
     public void toggleStorybook() {
         String newMode = currentMode.equals(MODE_STORYBOOK) ? MODE_DEFAULT : MODE_STORYBOOK;
-        RestartHelper.restart(reactContext, newMode);
+        restartHelper.restart(newMode);
     }
 
     /**
      * Switches to Storybook mode and restarts the React context.
      */
     public void openStorybook() {
-        RestartHelper.restart(reactContext, MODE_STORYBOOK);
+        restartHelper.restart(MODE_STORYBOOK);
     }
 
     /**
      * Switches to default mode and restarts the React context.
      */
     public void closeStorybook() {
-        RestartHelper.restart(reactContext, MODE_DEFAULT);
+        restartHelper.restart(MODE_DEFAULT);
     }
 
     /**
