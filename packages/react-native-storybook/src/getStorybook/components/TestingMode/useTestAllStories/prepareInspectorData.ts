@@ -16,7 +16,7 @@ export function prepareInspectorData(
 
   const inspectorDataCopy = JSON.parse(JSON.stringify(inspectorData)) as InspectorData;
 
-  let hasRemoteMedia = false;
+  let hasAtLeastOneRemoteMedia = false;
   let rootStoryNode: InspectorDataNode | null = null;
 
   function enhanceNode(node: InspectorDataNode): void {
@@ -28,7 +28,7 @@ export function prepareInspectorData(
     const metadataEntry = fabricMetadata.viewProps[node.id];
 
     if (metadataEntry) {
-      const { className, source, ...properties } = metadataEntry;
+      const { className, hasRemoteMedia, ...properties } = metadataEntry;
 
       // className coming from native side can be obfuscated so if we have
       // access to the name from fiber we will use that instead
@@ -36,11 +36,8 @@ export function prepareInspectorData(
         node.className = className;
       }
 
-      const remoteSources = source?.filter(
-        (s: any) => s.uri.startsWith('http') && !s.uri.includes('://192.168.')
-      );
-      if (remoteSources.length > 0) {
-        hasRemoteMedia = true;
+      if (hasRemoteMedia) {
+        hasAtLeastOneRemoteMedia = true;
       }
 
       node.properties = properties;
@@ -68,5 +65,5 @@ export function prepareInspectorData(
     }
   }
 
-  return { inspectorData: inspectorDataCopy, hasRemoteMedia };
+  return { inspectorData: inspectorDataCopy, hasRemoteMedia: hasAtLeastOneRemoteMedia };
 }

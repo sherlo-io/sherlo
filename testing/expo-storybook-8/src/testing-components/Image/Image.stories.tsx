@@ -14,8 +14,7 @@ export default {
   decorators: [StoryDecorator({ placement: 'center' })],
 } as Meta<typeof Image>;
 
-// 1. HTTP(S) URL
-export const Url = {
+export const RNUrl = {
   args: {
     source: {
       uri: 'https://picsum.photos/id/237/200/300',
@@ -24,16 +23,14 @@ export const Url = {
   },
 };
 
-// 2. Static require (bundled asset)
-export const Static = {
+export const RNStatic = {
   args: {
     source: require('./static_example.jpg'),
     style: { width: 200, height: 300 },
   },
 };
 
-// 3. Resolved static asset
-export const Resolved = {
+export const RNResolved = {
   args: {
     source: {
       uri: Image.resolveAssetSource(require('./static_example.jpg')).uri,
@@ -42,7 +39,7 @@ export const Resolved = {
   },
 };
 
-export const Tamagui = {
+export const TamaguiUrl = {
   render: () => {
     const config = createTamagui(defaultConfig);
     return (
@@ -59,7 +56,7 @@ export const Tamagui = {
   },
 };
 
-export const Expo = {
+export const ExpoUrl = {
   render: () => {
     return (
       <ExpoImage
@@ -70,7 +67,7 @@ export const Expo = {
   },
 };
 
-export const Fast = {
+export const FastUrl = {
   render: () => {
     return (
       <FastImage
@@ -82,7 +79,7 @@ export const Fast = {
   },
 };
 
-export const Turbo = {
+export const TurboUrl = {
   render: () => (
     <TurboImage
       source={{ uri: 'https://picsum.photos/id/237/200/300' }}

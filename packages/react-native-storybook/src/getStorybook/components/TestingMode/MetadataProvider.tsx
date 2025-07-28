@@ -18,16 +18,16 @@ export interface MetadataProviderRef {
   collectMetadata: () => Metadata;
 }
 
+// TODO: we need to verify all of these component names
 const REMOTE_IMAGE_COMPONENTS = new Set([
-  'RCTImageView',
-  'ReactImageView',
-  'FFFastImageView',
-  'FastImageView',
-  'ExpoImageView',
-  'EXImageView',
-  'RNSVGImage',
-  'RNSVGSvgView',
-  'SvgView',
+  'ReactImageView', // RN iOS
+  'RCTImageView', // RN Android
+  'FFFastImageView', // FastImage iOS
+  'FastImageView', // FastImage Android
+  'SDAnimatedImageView', // ExpoImage iOS
+  'ExpoImageView', // ExpoImage Android
+  'TurboImageView', // TurboImage iOS
+  'TurboImageView', // TurboImage Android
 ]);
 
 function isRemoteImageSource(source: any): boolean {
