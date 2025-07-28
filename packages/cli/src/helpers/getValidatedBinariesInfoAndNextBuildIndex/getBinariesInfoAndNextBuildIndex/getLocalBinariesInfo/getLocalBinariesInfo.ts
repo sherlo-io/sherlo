@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { EXPO_UPDATE_COMMAND, PLATFORMS, PLATFORM_LABEL } from '../../../../constants';
-import { getEnhancedError } from '../../../../helpers';
+import { getErrorWithCustomMessage } from '../../../../helpers';
 import { Command } from '../../../../types';
 import { validatePlatformPaths } from '../../../shared';
 import throwError from '../../../throwError';
@@ -146,9 +146,9 @@ async function getLocalBinaryInfoForPlatform({
     } catch (error) {
       throwError({
         type: 'unexpected',
-        error: getEnhancedError(
-          `Invalid ${SHERLO_JSON_PATH} in ${PLATFORM_LABEL[platform]} build`,
-          error
+        error: getErrorWithCustomMessage(
+          error,
+          `Invalid ${SHERLO_JSON_PATH} in ${PLATFORM_LABEL[platform]} build`
         ),
       });
     }

@@ -13,7 +13,6 @@ const reporting = {
     Sentry.init({
       dsn: dsn[ENV],
       environment: ENV,
-      enabled: ENV !== 'test',
     }),
   setContext: Sentry.setContext,
   captureException: (error: Error & { location?: string; stdout?: string; stderr?: string }) => {

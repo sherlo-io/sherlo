@@ -5,7 +5,7 @@ import {
   SHERLO_TEMP_DATA_FILENAME,
   SHERLO_TEMP_DIRECTORY,
 } from '../../../constants';
-import { getEnhancedError, logWarning, throwError } from '../../../helpers';
+import { getErrorWithCustomMessage, logWarning, throwError } from '../../../helpers';
 
 function getSherloTempData(): { buildIndex: number; token: string } | undefined {
   const SHERLO_TEMP_FILE_PATH = [SHERLO_TEMP_DIRECTORY, SHERLO_TEMP_DATA_FILENAME].join('/');
@@ -33,7 +33,7 @@ function getSherloTempData(): { buildIndex: number; token: string } | undefined 
   } catch (error) {
     throwError({
       type: 'unexpected',
-      error: getEnhancedError(`Invalid ${SHERLO_TEMP_FILE_PATH}`, error),
+      error: getErrorWithCustomMessage(error, `Invalid ${SHERLO_TEMP_FILE_PATH}`),
     });
   }
 

@@ -12,19 +12,27 @@ import {
   REACT_NATIVE_PACKAGE_NAME,
   STORYBOOK_REACT_NATIVE_PACKAGE_NAME,
 } from '../../constants';
+import { reporting } from '../../helpers';
 import { Command } from '../../types';
 import { PackageRequirement } from './types';
 import validatePackageRequirement from './validatePackageRequirement';
 
 function validatePackages(command: Command) {
-  validateCoreRequirements();
+  const corePackageVersions = validateCoreRequirements();
 
-  validateCommandRequirements(command);
+  const commandPackageVersions = validateCommandRequirements(command);
+
+  reporting.setContext('Required Packages', { ...corePackageVersions, ...commandPackageVersions });
 }
 
 export default validatePackages;
 
 /* ========================================================================== */
+
+type PackageVersion = {
+  packageName: string;
+  version: string;
+};
 
 const CORE_REQUIREMENTS: PackageRequirement[] = [
   { packageName: REACT_NATIVE_PACKAGE_NAME, minVersion: MIN_REACT_NATIVE_VERSION },
@@ -33,10 +41,6 @@ const CORE_REQUIREMENTS: PackageRequirement[] = [
     minVersion: MIN_STORYBOOK_REACT_NATIVE_VERSION,
   },
 ];
-
-function validateCoreRequirements() {
-  CORE_REQUIREMENTS.forEach((requirement) => validatePackageRequirement(requirement));
-}
 
 const COMMAND_REQUIREMENTS: Record<Command, PackageRequirement[] | null> = {
   [LOCAL_BUILDS_COMMAND]: null,
@@ -49,10 +53,22 @@ const COMMAND_REQUIREMENTS: Record<Command, PackageRequirement[] | null> = {
   [INIT_COMMAND]: null,
 };
 
-function validateCommandRequirements(command: Command) {
+function validateCoreRequirements(): PackageVersion[] {
+  const packageVersions = CORE_REQUIREMENTS.map((requirement) =>
+    validatePackageRequirement(requirement)
+  );
+
+  return packageVersions;
+}
+
+function validateCommandRequirements(command: Command): PackageVersion[] {
   const commandRequirements = COMMAND_REQUIREMENTS[command];
 
   if (commandRequirements) {
-    commandRequirements.forEach((requirement) => validatePackageRequirement(requirement, command));
+    return commandRequirements.map((requirement) =>
+      validatePackageRequirement(requirement, command)
+    );
   }
+
+  return [];
 }
