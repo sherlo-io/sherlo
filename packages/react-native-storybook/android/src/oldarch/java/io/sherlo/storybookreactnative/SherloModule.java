@@ -125,11 +125,13 @@ public class SherloModule extends ReactContextBaseJavaModule {
      * @param intervalMs The interval between each screenshot in milliseconds
      * @param timeoutMs The overall timeout in milliseconds
      * @param saveScreenshots Whether to save screenshots to the file system
+     * @param threshold Matching threshold (0.0 to 1.0); smaller values are more sensitive
+     * @param includeAA If false, ignore anti-aliased pixels when counting differences
      * @param promise Promise to resolve with true if UI becomes stable, false if timeout occurs
      */
     @ReactMethod
-    public void stabilize(int requiredMatches, int minScreenshotsCount, int intervalMs, int timeoutMs, boolean saveScreenshots, Promise promise) {
+    public void stabilize(int requiredMatches, int minScreenshotsCount, int intervalMs, int timeoutMs, boolean saveScreenshots, double threshold, boolean includeAA, Promise promise) {
         Activity activity = getCurrentActivity();
-        moduleCore.stabilize(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs, saveScreenshots, promise);
+        moduleCore.stabilize(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs, saveScreenshots, threshold, includeAA, promise);
     }
 }

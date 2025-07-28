@@ -81,6 +81,8 @@
  * @param intervalMs Interval between checks in milliseconds
  * @param timeoutMs Maximum time to wait in milliseconds
  * @param saveScreenshots Whether to save screenshots to filesystem during tests
+ * @param threshold Matching threshold (0.0 to 1.0); smaller values are more sensitive
+ * @param includeAA If false, ignore anti-aliased pixels when counting differences
  * @param resolve Promise resolver
  * @param reject Promise rejecter
  */
@@ -89,6 +91,8 @@
         intervalMs:(double)intervalMs
         timeoutMs:(double)timeoutMs
         saveScreenshots:(BOOL)saveScreenshots
+        threshold:(double)threshold
+        includeAA:(BOOL)includeAA
         resolve:(RCTPromiseResolveBlock)resolve
         reject:(RCTPromiseRejectBlock)reject;
 

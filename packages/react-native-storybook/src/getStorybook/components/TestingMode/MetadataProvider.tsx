@@ -7,8 +7,8 @@ export interface Metadata {
     [nativeTag: number]: {
       className?: string;
       style?: any;
-      source?: any;
       testID?: string;
+      hasRemoteMedia?: boolean;
     };
   };
   texts: string[];
@@ -29,6 +29,25 @@ const REMOTE_IMAGE_COMPONENTS = new Set([
   'RNSVGSvgView',
   'SvgView',
 ]);
+
+function isRemoteImageSource(source: any): boolean {
+  if (!source) return false;
+
+  if (typeof source === 'string') {
+    return /^https?:\/\//.test(source);
+  }
+
+  if (typeof source === 'object') {
+    if (Array.isArray(source)) {
+      return source.some(isRemoteImageSource);
+    }
+    if (typeof source.uri === 'string' && /^https?:\/\//.test(source.uri)) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 function isRemoteImageComponent(fiber: any): boolean {
   const { type, pendingProps, memoizedProps } = fiber;
@@ -80,7 +99,7 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
               style: pendingProps.style,
               testID: pendingProps.testID,
               className: type || undefined,
-              source: pendingProps.source,
+              hasRemoteMedia: isRemoteImageComponent(currentFiber),
             };
           }
 

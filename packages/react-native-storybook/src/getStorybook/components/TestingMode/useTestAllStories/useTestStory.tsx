@@ -57,7 +57,9 @@ function useTestStory({
           config.stabilization.minScreenshotsCount,
           config.stabilization.intervalMs,
           config.stabilization.timeoutMs,
-          !!config.stabilization.saveScreenshots
+          !!config.stabilization.saveScreenshots,
+          config.stabilization.threshold,
+          config.stabilization.includeAA
         ).catch((error) => {
           RunnerBridge.log('error checking if stable', { error: error.message });
           throw error;

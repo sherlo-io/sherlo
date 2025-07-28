@@ -1,5 +1,5 @@
 const path = require('path');
-const { getDefaultConfig } = require('expo/metro-config');
+const { getDefaultConfig } = require('@expo/metro-config');
 const withStorybook = require('@storybook/react-native/metro/withStorybook');
 
 const resolvePath = (relativePath) => path.resolve(__dirname, relativePath);
@@ -20,12 +20,21 @@ const extraNodeModules = new Proxy(
   }
 );
 
-const config = getDefaultConfig(__dirname);
+// Get the default Expo metro config
+const defaultConfig = getDefaultConfig(__dirname);
 
-config.resolver.extraNodeModules = extraNodeModules;
-config.watchFolders = [...(config.watchFolders || []), ...Object.values(linkedModules)];
+// Create our custom config that extends the default
+const customConfig = {
+  ...defaultConfig,
+  resolver: {
+    ...defaultConfig.resolver,
+    extraNodeModules,
+  },
+  watchFolders: [...(defaultConfig.watchFolders || []), ...Object.values(linkedModules)],
+};
 
-module.exports = withStorybook(config, {
+// Apply Storybook wrapper to the extended config
+module.exports = withStorybook(customConfig, {
   enabled: true,
   configPath: path.resolve(__dirname, './.storybook'),
 });

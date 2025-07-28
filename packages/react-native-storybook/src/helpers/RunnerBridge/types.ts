@@ -13,6 +13,8 @@ export type Config = {
     minScreenshotsCount: number;
     intervalMs: number;
     timeoutMs: number;
+    threshold: number;
+    includeAA: boolean;
     saveScreenshots?: boolean;
   };
   overrideMode?: 'default' | 'storybook' | 'testing';

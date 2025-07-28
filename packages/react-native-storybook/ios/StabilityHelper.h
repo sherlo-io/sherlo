@@ -16,6 +16,8 @@ NS_ASSUME_NONNULL_BEGIN
  * @param intervalMs Time interval between screenshots in milliseconds
  * @param timeoutMs Maximum time to wait for stability in milliseconds
  * @param saveScreenshots Whether to save screenshots to filesystem during tests
+ * @param threshold Matching threshold (0.0 to 1.0); smaller values are more sensitive
+ * @param includeAA If false, ignore anti-aliased pixels when counting differences
  * @param resolve Promise resolver to call with true if UI becomes stable, false if timeout occurs
  * @param reject Promise rejecter to call if an error occurs
  */
@@ -24,6 +26,8 @@ NS_ASSUME_NONNULL_BEGIN
         intervalMs:(double)intervalMs
          timeoutMs:(double)timeoutMs
         saveScreenshots:(BOOL)saveScreenshots
+        threshold:(double)threshold
+        includeAA:(BOOL)includeAA
           resolve:(RCTPromiseResolveBlock)resolve
           reject:(RCTPromiseRejectBlock)reject;
 
