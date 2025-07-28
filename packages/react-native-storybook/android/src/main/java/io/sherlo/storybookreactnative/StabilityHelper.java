@@ -112,8 +112,8 @@ public class StabilityHelper {
             }
             
             // Create file with timestamp
-            String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
-            File imageFile = new File(storageDir, "screenshot_" + screenshotNumber + "_" + timestamp + ".png");
+            String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(new Date());
+            File imageFile = new File(storageDir, timestamp + "_screenshot_" + screenshotNumber + ".png");
             
             // Save bitmap to file
             FileOutputStream fos = new FileOutputStream(imageFile);

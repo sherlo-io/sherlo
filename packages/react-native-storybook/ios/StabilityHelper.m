@@ -113,10 +113,10 @@ static NSString *const LOG_TAG = @"SherloModule:StabilityHelper";
     }
     
     NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-    [formatter setDateFormat:@"yyyyMMdd_HHmmss"];
+    [formatter setDateFormat:@"yyyyMMdd_HHmmss_SSS"];
     NSString *timestamp = [formatter stringFromDate:[NSDate date]];
     
-    NSString *filename = [NSString stringWithFormat:@"screenshot_%ld_%@.png", (long)index, timestamp];
+    NSString *filename = [NSString stringWithFormat:@"%@_screenshot_%ld.png", timestamp, (long)index];
     NSString *filePath = [directoryPath stringByAppendingPathComponent:filename];
     
     NSData *imageData = UIImagePNGRepresentation(screenshot);
