@@ -1,5 +1,5 @@
 import { BuildRun, Device, Platform } from '@sherlo/api-types';
-import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER, DEVICES } from '@sherlo/shared';
+import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER, getPlatformFromDeviceId } from '@sherlo/shared';
 import { CommandParams, Config, ExpoUpdateData } from '../types';
 
 function getBuildRunConfig({
@@ -44,12 +44,5 @@ export default getBuildRunConfig;
 /* ========================================================================== */
 
 function getPlatformDevices(configDevices: Config['devices'], platform: Platform): Device[] {
-  return configDevices
-    .filter(({ id }) => DEVICES[id]?.os === platform)
-    .map((device) => ({
-      id: device.id,
-      osVersion: device.osVersion,
-      locale: device.osLocale,
-      theme: device.osTheme,
-    }));
+  return configDevices.filter(({ id }) => getPlatformFromDeviceId(id) === platform);
 }

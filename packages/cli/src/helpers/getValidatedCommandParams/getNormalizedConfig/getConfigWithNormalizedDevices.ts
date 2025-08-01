@@ -1,4 +1,8 @@
-import { DEFAULT_DEVICE_OS_LOCALE, DEFAULT_DEVICE_OS_THEME } from '@sherlo/shared';
+import {
+  DEFAULT_DEVICE_OS_FONT_SCALE,
+  DEFAULT_DEVICE_OS_LOCALE,
+  DEFAULT_DEVICE_OS_THEME,
+} from '@sherlo/shared';
 import { Config, InvalidatedConfig } from '../../../types';
 import logWarning from '../../logWarning';
 
@@ -50,13 +54,14 @@ function removeDuplicatedDevices(
 }
 
 function getDeviceKey(device: Partial<Config['devices'][number]>) {
-  const { id, osVersion, osTheme, osLocale } = device;
+  const { id, osVersion, osTheme, osLocale, osFontScale } = device;
 
   const parts = [
     id && `id: ${id}`,
     osVersion && `osVersion: ${osVersion}`,
     osTheme && `osTheme: ${osTheme}`,
     osLocale && `osLocale: ${osLocale}`,
+    osFontScale && `osFontScale: ${osFontScale}`,
   ].filter(Boolean);
 
   return parts.join(', ');
@@ -71,7 +76,10 @@ function getDevicesWithDefaults(
 
   return devices?.map((device) => ({
     ...device,
+    // Allow osVersion as string or number but must convert to string
+    osVersion: device?.osVersion ? String(device.osVersion) : device?.osVersion,
     osLocale: device?.osLocale ?? DEFAULT_DEVICE_OS_LOCALE,
     osTheme: device?.osTheme ?? DEFAULT_DEVICE_OS_THEME,
+    osFontScale: device?.osFontScale ?? DEFAULT_DEVICE_OS_FONT_SCALE,
   }));
 }
