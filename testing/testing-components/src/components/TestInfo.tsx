@@ -20,10 +20,12 @@ const TestScreen = ({
   backgroundColor,
   colorName,
   locale,
+  fontScale,
 }: {
   backgroundColor?: string;
   colorName?: string;
   locale?: string;
+  fontScale?: number;
 }) => {
   const theme = useColorScheme();
   const [language, country] = locale?.split('-') ?? [];
@@ -33,6 +35,7 @@ const TestScreen = ({
     <View style={[styles.container, { backgroundColor }]}>
       <InfoItem iconName="voice" text={`Language: ${language}`} textColor={textColor} />
       <InfoItem iconName="location" text={`Country: ${country}`} textColor={textColor} />
+      <InfoItem iconName="font" text={`Font Scale: ${fontScale}`} textColor={textColor} />
       <InfoItem iconName="theme" text={`Theme: ${theme}`} textColor={textColor} />
       {colorName && (
         <InfoItem iconName="palette" text={`Color: ${colorName}`} textColor={textColor} />
