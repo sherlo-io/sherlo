@@ -5,32 +5,37 @@
       "id": "pixel.7.pro",
       "osVersion": "13",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "light",
+      "osFontScale": "minus1"
     },
     {
       "id": "pixel.7",
       "osVersion": "13",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "dark",
+      "osFontScale": "0"
     },
     {
       "id": "pixel.6a",
       "osVersion": "13",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "light",
+      "osFontScale": "plus1"
     },
     {
       "id": "pixel.6.pro",
       "osVersion": "13",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "dark",
+      "osFontScale": "plus2"
     },
     {
       "id": "pixel.6",
       "osVersion": "13",
       "osLocale": "en_US",
-      "osTheme": "dark"
-    },
+      "osTheme": "light",
+      "osFontScale": "plus3"
+    },  
     {
       "id": "pixel.5",
       "osVersion": "13",
@@ -41,7 +46,7 @@
       "id": "pixel.4a",
       "osVersion": "13",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "light"
     },
     {
       "id": "pixel.4.xl",
@@ -53,49 +58,56 @@
       "id": "pixel.4",
       "osVersion": "13",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "light"
     },
     {
       "id": "pixel.tablet",
       "osVersion": "13",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "light",
+      "osFontScale": "plus4"
     },
     {
       "id": "pixel.tablet",
       "osVersion": "13",
       "osLocale": "de_DE",
-      "osTheme": "dark"
+      "osTheme": "dark",
+      "osFontScale": "plus5"
     },
     {
       "id": "iphone.15.pro.max",
       "osVersion": "17",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "light",
+      "osFontScale": "minus3"
     },
     {
       "id": "iphone.15.pro",
       "osVersion": "17",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "dark",
+      "osFontScale": "minus2"
     },
     {
       "id": "iphone.15.plus",
       "osVersion": "17",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "light",
+      "osFontScale": "minus1"
     },
     {
       "id": "iphone.15",
       "osVersion": "17",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "dark",
+      "osFontScale": "0"
     },
     {
       "id": "iphone.se.3.gen",
       "osVersion": "17",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "light",
+      "osFontScale": "plus1"
     },
     {
       "id": "iphone.14.pro.max",
@@ -107,7 +119,7 @@
       "id": "iphone.14.pro",
       "osVersion": "17",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "light"
     },
     {
       "id": "iphone.14.plus",
@@ -119,49 +131,56 @@
       "id": "iphone.14",
       "osVersion": "17",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "light"
     },
     {
       "id": "ipad.pro.13.m4",
       "osVersion": "17",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "dark",
+      "osFontScale": "plus2"
     },
     {
       "id": "ipad.pro.11.m4",
       "osVersion": "17",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "light",
+      "osFontScale": "plus3"
     },
     {
       "id": "ipad.air.13.m2",
       "osVersion": "17",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "dark",
+      "osFontScale": "plus4"
     },
     {
       "id": "ipad.air.11.m2",
       "osVersion": "17",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "dark",
+      "osFontScale": "plus5"
     },
     {
       "id": "ipad.pro.12.9.6.gen",
       "osVersion": "17",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "light",
+      "osFontScale": "plus6"
     },
     {
       "id": "ipad.pro.11.4.gen",
       "osVersion": "17",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "dark",
+      "osFontScale": "plus7"
     },
     {
       "id": "ipad.air.5.gen",
       "osVersion": "17",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "light",
+      "osFontScale": "plus8"
     },
     {
       "id": "ipad.10.gen",
@@ -173,7 +192,7 @@
       "id": "ipad.mini.6.gen",
       "osVersion": "17",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "light"
     },
     {
       "id": "ipad.9.gen",

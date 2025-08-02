@@ -25,6 +25,11 @@ const IconComponents: Record<string, React.FC<{ color: string }>> = {
       />
     </Svg>
   ),
+  font: ({ color }) => (
+    <Svg width="24" height="24" viewBox="0 0 16 16" fill="none">
+      <Path d="M0 0h16v4h-2V2H9v12h3v2H4v-2h3V2H2v2H0V2z" fill={color} fillRule="evenodd" />
+    </Svg>
+  ),
   voice: ({ color }) => (
     <Svg width="24" height="24" viewBox="0 0 24 24" fill="none">
       <Path
@@ -74,7 +79,7 @@ const IconComponents: Record<string, React.FC<{ color: string }>> = {
 };
 
 export const InfoItem: React.FC<{
-  iconName?: 'mobile' | 'update' | 'voice' | 'location' | 'theme' | 'palette';
+  iconName?: 'mobile' | 'update' | 'voice' | 'location' | 'theme' | 'palette' | 'font';
   text?: string;
   textColor?: string;
 }> = ({ iconName, text, textColor }) => {

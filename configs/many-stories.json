@@ -5,7 +5,8 @@
       "id": "pixel.7.pro",
       "osVersion": "13",
       "osLocale": "en_US",
-      "osTheme": "light"
+      "osTheme": "light",
+      "osFontScale": "minus1"
     },
     {
       "id": "pixel.tablet",
@@ -22,8 +23,9 @@
     {
       "id": "ipad.pro.13.m4",
       "osVersion": "17",
-      "osLocale": "de_DE",
-      "osTheme": "light"
+      "osLocale": "en_US",
+      "osTheme": "light",
+      "osFontScale": "plus3"
     }
   ]
 }

@@ -1,6 +1,7 @@
 import type { Meta } from '@storybook/react';
 import { StoryDecorator, TestInfo } from '@sherlo/testing-components';
 import * as Localization from 'expo-localization';
+import { PixelRatio } from 'react-native';
 
 /**
  * This is a test screen that we add to our tests
@@ -14,5 +15,6 @@ export default {
 export const Basic = {
   args: {
     locale: Localization.locale,
+    fontScale: PixelRatio.getFontScale(),
   },
 };

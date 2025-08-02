@@ -39,6 +39,7 @@ export type Config = {
     osVersion: string;
     osTheme: DeviceTheme;
     osLocale: string;
+    osFontScale: string;
   }[];
   token?: string;
   android?: string;
