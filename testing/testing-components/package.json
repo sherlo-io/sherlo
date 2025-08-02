@@ -1,7 +1,7 @@
 {
   "name": "@sherlo/testing-components",
   "private": true,
-  "version": "1.3.7-alpha.1",
+  "version": "1.3.6",
   "description": "Shared components for the monorepo",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
