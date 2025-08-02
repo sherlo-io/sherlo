@@ -1,5 +1,6 @@
 import type {Meta} from '@storybook/react';
 import {StoryDecorator, TestInfo} from '@sherlo/testing-components';
+import {PixelRatio} from 'react-native';
 import {getLocales} from 'react-native-localize';
 
 /**
@@ -16,5 +17,6 @@ export const Basic = {
     locale: `${getLocales()?.[0]?.countryCode}-${
       getLocales()?.[0]?.languageCode
     }`,
+    fontScale: PixelRatio.getFontScale(),
   },
 };

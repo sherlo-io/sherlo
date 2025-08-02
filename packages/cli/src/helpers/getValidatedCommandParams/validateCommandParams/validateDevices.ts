@@ -1,6 +1,6 @@
-import { DeviceTheme } from '@sherlo/api-types';
-import { DEVICES } from '@sherlo/shared';
-import { DOCS_LINK } from '../../../constants';
+import { DeviceTheme, Platform } from '@sherlo/api-types';
+import { DEVICE_OS_FONT_SCALE, DEVICES, getPlatformFromDeviceId } from '@sherlo/shared';
+import { DOCS_LINK, PLATFORM_LABEL } from '../../../constants';
 import { InvalidatedConfig } from '../../../types';
 import logWarning from '../../logWarning';
 import throwError from '../../throwError';
@@ -17,7 +17,8 @@ function validateDevices(config: InvalidatedConfig): void {
   }
 
   for (let i = 0; i < devices.length; i++) {
-    const { id, osLocale, osVersion, osTheme, ...unsupportedProperties } = devices[i] ?? {};
+    const { id, osLocale, osVersion, osTheme, osFontScale, ...unsupportedProperties } =
+      devices[i] ?? {};
 
     if (!id || typeof id !== 'string' || !osVersion || typeof osVersion !== 'string') {
       throwError(getError({ type: 'requiredDeviceProps' }));
@@ -36,7 +37,7 @@ function validateDevices(config: InvalidatedConfig): void {
     if (!osLocale) {
       throwError({
         type: 'unexpected',
-        error: new Error('osLocale is undefined'),
+        error: new Error('osLocale is undefined after normalization'),
       });
     }
 
@@ -54,7 +55,7 @@ function validateDevices(config: InvalidatedConfig): void {
     if (!osTheme) {
       throwError({
         type: 'unexpected',
-        error: new Error('osTheme is undefined'),
+        error: new Error('osTheme is undefined after normalization'),
       });
     }
 
@@ -63,9 +64,37 @@ function validateDevices(config: InvalidatedConfig): void {
       throwError(getError({ type: 'invalidOsTheme', osTheme }));
     }
 
+    if (!osFontScale) {
+      throwError({
+        type: 'unexpected',
+        error: new Error('osFontScale is undefined after normalization'),
+      });
+    }
+
+    const platform = getPlatformFromDeviceId(id);
+    const deviceFontScaleLevels = DEVICE_OS_FONT_SCALE[platform]
+      ? Object.keys(DEVICE_OS_FONT_SCALE[platform]).sort((a, b) => {
+          // Convert to numbers for proper ordering
+          const numA = parseInt(a.replace('+', ''));
+          const numB = parseInt(b.replace('+', ''));
+          return numA - numB;
+        })
+      : [];
+
+    if (!deviceFontScaleLevels.includes(osFontScale)) {
+      throwError(
+        getError({
+          type: 'invalidOsFontScale',
+          osFontScale,
+          platform,
+          deviceFontScaleLevels,
+        })
+      );
+    }
+
     Object.keys(unsupportedProperties).forEach((property) => {
       logWarning({
-        message: `Unsupported device property \`${property}\` in config (supported: \`id\`, \`osVersion\`, \`osLocale\`, \`osTheme\`)`,
+        message: `Unsupported device property \`${property}\` in config (supported: \`id\`, \`osVersion\`, \`osLocale\`, \`osTheme\`, \`osFontScale\`)`,
         learnMoreLink: DOCS_LINK.configDevices,
       });
 
@@ -85,7 +114,13 @@ type DeviceError =
   | { type: 'unknownDeviceId'; id: string }
   | { type: 'unsupportedOsVersion'; id: string; osVersion: string }
   | { type: 'invalidOsLocale'; osLocale: string }
-  | { type: 'invalidOsTheme'; osTheme: string };
+  | { type: 'invalidOsTheme'; osTheme: string }
+  | {
+      type: 'invalidOsFontScale';
+      osFontScale: string;
+      platform: Platform;
+      deviceFontScaleLevels: string[];
+    };
 
 function getError(error: DeviceError) {
   switch (error.type) {
@@ -123,6 +158,15 @@ function getError(error: DeviceError) {
     case 'invalidOsTheme':
       return {
         message: `Invalid device theme "${error.osTheme}" in config. Expected: "light" or "dark"`,
+        learnMoreLink: DOCS_LINK.configDevices,
+      };
+    case 'invalidOsFontScale':
+      return {
+        message: `Invalid font scale level "${error.osFontScale}" for ${
+          PLATFORM_LABEL[error.platform]
+        } device in config. Available levels: ${error.deviceFontScaleLevels
+          .map((level) => `"${level}"`)
+          .join(', ')}`,
         learnMoreLink: DOCS_LINK.configDevices,
       };
   }
