@@ -2818,6 +2818,7 @@ __metadata:
     burnt: "npm:^0.13.0"
     eas-cli: "npm:16.3.2"
     expo: "npm:^53.0.20"
+    expo-av: "npm:^15.1.7"
     expo-dev-client: "npm:~5.2.4"
     expo-image: "npm:^2.4.0"
     expo-linear-gradient: "npm:~14.1.5"
@@ -2836,6 +2837,9 @@ __metadata:
     react-native-safe-area-context: "npm:5.4.0"
     react-native-svg: "npm:15.11.2"
     react-native-turbo-image: "npm:^1.22.4"
+    react-native-video: "npm:^6.16.1"
+    react-native-video-player: "npm:^0.16.3"
+    react-native-vlc-media-player: "npm:^1.0.89"
     storybook: "npm:^8.3.9"
     tamagui: "npm:^1.126.12"
     typescript: "npm:~5.8.3"
@@ -5866,6 +5870,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"cliui@npm:^7.0.2":
+  version: 7.0.4
+  resolution: "cliui@npm:7.0.4"
+  dependencies:
+    string-width: "npm:^4.2.0"
+    strip-ansi: "npm:^6.0.0"
+    wrap-ansi: "npm:^7.0.0"
+  checksum: 10/db858c49af9d59a32d603987e6fddaca2ce716cd4602ba5a2bb3a5af1351eebe82aba8dff3ef3e1b331f7fa9d40ca66e67bdf8e7c327ce0ea959747ead65c0ef
+  languageName: node
+  linkType: hard
+
 "cliui@npm:^8.0.1":
   version: 8.0.1
   resolution: "cliui@npm:8.0.1"
@@ -6871,6 +6886,21 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10/c7851f3cf69ad2d8075908f719baf3a96660f262109374a563418912b7588a126f425225bc2126eca005873aa719c4683b99a467984e244d1931e6f1ba68655a
+  languageName: node
+  linkType: hard
+
+"expo-av@npm:^15.1.7":
+  version: 15.1.7
+  resolution: "expo-av@npm:15.1.7"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+    react-native-web: "*"
+  peerDependenciesMeta:
+    react-native-web:
+      optional: true
+  checksum: 10/8f3055b68cac76b627116cf93a63bebdacb8c0d22f630f9fdae7dc74633a945d9a469421fce0f4c345c730eda0d039d78c88e59c09e2219bfde7e259d42981ba
   languageName: node
   linkType: hard
 
@@ -10255,7 +10285,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prop-types@npm:^15.5.10, prop-types@npm:^15.7.2":
+"prop-types@npm:^15.5.10, prop-types@npm:^15.5.6, prop-types@npm:^15.7.2":
   version: 15.8.1
   resolution: "prop-types@npm:15.8.1"
   dependencies:
@@ -10506,6 +10536,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-native-slider@npm:^0.11.0":
+  version: 0.11.0
+  resolution: "react-native-slider@npm:0.11.0"
+  dependencies:
+    prop-types: "npm:^15.5.6"
+  checksum: 10/f343ff18545db45e5a4a797c9f5bca29510a0869bdf1992fa1b9149128a6263fba03104cd26ab0a3a3a7a6321cd30a7ceb87fd31b53f274bc77a634e752f1f34
+  languageName: node
+  linkType: hard
+
 "react-native-svg@npm:15.11.2":
   version: 15.11.2
   resolution: "react-native-svg@npm:15.11.2"
@@ -10538,6 +10577,50 @@ __metadata:
   peerDependencies:
     react-native: "*"
   checksum: 10/6a8d605eeb1b0ee9b0f47f1866acc2edfa2131a4a8fb1ea3839ceb507e225b894ed66f49a3bd826fc964f2c8005b3678c9d3b65d07eb0a3b979be830cb618686
+  languageName: node
+  linkType: hard
+
+"react-native-vector-icons@npm:^9.2.0":
+  version: 9.2.0
+  resolution: "react-native-vector-icons@npm:9.2.0"
+  dependencies:
+    prop-types: "npm:^15.7.2"
+    yargs: "npm:^16.1.1"
+  bin:
+    fa5-upgrade: bin/fa5-upgrade.sh
+    generate-icon: bin/generate-icon.js
+  checksum: 10/126c0a0ed17a2062dc099ba5b0909e674142f7fb5dabc672794a3b077cae16499ea8565ab03f8e211db8d32b8e09992410aa837222493a82d617a1bd9bbb561d
+  languageName: node
+  linkType: hard
+
+"react-native-video-player@npm:^0.16.3":
+  version: 0.16.3
+  resolution: "react-native-video-player@npm:0.16.3"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+    react-native-video: ^6.8.0
+  checksum: 10/c469a792e2e0f92c30d89becc04e5c32a7ac7f359f9edbc2089a05b5f9e77b098530bc6ee11f2447e4e4720fc5d6f39e0996f9b1359bd9940407e48982837e27
+  languageName: node
+  linkType: hard
+
+"react-native-video@npm:^6.16.1":
+  version: 6.16.1
+  resolution: "react-native-video@npm:6.16.1"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10/cdd6441ed4641801e6bb7f1c2a4ec32001c844b57855b94d47737a13d28ac5b9106cb7b045e57083184f4b1a7dac4ac9930e1bc235f92b293204112d01322bdc
+  languageName: node
+  linkType: hard
+
+"react-native-vlc-media-player@npm:^1.0.89":
+  version: 1.0.89
+  resolution: "react-native-vlc-media-player@npm:1.0.89"
+  dependencies:
+    react-native-slider: "npm:^0.11.0"
+    react-native-vector-icons: "npm:^9.2.0"
+  checksum: 10/fc091e4710bde92b92f0072e5ce1edfe30580139cfd0ed3e57479d8107d61389a36546e7af69c3f2b73ab0c835d894625b82aac9af84a0560781852f350b9c21
   languageName: node
   linkType: hard
 
@@ -12421,10 +12504,32 @@ __metadata:
   languageName: node
   linkType: hard
 
+"yargs-parser@npm:^20.2.2":
+  version: 20.2.9
+  resolution: "yargs-parser@npm:20.2.9"
+  checksum: 10/0188f430a0f496551d09df6719a9132a3469e47fe2747208b1dd0ab2bb0c512a95d0b081628bbca5400fb20dbf2fabe63d22badb346cecadffdd948b049f3fcc
+  languageName: node
+  linkType: hard
+
 "yargs-parser@npm:^21.1.1":
   version: 21.1.1
   resolution: "yargs-parser@npm:21.1.1"
   checksum: 10/9dc2c217ea3bf8d858041252d43e074f7166b53f3d010a8c711275e09cd3d62a002969a39858b92bbda2a6a63a585c7127014534a560b9c69ed2d923d113406e
+  languageName: node
+  linkType: hard
+
+"yargs@npm:^16.1.1":
+  version: 16.2.0
+  resolution: "yargs@npm:16.2.0"
+  dependencies:
+    cliui: "npm:^7.0.2"
+    escalade: "npm:^3.1.1"
+    get-caller-file: "npm:^2.0.5"
+    require-directory: "npm:^2.1.1"
+    string-width: "npm:^4.2.0"
+    y18n: "npm:^5.0.5"
+    yargs-parser: "npm:^20.2.2"
+  checksum: 10/807fa21211d2117135d557f95fcd3c3d390530cda2eca0c840f1d95f0f40209dcfeb5ec18c785a1f3425896e623e3b2681e8bb7b6600060eda1c3f4804e7957e
   languageName: node
   linkType: hard
 

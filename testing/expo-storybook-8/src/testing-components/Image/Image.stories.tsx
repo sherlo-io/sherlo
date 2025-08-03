@@ -14,10 +14,12 @@ export default {
   decorators: [StoryDecorator({ placement: 'center' })],
 } as Meta<typeof Image>;
 
+const URL = 'https://picsum.photos/id/237/200/300';
+
 export const RNUrl = {
   args: {
     source: {
-      uri: 'https://picsum.photos/id/237/200/300',
+      uri: URL,
     },
     style: { width: 200, height: 300 },
   },
@@ -46,7 +48,7 @@ export const TamaguiUrl = {
       <TamaguiProvider config={config}>
         <TamaguiImage
           source={{
-            uri: 'https://picsum.photos/id/237/200/300',
+            uri: URL,
             width: 200,
             height: 300,
           }}
@@ -58,12 +60,7 @@ export const TamaguiUrl = {
 
 export const ExpoUrl = {
   render: () => {
-    return (
-      <ExpoImage
-        source="https://picsum.photos/id/237/200/300"
-        style={{ width: 200, height: 300 }}
-      />
-    );
+    return <ExpoImage source={URL} style={{ width: 200, height: 300 }} />;
   },
 };
 
@@ -71,7 +68,7 @@ export const FastUrl = {
   render: () => {
     return (
       <FastImage
-        source={{ uri: 'https://picsum.photos/id/237/200/300' }}
+        source={{ uri: URL }}
         style={{ width: 200, height: 300 }}
         resizeMode={FastImage.resizeMode.cover}
       />
@@ -80,10 +77,5 @@ export const FastUrl = {
 };
 
 export const TurboUrl = {
-  render: () => (
-    <TurboImage
-      source={{ uri: 'https://picsum.photos/id/237/200/300' }}
-      style={{ width: 200, height: 300 }}
-    />
-  ),
+  render: () => <TurboImage source={{ uri: URL }} style={{ width: 200, height: 300 }} />,
 };

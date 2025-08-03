@@ -9,6 +9,7 @@ export interface Metadata {
       style?: any;
       testID?: string;
       hasRemoteImage?: boolean;
+      hasRemoteVideo?: boolean;
     };
   };
   texts: string[];
@@ -23,7 +24,7 @@ const REMOTE_IMAGE_COMPONENTS = new Set([
   'RCTImageView', // RN Android
   'FFFastImageView', // FastImage iOS
   'FastImageView', // FastImage Android
-  'ViewManagerAdapter_ExpoImage', // ExpoImage iOS (on iOS ViewManagerAdapter_ExpoImage_742258688853847470)
+  'ViewManagerAdapter_ExpoImage', // ExpoImage iOS
   'ViewManagerAdapter_ExpoImage', // ExpoImage Android
   'TurboImageView', // TurboImage iOS
   'TurboImageView', // TurboImage Android
@@ -117,6 +118,7 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
               testID: pendingProps.testID,
               className: type || undefined,
               hasRemoteImage: isRemoteImageComponent(currentFiber),
+              hasRemoteVideo: false,
             };
           }
 

@@ -51,6 +51,7 @@ export type AppProtocolItem =
       isStable?: boolean;
       requestId: string;
       hasRemoteImage?: boolean;
+      hasRemoteVideo?: boolean;
       safeAreaMetadata?: {
         shouldAddSafeArea: boolean;
         insetBottom: number;
