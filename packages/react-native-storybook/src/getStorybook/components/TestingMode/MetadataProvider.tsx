@@ -64,7 +64,7 @@ function isRemoteImageComponent(fiber: any): boolean {
   const componentName = typeof type === 'string' ? type : type?.displayName || type?.name;
   if (
     !componentName ||
-    !Array.from(REMOTE_IMAGE_COMPONENTS).some((name) => name.includes(componentName))
+    !Array.from(REMOTE_IMAGE_COMPONENTS).some((name) => componentName.includes(name))
   ) {
     return false;
   }
