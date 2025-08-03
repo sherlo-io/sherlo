@@ -23,8 +23,8 @@ const REMOTE_IMAGE_COMPONENTS = new Set([
   'RCTImageView', // RN Android
   'FFFastImageView', // FastImage iOS
   'FastImageView', // FastImage Android
-  'SDAnimatedImageView', // ExpoImage iOS
-  'ExpoImageView', // ExpoImage Android
+  'ViewManagerAdapter_ExpoImage', // ExpoImage iOS (on iOS ViewManagerAdapter_ExpoImage_742258688853847470)
+  'ViewManagerAdapter_ExpoImage', // ExpoImage Android
   'TurboImageView', // TurboImage iOS
   'TurboImageView', // TurboImage Android
 ]);
@@ -62,10 +62,17 @@ function isRemoteImageSource(source: any): boolean {
 function isRemoteImageComponent(fiber: any): boolean {
   const { type, pendingProps, memoizedProps } = fiber;
   const componentName = typeof type === 'string' ? type : type?.displayName || type?.name;
-  if (!componentName || !REMOTE_IMAGE_COMPONENTS.has(componentName)) return false;
+  if (
+    !componentName ||
+    !Array.from(REMOTE_IMAGE_COMPONENTS).some((name) => name.includes(componentName))
+  ) {
+    return false;
+  }
 
   const props = pendingProps || memoizedProps;
-  if (!props) return false;
+  if (!props) {
+    return false;
+  }
 
   const source = props.source || props.src || props.srcSet || props.svgXmlData;
   return isRemoteImageSource(source);
