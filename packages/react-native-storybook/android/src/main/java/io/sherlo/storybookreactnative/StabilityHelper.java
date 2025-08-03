@@ -71,44 +71,32 @@ public class StabilityHelper {
             throw new RuntimeException("Impossible to snapshot the view: view is invalid");
         }
 
-        // Use PixelCopy by default (as recommended by research for compatibility)
-        // Only fall back to draw() if PixelCopy fails
         Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        
+
+        try {
+            Canvas canvas = new Canvas(bitmap);
+            rootView.draw(canvas);
+        } catch (Exception e) {
+            Log.e(TAG, "Error while drawing canvas", e);
+        }
+
         final CountDownLatch latch = new CountDownLatch(1);
+        
         PixelCopy.request(activity.getWindow(), bitmap, copyResult -> {
             latch.countDown();
         }, new Handler(Looper.getMainLooper()));
 
         try {
+            // Reduced timeout to 1 second
             if (!latch.await(1, TimeUnit.SECONDS)) {
-                Log.d(TAG, "PixelCopy timeout, falling back to draw()");
-                
-                // Fall back to draw() if PixelCopy fails
-                bitmap.recycle();
-                bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-                Canvas canvas = new Canvas(bitmap);
-                
-                try {
-                    rootView.draw(canvas);
-                    Log.d(TAG, "Draw() fallback succeeded");
-                } catch (IllegalArgumentException e) {
-                    if (e.getMessage() != null && e.getMessage().contains("hardware bitmaps")) {
-                        Log.d(TAG, "Hardware bitmap detected in fallback, using empty bitmap");
-                        // Return empty bitmap as last resort
-                        bitmap.recycle();
-                        bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-                    } else {
-                        throw e;
-                    }
-                }
-            } else {
-                Log.d(TAG, "PixelCopy succeeded");
+                Log.d(TAG, "Timeout occurred while waiting for PixelCopy");
             }
         } catch (InterruptedException e) {
             Log.d(TAG, "Interrupted while waiting for PixelCopy");
+        } catch (Exception e) {
+            Log.e(TAG, "Error while waiting for PixelCopy", e);
         }
-        
+            
         // Save bitmap to file if requested AND global saving is enabled
         if (saveToFile) {
             saveBitmapToFile(activity, bitmap, screenshotNumber);

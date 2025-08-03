@@ -2,6 +2,10 @@ package io.sherlo.storybookreactnative;
 
 import android.graphics.Bitmap;
 
+/**
+ * Based on https://github.com/mapbox/pixelmatch v7.1.0
+ * Created based on the ISC license. Copyright (c) 2025, Mapbox.
+ */
 public class Pixelmatch {
     /**
      * Compare two equally sized images pixel by pixel and return the number of mismatched pixels.

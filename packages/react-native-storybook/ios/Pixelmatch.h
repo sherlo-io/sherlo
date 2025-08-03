@@ -1,6 +1,11 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 
+/**
+ * Based on https://github.com/mapbox/pixelmatch v7.1.0
+ * Created based on the ISC license. Copyright (c) 2025, Mapbox.
+ */
+ 
 @interface Pixelmatch : NSObject
 
 // Compare two equally sized UIImages and count the number of pixels that differ.

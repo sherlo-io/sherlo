@@ -2,6 +2,11 @@
 #import <CoreGraphics/CoreGraphics.h>
 #import <math.h>
 
+/**
+ * Based on https://github.com/mapbox/pixelmatch v7.1.0
+ * Created based on the ISC license. Copyright (c) 2025, Mapbox.
+ */
+
 // Helper: Compute color difference between two 32-bit ARGB pixels in YIQ color space.
 static double colorDelta(uint32_t pixel1, uint32_t pixel2, BOOL yOnly, NSUInteger index1) {
     // Extract components (A, R, G, B)
