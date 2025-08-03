@@ -8,7 +8,7 @@ export interface Metadata {
       className?: string;
       style?: any;
       testID?: string;
-      hasRemoteMedia?: boolean;
+      hasRemoteImage?: boolean;
     };
   };
   texts: string[];
@@ -18,7 +18,6 @@ export interface MetadataProviderRef {
   collectMetadata: () => Metadata;
 }
 
-// TODO: we need to verify all of these component names
 const REMOTE_IMAGE_COMPONENTS = new Set([
   'ReactImageView', // RN iOS
   'RCTImageView', // RN Android
@@ -30,20 +29,31 @@ const REMOTE_IMAGE_COMPONENTS = new Set([
   'TurboImageView', // TurboImage Android
 ]);
 
+// const REMOVE_VIDEO_COMPONENTS = new Set([
+//   'ReactVideo', // RN iOS
+//   'RCTVideo', // RN Android
+//   'ExpoVideo', // ExpoVideo iOS
+//   'ExpoVideo', // ExpoVideo Android
+// ]);
+
+function isRemoteImageSourceFilter(uri: string): boolean {
+  if (!uri || typeof uri !== 'string') return false;
+  return uri.startsWith('http') && !uri.includes('://192.168.');
+}
+
 function isRemoteImageSource(source: any): boolean {
   if (!source) return false;
 
+  if (Array.isArray(source)) {
+    return source.some(isRemoteImageSource);
+  }
+
   if (typeof source === 'string') {
-    return /^https?:\/\//.test(source);
+    return isRemoteImageSourceFilter(source);
   }
 
   if (typeof source === 'object') {
-    if (Array.isArray(source)) {
-      return source.some(isRemoteImageSource);
-    }
-    if (typeof source.uri === 'string' && /^https?:\/\//.test(source.uri)) {
-      return true;
-    }
+    return isRemoteImageSourceFilter(source.uri);
   }
 
   return false;
@@ -99,7 +109,7 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
               style: pendingProps.style,
               testID: pendingProps.testID,
               className: type || undefined,
-              hasRemoteMedia: isRemoteImageComponent(currentFiber),
+              hasRemoteImage: isRemoteImageComponent(currentFiber),
             };
           }
 
