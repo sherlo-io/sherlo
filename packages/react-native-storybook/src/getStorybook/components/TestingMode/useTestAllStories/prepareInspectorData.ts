@@ -16,7 +16,7 @@ export function prepareInspectorData(
 
   const inspectorDataCopy = JSON.parse(JSON.stringify(inspectorData)) as InspectorData;
 
-  let hasAtLeastOneRemoteMedia = false;
+  let hasAtLeastOneRemoteImage = false;
   let rootStoryNode: InspectorDataNode | null = null;
 
   function enhanceNode(node: InspectorDataNode): void {
@@ -37,7 +37,7 @@ export function prepareInspectorData(
       }
 
       if (hasRemoteImage) {
-        hasAtLeastOneRemoteMedia = true;
+        hasAtLeastOneRemoteImage = true;
       }
 
       node.properties = properties;
@@ -65,5 +65,5 @@ export function prepareInspectorData(
     }
   }
 
-  return { inspectorData: inspectorDataCopy, hasRemoteImage: hasAtLeastOneRemoteMedia };
+  return { inspectorData: inspectorDataCopy, hasRemoteImage: hasAtLeastOneRemoteImage };
 }
