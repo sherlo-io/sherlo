@@ -3,12 +3,7 @@ import { NativeModules } from 'react-native';
 import utf8 from 'utf8';
 import isExpoGo from './helpers/isExpoGo';
 import { StorybookViewMode, InspectorData } from './types/types';
-import {
-  Config,
-  LastState,
-  AppProtocolItem,
-  ProtocolItemMetadata,
-} from './helpers/RunnerBridge/types';
+import { Config, LastState } from './helpers/RunnerBridge/types';
 import TurboModule, { Spec } from './specs/NativeSherloModule';
 
 interface SherloConstants {
@@ -32,7 +27,9 @@ type SherloModule = {
     minScreenshotsCount: number,
     intervalMs: number,
     timeoutMs: number,
-    saveScreenshots: boolean
+    saveScreenshots: boolean,
+    threshold: number,
+    includeAA: boolean
   ) => Promise<boolean>;
 };
 
@@ -75,14 +72,18 @@ function createSherloModule(): SherloModule {
       minScreenshotsCount: number,
       intervalMs: number,
       timeoutMs: number,
-      saveScreenshots: boolean
+      saveScreenshots: boolean,
+      threshold: number,
+      includeAA: boolean
     ) => {
       return module.stabilize(
         requiredMatches,
         minScreenshotsCount,
         intervalMs,
         timeoutMs,
-        saveScreenshots
+        saveScreenshots,
+        threshold,
+        includeAA
       );
     },
     getMode: () => {
@@ -155,12 +156,22 @@ function createDummySherloModule(): SherloModule {
         intervalMs: 500,
         timeoutMs: 5_000,
         saveScreenshots: true,
+        threshold: 0.0,
+        includeAA: true,
       },
     }),
     appendFile: async () => {},
     readFile: async () => '',
     openStorybook: () => {},
     toggleStorybook: () => {},
-    stabilize: async () => true,
+    stabilize: async (
+      _requiredMatches: number,
+      _minScreenshotsCount: number,
+      _intervalMs: number,
+      _timeoutMs: number,
+      _saveScreenshots: boolean,
+      _threshold: number,
+      _includeAA: boolean
+    ) => true,
   };
 }

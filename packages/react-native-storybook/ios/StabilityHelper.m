@@ -1,4 +1,5 @@
 #import "StabilityHelper.h"
+#import "Pixelmatch.h"
 
 static NSString *const LOG_TAG = @"SherloModule:StabilityHelper";
 
@@ -14,6 +15,8 @@ static NSString *const LOG_TAG = @"SherloModule:StabilityHelper";
  * @param intervalMs Time interval between screenshots in milliseconds
  * @param timeoutMs Maximum time to wait for stability in milliseconds
  * @param saveScreenshots Whether to save screenshots to filesystem during tests
+ * @param threshold Matching threshold (0.0 to 1.0); smaller values are more sensitive
+ * @param includeAA If false, ignore anti-aliased pixels when counting differences
  * @param resolve Promise resolver to call with true if UI becomes stable, false if timeout occurs
  * @param reject Promise rejecter to call if an error occurs
  */
@@ -22,6 +25,8 @@ static NSString *const LOG_TAG = @"SherloModule:StabilityHelper";
         intervalMs:(double)intervalMs
         timeoutMs:(double)timeoutMs
         saveScreenshots:(BOOL)saveScreenshots
+        threshold:(double)threshold
+        includeAA:(BOOL)includeAA
         resolve:(RCTPromiseResolveBlock)resolve
         reject:(RCTPromiseRejectBlock)reject {
     
@@ -62,13 +67,18 @@ static NSString *const LOG_TAG = @"SherloModule:StabilityHelper";
                     [self saveScreenshot:currentScreenshot withIndex:screenshotCounter];
                 }
                 
-                BOOL imagesMatch = [self image:currentScreenshot isEqualToImage:lastScreenshot];
+                NSUInteger differentPixels = [Pixelmatch pixelmatchImage:currentScreenshot 
+                                                           againstImage:lastScreenshot 
+                                                              threshold:threshold 
+                                                               includeAA:includeAA];
+                
+                BOOL imagesMatch = (differentPixels == 0);
                 
                 if (imagesMatch) {
                     NSLog(@"[%@] Consecutive match number: %ld", LOG_TAG, (long)consecutiveMatches);
                     consecutiveMatches++;
                 } else {
-                    NSLog(@"[%@] No consecutive match", LOG_TAG);
+                    NSLog(@"[%@] No consecutive match - %lu different pixels", LOG_TAG, (unsigned long)differentPixels);
                     consecutiveMatches = 0; // Reset if the screenshots don't match.
                 }
                 
@@ -103,10 +113,10 @@ static NSString *const LOG_TAG = @"SherloModule:StabilityHelper";
     }
     
     NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-    [formatter setDateFormat:@"yyyyMMdd_HHmmss"];
+    [formatter setDateFormat:@"yyyyMMdd_HHmmss_SSS"];
     NSString *timestamp = [formatter stringFromDate:[NSDate date]];
     
-    NSString *filename = [NSString stringWithFormat:@"screenshot_%ld_%@.png", (long)index, timestamp];
+    NSString *filename = [NSString stringWithFormat:@"%@_screenshot_%ld.png", timestamp, (long)index];
     NSString *filePath = [directoryPath stringByAppendingPathComponent:filename];
     
     NSData *imageData = UIImagePNGRepresentation(screenshot);
@@ -177,18 +187,6 @@ static NSString *const LOG_TAG = @"SherloModule:StabilityHelper";
     return image;
 }
 
-// Helper method to compare two images by comparing their PNG representations.
-+ (BOOL)image:(UIImage *)image1 isEqualToImage:(UIImage *)image2 {
-    // Quick size comparison before expensive data comparison
-    if (!CGSizeEqualToSize(image1.size, image2.size)) {
-        return NO;
-    }
-    
-    // For better performance, you could compare pixel data directly instead of PNG representation
-    // But the PNG comparison is safer for this fix
-    NSData *data1 = UIImagePNGRepresentation(image1);
-    NSData *data2 = UIImagePNGRepresentation(image2);
-    return [data1 isEqual:data2];
-}
+
 
 @end

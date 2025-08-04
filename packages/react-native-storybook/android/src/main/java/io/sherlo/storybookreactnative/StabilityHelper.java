@@ -44,11 +44,14 @@ public class StabilityHelper {
      * @param requiredMatches Number of consecutive matching screenshots needed to consider UI stable
      * @param intervalMs Time interval between screenshots in milliseconds
      * @param timeoutMs Maximum time to wait for stability in milliseconds
+     * @param saveScreenshots Whether to save screenshots to filesystem during tests
+     * @param threshold Matching threshold (0.0 to 1.0); smaller values are more sensitive
+     * @param includeAA If false, ignore anti-aliased pixels when counting differences
      * @param promise Promise to resolve with true if UI becomes stable, false if timeout occurs
      */
-    public static void stabilize(Activity activity, int requiredMatches, int minScreenshotsCount, int intervalMs, int timeoutMs, boolean saveScreenshots, Promise promise) {
+    public static void stabilize(Activity activity, int requiredMatches, int minScreenshotsCount, int intervalMs, int timeoutMs, boolean saveScreenshots, double threshold, boolean includeAA, Promise promise) {
         StabilityHelper helper = new StabilityHelper();
-        helper.checkIfStable(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs, saveScreenshots, new StabilityCallback() {
+        helper.checkIfStable(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs, saveScreenshots, threshold, includeAA, new StabilityCallback() {
             @Override
             public void onResult(boolean isStable) {
                 promise.resolve(isStable);
@@ -68,10 +71,14 @@ public class StabilityHelper {
             throw new RuntimeException("Impossible to snapshot the view: view is invalid");
         }
 
-        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
-        Canvas canvas = new Canvas(bitmap);
-        
-        rootView.draw(canvas);
+        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+
+        try {
+            Canvas canvas = new Canvas(bitmap);
+            rootView.draw(canvas);
+        } catch (Exception e) {
+            Log.e(TAG, "Error while drawing canvas", e);
+        }
 
         final CountDownLatch latch = new CountDownLatch(1);
         
@@ -86,6 +93,8 @@ public class StabilityHelper {
             }
         } catch (InterruptedException e) {
             Log.d(TAG, "Interrupted while waiting for PixelCopy");
+        } catch (Exception e) {
+            Log.e(TAG, "Error while waiting for PixelCopy", e);
         }
             
         // Save bitmap to file if requested AND global saving is enabled
@@ -109,8 +118,8 @@ public class StabilityHelper {
             }
             
             // Create file with timestamp
-            String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
-            File imageFile = new File(storageDir, "screenshot_" + screenshotNumber + "_" + timestamp + ".png");
+            String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(new Date());
+            File imageFile = new File(storageDir, timestamp + "_screenshot_" + screenshotNumber + ".png");
             
             // Save bitmap to file
             FileOutputStream fos = new FileOutputStream(imageFile);
@@ -123,32 +132,7 @@ public class StabilityHelper {
         }
     }
 
-    /**
-     * Compares two bitmaps by checking pixel arrays and counts different pixels.
-     */
-    public boolean areBitmapsEqual(Bitmap bmp1, Bitmap bmp2) {
-        if (bmp1.getWidth() != bmp2.getWidth() || bmp1.getHeight() != bmp2.getHeight()) {
-            Log.d(TAG, "Bitmaps have different dimensions");
-            return false;
-        }
-        
-        int width = bmp1.getWidth();
-        int height = bmp1.getHeight();
-        int[] pixels1 = new int[width * height];
-        int[] pixels2 = new int[width * height];
-        bmp1.getPixels(pixels1, 0, width, 0, 0, width, height);
-        bmp2.getPixels(pixels2, 0, width, 0, 0, width, height);
 
-        int differentPixels = 0;
-        for (int i = 0; i < pixels1.length; i++) {
-            if (pixels1[i] != pixels2[i]) {
-                differentPixels++;
-            }
-        }
-
-        Log.d(TAG, "Different pixels: " + differentPixels + " out of " + (width * height) + " total pixels");
-        return differentPixels == 0;
-    }
 
     /**
      * Checks for UI stability by comparing consecutive screenshots.
@@ -157,19 +141,22 @@ public class StabilityHelper {
      * @param minScreenshotsCount The minimum number of screenshots to take when checking for stability.
      * @param intervalMs      The interval between each screenshot (in milliseconds).
      * @param timeoutMs       The overall timeout (in milliseconds).
+     * @param saveScreenshots Whether to save screenshots to filesystem during tests
+     * @param threshold Matching threshold (0.0 to 1.0); smaller values are more sensitive
+     * @param includeAA If false, ignore anti-aliased pixels when counting differences
      * @param callback        Callback with the result: true if stable, false otherwise.
      */
-    public void checkIfStable(final Activity activity, final int requiredMatches, final int minScreenshotsCount, final int intervalMs, final int timeoutMs, boolean saveScreenshots,
+    public void checkIfStable(final Activity activity, final int requiredMatches, final int minScreenshotsCount, final int intervalMs, final int timeoutMs, boolean saveScreenshots, double threshold, boolean includeAA,
                               final StabilityCallback callback) {
         final Handler handler = new Handler(Looper.getMainLooper());
         final Bitmap[] lastScreenshot = new Bitmap[1];
         final AtomicLong startTime = new AtomicLong(System.currentTimeMillis());
         
         lastScreenshot[0] = captureScreenshot(activity, saveScreenshots, 0);
-        startStabilityCheck(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs, saveScreenshots, callback, handler, lastScreenshot, startTime);
+        startStabilityCheck(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs, saveScreenshots, threshold, includeAA, callback, handler, lastScreenshot, startTime);
     }
 
-    private void startStabilityCheck(final Activity activity, final int requiredMatches, final int minScreenshotsCount, final int intervalMs, final int timeoutMs, boolean saveScreenshots,
+    private void startStabilityCheck(final Activity activity, final int requiredMatches, final int minScreenshotsCount, final int intervalMs, final int timeoutMs, boolean saveScreenshots, double threshold, boolean includeAA,
                                    final StabilityCallback callback, final Handler handler, 
                                    final Bitmap[] lastScreenshot, final AtomicLong startTime) {
         final int[] consecutiveMatches = {0};
@@ -183,11 +170,19 @@ public class StabilityHelper {
                 Bitmap currentScreenshot = captureScreenshot(activity, saveScreenshots, screenshotCounter[0]);
                 long elapsedTime = System.currentTimeMillis() - startTime.get();
 
-                if (areBitmapsEqual(currentScreenshot, lastScreenshot[0])) {
-                    Log.d(TAG, "Consecutive match number: " + consecutiveMatches[0]);
-                    consecutiveMatches[0]++;
-                } else {
-                    Log.d(TAG, "No consecutive match");
+                try {
+                    int differentPixels = Pixelmatch.pixelmatch(currentScreenshot, lastScreenshot[0], threshold, includeAA);
+                    boolean imagesMatch = (differentPixels == 0);
+                    
+                    if (imagesMatch) {
+                        Log.d(TAG, "Consecutive match number: " + consecutiveMatches[0]);
+                        consecutiveMatches[0]++;
+                    } else {
+                        Log.d(TAG, "No consecutive match - " + differentPixels + " different pixels");
+                        consecutiveMatches[0] = 0;
+                    }
+                } catch (IllegalArgumentException e) {
+                    Log.d(TAG, "Bitmaps have different dimensions: " + e.getMessage());
                     consecutiveMatches[0] = 0;
                 }
 

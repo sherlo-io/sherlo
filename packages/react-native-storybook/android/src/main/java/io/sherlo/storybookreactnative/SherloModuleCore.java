@@ -167,9 +167,12 @@ public class SherloModuleCore {
      * @param minScreenshotsCount The minimum number of screenshots to take when checking for stability
      * @param intervalMs The interval between each screenshot (in milliseconds)
      * @param timeoutMs The overall timeout (in milliseconds)
+     * @param saveScreenshots Whether to save screenshots to filesystem during tests
+     * @param threshold Matching threshold (0.0 to 1.0); smaller values are more sensitive
+     * @param includeAA If false, ignore anti-aliased pixels when counting differences
      * @param promise Promise to resolve with the stability result or reject with an error
      */
-    public void stabilize(Activity activity, int requiredMatches, int minScreenshotsCount, int intervalMs, int timeoutMs, boolean saveScreenshots, Promise promise) {
-        StabilityHelper.stabilize(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs, saveScreenshots, promise);
+    public void stabilize(Activity activity, int requiredMatches, int minScreenshotsCount, int intervalMs, int timeoutMs, boolean saveScreenshots, double threshold, boolean includeAA, Promise promise) {
+        StabilityHelper.stabilize(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs, saveScreenshots, threshold, includeAA, promise);
     }
 } 

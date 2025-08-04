@@ -13,6 +13,8 @@ export type Config = {
     minScreenshotsCount: number;
     intervalMs: number;
     timeoutMs: number;
+    threshold: number;
+    includeAA: boolean;
     saveScreenshots?: boolean;
   };
   overrideMode?: 'default' | 'storybook' | 'testing';
@@ -48,7 +50,7 @@ export type AppProtocolItem =
       inspectorData?: string;
       isStable?: boolean;
       requestId: string;
-      rendersRemoteImages?: boolean;
+      hasRemoteImage?: boolean;
       safeAreaMetadata?: {
         shouldAddSafeArea: boolean;
         insetBottom: number;

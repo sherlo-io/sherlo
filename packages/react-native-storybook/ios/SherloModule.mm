@@ -101,10 +101,12 @@ static void SherloEarlyInit(void) {
        intervalMs:(double)intervalMs
         timeoutMs:(double)timeoutMs
   saveScreenshots:(BOOL)saveScreenshots
+        threshold:(double)threshold
+        includeAA:(BOOL)includeAA
          resolve:(RCTPromiseResolveBlock)resolve
           reject:(RCTPromiseRejectBlock)reject
 {
-  [core stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs saveScreenshots:saveScreenshots resolve:resolve reject:reject];
+  [core stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs saveScreenshots:saveScreenshots threshold:threshold includeAA:includeAA resolve:resolve reject:reject];
 }
 
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
@@ -179,9 +181,11 @@ RCT_EXPORT_METHOD(stabilize:(double)requiredMatches
                  intervalMs:(double)intervalMs
                   timeoutMs:(double)timeoutMs
                   saveScreenshots:(BOOL)saveScreenshots
+                  threshold:(double)threshold
+                  includeAA:(BOOL)includeAA
                    resolve:(RCTPromiseResolveBlock)resolve
                    reject:(RCTPromiseRejectBlock)reject) {
-  [core stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs saveScreenshots:saveScreenshots resolve:resolve reject:reject];
+  [core stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs saveScreenshots:saveScreenshots threshold:threshold includeAA:includeAA resolve:resolve reject:reject];
 }
 
 #endif

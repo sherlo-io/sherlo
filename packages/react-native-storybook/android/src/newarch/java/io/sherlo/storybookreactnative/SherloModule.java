@@ -123,11 +123,13 @@ public class SherloModule extends NativeSherloModuleSpec {
      * @param intervalMs The interval between each screenshot in milliseconds
      * @param timeoutMs The overall timeout in milliseconds
      * @param saveScreenshots Whether to save screenshots to the file system
+     * @param threshold Matching threshold (0.0 to 1.0); smaller values are more sensitive
+     * @param includeAA If false, ignore anti-aliased pixels when counting differences
      * @param promise Promise to resolve with true if UI becomes stable, false if timeout occurs
      */
     @Override
-    public void stabilize(double requiredMatches, double minScreenshotsCount, double intervalMs, double timeoutMs, boolean saveScreenshots, Promise promise) {
+    public void stabilize(double requiredMatches, double minScreenshotsCount, double intervalMs, double timeoutMs, boolean saveScreenshots, double threshold, boolean includeAA, Promise promise) {
         Activity activity = getCurrentActivity();
-        moduleCore.stabilize(activity, (int)requiredMatches, (int)minScreenshotsCount, (int)intervalMs, (int)timeoutMs, saveScreenshots, promise);
+        moduleCore.stabilize(activity, (int)requiredMatches, (int)minScreenshotsCount, (int)intervalMs, (int)timeoutMs, saveScreenshots, threshold, includeAA, promise);
     }
 } 

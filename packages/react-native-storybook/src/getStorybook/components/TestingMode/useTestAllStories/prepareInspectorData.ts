@@ -11,11 +11,12 @@ export function prepareInspectorData(
   inspectorData: InspectorData,
   fabricMetadata: Metadata,
   storyId: string
-): InspectorData {
+): { inspectorData: InspectorData; hasRemoteImage: boolean } {
   const { density } = inspectorData;
 
   const inspectorDataCopy = JSON.parse(JSON.stringify(inspectorData)) as InspectorData;
 
+  let hasAtLeastOneRemoteImage = false;
   let rootStoryNode: InspectorDataNode | null = null;
 
   function enhanceNode(node: InspectorDataNode): void {
@@ -27,12 +28,16 @@ export function prepareInspectorData(
     const metadataEntry = fabricMetadata.viewProps[node.id];
 
     if (metadataEntry) {
-      const { className, ...properties } = metadataEntry;
+      const { className, hasRemoteImage, ...properties } = metadataEntry;
 
       // className coming from native side can be obfuscated so if we have
       // access to the name from fiber we will use that instead
       if (className) {
         node.className = className;
+      }
+
+      if (hasRemoteImage) {
+        hasAtLeastOneRemoteImage = true;
       }
 
       node.properties = properties;
@@ -60,5 +65,8 @@ export function prepareInspectorData(
     }
   }
 
-  return inspectorDataCopy;
+  return {
+    inspectorData: inspectorDataCopy,
+    hasRemoteImage: hasAtLeastOneRemoteImage,
+  };
 }

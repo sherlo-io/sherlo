@@ -13,7 +13,9 @@ export interface Spec extends TurboModule {
     minScreenshotsCount: number,
     intervalMs: number,
     timeoutMs: number,
-    saveScreenshots: boolean
+    saveScreenshots: boolean,
+    threshold: number,
+    includeAA: boolean
   ) => Promise<boolean>;
   getSherloConstants: () => {};
 }

@@ -92,7 +92,7 @@ SHERLO_CONFIG_CONTENT="
     \"overrideMode\": \"$override_mode\", 
     \"overrideLastState\": {
         \"nextSnapshot\": {
-            \"storyId\": \"testing-components-testinfo--basic\",
+            \"storyId\": \"testing-components-image--resolved\",
             \"parameters\": {
                 \"noSafeArea\": false
             }

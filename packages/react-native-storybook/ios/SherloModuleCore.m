@@ -197,6 +197,8 @@ static FileSystemHelper *fileSystemHelper;
  * @param intervalMs Time interval in milliseconds
  * @param timeoutMs Timeout in milliseconds
  * @param saveScreenshots Whether to save screenshots to filesystem during tests
+ * @param threshold Matching threshold (0.0 to 1.0); smaller values are more sensitive
+ * @param includeAA If false, ignore anti-aliased pixels when counting differences
  * @param resolve Promise resolver called with the stability result
  * @param reject Promise rejecter called if an error occurs
  */
@@ -205,9 +207,11 @@ static FileSystemHelper *fileSystemHelper;
         intervalMs:(double)intervalMs
         timeoutMs:(double)timeoutMs
         saveScreenshots:(BOOL)saveScreenshots
+        threshold:(double)threshold
+        includeAA:(BOOL)includeAA
         resolve:(RCTPromiseResolveBlock)resolve
         reject:(RCTPromiseRejectBlock)reject {
-    [StabilityHelper stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs saveScreenshots:saveScreenshots resolve:resolve reject:reject];
+    [StabilityHelper stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs saveScreenshots:saveScreenshots threshold:threshold includeAA:includeAA resolve:resolve reject:reject];
 }
 
 @end 

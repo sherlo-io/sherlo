@@ -1918,6 +1918,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@d11/react-native-fast-image@npm:^8.11.0":
+  version: 8.11.0
+  resolution: "@d11/react-native-fast-image@npm:8.11.0"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10/8564a6229097f16cf1edcccdee077b394af3ba360a5031f1a1300a23397e2a7aab38f4e6e2ef6d8bbeb54d73bc8161bf4e13371da3b2f764d5f87558fec86817
+  languageName: node
+  linkType: hard
+
 "@egjs/hammerjs@npm:^2.0.17":
   version: 2.0.17
   resolution: "@egjs/hammerjs@npm:2.0.17"
@@ -4420,6 +4430,7 @@ __metadata:
     "@babel/core": "npm:^7.25.2"
     "@babel/preset-env": "npm:^7.25.3"
     "@babel/runtime": "npm:^7.27.0"
+    "@d11/react-native-fast-image": "npm:^8.11.0"
     "@gorhom/bottom-sheet": "npm:^5.0.2"
     "@react-native-async-storage/async-storage": "npm:^2.1.2"
     "@react-native-community/cli": "npm:15.0.1"
@@ -4443,6 +4454,7 @@ __metadata:
     burnt: "npm:^0.13.0"
     eslint: "npm:^8.19.0"
     expo: "npm:^53.0.9"
+    expo-image: "npm:^2.4.0"
     expo-modules-core: "npm:^2.3.13"
     expo-status-bar: "npm:2.0.1"
     jest: "npm:^29.6.3"
@@ -4456,6 +4468,7 @@ __metadata:
     react-native-reanimated: "npm:^3.17.1"
     react-native-safe-area-context: "npm:^5.3.0"
     react-native-svg: "npm:^15.11.2"
+    react-native-turbo-image: "npm:^1.22.5"
     react-test-renderer: "npm:18.3.1"
     tamagui: "npm:^1.126.12"
     typescript: "npm:5.0.4"
@@ -9229,6 +9242,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expo-image@npm:^2.4.0":
+  version: 2.4.0
+  resolution: "expo-image@npm:2.4.0"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+    react-native-web: "*"
+  peerDependenciesMeta:
+    react-native-web:
+      optional: true
+  checksum: 10/2c3bcfce23426bf0433295a167e4c5e899d3984d717269f13992a411441caadf590221b869934a3095bc965db3060d8781b6943f7e7cbadfa1016ce9f7cb94b6
+  languageName: node
+  linkType: hard
+
 "expo-keep-awake@npm:~14.1.4":
   version: 14.1.4
   resolution: "expo-keep-awake@npm:14.1.4"
@@ -13330,6 +13358,16 @@ __metadata:
   version: 1.0.5
   resolution: "react-native-swipe-gestures@npm:1.0.5"
   checksum: 10/d637bc40baa50fa0ce3b6cf2b494efeceaea03cc3875cb7cf7d76922914a21d5e6b098d4a084fb291ce61bfbb0a241c03cff24b15bebf0cfae1c146f4ad10d92
+  languageName: node
+  linkType: hard
+
+"react-native-turbo-image@npm:^1.22.5":
+  version: 1.22.5
+  resolution: "react-native-turbo-image@npm:1.22.5"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10/ff8376415148aefe8c9066381b9f5519924880ae9bead97fa105993e5bc910f86634eccc75357ddf1fe505d81800fb94893f2cee25f7293585c5a283024052ec
   languageName: node
   linkType: hard
 

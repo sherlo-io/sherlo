@@ -8,10 +8,10 @@ export interface Metadata {
       className?: string;
       style?: any;
       testID?: string;
+      hasRemoteImage?: boolean;
     };
   };
   texts: string[];
-  rendersRemoteImages: boolean;
 }
 
 export interface MetadataProviderRef {
@@ -19,31 +19,34 @@ export interface MetadataProviderRef {
 }
 
 const REMOTE_IMAGE_COMPONENTS = new Set([
-  'RCTImageView',
-  'ReactImageView',
-  'FFFastImageView',
-  'FastImageView',
-  'ExpoImageView',
-  'EXImageView',
-  'RNSVGImage',
-  'RNSVGSvgView',
-  'SvgView',
+  'ReactImageView', // RN iOS
+  'RCTImageView', // RN Android
+  'FFFastImageView', // FastImage iOS
+  'FastImageView', // FastImage Android
+  'ViewManagerAdapter_ExpoImage', // ExpoImage iOS
+  'ViewManagerAdapter_ExpoImage', // ExpoImage Android
+  'TurboImageView', // TurboImage iOS
+  'TurboImageView', // TurboImage Android
 ]);
+
+function isRemoteImageSourceFilter(uri: string): boolean {
+  if (!uri || typeof uri !== 'string') return false;
+  return uri.startsWith('http') && !uri.includes('://192.168.');
+}
 
 function isRemoteImageSource(source: any): boolean {
   if (!source) return false;
 
+  if (Array.isArray(source)) {
+    return source.some(isRemoteImageSource);
+  }
+
   if (typeof source === 'string') {
-    return /^https?:\/\//.test(source);
+    return isRemoteImageSourceFilter(source);
   }
 
   if (typeof source === 'object') {
-    if (Array.isArray(source)) {
-      return source.some(isRemoteImageSource);
-    }
-    if (typeof source.uri === 'string' && /^https?:\/\//.test(source.uri)) {
-      return true;
-    }
+    return isRemoteImageSourceFilter(source.uri);
   }
 
   return false;
@@ -52,10 +55,17 @@ function isRemoteImageSource(source: any): boolean {
 function isRemoteImageComponent(fiber: any): boolean {
   const { type, pendingProps, memoizedProps } = fiber;
   const componentName = typeof type === 'string' ? type : type?.displayName || type?.name;
-  if (!componentName || !REMOTE_IMAGE_COMPONENTS.has(componentName)) return false;
+  if (
+    !componentName ||
+    !Array.from(REMOTE_IMAGE_COMPONENTS).some((name) => componentName.includes(name))
+  ) {
+    return false;
+  }
 
   const props = pendingProps || memoizedProps;
-  if (!props) return false;
+  if (!props) {
+    return false;
+  }
 
   const source = props.source || props.src || props.srcSet || props.svgXmlData;
   return isRemoteImageSource(source);
@@ -72,14 +82,12 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
           return {
             viewProps: {},
             texts: [],
-            rendersRemoteImages: false,
           };
         }
 
         const metadata: Metadata = {
           viewProps: {},
           texts: [],
-          rendersRemoteImages: false,
         };
 
         const visited = new Set();
@@ -101,16 +109,13 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
               style: pendingProps.style,
               testID: pendingProps.testID,
               className: type || undefined,
+              hasRemoteImage: isRemoteImageComponent(currentFiber),
             };
           }
 
           // Extract text from props
           extractTextFromProps(pendingProps, metadata.texts);
           extractTextFromProps(memoizedProps, metadata.texts);
-
-          if (!metadata.rendersRemoteImages && isRemoteImageComponent(currentFiber)) {
-            metadata.rendersRemoteImages = true;
-          }
 
           if (currentFiber.child) queue.push(currentFiber.child);
           if (currentFiber.sibling) queue.push(currentFiber.sibling);

@@ -57,7 +57,9 @@ function useTestStory({
           config.stabilization.minScreenshotsCount,
           config.stabilization.intervalMs,
           config.stabilization.timeoutMs,
-          !!config.stabilization.saveScreenshots
+          !!config.stabilization.saveScreenshots,
+          config.stabilization.threshold,
+          config.stabilization.includeAA
         ).catch((error) => {
           RunnerBridge.log('error checking if stable', { error: error.message });
           throw error;
@@ -82,15 +84,20 @@ function useTestStory({
           'Something went wrong rendering your story'
         );
 
-        const rendersRemoteImages = !!fabricMetadata?.rendersRemoteImages;
-
-        let finalInspectorData;
+        let finalInspectorData = inspectorData;
+        let hasRemoteImage = false;
         let safeAreaMetadata;
 
         if (!containsError) {
-          finalInspectorData = fabricMetadata
-            ? prepareInspectorData(inspectorData, fabricMetadata, nextSnapshot.storyId)
-            : inspectorData;
+          if (fabricMetadata) {
+            const preparedInspectorData = prepareInspectorData(
+              inspectorData,
+              fabricMetadata,
+              nextSnapshot.storyId
+            );
+            finalInspectorData = preparedInspectorData.inspectorData;
+            hasRemoteImage = preparedInspectorData.hasRemoteImage;
+          }
 
           safeAreaMetadata = {
             shouldAddSafeArea: !nextSnapshot.parameters?.noSafeArea,
@@ -113,7 +120,7 @@ function useTestStory({
           isStable,
           requestId: requestId,
           safeAreaMetadata,
-          rendersRemoteImages,
+          hasRemoteImage,
         });
 
         await RunnerBridge.send({
@@ -123,7 +130,7 @@ function useTestStory({
           isStable,
           requestId: requestId,
           safeAreaMetadata,
-          rendersRemoteImages,
+          hasRemoteImage,
         });
       } catch (error) {
         // @ts-ignore
