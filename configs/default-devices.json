@@ -6,7 +6,7 @@
       "osVersion": "13",
       "osLocale": "en_US",
       "osTheme": "light",
-      "osFontScale": "minus1"
+      "osFontScale": "-1"
     },
     {
       "id": "pixel.tablet",
@@ -25,7 +25,7 @@
       "osVersion": "17",
       "osLocale": "en_US",
       "osTheme": "light",
-      "osFontScale": "plus3"
+      "osFontScale": "+3"
     }
   ]
 }
