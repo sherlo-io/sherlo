@@ -6,7 +6,7 @@
       "osVersion": "13",
       "osLocale": "en_US",
       "osTheme": "light",
-      "osFontScale": "minus1"
+      "osFontScale": "-1"
     },
     {
       "id": "pixel.7",
@@ -20,22 +20,22 @@
       "osVersion": "13",
       "osLocale": "en_US",
       "osTheme": "light",
-      "osFontScale": "plus1"
+      "osFontScale": "+1"
     },
     {
       "id": "pixel.6.pro",
       "osVersion": "13",
       "osLocale": "en_US",
       "osTheme": "dark",
-      "osFontScale": "plus2"
+      "osFontScale": "+2"
     },
     {
       "id": "pixel.6",
       "osVersion": "13",
       "osLocale": "en_US",
       "osTheme": "light",
-      "osFontScale": "plus3"
-    },  
+      "osFontScale": "+3"
+    },
     {
       "id": "pixel.5",
       "osVersion": "13",
@@ -65,35 +65,35 @@
       "osVersion": "13",
       "osLocale": "en_US",
       "osTheme": "light",
-      "osFontScale": "plus4"
+      "osFontScale": "+4"
     },
     {
       "id": "pixel.tablet",
       "osVersion": "13",
       "osLocale": "de_DE",
       "osTheme": "dark",
-      "osFontScale": "plus5"
+      "osFontScale": "+5"
     },
     {
       "id": "iphone.15.pro.max",
       "osVersion": "17",
       "osLocale": "en_US",
       "osTheme": "light",
-      "osFontScale": "minus3"
+      "osFontScale": "-3"
     },
     {
       "id": "iphone.15.pro",
       "osVersion": "17",
       "osLocale": "en_US",
       "osTheme": "dark",
-      "osFontScale": "minus2"
+      "osFontScale": "-2"
     },
     {
       "id": "iphone.15.plus",
       "osVersion": "17",
       "osLocale": "en_US",
       "osTheme": "light",
-      "osFontScale": "minus1"
+      "osFontScale": "-1"
     },
     {
       "id": "iphone.15",
@@ -107,7 +107,7 @@
       "osVersion": "17",
       "osLocale": "en_US",
       "osTheme": "light",
-      "osFontScale": "plus1"
+      "osFontScale": "+1"
     },
     {
       "id": "iphone.14.pro.max",
@@ -138,49 +138,49 @@
       "osVersion": "17",
       "osLocale": "en_US",
       "osTheme": "dark",
-      "osFontScale": "plus2"
+      "osFontScale": "+2"
     },
     {
       "id": "ipad.pro.11.m4",
       "osVersion": "17",
       "osLocale": "en_US",
       "osTheme": "light",
-      "osFontScale": "plus3"
+      "osFontScale": "+3"
     },
     {
       "id": "ipad.air.13.m2",
       "osVersion": "17",
       "osLocale": "en_US",
       "osTheme": "dark",
-      "osFontScale": "plus4"
+      "osFontScale": "+4"
     },
     {
       "id": "ipad.air.11.m2",
       "osVersion": "17",
       "osLocale": "en_US",
       "osTheme": "dark",
-      "osFontScale": "plus5"
+      "osFontScale": "+5"
     },
     {
       "id": "ipad.pro.12.9.6.gen",
       "osVersion": "17",
       "osLocale": "en_US",
       "osTheme": "light",
-      "osFontScale": "plus6"
+      "osFontScale": "+6"
     },
     {
       "id": "ipad.pro.11.4.gen",
       "osVersion": "17",
       "osLocale": "en_US",
       "osTheme": "dark",
-      "osFontScale": "plus7"
+      "osFontScale": "+7"
     },
     {
       "id": "ipad.air.5.gen",
       "osVersion": "17",
       "osLocale": "en_US",
       "osTheme": "light",
-      "osFontScale": "plus8"
+      "osFontScale": "+8"
     },
     {
       "id": "ipad.10.gen",
