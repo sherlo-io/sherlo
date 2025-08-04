@@ -9,7 +9,6 @@ export interface Metadata {
       style?: any;
       testID?: string;
       hasRemoteImage?: boolean;
-      hasRemoteVideo?: boolean;
     };
   };
   texts: string[];
@@ -29,13 +28,6 @@ const REMOTE_IMAGE_COMPONENTS = new Set([
   'TurboImageView', // TurboImage iOS
   'TurboImageView', // TurboImage Android
 ]);
-
-// const REMOVE_VIDEO_COMPONENTS = new Set([
-//   'ReactVideo', // RN iOS
-//   'RCTVideo', // RN Android
-//   'ExpoVideo', // ExpoVideo iOS
-//   'ExpoVideo', // ExpoVideo Android
-// ]);
 
 function isRemoteImageSourceFilter(uri: string): boolean {
   if (!uri || typeof uri !== 'string') return false;
@@ -118,7 +110,6 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
               testID: pendingProps.testID,
               className: type || undefined,
               hasRemoteImage: isRemoteImageComponent(currentFiber),
-              hasRemoteVideo: false,
             };
           }
 

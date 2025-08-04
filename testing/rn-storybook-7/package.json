@@ -26,6 +26,7 @@
     "sherlo": "npx sherlo"
   },
   "dependencies": {
+    "@d11/react-native-fast-image": "^8.11.0",
     "@gorhom/bottom-sheet": "^5.0.2",
     "@react-native-async-storage/async-storage": "^2.1.2",
     "@sherlo/testing-components": "portal:../testing-components",
@@ -33,6 +34,7 @@
     "@tamagui/lucide-icons": "^1.126.12",
     "@tamagui/toast": "^1.126.12",
     "expo": "^53.0.9",
+    "expo-image": "^2.4.0",
     "expo-modules-core": "^2.3.13",
     "expo-status-bar": "2.0.1",
     "react": "18.3.1",
@@ -44,6 +46,7 @@
     "react-native-reanimated": "^3.17.1",
     "react-native-safe-area-context": "^5.3.0",
     "react-native-svg": "^15.11.2",
+    "react-native-turbo-image": "^1.22.5",
     "tamagui": "^1.126.12"
   },
   "devDependencies": {
