@@ -1,17 +1,18 @@
-import type { Meta } from '@storybook/react';
-import { Image } from 'react-native';
-import { StoryDecorator } from '@sherlo/testing-components';
-import { Image as TamaguiImage } from '@tamagui/image';
-import { Image as ExpoImage } from 'expo-image';
+import React from 'react';
+import type {Meta} from '@storybook/react';
+import {Image} from 'react-native';
+import {StoryDecorator} from '@sherlo/testing-components';
+import {Image as TamaguiImage} from '@tamagui/image';
+import {Image as ExpoImage} from 'expo-image';
 import FastImage from '@d11/react-native-fast-image';
 import TurboImage from 'react-native-turbo-image';
 
-import { createTamagui, TamaguiProvider } from 'tamagui';
-import { defaultConfig } from '@tamagui/config/v4';
+import {createTamagui, TamaguiProvider} from 'tamagui';
+import {defaultConfig} from '@tamagui/config/v4';
 
 export default {
   component: Image,
-  decorators: [StoryDecorator({ placement: 'center' })],
+  decorators: [StoryDecorator({placement: 'center'})],
 } as Meta<typeof Image>;
 
 const URL = 'https://picsum.photos/id/237/200/300';
@@ -21,14 +22,14 @@ export const RNUrl = {
     source: {
       uri: URL,
     },
-    style: { width: 200, height: 300 },
+    style: {width: 200, height: 300},
   },
 };
 
 export const RNStatic = {
   args: {
     source: require('./static_example.jpg'),
-    style: { width: 200, height: 300 },
+    style: {width: 200, height: 300},
   },
 };
 
@@ -37,7 +38,7 @@ export const RNResolved = {
     source: {
       uri: Image.resolveAssetSource(require('./static_example.jpg')).uri,
     },
-    style: { width: 200, height: 300 },
+    style: {width: 200, height: 300},
   },
 };
 
@@ -60,7 +61,7 @@ export const TamaguiUrl = {
 
 export const ExpoUrl = {
   render: () => {
-    return <ExpoImage source={URL} style={{ width: 200, height: 300 }} />;
+    return <ExpoImage source={URL} style={{width: 200, height: 300}} />;
   },
 };
 
@@ -68,8 +69,8 @@ export const FastUrl = {
   render: () => {
     return (
       <FastImage
-        source={{ uri: URL }}
-        style={{ width: 200, height: 300 }}
+        source={{uri: URL}}
+        style={{width: 200, height: 300}}
         resizeMode={FastImage.resizeMode.cover}
       />
     );
@@ -77,5 +78,7 @@ export const FastUrl = {
 };
 
 export const TurboUrl = {
-  render: () => <TurboImage source={{ uri: URL }} style={{ width: 200, height: 300 }} />,
+  render: () => (
+    <TurboImage source={{uri: URL}} style={{width: 200, height: 300}} />
+  ),
 };
