@@ -85,7 +85,7 @@ function useTestStory({
         );
 
         let finalInspectorData = inspectorData;
-        let hasRemoteImage = false;
+        let hasNetworkImage = false;
         let safeAreaMetadata;
 
         if (!containsError) {
@@ -96,7 +96,7 @@ function useTestStory({
               nextSnapshot.storyId
             );
             finalInspectorData = preparedInspectorData.inspectorData;
-            hasRemoteImage = preparedInspectorData.hasRemoteImage;
+            hasNetworkImage = preparedInspectorData.hasNetworkImage;
           }
 
           safeAreaMetadata = {
@@ -120,7 +120,7 @@ function useTestStory({
           isStable,
           requestId: requestId,
           safeAreaMetadata,
-          hasRemoteImage,
+          hasNetworkImage,
         });
 
         await RunnerBridge.send({
@@ -130,7 +130,7 @@ function useTestStory({
           isStable,
           requestId: requestId,
           safeAreaMetadata,
-          hasRemoteImage,
+          hasNetworkImage,
         });
       } catch (error) {
         // @ts-ignore

@@ -8,7 +8,7 @@ export interface Metadata {
       className?: string;
       style?: any;
       testID?: string;
-      hasRemoteImage?: boolean;
+      hasNetworkImage?: boolean;
     };
   };
   texts: string[];
@@ -29,30 +29,30 @@ const REMOTE_IMAGE_COMPONENTS = new Set([
   'TurboImageView', // TurboImage Android
 ]);
 
-function isRemoteImageSourceFilter(uri: string): boolean {
+function isNetworkImageSourceFilter(uri: string): boolean {
   if (!uri || typeof uri !== 'string') return false;
   return uri.startsWith('http') && !uri.includes('://192.168.');
 }
 
-function isRemoteImageSource(source: any): boolean {
+function isNetworkImageSource(source: any): boolean {
   if (!source) return false;
 
   if (Array.isArray(source)) {
-    return source.some(isRemoteImageSource);
+    return source.some(isNetworkImageSource);
   }
 
   if (typeof source === 'string') {
-    return isRemoteImageSourceFilter(source);
+    return isNetworkImageSourceFilter(source);
   }
 
   if (typeof source === 'object') {
-    return isRemoteImageSourceFilter(source.uri);
+    return isNetworkImageSourceFilter(source.uri);
   }
 
   return false;
 }
 
-function isRemoteImageComponent(fiber: any): boolean {
+function isNetworkImageComponent(fiber: any): boolean {
   const { type, pendingProps, memoizedProps } = fiber;
   const componentName = typeof type === 'string' ? type : type?.displayName || type?.name;
   if (
@@ -68,7 +68,7 @@ function isRemoteImageComponent(fiber: any): boolean {
   }
 
   const source = props.source || props.src || props.srcSet || props.svgXmlData;
-  return isRemoteImageSource(source);
+  return isNetworkImageSource(source);
 }
 
 const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode }>(
@@ -109,7 +109,7 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
               style: pendingProps.style,
               testID: pendingProps.testID,
               className: type || undefined,
-              hasRemoteImage: isRemoteImageComponent(currentFiber),
+              hasNetworkImage: isNetworkImageComponent(currentFiber),
             };
           }
 
