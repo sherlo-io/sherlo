@@ -4454,7 +4454,6 @@ __metadata:
     burnt: "npm:^0.13.0"
     eslint: "npm:^8.19.0"
     expo: "npm:^53.0.9"
-    expo-image: "npm:^2.4.0"
     expo-modules-core: "npm:^2.3.13"
     expo-status-bar: "npm:2.0.1"
     jest: "npm:^29.6.3"
@@ -9239,21 +9238,6 @@ __metadata:
     expo: "*"
     react: "*"
   checksum: 10/47121c96a9d7fccc178f19fd6e6085c32eae2341c4e385cb3d21669d2bd8c9dfd0f9a0538058a2260ad6a2b3c6032946cfe3ddf8ee005228a452b4efbc61494e
-  languageName: node
-  linkType: hard
-
-"expo-image@npm:^2.4.0":
-  version: 2.4.0
-  resolution: "expo-image@npm:2.4.0"
-  peerDependencies:
-    expo: "*"
-    react: "*"
-    react-native: "*"
-    react-native-web: "*"
-  peerDependenciesMeta:
-    react-native-web:
-      optional: true
-  checksum: 10/2c3bcfce23426bf0433295a167e4c5e899d3984d717269f13992a411441caadf590221b869934a3095bc965db3060d8781b6943f7e7cbadfa1016ce9f7cb94b6
   languageName: node
   linkType: hard
 

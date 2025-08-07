@@ -3,7 +3,6 @@ import type {Meta} from '@storybook/react';
 import {Image} from 'react-native';
 import {StoryDecorator} from '@sherlo/testing-components';
 import {Image as TamaguiImage} from '@tamagui/image';
-import {Image as ExpoImage} from 'expo-image';
 import FastImage from '@d11/react-native-fast-image';
 import TurboImage from 'react-native-turbo-image';
 
@@ -56,12 +55,6 @@ export const TamaguiUrl = {
         />
       </TamaguiProvider>
     );
-  },
-};
-
-export const ExpoUrl = {
-  render: () => {
-    return <ExpoImage source={URL} style={{width: 200, height: 300}} />;
   },
 };
 
