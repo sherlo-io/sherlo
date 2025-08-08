@@ -1918,6 +1918,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@d11/react-native-fast-image@npm:^8.11.0":
+  version: 8.11.0
+  resolution: "@d11/react-native-fast-image@npm:8.11.0"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10/8564a6229097f16cf1edcccdee077b394af3ba360a5031f1a1300a23397e2a7aab38f4e6e2ef6d8bbeb54d73bc8161bf4e13371da3b2f764d5f87558fec86817
+  languageName: node
+  linkType: hard
+
 "@egjs/hammerjs@npm:^2.0.17":
   version: 2.0.17
   resolution: "@egjs/hammerjs@npm:2.0.17"
@@ -4420,6 +4430,7 @@ __metadata:
     "@babel/core": "npm:^7.25.2"
     "@babel/preset-env": "npm:^7.25.3"
     "@babel/runtime": "npm:^7.27.0"
+    "@d11/react-native-fast-image": "npm:^8.11.0"
     "@gorhom/bottom-sheet": "npm:^5.0.2"
     "@react-native-async-storage/async-storage": "npm:^2.1.2"
     "@react-native-community/cli": "npm:15.0.1"
