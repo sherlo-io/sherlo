@@ -26,7 +26,6 @@
     "sherlo": "npx sherlo"
   },
   "dependencies": {
-    "@d11/react-native-fast-image": "^8.11.0",
     "@gorhom/bottom-sheet": "^5.0.2",
     "@react-native-async-storage/async-storage": "^2.1.2",
     "@sherlo/testing-components": "portal:../testing-components",
