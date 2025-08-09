@@ -6,6 +6,8 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.IBinder;
+import android.view.inputmethod.InputMethodManager;
 import android.view.View;
 import android.view.ViewGroup;
 import android.util.Log;
@@ -191,8 +193,7 @@ public class StabilityHelper {
                 }
                 lastScreenshot[0] = currentScreenshot;
 
-                View rootView = activity.getWindow().getDecorView().getRootView();
-                boolean foundFocus = findAndClearFocus(rootView);
+                boolean foundFocus = clearFocusAndHideIme(activity);
 
                 if(foundFocus) {
                     Log.d(TAG, "Found and cleared focus");
@@ -217,31 +218,35 @@ public class StabilityHelper {
 
 
     /**
-     * Recursively searches for and clears any focused view in the hierarchy.
      * Helps ensure UI stability by removing any blinking cursors or focus highlights.
      *
-     * @param view The view to check for focus and its children
+     * @param activity The activity to check for focus and its children
      * @return True if a focused view was found and cleared, false otherwise
      */
-    private static boolean findAndClearFocus(View view) {
-        if (view == null) return false;
-
-        // Check if current view is focused
-        if (view.isFocused()) {
-            view.clearFocus();
-            return true;  // Found and cleared focus, no need to continue
+    private static boolean clearFocusAndHideIme(Activity activity) {
+        View root = activity.getWindow().getDecorView();
+        View focused = root.findFocus();
+        if (focused == null) return false;
+    
+        // 1) clear focus
+        focused.clearFocus();
+    
+        // 2) hide IME explicitly
+        InputMethodManager imm =
+            (InputMethodManager) activity.getSystemService(Context.INPUT_METHOD_SERVICE);
+        IBinder token = focused.getWindowToken();
+        if (imm != null && token != null) {
+            imm.hideSoftInputFromWindow(token, 0);
         }
-
-        // If view is a ViewGroup, check all its children
-        if (view instanceof ViewGroup) {
-            ViewGroup viewGroup = (ViewGroup) view;
-            for (int i = 0; i < viewGroup.getChildCount(); i++) {
-                if (findAndClearFocus(viewGroup.getChildAt(i))) {
-                    return true;  // Focus was found and cleared in a child view
-                }
-            }
+    
+        // 3) prevent instant re-focus for one frame
+        ViewGroup content = activity.findViewById(android.R.id.content);
+        if (content != null) {
+            content.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+            new Handler(Looper.getMainLooper()).postDelayed(() ->
+                content.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS), 16);
         }
-
-        return false;
+    
+        return true;
     }
 } 
