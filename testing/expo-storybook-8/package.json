@@ -33,6 +33,7 @@
     "sherlo": "npx sherlo"
   },
   "dependencies": {
+    "@d11/react-native-fast-image": "^8.10.0",
     "@gorhom/bottom-sheet": "^5.0.2",
     "@react-native-async-storage/async-storage": "2.1.2",
     "@react-native-community/datetimepicker": "8.4.1",
@@ -55,7 +56,6 @@
     "react-dom": "19.0.0",
     "react-native": "0.79.5",
     "react-native-crash-tester": "^0.2.3",
-    "react-native-fast-image": "^8.6.3",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-linear-gradient": "^2.8.3",
     "react-native-reanimated": "~3.17.4",

@@ -3,7 +3,7 @@ import { Image } from 'react-native';
 import { StoryDecorator } from '@sherlo/testing-components';
 import { Image as TamaguiImage } from '@tamagui/image';
 import { Image as ExpoImage } from 'expo-image';
-import FastImage from 'react-native-fast-image';
+import FastImage from '@d11/react-native-fast-image';
 import TurboImage from 'react-native-turbo-image';
 
 import { createTamagui, TamaguiProvider } from 'tamagui';
