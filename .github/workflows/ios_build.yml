@@ -47,14 +47,6 @@ jobs:
         with:
           version: latest
 
-      - name: Add env specific dependencies
-        run: ./scripts/switch-env.sh dev
-        env:
-          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-
-      - name: Install dependencies
-        run: yarn && cd packages/cli && yarn build
-
       - name: Install project dependencies
         working-directory: testing/${{ inputs.project }}
         run: yarn

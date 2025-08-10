@@ -1,6 +1,7 @@
 import type { Meta } from '@storybook/react';
 import { TestInfo } from '@sherlo/testing-components';
 import * as Localization from 'expo-localization';
+import { PixelRatio } from 'react-native';
 
 export default {
   component: TestInfo,
@@ -11,6 +12,7 @@ const storyOfColor = (hexColor: string, colorName: string) => ({
     backgroundColor: hexColor,
     colorName,
     locale: Localization.locale,
+    fontScale: PixelRatio.getFontScale(),
   },
 });
 
