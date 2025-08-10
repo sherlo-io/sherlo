@@ -1,0 +1,47 @@
+import * as ExpoStatusBar from 'expo-status-bar';
+import { useEffect } from 'react';
+import { StyleSheet, Text, useColorScheme, View } from 'react-native';
+
+const StatusBarChange = ({
+  property,
+}: {
+  property: 'backgroundColor' | 'hidden' | 'darkContent' | 'lightContent' | 'withoutTranslucent';
+}) => {
+  const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    if (property === 'backgroundColor') {
+      ExpoStatusBar.setStatusBarBackgroundColor('#f00', false);
+    } else if (property === 'hidden') {
+      ExpoStatusBar.setStatusBarHidden(true);
+    } else if (property === 'darkContent') {
+      ExpoStatusBar.setStatusBarStyle('dark');
+    } else if (property === 'lightContent') {
+      ExpoStatusBar.setStatusBarStyle('light');
+    } else if (property === 'withoutTranslucent') {
+      ExpoStatusBar.setStatusBarTranslucent(false);
+    }
+  }, [colorScheme, property]);
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.text}>
+        This component changes "{property}" property of the status bar
+      </Text>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  text: {
+    fontSize: 18,
+    marginBottom: 20,
+  },
+});
+
+export default StatusBarChange;
