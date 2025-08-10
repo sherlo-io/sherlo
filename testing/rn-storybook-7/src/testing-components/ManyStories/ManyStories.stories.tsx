@@ -1,6 +1,7 @@
 import type {Meta} from '@storybook/react';
 import {TestInfo} from '@sherlo/testing-components';
 import {getLocales} from 'react-native-localize';
+import {PixelRatio} from 'react-native';
 
 export default {
   component: TestInfo,
@@ -13,6 +14,7 @@ const storyOfColor = (hexColor: string, colorName: string) => ({
     locale: `${getLocales()?.[0]?.countryCode}-${
       getLocales()?.[0]?.languageCode
     }`,
+    fontScale: PixelRatio.getFontScale(),
   },
 });
 
