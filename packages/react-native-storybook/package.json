@@ -1,6 +1,6 @@
 {
   "name": "@sherlo/react-native-storybook",
-  "version": "1.3.6",
+  "version": "1.4.0",
   "description": "Sherlo is a Visual Testing tool for React Native Storybook",
   "keywords": [
     "visual testing",
@@ -59,7 +59,7 @@
     "its-fine": "^2.0.0",
     "jsencrypt": "^3.3.2",
     "node-forge": "^1.3.1",
-    "sherlo": "^1.3.6",
+    "sherlo": "^1.4.0",
     "utf8": "^3.0.0"
   },
   "devDependencies": {
