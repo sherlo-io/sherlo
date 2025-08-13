@@ -100,10 +100,6 @@ public class StabilityHelper {
                 rootView.setLayerType(View.LAYER_TYPE_NONE, null);
                 rootView.setLayerType(lt, null);
 
-                // Optional heavier nudge: requestLayout to force measure/layout when text is
-                // suspect
-                // rootView.requestLayout();
-
                 // Schedule a redraw next frame
                 rootView.postInvalidateOnAnimation();
 
