@@ -18,14 +18,14 @@
       "id": "iphone.15.pro",
       "osVersion": "17",
       "osLocale": "en_US",
-      "osTheme": "dark"
+      "osTheme": "dark",
+      "osFontScale": "-3"
     },
     {
       "id": "ipad.pro.13.m4",
       "osVersion": "17",
       "osLocale": "en_US",
-      "osTheme": "light",
-      "osFontScale": "+3"
+      "osTheme": "light"
     }
   ]
 }
