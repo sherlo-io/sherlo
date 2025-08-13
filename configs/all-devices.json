@@ -6,77 +6,77 @@
       "osVersion": "13",
       "osLocale": "en_US",
       "osTheme": "light",
-      "osFontScale": "+5"
+      "osFontScale": "+2"
     },
     {
       "id": "pixel.7",
       "osVersion": "13",
       "osLocale": "en_US",
       "osTheme": "dark",
-      "osFontScale": "+5"
+      "osFontScale": "+2"
     },
     {
       "id": "pixel.6a",
       "osVersion": "13",
       "osLocale": "en_US",
       "osTheme": "light",
-      "osFontScale": "+5"
+      "osFontScale": "+2"
     },
     {
       "id": "pixel.6.pro",
       "osVersion": "13",
       "osLocale": "en_US",
       "osTheme": "dark",
-      "osFontScale": "+5"
+      "osFontScale": "+2"
     },
     {
       "id": "pixel.6",
       "osVersion": "13",
       "osLocale": "en_US",
       "osTheme": "light",
-      "osFontScale": "+5"
+      "osFontScale": "+2"
     },
     {
       "id": "pixel.5",
       "osVersion": "13",
       "osLocale": "en_US",
       "osTheme": "dark",
-      "osFontScale": "+5"
+      "osFontScale": "+2"
     },
     {
       "id": "pixel.4a",
       "osVersion": "13",
       "osLocale": "en_US",
       "osTheme": "light",
-      "osFontScale": "+5"
+      "osFontScale": "+2"
     },
     {
       "id": "pixel.4.xl",
       "osVersion": "13",
       "osLocale": "en_US",
       "osTheme": "dark",
-      "osFontScale": "+5"
+      "osFontScale": "+2"
     },
     {
       "id": "pixel.4",
       "osVersion": "13",
       "osLocale": "en_US",
       "osTheme": "light",
-      "osFontScale": "+5"
+      "osFontScale": "+2"
     },
     {
       "id": "pixel.tablet",
       "osVersion": "13",
       "osLocale": "en_US",
       "osTheme": "light",
-      "osFontScale": "+5"
+      "osFontScale": "+2"
     },
     {
       "id": "pixel.tablet",
       "osVersion": "13",
       "osLocale": "de_DE",
       "osTheme": "dark",
-      "osFontScale": "+5"
+      "osFontScale": "+2"
     },
     {
       "id": "iphone.15.pro.max",
