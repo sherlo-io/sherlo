@@ -8,6 +8,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
+import android.util.Log;
 import android.view.Choreographer;
 import android.view.PixelCopy;
 import android.view.View;
