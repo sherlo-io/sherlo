@@ -27,7 +27,8 @@ export type StoryId = `${string}--${string}`;
 
 export type Snapshot = {
   // sherlo exclusive parameters
-  viewId: string; // components-avatar--basic
+  viewId: string; // components-avatar--basic-deviceHeight
+  mode: SnapshotMode; // deviceHeight
   displayName: string; // components/Avatar - Basic
   sherloParameters?: SherloParameters;
 
@@ -40,6 +41,8 @@ export type Snapshot = {
   argTypes: any;
   args: any;
 };
+
+export type SnapshotMode = 'deviceHeight' | 'fullHeight';
 
 export type StorybookView = ReturnType<typeof start>;
 

@@ -2,8 +2,8 @@ import { start } from '@storybook/react-native';
 import { useEffect } from 'react';
 import { RunnerBridge } from '../../../../helpers';
 import SherloModule from '../../../../SherloModule';
-import { isStorybook7 } from '../../../helpers';
 import prepareSnapshots from './prepareSnapshots';
+import { isStorybook7 } from '../../../helpers';
 
 function useSetInitialTestingData({ view }: { view: ReturnType<typeof start> }): void {
   const lastState = SherloModule.getLastState();
@@ -14,7 +14,7 @@ function useSetInitialTestingData({ view }: { view: ReturnType<typeof start> }):
     (async () => {
       await waitForStorybookReady(view);
 
-      const allStories = prepareSnapshots(view);
+      const allStories = prepareSnapshots({ view, splitByMode: true });
 
       RunnerBridge.log('start testing session', {
         isStorybook7,
@@ -26,7 +26,7 @@ function useSetInitialTestingData({ view }: { view: ReturnType<typeof start> }):
         snapshots: allStories,
       });
     })();
-  });
+  }, []);
 }
 
 export default useSetInitialTestingData;
