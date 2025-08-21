@@ -30,6 +30,7 @@ on:
 jobs:
   run_sherlo_expo_update:
     name: Run Sherlo in expo-update mode
+    environment: ${{ inputs.env }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

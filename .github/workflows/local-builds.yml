@@ -21,6 +21,7 @@ on:
 jobs:
   sherlo_local_builds:
     name: Run sherlo local-builds (expo)
+    environment: ${{ inputs.env }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
