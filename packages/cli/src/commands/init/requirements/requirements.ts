@@ -15,7 +15,6 @@ import {
 import { THIS_COMMAND } from '../constants';
 import { printMessage, printTitle, trackProgress } from '../helpers';
 import { EVENT } from './constants';
-import getEnvInfo from './getEnvInfo';
 import validateReactNativeProject from './validateReactNativeProject';
 import validateStorybook from './validateStorybook';
 
@@ -29,7 +28,6 @@ async function requirements({ token, sessionId }: { token?: string; sessionId: s
   await trackProgress({
     event: EVENT,
     params: {
-      envInfo: await getEnvInfo(),
       expoVersion: getPackageVersion(EXPO_PACKAGE_NAME),
       reactNativeVersion: getPackageVersion(REACT_NATIVE_PACKAGE_NAME),
       storybookReactNativeVersion: getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME),
