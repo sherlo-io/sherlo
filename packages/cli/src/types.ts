@@ -16,6 +16,7 @@ import {
   MESSAGE_OPTION,
   PROFILE_OPTION,
   PROJECT_ROOT_OPTION,
+  TEST_COMMAND,
   TOKEN_OPTION,
   WAIT_FOR_EAS_BUILD_OPTION,
 } from './constants';
@@ -27,6 +28,7 @@ export type Command =
   | typeof EXPO_UPDATE_COMMAND
   | typeof EXPO_CLOUD_BUILDS_COMMAND
   | typeof EAS_BUILD_ON_COMPLETE_COMMAND
+  | typeof TEST_COMMAND
   | typeof INIT_COMMAND;
 
 export type IOSFileType = (typeof IOS_FILE_TYPES)[number];
@@ -86,6 +88,10 @@ type CommandOptions = {
   };
   [EAS_BUILD_ON_COMPLETE_COMMAND]: {
     [PROFILE_OPTION]: string;
+  };
+  [TEST_COMMAND]: {
+    [ANDROID_OPTION]?: string;
+    [IOS_OPTION]?: string;
   };
   [INIT_COMMAND]: {};
   any: Partial<

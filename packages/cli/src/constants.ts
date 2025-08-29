@@ -56,11 +56,12 @@ export const MIN_STORYBOOK_REACT_NATIVE_VERSION = '7.6.11';
 
 /* COMMANDS */
 
+export const INIT_COMMAND = 'init';
+export const TEST_COMMAND = 'test';
 export const LOCAL_BUILDS_COMMAND = 'local-builds';
 export const EXPO_UPDATE_COMMAND = 'expo-update';
 export const EXPO_CLOUD_BUILDS_COMMAND = 'expo-cloud-builds';
 export const EAS_BUILD_ON_COMPLETE_COMMAND = 'eas-build-on-complete';
-export const INIT_COMMAND = 'init';
 
 /* OPTIONS */
 

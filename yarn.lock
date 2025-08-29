@@ -3657,6 +3657,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/prompts@npm:^2.4.9":
+  version: 2.4.9
+  resolution: "@types/prompts@npm:2.4.9"
+  dependencies:
+    "@types/node": "npm:*"
+    kleur: "npm:^3.0.3"
+  checksum: 10/69b8372f4c790b45fea16a46ff8d1bcc71b14579481776b67bd6263637118a7ecb1f12e1311506c29fadc81bf618dc64f1a91f903cfd5be67a0455a227b3e462
+  languageName: node
+  linkType: hard
+
 "@types/prop-types@npm:*":
   version: 15.7.14
   resolution: "@types/prop-types@npm:15.7.14"
@@ -11863,6 +11873,7 @@ __metadata:
     "@types/gradient-string": "npm:^1.1.2"
     "@types/node": "npm:^16.11.7"
     "@types/node-fetch": "npm:^2.6.4"
+    "@types/prompts": "npm:^2.4.9"
     "@types/tar": "npm:^6.1.5"
     "@vercel/ncc": "npm:latest"
     chalk: "npm:^4.1.2"
@@ -11874,6 +11885,7 @@ __metadata:
     node-fetch: "npm:^2.6.11"
     ora: "npm:^8.2.0"
     package-manager-detector: "npm:^0.2.9"
+    prompts: "npm:^2.4.2"
     type-fest: "npm:^4.20.1"
     typescript: "npm:^5.3.3"
     wrap-ansi: "npm:^9.0.0"

@@ -38,6 +38,7 @@
     "@types/gradient-string": "^1.1.2",
     "@types/node": "^16.11.7",
     "@types/node-fetch": "^2.6.4",
+    "@types/prompts": "^2.4.9",
     "@types/tar": "^6.1.5",
     "@vercel/ncc": "latest",
     "chalk": "^4.1.2",
@@ -49,6 +50,7 @@
     "node-fetch": "^2.6.11",
     "ora": "^8.2.0",
     "package-manager-detector": "^0.2.9",
+    "prompts": "^2.4.2",
     "type-fest": "^4.20.1",
     "typescript": "^5.3.3",
     "wrap-ansi": "^9.0.0"

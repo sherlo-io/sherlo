@@ -1,6 +1,13 @@
 import { Command } from 'commander';
 import { version } from '../package.json';
-import { easBuildOnComplete, expoCloudBuilds, expoUpdate, init, localBuilds } from './commands';
+import {
+  easBuildOnComplete,
+  expoCloudBuilds,
+  expoUpdate,
+  init,
+  localBuilds,
+  test,
+} from './commands';
 import {
   ANDROID_OPTION,
   BRANCH_OPTION,
@@ -19,6 +26,7 @@ import {
   PLATFORM_LABEL,
   PROFILE_OPTION,
   PROJECT_ROOT_OPTION,
+  TEST_COMMAND,
   TOKEN_OPTION,
   WAIT_FOR_EAS_BUILD_OPTION,
 } from './constants';
@@ -70,6 +78,30 @@ async function start() {
       .name('sherlo')
       .version(version, '--version', 'Output the version number')
       .description('Sherlo CLI for React Native Storybook visual testing');
+
+    program
+      .command(INIT_COMMAND)
+      .description('Initialize Sherlo in your React Native project')
+      .option(...sharedOptions[TOKEN_OPTION])
+      .action(async (options) => {
+        setReportingContext(INIT_COMMAND, options);
+        await init(options);
+      });
+
+    program
+      .command(TEST_COMMAND)
+      .description('Run test interactively')
+      .option(...sharedOptions[ANDROID_OPTION])
+      .option(...sharedOptions[IOS_OPTION])
+      .option(...sharedOptions[TOKEN_OPTION])
+      .option(...sharedOptions[MESSAGE_OPTION])
+      .option(...sharedOptions[INCLUDE_OPTION])
+      .option(...sharedOptions[CONFIG_OPTION])
+      .option(...sharedOptions[PROJECT_ROOT_OPTION])
+      .action(async (options) => {
+        setReportingContext(TEST_COMMAND, options);
+        await withCommandTimeout(test)(options);
+      });
 
     program
       .command(LOCAL_BUILDS_COMMAND)
@@ -140,15 +172,6 @@ async function start() {
       .action(async (options) => {
         setReportingContext(EAS_BUILD_ON_COMPLETE_COMMAND, options);
         await withCommandTimeout(easBuildOnComplete)(options);
-      });
-
-    program
-      .command(INIT_COMMAND)
-      .description('Initialize Sherlo in your React Native project')
-      .option(...sharedOptions[TOKEN_OPTION])
-      .action(async (options) => {
-        setReportingContext(INIT_COMMAND, options);
-        await init(options);
       });
 
     if (process.argv.length === 2) {

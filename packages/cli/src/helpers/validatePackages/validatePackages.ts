@@ -11,6 +11,7 @@ import {
   MIN_STORYBOOK_REACT_NATIVE_VERSION,
   REACT_NATIVE_PACKAGE_NAME,
   STORYBOOK_REACT_NATIVE_PACKAGE_NAME,
+  TEST_COMMAND,
 } from '../../constants';
 import { reporting } from '../../helpers';
 import { Command } from '../../types';
@@ -50,6 +51,7 @@ const COMMAND_REQUIREMENTS: Record<Command, PackageRequirement[] | null> = {
   ],
   [EXPO_CLOUD_BUILDS_COMMAND]: [{ packageName: EXPO_PACKAGE_NAME }],
   [EAS_BUILD_ON_COMPLETE_COMMAND]: null,
+  [TEST_COMMAND]: null,
   [INIT_COMMAND]: null,
 };
 

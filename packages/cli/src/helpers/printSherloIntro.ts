@@ -14,6 +14,11 @@ const header = `
 `;
 
 function printSherloIntro(): void {
+  // Skip if already printed (prevents double printing in test command)
+  if (process.env.INTRO_ALREADY_PRINTED === 'true') {
+    return;
+  }
+
   console.log(gradientString(COLOR.reported, COLOR.approved, COLOR.noChanges)(header));
 
   console.log(chalk.dim(chalk.italic('Make sure your mobile app looks perfect on every device')));
