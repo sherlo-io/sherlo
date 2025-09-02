@@ -91,8 +91,9 @@ jobs:
           fi
 
   device_testing:
+    needs: check_if_monday
     uses: ./.github/workflows/expo-update.yml
-    if: ${{ (github.event_name == 'schedule' || github.event.inputs.device_testing == 'true') && always() && !failure() && !cancelled() }}
+    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.device_testing == 'true') && always() && !failure() && !cancelled() }}
     name: Device Testing
     secrets: inherit
     with:
@@ -103,8 +104,9 @@ jobs:
       arch: 'old'
 
   many_stories:
+    needs: check_if_monday
     uses: ./.github/workflows/expo-update.yml
-    if: ${{ (github.event_name == 'schedule' || github.event.inputs.many_stories == 'true') && always() && !failure() && !cancelled() }}
+    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.many_stories == 'true') && always() && !failure() && !cancelled() }}
     name: Many Stories
     secrets: inherit
     with:
@@ -115,9 +117,9 @@ jobs:
       arch: 'old'
 
   expo_local_builds:
-    needs: setup-matrix
+    needs: [check_if_monday, setup-matrix]
     uses: ./.github/workflows/local-builds.yml
-    if: ${{ (github.event_name == 'schedule' || github.event.inputs.expo_local_builds == 'true') && always() && !failure() && !cancelled() }}
+    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.expo_local_builds == 'true') && always() && !failure() && !cancelled() }}
     strategy:
       matrix:
         arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
@@ -129,9 +131,9 @@ jobs:
       arch: ${{ matrix.arch }}
 
   rn_local_builds:
-    needs: setup-matrix
+    needs: [check_if_monday, setup-matrix]
     uses: ./.github/workflows/local-builds.yml
-    if: ${{ (github.event_name == 'schedule' || github.event.inputs.rn_local_builds == 'true') && always() && !failure() && !cancelled() }}
+    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.rn_local_builds == 'true') && always() && !failure() && !cancelled() }}
     strategy:
       matrix:
         arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
@@ -156,9 +158,9 @@ jobs:
       arch: ${{ matrix.arch }}
 
   expo_update_with_builds:
-    needs: setup-matrix
+    needs: [check_if_monday, setup-matrix]
     uses: ./.github/workflows/expo-update.yml
-    if: ${{ (github.event_name == 'schedule' || github.event.inputs.expo_update_with_builds == 'true') && always() && !failure() && !cancelled() }}
+    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.expo_update_with_builds == 'true') && always() && !failure() && !cancelled() }}
     strategy:
       matrix:
         arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
@@ -171,9 +173,9 @@ jobs:
       arch: ${{ matrix.arch }}
 
   expo_update:
-    needs: setup-matrix
+    needs: [check_if_monday, setup-matrix]
     uses: ./.github/workflows/expo-update.yml
-    if: ${{ (github.event_name == 'schedule' || github.event.inputs.expo_update == 'true') && always() && !failure() && !cancelled() }}
+    if: ${{ ((github.event_name == 'schedule' && (needs.check_if_monday.outputs.is_monday == 'true' || contains(needs.setup-matrix.outputs.arch-matrix, 'new'))) || github.event.inputs.expo_update == 'true') && always() && !failure() && !cancelled() }}
     strategy:
       matrix:
         arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
