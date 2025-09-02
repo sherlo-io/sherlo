@@ -42,6 +42,7 @@ public class SherloModulePackage extends TurboReactPackage {
                         SherloModule.NAME,
                         false, // canOverrideExistingModule
                         false, // needsEagerInit
+                        false, // hasConstants
                         false, // isCxxModule
                         isTurboModule
                 ));
