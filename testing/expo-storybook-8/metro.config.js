@@ -36,5 +36,5 @@ const customConfig = {
 // Apply Storybook wrapper to the extended config
 module.exports = withStorybook(customConfig, {
   enabled: true,
-  configPath: path.resolve(__dirname, './.storybook'),
+  configPath: path.resolve(__dirname, './.rnstorybook'),
 });
