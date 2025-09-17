@@ -2891,8 +2891,6 @@ __metadata:
     base-64: "npm:^0.1.0"
     deepmerge: "npm:4.3.1"
     its-fine: "npm:^2.0.0"
-    jsencrypt: "npm:^3.3.2"
-    node-forge: "npm:^1.3.1"
     sherlo: "npm:^1.4.3"
     utf8: "npm:^3.0.0"
   peerDependencies:
@@ -8542,13 +8540,6 @@ __metadata:
   version: 4.1.0
   resolution: "jsdoc-type-pratt-parser@npm:4.1.0"
   checksum: 10/30d88f95f6cbb4a1aa6d4b0d0ae46eb1096e606235ecaf9bab7a3ed5da860516b5d1cd967182765002f292c627526db918f3e56d34637bcf810e6ef84d403f3f
-  languageName: node
-  linkType: hard
-
-"jsencrypt@npm:^3.3.2":
-  version: 3.3.2
-  resolution: "jsencrypt@npm:3.3.2"
-  checksum: 10/3d5383501dee4afd3355213a90dd782e626c64b90c5fd2ec8a223491c4fc12c1caaa5d7a6080f8683877cdf98f056f6e45688b4d9d8a1745fe62ee14dbda1fea
   languageName: node
   linkType: hard
 
