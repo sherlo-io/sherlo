@@ -10,5 +10,3 @@ export const DEFAULT_DEVICES = [
     osVersion: '13',
   } as const,
 ];
-
-export const TOKEN_PLACEHOLDER = 'PROJECT_TOKEN';

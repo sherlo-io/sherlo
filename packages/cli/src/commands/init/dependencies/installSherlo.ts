@@ -3,9 +3,8 @@ import { readFile } from 'fs/promises';
 import ora from 'ora';
 import { detect, resolveCommand } from 'package-manager-detector';
 import { join } from 'path';
-import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../constants';
+import { FULL_INIT_COMMAND, SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../constants';
 import { getCwd, getErrorWithCustomMessage, runShellCommand, throwError } from '../../../helpers';
-import { FULL_INIT_COMMAND } from '../constants';
 import { trackProgress } from '../helpers';
 import { EVENT } from './constants';
 

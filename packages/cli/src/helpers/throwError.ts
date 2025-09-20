@@ -1,5 +1,4 @@
 import chalk from 'chalk';
-import { CONTACT_EMAIL, DISCORD_URL } from '../constants';
 import printLink from './printLink';
 import reporting from './reporting';
 
@@ -23,7 +22,7 @@ function throwError(params: Params): never {
   reportError(params);
 
   const error: Error & { skipReporting?: boolean } = new Error(getErrorMessage(params));
-  error.skipReporting = true; // Don't report this error in the main catch
+  error.skipReporting = true; // Error has been already reported above
 
   throw error;
 }
@@ -57,12 +56,6 @@ function getErrorMessage(params: Params): string {
     const { stdout, stderr } = params.error;
     if (stdout) errorMessageParts.push(`\n${stdout}`);
     if (stderr) errorMessageParts.push(`\n${stderr}`);
-
-    errorMessageParts.push(chalk.dim('\n' + '═'.repeat(10) + '\n'));
-
-    errorMessageParts.push(chalk.dim('Need Help?'));
-    errorMessageParts.push(chalk.dim('→ ') + chalk.dim(DISCORD_URL.replace('https://', '')));
-    errorMessageParts.push(chalk.dim('→ ') + chalk.dim(CONTACT_EMAIL));
   } else if (params.learnMoreLink) {
     errorMessageParts.push(chalk.dim(`↳ Learn more: ${printLink(params.learnMoreLink)}`));
   }

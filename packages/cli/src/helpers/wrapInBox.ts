@@ -1,10 +1,20 @@
 import chalk from 'chalk';
 import wrapAnsi from 'wrap-ansi';
-import { stripAnsi } from '../../../helpers';
+import stripAnsi from './stripAnsi';
 
 type Type = 'default' | 'warning' | 'command';
 
-function wrapInBox({ text, title, type }: { text: string; title?: string; type?: Type }): string {
+function wrapInBox({
+  text,
+  title,
+  type,
+  indent = 0,
+}: {
+  text: string;
+  title?: string;
+  type?: Type;
+  indent?: number;
+}): string {
   const wrappedLines = getWrappedLines(text, type);
   const hasMultipleLines = type === 'command' && wrappedLines.length > 1;
 
@@ -21,7 +31,10 @@ function wrapInBox({ text, title, type }: { text: string; title?: string; type?:
   );
   const bottomLine = renderBottomLine(exactTextLength, type);
 
-  return [topLine, ...contentLines, bottomLine].join('\n');
+  const indentString = indent > 0 ? ' '.repeat(indent) : '';
+  const allLines = [topLine, ...contentLines, bottomLine];
+
+  return allLines.map((line) => `${indentString}${line}`).join('\n');
 }
 
 export default wrapInBox;
@@ -50,18 +63,21 @@ function getWrappedLines(text: string, type?: Type): string[] {
 }
 
 function renderTopLine(title: string | undefined, maxLength: number, type?: Type): string {
-  const titlePart = title ? ` ${title} ` : '';
+  let titlePart = title ? ` ${title} ` : '';
+  if (type === 'warning') titlePart = chalk.yellow(titlePart);
+  else titlePart = chalk.blue(titlePart);
 
-  return borderColor(
-    [
-      BOX.TOP_LEFT,
-      BOX.HORIZONTAL.repeat(PADDING),
-      titlePart,
-      BOX.HORIZONTAL.repeat(maxLength - getVisibleLength(titlePart)),
-      BOX.HORIZONTAL.repeat(PADDING),
-      BOX.TOP_RIGHT,
-    ].join(''),
-    type
+  return (
+    borderColor([BOX.TOP_LEFT, BOX.HORIZONTAL.repeat(PADDING)].join(''), type) +
+    titlePart +
+    borderColor(
+      [
+        BOX.HORIZONTAL.repeat(maxLength - getVisibleLength(titlePart)),
+        BOX.HORIZONTAL.repeat(PADDING),
+        BOX.TOP_RIGHT,
+      ].join(''),
+      type
+    )
   );
 }
 
@@ -124,7 +140,7 @@ function renderContentLine(
 
 function borderColor(char: string, type?: Type) {
   if (type === 'warning') return chalk.yellow(char);
-  return chalk.dim(char);
+  return chalk.blue.dim(char);
 }
 
 function getVisibleLength(str: string): number {

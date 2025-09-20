@@ -19,10 +19,11 @@ export const DOCS_LINK = {
 
   builds: `${DOCS_DOMAIN}/setup/builds`,
 
-  testing: `${DOCS_DOMAIN}/setup/testing`,
-  commandLocalBuilds: `${DOCS_DOMAIN}/setup/testing?command=local-builds#testing-commands`,
-  commandExpoCloudBuilds: `${DOCS_DOMAIN}/setup/testing?command=expo-cloud-builds#testing-commands`,
-  commandExpoUpdate: `${DOCS_DOMAIN}/setup/testing?command=expo-update#testing-commands`,
+  testing: `${DOCS_DOMAIN}/testing`,
+  testingMethods: `${DOCS_DOMAIN}/testing#testing-methods`,
+  commandLocalBuilds: `${DOCS_DOMAIN}/testing?method=local-builds#testing-methods`,
+  commandExpoCloudBuilds: `${DOCS_DOMAIN}/testing?method=expo-cloud-builds#testing-methods`,
+  commandExpoUpdate: `${DOCS_DOMAIN}/testing?method=expo-update#testing-methods`,
 
   devices: `${DOCS_DOMAIN}/devices`,
 };
@@ -34,6 +35,7 @@ export const PLATFORM_LABEL: { [platform in Platform]: string } = {
   ios: 'iOS',
 };
 
+export const ANDROID_FILE_TYPES = ['.apk'] as const;
 export const IOS_FILE_TYPES = ['.app', '.tar.gz', '.tar'] as const;
 
 export const DEFAULT_CONFIG_FILENAME = 'sherlo.config.json';
@@ -62,6 +64,7 @@ export const LOCAL_BUILDS_COMMAND = 'local-builds';
 export const EXPO_UPDATE_COMMAND = 'expo-update';
 export const EXPO_CLOUD_BUILDS_COMMAND = 'expo-cloud-builds';
 export const EAS_BUILD_ON_COMPLETE_COMMAND = 'eas-build-on-complete';
+export const FULL_INIT_COMMAND = 'npx sherlo@latest init';
 
 /* OPTIONS */
 

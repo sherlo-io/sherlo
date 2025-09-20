@@ -29,6 +29,7 @@
     "build": "rm -rf dist && ncc build src/index.ts --source-map --minify && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js"
   },
   "devDependencies": {
+    "@inquirer/prompts": "^7.8.4",
     "@sentry/node": "8.41.0",
     "@sherlo/api-types": "portal:../../sherlo-lib/extracted/@sherlo/api-types",
     "@sherlo/common-client": "portal:../../sherlo-lib/extracted/@sherlo/common-client",
@@ -50,7 +51,6 @@
     "node-fetch": "^2.6.11",
     "ora": "^8.2.0",
     "package-manager-detector": "^0.2.9",
-    "prompts": "^2.4.2",
     "type-fest": "^4.20.1",
     "typescript": "^5.3.3",
     "wrap-ansi": "^9.0.0"

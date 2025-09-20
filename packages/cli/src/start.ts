@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import { Command } from 'commander';
 import { version } from '../package.json';
 import {
@@ -9,17 +10,21 @@ import {
   test,
 } from './commands';
 import {
+  ANDROID_FILE_TYPES,
   ANDROID_OPTION,
   BRANCH_OPTION,
   CONFIG_OPTION,
+  CONTACT_EMAIL,
   DEFAULT_CONFIG_FILENAME,
   DEFAULT_PROJECT_ROOT,
+  DISCORD_URL,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EAS_BUILD_SCRIPT_NAME_OPTION,
   EXPO_CLOUD_BUILDS_COMMAND,
   EXPO_UPDATE_COMMAND,
   INCLUDE_OPTION,
   INIT_COMMAND,
+  IOS_FILE_TYPES,
   IOS_OPTION,
   LOCAL_BUILDS_COMMAND,
   MESSAGE_OPTION,
@@ -44,11 +49,11 @@ async function start() {
     const sharedOptions = {
       [ANDROID_OPTION]: [
         `--${ANDROID_OPTION} <path>`,
-        `Path to ${PLATFORM_LABEL.android} build (.apk)`,
+        `Path to ${PLATFORM_LABEL.android} build (${ANDROID_FILE_TYPES.join(', ')})`,
       ],
       [IOS_OPTION]: [
         `--${IOS_OPTION} <path>`,
-        `Path to ${PLATFORM_LABEL.ios} build (.app, .tar.gz or .tar)`,
+        `Path to ${PLATFORM_LABEL.ios} build (${IOS_FILE_TYPES.join(', ')})`,
       ],
       [TOKEN_OPTION]: [`--${TOKEN_OPTION} <token>`, 'Authentication token for the project'],
       [MESSAGE_OPTION]: [`--${MESSAGE_OPTION} <message>`, 'Custom message to label the test'],
@@ -189,6 +194,12 @@ async function start() {
 
     await reporting.flush().finally(() => {
       console.error((error as Error).message);
+
+      console.log(chalk.dim('═'.repeat(10) + '\n'));
+      console.log(chalk.dim('Need Help?'));
+      console.log(chalk.dim('➜ ') + chalk.dim(DISCORD_URL));
+      console.log(chalk.dim('➜ ') + chalk.dim(CONTACT_EMAIL));
+
       process.exit(error.code || 1);
     });
   }

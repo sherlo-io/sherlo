@@ -4,6 +4,7 @@ import {
   EXPO_PACKAGE_NAME,
   REACT_NATIVE_PACKAGE_NAME,
   STORYBOOK_REACT_NATIVE_PACKAGE_NAME,
+  TOKEN_OPTION,
 } from '../../../constants';
 import {
   getPackageVersion,
@@ -63,7 +64,7 @@ async function validateProject(token?: string): Promise<void> {
     if (token && !isValidToken(token)) {
       throwError({
         message:
-          'Invalid `--token`. Make sure you copied it correctly or generate a new one at ' +
+          `Invalid \`--${TOKEN_OPTION}\`. Make sure you copied it correctly or generate a new one at ` +
           printLink(APP_DOMAIN),
         errorToReport: new Error('Invalid token: ' + token),
       });

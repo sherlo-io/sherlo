@@ -11,22 +11,26 @@ async function waitForEnterPress(): Promise<void> {
   process.stdin.setRawMode(true);
   process.stdin.resume();
 
-  await new Promise<void>((resolve) => {
+  await new Promise<void>((resolve, reject) => {
+    const cleanup = () => {
+      process.stdin.setRawMode(false);
+      process.stdin.pause();
+      process.stdin.removeListener('data', handleKeypress);
+    };
+
     const handleKeypress = (key: Buffer) => {
       const keyCode = key[0];
       const killCodes = [3, 4, 26, 28]; // CTRL+C, CTRL+D, CTRL+Z, CTRL+\
 
       if (killCodes.includes(keyCode)) {
-        process.stdin.setRawMode(false);
-        process.stdin.pause();
-        process.exit();
+        cleanup();
+        reject();
+        return;
       }
 
       if (keyCode === 13) {
         // Enter
-        process.stdin.setRawMode(false);
-        process.stdin.pause();
-        process.stdin.removeListener('data', handleKeypress);
+        cleanup();
         process.stdout.write(ansiEscapes.eraseLines(2) + ansiEscapes.cursorLeft);
         resolve();
       } else {

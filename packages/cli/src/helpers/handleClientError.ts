@@ -1,4 +1,5 @@
-import { DOCS_LINK } from '../constants';
+import { APP_DOMAIN } from '../constants';
+import { printLink } from '../helpers';
 import throwError from './throwError';
 
 function handleClientError(error: any) {
@@ -8,9 +9,8 @@ function handleClientError(error: any) {
       message:
         'Invalid token\n\n' +
         'Please:\n' +
-        '1. Make sure you copied it correctly\n' +
-        '2. Generate a new one in Sherlo web app if needed\n',
-      learnMoreLink: DOCS_LINK.configToken,
+        '- Make sure you copied it correctly, or\n' +
+        `- Generate a new one at ${printLink(APP_DOMAIN)}\n`,
     });
   }
 
