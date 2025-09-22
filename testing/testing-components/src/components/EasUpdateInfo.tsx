@@ -1,8 +1,7 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import InfoItem from './InfoItem';
 
-interface ExpoUpdateInfoProps {
+interface EasUpdateInfoProps {
   update: {
     id: string;
     runtimeVersion: string;
@@ -10,7 +9,7 @@ interface ExpoUpdateInfoProps {
   };
 }
 
-const ExpoUpdateInfo = ({ update }: ExpoUpdateInfoProps) => {
+const EasUpdateInfo = ({ update }: EasUpdateInfoProps) => {
   return (
     <View style={[styles.container]}>
       {update.id ? (
@@ -48,4 +47,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ExpoUpdateInfo;
+export default EasUpdateInfo;

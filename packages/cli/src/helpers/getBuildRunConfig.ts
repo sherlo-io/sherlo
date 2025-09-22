@@ -19,12 +19,12 @@ function getBuildRunConfig({
   return {
     include,
     exclude,
-    expoUpdateSlug: easUpdateData?.slug,
+    easUpdateSlug: easUpdateData?.slug,
     android:
       androidDevices.length > 0
         ? {
             devices: androidDevices,
-            expoUpdateUrl: easUpdateData?.updateUrls.android,
+            easUpdateUrl: easUpdateData?.updateUrls.android,
             s3Key: binaryS3Keys?.android || ASYNC_UPLOAD_S3_KEY_PLACEHOLDER,
           }
         : undefined,
@@ -32,7 +32,7 @@ function getBuildRunConfig({
       iosDevices.length > 0
         ? {
             devices: iosDevices,
-            expoUpdateUrl: easUpdateData?.updateUrls.ios,
+            easUpdateUrl: easUpdateData?.updateUrls.ios,
             s3Key: binaryS3Keys?.ios || ASYNC_UPLOAD_S3_KEY_PLACEHOLDER,
           }
         : undefined,
