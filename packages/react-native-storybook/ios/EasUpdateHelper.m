@@ -1,16 +1,16 @@
-#import "ExpoUpdateHelper.h"
+#import "EasUpdateHelper.h"
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 
-static NSString *const LOG_TAG = @"SherloModule:ExpoUpdateHelper";
-static NSString *const DEEPLINK_CONSUMED_KEY = @"ExpoUpdateDeeplinkConsumed";
+static NSString *const LOG_TAG = @"SherloModule:EasUpdateHelper";
+static NSString *const DEEPLINK_CONSUMED_KEY = @"EasUpdateDeeplinkConsumed";
 
 /**
  * Helper for handling Expo updates in the Sherlo module.
  * Provides functionality to process and navigate to specific Expo updates
  * when used with the Expo Update system.
  */
-@implementation ExpoUpdateHelper
+@implementation EasUpdateHelper
 
 /**
  * Checks if any deeplink has been consumed by retrieving from NSUserDefaults.
@@ -35,10 +35,10 @@ static NSString *const DEEPLINK_CONSUMED_KEY = @"ExpoUpdateDeeplinkConsumed";
  * Checks if an Expo update deeplink needs to be consumed and handles it if needed.
  * Uses persistent storage to track if any deeplink has been consumed.
  *
- * @param expoUpdateDeeplink The Expo update deeplink URL to potentially consume
+ * @param easUpdateDeeplink The Expo update deeplink URL to potentially consume
  */
-+ (BOOL)consumeExpoUpdateDeeplinkIfNeeded:(NSString *)expoUpdateDeeplink {
-    if (!expoUpdateDeeplink || expoUpdateDeeplink.length == 0) {
++ (BOOL)consumeEasUpdateDeeplinkIfNeeded:(NSString *)easUpdateDeeplink {
+    if (!easUpdateDeeplink || easUpdateDeeplink.length == 0) {
         return NO;
     }
     
@@ -47,10 +47,10 @@ static NSString *const DEEPLINK_CONSUMED_KEY = @"ExpoUpdateDeeplinkConsumed";
     if (!isDeeplinkAlreadyConsumed) {
         NSLog(@"[%@] Consuming expo update deeplink", LOG_TAG);
         
-        NSURL *deeplinkURL = [NSURL URLWithString:expoUpdateDeeplink];
+        NSURL *deeplinkURL = [NSURL URLWithString:easUpdateDeeplink];
         
         if (!deeplinkURL) {
-            NSLog(@"[%@] Failed to create URL from deeplink: %@", LOG_TAG, expoUpdateDeeplink);
+            NSLog(@"[%@] Failed to create URL from deeplink: %@", LOG_TAG, easUpdateDeeplink);
             return NO;
         }
         

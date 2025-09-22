@@ -18,7 +18,7 @@ export type Config = {
     saveScreenshots?: boolean;
   };
   overrideMode?: 'default' | 'storybook' | 'testing';
-  expoUpdateDeeplink?: string;
+  easUpdateDeeplink?: string;
   overrideLastState?: LastState;
 };
 
