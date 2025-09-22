@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import { BRANCH_OPTION } from '../../../constants';
 import { throwError } from '../../../helpers';
 
-async function collectExpoUpdateOptions(): Promise<Record<string, string | boolean>> {
+async function collectTestEasUpdateOptions(): Promise<Record<string, string | boolean>> {
   console.log();
 
   let easUpdateBranchName;
@@ -25,4 +25,4 @@ async function collectExpoUpdateOptions(): Promise<Record<string, string | boole
   return { [BRANCH_OPTION]: easUpdateBranchName };
 }
 
-export default collectExpoUpdateOptions;
+export default collectTestEasUpdateOptions;

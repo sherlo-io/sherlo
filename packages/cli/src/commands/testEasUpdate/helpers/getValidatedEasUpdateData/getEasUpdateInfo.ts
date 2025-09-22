@@ -1,10 +1,10 @@
 import { getErrorWithCustomMessage, runShellCommand, throwError } from '../../../../helpers';
-import { CommandParams, ExpoUpdateInfo } from '../../../../types';
+import { CommandParams, EasUpdateInfo } from '../../../../types';
 import { THIS_COMMAND } from '../../constants';
 
-async function getExpoUpdateInfo(
+async function getEasUpdateInfo(
   commandParams: CommandParams<THIS_COMMAND>
-): Promise<ExpoUpdateInfo> {
+): Promise<EasUpdateInfo> {
   const command = `npx --yes eas-cli branch:view ${commandParams.branch} --limit 1 --json --non-interactive`;
 
   let output;
@@ -27,22 +27,22 @@ async function getExpoUpdateInfo(
     });
   }
 
-  const expoUpdateInfo = result.currentPage?.[0];
+  const easUpdateInfo = result.currentPage?.[0];
 
   if (
-    !expoUpdateInfo ||
-    !expoUpdateInfo.branch ||
-    !expoUpdateInfo.group ||
-    !expoUpdateInfo.message ||
-    !expoUpdateInfo.platforms
+    !easUpdateInfo ||
+    !easUpdateInfo.branch ||
+    !easUpdateInfo.group ||
+    !easUpdateInfo.message ||
+    !easUpdateInfo.platforms
   ) {
     throwError({
       type: 'unexpected',
-      error: new Error('Invalid expo update info:\n' + JSON.stringify(result, null, 2)),
+      error: new Error('Invalid EAS Update info:\n' + JSON.stringify(result, null, 2)),
     });
   }
 
-  return expoUpdateInfo;
+  return easUpdateInfo;
 }
 
-export default getExpoUpdateInfo;
+export default getEasUpdateInfo;

@@ -7,7 +7,7 @@ import {
 import { Options } from '../../types';
 import { THIS_COMMAND } from './constants';
 
-async function localBuilds(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
+async function testStandard(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
   printSherloIntro();
 
   validatePackages(THIS_COMMAND);
@@ -20,4 +20,4 @@ async function localBuilds(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
   return uploadOrReuseBuildsAndRunTests({ commandParams });
 }
 
-export default localBuilds;
+export default testStandard;

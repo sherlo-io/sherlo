@@ -1,8 +1,8 @@
 import { GetNextBuildInfoReturn, Platform } from '@sherlo/api-types';
 import {
   EAS_BUILD_ON_COMPLETE_COMMAND,
-  EXPO_UPDATE_COMMAND,
   PLATFORM_LABEL,
+  TEST_EAS_UPDATE_COMMAND,
 } from '../../../constants';
 import { Command, CommandParams } from '../../../types';
 import { validatePlatformPaths } from '../../shared';
@@ -46,7 +46,7 @@ function getBinaryInfo(params: Params): BinaryInfo | undefined {
   }
 
   // Local binary info is always required for every non EXPO_UPDATE_COMMAND
-  if (!localBinariesInfo[platform] && command !== EXPO_UPDATE_COMMAND) {
+  if (!localBinariesInfo[platform] && command !== TEST_EAS_UPDATE_COMMAND) {
     throwError({
       type: 'unexpected',
       error: new Error(`${PLATFORM_LABEL[platform]} local binary info is missing`),
@@ -59,7 +59,7 @@ function getBinaryInfo(params: Params): BinaryInfo | undefined {
   };
 
   if (checkIfBinaryInfoIsMissingRequiredFields(binaryInfo)) {
-    if (command === EXPO_UPDATE_COMMAND) {
+    if (command === TEST_EAS_UPDATE_COMMAND) {
       /**
        * For EXPO_UPDATE_COMMAND, we delay platform paths validation until this stage
        * to first check if we can reuse previously uploaded builds (from remoteBinariesInfo)

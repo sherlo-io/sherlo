@@ -9,11 +9,11 @@ import {
   APP_DOMAIN,
   DEFAULT_CONFIG_FILENAME,
   DEFAULT_PROJECT_ROOT,
-  EXPO_CLOUD_BUILDS_COMMAND,
-  EXPO_UPDATE_COMMAND,
   IOS_FILE_TYPES,
   IOS_OPTION,
   PLATFORM_LABEL,
+  TEST_EAS_CLOUD_BUILD_COMMAND,
+  TEST_EAS_UPDATE_COMMAND,
   TOKEN_OPTION,
 } from '../../../constants';
 import {
@@ -38,11 +38,11 @@ async function collectMissingOptions(
     missingOptions.token = await collectToken();
   }
 
-  if (!hasDevices || command === EXPO_CLOUD_BUILDS_COMMAND) {
+  if (!hasDevices || command === TEST_EAS_CLOUD_BUILD_COMMAND) {
     return missingOptions;
   }
 
-  if (command === EXPO_UPDATE_COMMAND) {
+  if (command === TEST_EAS_UPDATE_COMMAND) {
     console.log();
 
     const wantsToUploadBuilds = await confirm({

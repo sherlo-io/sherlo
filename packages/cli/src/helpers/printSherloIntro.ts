@@ -15,7 +15,7 @@ const header = `
 
 function printSherloIntro(): void {
   // Skip if already printed (prevents double printing in test command)
-  if (process.env.INTRO_ALREADY_PRINTED === 'true') {
+  if (process.env.SKIP_INTRO === 'true') {
     return;
   }
 

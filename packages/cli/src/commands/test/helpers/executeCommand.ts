@@ -1,25 +1,25 @@
 import chalk from 'chalk';
 import {
   ANDROID_OPTION,
-  EXPO_CLOUD_BUILDS_COMMAND,
-  EXPO_UPDATE_COMMAND,
   IOS_OPTION,
-  LOCAL_BUILDS_COMMAND,
+  TEST_EAS_CLOUD_BUILD_COMMAND,
+  TEST_EAS_UPDATE_COMMAND,
+  TEST_STANDARD_COMMAND,
   TOKEN_OPTION,
 } from '../../../constants';
 import { logInfo, wrapInBox } from '../../../helpers';
 import { Options } from '../../../types';
-import expoCloudBuilds from '../../expoCloudBuilds';
-import expoUpdate from '../../expoUpdate';
-import localBuilds from '../../localBuilds';
+import testEasCloudBuild from '../../testEasCloudBuild';
+import testEasUpdate from '../../testEasUpdate';
+import testStandard from '../../testStandard';
 
 async function executeCommand(
   command: string,
   options: Record<string, string | boolean>
 ): Promise<void> {
-  // Filter out android/ios options for expo cloud builds command
+  // Filter out android/ios options for test:eas-cloud-build command
   let filteredOptions = options;
-  if (command === EXPO_CLOUD_BUILDS_COMMAND) {
+  if (command === TEST_EAS_CLOUD_BUILD_COMMAND) {
     filteredOptions = { ...options };
     delete filteredOptions[ANDROID_OPTION];
     delete filteredOptions[IOS_OPTION];
@@ -59,16 +59,16 @@ async function executeCommand(
   console.log();
 
   switch (command) {
-    case LOCAL_BUILDS_COMMAND:
-      await localBuilds(filteredOptions as Options<typeof LOCAL_BUILDS_COMMAND>);
+    case TEST_STANDARD_COMMAND:
+      await testStandard(filteredOptions as Options<typeof TEST_STANDARD_COMMAND>);
 
       break;
-    case EXPO_CLOUD_BUILDS_COMMAND:
-      await expoCloudBuilds(filteredOptions as Options<typeof EXPO_CLOUD_BUILDS_COMMAND>);
+    case TEST_EAS_UPDATE_COMMAND:
+      await testEasUpdate(filteredOptions as Options<typeof TEST_EAS_UPDATE_COMMAND>);
 
       break;
-    case EXPO_UPDATE_COMMAND:
-      await expoUpdate(filteredOptions as Options<typeof EXPO_UPDATE_COMMAND>);
+    case TEST_EAS_CLOUD_BUILD_COMMAND:
+      await testEasCloudBuild(filteredOptions as Options<typeof TEST_EAS_CLOUD_BUILD_COMMAND>);
 
       break;
     default:

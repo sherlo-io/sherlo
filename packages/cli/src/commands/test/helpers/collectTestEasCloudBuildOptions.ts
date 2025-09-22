@@ -11,7 +11,7 @@ import { throwError } from '../../../helpers';
 import { Options } from '../../../types';
 import { THIS_COMMAND } from '../constants';
 
-async function collectExpoCloudBuildsOptions(
+async function collectTestEasCloudBuildOptions(
   passedOptions: Options<typeof THIS_COMMAND>
 ): Promise<Record<string, string | boolean>> {
   console.log();
@@ -69,7 +69,7 @@ async function collectExpoCloudBuildsOptions(
   }
 }
 
-export default collectExpoCloudBuildsOptions;
+export default collectTestEasCloudBuildOptions;
 
 /* ========================================================================== */
 

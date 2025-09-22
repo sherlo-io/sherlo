@@ -2,8 +2,8 @@ import { Platform } from '@sherlo/api-types';
 import sdkClient from '@sherlo/sdk-client';
 import {
   DEFAULT_PROJECT_ROOT,
-  EXPO_UPDATE_COMMAND,
   EAS_BUILD_ON_COMPLETE_COMMAND,
+  TEST_EAS_UPDATE_COMMAND,
 } from '../../../constants';
 import { Command, CommandParams } from '../../../types';
 import handleClientError from '../../handleClientError';
@@ -52,7 +52,9 @@ async function getBinariesInfoAndNextBuildIndex(params: Params) {
       projectIndex,
       teamId,
       binaryReuseMode:
-        command === EXPO_UPDATE_COMMAND ? 'requireHashMatchOrLatestExpoDev' : 'requireHashMatch',
+        command === TEST_EAS_UPDATE_COMMAND
+          ? 'requireHashMatchOrLatestExpoDev'
+          : 'requireHashMatch',
     })
     .catch(handleClientError);
 

@@ -1,5 +1,5 @@
 import sdkClient from '@sherlo/sdk-client';
-import { EXPO_CLOUD_BUILDS_COMMAND } from '../../constants';
+import { TEST_EAS_CLOUD_BUILD_COMMAND } from '../../constants';
 import {
   getAppBuildUrl,
   getBuildRunConfig,
@@ -24,13 +24,13 @@ import {
   validatePackageJsonScripts,
 } from './helpers';
 
-async function expoCloudBuilds(passedOptions: Options<THIS_COMMAND>) {
+async function testEasCloudBuild(passedOptions: Options<THIS_COMMAND>) {
   printSherloIntro();
 
-  validatePackages(EXPO_CLOUD_BUILDS_COMMAND);
+  validatePackages(TEST_EAS_CLOUD_BUILD_COMMAND);
 
   const commandParams = getValidatedCommandParams(
-    { command: EXPO_CLOUD_BUILDS_COMMAND, passedOptions },
+    { command: TEST_EAS_CLOUD_BUILD_COMMAND, passedOptions },
     {
       /*
        * We don't require platform paths here because builds are uploaded later
@@ -98,4 +98,4 @@ async function expoCloudBuilds(passedOptions: Options<THIS_COMMAND>) {
   return { url };
 }
 
-export default expoCloudBuilds;
+export default testEasCloudBuild;

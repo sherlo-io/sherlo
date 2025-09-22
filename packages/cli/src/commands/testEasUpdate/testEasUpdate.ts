@@ -1,14 +1,14 @@
 import {
+  getValidatedCommandParams,
   printSherloIntro,
   uploadOrReuseBuildsAndRunTests,
-  getValidatedCommandParams,
   validatePackages,
 } from '../../helpers';
 import { Options } from '../../types';
 import { THIS_COMMAND } from './constants';
-import { getValidatedExpoUpdateData } from './helpers';
+import { getValidatedEasUpdateData } from './helpers';
 
-async function expoUpdate(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
+async function testEasUpdate(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
   printSherloIntro();
 
   validatePackages(THIS_COMMAND);
@@ -26,9 +26,9 @@ async function expoUpdate(passedOptions: Options<THIS_COMMAND>): Promise<{ url: 
     }
   );
 
-  const expoUpdateData = await getValidatedExpoUpdateData(commandParams);
+  const easUpdateData = await getValidatedEasUpdateData(commandParams);
 
-  return uploadOrReuseBuildsAndRunTests({ commandParams, expoUpdateData });
+  return uploadOrReuseBuildsAndRunTests({ commandParams, easUpdateData });
 }
 
-export default expoUpdate;
+export default testEasUpdate;

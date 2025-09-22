@@ -1,38 +1,38 @@
 import { Platform } from '@sherlo/api-types';
 import { PLATFORMS, PLATFORM_LABEL } from '../../../../constants';
 import { getPlatformsToTest, throwError } from '../../../../helpers';
-import { CommandParams, ExpoUpdateInfo } from '../../../../types';
+import { CommandParams, EasUpdateInfo } from '../../../../types';
 import { THIS_COMMAND } from '../../constants';
 import { getUpdatePlatformsArray } from './shared';
 
-function validateExpoUpdateInfo({
+function validateEasUpdateInfo({
   commandParams,
-  expoUpdateInfo,
+  easUpdateInfo,
 }: {
   commandParams: CommandParams<THIS_COMMAND>;
-  expoUpdateInfo: ExpoUpdateInfo;
+  easUpdateInfo: EasUpdateInfo;
 }) {
   const platformsToTest = getPlatformsToTest(commandParams.devices);
-  const updatePlatformsArray = getUpdatePlatformsArray(expoUpdateInfo);
+  const updatePlatformsArray = getUpdatePlatformsArray(easUpdateInfo);
 
   PLATFORMS.forEach((platform) => {
     if (platformsToTest.includes(platform) && !updatePlatformsArray.includes(platform)) {
-      throwError(getError({ type: 'missing_platform', platform, expoUpdateInfo }));
+      throwError(getError({ type: 'missing_platform', platform, easUpdateInfo }));
     }
   });
 }
 
-export default validateExpoUpdateInfo;
+export default validateEasUpdateInfo;
 
 /* ========================================================================== */
 
-type ExpoUpdateError = {
+type EasUpdateError = {
   type: 'missing_platform';
   platform: Platform;
-  expoUpdateInfo: ExpoUpdateInfo;
+  easUpdateInfo: EasUpdateInfo;
 };
 
-function getError(error: ExpoUpdateError) {
+function getError(error: EasUpdateError) {
   switch (error.type) {
     case 'missing_platform':
       return {
@@ -41,10 +41,10 @@ function getError(error: ExpoUpdateError) {
             PLATFORM_LABEL[error.platform]
           } (based on devices in config) in latest update\n\n` +
           'Update Info\n' +
-          `└─ message: ${error.expoUpdateInfo.message}\n` +
-          `└─ group: ${error.expoUpdateInfo.group}\n` +
-          `└─ platforms: ${error.expoUpdateInfo.platforms}\n` +
-          `└─ branch: ${error.expoUpdateInfo.branch}`,
+          `└─ message: ${error.easUpdateInfo.message}\n` +
+          `└─ group: ${error.easUpdateInfo.group}\n` +
+          `└─ platforms: ${error.easUpdateInfo.platforms}\n` +
+          `└─ branch: ${error.easUpdateInfo.branch}`,
       };
   }
 }

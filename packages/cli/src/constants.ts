@@ -21,9 +21,9 @@ export const DOCS_LINK = {
 
   testing: `${DOCS_DOMAIN}/testing`,
   testingMethods: `${DOCS_DOMAIN}/testing#testing-methods`,
-  commandLocalBuilds: `${DOCS_DOMAIN}/testing?method=local-builds#testing-methods`,
-  commandExpoCloudBuilds: `${DOCS_DOMAIN}/testing?method=expo-cloud-builds#testing-methods`,
-  commandExpoUpdate: `${DOCS_DOMAIN}/testing?method=expo-update#testing-methods`,
+  testStandard: `${DOCS_DOMAIN}/testing?method=standard#testing-methods`,
+  testEasUpdate: `${DOCS_DOMAIN}/testing?method=eas-update#testing-methods`,
+  testEasCloudBuild: `${DOCS_DOMAIN}/testing?method=eas-cloud-build#testing-methods`,
 
   devices: `${DOCS_DOMAIN}/devices`,
 };
@@ -60,9 +60,9 @@ export const MIN_STORYBOOK_REACT_NATIVE_VERSION = '7.6.11';
 
 export const INIT_COMMAND = 'init';
 export const TEST_COMMAND = 'test';
-export const LOCAL_BUILDS_COMMAND = 'local-builds';
-export const EXPO_UPDATE_COMMAND = 'expo-update';
-export const EXPO_CLOUD_BUILDS_COMMAND = 'expo-cloud-builds';
+export const TEST_STANDARD_COMMAND = 'test:standard';
+export const TEST_EAS_UPDATE_COMMAND = 'test:eas-update';
+export const TEST_EAS_CLOUD_BUILD_COMMAND = 'test:eas-cloud-build';
 export const EAS_BUILD_ON_COMPLETE_COMMAND = 'eas-build-on-complete';
 export const FULL_INIT_COMMAND = 'npx sherlo@latest init';
 

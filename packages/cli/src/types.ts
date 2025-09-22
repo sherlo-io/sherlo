@@ -6,17 +6,17 @@ import {
   CONFIG_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EAS_BUILD_SCRIPT_NAME_OPTION,
-  EXPO_CLOUD_BUILDS_COMMAND,
-  EXPO_UPDATE_COMMAND,
   INCLUDE_OPTION,
   INIT_COMMAND,
   IOS_FILE_TYPES,
   IOS_OPTION,
-  LOCAL_BUILDS_COMMAND,
   MESSAGE_OPTION,
   PROFILE_OPTION,
   PROJECT_ROOT_OPTION,
   TEST_COMMAND,
+  TEST_EAS_CLOUD_BUILD_COMMAND,
+  TEST_EAS_UPDATE_COMMAND,
+  TEST_STANDARD_COMMAND,
   TOKEN_OPTION,
   WAIT_FOR_EAS_BUILD_OPTION,
 } from './constants';
@@ -24,9 +24,9 @@ import {
 /* === GENERAL === */
 
 export type Command =
-  | typeof LOCAL_BUILDS_COMMAND
-  | typeof EXPO_UPDATE_COMMAND
-  | typeof EXPO_CLOUD_BUILDS_COMMAND
+  | typeof TEST_STANDARD_COMMAND
+  | typeof TEST_EAS_UPDATE_COMMAND
+  | typeof TEST_EAS_CLOUD_BUILD_COMMAND
   | typeof EAS_BUILD_ON_COMPLETE_COMMAND
   | typeof TEST_COMMAND
   | typeof INIT_COMMAND;
@@ -72,17 +72,17 @@ type CommonOptions<M extends OptionsMode, F extends OptionsFormat> = {
   : { [CONFIG_OPTION]?: string; [PROJECT_ROOT_OPTION]?: string });
 
 type CommandOptions = {
-  [LOCAL_BUILDS_COMMAND]: {
+  [TEST_STANDARD_COMMAND]: {
     [ANDROID_OPTION]?: string;
     [IOS_OPTION]?: string;
   };
-  [EXPO_UPDATE_COMMAND]: {
+  [TEST_EAS_UPDATE_COMMAND]: {
     [BRANCH_OPTION]: string;
     [ANDROID_OPTION]?: string;
     [IOS_OPTION]?: string;
     // [EAS_UPDATE_JSON_OUTPUT_OPTION]?: string;
   };
-  [EXPO_CLOUD_BUILDS_COMMAND]: {
+  [TEST_EAS_CLOUD_BUILD_COMMAND]: {
     [EAS_BUILD_SCRIPT_NAME_OPTION]?: string;
     [WAIT_FOR_EAS_BUILD_OPTION]?: boolean;
   };
@@ -95,9 +95,9 @@ type CommandOptions = {
   };
   [INIT_COMMAND]: {};
   any: Partial<
-    CommandOptions[typeof LOCAL_BUILDS_COMMAND] &
-      CommandOptions[typeof EXPO_UPDATE_COMMAND] &
-      CommandOptions[typeof EXPO_CLOUD_BUILDS_COMMAND] &
+    CommandOptions[typeof TEST_STANDARD_COMMAND] &
+      CommandOptions[typeof TEST_EAS_UPDATE_COMMAND] &
+      CommandOptions[typeof TEST_EAS_CLOUD_BUILD_COMMAND] &
       CommandOptions[typeof EAS_BUILD_ON_COMPLETE_COMMAND]
   >;
 };
@@ -127,14 +127,14 @@ export type BinaryInfo = {
   url?: string;
 };
 
-export type ExpoUpdateInfo = {
+export type EasUpdateInfo = {
   branch: string;
   group: string;
   message: string;
   platforms: string;
 };
 
-export type ExpoUpdateData = {
+export type EasUpdateData = {
   branch: string;
   message: string;
   updateUrls: { android?: string; ios?: string };

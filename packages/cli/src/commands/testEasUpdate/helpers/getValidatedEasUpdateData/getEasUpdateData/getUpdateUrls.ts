@@ -1,19 +1,19 @@
-import { ExpoUpdateInfo } from '../../../../../types';
+import { EasUpdateInfo } from '../../../../../types';
 import { getUpdatePlatformsArray } from '../shared';
 
 function getUpdateUrls({
   baseUpdateUrl,
-  expoUpdateInfo,
+  easUpdateInfo,
 }: {
   baseUpdateUrl: string;
-  expoUpdateInfo: ExpoUpdateInfo;
+  easUpdateInfo: EasUpdateInfo;
 }) {
   const updateUrls: { android?: string; ios?: string } = {};
 
-  const updatePlatformsArray = getUpdatePlatformsArray(expoUpdateInfo);
+  const updatePlatformsArray = getUpdatePlatformsArray(easUpdateInfo);
 
   updatePlatformsArray.forEach((platform) => {
-    updateUrls[platform] = `${baseUpdateUrl}/group/${expoUpdateInfo.group}?platform=${platform}`;
+    updateUrls[platform] = `${baseUpdateUrl}/group/${easUpdateInfo.group}?platform=${platform}`;
   });
 
   return updateUrls;

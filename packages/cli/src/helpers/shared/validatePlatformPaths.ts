@@ -4,9 +4,9 @@ import {
   ANDROID_FILE_TYPES,
   ANDROID_OPTION,
   DOCS_LINK,
-  EXPO_UPDATE_COMMAND,
   IOS_FILE_TYPES,
   IOS_OPTION,
+  TEST_EAS_UPDATE_COMMAND,
 } from '../../constants';
 import { Command } from '../../types';
 import throwError from '../throwError';
@@ -128,9 +128,9 @@ const learnMoreLink: { [platform in Platform | 'both']: string } = {
 };
 
 function getError(error: PlatformPathError, command: Command) {
-  const missingExpoUpdateNote =
-    command === EXPO_UPDATE_COMMAND
-      ? `\n\nNote: Future \`sherlo ${EXPO_UPDATE_COMMAND}\` runs won't require paths, as previously uploaded builds will be reused (unless they fail validation)\n`
+  const missingEasUpdateNote =
+    command === TEST_EAS_UPDATE_COMMAND
+      ? `\n\nNote: Future \`sherlo ${TEST_EAS_UPDATE_COMMAND}\` runs won't require paths, as previously uploaded builds will be reused (unless they fail validation)\n`
       : '';
 
   switch (error.type) {
@@ -138,21 +138,21 @@ function getError(error: PlatformPathError, command: Command) {
       return {
         message:
           `Missing required Android and iOS build paths (based on devices in config). Pass them using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or add them to the config file` +
-          missingExpoUpdateNote,
+          missingEasUpdateNote,
         learnMoreLink: learnMoreLink.both,
       };
     case 'missingAndroidPath':
       return {
         message:
           `Missing required Android build path (based on devices in config). Pass it using \`--${ANDROID_OPTION}\` option or add \`android\` to the config file` +
-          missingExpoUpdateNote,
+          missingEasUpdateNote,
         learnMoreLink: learnMoreLink.android,
       };
     case 'missingIosPath':
       return {
         message:
           `Missing required iOS build path (based on devices in config). Pass it using \`--${IOS_OPTION}\` option or add \`ios\` to the config file` +
-          missingExpoUpdateNote,
+          missingEasUpdateNote,
         learnMoreLink: learnMoreLink.ios,
       };
     case 'invalidAndroidType':

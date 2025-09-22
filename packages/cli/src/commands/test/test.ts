@@ -1,16 +1,16 @@
 import {
-  EXPO_CLOUD_BUILDS_COMMAND,
-  EXPO_UPDATE_COMMAND,
-  LOCAL_BUILDS_COMMAND,
+  TEST_EAS_CLOUD_BUILD_COMMAND,
+  TEST_EAS_UPDATE_COMMAND,
+  TEST_STANDARD_COMMAND,
 } from '../../constants';
 import { printSherloIntro } from '../../helpers';
 import { Options } from '../../types';
 import { THIS_COMMAND } from './constants';
 import {
   checkSherloInitialization,
-  collectExpoCloudBuildsOptions,
-  collectExpoUpdateOptions,
   collectMissingOptions,
+  collectTestEasCloudBuildOptions,
+  collectTestEasUpdateOptions,
   executeCommand,
   promptForTestingMethod,
 } from './helpers';
@@ -25,7 +25,7 @@ async function test(passedOptions: Options<typeof THIS_COMMAND>): Promise<void> 
   });
 
   // Set flag to prevent duplicate intro printing in sub-commands
-  process.env.INTRO_ALREADY_PRINTED = 'true';
+  process.env.SKIP_INTRO = 'true';
 
   // Step 2: Ask user to select testing method
   const selectedCommand = await promptForTestingMethod();
@@ -36,13 +36,13 @@ async function test(passedOptions: Options<typeof THIS_COMMAND>): Promise<void> 
   // Step 4: Collect command-specific options
   let commandOptions: Record<string, string | boolean> = {};
   switch (selectedCommand) {
-    case LOCAL_BUILDS_COMMAND:
+    case TEST_STANDARD_COMMAND:
       break;
-    case EXPO_UPDATE_COMMAND:
-      commandOptions = await collectExpoUpdateOptions();
+    case TEST_EAS_UPDATE_COMMAND:
+      commandOptions = await collectTestEasUpdateOptions();
       break;
-    case EXPO_CLOUD_BUILDS_COMMAND:
-      commandOptions = await collectExpoCloudBuildsOptions(passedOptions);
+    case TEST_EAS_CLOUD_BUILD_COMMAND:
+      commandOptions = await collectTestEasCloudBuildOptions(passedOptions);
       break;
   }
 

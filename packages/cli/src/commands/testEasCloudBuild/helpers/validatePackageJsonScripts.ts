@@ -82,7 +82,7 @@ function validateRequiredScript(
         type === 'easBuildScriptName'
           ? getEasBuildScriptError(scriptName, packageJsonPath)
           : getEasBuildOnCompleteError(packageJsonPath),
-      learnMoreLink: DOCS_LINK.commandExpoCloudBuilds,
+      learnMoreLink: DOCS_LINK.testEasCloudBuild,
     });
   }
 }

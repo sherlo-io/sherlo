@@ -2,9 +2,9 @@
  * Parses update info message string into message, timeAgo and author parts
  *
  * @example
- * Input: '"Expo Update" (1 day ago by github-actions (robot))'
+ * Input: '"EAS Update" (1 day ago by github-actions (robot))'
  * Output: {
- *   message: '"Expo Update"',
+ *   message: '"EAS Update"',
  *   timeAgo: '1 day ago',
  *   author: 'github-actions (robot)'
  * }
