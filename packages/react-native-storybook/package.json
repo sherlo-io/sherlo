@@ -22,6 +22,7 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "react-native": "./dist/index.js",
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
