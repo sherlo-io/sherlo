@@ -1,4 +1,4 @@
-import { start } from '@storybook/react-native';
+import type { start } from '@storybook/react-native';
 import { useEffect } from 'react';
 import { RunnerBridge } from '../../../../helpers';
 import SherloModule from '../../../../SherloModule';

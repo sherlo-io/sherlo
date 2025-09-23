@@ -1,4 +1,4 @@
-import { start } from '@storybook/react-native';
+import type { start } from '@storybook/react-native';
 export interface SherloParameters {
   /**
    * Setting exclude to true skips the story during testing. This might be
