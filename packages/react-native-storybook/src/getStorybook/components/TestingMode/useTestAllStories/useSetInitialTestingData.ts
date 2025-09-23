@@ -1,11 +1,11 @@
-import type { start } from '@storybook/react-native';
 import { useEffect } from 'react';
 import { RunnerBridge } from '../../../../helpers';
 import SherloModule from '../../../../SherloModule';
 import prepareSnapshots from './prepareSnapshots';
 import { isStorybook7 } from '../../../helpers';
+import { StorybookView } from '../../../../types';
 
-function useSetInitialTestingData({ view }: { view: ReturnType<typeof start> }): void {
+function useSetInitialTestingData({ view }: { view: StorybookView }): void {
   const lastState = SherloModule.getLastState();
 
   useEffect(() => {
@@ -26,6 +26,7 @@ function useSetInitialTestingData({ view }: { view: ReturnType<typeof start> }):
         snapshots: allStories,
       });
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }
 
@@ -33,7 +34,7 @@ export default useSetInitialTestingData;
 
 /* ========================================================================== */
 
-async function waitForStorybookReady(view: ReturnType<typeof start>): Promise<boolean> {
+async function waitForStorybookReady(view: StorybookView): Promise<boolean> {
   while (true) {
     const isReady = Object.keys(view._idToPrepared).length > 0;
 
