@@ -4411,7 +4411,6 @@ __metadata:
     base-64: "npm:^0.1.0"
     deepmerge: "npm:4.3.1"
     its-fine: "npm:^2.0.0"
-    sherlo: "npm:^1.4.3"
     utf8: "npm:^3.0.0"
   peerDependencies:
     "@storybook/react-native": ">=7.6.11"
@@ -14111,14 +14110,6 @@ __metadata:
   checksum: 10/3ae4804fd80a12ba07650d0262804ae3b479a62a6b6971a6dc5fa12995507aa63d3de3e6a8b7a8d18f4ce6eb118b7d75db7fcb2c0acbf016f210f746b10cfe02
   languageName: node
   linkType: hard
-
-"sherlo@portal:../../packages/cli::locator=%40sherlo%2Frn-storybook-7%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "sherlo@portal:../../packages/cli::locator=%40sherlo%2Frn-storybook-7%40workspace%3A."
-  bin:
-    sherlo: ./cli.js
-  languageName: node
-  linkType: soft
 
 "side-channel-list@npm:^1.0.0":
   version: 1.0.0
