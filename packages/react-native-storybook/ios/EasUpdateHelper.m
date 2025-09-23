@@ -6,9 +6,9 @@ static NSString *const LOG_TAG = @"SherloModule:EasUpdateHelper";
 static NSString *const DEEPLINK_CONSUMED_KEY = @"EasUpdateDeeplinkConsumed";
 
 /**
- * Helper for handling Expo updates in the Sherlo module.
- * Provides functionality to process and navigate to specific Expo updates
- * when used with the Expo Update system.
+ * Helper for handling EAS Updates in the Sherlo module.
+ * Provides functionality to process and navigate to specific EAS Updates
+ * when used with the EAS Update system.
  */
 @implementation EasUpdateHelper
 
@@ -32,10 +32,10 @@ static NSString *const DEEPLINK_CONSUMED_KEY = @"EasUpdateDeeplinkConsumed";
 }
 
 /**
- * Checks if an Expo update deeplink needs to be consumed and handles it if needed.
+ * Checks if an EAS Update deeplink needs to be consumed and handles it if needed.
  * Uses persistent storage to track if any deeplink has been consumed.
  *
- * @param easUpdateDeeplink The Expo update deeplink URL to potentially consume
+ * @param easUpdateDeeplink The EAS Update deeplink URL to potentially consume
  */
 + (BOOL)consumeEasUpdateDeeplinkIfNeeded:(NSString *)easUpdateDeeplink {
     if (!easUpdateDeeplink || easUpdateDeeplink.length == 0) {
@@ -45,7 +45,7 @@ static NSString *const DEEPLINK_CONSUMED_KEY = @"EasUpdateDeeplinkConsumed";
     BOOL isDeeplinkAlreadyConsumed = [self isDeeplinkConsumed];
     
     if (!isDeeplinkAlreadyConsumed) {
-        NSLog(@"[%@] Consuming expo update deeplink", LOG_TAG);
+        NSLog(@"[%@] Consuming EAS Update deeplink", LOG_TAG);
         
         NSURL *deeplinkURL = [NSURL URLWithString:easUpdateDeeplink];
         

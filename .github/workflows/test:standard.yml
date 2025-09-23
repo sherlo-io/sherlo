@@ -1,4 +1,4 @@
-name: TEST - local-builds mode (Expo)
+name: 'test:standard'
 
 on:
   workflow_call:
@@ -19,8 +19,8 @@ on:
         type: string
 
 jobs:
-  sherlo_local_builds:
-    name: Run sherlo local-builds (expo)
+  test_standard:
+    name: Run Sherlo in standard mode
     environment: ${{ inputs.env }}
     runs-on: ubuntu-latest
     steps:
@@ -50,14 +50,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: Run sherlo local-builds with CLI
+      - name: Run sherlo test:standard with CLI
         working-directory: testing/${{ inputs.project }}
         run: |
-          yarn sherlo local-builds \
+          yarn sherlo test:standard \
             --config ../../configs/default-devices-without-expo-info.json \
             --android builds/preview-${{ inputs.arch }}/android.apk \
             --ios builds/preview-${{ inputs.arch }}/ios.tar.gz \
-            --token ${{ (inputs.project == 'expo-storybook-8' && inputs.arch == 'old' && secrets.SHERLO_LOCAL_BUILDS_EXPO_OLD_TOKEN) || 
-                        (inputs.project == 'expo-storybook-8' && inputs.arch == 'new' && secrets.SHERLO_LOCAL_BUILDS_EXPO_NEW_TOKEN) || 
-                        (inputs.project == 'rn-storybook-7' && inputs.arch == 'old' && secrets.SHERLO_LOCAL_BUILDS_RN_OLD_TOKEN) || 
-                        (inputs.project == 'rn-storybook-7' && inputs.arch == 'new' && secrets.SHERLO_LOCAL_BUILDS_RN_NEW_TOKEN) }}
+            --token ${{ (inputs.project == 'expo-storybook-8' && inputs.arch == 'old' && secrets.SHERLO_STANDARD_EXPO_OLD_TOKEN) || 
+                        (inputs.project == 'expo-storybook-8' && inputs.arch == 'new' && secrets.SHERLO_STANDARD_EXPO_NEW_TOKEN) || 
+                        (inputs.project == 'rn-storybook-7' && inputs.arch == 'old' && secrets.SHERLO_STANDARD_RN_OLD_TOKEN) || 
+                        (inputs.project == 'rn-storybook-7' && inputs.arch == 'new' && secrets.SHERLO_STANDARD_RN_NEW_TOKEN) }}

@@ -1,4 +1,4 @@
-name: TEST - expo-cloud-builds mode
+name: 'test:eas-cloud-build'
 
 on:
   workflow_call:
@@ -14,7 +14,7 @@ on:
         type: string
 
 jobs:
-  start_sherlo_expo_cloud:
+  test_eas_cloud_build:
     if: >
       (github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'sherlo:eas')) ||
       (github.event_name != 'pull_request')
@@ -44,13 +44,13 @@ jobs:
 
       # It's important to run Sherlo in the same job as the EAS build,
       # because we're pushing temporary files to .expo directory used during the build
-      - name: Run sherlo expo-cloud-builds with CLI
+      - name: Run sherlo test:eas-cloud-build with CLI
         working-directory: testing/expo-storybook-8
         run: |
-          yarn sherlo expo-cloud-builds \
+          yarn sherlo test:eas-cloud-build \
             --waitForEasBuild \
             --config ../../configs/default-devices-without-expo-info.json \
-            --token ${{ inputs.arch == 'old' && secrets.SHERLO_EXPO_CLOUD_OLD_TOKEN || inputs.arch == 'new' && secrets.SHERLO_EXPO_CLOUD_NEW_TOKEN }}
+            --token ${{ inputs.arch == 'old' && secrets.SHERLO_EAS_CLOUD_OLD_TOKEN || inputs.arch == 'new' && secrets.SHERLO_EAS_CLOUD_NEW_TOKEN }}
 
       - name: Trigger EAS builds for both platforms
         working-directory: testing/expo-storybook-8

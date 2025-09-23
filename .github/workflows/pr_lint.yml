@@ -1,4 +1,4 @@
-name: 'PR Lint Check'
+name: 'PR Lint'
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]

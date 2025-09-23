@@ -1,5 +1,4 @@
-name: Android Build
-
+name: 'build:ios'
 on:
   workflow_call:
     inputs:
@@ -19,8 +18,8 @@ on:
         default: 'old'
 
 jobs:
-  android_build:
-    runs-on: ubuntu-latest
+  ios_build:
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v2
         with:
@@ -32,12 +31,21 @@ jobs:
         with:
           node-version: '18.18.0'
 
-      - name: Setup Java Environment
+      - name: Select Xcode Version
         if: ${{ !inputs.skip_build }}
-        uses: actions/setup-java@v2
+        uses: maxim-lobanov/setup-xcode@v1
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          xcode-version: '16.3'
+      - run: |
+          xcode-select -print-path
+      - run: |
+          xcodebuild -version
+
+      - name: Setup Cocoapods
+        if: ${{ !inputs.skip_build }}
+        uses: maxim-lobanov/setup-cocoapods@v1
+        with:
+          version: latest
 
       - name: Add env specific dependencies
         run: ./scripts/switch-env.sh dev
@@ -58,14 +66,14 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build Android
+      - name: Build iOS
         working-directory: testing/${{ inputs.project }}
-        run: yarn build:android:${{ inputs.profile }}:${{ inputs.arch }}
+        run: yarn build:ios:${{ inputs.profile }}:${{ inputs.arch }}
 
-      - name: Upload Android Artifact
+      - name: Upload iOS Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-${{ inputs.profile }}-${{ inputs.arch }}-${{ inputs.project }}-${{ github.head_ref || github.ref_name }}
-          path: testing/${{ inputs.project }}/builds/${{ inputs.profile }}-${{ inputs.arch }}/android.apk
+          name: ios-${{ inputs.profile }}-${{ inputs.arch }}-${{ inputs.project }}-${{ github.head_ref || github.ref_name }}
+          path: testing/${{ inputs.project }}/builds/${{ inputs.profile }}-${{ inputs.arch }}/ios.tar.gz
           retention-days: 90
           overwrite: true

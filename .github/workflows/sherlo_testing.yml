@@ -21,38 +21,38 @@ on:
           - 'old & new'
           - 'old'
           - 'new'
-      device_testing:
-        description: 'expo-update (sb8) / all-devices'
+      all_devices:
+        description: 'all-devices / eas-update / sb8 expo'
         required: false
         default: false
         type: boolean
       many_stories:
-        description: 'expo-update (sb8) / many-stories'
+        description: 'many-stories / eas-update / sb8 expo'
         required: false
         default: false
         type: boolean
-      expo_local_builds:
-        description: 'local-builds (expo sb8) / default'
+      standard_rn:
+        description: 'default / standard / sb7 rn'
         required: false
         default: false
         type: boolean
-      rn_local_builds:
-        description: 'local-builds (rn sb7) / default'
+      standard_expo:
+        description: 'default / standard / sb8 expo'
         required: false
         default: false
         type: boolean
-      expo_cloud:
-        description: 'expo-cloud (sb8) / default'
+      eas_update:
+        description: 'default / eas-update / sb8 expo'
         required: false
         default: false
         type: boolean
-      expo_update_with_builds:
-        description: 'expo-update (sb8) / default (with builds)'
+      eas_update_without_builds:
+        description: 'default / eas-update (without builds) / sb8 expo'
         required: false
         default: false
         type: boolean
-      expo_update:
-        description: 'expo-update (sb8) / default'
+      eas-cloud-build:
+        description: 'default / eas-cloud-build / sb8 expo'
         required: false
         default: false
         type: boolean
@@ -90,10 +90,10 @@ jobs:
             echo "arch-matrix=[\"new\"]" >> $GITHUB_OUTPUT
           fi
 
-  device_testing:
-    uses: ./.github/workflows/expo-update.yml
-    if: ${{ (github.event_name == 'schedule' || github.event.inputs.device_testing == 'true') && always() && !failure() && !cancelled() }}
-    name: Device Testing
+  all_devices:
+    uses: ./.github/workflows/test:eas-update.yml
+    if: ${{ (github.event_name == 'schedule' || github.event.inputs.all_devices == 'true') && always() && !failure() && !cancelled() }}
+    name: All Devices
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || inputs.env }}
@@ -103,7 +103,7 @@ jobs:
       arch: 'old'
 
   many_stories:
-    uses: ./.github/workflows/expo-update.yml
+    uses: ./.github/workflows/test:eas-update.yml
     if: ${{ (github.event_name == 'schedule' || github.event.inputs.many_stories == 'true') && always() && !failure() && !cancelled() }}
     name: Many Stories
     secrets: inherit
@@ -114,73 +114,73 @@ jobs:
       project: 'many-stories'
       arch: 'old'
 
-  expo_local_builds:
+  standard_rn:
     needs: setup-matrix
-    uses: ./.github/workflows/local-builds.yml
-    if: ${{ (github.event_name == 'schedule' || github.event.inputs.expo_local_builds == 'true') && always() && !failure() && !cancelled() }}
+    uses: ./.github/workflows/test:standard.yml
+    if: ${{ (github.event_name == 'schedule' || github.event.inputs.standard_rn == 'true') && always() && !failure() && !cancelled() }}
     strategy:
       matrix:
         arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
-    name: local-builds (Expo - ${{ matrix.arch }} Arch)
-    secrets: inherit
-    with:
-      env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
-      project: 'expo-storybook-8'
-      arch: ${{ matrix.arch }}
-
-  rn_local_builds:
-    needs: setup-matrix
-    uses: ./.github/workflows/local-builds.yml
-    if: ${{ (github.event_name == 'schedule' || github.event.inputs.rn_local_builds == 'true') && always() && !failure() && !cancelled() }}
-    strategy:
-      matrix:
-        arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
-    name: local-builds (React Native - ${{ matrix.arch }} Arch)
+    name: Standard (React Native - ${{ matrix.arch }} Arch)
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       project: 'rn-storybook-7'
       arch: ${{ matrix.arch }}
 
-  expo_cloud:
-    needs: [check_if_monday, setup-matrix]
-    uses: ./.github/workflows/expo-cloud.yml
-    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.expo_cloud == 'true') && always() && !failure() && !cancelled() }}
+  standard_expo:
+    needs: setup-matrix
+    uses: ./.github/workflows/test:standard.yml
+    if: ${{ (github.event_name == 'schedule' || github.event.inputs.standard_expo == 'true') && always() && !failure() && !cancelled() }}
     strategy:
       matrix:
         arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
-    name: expo-cloud-builds (${{ matrix.arch }} Arch)
+    name: Standard (Expo - ${{ matrix.arch }} Arch)
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
+      project: 'expo-storybook-8'
       arch: ${{ matrix.arch }}
 
-  expo_update_with_builds:
+  eas_update:
     needs: setup-matrix
-    uses: ./.github/workflows/expo-update.yml
-    if: ${{ (github.event_name == 'schedule' || github.event.inputs.expo_update_with_builds == 'true') && always() && !failure() && !cancelled() }}
+    uses: ./.github/workflows/test:eas-update.yml
+    if: ${{ (github.event_name == 'schedule' || github.event.inputs.eas_update == 'true') && always() && !failure() && !cancelled() }}
     strategy:
       matrix:
         arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
-    name: expo-update (with native builds - ${{ matrix.arch }} Arch)
+    name: EAS Update (${{ matrix.arch }} Arch)
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       with_builds: true
-      project: 'expo-update'
+      project: 'eas-update'
       arch: ${{ matrix.arch }}
 
-  expo_update:
+  eas_update_without_builds:
     needs: setup-matrix
-    uses: ./.github/workflows/expo-update.yml
-    if: ${{ (github.event_name == 'schedule' || github.event.inputs.expo_update == 'true') && always() && !failure() && !cancelled() }}
+    uses: ./.github/workflows/test:eas-update.yml
+    if: ${{ (github.event_name == 'schedule' || github.event.inputs.eas_update_without_builds == 'true') && always() && !failure() && !cancelled() }}
     strategy:
       matrix:
         arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
-    name: expo-update (without native builds - ${{ matrix.arch }} Arch)
+    name: EAS Update (without native builds - ${{ matrix.arch }} Arch)
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       with_builds: false
-      project: 'expo-update'
+      project: 'eas-update'
+      arch: ${{ matrix.arch }}
+
+  eas-cloud-build:
+    needs: [check_if_monday, setup-matrix]
+    uses: ./.github/workflows/test:eas-cloud-build.yml
+    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.eas-cloud-build == 'true') && always() && !failure() && !cancelled() }}
+    strategy:
+      matrix:
+        arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
+    name: EAS Cloud Build (${{ matrix.arch }} Arch)
+    secrets: inherit
+    with:
+      env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       arch: ${{ matrix.arch }}

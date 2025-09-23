@@ -1,4 +1,4 @@
-name: Release Sherlo packages
+name: Release Sherlo Packages
 
 on:
   workflow_dispatch:

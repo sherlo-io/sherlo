@@ -1,4 +1,4 @@
-name: TEST - expo-update mode
+name: 'test:eas-update'
 
 on:
   workflow_call:
@@ -13,7 +13,7 @@ on:
         default: 'default-devices'
         type: string
       project:
-        description: 'Project (expo-update, device-testing, many-stories)'
+        description: 'Project (eas-update, device-testing, many-stories)'
         required: true
         type: string
       with_builds:
@@ -28,8 +28,8 @@ on:
         type: string
 
 jobs:
-  run_sherlo_expo_update:
-    name: Run Sherlo in expo-update mode
+  test_eas_update:
+    name: Run Sherlo in eas-update mode
     environment: ${{ inputs.env }}
     runs-on: ubuntu-latest
     steps:
@@ -63,7 +63,7 @@ jobs:
       - name: Trigger EAS update and capture manifest URLs
         working-directory: testing/expo-storybook-8
         run: |
-          eas update --channel 'development' --message 'Expo Update' --json --non-interactive
+          eas update --channel 'development' --message 'EAS Update' --json --non-interactive
 
       - name: Download builds if needed
         if: inputs.with_builds == true
@@ -71,28 +71,28 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: Run sherlo expo-update (with native builds) with CLI
+      - name: Run sherlo test:eas-update (with native builds) with CLI
         if: inputs.with_builds == true
         working-directory: testing/expo-storybook-8
         run: |
-          yarn sherlo expo-update \
+          yarn sherlo test:eas-update \
             --config ../../configs/${{ inputs.config }}.json \
             --android builds/development-${{ inputs.arch }}/android.apk \
             --ios builds/development-${{ inputs.arch }}/ios.tar.gz \
             --branch development \
-            --token ${{ (inputs.project == 'expo-update' && inputs.arch == 'old' && secrets.SHERLO_EXPO_UPDATE_OLD_TOKEN) || 
-                        (inputs.project == 'expo-update' && inputs.arch == 'new' && secrets.SHERLO_EXPO_UPDATE_NEW_TOKEN) || 
+            --token ${{ (inputs.project == 'eas-update' && inputs.arch == 'old' && secrets.SHERLO_EAS_UPDATE_OLD_TOKEN) || 
+                        (inputs.project == 'eas-update' && inputs.arch == 'new' && secrets.SHERLO_EAS_UPDATE_NEW_TOKEN) || 
                         (inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN) || 
                         (inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN) }}
 
-      - name: Run sherlo expo-update (without native builds) with CLI
+      - name: Run sherlo test:eas-update (without native builds) with CLI
         if: inputs.with_builds == false
         working-directory: testing/expo-storybook-8
         run: |
-          yarn sherlo expo-update \
+          yarn sherlo test:eas-update \
             --config ../../configs/${{ inputs.config }}.json \
             --branch development \
-            --token ${{ (inputs.project == 'expo-update' && inputs.arch == 'old' && secrets.SHERLO_EXPO_UPDATE_OLD_TOKEN) || 
-                        (inputs.project == 'expo-update' && inputs.arch == 'new' && secrets.SHERLO_EXPO_UPDATE_NEW_TOKEN) || 
+            --token ${{ (inputs.project == 'eas-update' && inputs.arch == 'old' && secrets.SHERLO_EAS_UPDATE_OLD_TOKEN) || 
+                        (inputs.project == 'eas-update' && inputs.arch == 'new' && secrets.SHERLO_EAS_UPDATE_NEW_TOKEN) || 
                         (inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN) || 
                         (inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN) }}
