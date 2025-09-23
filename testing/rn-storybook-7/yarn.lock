@@ -4411,8 +4411,6 @@ __metadata:
     base-64: "npm:^0.1.0"
     deepmerge: "npm:4.3.1"
     its-fine: "npm:^2.0.0"
-    jsencrypt: "npm:^3.3.2"
-    node-forge: "npm:^1.3.1"
     sherlo: "npm:^1.4.3"
     utf8: "npm:^3.0.0"
   peerDependencies:
@@ -11259,13 +11257,6 @@ __metadata:
   bin:
     jscodeshift: bin/jscodeshift.js
   checksum: 10/bafd2b296d545ce363b594499d18a2165532463ebf16d5be2ea65206c0a486da3dc07ab410f0fefc32f232c2a51ade790b9f28f52916db690a9edf1fd4b34966
-  languageName: node
-  linkType: hard
-
-"jsencrypt@npm:^3.3.2":
-  version: 3.3.2
-  resolution: "jsencrypt@npm:3.3.2"
-  checksum: 10/3d5383501dee4afd3355213a90dd782e626c64b90c5fd2ec8a223491c4fc12c1caaa5d7a6080f8683877cdf98f056f6e45688b4d9d8a1745fe62ee14dbda1fea
   languageName: node
   linkType: hard
 
