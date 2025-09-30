@@ -1,4 +1,4 @@
-import { start } from '@storybook/react-native';
+import type { View } from '@storybook/react-native';
 export interface SherloParameters {
   /**
    * Setting exclude to true skips the story during testing. This might be
@@ -44,7 +44,7 @@ export type Snapshot = {
 
 export type SnapshotMode = 'deviceHeight' | 'fullHeight';
 
-export type StorybookView = ReturnType<typeof start>;
+export type StorybookView = View;
 
 type StorybookParamsRaw = Parameters<StorybookView['getStorybookUI']>[0];
 export type StorybookParams = StorybookParamsRaw extends infer U

@@ -57,23 +57,23 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install project dependencies
-        working-directory: testing/expo-storybook-8
+        working-directory: testing/expo
         run: yarn
 
       - name: Trigger EAS update and capture manifest URLs
-        working-directory: testing/expo-storybook-8
+        working-directory: testing/expo
         run: |
           eas update --channel 'development' --message 'EAS Update' --json --non-interactive
 
       - name: Download builds if needed
         if: inputs.with_builds == true
-        run: ./scripts/downloadBuilds.sh --project expo-storybook-8 --profile development-${{ inputs.arch }} --branch ${{ github.head_ref || github.ref_name }}
+        run: ./scripts/downloadBuilds.sh --project expo --profile development-${{ inputs.arch }} --branch ${{ github.head_ref || github.ref_name }}
         env:
           GH_TOKEN: ${{ github.token }}
 
       - name: Run sherlo test:eas-update (with native builds) with CLI
         if: inputs.with_builds == true
-        working-directory: testing/expo-storybook-8
+        working-directory: testing/expo
         run: |
           yarn sherlo test:eas-update \
             --config ../../configs/${{ inputs.config }}.json \
@@ -87,7 +87,7 @@ jobs:
 
       - name: Run sherlo test:eas-update (without native builds) with CLI
         if: inputs.with_builds == false
-        working-directory: testing/expo-storybook-8
+        working-directory: testing/expo
         run: |
           yarn sherlo test:eas-update \
             --config ../../configs/${{ inputs.config }}.json \

@@ -1,4 +1,4 @@
-import { Theme } from '@storybook/react-native-theming';
+import type { Theme } from '@storybook/react-native-theming';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VERIFICATION_TEST_ID } from '../../../constants';

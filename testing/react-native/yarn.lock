@@ -4404,9 +4404,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sherlo/react-native-storybook@portal:../../packages/react-native-storybook::locator=%40sherlo%2Frn-storybook-7%40workspace%3A.":
+"@sherlo/react-native-storybook@portal:../../packages/react-native-storybook::locator=%40sherlo%2Freact-native%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@sherlo/react-native-storybook@portal:../../packages/react-native-storybook::locator=%40sherlo%2Frn-storybook-7%40workspace%3A."
+  resolution: "@sherlo/react-native-storybook@portal:../../packages/react-native-storybook::locator=%40sherlo%2Freact-native%40workspace%3A."
   dependencies:
     base-64: "npm:^0.1.0"
     deepmerge: "npm:4.3.1"
@@ -4421,9 +4421,9 @@ __metadata:
   languageName: node
   linkType: soft
 
-"@sherlo/rn-storybook-7@workspace:.":
+"@sherlo/react-native@workspace:.":
   version: 0.0.0-use.local
-  resolution: "@sherlo/rn-storybook-7@workspace:."
+  resolution: "@sherlo/react-native@workspace:."
   dependencies:
     "@babel/core": "npm:^7.25.2"
     "@babel/preset-env": "npm:^7.25.3"
@@ -4472,9 +4472,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@sherlo/testing-components@portal:../testing-components::locator=%40sherlo%2Frn-storybook-7%40workspace%3A.":
+"@sherlo/testing-components@portal:../testing-components::locator=%40sherlo%2Freact-native%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "@sherlo/testing-components@portal:../testing-components::locator=%40sherlo%2Frn-storybook-7%40workspace%3A."
+  resolution: "@sherlo/testing-components@portal:../testing-components::locator=%40sherlo%2Freact-native%40workspace%3A."
   peerDependencies:
     react: "*"
     react-native: "*"
@@ -14112,9 +14112,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sherlo@portal:../../packages/cli::locator=%40sherlo%2Frn-storybook-7%40workspace%3A.":
+"sherlo@portal:../../packages/cli::locator=%40sherlo%2Freact-native%40workspace%3A.":
   version: 0.0.0-use.local
-  resolution: "sherlo@portal:../../packages/cli::locator=%40sherlo%2Frn-storybook-7%40workspace%3A."
+  resolution: "sherlo@portal:../../packages/cli::locator=%40sherlo%2Freact-native%40workspace%3A."
   bin:
     sherlo: ./cli.js
   languageName: node

@@ -21,6 +21,6 @@ jobs:
             action
             cli
             react-native-storybook
-            expo-storybook-8
+            expo
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

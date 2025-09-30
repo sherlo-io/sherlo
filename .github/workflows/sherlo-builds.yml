@@ -13,42 +13,42 @@ on:
           - 'old'
           - 'new'
       rn_preview_android:
-        description: 'RN SB 7 Preview | Android'
+        description: 'React Native Preview | Android'
         required: false
         default: false
         type: boolean
       rn_preview_ios:
-        description: 'RN SB 7 Preview | iOS'
+        description: 'React Native Preview | iOS'
         required: false
         default: false
         type: boolean
       rn_development_android:
-        description: 'RN SB 7 Dev | Android'
+        description: 'React Native Dev | Android'
         required: false
         default: false
         type: boolean
       rn_development_ios:
-        description: 'RN SB 7 Dev | iOS'
+        description: 'React Native Dev | iOS'
         required: false
         default: false
         type: boolean
       expo_preview_ios:
-        description: 'Expo SB 8 Preview | iOS'
+        description: 'Expo Preview | iOS'
         required: false
         default: false
         type: boolean
       expo_preview_android:
-        description: 'Expo SB 8 Preview | Android'
+        description: 'Expo Preview | Android'
         required: false
         default: false
         type: boolean
       expo_development_android:
-        description: 'Expo SB 8 Dev | Android'
+        description: 'Expo Dev | Android'
         required: false
         default: false
         type: boolean
       expo_development_ios:
-        description: 'Expo SB 8 Dev | iOS'
+        description: 'Expo Dev | iOS'
         required: false
         default: false
         type: boolean
@@ -80,7 +80,7 @@ jobs:
         arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
     with:
       profile: 'preview'
-      project: 'rn-storybook-7'
+      project: 'react-native'
       arch: ${{ matrix.arch }}
 
   rn_preview_android:
@@ -94,7 +94,7 @@ jobs:
         arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
     with:
       profile: 'preview'
-      project: 'rn-storybook-7'
+      project: 'react-native'
       arch: ${{ matrix.arch }}
 
   rn_development_ios:
@@ -108,7 +108,7 @@ jobs:
         arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
     with:
       profile: 'development'
-      project: 'rn-storybook-7'
+      project: 'react-native'
       arch: ${{ matrix.arch }}
 
   rn_development_android:
@@ -122,7 +122,7 @@ jobs:
         arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
     with:
       profile: 'development'
-      project: 'rn-storybook-7'
+      project: 'react-native'
       arch: ${{ matrix.arch }}
 
   expo_preview_ios:
@@ -136,7 +136,7 @@ jobs:
         arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
     with:
       profile: 'preview'
-      project: 'expo-storybook-8'
+      project: 'expo'
       arch: ${{ matrix.arch }}
 
   expo_preview_android:
@@ -150,7 +150,7 @@ jobs:
         arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
     with:
       profile: 'preview'
-      project: 'expo-storybook-8'
+      project: 'expo'
       arch: ${{ matrix.arch }}
 
   expo_development_ios:
@@ -164,7 +164,7 @@ jobs:
         arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
     with:
       profile: 'development'
-      project: 'expo-storybook-8'
+      project: 'expo'
       arch: ${{ matrix.arch }}
 
   expo_development_android:
@@ -178,5 +178,5 @@ jobs:
         arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
     with:
       profile: 'development'
-      project: 'expo-storybook-8'
+      project: 'expo'
       arch: ${{ matrix.arch }}

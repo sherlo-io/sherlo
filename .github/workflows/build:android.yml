@@ -6,8 +6,8 @@ on:
       project:
         description: 'Project to build'
         required: true
-        type: string # 'expo-storybook-8' or 'rn-storybook-7'
-        default: 'expo-storybook-8'
+        type: string # 'expo' or 'react-native'
+        default: 'expo'
       profile:
         required: true
         type: string
