@@ -45,7 +45,7 @@ function getBinaryInfo(params: Params): BinaryInfo | undefined {
     });
   }
 
-  // Local binary info is always required for every non EXPO_UPDATE_COMMAND
+  // Local binary info is always required for every non TEST_EAS_UPDATE_COMMAND
   if (!localBinariesInfo[platform] && command !== TEST_EAS_UPDATE_COMMAND) {
     throwError({
       type: 'unexpected',
@@ -61,7 +61,7 @@ function getBinaryInfo(params: Params): BinaryInfo | undefined {
   if (checkIfBinaryInfoIsMissingRequiredFields(binaryInfo)) {
     if (command === TEST_EAS_UPDATE_COMMAND) {
       /**
-       * For EXPO_UPDATE_COMMAND, we delay platform paths validation until this stage
+       * For TEST_EAS_UPDATE_COMMAND, we delay platform paths validation until this stage
        * to first check if we can reuse previously uploaded builds (from remoteBinariesInfo)
        */
 

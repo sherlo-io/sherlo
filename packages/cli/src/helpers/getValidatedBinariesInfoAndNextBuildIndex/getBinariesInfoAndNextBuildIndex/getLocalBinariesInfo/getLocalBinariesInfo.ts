@@ -42,7 +42,7 @@ async function getLocalBinariesInfo({
     if (platforms.includes(platform) && paths[platform]) {
       if (command === TEST_EAS_UPDATE_COMMAND) {
         /**
-         * We validate the BUILD FILE TYPE at this stage because EXPO_UPDATE_COMMAND
+         * We validate the BUILD FILE TYPE at this stage because TEST_EAS_UPDATE_COMMAND
          * does not validate it earlier (due to { requiredPlatformPaths: false })
          */
 

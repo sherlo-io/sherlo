@@ -53,9 +53,18 @@ const BOX = {
 };
 
 function getWrappedLines(text: string, type?: Type): string[] {
+  // Special handling for command type - split on -- flags
+  if (type === 'command') {
+    const parts = text.split(/(?=\s--)/);
+    return parts.map((part, index) => {
+      const trimmed = part.trim();
+      const indented = index === 0 ? trimmed : `  ${trimmed}`;
+      return chalk.cyan(indented);
+    });
+  }
+
   const terminalWidth = process.stdout.columns ?? 80;
-  const backslashWidth = type === 'command' ? 2 : 0; // Space for " \"
-  const maxBoxWidth = terminalWidth - 2 * (PADDING + BOX.VERTICAL.length) - backslashWidth;
+  const maxBoxWidth = terminalWidth - 2 * (PADDING + BOX.VERTICAL.length);
 
   return wrapAnsi(text, maxBoxWidth, { trim: false })
     .split('\n')
@@ -108,7 +117,7 @@ function renderContentLine(
   if (type === 'command' && totalLines && totalLines > 1) {
     const isLastLine = lineIndex === totalLines - 1;
     const isFirstLine = lineIndex === 0;
-    const backslash = !isLastLine ? ' \\' : '';
+    const backslash = !isLastLine ? chalk.cyan.dim(' \\') : '';
     const indent = !isFirstLine ? '  ' : '';
 
     // First line has left border, subsequent lines don't

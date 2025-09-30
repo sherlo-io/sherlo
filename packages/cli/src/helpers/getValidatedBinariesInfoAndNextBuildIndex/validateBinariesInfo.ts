@@ -4,7 +4,7 @@ import {
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EXPO_DEV_CLIENT_PACKAGE_NAME,
   EXPO_PACKAGE_NAME,
-  MIN_EXPO_UPDATE_EXPO_VERSION,
+  MIN_EAS_UPDATE_EXPO_VERSION,
   PLATFORM_LABEL,
   PROFILE_OPTION,
   SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME,
@@ -147,7 +147,7 @@ function getError(error: BinaryError) {
             error.platformLabels.length > 1 ? 'builds' : 'build'
           }; \`sherlo ${TEST_EAS_UPDATE_COMMAND}\` command requires Development Simulator Builds\n\n` +
           'Please verify:\n' +
-          `1. \`${EXPO_PACKAGE_NAME}\` package is at version ${MIN_EXPO_UPDATE_EXPO_VERSION} or higher\n` +
+          `1. \`${EXPO_PACKAGE_NAME}\` package is at version ${MIN_EAS_UPDATE_EXPO_VERSION} or higher\n` +
           `2. Required \`${EXPO_DEV_CLIENT_PACKAGE_NAME}\` package is installed\n` +
           '3. EAS build profile is configured for Development Simulator Build\n' +
           `4. ${

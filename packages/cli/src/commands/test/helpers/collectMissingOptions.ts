@@ -46,7 +46,7 @@ async function collectMissingOptions(
     console.log();
 
     const wantsToUploadBuilds = await confirm({
-      message: `Upload builds?${chalk.dim(' (first test or native code changed)')}`,
+      message: `Upload builds?${chalk.reset.dim(' (first test or native code changed)')}`,
     });
 
     if (!wantsToUploadBuilds) {
@@ -126,7 +126,7 @@ async function collectToken(): Promise<string> {
   let token;
   try {
     token = await input({
-      message: `Enter your project token${chalk.dim(` (--${TOKEN_OPTION})`)}:`,
+      message: `Enter your project token${chalk.reset.dim(` (--${TOKEN_OPTION})`)}:`,
       validate: (value: string) => {
         if (!value) {
           return 'Token is required';
@@ -158,7 +158,7 @@ async function collectIos(): Promise<string> {
   let iosPath;
   try {
     iosPath = await input({
-      message: `Enter path to iOS build file (${IOS_FILE_TYPES.join(', ')})${chalk.dim(
+      message: `Enter path to iOS build file (${IOS_FILE_TYPES.join(', ')})${chalk.reset.dim(
         ` (--${IOS_OPTION})`
       )}:`,
       validate: (value: string) => validateBuildPath(value, 'ios'),
@@ -182,9 +182,9 @@ async function collectAndroid(): Promise<string> {
   let androidPath;
   try {
     androidPath = await input({
-      message: `Enter path to Android build file (${ANDROID_FILE_TYPES.join(', ')})${chalk.dim(
-        ` (--${ANDROID_OPTION})`
-      )}:`,
+      message: `Enter path to Android build file (${ANDROID_FILE_TYPES.join(
+        ', '
+      )})${chalk.reset.dim(` (--${ANDROID_OPTION})`)}:`,
       validate: (value: string) => validateBuildPath(value, 'android'),
     });
   } catch (error: any) {
