@@ -51,7 +51,7 @@ on:
         required: false
         default: false
         type: boolean
-      eas-cloud-build:
+      eas_cloud_build:
         description: 'default / eas-cloud-build'
         required: false
         default: false
@@ -93,7 +93,7 @@ jobs:
   all_devices:
     needs: check_if_monday
     uses: ./.github/workflows/test:eas-update.yml
-    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.device_testing == 'true') && always() && !failure() && !cancelled() }}
+    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.all_devices == 'true') && always() && !failure() && !cancelled() }}
     name: All Devices
     secrets: inherit
     with:
@@ -119,7 +119,7 @@ jobs:
   standard_rn:
     needs: [check_if_monday, setup-matrix]
     uses: ./.github/workflows/test:standard.yml
-    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.rn_local_builds == 'true') && always() && !failure() && !cancelled() }}
+    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.standard_rn == 'true') && always() && !failure() && !cancelled() }}
     strategy:
       matrix:
         arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
@@ -133,7 +133,7 @@ jobs:
   standard_expo:
     needs: [check_if_monday, setup-matrix]
     uses: ./.github/workflows/test:standard.yml
-    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.expo_local_builds == 'true') && always() && !failure() && !cancelled() }}
+    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.standard_expo == 'true') && always() && !failure() && !cancelled() }}
     strategy:
       matrix:
         arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
@@ -147,7 +147,7 @@ jobs:
   eas_update:
     needs: [check_if_monday, setup-matrix]
     uses: ./.github/workflows/test:eas-update.yml
-    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.expo_update_with_builds == 'true') && always() && !failure() && !cancelled() }}
+    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.eas_update == 'true') && always() && !failure() && !cancelled() }}
     strategy:
       matrix:
         arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
@@ -162,7 +162,7 @@ jobs:
   eas_update_without_builds:
     needs: [check_if_monday, setup-matrix]
     uses: ./.github/workflows/test:eas-update.yml
-    if: ${{ ((github.event_name == 'schedule' && (needs.check_if_monday.outputs.is_monday == 'true' || contains(needs.setup-matrix.outputs.arch-matrix, 'new'))) || github.event.inputs.expo_update == 'true') && always() && !failure() && !cancelled() }}
+    if: ${{ ((github.event_name == 'schedule' && (needs.check_if_monday.outputs.is_monday == 'true' || contains(needs.setup-matrix.outputs.arch-matrix, 'new'))) || github.event.inputs.eas_update_without_builds == 'true') && always() && !failure() && !cancelled() }}
     strategy:
       matrix:
         arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
@@ -174,10 +174,10 @@ jobs:
       project: 'eas-update'
       arch: ${{ matrix.arch }}
 
-  eas-cloud-build:
+  eas_cloud_build:
     needs: [check_if_monday, setup-matrix]
     uses: ./.github/workflows/test:eas-cloud-build.yml
-    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.eas-cloud-build == 'true') && always() && !failure() && !cancelled() }}
+    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.eas_cloud_build == 'true') && always() && !failure() && !cancelled() }}
     strategy:
       matrix:
         arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
