@@ -22,37 +22,37 @@ on:
           - 'old'
           - 'new'
       all_devices:
-        description: 'all-devices / eas-update / sb8 expo'
+        description: 'all-devices'
         required: false
         default: false
         type: boolean
       many_stories:
-        description: 'many-stories / eas-update / sb8 expo'
+        description: 'many-stories'
         required: false
         default: false
         type: boolean
       standard_rn:
-        description: 'default / standard / sb7 rn'
+        description: 'default / standard / react-native'
         required: false
         default: false
         type: boolean
       standard_expo:
-        description: 'default / standard / sb8 expo'
+        description: 'default / standard / expo'
         required: false
         default: false
         type: boolean
       eas_update:
-        description: 'default / eas-update / sb8 expo'
+        description: 'default / eas-update'
         required: false
         default: false
         type: boolean
       eas_update_without_builds:
-        description: 'default / eas-update (without builds) / sb8 expo'
+        description: 'default / eas-update (without builds)'
         required: false
         default: false
         type: boolean
       eas-cloud-build:
-        description: 'default / eas-cloud-build / sb8 expo'
+        description: 'default / eas-cloud-build'
         required: false
         default: false
         type: boolean
