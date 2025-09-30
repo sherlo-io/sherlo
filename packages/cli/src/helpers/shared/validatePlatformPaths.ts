@@ -1,6 +1,13 @@
 import { Platform } from '@sherlo/api-types';
 import fs from 'fs';
-import { DOCS_LINK, EXPO_UPDATE_COMMAND, IOS_FILE_TYPES } from '../../constants';
+import {
+  ANDROID_FILE_TYPES,
+  ANDROID_OPTION,
+  DOCS_LINK,
+  IOS_FILE_TYPES,
+  IOS_OPTION,
+  TEST_EAS_UPDATE_COMMAND,
+} from '../../constants';
 import { Command } from '../../types';
 import throwError from '../throwError';
 
@@ -82,7 +89,7 @@ function validatePlatformPath({
 }
 
 const fileType: { [platformName in Platform]: readonly string[] } = {
-  android: ['.apk'],
+  android: ANDROID_FILE_TYPES,
   ios: IOS_FILE_TYPES,
 };
 
@@ -121,31 +128,31 @@ const learnMoreLink: { [platform in Platform | 'both']: string } = {
 };
 
 function getError(error: PlatformPathError, command: Command) {
-  const missingExpoUpdateNote =
-    command === EXPO_UPDATE_COMMAND
-      ? `\n\nNote: Future \`sherlo ${EXPO_UPDATE_COMMAND}\` runs won't require paths, as previously uploaded builds will be reused (unless they fail validation)\n`
+  const missingEasUpdateNote =
+    command === TEST_EAS_UPDATE_COMMAND
+      ? `\n\nNote: Future \`sherlo ${TEST_EAS_UPDATE_COMMAND}\` runs won't require paths, as previously uploaded builds will be reused (unless they fail validation)\n`
       : '';
 
   switch (error.type) {
     case 'missingBothPaths':
       return {
         message:
-          'Missing required Android and iOS build paths (based on devices in config). Pass them using `--android` and `--ios` options or add them to the config file' +
-          missingExpoUpdateNote,
+          `Missing required Android and iOS build paths (based on devices in config). Pass them using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or add them to the config file` +
+          missingEasUpdateNote,
         learnMoreLink: learnMoreLink.both,
       };
     case 'missingAndroidPath':
       return {
         message:
-          'Missing required Android build path (based on devices in config). Pass it using `--android` option or add `android` to the config file' +
-          missingExpoUpdateNote,
+          `Missing required Android build path (based on devices in config). Pass it using \`--${ANDROID_OPTION}\` option or add \`android\` to the config file` +
+          missingEasUpdateNote,
         learnMoreLink: learnMoreLink.android,
       };
     case 'missingIosPath':
       return {
         message:
-          'Missing required iOS build path (based on devices in config). Pass it using `--ios` option or add `ios` to the config file' +
-          missingExpoUpdateNote,
+          `Missing required iOS build path (based on devices in config). Pass it using \`--${IOS_OPTION}\` option or add \`ios\` to the config file` +
+          missingEasUpdateNote,
         learnMoreLink: learnMoreLink.ios,
       };
     case 'invalidAndroidType':

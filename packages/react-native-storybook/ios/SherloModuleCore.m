@@ -2,7 +2,7 @@
 #import "FileSystemHelper.h"
 #import "InspectorHelper.h"
 #import "ConfigHelper.h"
-#import "ExpoUpdateHelper.h"
+#import "EasUpdateHelper.h"
 #import "StabilityHelper.h"
 #import "KeyboardHelper.h"
 #import "LastStateHelper.h"
@@ -72,10 +72,10 @@ static FileSystemHelper *fileSystemHelper;
             nativeLoadedProtocolItemString = [nativeLoadedProtocolItemString stringByAppendingString:@"\n"];
             [fileSystemHelper appendFile:@"protocol.sherlo" content:nativeLoadedProtocolItemString];
 
-            NSString *expoUpdateDeeplink = config[@"expoUpdateDeeplink"];
+            NSString *easUpdateDeeplink = config[@"easUpdateDeeplink"];
             BOOL consumingDeeplink = NO;
-            if (expoUpdateDeeplink) {
-                consumingDeeplink = [ExpoUpdateHelper consumeExpoUpdateDeeplinkIfNeeded:expoUpdateDeeplink];
+            if (easUpdateDeeplink) {
+                consumingDeeplink = [EasUpdateHelper consumeEasUpdateDeeplinkIfNeeded:easUpdateDeeplink];
             }
         }
     }

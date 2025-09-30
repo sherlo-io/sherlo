@@ -1,7 +1,5 @@
-import { DOCS_LINK } from '../../../constants';
-import { logWarning } from '../../../helpers';
-import { printTitle, waitForKeyPress, trackProgress } from '../helpers';
-import { EVENT, TOKEN_PLACEHOLDER } from './constants';
+import { printTitle, trackProgress } from '../helpers';
+import { EVENT } from './constants';
 import createConfig from './createConfig';
 import hasConfigFile from './hasConfigFile';
 import printDevicesInfo from './printDevicesInfo';
@@ -22,7 +20,8 @@ async function config({ sessionId, token }: { sessionId: string; token?: string 
     action = 'updated';
   }
 
-  const { token: configToken, ...configWithoutToken } = configValue;
+  const configWithoutToken = { ...configValue };
+  delete configWithoutToken.token;
 
   await trackProgress({
     event: EVENT,
@@ -34,17 +33,6 @@ async function config({ sessionId, token }: { sessionId: string; token?: string 
     console.log();
 
     printDevicesInfo();
-  }
-
-  if (configToken === TOKEN_PLACEHOLDER) {
-    console.log();
-
-    logWarning({
-      message: `Replace ${TOKEN_PLACEHOLDER} with a valid token`,
-      learnMoreLink: DOCS_LINK.configToken,
-    });
-
-    await waitForKeyPress();
   }
 }
 

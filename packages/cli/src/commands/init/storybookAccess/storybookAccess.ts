@@ -1,32 +1,28 @@
 import chalk from 'chalk';
 import { DOCS_LINK } from '../../../constants';
-import { logWarning } from '../../../helpers';
-import { printSubtitle, printTitle, waitForKeyPress, wrapInBox, trackProgress } from '../helpers';
+import { logWarning, throwError, wrapInBox } from '../../../helpers';
+import { printSubtitle, printTitle, trackProgress, waitForEnterPress } from '../helpers';
 import { EVENT } from './constants';
 import getSherloSolutionCode from './getSherloSolutionCode';
 
 async function storybookAccess(sessionId: string): Promise<void> {
   printTitle('🔑 Storybook Access');
 
-  console.log('To enable Sherlo to launch Storybook, choose one of these options:');
+  console.log('To enable Sherlo to access Storybook, choose one:');
 
-  printSubtitle('Option 1: Custom Solution');
+  printSubtitle('Option 1: Standalone Storybook');
 
-  console.log(
-    `If you can make a build that ${chalk.underline('renders Storybook on launch')} - that's it!`
-  );
+  console.log(`  Provide a build that ${chalk.underline('opens straight into Storybook')}`);
 
-  printSubtitle('Option 2: Sherlo Solution');
+  printSubtitle('Option 2: Integrated Storybook');
 
   console.log(
-    `Otherwise, update your Root component ${chalk.italic(
-      '(could be App.jsx or app/_layout.jsx)'
-    )}:`
+    `  Update your Root component ${chalk.italic('(could be App.jsx or app/_layout.jsx)')}:`
   );
 
   console.log();
 
-  console.log(wrapInBox({ title: 'Root component', text: getSherloSolutionCode() }));
+  console.log(wrapInBox({ title: 'Root component', text: getSherloSolutionCode(), indent: 2 }));
 
   console.log();
 
@@ -41,7 +37,14 @@ async function storybookAccess(sessionId: string): Promise<void> {
     sessionId,
   });
 
-  await waitForKeyPress();
+  try {
+    await waitForEnterPress();
+  } catch (error) {
+    console.log();
+    console.log();
+
+    throwError({ message: 'Setup cancelled' });
+  }
 }
 
 export default storybookAccess;

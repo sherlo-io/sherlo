@@ -2,7 +2,7 @@ import { Platform } from '@sherlo/api-types';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { EXPO_UPDATE_COMMAND, PLATFORMS, PLATFORM_LABEL } from '../../../../constants';
+import { PLATFORMS, PLATFORM_LABEL, TEST_EAS_UPDATE_COMMAND } from '../../../../constants';
 import { getErrorWithCustomMessage } from '../../../../helpers';
 import { Command } from '../../../../types';
 import { validatePlatformPaths } from '../../../shared';
@@ -40,7 +40,7 @@ async function getLocalBinariesInfo({
   for (const platform of PLATFORMS) {
     // Get the local binary info for the platform if it should be tested and there's a path for it
     if (platforms.includes(platform) && paths[platform]) {
-      if (command === EXPO_UPDATE_COMMAND) {
+      if (command === TEST_EAS_UPDATE_COMMAND) {
         /**
          * We validate the BUILD FILE TYPE at this stage because EXPO_UPDATE_COMMAND
          * does not validate it earlier (due to { requiredPlatformPaths: false })

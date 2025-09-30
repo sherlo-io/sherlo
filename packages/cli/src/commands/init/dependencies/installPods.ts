@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import ora from 'ora';
+import { FULL_INIT_COMMAND } from '../../../constants';
 import { getCwd, runShellCommand, throwError } from '../../../helpers';
-import { FULL_INIT_COMMAND } from '../constants';
 import { trackProgress } from '../helpers';
 import { EVENT, IOS_DIR } from './constants';
 

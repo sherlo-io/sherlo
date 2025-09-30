@@ -1,7 +1,7 @@
 import sdkClient from '@sherlo/sdk-client';
 import chalk from 'chalk';
-import { EXPO_UPDATE_COMMAND, LOCAL_BUILDS_COMMAND } from '../constants';
-import { CommandParams, ExpoUpdateData } from '../types';
+import { TEST_EAS_UPDATE_COMMAND, TEST_STANDARD_COMMAND } from '../constants';
+import { CommandParams, EasUpdateData } from '../types';
 import getAppBuildUrl from './getAppBuildUrl';
 import getBuildRunConfig from './getBuildRunConfig';
 import getGitInfo from './getGitInfo';
@@ -14,17 +14,17 @@ import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
 
 async function uploadOrReuseBuildsAndRunTests({
   commandParams,
-  expoUpdateData,
+  easUpdateData,
 }: {
   commandParams: CommandParams;
-  expoUpdateData?: ExpoUpdateData;
+  easUpdateData?: EasUpdateData;
 }): Promise<{ url: string }> {
   const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
   const client = sdkClient({ authToken: apiToken });
 
   const { binariesInfo, nextBuildIndex } = await getValidatedBinariesInfoAndNextBuildIndex({
     client,
-    command: expoUpdateData ? EXPO_UPDATE_COMMAND : LOCAL_BUILDS_COMMAND,
+    command: easUpdateData ? TEST_EAS_UPDATE_COMMAND : TEST_STANDARD_COMMAND,
     commandParams,
     projectIndex,
     teamId,
@@ -39,8 +39,8 @@ async function uploadOrReuseBuildsAndRunTests({
     ios: commandParams.ios,
   });
 
-  if (expoUpdateData) {
-    printExpoUpdateData(expoUpdateData);
+  if (easUpdateData) {
+    printEasUpdateData(easUpdateData);
   }
 
   const { build } = await client
@@ -61,7 +61,7 @@ async function uploadOrReuseBuildsAndRunTests({
           android: binariesInfo.android?.s3Key,
           ios: binariesInfo.ios?.s3Key,
         },
-        expoUpdateData,
+        easUpdateData,
       }),
       gitInfo: await getGitInfo(commandParams.projectRoot),
       sdkVersion: binariesInfo.sdkVersion,
@@ -82,12 +82,12 @@ export default uploadOrReuseBuildsAndRunTests;
 
 /* ========================================================================== */
 
-function printExpoUpdateData(expoUpdateData: ExpoUpdateData) {
+function printEasUpdateData(easUpdateData: EasUpdateData) {
   console.log(
-    `🔄 ${chalk.bold('Expo Update')}\n` +
-      `└─ message: ${expoUpdateData.message}\n` +
-      `└─ created: ${chalk.blue(expoUpdateData.timeAgo)}\n` +
-      `└─ author: ${chalk.blue(expoUpdateData.author)}\n` +
-      `└─ branch: ${chalk.blue(expoUpdateData.branch)}\n`
+    `🔄 ${chalk.bold('EAS Update')}\n` +
+      `└─ message: ${easUpdateData.message}\n` +
+      `└─ created: ${chalk.blue(easUpdateData.timeAgo)}\n` +
+      `└─ author: ${chalk.blue(easUpdateData.author)}\n` +
+      `└─ branch: ${chalk.blue(easUpdateData.branch)}\n`
   );
 }

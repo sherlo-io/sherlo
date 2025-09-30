@@ -1,4 +1,4 @@
-import { DOCS_LINK } from '../../../constants';
+import { DOCS_LINK, TOKEN_OPTION } from '../../../constants';
 import { InvalidatedConfig } from '../../../types';
 import isValidToken from '../../isValidToken';
 import throwError from '../../throwError';
@@ -23,8 +23,7 @@ function validateToken<T extends InvalidatedConfig>(
 
 function getError(type: 'missing' | 'invalid_type' | 'invalid_format') {
   const messages = {
-    missing:
-      'Required property `token` is missing. Pass it using `--token` option or add it to the config file',
+    missing: `Required property \`token\` is missing. Pass it using \`--${TOKEN_OPTION}\` option or add it to the config file`,
     invalid_type: 'Property `token` must be a string',
     invalid_format:
       'Invalid `token` value. Make sure you copied it correctly or generate a new one in Sherlo web app',

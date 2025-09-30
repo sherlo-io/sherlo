@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { wrapInBox } from '../helpers';
+import { wrapInBox } from '../../../helpers';
 
 function printBuildWarning(hasUpdatedStorybookComponent: boolean): void {
   console.log(
