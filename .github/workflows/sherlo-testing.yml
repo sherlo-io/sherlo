@@ -127,7 +127,7 @@ jobs:
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
-      project: 'rn-storybook-7'
+      project: 'react-native'
       arch: ${{ matrix.arch }}
 
   standard_expo:
@@ -141,7 +141,7 @@ jobs:
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
-      project: 'expo-storybook-8'
+      project: 'expo'
       arch: ${{ matrix.arch }}
 
   eas_update:

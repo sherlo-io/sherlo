@@ -18,8 +18,8 @@ echo "Installed dependencies"
 cd "$APP_ROOT_DIR/packages/cli" && yarn build &&
 echo "Built the CLI project"
 
-cd "$APP_ROOT_DIR/testing/expo-storybook-8" && yarn &&
-echo "Installed dependencies for expo-storybook-8"
+cd "$APP_ROOT_DIR/testing/expo" && yarn &&
+echo "Installed dependencies for expo"
 
-cd "$APP_ROOT_DIR/testing/rn-storybook-7" && yarn &&
-echo "Installed dependencies for rn-storybook-7"
+cd "$APP_ROOT_DIR/testing/react-native" && yarn &&
+echo "Installed dependencies for react-native"

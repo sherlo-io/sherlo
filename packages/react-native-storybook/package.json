@@ -55,10 +55,11 @@
     "preset": "react-native"
   },
   "dependencies": {
-    "base-64": "^0.1.0",
+    "base-64": "1.0.0",
     "deepmerge": "4.3.1",
-    "its-fine": "^2.0.0",
-    "utf8": "^3.0.0"
+    "its-fine": "2.0.0",
+    "sherlo": "1.4.3",
+    "utf8": "3.0.0"
   },
   "devDependencies": {
     "@storybook/react-native": "9.1.2",

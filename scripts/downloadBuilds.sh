@@ -31,7 +31,7 @@ done
 
 # Validate required parameters
 if [ -z "$PROJECT" ]; then
-  echo "Error: --project parameter is required (expo-storybook-8 or rn-storybook-7)"
+  echo "Error: --project parameter is required (expo or react-native)"
   exit 1
 fi
 

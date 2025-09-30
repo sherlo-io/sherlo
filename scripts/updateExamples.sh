@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BASE_PROJECT='testing/expo-storybook-8'
+BASE_PROJECT='testing/expo'
 EXCLUDE_IN_EXAMPLES=("eas.json" "node_modules" "package.json" "README.md" "builds" "dist" ".expo" "scripts" ".github" "src/testing-components")
 EXCLUDE_IN_TESTING=("node_modules" "package.json" "README.md" "builds" "dist" ".expo" "metro.config.js" ".storybook")
 

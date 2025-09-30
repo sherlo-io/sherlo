@@ -33,7 +33,7 @@ jobs:
         run: yarn && cd packages/cli && yarn build
 
       - name: Install project dependencies
-        working-directory: testing/expo-storybook-8
+        working-directory: testing/expo
         run: yarn
 
       - name: Setup EAS
@@ -45,7 +45,7 @@ jobs:
       # It's important to run Sherlo in the same job as the EAS build,
       # because we're pushing temporary files to .expo directory used during the build
       - name: Run sherlo test:eas-cloud-build with CLI
-        working-directory: testing/expo-storybook-8
+        working-directory: testing/expo
         run: |
           yarn sherlo test:eas-cloud-build \
             --waitForEasBuild \
@@ -53,5 +53,5 @@ jobs:
             --token ${{ inputs.arch == 'old' && secrets.SHERLO_EAS_CLOUD_OLD_TOKEN || inputs.arch == 'new' && secrets.SHERLO_EAS_CLOUD_NEW_TOKEN }}
 
       - name: Trigger EAS builds for both platforms
-        working-directory: testing/expo-storybook-8
+        working-directory: testing/expo
         run: eas build --profile=preview-${{ inputs.arch }} --platform=all --non-interactive --no-wait

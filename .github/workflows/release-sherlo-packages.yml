@@ -69,8 +69,8 @@ jobs:
 
       - name: Update yarn.lock files in test directories
         run: |
-          cd testing/expo-storybook-8 && yarn install --no-immutable
-          cd ../rn-storybook-7 && yarn install --no-immutable
+          cd testing/expo && yarn install --no-immutable
+          cd ../react-native && yarn install --no-immutable
 
       - name: Commit and push updated files
         uses: EndBug/add-and-commit@v7
