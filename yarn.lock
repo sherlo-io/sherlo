@@ -3143,12 +3143,13 @@ __metadata:
     "@storybook/react-native": "npm:9.1.2"
     "@types/base-64": "npm:^1.0.0"
     "@types/utf8": "npm:^3.0.1"
-    base-64: "npm:^0.1.0"
+    base-64: "npm:1.0.0"
     deepmerge: "npm:4.3.1"
-    its-fine: "npm:^2.0.0"
+    its-fine: "npm:2.0.0"
     react-native-safe-area-context: "npm:4.11.0"
+    sherlo: "npm:1.4.3"
     typescript: "npm:^5.3.3"
-    utf8: "npm:^3.0.0"
+    utf8: "npm:3.0.0"
   peerDependencies:
     "@storybook/react-native": ">=7.6.11"
     react: "*"
@@ -4503,10 +4504,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"base-64@npm:^0.1.0":
-  version: 0.1.0
-  resolution: "base-64@npm:0.1.0"
-  checksum: 10/5a42938f82372ab5392cbacc85a5a78115cbbd9dbef9f7540fa47d78763a3a8bd7d598475f0d92341f66285afd377509851a9bb5c67bbecb89686e9255d5b3eb
+"base-64@npm:1.0.0":
+  version: 1.0.0
+  resolution: "base-64@npm:1.0.0"
+  checksum: 10/d10b64a1fc9b2c5a5f39f1ce1e6c9d1c5b249222bbfa3a0604c592d90623caf74419983feadd8a170f27dc0c3389704f72faafa3e645aeb56bfc030c93ff074a
   languageName: node
   linkType: hard
 
@@ -8002,7 +8003,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"its-fine@npm:^2.0.0":
+"its-fine@npm:2.0.0":
   version: 2.0.0
   resolution: "its-fine@npm:2.0.0"
   dependencies:
@@ -11759,7 +11760,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sherlo@workspace:packages/cli":
+"sherlo@npm:1.4.3, sherlo@workspace:packages/cli":
   version: 0.0.0-use.local
   resolution: "sherlo@workspace:packages/cli"
   dependencies:
@@ -12986,7 +12987,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"utf8@npm:^3.0.0":
+"utf8@npm:3.0.0":
   version: 3.0.0
   resolution: "utf8@npm:3.0.0"
   checksum: 10/31d19c4faacbb65b09ebc1c21c32b20bdb0919c6f6773cee5001b99bb83f8e503e7233c08fc71ebb34f7cfebd95cec3243b81d90176097aa2f286cccb4ce866e
