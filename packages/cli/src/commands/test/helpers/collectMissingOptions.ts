@@ -1,4 +1,4 @@
-import { confirm, input, password } from '@inquirer/prompts';
+import { confirm, input } from '@inquirer/prompts';
 import { Platform } from '@sherlo/api-types';
 import chalk from 'chalk';
 import fs from 'fs';
@@ -125,9 +125,8 @@ async function collectToken(): Promise<string> {
 
   let token;
   try {
-    token = await password({
+    token = await input({
       message: `Enter your project token${chalk.dim(` (--${TOKEN_OPTION})`)}:`,
-      mask: true,
       validate: (value: string) => {
         if (!value) {
           return 'Token is required';

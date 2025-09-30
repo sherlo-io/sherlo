@@ -5,7 +5,6 @@ import {
   TEST_EAS_CLOUD_BUILD_COMMAND,
   TEST_EAS_UPDATE_COMMAND,
   TEST_STANDARD_COMMAND,
-  TOKEN_OPTION,
 } from '../../../constants';
 import { logInfo, wrapInBox } from '../../../helpers';
 import { Options } from '../../../types';
@@ -17,7 +16,7 @@ async function executeCommand(
   command: string,
   options: Record<string, string | boolean>
 ): Promise<void> {
-  // Filter out android/ios options for test:eas-cloud-build command
+  // Filter out android/ios options (from config file) for test:eas-cloud-build command
   let filteredOptions = options;
   if (command === TEST_EAS_CLOUD_BUILD_COMMAND) {
     filteredOptions = { ...options };
@@ -25,14 +24,8 @@ async function executeCommand(
     delete filteredOptions[IOS_OPTION];
   }
 
-  // Create a copy of filtered options with masked token for display
-  const displayOptions = { ...filteredOptions };
-  if (displayOptions[TOKEN_OPTION]) {
-    displayOptions[TOKEN_OPTION] = '***';
-  }
-
   const args = [command];
-  Object.entries(displayOptions).forEach(([key, value]) => {
+  Object.entries(filteredOptions).forEach(([key, value]) => {
     if (typeof value === 'boolean') {
       if (value) {
         args.push(`--${key}`);
