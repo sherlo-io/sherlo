@@ -1,9 +1,9 @@
 import fs from 'fs';
 import {
   DOCS_LINK,
-  EXPO_CLOUD_BUILDS_COMMAND,
   SHERLO_TEMP_DATA_FILENAME,
   SHERLO_TEMP_DIRECTORY,
+  TEST_EAS_CLOUD_BUILD_COMMAND,
 } from '../../../constants';
 import { getErrorWithCustomMessage, logWarning, throwError } from '../../../helpers';
 
@@ -17,9 +17,9 @@ function getSherloTempData(): { buildIndex: number; token: string } | undefined 
         'You can:\n' +
         '1. Ignore this message if you did not plan to run Sherlo tests\n' +
         '2. If you want to test your builds, make sure to:\n' +
-        `   • Run \`sherlo ${EXPO_CLOUD_BUILDS_COMMAND}\` before starting EAS build\n` +
+        `   • Run \`sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\` before starting EAS build\n` +
         `   • Check if ${SHERLO_TEMP_DIRECTORY} directory is not ignored in .gitignore\n`,
-      learnMoreLink: DOCS_LINK.commandExpoCloudBuilds,
+      learnMoreLink: DOCS_LINK.testEasCloudBuild,
     });
 
     console.log();

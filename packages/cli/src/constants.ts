@@ -1,30 +1,31 @@
 import { Platform } from '@sherlo/api-types';
 
 export const APP_DOMAIN = 'https://app.sherlo.io';
-const DOCS_DOMAIN = 'https://docs.sherlo.io';
+const DOCS_BASE_URL = 'https://sherlo.io/docs';
 
 export const CONTACT_EMAIL = 'contact@sherlo.io';
 export const DISCORD_URL = 'https://discord.gg/G7eqTBkWZt';
 
 export const DOCS_LINK = {
-  setupStorybookComponent: `${DOCS_DOMAIN}/setup/integration#storybook-component`,
-  setupStorybookAccess: `${DOCS_DOMAIN}/setup/integration#storybook-access`,
+  setupStorybookComponent: `${DOCS_BASE_URL}/setup/integration#storybook-component`,
+  setupStorybookAccess: `${DOCS_BASE_URL}/setup/integration#storybook-access`,
 
-  config: `${DOCS_DOMAIN}/setup/config`,
-  configProperties: `${DOCS_DOMAIN}/setup/config#properties`,
-  configToken: `${DOCS_DOMAIN}/setup/config#token`,
-  configAndroid: `${DOCS_DOMAIN}/setup/config#android`,
-  configIos: `${DOCS_DOMAIN}/setup/config#ios`,
-  configDevices: `${DOCS_DOMAIN}/setup/config#devices`,
+  config: `${DOCS_BASE_URL}/setup/config`,
+  configProperties: `${DOCS_BASE_URL}/setup/config#properties`,
+  configToken: `${DOCS_BASE_URL}/setup/config#token`,
+  configAndroid: `${DOCS_BASE_URL}/setup/config#android`,
+  configIos: `${DOCS_BASE_URL}/setup/config#ios`,
+  configDevices: `${DOCS_BASE_URL}/setup/config#devices`,
 
-  builds: `${DOCS_DOMAIN}/setup/builds`,
+  builds: `${DOCS_BASE_URL}/setup/builds`,
 
-  testing: `${DOCS_DOMAIN}/setup/testing`,
-  commandLocalBuilds: `${DOCS_DOMAIN}/setup/testing?command=local-builds#testing-commands`,
-  commandExpoCloudBuilds: `${DOCS_DOMAIN}/setup/testing?command=expo-cloud-builds#testing-commands`,
-  commandExpoUpdate: `${DOCS_DOMAIN}/setup/testing?command=expo-update#testing-commands`,
+  testing: `${DOCS_BASE_URL}/testing`,
+  testingMethods: `${DOCS_BASE_URL}/testing#testing-methods`,
+  testStandard: `${DOCS_BASE_URL}/testing?method=standard#testing-methods`,
+  testEasUpdate: `${DOCS_BASE_URL}/testing?method=eas-update#testing-methods`,
+  testEasCloudBuild: `${DOCS_BASE_URL}/testing?method=eas-cloud-build#testing-methods`,
 
-  devices: `${DOCS_DOMAIN}/devices`,
+  devices: `${DOCS_BASE_URL}/devices`,
 };
 
 export const PLATFORMS: readonly Platform[] = ['android', 'ios'];
@@ -34,6 +35,7 @@ export const PLATFORM_LABEL: { [platform in Platform]: string } = {
   ios: 'iOS',
 };
 
+export const ANDROID_FILE_TYPES = ['.apk'] as const;
 export const IOS_FILE_TYPES = ['.app', '.tar.gz', '.tar'] as const;
 
 export const DEFAULT_CONFIG_FILENAME = 'sherlo.config.json';
@@ -56,11 +58,13 @@ export const MIN_STORYBOOK_REACT_NATIVE_VERSION = '7.6.11';
 
 /* COMMANDS */
 
-export const LOCAL_BUILDS_COMMAND = 'local-builds';
-export const EXPO_UPDATE_COMMAND = 'expo-update';
-export const EXPO_CLOUD_BUILDS_COMMAND = 'expo-cloud-builds';
-export const EAS_BUILD_ON_COMPLETE_COMMAND = 'eas-build-on-complete';
 export const INIT_COMMAND = 'init';
+export const TEST_COMMAND = 'test';
+export const TEST_STANDARD_COMMAND = 'test:standard';
+export const TEST_EAS_UPDATE_COMMAND = 'test:eas-update';
+export const TEST_EAS_CLOUD_BUILD_COMMAND = 'test:eas-cloud-build';
+export const EAS_BUILD_ON_COMPLETE_COMMAND = 'eas-build-on-complete';
+export const FULL_INIT_COMMAND = 'npx sherlo@latest init';
 
 /* OPTIONS */
 

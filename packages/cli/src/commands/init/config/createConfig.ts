@@ -1,16 +1,15 @@
 import { DEFAULT_CONFIG_FILENAME } from '../../../constants';
 import { InvalidatedConfig } from '../../../types';
 import { printMessage } from '../helpers';
-import { DEFAULT_DEVICES, TOKEN_PLACEHOLDER } from './constants';
+import { DEFAULT_DEVICES } from './constants';
 import printDefaultDevicesMessage from './printDefaultDevicesMessage';
-import printPlaceholderTokenMessage from './printPlaceholderTokenMessage';
 import writeConfig from './writeConfig';
 
 async function createConfig(
   token?: string
 ): Promise<{ createdConfig: InvalidatedConfig; hasAddedDefaultDevices: boolean }> {
   const config = {
-    token: token ?? TOKEN_PLACEHOLDER,
+    ...(token && { token }),
     devices: DEFAULT_DEVICES,
   };
 
@@ -22,10 +21,6 @@ async function createConfig(
   });
 
   printDefaultDevicesMessage();
-
-  if (config.token === TOKEN_PLACEHOLDER) {
-    printPlaceholderTokenMessage();
-  }
 
   return {
     createdConfig: config,

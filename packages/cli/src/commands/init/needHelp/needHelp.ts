@@ -10,8 +10,8 @@ async function needHelp(sessionId: string): Promise<void> {
 
   console.log();
 
-  console.log('- Discord: ' + chalk.cyan(DISCORD_URL.replace('https://', '')));
-  console.log('- Email: ' + chalk.cyan(CONTACT_EMAIL));
+  console.log('- Discord: ' + chalk.blue(DISCORD_URL));
+  console.log('- Email: ' + chalk.blue(CONTACT_EMAIL));
 
   console.log();
 

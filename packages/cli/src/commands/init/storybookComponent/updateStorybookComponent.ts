@@ -1,6 +1,6 @@
 import { DOCS_LINK } from '../../../constants';
-import { logWarning } from '../../../helpers';
-import { printMessage, waitForKeyPress, trackProgress } from '../helpers';
+import { logWarning, throwError } from '../../../helpers';
+import { printMessage, trackProgress, waitForEnterPress } from '../helpers';
 import { EVENT } from './constants';
 import getStorybookFiles from './getStorybookFiles';
 import updateStorybookFiles from './updateStorybookFiles';
@@ -74,7 +74,14 @@ async function updateStorybookComponent(
       sessionId,
     });
 
-    await waitForKeyPress();
+    try {
+      await waitForEnterPress();
+    } catch (error) {
+      console.log();
+      console.log();
+
+      throwError({ message: 'Setup cancelled' });
+    }
   }
 
   return { hasUpdatedStorybookComponent };

@@ -1,0 +1,62 @@
+import fs from 'fs';
+import path from 'path';
+import {
+  EAS_BUILD_SCRIPT_NAME_OPTION,
+  SHERLO_TEMP_DATA_FILENAME,
+  SHERLO_TEMP_DIRECTORY,
+  TEST_EAS_CLOUD_BUILD_COMMAND,
+  WAIT_FOR_EAS_BUILD_OPTION,
+} from '../../../constants';
+
+function createSherloTempDirectory({
+  projectRoot,
+  buildIndex,
+  token,
+}: {
+  projectRoot: string;
+  buildIndex: number;
+  token: string;
+}): void {
+  const sherloDir = path.resolve(projectRoot, SHERLO_TEMP_DIRECTORY);
+
+  if (!fs.existsSync(sherloDir)) {
+    fs.mkdirSync(sherloDir);
+  }
+
+  fs.writeFileSync(
+    path.resolve(sherloDir, SHERLO_TEMP_DATA_FILENAME),
+    JSON.stringify({ buildIndex, token }, null, 2)
+  );
+
+  fs.writeFileSync(
+    path.resolve(sherloDir, 'README.md'),
+    `### Why do I have a directory named "${SHERLO_TEMP_DIRECTORY}" in my project?
+
+This directory appears when you run test with EAS Cloud Build method using:
+- \`sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND} --${EAS_BUILD_SCRIPT_NAME_OPTION} <script_name>\`, or
+- \`sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND} --${WAIT_FOR_EAS_BUILD_OPTION}\`
+
+If you use \`--${EAS_BUILD_SCRIPT_NAME_OPTION}\`, the directory should be auto-deleted when the
+build script completes. With \`--${WAIT_FOR_EAS_BUILD_OPTION}\`, you need to handle it yourself.
+
+### What does it contain?
+
+It contains data necessary for Sherlo to authenticate and identify builds
+created on Expo servers.
+
+### Should I commit it?
+
+No, you don't need to. However, it must be uploaded to Expo for remote builds.
+
+To exclude it from version control:
+1. Add it to \`.gitignore\`.
+2. Create an \`.easignore\` file at the root of your git project, and list the
+   files and directories you don't want to upload to Expo. Make sure \`${SHERLO_TEMP_DIRECTORY}\`
+   is not listed, as it needs to be uploaded during the build process.
+
+Alternatively, you can manually delete the folder after it has been uploaded
+during the EAS build process.`
+  );
+}
+
+export default createSherloTempDirectory;

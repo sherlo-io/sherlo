@@ -11,8 +11,8 @@
     "strict": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "jsx": "react",
-    "lib": ["es2021", "dom"] 
+    "jsx": "react-native",
+    "lib": ["es2021", "dom"]
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]

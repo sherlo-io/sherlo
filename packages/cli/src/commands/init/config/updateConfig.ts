@@ -1,9 +1,8 @@
 import { DEFAULT_CONFIG_FILENAME } from '../../../constants';
 import { InvalidatedConfig } from '../../../types';
 import { printMessage } from '../helpers';
-import { DEFAULT_DEVICES, TOKEN_PLACEHOLDER } from './constants';
+import { DEFAULT_DEVICES } from './constants';
 import printDefaultDevicesMessage from './printDefaultDevicesMessage';
-import printPlaceholderTokenMessage from './printPlaceholderTokenMessage';
 import readConfig from './readConfig';
 import writeConfig from './writeConfig';
 
@@ -16,7 +15,7 @@ async function updateConfig(
 
   const updatedConfig = {
     ...config,
-    token: token ?? config.token ?? TOKEN_PLACEHOLDER,
+    ...(token && { token }),
     devices: hasDevices ? config.devices : DEFAULT_DEVICES,
   };
 
@@ -33,10 +32,6 @@ async function updateConfig(
   if (!hasDevices) {
     printDefaultDevicesMessage();
     hasAddedDefaultDevices = true;
-  }
-
-  if (updatedConfig.token === TOKEN_PLACEHOLDER) {
-    printPlaceholderTokenMessage();
   }
 
   return {

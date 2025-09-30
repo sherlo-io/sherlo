@@ -16,11 +16,8 @@ async function builds({
 
   printBuildWarning(hasUpdatedStorybookComponent);
 
-  console.log('Create builds aligned with your chosen testing command');
-
-  console.log();
-
-  console.log(`Learn more: ${chalk.cyan(printLink(DOCS_LINK.builds))}`);
+  console.log('Create builds aligned with your chosen testing method:');
+  console.log('  ' + chalk.cyan(printLink(DOCS_LINK.builds)));
 
   await trackProgress({
     event: EVENT,

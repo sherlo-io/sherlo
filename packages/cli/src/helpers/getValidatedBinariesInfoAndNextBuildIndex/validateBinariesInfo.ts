@@ -2,15 +2,15 @@ import { REQUIRED_MIN_SDK_VERSION } from '../../../sdk-compatibility.json';
 import {
   DOCS_LINK,
   EAS_BUILD_ON_COMPLETE_COMMAND,
-  EXPO_CLOUD_BUILDS_COMMAND,
   EXPO_DEV_CLIENT_PACKAGE_NAME,
   EXPO_PACKAGE_NAME,
-  EXPO_UPDATE_COMMAND,
-  LOCAL_BUILDS_COMMAND,
   MIN_EXPO_UPDATE_EXPO_VERSION,
   PLATFORM_LABEL,
   PROFILE_OPTION,
   SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME,
+  TEST_EAS_CLOUD_BUILD_COMMAND,
+  TEST_EAS_UPDATE_COMMAND,
+  TEST_STANDARD_COMMAND,
 } from '../../constants';
 import { Command } from '../../types';
 import { isPackageVersionCompatible } from '../shared';
@@ -60,7 +60,7 @@ function validateIsExpoDev({
   binariesInfo: BinariesInfo;
   command: Command;
 }) {
-  if (command === EXPO_UPDATE_COMMAND) {
+  if (command === TEST_EAS_UPDATE_COMMAND) {
     const isNonDevAndroid = android && !android.isExpoDev;
     const isNonDevIos = ios && !ios.isExpoDev;
 
@@ -120,7 +120,7 @@ type BinaryError =
   | {
       type: 'dev_build';
       platformLabels: string[];
-      command: Exclude<Command, typeof EXPO_UPDATE_COMMAND>;
+      command: Exclude<Command, typeof TEST_EAS_UPDATE_COMMAND>;
     }
   | { type: 'different_versions'; android: { sdkVersion: string }; ios: { sdkVersion: string } }
   | { type: 'outdated_version'; platformLabels: string[]; sdkVersion: string };
@@ -145,7 +145,7 @@ function getError(error: BinaryError) {
         message:
           `Invalid ${error.platformLabels.join(' and ')} ${
             error.platformLabels.length > 1 ? 'builds' : 'build'
-          }; \`sherlo ${EXPO_UPDATE_COMMAND}\` command requires Development Simulator Builds\n\n` +
+          }; \`sherlo ${TEST_EAS_UPDATE_COMMAND}\` command requires Development Simulator Builds\n\n` +
           'Please verify:\n' +
           `1. \`${EXPO_PACKAGE_NAME}\` package is at version ${MIN_EXPO_UPDATE_EXPO_VERSION} or higher\n` +
           `2. Required \`${EXPO_DEV_CLIENT_PACKAGE_NAME}\` package is installed\n` +
@@ -153,7 +153,7 @@ function getError(error: BinaryError) {
           `4. ${
             error.platformLabels.length > 1 ? 'Builds are' : 'Build is'
           } created with this profile\n`,
-        learnMoreLink: DOCS_LINK.commandExpoUpdate,
+        learnMoreLink: DOCS_LINK.testEasUpdate,
       };
 
     case 'dev_build':
@@ -162,7 +162,7 @@ function getError(error: BinaryError) {
           `Invalid ${error.platformLabels.join(' and ')} ${
             error.platformLabels.length > 1 ? 'builds' : 'build'
           }; \`sherlo ${error.command}\` command requires Preview Simulator Builds` +
-          (error.command === EXPO_CLOUD_BUILDS_COMMAND
+          (error.command === TEST_EAS_CLOUD_BUILD_COMMAND
             ? '\n\n' +
               'Please verify:\n' +
               '1. EAS build profile is configured for Preview Simulator Build\n' +
@@ -172,9 +172,9 @@ function getError(error: BinaryError) {
               `3. Same build profile is passed to \`sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND}\` using \`--${PROFILE_OPTION}\` option\n`
             : ''),
         learnMoreLink:
-          error.command === LOCAL_BUILDS_COMMAND
-            ? DOCS_LINK.commandLocalBuilds
-            : DOCS_LINK.commandExpoCloudBuilds,
+          error.command === TEST_STANDARD_COMMAND
+            ? DOCS_LINK.testStandard
+            : DOCS_LINK.testEasCloudBuild,
       };
 
     case 'different_versions':
