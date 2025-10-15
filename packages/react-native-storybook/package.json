@@ -58,6 +58,7 @@
     "base-64": "^0.1.0",
     "deepmerge": "4.3.1",
     "its-fine": "^2.0.0",
+    "sherlo": "1.4.4-alpha.1",
     "utf8": "^3.0.0"
   },
   "devDependencies": {
