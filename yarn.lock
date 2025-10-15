@@ -3147,7 +3147,7 @@ __metadata:
     deepmerge: "npm:4.3.1"
     its-fine: "npm:2.0.0"
     react-native-safe-area-context: "npm:4.11.0"
-    sherlo: "npm:1.4.3"
+    sherlo: "npm:^1.5.0-alpha.1"
     typescript: "npm:^5.3.3"
     utf8: "npm:3.0.0"
   peerDependencies:
@@ -11760,7 +11760,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sherlo@npm:1.4.3, sherlo@workspace:packages/cli":
+"sherlo@npm:^1.5.0-alpha.1, sherlo@workspace:packages/cli":
   version: 0.0.0-use.local
   resolution: "sherlo@workspace:packages/cli"
   dependencies:
