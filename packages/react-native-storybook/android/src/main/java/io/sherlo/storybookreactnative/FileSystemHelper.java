@@ -34,17 +34,17 @@ public class FileSystemHelper {
 
     /**
      * Creates and returns the path to Sherlo's sync directory.
-     * Uses the app's external files directory as the parent path.
+     * Uses the app's internal files directory as the parent path.
      *
-     * @return The absolute path to the sync directory, or an empty string if external storage is not accessible
+     * @return The absolute path to the sync directory, or an empty string if internal storage is not accessible
      */
     public String setupSyncDirectory() {
-        File externalDirectory = context.getExternalFilesDir(null);
-        if (externalDirectory == null) {
-            Log.e(TAG, "External storage is not accessible");
+        File internalDirectory = context.getFilesDir();
+        if (internalDirectory == null) {
+            Log.e(TAG, "Internal storage is not accessible");
             return "";
         }
-        return externalDirectory.getAbsolutePath() + "/sherlo";
+        return internalDirectory.getAbsolutePath() + "/sherlo";
     }
     
     /**
