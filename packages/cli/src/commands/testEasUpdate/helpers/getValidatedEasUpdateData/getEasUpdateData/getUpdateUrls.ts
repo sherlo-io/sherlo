@@ -13,7 +13,8 @@ function getUpdateUrls({
   const updatePlatformsArray = getUpdatePlatformsArray(easUpdateInfo);
 
   updatePlatformsArray.forEach((platform) => {
-    updateUrls[platform] = `${baseUpdateUrl}/group/${easUpdateInfo.group}?platform=${platform}`;
+    const group = easUpdateInfo.group[platform];
+    updateUrls[platform] = `${baseUpdateUrl}/group/${group}?platform=${platform}`;
   });
 
   return updateUrls;

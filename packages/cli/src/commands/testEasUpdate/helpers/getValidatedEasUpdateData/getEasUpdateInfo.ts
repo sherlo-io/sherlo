@@ -1,11 +1,12 @@
 import { getErrorWithCustomMessage, runShellCommand, throwError } from '../../../../helpers';
 import { CommandParams, EasUpdateInfo } from '../../../../types';
 import { THIS_COMMAND } from '../../constants';
+import mergeEasUpdates from './mergeEasUpdates';
 
 async function getEasUpdateInfo(
   commandParams: CommandParams<THIS_COMMAND>
 ): Promise<EasUpdateInfo> {
-  const command = `npx --yes eas-cli branch:view ${commandParams.branch} --limit 1 --json --non-interactive`;
+  const command = `npx --yes eas-cli branch:view ${commandParams.branch} --limit 2 --json --non-interactive`;
 
   let output;
   try {
@@ -27,14 +28,15 @@ async function getEasUpdateInfo(
     });
   }
 
-  const easUpdateInfo = result.currentPage?.[0];
+  const firstUpdate = result.currentPage?.[0];
+  const secondUpdate = result.currentPage?.[1];
 
   if (
-    !easUpdateInfo ||
-    !easUpdateInfo.branch ||
-    !easUpdateInfo.group ||
-    !easUpdateInfo.message ||
-    !easUpdateInfo.platforms
+    !firstUpdate ||
+    !firstUpdate.branch ||
+    !firstUpdate.group ||
+    !firstUpdate.message ||
+    !firstUpdate.platforms
   ) {
     throwError({
       type: 'unexpected',
@@ -42,7 +44,7 @@ async function getEasUpdateInfo(
     });
   }
 
-  return easUpdateInfo;
+  return mergeEasUpdates(firstUpdate, secondUpdate);
 }
 
 export default getEasUpdateInfo;

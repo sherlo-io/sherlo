@@ -129,9 +129,11 @@ export type BinaryInfo = {
 
 export type EasUpdateInfo = {
   branch: string;
-  group: string;
+  group: {
+    android?: string;
+    ios?: string;
+  };
   message: string;
-  platforms: string;
 };
 
 export type EasUpdateData = {

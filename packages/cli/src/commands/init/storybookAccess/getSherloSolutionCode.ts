@@ -13,7 +13,7 @@ function getSherloSolutionCode(): string {
       COLORS.KEYWORD('import'),
       'Storybook',
       COLORS.KEYWORD('from'),
-      `${COLORS.COMPONENT('"./.storybook"')};`,
+      `${COLORS.COMPONENT('"./.rnstorybook"')};`,
     ].join(' '),
     [
       COLORS.KEYWORD('import'),

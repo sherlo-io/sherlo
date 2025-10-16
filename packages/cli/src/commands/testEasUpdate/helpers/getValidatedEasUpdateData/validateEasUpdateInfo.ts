@@ -42,8 +42,8 @@ function getError(error: EasUpdateError) {
           } (based on devices in config) in latest update\n\n` +
           'Update Info\n' +
           `└─ message: ${error.easUpdateInfo.message}\n` +
-          `└─ group: ${error.easUpdateInfo.group}\n` +
-          `└─ platforms: ${error.easUpdateInfo.platforms}\n` +
+          `└─ group: ${error.easUpdateInfo.group.android ?? error.easUpdateInfo.group.ios}\n` +
+          `└─ platforms: ${error.easUpdateInfo.group.android ? 'android' : 'ios'}\n` +
           `└─ branch: ${error.easUpdateInfo.branch}`,
       };
   }
