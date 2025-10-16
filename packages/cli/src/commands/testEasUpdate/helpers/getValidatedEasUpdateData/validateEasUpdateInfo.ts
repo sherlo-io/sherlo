@@ -1,5 +1,5 @@
 import { Platform } from '@sherlo/api-types';
-import { PLATFORMS, PLATFORM_LABEL } from '../../../../constants';
+import { PLATFORM_LABEL } from '../../../../constants';
 import { getPlatformsToTest, throwError } from '../../../../helpers';
 import { CommandParams, EasUpdateInfo } from '../../../../types';
 import { THIS_COMMAND } from '../../constants';
@@ -15,8 +15,8 @@ function validateEasUpdateInfo({
   const platformsToTest = getPlatformsToTest(commandParams.devices);
   const updatePlatformsArray = getUpdatePlatformsArray(easUpdateInfo);
 
-  PLATFORMS.forEach((platform) => {
-    if (platformsToTest.includes(platform) && !updatePlatformsArray.includes(platform)) {
+  platformsToTest.forEach((platform) => {
+    if (!updatePlatformsArray.includes(platform)) {
       throwError(getError({ type: 'missing_platform', platform, easUpdateInfo }));
     }
   });

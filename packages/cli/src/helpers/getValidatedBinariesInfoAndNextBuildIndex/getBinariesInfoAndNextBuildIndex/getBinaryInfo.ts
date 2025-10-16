@@ -93,7 +93,7 @@ export default getBinaryInfo;
 
 /* ========================================================================== */
 
-const REQUIRED_BINARY_INFO_FIELDS = ['hash', 'isExpoDev', 's3Key'];
+const REQUIRED_BINARY_INFO_FIELDS = ['hash', 'isDevBuild', 's3Key'];
 
 function checkIfBinaryInfoIsMissingRequiredFields(binaryInfo: any): binaryInfo is BinaryInfo {
   return REQUIRED_BINARY_INFO_FIELDS.some((field) => {

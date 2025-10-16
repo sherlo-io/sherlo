@@ -26,7 +26,7 @@ function validateBinariesInfo({
 }) {
   validateHasSherlo(binariesInfo);
 
-  validateIsExpoDev({ binariesInfo, command });
+  validateIsDevBuild({ binariesInfo, command });
 
   validateSdkVersion(binariesInfo);
 }
@@ -53,7 +53,7 @@ function validateHasSherlo({ android, ios }: BinariesInfo) {
   }
 }
 
-function validateIsExpoDev({
+function validateIsDevBuild({
   binariesInfo: { android, ios },
   command,
 }: {
@@ -61,8 +61,8 @@ function validateIsExpoDev({
   command: Command;
 }) {
   if (command === TEST_EAS_UPDATE_COMMAND) {
-    const isNonDevAndroid = android && !android.isExpoDev;
-    const isNonDevIos = ios && !ios.isExpoDev;
+    const isNonDevAndroid = android && !android.isDevBuild;
+    const isNonDevIos = ios && !ios.isDevBuild;
 
     if (isNonDevAndroid || isNonDevIos) {
       throwError(
@@ -73,8 +73,8 @@ function validateIsExpoDev({
       );
     }
   } else {
-    const isDevAndroid = android && android.isExpoDev;
-    const isDevIos = ios && ios.isExpoDev;
+    const isDevAndroid = android && android.isDevBuild;
+    const isDevIos = ios && ios.isDevBuild;
 
     if (isDevAndroid || isDevIos) {
       throwError(

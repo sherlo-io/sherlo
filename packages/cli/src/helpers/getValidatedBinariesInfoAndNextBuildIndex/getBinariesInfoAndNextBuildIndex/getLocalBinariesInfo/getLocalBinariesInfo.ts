@@ -13,13 +13,13 @@ import accessFileInDirectory from './accessFileInDirectory';
 
 const SHERLO_JSON_FILENAME = 'sherlo.json';
 const SHERLO_JSON_PATH = `assets/${SHERLO_JSON_FILENAME}`;
-const EXPO_DEV_FILE_PATH = {
-  android: 'assets/EXDevMenuApp.android.js',
-  ios: 'EXDevMenu.bundle/EXDevMenuApp.ios.js',
+const DEV_BUILD_FILE_PATH = {
+  android: 'res/xml/rn_dev_preferences.xml',
+  ios: 'EXDevLauncher.bundle',
 };
 
 type LocalBinariesInfo = { android?: LocalBinaryInfo; ios?: LocalBinaryInfo };
-type LocalBinaryInfo = Pick<BinaryInfo, 'hash' | 'isExpoDev' | 'sdkVersion' | 'fileName'>;
+type LocalBinaryInfo = Pick<BinaryInfo, 'hash' | 'isDevBuild' | 'sdkVersion' | 'fileName'>;
 
 async function getLocalBinariesInfo({
   paths,
@@ -58,7 +58,7 @@ async function getLocalBinariesInfo({
         platform,
         platformPath: paths[platform],
         sherloFilePath: SHERLO_JSON_PATH,
-        expoDevFilePath: EXPO_DEV_FILE_PATH[platform],
+        devBuildFilePath: DEV_BUILD_FILE_PATH[platform],
         projectRoot,
       });
     }
@@ -75,25 +75,25 @@ async function getLocalBinaryInfoForPlatform({
   platform,
   platformPath,
   sherloFilePath,
-  expoDevFilePath,
+  devBuildFilePath,
   projectRoot,
 }: {
   platform: Platform;
   platformPath: string;
   sherloFilePath: string;
-  expoDevFilePath: string;
+  devBuildFilePath: string;
   projectRoot: string;
 }): Promise<LocalBinaryInfo> {
   const fileName = path.basename(platformPath);
 
-  let checkIsExpoDev;
+  let checkIsDevBuild;
   let readSherloFile;
 
   if (fileName.endsWith('.app')) {
-    checkIsExpoDev = () =>
+    checkIsDevBuild = () =>
       accessFileInDirectory({
         operation: 'exists',
-        file: expoDevFilePath,
+        file: devBuildFilePath,
         directory: platformPath,
       });
 
@@ -110,10 +110,10 @@ async function getLocalBinaryInfoForPlatform({
   ) {
     const archiveType = fileName.endsWith('.apk') ? 'unzip' : 'tar';
 
-    checkIsExpoDev = () =>
+    checkIsDevBuild = () =>
       accessFileInArchive({
         operation: 'exists',
-        file: expoDevFilePath,
+        file: devBuildFilePath,
         archive: platformPath,
         type: archiveType,
         projectRoot,
@@ -136,7 +136,7 @@ async function getLocalBinaryInfoForPlatform({
 
   const hash = await getBinaryHash(platformPath);
 
-  const isExpoDev = await checkIsExpoDev();
+  const isDevBuild = await checkIsDevBuild();
 
   let sdkVersion: string | undefined;
   const sherloFileContent = await readSherloFile();
@@ -154,7 +154,7 @@ async function getLocalBinaryInfoForPlatform({
     }
   }
 
-  return { hash, isExpoDev, sdkVersion, fileName };
+  return { hash, isDevBuild, sdkVersion, fileName };
 }
 
 async function getBinaryHash(filePath: string): Promise<string> {
