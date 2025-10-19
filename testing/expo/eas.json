@@ -3,24 +3,7 @@
     "version": ">= 14.5.0"
   },
   "build": {
-    "development-old": {
-      "environment": "development",
-      "channel": "development",
-      "developmentClient": true,
-      "android": {
-        "buildType": "apk",
-        "env": {
-          "USE_NEW_ARCH": "false"
-        }
-      },
-      "ios": {
-        "simulator": true,
-        "env": {
-          "USE_NEW_ARCH": "false"
-        }
-      }
-    },
-    "development-new": {
+    "development": {
       "environment": "development",
       "channel": "development",
       "developmentClient": true,
@@ -37,23 +20,7 @@
         }
       }
     },
-    "preview-old": {
-      "environment": "preview",
-      "channel": "preview",
-      "android": {
-        "buildType": "apk",
-        "env": {
-          "USE_NEW_ARCH": "false"
-        }
-      },
-      "ios": {
-        "simulator": true,
-        "env": {
-          "USE_NEW_ARCH": "false"
-        }
-      }
-    },
-    "preview-new": {
+    "preview": {
       "environment": "preview",
       "channel": "preview",
       "android": {

@@ -10,12 +10,7 @@ on:
       profile:
         required: true
         type: string
-        description: 'Build profile to use (development-old, development-new, preview-old, preview-new)'
-      arch:
-        required: false
-        type: string
-        description: 'Architecture to use (old, new)'
-        default: 'old'
+        description: 'Build profile to use (development, preview)'
 
 jobs:
   ios_build:
@@ -68,12 +63,12 @@ jobs:
 
       - name: Build iOS
         working-directory: testing/${{ inputs.project }}
-        run: yarn build:ios:${{ inputs.profile }}:${{ inputs.arch }}
+        run: yarn build:ios:${{ inputs.profile }}
 
       - name: Upload iOS Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ios-${{ inputs.profile }}-${{ inputs.arch }}-${{ inputs.project }}-${{ github.head_ref || github.ref_name }}
-          path: testing/${{ inputs.project }}/builds/${{ inputs.profile }}-${{ inputs.arch }}/ios.tar.gz
+          name: ios-${{ inputs.profile }}-${{ inputs.project }}-${{ github.head_ref || github.ref_name }}
+          path: testing/${{ inputs.project }}/builds/${{ inputs.profile }}/ios.tar.gz
           retention-days: 90
           overwrite: true

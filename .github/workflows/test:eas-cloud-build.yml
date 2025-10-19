@@ -7,11 +7,6 @@ on:
         description: 'Environment (dev, test, prod)'
         required: true
         type: string
-      arch:
-        description: 'Architecture to use (old, new)'
-        required: false
-        default: 'old'
-        type: string
 
 jobs:
   test_eas_cloud_build:
@@ -50,8 +45,8 @@ jobs:
           yarn sherlo test:eas-cloud-build \
             --waitForEasBuild \
             --config ../../configs/default-devices-without-expo-info.json \
-            --token ${{ inputs.arch == 'old' && secrets.SHERLO_EAS_CLOUD_OLD_TOKEN || inputs.arch == 'new' && secrets.SHERLO_EAS_CLOUD_NEW_TOKEN }}
+            --token ${{ secrets.SHERLO_EAS_CLOUD_TOKEN }}
 
       - name: Trigger EAS builds for both platforms
         working-directory: testing/expo
-        run: eas build --profile=preview-${{ inputs.arch }} --platform=all --non-interactive --no-wait
+        run: eas build --profile=preview --platform=all --non-interactive --no-wait

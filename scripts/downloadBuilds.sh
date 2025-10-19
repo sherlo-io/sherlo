@@ -36,7 +36,7 @@ if [ -z "$PROJECT" ]; then
 fi
 
 if [ -z "$PROFILE" ]; then
-  echo "Error: --profile parameter is required (development-old, development-new, preview-old, preview-new)"
+  echo "Error: --profile parameter is required (development, preview)"
   exit 1
 fi
 

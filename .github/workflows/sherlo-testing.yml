@@ -12,15 +12,6 @@ on:
           - 'dev'
           - 'test'
           - 'prod'
-      arch:
-        description: 'Architecture'
-        required: true
-        default: 'old & new'
-        type: choice
-        options:
-          - 'old & new'
-          - 'old'
-          - 'new'
       all_devices:
         description: 'all-devices'
         required: false
@@ -73,23 +64,6 @@ jobs:
             echo "is_monday=false" >> $GITHUB_OUTPUT
           fi
 
-  setup-matrix:
-    runs-on: ubuntu-latest
-    outputs:
-      arch-matrix: ${{ steps.set-matrix.outputs.arch-matrix }}
-    steps:
-      - id: set-matrix
-        run: |
-          if [ "${{ github.event_name }}" == "schedule" ]; then
-            echo "arch-matrix=[\"old\"]" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.inputs.arch }}" == "old & new" ]; then
-            echo "arch-matrix=[\"old\", \"new\"]" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.inputs.arch }}" == "old" ]; then
-            echo "arch-matrix=[\"old\"]" >> $GITHUB_OUTPUT
-          else
-            echo "arch-matrix=[\"new\"]" >> $GITHUB_OUTPUT
-          fi
-
   all_devices:
     needs: check_if_monday
     uses: ./.github/workflows/test:eas-update.yml
@@ -101,7 +75,6 @@ jobs:
       config: 'all-devices'
       project: 'device-testing'
       with_builds: true
-      arch: 'old'
 
   many_stories:
     needs: check_if_monday
@@ -114,75 +87,54 @@ jobs:
       config: 'many-stories'
       with_builds: true
       project: 'many-stories'
-      arch: 'old'
 
   standard_rn:
-    needs: [check_if_monday, setup-matrix]
+    needs: check_if_monday
     uses: ./.github/workflows/test:standard.yml
     if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.standard_rn == 'true') && always() && !failure() && !cancelled() }}
-    strategy:
-      matrix:
-        arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
-    name: Standard (React Native - ${{ matrix.arch }} Arch)
+    name: Standard (React Native)
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       project: 'react-native'
-      arch: ${{ matrix.arch }}
 
   standard_expo:
-    needs: [check_if_monday, setup-matrix]
+    needs: check_if_monday
     uses: ./.github/workflows/test:standard.yml
     if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.standard_expo == 'true') && always() && !failure() && !cancelled() }}
-    strategy:
-      matrix:
-        arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
-    name: Standard (Expo - ${{ matrix.arch }} Arch)
+    name: Standard (Expo)
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       project: 'expo'
-      arch: ${{ matrix.arch }}
 
   eas_update:
-    needs: [check_if_monday, setup-matrix]
+    needs: check_if_monday
     uses: ./.github/workflows/test:eas-update.yml
     if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.eas_update == 'true') && always() && !failure() && !cancelled() }}
-    strategy:
-      matrix:
-        arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
-    name: EAS Update (${{ matrix.arch }} Arch)
+    name: EAS Update
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       with_builds: true
       project: 'eas-update'
-      arch: ${{ matrix.arch }}
 
   eas_update_without_builds:
-    needs: [check_if_monday, setup-matrix]
+    needs: check_if_monday
     uses: ./.github/workflows/test:eas-update.yml
-    if: ${{ ((github.event_name == 'schedule' && (needs.check_if_monday.outputs.is_monday == 'true' || contains(needs.setup-matrix.outputs.arch-matrix, 'new'))) || github.event.inputs.eas_update_without_builds == 'true') && always() && !failure() && !cancelled() }}
-    strategy:
-      matrix:
-        arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
-    name: EAS Update (without native builds - ${{ matrix.arch }} Arch)
+    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.eas_update_without_builds == 'true') && always() && !failure() && !cancelled() }}
+    name: EAS Update (without native builds)
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       with_builds: false
       project: 'eas-update'
-      arch: ${{ matrix.arch }}
 
   eas_cloud_build:
-    needs: [check_if_monday, setup-matrix]
+    needs: check_if_monday
     uses: ./.github/workflows/test:eas-cloud-build.yml
     if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.eas_cloud_build == 'true') && always() && !failure() && !cancelled() }}
-    strategy:
-      matrix:
-        arch: ${{ fromJson(needs.setup-matrix.outputs.arch-matrix) }}
-    name: EAS Cloud Build (${{ matrix.arch }} Arch)
+    name: EAS Cloud Build
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
-      arch: ${{ matrix.arch }}

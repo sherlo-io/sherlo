@@ -21,11 +21,6 @@ on:
         required: false
         default: false
         type: boolean
-      arch:
-        description: 'Architecture to use (old, new)'
-        required: false
-        default: 'old'
-        type: string
 
 jobs:
   test_eas_update:
@@ -67,7 +62,7 @@ jobs:
 
       - name: Download builds if needed
         if: inputs.with_builds == true
-        run: ./scripts/downloadBuilds.sh --project expo --profile development-${{ inputs.arch }} --branch ${{ github.head_ref || github.ref_name }}
+        run: ./scripts/downloadBuilds.sh --project expo --profile development --branch ${{ github.head_ref || github.ref_name }}
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -77,11 +72,10 @@ jobs:
         run: |
           yarn sherlo test:eas-update \
             --config ../../configs/${{ inputs.config }}.json \
-            --android builds/development-${{ inputs.arch }}/android.apk \
-            --ios builds/development-${{ inputs.arch }}/ios.tar.gz \
+            --android builds/development/android.apk \
+            --ios builds/development/ios.tar.gz \
             --branch development \
-            --token ${{ (inputs.project == 'eas-update' && inputs.arch == 'old' && secrets.SHERLO_EAS_UPDATE_OLD_TOKEN) || 
-                        (inputs.project == 'eas-update' && inputs.arch == 'new' && secrets.SHERLO_EAS_UPDATE_NEW_TOKEN) || 
+            --token ${{ (inputs.project == 'eas-update' && secrets.SHERLO_EAS_UPDATE_TOKEN) || 
                         (inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN) || 
                         (inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN) }}
 
@@ -92,7 +86,6 @@ jobs:
           yarn sherlo test:eas-update \
             --config ../../configs/${{ inputs.config }}.json \
             --branch development \
-            --token ${{ (inputs.project == 'eas-update' && inputs.arch == 'old' && secrets.SHERLO_EAS_UPDATE_OLD_TOKEN) || 
-                        (inputs.project == 'eas-update' && inputs.arch == 'new' && secrets.SHERLO_EAS_UPDATE_NEW_TOKEN) || 
+            --token ${{ (inputs.project == 'eas-update' && secrets.SHERLO_EAS_UPDATE_TOKEN) || 
                         (inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN) || 
                         (inputs.project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN) }}

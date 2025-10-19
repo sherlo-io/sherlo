@@ -12,11 +12,6 @@ on:
         required: true
         type: string
         default: 'expo'
-      arch:
-        description: 'Architecture to use (old, new)'
-        required: false
-        default: 'old'
-        type: string
 
 jobs:
   test_standard:
@@ -46,7 +41,7 @@ jobs:
         run: yarn
 
       - name: Download builds
-        run: ./scripts/downloadBuilds.sh --project ${{ inputs.project }} --profile preview-${{ inputs.arch }} --branch ${{ github.head_ref || github.ref_name }}
+        run: ./scripts/downloadBuilds.sh --project ${{ inputs.project }} --profile preview --branch ${{ github.head_ref || github.ref_name }}
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -55,9 +50,7 @@ jobs:
         run: |
           yarn sherlo test:standard \
             --config ../../configs/default-devices-without-expo-info.json \
-            --android builds/preview-${{ inputs.arch }}/android.apk \
-            --ios builds/preview-${{ inputs.arch }}/ios.tar.gz \
-            --token ${{ (inputs.project == 'expo' && inputs.arch == 'old' && secrets.SHERLO_STANDARD_EXPO_OLD_TOKEN) || 
-                        (inputs.project == 'expo' && inputs.arch == 'new' && secrets.SHERLO_STANDARD_EXPO_NEW_TOKEN) || 
-                        (inputs.project == 'react-native' && inputs.arch == 'old' && secrets.SHERLO_STANDARD_RN_OLD_TOKEN) || 
-                        (inputs.project == 'react-native' && inputs.arch == 'new' && secrets.SHERLO_STANDARD_RN_NEW_TOKEN) }}
+            --android builds/preview/android.apk \
+            --ios builds/preview/ios.tar.gz \
+            --token ${{ (inputs.project == 'expo' && secrets.SHERLO_STANDARD_EXPO_TOKEN) || 
+                        (inputs.project == 'react-native' && secrets.SHERLO_STANDARD_RN_TOKEN) }}

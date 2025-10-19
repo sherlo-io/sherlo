@@ -11,12 +11,7 @@ on:
       profile:
         required: true
         type: string
-        description: 'Build profile to use (development-old, development-new, preview-old, preview-new)'
-      arch:
-        required: false
-        type: string
-        description: 'Architecture to use (old, new)'
-        default: 'old'
+        description: 'Build profile to use (development, preview)'
 
 jobs:
   android_build:
@@ -60,12 +55,12 @@ jobs:
 
       - name: Build Android
         working-directory: testing/${{ inputs.project }}
-        run: yarn build:android:${{ inputs.profile }}:${{ inputs.arch }}
+        run: yarn build:android:${{ inputs.profile }}
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-${{ inputs.profile }}-${{ inputs.arch }}-${{ inputs.project }}-${{ github.head_ref || github.ref_name }}
-          path: testing/${{ inputs.project }}/builds/${{ inputs.profile }}-${{ inputs.arch }}/android.apk
+          name: android-${{ inputs.profile }}-${{ inputs.project }}-${{ github.head_ref || github.ref_name }}
+          path: testing/${{ inputs.project }}/builds/${{ inputs.profile }}/android.apk
           retention-days: 90
           overwrite: true
