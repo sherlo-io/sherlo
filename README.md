@@ -1,61 +1,152 @@
+<br />
+
 <p align="center">
   <a href="https://sherlo.io/">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="./assets/logo-dark.svg">
-      <img src="./assets/logo-light.svg" alt="Sherlo" width="200" />
+      <source media="(prefers-color-scheme: dark) and (max-width: 500px)" srcset="./assets/logo-dark.svg" width="140">
+      <source media="(prefers-color-scheme: dark)" srcset="./assets/logo-dark.svg" width="176">
+      <source media="(max-width: 500px)" srcset="./assets/logo-light.svg" width="140">
+      <img src="./assets/logo-light.svg" alt="Sherlo logo" width="176" />
     </picture>
   </a>
 </p>
 
-<p align="center">Visual Testing & Review Tool for React Native Storybook</p>
+<p align="center">Visual Testing & Review Tool for React Native Storybook</p>
 
 <br />
 
 <div align="center">
-    <img src="./assets/app.webp" alt="Screenshot of Sherlo web application" />
+  <picture>
+    <source media="(prefers-color-scheme: dark) and (max-width: 500px)" srcset="./assets/hero-mobile-dark.gif" width="436">
+    <source media="(max-width: 500px)" srcset="./assets/hero-mobile-light.gif" width="436">
+    <source media="(prefers-color-scheme: dark)" srcset="./assets/hero-desktop-dark.gif" width="560">
+    <img src="./assets/hero-desktop-light.gif" alt="Conceptual visualization of Sherlo's workflow showing how visual testing and review process works" width="560" />
+  </picture>
 </div>
 
-## ℹ️ About
+# Sherlo
 
-Sherlo is a Cloud-based **Visual Testing and Review Tool** that integrates with [React Native Storybook](https://github.com/storybookjs/react-native)
+Test your UI on iOS and Android automatically in the cloud. Built for React Native Storybook.
 
-Designed to detect every change in your UI components, Sherlo empowers your team to confidently release apps with no visual bugs
+### How It Works
 
-Discover more on the [Sherlo website](https://sherlo.io)
+1. **📸 Capture** – Sherlo takes screenshots of your UI on iOS and Android devices in the cloud
+2. **🔍 Detect** – All visual changes are automatically detected by comparison with previous versions
+3. **👍 Review** – Your team reviews detected changes before they go live
+
+### Key Benefits
+
+- **🖼️ Pixel Perfection** – Your designs, implemented exactly as intended
+- **✅ Ship with Confidence** – See exactly what changed before release - no surprises in production
+- **⏱️ Minutes Not Hours** – Forget device-by-device checks - every UI update caught automatically
+- **🤝 Review Together** – One place where devs, designers, PMs, and QA collaborate
+- **📱 Real Mobile Testing** – Native iOS & Android testing - not web approximations like React Native Web
+- **☁️ Visual Testing Cloud** – You build, we test - on infrastructure built specifically for mobile UI testing
 
 <br />
 
-## ✨ Demo
+## Quick Start
 
-See Sherlo in action and try it yourself in our [live demo](https://app.sherlo.io/demo)
-
-Experience how visual testing can transform your development workflow and help maintain UI consistency
-
-<br />
-
-## 🚀 Quick Start
-
-Add Sherlo to your project in seconds:
+#### 1) Install Sherlo
 
 ```bash
 npx sherlo@latest init
 ```
 
+#### 2)<sup>\*</sup> Customize [test devices](https://sherlo.io/docs/setup/config#devices) _(optional)_
+
+<!-- prettier-ignore -->
+```json
+[
+  { "id": "pixel.7", "osVersion": "13" },
+  { "id": "iphone.15", "osVersion": "17", "osTheme": "dark" },
+  { "id": "ipad.10.gen", "osVersion": "17", "osLocale": "en_GB", "osFontScale": "+2" }
+]
+```
+
+#### 3) Run visual tests
+
+```bash
+npx sherlo test
+```
+
 <br />
 
-## 📖 Documentation
-
-Visit the [Sherlo Docs](https://docs.sherlo.io) for a detailed guide on integrating Sherlo with your projects
+🎉 **That's it!** Your visual testing is ready.
 
 <br />
 
-## 📦 Packages
-
-- [sherlo](packages/cli): Command-line tool for project integration and running visual tests
-- [@sherlo/react-native-storybook](packages/react-native-storybook): Integration with React Native Storybook
+[Full documentation →](https://sherlo.io/docs)
 
 <br />
 
-## ©️ License
+## Web App + Demo
 
-[MIT](LICENSE)
+Review visual changes across devices in one web app as a team - from developers to designers.
+
+### Features
+
+- **📸 Visual Diff Comparison** – Compare before/after screenshots with highlighted changes
+- **💬 Team Feedback** – Approve or reject changes and leave comments
+- **🔍 Code Inspector** – Inspect React Native styles directly in the browser
+- **🎨 Figma Integration** – Compare UI with Figma designs side-by-side
+- …and more
+
+<br />
+
+<div align="center">
+  <strong>🚀 <a href="https://app.sherlo.io/demo">Open Demo</a></strong> to see Sherlo in action
+</div>
+
+<br />
+
+<div align="center">
+  <img src="./assets/demo.gif" alt="Demo of Sherlo's web application showing review workflow with visual diffs, comments, code inspection, and Figma preview" />
+</div>
+
+<br />
+
+## New to Storybook?
+
+**🏗️ Build in Isolation** – No need to run the full app or navigate through screens
+
+**📚 Auto Docs** – Write once, get both components and documentation
+
+**💖 Perfect with Sherlo** – Plug in and get iOS & Android visual tests automatically - zero extra effort
+
+<br />
+
+[Storybook for React Native →](https://github.com/storybookjs/react-native)
+
+<br />
+
+## Join the Community
+
+💬 [Join our Discord](https://discord.com/invite/G7eqTBkWZt) – Get help and chat with the community
+
+📢 [Follow us on X](https://x.com/sherlo_io) – Latest updates and React Native tips
+
+📧 Questions? contact@sherlo.io
+
+<br />
+
+---
+
+<div align="center">
+  <strong>⭐ Star this repo</strong> to support the project!
+</div>
+
+---
+
+<br />
+
+<div align="center">
+  Made with ❤️ by <a href="https://devine.team">Devine</a> team
+  <br />
+  <a href="https://sherlo.io">Website</a> • 
+  <a href="https://app.sherlo.io">App</a> • 
+  <a href="https://app.sherlo.io/demo">Demo</a> • 
+  <a href="https://sherlo.io/docs">Docs</a>
+</div>
+
+<br />
