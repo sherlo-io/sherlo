@@ -29,7 +29,19 @@ module.exports = () => ({
     runtimeVersion: {
       policy: 'appVersion',
     },
-    plugins: ['expo-localization', './plugins/withExcludeAppGlideModule'],
+    plugins: [
+      [
+        'expo-build-properties',
+        {
+          android: {
+            kotlinVersion: '2.0.21',
+            gradlePlugin: '8.5.1',
+          },
+        },
+      ],
+      'expo-localization',
+      './plugins/withExcludeAppGlideModule',
+    ],
     extra: {
       eas: {
         projectId: '4cb166d7-f774-49a9-9aa0-e5533347bcd1',

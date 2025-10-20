@@ -69,6 +69,7 @@
     "@types/lodash": "^4",
     "babel-loader": "^8.2.3",
     "burnt": "^0.13.0",
+    "expo-build-properties": "^1.0.9",
     "storybook": "^9.1.2",
     "typescript": "~5.9.2"
   },
