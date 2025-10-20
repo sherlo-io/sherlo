@@ -29,6 +29,8 @@ jobs:
       CMAKE_BUILD_PARALLEL_LEVEL: '2'
       # Force ABI selection even if your yarn script doesn't pass -P flags
       ORG_GRADLE_PROJECT_android.injected.build.abi: arm64-v8a,armeabi-v7a
+      ORG_GRADLE_PROJECT_ksp.useKSP2: 'true'
+      ORG_GRADLE_PROJECT_org.gradle.unsafe.configuration-cache: 'false'
     steps:
       - uses: actions/checkout@v2
         with:
@@ -65,6 +67,12 @@ jobs:
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Clean Gradle caches (Kotlin/KSP)
+        run: |
+          rm -rf ~/.gradle/caches/*kotlin* || true
+          rm -rf ~/.gradle/caches/*ksp* || true
+          rm -rf ~/.gradle/caches/transforms-* || true
 
       - name: Build Android
         working-directory: testing/${{ inputs.project }}
