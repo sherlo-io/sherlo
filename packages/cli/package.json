@@ -1,6 +1,6 @@
 {
   "name": "sherlo",
-  "version": "1.5.0-alpha.2",
+  "version": "1.5.0",
   "description": "Sherlo CLI for React Native Storybook visual testing",
   "keywords": [
     "visual testing",
