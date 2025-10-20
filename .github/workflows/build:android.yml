@@ -17,9 +17,18 @@ jobs:
   android_build:
     runs-on: ubuntu-latest
     env:
-      JAVA_TOOL_OPTIONS: -Xmx4g -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8
-      GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2 -Dorg.gradle.parallel=false
+      # JVM heap + metaspace for all Java procs spawned by Gradle
+      JAVA_TOOL_OPTIONS: -Xmx4g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8
+      # Gradle system props (no gradle.properties needed)
+      GRADLE_OPTS: >-
+        -Dorg.gradle.daemon=false
+        -Dorg.gradle.workers.max=2
+        -Dorg.gradle.parallel=false
+        -Dkotlin.compiler.execution.strategy=in-process
+      # Keep NDK/CMake from overspawning
       CMAKE_BUILD_PARALLEL_LEVEL: '2'
+      # Force ABI selection even if your yarn script doesn't pass -P flags
+      ORG_GRADLE_PROJECT_android.injected.build.abi: arm64-v8a,armeabi-v7a
     steps:
       - uses: actions/checkout@v2
         with:
