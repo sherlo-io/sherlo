@@ -53,8 +53,20 @@ const BOX = {
 };
 
 function getWrappedLines(text: string, type?: Type): string[] {
-  // Special handling for command type - split on -- flags
+  const terminalWidth = process.stdout.columns ?? 80;
+  const maxBoxWidth = terminalWidth - 2 * (PADDING + BOX.VERTICAL.length);
+
+  // Special handling for command type - split on -- flags only if needed
   if (type === 'command') {
+    const styledText = chalk.cyan(text);
+    const fullCommandLength = getVisibleLength(styledText);
+
+    // If the full command fits in one line, keep it as one line
+    if (fullCommandLength <= maxBoxWidth) {
+      return [styledText];
+    }
+
+    // Otherwise, split on -- flags
     const parts = text.split(/(?=\s--)/);
     return parts.map((part, index) => {
       const trimmed = part.trim();
@@ -62,9 +74,6 @@ function getWrappedLines(text: string, type?: Type): string[] {
       return chalk.cyan(indented);
     });
   }
-
-  const terminalWidth = process.stdout.columns ?? 80;
-  const maxBoxWidth = terminalWidth - 2 * (PADDING + BOX.VERTICAL.length);
 
   return wrapAnsi(text, maxBoxWidth, { trim: false })
     .split('\n')

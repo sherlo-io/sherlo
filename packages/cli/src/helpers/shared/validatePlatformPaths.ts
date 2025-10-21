@@ -130,7 +130,7 @@ const learnMoreLink: { [platform in Platform | 'both']: string } = {
 function getError(error: PlatformPathError, command: Command) {
   const missingEasUpdateNote =
     command === TEST_EAS_UPDATE_COMMAND
-      ? `\n\nNote: Future \`sherlo ${TEST_EAS_UPDATE_COMMAND}\` runs won't require paths, as previously uploaded builds will be reused (unless they fail validation)\n`
+      ? `\n\nNote: Future \`sherlo ${TEST_EAS_UPDATE_COMMAND}\` runs won't require the build path, as previously uploaded build will be reused\n`
       : '';
 
   switch (error.type) {

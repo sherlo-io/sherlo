@@ -1,11 +1,10 @@
 import { Platform } from '@sherlo/api-types';
 import sdkClient from '@sherlo/sdk-client';
 import { EAS_BUILD_ON_COMPLETE_COMMAND } from '../../constants';
-import { Command, CommandParams } from '../../types';
+import { BinariesInfo, Command, CommandParams } from '../../types';
 import getPlatformsToTest from '../getPlatformsToTest';
 import throwError from '../throwError';
 import getBinariesInfoAndNextBuildIndex from './getBinariesInfoAndNextBuildIndex';
-import { BinariesInfo } from './types';
 import validateBinariesInfo from './validateBinariesInfo';
 
 type Params = EasBuildOnCompleteCommandParams | OtherCommandParams;

@@ -119,7 +119,8 @@ export type BinariesInfo = {
 
 export type BinaryInfo = {
   hash: string;
-  isDevBuild: boolean;
+  isExpoDev: boolean;
+  fileName: string;
   s3Key: string;
   buildCreatedAt?: string;
   buildIndex?: number;

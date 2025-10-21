@@ -4,10 +4,9 @@ import {
   PLATFORM_LABEL,
   TEST_EAS_UPDATE_COMMAND,
 } from '../../../constants';
-import { Command, CommandParams } from '../../../types';
+import { BinaryInfo, Command, CommandParams } from '../../../types';
 import { validatePlatformPaths } from '../../shared';
 import throwError from '../../throwError';
-import { BinaryInfo } from '../types';
 import getLocalBinariesInfo from './getLocalBinariesInfo';
 
 type Params = EasBuildOnCompleteCommandParams | OtherCommandParams;
@@ -93,7 +92,7 @@ export default getBinaryInfo;
 
 /* ========================================================================== */
 
-const REQUIRED_BINARY_INFO_FIELDS = ['hash', 'isDevBuild', 's3Key'];
+const REQUIRED_BINARY_INFO_FIELDS: (keyof BinaryInfo)[] = ['hash', 'isExpoDev', 's3Key'];
 
 function checkIfBinaryInfoIsMissingRequiredFields(binaryInfo: any): binaryInfo is BinaryInfo {
   return REQUIRED_BINARY_INFO_FIELDS.some((field) => {

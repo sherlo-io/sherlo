@@ -85,7 +85,7 @@ export default uploadOrReuseBuildsAndRunTests;
 function printEasUpdateData(easUpdateData: EasUpdateData) {
   console.log(
     `🔄 ${chalk.bold('EAS Update')}\n` +
-      `└─ message: ${easUpdateData.message}\n` +
+      `└─ message: ${chalk.blue(easUpdateData.message)}\n` +
       `└─ created: ${chalk.blue(easUpdateData.timeAgo)}\n` +
       `└─ author: ${chalk.blue(easUpdateData.author)}\n` +
       `└─ branch: ${chalk.blue(easUpdateData.branch)}\n`

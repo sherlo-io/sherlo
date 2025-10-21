@@ -5,12 +5,20 @@ import {
   EAS_BUILD_ON_COMPLETE_COMMAND,
   TEST_EAS_UPDATE_COMMAND,
 } from '../../../constants';
-import { Command, CommandParams } from '../../../types';
+import { BinariesInfo, Command, CommandParams } from '../../../types';
 import handleClientError from '../../handleClientError';
 import getBinaryInfo from './getBinaryInfo';
 import getLocalBinariesInfo from './getLocalBinariesInfo';
 
 type Params = EasBuildOnCompleteCommandParams | OtherCommandParams;
+
+type EasBuildOnCompleteCommandParams = BaseParams & {
+  command: EAS_BUILD_ON_COMPLETE_COMMAND;
+};
+type OtherCommandParams = BaseParams & {
+  command: OTHER_COMMAND;
+  commandParams: CommandParams<OTHER_COMMAND>;
+};
 
 type BaseParams = {
   client: ReturnType<typeof sdkClient>;
@@ -21,18 +29,12 @@ type BaseParams = {
   ios?: string;
 };
 
-type EasBuildOnCompleteCommandParams = BaseParams & {
-  command: EAS_BUILD_ON_COMPLETE_COMMAND;
-};
-type OtherCommandParams = BaseParams & {
-  command: OTHER_COMMAND;
-  commandParams: CommandParams<OTHER_COMMAND>;
-};
-
 type EAS_BUILD_ON_COMPLETE_COMMAND = typeof EAS_BUILD_ON_COMPLETE_COMMAND;
 type OTHER_COMMAND = Exclude<Command, EAS_BUILD_ON_COMPLETE_COMMAND>;
 
-async function getBinariesInfoAndNextBuildIndex(params: Params) {
+async function getBinariesInfoAndNextBuildIndex(
+  params: Params
+): Promise<{ binariesInfo: BinariesInfo; nextBuildIndex: number }> {
   const { command, client, platforms, projectIndex, teamId, android, ios } = params;
 
   const localBinariesInfo = await getLocalBinariesInfo({

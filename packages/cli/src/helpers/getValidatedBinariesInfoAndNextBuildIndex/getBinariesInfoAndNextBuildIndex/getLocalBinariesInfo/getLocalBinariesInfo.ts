@@ -4,10 +4,9 @@ import fs from 'fs';
 import path from 'path';
 import { PLATFORMS, PLATFORM_LABEL, TEST_EAS_UPDATE_COMMAND } from '../../../../constants';
 import { getErrorWithCustomMessage } from '../../../../helpers';
-import { Command } from '../../../../types';
+import { BinaryInfo, Command } from '../../../../types';
 import { validatePlatformPaths } from '../../../shared';
 import throwError from '../../../throwError';
-import { BinaryInfo } from '../../types';
 import accessFileInArchive from './accessFileInArchive';
 import accessFileInDirectory from './accessFileInDirectory';
 
@@ -19,7 +18,7 @@ const DEV_BUILD_FILE_PATH = {
 };
 
 type LocalBinariesInfo = { android?: LocalBinaryInfo; ios?: LocalBinaryInfo };
-type LocalBinaryInfo = Pick<BinaryInfo, 'hash' | 'isDevBuild' | 'sdkVersion' | 'fileName'>;
+type LocalBinaryInfo = Pick<BinaryInfo, 'hash' | 'isExpoDev' | 'sdkVersion' | 'fileName'>;
 
 async function getLocalBinariesInfo({
   paths,
@@ -136,7 +135,7 @@ async function getLocalBinaryInfoForPlatform({
 
   const hash = await getBinaryHash(platformPath);
 
-  const isDevBuild = await checkIsDevBuild();
+  const isExpoDev = await checkIsDevBuild();
 
   let sdkVersion: string | undefined;
   const sherloFileContent = await readSherloFile();
@@ -154,7 +153,7 @@ async function getLocalBinaryInfoForPlatform({
     }
   }
 
-  return { hash, isDevBuild, sdkVersion, fileName };
+  return { hash, isExpoDev, sdkVersion, fileName };
 }
 
 async function getBinaryHash(filePath: string): Promise<string> {
