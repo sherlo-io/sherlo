@@ -3165,6 +3165,7 @@ __metadata:
     "@react-native/eslint-config": "npm:^0.72.1"
     cross-env: "npm:^7.0.3"
     eslint: "npm:8.24.0"
+    husky: "npm:^9.1.7"
     lerna: "npm:^8.1.2"
     ts-node: "npm:^10.9.1"
     typescript: "npm:^5.3.3"
@@ -7327,6 +7328,15 @@ __metadata:
   version: 2.1.0
   resolution: "human-signals@npm:2.1.0"
   checksum: 10/df59be9e0af479036798a881d1f136c4a29e0b518d4abb863afbd11bf30efa3eeb1d0425fc65942dcc05ab3bf40205ea436b0ff389f2cd20b75b8643d539bf86
+  languageName: node
+  linkType: hard
+
+"husky@npm:^9.1.7":
+  version: 9.1.7
+  resolution: "husky@npm:9.1.7"
+  bin:
+    husky: bin.js
+  checksum: 10/c2412753f15695db369634ba70f50f5c0b7e5cb13b673d0826c411ec1bd9ddef08c1dad89ea154f57da2521d2605bd64308af748749b27d08c5f563bcd89975f
   languageName: node
   linkType: hard
 
