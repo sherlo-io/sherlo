@@ -4,20 +4,14 @@ Command-line interface for [Sherlo](https://github.com/sherlo-io/sherlo) - Visua
 
 > **📚 For full documentation, visit [sherlo.io/docs](https://sherlo.io/docs)**
 
-## Installation
-
-```bash
-npx sherlo@latest init
-```
-
 ## Commands
 
-### `sherlo init`
+### `init`
 
 Initialize Sherlo in your project.
 
 ```bash
-sherlo init [--token <token>]
+npx sherlo init [--token <token>]
 ```
 
 **Options:**
@@ -26,12 +20,12 @@ sherlo init [--token <token>]
 
 ---
 
-### `sherlo test`
+### `test`
 
 Run visual tests interactively.
 
 ```bash
-sherlo test [options]
+npx sherlo test [options]
 ```
 
 **Options:**
@@ -46,12 +40,12 @@ sherlo test [options]
 
 ---
 
-### `sherlo test:standard`
+### `test:standard`
 
 Test standard builds.
 
 ```bash
-sherlo test:standard [options]
+npx sherlo test:standard [options]
 ```
 
 **Options:**
@@ -66,12 +60,12 @@ sherlo test:standard [options]
 
 ---
 
-### `sherlo test:eas-update`
+### `test:eas-update`
 
 Test builds with dynamic JavaScript (OTA) updates.
 
 ```bash
-sherlo test:eas-update [options]
+npx sherlo test:eas-update [options]
 ```
 
 **Options:**
@@ -87,12 +81,12 @@ sherlo test:eas-update [options]
 
 ---
 
-### `sherlo test:eas-cloud-build`
+### `test:eas-cloud-build`
 
 Test cloud builds created on Expo servers.
 
 ```bash
-sherlo test:eas-cloud-build [options]
+npx sherlo test:eas-cloud-build [options]
 ```
 
 **Options:**
@@ -107,12 +101,12 @@ sherlo test:eas-cloud-build [options]
 
 ---
 
-### `sherlo eas-build-on-complete`
+### `eas-build-on-complete`
 
 Process EAS Build (required for `test:eas-cloud-build`).
 
 ```bash
-sherlo eas-build-on-complete [--profile <profile>]
+npx sherlo eas-build-on-complete [--profile <profile>]
 ```
 
 **Options:**

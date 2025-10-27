@@ -44,14 +44,12 @@
     "switch-env:test": "./scripts/switch-env.sh test && yarn build",
     "switch-env:dev": "./scripts/switch-env.sh dev && yarn build",
     "switch-env:prod": "./scripts/switch-env.sh prod && yarn build",
-    "update-examples": "bash scripts/updateExamples.sh",
-    "prepare": "husky"
+    "update-examples": "bash scripts/updateExamples.sh"
   },
   "devDependencies": {
     "@react-native/eslint-config": "^0.72.1",
     "cross-env": "^7.0.3",
     "eslint": "8.24.0",
-    "husky": "^9.1.7",
     "lerna": "^8.1.2",
     "ts-node": "^10.9.1",
     "typescript": "^5.3.3"
