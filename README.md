@@ -108,7 +108,7 @@ Review visual changes across devices in one web app as a team - from developers 
 
 ## New to Storybook?
 
-**🏗️ Build in Isolation** – No need to run the full app or navigate through screens
+**🧘 Build in Isolation** – No need to run the full app or navigate through screens
 
 **📚 Auto Docs** – Write once, get both components and documentation
 
