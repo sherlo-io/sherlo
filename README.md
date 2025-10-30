@@ -37,11 +37,11 @@ Test your UI on iOS and Android automatically in the cloud. Built for React Nati
 ### Key Benefits
 
 - **🖼️ Pixel Perfection** – Your designs, implemented exactly as intended
-- **✅ Ship with Confidence** – See exactly what changed before release - no surprises in production
-- **⏱️ Minutes Not Hours** – Forget device-by-device checks - every UI update caught automatically
+- **✅ Ship with Confidence** – See exactly what changed before release – no surprises in production
+- **⏱️ Minutes Not Hours** – Forget device-by-device checks – every UI update caught automatically
 - **🤝 Review Together** – One place where devs, designers, PMs, and QA collaborate
-- **📱 Real Mobile Testing** – Native iOS & Android testing - not web approximations like React Native Web
-- **☁️ Visual Testing Cloud** – You build, we test - on infrastructure built specifically for mobile UI testing
+- **📱 Real Mobile Testing** – Native iOS & Android testing – not web approximations like React Native Web
+- **☁️ Visual Testing Cloud** – You build, we test – on infrastructure built specifically for mobile UI testing
 
 <br />
 
@@ -82,7 +82,7 @@ npx sherlo test
 
 ## Web App + Demo
 
-Review visual changes across devices in one web app as a team - from developers to designers.
+Review visual changes across devices in one web app as a team – from developers to designers.
 
 ### Features
 
@@ -108,11 +108,15 @@ Review visual changes across devices in one web app as a team - from developers 
 
 ## New to Storybook?
 
+Join thousands of teams using Storybook – a tool that helps you develop and document UI components
+
+<br />
+
 **🧘 Build in Isolation** – No need to run the full app or navigate through screens
 
 **📚 Auto Docs** – Write once, get both components and documentation
 
-**💖 Perfect with Sherlo** – Plug in and get iOS & Android visual tests automatically - zero extra effort
+**💖 Perfect with Sherlo** – Plug in and get iOS & Android visual tests automatically – zero extra effort
 
 <br />
 
