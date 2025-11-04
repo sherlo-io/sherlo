@@ -80,7 +80,7 @@ npx sherlo test
 
 <br />
 
-## Web App + Demo
+## Review App + Demo
 
 Review visual changes across devices in one web app as a team – from developers to designers.
 
