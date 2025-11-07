@@ -14,7 +14,7 @@ export default {
 
 export const Basic = {
   args: {
-    locale: Localization.locale,
+    locale: Localization.getLocales()[0].languageCode,
     fontScale: PixelRatio.getFontScale(),
   },
 };

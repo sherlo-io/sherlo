@@ -1,29 +1,28 @@
+// metro.config.js
 const path = require('path');
 const { getDefaultConfig } = require('@expo/metro-config');
+const withSherlo = require('./withSherlo');
 const withStorybook = require('@storybook/react-native/metro/withStorybook');
 
-const resolvePath = (relativePath) => path.resolve(__dirname, relativePath);
+const DEBUG = true;
+const log = (...args) => DEBUG && console.log('[SHERLO:resolver]', ...args);
 
-// Linked packages pointing directly to source (not dist!)
+const resolvePath = (p) => path.resolve(__dirname, p);
+
 const linkedModules = {
   '@sherlo/react-native-storybook': resolvePath('../../packages/react-native-storybook/src'),
   '@sherlo/testing-components': resolvePath('../testing-components/src'),
 };
 
-// Proxy to resolve only linked packages manually, everything else falls back to default node_modules
 const extraNodeModules = new Proxy(
   {},
   {
-    get: (_, name) => {
-      return linkedModules[name] || path.join(__dirname, 'node_modules', name);
-    },
+    get: (_, name) => linkedModules[name] || path.join(__dirname, 'node_modules', name),
   }
 );
 
-// Get the default Expo metro config
 const defaultConfig = getDefaultConfig(__dirname);
 
-// Create our custom config that extends the default
 const customConfig = {
   ...defaultConfig,
   resolver: {
@@ -33,8 +32,18 @@ const customConfig = {
   watchFolders: [...(defaultConfig.watchFolders || []), ...Object.values(linkedModules)],
 };
 
-// Apply Storybook wrapper to the extended config
-module.exports = withStorybook(customConfig, {
+// define mocks map once
+const mocks = {
+  'expo-localization': resolvePath('mocks/expo-localization.js'),
+};
+
+const configWithSherlo = withSherlo(customConfig, {
+  mocks,
+  watchFolders: [resolvePath('mocks')],
+  debug: true,
+});
+
+module.exports = withStorybook(configWithSherlo, {
   enabled: true,
-  configPath: path.resolve(__dirname, './.rnstorybook'),
+  configPath: resolvePath('./.rnstorybook'),
 });
