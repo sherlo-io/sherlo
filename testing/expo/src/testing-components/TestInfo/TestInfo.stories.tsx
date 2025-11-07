@@ -17,4 +17,21 @@ export const Basic = {
     locale: Localization.getLocales()[0].languageCode,
     fontScale: PixelRatio.getFontScale(),
   },
+  mocks: {
+    'expo-localization': {
+      getLocales: () => [{ languageCode: 'fr', countryCode: 'FR' }],
+    },
+  },
+};
+
+export const Polish = {
+  args: {
+    locale: Localization.getLocales()[0].languageCode,
+    fontScale: PixelRatio.getFontScale(),
+  },
+  mocks: {
+    'expo-localization': {
+      getLocales: () => [{ languageCode: 'pl', countryCode: 'PL' }],
+    },
+  },
 };

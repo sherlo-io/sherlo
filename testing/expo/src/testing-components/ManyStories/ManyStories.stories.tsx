@@ -14,6 +14,11 @@ const storyOfColor = (hexColor: string, colorName: string) => ({
     locale: Localization.locale,
     fontScale: PixelRatio.getFontScale(),
   },
+  mocks: {
+    'expo-localization': {
+      getLocales: () => [{ languageCode: 'pl', countryCode: 'PL' }],
+    },
+  },
 });
 
 export const Red = storyOfColor('#FF0000', 'Red');

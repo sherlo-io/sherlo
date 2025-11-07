@@ -32,14 +32,10 @@ const customConfig = {
   watchFolders: [...(defaultConfig.watchFolders || []), ...Object.values(linkedModules)],
 };
 
-// define mocks map once
-const mocks = {
-  'expo-localization': resolvePath('mocks/expo-localization.js'),
-};
-
+// Use new API: extract mocks from all variants in story file dynamically
+// Mocks will check getCurrentVariant() at runtime to determine which variant's mocks to use
 const configWithSherlo = withSherlo(customConfig, {
-  mocks,
-  watchFolders: [resolvePath('mocks')],
+  mockFile: resolvePath('src/testing-components/TestInfo/TestInfo.stories.tsx'),
   debug: true,
 });
 
