@@ -4,16 +4,15 @@ const { getDefaultConfig } = require('@expo/metro-config');
 const withSherlo = require('./withSherlo');
 const withStorybook = require('@storybook/react-native/metro/withStorybook');
 
-const DEBUG = true;
-const log = (...args) => DEBUG && console.log('[SHERLO:resolver]', ...args);
+const resolvePath = (relativePath) => path.resolve(__dirname, relativePath);
 
-const resolvePath = (p) => path.resolve(__dirname, p);
-
+// Linked packages pointing directly to source (not dist!)
 const linkedModules = {
   '@sherlo/react-native-storybook': resolvePath('../../packages/react-native-storybook/src'),
   '@sherlo/testing-components': resolvePath('../testing-components/src'),
 };
 
+// Proxy to resolve only linked packages manually, everything else falls back to default node_modules
 const extraNodeModules = new Proxy(
   {},
   {
@@ -21,8 +20,10 @@ const extraNodeModules = new Proxy(
   }
 );
 
+// Get the default Expo metro config
 const defaultConfig = getDefaultConfig(__dirname);
 
+// Create our custom config that extends the default
 const customConfig = {
   ...defaultConfig,
   resolver: {
@@ -39,6 +40,7 @@ const configWithSherlo = withSherlo(customConfig, {
   debug: true,
 });
 
+// Apply Storybook wrapper to the extended config
 module.exports = withStorybook(configWithSherlo, {
   enabled: true,
   configPath: resolvePath('./.rnstorybook'),

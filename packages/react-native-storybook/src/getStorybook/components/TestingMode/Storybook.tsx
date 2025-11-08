@@ -1,14 +1,12 @@
 import type { Theme } from '@storybook/react-native-theming';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useEffect } from 'react';
 import { VERIFICATION_TEST_ID } from '../../../constants';
 import { StorybookParams, StorybookView } from '../../../types';
 import { getStorybookComponent, isStorybook7 } from '../../helpers';
 import { RunnerBridge } from '../../../helpers';
 import { useRef } from 'react';
 import SherloModule from '../../../SherloModule';
-import { initializeChannelListener } from '../../../getCurrentVariant';
 
 /**
  * We applied styles based on how they are defined in the link below to ensure that user's stories
@@ -31,11 +29,6 @@ function Storybook({
 }) {
   const insets = useSafeAreaInsets();
   const reportedSherloJSLoaded = useRef(false);
-
-  // Initialize channel listener to track current variant
-  useEffect(() => {
-    initializeChannelListener();
-  }, []);
 
   const StorybookComponent = getStorybookComponent({
     view,
