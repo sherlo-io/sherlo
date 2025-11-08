@@ -5,17 +5,12 @@ import { TestingMode } from './components';
 import { getStorybookComponent } from './helpers';
 import { useHideSplashScreen } from './hooks';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { initializeChannelListener } from '../getCurrentVariant';
+import useStorybookEventListener from './hooks/useStorybookEventListener';
 
 function getStorybook(view: StorybookView, params?: StorybookParams): () => ReactElement {
   return () => {
     useHideSplashScreen();
-
-    // Initialize channel listener to track current variant
-    // Note: The actual channel listening is handled by the addon registered in storybook.requires.ts
-    useEffect(() => {
-      initializeChannelListener();
-    }, []);
+    useStorybookEventListener();
 
     const mode = SherloModule.getMode();
 
