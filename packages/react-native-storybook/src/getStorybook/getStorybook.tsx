@@ -12,6 +12,11 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     useHideSplashScreen();
     useStorybookEventListener();
 
+    // Log that Storybook is initialized
+    useEffect(() => {
+      console.log('[SHERLO:getStorybook] Storybook initialized - mock transformation will happen during Metro bundling');
+    }, []);
+
     const mode = SherloModule.getMode();
 
     if (mode === 'testing') {

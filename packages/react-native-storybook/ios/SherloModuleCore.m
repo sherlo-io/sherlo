@@ -214,4 +214,12 @@ static FileSystemHelper *fileSystemHelper;
     [StabilityHelper stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs saveScreenshots:saveScreenshots threshold:threshold includeAA:includeAA resolve:resolve reject:reject];
 }
 
+/**
+ * Restarts with a story ID, preserving the current mode.
+ * This is used when switching stories within Storybook to trigger mock transformation.
+ */
+- (void)restartWithStoryId:(NSString *)storyId bridge:(RCTBridge *)bridge {
+    [RestartHelper restartWithStoryId:bridge storyId:storyId];
+}
+
 @end 

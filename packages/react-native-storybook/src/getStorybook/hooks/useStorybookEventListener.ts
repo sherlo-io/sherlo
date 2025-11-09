@@ -110,6 +110,14 @@ export default function useStorybookEventListener(): void {
         importPath, // usually project-relative path
       });
 
+      // Store story ID in global variable for mock files to read at runtime
+      // Mock files will call getCurrentStory() which reads from this global
+      (global as any).__SHERLO_CURRENT_STORY_ID__ = storyId;
+      console.log(
+        '[SHERLO:mockReload] Story ID stored in global for runtime mock resolution:',
+        storyId
+      );
+
       if (!meta) {
         // If we still had nothing, ask again (harmless if already sent)
         channel.emit(EVENTS.REQUEST_STORY_INDEX);

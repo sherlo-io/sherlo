@@ -2507,6 +2507,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@sherlo/testing-components@portal:../testing-components::locator=%40sherlo%2Fexpo%40workspace%3A."
   peerDependencies:
+    expo-localization: "*"
     react: "*"
     react-native: "*"
     react-native-svg: "*"

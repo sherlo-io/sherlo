@@ -28,6 +28,8 @@ public class RestartHelper {
     private static final String PREFS_NAME = "SherloPrefs";
     private static final String PREF_STORYBOOK_ENABLED = "storybookEnabled";
     private static final String PREF_STORYBOOK_TIMESTAMP = "storybookEnabledTimestamp";
+    private static final String PREF_ACTIVE_STORY_ID = "activeStoryId";
+    private static final String PREF_ACTIVE_STORY_TIMESTAMP = "activeStoryIdTimestamp";
     private static final long MODE_PERSISTENCE_TIMEOUT_MS = 10000; 
     
     private ReactApplicationContext reactContext = null;
@@ -58,6 +60,65 @@ public class RestartHelper {
                 .apply();
             Log.d(TAG, "Cleared persisted storybook mode (switching to: " + mode + ")");
         }
+    }
+
+    /**
+     * Persists active story ID with timestamp for mock transformation.
+     * Preserves existing mode state.
+     * 
+     * @param storyId The story ID to persist, or null to clear it
+     */
+    public void persistStoryId(String storyId) {
+        SharedPreferences prefs = reactContext.getSharedPreferences(PREFS_NAME, 0);
+        SharedPreferences.Editor editor = prefs.edit();
+        
+        if (storyId != null && !storyId.isEmpty()) {
+            editor.putString(PREF_ACTIVE_STORY_ID, storyId)
+                  .putLong(PREF_ACTIVE_STORY_TIMESTAMP, System.currentTimeMillis());
+            Log.d(TAG, "Persisted active story ID for restart: " + storyId);
+        } else {
+            editor.remove(PREF_ACTIVE_STORY_ID)
+                  .remove(PREF_ACTIVE_STORY_TIMESTAMP);
+            Log.d(TAG, "Cleared persisted active story ID");
+        }
+        
+        editor.apply();
+    }
+
+    /**
+     * Retrieves the persisted story ID if it's recent enough.
+     * Clears the persisted state after reading (one-time use).
+     * 
+     * @return The story ID if valid, or null
+     */
+    public String getPersistedStoryId() {
+        SharedPreferences prefs = reactContext.getSharedPreferences(PREFS_NAME, 0);
+        String storyId = prefs.getString(PREF_ACTIVE_STORY_ID, null);
+        long timestamp = prefs.getLong(PREF_ACTIVE_STORY_TIMESTAMP, 0);
+        
+        if (storyId != null && timestamp > 0) {
+            long timeDiff = System.currentTimeMillis() - timestamp;
+            
+            if (timeDiff <= MODE_PERSISTENCE_TIMEOUT_MS) {
+                prefs.edit()
+                    .remove(PREF_ACTIVE_STORY_ID)
+                    .remove(PREF_ACTIVE_STORY_TIMESTAMP)
+                    .apply();
+                
+                Log.d(TAG, "Using persisted story ID from restart (age: " + timeDiff + "ms): " + storyId);
+                return storyId;
+            } else {
+                // Expired, clear it
+                prefs.edit()
+                    .remove(PREF_ACTIVE_STORY_ID)
+                    .remove(PREF_ACTIVE_STORY_TIMESTAMP)
+                    .apply();
+                
+                Log.d(TAG, "Persisted story ID expired (age: " + timeDiff + "ms)");
+            }
+        }
+        
+        return null;
     }
 
     /**
@@ -175,8 +236,32 @@ public class RestartHelper {
     }
 
     public void restart(String newMode) {
-        
         persistMode(newMode);
+        
+        final Activity currentActivity = getCurrentActivity();
+        if (currentActivity != null) {
+            ProcessPhoenix.triggerRebirth(currentActivity);
+        }
+    }
+
+    /**
+     * Restarts with a story ID, preserving the current mode.
+     * This is used when switching stories within Storybook to trigger mock transformation.
+     * 
+     * @param storyId The story ID to persist, or null to clear it
+     */
+    public void restartWithStoryId(String storyId) {
+        // Preserve existing mode if it exists
+        SharedPreferences prefs = reactContext.getSharedPreferences(PREFS_NAME, 0);
+        boolean hasStorybookMode = prefs.getBoolean(PREF_STORYBOOK_ENABLED, false);
+        
+        if (hasStorybookMode) {
+            // Re-persist the mode to keep it alive
+            persistMode(MODE_STORYBOOK);
+        }
+        
+        // Persist the story ID
+        persistStoryId(storyId);
         
         final Activity currentActivity = getCurrentActivity();
         if (currentActivity != null) {

@@ -4,5 +4,7 @@
 @interface RestartHelper : NSObject
 
 + (void)restart:(RCTBridge *)bridge;
++ (void)restartWithStoryId:(RCTBridge *)bridge storyId:(NSString *)storyId;
++ (NSString *)getPersistedStoryId;
 
 @end
