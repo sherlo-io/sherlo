@@ -137,20 +137,28 @@ function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = 
         return base(context, realName, platform);
       }
       
-      // Check if this package has mocks and redirect to mock file
+      // Check if this package/module has mocks and redirect to mock file
       // Mock files are generated after transformer extracts mocks
-      // For now, we'll check if mock file exists
-      const mockFilePath = path.join(projectRoot, 'node_modules', '.sherlo-mocks', `${moduleName}.js`);
+      // Normalize relative paths to match how mock files are generated
+      let normalizedModuleName = moduleName;
+      if (moduleName.startsWith('.') || moduleName.startsWith('/')) {
+        // For relative paths, use the same normalization as generateAllMockFiles:
+        // Normalize separators and remove extension, then replace / with __
+        normalizedModuleName = moduleName.replace(/\\/g, '/').replace(/\.(ts|tsx|js|jsx)$/, '');
+      }
+      
+      const safeFileName = normalizedModuleName.replace(/\//g, '__');
+      const mockFilePath = path.join(projectRoot, 'node_modules', '.sherlo-mocks', `${safeFileName}.js`);
       if (fs.existsSync(mockFilePath)) {
-        log(`[SHERLO:resolver] Redirecting ${moduleName} to mock file: ${mockFilePath}`);
+        log(`[SHERLO:resolver] Redirecting ${moduleName} (safeFileName: ${safeFileName}) to mock file: ${mockFilePath}`);
         return {
           type: 'sourceFile',
           filePath: mockFilePath,
         };
       } else {
         // Debug: log when we're NOT redirecting
-        if (moduleName === 'expo-localization') {
-          log(`[SHERLO:resolver] Mock file NOT found for ${moduleName} at: ${mockFilePath}`);
+        if (moduleName.includes('testHelper') || moduleName === 'expo-localization') {
+          log(`[SHERLO:resolver] Mock file NOT found for ${moduleName} (safeFileName: ${safeFileName}) at: ${mockFilePath}`);
         }
       }
       

@@ -100,6 +100,16 @@ function getComponentNameFromPath(filePath: string, projectRoot: string): string
 }
 
 /**
+ * Converts camelCase to kebab-case
+ * Example: "MockedDefault" -> "mocked-default"
+ */
+function camelToKebab(str: string): string {
+  return str
+    .replace(/([a-z])([A-Z])/g, '$1-$2') // Insert hyphen between lowercase and uppercase
+    .toLowerCase();
+}
+
+/**
  * Checks if a file is a story file
  */
 function isStoryFile(filename: string, storyFiles: string[]): boolean {
@@ -380,7 +390,8 @@ export function extractMocksFromTransformedCode(
                 // componentName already includes the full path hierarchy in kebab-case
                 // Example: "testing-components-testinfo" (already normalized)
                 // Storybook uses: "testing-components-testinfo--basic"
-                const normalizedExportName = exportName.toLowerCase();
+                // Convert camelCase to kebab-case to match Storybook's format
+                const normalizedExportName = camelToKebab(exportName);
                 const storyId = `${componentName}--${normalizedExportName}`;
                 
                 // Also store with original format for backwards compatibility
