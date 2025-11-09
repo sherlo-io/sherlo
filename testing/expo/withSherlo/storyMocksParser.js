@@ -167,168 +167,6 @@ function extractAllMocksFromStory(storyFilePath) {
 }
 
 /**
- * Parses a story file and extracts mocks from a specific variant (legacy function for backward compatibility)
- * @param {string} storyFilePath - Absolute path to the story file
- * @param {string} variantName - Name of the story variant (e.g., "Basic")
- * @returns {Object} - Object mapping package names to their mock configurations
- */
-function extractMocksFromStory(storyFilePath, variantName) {
-  if (!fs.existsSync(storyFilePath)) {
-    throw new Error(`Story file not found: ${storyFilePath}`);
-  }
-
-  let mocks = {};
-
-  // Strategy 1: Try to require the file directly (works if Metro has processed it)
-  // This is the most reliable method
-  try {
-    // Clear require cache to ensure fresh load
-    const resolvedPath = require.resolve(storyFilePath);
-    delete require.cache[resolvedPath];
-
-    const storyModule = require(resolvedPath);
-    const variant = storyModule[variantName];
-
-    if (variant && variant.mocks) {
-      mocks = variant.mocks;
-      return mocks;
-    }
-  } catch (requireError) {
-    // Try direct require without resolve (for absolute paths)
-    try {
-      delete require.cache[storyFilePath];
-      const storyModule = require(storyFilePath);
-      const variant = storyModule[variantName];
-
-      if (variant && variant.mocks) {
-        mocks = variant.mocks;
-        return mocks;
-      }
-    } catch (directRequireError) {
-      // Fall through to parsing
-    }
-
-    // Strategy 2: Parse the file content using regex/string parsing
-    // This is a fallback for when the file hasn't been compiled yet
-    try {
-      const content = fs.readFileSync(storyFilePath, 'utf-8');
-
-      // Look for the variant export - handle both const and export const
-      // Pattern: export const VariantName = { ... mocks: { ... } ... }
-      // We need to handle nested objects, so we'll use a more sophisticated approach
-
-      // First, find the variant export
-      const variantPattern = new RegExp(
-        `export\\s+(?:const|var|let)\\s+${variantName}\\s*=\\s*\\{`,
-        's'
-      );
-
-      const variantMatch = content.match(variantPattern);
-      if (!variantMatch) {
-        throw new Error(`Could not find export for variant: ${variantName}`);
-      }
-
-      const variantStart = variantMatch.index + variantMatch[0].length;
-
-      // Now find the matching closing brace for the variant object
-      let braceCount = 1;
-      let pos = variantStart;
-      let variantEnd = -1;
-
-      while (pos < content.length && braceCount > 0) {
-        const char = content[pos];
-        if (char === '{') braceCount++;
-        if (char === '}') braceCount--;
-        if (braceCount === 0) {
-          variantEnd = pos;
-          break;
-        }
-        pos++;
-      }
-
-      if (variantEnd === -1) {
-        throw new Error(`Could not find closing brace for variant: ${variantName}`);
-      }
-
-      const variantContent = content.substring(variantStart, variantEnd);
-
-      // Now find the mocks property within the variant
-      const mocksPattern = /mocks\s*:\s*\{/s;
-      const mocksMatch = variantContent.match(mocksPattern);
-
-      if (mocksMatch) {
-        const mocksStart = variantStart + mocksMatch.index + mocksMatch[0].length;
-
-        // Find the matching closing brace for the mocks object
-        braceCount = 1;
-        pos = mocksStart;
-        let mocksEnd = -1;
-
-        while (pos < content.length && braceCount > 0) {
-          const char = content[pos];
-          if (char === '{') braceCount++;
-          if (char === '}') braceCount--;
-          if (braceCount === 0) {
-            mocksEnd = pos;
-            break;
-          }
-          pos++;
-        }
-
-        if (mocksEnd !== -1) {
-          const mocksContent = content.substring(mocksStart, mocksEnd);
-
-          // Parse individual package mocks
-          // Pattern: 'package-name': { ... } or "package-name": { ... }
-          const packagePattern = /['"`]([^'"`]+)['"`]\s*:\s*\{/g;
-          let packageMatch;
-
-          while ((packageMatch = packagePattern.exec(mocksContent)) !== null) {
-            const packageName = packageMatch[1];
-            const pkgStart = mocksStart + packageMatch.index + packageMatch[0].length;
-
-            // Find the matching closing brace for this package's mock
-            braceCount = 1;
-            pos = pkgStart;
-            let pkgEnd = -1;
-
-            while (pos < content.length && braceCount > 0) {
-              const char = content[pos];
-              if (char === '{') braceCount++;
-              if (char === '}') braceCount--;
-              if (braceCount === 0) {
-                pkgEnd = pos;
-                break;
-              }
-              pos++;
-            }
-
-            if (pkgEnd !== -1) {
-              const pkgMockContent = content.substring(pkgStart, pkgEnd);
-              // Store the raw content - we'll evaluate it when generating the mock file
-              mocks[packageName] = pkgMockContent;
-            }
-          }
-        }
-      }
-    } catch (parseError) {
-      throw new Error(
-        `Could not parse story file ${storyFilePath} for variant ${variantName}. ` +
-          `Require error: ${requireError.message}. Parse error: ${parseError.message}`
-      );
-    }
-  }
-
-  if (Object.keys(mocks).length === 0) {
-    console.warn(
-      `[SHERLO:mocksParser] No mocks found for variant ${variantName} in ${storyFilePath}`
-    );
-  }
-
-  return mocks;
-}
-
-/**
  * Generates a mock file content for a package based on all variants' mocks
  * @param {string} packageName - Name of the package to mock
  * @param {Object} variantsMocks - Object mapping variant names to their mock configs: { variantName: mockConfig }
@@ -442,6 +280,7 @@ function getMockForCurrentVariant() {
   // Fallback to getCurrentVariant function if cache didn't have it
   if (!currentVariant && getCurrentVariantFn && typeof getCurrentVariantFn === 'function') {
     try {
+          console.log('[SHERLO:mock ${packageName}] Calling getCurrentVariantFn:', getCurrentVariantFn);
           currentVariant = getCurrentVariantFn();
     } catch (e) {
       console.warn('[SHERLO:mock ${packageName}] Error calling getCurrentVariant:', e?.message);
@@ -597,8 +436,6 @@ function generateMockFiles(allVariantsMocks, outputDir) {
 }
 
 module.exports = {
-  extractMocksFromStory, // Legacy function
-  extractAllMocksFromStory, // New function for all variants
-  generateMockFileContent,
+  extractAllMocksFromStory,
   generateMockFiles,
 };
