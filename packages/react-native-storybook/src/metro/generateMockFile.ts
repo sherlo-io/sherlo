@@ -17,13 +17,43 @@ export function generateMockFile(
   fileName?: string
 ): string {
   // Collect all mocks for this package across all stories
-  const packageMocksByStory: Record<string, any> = {};
+  let packageMocksByStory: Record<string, any> = {};
   
+  // Debug: log all story IDs in the Map
+  const allStoryIds = Array.from(storyMocks.keys());
+  if (packageName === 'expo-localization') {
+    console.log(`[SHERLO:mockGen] Generating mock for ${packageName}, total story IDs in Map: ${allStoryIds.length}`);
+    console.log(`[SHERLO:mockGen] Story IDs containing 'multiplenamedexports':`, allStoryIds.filter(id => id.includes('multiplenamedexports')));
+  }
+  
+  // Read existing mocks from JSON cache (to merge across Metro worker processes)
+  const mockDir = path.join(projectRoot, 'node_modules', '.sherlo-mocks');
+  const safeFileName = fileName || packageName.replace(/\//g, '__');
+  const cacheFilePath = path.join(mockDir, `${safeFileName}.json`);
+  
+  if (fs.existsSync(cacheFilePath)) {
+    try {
+      const existingCache = JSON.parse(fs.readFileSync(cacheFilePath, 'utf-8'));
+      packageMocksByStory = existingCache;
+      if (packageName === 'expo-localization') {
+        console.log(`[SHERLO:mockGen] Loaded ${Object.keys(packageMocksByStory).length} existing mocks from cache`);
+      }
+    } catch (error: any) {
+      console.warn(`[SHERLO:mockGen] Failed to read cache file ${cacheFilePath}:`, error.message);
+    }
+  }
+  
+  // Merge new mocks from the Map
   for (const [storyId, packageMocks] of storyMocks.entries()) {
     const pkgMock = packageMocks.get(packageName);
     if (pkgMock) {
       packageMocksByStory[storyId] = pkgMock;
     }
+  }
+  
+  if (packageName === 'expo-localization') {
+    console.log(`[SHERLO:mockGen] Found ${Object.keys(packageMocksByStory).length} stories with mocks for ${packageName} (after merge)`);
+    console.log(`[SHERLO:mockGen] Story IDs with mocks:`, Object.keys(packageMocksByStory).filter(id => id.includes('multiplenamedexports')));
   }
   
   if (Object.keys(packageMocksByStory).length === 0) {
@@ -288,14 +318,37 @@ Object.defineProperty(module.exports, 'default', {
 
   // Write to a temp location that Metro can resolve
   // Use node_modules/.sherlo-mocks/ to make it easy to resolve
-  const mockDir = path.join(projectRoot, 'node_modules', '.sherlo-mocks');
+  // mockDir and cacheFilePath were already defined earlier
   if (!fs.existsSync(mockDir)) {
     fs.mkdirSync(mockDir, { recursive: true });
   }
   
-  const safeFileName = fileName || packageName.replace(/\//g, '__');
+  // safeFileName was already defined earlier, reuse it
   const mockFilePath = path.join(mockDir, `${safeFileName}.js`);
   fs.writeFileSync(mockFilePath, mockCode, 'utf-8');
+  
+  // Also write JSON cache file for merging across Metro worker processes
+  // Serialize the mocks (preserve __isFunction markers for functions)
+  const cacheData: Record<string, Record<string, any>> = {};
+  for (const [storyId, mock] of Object.entries(packageMocksByStory)) {
+    cacheData[storyId] = {};
+    for (const [exportName, exportValue] of Object.entries(mock)) {
+      // Preserve __isFunction markers when writing to cache
+      if (exportValue && typeof exportValue === 'object' && (exportValue as any).__isFunction) {
+        cacheData[storyId][exportName] = exportValue;
+      } else if (typeof exportValue === 'function') {
+        // Convert functions to __isFunction objects for JSON serialization
+        cacheData[storyId][exportName] = {
+          __isFunction: true,
+          __code: exportValue.toString(),
+        };
+      } else {
+        cacheData[storyId][exportName] = exportValue;
+      }
+    }
+  }
+  // cacheFilePath was already defined earlier
+  fs.writeFileSync(cacheFilePath, JSON.stringify(cacheData, null, 2), 'utf-8');
   
   console.log(`[SHERLO:mockGen] Generated mock file: ${mockFilePath} (for package: ${packageName})`);
   return mockFilePath;
