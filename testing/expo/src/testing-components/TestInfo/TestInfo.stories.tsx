@@ -1,6 +1,5 @@
 import type { Meta } from '@storybook/react';
 import { StoryDecorator, TestInfo } from '@sherlo/testing-components';
-import * as Localization from 'expo-localization';
 import { PixelRatio } from 'react-native';
 
 /**
@@ -14,7 +13,6 @@ export default {
 
 export const Basic = {
   args: {
-    locale: Localization.getLocales()[0].languageCode,
     fontScale: PixelRatio.getFontScale(),
   },
   mocks: {
@@ -26,7 +24,6 @@ export const Basic = {
 
 export const Polish = {
   args: {
-    locale: Localization.getLocales()[0].languageCode,
     fontScale: PixelRatio.getFontScale(),
   },
   mocks: {

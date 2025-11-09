@@ -1,6 +1,7 @@
 // withSherlo.ts
 import * as path from 'path';
-import { extractAllMocksFromStory, generateMockFiles } from './storyMocksParser';
+import { discoverStoryFiles } from './storyDiscovery';
+import { extractMocksFromAllStories, StoryMockMap } from './mockExtraction';
 
 // Metro config types - using a compatible interface
 interface MetroConfig {
@@ -18,12 +19,6 @@ interface MetroConfig {
 
 interface WithSherloOptions {
   /**
-   * Path to story file (relative to project root or absolute).
-   * When provided, extracts mocks from ALL variants and generates dynamic mocks
-   * that check getCurrentVariant() at runtime.
-   */
-  mockFile?: string;
-  /**
    * Enable noisy resolver logs.
    */
   debug?: boolean;
@@ -32,6 +27,7 @@ interface WithSherloOptions {
 /**
  * Configures Metro bundler to work with Sherlo mocks in React Native.
  * This function wraps a Metro configuration to enable dynamic mock resolution.
+ * It automatically discovers all story files and extracts mocks from all variants.
  *
  * @param config - The Metro bundler configuration to be modified.
  * @param options - Options to customize the Sherlo mock configuration.
@@ -40,66 +36,36 @@ interface WithSherloOptions {
  * @example
  * const { getDefaultConfig } = require('expo/metro-config');
  * const withSherlo = require('@sherlo/react-native-storybook/metro/withSherlo');
- * const path = require('path');
  *
  * const projectRoot = __dirname;
  * const config = getDefaultConfig(projectRoot);
  *
  * module.exports = withSherlo(config, {
- *   mockFile: path.resolve(projectRoot, './src/stories/MyComponent.stories.tsx'),
  *   debug: true,
  * });
  */
-function withSherlo(
-  config: MetroConfig,
-  { mockFile, debug = false }: WithSherloOptions = {}
-): MetroConfig {
+function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = {}): MetroConfig {
   const DEBUG = !!debug;
   const log = (...a: any[]) => DEBUG && console.log('[SHERLO:resolver]', ...a);
 
-  let mocks: Record<string, string> = {};
-  let watchFolders: string[] = [];
+  // Step 2: Discover all story files
+  const projectRoot = config.projectRoot || process.cwd();
+  const storyFiles = discoverStoryFiles(projectRoot);
 
-  // New API: extract mocks from all variants in story file
-  if (mockFile) {
-    try {
-      // Resolve mockFile path - if absolute, use as-is; otherwise resolve relative to project root
-      // Use config.projectRoot if available, otherwise fall back to process.cwd()
-      const projectRoot = config.projectRoot || process.cwd();
-      const storyFilePath = path.isAbsolute(mockFile)
-        ? mockFile
-        : path.resolve(projectRoot, mockFile);
-
-      console.log(`[SHERLO:resolver] Extracting mocks from story file: ${storyFilePath}`);
-
-      // Extract mocks from ALL variants in the story file
-      const allVariantsMocks = extractAllMocksFromStory(storyFilePath);
-
-      if (Object.keys(allVariantsMocks).length > 0) {
-        // Generate mock files dynamically that check getCurrentVariant() at runtime
-        // Use a cache directory at project root level
-        const cacheDir = path.join(projectRoot, '.story-mocks-cache');
-        const generatedMocks = generateMockFiles(allVariantsMocks, cacheDir);
-
-        mocks = generatedMocks;
-        console.log(
-          `[SHERLO:resolver] Generated ${
-            Object.keys(mocks).length
-          } mock file(s) for packages: ${Object.keys(mocks).join(', ')}`
-        );
-
-        // Add cache directory to watchFolders
-        watchFolders = [...watchFolders, cacheDir];
-      } else {
-        console.warn('[SHERLO:resolver] No mocks found in any variant in story file');
-      }
-    } catch (error: any) {
-      console.error('[SHERLO:resolver] Error extracting mocks from story:', error.message);
-    }
+  if (storyFiles.length === 0) {
+    console.warn('[SHERLO:resolver] No story files found. Mocks will not be available.');
   }
 
-  // Ensure watchFolders includes our extras
-  config.watchFolders = [...(config.watchFolders || []), ...watchFolders];
+  // Step 3: Extract mocks from all stories
+  const storyMocks: StoryMockMap =
+    storyFiles.length > 0 ? extractMocksFromAllStories(storyFiles, projectRoot) : new Map();
+
+  // Store mocks in a way that's accessible to the resolver
+  // We'll use a global cache or attach to config
+  (global as any).__SHERLO_STORY_MOCKS__ = storyMocks;
+
+  // TODO: Step 4 - Implement getCurrentStory() function
+  // TODO: Step 5 - Implement mock resolution based on current story
 
   const prevResolve = config.resolver?.resolveRequest;
 
@@ -107,15 +73,6 @@ function withSherlo(
   config.resolver = config.resolver || {};
 
   config.resolver.resolveRequest = (context: any, moduleName: string, platform: string | null) => {
-    // Debug interesting requests
-    if (DEBUG && (moduleName in mocks || moduleName.endsWith(':real'))) {
-      console.log(
-        '[SHERLO:resolver] Resolving:',
-        moduleName,
-        moduleName in mocks ? '→ MOCKED' : '→ real'
-      );
-    }
-
     // Handle "<pkg>:real" → resolve original package via base resolver
     if (moduleName.endsWith(':real')) {
       const realName = moduleName.slice(0, -':real'.length);
@@ -124,12 +81,9 @@ function withSherlo(
       return res;
     }
 
-    // If in mocks map, return the mock file
-    if (mocks[moduleName]) {
-      return { type: 'sourceFile', filePath: mocks[moduleName] };
-    }
+    // TODO: Step 5 - Implement mock resolution based on current story
 
-    // Fallback
+    // Fallback to default resolver
     const rr = prevResolve ?? context.resolveRequest;
     return rr(context, moduleName, platform);
   };

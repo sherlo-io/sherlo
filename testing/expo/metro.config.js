@@ -33,15 +33,15 @@ const customConfig = {
   watchFolders: [...(defaultConfig.watchFolders || []), ...Object.values(linkedModules)],
 };
 
-// Use new API: extract mocks from all variants in story file dynamically
-// Mocks will check getCurrentVariant() at runtime to determine which variant's mocks to use
-const configWithSherlo = withSherlo(customConfig, {
-  mockFile: resolvePath('src/testing-components/TestInfo/TestInfo.stories.tsx'),
-  debug: true,
-});
-
-// Apply Storybook wrapper to the extended config
-module.exports = withStorybook(configWithSherlo, {
+// IMPORTANT: withStorybook must run FIRST to generate storybook.requires.ts
+// Then withSherlo can read that file to discover story files
+const configWithStorybook = withStorybook(customConfig, {
   enabled: true,
   configPath: resolvePath('./.rnstorybook'),
+});
+
+// Use new API: automatically discovers all story files and extracts mocks from all variants
+// Mocks will check getCurrentStory() at runtime to determine which story's mocks to use
+module.exports = withSherlo(configWithStorybook, {
+  debug: true,
 });

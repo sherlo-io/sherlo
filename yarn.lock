@@ -3195,11 +3195,13 @@ __metadata:
   resolution: "@sherlo/testing-components@workspace:testing/testing-components"
   dependencies:
     "@types/react": "npm:^18.2.7"
+    expo-localization: "npm:~17.0.7"
     react: "npm:18.2.0"
     react-native: "npm:0.74.5"
     react-native-svg: "npm:^15.11.2"
     typescript: "npm:^5.0.4"
   peerDependencies:
+    expo-localization: "*"
     react: "*"
     react-native: "*"
     react-native-svg: "*"
@@ -6409,6 +6411,18 @@ __metadata:
     signal-exit: "npm:^3.0.3"
     strip-final-newline: "npm:^2.0.0"
   checksum: 10/8ada91f2d70f7dff702c861c2c64f21dfdc1525628f3c0454fd6f02fce65f7b958616cbd2b99ca7fa4d474e461a3d363824e91b3eb881705231abbf387470597
+  languageName: node
+  linkType: hard
+
+"expo-localization@npm:~17.0.7":
+  version: 17.0.7
+  resolution: "expo-localization@npm:17.0.7"
+  dependencies:
+    rtl-detect: "npm:^1.0.2"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+  checksum: 10/2e8567eb9b6b62497492451ffa5ca244081bd60d73816efd4c359253eaccb080dc0c17e8a5ffc8ce9c95ef0411eebefcb82e71ead8e3bcaf81a612fcb57de2a9
   languageName: node
   linkType: hard
 
@@ -11407,6 +11421,13 @@ __metadata:
   bin:
     rimraf: ./bin.js
   checksum: 10/756419f2fa99aa119c46a9fc03e09d84ecf5421a80a72d1944c5088c9e4671e77128527a900a313ed9d3fdbdd37e2ae05486cd7e9116d5812d8c31f2399d7c86
+  languageName: node
+  linkType: hard
+
+"rtl-detect@npm:^1.0.2":
+  version: 1.1.2
+  resolution: "rtl-detect@npm:1.1.2"
+  checksum: 10/d19089c3b5f7a6fbabfa2c4724fcdf8694f313d196d44c8eee3625ba2e46418afe65b4da38e3e92822985291efd0656d85daa4b2ef296a46a65a702d0b156876
   languageName: node
   linkType: hard
 
