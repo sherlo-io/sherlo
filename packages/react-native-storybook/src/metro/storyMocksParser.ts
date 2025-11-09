@@ -1,16 +1,16 @@
-// storyMocksParser.js
-const fs = require('fs');
-const path = require('path');
+// storyMocksParser.ts
+import * as fs from 'fs';
+import * as path from 'path';
 
 const DEBUG = false;
 
 /**
  * Extracts mocks from a single variant
- * @param {Object} storyModule - The loaded story module
- * @param {string} variantName - Name of the variant
- * @returns {Object|null} - Mocks object or null if not found
+ * @param storyModule - The loaded story module
+ * @param variantName - Name of the variant
+ * @returns Mocks object or null if not found
  */
-function extractMocksFromVariant(storyModule, variantName) {
+function extractMocksFromVariant(storyModule: any, variantName: string): Record<string, any> | null {
   const variant = storyModule[variantName];
   if (variant && variant.mocks) {
     return variant.mocks;
@@ -20,15 +20,15 @@ function extractMocksFromVariant(storyModule, variantName) {
 
 /**
  * Parses a story file and extracts mocks from ALL variants
- * @param {string} storyFilePath - Absolute path to the story file
- * @returns {Object} - Object mapping variant names to their mocks: { variantName: { packageName: mockConfig } }
+ * @param storyFilePath - Absolute path to the story file
+ * @returns Object mapping variant names to their mocks: { variantName: { packageName: mockConfig } }
  */
-function extractAllMocksFromStory(storyFilePath) {
+export function extractAllMocksFromStory(storyFilePath: string): Record<string, Record<string, any>> {
   if (!fs.existsSync(storyFilePath)) {
     throw new Error(`Story file not found: ${storyFilePath}`);
   }
 
-  let allVariantsMocks = {};
+  let allVariantsMocks: Record<string, Record<string, any>> = {};
 
   // Strategy 1: Try to require the file directly (works if Metro has processed it)
   try {
@@ -88,7 +88,7 @@ function extractAllMocksFromStory(storyFilePath) {
         const mocksPattern = /mocks\s*:\s*\{/s;
         const mocksMatch = variantContent.match(mocksPattern);
 
-        if (mocksMatch) {
+        if (mocksMatch && mocksMatch.index !== undefined) {
           const mocksStart = variantStart + mocksMatch.index + mocksMatch[0].length;
 
           // Find the matching closing brace for the mocks object
@@ -109,7 +109,7 @@ function extractAllMocksFromStory(storyFilePath) {
 
           if (mocksEnd !== -1) {
             const mocksContent = content.substring(mocksStart, mocksEnd);
-            const variantMocks = {};
+            const variantMocks: Record<string, string> = {};
 
             // Parse individual package mocks
             const packagePattern = /['"`]([^'"`]+)['"`]\s*:\s*\{/g;
@@ -148,7 +148,7 @@ function extractAllMocksFromStory(storyFilePath) {
         }
       }
     }
-  } catch (parseError) {
+  } catch (parseError: any) {
     throw new Error(
       `Could not parse story file ${storyFilePath}. Parse error: ${parseError.message}`
     );
@@ -168,20 +168,20 @@ function extractAllMocksFromStory(storyFilePath) {
 
 /**
  * Generates a mock file content for a package based on all variants' mocks
- * @param {string} packageName - Name of the package to mock
- * @param {Object} variantsMocks - Object mapping variant names to their mock configs: { variantName: mockConfig }
- * @returns {string} - Generated mock file content
+ * @param packageName - Name of the package to mock
+ * @param variantsMocks - Object mapping variant names to their mock configs: { variantName: mockConfig }
+ * @returns Generated mock file content
  */
-function generateMockFileContent(packageName, variantsMocks) {
+function generateMockFileContent(packageName: string, variantsMocks: Record<string, any>): string {
   // Convert each variant's mock to code
-  const variantMocksCode = [];
+  const variantMocksCode: string[] = [];
 
   for (const [variantName, mockConfig] of Object.entries(variantsMocks)) {
-    let mockConfigCode;
+    let mockConfigCode: string;
 
     if (typeof mockConfig === 'object' && mockConfig !== null) {
       // If it's already an object (from require), serialize it properly
-      const parts = [];
+      const parts: string[] = [];
       for (const [key, value] of Object.entries(mockConfig)) {
         if (typeof value === 'function') {
           parts.push(`${key}: ${value.toString()}`);
@@ -390,18 +390,21 @@ module.exports.default = out;
 
 /**
  * Generates mock files for all packages found across all variants
- * @param {Object} allVariantsMocks - Object mapping variant names to their mocks: { variantName: { packageName: mockConfig } }
- * @param {string} outputDir - Directory where mock files should be generated
- * @returns {Object} - Object mapping package names to generated mock file paths
+ * @param allVariantsMocks - Object mapping variant names to their mocks: { variantName: { packageName: mockConfig } }
+ * @param outputDir - Directory where mock files should be generated
+ * @returns Object mapping package names to generated mock file paths
  */
-function generateMockFiles(allVariantsMocks, outputDir) {
+export function generateMockFiles(
+  allVariantsMocks: Record<string, Record<string, any>>,
+  outputDir: string
+): Record<string, string> {
   // Ensure output directory exists
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
   // Collect all packages that appear in any variant
-  const packagesMap = {}; // { packageName: { variantName: mockConfig } }
+  const packagesMap: Record<string, Record<string, any>> = {}; // { packageName: { variantName: mockConfig } }
 
   for (const [variantName, variantMocks] of Object.entries(allVariantsMocks)) {
     for (const [packageName, mockConfig] of Object.entries(variantMocks)) {
@@ -412,7 +415,7 @@ function generateMockFiles(allVariantsMocks, outputDir) {
     }
   }
 
-  const mockFiles = {};
+  const mockFiles: Record<string, string> = {};
 
   // Generate one mock file per package with all variants' mocks
   for (const [packageName, variantsMocks] of Object.entries(packagesMap)) {
@@ -435,7 +438,3 @@ function generateMockFiles(allVariantsMocks, outputDir) {
   return mockFiles;
 }
 
-module.exports = {
-  extractAllMocksFromStory,
-  generateMockFiles,
-};

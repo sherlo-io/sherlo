@@ -1,29 +1,79 @@
-// withSherlo/index.js
-const path = require('path');
-const { extractAllMocksFromStory, generateMockFiles } = require('./storyMocksParser');
+// withSherlo.ts
+import * as path from 'path';
+import { extractAllMocksFromStory, generateMockFiles } from './storyMocksParser';
+
+// Metro config types - using a compatible interface
+interface MetroConfig {
+  projectRoot?: string;
+  watchFolders?: string[];
+  resolver?: {
+    resolveRequest?: (
+      context: any,
+      moduleName: string,
+      platform: string | null
+    ) => { type: string; filePath: string } | null;
+  };
+  [key: string]: any;
+}
+
+interface WithSherloOptions {
+  /**
+   * Path to story file (relative to project root or absolute).
+   * When provided, extracts mocks from ALL variants and generates dynamic mocks
+   * that check getCurrentVariant() at runtime.
+   */
+  mockFile?: string;
+  /**
+   * Legacy API: map of package names to absolute paths of mock files.
+   * Use mockFile instead.
+   */
+  mocks?: Record<string, string>;
+  /**
+   * Extra folders to watch (e.g., the mocks dir).
+   */
+  watchFolders?: string[];
+  /**
+   * Enable noisy resolver logs.
+   */
+  debug?: boolean;
+}
 
 /**
- * withSherlo(config, { mockFile?, mocks?, watchFolders?, debug? })
- * - mockFile: string (optional) – path to story file (relative to project root or absolute)
- *   When provided, extracts mocks from ALL variants and generates dynamic mocks that check getCurrentVariant() at runtime
- * - mocks: { [packageName: string]: absolutePathToMockFile } (optional) – legacy API, use mockFile instead
- * - watchFolders: string[] (optional) – extra folders to watch (e.g., the mocks dir)
- * - debug: boolean (optional) – enable noisy resolver logs
+ * Configures Metro bundler to work with Sherlo mocks in React Native.
+ * This function wraps a Metro configuration to enable dynamic mock resolution.
+ *
+ * @param config - The Metro bundler configuration to be modified.
+ * @param options - Options to customize the Sherlo mock configuration.
+ * @returns The modified Metro configuration.
+ *
+ * @example
+ * const { getDefaultConfig } = require('expo/metro-config');
+ * const withSherlo = require('@sherlo/react-native-storybook/metro/withSherlo');
+ * const path = require('path');
+ *
+ * const projectRoot = __dirname;
+ * const config = getDefaultConfig(projectRoot);
+ *
+ * module.exports = withSherlo(config, {
+ *   mockFile: path.resolve(projectRoot, './src/stories/MyComponent.stories.tsx'),
+ *   debug: true,
+ * });
  */
 function withSherlo(
-  config,
-  { mockFile, mocks: legacyMocks = {}, watchFolders = [], debug = false } = {}
-) {
+  config: MetroConfig,
+  { mockFile, mocks: legacyMocks = {}, watchFolders = [], debug = false }: WithSherloOptions = {}
+): MetroConfig {
   const DEBUG = !!debug;
-  const log = (...a) => DEBUG && console.log('[SHERLO:resolver]', ...a);
+  const log = (...a: any[]) => DEBUG && console.log('[SHERLO:resolver]', ...a);
 
-  let mocks = {};
+  let mocks: Record<string, string> = {};
 
   // New API: extract mocks from all variants in story file
   if (mockFile) {
     try {
-      // Resolve mockFile path - if absolute, use as-is; otherwise resolve relative to project root (one level up from withSherlo)
-      const projectRoot = path.resolve(__dirname, '..');
+      // Resolve mockFile path - if absolute, use as-is; otherwise resolve relative to project root
+      // Use config.projectRoot if available, otherwise fall back to process.cwd()
+      const projectRoot = config.projectRoot || process.cwd();
       const storyFilePath = path.isAbsolute(mockFile)
         ? mockFile
         : path.resolve(projectRoot, mockFile);
@@ -51,7 +101,7 @@ function withSherlo(
       } else {
         console.warn('[SHERLO:resolver] No mocks found in any variant in story file');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('[SHERLO:resolver] Error extracting mocks from story:', error.message);
       // Fall back to empty mocks or legacy mocks
       mocks = legacyMocks;
@@ -69,7 +119,7 @@ function withSherlo(
   // Make sure resolver object exists
   config.resolver = config.resolver || {};
 
-  config.resolver.resolveRequest = (context, moduleName, platform) => {
+  config.resolver.resolveRequest = (context: any, moduleName: string, platform: string | null) => {
     // Debug interesting requests
     if (DEBUG && (moduleName in mocks || moduleName.endsWith(':real'))) {
       console.log(
@@ -100,4 +150,6 @@ function withSherlo(
   return config;
 }
 
+export default withSherlo;
 module.exports = withSherlo;
+

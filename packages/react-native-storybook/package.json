@@ -26,10 +26,13 @@
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./metro/withSherlo": "./metro/withSherlo.js",
     "./package.json": "./package.json"
   },
   "files": [
     "src/specs/**/*",
+    "src/metro/**/*",
+    "metro/**/*",
     "dist/**/*",
     "android/**/*",
     "ios/**/*",
@@ -37,7 +40,7 @@
     "sherlo-react-native-storybook.podspec"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsc -p .",
+    "build": "rm -rf dist && tsc -p . && tsc -p tsconfig.metro.json",
     "dev": "yarn build --watch"
   },
   "jest": {
