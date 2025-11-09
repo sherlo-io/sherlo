@@ -24,15 +24,6 @@ interface WithSherloOptions {
    */
   mockFile?: string;
   /**
-   * Legacy API: map of package names to absolute paths of mock files.
-   * Use mockFile instead.
-   */
-  mocks?: Record<string, string>;
-  /**
-   * Extra folders to watch (e.g., the mocks dir).
-   */
-  watchFolders?: string[];
-  /**
    * Enable noisy resolver logs.
    */
   debug?: boolean;
@@ -61,12 +52,13 @@ interface WithSherloOptions {
  */
 function withSherlo(
   config: MetroConfig,
-  { mockFile, mocks: legacyMocks = {}, watchFolders = [], debug = false }: WithSherloOptions = {}
+  { mockFile, debug = false }: WithSherloOptions = {}
 ): MetroConfig {
   const DEBUG = !!debug;
   const log = (...a: any[]) => DEBUG && console.log('[SHERLO:resolver]', ...a);
 
   let mocks: Record<string, string> = {};
+  let watchFolders: string[] = [];
 
   // New API: extract mocks from all variants in story file
   if (mockFile) {
@@ -103,12 +95,7 @@ function withSherlo(
       }
     } catch (error: any) {
       console.error('[SHERLO:resolver] Error extracting mocks from story:', error.message);
-      // Fall back to empty mocks or legacy mocks
-      mocks = legacyMocks;
     }
-  } else {
-    // Legacy API: use provided mocks map
-    mocks = legacyMocks;
   }
 
   // Ensure watchFolders includes our extras
@@ -152,4 +139,3 @@ function withSherlo(
 
 export default withSherlo;
 module.exports = withSherlo;
-
