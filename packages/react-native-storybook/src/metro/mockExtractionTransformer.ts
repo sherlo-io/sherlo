@@ -244,6 +244,84 @@ function extractMockValue(value: any): any {
 }
 
 /**
+ * Finds a function definition by name in the AST
+ */
+function findFunctionDefinition(ast: any, functionName: string): any {
+  const traverse = getBabelTraverse();
+  const t = getBabelTypes();
+  if (!traverse || !t) {
+    return null;
+  }
+
+  let foundFunction: any = null;
+  traverse(ast, {
+    VariableDeclarator(path: any) {
+      if (
+        t.isIdentifier(path.node.id) &&
+        path.node.id.name === functionName &&
+        (t.isArrowFunctionExpression(path.node.init) || t.isFunctionExpression(path.node.init))
+      ) {
+        foundFunction = path.node.init;
+      }
+    },
+    FunctionDeclaration(path: any) {
+      if (t.isIdentifier(path.node.id) && path.node.id.name === functionName) {
+        foundFunction = path.node;
+      }
+    },
+  });
+
+  return foundFunction;
+}
+
+/**
+ * Extracts the return value from a function definition
+ * For arrow functions: (params) => ({ mocks: {...} })
+ * For function declarations: function name() { return { mocks: {...} }; }
+ */
+function extractReturnValueFromFunction(func: any): any {
+  const t = getBabelTypes();
+  if (!t) {
+    return null;
+  }
+
+  // Arrow function with expression body: (params) => ({ mocks: {...} })
+  if (t.isArrowFunctionExpression(func)) {
+    const body = func.body;
+    // If body is an object expression wrapped in parentheses
+    if (t.isObjectExpression(body)) {
+      return body;
+    }
+    // If body is a parenthesized expression containing an object
+    if (t.isParenthesizedExpression(body) && t.isObjectExpression(body.expression)) {
+      return body.expression;
+    }
+  }
+
+  // Function expression or declaration with block body
+  if (t.isFunctionExpression(func) || t.isFunctionDeclaration(func)) {
+    const body = func.body;
+    if (t.isBlockStatement(body)) {
+      // Find return statement
+      for (const stmt of body.body) {
+        if (t.isReturnStatement(stmt) && stmt.argument) {
+          // If return value is an object expression
+          if (t.isObjectExpression(stmt.argument)) {
+            return stmt.argument;
+          }
+          // If return value is wrapped in parentheses
+          if (t.isParenthesizedExpression(stmt.argument) && t.isObjectExpression(stmt.argument.expression)) {
+            return stmt.argument.expression;
+          }
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
  * Extracts mocks from transformed JavaScript code using AST parsing
  */
 export function extractMocksFromTransformedCode(
@@ -273,11 +351,30 @@ export function extractMocksFromTransformedCode(
     traverse(ast, {
       ExportNamedDeclaration(path: any) {
         // Handle: export const StoryName = { mocks: {...} }
+        // Handle: export const StoryName = storyOfColor(...) (factory function)
         if (t.isVariableDeclaration(path.node.declaration)) {
           path.node.declaration.declarations.forEach((decl: any) => {
             if (t.isIdentifier(decl.id)) {
               const exportName = decl.id.name;
-              const storyMocks = extractMocksFromObject(decl.init);
+              let storyMocks = extractMocksFromObject(decl.init);
+
+              // If direct extraction failed, try to extract from function call
+              if (!storyMocks && t.isCallExpression(decl.init)) {
+                const callExpr = decl.init;
+                if (t.isIdentifier(callExpr.callee)) {
+                  const functionName = callExpr.callee.name;
+                  // Find the function definition
+                  const funcDef = findFunctionDefinition(ast, functionName);
+                  if (funcDef) {
+                    // Extract return value from function
+                    const returnValue = extractReturnValueFromFunction(funcDef);
+                    if (returnValue) {
+                      // Extract mocks from the return value
+                      storyMocks = extractMocksFromObject(returnValue);
+                    }
+                  }
+                }
+              }
 
               if (storyMocks && Object.keys(storyMocks).length > 0) {
                 // componentName already includes the full path hierarchy in kebab-case

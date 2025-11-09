@@ -17,7 +17,7 @@ export const Basic = {
   },
   mocks: {
     'expo-localization': {
-      getLocales: () => [{ languageCode: 'fr', countryCode: 'FR' }],
+      getLocales: () => [{ languageCode: 'fr', regionCode: 'FR' }],
     },
   },
 };
@@ -28,7 +28,7 @@ export const Polish = {
   },
   mocks: {
     'expo-localization': {
-      getLocales: () => [{ languageCode: 'pl', countryCode: 'PL' }],
+      getLocales: () => [{ languageCode: 'pl', regionCode: 'PL' }],
     },
   },
 };

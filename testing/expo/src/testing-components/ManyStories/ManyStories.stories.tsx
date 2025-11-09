@@ -14,7 +14,7 @@ const storyOfColor = (hexColor: string, colorName: string) => ({
   },
   mocks: {
     'expo-localization': {
-      getLocales: () => [{ languageCode: 'pl', countryCode: 'PL' }],
+      getLocales: () => [{ languageCode: 'pl', regionCode: 'PL' }],
     },
   },
 });
