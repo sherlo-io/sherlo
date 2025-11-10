@@ -205,6 +205,14 @@ function extractMockValue(value: any): any {
     // Fallback: try to stringify if it's a simple value
   }
 
+  // Debug: log node type for troubleshooting
+  if (value && value.type) {
+    const nodeType = value.type;
+    if (nodeType.includes('Class') || nodeType === 'ClassExpression' || nodeType === 'ClassDeclaration') {
+      console.log(`[SHERLO:extraction] Detected class node type: ${nodeType}`);
+    }
+  }
+
   // For arrow functions and function expressions, convert to code string
   if (t.isArrowFunctionExpression(value) || t.isFunctionExpression(value)) {
     if (generate) {
@@ -213,6 +221,23 @@ function extractMockValue(value: any): any {
     }
     // Fallback: return marker
     return { __isFunction: true, __code: '() => {}' };
+  }
+
+  // For class expressions and class declarations, convert to code string
+  if (t.isClassExpression(value) || t.isClassDeclaration(value)) {
+    if (generate) {
+      try {
+        const code = generate(value).code;
+        console.log(`[SHERLO:extraction] Extracted class directly, code length: ${code.length}, preview: ${code.substring(0, 50)}`);
+        return { __isClass: true, __code: code };
+      } catch (e: any) {
+        console.warn(`[SHERLO:extraction] Failed to generate code for class:`, e.message);
+        return { __isClass: true, __code: 'class {}' };
+      }
+    }
+    // Fallback: return marker
+    console.warn(`[SHERLO:extraction] @babel/generator not available for class`);
+    return { __isClass: true, __code: 'class {}' };
   }
 
   // For object expressions, extract properties
@@ -229,14 +254,40 @@ function extractMockValue(value: any): any {
         if (key) {
           if (t.isArrowFunctionExpression(prop.value) || t.isFunctionExpression(prop.value)) {
             if (generate) {
-              const code = generate(prop.value).code;
-              obj[key] = { __isFunction: true, __code: code };
+              try {
+                const code = generate(prop.value).code;
+                const isAsync = prop.value.async || code.trim().startsWith('async');
+                console.log(`[SHERLO:extraction] Extracted ${isAsync ? 'async ' : ''}function ${key}, code length: ${code.length}, code preview: ${code.substring(0, 50)}`);
+                obj[key] = { __isFunction: true, __code: code };
+              } catch (e: any) {
+                console.warn(`[SHERLO:extraction] Failed to generate code for function ${key}:`, e.message);
+                obj[key] = { __isFunction: true, __code: '() => {}' };
+              }
             } else {
+              console.warn(`[SHERLO:extraction] @babel/generator not available for function ${key}`);
               obj[key] = { __isFunction: true, __code: '() => {}' };
+            }
+          } else if (t.isClassExpression(prop.value) || t.isClassDeclaration(prop.value)) {
+            if (generate) {
+              try {
+                const code = generate(prop.value).code;
+                console.log(`[SHERLO:extraction] Extracted class ${key} from object expression, code length: ${code.length}, preview: ${code.substring(0, 50)}`);
+                obj[key] = { __isClass: true, __code: code };
+              } catch (e: any) {
+                console.warn(`[SHERLO:extraction] Failed to generate code for class ${key}:`, e.message);
+                obj[key] = { __isClass: true, __code: 'class {}' };
+              }
+            } else {
+              console.warn(`[SHERLO:extraction] @babel/generator not available for class ${key}`);
+              obj[key] = { __isClass: true, __code: 'class {}' };
             }
           } else {
             // For other values, try to extract
-            obj[key] = extractMockValue(prop.value);
+            const extracted = extractMockValue(prop.value);
+            if (extracted === null && prop.value) {
+              console.warn(`[SHERLO:extraction] extractMockValue returned null for ${key}, node type:`, prop.value.type, 'isClassExpression:', t.isClassExpression(prop.value), 'isClassDeclaration:', t.isClassDeclaration(prop.value));
+            }
+            obj[key] = extracted;
           }
         }
       }
@@ -400,6 +451,16 @@ export function extractMocksFromTransformedCode(
                 const packageMocks = new Map<string, any>();
 
                 for (const [pkgName, pkgMock] of Object.entries(storyMocks)) {
+                  // Log what we're storing for debugging
+                  if (pkgName.includes('classUtils') || pkgName.includes('asyncUtils')) {
+                    console.log(`[SHERLO:transformer] Storing mock for ${pkgName}:`, typeof pkgMock, pkgMock && typeof pkgMock === 'object' ? Object.keys(pkgMock) : 'not object');
+                    if (pkgMock && typeof pkgMock === 'object') {
+                      for (const [exportName, exportValue] of Object.entries(pkgMock)) {
+                        const hasMarker = exportValue && typeof exportValue === 'object' && ((exportValue as any).__isFunction || (exportValue as any).__isClass);
+                        console.log(`[SHERLO:transformer]   ${exportName}: type=${typeof exportValue}, hasMarker=${hasMarker}, isFunction=${(exportValue as any)?.__isFunction}, isClass=${(exportValue as any)?.__isClass}`);
+                      }
+                    }
+                  }
                   packageMocks.set(pkgName, pkgMock);
                 }
 

@@ -172,42 +172,151 @@ export function generateMockFile(
   // Generate mock file code
   const storyIds = Object.keys(packageMocksByStory);
   const firstStoryMock = packageMocksByStory[storyIds[0]];
-  const exportNames = Object.keys(firstStoryMock);
+  
+  // Check if the first mock value is an object with nested exports (like { DataProcessor: ..., Calculator: ... })
+  // This happens when we have a package mock with multiple exports
+  const firstMockValue = Object.values(firstStoryMock)[0];
+  const hasNestedExports = firstMockValue && typeof firstMockValue === 'object' && 
+    !(firstMockValue as any).__isFunction && !(firstMockValue as any).__isClass &&
+    Object.keys(firstMockValue).some(key => 
+      (firstMockValue as any)[key] && typeof (firstMockValue as any)[key] === 'object' && 
+      ((firstMockValue as any)[key].__isFunction || (firstMockValue as any)[key].__isClass)
+    );
+  
+  let exportNames: string[];
+  let actualMocksByStory: Record<string, any>;
+  
+  if (hasNestedExports) {
+    // Flatten the structure: use the nested object's keys as export names
+    exportNames = Object.keys(firstMockValue);
+    actualMocksByStory = {};
+    for (const [storyId, mock] of Object.entries(packageMocksByStory)) {
+      // mock is { '../utils/classUtils': { DataProcessor: ..., Calculator: ... } }
+      // We want { DataProcessor: ..., Calculator: ... }
+      const nestedMock = Object.values(mock)[0];
+      actualMocksByStory[storyId] = nestedMock;
+    }
+  } else {
+    // Normal structure: export names are the keys of firstStoryMock
+    exportNames = Object.keys(firstStoryMock);
+    actualMocksByStory = packageMocksByStory;
+  }
+  
   const hasDefaultExport = exportNames.includes('default');
   // Exclude 'default' from named exports since we'll handle it separately
   const namedExportNames = exportNames.filter(name => name !== 'default');
   
-  // Serialize functions to strings (scrappy approach)
-  const storyMocksSerialized: Record<string, Record<string, string>> = {};
-  for (const [storyId, mock] of Object.entries(packageMocksByStory)) {
-    storyMocksSerialized[storyId] = {};
-    for (const [exportName, exportValue] of Object.entries(mock)) {
-      // Handle function objects with __isFunction marker from AST extraction
-      if (exportValue && typeof exportValue === 'object' && (exportValue as any).__isFunction) {
-        storyMocksSerialized[storyId][exportName] = (exportValue as any).__code || '() => {}';
-      } else if (typeof exportValue === 'function') {
-        storyMocksSerialized[storyId][exportName] = exportValue.toString();
-      } else if (typeof exportValue === 'object' && exportValue !== null) {
-        // For objects (including default export objects), serialize as JSON
-        storyMocksSerialized[storyId][exportName] = JSON.stringify(exportValue);
-      } else {
-        storyMocksSerialized[storyId][exportName] = JSON.stringify(exportValue);
+  // Recursive helper to serialize mock values (handles nested objects with __isFunction/__isClass markers)
+  const serializeMockValue = (value: any): any => {
+    // Handle function objects with __isFunction marker from AST extraction
+    if (value && typeof value === 'object' && (value as any).__isFunction) {
+      const code = (value as any).__code || '() => {}';
+      console.log(`[SHERLO:serialize] Serializing function, code length: ${code.length}`);
+      return code;
+    }
+    // Handle class objects with __isClass marker from AST extraction
+    if (value && typeof value === 'object' && (value as any).__isClass) {
+      const code = (value as any).__code || 'class {}';
+      console.log(`[SHERLO:serialize] Serializing class, code length: ${code.length}`);
+      return code;
+    }
+    // Handle plain functions
+    if (typeof value === 'function') {
+      return value.toString();
+    }
+    // Handle objects - recursively serialize nested properties
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      const serialized: Record<string, any> = {};
+      for (const [key, val] of Object.entries(value)) {
+        serialized[key] = serializeMockValue(val);
       }
+      return serialized;
+    }
+    // For primitives and arrays, return as-is (will be JSON.stringify'd later if needed)
+    return value;
+  };
+
+  // Serialize functions and classes to strings (scrappy approach)
+  const storyMocksSerialized: Record<string, Record<string, any>> = {};
+  for (const [storyId, mock] of Object.entries(actualMocksByStory)) {
+    storyMocksSerialized[storyId] = {};
+    console.log(`[SHERLO:serialize] Serializing mocks for story ${storyId}, export names:`, Object.keys(mock));
+    for (const [exportName, exportValue] of Object.entries(mock)) {
+      console.log(`[SHERLO:serialize] Serializing ${exportName}, type:`, typeof exportValue, 'isObject:', typeof exportValue === 'object', 'has __isClass:', exportValue && typeof exportValue === 'object' && (exportValue as any).__isClass);
+      const serialized = serializeMockValue(exportValue);
+      // If it's a string (function/class code), use it directly
+      // If it's an object, stringify it
+      // If it's a primitive (string constant, number, boolean), JSON.stringify it so it can be parsed later
+      if (typeof serialized === 'string' && (serialized.startsWith('class ') || serialized.startsWith('function') || serialized.startsWith('async') || serialized.includes('=>') || serialized.startsWith('('))) {
+        // It's function/class code, use directly
+        storyMocksSerialized[storyId][exportName] = serialized;
+      } else if (typeof serialized === 'object' && serialized !== null) {
+        // Object, stringify it
+        storyMocksSerialized[storyId][exportName] = JSON.stringify(serialized);
+      } else {
+        // Primitive (string constant, number, boolean, null), JSON.stringify so it can be parsed
+        storyMocksSerialized[storyId][exportName] = JSON.stringify(serialized);
+      }
+      console.log(`[SHERLO:serialize] Serialized ${exportName} to:`, typeof storyMocksSerialized[storyId][exportName], storyMocksSerialized[storyId][exportName]?.substring?.(0, 50));
     }
   }
   
   // Helper function to generate mock property (for named exports only)
   const generateMockProperty = (exportName: string) => {
-    // For named exports, check if it's a function or value
+    // Check the original object (before serialization) to detect class markers
+    const firstStoryMock = actualMocksByStory[storyIds[0]];
+    const firstExportValue = firstStoryMock?.[exportName];
+    const isClassFromObject = firstExportValue && typeof firstExportValue === 'object' && (firstExportValue as any).__isClass;
+    
+    // For named exports, check if it's a function, class, or value (after serialization)
     const firstMock = storyMocksSerialized[storyIds[0]][exportName];
-    const isFunction = firstMock && (
+    const isClassFromString = firstMock && (
+      firstMock.trim().startsWith('class ') ||
+      firstMock.trim().startsWith('class{') ||
+      firstMock.trim().startsWith('export class')
+    );
+    const isClass = isClassFromObject || isClassFromString;
+    
+    const isFunction = !isClass && firstMock && (
       firstMock.startsWith('(') || 
       firstMock.startsWith('function') || 
       firstMock.startsWith('async') ||
-      firstMock.includes('=>')
+      (firstMock.includes('=>') && !firstMock.startsWith('class'))
     );
     
-    if (isFunction) {
+    if (isClass) {
+      // For classes, eval and return directly (not wrapped in a function)
+      return `  get ${exportName}() {
+    const storyId = getCurrentStory();
+    console.log('[SHERLO:mock] ${packageName}.${exportName} accessed for story:', storyId);
+    const storyMock = storyMocks[storyId];
+    
+    if (storyMock && storyMock.${exportName} && typeof storyMock.${exportName} === 'string' && storyMock.${exportName} !== 'null' && storyMock.${exportName}.trim().startsWith('class')) {
+      try {
+        const mockClass = eval('(' + storyMock.${exportName} + ')');
+        console.log('[SHERLO:mock] Returning ${exportName} class:', mockClass);
+        return mockClass;
+      } catch (e) {
+        console.warn('[SHERLO:mock] Failed to eval class ${exportName}:', e.message);
+        // Fall through to real implementation
+      }
+    }
+    
+    // Fallback to real implementation
+    // Check both direct export and default export (for modules that export default with named properties)
+    const realClass = realModule && (
+      (realModule.${exportName} !== undefined ? realModule.${exportName} : null) ||
+      (realModule.default && realModule.default.${exportName} !== undefined ? realModule.default.${exportName} : null)
+    );
+    if (realClass) {
+      console.log('[SHERLO:mock] Using real ${exportName} class for story:', storyId);
+      return realClass;
+    } else {
+      console.warn('[SHERLO:mock] No ${exportName} mock found for story "' + storyId + '" and real module not available');
+      return undefined;
+    }
+  }`;
+    } else if (isFunction) {
       return `  ${exportName}: function(...args) {
     const storyId = getCurrentStory();
     console.log('[SHERLO:mock] ${packageName}.${exportName} called for story:', storyId);
@@ -221,9 +330,14 @@ export function generateMockFile(
     }
     
     // Fallback to real implementation
-    if (realModule && typeof realModule.${exportName} === 'function') {
+    // Check both direct export and default export (for modules that export default with named properties)
+    const realFn = realModule && (
+      (typeof realModule.${exportName} === 'function' ? realModule.${exportName} : null) ||
+      (realModule.default && typeof realModule.default.${exportName} === 'function' ? realModule.default.${exportName} : null)
+    );
+    if (realFn) {
       console.log('[SHERLO:mock] Using real implementation for story:', storyId);
-      return realModule.${exportName}(...args);
+      return realFn(...args);
     } else {
       console.warn('[SHERLO:mock] No mock found for story "' + storyId + '" and real module not available');
       return undefined;
@@ -236,17 +350,44 @@ export function generateMockFile(
     console.log('[SHERLO:mock] ${packageName}.${exportName} accessed for story:', storyId);
     const storyMock = storyMocks[storyId];
     
-    if (storyMock && storyMock.${exportName}) {
-      const parsedValue = JSON.parse(storyMock.${exportName});
-      const mockValue = deserializeFunctions(parsedValue);
-      console.log('[SHERLO:mock] Returning ${exportName} mock:', mockValue);
-      return mockValue;
+    if (storyMock && storyMock.${exportName} !== null && storyMock.${exportName} !== undefined) {
+      let parsedValue;
+      // All values are stored as JSON strings (except function/class code which are stored as plain strings)
+      // Try to parse, but handle cases where it might already be a parsed value
+      if (typeof storyMock.${exportName} === 'string') {
+        try {
+          parsedValue = JSON.parse(storyMock.${exportName});
+          // If parsed value is null, treat it as "no mock" and fall back to real implementation
+          if (parsedValue === null) {
+            parsedValue = undefined;
+          }
+        } catch (e) {
+          // If parsing fails, it might be function/class code (stored as plain string), use directly
+          parsedValue = storyMock.${exportName};
+        }
+      } else {
+        // Already parsed (shouldn't happen, but handle gracefully)
+        parsedValue = storyMock.${exportName};
+      }
+      // If parsedValue is null or undefined, fall through to real implementation
+      if (parsedValue === null || parsedValue === undefined) {
+        // Fall through to real implementation check below
+      } else {
+        const mockValue = deserializeFunctions(parsedValue);
+        console.log('[SHERLO:mock] Returning ${exportName} mock:', mockValue);
+        return mockValue;
+      }
     }
     
     // Fallback to real implementation
-    if (realModule && realModule.${exportName} !== undefined) {
+    // Check both direct export and default export (for modules that export default with named properties)
+    const realValue = realModule && (
+      (realModule.${exportName} !== undefined ? realModule.${exportName} : null) ||
+      (realModule.default && realModule.default.${exportName} !== undefined ? realModule.default.${exportName} : null)
+    );
+    if (realValue !== null && realValue !== undefined) {
       console.log('[SHERLO:mock] Using real ${exportName} for story:', storyId);
-      return realModule.${exportName};
+      return realValue;
     } else {
       console.warn('[SHERLO:mock] No ${exportName} mock found for story "' + storyId + '" and real module not available');
       return undefined;
@@ -516,9 +657,14 @@ Object.defineProperty(module.exports, 'default', {
   for (const [storyId, mock] of Object.entries(packageMocksByStory)) {
     cacheData[storyId] = {};
     for (const [exportName, exportValue] of Object.entries(mock)) {
-      // Preserve __isFunction markers when writing to cache
-      if (exportValue && typeof exportValue === 'object' && (exportValue as any).__isFunction) {
-        cacheData[storyId][exportName] = exportValue;
+      // Preserve __isFunction and __isClass markers when writing to cache
+      if (exportValue && typeof exportValue === 'object') {
+        if ((exportValue as any).__isFunction || (exportValue as any).__isClass) {
+          cacheData[storyId][exportName] = exportValue;
+        } else {
+          // For nested objects, recursively preserve markers
+          cacheData[storyId][exportName] = exportValue;
+        }
       } else if (typeof exportValue === 'function') {
         // Convert functions to __isFunction objects for JSON serialization
         cacheData[storyId][exportName] = {
