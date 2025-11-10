@@ -5,7 +5,6 @@ import android.app.Activity;
 import android.content.Context;
 import android.util.Log;
 import android.content.Intent;
-import android.content.SharedPreferences;
 
 // React Native Bridge Imports
 import com.facebook.react.bridge.ReactApplicationContext;
