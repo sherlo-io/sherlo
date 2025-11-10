@@ -254,6 +254,42 @@ function extractMockValue(value: any): any {
     return { __isClass: true, __code: 'class {}' };
   }
 
+  // For array expressions, extract elements recursively
+  if (t.isArrayExpression(value)) {
+    if (generate) {
+      try {
+        const code = generate(value).code;
+        // Parse the generated code to get the actual array value
+        // We can't just eval it here (we're in Node.js context), so we'll store it as code
+        // But arrays should be serialized as JSON, so let's extract the elements
+        const elements: any[] = [];
+        for (const element of value.elements) {
+          if (element) {
+            const extracted = extractMockValue(element);
+            elements.push(extracted);
+          } else {
+            elements.push(null);
+          }
+        }
+        return elements;
+      } catch (e: any) {
+        console.warn(`[SHERLO:extraction] Failed to extract array:`, e.message);
+        return [];
+      }
+    }
+    // Fallback: try to extract elements directly
+    const elements: any[] = [];
+    for (const element of value.elements) {
+      if (element) {
+        const extracted = extractMockValue(element);
+        elements.push(extracted);
+      } else {
+        elements.push(null);
+      }
+    }
+    return elements;
+  }
+
   // For object expressions, extract properties
   if (t.isObjectExpression(value)) {
     const obj: Record<string, any> = {};

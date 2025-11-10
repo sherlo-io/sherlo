@@ -32,6 +32,22 @@ export const VariantA = {
         executeWithCallback: 'MOCKED Result: 20',
         calculateDiscount: 70, // Mocked: 100 * 0.7 = 70 (instead of real 70% discount)
       },
+      objectExports: {
+        config: {
+          app: { name: 'MockedApp', version: '2.0.0', settings: { theme: 'dark', language: 'fr' } },
+          api: { baseUrl: 'https://mocked-api.com', timeout: 10000 },
+        },
+        supportedLanguages: ['en', 'de', 'it'], // Mocked array
+        menuItems: [
+          { id: 1, label: 'Mocked Home', path: '/home' },
+          { id: 2, label: 'Mocked About', path: '/about' },
+        ],
+        nullableValue: 'mocked-string', // Mocked: null -> 'mocked-string'
+        undefinedValue: 'mocked-undefined', // Mocked: undefined -> 'mocked-undefined'
+        MAX_RETRIES: 5, // Mocked: 3 -> 5
+        ENABLED: false, // Mocked: true -> false
+        APP_TITLE: 'Mocked App Title',
+      },
     },
   },
   mocks: {
@@ -68,6 +84,32 @@ export const VariantA = {
         'MOCKED Result: 20',
       calculateDiscount: (price: number, isMember: boolean = false, couponCode?: string) => 70,
     },
+    '../utils/objectExportsUtils': {
+      config: {
+        app: {
+          name: 'MockedApp',
+          version: '2.0.0',
+          settings: {
+            theme: 'dark',
+            language: 'fr',
+          },
+        },
+        api: {
+          baseUrl: 'https://mocked-api.com',
+          timeout: 10000,
+        },
+      },
+      supportedLanguages: ['en', 'de', 'it'],
+      menuItems: [
+        { id: 1, label: 'Mocked Home', path: '/home' },
+        { id: 2, label: 'Mocked About', path: '/about' },
+      ],
+      nullableValue: 'mocked-string',
+      undefinedValue: 'mocked-undefined',
+      MAX_RETRIES: 5,
+      ENABLED: false,
+      APP_TITLE: 'Mocked App Title',
+    },
   },
 };
 
@@ -96,6 +138,26 @@ export const VariantB = {
         processItems: 'ALTERNATE Processed 3 items: item1, item2, item3',
         executeWithCallback: 'ALTERNATE Result: 20',
         calculateDiscount: 60, // Mocked: 100 * 0.6 = 60
+      },
+      objectExports: {
+        config: {
+          app: {
+            name: 'AlternateApp',
+            version: '3.0.0',
+            settings: { theme: 'auto', language: 'ja' },
+          },
+          api: { baseUrl: 'https://alternate-api.com', timeout: 15000 },
+        },
+        supportedLanguages: ['ja', 'ko', 'zh'], // Alternate array
+        menuItems: [
+          { id: 1, label: 'Alternate Home', path: '/home' },
+          { id: 3, label: 'Alternate Contact', path: '/contact' },
+        ],
+        nullableValue: 'alternate-string',
+        undefinedValue: 'alternate-undefined',
+        MAX_RETRIES: 7,
+        ENABLED: true,
+        APP_TITLE: 'Alternate App Title',
       },
     },
   },
@@ -132,6 +194,32 @@ export const VariantB = {
       executeWithCallback: (value: number, callback: (result: number) => string) =>
         'ALTERNATE Result: 20',
       calculateDiscount: (price: number, isMember: boolean = false, couponCode?: string) => 60,
+    },
+    '../utils/objectExportsUtils': {
+      config: {
+        app: {
+          name: 'AlternateApp',
+          version: '3.0.0',
+          settings: {
+            theme: 'auto',
+            language: 'ja',
+          },
+        },
+        api: {
+          baseUrl: 'https://alternate-api.com',
+          timeout: 15000,
+        },
+      },
+      supportedLanguages: ['ja', 'ko', 'zh'],
+      menuItems: [
+        { id: 1, label: 'Alternate Home', path: '/home' },
+        { id: 3, label: 'Alternate Contact', path: '/contact' },
+      ],
+      nullableValue: 'alternate-string',
+      undefinedValue: 'alternate-undefined',
+      MAX_RETRIES: 7,
+      ENABLED: true,
+      APP_TITLE: 'Alternate App Title',
     },
   },
 };
@@ -232,6 +320,23 @@ export const NoMocksVariant = {
         processItems: 'Processed 3 items: item1, item2, item3', // Real implementation
         executeWithCallback: 'Result: 20', // Real: 10*2 = 20, callback returns "Result: 20"
         calculateDiscount: 70, // Real: 100 * (1 - 0.3) = 70 (member 10% + coupon 20% = 30%)
+      },
+      objectExports: {
+        config: {
+          app: { name: 'MyApp', version: '1.0.0', settings: { theme: 'light', language: 'en' } },
+          api: { baseUrl: 'https://api.example.com', timeout: 5000 },
+        },
+        supportedLanguages: ['en', 'fr', 'de', 'es', 'ja'], // Real array
+        menuItems: [
+          { id: 1, label: 'Home', path: '/' },
+          { id: 2, label: 'About', path: '/about' },
+          { id: 3, label: 'Contact', path: '/contact' },
+        ],
+        nullableValue: null, // Real: null
+        undefinedValue: undefined, // Real: undefined
+        MAX_RETRIES: 3, // Real: 3
+        ENABLED: true, // Real: true
+        APP_TITLE: 'Original App Title', // Real value
       },
     },
   },

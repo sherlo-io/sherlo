@@ -387,11 +387,19 @@ export function generateMockFile(
     
     // Fallback to real implementation
     // Check both direct export and default export (for modules that export default with named properties)
-    const realValue = realModule && (
-      (realModule.${exportName} !== undefined ? realModule.${exportName} : null) ||
-      (realModule.default && realModule.default.${exportName} !== undefined ? realModule.default.${exportName} : null)
-    );
-    if (realValue !== null && realValue !== undefined) {
+    let realValue = undefined;
+    if (realModule) {
+      // Check direct export first
+      if (realModule.${exportName} !== undefined) {
+        realValue = realModule.${exportName};
+      }
+      // If not found, check default export
+      if (realValue === undefined && realModule.default && realModule.default.${exportName} !== undefined) {
+        realValue = realModule.default.${exportName};
+      }
+    }
+    // Explicitly check for undefined (null is a valid value that should be returned)
+    if (realValue !== undefined) {
       // console.log('[SHERLO:mock] Using real ${exportName} for story:', storyId);
       return realValue;
     } else {

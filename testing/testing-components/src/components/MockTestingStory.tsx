@@ -18,6 +18,16 @@ import {
   executeWithCallback,
   calculateDiscount,
 } from '../utils/parameterizedUtils';
+import {
+  config,
+  supportedLanguages,
+  menuItems,
+  nullableValue,
+  undefinedValue,
+  MAX_RETRIES,
+  ENABLED,
+  APP_TITLE,
+} from '../utils/objectExportsUtils';
 
 interface TestResult {
   name: string;
@@ -65,6 +75,19 @@ interface MockTestingStoryProps {
       processItems?: string;
       executeWithCallback?: string;
       calculateDiscount?: number;
+    };
+    objectExports?: {
+      config?: {
+        app?: { name?: string; version?: string; settings?: { theme?: string; language?: string } };
+        api?: { baseUrl?: string; timeout?: number };
+      };
+      supportedLanguages?: string[];
+      menuItems?: Array<{ id: number; label: string; path: string }>;
+      nullableValue?: string | null;
+      undefinedValue?: string | undefined;
+      MAX_RETRIES?: number;
+      ENABLED?: boolean;
+      APP_TITLE?: string;
     };
   };
 }
@@ -653,6 +676,153 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
           name: 'Complex Parameters: calculateDiscount (conditional)',
           passed,
           expected: expected.complexParameters.calculateDiscount,
+          actual,
+        });
+      }
+    }
+
+    // Test 8: Complex Object/Constant Exports
+    if (expected.objectExports) {
+      console.log('[MockTestingStory] Testing Complex Object/Constant Exports...');
+
+      if (expected.objectExports.config !== undefined) {
+        console.log('[MockTestingStory] Testing nested object export (config)...');
+        const actual = config;
+        const expectedConfig = expected.objectExports.config;
+        const passed =
+          actual?.app?.name === expectedConfig?.app?.name &&
+          actual?.app?.version === expectedConfig?.app?.version &&
+          actual?.app?.settings?.theme === expectedConfig?.app?.settings?.theme &&
+          actual?.api?.baseUrl === expectedConfig?.api?.baseUrl;
+        console.log('[MockTestingStory] Object: config comparison:', {
+          expected: expectedConfig,
+          actual,
+          passed,
+        });
+        syncResults.push({
+          name: 'Object Exports: config (nested object)',
+          passed,
+          expected: expectedConfig,
+          actual,
+        });
+      }
+
+      if (expected.objectExports.supportedLanguages !== undefined) {
+        console.log('[MockTestingStory] Testing array export (supportedLanguages)...');
+        const actual = supportedLanguages;
+        const passed =
+          JSON.stringify(actual) === JSON.stringify(expected.objectExports.supportedLanguages);
+        console.log('[MockTestingStory] Object: supportedLanguages comparison:', {
+          expected: expected.objectExports.supportedLanguages,
+          actual,
+          passed,
+        });
+        syncResults.push({
+          name: 'Object Exports: supportedLanguages (array)',
+          passed,
+          expected: expected.objectExports.supportedLanguages,
+          actual,
+        });
+      }
+
+      if (expected.objectExports.menuItems !== undefined) {
+        console.log('[MockTestingStory] Testing array of objects export (menuItems)...');
+        const actual = menuItems;
+        const passed = JSON.stringify(actual) === JSON.stringify(expected.objectExports.menuItems);
+        console.log('[MockTestingStory] Object: menuItems comparison:', {
+          expected: expected.objectExports.menuItems,
+          actual,
+          passed,
+        });
+        syncResults.push({
+          name: 'Object Exports: menuItems (array of objects)',
+          passed,
+          expected: expected.objectExports.menuItems,
+          actual,
+        });
+      }
+
+      if (expected.objectExports.nullableValue !== undefined) {
+        console.log('[MockTestingStory] Testing null value export...');
+        const actual = nullableValue;
+        const passed = actual === expected.objectExports.nullableValue;
+        console.log('[MockTestingStory] Object: nullableValue comparison:', {
+          expected: expected.objectExports.nullableValue,
+          actual,
+          passed,
+        });
+        syncResults.push({
+          name: 'Object Exports: nullableValue (null)',
+          passed,
+          expected: expected.objectExports.nullableValue,
+          actual,
+        });
+      }
+
+      if (expected.objectExports.undefinedValue !== undefined) {
+        console.log('[MockTestingStory] Testing undefined value export...');
+        const actual = undefinedValue;
+        const passed = actual === expected.objectExports.undefinedValue;
+        console.log('[MockTestingStory] Object: undefinedValue comparison:', {
+          expected: expected.objectExports.undefinedValue,
+          actual,
+          passed,
+        });
+        syncResults.push({
+          name: 'Object Exports: undefinedValue (undefined)',
+          passed,
+          expected: expected.objectExports.undefinedValue,
+          actual,
+        });
+      }
+
+      if (expected.objectExports.MAX_RETRIES !== undefined) {
+        console.log('[MockTestingStory] Testing number constant export...');
+        const actual = MAX_RETRIES;
+        const passed = actual === expected.objectExports.MAX_RETRIES;
+        console.log('[MockTestingStory] Object: MAX_RETRIES comparison:', {
+          expected: expected.objectExports.MAX_RETRIES,
+          actual,
+          passed,
+        });
+        syncResults.push({
+          name: 'Object Exports: MAX_RETRIES (number)',
+          passed,
+          expected: expected.objectExports.MAX_RETRIES,
+          actual,
+        });
+      }
+
+      if (expected.objectExports.ENABLED !== undefined) {
+        console.log('[MockTestingStory] Testing boolean constant export...');
+        const actual = ENABLED;
+        const passed = actual === expected.objectExports.ENABLED;
+        console.log('[MockTestingStory] Object: ENABLED comparison:', {
+          expected: expected.objectExports.ENABLED,
+          actual,
+          passed,
+        });
+        syncResults.push({
+          name: 'Object Exports: ENABLED (boolean)',
+          passed,
+          expected: expected.objectExports.ENABLED,
+          actual,
+        });
+      }
+
+      if (expected.objectExports.APP_TITLE !== undefined) {
+        console.log('[MockTestingStory] Testing string constant export...');
+        const actual = APP_TITLE;
+        const passed = actual === expected.objectExports.APP_TITLE;
+        console.log('[MockTestingStory] Object: APP_TITLE comparison:', {
+          expected: expected.objectExports.APP_TITLE,
+          actual,
+          passed,
+        });
+        syncResults.push({
+          name: 'Object Exports: APP_TITLE (string)',
+          passed,
+          expected: expected.objectExports.APP_TITLE,
           actual,
         });
       }
