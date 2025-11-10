@@ -8,6 +8,16 @@ import * as path from 'path';
 import type { StoryMockMap } from './types';
 import { getBabelParser, getBabelTraverse, getBabelTypes } from './mockExtraction/babelLoader';
 import { getComponentNameFromPath, camelToKebab, isStoryFile } from './mockExtraction/storyIdNormalization';
+import { extractPrimitive } from './mockExtraction/extractPrimitive';
+import { extractFunction } from './mockExtraction/extractFunction';
+import { extractClass } from './mockExtraction/extractClass';
+import { extractArray } from './mockExtraction/extractArray';
+import {
+  extractSpecialNumericValue,
+  extractDate,
+  extractRegExp,
+} from './mockExtraction/extractSpecialValues';
+import { extractObjectExpression } from './mockExtraction/extractObjectExpression';
 
 // Metro transformer types
 export interface TransformArgs {
@@ -118,402 +128,39 @@ function extractMockValue(value: any): any {
     // Fallback: try to stringify if it's a simple value
   }
 
-  // Debug: log node type for troubleshooting
-  const nodeType = value && value.type;
-  // if (nodeType) {
-  //   // Log all node types, especially for functions and classes
-  //   if (nodeType.includes('Function') || nodeType.includes('Class') || nodeType === 'ArrowFunctionExpression') {
-  //     console.log(`[SHERLO:extraction] extractMockValue called with nodeType: ${nodeType}, async: ${(value as any).async}, isArrowFunction: ${t.isArrowFunctionExpression(value)}, isFunctionExpression: ${t.isFunctionExpression(value)}`);
-  //   }
-  // } else if (!value) {
-  //   console.log(`[SHERLO:extraction] extractMockValue called with null/undefined value`);
-  //   return null;
-  // }
   if (!value) {
     return null;
   }
 
-  // For arrow functions and function expressions, convert to code string
-  if (t.isArrowFunctionExpression(value) || t.isFunctionExpression(value)) {
-    if (generate) {
-      const code = generate(value).code;
-      return { __isFunction: true, __code: code };
-    }
-    // Fallback: return marker
-    return { __isFunction: true, __code: '() => {}' };
-  }
+  // Try extracting using specialized extractors
+  const functionResult = extractFunction(value, t, generate);
+  if (functionResult) return functionResult;
 
-  // For class expressions and class declarations, convert to code string
-  if (t.isClassExpression(value) || t.isClassDeclaration(value)) {
-    if (generate) {
-      try {
-                const code = generate(value).code;
-        // console.log(`[SHERLO:extraction] Extracted class, code length: ${code.length}`);
-        return { __isClass: true, __code: code };
-      } catch (e: any) {
-        // Failed to generate code for class, using placeholder
-        return { __isClass: true, __code: 'class {}' };
-      }
-    }
-    // Fallback: return marker
-    // console.warn(`[SHERLO:extraction] @babel/generator not available for class`);
-    return { __isClass: true, __code: 'class {}' };
-  }
+  const classResult = extractClass(value, t, generate);
+  if (classResult) return classResult;
 
-  // For array expressions, extract elements recursively
-  if (t.isArrayExpression(value)) {
-    if (generate) {
-      try {
-        const code = generate(value).code;
-        // Parse the generated code to get the actual array value
-        // We can't just eval it here (we're in Node.js context), so we'll store it as code
-        // But arrays should be serialized as JSON, so let's extract the elements
-        const elements: any[] = [];
-        for (const element of value.elements) {
-          if (element) {
-            const extracted = extractMockValue(element);
-            elements.push(extracted);
-          } else {
-            elements.push(null);
-          }
-        }
-        return elements;
-      } catch (e: any) {
-        // Failed to extract array, returning empty array
-        return [];
-      }
-    }
-    // Fallback: try to extract elements directly
-    const elements: any[] = [];
-    for (const element of value.elements) {
-      if (element) {
-        const extracted = extractMockValue(element);
-        elements.push(extracted);
-      } else {
-        elements.push(null);
-      }
-    }
-    return elements;
-  }
+  const arrayResult = extractArray(value, t, generate, extractMockValue);
+  if (arrayResult !== null) return arrayResult;
 
-  // Handle special values: NaN, Infinity, -Infinity
-  if (t.isIdentifier(value)) {
-    if (value.name === 'NaN') {
-      return { __isNaN: true };
-    }
-    if (value.name === 'Infinity') {
-      return { __isInfinity: true };
-    }
-  }
+  const specialNumericResult = extractSpecialNumericValue(value, t);
+  if (specialNumericResult) return specialNumericResult;
 
-  // Handle -Infinity (UnaryExpression with operator '-' and argument 'Infinity')
-  if (t.isUnaryExpression(value) && value.operator === '-') {
-    if (t.isIdentifier(value.argument) && value.argument.name === 'Infinity') {
-      return { __isNegativeInfinity: true };
-    }
-  }
+  const dateResult = extractDate(value, t, generate);
+  if (dateResult) return dateResult;
 
-  // Handle Date objects (NewExpression with callee 'Date')
-  if (t.isNewExpression(value) && t.isIdentifier(value.callee) && value.callee.name === 'Date') {
-    if (generate) {
-      try {
-        const code = generate(value).code;
-        // Extract the date string from the code (e.g., "new Date('2024-01-15T10:30:00Z')")
-        return { __isDate: true, __code: code };
-      } catch (e: any) {
-        // Failed to generate code for Date, using placeholder
-        return { __isDate: true, __code: "new Date()" };
-      }
-    }
-    return { __isDate: true, __code: "new Date()" };
-  }
-
-  // Handle RegExp objects (RegExpLiteral or NewExpression with callee 'RegExp')
-  if (t.isRegExpLiteral(value)) {
-    if (generate) {
-      try {
-        const code = generate(value).code;
-        return { __isRegExp: true, __code: code };
-      } catch (e: any) {
-        // Failed to generate code for RegExp, using placeholder
-        return { __isRegExp: true, __code: "/.*/" };
-      }
-    }
-    return { __isRegExp: true, __code: "/.*/" };
-  }
-
-  if (t.isNewExpression(value) && t.isIdentifier(value.callee) && value.callee.name === 'RegExp') {
-    if (generate) {
-      try {
-        const code = generate(value).code;
-        return { __isRegExp: true, __code: code };
-      } catch (e: any) {
-        // Failed to generate code for RegExp, using placeholder
-        return { __isRegExp: true, __code: "new RegExp('.*')" };
-      }
-    }
-    return { __isRegExp: true, __code: "new RegExp('.*')" };
-  }
+  const regexResult = extractRegExp(value, t, generate);
+  if (regexResult) return regexResult;
 
   // For object expressions, extract properties
   if (t.isObjectExpression(value)) {
-    const obj: Record<string, any> = {};
-    for (const prop of value.properties) {
-      // Handle getter properties (get value() { ... })
-      if (t.isObjectMethod(prop) && prop.kind === 'get') {
-        const key = t.isIdentifier(prop.key)
-          ? prop.key.name
-          : t.isStringLiteral(prop.key)
-          ? prop.key.value
-          : null;
-
-        if (key && generate) {
-          try {
-            // Generate the entire object with the getter preserved
-            // We'll mark it as a getter so it can be reconstructed
-            const getterCode = generate(prop).code;
-            obj[key] = { __isGetter: true, __code: getterCode };
-          } catch (e: any) {
-            // Failed to generate code for getter, using null
-            obj[key] = null;
-          }
-        }
-        continue;
-      }
-
-      if (t.isObjectProperty(prop)) {
-        const key = t.isIdentifier(prop.key)
-          ? prop.key.name
-          : t.isStringLiteral(prop.key)
-          ? prop.key.value
-          : null;
-
-        if (key) {
-          // Check node type directly first (more reliable than type checker functions)
-          const nodeType = prop.value && (prop.value as any).type;
-          const isArrowFunctionNode = nodeType === 'ArrowFunctionExpression';
-          const isFunctionExpressionNode = nodeType === 'FunctionExpression';
-
-          // Also check using type checker functions (for compatibility)
-          const isArrowFunction = t.isArrowFunctionExpression(prop.value);
-          const isFunctionExpression = t.isFunctionExpression(prop.value);
-          const isAsyncFunction = prop.value && (prop.value as any).async === true;
-
-          // Use node type check OR type checker - either should work
-          if (isArrowFunctionNode || isFunctionExpressionNode || isArrowFunction || isFunctionExpression) {
-            if (generate) {
-              try {
-                const code = generate(prop.value).code;
-                const isAsync = isAsyncFunction || code.trim().startsWith('async');
-                // Only log if extraction failed
-                // if (key.includes('fetch') || key.includes('DataProcessor') || key.includes('Calculator')) {
-                //   console.log(`[SHERLO:extraction] Extracted ${isAsync ? 'async ' : ''}function ${key}, code length: ${code.length}`);
-                // }
-                obj[key] = { __isFunction: true, __code: code };
-              } catch (e: any) {
-                // Failed to generate code for function, using placeholder
-                obj[key] = { __isFunction: true, __code: '() => {}' };
-              }
-            } else {
-              // console.warn(`[SHERLO:extraction] @babel/generator not available for function ${key}`);
-              obj[key] = { __isFunction: true, __code: '() => {}' };
-            }
-          } else if (t.isClassExpression(prop.value) || t.isClassDeclaration(prop.value)) {
-            if (generate) {
-              try {
-                const code = generate(prop.value).code;
-                // Only log if extraction failed
-                // if (key.includes('DataProcessor') || key.includes('Calculator')) {
-                //   console.log(`[SHERLO:extraction] Extracted class ${key}, code length: ${code.length}`);
-                // }
-                obj[key] = { __isClass: true, __code: code };
-              } catch (e: any) {
-                // Failed to generate code for class, using placeholder
-                obj[key] = { __isClass: true, __code: 'class {}' };
-              }
-            } else {
-              // console.warn(`[SHERLO:extraction] @babel/generator not available for class ${key}`);
-              obj[key] = { __isClass: true, __code: 'class {}' };
-            }
-          } else {
-            // For other values, try to extract
-            // Check node type directly for async functions that might not be detected as arrow functions
-            const nodeType = prop.value && (prop.value as any).type;
-            if (nodeType === 'ArrowFunctionExpression' || nodeType === 'FunctionExpression') {
-              // This might be an async function that wasn't caught above, try extracting it
-              const extracted = extractMockValue(prop.value);
-              if (extracted === null && prop.value) {
-                // Only log if extraction failed
-                // if (key.includes('fetch') || key.includes('DataProcessor') || key.includes('Calculator')) {
-                //   console.warn(`[SHERLO:extraction] extractMockValue returned null for ${key} (nodeType: ${nodeType}), trying direct extraction`);
-                // }
-                // Try direct extraction
-                if (generate) {
-                  try {
-                    const code = generate(prop.value).code;
-                    // Only log if extraction failed
-                    // if (key.includes('fetch') || key.includes('DataProcessor') || key.includes('Calculator')) {
-                    //   console.log(`[SHERLO:extraction] Direct extraction succeeded for ${key}, code length: ${code.length}`);
-                    // }
-                    obj[key] = { __isFunction: true, __code: code };
-                  } catch (e: any) {
-                    // Direct extraction failed, using null
-                    obj[key] = null;
-                  }
-                } else {
-                  obj[key] = null;
-                }
-              } else {
-                obj[key] = extracted;
-              }
-            } else {
-              // If nodeType is CallExpression, it might be a transformed async function or class
-              // Metro transforms async functions to use _asyncToGenerator helper
-              // We need to extract the original function from the CallExpression
-              // Handle ALL CallExpression nodes, not just those with specific key names
-              if (nodeType === 'CallExpression' && generate) {
-                try {
-                  // Check if this is Metro's _asyncToGenerator transformation
-                  const callExpr = prop.value as any;
-                  const calleeName = callExpr.callee && (callExpr.callee.name || (callExpr.callee.type === 'MemberExpression' && callExpr.callee.property && callExpr.callee.property.name));
-
-                  // Debug logging only for known async function patterns
-                  if ((key.includes('fetch') || key.includes('async') || key.includes('getUser')) && calleeName) {
-                    // console.log(`[SHERLO:extraction] CallExpression for ${key}, callee name: ${calleeName}, callee type: ${callExpr.callee?.type}`);
-                  }
-
-                  if (callExpr.callee && calleeName === '_asyncToGenerator' && callExpr.arguments && callExpr.arguments.length > 0) {
-                    // Extract the generator function from the first argument
-                    const generatorFn = callExpr.arguments[0];
-                    if (generatorFn && (generatorFn.type === 'FunctionExpression' || generatorFn.type === 'ArrowFunctionExpression' || generatorFn.type === 'FunctionDeclaration')) {
-                      // Convert the generator function back to an async function
-                      // Metro transforms: async (x) => y
-                      // To: _asyncToGenerator(function*() { return y; })
-                      // We need to extract the generator body and convert yield to await
-                      if (generatorFn.body && generatorFn.body.type === 'BlockStatement') {
-                        const bodyCode = generate(generatorFn.body).code;
-                        // Convert yield to await in the body code
-                        const asyncBodyCode = bodyCode.replace(/\byield\b/g, 'await');
-                        // Reconstruct as async arrow function: async (...params) => { body }
-                        const params = generatorFn.params ? generate(generatorFn.params).code : '';
-                        const asyncCode = `async (${params}) => ${asyncBodyCode}`;
-                        // Debug logging only for known async function patterns
-                        // if (key.includes('fetch') || key.includes('async') || key.includes('getUser')) {
-                        //   console.log(`[SHERLO:extraction] Converted ${key} from generator to async, code: ${asyncCode.substring(0, 100)}`);
-                        // }
-                        obj[key] = { __isFunction: true, __code: asyncCode };
-                      } else {
-                        // Fallback: generate generator code and convert yield to await
-                        const generatorCode = generate(generatorFn).code;
-                        const asyncCode = generatorCode.replace(/\bfunction\*\s*\(/g, 'async function(').replace(/\byield\b/g, 'await');
-                        // Debug logging only for known async function patterns
-                        // if (key.includes('fetch') || key.includes('async') || key.includes('getUser')) {
-                        //   console.log(`[SHERLO:extraction] Converted ${key} (fallback), code: ${asyncCode.substring(0, 100)}`);
-                        // }
-                        obj[key] = { __isFunction: true, __code: asyncCode };
-                      }
-                    } else {
-                      // Not a generator function, try generating code directly
-                      const code = generate(prop.value).code;
-                      console.error(`[SHERLO] Failed to extract async function "${key}": invalid generator function type`);
-                      obj[key] = { __isFunction: true, __code: code };
-                    }
-                  } else {
-                    // Not _asyncToGenerator, but might be an IIFE that wraps _asyncToGenerator
-                    // Metro transforms: async (x) => y
-                    // To: (function() { var _ref = _asyncToGenerator(function*() {...}); return function(_x) { return _ref.apply(this, arguments); }; })()
-                    // Check if this is an IIFE pattern
-                    const code = generate(prop.value).code;
-
-                    // Check if the generated code contains _asyncToGenerator (Metro's transformation)
-                    if (code.includes('_asyncToGenerator') && code.includes('function*')) {
-                      // Helper function to extract generator function body with proper brace matching
-                      const extractGeneratorBody = (codeStr: string): { params: string; body: string } | null => {
-                        // Find function* declaration
-                        const funcMatch = codeStr.match(/function\*\s*\(([^)]*)\)\s*\{/);
-                        if (!funcMatch) return null;
-
-                        const params = funcMatch[1].trim();
-                        const startIndex = funcMatch.index! + funcMatch[0].length;
-
-                        // Match braces properly to find the closing brace
-                        let braceCount = 1;
-                        let i = startIndex;
-                        while (i < codeStr.length && braceCount > 0) {
-                          if (codeStr[i] === '{') braceCount++;
-                          else if (codeStr[i] === '}') braceCount--;
-                          i++;
-                        }
-
-                        if (braceCount !== 0) return null; // Unmatched braces
-
-                        // Extract body (excluding the closing brace)
-                        const body = codeStr.substring(startIndex, i - 1);
-                        return { params, body };
-                      };
-
-                      const extracted = extractGeneratorBody(code);
-                      if (extracted) {
-                        let body = extracted.body;
-                        // Convert yield to await
-                        body = body.replace(/\byield\b/g, 'await');
-                        // Reconstruct as async arrow function
-                        const asyncCode = `async (${extracted.params}) => {${body}}`;
-                        // Debug logging only for known async function patterns
-                        // if (key.includes('fetch') || key.includes('async') || key.includes('getUser')) {
-                        //   console.log(`[SHERLO:extraction] Extracted ${key} from IIFE pattern, converted to: ${asyncCode.substring(0, 100)}`);
-                        // }
-                        obj[key] = { __isFunction: true, __code: asyncCode };
-                      } else {
-                        // Can't extract, store as-is (will fail at runtime but we'll see the error)
-                        console.error(`[SHERLO] Failed to extract async function "${key}" from IIFE pattern`);
-                        obj[key] = { __isFunction: true, __code: code };
-                      }
-                    } else if (code.includes('async') || code.includes('=>') || code.includes('class')) {
-                      // Regular async function or class
-                      if (code.includes('class')) {
-                        obj[key] = { __isClass: true, __code: code };
-                      } else {
-                        obj[key] = { __isFunction: true, __code: code };
-                      }
-                    } else {
-                      // Doesn't look like function/class, fall back to extractMockValue
-                      const extracted = extractMockValue(prop.value);
-                      if (extracted === null) {
-                        console.error(`[SHERLO] Failed to extract mock "${key}": unsupported node type ${nodeType}`);
-                      }
-                      obj[key] = extracted;
-                    }
-                  }
-                } catch (e: any) {
-                  // Failed to generate code for CallExpression, trying fallback
-                  const extracted = extractMockValue(prop.value);
-                  obj[key] = extracted;
-                }
-              } else {
-                const extracted = extractMockValue(prop.value);
-                // Only log if extraction failed for async/class exports
-                if (extracted === null && prop.value && (key.includes('fetch') || key.includes('DataProcessor') || key.includes('Calculator'))) {
-                  console.error(`[SHERLO] Failed to extract mock "${key}": unsupported node type ${nodeType}`);
-                }
-                obj[key] = extracted;
-              }
-            }
-          }
-        }
-      }
-    }
-    return obj;
+    return extractObjectExpression(value, t, generate, extractMockValue);
   }
 
   // For literals, return the value
-  if (t.isStringLiteral(value)) return value.value;
-  if (t.isNumericLiteral(value)) return value.value;
-  if (t.isBooleanLiteral(value)) return value.value;
-  if (t.isNullLiteral(value)) return null;
+  const primitiveResult = extractPrimitive(value, t);
+  if (primitiveResult !== null) return primitiveResult;
 
   // If we get here, we couldn't extract the value
-  // console.warn(`[SHERLO:extraction] extractMockValue returning null for unhandled node type: ${nodeType || 'unknown'}, value keys:`, value && typeof value === 'object' ? Object.keys(value).join(', ') : 'not an object');
   return null;
 }
 

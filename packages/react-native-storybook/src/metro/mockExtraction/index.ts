@@ -10,4 +10,6 @@ export * from './extractFunction';
 export * from './extractClass';
 export * from './extractArray';
 export * from './extractSpecialValues';
+export * from './extractAsyncFunction';
+export * from './extractObjectExpression';
 

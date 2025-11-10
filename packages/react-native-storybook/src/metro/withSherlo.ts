@@ -1,26 +1,10 @@
 // withSherlo.ts
 import * as path from 'path';
 import * as fs from 'fs';
+import type { MetroConfig } from 'metro-config';
 import { discoverStoryFiles } from './storyDiscovery';
+import { createRealModuleResolver, createMockResolver } from './resolver';
 import type { StoryMockMap } from './types';
-
-// Metro config types - using a compatible interface
-interface MetroConfig {
-  projectRoot?: string;
-  watchFolders?: string[];
-  transformer?: {
-    getTransformOptions?: () => any;
-    [key: string]: any;
-  };
-  resolver?: {
-    resolveRequest?: (
-      context: any,
-      moduleName: string,
-      platform: string | null
-    ) => { type: string; filePath: string } | null;
-  };
-  [key: string]: any;
-}
 
 interface WithSherloOptions {
   /**
@@ -79,12 +63,20 @@ function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = 
   // Step 4: Configure Metro transformer to extract mocks from story files
   // Metro uses babelTransformerPath to load the transformer, not a function
   // We need to create a custom transformer file that wraps Metro's default transformer
+  // Create a mutable copy to avoid readonly property errors
+  const mutableConfig: any = {
+    ...config,
+    transformer: config.transformer ? { ...config.transformer } : {},
+    resolver: config.resolver ? { ...config.resolver } : {},
+  };
   if (storyFiles.length > 0) {
     // Ensure transformer object exists
-    config.transformer = config.transformer || {};
+    if (!mutableConfig.transformer) {
+      mutableConfig.transformer = {};
+    }
 
     // Get the existing babelTransformerPath (Expo/Metro sets this)
-    const existingTransformerPath = config.transformer.babelTransformerPath;
+    const existingTransformerPath = mutableConfig.transformer.babelTransformerPath;
 
     // Store transformer path in global so our custom transformer can use it
     if (existingTransformerPath) {
@@ -107,97 +99,36 @@ function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = 
         `[SHERLO] Custom transformer not found at ${customTransformerPath}. Mock extraction may not work. Please ensure the package is built.`
       );
     } else {
-      config.transformer.babelTransformerPath = customTransformerPath;
+      mutableConfig.transformer.babelTransformerPath = customTransformerPath;
     }
   }
 
   // Resolver-based mocking for runtime mock resolution
   // Redirect mocked packages to generated mock files
-  const prevResolve = config.resolver?.resolveRequest;
+  const prevResolve = mutableConfig.resolver?.resolveRequest;
   if (prevResolve) {
-    config.resolver = config.resolver || {};
-    config.resolver.resolveRequest = (
+    mutableConfig.resolver = mutableConfig.resolver || {};
+    mutableConfig.resolver.resolveRequest = (
       context: any,
       moduleName: string,
       platform: string | null
     ) => {
-      // Log all resolver calls for relative paths (to debug mock file requires)
-      if (moduleName.startsWith('.') || moduleName.startsWith('/')) {
-        // console.log(`[SHERLO:resolver] Resolving relative path: ${moduleName} (from: ${context.originModulePath || 'unknown'})`);
-      }
-
       // Handle "<pkg>:real" → resolve original package via base resolver
       if (moduleName.endsWith(':real')) {
-        const realName = moduleName.slice(0, -':real'.length);
-        // Always log :real resolution attempts (important for debugging fallback to real modules)
-        // console.log(`[SHERLO:resolver] Resolving :real import: ${moduleName} -> ${realName}`);
-        const base = prevResolve ?? context.resolveRequest;
-
-        // For relative paths, try resolving relative to common source directories
-        // This handles cases where the mock file is in node_modules/.sherlo-mocks/
-        // and can't resolve relative paths correctly
-        if (realName.startsWith('.') || realName.startsWith('/')) {
-          const commonSourceDirs = [
-            path.join(projectRoot, 'src'),
-            path.join(projectRoot, 'testing', 'testing-components', 'src'),
-            projectRoot,
-          ];
-
-          for (const sourceDir of commonSourceDirs) {
-            const resolvedPath = path.resolve(sourceDir, realName);
-            // Try with different extensions
-            const extensions = ['.ts', '.tsx', '.js', '.jsx', ''];
-            for (const ext of extensions) {
-              const fullPath = ext ? `${resolvedPath}${ext}` : resolvedPath;
-              if (fs.existsSync(fullPath)) {
-                return {
-                  type: 'sourceFile',
-                  filePath: fullPath,
-                };
-              }
-            }
-          }
-        }
-
-        try {
-          const result = base(context, realName, platform);
-          return result;
-        } catch (e: any) {
-          console.error(`[SHERLO] Failed to resolve real module "${moduleName}":`, e.message);
-          throw e;
-        }
+        const realResolver = createRealModuleResolver(projectRoot, prevResolve);
+        const result = realResolver(context, moduleName, platform);
+        if (result) return result;
+        // If realResolver returns null, fall through to base resolver
+        return prevResolve(context, moduleName.slice(0, -':real'.length), platform);
       }
 
       // Check if this package/module has mocks and redirect to mock file
-      // Mock files are generated after transformer extracts mocks
-      // Normalize relative paths to match how mock files are generated
-      let normalizedModuleName = moduleName;
-      if (moduleName.startsWith('.') || moduleName.startsWith('/')) {
-        // For relative paths, use the same normalization as generateAllMockFiles:
-        // Normalize separators and remove extension, then replace / with __
-        normalizedModuleName = moduleName.replace(/\\/g, '/').replace(/\.(ts|tsx|js|jsx)$/, '');
-      }
-
-      const safeFileName = normalizedModuleName.replace(/\//g, '__');
-      const mockFilePath = path.join(
-        projectRoot,
-        'node_modules',
-        '.sherlo-mocks',
-        `${safeFileName}.js`
-      );
-      if (fs.existsSync(mockFilePath)) {
-        return {
-          type: 'sourceFile',
-          filePath: mockFilePath,
-        };
-      }
-
-      // Fallback to default resolver
-      return prevResolve(context, moduleName, platform);
+      const mockResolver = createMockResolver(projectRoot, prevResolve);
+      return mockResolver(context, moduleName, platform);
     };
   }
 
-  return config;
+  return mutableConfig as MetroConfig;
 }
 
 export default withSherlo;
