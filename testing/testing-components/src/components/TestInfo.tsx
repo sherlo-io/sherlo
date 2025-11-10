@@ -28,10 +28,8 @@ const TestScreen = ({
 }) => {
   const theme = useColorScheme();
   const locales = getLocales();
-  console.log('[TestInfo] getLocales() returned:', locales);
   const language = locales[0].languageCode;
   const country = locales[0].regionCode;
-  console.log('[TestInfo] Language:', language, 'Country:', country);
   const textColor = getContrastTextColor(backgroundColor);
 
   return (

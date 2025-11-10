@@ -49,17 +49,12 @@ export default function useStorybookEventListener(): void {
     const channel = view?._channel;
 
     if (!channel) {
-      console.log('[useStorybookEventListener] No channel at global.view._channel');
       return;
     }
 
     // Helper function to store story ID in global for mock resolution
     const storeStoryId = (storyId: string) => {
       (global as any).__SHERLO_CURRENT_STORY_ID__ = storyId;
-      console.log(
-        '[SHERLO:mockReload] Story ID stored in global for runtime mock resolution:',
-        storyId
-      );
     };
 
     // 1) storyPrepared often yields name + parameters.fileName (file path)
@@ -117,13 +112,6 @@ export default function useStorybookEventListener(): void {
         title = title ?? fromId.title;
         variantName = variantName ?? fromId.variantName;
       }
-
-      console.log('[SB] Story changed:', {
-        storyId,
-        title, // CSF title or humanized fallback
-        variantName, // story (variant) name or humanized fallback
-        importPath, // usually project-relative path
-      });
 
       // Store story ID in global variable for mock files to read at runtime
       // Mock files will call getCurrentStory() which reads from this global

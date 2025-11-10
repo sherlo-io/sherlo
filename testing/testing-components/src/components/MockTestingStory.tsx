@@ -136,10 +136,6 @@ interface MockTestingStoryProps {
 }
 
 const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) => {
-  console.log(
-    '[MockTestingStory] Component rendered with expected:',
-    JSON.stringify(expected, null, 2)
-  );
   const [results, setResults] = useState<TestResult[]>([]);
 
   // Collect all synchronous test results
@@ -148,34 +144,15 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
 
     // Test 1: Local Import
     if (expected.localImport) {
-      console.log('[MockTestingStory] Testing Local Import...');
-      console.log('[MockTestingStory] formatCurrency type:', typeof formatCurrency);
-      console.log('[MockTestingStory] formatDate type:', typeof formatDate);
-      console.log('[MockTestingStory] calculateTotal type:', typeof calculateTotal);
-      console.log('[MockTestingStory] APP_NAME type:', typeof APP_NAME, 'value:', APP_NAME);
-      console.log('[MockTestingStory] VERSION type:', typeof VERSION, 'value:', VERSION);
-
       const actualCurrency = formatCurrency(99.99, 'EUR');
       const actualDate = formatDate(new Date('2024-01-15'));
       const actualTotal = calculateTotal([10, 20, 30]);
       const actualAppName = APP_NAME;
       const actualVersion = VERSION;
 
-      console.log('[MockTestingStory] Local Import actual values:', {
-        formatCurrency: actualCurrency,
-        formatDate: actualDate,
-        calculateTotal: actualTotal,
-        APP_NAME: actualAppName,
-        VERSION: actualVersion,
-      });
-
       if (expected.localImport.formatCurrency !== undefined) {
         const passed = actualCurrency === expected.localImport.formatCurrency;
-        console.log('[MockTestingStory] Local Import: formatCurrency comparison:', {
-          expected: expected.localImport.formatCurrency,
-          actual: actualCurrency,
-          passed,
-        });
+
         syncResults.push({
           name: 'Local Import: formatCurrency',
           passed,
@@ -190,15 +167,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
           expected.localImport.formatDate === null
             ? isDateString // If null, just check it's a valid date string
             : actualDate === expected.localImport.formatDate; // Otherwise exact match
-        console.log('[MockTestingStory] Local Import: formatDate comparison:', {
-          expected:
-            expected.localImport.formatDate === null
-              ? 'Valid date string'
-              : expected.localImport.formatDate,
-          actual: actualDate,
-          isDateString,
-          passed,
-        });
+
         syncResults.push({
           name: 'Local Import: formatDate',
           passed,
@@ -211,11 +180,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
       }
       if (expected.localImport.calculateTotal !== undefined) {
         const passed = actualTotal === expected.localImport.calculateTotal;
-        console.log('[MockTestingStory] Local Import: calculateTotal comparison:', {
-          expected: expected.localImport.calculateTotal,
-          actual: actualTotal,
-          passed,
-        });
+
         syncResults.push({
           name: 'Local Import: calculateTotal',
           passed,
@@ -225,11 +190,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
       }
       if (expected.localImport.APP_NAME !== undefined) {
         const passed = actualAppName === expected.localImport.APP_NAME;
-        console.log('[MockTestingStory] Local Import: APP_NAME comparison:', {
-          expected: expected.localImport.APP_NAME,
-          actual: actualAppName,
-          passed,
-        });
+
         syncResults.push({
           name: 'Local Import: APP_NAME',
           passed,
@@ -239,11 +200,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
       }
       if (expected.localImport.VERSION !== undefined) {
         const passed = actualVersion === expected.localImport.VERSION;
-        console.log('[MockTestingStory] Local Import: VERSION comparison:', {
-          expected: expected.localImport.VERSION,
-          actual: actualVersion,
-          passed,
-        });
+
         syncResults.push({
           name: 'Local Import: VERSION',
           passed,
@@ -255,44 +212,16 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
 
     // Test 2: Default Export
     if (expected.defaultExport) {
-      console.log('[MockTestingStory] Testing Default Export...');
-      console.log('[MockTestingStory] TestHelper type:', typeof TestHelper);
-      console.log('[MockTestingStory] TestHelper value:', TestHelper);
-      console.log('[MockTestingStory] TestHelper is null:', TestHelper === null);
-      console.log('[MockTestingStory] TestHelper is undefined:', TestHelper === undefined);
-
       if (TestHelper && typeof TestHelper === 'object') {
         const testHelperAny = TestHelper as any;
-        console.log('[MockTestingStory] TestHelper keys:', Object.keys(TestHelper));
-        console.log('[MockTestingStory] TestHelper.getValue type:', typeof testHelperAny.getValue);
-        console.log(
-          '[MockTestingStory] TestHelper.getNumber type:',
-          typeof testHelperAny.getNumber
-        );
-        console.log(
-          '[MockTestingStory] TestHelper.getObject type:',
-          typeof testHelperAny.getObject
-        );
-        console.log('[MockTestingStory] TestHelper.default:', testHelperAny.default);
 
         // Check if TestHelper has a default property (Metro ES module interop)
         if (testHelperAny.default) {
-          console.log(
-            '[MockTestingStory] TestHelper.default keys:',
-            Object.keys(testHelperAny.default)
-          );
-          console.log(
-            '[MockTestingStory] TestHelper.default.getValue type:',
-            typeof testHelperAny.default.getValue
-          );
         }
       }
 
       // Handle case where TestHelper might be undefined (no mocks, real module not available)
       if (!TestHelper || typeof TestHelper !== 'object') {
-        console.log(
-          '[MockTestingStory] Default Export: Module not available - TestHelper is not an object'
-        );
         syncResults.push({
           name: 'Default Export: Module not available',
           passed: false,
@@ -303,29 +232,14 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
         // Try both TestHelper directly and TestHelper.default (for Metro ES module interop)
         const testHelperAny = TestHelper as any;
         const helper = testHelperAny.default || TestHelper;
-        console.log(
-          '[MockTestingStory] Using helper:',
-          helper === TestHelper ? 'TestHelper' : 'TestHelper.default'
-        );
-        console.log('[MockTestingStory] Helper keys:', Object.keys(helper));
 
         const actualValue = helper.getValue?.();
         const actualNumber = helper.getNumber?.();
         const actualObject = helper.getObject?.();
 
-        console.log('[MockTestingStory] Default Export actual values:', {
-          getValue: actualValue,
-          getNumber: actualNumber,
-          getObject: actualObject,
-        });
-
         if (expected.defaultExport.getValue !== undefined) {
           const passed = actualValue === expected.defaultExport.getValue;
-          console.log('[MockTestingStory] Default Export: getValue comparison:', {
-            expected: expected.defaultExport.getValue,
-            actual: actualValue,
-            passed,
-          });
+
           syncResults.push({
             name: 'Default Export: getValue',
             passed,
@@ -335,11 +249,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
         }
         if (expected.defaultExport.getNumber !== undefined) {
           const passed = actualNumber === expected.defaultExport.getNumber;
-          console.log('[MockTestingStory] Default Export: getNumber comparison:', {
-            expected: expected.defaultExport.getNumber,
-            actual: actualNumber,
-            passed,
-          });
+
           syncResults.push({
             name: 'Default Export: getNumber',
             passed,
@@ -350,11 +260,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
         if (expected.defaultExport.getObject !== undefined) {
           const passed =
             JSON.stringify(actualObject) === JSON.stringify(expected.defaultExport.getObject);
-          console.log('[MockTestingStory] Default Export: getObject comparison:', {
-            expected: expected.defaultExport.getObject,
-            actual: actualObject,
-            passed,
-          });
+
           syncResults.push({
             name: 'Default Export: getObject',
             passed,
@@ -367,25 +273,13 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
 
     // Test 3: Multiple Named Exports
     if (expected.multipleNamedExports) {
-      console.log('[MockTestingStory] Testing Multiple Named Exports...');
-      console.log('[MockTestingStory] getLocales type:', typeof getLocales);
-
       const actualLocales = getLocales();
-      console.log('[MockTestingStory] getLocales() returned:', actualLocales);
-      console.log('[MockTestingStory] getLocales() is array:', Array.isArray(actualLocales));
-      console.log('[MockTestingStory] getLocales() length:', actualLocales?.length);
 
       if (expected.multipleNamedExports.getLocales !== undefined) {
         // Special case: if expected is null, we're checking for real implementation (just verify it's an array)
         if (expected.multipleNamedExports.getLocales === null) {
           const passed = Array.isArray(actualLocales) && actualLocales.length > 0;
-          console.log('[MockTestingStory] Multiple Named Exports: getLocales (real) comparison:', {
-            expected: 'Array with locale objects',
-            actual: actualLocales,
-            isArray: Array.isArray(actualLocales),
-            hasLength: actualLocales?.length > 0,
-            passed,
-          });
+
           syncResults.push({
             name: 'Multiple Named Exports: getLocales (real)',
             passed,
@@ -396,11 +290,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
           const passed =
             JSON.stringify(actualLocales) ===
             JSON.stringify(expected.multipleNamedExports.getLocales);
-          console.log('[MockTestingStory] Multiple Named Exports: getLocales comparison:', {
-            expected: expected.multipleNamedExports.getLocales,
-            actual: actualLocales,
-            passed,
-          });
+
           syncResults.push({
             name: 'Multiple Named Exports: getLocales',
             passed,
@@ -413,27 +303,8 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
 
     // Test 5: Class Exports
     if (expected.classExports) {
-      console.log('[MockTestingStory] Testing Class Exports...');
-      console.log(
-        '[MockTestingStory] DataProcessor type:',
-        typeof DataProcessor,
-        'is null:',
-        DataProcessor === null,
-        'is undefined:',
-        DataProcessor === undefined
-      );
-      console.log(
-        '[MockTestingStory] Calculator type:',
-        typeof Calculator,
-        'is null:',
-        Calculator === null,
-        'is undefined:',
-        Calculator === undefined
-      );
-
       if (expected.classExports.dataProcessorProcess !== undefined) {
         if (!DataProcessor || typeof DataProcessor !== 'function') {
-          console.warn('[MockTestingStory] DataProcessor is not available, skipping test');
           syncResults.push({
             name: 'Class Exports: DataProcessor.process',
             passed: false,
@@ -445,11 +316,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
             const processor = new DataProcessor(5);
             const actual = processor.process(10);
             const passed = actual === expected.classExports.dataProcessorProcess;
-            console.log('[MockTestingStory] Class: DataProcessor.process comparison:', {
-              expected: expected.classExports.dataProcessorProcess,
-              actual,
-              passed,
-            });
+
             syncResults.push({
               name: 'Class Exports: DataProcessor.process',
               passed,
@@ -457,7 +324,6 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
               actual,
             });
           } catch (e: any) {
-            console.error('[MockTestingStory] Error instantiating DataProcessor:', e.message);
             syncResults.push({
               name: 'Class Exports: DataProcessor.process',
               passed: false,
@@ -470,7 +336,6 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
 
       if (expected.classExports.dataProcessorGetMultiplier !== undefined) {
         if (!DataProcessor || typeof DataProcessor !== 'function') {
-          console.warn('[MockTestingStory] DataProcessor is not available, skipping test');
           syncResults.push({
             name: 'Class Exports: DataProcessor.getMultiplier',
             passed: false,
@@ -482,11 +347,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
             const processor = new DataProcessor(7);
             const actual = processor.getMultiplier();
             const passed = actual === expected.classExports.dataProcessorGetMultiplier;
-            console.log('[MockTestingStory] Class: DataProcessor.getMultiplier comparison:', {
-              expected: expected.classExports.dataProcessorGetMultiplier,
-              actual,
-              passed,
-            });
+
             syncResults.push({
               name: 'Class Exports: DataProcessor.getMultiplier',
               passed,
@@ -494,7 +355,6 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
               actual,
             });
           } catch (e: any) {
-            console.error('[MockTestingStory] Error instantiating DataProcessor:', e.message);
             syncResults.push({
               name: 'Class Exports: DataProcessor.getMultiplier',
               passed: false,
@@ -507,7 +367,6 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
 
       if (expected.classExports.calculatorAdd !== undefined) {
         if (!Calculator || typeof Calculator !== 'function') {
-          console.warn('[MockTestingStory] Calculator is not available, skipping test');
           syncResults.push({
             name: 'Class Exports: Calculator.add',
             passed: false,
@@ -519,11 +378,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
             const calculator = new Calculator();
             const actual = calculator.add(15, 25);
             const passed = actual === expected.classExports.calculatorAdd;
-            console.log('[MockTestingStory] Class: Calculator.add comparison:', {
-              expected: expected.classExports.calculatorAdd,
-              actual,
-              passed,
-            });
+
             syncResults.push({
               name: 'Class Exports: Calculator.add',
               passed,
@@ -531,7 +386,6 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
               actual,
             });
           } catch (e: any) {
-            console.error('[MockTestingStory] Error instantiating Calculator:', e.message);
             syncResults.push({
               name: 'Class Exports: Calculator.add',
               passed: false,
@@ -544,7 +398,6 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
 
       if (expected.classExports.calculatorSubtract !== undefined) {
         if (!Calculator || typeof Calculator !== 'function') {
-          console.warn('[MockTestingStory] Calculator is not available, skipping test');
           syncResults.push({
             name: 'Class Exports: Calculator.subtract',
             passed: false,
@@ -556,11 +409,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
             const calculator = new Calculator();
             const actual = calculator.subtract(50, 20);
             const passed = actual === expected.classExports.calculatorSubtract;
-            console.log('[MockTestingStory] Class: Calculator.subtract comparison:', {
-              expected: expected.classExports.calculatorSubtract,
-              actual,
-              passed,
-            });
+
             syncResults.push({
               name: 'Class Exports: Calculator.subtract',
               passed,
@@ -568,7 +417,6 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
               actual,
             });
           } catch (e: any) {
-            console.error('[MockTestingStory] Error instantiating Calculator:', e.message);
             syncResults.push({
               name: 'Class Exports: Calculator.subtract',
               passed: false,
@@ -582,16 +430,10 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
 
     // Test 6: Nested Package Mocks (synchronous part)
     if (expected.nestedMocks) {
-      console.log('[MockTestingStory] Testing Nested Package Mocks...');
-
       if (expected.nestedMocks.processPayment !== undefined) {
         const actual = processPayment(100, 'USD');
         const passed = actual === expected.nestedMocks.processPayment;
-        console.log('[MockTestingStory] Nested: processPayment comparison:', {
-          expected: expected.nestedMocks.processPayment,
-          actual,
-          passed,
-        });
+
         syncResults.push({
           name: 'Nested Mocks: processPayment',
           passed,
@@ -603,11 +445,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
       if (expected.nestedMocks.processDataWithMultiplier !== undefined) {
         const actual = processDataWithMultiplier(10, 3);
         const passed = actual === expected.nestedMocks.processDataWithMultiplier;
-        console.log('[MockTestingStory] Nested: processDataWithMultiplier comparison:', {
-          expected: expected.nestedMocks.processDataWithMultiplier,
-          actual,
-          passed,
-        });
+
         syncResults.push({
           name: 'Nested Mocks: processDataWithMultiplier',
           passed,
@@ -619,17 +457,10 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
 
     // Test 7: Complex Parameters
     if (expected.complexParameters) {
-      console.log('[MockTestingStory] Testing Complex Parameters...');
-
       if (expected.complexParameters.processOrder !== undefined) {
-        console.log('[MockTestingStory] Testing processOrder with optional parameters...');
         const actual = processOrder('ORD-123', 5, 'high');
         const passed = actual === expected.complexParameters.processOrder;
-        console.log('[MockTestingStory] Complex: processOrder comparison:', {
-          expected: expected.complexParameters.processOrder,
-          actual,
-          passed,
-        });
+
         syncResults.push({
           name: 'Complex Parameters: processOrder (optional params)',
           passed,
@@ -639,14 +470,9 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
       }
 
       if (expected.complexParameters.sum !== undefined) {
-        console.log('[MockTestingStory] Testing sum with rest parameters...');
         const actual = sum(1, 2, 3, 4, 5);
         const passed = actual === expected.complexParameters.sum;
-        console.log('[MockTestingStory] Complex: sum comparison:', {
-          expected: expected.complexParameters.sum,
-          actual,
-          passed,
-        });
+
         syncResults.push({
           name: 'Complex Parameters: sum (rest params)',
           passed,
@@ -656,14 +482,9 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
       }
 
       if (expected.complexParameters.createUser !== undefined) {
-        console.log('[MockTestingStory] Testing createUser with object parameter...');
         const actual = createUser({ name: 'John Doe', age: 30, email: 'john@example.com' });
         const passed = actual === expected.complexParameters.createUser;
-        console.log('[MockTestingStory] Complex: createUser comparison:', {
-          expected: expected.complexParameters.createUser,
-          actual,
-          passed,
-        });
+
         syncResults.push({
           name: 'Complex Parameters: createUser (object param)',
           passed,
@@ -673,14 +494,9 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
       }
 
       if (expected.complexParameters.processItems !== undefined) {
-        console.log('[MockTestingStory] Testing processItems with array parameter...');
         const actual = processItems(['item1', 'item2', 'item3']);
         const passed = actual === expected.complexParameters.processItems;
-        console.log('[MockTestingStory] Complex: processItems comparison:', {
-          expected: expected.complexParameters.processItems,
-          actual,
-          passed,
-        });
+
         syncResults.push({
           name: 'Complex Parameters: processItems (array param)',
           passed,
@@ -690,14 +506,9 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
       }
 
       if (expected.complexParameters.executeWithCallback !== undefined) {
-        console.log('[MockTestingStory] Testing executeWithCallback with function parameter...');
         const actual = executeWithCallback(10, (result) => `Result: ${result}`);
         const passed = actual === expected.complexParameters.executeWithCallback;
-        console.log('[MockTestingStory] Complex: executeWithCallback comparison:', {
-          expected: expected.complexParameters.executeWithCallback,
-          actual,
-          passed,
-        });
+
         syncResults.push({
           name: 'Complex Parameters: executeWithCallback (function param)',
           passed,
@@ -707,14 +518,9 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
       }
 
       if (expected.complexParameters.calculateDiscount !== undefined) {
-        console.log('[MockTestingStory] Testing calculateDiscount with conditional behavior...');
         const actual = calculateDiscount(100, true, 'SAVE20');
         const passed = actual === expected.complexParameters.calculateDiscount;
-        console.log('[MockTestingStory] Complex: calculateDiscount comparison:', {
-          expected: expected.complexParameters.calculateDiscount,
-          actual,
-          passed,
-        });
+
         syncResults.push({
           name: 'Complex Parameters: calculateDiscount (conditional)',
           passed,
@@ -726,10 +532,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
 
     // Test 8: Complex Object/Constant Exports
     if (expected.objectExports) {
-      console.log('[MockTestingStory] Testing Complex Object/Constant Exports...');
-
       if (expected.objectExports.config !== undefined) {
-        console.log('[MockTestingStory] Testing nested object export (config)...');
         const actual = config;
         const expectedConfig = expected.objectExports.config;
         const passed =
@@ -737,11 +540,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
           actual?.app?.version === expectedConfig?.app?.version &&
           actual?.app?.settings?.theme === expectedConfig?.app?.settings?.theme &&
           actual?.api?.baseUrl === expectedConfig?.api?.baseUrl;
-        console.log('[MockTestingStory] Object: config comparison:', {
-          expected: expectedConfig,
-          actual,
-          passed,
-        });
+
         syncResults.push({
           name: 'Object Exports: config (nested object)',
           passed,
@@ -751,15 +550,10 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
       }
 
       if (expected.objectExports.supportedLanguages !== undefined) {
-        console.log('[MockTestingStory] Testing array export (supportedLanguages)...');
         const actual = supportedLanguages;
         const passed =
           JSON.stringify(actual) === JSON.stringify(expected.objectExports.supportedLanguages);
-        console.log('[MockTestingStory] Object: supportedLanguages comparison:', {
-          expected: expected.objectExports.supportedLanguages,
-          actual,
-          passed,
-        });
+
         syncResults.push({
           name: 'Object Exports: supportedLanguages (array)',
           passed,
@@ -769,14 +563,9 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
       }
 
       if (expected.objectExports.menuItems !== undefined) {
-        console.log('[MockTestingStory] Testing array of objects export (menuItems)...');
         const actual = menuItems;
         const passed = JSON.stringify(actual) === JSON.stringify(expected.objectExports.menuItems);
-        console.log('[MockTestingStory] Object: menuItems comparison:', {
-          expected: expected.objectExports.menuItems,
-          actual,
-          passed,
-        });
+
         syncResults.push({
           name: 'Object Exports: menuItems (array of objects)',
           passed,
@@ -786,14 +575,9 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
       }
 
       if (expected.objectExports.nullableValue !== undefined) {
-        console.log('[MockTestingStory] Testing null value export...');
         const actual = nullableValue;
         const passed = actual === expected.objectExports.nullableValue;
-        console.log('[MockTestingStory] Object: nullableValue comparison:', {
-          expected: expected.objectExports.nullableValue,
-          actual,
-          passed,
-        });
+
         syncResults.push({
           name: 'Object Exports: nullableValue (null)',
           passed,
@@ -803,14 +587,9 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
       }
 
       if (expected.objectExports.undefinedValue !== undefined) {
-        console.log('[MockTestingStory] Testing undefined value export...');
         const actual = undefinedValue;
         const passed = actual === expected.objectExports.undefinedValue;
-        console.log('[MockTestingStory] Object: undefinedValue comparison:', {
-          expected: expected.objectExports.undefinedValue,
-          actual,
-          passed,
-        });
+
         syncResults.push({
           name: 'Object Exports: undefinedValue (undefined)',
           passed,
@@ -820,14 +599,9 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
       }
 
       if (expected.objectExports.MAX_RETRIES !== undefined) {
-        console.log('[MockTestingStory] Testing number constant export...');
         const actual = MAX_RETRIES;
         const passed = actual === expected.objectExports.MAX_RETRIES;
-        console.log('[MockTestingStory] Object: MAX_RETRIES comparison:', {
-          expected: expected.objectExports.MAX_RETRIES,
-          actual,
-          passed,
-        });
+
         syncResults.push({
           name: 'Object Exports: MAX_RETRIES (number)',
           passed,
@@ -837,14 +611,9 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
       }
 
       if (expected.objectExports.ENABLED !== undefined) {
-        console.log('[MockTestingStory] Testing boolean constant export...');
         const actual = ENABLED;
         const passed = actual === expected.objectExports.ENABLED;
-        console.log('[MockTestingStory] Object: ENABLED comparison:', {
-          expected: expected.objectExports.ENABLED,
-          actual,
-          passed,
-        });
+
         syncResults.push({
           name: 'Object Exports: ENABLED (boolean)',
           passed,
@@ -854,14 +623,9 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
       }
 
       if (expected.objectExports.APP_TITLE !== undefined) {
-        console.log('[MockTestingStory] Testing string constant export...');
         const actual = APP_TITLE;
         const passed = actual === expected.objectExports.APP_TITLE;
-        console.log('[MockTestingStory] Object: APP_TITLE comparison:', {
-          expected: expected.objectExports.APP_TITLE,
-          actual,
-          passed,
-        });
+
         syncResults.push({
           name: 'Object Exports: APP_TITLE (string)',
           passed,
@@ -873,11 +637,8 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
 
     // Test 9: Edge Cases
     if (expected.edgeCases) {
-      console.log('[MockTestingStory] Testing Edge Cases...');
-
       // Special numbers
       if (expected.edgeCases.specialNumbers) {
-        console.log('[MockTestingStory] Testing special numbers...');
         const actualNan = SPECIAL_NUMBERS.nan;
         const actualInfinity = SPECIAL_NUMBERS.infinity;
         const actualNegativeInfinity = SPECIAL_NUMBERS.negativeInfinity;
@@ -885,11 +646,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
         if (expected.edgeCases.specialNumbers.nan !== undefined) {
           // NaN comparison requires isNaN check
           const passed = isNaN(actualNan) && isNaN(expected.edgeCases.specialNumbers.nan);
-          console.log('[MockTestingStory] Edge Case: NaN comparison:', {
-            actual: actualNan,
-            expected: expected.edgeCases.specialNumbers.nan,
-            passed,
-          });
+
           syncResults.push({
             name: 'Edge Cases: SPECIAL_NUMBERS.nan',
             passed,
@@ -899,11 +656,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
         }
         if (expected.edgeCases.specialNumbers.infinity !== undefined) {
           const passed = actualInfinity === expected.edgeCases.specialNumbers.infinity;
-          console.log('[MockTestingStory] Edge Case: Infinity comparison:', {
-            actual: actualInfinity,
-            expected: expected.edgeCases.specialNumbers.infinity,
-            passed,
-          });
+
           syncResults.push({
             name: 'Edge Cases: SPECIAL_NUMBERS.infinity',
             passed,
@@ -914,11 +667,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
         if (expected.edgeCases.specialNumbers.negativeInfinity !== undefined) {
           const passed =
             actualNegativeInfinity === expected.edgeCases.specialNumbers.negativeInfinity;
-          console.log('[MockTestingStory] Edge Case: -Infinity comparison:', {
-            actual: actualNegativeInfinity,
-            expected: expected.edgeCases.specialNumbers.negativeInfinity,
-            passed,
-          });
+
           syncResults.push({
             name: 'Edge Cases: SPECIAL_NUMBERS.negativeInfinity',
             passed,
@@ -930,7 +679,6 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
 
       // Date object
       if (expected.edgeCases.currentDate !== undefined) {
-        console.log('[MockTestingStory] Testing Date object...');
         const actual = CURRENT_DATE;
         const expectedDate =
           typeof expected.edgeCases.currentDate === 'string'
@@ -940,14 +688,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
           actual instanceof Date &&
           expectedDate instanceof Date &&
           actual.getTime() === expectedDate.getTime();
-        console.log('[MockTestingStory] Edge Case: CURRENT_DATE comparison:', {
-          actual: actual.toISOString(),
-          expected:
-            expectedDate instanceof Date
-              ? expectedDate.toISOString()
-              : expected.edgeCases.currentDate,
-          passed,
-        });
+
         syncResults.push({
           name: 'Edge Cases: CURRENT_DATE',
           passed,
@@ -961,7 +702,6 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
 
       // RegExp object
       if (expected.edgeCases.emailRegex !== undefined) {
-        console.log('[MockTestingStory] Testing RegExp object...');
         const actual = EMAIL_REGEX;
         const expectedRegex =
           typeof expected.edgeCases.emailRegex === 'string'
@@ -972,14 +712,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
           actual instanceof RegExp &&
           expectedRegex instanceof RegExp &&
           actual.test(testEmail) === expectedRegex.test(testEmail);
-        console.log('[MockTestingStory] Edge Case: EMAIL_REGEX comparison:', {
-          actual: actual.toString(),
-          expected:
-            expectedRegex instanceof RegExp
-              ? expectedRegex.toString()
-              : expected.edgeCases.emailRegex,
-          passed,
-        });
+
         syncResults.push({
           name: 'Edge Cases: EMAIL_REGEX',
           passed,
@@ -993,15 +726,10 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
 
       // Empty values
       if (expected.edgeCases.emptyValues) {
-        console.log('[MockTestingStory] Testing empty values...');
         if (expected.edgeCases.emptyValues.emptyString !== undefined) {
           const actual = EMPTY_VALUES.emptyString;
           const passed = actual === expected.edgeCases.emptyValues.emptyString;
-          console.log('[MockTestingStory] Edge Case: emptyString comparison:', {
-            actual,
-            expected: expected.edgeCases.emptyValues.emptyString,
-            passed,
-          });
+
           syncResults.push({
             name: 'Edge Cases: EMPTY_VALUES.emptyString',
             passed,
@@ -1014,11 +742,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
           const passed =
             Array.isArray(actual) &&
             actual.length === expected.edgeCases.emptyValues.emptyArray.length;
-          console.log('[MockTestingStory] Edge Case: emptyArray comparison:', {
-            actual,
-            expected: expected.edgeCases.emptyValues.emptyArray,
-            passed,
-          });
+
           syncResults.push({
             name: 'Edge Cases: EMPTY_VALUES.emptyArray',
             passed,
@@ -1033,11 +757,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
             actual !== null &&
             Object.keys(actual).length ===
               Object.keys(expected.edgeCases.emptyValues.emptyObject).length;
-          console.log('[MockTestingStory] Edge Case: emptyObject comparison:', {
-            actual,
-            expected: expected.edgeCases.emptyValues.emptyObject,
-            passed,
-          });
+
           syncResults.push({
             name: 'Edge Cases: EMPTY_VALUES.emptyObject',
             passed,
@@ -1049,7 +769,6 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
 
       // Deeply nested
       if (expected.edgeCases.deepNested) {
-        console.log('[MockTestingStory] Testing deeply nested structure...');
         const actual = DEEP_NESTED;
         const expectedNested = expected.edgeCases.deepNested;
         const passed =
@@ -1057,11 +776,7 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
             expectedNested?.level1?.level2?.level3?.level4?.level5?.value &&
           actual?.level1?.level2?.level3?.level4?.level5?.number ===
             expectedNested?.level1?.level2?.level3?.level4?.level5?.number;
-        console.log('[MockTestingStory] Edge Case: DEEP_NESTED comparison:', {
-          actual: actual?.level1?.level2?.level3?.level4?.level5,
-          expected: expectedNested?.level1?.level2?.level3?.level4?.level5,
-          passed,
-        });
+
         syncResults.push({
           name: 'Edge Cases: DEEP_NESTED',
           passed,
@@ -1072,15 +787,10 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
 
       // Higher-order functions
       if (expected.edgeCases.createMultiplier !== undefined) {
-        console.log('[MockTestingStory] Testing higher-order function (createMultiplier)...');
         const multiplier = createMultiplier(5);
         const actual = multiplier(10);
         const passed = actual === expected.edgeCases.createMultiplier;
-        console.log('[MockTestingStory] Edge Case: createMultiplier(5)(10) comparison:', {
-          actual,
-          expected: expected.edgeCases.createMultiplier,
-          passed,
-        });
+
         syncResults.push({
           name: 'Edge Cases: createMultiplier(5)(10)',
           passed,
@@ -1090,17 +800,10 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
       }
 
       if (expected.edgeCases.createCounter !== undefined) {
-        console.log(
-          '[MockTestingStory] Testing higher-order function with closure (createCounter)...'
-        );
         const counter = createCounter();
         const actual = counter();
         const passed = actual === expected.edgeCases.createCounter;
-        console.log('[MockTestingStory] Edge Case: createCounter()() comparison:', {
-          actual,
-          expected: expected.edgeCases.createCounter,
-          passed,
-        });
+
         syncResults.push({
           name: 'Edge Cases: createCounter()()',
           passed,
@@ -1111,15 +814,10 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
 
       // Mixed array
       if (expected.edgeCases.mixedArray !== undefined) {
-        console.log('[MockTestingStory] Testing mixed array...');
         const actual = MIXED_ARRAY;
         const passed =
           Array.isArray(actual) && actual.length === expected.edgeCases.mixedArray.length;
-        console.log('[MockTestingStory] Edge Case: MIXED_ARRAY comparison:', {
-          actualLength: actual.length,
-          expectedLength: expected.edgeCases.mixedArray.length,
-          passed,
-        });
+
         syncResults.push({
           name: 'Edge Cases: MIXED_ARRAY',
           passed,
@@ -1130,14 +828,9 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
 
       // Object with getter
       if (expected.edgeCases.objectWithGetter !== undefined) {
-        console.log('[MockTestingStory] Testing object with getter...');
         const actual = OBJECT_WITH_GETTER.value;
         const passed = actual === expected.edgeCases.objectWithGetter;
-        console.log('[MockTestingStory] Edge Case: OBJECT_WITH_GETTER.value comparison:', {
-          actual,
-          expected: expected.edgeCases.objectWithGetter,
-          passed,
-        });
+
         syncResults.push({
           name: 'Edge Cases: OBJECT_WITH_GETTER.value',
           passed,
@@ -1153,12 +846,9 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
   // Test 4: Async Functions
   useEffect(() => {
     if (expected.asyncFunctions) {
-      console.log('[MockTestingStory] Testing Async Functions...');
-
       if (expected.asyncFunctions.fetchUserData !== undefined) {
         fetchUserData('user-123')
           .then((actual) => {
-            console.log('[MockTestingStory] Async: fetchUserData result:', actual);
             const passed =
               JSON.stringify(actual) === JSON.stringify(expected.asyncFunctions!.fetchUserData);
             setResults((prev) => [
@@ -1172,7 +862,6 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
             ]);
           })
           .catch((error) => {
-            console.error('[MockTestingStory] Async: fetchUserData error:', error);
             setResults((prev) => [
               ...prev,
               {
@@ -1188,7 +877,6 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
       if (expected.asyncFunctions.fetchSettings !== undefined) {
         fetchSettings()
           .then((actual) => {
-            console.log('[MockTestingStory] Async: fetchSettings result:', actual);
             const passed =
               JSON.stringify(actual) === JSON.stringify(expected.asyncFunctions!.fetchSettings);
             setResults((prev) => [
@@ -1202,7 +890,6 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
             ]);
           })
           .catch((error) => {
-            console.error('[MockTestingStory] Async: fetchSettings error:', error);
             setResults((prev) => [
               ...prev,
               {
@@ -1220,7 +907,6 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
     if (expected.nestedMocks?.getUserPaymentInfo !== undefined) {
       getUserPaymentInfo('user-456')
         .then((actual) => {
-          console.log('[MockTestingStory] Nested: getUserPaymentInfo result:', actual);
           const passed = actual === expected.nestedMocks!.getUserPaymentInfo;
           setResults((prev) => [
             ...prev,
@@ -1233,7 +919,6 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
           ]);
         })
         .catch((error) => {
-          console.error('[MockTestingStory] Nested: getUserPaymentInfo error:', error);
           setResults((prev) => [
             ...prev,
             {
@@ -1249,13 +934,6 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
 
   const allPassed = results.length > 0 && results.every((r) => r.passed);
   const passedCount = results.filter((r) => r.passed).length;
-
-  console.log('[MockTestingStory] Test Summary:', {
-    totalTests: results.length,
-    passedCount,
-    allPassed,
-    results: results.map((r) => ({ name: r.name, passed: r.passed })),
-  });
 
   return (
     <View style={styles.container}>

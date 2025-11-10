@@ -51,7 +51,6 @@ interface WithSherloOptions {
  */
 function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = {}): MetroConfig {
   const DEBUG = !!debug;
-  const log = (...a: any[]) => DEBUG && console.log('[SHERLO:resolver]', ...a);
 
   // Step 2: Discover all story files
   const projectRoot = config.projectRoot || process.cwd();
@@ -60,9 +59,7 @@ function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = 
   // Store project root in global for getCurrentStory to access
   (global as any).__SHERLO_PROJECT_ROOT__ = projectRoot;
 
-  if (storyFiles.length === 0) {
-    console.warn('[SHERLO:resolver] No story files found. Mocks will not be available.');
-  }
+  // Note: If no story files are found, mocks will not be available
 
   // Step 3: Initialize empty mock cache (will be populated by transformer)
   const storyMocks: StoryMockMap = new Map();
@@ -78,7 +75,6 @@ function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = 
   }
   const storyFilesPath = path.join(sherloDir, 'story-files.json');
   fs.writeFileSync(storyFilesPath, JSON.stringify({ storyFiles, projectRoot }), 'utf-8');
-  console.log(`[SHERLO:resolver] Wrote ${storyFiles.length} story files to ${storyFilesPath}`);
 
   // Step 4: Configure Metro transformer to extract mocks from story files
   // Metro uses babelTransformerPath to load the transformer, not a function
@@ -107,16 +103,11 @@ function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = 
 
     // Verify the transformer file exists
     if (!fs.existsSync(customTransformerPath)) {
-      console.warn(
-        `[SHERLO:resolver] Custom transformer not found at ${customTransformerPath}. ` +
-          `Mock extraction may not work. Please ensure the package is built. ` +
-          `Current __dirname: ${thisFileDir}`
+      console.error(
+        `[SHERLO] Custom transformer not found at ${customTransformerPath}. Mock extraction may not work. Please ensure the package is built.`
       );
     } else {
       config.transformer.babelTransformerPath = customTransformerPath;
-      if (DEBUG) {
-        log(`[SHERLO:resolver] Using custom transformer at: ${customTransformerPath}`);
-      }
     }
   }
 
@@ -159,7 +150,6 @@ function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = 
             for (const ext of extensions) {
               const fullPath = ext ? `${resolvedPath}${ext}` : resolvedPath;
               if (fs.existsSync(fullPath)) {
-                console.log(`[SHERLO:resolver] Found real module at: ${fullPath}`);
                 return {
                   type: 'sourceFile',
                   filePath: fullPath,
@@ -167,17 +157,13 @@ function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = 
               }
             }
           }
-          console.warn(
-            `[SHERLO:resolver] Could not resolve relative path ${realName} in common source directories`
-          );
         }
 
         try {
           const result = base(context, realName, platform);
-          console.log(`[SHERLO:resolver] :real resolution result:`, result);
           return result;
         } catch (e: any) {
-          console.error(`[SHERLO:resolver] :real resolution failed for ${moduleName}:`, e.message);
+          console.error(`[SHERLO] Failed to resolve real module "${moduleName}":`, e.message);
           throw e;
         }
       }
@@ -200,20 +186,10 @@ function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = 
         `${safeFileName}.js`
       );
       if (fs.existsSync(mockFilePath)) {
-        log(
-          `[SHERLO:resolver] Redirecting ${moduleName} (safeFileName: ${safeFileName}) to mock file: ${mockFilePath}`
-        );
         return {
           type: 'sourceFile',
           filePath: mockFilePath,
         };
-      } else {
-        // Debug: log when we're NOT redirecting
-        if (moduleName.includes('testHelper') || moduleName === 'expo-localization') {
-          log(
-            `[SHERLO:resolver] Mock file NOT found for ${moduleName} (safeFileName: ${safeFileName}) at: ${mockFilePath}`
-          );
-        }
       }
 
       // Fallback to default resolver

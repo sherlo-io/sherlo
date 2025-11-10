@@ -23,7 +23,7 @@ function getBabelParser() {
         const metroTransformer = require('metro-react-native-babel-transformer');
         babelParser = metroTransformer?.parser || require('@babel/parser');
       } catch {
-        console.warn('[SHERLO:transformer] @babel/parser not available, mock extraction will be limited');
+        // Babel parser not available, mock extraction will be skipped
       }
     }
   }
@@ -35,7 +35,7 @@ function getBabelTraverse() {
     try {
       babelTraverse = require('@babel/traverse').default;
     } catch {
-      console.warn('[SHERLO:transformer] @babel/traverse not available, mock extraction will be limited');
+      // Babel traverse not available, mock extraction will be skipped
     }
   }
   return babelTraverse;
@@ -46,7 +46,7 @@ function getBabelTypes() {
     try {
       babelTypes = require('@babel/types');
     } catch {
-      console.warn('[SHERLO:transformer] @babel/types not available, mock extraction will be limited');
+      // Babel types not available, mock extraction will be skipped
     }
   }
   return babelTypes;
@@ -182,10 +182,6 @@ function extractMocksFromObjectExpression(obj: any): Record<string, any> | null 
         const nodeType = prop.value && (prop.value as any).type;
         // console.log(`[SHERLO:extraction] Extracting mock for key "${key}", nodeType: ${nodeType}`);
         const extracted = extractMockValue(prop.value);
-        // Only log if extraction failed for async/class related exports
-        if ((key.includes('fetch') || key.includes('DataProcessor') || key.includes('Calculator')) && extracted === null) {
-          console.error(`[SHERLO:extraction] FAILED to extract "${key}" - got null`);
-        }
         mocks[key] = extracted;
       }
     }
@@ -245,7 +241,7 @@ function extractMockValue(value: any): any {
         // console.log(`[SHERLO:extraction] Extracted class, code length: ${code.length}`);
         return { __isClass: true, __code: code };
       } catch (e: any) {
-        console.warn(`[SHERLO:extraction] Failed to generate code for class:`, e.message);
+        // Failed to generate code for class, using placeholder
         return { __isClass: true, __code: 'class {}' };
       }
     }
@@ -273,7 +269,7 @@ function extractMockValue(value: any): any {
         }
         return elements;
       } catch (e: any) {
-        console.warn(`[SHERLO:extraction] Failed to extract array:`, e.message);
+        // Failed to extract array, returning empty array
         return [];
       }
     }
@@ -315,7 +311,7 @@ function extractMockValue(value: any): any {
         // Extract the date string from the code (e.g., "new Date('2024-01-15T10:30:00Z')")
         return { __isDate: true, __code: code };
       } catch (e: any) {
-        console.warn(`[SHERLO:extraction] Failed to generate code for Date:`, e.message);
+        // Failed to generate code for Date, using placeholder
         return { __isDate: true, __code: "new Date()" };
       }
     }
@@ -329,7 +325,7 @@ function extractMockValue(value: any): any {
         const code = generate(value).code;
         return { __isRegExp: true, __code: code };
       } catch (e: any) {
-        console.warn(`[SHERLO:extraction] Failed to generate code for RegExp:`, e.message);
+        // Failed to generate code for RegExp, using placeholder
         return { __isRegExp: true, __code: "/.*/" };
       }
     }
@@ -342,7 +338,7 @@ function extractMockValue(value: any): any {
         const code = generate(value).code;
         return { __isRegExp: true, __code: code };
       } catch (e: any) {
-        console.warn(`[SHERLO:extraction] Failed to generate code for RegExp:`, e.message);
+        // Failed to generate code for RegExp, using placeholder
         return { __isRegExp: true, __code: "new RegExp('.*')" };
       }
     }
@@ -368,7 +364,7 @@ function extractMockValue(value: any): any {
             const getterCode = generate(prop).code;
             obj[key] = { __isGetter: true, __code: getterCode };
           } catch (e: any) {
-            console.warn(`[SHERLO:extraction] Failed to generate code for getter ${key}:`, e.message);
+            // Failed to generate code for getter, using null
             obj[key] = null;
           }
         }
@@ -405,7 +401,7 @@ function extractMockValue(value: any): any {
                 // }
                 obj[key] = { __isFunction: true, __code: code };
               } catch (e: any) {
-                console.warn(`[SHERLO:extraction] Failed to generate code for function ${key}:`, e.message);
+                // Failed to generate code for function, using placeholder
                 obj[key] = { __isFunction: true, __code: '() => {}' };
               }
             } else {
@@ -422,7 +418,7 @@ function extractMockValue(value: any): any {
                 // }
                 obj[key] = { __isClass: true, __code: code };
               } catch (e: any) {
-                console.warn(`[SHERLO:extraction] Failed to generate code for class ${key}:`, e.message);
+                // Failed to generate code for class, using placeholder
                 obj[key] = { __isClass: true, __code: 'class {}' };
               }
             } else {
@@ -451,7 +447,7 @@ function extractMockValue(value: any): any {
                     // }
                     obj[key] = { __isFunction: true, __code: code };
                   } catch (e: any) {
-                    console.warn(`[SHERLO:extraction] Direct extraction failed for ${key}:`, e.message);
+                    // Direct extraction failed, using null
                     obj[key] = null;
                   }
                 } else {
@@ -509,7 +505,7 @@ function extractMockValue(value: any): any {
                     } else {
                       // Not a generator function, try generating code directly
                       const code = generate(prop.value).code;
-                      console.error(`[SHERLO:extraction] CallExpression for ${key} is _asyncToGenerator but generatorFn type is ${generatorFn?.type}, generated code: ${code.substring(0, 100)}`);
+                      console.error(`[SHERLO] Failed to extract async function "${key}": invalid generator function type`);
                       obj[key] = { __isFunction: true, __code: code };
                     }
                   } else {
@@ -560,7 +556,7 @@ function extractMockValue(value: any): any {
                         obj[key] = { __isFunction: true, __code: asyncCode };
                       } else {
                         // Can't extract, store as-is (will fail at runtime but we'll see the error)
-                        console.error(`[SHERLO:extraction] Could not extract generator from IIFE for ${key}, code: ${code.substring(0, 150)}`);
+                        console.error(`[SHERLO] Failed to extract async function "${key}" from IIFE pattern`);
                         obj[key] = { __isFunction: true, __code: code };
                       }
                     } else if (code.includes('async') || code.includes('=>') || code.includes('class')) {
@@ -574,13 +570,13 @@ function extractMockValue(value: any): any {
                       // Doesn't look like function/class, fall back to extractMockValue
                       const extracted = extractMockValue(prop.value);
                       if (extracted === null) {
-                        console.error(`[SHERLO:extraction] FAILED to extract "${key}", node type: ${nodeType}, generated code: ${code.substring(0, 50)}`);
+                        console.error(`[SHERLO] Failed to extract mock "${key}": unsupported node type ${nodeType}`);
                       }
                       obj[key] = extracted;
                     }
                   }
                 } catch (e: any) {
-                  console.warn(`[SHERLO:extraction] Failed to generate code for CallExpression ${key}:`, e.message);
+                  // Failed to generate code for CallExpression, trying fallback
                   const extracted = extractMockValue(prop.value);
                   obj[key] = extracted;
                 }
@@ -588,7 +584,7 @@ function extractMockValue(value: any): any {
                 const extracted = extractMockValue(prop.value);
                 // Only log if extraction failed for async/class exports
                 if (extracted === null && prop.value && (key.includes('fetch') || key.includes('DataProcessor') || key.includes('Calculator'))) {
-                  console.error(`[SHERLO:extraction] FAILED to extract "${key}", node type: ${nodeType}`);
+                  console.error(`[SHERLO] Failed to extract mock "${key}": unsupported node type ${nodeType}`);
                 }
                 obj[key] = extracted;
               }
@@ -705,7 +701,6 @@ export function extractMocksFromTransformedCode(
   const t = getBabelTypes();
 
   if (!parser || !traverse || !t) {
-    console.warn(`[SHERLO:transformer] Babel not available, skipping mock extraction for ${path.basename(filePath)}`);
     return mocks;
   }
 
@@ -788,10 +783,7 @@ export function extractMocksFromTransformedCode(
       },
     });
   } catch (error: any) {
-    console.warn(
-      `[SHERLO:transformer] Failed to parse transformed code for ${path.basename(filePath)}:`,
-      error.message
-    );
+    console.error('[SHERLO] Failed to parse story file for mock extraction:', error.message);
   }
 
   return mocks;
@@ -821,7 +813,6 @@ export function createMockExtractionTransformer(
 
     // Check if this is a story file
     if (isStoryFile(args.filename, storyFilesList)) {
-      console.log(`[SHERLO:transformer] Processing story file: ${path.relative(projRoot, args.filename)}`);
 
       // Extract mocks from the transformed code
       // The transformed code is in result.output[0].data.code

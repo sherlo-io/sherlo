@@ -178,9 +178,7 @@ export function generateMockFile(
                                     exportName.toLowerCase().includes('subtract');
           const looksLikeClass = exportName[0] === exportName[0].toUpperCase() &&
                                 (exportName.includes('Processor') || exportName.includes('Calculator') || exportName.includes('Utils'));
-          if (looksLikeFunction || looksLikeClass) {
-            console.error(`[SHERLO:mockGen] TEST FAILURE: ${exportName} in ${packageName} (story: ${storyId}) is null but should be ${looksLikeFunction ? 'function' : 'class'}`);
-          }
+          // Note: null values are expected for some exports that don't have mocks
         }
       }
       packageMocksByStory[storyId] = pkgMock;
@@ -267,18 +265,6 @@ export function generateMockFile(
   }
 
   // Debug: Log if MockTestingStory variants are missing
-  if (packageName === 'expo-localization') {
-    const mockTestingStoryIds = Object.keys(storyMocksFunctions).filter(id => id.includes('mocktestingstory'));
-    if (mockTestingStoryIds.length === 0) {
-      console.warn(`[SHERLO:mockGen] No MockTestingStory variants found in storyMocks_functions for ${packageName}`);
-      console.warn(`[SHERLO:mockGen] Available story IDs:`, Object.keys(storyMocksFunctions).slice(0, 10));
-    } else {
-      console.log(`[SHERLO:mockGen] Found MockTestingStory variants:`, mockTestingStoryIds);
-      for (const storyId of mockTestingStoryIds) {
-        console.log(`[SHERLO:mockGen]   ${storyId}:`, Object.keys(storyMocksFunctions[storyId]));
-      }
-    }
-  }
 
   // For backward compatibility during transition, also create the old format
   const storyMocksSerialized: Record<string, Record<string, any>> = {};
@@ -339,7 +325,7 @@ export function generateMockFile(
       // console.log('[SHERLO:mock] Using real ${exportName} class for story:', storyId);
       return realClass;
     } else {
-      console.warn('[SHERLO:mock] No ${exportName} mock found for story "' + storyId + '" and real module not available');
+      // No mock found and real module not available
       return undefined;
     }
   }`;
@@ -368,7 +354,7 @@ export function generateMockFile(
       // console.log('[SHERLO:mock] Using real implementation for story:', storyId);
       return realFn(...args);
     } else {
-      console.warn('[SHERLO:mock] No mock found for story "' + storyId + '" and real module not available');
+      // No mock found and real module not available
       return undefined;
     }
   }`;
@@ -401,7 +387,7 @@ export function generateMockFile(
         // Reconstruct special values recursively (handles nested objects)
         return reconstructSpecialValues(parsedValue);
       } catch (e) {
-        console.warn('[SHERLO:mock] Failed to parse ${exportName} from storyMocks_values:', e.message);
+        // Failed to parse mock value, falling back to real implementation
         // Fall through to real implementation
       }
     }
@@ -438,7 +424,7 @@ export function generateMockFile(
         // console.log('[SHERLO:mock] Returning ${exportName} mock:', reconstructedValue);
         return reconstructedValue;
       } catch (e) {
-        console.warn('[SHERLO:mock] Failed to parse ${exportName} from storyMocks_values:', e.message);
+        // Failed to parse mock value, falling back to real implementation
         // Fall through to real implementation
       }
     }
@@ -461,7 +447,7 @@ export function generateMockFile(
       // console.log('[SHERLO:mock] Using real ${exportName} for story:', storyId);
       return realValue;
     } else {
-      console.warn('[SHERLO:mock] No ${exportName} mock found for story "' + storyId + '" and real module not available');
+      // No mock found and real module not available
       return undefined;
     }
   }`;
@@ -544,25 +530,11 @@ const storyMocks_values = ${JSON.stringify(storyMocksValues, null, 2)};
 
 // Legacy format (for backward compatibility during transition)
 const storyMocks = ${JSON.stringify(storyMocksSerialized, null, 2)};
-// TEST: Only log errors (null values where code is expected)
-// console.log('[SHERLO:mockGen] TEST: Mock file loaded, checking embedded values...');
-for (const [storyId, mocks] of Object.entries(storyMocks)) {
-  for (const [exportName, value] of Object.entries(mocks)) {
-    if ((exportName.includes('fetch') || exportName.includes('DataProcessor') || exportName.includes('Calculator')) &&
-        (value === null || value === 'null')) {
-      console.error('[SHERLO:mockGen] TEST FAILURE: Found null for', exportName, 'in story', storyId, '- this should be code!');
-    }
-    // Only log errors, not successes
-    // else if (exportName.includes('fetch') && typeof value === 'string' && value.startsWith('async')) {
-    //   console.log('[SHERLO:mockGen] TEST: Found CODE STRING for', exportName, 'in story', storyId, '- length:', value.length);
-    // }
-  }
-}
+// Note: null values are expected for exports that don't have mocks defined
 
 // Helper to get current story ID from global
 const getCurrentStory = () => {
   const storyId = (typeof global !== 'undefined' && global.__SHERLO_CURRENT_STORY_ID__) || null;
-  // console.log('[SHERLO:mock] Current story ID:', storyId);
   return storyId;
 };
 
@@ -586,14 +558,14 @@ const reconstructSpecialValues = (value) => {
       try {
         return eval(value.__code);
       } catch (e) {
-        console.warn('[SHERLO:mock] Failed to reconstruct Date:', e.message);
+        // Failed to reconstruct Date, using current date
         return new Date();
       }
     } else if (value.__isRegExp && value.__code) {
       try {
         return eval(value.__code);
       } catch (e) {
-        console.warn('[SHERLO:mock] Failed to reconstruct RegExp:', e.message);
+        // Failed to reconstruct RegExp, using default pattern
         return /.*/;
       }
     } else if (value.__isGetter && value.__code) {
@@ -605,7 +577,7 @@ const reconstructSpecialValues = (value) => {
         const getterFn = new Function('return ' + value.__code)();
         return getterFn;
       } catch (e) {
-        console.warn('[SHERLO:mock] Failed to reconstruct getter:', e.message);
+        // Failed to reconstruct getter, returning undefined
         return undefined;
       }
     }
@@ -664,7 +636,7 @@ const reconstructSpecialValues = (value) => {
             });
           }
         } catch (e) {
-          console.warn('[SHERLO:mock] Failed to reconstruct getter for', key, ':', e.message);
+          // Failed to reconstruct getter, skipping
         }
       }
 
@@ -708,7 +680,7 @@ const getDefaultExport = function() {
     // console.log('[SHERLO:mock] Using real default export for story:', storyId);
     return realModule.default || realModule;
   } else {
-    console.warn('[SHERLO:mock] No default mock found for story "' + storyId + '" and real module not available');
+    // No default mock found and real module not available
     // Try to require the real module one more time (in case it wasn't available at module load time)
     // This handles cases where the module becomes available later
     try {
@@ -790,7 +762,7 @@ Object.defineProperty(mock, 'default', {
       // console.log('[SHERLO:mock] Using real default export for story:', storyId);
       return realModule.default || realModule;
     } catch (e) {
-      console.warn('[SHERLO:mock] No default mock found for story "' + storyId + '" and real module not available');
+      // No default mock found and real module not available
       return undefined;
     }
   },
@@ -903,7 +875,7 @@ export function generateAllMockFiles(
       const mockFilePath = generateMockFile(packageName, storyMocks, projectRoot, safeFileName);
       mockFiles.set(packageName, mockFilePath);
     } catch (error: any) {
-      console.warn(`[SHERLO:mockGen] Failed to generate mock for ${packageName}:`, error.message);
+      console.error(`[SHERLO] Failed to generate mock file for "${packageName}":`, error.message);
     }
   }
 
