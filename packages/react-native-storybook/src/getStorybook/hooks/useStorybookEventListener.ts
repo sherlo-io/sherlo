@@ -53,7 +53,17 @@ export default function useStorybookEventListener(): void {
       return;
     }
 
+    // Helper function to store story ID in global for mock resolution
+    const storeStoryId = (storyId: string) => {
+      (global as any).__SHERLO_CURRENT_STORY_ID__ = storyId;
+      console.log(
+        '[SHERLO:mockReload] Story ID stored in global for runtime mock resolution:',
+        storyId
+      );
+    };
+
     // 1) storyPrepared often yields name + parameters.fileName (file path)
+    // This fires when a story is initially loaded (including on app startup)
     const onPrepared = (p: PreparedPayload) => {
       const prev = metaByIdRef.current.get(p.id) || {};
       metaByIdRef.current.set(p.id, {
@@ -61,6 +71,11 @@ export default function useStorybookEventListener(): void {
         name: p.name ?? prev.name,
         importPath: p.parameters?.fileName ?? prev.importPath, // file path
       });
+      
+      // Store story ID when story is prepared (handles initial load case)
+      if (p.id) {
+        storeStoryId(p.id);
+      }
     };
 
     // 2) story index (different shapes/aliases depending on version)
@@ -112,11 +127,7 @@ export default function useStorybookEventListener(): void {
 
       // Store story ID in global variable for mock files to read at runtime
       // Mock files will call getCurrentStory() which reads from this global
-      (global as any).__SHERLO_CURRENT_STORY_ID__ = storyId;
-      console.log(
-        '[SHERLO:mockReload] Story ID stored in global for runtime mock resolution:',
-        storyId
-      );
+      storeStoryId(storyId);
 
       if (!meta) {
         // If we still had nothing, ask again (harmless if already sent)
