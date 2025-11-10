@@ -24,11 +24,20 @@ export const VariantA = {
       multipleNamedExports: {
         getLocales: [{ languageCode: 'de', regionCode: 'DE' }],
       },
+      complexParameters: {
+        processOrder: 'MOCKED Order ORD-123: 5 items (high priority)',
+        sum: 150, // Mocked sum of 1+2+3+4+5 = 150 instead of 15
+        createUser: 'MOCKED John Doe (30) - john@example.com',
+        processItems: 'MOCKED Processed 3 items: item1, item2, item3',
+        executeWithCallback: 'MOCKED Result: 20',
+        calculateDiscount: 70, // Mocked: 100 * 0.7 = 70 (instead of real 70% discount)
+      },
     },
   },
   mocks: {
     '../utils/localUtils': {
-      formatCurrency: (amount: number, currency: string = 'USD') => `MOCKED ${currency} ${amount.toFixed(2)}`,
+      formatCurrency: (amount: number, currency: string = 'USD') =>
+        `MOCKED ${currency} ${amount.toFixed(2)}`,
       formatDate: (date: Date) => 'MOCKED DATE',
       calculateTotal: (items: number[]) => 999,
       APP_NAME: 'Mocked App',
@@ -43,6 +52,21 @@ export const VariantA = {
     },
     'expo-localization': {
       getLocales: () => [{ languageCode: 'de', regionCode: 'DE' }],
+    },
+    '../utils/parameterizedUtils': {
+      processOrder: (
+        orderId: string,
+        quantity: number = 1,
+        priority: 'low' | 'medium' | 'high' = 'medium'
+      ) => `MOCKED Order ${orderId}: ${quantity} items (${priority} priority)`,
+      sum: (...numbers: number[]) => 150, // Mocked to always return 150
+      createUser: (userData: { name: string; age: number; email?: string }) =>
+        `MOCKED ${userData.name} (${userData.age}) - ${userData.email || 'no-email'}`,
+      processItems: (items: string[]) =>
+        `MOCKED Processed ${items.length} items: ${items.join(', ')}`,
+      executeWithCallback: (value: number, callback: (result: number) => string) =>
+        'MOCKED Result: 20',
+      calculateDiscount: (price: number, isMember: boolean = false, couponCode?: string) => 70,
     },
   },
 };
@@ -65,11 +89,20 @@ export const VariantB = {
       multipleNamedExports: {
         getLocales: [{ languageCode: 'ja', regionCode: 'JP' }],
       },
+      complexParameters: {
+        processOrder: 'ALTERNATE Order ORD-123: 5 items (high priority)',
+        sum: 250, // Mocked sum of 1+2+3+4+5 = 250 instead of 15
+        createUser: 'ALTERNATE John Doe (30) - john@example.com',
+        processItems: 'ALTERNATE Processed 3 items: item1, item2, item3',
+        executeWithCallback: 'ALTERNATE Result: 20',
+        calculateDiscount: 60, // Mocked: 100 * 0.6 = 60
+      },
     },
   },
   mocks: {
     '../utils/localUtils': {
-      formatCurrency: (amount: number, currency: string = 'USD') => `ALTERNATE ${currency} ${amount.toFixed(2)}`,
+      formatCurrency: (amount: number, currency: string = 'USD') =>
+        `ALTERNATE ${currency} ${amount.toFixed(2)}`,
       formatDate: (date: Date) => 'ALTERNATE DATE',
       calculateTotal: (items: number[]) => 1234,
       APP_NAME: 'Alternate App',
@@ -84,6 +117,21 @@ export const VariantB = {
     },
     'expo-localization': {
       getLocales: () => [{ languageCode: 'ja', regionCode: 'JP' }],
+    },
+    '../utils/parameterizedUtils': {
+      processOrder: (
+        orderId: string,
+        quantity: number = 1,
+        priority: 'low' | 'medium' | 'high' = 'medium'
+      ) => `ALTERNATE Order ${orderId}: ${quantity} items (${priority} priority)`,
+      sum: (...numbers: number[]) => 250, // Mocked to always return 250
+      createUser: (userData: { name: string; age: number; email?: string }) =>
+        `ALTERNATE ${userData.name} (${userData.age}) - ${userData.email || 'no-email'}`,
+      processItems: (items: string[]) =>
+        `ALTERNATE Processed ${items.length} items: ${items.join(', ')}`,
+      executeWithCallback: (value: number, callback: (result: number) => string) =>
+        'ALTERNATE Result: 20',
+      calculateDiscount: (price: number, isMember: boolean = false, couponCode?: string) => 60,
     },
   },
 };
@@ -139,14 +187,15 @@ export const AdvancedMocksVariant = {
       },
     },
     '../utils/nestedUtils': {
-      processPayment: (amount: number, currency: string) => `Payment: MOCKED ${currency} ${amount.toFixed(2)}`,
+      processPayment: (amount: number, currency: string) =>
+        `Payment: MOCKED ${currency} ${amount.toFixed(2)}`,
       getUserPaymentInfo: async (userId: string) => {
         // Note: Can't use require() in React Native runtime
         // For nested mocks, we'll return the expected value directly
         return 'User Mocked User payment info';
       },
       processDataWithMultiplier: (value: number, multiplier: number) => {
-        // Note: Can't use require() in React Native runtime  
+        // Note: Can't use require() in React Native runtime
         // For nested mocks with classes, we'll calculate the expected value directly
         // Expected: 10 * 3 = 30
         return value * multiplier;
@@ -176,8 +225,15 @@ export const NoMocksVariant = {
         // We can't predict this exactly, so we'll just check it's an array with locale objects
         getLocales: null, // Special marker - we'll check it's not null and is an array
       },
+      complexParameters: {
+        processOrder: 'Order ORD-123: 5 items (high priority)', // Real implementation
+        sum: 15, // Real: 1+2+3+4+5 = 15
+        createUser: 'John Doe (30) - john@example.com', // Real implementation
+        processItems: 'Processed 3 items: item1, item2, item3', // Real implementation
+        executeWithCallback: 'Result: 20', // Real: 10*2 = 20, callback returns "Result: 20"
+        calculateDiscount: 70, // Real: 100 * (1 - 0.3) = 70 (member 10% + coupon 20% = 30%)
+      },
     },
   },
   // No mocks - should fall back to real implementations
 };
-

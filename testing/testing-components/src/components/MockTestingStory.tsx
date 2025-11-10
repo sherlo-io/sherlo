@@ -10,6 +10,14 @@ import {
   getUserPaymentInfo,
   processDataWithMultiplier,
 } from '../utils/nestedUtils';
+import {
+  processOrder,
+  sum,
+  createUser,
+  processItems,
+  executeWithCallback,
+  calculateDiscount,
+} from '../utils/parameterizedUtils';
 
 interface TestResult {
   name: string;
@@ -49,6 +57,14 @@ interface MockTestingStoryProps {
       processPayment?: string;
       getUserPaymentInfo?: string;
       processDataWithMultiplier?: number;
+    };
+    complexParameters?: {
+      processOrder?: string;
+      sum?: number;
+      createUser?: string;
+      processItems?: string;
+      executeWithCallback?: string;
+      calculateDiscount?: number;
     };
   };
 }
@@ -530,6 +546,113 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
           name: 'Nested Mocks: processDataWithMultiplier',
           passed,
           expected: expected.nestedMocks.processDataWithMultiplier,
+          actual,
+        });
+      }
+    }
+
+    // Test 7: Complex Parameters
+    if (expected.complexParameters) {
+      console.log('[MockTestingStory] Testing Complex Parameters...');
+
+      if (expected.complexParameters.processOrder !== undefined) {
+        console.log('[MockTestingStory] Testing processOrder with optional parameters...');
+        const actual = processOrder('ORD-123', 5, 'high');
+        const passed = actual === expected.complexParameters.processOrder;
+        console.log('[MockTestingStory] Complex: processOrder comparison:', {
+          expected: expected.complexParameters.processOrder,
+          actual,
+          passed,
+        });
+        syncResults.push({
+          name: 'Complex Parameters: processOrder (optional params)',
+          passed,
+          expected: expected.complexParameters.processOrder,
+          actual,
+        });
+      }
+
+      if (expected.complexParameters.sum !== undefined) {
+        console.log('[MockTestingStory] Testing sum with rest parameters...');
+        const actual = sum(1, 2, 3, 4, 5);
+        const passed = actual === expected.complexParameters.sum;
+        console.log('[MockTestingStory] Complex: sum comparison:', {
+          expected: expected.complexParameters.sum,
+          actual,
+          passed,
+        });
+        syncResults.push({
+          name: 'Complex Parameters: sum (rest params)',
+          passed,
+          expected: expected.complexParameters.sum,
+          actual,
+        });
+      }
+
+      if (expected.complexParameters.createUser !== undefined) {
+        console.log('[MockTestingStory] Testing createUser with object parameter...');
+        const actual = createUser({ name: 'John Doe', age: 30, email: 'john@example.com' });
+        const passed = actual === expected.complexParameters.createUser;
+        console.log('[MockTestingStory] Complex: createUser comparison:', {
+          expected: expected.complexParameters.createUser,
+          actual,
+          passed,
+        });
+        syncResults.push({
+          name: 'Complex Parameters: createUser (object param)',
+          passed,
+          expected: expected.complexParameters.createUser,
+          actual,
+        });
+      }
+
+      if (expected.complexParameters.processItems !== undefined) {
+        console.log('[MockTestingStory] Testing processItems with array parameter...');
+        const actual = processItems(['item1', 'item2', 'item3']);
+        const passed = actual === expected.complexParameters.processItems;
+        console.log('[MockTestingStory] Complex: processItems comparison:', {
+          expected: expected.complexParameters.processItems,
+          actual,
+          passed,
+        });
+        syncResults.push({
+          name: 'Complex Parameters: processItems (array param)',
+          passed,
+          expected: expected.complexParameters.processItems,
+          actual,
+        });
+      }
+
+      if (expected.complexParameters.executeWithCallback !== undefined) {
+        console.log('[MockTestingStory] Testing executeWithCallback with function parameter...');
+        const actual = executeWithCallback(10, (result) => `Result: ${result}`);
+        const passed = actual === expected.complexParameters.executeWithCallback;
+        console.log('[MockTestingStory] Complex: executeWithCallback comparison:', {
+          expected: expected.complexParameters.executeWithCallback,
+          actual,
+          passed,
+        });
+        syncResults.push({
+          name: 'Complex Parameters: executeWithCallback (function param)',
+          passed,
+          expected: expected.complexParameters.executeWithCallback,
+          actual,
+        });
+      }
+
+      if (expected.complexParameters.calculateDiscount !== undefined) {
+        console.log('[MockTestingStory] Testing calculateDiscount with conditional behavior...');
+        const actual = calculateDiscount(100, true, 'SAVE20');
+        const passed = actual === expected.complexParameters.calculateDiscount;
+        console.log('[MockTestingStory] Complex: calculateDiscount comparison:', {
+          expected: expected.complexParameters.calculateDiscount,
+          actual,
+          passed,
+        });
+        syncResults.push({
+          name: 'Complex Parameters: calculateDiscount (conditional)',
+          passed,
+          expected: expected.complexParameters.calculateDiscount,
           actual,
         });
       }
