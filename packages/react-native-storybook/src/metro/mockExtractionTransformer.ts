@@ -6,51 +6,8 @@
 
 import * as path from 'path';
 import type { StoryMockMap } from './types';
-
-// Babel types - will be required at runtime
-let babelParser: any;
-let babelTraverse: any;
-let babelTypes: any;
-
-// Lazy load Babel to avoid requiring it if not available
-function getBabelParser() {
-  if (!babelParser) {
-    try {
-      babelParser = require('@babel/parser');
-    } catch {
-      // Fallback to Metro's Babel if available
-      try {
-        const metroTransformer = require('metro-react-native-babel-transformer');
-        babelParser = metroTransformer?.parser || require('@babel/parser');
-      } catch {
-        // Babel parser not available, mock extraction will be skipped
-      }
-    }
-  }
-  return babelParser;
-}
-
-function getBabelTraverse() {
-  if (!babelTraverse) {
-    try {
-      babelTraverse = require('@babel/traverse').default;
-    } catch {
-      // Babel traverse not available, mock extraction will be skipped
-    }
-  }
-  return babelTraverse;
-}
-
-function getBabelTypes() {
-  if (!babelTypes) {
-    try {
-      babelTypes = require('@babel/types');
-    } catch {
-      // Babel types not available, mock extraction will be skipped
-    }
-  }
-  return babelTypes;
-}
+import { getBabelParser, getBabelTraverse, getBabelTypes } from './mockExtraction/babelLoader';
+import { getComponentNameFromPath, camelToKebab, isStoryFile } from './mockExtraction/storyIdNormalization';
 
 // Metro transformer types
 export interface TransformArgs {
@@ -69,53 +26,6 @@ export interface TransformResult {
   }>;
 }
 
-/**
- * Extracts component name from story file path
- * Storybook uses the full path hierarchy for story IDs
- * Example: "testing-components-testinfo" from "/project/src/testing-components/TestInfo/TestInfo.stories.tsx"
- */
-function getComponentNameFromPath(filePath: string, projectRoot: string): string {
-  // Get relative path from project root
-  const relativePath = path.relative(projectRoot, filePath);
-
-  // Remove the filename and extension
-  const dirPath = path.dirname(relativePath);
-  const fileName = path.basename(filePath);
-  const match = fileName.match(/(.*)\.stories\.(ts|tsx|js|jsx)$/);
-  const componentName = match ? match[1] : fileName;
-
-  // Storybook uses the directory path as the story ID prefix, not including the component name again
-  // Example: "src/testing-components/TestInfo/TestInfo.stories.tsx" -> "testing-components-testinfo"
-  // The directory path already contains the component directory, so we don't append it again
-  // Remove "src/" prefix and normalize to kebab-case
-  let fullPath = dirPath;
-  if (fullPath.startsWith('src/')) {
-    fullPath = fullPath.substring(4); // Remove "src/" prefix
-  }
-  if (fullPath.startsWith('src\\')) {
-    fullPath = fullPath.substring(4); // Remove "src\" prefix (Windows)
-  }
-
-  return fullPath.replace(/\//g, '-').replace(/\\/g, '-').toLowerCase();
-}
-
-/**
- * Converts camelCase to kebab-case
- * Example: "MockedDefault" -> "mocked-default"
- */
-function camelToKebab(str: string): string {
-  return str
-    .replace(/([a-z])([A-Z])/g, '$1-$2') // Insert hyphen between lowercase and uppercase
-    .toLowerCase();
-}
-
-/**
- * Checks if a file is a story file
- */
-function isStoryFile(filename: string, storyFiles: string[]): boolean {
-  const normalizedPath = path.resolve(filename);
-  return storyFiles.some((storyFile) => path.resolve(storyFile) === normalizedPath);
-}
 
 /**
  * Extracts mocks from a JavaScript object expression
