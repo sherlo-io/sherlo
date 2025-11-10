@@ -9,4 +9,3 @@ const TestHelper = {
 };
 
 export default TestHelper;
-

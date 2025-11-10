@@ -16,4 +16,3 @@ export const calculateTotal = (items: number[]): number => {
 
 export const APP_NAME = 'Original App';
 export const VERSION = '1.0.0';
-

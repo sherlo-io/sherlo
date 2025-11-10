@@ -58,4 +58,3 @@ export const ENABLED = true;
  * String constant
  */
 export const APP_TITLE = 'Original App Title';
-

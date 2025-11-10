@@ -51,7 +51,7 @@ function readStorybookConfig(projectRoot: string): { config: StorybookConfig; co
         const configDir = path.dirname(configPath);
         console.log(`[SHERLO:storyDiscovery] Found config at: ${configPath}`);
         console.log(`[SHERLO:storyDiscovery] Config directory: ${configDir}`);
-        
+
         // For .ts files, parse as text since we can't require them directly
         if (configPath.endsWith('.ts')) {
           const content = fs.readFileSync(configPath, 'utf-8');
@@ -85,7 +85,7 @@ function parseTypeScriptConfig(content: string): StorybookConfig | null {
   // Use non-greedy match but ensure we capture the full array content
   const storiesPattern = /stories:\s*\[([^\]]+)\]/s;
   const match = content.match(storiesPattern);
-  
+
   if (!match) {
     console.warn('[SHERLO:storyDiscovery] Could not find stories array in config file');
     return null;
@@ -99,7 +99,7 @@ function parseTypeScriptConfig(content: string): StorybookConfig | null {
   // Improved pattern to handle complex glob patterns with special characters
   const stringPattern = /['"]([^'"]*(?:\\.[^'"]*)*)['"]/g;
   let stringMatch;
-  
+
   while ((stringMatch = stringPattern.exec(storiesContent)) !== null) {
     // Unescape the string
     const unescaped = stringMatch[1]
@@ -186,7 +186,7 @@ function findStoryFilesFromSpecifiers(
   // Try to use Storybook's normalizeStories if available
   let normalizeStories: any = null;
   let toRequireContext: any = null;
-  
+
   try {
     // Storybook bundles these utilities in withStorybook
     // We can't easily access them, so we'll use a simpler approach
@@ -203,12 +203,12 @@ function findStoryFilesFromSpecifiers(
   // Fallback: Use Storybook's normalizeStories logic manually
   // Parse the stories config similar to how Storybook does it
   const results: string[] = [];
-  
+
   if (Array.isArray(stories)) {
     for (const storyEntry of stories) {
       let directory: string;
       let filesPattern: string;
-      
+
       if (typeof storyEntry === 'string') {
         // Pattern like '../src/**/*.stories.?(ts|tsx|js|jsx)'
         // Extract directory and files pattern
@@ -229,7 +229,7 @@ function findStoryFilesFromSpecifiers(
       }
 
       console.log(`[SHERLO:storyDiscovery] Processing specifier: directory=${directory}, files=${filesPattern}`);
-      
+
       if (!fs.existsSync(directory)) {
         console.warn(`[SHERLO:storyDiscovery] Directory does not exist: ${directory}`);
         continue;
@@ -237,13 +237,13 @@ function findStoryFilesFromSpecifiers(
 
       // Convert files pattern to regex (simplified - matches .stories.ts, .stories.tsx, etc.)
       const fileRegex = /\.stories\.(ts|tsx|js|jsx)$/;
-      
+
       // Recursively find matching files
       function findFiles(dir: string): void {
         const entries = fs.readdirSync(dir, { withFileTypes: true });
         for (const entry of entries) {
           const fullPath = path.join(dir, entry.name);
-          
+
           if (entry.isDirectory()) {
             if (entry.name === 'node_modules' || entry.name.startsWith('.')) {
               continue;
@@ -272,22 +272,22 @@ function extractStoryFilesFromRequires(requiresPath: string, projectRoot: string
   try {
     const content = fs.readFileSync(requiresPath, 'utf-8');
     console.log(`[SHERLO:storyDiscovery] Reading storybook.requires.ts (${content.length} chars)`);
-    
+
     // Extract require.context calls: require.context('../src', true, /pattern/)
     // Match: require.context('path', true/false, /regex/)
     const requireContextPattern = /require\.context\(\s*['"]([^'"]+)['"]\s*,\s*(true|false)\s*,\s*\/[^\/]+\//g;
     const storyFiles: string[] = [];
     let match;
-    
+
     while ((match = requireContextPattern.exec(content)) !== null) {
       const contextPath = match[1]; // e.g., '../src'
       const recursive = match[2] === 'true';
       const configDir = path.dirname(requiresPath);
       const resolvedDir = path.resolve(configDir, contextPath);
-      
+
       console.log(`[SHERLO:storyDiscovery] Found require.context: ${contextPath} -> ${resolvedDir} (recursive: ${recursive})`);
       console.log(`[SHERLO:storyDiscovery] Resolved directory exists: ${fs.existsSync(resolvedDir)}`);
-      
+
       if (fs.existsSync(resolvedDir)) {
         // Find all .stories files in this directory recursively
         function findStories(dir: string, depth: number = 0): void {
@@ -295,11 +295,11 @@ function extractStoryFilesFromRequires(requiresPath: string, projectRoot: string
             console.warn(`[SHERLO:storyDiscovery] Max depth reached at ${dir}`);
             return;
           }
-          
+
           const entries = fs.readdirSync(dir, { withFileTypes: true });
           for (const entry of entries) {
             const fullPath = path.join(dir, entry.name);
-            
+
             if (entry.isDirectory()) {
               if (recursive && entry.name !== 'node_modules' && !entry.name.startsWith('.')) {
                 findStories(fullPath, depth + 1);
@@ -310,13 +310,13 @@ function extractStoryFilesFromRequires(requiresPath: string, projectRoot: string
             }
           }
         }
-        
+
         findStories(resolvedDir);
       } else {
         console.warn(`[SHERLO:storyDiscovery] Resolved directory does not exist: ${resolvedDir}`);
       }
     }
-    
+
     console.log(`[SHERLO:storyDiscovery] Extracted ${storyFiles.length} story file(s) from requires`);
     return storyFiles;
   } catch (error: any) {
@@ -333,7 +333,7 @@ function extractStoryFilesFromRequires(requiresPath: string, projectRoot: string
  */
 export function discoverStoryFiles(projectRoot: string): string[] {
   console.log(`[SHERLO:storyDiscovery] Starting discovery, project root: ${projectRoot}`);
-  
+
   const configResult = readStorybookConfig(projectRoot);
 
   if (!configResult || !configResult.config.stories) {
@@ -375,4 +375,3 @@ export function discoverStoryFiles(projectRoot: string): string[] {
 
   return uniqueFiles;
 }
-

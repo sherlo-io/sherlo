@@ -71,7 +71,7 @@ export default function useStorybookEventListener(): void {
         name: p.name ?? prev.name,
         importPath: p.parameters?.fileName ?? prev.importPath, // file path
       });
-      
+
       // Store story ID when story is prepared (handles initial load case)
       if (p.id) {
         storeStoryId(p.id);

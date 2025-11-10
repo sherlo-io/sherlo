@@ -59,4 +59,3 @@ export function calculateDiscount(
   if (couponCode === 'SAVE20') discount += 0.2; // 20% coupon
   return price * (1 - discount);
 }
-

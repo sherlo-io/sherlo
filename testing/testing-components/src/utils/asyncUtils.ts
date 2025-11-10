@@ -18,4 +18,3 @@ export const fetchSettings = async (): Promise<{ theme: string; language: string
     }, 100);
   });
 };
-

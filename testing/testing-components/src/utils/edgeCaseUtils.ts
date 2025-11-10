@@ -94,4 +94,3 @@ export const OBJECT_WITH_GETTER = {
     return this._value;
   },
 };
-

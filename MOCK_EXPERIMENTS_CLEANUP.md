@@ -35,7 +35,7 @@ All removed code was for the **bundle reload approach** that was abandoned. Curr
 ### 1. **`packages/react-native-storybook/src/metro/mockExtraction.ts`** ❌ REMOVE
 - **Reason**: This was the old approach using `require()` to load story files at config time. Replaced by `mockExtractionTransformer.ts` which uses Metro's transformer API.
 - **Status**: Only used for `StoryMockMap` type definition (line 9: `export type StoryMockMap = Map<string, Map<string, any>>;`)
-- **Action**: 
+- **Action**:
   1. Create `packages/react-native-storybook/src/metro/types.ts` with:
      ```typescript
      export type StoryMockMap = Map<string, Map<string, any>>;

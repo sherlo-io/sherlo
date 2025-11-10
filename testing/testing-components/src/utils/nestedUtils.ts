@@ -20,4 +20,3 @@ export const processDataWithMultiplier = (value: number, multiplier: number): nu
   const processor = new DataProcessor(multiplier);
   return processor.process(value);
 };
-

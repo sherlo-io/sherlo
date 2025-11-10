@@ -77,13 +77,13 @@ export interface TransformResult {
 function getComponentNameFromPath(filePath: string, projectRoot: string): string {
   // Get relative path from project root
   const relativePath = path.relative(projectRoot, filePath);
-  
+
   // Remove the filename and extension
   const dirPath = path.dirname(relativePath);
   const fileName = path.basename(filePath);
   const match = fileName.match(/(.*)\.stories\.(ts|tsx|js|jsx)$/);
   const componentName = match ? match[1] : fileName;
-  
+
   // Storybook uses the directory path as the story ID prefix, not including the component name again
   // Example: "src/testing-components/TestInfo/TestInfo.stories.tsx" -> "testing-components-testinfo"
   // The directory path already contains the component directory, so we don't append it again
@@ -95,7 +95,7 @@ function getComponentNameFromPath(filePath: string, projectRoot: string): string
   if (fullPath.startsWith('src\\')) {
     fullPath = fullPath.substring(4); // Remove "src\" prefix (Windows)
   }
-  
+
   return fullPath.replace(/\//g, '-').replace(/\\/g, '-').toLowerCase();
 }
 
@@ -360,7 +360,7 @@ function extractMockValue(value: any): any {
           : t.isStringLiteral(prop.key)
           ? prop.key.value
           : null;
-        
+
         if (key && generate) {
           try {
             // Generate the entire object with the getter preserved
@@ -374,25 +374,25 @@ function extractMockValue(value: any): any {
         }
         continue;
       }
-      
+
       if (t.isObjectProperty(prop)) {
         const key = t.isIdentifier(prop.key)
           ? prop.key.name
           : t.isStringLiteral(prop.key)
           ? prop.key.value
           : null;
-        
+
         if (key) {
           // Check node type directly first (more reliable than type checker functions)
           const nodeType = prop.value && (prop.value as any).type;
           const isArrowFunctionNode = nodeType === 'ArrowFunctionExpression';
           const isFunctionExpressionNode = nodeType === 'FunctionExpression';
-          
+
           // Also check using type checker functions (for compatibility)
           const isArrowFunction = t.isArrowFunctionExpression(prop.value);
           const isFunctionExpression = t.isFunctionExpression(prop.value);
           const isAsyncFunction = prop.value && (prop.value as any).async === true;
-          
+
           // Use node type check OR type checker - either should work
           if (isArrowFunctionNode || isFunctionExpressionNode || isArrowFunction || isFunctionExpression) {
             if (generate) {
@@ -470,12 +470,12 @@ function extractMockValue(value: any): any {
                   // Check if this is Metro's _asyncToGenerator transformation
                   const callExpr = prop.value as any;
                   const calleeName = callExpr.callee && (callExpr.callee.name || (callExpr.callee.type === 'MemberExpression' && callExpr.callee.property && callExpr.callee.property.name));
-                  
+
                   // Debug logging only for known async function patterns
                   if ((key.includes('fetch') || key.includes('async') || key.includes('getUser')) && calleeName) {
                     // console.log(`[SHERLO:extraction] CallExpression for ${key}, callee name: ${calleeName}, callee type: ${callExpr.callee?.type}`);
                   }
-                  
+
                   if (callExpr.callee && calleeName === '_asyncToGenerator' && callExpr.arguments && callExpr.arguments.length > 0) {
                     // Extract the generator function from the first argument
                     const generatorFn = callExpr.arguments[0];
@@ -518,7 +518,7 @@ function extractMockValue(value: any): any {
                     // To: (function() { var _ref = _asyncToGenerator(function*() {...}); return function(_x) { return _ref.apply(this, arguments); }; })()
                     // Check if this is an IIFE pattern
                     const code = generate(prop.value).code;
-                    
+
                     // Check if the generated code contains _asyncToGenerator (Metro's transformation)
                     if (code.includes('_asyncToGenerator') && code.includes('function*')) {
                       // Helper function to extract generator function body with proper brace matching
@@ -526,10 +526,10 @@ function extractMockValue(value: any): any {
                         // Find function* declaration
                         const funcMatch = codeStr.match(/function\*\s*\(([^)]*)\)\s*\{/);
                         if (!funcMatch) return null;
-                        
+
                         const params = funcMatch[1].trim();
                         const startIndex = funcMatch.index! + funcMatch[0].length;
-                        
+
                         // Match braces properly to find the closing brace
                         let braceCount = 1;
                         let i = startIndex;
@@ -538,14 +538,14 @@ function extractMockValue(value: any): any {
                           else if (codeStr[i] === '}') braceCount--;
                           i++;
                         }
-                        
+
                         if (braceCount !== 0) return null; // Unmatched braces
-                        
+
                         // Extract body (excluding the closing brace)
                         const body = codeStr.substring(startIndex, i - 1);
                         return { params, body };
                       };
-                      
+
                       const extracted = extractGeneratorBody(code);
                       if (extracted) {
                         let body = extracted.body;
@@ -751,10 +751,10 @@ export function extractMocksFromTransformedCode(
                 // Convert camelCase to kebab-case to match Storybook's format
                 const normalizedExportName = camelToKebab(exportName);
                 const storyId = `${componentName}--${normalizedExportName}`;
-                
+
                 // Also store with original format for backwards compatibility
                 const originalStoryId = `${componentName}--${exportName}`;
-                
+
                 const packageMocks = new Map<string, any>();
 
                 for (const [pkgName, pkgMock] of Object.entries(storyMocks)) {
@@ -775,7 +775,7 @@ export function extractMocksFromTransformedCode(
                 mocks.set(storyId, packageMocks);
                 // Also store with original format
                 mocks.set(originalStoryId, packageMocks);
-                
+
                 // console.log(
                 //   `[SHERLO:transformer] Extracted mocks for ${storyId} (original: ${originalStoryId}):`,
                 //   Array.from(packageMocks.keys())
@@ -848,4 +848,3 @@ export function createMockExtractionTransformer(
     return result;
   };
 }
-

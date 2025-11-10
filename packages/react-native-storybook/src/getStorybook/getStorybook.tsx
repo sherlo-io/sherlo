@@ -1,4 +1,4 @@
-import { ReactElement, useEffect } from 'react';
+import { ReactElement } from 'react';
 import SherloModule from '../SherloModule';
 import { StorybookParams, StorybookView } from '../types';
 import { TestingMode } from './components';
@@ -11,11 +11,6 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
   return () => {
     useHideSplashScreen();
     useStorybookEventListener();
-
-    // Log that Storybook is initialized
-    useEffect(() => {
-      console.log('[SHERLO:getStorybook] Storybook initialized - mock transformation will happen during Metro bundling');
-    }, []);
 
     const mode = SherloModule.getMode();
 

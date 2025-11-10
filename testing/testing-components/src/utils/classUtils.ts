@@ -31,4 +31,3 @@ export class Calculator {
     return a - b;
   }
 }
-

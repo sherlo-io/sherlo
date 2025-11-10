@@ -13,13 +13,13 @@ export function serializeMockValue(value: any): any {
     const code = (value as any).__code || '() => {}';
     return code;
   }
-  
+
   // Handle class objects with __isClass marker from AST extraction
   if (value && typeof value === 'object' && (value as any).__isClass) {
     const code = (value as any).__code || 'class {}';
     return code;
   }
-  
+
   // Handle special values: preserve markers for NaN, Infinity, -Infinity, Date, RegExp, Getters
   if (value && typeof value === 'object') {
     if ((value as any).__isNaN) {
@@ -41,12 +41,12 @@ export function serializeMockValue(value: any): any {
       return { __isGetter: true, __code: (value as any).__code || "get value() { return undefined; }" };
     }
   }
-  
+
   // Handle plain functions
   if (typeof value === 'function') {
     return value.toString();
   }
-  
+
   // Handle objects - recursively serialize nested properties
   if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
     const serialized: Record<string, any> = {};
@@ -55,7 +55,7 @@ export function serializeMockValue(value: any): any {
     }
     return serialized;
   }
-  
+
   // For primitives and arrays, return as-is (will be JSON.stringify'd later if needed)
   return value;
 }
@@ -73,7 +73,7 @@ const deserializeFunctions = (value) => {
       try {
         // Use Function constructor for async functions (eval doesn't support async in React Native)
         const code = value.__code;
-        return code.trim().startsWith('async') 
+        return code.trim().startsWith('async')
           ? new Function('return (' + code + ')')()
           : eval('(' + code + ')');
       } catch (e) {
@@ -182,33 +182,32 @@ export function generateFunctionsObjectCode(
   }
 
   const lines: string[] = ['const storyMocks_functions = {'];
-  
+
   for (let i = 0; i < storyIds.length; i++) {
     const storyId = storyIds[i];
     const functions = storyMocksFunctions[storyId];
     const functionNames = Object.keys(functions);
-    
+
     if (functionNames.length === 0) {
       lines.push(`  "${storyId}": {},`);
       continue;
     }
-    
+
     lines.push(`  "${storyId}": {`);
-    
+
     for (let j = 0; j < functionNames.length; j++) {
       const exportName = functionNames[j];
       const functionCode = functions[exportName];
       const isLast = j === functionNames.length - 1;
-      
+
       // Embed function code directly (not as a string)
       // The functionCode is already valid JavaScript code from @babel/generator
       lines.push(`    ${exportName}: ${functionCode}${isLast ? '' : ','}`);
     }
-    
+
     lines.push(`  }${i === storyIds.length - 1 ? '' : ','}`);
   }
-  
+
   lines.push('};');
   return lines.join('\n');
 }
-
