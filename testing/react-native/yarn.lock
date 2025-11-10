@@ -4411,7 +4411,7 @@ __metadata:
     base-64: "npm:1.0.0"
     deepmerge: "npm:4.3.1"
     its-fine: "npm:2.0.0"
-    sherlo: "npm:^1.5.1"
+    sherlo: "npm:^1.5.2-alpha.1"
     utf8: "npm:3.0.0"
   peerDependencies:
     "@storybook/react-native": ">=7.6.11"
@@ -4476,6 +4476,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@sherlo/testing-components@portal:../testing-components::locator=%40sherlo%2Freact-native%40workspace%3A."
   peerDependencies:
+    expo-localization: "*"
     react: "*"
     react-native: "*"
     react-native-svg: "*"
