@@ -9,8 +9,8 @@
  * @example
  * ```typescript
  * {
- *   "testing-components-testinfo--basic": Map {
- *     "expo-localization" => { getLocales: () => [...], getCalendars: () => [...] }
+ *   "components-button--primary": Map {
+ *     "some-package" => { getValue: () => "mocked", processData: () => {...} }
  *   }
  * }
  * ```

@@ -80,11 +80,11 @@ export function generateMockFile(
 
   if (hasNestedExports) {
     // Flatten the structure: use the nested object's keys as export names
+    // Example: mock is { '../utils/utils': { Processor: ..., Calculator: ... } }
+    // We want { Processor: ..., Calculator: ... }
     exportNames = Object.keys(firstMockValue);
     actualMocksByStory = {};
     for (const [storyId, mock] of Object.entries(packageMocksByStory)) {
-      // mock is { '../utils/classUtils': { DataProcessor: ..., Calculator: ... } }
-      // We want { DataProcessor: ..., Calculator: ... }
       const nestedMock = Object.values(mock)[0];
       actualMocksByStory[storyId] = nestedMock;
     }
@@ -130,8 +130,6 @@ export function generateMockFile(
       }
     }
   }
-
-  // Debug: Log if MockTestingStory variants are missing
 
   // For backward compatibility during transition, also create the old format
   const storyMocksSerialized: Record<string, Record<string, any>> = {};

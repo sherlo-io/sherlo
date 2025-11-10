@@ -8,7 +8,7 @@ import * as path from 'path';
 /**
  * Extracts component name from story file path
  * Storybook uses the full path hierarchy for story IDs
- * Example: "testing-components-testinfo" from "/project/src/testing-components/TestInfo/TestInfo.stories.tsx"
+ * Example: "components-button" from "/project/src/components/Button/Button.stories.tsx"
  *
  * @param filePath - The absolute path to the story file
  * @param projectRoot - The project root directory
@@ -25,7 +25,7 @@ export function getComponentNameFromPath(filePath: string, projectRoot: string):
   const componentName = match ? match[1] : fileName;
 
   // Storybook uses the directory path as the story ID prefix, not including the component name again
-  // Example: "src/testing-components/TestInfo/TestInfo.stories.tsx" -> "testing-components-testinfo"
+  // Example: "src/components/Button/Button.stories.tsx" -> "components-button"
   // The directory path already contains the component directory, so we don't append it again
   // Remove "src/" prefix and normalize to kebab-case
   let fullPath = dirPath;

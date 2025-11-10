@@ -280,8 +280,8 @@ export function extractMocksFromTransformedCode(
 
               if (storyMocks && Object.keys(storyMocks).length > 0) {
                 // componentName already includes the full path hierarchy in kebab-case
-                // Example: "testing-components-testinfo" (already normalized)
-                // Storybook uses: "testing-components-testinfo--basic"
+                // Example: "components-button" (already normalized)
+                // Storybook uses: "components-button--primary"
                 // Convert camelCase to kebab-case to match Storybook's format
                 const normalizedExportName = camelToKebab(exportName);
                 const storyId = `${componentName}--${normalizedExportName}`;

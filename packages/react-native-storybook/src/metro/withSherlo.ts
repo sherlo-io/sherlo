@@ -17,15 +17,19 @@ import { SHERLO_DIR_NAME, STORY_FILES_CACHE_FILE } from './constants';
  * @returns The modified Metro configuration.
  *
  * @example
+ * ```javascript
+ * // For Expo projects
  * const { getDefaultConfig } = require('expo/metro-config');
  * const withSherlo = require('@sherlo/react-native-storybook/metro/withSherlo');
+ * const config = getDefaultConfig(__dirname);
+ * module.exports = withSherlo(config);
  *
- * const projectRoot = __dirname;
- * const config = getDefaultConfig(projectRoot);
- *
- * module.exports = withSherlo(config, {
- *   debug: true,
- * });
+ * // For standard React Native projects
+ * const { getDefaultConfig } = require('metro-config');
+ * const withSherlo = require('@sherlo/react-native-storybook/metro/withSherlo');
+ * const config = getDefaultConfig(__dirname);
+ * module.exports = withSherlo(config);
+ * ```
  */
 function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = {}): MetroConfig {
   const DEBUG = !!debug;
@@ -69,7 +73,7 @@ function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = 
       mutableConfig.transformer = {};
     }
 
-    // Get the existing babelTransformerPath (Expo/Metro sets this)
+    // Get the existing babelTransformerPath (set by Metro config or Expo)
     const existingTransformerPath = mutableConfig.transformer.babelTransformerPath;
 
     // Store transformer path in global so our custom transformer can use it

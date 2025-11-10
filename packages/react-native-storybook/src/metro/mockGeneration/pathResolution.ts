@@ -6,13 +6,17 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import { MOCK_DIR_NAME } from '../constants';
+import { discoverSourceDirectories } from './sourceDirectoryDiscovery';
 
 /**
  * Common source directories to check when resolving relative paths
+ * These are standard locations where source files are typically located
  */
 const COMMON_SOURCE_DIRS = [
   'src',
-  'testing/testing-components/src',
+  'lib',
+  'app',
+  'components',
   '',
 ];
 
@@ -22,56 +26,64 @@ const COMMON_SOURCE_DIRS = [
 const FILE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', ''];
 
 /**
- * Resolves a relative path to an absolute path by checking common source locations
- * This is used for :real requires in mock files
- *
- * @param relativePath - The relative path to resolve (e.g., "../utils/testHelper")
- * @param projectRoot - The project root directory
- * @returns The resolved absolute path, or the original path if resolution fails
- */
-export function resolveRelativePathForReal(relativePath: string, projectRoot: string): string {
-  // If it's already absolute or a package name, return as-is
-  if (!relativePath.startsWith('.') && !relativePath.startsWith('/')) {
-    return relativePath;
-  }
-
-  // Try to resolve relative to common source directories
-  for (const sourceDir of COMMON_SOURCE_DIRS) {
-    const fullSourceDir = sourceDir ? path.join(projectRoot, sourceDir) : projectRoot;
-    const resolvedPath = path.resolve(fullSourceDir, relativePath);
-    
-    // Try with different extensions
-    for (const ext of FILE_EXTENSIONS) {
-      const fullPath = ext ? `${resolvedPath}${ext}` : resolvedPath;
-      if (fs.existsSync(fullPath)) {
-        return fullPath;
-      }
-    }
-  }
-
-  // If we can't resolve it, return the original (Metro might be able to resolve it)
-  return relativePath;
-}
-
-/**
  * Possible base directories for resolving relative paths in monorepo setups
  * Checks various locations where source files might be located
+ * This handles common monorepo structures without hardcoding specific package names
+ *
+ * @param projectRoot - The project root directory
+ * @returns Array of possible base directories to search
  */
 export function getPossibleBaseDirs(projectRoot: string): string[] {
-  return [
-    // Check relative to projectRoot first (for files in the same project)
+  const dirs = new Set<string>();
+  
+  // Add discovered source directories first (most accurate)
+  const discoveredDirs = discoverSourceDirectories(projectRoot);
+  for (const dir of discoveredDirs) {
+    dirs.add(dir);
+    // Also add common subdirectories
+    dirs.add(path.join(dir, 'components'));
+    dirs.add(path.join(dir, 'utils'));
+    dirs.add(path.join(dir, 'helpers'));
+  }
+  
+  // Add standard locations relative to projectRoot
+  const standardDirs = [
     path.join(projectRoot, 'src', 'components'),
     path.join(projectRoot, 'src'),
+    path.join(projectRoot, 'lib'),
+    path.join(projectRoot, 'app'),
     projectRoot,
-    // Check sibling directories (for monorepo setups where testing-components is separate)
-    path.join(projectRoot, '..', 'testing-components', 'src', 'components'),
-    path.join(projectRoot, '..', 'testing-components', 'src'),
+  ];
+  for (const dir of standardDirs) {
+    dirs.add(dir);
+  }
+  
+  // Add sibling directories (for monorepo setups)
+  const siblingDirs = [
     path.join(projectRoot, '..', 'src', 'components'),
     path.join(projectRoot, '..', 'src'),
-    // Check parent directories (for deeply nested structures)
-    path.join(projectRoot, '..', '..', 'testing-components', 'src', 'components'),
-    path.join(projectRoot, '..', '..', 'testing-components', 'src'),
+    path.join(projectRoot, '..', 'lib'),
+    path.join(projectRoot, '..', 'app'),
   ];
+  for (const dir of siblingDirs) {
+    if (fs.existsSync(dir)) {
+      dirs.add(dir);
+    }
+  }
+  
+  // Add parent directories (for deeply nested structures)
+  const parentDirs = [
+    path.join(projectRoot, '..', '..', 'src', 'components'),
+    path.join(projectRoot, '..', '..', 'src'),
+    path.join(projectRoot, '..', '..', 'lib'),
+  ];
+  for (const dir of parentDirs) {
+    if (fs.existsSync(dir)) {
+      dirs.add(dir);
+    }
+  }
+  
+  return Array.from(dirs);
 }
 
 /**
@@ -99,29 +111,44 @@ export function resolvePathForMockFile(
     const possibleBaseDirs = getPossibleBaseDirs(projectRoot);
 
     for (const baseDir of possibleBaseDirs) {
-      const resolvedPath = path.resolve(baseDir, packageName);
+      if (!fs.existsSync(baseDir)) {
+        continue;
+      }
       
-      for (const ext of FILE_EXTENSIONS) {
-        const fullPath = ext ? `${resolvedPath}${ext}` : resolvedPath;
-        if (fs.existsSync(fullPath)) {
-          realModuleAbsolutePath = fullPath;
-          
-          // Calculate relative path from mock file location to real module
-          const mockFileDir = path.join(projectRoot, 'node_modules', MOCK_DIR_NAME);
-          const relativeFromMockFile = path.relative(mockFileDir, fullPath);
-          
-          // Remove extension for require()
-          requirePathForMockFile = relativeFromMockFile.replace(/\.(ts|tsx|js|jsx)$/, '');
-          // Normalize path separators for require()
-          requirePathForMockFile = requirePathForMockFile.replace(/\\/g, '/');
-          // Ensure it starts with ./ or ../ for relative requires
-          if (!requirePathForMockFile.startsWith('.')) {
-            requirePathForMockFile = './' + requirePathForMockFile;
+      // Try multiple interpretations of the relative path
+      const interpretations = [
+        // 1. Direct resolution from baseDir
+        path.resolve(baseDir, packageName),
+        // 2. If it starts with ../, try from parent of baseDir
+        ...(packageName.startsWith('../') ? [path.resolve(path.dirname(baseDir), packageName)] : []),
+        // 3. Remove ../ prefix and try from baseDir
+        ...(packageName.startsWith('../') ? [path.resolve(baseDir, packageName.replace(/^\.\.\//, ''))] : []),
+      ];
+      
+      for (const resolvedPath of interpretations) {
+        for (const ext of FILE_EXTENSIONS) {
+          const fullPath = ext ? `${resolvedPath}${ext}` : resolvedPath;
+          if (fs.existsSync(fullPath)) {
+            realModuleAbsolutePath = fullPath;
+            
+            // Calculate relative path from mock file location to real module
+            const mockFileDir = path.join(projectRoot, 'node_modules', MOCK_DIR_NAME);
+            const relativeFromMockFile = path.relative(mockFileDir, fullPath);
+            
+            // Remove extension for require()
+            requirePathForMockFile = relativeFromMockFile.replace(/\.(ts|tsx|js|jsx)$/, '');
+            // Normalize path separators for require()
+            requirePathForMockFile = requirePathForMockFile.replace(/\\/g, '/');
+            // Ensure it starts with ./ or ../ for relative requires
+            if (!requirePathForMockFile.startsWith('.')) {
+              requirePathForMockFile = './' + requirePathForMockFile;
+            }
+            
+            realModulePath = path.relative(projectRoot, fullPath).replace(/\.(ts|tsx|js|jsx)$/, '');
+            break;
           }
-          
-          realModulePath = path.relative(projectRoot, fullPath).replace(/\.(ts|tsx|js|jsx)$/, '');
-          break;
         }
+        if (realModulePath) break;
       }
       if (realModulePath) break;
     }
