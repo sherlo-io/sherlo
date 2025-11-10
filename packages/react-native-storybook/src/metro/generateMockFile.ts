@@ -242,7 +242,7 @@ export function generateMockFile(
     storyMocksSerialized[storyId] = {};
     console.log(`[SHERLO:serialize] Serializing mocks for story ${storyId}, export names:`, Object.keys(mock));
     for (const [exportName, exportValue] of Object.entries(mock)) {
-      console.log(`[SHERLO:serialize] Serializing ${exportName}, type:`, typeof exportValue, 'isObject:', typeof exportValue === 'object', 'has __isClass:', exportValue && typeof exportValue === 'object' && (exportValue as any).__isClass);
+      console.log(`[SHERLO:serialize] Serializing ${exportName}, type:`, typeof exportValue, 'isObject:', typeof exportValue === 'object', 'has __isClass:', exportValue && typeof exportValue === 'object' && (exportValue as any).__isClass, 'has __isFunction:', exportValue && typeof exportValue === 'object' && (exportValue as any).__isFunction, 'value:', exportValue === null ? 'null' : exportValue === undefined ? 'undefined' : typeof exportValue === 'object' ? JSON.stringify(Object.keys(exportValue)) : String(exportValue).substring(0, 50));
       const serialized = serializeMockValue(exportValue);
       // If it's a string (function/class code), use it directly
       // If it's an object, stringify it
@@ -263,26 +263,28 @@ export function generateMockFile(
   
   // Helper function to generate mock property (for named exports only)
   const generateMockProperty = (exportName: string) => {
-    // Check the original object (before serialization) to detect class markers
+    // Check the original object (before serialization) to detect class and function markers
     const firstStoryMock = actualMocksByStory[storyIds[0]];
     const firstExportValue = firstStoryMock?.[exportName];
     const isClassFromObject = firstExportValue && typeof firstExportValue === 'object' && (firstExportValue as any).__isClass;
+    const isFunctionFromObject = firstExportValue && typeof firstExportValue === 'object' && (firstExportValue as any).__isFunction;
     
     // For named exports, check if it's a function, class, or value (after serialization)
     const firstMock = storyMocksSerialized[storyIds[0]][exportName];
-    const isClassFromString = firstMock && (
+    const isClassFromString = firstMock && typeof firstMock === 'string' && (
       firstMock.trim().startsWith('class ') ||
       firstMock.trim().startsWith('class{') ||
       firstMock.trim().startsWith('export class')
     );
     const isClass = isClassFromObject || isClassFromString;
     
-    const isFunction = !isClass && firstMock && (
+    const isFunctionFromString = firstMock && typeof firstMock === 'string' && (
       firstMock.startsWith('(') || 
       firstMock.startsWith('function') || 
       firstMock.startsWith('async') ||
       (firstMock.includes('=>') && !firstMock.startsWith('class'))
     );
+    const isFunction = !isClass && (isFunctionFromObject || isFunctionFromString);
     
     if (isClass) {
       // For classes, eval and return directly (not wrapped in a function)

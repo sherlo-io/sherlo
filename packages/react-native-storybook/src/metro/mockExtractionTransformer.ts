@@ -179,7 +179,11 @@ function extractMocksFromObjectExpression(obj: any): Record<string, any> | null 
         // Try to extract the mock value
         // For now, we'll store a placeholder that indicates this package should be mocked
         // The actual mock implementation will be extracted at runtime
-        mocks[key] = extractMockValue(prop.value);
+        const nodeType = prop.value && (prop.value as any).type;
+        console.log(`[SHERLO:extraction] Extracting mock for key "${key}", nodeType: ${nodeType}`);
+        const extracted = extractMockValue(prop.value);
+        console.log(`[SHERLO:extraction] Result for "${key}":`, extracted === null ? 'null' : typeof extracted === 'object' ? `{ __isFunction: ${(extracted as any).__isFunction}, __isClass: ${(extracted as any).__isClass}, __code length: ${(extracted as any).__code?.length || 0} }` : String(extracted));
+        mocks[key] = extracted;
       }
     }
   }
@@ -206,11 +210,15 @@ function extractMockValue(value: any): any {
   }
 
   // Debug: log node type for troubleshooting
-  if (value && value.type) {
-    const nodeType = value.type;
-    if (nodeType.includes('Class') || nodeType === 'ClassExpression' || nodeType === 'ClassDeclaration') {
-      console.log(`[SHERLO:extraction] Detected class node type: ${nodeType}`);
+  const nodeType = value && value.type;
+  if (nodeType) {
+    // Log all node types, especially for functions and classes
+    if (nodeType.includes('Function') || nodeType.includes('Class') || nodeType === 'ArrowFunctionExpression') {
+      console.log(`[SHERLO:extraction] extractMockValue called with nodeType: ${nodeType}, async: ${(value as any).async}, isArrowFunction: ${t.isArrowFunctionExpression(value)}, isFunctionExpression: ${t.isFunctionExpression(value)}`);
     }
+  } else if (!value) {
+    console.log(`[SHERLO:extraction] extractMockValue called with null/undefined value`);
+    return null;
   }
 
   // For arrow functions and function expressions, convert to code string
@@ -252,12 +260,23 @@ function extractMockValue(value: any): any {
           : null;
         
         if (key) {
-          if (t.isArrowFunctionExpression(prop.value) || t.isFunctionExpression(prop.value)) {
+          // Check node type directly first (more reliable than type checker functions)
+          const nodeType = prop.value && (prop.value as any).type;
+          const isArrowFunctionNode = nodeType === 'ArrowFunctionExpression';
+          const isFunctionExpressionNode = nodeType === 'FunctionExpression';
+          
+          // Also check using type checker functions (for compatibility)
+          const isArrowFunction = t.isArrowFunctionExpression(prop.value);
+          const isFunctionExpression = t.isFunctionExpression(prop.value);
+          const isAsyncFunction = prop.value && (prop.value as any).async === true;
+          
+          // Use node type check OR type checker - either should work
+          if (isArrowFunctionNode || isFunctionExpressionNode || isArrowFunction || isFunctionExpression) {
             if (generate) {
               try {
                 const code = generate(prop.value).code;
-                const isAsync = prop.value.async || code.trim().startsWith('async');
-                console.log(`[SHERLO:extraction] Extracted ${isAsync ? 'async ' : ''}function ${key}, code length: ${code.length}, code preview: ${code.substring(0, 50)}`);
+                const isAsync = isAsyncFunction || code.trim().startsWith('async');
+                console.log(`[SHERLO:extraction] Extracted ${isAsync ? 'async ' : ''}function ${key} (nodeType: ${nodeType}, arrowNode: ${isArrowFunctionNode}, funcNode: ${isFunctionExpressionNode}, arrow: ${isArrowFunction}, funcExpr: ${isFunctionExpression}, async: ${isAsync}), code length: ${code.length}, code preview: ${code.substring(0, 50)}`);
                 obj[key] = { __isFunction: true, __code: code };
               } catch (e: any) {
                 console.warn(`[SHERLO:extraction] Failed to generate code for function ${key}:`, e.message);
@@ -283,11 +302,36 @@ function extractMockValue(value: any): any {
             }
           } else {
             // For other values, try to extract
-            const extracted = extractMockValue(prop.value);
-            if (extracted === null && prop.value) {
-              console.warn(`[SHERLO:extraction] extractMockValue returned null for ${key}, node type:`, prop.value.type, 'isClassExpression:', t.isClassExpression(prop.value), 'isClassDeclaration:', t.isClassDeclaration(prop.value));
+            // Check node type directly for async functions that might not be detected as arrow functions
+            const nodeType = prop.value && (prop.value as any).type;
+            if (nodeType === 'ArrowFunctionExpression' || nodeType === 'FunctionExpression') {
+              // This might be an async function that wasn't caught above, try extracting it
+              const extracted = extractMockValue(prop.value);
+              if (extracted === null && prop.value) {
+                console.warn(`[SHERLO:extraction] extractMockValue returned null for ${key} (nodeType: ${nodeType}), trying direct extraction`);
+                // Try direct extraction
+                if (generate) {
+                  try {
+                    const code = generate(prop.value).code;
+                    console.log(`[SHERLO:extraction] Direct extraction succeeded for ${key}, code length: ${code.length}`);
+                    obj[key] = { __isFunction: true, __code: code };
+                  } catch (e: any) {
+                    console.warn(`[SHERLO:extraction] Direct extraction failed for ${key}:`, e.message);
+                    obj[key] = null;
+                  }
+                } else {
+                  obj[key] = null;
+                }
+              } else {
+                obj[key] = extracted;
+              }
+            } else {
+              const extracted = extractMockValue(prop.value);
+              if (extracted === null && prop.value) {
+                console.warn(`[SHERLO:extraction] extractMockValue returned null for ${key}, node type:`, nodeType, 'isClassExpression:', t.isClassExpression(prop.value), 'isClassDeclaration:', t.isClassDeclaration(prop.value), 'isArrowFunction:', t.isArrowFunctionExpression(prop.value), 'isFunctionExpression:', t.isFunctionExpression(prop.value));
+              }
+              obj[key] = extracted;
             }
-            obj[key] = extracted;
           }
         }
       }
