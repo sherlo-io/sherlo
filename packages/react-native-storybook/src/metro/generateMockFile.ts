@@ -8,6 +8,39 @@ import * as fs from 'fs';
 import { StoryMockMap } from './mockExtraction';
 
 /**
+ * Resolves a relative path to an absolute path by checking common source locations
+ * This is used for :real requires in mock files
+ */
+function resolveRelativePathForReal(relativePath: string, projectRoot: string): string {
+  // If it's already absolute or a package name, return as-is
+  if (!relativePath.startsWith('.') && !relativePath.startsWith('/')) {
+    return relativePath;
+  }
+  
+  // Try to resolve relative to common source directories
+  const commonSourceDirs = [
+    path.join(projectRoot, 'src'),
+    path.join(projectRoot, 'testing', 'testing-components', 'src'),
+    projectRoot,
+  ];
+  
+  for (const sourceDir of commonSourceDirs) {
+    const resolvedPath = path.resolve(sourceDir, relativePath);
+    // Try with different extensions
+    const extensions = ['.ts', '.tsx', '.js', '.jsx', ''];
+    for (const ext of extensions) {
+      const fullPath = ext ? `${resolvedPath}${ext}` : resolvedPath;
+      if (fs.existsSync(fullPath)) {
+        return fullPath;
+      }
+    }
+  }
+  
+  // If we can't resolve it, return the original (Metro might be able to resolve it)
+  return relativePath;
+}
+
+/**
  * Generates a mock file for a package that checks getCurrentStory() at runtime
  */
 export function generateMockFile(
@@ -16,6 +49,82 @@ export function generateMockFile(
   projectRoot: string,
   fileName?: string
 ): string {
+  // Resolve the real module path upfront (for use in generated code)
+  // This ensures we have the correct path even for relative imports
+  let realModulePath: string | null = null;
+  let realModuleAbsolutePath: string | null = null;
+  let requirePathForMockFile: string | null = null;
+  
+  if (packageName.startsWith('.') || packageName.startsWith('/')) {
+    // For relative paths like "../utils/testHelper", we need to resolve them
+    // The path is relative to where it's imported from, so we check common locations
+    // Try resolving from various possible source directories
+    // Note: projectRoot might be the expo project root, but files might be in sibling directories
+    const possibleBaseDirs = [
+      // Check relative to projectRoot first (for files in the same project)
+      path.join(projectRoot, 'src', 'components'),
+      path.join(projectRoot, 'src'),
+      projectRoot,
+      // Check sibling directories (for monorepo setups where testing-components is separate)
+      path.join(projectRoot, '..', 'testing-components', 'src', 'components'),
+      path.join(projectRoot, '..', 'testing-components', 'src'),
+      path.join(projectRoot, '..', 'src', 'components'),
+      path.join(projectRoot, '..', 'src'),
+      // Check parent directories (for deeply nested structures)
+      path.join(projectRoot, '..', '..', 'testing-components', 'src', 'components'),
+      path.join(projectRoot, '..', '..', 'testing-components', 'src'),
+    ];
+    
+    console.log(`[SHERLO:mockGen] Resolving relative path: ${packageName}`);
+    console.log(`[SHERLO:mockGen] Project root: ${projectRoot}`);
+    
+    for (const baseDir of possibleBaseDirs) {
+      const resolvedPath = path.resolve(baseDir, packageName);
+      console.log(`[SHERLO:mockGen] Trying to resolve from ${baseDir}: ${resolvedPath}`);
+      const extensions = ['.ts', '.tsx', '.js', '.jsx', ''];
+      for (const ext of extensions) {
+        const fullPath = ext ? `${resolvedPath}${ext}` : resolvedPath;
+        if (fs.existsSync(fullPath)) {
+          console.log(`[SHERLO:mockGen] Found file at: ${fullPath}`);
+          realModuleAbsolutePath = fullPath;
+          // Calculate relative path from mock file location to real module
+          // Mock file is at: node_modules/.sherlo-mocks/..__utils__testHelper.js
+          // Real module is at: testing-components/src/utils/testHelper.ts
+          const mockFileDir = path.join(projectRoot, 'node_modules', '.sherlo-mocks');
+          const relativeFromMockFile = path.relative(mockFileDir, fullPath);
+          console.log(`[SHERLO:mockGen] Relative from mock file (${mockFileDir}) to real module (${fullPath}): ${relativeFromMockFile}`);
+          // Remove extension for require()
+          requirePathForMockFile = relativeFromMockFile.replace(/\.(ts|tsx|js|jsx)$/, '');
+          // Normalize path separators for require()
+          requirePathForMockFile = requirePathForMockFile.replace(/\\/g, '/');
+          // Ensure it starts with ./ or ../ for relative requires
+          if (!requirePathForMockFile.startsWith('.')) {
+            requirePathForMockFile = './' + requirePathForMockFile;
+          }
+          realModulePath = path.relative(projectRoot, fullPath).replace(/\.(ts|tsx|js|jsx)$/, '');
+          console.log(`[SHERLO:mockGen] Resolved relative path ${packageName} to ${realModulePath}`);
+          console.log(`[SHERLO:mockGen] Using require path from mock file: ${requirePathForMockFile}`);
+          break;
+        }
+      }
+      if (realModulePath) break;
+    }
+    
+    if (!realModulePath) {
+      console.warn(`[SHERLO:mockGen] Could not find file for relative path ${packageName} in any of the checked directories`);
+    }
+  } else {
+    // For package names, use :real suffix to bypass our mock redirect
+    realModulePath = packageName;
+    requirePathForMockFile = `${packageName}:real`;
+  }
+  
+  // Fallback: if we couldn't resolve the path, use :real suffix
+  if (!requirePathForMockFile) {
+    requirePathForMockFile = `${packageName}:real`;
+    console.warn(`[SHERLO:mockGen] Could not resolve path for ${packageName}, using :real suffix`);
+  }
+  
   // Collect all mocks for this package across all stories
   let packageMocksByStory: Record<string, any> = {};
   
@@ -112,11 +221,10 @@ export function generateMockFile(
     }
     
     // Fallback to real implementation
-    try {
-      const realModule = require('${packageName}:real');
+    if (realModule && typeof realModule.${exportName} === 'function') {
       console.log('[SHERLO:mock] Using real implementation for story:', storyId);
       return realModule.${exportName}(...args);
-    } catch (e) {
+    } else {
       console.warn('[SHERLO:mock] No mock found for story "' + storyId + '" and real module not available');
       return undefined;
     }
@@ -136,11 +244,10 @@ export function generateMockFile(
     }
     
     // Fallback to real implementation
-    try {
-      const realModule = require('${packageName}:real');
+    if (realModule && realModule.${exportName} !== undefined) {
       console.log('[SHERLO:mock] Using real ${exportName} for story:', storyId);
       return realModule.${exportName};
-    } catch (e) {
+    } else {
       console.warn('[SHERLO:mock] No ${exportName} mock found for story "' + storyId + '" and real module not available');
       return undefined;
     }
@@ -148,10 +255,73 @@ export function generateMockFile(
     }
   };
   
+  // Build the require statement and module path strings for code generation
+  // Escape quotes properly for use in template strings
+  // For relative paths, use the path calculated from mock file location (without :real)
+  // For package names, use :real suffix to bypass our mock redirect
+  // requirePathForMockFile is guaranteed to be set (fallback added above)
+  const requirePathEscaped = requirePathForMockFile.replace(/'/g, "\\'");
+  const requireStatement = `require('${requirePathEscaped}')`;
+  
+  // Fallback: for relative paths, try direct require; for packages, try without :real
+  const fallbackPath = packageName.startsWith('.') || packageName.startsWith('/')
+    ? requirePathForMockFile // Already calculated relative path (no :real)
+    : packageName; // Try direct package name (without :real)
+  const fallbackPathEscaped = fallbackPath.replace(/'/g, "\\'");
+  const fallbackRequireStatement = `require('${fallbackPathEscaped}')`;
+  
+  const modulePathForLog = JSON.stringify(realModulePath || packageName);
+  
+  const requirePathForLog = JSON.stringify(requirePathForMockFile);
+  const fallbackPathForLog = JSON.stringify(fallbackPath);
+  
   const mockCode = `/**
  * Auto-generated mock file for ${packageName}
  * This file checks __SHERLO_CURRENT_STORY_ID__ at runtime to return the correct mock
  */
+
+// Try to load the real module BEFORE we define our mocks (to avoid circular dependency)
+// For relative paths, we resolve them upfront to ensure Metro can find them
+// For package names, we use :real suffix to bypass our mock redirect
+let realModule = null;
+let realModuleLoadAttempted = false;
+const loadRealModule = () => {
+  if (realModuleLoadAttempted) {
+    return realModule;
+  }
+  realModuleLoadAttempted = true;
+  try {
+    // Log the exact require path we're using
+    console.log('[SHERLO:mock] Attempting to load real module for ${modulePathForLog}');
+    console.log('[SHERLO:mock] Using require path: ${requirePathForLog}');
+    realModule = ${requireStatement};
+    console.log('[SHERLO:mock] Successfully loaded real module for ${modulePathForLog}:', realModule);
+    console.log('[SHERLO:mock] Real module type:', typeof realModule);
+    console.log('[SHERLO:mock] Real module keys:', realModule ? Object.keys(realModule) : 'null');
+  } catch (e) {
+    // If :real doesn't work, try direct require (might work for some cases)
+    console.warn('[SHERLO:mock] Failed to load real module for ${modulePathForLog}');
+    console.warn('[SHERLO:mock] Require path used: ${requirePathForLog}');
+    console.warn('[SHERLO:mock] Error message:', e.message);
+    console.warn('[SHERLO:mock] Error name:', e.name);
+    console.warn('[SHERLO:mock] Error stack:', e.stack);
+    try {
+      // Try direct require with resolved path (for relative imports) or original name (for packages)
+      console.log('[SHERLO:mock] Trying fallback require for ${modulePathForLog}');
+      console.log('[SHERLO:mock] Fallback path: ${fallbackPathForLog}');
+      realModule = ${fallbackRequireStatement};
+      console.log('[SHERLO:mock] Fallback require succeeded:', realModule);
+    } catch (e2) {
+      console.warn('[SHERLO:mock] Fallback require also failed');
+      console.warn('[SHERLO:mock] Fallback error message:', e2.message);
+      console.warn('[SHERLO:mock] Fallback error stack:', e2.stack);
+      realModule = null;
+    }
+  }
+  return realModule;
+};
+// Try to load immediately (Metro will process this during bundling)
+loadRealModule();
 
 // All mocks for this package across all stories
 const storyMocks = ${JSON.stringify(storyMocksSerialized, null, 2)};
@@ -206,12 +376,23 @@ const getDefaultExport = function() {
   }
   
   // Fallback to real implementation
-  try {
-    const realModule = require('${packageName}:real');
+  if (realModule) {
     console.log('[SHERLO:mock] Using real default export for story:', storyId);
     return realModule.default || realModule;
-  } catch (e) {
+  } else {
     console.warn('[SHERLO:mock] No default mock found for story "' + storyId + '" and real module not available');
+    // Try to require the real module one more time (in case it wasn't available at module load time)
+    // This handles cases where the module becomes available later
+    try {
+      const lateRealModule = require('${packageName}:real');
+      if (lateRealModule) {
+        console.log('[SHERLO:mock] Successfully loaded real module on second attempt');
+        return lateRealModule.default || lateRealModule;
+      }
+    } catch (e) {
+      // Still not available
+    }
+    // Return undefined - the component should handle this gracefully
     return undefined;
   }
 };
@@ -226,6 +407,8 @@ const defaultExportProxy = new Proxy({}, {
     if (currentValue && typeof currentValue === 'object') {
       return currentValue[prop];
     }
+    // If currentValue is not an object, return undefined for property access
+    // This handles the case where realModule is null and we returned {}
     return undefined;
   },
   ownKeys: function(target) {

@@ -130,11 +130,54 @@ function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = 
       moduleName: string,
       platform: string | null
     ) => {
+      // Log all resolver calls for relative paths (to debug mock file requires)
+      if (moduleName.startsWith('.') || moduleName.startsWith('/')) {
+        console.log(`[SHERLO:resolver] Resolving relative path: ${moduleName} (from: ${context.originModulePath || 'unknown'})`);
+      }
+      
       // Handle "<pkg>:real" → resolve original package via base resolver
       if (moduleName.endsWith(':real')) {
         const realName = moduleName.slice(0, -':real'.length);
+        // Always log :real resolution attempts (important for debugging fallback to real modules)
+        console.log(`[SHERLO:resolver] Resolving :real import: ${moduleName} -> ${realName}`);
         const base = prevResolve ?? context.resolveRequest;
-        return base(context, realName, platform);
+        
+        // For relative paths, try resolving relative to common source directories
+        // This handles cases where the mock file is in node_modules/.sherlo-mocks/
+        // and can't resolve relative paths correctly
+        if (realName.startsWith('.') || realName.startsWith('/')) {
+          const commonSourceDirs = [
+            path.join(projectRoot, 'src'),
+            path.join(projectRoot, 'testing', 'testing-components', 'src'),
+            projectRoot,
+          ];
+          
+          for (const sourceDir of commonSourceDirs) {
+            const resolvedPath = path.resolve(sourceDir, realName);
+            // Try with different extensions
+            const extensions = ['.ts', '.tsx', '.js', '.jsx', ''];
+            for (const ext of extensions) {
+              const fullPath = ext ? `${resolvedPath}${ext}` : resolvedPath;
+              if (fs.existsSync(fullPath)) {
+                console.log(`[SHERLO:resolver] Found real module at: ${fullPath}`);
+                return {
+                  type: 'sourceFile',
+                  filePath: fullPath,
+                };
+              }
+            }
+          }
+          console.warn(`[SHERLO:resolver] Could not resolve relative path ${realName} in common source directories`);
+        }
+        
+        try {
+          const result = base(context, realName, platform);
+          console.log(`[SHERLO:resolver] :real resolution result:`, result);
+          return result;
+        } catch (e: any) {
+          console.error(`[SHERLO:resolver] :real resolution failed for ${moduleName}:`, e.message);
+          throw e;
+        }
       }
       
       // Check if this package/module has mocks and redirect to mock file
