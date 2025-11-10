@@ -6,7 +6,7 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
-import { StoryMockMap } from './mockExtraction';
+import type { StoryMockMap } from './types';
 import {
   serializeMockValue,
   generateDeserializeFunctionsCode,

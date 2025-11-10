@@ -18,7 +18,6 @@ export interface Spec extends TurboModule {
     includeAA: boolean
   ) => Promise<boolean>;
   getSherloConstants: () => {};
-  restartWithStoryId: (storyId: string | null) => Promise<void>;
 }
 
 let SherloModule: Spec | null = null;

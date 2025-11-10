@@ -134,16 +134,4 @@ public class SherloModule extends ReactContextBaseJavaModule {
         Activity activity = getCurrentActivity();
         moduleCore.stabilize(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs, saveScreenshots, threshold, includeAA, promise);
     }
-
-    /**
-     * Restarts with a story ID, preserving the current mode.
-     *
-     * @param storyId The story ID to persist, or null to clear it
-     * @param promise Promise to resolve when the restart is triggered
-     */
-    @ReactMethod
-    public void restartWithStoryId(String storyId, Promise promise) {
-        moduleCore.restartWithStoryId(storyId);
-        promise.resolve(null);
-    }
 }

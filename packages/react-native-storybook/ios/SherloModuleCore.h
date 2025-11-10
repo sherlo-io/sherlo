@@ -96,13 +96,4 @@
         resolve:(RCTPromiseResolveBlock)resolve
         reject:(RCTPromiseRejectBlock)reject;
 
-/**
- * Restarts with a story ID, preserving the current mode.
- * This is used when switching stories within Storybook to trigger mock transformation.
- * 
- * @param storyId The story ID to persist, or nil to clear it
- * @param bridge The React Native bridge needed for reloading
- */
-- (void)restartWithStoryId:(NSString *)storyId bridge:(RCTBridge *)bridge;
-
 @end 

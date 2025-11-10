@@ -132,16 +132,4 @@ public class SherloModule extends NativeSherloModuleSpec {
         Activity activity = getCurrentActivity();
         moduleCore.stabilize(activity, (int)requiredMatches, (int)minScreenshotsCount, (int)intervalMs, (int)timeoutMs, saveScreenshots, threshold, includeAA, promise);
     }
-
-    /**
-     * Restarts with a story ID, preserving the current mode.
-     *
-     * @param storyId The story ID to persist, or null to clear it
-     * @param promise Promise to resolve when the restart is triggered
-     */
-    @Override
-    public void restartWithStoryId(String storyId, Promise promise) {
-        moduleCore.restartWithStoryId(storyId);
-        promise.resolve(null);
-    }
 } 

@@ -109,17 +109,6 @@ static void SherloEarlyInit(void) {
   [core stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs saveScreenshots:saveScreenshots threshold:threshold includeAA:includeAA resolve:resolve reject:reject];
 }
 
-/**
- * Restarts with a story ID, preserving the current mode.
- */
-- (void)restartWithStoryId:(NSString *)storyId
-               resolve:(RCTPromiseResolveBlock)resolve
-                reject:(RCTPromiseRejectBlock)reject
-{
-  [core restartWithStoryId:storyId bridge:self.bridge];
-  resolve(nil);
-}
-
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
     (const facebook::react::ObjCTurboModule::InitParams &)params
 {
@@ -197,16 +186,6 @@ RCT_EXPORT_METHOD(stabilize:(double)requiredMatches
                    resolve:(RCTPromiseResolveBlock)resolve
                    reject:(RCTPromiseRejectBlock)reject) {
   [core stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs saveScreenshots:saveScreenshots threshold:threshold includeAA:includeAA resolve:resolve reject:reject];
-}
-
-/**
- * Restarts with a story ID, preserving the current mode.
- */
-RCT_EXPORT_METHOD(restartWithStoryId:(NSString *)storyId
-                  resolve:(RCTPromiseResolveBlock)resolve
-                  reject:(RCTPromiseRejectBlock)reject) {
-  [core restartWithStoryId:storyId bridge:self.bridge];
-  resolve(nil);
 }
 
 #endif

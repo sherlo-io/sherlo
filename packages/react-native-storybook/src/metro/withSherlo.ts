@@ -2,7 +2,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import { discoverStoryFiles } from './storyDiscovery';
-import { StoryMockMap } from './mockExtraction';
+import type { StoryMockMap } from './types';
 
 // Metro config types - using a compatible interface
 interface MetroConfig {

@@ -5,7 +5,7 @@
  */
 
 import * as path from 'path';
-import type { StoryMockMap } from './mockExtraction';
+import type { StoryMockMap } from './types';
 
 // Babel types - will be required at runtime
 let babelParser: any;

@@ -176,14 +176,4 @@ public class SherloModuleCore {
     public void stabilize(Activity activity, int requiredMatches, int minScreenshotsCount, int intervalMs, int timeoutMs, boolean saveScreenshots, double threshold, boolean includeAA, Promise promise) {
         StabilityHelper.stabilize(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs, saveScreenshots, threshold, includeAA, promise);
     }
-
-    /**
-     * Restarts with a story ID, preserving the current mode.
-     * This is used when switching stories within Storybook to trigger mock transformation.
-     * 
-     * @param storyId The story ID to persist, or null to clear it
-     */
-    public void restartWithStoryId(String storyId) {
-        restartHelper.restartWithStoryId(storyId);
-    }
 } 
