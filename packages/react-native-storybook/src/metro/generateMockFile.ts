@@ -298,11 +298,16 @@ export function generateMockFile(
   
   // Helper function to generate mock property (for named exports only)
   const generateMockProperty = (exportName: string) => {
-    // Check the original object (before serialization) to detect class and function markers
+    // Check the original object (before serialization) to detect class, function, and special value markers
     const firstStoryMock = actualMocksByStory[storyIds[0]];
     const firstExportValue = firstStoryMock?.[exportName];
     const isClassFromObject = firstExportValue && typeof firstExportValue === 'object' && (firstExportValue as any).__isClass;
     const isFunctionFromObject = firstExportValue && typeof firstExportValue === 'object' && (firstExportValue as any).__isFunction;
+    const isNaNFromObject = firstExportValue && typeof firstExportValue === 'object' && (firstExportValue as any).__isNaN;
+    const isInfinityFromObject = firstExportValue && typeof firstExportValue === 'object' && (firstExportValue as any).__isInfinity;
+    const isNegativeInfinityFromObject = firstExportValue && typeof firstExportValue === 'object' && (firstExportValue as any).__isNegativeInfinity;
+    const isDateFromObject = firstExportValue && typeof firstExportValue === 'object' && (firstExportValue as any).__isDate;
+    const isRegExpFromObject = firstExportValue && typeof firstExportValue === 'object' && (firstExportValue as any).__isRegExp;
     
     // For named exports, check if it's a function, class, or value (after serialization)
     const firstMock = storyMocksSerialized[storyIds[0]][exportName];
@@ -367,6 +372,57 @@ export function generateMockFile(
       return undefined;
     }
   }`;
+    } else if (isNaNFromObject || isInfinityFromObject || isNegativeInfinityFromObject || isDateFromObject || isRegExpFromObject) {
+      // Handle special values: NaN, Infinity, -Infinity, Date, RegExp
+      let reconstructionCode = '';
+      if (isNaNFromObject) {
+        reconstructionCode = 'NaN';
+      } else if (isInfinityFromObject) {
+        reconstructionCode = 'Infinity';
+      } else if (isNegativeInfinityFromObject) {
+        reconstructionCode = '-Infinity';
+      } else if (isDateFromObject) {
+        // Extract date code from the first mock
+        const dateCode = firstExportValue && typeof firstExportValue === 'object' && (firstExportValue as any).__code;
+        reconstructionCode = dateCode || "new Date()";
+      } else if (isRegExpFromObject) {
+        // Extract regex code from the first mock
+        const regexCode = firstExportValue && typeof firstExportValue === 'object' && (firstExportValue as any).__code;
+        reconstructionCode = regexCode || "/.*/";
+      }
+      
+      return `  get ${exportName}() {
+    const storyId = getCurrentStory();
+    
+    // Check storyMocks_values for special value markers
+    if (storyMocks_values[storyId] && storyMocks_values[storyId].${exportName}) {
+      try {
+        const parsedValue = JSON.parse(storyMocks_values[storyId].${exportName});
+        // Reconstruct special values recursively (handles nested objects)
+        return reconstructSpecialValues(parsedValue);
+      } catch (e) {
+        console.warn('[SHERLO:mock] Failed to parse ${exportName} from storyMocks_values:', e.message);
+        // Fall through to real implementation
+      }
+    }
+    
+    // Fallback to real implementation
+    let realValue = undefined;
+    if (realModule) {
+      if (realModule.${exportName} !== undefined) {
+        realValue = realModule.${exportName};
+      }
+      if (realValue === undefined && realModule.default && realModule.default.${exportName} !== undefined) {
+        realValue = realModule.default.${exportName};
+      }
+    }
+    if (realValue !== undefined) {
+      return realValue;
+    } else {
+      // Return default special value if no mock and no real value
+      return ${reconstructionCode};
+    }
+  }`;
     } else {
       // For non-function exports (objects, constants, etc.)
       return `  get ${exportName}() {
@@ -377,8 +433,10 @@ export function generateMockFile(
     if (storyMocks_values[storyId] && storyMocks_values[storyId].${exportName} !== undefined) {
       try {
         const parsedValue = JSON.parse(storyMocks_values[storyId].${exportName});
-        // console.log('[SHERLO:mock] Returning ${exportName} mock:', parsedValue);
-        return parsedValue;
+        // Reconstruct special values recursively (handles nested objects with NaN, Infinity, Date, RegExp)
+        const reconstructedValue = reconstructSpecialValues(parsedValue);
+        // console.log('[SHERLO:mock] Returning ${exportName} mock:', reconstructedValue);
+        return reconstructedValue;
       } catch (e) {
         console.warn('[SHERLO:mock] Failed to parse ${exportName} from storyMocks_values:', e.message);
         // Fall through to real implementation
@@ -509,6 +567,127 @@ const getCurrentStory = () => {
 };
 
 ${generateDeserializeFunctionsCode()}
+
+// Helper to recursively reconstruct special values (NaN, Infinity, -Infinity, Date, RegExp, Getters) in nested objects
+const reconstructSpecialValues = (value) => {
+  if (value === null || value === undefined) {
+    return value;
+  }
+  
+  // Check if this is a marker object for special values
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    if (value.__isNaN) {
+      return NaN;
+    } else if (value.__isInfinity) {
+      return Infinity;
+    } else if (value.__isNegativeInfinity) {
+      return -Infinity;
+    } else if (value.__isDate && value.__code) {
+      try {
+        return eval(value.__code);
+      } catch (e) {
+        console.warn('[SHERLO:mock] Failed to reconstruct Date:', e.message);
+        return new Date();
+      }
+    } else if (value.__isRegExp && value.__code) {
+      try {
+        return eval(value.__code);
+      } catch (e) {
+        console.warn('[SHERLO:mock] Failed to reconstruct RegExp:', e.message);
+        return /.*/;
+      }
+    } else if (value.__isGetter && value.__code) {
+      // For getters, we need to reconstruct the getter function
+      // The code is like "get value() { return this._value; }"
+      try {
+        // Extract the getter function body and property name from the code
+        // We'll create a getter descriptor and use Object.defineProperty
+        const getterFn = new Function('return ' + value.__code)();
+        return getterFn;
+      } catch (e) {
+        console.warn('[SHERLO:mock] Failed to reconstruct getter:', e.message);
+        return undefined;
+      }
+    }
+    
+    // Check if this object has any getters that need special handling
+    // If any property is a getter marker, we need to reconstruct the entire object with getters
+    let hasGetters = false;
+    for (const key in value) {
+      if (value.hasOwnProperty(key) && value[key] && typeof value[key] === 'object' && value[key].__isGetter) {
+        hasGetters = true;
+        break;
+      }
+    }
+    
+    if (hasGetters) {
+      // Reconstruct object with getters using Object.defineProperty
+      // First, reconstruct all regular properties
+      const reconstructed = {};
+      const getterDescriptors = {};
+      
+      for (const key in value) {
+        if (value.hasOwnProperty(key)) {
+          if (value[key] && typeof value[key] === 'object' && value[key].__isGetter) {
+            // This is a getter - store it for later definition
+            getterDescriptors[key] = value[key];
+          } else {
+            // Regular property - reconstruct recursively
+            reconstructed[key] = reconstructSpecialValues(value[key]);
+          }
+        }
+      }
+      
+      // Now add getters - create functions that have access to 'reconstructed' via closure
+      for (const key in getterDescriptors) {
+        try {
+          const getterMarker = getterDescriptors[key];
+          const getterCode = getterMarker.__code;
+          // Extract function body from getter code (e.g., "get value() { return this._value; }" -> "return this._value;")
+          const bodyMatch = getterCode.match(/\\{([\\s\\S]*)\\}/);
+          if (bodyMatch) {
+            const body = bodyMatch[1].trim();
+            // Create getter function that accesses 'reconstructed' via closure
+            // Replace 'this' with direct reference to 'reconstructed' object
+            const getterBody = body.replace(/\\bthis\\./g, 'reconstructed.');
+            // Create getter function using IIFE to capture 'reconstructed' in closure
+            Object.defineProperty(reconstructed, key, {
+              get: (function(obj) {
+                // Return a function that evaluates the getter body with 'obj' as 'reconstructed'
+                // The body already contains 'return', so we just execute it directly
+                return function() {
+                  return new Function('reconstructed', getterBody)(obj);
+                };
+              })(reconstructed),
+              enumerable: true,
+              configurable: true
+            });
+          }
+        } catch (e) {
+          console.warn('[SHERLO:mock] Failed to reconstruct getter for', key, ':', e.message);
+        }
+      }
+      
+      return reconstructed;
+    }
+    
+    // No getters - recursively process object properties normally
+    const reconstructed = {};
+    for (const key in value) {
+      if (value.hasOwnProperty(key)) {
+        reconstructed[key] = reconstructSpecialValues(value[key]);
+      }
+    }
+    return reconstructed;
+  }
+  
+  // Recursively process arrays
+  if (Array.isArray(value)) {
+    return value.map(item => reconstructSpecialValues(item));
+  }
+  
+  return value;
+};
 
 ${namedExportNames.length === 0 && hasDefaultExport ? `
 // Only default export - export it directly with a getter for dynamic resolution

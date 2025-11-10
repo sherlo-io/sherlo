@@ -28,6 +28,17 @@ import {
   ENABLED,
   APP_TITLE,
 } from '../utils/objectExportsUtils';
+import {
+  SPECIAL_NUMBERS,
+  CURRENT_DATE,
+  EMAIL_REGEX,
+  EMPTY_VALUES,
+  DEEP_NESTED,
+  createMultiplier,
+  createCounter,
+  MIXED_ARRAY,
+  OBJECT_WITH_GETTER,
+} from '../utils/edgeCaseUtils';
 
 interface TestResult {
   name: string;
@@ -88,6 +99,38 @@ interface MockTestingStoryProps {
       MAX_RETRIES?: number;
       ENABLED?: boolean;
       APP_TITLE?: string;
+    };
+    edgeCases?: {
+      specialNumbers?: {
+        nan?: number;
+        infinity?: number;
+        negativeInfinity?: number;
+      };
+      currentDate?: Date | string;
+      emailRegex?: RegExp | string;
+      emptyValues?: {
+        emptyString?: string;
+        emptyArray?: any[];
+        emptyObject?: Record<string, any>;
+      };
+      deepNested?: {
+        level1?: {
+          level2?: {
+            level3?: {
+              level4?: {
+                level5?: {
+                  value?: string;
+                  number?: number;
+                };
+              };
+            };
+          };
+        };
+      };
+      createMultiplier?: number; // Expected result of createMultiplier(5)(10)
+      createCounter?: number; // Expected result of createCounter()()
+      mixedArray?: any[];
+      objectWithGetter?: string; // Expected value from OBJECT_WITH_GETTER.value
     };
   };
 }
@@ -823,6 +866,282 @@ const MockTestingStory: React.FC<MockTestingStoryProps> = ({ expected = {} }) =>
           name: 'Object Exports: APP_TITLE (string)',
           passed,
           expected: expected.objectExports.APP_TITLE,
+          actual,
+        });
+      }
+    }
+
+    // Test 9: Edge Cases
+    if (expected.edgeCases) {
+      console.log('[MockTestingStory] Testing Edge Cases...');
+
+      // Special numbers
+      if (expected.edgeCases.specialNumbers) {
+        console.log('[MockTestingStory] Testing special numbers...');
+        const actualNan = SPECIAL_NUMBERS.nan;
+        const actualInfinity = SPECIAL_NUMBERS.infinity;
+        const actualNegativeInfinity = SPECIAL_NUMBERS.negativeInfinity;
+
+        if (expected.edgeCases.specialNumbers.nan !== undefined) {
+          // NaN comparison requires isNaN check
+          const passed = isNaN(actualNan) && isNaN(expected.edgeCases.specialNumbers.nan);
+          console.log('[MockTestingStory] Edge Case: NaN comparison:', {
+            actual: actualNan,
+            expected: expected.edgeCases.specialNumbers.nan,
+            passed,
+          });
+          syncResults.push({
+            name: 'Edge Cases: SPECIAL_NUMBERS.nan',
+            passed,
+            expected: expected.edgeCases.specialNumbers.nan,
+            actual: actualNan,
+          });
+        }
+        if (expected.edgeCases.specialNumbers.infinity !== undefined) {
+          const passed = actualInfinity === expected.edgeCases.specialNumbers.infinity;
+          console.log('[MockTestingStory] Edge Case: Infinity comparison:', {
+            actual: actualInfinity,
+            expected: expected.edgeCases.specialNumbers.infinity,
+            passed,
+          });
+          syncResults.push({
+            name: 'Edge Cases: SPECIAL_NUMBERS.infinity',
+            passed,
+            expected: expected.edgeCases.specialNumbers.infinity,
+            actual: actualInfinity,
+          });
+        }
+        if (expected.edgeCases.specialNumbers.negativeInfinity !== undefined) {
+          const passed =
+            actualNegativeInfinity === expected.edgeCases.specialNumbers.negativeInfinity;
+          console.log('[MockTestingStory] Edge Case: -Infinity comparison:', {
+            actual: actualNegativeInfinity,
+            expected: expected.edgeCases.specialNumbers.negativeInfinity,
+            passed,
+          });
+          syncResults.push({
+            name: 'Edge Cases: SPECIAL_NUMBERS.negativeInfinity',
+            passed,
+            expected: expected.edgeCases.specialNumbers.negativeInfinity,
+            actual: actualNegativeInfinity,
+          });
+        }
+      }
+
+      // Date object
+      if (expected.edgeCases.currentDate !== undefined) {
+        console.log('[MockTestingStory] Testing Date object...');
+        const actual = CURRENT_DATE;
+        const expectedDate =
+          typeof expected.edgeCases.currentDate === 'string'
+            ? new Date(expected.edgeCases.currentDate)
+            : expected.edgeCases.currentDate;
+        const passed =
+          actual instanceof Date &&
+          expectedDate instanceof Date &&
+          actual.getTime() === expectedDate.getTime();
+        console.log('[MockTestingStory] Edge Case: CURRENT_DATE comparison:', {
+          actual: actual.toISOString(),
+          expected:
+            expectedDate instanceof Date
+              ? expectedDate.toISOString()
+              : expected.edgeCases.currentDate,
+          passed,
+        });
+        syncResults.push({
+          name: 'Edge Cases: CURRENT_DATE',
+          passed,
+          expected:
+            expectedDate instanceof Date
+              ? expectedDate.toISOString()
+              : expected.edgeCases.currentDate,
+          actual: actual.toISOString(),
+        });
+      }
+
+      // RegExp object
+      if (expected.edgeCases.emailRegex !== undefined) {
+        console.log('[MockTestingStory] Testing RegExp object...');
+        const actual = EMAIL_REGEX;
+        const expectedRegex =
+          typeof expected.edgeCases.emailRegex === 'string'
+            ? new RegExp(expected.edgeCases.emailRegex)
+            : expected.edgeCases.emailRegex;
+        const testEmail = 'test@example.com';
+        const passed =
+          actual instanceof RegExp &&
+          expectedRegex instanceof RegExp &&
+          actual.test(testEmail) === expectedRegex.test(testEmail);
+        console.log('[MockTestingStory] Edge Case: EMAIL_REGEX comparison:', {
+          actual: actual.toString(),
+          expected:
+            expectedRegex instanceof RegExp
+              ? expectedRegex.toString()
+              : expected.edgeCases.emailRegex,
+          passed,
+        });
+        syncResults.push({
+          name: 'Edge Cases: EMAIL_REGEX',
+          passed,
+          expected:
+            expectedRegex instanceof RegExp
+              ? expectedRegex.toString()
+              : expected.edgeCases.emailRegex,
+          actual: actual.toString(),
+        });
+      }
+
+      // Empty values
+      if (expected.edgeCases.emptyValues) {
+        console.log('[MockTestingStory] Testing empty values...');
+        if (expected.edgeCases.emptyValues.emptyString !== undefined) {
+          const actual = EMPTY_VALUES.emptyString;
+          const passed = actual === expected.edgeCases.emptyValues.emptyString;
+          console.log('[MockTestingStory] Edge Case: emptyString comparison:', {
+            actual,
+            expected: expected.edgeCases.emptyValues.emptyString,
+            passed,
+          });
+          syncResults.push({
+            name: 'Edge Cases: EMPTY_VALUES.emptyString',
+            passed,
+            expected: expected.edgeCases.emptyValues.emptyString,
+            actual,
+          });
+        }
+        if (expected.edgeCases.emptyValues.emptyArray !== undefined) {
+          const actual = EMPTY_VALUES.emptyArray;
+          const passed =
+            Array.isArray(actual) &&
+            actual.length === expected.edgeCases.emptyValues.emptyArray.length;
+          console.log('[MockTestingStory] Edge Case: emptyArray comparison:', {
+            actual,
+            expected: expected.edgeCases.emptyValues.emptyArray,
+            passed,
+          });
+          syncResults.push({
+            name: 'Edge Cases: EMPTY_VALUES.emptyArray',
+            passed,
+            expected: expected.edgeCases.emptyValues.emptyArray,
+            actual,
+          });
+        }
+        if (expected.edgeCases.emptyValues.emptyObject !== undefined) {
+          const actual = EMPTY_VALUES.emptyObject;
+          const passed =
+            typeof actual === 'object' &&
+            actual !== null &&
+            Object.keys(actual).length ===
+              Object.keys(expected.edgeCases.emptyValues.emptyObject).length;
+          console.log('[MockTestingStory] Edge Case: emptyObject comparison:', {
+            actual,
+            expected: expected.edgeCases.emptyValues.emptyObject,
+            passed,
+          });
+          syncResults.push({
+            name: 'Edge Cases: EMPTY_VALUES.emptyObject',
+            passed,
+            expected: expected.edgeCases.emptyValues.emptyObject,
+            actual,
+          });
+        }
+      }
+
+      // Deeply nested
+      if (expected.edgeCases.deepNested) {
+        console.log('[MockTestingStory] Testing deeply nested structure...');
+        const actual = DEEP_NESTED;
+        const expectedNested = expected.edgeCases.deepNested;
+        const passed =
+          actual?.level1?.level2?.level3?.level4?.level5?.value ===
+            expectedNested?.level1?.level2?.level3?.level4?.level5?.value &&
+          actual?.level1?.level2?.level3?.level4?.level5?.number ===
+            expectedNested?.level1?.level2?.level3?.level4?.level5?.number;
+        console.log('[MockTestingStory] Edge Case: DEEP_NESTED comparison:', {
+          actual: actual?.level1?.level2?.level3?.level4?.level5,
+          expected: expectedNested?.level1?.level2?.level3?.level4?.level5,
+          passed,
+        });
+        syncResults.push({
+          name: 'Edge Cases: DEEP_NESTED',
+          passed,
+          expected: expectedNested?.level1?.level2?.level3?.level4?.level5,
+          actual: actual?.level1?.level2?.level3?.level4?.level5,
+        });
+      }
+
+      // Higher-order functions
+      if (expected.edgeCases.createMultiplier !== undefined) {
+        console.log('[MockTestingStory] Testing higher-order function (createMultiplier)...');
+        const multiplier = createMultiplier(5);
+        const actual = multiplier(10);
+        const passed = actual === expected.edgeCases.createMultiplier;
+        console.log('[MockTestingStory] Edge Case: createMultiplier(5)(10) comparison:', {
+          actual,
+          expected: expected.edgeCases.createMultiplier,
+          passed,
+        });
+        syncResults.push({
+          name: 'Edge Cases: createMultiplier(5)(10)',
+          passed,
+          expected: expected.edgeCases.createMultiplier,
+          actual,
+        });
+      }
+
+      if (expected.edgeCases.createCounter !== undefined) {
+        console.log(
+          '[MockTestingStory] Testing higher-order function with closure (createCounter)...'
+        );
+        const counter = createCounter();
+        const actual = counter();
+        const passed = actual === expected.edgeCases.createCounter;
+        console.log('[MockTestingStory] Edge Case: createCounter()() comparison:', {
+          actual,
+          expected: expected.edgeCases.createCounter,
+          passed,
+        });
+        syncResults.push({
+          name: 'Edge Cases: createCounter()()',
+          passed,
+          expected: expected.edgeCases.createCounter,
+          actual,
+        });
+      }
+
+      // Mixed array
+      if (expected.edgeCases.mixedArray !== undefined) {
+        console.log('[MockTestingStory] Testing mixed array...');
+        const actual = MIXED_ARRAY;
+        const passed =
+          Array.isArray(actual) && actual.length === expected.edgeCases.mixedArray.length;
+        console.log('[MockTestingStory] Edge Case: MIXED_ARRAY comparison:', {
+          actualLength: actual.length,
+          expectedLength: expected.edgeCases.mixedArray.length,
+          passed,
+        });
+        syncResults.push({
+          name: 'Edge Cases: MIXED_ARRAY',
+          passed,
+          expected: expected.edgeCases.mixedArray,
+          actual,
+        });
+      }
+
+      // Object with getter
+      if (expected.edgeCases.objectWithGetter !== undefined) {
+        console.log('[MockTestingStory] Testing object with getter...');
+        const actual = OBJECT_WITH_GETTER.value;
+        const passed = actual === expected.edgeCases.objectWithGetter;
+        console.log('[MockTestingStory] Edge Case: OBJECT_WITH_GETTER.value comparison:', {
+          actual,
+          expected: expected.edgeCases.objectWithGetter,
+          passed,
+        });
+        syncResults.push({
+          name: 'Edge Cases: OBJECT_WITH_GETTER.value',
+          passed,
+          expected: expected.edgeCases.objectWithGetter,
           actual,
         });
       }

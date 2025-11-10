@@ -20,6 +20,28 @@ export function serializeMockValue(value: any): any {
     return code;
   }
   
+  // Handle special values: preserve markers for NaN, Infinity, -Infinity, Date, RegExp, Getters
+  if (value && typeof value === 'object') {
+    if ((value as any).__isNaN) {
+      return { __isNaN: true };
+    }
+    if ((value as any).__isInfinity) {
+      return { __isInfinity: true };
+    }
+    if ((value as any).__isNegativeInfinity) {
+      return { __isNegativeInfinity: true };
+    }
+    if ((value as any).__isDate) {
+      return { __isDate: true, __code: (value as any).__code || "new Date()" };
+    }
+    if ((value as any).__isRegExp) {
+      return { __isRegExp: true, __code: (value as any).__code || "/.*/" };
+    }
+    if ((value as any).__isGetter) {
+      return { __isGetter: true, __code: (value as any).__code || "get value() { return undefined; }" };
+    }
+  }
+  
   // Handle plain functions
   if (typeof value === 'function') {
     return value.toString();

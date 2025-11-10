@@ -48,6 +48,38 @@ export const VariantA = {
         ENABLED: false, // Mocked: true -> false
         APP_TITLE: 'Mocked App Title',
       },
+      edgeCases: {
+        specialNumbers: {
+          nan: NaN,
+          infinity: Infinity,
+          negativeInfinity: -Infinity,
+        },
+        currentDate: new Date('2024-02-20T12:00:00Z'), // Mocked date
+        emailRegex: /^mocked@test\.com$/, // Mocked regex
+        emptyValues: {
+          emptyString: 'mocked-empty', // Mocked: '' -> 'mocked-empty'
+          emptyArray: [1, 2], // Mocked: [] -> [1, 2]
+          emptyObject: { mocked: true }, // Mocked: {} -> { mocked: true }
+        },
+        deepNested: {
+          level1: {
+            level2: {
+              level3: {
+                level4: {
+                  level5: {
+                    value: 'mocked-deep-value',
+                    number: 100,
+                  },
+                },
+              },
+            },
+          },
+        },
+        createMultiplier: 100, // Mocked: createMultiplier(5)(10) = 100 instead of 50 (factor * 2)
+        createCounter: 5, // Mocked: createCounter()() = 5 instead of 1
+        mixedArray: ['mocked', 'array'],
+        objectWithGetter: 'mocked-getter-value',
+      },
     },
   },
   mocks: {
@@ -110,6 +142,55 @@ export const VariantA = {
       ENABLED: false,
       APP_TITLE: 'Mocked App Title',
     },
+    '../utils/edgeCaseUtils': {
+      SPECIAL_NUMBERS: {
+        nan: NaN,
+        infinity: Infinity,
+        negativeInfinity: -Infinity,
+        zero: 0,
+        negativeZero: -0,
+      },
+      CURRENT_DATE: new Date('2024-02-20T12:00:00Z'),
+      EMAIL_REGEX: /^mocked@test\.com$/,
+      EMPTY_VALUES: {
+        emptyString: 'mocked-empty',
+        emptyArray: [1, 2],
+        emptyObject: { mocked: true },
+        nullValue: null,
+        undefinedValue: undefined,
+      },
+      DEEP_NESTED: {
+        level1: {
+          level2: {
+            level3: {
+              level4: {
+                level5: {
+                  value: 'mocked-deep-value',
+                  number: 100,
+                },
+              },
+            },
+          },
+        },
+      },
+      createMultiplier: (factor: number) => {
+        return (value: number) => value * factor * 2; // Mocked: multiply by factor * 2
+      },
+      createCounter: () => {
+        let count = 4; // Start at 4 instead of 0
+        return () => {
+          count++;
+          return count;
+        };
+      },
+      MIXED_ARRAY: ['mocked', 'array'],
+      OBJECT_WITH_GETTER: {
+        _value: 'mocked-getter-value',
+        get value() {
+          return this._value;
+        },
+      },
+    },
   },
 };
 
@@ -158,6 +239,38 @@ export const VariantB = {
         MAX_RETRIES: 7,
         ENABLED: true,
         APP_TITLE: 'Alternate App Title',
+      },
+      edgeCases: {
+        specialNumbers: {
+          nan: NaN,
+          infinity: Infinity,
+          negativeInfinity: -Infinity,
+        },
+        currentDate: new Date('2024-03-15T18:30:00Z'), // Alternate mocked date
+        emailRegex: /^alternate@test\.com$/, // Alternate mocked regex
+        emptyValues: {
+          emptyString: 'alternate-empty',
+          emptyArray: [3, 4, 5],
+          emptyObject: { alternate: true },
+        },
+        deepNested: {
+          level1: {
+            level2: {
+              level3: {
+                level4: {
+                  level5: {
+                    value: 'alternate-deep-value',
+                    number: 200,
+                  },
+                },
+              },
+            },
+          },
+        },
+        createMultiplier: 100, // Alternate: createMultiplier(5)(10) = 100
+        createCounter: 10, // Alternate: createCounter()() = 10
+        mixedArray: ['alternate', 'array', 'values'],
+        objectWithGetter: 'alternate-getter-value',
       },
     },
   },
@@ -220,6 +333,55 @@ export const VariantB = {
       MAX_RETRIES: 7,
       ENABLED: true,
       APP_TITLE: 'Alternate App Title',
+    },
+    '../utils/edgeCaseUtils': {
+      SPECIAL_NUMBERS: {
+        nan: NaN,
+        infinity: Infinity,
+        negativeInfinity: -Infinity,
+        zero: 0,
+        negativeZero: -0,
+      },
+      CURRENT_DATE: new Date('2024-03-15T18:30:00Z'),
+      EMAIL_REGEX: /^alternate@test\.com$/,
+      EMPTY_VALUES: {
+        emptyString: 'alternate-empty',
+        emptyArray: [3, 4, 5],
+        emptyObject: { alternate: true },
+        nullValue: null,
+        undefinedValue: undefined,
+      },
+      DEEP_NESTED: {
+        level1: {
+          level2: {
+            level3: {
+              level4: {
+                level5: {
+                  value: 'alternate-deep-value',
+                  number: 200,
+                },
+              },
+            },
+          },
+        },
+      },
+      createMultiplier: (factor: number) => {
+        return (value: number) => value * factor * 2; // Alternate: multiply by factor * 2
+      },
+      createCounter: () => {
+        let count = 9; // Start at 9 instead of 0
+        return () => {
+          count++;
+          return count;
+        };
+      },
+      MIXED_ARRAY: ['alternate', 'array', 'values'],
+      OBJECT_WITH_GETTER: {
+        _value: 'alternate-getter-value',
+        get value() {
+          return this._value;
+        },
+      },
     },
   },
 };
@@ -337,6 +499,48 @@ export const NoMocksVariant = {
         MAX_RETRIES: 3, // Real: 3
         ENABLED: true, // Real: true
         APP_TITLE: 'Original App Title', // Real value
+      },
+      edgeCases: {
+        specialNumbers: {
+          nan: NaN, // Real: NaN
+          infinity: Infinity, // Real: Infinity
+          negativeInfinity: -Infinity, // Real: -Infinity
+        },
+        currentDate: new Date('2024-01-15T10:30:00Z'), // Real date from edgeCaseUtils
+        emailRegex: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, // Real regex from edgeCaseUtils
+        emptyValues: {
+          emptyString: '', // Real: empty string
+          emptyArray: [], // Real: empty array
+          emptyObject: {}, // Real: empty object
+        },
+        deepNested: {
+          level1: {
+            level2: {
+              level3: {
+                level4: {
+                  level5: {
+                    value: 'deep-value', // Real value
+                    number: 42, // Real value
+                  },
+                },
+              },
+            },
+          },
+        },
+        createMultiplier: 50, // Real: createMultiplier(5)(10) = 5 * 10 = 50
+        createCounter: 1, // Real: createCounter()() = 1 (first call)
+        mixedArray: [
+          'string',
+          42,
+          true,
+          null,
+          undefined,
+          NaN,
+          Infinity,
+          { nested: 'object' },
+          [1, 2, 3],
+        ], // Real mixed array
+        objectWithGetter: 'getter-value', // Real value from OBJECT_WITH_GETTER.value
       },
     },
   },
