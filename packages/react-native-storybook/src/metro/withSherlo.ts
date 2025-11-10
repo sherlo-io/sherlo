@@ -121,7 +121,8 @@ function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = 
       }
 
       // Check if this package/module has mocks and redirect to mock file
-      const mockResolver = createMockResolver(projectRoot, prevResolve);
+      // Pass hasStoryFiles to optimize resolver (skip file system checks if no story files)
+      const mockResolver = createMockResolver(projectRoot, prevResolve, storyFiles.length > 0);
       return mockResolver(context, moduleName, platform);
     };
   }

@@ -88,6 +88,8 @@ const storyMocks = ${JSON.stringify(storyMocksSerialized, null, 2)};
 // Note: null values are expected for exports that don't have mocks defined
 
 // Helper to get current story ID from global
+// SAFETY: Returns null in production (when Storybook is not active)
+// This ensures mocks are NEVER returned in production apps - all code paths fall back to realModule
 const getCurrentStory = () => {
   const storyId = (typeof global !== 'undefined' && global.__SHERLO_CURRENT_STORY_ID__) || null;
   return storyId;
