@@ -137,7 +137,6 @@ if (typeof codeStr === 'string' && codeStr.trim().startsWith('async')) {
 }
 if (mockFn && typeof mockFn === 'function') {
   const result = mockFn(...args);
-  // console.log('[SHERLO:mock] Returning mock result:', result);
   return result;
 }`;
 }

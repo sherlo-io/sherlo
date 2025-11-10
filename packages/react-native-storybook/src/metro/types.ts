@@ -1,5 +1,56 @@
 /**
+ * Metro transformer and mock system types
+ */
+
+/**
  * Story mock map: storyId -> packageName -> mockObject
- * Example: { "TestInfo--Basic": { "expo-localization": { getLocales: ... } } }
+ * Maps story IDs to their package mocks, where each package mock contains export names and their mock values
+ *
+ * @example
+ * ```typescript
+ * {
+ *   "testing-components-testinfo--basic": Map {
+ *     "expo-localization" => { getLocales: () => [...], getCalendars: () => [...] }
+ *   }
+ * }
+ * ```
  */
 export type StoryMockMap = Map<string, Map<string, any>>;
+
+/**
+ * Metro transformer transform arguments
+ * Passed to the transformer function by Metro
+ */
+export interface TransformArgs {
+  /** The file path being transformed */
+  filename: string;
+  /** Metro transform options */
+  options: any;
+  /** The source code to transform */
+  src: string;
+}
+
+/**
+ * Metro transformer transform result
+ * Returned by the transformer function
+ */
+export interface TransformResult {
+  output: Array<{
+    type: string;
+    data: {
+      code: string;
+      map?: any;
+    };
+  }>;
+}
+
+/**
+ * Options for configuring withSherlo
+ */
+export interface WithSherloOptions {
+  /**
+   * Enable debug logging for resolver and transformer
+   * @default false
+   */
+  debug?: boolean;
+}

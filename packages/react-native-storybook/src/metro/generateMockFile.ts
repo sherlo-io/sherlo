@@ -11,6 +11,7 @@ import { serializeMockValue, isSerializedFunction, isSerializedClass } from './m
 import { resolvePathForMockFile } from './mockGeneration/pathResolution';
 import { generateMockProperty } from './mockGeneration/mockPropertyGenerators';
 import { generateMockFileTemplate } from './mockGeneration/mockFileTemplate';
+import { MOCK_DIR_NAME } from './constants';
 
 
 /**
@@ -34,15 +35,8 @@ export function generateMockFile(
   // Collect all mocks for this package across all stories
   let packageMocksByStory: Record<string, any> = {};
 
-  // Debug: log all story IDs in the Map
-  // const allStoryIds = Array.from(storyMocks.keys());
-  // if (packageName === 'expo-localization') {
-  //   console.log(`[SHERLO:mockGen] Generating mock for ${packageName}, total story IDs in Map: ${allStoryIds.length}`);
-  //   console.log(`[SHERLO:mockGen] Story IDs containing 'multiplenamedexports':`, allStoryIds.filter(id => id.includes('multiplenamedexports')));
-  // }
-
   // Read existing mocks from JSON cache (to merge across Metro worker processes)
-  const mockDir = path.join(projectRoot, 'node_modules', '.sherlo-mocks');
+  const mockDir = path.join(projectRoot, 'node_modules', MOCK_DIR_NAME);
   const safeFileName = fileName || packageName.replace(/\//g, '__');
   const cacheFilePath = path.join(mockDir, `${safeFileName}.json`);
 
@@ -50,11 +44,8 @@ export function generateMockFile(
     try {
       const existingCache = JSON.parse(fs.readFileSync(cacheFilePath, 'utf-8'));
       packageMocksByStory = existingCache;
-      // if (packageName === 'expo-localization') {
-      //   console.log(`[SHERLO:mockGen] Loaded ${Object.keys(packageMocksByStory).length} existing mocks from cache`);
-      // }
-    } catch (error: any) {
-      // console.warn(`[SHERLO:mockGen] Failed to read cache file ${cacheFilePath}:`, error.message);
+    } catch {
+      // Failed to read cache, will use only new mocks
     }
   }
 
@@ -62,29 +53,9 @@ export function generateMockFile(
   for (const [storyId, packageMocks] of storyMocks.entries()) {
     const pkgMock = packageMocks.get(packageName);
     if (pkgMock) {
-      // TEST: Check if we're storing null for functions/classes
-      for (const [exportName, exportValue] of Object.entries(pkgMock)) {
-        if (exportValue === null || exportValue === undefined) {
-          // Check if this looks like it should be a function/class based on naming
-          const looksLikeFunction = exportName.toLowerCase().includes('fetch') ||
-                                    exportName.toLowerCase().includes('get') ||
-                                    exportName.toLowerCase().includes('process') ||
-                                    exportName.toLowerCase().includes('calculate') ||
-                                    exportName.toLowerCase().includes('add') ||
-                                    exportName.toLowerCase().includes('subtract');
-          const looksLikeClass = exportName[0] === exportName[0].toUpperCase() &&
-                                (exportName.includes('Processor') || exportName.includes('Calculator') || exportName.includes('Utils'));
-          // Note: null values are expected for some exports that don't have mocks
-        }
-      }
       packageMocksByStory[storyId] = pkgMock;
     }
   }
-
-  // if (packageName === 'expo-localization') {
-  //   console.log(`[SHERLO:mockGen] Found ${Object.keys(packageMocksByStory).length} stories with mocks for ${packageName} (after merge)`);
-  //   console.log(`[SHERLO:mockGen] Story IDs with mocks:`, Object.keys(packageMocksByStory).filter(id => id.includes('multiplenamedexports')));
-  // }
 
   if (Object.keys(packageMocksByStory).length === 0) {
     throw new Error(`No mocks found for package ${packageName}`);
@@ -226,7 +197,6 @@ export function generateMockFile(
   });
 
   // Write to a temp location that Metro can resolve
-  // Use node_modules/.sherlo-mocks/ to make it easy to resolve
   // mockDir and cacheFilePath were already defined earlier
   if (!fs.existsSync(mockDir)) {
     fs.mkdirSync(mockDir, { recursive: true });
@@ -264,7 +234,6 @@ export function generateMockFile(
   // cacheFilePath was already defined earlier
   fs.writeFileSync(cacheFilePath, JSON.stringify(cacheData, null, 2), 'utf-8');
 
-  // console.log(`[SHERLO:mockGen] Generated mock file: ${mockFilePath} (for package: ${packageName})`);
   return mockFilePath;
 }
 

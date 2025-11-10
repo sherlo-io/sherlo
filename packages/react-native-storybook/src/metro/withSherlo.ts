@@ -4,14 +4,8 @@ import * as fs from 'fs';
 import type { MetroConfig } from 'metro-config';
 import { discoverStoryFiles } from './storyDiscovery';
 import { createRealModuleResolver, createMockResolver } from './resolver';
-import type { StoryMockMap } from './types';
-
-interface WithSherloOptions {
-  /**
-   * Enable noisy resolver logs.
-   */
-  debug?: boolean;
-}
+import type { StoryMockMap, WithSherloOptions } from './types';
+import { SHERLO_DIR_NAME, STORY_FILES_CACHE_FILE } from './constants';
 
 /**
  * Configures Metro bundler to work with Sherlo mocks in React Native.
@@ -53,11 +47,11 @@ function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = 
   // Store story files in a JSON file so transformer can access them
   // Metro workers run in separate processes, so globals/config don't persist
   // Write to a file that the transformer can read
-  const sherloDir = path.join(projectRoot, '.sherlo');
+  const sherloDir = path.join(projectRoot, SHERLO_DIR_NAME);
   if (!fs.existsSync(sherloDir)) {
     fs.mkdirSync(sherloDir, { recursive: true });
   }
-  const storyFilesPath = path.join(sherloDir, 'story-files.json');
+  const storyFilesPath = path.join(sherloDir, STORY_FILES_CACHE_FILE);
   fs.writeFileSync(storyFilesPath, JSON.stringify({ storyFiles, projectRoot }), 'utf-8');
 
   // Step 4: Configure Metro transformer to extract mocks from story files

@@ -4,6 +4,7 @@
  */
 
 import * as path from 'path';
+import { MOCK_DIR_NAME } from '../constants';
 
 /**
  * Normalizes a module name for use in mock file paths
@@ -42,6 +43,6 @@ export function getSafeFileName(normalizedModuleName: string): string {
 export function getMockFilePath(moduleName: string, projectRoot: string): string {
   const normalizedModuleName = normalizeModuleName(moduleName);
   const safeFileName = getSafeFileName(normalizedModuleName);
-  return path.join(projectRoot, 'node_modules', '.sherlo-mocks', `${safeFileName}.js`);
+  return path.join(projectRoot, 'node_modules', MOCK_DIR_NAME, `${safeFileName}.js`);
 }
 

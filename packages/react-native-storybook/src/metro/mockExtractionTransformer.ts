@@ -5,7 +5,7 @@
  */
 
 import * as path from 'path';
-import type { StoryMockMap } from './types';
+import type { StoryMockMap, TransformArgs, TransformResult } from './types';
 import { getBabelParser, getBabelTraverse, getBabelTypes } from './mockExtraction/babelLoader';
 import { getComponentNameFromPath, camelToKebab, isStoryFile } from './mockExtraction/storyIdNormalization';
 import { extractPrimitive } from './mockExtraction/extractPrimitive';
@@ -19,22 +19,8 @@ import {
 } from './mockExtraction/extractSpecialValues';
 import { extractObjectExpression } from './mockExtraction/extractObjectExpression';
 
-// Metro transformer types
-export interface TransformArgs {
-  filename: string;
-  options: any;
-  src: string;
-}
-
-export interface TransformResult {
-  output: Array<{
-    type: string;
-    data: {
-      code: string;
-      map?: any;
-    };
-  }>;
-}
+// Re-export types for convenience
+export type { TransformArgs, TransformResult } from './types';
 
 
 /**
@@ -97,10 +83,6 @@ function extractMocksFromObjectExpression(obj: any): Record<string, any> | null 
 
       if (key && prop.value) {
         // Try to extract the mock value
-        // For now, we'll store a placeholder that indicates this package should be mocked
-        // The actual mock implementation will be extracted at runtime
-        const nodeType = prop.value && (prop.value as any).type;
-        // console.log(`[SHERLO:extraction] Extracting mock for key "${key}", nodeType: ${nodeType}`);
         const extracted = extractMockValue(prop.value);
         mocks[key] = extracted;
       }
@@ -310,16 +292,6 @@ export function extractMocksFromTransformedCode(
                 const packageMocks = new Map<string, any>();
 
                 for (const [pkgName, pkgMock] of Object.entries(storyMocks)) {
-                  // Log what we're storing for debugging (only for async/class packages)
-                  // if (pkgName.includes('classUtils') || pkgName.includes('asyncUtils')) {
-                  //   console.log(`[SHERLO:transformer] Storing mock for ${pkgName}:`, typeof pkgMock, pkgMock && typeof pkgMock === 'object' ? Object.keys(pkgMock) : 'not object');
-                  //   if (pkgMock && typeof pkgMock === 'object') {
-                  //     for (const [exportName, exportValue] of Object.entries(pkgMock)) {
-                  //       const hasMarker = exportValue && typeof exportValue === 'object' && ((exportValue as any).__isFunction || (exportValue as any).__isClass);
-                  //       console.log(`[SHERLO:transformer]   ${exportName}: type=${typeof exportValue}, hasMarker=${hasMarker}, isFunction=${(exportValue as any)?.__isFunction}, isClass=${(exportValue as any)?.__isClass}`);
-                  //     }
-                  //   }
-                  // }
                   packageMocks.set(pkgName, pkgMock);
                 }
 
@@ -327,12 +299,6 @@ export function extractMocksFromTransformedCode(
                 mocks.set(storyId, packageMocks);
                 // Also store with original format
                 mocks.set(originalStoryId, packageMocks);
-
-                // console.log(
-                //   `[SHERLO:transformer] Extracted mocks for ${storyId} (original: ${originalStoryId}):`,
-                //   Array.from(packageMocks.keys())
-                // );
-                // console.log(`[SHERLO:transformer] Mock details:`, JSON.stringify(Object.fromEntries(packageMocks), null, 2));
               }
             }
           });

@@ -5,6 +5,7 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
+import { MOCK_DIR_NAME } from '../constants';
 
 /**
  * Common source directories to check when resolving relative paths
@@ -106,7 +107,7 @@ export function resolvePathForMockFile(
           realModuleAbsolutePath = fullPath;
           
           // Calculate relative path from mock file location to real module
-          const mockFileDir = path.join(projectRoot, 'node_modules', '.sherlo-mocks');
+          const mockFileDir = path.join(projectRoot, 'node_modules', MOCK_DIR_NAME);
           const relativeFromMockFile = path.relative(mockFileDir, fullPath);
           
           // Remove extension for require()
