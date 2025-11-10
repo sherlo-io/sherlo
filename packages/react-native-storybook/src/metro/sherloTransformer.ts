@@ -47,12 +47,12 @@ export async function transform(args: TransformArgs): Promise<TransformResult> {
   const baseTransformer = getBaseTransformer();
   
   // Debug: log transformer type
-  if (args.filename.includes('TestInfo.stories')) {
-    console.log(`[SHERLO:transformer] Base transformer type:`, typeof baseTransformer);
-    console.log(`[SHERLO:transformer] Base transformer keys:`, baseTransformer ? Object.keys(baseTransformer) : 'null');
-    console.log(`[SHERLO:transformer] Has transform method:`, baseTransformer && typeof baseTransformer.transform === 'function');
-    console.log(`[SHERLO:transformer] Is function:`, typeof baseTransformer === 'function');
-  }
+  // if (args.filename.includes('TestInfo.stories')) {
+  //   console.log(`[SHERLO:transformer] Base transformer type:`, typeof baseTransformer);
+  //   console.log(`[SHERLO:transformer] Base transformer keys:`, baseTransformer ? Object.keys(baseTransformer) : 'null');
+  //   console.log(`[SHERLO:transformer] Has transform method:`, baseTransformer && typeof baseTransformer.transform === 'function');
+  //   console.log(`[SHERLO:transformer] Is function:`, typeof baseTransformer === 'function');
+  // }
   
   // Let Metro transform first (TS → JS)
   // Metro transformers export a transform function directly
@@ -67,12 +67,12 @@ export async function transform(args: TransformArgs): Promise<TransformResult> {
   }
   
   // Debug: log result structure
-  if (args.filename.includes('TestInfo.stories')) {
-    console.log(`[SHERLO:transformer] Result type:`, typeof result);
-    console.log(`[SHERLO:transformer] Result keys:`, result ? Object.keys(result) : 'null');
-    console.log(`[SHERLO:transformer] Result.output type:`, result?.output ? typeof result.output : 'undefined');
-    console.log(`[SHERLO:transformer] Result.output length:`, Array.isArray(result?.output) ? result.output.length : 'not array');
-  }
+  // if (args.filename.includes('TestInfo.stories')) {
+  //   console.log(`[SHERLO:transformer] Result type:`, typeof result);
+  //   console.log(`[SHERLO:transformer] Result keys:`, result ? Object.keys(result) : 'null');
+  //   console.log(`[SHERLO:transformer] Result.output type:`, result?.output ? typeof result.output : 'undefined');
+  //   console.log(`[SHERLO:transformer] Result.output length:`, Array.isArray(result?.output) ? result.output.length : 'not array');
+  // }
   
   // Get story files from JSON file (set by withSherlo)
   // Metro workers run in separate processes, so we can't use globals/config
@@ -99,20 +99,20 @@ export async function transform(args: TransformArgs): Promise<TransformResult> {
   const isStoryFile = storyFiles.some((storyFile: string) => path.resolve(storyFile) === normalizedPath);
   
   // Debug logging
-  if (args.filename.includes('TestInfo.stories')) {
-    console.log(`[SHERLO:transformer] Checking file: ${args.filename}`);
-    console.log(`[SHERLO:transformer] Normalized path: ${normalizedPath}`);
-    console.log(`[SHERLO:transformer] Story files count: ${storyFiles.length}`);
-    console.log(`[SHERLO:transformer] Is story file: ${isStoryFile}`);
-    if (storyFiles.length > 0) {
-      const testInfoStory = storyFiles.find((f: string) => f.includes('TestInfo.stories'));
-      console.log(`[SHERLO:transformer] TestInfo story file path: ${testInfoStory}`);
-      console.log(`[SHERLO:transformer] Resolved testInfo path: ${testInfoStory ? path.resolve(testInfoStory) : 'not found'}`);
-    }
-  }
+  // if (args.filename.includes('TestInfo.stories')) {
+  //   console.log(`[SHERLO:transformer] Checking file: ${args.filename}`);
+  //   console.log(`[SHERLO:transformer] Normalized path: ${normalizedPath}`);
+  //   console.log(`[SHERLO:transformer] Story files count: ${storyFiles.length}`);
+  //   console.log(`[SHERLO:transformer] Is story file: ${isStoryFile}`);
+  //   if (storyFiles.length > 0) {
+  //     const testInfoStory = storyFiles.find((f: string) => f.includes('TestInfo.stories'));
+  //     console.log(`[SHERLO:transformer] TestInfo story file path: ${testInfoStory}`);
+  //     console.log(`[SHERLO:transformer] Resolved testInfo path: ${testInfoStory ? path.resolve(testInfoStory) : 'not found'}`);
+  //   }
+  // }
   
   if (isStoryFile) {
-    console.log(`[SHERLO:transformer] Processing story file: ${path.relative(projectRoot, args.filename)}`);
+    // console.log(`[SHERLO:transformer] Processing story file: ${path.relative(projectRoot, args.filename)}`);
     
     // Metro transformers can return either:
     // 1. AST format: { ast, metadata }
@@ -130,9 +130,9 @@ export async function transform(args: TransformArgs): Promise<TransformResult> {
         if (generate) {
           const generated = generate((result as any).ast, {}, args.src);
           transformedCode = generated.code;
-          if (transformedCode) {
-            console.log(`[SHERLO:transformer] Converted AST to code for ${path.basename(args.filename)}, code length: ${transformedCode.length}`);
-          }
+          // if (transformedCode) {
+          //   console.log(`[SHERLO:transformer] Converted AST to code for ${path.basename(args.filename)}, code length: ${transformedCode.length}`);
+          // }
         }
       } catch (error: any) {
         console.warn(`[SHERLO:transformer] Failed to generate code from AST:`, error.message);
@@ -140,13 +140,13 @@ export async function transform(args: TransformArgs): Promise<TransformResult> {
     }
     
     if (!transformedCode) {
-      console.warn(`[SHERLO:transformer] Could not extract code from transformer result for ${args.filename}`);
-      console.warn(`[SHERLO:transformer] Result structure:`, Object.keys(result || {}));
+      // console.warn(`[SHERLO:transformer] Could not extract code from transformer result for ${args.filename}`);
+      // console.warn(`[SHERLO:transformer] Result structure:`, Object.keys(result || {}));
       return result;
     }
     
     const code = transformedCode; // TypeScript guard
-    console.log(`[SHERLO:transformer] Extracting mocks from ${path.basename(args.filename)}, code length: ${code.length}`);
+    // console.log(`[SHERLO:transformer] Extracting mocks from ${path.basename(args.filename)}, code length: ${code.length}`);
     
     // Import the extraction function dynamically to avoid circular dependencies
     const { extractMocksFromTransformedCode } = require('./mockExtractionTransformer');
@@ -156,7 +156,7 @@ export async function transform(args: TransformArgs): Promise<TransformResult> {
       projectRoot
     );
     
-    console.log(`[SHERLO:transformer] Extracted ${extractedMocks.size} story mock(s) from ${path.basename(args.filename)}`);
+    // console.log(`[SHERLO:transformer] Extracted ${extractedMocks.size} story mock(s) from ${path.basename(args.filename)}`);
     
     // Merge into global cache
     if (!(global as any).__SHERLO_STORY_MOCKS__) {

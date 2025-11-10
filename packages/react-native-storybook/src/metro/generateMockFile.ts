@@ -1,6 +1,7 @@
 /**
- * Generates a smart mock file that calls getCurrentStory() at runtime
- * This is a scrappy implementation for testing
+ * Generates a mock file that uses serialization to store mocks
+ * Mocks are extracted from story files during Metro bundling (AOT) and serialized
+ * The generated mock file selects the correct mock at runtime based on the current story ID
  */
 
 import * as path from 'path';
@@ -40,6 +41,7 @@ function resolveRelativePathForReal(relativePath: string, projectRoot: string): 
   return relativePath;
 }
 
+
 /**
  * Generates a mock file for a package that checks getCurrentStory() at runtime
  */
@@ -75,24 +77,24 @@ export function generateMockFile(
       path.join(projectRoot, '..', '..', 'testing-components', 'src'),
     ];
     
-    console.log(`[SHERLO:mockGen] Resolving relative path: ${packageName}`);
-    console.log(`[SHERLO:mockGen] Project root: ${projectRoot}`);
+    // console.log(`[SHERLO:mockGen] Resolving relative path: ${packageName}`);
+    // console.log(`[SHERLO:mockGen] Project root: ${projectRoot}`);
     
     for (const baseDir of possibleBaseDirs) {
       const resolvedPath = path.resolve(baseDir, packageName);
-      console.log(`[SHERLO:mockGen] Trying to resolve from ${baseDir}: ${resolvedPath}`);
+      // console.log(`[SHERLO:mockGen] Trying to resolve from ${baseDir}: ${resolvedPath}`);
       const extensions = ['.ts', '.tsx', '.js', '.jsx', ''];
       for (const ext of extensions) {
         const fullPath = ext ? `${resolvedPath}${ext}` : resolvedPath;
         if (fs.existsSync(fullPath)) {
-          console.log(`[SHERLO:mockGen] Found file at: ${fullPath}`);
+          // console.log(`[SHERLO:mockGen] Found file at: ${fullPath}`);
           realModuleAbsolutePath = fullPath;
           // Calculate relative path from mock file location to real module
           // Mock file is at: node_modules/.sherlo-mocks/..__utils__testHelper.js
           // Real module is at: testing-components/src/utils/testHelper.ts
           const mockFileDir = path.join(projectRoot, 'node_modules', '.sherlo-mocks');
           const relativeFromMockFile = path.relative(mockFileDir, fullPath);
-          console.log(`[SHERLO:mockGen] Relative from mock file (${mockFileDir}) to real module (${fullPath}): ${relativeFromMockFile}`);
+          // console.log(`[SHERLO:mockGen] Relative from mock file (${mockFileDir}) to real module (${fullPath}): ${relativeFromMockFile}`);
           // Remove extension for require()
           requirePathForMockFile = relativeFromMockFile.replace(/\.(ts|tsx|js|jsx)$/, '');
           // Normalize path separators for require()
@@ -102,8 +104,8 @@ export function generateMockFile(
             requirePathForMockFile = './' + requirePathForMockFile;
           }
           realModulePath = path.relative(projectRoot, fullPath).replace(/\.(ts|tsx|js|jsx)$/, '');
-          console.log(`[SHERLO:mockGen] Resolved relative path ${packageName} to ${realModulePath}`);
-          console.log(`[SHERLO:mockGen] Using require path from mock file: ${requirePathForMockFile}`);
+          // console.log(`[SHERLO:mockGen] Resolved relative path ${packageName} to ${realModulePath}`);
+          // console.log(`[SHERLO:mockGen] Using require path from mock file: ${requirePathForMockFile}`);
           break;
         }
       }
@@ -111,7 +113,7 @@ export function generateMockFile(
     }
     
     if (!realModulePath) {
-      console.warn(`[SHERLO:mockGen] Could not find file for relative path ${packageName} in any of the checked directories`);
+      // console.warn(`[SHERLO:mockGen] Could not find file for relative path ${packageName} in any of the checked directories`);
     }
   } else {
     // For package names, use :real suffix to bypass our mock redirect
@@ -122,18 +124,18 @@ export function generateMockFile(
   // Fallback: if we couldn't resolve the path, use :real suffix
   if (!requirePathForMockFile) {
     requirePathForMockFile = `${packageName}:real`;
-    console.warn(`[SHERLO:mockGen] Could not resolve path for ${packageName}, using :real suffix`);
+    // console.warn(`[SHERLO:mockGen] Could not resolve path for ${packageName}, using :real suffix`);
   }
   
   // Collect all mocks for this package across all stories
   let packageMocksByStory: Record<string, any> = {};
   
   // Debug: log all story IDs in the Map
-  const allStoryIds = Array.from(storyMocks.keys());
-  if (packageName === 'expo-localization') {
-    console.log(`[SHERLO:mockGen] Generating mock for ${packageName}, total story IDs in Map: ${allStoryIds.length}`);
-    console.log(`[SHERLO:mockGen] Story IDs containing 'multiplenamedexports':`, allStoryIds.filter(id => id.includes('multiplenamedexports')));
-  }
+  // const allStoryIds = Array.from(storyMocks.keys());
+  // if (packageName === 'expo-localization') {
+  //   console.log(`[SHERLO:mockGen] Generating mock for ${packageName}, total story IDs in Map: ${allStoryIds.length}`);
+  //   console.log(`[SHERLO:mockGen] Story IDs containing 'multiplenamedexports':`, allStoryIds.filter(id => id.includes('multiplenamedexports')));
+  // }
   
   // Read existing mocks from JSON cache (to merge across Metro worker processes)
   const mockDir = path.join(projectRoot, 'node_modules', '.sherlo-mocks');
@@ -144,11 +146,11 @@ export function generateMockFile(
     try {
       const existingCache = JSON.parse(fs.readFileSync(cacheFilePath, 'utf-8'));
       packageMocksByStory = existingCache;
-      if (packageName === 'expo-localization') {
-        console.log(`[SHERLO:mockGen] Loaded ${Object.keys(packageMocksByStory).length} existing mocks from cache`);
-      }
+      // if (packageName === 'expo-localization') {
+      //   console.log(`[SHERLO:mockGen] Loaded ${Object.keys(packageMocksByStory).length} existing mocks from cache`);
+      // }
     } catch (error: any) {
-      console.warn(`[SHERLO:mockGen] Failed to read cache file ${cacheFilePath}:`, error.message);
+      // console.warn(`[SHERLO:mockGen] Failed to read cache file ${cacheFilePath}:`, error.message);
     }
   }
   
@@ -156,14 +158,31 @@ export function generateMockFile(
   for (const [storyId, packageMocks] of storyMocks.entries()) {
     const pkgMock = packageMocks.get(packageName);
     if (pkgMock) {
+      // TEST: Check if we're storing null for functions/classes
+      for (const [exportName, exportValue] of Object.entries(pkgMock)) {
+        if (exportValue === null || exportValue === undefined) {
+          // Check if this looks like it should be a function/class based on naming
+          const looksLikeFunction = exportName.toLowerCase().includes('fetch') || 
+                                    exportName.toLowerCase().includes('get') || 
+                                    exportName.toLowerCase().includes('process') ||
+                                    exportName.toLowerCase().includes('calculate') ||
+                                    exportName.toLowerCase().includes('add') ||
+                                    exportName.toLowerCase().includes('subtract');
+          const looksLikeClass = exportName[0] === exportName[0].toUpperCase() && 
+                                (exportName.includes('Processor') || exportName.includes('Calculator') || exportName.includes('Utils'));
+          if (looksLikeFunction || looksLikeClass) {
+            console.error(`[SHERLO:mockGen] TEST FAILURE: ${exportName} in ${packageName} (story: ${storyId}) is null but should be ${looksLikeFunction ? 'function' : 'class'}`);
+          }
+        }
+      }
       packageMocksByStory[storyId] = pkgMock;
     }
   }
   
-  if (packageName === 'expo-localization') {
-    console.log(`[SHERLO:mockGen] Found ${Object.keys(packageMocksByStory).length} stories with mocks for ${packageName} (after merge)`);
-    console.log(`[SHERLO:mockGen] Story IDs with mocks:`, Object.keys(packageMocksByStory).filter(id => id.includes('multiplenamedexports')));
-  }
+  // if (packageName === 'expo-localization') {
+  //   console.log(`[SHERLO:mockGen] Found ${Object.keys(packageMocksByStory).length} stories with mocks for ${packageName} (after merge)`);
+  //   console.log(`[SHERLO:mockGen] Story IDs with mocks:`, Object.keys(packageMocksByStory).filter(id => id.includes('multiplenamedexports')));
+  // }
   
   if (Object.keys(packageMocksByStory).length === 0) {
     throw new Error(`No mocks found for package ${packageName}`);
@@ -211,13 +230,13 @@ export function generateMockFile(
     // Handle function objects with __isFunction marker from AST extraction
     if (value && typeof value === 'object' && (value as any).__isFunction) {
       const code = (value as any).__code || '() => {}';
-      console.log(`[SHERLO:serialize] Serializing function, code length: ${code.length}`);
+      // console.log(`[SHERLO:serialize] Serializing function, code length: ${code.length}`);
       return code;
     }
     // Handle class objects with __isClass marker from AST extraction
     if (value && typeof value === 'object' && (value as any).__isClass) {
       const code = (value as any).__code || 'class {}';
-      console.log(`[SHERLO:serialize] Serializing class, code length: ${code.length}`);
+      // console.log(`[SHERLO:serialize] Serializing class, code length: ${code.length}`);
       return code;
     }
     // Handle plain functions
@@ -240,9 +259,13 @@ export function generateMockFile(
   const storyMocksSerialized: Record<string, Record<string, any>> = {};
   for (const [storyId, mock] of Object.entries(actualMocksByStory)) {
     storyMocksSerialized[storyId] = {};
-    console.log(`[SHERLO:serialize] Serializing mocks for story ${storyId}, export names:`, Object.keys(mock));
+    // console.log(`[SHERLO:serialize] Serializing mocks for story ${storyId}, export names:`, Object.keys(mock));
     for (const [exportName, exportValue] of Object.entries(mock)) {
-      console.log(`[SHERLO:serialize] Serializing ${exportName}, type:`, typeof exportValue, 'isObject:', typeof exportValue === 'object', 'has __isClass:', exportValue && typeof exportValue === 'object' && (exportValue as any).__isClass, 'has __isFunction:', exportValue && typeof exportValue === 'object' && (exportValue as any).__isFunction, 'value:', exportValue === null ? 'null' : exportValue === undefined ? 'undefined' : typeof exportValue === 'object' ? JSON.stringify(Object.keys(exportValue)) : String(exportValue).substring(0, 50));
+      // Only log for async/class related exports
+      const isAsyncOrClass = exportName.includes('fetch') || exportName.includes('DataProcessor') || exportName.includes('Calculator');
+      // if (isAsyncOrClass) {
+      //   console.log(`[SHERLO:serialize] Serializing ${exportName}, type:`, typeof exportValue, 'isObject:', typeof exportValue === 'object', 'has __isClass:', exportValue && typeof exportValue === 'object' && (exportValue as any).__isClass, 'has __isFunction:', exportValue && typeof exportValue === 'object' && (exportValue as any).__isFunction, 'value:', exportValue === null ? 'null' : exportValue === undefined ? 'undefined' : typeof exportValue === 'object' ? JSON.stringify(Object.keys(exportValue)) : String(exportValue).substring(0, 50));
+      // }
       const serialized = serializeMockValue(exportValue);
       // If it's a string (function/class code), use it directly
       // If it's an object, stringify it
@@ -257,7 +280,15 @@ export function generateMockFile(
         // Primitive (string constant, number, boolean, null), JSON.stringify so it can be parsed
         storyMocksSerialized[storyId][exportName] = JSON.stringify(serialized);
       }
-      console.log(`[SHERLO:serialize] Serialized ${exportName} to:`, typeof storyMocksSerialized[storyId][exportName], storyMocksSerialized[storyId][exportName]?.substring?.(0, 50));
+      // if (isAsyncOrClass) {
+      //   console.log(`[SHERLO:serialize] Serialized ${exportName} to:`, typeof storyMocksSerialized[storyId][exportName], storyMocksSerialized[storyId][exportName]?.substring?.(0, 50));
+      // }
+      
+      // TEST: Check if async functions/classes are being stored correctly
+      if (isAsyncOrClass && 
+          (storyMocksSerialized[storyId][exportName] === null || storyMocksSerialized[storyId][exportName] === 'null')) {
+        console.error(`[SHERLO:serialize] TEST FAILURE: ${exportName} stored as null but should be code! Original:`, typeof exportValue, exportValue && typeof exportValue === 'object' ? `__isFunction: ${(exportValue as any).__isFunction}, __isClass: ${(exportValue as any).__isClass}` : 'not object');
+      }
     }
   }
   
@@ -290,13 +321,13 @@ export function generateMockFile(
       // For classes, eval and return directly (not wrapped in a function)
       return `  get ${exportName}() {
     const storyId = getCurrentStory();
-    console.log('[SHERLO:mock] ${packageName}.${exportName} accessed for story:', storyId);
+    // console.log('[SHERLO:mock] ${packageName}.${exportName} accessed for story:', storyId);
     const storyMock = storyMocks[storyId];
     
     if (storyMock && storyMock.${exportName} && typeof storyMock.${exportName} === 'string' && storyMock.${exportName} !== 'null' && storyMock.${exportName}.trim().startsWith('class')) {
       try {
         const mockClass = eval('(' + storyMock.${exportName} + ')');
-        console.log('[SHERLO:mock] Returning ${exportName} class:', mockClass);
+        // console.log('[SHERLO:mock] Returning ${exportName} class:', mockClass);
         return mockClass;
       } catch (e) {
         console.warn('[SHERLO:mock] Failed to eval class ${exportName}:', e.message);
@@ -311,7 +342,7 @@ export function generateMockFile(
       (realModule.default && realModule.default.${exportName} !== undefined ? realModule.default.${exportName} : null)
     );
     if (realClass) {
-      console.log('[SHERLO:mock] Using real ${exportName} class for story:', storyId);
+      // console.log('[SHERLO:mock] Using real ${exportName} class for story:', storyId);
       return realClass;
     } else {
       console.warn('[SHERLO:mock] No ${exportName} mock found for story "' + storyId + '" and real module not available');
@@ -321,14 +352,35 @@ export function generateMockFile(
     } else if (isFunction) {
       return `  ${exportName}: function(...args) {
     const storyId = getCurrentStory();
-    console.log('[SHERLO:mock] ${packageName}.${exportName} called for story:', storyId);
+    // console.log('[SHERLO:mock] ${packageName}.${exportName} called for story:', storyId);
     const storyMock = storyMocks[storyId];
     
     if (storyMock && storyMock.${exportName}) {
-      const mockFn = eval('(' + storyMock.${exportName} + ')');
-      const result = mockFn(...args);
-      console.log('[SHERLO:mock] Returning mock result:', result);
-      return result;
+      // Use Function constructor for async functions (eval doesn't support async in React Native)
+      let mockFn;
+      const codeStr = storyMock.${exportName};
+      if (typeof codeStr === 'string' && codeStr.trim().startsWith('async')) {
+        // For async functions, wrap in parentheses to make it a valid expression
+        try {
+          mockFn = new Function('return (' + codeStr + ')')();
+        } catch (e) {
+          console.warn('[SHERLO:mock] Failed to create async function for ${exportName}:', e.message);
+          // Fall through to real implementation
+          mockFn = null;
+        }
+      } else {
+        try {
+          mockFn = typeof codeStr === 'string' ? eval('(' + codeStr + ')') : codeStr;
+        } catch (e) {
+          console.warn('[SHERLO:mock] Failed to eval function for ${exportName}:', e.message);
+          mockFn = null;
+        }
+      }
+      if (mockFn && typeof mockFn === 'function') {
+        const result = mockFn(...args);
+        // console.log('[SHERLO:mock] Returning mock result:', result);
+        return result;
+      }
     }
     
     // Fallback to real implementation
@@ -338,7 +390,7 @@ export function generateMockFile(
       (realModule.default && typeof realModule.default.${exportName} === 'function' ? realModule.default.${exportName} : null)
     );
     if (realFn) {
-      console.log('[SHERLO:mock] Using real implementation for story:', storyId);
+      // console.log('[SHERLO:mock] Using real implementation for story:', storyId);
       return realFn(...args);
     } else {
       console.warn('[SHERLO:mock] No mock found for story "' + storyId + '" and real module not available');
@@ -349,7 +401,7 @@ export function generateMockFile(
       // For non-function exports (objects, constants, etc.)
       return `  get ${exportName}() {
     const storyId = getCurrentStory();
-    console.log('[SHERLO:mock] ${packageName}.${exportName} accessed for story:', storyId);
+    // console.log('[SHERLO:mock] ${packageName}.${exportName} accessed for story:', storyId);
     const storyMock = storyMocks[storyId];
     
     if (storyMock && storyMock.${exportName} !== null && storyMock.${exportName} !== undefined) {
@@ -376,7 +428,7 @@ export function generateMockFile(
         // Fall through to real implementation check below
       } else {
         const mockValue = deserializeFunctions(parsedValue);
-        console.log('[SHERLO:mock] Returning ${exportName} mock:', mockValue);
+        // console.log('[SHERLO:mock] Returning ${exportName} mock:', mockValue);
         return mockValue;
       }
     }
@@ -388,7 +440,7 @@ export function generateMockFile(
       (realModule.default && realModule.default.${exportName} !== undefined ? realModule.default.${exportName} : null)
     );
     if (realValue !== null && realValue !== undefined) {
-      console.log('[SHERLO:mock] Using real ${exportName} for story:', storyId);
+      // console.log('[SHERLO:mock] Using real ${exportName} for story:', storyId);
       return realValue;
     } else {
       console.warn('[SHERLO:mock] No ${exportName} mock found for story "' + storyId + '" and real module not available');
@@ -435,29 +487,29 @@ const loadRealModule = () => {
   realModuleLoadAttempted = true;
   try {
     // Log the exact require path we're using
-    console.log('[SHERLO:mock] Attempting to load real module for ${modulePathForLog}');
-    console.log('[SHERLO:mock] Using require path: ${requirePathForLog}');
+    // console.log('[SHERLO:mock] Attempting to load real module for ${modulePathForLog}');
+    // console.log('[SHERLO:mock] Using require path: ${requirePathForLog}');
     realModule = ${requireStatement};
-    console.log('[SHERLO:mock] Successfully loaded real module for ${modulePathForLog}:', realModule);
-    console.log('[SHERLO:mock] Real module type:', typeof realModule);
-    console.log('[SHERLO:mock] Real module keys:', realModule ? Object.keys(realModule) : 'null');
+    // console.log('[SHERLO:mock] Successfully loaded real module for ${modulePathForLog}:', realModule);
+    // console.log('[SHERLO:mock] Real module type:', typeof realModule);
+    // console.log('[SHERLO:mock] Real module keys:', realModule ? Object.keys(realModule) : 'null');
   } catch (e) {
     // If :real doesn't work, try direct require (might work for some cases)
-    console.warn('[SHERLO:mock] Failed to load real module for ${modulePathForLog}');
-    console.warn('[SHERLO:mock] Require path used: ${requirePathForLog}');
-    console.warn('[SHERLO:mock] Error message:', e.message);
-    console.warn('[SHERLO:mock] Error name:', e.name);
-    console.warn('[SHERLO:mock] Error stack:', e.stack);
+    // console.warn('[SHERLO:mock] Failed to load real module for ${modulePathForLog}');
+    // console.warn('[SHERLO:mock] Require path used: ${requirePathForLog}');
+    // console.warn('[SHERLO:mock] Error message:', e.message);
+    // console.warn('[SHERLO:mock] Error name:', e.name);
+    // console.warn('[SHERLO:mock] Error stack:', e.stack);
     try {
       // Try direct require with resolved path (for relative imports) or original name (for packages)
-      console.log('[SHERLO:mock] Trying fallback require for ${modulePathForLog}');
-      console.log('[SHERLO:mock] Fallback path: ${fallbackPathForLog}');
+      // console.log('[SHERLO:mock] Trying fallback require for ${modulePathForLog}');
+      // console.log('[SHERLO:mock] Fallback path: ${fallbackPathForLog}');
       realModule = ${fallbackRequireStatement};
-      console.log('[SHERLO:mock] Fallback require succeeded:', realModule);
+      // console.log('[SHERLO:mock] Fallback require succeeded:', realModule);
     } catch (e2) {
-      console.warn('[SHERLO:mock] Fallback require also failed');
-      console.warn('[SHERLO:mock] Fallback error message:', e2.message);
-      console.warn('[SHERLO:mock] Fallback error stack:', e2.stack);
+      // console.warn('[SHERLO:mock] Fallback require also failed');
+      // console.warn('[SHERLO:mock] Fallback error message:', e2.message);
+      // console.warn('[SHERLO:mock] Fallback error stack:', e2.stack);
       realModule = null;
     }
   }
@@ -468,11 +520,25 @@ loadRealModule();
 
 // All mocks for this package across all stories
 const storyMocks = ${JSON.stringify(storyMocksSerialized, null, 2)};
+// TEST: Only log errors (null values where code is expected)
+// console.log('[SHERLO:mockGen] TEST: Mock file loaded, checking embedded values...');
+for (const [storyId, mocks] of Object.entries(storyMocks)) {
+  for (const [exportName, value] of Object.entries(mocks)) {
+    if ((exportName.includes('fetch') || exportName.includes('DataProcessor') || exportName.includes('Calculator')) && 
+        (value === null || value === 'null')) {
+      console.error('[SHERLO:mockGen] TEST FAILURE: Found null for', exportName, 'in story', storyId, '- this should be code!');
+    }
+    // Only log errors, not successes
+    // else if (exportName.includes('fetch') && typeof value === 'string' && value.startsWith('async')) {
+    //   console.log('[SHERLO:mockGen] TEST: Found CODE STRING for', exportName, 'in story', storyId, '- length:', value.length);
+    // }
+  }
+}
 
 // Helper to get current story ID from global
 const getCurrentStory = () => {
   const storyId = (typeof global !== 'undefined' && global.__SHERLO_CURRENT_STORY_ID__) || null;
-  console.log('[SHERLO:mock] Current story ID:', storyId);
+  // console.log('[SHERLO:mock] Current story ID:', storyId);
   return storyId;
 };
 
@@ -482,7 +548,11 @@ const deserializeFunctions = (value) => {
     // Check if this is a serialized function
     if (value.__isFunction && value.__code) {
       try {
-        return eval('(' + value.__code + ')');
+        // Use Function constructor for async functions (eval doesn't support async in React Native)
+        const code = value.__code;
+        return code.startsWith('async') 
+          ? new Function('return ' + code)()
+          : eval('(' + code + ')');
       } catch (e) {
         console.warn('[SHERLO:mock] Failed to deserialize function:', e);
         return () => {};
@@ -508,19 +578,19 @@ ${namedExportNames.length === 0 && hasDefaultExport ? `
 // Only default export - export it directly with a getter for dynamic resolution
 const getDefaultExport = function() {
   const storyId = getCurrentStory();
-  console.log('[SHERLO:mock] ${packageName} (default export) accessed for story:', storyId);
+  // console.log('[SHERLO:mock] ${packageName} (default export) accessed for story:', storyId);
   const storyMock = storyMocks[storyId];
   
   if (storyMock && storyMock.default) {
     const parsedValue = JSON.parse(storyMock.default);
     const mockValue = deserializeFunctions(parsedValue);
-    console.log('[SHERLO:mock] Returning default export mock:', mockValue);
+    // console.log('[SHERLO:mock] Returning default export mock:', mockValue);
     return mockValue;
   }
   
   // Fallback to real implementation
   if (realModule) {
-    console.log('[SHERLO:mock] Using real default export for story:', storyId);
+    // console.log('[SHERLO:mock] Using real default export for story:', storyId);
     return realModule.default || realModule;
   } else {
     console.warn('[SHERLO:mock] No default mock found for story "' + storyId + '" and real module not available');
@@ -529,7 +599,7 @@ const getDefaultExport = function() {
     try {
       const lateRealModule = require('${packageName}:real');
       if (lateRealModule) {
-        console.log('[SHERLO:mock] Successfully loaded real module on second attempt');
+        // console.log('[SHERLO:mock] Successfully loaded real module on second attempt');
         return lateRealModule.default || lateRealModule;
       }
     } catch (e) {
@@ -589,20 +659,20 @@ ${hasDefaultExport ? `
 Object.defineProperty(mock, 'default', {
   get: function() {
     const storyId = getCurrentStory();
-    console.log('[SHERLO:mock] ${packageName}.default accessed for story:', storyId);
+    // console.log('[SHERLO:mock] ${packageName}.default accessed for story:', storyId);
     const storyMock = storyMocks[storyId];
     
     if (storyMock && storyMock.default) {
       const parsedValue = JSON.parse(storyMock.default);
       const mockValue = deserializeFunctions(parsedValue);
-      console.log('[SHERLO:mock] Returning default export mock:', mockValue);
+      // console.log('[SHERLO:mock] Returning default export mock:', mockValue);
       return mockValue;
     }
     
     // Fallback to real implementation
     try {
       const realModule = require('${packageName}:real');
-      console.log('[SHERLO:mock] Using real default export for story:', storyId);
+      // console.log('[SHERLO:mock] Using real default export for story:', storyId);
       return realModule.default || realModule;
     } catch (e) {
       console.warn('[SHERLO:mock] No default mock found for story "' + storyId + '" and real module not available');
@@ -681,7 +751,7 @@ Object.defineProperty(module.exports, 'default', {
   // cacheFilePath was already defined earlier
   fs.writeFileSync(cacheFilePath, JSON.stringify(cacheData, null, 2), 'utf-8');
   
-  console.log(`[SHERLO:mockGen] Generated mock file: ${mockFilePath} (for package: ${packageName})`);
+  // console.log(`[SHERLO:mockGen] Generated mock file: ${mockFilePath} (for package: ${packageName})`);
   return mockFilePath;
 }
 

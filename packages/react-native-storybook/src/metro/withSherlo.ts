@@ -56,7 +56,7 @@ function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = 
   // Step 2: Discover all story files
   const projectRoot = config.projectRoot || process.cwd();
   const storyFiles = discoverStoryFiles(projectRoot);
-  
+
   // Store project root in global for getCurrentStory to access
   (global as any).__SHERLO_PROJECT_ROOT__ = projectRoot;
 
@@ -68,7 +68,7 @@ function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = 
   const storyMocks: StoryMockMap = new Map();
   (global as any).__SHERLO_STORY_MOCKS__ = storyMocks;
   (global as any).__SHERLO_STORY_FILES__ = storyFiles;
-  
+
   // Store story files in a JSON file so transformer can access them
   // Metro workers run in separate processes, so globals/config don't persist
   // Write to a file that the transformer can read
@@ -132,16 +132,16 @@ function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = 
     ) => {
       // Log all resolver calls for relative paths (to debug mock file requires)
       if (moduleName.startsWith('.') || moduleName.startsWith('/')) {
-        console.log(`[SHERLO:resolver] Resolving relative path: ${moduleName} (from: ${context.originModulePath || 'unknown'})`);
+        // console.log(`[SHERLO:resolver] Resolving relative path: ${moduleName} (from: ${context.originModulePath || 'unknown'})`);
       }
-      
+
       // Handle "<pkg>:real" → resolve original package via base resolver
       if (moduleName.endsWith(':real')) {
         const realName = moduleName.slice(0, -':real'.length);
         // Always log :real resolution attempts (important for debugging fallback to real modules)
-        console.log(`[SHERLO:resolver] Resolving :real import: ${moduleName} -> ${realName}`);
+        // console.log(`[SHERLO:resolver] Resolving :real import: ${moduleName} -> ${realName}`);
         const base = prevResolve ?? context.resolveRequest;
-        
+
         // For relative paths, try resolving relative to common source directories
         // This handles cases where the mock file is in node_modules/.sherlo-mocks/
         // and can't resolve relative paths correctly
@@ -151,7 +151,7 @@ function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = 
             path.join(projectRoot, 'testing', 'testing-components', 'src'),
             projectRoot,
           ];
-          
+
           for (const sourceDir of commonSourceDirs) {
             const resolvedPath = path.resolve(sourceDir, realName);
             // Try with different extensions
@@ -167,9 +167,11 @@ function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = 
               }
             }
           }
-          console.warn(`[SHERLO:resolver] Could not resolve relative path ${realName} in common source directories`);
+          console.warn(
+            `[SHERLO:resolver] Could not resolve relative path ${realName} in common source directories`
+          );
         }
-        
+
         try {
           const result = base(context, realName, platform);
           console.log(`[SHERLO:resolver] :real resolution result:`, result);
@@ -179,7 +181,7 @@ function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = 
           throw e;
         }
       }
-      
+
       // Check if this package/module has mocks and redirect to mock file
       // Mock files are generated after transformer extracts mocks
       // Normalize relative paths to match how mock files are generated
@@ -189,11 +191,18 @@ function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = 
         // Normalize separators and remove extension, then replace / with __
         normalizedModuleName = moduleName.replace(/\\/g, '/').replace(/\.(ts|tsx|js|jsx)$/, '');
       }
-      
+
       const safeFileName = normalizedModuleName.replace(/\//g, '__');
-      const mockFilePath = path.join(projectRoot, 'node_modules', '.sherlo-mocks', `${safeFileName}.js`);
+      const mockFilePath = path.join(
+        projectRoot,
+        'node_modules',
+        '.sherlo-mocks',
+        `${safeFileName}.js`
+      );
       if (fs.existsSync(mockFilePath)) {
-        log(`[SHERLO:resolver] Redirecting ${moduleName} (safeFileName: ${safeFileName}) to mock file: ${mockFilePath}`);
+        log(
+          `[SHERLO:resolver] Redirecting ${moduleName} (safeFileName: ${safeFileName}) to mock file: ${mockFilePath}`
+        );
         return {
           type: 'sourceFile',
           filePath: mockFilePath,
@@ -201,10 +210,12 @@ function withSherlo(config: MetroConfig, { debug = false }: WithSherloOptions = 
       } else {
         // Debug: log when we're NOT redirecting
         if (moduleName.includes('testHelper') || moduleName === 'expo-localization') {
-          log(`[SHERLO:resolver] Mock file NOT found for ${moduleName} (safeFileName: ${safeFileName}) at: ${mockFilePath}`);
+          log(
+            `[SHERLO:resolver] Mock file NOT found for ${moduleName} (safeFileName: ${safeFileName}) at: ${mockFilePath}`
+          );
         }
       }
-      
+
       // Fallback to default resolver
       return prevResolve(context, moduleName, platform);
     };

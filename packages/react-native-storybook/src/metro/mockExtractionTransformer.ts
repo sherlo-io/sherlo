@@ -180,9 +180,12 @@ function extractMocksFromObjectExpression(obj: any): Record<string, any> | null 
         // For now, we'll store a placeholder that indicates this package should be mocked
         // The actual mock implementation will be extracted at runtime
         const nodeType = prop.value && (prop.value as any).type;
-        console.log(`[SHERLO:extraction] Extracting mock for key "${key}", nodeType: ${nodeType}`);
+        // console.log(`[SHERLO:extraction] Extracting mock for key "${key}", nodeType: ${nodeType}`);
         const extracted = extractMockValue(prop.value);
-        console.log(`[SHERLO:extraction] Result for "${key}":`, extracted === null ? 'null' : typeof extracted === 'object' ? `{ __isFunction: ${(extracted as any).__isFunction}, __isClass: ${(extracted as any).__isClass}, __code length: ${(extracted as any).__code?.length || 0} }` : String(extracted));
+        // Only log if extraction failed for async/class related exports
+        if ((key.includes('fetch') || key.includes('DataProcessor') || key.includes('Calculator')) && extracted === null) {
+          console.error(`[SHERLO:extraction] FAILED to extract "${key}" - got null`);
+        }
         mocks[key] = extracted;
       }
     }
@@ -211,13 +214,16 @@ function extractMockValue(value: any): any {
 
   // Debug: log node type for troubleshooting
   const nodeType = value && value.type;
-  if (nodeType) {
-    // Log all node types, especially for functions and classes
-    if (nodeType.includes('Function') || nodeType.includes('Class') || nodeType === 'ArrowFunctionExpression') {
-      console.log(`[SHERLO:extraction] extractMockValue called with nodeType: ${nodeType}, async: ${(value as any).async}, isArrowFunction: ${t.isArrowFunctionExpression(value)}, isFunctionExpression: ${t.isFunctionExpression(value)}`);
-    }
-  } else if (!value) {
-    console.log(`[SHERLO:extraction] extractMockValue called with null/undefined value`);
+  // if (nodeType) {
+  //   // Log all node types, especially for functions and classes
+  //   if (nodeType.includes('Function') || nodeType.includes('Class') || nodeType === 'ArrowFunctionExpression') {
+  //     console.log(`[SHERLO:extraction] extractMockValue called with nodeType: ${nodeType}, async: ${(value as any).async}, isArrowFunction: ${t.isArrowFunctionExpression(value)}, isFunctionExpression: ${t.isFunctionExpression(value)}`);
+  //   }
+  // } else if (!value) {
+  //   console.log(`[SHERLO:extraction] extractMockValue called with null/undefined value`);
+  //   return null;
+  // }
+  if (!value) {
     return null;
   }
 
@@ -235,8 +241,8 @@ function extractMockValue(value: any): any {
   if (t.isClassExpression(value) || t.isClassDeclaration(value)) {
     if (generate) {
       try {
-        const code = generate(value).code;
-        console.log(`[SHERLO:extraction] Extracted class directly, code length: ${code.length}, preview: ${code.substring(0, 50)}`);
+                const code = generate(value).code;
+        // console.log(`[SHERLO:extraction] Extracted class, code length: ${code.length}`);
         return { __isClass: true, __code: code };
       } catch (e: any) {
         console.warn(`[SHERLO:extraction] Failed to generate code for class:`, e.message);
@@ -244,7 +250,7 @@ function extractMockValue(value: any): any {
       }
     }
     // Fallback: return marker
-    console.warn(`[SHERLO:extraction] @babel/generator not available for class`);
+    // console.warn(`[SHERLO:extraction] @babel/generator not available for class`);
     return { __isClass: true, __code: 'class {}' };
   }
 
@@ -276,28 +282,34 @@ function extractMockValue(value: any): any {
               try {
                 const code = generate(prop.value).code;
                 const isAsync = isAsyncFunction || code.trim().startsWith('async');
-                console.log(`[SHERLO:extraction] Extracted ${isAsync ? 'async ' : ''}function ${key} (nodeType: ${nodeType}, arrowNode: ${isArrowFunctionNode}, funcNode: ${isFunctionExpressionNode}, arrow: ${isArrowFunction}, funcExpr: ${isFunctionExpression}, async: ${isAsync}), code length: ${code.length}, code preview: ${code.substring(0, 50)}`);
+                // Only log if extraction failed
+                // if (key.includes('fetch') || key.includes('DataProcessor') || key.includes('Calculator')) {
+                //   console.log(`[SHERLO:extraction] Extracted ${isAsync ? 'async ' : ''}function ${key}, code length: ${code.length}`);
+                // }
                 obj[key] = { __isFunction: true, __code: code };
               } catch (e: any) {
                 console.warn(`[SHERLO:extraction] Failed to generate code for function ${key}:`, e.message);
                 obj[key] = { __isFunction: true, __code: '() => {}' };
               }
             } else {
-              console.warn(`[SHERLO:extraction] @babel/generator not available for function ${key}`);
+              // console.warn(`[SHERLO:extraction] @babel/generator not available for function ${key}`);
               obj[key] = { __isFunction: true, __code: '() => {}' };
             }
           } else if (t.isClassExpression(prop.value) || t.isClassDeclaration(prop.value)) {
             if (generate) {
               try {
                 const code = generate(prop.value).code;
-                console.log(`[SHERLO:extraction] Extracted class ${key} from object expression, code length: ${code.length}, preview: ${code.substring(0, 50)}`);
+                // Only log if extraction failed
+                // if (key.includes('DataProcessor') || key.includes('Calculator')) {
+                //   console.log(`[SHERLO:extraction] Extracted class ${key}, code length: ${code.length}`);
+                // }
                 obj[key] = { __isClass: true, __code: code };
               } catch (e: any) {
                 console.warn(`[SHERLO:extraction] Failed to generate code for class ${key}:`, e.message);
                 obj[key] = { __isClass: true, __code: 'class {}' };
               }
             } else {
-              console.warn(`[SHERLO:extraction] @babel/generator not available for class ${key}`);
+              // console.warn(`[SHERLO:extraction] @babel/generator not available for class ${key}`);
               obj[key] = { __isClass: true, __code: 'class {}' };
             }
           } else {
@@ -308,12 +320,18 @@ function extractMockValue(value: any): any {
               // This might be an async function that wasn't caught above, try extracting it
               const extracted = extractMockValue(prop.value);
               if (extracted === null && prop.value) {
-                console.warn(`[SHERLO:extraction] extractMockValue returned null for ${key} (nodeType: ${nodeType}), trying direct extraction`);
+                // Only log if extraction failed
+                // if (key.includes('fetch') || key.includes('DataProcessor') || key.includes('Calculator')) {
+                //   console.warn(`[SHERLO:extraction] extractMockValue returned null for ${key} (nodeType: ${nodeType}), trying direct extraction`);
+                // }
                 // Try direct extraction
                 if (generate) {
                   try {
                     const code = generate(prop.value).code;
-                    console.log(`[SHERLO:extraction] Direct extraction succeeded for ${key}, code length: ${code.length}`);
+                    // Only log if extraction failed
+                    // if (key.includes('fetch') || key.includes('DataProcessor') || key.includes('Calculator')) {
+                    //   console.log(`[SHERLO:extraction] Direct extraction succeeded for ${key}, code length: ${code.length}`);
+                    // }
                     obj[key] = { __isFunction: true, __code: code };
                   } catch (e: any) {
                     console.warn(`[SHERLO:extraction] Direct extraction failed for ${key}:`, e.message);
@@ -326,11 +344,137 @@ function extractMockValue(value: any): any {
                 obj[key] = extracted;
               }
             } else {
-              const extracted = extractMockValue(prop.value);
-              if (extracted === null && prop.value) {
-                console.warn(`[SHERLO:extraction] extractMockValue returned null for ${key}, node type:`, nodeType, 'isClassExpression:', t.isClassExpression(prop.value), 'isClassDeclaration:', t.isClassDeclaration(prop.value), 'isArrowFunction:', t.isArrowFunctionExpression(prop.value), 'isFunctionExpression:', t.isFunctionExpression(prop.value));
+              // If nodeType is CallExpression, it might be a transformed async function or class
+              // Metro transforms async functions to use _asyncToGenerator helper
+              // We need to extract the original function from the CallExpression
+              // Handle ALL CallExpression nodes, not just those with specific key names
+              if (nodeType === 'CallExpression' && generate) {
+                try {
+                  // Check if this is Metro's _asyncToGenerator transformation
+                  const callExpr = prop.value as any;
+                  const calleeName = callExpr.callee && (callExpr.callee.name || (callExpr.callee.type === 'MemberExpression' && callExpr.callee.property && callExpr.callee.property.name));
+                  
+                  // Debug logging only for known async function patterns
+                  if ((key.includes('fetch') || key.includes('async') || key.includes('getUser')) && calleeName) {
+                    // console.log(`[SHERLO:extraction] CallExpression for ${key}, callee name: ${calleeName}, callee type: ${callExpr.callee?.type}`);
+                  }
+                  
+                  if (callExpr.callee && calleeName === '_asyncToGenerator' && callExpr.arguments && callExpr.arguments.length > 0) {
+                    // Extract the generator function from the first argument
+                    const generatorFn = callExpr.arguments[0];
+                    if (generatorFn && (generatorFn.type === 'FunctionExpression' || generatorFn.type === 'ArrowFunctionExpression' || generatorFn.type === 'FunctionDeclaration')) {
+                      // Convert the generator function back to an async function
+                      // Metro transforms: async (x) => y
+                      // To: _asyncToGenerator(function*() { return y; })
+                      // We need to extract the generator body and convert yield to await
+                      if (generatorFn.body && generatorFn.body.type === 'BlockStatement') {
+                        const bodyCode = generate(generatorFn.body).code;
+                        // Convert yield to await in the body code
+                        const asyncBodyCode = bodyCode.replace(/\byield\b/g, 'await');
+                        // Reconstruct as async arrow function: async (...params) => { body }
+                        const params = generatorFn.params ? generate(generatorFn.params).code : '';
+                        const asyncCode = `async (${params}) => ${asyncBodyCode}`;
+                        // Debug logging only for known async function patterns
+                        // if (key.includes('fetch') || key.includes('async') || key.includes('getUser')) {
+                        //   console.log(`[SHERLO:extraction] Converted ${key} from generator to async, code: ${asyncCode.substring(0, 100)}`);
+                        // }
+                        obj[key] = { __isFunction: true, __code: asyncCode };
+                      } else {
+                        // Fallback: generate generator code and convert yield to await
+                        const generatorCode = generate(generatorFn).code;
+                        const asyncCode = generatorCode.replace(/\bfunction\*\s*\(/g, 'async function(').replace(/\byield\b/g, 'await');
+                        // Debug logging only for known async function patterns
+                        // if (key.includes('fetch') || key.includes('async') || key.includes('getUser')) {
+                        //   console.log(`[SHERLO:extraction] Converted ${key} (fallback), code: ${asyncCode.substring(0, 100)}`);
+                        // }
+                        obj[key] = { __isFunction: true, __code: asyncCode };
+                      }
+                    } else {
+                      // Not a generator function, try generating code directly
+                      const code = generate(prop.value).code;
+                      console.error(`[SHERLO:extraction] CallExpression for ${key} is _asyncToGenerator but generatorFn type is ${generatorFn?.type}, generated code: ${code.substring(0, 100)}`);
+                      obj[key] = { __isFunction: true, __code: code };
+                    }
+                  } else {
+                    // Not _asyncToGenerator, but might be an IIFE that wraps _asyncToGenerator
+                    // Metro transforms: async (x) => y
+                    // To: (function() { var _ref = _asyncToGenerator(function*() {...}); return function(_x) { return _ref.apply(this, arguments); }; })()
+                    // Check if this is an IIFE pattern
+                    const code = generate(prop.value).code;
+                    
+                    // Check if the generated code contains _asyncToGenerator (Metro's transformation)
+                    if (code.includes('_asyncToGenerator') && code.includes('function*')) {
+                      // Helper function to extract generator function body with proper brace matching
+                      const extractGeneratorBody = (codeStr: string): { params: string; body: string } | null => {
+                        // Find function* declaration
+                        const funcMatch = codeStr.match(/function\*\s*\(([^)]*)\)\s*\{/);
+                        if (!funcMatch) return null;
+                        
+                        const params = funcMatch[1].trim();
+                        const startIndex = funcMatch.index! + funcMatch[0].length;
+                        
+                        // Match braces properly to find the closing brace
+                        let braceCount = 1;
+                        let i = startIndex;
+                        while (i < codeStr.length && braceCount > 0) {
+                          if (codeStr[i] === '{') braceCount++;
+                          else if (codeStr[i] === '}') braceCount--;
+                          i++;
+                        }
+                        
+                        if (braceCount !== 0) return null; // Unmatched braces
+                        
+                        // Extract body (excluding the closing brace)
+                        const body = codeStr.substring(startIndex, i - 1);
+                        return { params, body };
+                      };
+                      
+                      const extracted = extractGeneratorBody(code);
+                      if (extracted) {
+                        let body = extracted.body;
+                        // Convert yield to await
+                        body = body.replace(/\byield\b/g, 'await');
+                        // Reconstruct as async arrow function
+                        const asyncCode = `async (${extracted.params}) => {${body}}`;
+                        // Debug logging only for known async function patterns
+                        // if (key.includes('fetch') || key.includes('async') || key.includes('getUser')) {
+                        //   console.log(`[SHERLO:extraction] Extracted ${key} from IIFE pattern, converted to: ${asyncCode.substring(0, 100)}`);
+                        // }
+                        obj[key] = { __isFunction: true, __code: asyncCode };
+                      } else {
+                        // Can't extract, store as-is (will fail at runtime but we'll see the error)
+                        console.error(`[SHERLO:extraction] Could not extract generator from IIFE for ${key}, code: ${code.substring(0, 150)}`);
+                        obj[key] = { __isFunction: true, __code: code };
+                      }
+                    } else if (code.includes('async') || code.includes('=>') || code.includes('class')) {
+                      // Regular async function or class
+                      if (code.includes('class')) {
+                        obj[key] = { __isClass: true, __code: code };
+                      } else {
+                        obj[key] = { __isFunction: true, __code: code };
+                      }
+                    } else {
+                      // Doesn't look like function/class, fall back to extractMockValue
+                      const extracted = extractMockValue(prop.value);
+                      if (extracted === null) {
+                        console.error(`[SHERLO:extraction] FAILED to extract "${key}", node type: ${nodeType}, generated code: ${code.substring(0, 50)}`);
+                      }
+                      obj[key] = extracted;
+                    }
+                  }
+                } catch (e: any) {
+                  console.warn(`[SHERLO:extraction] Failed to generate code for CallExpression ${key}:`, e.message);
+                  const extracted = extractMockValue(prop.value);
+                  obj[key] = extracted;
+                }
+              } else {
+                const extracted = extractMockValue(prop.value);
+                // Only log if extraction failed for async/class exports
+                if (extracted === null && prop.value && (key.includes('fetch') || key.includes('DataProcessor') || key.includes('Calculator'))) {
+                  console.error(`[SHERLO:extraction] FAILED to extract "${key}", node type: ${nodeType}`);
+                }
+                obj[key] = extracted;
               }
-              obj[key] = extracted;
             }
           }
         }
@@ -345,6 +489,8 @@ function extractMockValue(value: any): any {
   if (t.isBooleanLiteral(value)) return value.value;
   if (t.isNullLiteral(value)) return null;
 
+  // If we get here, we couldn't extract the value
+  // console.warn(`[SHERLO:extraction] extractMockValue returning null for unhandled node type: ${nodeType || 'unknown'}, value keys:`, value && typeof value === 'object' ? Object.keys(value).join(', ') : 'not an object');
   return null;
 }
 
@@ -495,16 +641,16 @@ export function extractMocksFromTransformedCode(
                 const packageMocks = new Map<string, any>();
 
                 for (const [pkgName, pkgMock] of Object.entries(storyMocks)) {
-                  // Log what we're storing for debugging
-                  if (pkgName.includes('classUtils') || pkgName.includes('asyncUtils')) {
-                    console.log(`[SHERLO:transformer] Storing mock for ${pkgName}:`, typeof pkgMock, pkgMock && typeof pkgMock === 'object' ? Object.keys(pkgMock) : 'not object');
-                    if (pkgMock && typeof pkgMock === 'object') {
-                      for (const [exportName, exportValue] of Object.entries(pkgMock)) {
-                        const hasMarker = exportValue && typeof exportValue === 'object' && ((exportValue as any).__isFunction || (exportValue as any).__isClass);
-                        console.log(`[SHERLO:transformer]   ${exportName}: type=${typeof exportValue}, hasMarker=${hasMarker}, isFunction=${(exportValue as any)?.__isFunction}, isClass=${(exportValue as any)?.__isClass}`);
-                      }
-                    }
-                  }
+                  // Log what we're storing for debugging (only for async/class packages)
+                  // if (pkgName.includes('classUtils') || pkgName.includes('asyncUtils')) {
+                  //   console.log(`[SHERLO:transformer] Storing mock for ${pkgName}:`, typeof pkgMock, pkgMock && typeof pkgMock === 'object' ? Object.keys(pkgMock) : 'not object');
+                  //   if (pkgMock && typeof pkgMock === 'object') {
+                  //     for (const [exportName, exportValue] of Object.entries(pkgMock)) {
+                  //       const hasMarker = exportValue && typeof exportValue === 'object' && ((exportValue as any).__isFunction || (exportValue as any).__isClass);
+                  //       console.log(`[SHERLO:transformer]   ${exportName}: type=${typeof exportValue}, hasMarker=${hasMarker}, isFunction=${(exportValue as any)?.__isFunction}, isClass=${(exportValue as any)?.__isClass}`);
+                  //     }
+                  //   }
+                  // }
                   packageMocks.set(pkgName, pkgMock);
                 }
 
@@ -513,11 +659,11 @@ export function extractMocksFromTransformedCode(
                 // Also store with original format
                 mocks.set(originalStoryId, packageMocks);
                 
-                console.log(
-                  `[SHERLO:transformer] Extracted mocks for ${storyId} (original: ${originalStoryId}):`,
-                  Array.from(packageMocks.keys())
-                );
-                console.log(`[SHERLO:transformer] Mock details:`, JSON.stringify(Object.fromEntries(packageMocks), null, 2));
+                // console.log(
+                //   `[SHERLO:transformer] Extracted mocks for ${storyId} (original: ${originalStoryId}):`,
+                //   Array.from(packageMocks.keys())
+                // );
+                // console.log(`[SHERLO:transformer] Mock details:`, JSON.stringify(Object.fromEntries(packageMocks), null, 2));
               }
             }
           });
