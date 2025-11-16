@@ -49,11 +49,6 @@ export function generateSimpleMockFileTemplate(options: SimpleMockFileTemplateOp
     packageName,
     storyMocksCode,
   } = options;
-  
-  // Add timestamp comment to ensure Metro sees file as changed on each generation
-  // This prevents Metro from using stale cached transforms
-  const timestamp = Date.now();
-  const timestampComment = `// Generated at ${new Date(timestamp).toISOString()} (timestamp: ${timestamp})\n`;
 
   const storyIds = Object.keys(storyMocksCode);
   
@@ -74,8 +69,8 @@ export function generateSimpleMockFileTemplate(options: SimpleMockFileTemplateOp
     storyExports.push(''); // Empty line between exports
   }
   
-  // Combine all exported objects with timestamp comment
-  const allCode = timestampComment + storyExports.join('\n');
+  // Combine all exported objects (no timestamp - hash comparison handles change detection)
+  const allCode = storyExports.join('\n');
   
   // Create a map of storyId -> story object for runtime access
   const storyMapEntries: string[] = [];

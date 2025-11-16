@@ -97,6 +97,16 @@ function withSherlo(config: MetroConfig, { debug = false, enabled = true }: With
         const mockFiles = preGenerateMockFiles(storyFiles, projectRoot);
         if (mockFiles.size > 0) {
           console.log(`[SHERLO] Pre-generation complete: ${mockFiles.size} mock file(s) ready for Metro`);
+          
+          // Set up file watchers to auto-regenerate mocks when story files change
+          try {
+            const { watchAllStoryFiles } = require('./mockGeneration/watchStoryFiles');
+            watchAllStoryFiles(storyFiles, projectRoot);
+            console.log(`[SHERLO] File watchers set up for ${storyFiles.length} story file(s)`);
+          } catch (error: any) {
+            console.warn(`[SHERLO] Failed to set up file watchers: ${error.message}`);
+            // Don't fail setup if watchers fail - mocks still work, just no auto-regeneration
+          }
         }
       } catch (error: any) {
         console.warn(`[SHERLO] Pre-generation failed, mocks will be generated during bundling: ${error.message}`);

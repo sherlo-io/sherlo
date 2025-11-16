@@ -12,6 +12,127 @@ import { MOCK_DIR_NAME, SHERLO_DIR_NAME } from './constants';
 
 
 /**
+ * Generates mock file content in memory (without writing to disk)
+ * Used for hash comparison before writing
+ * 
+ * @param packageName - The package/module name to generate mock content for
+ * @param storyMocks - Map of story IDs to their package mocks
+ * @param projectRoot - The project root directory
+ * @returns The generated JavaScript content (as string)
+ */
+export function generateMockFileContent(
+  packageName: string,
+  storyMocks: StoryMockMap,
+  projectRoot: string
+): string {
+  // This is the same logic as generateMockFile, but returns content instead of writing
+  // We duplicate the logic here to avoid refactoring generateMockFile
+  const { realModulePath, requirePathForMockFile } = resolvePathForMockFile(packageName, projectRoot);
+
+  const packageMocksByStory: Record<string, any> = {};
+  for (const [storyId, packageMocks] of storyMocks.entries()) {
+    const pkgMock = packageMocks.get(packageName);
+    if (pkgMock) {
+      packageMocksByStory[storyId] = pkgMock;
+    }
+  }
+
+  if (Object.keys(packageMocksByStory).length === 0) {
+    throw new Error(`No mocks found for package ${packageName}`);
+  }
+
+  const storyMocksCode: Record<string, string> = {};
+  for (const [storyId, mock] of Object.entries(packageMocksByStory)) {
+    if (mock && typeof mock === 'object' && (mock as any).__code) {
+      storyMocksCode[storyId] = (mock as any).__code;
+    } else {
+      storyMocksCode[storyId] = '{}';
+    }
+  }
+
+  // Get export names and types (simplified version - reuse logic from generateMockFile if needed)
+  // For now, use a simpler approach: extract from mock code
+  let exportNames: string[] = [];
+  let exportTypes: Record<string, 'function' | 'constant'> = {};
+  let hasDefaultExport = false;
+
+  for (const mockCode of Object.values(storyMocksCode)) {
+    if (mockCode && typeof mockCode === 'string' && mockCode.includes('default:')) {
+      hasDefaultExport = true;
+      break;
+    }
+  }
+
+  // Extract export names from mock code
+  const allPropertyNames = new Set<string>();
+  for (const mockCode of Object.values(storyMocksCode)) {
+    if (mockCode && typeof mockCode === 'string') {
+      const propMatches = mockCode.match(/(\w+)\s*:/g);
+      if (propMatches) {
+        propMatches.forEach(match => {
+          const propName = match.replace(/\s*:$/, '');
+          if (propName !== 'default') {
+            allPropertyNames.add(propName);
+          }
+        });
+      }
+    }
+  }
+  exportNames = Array.from(allPropertyNames);
+  for (const exportName of exportNames) {
+    exportTypes[exportName] = 'function'; // Default to function
+  }
+
+  const requirePathEscaped = requirePathForMockFile!.replace(/'/g, "\\'");
+  const requireStatement = `require('${requirePathEscaped}')`;
+  const fallbackPath = packageName.startsWith('.') || packageName.startsWith('/')
+    ? requirePathForMockFile!
+    : packageName;
+  const fallbackPathEscaped = fallbackPath.replace(/'/g, "\\'");
+  const fallbackRequireStatement = `require('${fallbackPathEscaped}')`;
+
+  const { generateSimpleMockFileTemplate } = require('./mockGeneration/simpleMockFileTemplate');
+  const mockCodeTS = generateSimpleMockFileTemplate({
+    packageName,
+    requireStatement,
+    fallbackRequireStatement,
+    storyMocksCode,
+    exportNames,
+    exportTypes,
+    hasDefaultExport,
+  });
+
+  // Transform TypeScript → JavaScript
+  let mockCodeJS: string;
+  try {
+    let babel: any;
+    try {
+      babel = require('@babel/core');
+    } catch {
+      const babelPath = require.resolve('@babel/core', {
+        paths: [projectRoot, path.join(projectRoot, 'node_modules')],
+      });
+      babel = require(babelPath);
+    }
+    
+    const convertAsyncArrowsPlugin = require('./mockGeneration/babelPluginConvertAsyncArrows').default;
+    const transformed = babel.transformSync(mockCodeTS, {
+      presets: [['@babel/preset-typescript', { isTSX: false }]],
+      plugins: [convertAsyncArrowsPlugin],
+      configFile: false,
+      babelrc: false,
+      filename: `${packageName}.ts`,
+    });
+    
+    mockCodeJS = transformed?.code || mockCodeTS;
+  } catch {
+    mockCodeJS = mockCodeTS;
+  }
+
+  return mockCodeJS;
+}
+
+/**
  * Generates a mock file for a package that checks getCurrentStory() at runtime
  *
  * @param packageName - The package/module name to generate a mock for
