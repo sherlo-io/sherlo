@@ -58,7 +58,7 @@
     "preset": "react-native"
   },
   "dependencies": {
-    "@babel/core": "^7.20.0",
+    "@babel/core": "^7.25.2",
     "@babel/generator": "^7.23.0",
     "@babel/parser": "^7.23.0",
     "@babel/preset-react": "^7.20.0",

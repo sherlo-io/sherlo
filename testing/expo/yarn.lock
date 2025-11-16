@@ -2619,7 +2619,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@sherlo/react-native-storybook@portal:../../packages/react-native-storybook::locator=%40sherlo%2Fexpo%40workspace%3A."
   dependencies:
-    "@babel/core": "npm:^7.20.0"
+    "@babel/core": "npm:^7.25.2"
     "@babel/generator": "npm:^7.23.0"
     "@babel/parser": "npm:^7.23.0"
     "@babel/preset-react": "npm:^7.20.0"
