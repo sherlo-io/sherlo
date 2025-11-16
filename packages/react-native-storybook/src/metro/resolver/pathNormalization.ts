@@ -4,7 +4,7 @@
  */
 
 import * as path from 'path';
-import { MOCK_DIR_NAME } from '../constants';
+import { MOCK_DIR_NAME, SHERLO_DIR_NAME } from '../constants';
 
 /**
  * Normalizes a module name for use in mock file paths
@@ -35,6 +35,7 @@ export function getSafeFileName(normalizedModuleName: string): string {
 
 /**
  * Gets the mock file path for a given module name
+ * Mock files are now generated in .sherlo/mocks/ (source directory) so Metro transforms them normally
  *
  * @param moduleName - The module name
  * @param projectRoot - The project root directory
@@ -43,6 +44,9 @@ export function getSafeFileName(normalizedModuleName: string): string {
 export function getMockFilePath(moduleName: string, projectRoot: string): string {
   const normalizedModuleName = normalizeModuleName(moduleName);
   const safeFileName = getSafeFileName(normalizedModuleName);
-  return path.join(projectRoot, 'node_modules', MOCK_DIR_NAME, `${safeFileName}.js`);
+  const { getMockDirectory } = require('../constants');
+  const mockDir = getMockDirectory(projectRoot);
+  // Generate .js files since we strip all TypeScript syntax anyway
+  return path.join(mockDir, `${safeFileName}.js`);
 }
 

@@ -1,0 +1,408 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+
+// Import all the things we might test
+import { formatCurrency, APP_NAME, VERSION } from '../utils/localUtils';
+import TestHelper from '../utils/testHelper';
+import { getLocales, getCalendars } from 'expo-localization';
+import { processOrder, sum, calculateDiscount } from '../utils/parameterizedUtils';
+import { config, supportedLanguages, MAX_RETRIES, ENABLED } from '../utils/objectExportsUtils';
+import { fetchUserData, fetchSettings } from '../utils/asyncUtils';
+import { processPayment, getUserPaymentInfo } from '../utils/nestedUtils';
+import { SPECIAL_NUMBERS, EMPTY_VALUES, createMultiplier } from '../utils/edgeCaseUtils';
+
+interface TestResult {
+  name: string;
+  passed: boolean;
+  expected: any;
+  actual: any;
+}
+
+interface SimpleMockTestProps {
+  testType?: string;
+}
+
+export const SimpleMockTest: React.FC<SimpleMockTestProps> = ({ testType = 'BasicFunction' }) => {
+  const [results, setResults] = useState<TestResult[]>([]);
+
+  useEffect(() => {
+    console.log(`[SHERLO] SimpleMockTest: Starting test type "${testType}"`);
+    const newResults: TestResult[] = [];
+
+    try {
+      switch (testType) {
+      case 'BasicFunction':
+        console.log('[SHERLO] SimpleMockTest: Calling formatCurrency(100, "EUR")');
+        const currency = formatCurrency(100, 'EUR');
+        console.log(`[SHERLO] SimpleMockTest: formatCurrency returned:`, currency);
+        newResults.push({
+          name: 'formatCurrency',
+          passed: currency === 'MOCKED EUR 100.00',
+          expected: 'MOCKED EUR 100.00',
+          actual: currency,
+        });
+        break;
+
+      case 'FunctionWithParameters':
+        const currency2 = formatCurrency(99.99, 'USD');
+        newResults.push({
+          name: 'formatCurrency with params',
+          passed: currency2 === 'MOCKED USD 99.99',
+          expected: 'MOCKED USD 99.99',
+          actual: currency2,
+        });
+        break;
+
+      case 'Constants':
+        newResults.push({
+          name: 'APP_NAME',
+          passed: APP_NAME === 'Mocked App Name',
+          expected: 'Mocked App Name',
+          actual: APP_NAME,
+        });
+        newResults.push({
+          name: 'VERSION',
+          passed: VERSION === '2.0.0',
+          expected: '2.0.0',
+          actual: VERSION,
+        });
+        break;
+
+      case 'DefaultExport':
+        console.log('[SHERLO] SimpleMockTest: Testing default export (TestHelper)');
+        console.log('[SHERLO] SimpleMockTest: TestHelper type:', typeof TestHelper);
+        console.log('[SHERLO] SimpleMockTest: TestHelper value:', TestHelper);
+        console.log('[SHERLO] SimpleMockTest: TestHelper keys:', TestHelper ? Object.keys(TestHelper) : 'null/undefined');
+        
+        if (!TestHelper || typeof TestHelper !== 'object') {
+          newResults.push({
+            name: 'TestHelper (default export)',
+            passed: false,
+            expected: 'object with getValue, getNumber, getObject methods',
+            actual: `typeof TestHelper = ${typeof TestHelper}, value = ${TestHelper}`,
+          });
+          break;
+        }
+        
+        console.log('[SHERLO] SimpleMockTest: Calling TestHelper.getValue()');
+        const value = TestHelper.getValue();
+        console.log('[SHERLO] SimpleMockTest: TestHelper.getValue() returned:', value);
+        
+        console.log('[SHERLO] SimpleMockTest: Calling TestHelper.getNumber()');
+        const number = TestHelper.getNumber();
+        console.log('[SHERLO] SimpleMockTest: TestHelper.getNumber() returned:', number);
+        
+        console.log('[SHERLO] SimpleMockTest: Calling TestHelper.getObject()');
+        const obj = TestHelper.getObject();
+        console.log('[SHERLO] SimpleMockTest: TestHelper.getObject() returned:', obj);
+        
+        newResults.push({
+          name: 'TestHelper.getValue',
+          passed: value === 'mocked-value',
+          expected: 'mocked-value',
+          actual: value,
+        });
+        newResults.push({
+          name: 'TestHelper.getNumber',
+          passed: number === 42,
+          expected: 42,
+          actual: number,
+        });
+        newResults.push({
+          name: 'TestHelper.getObject',
+          passed: obj?.key === 'mocked',
+          expected: { key: 'mocked' },
+          actual: obj,
+        });
+        break;
+
+      case 'MultipleNamedExports':
+        console.log('[SHERLO] SimpleMockTest: Testing multiple named exports (expo-localization)');
+        console.log('[SHERLO] SimpleMockTest: getLocales type:', typeof getLocales);
+        console.log('[SHERLO] SimpleMockTest: getLocales value:', getLocales);
+        
+        if (typeof getLocales !== 'function') {
+          newResults.push({
+            name: 'getLocales (export)',
+            passed: false,
+            expected: 'function',
+            actual: `typeof getLocales = ${typeof getLocales}, value = ${getLocales}`,
+          });
+          break;
+        }
+        
+        console.log('[SHERLO] SimpleMockTest: Calling getLocales()');
+        const locales = getLocales();
+        console.log('[SHERLO] SimpleMockTest: getLocales() returned:', locales);
+        newResults.push({
+          name: 'getLocales',
+          passed: locales?.[0]?.languageCode === 'en' && locales?.[0]?.regionCode === 'US',
+          expected: [{ languageCode: 'en', regionCode: 'US' }],
+          actual: locales,
+        });
+        break;
+
+      case 'ParameterizedFunctions':
+        const order = processOrder('ORD-123', 5, 'high');
+        const total = sum(1, 2, 3, 4, 5);
+        const discount = calculateDiscount(100, true, 'COUPON');
+        newResults.push({
+          name: 'processOrder',
+          passed: order === 'MOCKED Order ORD-123: 5 items (high priority)',
+          expected: 'MOCKED Order ORD-123: 5 items (high priority)',
+          actual: order,
+        });
+        newResults.push({
+          name: 'sum',
+          passed: total === 150,
+          expected: 150,
+          actual: total,
+        });
+        newResults.push({
+          name: 'calculateDiscount',
+          passed: discount === 70,
+          expected: 70,
+          actual: discount,
+        });
+        break;
+
+      case 'ObjectExports':
+        newResults.push({
+          name: 'config.app.name',
+          passed: config.app.name === 'MockedApp',
+          expected: 'MockedApp',
+          actual: config.app.name,
+        });
+        newResults.push({
+          name: 'supportedLanguages',
+          passed: JSON.stringify(supportedLanguages) === JSON.stringify(['en', 'de', 'fr']),
+          expected: ['en', 'de', 'fr'],
+          actual: supportedLanguages,
+        });
+        newResults.push({
+          name: 'MAX_RETRIES',
+          passed: MAX_RETRIES === 5,
+          expected: 5,
+          actual: MAX_RETRIES,
+        });
+        newResults.push({
+          name: 'ENABLED',
+          passed: ENABLED === false,
+          expected: false,
+          actual: ENABLED,
+        });
+        break;
+
+      case 'AsyncFunctions':
+        // Test async functions - use Promise.all to wait for all
+        Promise.all([
+          fetchUserData('user-123').catch((e) => ({ error: e.message })),
+          fetchSettings().catch((e) => ({ error: e.message })),
+        ]).then(([user, settings]) => {
+          newResults.push({
+            name: 'fetchUserData',
+            passed: !('error' in user) && user?.id === 'user-123' && user?.name === 'Mocked User',
+            expected: { id: 'user-123', name: 'Mocked User' },
+            actual: user,
+          });
+          newResults.push({
+            name: 'fetchSettings',
+            passed: !('error' in settings) && settings?.theme === 'dark' && settings?.language === 'en',
+            expected: { theme: 'dark', language: 'en' },
+            actual: settings,
+          });
+          setResults([...newResults]);
+        });
+        break;
+
+      case 'NestedMocks':
+        const payment = processPayment(100, 'USD');
+        newResults.push({
+          name: 'processPayment',
+          passed: payment === 'MOCKED Payment: USD 100',
+          expected: 'MOCKED Payment: USD 100',
+          actual: payment,
+        });
+        getUserPaymentInfo('user-456')
+          .then((info) => {
+            newResults.push({
+              name: 'getUserPaymentInfo',
+              passed: info === 'Mocked payment info',
+              expected: 'Mocked payment info',
+              actual: info,
+            });
+            setResults([...newResults]);
+          })
+          .catch((error) => {
+            newResults.push({
+              name: 'getUserPaymentInfo',
+              passed: false,
+              expected: 'Mocked payment info',
+              actual: `Error: ${error.message}`,
+            });
+            setResults([...newResults]);
+          });
+        break;
+
+      case 'EdgeCases':
+        newResults.push({
+          name: 'SPECIAL_NUMBERS.infinity',
+          passed: SPECIAL_NUMBERS.infinity === Infinity,
+          expected: Infinity,
+          actual: SPECIAL_NUMBERS.infinity,
+        });
+        newResults.push({
+          name: 'EMPTY_VALUES.emptyString',
+          passed: EMPTY_VALUES.emptyString === 'mocked-empty',
+          expected: 'mocked-empty',
+          actual: EMPTY_VALUES.emptyString,
+        });
+        const multiplier = createMultiplier(5);
+        const result = multiplier(10);
+        newResults.push({
+          name: 'createMultiplier',
+          passed: result === 100, // 5 * 10 * 2 = 100
+          expected: 100,
+          actual: result,
+        });
+        break;
+
+      case 'PartialMocking':
+        console.log('[SHERLO] SimpleMockTest: Testing partial mocking (getLocales mocked, getCalendars real)');
+        // getLocales should be mocked
+        const mockedLocales = getLocales();
+        console.log('[SHERLO] SimpleMockTest: getLocales returned:', mockedLocales);
+        newResults.push({
+          name: 'getLocales (mocked)',
+          passed: mockedLocales?.[0]?.languageCode === 'fr' && mockedLocales?.[0]?.regionCode === 'FR',
+          expected: [{ languageCode: 'fr', regionCode: 'FR' }],
+          actual: mockedLocales,
+        });
+        
+        // getCalendars should use real implementation (not mocked)
+        if (typeof getCalendars !== 'function') {
+          newResults.push({
+            name: 'getCalendars (real - not mocked)',
+            passed: false,
+            expected: 'function (real implementation)',
+            actual: `typeof getCalendars = ${typeof getCalendars}`,
+          });
+        } else {
+          const realCalendars = getCalendars();
+          console.log('[SHERLO] SimpleMockTest: getCalendars returned:', realCalendars);
+          // Real implementation should return actual calendar data (not mocked)
+          // We just verify it's an array and not the mocked value
+          newResults.push({
+            name: 'getCalendars (real - not mocked)',
+            passed: Array.isArray(realCalendars) && realCalendars.length > 0,
+            expected: 'Array with calendar data (real implementation)',
+            actual: realCalendars,
+          });
+        }
+        break;
+
+      case 'NoMocks':
+        // Should use real implementations
+        const realCurrency = formatCurrency(100, 'EUR');
+        newResults.push({
+          name: 'formatCurrency (real)',
+          passed: realCurrency === 'EUR 100.00', // Real format: `${currency} ${amount.toFixed(2)}`
+          expected: 'EUR 100.00',
+          actual: realCurrency,
+        });
+        break;
+
+      default:
+        newResults.push({
+          name: 'Unknown test type',
+          passed: false,
+          expected: 'Valid test type',
+          actual: testType,
+        });
+    }
+    
+            // For non-async tests, set results immediately
+            if (testType !== 'AsyncFunctions' && testType !== 'NestedMocks') {
+              setResults(newResults);
+            }
+  } catch (error: any) {
+    setResults([{
+      name: 'Test execution error',
+      passed: false,
+      expected: 'No errors',
+      actual: `Error: ${error.message}`,
+    }]);
+  }
+  }, [testType]);
+
+  const passedCount = results.filter((r) => r.passed).length;
+  const allPassed = results.length > 0 && passedCount === results.length;
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Test: {testType}</Text>
+      <Text style={styles.summary}>
+        {passedCount}/{results.length} tests passed {allPassed ? '✅' : '❌'}
+      </Text>
+      {results.map((result, index) => (
+        <View key={index} style={styles.testRow}>
+          <Text style={styles.testName}>{result.name}</Text>
+          <Text style={[styles.status, result.passed ? styles.passed : styles.failed]}>
+            {result.passed ? '✅' : '❌'}
+          </Text>
+          {!result.passed && (
+            <View style={styles.details}>
+              <Text style={styles.detailText}>Expected: {JSON.stringify(result.expected)}</Text>
+              <Text style={styles.detailText}>Actual: {JSON.stringify(result.actual)}</Text>
+            </View>
+          )}
+        </View>
+      ))}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 20,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  summary: {
+    fontSize: 16,
+    marginBottom: 15,
+  },
+  testRow: {
+    marginBottom: 10,
+    padding: 10,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 5,
+  },
+  testName: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 5,
+  },
+  status: {
+    fontSize: 16,
+    marginBottom: 5,
+  },
+  passed: {
+    color: 'green',
+  },
+  failed: {
+    color: 'red',
+  },
+  details: {
+    marginTop: 5,
+    paddingLeft: 10,
+  },
+  detailText: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 2,
+  },
+});

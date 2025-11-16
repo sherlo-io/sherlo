@@ -11,6 +11,39 @@
  * @param generate - Babel generator function
  * @returns Marker object with async function code, or null if not an async function
  */
+/**
+ * Strips TypeScript type annotations from function parameters
+ */
+function stripTypesFromParams(params: any[], t: any): any[] {
+  if (!t || !params) return params;
+  
+  return params.map((param: any) => {
+    if (t.isIdentifier(param)) {
+      if (param.typeAnnotation) {
+        const newParam = t.cloneNode(param, false);
+        delete newParam.typeAnnotation;
+        return newParam;
+      }
+      return param;
+    } else if (t.isAssignmentPattern(param)) {
+      if (param.left && param.left.typeAnnotation) {
+        const newLeft = t.cloneNode(param.left, false);
+        delete newLeft.typeAnnotation;
+        return t.assignmentPattern(newLeft, param.right);
+      }
+      return param;
+    } else if (t.isRestElement(param)) {
+      if (param.argument && param.argument.typeAnnotation) {
+        const newArg = t.cloneNode(param.argument, false);
+        delete newArg.typeAnnotation;
+        return t.restElement(newArg);
+      }
+      return param;
+    }
+    return param;
+  });
+}
+
 export function extractAsyncFunctionFromCallExpression(callExpr: any, generate: any): any {
   if (!callExpr || !callExpr.callee || !callExpr.arguments || callExpr.arguments.length === 0) {
     return null;
@@ -26,13 +59,27 @@ export function extractAsyncFunctionFromCallExpression(callExpr: any, generate: 
         (generatorFn.type === 'FunctionExpression' || 
          generatorFn.type === 'ArrowFunctionExpression' || 
          generatorFn.type === 'FunctionDeclaration')) {
+      
+      // Get Babel types for type stripping
+      let t: any = null;
+      try {
+        t = require('@babel/types');
+      } catch {
+        // Types not available, will use regex stripping later
+      }
+
+      // Strip types from parameters before generating code
+      const paramsWithoutTypes = t && generatorFn.params
+        ? stripTypesFromParams(generatorFn.params, t)
+        : generatorFn.params;
+
       // Convert the generator function back to an async function
       if (generatorFn.body && generatorFn.body.type === 'BlockStatement') {
         const bodyCode = generate(generatorFn.body).code;
         // Convert yield to await in the body code
         const asyncBodyCode = bodyCode.replace(/\byield\b/g, 'await');
         // Reconstruct as async arrow function: async (...params) => { body }
-        const params = generatorFn.params ? generate(generatorFn.params).code : '';
+        const params = paramsWithoutTypes ? generate(t.arrayExpression(paramsWithoutTypes)).code.replace(/^\[|\]$/g, '') : '';
         const asyncCode = `async (${params}) => ${asyncBodyCode}`;
         return { __isFunction: true, __code: asyncCode };
       } else {

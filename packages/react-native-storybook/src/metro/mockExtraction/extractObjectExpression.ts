@@ -4,7 +4,6 @@
  */
 
 import { extractFunction } from './extractFunction';
-import { extractClass } from './extractClass';
 import { extractGetter } from './extractSpecialValues';
 import { extractAsyncFunctionFromCallExpression, extractAsyncFunctionFromIIFE } from './extractAsyncFunction';
 
@@ -27,7 +26,7 @@ export function extractPropertyKey(prop: any, t: any): string | null {
 
 /**
  * Extracts values from an object expression AST node
- * Recursively extracts all properties including functions, classes, getters, and special values
+ * Recursively extracts all properties including functions, getters, and special values
  *
  * @param value - The object expression AST node
  * @param t - Babel types helper
@@ -72,12 +71,6 @@ export function extractObjectExpression(
           obj[key] = functionResult;
           continue;
         }
-      } else if (t.isClassExpression(prop.value) || t.isClassDeclaration(prop.value)) {
-        const classResult = extractClass(prop.value, t, generate);
-        if (classResult) {
-          obj[key] = classResult;
-          continue;
-        }
       } else if (nodeType === 'CallExpression' && generate) {
         // Handle Metro's _asyncToGenerator transformation
         try {
@@ -95,13 +88,9 @@ export function extractObjectExpression(
             continue;
           }
 
-          // Check if it's a regular async function or class
-          if (code.includes('async') || code.includes('=>') || code.includes('class')) {
-            if (code.includes('class')) {
-              obj[key] = { __isClass: true, __code: code };
-            } else {
-              obj[key] = { __isFunction: true, __code: code };
-            }
+          // Check if it's a regular async function
+          if (code.includes('async') || code.includes('=>')) {
+            obj[key] = { __isFunction: true, __code: code };
             continue;
           }
 
@@ -119,8 +108,7 @@ export function extractObjectExpression(
       } else {
         // For other values, try to extract
         const extracted = extractMockValue(prop.value);
-        if (extracted === null && prop.value && 
-            (key.includes('fetch') || key.includes('DataProcessor') || key.includes('Calculator'))) {
+        if (extracted === null && prop.value && key.includes('fetch')) {
           console.error(`[SHERLO] Failed to extract mock "${key}": unsupported node type ${nodeType}`);
         }
         obj[key] = extracted;

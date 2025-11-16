@@ -3,14 +3,42 @@
  */
 
 /**
- * Directory name for generated mock files
+ * Directory name for generated mock files (relative to node_modules/.sherlo/)
+ * Full path: node_modules/.sherlo/mocks/
+ * This location is already gitignored (node_modules/) and requires no user setup
  */
-export const MOCK_DIR_NAME = '.sherlo-mocks';
+export const MOCK_DIR_NAME = 'mocks';
 
 /**
- * Directory name for Sherlo configuration files
+ * Directory name for Sherlo generated files (inside node_modules)
+ * Full path: node_modules/.sherlo/
+ * This location is already gitignored and requires no user setup
  */
 export const SHERLO_DIR_NAME = '.sherlo';
+
+/**
+ * Gets the mock directory path for a given project root
+ * Returns: node_modules/.sherlo/mocks/ (already gitignored, no user setup needed)
+ * 
+ * @param projectRoot - The project root directory
+ * @returns The path to the mock directory
+ */
+export function getMockDirectory(projectRoot: string): string {
+  const path = require('path');
+  return path.join(projectRoot, 'node_modules', SHERLO_DIR_NAME, MOCK_DIR_NAME);
+}
+
+/**
+ * Gets the Sherlo directory path for a given project root
+ * Returns: node_modules/.sherlo/ (already gitignored, no user setup needed)
+ * 
+ * @param projectRoot - The project root directory
+ * @returns The path to the Sherlo directory
+ */
+export function getSherloDirectory(projectRoot: string): string {
+  const path = require('path');
+  return path.join(projectRoot, 'node_modules', SHERLO_DIR_NAME);
+}
 
 /**
  * Storybook requires file name

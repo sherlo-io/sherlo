@@ -54,12 +54,14 @@ export default function useStorybookEventListener(): void {
 
     // Helper function to store story ID in global for mock resolution
     const storeStoryId = (storyId: string) => {
+      console.warn(`[SHERLO] useStorybookEventListener: Setting story ID to "${storyId}"`);
       (global as any).__SHERLO_CURRENT_STORY_ID__ = storyId;
     };
 
     // 1) storyPrepared often yields name + parameters.fileName (file path)
     // This fires when a story is initially loaded (including on app startup)
     const onPrepared = (p: PreparedPayload) => {
+      console.log(`[SHERLO] onPrepared`, p);
       const prev = metaByIdRef.current.get(p.id) || {};
       metaByIdRef.current.set(p.id, {
         title: p.title ?? p.kind ?? prev.title, // title/kind
@@ -75,6 +77,7 @@ export default function useStorybookEventListener(): void {
 
     // 2) story index (different shapes/aliases depending on version)
     const onSetIndex = (payload: IndexPayload) => {
+      console.log(`[SHERLO] onSetIndex`, payload);
       const entries = (payload as any).entries ?? payload;
       if (!entries) return;
       for (const [id, e] of Object.entries(entries)) {

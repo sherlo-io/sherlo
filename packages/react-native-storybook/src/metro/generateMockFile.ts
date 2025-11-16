@@ -1,17 +1,14 @@
 /**
- * Generates a mock file that uses serialization to store mocks
- * Mocks are extracted from story files during Metro bundling (AOT) and serialized
- * The generated mock file selects the correct mock at runtime based on the current story ID
+ * Generates mock files that match story file structure exactly
+ * Mocks are extracted from story files and generated as TypeScript code
+ * Metro handles TypeScript transformation automatically
  */
 
 import * as path from 'path';
 import * as fs from 'fs';
 import type { StoryMockMap } from './types';
-import { serializeMockValue, isSerializedFunction, isSerializedClass } from './mockSerialization';
 import { resolvePathForMockFile } from './mockGeneration/pathResolution';
-import { generateMockProperty } from './mockGeneration/mockPropertyGenerators';
-import { generateMockFileTemplate } from './mockGeneration/mockFileTemplate';
-import { MOCK_DIR_NAME } from './constants';
+import { MOCK_DIR_NAME, SHERLO_DIR_NAME } from './constants';
 
 
 /**
@@ -33,23 +30,9 @@ export function generateMockFile(
   const { realModulePath, requirePathForMockFile } = resolvePathForMockFile(packageName, projectRoot);
 
   // Collect all mocks for this package across all stories
-  let packageMocksByStory: Record<string, any> = {};
+  // With pre-generation, all mocks are extracted before Metro starts, so no need for JSON cache
+  const packageMocksByStory: Record<string, any> = {};
 
-  // Read existing mocks from JSON cache (to merge across Metro worker processes)
-  const mockDir = path.join(projectRoot, 'node_modules', MOCK_DIR_NAME);
-  const safeFileName = fileName || packageName.replace(/\//g, '__');
-  const cacheFilePath = path.join(mockDir, `${safeFileName}.json`);
-
-  if (fs.existsSync(cacheFilePath)) {
-    try {
-      const existingCache = JSON.parse(fs.readFileSync(cacheFilePath, 'utf-8'));
-      packageMocksByStory = existingCache;
-    } catch {
-      // Failed to read cache, will use only new mocks
-    }
-  }
-
-  // Merge new mocks from the Map
   for (const [storyId, packageMocks] of storyMocks.entries()) {
     const pkgMock = packageMocks.get(packageName);
     if (pkgMock) {
@@ -63,104 +46,174 @@ export function generateMockFile(
 
   // Generate mock file code
   const storyIds = Object.keys(packageMocksByStory);
-  const firstStoryMock = packageMocksByStory[storyIds[0]];
-
-  // Check if the first mock value is an object with nested exports (like { DataProcessor: ..., Calculator: ... })
-  // This happens when we have a package mock with multiple exports
-  const firstMockValue = Object.values(firstStoryMock)[0];
-  const hasNestedExports = firstMockValue && typeof firstMockValue === 'object' &&
-    !(firstMockValue as any).__isFunction && !(firstMockValue as any).__isClass &&
-    Object.keys(firstMockValue).some(key =>
-      (firstMockValue as any)[key] && typeof (firstMockValue as any)[key] === 'object' &&
-      ((firstMockValue as any)[key].__isFunction || (firstMockValue as any)[key].__isClass)
-    );
-
-  let exportNames: string[];
-  let actualMocksByStory: Record<string, any>;
-
-  if (hasNestedExports) {
-    // Flatten the structure: use the nested object's keys as export names
-    // Example: mock is { '../utils/utils': { Processor: ..., Calculator: ... } }
-    // We want { Processor: ..., Calculator: ... }
-    exportNames = Object.keys(firstMockValue);
-    actualMocksByStory = {};
-    for (const [storyId, mock] of Object.entries(packageMocksByStory)) {
-      const nestedMock = Object.values(mock)[0];
-      actualMocksByStory[storyId] = nestedMock;
+  
+  // With simplified extraction, each story mock is: { 'package-name': { __code: "{ fn1: ..., fn2: ... }" } }
+  // We extract the whole object as a string, so we just need to get the __code value
+  const storyMocksCode: Record<string, string> = {};
+  
+  for (const [storyId, mock] of Object.entries(packageMocksByStory)) {
+    // mock is the value from packageMocks.get(packageName), which is { __code: "..." }
+    // So mock itself is { __code: "..." }, not { 'package-name': { __code: "..." } }
+    if (mock && typeof mock === 'object' && (mock as any).__code) {
+      // Store the whole object code string directly
+      storyMocksCode[storyId] = (mock as any).__code;
+    } else {
+      console.warn(`[SHERLO] Unexpected mock structure for story ${storyId}, expected { __code: "..." }`);
+      console.warn(`[SHERLO] Mock type: ${typeof mock}, Mock keys: ${mock && typeof mock === 'object' ? Object.keys(mock).join(', ') : 'N/A'}`);
+      storyMocksCode[storyId] = '{}';
     }
-  } else {
-    // Normal structure: export names are the keys of firstStoryMock
-    exportNames = Object.keys(firstStoryMock);
-    actualMocksByStory = packageMocksByStory;
   }
 
-  const hasDefaultExport = exportNames.includes('default');
-  // Exclude 'default' from named exports since we'll handle it separately
+  // Get export names and types from the real module (we need these for runtime functions/constants)
+  // Try to require the real module to get its exports
+  let exportNames: string[] = [];
+  let exportTypes: Record<string, 'function' | 'constant'> = {};
+  let hasDefaultExport = false;
+  
+  // Check if any mock objects have a 'default' property to determine hasDefaultExport
+  // This is important for packages like testHelper that only have default exports
+  for (const mockCode of Object.values(storyMocksCode)) {
+    if (mockCode && typeof mockCode === 'string') {
+      // Check if the mock code contains 'default:' property
+      if (mockCode.includes('default:')) {
+        hasDefaultExport = true;
+        if (!exportNames.includes('default')) {
+          exportNames.push('default');
+        }
+        break;
+      }
+    }
+  }
+  
+  try {
+    // Try to require the real module to inspect its exports
+    // Use absolute path if available, otherwise try relative path
+    const { realModuleAbsolutePath } = resolvePathForMockFile(packageName, projectRoot);
+    const modulePathToRequire = realModuleAbsolutePath || realModulePath;
+    
+    if (modulePathToRequire) {
+      // Try to require the real module
+      // First try the path as-is, then try compiled version from dist/ if it's a .ts file
+      let realModule = null;
+      let triedPaths: string[] = [];
+      
+      // Try 1: Direct require (works for .js files or compiled modules)
+      try {
+        delete require.cache[require.resolve(modulePathToRequire)];
+        realModule = require(modulePathToRequire);
+        triedPaths.push(modulePathToRequire);
+      } catch (e1: any) {
+        // Try 2: If it's a .ts file, try the compiled version from dist/
+        if (modulePathToRequire.endsWith('.ts') || modulePathToRequire.endsWith('.tsx')) {
+          const distPath = modulePathToRequire
+            .replace(/\/src\//, '/dist/')
+            .replace(/\.tsx?$/, '.js');
+          try {
+            delete require.cache[require.resolve(distPath)];
+            realModule = require(distPath);
+            triedPaths.push(distPath);
+          } catch (e2: any) {
+            // Try 3: If packageName is a relative path, try resolving from testing-components/dist
+            if (packageName.startsWith('../') || packageName.startsWith('./')) {
+              const testingComponentsDist = path.join(projectRoot, '../testing-components/dist', packageName.replace(/^\.\.\//, ''));
+              const distPath2 = testingComponentsDist.replace(/\.tsx?$/, '.js');
+              try {
+                delete require.cache[require.resolve(distPath2)];
+                realModule = require(distPath2);
+                triedPaths.push(distPath2);
+              } catch (e3: any) {
+                // All attempts failed
+              }
+            }
+          }
+        }
+      }
+      
+      if (realModule && typeof realModule === 'object') {
+        exportNames = Object.keys(realModule).filter(key => key !== '__esModule');
+        hasDefaultExport = realModule.default !== undefined;
+        if (hasDefaultExport && !exportNames.includes('default')) {
+          exportNames.push('default');
+        }
+        
+        // Determine type of each export (function vs constant)
+        for (const exportName of exportNames) {
+          const exportValue = realModule[exportName];
+          // Check if it's a function (including arrow functions assigned to const)
+          exportTypes[exportName] = typeof exportValue === 'function' ? 'function' : 'constant';
+        }
+        
+        // If real module loaded but has no exports (common for ES modules or native modules),
+        // fall back to extracting from mock code
+        if (exportNames.length === 0) {
+          console.log(`[SHERLO] Real module loaded for ${packageName} but has no enumerable exports (likely ES module or native module). Falling back to mock code extraction.`);
+          // Throw to trigger fallback extraction from mock code
+          throw new Error(`Real module has no enumerable exports`);
+        }
+      } else if (triedPaths.length > 0) {
+        // We tried to load but failed - throw error to trigger fallback
+        throw new Error(`Could not load module from any of: ${triedPaths.join(', ')}`);
+      }
+    }
+  } catch (error: any) {
+    // Real module not available - try to infer from mock object code
+    console.warn(`[SHERLO] Could not load real module for ${packageName} to determine export types:`, error.message);
+    // Parse ALL mock objects to get property names (union of all properties)
+    try {
+      const allPropertyNames = new Set<string>();
+      for (const [storyId, mockCode] of Object.entries(storyMocksCode)) {
+        if (mockCode && typeof mockCode === 'string') {
+          // Debug: log first mock code sample for troubleshooting
+          if (allPropertyNames.size === 0) {
+            console.log(`[SHERLO] 🔍 Extracting exports from mock code for ${packageName}. First mock code sample (${storyId}): ${mockCode.substring(0, 200)}`);
+          }
+          
+          // Simple regex to extract property names from object: { prop1: ..., prop2: ... }
+          // Match: word characters followed by colon (property name)
+          const propMatches = mockCode.match(/(\w+)\s*:/g);
+          if (propMatches) {
+            propMatches.forEach(match => {
+              const propName = match.replace(/\s*:$/, '');
+              // Skip 'default' as it's handled separately
+              // Skip nested property names (like 'languageCode', 'regionCode' inside arrays/objects)
+              // We only want top-level property names
+              if (propName !== 'default') {
+                allPropertyNames.add(propName);
+              }
+            });
+            console.log(`[SHERLO] 🔍 Found ${propMatches.length} property matches in mock code for ${storyId}: ${Array.from(propMatches).join(', ')}`);
+          } else {
+            console.warn(`[SHERLO] ⚠️  No property matches found in mock code for ${storyId}. Mock code: ${mockCode.substring(0, 150)}`);
+          }
+        }
+      }
+      
+      if (allPropertyNames.size > 0) {
+        exportNames = Array.from(allPropertyNames);
+        // Default all to function if we can't determine from real module
+        // This is a fallback - ideally we should be able to require the real module
+        console.log(`[SHERLO] ✅ Falling back to inferring export types from mock code for ${packageName}. Found exports: ${exportNames.join(', ')}. All exports default to 'function'.`);
+        for (const exportName of exportNames) {
+          exportTypes[exportName] = 'function';
+        }
+      } else {
+        console.warn(`[SHERLO] ⚠️  Could not extract any export names from mock code for ${packageName}. Mock code samples:`, Object.values(storyMocksCode).slice(0, 2).map((code: any) => typeof code === 'string' ? code.substring(0, 100) : String(code).substring(0, 100)));
+        exportNames = [];
+      }
+    } catch (parseError: any) {
+      console.warn(`[SHERLO] Could not determine export names for ${packageName}, using empty list:`, parseError.message);
+      exportNames = [];
+    }
+  }
+  
   const namedExportNames = exportNames.filter(name => name !== 'default');
-
-  // Separate functions/classes from primitives/objects
-  // Functions/classes will be embedded as actual code, avoiding runtime deserialization
-  const storyMocksFunctions: Record<string, Record<string, string>> = {}; // Store function/class code strings
-  const storyMocksValues: Record<string, Record<string, string>> = {}; // Store primitives/objects as JSON strings
-
-  for (const [storyId, mock] of Object.entries(actualMocksByStory)) {
-    storyMocksFunctions[storyId] = {};
-    storyMocksValues[storyId] = {};
-
-    for (const [exportName, exportValue] of Object.entries(mock)) {
-      const serialized = serializeMockValue(exportValue);
-
-      // Check if it's a function or class (code string)
-      // Arrow functions can start with various patterns: "() =>", "(arg) =>", "async () =>", etc.
-      const trimmed = typeof serialized === 'string' ? serialized.trim() : '';
-      const isFunctionCode = typeof serialized === 'string' && (
-        trimmed.startsWith('class ') ||
-        trimmed.startsWith('function') ||
-        trimmed.startsWith('async') ||
-        serialized.includes('=>') ||
-        trimmed.startsWith('(')
-      );
-
-      if (isFunctionCode) {
-        // Store function/class code directly (will be embedded as actual code)
-        storyMocksFunctions[storyId][exportName] = serialized;
-      } else {
-        // Store primitives/objects as JSON strings
-        storyMocksValues[storyId][exportName] = JSON.stringify(serialized);
-      }
-    }
-  }
-
-  // For backward compatibility during transition, also create the old format
-  const storyMocksSerialized: Record<string, Record<string, any>> = {};
-  for (const [storyId, mock] of Object.entries(actualMocksByStory)) {
-    storyMocksSerialized[storyId] = {};
-    for (const [exportName, exportValue] of Object.entries(mock)) {
-      const serialized = serializeMockValue(exportValue);
-      if (typeof serialized === 'string' && (serialized.startsWith('class ') || serialized.startsWith('function') || serialized.startsWith('async') || serialized.includes('=>') || serialized.startsWith('('))) {
-        storyMocksSerialized[storyId][exportName] = serialized;
-      } else if (typeof serialized === 'object' && serialized !== null) {
-        storyMocksSerialized[storyId][exportName] = JSON.stringify(serialized);
-      } else {
-        storyMocksSerialized[storyId][exportName] = JSON.stringify(serialized);
-      }
-    }
-  }
-
-  // Helper function to generate mock property (for named exports only)
-  const generateMockPropertyForExport = (exportName: string) => {
-    const firstStoryMock = actualMocksByStory[storyIds[0]];
-    const firstExportValue = firstStoryMock?.[exportName];
-    const firstMock = storyMocksSerialized[storyIds[0]][exportName];
-
-    return generateMockProperty({
-      packageName,
-      exportName,
-      firstStoryMock,
-      firstExportValue,
-      firstMock,
-    });
-  };
+  
+  // Log final export configuration for debugging
+  console.log(`[SHERLO] 📦 Generating mock file for ${packageName}:`);
+  console.log(`[SHERLO]    - Export names: ${exportNames.length > 0 ? exportNames.join(', ') : '(none)'}`);
+  console.log(`[SHERLO]    - Named exports: ${namedExportNames.length > 0 ? namedExportNames.join(', ') : '(none)'}`);
+  console.log(`[SHERLO]    - Has default export: ${hasDefaultExport}`);
+  console.log(`[SHERLO]    - Export types: ${Object.keys(exportTypes).length > 0 ? Object.entries(exportTypes).map(([k, v]) => `${k}:${v}`).join(', ') : '(none)'}`);
 
   // Build the require statement and module path strings for code generation
   // Escape quotes properly for use in template strings
@@ -174,73 +227,137 @@ export function generateMockFile(
   const fallbackPathEscaped = fallbackPath.replace(/'/g, "\\'");
   const fallbackRequireStatement = `require('${fallbackPathEscaped}')`;
 
-  const modulePathForLog = JSON.stringify(realModulePath || packageName);
-  const requirePathForLog = JSON.stringify(requirePathForMockFile);
-  const fallbackPathForLog = JSON.stringify(fallbackPath);
-
-  // Generate the mock file code using the template
-  const mockCode = generateMockFileTemplate({
+  // Generate mock file using simplified template (matches story file structure)
+  // This generates TypeScript code (may contain type annotations)
+  const { generateSimpleMockFileTemplate } = require('./mockGeneration/simpleMockFileTemplate');
+  const mockCodeTS = generateSimpleMockFileTemplate({
     packageName,
     requireStatement,
     fallbackRequireStatement,
-    modulePathForLog,
-    requirePathForLog,
-    fallbackPathForLog,
-    storyMocksFunctions,
-    storyMocksValues,
-    storyMocksSerialized,
-    namedExportNames,
+    storyMocksCode,
+    exportNames,
+    exportTypes,
     hasDefaultExport,
-    generateMockProperty: generateMockPropertyForExport,
   });
 
-  // Write to a temp location that Metro can resolve
-  // mockDir and cacheFilePath were already defined earlier
+  // Transform TypeScript → JavaScript using Babel's preset-typescript
+  // This automatically strips all TypeScript syntax (types, type annotations, etc.)
+  let mockCodeJS: string;
+  try {
+    // Try to resolve @babel/core from project root (for EAS builds)
+    let babel: any;
+    try {
+      babel = require('@babel/core');
+    } catch {
+      const projectRoot = (global as any).__SHERLO_PROJECT_ROOT__ || process.cwd();
+      const babelPath = require.resolve('@babel/core', {
+        paths: [
+          projectRoot,
+          path.join(projectRoot, 'node_modules'),
+          path.join(projectRoot, '../../node_modules'),
+        ],
+      });
+      babel = require(babelPath);
+    }
+    
+    // Try to resolve @babel/preset-typescript
+    try {
+      require.resolve('@babel/preset-typescript');
+    } catch {
+      const projectRoot = (global as any).__SHERLO_PROJECT_ROOT__ || process.cwd();
+      require.resolve('@babel/preset-typescript', {
+        paths: [
+          projectRoot,
+          path.join(projectRoot, 'node_modules'),
+          path.join(projectRoot, '../../node_modules'),
+        ],
+      });
+    }
+    
+                // Import the plugin to convert async arrow functions
+                const convertAsyncArrowsPlugin = require('./mockGeneration/babelPluginConvertAsyncArrows').default;
+                
+                const transformed = babel.transformSync(mockCodeTS, {
+                  presets: [
+                    ['@babel/preset-typescript', { isTSX: false }],
+                  ],
+                  plugins: [
+                    convertAsyncArrowsPlugin,
+                  ],
+                  configFile: false,
+                  babelrc: false,
+                  filename: `${packageName}.ts`, // Helpful for error messages
+                });
+    
+    if (!transformed || !transformed.code) {
+      throw new Error('Babel transformation returned no code');
+    }
+    
+    mockCodeJS = transformed.code;
+    
+    // Verify transformation worked - check for TypeScript syntax
+    if (mockCodeJS.match(/:\s*(number|string|boolean|any|void|object)\s*[=,)]/)) {
+      console.warn(`[SHERLO] ⚠️  Warning: TypeScript types may still be present in transformed code for ${packageName}`);
+      console.warn(`[SHERLO] First 200 chars of transformed code: ${mockCodeJS.substring(0, 200)}`);
+    }
+  } catch (error: any) {
+    console.error(`[SHERLO] ❌ Failed to transform TypeScript → JavaScript for ${packageName}:`, error.message);
+    console.error(`[SHERLO] Error stack:`, error.stack);
+    console.error(`[SHERLO] First 500 chars of TS code: ${mockCodeTS.substring(0, 500)}`);
+    // Fallback: use TS code as-is (will likely fail, but better than crashing)
+    console.error(`[SHERLO] ⚠️  Using TypeScript code as fallback (this will likely cause build errors)`);
+    mockCodeJS = mockCodeTS;
+  }
+
+  const { getMockDirectory } = require('./constants');
+  const mockDir = getMockDirectory(projectRoot);
+  
   if (!fs.existsSync(mockDir)) {
     fs.mkdirSync(mockDir, { recursive: true });
   }
 
-  // safeFileName was already defined earlier, reuse it
+  // Generate filename-safe version (replace / with __)
+  const safeFileName = fileName || packageName.replace(/\//g, '__');
+  
+  // Write JavaScript file (TypeScript types already stripped by Babel)
   const mockFilePath = path.join(mockDir, `${safeFileName}.js`);
-  fs.writeFileSync(mockFilePath, mockCode, 'utf-8');
-
-  // Also write JSON cache file for merging across Metro worker processes
-  // Serialize the mocks (preserve __isFunction markers for functions)
-  const cacheData: Record<string, Record<string, any>> = {};
-  for (const [storyId, mock] of Object.entries(packageMocksByStory)) {
-    cacheData[storyId] = {};
-    for (const [exportName, exportValue] of Object.entries(mock)) {
-      // Preserve __isFunction and __isClass markers when writing to cache
-      if (exportValue && typeof exportValue === 'object') {
-        if ((exportValue as any).__isFunction || (exportValue as any).__isClass) {
-          cacheData[storyId][exportName] = exportValue;
-        } else {
-          // For nested objects, recursively preserve markers
-          cacheData[storyId][exportName] = exportValue;
-        }
-      } else if (typeof exportValue === 'function') {
-        // Convert functions to __isFunction objects for JSON serialization
-        cacheData[storyId][exportName] = {
-          __isFunction: true,
-          __code: exportValue.toString(),
-        };
-      } else {
-        cacheData[storyId][exportName] = exportValue;
-      }
+  
+  // CRITICAL: Always write fresh file to ensure Metro sees it as new
+  // This prevents Metro from using stale cached transforms
+  // Delete file first if it exists to ensure fresh timestamp
+  if (fs.existsSync(mockFilePath)) {
+    try {
+      fs.unlinkSync(mockFilePath);
+    } catch (error: any) {
+      // Ignore errors (file might be locked)
     }
   }
-  // cacheFilePath was already defined earlier
-  fs.writeFileSync(cacheFilePath, JSON.stringify(cacheData, null, 2), 'utf-8');
+  
+  fs.writeFileSync(mockFilePath, mockCodeJS, 'utf-8');
+  
+  // Touch the file to ensure it has a fresh modification time
+  // This helps Metro detect the file as changed even if content is similar
+  const now = Date.now();
+  try {
+    fs.utimesSync(mockFilePath, now / 1000, now / 1000);
+  } catch (error: any) {
+    // Ignore errors (utimes might not be available on all platforms)
+  }
 
   return mockFilePath;
 }
 
 /**
  * Generates mock files for all packages that have mocks
+ * 
+ * @param storyMocks - Map of story IDs to their package mocks
+ * @param projectRoot - The project root directory
+ * @param clearCache - If true, clears existing cache files before generation (used during pre-generation)
  */
 export function generateAllMockFiles(
   storyMocks: StoryMockMap,
-  projectRoot: string
+  projectRoot: string,
+  clearCache: boolean = false
 ): Map<string, string> {
   const mockFiles = new Map<string, string>();
 
@@ -249,6 +366,28 @@ export function generateAllMockFiles(
   for (const [, packageMocks] of storyMocks.entries()) {
     for (const pkgName of packageMocks.keys()) {
       packages.add(pkgName);
+    }
+  }
+
+  const { getMockDirectory } = require('./constants');
+  const mockDir = getMockDirectory(projectRoot);
+
+  // Clear old mock files if requested (during pre-generation, we want fresh generation)
+  if (clearCache) {
+    if (fs.existsSync(mockDir)) {
+      // Clear old JSON cache files (legacy, no longer needed)
+      const cacheFiles = fs.readdirSync(mockDir).filter(file => file.endsWith('.json'));
+      for (const cacheFile of cacheFiles) {
+        const cacheFilePath = path.join(mockDir, cacheFile);
+        try {
+          fs.unlinkSync(cacheFilePath);
+        } catch (error: any) {
+          // Ignore errors (file might not exist or be locked)
+        }
+      }
+      if (cacheFiles.length > 0) {
+        console.log(`[SHERLO] Cleared ${cacheFiles.length} legacy JSON cache file(s)`);
+      }
     }
   }
 

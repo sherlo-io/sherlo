@@ -18,7 +18,8 @@ export function discoverSourceDirectories(projectRoot: string): string[] {
   
   // Try to read story files list (set by withSherlo)
   try {
-    const storyFilesPath = path.join(projectRoot, '.sherlo', 'story-files.json');
+    const { getSherloDirectory } = require('../constants');
+    const storyFilesPath = path.join(getSherloDirectory(projectRoot), 'story-files.json');
     if (fs.existsSync(storyFilesPath)) {
       const data = JSON.parse(fs.readFileSync(storyFilesPath, 'utf-8'));
       const storyFiles: string[] = data.storyFiles || [];

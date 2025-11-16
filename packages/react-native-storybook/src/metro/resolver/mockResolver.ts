@@ -27,18 +27,26 @@ export function createMockResolver(
     }
 
     // Check if this package/module has mocks and redirect to mock file
-    // Mock files are generated after transformer extracts mocks
+    // Mock files are pre-generated during withSherlo setup (before Metro initializes)
+    // IMPORTANT: We MUST check fs.existsSync() before returning the path
+    // Metro will try to compute SHA-1 for any file path we return, even if it doesn't exist
     const mockFilePath = getMockFilePath(moduleName, projectRoot);
-
-    if (fs.existsSync(mockFilePath)) {
-      return {
-        type: 'sourceFile',
-        filePath: mockFilePath,
-      };
+    
+    // Only check if file exists - don't return path if it doesn't exist
+    // This prevents Metro from trying to compute SHA-1 for non-existent files
+    if (!fs.existsSync(mockFilePath)) {
+      // Mock file doesn't exist yet - fall back to real module
+      // Don't return the mock file path even if we think it might exist
+      // Metro will try to compute SHA-1 for any path we return
+      return baseResolver(context, moduleName, platform);
     }
 
-    // Fallback to default resolver
-    return baseResolver(context, moduleName, platform);
+    // File exists - safe to return the path
+    console.log(`[SHERLO] Resolver: Redirecting "${moduleName}" to mock file (${mockFilePath})`);
+    return {
+      type: 'sourceFile',
+      filePath: mockFilePath,
+    };
   };
 }
 

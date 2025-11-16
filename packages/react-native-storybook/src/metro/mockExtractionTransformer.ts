@@ -8,16 +8,9 @@ import * as path from 'path';
 import type { StoryMockMap, TransformArgs, TransformResult } from './types';
 import { getBabelParser, getBabelTraverse, getBabelTypes } from './mockExtraction/babelLoader';
 import { getComponentNameFromPath, camelToKebab, isStoryFile } from './mockExtraction/storyIdNormalization';
-import { extractPrimitive } from './mockExtraction/extractPrimitive';
-import { extractFunction } from './mockExtraction/extractFunction';
-import { extractClass } from './mockExtraction/extractClass';
-import { extractArray } from './mockExtraction/extractArray';
-import {
-  extractSpecialNumericValue,
-  extractDate,
-  extractRegExp,
-} from './mockExtraction/extractSpecialValues';
-import { extractObjectExpression } from './mockExtraction/extractObjectExpression';
+
+// Import path module for require.resolve
+const pathModule = require('path');
 
 // Re-export types for convenience
 export type { TransformArgs, TransformResult } from './types';
@@ -48,7 +41,8 @@ function extractMocksFromObject(expr: any): Record<string, any> | null {
     );
 
     if (mocksProperty && t.isObjectProperty(mocksProperty)) {
-      return extractMocksFromObjectExpression(mocksProperty.value);
+      // Extract package-level mocks: { 'package-name': { fn: () => 'value' } }
+      return extractPackageMocks(mocksProperty.value);
     }
   }
 
@@ -63,169 +57,76 @@ function extractMocksFromObject(expr: any): Record<string, any> | null {
 }
 
 /**
- * Extracts mocks from an object expression
- * Converts AST to a plain object representation
+ * Extracts package-level mocks from mocks object
+ * Structure: { 'package-name': { fn1: () => 'value', fn2: () => 123 } }
+ * Returns: { 'package-name': { __code: "{ fn1: () => 'value', fn2: () => 123 }" } }
+ * 
+ * Simplified: Extract the whole object as a string, no need to parse individual properties
+ * NOTE: Code string may contain TypeScript types - we'll strip them later using Babel's preset-typescript
  */
-function extractMocksFromObjectExpression(obj: any): Record<string, any> | null {
-  const mocks: Record<string, any> = {};
+function extractPackageMocks(mocksObj: any): Record<string, any> | null {
+  const packages: Record<string, any> = {};
   const t = getBabelTypes();
-  if (!t) {
+  let generate: any = null;
+  
+  // Try to resolve @babel/generator - only needed to convert AST node to string
+  // In EAS builds, we need to resolve from project root
+  try {
+    generate = require('@babel/generator').default;
+  } catch {
+    try {
+      // Try resolving from project root (for EAS build worker processes)
+      const projectRoot = (global as any).__SHERLO_PROJECT_ROOT__ || process.cwd();
+      const generatorPath = require.resolve('@babel/generator', {
+        paths: [
+          projectRoot,
+          pathModule.join(projectRoot, 'node_modules'),
+          pathModule.join(projectRoot, '../../node_modules'), // Workspace root for monorepos
+        ],
+      });
+      generate = require(generatorPath).default;
+    } catch (resolveError: any) {
+      console.warn('[SHERLO] @babel/generator not available, cannot extract code strings');
+      console.warn(`[SHERLO] Resolution paths tried: projectRoot, node_modules, ../../node_modules`);
+      return null;
+    }
+  }
+
+  if (!t || !generate) {
     return null;
   }
 
-  for (const prop of obj.properties) {
+  // First level: package names -> package objects
+  for (const prop of mocksObj.properties) {
     if (t.isObjectProperty(prop)) {
-      const key = t.isIdentifier(prop.key)
+      const packageName = t.isIdentifier(prop.key)
         ? prop.key.name
         : t.isStringLiteral(prop.key)
         ? prop.key.value
         : null;
 
-      if (key && prop.value) {
-        // Try to extract the mock value
-        const extracted = extractMockValue(prop.value);
-        mocks[key] = extracted;
-      }
-    }
-  }
-
-  return Object.keys(mocks).length > 0 ? mocks : null;
-}
-
-/**
- * Extracts mock value from an AST node
- * Converts AST to code string for serialization
- */
-function extractMockValue(value: any): any {
-  const t = getBabelTypes();
-  if (!t) {
-    return null;
-  }
-
-  // Try to get @babel/generator to convert AST to code
-  let generate: any = null;
-  try {
-    generate = require('@babel/generator').default;
-  } catch {
-    // Fallback: try to stringify if it's a simple value
-  }
-
-  if (!value) {
-    return null;
-  }
-
-  // Try extracting using specialized extractors
-  const functionResult = extractFunction(value, t, generate);
-  if (functionResult) return functionResult;
-
-  const classResult = extractClass(value, t, generate);
-  if (classResult) return classResult;
-
-  const arrayResult = extractArray(value, t, generate, extractMockValue);
-  if (arrayResult !== null) return arrayResult;
-
-  const specialNumericResult = extractSpecialNumericValue(value, t);
-  if (specialNumericResult) return specialNumericResult;
-
-  const dateResult = extractDate(value, t, generate);
-  if (dateResult) return dateResult;
-
-  const regexResult = extractRegExp(value, t, generate);
-  if (regexResult) return regexResult;
-
-  // For object expressions, extract properties
-  if (t.isObjectExpression(value)) {
-    return extractObjectExpression(value, t, generate, extractMockValue);
-  }
-
-  // For literals, return the value
-  const primitiveResult = extractPrimitive(value, t);
-  if (primitiveResult !== null) return primitiveResult;
-
-  // If we get here, we couldn't extract the value
-  return null;
-}
-
-/**
- * Finds a function definition by name in the AST
- */
-function findFunctionDefinition(ast: any, functionName: string): any {
-  const traverse = getBabelTraverse();
-  const t = getBabelTypes();
-  if (!traverse || !t) {
-    return null;
-  }
-
-  let foundFunction: any = null;
-  traverse(ast, {
-    VariableDeclarator(path: any) {
-      if (
-        t.isIdentifier(path.node.id) &&
-        path.node.id.name === functionName &&
-        (t.isArrowFunctionExpression(path.node.init) || t.isFunctionExpression(path.node.init))
-      ) {
-        foundFunction = path.node.init;
-      }
-    },
-    FunctionDeclaration(path: any) {
-      if (t.isIdentifier(path.node.id) && path.node.id.name === functionName) {
-        foundFunction = path.node;
-      }
-    },
-  });
-
-  return foundFunction;
-}
-
-/**
- * Extracts the return value from a function definition
- * For arrow functions: (params) => ({ mocks: {...} })
- * For function declarations: function name() { return { mocks: {...} }; }
- */
-function extractReturnValueFromFunction(func: any): any {
-  const t = getBabelTypes();
-  if (!t) {
-    return null;
-  }
-
-  // Arrow function with expression body: (params) => ({ mocks: {...} })
-  if (t.isArrowFunctionExpression(func)) {
-    const body = func.body;
-    // If body is an object expression wrapped in parentheses
-    if (t.isObjectExpression(body)) {
-      return body;
-    }
-    // If body is a parenthesized expression containing an object
-    if (t.isParenthesizedExpression(body) && t.isObjectExpression(body.expression)) {
-      return body.expression;
-    }
-  }
-
-  // Function expression or declaration with block body
-  if (t.isFunctionExpression(func) || t.isFunctionDeclaration(func)) {
-    const body = func.body;
-    if (t.isBlockStatement(body)) {
-      // Find return statement
-      for (const stmt of body.body) {
-        if (t.isReturnStatement(stmt) && stmt.argument) {
-          // If return value is an object expression
-          if (t.isObjectExpression(stmt.argument)) {
-            return stmt.argument;
-          }
-          // If return value is wrapped in parentheses
-          if (t.isParenthesizedExpression(stmt.argument) && t.isObjectExpression(stmt.argument.expression)) {
-            return stmt.argument.expression;
-          }
+      if (packageName && prop.value && t.isObjectExpression(prop.value)) {
+        // Extract code string as-is (may contain TypeScript types)
+        // We'll transform TS → JS later using Babel's preset-typescript
+        try {
+          const objectCode = generate(prop.value).code;
+          // Store the whole object as a code string (may contain TypeScript types)
+          packages[packageName] = { __code: objectCode };
+        } catch (error: any) {
+          console.warn(`[SHERLO] Failed to extract object code for mock "${packageName}":`, error.message);
         }
       }
     }
   }
 
-  return null;
+  return Object.keys(packages).length > 0 ? packages : null;
 }
 
+// Removed unused extraction functions - we now use simple code string extraction in extractPackageMocks
+// This simplifies the codebase and removes dependency on complex AST analysis
+
 /**
- * Extracts mocks from transformed JavaScript code using AST parsing
+ * Extracts mocks from TypeScript/JavaScript source code using AST parsing
  */
 export function extractMocksFromTransformedCode(
   code: string,
@@ -240,68 +141,99 @@ export function extractMocksFromTransformedCode(
   const t = getBabelTypes();
 
   if (!parser || !traverse || !t) {
+    console.warn(`[SHERLO] Mock extraction skipped for ${filePath}: Missing Babel dependencies (parser: ${!!parser}, traverse: ${!!traverse}, types: ${!!t})`);
     return mocks;
   }
 
   try {
-    // Parse the transformed JavaScript code
+    // Parse the TypeScript/JavaScript source code
     const ast = parser.parse(code, {
       sourceType: 'module',
       plugins: ['jsx', 'typescript', 'decorators-legacy', 'classProperties'],
     });
 
     traverse(ast, {
+      // Handle ES modules: export const StoryName = { mocks: {...} }
       ExportNamedDeclaration(path: any) {
-        // Handle: export const StoryName = { mocks: {...} }
-        // Handle: export const StoryName = storyOfColor(...) (factory function)
         if (t.isVariableDeclaration(path.node.declaration)) {
           path.node.declaration.declarations.forEach((decl: any) => {
             if (t.isIdentifier(decl.id)) {
               const exportName = decl.id.name;
-              let storyMocks = extractMocksFromObject(decl.init);
-
-              // If direct extraction failed, try to extract from function call
-              if (!storyMocks && t.isCallExpression(decl.init)) {
-                const callExpr = decl.init;
-                if (t.isIdentifier(callExpr.callee)) {
-                  const functionName = callExpr.callee.name;
-                  // Find the function definition
-                  const funcDef = findFunctionDefinition(ast, functionName);
-                  if (funcDef) {
-                    // Extract return value from function
-                    const returnValue = extractReturnValueFromFunction(funcDef);
-                    if (returnValue) {
-                      // Extract mocks from the return value
-                      storyMocks = extractMocksFromObject(returnValue);
-                    }
-                  }
-                }
-              }
+              const storyMocks = extractMocksFromObject(decl.init);
 
               if (storyMocks && Object.keys(storyMocks).length > 0) {
-                // componentName already includes the full path hierarchy in kebab-case
-                // Example: "components-button" (already normalized)
-                // Storybook uses: "components-button--primary"
-                // Convert camelCase to kebab-case to match Storybook's format
                 const normalizedExportName = camelToKebab(exportName);
                 const storyId = `${componentName}--${normalizedExportName}`;
 
-                // Also store with original format for backwards compatibility
-                const originalStoryId = `${componentName}--${exportName}`;
-
                 const packageMocks = new Map<string, any>();
-
                 for (const [pkgName, pkgMock] of Object.entries(storyMocks)) {
                   packageMocks.set(pkgName, pkgMock);
                 }
 
-                // Store with normalized ID (Storybook format)
                 mocks.set(storyId, packageMocks);
-                // Also store with original format
-                mocks.set(originalStoryId, packageMocks);
               }
             }
           });
+        }
+      },
+      // Handle CommonJS: exports.StoryName = { mocks: {...} } or var StoryName = exports.StoryName = { mocks: {...} }
+      AssignmentExpression(path: any) {
+        // Check for: exports.VariantA = { ... }
+        if (
+          t.isMemberExpression(path.node.left) &&
+          t.isIdentifier(path.node.left.object) &&
+          path.node.left.object.name === 'exports' &&
+          t.isIdentifier(path.node.left.property)
+        ) {
+          const exportName = path.node.left.property.name;
+          const storyMocks = extractMocksFromObject(path.node.right);
+
+          if (storyMocks && Object.keys(storyMocks).length > 0) {
+            const normalizedExportName = camelToKebab(exportName);
+            const storyId = `${componentName}--${normalizedExportName}`;
+
+            const packageMocks = new Map<string, any>();
+            for (const [pkgName, pkgMock] of Object.entries(storyMocks)) {
+              packageMocks.set(pkgName, pkgMock);
+            }
+
+            mocks.set(storyId, packageMocks);
+          }
+        }
+      },
+      // Handle: var VariantA = exports.VariantA = { mocks: {...} }
+      VariableDeclarator(path: any) {
+        if (t.isIdentifier(path.node.id)) {
+          const exportName = path.node.id.name;
+          // Check if init is an AssignmentExpression (exports.VariantA = ...)
+          if (t.isAssignmentExpression(path.node.init)) {
+            const storyMocks = extractMocksFromObject(path.node.init.right);
+            if (storyMocks && Object.keys(storyMocks).length > 0) {
+              const normalizedExportName = camelToKebab(exportName);
+              const storyId = `${componentName}--${normalizedExportName}`;
+
+              const packageMocks = new Map<string, any>();
+              for (const [pkgName, pkgMock] of Object.entries(storyMocks)) {
+                packageMocks.set(pkgName, pkgMock);
+              }
+
+              mocks.set(storyId, packageMocks);
+            }
+          } else {
+            // Direct assignment: var VariantA = { mocks: {...} }
+            const storyMocks = extractMocksFromObject(path.node.init);
+            if (storyMocks && Object.keys(storyMocks).length > 0) {
+              const normalizedExportName = camelToKebab(exportName);
+              const storyId = `${componentName}--${normalizedExportName}`;
+
+              const packageMocks = new Map<string, any>();
+              for (const [pkgName, pkgMock] of Object.entries(storyMocks)) {
+                packageMocks.set(pkgName, pkgMock);
+              }
+
+              mocks.set(storyId, packageMocks);
+            }
+          }
         }
       },
     });

@@ -22,9 +22,16 @@
     "start:ios:development": "tar -xzvf builds/development/ios.tar.gz -C builds/development && xcrun simctl install booted builds/development/SherloExpoExample.app && npx expo start --ios --dev-client",
     "start:ios:go": "npx expo start --ios --go",
     "storybook:generate": "sb-rn-get-stories",
-    "sherlo": "npx sherlo"
+    "sherlo": "npx sherlo",
+    "bundle:test": "./test-bundle.sh",
+    "test:mock-generation": "node scripts/test-mock-generation.js"
   },
   "dependencies": {
+    "@babel/core": "^7.20.0",
+    "@babel/generator": "^7.23.0",
+    "@babel/parser": "^7.23.0",
+    "@babel/traverse": "^7.23.0",
+    "@babel/types": "^7.23.0",
     "@d11/react-native-fast-image": "^8.10.0",
     "@gorhom/bottom-sheet": "^5.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -58,7 +65,6 @@
     "tamagui": "^1.126.12"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0",
     "@expo/config-plugins": "~54.0.1",
     "@sherlo/react-native-storybook": "portal:../../packages/react-native-storybook",
     "@storybook/addon-ondevice-actions": "^9.1.2",

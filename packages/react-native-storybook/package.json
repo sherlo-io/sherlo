@@ -58,6 +58,13 @@
     "preset": "react-native"
   },
   "dependencies": {
+    "@babel/core": "^7.20.0",
+    "@babel/generator": "^7.23.0",
+    "@babel/parser": "^7.23.0",
+    "@babel/preset-react": "^7.20.0",
+    "@babel/preset-typescript": "^7.20.0",
+    "@babel/traverse": "^7.23.0",
+    "@babel/types": "^7.23.0",
     "base-64": "1.0.0",
     "deepmerge": "4.3.1",
     "its-fine": "2.0.0",

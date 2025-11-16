@@ -53,4 +53,10 @@ export interface WithSherloOptions {
    * @default false
    */
   debug?: boolean;
+  /**
+   * Enable the mock system
+   * Set to false to disable mock extraction and processing
+   * @default true
+   */
+  enabled?: boolean;
 }
