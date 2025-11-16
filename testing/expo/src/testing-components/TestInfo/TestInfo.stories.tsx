@@ -15,20 +15,4 @@ export const Basic = {
   args: {
     fontScale: PixelRatio.getFontScale(),
   },
-  mocks: {
-    'expo-localization': {
-      getLocales: () => [{ languageCode: 'fr', regionCode: 'FR' }],
-    },
-  },
-};
-
-export const Polish = {
-  args: {
-    fontScale: PixelRatio.getFontScale(),
-  },
-  mocks: {
-    'expo-localization': {
-      getLocales: () => [{ languageCode: 'pl', regionCode: 'PL' }],
-    },
-  },
 };

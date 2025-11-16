@@ -2569,10 +2569,6 @@ __metadata:
   resolution: "@sherlo/expo@workspace:."
   dependencies:
     "@babel/core": "npm:^7.20.0"
-    "@babel/generator": "npm:^7.23.0"
-    "@babel/parser": "npm:^7.23.0"
-    "@babel/traverse": "npm:^7.23.0"
-    "@babel/types": "npm:^7.23.0"
     "@d11/react-native-fast-image": "npm:^8.10.0"
     "@expo/config-plugins": "npm:~54.0.1"
     "@gorhom/bottom-sheet": "npm:^5.0.2"

@@ -40,8 +40,6 @@ const configWithStorybook = withStorybook(customConfig, {
   configPath: resolvePath('./.rnstorybook'),
 });
 
-// Use new API: automatically discovers all story files and extracts mocks from all variants
-// Mocks will check getCurrentStory() at runtime to determine which story's mocks to use
 module.exports = withSherlo(configWithStorybook, {
   debug: true,
 });

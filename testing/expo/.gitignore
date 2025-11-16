@@ -20,9 +20,6 @@ sherloexpoexample.app
 # Metro
 .metro-health-check*
 
-# Story mocks cache (auto-generated)
-.story-mocks-cache/
-
 # debug
 npm-debug.*
 yarn-debug.*
