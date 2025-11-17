@@ -395,6 +395,10 @@ export async function transform(args: TransformArgs): Promise<TransformResult> {
   }
 
   // Non-mock files: use Expo's transformer as usual
+  // CRITICAL: Ensure proper context preservation for base transformers
+  // Some transformers (like react-native-svg-transformer) rely on Babel config resolution
+  // from the project root. We need to ensure they have the correct context.
+  
   // Get base transformer lazily only when needed (for non-mock files)
   const baseTransformer = getBaseTransformer();
   if (!baseTransformer) {
@@ -404,14 +408,50 @@ export async function transform(args: TransformArgs): Promise<TransformResult> {
     );
   }
   
+  // Preserve working directory context for Babel config resolution
+  // CRITICAL: Some transformers (like react-native-svg-transformer) rely on Babel config
+  // resolution from the project root. When we wrap the transformer, we need to ensure
+  // they have the correct context. Metro workers run in separate processes, so changing
+  // cwd is safe per-worker, but we must always restore it.
+  const originalCwd = process.cwd();
   let result: TransformResult;
-  if (typeof baseTransformer === 'function') {
-    result = await baseTransformer(args);
-  } else if (baseTransformer && typeof baseTransformer.transform === 'function') {
-    result = await baseTransformer.transform(args);
-  } else {
-    console.error('[SHERLO] Metro transformer error: Base transformer does not export a transform function');
-    throw new Error('[SHERLO] Base transformer does not export a transform function');
+  let cwdChanged = false;
+  
+  try {
+    // Set working directory to project root if it's different
+    // This ensures Babel config resolution works correctly for wrapped transformers
+    // that might resolve babel.config.js relative to process.cwd()
+    if (projectRoot && path.resolve(projectRoot) !== path.resolve(originalCwd)) {
+      try {
+        process.chdir(projectRoot);
+        cwdChanged = true;
+      } catch (chdirError: any) {
+        // If chdir fails, log warning but continue - Babel might still resolve config correctly
+        console.warn(`[SHERLO] Could not change working directory to project root: ${chdirError.message}`);
+      }
+    }
+    
+    // Call base transformer with exact args Metro would pass
+    // Don't modify args - be a true pass-through for non-mock files
+    // This ensures transformers receive the same context they would get from Metro directly
+    if (typeof baseTransformer === 'function') {
+      result = await baseTransformer(args);
+    } else if (baseTransformer && typeof baseTransformer.transform === 'function') {
+      result = await baseTransformer.transform(args);
+    } else {
+      console.error('[SHERLO] Metro transformer error: Base transformer does not export a transform function');
+      throw new Error('[SHERLO] Base transformer does not export a transform function');
+    }
+  } finally {
+    // Always restore original working directory to prevent side effects
+    if (cwdChanged) {
+      try {
+        process.chdir(originalCwd);
+      } catch (restoreError: any) {
+        // Log error but don't throw - we're in finally block
+        console.error(`[SHERLO] Failed to restore working directory: ${restoreError.message}`);
+      }
+    }
   }
   
   // Log what the base transformer actually returned

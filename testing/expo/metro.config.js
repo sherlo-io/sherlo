@@ -26,8 +26,14 @@ const defaultConfig = getDefaultConfig(__dirname);
 // Create our custom config that extends the default
 const customConfig = {
   ...defaultConfig,
+  transformer: {
+    ...defaultConfig.transformer,
+    babelTransformerPath: require.resolve('react-native-svg-transformer'),
+  },
   resolver: {
     ...defaultConfig.resolver,
+    assetExts: defaultConfig.resolver.assetExts.filter((ext) => ext !== 'svg'),
+    sourceExts: [...defaultConfig.resolver.sourceExts, 'svg'],
     extraNodeModules,
   },
   watchFolders: [...(defaultConfig.watchFolders || []), ...Object.values(linkedModules)],
