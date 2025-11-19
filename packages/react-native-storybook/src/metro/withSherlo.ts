@@ -154,6 +154,19 @@ function withSherlo(config: MetroConfig, { debug = false, enabled = true }: With
     // Store transformer path in global so our custom transformer can use it
     if (existingTransformerPath) {
       (global as any).__SHERLO_BASE_TRANSFORMER_PATH__ = existingTransformerPath;
+      
+      // Also write to a file because globals don't persist in Metro worker processes
+      try {
+        const transformerConfigPath = path.join(sherloDir, 'transformer-config.json');
+        fs.writeFileSync(
+          transformerConfigPath, 
+          JSON.stringify({ baseTransformerPath: existingTransformerPath }), 
+          'utf-8'
+        );
+        console.log(`[SHERLO] Saved base transformer config to ${transformerConfigPath}`);
+      } catch (error: any) {
+        console.warn(`[SHERLO] Failed to save transformer config: ${error.message}`);
+      }
     }
 
     // Point Metro to our custom transformer file

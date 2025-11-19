@@ -15,13 +15,37 @@ import { getBabelGenerator } from './mockExtraction/babelLoader';
  */
 function getBaseTransformer() {
   // Try to get from global first (set by withSherlo)
-  const baseTransformerPath = (global as any).__SHERLO_BASE_TRANSFORMER_PATH__;
+  let baseTransformerPath = (global as any).__SHERLO_BASE_TRANSFORMER_PATH__;
+  
+  // If not in global, try reading from config file (for worker processes)
+  if (!baseTransformerPath) {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      // We need to find the .sherlo directory. 
+      // In worker processes, process.cwd() might be the project root or somewhere else.
+      // We'll try to find it relative to process.cwd() or project root.
+      const projectRoot = (global as any).__SHERLO_PROJECT_ROOT__ || process.cwd();
+      // withSherlo writes to node_modules/.sherlo
+      const configPath = path.join(projectRoot, 'node_modules', '.sherlo', 'transformer-config.json');
+      
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        if (config && config.baseTransformerPath) {
+          baseTransformerPath = config.baseTransformerPath;
+        }
+      }
+    } catch (error: any) {
+      // Silently fail
+    }
+  }
 
   if (baseTransformerPath) {
     try {
       // Clear require cache to ensure fresh load
       delete require.cache[require.resolve(baseTransformerPath)];
-      return require(baseTransformerPath);
+      const transformer = require(baseTransformerPath);
+      return transformer;
     } catch (error: any) {
       // Silently fallback to default transformer
     }
