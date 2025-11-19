@@ -8,6 +8,7 @@ export interface SimpleMockFileTemplateOptions {
   requireStatement: string;
   fallbackRequireStatement: string;
   storyMocksCode: Record<string, string>; // { "story-id": "{ fn1: ..., fn2: ... }" } - whole object as string
+  storyMocksMetadata: Record<string, { isFactory: boolean }>; // NEW: Factory metadata
   exportNames: string[];
   exportTypes: Record<string, 'function' | 'constant'>; // { "APP_NAME": "constant", "formatCurrency": "function" }
   hasDefaultExport: boolean;
@@ -82,6 +83,57 @@ export function generateSimpleMockFileTemplate(options: SimpleMockFileTemplateOp
   const storyMapCode = storyMapEntries.length > 0
     ? `\n// Map of story IDs to their mock objects\nconst storyMocks = {\n${storyMapEntries.join('\n')}\n};\n`
     : '';
+
+  // Factory metadata - which stories use factory functions
+  const factoryMetadataEntries: string[] = [];
+  for (const storyId of storyIds) {
+    const metadata = options.storyMocksMetadata[storyId];
+    if (metadata) {
+      factoryMetadataEntries.push(`  '${storyId}': ${metadata.isFactory},`);
+    }
+  }
+  const factoryMetadataCode = factoryMetadataEntries.length > 0
+    ? `\n// Factory metadata - which stories use factory functions\nconst storyFactoryFlags = {\n${factoryMetadataEntries.join('\n')}\n};\n`
+    : '';
+
+  // Helper function to resolve factory functions
+  const factoryResolverCode = `
+// Cache for factory results (to avoid re-execution)
+const factoryCache = {};
+
+// Helper to get mock for story (handles both objects and factories)
+function getMockForStory(storyId) {
+  if (!storyId || !storyMocks[storyId]) {
+    return null;
+  }
+  
+  // Check if already cached
+  if (factoryCache[storyId]) {
+    return factoryCache[storyId];
+  }
+  
+  const mockDef = storyMocks[storyId];
+  const isFactory = storyFactoryFlags[storyId];
+  
+  // If it's a factory function, call it with realModule
+  if (isFactory && typeof mockDef === 'function') {
+    console.log(\`[SHERLO] Calling factory function for story "\${storyId}"\`);
+    try {
+      const result = mockDef(realModule);
+      factoryCache[storyId] = result;
+      console.log(\`[SHERLO] Factory result cached for story "\${storyId}"\`);
+      return result;
+    } catch (error) {
+      console.error(\`[SHERLO] Factory function failed for story "\${storyId}":\`, error);
+      return null;
+    }
+  }
+  
+  // Regular object mock
+  factoryCache[storyId] = mockDef;
+  return mockDef;
+}
+`;
 
   // Load real module as fallback
   const hasDifferentFallback = options.requireStatement !== options.fallbackRequireStatement;
@@ -211,9 +263,11 @@ for (let i = 0; i < allExportNames.length; i++) {
         get: function() {
           console.log(\`[SHERLO] \${name} (constant) accessed\`);
           const storyId = getCurrentStory();
-          if (storyId && storyMocks[storyId] && storyMocks[storyId][name] !== undefined) {
+          const mockObj = getMockForStory(storyId);  // Use helper to resolve factories
+          
+          if (mockObj && mockObj[name] !== undefined) {
             console.log(\`[SHERLO] \${name}: Mock value returned from story "\${storyId}"\`);
-            return storyMocks[storyId][name];
+            return mockObj[name];
           }
           
           // Fallback to real module
@@ -239,11 +293,12 @@ for (let i = 0; i < allExportNames.length; i++) {
         const fnName = exportNameForThisFunction;
         console.log(\`[SHERLO] \${fnName} called with args:\`, args);
         const storyId = getCurrentStory();
+        const mockObj = getMockForStory(storyId);  // Use helper to resolve factories
         
         // Try to get mock from story
-        if (storyId && storyMocks[storyId] && storyMocks[storyId][fnName] !== undefined) {
+        if (mockObj && mockObj[fnName] !== undefined) {
           console.log(\`[SHERLO] \${fnName}: Mock found for story "\${storyId}"\`);
-          const mock = storyMocks[storyId][fnName];
+          const mock = mockObj[fnName];
           if (typeof mock === 'function') {
             const result = mock(...args);
             console.log(\`[SHERLO] \${fnName}: Mock function returned:\`, result);
@@ -309,10 +364,11 @@ Object.defineProperty(exports, 'default', {
     }
     
     // Then, check if there's a default mock in the current story
-    if (storyId && storyMocks[storyId] && storyMocks[storyId].default !== undefined) {
+    const mockObj = getMockForStory(storyId);  // Use helper to resolve factories
+    if (mockObj && mockObj.default !== undefined) {
       console.log(\`[SHERLO] default: Mock found for story "\${storyId}", merging with named exports\`);
       // If there's a default mock, merge it with the named exports (mock takes precedence)
-      Object.assign(defaultExport, storyMocks[storyId].default);
+      Object.assign(defaultExport, mockObj.default);
       console.log('[SHERLO] default: Mock value returned:', defaultExport);
       return defaultExport;
     }
@@ -346,7 +402,7 @@ console.log(\`[SHERLO] Pre-configured exports: ${options.exportNames.length > 0 
 
 ${options.imports ? options.imports.join('\n') : ''}
 
-${allCode}${storyMapCode}
+${allCode}${storyMapCode}${factoryMetadataCode}
 
 // Log story map when mock file loads
 console.log(\`[SHERLO] Story map initialized for ${packageName}. Available story IDs: \${Object.keys(storyMocks).join(', ')}\`);
@@ -354,6 +410,8 @@ console.log(\`[SHERLO] Story map initialized for ${packageName}. Available story
 ${getGetCurrentStoryCode()}
 
 ${realModuleCode}
+
+${factoryResolverCode}
 
 ${runtimeDiscoveryCode}
 

@@ -111,12 +111,15 @@ function extractPackageMocks(mocksObj: any, scope: any, filePath: string): Recor
         ? prop.key.value
         : null;
 
-      if (packageName && prop.value && t.isObjectExpression(prop.value)) {
+      if (packageName && prop.value) {
+        // Check if the value is a factory function (arrow function or function expression)
+        const isFactory = t.isArrowFunctionExpression(prop.value) || t.isFunctionExpression(prop.value);
+        
         try {
-          // 1. Generate code string
-          const objectCode = generate(prop.value).code;
+          // 1. Generate code string (works for both objects and functions)
+          const code = generate(prop.value).code;
           
-          // 2. Extract imports used in this mock object
+          // 2. Extract imports used in this mock (object or function body)
           const imports: Array<{
             name: string; // Local name used in code (e.g. QUERY_CONSTANT)
             source: string; // Import source (absolute path or package name)
@@ -125,7 +128,7 @@ function extractPackageMocks(mocksObj: any, scope: any, filePath: string): Recor
             isNamespace: boolean;
           }> = [];
           
-          // Traverse the mock object to find identifiers
+          // Traverse the mock value to find identifiers
           // We use a simple recursive visitor since we don't have a full NodePath for prop.value
           const identifiers = new Set<string>();
           
@@ -209,11 +212,12 @@ function extractPackageMocks(mocksObj: any, scope: any, filePath: string): Recor
           }
 
           packages[packageName] = { 
-            __code: objectCode,
-            __imports: imports
+            __code: code,
+            __imports: imports,
+            __isFactory: isFactory  // Mark if this is a factory function
           };
         } catch (error: any) {
-          console.warn(`[SHERLO] Failed to extract object code/imports for mock "${packageName}":`, error.message);
+          console.warn(`[SHERLO] Failed to extract code/imports for mock "${packageName}":`, error.message);
         }
       }
     }

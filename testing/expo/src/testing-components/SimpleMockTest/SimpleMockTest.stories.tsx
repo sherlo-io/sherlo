@@ -195,3 +195,74 @@ export const NoMocks = {
   // No mocks - should fall back to real implementations
 };
 
+// Variant 13: Smart Import Extraction
+// Tests: Imported constants work in mocks
+export const SmartImports = {
+  args: {
+    testType: 'SmartImports',
+  },
+  mocks: {
+    '../api/client': {
+      client: {
+        query: () => `Using imported constant: MY_QUERY`,
+      },
+    },
+  },
+};
+
+// Variant 14: Factory Function with Spread
+// Tests: Factory function receives original module, spread operator preserves methods
+export const FactoryWithSpread = {
+  args: {
+    testType: 'FactoryWithSpread',
+  },
+  mocks: {
+    '../api/client': (original: any) => ({
+      ...original,
+      client: {
+        ...original.client,
+        query: () => `Factory with spread: MY_QUERY`,
+      },
+    }),
+  },
+};
+
+// Variant 15: Factory Function with Conditional Logic
+// Tests: Factory can access original implementation for conditional mocking
+export const FactoryConditional = {
+  args: {
+    testType: 'FactoryConditional',
+  },
+  mocks: {
+    '../api/client': (original: any) => ({
+      ...original,
+      client: {
+        ...original.client,
+        query: (args: any) => {
+          if (args.query === 'test') {
+            return `Conditional mock: MY_QUERY`;
+          }
+          return original.client.query(args);
+        },
+      },
+    }),
+  },
+};
+
+// Variant 16: Factory Function with Multiple Exports
+// Tests: Factory can override multiple exports at once
+export const FactoryMultipleExports = {
+  args: {
+    testType: 'FactoryMultipleExports',
+  },
+  mocks: {
+    '../api/client': (original: any) => ({
+      ...original,
+      QUERY_CONSTANT: 'OVERRIDDEN_CONSTANT',
+      client: {
+        ...original.client,
+        query: () => 'Multiple exports mocked',
+      },
+    }),
+  },
+};

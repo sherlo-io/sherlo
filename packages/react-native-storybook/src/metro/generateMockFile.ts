@@ -78,9 +78,14 @@ export function generateMockFileContent(
   };
 
   const storyMocksCode: Record<string, string> = {};
+  const storyMocksMetadata: Record<string, { isFactory: boolean }> = {};
+  
   for (const [storyId, mock] of Object.entries(packageMocksByStory)) {
     if (mock && typeof mock === 'object') {
       storyMocksCode[storyId] = (mock as any).__code || '{}';
+      storyMocksMetadata[storyId] = {
+        isFactory: (mock as any).__isFactory || false
+      };
       
       // Process imports
       if ((mock as any).__imports && Array.isArray((mock as any).__imports)) {
@@ -88,6 +93,7 @@ export function generateMockFileContent(
       }
     } else {
       storyMocksCode[storyId] = '{}';
+      storyMocksMetadata[storyId] = { isFactory: false };
     }
   }
 
@@ -171,6 +177,7 @@ export function generateMockFileContent(
     requireStatement,
     fallbackRequireStatement,
     storyMocksCode,
+    storyMocksMetadata,  // NEW: Pass factory metadata
     exportNames,
     exportTypes,
     hasDefaultExport,
@@ -245,7 +252,6 @@ export function generateMockFile(
   
   // With simplified extraction, each story mock is: { 'package-name': { __code: "{ fn1: ..., fn2: ... }" } }
   // We extract the whole object as a string, so we just need to get the __code value
-  const storyMocksCode: Record<string, string> = {};
   
   // Collect and process imports from all mocks
   const importsMap = new Map<string, {
@@ -282,12 +288,18 @@ export function generateMockFile(
     }
   };
 
+  const storyMocksCode: Record<string, string> = {};
+  const storyMocksMetadata: Record<string, { isFactory: boolean }> = {};
+  
   for (const [storyId, mock] of Object.entries(packageMocksByStory)) {
     // mock is the value from packageMocks.get(packageName), which is { __code: "..." }
     // So mock itself is { __code: "..." }, not { 'package-name': { __code: "..." } }
     if (mock && typeof mock === 'object' && (mock as any).__code) {
       // Store the whole object code string directly
       storyMocksCode[storyId] = (mock as any).__code;
+      storyMocksMetadata[storyId] = {
+        isFactory: (mock as any).__isFactory || false
+      };
       
       // Process imports
       if ((mock as any).__imports && Array.isArray((mock as any).__imports)) {
@@ -297,6 +309,7 @@ export function generateMockFile(
       console.warn(`[SHERLO] Unexpected mock structure for story ${storyId}, expected { __code: "..." }`);
       console.warn(`[SHERLO] Mock type: ${typeof mock}, Mock keys: ${mock && typeof mock === 'object' ? Object.keys(mock).join(', ') : 'N/A'}`);
       storyMocksCode[storyId] = '{}';
+      storyMocksMetadata[storyId] = { isFactory: false };
     }
   }
 
@@ -504,6 +517,7 @@ export function generateMockFile(
     requireStatement,
     fallbackRequireStatement,
     storyMocksCode,
+    storyMocksMetadata,  // NEW: Pass factory metadata
     exportNames,
     exportTypes,
     hasDefaultExport,

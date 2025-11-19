@@ -245,6 +245,94 @@ export const WithImports = {
 };
 ```
 
+### Factory Functions
+
+Mocks work with factory functions that generate stories:
+
+```typescript
+function createColorStory(color: string) {
+  return {
+    mocks: {
+      '../utils/theme': {
+        getColor: () => color,
+      },
+    },
+    component: ColoredButton,
+  };
+}
+
+export const Red = createColorStory('red');
+export const Blue = createColorStory('blue');
+```
+
+### Factory Functions (Advanced)
+
+For advanced use cases, you can define mocks as **factory functions** that receive the original module implementation. This enables:
+- Selective method overriding while preserving others
+- Conditional mocking with fallback to original implementation
+- Spreading original exports to avoid incomplete mocks
+
+#### Basic Factory Function
+
+```typescript
+export const WithFactory = {
+  mocks: {
+    'apollo-client': (original) => ({
+      default: {
+        ...original.default,  // Preserve all original methods
+        query: () => mockData,  // Override only this method
+      }
+    })
+  },
+  component: MyComponent,
+};
+```
+
+#### Conditional Mocking
+
+Factory functions can access the original implementation for conditional logic:
+
+```typescript
+export const ConditionalMock = {
+  mocks: {
+    '../api/client': (original) => ({
+      default: {
+        ...original.default,
+        query: (args) => {
+          // Mock specific queries
+          if (args.query.includes('GetUser')) {
+            return { data: { user: mockUser } };
+          }
+          // Fallback to original for others
+          return original.default.query(args);
+        }
+      }
+    })
+  },
+  component: MyComponent,
+};
+```
+
+#### Overriding Multiple Exports
+
+```typescript
+export const MultipleExports = {
+  mocks: {
+    '../config': (original) => ({
+      ...original,  // Preserve all exports
+      API_URL: 'http://localhost:3000',  // Override constant
+      client: {
+        ...original.client,  // Preserve client methods
+        query: () => mockData,  // Override one method
+      }
+    })
+  },
+  component: MyComponent,
+};
+```
+
+> **Note**: Factory functions are called once per story and the result is cached. The `original` parameter contains the real module implementation.
+
 ### Special Values
 
 The system handles special JavaScript values correctly:

@@ -10,6 +10,7 @@ import { config, supportedLanguages, MAX_RETRIES, ENABLED } from '../utils/objec
 import { fetchUserData, fetchSettings } from '../utils/asyncUtils';
 import { processPayment, getUserPaymentInfo } from '../utils/nestedUtils';
 import { SPECIAL_NUMBERS, EMPTY_VALUES, createMultiplier } from '../utils/edgeCaseUtils';
+import { client, QUERY_CONSTANT } from '../api/client';
 
 interface TestResult {
   name: string;
@@ -307,9 +308,54 @@ export const SimpleMockTest: React.FC<SimpleMockTestProps> = ({ testType = 'Basi
         newResults.push({
           name: 'formatCurrency (real)',
           passed: realCurrency === 'EUR 100.00', // Real format: `${currency} ${amount.toFixed(2)}`
-          expected: 'EUR 100.00',
           actual: realCurrency,
         });
+        break;
+
+      case 'SmartImports':
+        // Test: Smart import extraction - imported constants work in mocks
+        const smartImportResult = client.query({ query: 'test' });
+        newResults.push({
+          name: 'client.query with imported constant',
+          passed: smartImportResult === `Using imported constant: ${QUERY_CONSTANT}`,
+          expected: `Using imported constant: ${QUERY_CONSTANT}`,
+          actual: smartImportResult,
+        });
+        break;
+
+      case 'FactoryWithSpread':
+        // Test: Factory function with spread operator
+        const factorySpreadResult = client.query({ query: 'test' });
+        newResults.push({
+          name: 'Factory with spread',
+          passed: factorySpreadResult === `Factory with spread: ${QUERY_CONSTANT}`,
+          expected: `Factory with spread: ${QUERY_CONSTANT}`,
+          actual: factorySpreadResult,
+        });
+        break;
+
+      case 'FactoryConditional':
+        // Test: Factory function with conditional logic
+        const conditionalResult = client.query({ query: 'test' });
+        newResults.push({
+          name: 'Factory conditional (test query)',
+          passed: conditionalResult === `Conditional mock: ${QUERY_CONSTANT}`,
+          expected: `Conditional mock: ${QUERY_CONSTANT}`,
+          actual: conditionalResult,
+        });
+        break;
+
+      case 'FactoryMultipleExports':
+        // Test: Factory function overriding multiple exports
+        const multiExportResult = client.query({ query: 'test' });
+        newResults.push({
+          name: 'Factory multiple exports - client.query',
+          passed: multiExportResult === 'Multiple exports mocked',
+          expected: 'Multiple exports mocked',
+          actual: multiExportResult,
+        });
+        // Note: QUERY_CONSTANT override would need to be tested differently
+        // since it's imported at module level
         break;
 
       default:
