@@ -41,14 +41,88 @@ export function generateMockFileContent(
     throw new Error(`No mocks found for package ${packageName}`);
   }
 
+  // Collect and process imports from all mocks
+  const importsMap = new Map<string, {
+    source: string;
+    defaultImport?: string;
+    namespaceImport?: string;
+    namedImports: Set<string>;
+  }>();
+
+  // Helper to add import
+  const addImport = (imp: { name: string, source: string, importedName: string, isDefault: boolean, isNamespace: boolean }) => {
+    // Let's assume `imp.source` is absolute for relative imports, and package name for packages.
+    let importSource = imp.source;
+    
+    if (!importsMap.has(importSource)) {
+      importsMap.set(importSource, {
+        source: importSource,
+        namedImports: new Set()
+      });
+    }
+    
+    const importDef = importsMap.get(importSource)!;
+    
+    if (imp.isDefault) {
+      importDef.defaultImport = imp.name;
+    } else if (imp.isNamespace) {
+      importDef.namespaceImport = imp.name;
+    } else {
+      // Handle renaming: importedName as name
+      if (imp.importedName !== imp.name) {
+        importDef.namedImports.add(`${imp.importedName} as ${imp.name}`);
+      } else {
+        importDef.namedImports.add(imp.name);
+      }
+    }
+  };
+
   const storyMocksCode: Record<string, string> = {};
   for (const [storyId, mock] of Object.entries(packageMocksByStory)) {
-    if (mock && typeof mock === 'object' && (mock as any).__code) {
-      storyMocksCode[storyId] = (mock as any).__code;
+    if (mock && typeof mock === 'object') {
+      storyMocksCode[storyId] = (mock as any).__code || '{}';
+      
+      // Process imports
+      if ((mock as any).__imports && Array.isArray((mock as any).__imports)) {
+        (mock as any).__imports.forEach((imp: any) => addImport(imp));
+      }
     } else {
       storyMocksCode[storyId] = '{}';
     }
   }
+
+  // Generate import statements
+  const importStatements: string[] = [];
+  const path = require('path');
+  const { getMockDirectory } = require('./constants');
+  const mockDir = getMockDirectory(projectRoot);
+
+  importsMap.forEach((def, source) => {
+    let importPath = source;
+    
+    // If source is absolute path, make it relative to mock dir
+    if (path.isAbsolute(source)) {
+      importPath = path.relative(mockDir, source);
+      // Ensure it starts with ./ or ../
+      if (!importPath.startsWith('.')) {
+        importPath = './' + importPath;
+      }
+    }
+    
+    // Escape for string
+    importPath = importPath.replace(/'/g, "\\'");
+    
+    const parts: string[] = [];
+    if (def.defaultImport) parts.push(def.defaultImport);
+    if (def.namespaceImport) parts.push(`* as ${def.namespaceImport}`);
+    if (def.namedImports.size > 0) parts.push(`{ ${Array.from(def.namedImports).join(', ')} }`);
+    
+    if (parts.length > 0) {
+      importStatements.push(`import ${parts.join(', ')} from '${importPath}';`);
+    } else {
+      importStatements.push(`import '${importPath}';`);
+    }
+  });
 
   // Get export names and types (simplified version - reuse logic from generateMockFile if needed)
   // For now, use a simpler approach: extract from mock code
@@ -100,6 +174,7 @@ export function generateMockFileContent(
     exportNames,
     exportTypes,
     hasDefaultExport,
+    imports: importStatements, // Pass imports to template
   });
 
   // Transform TypeScript → JavaScript
@@ -172,18 +247,91 @@ export function generateMockFile(
   // We extract the whole object as a string, so we just need to get the __code value
   const storyMocksCode: Record<string, string> = {};
   
+  // Collect and process imports from all mocks
+  const importsMap = new Map<string, {
+    source: string;
+    defaultImport?: string;
+    namespaceImport?: string;
+    namedImports: Set<string>;
+  }>();
+
+  // Helper to add import
+  const addImport = (imp: { name: string, source: string, importedName: string, isDefault: boolean, isNamespace: boolean }) => {
+    let importSource = imp.source;
+    
+    if (!importsMap.has(importSource)) {
+      importsMap.set(importSource, {
+        source: importSource,
+        namedImports: new Set()
+      });
+    }
+    
+    const importDef = importsMap.get(importSource)!;
+    
+    if (imp.isDefault) {
+      importDef.defaultImport = imp.name;
+    } else if (imp.isNamespace) {
+      importDef.namespaceImport = imp.name;
+    } else {
+      // Handle renaming: importedName as name
+      if (imp.importedName !== imp.name) {
+        importDef.namedImports.add(`${imp.importedName} as ${imp.name}`);
+      } else {
+        importDef.namedImports.add(imp.name);
+      }
+    }
+  };
+
   for (const [storyId, mock] of Object.entries(packageMocksByStory)) {
     // mock is the value from packageMocks.get(packageName), which is { __code: "..." }
     // So mock itself is { __code: "..." }, not { 'package-name': { __code: "..." } }
     if (mock && typeof mock === 'object' && (mock as any).__code) {
       // Store the whole object code string directly
       storyMocksCode[storyId] = (mock as any).__code;
+      
+      // Process imports
+      if ((mock as any).__imports && Array.isArray((mock as any).__imports)) {
+        (mock as any).__imports.forEach((imp: any) => addImport(imp));
+      }
     } else {
       console.warn(`[SHERLO] Unexpected mock structure for story ${storyId}, expected { __code: "..." }`);
       console.warn(`[SHERLO] Mock type: ${typeof mock}, Mock keys: ${mock && typeof mock === 'object' ? Object.keys(mock).join(', ') : 'N/A'}`);
       storyMocksCode[storyId] = '{}';
     }
   }
+
+  // Generate import statements
+  const importStatements: string[] = [];
+  const path = require('path');
+  const { getMockDirectory } = require('./constants');
+  const mockDir = getMockDirectory(projectRoot);
+
+  importsMap.forEach((def, source) => {
+    let importPath = source;
+    
+    // If source is absolute path, make it relative to mock dir
+    if (path.isAbsolute(source)) {
+      importPath = path.relative(mockDir, source);
+      // Ensure it starts with ./ or ../
+      if (!importPath.startsWith('.')) {
+        importPath = './' + importPath;
+      }
+    }
+    
+    // Escape for string
+    importPath = importPath.replace(/'/g, "\\'");
+    
+    const parts: string[] = [];
+    if (def.defaultImport) parts.push(def.defaultImport);
+    if (def.namespaceImport) parts.push(`* as ${def.namespaceImport}`);
+    if (def.namedImports.size > 0) parts.push(`{ ${Array.from(def.namedImports).join(', ')} }`);
+    
+    if (parts.length > 0) {
+      importStatements.push(`import ${parts.join(', ')} from '${importPath}';`);
+    } else {
+      importStatements.push(`import '${importPath}';`);
+    }
+  });
 
   // Get export names and types from the real module (we need these for runtime functions/constants)
   // Try to require the real module to get its exports
@@ -359,6 +507,7 @@ export function generateMockFile(
     exportNames,
     exportTypes,
     hasDefaultExport,
+    imports: importStatements, // Pass imports to template
   });
 
   // Transform TypeScript → JavaScript using Babel's preset-typescript
@@ -430,9 +579,6 @@ export function generateMockFile(
     mockCodeJS = mockCodeTS;
   }
 
-  const { getMockDirectory } = require('./constants');
-  const mockDir = getMockDirectory(projectRoot);
-  
   if (!fs.existsSync(mockDir)) {
     fs.mkdirSync(mockDir, { recursive: true });
   }

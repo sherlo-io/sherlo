@@ -11,6 +11,7 @@ The mock system enables dynamic, per-story mocking of modules in React Native St
 - **Runtime Resolution**: Mocks are resolved at runtime based on the active story ID
 - **Zero Production Impact**: Never affects production code - mocks only work in Storybook mode
 - **Type-Safe**: Full TypeScript support
+- **Smart Imports**: Supports using imported constants, types, and functions in mocks
 - **Project-Agnostic**: Works with any project structure, including monorepos
 
 ## Architecture
@@ -218,6 +219,32 @@ export const WithObjectMock = {
 };
 ```
 
+    },
+  },
+  component: MyComponent,
+};
+```
+
+### Using Imported Values
+
+You can use imported constants, types, or functions directly in your mocks. The system automatically extracts and preserves these imports:
+
+```typescript
+import { MOCK_USER, HelperClass } from './test-utils';
+import { Theme } from './theme';
+
+export const WithImports = {
+  mocks: {
+    '../api/user': {
+      getUser: () => MOCK_USER, // Imported constant
+      transform: (data: any) => new HelperClass(data), // Imported class
+      theme: Theme.Dark, // Imported enum/object
+    },
+  },
+  component: UserProfile,
+};
+```
+
 ### Special Values
 
 The system handles special JavaScript values correctly:
@@ -262,9 +289,9 @@ When Metro starts, `withSherlo` discovers all story files by:
 During Metro bundling, the transformer:
 1. Processes each file through Metro's transformation pipeline
 2. Identifies story files
-3. Parses the transformed JavaScript code using Babel AST
-4. Extracts `mocks` objects from story definitions
-5. Stores mocks in a global cache (shared across Metro workers via JSON files)
+3. Parses the **original** source code using Babel AST (to preserve imports)
+4. Extracts `mocks` objects and any referenced imports
+5. Stores mocks in a global cache
 
 ### 3. Mock File Generation
 
@@ -503,7 +530,7 @@ packages/react-native-storybook/src/metro/
 
 3. **No Dynamic Requires**: Metro doesn't support dynamic `require()` calls, so mocks must be statically analyzable.
 
-4. **Serialization Constraints**: Some complex objects might not serialize perfectly. The system handles most cases, but edge cases might require manual handling.
+4. **Serialization Constraints**: Some complex objects might not serialize perfectly. The system handles most cases, including imports, but extremely dynamic values (like closures capturing local variables) are not supported.
 
 ## Best Practices
 

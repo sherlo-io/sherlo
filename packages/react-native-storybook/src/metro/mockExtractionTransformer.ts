@@ -20,7 +20,11 @@ export type { TransformArgs, TransformResult } from './types';
  * Extracts mocks from a JavaScript object expression
  * Handles both direct objects and function calls that return objects
  */
-function extractMocksFromObject(expr: any): Record<string, any> | null {
+/**
+ * Extracts mocks from a JavaScript object expression
+ * Handles both direct objects and function calls that return objects
+ */
+function extractMocksFromObject(expr: any, scope: any, filePath: string): Record<string, any> | null {
   if (!expr) {
     return null;
   }
@@ -42,7 +46,7 @@ function extractMocksFromObject(expr: any): Record<string, any> | null {
 
     if (mocksProperty && t.isObjectProperty(mocksProperty)) {
       // Extract package-level mocks: { 'package-name': { fn: () => 'value' } }
-      return extractPackageMocks(mocksProperty.value);
+      return extractPackageMocks(mocksProperty.value, scope, filePath);
     }
   }
 
@@ -64,30 +68,32 @@ function extractMocksFromObject(expr: any): Record<string, any> | null {
  * Simplified: Extract the whole object as a string, no need to parse individual properties
  * NOTE: Code string may contain TypeScript types - we'll strip them later using Babel's preset-typescript
  */
-function extractPackageMocks(mocksObj: any): Record<string, any> | null {
+/**
+ * Extracts package-level mocks from mocks object
+ * Structure: { 'package-name': { fn1: () => 'value', fn2: () => 123 } }
+ * Returns: { 'package-name': { __code: "...", __imports: [...] } }
+ */
+function extractPackageMocks(mocksObj: any, scope: any, filePath: string): Record<string, any> | null {
   const packages: Record<string, any> = {};
   const t = getBabelTypes();
   let generate: any = null;
   
-  // Try to resolve @babel/generator - only needed to convert AST node to string
-  // In EAS builds, we need to resolve from project root
+  // Try to resolve @babel/generator
   try {
     generate = require('@babel/generator').default;
   } catch {
     try {
-      // Try resolving from project root (for EAS build worker processes)
       const projectRoot = (global as any).__SHERLO_PROJECT_ROOT__ || process.cwd();
       const generatorPath = require.resolve('@babel/generator', {
         paths: [
           projectRoot,
           pathModule.join(projectRoot, 'node_modules'),
-          pathModule.join(projectRoot, '../../node_modules'), // Workspace root for monorepos
+          pathModule.join(projectRoot, '../../node_modules'),
         ],
       });
       generate = require(generatorPath).default;
     } catch (resolveError: any) {
       console.warn('[SHERLO] @babel/generator not available, cannot extract code strings');
-      console.warn(`[SHERLO] Resolution paths tried: projectRoot, node_modules, ../../node_modules`);
       return null;
     }
   }
@@ -106,14 +112,108 @@ function extractPackageMocks(mocksObj: any): Record<string, any> | null {
         : null;
 
       if (packageName && prop.value && t.isObjectExpression(prop.value)) {
-        // Extract code string as-is (may contain TypeScript types)
-        // We'll transform TS → JS later using Babel's preset-typescript
         try {
+          // 1. Generate code string
           const objectCode = generate(prop.value).code;
-          // Store the whole object as a code string (may contain TypeScript types)
-          packages[packageName] = { __code: objectCode };
+          
+          // 2. Extract imports used in this mock object
+          const imports: Array<{
+            name: string; // Local name used in code (e.g. QUERY_CONSTANT)
+            source: string; // Import source (absolute path or package name)
+            importedName: string; // Exported name (e.g. QUERY_CONSTANT or default)
+            isDefault: boolean;
+            isNamespace: boolean;
+          }> = [];
+          
+          // Traverse the mock object to find identifiers
+          // We use a simple recursive visitor since we don't have a full NodePath for prop.value
+          const identifiers = new Set<string>();
+          
+          const visit = (node: any) => {
+            if (!node) return;
+            
+            if (t.isIdentifier(node)) {
+              identifiers.add(node.name);
+            } else if (t.isObjectProperty(node)) {
+              if (node.computed) visit(node.key);
+              visit(node.value);
+            } else if (t.isMemberExpression(node)) {
+              visit(node.object);
+              if (node.computed) visit(node.property);
+            } else {
+              for (const key in node) {
+                const val = node[key];
+                if (Array.isArray(val)) {
+                  val.forEach(v => {
+                    if (v && typeof v.type === 'string') visit(v);
+                  });
+                } else if (val && typeof val.type === 'string') {
+                  visit(val);
+                }
+              }
+            }
+          };
+          
+          visit(prop.value);
+          
+          // Check bindings for found identifiers
+          identifiers.forEach(name => {
+            const binding = scope.getBinding(name);
+            if (binding && binding.kind === 'module') {
+              const path = binding.path;
+              const parent = path.parent;
+              
+              if (t.isImportDeclaration(parent)) {
+                let source = parent.source.value;
+                
+                // Resolve relative paths to absolute paths
+                if (source.startsWith('.')) {
+                  source = pathModule.resolve(pathModule.dirname(filePath), source);
+                }
+                
+                if (t.isImportDefaultSpecifier(path.node)) {
+                  imports.push({
+                    name,
+                    source,
+                    importedName: 'default',
+                    isDefault: true,
+                    isNamespace: false
+                  });
+                } else if (t.isImportNamespaceSpecifier(path.node)) {
+                  imports.push({
+                    name,
+                    source,
+                    importedName: '*',
+                    isDefault: false,
+                    isNamespace: true
+                  });
+                } else if (t.isImportSpecifier(path.node)) {
+                  const importedName = t.isIdentifier(path.node.imported) 
+                    ? path.node.imported.name 
+                    : path.node.imported.value;
+                    
+                  imports.push({
+                    name,
+                    source,
+                    importedName,
+                    isDefault: false,
+                    isNamespace: false
+                  });
+                }
+              }
+            }
+          });
+          
+          if (imports.length > 0) {
+            // Imports extracted
+          }
+
+          packages[packageName] = { 
+            __code: objectCode,
+            __imports: imports
+          };
         } catch (error: any) {
-          console.warn(`[SHERLO] Failed to extract object code for mock "${packageName}":`, error.message);
+          console.warn(`[SHERLO] Failed to extract object code/imports for mock "${packageName}":`, error.message);
         }
       }
     }
@@ -134,7 +234,7 @@ export function extractMocksFromTransformedCode(
   projectRoot: string
 ): StoryMockMap {
   const mocks: StoryMockMap = new Map();
-  const componentName = getComponentNameFromPath(filePath, projectRoot);
+  let componentName = getComponentNameFromPath(filePath, projectRoot);
 
   const parser = getBabelParser();
   const traverse = getBabelTraverse();
@@ -152,6 +252,28 @@ export function extractMocksFromTransformedCode(
       plugins: ['jsx', 'typescript', 'decorators-legacy', 'classProperties'],
     });
 
+    // First pass: try to extract component title from default export
+    // This ensures we match Storybook's ID generation which uses the title
+    traverse(ast, {
+      ExportDefaultDeclaration(path: any) {
+        if (t.isObjectExpression(path.node.declaration)) {
+          const titleProp = path.node.declaration.properties.find(
+            (p: any) => t.isObjectProperty(p) && t.isIdentifier(p.key) && p.key.name === 'title'
+          );
+          
+          if (titleProp && t.isObjectProperty(titleProp) && t.isStringLiteral(titleProp.value)) {
+            // Found title: "MyComponent" -> "my-component"
+            const title = titleProp.value.value;
+            // Normalize title to kebab-case (Storybook style)
+            // Note: Storybook ID generation is complex, but usually it's title-kebab-case
+            // If title contains slashes (e.g. "Components/Button"), it becomes "components-button"
+            componentName = title.toLowerCase().replace(/\//g, '-').replace(/\s+/g, '-');
+            console.log(`[SHERLO] Found story title "${title}", using component name: "${componentName}"`);
+          }
+        }
+      }
+    });
+
     traverse(ast, {
       // Handle ES modules: export const StoryName = { mocks: {...} }
       ExportNamedDeclaration(path: any) {
@@ -159,7 +281,8 @@ export function extractMocksFromTransformedCode(
           path.node.declaration.declarations.forEach((decl: any) => {
             if (t.isIdentifier(decl.id)) {
               const exportName = decl.id.name;
-              const storyMocks = extractMocksFromObject(decl.init);
+              // Pass scope and filePath to extractMocksFromObject
+              const storyMocks = extractMocksFromObject(decl.init, path.scope, filePath);
 
               if (storyMocks && Object.keys(storyMocks).length > 0) {
                 const normalizedExportName = camelToKebab(exportName);
@@ -186,7 +309,8 @@ export function extractMocksFromTransformedCode(
           t.isIdentifier(path.node.left.property)
         ) {
           const exportName = path.node.left.property.name;
-          const storyMocks = extractMocksFromObject(path.node.right);
+          // Pass scope and filePath
+          const storyMocks = extractMocksFromObject(path.node.right, path.scope, filePath);
 
           if (storyMocks && Object.keys(storyMocks).length > 0) {
             const normalizedExportName = camelToKebab(exportName);
@@ -207,7 +331,8 @@ export function extractMocksFromTransformedCode(
           const exportName = path.node.id.name;
           // Check if init is an AssignmentExpression (exports.VariantA = ...)
           if (t.isAssignmentExpression(path.node.init)) {
-            const storyMocks = extractMocksFromObject(path.node.init.right);
+            // Pass scope and filePath
+            const storyMocks = extractMocksFromObject(path.node.init.right, path.scope, filePath);
             if (storyMocks && Object.keys(storyMocks).length > 0) {
               const normalizedExportName = camelToKebab(exportName);
               const storyId = `${componentName}--${normalizedExportName}`;
@@ -221,7 +346,8 @@ export function extractMocksFromTransformedCode(
             }
           } else {
             // Direct assignment: var VariantA = { mocks: {...} }
-            const storyMocks = extractMocksFromObject(path.node.init);
+            // Pass scope and filePath
+            const storyMocks = extractMocksFromObject(path.node.init, path.scope, filePath);
             if (storyMocks && Object.keys(storyMocks).length > 0) {
               const normalizedExportName = camelToKebab(exportName);
               const storyId = `${componentName}--${normalizedExportName}`;
@@ -269,12 +395,15 @@ export function createMockExtractionTransformer(
     // Check if this is a story file
     if (isStoryFile(args.filename, storyFilesList)) {
 
-      // Extract mocks from the transformed code
-      // The transformed code is in result.output[0].data.code
-      const transformedCode = result.output[0]?.data?.code;
-      if (transformedCode) {
+      // Extract mocks from the ORIGINAL source code (args.src)
+      // We use the original source because:
+      // 1. It contains the original imports (transformed code might have require calls)
+      // 2. It preserves the structure we expect for AST analysis
+      // 3. We want to extract imports as they are written in the source
+      const sourceCode = args.src;
+      if (sourceCode) {
         const extractedMocks = extractMocksFromTransformedCode(
-          transformedCode,
+          sourceCode,
           args.filename,
           projRoot
         );

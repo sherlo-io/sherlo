@@ -11,6 +11,7 @@ export interface SimpleMockFileTemplateOptions {
   exportNames: string[];
   exportTypes: Record<string, 'function' | 'constant'>; // { "APP_NAME": "constant", "formatCurrency": "function" }
   hasDefaultExport: boolean;
+  imports?: string[]; // Array of import statements
 }
 
 /**
@@ -342,6 +343,8 @@ Object.defineProperty(exports, 'default', {
 // Log available stories when mock file loads
 console.log(\`[SHERLO] Mock file loaded for package: ${packageName}\`);
 console.log(\`[SHERLO] Pre-configured exports: ${options.exportNames.length > 0 ? options.exportNames.join(', ') : '(will be discovered at runtime)'}\`);
+
+${options.imports ? options.imports.join('\n') : ''}
 
 ${allCode}${storyMapCode}
 
