@@ -67,7 +67,7 @@ export function generateSimpleMockFileTemplate(options: SimpleMockFileTemplateOp
     const objectCode = storyMocksCode[storyId];
     
     // Assign the whole object directly - no need to parse individual properties
-    storyExports.push(`export const ${exportName} = ${objectCode};`);
+    storyExports.push(`const ${exportName} = ${objectCode};`);
     storyExports.push(''); // Empty line between exports
   }
   
