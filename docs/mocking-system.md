@@ -123,14 +123,14 @@ export const Polish = {
 };
 ```
 
-### Mocking Local Imports
+### Mock Path Conventions
 
-You can mock local imports using relative paths:
+**Recommended**: Use paths relative to your project root for consistency and clarity:
 
 ```typescript
-export const WithLocalMock = {
+export const WithProjectRootPath = {
   mocks: {
-    '../utils/helper': {
+    'src/utils/helper': {  // Relative to project root
       getValue: () => 'mocked value',
     },
   },
@@ -138,12 +138,27 @@ export const WithLocalMock = {
 };
 ```
 
+**Also Supported**: Story-relative paths (paths relative to the story file):
+
+```typescript
+export const WithStoryRelativePath = {
+  mocks: {
+    '../utils/helper': {  // Relative to story file location
+      getValue: () => 'mocked value',
+    },
+  },
+  component: MyComponent,
+};
+```
+
+> **Best Practice**: Use project-root relative paths (e.g., `src/utils/helper`) for better maintainability. Story-relative paths work but can break if story files are moved.
+
 ### Mocking Default Exports
 
 ```typescript
 export const WithDefaultMock = {
   mocks: {
-    '../utils/testHelper': {
+    'src/utils/testHelper': {  // Project-root relative path
       default: {
         getValue: () => 'mocked default',
       },
@@ -173,7 +188,7 @@ export const WithMultipleMocks = {
 ```typescript
 export const WithAsyncMock = {
   mocks: {
-    '../utils/api': {
+    'src/utils/api': {  // Project-root relative path
       fetchUserData: async (id: string) => {
         return { id, name: 'Mocked User' };
       },
@@ -385,20 +400,24 @@ During Metro bundling, the transformer:
 
 After extracting mocks, the system:
 1. Groups mocks by package/module name
-2. Generates a mock file for each mocked package in `node_modules/.sherlo-mocks/`
-3. Each mock file contains:
+2. Resolves mock keys to absolute file paths (handles both project-root relative and story-relative paths)
+3. Generates a mock file for each mocked package in `node_modules/.sherlo/mocks/`
+4. Creates a `mock-registry.json` that maps absolute file paths to mock file locations
+5. Each mock file contains:
    - All mocks for that package across all stories
    - Runtime logic to select the correct mock based on story ID
    - Fallback logic to use real implementation when no mock matches
+   - Circular reference prevention (mock files don't re-import themselves)
 
 ### 4. Runtime Resolution
 
 When a component requires a module:
-1. Metro's resolver checks if a mock file exists for that module
-2. If a mock file exists, it redirects the import to the mock file
-3. The mock file checks `__SHERLO_CURRENT_STORY_ID__` (set by `useStorybookEventListener`)
-4. If a mock exists for the current story ID, it returns the mock
-5. Otherwise, it falls back to the real module implementation
+1. Metro's resolver checks the `mock-registry.json` for the resolved absolute path
+2. If a mock file exists for that path, it redirects the import to the mock file
+3. **Circular Reference Prevention**: If the import is from within a mock file (detected by checking if the origin path contains `.sherlo/mocks`), the resolver skips mocking to prevent infinite loops
+4. The mock file checks `__SHERLO_CURRENT_STORY_ID__` (set by `useStorybookEventListener`)
+5. If a mock exists for the current story ID, it returns the mock
+6. Otherwise, it falls back to the real module implementation
 
 ### 5. Story ID Tracking
 
@@ -572,9 +591,11 @@ export const ConditionalMock = {
 
 ### Module Resolution Issues
 
-1. **Relative Paths**: Ensure relative paths in mocks match how modules are imported in your components.
+1. **Path Conventions**: Use project-root relative paths (e.g., `src/utils/helper`) for consistency. Story-relative paths (e.g., `../utils/helper`) also work but are less maintainable.
 
-2. **Monorepo Setup**: The system automatically discovers source directories, but if you have unusual structures, you may need to adjust the discovery logic.
+2. **Monorepo Setup**: The system automatically discovers source directories and resolves paths correctly in monorepos.
+
+3. **Circular References**: If you encounter infinite loops, ensure your mock definitions don't create circular dependencies. The system prevents mock files from importing themselves, but complex dependency chains might still cause issues.
 
 ## File Structure
 
