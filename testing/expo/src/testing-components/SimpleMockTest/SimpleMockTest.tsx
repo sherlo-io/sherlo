@@ -11,6 +11,7 @@ import { fetchUserData, fetchSettings } from '../utils/asyncUtils';
 import { processPayment, getUserPaymentInfo } from '../utils/nestedUtils';
 import { SPECIAL_NUMBERS, EMPTY_VALUES, createMultiplier } from '../utils/edgeCaseUtils';
 import { client, QUERY_CONSTANT } from '../api/client';
+import { client as apolloClient } from '../../apollo/client';
 
 interface TestResult {
   name: string;
@@ -360,6 +361,64 @@ export const SimpleMockTest: React.FC<SimpleMockTestProps> = ({ testType = 'Basi
           actual: robustResult,
         });
         break;
+
+      case 'ApolloClientMock':
+        console.log('[SHERLO] SimpleMockTest: Testing Apollo Client Mock');
+        
+        // Test query method
+        const queryPromise = apolloClient.query({
+          query: 'GET_USER',
+          variables: { id: '123' },
+        });
+        
+        queryPromise.then((queryResult) => {
+          console.log('[SHERLO] SimpleMockTest: Apollo query result:', queryResult);
+          newResults.push({
+            name: 'apolloClient.query',
+            passed: queryResult.data?.user?.name === 'Mocked User',
+            expected: 'Mocked User',
+            actual: queryResult.data?.user?.name,
+          });
+          
+          // Test mutate method
+          const mutatePromise = apolloClient.mutate({
+            mutation: 'UPDATE_USER',
+            variables: { id: '123', name: 'Updated Name' },
+          });
+          
+          mutatePromise.then((mutateResult) => {
+            console.log('[SHERLO] SimpleMockTest: Apollo mutate result:', mutateResult);
+            newResults.push({
+              name: 'apolloClient.mutate',
+              passed: mutateResult.data?.updateUser?.name === 'Mocked Updated User',
+              expected: 'Mocked Updated User',
+              actual: mutateResult.data?.updateUser?.name,
+            });
+            
+            setResults(newResults);
+          }).catch((error) => {
+            console.error('[SHERLO] SimpleMockTest: Apollo mutate error:', error);
+            newResults.push({
+              name: 'apolloClient.mutate',
+              passed: false,
+              expected: 'No errors',
+              actual: `Error: ${error.message}`,
+            });
+            setResults(newResults);
+          });
+        }).catch((error) => {
+          console.error('[SHERLO] SimpleMockTest: Apollo query error:', error);
+          newResults.push({
+            name: 'Test execution error',
+            passed: false,
+            expected: 'No errors',
+            actual: `Error: ${error.message}`,
+          });
+          setResults(newResults);
+        });
+        
+        // Return early for async test
+        return;
 
       case 'TypeAssertion':
         console.log('[SHERLO] SimpleMockTest: Testing TypeAssertion');

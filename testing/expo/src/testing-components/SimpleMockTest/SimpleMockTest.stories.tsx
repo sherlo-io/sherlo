@@ -203,7 +203,44 @@ export const PartialMocking = {
   },
 };
 
-// Variant 12: No Mocks (Real Module Fallback)
+// Variant 12: Apollo Client Mock
+// Tests: Mocking a GraphQL client instance with query/mutate methods
+export const ApolloClientMock = {
+  args: {
+    testType: 'ApolloClientMock',
+  },
+  mocks: {
+    'src/apollo/client': {
+      client: {
+        query: async ({ query, variables }: any) => {
+          console.log(`[MOCK] Apollo query called: ${query}`, variables);
+          return {
+            data: {
+              user: {
+                id: variables?.id || '123',
+                name: 'Mocked User',
+                email: 'mocked@example.com',
+              },
+            },
+          };
+        },
+        mutate: async ({ mutation, variables }: any) => {
+          console.log(`[MOCK] Apollo mutate called: ${mutation}`, variables);
+          return {
+            data: {
+              updateUser: {
+                id: variables?.id || '123',
+                name: 'Mocked Updated User',
+              },
+            },
+          };
+        },
+      },
+    },
+  },
+};
+
+// Variant 13: No Mocks (Real Module Fallback)
 // Tests: No mocks defined - should use real module
 export const NoMocks = {
   args: {
