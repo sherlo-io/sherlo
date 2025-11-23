@@ -1,4 +1,4 @@
-import type { Meta } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-native';
 import { StoryDecorator } from '@sherlo/testing-components';
 import { SimpleMockTest } from './SimpleMockTest';
 
@@ -14,8 +14,25 @@ export const BasicFunction = {
     testType: 'BasicFunction',
   },
   mocks: {
-    '../utils/localUtils': {
+    'src/testing-components/utils/localUtils': {
       formatCurrency: () => 'MOCKED EUR 100.00',
+    },
+  },
+};
+
+// Test: Robust Resolution
+// We use the project-root relative path to define the mock.
+// The component imports from '../utils/localUtils' (relative to itself).
+// We define the mock as 'testing/expo/src/testing-components/utils/localUtils' (relative to project root).
+// This verifies that our robust resolution logic correctly resolves both to the same absolute path.
+export const RobustResolution = {
+  args: {
+    testType: 'RobustResolution',
+    expectedResult: 'MOCKED via Robust Resolution',
+  },
+  mocks: {
+    'src/testing-components/utils/localUtils': {
+      formatCurrency: () => 'MOCKED via Robust Resolution',
     },
   },
 };
@@ -27,7 +44,7 @@ export const FunctionWithParameters = {
     testType: 'FunctionWithParameters',
   },
   mocks: {
-    '../utils/localUtils': {
+    'src/testing-components/utils/localUtils': {
       formatCurrency: (amount: number, currency: string) => `MOCKED ${currency} ${amount.toFixed(2)}`,
     },
   },
@@ -40,7 +57,7 @@ export const Constants = {
     testType: 'Constants',
   },
   mocks: {
-    '../utils/localUtils': {
+    'src/testing-components/utils/localUtils': {
       APP_NAME: 'Mocked App Name',
       VERSION: '2.0.0',
     },
@@ -54,7 +71,7 @@ export const DefaultExport = {
     testType: 'DefaultExport',
   },
   mocks: {
-    '../utils/testHelper': {
+    'src/testing-components/utils/testHelper': {
       default: {
         getValue: () => 'mocked-value',
         getNumber: () => 42,
@@ -84,7 +101,7 @@ export const ParameterizedFunctions = {
     testType: 'ParameterizedFunctions',
   },
   mocks: {
-    '../utils/parameterizedUtils': {
+    'src/testing-components/utils/parameterizedUtils': {
       processOrder: (orderId: string, quantity: number = 1, priority: string = 'medium') =>
         `MOCKED Order ${orderId}: ${quantity} items (${priority} priority)`,
       sum: (...numbers: number[]) => 150,
@@ -100,7 +117,7 @@ export const ObjectExports = {
     testType: 'ObjectExports',
   },
   mocks: {
-    '../utils/objectExportsUtils': {
+    'src/testing-components/utils/objectExportsUtils': {
       config: {
         app: { name: 'MockedApp', version: '2.0.0' },
         api: { baseUrl: 'https://mocked-api.com', timeout: 10000 },
@@ -119,7 +136,7 @@ export const AsyncFunctions = {
     testType: 'AsyncFunctions',
   },
   mocks: {
-    '../utils/asyncUtils': {
+    'src/testing-components/utils/asyncUtils': {
       fetchUserData: async function (userId: string) {
         return { id: userId, name: 'Mocked User' };
       },
@@ -137,7 +154,7 @@ export const NestedMocks = {
     testType: 'NestedMocks',
   },
   mocks: {
-    '../utils/nestedUtils': {
+    'src/testing-components/utils/nestedUtils': {
       processPayment: (amount: number, currency: string) => `MOCKED Payment: ${currency} ${amount}`,
       getUserPaymentInfo: async function (userId: string) {
         return 'Mocked payment info';
@@ -153,7 +170,7 @@ export const EdgeCases = {
     testType: 'EdgeCases',
   },
   mocks: {
-    '../utils/edgeCaseUtils': {
+    'src/testing-components/utils/edgeCaseUtils': {
       SPECIAL_NUMBERS: {
         nan: NaN,
         infinity: Infinity,
@@ -202,7 +219,7 @@ export const SmartImports = {
     testType: 'SmartImports',
   },
   mocks: {
-    '../api/client': {
+    'src/testing-components/api/client': {
       client: {
         query: () => `Using imported constant: MY_QUERY`,
       },
@@ -217,7 +234,7 @@ export const FactoryWithSpread = {
     testType: 'FactoryWithSpread',
   },
   mocks: {
-    '../api/client': (original: any) => ({
+    'src/testing-components/api/client': (original: any) => ({
       ...original,
       client: {
         ...original.client,
@@ -234,7 +251,7 @@ export const FactoryConditional = {
     testType: 'FactoryConditional',
   },
   mocks: {
-    '../api/client': (original: any) => ({
+    'src/testing-components/api/client': (original: any) => ({
       ...original,
       client: {
         ...original.client,
@@ -256,7 +273,7 @@ export const FactoryMultipleExports = {
     testType: 'FactoryMultipleExports',
   },
   mocks: {
-    '../api/client': (original: any) => ({
+    'src/testing-components/api/client': (original: any) => ({
       ...original,
       QUERY_CONSTANT: 'OVERRIDDEN_CONSTANT',
       client: {
@@ -266,3 +283,57 @@ export const FactoryMultipleExports = {
     }),
   },
 };
+
+type Story = StoryObj<typeof SimpleMockTest>;
+
+// Variant 17: Type Assertion - "as any"
+export const WithAsAny = {
+  args: {
+    testType: 'TypeAssertion',
+    expectedResult: 'Mocked with "as any"',
+  },
+  mocks: {
+    'src/testing-components/utils/localUtils': {
+      formatCurrency: () => 'Mocked with "as any"',
+    },
+  },
+} as any;
+
+// Variant 18: Type Assertion - "as Story"
+export const WithAsStory = {
+  args: {
+    testType: 'TypeAssertion',
+    expectedResult: 'Mocked with "as Story"',
+  },
+  mocks: {
+    'src/testing-components/utils/localUtils': {
+      formatCurrency: () => 'Mocked with "as Story"',
+    },
+  },
+} as Story;
+
+// Variant 19: Type Assertion - Nested assertion
+export const WithNestedAssertion = {
+  args: {
+    testType: 'TypeAssertion',
+    expectedResult: 'Mocked with nested assertion',
+  },
+  mocks: {
+    'src/testing-components/utils/localUtils': {
+      formatCurrency: () => 'Mocked with nested assertion',
+    },
+  },
+} as unknown as Story;
+
+// Variant 20: Type Assertion - "satisfies"
+export const WithSatisfies = {
+  args: {
+    testType: 'TypeAssertion',
+    expectedResult: 'Mocked with "satisfies"',
+  },
+  mocks: {
+    'src/testing-components/utils/localUtils': {
+      formatCurrency: () => 'Mocked with "satisfies"',
+    },
+  },
+} satisfies Story;

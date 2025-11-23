@@ -70,6 +70,21 @@ function withSherlo(config: MetroConfig, { debug = false, enabled = true }: With
   const storyFilesPath = path.join(sherloDir, STORY_FILES_CACHE_FILE);
   fs.writeFileSync(storyFilesPath, JSON.stringify({ storyFiles, projectRoot }), 'utf-8');
 
+  // Save resolver configuration (extraNodeModules, etc.) for mock generation
+  // This allows us to resolve aliases and absolute paths correctly during generation
+  try {
+    const resolverConfigPath = path.join(sherloDir, 'resolver-config.json');
+    const resolverConfig = {
+      extraNodeModules: config.resolver?.extraNodeModules || {},
+      nodeModulesPaths: config.resolver?.nodeModulesPaths || [],
+      resolveRequest: null, // Cannot serialize functions
+    };
+    fs.writeFileSync(resolverConfigPath, JSON.stringify(resolverConfig), 'utf-8');
+    console.log(`[SHERLO] Saved resolver config to ${resolverConfigPath}`);
+  } catch (error: any) {
+    console.warn(`[SHERLO] Failed to save resolver config: ${error.message}`);
+  }
+
   // Verify Babel dependencies are available before attempting pre-generation
   // This catches issues early without requiring expensive builds
   if (storyFiles.length > 0) {

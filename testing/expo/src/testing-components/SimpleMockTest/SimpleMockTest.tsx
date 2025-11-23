@@ -21,9 +21,10 @@ interface TestResult {
 
 interface SimpleMockTestProps {
   testType?: string;
+  expectedResult?: string;
 }
 
-export const SimpleMockTest: React.FC<SimpleMockTestProps> = ({ testType = 'BasicFunction' }) => {
+export const SimpleMockTest: React.FC<SimpleMockTestProps> = ({ testType = 'BasicFunction', expectedResult }) => {
   const [results, setResults] = useState<TestResult[]>([]);
 
   useEffect(() => {
@@ -73,44 +74,34 @@ export const SimpleMockTest: React.FC<SimpleMockTestProps> = ({ testType = 'Basi
         console.log('[SHERLO] SimpleMockTest: Testing default export (TestHelper)');
         console.log('[SHERLO] SimpleMockTest: TestHelper type:', typeof TestHelper);
         console.log('[SHERLO] SimpleMockTest: TestHelper value:', TestHelper);
-        console.log('[SHERLO] SimpleMockTest: TestHelper keys:', TestHelper ? Object.keys(TestHelper) : 'null/undefined');
+        console.log('[SHERLO] SimpleMockTest: TestHelper keys:', Object.keys(TestHelper));
+        console.log('[SHERLO] SimpleMockTest: Calling helper methods');
         
-        if (!TestHelper || typeof TestHelper !== 'object') {
-          newResults.push({
-            name: 'TestHelper (default export)',
-            passed: false,
-            expected: 'object with getValue, getNumber, getObject methods',
-            actual: `typeof TestHelper = ${typeof TestHelper}, value = ${TestHelper}`,
-          });
-          break;
-        }
+        // Handle both wrapped (.default) and unwrapped default exports
+        const helper = (TestHelper as any).default || TestHelper;
+        const value = helper.getValue();
+        console.log('[SHERLO] SimpleMockTest: helper.getValue() returned:', value);
         
-        console.log('[SHERLO] SimpleMockTest: Calling TestHelper.getValue()');
-        const value = TestHelper.getValue();
-        console.log('[SHERLO] SimpleMockTest: TestHelper.getValue() returned:', value);
+        const number = helper.getNumber();
+        console.log('[SHERLO] SimpleMockTest: helper.getNumber() returned:', number);
         
-        console.log('[SHERLO] SimpleMockTest: Calling TestHelper.getNumber()');
-        const number = TestHelper.getNumber();
-        console.log('[SHERLO] SimpleMockTest: TestHelper.getNumber() returned:', number);
-        
-        console.log('[SHERLO] SimpleMockTest: Calling TestHelper.getObject()');
-        const obj = TestHelper.getObject();
-        console.log('[SHERLO] SimpleMockTest: TestHelper.getObject() returned:', obj);
+        const obj = helper.getObject();
+        console.log('[SHERLO] SimpleMockTest: helper.getObject() returned:', obj);
         
         newResults.push({
-          name: 'TestHelper.getValue',
+          name: 'helper.getValue',
           passed: value === 'mocked-value',
           expected: 'mocked-value',
           actual: value,
         });
         newResults.push({
-          name: 'TestHelper.getNumber',
+          name: 'helper.getNumber',
           passed: number === 42,
           expected: 42,
           actual: number,
         });
         newResults.push({
-          name: 'TestHelper.getObject',
+          name: 'helper.getObject',
           passed: obj?.key === 'mocked',
           expected: { key: 'mocked' },
           actual: obj,
@@ -308,6 +299,7 @@ export const SimpleMockTest: React.FC<SimpleMockTestProps> = ({ testType = 'Basi
         newResults.push({
           name: 'formatCurrency (real)',
           passed: realCurrency === 'EUR 100.00', // Real format: `${currency} ${amount.toFixed(2)}`
+          expected: 'EUR 100.00',
           actual: realCurrency,
         });
         break;
@@ -358,6 +350,28 @@ export const SimpleMockTest: React.FC<SimpleMockTestProps> = ({ testType = 'Basi
         // since it's imported at module level
         break;
 
+      case 'RobustResolution':
+        console.log('[SHERLO] SimpleMockTest: Testing RobustResolution');
+        const robustResult = formatCurrency(100, 'EUR');
+        newResults.push({
+          name: 'RobustResolution',
+          passed: robustResult === expectedResult,
+          expected: expectedResult,
+          actual: robustResult,
+        });
+        break;
+
+      case 'TypeAssertion':
+        console.log('[SHERLO] SimpleMockTest: Testing TypeAssertion');
+        const typeAssertionResult = formatCurrency(100, 'EUR');
+        newResults.push({
+          name: 'TypeAssertion',
+          passed: typeAssertionResult === expectedResult,
+          expected: expectedResult,
+          actual: typeAssertionResult,
+        });
+        break;
+
       default:
         newResults.push({
           name: 'Unknown test type',
@@ -383,6 +397,47 @@ export const SimpleMockTest: React.FC<SimpleMockTestProps> = ({ testType = 'Basi
 
   const passedCount = results.filter((r) => r.passed).length;
   const allPassed = results.length > 0 && passedCount === results.length;
+
+  // Log test results to console for easy debugging
+  useEffect(() => {
+    if (results.length > 0) {
+      console.log('\n========================================')
+      console.log(`📊 SimpleMockTest Results: ${testType}`);
+      console.log('========================================')
+      console.log(`Summary: ${passedCount}/${results.length} tests passed ${allPassed ? '✅' : '❌'}`);
+      console.log('');
+      
+      results.forEach((result, index) => {
+        const status = result.passed ? '✅ PASS' : '❌ FAIL';
+        console.log(`${index + 1}. ${status} - ${result.name}`);
+        
+        if (!result.passed) {
+          console.log(`   Expected: ${JSON.stringify(result.expected)}`);
+          console.log(`   Actual:   ${JSON.stringify(result.actual)}`);
+        }
+      });
+      
+      console.log('========================================\n');
+      
+      // If there are failures, log a copyable summary
+      if (!allPassed) {
+        const failures = results.filter(r => !r.passed);
+        console.log('🔴 FAILURES SUMMARY (copy this):');
+        console.log(JSON.stringify({
+          testType,
+          totalTests: results.length,
+          passed: passedCount,
+          failed: failures.length,
+          failures: failures.map(f => ({
+            name: f.name,
+            expected: f.expected,
+            actual: f.actual,
+          })),
+        }, null, 2));
+        console.log('');
+      }
+    }
+  }, [results, testType, passedCount, allPassed]);
 
   return (
     <View style={styles.container}>

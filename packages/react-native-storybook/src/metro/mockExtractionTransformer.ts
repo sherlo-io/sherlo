@@ -34,6 +34,16 @@ function extractMocksFromObject(expr: any, scope: any, filePath: string): Record
     return null;
   }
 
+  // Unwrap TypeScript nodes (as any, <Type>, !, satisfies)
+  while (
+    t.isTSAsExpression(expr) || 
+    t.isTSTypeAssertion(expr) || 
+    t.isTSNonNullExpression(expr) ||
+    t.isTSSatisfiesExpression(expr)
+  ) {
+    expr = expr.expression;
+  }
+
   // Direct object: { mocks: {...} }
   if (t.isObjectExpression(expr)) {
     const mocksProperty = expr.properties.find(
@@ -294,6 +304,7 @@ export function extractMocksFromTransformedCode(
 
                 const packageMocks = new Map<string, any>();
                 for (const [pkgName, pkgMock] of Object.entries(storyMocks)) {
+                  pkgMock.__storyFilePath = filePath;
                   packageMocks.set(pkgName, pkgMock);
                 }
 
@@ -322,6 +333,7 @@ export function extractMocksFromTransformedCode(
 
             const packageMocks = new Map<string, any>();
             for (const [pkgName, pkgMock] of Object.entries(storyMocks)) {
+              pkgMock.__storyFilePath = filePath;
               packageMocks.set(pkgName, pkgMock);
             }
 
@@ -343,6 +355,7 @@ export function extractMocksFromTransformedCode(
 
               const packageMocks = new Map<string, any>();
               for (const [pkgName, pkgMock] of Object.entries(storyMocks)) {
+                pkgMock.__storyFilePath = filePath;
                 packageMocks.set(pkgName, pkgMock);
               }
 
@@ -358,6 +371,7 @@ export function extractMocksFromTransformedCode(
 
               const packageMocks = new Map<string, any>();
               for (const [pkgName, pkgMock] of Object.entries(storyMocks)) {
+                pkgMock.__storyFilePath = filePath;
                 packageMocks.set(pkgName, pkgMock);
               }
 

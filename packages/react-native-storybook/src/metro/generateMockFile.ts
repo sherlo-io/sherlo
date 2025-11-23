@@ -25,9 +25,18 @@ export function generateMockFileContent(
   storyMocks: StoryMockMap,
   projectRoot: string
 ): string {
+  // Find a story that uses this mock to help with relative path resolution
+  let storyFilePath: string | undefined;
+  for (const [storyId, packageMocks] of storyMocks.entries()) {
+    if (packageMocks.has(packageName)) {
+      storyFilePath = storyId;
+      break;
+    }
+  }
+
   // This is the same logic as generateMockFile, but returns content instead of writing
   // We duplicate the logic here to avoid refactoring generateMockFile
-  const { realModulePath, requirePathForMockFile } = resolvePathForMockFile(packageName, projectRoot);
+  const { realModulePath, requirePathForMockFile } = resolvePathForMockFile(packageName, projectRoot, storyFilePath);
 
   const packageMocksByStory: Record<string, any> = {};
   for (const [storyId, packageMocks] of storyMocks.entries()) {
@@ -229,8 +238,18 @@ export function generateMockFile(
   projectRoot: string,
   fileName?: string
 ): string {
+  // Find a story that uses this mock to help with relative path resolution
+  let storyFilePath: string | undefined;
+  for (const [storyId, packageMocks] of storyMocks.entries()) {
+    const pkgMock = packageMocks.get(packageName);
+    if (pkgMock && pkgMock.__storyFilePath) {
+      storyFilePath = pkgMock.__storyFilePath;
+      break;
+    }
+  }
+
   // Resolve the real module path upfront (for use in generated code)
-  const { realModulePath, requirePathForMockFile } = resolvePathForMockFile(packageName, projectRoot);
+  const { realModulePath, requirePathForMockFile, realModuleAbsolutePath } = resolvePathForMockFile(packageName, projectRoot, storyFilePath);
 
   // Collect all mocks for this package across all stories
   // With pre-generation, all mocks are extracted before Metro starts, so no need for JSON cache
@@ -673,6 +692,8 @@ export function generateAllMockFiles(
   }
 
   // Generate mock file for each package/module
+  const mockRegistry: Record<string, string> = {};
+
   for (const packageName of packages) {
     try {
       // Normalize relative paths to a consistent identifier
@@ -687,9 +708,49 @@ export function generateAllMockFiles(
 
       const mockFilePath = generateMockFile(packageName, storyMocks, projectRoot, safeFileName);
       mockFiles.set(packageName, mockFilePath);
+
+      // Add to registry
+      // 1. Map the package name itself
+      mockRegistry[packageName] = mockFilePath;
+
+      // Find a story that uses this mock to help with relative path resolution
+      let storyFilePath: string | undefined;
+      for (const [storyId, packageMocks] of storyMocks.entries()) {
+        const pkgMock = packageMocks.get(packageName);
+        if (pkgMock && pkgMock.__storyFilePath) {
+          storyFilePath = pkgMock.__storyFilePath;
+          break;
+        }
+      }
+
+      // 2. Map the resolved absolute path (if available)
+      try {
+        const { realModuleAbsolutePath } = resolvePathForMockFile(packageName, projectRoot, storyFilePath);
+        if (realModuleAbsolutePath) {
+          mockRegistry[realModuleAbsolutePath] = mockFilePath;
+          
+          // Also map the normalized absolute path (without extension) to handle imports without extension
+          const noExt = realModuleAbsolutePath.replace(/\.(ts|tsx|js|jsx)$/, '');
+          if (noExt !== realModuleAbsolutePath) {
+            mockRegistry[noExt] = mockFilePath;
+          }
+        }
+      } catch (e) {
+        // Ignore resolution errors for registry
+      }
+
     } catch (error: any) {
       console.error(`[SHERLO] Failed to generate mock file for "${packageName}":`, error.message);
     }
+  }
+
+  // Save mock registry
+  try {
+    const registryPath = path.join(mockDir, 'mock-registry.json');
+    fs.writeFileSync(registryPath, JSON.stringify(mockRegistry, null, 2), 'utf-8');
+    console.log(`[SHERLO] Saved mock registry to ${registryPath} (${Object.keys(mockRegistry).length} entries)`);
+  } catch (error: any) {
+    console.error(`[SHERLO] Failed to save mock registry: ${error.message}`);
   }
 
   return mockFiles;
