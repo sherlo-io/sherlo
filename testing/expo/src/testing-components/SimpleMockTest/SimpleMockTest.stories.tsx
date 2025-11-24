@@ -246,6 +246,32 @@ export const StaticMethodMock = {
   },
 };
 
+// Variant 13b: Singleton Pattern Mock (like StreamChat)
+// Tests: Static getInstance with static instance property
+export const SingletonMock = {
+  args: {
+    testType: 'SingletonMock',
+  },
+  mocks: {
+    'src/testing-components/utils/dataProcessor': {
+      DataProcessor: class {
+        static instance: any = null;
+        
+        static getInstance() {
+          if (!this.instance) {
+            this.instance = new this();
+          }
+          return this.instance;
+        }
+        
+        process() {
+          return 'Singleton Pattern Mock';
+        }
+      },
+    },
+  },
+};
+
 
 // Variant 13: Apollo Client Mock
 // Tests: Mocking a GraphQL client instance with query/mutate methods

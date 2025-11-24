@@ -439,6 +439,57 @@ export const SimpleMockTest: React.FC<SimpleMockTestProps> = ({ testType = 'Basi
         }
         break;
 
+      case 'SingletonMock':
+        console.log('[SHERLO] SimpleMockTest: Testing Singleton Pattern Mock');
+        
+        try {
+          console.log('[SHERLO] SimpleMockTest: DataProcessor type:', typeof DataProcessor);
+          console.log('[SHERLO] SimpleMockTest: DataProcessor.getInstance type:', typeof DataProcessor.getInstance);
+          console.log('[SHERLO] SimpleMockTest: DataProcessor.instance:', DataProcessor.instance);
+          
+          // Test getInstance returns same instance (singleton pattern)
+          const instance1 = DataProcessor.getInstance();
+          const instance2 = DataProcessor.getInstance();
+          const areSame = instance1 === instance2;
+          
+          console.log('[SHERLO] SimpleMockTest: Instance 1:', instance1);
+          console.log('[SHERLO] SimpleMockTest: Instance 2:', instance2);
+          console.log('[SHERLO] SimpleMockTest: Are same instance:', areSame);
+          
+          const result = instance1.process();
+          console.log('[SHERLO] SimpleMockTest: Instance process result:', result);
+          
+          newResults.push({
+            name: 'DataProcessor.getInstance exists',
+            passed: typeof DataProcessor.getInstance === 'function',
+            expected: 'function',
+            actual: typeof DataProcessor.getInstance,
+          });
+          
+          newResults.push({
+            name: 'Singleton pattern (same instance)',
+            passed: areSame,
+            expected: 'true',
+            actual: String(areSame),
+          });
+          
+          newResults.push({
+            name: 'Instance.process',
+            passed: result === 'Singleton Pattern Mock',
+            expected: 'Singleton Pattern Mock',
+            actual: result,
+          });
+        } catch (error: any) {
+          console.error('[SHERLO] SimpleMockTest: Singleton mock error:', error);
+          newResults.push({
+            name: 'Singleton mock',
+            passed: false,
+            expected: 'working singleton',
+            actual: `Error: ${error.message}`,
+          });
+        }
+        break;
+
 
       case 'ApolloClientMock':
         console.log('[SHERLO] SimpleMockTest: Testing Apollo Client Mock');

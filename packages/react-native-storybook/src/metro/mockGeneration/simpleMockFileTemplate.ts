@@ -395,36 +395,47 @@ Object.defineProperty(exports, 'default', {
     // Build default export object dynamically
     const defaultExport = {};
     
-    // First, add all named exports to default export (if any)
+    // Check if there's a default mock in the current story first
+    const mockObj = getMockForStory(storyId);  // Use helper to resolve factories
+    if (mockObj && mockObj.default !== undefined) {
+      console.log(\`[SHERLO] default: Mock found for story "\${storyId}"\`);
+      // If there's a default mock, use it directly (it should already have all needed properties)
+      console.log('[SHERLO] default: Mock value returned:', mockObj.default);
+      return mockObj.default;
+    }
+    
+    // No active story or no default mock - fall back to real module
+    if (realModule && realModule.default !== undefined) {
+      console.log('[SHERLO] default: Using real module default export');
+      console.log('[SHERLO] default: Real module value returned:', realModule.default);
+      return realModule.default;
+    }
+    
+    // If no default mock or real default export, build from named exports
+    // IMPORTANT: When no story is active, get values from real module, not wrapper functions
     if (typeof allExportNames !== 'undefined') {
-      for (let i = 0; i < allExportNames.length; i++) {
-        const exportName = allExportNames[i];
-        if (exportName !== 'default' && exports[exportName] !== undefined) {
-          defaultExport[exportName] = exports[exportName];
+      if (!storyId && realModule) {
+        // No story active - use real module values directly
+        console.log('[SHERLO] default: No story active, building from real module named exports');
+        for (let i = 0; i < allExportNames.length; i++) {
+          const exportName = allExportNames[i];
+          if (exportName !== 'default' && realModule[exportName] !== undefined) {
+            defaultExport[exportName] = realModule[exportName];
+          }
+        }
+      } else {
+        // Story is active - use the wrapper functions (they will resolve to mocks)
+        console.log('[SHERLO] default: Story active, building from wrapper exports');
+        for (let i = 0; i < allExportNames.length; i++) {
+          const exportName = allExportNames[i];
+          if (exportName !== 'default' && exports[exportName] !== undefined) {
+            defaultExport[exportName] = exports[exportName];
+          }
         }
       }
     }
     
-    // Then, check if there's a default mock in the current story
-    const mockObj = getMockForStory(storyId);  // Use helper to resolve factories
-    if (mockObj && mockObj.default !== undefined) {
-      console.log(\`[SHERLO] default: Mock found for story "\${storyId}", merging with named exports\`);
-      // If there's a default mock, merge it with the named exports (mock takes precedence)
-      Object.assign(defaultExport, mockObj.default);
-      console.log('[SHERLO] default: Mock value returned:', defaultExport);
-      return defaultExport;
-    }
-    
-    // Fallback to real module default export
-    if (realModule && realModule.default !== undefined) {
-      console.log('[SHERLO] default: Using real module default export, merging with named exports');
-      Object.assign(defaultExport, realModule.default);
-      console.log('[SHERLO] default: Real module value returned:', defaultExport);
-      return defaultExport;
-    }
-    
-    // If no default mock or real default export, return the object with just named exports (if any)
-    console.log('[SHERLO] default: No default mock or real default export, returning named exports only:', defaultExport);
+    console.log('[SHERLO] default: Returning built default export:', defaultExport);
     return defaultExport;
   },
   enumerable: true,
