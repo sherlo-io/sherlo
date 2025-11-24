@@ -226,6 +226,27 @@ export const ClassMock = {
   },
 };
 
+// Variant 13: Static Method Mock
+// Tests: Static methods on mocked classes are preserved
+export const StaticMethodMock = {
+  args: {
+    testType: 'StaticMethodMock',
+  },
+  mocks: {
+    'src/testing-components/utils/dataProcessor': {
+      DataProcessor: class {
+        static getInstance() {
+          return new this();
+        }
+        process() {
+          return 'Mocked via Static Method';
+        }
+      },
+    },
+  },
+};
+
+
 // Variant 13: Apollo Client Mock
 // Tests: Mocking a GraphQL client instance with query/mutate methods
 export const ApolloClientMock = {

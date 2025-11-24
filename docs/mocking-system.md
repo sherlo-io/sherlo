@@ -215,7 +215,33 @@ export const WithClassMock = {
 };
 ```
 
-> **Note**: Sherlo automatically transforms `class` expressions into constructor functions during mock generation to ensure compatibility with the Metro/Expo environment. You can write standard `class` syntax in your mocks, and it will work correctly at runtime.
+#### Static Methods
+
+Classes with static methods are fully supported. Static methods are preserved during mock generation:
+
+```typescript
+export const WithStaticMethodMock = {
+  mocks: {
+    '../utils/processor': {
+      DataProcessor: class {
+        static getInstance() {
+          return new this();
+        }
+        
+        process(data: any) {
+          return 'mocked result';
+        }
+      },
+    },
+  },
+  component: MyComponent,
+};
+
+// In your component/test:
+const instance = DataProcessor.getInstance(); // ✅ Works correctly
+```
+
+> **Note**: Sherlo automatically transforms `class` expressions into constructor functions during mock generation to ensure compatibility with the Metro/Expo environment. Static methods are preserved by wrapping the constructor in an IIFE that assigns static properties. You can write standard `class` syntax with static methods in your mocks, and they will work correctly at runtime.
 
 ### Complex Object Mocks
 

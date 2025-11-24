@@ -401,6 +401,45 @@ export const SimpleMockTest: React.FC<SimpleMockTestProps> = ({ testType = 'Basi
         });
         break;
 
+      case 'StaticMethodMock':
+        console.log('[SHERLO] SimpleMockTest: Testing Static Method Mock');
+        
+        // Test static method on mocked class
+        console.log('[SHERLO] SimpleMockTest: DataProcessor type:', typeof DataProcessor);
+        console.log('[SHERLO] SimpleMockTest: DataProcessor.getInstance type:', typeof DataProcessor.getInstance);
+        
+        try {
+          const staticInstance = DataProcessor.getInstance();
+          console.log('[SHERLO] SimpleMockTest: Static instance created:', staticInstance);
+          
+          const staticResult = staticInstance.process();
+          console.log('[SHERLO] SimpleMockTest: Static instance process result:', staticResult);
+          
+          newResults.push({
+            name: 'DataProcessor.getInstance (static)',
+            passed: typeof DataProcessor.getInstance === 'function',
+            expected: 'function',
+            actual: typeof DataProcessor.getInstance,
+          });
+          
+          newResults.push({
+            name: 'Static instance.process',
+            passed: staticResult === 'Mocked via Static Method',
+            expected: 'Mocked via Static Method',
+            actual: staticResult,
+          });
+        } catch (error: any) {
+          console.error('[SHERLO] SimpleMockTest: Static method error:', error);
+          newResults.push({
+            name: 'DataProcessor.getInstance (static)',
+            passed: false,
+            expected: 'function',
+            actual: `Error: ${error.message}`,
+          });
+        }
+        break;
+
+
       case 'ApolloClientMock':
         console.log('[SHERLO] SimpleMockTest: Testing Apollo Client Mock');
         

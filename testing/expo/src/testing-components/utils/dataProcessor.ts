@@ -22,6 +22,10 @@ export class DataProcessor {
     }
     return data;
   }
+
+  static getInstance(): DataProcessor {
+    return new DataProcessor('Static');
+  }
 }
 
 export const createProcessor = (prefix: string) => new DataProcessor(prefix);

@@ -344,6 +344,30 @@ for (let i = 0; i < allExportNames.length; i++) {
         console.error(errorMsg);
         throw new Error(errorMsg);
       };
+      
+      // Instead of using a Proxy (which triggers on every property access),
+      // eagerly copy known static properties using getters that check the current mock
+      // This is more performant as it only triggers when actually accessing static methods
+      const knownStaticProps = ['getInstance', 'create', 'from', 'of']; // Common static method names
+      
+      knownStaticProps.forEach(function(staticProp) {
+        Object.defineProperty(fn, staticProp, {
+          get: function() {
+            const storyId = getCurrentStory();
+            const mockObj = getMockForStory(storyId);
+            const currentMock = mockObj && mockObj[name];
+            
+            if (currentMock && typeof currentMock === 'function' && staticProp in currentMock) {
+              return currentMock[staticProp];
+            }
+            
+            return undefined;
+          },
+          enumerable: false,
+          configurable: true
+        });
+      });
+      
       // Use Object.defineProperty to ensure the function is assigned with the correct name
       Object.defineProperty(exports, name, {
         value: fn,
