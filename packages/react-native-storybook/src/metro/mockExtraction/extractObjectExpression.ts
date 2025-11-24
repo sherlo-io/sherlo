@@ -4,6 +4,7 @@
  */
 
 import { extractFunction } from './extractFunction';
+import { extractClass } from './extractClass';
 import { extractGetter } from './extractSpecialValues';
 import { extractAsyncFunctionFromCallExpression, extractAsyncFunctionFromIIFE } from './extractAsyncFunction';
 
@@ -69,6 +70,13 @@ export function extractObjectExpression(
         const functionResult = extractFunction(prop.value, t, generate);
         if (functionResult) {
           obj[key] = functionResult;
+          continue;
+        }
+      } else if (nodeType === 'ClassExpression' || t.isClassExpression(prop.value)) {
+        // Handle class expressions
+        const classResult = extractClass(prop.value, t, generate);
+        if (classResult) {
+          obj[key] = classResult;
           continue;
         }
       } else if (nodeType === 'CallExpression' && generate) {

@@ -12,6 +12,7 @@ import { processPayment, getUserPaymentInfo } from '../utils/nestedUtils';
 import { SPECIAL_NUMBERS, EMPTY_VALUES, createMultiplier } from '../utils/edgeCaseUtils';
 import { client, QUERY_CONSTANT } from '../api/client';
 import { client as apolloClient } from '../../apollo/client';
+import { DataProcessor } from '../utils/dataProcessor';
 
 interface TestResult {
   name: string;
@@ -359,6 +360,44 @@ export const SimpleMockTest: React.FC<SimpleMockTestProps> = ({ testType = 'Basi
           passed: robustResult === expectedResult,
           expected: expectedResult,
           actual: robustResult,
+        });
+        break;
+
+      case 'ClassMock':
+        console.log('[SHERLO] SimpleMockTest: Testing Class Mock');
+        
+        // Test class instantiation and methods
+        const processor = new DataProcessor('Test');
+        console.log('[SHERLO] SimpleMockTest: Created DataProcessor instance');
+        
+        const processResult = processor.process({ value: 123 });
+        console.log('[SHERLO] SimpleMockTest: processor.process result:', processResult);
+        
+        const validateResult = processor.validate({ value: 123 });
+        console.log('[SHERLO] SimpleMockTest: processor.validate result:', validateResult);
+        
+        const transformResult = processor.transform(10, 5);
+        console.log('[SHERLO] SimpleMockTest: processor.transform result:', transformResult);
+        
+        newResults.push({
+          name: 'DataProcessor.process',
+          passed: processResult === 'Mocked: processed data',
+          expected: 'Mocked: processed data',
+          actual: processResult,
+        });
+        
+        newResults.push({
+          name: 'DataProcessor.validate',
+          passed: validateResult === true,
+          expected: true,
+          actual: validateResult,
+        });
+        
+        newResults.push({
+          name: 'DataProcessor.transform',
+          passed: transformResult === 100,
+          expected: 100,
+          actual: transformResult,
         });
         break;
 

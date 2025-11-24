@@ -203,7 +203,30 @@ export const PartialMocking = {
   },
 };
 
-// Variant 12: Apollo Client Mock
+// Variant 12: Class Mock
+// Tests: Mocking a class export with constructor and methods
+export const ClassMock = {
+  args: {
+    testType: 'ClassMock',
+  },
+  mocks: {
+    'src/testing-components/utils/dataProcessor': {
+      DataProcessor: class {
+        process(data: any) {
+          return 'Mocked: processed data';
+        }
+        validate(data: any) {
+          return true; // Always valid in mock
+        }
+        transform(data: any, multiplier = 1) {
+          return 100; // Fixed mock value
+        }
+      },
+    },
+  },
+};
+
+// Variant 13: Apollo Client Mock
 // Tests: Mocking a GraphQL client instance with query/mutate methods
 export const ApolloClientMock = {
   args: {

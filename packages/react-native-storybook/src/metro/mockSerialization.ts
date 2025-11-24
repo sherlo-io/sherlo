@@ -13,5 +13,10 @@ export function extractCodeFromMarker(value: any): string | null {
     return (value as any).__code || null;
   }
 
+  // Handle class objects with __isClass marker from AST extraction
+  if (value && typeof value === 'object' && (value as any).__isClass) {
+    return (value as any).__code || null;
+  }
+
   return null;
 }

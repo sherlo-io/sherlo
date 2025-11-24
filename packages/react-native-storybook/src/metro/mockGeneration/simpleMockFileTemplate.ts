@@ -294,15 +294,26 @@ for (let i = 0; i < allExportNames.length; i++) {
         console.log(\`[SHERLO] \${fnName} called with args:\`, args);
         const storyId = getCurrentStory();
         const mockObj = getMockForStory(storyId);  // Use helper to resolve factories
+        console.log(\`[SHERLO] \${fnName}: mockObj =\`, mockObj, \`, has property? \${mockObj ? (fnName in mockObj) : 'mockObj is null'}\`);
         
         // Try to get mock from story
         if (mockObj && mockObj[fnName] !== undefined) {
           console.log(\`[SHERLO] \${fnName}: Mock found for story "\${storyId}"\`);
           const mock = mockObj[fnName];
           if (typeof mock === 'function') {
-            const result = mock(...args);
-            console.log(\`[SHERLO] \${fnName}: Mock function returned:\`, result);
-            return result;
+            // Check if called with 'new' (constructor call)
+            // new.target is defined when function is called as constructor
+            if (new.target) {
+              console.log(\`[SHERLO] \${fnName}: Called with 'new', instantiating mock class\`);
+              const instance = new mock(...args);
+              console.log(\`[SHERLO] \${fnName}: Mock class instance created\`);
+              return instance;
+            } else {
+              // Regular function call
+              const result = mock(...args);
+              console.log(\`[SHERLO] \${fnName}: Mock function returned:\`, result);
+              return result;
+            }
           }
           console.log(\`[SHERLO] \${fnName}: Mock value returned:\`, mock);
           return mock;
@@ -313,9 +324,16 @@ for (let i = 0; i < allExportNames.length; i++) {
           console.log(\`[SHERLO] \${fnName}: Using real module implementation\`);
           const realValue = realModule[fnName];
           if (typeof realValue === 'function') {
-            const result = realValue(...args);
-            console.log(\`[SHERLO] \${fnName}: Real function returned:\`, result);
-            return result;
+            // Check if called with 'new' for real module too
+            if (new.target) {
+              const instance = new realValue(...args);
+              console.log(\`[SHERLO] \${fnName}: Real class instance created\`);
+              return instance;
+            } else {
+              const result = realValue(...args);
+              console.log(\`[SHERLO] \${fnName}: Real function returned:\`, result);
+              return result;
+            }
           }
           console.log(\`[SHERLO] \${fnName}: Real value returned:\`, realValue);
           return realValue;

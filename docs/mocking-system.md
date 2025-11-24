@@ -32,7 +32,7 @@ graph TB
     J -->|Yes| K[Extract Mocks from AST]
     J -->|No| L[Pass Through]
     K --> M[Generate Mock Files]
-    M --> N[Store in node_modules/.sherlo-mocks]
+    M --> N[Store in node_modules/.sherlo/mocks]
     N --> O[Runtime: Storybook Active]
     O --> P[useStorybookEventListener Sets Story ID]
     P --> Q[Component Requires Module]
@@ -214,6 +214,8 @@ export const WithClassMock = {
   component: MyComponent,
 };
 ```
+
+> **Note**: Sherlo automatically transforms `class` expressions into constructor functions during mock generation to ensure compatibility with the Metro/Expo environment. You can write standard `class` syntax in your mocks, and it will work correctly at runtime.
 
 ### Complex Object Mocks
 
@@ -577,7 +579,7 @@ export const ConditionalMock = {
 
 2. **Verify Story Files Discovered**: Check `.sherlo/story-files.json` to see if your story files were discovered.
 
-3. **Check Mock File Generation**: Look in `node_modules/.sherlo-mocks/` to see if mock files were generated for your packages.
+3. **Check Mock File Generation**: Look in `node_modules/.sherlo/mocks/` to see if mock files were generated for your packages.
 
 4. **Verify Story ID**: Check that `__SHERLO_CURRENT_STORY_ID__` is set in Storybook mode (use React Native Debugger or console).
 

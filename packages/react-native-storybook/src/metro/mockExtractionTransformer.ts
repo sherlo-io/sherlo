@@ -8,6 +8,7 @@ import * as path from 'path';
 import type { StoryMockMap, TransformArgs, TransformResult } from './types';
 import { getBabelParser, getBabelTraverse, getBabelTypes } from './mockExtraction/babelLoader';
 import { getComponentNameFromPath, camelToKebab, isStoryFile } from './mockExtraction/storyIdNormalization';
+import { transformClassToFunction } from './mockExtraction/extractClass';
 
 // Import path module for require.resolve
 const pathModule = require('path');
@@ -83,6 +84,45 @@ function extractMocksFromObject(expr: any, scope: any, filePath: string): Record
  * Structure: { 'package-name': { fn1: () => 'value', fn2: () => 123 } }
  * Returns: { 'package-name': { __code: "...", __imports: [...] } }
  */
+/**
+ * Recursively transforms AST nodes to ensure they are safe for mock generation.
+ * Specifically converts ClassExpression to FunctionExpression (constructor).
+ */
+function transformAST(node: any, t: any): any {
+  if (!node) return node;
+
+  // Transform ClassExpression to FunctionExpression (constructor)
+  if (t.isClassExpression(node)) {
+    return transformClassToFunction(node, t);
+  }
+
+  // Recursively transform ObjectExpression properties
+  if (t.isObjectExpression(node)) {
+    node.properties.forEach((prop: any) => {
+      if (t.isObjectProperty(prop)) {
+        prop.value = transformAST(prop.value, t);
+      }
+    });
+  }
+  
+  // Recursively transform factory functions
+  if (t.isArrowFunctionExpression(node) || t.isFunctionExpression(node)) {
+    if (t.isBlockStatement(node.body)) {
+      // Explicit return: () => { return { ... } }
+      node.body.body.forEach((stmt: any) => {
+        if (t.isReturnStatement(stmt)) {
+          stmt.argument = transformAST(stmt.argument, t);
+        }
+      });
+    } else {
+      // Implicit return: () => ({ ... })
+      node.body = transformAST(node.body, t);
+    }
+  }
+
+  return node;
+}
+
 function extractPackageMocks(mocksObj: any, scope: any, filePath: string): Record<string, any> | null {
   const packages: Record<string, any> = {};
   const t = getBabelTypes();
@@ -126,8 +166,12 @@ function extractPackageMocks(mocksObj: any, scope: any, filePath: string): Recor
         const isFactory = t.isArrowFunctionExpression(prop.value) || t.isFunctionExpression(prop.value);
         
         try {
+          // Transform AST to replace ClassExpressions with FunctionExpressions
+          // This mutates the AST node in place or returns a new one
+          const transformedValue = transformAST(prop.value, t);
+
           // 1. Generate code string (works for both objects and functions)
-          const code = generate(prop.value).code;
+          const code = generate(transformedValue).code;
           
           // 2. Extract imports used in this mock (object or function body)
           const imports: Array<{
