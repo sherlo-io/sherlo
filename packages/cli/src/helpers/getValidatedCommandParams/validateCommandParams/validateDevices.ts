@@ -17,7 +17,7 @@ function validateDevices(config: InvalidatedConfig): void {
   }
 
   for (let i = 0; i < devices.length; i++) {
-    const { id, osLocale, osVersion, osTheme, osFontScale, ...unsupportedProperties } =
+    const { id, locale, osVersion, theme, fontScale, ...unsupportedProperties } =
       devices[i] ?? {};
 
     if (!id || typeof id !== 'string' || !osVersion || typeof osVersion !== 'string') {
@@ -34,40 +34,40 @@ function validateDevices(config: InvalidatedConfig): void {
       throwError(getError({ type: 'unsupportedOsVersion', id, osVersion }));
     }
 
-    if (!osLocale) {
+    if (!locale) {
       throwError({
         type: 'unexpected',
-        error: new Error('osLocale is undefined after normalization'),
+        error: new Error('locale is undefined after normalization'),
       });
     }
 
-    const osLocaleRegex = /^[a-z]{2}_[A-Z]{2}$/;
+    const localeRegex = /^[a-z]{2}_[A-Z]{2}$/;
     // ^ - start of the string
     // [a-z]{2} - exactly two lowercase letters
     // _ - an underscore
     // [A-Z]{2} - exactly two uppercase letters
     // $ - end of the string
 
-    if (!osLocaleRegex.test(osLocale)) {
-      throwError(getError({ type: 'invalidOsLocale', osLocale }));
+    if (!localeRegex.test(locale)) {
+      throwError(getError({ type: 'invalidlocale', locale }));
     }
 
-    if (!osTheme) {
+    if (!theme) {
       throwError({
         type: 'unexpected',
-        error: new Error('osTheme is undefined after normalization'),
+        error: new Error('theme is undefined after normalization'),
       });
     }
 
     const deviceThemes: [DeviceTheme, DeviceTheme] = ['light', 'dark'];
-    if (!deviceThemes.includes(osTheme)) {
-      throwError(getError({ type: 'invalidOsTheme', osTheme }));
+    if (!deviceThemes.includes(theme)) {
+      throwError(getError({ type: 'invalidtheme', theme }));
     }
 
-    if (!osFontScale) {
+    if (!fontScale) {
       throwError({
         type: 'unexpected',
-        error: new Error('osFontScale is undefined after normalization'),
+        error: new Error('fontScale is undefined after normalization'),
       });
     }
 
@@ -81,11 +81,11 @@ function validateDevices(config: InvalidatedConfig): void {
         })
       : [];
 
-    if (!deviceFontScaleLevels.includes(osFontScale)) {
+    if (!deviceFontScaleLevels.includes(fontScale)) {
       throwError(
         getError({
-          type: 'invalidOsFontScale',
-          osFontScale,
+          type: 'invalidfontScale',
+          fontScale,
           platform,
           deviceFontScaleLevels,
         })
@@ -94,7 +94,7 @@ function validateDevices(config: InvalidatedConfig): void {
 
     Object.keys(unsupportedProperties).forEach((property) => {
       logWarning({
-        message: `Unsupported device property \`${property}\` in config (supported: \`id\`, \`osVersion\`, \`osLocale\`, \`osTheme\`, \`osFontScale\`)`,
+        message: `Unsupported device property \`${property}\` in config (supported: \`id\`, \`osVersion\`, \`locale\`, \`theme\`, \`fontScale\`)`,
         learnMoreLink: DOCS_LINK.configDevices,
       });
 
@@ -113,11 +113,11 @@ type DeviceError =
   | { type: 'requiredDeviceProps' }
   | { type: 'unknownDeviceId'; id: string }
   | { type: 'unsupportedOsVersion'; id: string; osVersion: string }
-  | { type: 'invalidOsLocale'; osLocale: string }
-  | { type: 'invalidOsTheme'; osTheme: string }
+  | { type: 'invalidlocale'; locale: string }
+  | { type: 'invalidtheme'; theme: string }
   | {
-      type: 'invalidOsFontScale';
-      osFontScale: string;
+      type: 'invalidfontScale';
+      fontScale: string;
       platform: Platform;
       deviceFontScaleLevels: string[];
     };
@@ -150,19 +150,19 @@ function getError(error: DeviceError) {
         message: `Unsupported OS version "${error.osVersion}" for device "${error.id}" in config`,
         learnMoreLink: DOCS_LINK.devices,
       };
-    case 'invalidOsLocale':
+    case 'invalidlocale':
       return {
-        message: `Invalid device locale "${error.osLocale}" in config. Expected format: xx_XX (example: en_US)`,
+        message: `Invalid device locale "${error.locale}" in config. Expected format: xx_XX (example: en_US)`,
         learnMoreLink: DOCS_LINK.configDevices,
       };
-    case 'invalidOsTheme':
+    case 'invalidtheme':
       return {
-        message: `Invalid device theme "${error.osTheme}" in config. Expected: "light" or "dark"`,
+        message: `Invalid device theme "${error.theme}" in config. Expected: "light" or "dark"`,
         learnMoreLink: DOCS_LINK.configDevices,
       };
-    case 'invalidOsFontScale':
+    case 'invalidfontScale':
       return {
-        message: `Invalid font scale level "${error.osFontScale}" for ${
+        message: `Invalid font scale level "${error.fontScale}" for ${
           PLATFORM_LABEL[error.platform]
         } device in config. Available levels: ${error.deviceFontScaleLevels
           .map((level) => `"${level}"`)
