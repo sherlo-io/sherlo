@@ -9,7 +9,7 @@ function parseConfigFile(path: string): InvalidatedConfig {
 
     const configWithReplacedDeprecatedProps = replaceDeprecatedProps(configText);
 
-    const config = JSON.parse(configText);
+    const config = JSON.parse(configWithReplacedDeprecatedProps);
 
     /**
      * Both `include` and `exclude` can be defined as a string or an array of
