@@ -14,6 +14,20 @@ function handleClientError(error: any) {
     });
   }
 
+  if (error.message === 'snapshotsLimitIsExceeded') {
+    throwError({
+      type: 'default',
+      message: 'Snapshots limit is exceeded. Contact the team owner to upgrade the plan.',
+    });
+  }
+
+  if (error.message === 'planIsInactive') {
+    throwError({
+      type: 'default',
+      message: 'Your plan is inactive. Contact the team owner to update the payment.',
+    });
+  }
+
   throwError({ type: 'unexpected', error });
 }
 

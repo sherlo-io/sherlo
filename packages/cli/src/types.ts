@@ -39,9 +39,9 @@ export type Config = {
   devices: {
     id: DeviceID;
     osVersion: string;
-    osTheme: DeviceTheme;
-    osLocale: string;
-    osFontScale: string;
+    theme: DeviceTheme;
+    locale: string;
+    fontScale: string;
   }[];
   token?: string;
   android?: string;

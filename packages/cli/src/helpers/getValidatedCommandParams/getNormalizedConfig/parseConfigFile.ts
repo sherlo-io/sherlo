@@ -5,7 +5,11 @@ import throwError from '../../throwError';
 
 function parseConfigFile(path: string): InvalidatedConfig {
   try {
-    const config = JSON.parse(fs.readFileSync(path, 'utf8'));
+    const configText = fs.readFileSync(path, 'utf8');
+
+    const configWithReplacedDeprecatedProps = replaceDeprecatedProps(configText);
+
+    const config = JSON.parse(configWithReplacedDeprecatedProps);
 
     /**
      * Both `include` and `exclude` can be defined as a string or an array of
@@ -66,4 +70,17 @@ function getError({
     message: messages[type],
     learnMoreLink: DOCS_LINK.config,
   };
+}
+
+/**
+ * Replaces deprecated props names for new ones.
+ * osLocale -> locale
+ * osTheme -> theme
+ * osFontScale -> fontScale
+ */
+function replaceDeprecatedProps(configText: string): string {
+  return configText
+    .replace(/"osLocale"/g, '"locale"')
+    .replace(/"osTheme"/g, '"theme"')
+    .replace(/"osFontScale"/g, '"fontScale"');
 }

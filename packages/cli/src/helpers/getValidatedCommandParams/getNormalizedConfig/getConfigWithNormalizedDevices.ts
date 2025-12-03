@@ -54,14 +54,14 @@ function removeDuplicatedDevices(
 }
 
 function getDeviceKey(device: Partial<Config['devices'][number]>) {
-  const { id, osVersion, osTheme, osLocale, osFontScale } = device;
+  const { id, osVersion, theme, locale, fontScale } = device;
 
   const parts = [
     id && `id: ${id}`,
     osVersion && `osVersion: ${osVersion}`,
-    osTheme && `osTheme: ${osTheme}`,
-    osLocale && `osLocale: ${osLocale}`,
-    osFontScale && `osFontScale: ${osFontScale}`,
+    theme && `theme: ${theme}`,
+    locale && `locale: ${locale}`,
+    fontScale && `fontScale: ${fontScale}`,
   ].filter(Boolean);
 
   return parts.join(', ');
@@ -78,8 +78,8 @@ function getDevicesWithDefaults(
     ...device,
     // Allow osVersion as string or number but must convert to string
     osVersion: device?.osVersion ? String(device.osVersion) : device?.osVersion,
-    osLocale: device?.osLocale ?? DEFAULT_DEVICE_OS_LOCALE,
-    osTheme: device?.osTheme ?? DEFAULT_DEVICE_OS_THEME,
-    osFontScale: device?.osFontScale ?? DEFAULT_DEVICE_OS_FONT_SCALE,
+    locale: device?.locale ?? DEFAULT_DEVICE_OS_LOCALE,
+    theme: device?.theme ?? DEFAULT_DEVICE_OS_THEME,
+    fontScale: device?.fontScale ?? DEFAULT_DEVICE_OS_FONT_SCALE,
   }));
 }

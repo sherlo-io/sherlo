@@ -1,18 +1,20 @@
 {
-  "exclude": ["ManyStories"],
+  "exclude": [
+    "ManyStories"
+  ],
   "devices": [
     {
       "id": "pixel.7.pro",
       "osVersion": "13",
-      "osLocale": "en_US",
-      "osTheme": "light"
+      "locale": "en_US",
+      "theme": "light"
     },
     {
       "id": "pixel.tablet",
       "osVersion": "13",
-      "osLocale": "fr_FR",
-      "osTheme": "dark",
-      "osFontScale": "-1"
+      "locale": "fr_FR",
+      "theme": "dark",
+      "fontScale": "-1"
     },
     {
       "id": "iphone.15.pro",
