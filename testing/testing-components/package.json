@@ -1,7 +1,7 @@
 {
   "name": "@sherlo/testing-components",
   "private": true,
-  "version": "1.5.1",
+  "version": "1.5.2-alpha.9",
   "description": "Shared components for the monorepo",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,12 +10,14 @@
   },
   "devDependencies": {
     "@types/react": "^18.2.7",
+    "expo-localization": "~17.0.7",
     "react": "18.2.0",
     "react-native": "0.74.5",
     "react-native-svg": "^15.11.2",
     "typescript": "^5.0.4"
   },
   "peerDependencies": {
+    "expo-localization": "*",
     "react": "*",
     "react-native": "*",
     "react-native-svg": "*"

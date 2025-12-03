@@ -5,10 +5,12 @@ import { TestingMode } from './components';
 import { getStorybookComponent } from './helpers';
 import { useHideSplashScreen } from './hooks';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import useStorybookEventListener from './hooks/useStorybookEventListener';
 
 function getStorybook(view: StorybookView, params?: StorybookParams): () => ReactElement {
   return () => {
     useHideSplashScreen();
+    useStorybookEventListener();
 
     const mode = SherloModule.getMode();
 

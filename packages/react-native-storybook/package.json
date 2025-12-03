@@ -1,6 +1,6 @@
 {
   "name": "@sherlo/react-native-storybook",
-  "version": "1.5.1",
+  "version": "1.5.2-alpha.9",
   "description": "Sherlo is a Visual Testing tool for React Native Storybook",
   "keywords": [
     "visual testing",
@@ -26,10 +26,13 @@
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./metro/withSherlo": "./metro/withSherlo.js",
     "./package.json": "./package.json"
   },
   "files": [
     "src/specs/**/*",
+    "src/metro/**/*",
+    "metro/**/*",
     "dist/**/*",
     "android/**/*",
     "ios/**/*",
@@ -37,7 +40,7 @@
     "sherlo-react-native-storybook.podspec"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsc -p .",
+    "build": "rm -rf dist && tsc -p . && tsc -p tsconfig.metro.json",
     "dev": "yarn build --watch"
   },
   "jest": {
@@ -55,10 +58,17 @@
     "preset": "react-native"
   },
   "dependencies": {
+    "@babel/core": "^7.25.2",
+    "@babel/generator": "^7.23.0",
+    "@babel/parser": "^7.23.0",
+    "@babel/preset-react": "^7.20.0",
+    "@babel/preset-typescript": "^7.20.0",
+    "@babel/traverse": "^7.23.0",
+    "@babel/types": "^7.23.0",
     "base-64": "1.0.0",
     "deepmerge": "4.3.1",
     "its-fine": "2.0.0",
-    "sherlo": "^1.5.1",
+    "sherlo": "^1.5.2-alpha.9",
     "utf8": "3.0.0"
   },
   "devDependencies": {

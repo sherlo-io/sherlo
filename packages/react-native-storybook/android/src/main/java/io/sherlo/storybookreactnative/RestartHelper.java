@@ -175,7 +175,6 @@ public class RestartHelper {
     }
 
     public void restart(String newMode) {
-        
         persistMode(newMode);
         
         final Activity currentActivity = getCurrentActivity();
