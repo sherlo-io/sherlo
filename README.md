@@ -145,8 +145,6 @@ Join thousands of teams using Storybook – a tool that helps you develop and do
 <br />
 
 <div align="center">
-  Made with ❤️ by <a href="https://devine.team">Devine</a> team
-  <br />
   <a href="https://sherlo.io">Website</a> • 
   <a href="https://app.sherlo.io">App</a> • 
   <a href="https://app.sherlo.io/demo">Demo</a> • 
