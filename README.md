@@ -95,12 +95,6 @@ Review visual changes across devices in one web app as a team – from developer
 <br />
 
 <div align="center">
-  <strong>🚀 <a href="https://app.sherlo.io/demo">Open Demo</a></strong> to see Sherlo in action
-</div>
-
-<br />
-
-<div align="center">
   <img src="/assets/demo.gif" alt="Demo of Sherlo's web application showing review workflow with visual diffs, comments, code inspection, and Figma preview" />
 </div>
 
@@ -147,7 +141,6 @@ Join thousands of teams using Storybook – a tool that helps you develop and do
 <div align="center">
   <a href="https://sherlo.io">Website</a> • 
   <a href="https://app.sherlo.io">App</a> • 
-  <a href="https://app.sherlo.io/demo">Demo</a> • 
   <a href="https://sherlo.io/docs">Docs</a>
 </div>
 
