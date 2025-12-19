@@ -58,7 +58,7 @@ npx sherlo@latest init
 <!-- prettier-ignore -->
 ```json
 [
-  { "id": "iphone.15", "osVersion": "17", },
+  { "id": "iphone.15", "osVersion": "17" },
   { "id": "pixel.7", "osVersion": "13", "theme": "dark" },
   { "id": "ipad.10.gen", "osVersion": "17", "locale": "en_GB", "fontScale": "+2" }
 ]
