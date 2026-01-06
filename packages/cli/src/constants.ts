@@ -7,19 +7,19 @@ export const CONTACT_EMAIL = 'contact@sherlo.io';
 export const DISCORD_URL = 'https://discord.gg/G7eqTBkWZt';
 
 export const DOCS_LINK = {
-  setupStorybookComponent: `${DOCS_BASE_URL}/setup/integration#storybook-component`,
-  setupStorybookAccess: `${DOCS_BASE_URL}/setup/integration#storybook-access`,
+  setupStorybookComponent: `${DOCS_BASE_URL}/setup#storybook-component`,
+  setupStorybookAccess: `${DOCS_BASE_URL}/setup#storybook-access`,
 
-  config: `${DOCS_BASE_URL}/setup/config`,
-  configProperties: `${DOCS_BASE_URL}/setup/config#properties`,
-  configToken: `${DOCS_BASE_URL}/setup/config#token`,
-  configAndroid: `${DOCS_BASE_URL}/setup/config#android`,
-  configIos: `${DOCS_BASE_URL}/setup/config#ios`,
-  configDevices: `${DOCS_BASE_URL}/setup/config#devices`,
+  config: `${DOCS_BASE_URL}/config`,
+  configProperties: `${DOCS_BASE_URL}/config#properties`,
+  configToken: `${DOCS_BASE_URL}/config#token`,
+  configAndroid: `${DOCS_BASE_URL}/config#android`,
+  configIos: `${DOCS_BASE_URL}/config#ios`,
+  configDevices: `${DOCS_BASE_URL}/config#devices`,
 
-  builds: `${DOCS_BASE_URL}/setup/builds`,
-  buildPreview: `${DOCS_BASE_URL}/setup/builds?type=preview#build-types`,
-  buildDevelopment: `${DOCS_BASE_URL}/setup/builds?type=development#build-types`,
+  builds: `${DOCS_BASE_URL}/builds`,
+  buildPreview: `${DOCS_BASE_URL}/builds?type=preview#build-types`,
+  buildDevelopment: `${DOCS_BASE_URL}/builds?type=development#build-types`,
 
   testing: `${DOCS_BASE_URL}/testing`,
   testingMethods: `${DOCS_BASE_URL}/testing#testing-methods`,

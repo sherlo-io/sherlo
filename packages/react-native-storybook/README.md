@@ -54,7 +54,7 @@ const Storybook = getStorybook(view, {
 export default Storybook;
 ```
 
-[Documentation →](https://sherlo.io/docs/setup/integration#storybook-component)
+[Documentation →](https://sherlo.io/docs/setup#storybook-component)
 
 ---
 
@@ -80,7 +80,7 @@ export default function Root() {
 }
 ```
 
-[Documentation →](https://sherlo.io/docs/setup/integration?storybook=integrated#storybook-access)
+[Documentation →](https://sherlo.io/docs/setup?storybook=integrated#storybook-access)
 
 ---
 

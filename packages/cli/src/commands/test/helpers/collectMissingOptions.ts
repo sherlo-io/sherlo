@@ -115,8 +115,10 @@ async function collectToken(): Promise<string> {
 
   console.log(
     wrapInBox({
-      title: 'Project Token',
-      text: `Open ${printLink(APP_DOMAIN)} ➜ Create project ➜ Copy token`,
+      title: 'Project Token?',
+      text: `Open ${printLink(
+        APP_DOMAIN
+      )}:\n a) Create new project ➜ Copy token\n b) Open existing project ➜ Reset token`,
       type: 'default',
     })
   );
@@ -126,7 +128,7 @@ async function collectToken(): Promise<string> {
   let token;
   try {
     token = await input({
-      message: `Enter your project token${chalk.reset.dim(` (--${TOKEN_OPTION})`)}:`,
+      message: `Enter your authentication project token${chalk.reset.dim(` (--${TOKEN_OPTION})`)}:`,
       validate: (value: string) => {
         if (!value) {
           return 'Token is required';
