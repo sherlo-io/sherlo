@@ -19,7 +19,7 @@ on:
 
 permissions:
   id-token: write # Required for OIDC trusted publishing
-  contents: read
+  contents: write # Required for commits and tagging
 
 jobs:
   release-to-prod:
@@ -46,6 +46,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Check npm version
         run: npm --version
@@ -91,6 +92,8 @@ jobs:
 
       - name: Publish to npm
         run: npx lerna publish from-package --no-private --yes --dist-tag ${{ github.event.inputs.IS_ALPHA == 'true' && 'alpha' || 'latest' }} --loglevel verbose
+        env:
+          NPM_CONFIG_PROVENANCE: true
 
       - name: Tag Commit
         if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
