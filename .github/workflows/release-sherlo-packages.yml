@@ -91,6 +91,8 @@ jobs:
       #     branch: ${{ github.ref_name }}
 
       - name: Publish to npm
+        env:
+          NPM_CONFIG_PROVENANCE: true
         run: npx lerna publish from-package --no-private --yes --dist-tag ${{ github.event.inputs.IS_ALPHA == 'true' && 'alpha' || 'latest' }} --loglevel verbose
 
       - name: Tag Commit
