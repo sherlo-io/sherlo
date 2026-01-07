@@ -24,7 +24,7 @@ jobs:
         if: ${{ !inputs.skip_build }}
         uses: actions/setup-node@v2
         with:
-          node-version: '18.18.0'
+          node-version: '24'
 
       - name: Select Xcode Version
         if: ${{ !inputs.skip_build }}
