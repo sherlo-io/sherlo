@@ -16,13 +16,13 @@ jobs:
   ios_build:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
 
       - name: Set up Node.js
         if: ${{ !inputs.skip_build }}
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
           node-version: '24'
 

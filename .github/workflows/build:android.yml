@@ -21,13 +21,13 @@ jobs:
       GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2 -Dorg.gradle.parallel=false
       CMAKE_BUILD_PARALLEL_LEVEL: '2'
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
 
       - name: Set up Node.js
         if: ${{ !inputs.skip_build }}
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
           node-version: '24'
 

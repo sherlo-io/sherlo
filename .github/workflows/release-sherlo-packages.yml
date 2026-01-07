@@ -17,12 +17,14 @@ on:
         default: false
         type: boolean
 
+permissions:
+  id-token: write # Required for OIDC trusted publishing
+  contents: write # Required for commits and tagging
+
 jobs:
   release-to-prod:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write # Required for OIDC trusted publishing
-      contents: write # Required for commits and tagging
+
     env:
       SLACK_WEBHOOK_URL: ${{secrets.SLACK_WEBHOOK_URL}}
       NEW_VERSION_NUMBER: ${{ github.event.inputs.NEW_VERSION_NUMBER }}
@@ -35,16 +37,19 @@ jobs:
           app_id: ${{ secrets.SHERLO_BOT_APP_ID }}
           private_key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           token: ${{ steps.github_app_token.outputs.token }}
           ref: ${{ github.ref }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Check npm version
+        run: npm --version
 
       - name: Add env specific dependencies
         run: ./scripts/switch-env.sh prod
@@ -86,7 +91,7 @@ jobs:
       #     branch: ${{ github.ref_name }}
 
       - name: Publish to npm
-        run: npx lerna publish from-package --no-private --yes --dist-tag ${{ github.event.inputs.IS_ALPHA == 'true' && 'alpha' || 'latest' }}
+        run: npx lerna publish from-package --no-private --yes --dist-tag ${{ github.event.inputs.IS_ALPHA == 'true' && 'alpha' || 'latest' }} --loglevel verbose
 
       - name: Tag Commit
         if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
