@@ -104,9 +104,29 @@ jobs:
           echo "=== .npmrc location ==="
           echo "NPM_CONFIG_USERCONFIG: $NPM_CONFIG_USERCONFIG"
           cat $NPM_CONFIG_USERCONFIG 2>/dev/null || echo "No .npmrc found at NPM_CONFIG_USERCONFIG"
-          echo ""
-          echo "=== Check OIDC token availability ==="
-          echo "ACTIONS_ID_TOKEN_REQUEST_URL is set: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL != '' }}"
+
+      # Verify OIDC is available before attempting publish
+      # This will fail early with a clear error if OIDC isn't configured
+      - name: Verify OIDC availability
+        run: |
+          echo "=== Checking OIDC token availability ==="
+          echo "ACTIONS_ID_TOKEN_REQUEST_URL: $ACTIONS_ID_TOKEN_REQUEST_URL"
+          echo "ACTIONS_ID_TOKEN_REQUEST_TOKEN is set: $([ -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ] && echo 'yes' || echo 'no')"
+
+          if [ -z "$ACTIONS_ID_TOKEN_REQUEST_URL" ]; then
+            echo ""
+            echo "❌ ERROR: OIDC is NOT available!"
+            echo ""
+            echo "Possible causes:"
+            echo "  1. The 'id-token: write' permission might not be taking effect"
+            echo "  2. Your organization might have disabled OIDC tokens"
+            echo "  3. Check: Settings > Actions > General > Workflow permissions"
+            echo ""
+            echo "Workaround: Use a traditional NPM_TOKEN instead of trusted publishing"
+            exit 1
+          else
+            echo "✅ OIDC is available"
+          fi
 
       - name: Publish to npm
         env:
