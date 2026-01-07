@@ -131,14 +131,17 @@ jobs:
       - name: Publish to npm
         env:
           NPM_CONFIG_PROVENANCE: true
+          # Explicitly unset the placeholder token that setup-node creates
+          # This forces npm to use OIDC instead of the invalid placeholder
+          NODE_AUTH_TOKEN: ''
         run: |
-          # Clear the placeholder auth token that setup-node creates when using registry-url
-          # Without this, npm tries to use the invalid placeholder token instead of OIDC
-          # See: https://docs.npmjs.com/trusted-publishers#troubleshooting
+          # Also delete from npm config file
           npm config delete //registry.npmjs.org/:_authToken || true
 
           echo "=== npm config after clearing token ==="
           npm config list
+          echo ""
+          echo "NODE_AUTH_TOKEN env var: '${NODE_AUTH_TOKEN:-<unset>}'"
 
           npx lerna publish from-package --no-private --yes --dist-tag ${{ github.event.inputs.IS_ALPHA == 'true' && 'alpha' || 'latest' }} --loglevel verbose
 
