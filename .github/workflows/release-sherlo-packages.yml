@@ -20,9 +20,11 @@ on:
 jobs:
   release-to-prod:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Required for OIDC trusted publishing
+      contents: write # Required for commits and tagging
     env:
       SLACK_WEBHOOK_URL: ${{secrets.SLACK_WEBHOOK_URL}}
-      NPM_TOKEN: ${{secrets.NPM_TOKEN}}
       NEW_VERSION_NUMBER: ${{ github.event.inputs.NEW_VERSION_NUMBER }}
     concurrency: release-to-prod
     steps:
@@ -42,6 +44,7 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: '18.18.0'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Add env specific dependencies
         run: ./scripts/switch-env.sh prod
@@ -51,41 +54,39 @@ jobs:
       - name: Install dependencies
         run: yarn
 
-      - name: Bump Version
-        run: npx lerna version $NEW_VERSION_NUMBER --yes --no-git-tag-version --no-push
+      # TEMPORARILY COMMENTED OUT - Version 1.5.3 already committed
+      # - name: Bump Version
+      #   run: npx lerna version $NEW_VERSION_NUMBER --yes --no-git-tag-version --no-push
 
-      - name: Save version number to native dependencies
-        run: |
-          echo "{\"version\": \"$NEW_VERSION_NUMBER\"}" > packages/react-native-storybook/android/src/main/assets/sherlo.json
-          echo "{\"version\": \"$NEW_VERSION_NUMBER\"}" > packages/react-native-storybook/ios/Resources/assets/sherlo.json
+      # - name: Save version number to native dependencies
+      #   run: |
+      #     echo "{\"version\": \"$NEW_VERSION_NUMBER\"}" > packages/react-native-storybook/android/src/main/assets/sherlo.json
+      #     echo "{\"version\": \"$NEW_VERSION_NUMBER\"}" > packages/react-native-storybook/ios/Resources/assets/sherlo.json
 
-      - name: Bump minimum required native dependencies version
-        if: ${{ github.event.inputs.BUMP_REQUIRED_SDK_VERSION == 'true' }}
-        run: |
-          echo "{\"REQUIRED_MIN_SDK_VERSION\": \"$NEW_VERSION_NUMBER\"}" > packages/cli/sdk-compatibility.json
+      # - name: Bump minimum required native dependencies version
+      #   if: ${{ github.event.inputs.BUMP_REQUIRED_SDK_VERSION == 'true' }}
+      #   run: |
+      #     echo "{\"REQUIRED_MIN_SDK_VERSION\": \"$NEW_VERSION_NUMBER\"}" > packages/cli/sdk-compatibility.json
 
-      - name: Build packages
-        run: yarn build
+      # - name: Build packages
+      #   run: yarn build
 
-      - name: Update yarn.lock files in test directories
-        run: |
-          cd testing/expo && yarn install --no-immutable
-          cd ../react-native && yarn install --no-immutable
+      # - name: Update yarn.lock files in test directories
+      #   run: |
+      #     cd testing/expo && yarn install --no-immutable
+      #     cd ../react-native && yarn install --no-immutable
 
-      - name: Commit and push updated files
-        uses: EndBug/add-and-commit@v7
-        with:
-          author_name: Sherlo Bot
-          author_email: admin@sherlo.io
-          message: Version updates and builds for ${{ github.event.inputs.NEW_VERSION_NUMBER }}
-          push: true
-          branch: ${{ github.ref_name }}
-
-      - name: Configure npm
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
+      # - name: Commit and push updated files
+      #   uses: EndBug/add-and-commit@v7
+      #   with:
+      #     author_name: Sherlo Bot
+      #     author_email: admin@sherlo.io
+      #     message: Version updates and builds for ${{ github.event.inputs.NEW_VERSION_NUMBER }}
+      #     push: true
+      #     branch: ${{ github.ref_name }}
 
       - name: Publish to npm
-        run: npx lerna publish from-package --no-private --yes --npm-tag ${{ github.event.inputs.IS_ALPHA == 'true' && 'alpha' || 'latest' }}
+        run: npx lerna publish from-package --no-private --yes --dist-tag ${{ github.event.inputs.IS_ALPHA == 'true' && 'alpha' || 'latest' }}
 
       - name: Tag Commit
         if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
