@@ -92,8 +92,6 @@ jobs:
 
       - name: Publish to npm
         run: npx lerna publish from-package --no-private --yes --dist-tag ${{ github.event.inputs.IS_ALPHA == 'true' && 'alpha' || 'latest' }} --loglevel verbose
-        env:
-          NPM_CONFIG_PROVENANCE: true
 
       - name: Tag Commit
         if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
