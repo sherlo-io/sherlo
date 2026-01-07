@@ -90,10 +90,37 @@ jobs:
       #     push: true
       #     branch: ${{ github.ref_name }}
 
+      - name: Debug - Show versions and config
+        run: |
+          echo "=== Node/npm/yarn versions ==="
+          node --version
+          npm --version
+          yarn --version
+          npx lerna --version
+          echo ""
+          echo "=== npm config ==="
+          npm config list
+          echo ""
+          echo "=== .npmrc location ==="
+          echo "NPM_CONFIG_USERCONFIG: $NPM_CONFIG_USERCONFIG"
+          cat $NPM_CONFIG_USERCONFIG 2>/dev/null || echo "No .npmrc found at NPM_CONFIG_USERCONFIG"
+          echo ""
+          echo "=== Check OIDC token availability ==="
+          echo "ACTIONS_ID_TOKEN_REQUEST_URL is set: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL != '' }}"
+
       - name: Publish to npm
         env:
           NPM_CONFIG_PROVENANCE: true
-        run: npx lerna publish from-package --no-private --yes --dist-tag ${{ github.event.inputs.IS_ALPHA == 'true' && 'alpha' || 'latest' }} --loglevel verbose
+        run: |
+          # Clear the placeholder auth token that setup-node creates when using registry-url
+          # Without this, npm tries to use the invalid placeholder token instead of OIDC
+          # See: https://docs.npmjs.com/trusted-publishers#troubleshooting
+          npm config delete //registry.npmjs.org/:_authToken || true
+
+          echo "=== npm config after clearing token ==="
+          npm config list
+
+          npx lerna publish from-package --no-private --yes --dist-tag ${{ github.event.inputs.IS_ALPHA == 'true' && 'alpha' || 'latest' }} --loglevel verbose
 
       - name: Tag Commit
         if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
