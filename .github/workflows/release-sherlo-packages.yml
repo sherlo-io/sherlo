@@ -42,12 +42,25 @@ jobs:
           token: ${{ steps.github_app_token.outputs.token }}
           ref: ${{ github.ref }}
 
-      # IMPORTANT: Do NOT use registry-url here!
-      # It creates conflicting .npmrc with placeholder tokens that break OIDC
+      # Do NOT use registry-url here - it creates conflicting .npmrc
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      # CRITICAL: npm 11.5.1+ is required for OIDC trusted publishing!
+      # Node 20 ships with npm 10.x which does NOT support OIDC
+      # See: https://remarkablemark.org/blog/2025/12/19/npm-trusted-publishing/
+      - name: Upgrade npm to support OIDC (requires >= 11.5.1)
+        run: |
+          echo "=== Current npm version ==="
+          npm --version
+          echo ""
+          echo "=== Upgrading npm to latest (OIDC requires >= 11.5.1) ==="
+          npm install -g npm@latest
+          echo ""
+          echo "=== New npm version ==="
+          npm --version
 
       - name: Add env specific dependencies
         run: ./scripts/switch-env.sh prod
@@ -88,29 +101,31 @@ jobs:
       #     push: true
       #     branch: ${{ github.ref_name }}
 
-      - name: Verify OIDC is available
+      - name: Debug - Verify OIDC and npm configuration
         run: |
           echo "=== Checking OIDC token availability ==="
           if [ -z "$ACTIONS_ID_TOKEN_REQUEST_URL" ]; then
             echo "❌ ERROR: OIDC is NOT available!"
-            echo "Check: Settings > Actions > General > Workflow permissions"
+            echo "ACTIONS_ID_TOKEN_REQUEST_URL is empty"
             exit 1
           fi
           echo "✅ OIDC is available"
-          echo "ACTIONS_ID_TOKEN_REQUEST_URL: $ACTIONS_ID_TOKEN_REQUEST_URL"
-
-      - name: Configure npm for OIDC publishing
-        run: |
-          # Set registry without any auth token - OIDC will handle auth
-          npm config set registry https://registry.npmjs.org/
-
+          echo "ACTIONS_ID_TOKEN_REQUEST_URL: ${ACTIONS_ID_TOKEN_REQUEST_URL:0:50}..."
+          echo ""
+          echo "=== npm version (must be >= 11.5.1 for OIDC) ==="
+          npm --version
+          echo ""
           echo "=== npm config ==="
           npm config list
+          echo ""
+          echo "=== Setting registry ==="
+          npm config set registry https://registry.npmjs.org/
 
       - name: Publish to npm with OIDC
         env:
           NPM_CONFIG_PROVENANCE: true
         run: |
+          echo "=== Starting publish with OIDC trusted publishing ==="
           npx lerna publish from-package --no-private --yes --dist-tag ${{ github.event.inputs.IS_ALPHA == 'true' && 'alpha' || 'latest' }} --loglevel verbose
 
       - name: Tag Commit
