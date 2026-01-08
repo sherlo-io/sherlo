@@ -18,8 +18,8 @@ on:
         type: boolean
 
 permissions:
-  id-token: write # Required for OIDC trusted publishing
-  contents: write # Required for commits and tagging
+  id-token: write # Required for npm OIDC trusted publishing
+  contents: write # Required for git tagging and releases
 
 jobs:
   release-to-prod:
@@ -42,14 +42,12 @@ jobs:
           token: ${{ steps.github_app_token.outputs.token }}
           ref: ${{ github.ref }}
 
+      # IMPORTANT: Do NOT use registry-url here!
+      # It creates conflicting .npmrc with placeholder tokens that break OIDC
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
-          registry-url: 'https://registry.npmjs.org'
-
-      - name: Check npm version
-        run: npm --version
+          node-version: '20'
 
       - name: Add env specific dependencies
         run: ./scripts/switch-env.sh prod
@@ -90,59 +88,29 @@ jobs:
       #     push: true
       #     branch: ${{ github.ref_name }}
 
-      - name: Debug - Show versions and config
-        run: |
-          echo "=== Node/npm/yarn versions ==="
-          node --version
-          npm --version
-          yarn --version
-          npx lerna --version
-          echo ""
-          echo "=== npm config ==="
-          npm config list
-          echo ""
-          echo "=== .npmrc location ==="
-          echo "NPM_CONFIG_USERCONFIG: $NPM_CONFIG_USERCONFIG"
-          cat $NPM_CONFIG_USERCONFIG 2>/dev/null || echo "No .npmrc found at NPM_CONFIG_USERCONFIG"
-
-      # Verify OIDC is available before attempting publish
-      # This will fail early with a clear error if OIDC isn't configured
-      - name: Verify OIDC availability
+      - name: Verify OIDC is available
         run: |
           echo "=== Checking OIDC token availability ==="
-          echo "ACTIONS_ID_TOKEN_REQUEST_URL: $ACTIONS_ID_TOKEN_REQUEST_URL"
-          echo "ACTIONS_ID_TOKEN_REQUEST_TOKEN is set: $([ -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ] && echo 'yes' || echo 'no')"
-
           if [ -z "$ACTIONS_ID_TOKEN_REQUEST_URL" ]; then
-            echo ""
             echo "❌ ERROR: OIDC is NOT available!"
-            echo ""
-            echo "Possible causes:"
-            echo "  1. The 'id-token: write' permission might not be taking effect"
-            echo "  2. Your organization might have disabled OIDC tokens"
-            echo "  3. Check: Settings > Actions > General > Workflow permissions"
-            echo ""
-            echo "Workaround: Use a traditional NPM_TOKEN instead of trusted publishing"
+            echo "Check: Settings > Actions > General > Workflow permissions"
             exit 1
-          else
-            echo "✅ OIDC is available"
           fi
+          echo "✅ OIDC is available"
+          echo "ACTIONS_ID_TOKEN_REQUEST_URL: $ACTIONS_ID_TOKEN_REQUEST_URL"
 
-      - name: Publish to npm
+      - name: Configure npm for OIDC publishing
+        run: |
+          # Set registry without any auth token - OIDC will handle auth
+          npm config set registry https://registry.npmjs.org/
+
+          echo "=== npm config ==="
+          npm config list
+
+      - name: Publish to npm with OIDC
         env:
           NPM_CONFIG_PROVENANCE: true
-          # Explicitly unset the placeholder token that setup-node creates
-          # This forces npm to use OIDC instead of the invalid placeholder
-          NODE_AUTH_TOKEN: ''
         run: |
-          # Also delete from npm config file
-          npm config delete //registry.npmjs.org/:_authToken || true
-
-          echo "=== npm config after clearing token ==="
-          npm config list
-          echo ""
-          echo "NODE_AUTH_TOKEN env var: '${NODE_AUTH_TOKEN:-<unset>}'"
-
           npx lerna publish from-package --no-private --yes --dist-tag ${{ github.event.inputs.IS_ALPHA == 'true' && 'alpha' || 'latest' }} --loglevel verbose
 
       - name: Tag Commit
