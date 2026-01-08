@@ -50,7 +50,7 @@
     "@react-native/eslint-config": "^0.72.1",
     "cross-env": "^7.0.3",
     "eslint": "8.24.0",
-    "lerna": "^8.1.2",
+    "lerna": "^9.0.3",
     "ts-node": "^10.9.1",
     "typescript": "^5.3.3"
   },
