@@ -28,6 +28,8 @@
 
 Test your UI on iOS and Android automatically in the cloud. Built for React Native Storybook.
 
+▶️ [Sherlo in 2 minutes](https://www.youtube.com/watch?v=RKP3zEgzyig)
+
 ### How It Works
 
 1. **📸 Capture** – Sherlo takes screenshots of your UI on iOS and Android devices in the cloud
