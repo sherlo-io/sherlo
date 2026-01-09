@@ -1,4 +1,23 @@
 #!/bin/bash
+#
+# Download Testing Builds Script
+# 
+# Downloads testing build (Android APK and iOS tar.gz) from GitHub Artifacts.
+# These builds are used for testing.
+#
+# Flags:
+#   --project   (required) Project to download builds for: expo | react-native
+#   --profile   (required) Build profile: development | preview
+#   --branch    (optional) Branch name, defaults to current branch
+#
+# Usage:
+#   # Download testing builds for the current branch
+#   ./scripts/download-testing-builds.sh --project expo --profile development
+#
+#   # Download testing builds for a specific branch
+#   ./scripts/download-testing-builds.sh --project expo --profile preview --branch feature/my-feature
+#
+
 set -e
 
 # Default values
@@ -40,7 +59,11 @@ if [ -z "$PROFILE" ]; then
   exit 1
 fi
 
-echo "Downloading builds for project: $PROJECT, profile: $PROFILE, branch: $CURRENT_BRANCH"
+echo "📱 Downloading testing builds"
+echo "   Project: $PROJECT"
+echo "   Profile: $PROFILE"
+echo "   Branch: $CURRENT_BRANCH"
+echo ""
 
 # Create temp directory
 TEMP_DIR=$(mktemp -d)
@@ -50,23 +73,21 @@ trap 'rm -rf "$TEMP_DIR"' EXIT
 mkdir -p "testing/$PROJECT/builds/$PROFILE"
 
 # Download Android build
-echo ""
-echo "Downloading Android build..."
+echo "🤖 Downloading Android build..."
 gh api \
   -H "Accept: application/vnd.github.v3+json" \
   "/repos/$GITHUB_REPOSITORY/actions/artifacts?name=android-$PROFILE-$PROJECT-$CURRENT_BRANCH" > "$TEMP_DIR/android_artifacts.json"
 
 ANDROID_ARTIFACT_ID=$(jq '.artifacts[0].id' "$TEMP_DIR/android_artifacts.json")
 if [ "$ANDROID_ARTIFACT_ID" != "null" ]; then
-  echo "Found Android artifact ID: $ANDROID_ARTIFACT_ID"
   gh api \
     -H "Accept: application/vnd.github.v3+json" \
     "/repos/$GITHUB_REPOSITORY/actions/artifacts/$ANDROID_ARTIFACT_ID/zip" > "$TEMP_DIR/android.zip"
-  unzip -o "$TEMP_DIR/android.zip" -d "$TEMP_DIR/android"
+  unzip -q "$TEMP_DIR/android.zip" -d "$TEMP_DIR/android"
   cp "$TEMP_DIR/android/android.apk" "testing/$PROJECT/builds/$PROFILE/android.apk"
-  echo "Android build downloaded to testing/$PROJECT/builds/$PROFILE/android.apk"
+  echo " ✓ Android build downloaded: testing/$PROJECT/builds/$PROFILE/android.apk"
 else
-  echo "No Android build found for branch $CURRENT_BRANCH, trying dev branch..."
+  echo " ⚠ No Android build found for branch $CURRENT_BRANCH, trying dev branch..."
   # Try with dev branch
   gh api \
     -H "Accept: application/vnd.github.v3+json" \
@@ -74,36 +95,34 @@ else
   
   ANDROID_ARTIFACT_ID=$(jq '.artifacts[0].id' "$TEMP_DIR/android_artifacts_dev.json")
   if [ "$ANDROID_ARTIFACT_ID" != "null" ]; then
-    echo "Found Android artifact ID from dev branch: $ANDROID_ARTIFACT_ID"
     gh api \
       -H "Accept: application/vnd.github.v3+json" \
       "/repos/$GITHUB_REPOSITORY/actions/artifacts/$ANDROID_ARTIFACT_ID/zip" > "$TEMP_DIR/android.zip"
-    unzip -o "$TEMP_DIR/android.zip" -d "$TEMP_DIR/android"
+    unzip -q "$TEMP_DIR/android.zip" -d "$TEMP_DIR/android"
     cp "$TEMP_DIR/android/android.apk" "testing/$PROJECT/builds/$PROFILE/android.apk"
-    echo "Android build from dev branch downloaded to testing/$PROJECT/builds/$PROFILE/android.apk"
+    echo " ✓ Android build (dev branch) downloaded: testing/$PROJECT/builds/$PROFILE/android.apk"
   else
-    echo "No Android build found for branch $CURRENT_BRANCH or dev branch"
+    echo " ✗ No Android build found"
   fi
 fi
 
 # Download iOS build
 echo ""
-echo "Downloading iOS build..."
+echo "🍎 Downloading iOS build..."
 gh api \
   -H "Accept: application/vnd.github.v3+json" \
   "/repos/$GITHUB_REPOSITORY/actions/artifacts?name=ios-$PROFILE-$PROJECT-$CURRENT_BRANCH" > "$TEMP_DIR/ios_artifacts.json"
 
 IOS_ARTIFACT_ID=$(jq '.artifacts[0].id' "$TEMP_DIR/ios_artifacts.json")
 if [ "$IOS_ARTIFACT_ID" != "null" ]; then
-  echo "Found iOS artifact ID: $IOS_ARTIFACT_ID"
   gh api \
     -H "Accept: application/vnd.github.v3+json" \
     "/repos/$GITHUB_REPOSITORY/actions/artifacts/$IOS_ARTIFACT_ID/zip" > "$TEMP_DIR/ios.zip"
-  unzip -o "$TEMP_DIR/ios.zip" -d "$TEMP_DIR/ios"
+  unzip -q "$TEMP_DIR/ios.zip" -d "$TEMP_DIR/ios"
   cp "$TEMP_DIR/ios/ios.tar.gz" "testing/$PROJECT/builds/$PROFILE/ios.tar.gz"
-  echo "iOS build downloaded to testing/$PROJECT/builds/$PROFILE/ios.tar.gz"
+  echo " ✓ iOS build downloaded: testing/$PROJECT/builds/$PROFILE/ios.tar.gz"
 else
-  echo "No iOS build found for branch $CURRENT_BRANCH, trying dev branch..."
+  echo " ⚠ No iOS build found for branch $CURRENT_BRANCH, trying dev branch..."
   # Try with dev branch
   gh api \
     -H "Accept: application/vnd.github.v3+json" \
@@ -111,17 +130,16 @@ else
   
   IOS_ARTIFACT_ID=$(jq '.artifacts[0].id' "$TEMP_DIR/ios_artifacts_dev.json")
   if [ "$IOS_ARTIFACT_ID" != "null" ]; then
-    echo "Found iOS artifact ID from dev branch: $IOS_ARTIFACT_ID"
     gh api \
       -H "Accept: application/vnd.github.v3+json" \
       "/repos/$GITHUB_REPOSITORY/actions/artifacts/$IOS_ARTIFACT_ID/zip" > "$TEMP_DIR/ios.zip"
-    unzip -o "$TEMP_DIR/ios.zip" -d "$TEMP_DIR/ios"
+    unzip -q "$TEMP_DIR/ios.zip" -d "$TEMP_DIR/ios"
     cp "$TEMP_DIR/ios/ios.tar.gz" "testing/$PROJECT/builds/$PROFILE/ios.tar.gz"
-    echo "iOS build from dev branch downloaded to testing/$PROJECT/builds/$PROFILE/ios.tar.gz"
+    echo " ✓ iOS build (dev branch) downloaded: testing/$PROJECT/builds/$PROFILE/ios.tar.gz"
   else
-    echo "No iOS build found for branch $CURRENT_BRANCH or dev branch"
+    echo " ✗ No iOS build found"
   fi
 fi
 
 echo ""
-echo "Done downloading builds!" 
+echo "🎉 Testing builds downloaded successfully!" 

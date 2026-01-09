@@ -1,6 +1,5 @@
 {
   "name": "@sherlo/root",
-  "version": "1.0.3",
   "private": true,
   "description": "Sherlo is a Visual Testing tool for React Native Storybook",
   "keywords": [
@@ -32,7 +31,7 @@
     "build": "lerna run build",
     "dev": "lerna run dev",
     "dev:check-types": "tsc --noEmit",
-    "clean": "./scripts/clean.sh",
+    "reset": "./scripts/reset.sh",
     "lint": "cross-env NODE_ENV=production eslint --cache --cache-location=.cache/eslint --ext .js,.jsx,.html,.ts,.tsx,.mjs --report-unused-disable-directives",
     "lint:circular-dependencies": "npx madge --extensions ts --circular .",
     "lint:fix": "yarn lint . --fix",
@@ -43,8 +42,7 @@
     "test": "lerna run test",
     "switch-env:test": "./scripts/switch-env.sh test && yarn build",
     "switch-env:dev": "./scripts/switch-env.sh dev && yarn build",
-    "switch-env:prod": "./scripts/switch-env.sh prod && yarn build",
-    "update-examples": "bash scripts/updateExamples.sh"
+    "switch-env:prod": "./scripts/switch-env.sh prod && yarn build"
   },
   "devDependencies": {
     "@react-native/eslint-config": "^0.72.1",

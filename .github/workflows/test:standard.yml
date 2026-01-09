@@ -41,7 +41,7 @@ jobs:
         run: yarn
 
       - name: Download builds
-        run: ./scripts/downloadBuilds.sh --project ${{ inputs.project }} --profile preview --branch ${{ github.head_ref || github.ref_name }}
+        run: ./scripts/download-testing-builds.sh --project ${{ inputs.project }} --profile preview --branch ${{ github.head_ref || github.ref_name }}
         env:
           GH_TOKEN: ${{ github.token }}
 
