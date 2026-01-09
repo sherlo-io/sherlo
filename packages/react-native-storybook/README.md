@@ -1,4 +1,4 @@
-# @sherlo/react-native-storybook
+# `@sherlo/react-native-storybook`
 
 Main package for [Sherlo](https://github.com/sherlo-io/sherlo) - Visual Testing for React Native Storybook.
 
