@@ -25,3 +25,19 @@ CLI for initializing and running visual tests.
 Published as `sherlo`
 
 CLI for initializing and running visual tests.
+
+## `sherlo` ([cli/](./cli))
+
+CLI for initializing and running visual tests.
+
+## `sherlo`
+
+**directory:** [cli](./cli)
+
+CLI for initializing and running visual tests.
+
+## `sherlo`
+
+**directory:** [cli/](./cli)
+
+CLI for initializing and running visual tests.
