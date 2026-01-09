@@ -71,7 +71,7 @@ jobs:
         working-directory: testing/expo
         run: |
           yarn sherlo test:eas-update \
-            --config ../../configs/${{ inputs.config }}.json \
+            --config ../../testing/sherlo-configs/${{ inputs.config }}.json \
             --android builds/development/android.apk \
             --ios builds/development/ios.tar.gz \
             --branch development \
@@ -84,7 +84,7 @@ jobs:
         working-directory: testing/expo
         run: |
           yarn sherlo test:eas-update \
-            --config ../../configs/${{ inputs.config }}.json \
+            --config ../../testing/sherlo-configs/${{ inputs.config }}.json \
             --branch development \
             --token ${{ (inputs.project == 'eas-update' && secrets.SHERLO_EAS_UPDATE_TOKEN) || 
                         (inputs.project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN) || 

@@ -1,6 +1,6 @@
 import type { Meta } from '@storybook/react';
 import TamaguiToast from './TamaguiToast';
-import { StoryDecorator } from '@sherlo/testing-components';
+import StoryDecorator from '../../shared/StoryDecorator';
 import { createTamagui, TamaguiProvider } from 'tamagui';
 import { defaultConfig } from '@tamagui/config/v4';
 import { ToastProvider, ToastViewport } from '@tamagui/toast';

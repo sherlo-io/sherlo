@@ -2447,7 +2447,6 @@ __metadata:
     "@react-native-community/datetimepicker": "npm:8.4.4"
     "@react-native-community/slider": "npm:5.0.1"
     "@sherlo/react-native-storybook": "portal:../../packages/react-native-storybook"
-    "@sherlo/testing-components": "portal:../testing-components"
     "@storybook/addon-ondevice-actions": "npm:^9.1.2"
     "@storybook/addon-ondevice-backgrounds": "npm:^9.1.2"
     "@storybook/addon-ondevice-controls": "npm:^9.1.2"
@@ -2500,16 +2499,6 @@ __metadata:
     react: "*"
     react-native: ">=0.64.0"
     react-native-safe-area-context: "*"
-  languageName: node
-  linkType: soft
-
-"@sherlo/testing-components@portal:../testing-components::locator=%40sherlo%2Fexpo%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@sherlo/testing-components@portal:../testing-components::locator=%40sherlo%2Fexpo%40workspace%3A."
-  peerDependencies:
-    react: "*"
-    react-native: "*"
-    react-native-svg: "*"
   languageName: node
   linkType: soft
 

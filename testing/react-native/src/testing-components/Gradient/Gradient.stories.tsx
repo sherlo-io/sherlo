@@ -1,4 +1,4 @@
-import {StoryDecorator} from '@sherlo/testing-components';
+import StoryDecorator from '../../shared/StoryDecorator';
 import type {Meta} from '@storybook/react';
 import Gradient from './Gradient';
 

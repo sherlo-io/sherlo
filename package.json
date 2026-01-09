@@ -23,8 +23,7 @@
   },
   "workspaces": {
     "packages": [
-      "packages/*",
-      "testing/testing-components"
+      "packages/*"
     ]
   },
   "scripts": {

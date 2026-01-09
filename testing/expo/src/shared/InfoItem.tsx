@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, View, StyleSheet, useColorScheme } from 'react-native';
+import { StyleSheet, Text, useColorScheme, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 const IconComponents: Record<string, React.FC<{ color: string }>> = {

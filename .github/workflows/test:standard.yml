@@ -49,7 +49,7 @@ jobs:
         working-directory: testing/${{ inputs.project }}
         run: |
           yarn sherlo test:standard \
-            --config ../../configs/default-devices-without-expo-info.json \
+            --config ../../testing/sherlo-configs/default-devices-without-expo-info.json \
             --android builds/preview/android.apk \
             --ios builds/preview/ios.tar.gz \
             --token ${{ (inputs.project == 'expo' && secrets.SHERLO_STANDARD_EXPO_TOKEN) || 

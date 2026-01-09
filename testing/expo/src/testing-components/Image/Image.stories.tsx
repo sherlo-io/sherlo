@@ -1,6 +1,6 @@
 import type { Meta } from '@storybook/react';
 import { Image } from 'react-native';
-import { StoryDecorator } from '@sherlo/testing-components';
+import StoryDecorator from '../../shared/StoryDecorator';
 import { Image as TamaguiImage } from '@tamagui/image';
 import { Image as ExpoImage } from 'expo-image';
 import FastImage from '@d11/react-native-fast-image';

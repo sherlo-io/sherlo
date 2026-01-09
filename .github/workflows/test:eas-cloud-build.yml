@@ -44,7 +44,7 @@ jobs:
         run: |
           yarn sherlo test:eas-cloud-build \
             --waitForEasBuild \
-            --config ../../configs/default-devices-without-expo-info.json \
+            --config ../../testing/sherlo-configs/default-devices-without-expo-info.json \
             --token ${{ secrets.SHERLO_EAS_CLOUD_TOKEN }}
 
       - name: Trigger EAS builds for both platforms

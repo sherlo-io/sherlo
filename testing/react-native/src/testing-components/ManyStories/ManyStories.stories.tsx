@@ -1,5 +1,5 @@
 import type {Meta} from '@storybook/react';
-import {TestInfo} from '@sherlo/testing-components';
+import TestInfo from '../../shared/TestInfo';
 import {getLocales} from 'react-native-localize';
 import {PixelRatio} from 'react-native';
 

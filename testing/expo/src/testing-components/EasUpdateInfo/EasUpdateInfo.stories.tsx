@@ -1,6 +1,7 @@
-import { EasUpdateInfo, StoryDecorator } from '@sherlo/testing-components';
 import type { Meta } from '@storybook/react';
 import * as Updates from 'expo-updates';
+import EasUpdateInfo from '../../shared/EasUpdateInfo';
+import StoryDecorator from '../../shared/StoryDecorator';
 
 /**
  * This is a test screen that we add to our tests

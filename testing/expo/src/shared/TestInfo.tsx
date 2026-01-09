@@ -16,7 +16,7 @@ const getContrastTextColor = (backgroundColor: string | undefined) => {
   return luminance > 0.5 ? '#000000' : '#ffffff';
 };
 
-const TestScreen = ({
+const TestInfo = ({
   backgroundColor,
   colorName,
   locale,
@@ -64,4 +64,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TestScreen;
+export default TestInfo;

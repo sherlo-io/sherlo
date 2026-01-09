@@ -30,7 +30,6 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-native-community/slider": "5.0.1",
-    "@sherlo/testing-components": "portal:../testing-components",
     "@tamagui/config": "^1.126.12",
     "@tamagui/lucide-icons": "^1.126.12",
     "@tamagui/toast": "^1.126.12",
