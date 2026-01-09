@@ -53,3 +53,19 @@ CLI for initializing and running visual tests.
 Main package that enables React Native Storybook integration.
 
 **npm:** `@sherlo/react-native-storybook`
+
+# Packages
+
+Sherlo packages published to npm.
+
+## [./cli](./cli)
+
+CLI for initializing and running visual tests.
+
+**npm:** `sherlo`
+
+## [./react-native-storybook](./react-native-storybook)
+
+Main package that enables React Native Storybook integration.
+
+**npm:** `@sherlo/react-native-storybook`
