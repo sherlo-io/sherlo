@@ -1,6 +1,6 @@
 # Packages
 
-Sherlo packages published to npm.
+Packages published to npm.
 
 ## `sherlo` ([./cli](./cli))
 
