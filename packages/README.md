@@ -2,7 +2,7 @@
 
 Sherlo packages published to npm.
 
-## [`sherlo`](./cli)
+## [`sherlo`](./cli) (./cli)
 
 CLI for initializing and running visual tests.
 
