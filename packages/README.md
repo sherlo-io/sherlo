@@ -4,14 +4,10 @@ Sherlo packages published to npm.
 
 <br />
 
-## `sherlo`
+## `sherlo` (📁 [cli](./cli))
 
 CLI for initializing and running visual tests.
 
-📁 [cli](./cli)
-
-## `@sherlo/react-native-storybook`
+## `@sherlo/react-native-storybook` (📁 [react-native-storybook](./react-native-storybook))
 
 Main package that enables React Native Storybook integration.
-
-📁 [react-native-storybook](./react-native-storybook)
