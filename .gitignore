@@ -5,3 +5,5 @@ builds
 dist
 node_modules
 sherlo-lib
+*storybook.log
+storybook-static
