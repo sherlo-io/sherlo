@@ -1,12 +1,10 @@
 {
-  "name": "basic-app",
+  "name": "app",
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "storybook-generate": "sb-rn-get-stories"
+    "sherlo": "npx sherlo test"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.8",
@@ -23,6 +21,7 @@
     "storybook": "^10.1.11"
   },
   "devDependencies": {
+    "@sherlo/react-native-storybook": "^1.5.4",
     "@types/react": "~19.1.10",
     "typescript": "^5.9.3"
   },

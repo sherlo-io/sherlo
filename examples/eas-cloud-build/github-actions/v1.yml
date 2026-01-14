@@ -1,0 +1,60 @@
+name: Sherlo Test - EAS Cloud Build
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  sherlo-test-eas-cloud-build:
+    name: Test using EAS Cloud Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: 📥 Install dependencies
+        run: yarn install
+
+      - name: 🚀 Run Sherlo test with EAS Cloud Build
+        # Runs Sherlo visual tests using EAS Cloud Build
+        #
+        # This method triggers an EAS Build on Expo servers and waits
+        # for the build to complete before running visual tests
+        #
+        # To start EAS Cloud Builds from Sherlo:
+        # 1. Add a script to package.json named "eas-build-on-complete"
+        #    that runs the matching EAS Build command with the profile
+        #    that produces preview simulator builds
+        #
+        #    Example:
+        #    {
+        #      "scripts": {
+        #        "eas-build-on-complete": "eas build --platform all --profile preview"
+        #      }
+        #    }
+        #
+        #    The profile must produce preview simulator builds
+        #    that Sherlo can test on iOS and Android
+        #
+        # 2. Ensure the same profile is used in both the EAS Build
+        #    command in the script and when sherlo starts waiting
+        #
+        # EAS Build requires an authentication token:
+        # 1. Get token at: https://expo.dev/accounts/[account]/settings/access-tokens
+        # 2. Add to GitHub repository secrets as EXPO_TOKEN
+        #
+        # Sherlo requires an authentication token for your project:
+        # 1. Go to https://app.sherlo.io
+        # 2. Create or open a project and copy the project token
+        # 3. Add to GitHub repository secrets as SHERLO_TOKEN
+        run: npx sherlo test:eas-cloud-build \
+          --easBuildScriptName eas-build-on-complete \
+          --profile preview \
+          --token ${{ secrets.SHERLO_TOKEN }} \
+          --expoToken ${{ secrets.EXPO_TOKEN }}

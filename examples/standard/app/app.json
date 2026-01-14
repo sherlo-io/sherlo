@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Sherlo Standard Example",
+    "slug": "sherlo-standard-example",
+    "version": "1.0.0",
+    "sdkVersion": "54.0.0",
+    "android": {
+      "package": "io.sherlo.standard.example"
+    },
+    "ios": {
+      "bundleIdentifier": "io.sherlo.standard.example"
+    }
+  }
+}

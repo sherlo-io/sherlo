@@ -2136,6 +2136,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@sherlo/react-native-storybook@npm:^1.5.4":
+  version: 1.5.4
+  resolution: "@sherlo/react-native-storybook@npm:1.5.4"
+  dependencies:
+    base-64: "npm:1.0.0"
+    deepmerge: "npm:4.3.1"
+    its-fine: "npm:2.0.0"
+    sherlo: "npm:^1.5.4"
+    utf8: "npm:3.0.0"
+  peerDependencies:
+    "@storybook/react-native": ">=7.6.11"
+    react: "*"
+    react-native: ">=0.64.0"
+    react-native-safe-area-context: "*"
+  checksum: 10/7e144bc97f2d7a9e9f5f7e064bb9fa6125d41509258c271298f9487581361807db7508672beeae41e1f2a9ae2dd0c1216962ddc6195ae2c46882ffe643c2a469
+  languageName: node
+  linkType: hard
+
 "@sinclair/typebox@npm:^0.27.8":
   version: 0.27.8
   resolution: "@sinclair/typebox@npm:0.27.8"
@@ -2437,6 +2455,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/react-reconciler@npm:^0.28.9":
+  version: 0.28.9
+  resolution: "@types/react-reconciler@npm:0.28.9"
+  peerDependencies:
+    "@types/react": "*"
+  checksum: 10/2450e3df6169fb887591f2a949ca8f08439ac76c756124feeee7370f1a79b5060ba8e5f612302dc70169433e043da7f617dd7ea3b14a3c2bb39559d66b7a0986
+  languageName: node
+  linkType: hard
+
 "@types/react@npm:~19.1.10":
   version: 19.1.17
   resolution: "@types/react@npm:19.1.17"
@@ -2667,6 +2694,28 @@ __metadata:
   checksum: 10/3e044fd6d1d26545f235a9fe4d7a534e2029d8e59fa7fd9f2a6eb21230f6b5380ea1eaf55136e60cbf8e613544b3b766e7a6fa2102e2a3a117505466e3025dc2
   languageName: node
   linkType: hard
+
+"app@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "app@workspace:."
+  dependencies:
+    "@gorhom/bottom-sheet": "npm:^5.2.8"
+    "@react-native-async-storage/async-storage": "npm:^2.2.0"
+    "@sherlo/react-native-storybook": "npm:^1.5.4"
+    "@storybook/react-native": "npm:^10.1.11"
+    "@types/react": "npm:~19.1.10"
+    expo: "npm:54.0.31"
+    react: "npm:19.1.0"
+    react-native: "npm:0.81.5"
+    react-native-gesture-handler: "npm:~2.28.0"
+    react-native-reanimated: "npm:~4.1.1"
+    react-native-safe-area-context: "npm:^5.6.2"
+    react-native-svg: "npm:15.12.1"
+    react-native-worklets: "npm:0.5.1"
+    storybook: "npm:^10.1.11"
+    typescript: "npm:^5.9.3"
+  languageName: unknown
+  linkType: soft
 
 "arg@npm:^5.0.2":
   version: 5.0.2
@@ -2923,6 +2972,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"base-64@npm:1.0.0":
+  version: 1.0.0
+  resolution: "base-64@npm:1.0.0"
+  checksum: 10/d10b64a1fc9b2c5a5f39f1ce1e6c9d1c5b249222bbfa3a0604c592d90623caf74419983feadd8a170f27dc0c3389704f72faafa3e645aeb56bfc030c93ff074a
+  languageName: node
+  linkType: hard
+
 "base64-js@npm:^1.2.3, base64-js@npm:^1.3.1, base64-js@npm:^1.5.1":
   version: 1.5.1
   resolution: "base64-js@npm:1.5.1"
@@ -2938,27 +2994,6 @@ __metadata:
   checksum: 10/a329881e5f673c0834843640e9c954c478f643fb983449c99850392e48cf52dfb1dc3de8d81c6a6a2802c86310833accc5e3deb6bef5fb6e329989e28ca5489b
   languageName: node
   linkType: hard
-
-"basic-app@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "basic-app@workspace:."
-  dependencies:
-    "@gorhom/bottom-sheet": "npm:^5.2.8"
-    "@react-native-async-storage/async-storage": "npm:^2.2.0"
-    "@storybook/react-native": "npm:^10.1.11"
-    "@types/react": "npm:~19.1.10"
-    expo: "npm:54.0.31"
-    react: "npm:19.1.0"
-    react-native: "npm:0.81.5"
-    react-native-gesture-handler: "npm:~2.28.0"
-    react-native-reanimated: "npm:~4.1.1"
-    react-native-safe-area-context: "npm:^5.6.2"
-    react-native-svg: "npm:15.12.1"
-    react-native-worklets: "npm:0.5.1"
-    storybook: "npm:^10.1.11"
-    typescript: "npm:^5.9.3"
-  languageName: unknown
-  linkType: soft
 
 "better-opn@npm:~3.0.2":
   version: 3.0.2
@@ -3503,7 +3538,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"deepmerge@npm:^4.3.1":
+"deepmerge@npm:4.3.1, deepmerge@npm:^4.3.1":
   version: 4.3.1
   resolution: "deepmerge@npm:4.3.1"
   checksum: 10/058d9e1b0ff1a154468bf3837aea436abcfea1ba1d165ddaaf48ca93765fdd01a30d33c36173da8fbbed951dd0a267602bc782fe288b0fc4b7e1e7091afc4529
@@ -4588,6 +4623,17 @@ __metadata:
     istanbul-lib-coverage: "npm:^3.2.0"
     semver: "npm:^6.3.0"
   checksum: 10/bbc4496c2f304d799f8ec22202ab38c010ac265c441947f075c0f7d46bd440b45c00e46017cf9053453d42182d768b1d6ed0e70a142c95ab00df9843aa5ab80e
+  languageName: node
+  linkType: hard
+
+"its-fine@npm:2.0.0":
+  version: 2.0.0
+  resolution: "its-fine@npm:2.0.0"
+  dependencies:
+    "@types/react-reconciler": "npm:^0.28.9"
+  peerDependencies:
+    react: ^19.0.0
+  checksum: 10/26a6005615e31a8c5cec64ea66d4357bfa274616ed3e8224dd118e14c3f16aaa5a6c9454ae92a7bde687a4af80b5cfe7681f7ecc44edc3e64ee603a16550c8ea
   languageName: node
   linkType: hard
 
@@ -6595,6 +6641,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"sherlo@npm:^1.5.4":
+  version: 1.5.4
+  resolution: "sherlo@npm:1.5.4"
+  bin:
+    sherlo: cli.js
+  checksum: 10/c63363622bbe562ff54dd03986da774333d0665bf00d350dd968cc7047fc3c68ccafddab4c5cdda0fa89a454e363fa773a675cebf240d7fadea3e34a24d3d226
+  languageName: node
+  linkType: hard
+
 "signal-exit@npm:^3.0.2, signal-exit@npm:^3.0.7":
   version: 3.0.7
   resolution: "signal-exit@npm:3.0.7"
@@ -7198,6 +7253,13 @@ __metadata:
   peerDependencies:
     react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
   checksum: 10/b40ad2847ba220695bff2d4ba4f4d60391c0fb4fb012faa7a4c18eb38b69181936f5edc55a522c4d20a788d1a879b73c3810952c9d0fd128d01cb3f22042c09e
+  languageName: node
+  linkType: hard
+
+"utf8@npm:3.0.0":
+  version: 3.0.0
+  resolution: "utf8@npm:3.0.0"
+  checksum: 10/31d19c4faacbb65b09ebc1c21c32b20bdb0919c6f6773cee5001b99bb83f8e503e7233c08fc71ebb34f7cfebd95cec3243b81d90176097aa2f286cccb4ce866e
   languageName: node
   linkType: hard
 

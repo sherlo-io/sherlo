@@ -1,0 +1,49 @@
+name: Sherlo Test - Standard
+
+# Triggers automatically on every push to main branch
+on:
+  push:
+    branches: [main]
+
+jobs:
+  sherlo-test-standard:
+    name: Build native apps & run Sherlo
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: 📥 Install dependencies
+        run: yarn install
+
+      - name: 🏗️ Build native apps for testing
+        # This example uses EAS Build with custom "preview-simulator" profile
+        # Define this profile in eas.json (see example app for reference)
+        # You can also build using React Native CLI or Native Build Tools
+        # All methods explained at: https://sherlo.io/docs/builds?type=preview-simulator#build-types
+        #
+        # EAS Build requires authentication token:
+        # 1. Get token at: https://expo.dev/accounts/[account]/settings/access-tokens
+        # 2. Add to GitHub repository secrets as EXPO_TOKEN
+        run: |
+          npx eas-cli build --local --profile preview-simulator --platform android --output builds/android.apk
+          npx eas-cli build --local --profile preview-simulator --platform ios --output builds/ios.tar.gz
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 🧪 Run Sherlo test
+        # Sherlo requires authentication token for your project:
+        # 1. Go to https://app.sherlo.io
+        # 2. Create new project → copy token, or open existing project → reset token
+        # 3. Add to GitHub repository secrets as SHERLO_TOKEN
+        run: |
+          npx sherlo test:standard \
+            --android builds/android.apk \
+            --ios builds/ios.tar.gz \
+            --token ${{ secrets.SHERLO_TOKEN }}
