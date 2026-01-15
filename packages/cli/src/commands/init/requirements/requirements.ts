@@ -7,20 +7,20 @@ import {
   TOKEN_OPTION,
 } from '../../../constants';
 import {
-  getPackageVersion,
   isValidToken,
   printLink,
   throwError,
-  validatePackages,
 } from '../../../helpers';
-import { THIS_COMMAND } from '../constants';
 import { printMessage, printTitle, trackProgress } from '../helpers';
 import { EVENT } from './constants';
-import validateReactNativeProject from './validateReactNativeProject';
-import validateStorybook from './validateStorybook';
+import getPackageVersion from './getPackageVersion';
+import validateCorePackagesVersions from './validateCorePackagesVersions';
+import validateHasReactNative from './validateHasReactNative';
+import validateHasStorybook from './validateHasStorybook';
+import validateProjectContext from './validateProjectContext';
 
 async function requirements({ token, sessionId }: { token?: string; sessionId: string }) {
-  await validateProject(token);
+  await validateRequirements(token);
 
   printTitle('✅ Requirements', 15);
 
@@ -53,13 +53,15 @@ export default requirements;
 
 /* ========================================================================== */
 
-async function validateProject(token?: string): Promise<void> {
+async function validateRequirements(token?: string): Promise<void> {
   try {
-    await validateReactNativeProject();
+    await validateProjectContext();
 
-    await validateStorybook();
+    await validateHasReactNative();
 
-    validatePackages(THIS_COMMAND);
+    await validateHasStorybook();
+
+    validateCorePackagesVersions();
 
     if (token && !isValidToken(token)) {
       throwError({
