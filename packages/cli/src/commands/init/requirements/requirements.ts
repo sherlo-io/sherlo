@@ -15,8 +15,9 @@ import { printMessage, printTitle, trackProgress } from '../helpers';
 import { EVENT } from './constants';
 import getPackageVersion from './getPackageVersion';
 import validateCorePackagesVersions from './validateCorePackagesVersions';
+import validateHasReactNative from './validateHasReactNative';
 import validateHasStorybook from './validateHasStorybook';
-import validateIsReactNativeProject from './validateIsReactNativeProject';
+import validateProjectContext from './validateProjectContext';
 
 async function requirements({ token, sessionId }: { token?: string; sessionId: string }) {
   await validateRequirements(token);
@@ -54,7 +55,9 @@ export default requirements;
 
 async function validateRequirements(token?: string): Promise<void> {
   try {
-    await validateIsReactNativeProject();
+    await validateProjectContext();
+
+    await validateHasReactNative();
 
     await validateHasStorybook();
 
