@@ -1,7 +1,6 @@
 import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
-import getCwd from './getCwd';
-import throwError from './throwError';
+import { dirname, join } from 'path';
+import { getCwd, throwError } from '../../../helpers';
 
 const PACKAGE_JSON = 'package.json';
 

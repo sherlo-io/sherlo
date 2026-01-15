@@ -1,18 +1,15 @@
-import { Command } from '../../types';
+import { isPackageVersionCompatible, throwError } from '../../../../helpers';
 import getPackageVersion from '../getPackageVersion';
-import { isPackageVersionCompatible } from '../shared';
-import throwError from '../throwError';
 import getPackageErrorMessage from './getPackageErrorMessage';
 import { PackageRequirement } from './types';
 
-function validatePackageRequirement(requirement: PackageRequirement, command?: Command) {
+function validatePackageRequirement(requirement: PackageRequirement) {
   const { packageName, minVersion } = requirement;
   const version = getPackageVersion(packageName);
 
   if (!version) {
     throwError({
       message: getPackageErrorMessage({
-        command,
         packageName,
         type: 'missing',
       }),
@@ -28,7 +25,6 @@ function validatePackageRequirement(requirement: PackageRequirement, command?: C
   ) {
     throwError({
       message: getPackageErrorMessage({
-        command,
         packageName,
         type: 'version',
         versions: {

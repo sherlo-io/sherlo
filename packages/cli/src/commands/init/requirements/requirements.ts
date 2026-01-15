@@ -7,20 +7,19 @@ import {
   TOKEN_OPTION,
 } from '../../../constants';
 import {
-  getPackageVersion,
   isValidToken,
   printLink,
   throwError,
-  validatePackages,
 } from '../../../helpers';
-import { THIS_COMMAND } from '../constants';
 import { printMessage, printTitle, trackProgress } from '../helpers';
 import { EVENT } from './constants';
-import validateReactNativeProject from './validateReactNativeProject';
-import validateStorybook from './validateStorybook';
+import getPackageVersion from './getPackageVersion';
+import validateCorePackagesVersions from './validateCorePackagesVersions';
+import validateHasStorybook from './validateHasStorybook';
+import validateIsReactNativeProject from './validateIsReactNativeProject';
 
 async function requirements({ token, sessionId }: { token?: string; sessionId: string }) {
-  await validateProject(token);
+  await validateRequirements(token);
 
   printTitle('✅ Requirements', 15);
 
@@ -53,13 +52,13 @@ export default requirements;
 
 /* ========================================================================== */
 
-async function validateProject(token?: string): Promise<void> {
+async function validateRequirements(token?: string): Promise<void> {
   try {
-    await validateReactNativeProject();
+    await validateIsReactNativeProject();
 
-    await validateStorybook();
+    await validateHasStorybook();
 
-    validatePackages(THIS_COMMAND);
+    validateCorePackagesVersions();
 
     if (token && !isValidToken(token)) {
       throwError({

@@ -13,7 +13,6 @@ import {
   printBuildPlatformLabel,
   printResultsUrl,
   printSherloIntro,
-  validatePackages,
 } from '../../helpers';
 import { Options } from '../../types';
 import { THIS_COMMAND } from './constants';
@@ -26,8 +25,6 @@ import {
 
 async function testEasCloudBuild(passedOptions: Options<THIS_COMMAND>) {
   printSherloIntro();
-
-  validatePackages(TEST_EAS_CLOUD_BUILD_COMMAND);
 
   const commandParams = getValidatedCommandParams(
     { command: TEST_EAS_CLOUD_BUILD_COMMAND, passedOptions },

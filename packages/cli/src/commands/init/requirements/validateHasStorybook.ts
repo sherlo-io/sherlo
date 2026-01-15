@@ -3,7 +3,7 @@ import { throwError } from '../../../helpers';
 import findPackageJsonPaths from './findPackageJsonPaths';
 import hasDependency from './hasDependency';
 
-async function validateStorybook(): Promise<void> {
+async function validateHasStorybook(): Promise<void> {
   const { current, monorepoRoot } = await findPackageJsonPaths();
 
   const hasStorybook =
@@ -18,4 +18,4 @@ async function validateStorybook(): Promise<void> {
   }
 }
 
-export default validateStorybook;
+export default validateHasStorybook;

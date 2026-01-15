@@ -12,7 +12,7 @@ import {
   TEST_EAS_UPDATE_COMMAND,
 } from '../../constants';
 import { BinariesInfo, Command } from '../../types';
-import { isPackageVersionCompatible } from '../shared';
+import isPackageVersionCompatible from '../isPackageVersionCompatible';
 import throwError from '../throwError';
 
 function validateBinariesInfo({

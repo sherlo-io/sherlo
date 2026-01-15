@@ -6,7 +6,7 @@ import hasDependency from './hasDependency';
 const ERROR_NOT_RN_PROJECT = 'Init command must be run inside a React Native project';
 const ERROR_MONOREPO_ROOT = `${ERROR_NOT_RN_PROJECT}, not in monorepo root`;
 
-async function validateReactNativeProject(): Promise<void> {
+async function validateIsReactNativeProject(): Promise<void> {
   const { current, monorepoRoot } = await findPackageJsonPaths();
 
   if (!current) {
@@ -26,4 +26,4 @@ async function validateReactNativeProject(): Promise<void> {
   }
 }
 
-export default validateReactNativeProject;
+export default validateIsReactNativeProject;
