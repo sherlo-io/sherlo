@@ -18,8 +18,8 @@ export const DOCS_LINK = {
   configDevices: `${DOCS_BASE_URL}/config#devices`,
 
   builds: `${DOCS_BASE_URL}/builds`,
-  buildPreview: `${DOCS_BASE_URL}/builds?type=preview#build-types`,
-  buildDevelopment: `${DOCS_BASE_URL}/builds?type=development#build-types`,
+  buildPreview: `${DOCS_BASE_URL}/builds?type=preview-simulator#build-types`,
+  buildDevelopment: `${DOCS_BASE_URL}/builds?type=development-simulator#build-types`,
 
   testing: `${DOCS_BASE_URL}/testing`,
   testingMethods: `${DOCS_BASE_URL}/testing#testing-methods`,
