@@ -104,7 +104,7 @@ Review visual changes across devices in one web app as a team – from developer
 
 ## New to Storybook?
 
-Join thousands of teams using Storybook – a tool that helps you develop and document UI components
+Join thousands of teams using Storybook – a tool that helps you develop and document UI components.
 
 <br />
 
