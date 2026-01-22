@@ -3,17 +3,16 @@ export { default as getValidatedCommandParams } from './getValidatedCommandParam
 export { default as printBuildIntroMessage } from './printBuildIntroMessage';
 export { default as runShellCommand } from './runShellCommand';
 export { default as uploadOrPrintBinaryReuse } from './uploadOrPrintBinaryReuse';
-export { default as validatePackages } from './validatePackages';
 
 export { default as getAppBuildUrl } from './getAppBuildUrl';
 export { default as getBuildRunConfig } from './getBuildRunConfig';
 export { default as getCwd } from './getCwd';
 export { default as getErrorWithCustomMessage } from './getErrorWithCustomMessage';
 export { default as getGitInfo } from './getGitInfo';
-export { default as getPackageVersion } from './getPackageVersion';
 export { default as getPlatformsToTest } from './getPlatformsToTest';
 export { default as getTokenParts } from './getTokenParts';
 export { default as handleClientError } from './handleClientError';
+export { default as isPackageVersionCompatible } from './isPackageVersionCompatible';
 export { default as isValidToken } from './isValidToken';
 export { default as logInfo } from './logInfo';
 export { default as logWarning } from './logWarning';
@@ -28,3 +27,4 @@ export { default as throwError } from './throwError';
 export { default as uploadOrReuseBuildsAndRunTests } from './uploadOrReuseBuildsAndRunTests';
 export { default as withCommandTimeout } from './withCommandTimeout';
 export { default as wrapInBox } from './wrapInBox';
+
