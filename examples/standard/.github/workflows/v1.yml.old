@@ -1,0 +1,94 @@
+name: Sherlo Test - Standard
+# on:
+#   push:
+#     branches: [main]
+#   workflow_dispatch:
+jobs:
+  sherlo-test-standard:
+    name: Build apps & run Sherlo
+    runs-on: macos-latest  # Required for iOS builds
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+      # ═══════════════════════════════════════════════════════════════════
+      # VALIDATION STEP - Checks all requirements before building
+      # ═══════════════════════════════════════════════════════════════════
+      - name: 🔍 Validate configuration
+        id: validate
+        run: |
+          echo "Checking required configuration..."
+          echo ""
+          errors=0
+          # Check EXPO_TOKEN
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "::error title=Missing EXPO_TOKEN::❌ EXPO_TOKEN secret is not configured"
+            echo ""
+            echo "📝 How to fix:"
+            echo "   1. Go to https://expo.dev/accounts/[account]/settings/access-tokens"
+            echo "   2. Click 'Create token'"
+            echo "   3. Copy the token"
+            echo "   4. Go to your GitHub repo → Settings → Secrets and variables → Actions"
+            echo "   5. Click 'New repository secret'"
+            echo "   6. Name: EXPO_TOKEN, Value: [paste your token]"
+            echo ""
+            errors=$((errors+1))
+          else
+            echo "✅ EXPO_TOKEN is configured"
+          fi
+          # Check SHERLO_TOKEN
+          if [ -z "${{ secrets.SHERLO_TOKEN }}" ]; then
+            echo "::error title=Missing SHERLO_TOKEN::❌ SHERLO_TOKEN secret is not configured"
+            echo ""
+            echo "📝 How to fix:"
+            echo "   1. Go to https://app.sherlo.io"
+            echo "   2. Create a new project or open existing one"
+            echo "   3. Copy the project token"
+            echo "   4. Go to your GitHub repo → Settings → Secrets and variables → Actions"
+            echo "   5. Click 'New repository secret'"
+            echo "   6. Name: SHERLO_TOKEN, Value: [paste your token]"
+            echo ""
+            errors=$((errors+1))
+          else
+            echo "✅ SHERLO_TOKEN is configured"
+          fi
+          # Check EAS project configuration (projectId in app.json)
+          if ! grep -q '"projectId"' app.json 2>/dev/null; then
+            echo "::error title=EAS Project Not Initialized::❌ EAS project not initialized (missing projectId in app.json)"
+            echo ""
+            echo "📝 How to fix:"
+            echo "   1. Install EAS CLI: npm install -g eas-cli"
+            echo "   2. Login to Expo: eas login"
+            echo "   3. Initialize project: npx eas init"
+            echo "   4. Commit the updated app.json file"
+            echo ""
+            errors=$((errors+1))
+          else
+            echo "✅ EAS project is initialized (projectId found)"
+          fi
+          echo ""
+          if [ $errors -gt 0 ]; then
+            echo "❌ Found $errors configuration issue(s). Please fix them and re-run the workflow."
+            exit 1
+          fi
+          echo "🎉 All configuration checks passed!"
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+      - name: 🏗 Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: 📥 Install dependencies
+        run: yarn install
+      - name: 🏗️ Build apps for testing
+        run: |
+          npx eas-cli build --non-interactive --local --profile preview-simulator --platform android --output builds/android.apk
+          npx eas-cli build --non-interactive --local --profile preview-simulator --platform ios --output builds/ios.tar.gz
+      - name: 🧪 Run Sherlo test
+        run: |
+          npx sherlo test:standard \
+            --android builds/android.apk \
+            --ios builds/ios.tar.gz \
+            --token ${{ secrets.SHERLO_TOKEN }}

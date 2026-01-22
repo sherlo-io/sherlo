@@ -1,0 +1,106 @@
+name: Sherlo Test - EAS Update
+
+# ------------------------------------------------------------------------------
+# WORKFLOW VISUALIZATION:
+#
+# [ 🔍 Validate ]
+#          │
+#          ▼
+# [ 🧬 Check Fingerprint ] ───┐
+#          │                  │
+#    (Cache Hit?) ────────────┼─────── (Cache Miss?)
+#          │                  │           │
+#          ▼                  │           ▼
+# [ 📥 Restore Builds ]       │    [ 🔨 Build Native (EAS) ]
+#          │                  │           │
+#          └──────────────────┼───────────┘
+#                             ▼
+#                    [ 🚀 EAS Update ]
+#                             │
+#                             ▼
+#                    [ 🧪 Run Sherlo ]
+# ------------------------------------------------------------------------------
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  # ════════════════════════════════════════════════════════════════════════════
+  # 1. PRE-FLIGHT CHECK
+  # ════════════════════════════════════════════════════════════════════════════
+  validate:
+    name: Validate Configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v6
+
+      - name: 🔍 Validate Sherlo & EAS setup
+        uses: ./.github/actions/validate-sherlo
+        with:
+          expo-token: ${{ secrets.EXPO_TOKEN }}
+          sherlo-token: ${{ secrets.SHERLO_TOKEN }}
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # 2. UPDATE & TEST (On macOS to allow local iOS builds)
+  # ════════════════════════════════════════════════════════════════════════════
+  update-and-test:
+    name: EAS Update & Sherlo
+    runs-on: macos-latest # <--- FIX: Musi być macOS dla lokalnego iOS
+    needs: validate
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v6
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 'lts/*'
+
+      - name: 🏗 Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 📥 Install dependencies
+        run: yarn install
+
+      # Generujemy fingerprint kodu natywnego
+      - name: 🧬 Check Native Fingerprint
+        id: fingerprint
+        run: |
+          HASH=$(npx @expo/fingerprint . | shasum -a 256 | cut -d ' ' -f 1)
+          echo "hash=$HASH" >> $GITHUB_OUTPUT
+
+      # Próbujemy przywrócić buildy z cache
+      - name: 📥 Restore Native Builds from Cache
+        id: cache-builds
+        uses: actions/cache@v4
+        with:
+          path: |
+            android.apk
+            ios.tar.gz
+          key: ${{ runner.os }}-builds-${{ steps.fingerprint.outputs.hash }}
+
+      # Jeśli kod natywny się zmienił (brak cache) -> budujemy obie platformy
+      - name: 🔨 Build Native Apps (Local)
+        if: steps.cache-builds.outputs.cache-hit != 'true'
+        run: |
+          eas build --platform android --profile preview-simulator --non-interactive --local --output android.apk
+          eas build --platform ios --profile preview-simulator --non-interactive --local --output ios.tar.gz
+
+      # Publikujemy JS Update
+      - name: 🚀 Publish EAS Update
+        run: npx eas-cli update --auto --branch main --non-interactive
+
+      # Odpalamy Sherlo
+      - name: 🧪 Run Sherlo Test
+        run: |
+          npx sherlo test:eas-update \
+            --android android.apk \
+            --ios ios.tar.gz \
+            --branch main \
+            --token ${{ secrets.SHERLO_TOKEN }}

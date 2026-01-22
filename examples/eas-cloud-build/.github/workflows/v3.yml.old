@@ -1,0 +1,255 @@
+name: Sherlo Test - Standard
+
+# Triggers on push to main branch or manual dispatch
+# on:
+#   push:
+#     branches: [main]
+#   workflow_dispatch:
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # VALIDATION - Checks required configuration
+  # ═══════════════════════════════════════════════════════════════════════════
+  validate:
+    name: Validate configuration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔍 Check required configuration
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
+        run: |
+          echo "::group::🔍 Checking required configuration"
+          errors=0
+
+          # ─────────────────────────────────────────────────────────────────────
+          # Check EXPO_TOKEN
+          # ─────────────────────────────────────────────────────────────────────
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo ""
+            echo "──────────────────────────────────────────────────────────────────"
+            echo ""
+            echo "::error title=Missing EXPO_TOKEN::❌ EXPO_TOKEN secret is not configured"
+            cat << 'EOF'
+
+          📝 How to fix:
+             1. Go to https://expo.dev/accounts/[account]/settings/access-tokens
+             2. Click 'Create token' and copy it
+             3. Go to your GitHub repo → Settings → Secrets and variables → Actions
+             4. Click 'New repository secret'
+             5. Name: EXPO_TOKEN, Value: [paste your token]
+
+          EOF
+            errors=$((errors+1))
+          else
+            echo "✅ EXPO_TOKEN is configured"
+          fi
+
+          # ─────────────────────────────────────────────────────────────────────
+          # Check SHERLO_TOKEN
+          # ─────────────────────────────────────────────────────────────────────
+          if [ -z "$SHERLO_TOKEN" ]; then
+            echo ""
+            echo "──────────────────────────────────────────────────────────────────"
+            echo ""
+            echo "::error title=Missing SHERLO_TOKEN::❌ SHERLO_TOKEN secret is not configured"
+            cat << 'EOF'
+
+          📝 How to fix:
+             1. Go to https://app.sherlo.io
+             2. Create new project → copy token,
+                or open existing project → reset token
+             3. Go to your GitHub repo → Settings → Secrets and variables → Actions
+             4. Click 'New repository secret'
+             5. Name: SHERLO_TOKEN, Value: [paste your token]
+
+          EOF
+            errors=$((errors+1))
+          else
+            echo "✅ SHERLO_TOKEN is configured"
+          fi
+
+          # ─────────────────────────────────────────────────────────────────────
+          # Check EAS project configuration (projectId in app.json)
+          # ─────────────────────────────────────────────────────────────────────
+          if ! grep -q '"projectId"' app.json 2>/dev/null; then
+            echo ""
+            echo "──────────────────────────────────────────────────────────────────"
+            echo ""
+            echo "::error title=EAS Project Not Initialized::❌ Missing projectId in app.json"
+            cat << 'EOF'
+
+          📝 How to fix:
+             1. Login to Expo: npx eas-cli login
+             2. Initialize project: npx eas-cli init
+             3. Commit the updated app.json
+
+          ℹ️  More info: https://docs.expo.dev/build/setup/
+
+          EOF
+            errors=$((errors+1))
+          else
+            echo "✅ EAS project is initialized (projectId found)"
+          fi
+
+          # ─────────────────────────────────────────────────────────────────────
+          # Check eas.json has preview-simulator profile
+          # ─────────────────────────────────────────────────────────────────────
+          if ! grep -q '"preview-simulator"' eas.json 2>/dev/null; then
+            echo ""
+            echo "──────────────────────────────────────────────────────────────────"
+            echo ""
+            echo "::error title=Missing Build Profile::❌ Missing 'preview-simulator' profile in eas.json"
+            cat << 'EOF'
+
+          📝 How to fix:
+             Add the following profile to your eas.json:
+
+             {
+               "build": {
+                 "preview-simulator": {
+                   "android": { "buildType": "apk" },
+                   "ios": { "simulator": true }
+                 }
+               }
+             }
+
+          ℹ️  More info: https://sherlo.io/docs/builds?type=preview-simulator
+
+          EOF
+            errors=$((errors+1))
+          else
+            echo "✅ Build profile 'preview-simulator' found"
+          fi
+
+          echo "::endgroup::"
+
+          # ─────────────────────────────────────────────────────────────────────
+          # Summary
+          # ─────────────────────────────────────────────────────────────────────
+          echo ""
+          if [ $errors -gt 0 ]; then
+            echo "❌ Found $errors configuration issue(s). Please fix them and re-run the workflow."
+            exit 1
+          fi
+
+          echo "🎉 All configuration checks passed!"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # BUILD ANDROID
+  # ═══════════════════════════════════════════════════════════════════════════
+  build-android:
+    name: Build Android
+    runs-on: ubuntu-latest
+    needs: validate
+
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: yarn
+
+      - name: 🏗 Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 📥 Install dependencies
+        run: yarn install
+
+      - name: 🤖 Build Android
+        run: |
+          eas build \
+            --local \
+            --non-interactive \
+            --platform android \
+            --profile preview-simulator \
+            --output builds/android.apk
+
+      - name: 📤 Upload Android build
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build
+          path: builds/android.apk
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # BUILD iOS
+  # ═══════════════════════════════════════════════════════════════════════════
+  build-ios:
+    name: Build iOS
+    runs-on: macos-latest
+    needs: validate
+
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: yarn
+
+      - name: 🏗 Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 📥 Install dependencies
+        run: yarn install
+
+      - name: 🍎 Build iOS
+        run: |
+          eas build \
+            --local \
+            --non-interactive \
+            --platform ios \
+            --profile preview-simulator \
+            --output builds/ios.tar.gz
+
+      - name: 📤 Upload iOS build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build
+          path: builds/ios.tar.gz
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # SHERLO TEST
+  # ═══════════════════════════════════════════════════════════════════════════
+  sherlo-test:
+    name: Run Sherlo visual test
+    runs-on: ubuntu-latest
+    needs: [build-android, build-ios]
+
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📥 Download Android build
+        uses: actions/download-artifact@v4
+        with:
+          name: android-build
+          path: builds
+
+      - name: 📥 Download iOS build
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-build
+          path: builds
+
+      - name: 🧪 Run Sherlo
+        run: |
+          npx sherlo test:standard \
+            --android builds/android.apk \
+            --ios builds/ios.tar.gz \
+            --token ${{ secrets.SHERLO_TOKEN }}

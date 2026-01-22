@@ -1,0 +1,60 @@
+name: Sherlo Test - Standard
+
+# Triggers on every push to the main branch
+# on:
+#   push:
+#     branches: [main]
+#   workflow_dispatch:
+
+jobs:
+  sherlo-test-standard:
+    name: Build apps & run Sherlo (Standard)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: 📥 Install dependencies
+        run: yarn install
+
+      - name: 🏗️ Build apps for testing
+        # Builds fresh apps on every run
+        #
+        # This example builds apps using EAS Build locally
+        # with a custom "preview-simulator" profile
+        #
+        # You can also build apps using:
+        # - React Native CLI
+        # - Native build tools
+        #
+        # All build methods are documented in the "How to build?" section:
+        # https://sherlo.io/docs/builds?type=preview-simulator#build-types
+        run: |
+          npx eas-cli build --non-interactive --local --profile preview-simulator --platform android --output builds/android.apk
+          npx eas-cli build --non-interactive --local --profile preview-simulator --platform ios --output builds/ios.tar.gz
+        env:
+          # EAS Build requires authentication:
+          # 1. Go to https://expo.dev/accounts/[account]/settings/access-tokens
+          # 2. Create a new access token
+          # 3. Add it to GitHub repository secrets as EXPO_TOKEN
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 🧪 Run Sherlo test
+        # Runs Sherlo visual test using freshly built apps
+        #
+        # Sherlo requires a project authentication token:
+        # 1. Go to https://app.sherlo.io
+        # 2. Create new project → copy token,
+        #    or open existing project → reset token
+        # 3. Add it to GitHub repository secrets as SHERLO_TOKEN
+        run: |
+          npx sherlo test:standard \
+            --android builds/android.apk \
+            --ios builds/ios.tar.gz \
+            --token ${{ secrets.SHERLO_TOKEN }}

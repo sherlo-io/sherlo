@@ -1,0 +1,105 @@
+name: Validate Sherlo Standard Setup
+description: Validates Sherlo and EAS configuration for standard testing workflow
+
+inputs:
+  expo-token:
+    description: 'Expo access token'
+    required: true
+  sherlo-token:
+    description: 'Sherlo project token'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: 🔍 Validate EXPO_TOKEN
+      shell: bash
+      env:
+        EXPO_TOKEN: ${{ inputs.expo-token }}
+      run: |
+        if [ -z "$EXPO_TOKEN" ]; then
+          echo "❌ Missing EXPO_TOKEN"
+          echo ""
+          echo "EAS Build requires Expo authentication"
+          echo ""
+          echo "📝 How to fix:"
+          echo "   1. Go to https://expo.dev/accounts/[account]/settings/access-tokens"
+          echo "   2. Click 'Create token' and copy it"
+          echo "   3. Go to your GitHub repo → Settings → Secrets and variables → Actions"
+          echo "   4. Click 'New repository secret'"
+          echo "   5. Name: EXPO_TOKEN, Value: [paste your token]"
+          echo ""
+          echo "::error title=Missing EXPO_TOKEN::EXPO_TOKEN secret is not configured"
+          exit 1
+        fi
+        echo "✅ EXPO_TOKEN is configured"
+
+    - name: 🔍 Validate EAS preview-simulator build profile
+      shell: bash
+      run: |
+        if ! grep -q '"preview-simulator"' eas.json 2>/dev/null; then
+          echo "❌ Missing EAS Build Profile"
+          echo ""
+          echo "The workflow uses the 'preview-simulator' EAS Build profile"
+          echo ""
+          echo "📝 How to fix:"
+          echo "   Add the following profile to your eas.json file:"
+          echo ""
+          echo '   {'
+          echo '     "build": {'
+          echo '       "preview-simulator": {'
+          echo '         "android": { "buildType": "apk" },'
+          echo '         "ios": { "simulator": true }'
+          echo '       }'
+          echo '     }'
+          echo '   }'
+          echo ""
+          echo "ℹ️ More info: https://sherlo.io/docs/builds?type=preview-simulator#build-types"
+          echo ""
+          echo "::error title=Missing EAS Build Profile::Missing 'preview-simulator' profile in eas.json"
+          exit 1
+        fi
+        echo "✅ EAS Build profile 'preview-simulator' found"
+
+    - name: 🔍 Validate EAS project configuration
+      shell: bash
+      run: |
+        if ! grep -q '"projectId"' app.json 2>/dev/null; then
+          echo "❌ EAS Project Not Configured"
+          echo ""
+          echo "EAS Build requires the project to be linked to Expo"
+          echo ""
+          echo "📝 How to fix:"
+          echo "   1. Login to Expo: \`npx eas-cli login\`"
+          echo "   2. Configure project: \`npx eas-cli build:configure\`"
+          echo "   3. Commit the updated app.json file"
+          echo ""
+          echo "ℹ️ More info: https://docs.expo.dev/build/setup/"
+          echo ""
+          echo "::error title=EAS Project Not Configured::Missing projectId in app.json"
+          exit 1
+        fi
+        echo "✅ EAS project is configured (projectId found)"
+
+    - name: 🔍 Validate SHERLO_TOKEN
+      shell: bash
+      env:
+        SHERLO_TOKEN: ${{ inputs.sherlo-token }}
+      run: |
+        if [ -z "$SHERLO_TOKEN" ]; then
+          echo "❌ Missing SHERLO_TOKEN"
+          echo ""
+          echo "Sherlo requires a project token to authenticate and run tests"
+          echo ""
+          echo "📝 How to fix:"
+          echo "   1. Go to https://app.sherlo.io"
+          echo "   2. Create new project → copy token,"
+          echo "      or open existing project → reset token"
+          echo "   3. Go to your GitHub repo → Settings → Secrets and variables → Actions"
+          echo "   4. Click 'New repository secret'"
+          echo "   5. Name: SHERLO_TOKEN, Value: [paste your token]"
+          echo ""
+          echo "::error title=Missing SHERLO_TOKEN::SHERLO_TOKEN secret is not configured"
+          exit 1
+        fi
+        echo "✅ SHERLO_TOKEN is configured"

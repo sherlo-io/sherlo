@@ -1,0 +1,30 @@
+{
+  "name": "sherlo-example-standard",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "scripts": {
+    "build:android": "npx eas-cli build --local --platform android --profile preview-simulator --output builds/android.apk",
+    "build:ios": "npx eas-cli build --local --platform ios --profile preview-simulator --output builds/ios.tar.gz",
+    "sherlo:test": "npx sherlo test:standard --android builds/android.apk --ios builds/ios.tar.gz --token XXXXXXXX"
+  },
+  "dependencies": {
+    "@gorhom/bottom-sheet": "^5.2.8",
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@sherlo/react-native-storybook": "^1.5.5",
+    "@storybook/react-native": "^10.1.11",
+    "expo": "54.0.31",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-gesture-handler": "~2.28.0",
+    "react-native-reanimated": "~4.1.1",
+    "react-native-safe-area-context": "^5.6.2",
+    "react-native-svg": "15.12.1",
+    "react-native-worklets": "0.5.1",
+    "storybook": "^10.1.11"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.10",
+    "typescript": "^5.9.3"
+  },
+  "private": true
+}
