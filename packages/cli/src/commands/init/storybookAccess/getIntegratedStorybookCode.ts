@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../constants';
 
-function getSherloSolutionCode(): string {
+function getIntegratedStorybookCode(): string {
   return [
     [
       COLORS.KEYWORD('import'),
@@ -15,26 +15,20 @@ function getSherloSolutionCode(): string {
       COLORS.KEYWORD('from'),
       `${COLORS.COMPONENT('"./.rnstorybook"')};`,
     ].join(' '),
-    [
-      COLORS.KEYWORD('import'),
-      'App',
-      COLORS.KEYWORD('from'),
-      `${COLORS.COMPONENT('"./App"')};`,
-    ].join(' '),
     '',
     `${COLORS.FUNCTION('addStorybookToDevMenu')}();`,
     '',
-    [COLORS.KEYWORD('export default function'), `${COLORS.FUNCTION('Root')}() {`].join(' '),
+    [COLORS.KEYWORD('export default function'), `${COLORS.FUNCTION('App')}() {`].join(' '),
     [' ', COLORS.KEYWORD('if'), '(isStorybookMode) {'].join(' '),
     [' ', ' ', COLORS.KEYWORD('return'), `<${COLORS.COMPONENT('Storybook')} />;`].join(' '),
     [' ', '}'].join(' '),
     '',
-    [' ', COLORS.KEYWORD('return'), `<${COLORS.COMPONENT('App')} />;`].join(' '),
+    [' ', COLORS.KEYWORD('return'), `<${COLORS.COMPONENT('YourApp')} />;`].join(' '),
     '}',
   ].join('\n');
 }
 
-export default getSherloSolutionCode;
+export default getIntegratedStorybookCode;
 
 /* ========================================================================== */
 

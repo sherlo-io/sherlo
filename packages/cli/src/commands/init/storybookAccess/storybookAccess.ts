@@ -3,7 +3,8 @@ import { DOCS_LINK } from '../../../constants';
 import { logWarning, throwError, wrapInBox } from '../../../helpers';
 import { printSubtitle, printTitle, trackProgress, waitForEnterPress } from '../helpers';
 import { EVENT } from './constants';
-import getSherloSolutionCode from './getSherloSolutionCode';
+import getIntegratedStorybookCode from './getIntegratedStorybookCode';
+import getStandaloneStorybookCode from './getStandaloneStorybookCode';
 
 async function storybookAccess(sessionId: string): Promise<void> {
   printTitle('🔑 Storybook Access');
@@ -14,6 +15,10 @@ async function storybookAccess(sessionId: string): Promise<void> {
 
   console.log(`  Provide a build that ${chalk.underline('opens straight into Storybook')}`);
 
+  console.log();
+
+  console.log(wrapInBox({ title: 'Root component', text: getStandaloneStorybookCode(), indent: 2 }));
+
   printSubtitle('Option 2: Integrated Storybook');
 
   console.log(
@@ -22,7 +27,7 @@ async function storybookAccess(sessionId: string): Promise<void> {
 
   console.log();
 
-  console.log(wrapInBox({ title: 'Root component', text: getSherloSolutionCode(), indent: 2 }));
+  console.log(wrapInBox({ title: 'Root component', text: getIntegratedStorybookCode(), indent: 2 }));
 
   console.log();
 

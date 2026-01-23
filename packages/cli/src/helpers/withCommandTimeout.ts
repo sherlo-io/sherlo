@@ -8,7 +8,7 @@ const TIMEOUT_IN_MINUTES = 30;
  */
 function withCommandTimeout<T, P>(commandFn: (options: P) => Promise<T>) {
   return async (options: P): Promise<T> => {
-    let timeoutId: NodeJS.Timeout | undefined;
+    let timeoutId: number | undefined;
 
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(() => {
