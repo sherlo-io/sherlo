@@ -1,147 +1,91 @@
-# Standard Testing Example
+# Standard Example
 
-Test your Storybook components with locally built apps. This is the simplest way to get started with Sherlo.
-
-<br />
-
-## ✨ What Makes This Example Special
-
-- **Simple setup** - No external services required
-- **Full control** - All builds stored on your machine
-- **Works everywhere** - Local development and CI/CD ready
+This example demonstrates how to run visual tests on app builds with bundled JavaScript code using Sherlo. It includes a sample React Native app with Storybook and a GitHub Actions workflow.
 
 <br />
 
-## 🔄 How It Works
+## 🛠️ Prerequisites
 
-```
-┌─────────────────────────────────────────────────────┐
-│  1. Make UI changes in Storybook                    │
-└──────────────────┬──────────────────────────────────┘
-                   ▼
-┌─────────────────────────────────────────────────────┐
-│  2. Build Android + iOS simulator apps              │
-│     🤖 android.apk  +  🍎 YourApp.app               │
-└──────────────────┬──────────────────────────────────┘
-                   ▼
-┌─────────────────────────────────────────────────────┐
-│  3. Run Sherlo tests                                │
-│     npx sherlo test:standard                        │
-└──────────────────┬──────────────────────────────────┘
-                   ▼
-┌─────────────────────────────────────────────────────┐
-│  4. Review visual changes in Sherlo app             │
-│     https://app.sherlo.io                           │
-└─────────────────────────────────────────────────────┘
-```
+Before getting started, ensure you have:
+- An Expo account – sign up at https://expo.dev/signup
+- A Sherlo account – create one at https://app.sherlo.io
 
 <br />
 
-## ✅ Prerequisites
+## ⚙️ Setup
 
-- Node.js 18 or higher
-- Expo CLI or React Native CLI
-- Sherlo account ([create one here](https://app.sherlo.io))
-
-<br />
-
-## 🚀 Setup
-
-### 1. Clone and Install
-
-```bash
-# Clone the repository
-git clone https://github.com/sherlo-io/sherlo.git
-cd sherlo/examples/standard
-
-# Install dependencies
-yarn install
-```
-
-### 2. Configure Sherlo
-
-Get your project token from [app.sherlo.io](https://app.sherlo.io) and add it to `sherlo.config.json`:
-
-```json
-{
-  "token": "YOUR_TOKEN_HERE",
-  "android": "builds/android.apk",
-  "ios": "builds/ios.app",
-  "devices": [
-    { "id": "iphone.15", "osVersion": "17" },
-    { "id": "pixel.7", "osVersion": "13" }
-  ]
-}
-```
-
-### 3. Build Simulator Apps
-
-Build both Android and iOS apps for simulators:
-
-```bash
-# Build Android
-yarn build:android
-
-# Build iOS
-yarn build:ios
-```
-
-The builds will be saved to the `builds/` folder as specified in your config.
+1. Clone the repo: `git clone https://github.com/sherlo-io/sherlo`
+2. Navigate to this example: `cd examples/standard`
+3. Install dependencies: `yarn install` (or `npm install`)
 
 <br />
 
-## 🧪 Running Tests
+## 🚀 How to Run
 
-### Local Testing
+### Locally
 
-```bash
-yarn sherlo:test
-```
+1. Log in to Expo (if needed): `npx eas-cli login`
+2. Link the project with your Expo account: `npx eas-cli init`
+3. Build preview simulator builds:
+   - Android: `yarn build:android`
+   - iOS: `yarn build:ios`
+4. Run the Sherlo test:
+   - `yarn sherlo:test --token [your Sherlo project token]`
+   - Alternatively, add the token to `sherlo.config.json`
+   - Token docs: https://sherlo.io/docs/config#token
+5. Review results in the Sherlo web app
 
-This runs `npx sherlo test:standard` which uploads your builds and runs visual tests on all configured devices.
+### Via GitHub Actions
 
-### CI/CD Testing (GitHub Actions)
-
-This example includes a [`.github/workflows/sherlo.yml`](./.github/workflows/sherlo.yml) workflow file. To use it:
-
-1. Add these secrets to your GitHub repository:
-   - `SHERLO_TOKEN` - Your project token from Sherlo
-   - `EXPO_TOKEN` - Your Expo access token (if using Expo)
-
-2. Push to `main` branch or open a PR - tests run automatically
-
-<br />
-
-## 📁 Key Files
-
-```
-examples/standard/
-├── .storybook/              # Storybook configuration
-├── .github/workflows/       # CI/CD workflow for GitHub Actions
-├── builds/                  # Build output directory (gitignored)
-├── src/
-│   └── components/          # Example components with stories
-├── sherlo.config.json       # Sherlo testing configuration
-└── package.json             # Scripts: build:android, build:ios, sherlo:test
-```
-
-**Important files:**
-- `sherlo.config.json` - Defines test devices and build paths
-- `.storybook/main.ts` - Storybook configuration for React Native
-- `package.json` - Contains build and test scripts
+1. Add the following secrets in your GitHub repository:
+   - Go to: **Settings → Secrets and variables → Actions**
+   - `EXPO_TOKEN` – create one at https://expo.dev/accounts/[your-account]/settings/access-tokens
+   - `SHERLO_TOKEN` – copy from your Sherlo project in https://app.sherlo.io
+2. Log in to Expo (if needed): `npx eas-cli login`
+3. Link the project with your Expo account: `npx eas-cli init`
+4. Commit and push changes to the `main` branch to trigger the workflow
+5. Monitor the run in the GitHub Actions tab and review results in the Sherlo web app
 
 <br />
 
-## 💡 Key Points
+## 🔄 Workflow Overview
 
-- **New build required for every test** - Any code change (JS or native) needs a fresh build
-- **Build paths must match config** - Ensure your build output matches paths in `sherlo.config.json`
-- **Simulator builds only** - Use `.apk` for Android and `.app` for iOS (not production builds)
+1. Make UI changes
+2. Build Android and iOS preview simulator builds
+3. Run the Sherlo test
+4. Review visual changes in the Sherlo web app
+
+For details, see `.github/workflows/standard.yml`.
 
 <br />
 
-## 🔗 Learn More
+## 🗂️ Key Project Files
 
-- [Standard Testing Documentation](https://sherlo.io/docs/testing?method=standard)
-- [Build Configuration Guide](https://sherlo.io/docs/builds?type=preview-simulator)
-- [Sherlo Config Reference](https://sherlo.io/docs/config)
+This example project is already configured as if `npx sherlo init` had been run. The most relevant files are:
+
+- `.github/workflows/` – GitHub Actions workflow running builds and Sherlo tests
+- `.rnstorybook/index.ts` – exports the Storybook component required by Sherlo
+- `App.tsx` – renders Storybook as the root component of the app
+- `sherlo.config.json` – Sherlo configuration (devices, build paths, token)
+
+If you want to set up Sherlo in your own project, start with:
+```
+npx sherlo init
+```
+
+
+This command guides you through the setup and automatically creates or updates the required files.
+
+<br />
+
+## ℹ️ Additional Notes
+
+- **Build alternatives**: This example uses EAS Build to create preview simulator builds. If you prefer other build tools (React Native CLI, `gradlew`, `xcodebuild`), see:
+  https://sherlo.io/docs/builds?type=preview-simulator#build-types
+
+<br />
+
+## 🔗 Other Examples
+
+- [../eas-update](../eas-update) – Run visual tests using Over-The-Air JavaScript updates without rebuilding the app
+- [../eas-cloud-build](../eas-cloud-build) – Automatically run visual tests after builds complete on Expo servers
