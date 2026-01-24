@@ -31,6 +31,7 @@ type SherloModule = {
     threshold: number,
     includeAA: boolean
   ) => Promise<boolean>;
+  isScrollableSnapshot: () => Promise<boolean>;
 };
 
 let SherloModule: SherloModule;
@@ -123,6 +124,7 @@ function createSherloModule(): SherloModule {
     },
     openStorybook: () => module.openStorybook(),
     toggleStorybook: () => module.toggleStorybook(),
+    isScrollableSnapshot: () => module.isScrollableSnapshot(),
   };
 
   return sherloModule;
@@ -164,6 +166,7 @@ function createDummySherloModule(): SherloModule {
     readFile: async () => '',
     openStorybook: () => {},
     toggleStorybook: () => {},
+    isScrollableSnapshot: async () => false,
     stabilize: async (
       _requiredMatches: number,
       _minScreenshotsCount: number,

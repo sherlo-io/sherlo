@@ -17,6 +17,7 @@ export interface Spec extends TurboModule {
     threshold: number,
     includeAA: boolean
   ) => Promise<boolean>;
+  isScrollableSnapshot: () => Promise<boolean>;
   getSherloConstants: () => {};
 }
 

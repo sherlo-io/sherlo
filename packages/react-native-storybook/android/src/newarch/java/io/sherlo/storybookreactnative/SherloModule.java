@@ -132,4 +132,15 @@ public class SherloModule extends NativeSherloModuleSpec {
         Activity activity = getCurrentActivity();
         moduleCore.stabilize(activity, (int)requiredMatches, (int)minScreenshotsCount, (int)intervalMs, (int)timeoutMs, saveScreenshots, threshold, includeAA, promise);
     }
+
+    /**
+     * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
+     *
+     * @param promise Promise to resolve with boolean (true if scrollable, false otherwise)
+     */
+    @Override
+    public void isScrollableSnapshot(Promise promise) {
+        Activity activity = getCurrentActivity();
+        moduleCore.isScrollableSnapshot(activity, promise);
+    }
 } 
