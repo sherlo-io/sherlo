@@ -145,4 +145,17 @@ public class SherloModule extends ReactContextBaseJavaModule {
         Activity activity = getCurrentActivity();
         moduleCore.isScrollableSnapshot(activity, promise);
     }
+
+    /**
+     * Deterministically scrolls to a checkpoint index.
+     *
+     * @param index The checkpoint index (0-based)
+     * @param offset The vertical offset per checkpoint (in pixels)
+     * @param maxIndex The maximum allowed index
+     */
+    @ReactMethod
+    public void scrollToCheckpoint(double index, double offset, double maxIndex, Promise promise) {
+        Activity activity = getCurrentActivity();
+        moduleCore.scrollToCheckpoint(activity, index, offset, maxIndex, promise);
+    }
 }

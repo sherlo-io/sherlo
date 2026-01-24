@@ -32,6 +32,17 @@ type SherloModule = {
     includeAA: boolean
   ) => Promise<boolean>;
   isScrollableSnapshot: () => Promise<boolean>;
+  scrollToCheckpoint: (
+    index: number,
+    offset: number,
+    maxIndex: number
+  ) => Promise<{
+    reachedBottom: boolean;
+    appliedIndex: number;
+    appliedOffsetPx: number;
+    viewportPx: number;
+    contentPx: number;
+  }>;
 };
 
 let SherloModule: SherloModule;
@@ -125,6 +136,8 @@ function createSherloModule(): SherloModule {
     openStorybook: () => module.openStorybook(),
     toggleStorybook: () => module.toggleStorybook(),
     isScrollableSnapshot: () => module.isScrollableSnapshot(),
+    scrollToCheckpoint: (index: number, offset: number, maxIndex: number) =>
+      module.scrollToCheckpoint(index, offset, maxIndex),
   };
 
   return sherloModule;
@@ -167,6 +180,13 @@ function createDummySherloModule(): SherloModule {
     openStorybook: () => {},
     toggleStorybook: () => {},
     isScrollableSnapshot: async () => false,
+    scrollToCheckpoint: async () => ({
+      reachedBottom: true,
+      appliedIndex: 0,
+      appliedOffsetPx: 0,
+      viewportPx: 0,
+      contentPx: 0,
+    }),
     stabilize: async (
       _requiredMatches: number,
       _minScreenshotsCount: number,

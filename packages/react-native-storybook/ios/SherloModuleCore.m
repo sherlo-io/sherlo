@@ -500,4 +500,137 @@ static BOOL const SCROLL_DEBUG = YES;
     return delta >= 1.0;
 }
 
+#pragma mark - Checkpoint Scrolling
+
+/**
+ * Deterministically scrolls to a checkpoint index.
+ */
+- (void)scrollToCheckpoint:(double)index
+                    offset:(double)offset
+                  maxIndex:(double)maxIndex
+                   resolve:(RCTPromiseResolveBlock)resolve
+                    reject:(RCTPromiseRejectBlock)reject {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        @try {
+            NSDictionary *result = [self performScrollToCheckpoint:(NSInteger)index offset:offset maxIndex:(NSInteger)maxIndex];
+            resolve(result);
+        } @catch (NSException *exception) {
+            if (SCROLL_DEBUG) {
+                NSLog(@"[%@] scrollToCheckpoint exception: %@", LOG_TAG, exception);
+            }
+            // Return failure/sentinel payload
+            resolve(@{
+                @"reachedBottom": @(YES),
+                @"appliedIndex": @(0),
+                @"appliedOffsetPx": @(0),
+                @"viewportPx": @(0),
+                @"contentPx": @(0)
+            });
+        }
+    });
+}
+
+- (NSDictionary *)performScrollToCheckpoint:(NSInteger)index offset:(double)offsetPx maxIndex:(NSInteger)maxIndex {
+    // 1. Select Candidate (reuse logic)
+    UIWindow *keyWindow = [self getKeyWindow];
+    UIScrollView *candidate = nil;
+    
+    if (keyWindow) {
+        candidate = [self findScrollViewViaProbe:keyWindow];
+        if (!candidate) {
+            candidate = [self findLargestVisibleScrollView:keyWindow];
+        }
+    }
+    
+    if (!candidate) {
+        if (SCROLL_DEBUG) {
+            NSLog(@"[%@] scrollToCheckpoint: No candidate found", LOG_TAG);
+        }
+        return @{
+            @"reachedBottom": @(YES),
+            @"appliedIndex": @(0),
+            @"appliedOffsetPx": @(0),
+            @"viewportPx": @(0),
+            @"contentPx": @(0)
+        };
+    }
+    
+    // 2. Compute Metrics
+    CGFloat scale = [UIScreen mainScreen].scale;
+    CGFloat viewportPt = candidate.bounds.size.height;
+    CGFloat contentPt = candidate.contentSize.height;
+    CGFloat insetsTop = candidate.adjustedContentInset.top;
+    CGFloat insetsBottom = candidate.adjustedContentInset.bottom;
+    
+    // Determine min/max offsets in points
+    // minOffset is usually -topInset (e.g. 0 if no inset, or negative if navigation bar is translucent)
+    CGFloat minOffsetPt = -insetsTop;
+    CGFloat maxAvailableScrollPt = MAX(0, contentPt + insetsBottom + insetsTop - viewportPt);
+    CGFloat maxOffsetPt = minOffsetPt + maxAvailableScrollPt;
+    
+    // 3. Convert Offset Units
+    // The incoming offset is in physical pixels (as per requirement)
+    CGFloat stepPt = offsetPx / scale;
+    
+    // 4. Calculate Target
+    NSInteger clampedIndex = index;
+    if (clampedIndex < 0) clampedIndex = 0;
+    if (clampedIndex > maxIndex) clampedIndex = maxIndex;
+    
+    CGFloat targetPt;
+    if (clampedIndex == 0) {
+        targetPt = minOffsetPt; // Force top
+    } else {
+        targetPt = minOffsetPt + (clampedIndex * stepPt);
+    }
+    
+    // Clamp target to valid bounds
+    CGFloat clampedPt = MAX(minOffsetPt, MIN(maxOffsetPt, targetPt));
+    
+    // 5. Apply Scroll
+    // Only scroll if we are not already there (within small epsilon)
+    // But for index 0, always ensure we are at top
+    if (SCROLL_DEBUG) {
+        NSLog(@"[%@] Scrolling to index: %ld, targetPt: %.1f, clampedPt: %.1f", LOG_TAG, (long)clampedIndex, targetPt, clampedPt);
+    }
+    
+    [candidate setContentOffset:CGPointMake(candidate.contentOffset.x, clampedPt) animated:NO];
+    [candidate layoutIfNeeded];
+    
+    // 6. Read Back
+    CGFloat actualOffsetPt = candidate.contentOffset.y;
+    CGFloat actualOffsetPx = actualOffsetPt * scale; // Convert back to pixels for return value
+    // Adjust actualOffsetPx relative to minOffset (scrolled distance)
+    // We want to return "how many pixels we scrolled from top"
+    // So if minOffsetPt is -44, and we are at -44, scrolled distance is 0.
+    // If we are at 0, scrolled distance is 44pt.
+    CGFloat scrolledDistancePt = actualOffsetPt - minOffsetPt;
+    CGFloat scrolledDistancePx = scrolledDistancePt * scale;
+    
+    // 7. Detect Bottom
+    CGFloat epsilonPt = 2.0 / scale; // ~2px tolerance
+    BOOL reachedBottom = NO;
+    
+    // Reached bottom if:
+    // a) Actual offset is close to max offset
+    // b) There was no scroll range to begin with (maxAvailableScrollPt is small)
+    if (actualOffsetPt >= maxOffsetPt - epsilonPt) {
+        reachedBottom = YES;
+    }
+    if (maxAvailableScrollPt <= epsilonPt) {
+        reachedBottom = YES;
+    }
+    
+    // Also if we requested an index > 0 but couldn't move past previous checkpoint, 
+    // it implies stuck or bottom. But strictly check bounds here.
+    
+    return @{
+        @"reachedBottom": @(reachedBottom),
+        @"appliedIndex": @(clampedIndex),
+        @"appliedOffsetPx": @(scrolledDistancePx), // Return relative scrolled distance
+        @"viewportPx": @(viewportPt * scale),
+        @"contentPx": @(contentPt * scale)
+    };
+}
+
 @end 

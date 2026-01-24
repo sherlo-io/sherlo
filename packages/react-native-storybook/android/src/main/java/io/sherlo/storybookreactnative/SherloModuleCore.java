@@ -214,6 +214,164 @@ public class SherloModuleCore {
         });
     }
 
+    // ============ Checkpoint Scrolling ============
+
+    /**
+     * Deterministically scrolls to a checkpoint index.
+     *
+     * @param index The checkpoint index (0-based)
+     * @param offset The vertical offset per checkpoint (in pixels)
+     * @param maxIndex The maximum allowed index
+     */
+    public void scrollToCheckpoint(Activity activity, double index, double offset, double maxIndex, Promise promise) {
+        if (activity == null) {
+            promise.resolve(createScrollResult(true, 0, 0, 0, 0));
+            return;
+        }
+
+        activity.runOnUiThread(() -> {
+            try {
+                WritableMap result = performScrollToCheckpoint(activity, (int)index, (int)offset, (int)maxIndex);
+                promise.resolve(result);
+            } catch (Exception e) {
+                if (SCROLL_DEBUG) {
+                    Log.e(TAG, "scrollToCheckpoint exception", e);
+                }
+                promise.resolve(createScrollResult(true, 0, 0, 0, 0));
+            }
+        });
+    }
+
+    private WritableMap performScrollToCheckpoint(Activity activity, int index, int offsetPx, int maxIndex) {
+        View decorView = activity.getWindow().getDecorView();
+        if (decorView == null) {
+            return createScrollResult(true, 0, 0, 0, 0);
+        }
+
+        // 1. Select Candidate
+        // Reuse the logic from isScrollableSnapshot
+        View candidate = findScrollableViewViaProbe(decorView);
+        if (candidate == null) {
+            candidate = findLargestVisibleScrollableView(decorView);
+        }
+
+        if (candidate == null) {
+            if (SCROLL_DEBUG) {
+                Log.d(TAG, "scrollToCheckpoint: No candidate found");
+            }
+            return createScrollResult(true, 0, 0, 0, 0);
+        }
+
+        // 2. Compute Metrics
+        int viewportPx = candidate.getHeight();
+        
+        // Use reflection to fail gracefully if protected method fails
+        int range = getScrollRangeViaReflection(candidate);
+        
+        // If reflection failed, try fallback or just return what we have
+        if (range <= 0) {
+             // Fallback: assume some content logic or just return basic
+             // If we can't get range, we can't reliably scroll to max
+             if (SCROLL_DEBUG) {
+                 Log.d(TAG, "scrollToCheckpoint: Could not determine scroll range");
+             }
+             // We can still try to scroll if we have a target
+        }
+        
+        // extent is viewport height usually
+        int extent = getScrollExtentViaReflection(candidate); 
+        // Note: computeVerticalScrollExtent is also protected
+        if (extent <= 0) extent = viewportPx;
+        
+        // Max offset logic for Android: 
+        // range - extent = max scrollable offset
+        // If range is invalid, maybe we assume it's large?
+        // Let's rely on range from reflection.
+        int maxOffsetPx = Math.max(0, range - extent);
+        int minOffsetPx = 0;
+
+        // 3. Calculate Target
+        int clampedIndex = index;
+        if (clampedIndex < 0) clampedIndex = 0;
+        if (clampedIndex > maxIndex) clampedIndex = maxIndex;
+
+        int targetPx;
+        if (clampedIndex == 0) {
+            targetPx = minOffsetPx;
+        } else {
+            targetPx = minOffsetPx + (clampedIndex * offsetPx);
+        }
+        
+        // Clamp target
+        // If range was invalid (<=0), we might not want to clamp heavily or assume 0?
+        // If maxOffsetPx is 0, we can't scroll.
+        int clampedPx = Math.max(minOffsetPx, Math.min(maxOffsetPx, targetPx));
+        
+        // 4. Apply Scroll
+        int currentOffset = getScrollOffsetViaReflection(candidate);
+        int delta = clampedPx - currentOffset;
+        
+        if (SCROLL_DEBUG) {
+            Log.d(TAG, "scrollToCheckpoint: index=" + clampedIndex + ", target=" + targetPx + ", clamped=" + clampedPx + ", current=" + currentOffset + ", delta=" + delta);
+        }
+        
+        if (Math.abs(delta) > 0) {
+            scrollViewBy(candidate, delta);
+            
+            // In a real scenario, we might want to wait for layout/scroll to settle.
+            // But requirement says apply immediately.
+            // Android scrollBy might be async in terms of UI update cycle, 
+            // but reading back immediately usually gives the "target" or "current" depending on impl.
+            // Let's read back.
+        }
+        
+        // 5. Read Back
+        int actualOffsetPx = getScrollOffsetViaReflection(candidate);
+        
+        // 6. Detect Bottom
+        boolean reachedBottom = false;
+        if (actualOffsetPx >= maxOffsetPx - EPSILON) {
+            reachedBottom = true;
+        }
+        if (maxOffsetPx <= EPSILON) {
+            reachedBottom = true; // Not scrollable
+        }
+        
+        // Also if we tried to scroll down but offset didn't change, we might be stuck
+        if (delta > 0 && Math.abs(actualOffsetPx - currentOffset) < 1) {
+             // We tried to move but couldn't. Treat as bottom?
+             // Maybe. But strictly maxOffset check is safer.
+        }
+
+        return createScrollResult(reachedBottom, clampedIndex, actualOffsetPx, viewportPx, range);
+    }
+
+    private WritableMap createScrollResult(boolean reachedBottom, int appliedIndex, int appliedOffsetPx, int viewportPx, int contentPx) {
+        WritableMap map = Arguments.createMap();
+        map.putBoolean("reachedBottom", reachedBottom);
+        map.putInt("appliedIndex", appliedIndex);
+        map.putInt("appliedOffsetPx", appliedOffsetPx);
+        map.putInt("viewportPx", viewportPx);
+        map.putInt("contentPx", contentPx);
+        return map;
+    }
+
+    /**
+     * Get vertical scroll extent using reflection since the method is protected.
+     */
+    private int getScrollExtentViaReflection(View view) {
+        try {
+            java.lang.reflect.Method method = View.class.getDeclaredMethod("computeVerticalScrollExtent");
+            method.setAccessible(true);
+            return (Integer) method.invoke(view);
+        } catch (Exception e) {
+            if (SCROLL_DEBUG) {
+                Log.d(TAG, "Failed to get scroll extent via reflection: " + e.getMessage());
+            }
+            return -1;
+        }
+    }
+
     /**
      * Main detection logic for scrollable views.
      */

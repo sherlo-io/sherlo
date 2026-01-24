@@ -104,6 +104,22 @@
  * @param resolve Promise resolver called with boolean (true if scrollable, false otherwise)
  * @param reject Promise rejecter called if an error occurs
  */
-- (void)isScrollableSnapshot:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
+ - (void)isScrollableSnapshot:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
+
+/**
+ * Deterministically scrolls the currently visible screen to a specific checkpoint offset.
+ * Used for stitching long screenshots.
+ *
+ * @param index The checkpoint index (0-based)
+ * @param offset The vertical offset per checkpoint (in pixels/points)
+ * @param maxIndex The maximum allowed index
+ * @param resolve Promise resolver called with scroll result metrics
+ * @param reject Promise rejecter called if an error occurs
+ */
+- (void)scrollToCheckpoint:(double)index
+                    offset:(double)offset
+                  maxIndex:(double)maxIndex
+                   resolve:(RCTPromiseResolveBlock)resolve
+                    reject:(RCTPromiseRejectBlock)reject;
 
 @end 
