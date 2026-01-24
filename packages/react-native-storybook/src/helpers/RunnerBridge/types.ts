@@ -72,4 +72,14 @@ export type AckRequestSnapshotProtocolItem = {
   requestId: string;
 };
 
-export type RunnerProtocolItem = AckStartProtocolItem | AckRequestSnapshotProtocolItem;
+export type AckScrollRequestProtocolItem = {
+  action: 'ACK_SCROLL_REQUEST';
+  requestId: string;
+  scrollIndex: number;
+  offsetPx: number;
+};
+
+export type RunnerProtocolItem =
+  | AckStartProtocolItem
+  | AckRequestSnapshotProtocolItem
+  | AckScrollRequestProtocolItem;

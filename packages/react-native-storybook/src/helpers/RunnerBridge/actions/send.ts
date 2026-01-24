@@ -61,7 +61,9 @@ function send(path: string, log: LogFn): SendFn {
                 break;
 
               case 'REQUEST_SNAPSHOT':
-                hasAck = responseItem.action === 'ACK_REQUEST_SNAPSHOT';
+                hasAck =
+                  responseItem.action === 'ACK_REQUEST_SNAPSHOT' ||
+                  responseItem.action === 'ACK_SCROLL_REQUEST';
                 break;
 
               default:

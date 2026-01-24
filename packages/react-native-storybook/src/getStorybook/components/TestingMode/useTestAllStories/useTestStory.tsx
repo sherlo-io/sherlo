@@ -117,87 +117,94 @@ function useTestStory({
         }
 
         let checkpointIndex = 0;
-        let loopReachedBottom = false;
-        const CHECKPOINT_OFFSET_PX = 1000; // Define a reasonable offset (e.g. 1000px)
-        const MAX_INDEX = 50; // Guardrail
+        let currentRequestId = requestId;
 
-        // Loop to scroll to bottom
-        while (isScrollableSnapshot) {
-          if (checkpointIndex > 0) {
-            // Scroll to next checkpoint
-            RunnerBridge.log('scrolling to checkpoint', { checkpointIndex });
-            const scrollResult = await SherloModule.scrollToCheckpoint(
-              checkpointIndex,
-              CHECKPOINT_OFFSET_PX,
-              MAX_INDEX
-            ).catch((error) => {
-              RunnerBridge.log('error scrolling to checkpoint', { error: error.message });
-              throw error;
-            });
-            
-            RunnerBridge.log('scroll result', scrollResult);
-            loopReachedBottom = scrollResult.reachedBottom;
-            
-            // Re-stabilize after scroll
-            const isStableAfterScroll = await SherloModule.stabilize(
-              config.stabilization.requiredMatches,
-              config.stabilization.minScreenshotsCount,
-              config.stabilization.intervalMs,
-              config.stabilization.timeoutMs,
-              !!config.stabilization.saveScreenshots,
-              config.stabilization.threshold,
-              config.stabilization.includeAA
-            ).catch((error) => {
-              RunnerBridge.log('error checking if stable after scroll', { error: error.message });
-              throw error;
-            });
-            
-            if (!isStableAfterScroll) {
-               RunnerBridge.log('warning: UI not stable after scroll');
-            }
-          }
-
-          // Break loop conditions
-          if (loopReachedBottom) {
-            RunnerBridge.log('reached bottom of scrollable content', { checkpointIndex });
-            break;
-          }
-          if (checkpointIndex >= MAX_INDEX) {
-            RunnerBridge.log('reached max scroll index', { checkpointIndex });
-            break;
-          }
-          
-          checkpointIndex++;
-        }
-
-        // Request final snapshot (after scrolling mechanism finished or skipped)
-        RunnerBridge.log('inspector data', {
-          fabricMetadata,
-          inspectorData,
-          finalInspectorData,
-        });
-
+        // Initial Send
         RunnerBridge.log('requesting screenshot from master script', {
           action: 'REQUEST_SNAPSHOT',
           hasError: containsError,
           finalInspectorData: !!finalInspectorData,
           isStable,
           isScrollableSnapshot,
-          requestId: requestId,
+          requestId: currentRequestId,
           safeAreaMetadata,
           hasNetworkImage,
         });
 
-        await RunnerBridge.send({
+        let response = await RunnerBridge.send({
           action: 'REQUEST_SNAPSHOT',
           hasError: containsError,
           inspectorData: JSON.stringify(finalInspectorData),
           isStable,
           isScrollableSnapshot,
-          requestId: requestId,
+          requestId: currentRequestId,
           safeAreaMetadata,
           hasNetworkImage,
         });
+
+        // Loop if runner requests more scrolling
+        while (response && response.action === 'ACK_SCROLL_REQUEST') {
+          const { scrollIndex, offsetPx, requestId: nextRequestId } = response;
+          RunnerBridge.log('received ACK_SCROLL_REQUEST', { scrollIndex, offsetPx, nextRequestId });
+
+          if (nextRequestId) {
+            currentRequestId = nextRequestId;
+          }
+
+          if (scrollIndex > 0) {
+             // Scroll to target
+             const scrollResult = await SherloModule.scrollToCheckpoint(
+               scrollIndex,
+               offsetPx,
+               50 // Guardrail max index
+             ).catch((error) => {
+               RunnerBridge.log('error scrolling to checkpoint', { error: error.message });
+               throw error;
+             });
+             
+             // Check if we reached bottom locally
+             if (scrollResult.reachedBottom) {
+                RunnerBridge.log('reached bottom locally during scroll');
+             }
+
+             // Stabilize
+             const isStableAfterScroll = await SherloModule.stabilize(
+                config.stabilization.requiredMatches,
+                config.stabilization.minScreenshotsCount,
+                config.stabilization.intervalMs,
+                config.stabilization.timeoutMs,
+                !!config.stabilization.saveScreenshots,
+                config.stabilization.threshold,
+                config.stabilization.includeAA
+              ).catch((error) => {
+                RunnerBridge.log('error stabilizing after scroll', { error: error.message });
+                throw error;
+              });
+              
+              if (!isStableAfterScroll) {
+                 RunnerBridge.log('warning: UI not stable after scroll');
+              }
+          }
+          
+          checkpointIndex = scrollIndex;
+
+          // Send next part
+          RunnerBridge.log('requesting next screenshot part', {
+            scrollIndex: checkpointIndex,
+            requestId: currentRequestId,
+          });
+
+          response = await RunnerBridge.send({
+            action: 'REQUEST_SNAPSHOT',
+            hasError: containsError,
+            inspectorData: JSON.stringify(finalInspectorData),
+            isStable: true, // We restabilized
+            isScrollableSnapshot,
+            requestId: currentRequestId, 
+            safeAreaMetadata,
+            hasNetworkImage,
+          });
+        }
       } catch (error) {
         // @ts-ignore
         RunnerBridge.log('story capturing failed', { errorMessage: error?.message });
