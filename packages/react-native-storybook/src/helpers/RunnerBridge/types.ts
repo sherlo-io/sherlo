@@ -52,6 +52,8 @@ export type AppProtocolItem =
       requestId: string;
       hasNetworkImage?: boolean;
       isScrollableSnapshot?: boolean;
+      isAtEnd?: boolean;
+      scrollOffset?: number;
       safeAreaMetadata?: {
         shouldAddSafeArea: boolean;
         insetBottom: number;

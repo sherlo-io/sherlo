@@ -118,6 +118,8 @@ function useTestStory({
 
         let checkpointIndex = 0;
         let currentRequestId = requestId;
+        let isAtEnd = false;
+        let currentScrollOffset = 0;
 
         // Initial Send
         RunnerBridge.log('requesting screenshot from master script', {
@@ -129,6 +131,8 @@ function useTestStory({
           requestId: currentRequestId,
           safeAreaMetadata,
           hasNetworkImage,
+          isAtEnd,
+          scrollOffset: currentScrollOffset,
         });
 
         let response = await RunnerBridge.send({
@@ -140,6 +144,8 @@ function useTestStory({
           requestId: currentRequestId,
           safeAreaMetadata,
           hasNetworkImage,
+          isAtEnd,
+          scrollOffset: currentScrollOffset,
         });
 
         // Loop if runner requests more scrolling
@@ -165,6 +171,7 @@ function useTestStory({
              // Check if we reached bottom locally
              if (scrollResult.reachedBottom) {
                 RunnerBridge.log('reached bottom locally during scroll');
+                isAtEnd = true;
              }
 
              // Stabilize
@@ -184,6 +191,7 @@ function useTestStory({
               if (!isStableAfterScroll) {
                  RunnerBridge.log('warning: UI not stable after scroll');
               }
+              currentScrollOffset = offsetPx;
           }
           
           checkpointIndex = scrollIndex;
@@ -192,6 +200,8 @@ function useTestStory({
           RunnerBridge.log('requesting next screenshot part', {
             scrollIndex: checkpointIndex,
             requestId: currentRequestId,
+            isAtEnd,
+            scrollOffset: currentScrollOffset,
           });
 
           response = await RunnerBridge.send({
@@ -203,6 +213,8 @@ function useTestStory({
             requestId: currentRequestId, 
             safeAreaMetadata,
             hasNetworkImage,
+            isAtEnd,
+            scrollOffset: currentScrollOffset,
           });
         }
       } catch (error) {
