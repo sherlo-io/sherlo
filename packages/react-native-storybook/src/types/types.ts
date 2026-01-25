@@ -8,6 +8,12 @@ export interface SherloParameters {
   exclude?: boolean;
 
   /**
+   * Setting takeScrollingSnapshot to true will take a scrolling snapshot of the story.
+   * This is useful for testing components that have scrolling behavior.
+   */
+  takeScrollingSnapshot?: boolean;
+
+  /**
    * You can supply figmaUrl parameter with an URL to figma frame that contains
    * designs for this specific component. If supplied it can be viewed during
    * review to easily compare the implementation with designs and detect any

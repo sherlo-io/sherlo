@@ -139,7 +139,7 @@ const ParallaxComponent = () => {
       </Animated.View>
       
       <Animated.ScrollView
-        style={styles.container}
+        style={[styles.container, { backgroundColor: 'transparent' }]}
         contentContainerStyle={[styles.content, { paddingTop: 300 }]}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -202,10 +202,20 @@ const HorizontalSectionsComponent = () => {
 // ============================================
 // Gradient Overlay (full-height gradient)
 // ============================================
+// ============================================
+// Gradient Overlay (full-height gradient)
+// ============================================
 const GradientOverlayComponent = () => {
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {/* Full-height gradient behind the scroll */}
+      <LinearGradient
+        colors={['#0f0c29', '#302b63', '#24243e']}
+        style={gradientStyles.fullGradient}
+        pointerEvents="none"
+      />
+      
+      <ScrollView style={[styles.container, { backgroundColor: 'transparent' }]} contentContainerStyle={styles.content}>
         <Text style={[styles.header, { color: '#fff' }]}>Gradient Background</Text>
         <Text style={[styles.description, { color: '#eee' }]}>
           Testing how gradient backgrounds render across multiple screenshots.
@@ -221,13 +231,6 @@ const GradientOverlayComponent = () => {
           </View>
         ))}
       </ScrollView>
-      
-      {/* Full-height gradient behind the scroll */}
-      <LinearGradient
-        colors={['#0f0c29', '#302b63', '#24243e']}
-        style={gradientStyles.fullGradient}
-        pointerEvents="none"
-      />
     </View>
   );
 };
@@ -384,15 +387,16 @@ export default {
   component: ScrollableComponent,
 } as Meta<typeof ScrollableComponent>;
 
-export const Default = {};
-export const FloatingHeader = { render: () => <FloatingHeaderComponent /> };
-export const FABButton = { render: () => <FABComponent /> };
-export const ParallaxBackground = { render: () => <ParallaxComponent /> };
-export const HorizontalSections = { render: () => <HorizontalSectionsComponent /> };
-export const GradientOverlay = { render: () => <GradientOverlayComponent /> };
-export const StaggeredGrid = { render: () => <StaggeredGridComponent /> };
-export const CollapsingHeader = { render: () => <CollapsingHeaderComponent /> };
-export const InfiniteScroll = { render: () => <InfiniteScrollComponent /> };
+export const Default = { parameters: { sherlo: { takeScrollingSnapshot: true } } };
+export const FloatingHeader = { render: () => <FloatingHeaderComponent />, parameters: { sherlo: { takeScrollingSnapshot: true } } };
+export const FABButton = { render: () => <FABComponent />, parameters: { sherlo: { takeScrollingSnapshot: true } } };
+export const ParallaxBackground = { render: () => <ParallaxComponent />, parameters: { sherlo: { takeScrollingSnapshot: true } } };
+export const HorizontalSections = { render: () => <HorizontalSectionsComponent />, parameters: { sherlo: { takeScrollingSnapshot: true } } };
+export const GradientOverlay = { render: () => <GradientOverlayComponent />, parameters: { sherlo: { takeScrollingSnapshot: true } } };
+export const StaggeredGrid = { render: () => <StaggeredGridComponent />, parameters: { sherlo: { takeScrollingSnapshot: true } } };
+export const CollapsingHeader = { render: () => <CollapsingHeaderComponent />, parameters: { sherlo: { takeScrollingSnapshot: true } } };
+export const InfiniteScroll = { render: () => <InfiniteScrollComponent />, parameters: { sherlo: { takeScrollingSnapshot: true } } };
+export const InfiniteScrollWithoutParam = { render: () => <InfiniteScrollComponent /> };
 
 // ============================================
 // Styles
@@ -604,11 +608,12 @@ const horizontalStyles = StyleSheet.create({
 const gradientStyles = StyleSheet.create({
   fullGradient: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: -1,
+    // zIndex not needed if we place it correctly or rely on absolute positioning covering the container
   },
   card: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(255,255,255,0.6)', // More transparent (60%) so gradient shows through
+    borderColor: 'rgba(255,255,255,0.5)',
+    borderWidth: 1.5,
   },
 });
 
