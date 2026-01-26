@@ -191,12 +191,6 @@ function useTestStory({
               if (!isStableAfterScroll) {
                  RunnerBridge.log('warning: UI not stable after scroll');
               }
-              // appliedOffsetPx is the ABSOLUTE offset (contentOffset.y)
-              RunnerBridge.log('scroll result', { 
-                requested: offsetPx, 
-                applied: scrollResult.appliedOffsetPx, 
-                prevOffset: currentScrollOffset 
-              });
               currentScrollOffset = scrollResult.appliedOffsetPx;
           }
           
