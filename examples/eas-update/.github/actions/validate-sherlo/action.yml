@@ -77,18 +77,16 @@ runs:
         if ! grep -q '"projectId"' app.json 2>/dev/null; then
           HAS_ERRORS=1
           echo ""
-          echo "❌ EAS Project Not Configured"
+          echo "❌ Project Not Linked to Expo Account"
           echo ""
-          echo "EAS Build requires the project to be linked to Expo"
+          echo "This project needs to be linked to your Expo account"
           echo ""
           echo "📝 How to fix:"
           echo "   1. Login to Expo: npx eas-cli login"
-          echo "   2. Configure project: npx eas-cli init"
+          echo "   2. Link project: npx eas-cli init"
           echo "   3. Commit the updated app.json file"
           echo ""
-          echo "ℹ️ More info: https://docs.expo.dev/build/setup/"
-          echo ""
-          echo "::error title=EAS Project Not Configured::Missing projectId in app.json"
+          echo "::error title=EAS Project Not Linked::Missing projectId in app.json"
         else
           echo "✅ EAS project is configured (projectId found)"
         fi

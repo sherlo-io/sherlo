@@ -1,23 +1,12 @@
-import { addStorybookToDevMenu, isStorybookMode } from '@sherlo/react-native-storybook';
-import { View } from 'react-native';
-import Storybook from './.rnstorybook';
+import Storybook from './.rnstorybook'; // Sherlo-enabled Storybook
 
-addStorybookToDevMenu();
+export default function App() {
+  // To switch between Storybook and your app:
+  // if (isStorybookMode) return <Storybook />;
+  // return <YourApp />;
+  //
+  // More details on integrated Storybook:
+  // https://sherlo.io/docs/setup?storybook=integrated#storybook-access
 
-export default function Root() {
-  if (isStorybookMode) {
-    return <Storybook />;
-  }
-
-  return (
-    <App />
-  );
-}
-
-function App() {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text>Hello World</Text>
-    </View>
-  );
+  return <Storybook />;
 }

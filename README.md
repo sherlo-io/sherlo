@@ -143,7 +143,8 @@ Join thousands of teams using Storybook – a tool that helps you develop and do
 <div align="center">
   <a href="https://sherlo.io">Website</a> • 
   <a href="https://app.sherlo.io">App</a> • 
-  <a href="https://sherlo.io/docs">Docs</a>
+  <a href="https://sherlo.io/docs">Docs</a> • 
+  <a href="./examples">Examples</a>
 </div>
 
 <br />
