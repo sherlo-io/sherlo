@@ -191,8 +191,8 @@ function useTestStory({
               if (!isStableAfterScroll) {
                  RunnerBridge.log('warning: UI not stable after scroll');
               }
-              // Use ACTUAL scroll offset (may differ from requested near end of content)
-              currentScrollOffset = scrollResult.appliedOffsetPx;
+              // ACCUMULATE actual scroll offset (appliedOffsetPx is relative distance)
+              currentScrollOffset += scrollResult.appliedOffsetPx;
           }
           
           checkpointIndex = scrollIndex;
