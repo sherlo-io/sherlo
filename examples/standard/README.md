@@ -4,10 +4,6 @@ This workflow runs visual tests on app builds **with bundled JavaScript code.**
 
 It includes a minimal React Native + Storybook setup and a GitHub Actions workflow.
 
-<br />
-
-## 🔄 Workflow Visualization
-
 ```mermaid
 flowchart TB
    UI(🧑‍💻 UI Changes)
