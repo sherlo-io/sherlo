@@ -8,6 +8,57 @@ It includes a minimal React Native + Storybook setup and a GitHub Actions workfl
 
 ```mermaid
 flowchart TD
+    UI(📝 Make UI Changes)
+    Android(🤖 Build Android)
+    iOS(🍎 Build iOS)
+    Sherlo(🧪 Run Sherlo)
+    Review(👀 Review Visual Changes)
+
+    UI --> Android
+    UI --> iOS
+    Android --> Sherlo
+    iOS --> Sherlo
+    Sherlo --> Review
+```
+
+<br />
+
+```mermaid
+flowchart TD
+    UI[📝 Make UI Changes]
+    Android[🤖 Build Android]
+    iOS[🍎 Build iOS]
+    Sherlo[🧪 Run Sherlo]
+    Review[👀 Review Visual Changes]
+
+    UI --> Android
+    UI --> iOS
+    Android --> Sherlo
+    iOS --> Sherlo
+    Sherlo --> Review
+```
+
+<br />
+
+```mermaid
+flowchart TD
+    UI([📝 Make UI Changes])
+    Android([🤖 Build Android])
+    iOS([🍎 Build iOS])
+    Sherlo([🧪 Run Sherlo])
+    Review([👀 Review Visual Changes])
+
+    UI --> Android
+    UI --> iOS
+    Android --> Sherlo
+    iOS --> Sherlo
+    Sherlo --> Review
+```
+
+<br />
+
+```mermaid
+flowchart TD
     UI(📝 UI Changes)
     Android([🤖 Build Android])
     iOS[🍎 Build iOS]
