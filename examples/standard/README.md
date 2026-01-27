@@ -8,16 +8,14 @@ It includes a minimal React Native + Storybook setup and a GitHub Actions workfl
 
 ```mermaid
 flowchart TD
-    UI(🧑‍💻  UI Changes)
-    Android(🤖  Build Android)
-    iOS(🍎  Build iOS)
-    Sherlo(🧪  Run Sherlo)
-    Review(👀  Review Changes)
+    UI(🧑‍💻 UI Changes)
+    Android(🤖 Build Android)
+    iOS(🍎 Build iOS)
+    Sherlo(🧪 Run Sherlo)
+    Review(👀 Review Changes)
 
-    UI --> Android
-    UI --> iOS
-    Android --> Sherlo
-    iOS --> Sherlo
+    UI --> Android & iOS
+    Android & iOS --> Sherlo
     Sherlo --> Review
 ```
 
@@ -51,7 +49,7 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-   UI(📝 UI Changes)
+   UI(🧑‍💻 UI Changes)
 
    subgraph Builds
       direction LR
@@ -73,7 +71,7 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-   UI(📝 UI Changes)
+   UI(🧑‍💻 UI Changes)
    Builds(🤖 Android + 🍎 iOS Builds)
    Sherlo(🧪 Run Sherlo)
    Review(👀 Review Changes)
