@@ -70,8 +70,6 @@ npx eas-cli login
 npx eas-cli init
 ```
 
-<br />
-
 ### 2) Choose your workflow:
 
 #### a) GitHub Actions
@@ -89,8 +87,6 @@ npx eas-cli init
 2. **Test:** Run `yarn sherlo:test --token [SHERLO_TOKEN]`
    - Get token from [Sherlo](https://app.sherlo.io) (Project → Settings)
    - Or add it to `sherlo.config.json` ([docs](https://sherlo.io/docs/config#token))
-
-<br />
 
 ### 3) Review results
 
