@@ -21,19 +21,6 @@ flowchart TB
    Sherlo --> Review
 ```
 
-```mermaid
-flowchart LR
-   UI(🧑‍💻 UI Changes)
-   Android(🤖 Build Android)
-   iOS(🍎 Build iOS)
-   Sherlo(🧪 Run Sherlo)
-   Review(👀 Review Changes)
-
-   UI --> Android & iOS
-   Android & iOS --> Sherlo
-   Sherlo --> Review
-```
-
 For implementation details, see [`.github/workflows/standard.yml`](./.github/workflows/standard.yml).
 
 <br />
