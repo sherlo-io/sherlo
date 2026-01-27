@@ -2,16 +2,20 @@
 
 <!-- Minimal React Native + Storybook setup with GitHub Actions using Sherlo standard testing flow. -->
 
-This standard Sherlo testing example includes:
+<!-- This standard Sherlo testing example includes:
 
 - Minimal React Native + Storybook setup
-- GitHub Actions
+- GitHub Actions -->
+
+Minimal React Native + Storybook setup with GitHub Actions.
+
+This workflow runs visual tests on app builds **with bundled JavaScript code.**
 
 <br />
 
 ## 🔄 Workflow
 
-This workflow runs visual tests on app builds **with bundled JavaScript code.**
+<!-- This workflow runs visual tests on app builds **with bundled JavaScript code.** -->
 
 ```mermaid
 flowchart TB
