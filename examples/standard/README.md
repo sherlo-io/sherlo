@@ -83,7 +83,7 @@ npx eas-cli init
 
 ### 3) Review results
 
-Review detected visual changes at https://app.sherlo.io
+Review detected visual changes at https://app.sherlo.io.
 
 <br />
 
@@ -100,5 +100,5 @@ Review detected visual changes at https://app.sherlo.io
 
 ## 🔗 Other Examples
 
-- **[EAS Update](../eas-update)** – Run visual tests using Over-The-Air updates for JavaScript changes, without full app rebuilds
-- **[EAS Cloud Build](../eas-cloud-build)** – Automatically run visual tests after builds complete on Expo servers
+- **[EAS Update](../eas-update)** – Run visual tests using **Over-The-Air updates** for JavaScript changes, without full app rebuilds
+- **[EAS Cloud Build](../eas-cloud-build)** – Automatically run visual tests **after builds complete on Expo servers**
