@@ -6,6 +6,23 @@ It includes a minimal React Native + Storybook setup and a GitHub Actions workfl
 
 <br />
 
+## 🔄 Workflow Visualization
+
+```mermaid
+flowchart TB
+   UI(🧑‍💻 UI Changes)
+   Android(🤖 Build Android)
+   iOS(🍎 Build iOS)
+   Sherlo(🧪 Run Sherlo)
+   Review(👀 Review Changes)
+
+   UI --> Android & iOS
+   Android & iOS --> Sherlo
+   Sherlo --> Review
+```
+
+<br />
+
 ## 🛠️ Prerequisites
 
 Before getting started, ensure you have:
@@ -27,25 +44,6 @@ cd sherlo/examples/standard
 # Install dependencies
 yarn install
 ```
-
-<br />
-
-## 🔄 Workflow Visualization
-
-```mermaid
-flowchart TB
-   UI(🧑‍💻 UI Changes)
-   Android(🤖 Build Android)
-   iOS(🍎 Build iOS)
-   Sherlo(🧪 Run Sherlo)
-   Review(👀 Review Changes)
-
-   UI --> Android & iOS
-   Android & iOS --> Sherlo
-   Sherlo --> Review
-```
-
-For implementation details, see [`.github/workflows/standard.yml`](./.github/workflows/standard.yml).
 
 <br />
 
