@@ -8,17 +8,91 @@ It includes a minimal React Native + Storybook setup and a GitHub Actions workfl
 
 ```mermaid
 flowchart TD
-    A["📝 UI Changes"] --> B["🤖 Build Android"]
-    A --> C["🍎 Build iOS"]
-    B --> D["🧪 Run Sherlo"]
-    C --> D
-    D --> E["👀 Review Changes"]
+    UI["📝 UI Changes"]
+    Android["🤖 Build Android"]
+    iOS["🍎 Build iOS"]
+    Sherlo["🧪 Run Sherlo"]
+    Review["👀 Review Changes"]
 
-    style A fill:#e1f5ff
-    style B fill:#fff4e6
-    style C fill:#fff4e6
-    style D fill:#f3e5f5
-    style E fill:#e8f5e9
+    UI --> Android
+    UI --> iOS
+    Android --> Sherlo
+    iOS --> Sherlo
+    Sherlo --> Review
+```
+
+<br />
+
+```mermaid
+flowchart LR
+    A[Prostokąt]
+    B(Zaokrąglone rogi)
+    C([Stadium/pill shape])
+    D[[Subroutine]]
+    E[(Database)]
+    F((Circle))
+    G>Asymmetric]
+    H{Diamond/Decision}
+    I{{Hexagon}}
+    J[/Parallelogram/]
+
+    A --> B
+    B --- C
+    C -.-> D
+    D ==> E
+    E --tekst--> F
+    F --> G
+    G --- H
+    H -.-> I
+    I ==> J
+```
+
+<br />
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px'}}}%%
+flowchart TD
+    %% Definicje nodes
+    UI["📝 UI Changes"]
+    Android["🤖 Build Android"]
+    iOS["🍎 Build iOS"]
+    Sherlo["🧪 Run Sherlo"]
+    Review["👀 Review Changes"]
+
+    %% Relacje
+    UI --> Android
+    UI --> iOS
+    Android --> Sherlo
+    iOS --> Sherlo
+    Sherlo --> Review
+
+    %% Style
+    classDef change fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef build fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef test fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef review fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+
+    class UI change
+    class Android,iOS build
+    class Sherlo test
+    class Review review
+```
+
+<br />
+
+```mermaid
+flowchart TD
+    UI[📝 UI Changes]
+
+    subgraph builds[" Build Phase "]
+        Android[🤖 Build Android]
+        iOS[🍎 Build iOS]
+    end
+
+    Sherlo[🧪 Run Sherlo]
+
+    UI --> builds
+    builds --> Sherlo
 ```
 
 ## 🔄 Workflow Visualization
