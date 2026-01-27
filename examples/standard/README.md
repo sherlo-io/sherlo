@@ -83,6 +83,8 @@ Then choose your workflow:
 - **[EAS Update](../eas-update)** – Run visual tests using Over-The-Air updates for JavaScript changes, without full app rebuilds
 - **[EAS Cloud Build](../eas-cloud-build)** – Automatically run visual tests after builds complete on Expo servers
 
+<br />
+
 ---
 
 _🔧 **Alternative build tools:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)._
