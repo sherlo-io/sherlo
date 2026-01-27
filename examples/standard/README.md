@@ -6,138 +6,19 @@ It includes a minimal React Native + Storybook setup and a GitHub Actions workfl
 
 <br />
 
+## 🔄 Workflow Visualization
+
 ```mermaid
 flowchart TD
-    UI(🧑‍💻 UI Changes)
-    Android(🤖 Build Android)
-    iOS(🍎 Build iOS)
-    Sherlo(🧪 Run Sherlo)
-    Review(👀 Review Changes)
-
-    UI --> Android & iOS
-    Android & iOS --> Sherlo
-    Sherlo --> Review
-```
-
-<br />
-
-```mermaid
-flowchart LR
-    A[Prostokąt]
-    B(Zaokrąglone rogi)
-    C([Stadium/pill shape])
-    D[[Subroutine]]
-    E[(Database)]
-    F((Circle))
-    G>Asymmetric]
-    H{Diamond/Decision}
-    I{{Hexagon}}
-    J[/Parallelogram/]
-
-    A --> B
-    B --- C
-    C -.-> D
-    D ==> E
-    E --tekst--> F
-    F --> G
-    G --- H
-    H -.-> I
-    I ==> J
-```
-
-<br />
-
-```mermaid
-flowchart TB
    UI(🧑‍💻 UI Changes)
-
-   subgraph Builds
-      direction LR
-      Android(🤖 Build Android)
-      iOS(🍎 Build iOS)
-   end
-
+   Android(🤖 Build Android)
+   iOS(🍎 Build iOS)
    Sherlo(🧪 Run Sherlo)
    Review(👀 Review Changes)
 
-   UI --> Android
-   UI --> iOS
-   Android --> Sherlo
-   iOS --> Sherlo
+   UI --> Android & iOS
+   Android & iOS --> Sherlo
    Sherlo --> Review
-```
-
-<br />
-
-```mermaid
-flowchart TB
-   UI(🧑‍💻 UI Changes)
-   Builds(🤖 Android + 🍎 iOS Builds)
-   Sherlo(🧪 Run Sherlo)
-   Review(👀 Review Changes)
-
-   UI --> Builds
-   Builds --> Sherlo
-   Sherlo --> Review
-```
-
-<br />
-
-```mermaid
-flowchart TB
-   UI(🧑‍💻 UI Changes)
-   Builds("`🤖 Build Android
-   +
-   🍎 Build iOS`")
-   Sherlo(🧪 Run Sherlo)
-   Review(👀 Review Changes)
-
-   UI --> Builds
-   Builds --> Sherlo
-   Sherlo --> Review
-```
-
-## 🔄 Workflow Visualization
-
-```text
-              [  📝 UI Changes  ]
-                       │
-          ┌────────────┴────────────┐
-          ▼                         ▼
-  [  🤖 Build Android  ]    [  🍎 Build iOS  ]
-          │                         │
-          └────────────┬────────────┘
-                       ▼
-              [  🧪 Run Sherlo  ]
-                       │
-                       ▼
-            [  👀 Review Changes  ]
-```
-
-<br />
-
-## 🔄 Workflow Visualization
-
-```plaintext
-                  ┌──────────────────┐
-                  │  📝 UI Changes   │
-                  └────────┬─────────┘
-                           │
-              ┌────────────┴────────────┐
-              ▼                         ▼
-      ┌──────────────────┐         ┌───────────────┐
-      │ 🤖 Build Android │         │ 🍎 Build iOS   │
-      └───────┬──────────┘         └───────┬───────┘
-              │                         │
-              └────────────┬────────────┘
-                           ▼
-                  ┌─────────────────┐
-                  │  🧪 Run Sherlo  │
-                  └────────┬────────┘
-                           ▼
-                ┌─────────────────────┐
-                │ 👀 Review Changes   │
-                └─────────────────────┘
 ```
 
 For implementation details, see [`.github/workflows/standard.yml`](./.github/workflows/standard.yml).
