@@ -51,13 +51,13 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-   UI[📝 UI Changes]
+   UI(📝 UI Changes)
    subgraph Builds
       direction LR
-      Android[🤖 Build Android]
-      iOS[🍎 Build iOS]
+      Android(🤖 Build Android)
+      iOS(🍎 Build iOS)
    end
-   Sherlo[🧪 Run Sherlo]
+   Sherlo(🧪 Run Sherlo)
    Review(👀  Review Changes)
 
    UI --> Builds
