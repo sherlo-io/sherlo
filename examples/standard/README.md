@@ -70,9 +70,11 @@ npx eas-cli login
 npx eas-cli init
 ```
 
-### Choose your workflow
+<br />
 
-#### GitHub Actions
+### Choose your workflow:
+
+#### a) GitHub Actions
 
 1. **Add secrets** (Settings → Secrets and variables → Actions -> New repository secret):
    - `EXPO_TOKEN` – [create here](https://expo.dev/accounts/[your-account]/settings/access-tokens)
@@ -80,13 +82,15 @@ npx eas-cli init
 
 2. **Trigger:** Commit and push to `main` branch
 
-#### Local
+#### b) Local
 
 1. **Build:** Run `yarn build:android` and `yarn build:ios`
 
 2. **Test:** Run `yarn sherlo:test --token [SHERLO_TOKEN]`
    - Get token from [Sherlo](https://app.sherlo.io) (Project → Settings)
    - Or add it to `sherlo.config.json` ([docs](https://sherlo.io/docs/config#token))
+
+<br />
 
 ### Review results
 
