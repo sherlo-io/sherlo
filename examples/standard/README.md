@@ -8,11 +8,11 @@ It includes a minimal React Native + Storybook setup and a GitHub Actions workfl
 
 ```mermaid
 flowchart TD
-    UI(📝 Make UI Changes)
+    UI(🧑‍💻 Make UI Changes)
     Android(🤖 Build Android)
     iOS(🍎 Build iOS)
     Sherlo(🧪 Run Sherlo)
-    Review(👀 Review Visual Changes)
+    Review(👀 Review Changes)
 
     UI --> Android
     UI --> iOS
@@ -25,62 +25,11 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    UI[📝 Make UI Changes]
-    Android[🤖 Build Android]
-    iOS[🍎 Build iOS]
-    Sherlo[🧪 Run Sherlo]
-    Review[👀 Review Visual Changes]
-
-    UI --> Android
-    UI --> iOS
-    Android --> Sherlo
-    iOS --> Sherlo
-    Sherlo --> Review
-```
-
-<br />
-
-```mermaid
-flowchart TD
-    UI([📝 Make UI Changes])
-    Android([🤖 Build Android])
-    iOS([🍎 Build iOS])
-    Sherlo([🧪 Run Sherlo])
-    Review([👀 Review Visual Changes])
-
-    UI --> Android
-    UI --> iOS
-    Android --> Sherlo
-    iOS --> Sherlo
-    Sherlo --> Review
-```
-
-<br />
-
-```mermaid
-flowchart TD
-    UI(📝 UI Changes)
-    Android([🤖 Build Android])
-    iOS[🍎 Build iOS]
+    UI(🎨 UI Changes)
+    Android(🤖 Build Android)
+    iOS(🍎 Build iOS)
     Sherlo(🧪 Run Sherlo)
-    Review([👀 Review Changes])
-
-    UI --> Android
-    UI --> iOS
-    Android --> Sherlo
-    iOS --> Sherlo
-    Sherlo --> Review
-```
-
-<br />
-
-```mermaid
-flowchart LR
-    UI(📝 UI Changes)
-    Android([🤖 Build Android])
-    iOS[🍎 Build iOS]
-    Sherlo(🧪 Run Sherlo)
-    Review([👀 Review Changes])
+    Review(👀 Review Changes)
 
     UI --> Android
     UI --> iOS
@@ -113,37 +62,6 @@ flowchart LR
     G --- H
     H -.-> I
     I ==> J
-```
-
-<br />
-
-```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px'}}}%%
-flowchart TD
-    %% Definicje nodes
-    UI["📝 UI Changes"]
-    Android["🤖 Build Android"]
-    iOS["🍎 Build iOS"]
-    Sherlo["🧪 Run Sherlo"]
-    Review["👀 Review Changes"]
-
-    %% Relacje
-    UI --> Android
-    UI --> iOS
-    Android --> Sherlo
-    iOS --> Sherlo
-    Sherlo --> Review
-
-    %% Style
-    classDef change fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
-    classDef build fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef test fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef review fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
-
-    class UI change
-    class Android,iOS build
-    class Sherlo test
-    class Review review
 ```
 
 <br />
