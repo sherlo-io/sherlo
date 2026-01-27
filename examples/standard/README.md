@@ -2,9 +2,11 @@
 
 Minimal React Native + Storybook setup with GitHub Actions.
 
-This workflow runs visual tests on app builds **with bundled JavaScript code.**
-
 🔧 _Uses EAS Build. For React Native CLI or native tools (gradlew/xcodebuild), see [build docs](https://sherlo.io/docs/builds?type=preview-simulator#build-types)._
+
+<br />
+
+This workflow runs visual tests on app builds **with bundled JavaScript code.**
 
 ```mermaid
 flowchart TB
