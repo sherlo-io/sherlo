@@ -19,6 +19,7 @@ flowchart TD
     Android --> Sherlo
     iOS --> Sherlo
     Sherlo --> Review
+    Review -.-> UI
 ```
 
 <br />
