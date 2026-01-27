@@ -8,10 +8,11 @@ export interface SherloParameters {
   exclude?: boolean;
 
   /**
-   * Setting takeScrollingSnapshot to true will take a scrolling snapshot of the story.
-   * This is useful for testing components that have scrolling behavior.
+   * Setting takeViewportSnapshot to true will force a single viewport snapshot of the story,
+   * even if the content is scrollable. By default, Sherlo automatically takes scrolling snapshots
+   * for scrollable content.
    */
-  takeScrollingSnapshot?: boolean;
+  takeViewportSnapshot?: boolean;
 
   /**
    * You can supply figmaUrl parameter with an URL to figma frame that contains

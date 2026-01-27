@@ -387,16 +387,16 @@ export default {
   component: ScrollableComponent,
 } as Meta<typeof ScrollableComponent>;
 
-export const Default = { parameters: { sherlo: { takeScrollingSnapshot: true } } };
-export const FloatingHeader = { render: () => <FloatingHeaderComponent />, parameters: { sherlo: { takeScrollingSnapshot: true } } };
-export const FABButton = { render: () => <FABComponent />, parameters: { sherlo: { takeScrollingSnapshot: true } } };
-export const ParallaxBackground = { render: () => <ParallaxComponent />, parameters: { sherlo: { takeScrollingSnapshot: true } } };
-export const HorizontalSections = { render: () => <HorizontalSectionsComponent />, parameters: { sherlo: { takeScrollingSnapshot: true } } };
-export const GradientOverlay = { render: () => <GradientOverlayComponent />, parameters: { sherlo: { takeScrollingSnapshot: true } } };
-export const StaggeredGrid = { render: () => <StaggeredGridComponent />, parameters: { sherlo: { takeScrollingSnapshot: true } } };
-export const CollapsingHeader = { render: () => <CollapsingHeaderComponent />, parameters: { sherlo: { takeScrollingSnapshot: true } } };
-export const InfiniteScroll = { render: () => <InfiniteScrollComponent />, parameters: { sherlo: { takeScrollingSnapshot: true } } };
-export const InfiniteScrollWithoutParam = { render: () => <InfiniteScrollComponent /> };
+export const Default = {};
+export const FloatingHeader = { render: () => <FloatingHeaderComponent /> };
+export const FABButton = { render: () => <FABComponent /> };
+export const ParallaxBackground = { render: () => <ParallaxComponent /> };
+export const HorizontalSections = { render: () => <HorizontalSectionsComponent /> };
+export const GradientOverlay = { render: () => <GradientOverlayComponent /> };
+export const StaggeredGrid = { render: () => <StaggeredGridComponent /> };
+export const CollapsingHeader = { render: () => <CollapsingHeaderComponent /> };
+export const InfiniteScroll = { render: () => <InfiniteScrollComponent /> };
+export const ViewportOnly = { render: () => <ScrollableComponent />, parameters: { sherlo: { takeViewportSnapshot: true } } };
 
 // ============================================
 // Styles
