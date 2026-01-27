@@ -136,7 +136,7 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-   UI(📝 UI Changes)
+   UI(🧑‍💻 UI Changes)
    Builds("`🤖 Build Android
    🍎 Build iOS`")
    Sherlo(🧪 Run Sherlo)
