@@ -51,17 +51,18 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    UI[📝 UI Changes]
-    subgraph Builds
-        Android[🤖 Build Android]
-        iOS[🍎 Build iOS]
-    end
-    Sherlo[🧪 Run Sherlo]
-    Review(👀  Review Changes)
+   UI[📝 UI Changes]
+   subgraph Builds
+      direction LR
+      Android[🤖 Build Android]
+      iOS[🍎 Build iOS]
+   end
+   Sherlo[🧪 Run Sherlo]
+   Review(👀  Review Changes)
 
-    UI --> Builds
-    Builds --> Sherlo
-    Sherlo --> Review
+   UI --> Builds
+   Builds --> Sherlo
+   Sherlo --> Review
 ```
 
 ## 🔄 Workflow Visualization
