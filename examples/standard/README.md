@@ -57,7 +57,7 @@ npx eas-cli login
 npx eas-cli init
 ```
 
-🛠️ **Build Method:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types).
+_**🛠️ Build Method:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)._
 
 ### 2) Choose your workflow
 
