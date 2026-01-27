@@ -11,7 +11,7 @@
 
 Includes minimal React Native + Storybook setup with GitHub Actions. -->
 
-Minimal React Native (Expo) + Storybook setup with GitHub Actions.
+Minimal React Native + Storybook setup with GitHub Actions.
 
 Runs visual tests on app builds **with bundled JavaScript code.**
 
