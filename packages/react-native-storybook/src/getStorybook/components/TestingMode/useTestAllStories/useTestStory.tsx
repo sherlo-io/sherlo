@@ -192,6 +192,26 @@ function useTestStory({
                  RunnerBridge.log('warning: UI not stable after scroll');
               }
               currentScrollOffset = scrollResult.appliedOffsetPx;
+
+              // Recapture Metadata after scroll to get dynamic elements (below fold)
+              let newInspectorData;
+              while (!newInspectorData) {
+                 newInspectorData = await SherloModule.getInspectorData().catch((error) => {
+                     RunnerBridge.log('error getting inspector data (scroll)', { error: JSON.stringify(error) });
+                 });
+              }
+
+              const newFabricMetadata = metadataProviderRef?.current?.collectMetadata();
+              
+              if (newInspectorData) {
+                  const prepared = prepareInspectorData(
+                      newInspectorData,
+                      newFabricMetadata!,
+                      nextSnapshot.storyId // We assume story ID doesn't change
+                  );
+                  finalInspectorData = prepared.inspectorData;
+                  hasNetworkImage = prepared.hasNetworkImage;
+              }
           }
           
           checkpointIndex = scrollIndex;
