@@ -26,7 +26,7 @@ It includes a minimal React Native + Storybook setup and a GitHub Actions workfl
 └─────────────────────────────────────────────────────┘
 ```
 
-For implementation details, see [`.github/workflows/standard.yml`](./.github/workflows/standard.yml).
+[Chyba warto zebysmy tutaj pokazywali ten link do github workflow? Jak myslisz?]
 
 <br />
 
@@ -35,7 +35,9 @@ For implementation details, see [`.github/workflows/standard.yml`](./.github/wor
 Before getting started, ensure you have:
 
 - A Sherlo account – sign up at https://app.sherlo.io
-- An Expo account (for EAS Build) – sign up at https://expo.dev/signup
+- An Expo account – sign up at https://expo.dev/signup
+
+[Przy Expo powinnismy podac krótko w nawiasie po co to - w sensie ze do EAS Build]
 
 <br />
 
@@ -44,21 +46,30 @@ Before getting started, ensure you have:
 ```bash
 # Clone the repository
 git clone https://github.com/sherlo-io/sherlo.git
-
-# Navigate to this example
 cd sherlo/examples/standard
 
 # Install dependencies
 yarn install
+# (or npm install)
 ```
+
+[
+
+- zrezygnujmy z "# (or npm install)"
+- dajmy tez komentarz nad "cd sherlo/examples/standard"
+  ]
 
 <br />
 
 ## 🚀 How to Run
 
+[
+
+- zdecydowanie wolalem jak mielismy PONUMEROWANE kroki - moze powinnismy zrobic merge tych dwoch rzeczy? numerowane kroki + bloki kodu?
+  ]
+
 ### via GitHub Actions
 
-1. **Configure EAS:**
 ```bash
 # Log in to EAS
 npx eas-cli login
@@ -67,11 +78,11 @@ npx eas-cli login
 npx eas-cli init
 ```
 
-2. **Add secrets to your GitHub repo** (Settings → Secrets and variables → Actions):
-   - `EXPO_TOKEN`: Go to https://expo.dev/accounts/[your-account]/settings/access-tokens, create and copy a token, then add as secret
-   - `SHERLO_TOKEN`: Go to https://app.sherlo.io, create or select a project, navigate to Settings, copy the token, then add as secret
+Add secrets to your GitHub repo (Settings → Secrets and variables → Actions):
 
-3. **Trigger the workflow:**
+- `EXPO_TOKEN`: Go to https://expo.dev/accounts/[your-account]/settings/access-tokens, create and copy a token, then add as secret
+- `SHERLO_TOKEN`: Go to https://app.sherlo.io, create or select a project, navigate to Settings, copy the token, then add as secret
+
 ```bash
 # Commit and push changes to main branch to trigger the workflow
 git add .
@@ -79,37 +90,32 @@ git commit -m "Setup Sherlo"
 git push origin main
 ```
 
-4. **Review results:** Monitor the run in GitHub Actions tab and review results in Sherlo app at https://app.sherlo.io
+Monitor the run in GitHub Actions tab and review results in Sherlo app at https://app.sherlo.io
 
 ### Locally
 
-1. **Configure EAS:**
 ```bash
 # Log in to EAS
 npx eas-cli login
 
 # Link project to your Expo account
 npx eas-cli init
-```
 
-2. **Build the apps:**
-```bash
-# Build for Android
+# Build the apps
 yarn build:android
+# (for Android)
 
-# Build for iOS
 yarn build:ios
-```
+# (for iOS)
 
-3. **Run test:**
-```bash
-# Run Sherlo test with your project token
+# Run test
 yarn sherlo:test --token [your Sherlo project token]
+# (or add the token to sherlo.config.json)
 ```
-   
-   **To get your token:** Go to https://app.sherlo.io, create or select a project, navigate to Settings, and copy the token. You can also add the token to `sherlo.config.json`. Learn more: https://sherlo.io/docs/config#token
 
-4. **Review results:** View results in Sherlo app at https://app.sherlo.io
+**To get your token:** Go to https://app.sherlo.io, create or select a project, navigate to Settings, and copy the token. Learn more about configuration: https://sherlo.io/docs/config#token
+
+Review results in Sherlo app at https://app.sherlo.io
 
 <br />
 
