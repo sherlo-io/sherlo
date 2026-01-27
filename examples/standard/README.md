@@ -52,7 +52,7 @@ flowchart LR
 ```mermaid
 flowchart TD
    UI[📝 UI Changes]
-   subgraph Builds
+   subgraph Builds2
       direction LR
       Android[🤖 Build Android]
       iOS[🍎 Build iOS]
