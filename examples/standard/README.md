@@ -11,7 +11,7 @@
 
 Includes minimal React Native + Storybook setup with GitHub Actions. -->
 
-Minimal React Native + Storybook setup with GitHub Actions.
+Minimal React Native + Storybook setup with GitHub Actions workflow.
 
 Runs visual tests on app builds **with bundled JavaScript code.**
 
@@ -60,7 +60,39 @@ yarn install
 
 ## 🚀 How to Run
 
-**Configure EAS:** Run `npx eas-cli login` and `npx eas-cli init` to link the project to your Expo account.
+### Configure EAS
+
+```bash
+# Log in to EAS
+npx eas-cli login
+
+# Link project to your Expo account
+npx eas-cli init
+```
+
+### Choose your workflow
+
+#### GitHub Actions
+
+1. **Add secrets** (Settings → Secrets and variables → Actions -> New repository secret):
+   - `EXPO_TOKEN` – [create here](https://expo.dev/accounts/[your-account]/settings/access-tokens)
+   - `SHERLO_TOKEN` – from [Sherlo](https://app.sherlo.io) (Project → Settings)
+
+2. **Trigger:** Commit and push to `main` branch
+
+#### Local
+
+1. **Build:** Run `yarn build:android` and `yarn build:ios`
+
+2. **Test:** Run `yarn sherlo:test --token [SHERLO_TOKEN]`
+   - Get token from [Sherlo](https://app.sherlo.io) (Project → Settings)
+   - Or add it to `sherlo.config.json` ([docs](https://sherlo.io/docs/config#token))
+
+### Review results
+
+Review detected visual changes at https://app.sherlo.io
+
+<!-- **Configure EAS:** Run `npx eas-cli login` and `npx eas-cli init` to link the project to your Expo account.
 
 Then choose your workflow:
 
@@ -80,7 +112,7 @@ Then choose your workflow:
    - Get token from [Sherlo](https://app.sherlo.io) (Project → Settings)
    - Or add it to `sherlo.config.json` ([docs](https://sherlo.io/docs/config#token))
 
-**Review results:** Check visual changes at https://app.sherlo.io
+**Review results:** Check visual changes at https://app.sherlo.io -->
 
 <br />
 
