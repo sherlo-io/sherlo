@@ -2,11 +2,6 @@
 
 Minimal React Native + Storybook setup and a GitHub Actions workflow.
 
-Example includes:
-
-- Minimal React Native + Storybook setup
-- GitHub Actions workflow
-
 This workflow runs visual tests on app builds **with bundled JavaScript code.**
 
 ```mermaid
