@@ -78,7 +78,7 @@ npx eas-cli init
 2. **Trigger the workflow**
 
 ```bash
-# Commit and push changes to main branch to trigger the workflow
+# Commit and push changes to main branch to trigger the workflow (build + test)
 git add .
 git commit -m "First Sherlo Test"
 git push origin main
@@ -86,11 +86,28 @@ git push origin main
 
 #### B) Local
 
-1. **Build:** Run `yarn build:android` and `yarn build:ios`
+<!-- 1. **Build:** Run `yarn build:android` and `yarn build:ios`
 
 2. **Test:** Run `yarn sherlo:test --token [SHERLO_TOKEN]`
    - Get token from [Sherlo](https://app.sherlo.io) (Project → Settings)
-   - Or add it to `sherlo.config.json` ([docs](https://sherlo.io/docs/config#token))
+   - Or add it to `sherlo.config.json` ([docs](https://sherlo.io/docs/config#token)) -->
+
+1. **Build apps**
+
+```bash
+# Build Android
+yarn build:android
+
+# Build iOS
+yarn build:ios
+```
+
+2. **Run test**
+
+```bash
+# Run Sherlo test with your project token
+yarn sherlo:test --token [SHERLO_TOKEN]
+```
 
 <br />
 
