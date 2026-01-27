@@ -21,8 +21,8 @@ flowchart TB
 
 ## 🛠️ Prerequisites
 
-- Sherlo account – for visual testing management → [sign up](https://app.sherlo.io)
-- Expo account – for EAS Build → [sign up](https://expo.dev/signup)
+- **Sherlo account** – for visual testing ([sign up](https://app.sherlo.io))
+- **Expo account** – for EAS Build ([sign up](https://expo.dev/signup))
 
 <br />
 
