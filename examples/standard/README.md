@@ -65,11 +65,24 @@ npx eas-cli init
 
 #### A) GitHub Actions ([`.github/workflows/standard.yml`](./.github/workflows/standard.yml))
 
-1. **Add secrets** (Settings → Secrets and variables → Actions -> New repository secret):
+<!-- 1. **Add secrets** (Settings → Secrets and variables → Actions -> New repository secret):
    - `EXPO_TOKEN` – [create here](https://expo.dev/accounts/[your-account]/settings/access-tokens)
    - `SHERLO_TOKEN` – from [Sherlo](https://app.sherlo.io) (Project → Settings)
 
-2. **Trigger:** Commit and push to `main` branch
+2. **Trigger:** Commit and push to `main` branch -->
+
+1. **Add secrets** (Settings → Secrets and variables → Actions -> New repository secret)
+   - `EXPO_TOKEN` – [create here](https://expo.dev/accounts/[your-account]/settings/access-tokens)
+   - `SHERLO_TOKEN` – from [Sherlo](https://app.sherlo.io) (Project → Settings)
+
+2. **Trigger the workflow**
+
+```bash
+# Commit and push changes to main branch to trigger the workflow
+git add .
+git commit -m "First Sherlo Test"
+git push origin main
+```
 
 #### B) Local
 
