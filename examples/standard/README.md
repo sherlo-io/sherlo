@@ -1,16 +1,5 @@
 # Standard Example
 
-<!-- Minimal React Native + Storybook setup with GitHub Actions using Sherlo standard testing flow. -->
-
-<!-- This standard Sherlo testing example includes:
-
-- Minimal React Native + Storybook setup
-- GitHub Actions -->
-
-<!-- This workflow runs visual tests on app builds **with bundled JavaScript code.**
-
-Includes minimal React Native + Storybook setup with GitHub Actions. -->
-
 Minimal React Native + Storybook setup with GitHub Actions workflow.
 
 Run visual tests on app builds **with bundled JavaScript code**.
@@ -18,8 +7,6 @@ Run visual tests on app builds **with bundled JavaScript code**.
 <br />
 
 ## 🔄 Workflow
-
-<!-- This workflow runs visual tests on app builds **with bundled JavaScript code.** -->
 
 ```mermaid
 flowchart TB
@@ -55,6 +42,8 @@ cd sherlo/examples/standard
 # Install dependencies
 yarn install
 ```
+
+🛠️ **Build Method:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types).
 
 <br />
 
@@ -131,9 +120,3 @@ Then choose your workflow:
 
 - **[EAS Update](../eas-update)** – Run visual tests using Over-The-Air updates for JavaScript changes, without full app rebuilds
 - **[EAS Cloud Build](../eas-cloud-build)** – Automatically run visual tests after builds complete on Expo servers
-
-<br />
-
----
-
-_🔧 **Alternative build tools:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)._
