@@ -6,6 +6,21 @@ It includes a minimal React Native + Storybook setup and a GitHub Actions workfl
 
 <br />
 
+```mermaid
+flowchart TD
+    A["📝 UI Changes"] --> B["🤖 Build Android"]
+    A --> C["🍎 Build iOS"]
+    B --> D["🧪 Run Sherlo"]
+    C --> D
+    D --> E["👀 Review Changes"]
+
+    style A fill:#e1f5ff
+    style B fill:#fff4e6
+    style C fill:#fff4e6
+    style D fill:#f3e5f5
+    style E fill:#e8f5e9
+```
+
 ## 🔄 Workflow Visualization
 
 ```text
