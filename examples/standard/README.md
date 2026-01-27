@@ -50,24 +50,6 @@ flowchart LR
 <br />
 
 ```mermaid
-flowchart TD
-   UI(📝 UI Changes)
-   subgraph Builds
-      direction LR
-      Android(🤖 Build Android)
-      iOS(🍎 Build iOS)
-   end
-   Sherlo(🧪 Run Sherlo)
-   Review(👀  Review Changes)
-
-   UI --> Builds
-   Builds --> Sherlo
-   Sherlo --> Review
-```
-
-<br />
-
-```mermaid
 flowchart TB
    UI(📝 UI Changes)
 
@@ -84,63 +66,6 @@ flowchart TB
    UI --> iOS
    Android --> Sherlo
    iOS --> Sherlo
-   Sherlo --> Review
-```
-
-<br />
-
-```mermaid
-flowchart TB
-   UI(📝 UI Changes)
-   Android(🤖 Build Android)
-   iOS(🍎 Build iOS)
-   Sherlo(🧪 Run Sherlo)
-   Review(👀 Review Changes)
-
-   UI --> Android & iOS
-   Android & iOS --> Sherlo
-   Sherlo --> Review
-```
-
-<br />
-
-```mermaid
-flowchart TB
-   UI(📝 UI Changes)
-   Builds(🤖 Build Android + 🍎 Build iOS)
-   Sherlo(🧪 Run Sherlo)
-   Review(👀 Review Changes)
-
-   UI --> Builds
-   Builds --> Sherlo
-   Sherlo --> Review
-```
-
-<br />
-
-```mermaid
-flowchart TB
-   UI(📝 UI Changes)
-   Builds[🤖 Build Android + 🍎 Build iOS]
-   Sherlo(🧪 Run Sherlo)
-   Review(👀 Review Changes)
-
-   UI --> Builds
-   Builds --> Sherlo
-   Sherlo --> Review
-```
-
-<br />
-
-```mermaid
-flowchart TB
-   UI(📝 UI Changes)
-   Builds([🤖 Build Android + 🍎 Build iOS])
-   Sherlo(🧪 Run Sherlo)
-   Review(👀 Review Changes)
-
-   UI --> Builds
-   Builds --> Sherlo
    Sherlo --> Review
 ```
 
