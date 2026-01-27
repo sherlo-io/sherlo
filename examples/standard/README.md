@@ -70,9 +70,9 @@ npx eas-cli login
 npx eas-cli init
 ```
 
-### 2) Choose your workflow:
+### 2) Choose your workflow
 
-#### a) GitHub Actions
+#### A) GitHub Actions
 
 1. **Add secrets** (Settings → Secrets and variables → Actions -> New repository secret):
    - `EXPO_TOKEN` – [create here](https://expo.dev/accounts/[your-account]/settings/access-tokens)
@@ -80,7 +80,7 @@ npx eas-cli init
 
 2. **Trigger:** Commit and push to `main` branch
 
-#### b) Local
+#### B) Local
 
 1. **Build:** Run `yarn build:android` and `yarn build:ios`
 
