@@ -43,8 +43,6 @@ cd sherlo/examples/standard
 yarn install
 ```
 
-🛠️ **Build Method:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types).
-
 <br />
 
 ## 🚀 How to Run
@@ -58,6 +56,8 @@ npx eas-cli login
 # Link project to your Expo account
 npx eas-cli init
 ```
+
+🛠️ **Build Method:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types).
 
 ### 2) Choose your workflow
 
