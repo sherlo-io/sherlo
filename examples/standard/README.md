@@ -7,9 +7,9 @@
 - Minimal React Native + Storybook setup
 - GitHub Actions -->
 
-Minimal React Native + Storybook setup with GitHub Actions.
-
 This workflow runs visual tests on app builds **with bundled JavaScript code.**
+
+Includes minimal React Native + Storybook setup with GitHub Actions.
 
 <br />
 
