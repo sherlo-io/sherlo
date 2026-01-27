@@ -124,7 +124,7 @@ flowchart TB
    Builds(🤖 Build Android + 🍎 Build iOS)
    Builds["`🤖 Build Android
    +
-   🍎 Build iOS"]
+   🍎 Build iOS`"]
    Sherlo(🧪 Run Sherlo)
    Review(👀 Review Changes)
 
