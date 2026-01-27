@@ -1,6 +1,11 @@
 # Standard Example
 
-Minimal React Native + Storybook setup with GitHub Actions using Sherlo standard testing flow.
+<!-- Minimal React Native + Storybook setup with GitHub Actions using Sherlo standard testing flow. -->
+
+This standard Sherlo testing example includes:
+
+- Minimal React Native + Storybook setup
+- GitHub Actions
 
 <br />
 
