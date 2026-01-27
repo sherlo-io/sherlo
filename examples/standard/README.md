@@ -9,21 +9,44 @@ It includes a minimal React Native + Storybook setup and a GitHub Actions workfl
 ## 🔄 Workflow Visualization
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ 1. Make UI changes                                  │
-└──────────────────┬──────────────────────────────────┘
-                   ▼
-┌─────────────────────────────────────────────────────┐
-│ 2. Build Android + iOS preview simulator builds     │
-└──────────────────┬──────────────────────────────────┘
-                   ▼
-┌─────────────────────────────────────────────────────┐
-│ 3. Run Sherlo test                                  │
-└──────────────────┬──────────────────────────────────┘
-                   ▼
-┌─────────────────────────────────────────────────────┐
-│ 4. Review visual changes in Sherlo app              │
-└─────────────────────────────────────────────────────┘
+              [  📝 UI Changes  ]
+                       │
+          ┌────────────┴────────────┐
+          ▼                         ▼
+  [  🤖 Build Android  ]    [  🍎 Build iOS  ]
+          │                         │
+          └────────────┬────────────┘
+                       ▼
+              [  🧪 Run Sherlo  ]
+                       │
+                       ▼
+            [  👀 Review Changes  ]
+```
+
+<br />
+
+## 🔄 Workflow Visualization
+
+```
+                  ┌──────────────────┐
+                  │  📝 UI Changes   │
+                  └────────┬─────────┘
+                           │
+              ┌────────────┴────────────┐
+              ▼                         ▼
+      ┌──────────────────┐         ┌───────────────┐
+      │ 🤖 Build Android │         │ 🍎 Build iOS   │
+      └───────┬──────────┘         └───────┬───────┘
+              │                         │
+              └────────────┬────────────┘
+                           ▼
+                  ┌─────────────────┐
+                  │  🧪 Run Sherlo  │
+                  └────────┬────────┘
+                           ▼
+                ┌─────────────────────┐
+                │ 👀 Review Changes   │
+                └─────────────────────┘
 ```
 
 For implementation details, see [`.github/workflows/standard.yml`](./.github/workflows/standard.yml).
@@ -58,58 +81,27 @@ yarn install
 
 ### via GitHub Actions
 
-1. **Configure EAS:**
-```bash
-# Log in to EAS
-npx eas-cli login
-
-# Link project to your Expo account
-npx eas-cli init
-```
+1. **Configure EAS:** Run `npx eas-cli login` and `npx eas-cli init` to link the project to your Expo account
 
 2. **Add secrets to your GitHub repo** (Settings → Secrets and variables → Actions):
-   - `EXPO_TOKEN`: Go to https://expo.dev/accounts/[your-account]/settings/access-tokens, create and copy a token, then add as secret
-   - `SHERLO_TOKEN`: Go to https://app.sherlo.io, create or select a project, navigate to Settings, copy the token, then add as secret
+   - `EXPO_TOKEN` – create at https://expo.dev/accounts/[your-account]/settings/access-tokens
+   - `SHERLO_TOKEN` – get from https://app.sherlo.io (create or select a project → Settings)
 
-3. **Trigger the workflow:**
-```bash
-# Commit and push changes to main branch to trigger the workflow
-git add .
-git commit -m "Setup Sherlo"
-git push origin main
-```
+3. **Trigger the workflow:** Commit and push to `main` branch
 
-4. **Review results:** Monitor the run in GitHub Actions tab and review results in Sherlo app at https://app.sherlo.io
+4. **Review results:** Check GitHub Actions tab and view results at https://app.sherlo.io
 
 ### Locally
 
-1. **Configure EAS:**
-```bash
-# Log in to EAS
-npx eas-cli login
+1. **Configure EAS:** Run `npx eas-cli login` and `npx eas-cli init` to link the project to your Expo account
 
-# Link project to your Expo account
-npx eas-cli init
-```
+2. **Build the apps:** Run `yarn build:android` and `yarn build:ios`
 
-2. **Build the apps:**
-```bash
-# Build for Android
-yarn build:android
+3. **Run test:** Execute `yarn sherlo:test --token [your-token]`
+   - Get your token at https://app.sherlo.io (create or select a project → Settings)
+   - Alternatively, add the token to `sherlo.config.json` ([docs](https://sherlo.io/docs/config#token))
 
-# Build for iOS
-yarn build:ios
-```
-
-3. **Run test:**
-```bash
-# Run Sherlo test with your project token
-yarn sherlo:test --token [your Sherlo project token]
-```
-   
-   **To get your token:** Go to https://app.sherlo.io, create or select a project, navigate to Settings, and copy the token. You can also add the token to `sherlo.config.json`. Learn more: https://sherlo.io/docs/config#token
-
-4. **Review results:** View results in Sherlo app at https://app.sherlo.io
+4. **Review results:** View results at https://app.sherlo.io
 
 <br />
 
@@ -122,17 +114,15 @@ This example includes several important files configured for Sherlo integration:
 - **[`sherlo.config.json`](./sherlo.config.json)** – Configuration file with device settings, and optionally build paths or token
 - **[`.github/workflows/standard.yml`](./.github/workflows/standard.yml)** – GitHub Actions workflow that automates the build and test process
 
-<br />
-
-## ℹ️ Additional Notes
-
-- **Integrating Sherlo in your own project:** This example was set up using `npx sherlo init`, which automatically creates and configures the files listed above. To add Sherlo to your existing project, simply run this command in your project directory.
-
-- **Build Alternatives:** This example uses EAS Build for app compilation. If you prefer other tools like React Native CLI or Native Build Tools (gradlew / xcodebuild), see our docs: https://sherlo.io/docs/builds?type=preview-simulator#build-types
+💡 **Using Sherlo in your own project?** Run `npx sherlo init` to automatically create and configure these files.
 
 <br />
 
 ## 🔗 Other Examples
 
-- [../eas-update](../eas-update): Run visual tests using Over-The-Air updates for JavaScript changes, without full app rebuilds
-- [../eas-cloud-build](../eas-cloud-build): Automatically run visual tests after builds complete on Expo servers
+- **[EAS Update](../eas-update)** – Run visual tests using Over-The-Air updates for JavaScript changes, without full app rebuilds
+- **[EAS Cloud Build](../eas-cloud-build)** – Automatically run visual tests after builds complete on Expo servers
+
+---
+
+**Alternative build tools:** This example uses EAS Build. For React Native CLI or native tools (gradlew/xcodebuild), see [build documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types).
