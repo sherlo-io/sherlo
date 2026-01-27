@@ -69,7 +69,7 @@ Then choose your workflow:
 
 ## 📁 Key Files
 
-- **[`App.tsx`](./App.tsx)** – Root component which renders Storybook for testing ([docs](https://sherlo.io/docs/setup#storybook-access))
+- **[`App.tsx`](./App.tsx)** – Root component rendering Storybook for testing ([docs](https://sherlo.io/docs/setup#storybook-access))
 - **[`.rnstorybook/index.ts`](./.rnstorybook/index.ts)** – Modified Storybook component required by Sherlo ([docs](https://sherlo.io/docs/setup#storybook-component))
 - **[`sherlo.config.json`](./sherlo.config.json)** – Config file with testing devices ([docs](https://sherlo.io/docs/config))
 - **[`.github/workflows/standard.yml`](./.github/workflows/standard.yml)** – CI workflow for automated builds and tests
@@ -85,4 +85,4 @@ Then choose your workflow:
 
 ---
 
-🔧 **Alternative build tools:** This example uses EAS Build. For React Native CLI or native tools (gradlew/xcodebuild), see [build documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types).
+🔧 **Alternative build tools:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types).
