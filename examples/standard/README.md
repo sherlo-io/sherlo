@@ -9,7 +9,20 @@ It includes a minimal React Native + Storybook setup and a GitHub Actions workfl
 ## 🔄 Workflow Visualization
 
 ```mermaid
-flowchart TD
+flowchart TB
+   UI(🧑‍💻 UI Changes)
+   Android(🤖 Build Android)
+   iOS(🍎 Build iOS)
+   Sherlo(🧪 Run Sherlo)
+   Review(👀 Review Changes)
+
+   UI --> Android & iOS
+   Android & iOS --> Sherlo
+   Sherlo --> Review
+```
+
+```mermaid
+flowchart LR
    UI(🧑‍💻 UI Changes)
    Android(🤖 Build Android)
    iOS(🍎 Build iOS)
