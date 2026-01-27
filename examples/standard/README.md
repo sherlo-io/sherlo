@@ -25,8 +25,8 @@ flowchart TB
 
 ## 🛠️ Prerequisites
 
-- **Sherlo account** – for visual testing ([sign up](https://app.sherlo.io))
-- **Expo account** – for EAS Build ([sign up](https://expo.dev/signup))
+- **Sherlo Account** – required for visual testing ([create account](https://app.sherlo.io))
+- **Expo Account** – required for EAS Build ([create account](https://expo.dev/signup))
 
 <br />
 
@@ -84,28 +84,6 @@ npx eas-cli init
 ### 3) Review results
 
 Review detected visual changes at https://app.sherlo.io
-
-<!-- **Configure EAS:** Run `npx eas-cli login` and `npx eas-cli init` to link the project to your Expo account.
-
-Then choose your workflow:
-
-### GitHub Actions
-
-1. **Add secrets** (Settings → Secrets and variables → Actions -> New repository secret):
-   - `EXPO_TOKEN` – [create here](https://expo.dev/accounts/[your-account]/settings/access-tokens)
-   - `SHERLO_TOKEN` – from [Sherlo](https://app.sherlo.io) (Project → Settings)
-
-2. **Trigger:** Commit and push to `main` branch
-
-### Local
-
-1. **Build:** Run `yarn build:android` and `yarn build:ios`
-
-2. **Test:** Run `yarn sherlo:test --token [SHERLO_TOKEN]`
-   - Get token from [Sherlo](https://app.sherlo.io) (Project → Settings)
-   - Or add it to `sherlo.config.json` ([docs](https://sherlo.io/docs/config#token))
-
-**Review results:** Check visual changes at https://app.sherlo.io -->
 
 <br />
 
