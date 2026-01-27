@@ -1,8 +1,8 @@
 # Standard Example
 
-This workflow runs visual tests on app builds **with bundled JavaScript code.**
+Includes a minimal React Native + Storybook setup and a GitHub Actions workflow.
 
-It includes a minimal React Native + Storybook setup and a GitHub Actions workflow.
+This workflow runs visual tests on app builds **with bundled JavaScript code.**
 
 ```mermaid
 flowchart TB
