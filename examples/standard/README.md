@@ -65,6 +65,43 @@ flowchart TD
    Sherlo --> Review
 ```
 
+<br />
+
+```mermaid
+flowchart TB
+   UI(📝 UI Changes)
+
+   subgraph Builds
+      direction LR
+      Android(🤖 Build Android)
+      iOS(🍎 Build iOS)
+   end
+
+   Sherlo(🧪 Run Sherlo)
+   Review(👀 Review Changes)
+
+   UI --> Android
+   UI --> iOS
+   Android --> Sherlo
+   iOS --> Sherlo
+   Sherlo --> Review
+```
+
+<br />
+
+```mermaid
+flowchart TB
+   UI(📝 UI Changes)
+   Android(🤖 Build Android)
+   iOS(🍎 Build iOS)
+   Sherlo(🧪 Run Sherlo)
+   Review(👀 Review Changes)
+
+   UI --> Android & iOS
+   Android & iOS --> Sherlo
+   Sherlo --> Review
+```
+
 ## 🔄 Workflow Visualization
 
 ```text
