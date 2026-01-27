@@ -11,9 +11,9 @@ This workflow runs visual tests on app builds **with bundled JavaScript code.**
 
 Includes minimal React Native + Storybook setup with GitHub Actions.
 
-<!-- <br />
+<br />
 
-## 🔄 Workflow -->
+## 🔄 Workflow
 
 <!-- This workflow runs visual tests on app builds **with bundled JavaScript code.** -->
 
