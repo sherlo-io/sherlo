@@ -57,7 +57,9 @@ npx eas-cli login
 npx eas-cli init
 ```
 
-_**🛠️ Build Method:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)._
+🛠️ **Build Method:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types).
+
+<br />
 
 ### 2) Choose your workflow
 
@@ -76,6 +78,8 @@ _**🛠️ Build Method:** This example uses EAS Build. For other build tools, s
 2. **Test:** Run `yarn sherlo:test --token [SHERLO_TOKEN]`
    - Get token from [Sherlo](https://app.sherlo.io) (Project → Settings)
    - Or add it to `sherlo.config.json` ([docs](https://sherlo.io/docs/config#token))
+
+<br />
 
 ### 3) Review results
 
