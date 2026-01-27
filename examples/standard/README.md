@@ -8,7 +8,7 @@ It includes a minimal React Native + Storybook setup and a GitHub Actions workfl
 
 ## 🔄 Workflow Visualization
 
-```
+```text
               [  📝 UI Changes  ]
                        │
           ┌────────────┴────────────┐
@@ -27,7 +27,7 @@ It includes a minimal React Native + Storybook setup and a GitHub Actions workfl
 
 ## 🔄 Workflow Visualization
 
-```
+```plaintext
                   ┌──────────────────┐
                   │  📝 UI Changes   │
                   └────────┬─────────┘
