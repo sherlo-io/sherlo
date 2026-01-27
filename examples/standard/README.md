@@ -60,7 +60,7 @@ yarn install
 
 ## 🚀 How to Run
 
-### Configure EAS
+### 1) Configure EAS
 
 ```bash
 # Log in to EAS
@@ -72,7 +72,7 @@ npx eas-cli init
 
 <br />
 
-### Choose your workflow:
+### 2) Choose your workflow:
 
 #### a) GitHub Actions
 
@@ -92,7 +92,7 @@ npx eas-cli init
 
 <br />
 
-### Review results
+### 3) Review results
 
 Review detected visual changes at https://app.sherlo.io
 
