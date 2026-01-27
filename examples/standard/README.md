@@ -102,6 +102,20 @@ flowchart TB
    Sherlo --> Review
 ```
 
+<br />
+
+```mermaid
+flowchart TB
+   UI(📝 UI Changes)
+   Builds(🤖 Build Android + 🍎 Build iOS)
+   Sherlo(🧪 Run Sherlo)
+   Review(👀 Review Changes)
+
+   UI --> Builds
+   Builds --> Sherlo
+   Sherlo --> Review
+```
+
 ## 🔄 Workflow Visualization
 
 ```text
