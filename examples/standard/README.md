@@ -85,4 +85,4 @@ Then choose your workflow:
 
 ---
 
-🔧 **Alternative build tools:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types).
+_🔧 **Alternative build tools:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)._
