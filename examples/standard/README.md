@@ -71,7 +71,7 @@ npx eas-cli init
 
 2. **Trigger:** Commit and push to `main` branch -->
 
-1. **Add secrets** (Settings → Secrets and variables → Actions -> New repository secret)
+1. **Add secrets**: _(Settings → Secrets and variables → Actions -> New repository secret)_
    - `EXPO_TOKEN` – [create here](https://expo.dev/accounts/[your-account]/settings/access-tokens)
    - `SHERLO_TOKEN` – from [Sherlo](https://app.sherlo.io) (Project → Settings)
 
@@ -113,7 +113,7 @@ yarn sherlo:test --token [SHERLO_TOKEN]
 
 ### 3) Review results
 
-Review detected visual changes at https://app.sherlo.io.
+View results in Sherlo app at https://app.sherlo.io.
 
 <br />
 
