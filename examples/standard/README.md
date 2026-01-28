@@ -115,6 +115,10 @@ yarn sherlo:test --token [SHERLO_TOKEN]
 
 View results in Sherlo app at https://app.sherlo.io.
 
+View results in Sherlo application at https://app.sherlo.io.
+
+View results in Sherlo web application at https://app.sherlo.io.
+
 <br />
 
 ## 📁 Key Files
