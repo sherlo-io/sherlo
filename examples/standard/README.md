@@ -63,8 +63,6 @@ npx eas-cli init
 
 ### 2) Choose your workflow
 
-#### A) GitHub Actions ([`.github/workflows/standard.yml`](./.github/workflows/standard.yml))
-
 #### A) GitHub Actions _([`.github/workflows/standard.yml`](./.github/workflows/standard.yml))_
 
 <!-- 1. **Add secrets** (Settings → Secrets and variables → Actions -> New repository secret):
