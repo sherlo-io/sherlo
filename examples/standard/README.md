@@ -79,7 +79,7 @@ Open [Sherlo app](https://app.sherlo.io) and get your project token:
     ```bash
     # Commit and push changes to main branch to trigger the workflow (build + test)
     git add .
-    git commit -m "First Sherlo Test"
+    git commit -m "Run first Sherlo test"
     git push origin main
     ```
 
@@ -100,6 +100,7 @@ Open [Sherlo app](https://app.sherlo.io) and get your project token:
    ```bash
    # Run Sherlo test with your project token
    yarn sherlo --token SHERLO_TOKEN
+   # Alternatively: add token to sherlo.config.json and run `yarn sherlo`
    # (or add the token to `sherlo.config.json` and simply run `yarn sherlo`)
    ```
 
