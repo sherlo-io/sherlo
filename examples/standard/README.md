@@ -125,7 +125,7 @@ View results in Sherlo web application at https://app.sherlo.io.
 - **[`sherlo.config.json`](./sherlo.config.json)** – Config file with testing devices ([docs](https://sherlo.io/docs/config))
 - **[`.github/workflows/standard.yml`](./.github/workflows/standard.yml)** – CI workflow for automated builds and tests
 
-💡 **Own project?** Run `npx sherlo init` to automatically integrate Sherlo in your project.
+_**Own project?** Run `npx sherlo init` to automatically integrate Sherlo in your codebase._
 
 <br />
 
