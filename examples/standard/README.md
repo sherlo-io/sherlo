@@ -28,7 +28,7 @@ flowchart TB
 - **Sherlo Account** – required for visual testing ([sign up](https://app.sherlo.io))
 - **Expo Account** – required for EAS Build ([sign up](https://expo.dev/signup))
 
-🛠️ **Build Method:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types).
+_🛠️ **Build Method:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)._
 
 <br />
 
