@@ -97,6 +97,8 @@ npx eas-cli init
    yarn sherlo --token [SHERLO_TOKEN]
    ```
 
+   _**Token**: Get from Sherlo (Project → Copy/Reset token)_
+
 <br />
 
 ### 3) Review results
