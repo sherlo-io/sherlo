@@ -77,6 +77,7 @@ npx eas-cli init
 1.  **Add secrets**: _(GitHub -> [Your Repo] -> Settings → Secrets and variables → Actions -> New repository secret)_
     - `SHERLO_TOKEN` – Use your Sherlo token
     - `EXPO_TOKEN` – Get from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens) _(Create and copy token)_
+    - `EXPO_TOKEN` – Get token from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens)
 
 2.  **Trigger the workflow**
 
