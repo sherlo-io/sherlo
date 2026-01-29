@@ -59,16 +59,12 @@ npx eas-cli init
 
 _**Build Method:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
 
-<br />
-
 ### 2) Get Sherlo token
 
 Get your project token from [Sherlo app](https://app.sherlo.io):
 
 - **New project**: Create a new project and copy the generated token
 - **Existing project**: Open your project and reset the token _(Settings → Reset token)_
-
-<br />
 
 ### 3) Build and run test
 
@@ -106,8 +102,6 @@ Get your project token from [Sherlo app](https://app.sherlo.io):
    yarn sherlo --token [SHERLO_TOKEN]
    # (or add the token to `sherlo.config.json` and simply run `yarn sherlo`)
    ```
-
-<br />
 
 ### 4) Review results
 
