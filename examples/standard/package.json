@@ -5,7 +5,7 @@
   "scripts": {
     "build:android": "npx eas-cli build --local --platform android --profile preview-simulator --output builds/android.apk",
     "build:ios": "npx eas-cli build --local --platform ios --profile preview-simulator --output builds/ios.tar.gz",
-    "sherlo:test": "npx sherlo test:standard --android builds/android.apk --ios builds/ios.tar.gz --token XXXXXXXX"
+    "sherlo": "npx sherlo test:standard --android builds/android.apk --ios builds/ios.tar.gz"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.8",
