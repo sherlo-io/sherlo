@@ -65,8 +65,9 @@ npx eas-cli init
 
 1. Go to [Sherlo app](https://app.sherlo.io)
 2. Choose one of the following:
-   - **New project**: Create a new project and copy the generated token
-   - **Existing project**: Open your project and reset the token _(Settings → Reset token)_
+
+- **New project**: Create a new project and copy the generated token
+- **Existing project**: Open your project and reset the token _(Settings → Reset token)_
 
 <br />
 
