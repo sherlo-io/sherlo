@@ -49,7 +49,7 @@ yarn install
 
 ## 🚀 How to Run
 
-### 1) Configure EAS
+### 1) Configure EAS _(Required for EAS Build)_
 
 ```bash
 # Log in to EAS
