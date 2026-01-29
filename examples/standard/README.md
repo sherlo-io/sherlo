@@ -63,7 +63,7 @@ npx eas-cli init
 
 ### 2) Get Sherlo token
 
-1. Go to [Sherlo](https://app.sherlo.io)
+1. Go to [Sherlo app](https://app.sherlo.io)
 2. Choose one of the following:
    - **New project**: Create a new project and copy the generated token
    - **Existing project**: Open your project and reset the token _(Settings → Reset token)_
@@ -74,18 +74,18 @@ npx eas-cli init
 
 #### Option A: GitHub Actions _(Recommended)_
 
-1. **Add secrets**: _(GitHub -> [Your Repo] -> Settings → Secrets and variables → Actions -> New repository secret)_
-   - `SHERLO_TOKEN` – Use your Sherlo token
-   - `EXPO_TOKEN` – Get from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens) _(Create and copy token)_
+1.  **Add secrets**: _(GitHub -> [Your Repo] -> Settings → Secrets and variables → Actions -> New repository secret)_
+    - `SHERLO_TOKEN` – Use your Sherlo token
+    - `EXPO_TOKEN` – Get from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens) _(Create and copy token)_
 
-2. **Trigger the workflow**
+2.  **Trigger the workflow**
 
-   ```bash
-   # Commit and push changes to main branch to trigger the workflow (build + test)
-   git add .
-   git commit -m "First Sherlo Test"
-   git push origin main
-   ```
+    ```bash
+    # Commit and push changes to main branch to trigger the workflow (build + test)
+    git add .
+    git commit -m "First Sherlo Test"
+    git push origin main
+    ```
 
 #### Option B: Local environment
 
