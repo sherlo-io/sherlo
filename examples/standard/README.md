@@ -49,7 +49,7 @@ yarn install
 
 ## 🚀 How to Run
 
-### 1) Link project to Expo _(Required for EAS Build)_
+### 1) Link project to Expo _(for EAS Build)_
 
 ```bash
 # Log in to EAS
