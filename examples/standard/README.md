@@ -25,8 +25,8 @@ flowchart TB
 
 ## 🛠️ Prerequisites
 
-- **Sherlo Account** – required for visual testing ([create account](https://app.sherlo.io))
-- **Expo Account** – required for EAS Build ([create account](https://expo.dev/signup))
+- **Sherlo Account** – required for visual testing ([sign up](https://app.sherlo.io))
+- **Expo Account** – required for EAS Build ([sign up](https://expo.dev/signup))
 
 <br />
 
@@ -72,6 +72,7 @@ npx eas-cli init
 2. **Trigger:** Commit and push to `main` branch -->
 
 1. **Add secrets**: _(Settings → Secrets and variables → Actions -> New repository secret)_
+   - `EXPO_TOKEN` – Go to https://expo.dev/accounts/[your-account]/settings/access-tokens, create and copy a token, then add as secret
    - `EXPO_TOKEN` – [create here](https://expo.dev/accounts/[your-account]/settings/access-tokens)
    - `SHERLO_TOKEN` – from [Sherlo](https://app.sherlo.io) (Project → Settings)
 
@@ -112,10 +113,6 @@ yarn sherlo:test --token [SHERLO_TOKEN]
 <br />
 
 ### 3) Review results
-
-View results in Sherlo app at https://app.sherlo.io.
-
-View results in Sherlo application at https://app.sherlo.io.
 
 View results in Sherlo web application at https://app.sherlo.io.
 
