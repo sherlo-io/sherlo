@@ -99,7 +99,7 @@ npx eas-cli login
 npx eas-cli init
 ```
 
-### 1) Link EAS Build
+### 1) Enable EAS Build
 
 ```bash
 # Log in to EAS
