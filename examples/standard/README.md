@@ -107,10 +107,6 @@ Get your project token from [Sherlo app](https://app.sherlo.io):
 
 Open [Sherlo app](https://app.sherlo.io) to view your test results
 
-### 4) Review results
-
-View results in Sherlo web application at https://app.sherlo.io
-
 <br />
 
 ## 📁 Key Files
