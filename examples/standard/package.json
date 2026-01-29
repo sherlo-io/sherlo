@@ -1,7 +1,5 @@
 {
   "name": "sherlo-example-standard",
-  "version": "1.0.0",
-  "main": "index.ts",
   "scripts": {
     "build:android": "npx eas-cli build --local --platform android --profile preview-simulator --output builds/android.apk",
     "build:ios": "npx eas-cli build --local --platform ios --profile preview-simulator --output builds/ios.tar.gz",
@@ -26,5 +24,7 @@
     "@types/react": "~19.1.10",
     "typescript": "^5.9.3"
   },
-  "private": true
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.ts"
 }
