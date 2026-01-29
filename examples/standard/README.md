@@ -72,9 +72,9 @@ npx eas-cli init
 2. **Trigger:** Commit and push to `main` branch -->
 
 1. **Add secrets**: _(Settings → Secrets and variables → Actions -> New repository secret)_
+   - `SHERLO_TOKEN` – from [Sherlo](https://app.sherlo.io) (Project → Settings)
    - `EXPO_TOKEN` – Go to https://expo.dev/accounts/[your-account]/settings/access-tokens, create and copy a token, then add as secret
    - `EXPO_TOKEN` – [create here](https://expo.dev/accounts/[your-account]/settings/access-tokens)
-   - `SHERLO_TOKEN` – from [Sherlo](https://app.sherlo.io) (Project → Settings)
 
 2. **Trigger the workflow**
 
@@ -85,7 +85,7 @@ git commit -m "First Sherlo Test"
 git push origin main
 ```
 
-#### Option B: Local
+#### Option B: Local environment
 
 <!-- 1. **Build:** Run `yarn build:android` and `yarn build:ios`
 
