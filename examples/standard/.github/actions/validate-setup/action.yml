@@ -88,7 +88,7 @@ runs:
           echo ""
           echo "::error title=EAS Project Not Linked::Missing projectId in app.json"
         else
-          echo "✅ EAS project is configured (projectId found)"
+          echo "✅ Project is linked to Expo account"
         fi
 
         # ----------------------------------------------------------------------
