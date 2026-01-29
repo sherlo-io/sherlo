@@ -76,10 +76,10 @@ npx eas-cli init
    - `EXPO_TOKEN` – Go to https://expo.dev/accounts/[your-account]/settings/access-tokens, create and copy a token, then add as secret
    - `EXPO_TOKEN` – [create here](https://expo.dev/accounts/[your-account]/settings/access-tokens)
 
-2. **Trigger the workflow**
+2. **Trigger the workflow** (build + test)
 
 ```bash
-# Commit and push changes to main branch to trigger the workflow (build + test)
+# Commit and push changes to main branch to trigger the workflow
 git add .
 git commit -m "First Sherlo Test"
 git push origin main
