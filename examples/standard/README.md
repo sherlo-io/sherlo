@@ -49,7 +49,57 @@ yarn install
 
 ## 🚀 How to Run
 
-### 1) Link project to Expo _(for EAS Build)_
+### 1) Configure EAS
+
+```bash
+# Log in to EAS
+npx eas-cli login
+
+# Link project to your Expo account
+npx eas-cli init
+```
+
+### 1) Configure EAS Build
+
+```bash
+# Log in to EAS
+npx eas-cli login
+
+# Link project to your Expo account
+npx eas-cli init
+```
+
+### 1) Link project to Expo
+
+```bash
+# Log in to EAS
+npx eas-cli login
+
+# Link project to your Expo account
+npx eas-cli init
+```
+
+### 1) Link Expo project _(for EAS Build)_
+
+```bash
+# Log in to EAS
+npx eas-cli login
+
+# Link project to your Expo account
+npx eas-cli init
+```
+
+### 1) Link EAS _(Required for EAS Build)_
+
+```bash
+# Log in to EAS
+npx eas-cli login
+
+# Link project to your Expo account
+npx eas-cli init
+```
+
+### 1) Link EAS Build
 
 ```bash
 # Log in to EAS
