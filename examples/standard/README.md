@@ -25,8 +25,8 @@ flowchart TB
 
 ## 🛠️ Prerequisites
 
-- [**Sherlo Account**](https://app.sherlo.io) – Required for visual testing
-- [**Expo Account**](https://expo.dev/signup) – Required for EAS Build
+- [**Sherlo Account**](https://app.sherlo.io) – For visual testing
+- [**Expo Account**](https://expo.dev/signup) – For EAS Build
 
 <br />
 
@@ -70,9 +70,10 @@ Get your project token from [Sherlo app](https://app.sherlo.io):
 
 #### Option A: GitHub Actions _(Recommended)_
 
-1.  **Add secrets**: _(GitHub -> [Your Repo] -> Settings → Secrets and variables → Actions -> New repository secret)_
+1.  **Add secrets** to GitHub repository:
     - `SHERLO_TOKEN` – Use your Sherlo project token
     - `EXPO_TOKEN` – Get access token from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens)
+      _(GitHub -> [Your Repo] -> Settings → Secrets and variables → Actions -> New repository secret)_
 
 2.  **Trigger the workflow**
 
@@ -99,9 +100,13 @@ Get your project token from [Sherlo app](https://app.sherlo.io):
 
    ```bash
    # Run Sherlo test with your project token
-   yarn sherlo --token [SHERLO_TOKEN]
+   yarn sherlo --token SHERLO_TOKEN
    # (or add the token to `sherlo.config.json` and simply run `yarn sherlo`)
    ```
+
+### 4) Review results
+
+Open [Sherlo app](https://app.sherlo.io) to view your test results
 
 ### 4) Review results
 
