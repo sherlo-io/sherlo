@@ -25,6 +25,15 @@ flowchart TB
 
 ## 🛠️ Prerequisites
 
+- [**Sherlo Account**](https://app.sherlo.io) – required for visual testing
+- [**Expo Account**](https://expo.dev/signup) – required for EAS Build
+
+_**Build Method:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)._
+
+<br />
+
+## 🛠️ Prerequisites
+
 - **Sherlo Account** – required for visual testing _([sign up](https://app.sherlo.io))_
 - **Expo Account** – required for EAS Build _([sign up](https://expo.dev/signup))_
 
@@ -77,12 +86,12 @@ npx eas-cli init
 
 2. **Trigger the workflow**
 
-```bash
-# Commit and push changes to main branch to trigger the workflow (build + test)
-git add .
-git commit -m "First Sherlo Test"
-git push origin main
-```
+   ```bash
+   # Commit and push changes to main branch to trigger the workflow (build + test)
+   git add .
+   git commit -m "First Sherlo Test"
+   git push origin main
+   ```
 
 #### Option B: Local environment
 
@@ -94,20 +103,20 @@ git push origin main
 
 1. **Build apps**
 
-```bash
-# Build Android
-yarn build:android
+   ```bash
+   # Build Android
+   yarn build:android
 
-# Build iOS
-yarn build:ios
-```
+   # Build iOS
+   yarn build:ios
+   ```
 
 2. **Run test**
 
-```bash
-# Run Sherlo test with your project token
-yarn sherlo --token [SHERLO_TOKEN]
-```
+   ```bash
+   # Run Sherlo test with your project token
+   yarn sherlo --token [SHERLO_TOKEN]
+   ```
 
 <br />
 
@@ -118,6 +127,50 @@ yarn sherlo --token [SHERLO_TOKEN]
 1. **Add secrets**
 
    Go to _GitHub -> Repo -> Settings → Secrets and variables → Actions -> New repository secret_, and add following secrets:
+   - `SHERLO_TOKEN` – Get from [Sherlo](https://app.sherlo.io) _(Project → Copy/Reset token)_
+   - `EXPO_TOKEN` – Get from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens) _(Create and copy token)_
+
+2. **Trigger the workflow**
+
+   ```bash
+   # Commit and push changes to main branch to trigger the workflow (build + test)
+   git add .
+   git commit -m "First Sherlo Test"
+   git push origin main
+   ```
+
+#### Option B: Local environment
+
+1. **Build apps**
+
+   ```bash
+   # Build Android
+   yarn build:android
+
+   # Build iOS
+   yarn build:ios
+   ```
+
+2. **Run test**
+
+   ```bash
+   # Run Sherlo test with your project token
+   yarn sherlo --token [SHERLO_TOKEN]
+   ```
+
+<br />
+
+### 3) Review results
+
+View results in Sherlo web application at https://app.sherlo.io.
+
+<br />
+
+### 2) Build and run test
+
+#### Option A: GitHub Actions _(Recommended)_
+
+1. **Add secrets** _(GitHub -> Repo -> Settings → Secrets and variables → Actions -> New repository secret)_
    - `SHERLO_TOKEN` – Get from [Sherlo](https://app.sherlo.io) _(Project → Copy/Reset token)_
    - `EXPO_TOKEN` – Get from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens) _(Create and copy token)_
 
