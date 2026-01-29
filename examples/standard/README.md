@@ -161,10 +161,6 @@ View results in Sherlo web application at https://app.sherlo.io.
 
 #### Option A: GitHub Actions _(Recommended)_
 
-1. **Add secrets**: _(GitHub -> [YourRepo] -> Settings → Secrets and variables → Actions -> New repository secret)_
-   - `SHERLO_TOKEN` – Get from [Sherlo](https://app.sherlo.io) _(Project → Copy/Reset token)_
-   - `EXPO_TOKEN` – Get from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens) _(Create and copy token)_
-
 1. **Add secrets**: _(GitHub -> [Your Repo] -> Settings → Secrets and variables → Actions -> New repository secret)_
    - `SHERLO_TOKEN` – Get from [Sherlo](https://app.sherlo.io) _(Project → Copy/Reset token)_
    - `EXPO_TOKEN` – Get from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens) _(Create and copy token)_
