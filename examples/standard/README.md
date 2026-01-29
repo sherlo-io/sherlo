@@ -85,7 +85,7 @@ git commit -m "First Sherlo Test"
 git push origin main
 ```
 
-#### B) Option B: Local
+#### Option B: Local
 
 <!-- 1. **Build:** Run `yarn build:android` and `yarn build:ios`
 
