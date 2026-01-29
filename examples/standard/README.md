@@ -1,8 +1,8 @@
 # Standard Example
 
-Minimal React Native + Storybook setup with GitHub Actions workflow.
+Minimal React Native + Storybook setup with GitHub Actions workflow
 
-Run visual tests on app builds **with bundled JavaScript code**.
+Run visual tests on app builds **with bundled JavaScript code**
 
 <br />
 
@@ -28,7 +28,7 @@ flowchart TB
 - [**Sherlo Account**](https://app.sherlo.io) – Required for visual testing
 - [**Expo Account**](https://expo.dev/signup) – Required for EAS Build
 
-_**Build Method:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)._
+_**Build Method:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
 
 <br />
 
@@ -103,7 +103,7 @@ npx eas-cli init
 
 ### 3) Review results
 
-View results in Sherlo web application at https://app.sherlo.io.
+View results in Sherlo web application at https://app.sherlo.io
 
 <br />
 
@@ -114,7 +114,7 @@ View results in Sherlo web application at https://app.sherlo.io.
 - **[`sherlo.config.json`](./sherlo.config.json)** – Config file with testing devices _([docs](https://sherlo.io/docs/config))_
 - **[`.github/workflows/standard.yml`](./.github/workflows/standard.yml)** – CI workflow for automated builds and tests
 
-_**Own project?** Run `npx sherlo init` to automatically integrate Sherlo in your codebase._
+_**Own project?** Run `npx sherlo init` to automatically integrate Sherlo in your codebase_
 
 <br />
 
