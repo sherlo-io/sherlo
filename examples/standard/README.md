@@ -116,11 +116,13 @@ yarn sherlo --token [SHERLO_TOKEN]
 #### Option A: GitHub Actions _(Recommended)_
 
 1. **Add secrets**
-   Go to _GitHub -> Repo -> Settings → Secrets and variables → Actions -> New repository secret_, and add following secrets:
-   - `SHERLO_TOKEN` – Get from [Sherlo](https://app.sherlo.io) _(Project → Copy/Reset token)_
-   - `EXPO_TOKEN` – Get from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens) _(Create and copy token)_
 
-1. **Trigger the workflow**
+Go to _GitHub -> Repo -> Settings → Secrets and variables → Actions -> New repository secret_, and add following secrets:
+
+- `SHERLO_TOKEN` – Get from [Sherlo](https://app.sherlo.io) _(Project → Copy/Reset token)_
+- `EXPO_TOKEN` – Get from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens) _(Create and copy token)_
+
+2. **Trigger the workflow**
 
 ```bash
 # Commit and push changes to main branch to trigger the workflow (build + test)
