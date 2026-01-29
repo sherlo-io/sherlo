@@ -25,8 +25,8 @@ flowchart TB
 
 ## 🛠️ Prerequisites
 
-- **Sherlo Account** – required for visual testing ([sign up](https://app.sherlo.io))
-- **Expo Account** – required for EAS Build ([sign up](https://expo.dev/signup))
+- **Sherlo Account** – required for visual testing _([sign up](https://app.sherlo.io))_
+- **Expo Account** – required for EAS Build _([sign up](https://expo.dev/signup))_
 
 _**Build Method:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)._
 
@@ -115,11 +115,12 @@ yarn sherlo --token [SHERLO_TOKEN]
 
 #### Option A: GitHub Actions _(Recommended)_
 
-1. **Add secrets**: _(Settings → Secrets and variables → Actions -> New repository secret)_
-   - `SHERLO_TOKEN` – Get from [Sherlo](https://app.sherlo.io) (Project → Copy/Reset token)
-   - `EXPO_TOKEN` – Get from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens) (Create and copy token)
+1. **Add secrets**
+   Go to _GitHub -> Repo -> Settings → Secrets and variables → Actions -> New repository secret_, and add following secrets:
+   - `SHERLO_TOKEN` – Get from [Sherlo](https://app.sherlo.io) _(Project → Copy/Reset token)_
+   - `EXPO_TOKEN` – Get from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens) _(Create and copy token)_
 
-2. **Trigger the workflow**
+1. **Trigger the workflow**
 
 ```bash
 # Commit and push changes to main branch to trigger the workflow (build + test)
@@ -157,9 +158,9 @@ View results in Sherlo web application at https://app.sherlo.io.
 
 ## 📁 Key Files
 
-- **[`App.tsx`](./App.tsx)** – Root component rendering Storybook for testing ([docs](https://sherlo.io/docs/setup#storybook-access))
-- **[`.rnstorybook/index.ts`](./.rnstorybook/index.ts)** – Modified Storybook component required by Sherlo ([docs](https://sherlo.io/docs/setup#storybook-component))
-- **[`sherlo.config.json`](./sherlo.config.json)** – Config file with testing devices ([docs](https://sherlo.io/docs/config))
+- **[`App.tsx`](./App.tsx)** – Root component rendering Storybook for testing _([docs](https://sherlo.io/docs/setup#storybook-access))_
+- **[`.rnstorybook/index.ts`](./.rnstorybook/index.ts)** – Modified Storybook component required by Sherlo _([docs](https://sherlo.io/docs/setup#storybook-component))_
+- **[`sherlo.config.json`](./sherlo.config.json)** – Config file with testing devices _([docs](https://sherlo.io/docs/config))_
 - **[`.github/workflows/standard.yml`](./.github/workflows/standard.yml)** – CI workflow for automated builds and tests
 
 _**Own project?** Run `npx sherlo init` to automatically integrate Sherlo in your codebase._
