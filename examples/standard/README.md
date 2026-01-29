@@ -28,8 +28,6 @@ flowchart TB
 - [**Sherlo Account**](https://app.sherlo.io) – Required for visual testing
 - [**Expo Account**](https://expo.dev/signup) – Required for EAS Build
 
-_**Build Method:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
-
 <br />
 
 ## ⚙️ Setup
@@ -49,7 +47,7 @@ yarn install
 
 ## 🚀 How to Run
 
-### 1) Configure EAS
+### 1) Set up EAS Build
 
 ```bash
 # Log in to EAS
@@ -59,55 +57,7 @@ npx eas-cli login
 npx eas-cli init
 ```
 
-### 1) Configure EAS Build
-
-```bash
-# Log in to EAS
-npx eas-cli login
-
-# Link project to your Expo account
-npx eas-cli init
-```
-
-### 1) Link project to Expo
-
-```bash
-# Log in to EAS
-npx eas-cli login
-
-# Link project to your Expo account
-npx eas-cli init
-```
-
-### 1) Link Expo project _(for EAS Build)_
-
-```bash
-# Log in to EAS
-npx eas-cli login
-
-# Link project to your Expo account
-npx eas-cli init
-```
-
-### 1) Link EAS _(Required for EAS Build)_
-
-```bash
-# Log in to EAS
-npx eas-cli login
-
-# Link project to your Expo account
-npx eas-cli init
-```
-
-### 1) Enable EAS Build
-
-```bash
-# Log in to EAS
-npx eas-cli login
-
-# Link project to your Expo account
-npx eas-cli init
-```
+_**Build Method:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
 
 <br />
 
