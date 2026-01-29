@@ -61,9 +61,9 @@ npx eas-cli init
 
 <br />
 
-### 2) Choose your workflow
+### 2) Build and run test
 
-#### A) GitHub Actions _([`.github/workflows/standard.yml`](./.github/workflows/standard.yml))_
+#### Option A: GitHub Actions _(Recommended)_
 
 <!-- 1. **Add secrets** (Settings → Secrets and variables → Actions -> New repository secret):
    - `EXPO_TOKEN` – [create here](https://expo.dev/accounts/[your-account]/settings/access-tokens)
@@ -85,7 +85,7 @@ git commit -m "First Sherlo Test"
 git push origin main
 ```
 
-#### B) Local
+#### B) Option B: Local
 
 <!-- 1. **Build:** Run `yarn build:android` and `yarn build:ios`
 
