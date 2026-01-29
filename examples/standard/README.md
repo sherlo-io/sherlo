@@ -107,7 +107,6 @@ yarn build:ios
 ```bash
 # Run Sherlo test with your project token
 yarn sherlo --token [SHERLO_TOKEN]
-# (or add the token to `sherlo.config.json` and simply run `yarn sherlo`)
 ```
 
 <br />
