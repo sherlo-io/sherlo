@@ -25,8 +25,8 @@ flowchart TB
 
 ## 🛠️ Prerequisites
 
-- [**Sherlo Account**](https://app.sherlo.io) – For visual testing
-- [**Expo Account**](https://expo.dev/signup) – For EAS Build
+- [**Sherlo Account**](https://app.sherlo.io) – Required for visual testing
+- [**Expo Account**](https://expo.dev/signup) – Required for EAS Build
 
 <br />
 
@@ -61,10 +61,10 @@ _**Build Method:** This example uses EAS Build. For other build tools, see [docu
 
 ### 2) Get Sherlo token
 
-Get your project token from [Sherlo app](https://app.sherlo.io):
+Open [Sherlo app](https://app.sherlo.io) and get your project token:
 
-- **New project**: Create a new project and copy the generated token
-- **Existing project**: Open your project and reset the token _(Settings → Reset token)_
+- **New project**: Create project and copy the token
+- **Existing project**: Reset the token _(Settings → Reset token)_
 
 ### 3) Build and run test
 
