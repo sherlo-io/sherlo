@@ -50,7 +50,7 @@ yarn install
 ### 1) Set up EAS Build
 
 ```bash
-# Log in to EAS
+# Log in with your Expo account
 npx eas-cli login
 
 # Link project to your Expo account
