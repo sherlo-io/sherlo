@@ -112,7 +112,7 @@ Open [Sherlo app](https://app.sherlo.io) to view your test results
 ## 📁 Key Files
 
 - **[`App.tsx`](./App.tsx)** – Root component rendering Storybook for testing _([docs](https://sherlo.io/docs/setup#storybook-access))_
-- **[`.rnstorybook/index.ts`](./.rnstorybook/index.ts)** – Modified Storybook component required by Sherlo _([docs](https://sherlo.io/docs/setup#storybook-component))_
+- **[`.rnstorybook/index.ts`](./.rnstorybook/index.ts)** – Modified Storybook component for Sherlo integration _([docs](https://sherlo.io/docs/setup#storybook-component))_
 - **[`sherlo.config.json`](./sherlo.config.json)** – Config file with testing devices _([docs](https://sherlo.io/docs/config))_
 - **[`.github/workflows/standard.yml`](./.github/workflows/standard.yml)** – CI workflow for automated builds and tests
 
