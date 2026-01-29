@@ -70,11 +70,9 @@ Get your project token from [Sherlo app](https://app.sherlo.io):
 
 #### Option A: GitHub Actions _(Recommended)_
 
-1.  **Add secrets** to GitHub repository:
+1.  **Add secrets**: _(GitHub -> [Your Repo] -> Settings → Secrets and variables → Actions -> New repository secret)_
     - `SHERLO_TOKEN` – Use your Sherlo project token
     - `EXPO_TOKEN` – Get access token from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens)
-
-_GitHub -> [Your Repo] -> Settings → Secrets and variables → Actions -> New repository secret_
 
 2.  **Trigger the workflow**
 
