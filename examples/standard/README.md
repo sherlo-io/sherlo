@@ -72,13 +72,13 @@ npx eas-cli init
 2. **Trigger:** Commit and push to `main` branch -->
 
 1. **Add secrets**: _(Settings → Secrets and variables → Actions -> New repository secret)_
-   - `SHERLO_TOKEN` – Get from https://app.sherlo.io (New project → Copy token ~OR~ Existing project -> Reset token)
+   - `SHERLO_TOKEN` – Get from https://app.sherlo.io (Project → Copy/Reset token)
    - `EXPO_TOKEN` – Get from https://expo.dev/accounts/[your-account]/settings/access-tokens (Create and copy token)
 
-2. **Trigger the workflow** (build + test)
+2. **Trigger the workflow**
 
 ```bash
-# Commit and push changes to main branch to trigger the workflow
+# Commit and push changes to main branch to trigger the workflow (build + test)
 git add .
 git commit -m "First Sherlo Test"
 git push origin main
@@ -91,6 +91,44 @@ git push origin main
 2. **Test:** Run `yarn sherlo:test --token [SHERLO_TOKEN]`
    - Get token from [Sherlo](https://app.sherlo.io) (Project → Settings)
    - Or add it to `sherlo.config.json` ([docs](https://sherlo.io/docs/config#token)) -->
+
+1. **Build apps**
+
+```bash
+# Build Android
+yarn build:android
+
+# Build iOS
+yarn build:ios
+```
+
+2. **Run test**
+
+```bash
+# Run Sherlo test with your project token
+yarn sherlo --token [SHERLO_TOKEN]
+```
+
+<br />
+
+### 2) Build and run test
+
+#### Option A: GitHub Actions _(Recommended)_
+
+1. **Add secrets**: _(Settings → Secrets and variables → Actions -> New repository secret)_
+   - `SHERLO_TOKEN` – Get from [Sherlo](https://app.sherlo.io) (Project → Copy/Reset token)
+   - `EXPO_TOKEN` – Get from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens) (Create and copy token)
+
+2. **Trigger the workflow**
+
+```bash
+# Commit and push changes to main branch to trigger the workflow (build + test)
+git add .
+git commit -m "First Sherlo Test"
+git push origin main
+```
+
+#### Option B: Local environment
 
 1. **Build apps**
 
