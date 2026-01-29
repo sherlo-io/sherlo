@@ -98,10 +98,9 @@ Open [Sherlo app](https://app.sherlo.io) and get your project token:
 2. **Run test**
 
    ```bash
-   # Run Sherlo test with your project token
+   # Run Sherlo
    yarn sherlo --token SHERLO_TOKEN
    # Alternatively: add token to sherlo.config.json and run `yarn sherlo`
-   # (or add the token to `sherlo.config.json` and simply run `yarn sherlo`)
    ```
 
 ### 4) Review results
