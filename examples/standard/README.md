@@ -32,15 +32,6 @@ _**Build Method:** This example uses EAS Build. For other build tools, see [docu
 
 <br />
 
-## 🛠️ Prerequisites
-
-- **Sherlo Account** – required for visual testing _([sign up](https://app.sherlo.io))_
-- **Expo Account** – required for EAS Build _([sign up](https://expo.dev/signup))_
-
-_**Build Method:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)._
-
-<br />
-
 ## ⚙️ Setup
 
 ```bash
@@ -170,11 +161,15 @@ View results in Sherlo web application at https://app.sherlo.io.
 
 #### Option A: GitHub Actions _(Recommended)_
 
-1. **Add secrets** _(GitHub -> Repo -> Settings → Secrets and variables → Actions -> New repository secret)_
+1. **Add secrets**: _(GitHub -> [YourRepo] -> Settings → Secrets and variables → Actions -> New repository secret)_
    - `SHERLO_TOKEN` – Get from [Sherlo](https://app.sherlo.io) _(Project → Copy/Reset token)_
    - `EXPO_TOKEN` – Get from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens) _(Create and copy token)_
 
-2. **Trigger the workflow**
+1. **Add secrets**: _(GitHub -> [Your Repo] -> Settings → Secrets and variables → Actions -> New repository secret)_
+   - `SHERLO_TOKEN` – Get from [Sherlo](https://app.sherlo.io) _(Project → Copy/Reset token)_
+   - `EXPO_TOKEN` – Get from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens) _(Create and copy token)_
+
+1. **Trigger the workflow**
 
    ```bash
    # Commit and push changes to main branch to trigger the workflow (build + test)
