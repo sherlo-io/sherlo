@@ -63,8 +63,14 @@ _This example uses EAS Build. For other build tools, see [docs](https://sherlo.i
 
 Open [Sherlo app](https://app.sherlo.io):
 
-- **A) New project**: Create project and copy the token
-- **B) Existing project**: Reset the token _(Settings → Reset token)_
+a) **New project**: Create project and copy the token
+b) **Existing project**: Reset the token _(Settings → Reset token)_
+
+a. asd
+b. asd
+
+- A) **New project**: Create project and copy the token
+- B) **Existing project**: Reset the token _(Settings → Reset token)_
 
 ### 3) Build and run test
 
