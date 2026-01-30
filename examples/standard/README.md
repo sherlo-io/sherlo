@@ -61,14 +61,14 @@ _This example uses EAS Build. For other build tools, see [docs](https://sherlo.i
 
 ### 2) Get Sherlo token
 
-Open [Sherlo app](https://app.sherlo.io) and choose one:
+Open [Sherlo app](https://app.sherlo.io):
 
-- **New project**: Create project and copy the token
-- **Existing project**: Reset the token _(Settings → Reset token)_
+- **A) New project**: Create project and copy the token
+- **B) Existing project**: Reset the token _(Settings → Reset token)_
 
 ### 3) Build and run test
 
-#### Option A: GitHub Actions _(Recommended)_
+#### A) GitHub Actions _(Recommended)_
 
 1.  **Add secrets**: _(GitHub -> [Your Repo] -> Settings → Secrets and variables → Actions -> New repository secret)_
     - `SHERLO_TOKEN` – Your Sherlo project token
@@ -83,7 +83,7 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
     git push origin main
     ```
 
-#### Option B: Local environment
+#### B) Local
 
 1. **Build apps**
 
