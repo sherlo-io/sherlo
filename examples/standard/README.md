@@ -57,13 +57,31 @@ npx eas-cli login
 npx eas-cli init
 ```
 
-_**Build Method:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
-
 _This example uses EAS Build. For other build tools, see [docs](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
 
-_Uses EAS Build. See [docs](https://sherlo.io/docs/builds?type=preview-simulator#build-types) for other build tools_
+### 1) Set up EAS Build
 
-_Uses EAS Build ([other build tools](https://sherlo.io/docs/builds?type=preview-simulator#build-types))_
+```bash
+# Log in with your Expo account
+npx eas-cli login
+
+# Link project to your Expo account
+npx eas-cli init
+```
+
+_This example uses EAS Build ([other build tools](https://sherlo.io/docs/builds?type=preview-simulator#build-types))_
+
+### 1) Set up EAS Build
+
+```bash
+# Log in with your Expo account
+npx eas-cli login
+
+# Link project to your Expo account
+npx eas-cli init
+```
+
+_**Build Method:** This example uses EAS Build. For other build tools, see [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
 
 ### 2) Get Sherlo token
 
