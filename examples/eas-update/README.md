@@ -27,6 +27,7 @@ flowchart TB
 
    UI --> Check
    Check -->|Yes| Rebuild
+   Android --> iOS
    Check -->|No| Reuse
    Rebuild --> Update
    Reuse --> Update
