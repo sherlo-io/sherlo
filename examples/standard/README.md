@@ -61,7 +61,7 @@ _This example uses EAS Build. For other build tools, see [docs](https://sherlo.i
 
 ### 2) Get Sherlo token
 
-Open [Sherlo app](https://app.sherlo.io):
+Open [Sherlo app](https://app.sherlo.io) and choose one:
 
 - **New project**: Create project and copy the token
 - **Existing project**: Reset the token _(Settings → Reset token)_
