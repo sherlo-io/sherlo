@@ -1,6 +1,6 @@
 # Standard Example
 
-Minimal React Native + Storybook setup with GitHub Actions workflow
+Minimal React Native + Storybook app with GitHub Actions workflow
 
 Run visual tests on app builds **with bundled JavaScript code**
 
