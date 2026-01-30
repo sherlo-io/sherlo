@@ -68,7 +68,7 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 
 ### 3) Build and run test
 
-#### A) GitHub Actions _(Recommended)_
+#### Option A: GitHub Actions _(Recommended)_
 
 1.  **Add secrets**: _(GitHub -> [Your Repo] -> Settings → Secrets and variables → Actions -> New repository secret)_
     - `SHERLO_TOKEN` – Your Sherlo project token
@@ -83,7 +83,7 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
     git push origin main
     ```
 
-#### B) Local environment
+#### Option B: Local environment
 
 1. **Build apps**
 
