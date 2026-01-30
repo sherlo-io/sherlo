@@ -1,23 +1,35 @@
-# Standard Example
+# EAS Update Example
 
 Minimal React Native + Storybook app with GitHub Actions workflow
 
-Run visual tests on app builds **with bundled JavaScript code**
+Run visual tests using **Over-The-Air updates** for JavaScript changes, without full app rebuilds
 
 <br />
 
 ## 🔄 Workflow
 
+<!-- TODO: Poprawic -->
+
 ```mermaid
 flowchart TB
    UI(🧑‍💻 UI Changes)
-   Android(🤖 Build Android)
-   iOS(🍎 Build iOS)
+   Check{Native code changed?}
+   Reuse(📦 Reuse Builds)
+   Update(🚀 EAS Update)
    Sherlo(🧪 Run Sherlo)
    Review(👀 Review Changes)
 
-   UI --> Android & iOS
-   Android & iOS --> Sherlo
+   subgraph Builds[Rebuild Apps]
+     Android(🤖 Android)
+     iOS(🍎 iOS)
+   end
+
+   UI --> Check
+   Check -->|Yes| Builds
+   Check -->|No| Reuse
+   Builds --> Update
+   Reuse --> Update
+   Update --> Sherlo
    Sherlo --> Review
 ```
 
@@ -26,6 +38,9 @@ flowchart TB
 ## 🛠️ Prerequisites
 
 - [**Sherlo Account**](https://app.sherlo.io) – Required for visual testing
+<!--
+TODO: Required for EAS Build and EAS Update???
+-->
 - [**Expo Account**](https://expo.dev/signup) – Required for EAS Build
 
 <br />
@@ -37,7 +52,7 @@ flowchart TB
 git clone https://github.com/sherlo-io/sherlo.git
 
 # Navigate to this example
-cd sherlo/examples/standard
+cd sherlo/examples/eas-update
 
 # Install dependencies
 yarn install
@@ -46,6 +61,8 @@ yarn install
 <br />
 
 ## 🚀 How to Run
+
+<!-- TODO: Set up EAS (Build and Update)? a moze po prostu "Set up EAS" i wtedy to ujednolicic? -->
 
 ### 1) Set up EAS Build
 
@@ -57,7 +74,11 @@ npx eas-cli login
 npx eas-cli init
 ```
 
-_This example uses EAS Build. For other build tools, see [docs](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
+<!-- TODO: zostawiamy ten komentarz? -->
+
+_This example uses EAS Build. For other build tools, see [docs](https://sherlo.io/docs/builds?type=development-simulator#build-types)_
+
+<!-- TODO: brakuje jeszcze kroku odnoscie setupu EAS Update? jaka to komenda? -->
 
 ### 2) Get Sherlo token
 
@@ -75,6 +96,8 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
     - `EXPO_TOKEN` – Get access token from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens)
 
 2.  **Trigger the workflow**
+
+<!-- TODO: poprawic tekst w nawiasie -->
 
     ```bash
     # Commit and push changes to main branch to trigger the workflow (build + test)
@@ -95,6 +118,8 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
    yarn build:ios
    ```
 
+<!-- TODO: dodac krok z Update -->
+
 2. **Run test**
 
    ```bash
@@ -114,7 +139,10 @@ Open [Sherlo app](https://app.sherlo.io) to view your test results
 - **[`App.tsx`](./App.tsx)** – Root component rendering Storybook for testing _([docs](https://sherlo.io/docs/setup#storybook-access))_
 - **[`.rnstorybook/index.ts`](./.rnstorybook/index.ts)** – Storybook component modified for Sherlo integration _([docs](https://sherlo.io/docs/setup#storybook-component))_
 - **[`sherlo.config.json`](./sherlo.config.json)** – Config file with testing devices _([docs](https://sherlo.io/docs/config))_
-- **[`.github/workflows/standard.yml`](./.github/workflows/standard.yml)** – CI workflow for automated builds and tests
+<!--
+TODO: poprawic teskt? moze ujednolicic pomiedzy metodami?
+-->
+- **[`.github/workflows/eas-update.yml`](./.github/workflows/eas-update.yml)** – CI workflow for automated builds and tests
 
 _**Own project?** Run `npx sherlo init` to automatically integrate Sherlo in your codebase_
 
@@ -122,5 +150,5 @@ _**Own project?** Run `npx sherlo init` to automatically integrate Sherlo in you
 
 ## 🔗 Other Examples
 
-- **[EAS Update](../eas-update)** – Run visual tests using **Over-The-Air updates** for JavaScript changes, without full app rebuilds
+- **[Standard](../standard)** – Run visual tests on app builds **with bundled JavaScript code**
 - **[EAS Cloud Build](../eas-cloud-build)** – Automatically run visual tests **after builds complete on Expo servers**
