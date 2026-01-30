@@ -66,6 +66,10 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 - **New project**: Create project and copy the token
 - **Existing project**: Reset the token _(Settings → Reset token)_
 
+<br />
+
+## 🚀 How to Run
+
 ### 1) Set up EAS Build
 
 ```bash
@@ -84,6 +88,10 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 
 - **New project**: Create project and copy the token
 - **Existing project**: Reset the token _(Settings → Reset token)_
+
+<br />
+
+## 🚀 How to Run
 
 ### 1) Set up EAS Build
 
@@ -104,6 +112,10 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 - **New project**: Create project and copy the token
 - **Existing project**: Reset the token _(Settings → Reset token)_
 
+<br />
+
+## 🚀 How to Run
+
 ### 1) Set up EAS Build
 
 ```bash
@@ -122,6 +134,10 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 
 - **New project**: Create project and copy the token
 - **Existing project**: Reset the token _(Settings → Reset token)_
+
+<br />
+
+## 🚀 How to Run
 
 ### 1) Set up EAS Build
 
