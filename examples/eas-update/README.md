@@ -27,7 +27,7 @@ flowchart TB
    end
 
    UI --> Check
-   Check --->|Yes| Rebuild
+   Check ---->|Yes| Rebuild
    Check -->|No| Reuse
    Rebuild --> Update
    Reuse --> Update
