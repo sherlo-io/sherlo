@@ -19,9 +19,10 @@ flowchart TB
    Sherlo(🧪 Run Sherlo)
    Review(👀 Review Changes)
 
-   subgraph Rebuild(Rebuild Apps)
-     Android(🤖 Rebuild Android)
-     iOS(🍎 Rebuild iOS)
+   subgraph Rebuild[Rebuild Apps]
+      direction LR
+      Android(🤖 Rebuild Android)
+      iOS(🍎 Rebuild iOS)
    end
 
    UI --> Check
