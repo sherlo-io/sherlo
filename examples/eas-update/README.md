@@ -13,7 +13,7 @@ Run visual tests using **Over-The-Air updates** for JavaScript changes, without 
 ```mermaid
 flowchart TB
    UI(🧑‍💻 UI Changes)
-   Check{Native code changed?}
+   Check{Has native code changed?}
    Reuse(📦 Reuse Builds)
    Update(🚀 EAS Update)
    Sherlo(🧪 Run Sherlo)
