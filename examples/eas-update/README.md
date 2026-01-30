@@ -23,11 +23,11 @@ flowchart TB
       direction LR
       Android(🤖 Rebuild Android)
       iOS(🍎 Rebuild iOS)
+      Android ~~~ iOS
    end
 
    UI --> Check
    Check -->|Yes| Rebuild
-   Android --> iOS
    Check -->|No| Reuse
    Rebuild --> Update
    Reuse --> Update
