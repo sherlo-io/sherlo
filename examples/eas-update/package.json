@@ -1,13 +1,15 @@
 {
   "name": "sherlo-example-eas-update",
-  "version": "1.0.0",
-  "main": "index.ts",
   "comments": {
     "expo-dev-client": "required for EAS Update",
     "expo-updates": "required for EAS Update - zostawic zeby bylo dodawane automatycznie?",
-    "scripts": "build:android, build:ios, eas:update, sherlo:test"
+    "scripts": "eas:update, sherlo"
   },
   "scripts": {
+    "build:android": "npx eas-cli build --local --platform android --profile development-simulator --output builds/android.apk",
+    "build:ios": "npx eas-cli build --local --platform ios --profile development-simulator --output builds/ios.tar.gz",
+    "eas:update": "npx eas-cli update --auto --branch main --non-interactive",
+    "sherlo": "npx sherlo test:eas-update --branch main --android builds/android.apk --ios builds/ios.tar.gz"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.8",
@@ -28,5 +30,7 @@
     "@types/react": "~19.1.10",
     "typescript": "^5.9.3"
   },
-  "private": true
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.ts"
 }
