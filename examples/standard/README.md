@@ -48,6 +48,8 @@ yarn install
 
 ### 2. Configure EAS (Expo)
 
+_This example uses EAS Build. For other build tools, see [docs](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
+
 ```bash
 # Link project to your Expo account
 npx eas-cli login
@@ -56,8 +58,6 @@ npx eas-cli init
 # Configure EAS Update for over-the-air updates
 npx eas-cli update:configure
 ```
-
-_This example uses EAS Build. For other build tools, see [docs](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
 
 ### 3. Get Sherlo Token
 
