@@ -26,7 +26,9 @@
     "cli.js"
   ],
   "scripts": {
-    "build": "rm -rf dist && ncc build src/index.ts --source-map --minify && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js"
+    "build": "rm -rf dist && ncc build src/index.ts --source-map --minify && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js",
+    "test": "vitest run",
+    "test:ci": "vitest run --coverage"
   },
   "devDependencies": {
     "@inquirer/prompts": "^7.8.4",
@@ -42,6 +44,7 @@
     "@types/prompts": "^2.4.9",
     "@types/tar": "^6.1.5",
     "@vercel/ncc": "latest",
+    "@vitest/coverage-v8": "^1.0.4",
     "ansi-escapes": "^7.2.0",
     "chalk": "^4.1.2",
     "commander": "^12.0.0",
@@ -54,6 +57,7 @@
     "package-manager-detector": "^0.2.9",
     "type-fest": "^4.20.1",
     "typescript": "^5.3.3",
+    "vitest": "^1.0.4",
     "wrap-ansi": "^9.0.0"
   },
   "engines": {
