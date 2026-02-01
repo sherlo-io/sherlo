@@ -8,8 +8,6 @@ Run visual tests using **Over-The-Air updates** for JavaScript changes, without 
 
 ## 🔄 Workflow
 
-<!-- TODO: Poprawic -->
-
 ```mermaid
 flowchart TB
    UI(🧑‍💻 UI Changes)
@@ -23,6 +21,34 @@ flowchart TB
       direction LR
       Android(🤖 Rebuild Android)
       iOS(🍎 Rebuild iOS)
+      Android ~~~ iOS
+   end
+
+   UI --> Check
+   Check -->|No| Reuse
+   Check -->|Yes| Rebuild
+   Reuse & Rebuild --> Update
+   Update --> Sherlo
+   Sherlo --> Review
+```
+
+<br />
+
+## 🔄 Workflow
+
+```mermaid
+flowchart TB
+   UI[🧑‍💻 UI Changes]
+   Check{Native code changed?}
+   Reuse[📦 Reuse Builds]
+   Update[🚀 EAS Update]
+   Sherlo[🧪 Run Sherlo]
+   Review[👀 Review Changes]
+
+   subgraph Rebuild[Rebuild Apps]
+      direction LR
+      Android[🤖 Rebuild Android]
+      iOS[🍎 Rebuild iOS]
       Android ~~~ iOS
    end
 
@@ -96,9 +122,8 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
     - `SHERLO_TOKEN` – Your Sherlo project token
     - `EXPO_TOKEN` – Get access token from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens)
 
-2.  **Trigger the workflow**
-
 <!-- TODO: poprawic tekst w nawiasie -->
+2.  **Trigger the workflow**
 
     ```bash
     # Commit and push changes to main branch to trigger the workflow (build + test)
