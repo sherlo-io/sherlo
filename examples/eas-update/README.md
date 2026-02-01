@@ -67,6 +67,9 @@ npx eas-cli login
 
 # Link project to your Expo account
 npx eas-cli init
+
+# Configure EAS Update for over-the-air updates
+npx eas-cli update:configure
 ```
 
 <!-- TODO: zostawiamy ten komentarz? -->

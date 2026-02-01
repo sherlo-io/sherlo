@@ -35,20 +35,18 @@ flowchart TB
 
 ## ⚙️ Setup
 
+### 1) Clone and Install
+
 ```bash
 # Clone this example
 npx degit https://github.com/sherlo-io/sherlo/examples/standard sherlo-standard
 
-# Install dependencies
+# Enter directory and install
 cd sherlo-standard
 yarn install
 ```
 
-<br />
-
-## 🚀 How to Run
-
-### 1) Set up EAS Build
+### 2) Configure EAS
 
 ```bash
 # Log in with your Expo account
@@ -56,6 +54,38 @@ npx eas-cli login
 
 # Link project to your Expo account
 npx eas-cli init
+
+# Configure EAS Update for over-the-air updates
+npx eas-cli update:configure
+```
+
+_This example uses EAS Build. For other build tools, see [docs](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
+
+### 3) Get Sherlo Token
+
+1. Go to https://app.sherlo.io
+2. Choose one:
+   - **New project**: Create project and copy the token
+   - **Existing project**: Reset the token _(Settings → Reset token)_
+
+_You will use this token when running Sherlo tests_
+
+
+<br />
+
+## 🚀 How to Run
+
+<!-- ### 1) Set up EAS Build
+
+```bash
+# Log in with your Expo account
+npx eas-cli login
+
+# Link project to your Expo account
+npx eas-cli init
+
+# Configure EAS Update for over-the-air updates
+npx eas-cli update:configure
 ```
 
 _This example uses EAS Build. For other build tools, see [docs](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
@@ -69,7 +99,7 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 
 ### 3) Build and run test
 
-#### WERSJA 1
+#### WERSJA 1 -->
 
 #### A) GitHub Actions _(Recommended)_
 
@@ -200,7 +230,7 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
    # Alternatively: add token to sherlo.config.json and run `yarn sherlo`
    ```
 
-### 4) Review results
+### 4) Review Results
 
 Open [Sherlo app](https://app.sherlo.io) to view your test results
 
