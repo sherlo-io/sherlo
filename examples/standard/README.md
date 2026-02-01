@@ -37,10 +37,10 @@ flowchart TB
 
 ```bash
 # Clone this example
-npx degit https://github.com/sherlo-io/sherlo/examples/standard sherlo-standard-example
+npx degit https://github.com/sherlo-io/sherlo/examples/standard sherlo-standard
 
 # Install dependencies
-cd sherlo-standard-example
+cd sherlo-standard
 yarn install
 ```
 
@@ -50,8 +50,8 @@ yarn install
 
 ```bash
 # Clone this example
-npx degit https://github.com/sherlo-io/sherlo/examples/standard sherlo-standard-example
-cd sherlo-standard-example
+npx degit https://github.com/sherlo-io/sherlo/examples/standard sherlo-standard
+cd sherlo-standard
 yarn install
 
 # Set up EAS
