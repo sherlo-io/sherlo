@@ -36,13 +36,11 @@ flowchart TB
 ## ⚙️ Setup
 
 ```bash
-# Create a new project from this example
+# Clone this example
 npx degit https://github.com/sherlo-io/sherlo/examples/standard sherlo-standard-example
 
-# Navigate to the project
-cd sherlo-standard-example
-
 # Install dependencies
+cd sherlo-standard-example
 yarn install
 ```
 
