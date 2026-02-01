@@ -71,11 +71,11 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 
 #### A) GitHub Actions _(Recommended)_
 
-1.  **Create GitHub repository**
+1. **Create GitHub repository**
 
    Go to [GitHub](https://github.com/new) and create a new repository
 
-2.  **Configure repository secrets**
+1. **Configure repository secrets**
 
    Go to your repository → Settings → Secrets and variables → Actions → New repository secret
 
@@ -83,7 +83,7 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
    - `SHERLO_TOKEN` – Your Sherlo project token
    - `EXPO_TOKEN` – Get access token from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens)
 
-3.  **Push code and trigger workflow**
+2. **Push code and trigger workflow**
 
    ```bash
    # Initialize git and link to your repository
