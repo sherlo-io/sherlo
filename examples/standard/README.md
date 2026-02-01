@@ -94,7 +94,7 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 3. **Push code to trigger workflow**
 
    ```bash
-   # Commit and push changes to main branch to trigger the workflow (build + test)
+   # Push changes to main branch to trigger the workflow (build + test)
    git add .
    git commit -m "Run first Sherlo test"
    git push -u origin main
@@ -174,7 +174,7 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 2. **Trigger the workflow**
 
    ```bash
-   # Commit and push changes to main branch to trigger the workflow (build + test)
+   # Push changes to main branch to trigger the workflow (build + test)
    git add .
    git commit -m "Run first Sherlo test"
    git push origin main
