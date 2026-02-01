@@ -11,23 +11,6 @@ Run visual tests on app builds **with bundled JavaScript code**
 ```mermaid
 flowchart TB
    UI(🧑‍💻 UI Changes)
-   Android(🤖 Build Android)
-   iOS(🍎 Build iOS)
-   Sherlo(🧪 Run Sherlo)
-   Review(👀 Review Changes)
-
-   UI --> Android & iOS
-   Android & iOS --> Sherlo
-   Sherlo --> Review
-```
-
-<br />
-
-## 🔄 Workflow
-
-```mermaid
-flowchart TB
-   UI(🧑‍💻 UI Changes)
    subgraph Build[Build Apps]
       Android(🤖 Build Android)
       iOS(🍎 Build iOS)
@@ -36,8 +19,8 @@ flowchart TB
    Sherlo(🧪 Run Sherlo)
    Review(👀 Review Changes)
 
-   UI --> Android & iOS
-   Android & iOS --> Sherlo
+   UI --> Build
+   Build --> Sherlo
    Sherlo --> Review
 ```
 
@@ -51,7 +34,7 @@ flowchart TB
    subgraph Build[Build Apps]
       Android(🤖 Build Android)
       iOS(🍎 Build iOS)
-      Android ~~~ iOS
+      Android -.- iOS
    end
    Sherlo(🧪 Run Sherlo)
    Review(👀 Review Changes)
