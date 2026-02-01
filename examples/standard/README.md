@@ -49,10 +49,8 @@ yarn install
 ### 2. Configure EAS (Expo)
 
 ```bash
-# Log in with your Expo account
-npx eas-cli login
-
 # Link project to your Expo account
+npx eas-cli login
 npx eas-cli init
 
 # Configure EAS Update for over-the-air updates
