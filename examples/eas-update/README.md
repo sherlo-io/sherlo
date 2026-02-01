@@ -13,44 +13,14 @@ flowchart TB
    UI(🧑‍💻 UI Changes)
    Check{Native code changed?}
    Reuse(📦 Reuse Builds)
-   Update(🚀 EAS Update)
-   Sherlo(🧪 Run Sherlo)
-   Review(👀 Review Changes)
-
    subgraph Rebuild[Rebuild Apps]
-      direction LR
       Android(🤖 Rebuild Android)
       iOS(🍎 Rebuild iOS)
       Android ~~~ iOS
    end
-
-   UI --> Check
-   Check -->|No| Reuse
-   Check -->|Yes| Rebuild
-   Reuse & Rebuild --> Update
-   Update --> Sherlo
-   Sherlo --> Review
-```
-
-<br />
-
-## 🔄 Workflow
-
-```mermaid
-flowchart TB
-   UI[🧑‍💻 UI Changes]
-   Check{Native code changed?}
-   Reuse[📦 Reuse Builds]
-   Update[🚀 EAS Update]
-   Sherlo[🧪 Run Sherlo]
-   Review[👀 Review Changes]
-
-   subgraph Rebuild[Rebuild Apps]
-      direction LR
-      Android[🤖 Rebuild Android]
-      iOS[🍎 Rebuild iOS]
-      Android ~~~ iOS
-   end
+   Update(🚀 EAS Update)
+   Sherlo(🧪 Run Sherlo)
+   Review(👀 Review Changes)
 
    UI --> Check
    Check -->|No| Reuse
