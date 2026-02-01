@@ -80,8 +80,6 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
    ```bash
    # Initialize git and link to your repository
    git init
-   git add .
-   git commit -m "Initial commit"
    git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
    ```
 
@@ -93,10 +91,12 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
    - `SHERLO_TOKEN` – Your Sherlo project token
    - `EXPO_TOKEN` – Get access token from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens)
 
-3. **Push to trigger workflow**
+3. **Push code to trigger workflow**
 
    ```bash
-   # Push to trigger the workflow (build + test)
+   # Commit and push to trigger the workflow (build + test)
+   git add .
+   git commit -m "Run first Sherlo test"
    git push -u origin main
    ```
 
@@ -112,8 +112,6 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
    
    ```bash
    git init
-   git add .
-   git commit -m "Initial commit"
    git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
    ```
 
@@ -128,6 +126,8 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 3. **Push to trigger workflow**
 
    ```bash
+   git add .
+   git commit -m "Run first Sherlo test"
    git push -u origin main
    ```
 
@@ -143,8 +143,6 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
    
    ```bash
    git init
-   git add .
-   git commit -m "Initial commit"
    git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
    ```
 
@@ -156,9 +154,11 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
    - `SHERLO_TOKEN` – Your Sherlo project token
    - `EXPO_TOKEN` – Get from [Expo settings](https://expo.dev/accounts/[your-account]/settings/access-tokens)
 
-3. **Push to trigger workflow**
+3. **Commit and push to trigger workflow**
 
    ```bash
+   git add .
+   git commit -m "Run first Sherlo test"
    git push -u origin main
    ```
 
