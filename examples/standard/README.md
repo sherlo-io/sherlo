@@ -8,6 +8,8 @@ Run visual tests on app builds **with bundled JavaScript code**
 
 ## 🔄 Workflow
 
+<!-- TODO: cos lepszego zamiast "UI Changes"? -->
+
 ```mermaid
 flowchart TB
    UI(🧑‍💻 UI Changes)
@@ -55,11 +57,13 @@ This example uses EAS Build. For other build tools, check our [documentation](ht
 npx eas-cli login
 npx eas-cli init
 
-# Configure EAS Update for over-the-air updates
+# Configure EAS Update for Over-The-Air updates
 npx eas-cli update:configure
 ```
 
 ### 3. Get Sherlo Token
+
+<!-- TODO: jakis tekst mowiacy po co to? -->
 
 1. Go to https://app.sherlo.io
 2. Choose one:
@@ -193,6 +197,8 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 --- -->
 
 ### Option A: GitHub Actions _(Recommended)_
+
+<!-- TODO: link na samym "Expo" wyglada dziwnie -->
 
 1. **Add secrets**: _(GitHub -> [Your Repo] -> Settings → Secrets and variables → Actions -> New repository secret)_
    - `SHERLO_TOKEN` – Your Sherlo project token
