@@ -232,10 +232,6 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 
 ## 👀 Review Results
 
-Once your test completes, open [Sherlo app](https://app.sherlo.io) to see the results and review visual changes.
-
-## 👀 Review Results
-
 Once your test completes, open [Sherlo app](https://app.sherlo.io) to see results and review visual changes.
 
 <br />
