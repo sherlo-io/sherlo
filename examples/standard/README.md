@@ -48,7 +48,7 @@ yarn install
 
 ### 2. Configure EAS (Expo)
 
-This example uses EAS Build. For other build tools, see [docs](https://sherlo.io/docs/builds?type=preview-simulator#build-types)
+This example uses EAS Build. For other build tools, check our [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)
 
 ```bash
 # Link project to your Expo account
