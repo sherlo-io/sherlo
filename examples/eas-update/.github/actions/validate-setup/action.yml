@@ -3,10 +3,10 @@ description: Validates Sherlo and EAS configuration
 
 inputs:
   expo-token:
-    description: 'Expo access token'
+    description: "Expo access token"
     required: true
   sherlo-token:
-    description: 'Sherlo project token'
+    description: "Sherlo project token"
     required: true
 
 runs:
@@ -82,8 +82,8 @@ runs:
           echo "This project needs to be linked to your Expo account"
           echo ""
           echo "📝 How to fix:"
-          echo "   1. Login to Expo: npx eas-cli login"
-          echo "   2. Link project: npx eas-cli init"
+          echo "   1. Login to Expo: \`npx eas-cli login\`"
+          echo "   2. Link project: \`npx eas-cli init\`"
           echo "   3. Commit the updated app.json file"
           echo ""
           echo "::error title=EAS Project Not Linked::Missing projectId in app.json"

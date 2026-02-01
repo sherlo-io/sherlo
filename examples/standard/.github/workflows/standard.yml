@@ -59,8 +59,8 @@ jobs:
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 'lts/*'
-          cache: 'yarn'
+          node-version: "lts/*"
+          cache: "yarn"
 
       - name: 🏗 Setup EAS
         uses: expo/expo-github-action@v8
@@ -104,8 +104,8 @@ jobs:
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 'lts/*'
-          cache: 'yarn'
+          node-version: "lts/*"
+          cache: "yarn"
 
       - name: 🏗 Setup EAS
         uses: expo/expo-github-action@v8
