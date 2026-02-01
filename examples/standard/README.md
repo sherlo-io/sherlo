@@ -1,6 +1,6 @@
-# Standard Example
+# Sherlo Example - Standard
 
-Minimal React Native + Storybook app with GitHub Actions workflow
+Minimal Sherlo example with GitHub Actions workflow
 
 Run visual tests on app builds **with bundled JavaScript code**
 
@@ -36,14 +36,30 @@ flowchart TB
 ## ⚙️ Setup
 
 ```bash
-# Clone the repository
-git clone https://github.com/sherlo-io/sherlo.git
+# Create a new project from this example
+npx degit https://github.com/sherlo-io/sherlo/examples/standard sherlo-standard-example
 
-# Navigate to this example
-cd sherlo/examples/standard
+# Navigate to the project
+cd sherlo-standard-example
 
 # Install dependencies
 yarn install
+```
+
+<br />
+
+## ⚙️ Setup
+
+```bash
+# Clone this example
+npx degit https://github.com/sherlo-io/sherlo/examples/standard sherlo-standard-example
+cd sherlo-standard-example
+yarn install
+
+# Set up EAS
+npx eas-cli login
+npx eas-cli init
+# This example uses EAS Build. Other build tools: https://sherlo.io/docs/builds?type=preview-simulator#build-types
 ```
 
 <br />
