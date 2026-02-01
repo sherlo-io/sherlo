@@ -46,22 +46,6 @@ yarn install
 
 <br />
 
-## ⚙️ Setup
-
-```bash
-# Clone this example
-npx degit https://github.com/sherlo-io/sherlo/examples/standard sherlo-standard
-cd sherlo-standard
-yarn install
-
-# Set up EAS
-npx eas-cli login
-npx eas-cli init
-# This example uses EAS Build. Other build tools: https://sherlo.io/docs/builds?type=preview-simulator#build-types
-```
-
-<br />
-
 ## 🚀 How to Run
 
 ### 1) Set up EAS Build
@@ -84,6 +68,78 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 - **Existing project**: Reset the token _(Settings → Reset token)_
 
 ### 3) Build and run test
+
+#### A) GitHub Actions _(Recommended)_
+
+1.  **Create GitHub repository**
+
+    Go to [GitHub](https://github.com/new) and create a new repository
+
+2.  **Configure repository secrets**
+
+    Go to your repository → Settings → Secrets and variables → Actions → New repository secret
+
+    Add these secrets:
+    - `SHERLO_TOKEN` – Your Sherlo project token
+    - `EXPO_TOKEN` – Get access token from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens)
+
+3.  **Push code and trigger workflow**
+
+    # Initialize git and link to your repository
+    git init
+    git add .
+    git commit -m "Initial commit"
+    git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
+    
+    # Push to trigger the workflow (build + test)
+    git push -u origin main
+    
+
+---
+
+## **Propozycja B:** _(krótsza, bez git init bo user już ma repo po degit)_
+
+#### A) GitHub Actions _(Recommended)_
+
+1.  **Create a new repository** on [GitHub](https://github.com/new)
+
+2.  **Add secrets** in your repository settings:
+    
+    _GitHub → [Your Repo] → Settings → Secrets and variables → Actions → New repository secret_
+    
+    - `SHERLO_TOKEN` – Your Sherlo project token
+    - `EXPO_TOKEN` – Get from [Expo settings](https://expo.dev/accounts/[your-account]/settings/access-tokens)
+
+3.  **Push to GitHub** to trigger the workflow
+
+    # Link your local project to GitHub repository
+    git init
+    git add .
+    git commit -m "Initial commit"
+    git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
+    git push -u origin main
+
+
+---
+
+## **Propozycja C:** _(najprostsza, najbardziej zwięzła)_
+
+#### A) GitHub Actions _(Recommended)_
+
+1.  **Create repository**: [Create new repository on GitHub](https://github.com/new)
+
+2.  **Add secrets** _(Settings → Secrets and variables → Actions → New repository secret)_:
+    - `SHERLO_TOKEN` – Your Sherlo project token
+    - `EXPO_TOKEN` – [Expo access token](https://expo.dev/accounts/[your-account]/settings/access-tokens)
+
+3.  **Push code to trigger workflow**:
+
+    git init
+    git add .
+    git commit -m "Initial commit"
+    git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
+    git push -u origin main  # This triggers the workflow
+    
 
 #### A) GitHub Actions _(Recommended)_
 

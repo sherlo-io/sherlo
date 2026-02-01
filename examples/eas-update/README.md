@@ -1,4 +1,4 @@
-# EAS Update Example
+# Sherlo Example - EAS Update
 
 Minimal React Native + Storybook app with GitHub Actions workflow
 
@@ -45,13 +45,11 @@ TODO: Required for EAS Build and EAS Update???
 ## ⚙️ Setup
 
 ```bash
-# Clone the repository
-git clone https://github.com/sherlo-io/sherlo.git
-
-# Navigate to this example
-cd sherlo/examples/eas-update
+# Clone this example
+npx degit https://github.com/sherlo-io/sherlo/examples/eas-update sherlo-eas-update
 
 # Install dependencies
+cd sherlo-eas-update
 yarn install
 ```
 

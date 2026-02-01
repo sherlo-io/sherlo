@@ -5,10 +5,10 @@
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
     "android": {
-      "package": "io.sherlo.example.eas-update"
+      "package": "io.sherlo.example.eas.update"
     },
     "ios": {
-      "bundleIdentifier": "io.sherlo.example.eas-update"
+      "bundleIdentifier": "io.sherlo.example.eas.update"
     }
   }
 }

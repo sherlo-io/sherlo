@@ -17,6 +17,7 @@
     "@sherlo/react-native-storybook": "^1.5.5",
     "@storybook/react-native": "^10.1.11",
     "expo": "54.0.31",
+    "expo-dev-client": "^6.0.20",
     "react": "19.1.0",
     "react-native": "0.81.5",
     "react-native-gesture-handler": "~2.28.0",
