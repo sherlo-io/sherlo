@@ -59,7 +59,7 @@ npx eas-cli update:configure
 
 _This example uses EAS Build. For other build tools, see [docs](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
 
-### 3. Get Sherlo Token
+### 3. Get Sherlo Project Token
 
 1. Go to https://app.sherlo.io
 2. Choose one:
