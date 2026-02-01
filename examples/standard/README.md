@@ -31,7 +31,47 @@ flowchart TB
 ```mermaid
 flowchart TB
    UI(🧑‍💻 UI Changes)
+   subgraph Build
+      Android(🤖 Build Android)
+      iOS(🍎 Build iOS)
+      Android ~~~ iOS
+   end
+   Sherlo(🧪 Run Sherlo)
+   Review(👀 Review Changes)
+
+   UI --> Build
+   Build --> Sherlo
+   Sherlo --> Review
+```
+
+<br />
+
+## 🔄 Workflow
+
+```mermaid
+flowchart TB
+   UI(🧑‍💻 UI Changes)
    subgraph Build[Build Apps]
+      Android(🤖 Build Android)
+      iOS(🍎 Build iOS)
+      Android -.- iOS
+   end
+   Sherlo(🧪 Run Sherlo)
+   Review(👀 Review Changes)
+
+   UI --> Build
+   Build --> Sherlo
+   Sherlo --> Review
+```
+
+<br />
+
+## 🔄 Workflow
+
+```mermaid
+flowchart TB
+   UI(🧑‍💻 UI Changes)
+   subgraph Build
       Android(🤖 Build Android)
       iOS(🍎 Build iOS)
       Android -.- iOS
