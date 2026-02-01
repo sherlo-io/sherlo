@@ -32,32 +32,6 @@ flowchart TB
 
 <br />
 
-## 🔄 Workflow
-
-```mermaid
-flowchart TB
-   UI(🧑‍💻 UI Changes)
-   Check{Native code changed?}
-   Reuse(♻️ Reuse Builds)
-   subgraph Rebuild[Rebuild Apps]
-      Android(🤖 Rebuild Android)
-      iOS(🍎 Rebuild iOS)
-      Android ~~~ iOS
-   end
-   Update(🚀 EAS Update)
-   Sherlo(🧪 Run Sherlo)
-   Review(👀 Review Changes)
-
-   UI --> Check
-   Check -->|No| Reuse
-   Check -->|Yes| Rebuild
-   Reuse & Rebuild --> Update
-   Update --> Sherlo
-   Sherlo --> Review
-```
-
-<br />
-
 ## 🛠️ Prerequisites
 
 - [**Sherlo Account**](https://app.sherlo.io) – Required for visual testing
