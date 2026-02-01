@@ -192,7 +192,7 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 
 --- -->
 
-### A) GitHub Actions _(Recommended)_
+### Option A: GitHub Actions _(Recommended)_
 
 1. **Add secrets**: _(GitHub -> [Your Repo] -> Settings → Secrets and variables → Actions -> New repository secret)_
    - `SHERLO_TOKEN` – Your Sherlo project token
@@ -208,7 +208,7 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
    git push origin main
    ```
 
-### B) Local
+### Option B: Local
 
 1. **Build apps**
 
@@ -232,7 +232,11 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 
 ## 👀 Review Results
 
-Open [Sherlo app](https://app.sherlo.io) to view your test results and review visual changes
+Once your test completes, open [Sherlo app](https://app.sherlo.io) to see the results and review visual changes.
+
+## 👀 Review Results
+
+Once your test completes, open [Sherlo app](https://app.sherlo.io) to see results and review visual changes.
 
 <br />
 
