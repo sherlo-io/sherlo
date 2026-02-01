@@ -208,8 +208,9 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
    git push origin main
    ```
 
----
 
+
+<!-- TODO: Local / Local Environment / Local Development / Locally -->
 ### Option B: Local
 
 1. **Build apps**
