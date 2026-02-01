@@ -6619,9 +6619,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sherlo-standard-example@workspace:.":
+"sherlo-example-eas-update@workspace:.":
   version: 0.0.0-use.local
-  resolution: "sherlo-standard-example@workspace:."
+  resolution: "sherlo-example-eas-update@workspace:."
   dependencies:
     "@gorhom/bottom-sheet": "npm:^5.2.8"
     "@react-native-async-storage/async-storage": "npm:^2.2.0"
