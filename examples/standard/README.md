@@ -94,7 +94,7 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 3. **Push code to trigger workflow**
 
    ```bash
-   # Commit and push to trigger the workflow (build + test)
+   # Commit and push changes to main branch to trigger the workflow (build + test)
    git add .
    git commit -m "Run first Sherlo test"
    git push -u origin main
@@ -163,6 +163,22 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
    ```
 
 ---
+
+#### A) GitHub Actions _(Recommended)_
+
+1. **Add secrets**: _(GitHub -> [Your Repo] -> Settings → Secrets and variables → Actions -> New repository secret)_
+   - `SHERLO_TOKEN` – Your Sherlo project token
+   - `EXPO_TOKEN` – Get access token from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens)
+
+<!-- TODO: poprawic tekst w nawiasie -->
+2. **Trigger the workflow**
+
+   ```bash
+   # Commit and push changes to main branch to trigger the workflow (build + test)
+   git add .
+   git commit -m "Run first Sherlo test"
+   git push origin main
+   ```
 
 #### B) Local
 
