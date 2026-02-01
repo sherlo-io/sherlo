@@ -20,7 +20,7 @@ flowchart TB
    end
    Update(🚀 EAS Update)
    Sherlo(🧪 Run Sherlo)
-   Review(👀 Review Changes)
+   Review(👀 Review Results)
 
    UI --> Check
    Check -->|No| Reuse

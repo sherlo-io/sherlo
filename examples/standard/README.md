@@ -17,7 +17,7 @@ flowchart TB
       Android ~~~ iOS
    end
    Sherlo(🧪 Run Sherlo)
-   Review(👀 Review Changes)
+   Review(👀 Review Results)
 
    UI --> Build
    Build --> Sherlo
@@ -35,13 +35,13 @@ flowchart TB
 
 ## ⚙️ Setup
 
-### 1. Clone & Install
+### 1. Clone and Install
 
 ```bash
 # Clone this example
 npx degit https://github.com/sherlo-io/sherlo/examples/standard sherlo-standard
 
-# Instal dependencies
+# Install dependencies
 cd sherlo-standard
 yarn install
 ```
@@ -60,15 +60,6 @@ npx eas-cli update:configure
 ```
 
 _This example uses EAS Build. For other build tools, see [docs](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
-
-### 3. Get Sherlo Token
-
-Open [Sherlo app](https://app.sherlo.io) and choose one:
-
-- **New project**: Create project and copy the token
-- **Existing project**: Reset the token _(Settings → Reset token)_
-
-_You will use this token when running Sherlo tests_
 
 ### 3. Get Sherlo Token
 
@@ -110,7 +101,7 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 
 #### WERSJA 1 -->
 
-#### A) GitHub Actions _(Recommended)_
+<!-- ### A) GitHub Actions _(Recommended)_
 
 1. **Create GitHub repository**
 
@@ -201,9 +192,9 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
    git push -u origin main
    ```
 
----
+--- -->
 
-#### A) GitHub Actions _(Recommended)_
+### A) GitHub Actions _(Recommended)_
 
 1. **Add secrets**: _(GitHub -> [Your Repo] -> Settings → Secrets and variables → Actions -> New repository secret)_
    - `SHERLO_TOKEN` – Your Sherlo project token
@@ -219,7 +210,7 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
    git push origin main
    ```
 
-#### B) Local
+### B) Local
 
 1. **Build apps**
 
@@ -239,9 +230,11 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
    # Alternatively: add token to sherlo.config.json and run `yarn sherlo`
    ```
 
-### 4) Review Results
+<br />
 
-Open [Sherlo app](https://app.sherlo.io) to view your test results
+## 👀 Review Results
+
+Open [Sherlo app](https://app.sherlo.io) to view your test results and review visual changes
 
 <br />
 
