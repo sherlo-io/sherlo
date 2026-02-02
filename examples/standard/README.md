@@ -2,6 +2,8 @@
 
 <!-- Minimal React Native + Storybook app -->
 
+Minimal Sherlo example + GitHub Actions workflow
+
 Run visual tests on app builds **with bundled JavaScript code**
 
 ```mermaid
