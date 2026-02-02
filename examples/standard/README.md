@@ -61,14 +61,12 @@ npx eas-cli update:configure
 
 ### 3. Get Sherlo Token
 
-<!-- TODO: jakis tekst mowiacy po co to? -->
+This token authenticates your account and links test runs to your project
 
 1. Go to https://app.sherlo.io
 2. Choose one:
    - **New project**: Create project and copy the token
    - **Existing project**: Reset the token _(Settings → Reset token)_
-
-<!-- _You will use this token when running Sherlo tests_ -->
 
 
 <br />
