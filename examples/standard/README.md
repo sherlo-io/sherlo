@@ -126,6 +126,8 @@ This token authenticates your account and links test runs to your project
 
    Run Sherlo test using your project token:
 
+   Run Sherlo visual tests on the built apps:
+
    ```bash
    yarn sherlo --token YOUR_SHERLO_TOKEN
    # Alternatively: add token to sherlo.config.json and run `yarn sherlo`
