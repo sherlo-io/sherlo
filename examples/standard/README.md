@@ -50,6 +50,12 @@ yarn install
 
 Set up EAS to build your app binaries
 
+```bash
+# Link project to your Expo account
+npx eas-cli login
+npx eas-cli init
+```
+
 <!-- Set up EAS to build your app binaries and ship JavaScript updates -->
 
 <!-- ```bash
@@ -60,12 +66,6 @@ npx eas-cli init
 # Configure EAS Update for Over-The-Air updates
 npx eas-cli update:configure
 ``` -->
-
-```bash
-# Link project to your Expo account
-npx eas-cli login
-npx eas-cli init
-```
 
 _This example uses EAS Build; for other build tools, see our [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
 
