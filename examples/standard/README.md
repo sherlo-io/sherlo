@@ -81,7 +81,7 @@ This token authenticates your account and links project to Sherlo
 
 <br />
 
-## 🧪 Run Sherlo
+## 🚀 How to Run
 
 ### Option A: GitHub Actions _(Recommended)_
 
