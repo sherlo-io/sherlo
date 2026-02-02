@@ -52,7 +52,7 @@ yarn install
 
 This example uses EAS Build; see [docs](https://sherlo.io/docs/builds?type=preview-simulator#build-types) for alternatives -->
 
-Set up EAS to build your apps. This example uses EAS Build - for other tools, see our [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)
+Set up EAS to build your apps
 
 ```bash
 # Link project to your Expo account
@@ -62,6 +62,8 @@ npx eas-cli init
 # Configure EAS Update for Over-The-Air updates
 npx eas-cli update:configure
 ```
+
+_This example uses EAS Build - for other build tools, see our [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
 
 ### 3. Get Sherlo Token
 
