@@ -48,22 +48,26 @@ yarn install
 
 ### 2. Configure EAS (Expo)
 
-<!-- This example uses EAS Build. For other build tools, check our [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)
-
-This example uses EAS Build; see [docs](https://sherlo.io/docs/builds?type=preview-simulator#build-types) for alternatives -->
-
 Set up EAS to build your apps
 
-```bash
+<!-- Set up EAS to build your apps and ship JavaScript updates -->
+
+<!-- ```bash
 # Link project to your Expo account
 npx eas-cli login
 npx eas-cli init
 
 # Configure EAS Update for Over-The-Air updates
 npx eas-cli update:configure
+``` -->
+
+```bash
+# Link project to your Expo account
+npx eas-cli login
+npx eas-cli init
 ```
 
-_This example uses EAS Build - for other build tools, see our [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
+_This example uses EAS Build; for other build tools, see our [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
 
 ### 3. Get Sherlo Token
 
@@ -78,7 +82,7 @@ This token authenticates your account and links test runs to your project
 
 ## 🚀 How to Run
 
-### Option A: GitHub Actions _(Recommended)_ 🚀
+### Option A: GitHub Actions _(Recommended)_
 
 1. **Create GitHub repository**
 
@@ -99,19 +103,27 @@ This token authenticates your account and links test runs to your project
 
 3. **Trigger the workflow**
 
-   Push to the `main` branch to trigger the workflow:
+   <!-- Push to the `main` branch to trigger the workflow: -->
+
+   Push to the `main` branch to trigger the automated build and testing process:
    
    ```bash
    git add .
-   git commit -m "Run first Sherlo test"
+   git commit -m "Run Sherlo tests"
    git push -u origin main
    ```
 
-   _After pushing, track the progress in your repository's **Actions** tab_
+   _After pushing, track the workflow progress in your repository's **Actions** tab._
+
+   <!-- _After pushing, builds run on Expo servers. Tests start automatically when builds complete._ -->
+   <!-- _After pushing, builds are triggered on Expo servers and tests run automatically._ -->
+   <!-- _After pushing, track build progress in [Expo dashboard](https://expo.dev). Tests run automatically when builds complete._ -->
+   <!-- After pushing, track build progress in your Expo dashboard. Tests will run automatically once builds complete. -->
+   <!-- _After pushing, monitor build progress in your [Expo dashboard](https://expo.dev). Tests run automatically when builds complete._ -->
 
 ---
 
-### Option B: Run Locally 💻
+### Option B: Run Locally
 
 1. **Build apps**
 
@@ -122,9 +134,9 @@ This token authenticates your account and links test runs to your project
    yarn build:ios
    ```
 
-3. **Run test**
+2. **Run tests**
 
-   Run Sherlo visual test on the built apps:
+   Run Sherlo visual tests on the built apps:
 
    ```bash
    yarn sherlo --token YOUR_SHERLO_TOKEN
@@ -135,7 +147,7 @@ This token authenticates your account and links test runs to your project
 
 ## 👀 Review Results
 
-Once your test completes, open [Sherlo app](https://app.sherlo.io) to review visual changes
+Once your tests complete, open [Sherlo app](https://app.sherlo.io) to review visual changes
 
 <br />
 
