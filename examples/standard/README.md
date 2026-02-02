@@ -124,6 +124,8 @@ This token authenticates your account and links test runs to your project
 
    Run the visual regression test using the Sherlo CLI:
 
+   Run Sherlo test using your project token:
+
    ```bash
    yarn sherlo --token YOUR_SHERLO_TOKEN
    # Alternatively: add token to sherlo.config.json and run `yarn sherlo`
