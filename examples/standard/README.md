@@ -75,7 +75,7 @@ This token authenticates your account and links test runs to your project
 
 1. Go to https://app.sherlo.io
 2. Get your token:
-   - **New project**: Create project and copy the token
+   - **New project**: Create a project and copy the token
    - **Existing project**: Reset the token _(Settings → Reset token)_
 
 <br />
