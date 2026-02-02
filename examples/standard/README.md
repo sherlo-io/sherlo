@@ -76,8 +76,6 @@ This token authenticates your account and links test runs to your project
 
 ## 🚀 How to Run
 
-Run Sherlo test using one of these methods:
-
 ### Option A: GitHub Actions _(Recommended)_ 🚀
 
 1. **Create GitHub repository**
