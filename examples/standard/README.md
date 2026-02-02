@@ -103,8 +103,7 @@ This token authenticates your account and links test runs to your project
 
 ---
 
-<!-- TODO: Local / Local Environment / Local Development / Locally -->
-### Option B: Local
+### Option B: Run Locally
 
 1. **Build apps**
 
