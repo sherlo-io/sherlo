@@ -71,9 +71,6 @@ This token authenticates your account and links project to Sherlo
 2. Get your token:
    - **New project**: Create project and copy the token
    - **Existing project**: Reset the token _(Settings → Reset token)_
-3. Choose one:
-   - **New project**: Create project and copy the token
-   - **Existing project**: Reset the token _(Settings → Reset token)_
 
 <br />
 
@@ -98,7 +95,17 @@ This token authenticates your account and links project to Sherlo
    - `SHERLO_TOKEN` – Your Sherlo project token
    - `EXPO_TOKEN` – Your [Expo access token](https://expo.dev/accounts/[your-account]/settings/access-tokens)
 
-3. **Trigger the workflow**
+3. **Push code and run test**
+
+   Push your code to the `main` branch to trigger the GitHub Actions workflow:
+   
+   ```bash
+   git add .
+   git commit -m "Run first Sherlo test"
+   git push -u origin main
+   ```
+
+4. **Trigger the workflow**
 
    Push your code to the `main` branch to trigger the GitHub Actions workflow:
    
