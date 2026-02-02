@@ -98,6 +98,8 @@ This token authenticates your account and links test runs to your project
 3. **Trigger the workflow**
 
    Push your code to the `main` branch to trigger the GitHub Actions workflow:
+
+   Push to the `main` branch to trigger the workflow:
    
    ```bash
    git add .
