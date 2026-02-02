@@ -48,9 +48,9 @@ yarn install
 
 ### 2. Configure EAS (Expo)
 
-Set up EAS to build your apps
+Set up EAS to build your app binaries
 
-<!-- Set up EAS to build your apps and ship JavaScript updates -->
+<!-- Set up EAS to build your app binaries and ship JavaScript updates -->
 
 <!-- ```bash
 # Link project to your Expo account
