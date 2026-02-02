@@ -81,13 +81,13 @@ This token authenticates your account and links project to Sherlo
 
 <br />
 
-## 🚀 How to Run
+## 🧪 Run Sherlo
 
 ### Option A: GitHub Actions _(Recommended)_
 
 1. **Create GitHub repository**
 
-   Set up an [empty GitHub repository](https://github.com/new) _(no README or other files)_, and connect it to your project:
+   Set up an [empty GitHub repository](https://github.com/new) _(no README or other files)_ and connect it to your project:
    
    ```bash
    # Initialize Git and link the project to your GitHub repository
