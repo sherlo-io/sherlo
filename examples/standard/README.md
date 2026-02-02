@@ -113,16 +113,6 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 
 ### A) GitHub Actions _(Recommended)_
 
-1. **Create GitHub repository**
-
-   Go to [GitHub](https://github.com/new) and create a new repository
-   
-   ```bash
-   # Initialize git and link to your repository
-   git init
-   git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
-   ```
-
 2. **Configure repository secrets**
 
    Go to your repository → Settings → Secrets and variables → Actions → New repository secret
@@ -146,15 +136,6 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 
 ### A) GitHub Actions _(Recommended)_
 
-1. **Create repository and link project**
-
-   [Create new repository on GitHub](https://github.com/new), then link your local project:
-   
-   ```bash
-   git init
-   git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
-   ```
-
 2. **Add repository secrets**
 
    Go to your repository → Settings → Secrets and variables → Actions → New repository secret
@@ -176,15 +157,6 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 #### WERSJA 3
 
 ### A) GitHub Actions _(Recommended)_
-
-1. **Create and link GitHub repository**
-
-   [Create new repository](https://github.com/new) on GitHub and link it to your project:
-   
-   ```bash
-   git init
-   git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
-   ```
 
 2. **Configure secrets**
 
