@@ -26,6 +26,26 @@ flowchart TB
 
 <br />
 
+## 🔄 Workflow
+
+```mermaid
+flowchart TB
+   UI(💻 Code Changes)
+   subgraph Build[Build Apps]
+      Android(🤖 Build Android)
+      iOS(🍎 Build iOS)
+      Android ~~~ iOS
+   end
+   Sherlo(🧪 Run Sherlo)
+   Review(👀 Review Results)
+
+   UI --> Build
+   Build --> Sherlo
+   Sherlo --> Review
+```
+
+<br />
+
 ## 🛠️ Prerequisites
 
 - [**Sherlo Account**](https://app.sherlo.io) – Required for visual testing
