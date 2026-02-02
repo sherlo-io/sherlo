@@ -1,16 +1,12 @@
 # Examples
 
-<!-- Examples showing how to run visual tests with different workflows -->
-
-Complete working examples showing how to run visual tests with different workflows, each including:
-- A Sherlo setup
-- A GitHub Actions workflow
-
-
 <!-- Complete working examples showing how to run visual tests with different workflows, each including:
-
-- A minimal React Native + Storybook app
+- A Sherlo setup
 - A GitHub Actions workflow -->
+
+Complete, ready-to-use projects demonstrating different visual testing workflows
+
+Each example includes a **Sherlo setup + GitHub Actions workflow**
 
 <br />
 
