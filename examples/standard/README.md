@@ -97,6 +97,18 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 
 ### 3) Build and run test -->
 
+### Option A: GitHub Actions _(Recommended)_
+
+1. **Create GitHub repository**
+
+   Create an **empty** [new GitHub repository](https://github.com/new) (do not add a README or other files), then connect it to your local project:
+   
+   ```bash
+   # Initialize git and link to your GitHub repository
+   git init
+   git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
+   ```
+
 #### WERSJA 1
 
 ### A) GitHub Actions _(Recommended)_
