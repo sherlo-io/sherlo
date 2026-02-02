@@ -104,8 +104,9 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
    Set up an [empty GitHub repository](https://github.com/new) _(no README or other files)_, and connect it to your project:
    
    ```bash
-   # Initialize Git and link to your GitHub repository
+   # Initialize Git and link the project to your GitHub repository
    git init
+   git branch -M main
    git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
    ```
 
@@ -122,7 +123,7 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
    ```bash
    git add .
    git commit -m "Run first Sherlo test"
-   git push origin main
+   git push -u origin main
    ```
 
 3. **Trigger the workflow**
