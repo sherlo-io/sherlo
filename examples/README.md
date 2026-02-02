@@ -1,12 +1,8 @@
 # Examples
 
-<!-- Complete working examples showing how to run visual tests with different workflows, each including:
+Complete working examples showing different visual testing workflows, each including:
 - A Sherlo setup
-- A GitHub Actions workflow -->
-
-Complete, ready-to-use projects demonstrating different visual testing workflows
-
-Each example includes a **Sherlo setup + GitHub Actions workflow**
+- A GitHub Actions workflow
 
 <br />
 
