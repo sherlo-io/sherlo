@@ -1,6 +1,6 @@
 # Sherlo Example - Standard
 
-Minimal Sherlo setup + GitHub Actions workflow
+Sherlo setup + GitHub Actions workflow
 
 <br />
 
