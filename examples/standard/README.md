@@ -68,34 +68,9 @@ This token authenticates your account and links test runs to your project
    - **New project**: Create project and copy the token
    - **Existing project**: Reset the token _(Settings → Reset token)_
 
-
 <br />
 
 ## 🚀 How to Run
-
-<!-- ### 1) Set up EAS Build
-
-```bash
-# Log in with your Expo account
-npx eas-cli login
-
-# Link project to your Expo account
-npx eas-cli init
-
-# Configure EAS Update for over-the-air updates
-npx eas-cli update:configure
-```
-
-_This example uses EAS Build. For other build tools, see [docs](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
-
-### 2) Get Sherlo token
-
-Open [Sherlo app](https://app.sherlo.io) and choose one:
-
-- **New project**: Create project and copy the token
-- **Existing project**: Reset the token _(Settings → Reset token)_
-
-### 3) Build and run test -->
 
 ### Option A: GitHub Actions _(Recommended)_
 
@@ -124,77 +99,6 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
    git add .
    git commit -m "Run first Sherlo test"
    git push -u origin main
-   ```
-
-3. **Trigger the workflow**
-
-   ```bash
-   # Push changes to main branch to trigger the workflow (build + test)
-   git add .
-   git commit -m "Run first Sherlo test"
-   git branch -M main
-   git push -u origin main
-   ```
-
-#### WERSJA 1
-
-### A) GitHub Actions _(Recommended)_
-
-3. **Push code to trigger workflow**
-
-   ```bash
-   # Push changes to main branch to trigger the workflow (build + test)
-   git add .
-   git commit -m "Run first Sherlo test"
-   git push -u origin main
-   ```
-
----
-
-#### WERSJA 2
-
-### A) GitHub Actions _(Recommended)_
-
-3. **Push to trigger workflow**
-
-   ```bash
-   git add .
-   git commit -m "Run first Sherlo test"
-   git push -u origin main
-   ```
-
----
-
-#### WERSJA 3
-
-### A) GitHub Actions _(Recommended)_
-
-3. **Commit and push to trigger workflow**
-
-   ```bash
-   git add .
-   git commit -m "Run first Sherlo test"
-   git push -u origin main
-   ```
-
----
-
-### Option A: GitHub Actions _(Recommended)_
-
-<!-- TODO: link na samym "Expo" wyglada dziwnie -->
-
-1. **Add secrets**: _(GitHub -> [Your Repo] -> Settings → Secrets and variables → Actions -> New repository secret)_
-   - `SHERLO_TOKEN` – Your Sherlo project token
-   - `EXPO_TOKEN` – Get access token from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens)
-
-<!-- TODO: poprawic tekst w nawiasie -->
-2. **Trigger the workflow**
-
-   ```bash
-   # Push changes to main branch to trigger the workflow (build + test)
-   git add .
-   git commit -m "Run first Sherlo test"
-   git push origin main
    ```
 
 ---
