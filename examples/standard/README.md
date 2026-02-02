@@ -33,6 +33,13 @@ flowchart TB
 
 <br />
 
+## 🛠️ Prerequisites
+
+- [**Sherlo Account**](https://app.sherlo.io) – For visual testing
+- [**Expo Account**](https://expo.dev/signup) – For EAS Build
+
+<br />
+
 ## ⚙️ Setup
 
 ### 1. Clone and Install
