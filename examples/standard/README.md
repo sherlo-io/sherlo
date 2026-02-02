@@ -1,6 +1,6 @@
 # Sherlo Example - Standard
 
-Minimal React Native + Storybook app
+<!-- Minimal React Native + Storybook app -->
 
 Run visual tests on app builds **with bundled JavaScript code**
 
