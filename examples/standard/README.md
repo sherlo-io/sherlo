@@ -105,7 +105,7 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 
    Create a [new empty GitHub repository](https://github.com/new) _(without README or license)_, then connect it to the project:
 
-   Create an [empty GitHub repository](https://github.com/new) _(without README or license)_, then connect it to your project:
+   Create an [empty GitHub repository](https://github.com/new) _(without README or other files)_, then connect it to your project:
 
    Set up a [new empty repository](https://github.com/new) on GitHub and connect it to your local project:
    
