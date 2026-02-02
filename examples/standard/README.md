@@ -113,7 +113,7 @@ This token authenticates your account and links test runs to your project
    git push -u origin main
    ```
 
-   _After pushing, track the workflow progress in your repository's **Actions** tab._
+   _After pushing, view workflow progress in your repository's **Actions** tab._
 
    <!-- _After pushing, builds run on Expo servers. Tests start automatically when builds complete._ -->
    <!-- _After pushing, builds are triggered on Expo servers and tests run automatically._ -->
