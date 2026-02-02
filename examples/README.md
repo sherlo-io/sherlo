@@ -1,9 +1,11 @@
 # Examples
 
-Complete working examples showing how to run visual tests with different workflows, each including:
+Examples showing how to run visual tests with different workflows
+
+<!-- Complete working examples showing how to run visual tests with different workflows, each including:
 
 - A minimal React Native + Storybook app
-- A GitHub Actions workflow
+- A GitHub Actions workflow -->
 
 <br />
 

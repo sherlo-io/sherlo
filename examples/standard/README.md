@@ -1,9 +1,5 @@
 # Sherlo Example - Standard
 
-<!-- Minimal React Native + Storybook app with GitHub Actions workflow -->
-
-<!-- Minimal Sherlo setup with GitHub Actions workflow -->
-
 Minimal Sherlo setup + GitHub Actions workflow
 
 <br />
