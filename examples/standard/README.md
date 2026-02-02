@@ -83,7 +83,7 @@ This token authenticates your account and links project to Sherlo
 
 ## 🚀 How to Run
 
-### Option A: GitHub Actions _(Recommended)_
+### Option A: GitHub Actions _(Recommended)_ 🚀
 
 1. **Create GitHub repository**
 
@@ -124,7 +124,7 @@ This token authenticates your account and links project to Sherlo
 
 ---
 
-### Option B: Run Locally
+### Option B: Run Locally 💻
 
 1. **Build apps**
 
@@ -135,24 +135,6 @@ This token authenticates your account and links project to Sherlo
    yarn build:ios
    ```
 
-2. **Run test**
-
-   Run Sherlo visual test on the built apps:
-
-   ```bash
-   yarn sherlo --token YOUR_SHERLO_TOKEN
-   # Alternatively: add token to sherlo.config.json and run `yarn sherlo`
-   ```
-
-3. **Run test**
-
-   Run Sherlo visual test on the built apps:
-
-   ```bash
-   yarn sherlo --token YOUR_SHERLO_TOKEN
-   # Or add token to sherlo.config.json and run: yarn sherlo
-   ```
-
 3. **Run test**
 
    Run Sherlo visual test on the built apps:
@@ -160,15 +142,6 @@ This token authenticates your account and links project to Sherlo
    ```bash
    yarn sherlo --token YOUR_SHERLO_TOKEN
    # Or add token to sherlo.config.json and run: `yarn sherlo`
-   ```
-
-3. **Run test**
-
-   Run Sherlo visual test on the built apps:
-
-   ```bash
-   yarn sherlo --token YOUR_SHERLO_TOKEN
-   # Or add token to sherlo.config.json and run `yarn sherlo`
    ```
 
 <br />
