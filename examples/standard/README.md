@@ -108,7 +108,7 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
    Create an [empty GitHub repository](https://github.com/new) _(without README or license)_, then connect it to your project:
    
    ```bash
-   # Initialize git and link to your GitHub repository
+   # Initialize Git and link to your GitHub repository
    git init
    git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
    ```
