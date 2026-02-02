@@ -105,7 +105,7 @@ This token authenticates your account and links test runs to your project
    git push -u origin main
    ```
 
-   After pushing, track the progress in your repository's **Actions** tab
+   _After pushing, track the progress in your repository's **Actions** tab_
 
 ---
 
