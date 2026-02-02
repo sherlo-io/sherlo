@@ -123,28 +123,6 @@ This token authenticates your account and links test runs to your project
    # Alternatively: add token to sherlo.config.json and run `yarn sherlo`
    ```
 
----
-
-### Option B: Local
-
-1. **Build apps**
-
-   ```bash
-   # Build Android
-   yarn build:android
-
-   # Build iOS
-   yarn build:ios
-   ```
-
-2. **Run test**
-
-   ```bash
-   # Run Sherlo
-   yarn sherlo --token YOUR_SHERLO_TOKEN
-   # Alternatively: add token to sherlo.config.json and run `yarn sherlo`
-   ```
-
 <br />
 
 ## 👀 Review Results
