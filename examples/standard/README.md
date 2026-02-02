@@ -6,6 +6,10 @@
 
 Sherlo setup + GitHub Actions workflow
 
+<br />
+
+## 🔄 Workflow
+
 Run visual tests on app builds **with bundled JavaScript code**
 
 ```mermaid
