@@ -59,6 +59,8 @@ This example uses EAS Build. For other build tools, check our [documentation](ht
 
 This example uses EAS Build; see [docs](https://sherlo.io/docs/builds?type=preview-simulator#build-types) for alternatives
 
+Set up EAS to build your apps. This example uses EAS Build - for other tools, see our [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)
+
 ```bash
 # Link project to your Expo account
 npx eas-cli login
