@@ -2,11 +2,11 @@
 
 Minimal React Native + Storybook app with GitHub Actions workflow
 
-Run visual tests on app builds **with bundled JavaScript code**
-
 <br />
 
 ## 🔄 Workflow
+
+Run visual tests on app builds **with bundled JavaScript code**
 
 ```mermaid
 flowchart TB
