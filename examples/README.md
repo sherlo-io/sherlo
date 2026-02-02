@@ -1,8 +1,8 @@
 # Examples
 
 Complete working examples showing different visual testing workflows, each including:
-- a Sherlo setup
-- a GitHub Actions workflow
+- Sherlo setup
+- GitHub Actions workflow
 
 <br />
 
