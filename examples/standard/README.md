@@ -4,7 +4,7 @@
 
 <!-- Minimal Sherlo setup with GitHub Actions workflow -->
 
-Sherlo setup + GitHub Actions workflow
+Minimal Sherlo setup + GitHub Actions workflow
 
 <br />
 
