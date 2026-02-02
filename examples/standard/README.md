@@ -65,8 +65,13 @@ npx eas-cli update:configure
 
 This token authenticates your account and links test runs to your project
 
+This token authenticates your account and links project to Sherlo
+
 1. Go to https://app.sherlo.io
-2. Choose one:
+2. Get your token:
+   - **New project**: Create project and copy the token
+   - **Existing project**: Reset the token _(Settings → Reset token)_
+3. Choose one:
    - **New project**: Create project and copy the token
    - **Existing project**: Reset the token _(Settings → Reset token)_
 
