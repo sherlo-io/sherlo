@@ -55,9 +55,9 @@ yarn install
 
 ### 2. Configure EAS (Expo)
 
-This example uses EAS Build. For other build tools, check our [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)
+<!-- This example uses EAS Build. For other build tools, check our [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)
 
-This example uses EAS Build; see [docs](https://sherlo.io/docs/builds?type=preview-simulator#build-types) for alternatives
+This example uses EAS Build; see [docs](https://sherlo.io/docs/builds?type=preview-simulator#build-types) for alternatives -->
 
 Set up EAS to build your apps. This example uses EAS Build - for other tools, see our [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)
 
@@ -73,8 +73,6 @@ npx eas-cli update:configure
 ### 3. Get Sherlo Token
 
 This token authenticates your account and links test runs to your project
-
-This token authenticates your account and links project to Sherlo
 
 1. Go to https://app.sherlo.io
 2. Get your token:
@@ -104,17 +102,7 @@ This token authenticates your account and links project to Sherlo
    - `SHERLO_TOKEN` – Your Sherlo project token
    - `EXPO_TOKEN` – Your [Expo access token](https://expo.dev/accounts/[your-account]/settings/access-tokens)
 
-3. **Push code and run test**
-
-   Push your code to the `main` branch to trigger the GitHub Actions workflow:
-   
-   ```bash
-   git add .
-   git commit -m "Run first Sherlo test"
-   git push -u origin main
-   ```
-
-4. **Trigger the workflow**
+3. **Trigger the workflow**
 
    Push your code to the `main` branch to trigger the GitHub Actions workflow:
    
