@@ -115,23 +115,19 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
    - `SHERLO_TOKEN` – Your Sherlo project token
    - `EXPO_TOKEN` – Your [Expo access token](https://expo.dev/accounts/[your-account]/settings/access-tokens)
 
-2. **Add repository secrets**
-   
-   In your GitHub repository, go to **Settings → Secrets and variables → Actions → New repository secret** and add:
-   - `SHERLO_TOKEN` – Your Sherlo project token
-   - `EXPO_TOKEN` – Your [Expo personal access token](https://expo.dev/accounts/[your-account]/settings/access-tokens)
+3. **Trigger the workflow**
+
+   ```bash
+   # Push changes to main branch to trigger the workflow (build + test)
+   git add .
+   git commit -m "Run first Sherlo test"
+   git branch -M main
+   git push -u origin main
+   ```
 
 #### WERSJA 1
 
 ### A) GitHub Actions _(Recommended)_
-
-2. **Configure repository secrets**
-
-   Go to your repository → Settings → Secrets and variables → Actions → New repository secret
-
-   Add these secrets:
-   - `SHERLO_TOKEN` – Your Sherlo project token
-   - `EXPO_TOKEN` – Get access token from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens)
 
 3. **Push code to trigger workflow**
 
@@ -148,14 +144,6 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 
 ### A) GitHub Actions _(Recommended)_
 
-2. **Add repository secrets**
-
-   Go to your repository → Settings → Secrets and variables → Actions → New repository secret
-
-   Add these secrets:
-   - `SHERLO_TOKEN` – Your Sherlo project token
-   - `EXPO_TOKEN` – Get access token from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens)
-
 3. **Push to trigger workflow**
 
    ```bash
@@ -169,14 +157,6 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 #### WERSJA 3
 
 ### A) GitHub Actions _(Recommended)_
-
-2. **Configure secrets**
-
-   In your repository, go to: Settings → Secrets and variables → Actions → New repository secret
-
-   Add:
-   - `SHERLO_TOKEN` – Your Sherlo project token
-   - `EXPO_TOKEN` – Get from [Expo settings](https://expo.dev/accounts/[your-account]/settings/access-tokens)
 
 3. **Commit and push to trigger workflow**
 
