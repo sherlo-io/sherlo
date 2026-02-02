@@ -2,7 +2,7 @@
 
 <!-- Minimal React Native + Storybook app with GitHub Actions workflow -->
 
-Standard Sherlo setup with GitHub Actions workflow
+Minimal Sherlo setup with a GitHub Actions workflow
 
 Run visual tests on app builds **with bundled JavaScript code**
 
