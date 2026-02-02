@@ -131,7 +131,7 @@ This token authenticates your account and links test runs to your project
 
 ## 👀 Review Results
 
-Once your test completes, open [Sherlo app](https://app.sherlo.io) to see results and review visual changes
+Once your test completes, open [Sherlo app](https://app.sherlo.io) to review visual changes
 
 <br />
 
