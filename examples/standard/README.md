@@ -116,6 +116,21 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
    - `SHERLO_TOKEN` – Your Sherlo project token
    - `EXPO_TOKEN` – Create an access token in your **[Expo account settings](https://expo.dev/accounts/[your-account]/settings/access-tokens)**
 
+2. **Add repository secrets**
+
+   Open your repository on GitHub and navigate to: **Settings → Secrets and variables → Actions → New repository secret**.
+   
+   Add the following secrets:
+   - `SHERLO_TOKEN` – Your Sherlo project token
+   - `EXPO_TOKEN` – Generate an access token in your **[Expo account settings](https://expo.dev/accounts/[your-account]/settings/access-tokens)**
+
+2. **Add repository secrets**
+
+   In your repository (**Settings → Secrets and variables → Actions → New repository secret**), add:
+   
+   - `SHERLO_TOKEN` – Your Sherlo project token
+   - `EXPO_TOKEN` – Get an access token from your **[Expo account settings](https://expo.dev/accounts/[your-account]/settings/access-tokens)**
+
 
 #### WERSJA 1
 
