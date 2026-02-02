@@ -109,6 +109,8 @@ This token authenticates your account and links test runs to your project
 
    Build the application binaries on your machine:
 
+   Build Android and iOS apps on your machine:
+
    ```bash
    yarn build:android
    yarn build:ios
