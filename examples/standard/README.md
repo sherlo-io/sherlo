@@ -144,6 +144,15 @@ This token authenticates your account and links project to Sherlo
    # Alternatively: add token to sherlo.config.json and run `yarn sherlo`
    ```
 
+3. **Run test**
+
+   Run Sherlo visual test on the built apps:
+
+   ```bash
+   yarn sherlo --token YOUR_SHERLO_TOKEN
+   # Or add token to sherlo.config.json and run: yarn sherlo
+   ```
+
 <br />
 
 ## 👀 Review Results
