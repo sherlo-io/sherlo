@@ -99,11 +99,11 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 - **New project**: Create project and copy the token
 - **Existing project**: Reset the token _(Settings → Reset token)_
 
-### 3) Build and run test
+### 3) Build and run test -->
 
-#### WERSJA 1 -->
+#### WERSJA 1
 
-<!-- ### A) GitHub Actions _(Recommended)_
+### A) GitHub Actions _(Recommended)_
 
 1. **Create GitHub repository**
 
@@ -136,7 +136,7 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 
 #### WERSJA 2
 
-#### A) GitHub Actions _(Recommended)_
+### A) GitHub Actions _(Recommended)_
 
 1. **Create repository and link project**
 
@@ -167,7 +167,7 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 
 #### WERSJA 3
 
-#### A) GitHub Actions _(Recommended)_
+### A) GitHub Actions _(Recommended)_
 
 1. **Create and link GitHub repository**
 
@@ -194,7 +194,7 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
    git push -u origin main
    ```
 
---- -->
+---
 
 ### Option A: GitHub Actions _(Recommended)_
 
