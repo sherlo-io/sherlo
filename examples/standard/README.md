@@ -107,6 +107,28 @@ This token authenticates your account and links test runs to your project
 
 1. **Build apps**
 
+   Build the Android and iOS app binaries so Sherlo can run visual tests on them
+
+   ```bash
+   yarn build:android
+   yarn build:ios
+   ```
+
+2. **Run test**
+
+   Run Sherlo using your project token to perform visual regression test
+
+   ```bash
+   yarn sherlo --token YOUR_SHERLO_TOKEN
+   # Alternatively: add token to sherlo.config.json and run `yarn sherlo`
+   ```
+
+---
+
+### Option B: Local
+
+1. **Build apps**
+
    ```bash
    # Build Android
    yarn build:android
