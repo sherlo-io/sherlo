@@ -117,6 +117,16 @@ Open [Sherlo app](https://app.sherlo.io) and choose one:
 
 3. **Trigger the workflow**
 
+   Push your code to the `main` branch to trigger the GitHub Actions workflow:
+   
+   ```bash
+   git add .
+   git commit -m "Run first Sherlo test"
+   git push origin main
+   ```
+
+3. **Trigger the workflow**
+
    ```bash
    # Push changes to main branch to trigger the workflow (build + test)
    git add .
