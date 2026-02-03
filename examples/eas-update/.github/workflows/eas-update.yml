@@ -82,7 +82,7 @@ jobs:
   #
   # Reuses existing build from cache or rebuilds if native code changed
   # ────────────────────────────────────────────────────────────────────────────
-  build-android:
+  reuse-or-build-android:
     name: Reuse / Build Android
     runs-on: ubuntu-latest
     needs: [fingerprint]
@@ -136,7 +136,7 @@ jobs:
   #
   # Reuses existing build from cache or rebuilds if native code changed
   # ────────────────────────────────────────────────────────────────────────────
-  build-ios:
+  reuse-or-build-ios:
     name: Reuse / Build iOS
     runs-on: macos-latest
     needs: [fingerprint]
@@ -193,7 +193,7 @@ jobs:
   ota-update-and-test:
     name: Update & Test
     runs-on: ubuntu-latest
-    needs: [build-android, build-ios]
+    needs: [reuse-or-build-android, reuse-or-build-ios]
 
     steps:
       - name: 📦 Checkout code
