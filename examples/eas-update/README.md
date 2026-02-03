@@ -89,7 +89,7 @@ This token authenticates your account and links test runs to your project
    Set up an [empty GitHub repository](https://github.com/new) _(no README or other files)_ and connect it to your project:
 
    ```bash
-   # Connect your project to GitHub
+   # Link project to your GitHub repository
    git init
    git branch -M main
    git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
