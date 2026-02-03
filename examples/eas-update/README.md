@@ -21,7 +21,7 @@ flowchart TB
       iOS(🍎 Rebuild iOS)
       Android ~~~ iOS
    end
-   Update(📲 OTA Update)
+   Update(⚡ OTA Update)
    Sherlo(🧪 Run Sherlo)
    Review(👀 Review Results)
 
