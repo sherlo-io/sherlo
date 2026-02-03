@@ -33,8 +33,6 @@ flowchart TB
    Sherlo --> Review
 ```
 
-Learn more about [EAS Update testing method](https://sherlo.io/docs/testing?method=eas-update#testing-methods) in our documentation
-
 <br />
 
 ## 🛠️ Prerequisites
