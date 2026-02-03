@@ -1,5 +1,28 @@
 # Sherlo Example - Standard
 
+Minimal React Native + Storybook app featuring:
+
+- Sherlo integration
+- GitHub Actions workflow
+
+---
+
+Ready-to-use Sherlo example with:
+
+- Minimal React Native app
+- GitHub Actions workflow
+
+---
+
+Minimal React Native + Storybook app including:
+
+- Sherlo setup (Standard mode)
+- GitHub Actions workflow
+
+---
+
+---
+
 Complete working example which includes:
 
 - Sherlo setup
@@ -7,42 +30,10 @@ Complete working example which includes:
 
 ---
 
-Complete working example featuring:
-
-- Minimal React Native + Storybook app
-- Sherlo integration (Standard mode)
-- Automated GitHub Actions workflow
-
----
-
-Complete working example featuring:
-
-- Minimal React Native + Storybook app
-- Sherlo integration (Standard mode)
-- GitHub Actions workflow
-
----
-
-Complete working example that includes:
-
-- A minimal React Native + Storybook app
-- Sherlo integration
-- A GitHub Actions workflow
-
----
-
 Minimal React Native + Storybook app that includes:
 
 - Sherlo integration (Standard mode)
 - GitHub Actions workflow
-
----
-
-Complete working example with:
-
-- React Native + Storybook
-- Sherlo
-- GitHub Actions
 
 ---
 
