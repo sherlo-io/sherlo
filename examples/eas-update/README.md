@@ -141,7 +141,7 @@ This token authenticates your account and links test runs to your project
 
    ```bash
    yarn sherlo --token YOUR_SHERLO_TOKEN
-   # Or add token to sherlo.config.json and run: `yarn sherlo`
+   # Or add token to sherlo.config.json and run: yarn sherlo
    ```
 
 <br />
