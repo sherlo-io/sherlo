@@ -3,10 +3,10 @@ description: Validates Sherlo and EAS configuration
 
 inputs:
   expo-token:
-    description: "Expo access token"
+    description: 'Expo access token'
     required: true
   sherlo-token:
-    description: "Sherlo project token"
+    description: 'Sherlo project token'
     required: true
 
 runs:
@@ -89,6 +89,25 @@ runs:
           echo "::error title=EAS Project Not Linked::Missing projectId in app.json"
         else
           echo "✅ Project is linked to Expo account"
+        fi
+
+        # ----------------------------------------------------------------------
+        # EAS Update configuration
+        # ----------------------------------------------------------------------
+        if ! grep -q '"runtimeVersion"' app.json 2>/dev/null || ! grep -q '"updates"' app.json 2>/dev/null; then
+          HAS_ERRORS=1
+          echo ""
+          echo "❌ EAS Update Not Configured"
+          echo ""
+          echo "This example requires EAS Update for Over-The-Air updates"
+          echo ""
+          echo "📝 How to fix:"
+          echo "   1. Configure EAS Update: \`npx eas-cli update:configure\`"
+          echo "   2. Commit the updated app.json file"
+          echo ""
+          echo "::error title=EAS Update Not Configured::Missing runtimeVersion or updates in app.json"
+        else
+          echo "✅ EAS Update is configured"
         fi
 
         # ----------------------------------------------------------------------
