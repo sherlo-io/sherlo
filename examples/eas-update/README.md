@@ -16,9 +16,9 @@ flowchart TB
    UI(🧑‍💻 Code Changes)
    Check{Native code changed?}
    Reuse(📦 Reuse Builds)
-   subgraph Rebuild[Rebuild Apps]
-      Android(🤖 Rebuild Android)
-      iOS(🍎 Rebuild iOS)
+   subgraph Build[Build Apps]
+      Android(🤖 Build Android)
+      iOS(🍎 Build iOS)
       Android ~~~ iOS
    end
    Update(⚡ OTA Update)
@@ -27,8 +27,8 @@ flowchart TB
 
    UI --> Check
    Check -->|No| Reuse
-   Check -->|Yes| Rebuild
-   Reuse & Rebuild --> Update
+   Check -->|Yes| Build
+   Reuse & Build --> Update
    Update --> Sherlo
    Sherlo --> Review
 ```
