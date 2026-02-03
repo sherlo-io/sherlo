@@ -168,6 +168,12 @@ _**Own project?** Run `npx sherlo init` to automatically integrate Sherlo in you
 
 <br />
 
+## 📚 Learn More
+
+For detailed information about **EAS Update** testing method, visit our [documentation](https://sherlo.io/docs/testing?method=eas-update#testing-methods)
+
+<br />
+
 ## 📖 Documentation
 
 For detailed information about **EAS Update testing method**, visit our [documentation](https://sherlo.io/docs/testing?method=eas-update#testing-methods).
