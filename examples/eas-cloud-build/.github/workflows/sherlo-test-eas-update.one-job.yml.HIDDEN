@@ -78,7 +78,7 @@ jobs:
       # Próbujemy przywrócić buildy z cache
       - name: 📥 Restore Native Builds from Cache
         id: cache-builds
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             android.apk

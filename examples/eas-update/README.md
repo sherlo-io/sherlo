@@ -118,7 +118,7 @@ This token authenticates your account and links test runs to your project
 
 ### Option B: Run Locally
 
-1. **Build apps**
+1. **Build apps** _(only needed once, or when native code changes)_
 
    Build development Android and iOS apps on your machine:
 
@@ -126,6 +126,8 @@ This token authenticates your account and links test runs to your project
    yarn build:android
    yarn build:ios
    ```
+
+   💡 _These builds can be reused for multiple test runs. Rebuild only when native code or dependencies change._
 
 2. **Publish OTA update**
 
