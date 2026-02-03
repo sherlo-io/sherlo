@@ -28,6 +28,15 @@ Each example includes:
 - Minimal starter app
 - GitHub Actions workflow
 
+---
+
+Complete, ready-to-run projects demonstrating different visual testing workflows.
+
+Each example is a **Minimal React Native + Storybook app** with:
+
+- Sherlo integration
+- GitHub Actions workflow
+
 <br />
 
 ## 📁 Available Examples
