@@ -1,6 +1,11 @@
 # Sherlo Example - Standard
 
-Sherlo setup + GitHub Actions workflow
+Complete working example which includes:
+
+- Sherlo setup
+- GitHub Actions workflow
+
+<!-- Sherlo setup + GitHub Actions workflow -->
 
 <br />
 
@@ -87,7 +92,7 @@ This token authenticates your account and links test runs to your project
 1. **Create GitHub repository**
 
    Set up an [empty GitHub repository](https://github.com/new) _(no README or other files)_ and connect it to your project:
-   
+
    ```bash
    # Initialize Git and link your project to your GitHub repository
    git init
@@ -96,8 +101,9 @@ This token authenticates your account and links test runs to your project
    ```
 
 2. **Add repository secrets**
-   
+
    In your GitHub repository, go to **Settings → Secrets and variables → Actions → New repository secret** and add:
+
    - `SHERLO_TOKEN` – Your Sherlo project token
    - `EXPO_TOKEN` – Your [Expo access token](https://expo.dev/accounts/[your-account]/settings/access-tokens)
 
@@ -106,7 +112,7 @@ This token authenticates your account and links test runs to your project
    <!-- Push to the `main` branch to trigger the workflow: -->
 
    Push to the `main` branch to trigger the automated build and testing process:
-   
+
    ```bash
    git add .
    git commit -m "Run Sherlo tests"
