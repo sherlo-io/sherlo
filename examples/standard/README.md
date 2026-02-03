@@ -147,7 +147,8 @@ Once your tests complete, open [Sherlo app](https://app.sherlo.io) to review vis
 - **[`App.tsx`](./App.tsx)** – Root component rendering Storybook for testing _([docs](https://sherlo.io/docs/setup#storybook-access))_
 - **[`.rnstorybook/index.ts`](./.rnstorybook/index.ts)** – Storybook component modified for Sherlo integration _([docs](https://sherlo.io/docs/setup#storybook-component))_
 - **[`sherlo.config.json`](./sherlo.config.json)** – Config file with testing devices _([docs](https://sherlo.io/docs/config))_
-- **[`.github/workflows/standard.yml`](./.github/workflows/standard.yml)** – CI workflow for automated builds and tests
+- **[`.github/workflows/standard.yml`](./.github/workflows/standard.yml)** – CI workflow for automated testing process
+- **[`package.json`](./package.json)** – Dependencies and scripts for Sherlo integration
 
 _**Own project?** Run `npx sherlo init` to automatically integrate Sherlo in your codebase_
 
