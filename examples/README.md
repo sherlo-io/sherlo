@@ -2,15 +2,6 @@
 
 Complete, ready-to-run projects demonstrating different visual testing workflows
 
-Each example is a minimal React Native + Storybook app with:
-
-- Sherlo integration
-- GitHub Actions workflow
-
----
-
-Complete, ready-to-run projects demonstrating different visual testing workflows
-
 Each example is a **minimal React Native + Storybook app** with:
 
 - Sherlo integration
