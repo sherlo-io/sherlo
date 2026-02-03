@@ -153,6 +153,12 @@ _**Own project?** Run `npx sherlo init` to automatically integrate Sherlo in you
 
 <br />
 
+## 📚 Learn More
+
+To learn more about **Standard** testing method, visit our [documentation](https://sherlo.io/docs/testing?method=standard#testing-methods)
+
+<br />
+
 ## 🔗 Other Examples
 
 - **[EAS Update](../eas-update)** – Run visual tests using **Over-The-Air updates** for JavaScript changes, without full app rebuilds
