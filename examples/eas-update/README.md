@@ -186,6 +186,12 @@ For detailed information, see **[EAS Update](https://sherlo.io/docs/testing?meth
 
 <br />
 
+## 📖 Testing Method
+
+For detailed information visit our [documentation](https://sherlo.io/docs/testing?method=eas-update#testing-methods)
+
+<br />
+
 ## 🔗 Other Examples
 
 - **[Standard](../standard)** – Run visual tests on app builds **with bundled JavaScript code**
