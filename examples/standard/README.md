@@ -7,6 +7,30 @@ Complete working example which includes:
 
 <!-- Sherlo setup + GitHub Actions workflow -->
 
+A complete, ready-to-run reference project including:
+
+- React Native + Storybook codebase
+- Sherlo integration (Standard mode)
+- GitHub Actions CI/CD workflow
+
+Complete working example featuring:
+
+- Minimal React Native + Storybook app
+- Integrated Sherlo visual testing setup
+- Automated GitHub Actions workflow
+
+This example provides a complete testing environment:
+
+- Minimal React Native + Storybook setup
+- Sherlo visual testing integration
+- GitHub Actions automation
+
+Complete working example featuring:
+
+- Minimal React Native + Storybook app
+- Integrated Sherlo visual testing setup
+- Automated GitHub Actions workflow
+
 <br />
 
 ## 🔄 Workflow
