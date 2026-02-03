@@ -174,6 +174,12 @@ For detailed information about **EAS Update** testing method, visit our [documen
 
 <br />
 
+## 📚 Learn More
+
+To learn more about **EAS Update** testing method, visit our [documentation](https://sherlo.io/docs/testing?method=eas-update#testing-methods)
+
+<br />
+
 ## 📖 Documentation
 
 For detailed information about **EAS Update testing method**, visit our [documentation](https://sherlo.io/docs/testing?method=eas-update#testing-methods).
