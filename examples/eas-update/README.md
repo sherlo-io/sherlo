@@ -170,28 +170,21 @@ _**Own project?** Run `npx sherlo init` to automatically integrate Sherlo in you
 
 ## 📖 Documentation
 
-Learn more about **[EAS Update testing method](https://sherlo.io/docs/testing?method=eas-update#testing-methods)** in our documentation
+For detailed information about **EAS Update testing method**, visit our [documentation](https://sherlo.io/docs/testing?method=eas-update#testing-methods).
 
 <br />
 
 ## 📖 Documentation
 
-- **[EAS Update Testing Method](https://sherlo.io/docs/testing?method=eas-update#testing-methods)** – Complete guide to testing with OTA updates
-  <br />
+Learn more about **[EAS Update](https://sherlo.io/docs/testing?method=eas-update#testing-methods)** testing method in our documentation
 
-## 📖 Documentation
-
-For detailed information, see **[EAS Update testing method](https://sherlo.io/docs/testing?method=eas-update#testing-methods)**.
-<br />
-
-## 📖 Testing Method
-
-This example uses **[EAS Update testing](https://sherlo.io/docs/testing?method=eas-update#testing-methods)** for JavaScript changes via OTA updates.
 <br />
 
 ## 📖 Documentation
 
-**[EAS Update Testing Method](https://sherlo.io/docs/testing?method=eas-update#testing-methods)**
+For detailed information, see **[EAS Update](https://sherlo.io/docs/testing?method=eas-update#testing-methods)** testing method
+
+<br />
 
 ## 🔗 Other Examples
 
