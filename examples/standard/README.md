@@ -96,9 +96,7 @@ This token authenticates your account and links test runs to your project
 
 3. **Trigger the workflow**
 
-   <!-- Push to the `main` branch to trigger the workflow: -->
-
-   Push to the `main` branch to trigger the automated build and testing process:
+   Push to the `main` branch to trigger the automated testing process:
 
    ```bash
    git add .

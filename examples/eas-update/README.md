@@ -21,7 +21,7 @@ flowchart TB
       iOS(🍎 Rebuild iOS)
       Android ~~~ iOS
    end
-   Update(🚀 EAS Update)
+   Update(📲 OTA Update)
    Sherlo(🧪 Run Sherlo)
    Review(👀 Review Results)
 
@@ -105,7 +105,7 @@ This token authenticates your account and links test runs to your project
 
 3. **Trigger the workflow**
 
-   Push to the `main` branch to trigger the automated build and testing process:
+   Push to the `main` branch to trigger the automated testing process:
 
    ```bash
    git add .
@@ -121,18 +121,24 @@ This token authenticates your account and links test runs to your project
 
 1. **Build apps**
 
-   Build Android and iOS apps on your machine:
+   Build development Android and iOS apps on your machine:
 
    ```bash
    yarn build:android
    yarn build:ios
    ```
 
-<!-- TODO: Update -->
+2. **Publish OTA update**
 
-2. **Run tests**
+   Publish your JavaScript changes to EAS Update:
 
-   Run Sherlo visual tests on the built apps:
+   ```bash
+   yarn eas:update
+   ```
+
+3. **Run tests**
+
+   Run Sherlo visual tests on the built apps with latest update:
 
    ```bash
    yarn sherlo --token YOUR_SHERLO_TOKEN
@@ -153,6 +159,9 @@ Once your tests complete, open [Sherlo app](https://app.sherlo.io) to review vis
 - **[`.rnstorybook/index.ts`](./.rnstorybook/index.ts)** – Storybook component modified for Sherlo integration _([docs](https://sherlo.io/docs/setup#storybook-component))_
 - **[`sherlo.config.json`](./sherlo.config.json)** – Config file with testing devices _([docs](https://sherlo.io/docs/config))_
 - **[`.github/workflows/eas-update.yml`](./.github/workflows/eas-update.yml)** – CI workflow for automated builds and tests
+- **[`package.json`](./package.json)** – Build and test scripts (`build:android`, `build:ios`, `eas:update`, `sherlo`)
+- **[`package.json`](./package.json)** – Required dependencies and Sherlo-related scripts
+- **[`package.json`](./package.json)** – Dependencies and scripts for Sherlo integration
 
 _**Own project?** Run `npx sherlo init` to automatically integrate Sherlo in your codebase_
 
