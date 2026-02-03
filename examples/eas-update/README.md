@@ -192,6 +192,42 @@ For detailed information visit our [documentation](https://sherlo.io/docs/testin
 
 <br />
 
+## 📚 Learn More
+
+**[EAS Update Testing Method →](https://sherlo.io/docs/testing?method=eas-update#testing-methods)**
+
+<br />
+
+## 💡 About This Method
+
+This example uses EAS Update testing. **[Read full documentation →](https://sherlo.io/docs/testing?method=eas-update#testing-methods)**
+
+<br />
+
+## 📖 Want to Learn More?
+
+Explore the **[EAS Update testing method](https://sherlo.io/docs/testing?method=eas-update#testing-methods)** in detail.
+
+<br />
+
+## 🔗 Resources
+
+**[EAS Update Testing Documentation](https://sherlo.io/docs/testing?method=eas-update#testing-methods)**
+
+<br />
+
+## ℹ️ Testing Method
+
+This example demonstrates EAS Update testing – learn more in our **[documentation](https://sherlo.io/docs/testing?method=eas-update#testing-methods)**.
+
+<br />
+
+## 📖 Docs
+
+**[EAS Update Testing →](https://sherlo.io/docs/testing?method=eas-update#testing-methods)**
+
+<br />
+
 ## 🔗 Other Examples
 
 - **[Standard](../standard)** – Run visual tests on app builds **with bundled JavaScript code**
