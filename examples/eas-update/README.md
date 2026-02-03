@@ -1,12 +1,15 @@
 # Sherlo Example - EAS Update
 
-Minimal React Native + Storybook app with GitHub Actions workflow
+Minimal React Native + Storybook app with:
 
-Run visual tests using **Over-The-Air updates** for JavaScript changes, without full app rebuilds
+- Sherlo integration
+- GitHub Actions workflow
 
 <br />
 
 ## 🔄 Workflow
+
+Run visual tests using **Over-The-Air updates** for JavaScript changes, without full app rebuilds
 
 ```mermaid
 flowchart TB
@@ -35,14 +38,13 @@ flowchart TB
 ## 🛠️ Prerequisites
 
 - [**Sherlo Account**](https://app.sherlo.io) – Required for visual testing
-<!--
-TODO: Required for EAS Build and EAS Update???
--->
-- [**Expo Account**](https://expo.dev/signup) – Required for EAS Build
+- [**Expo Account**](https://expo.dev/signup) – Required for EAS
 
 <br />
 
 ## ⚙️ Setup
+
+### 1. Clone and Install
 
 ```bash
 # Clone this example
@@ -53,81 +55,95 @@ cd sherlo-eas-update
 yarn install
 ```
 
+### 2. Configure EAS (Expo)
+
+Set up EAS to build your app binaries and ship JavaScript updates
+
+```bash
+# Link project to your Expo account
+npx eas-cli login
+npx eas-cli init
+
+# Configure EAS Update for Over-The-Air updates
+npx eas-cli update:configure
+```
+
+_This example uses EAS Build; for other build tools, see our [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
+
+### 3. Get Sherlo Token
+
+This token authenticates your account and links test runs to your project
+
+1. Go to https://app.sherlo.io
+2. Get your token:
+   - **New project**: Create a project and copy the token
+   - **Existing project**: Reset the token _(Settings → Reset token)_
+
 <br />
 
 ## 🚀 How to Run
 
-<!-- TODO: Set up EAS (Build and Update)? a moze po prostu "Set up EAS" i wtedy to ujednolicic? -->
+### Option A: GitHub Actions _(Recommended)_
 
-### 1) Set up EAS Build
+1. **Create GitHub repository**
 
-```bash
-# Log in with your Expo account
-npx eas-cli login
+   Set up an [empty GitHub repository](https://github.com/new) _(no README or other files)_ and connect it to your project:
 
-# Link project to your Expo account
-npx eas-cli init
+   ```bash
+   # Initialize Git and link your project to your GitHub repository
+   git init
+   git branch -M main
+   git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
+   ```
 
-# Configure EAS Update for over-the-air updates
-npx eas-cli update:configure
-```
+2. **Add repository secrets**
 
-<!-- TODO: zostawiamy ten komentarz? -->
+   In your GitHub repository, go to **Settings → Secrets and variables → Actions → New repository secret** and add:
 
-_This example uses EAS Build. For other build tools, see [docs](https://sherlo.io/docs/builds?type=development-simulator#build-types)_
+   - `SHERLO_TOKEN` – Your Sherlo project token
+   - `EXPO_TOKEN` – Your [Expo access token](https://expo.dev/accounts/[your-account]/settings/access-tokens)
 
-<!-- TODO: brakuje jeszcze kroku odnoscie setupu EAS Update? jaka to komenda? -->
+3. **Trigger the workflow**
 
-### 2) Get Sherlo token
+   Push to the `main` branch to trigger the automated build and testing process:
 
-Open [Sherlo app](https://app.sherlo.io) and choose one:
+   ```bash
+   git add .
+   git commit -m "Run Sherlo tests"
+   git push -u origin main
+   ```
 
-- **New project**: Create project and copy the token
-- **Existing project**: Reset the token _(Settings → Reset token)_
+   _After pushing, view workflow progress in your repository's **Actions** tab._
 
-### 3) Build and run test
+---
 
-#### A) GitHub Actions _(Recommended)_
-
-1.  **Add secrets**: _(GitHub -> [Your Repo] -> Settings → Secrets and variables → Actions -> New repository secret)_
-    - `SHERLO_TOKEN` – Your Sherlo project token
-    - `EXPO_TOKEN` – Get access token from [Expo](https://expo.dev/accounts/[your-account]/settings/access-tokens)
-
-<!-- TODO: poprawic tekst w nawiasie -->
-2.  **Trigger the workflow**
-
-    ```bash
-    # Commit and push changes to main branch to trigger the workflow (build + test)
-    git add .
-    git commit -m "Run first Sherlo test"
-    git push origin main
-    ```
-
-#### B) Local
+### Option B: Run Locally
 
 1. **Build apps**
 
-   ```bash
-   # Build Android
-   yarn build:android
+   Build Android and iOS apps on your machine:
 
-   # Build iOS
+   ```bash
+   yarn build:android
    yarn build:ios
    ```
 
-<!-- TODO: dodac krok z Update -->
+<!-- TODO: Update -->
 
-2. **Run test**
+2. **Run tests**
+
+   Run Sherlo visual tests on the built apps:
 
    ```bash
-   # Run Sherlo
    yarn sherlo --token YOUR_SHERLO_TOKEN
-   # Alternatively: add token to sherlo.config.json and run `yarn sherlo`
+   # Or add token to sherlo.config.json and run: `yarn sherlo`
    ```
 
-### 4) Review results
+<br />
 
-Open [Sherlo app](https://app.sherlo.io) to view your test results
+## 👀 Review Results
+
+Once your tests complete, open [Sherlo app](https://app.sherlo.io) to review visual changes
 
 <br />
 
@@ -136,9 +152,6 @@ Open [Sherlo app](https://app.sherlo.io) to view your test results
 - **[`App.tsx`](./App.tsx)** – Root component rendering Storybook for testing _([docs](https://sherlo.io/docs/setup#storybook-access))_
 - **[`.rnstorybook/index.ts`](./.rnstorybook/index.ts)** – Storybook component modified for Sherlo integration _([docs](https://sherlo.io/docs/setup#storybook-component))_
 - **[`sherlo.config.json`](./sherlo.config.json)** – Config file with testing devices _([docs](https://sherlo.io/docs/config))_
-<!--
-TODO: poprawic teskt? moze ujednolicic pomiedzy metodami?
--->
 - **[`.github/workflows/eas-update.yml`](./.github/workflows/eas-update.yml)** – CI workflow for automated builds and tests
 
 _**Own project?** Run `npx sherlo init` to automatically integrate Sherlo in your codebase_

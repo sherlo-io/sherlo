@@ -32,7 +32,7 @@ flowchart TB
 ## 🛠️ Prerequisites
 
 - [**Sherlo Account**](https://app.sherlo.io) – Required for visual testing
-- [**Expo Account**](https://expo.dev/signup) – Required for EAS Build
+- [**Expo Account**](https://expo.dev/signup) – Required for EAS
 
 <br />
 
@@ -58,17 +58,6 @@ Set up EAS to build your app binaries
 npx eas-cli login
 npx eas-cli init
 ```
-
-<!-- Set up EAS to build your app binaries and ship JavaScript updates -->
-
-<!-- ```bash
-# Link project to your Expo account
-npx eas-cli login
-npx eas-cli init
-
-# Configure EAS Update for Over-The-Air updates
-npx eas-cli update:configure
-``` -->
 
 _This example uses EAS Build; for other build tools, see our [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
 
