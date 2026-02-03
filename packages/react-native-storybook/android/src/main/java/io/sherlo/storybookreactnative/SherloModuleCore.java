@@ -406,14 +406,15 @@ public class SherloModuleCore {
         }
 
         // Metric-based scrollability check
-        if (!isScrollableByMetrics(candidate)) {
+        if (isScrollableByMetrics(candidate)) {
             if (SCROLL_DEBUG) {
-                Log.d(TAG, "isScrollableSnapshot: Failed metric check");
+                Log.d(TAG, "isScrollableSnapshot: Metric check passed, skipping nudge validation to prevent transient scroll indicators.");
             }
-            return false;
+            return true;
         }
 
-        // Control validation: nudge and restore
+        // Fallback: Control validation: nudge and restore
+        // Only do this if metrics were inconclusive (e.g. reflection failed)
         boolean nudgeResult = validateWithNudge(candidate);
         if (SCROLL_DEBUG) {
             Log.d(TAG, "isScrollableSnapshot: Nudge validation result: " + nudgeResult);

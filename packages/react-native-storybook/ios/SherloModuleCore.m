@@ -277,14 +277,14 @@ static BOOL const SCROLL_DEBUG = YES;
     }
 
     // Metric-based scrollability check
-    if (![self isScrollableByMetrics:candidate epsilon:EPSILON minRangeRatio:MIN_SCROLL_RANGE_RATIO]) {
+    if ([self isScrollableByMetrics:candidate epsilon:EPSILON minRangeRatio:MIN_SCROLL_RANGE_RATIO]) {
         if (SCROLL_DEBUG) {
-            NSLog(@"[%@] isScrollableSnapshot: Failed metric check", LOG_TAG);
+            NSLog(@"[%@] isScrollableSnapshot: Metric check passed, skipping nudge validation to prevent transient scroll indicators.", LOG_TAG);
         }
-        return NO;
+        return YES;
     }
 
-    // Control validation: nudge and restore
+    // Fallback: Control validation: nudge and restore
     BOOL nudgeResult = [self validateWithNudge:candidate nudgePx:NUDGE_PX];
     if (SCROLL_DEBUG) {
         NSLog(@"[%@] isScrollableSnapshot: Nudge validation result: %@", LOG_TAG, nudgeResult ? @"YES" : @"NO");
@@ -336,13 +336,15 @@ static BOOL const SCROLL_DEBUG = YES;
         return nil;
     }
 
-    // Walk up superview chain to find UIScrollView
+    // Walk up superview chain to find vertically scrollable UIScrollView
     UIView *current = hitView;
     while (current) {
         if ([current isKindOfClass:[UIScrollView class]]) {
-            UIScrollView *scrollView = (UIScrollView *)current;
-            if (scrollView.isScrollEnabled && scrollView.window) {
-                return scrollView;
+            UIScrollView *sv = (UIScrollView *)current;
+            // Use a very low threshold (epsilon) for candidate selection,
+            // as we just want to know if it's the right "kind" of scroll view.
+            if ([self isScrollableByMetrics:sv epsilon:1.0 minRangeRatio:0.01]) {
+                return sv;
             }
         }
         current = current.superview;
@@ -372,6 +374,11 @@ static BOOL const SCROLL_DEBUG = YES;
 
         // Check basic visibility
         if (scrollView.hidden || scrollView.alpha < 0.01 || !scrollView.isScrollEnabled || !scrollView.window) {
+            return;
+        }
+
+        // Must be vertically scrollable to be a candidate for long screenshots
+        if (![self isScrollableByMetrics:scrollView epsilon:1.0 minRangeRatio:0.01]) {
             return;
         }
 
