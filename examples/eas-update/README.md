@@ -170,73 +170,7 @@ _**Own project?** Run `npx sherlo init` to automatically integrate Sherlo in you
 
 ## 📚 Learn More
 
-For detailed information about **EAS Update** testing method, visit our [documentation](https://sherlo.io/docs/testing?method=eas-update#testing-methods)
-
-<br />
-
-## 📚 Learn More
-
 To learn more about **EAS Update** testing method, visit our [documentation](https://sherlo.io/docs/testing?method=eas-update#testing-methods)
-
-<br />
-
-## 📖 Documentation
-
-For detailed information about **EAS Update testing method**, visit our [documentation](https://sherlo.io/docs/testing?method=eas-update#testing-methods).
-
-<br />
-
-## 📖 Documentation
-
-Learn more about **[EAS Update](https://sherlo.io/docs/testing?method=eas-update#testing-methods)** testing method in our documentation
-
-<br />
-
-## 📖 Documentation
-
-For detailed information, see **[EAS Update](https://sherlo.io/docs/testing?method=eas-update#testing-methods)** testing method
-
-<br />
-
-## 📖 Testing Method
-
-For detailed information visit our [documentation](https://sherlo.io/docs/testing?method=eas-update#testing-methods)
-
-<br />
-
-## 📚 Learn More
-
-**[EAS Update Testing Method →](https://sherlo.io/docs/testing?method=eas-update#testing-methods)**
-
-<br />
-
-## 💡 About This Method
-
-This example uses EAS Update testing. **[Read full documentation →](https://sherlo.io/docs/testing?method=eas-update#testing-methods)**
-
-<br />
-
-## 📖 Want to Learn More?
-
-Explore the **[EAS Update testing method](https://sherlo.io/docs/testing?method=eas-update#testing-methods)** in detail.
-
-<br />
-
-## 🔗 Resources
-
-**[EAS Update Testing Documentation](https://sherlo.io/docs/testing?method=eas-update#testing-methods)**
-
-<br />
-
-## ℹ️ Testing Method
-
-This example demonstrates EAS Update testing – learn more in our **[documentation](https://sherlo.io/docs/testing?method=eas-update#testing-methods)**.
-
-<br />
-
-## 📖 Docs
-
-**[EAS Update Testing →](https://sherlo.io/docs/testing?method=eas-update#testing-methods)**
 
 <br />
 
