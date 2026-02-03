@@ -1,38 +1,17 @@
 # Examples
 
-Complete working examples of minimal React Native + Storybook apps, each with:
+Complete, ready-to-run projects demonstrating different visual testing workflows
 
-- Sherlo integration (different workflow modes)
-- GitHub Actions workflow
-
----
-
-Minimal React Native + Storybook examples, each with:
-
-- Sherlo integration (different workflows)
-- GitHub Actions automation
-
----
-
-Minimal React Native + Storybook apps with:
+Each example is a minimal React Native + Storybook app with:
 
 - Sherlo integration
-- GitHub Actions workflows
-
----
-
-Different Sherlo workflow modes for React Native + Storybook apps
-
-Each example includes:
-
-- Minimal starter app
 - GitHub Actions workflow
 
 ---
 
-Complete, ready-to-run projects demonstrating different visual testing workflows.
+Complete, ready-to-run projects demonstrating different visual testing workflows
 
-Each example is a **Minimal React Native + Storybook app** with:
+Each example is a **minimal React Native + Storybook app** with:
 
 - Sherlo integration
 - GitHub Actions workflow
