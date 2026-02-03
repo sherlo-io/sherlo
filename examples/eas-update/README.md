@@ -61,7 +61,6 @@ Set up EAS to build your app binaries and ship JavaScript updates
 
 ```bash
 # Link project to your Expo account
-npx eas-cli login
 npx eas-cli init
 
 # Configure EAS Update for Over-The-Air updates
@@ -90,7 +89,7 @@ This token authenticates your account and links test runs to your project
    Set up an [empty GitHub repository](https://github.com/new) _(no README or other files)_ and connect it to your project:
 
    ```bash
-   # Initialize Git and link your project to your GitHub repository
+   # Connect your project to GitHub
    git init
    git branch -M main
    git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git

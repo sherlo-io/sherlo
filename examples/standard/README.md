@@ -55,7 +55,6 @@ Set up EAS to build your app binaries
 
 ```bash
 # Link project to your Expo account
-npx eas-cli login
 npx eas-cli init
 ```
 
