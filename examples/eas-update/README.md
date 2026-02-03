@@ -134,7 +134,7 @@ This token authenticates your account and links test runs to your project
    Publish your JavaScript changes to EAS Update:
 
    ```bash
-   yarn eas:update
+   yarn eas-update
    ```
 
 3. **Run tests**
