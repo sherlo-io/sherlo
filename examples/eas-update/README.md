@@ -22,15 +22,15 @@ flowchart TB
       Android ~~~ iOS
    end
    Update(⚡ OTA Update)
-   Sherlo(🧪 Run Sherlo)
+   Test(🧪 Run Test)
    Review(👀 Review Results)
 
    UI --> Check
    Check -->|No| Reuse
    Check -->|Yes| Build
    Reuse & Build --> Update
-   Update --> Sherlo
-   Sherlo --> Review
+   Update --> Test
+   Test --> Review
 ```
 
 <br />
@@ -71,7 +71,7 @@ _This example uses EAS Build; for other build tools, see our [documentation](htt
 
 ### 3. Get Sherlo Token
 
-This token authenticates your account and links test runs to your project
+This token authenticates your account and links tests to your project
 
 1. Go to https://app.sherlo.io
 2. Get your token:
@@ -108,7 +108,7 @@ This token authenticates your account and links test runs to your project
 
    ```bash
    git add .
-   git commit -m "Run Sherlo tests"
+   git commit -m "Run Sherlo test"
    git push -u origin main
    ```
 
@@ -137,9 +137,9 @@ This token authenticates your account and links test runs to your project
    yarn eas-update
    ```
 
-3. **Run tests**
+3. **Run test**
 
-   Run Sherlo visual tests on the built apps with latest update:
+   Run Sherlo visual test on the built apps with latest update:
 
    ```bash
    yarn sherlo --token YOUR_SHERLO_TOKEN
@@ -150,7 +150,7 @@ This token authenticates your account and links test runs to your project
 
 ## 👀 Review Results
 
-Once your tests complete, open [Sherlo app](https://app.sherlo.io):
+Once your test completes, open [Sherlo app](https://app.sherlo.io):
 
 - **First test** _(baseline)_ – Approve correct screenshots – they become your baseline for future comparisons
 - **Next tests** _(comparison)_ – Review visual changes

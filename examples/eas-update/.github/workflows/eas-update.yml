@@ -223,7 +223,7 @@ jobs:
           merge-multiple: true
 
       # Uses 'test:eas-update' mode (standard / eas-update / eas-cloud-build)
-      - name: 🧪 Run Sherlo
+      - name: 🧪 Run Sherlo test
         run: |
           npx sherlo test:eas-update \
             --android android.apk \
