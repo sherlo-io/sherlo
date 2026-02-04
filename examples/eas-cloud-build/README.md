@@ -9,7 +9,7 @@ Minimal React Native + Storybook app with:
 
 ## 🔄 Workflow
 
-Run visual tests on app builds **with bundled JavaScript code**
+Automatically run visual tests **after builds complete on Expo servers**
 
 ```mermaid
 flowchart TB
@@ -57,8 +57,6 @@ Set up EAS to build your app binaries
 # Link project to your Expo account
 npx eas-cli init
 ```
-
-_This example uses EAS Build; for other build tools, see our [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
 
 ### 3. Get Sherlo Token
 
@@ -166,5 +164,5 @@ To learn more about **EAS Cloud Build** testing method, visit our [documentation
 
 ## 🔗 Other Examples
 
+- **[Standard](../standard)** – Run visual tests on app builds **with bundled JavaScript code**
 - **[EAS Update](../eas-update)** – Run visual tests using **Over-The-Air updates** for JavaScript changes, without full app rebuilds
-- **[EAS Cloud Build](../eas-cloud-build)** – Automatically run visual tests **after builds complete on Expo servers**
