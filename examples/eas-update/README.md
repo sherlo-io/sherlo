@@ -175,7 +175,7 @@ _💡 First test won't show "changes" since there's nothing to compare against y
 Once your tests complete, open [Sherlo app](https://app.sherlo.io):
 
 - **First test** _(baseline)_ – Approve correct screenshots – they become your baseline for future comparisons
-- **Next tests** _(comparison)_ – Review detected visual changes
+- **Next tests** _(comparison)_ – Review visual changes, approve or report
 
 _💡 First test won't show "changes" since there's nothing to compare against yet_
 
