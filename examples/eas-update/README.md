@@ -153,7 +153,7 @@ This token authenticates your account and links test runs to your project
 Once your tests complete, open [Sherlo app](https://app.sherlo.io):
 
 - **First test** _(baseline)_ – Review screenshots and approve what looks correct – this becomes your baseline for future comparisons
-- **Next tests** _(comparison)_ – Review detected visual changes and approve or reject them
+- **Next tests** _(comparison)_ – See what changed and approve or reject
 
 _💡 First test won't show "changes" since there's nothing to compare against yet_
 
