@@ -101,10 +101,12 @@ function useTestStory({
           }
 
           // Detect if the screen is scrollable for long-screenshot capture
-          isScrollableSnapshot = await SherloModule.isScrollableSnapshot().catch((error) => {
-            RunnerBridge.log('error checking if scrollable', { error: error.message });
-            return false;
-          });
+          if (config.enableScrollingSnapshot) {
+            isScrollableSnapshot = await SherloModule.isScrollableSnapshot().catch((error) => {
+              RunnerBridge.log('error checking if scrollable', { error: error.message });
+              return false;
+            });
+          }
 
           RunnerBridge.log('checked if scrollable', { isScrollableSnapshot });
 

@@ -20,6 +20,7 @@ export type Config = {
   overrideMode?: 'default' | 'storybook' | 'testing';
   easUpdateDeeplink?: string;
   overrideLastState?: LastState;
+  enableScrollingSnapshot?: boolean;
 };
 
 export type LastState = {
