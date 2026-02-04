@@ -1,9 +1,14 @@
 {
-  "name": "sherlo-example-eas-cloud-build",
+  "name": "sherlo-standard-example",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "comments": {
+    "eas-build-on-complete": "required for EAS Cloud Build",
+    "dodac skrypty": "eas:cloud-build, sherlo:test"
+  },
   "scripts": {
     "eas-build-on-complete": "npx sherlo eas-build-on-complete --profile preview-simulator",
-    "eas-cloud-build": "npx eas-cli build --profile preview-simulator --platform all",
-    "sherlo": "npx sherlo test:eas-cloud-build --easBuildScriptName eas-cloud-build"
+    "XYZ": "npx eas-cli build --profile preview-simulator --platform all"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.8",
@@ -24,7 +29,5 @@
     "@types/react": "~19.1.10",
     "typescript": "^5.9.3"
   },
-  "version": "1.0.0",
-  "private": true,
-  "main": "index.ts"
+  "private": true
 }

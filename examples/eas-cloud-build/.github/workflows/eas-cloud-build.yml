@@ -61,8 +61,8 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-    #   - name: 📥 Install dependencies
-    #     run: yarn install
+      #   - name: 📥 Install dependencies
+      #     run: yarn install
 
       - name: 🧪 Run Sherlo (Wait for EAS mode)
         run: |
