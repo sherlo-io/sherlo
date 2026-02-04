@@ -150,8 +150,64 @@ This token authenticates your account and links test runs to your project
 
 ## 👀 Review Results
 
-Once your tests complete, open [Sherlo app](https://app.sherlo.io) to review visual changes
+### First Test Run
 
+Your first test creates the **baseline** for future comparisons. Open [Sherlo app](https://app.sherlo.io) to:
+
+- Review all screenshots to ensure UI looks correct
+- Approve them as your baseline
+
+_💡 Using "Approve All" is faster but may approve incorrect UI as baseline_
+
+### Subsequent Tests
+
+After making UI changes and running tests again, Sherlo will detect visual differences and show side-by-side comparisons of what changed.
+
+<br />
+## 👀 Review Results
+
+Once your tests complete, open [Sherlo app](https://app.sherlo.io):
+
+1. **First test** – Creates your baseline. Review and approve all screenshots to establish what "correct" looks like.
+2. **Future tests** – Detects visual changes by comparing new screenshots against your approved baseline.
+
+_💡 First test won't show "changes" since there's nothing to compare against yet_
+<br />
+
+## 👀 Review Results
+
+Once your tests complete, open [Sherlo app](https://app.sherlo.io) to review results.
+
+> **First test?** Your initial test run creates the baseline for future comparisons. Review all screenshots carefully and approve them – these become your reference for detecting changes. Future test runs will show visual differences against this baseline.
+> <br />
+
+## 👀 Review Results
+
+Once your tests complete, open [Sherlo app](https://app.sherlo.io):
+
+- **First test** _(baseline)_ – Review and approve all screenshots
+- **Next tests** _(comparison)_ – Review detected visual changes
+
+_💡 First test establishes what's correct. Subsequent tests compare against it._
+<br />
+
+## 👀 Review Results
+
+Once your tests complete, open [Sherlo app](https://app.sherlo.io):
+
+**On your first test:**
+
+- No visual changes will be detected (nothing to compare against)
+- Review each screenshot to verify your UI looks correct
+- Approve them to create your baseline
+
+**On subsequent tests:**
+
+- Visual changes are automatically detected
+- Compare side-by-side: before vs after
+- Approve or reject changes
+
+_⚠️ Be careful with "Approve All" on first test – it may approve incorrect UI as your baseline_
 <br />
 
 ## 📁 Key Files
