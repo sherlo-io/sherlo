@@ -19,7 +19,7 @@ const ScrollableComponent = () => {
       
       {Array.from({ length: 20 }).map((_, i) => (
         <View key={i} style={[styles.item, { backgroundColor: i % 2 === 0 ? '#e0e0e0' : '#f5f5f5' }]}>
-          <Text style={styles.itemTitle}>Item {i + 1}</Text>
+          <Text style={styles.itemTitle}>Item #{i + 1}</Text>
           <Text style={styles.itemText}>
             This is some filler text for item number {i + 1}. It is here to take up space and ensure
             that the scroll view has enough content to be scrollable on all devices.
@@ -46,7 +46,7 @@ const FloatingHeaderComponent = () => {
         
         {Array.from({ length: 25 }).map((_, i) => (
           <View key={i} style={[styles.item, { backgroundColor: i % 2 === 0 ? '#e8f5e9' : '#f1f8e9' }]}>
-            <Text style={styles.itemTitle}>Item {i + 1}</Text>
+            <Text style={styles.itemTitle}>Item #{i + 1}</Text>
             <Text style={styles.itemText}>
               This content scrolls behind the floating header. The header stays visible 
               at all times, positioned slightly below the status bar.
@@ -223,7 +223,7 @@ const GradientOverlayComponent = () => {
         
         {Array.from({ length: 20 }).map((_, i) => (
           <View key={i} style={[styles.item, gradientStyles.card]}>
-            <Text style={styles.itemTitle}>Item {i + 1}</Text>
+            <Text style={styles.itemTitle}>Item #{i + 1}</Text>
             <Text style={styles.itemText}>
               This card sits on top of a continuous gradient background
               that spans the entire scroll height.
@@ -312,7 +312,7 @@ const CollapsingHeaderComponent = () => {
       >
         {Array.from({ length: 20 }).map((_, i) => (
           <View key={i} style={[styles.item, { backgroundColor: '#fff5f5' }]}>
-            <Text style={styles.itemTitle}>Item {i + 1}</Text>
+            <Text style={styles.itemTitle}>Item #{i + 1}</Text>
             <Text style={styles.itemText}>
               Scroll up to see the header collapse. This tests how
               animated elements interact with screenshot stitching.
@@ -327,7 +327,7 @@ const CollapsingHeaderComponent = () => {
 // ============================================
 // Infinite Scroll (tests MAX_SCROLL_PARTS limit)
 // ============================================
-const INFINITE_DATA = Array.from({ length: 300 }, (_, i) => ({ id: i, title: `Item ${i + 1} of 300` }));
+const INFINITE_DATA = Array.from({ length: 300 }, (_, i) => ({ id: i, title: `Item #${i + 1} of 300` }));
 
 const InfiniteScrollComponent = () => {
   // Uses FlatList for virtualized rendering - only visible items are rendered
