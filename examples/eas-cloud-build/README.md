@@ -14,7 +14,7 @@ Automatically run visual tests **after builds complete on Expo servers**
 ```mermaid
 flowchart TB
    UI(🧑‍💻 Code Changes)
-   StartSherlo(⏳ Start Sherlo (Waiting))
+   StartSherlo(⏳ Start Sherlo · Waiting)
    subgraph Cloud[☁️ Build on Expo Servers]
       Android(🤖 Build Android)
       iOS(🍎 Build iOS)
