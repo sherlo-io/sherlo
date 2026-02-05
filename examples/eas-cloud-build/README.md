@@ -110,7 +110,7 @@ This token authenticates your account and links tests to your project
 
 #### Run test
 
-Run Sherlo to automatically trigger builds on Expo servers and visually test them:
+Run Sherlo to trigger builds on Expo servers and visually test them:
 
 ```bash
 yarn sherlo --token YOUR_SHERLO_TOKEN
@@ -124,6 +124,12 @@ _💡 Sherlo injects metadata, triggers builds, and receives completed builds fr
 _💡 Sherlo injects metadata before builds. Expo sends completed builds back via `eas-build-on-complete` and tests run automatically_
 
 _💡 Sherlo injects test metadata, triggers Expo builds, and automatically tests them when complete (via `eas-build-on-complete`)_
+
+_💡 Sherlo injects metadata (authentication token and test ID) so Expo knows where to send completed builds via eas-build-on-complete script_
+
+_💡 Sherlo adds metadata (token + test ID) before triggering builds. Expo uses this to send completed builds back via eas-build-on-complete_
+
+_💡 Sherlo injects metadata (auth token and test ID) needed for Expo to route completed builds back via eas-build-on-complete_
 
 <br />
 
