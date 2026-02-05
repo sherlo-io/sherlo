@@ -117,7 +117,13 @@ yarn sherlo --token YOUR_SHERLO_TOKEN
 # Or add token to sherlo.config.json and run: yarn sherlo
 ```
 
-_💡 Sherlo injects test metadata before triggering builds. When builds complete, Expo automatically sends them to Sherlo via eas-build-on-complete script, and tests run automatically._
+_💡 Sherlo injects test metadata before triggering builds. When builds complete, Expo automatically sends them to Sherlo via `eas-build-on-complete` script, and tests run automatically._
+
+_💡 Sherlo injects metadata, triggers builds, and receives completed builds from Expo via eas-build-on-complete script_
+
+_💡 Sherlo injects metadata before builds. Expo sends completed builds back via eas-build-on-complete and tests run automatically_
+
+_💡 Sherlo injects test metadata, triggers Expo builds, and automatically tests them when complete (via `eas-build-on-complete`)_
 
 <br />
 
