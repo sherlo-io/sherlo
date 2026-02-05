@@ -110,6 +110,8 @@ This token authenticates your account and links tests to your project
 
 #### Run test
 
+**Run test**
+
 Run Sherlo to automatically trigger builds on Expo servers and visually test them:
 
 ```bash
