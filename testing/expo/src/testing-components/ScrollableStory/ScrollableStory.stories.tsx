@@ -1,39 +1,6 @@
 import React from 'react';
-import { ScrollView, Text, View, StyleSheet, Animated, Dimensions, TouchableOpacity, FlatList } from 'react-native';
-import type { Meta } from '@storybook/react';
+import { ScrollView, Text, View, StyleSheet, Animated, TouchableOpacity, FlatList } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-// ============================================
-// Default Scrollable Component
-// ============================================
-const ScrollableComponent = () => {
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.header}>Scrollable Story</Text>
-      <Text style={styles.description}>
-        This story contains a long scroll view to test the isScrollableSnapshot native functionality.
-        The content below should extend well beyond the screen height.
-      </Text>
-      
-      {Array.from({ length: 20 }).map((_, i) => (
-        <View key={i} style={[styles.item, { backgroundColor: i % 2 === 0 ? '#e0e0e0' : '#f5f5f5' }]}>
-          <Text style={styles.itemTitle}>Item #{i + 1}</Text>
-          <Text style={styles.itemText}>
-            This is some filler text for item number {i + 1}. It is here to take up space and ensure
-            that the scroll view has enough content to be scrollable on all devices.
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore.
-          </Text>
-        </View>
-      ))}
-      
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>End of Scroll View</Text>
-      </View>
-    </ScrollView>
-  );
-};
 
 // ============================================
 // Floating Header (with gap from top)
@@ -46,7 +13,7 @@ const FloatingHeaderComponent = () => {
         
         {Array.from({ length: 25 }).map((_, i) => (
           <View key={i} style={[styles.item, { backgroundColor: i % 2 === 0 ? '#e8f5e9' : '#f1f8e9' }]}>
-            <Text style={styles.itemTitle}>Item #{i + 1}</Text>
+            <Text style={styles.itemTitle}>Item{i + 1}</Text>
             <Text style={styles.itemText}>
               This content scrolls behind the floating header. The header stays visible 
               at all times, positioned slightly below the status bar.
@@ -104,167 +71,6 @@ const FABComponent = () => {
 };
 
 // ============================================
-// Parallax Background (simulated)
-// ============================================
-const ParallaxComponent = () => {
-  const scrollY = React.useRef(new Animated.Value(0)).current;
-  
-  return (
-    <View style={styles.container}>
-      {/* Parallax background - moves slower than content */}
-      <Animated.View 
-        style={[
-          parallaxStyles.background,
-          {
-            transform: [{
-              translateY: scrollY.interpolate({
-                inputRange: [0, 500],
-                outputRange: [0, -100],
-                extrapolate: 'clamp',
-              })
-            }]
-          }
-        ]}
-      >
-        <LinearGradient
-          colors={['#667eea', '#764ba2', '#f093fb']}
-          style={parallaxStyles.gradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        />
-        <View style={parallaxStyles.heroContent}>
-          <Text style={parallaxStyles.heroTitle}>🌄 Parallax Hero</Text>
-          <Text style={parallaxStyles.heroSubtitle}>Background moves at different speed</Text>
-        </View>
-      </Animated.View>
-      
-      <Animated.ScrollView
-        style={[styles.container, { backgroundColor: 'transparent' }]}
-        contentContainerStyle={[styles.content, { paddingTop: 300 }]}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
-        scrollEventThrottle={16}
-      >
-        {Array.from({ length: 20 }).map((_, i) => (
-          <View key={i} style={[styles.item, parallaxStyles.card]}>
-            <Text style={styles.itemTitle}>Card {i + 1}</Text>
-            <Text style={styles.itemText}>
-              This card scrolls over the parallax background.
-              The gradient behind moves slower creating depth effect.
-            </Text>
-          </View>
-        ))}
-      </Animated.ScrollView>
-    </View>
-  );
-};
-
-// ============================================
-// Horizontal Sections (nested horizontal scrolls)
-// ============================================
-const HorizontalSectionsComponent = () => {
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.header}>Mixed Scroll Directions</Text>
-      
-      {Array.from({ length: 8 }).map((_, sectionIndex) => (
-        <View key={sectionIndex} style={horizontalStyles.section}>
-          <Text style={horizontalStyles.sectionTitle}>Section {sectionIndex + 1}</Text>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={horizontalStyles.horizontalContent}
-          >
-            {Array.from({ length: 10 }).map((_, cardIndex) => (
-              <View 
-                key={cardIndex} 
-                style={[
-                  horizontalStyles.card,
-                  { backgroundColor: `hsl(${(sectionIndex * 40 + cardIndex * 10) % 360}, 70%, 80%)` }
-                ]}
-              >
-                <Text style={horizontalStyles.cardText}>{cardIndex + 1}</Text>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-      ))}
-      
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>End of Mixed Scroll Content</Text>
-      </View>
-    </ScrollView>
-  );
-};
-
-// ============================================
-// Gradient Overlay (full-height gradient)
-// ============================================
-// ============================================
-// Gradient Overlay (full-height gradient)
-// ============================================
-const GradientOverlayComponent = () => {
-  return (
-    <View style={styles.container}>
-      {/* Full-height gradient behind the scroll */}
-      <LinearGradient
-        colors={['#0f0c29', '#302b63', '#24243e']}
-        style={gradientStyles.fullGradient}
-        pointerEvents="none"
-      />
-      
-      <ScrollView style={[styles.container, { backgroundColor: 'transparent' }]} contentContainerStyle={styles.content}>
-        <Text style={[styles.header, { color: '#fff' }]}>Gradient Background</Text>
-        <Text style={[styles.description, { color: '#eee' }]}>
-          Testing how gradient backgrounds render across multiple screenshots.
-        </Text>
-        
-        {Array.from({ length: 20 }).map((_, i) => (
-          <View key={i} style={[styles.item, gradientStyles.card]}>
-            <Text style={styles.itemTitle}>Item #{i + 1}</Text>
-            <Text style={styles.itemText}>
-              This card sits on top of a continuous gradient background
-              that spans the entire scroll height.
-            </Text>
-          </View>
-        ))}
-      </ScrollView>
-    </View>
-  );
-};
-
-// ============================================
-// Staggered Grid (variable height items)
-// ============================================
-const StaggeredGridComponent = () => {
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={staggeredStyles.grid}>
-      <Text style={[styles.header, { width: '100%', paddingHorizontal: 10 }]}>Staggered Grid</Text>
-      
-      {Array.from({ length: 30 }).map((_, i) => {
-        const height = 100 + (i % 5) * 40 + Math.sin(i) * 30;
-        return (
-          <View 
-            key={i} 
-            style={[
-              staggeredStyles.gridItem,
-              { 
-                height,
-                backgroundColor: `hsl(${(i * 25) % 360}, 60%, 75%)` 
-              }
-            ]}
-          >
-            <Text style={staggeredStyles.gridItemText}>{i + 1}</Text>
-          </View>
-        );
-      })}
-    </ScrollView>
-  );
-};
-
-// ============================================
 // Collapsing Header
 // ============================================
 const CollapsingHeaderComponent = () => {
@@ -312,7 +118,7 @@ const CollapsingHeaderComponent = () => {
       >
         {Array.from({ length: 20 }).map((_, i) => (
           <View key={i} style={[styles.item, { backgroundColor: '#fff5f5' }]}>
-            <Text style={styles.itemTitle}>Item #{i + 1}</Text>
+            <Text style={styles.itemTitle}>Item{i + 1}</Text>
             <Text style={styles.itemText}>
               Scroll up to see the header collapse. This tests how
               animated elements interact with screenshot stitching.
@@ -327,7 +133,7 @@ const CollapsingHeaderComponent = () => {
 // ============================================
 // Infinite Scroll (tests MAX_SCROLL_PARTS limit)
 // ============================================
-const INFINITE_DATA = Array.from({ length: 300 }, (_, i) => ({ id: i, title: `Item #${i + 1} of 300` }));
+const INFINITE_DATA = Array.from({ length: 300 }, (_, i) => ({ id: i, title: `Item${i + 1} of 300` }));
 
 const InfiniteScrollComponent = () => {
   // Uses FlatList for virtualized rendering - only visible items are rendered
@@ -383,20 +189,13 @@ const InfiniteScrollComponent = () => {
 // ============================================
 // Meta & Exports
 // ============================================
-export default {
-  component: ScrollableComponent,
-} as Meta<typeof ScrollableComponent>;
+export default {};
 
-export const Default = {};
 export const FloatingHeader = { render: () => <FloatingHeaderComponent /> };
 export const FABButton = { render: () => <FABComponent /> };
-export const ParallaxBackground = { render: () => <ParallaxComponent /> };
-export const HorizontalSections = { render: () => <HorizontalSectionsComponent /> };
-export const GradientOverlay = { render: () => <GradientOverlayComponent /> };
-export const StaggeredGrid = { render: () => <StaggeredGridComponent /> };
 export const CollapsingHeader = { render: () => <CollapsingHeaderComponent /> };
 export const InfiniteScroll = { render: () => <InfiniteScrollComponent /> };
-export const ViewportOnly = { render: () => <ScrollableComponent />, parameters: { sherlo: { takeViewportSnapshot: true } } };
+export const ViewportOnly = { render: () => <InfiniteScrollComponent />, parameters: { sherlo: { takeViewportSnapshot: true } } };
 
 // ============================================
 // Styles
@@ -524,120 +323,6 @@ const fabStyles = StyleSheet.create({
   },
   fabSecondaryText: {
     fontSize: 20,
-  },
-});
-
-const parallaxStyles = StyleSheet.create({
-  background: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 400,
-    zIndex: 0,
-  },
-  gradient: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  heroContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 60,
-  },
-  heroTitle: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#fff',
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  heroSubtitle: {
-    fontSize: 16,
-    color: '#fff',
-    opacity: 0.9,
-    marginTop: 8,
-  },
-  card: {
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-});
-
-const horizontalStyles = StyleSheet.create({
-  section: {
-    marginBottom: 25,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 12,
-    color: '#333',
-  },
-  horizontalContent: {
-    paddingRight: 20,
-  },
-  card: {
-    width: 140,
-    height: 180,
-    marginRight: 12,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  cardText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    textShadowColor: 'rgba(0,0,0,0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-});
-
-const gradientStyles = StyleSheet.create({
-  fullGradient: {
-    ...StyleSheet.absoluteFillObject,
-    // zIndex not needed if we place it correctly or rely on absolute positioning covering the container
-  },
-  card: {
-    backgroundColor: 'rgba(255,255,255,0.6)', // More transparent (60%) so gradient shows through
-    borderColor: 'rgba(255,255,255,0.5)',
-    borderWidth: 1.5,
-  },
-});
-
-const staggeredStyles = StyleSheet.create({
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 10,
-    justifyContent: 'space-between',
-  },
-  gridItem: {
-    width: '48%',
-    marginBottom: 12,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  gridItemText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    textShadowColor: 'rgba(0,0,0,0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
 });
 
