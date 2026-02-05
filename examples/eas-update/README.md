@@ -20,6 +20,7 @@ flowchart TB
       Android(🤖 Build Android)
       iOS(🍎 Build iOS)
       Android ~~~ iOS
+      style Build fill:#b8885f21
    end
    Update(⚡ OTA Update)
    Test(🧪 Run Test)
