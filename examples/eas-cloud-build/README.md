@@ -157,7 +157,9 @@ _💡 Sherlo injects metadata before triggering builds for project identificatio
 
 _💡 Sherlo adds metadata before triggering builds enabling project and test identification when builds return via `eas-build-on-complete` script_
 
-_💡 Sherlo injects metadata to identify project when Expo returns builds via the `eas-build-on-complete` script_
+_💡 Sherlo injects metadata to identify project when Expo returns builds via `eas-build-on-complete` script_
+
+_💡 Sherlo injects metadata before triggering builds to identify project when Expo returns builds via `eas-build-on-complete` script_
 
 <br />
 
