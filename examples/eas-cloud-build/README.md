@@ -14,7 +14,8 @@ Automatically run visual tests **after builds complete on Expo servers**
 ```mermaid
 flowchart TB
    UI(🧑‍💻 Code Changes)
-   subgraph Build[Build Apps]
+   StartSherlo(⏳ Start Sherlo (Waiting))
+   subgraph Cloud[☁️ Build on Expo Servers]
       Android(🤖 Build Android)
       iOS(🍎 Build iOS)
       Android ~~~ iOS
@@ -22,8 +23,9 @@ flowchart TB
    Test(🧪 Run Test)
    Review(👀 Review Results)
 
-   UI --> Build
-   Build --> Test
+   UI --> StartSherlo
+   StartSherlo --> Cloud
+   Cloud --> Test
    Test --> Review
 ```
 
@@ -87,7 +89,6 @@ This token authenticates your account and links tests to your project
 2. **Add repository secrets**
 
    In your GitHub repository, go to **Settings → Secrets and variables → Actions → New repository secret** and add:
-
    - `SHERLO_TOKEN` – Your Sherlo project token
    - `EXPO_TOKEN` – Your [Expo access token](https://expo.dev/accounts/[your-account]/settings/access-tokens)
 
