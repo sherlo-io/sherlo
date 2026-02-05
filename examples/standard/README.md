@@ -18,7 +18,7 @@ flowchart TB
       Android(🤖 Build Android)
       iOS(🍎 Build iOS)
       Android ~~~ iOS
-      style Build fill:##49494938
+      style Build fill:#49494938
    end
    Test(🧪 Run Test)
    Review(👀 Review Results)
