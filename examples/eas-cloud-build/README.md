@@ -108,7 +108,7 @@ This token authenticates your account and links tests to your project
 
 ### Option B: Run Locally
 
-**Run test**
+#### Run test
 
 Run Sherlo to automatically trigger builds on Expo servers and visually test them:
 
