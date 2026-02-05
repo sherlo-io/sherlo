@@ -126,7 +126,7 @@ This token authenticates your account and links tests to your project
    yarn build:ios
    ```
 
-   _💡 Build once and reuse for future test runs_
+   _💡 Build once and reuse them for future test runs_
 
 2. **Publish OTA update**
 
