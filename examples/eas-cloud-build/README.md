@@ -103,12 +103,6 @@ This token authenticates your account and links tests to your project
 
    _After pushing, view workflow progress in your repository's **Actions** tab._
 
-   <!-- _After pushing, builds run on Expo servers. Tests start automatically when builds complete._ -->
-   <!-- _After pushing, builds are triggered on Expo servers and tests run automatically._ -->
-   <!-- _After pushing, track build progress in [Expo dashboard](https://expo.dev). Tests run automatically when builds complete._ -->
-   <!-- After pushing, track build progress in your Expo dashboard. Tests will run automatically once builds complete. -->
-   <!-- _After pushing, monitor build progress in your [Expo dashboard](https://expo.dev). Tests run automatically when builds complete._ -->
-
 ---
 
 ### Option B: Run Locally

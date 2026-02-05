@@ -14,7 +14,51 @@ Run visual tests on app builds **with bundled JavaScript code**
 ```mermaid
 flowchart TB
    UI(🧑‍💻 Code Changes)
-   subgraph Build[Build Apps]
+   subgraph Build[📦 Build]
+      Android(🤖 Android)
+      iOS(🍎 iOS)
+      Android ~~~ iOS
+   end
+   Test(🧪 Run Test)
+   Review(👀 Review Results)
+
+   UI --> Build
+   Build --> Test
+   Test --> Review
+```
+
+<br />
+
+## 🔄 Workflow
+
+Run visual tests on app builds **with bundled JavaScript code**
+
+```mermaid
+flowchart TB
+   UI(🧑‍💻 Code Changes)
+   subgraph Build[📦 Create Builds]
+      Android(🤖 Android)
+      iOS(🍎 iOS)
+      Android ~~~ iOS
+   end
+   Test(🧪 Run Test)
+   Review(👀 Review Results)
+
+   UI --> Build
+   Build --> Test
+   Test --> Review
+```
+
+<br />
+
+## 🔄 Workflow
+
+Run visual tests on app builds **with bundled JavaScript code**
+
+```mermaid
+flowchart TB
+   UI(🧑‍💻 Code Changes)
+   subgraph Build[📦 Create Builds]
       Android(🤖 Build Android)
       iOS(🍎 Build iOS)
       Android ~~~ iOS
@@ -89,7 +133,6 @@ This token authenticates your account and links tests to your project
 2. **Add repository secrets**
 
    In your GitHub repository, go to **Settings → Secrets and variables → Actions → New repository secret** and add:
-
    - `SHERLO_TOKEN` – Your Sherlo project token
    - `EXPO_TOKEN` – Your [Expo access token](https://expo.dev/accounts/[your-account]/settings/access-tokens)
 
@@ -104,12 +147,6 @@ This token authenticates your account and links tests to your project
    ```
 
    _After pushing, view workflow progress in your repository's **Actions** tab._
-
-   <!-- _After pushing, builds run on Expo servers. Tests start automatically when builds complete._ -->
-   <!-- _After pushing, builds are triggered on Expo servers and tests run automatically._ -->
-   <!-- _After pushing, track build progress in [Expo dashboard](https://expo.dev). Tests run automatically when builds complete._ -->
-   <!-- After pushing, track build progress in your Expo dashboard. Tests will run automatically once builds complete. -->
-   <!-- _After pushing, monitor build progress in your [Expo dashboard](https://expo.dev). Tests run automatically when builds complete._ -->
 
 ---
 
