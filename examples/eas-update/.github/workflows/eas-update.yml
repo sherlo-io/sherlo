@@ -80,7 +80,7 @@ jobs:
   # ────────────────────────────────────────────────────────────────────────────
   # 🤖 REUSE / BUILD ANDROID
   #
-  # Reuses existing build from cache or rebuilds if native code changed
+  # Reuses cached Android development simulator build or rebuilds it if native code changed
   # ────────────────────────────────────────────────────────────────────────────
   reuse-or-build-android:
     name: Reuse / Build Android
@@ -115,7 +115,7 @@ jobs:
         run: yarn install
 
       # Uses 'development-simulator' profile from eas.json
-      - name: 🤖 Build Android (if not cached)
+      - name: 🤖 Build Android Development Simulator (if not cached)
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           eas build \
@@ -134,7 +134,7 @@ jobs:
   # ────────────────────────────────────────────────────────────────────────────
   # 🍎 REUSE / BUILD iOS
   #
-  # Reuses existing build from cache or rebuilds if native code changed
+  # Reuses cached iOS development simulator build or rebuilds it if native code changed
   # ────────────────────────────────────────────────────────────────────────────
   reuse-or-build-ios:
     name: Reuse / Build iOS
@@ -169,7 +169,7 @@ jobs:
         run: yarn install
 
       # Uses 'development-simulator' profile from eas.json
-      - name: 🍎 Build iOS (if not cached)
+      - name: 🍎 Build iOS Development Simulator (if not cached)
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           eas build \

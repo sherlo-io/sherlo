@@ -108,9 +108,9 @@ This token authenticates your account and links tests to your project
 
 ### Option B: Run Locally
 
-1. **Build apps**
+1. **Create simulator builds**
 
-   Build Android and iOS apps on your machine:
+   Create Android and iOS simulator builds on your machine:
 
    ```bash
    yarn build:android
