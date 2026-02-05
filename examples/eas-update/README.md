@@ -139,7 +139,7 @@ This token authenticates your account and links tests to your project
 
 3. **Run test**
 
-   Run Sherlo visual test on the built apps with latest update:
+   Run Sherlo visual test on the simulator builds with the latest update:
 
    ```bash
    yarn sherlo --token YOUR_SHERLO_TOKEN
