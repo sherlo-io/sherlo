@@ -14,50 +14,6 @@ Run visual tests on app builds **with bundled JavaScript code**
 ```mermaid
 flowchart TB
    UI(🧑‍💻 Code Changes)
-   subgraph Build[📦 Build]
-      Android(🤖 Android)
-      iOS(🍎 iOS)
-      Android ~~~ iOS
-   end
-   Test(🧪 Run Test)
-   Review(👀 Review Results)
-
-   UI --> Build
-   Build --> Test
-   Test --> Review
-```
-
-<br />
-
-## 🔄 Workflow
-
-Run visual tests on app builds **with bundled JavaScript code**
-
-```mermaid
-flowchart TB
-   UI(🧑‍💻 Code Changes)
-   subgraph Build[📦 Create Builds]
-      Android(🤖 Android)
-      iOS(🍎 iOS)
-      Android ~~~ iOS
-   end
-   Test(🧪 Run Test)
-   Review(👀 Review Results)
-
-   UI --> Build
-   Build --> Test
-   Test --> Review
-```
-
-<br />
-
-## 🔄 Workflow
-
-Run visual tests on app builds **with bundled JavaScript code**
-
-```mermaid
-flowchart TB
-   UI(🧑‍💻 Code Changes)
    subgraph Build[📦 Create Builds]
       Android(🤖 Build Android)
       iOS(🍎 Build iOS)
