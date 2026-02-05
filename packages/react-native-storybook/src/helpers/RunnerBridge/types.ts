@@ -20,6 +20,7 @@ export type Config = {
   overrideMode?: 'default' | 'storybook' | 'testing';
   easUpdateDeeplink?: string;
   overrideLastState?: LastState;
+  enableScrollingSnapshot?: boolean;
 };
 
 export type LastState = {
@@ -51,6 +52,9 @@ export type AppProtocolItem =
       isStable?: boolean;
       requestId: string;
       hasNetworkImage?: boolean;
+      isScrollableSnapshot?: boolean;
+      isAtEnd?: boolean;
+      scrollOffset?: number;
       safeAreaMetadata?: {
         shouldAddSafeArea: boolean;
         insetBottom: number;
@@ -71,4 +75,14 @@ export type AckRequestSnapshotProtocolItem = {
   requestId: string;
 };
 
-export type RunnerProtocolItem = AckStartProtocolItem | AckRequestSnapshotProtocolItem;
+export type AckScrollRequestProtocolItem = {
+  action: 'ACK_SCROLL_REQUEST';
+  requestId: string;
+  scrollIndex: number;
+  offsetPx: number;
+};
+
+export type RunnerProtocolItem =
+  | AckStartProtocolItem
+  | AckRequestSnapshotProtocolItem
+  | AckScrollRequestProtocolItem;

@@ -134,4 +134,28 @@ public class SherloModule extends ReactContextBaseJavaModule {
         Activity activity = getCurrentActivity();
         moduleCore.stabilize(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs, saveScreenshots, threshold, includeAA, promise);
     }
+
+    /**
+     * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
+     *
+     * @param promise Promise to resolve with boolean (true if scrollable, false otherwise)
+     */
+    @ReactMethod
+    public void isScrollableSnapshot(Promise promise) {
+        Activity activity = getCurrentActivity();
+        moduleCore.isScrollableSnapshot(activity, promise);
+    }
+
+    /**
+     * Deterministically scrolls to a checkpoint index.
+     *
+     * @param index The checkpoint index (0-based)
+     * @param offset The vertical offset per checkpoint (in pixels)
+     * @param maxIndex The maximum allowed index
+     */
+    @ReactMethod
+    public void scrollToCheckpoint(double index, double offset, double maxIndex, Promise promise) {
+        Activity activity = getCurrentActivity();
+        moduleCore.scrollToCheckpoint(activity, index, offset, maxIndex, promise);
+    }
 }

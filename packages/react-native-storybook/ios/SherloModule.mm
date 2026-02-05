@@ -109,6 +109,27 @@ static void SherloEarlyInit(void) {
   [core stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs saveScreenshots:saveScreenshots threshold:threshold includeAA:includeAA resolve:resolve reject:reject];
 }
 
+/**
+ * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
+ */
+- (void)isScrollableSnapshot:(RCTPromiseResolveBlock)resolve
+                      reject:(RCTPromiseRejectBlock)reject
+{
+  [core isScrollableSnapshot:resolve reject:reject];
+}
+
+/**
+ * Deterministically scrolls to a checkpoint index.
+ */
+- (void)scrollToCheckpoint:(double)index
+                    offset:(double)offset
+                  maxIndex:(double)maxIndex
+                   resolve:(RCTPromiseResolveBlock)resolve
+                    reject:(RCTPromiseRejectBlock)reject
+{
+  [core scrollToCheckpoint:index offset:offset maxIndex:maxIndex resolve:resolve reject:reject];
+}
+
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
     (const facebook::react::ObjCTurboModule::InitParams &)params
 {
@@ -186,6 +207,25 @@ RCT_EXPORT_METHOD(stabilize:(double)requiredMatches
                    resolve:(RCTPromiseResolveBlock)resolve
                    reject:(RCTPromiseRejectBlock)reject) {
   [core stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs saveScreenshots:saveScreenshots threshold:threshold includeAA:includeAA resolve:resolve reject:reject];
+}
+
+/**
+ * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
+ */
+RCT_EXPORT_METHOD(isScrollableSnapshot:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
+  [core isScrollableSnapshot:resolve reject:reject];
+}
+
+/**
+ * Deterministically scrolls to a checkpoint index.
+ */
+RCT_EXPORT_METHOD(scrollToCheckpoint:(double)index
+                  offset:(double)offset
+                  maxIndex:(double)maxIndex
+                   resolve:(RCTPromiseResolveBlock)resolve
+                   reject:(RCTPromiseRejectBlock)reject) {
+  [core scrollToCheckpoint:index offset:offset maxIndex:maxIndex resolve:resolve reject:reject];
 }
 
 #endif

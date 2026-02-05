@@ -96,4 +96,30 @@
         resolve:(RCTPromiseResolveBlock)resolve
         reject:(RCTPromiseRejectBlock)reject;
 
+/**
+ * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
+ * Uses read-only view inspection: finds a primary scroll container, checks scroll metrics,
+ * and validates with a small programmatic nudge that is immediately restored.
+ *
+ * @param resolve Promise resolver called with boolean (true if scrollable, false otherwise)
+ * @param reject Promise rejecter called if an error occurs
+ */
+ - (void)isScrollableSnapshot:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
+
+/**
+ * Deterministically scrolls the currently visible screen to a specific checkpoint offset.
+ * Used for stitching long screenshots.
+ *
+ * @param index The checkpoint index (0-based)
+ * @param offset The vertical offset per checkpoint (in pixels/points)
+ * @param maxIndex The maximum allowed index
+ * @param resolve Promise resolver called with scroll result metrics
+ * @param reject Promise rejecter called if an error occurs
+ */
+- (void)scrollToCheckpoint:(double)index
+                    offset:(double)offset
+                  maxIndex:(double)maxIndex
+                   resolve:(RCTPromiseResolveBlock)resolve
+                    reject:(RCTPromiseRejectBlock)reject;
+
 @end 
