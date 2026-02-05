@@ -26,6 +26,12 @@
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./lite": {
+      "react-native": "./dist/lite.js",
+      "require": "./dist/lite.js",
+      "default": "./dist/lite.js",
+      "types": "./dist/lite.d.ts"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -34,7 +40,9 @@
     "android/**/*",
     "ios/**/*",
     "app.plugin.js",
-    "sherlo-react-native-storybook.podspec"
+    "sherlo-react-native-storybook.podspec",
+    "lite.js",
+    "lite.d.ts"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p .",
