@@ -108,23 +108,27 @@ This token authenticates your account and links tests to your project
 
 ### Option B: Run Locally
 
-1. **Build apps**
+**Run test**
 
-   Build Android and iOS apps on your machine:
+```bash
+yarn sherlo --token YOUR_SHERLO_TOKEN
+# Or add token to sherlo.config.json and run: yarn sherlo
+```
 
-   ```bash
-   yarn build:android
-   yarn build:ios
-   ```
+<details>
+<summary><strong>How it works</strong></summary>
 
-2. **Run test**
+Sherlo automates the entire workflow:
 
-   Run Sherlo visual test on the built apps:
+1. Creates test metadata (`.sherlo/data.json`) with your authentication token
+2. Triggers cloud builds on Expo servers
+3. Metadata is uploaded with your code to Expo
+4. When builds complete, Expo automatically sends them to Sherlo (via `eas-build-on-complete` script)
+5. Sherlo runs visual tests
 
-   ```bash
-   yarn sherlo --token YOUR_SHERLO_TOKEN
-   # Or add token to sherlo.config.json and run: yarn sherlo
-   ```
+This is why Sherlo must run before builds - it needs to inject metadata for Expo to identify where to send completed builds.
+
+</details>
 
 <br />
 
