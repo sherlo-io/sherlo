@@ -16,9 +16,37 @@ flowchart TB
    UI(🧑‍💻 Code Changes)
    Check{Native code changed?}
    Reuse(📦 Reuse Builds)
-   subgraph Build[Build Apps]
+   subgraph Build[📦 Create Builds]
       Android(🤖 Build Android)
       iOS(🍎 Build iOS)
+      Android ~~~ iOS
+   end
+   Update(⚡ OTA Update)
+   Test(🧪 Run Test)
+   Review(👀 Review Results)
+
+   UI --> Check
+   Check -->|No| Reuse
+   Check -->|Yes| Build
+   Reuse & Build --> Update
+   Update --> Test
+   Test --> Review
+```
+
+<br />
+
+## 🔄 Workflow
+
+Run visual tests using **Over-The-Air updates** for JavaScript changes, without full app rebuilds
+
+```mermaid
+flowchart TB
+   UI(🧑‍💻 Code Changes)
+   Check{Native code changed?}
+   Reuse(📦 Reuse Builds)
+   subgraph Build[📦 Create Builds]
+      Android(🤖 Android)
+      iOS(🍎 iOS)
       Android ~~~ iOS
    end
    Update(⚡ OTA Update)
@@ -98,7 +126,6 @@ This token authenticates your account and links tests to your project
 2. **Add repository secrets**
 
    In your GitHub repository, go to **Settings → Secrets and variables → Actions → New repository secret** and add:
-
    - `SHERLO_TOKEN` – Your Sherlo project token
    - `EXPO_TOKEN` – Your [Expo access token](https://expo.dev/accounts/[your-account]/settings/access-tokens)
 
