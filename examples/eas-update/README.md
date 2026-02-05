@@ -16,7 +16,7 @@ flowchart TB
    UI(🧑‍💻 Code Changes)
    Check{Native code changed?}
    Reuse(📦 Reuse Builds)
-   subgraph Build[📦 Create Builds]
+   subgraph Build["<br/>📦 Create Builds"]
       Android(🤖 Build Android)
       iOS(🍎 Build iOS)
       Android ~~~ iOS
