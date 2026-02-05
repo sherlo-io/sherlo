@@ -165,7 +165,7 @@ _💡 Sherlo injects metadata before triggering builds so Expo can deliver compl
 
 _💡 Sherlo injects metadata before triggering builds, enabling test matching when Expo sends completed builds via `eas-build-on-complete` script_
 
-_💡 Sherlo injects metadata before triggering builds for identification when Expo sends them for testing via `eas-build-on-complete` script_
+_💡 Sherlo injects metadata before triggering builds for identification when Expo sends them for testing (via `eas-build-on-complete` script)_
 
 <br />
 
