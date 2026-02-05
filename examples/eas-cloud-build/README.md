@@ -131,6 +131,18 @@ _💡 Sherlo adds metadata (token + test ID) before triggering builds. Expo uses
 
 _💡 Sherlo injects metadata (auth token and test ID) needed for Expo to route completed builds back via eas-build-on-complete_
 
+---
+
+_💡 Sherlo injects metadata before triggering builds to enable Expo to route completed builds back via `eas-build-on-complete` script_
+
+_💡 Sherlo adds metadata before triggering builds to enable Expo to route completed builds back via `eas-build-on-complete` script_
+
+---
+
+_💡 Sherlo injects metadata before triggering builds to identify the project and test when completed builds are sent back via `eas-build-on-complete` script_
+
+_💡 Sherlo injects metadata before triggering builds, enabling project identification when Expo sends completed builds via `eas-build-on-complete` script_
+
 <br />
 
 ## 👀 Review Results
