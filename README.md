@@ -83,53 +83,60 @@ npx sherlo test
 <br />
 
 <!-- OPTION 1 -->
+
 ## Examples
 
-Explore complete React Native + Storybook projects with Sherlo integration and CI/CD automation.
+See Sherlo in action with ready-to-run projects for different testing workflows.
 
-### Features
+### What You Get
 
-- **📱 Minimal Apps** – React Native + Storybook configured for testing
+- **📱 Minimal Apps** – React Native + Storybook with Sherlo integration
 - **🔄 Multiple Workflows** – Standard builds, OTA updates, and cloud builds
-- **⚙️ GitHub Actions** – Full CI/CD automation included
+- **⚙️ CI/CD Automation** – GitHub Actions workflows included
 
 <br />
 
 [Browse examples →](./examples)
 
+<br />
+
 <!-- END OPTION 1 -->
 
 <!-- OPTION 2 -->
+
 ## Examples
 
-See how Sherlo works with different testing workflows – from standard builds to OTA updates.
+Try Sherlo with complete projects demonstrating real-world testing setups.
 
-### In Each Example
+### Inside
 
-- **📱 React Native App** – Minimal Storybook setup ready to test
-- **🔄 Testing Workflow** – Standard builds, Over-The-Air updates, or cloud automation
-- **⚙️ GitHub Actions** – CI/CD workflow you can copy and customize
+- **📱 Minimal Apps** – React Native + Storybook integrated with Sherlo
+- **🔄 Multiple Workflows** – From standard builds to Over-The-Air updates
+- **⚙️ CI/CD Ready** – GitHub Actions workflows you can use immediately
 
 <br />
 
-[View examples →](./examples)
+[Browse examples →](./examples)
+
+<br />
 
 <!-- END OPTION 2 -->
 
 <!-- OPTION 3 -->
+
 ## Examples
 
-Try Sherlo with minimal React Native + Storybook projects built for different testing workflows.
+Explore ready-to-run projects with everything set up – from app to CI/CD.
 
-### Features
-
-- **📱 Complete Projects** – React Native apps with Sherlo and Storybook
-- **🔄 Different Workflows** – Standard builds, OTA updates, and Expo cloud builds
-- **⚙️ CI/CD Ready** – GitHub Actions workflows included
+- **📱 Minimal Apps** – React Native + Storybook with Sherlo integration
+- **🔄 Multiple Workflows** – Standard builds, OTA updates, and cloud automation
+- **⚙️ GitHub Actions CI/CD** – Complete workflows included
 
 <br />
 
-[Explore examples →](./examples)
+[Browse examples →](./examples)
+
+<br />
 
 <!-- END OPTION 3 -->
 
