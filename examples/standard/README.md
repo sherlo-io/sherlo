@@ -1,4 +1,4 @@
-# Sherlo Example - Standard
+# 📦 Standard Sherlo Example
 
 Minimal React Native + Storybook app with:
 
