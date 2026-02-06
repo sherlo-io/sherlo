@@ -120,7 +120,7 @@ U+00A0 NO-BREAK SPACE: ✅
 U+202F NARROW NO-BREAK SPACE:   ✅
 U+2007 FIGURE SPACE:   ✅ (rendering depends on font, but it’s still a character)
 
-_💡 Sherlo injects test metadata before triggering builds, enabling project and test identification when Expo returns completed builds (via&nbsp;`eas-build-on-complete`&#8209;script)_
+_💡 Sherlo injects test metadata before triggering builds, enabling project and test identification when Expo returns completed builds (via&#160;`eas-build-on-complete`&#160;script)_
 
 _💡 Sherlo injects test metadata before triggering builds, enabling project and test identification when Expo returns completed builds via `eas-build-on-complete` script_
 
