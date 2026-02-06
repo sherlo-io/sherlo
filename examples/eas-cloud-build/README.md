@@ -1,4 +1,4 @@
-# ☁️ Sherlo Example - EAS Cloud Build
+# ☁️ EAS Cloud Build • Sherlo Example
 
 Minimal React Native + Storybook app with:
 
