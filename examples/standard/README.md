@@ -111,7 +111,7 @@ This token authenticates your account and links tests to your project
 
 1. **Create simulator builds**
 
-   Create Android and iOS simulator builds on your machine:
+   Create Android and iOS simulator builds:
 
    ```bash
    yarn build:android

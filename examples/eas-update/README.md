@@ -120,7 +120,7 @@ This token authenticates your account and links tests to your project
 
 1. **Create development simulator builds** _(when native code changes)_
 
-   Create Android and iOS development simulator builds on your machine:
+   Create Android and iOS development simulator builds:
 
    ```bash
    yarn build:android
