@@ -92,7 +92,7 @@ Try Sherlo with complete projects demonstrating real-world testing setups.
 
 - **📱 Minimal Apps** – React Native + Storybook integrated with Sherlo
 - **🔄 Different Workflows** – From standard builds to Over-The-Air updates
-- **🤖 GitHub Actions** – CI/CD workflows automating your visual tests
+- **🤖 GitHub Actions** – CI/CD workflows automating visual tests
 
 <br />
 
@@ -111,8 +111,8 @@ Try Sherlo with complete projects demonstrating real-world testing setups.
 ### What's Inside
 
 - **📱 Minimal Apps** – React Native + Storybook integrated with Sherlo
-- **🔄 Different Workflows** – From standard builds to Over-The-Air updates
-- **🤖 GitHub Actions** – Automated testing via GitHub Actions workflows
+- **🔄 Different Workflows** – Standard builds, OTA updates, and Expo cloud builds
+- **🤖 GitHub Actions** – CI/CD workflows automating visual tests
 
 <br />
 
@@ -131,8 +131,8 @@ Try Sherlo with complete projects demonstrating real-world testing setups.
 ### What's Inside
 
 - **📱 Minimal Apps** – React Native + Storybook integrated with Sherlo
-- **🔄 Various Workflows** – From standard builds to Over-The-Air updates
-- **⚙️ CI/CD Automation** – GitHub Actions workflows for automated testing
+- **🔄 Different Workflows** – From standard builds to OTA updates and Expo servers
+- **🤖 GitHub Actions** – CI/CD workflows automating visual tests
 
 <br />
 
