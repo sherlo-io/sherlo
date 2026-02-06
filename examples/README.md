@@ -1,6 +1,6 @@
 # Examples
 
-Ready-to-run projects for different visual testing workflows, including:
+Ready-to-run projects for different visual testing workflows, featuring:
 
 - Sherlo integration
 - GitHub Actions workflow
