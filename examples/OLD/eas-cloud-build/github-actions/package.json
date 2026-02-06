@@ -1,6 +1,0 @@
-{
-  "scripts": {
-    "eas:build:preview": "eas-cli build --profile preview --platform all --non-interactive",
-    "eas-build-on-complete": "sherlo eas-build-on-complete --profile preview"
-  }
-}
