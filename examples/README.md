@@ -35,3 +35,9 @@ Trigger visual tests automatically when Expo finishes building your app
 | -------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
 | Full app builds with bundled JavaScript code | Skip rebuilds for JavaScript changes – use Over-The-Air updates to test faster | Trigger visual tests automatically when Expo finishes building your app |
 | [Example →](./standard)                      | [Example →](./eas-update)                                                      | [Example →](./eas-cloud-build)                                          |
+
+| Example                                     | Description                                                                    |
+| ------------------------------------------- | ------------------------------------------------------------------------------ |
+| [**📦 Standard**](./standard)               | Full app builds with bundled JavaScript code                                   |
+| [**⚡ EAS Update**](./eas-update)           | Skip rebuilds for JavaScript changes – use Over-The-Air updates to test faster |
+| [**☁️ EAS Cloud Build**](./eas-cloud-build) | Automatically test builds **after completion on Expo servers**                 |
