@@ -112,7 +112,7 @@ This token authenticates your account and links tests to your project
    git push -u origin main
    ```
 
-   _After pushing, view workflow progress in your repository's **Actions** tab._
+   _After pushing, view workflow progress in your repository's Actions tab_
 
 ---
 
