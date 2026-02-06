@@ -108,9 +108,9 @@ This token authenticates your account and links tests to your project
 
 #### Trigger cloud builds and run test
 
-Run Sherlo to trigger builds on Expo servers and visually test them:
-
 Run Sherlo to trigger builds on Expo servers and visually test them when complete:
+
+Run Sherlo to trigger builds on Expo servers and visually test them:
 
 ```bash
 yarn sherlo --token YOUR_SHERLO_TOKEN
