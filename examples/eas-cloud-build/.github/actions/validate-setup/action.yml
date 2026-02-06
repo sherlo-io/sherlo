@@ -3,10 +3,10 @@ description: Validates Sherlo and EAS configuration
 
 inputs:
   expo-token:
-    description: "Expo access token"
+    description: 'Expo access token'
     required: true
   sherlo-token:
-    description: "Sherlo project token"
+    description: 'Sherlo project token'
     required: true
 
 runs:

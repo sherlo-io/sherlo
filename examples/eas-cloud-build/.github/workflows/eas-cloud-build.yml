@@ -1,50 +1,53 @@
 name: Sherlo Test - EAS Cloud Build
 
-# ------------------------------------------------------------------------------
-# WORKFLOW VISUALIZATION:
-#
-# [ 🔍 Validate Config ]
-#          │
-#          ▼
-# [ 🧪 Run Sherlo ]  <-- Starts in "Wait for EAS" mode
-#          │
-#          ▼
-# [ 🚀 Trigger EAS ] <-- Sends code + Sherlo metadata to Expo
-#          │
-#          ▼
-# [ 🏁 Done ]        <-- Sherlo Server takes over the testing
-# ------------------------------------------------------------------------------
-
+# Triggers on:
+# - Push to main branch
+# - Manual trigger from GitHub UI
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
 jobs:
-  # ════════════════════════════════════════════════════════════════════════════
-  # 1. CONFIGURATION CHECK
-  # ════════════════════════════════════════════════════════════════════════════
+  # ────────────────────────────────────────────────────────────────────────────
+  # SETUP VALIDATOR (optional, remove after successful run)
+  # ────────────────────────────────────────────────────────────────────────────
   validate:
-    name: Validate Configuration
+    name: Validate Setup
     runs-on: ubuntu-latest
+
     steps:
       - name: 📦 Checkout code
         uses: actions/checkout@v6
 
-      - name: 🔍 Validate Sherlo & EAS setup
-        uses: ./.github/actions/validate-sherlo
+      - name: 🔍 Check tokens and EAS configuration
+        uses: ./.github/actions/validate-setup
         with:
-          expo-token: ${{ secrets.EXPO_TOKEN }}
           sherlo-token: ${{ secrets.SHERLO_TOKEN }}
+          expo-token: ${{ secrets.EXPO_TOKEN }}
 
   # ════════════════════════════════════════════════════════════════════════════
-  # 2. RUN SHERLO AND TRIGGER EAS BUILD
-  # Both steps must run in the same job to share local metadata
+  #
+  #                         ▼ CORE SHERLO WORKFLOW ▼
+  #
   # ════════════════════════════════════════════════════════════════════════════
-  sherlo-cloud:
-    name: EAS Cloud Build & Test
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # ☁️ BUILD ON EXPO & TEST
+  #
+  # This workflow coordinates a hand-off between Sherlo and Expo:
+  #   ↓ Sherlo injects test metadata and starts waiting for builds
+  #   ↓ EAS builds are triggered on Expo servers
+  #   ↓ Expo pushes completed builds to Sherlo (via `eas-build-on-complete` script)
+  #   ↓ Sherlo runs visual test
+  #
+  # NOTE: Both steps must run in the same job to share local metadata
+  # ────────────────────────────────────────────────────────────────────────────
+  sherlo-test:
+    name: Build on Expo & Test
     runs-on: ubuntu-latest
     needs: validate
+
     steps:
       - name: 📦 Checkout code
         uses: actions/checkout@v6
@@ -53,7 +56,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 'lts/*'
-          # cache: 'yarn'
+          cache: 'yarn'
 
       - name: 🏗 Setup EAS
         uses: expo/expo-github-action@v8
@@ -61,16 +64,15 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      #   - name: 📥 Install dependencies
-      #     run: yarn install
-
-      - name: 🧪 Run Sherlo (Wait for EAS mode)
+      # Uses 'test:eas-cloud-build' mode (standard / eas-update / eas-cloud-build)
+      - name: ⏳ Start Sherlo - await Expo builds
         run: |
           npx sherlo test:eas-cloud-build \
             --token ${{ secrets.SHERLO_TOKEN }} \
             --waitForEasBuild
 
-      - name: 🚀 Trigger EAS Build
+      # Uses 'preview-simulator' profile from eas.json
+      - name: 🚀 Trigger builds on Expo servers
         run: |
           eas build \
             --non-interactive \
