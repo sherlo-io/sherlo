@@ -100,7 +100,7 @@ This token authenticates your account and links tests to your project
    git push -u origin main
    ```
 
-   _ℹ️ After pushing, view workflow progress in your repository's Actions tab_
+   _💬 After pushing, view workflow progress in your repository's Actions tab_
 
 ---
 
@@ -115,7 +115,7 @@ yarn sherlo --token YOUR_SHERLO_TOKEN
 # Or add token to sherlo.config.json and run `yarn sherlo`
 ```
 
-_ℹ️ Sherlo injects test metadata before triggering builds, enabling project and test identification when Expo returns completed builds (via&nbsp;`eas-build-on-complete`&nbsp;script)_
+_💬 Sherlo injects test metadata before triggering builds, enabling project and test identification when Expo returns completed builds (via&nbsp;`eas-build-on-complete`&nbsp;script)_
 
 <br />
 
@@ -126,7 +126,7 @@ Once your test completes, open [Sherlo app](https://app.sherlo.io):
 - **First test** _(baseline)_ – Approve correct screenshots – they become your baseline for future comparisons
 - **Next tests** _(comparison)_ – Review visual changes
 
-_ℹ️ First test won't show "changes" since there's nothing to compare against yet_
+_💬 First test won't show "changes" since there's nothing to compare against yet_
 
 <br />
 
