@@ -112,11 +112,6 @@ Run Sherlo to trigger builds on Expo servers and visually test them when complet
 
 ```bash
 yarn sherlo --token YOUR_SHERLO_TOKEN
-# Or add token to sherlo.config.json and run: yarn sherlo
-```
-
-```bash
-yarn sherlo --token YOUR_SHERLO_TOKEN
 # Or add token to sherlo.config.json and run `yarn sherlo`
 ```
 
