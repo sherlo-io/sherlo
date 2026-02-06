@@ -82,28 +82,6 @@ npx sherlo test
 
 <br />
 
-<!-- OPTION 1 -->
-
-## Examples
-
-Try Sherlo with complete projects demonstrating real-world testing setups.
-
-### What's Inside
-
-- **📱 Minimal Apps** – React Native + Storybook integrated with Sherlo
-- **🔄 Different Workflows** – From standard builds to Over-The-Air updates
-- **🤖 GitHub Actions** – CI/CD workflows automating visual tests
-
-<br />
-
-[Browse examples →](./examples)
-
-<br />
-
-<!-- END OPTION 1 -->
-
-<!-- OPTION 2 -->
-
 ## Examples
 
 Try Sherlo with complete projects demonstrating real-world testing setups.
@@ -117,30 +95,6 @@ Try Sherlo with complete projects demonstrating real-world testing setups.
 <br />
 
 [Browse examples →](./examples)
-
-<br />
-
-<!-- END OPTION 2 -->
-
-<!-- OPTION 3 -->
-
-## Examples
-
-Try Sherlo with complete projects demonstrating real-world testing setups.
-
-### What's Inside
-
-- **📱 Minimal Apps** – React Native + Storybook integrated with Sherlo
-- **🔄 Different Workflows** – From standard builds to OTA updates and Expo servers
-- **🤖 GitHub Actions** – CI/CD workflows automating visual tests
-
-<br />
-
-[Browse examples →](./examples)
-
-<br />
-
-<!-- END OPTION 3 -->
 
 <br />
 
