@@ -116,7 +116,7 @@ This token authenticates your account and links tests to your project
 
 ---
 
-### Option B: Run Locally
+### Option B: Run from Terminal
 
 1. **Create development simulator builds** _(when native code changes)_
 
