@@ -1,4 +1,4 @@
-## Examples
+# Examples
 
 Ready-to-run projects demonstrating different testing workflows – from standard builds to OTA updates
 
@@ -9,7 +9,7 @@ Each example is a **minimal React Native + Storybook app** with:
 
 <br />
 
-### 📦 Standard
+## 📦 Standard
 
 Full app builds with bundled JavaScript code – traditional approach for any React Native project
 
@@ -17,7 +17,7 @@ Full app builds with bundled JavaScript code – traditional approach for any Re
 
 <br />
 
-### ⚡ EAS Update
+## ⚡ EAS Update
 
 Skip rebuilds for JavaScript changes – use Over-The-Air updates to test faster
 
@@ -25,7 +25,7 @@ Skip rebuilds for JavaScript changes – use Over-The-Air updates to test faster
 
 <br />
 
-### ☁️ EAS Cloud Build
+## ☁️ EAS Cloud Build
 
 Trigger visual tests automatically when Expo finishes building your app
 
