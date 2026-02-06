@@ -30,3 +30,8 @@ Skip rebuilds for JavaScript changes – use Over-The-Air updates to test faster
 Trigger visual tests automatically when Expo finishes building your app
 
 [View example →](./eas-cloud-build)
+
+| 📦 Standard                                  | ⚡ EAS Update                                                                  | ☁️ EAS Cloud Build                                                      |
+| -------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| Full app builds with bundled JavaScript code | Skip rebuilds for JavaScript changes – use Over-The-Air updates to test faster | Trigger visual tests automatically when Expo finishes building your app |
+| [Example →](./standard)                      | [Example →](./eas-update)                                                      | [Example →](./eas-cloud-build)                                          |
