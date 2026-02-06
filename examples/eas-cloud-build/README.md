@@ -14,7 +14,6 @@ Automatically run visual tests **after builds complete on Expo servers**
 ```mermaid
 flowchart TB
    UI(🧑‍💻 Code Changes)
-   StartSherlo(⏳ Start Sherlo · Waiting)
    subgraph Cloud[☁️ Build on Expo Servers]
       Android(🤖 Build Android)
       iOS(🍎 Build iOS)
@@ -23,8 +22,7 @@ flowchart TB
    Test(🧪 Run Test)
    Review(👀 Review Results)
 
-   UI --> StartSherlo
-   StartSherlo --> Cloud
+   UI --> Cloud
    Cloud --> Test
    Test --> Review
 ```
@@ -108,7 +106,7 @@ This token authenticates your account and links tests to your project
 
 ### Option B: Run Locally
 
-#### Run test
+#### Trigger cloud builds and run test
 
 Run Sherlo to trigger builds on Expo servers and visually test them:
 
