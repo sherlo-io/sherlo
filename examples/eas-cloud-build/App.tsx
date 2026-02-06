@@ -1,9 +1,14 @@
-import Storybook from './.rnstorybook'; // Sherlo-enabled Storybook
+/**
+ * App entry point (Storybook mode)
+ *
+ * Sherlo requires Storybook access to run visual tests
+ *
+ * Want to switch between Storybook and your app?
+ * Learn how: https://sherlo.io/docs/setup?storybook=integrated#storybook-access
+ */
 
-// Sherlo requires Storybook access to run visual tests
-//
-// Want to switch between Storybook and your app?
-// See how: https://sherlo.io/docs/setup?storybook=integrated#storybook-access
+import Storybook from './.rnstorybook'; // Modified for Sherlo
+
 export default function App() {
   return <Storybook />;
 }
