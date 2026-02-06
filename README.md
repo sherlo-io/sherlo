@@ -91,8 +91,8 @@ Try Sherlo with complete projects demonstrating real-world testing setups.
 ### What's Inside
 
 - **📱 Minimal Apps** – React Native + Storybook integrated with Sherlo
-- **🔄 Multiple Workflows** – From standard builds to Over-The-Air updates
-- **🤖 CI/CD Automation** – GitHub Actions workflows for automated testing
+- **🔄 Different Workflows** – From standard builds to Over-The-Air updates
+- **🤖 GitHub Actions** – CI/CD workflows automating your visual tests
 
 <br />
 
