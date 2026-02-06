@@ -68,7 +68,7 @@ npx eas-cli init
 npx eas-cli update:configure
 ```
 
-_📌 This example uses EAS Build; for other build tools, see our [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
+_ℹ️ This example uses EAS Build; for other build tools, see our [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
 
 ### 3. Get Sherlo Token
 
@@ -112,7 +112,7 @@ This token authenticates your account and links tests to your project
    git push -u origin main
    ```
 
-   _📌 After pushing, view workflow progress in your repository's Actions tab_
+   _ℹ️ After pushing, view workflow progress in your repository's Actions tab_
 
 ---
 
@@ -155,7 +155,7 @@ Once your test completes, open [Sherlo app](https://app.sherlo.io):
 - **First test** _(baseline)_ – Approve correct screenshots – they become your baseline for future comparisons
 - **Next tests** _(comparison)_ – Review visual changes
 
-_📌 First test won't show "changes" since there's nothing to compare against yet_
+_ℹ️ First test won't show "changes" since there's nothing to compare against yet_
 
 <br />
 
