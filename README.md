@@ -82,6 +82,59 @@ npx sherlo test
 
 <br />
 
+<!-- OPTION 1 -->
+## Examples
+
+Explore complete React Native + Storybook projects with Sherlo integration and CI/CD automation.
+
+### Features
+
+- **📱 Minimal Apps** – React Native + Storybook configured for testing
+- **🔄 Multiple Workflows** – Standard builds, OTA updates, and cloud builds
+- **⚙️ GitHub Actions** – Full CI/CD automation included
+
+<br />
+
+[Browse examples →](./examples)
+
+<!-- END OPTION 1 -->
+
+<!-- OPTION 2 -->
+## Examples
+
+See how Sherlo works with different testing workflows – from standard builds to OTA updates.
+
+### In Each Example
+
+- **📱 React Native App** – Minimal Storybook setup ready to test
+- **🔄 Testing Workflow** – Standard builds, Over-The-Air updates, or cloud automation
+- **⚙️ GitHub Actions** – CI/CD workflow you can copy and customize
+
+<br />
+
+[View examples →](./examples)
+
+<!-- END OPTION 2 -->
+
+<!-- OPTION 3 -->
+## Examples
+
+Try Sherlo with minimal React Native + Storybook projects built for different testing workflows.
+
+### Features
+
+- **📱 Complete Projects** – React Native apps with Sherlo and Storybook
+- **🔄 Different Workflows** – Standard builds, OTA updates, and Expo cloud builds
+- **⚙️ CI/CD Ready** – GitHub Actions workflows included
+
+<br />
+
+[Explore examples →](./examples)
+
+<!-- END OPTION 3 -->
+
+<br />
+
 ## Review App
 
 Review visual changes across devices in one web app as a team – from developers to designers.
