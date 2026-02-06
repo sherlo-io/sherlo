@@ -148,7 +148,7 @@ _💡 First test won't show "changes" since there's nothing to compare against y
 - **[`.github/workflows/standard.yml`](./.github/workflows/standard.yml)** – CI workflow for automated testing process
 - **[`package.json`](./package.json)** – Dependencies and scripts for Sherlo integration
 
-_⚡ **Own project?** Run `npx sherlo init` to automatically integrate Sherlo in your codebase_
+_💡 **Own project?** Run `npx sherlo init` to automatically integrate Sherlo in your codebase_
 
 <br />
 
@@ -160,5 +160,5 @@ To learn more about **Standard** testing method, visit our [documentation](https
 
 ## 🔗 Other Examples
 
-- **[EAS Update](../eas-update)** – Run visual tests using **Over-The-Air updates** for JavaScript changes, without full app rebuilds
-- **[EAS Cloud Build](../eas-cloud-build)** – Automatically run visual tests **after builds complete on Expo servers**
+- ⚡ **[EAS Update](../eas-update)** – Test builds with JavaScript updated Over-The-Air – skip full app rebuilds
+- ☁️ **[EAS Cloud Build](../eas-cloud-build)** – Automatically test builds created on Expo servers
