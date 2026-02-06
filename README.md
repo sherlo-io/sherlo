@@ -86,13 +86,13 @@ npx sherlo test
 
 ## Examples
 
-See Sherlo in action with ready-to-run projects for different testing workflows.
+Try Sherlo with complete projects demonstrating real-world testing setups.
 
-### What You Get
+### What's Inside
 
-- **📱 Minimal Apps** – React Native + Storybook with Sherlo integration
-- **🔄 Multiple Workflows** – Standard builds, OTA updates, and cloud builds
-- **⚙️ CI/CD Automation** – GitHub Actions workflows included
+- **📱 Minimal Apps** – React Native + Storybook integrated with Sherlo
+- **🔄 Multiple Workflows** – From standard builds to Over-The-Air updates
+- **⚙️ CI/CD Automation** – GitHub Actions automating visual testing
 
 <br />
 
@@ -108,11 +108,11 @@ See Sherlo in action with ready-to-run projects for different testing workflows.
 
 Try Sherlo with complete projects demonstrating real-world testing setups.
 
-### Inside
+### What You Get
 
 - **📱 Minimal Apps** – React Native + Storybook integrated with Sherlo
 - **🔄 Multiple Workflows** – From standard builds to Over-The-Air updates
-- **⚙️ CI/CD Ready** – GitHub Actions workflows you can use immediately
+- **⚙️ CI/CD Automation** – Automated testing via GitHub Actions
 
 <br />
 
@@ -126,11 +126,13 @@ Try Sherlo with complete projects demonstrating real-world testing setups.
 
 ## Examples
 
-Explore ready-to-run projects with everything set up – from app to CI/CD.
+Try Sherlo with complete projects demonstrating real-world testing setups.
 
-- **📱 Minimal Apps** – React Native + Storybook with Sherlo integration
-- **🔄 Multiple Workflows** – Standard builds, OTA updates, and cloud automation
-- **⚙️ GitHub Actions CI/CD** – Complete workflows included
+### What's Inside
+
+- **📱 Minimal Apps** – React Native + Storybook integrated with Sherlo
+- **🔄 Multiple Workflows** – From standard builds to cloud automation
+- **⚙️ CI/CD Automation** – GitHub Actions workflows for automated testing
 
 <br />
 
