@@ -14,16 +14,17 @@ Automatically run visual tests **after builds complete on Expo servers**
 ```mermaid
 flowchart TB
    UI(🧑‍💻 Code Changes)
-   subgraph Cloud[☁️ Build on Expo Servers]
+   subgraph Build[☁️ Build on Expo Servers]
       Android(🤖 Build Android)
       iOS(🍎 Build iOS)
       Android ~~~ iOS
+      style Build fill:#426FB714,stroke:#426FB7
    end
    Test(🧪 Run Test)
    Review(👀 Review Results)
 
-   UI --> Cloud
-   Cloud --> Test
+   UI --> Build
+   Build --> Test
    Test --> Review
 ```
 
