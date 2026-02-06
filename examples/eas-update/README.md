@@ -68,7 +68,7 @@ npx eas-cli init
 npx eas-cli update:configure
 ```
 
-_💡 This example uses EAS Build; for other build tools, see our [documentation](https://sherlo.io/docs/builds?type=preview-simulator#build-types)_
+_💡 This example uses EAS Build; for other build tools, see our [documentation](https://sherlo.io/docs/builds?type=development-simulator#build-types)_
 
 ### 3. Get Sherlo Token
 
