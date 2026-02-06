@@ -1,4 +1,4 @@
-# ⚡️ EAS Update • Sherlo Example
+# ⚡️ EAS Update Example • Sherlo
 
 Minimal React Native + Storybook app with:
 
