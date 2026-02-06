@@ -117,6 +117,51 @@ yarn sherlo --token YOUR_SHERLO_TOKEN
 
 _💡 Sherlo injects test metadata before triggering builds, enabling project and test identification when Expo returns completed builds (via&nbsp;`eas-build-on-complete`&nbsp;script)_
 
+---
+
+### Option B: Run via CLI
+
+#### Trigger cloud builds and run test
+
+Run Sherlo to trigger builds on Expo servers and visually test them when complete:
+
+```bash
+yarn sherlo --token YOUR_SHERLO_TOKEN
+# Or add token to sherlo.config.json and run `yarn sherlo`
+```
+
+_💡 Sherlo injects test metadata before triggering builds, enabling project and test identification when Expo returns completed builds (via&nbsp;`eas-build-on-complete`&nbsp;script)_
+
+---
+
+### Option B: Manual Trigger
+
+#### Trigger cloud builds and run test
+
+Run Sherlo to trigger builds on Expo servers and visually test them when complete:
+
+```bash
+yarn sherlo --token YOUR_SHERLO_TOKEN
+# Or add token to sherlo.config.json and run `yarn sherlo`
+```
+
+_💡 Sherlo injects test metadata before triggering builds, enabling project and test identification when Expo returns completed builds (via&nbsp;`eas-build-on-complete`&nbsp;script)_
+
+---
+
+### Option B: Run from Terminal
+
+#### Trigger cloud builds and run test
+
+Run Sherlo to trigger builds on Expo servers and visually test them when complete:
+
+```bash
+yarn sherlo --token YOUR_SHERLO_TOKEN
+# Or add token to sherlo.config.json and run `yarn sherlo`
+```
+
+_💡 Sherlo injects test metadata before triggering builds, enabling project and test identification when Expo returns completed builds (via&nbsp;`eas-build-on-complete`&nbsp;script)_
+
 <br />
 
 ## 👀 Review Results
