@@ -4,6 +4,8 @@ Command-line interface for [Sherlo](https://github.com/sherlo-io/sherlo) - Visua
 
 > **📚 For full documentation, visit [sherlo.io/docs](https://sherlo.io/docs)**
 
+<br />
+
 ## Commands
 
 ### `init`

@@ -4,6 +4,8 @@ Main package for [Sherlo](https://github.com/sherlo-io/sherlo) - Visual Testing 
 
 > **📚 For full documentation, visit [sherlo.io/docs](https://sherlo.io/docs)**
 
+<br />
+
 ## Quick Start
 
 ### 1. Initialize Sherlo
@@ -20,11 +22,9 @@ This will automatically install `@sherlo/react-native-storybook` and configure y
 npx sherlo test
 ```
 
----
+<br />
 
 ## API Reference
-
-All exports from `@sherlo/react-native-storybook`:
 
 ### `getStorybook(view, options)`
 
@@ -129,3 +129,21 @@ if (isRunningVisualTests) {
   // Disable animations, mock data, etc.
 }
 ```
+
+<br />
+
+## Bundle Size Optimization
+
+### Lightweight Imports (`/lite`)
+
+If you exclude Storybook from production builds but still use helpers like `isRunningVisualTests`, import from `/lite` to prevent the heavy `getStorybookUI()` function from being bundled in projects without tree-shaking.
+
+```tsx
+// ❌ Bundles getStorybookUI() even if Storybook component is excluded
+import { isRunningVisualTests } from '@sherlo/react-native-storybook';
+
+// ✅ Bundles only lightweight helpers
+import { isRunningVisualTests } from '@sherlo/react-native-storybook/lite';
+```
+
+**Available in `/lite`:** `isRunningVisualTests`, `isStorybookMode`, `openStorybook()`, `addStorybookToDevMenu()`
