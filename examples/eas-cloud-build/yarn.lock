@@ -2136,21 +2136,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sherlo/react-native-storybook@npm:^1.5.5":
-  version: 1.5.5
-  resolution: "@sherlo/react-native-storybook@npm:1.5.5"
+"@sherlo/react-native-storybook@npm:^1.5.6":
+  version: 1.5.6
+  resolution: "@sherlo/react-native-storybook@npm:1.5.6"
   dependencies:
     base-64: "npm:1.0.0"
     deepmerge: "npm:4.3.1"
     its-fine: "npm:2.0.0"
-    sherlo: "npm:^1.5.5"
+    sherlo: "npm:^1.5.6"
     utf8: "npm:3.0.0"
   peerDependencies:
     "@storybook/react-native": ">=7.6.11"
     react: "*"
     react-native: ">=0.64.0"
     react-native-safe-area-context: "*"
-  checksum: 10/ec5ce8adf2d3bb8c9a4c79d3ac006b6fe027caeab7d11b8a6b341d43a1f7f76fa167b4f92fe2012a3c333f3c043ec966e5f295fd42044e4c349ca656c92a2552
+  checksum: 10/e4e056b9e06c64e5d0da29566f179c4d2e63c7a28a8a31250a3b08586a9a372aa7c96c5e0457f75d3c8449fee38f271b04ce394ab087a07661db501556acce26
   languageName: node
   linkType: hard
 
@@ -6619,13 +6619,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sherlo-example-standard@workspace:.":
+"sherlo-example-eas-cloud-build@workspace:.":
   version: 0.0.0-use.local
-  resolution: "sherlo-example-standard@workspace:."
+  resolution: "sherlo-example-eas-cloud-build@workspace:."
   dependencies:
     "@gorhom/bottom-sheet": "npm:^5.2.8"
     "@react-native-async-storage/async-storage": "npm:^2.2.0"
-    "@sherlo/react-native-storybook": "npm:^1.5.5"
+    "@sherlo/react-native-storybook": "npm:^1.5.6"
     "@storybook/react-native": "npm:^10.1.11"
     "@types/react": "npm:~19.1.10"
     expo: "npm:54.0.31"
@@ -6641,12 +6641,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"sherlo@npm:^1.5.5":
-  version: 1.5.5
-  resolution: "sherlo@npm:1.5.5"
+"sherlo@npm:^1.5.6":
+  version: 1.5.6
+  resolution: "sherlo@npm:1.5.6"
   bin:
     sherlo: cli.js
-  checksum: 10/3dca57c8291707dfbbb24c5d11aa88864cba58de3fbb6b9484b9b6e5798064ce28023ab4b6020f92a64f7bf27bd03a904c66981b3a6c6b7eb71288c386274661
+  checksum: 10/5f8d8bee8a2023c68270a5b53bbf8b762d31844d8f050895f964f9e54d7f8d20a4754049837b4014930abeb5d58e39268278cae58c65bfad586a557dda1f9ccf
   languageName: node
   linkType: hard
 
