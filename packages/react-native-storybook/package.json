@@ -1,6 +1,6 @@
 {
   "name": "@sherlo/react-native-storybook",
-  "version": "1.5.5",
+  "version": "1.5.6",
   "description": "Sherlo is a Visual Testing tool for React Native Storybook",
   "keywords": [
     "visual testing",
@@ -26,6 +26,12 @@
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./lite": {
+      "react-native": "./dist/lite.js",
+      "require": "./dist/lite.js",
+      "default": "./dist/lite.js",
+      "types": "./dist/lite.d.ts"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -34,7 +40,9 @@
     "android/**/*",
     "ios/**/*",
     "app.plugin.js",
-    "sherlo-react-native-storybook.podspec"
+    "sherlo-react-native-storybook.podspec",
+    "lite.js",
+    "lite.d.ts"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p .",
@@ -58,7 +66,7 @@
     "base-64": "1.0.0",
     "deepmerge": "4.3.1",
     "its-fine": "2.0.0",
-    "sherlo": "^1.5.5",
+    "sherlo": "^1.5.6",
     "utf8": "3.0.0"
   },
   "devDependencies": {

@@ -86,6 +86,7 @@ function useTestStory({
 
         let finalInspectorData = inspectorData;
         let hasNetworkImage = false;
+        let isScrollableSnapshot = false;
         let safeAreaMetadata;
 
         if (!containsError) {
@@ -99,6 +100,16 @@ function useTestStory({
             hasNetworkImage = preparedInspectorData.hasNetworkImage;
           }
 
+          // Detect if the screen is scrollable for long-screenshot capture
+          if (config.enableScrollingSnapshot) {
+            isScrollableSnapshot = await SherloModule.isScrollableSnapshot().catch((error) => {
+              RunnerBridge.log('error checking if scrollable', { error: error.message });
+              return false;
+            });
+          }
+
+          RunnerBridge.log('checked if scrollable', { isScrollableSnapshot });
+
           safeAreaMetadata = {
             shouldAddSafeArea: !nextSnapshot.parameters?.noSafeArea,
             insetBottom: Math.round(insets.bottom * finalInspectorData.density),
@@ -107,31 +118,127 @@ function useTestStory({
           };
         }
 
-        RunnerBridge.log('inspector data', {
-          fabricMetadata,
-          inspectorData,
-          finalInspectorData,
-        });
+        let checkpointIndex = 0;
+        let currentRequestId = requestId;
+        let isAtEnd = false;
+        let currentScrollOffset = 0;
 
+        // Initial Send
         RunnerBridge.log('requesting screenshot from master script', {
           action: 'REQUEST_SNAPSHOT',
           hasError: containsError,
           finalInspectorData: !!finalInspectorData,
           isStable,
-          requestId: requestId,
+          isScrollableSnapshot,
+          requestId: currentRequestId,
           safeAreaMetadata,
           hasNetworkImage,
+          isAtEnd,
+          scrollOffset: currentScrollOffset,
         });
 
-        await RunnerBridge.send({
+        let response = await RunnerBridge.send({
           action: 'REQUEST_SNAPSHOT',
           hasError: containsError,
           inspectorData: JSON.stringify(finalInspectorData),
           isStable,
-          requestId: requestId,
+          isScrollableSnapshot,
+          requestId: currentRequestId,
           safeAreaMetadata,
           hasNetworkImage,
+          isAtEnd,
+          scrollOffset: currentScrollOffset,
         });
+
+        // Loop if runner requests more scrolling
+        while (response && response.action === 'ACK_SCROLL_REQUEST') {
+          const { scrollIndex, offsetPx, requestId: nextRequestId } = response;
+          RunnerBridge.log('received ACK_SCROLL_REQUEST', { scrollIndex, offsetPx, nextRequestId });
+
+          if (nextRequestId) {
+            currentRequestId = nextRequestId;
+          }
+
+          if (scrollIndex > 0) {
+             // Scroll to target
+             const scrollResult = await SherloModule.scrollToCheckpoint(
+               scrollIndex,
+               offsetPx,
+               50 // Guardrail max index
+             ).catch((error) => {
+               RunnerBridge.log('error scrolling to checkpoint', { error: error.message });
+               throw error;
+             });
+             
+             // Check if we reached bottom locally
+             if (scrollResult.reachedBottom) {
+                RunnerBridge.log('reached bottom locally during scroll');
+                isAtEnd = true;
+             }
+
+             // Stabilize
+             const isStableAfterScroll = await SherloModule.stabilize(
+                config.stabilization.requiredMatches,
+                config.stabilization.minScreenshotsCount,
+                config.stabilization.intervalMs,
+                config.stabilization.timeoutMs,
+                !!config.stabilization.saveScreenshots,
+                config.stabilization.threshold,
+                config.stabilization.includeAA
+              ).catch((error) => {
+                RunnerBridge.log('error stabilizing after scroll', { error: error.message });
+                throw error;
+              });
+              
+              if (!isStableAfterScroll) {
+                 RunnerBridge.log('warning: UI not stable after scroll');
+              }
+              currentScrollOffset = scrollResult.appliedOffsetPx;
+
+              // Recapture Metadata after scroll to get dynamic elements (below fold)
+              let newInspectorData;
+              while (!newInspectorData) {
+                 newInspectorData = await SherloModule.getInspectorData().catch((error) => {
+                     RunnerBridge.log('error getting inspector data (scroll)', { error: JSON.stringify(error) });
+                 });
+              }
+
+              const newFabricMetadata = metadataProviderRef?.current?.collectMetadata();
+              
+              if (newInspectorData) {
+                  const prepared = prepareInspectorData(
+                      newInspectorData,
+                      newFabricMetadata!,
+                      nextSnapshot.storyId // We assume story ID doesn't change
+                  );
+                  finalInspectorData = prepared.inspectorData;
+                  hasNetworkImage = prepared.hasNetworkImage;
+              }
+          }
+          
+          checkpointIndex = scrollIndex;
+
+          // Send next part
+          RunnerBridge.log('requesting next screenshot part', {
+            scrollIndex: checkpointIndex,
+            requestId: currentRequestId,
+            isAtEnd,
+            scrollOffset: currentScrollOffset,
+          });
+
+          response = await RunnerBridge.send({
+            action: 'REQUEST_SNAPSHOT',
+            hasError: containsError,
+            inspectorData: JSON.stringify(finalInspectorData),
+            isStable: true, // We restabilized
+            isScrollableSnapshot,
+            requestId: currentRequestId, 
+            safeAreaMetadata,
+            hasNetworkImage,
+            isAtEnd,
+            scrollOffset: currentScrollOffset,
+          });
+        }
       } catch (error) {
         // @ts-ignore
         RunnerBridge.log('story capturing failed', { errorMessage: error?.message });
