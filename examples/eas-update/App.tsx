@@ -1,5 +1,5 @@
 /**
- * App entry point (Storybook mode)
+ * App entry point
  *
  * Sherlo requires Storybook access to run visual tests
  *
