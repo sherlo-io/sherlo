@@ -20,18 +20,21 @@
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "sideEffects": false,
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "react-native": "./dist/index.js",
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./lite": {
+      "types": "./dist/lite.d.ts",
       "react-native": "./dist/lite.js",
       "require": "./dist/lite.js",
-      "default": "./dist/lite.js",
-      "types": "./dist/lite.d.ts"
+      "default": "./dist/lite.js"
     },
+    "./dist/*": "./dist/*",
     "./package.json": "./package.json"
   },
   "files": [
