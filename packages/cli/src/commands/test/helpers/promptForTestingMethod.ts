@@ -7,9 +7,10 @@ import {
   TEST_STANDARD_COMMAND,
 } from '../../../constants';
 import { printLink, throwError } from '../../../helpers';
+import { TestMethodCommand } from '../types';
 
-async function promptForTestingMethod(): Promise<string> {
-  let testingMethod;
+async function promptForTestingMethod(): Promise<TestMethodCommand> {
+  let testingMethod: TestMethodCommand;
   try {
     testingMethod = await select({
       message: 'Choose testing method:',
@@ -44,7 +45,7 @@ async function promptForTestingMethod(): Promise<string> {
     throw error;
   }
 
-  console.log(getLearnMoreLink(testingMethod as TestingCommand));
+  console.log(getLearnMoreLink(testingMethod));
 
   return testingMethod;
 }
@@ -53,12 +54,7 @@ export default promptForTestingMethod;
 
 /* ========================================================================== */
 
-type TestingCommand =
-  | typeof TEST_STANDARD_COMMAND
-  | typeof TEST_EAS_UPDATE_COMMAND
-  | typeof TEST_EAS_CLOUD_BUILD_COMMAND;
-
-function getLearnMoreLink(testingCommand: TestingCommand): string {
+function getLearnMoreLink(testingCommand: TestMethodCommand): string {
   const docsLink = {
     [TEST_STANDARD_COMMAND]: DOCS_LINK.testStandard,
     [TEST_EAS_UPDATE_COMMAND]: DOCS_LINK.testEasUpdate,
