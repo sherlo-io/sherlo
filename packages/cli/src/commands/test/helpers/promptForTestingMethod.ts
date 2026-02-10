@@ -15,19 +15,19 @@ async function promptForTestingMethod(): Promise<string> {
       message: 'Choose testing method:',
       choices: [
         {
-          name: `Standard${chalk.reset(' - test standard builds')}`,
+          name: `Standard ${chalk.reset('- test app builds with')} ${chalk.blue('bundled JavaScript')}`,
           short: 'Standard',
           description: getLearnMoreLink(TEST_STANDARD_COMMAND),
           value: TEST_STANDARD_COMMAND,
         },
         {
-          name: `EAS Update${chalk.reset(' - test builds with dynamic JavaScript (OTA) updates')}`,
+          name: `EAS Update ${chalk.reset('- test builds with')} ${chalk.blue('OTA JavaScript updates')} ${chalk.reset('- skip rebuilds')}`,
           short: 'EAS Update',
           description: getLearnMoreLink(TEST_EAS_UPDATE_COMMAND),
           value: TEST_EAS_UPDATE_COMMAND,
         },
         {
-          name: `EAS Cloud Build${chalk.reset(' - test cloud builds created on Expo servers')}`,
+          name: `EAS Cloud Build ${chalk.reset('- automatically test builds created on')} ${chalk.blue('Expo servers')}`,
           short: 'EAS Cloud Build',
           description: getLearnMoreLink(TEST_EAS_CLOUD_BUILD_COMMAND),
           value: TEST_EAS_CLOUD_BUILD_COMMAND,

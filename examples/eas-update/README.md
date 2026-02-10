@@ -9,7 +9,7 @@ Minimal React Native + Storybook app with:
 
 ## 🔄 Workflow
 
-Run visual tests using **Over-The-Air updates** for JavaScript changes, without full app rebuilds
+Run visual tests using **Over-The-Air JavaScript updates** - without full app rebuilds
 
 ```mermaid
 flowchart TB
@@ -152,8 +152,8 @@ This token authenticates your account and links tests to your project
 
 Once your test completes, open [Sherlo app](https://app.sherlo.io):
 
-- **First test** _(baseline)_ – Approve correct screenshots – they become your baseline for future comparisons
-- **Next tests** _(comparison)_ – Review visual changes
+- **First test** _(baseline)_ – Approve correct screenshots - they become your baseline for future comparisons
+- **Next tests** _(comparison)_ – Review visual changes - confirm what’s expected or needs fixing
 
 _💡 First test won't show "changes" since there's nothing to compare against yet_
 
@@ -179,5 +179,5 @@ To learn more about **EAS Update** testing method, visit our [documentation](htt
 
 ## 🔗 Other Examples
 
-- 📦 **[Standard](../standard)** – Test full app builds with bundled JavaScript code
+- 📦 **[Standard](../standard)** – Test app builds with bundled JavaScript
 - ☁️ **[EAS Cloud Build](../eas-cloud-build)** – Automatically test builds created on Expo servers

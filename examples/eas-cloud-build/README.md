@@ -9,7 +9,7 @@ Minimal React Native + Storybook app with:
 
 ## 🔄 Workflow
 
-Automatically run visual tests **after builds complete on Expo servers**
+Automatically run visual tests after builds complete on **Expo servers**
 
 ```mermaid
 flowchart TB
@@ -124,8 +124,8 @@ _💡 Sherlo injects test metadata before triggering builds, enabling project an
 
 Once your test completes, open [Sherlo app](https://app.sherlo.io):
 
-- **First test** _(baseline)_ – Approve correct screenshots – they become your baseline for future comparisons
-- **Next tests** _(comparison)_ – Review visual changes
+- **First test** _(baseline)_ – Approve correct screenshots - they become your baseline for future comparisons
+- **Next tests** _(comparison)_ – Review visual changes - confirm what’s expected or needs fixing
 
 _💡 First test won't show "changes" since there's nothing to compare against yet_
 
@@ -151,5 +151,5 @@ To learn more about **EAS Cloud Build** testing method, visit our [documentation
 
 ## 🔗 Other Examples
 
-- 📦 **[Standard](../standard)** – Test full app builds with bundled JavaScript code
-- ⚡ **[EAS Update](../eas-update)** – Test builds with JavaScript updated Over-The-Air – skip full app rebuilds
+- 📦 **[Standard](../standard)** – Test app builds with bundled JavaScript
+- ⚡ **[EAS Update](../eas-update)** – Test builds with OTA JavaScript updates - skip rebuilds

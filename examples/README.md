@@ -7,8 +7,8 @@ Ready-to-run projects for different visual testing workflows, featuring:
 
 <br />
 
-| Example                                     | Description                                                               |
-| ------------------------------------------- | ------------------------------------------------------------------------- |
-| 📦 [**Standard**](./standard)               | Test full app builds with bundled JavaScript code                         |
-| ⚡ [**EAS Update**](./eas-update)           | Test builds with JavaScript updated Over-The-Air - skip full app rebuilds |
-| ☁️ [**EAS Cloud Build**](./eas-cloud-build) | Automatically test builds created on Expo servers                         |
+| Example                                     | Description                                                 |
+| ------------------------------------------- | ----------------------------------------------------------- |
+| 📦 [**Standard**](./standard)               | Test app builds with **bundled JavaScript**                 |
+| ⚡ [**EAS Update**](./eas-update)           | Test builds with **OTA JavaScript updates** - skip rebuilds |
+| ☁️ [**EAS Cloud Build**](./eas-cloud-build) | Automatically test builds created on **Expo servers**       |
