@@ -109,9 +109,9 @@ This token authenticates your account and links tests to your project
 
 ### Option B: Run from Terminal
 
-1. **Create simulator builds**
+1. **Create preview simulator builds**
 
-   Create Android and iOS simulator builds:
+   Create Android and iOS preview simulator builds:
 
    ```bash
    yarn build:android
