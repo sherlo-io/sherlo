@@ -84,12 +84,12 @@ npx sherlo test
 
 ## Examples
 
-Try Sherlo with complete projects demonstrating real-world testing setups.
+Try Sherlo with ready-to-run example projects.
 
 ### What's Inside
 
 - **📱 Minimal Apps** – React Native + Storybook integrated with Sherlo
-- **🤖 GitHub Actions** – CI/CD workflows automating visual tests
+- **🤖 GitHub Actions** – CI/CD workflows for automated testing
 - **🔄 Different Workflows** – Standard builds, OTA updates, and Expo cloud builds
 
 <br />
