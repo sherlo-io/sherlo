@@ -84,7 +84,39 @@ This token authenticates your account and links tests to your project
 
 ## 🚀 How to Run
 
-### Option A: GitHub Actions _(Recommended)_
+### Option A: Run from Terminal
+
+1. **Create development simulator builds** _(when native code changes)_
+
+   Create Android and iOS development simulator builds:
+
+   ```bash
+   yarn build:android
+   yarn build:ios
+   ```
+
+   _💡 Build once and reuse them for future test runs_
+
+2. **Publish OTA update**
+
+   Publish your JavaScript changes to EAS Update:
+
+   ```bash
+   yarn eas-update
+   ```
+
+3. **Run test**
+
+   Run Sherlo visual test on the simulator builds with the latest update:
+
+   ```bash
+   yarn sherlo --token YOUR_SHERLO_TOKEN
+   # Or add token to sherlo.config.json and run `yarn sherlo`
+   ```
+
+---
+
+### Option B: GitHub Actions
 
 1. **Create GitHub repository**
 
@@ -114,38 +146,6 @@ This token authenticates your account and links tests to your project
    ```
 
    _💡 After pushing, view workflow progress in your repository's Actions tab_
-
----
-
-### Option B: Run from Terminal
-
-1. **Create development simulator builds** _(when native code changes)_
-
-   Create Android and iOS development simulator builds:
-
-   ```bash
-   yarn build:android
-   yarn build:ios
-   ```
-
-   _💡 Build once and reuse them for future test runs_
-
-2. **Publish OTA update**
-
-   Publish your JavaScript changes to EAS Update:
-
-   ```bash
-   yarn eas-update
-   ```
-
-3. **Run test**
-
-   Run Sherlo visual test on the simulator builds with the latest update:
-
-   ```bash
-   yarn sherlo --token YOUR_SHERLO_TOKEN
-   # Or add token to sherlo.config.json and run `yarn sherlo`
-   ```
 
 <br />
 

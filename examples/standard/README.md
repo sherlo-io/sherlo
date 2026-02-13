@@ -75,7 +75,29 @@ This token authenticates your account and links tests to your project
 
 ## 🚀 How to Run
 
-### Option A: GitHub Actions _(Recommended)_
+### Option A: Run from Terminal
+
+1. **Create preview simulator builds**
+
+   Create Android and iOS preview simulator builds:
+
+   ```bash
+   yarn build:android
+   yarn build:ios
+   ```
+
+2. **Run test**
+
+   Run Sherlo visual test on the simulator builds:
+
+   ```bash
+   yarn sherlo --token YOUR_SHERLO_TOKEN
+   # Or add token to sherlo.config.json and run `yarn sherlo`
+   ```
+
+---
+
+### Option B: GitHub Actions
 
 1. **Create GitHub repository**
 
@@ -105,28 +127,6 @@ This token authenticates your account and links tests to your project
    ```
 
    _💡 After pushing, view workflow progress in your repository's Actions tab_
-
----
-
-### Option B: Run from Terminal
-
-1. **Create preview simulator builds**
-
-   Create Android and iOS preview simulator builds:
-
-   ```bash
-   yarn build:android
-   yarn build:ios
-   ```
-
-2. **Run test**
-
-   Run Sherlo visual test on the simulator builds:
-
-   ```bash
-   yarn sherlo --token YOUR_SHERLO_TOKEN
-   # Or add token to sherlo.config.json and run `yarn sherlo`
-   ```
 
 <br />
 
