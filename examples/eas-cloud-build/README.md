@@ -84,7 +84,7 @@ yarn sherlo --token YOUR_SHERLO_TOKEN
 # Or add token to sherlo.config.json and run `yarn sherlo`
 ```
 
-_💡 Sherlo injects test metadata before triggering builds, enabling project and test identification when Expo returns completed builds (via&nbsp;`eas-build-on-complete`&nbsp;script)_
+_💡 Sherlo injects test metadata before triggering builds, enabling test identification when Expo sends completed builds (via&nbsp;`eas‑build‑on‑complete`&nbsp;script)_
 
 ---
 
