@@ -159,11 +159,11 @@ function getError(error: BinaryError) {
         message:
           `Invalid ${error.platformLabels.join(' and ')} ${
             error.platformLabels.length > 1 ? 'builds' : 'build'
-          }; \`sherlo ${error.command}\` command requires Preview Builds` +
+          }; \`sherlo ${error.command}\` command requires Preview Simulator Builds` +
           (error.command === TEST_EAS_CLOUD_BUILD_COMMAND
             ? '\n\n' +
               'Please verify:\n' +
-              '1. EAS build profile is configured for Preview Build\n' +
+              '1. EAS build profile is configured for Preview Simulator Build\n' +
               `2. ${
                 error.platformLabels.length > 1 ? 'Builds are' : 'Build is'
               } created with this profile\n` +
