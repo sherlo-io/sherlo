@@ -34,6 +34,7 @@ flowchart TB
 
 - [**Sherlo Account**](https://app.sherlo.io) – Required for visual testing
 - [**Expo Account**](https://expo.dev/signup) – Required for EAS
+- Node.js 18+
 
 <br />
 
