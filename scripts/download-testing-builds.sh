@@ -87,20 +87,20 @@ if [ "$ANDROID_ARTIFACT_ID" != "null" ]; then
   cp "$TEMP_DIR/android/android.apk" "testing/$PROJECT/builds/$PROFILE/android.apk"
   echo " ✓ Android build downloaded: testing/$PROJECT/builds/$PROFILE/android.apk"
 else
-  echo " ⚠ No Android build found for branch $CURRENT_BRANCH, trying dev branch..."
-  # Try with dev branch
+  echo " ⚠ No Android build found for branch $CURRENT_BRANCH, trying main branch..."
+  # Try with main branch
   gh api \
     -H "Accept: application/vnd.github.v3+json" \
-    "/repos/$GITHUB_REPOSITORY/actions/artifacts?name=android-$PROFILE-$PROJECT-dev" > "$TEMP_DIR/android_artifacts_dev.json"
+    "/repos/$GITHUB_REPOSITORY/actions/artifacts?name=android-$PROFILE-$PROJECT-main" > "$TEMP_DIR/android_artifacts_main.json"
   
-  ANDROID_ARTIFACT_ID=$(jq '.artifacts[0].id' "$TEMP_DIR/android_artifacts_dev.json")
+  ANDROID_ARTIFACT_ID=$(jq '.artifacts[0].id' "$TEMP_DIR/android_artifacts_main.json")
   if [ "$ANDROID_ARTIFACT_ID" != "null" ]; then
     gh api \
       -H "Accept: application/vnd.github.v3+json" \
       "/repos/$GITHUB_REPOSITORY/actions/artifacts/$ANDROID_ARTIFACT_ID/zip" > "$TEMP_DIR/android.zip"
     unzip -q "$TEMP_DIR/android.zip" -d "$TEMP_DIR/android"
     cp "$TEMP_DIR/android/android.apk" "testing/$PROJECT/builds/$PROFILE/android.apk"
-    echo " ✓ Android build (dev branch) downloaded: testing/$PROJECT/builds/$PROFILE/android.apk"
+    echo " ✓ Android build (main branch) downloaded: testing/$PROJECT/builds/$PROFILE/android.apk"
   else
     echo " ✗ No Android build found"
   fi
@@ -122,20 +122,20 @@ if [ "$IOS_ARTIFACT_ID" != "null" ]; then
   cp "$TEMP_DIR/ios/ios.tar.gz" "testing/$PROJECT/builds/$PROFILE/ios.tar.gz"
   echo " ✓ iOS build downloaded: testing/$PROJECT/builds/$PROFILE/ios.tar.gz"
 else
-  echo " ⚠ No iOS build found for branch $CURRENT_BRANCH, trying dev branch..."
-  # Try with dev branch
+  echo " ⚠ No iOS build found for branch $CURRENT_BRANCH, trying main branch..."
+  # Try with main branch
   gh api \
     -H "Accept: application/vnd.github.v3+json" \
-    "/repos/$GITHUB_REPOSITORY/actions/artifacts?name=ios-$PROFILE-$PROJECT-dev" > "$TEMP_DIR/ios_artifacts_dev.json"
+    "/repos/$GITHUB_REPOSITORY/actions/artifacts?name=ios-$PROFILE-$PROJECT-main" > "$TEMP_DIR/ios_artifacts_main.json"
   
-  IOS_ARTIFACT_ID=$(jq '.artifacts[0].id' "$TEMP_DIR/ios_artifacts_dev.json")
+  IOS_ARTIFACT_ID=$(jq '.artifacts[0].id' "$TEMP_DIR/ios_artifacts_main.json")
   if [ "$IOS_ARTIFACT_ID" != "null" ]; then
     gh api \
       -H "Accept: application/vnd.github.v3+json" \
       "/repos/$GITHUB_REPOSITORY/actions/artifacts/$IOS_ARTIFACT_ID/zip" > "$TEMP_DIR/ios.zip"
     unzip -q "$TEMP_DIR/ios.zip" -d "$TEMP_DIR/ios"
     cp "$TEMP_DIR/ios/ios.tar.gz" "testing/$PROJECT/builds/$PROFILE/ios.tar.gz"
-    echo " ✓ iOS build (dev branch) downloaded: testing/$PROJECT/builds/$PROFILE/ios.tar.gz"
+    echo " ✓ iOS build (main branch) downloaded: testing/$PROJECT/builds/$PROFILE/ios.tar.gz"
   else
     echo " ✗ No iOS build found"
   fi
