@@ -20,18 +20,21 @@
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "sideEffects": false,
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "react-native": "./dist/index.js",
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./lite": {
+      "types": "./dist/lite.d.ts",
       "react-native": "./dist/lite.js",
       "require": "./dist/lite.js",
-      "default": "./dist/lite.js",
-      "types": "./dist/lite.d.ts"
+      "default": "./dist/lite.js"
     },
+    "./dist/*": "./dist/*",
     "./package.json": "./package.json"
   },
   "files": [
@@ -72,6 +75,8 @@
   "devDependencies": {
     "@storybook/react-native": "9.1.2",
     "@types/base-64": "^1.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-native": "^0.73.0",
     "@types/utf8": "^3.0.1",
     "react-native-safe-area-context": "4.11.0",
     "typescript": "^5.3.3"

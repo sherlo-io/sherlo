@@ -1,8 +1,10 @@
-# Sherlo CLI
+# `sherlo`
 
 Command-line interface for [Sherlo](https://github.com/sherlo-io/sherlo) - Visual Testing for React Native Storybook.
 
 > **📚 For full documentation, visit [sherlo.io/docs](https://sherlo.io/docs)**
+
+<br />
 
 ## Commands
 

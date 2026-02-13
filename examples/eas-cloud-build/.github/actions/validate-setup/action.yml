@@ -1,0 +1,105 @@
+name: Validate Sherlo Setup
+description: Validates Sherlo and EAS configuration
+
+inputs:
+  expo-token:
+    description: 'Expo access token'
+    required: true
+  sherlo-token:
+    description: 'Sherlo project token'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: 🔍 Validate Sherlo & EAS configuration
+      shell: bash
+      env:
+        SHERLO_TOKEN: ${{ inputs.sherlo-token }}
+        EXPO_TOKEN: ${{ inputs.expo-token }}
+      run: |
+        set +e
+
+        HAS_ERRORS=0
+
+        echo ""
+        echo "🔍 Validating Sherlo & EAS setup..."
+        echo "────────────────────────────────────"
+
+        # ----------------------------------------------------------------------
+        # SHERLO_TOKEN
+        # ----------------------------------------------------------------------
+        if [ -z "$SHERLO_TOKEN" ]; then
+          HAS_ERRORS=1
+          echo ""
+          echo "❌ Missing SHERLO_TOKEN"
+          echo ""
+          echo "Sherlo requires a project token to authenticate and run tests"
+          echo ""
+          echo "📝 How to fix:"
+          echo "   1. Go to https://app.sherlo.io"
+          echo "   2. Create new project → copy token"
+          echo "      or open existing project → reset token"
+          echo "   3. Go to your GitHub repo → Settings → Secrets and variables → Actions"
+          echo "   4. Click 'New repository secret'"
+          echo "   5. Name: SHERLO_TOKEN, Value: [paste your token]"
+          echo ""
+          echo "::error title=Missing SHERLO_TOKEN::SHERLO_TOKEN secret is not configured"
+        else
+          echo "✅ SHERLO_TOKEN is configured"
+        fi
+
+        # ----------------------------------------------------------------------
+        # EXPO_TOKEN
+        # ----------------------------------------------------------------------
+        if [ -z "$EXPO_TOKEN" ]; then
+          HAS_ERRORS=1
+          echo ""
+          echo "❌ Missing EXPO_TOKEN"
+          echo ""
+          echo "EAS Build requires Expo authentication"
+          echo ""
+          echo "📝 How to fix:"
+          echo "   1. Go to https://expo.dev/accounts/[your-account]/settings/access-tokens"
+          echo "   2. Click 'Create token' and copy it"
+          echo "   3. Go to your GitHub repo → Settings → Secrets and variables → Actions"
+          echo "   4. Click 'New repository secret'"
+          echo "   5. Name: EXPO_TOKEN, Value: [paste your token]"
+          echo ""
+          echo "::error title=Missing EXPO_TOKEN::EXPO_TOKEN secret is not configured"
+        else
+          echo "✅ EXPO_TOKEN is configured"
+        fi
+
+        # ----------------------------------------------------------------------
+        # EAS project configuration (projectId)
+        # ----------------------------------------------------------------------
+        if ! grep -q '"projectId"' app.json 2>/dev/null; then
+          HAS_ERRORS=1
+          echo ""
+          echo "❌ Project Not Linked to Expo Account"
+          echo ""
+          echo "This project needs to be linked to your Expo account"
+          echo ""
+          echo "📝 How to fix:"
+          echo "   1. Login to Expo: \`npx eas-cli login\`"
+          echo "   2. Link project: \`npx eas-cli init\`"
+          echo "   3. Commit the updated app.json file"
+          echo ""
+          echo "::error title=EAS Project Not Linked::Missing projectId in app.json"
+        else
+          echo "✅ Project is linked to Expo account"
+        fi
+
+        # ----------------------------------------------------------------------
+        # FINAL RESULT
+        # ----------------------------------------------------------------------
+        echo ""
+        echo "────────────────────────────────────"
+
+        if [ "$HAS_ERRORS" -eq 1 ]; then
+          echo "❌ Validation failed - please fix the issues above"
+          exit 1
+        fi
+
+        echo "✅ All checks passed"

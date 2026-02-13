@@ -21,7 +21,6 @@
     "@d11/react-native-fast-image": "^8.11.0",
     "@gorhom/bottom-sheet": "^5.0.2",
     "@react-native-async-storage/async-storage": "^2.1.2",
-    "@sherlo/testing-components": "portal:../testing-components",
     "@tamagui/config": "^1.126.12",
     "@tamagui/lucide-icons": "^1.126.12",
     "@tamagui/toast": "^1.126.12",

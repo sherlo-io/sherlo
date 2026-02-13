@@ -1,4 +1,4 @@
-import { confirm, input } from '@inquirer/prompts';
+import { input } from '@inquirer/prompts';
 import { Platform } from '@sherlo/api-types';
 import chalk from 'chalk';
 import fs from 'fs';
@@ -14,6 +14,7 @@ import {
   PLATFORM_LABEL,
   TEST_EAS_CLOUD_BUILD_COMMAND,
   TEST_EAS_UPDATE_COMMAND,
+  TEST_STANDARD_COMMAND,
   TOKEN_OPTION,
 } from '../../../constants';
 import {
@@ -25,9 +26,10 @@ import {
 } from '../../../helpers';
 import { Config, Options } from '../../../types';
 import { THIS_COMMAND } from '../constants';
+import { TestMethodCommand } from '../types';
 
 async function collectMissingOptions(
-  command: string,
+  command: TestMethodCommand,
   passedOptions: Options<typeof THIS_COMMAND>
 ): Promise<Record<string, string | boolean>> {
   const { hasToken, hasDevices, hasIos, hasAndroid, requiredPlatforms } = getInfo(passedOptions);
@@ -42,24 +44,12 @@ async function collectMissingOptions(
     return missingOptions;
   }
 
-  if (command === TEST_EAS_UPDATE_COMMAND) {
-    console.log();
-
-    const wantsToUploadBuilds = await confirm({
-      message: `Upload builds?${chalk.reset.dim(' (first test or native code changed)')}`,
-    });
-
-    if (!wantsToUploadBuilds) {
-      return missingOptions;
-    }
-  }
-
   if (requiredPlatforms.includes('ios') && !hasIos) {
-    missingOptions.ios = await collectIos();
+    missingOptions.ios = await collectIos(command);
   }
 
   if (requiredPlatforms.includes('android') && !hasAndroid) {
-    missingOptions.android = await collectAndroid();
+    missingOptions.android = await collectAndroid(command);
   }
 
   return missingOptions;
@@ -154,13 +144,22 @@ async function collectToken(): Promise<string> {
   return token;
 }
 
-async function collectIos(): Promise<string> {
+const BUILD_TYPE_LABEL: {
+  [key in typeof TEST_STANDARD_COMMAND | typeof TEST_EAS_UPDATE_COMMAND]: string;
+} = {
+  [TEST_STANDARD_COMMAND]: 'preview simulator',
+  [TEST_EAS_UPDATE_COMMAND]: 'development simulator',
+};
+
+async function collectIos(
+  command: typeof TEST_STANDARD_COMMAND | typeof TEST_EAS_UPDATE_COMMAND
+): Promise<string> {
   console.log();
 
   let iosPath;
   try {
     iosPath = await input({
-      message: `Enter path to iOS build file (${IOS_FILE_TYPES.join(', ')})${chalk.reset.dim(
+      message: `Enter path to iOS ${BUILD_TYPE_LABEL[command]} build (${IOS_FILE_TYPES.join(', ')})${chalk.reset.dim(
         ` (--${IOS_OPTION})`
       )}:`,
       validate: (value: string) => validateBuildPath(value, 'ios'),
@@ -178,13 +177,15 @@ async function collectIos(): Promise<string> {
   return iosPath;
 }
 
-async function collectAndroid(): Promise<string> {
+async function collectAndroid(
+  command: typeof TEST_STANDARD_COMMAND | typeof TEST_EAS_UPDATE_COMMAND
+): Promise<string> {
   console.log();
 
   let androidPath;
   try {
     androidPath = await input({
-      message: `Enter path to Android build file (${ANDROID_FILE_TYPES.join(
+      message: `Enter path to Android ${BUILD_TYPE_LABEL[command]} build (${ANDROID_FILE_TYPES.join(
         ', '
       )})${chalk.reset.dim(` (--${ANDROID_OPTION})`)}:`,
       validate: (value: string) => validateBuildPath(value, 'android'),

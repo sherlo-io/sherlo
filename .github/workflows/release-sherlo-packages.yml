@@ -72,6 +72,16 @@ jobs:
       - name: Build packages
         run: yarn build
 
+      - name: Update @sherlo/react-native-storybook version in examples
+        run: |
+          for dir in examples/standard examples/eas-update examples/eas-cloud-build; do
+            cd $dir
+            jq --arg version "$NEW_VERSION_NUMBER" '.dependencies["@sherlo/react-native-storybook"] = "^" + $version' package.json > package.json.tmp
+            mv package.json.tmp package.json
+            yarn install --no-immutable
+            cd ../..
+          done
+
       - name: Update yarn.lock files in test directories
         run: |
           cd testing/expo && yarn install --no-immutable

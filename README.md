@@ -82,6 +82,22 @@ npx sherlo test
 
 <br />
 
+## Examples
+
+Try Sherlo with ready-to-run example projects.
+
+### What's Inside
+
+- **📱 Minimal Apps** – React Native + Storybook integrated with Sherlo
+- **🤖 GitHub Actions** – CI/CD workflows for automated testing
+- **🔄 Different Workflows** – Standard builds, OTA updates, and Expo cloud builds
+
+<br />
+
+[Browse examples →](./examples)
+
+<br />
+
 ## Review App
 
 Review visual changes across devices in one web app as a team – from developers to designers.
@@ -104,7 +120,7 @@ Review visual changes across devices in one web app as a team – from developer
 
 ## New to Storybook?
 
-Join thousands of teams using Storybook – a tool that helps you develop and document UI components
+Join thousands of teams using Storybook – a tool that helps you develop and document UI components.
 
 <br />
 
@@ -143,7 +159,8 @@ Join thousands of teams using Storybook – a tool that helps you develop and do
 <div align="center">
   <a href="https://sherlo.io">Website</a> • 
   <a href="https://app.sherlo.io">App</a> • 
-  <a href="https://sherlo.io/docs">Docs</a>
+  <a href="https://sherlo.io/docs">Docs</a> • 
+  <a href="./examples">Examples</a>
 </div>
 
 <br />

@@ -1,7 +1,8 @@
 import type { Meta } from '@storybook/react';
-import { StoryDecorator, TestInfo } from '@sherlo/testing-components';
 import * as Localization from 'expo-localization';
 import { PixelRatio } from 'react-native';
+import StoryDecorator from '../../shared/StoryDecorator';
+import TestInfo from '../../shared/TestInfo';
 
 /**
  * This is a test screen that we add to our tests

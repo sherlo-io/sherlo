@@ -1,4 +1,4 @@
-import { StoryDecorator } from '@sherlo/testing-components';
+import StoryDecorator from '../../shared/StoryDecorator';
 import { createTamagui, TamaguiProvider } from 'tamagui';
 import { defaultConfig } from '@tamagui/config/v4';
 import TamaguiSheet from './TamaguiSheet';

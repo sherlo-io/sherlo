@@ -19,7 +19,7 @@ function send(path: string, log: LogFn): SendFn {
     await SherloModule.appendFile(path, `${contentString}\n`);
 
     return new Promise<RunnerProtocolItem>((resolve) => {
-      let ackReadInterval: NodeJS.Timeout;
+      let ackReadInterval: ReturnType<typeof setInterval>;
       let responseItem: RunnerProtocolItem | undefined;
 
       const resolveForTestMode = async (

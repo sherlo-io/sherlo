@@ -1,4 +1,4 @@
-import { StoryDecorator } from '@sherlo/testing-components';
+import StoryDecorator from '../../shared/StoryDecorator';
 import type { Meta, StoryObj } from '@storybook/react';
 import Reanimated from './Reanimated';
 import { useSharedValue } from 'react-native-reanimated';
