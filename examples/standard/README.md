@@ -79,7 +79,7 @@ This token authenticates your account and links tests to your project
 
 1. **Create preview simulator builds**
 
-   Create Android and iOS preview simulator builds:
+   Create Android and iOS builds with bundled JavaScript:
 
    ```bash
    yarn build:android
@@ -88,7 +88,7 @@ This token authenticates your account and links tests to your project
 
 2. **Run test**
 
-   Run Sherlo visual test on the simulator builds:
+   Run Sherlo visual test:
 
    ```bash
    yarn sherlo --token YOUR_SHERLO_TOKEN
