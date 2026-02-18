@@ -15,12 +15,17 @@ const reporting = {
       environment: ENV,
     }),
   setContext: Sentry.setContext,
-  captureException: (error: Error & { location?: string; stdout?: string; stderr?: string }) => {
+  captureException: (
+    error: Error & { location?: string; stdout?: string; stderr?: string; debugContext?: string }
+  ) => {
     if (error.location) Sentry.setExtra('location', error.location);
 
     if (error.stdout) Sentry.setExtra('stdout', stripAnsi(error.stdout));
 
     if (error.stderr) Sentry.setExtra('stderr', stripAnsi(error.stderr));
+
+    // TODO(SHERLO-130): temporary — remove once root cause is identified
+    if (error.debugContext) Sentry.setExtra('debugContext', error.debugContext);
 
     Sentry.captureException(error);
   },

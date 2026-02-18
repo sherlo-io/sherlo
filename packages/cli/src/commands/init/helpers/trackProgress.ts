@@ -15,7 +15,7 @@ async function trackProgress({
   hasStarted?: boolean;
   hasFinished?: boolean;
   token?: string;
-}): Promise<{ sessionId: string }> {
+}): Promise<{ sessionId: string | null }> {
   const { apiToken, projectIndex, teamId } = token ? getTokenParts(token) : {};
 
   return sdkClient({ authToken: apiToken })
@@ -28,7 +28,24 @@ async function trackProgress({
       teamId,
       projectIndex,
     })
-    .catch((error: Error) => reporting.captureException(error));
+    .catch((error: Error) => {
+      // TODO(SHERLO-130): temporary debug context — remove once root cause is identified
+      reporting.captureException(
+        Object.assign(error, {
+          location: `trackProgress:${event}`,
+          debugContext: JSON.stringify({
+            hasToken: !!token,
+            hasApiToken: !!apiToken,
+            hasTeamId: !!teamId,
+            projectIndex,
+            sessionId,
+            errorMessage: error.message,
+          }),
+        })
+      );
+
+      return { sessionId: sessionId ?? null };
+    });
 }
 
 export default trackProgress;

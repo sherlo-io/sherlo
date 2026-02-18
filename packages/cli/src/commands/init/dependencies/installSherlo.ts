@@ -8,7 +8,7 @@ import { getCwd, getErrorWithCustomMessage, runShellCommand, throwError } from '
 import { trackProgress } from '../helpers';
 import { EVENT } from './constants';
 
-async function installSherlo(sessionId: string): Promise<void> {
+async function installSherlo(sessionId: string | null): Promise<void> {
   const spinner = ora('Installing Sherlo').start();
 
   const event = `${EVENT}:installSherlo`;

@@ -10,7 +10,7 @@ async function builds({
   sessionId,
 }: {
   hasUpdatedStorybookComponent: boolean;
-  sessionId: string;
+  sessionId: string | null;
 }): Promise<void> {
   printTitle('📦 Builds');
 

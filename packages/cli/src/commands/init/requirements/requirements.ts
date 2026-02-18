@@ -19,7 +19,7 @@ import validateHasReactNative from './validateHasReactNative';
 import validateHasStorybook from './validateHasStorybook';
 import validateProjectContext from './validateProjectContext';
 
-async function requirements({ token, sessionId }: { token?: string; sessionId: string }) {
+async function requirements({ token, sessionId }: { token?: string; sessionId: string | null }) {
   await validateRequirements(token);
 
   printTitle('✅ Requirements', 15);

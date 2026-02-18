@@ -6,7 +6,7 @@ import getStorybookFiles from './getStorybookFiles';
 import updateStorybookFiles from './updateStorybookFiles';
 
 async function updateStorybookComponent(
-  sessionId: string
+  sessionId: string | null
 ): Promise<{ hasUpdatedStorybookComponent: boolean }> {
   const storybookFiles = await getStorybookFiles();
 

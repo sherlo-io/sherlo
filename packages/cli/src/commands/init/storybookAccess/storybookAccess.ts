@@ -6,7 +6,7 @@ import { EVENT } from './constants';
 import getIntegratedStorybookCode from './getIntegratedStorybookCode';
 import getStandaloneStorybookCode from './getStandaloneStorybookCode';
 
-async function storybookAccess(sessionId: string): Promise<void> {
+async function storybookAccess(sessionId: string | null): Promise<void> {
   printTitle('🔑 Storybook Access');
 
   console.log('To enable Sherlo to access Storybook, choose one:');

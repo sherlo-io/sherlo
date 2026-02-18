@@ -6,7 +6,7 @@ import { IOS_DIR } from './constants';
 import installPods from './installPods';
 import installSherlo from './installSherlo';
 
-async function dependencies({ sessionId }: { sessionId: string }) {
+async function dependencies({ sessionId }: { sessionId: string | null }) {
   printTitle('💾 Dependencies');
 
   await installSherlo(sessionId);

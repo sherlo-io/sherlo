@@ -1,0 +1,12 @@
+{
+  "devices": [
+    {
+      "id": "iphone.15.pro",
+      "osVersion": "17"
+    },
+    {
+      "id": "pixel.7.pro",
+      "osVersion": "13"
+    }
+  ]
+}
