@@ -29,20 +29,7 @@ async function trackProgress({
       projectIndex,
     })
     .catch((error: Error) => {
-      // TODO(SHERLO-130): temporary debug context — remove once root cause is identified
-      reporting.captureException(
-        Object.assign(error, {
-          location: `trackProgress:${event}`,
-          debugContext: JSON.stringify({
-            hasToken: !!token,
-            hasApiToken: !!apiToken,
-            hasTeamId: !!teamId,
-            projectIndex,
-            sessionId,
-            errorMessage: error.message,
-          }),
-        })
-      );
+      reporting.captureException(error);
 
       return { sessionId: sessionId ?? null };
     });

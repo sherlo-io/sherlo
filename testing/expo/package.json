@@ -59,7 +59,7 @@
   "devDependencies": {
     "@babel/core": "^7.20.0",
     "@expo/config-plugins": "~54.0.1",
-    "@sherlo/react-native-storybook": "portal:../../packages/react-native-storybook",
+    "@sherlo/react-native-storybook": "^1.5.6",
     "@storybook/addon-ondevice-actions": "^9.1.2",
     "@storybook/addon-ondevice-backgrounds": "^9.1.2",
     "@storybook/addon-ondevice-controls": "^9.1.2",
