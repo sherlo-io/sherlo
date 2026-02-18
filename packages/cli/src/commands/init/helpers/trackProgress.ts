@@ -15,7 +15,7 @@ async function trackProgress({
   hasStarted?: boolean;
   hasFinished?: boolean;
   token?: string;
-}): Promise<{ sessionId: string }> {
+}): Promise<{ sessionId: string | null }> {
   const { apiToken, projectIndex, teamId } = token ? getTokenParts(token) : {};
 
   return sdkClient({ authToken: apiToken })
@@ -28,7 +28,11 @@ async function trackProgress({
       teamId,
       projectIndex,
     })
-    .catch((error: Error) => reporting.captureException(error));
+    .catch((error: Error) => {
+      reporting.captureException(error);
+
+      return { sessionId: sessionId ?? null };
+    });
 }
 
 export default trackProgress;

@@ -2,7 +2,7 @@ import { printTitle } from '../helpers';
 import updateStorybookComponent from './updateStorybookComponent';
 
 async function storybookComponent(
-  sessionId: string
+  sessionId: string | null
 ): Promise<{ hasUpdatedStorybookComponent: boolean }> {
   printTitle('📕 Storybook Component');
 

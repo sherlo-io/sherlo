@@ -4,7 +4,7 @@ import { logInfo, wrapInBox } from '../../../helpers';
 import { printTitle, trackProgress } from '../helpers';
 import { EVENT } from './constants';
 
-async function testing(sessionId: string): Promise<void> {
+async function testing(sessionId: string | null): Promise<void> {
   printTitle('🧪 Testing');
 
   console.log(

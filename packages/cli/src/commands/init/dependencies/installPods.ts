@@ -5,7 +5,7 @@ import { getCwd, runShellCommand, throwError } from '../../../helpers';
 import { trackProgress } from '../helpers';
 import { EVENT, IOS_DIR } from './constants';
 
-async function installPods(sessionId: string): Promise<void> {
+async function installPods(sessionId: string | null): Promise<void> {
   const spinner = ora('Installing Pods').start();
 
   const event = `${EVENT}:installPods`;
