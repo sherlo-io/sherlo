@@ -5,7 +5,7 @@ import hasConfigFile from './hasConfigFile';
 import printDevicesInfo from './printDevicesInfo';
 import updateConfig from './updateConfig';
 
-async function config({ sessionId, token }: { sessionId: string; token?: string }): Promise<void> {
+async function config({ sessionId, token }: { sessionId: string | null; token?: string }): Promise<void> {
   printTitle('📋 Config');
 
   let configValue, hasAddedDefaultDevices, action;

@@ -15,6 +15,7 @@ builds/
 
 sherlo-lib/
 .env
+sherlo.config.json
 
 *storybook.log
 storybook-static

@@ -3,7 +3,7 @@ import { CONTACT_EMAIL, DISCORD_URL } from '../../../constants';
 import { printTitle, trackProgress } from '../helpers';
 import { EVENT } from './constants';
 
-async function needHelp(sessionId: string): Promise<void> {
+async function needHelp(sessionId: string | null): Promise<void> {
   printTitle('🤝 Need Help?');
 
   console.log('Help is just a message away!');
