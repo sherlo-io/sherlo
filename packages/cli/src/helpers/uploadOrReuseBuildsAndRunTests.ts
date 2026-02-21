@@ -20,7 +20,7 @@ async function uploadOrReuseBuildsAndRunTests({
   easUpdateData?: EasUpdateData;
 }): Promise<{ url: string }> {
   const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
-  const client = sdkClient({ authToken: apiToken });
+  const client = sdkClient({ authToken: apiToken }, commandParams.apiUrl);
 
   const { binariesInfo, nextBuildIndex } = await getValidatedBinariesInfoAndNextBuildIndex({
     client,
