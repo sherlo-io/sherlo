@@ -40,7 +40,7 @@ async function testEasCloudBuild(passedOptions: Options<THIS_COMMAND>) {
   validatePackageJsonScripts(commandParams);
 
   const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
-  const client = sdkClient({ authToken: apiToken });
+  const client = sdkClient({ authToken: apiToken }, commandParams.apiUrl);
 
   const { build } = await client
     .openBuild({

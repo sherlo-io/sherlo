@@ -1,4 +1,5 @@
 import { Platform } from '@sherlo/api-types';
+import http from 'http';
 import https from 'https';
 import fetch from 'node-fetch';
 import { PLATFORM_LABEL } from '../../../constants';
@@ -26,17 +27,10 @@ async function uploadBuild({
 
   printBuildMessage({ message: `uploading build... (${buildSizeMB} MB)`, type: 'info' });
 
-  /**
-   * Configure HTTPS agent for optimized uploads:
-   * - keepAlive: true - Reuses TCP connection between requests, reducing latency (default in Node.js 19+)
-   * - timeout: 60s - Prevents hanging requests for large uploads
-   *
-   * Note: We set keepAlive explicitly for compatibility with Node.js < 19
-   */
-  const agent = new https.Agent({
-    keepAlive: true,
-    timeout: TIMEOUT,
-  });
+  // Use protocol-appropriate agent (HTTP for local S3, HTTPS for AWS)
+  const agent = uploadUrl.startsWith('https')
+    ? new https.Agent({ keepAlive: true, timeout: TIMEOUT })
+    : new http.Agent({ keepAlive: true, timeout: TIMEOUT });
 
   let attempt = 0;
   while (attempt < MAX_RETRIES) {
