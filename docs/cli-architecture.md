@@ -20,16 +20,16 @@ The `sherlo` CLI orchestrates visual test runs from the developer's machine or C
 
 ```mermaid
 flowchart LR
-    Dev(Developer) -->|npx sherlo test| CLI(CLI)
-    CLI -->|validate config| Config(Config)
-    Config --> Binary(Build Upload)
-    Binary -->|S3 presigned URL| S3(S3)
-    S3 --> API(openBuild)
-    API -->|poll status| Poll(Poll Results)
-    Poll -->|display| Results(Results)
+    Dev(🧑‍💻 Developer) -->|npx sherlo test| CLI(📦 CLI)
+    CLI -->|validate| Config(📦 Config)
+    Config --> Binary(📦 Upload)
+    Binary -->|presigned URL| S3(☁️ S3)
+    S3 --> API(⚡ openBuild)
+    API -->|poll| Poll(📦 Poll)
+    Poll -->|display| Results(✅ Results)
 ```
 
-**Legend:** Developer = user, CLI = sherlo CLI, Config = sherlo.config.ts, S3 = AWS S3, openBuild = sherlo-api mutation, Poll = status polling, Results = test results
+**Legend:** 🧑‍💻 Developer = user, 📦 CLI = sherlo CLI, 📦 Config = sherlo.config.ts, ☁️ S3 = AWS S3, ⚡ openBuild = sherlo-api mutation, 📦 Poll = status polling, ✅ Results = test results
 
 ## Detailed Flow
 
