@@ -29,7 +29,7 @@ async function installSherlo(sessionId: string | null): Promise<void> {
   }
 
   const isSherloAlreadyInDevDependencies =
-    !!packageJson.devDependencies[SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME];
+    !!packageJson.devDependencies?.[SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME];
 
   const packageManager = (await detect())?.name ?? 'npm';
   const resolvedCommand = resolveCommand(
