@@ -2,6 +2,11 @@ import ansiEscapes from 'ansi-escapes';
 import chalk from 'chalk';
 
 async function waitForEnterPress(): Promise<void> {
+  // Skip prompt when stdin is not a TTY (e.g., piped in CI/tests)
+  if (!process.stdin.isTTY) {
+    return;
+  }
+
   // Output a beeping sound
   process.stdout.write(ansiEscapes.beep);
 
