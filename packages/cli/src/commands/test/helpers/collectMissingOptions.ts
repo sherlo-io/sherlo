@@ -9,6 +9,7 @@ import {
   APP_DOMAIN,
   DEFAULT_CONFIG_FILENAME,
   DEFAULT_PROJECT_ROOT,
+  DOCS_LINK,
   IOS_FILE_TYPES,
   IOS_OPTION,
   PLATFORM_LABEL,
@@ -42,6 +43,12 @@ async function collectMissingOptions(
 
   if (!hasDevices || command === TEST_EAS_CLOUD_BUILD_COMMAND) {
     return missingOptions;
+  }
+
+  // Show build type tip if we need to collect any build paths
+  const needsBuildPath = (requiredPlatforms.includes('ios') && !hasIos) || (requiredPlatforms.includes('android') && !hasAndroid);
+  if (needsBuildPath) {
+    printBuildTypeTip(command);
   }
 
   if (requiredPlatforms.includes('ios') && !hasIos) {
@@ -142,6 +149,34 @@ async function collectToken(): Promise<string> {
   }
 
   return token;
+}
+
+function printBuildTypeTip(command: TestMethodCommand): void {
+  console.log();
+
+  if (command === TEST_STANDARD_COMMAND) {
+    console.log(
+      wrapInBox({
+        title: 'Build Type: Preview Simulator',
+        text: `Standard testing requires a preview simulator build\n(includes bundled JavaScript).\n\nCreate one using EAS CLI:\n  ${chalk.cyan(
+          'npx eas-cli build --local --profile preview-simulator --platform [android|ios]'
+        )}\n\nLearn more: ${printLink(DOCS_LINK.buildPreview)}`,
+        type: 'default',
+      })
+    );
+  } else if (command === TEST_EAS_UPDATE_COMMAND) {
+    console.log(
+      wrapInBox({
+        title: 'Build Type: Development Simulator',
+        text: `EAS Update testing requires a development simulator build\n(supports Over-The-Air JavaScript updates).\n\nCreate one using EAS CLI:\n  ${chalk.cyan(
+          'npx eas-cli build --local --profile development-simulator --platform [android|ios]'
+        )}\n\nLearn more: ${printLink(DOCS_LINK.buildDevelopment)}`,
+        type: 'default',
+      })
+    );
+  }
+
+  console.log();
 }
 
 const BUILD_TYPE_LABEL: {
