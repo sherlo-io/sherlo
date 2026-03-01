@@ -44,11 +44,27 @@ async function collectMissingOptions(
     return missingOptions;
   }
 
-  if (requiredPlatforms.includes('ios') && !hasIos) {
+  const needsIos = requiredPlatforms.includes('ios') && !hasIos;
+  const needsAndroid = requiredPlatforms.includes('android') && !hasAndroid;
+  const hasBothPlatforms =
+    requiredPlatforms.includes('ios') && requiredPlatforms.includes('android');
+
+  if (hasBothPlatforms && (needsIos || needsAndroid)) {
+    console.log();
+    console.log(
+      wrapInBox({
+        title: 'Multi-platform config',
+        text: `Your config defines devices for both iOS and Android. If you only want to test one platform, edit your \`${DEFAULT_CONFIG_FILENAME}\` and remove the devices you don't need. Default devices were added by \`sherlo init\`.`,
+        type: 'default',
+      })
+    );
+  }
+
+  if (needsIos) {
     missingOptions.ios = await collectIos(command);
   }
 
-  if (requiredPlatforms.includes('android') && !hasAndroid) {
+  if (needsAndroid) {
     missingOptions.android = await collectAndroid(command);
   }
 

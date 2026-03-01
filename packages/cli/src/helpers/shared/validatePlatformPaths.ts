@@ -130,28 +130,34 @@ const learnMoreLink: { [platform in Platform | 'both']: string } = {
 function getError(error: PlatformPathError, command: Command) {
   const missingEasUpdateNote =
     command === TEST_EAS_UPDATE_COMMAND
-      ? `\n\nNote: Future \`sherlo ${TEST_EAS_UPDATE_COMMAND}\` runs won't require the build path, as previously uploaded build will be reused\n`
+      ? `\n\nNote: Future \`sherlo ${TEST_EAS_UPDATE_COMMAND}\` runs won't require the build path, as previously uploaded build will be reused`
       : '';
+
+  const deviceConfigHint =
+    '\n\nIf you only want to test one platform, edit your `sherlo.config.json` and remove the devices you don\'t need. Default devices were added by `sherlo init`.';
 
   switch (error.type) {
     case 'missingBothPaths':
       return {
         message:
-          `Missing required Android and iOS build paths (based on devices in config). Pass them using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or add them to the config file` +
+          `Missing required Android and iOS build paths (based on devices in config). Pass them using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or add them to the config file.` +
+          deviceConfigHint +
           missingEasUpdateNote,
         learnMoreLink: learnMoreLink.both,
       };
     case 'missingAndroidPath':
       return {
         message:
-          `Missing required Android build path (based on devices in config). Pass it using \`--${ANDROID_OPTION}\` option or add \`android\` to the config file` +
+          `Missing required Android build path (based on devices in config). Pass it using \`--${ANDROID_OPTION}\` option or add \`android\` to the config file.` +
+          deviceConfigHint +
           missingEasUpdateNote,
         learnMoreLink: learnMoreLink.android,
       };
     case 'missingIosPath':
       return {
         message:
-          `Missing required iOS build path (based on devices in config). Pass it using \`--${IOS_OPTION}\` option or add \`ios\` to the config file` +
+          `Missing required iOS build path (based on devices in config). Pass it using \`--${IOS_OPTION}\` option or add \`ios\` to the config file.` +
+          deviceConfigHint +
           missingEasUpdateNote,
         learnMoreLink: learnMoreLink.ios,
       };
