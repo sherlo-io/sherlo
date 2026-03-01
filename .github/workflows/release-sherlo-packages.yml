@@ -48,9 +48,10 @@ jobs:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Add env specific dependencies
-        run: ./scripts/switch-env.sh prod
+      - name: Download Sherlo packages
+        run: ./scripts/init-env.sh
         env:
+          CLIENT_STAGE: prod
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Install dependencies
