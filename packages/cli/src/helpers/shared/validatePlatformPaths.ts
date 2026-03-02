@@ -5,12 +5,13 @@ import {
   ANDROID_OPTION,
   IOS_FILE_TYPES,
   IOS_OPTION,
-  TEST_EAS_UPDATE_COMMAND,
 } from '../../constants';
 import { Command } from '../../types';
-import throwError from '../throwError';
 import getBuildTypeLabel from '../getBuildTypeLabel';
 import getBuildTypeTipBox from '../getBuildTypeTipBox';
+import chalk from 'chalk';
+import getDeviceConfigHint from '../getDeviceConfigHint';
+import throwError from '../throwError';
 
 function validatePlatformPaths({
   android,
@@ -29,15 +30,15 @@ function validatePlatformPaths({
     platformsToValidate.includes('ios') &&
     ios === undefined
   ) {
-    throwError(getError({ type: 'missingBothPaths' }, command));
+    throwPlatformError({ type: 'missingBothPaths' }, command);
   }
 
   if (platformsToValidate.includes('android') && android === undefined) {
-    throwError(getError({ type: 'missingAndroidPath' }, command));
+    throwPlatformError({ type: 'missingAndroidPath' }, command);
   }
 
   if (platformsToValidate.includes('ios') && ios === undefined) {
-    throwError(getError({ type: 'missingIosPath' }, command));
+    throwPlatformError({ type: 'missingIosPath' }, command);
   }
 
   if (android) validatePlatformPath({ path: android, platform: 'android', command });
@@ -59,32 +60,23 @@ function validatePlatformPath({
   platform: Platform;
 }): void {
   if (typeof path !== 'string') {
-    throwError(
-      getError({ type: platform === 'android' ? 'invalidAndroidType' : 'invalidIosType' }, command)
+    throwPlatformError(
+      { type: platform === 'android' ? 'invalidAndroidType' : 'invalidIosType' },
+      command
     );
   }
 
   if (!fs.existsSync(path)) {
-    throwError(
-      getError(
-        {
-          type: platform === 'android' ? 'androidBuildNotFound' : 'iosBuildNotFound',
-          path,
-        },
-        command
-      )
+    throwPlatformError(
+      { type: platform === 'android' ? 'androidBuildNotFound' : 'iosBuildNotFound', path },
+      command
     );
   }
 
   if (!hasValidExtension({ path, platform })) {
-    throwError(
-      getError(
-        {
-          type: platform === 'android' ? 'invalidAndroidFileType' : 'invalidIosFileType',
-          path,
-        },
-        command
-      )
+    throwPlatformError(
+      { type: platform === 'android' ? 'invalidAndroidFileType' : 'invalidIosFileType', path },
+      command
     );
   }
 }
@@ -122,85 +114,77 @@ type PlatformPathError =
   | { type: 'invalidAndroidFileType'; path: string }
   | { type: 'invalidIosFileType'; path: string };
 
+function formatErrorHint(passHint: string, tipBox: string | undefined) {
+  const deviceHint = chalk.blue(`INFO: ${getDeviceConfigHint()}`);
+  const parts = [passHint];
+  if (tipBox) parts.push(tipBox);
+  parts.push(deviceHint);
+  return parts.join('\n\n');
+}
+
+function throwPlatformError(error: PlatformPathError, command: Command): never {
+  throwError(getError(error, command));
+}
+
 function getError(error: PlatformPathError, command: Command) {
   const buildTypeLabel = getBuildTypeLabel(command);
   const buildTypePrefix = buildTypeLabel ? `${buildTypeLabel} ` : '';
 
-  const missingEasUpdateNote =
-    command === TEST_EAS_UPDATE_COMMAND
-      ? `\n\nNote: Future \`sherlo ${TEST_EAS_UPDATE_COMMAND}\` runs won't require the build path, as previously uploaded build will be reused\n`
-      : '';
-
   const tipBox = getBuildTypeTipBox(command);
 
-  const hintBoth =
-    `Pass using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or set \`android\` and \`ios\` in the config file` +
-    missingEasUpdateNote;
-  const hintAndroid =
-    `Pass using \`--${ANDROID_OPTION}\` option or set \`android\` in the config file` +
-    missingEasUpdateNote;
-  const hintIos =
-    `Pass using \`--${IOS_OPTION}\` option or set \`ios\` in the config file` +
-    missingEasUpdateNote;
+  const hintBoth = `Pass using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or set \`android\` and \`ios\` in the config file`;
+  const hintAndroid = `Pass using \`--${ANDROID_OPTION}\` option or set \`android\` in the config file`;
+  const hintIos = `Pass using \`--${IOS_OPTION}\` option or set \`ios\` in the config file`;
 
   switch (error.type) {
     case 'missingBothPaths':
       return {
         message: `Missing required Android and iOS ${buildTypePrefix}build paths`,
-        above: tipBox,
-        below: hintBoth,
+        below: formatErrorHint(hintBoth, tipBox),
       };
     case 'missingAndroidPath':
       return {
         message: `Missing required Android ${buildTypePrefix}build path`,
-        above: tipBox,
-        below: hintAndroid,
+        below: formatErrorHint(hintAndroid, tipBox),
       };
     case 'missingIosPath':
       return {
         message: `Missing required iOS ${buildTypePrefix}build path`,
-        above: tipBox,
-        below: hintIos,
+        below: formatErrorHint(hintIos, tipBox),
       };
     case 'invalidAndroidType':
       return {
         message: `Android ${buildTypePrefix}build path must be a string`,
-        above: tipBox,
-        below: hintAndroid,
+        below: formatErrorHint(hintAndroid, tipBox),
       };
     case 'invalidIosType':
       return {
         message: `iOS ${buildTypePrefix}build path must be a string`,
-        above: tipBox,
-        below: hintIos,
+        below: formatErrorHint(hintIos, tipBox),
       };
     case 'androidBuildNotFound':
       return {
         message: `Android ${buildTypePrefix}build not found at path: "${error.path}"`,
-        above: tipBox,
-        below: hintAndroid,
+        below: formatErrorHint(hintAndroid, tipBox),
       };
     case 'iosBuildNotFound':
       return {
         message: `iOS ${buildTypePrefix}build not found at path: "${error.path}"`,
-        above: tipBox,
-        below: hintIos,
+        below: formatErrorHint(hintIos, tipBox),
       };
     case 'invalidAndroidFileType':
       return {
         message: `Invalid Android ${buildTypePrefix}build file type. Expected: ${formatValidFileTypes(
           'android'
         )} file, got: "${error.path}"`,
-        above: tipBox,
-        below: hintAndroid,
+        below: formatErrorHint(hintAndroid, tipBox),
       };
     case 'invalidIosFileType':
       return {
         message: `Invalid iOS ${buildTypePrefix}build file type. Expected: ${formatValidFileTypes(
           'ios'
         )} file, got: "${error.path}"`,
-        above: tipBox,
-        below: hintIos,
+        below: formatErrorHint(hintIos, tipBox),
       };
   }
 }

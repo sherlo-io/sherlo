@@ -69,7 +69,7 @@ function getErrorMessage(params: Params): string {
       errorMessageParts.push(chalk.dim(`↳ Learn more: ${printLink(params.learnMoreLink)}`));
     }
     if (params.below) {
-      errorMessageParts.push(`\n${params.below}`);
+      errorMessageParts.push(params.below);
     }
   }
 

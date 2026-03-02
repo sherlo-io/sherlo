@@ -12,15 +12,7 @@ async function testEasUpdate(passedOptions: Options<THIS_COMMAND>): Promise<{ ur
 
   const commandParams = getValidatedCommandParams(
     { command: THIS_COMMAND, passedOptions },
-    {
-      /*
-       * Platform paths are not required upfront because we can reuse previously uploaded builds.
-       * We require platform paths later (getBinaryInfo()) if:
-       * - builds were not previously uploaded, or
-       * - previously uploaded builds fail validation (e.g. contain outdated sherlo version)
-       */
-      requirePlatformPaths: false,
-    }
+    { requirePlatformPaths: true }
   );
 
   const easUpdateData = await getValidatedEasUpdateData(commandParams);

@@ -18,14 +18,16 @@ import {
   TOKEN_OPTION,
 } from '../../../constants';
 import {
+  getBuildTypeLabel,
+  getBuildTypeTipBox,
+  getDeviceConfigHint,
   getPlatformsToTest,
   isValidToken,
+  logInfo,
   printLink,
   throwError,
   wrapInBox,
 } from '../../../helpers';
-import getBuildTypeLabel from '../../../helpers/getBuildTypeLabel';
-import getBuildTypeTipBox from '../../../helpers/getBuildTypeTipBox';
 import { Config, Options } from '../../../types';
 import { THIS_COMMAND } from '../constants';
 import { TestMethodCommand } from '../types';
@@ -46,9 +48,13 @@ async function collectMissingOptions(
     return missingOptions;
   }
 
+  const needsIos = requiredPlatforms.includes('ios') && !hasIos;
+  const needsAndroid = requiredPlatforms.includes('android') && !hasAndroid;
+  const hasBothPlatforms =
+    requiredPlatforms.includes('ios') && requiredPlatforms.includes('android');
+
   // Show build type tip if we need to collect any build paths
-  const needsBuildPath = (requiredPlatforms.includes('ios') && !hasIos) || (requiredPlatforms.includes('android') && !hasAndroid);
-  if (needsBuildPath) {
+  if (needsIos || needsAndroid) {
     const tipBox = getBuildTypeTipBox(command);
     if (tipBox) {
       console.log();
@@ -56,11 +62,17 @@ async function collectMissingOptions(
     }
   }
 
-  if (requiredPlatforms.includes('ios') && !hasIos) {
+  if (hasBothPlatforms && (needsIos || needsAndroid)) {
+    logInfo({
+      message: getDeviceConfigHint(),
+    });
+  }
+
+  if (needsIos) {
     missingOptions.ios = await collectIos(command);
   }
 
-  if (requiredPlatforms.includes('android') && !hasAndroid) {
+  if (needsAndroid) {
     missingOptions.android = await collectAndroid(command);
   }
 
