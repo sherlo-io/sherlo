@@ -3,7 +3,6 @@ import fs from 'fs';
 import {
   ANDROID_FILE_TYPES,
   ANDROID_OPTION,
-  DOCS_LINK,
   IOS_FILE_TYPES,
   IOS_OPTION,
   TEST_EAS_UPDATE_COMMAND,
@@ -123,12 +122,6 @@ type PlatformPathError =
   | { type: 'invalidAndroidFileType'; path: string }
   | { type: 'invalidIosFileType'; path: string };
 
-const learnMoreLink: { [platform in Platform | 'both']: string } = {
-  both: DOCS_LINK.config,
-  android: DOCS_LINK.configAndroid,
-  ios: DOCS_LINK.configIos,
-};
-
 function getError(error: PlatformPathError, command: Command) {
   const buildTypeLabel = getBuildTypeLabel(command);
   const buildTypePrefix = buildTypeLabel ? `${buildTypeLabel} ` : '';
@@ -167,23 +160,25 @@ function getError(error: PlatformPathError, command: Command) {
       };
     case 'invalidAndroidType':
       return {
-        message: 'Android build path must be a string',
-        learnMoreLink: learnMoreLink.android,
+        message: `Android ${buildTypePrefix}build path must be a string`,
+        above: tipBox,
       };
     case 'invalidIosType':
       return {
-        message: 'iOS build path must be a string',
-        learnMoreLink: learnMoreLink.ios,
+        message: `iOS ${buildTypePrefix}build path must be a string`,
+        above: tipBox,
       };
     case 'androidBuildNotFound':
       return {
         message: `Android ${buildTypePrefix}build not found at path: "${error.path}"`,
         above: tipBox,
+        below: `Pass the correct path using \`--${ANDROID_OPTION}\` option`,
       };
     case 'iosBuildNotFound':
       return {
         message: `iOS ${buildTypePrefix}build not found at path: "${error.path}"`,
         above: tipBox,
+        below: `Pass the correct path using \`--${IOS_OPTION}\` option`,
       };
     case 'invalidAndroidFileType':
       return {
@@ -191,6 +186,7 @@ function getError(error: PlatformPathError, command: Command) {
           'android'
         )} file, got: "${error.path}"`,
         above: tipBox,
+        below: `Pass the correct path using \`--${ANDROID_OPTION}\` option`,
       };
     case 'invalidIosFileType':
       return {
@@ -198,6 +194,7 @@ function getError(error: PlatformPathError, command: Command) {
           'ios'
         )} file, got: "${error.path}"`,
         above: tipBox,
+        below: `Pass the correct path using \`--${IOS_OPTION}\` option`,
       };
   }
 }
