@@ -114,13 +114,9 @@ type PlatformPathError =
   | { type: 'invalidAndroidFileType'; path: string }
   | { type: 'invalidIosFileType'; path: string };
 
-function formatErrorHint(passHint: string, tipBox: string | undefined) {
+function formatErrorHint(passHint: string) {
   const deviceHint = chalk.blue(`INFO: ${getDeviceConfigHint()}`);
-  const parts: string[] = [];
-  if (tipBox) parts.push(`${tipBox}\n${passHint}`);
-  else parts.push(passHint);
-  parts.push(deviceHint);
-  return parts.join('\n\n');
+  return `${passHint}\n\n${deviceHint}`;
 }
 
 function throwPlatformError(error: PlatformPathError, command: Command): never {
@@ -141,51 +137,60 @@ function getError(error: PlatformPathError, command: Command) {
     case 'missingBothPaths':
       return {
         message: `Missing required Android and iOS ${buildTypePrefix}build paths`,
-        below: formatErrorHint(hintBoth, tipBox),
+        above: tipBox,
+        below: formatErrorHint(hintBoth),
       };
     case 'missingAndroidPath':
       return {
         message: `Missing required Android ${buildTypePrefix}build path`,
-        below: formatErrorHint(hintAndroid, tipBox),
+        above: tipBox,
+        below: formatErrorHint(hintAndroid),
       };
     case 'missingIosPath':
       return {
         message: `Missing required iOS ${buildTypePrefix}build path`,
-        below: formatErrorHint(hintIos, tipBox),
+        above: tipBox,
+        below: formatErrorHint(hintIos),
       };
     case 'invalidAndroidType':
       return {
         message: `Android ${buildTypePrefix}build path must be a string`,
-        below: formatErrorHint(hintAndroid, tipBox),
+        above: tipBox,
+        below: formatErrorHint(hintAndroid),
       };
     case 'invalidIosType':
       return {
         message: `iOS ${buildTypePrefix}build path must be a string`,
-        below: formatErrorHint(hintIos, tipBox),
+        above: tipBox,
+        below: formatErrorHint(hintIos),
       };
     case 'androidBuildNotFound':
       return {
         message: `Android ${buildTypePrefix}build not found at path: "${error.path}"`,
-        below: formatErrorHint(hintAndroid, tipBox),
+        above: tipBox,
+        below: formatErrorHint(hintAndroid),
       };
     case 'iosBuildNotFound':
       return {
         message: `iOS ${buildTypePrefix}build not found at path: "${error.path}"`,
-        below: formatErrorHint(hintIos, tipBox),
+        above: tipBox,
+        below: formatErrorHint(hintIos),
       };
     case 'invalidAndroidFileType':
       return {
         message: `Invalid Android ${buildTypePrefix}build file type. Expected: ${formatValidFileTypes(
           'android'
         )} file, got: "${error.path}"`,
-        below: formatErrorHint(hintAndroid, tipBox),
+        above: tipBox,
+        below: formatErrorHint(hintAndroid),
       };
     case 'invalidIosFileType':
       return {
         message: `Invalid iOS ${buildTypePrefix}build file type. Expected: ${formatValidFileTypes(
           'ios'
         )} file, got: "${error.path}"`,
-        below: formatErrorHint(hintIos, tipBox),
+        above: tipBox,
+        below: formatErrorHint(hintIos),
       };
   }
 }
