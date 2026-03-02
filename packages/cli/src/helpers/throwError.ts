@@ -7,6 +7,7 @@ type Params = StandardErrorParams | UnexpectedErrorParams;
 type StandardErrorParams = {
   message: string;
   errorToReport?: Error;
+  hint?: string;
   learnMoreLink?: string;
   type?: Extract<ErrorType, 'default' | 'auth'>;
 };
@@ -56,8 +57,13 @@ function getErrorMessage(params: Params): string {
     const { stdout, stderr } = params.error;
     if (stdout) errorMessageParts.push(`\n${stdout}`);
     if (stderr) errorMessageParts.push(`\n${stderr}`);
-  } else if (params.learnMoreLink) {
-    errorMessageParts.push(chalk.dim(`↳ Learn more: ${printLink(params.learnMoreLink)}`));
+  } else {
+    if (params.learnMoreLink) {
+      errorMessageParts.push(chalk.dim(`↳ Learn more: ${printLink(params.learnMoreLink)}`));
+    }
+    if (params.hint) {
+      errorMessageParts.push(`\n${params.hint}`);
+    }
   }
 
   return errorMessageParts.join('\n') + '\n';

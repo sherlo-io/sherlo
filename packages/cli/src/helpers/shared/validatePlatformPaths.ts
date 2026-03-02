@@ -163,24 +163,27 @@ function getError(error: PlatformPathError, command: Command) {
   switch (error.type) {
     case 'missingBothPaths':
       return {
-        message:
-          `Missing required Android and iOS ${buildTypePrefix}build paths\nPass them using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or add them to the config file` +
-          missingEasUpdateNote,
+        message: `Missing required Android and iOS ${buildTypePrefix}build paths`,
         learnMoreLink: buildDocsLink || learnMoreLink.both,
+        hint:
+          `Pass them using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or add them to the config file` +
+          missingEasUpdateNote,
       };
     case 'missingAndroidPath':
       return {
-        message:
-          `Missing required Android ${buildTypePrefix}build path\nPass it using \`--${ANDROID_OPTION}\` option or add \`android\` to the config file` +
-          missingEasUpdateNote,
+        message: `Missing required Android ${buildTypePrefix}build path`,
         learnMoreLink: buildDocsLink || learnMoreLink.android,
+        hint:
+          `Pass it using \`--${ANDROID_OPTION}\` option or add \`android\` to the config file` +
+          missingEasUpdateNote,
       };
     case 'missingIosPath':
       return {
-        message:
-          `Missing required iOS ${buildTypePrefix}build path\nPass it using \`--${IOS_OPTION}\` option or add \`ios\` to the config file` +
-          missingEasUpdateNote,
+        message: `Missing required iOS ${buildTypePrefix}build path`,
         learnMoreLink: buildDocsLink || learnMoreLink.ios,
+        hint:
+          `Pass it using \`--${IOS_OPTION}\` option or add \`ios\` to the config file` +
+          missingEasUpdateNote,
       };
     case 'invalidAndroidType':
       return {
