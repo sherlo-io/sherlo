@@ -22,6 +22,7 @@ import {
   getBuildTypeTipBox,
   getPlatformsToTest,
   isValidToken,
+  logInfo,
   printLink,
   throwError,
   wrapInBox,
@@ -60,16 +61,11 @@ async function collectMissingOptions(
     }
   }
 
-  // Show multi-platform config hint when config has both platforms but user only needs one
   if (hasBothPlatforms && (needsIos || needsAndroid)) {
     console.log();
-    console.log(
-      wrapInBox({
-        title: 'Multi-platform config',
-        text: `Your config defines devices for both iOS and Android. If you only want to test one platform, edit your \`${DEFAULT_CONFIG_FILENAME}\` and remove the devices you don't need. Default devices were added by \`sherlo init\`.`,
-        type: 'default',
-      })
-    );
+    logInfo({
+      message: `Testing one platform? Remove unwanted devices from ${DEFAULT_CONFIG_FILENAME}`,
+    });
   }
 
   if (needsIos) {

@@ -126,7 +126,7 @@ function getError(error: PlatformPathError, command: Command) {
   const buildTypePrefix = buildTypeLabel ? `${buildTypeLabel} ` : '';
 
   const deviceConfigHint =
-    '\n\nIf you only want to test one platform, edit your `sherlo.config.json` and remove the devices you don\'t need. Default devices were added by `sherlo init`.';
+    '\nTesting one platform? Remove unwanted devices from `sherlo.config.json`';
 
   const tipBox = getBuildTypeTipBox(command);
 
