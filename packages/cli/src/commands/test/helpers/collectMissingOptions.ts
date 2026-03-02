@@ -158,9 +158,7 @@ function printBuildTypeTip(command: TestMethodCommand): void {
     console.log(
       wrapInBox({
         title: 'Build Type: Preview Simulator',
-        text: `Standard testing requires a preview simulator build\n(includes bundled JavaScript).\n\nCreate one using EAS CLI:\n  ${chalk.cyan(
-          'npx eas-cli build --local --profile preview-simulator --platform [android|ios]'
-        )}\n\nLearn more: ${printLink(DOCS_LINK.buildPreview)}`,
+        text: `Standard testing requires a ${chalk.bold('preview simulator')} build\n(includes bundled JavaScript).\n\nSee how to create one: ${printLink(DOCS_LINK.buildPreview)}`,
         type: 'default',
       })
     );
@@ -168,9 +166,7 @@ function printBuildTypeTip(command: TestMethodCommand): void {
     console.log(
       wrapInBox({
         title: 'Build Type: Development Simulator',
-        text: `EAS Update testing requires a development simulator build\n(supports Over-The-Air JavaScript updates).\n\nCreate one using EAS CLI:\n  ${chalk.cyan(
-          'npx eas-cli build --local --profile development-simulator --platform [android|ios]'
-        )}\n\nLearn more: ${printLink(DOCS_LINK.buildDevelopment)}`,
+        text: `EAS Update testing requires a ${chalk.bold('development simulator')} build\n(supports Over-The-Air JavaScript updates).\n\nSee how to create one: ${printLink(DOCS_LINK.buildDevelopment)}`,
         type: 'default',
       })
     );
