@@ -1,5 +1,4 @@
 import { Platform } from '@sherlo/api-types';
-import chalk from 'chalk';
 import fs from 'fs';
 import {
   ANDROID_FILE_TYPES,
@@ -151,42 +150,38 @@ const learnMoreLink: { [platform in Platform | 'both']: string } = {
 
 function getError(error: PlatformPathError, command: Command) {
   const buildTypeLabel = getBuildTypeLabel(command);
-  const buildTypeDocsLink = getBuildTypeDocsLink(command);
 
-  const buildTypeNote =
-    buildTypeLabel && buildTypeDocsLink
-      ? `\n\n${chalk.cyan('Tip:')} ${command} requires a ${buildTypeLabel} build. Learn more: ${buildTypeDocsLink}`
-      : '';
+  const buildTypeHint = buildTypeLabel ? ` Requires a ${buildTypeLabel} build.` : '';
 
   const missingEasUpdateNote =
     command === TEST_EAS_UPDATE_COMMAND
       ? `\n\nNote: Future \`sherlo ${TEST_EAS_UPDATE_COMMAND}\` runs won't require the build path, as previously uploaded build will be reused\n`
       : '';
 
+  // Use build docs link when available, fall back to config link
+  const buildDocsLink = getBuildTypeDocsLink(command);
+
   switch (error.type) {
     case 'missingBothPaths':
       return {
         message:
-          `Missing required Android and iOS build paths (based on devices in config). Pass them using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or add them to the config file` +
-          buildTypeNote +
+          `Missing required Android and iOS build paths (based on devices in config)${buildTypeHint}\nPass them using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or add them to the config file` +
           missingEasUpdateNote,
-        learnMoreLink: learnMoreLink.both,
+        learnMoreLink: buildDocsLink || learnMoreLink.both,
       };
     case 'missingAndroidPath':
       return {
         message:
-          `Missing required Android build path (based on devices in config). Pass it using \`--${ANDROID_OPTION}\` option or add \`android\` to the config file` +
-          buildTypeNote +
+          `Missing required Android build path (based on devices in config)${buildTypeHint}\nPass it using \`--${ANDROID_OPTION}\` option or add \`android\` to the config file` +
           missingEasUpdateNote,
-        learnMoreLink: learnMoreLink.android,
+        learnMoreLink: buildDocsLink || learnMoreLink.android,
       };
     case 'missingIosPath':
       return {
         message:
-          `Missing required iOS build path (based on devices in config). Pass it using \`--${IOS_OPTION}\` option or add \`ios\` to the config file` +
-          buildTypeNote +
+          `Missing required iOS build path (based on devices in config)${buildTypeHint}\nPass it using \`--${IOS_OPTION}\` option or add \`ios\` to the config file` +
           missingEasUpdateNote,
-        learnMoreLink: learnMoreLink.ios,
+        learnMoreLink: buildDocsLink || learnMoreLink.ios,
       };
     case 'invalidAndroidType':
       return {
@@ -200,13 +195,13 @@ function getError(error: PlatformPathError, command: Command) {
       };
     case 'androidBuildNotFound':
       return {
-        message: `Android build not found at path: "${error.path}"` + buildTypeNote,
-        learnMoreLink: learnMoreLink.android,
+        message: `Android build not found at path: "${error.path}"`,
+        learnMoreLink: buildDocsLink || learnMoreLink.android,
       };
     case 'iosBuildNotFound':
       return {
-        message: `iOS build not found at path: "${error.path}"` + buildTypeNote,
-        learnMoreLink: learnMoreLink.ios,
+        message: `iOS build not found at path: "${error.path}"`,
+        learnMoreLink: buildDocsLink || learnMoreLink.ios,
       };
     case 'invalidAndroidFileType':
       return {
