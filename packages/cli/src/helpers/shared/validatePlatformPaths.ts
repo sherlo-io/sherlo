@@ -133,52 +133,58 @@ function getError(error: PlatformPathError, command: Command) {
 
   const tipBox = getBuildTypeTipBox(command);
 
+  const hintBoth =
+    `Pass using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or add to the config file` +
+    missingEasUpdateNote;
+  const hintAndroid =
+    `Pass using \`--${ANDROID_OPTION}\` option or add \`android\` to the config file` +
+    missingEasUpdateNote;
+  const hintIos =
+    `Pass using \`--${IOS_OPTION}\` option or add \`ios\` to the config file` +
+    missingEasUpdateNote;
+
   switch (error.type) {
     case 'missingBothPaths':
       return {
         message: `Missing required Android and iOS ${buildTypePrefix}build paths`,
         above: tipBox,
-        below:
-          `Pass them using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or add them to the config file` +
-          missingEasUpdateNote,
+        below: hintBoth,
       };
     case 'missingAndroidPath':
       return {
         message: `Missing required Android ${buildTypePrefix}build path`,
         above: tipBox,
-        below:
-          `Pass it using \`--${ANDROID_OPTION}\` option or add \`android\` to the config file` +
-          missingEasUpdateNote,
+        below: hintAndroid,
       };
     case 'missingIosPath':
       return {
         message: `Missing required iOS ${buildTypePrefix}build path`,
         above: tipBox,
-        below:
-          `Pass it using \`--${IOS_OPTION}\` option or add \`ios\` to the config file` +
-          missingEasUpdateNote,
+        below: hintIos,
       };
     case 'invalidAndroidType':
       return {
         message: `Android ${buildTypePrefix}build path must be a string`,
         above: tipBox,
+        below: hintAndroid,
       };
     case 'invalidIosType':
       return {
         message: `iOS ${buildTypePrefix}build path must be a string`,
         above: tipBox,
+        below: hintIos,
       };
     case 'androidBuildNotFound':
       return {
         message: `Android ${buildTypePrefix}build not found at path: "${error.path}"`,
         above: tipBox,
-        below: `Pass the correct path using \`--${ANDROID_OPTION}\` option`,
+        below: hintAndroid,
       };
     case 'iosBuildNotFound':
       return {
         message: `iOS ${buildTypePrefix}build not found at path: "${error.path}"`,
         above: tipBox,
-        below: `Pass the correct path using \`--${IOS_OPTION}\` option`,
+        below: hintIos,
       };
     case 'invalidAndroidFileType':
       return {
@@ -186,7 +192,7 @@ function getError(error: PlatformPathError, command: Command) {
           'android'
         )} file, got: "${error.path}"`,
         above: tipBox,
-        below: `Pass the correct path using \`--${ANDROID_OPTION}\` option`,
+        below: hintAndroid,
       };
     case 'invalidIosFileType':
       return {
@@ -194,7 +200,7 @@ function getError(error: PlatformPathError, command: Command) {
           'ios'
         )} file, got: "${error.path}"`,
         above: tipBox,
-        below: `Pass the correct path using \`--${IOS_OPTION}\` option`,
+        below: hintIos,
       };
   }
 }
