@@ -6,6 +6,7 @@ type Params = StandardErrorParams | UnexpectedErrorParams;
 
 type StandardErrorParams = {
   message: string;
+  box?: string;
   errorToReport?: Error;
   hint?: string;
   learnMoreLink?: string;
@@ -48,7 +49,13 @@ function getErrorMessage(params: Params): string {
 
   const messageWithLabel = chalk.red(`${LABEL[params.type ?? 'default']}: ${message.trim()}`);
 
-  const errorMessageParts = [messageWithLabel];
+  const errorMessageParts: string[] = [];
+
+  if (params.type !== 'unexpected' && params.box) {
+    errorMessageParts.push(params.box + '\n');
+  }
+
+  errorMessageParts.push(messageWithLabel);
 
   if (params.type === 'unexpected') {
     const errorLocation = getErrorLocation();

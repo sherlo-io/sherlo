@@ -1,4 +1,5 @@
 import { Platform } from '@sherlo/api-types';
+import chalk from 'chalk';
 import fs from 'fs';
 import {
   ANDROID_FILE_TYPES,
@@ -10,7 +11,9 @@ import {
   TEST_STANDARD_COMMAND,
 } from '../../constants';
 import { Command } from '../../types';
+import printLink from '../printLink';
 import throwError from '../throwError';
+import wrapInBox from '../wrapInBox';
 
 function validatePlatformPaths({
   android,
@@ -131,6 +134,24 @@ function getBuildTypeDocsLink(command: Command): string | undefined {
   return undefined;
 }
 
+function getBuildTypeTipBox(command: Command): string | undefined {
+  if (command === TEST_STANDARD_COMMAND) {
+    return wrapInBox({
+      title: 'Preview Simulator Build',
+      text: `Standard testing requires a ${chalk.bold('preview simulator build')} (with JS bundle)\n\nHow to build: ${printLink(DOCS_LINK.buildPreview)}`,
+      type: 'default',
+    });
+  }
+  if (command === TEST_EAS_UPDATE_COMMAND) {
+    return wrapInBox({
+      title: 'Development Simulator Build',
+      text: `EAS Update testing requires a ${chalk.bold('development simulator build')} (without JS bundle)\n\nHow to build: ${printLink(DOCS_LINK.buildDevelopment)}`,
+      type: 'default',
+    });
+  }
+  return undefined;
+}
+
 type PlatformPathError =
   | { type: 'missingBothPaths' }
   | { type: 'missingAndroidPath' }
@@ -159,12 +180,13 @@ function getError(error: PlatformPathError, command: Command) {
 
   // Use build docs link when available, fall back to config link
   const buildDocsLink = getBuildTypeDocsLink(command);
+  const tipBox = getBuildTypeTipBox(command);
 
   switch (error.type) {
     case 'missingBothPaths':
       return {
         message: `Missing required Android and iOS ${buildTypePrefix}build paths`,
-        learnMoreLink: buildDocsLink || learnMoreLink.both,
+        box: tipBox,
         hint:
           `Pass them using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or add them to the config file` +
           missingEasUpdateNote,
@@ -172,7 +194,7 @@ function getError(error: PlatformPathError, command: Command) {
     case 'missingAndroidPath':
       return {
         message: `Missing required Android ${buildTypePrefix}build path`,
-        learnMoreLink: buildDocsLink || learnMoreLink.android,
+        box: tipBox,
         hint:
           `Pass it using \`--${ANDROID_OPTION}\` option or add \`android\` to the config file` +
           missingEasUpdateNote,
@@ -180,7 +202,7 @@ function getError(error: PlatformPathError, command: Command) {
     case 'missingIosPath':
       return {
         message: `Missing required iOS ${buildTypePrefix}build path`,
-        learnMoreLink: buildDocsLink || learnMoreLink.ios,
+        box: tipBox,
         hint:
           `Pass it using \`--${IOS_OPTION}\` option or add \`ios\` to the config file` +
           missingEasUpdateNote,
