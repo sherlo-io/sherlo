@@ -63,7 +63,6 @@ async function collectMissingOptions(
   }
 
   if (hasBothPlatforms && (needsIos || needsAndroid)) {
-    console.log();
     logInfo({
       message: getDeviceConfigHint(),
     });

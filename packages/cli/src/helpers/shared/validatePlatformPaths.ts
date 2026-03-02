@@ -122,82 +122,73 @@ type PlatformPathError =
   | { type: 'invalidAndroidFileType'; path: string }
   | { type: 'invalidIosFileType'; path: string };
 
+function buildBelow(passHint: string, tipBox: string | undefined) {
+  const parts: string[] = [];
+  if (tipBox) parts.push(`${tipBox}\n${passHint}`);
+  else parts.push(passHint);
+  parts.push(getDeviceConfigHint());
+  return parts.join('\n\n');
+}
+
 function getError(error: PlatformPathError, command: Command) {
   const buildTypeLabel = getBuildTypeLabel(command);
   const buildTypePrefix = buildTypeLabel ? `${buildTypeLabel} ` : '';
 
-  const deviceConfigHint = `\n${getDeviceConfigHint()}`;
-
   const tipBox = getBuildTypeTipBox(command);
 
-  const hintBoth =
-    `Pass using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or set \`android\` and \`ios\` in the config file` +
-    deviceConfigHint;
-  const hintAndroid =
-    `Pass using \`--${ANDROID_OPTION}\` option or set \`android\` in the config file` +
-    deviceConfigHint;
-  const hintIos =
-    `Pass using \`--${IOS_OPTION}\` option or set \`ios\` in the config file` +
-    deviceConfigHint;
+  const hintBoth = `Pass using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or set \`android\` and \`ios\` in the config file`;
+  const hintAndroid = `Pass using \`--${ANDROID_OPTION}\` option or set \`android\` in the config file`;
+  const hintIos = `Pass using \`--${IOS_OPTION}\` option or set \`ios\` in the config file`;
 
   switch (error.type) {
     case 'missingBothPaths':
       return {
         message: `Missing required Android and iOS ${buildTypePrefix}build paths`,
-        above: tipBox,
-        below: hintBoth,
+        below: buildBelow(hintBoth, tipBox),
       };
     case 'missingAndroidPath':
       return {
         message: `Missing required Android ${buildTypePrefix}build path`,
-        above: tipBox,
-        below: hintAndroid,
+        below: buildBelow(hintAndroid, tipBox),
       };
     case 'missingIosPath':
       return {
         message: `Missing required iOS ${buildTypePrefix}build path`,
-        above: tipBox,
-        below: hintIos,
+        below: buildBelow(hintIos, tipBox),
       };
     case 'invalidAndroidType':
       return {
         message: `Android ${buildTypePrefix}build path must be a string`,
-        above: tipBox,
-        below: hintAndroid,
+        below: buildBelow(hintAndroid, tipBox),
       };
     case 'invalidIosType':
       return {
         message: `iOS ${buildTypePrefix}build path must be a string`,
-        above: tipBox,
-        below: hintIos,
+        below: buildBelow(hintIos, tipBox),
       };
     case 'androidBuildNotFound':
       return {
         message: `Android ${buildTypePrefix}build not found at path: "${error.path}"`,
-        above: tipBox,
-        below: hintAndroid,
+        below: buildBelow(hintAndroid, tipBox),
       };
     case 'iosBuildNotFound':
       return {
         message: `iOS ${buildTypePrefix}build not found at path: "${error.path}"`,
-        above: tipBox,
-        below: hintIos,
+        below: buildBelow(hintIos, tipBox),
       };
     case 'invalidAndroidFileType':
       return {
         message: `Invalid Android ${buildTypePrefix}build file type. Expected: ${formatValidFileTypes(
           'android'
         )} file, got: "${error.path}"`,
-        above: tipBox,
-        below: hintAndroid,
+        below: buildBelow(hintAndroid, tipBox),
       };
     case 'invalidIosFileType':
       return {
         message: `Invalid iOS ${buildTypePrefix}build file type. Expected: ${formatValidFileTypes(
           'ios'
         )} file, got: "${error.path}"`,
-        above: tipBox,
-        below: hintIos,
+        below: buildBelow(hintIos, tipBox),
       };
   }
 }
