@@ -9,7 +9,6 @@ import {
   APP_DOMAIN,
   DEFAULT_CONFIG_FILENAME,
   DEFAULT_PROJECT_ROOT,
-  DEVICE_CONFIG_HINT,
   IOS_FILE_TYPES,
   IOS_OPTION,
   PLATFORM_LABEL,
@@ -21,6 +20,7 @@ import {
 import {
   getBuildTypeLabel,
   getBuildTypeTipBox,
+  getDeviceConfigHint,
   getPlatformsToTest,
   isValidToken,
   logInfo,
@@ -65,7 +65,7 @@ async function collectMissingOptions(
   if (hasBothPlatforms && (needsIos || needsAndroid)) {
     console.log();
     logInfo({
-      message: DEVICE_CONFIG_HINT,
+      message: getDeviceConfigHint(),
     });
   }
 

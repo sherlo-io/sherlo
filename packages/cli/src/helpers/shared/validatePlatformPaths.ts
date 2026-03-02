@@ -3,13 +3,13 @@ import fs from 'fs';
 import {
   ANDROID_FILE_TYPES,
   ANDROID_OPTION,
-  DEVICE_CONFIG_HINT,
   IOS_FILE_TYPES,
   IOS_OPTION,
 } from '../../constants';
 import { Command } from '../../types';
 import getBuildTypeLabel from '../getBuildTypeLabel';
 import getBuildTypeTipBox from '../getBuildTypeTipBox';
+import getDeviceConfigHint from '../getDeviceConfigHint';
 import throwError from '../throwError';
 
 function validatePlatformPaths({
@@ -126,7 +126,7 @@ function getError(error: PlatformPathError, command: Command) {
   const buildTypeLabel = getBuildTypeLabel(command);
   const buildTypePrefix = buildTypeLabel ? `${buildTypeLabel} ` : '';
 
-  const deviceConfigHint = `\n${DEVICE_CONFIG_HINT}`;
+  const deviceConfigHint = `\n${getDeviceConfigHint()}`;
 
   const tipBox = getBuildTypeTipBox(command);
 

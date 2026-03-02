@@ -42,7 +42,6 @@ export const IOS_FILE_TYPES = ['.app', '.tar.gz', '.tar'] as const;
 
 export const DEFAULT_CONFIG_FILENAME = 'sherlo.config.json';
 export const DEFAULT_PROJECT_ROOT = '.';
-export const DEVICE_CONFIG_HINT = `Testing one platform? Remove unwanted devices from ${DEFAULT_CONFIG_FILENAME}`;
 
 export const SHERLO_TEMP_DIRECTORY = '.sherlo';
 export const SHERLO_TEMP_DATA_FILENAME = 'data.json';

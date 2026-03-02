@@ -7,6 +7,7 @@ export { default as uploadOrPrintBinaryReuse } from './uploadOrPrintBinaryReuse'
 export { default as getAppBuildUrl } from './getAppBuildUrl';
 export { default as getBuildTypeLabel } from './getBuildTypeLabel';
 export { default as getBuildTypeTipBox } from './getBuildTypeTipBox';
+export { default as getDeviceConfigHint } from './getDeviceConfigHint';
 export { default as getBuildRunConfig } from './getBuildRunConfig';
 export { default as getCwd } from './getCwd';
 export { default as getErrorWithCustomMessage } from './getErrorWithCustomMessage';
