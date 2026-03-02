@@ -1,5 +1,5 @@
-import { TEST_EAS_UPDATE_COMMAND, TEST_STANDARD_COMMAND } from '../../constants';
-import { Command } from '../../types';
+import { TEST_EAS_UPDATE_COMMAND, TEST_STANDARD_COMMAND } from '../constants';
+import { Command } from '../types';
 
 function getBuildTypeLabel(command: Command): string {
   if (command === TEST_STANDARD_COMMAND) {

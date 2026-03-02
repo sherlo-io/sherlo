@@ -1,8 +1,8 @@
 import chalk from 'chalk';
-import { DOCS_LINK, TEST_EAS_UPDATE_COMMAND, TEST_STANDARD_COMMAND } from '../../constants';
-import { Command } from '../../types';
-import printLink from '../printLink';
-import wrapInBox from '../wrapInBox';
+import { DOCS_LINK, TEST_EAS_UPDATE_COMMAND, TEST_STANDARD_COMMAND } from '../constants';
+import { Command } from '../types';
+import printLink from './printLink';
+import wrapInBox from './wrapInBox';
 
 function getBuildTypeTipBox(command: Command): string | undefined {
   if (command === TEST_STANDARD_COMMAND) {

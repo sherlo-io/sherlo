@@ -10,9 +10,9 @@ import {
 } from '../../constants';
 import { Command } from '../../types';
 import throwError from '../throwError';
-import getBuildTypeDocsLink from './getBuildTypeDocsLink';
-import getBuildTypeLabel from './getBuildTypeLabel';
-import getBuildTypeTipBox from './getBuildTypeTipBox';
+import getBuildTypeDocsLink from '../getBuildTypeDocsLink';
+import getBuildTypeLabel from '../getBuildTypeLabel';
+import getBuildTypeTipBox from '../getBuildTypeTipBox';
 
 function validatePlatformPaths({
   android,

@@ -24,8 +24,8 @@ import {
   throwError,
   wrapInBox,
 } from '../../../helpers';
-import getBuildTypeLabel from '../../../helpers/shared/getBuildTypeLabel';
-import getBuildTypeTipBox from '../../../helpers/shared/getBuildTypeTipBox';
+import getBuildTypeLabel from '../../../helpers/getBuildTypeLabel';
+import getBuildTypeTipBox from '../../../helpers/getBuildTypeTipBox';
 import { Config, Options } from '../../../types';
 import { THIS_COMMAND } from '../constants';
 import { TestMethodCommand } from '../types';
