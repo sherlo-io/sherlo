@@ -10,7 +10,6 @@ import {
 } from '../../constants';
 import { Command } from '../../types';
 import throwError from '../throwError';
-import getBuildTypeDocsLink from '../getBuildTypeDocsLink';
 import getBuildTypeLabel from '../getBuildTypeLabel';
 import getBuildTypeTipBox from '../getBuildTypeTipBox';
 
@@ -139,8 +138,6 @@ function getError(error: PlatformPathError, command: Command) {
       ? `\n\nNote: Future \`sherlo ${TEST_EAS_UPDATE_COMMAND}\` runs won't require the build path, as previously uploaded build will be reused\n`
       : '';
 
-  // Use build docs link when available, fall back to config link
-  const buildDocsLink = getBuildTypeDocsLink(command);
   const tipBox = getBuildTypeTipBox(command);
 
   switch (error.type) {
@@ -180,27 +177,27 @@ function getError(error: PlatformPathError, command: Command) {
       };
     case 'androidBuildNotFound':
       return {
-        message: `Android build not found at path: "${error.path}"`,
-        learnMoreLink: buildDocsLink || learnMoreLink.android,
+        message: `Android ${buildTypePrefix}build not found at path: "${error.path}"`,
+        above: tipBox,
       };
     case 'iosBuildNotFound':
       return {
-        message: `iOS build not found at path: "${error.path}"`,
-        learnMoreLink: buildDocsLink || learnMoreLink.ios,
+        message: `iOS ${buildTypePrefix}build not found at path: "${error.path}"`,
+        above: tipBox,
       };
     case 'invalidAndroidFileType':
       return {
-        message: `Invalid Android build file type. Expected: ${formatValidFileTypes(
+        message: `Invalid Android ${buildTypePrefix}build file type. Expected: ${formatValidFileTypes(
           'android'
         )} file, got: "${error.path}"`,
-        learnMoreLink: learnMoreLink.android,
+        above: tipBox,
       };
     case 'invalidIosFileType':
       return {
-        message: `Invalid iOS build file type. Expected: ${formatValidFileTypes(
+        message: `Invalid iOS ${buildTypePrefix}build file type. Expected: ${formatValidFileTypes(
           'ios'
         )} file, got: "${error.path}"`,
-        learnMoreLink: learnMoreLink.ios,
+        above: tipBox,
       };
   }
 }
