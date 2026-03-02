@@ -4,27 +4,7 @@ import { Command } from '../../types';
 import printLink from '../printLink';
 import wrapInBox from '../wrapInBox';
 
-export function getBuildTypeLabel(command: Command): string {
-  if (command === TEST_STANDARD_COMMAND) {
-    return 'preview simulator';
-  }
-  if (command === TEST_EAS_UPDATE_COMMAND) {
-    return 'development simulator';
-  }
-  return '';
-}
-
-export function getBuildTypeDocsLink(command: Command): string | undefined {
-  if (command === TEST_STANDARD_COMMAND) {
-    return DOCS_LINK.buildPreview;
-  }
-  if (command === TEST_EAS_UPDATE_COMMAND) {
-    return DOCS_LINK.buildDevelopment;
-  }
-  return undefined;
-}
-
-export function getBuildTypeTipBox(command: Command): string | undefined {
+function getBuildTypeTipBox(command: Command): string | undefined {
   if (command === TEST_STANDARD_COMMAND) {
     return wrapInBox({
       title: 'Preview Simulator Build',
@@ -41,3 +21,5 @@ export function getBuildTypeTipBox(command: Command): string | undefined {
   }
   return undefined;
 }
+
+export default getBuildTypeTipBox;

@@ -18,14 +18,14 @@ import {
   TOKEN_OPTION,
 } from '../../../constants';
 import {
-  getBuildTypeLabel,
-  getBuildTypeTipBox,
   getPlatformsToTest,
   isValidToken,
   printLink,
   throwError,
   wrapInBox,
 } from '../../../helpers';
+import getBuildTypeLabel from '../../../helpers/shared/getBuildTypeLabel';
+import getBuildTypeTipBox from '../../../helpers/shared/getBuildTypeTipBox';
 import { Config, Options } from '../../../types';
 import { THIS_COMMAND } from '../constants';
 import { TestMethodCommand } from '../types';

@@ -10,7 +10,9 @@ import {
 } from '../../constants';
 import { Command } from '../../types';
 import throwError from '../throwError';
-import { getBuildTypeDocsLink, getBuildTypeLabel, getBuildTypeTipBox } from './buildTypeInfo';
+import getBuildTypeDocsLink from './getBuildTypeDocsLink';
+import getBuildTypeLabel from './getBuildTypeLabel';
+import getBuildTypeTipBox from './getBuildTypeTipBox';
 
 function validatePlatformPaths({
   android,
@@ -145,24 +147,24 @@ function getError(error: PlatformPathError, command: Command) {
     case 'missingBothPaths':
       return {
         message: `Missing required Android and iOS ${buildTypePrefix}build paths`,
-        box: tipBox,
-        hint:
+        above: tipBox,
+        below:
           `Pass them using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or add them to the config file` +
           missingEasUpdateNote,
       };
     case 'missingAndroidPath':
       return {
         message: `Missing required Android ${buildTypePrefix}build path`,
-        box: tipBox,
-        hint:
+        above: tipBox,
+        below:
           `Pass it using \`--${ANDROID_OPTION}\` option or add \`android\` to the config file` +
           missingEasUpdateNote,
       };
     case 'missingIosPath':
       return {
         message: `Missing required iOS ${buildTypePrefix}build path`,
-        box: tipBox,
-        hint:
+        above: tipBox,
+        below:
           `Pass it using \`--${IOS_OPTION}\` option or add \`ios\` to the config file` +
           missingEasUpdateNote,
       };

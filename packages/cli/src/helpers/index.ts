@@ -28,5 +28,3 @@ export { default as uploadOrReuseBuildsAndRunTests } from './uploadOrReuseBuilds
 export { default as withCommandTimeout } from './withCommandTimeout';
 export { default as wrapInBox } from './wrapInBox';
 
-export { getBuildTypeDocsLink, getBuildTypeLabel, getBuildTypeTipBox } from './shared';
-
