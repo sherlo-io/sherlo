@@ -9,8 +9,8 @@ import {
 import { Command } from '../../types';
 import getBuildTypeLabel from '../getBuildTypeLabel';
 import getBuildTypeTipBox from '../getBuildTypeTipBox';
+import chalk from 'chalk';
 import getDeviceConfigHint from '../getDeviceConfigHint';
-import logInfo from '../logInfo';
 import throwError from '../throwError';
 
 function validatePlatformPaths({
@@ -115,12 +115,15 @@ type PlatformPathError =
   | { type: 'invalidIosFileType'; path: string };
 
 function formatErrorHint(passHint: string, tipBox: string | undefined) {
-  if (tipBox) return `${tipBox}\n${passHint}`;
-  return passHint;
+  const deviceHint = chalk.blue(`INFO: ${getDeviceConfigHint()}`);
+  const parts: string[] = [];
+  if (tipBox) parts.push(`${tipBox}\n${passHint}`);
+  else parts.push(passHint);
+  parts.push(deviceHint);
+  return parts.join('\n\n');
 }
 
 function throwPlatformError(error: PlatformPathError, command: Command): never {
-  logInfo({ message: getDeviceConfigHint() });
   throwError(getError(error, command));
 }
 
