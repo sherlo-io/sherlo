@@ -134,13 +134,13 @@ function getError(error: PlatformPathError, command: Command) {
   const tipBox = getBuildTypeTipBox(command);
 
   const hintBoth =
-    `Pass using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or add to the config file` +
+    `Pass using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or set \`android\` and \`ios\` in the config file` +
     missingEasUpdateNote;
   const hintAndroid =
-    `Pass using \`--${ANDROID_OPTION}\` option or add \`android\` to the config file` +
+    `Pass using \`--${ANDROID_OPTION}\` option or set \`android\` in the config file` +
     missingEasUpdateNote;
   const hintIos =
-    `Pass using \`--${IOS_OPTION}\` option or add \`ios\` to the config file` +
+    `Pass using \`--${IOS_OPTION}\` option or set \`ios\` in the config file` +
     missingEasUpdateNote;
 
   switch (error.type) {
