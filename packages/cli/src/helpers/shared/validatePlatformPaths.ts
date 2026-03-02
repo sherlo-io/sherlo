@@ -3,6 +3,7 @@ import fs from 'fs';
 import {
   ANDROID_FILE_TYPES,
   ANDROID_OPTION,
+  DEVICE_CONFIG_HINT,
   IOS_FILE_TYPES,
   IOS_OPTION,
 } from '../../constants';
@@ -125,8 +126,7 @@ function getError(error: PlatformPathError, command: Command) {
   const buildTypeLabel = getBuildTypeLabel(command);
   const buildTypePrefix = buildTypeLabel ? `${buildTypeLabel} ` : '';
 
-  const deviceConfigHint =
-    '\nTesting one platform? Remove unwanted devices from `sherlo.config.json`';
+  const deviceConfigHint = `\n${DEVICE_CONFIG_HINT}`;
 
   const tipBox = getBuildTypeTipBox(command);
 

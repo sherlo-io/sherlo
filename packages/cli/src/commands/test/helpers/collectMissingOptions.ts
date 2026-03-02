@@ -9,6 +9,7 @@ import {
   APP_DOMAIN,
   DEFAULT_CONFIG_FILENAME,
   DEFAULT_PROJECT_ROOT,
+  DEVICE_CONFIG_HINT,
   IOS_FILE_TYPES,
   IOS_OPTION,
   PLATFORM_LABEL,
@@ -64,7 +65,7 @@ async function collectMissingOptions(
   if (hasBothPlatforms && (needsIos || needsAndroid)) {
     console.log();
     logInfo({
-      message: `Testing one platform? Remove unwanted devices from ${DEFAULT_CONFIG_FILENAME}`,
+      message: DEVICE_CONFIG_HINT,
     });
   }
 
