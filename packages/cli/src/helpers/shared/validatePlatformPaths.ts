@@ -5,7 +5,6 @@ import {
   ANDROID_OPTION,
   IOS_FILE_TYPES,
   IOS_OPTION,
-  TEST_EAS_UPDATE_COMMAND,
 } from '../../constants';
 import { Command } from '../../types';
 import getBuildTypeLabel from '../getBuildTypeLabel';
@@ -126,11 +125,6 @@ function getError(error: PlatformPathError, command: Command) {
   const buildTypeLabel = getBuildTypeLabel(command);
   const buildTypePrefix = buildTypeLabel ? `${buildTypeLabel} ` : '';
 
-  const missingEasUpdateNote =
-    command === TEST_EAS_UPDATE_COMMAND
-      ? `\n\nNote: Future \`sherlo ${TEST_EAS_UPDATE_COMMAND}\` runs won't require the build path, as previously uploaded build will be reused`
-      : '';
-
   const deviceConfigHint =
     '\n\nIf you only want to test one platform, edit your `sherlo.config.json` and remove the devices you don\'t need. Default devices were added by `sherlo init`.';
 
@@ -138,16 +132,13 @@ function getError(error: PlatformPathError, command: Command) {
 
   const hintBoth =
     `Pass using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or set \`android\` and \`ios\` in the config file` +
-    deviceConfigHint +
-    missingEasUpdateNote;
+    deviceConfigHint;
   const hintAndroid =
     `Pass using \`--${ANDROID_OPTION}\` option or set \`android\` in the config file` +
-    deviceConfigHint +
-    missingEasUpdateNote;
+    deviceConfigHint;
   const hintIos =
     `Pass using \`--${IOS_OPTION}\` option or set \`ios\` in the config file` +
-    deviceConfigHint +
-    missingEasUpdateNote;
+    deviceConfigHint;
 
   switch (error.type) {
     case 'missingBothPaths':
