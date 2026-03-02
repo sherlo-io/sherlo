@@ -158,7 +158,7 @@ function printBuildTypeTip(command: TestMethodCommand): void {
     console.log(
       wrapInBox({
         title: 'Build Type: Preview Simulator',
-        text: `Standard testing requires a ${chalk.bold('preview simulator')} build (includes bundled JavaScript).\n\nLearn more: ${printLink(DOCS_LINK.buildPreview)}`,
+        text: `Standard testing requires a ${chalk.bold('preview simulator')} build\n(includes bundled JavaScript)\n\nLearn more: ${printLink(DOCS_LINK.buildPreview)}`,
         type: 'default',
       })
     );
@@ -166,7 +166,7 @@ function printBuildTypeTip(command: TestMethodCommand): void {
     console.log(
       wrapInBox({
         title: 'Build Type: Development Simulator',
-        text: `EAS Update testing requires a ${chalk.bold('development simulator')} build (supports OTA JavaScript updates).\n\nLearn more: ${printLink(DOCS_LINK.buildDevelopment)}`,
+        text: `EAS Update testing requires a ${chalk.bold('development simulator')} build\n(supports OTA JavaScript updates)\n\nLearn more: ${printLink(DOCS_LINK.buildDevelopment)}`,
         type: 'default',
       })
     );

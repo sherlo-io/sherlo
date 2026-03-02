@@ -150,8 +150,7 @@ const learnMoreLink: { [platform in Platform | 'both']: string } = {
 
 function getError(error: PlatformPathError, command: Command) {
   const buildTypeLabel = getBuildTypeLabel(command);
-
-  const buildTypeHint = buildTypeLabel ? ` Requires a ${buildTypeLabel} build.` : '';
+  const buildTypePrefix = buildTypeLabel ? `${buildTypeLabel} ` : '';
 
   const missingEasUpdateNote =
     command === TEST_EAS_UPDATE_COMMAND
@@ -165,21 +164,21 @@ function getError(error: PlatformPathError, command: Command) {
     case 'missingBothPaths':
       return {
         message:
-          `Missing required Android and iOS build paths (based on devices in config)${buildTypeHint}\nPass them using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or add them to the config file` +
+          `Missing required Android and iOS ${buildTypePrefix}build paths\nPass them using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or add them to the config file` +
           missingEasUpdateNote,
         learnMoreLink: buildDocsLink || learnMoreLink.both,
       };
     case 'missingAndroidPath':
       return {
         message:
-          `Missing required Android build path (based on devices in config)${buildTypeHint}\nPass it using \`--${ANDROID_OPTION}\` option or add \`android\` to the config file` +
+          `Missing required Android ${buildTypePrefix}build path\nPass it using \`--${ANDROID_OPTION}\` option or add \`android\` to the config file` +
           missingEasUpdateNote,
         learnMoreLink: buildDocsLink || learnMoreLink.android,
       };
     case 'missingIosPath':
       return {
         message:
-          `Missing required iOS build path (based on devices in config)${buildTypeHint}\nPass it using \`--${IOS_OPTION}\` option or add \`ios\` to the config file` +
+          `Missing required iOS ${buildTypePrefix}build path\nPass it using \`--${IOS_OPTION}\` option or add \`ios\` to the config file` +
           missingEasUpdateNote,
         learnMoreLink: buildDocsLink || learnMoreLink.ios,
       };
