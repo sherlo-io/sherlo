@@ -18,6 +18,8 @@ import {
   TOKEN_OPTION,
 } from '../../../constants';
 import {
+  getBuildTypeLabel,
+  getBuildTypeTipBox,
   getPlatformsToTest,
   isValidToken,
   printLink,
@@ -49,6 +51,16 @@ async function collectMissingOptions(
   const hasBothPlatforms =
     requiredPlatforms.includes('ios') && requiredPlatforms.includes('android');
 
+  // Show build type tip if we need to collect any build paths
+  if (needsIos || needsAndroid) {
+    const tipBox = getBuildTypeTipBox(command);
+    if (tipBox) {
+      console.log();
+      console.log(tipBox);
+    }
+  }
+
+  // Show multi-platform config hint when config has both platforms but user only needs one
   if (hasBothPlatforms && (needsIos || needsAndroid)) {
     console.log();
     console.log(
@@ -160,13 +172,6 @@ async function collectToken(): Promise<string> {
   return token;
 }
 
-const BUILD_TYPE_LABEL: {
-  [key in typeof TEST_STANDARD_COMMAND | typeof TEST_EAS_UPDATE_COMMAND]: string;
-} = {
-  [TEST_STANDARD_COMMAND]: 'preview simulator',
-  [TEST_EAS_UPDATE_COMMAND]: 'development simulator',
-};
-
 async function collectIos(
   command: typeof TEST_STANDARD_COMMAND | typeof TEST_EAS_UPDATE_COMMAND
 ): Promise<string> {
@@ -175,7 +180,7 @@ async function collectIos(
   let iosPath;
   try {
     iosPath = await input({
-      message: `Enter path to iOS ${BUILD_TYPE_LABEL[command]} build (${IOS_FILE_TYPES.join(', ')})${chalk.reset.dim(
+      message: `Enter path to iOS ${getBuildTypeLabel(command)} build (${IOS_FILE_TYPES.join(', ')})${chalk.reset.dim(
         ` (--${IOS_OPTION})`
       )}:`,
       validate: (value: string) => validateBuildPath(value, 'ios'),
@@ -201,7 +206,7 @@ async function collectAndroid(
   let androidPath;
   try {
     androidPath = await input({
-      message: `Enter path to Android ${BUILD_TYPE_LABEL[command]} build (${ANDROID_FILE_TYPES.join(
+      message: `Enter path to Android ${getBuildTypeLabel(command)} build (${ANDROID_FILE_TYPES.join(
         ', '
       )})${chalk.reset.dim(` (--${ANDROID_OPTION})`)}:`,
       validate: (value: string) => validateBuildPath(value, 'android'),

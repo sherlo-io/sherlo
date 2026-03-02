@@ -3,12 +3,13 @@ import fs from 'fs';
 import {
   ANDROID_FILE_TYPES,
   ANDROID_OPTION,
-  DOCS_LINK,
   IOS_FILE_TYPES,
   IOS_OPTION,
   TEST_EAS_UPDATE_COMMAND,
 } from '../../constants';
 import { Command } from '../../types';
+import getBuildTypeLabel from '../getBuildTypeLabel';
+import getBuildTypeTipBox from '../getBuildTypeTipBox';
 import throwError from '../throwError';
 
 function validatePlatformPaths({
@@ -121,13 +122,10 @@ type PlatformPathError =
   | { type: 'invalidAndroidFileType'; path: string }
   | { type: 'invalidIosFileType'; path: string };
 
-const learnMoreLink: { [platform in Platform | 'both']: string } = {
-  both: DOCS_LINK.config,
-  android: DOCS_LINK.configAndroid,
-  ios: DOCS_LINK.configIos,
-};
-
 function getError(error: PlatformPathError, command: Command) {
+  const buildTypeLabel = getBuildTypeLabel(command);
+  const buildTypePrefix = buildTypeLabel ? `${buildTypeLabel} ` : '';
+
   const missingEasUpdateNote =
     command === TEST_EAS_UPDATE_COMMAND
       ? `\n\nNote: Future \`sherlo ${TEST_EAS_UPDATE_COMMAND}\` runs won't require the build path, as previously uploaded build will be reused`
@@ -136,64 +134,79 @@ function getError(error: PlatformPathError, command: Command) {
   const deviceConfigHint =
     '\n\nIf you only want to test one platform, edit your `sherlo.config.json` and remove the devices you don\'t need. Default devices were added by `sherlo init`.';
 
+  const tipBox = getBuildTypeTipBox(command);
+
+  const hintBoth =
+    `Pass using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or set \`android\` and \`ios\` in the config file` +
+    deviceConfigHint +
+    missingEasUpdateNote;
+  const hintAndroid =
+    `Pass using \`--${ANDROID_OPTION}\` option or set \`android\` in the config file` +
+    deviceConfigHint +
+    missingEasUpdateNote;
+  const hintIos =
+    `Pass using \`--${IOS_OPTION}\` option or set \`ios\` in the config file` +
+    deviceConfigHint +
+    missingEasUpdateNote;
+
   switch (error.type) {
     case 'missingBothPaths':
       return {
-        message:
-          `Missing required Android and iOS build paths (based on devices in config). Pass them using \`--${ANDROID_OPTION}\` and \`--${IOS_OPTION}\` options or add them to the config file.` +
-          deviceConfigHint +
-          missingEasUpdateNote,
-        learnMoreLink: learnMoreLink.both,
+        message: `Missing required Android and iOS ${buildTypePrefix}build paths`,
+        above: tipBox,
+        below: hintBoth,
       };
     case 'missingAndroidPath':
       return {
-        message:
-          `Missing required Android build path (based on devices in config). Pass it using \`--${ANDROID_OPTION}\` option or add \`android\` to the config file.` +
-          deviceConfigHint +
-          missingEasUpdateNote,
-        learnMoreLink: learnMoreLink.android,
+        message: `Missing required Android ${buildTypePrefix}build path`,
+        above: tipBox,
+        below: hintAndroid,
       };
     case 'missingIosPath':
       return {
-        message:
-          `Missing required iOS build path (based on devices in config). Pass it using \`--${IOS_OPTION}\` option or add \`ios\` to the config file.` +
-          deviceConfigHint +
-          missingEasUpdateNote,
-        learnMoreLink: learnMoreLink.ios,
+        message: `Missing required iOS ${buildTypePrefix}build path`,
+        above: tipBox,
+        below: hintIos,
       };
     case 'invalidAndroidType':
       return {
-        message: 'Android build path must be a string',
-        learnMoreLink: learnMoreLink.android,
+        message: `Android ${buildTypePrefix}build path must be a string`,
+        above: tipBox,
+        below: hintAndroid,
       };
     case 'invalidIosType':
       return {
-        message: 'iOS build path must be a string',
-        learnMoreLink: learnMoreLink.ios,
+        message: `iOS ${buildTypePrefix}build path must be a string`,
+        above: tipBox,
+        below: hintIos,
       };
     case 'androidBuildNotFound':
       return {
-        message: `Android build not found at path: "${error.path}"`,
-        learnMoreLink: learnMoreLink.android,
+        message: `Android ${buildTypePrefix}build not found at path: "${error.path}"`,
+        above: tipBox,
+        below: hintAndroid,
       };
     case 'iosBuildNotFound':
       return {
-        message: `iOS build not found at path: "${error.path}"`,
-        learnMoreLink: learnMoreLink.ios,
+        message: `iOS ${buildTypePrefix}build not found at path: "${error.path}"`,
+        above: tipBox,
+        below: hintIos,
       };
     case 'invalidAndroidFileType':
       return {
-        message: `Invalid Android build file type. Expected: ${formatValidFileTypes(
+        message: `Invalid Android ${buildTypePrefix}build file type. Expected: ${formatValidFileTypes(
           'android'
         )} file, got: "${error.path}"`,
-        learnMoreLink: learnMoreLink.android,
+        above: tipBox,
+        below: hintAndroid,
       };
     case 'invalidIosFileType':
       return {
-        message: `Invalid iOS build file type. Expected: ${formatValidFileTypes(
+        message: `Invalid iOS ${buildTypePrefix}build file type. Expected: ${formatValidFileTypes(
           'ios'
         )} file, got: "${error.path}"`,
-        learnMoreLink: learnMoreLink.ios,
+        above: tipBox,
+        below: hintIos,
       };
   }
 }

@@ -6,6 +6,8 @@ type Params = StandardErrorParams | UnexpectedErrorParams;
 
 type StandardErrorParams = {
   message: string;
+  above?: string;
+  below?: string;
   errorToReport?: Error;
   learnMoreLink?: string;
   type?: Extract<ErrorType, 'default' | 'auth'>;
@@ -47,7 +49,13 @@ function getErrorMessage(params: Params): string {
 
   const messageWithLabel = chalk.red(`${LABEL[params.type ?? 'default']}: ${message.trim()}`);
 
-  const errorMessageParts = [messageWithLabel];
+  const errorMessageParts: string[] = [];
+
+  if (params.type !== 'unexpected' && params.above) {
+    errorMessageParts.push(params.above + '\n');
+  }
+
+  errorMessageParts.push(messageWithLabel);
 
   if (params.type === 'unexpected') {
     const errorLocation = getErrorLocation();
@@ -56,8 +64,13 @@ function getErrorMessage(params: Params): string {
     const { stdout, stderr } = params.error;
     if (stdout) errorMessageParts.push(`\n${stdout}`);
     if (stderr) errorMessageParts.push(`\n${stderr}`);
-  } else if (params.learnMoreLink) {
-    errorMessageParts.push(chalk.dim(`↳ Learn more: ${printLink(params.learnMoreLink)}`));
+  } else {
+    if (params.learnMoreLink) {
+      errorMessageParts.push(chalk.dim(`↳ Learn more: ${printLink(params.learnMoreLink)}`));
+    }
+    if (params.below) {
+      errorMessageParts.push(`\n${params.below}`);
+    }
   }
 
   return errorMessageParts.join('\n') + '\n';
