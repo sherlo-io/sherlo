@@ -9,7 +9,6 @@ import {
   APP_DOMAIN,
   DEFAULT_CONFIG_FILENAME,
   DEFAULT_PROJECT_ROOT,
-  DOCS_LINK,
   IOS_FILE_TYPES,
   IOS_OPTION,
   PLATFORM_LABEL,
@@ -19,6 +18,8 @@ import {
   TOKEN_OPTION,
 } from '../../../constants';
 import {
+  getBuildTypeLabel,
+  getBuildTypeTipBox,
   getPlatformsToTest,
   isValidToken,
   printLink,
@@ -48,7 +49,11 @@ async function collectMissingOptions(
   // Show build type tip if we need to collect any build paths
   const needsBuildPath = (requiredPlatforms.includes('ios') && !hasIos) || (requiredPlatforms.includes('android') && !hasAndroid);
   if (needsBuildPath) {
-    printBuildTypeTip(command);
+    const tipBox = getBuildTypeTipBox(command);
+    if (tipBox) {
+      console.log();
+      console.log(tipBox);
+    }
   }
 
   if (requiredPlatforms.includes('ios') && !hasIos) {
@@ -151,35 +156,6 @@ async function collectToken(): Promise<string> {
   return token;
 }
 
-function printBuildTypeTip(command: TestMethodCommand): void {
-  console.log();
-
-  if (command === TEST_STANDARD_COMMAND) {
-    console.log(
-      wrapInBox({
-        title: 'Preview Simulator Build',
-        text: `Standard testing requires a ${chalk.bold('preview simulator build')} (with JS bundle)\n\nHow to build: ${printLink(DOCS_LINK.buildPreview)}`,
-        type: 'default',
-      })
-    );
-  } else if (command === TEST_EAS_UPDATE_COMMAND) {
-    console.log(
-      wrapInBox({
-        title: 'Development Simulator Build',
-        text: `EAS Update testing requires a ${chalk.bold('development simulator build')} (without JS bundle)\n\nHow to build: ${printLink(DOCS_LINK.buildDevelopment)}`,
-        type: 'default',
-      })
-    );
-  }
-}
-
-const BUILD_TYPE_LABEL: {
-  [key in typeof TEST_STANDARD_COMMAND | typeof TEST_EAS_UPDATE_COMMAND]: string;
-} = {
-  [TEST_STANDARD_COMMAND]: 'preview simulator',
-  [TEST_EAS_UPDATE_COMMAND]: 'development simulator',
-};
-
 async function collectIos(
   command: typeof TEST_STANDARD_COMMAND | typeof TEST_EAS_UPDATE_COMMAND
 ): Promise<string> {
@@ -188,7 +164,7 @@ async function collectIos(
   let iosPath;
   try {
     iosPath = await input({
-      message: `Enter path to iOS ${BUILD_TYPE_LABEL[command]} build (${IOS_FILE_TYPES.join(', ')})${chalk.reset.dim(
+      message: `Enter path to iOS ${getBuildTypeLabel(command)} build (${IOS_FILE_TYPES.join(', ')})${chalk.reset.dim(
         ` (--${IOS_OPTION})`
       )}:`,
       validate: (value: string) => validateBuildPath(value, 'ios'),
@@ -214,7 +190,7 @@ async function collectAndroid(
   let androidPath;
   try {
     androidPath = await input({
-      message: `Enter path to Android ${BUILD_TYPE_LABEL[command]} build (${ANDROID_FILE_TYPES.join(
+      message: `Enter path to Android ${getBuildTypeLabel(command)} build (${ANDROID_FILE_TYPES.join(
         ', '
       )})${chalk.reset.dim(` (--${ANDROID_OPTION})`)}:`,
       validate: (value: string) => validateBuildPath(value, 'android'),
