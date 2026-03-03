@@ -59,13 +59,19 @@ function getCompletions(input) {
 
   // Multiple matches - complete to longest common prefix
   const common = longestCommonPrefix(matches.map((m) => m.name));
-  const completedPath = path.join(dir, common);
   const candidateNames = matches.map((m) => (m.isDirectory() ? m.name + '/' : m.name));
 
-  return {
-    completed: path.isAbsolute(input) ? completedPath : toRelative(completedPath),
-    candidates: candidateNames,
-  };
+  // If common prefix extends beyond what user typed, complete to it
+  // Otherwise keep input as-is (just show candidates)
+  let completed;
+  if (common.length > prefix.length) {
+    const completedPath = path.join(dir, common);
+    completed = path.isAbsolute(input) ? completedPath : toRelative(completedPath);
+  } else {
+    completed = input;
+  }
+
+  return { completed, candidates: candidateNames };
 }
 
 function longestCommonPrefix(strings) {
@@ -82,6 +88,8 @@ function longestCommonPrefix(strings) {
 
 function toRelative(absolutePath) {
   const rel = path.relative(process.cwd(), absolutePath);
+  // Empty relative means it's the cwd itself - use './'
+  if (!rel) return './';
   // Preserve trailing slash for directories
   if (absolutePath.endsWith('/') && !rel.endsWith('/')) {
     return rel + '/';
