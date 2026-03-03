@@ -1,12 +1,11 @@
 import SherloModule from './SherloModule';
 
 /**
- * isStorybookMode determines whether Storybook should be displayed.
+ * True when the app should display Storybook instead of the normal UI.
  *
- * Returns true if any of the following conditions are met:
- * 1. User selected "Toggle Storybook" in Dev Menu
- * 2. User called "openStorybook" function imported from "@sherlo/react-native-storybook"
- * 3. Build is running tests on Sherlo
+ * Returns true when SherloModule mode is `'storybook'` or `'testing'`:
+ * - `'storybook'` - User selected "Toggle Storybook" in Dev Menu or called `openStorybook()`
+ * - `'testing'` - Sherlo is running automated visual tests on a simulator
  */
 const isStorybookMode = ['storybook', 'testing'].includes(SherloModule.getMode());
 

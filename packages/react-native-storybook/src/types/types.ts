@@ -65,7 +65,7 @@ export type StorybookParams = StorybookParamsRaw extends infer U
  *
  * - `'default'` - Normal app mode. Storybook is not displayed.
  * - `'storybook'` - User activated Storybook via Dev Menu toggle or `openStorybook()`.
- * - `'testing'` - Sherlo is running automated visual tests on a device/simulator.
+ * - `'testing'` - Sherlo is running automated visual tests on a simulator.
  *
  * Use `isStorybookMode` (true when `'storybook'` or `'testing'`) to decide whether
  * to render Storybook, and `isRunningVisualTests` (true only for `'testing'`) when

@@ -60,7 +60,7 @@ export default Storybook;
 
 ### `isStorybookMode`
 
-Boolean that indicates if the app should display Storybook. True when the native SherloModule mode is `'storybook'` (user toggled via Dev Menu or called `openStorybook()`) or `'testing'` (Sherlo is running automated visual tests).
+Boolean that indicates if the app should display Storybook. True when the native SherloModule mode is `'storybook'` (user toggled via Dev Menu or called `openStorybook()`) or `'testing'` (Sherlo is running automated visual tests on a simulator).
 
 **Type:** `boolean`
 
@@ -116,7 +116,7 @@ addStorybookToDevMenu();
 
 ### `isRunningVisualTests`
 
-Boolean that indicates if Sherlo visual tests are currently running. True only when the native SherloModule mode is `'testing'` - not set when the user opens Storybook manually.
+Boolean that indicates if Sherlo visual tests are currently running on a simulator. True only when the native SherloModule mode is `'testing'` - not set when the user opens Storybook manually.
 
 **Type:** `boolean`
 
@@ -140,7 +140,7 @@ The native SherloModule reports one of three modes that control SDK behavior:
 |------|-------|-------------|
 | Default | `'default'` | Normal app mode. Storybook is not displayed. This is also the fallback when the native module is not linked. |
 | Storybook | `'storybook'` | User activated Storybook via the Dev Menu toggle or by calling `openStorybook()`. |
-| Testing | `'testing'` | Sherlo is running automated visual tests on a device/simulator. |
+| Testing | `'testing'` | Sherlo is running automated visual tests on a simulator. |
 
 **How modes map to exported flags:**
 

@@ -11,12 +11,6 @@ function getStorybookComponent({
   isTestingMode?: boolean;
   params?: StorybookParams;
 }): () => JSX.Element {
-  if (!view || typeof view.getStorybookUI !== 'function') {
-    throw new Error(
-      'Storybook framework not found in bundle. If you are using Metro withStorybook plugin, ensure "enabled" is set to true when building for Sherlo.'
-    );
-  }
-
   if (isTestingMode) {
     const lastState = SherloModule.getLastState();
     const storyId = lastState?.nextSnapshot.storyId;
