@@ -3,9 +3,8 @@ import SherloModule from './SherloModule';
 /**
  * True when the app should display Storybook instead of the normal UI.
  *
- * Returns true when SherloModule mode is `'storybook'` or `'testing'`:
- * - `'storybook'` - User selected "Toggle Storybook" in Dev Menu or called `openStorybook()`
- * - `'testing'` - Sherlo is running automated visual tests on a simulator
+ * Use this in your app's root component to conditionally render Storybook
+ * when the user opens it via Dev Menu or when Sherlo runs visual tests.
  */
 const isStorybookMode = ['storybook', 'testing'].includes(SherloModule.getMode());
 

@@ -60,7 +60,7 @@ export default Storybook;
 
 ### `isStorybookMode`
 
-Boolean that indicates if the app should display Storybook. This is the recommended way to switch between your app and Storybook - it handles both manual Storybook access and Sherlo visual testing automatically.
+Checks if the app should render Storybook instead of the normal UI. Use this in your root component to conditionally render Storybook.
 
 **Type:** `boolean`
 
