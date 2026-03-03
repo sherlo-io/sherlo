@@ -1,9 +1,0 @@
-{
-  "name": "prototype-inquirer-file-tree",
-  "private": true,
-  "type": "module",
-  "dependencies": {
-    "@inquirer/core": "^10.1.0",
-    "chalk": "^5.4.1"
-  }
-}
