@@ -1,0 +1,8 @@
+{
+  "name": "prototype-raw-readline",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "chalk": "^5.4.1"
+  }
+}
