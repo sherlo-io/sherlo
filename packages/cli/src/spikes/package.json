@@ -1,0 +1,10 @@
+{
+  "name": "spikes",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@inquirer/core": "^10.3.2",
+    "@inquirer/type": "^3.0.6",
+    "chalk": "^4.1.2"
+  }
+}
