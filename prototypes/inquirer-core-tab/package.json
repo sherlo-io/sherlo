@@ -1,0 +1,10 @@
+{
+  "name": "prototype-inquirer-core-tab",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@inquirer/core": "^10.1.0",
+    "@inquirer/input": "^5.0.8",
+    "chalk": "^5.4.1"
+  }
+}
