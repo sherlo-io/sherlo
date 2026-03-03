@@ -60,6 +60,17 @@ export type StorybookParams = StorybookParamsRaw extends infer U
     : U
   : never;
 
+/**
+ * Mode reported by the native SherloModule.
+ *
+ * - `'default'` - Normal app mode. Storybook is not displayed.
+ * - `'storybook'` - User activated Storybook via Dev Menu toggle or `openStorybook()`.
+ * - `'testing'` - Sherlo is running automated visual tests on a simulator.
+ *
+ * Use `isStorybookMode` (true when `'storybook'` or `'testing'`) to decide whether
+ * to render Storybook, and `isRunningVisualTests` (true only for `'testing'`) when
+ * you need to disable animations or mock data during test runs.
+ */
 export type StorybookViewMode = 'testing' | 'default' | 'storybook';
 
 export type InspectorDataNode = {

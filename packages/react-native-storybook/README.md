@@ -60,7 +60,7 @@ export default Storybook;
 
 ### `isStorybookMode`
 
-Boolean that indicates if the app should display Storybook.
+Checks if the app should render Storybook instead of the normal UI. Use this in your root component to conditionally render Storybook.
 
 **Type:** `boolean`
 
@@ -116,7 +116,7 @@ addStorybookToDevMenu();
 
 ### `isRunningVisualTests`
 
-Boolean that indicates if Sherlo visual tests are currently running.
+Boolean that indicates if Sherlo visual tests are currently running. Use this to disable animations, mock network data, or apply other deterministic behavior that helps produce consistent screenshots.
 
 **Type:** `boolean`
 
