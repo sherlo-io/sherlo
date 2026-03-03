@@ -13,6 +13,9 @@ builds/
 *.app
 *.tar.gz
 
+# Allow test fixtures in prototypes
+!prototypes/**/test-builds/**
+
 sherlo-lib/
 .env
 sherlo.config.json
