@@ -17,6 +17,7 @@ import {
   TEST_STANDARD_COMMAND,
   TOKEN_OPTION,
 } from '../../../constants';
+import fileBrowserPrompt from './fileBrowserPrompt';
 import {
   getBuildTypeLabel,
   getBuildTypeTipBox,
@@ -129,7 +130,7 @@ async function collectToken(): Promise<string> {
 
   console.log(
     wrapInBox({
-      title: 'Project Token?',
+      title: 'Project Token',
       text: `Open ${printLink(
         APP_DOMAIN
       )}:\n a) Create new project ➜ Copy token\n b) Open existing project ➜ Reset token`,
@@ -175,12 +176,20 @@ async function collectIos(
 
   let iosPath;
   try {
-    iosPath = await input({
-      message: `Enter path to iOS ${getBuildTypeLabel(command)} build (${IOS_FILE_TYPES.join(', ')})${chalk.reset.dim(
-        ` (--${IOS_OPTION})`
-      )}:`,
-      validate: (value: string) => validateBuildPath(value, 'ios'),
+    iosPath = await fileBrowserPrompt({
+      message: `Select iOS ${getBuildTypeLabel(command)} build (${IOS_FILE_TYPES.join(', ')})${chalk.reset.dim(` (--${IOS_OPTION})`)}:`,
+      extensions: [...IOS_FILE_TYPES],
+      pageSize: 10,
     });
+
+    if (!iosPath) {
+      throwError({ message: 'No iOS build path provided' });
+    }
+
+    const validation = validateBuildPath(iosPath, 'ios');
+    if (validation !== true) {
+      throwError({ message: validation });
+    }
   } catch (error: any) {
     console.log();
 
@@ -201,12 +210,20 @@ async function collectAndroid(
 
   let androidPath;
   try {
-    androidPath = await input({
-      message: `Enter path to Android ${getBuildTypeLabel(command)} build (${ANDROID_FILE_TYPES.join(
-        ', '
-      )})${chalk.reset.dim(` (--${ANDROID_OPTION})`)}:`,
-      validate: (value: string) => validateBuildPath(value, 'android'),
+    androidPath = await fileBrowserPrompt({
+      message: `Select Android ${getBuildTypeLabel(command)} build (${ANDROID_FILE_TYPES.join(', ')})${chalk.reset.dim(` (--${ANDROID_OPTION})`)}:`,
+      extensions: [...ANDROID_FILE_TYPES],
+      pageSize: 10,
     });
+
+    if (!androidPath) {
+      throwError({ message: 'No Android build path provided' });
+    }
+
+    const validation = validateBuildPath(androidPath, 'android');
+    if (validation !== true) {
+      throwError({ message: validation });
+    }
   } catch (error: any) {
     console.log();
 
