@@ -141,9 +141,11 @@ function getError(error: BinaryError) {
     case 'not_dev_build':
       return {
         message:
-          `Invalid ${error.platformLabels.join(' and ')} ${
-            error.platformLabels.length > 1 ? 'builds' : 'build'
-          }; \`sherlo ${TEST_EAS_UPDATE_COMMAND}\` command requires Development Simulator Builds\n\n` +
+          `${error.platformLabels.join(' and ')} ${
+            error.platformLabels.length > 1
+              ? 'builds are preview builds'
+              : 'build is a preview build'
+          }; EAS Update testing requires development simulator builds (without JS bundle)\n\n` +
           'Please verify:\n' +
           `1. \`${EXPO_PACKAGE_NAME}\` package is at version ${MIN_EAS_UPDATE_EXPO_VERSION} or higher\n` +
           `2. Required \`${EXPO_DEV_CLIENT_PACKAGE_NAME}\` package is installed\n` +
