@@ -157,9 +157,11 @@ function getError(error: BinaryError) {
     case 'dev_build':
       return {
         message:
-          `Invalid ${error.platformLabels.join(' and ')} ${
-            error.platformLabels.length > 1 ? 'builds' : 'build'
-          }; \`sherlo ${error.command}\` command requires Preview Simulator Builds` +
+          `${error.platformLabels.join(' and ')} ${
+            error.platformLabels.length > 1
+              ? 'builds are development builds'
+              : 'build is a development build'
+          }; Standard testing requires preview simulator builds (with JS bundle)` +
           (error.command === TEST_EAS_CLOUD_BUILD_COMMAND
             ? '\n\n' +
               'Please verify:\n' +

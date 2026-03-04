@@ -5,7 +5,6 @@ import config from './config';
 import { THIS_COMMAND } from './constants';
 import dependencies from './dependencies';
 import { trackProgress } from './helpers';
-import needHelp from './needHelp';
 import requirements from './requirements';
 import storybookAccess from './storybookAccess';
 import storybookComponent from './storybookComponent';
@@ -36,8 +35,6 @@ async function init({ token }: Options<THIS_COMMAND>) {
   await builds({ hasUpdatedStorybookComponent, sessionId });
 
   await testing(sessionId);
-
-  await needHelp(sessionId);
 }
 
 export default init;
