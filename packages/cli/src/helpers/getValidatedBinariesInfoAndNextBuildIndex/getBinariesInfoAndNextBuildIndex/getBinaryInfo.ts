@@ -4,7 +4,7 @@ import {
   PLATFORM_LABEL,
   TEST_EAS_UPDATE_COMMAND,
 } from '../../../constants';
-import { BinaryInfo, Command, CommandParams } from '../../../types';
+import { BinaryInfo, BuildType, Command, CommandParams } from '../../../types';
 import { validatePlatformPaths } from '../../shared';
 import throwError from '../../throwError';
 import getLocalBinariesInfo from './getLocalBinariesInfo';
@@ -53,7 +53,7 @@ function getBinaryInfo(params: Params): BinaryInfo | undefined {
   }
 
   let binaryInfo = {
-    ...remoteBinariesInfoOrUploadInfo[platform],
+    ...mapRemoteBinaryInfo(remoteBinariesInfoOrUploadInfo[platform]),
     ...localBinariesInfo[platform],
   };
 
@@ -92,7 +92,7 @@ export default getBinaryInfo;
 
 /* ========================================================================== */
 
-const REQUIRED_BINARY_INFO_FIELDS: (keyof BinaryInfo)[] = ['hash', 'isExpoDev', 's3Key'];
+const REQUIRED_BINARY_INFO_FIELDS: (keyof BinaryInfo)[] = ['hash', 'buildType', 's3Key'];
 
 function checkIfBinaryInfoIsMissingRequiredFields(binaryInfo: any): binaryInfo is BinaryInfo {
   return REQUIRED_BINARY_INFO_FIELDS.some((field) => {
@@ -104,4 +104,17 @@ function checkIfBinaryInfoIsMissingRequiredFields(binaryInfo: any): binaryInfo i
 
 function isValidBinaryInfo(binaryInfo: any): binaryInfo is BinaryInfo {
   return REQUIRED_BINARY_INFO_FIELDS.every((field) => field in binaryInfo);
+}
+
+function mapRemoteBinaryInfo(remote: any): Partial<BinaryInfo> | undefined {
+  if (!remote) return undefined;
+
+  // Map API's isExpoDev boolean to CLI's buildType
+  const { isExpoDev, isDevelopmentBuild, ...rest } = remote;
+  const isDev = isDevelopmentBuild ?? isExpoDev;
+
+  return {
+    ...rest,
+    ...(isDev != null ? { buildType: (isDev ? 'development' : 'preview') as BuildType } : {}),
+  };
 }
