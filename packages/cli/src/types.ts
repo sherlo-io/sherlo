@@ -130,6 +130,8 @@ export type BinaryInfo = {
   buildIndex?: number;
   sdkVersion?: string;
   url?: string;
+  expoSdkVersion?: string;
+  hasExpoDevClient?: boolean;
 };
 
 export type EasUpdateInfo = {

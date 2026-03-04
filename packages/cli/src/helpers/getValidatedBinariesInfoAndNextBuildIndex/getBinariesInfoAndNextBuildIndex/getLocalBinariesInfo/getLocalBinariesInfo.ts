@@ -17,8 +17,28 @@ const PREVIEW_BUILD_BUNDLE_PATH = {
   ios: 'main.jsbundle',
 };
 
+// Expo app.config paths - contains sdkVersion field
+const EXPO_APP_CONFIG_PATH = {
+  android: 'assets/app.config',
+  ios: 'EXConstants.bundle/app.config',
+};
+
+// expo-dev-client markers - files that only exist when expo-dev-client is installed
+const EXPO_DEV_CLIENT_MARKER = {
+  // EXDevLauncher.bundle is created by expo-dev-launcher podspec (reliable across SDK 43-55+)
+  ios: ['EXDevLauncher.bundle'],
+  // Android markers vary by SDK version, we check multiple patterns
+  android: [
+    'res/drawable/expo_logo.xml', // SDK 55+ (expo-dev-launcher debug res)
+    'res/*/dev_menu_fab_icon.png', // SDK 54+ (expo-dev-menu)
+  ],
+};
+
 type LocalBinariesInfo = { android?: LocalBinaryInfo; ios?: LocalBinaryInfo };
-type LocalBinaryInfo = Pick<BinaryInfo, 'hash' | 'buildType' | 'sdkVersion' | 'fileName'>;
+type LocalBinaryInfo = Pick<
+  BinaryInfo,
+  'hash' | 'buildType' | 'sdkVersion' | 'fileName' | 'expoSdkVersion' | 'hasExpoDevClient'
+>;
 
 async function getLocalBinariesInfo({
   paths,
@@ -86,7 +106,9 @@ async function getLocalBinaryInfoForPlatform({
   const fileName = path.basename(platformPath);
 
   let checkHasBundle: () => Promise<boolean>;
-  let readSherloFile;
+  let readSherloFile: () => Promise<string | undefined>;
+  let checkHasExpoDevClient: () => Promise<boolean>;
+  let readExpoAppConfig: () => Promise<string | undefined>;
 
   if (fileName.endsWith('.app')) {
     checkHasBundle = () =>
@@ -102,6 +124,32 @@ async function getLocalBinaryInfoForPlatform({
         file: sherloFilePath,
         directory: platformPath,
       });
+
+    checkHasExpoDevClient = () =>
+      checkAnyFileExists(
+        EXPO_DEV_CLIENT_MARKER[platform].map(
+          (marker) => () =>
+            accessFileInDirectory({
+              operation: 'exists',
+              file: marker,
+              directory: platformPath,
+            })
+        )
+      );
+
+    readExpoAppConfig = async () => {
+      const exists = await accessFileInDirectory({
+        operation: 'exists',
+        file: EXPO_APP_CONFIG_PATH[platform],
+        directory: platformPath,
+      });
+      if (!exists) return undefined;
+      return accessFileInDirectory({
+        operation: 'read',
+        file: EXPO_APP_CONFIG_PATH[platform],
+        directory: platformPath,
+      });
+    };
   } else if (
     fileName.endsWith('.apk') ||
     fileName.endsWith('.tar') ||
@@ -122,6 +170,29 @@ async function getLocalBinaryInfoForPlatform({
       accessFileInArchive({
         operation: 'read',
         file: sherloFilePath,
+        archive: platformPath,
+        type: archiveType,
+        projectRoot,
+      });
+
+    checkHasExpoDevClient = () =>
+      checkAnyFileExists(
+        EXPO_DEV_CLIENT_MARKER[platform].map(
+          (marker) => () =>
+            accessFileInArchive({
+              operation: 'exists',
+              file: marker,
+              archive: platformPath,
+              type: archiveType,
+              projectRoot,
+            })
+        )
+      );
+
+    readExpoAppConfig = () =>
+      accessFileInArchive({
+        operation: 'read',
+        file: EXPO_APP_CONFIG_PATH[platform],
         archive: platformPath,
         type: archiveType,
         projectRoot,
@@ -154,7 +225,26 @@ async function getLocalBinaryInfoForPlatform({
     }
   }
 
-  return { hash, buildType, sdkVersion, fileName };
+  const hasExpoDevClient = await checkHasExpoDevClient();
+
+  let expoSdkVersion: string | undefined;
+  const appConfigContent = await readExpoAppConfig();
+  if (appConfigContent) {
+    try {
+      expoSdkVersion = JSON.parse(appConfigContent).sdkVersion;
+    } catch {
+      // app.config may be binary plist (iOS local builds) - skip version extraction
+    }
+  }
+
+  return { hash, buildType, sdkVersion, fileName, expoSdkVersion, hasExpoDevClient };
+}
+
+async function checkAnyFileExists(checks: (() => Promise<boolean>)[]): Promise<boolean> {
+  for (const check of checks) {
+    if (await check()) return true;
+  }
+  return false;
 }
 
 async function getBinaryHash(filePath: string): Promise<string> {

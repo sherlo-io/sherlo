@@ -26,6 +26,10 @@ function validateBinariesInfo({
 
   validateBuildType({ binariesInfo, command });
 
+  if (command === TEST_EAS_UPDATE_COMMAND) {
+    validateEasUpdateRequirements(binariesInfo);
+  }
+
   validateSdkVersion(binariesInfo);
 }
 
@@ -86,6 +90,49 @@ function validateBuildType({
   }
 }
 
+function validateEasUpdateRequirements({ android, ios }: BinariesInfo) {
+  const isMissingExpoDevClientAndroid = android && !android.hasExpoDevClient;
+  const isMissingExpoDevClientIos = ios && !ios.hasExpoDevClient;
+
+  if (isMissingExpoDevClientAndroid || isMissingExpoDevClientIos) {
+    throwError(
+      getError({
+        type: 'missing_expo_dev_client',
+        platformLabels: getPlatformLabels({
+          android: isMissingExpoDevClientAndroid,
+          ios: isMissingExpoDevClientIos,
+        }),
+      })
+    );
+  }
+
+  const isOutdatedExpoAndroid =
+    android?.expoSdkVersion &&
+    !isPackageVersionCompatible({
+      version: android.expoSdkVersion,
+      minVersion: MIN_EAS_UPDATE_EXPO_VERSION,
+    });
+  const isOutdatedExpoIos =
+    ios?.expoSdkVersion &&
+    !isPackageVersionCompatible({
+      version: ios.expoSdkVersion,
+      minVersion: MIN_EAS_UPDATE_EXPO_VERSION,
+    });
+
+  if (isOutdatedExpoAndroid || isOutdatedExpoIos) {
+    throwError(
+      getError({
+        type: 'outdated_expo_version',
+        platformLabels: getPlatformLabels({
+          android: !!isOutdatedExpoAndroid,
+          ios: !!isOutdatedExpoIos,
+        }),
+        expoSdkVersion: (android?.expoSdkVersion || ios?.expoSdkVersion)!,
+      })
+    );
+  }
+}
+
 function validateSdkVersion({ android, ios }: BinariesInfo) {
   if (android?.sdkVersion && ios?.sdkVersion && android.sdkVersion !== ios.sdkVersion) {
     throwError(
@@ -120,6 +167,8 @@ type BinaryError =
       platformLabels: string[];
       command: Exclude<Command, typeof TEST_EAS_UPDATE_COMMAND>;
     }
+  | { type: 'missing_expo_dev_client'; platformLabels: string[] }
+  | { type: 'outdated_expo_version'; platformLabels: string[]; expoSdkVersion: string }
   | { type: 'different_versions'; android: { sdkVersion: string }; ios: { sdkVersion: string } }
   | { type: 'outdated_version'; platformLabels: string[]; sdkVersion: string };
 
@@ -174,6 +223,36 @@ function getError(error: BinaryError) {
               `3. Same build profile is passed to \`sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND}\` using \`--${PROFILE_OPTION}\` option\n`
             : ''),
         learnMoreLink: DOCS_LINK.buildPreview,
+      };
+
+    case 'missing_expo_dev_client':
+      return {
+        message:
+          `${error.platformLabels.join(' and ')} ${
+            error.platformLabels.length > 1
+              ? 'builds do not include'
+              : 'build does not include'
+          } \`${EXPO_DEV_CLIENT_PACKAGE_NAME}\`; EAS Update testing requires it to load updates\n\n` +
+          'Please verify:\n' +
+          `1. \`${EXPO_DEV_CLIENT_PACKAGE_NAME}\` package is installed\n` +
+          `2. ${
+            error.platformLabels.length > 1 ? 'Builds are' : 'Build is'
+          } created after installing the package\n`,
+        learnMoreLink: DOCS_LINK.buildDevelopment,
+      };
+
+    case 'outdated_expo_version':
+      return {
+        message:
+          `${error.platformLabels.join(' and ')} ${
+            error.platformLabels.length > 1 ? 'builds use' : 'build uses'
+          } Expo SDK ${error.expoSdkVersion}; EAS Update testing requires SDK ${MIN_EAS_UPDATE_EXPO_VERSION} or higher\n\n` +
+          'Please verify:\n' +
+          `1. \`${EXPO_PACKAGE_NAME}\` package is updated to version ${MIN_EAS_UPDATE_EXPO_VERSION} or higher\n` +
+          `2. ${
+            error.platformLabels.length > 1 ? 'Builds are' : 'Build is'
+          } created after updating the package\n`,
+        learnMoreLink: DOCS_LINK.testEasUpdate,
       };
 
     case 'different_versions':
