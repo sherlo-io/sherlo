@@ -11273,6 +11273,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "sherlo@workspace:packages/cli"
   dependencies:
+    "@inquirer/core": "npm:^10.3.2"
     "@inquirer/prompts": "npm:^7.8.4"
     "@sentry/node": "npm:8.41.0"
     "@sherlo/api-types": "portal:../../sherlo-lib/extracted/@sherlo/api-types"
