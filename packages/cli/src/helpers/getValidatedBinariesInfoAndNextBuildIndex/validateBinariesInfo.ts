@@ -24,7 +24,7 @@ function validateBinariesInfo({
 }) {
   validateHasSherlo(binariesInfo);
 
-  validateIsDevBuild({ binariesInfo, command });
+  validateBuildType({ binariesInfo, command });
 
   validateSdkVersion(binariesInfo);
 }
@@ -51,7 +51,7 @@ function validateHasSherlo({ android, ios }: BinariesInfo) {
   }
 }
 
-function validateIsDevBuild({
+function validateBuildType({
   binariesInfo: { android, ios },
   command,
 }: {
@@ -59,26 +59,26 @@ function validateIsDevBuild({
   command: Command;
 }) {
   if (command === TEST_EAS_UPDATE_COMMAND) {
-    const isNonDevAndroid = android && !android.isExpoDev;
-    const isNonDevIos = ios && !ios.isExpoDev;
+    const isPreviewAndroid = android && android.buildType !== 'development';
+    const isPreviewIos = ios && ios.buildType !== 'development';
 
-    if (isNonDevAndroid || isNonDevIos) {
+    if (isPreviewAndroid || isPreviewIos) {
       throwError(
         getError({
           type: 'not_dev_build',
-          platformLabels: getPlatformLabels({ android: isNonDevAndroid, ios: isNonDevIos }),
+          platformLabels: getPlatformLabels({ android: isPreviewAndroid, ios: isPreviewIos }),
         })
       );
     }
   } else {
-    const isDevAndroid = android && android.isExpoDev;
-    const isDevIos = ios && ios.isExpoDev;
+    const isDevelopmentAndroid = android && android.buildType === 'development';
+    const isDevelopmentIos = ios && ios.buildType === 'development';
 
-    if (isDevAndroid || isDevIos) {
+    if (isDevelopmentAndroid || isDevelopmentIos) {
       throwError(
         getError({
           type: 'dev_build',
-          platformLabels: getPlatformLabels({ android: isDevAndroid, ios: isDevIos }),
+          platformLabels: getPlatformLabels({ android: isDevelopmentAndroid, ios: isDevelopmentIos }),
           command,
         })
       );
