@@ -26,7 +26,7 @@ const EXPO_APP_CONFIG_PATH = {
 
 // expo-dev-client markers
 // iOS: EXDevLauncher.bundle is created by expo-dev-launcher podspec (reliable across SDK 43-55+)
-const EXPO_DEV_CLIENT_IOS_MARKERS = ['EXDevLauncher.bundle'];
+const EXPO_DEV_CLIENT_IOS_MARKER = 'EXDevLauncher.bundle';
 // Android: DevLauncherActivity registered in debug AndroidManifest.xml (reliable across SDK 48-55+)
 const EXPO_DEV_CLIENT_ANDROID_MANIFEST_ACTIVITY =
   'expo.modules.devlauncher.launcher.DevLauncherActivity';
@@ -102,13 +102,13 @@ async function getLocalBinaryInfoForPlatform({
 }): Promise<LocalBinaryInfo> {
   const fileName = path.basename(platformPath);
 
-  let checkHasBundle: () => Promise<boolean>;
+  let checkHasJsBundle: () => Promise<boolean>;
   let readSherloFile: () => Promise<string | undefined>;
   let checkHasExpoDevClient: () => Promise<boolean>;
   let readExpoAppConfig: () => Promise<string | undefined>;
 
   if (fileName.endsWith('.app')) {
-    checkHasBundle = () =>
+    checkHasJsBundle = () =>
       accessFileInDirectory({
         operation: 'exists',
         file: previewBundlePath,
@@ -123,16 +123,11 @@ async function getLocalBinaryInfoForPlatform({
       });
 
     checkHasExpoDevClient = () =>
-      checkAnyFileExists(
-        EXPO_DEV_CLIENT_IOS_MARKERS.map(
-          (marker) => () =>
-            accessFileInDirectory({
-              operation: 'exists',
-              file: marker,
-              directory: platformPath,
-            })
-        )
-      );
+      accessFileInDirectory({
+        operation: 'exists',
+        file: EXPO_DEV_CLIENT_IOS_MARKER,
+        directory: platformPath,
+      });
 
     readExpoAppConfig = async () => {
       const exists = await accessFileInDirectory({
@@ -154,7 +149,7 @@ async function getLocalBinaryInfoForPlatform({
   ) {
     const archiveType = fileName.endsWith('.apk') ? 'unzip' : 'tar';
 
-    checkHasBundle = () =>
+    checkHasJsBundle = () =>
       accessFileInArchive({
         operation: 'exists',
         file: previewBundlePath,
@@ -181,18 +176,13 @@ async function getLocalBinaryInfoForPlatform({
               projectRoot,
             })
         : () =>
-            checkAnyFileExists(
-              EXPO_DEV_CLIENT_IOS_MARKERS.map(
-                (marker) => () =>
-                  accessFileInArchive({
-                    operation: 'exists',
-                    file: marker,
-                    archive: platformPath,
-                    type: archiveType,
-                    projectRoot,
-                  })
-              )
-            );
+            accessFileInArchive({
+              operation: 'exists',
+              file: EXPO_DEV_CLIENT_IOS_MARKER,
+              archive: platformPath,
+              type: archiveType,
+              projectRoot,
+            });
 
     readExpoAppConfig = () =>
       accessFileInArchive({
@@ -211,8 +201,8 @@ async function getLocalBinaryInfoForPlatform({
 
   const hash = await getBinaryHash(platformPath);
 
-  const hasBundle = await checkHasBundle();
-  const buildType: BuildType = hasBundle ? 'preview' : 'development';
+  const hasJsBundle = await checkHasJsBundle();
+  const buildType: BuildType = hasJsBundle ? 'preview' : 'development';
 
   let sdkVersion: string | undefined;
   const sherloFileContent = await readSherloFile();
@@ -232,24 +222,61 @@ async function getLocalBinaryInfoForPlatform({
 
   const hasExpoDevClient = await checkHasExpoDevClient();
 
-  let expoSdkVersion: string | undefined;
-  const appConfigContent = await readExpoAppConfig();
-  if (appConfigContent) {
-    try {
-      expoSdkVersion = JSON.parse(appConfigContent).sdkVersion;
-    } catch {
-      // app.config may be binary plist (iOS local builds) - skip version extraction
-    }
-  }
+  const expoSdkVersion = await getExpoSdkVersion({
+    readExpoAppConfig,
+    appConfigFilePath: EXPO_APP_CONFIG_PATH[platform],
+    platformPath,
+    fileName,
+    projectRoot,
+  });
 
   return { hash, buildType, sdkVersion, fileName, expoSdkVersion, hasExpoDevClient };
 }
 
-async function checkAnyFileExists(checks: (() => Promise<boolean>)[]): Promise<boolean> {
-  for (const check of checks) {
-    if (await check()) return true;
+async function getExpoSdkVersion({
+  readExpoAppConfig,
+  appConfigFilePath,
+  platformPath,
+  fileName,
+  projectRoot,
+}: {
+  readExpoAppConfig: () => Promise<string | undefined>;
+  appConfigFilePath: string;
+  platformPath: string;
+  fileName: string;
+  projectRoot: string;
+}): Promise<string | undefined> {
+  const appConfigContent = await readExpoAppConfig();
+  if (!appConfigContent) return undefined;
+
+  // Try parsing as JSON (EAS cloud builds always produce JSON app.config)
+  try {
+    return JSON.parse(appConfigContent).sdkVersion;
+  } catch {
+    // Not JSON - may be binary plist (iOS local builds)
   }
-  return false;
+
+  // Try converting binary plist with plutil (macOS-only, always available for iOS builds)
+  try {
+    let plutilCommand: string;
+
+    if (fileName.endsWith('.app')) {
+      // .app directory: plutil can read the file directly
+      plutilCommand = `plutil -convert json -o - "${path.join(platformPath, appConfigFilePath)}"`;
+    } else if (fileName.endsWith('.tar') || fileName.endsWith('.tar.gz')) {
+      // tar archive: extract and pipe to plutil
+      plutilCommand = `tar -xOf "${platformPath}" "*${appConfigFilePath}" | plutil -convert json -o - -`;
+    } else {
+      // APK (Android) - binary plist not applicable
+      return undefined;
+    }
+
+    const jsonOutput = await runShellCommand({ command: plutilCommand, projectRoot });
+    return JSON.parse(jsonOutput).sdkVersion;
+  } catch {
+    // plutil not available or invalid format
+    return undefined;
+  }
 }
 
 /**

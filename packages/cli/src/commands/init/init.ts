@@ -35,8 +35,6 @@ async function init({ token }: Options<THIS_COMMAND>) {
   await builds({ hasUpdatedStorybookComponent, sessionId });
 
   await testing(sessionId);
-
-  console.log();
 }
 
 export default init;

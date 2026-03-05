@@ -93,18 +93,7 @@ function validateBuildType({
 function validateEasUpdateRequirements({ android, ios }: BinariesInfo) {
   const isMissingExpoDevClientAndroid = android && !android.hasExpoDevClient;
   const isMissingExpoDevClientIos = ios && !ios.hasExpoDevClient;
-
-  if (isMissingExpoDevClientAndroid || isMissingExpoDevClientIos) {
-    throwError(
-      getError({
-        type: 'missing_expo_dev_client',
-        platformLabels: getPlatformLabels({
-          android: isMissingExpoDevClientAndroid,
-          ios: isMissingExpoDevClientIos,
-        }),
-      })
-    );
-  }
+  const hasMissingExpoDevClient = isMissingExpoDevClientAndroid || isMissingExpoDevClientIos;
 
   const isOutdatedExpoAndroid =
     android?.expoSdkVersion &&
@@ -118,8 +107,39 @@ function validateEasUpdateRequirements({ android, ios }: BinariesInfo) {
       version: ios.expoSdkVersion,
       minVersion: MIN_EAS_UPDATE_EXPO_VERSION,
     });
+  const hasOutdatedExpo = isOutdatedExpoAndroid || isOutdatedExpoIos;
 
-  if (isOutdatedExpoAndroid || isOutdatedExpoIos) {
+  // Show both issues at once so user can fix everything in one pass
+  if (hasMissingExpoDevClient && hasOutdatedExpo) {
+    throwError(
+      getError({
+        type: 'missing_dev_client_and_outdated_expo',
+        missingDevClientPlatformLabels: getPlatformLabels({
+          android: isMissingExpoDevClientAndroid,
+          ios: isMissingExpoDevClientIos,
+        }),
+        outdatedExpoPlatformLabels: getPlatformLabels({
+          android: !!isOutdatedExpoAndroid,
+          ios: !!isOutdatedExpoIos,
+        }),
+        expoSdkVersion: (android?.expoSdkVersion || ios?.expoSdkVersion)!,
+      })
+    );
+  }
+
+  if (hasMissingExpoDevClient) {
+    throwError(
+      getError({
+        type: 'missing_expo_dev_client',
+        platformLabels: getPlatformLabels({
+          android: isMissingExpoDevClientAndroid,
+          ios: isMissingExpoDevClientIos,
+        }),
+      })
+    );
+  }
+
+  if (hasOutdatedExpo) {
     throwError(
       getError({
         type: 'outdated_expo_version',
@@ -168,6 +188,12 @@ type BinaryError =
       command: Exclude<Command, typeof TEST_EAS_UPDATE_COMMAND>;
     }
   | { type: 'missing_expo_dev_client'; platformLabels: string[] }
+  | {
+      type: 'missing_dev_client_and_outdated_expo';
+      missingDevClientPlatformLabels: string[];
+      outdatedExpoPlatformLabels: string[];
+      expoSdkVersion: string;
+    }
   | { type: 'outdated_expo_version'; platformLabels: string[]; expoSdkVersion: string }
   | { type: 'different_versions'; android: { sdkVersion: string }; ios: { sdkVersion: string } }
   | { type: 'outdated_version'; platformLabels: string[]; sdkVersion: string };
@@ -238,6 +264,23 @@ function getError(error: BinaryError) {
           `2. ${
             error.platformLabels.length > 1 ? 'Builds are' : 'Build is'
           } created after installing the package\n`,
+        learnMoreLink: DOCS_LINK.buildDevelopment,
+      };
+
+    case 'missing_dev_client_and_outdated_expo':
+      return {
+        message:
+          `Multiple EAS Update requirements not met:\n\n` +
+          `1. ${error.missingDevClientPlatformLabels.join(' and ')} ${
+            error.missingDevClientPlatformLabels.length > 1
+              ? 'builds do not include'
+              : 'build does not include'
+          } \`${EXPO_DEV_CLIENT_PACKAGE_NAME}\`\n` +
+          `2. Expo SDK ${error.expoSdkVersion} is below minimum ${MIN_EAS_UPDATE_EXPO_VERSION} (${error.outdatedExpoPlatformLabels.join(' and ')})\n\n` +
+          'Please verify:\n' +
+          `1. \`${EXPO_PACKAGE_NAME}\` package is updated to version ${MIN_EAS_UPDATE_EXPO_VERSION} or higher\n` +
+          `2. \`${EXPO_DEV_CLIENT_PACKAGE_NAME}\` package is installed\n` +
+          '3. Builds are created after these changes\n',
         learnMoreLink: DOCS_LINK.buildDevelopment,
       };
 
