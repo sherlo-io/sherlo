@@ -5,7 +5,6 @@ import { BinariesInfo, Command, CommandParams } from '../../types';
 import getPlatformsToTest from '../getPlatformsToTest';
 import throwError from '../throwError';
 import getBinariesInfoAndNextBuildIndex from './getBinariesInfoAndNextBuildIndex';
-import validateBinariesInfo from './validateBinariesInfo';
 
 type Params = EasBuildOnCompleteCommandParams | OtherCommandParams;
 
@@ -53,8 +52,6 @@ async function getValidatedBinariesInfoAndNextBuildIndex(
     ios,
     platforms,
   });
-
-  validateBinariesInfo({ binariesInfo, command });
 
   const sdkVersion = binariesInfo.android?.sdkVersion || binariesInfo.ios?.sdkVersion;
   if (!sdkVersion) {

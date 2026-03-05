@@ -7,6 +7,7 @@ import {
 } from '../../../constants';
 import { BinariesInfo, Command, CommandParams } from '../../../types';
 import handleClientError from '../../handleClientError';
+import validateBinariesInfo from '../validateBinariesInfo';
 import getBinaryInfo from './getBinaryInfo';
 import getLocalBinariesInfo from './getLocalBinariesInfo';
 
@@ -44,6 +45,18 @@ async function getBinariesInfoAndNextBuildIndex(
       command === EAS_BUILD_ON_COMPLETE_COMMAND
         ? DEFAULT_PROJECT_ROOT
         : params.commandParams.projectRoot,
+    command,
+  });
+
+  // Validate local binary data before making API call - fail fast on wrong build type,
+  // missing Sherlo, outdated SDK, etc. without wasting time on a network round-trip
+  validateBinariesInfo({
+    binariesInfo: {
+      android: localBinariesInfo.android
+        ? { ...localBinariesInfo.android, s3Key: '' }
+        : undefined,
+      ios: localBinariesInfo.ios ? { ...localBinariesInfo.ios, s3Key: '' } : undefined,
+    },
     command,
   });
 
