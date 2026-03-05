@@ -7,6 +7,7 @@ import { getErrorWithCustomMessage } from '../../../../helpers';
 import { BinaryInfo, BuildType, Command } from '../../../../types';
 import { validatePlatformPaths } from '../../../shared';
 import throwError from '../../../throwError';
+import runShellCommand from '../../../runShellCommand';
 import accessFileInArchive from './accessFileInArchive';
 import accessFileInDirectory from './accessFileInDirectory';
 
@@ -23,16 +24,12 @@ const EXPO_APP_CONFIG_PATH = {
   ios: 'EXConstants.bundle/app.config',
 };
 
-// expo-dev-client markers - files that only exist when expo-dev-client is installed
-const EXPO_DEV_CLIENT_MARKER = {
-  // EXDevLauncher.bundle is created by expo-dev-launcher podspec (reliable across SDK 43-55+)
-  ios: ['EXDevLauncher.bundle'],
-  // Android markers vary by SDK version, we check multiple patterns
-  android: [
-    'res/drawable/expo_logo.xml', // SDK 55+ (expo-dev-launcher debug res)
-    'res/*/dev_menu_fab_icon.png', // SDK 54+ (expo-dev-menu)
-  ],
-};
+// expo-dev-client markers
+// iOS: EXDevLauncher.bundle is created by expo-dev-launcher podspec (reliable across SDK 43-55+)
+const EXPO_DEV_CLIENT_IOS_MARKERS = ['EXDevLauncher.bundle'];
+// Android: DevLauncherActivity registered in debug AndroidManifest.xml (reliable across SDK 48-55+)
+const EXPO_DEV_CLIENT_ANDROID_MANIFEST_ACTIVITY =
+  'expo.modules.devlauncher.launcher.DevLauncherActivity';
 
 type LocalBinariesInfo = { android?: LocalBinaryInfo; ios?: LocalBinaryInfo };
 type LocalBinaryInfo = Pick<
@@ -127,7 +124,7 @@ async function getLocalBinaryInfoForPlatform({
 
     checkHasExpoDevClient = () =>
       checkAnyFileExists(
-        EXPO_DEV_CLIENT_MARKER[platform].map(
+        EXPO_DEV_CLIENT_IOS_MARKERS.map(
           (marker) => () =>
             accessFileInDirectory({
               operation: 'exists',
@@ -175,19 +172,27 @@ async function getLocalBinaryInfoForPlatform({
         projectRoot,
       });
 
-    checkHasExpoDevClient = () =>
-      checkAnyFileExists(
-        EXPO_DEV_CLIENT_MARKER[platform].map(
-          (marker) => () =>
-            accessFileInArchive({
-              operation: 'exists',
-              file: marker,
-              archive: platformPath,
-              type: archiveType,
+    checkHasExpoDevClient =
+      platform === 'android'
+        ? () =>
+            checkApkManifestContains({
+              apkPath: platformPath,
+              searchString: EXPO_DEV_CLIENT_ANDROID_MANIFEST_ACTIVITY,
               projectRoot,
             })
-        )
-      );
+        : () =>
+            checkAnyFileExists(
+              EXPO_DEV_CLIENT_IOS_MARKERS.map(
+                (marker) => () =>
+                  accessFileInArchive({
+                    operation: 'exists',
+                    file: marker,
+                    archive: platformPath,
+                    type: archiveType,
+                    projectRoot,
+                  })
+              )
+            );
 
     readExpoAppConfig = () =>
       accessFileInArchive({
@@ -245,6 +250,34 @@ async function checkAnyFileExists(checks: (() => Promise<boolean>)[]): Promise<b
     if (await check()) return true;
   }
   return false;
+}
+
+/**
+ * Checks if the binary AndroidManifest.xml in an APK contains a specific string.
+ * Android binary XML stores strings as UTF-16LE in its string pool.
+ */
+async function checkApkManifestContains({
+  apkPath,
+  searchString,
+  projectRoot,
+}: {
+  apkPath: string;
+  searchString: string;
+  projectRoot: string;
+}): Promise<boolean> {
+  try {
+    const manifestBuffer = await runShellCommand({
+      command: `unzip -p "${apkPath}" AndroidManifest.xml`,
+      projectRoot,
+      encoding: 'buffer',
+    });
+
+    const searchBuffer = Buffer.from(searchString, 'utf16le');
+
+    return manifestBuffer.includes(searchBuffer);
+  } catch {
+    return false;
+  }
 }
 
 async function getBinaryHash(filePath: string): Promise<string> {
