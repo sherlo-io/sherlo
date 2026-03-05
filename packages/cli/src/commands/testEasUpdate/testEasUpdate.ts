@@ -2,6 +2,7 @@ import {
   getValidatedCommandParams,
   printSherloIntro,
   uploadOrReuseBuildsAndRunTests,
+  validateLocalBinaries,
 } from '../../helpers';
 import { Options } from '../../types';
 import { THIS_COMMAND } from './constants';
@@ -14,6 +15,10 @@ async function testEasUpdate(passedOptions: Options<THIS_COMMAND>): Promise<{ ur
     { command: THIS_COMMAND, passedOptions },
     { requirePlatformPaths: true }
   );
+
+  // Validate local binaries before expensive EAS operations (expo config + eas-cli)
+  // Catches wrong build type, missing Sherlo, outdated SDK, missing expo-dev-client early
+  await validateLocalBinaries({ commandParams, command: THIS_COMMAND });
 
   const easUpdateData = await getValidatedEasUpdateData(commandParams);
 

@@ -114,6 +114,8 @@ export type InvalidatedCommandParams<C extends Command | 'any' = 'any'> = Invali
 
 /* === OTHERS === */
 
+export type BuildType = 'preview' | 'development';
+
 export type BinariesInfo = {
   android?: BinaryInfo;
   ios?: BinaryInfo;
@@ -121,13 +123,15 @@ export type BinariesInfo = {
 
 export type BinaryInfo = {
   hash: string;
-  isExpoDev: boolean;
+  buildType: BuildType;
   fileName: string;
   s3Key: string;
   buildCreatedAt?: string;
   buildIndex?: number;
   sdkVersion?: string;
   url?: string;
+  expoSdkVersion?: string;
+  hasExpoDevClient?: boolean;
 };
 
 export type EasUpdateInfo = {

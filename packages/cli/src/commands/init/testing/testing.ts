@@ -27,6 +27,8 @@ async function testing(sessionId: string | null): Promise<void> {
     learnMoreLink: DOCS_LINK.testing,
   });
 
+  console.log();
+
   await trackProgress({
     event: EVENT,
     params: { seen: true },
