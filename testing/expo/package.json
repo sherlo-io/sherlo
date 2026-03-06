@@ -42,7 +42,7 @@
     "expo-status-bar": "~3.0.8",
     "expo-system-ui": "~6.0.7",
     "expo-updates": "~29.0.12",
-    "lodash": "^4.17.21",
+    "lodash": "^4.17.23",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.4",
@@ -68,11 +68,12 @@
     "@types/lodash": "^4",
     "babel-loader": "^8.2.3",
     "burnt": "^0.13.0",
-    "storybook": "^9.1.2",
+    "storybook": "^9.1.19",
     "typescript": "~5.9.2"
   },
   "resolutions": {
-    "sherlo": "portal:../../packages/cli"
+    "sherlo": "portal:../../packages/cli",
+    "js-yaml": ">=4.1.1"
   },
   "engines": {
     "node": ">=18",

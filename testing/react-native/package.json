@@ -65,7 +65,10 @@
     "typescript": "5.0.4"
   },
   "resolutions": {
-    "sherlo": "portal:../../packages/cli"
+    "sherlo": "portal:../../packages/cli",
+    "esbuild": ">=0.25.0",
+    "js-yaml": ">=4.1.1",
+    "on-headers": ">=1.1.0"
   },
   "engines": {
     "node": ">=18",
