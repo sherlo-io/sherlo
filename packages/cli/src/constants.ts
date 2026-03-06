@@ -70,7 +70,6 @@ export const FULL_INIT_COMMAND = 'npx sherlo@latest init';
 
 /* OPTIONS */
 
-export const API_URL_OPTION = 'apiUrl';
 export const ANDROID_OPTION = 'android';
 export const BRANCH_OPTION = 'branch';
 export const CONFIG_OPTION = 'config';
