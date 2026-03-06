@@ -2,7 +2,6 @@ import { DeviceID, DeviceTheme } from '@sherlo/api-types';
 import { PartialDeep } from 'type-fest';
 import {
   ANDROID_OPTION,
-  API_URL_OPTION,
   BRANCH_OPTION,
   CONFIG_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
@@ -65,7 +64,6 @@ type OptionsMode = 'withoutDefaults' | 'withDefaults';
 type OptionsFormat = 'raw' | 'normalized';
 
 type CommonOptions<M extends OptionsMode, F extends OptionsFormat> = {
-  [API_URL_OPTION]?: string;
   [MESSAGE_OPTION]?: string;
   [TOKEN_OPTION]?: string;
   [INCLUDE_OPTION]?: F extends 'raw' ? string : string[];

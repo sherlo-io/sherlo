@@ -12,7 +12,6 @@ import {
 import {
   ANDROID_FILE_TYPES,
   ANDROID_OPTION,
-  API_URL_OPTION,
   BRANCH_OPTION,
   CONFIG_OPTION,
   CONTACT_EMAIL,
@@ -105,10 +104,6 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   [ANDROID_OPTION]: [
     `--${ANDROID_OPTION} <path>`,
     `Path to ${PLATFORM_LABEL.android} build (${ANDROID_FILE_TYPES.join(', ')})`,
-  ],
-  [API_URL_OPTION]: [
-    `--${API_URL_OPTION} <url>`,
-    'Custom API endpoint URL (for local development)',
   ],
   [BRANCH_OPTION]: [
     `--${BRANCH_OPTION} <branch>`,
@@ -286,6 +281,5 @@ function getTestCommonOptions(variant: 'withPlatformPaths' | 'withoutPlatformPat
     INCLUDE_OPTION,
     CONFIG_OPTION,
     PROJECT_ROOT_OPTION,
-    API_URL_OPTION,
   ];
 }
