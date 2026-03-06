@@ -30,5 +30,10 @@
   },
   "version": "1.0.0",
   "private": true,
-  "main": "index.ts"
+  "main": "index.ts",
+  "resolutions": {
+    "tar": ">=7.5.10",
+    "minimatch": ">=9.0.7",
+    "storybook": ">=10.2.10"
+  }
 }
