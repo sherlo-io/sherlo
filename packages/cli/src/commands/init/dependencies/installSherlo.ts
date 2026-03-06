@@ -31,13 +31,20 @@ async function installSherlo(sessionId: string | null): Promise<void> {
   const isSherloAlreadyInDevDependencies =
     !!packageJson.devDependencies?.[SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME];
 
+  // When SHERLO_SDK_PATH is set (e.g. by sherlo-tester), install from local source
+  // via portal link instead of npm.
+  const localSdkPath = process.env.SHERLO_SDK_PATH;
+  const packageSpec = localSdkPath
+    ? `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@portal:${localSdkPath}`
+    : SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME;
+
   const packageManager = (await detect())?.name ?? 'npm';
   const resolvedCommand = resolveCommand(
     packageManager,
     'add',
     [
       isSherloAlreadyInDevDependencies ? '-D' : null,
-      SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME,
+      packageSpec,
     ].filter(Boolean) as string[]
   );
 
