@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { readFile, writeFile } from 'fs/promises';
+import { readFile } from 'fs/promises';
 import ora from 'ora';
 import { detect, resolveCommand } from 'package-manager-detector';
 import { join } from 'path';
@@ -31,44 +31,12 @@ async function installSherlo(sessionId: string | null): Promise<void> {
   const isSherloAlreadyInDevDependencies =
     !!packageJson.devDependencies?.[SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME];
 
-  // When SHERLO_SDK_PATH is set (e.g. by sherlo-tester), use a portal link to the local
-  // SDK source instead of installing from npm. This ensures the app uses the same SDK
-  // version that matches the current test environment.
+  // When SHERLO_SDK_PATH is set (e.g. by sherlo-tester), install from local source
+  // via portal link instead of npm.
   const localSdkPath = process.env.SHERLO_SDK_PATH;
-  if (localSdkPath) {
-    const depsKey = isSherloAlreadyInDevDependencies ? 'devDependencies' : 'dependencies';
-    if (!packageJson[depsKey]) packageJson[depsKey] = {};
-    packageJson[depsKey][SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME] = `portal:${localSdkPath}`;
-    await writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
-
-    const packageManager = (await detect())?.name ?? 'npm';
-    const installCmd = resolveCommand(packageManager, 'install', []);
-    if (installCmd) {
-      try {
-        await runShellCommand({
-          command: `${installCmd.command} ${installCmd.args.join(' ')}`,
-          projectRoot: getCwd(),
-        });
-      } catch (error) {
-        spinner.fail();
-        console.log();
-        throwError({
-          message: `Failed to install local SDK from ${localSdkPath}`,
-          errorToReport: error,
-        });
-      }
-    }
-
-    spinner.succeed(`Installed Sherlo (local: ${localSdkPath})`);
-
-    await trackProgress({
-      event,
-      params: { status: 'success' },
-      sessionId,
-    });
-
-    return;
-  }
+  const packageSpec = localSdkPath
+    ? `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@portal:${localSdkPath}`
+    : SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME;
 
   const packageManager = (await detect())?.name ?? 'npm';
   const resolvedCommand = resolveCommand(
@@ -76,7 +44,7 @@ async function installSherlo(sessionId: string | null): Promise<void> {
     'add',
     [
       isSherloAlreadyInDevDependencies ? '-D' : null,
-      SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME,
+      packageSpec,
     ].filter(Boolean) as string[]
   );
 
