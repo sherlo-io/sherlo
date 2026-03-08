@@ -287,7 +287,7 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
           items: entries,
           active: resolvedActive,
           pageSize,
-          loop: true,
+          loop: false,
           renderItem({ item, isActive }) {
             const icon = getIcon(item);
             const displayName = item.isDirectory ? `${item.name}/` : item.name;
