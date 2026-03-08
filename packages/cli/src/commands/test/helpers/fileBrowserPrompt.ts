@@ -4,7 +4,6 @@ import {
   useKeypress,
   useEffect,
   useMemo,
-  usePagination,
   isEnterKey,
   isUpKey,
   isDownKey,
@@ -140,6 +139,7 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
 
   const [pathInput, setPathInput] = useState('');
   const [active, setActive] = useState(1);
+  const [scrollOffset, setScrollOffset] = useState(0);
   const [status, setStatus] = useState<'idle' | 'done'>('idle');
 
   useEffect((rl) => {
@@ -193,13 +193,19 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
 
     if (isUpKey(key)) {
       setReadline(rl, pathInput);
-      setActive(resolvedActive > 0 ? resolvedActive - 1 : entries.length - 1);
+      const next = resolvedActive > 0 ? resolvedActive - 1 : entries.length - 1;
+      setActive(next);
+      if (next < scrollOffset) setScrollOffset(next);
+      else if (next === entries.length - 1) setScrollOffset(Math.max(0, entries.length - pageSize));
       return;
     }
 
     if (isDownKey(key)) {
       setReadline(rl, pathInput);
-      setActive(resolvedActive < entries.length - 1 ? resolvedActive + 1 : 0);
+      const next = resolvedActive < entries.length - 1 ? resolvedActive + 1 : 0;
+      setActive(next);
+      if (next >= scrollOffset + pageSize) setScrollOffset(next - pageSize + 1);
+      else if (next === 0) setScrollOffset(0);
       return;
     }
 
@@ -214,6 +220,7 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
         const newPath = toDisplayPath(entry.fullPath, cwd, isAbsolute) + '/';
         setReadline(rl, newPath);
         setPathInput(newPath);
+        setScrollOffset(0);
         setActive(entry.isParent ? 0 : 1);
       } else {
         const displayPath = toDisplayPath(entry.fullPath, cwd, isAbsolute);
@@ -232,6 +239,7 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
           const newPath = display + '/';
           setReadline(rl, newPath);
           setPathInput(newPath);
+          setScrollOffset(0);
           setActive(1);
         } else {
           setReadline(rl, display);
@@ -266,11 +274,13 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
     if (rl.line === './/') {
       setReadline(rl, '/');
       setPathInput('/');
+      setScrollOffset(0);
       setActive(1);
       return;
     }
 
     setPathInput(rl.line);
+    setScrollOffset(0);
     setActive(1);
   });
 
@@ -280,35 +290,35 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
     return `${chalk.green('?')} ${chalk.bold(config.message)} ${chalk.cyan(displayPath)}`;
   }
 
-  // Render the tree
-  const tree =
-    entries.length > 0
-      ? usePagination({
-          items: entries,
-          active: resolvedActive,
-          pageSize,
-          loop: true,
-          renderItem({ item, isActive }) {
-            const icon = getIcon(item);
-            const displayName = item.isDirectory ? `${item.name}/` : item.name;
+  // Render the tree with custom pagination
+  let tree: string;
+  if (entries.length === 0) {
+    tree = chalk.dim('  (no matching entries)');
+  } else {
+    const start = Math.max(0, Math.min(scrollOffset, entries.length - pageSize));
+    const visible = entries.slice(start, start + pageSize);
+    tree = visible
+      .map((item, i) => {
+        const isActive = start + i === resolvedActive;
+        const icon = getIcon(item);
+        const displayName = item.isDirectory ? `${item.name}/` : item.name;
 
-            // Dim .. at filesystem root (can't go higher)
-            const isRootParent = item.isParent && path.dirname(dirPath) === dirPath;
-            if (isRootParent) {
-              const cursor = isActive ? chalk.dim(ICONS.pointer) : ' ';
-              return `${cursor} ${icon} ${chalk.dim(displayName)}`;
-            }
+        const isRootParent = item.isParent && path.dirname(dirPath) === dirPath;
+        if (isRootParent) {
+          const cursor = isActive ? chalk.dim(ICONS.pointer) : ' ';
+          return `${cursor} ${icon} ${chalk.dim(displayName)}`;
+        }
 
-            const cursor = isActive ? chalk.cyan(ICONS.pointer) : ' ';
-            const name = isActive
-              ? chalk.cyan(displayName)
-              : item.isDirectory
-                ? chalk.bold(displayName)
-                : displayName;
-            return `${cursor} ${icon} ${name}`;
-          },
-        })
-      : chalk.dim('  (no matching entries)');
+        const cursor = isActive ? chalk.cyan(ICONS.pointer) : ' ';
+        const name = isActive
+          ? chalk.cyan(displayName)
+          : item.isDirectory
+            ? chalk.bold(displayName)
+            : displayName;
+        return `${cursor} ${icon} ${name}`;
+      })
+      .join('\n');
+  }
 
   const lines = [
     `${chalk.blue('?')} ${chalk.bold(config.message)} ${chalk.yellow(pathInput || './')}`,
