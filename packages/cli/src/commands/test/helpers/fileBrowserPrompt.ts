@@ -140,7 +140,6 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
 
   const [pathInput, setPathInput] = useState('');
   const [active, setActive] = useState(1);
-  const [wentUp, setWentUp] = useState(false);
   const [status, setStatus] = useState<'idle' | 'done'>('idle');
 
   useEffect((rl) => {
@@ -184,13 +183,10 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
     [dirPath, extensions]
   );
 
-  const resolvedActive = useMemo(() => {
-    if (active === 0 && !wentUp) {
-      const firstMatch = entries.findIndex((e) => !e.isParent);
-      return firstMatch >= 0 ? firstMatch : 0;
-    }
-    return Math.max(0, Math.min(active, entries.length - 1));
-  }, [active, entries, wentUp]);
+  const resolvedActive = useMemo(
+    () => Math.max(0, Math.min(active, entries.length - 1)),
+    [active, entries]
+  );
 
   useKeypress((key, rl) => {
     if (status === 'done') return;
@@ -218,7 +214,6 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
         const newPath = toDisplayPath(entry.fullPath, cwd, isAbsolute) + '/';
         setReadline(rl, newPath);
         setPathInput(newPath);
-        setWentUp(entry.isParent);
         setActive(entry.isParent ? 0 : 1);
       } else {
         const displayPath = toDisplayPath(entry.fullPath, cwd, isAbsolute);
@@ -237,7 +232,6 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
           const newPath = display + '/';
           setReadline(rl, newPath);
           setPathInput(newPath);
-          setWentUp(false);
           setActive(1);
         } else {
           setReadline(rl, display);
@@ -272,13 +266,11 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
     if (rl.line === './/') {
       setReadline(rl, '/');
       setPathInput('/');
-      setWentUp(false);
       setActive(1);
       return;
     }
 
     setPathInput(rl.line);
-    setWentUp(false);
     setActive(1);
   });
 
