@@ -132,13 +132,26 @@ function setReadline(rl: { line: string }, value: string): void {
   (rl as any).cursor = value.length;
 }
 
+/** Wrap index into [0, length) range (handles negative values unlike JS %) */
+function wrap(index: number, length: number): number {
+  return ((index % length) + length) % length;
+}
+
+/** Check if index is within the visible circular window */
+function isInView(index: number, scrollOffset: number, pageSize: number, total: number): boolean {
+  const distance = wrap(index - scrollOffset, total);
+  return distance < pageSize;
+}
+
 const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done) => {
   const extensions = config.extensions ?? [];
   const pageSize = config.pageSize ?? 10;
   const cwd = process.cwd();
 
   const [pathInput, setPathInput] = useState('');
+  // entries[0] is always '..', so index 1 = first real item
   const [active, setActive] = useState(1);
+  // Circular pagination: scrollOffset is the first visible index, wraps around entries
   const [scrollOffset, setScrollOffset] = useState(0);
   const [status, setStatus] = useState<'idle' | 'done'>('idle');
 
@@ -183,6 +196,7 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
     [dirPath, extensions]
   );
 
+  // Clamp active to valid range (entries may shrink after filtering)
   const resolvedActive = useMemo(
     () => Math.max(0, Math.min(active, entries.length - 1)),
     [active, entries]
@@ -193,19 +207,21 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
 
     if (isUpKey(key)) {
       setReadline(rl, pathInput);
-      const next = resolvedActive > 0 ? resolvedActive - 1 : entries.length - 1;
+      const next = wrap(resolvedActive - 1, entries.length);
       setActive(next);
-      const dist = (next - scrollOffset + entries.length) % entries.length;
-      if (dist >= pageSize) setScrollOffset((scrollOffset - 1 + entries.length) % entries.length);
+      if (!isInView(next, scrollOffset, pageSize, entries.length)) {
+        setScrollOffset(wrap(scrollOffset - 1, entries.length));
+      }
       return;
     }
 
     if (isDownKey(key)) {
       setReadline(rl, pathInput);
-      const next = resolvedActive < entries.length - 1 ? resolvedActive + 1 : 0;
+      const next = wrap(resolvedActive + 1, entries.length);
       setActive(next);
-      const dist = (next - scrollOffset + entries.length) % entries.length;
-      if (dist >= pageSize) setScrollOffset((scrollOffset + 1) % entries.length);
+      if (!isInView(next, scrollOffset, pageSize, entries.length)) {
+        setScrollOffset(wrap(scrollOffset + 1, entries.length));
+      }
       return;
     }
 
@@ -220,6 +236,7 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
         const newPath = toDisplayPath(entry.fullPath, cwd, isAbsolute) + '/';
         setReadline(rl, newPath);
         setPathInput(newPath);
+        // New directory: reset view to top, focus '..' if going up or first real item
         setScrollOffset(0);
         setActive(entry.isParent ? 0 : 1);
       } else {
@@ -298,7 +315,7 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
     const count = Math.min(pageSize, entries.length);
     const rows: string[] = [];
     for (let i = 0; i < count; i++) {
-      const idx = (scrollOffset + i) % entries.length;
+      const idx = wrap(scrollOffset + i, entries.length);
       const item = entries[idx]!;
       const isActive = idx === resolvedActive;
       const icon = getIcon(item);
