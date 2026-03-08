@@ -195,7 +195,7 @@ export const FloatingHeader = { render: () => <FloatingHeaderComponent /> };
 export const FABButton = { render: () => <FABComponent /> };
 export const CollapsingHeader = { render: () => <CollapsingHeaderComponent /> };
 export const InfiniteScroll = { render: () => <InfiniteScrollComponent /> };
-export const ViewportOnly = { render: () => <InfiniteScrollComponent />, parameters: { sherlo: { takeViewportSnapshot: true } } };
+export const ViewportOnly = { render: () => <InfiniteScrollComponent />, parameters: { sherlo: { disableScrollCapture: true } } };
 
 // ============================================
 // Styles

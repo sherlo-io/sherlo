@@ -112,10 +112,10 @@ static void SherloEarlyInit(void) {
 /**
  * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
  */
-- (void)isScrollableSnapshot:(RCTPromiseResolveBlock)resolve
+- (void)isScrollable:(RCTPromiseResolveBlock)resolve
                       reject:(RCTPromiseRejectBlock)reject
 {
-  [core isScrollableSnapshot:resolve reject:reject];
+  [core isScrollable:resolve reject:reject];
 }
 
 /**
@@ -212,9 +212,9 @@ RCT_EXPORT_METHOD(stabilize:(double)requiredMatches
 /**
  * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
  */
-RCT_EXPORT_METHOD(isScrollableSnapshot:(RCTPromiseResolveBlock)resolve
+RCT_EXPORT_METHOD(isScrollable:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject) {
-  [core isScrollableSnapshot:resolve reject:reject];
+  [core isScrollable:resolve reject:reject];
 }
 
 /**

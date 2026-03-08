@@ -192,10 +192,10 @@ public class SherloModuleCore {
      * @param activity The current activity
      * @param promise Promise to resolve with boolean (true if scrollable, false otherwise)
      */
-    public void isScrollableSnapshot(Activity activity, Promise promise) {
+    public void isScrollable(Activity activity, Promise promise) {
         if (activity == null) {
             if (SCROLL_DEBUG) {
-                Log.d(TAG, "isScrollableSnapshot: No activity");
+                Log.d(TAG, "isScrollable: No activity");
             }
             promise.resolve(false);
             return;
@@ -207,7 +207,7 @@ public class SherloModuleCore {
                 promise.resolve(result);
             } catch (Exception e) {
                 if (SCROLL_DEBUG) {
-                    Log.e(TAG, "isScrollableSnapshot exception", e);
+                    Log.e(TAG, "isScrollable exception", e);
                 }
                 promise.resolve(false);
             }
@@ -249,7 +249,7 @@ public class SherloModuleCore {
         }
 
         // 1. Select Candidate
-        // Reuse the logic from isScrollableSnapshot
+        // Reuse the logic from isScrollable
         View candidate = findScrollableViewViaProbe(decorView);
         if (candidate == null) {
             candidate = findLargestVisibleScrollableView(decorView);
@@ -379,7 +379,7 @@ public class SherloModuleCore {
         View decorView = activity.getWindow().getDecorView();
         if (decorView == null) {
             if (SCROLL_DEBUG) {
-                Log.d(TAG, "isScrollableSnapshot: No decor view");
+                Log.d(TAG, "isScrollable: No decor view");
             }
             return false;
         }
@@ -396,19 +396,19 @@ public class SherloModuleCore {
 
         if (candidate == null) {
             if (SCROLL_DEBUG) {
-                Log.d(TAG, "isScrollableSnapshot: No scrollable candidate found");
+                Log.d(TAG, "isScrollable: No scrollable candidate found");
             }
             return false;
         }
 
         if (SCROLL_DEBUG) {
-            Log.d(TAG, "isScrollableSnapshot: Candidate found via " + selectionMethod + ", class: " + candidate.getClass().getSimpleName());
+            Log.d(TAG, "isScrollable: Candidate found via " + selectionMethod + ", class: " + candidate.getClass().getSimpleName());
         }
 
         // Metric-based scrollability check
         if (isScrollableByMetrics(candidate)) {
             if (SCROLL_DEBUG) {
-                Log.d(TAG, "isScrollableSnapshot: Metric check passed, skipping nudge validation to prevent transient scroll indicators.");
+                Log.d(TAG, "isScrollable: Metric check passed, skipping nudge validation to prevent transient scroll indicators.");
             }
             return true;
         }
@@ -417,7 +417,7 @@ public class SherloModuleCore {
         // Only do this if metrics were inconclusive (e.g. reflection failed)
         boolean nudgeResult = validateWithNudge(candidate);
         if (SCROLL_DEBUG) {
-            Log.d(TAG, "isScrollableSnapshot: Nudge validation result: " + nudgeResult);
+            Log.d(TAG, "isScrollable: Nudge validation result: " + nudgeResult);
         }
 
         return nudgeResult;

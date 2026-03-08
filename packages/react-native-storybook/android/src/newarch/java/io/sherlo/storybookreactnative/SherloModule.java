@@ -139,9 +139,9 @@ public class SherloModule extends NativeSherloModuleSpec {
      * @param promise Promise to resolve with boolean (true if scrollable, false otherwise)
      */
     @Override
-    public void isScrollableSnapshot(Promise promise) {
+    public void isScrollable(Promise promise) {
         Activity activity = getCurrentActivity();
-        moduleCore.isScrollableSnapshot(activity, promise);
+        moduleCore.isScrollable(activity, promise);
     }
 
     /**

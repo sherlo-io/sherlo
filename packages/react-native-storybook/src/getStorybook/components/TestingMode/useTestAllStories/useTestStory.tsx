@@ -86,7 +86,7 @@ function useTestStory({
 
         let finalInspectorData = inspectorData;
         let hasNetworkImage = false;
-        let isScrollableSnapshot = false;
+        let isScrollable = false;
         let safeAreaMetadata;
 
         if (!containsError) {
@@ -101,14 +101,12 @@ function useTestStory({
           }
 
           // Detect if the screen is scrollable for long-screenshot capture
-          if (config.enableScrollingSnapshot) {
-            isScrollableSnapshot = await SherloModule.isScrollableSnapshot().catch((error) => {
-              RunnerBridge.log('error checking if scrollable', { error: error.message });
-              return false;
-            });
-          }
+          isScrollable = await SherloModule.isScrollable().catch((error) => {
+            RunnerBridge.log('error checking if scrollable', { error: error.message });
+            return false;
+          });
 
-          RunnerBridge.log('checked if scrollable', { isScrollableSnapshot });
+          RunnerBridge.log('checked if scrollable', { isScrollable });
 
           safeAreaMetadata = {
             shouldAddSafeArea: !nextSnapshot.parameters?.noSafeArea,
@@ -129,7 +127,7 @@ function useTestStory({
           hasError: containsError,
           finalInspectorData: !!finalInspectorData,
           isStable,
-          isScrollableSnapshot,
+          isScrollable,
           requestId: currentRequestId,
           safeAreaMetadata,
           hasNetworkImage,
@@ -142,7 +140,7 @@ function useTestStory({
           hasError: containsError,
           inspectorData: JSON.stringify(finalInspectorData),
           isStable,
-          isScrollableSnapshot,
+          isScrollable,
           requestId: currentRequestId,
           safeAreaMetadata,
           hasNetworkImage,
@@ -231,7 +229,7 @@ function useTestStory({
             hasError: containsError,
             inspectorData: JSON.stringify(finalInspectorData),
             isStable: true, // We restabilized
-            isScrollableSnapshot,
+            isScrollable,
             requestId: currentRequestId, 
             safeAreaMetadata,
             hasNetworkImage,

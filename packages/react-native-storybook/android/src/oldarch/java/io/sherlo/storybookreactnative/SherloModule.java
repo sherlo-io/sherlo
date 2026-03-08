@@ -141,9 +141,9 @@ public class SherloModule extends ReactContextBaseJavaModule {
      * @param promise Promise to resolve with boolean (true if scrollable, false otherwise)
      */
     @ReactMethod
-    public void isScrollableSnapshot(Promise promise) {
+    public void isScrollable(Promise promise) {
         Activity activity = getCurrentActivity();
-        moduleCore.isScrollableSnapshot(activity, promise);
+        moduleCore.isScrollable(activity, promise);
     }
 
     /**

@@ -8,11 +8,11 @@ export interface SherloParameters {
   exclude?: boolean;
 
   /**
-   * Setting takeViewportSnapshot to true will force a single viewport snapshot of the story,
-   * even if the content is scrollable. By default, Sherlo automatically takes scrolling snapshots
-   * for scrollable content.
+   * Setting disableScrollCapture to true will force a single viewport snapshot of the story,
+   * even if the content is scrollable. By default, Sherlo automatically captures scrollable
+   * content as a stitched long screenshot.
    */
-  takeViewportSnapshot?: boolean;
+  disableScrollCapture?: boolean;
 
   /**
    * You can supply figmaUrl parameter with an URL to figma frame that contains

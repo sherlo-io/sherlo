@@ -222,14 +222,14 @@ static BOOL const SCROLL_DEBUG = YES;
 /**
  * Detects if the currently visible screen has a vertically scrollable view suitable for long-screenshot capture.
  */
-- (void)isScrollableSnapshot:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+- (void)isScrollable:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
     dispatch_async(dispatch_get_main_queue(), ^{
         @try {
             BOOL result = [self detectScrollableView];
             resolve(@(result));
         } @catch (NSException *exception) {
             if (SCROLL_DEBUG) {
-                NSLog(@"[%@] isScrollableSnapshot exception: %@", LOG_TAG, exception);
+                NSLog(@"[%@] isScrollable exception: %@", LOG_TAG, exception);
             }
             resolve(@(NO));
         }
@@ -249,7 +249,7 @@ static BOOL const SCROLL_DEBUG = YES;
     UIWindow *keyWindow = [self getKeyWindow];
     if (!keyWindow) {
         if (SCROLL_DEBUG) {
-            NSLog(@"[%@] isScrollableSnapshot: No key window found", LOG_TAG);
+            NSLog(@"[%@] isScrollable: No key window found", LOG_TAG);
         }
         return NO;
     }
@@ -266,20 +266,20 @@ static BOOL const SCROLL_DEBUG = YES;
 
     if (!candidate) {
         if (SCROLL_DEBUG) {
-            NSLog(@"[%@] isScrollableSnapshot: No scroll view candidate found", LOG_TAG);
+            NSLog(@"[%@] isScrollable: No scroll view candidate found", LOG_TAG);
         }
         return NO;
     }
 
     if (SCROLL_DEBUG) {
-        NSLog(@"[%@] isScrollableSnapshot: Candidate found via %@, class: %@",
+        NSLog(@"[%@] isScrollable: Candidate found via %@, class: %@",
               LOG_TAG, selectionMethod, NSStringFromClass([candidate class]));
     }
 
     // Metric-based scrollability check
     if ([self isScrollableByMetrics:candidate epsilon:EPSILON minRangeRatio:MIN_SCROLL_RANGE_RATIO]) {
         if (SCROLL_DEBUG) {
-            NSLog(@"[%@] isScrollableSnapshot: Metric check passed, skipping nudge validation to prevent transient scroll indicators.", LOG_TAG);
+            NSLog(@"[%@] isScrollable: Metric check passed, skipping nudge validation to prevent transient scroll indicators.", LOG_TAG);
         }
         return YES;
     }
@@ -287,7 +287,7 @@ static BOOL const SCROLL_DEBUG = YES;
     // Fallback: Control validation: nudge and restore
     BOOL nudgeResult = [self validateWithNudge:candidate nudgePx:NUDGE_PX];
     if (SCROLL_DEBUG) {
-        NSLog(@"[%@] isScrollableSnapshot: Nudge validation result: %@", LOG_TAG, nudgeResult ? @"YES" : @"NO");
+        NSLog(@"[%@] isScrollable: Nudge validation result: %@", LOG_TAG, nudgeResult ? @"YES" : @"NO");
     }
 
     return nudgeResult;
