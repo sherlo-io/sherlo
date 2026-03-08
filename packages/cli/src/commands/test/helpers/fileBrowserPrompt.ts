@@ -139,7 +139,7 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
   const cwd = process.cwd();
 
   const [pathInput, setPathInput] = useState('');
-  const [active, setActive] = useState(0);
+  const [active, setActive] = useState(1);
   const [status, setStatus] = useState<'idle' | 'done'>('idle');
 
   useEffect((rl) => {
@@ -217,7 +217,7 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
         const newPath = toDisplayPath(entry.fullPath, cwd, isAbsolute) + '/';
         setReadline(rl, newPath);
         setPathInput(newPath);
-        setActive(0);
+        setActive(1);
       } else {
         const displayPath = toDisplayPath(entry.fullPath, cwd, isAbsolute);
         setStatus('done');
@@ -235,7 +235,7 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
           const newPath = display + '/';
           setReadline(rl, newPath);
           setPathInput(newPath);
-          setActive(0);
+          setActive(1);
         } else {
           setReadline(rl, display);
           setPathInput(display);
@@ -269,12 +269,12 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
     if (rl.line === './/') {
       setReadline(rl, '/');
       setPathInput('/');
-      setActive(0);
+      setActive(1);
       return;
     }
 
     setPathInput(rl.line);
-    setActive(0);
+    setActive(1);
   });
 
   if (status === 'done') {
