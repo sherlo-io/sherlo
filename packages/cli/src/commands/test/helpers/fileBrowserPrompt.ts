@@ -192,14 +192,18 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
     if (status === 'done') return;
 
     if (isUpKey(key)) {
-      setReadline(rl, pathInput);
-      setActive(resolvedActive > 0 ? resolvedActive - 1 : entries.length - 1);
+      if (resolvedActive > 0) {
+        setReadline(rl, pathInput);
+        setActive(resolvedActive - 1);
+      }
       return;
     }
 
     if (isDownKey(key)) {
-      setReadline(rl, pathInput);
-      setActive(resolvedActive < entries.length - 1 ? resolvedActive + 1 : 0);
+      if (resolvedActive < entries.length - 1) {
+        setReadline(rl, pathInput);
+        setActive(resolvedActive + 1);
+      }
       return;
     }
 
