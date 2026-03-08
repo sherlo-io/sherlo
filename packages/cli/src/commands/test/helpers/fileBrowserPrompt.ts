@@ -195,8 +195,8 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
       setReadline(rl, pathInput);
       const next = resolvedActive > 0 ? resolvedActive - 1 : entries.length - 1;
       setActive(next);
-      if (next < scrollOffset) setScrollOffset(next);
-      else if (next === entries.length - 1) setScrollOffset(Math.max(0, entries.length - pageSize));
+      const dist = (next - scrollOffset + entries.length) % entries.length;
+      if (dist >= pageSize) setScrollOffset((scrollOffset - 1 + entries.length) % entries.length);
       return;
     }
 
@@ -204,8 +204,8 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
       setReadline(rl, pathInput);
       const next = resolvedActive < entries.length - 1 ? resolvedActive + 1 : 0;
       setActive(next);
-      if (next >= scrollOffset + pageSize) setScrollOffset(next - pageSize + 1);
-      else if (next === 0) setScrollOffset(0);
+      const dist = (next - scrollOffset + entries.length) % entries.length;
+      if (dist >= pageSize) setScrollOffset((scrollOffset + 1) % entries.length);
       return;
     }
 
@@ -290,34 +290,35 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
     return `${chalk.green('?')} ${chalk.bold(config.message)} ${chalk.cyan(displayPath)}`;
   }
 
-  // Render the tree with custom pagination
+  // Render the tree with circular pagination
   let tree: string;
   if (entries.length === 0) {
     tree = chalk.dim('  (no matching entries)');
   } else {
-    const start = Math.max(0, Math.min(scrollOffset, entries.length - pageSize));
-    const visible = entries.slice(start, start + pageSize);
-    tree = visible
-      .map((item, i) => {
-        const isActive = start + i === resolvedActive;
-        const icon = getIcon(item);
-        const displayName = item.isDirectory ? `${item.name}/` : item.name;
+    const count = Math.min(pageSize, entries.length);
+    const rows: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const idx = (scrollOffset + i) % entries.length;
+      const item = entries[idx]!;
+      const isActive = idx === resolvedActive;
+      const icon = getIcon(item);
+      const displayName = item.isDirectory ? `${item.name}/` : item.name;
 
-        const isRootParent = item.isParent && path.dirname(dirPath) === dirPath;
-        if (isRootParent) {
-          const cursor = isActive ? chalk.dim(ICONS.pointer) : ' ';
-          return `${cursor} ${icon} ${chalk.dim(displayName)}`;
-        }
-
+      const isRootParent = item.isParent && path.dirname(dirPath) === dirPath;
+      if (isRootParent) {
+        const cursor = isActive ? chalk.dim(ICONS.pointer) : ' ';
+        rows.push(`${cursor} ${icon} ${chalk.dim(displayName)}`);
+      } else {
         const cursor = isActive ? chalk.cyan(ICONS.pointer) : ' ';
         const name = isActive
           ? chalk.cyan(displayName)
           : item.isDirectory
             ? chalk.bold(displayName)
             : displayName;
-        return `${cursor} ${icon} ${name}`;
-      })
-      .join('\n');
+        rows.push(`${cursor} ${icon} ${name}`);
+      }
+    }
+    tree = rows.join('\n');
   }
 
   const lines = [
