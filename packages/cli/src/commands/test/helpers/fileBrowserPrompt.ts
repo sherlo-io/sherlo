@@ -192,18 +192,14 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
     if (status === 'done') return;
 
     if (isUpKey(key)) {
-      if (resolvedActive > 0) {
-        setReadline(rl, pathInput);
-        setActive(resolvedActive - 1);
-      }
+      setReadline(rl, pathInput);
+      setActive(resolvedActive > 0 ? resolvedActive - 1 : entries.length - 1);
       return;
     }
 
     if (isDownKey(key)) {
-      if (resolvedActive < entries.length - 1) {
-        setReadline(rl, pathInput);
-        setActive(resolvedActive + 1);
-      }
+      setReadline(rl, pathInput);
+      setActive(resolvedActive < entries.length - 1 ? resolvedActive + 1 : 0);
       return;
     }
 
@@ -291,7 +287,7 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
           items: entries,
           active: resolvedActive,
           pageSize,
-          loop: false,
+          loop: true,
           renderItem({ item, isActive }) {
             const icon = getIcon(item);
             const displayName = item.isDirectory ? `${item.name}/` : item.name;
