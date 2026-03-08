@@ -104,7 +104,7 @@
  * @param resolve Promise resolver called with boolean (true if scrollable, false otherwise)
  * @param reject Promise rejecter called if an error occurs
  */
- - (void)isScrollableSnapshot:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
+ - (void)isScrollable:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
 
 /**
  * Deterministically scrolls the currently visible screen to a specific checkpoint offset.
