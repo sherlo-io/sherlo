@@ -36,6 +36,14 @@ function getStorybookComponent({
     };
   }
 
+  if (!view?.getStorybookUI) {
+    throw new Error(
+      'Storybook framework not found in the bundle. ' +
+        'If you are using the Metro withStorybook plugin, make sure "enabled" is set to true ' +
+        'and "onDisabledRemoveStorybook" is not stripping Storybook modules from this build.'
+    );
+  }
+
   return view.getStorybookUI(params);
 }
 
