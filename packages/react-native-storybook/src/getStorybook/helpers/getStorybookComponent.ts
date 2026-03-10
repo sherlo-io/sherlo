@@ -36,6 +36,13 @@ function getStorybookComponent({
     };
   }
 
+  if (!view?.getStorybookUI) {
+    throw new Error(
+      'Storybook framework not found in the bundle. ' +
+        'Make sure the Metro withStorybook wrapper does not have "enabled" set to false.'
+    );
+  }
+
   return view.getStorybookUI(params);
 }
 
