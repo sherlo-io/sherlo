@@ -18,8 +18,11 @@ import {
   DEFAULT_CONFIG_FILENAME,
   DEFAULT_PROJECT_ROOT,
   DISCORD_URL,
+  EAS_ANDROID_URL_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EAS_BUILD_SCRIPT_NAME_OPTION,
+  EAS_IOS_URL_OPTION,
+  EAS_UPDATE_SLUG_OPTION,
   INCLUDE_OPTION,
   INIT_COMMAND,
   IOS_FILE_TYPES,
@@ -113,9 +116,21 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${CONFIG_OPTION} <path>`,
     `Path to the config file (default: ${DEFAULT_CONFIG_FILENAME})`,
   ],
+  [EAS_ANDROID_URL_OPTION]: [
+    `--${EAS_ANDROID_URL_OPTION} <url>`,
+    'Direct Android EAS Update URL (bypasses expo config and eas-cli lookup)',
+  ],
   [EAS_BUILD_SCRIPT_NAME_OPTION]: [
     `--${EAS_BUILD_SCRIPT_NAME_OPTION} <name>`,
     'Name of the package.json script that triggers EAS Build',
+  ],
+  [EAS_IOS_URL_OPTION]: [
+    `--${EAS_IOS_URL_OPTION} <url>`,
+    'Direct iOS EAS Update URL (bypasses expo config and eas-cli lookup)',
+  ],
+  [EAS_UPDATE_SLUG_OPTION]: [
+    `--${EAS_UPDATE_SLUG_OPTION} <slug>`,
+    'EAS project slug (bypasses expo config lookup)',
   ],
   [INCLUDE_OPTION]: [
     `--${INCLUDE_OPTION} <stories>`,
@@ -171,11 +186,16 @@ function addTestStandardCommand(program: Command) {
 }
 
 function addTestEasUpdateCommand(program: Command) {
+  const devtoolsOptions =
+    process.env.SHERLO_DEVTOOLS === '1'
+      ? [EAS_ANDROID_URL_OPTION, EAS_IOS_URL_OPTION, EAS_UPDATE_SLUG_OPTION]
+      : [];
+
   addCommand({
     program,
     command: TEST_EAS_UPDATE_COMMAND,
     oldCommand: 'expo-update',
-    options: [BRANCH_OPTION, ...getTestCommonOptions('withPlatformPaths')],
+    options: [BRANCH_OPTION, ...getTestCommonOptions('withPlatformPaths'), ...devtoolsOptions],
     action: testEasUpdate,
   });
 }
