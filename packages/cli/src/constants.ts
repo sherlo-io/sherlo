@@ -77,6 +77,7 @@ export const EAS_ANDROID_URL_OPTION = 'easAndroidUrl';
 export const EAS_BUILD_SCRIPT_NAME_OPTION = 'easBuildScriptName';
 // export const EAS_UPDATE_JSON_OUTPUT_OPTION = 'easUpdateJsonOutput';
 export const EAS_IOS_URL_OPTION = 'easIosUrl';
+export const EAS_UPDATE_SLUG_OPTION = 'easUpdateSlug';
 export const IOS_OPTION = 'ios';
 export const MESSAGE_OPTION = 'message';
 export const PROFILE_OPTION = 'profile';
