@@ -1,7 +1,9 @@
 import {
   BRANCH_OPTION,
   DOCS_LINK,
+  EAS_ANDROID_URL_OPTION,
   EAS_BUILD_SCRIPT_NAME_OPTION,
+  EAS_IOS_URL_OPTION,
   TEST_EAS_CLOUD_BUILD_COMMAND,
   TEST_EAS_UPDATE_COMMAND,
   WAIT_FOR_EAS_BUILD_OPTION,
@@ -55,7 +57,12 @@ function validateTestEasCloudBuildOptions(options: Options<any>): void {
 }
 
 function validateTestEasUpdateOptions(options: Options<any>): void {
-  if (!options[BRANCH_OPTION]) {
+  const hasDevtoolsBypass =
+    process.env.SHERLO_DEVTOOLS === '1' &&
+    options[EAS_ANDROID_URL_OPTION] &&
+    options[EAS_IOS_URL_OPTION];
+
+  if (!hasDevtoolsBypass && !options[BRANCH_OPTION]) {
     throwError({
       message: `\`sherlo ${TEST_EAS_UPDATE_COMMAND}\` command requires \`${BRANCH_FLAG}\` option`,
       learnMoreLink: DOCS_LINK.testEasUpdate,
