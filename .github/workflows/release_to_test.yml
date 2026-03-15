@@ -1,0 +1,39 @@
+name: Release to Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release-to-test:
+    runs-on: ubuntu-latest
+    concurrency: release-to-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Download Sherlo packages
+        run: ./scripts/init-env.sh
+        env:
+          CLIENT_STAGE: test
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Install dependencies
+        run: yarn
+
+      - name: Set test prerelease version
+        run: |
+          VERSION=$(node -p "require('./lerna.json').version")
+          npx lerna version ${VERSION}-test.${GITHUB_RUN_ID} --yes --no-git-tag-version --no-push
+
+      - name: Build packages
+        run: yarn build
+
+      - name: Publish to npm with test tag
+        run: npx lerna publish from-package --no-private --yes --dist-tag test --no-git-reset
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
