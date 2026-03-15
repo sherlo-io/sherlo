@@ -3,6 +3,10 @@ name: Release to Test
 on:
   workflow_dispatch:
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   release-to-test:
     runs-on: ubuntu-latest
@@ -41,6 +45,6 @@ jobs:
           git commit -m "chore: test version bump" --allow-empty
 
       - name: Publish to npm with test tag
-        run: npx lerna publish from-package --no-private --yes --dist-tag test --no-git-reset --no-provenance
+        run: npx lerna publish from-package --no-private --yes --dist-tag test --no-git-reset
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

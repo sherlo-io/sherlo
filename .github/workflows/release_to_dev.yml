@@ -6,6 +6,10 @@ on:
     branches:
       - dev
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   release-to-dev:
     runs-on: ubuntu-latest
@@ -44,6 +48,6 @@ jobs:
           git commit -m "chore: dev version bump" --allow-empty
 
       - name: Publish to npm with dev tag
-        run: npx lerna publish from-package --no-private --yes --dist-tag dev --no-git-reset --no-provenance
+        run: npx lerna publish from-package --no-private --yes --dist-tag dev --no-git-reset
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
