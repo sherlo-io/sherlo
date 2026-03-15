@@ -34,9 +34,12 @@ async function installSherlo(sessionId: string | null): Promise<void> {
   // When SHERLO_SDK_PATH is set (e.g. by sherlo-tester), install from local source
   // via portal link instead of npm.
   const localSdkPath = process.env.SHERLO_SDK_PATH;
+  const sdkVersion = process.env.SHERLO_SDK_VERSION;
   const packageSpec = localSdkPath
     ? `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@portal:${localSdkPath}`
-    : SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME;
+    : sdkVersion
+      ? `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@${sdkVersion}`
+      : SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME;
 
   const packageManager = (await detect())?.name ?? 'npm';
   const resolvedCommand = resolveCommand(
