@@ -34,6 +34,6 @@ jobs:
         run: yarn build
 
       - name: Publish to npm with test tag
-        run: npx lerna publish from-package --no-private --yes --dist-tag test --no-git-reset
+        run: npx lerna publish from-package --no-private --yes --dist-tag test --no-git-reset --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
