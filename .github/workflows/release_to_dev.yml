@@ -36,7 +36,14 @@ jobs:
       - name: Build packages
         run: yarn build
 
+      - name: Commit version bump (local only)
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add -A
+          git commit -m "chore: dev version bump" --allow-empty
+
       - name: Publish to npm with dev tag
-        run: npx lerna publish from-package --no-private --yes --dist-tag dev --no-git-reset --no-git-checks
+        run: npx lerna publish from-package --no-private --yes --dist-tag dev --no-git-reset
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
