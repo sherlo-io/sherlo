@@ -44,6 +44,6 @@ jobs:
           git commit -m "chore: dev version bump" --allow-empty
 
       - name: Publish to npm with dev tag
-        run: npx lerna publish from-package --no-private --yes --dist-tag dev --no-git-reset
+        run: npx lerna publish from-package --no-private --yes --dist-tag dev --no-git-reset --no-provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
