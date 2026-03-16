@@ -49,5 +49,3 @@ jobs:
 
       - name: Publish to npm with dev tag
         run: npx lerna publish from-package --no-private --yes --dist-tag dev --no-git-reset
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
