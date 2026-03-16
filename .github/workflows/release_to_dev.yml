@@ -53,10 +53,6 @@ jobs:
             sdk.name = '@sherlo-io/react-native-storybook';
             sdk.version = '${DEV_VERSION}';
             sdk.publishConfig = { registry: 'https://npm.pkg.github.com', access: 'restricted' };
-            if (sdk.dependencies && sdk.dependencies.sherlo) {
-              sdk.dependencies['@sherlo-io/cli'] = '${DEV_VERSION}';
-              delete sdk.dependencies.sherlo;
-            }
             fs.writeFileSync('packages/react-native-storybook/package.json', JSON.stringify(sdk, null, 2) + '\n');
           "
 
