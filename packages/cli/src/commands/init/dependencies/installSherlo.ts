@@ -81,6 +81,16 @@ async function installSherlo(sessionId: string | null): Promise<void> {
       sessionId,
     });
 
+    // Log full error for debugging
+    if (error instanceof Error) {
+      console.error('[DEBUG installSherlo]', {
+        message: error.message,
+        stdout: (error as any).stdout,
+        stderr: (error as any).stderr,
+        code: (error as any).code,
+      });
+    }
+
     throwError({
       message:
         'Failed to install Sherlo automatically\n' +
