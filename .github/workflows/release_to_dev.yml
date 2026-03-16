@@ -10,14 +10,10 @@ jobs:
   release-to-dev:
     runs-on: ubuntu-latest
     concurrency: release-to-dev
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Create GH App Token
-        id: github_app_token
-        uses: tibdex/github-app-token@v2
-        with:
-          app_id: ${{ secrets.SHERLO_BOT_APP_ID }}
-          private_key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
-
       - uses: actions/checkout@v4
 
       - name: Set up Node.js
@@ -39,28 +35,24 @@ jobs:
       - name: Build packages
         run: yarn build
 
-      - name: Set dev prerelease version and rename packages
+      - name: Prepare and publish to GitHub Packages
         run: |
           VERSION=$(node -p "require('./lerna.json').version")
           DEV_VERSION="${VERSION}-dev.${GITHUB_RUN_ID}"
 
-          # Rename packages for GitHub Packages (@sherlo-io scope)
           node -e "
             const fs = require('fs');
 
             const cli = JSON.parse(fs.readFileSync('packages/cli/package.json', 'utf8'));
             cli.name = '@sherlo-io/cli';
             cli.version = '${DEV_VERSION}';
-            delete cli.publishConfig.provenance;
-            cli.publishConfig.registry = 'https://npm.pkg.github.com';
+            cli.publishConfig = { registry: 'https://npm.pkg.github.com', access: 'restricted' };
             fs.writeFileSync('packages/cli/package.json', JSON.stringify(cli, null, 2) + '\n');
 
             const sdk = JSON.parse(fs.readFileSync('packages/react-native-storybook/package.json', 'utf8'));
             sdk.name = '@sherlo-io/react-native-storybook';
             sdk.version = '${DEV_VERSION}';
-            delete sdk.publishConfig.provenance;
-            sdk.publishConfig.registry = 'https://npm.pkg.github.com';
-            // Update the sherlo dependency to point to @sherlo-io/cli
+            sdk.publishConfig = { registry: 'https://npm.pkg.github.com', access: 'restricted' };
             if (sdk.dependencies && sdk.dependencies.sherlo) {
               sdk.dependencies['@sherlo-io/cli'] = '${DEV_VERSION}';
               delete sdk.dependencies.sherlo;
@@ -68,14 +60,7 @@ jobs:
             fs.writeFileSync('packages/react-native-storybook/package.json', JSON.stringify(sdk, null, 2) + '\n');
           "
 
-      - name: Commit version bump (local only)
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add -A
-          git commit -m "chore: dev version bump" --allow-empty
-
-      - name: Publish to GitHub Packages with dev tag
-        run: npx lerna publish from-package --no-private --yes --dist-tag dev --no-git-reset
+          cd packages/cli && npm publish --tag dev
+          cd ../react-native-storybook && npm publish --tag dev
         env:
-          NODE_AUTH_TOKEN: ${{ steps.github_app_token.outputs.token }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
