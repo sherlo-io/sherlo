@@ -10,6 +10,9 @@ jobs:
   release-to-dev:
     runs-on: ubuntu-latest
     concurrency: release-to-dev
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
@@ -17,7 +20,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-          registry-url: 'https://registry.npmjs.org'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@sherlo-io'
 
       - name: Download Sherlo packages
         run: ./scripts/init-env.sh
@@ -28,15 +32,31 @@ jobs:
       - name: Install dependencies
         run: yarn
 
-      - name: Set dev prerelease version
-        run: |
-          VERSION=$(node -p "require('./lerna.json').version")
-          npx lerna version ${VERSION}-dev.${GITHUB_RUN_ID} --yes --no-git-tag-version --no-push
-
       - name: Build packages
         run: yarn build
 
-      - name: Publish to npm with dev tag
-        run: npx lerna publish from-package --no-private --yes --dist-tag dev --no-git-reset
+      - name: Prepare and publish to GitHub Packages
+        run: |
+          VERSION=$(node -p "require('./lerna.json').version")
+          DEV_VERSION="${VERSION}-dev.${GITHUB_RUN_ID}"
+
+          node -e "
+            const fs = require('fs');
+
+            const cli = JSON.parse(fs.readFileSync('packages/cli/package.json', 'utf8'));
+            cli.name = '@sherlo-io/cli';
+            cli.version = '${DEV_VERSION}';
+            cli.publishConfig = { registry: 'https://npm.pkg.github.com', access: 'restricted' };
+            fs.writeFileSync('packages/cli/package.json', JSON.stringify(cli, null, 2) + '\n');
+
+            const sdk = JSON.parse(fs.readFileSync('packages/react-native-storybook/package.json', 'utf8'));
+            sdk.name = '@sherlo-io/react-native-storybook';
+            sdk.version = '${DEV_VERSION}';
+            sdk.publishConfig = { registry: 'https://npm.pkg.github.com', access: 'restricted' };
+            fs.writeFileSync('packages/react-native-storybook/package.json', JSON.stringify(sdk, null, 2) + '\n');
+          "
+
+          cd packages/cli && npm publish --tag dev
+          cd ../react-native-storybook && npm publish --tag dev
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

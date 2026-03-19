@@ -67,7 +67,7 @@ async function installSherlo(sessionId: string | null): Promise<void> {
 
   try {
     await runShellCommand({
-      command: commandToRun,
+      command: `YARN_ENABLE_IMMUTABLE_INSTALLS=false ${commandToRun}`,
       projectRoot: getCwd(),
     });
   } catch (error) {
@@ -80,6 +80,16 @@ async function installSherlo(sessionId: string | null): Promise<void> {
       params: { status: 'failed:command_error' },
       sessionId,
     });
+
+    // Log full error for debugging
+    if (error instanceof Error) {
+      console.error('[DEBUG installSherlo]', {
+        message: error.message,
+        stdout: (error as any).stdout,
+        stderr: (error as any).stderr,
+        code: (error as any).code,
+      });
+    }
 
     throwError({
       message:
