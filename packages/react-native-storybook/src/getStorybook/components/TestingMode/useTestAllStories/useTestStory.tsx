@@ -68,7 +68,12 @@ function useTestStory({
         RunnerBridge.log('checked if stable', { isStable });
 
         let inspectorData;
+        const inspectorDataStart = Date.now();
         while (!inspectorData) {
+          if (Date.now() - inspectorDataStart > 10000) {
+            RunnerBridge.log('getInspectorData timed out after 10s');
+            throw new Error('getInspectorData timed out after 10s');
+          }
           inspectorData = await SherloModule.getInspectorData().catch((error) => {
             RunnerBridge.log('error getting inspector data', { error: JSON.stringify(error) });
           });
@@ -195,7 +200,12 @@ function useTestStory({
 
               // Recapture Metadata after scroll to get dynamic elements (below fold)
               let newInspectorData;
+              const scrollInspectorStart = Date.now();
               while (!newInspectorData) {
+                 if (Date.now() - scrollInspectorStart > 10000) {
+                   RunnerBridge.log('getInspectorData (scroll) timed out after 10s');
+                   throw new Error('getInspectorData (scroll) timed out after 10s');
+                 }
                  newInspectorData = await SherloModule.getInspectorData().catch((error) => {
                      RunnerBridge.log('error getting inspector data (scroll)', { error: JSON.stringify(error) });
                  });
