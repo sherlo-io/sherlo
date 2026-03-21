@@ -20,7 +20,16 @@ import validateHasStorybook from './validateHasStorybook';
 import validateProjectContext from './validateProjectContext';
 
 async function requirements({ token, sessionId }: { token?: string; sessionId: string | null }) {
-  await validateRequirements(token);
+  try {
+    await validateRequirements(token);
+  } catch (error) {
+    await trackProgress({
+      event: EVENT,
+      params: { status: 'failed', error: (error as Error).message },
+      sessionId,
+    });
+    throw error;
+  }
 
   printTitle('✅ Requirements', 15);
 

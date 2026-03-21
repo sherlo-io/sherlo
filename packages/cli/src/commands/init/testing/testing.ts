@@ -32,6 +32,7 @@ async function testing(sessionId: string | null): Promise<void> {
   await trackProgress({
     event: EVENT,
     params: { seen: true },
+    hasFinished: true,
     sessionId,
   });
 }

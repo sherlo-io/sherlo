@@ -77,7 +77,7 @@ async function installSherlo(sessionId: string | null): Promise<void> {
 
     await trackProgress({
       event,
-      params: { status: 'failed:command_error' },
+      params: { status: 'failed', error: (error as Error).message },
       sessionId,
     });
 

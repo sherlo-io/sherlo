@@ -8,7 +8,17 @@ import updateStorybookFiles from './updateStorybookFiles';
 async function updateStorybookComponent(
   sessionId: string | null
 ): Promise<{ hasUpdatedStorybookComponent: boolean }> {
-  const storybookFiles = await getStorybookFiles();
+  let storybookFiles;
+  try {
+    storybookFiles = await getStorybookFiles();
+  } catch (error) {
+    await trackProgress({
+      event: EVENT,
+      params: { status: 'failed', error: (error as Error).message },
+      sessionId,
+    });
+    throw error;
+  }
 
   const alreadyUpdatedFilePaths = storybookFiles
     .filter(({ isUpdated }) => isUpdated)
@@ -26,7 +36,16 @@ async function updateStorybookComponent(
     .map(({ filePath }) => filePath);
 
   if (notUpdatedFilePaths.length > 0) {
-    await updateStorybookFiles(notUpdatedFilePaths);
+    try {
+      await updateStorybookFiles(notUpdatedFilePaths);
+    } catch (error) {
+      await trackProgress({
+        event: EVENT,
+        params: { status: 'failed', error: (error as Error).message },
+        sessionId,
+      });
+      throw error;
+    }
 
     notUpdatedFilePaths.forEach((filePath) => {
       printMessage({

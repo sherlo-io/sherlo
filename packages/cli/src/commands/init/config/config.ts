@@ -10,24 +10,33 @@ async function config({ sessionId, token }: { sessionId: string | null; token?: 
 
   let configValue, hasAddedDefaultDevices, action;
 
-  if (!hasConfigFile()) {
-    ({ createdConfig: configValue, hasAddedDefaultDevices } = await createConfig(token));
+  try {
+    if (!hasConfigFile()) {
+      ({ createdConfig: configValue, hasAddedDefaultDevices } = await createConfig(token));
 
-    action = 'created';
-  } else {
-    ({ updatedConfig: configValue, hasAddedDefaultDevices } = await updateConfig(token));
+      action = 'created';
+    } else {
+      ({ updatedConfig: configValue, hasAddedDefaultDevices } = await updateConfig(token));
 
-    action = 'updated';
+      action = 'updated';
+    }
+
+    const configWithoutToken = { ...configValue };
+    delete configWithoutToken.token;
+
+    await trackProgress({
+      event: EVENT,
+      params: { action, configWithoutToken },
+      sessionId,
+    });
+  } catch (error) {
+    await trackProgress({
+      event: EVENT,
+      params: { status: 'failed', error: (error as Error).message },
+      sessionId,
+    });
+    throw error;
   }
-
-  const configWithoutToken = { ...configValue };
-  delete configWithoutToken.token;
-
-  await trackProgress({
-    event: EVENT,
-    params: { action, configWithoutToken },
-    sessionId,
-  });
 
   if (hasAddedDefaultDevices) {
     console.log();
