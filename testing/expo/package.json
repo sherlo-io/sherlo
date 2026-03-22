@@ -64,7 +64,7 @@
     "@storybook/addon-ondevice-backgrounds": "^9.1.2",
     "@storybook/addon-ondevice-controls": "^9.1.2",
     "@storybook/addon-ondevice-notes": "^9.1.2",
-    "@storybook/react-native": "999.0.0",
+    "@storybook/react-native": "^9.1.2",
     "@types/lodash": "^4",
     "babel-loader": "^8.2.3",
     "burnt": "^0.13.0",
