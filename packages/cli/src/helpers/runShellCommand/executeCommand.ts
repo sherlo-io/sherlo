@@ -7,10 +7,12 @@ function executeCommand({
   command,
   projectRoot,
   encoding,
+  env,
 }: {
   command: string;
   projectRoot: string;
   encoding: 'utf8' | 'buffer';
+  env?: NodeJS.ProcessEnv;
 }): Promise<string | Buffer> {
   return new Promise((resolve, reject) => {
     const options: {
@@ -21,7 +23,7 @@ function executeCommand({
     } = {
       cwd: projectRoot,
       maxBuffer: 1 * 1024 * 1024 * 1024, // 1GB max buffer - very safe limit
-      env: { ...process.env, FORCE_COLOR: 'true' },
+      env: { ...process.env, FORCE_COLOR: 'true', ...env },
     };
 
     // Set encoding only if it's 'utf8', for 'buffer' we don't set it to get Buffer output

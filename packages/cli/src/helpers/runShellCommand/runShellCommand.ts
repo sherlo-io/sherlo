@@ -5,6 +5,7 @@ interface Options {
   command: string;
   projectRoot: string;
   encoding?: 'utf8' | 'buffer';
+  env?: NodeJS.ProcessEnv;
 }
 
 /**
@@ -18,9 +19,10 @@ async function runShellCommand({
   command,
   projectRoot,
   encoding = 'utf8',
+  env,
 }: Options): Promise<string | Buffer> {
   try {
-    return await executeCommand({ command, projectRoot, encoding });
+    return await executeCommand({ command, projectRoot, encoding, env });
   } catch (error) {
     if (
       error instanceof Error &&
@@ -32,6 +34,7 @@ async function runShellCommand({
         command,
         projectRoot,
         encoding,
+        env,
       });
     }
 

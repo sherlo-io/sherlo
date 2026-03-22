@@ -45,10 +45,7 @@ async function installSherlo(sessionId: string | null): Promise<void> {
   const resolvedCommand = resolveCommand(
     packageManager,
     'add',
-    [
-      isSherloAlreadyInDevDependencies ? '-D' : null,
-      packageSpec,
-    ].filter(Boolean) as string[]
+    [isSherloAlreadyInDevDependencies ? '-D' : null, packageSpec].filter(Boolean) as string[]
   );
 
   if (!resolvedCommand) {
@@ -67,8 +64,9 @@ async function installSherlo(sessionId: string | null): Promise<void> {
 
   try {
     await runShellCommand({
-      command: `YARN_ENABLE_IMMUTABLE_INSTALLS=false ${commandToRun}`,
+      command: commandToRun,
       projectRoot: getCwd(),
+      env: packageManager === 'yarn' ? { YARN_ENABLE_IMMUTABLE_INSTALLS: 'false' } : undefined,
     });
   } catch (error) {
     spinner.fail();
@@ -80,16 +78,6 @@ async function installSherlo(sessionId: string | null): Promise<void> {
       params: { status: 'failed', error: (error as Error).message },
       sessionId,
     });
-
-    // Log full error for debugging
-    if (error instanceof Error) {
-      console.error('[DEBUG installSherlo]', {
-        message: error.message,
-        stdout: (error as any).stdout,
-        stderr: (error as any).stderr,
-        code: (error as any).code,
-      });
-    }
 
     throwError({
       message:

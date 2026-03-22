@@ -6,11 +6,7 @@ import {
   STORYBOOK_REACT_NATIVE_PACKAGE_NAME,
   TOKEN_OPTION,
 } from '../../../constants';
-import {
-  isValidToken,
-  printLink,
-  throwError,
-} from '../../../helpers';
+import { isValidToken, printLink, throwError } from '../../../helpers';
 import { printMessage, printTitle, trackProgress } from '../helpers';
 import { EVENT } from './constants';
 import getPackageVersion from './getPackageVersion';

@@ -11,7 +11,7 @@ Main package for [Sherlo](https://github.com/sherlo-io/sherlo) - Visual Testing 
 ### 1. Initialize Sherlo
 
 ```bash
-npx sherlo@latest init
+npx sherlo init
 ```
 
 This will automatically install `@sherlo/react-native-storybook` and configure your project.
