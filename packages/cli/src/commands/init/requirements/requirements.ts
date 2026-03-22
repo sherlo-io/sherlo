@@ -75,7 +75,9 @@ async function validateRequirements(token?: string): Promise<void> {
     if (token && !isValidToken(token)) {
       throwError({
         message:
-          `Invalid \`--${TOKEN_OPTION}\`. Make sure you copied it correctly or generate a new one at ` +
+          `Invalid \`--${TOKEN_OPTION}\` value\n` +
+          '\n' +
+          chalk.reset('Make sure you copied it correctly or generate a new one at ') +
           printLink(APP_DOMAIN),
         below:
           '\n' +
