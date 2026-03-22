@@ -18,6 +18,15 @@ async function trackProgress({
 }): Promise<{ sessionId: string | null }> {
   const { apiToken, projectIndex, teamId } = token ? getTokenParts(token) : {};
 
+  if (params && params.error instanceof Error) {
+    const errorObj = params.error as Error & { cause?: unknown };
+    params = {
+      ...params,
+      error: errorObj.message,
+      ...(errorObj.cause ? { cause: errorObj.cause } : {}),
+    };
+  }
+
   const stringifiedParams = JSON.stringify(params ?? {}, (_, value) =>
     typeof value === 'string' ? stripAnsi(value).trim() : value
   );

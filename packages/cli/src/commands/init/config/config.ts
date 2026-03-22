@@ -32,7 +32,7 @@ async function config({ sessionId, token }: { sessionId: string | null; token?: 
   } catch (error) {
     await trackProgress({
       event: EVENT,
-      params: { status: 'failed', error: (error as Error).message },
+      params: { status: 'failed', error },
       sessionId,
     });
     throw error;

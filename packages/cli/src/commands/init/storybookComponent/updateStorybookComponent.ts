@@ -14,7 +14,7 @@ async function updateStorybookComponent(
   } catch (error) {
     await trackProgress({
       event: EVENT,
-      params: { status: 'failed', error: (error as Error).message },
+      params: { status: 'failed', error },
       sessionId,
     });
     throw error;
@@ -41,7 +41,7 @@ async function updateStorybookComponent(
     } catch (error) {
       await trackProgress({
         event: EVENT,
-        params: { status: 'failed', error: (error as Error).message },
+        params: { status: 'failed', error },
         sessionId,
       });
       throw error;

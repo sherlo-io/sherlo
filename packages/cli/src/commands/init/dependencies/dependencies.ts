@@ -1,19 +1,34 @@
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { getCwd } from '../../../helpers';
-import { printTitle } from '../helpers';
-import { IOS_DIR } from './constants';
+import { printTitle, trackProgress } from '../helpers';
+import { EVENT, IOS_DIR } from './constants';
 import installPods from './installPods';
 import installSherlo from './installSherlo';
 
 async function dependencies({ sessionId }: { sessionId: string | null }) {
   printTitle('💾 Dependencies');
 
-  await installSherlo(sessionId);
+  try {
+    await installSherlo();
 
-  if (iosDirectoryWithPodfileExists()) {
-    await installPods(sessionId);
+    if (iosDirectoryWithPodfileExists()) {
+      await installPods();
+    }
+  } catch (error) {
+    await trackProgress({
+      event: EVENT,
+      params: { status: 'failed', error },
+      sessionId,
+    });
+    throw error;
   }
+
+  await trackProgress({
+    event: EVENT,
+    params: { status: 'success' },
+    sessionId,
+  });
 }
 
 export default dependencies;

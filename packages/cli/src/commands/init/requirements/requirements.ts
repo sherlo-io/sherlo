@@ -21,7 +21,7 @@ async function requirements({ token, sessionId }: { token?: string; sessionId: s
   } catch (error) {
     await trackProgress({
       event: EVENT,
-      params: { status: 'failed', error: (error as Error).message },
+      params: { status: 'failed', error },
       sessionId,
     });
     throw error;

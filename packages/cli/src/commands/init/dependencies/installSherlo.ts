@@ -5,13 +5,9 @@ import { detect, resolveCommand } from 'package-manager-detector';
 import { join } from 'path';
 import { FULL_INIT_COMMAND, SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../constants';
 import { getCwd, getErrorWithCustomMessage, runShellCommand, throwError } from '../../../helpers';
-import { trackProgress } from '../helpers';
-import { EVENT } from './constants';
 
-async function installSherlo(sessionId: string | null): Promise<void> {
+async function installSherlo(): Promise<void> {
   const spinner = ora('Installing Sherlo').start();
-
-  const event = `${EVENT}:installSherlo`;
 
   let packageJson;
   const packageJsonPath = join(getCwd(), 'package.json');
@@ -73,12 +69,6 @@ async function installSherlo(sessionId: string | null): Promise<void> {
 
     console.log();
 
-    await trackProgress({
-      event,
-      params: { status: 'failed', error: (error as Error).message },
-      sessionId,
-    });
-
     throwError({
       message:
         'Failed to install Sherlo automatically\n' +
@@ -87,18 +77,12 @@ async function installSherlo(sessionId: string | null): Promise<void> {
         chalk.cyan(`  ${commandToRun}\n`) +
         '\n' +
         chalk.reset('Then re-run:\n') +
-        chalk.cyan(`  ${FULL_INIT_COMMAND}\n`),
+        chalk.cyan(`  ${FULL_INIT_COMMAND}`),
       errorToReport: error,
     });
   }
 
   spinner.succeed('Installed Sherlo');
-
-  await trackProgress({
-    event,
-    params: { status: 'success' },
-    sessionId,
-  });
 }
 
 export default installSherlo;
