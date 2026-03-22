@@ -1,4 +1,5 @@
-import { STORYBOOK_REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
+import chalk from 'chalk';
+import { FULL_INIT_COMMAND, STORYBOOK_REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
 import { throwError } from '../../../helpers';
 import findPackageJsonPaths from './findPackageJsonPaths';
 import hasDependency from './hasDependency';
@@ -14,6 +15,10 @@ async function validateHasStorybook(): Promise<void> {
     throwError({
       message: 'Set up Storybook before initializing Sherlo',
       learnMoreLink: 'https://github.com/storybookjs/react-native',
+      below:
+        '\n' +
+        chalk.reset('Then re-run:\n') +
+        chalk.cyan(`  ${FULL_INIT_COMMAND}`),
     });
   }
 }
