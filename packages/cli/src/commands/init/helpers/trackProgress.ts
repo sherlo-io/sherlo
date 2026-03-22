@@ -19,7 +19,7 @@ async function trackProgress({
   const { apiToken, projectIndex, teamId } = token ? getTokenParts(token) : {};
 
   const stringifiedParams = JSON.stringify(params ?? {}, (_, value) =>
-    typeof value === 'string' ? stripAnsi(value) : value
+    typeof value === 'string' ? stripAnsi(value).trim() : value
   );
 
   return sdkClient({ authToken: apiToken })
