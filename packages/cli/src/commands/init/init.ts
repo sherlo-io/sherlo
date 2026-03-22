@@ -20,8 +20,6 @@ async function init({ token }: Options<THIS_COMMAND>) {
 
   printSherloIntro();
 
-  console.log('Initializing Sherlo in your project...');
-
   await requirements({ token, sessionId });
 
   await dependencies({ sessionId });
