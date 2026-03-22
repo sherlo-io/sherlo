@@ -16,9 +16,9 @@ function getPackageErrorMessage(params: Params) {
   }
 
   return (
-    `\`${params.packageName}\` version \`${params.versions.current}\` is not supported (requires ≥\`${params.versions.min}\`)\n` +
+    `\`${params.packageName}\` version ${params.versions.current} is not supported (requires ≥${params.versions.min})\n` +
     '\n' +
-    chalk.reset(`Please upgrade \`${params.packageName}\` to version \`${params.versions.min}\` or higher`)
+    chalk.reset(`Please upgrade \`${params.packageName}\` to version ${params.versions.min} or higher`)
   );
 }
 
