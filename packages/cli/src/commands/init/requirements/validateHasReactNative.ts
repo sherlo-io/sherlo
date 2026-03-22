@@ -1,4 +1,5 @@
-import { REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
+import chalk from 'chalk';
+import { FULL_INIT_COMMAND, REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
 import { throwError } from '../../../helpers';
 import findPackageJsonPaths from './findPackageJsonPaths';
 import hasDependency from './hasDependency';
@@ -12,11 +13,13 @@ async function validateHasReactNative(): Promise<void> {
 
   if (!hasReactNative) {
     throwError({
-      message: (
-        `\`${REACT_NATIVE_PACKAGE_NAME}\` package is not installed` +
-        '\n\n' +
-        `Please install \`${REACT_NATIVE_PACKAGE_NAME}\` using your package manager`
-      ),
+      message:
+        `\`${REACT_NATIVE_PACKAGE_NAME}\` package is not installed\n` +
+        '\n' +
+        chalk.reset('Please install it using your package manager\n') +
+        '\n' +
+        chalk.reset('Then re-run:\n') +
+        chalk.cyan(`  ${FULL_INIT_COMMAND}`),
     });
   }
 }

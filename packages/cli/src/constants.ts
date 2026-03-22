@@ -66,7 +66,7 @@ export const TEST_STANDARD_COMMAND = 'test:standard';
 export const TEST_EAS_UPDATE_COMMAND = 'test:eas-update';
 export const TEST_EAS_CLOUD_BUILD_COMMAND = 'test:eas-cloud-build';
 export const EAS_BUILD_ON_COMPLETE_COMMAND = 'eas-build-on-complete';
-export const FULL_INIT_COMMAND = 'npx sherlo@latest init';
+export const FULL_INIT_COMMAND = 'npx sherlo init';
 
 /* OPTIONS */
 

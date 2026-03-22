@@ -1,5 +1,5 @@
 import sdkClient from '@sherlo/sdk-client';
-import { getTokenParts, reporting } from '../../../helpers';
+import { getTokenParts, reporting, stripAnsi } from '../../../helpers';
 
 async function trackProgress({
   event,
@@ -18,10 +18,23 @@ async function trackProgress({
 }): Promise<{ sessionId: string | null }> {
   const { apiToken, projectIndex, teamId } = token ? getTokenParts(token) : {};
 
+  if (params && params.error instanceof Error) {
+    const errorObj = params.error as Error & { cause?: unknown };
+    params = {
+      ...params,
+      error: errorObj.message,
+      ...(errorObj.cause ? { cause: errorObj.cause } : {}),
+    };
+  }
+
+  const stringifiedParams = JSON.stringify(params ?? {}, (_, value) =>
+    typeof value === 'string' ? stripAnsi(value).trim() : value
+  );
+
   return sdkClient({ authToken: apiToken })
     .trackCliInit({
       event,
-      stringifiedParams: JSON.stringify(params ?? {}),
+      stringifiedParams,
       hasStarted,
       hasFinished,
       sessionId,
