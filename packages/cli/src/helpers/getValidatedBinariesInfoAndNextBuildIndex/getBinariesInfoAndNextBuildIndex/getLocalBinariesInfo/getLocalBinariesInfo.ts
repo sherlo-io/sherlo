@@ -149,15 +149,15 @@ async function getLocalBinaryInfoForPlatform({
   ) {
     const archiveType = fileName.endsWith('.apk') ? 'unzip' : 'tar';
 
-    const isTar = archiveType === 'tar';
+    // iOS device builds (.tar/.tar.gz) nest files under Payload/<AppName>.app/.
+    // APK archives use flat paths.
+    const getArchivePath = (file: string) =>
+      archiveType === 'tar' ? `*.app/${file}` : file;
 
-    // tar archives contain files under a variable path like `Payload/AppName.app/...`.
-    // Using `*.app/<path>` ensures we only match files directly inside the .app directory,
-    // not nested bundles inside .bundle subdirectories (e.g., EXDevLauncher.bundle/main.jsbundle).
     checkHasJsBundle = () =>
       accessFileInArchive({
         operation: 'exists',
-        file: isTar ? `*.app/${previewBundlePath}` : previewBundlePath,
+        file: getArchivePath(previewBundlePath),
         archive: platformPath,
         type: archiveType,
         projectRoot,
@@ -166,7 +166,7 @@ async function getLocalBinaryInfoForPlatform({
     readSherloFile = () =>
       accessFileInArchive({
         operation: 'read',
-        file: isTar ? `*.app/${sherloFilePath}` : sherloFilePath,
+        file: getArchivePath(sherloFilePath),
         archive: platformPath,
         type: archiveType,
         projectRoot,
@@ -183,7 +183,7 @@ async function getLocalBinaryInfoForPlatform({
         : () =>
             accessFileInArchive({
               operation: 'exists',
-              file: isTar ? `*.app/${EXPO_DEV_CLIENT_IOS_MARKER}` : EXPO_DEV_CLIENT_IOS_MARKER,
+              file: getArchivePath(EXPO_DEV_CLIENT_IOS_MARKER),
               archive: platformPath,
               type: archiveType,
               projectRoot,
@@ -192,7 +192,7 @@ async function getLocalBinaryInfoForPlatform({
     readExpoAppConfig = () =>
       accessFileInArchive({
         operation: 'read',
-        file: isTar ? `*.app/${EXPO_APP_CONFIG_PATH[platform]}` : EXPO_APP_CONFIG_PATH[platform],
+        file: getArchivePath(EXPO_APP_CONFIG_PATH[platform]),
         archive: platformPath,
         type: archiveType,
         projectRoot,
