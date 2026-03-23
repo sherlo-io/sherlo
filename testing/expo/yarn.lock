@@ -2373,7 +2373,7 @@ __metadata:
     "@react-native-async-storage/async-storage": "npm:2.2.0"
     "@react-native-community/datetimepicker": "npm:8.4.4"
     "@react-native-community/slider": "npm:5.0.1"
-    "@sherlo/react-native-storybook": "npm:^1.6.0"
+    "@sherlo/react-native-storybook": "portal:../../packages/react-native-storybook"
     "@storybook/addon-ondevice-actions": "npm:^9.1.2"
     "@storybook/addon-ondevice-backgrounds": "npm:^9.1.2"
     "@storybook/addon-ondevice-controls": "npm:^9.1.2"
@@ -2412,9 +2412,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@sherlo/react-native-storybook@npm:^1.6.0":
-  version: 1.6.0
-  resolution: "@sherlo/react-native-storybook@npm:1.6.0"
+"@sherlo/react-native-storybook@portal:../../packages/react-native-storybook::locator=%40sherlo%2Fexpo%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "@sherlo/react-native-storybook@portal:../../packages/react-native-storybook::locator=%40sherlo%2Fexpo%40workspace%3A."
   dependencies:
     base-64: "npm:1.0.0"
     deepmerge: "npm:4.3.1"
@@ -2426,9 +2426,8 @@ __metadata:
     react: "*"
     react-native: ">=0.64.0"
     react-native-safe-area-context: "*"
-  checksum: 10/e50db4391a1774bc629380fe11c6d04eb627751565ab93c7f93e63d2d6c14c18b689f2ea27118c693ccb4d758770133ccd97b545d32c3eb061da33b01e8a2d96
   languageName: node
-  linkType: hard
+  linkType: soft
 
 "@sinclair/typebox@npm:^0.27.8":
   version: 0.27.10
