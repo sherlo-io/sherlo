@@ -149,15 +149,10 @@ async function getLocalBinaryInfoForPlatform({
   ) {
     const archiveType = fileName.endsWith('.apk') ? 'unzip' : 'tar';
 
-    // iOS (.tar/.tar.gz) archives nest files under <AppName>.app/ - created by EAS Build
-    // Android (.apk) archives use flat paths - no prefix needed
-    const resolveInArchive = (file: string) =>
-      archiveType === 'tar' ? `*.app/${file}` : file;
-
     checkHasJsBundle = () =>
       accessFileInArchive({
         operation: 'exists',
-        file: resolveInArchive(previewBundlePath),
+        file: resolveInArchive(archiveType, previewBundlePath),
         archive: platformPath,
         type: archiveType,
         projectRoot,
@@ -166,7 +161,7 @@ async function getLocalBinaryInfoForPlatform({
     readSherloFile = () =>
       accessFileInArchive({
         operation: 'read',
-        file: resolveInArchive(sherloFilePath),
+        file: resolveInArchive(archiveType, sherloFilePath),
         archive: platformPath,
         type: archiveType,
         projectRoot,
@@ -183,7 +178,7 @@ async function getLocalBinaryInfoForPlatform({
         : () =>
             accessFileInArchive({
               operation: 'exists',
-              file: resolveInArchive(EXPO_DEV_CLIENT_IOS_MARKER),
+              file: resolveInArchive(archiveType, EXPO_DEV_CLIENT_IOS_MARKER),
               archive: platformPath,
               type: archiveType,
               projectRoot,
@@ -192,7 +187,7 @@ async function getLocalBinaryInfoForPlatform({
     readExpoAppConfig = () =>
       accessFileInArchive({
         operation: 'read',
-        file: resolveInArchive(EXPO_APP_CONFIG_PATH[platform]),
+        file: resolveInArchive(archiveType, EXPO_APP_CONFIG_PATH[platform]),
         archive: platformPath,
         type: archiveType,
         projectRoot,
@@ -270,7 +265,7 @@ async function getExpoSdkVersion({
       plutilCommand = `plutil -convert json -o - "${path.join(platformPath, appConfigFilePath)}"`;
     } else if (fileName.endsWith('.tar') || fileName.endsWith('.tar.gz')) {
       // tar archive: extract and pipe to plutil
-      plutilCommand = `tar -xOf "${platformPath}" "*.app/${appConfigFilePath}" | plutil -convert json -o - -`;
+      plutilCommand = `tar -xOf "${platformPath}" "${resolveInArchive('tar', appConfigFilePath)}" | plutil -convert json -o - -`;
     } else {
       // APK (Android) - binary plist not applicable
       return undefined;
@@ -343,6 +338,12 @@ async function getBinaryHash(filePath: string): Promise<string> {
   }
 
   return hash.digest('hex');
+}
+
+// iOS (.tar/.tar.gz) archives nest files under <AppName>.app/ - created by EAS Build
+// Android (.apk) archives use flat paths - no prefix needed
+function resolveInArchive(archiveType: 'tar' | 'unzip', file: string): string {
+  return archiveType === 'tar' ? '*.app/' + file : file;
 }
 
 async function getFilesRecursively(dir: string): Promise<string[]> {
