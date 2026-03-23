@@ -151,13 +151,13 @@ async function getLocalBinaryInfoForPlatform({
 
     // iOS device builds (.tar/.tar.gz) nest files under Payload/<AppName>.app/.
     // APK archives use flat paths.
-    const getArchivePath = (file: string) =>
+    const resolveInArchive = (file: string) =>
       archiveType === 'tar' ? `*.app/${file}` : file;
 
     checkHasJsBundle = () =>
       accessFileInArchive({
         operation: 'exists',
-        file: getArchivePath(previewBundlePath),
+        file: resolveInArchive(previewBundlePath),
         archive: platformPath,
         type: archiveType,
         projectRoot,
@@ -166,7 +166,7 @@ async function getLocalBinaryInfoForPlatform({
     readSherloFile = () =>
       accessFileInArchive({
         operation: 'read',
-        file: getArchivePath(sherloFilePath),
+        file: resolveInArchive(sherloFilePath),
         archive: platformPath,
         type: archiveType,
         projectRoot,
@@ -183,7 +183,7 @@ async function getLocalBinaryInfoForPlatform({
         : () =>
             accessFileInArchive({
               operation: 'exists',
-              file: getArchivePath(EXPO_DEV_CLIENT_IOS_MARKER),
+              file: resolveInArchive(EXPO_DEV_CLIENT_IOS_MARKER),
               archive: platformPath,
               type: archiveType,
               projectRoot,
@@ -192,7 +192,7 @@ async function getLocalBinaryInfoForPlatform({
     readExpoAppConfig = () =>
       accessFileInArchive({
         operation: 'read',
-        file: getArchivePath(EXPO_APP_CONFIG_PATH[platform]),
+        file: resolveInArchive(EXPO_APP_CONFIG_PATH[platform]),
         archive: platformPath,
         type: archiveType,
         projectRoot,
