@@ -149,8 +149,8 @@ async function getLocalBinaryInfoForPlatform({
   ) {
     const archiveType = fileName.endsWith('.apk') ? 'unzip' : 'tar';
 
-    // iOS device builds (.tar/.tar.gz) nest files under Payload/<AppName>.app/.
-    // APK archives use flat paths.
+    // iOS (.tar/.tar.gz) archives nest files under Payload/<AppName>.app/ - created by EAS Build
+    // Android (.apk) archives use flat paths - no prefix needed
     const resolveInArchive = (file: string) =>
       archiveType === 'tar' ? `*.app/${file}` : file;
 
