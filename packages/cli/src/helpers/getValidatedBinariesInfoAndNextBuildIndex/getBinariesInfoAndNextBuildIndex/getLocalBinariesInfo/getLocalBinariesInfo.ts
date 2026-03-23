@@ -13,7 +13,7 @@ import accessFileInDirectory from './accessFileInDirectory';
 
 const SHERLO_JSON_FILENAME = 'sherlo.json';
 const SHERLO_JSON_PATH = `assets/${SHERLO_JSON_FILENAME}`;
-const PREVIEW_BUILD_BUNDLE_PATH = {
+const PREVIEW_BUILD_JS_BUNDLE_PATH = {
   android: 'assets/index.android.bundle',
   ios: 'main.jsbundle',
 };
@@ -74,7 +74,7 @@ async function getLocalBinariesInfo({
         platform,
         platformPath: paths[platform],
         sherloFilePath: SHERLO_JSON_PATH,
-        previewBundlePath: PREVIEW_BUILD_BUNDLE_PATH[platform],
+        previewBundlePath: PREVIEW_BUILD_JS_BUNDLE_PATH[platform],
         projectRoot,
       });
     }
@@ -149,10 +149,15 @@ async function getLocalBinaryInfoForPlatform({
   ) {
     const archiveType = fileName.endsWith('.apk') ? 'unzip' : 'tar';
 
+    const isTar = archiveType === 'tar';
+
+    // tar archives contain files under a variable path like `Payload/AppName.app/...`.
+    // Using `*.app/<path>` ensures we only match files directly inside the .app directory,
+    // not nested bundles inside .bundle subdirectories (e.g., EXDevLauncher.bundle/main.jsbundle).
     checkHasJsBundle = () =>
       accessFileInArchive({
         operation: 'exists',
-        file: previewBundlePath,
+        file: isTar ? `*.app/${previewBundlePath}` : previewBundlePath,
         archive: platformPath,
         type: archiveType,
         projectRoot,
@@ -161,7 +166,7 @@ async function getLocalBinaryInfoForPlatform({
     readSherloFile = () =>
       accessFileInArchive({
         operation: 'read',
-        file: sherloFilePath,
+        file: isTar ? `*.app/${sherloFilePath}` : sherloFilePath,
         archive: platformPath,
         type: archiveType,
         projectRoot,
@@ -178,7 +183,7 @@ async function getLocalBinaryInfoForPlatform({
         : () =>
             accessFileInArchive({
               operation: 'exists',
-              file: EXPO_DEV_CLIENT_IOS_MARKER,
+              file: isTar ? `*.app/${EXPO_DEV_CLIENT_IOS_MARKER}` : EXPO_DEV_CLIENT_IOS_MARKER,
               archive: platformPath,
               type: archiveType,
               projectRoot,
@@ -187,7 +192,7 @@ async function getLocalBinaryInfoForPlatform({
     readExpoAppConfig = () =>
       accessFileInArchive({
         operation: 'read',
-        file: EXPO_APP_CONFIG_PATH[platform],
+        file: isTar ? `*.app/${EXPO_APP_CONFIG_PATH[platform]}` : EXPO_APP_CONFIG_PATH[platform],
         archive: platformPath,
         type: archiveType,
         projectRoot,
@@ -201,9 +206,8 @@ async function getLocalBinaryInfoForPlatform({
 
   const hash = await getBinaryHash(platformPath);
 
-  const hasExpoDevClient = await checkHasExpoDevClient();
   const hasJsBundle = await checkHasJsBundle();
-  const buildType: BuildType = hasJsBundle && !hasExpoDevClient ? 'preview' : 'development';
+  const buildType: BuildType = hasJsBundle ? 'preview' : 'development';
 
   let sdkVersion: string | undefined;
   const sherloFileContent = await readSherloFile();
@@ -220,6 +224,8 @@ async function getLocalBinaryInfoForPlatform({
       });
     }
   }
+
+  const hasExpoDevClient = await checkHasExpoDevClient();
 
   const expoSdkVersion = await getExpoSdkVersion({
     readExpoAppConfig,
@@ -264,7 +270,7 @@ async function getExpoSdkVersion({
       plutilCommand = `plutil -convert json -o - "${path.join(platformPath, appConfigFilePath)}"`;
     } else if (fileName.endsWith('.tar') || fileName.endsWith('.tar.gz')) {
       // tar archive: extract and pipe to plutil
-      plutilCommand = `tar -xOf "${platformPath}" "*${appConfigFilePath}" | plutil -convert json -o - -`;
+      plutilCommand = `tar -xOf "${platformPath}" "*.app/${appConfigFilePath}" | plutil -convert json -o - -`;
     } else {
       // APK (Android) - binary plist not applicable
       return undefined;

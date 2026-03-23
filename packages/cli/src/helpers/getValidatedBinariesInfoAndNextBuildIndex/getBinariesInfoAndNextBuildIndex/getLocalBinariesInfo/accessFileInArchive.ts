@@ -99,8 +99,8 @@ async function getTarCommands({
   const useWildcards = tarVersion === 'BSD' ? '' : '--wildcards ';
 
   return {
-    read: `tar ${useWildcards}-xOf "${archive}" "*${file}"`,
-    exists: `tar ${useWildcards}-tf "${archive}" "*${file}"`,
+    read: `tar ${useWildcards}-xOf "${archive}" "${file}"`,
+    exists: `tar ${useWildcards}-tf "${archive}" "${file}"`,
   };
 }
 
