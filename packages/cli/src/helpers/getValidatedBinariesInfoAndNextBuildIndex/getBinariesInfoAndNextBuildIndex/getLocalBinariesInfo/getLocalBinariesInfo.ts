@@ -201,8 +201,9 @@ async function getLocalBinaryInfoForPlatform({
 
   const hash = await getBinaryHash(platformPath);
 
+  const hasExpoDevClient = await checkHasExpoDevClient();
   const hasJsBundle = await checkHasJsBundle();
-  const buildType: BuildType = hasJsBundle ? 'preview' : 'development';
+  const buildType: BuildType = hasJsBundle && !hasExpoDevClient ? 'preview' : 'development';
 
   let sdkVersion: string | undefined;
   const sherloFileContent = await readSherloFile();
@@ -219,8 +220,6 @@ async function getLocalBinaryInfoForPlatform({
       });
     }
   }
-
-  const hasExpoDevClient = await checkHasExpoDevClient();
 
   const expoSdkVersion = await getExpoSdkVersion({
     readExpoAppConfig,
