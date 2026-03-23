@@ -31,7 +31,7 @@ const EXPO_DEV_CLIENT_IOS_MARKER = 'EXDevLauncher.bundle';
 const EXPO_DEV_CLIENT_ANDROID_MANIFEST_ACTIVITY =
   'expo.modules.devlauncher.launcher.DevLauncherActivity';
 
-const IOS_ARCHIVE_PREFIX = '*.app/';
+const IOS_TAR_BUNDLE_PREFIX = '*.app/';
 
 type LocalBinariesInfo = { android?: LocalBinaryInfo; ios?: LocalBinaryInfo };
 type LocalBinaryInfo = Pick<
@@ -154,7 +154,7 @@ async function getLocalBinaryInfoForPlatform({
     // iOS (.tar/.tar.gz) archives nest files under <AppName>.app/ - created by EAS Build
     // Android (.apk) archives use flat paths - no prefix needed
     const resolveInArchive = (file: string) =>
-      archiveType === 'tar' ? IOS_ARCHIVE_PREFIX + file : file;
+      archiveType === 'tar' ? IOS_TAR_BUNDLE_PREFIX + file : file;
 
     checkHasJsBundle = () =>
       accessFileInArchive({
@@ -272,7 +272,7 @@ async function getExpoSdkVersion({
       plutilCommand = `plutil -convert json -o - "${path.join(platformPath, appConfigFilePath)}"`;
     } else if (fileName.endsWith('.tar') || fileName.endsWith('.tar.gz')) {
       // tar archive: extract and pipe to plutil
-      plutilCommand = `tar -xOf "${platformPath}" "${IOS_ARCHIVE_PREFIX}${appConfigFilePath}" | plutil -convert json -o - -`;
+      plutilCommand = `tar -xOf "${platformPath}" "${IOS_TAR_BUNDLE_PREFIX}${appConfigFilePath}" | plutil -convert json -o - -`;
     } else {
       // APK (Android) - binary plist not applicable
       return undefined;
