@@ -262,6 +262,10 @@ public class SherloModuleCore {
             return createScrollResult(true, 0, 0, 0, 0);
         }
 
+        // Suppress scroll indicators for the duration of testing
+        candidate.setVerticalScrollBarEnabled(false);
+        candidate.setHorizontalScrollBarEnabled(false);
+
         // 2. Compute Metrics
         int viewportPx = candidate.getHeight();
         
@@ -404,6 +408,10 @@ public class SherloModuleCore {
         if (SCROLL_DEBUG) {
             Log.d(TAG, "isScrollable: Candidate found via " + selectionMethod + ", class: " + candidate.getClass().getSimpleName());
         }
+
+        // Suppress scroll indicators for the duration of testing
+        candidate.setVerticalScrollBarEnabled(false);
+        candidate.setHorizontalScrollBarEnabled(false);
 
         // Metric-based scrollability check
         if (isScrollableByMetrics(candidate)) {
