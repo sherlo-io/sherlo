@@ -73,9 +73,10 @@ describe('Protocol message construction', () => {
         isStable: true,
         requestId: 'req-123',
         hasNetworkImage: true,
-        isScrollable: false,
-        isAtEnd: true,
+        isScrollable: true,
+        isAtEnd: false,
         scrollOffset: 0,
+        scrollViewFrame: { x: 0, y: 100, width: 390, height: 700 },
         safeAreaMetadata: {
           shouldAddSafeArea: true,
           insetBottom: 102,
@@ -89,9 +90,10 @@ describe('Protocol message construction', () => {
       expect(msg.hasError).toBe(false);
       expect(msg.isStable).toBe(true);
       expect(msg.hasNetworkImage).toBe(true);
-      expect(msg.isScrollable).toBe(false);
-      expect(msg.isAtEnd).toBe(true);
+      expect(msg.isScrollable).toBe(true);
+      expect(msg.isAtEnd).toBe(false);
       expect(msg.scrollOffset).toBe(0);
+      expect(msg.scrollViewFrame).toEqual({ x: 0, y: 100, width: 390, height: 700 });
       expect(msg.safeAreaMetadata).toBeDefined();
     });
 

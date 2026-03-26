@@ -17,7 +17,10 @@ export interface Spec extends TurboModule {
     threshold: number,
     includeAA: boolean
   ) => Promise<boolean>;
-  isScrollable: () => Promise<boolean>;
+  isScrollable: () => Promise<{
+    scrollable: boolean;
+    scrollViewFrame?: { x: number; y: number; width: number; height: number };
+  }>;
   scrollToCheckpoint: (
     index: number,
     offset: number,
@@ -28,6 +31,7 @@ export interface Spec extends TurboModule {
     appliedOffsetPx: number;
     viewportPx: number;
     contentPx: number;
+    scrollViewFrame?: { x: number; y: number; width: number; height: number };
   }>;
   getSherloConstants: () => {};
 }
