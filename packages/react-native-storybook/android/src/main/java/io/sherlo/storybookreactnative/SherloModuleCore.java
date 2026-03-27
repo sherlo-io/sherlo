@@ -184,32 +184,38 @@ public class SherloModuleCore {
     private static final float NUDGE_PX = 3.0f;
     private static final float MIN_SCROLL_RANGE_RATIO = 0.20f; // Minimum 20% of viewport height
 
+    // Locked scroll view from isScrollable(), reused by scrollToCheckpoint()
+    private View lockedScrollView = null;
+
     /**
      * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
-     * Uses read-only view inspection: finds a primary scroll container, checks scroll metrics,
-     * and validates with a small programmatic nudge that is immediately restored.
+     * Resolves with a map: {scrollable: boolean, scrollViewFrame?: {x, y, width, height}} in physical pixels.
      *
      * @param activity The current activity
-     * @param promise Promise to resolve with boolean (true if scrollable, false otherwise)
+     * @param promise Promise to resolve with the result map
      */
     public void isScrollable(Activity activity, Promise promise) {
         if (activity == null) {
             if (SCROLL_DEBUG) {
                 Log.d(TAG, "isScrollable: No activity");
             }
-            promise.resolve(false);
+            WritableMap noResult = Arguments.createMap();
+            noResult.putBoolean("scrollable", false);
+            promise.resolve(noResult);
             return;
         }
 
         activity.runOnUiThread(() -> {
             try {
-                boolean result = detectScrollableView(activity);
+                WritableMap result = detectScrollableView(activity);
                 promise.resolve(result);
             } catch (Exception e) {
                 if (SCROLL_DEBUG) {
                     Log.e(TAG, "isScrollable exception", e);
                 }
-                promise.resolve(false);
+                WritableMap noResult = Arguments.createMap();
+                noResult.putBoolean("scrollable", false);
+                promise.resolve(noResult);
             }
         });
     }
@@ -225,7 +231,7 @@ public class SherloModuleCore {
      */
     public void scrollToCheckpoint(Activity activity, double index, double offset, double maxIndex, Promise promise) {
         if (activity == null) {
-            promise.resolve(createScrollResult(true, 0, 0, 0, 0));
+            promise.resolve(createScrollResult(true, 0, 0, 0, 0, null));
             return;
         }
 
@@ -237,29 +243,20 @@ public class SherloModuleCore {
                 if (SCROLL_DEBUG) {
                     Log.e(TAG, "scrollToCheckpoint exception", e);
                 }
-                promise.resolve(createScrollResult(true, 0, 0, 0, 0));
+                promise.resolve(createScrollResult(true, 0, 0, 0, 0, null));
             }
         });
     }
 
     private WritableMap performScrollToCheckpoint(Activity activity, int index, int offsetPx, int maxIndex) {
-        View decorView = activity.getWindow().getDecorView();
-        if (decorView == null) {
-            return createScrollResult(true, 0, 0, 0, 0);
-        }
+        // 1. Use locked scroll view from isScrollable() - no re-detection
+        View candidate = lockedScrollView;
 
-        // 1. Select Candidate
-        // Reuse the logic from isScrollable
-        View candidate = findScrollableViewViaProbe(decorView);
-        if (candidate == null) {
-            candidate = findLargestVisibleScrollableView(decorView);
-        }
-
-        if (candidate == null) {
+        if (candidate == null || candidate.getWindowToken() == null) {
             if (SCROLL_DEBUG) {
-                Log.d(TAG, "scrollToCheckpoint: No candidate found");
+                Log.d(TAG, "scrollToCheckpoint: No locked candidate found");
             }
-            return createScrollResult(true, 0, 0, 0, 0);
+            return createScrollResult(true, 0, 0, 0, 0, null);
         }
 
         // Suppress scroll indicators for the duration of testing
@@ -268,29 +265,17 @@ public class SherloModuleCore {
 
         // 2. Compute Metrics
         int viewportPx = candidate.getHeight();
-        
-        // Use reflection to fail gracefully if protected method fails
+
         int range = getScrollRangeViaReflection(candidate);
-        
-        // If reflection failed, try fallback or just return what we have
         if (range <= 0) {
-             // Fallback: assume some content logic or just return basic
-             // If we can't get range, we can't reliably scroll to max
-             if (SCROLL_DEBUG) {
-                 Log.d(TAG, "scrollToCheckpoint: Could not determine scroll range");
-             }
-             // We can still try to scroll if we have a target
+            if (SCROLL_DEBUG) {
+                Log.d(TAG, "scrollToCheckpoint: Could not determine scroll range");
+            }
         }
-        
-        // extent is viewport height usually
-        int extent = getScrollExtentViaReflection(candidate); 
-        // Note: computeVerticalScrollExtent is also protected
+
+        int extent = getScrollExtentViaReflection(candidate);
         if (extent <= 0) extent = viewportPx;
-        
-        // Max offset logic for Android: 
-        // range - extent = max scrollable offset
-        // If range is invalid, maybe we assume it's large?
-        // Let's rely on range from reflection.
+
         int maxOffsetPx = Math.max(0, range - extent);
         int minOffsetPx = 0;
 
@@ -305,58 +290,47 @@ public class SherloModuleCore {
         } else {
             targetPx = minOffsetPx + (clampedIndex * offsetPx);
         }
-        
-        // Clamp target
-        // If range was invalid (<=0), we might not want to clamp heavily or assume 0?
-        // If maxOffsetPx is 0, we can't scroll.
+
         int clampedPx = Math.max(minOffsetPx, Math.min(maxOffsetPx, targetPx));
-        
+
         // 4. Apply Scroll
         int currentOffset = getScrollOffsetViaReflection(candidate);
         int delta = clampedPx - currentOffset;
-        
+
         if (SCROLL_DEBUG) {
             Log.d(TAG, "scrollToCheckpoint: index=" + clampedIndex + ", target=" + targetPx + ", clamped=" + clampedPx + ", current=" + currentOffset + ", delta=" + delta);
         }
-        
+
         if (Math.abs(delta) > 0) {
             scrollViewBy(candidate, delta);
-            
-            // In a real scenario, we might want to wait for layout/scroll to settle.
-            // But requirement says apply immediately.
-            // Android scrollBy might be async in terms of UI update cycle, 
-            // but reading back immediately usually gives the "target" or "current" depending on impl.
-            // Let's read back.
         }
-        
+
         // 5. Read Back
         int actualOffsetPx = getScrollOffsetViaReflection(candidate);
-        
+
         // 6. Detect Bottom
         boolean reachedBottom = false;
         if (actualOffsetPx >= maxOffsetPx - EPSILON) {
             reachedBottom = true;
         }
         if (maxOffsetPx <= EPSILON) {
-            reachedBottom = true; // Not scrollable
-        }
-        
-        // Also if we tried to scroll down but offset didn't change, we might be stuck
-        if (delta > 0 && Math.abs(actualOffsetPx - currentOffset) < 1) {
-             // We tried to move but couldn't. Treat as bottom?
-             // Maybe. But strictly maxOffset check is safer.
+            reachedBottom = true;
         }
 
-        return createScrollResult(reachedBottom, clampedIndex, actualOffsetPx, viewportPx, range);
+        WritableMap frame = getScrollViewFrameInPixels(candidate);
+        return createScrollResult(reachedBottom, clampedIndex, actualOffsetPx, viewportPx, range, frame);
     }
 
-    private WritableMap createScrollResult(boolean reachedBottom, int appliedIndex, int appliedOffsetPx, int viewportPx, int contentPx) {
+    private WritableMap createScrollResult(boolean reachedBottom, int appliedIndex, int appliedOffsetPx, int viewportPx, int contentPx, WritableMap scrollViewFrame) {
         WritableMap map = Arguments.createMap();
         map.putBoolean("reachedBottom", reachedBottom);
         map.putInt("appliedIndex", appliedIndex);
         map.putInt("appliedOffsetPx", appliedOffsetPx);
         map.putInt("viewportPx", viewportPx);
         map.putInt("contentPx", contentPx);
+        if (scrollViewFrame != null) {
+            map.putMap("scrollViewFrame", scrollViewFrame);
+        }
         return map;
     }
 
@@ -377,179 +351,135 @@ public class SherloModuleCore {
     }
 
     /**
-     * Main detection logic for scrollable views.
+     * Main detection logic for scrollable views. Returns map with scrollable + optional scrollViewFrame.
      */
-    private boolean detectScrollableView(Activity activity) {
+    private WritableMap detectScrollableView(Activity activity) {
         View decorView = activity.getWindow().getDecorView();
+        WritableMap noResult = Arguments.createMap();
+        noResult.putBoolean("scrollable", false);
+
         if (decorView == null) {
             if (SCROLL_DEBUG) {
                 Log.d(TAG, "isScrollable: No decor view");
             }
-            return false;
+            return noResult;
         }
 
-        // Try probe-based detection first
-        View candidate = findScrollableViewViaProbe(decorView);
-        String selectionMethod = "probe-deepest";
+        // Reset lock for each new story detection
+        lockedScrollView = null;
 
-        // Fallback to largest visible scrollable view
-        if (candidate == null) {
-            candidate = findLargestVisibleScrollableView(decorView);
-            selectionMethod = "fallback-largest";
-        }
+        // BFS from root to find the best user-facing scrollable view
+        View candidate = findBestScrollViewBFS(decorView);
 
         if (candidate == null) {
             if (SCROLL_DEBUG) {
                 Log.d(TAG, "isScrollable: No scrollable candidate found");
             }
-            return false;
+            return noResult;
         }
 
         if (SCROLL_DEBUG) {
-            Log.d(TAG, "isScrollable: Candidate found via " + selectionMethod + ", class: " + candidate.getClass().getSimpleName());
+            Log.d(TAG, "isScrollable: Candidate found via BFS, class: " + candidate.getClass().getSimpleName());
         }
 
         // Suppress scroll indicators for the duration of testing
         candidate.setVerticalScrollBarEnabled(false);
         candidate.setHorizontalScrollBarEnabled(false);
 
-        // Metric-based scrollability check
-        if (isScrollableByMetrics(candidate)) {
+        boolean scrollable = isScrollableByMetrics(candidate);
+
+        if (!scrollable) {
+            scrollable = validateWithNudge(candidate);
             if (SCROLL_DEBUG) {
-                Log.d(TAG, "isScrollable: Metric check passed, skipping nudge validation to prevent transient scroll indicators.");
+                Log.d(TAG, "isScrollable: Nudge validation result: " + scrollable);
             }
+        } else {
+            if (SCROLL_DEBUG) {
+                Log.d(TAG, "isScrollable: Metric check passed");
+            }
+        }
+
+        if (!scrollable) {
+            return noResult;
+        }
+
+        // Lock the candidate for reuse in scrollToCheckpoint()
+        lockedScrollView = candidate;
+
+        WritableMap frame = getScrollViewFrameInPixels(candidate);
+        WritableMap result = Arguments.createMap();
+        result.putBoolean("scrollable", true);
+        result.putMap("scrollViewFrame", frame);
+        return result;
+    }
+
+    /**
+     * BFS traversal from root to find the largest user-facing vertically-scrollable view.
+     * Filters out framework-internal views and views covering < 10% of screen.
+     */
+    private View findBestScrollViewBFS(View root) {
+        int screenWidth = root.getWidth();
+        int screenHeight = root.getHeight();
+        int screenArea = screenWidth * screenHeight;
+        int minArea = screenArea / 10; // 10% threshold
+
+        View bestCandidate = null;
+        int bestArea = 0;
+
+        java.util.LinkedList<View> queue = new java.util.LinkedList<>();
+        queue.add(root);
+
+        while (!queue.isEmpty()) {
+            View view = queue.poll();
+
+            if (view.canScrollVertically(1) || view.canScrollVertically(-1)) {
+                if (view.getVisibility() == View.VISIBLE && !isFrameworkInternalScrollView(view)) {
+                    android.graphics.Rect rect = new android.graphics.Rect();
+                    if (view.getGlobalVisibleRect(rect)) {
+                        int area = rect.width() * rect.height();
+                        if (area >= minArea && isScrollableByMetrics(view) && area > bestArea) {
+                            bestArea = area;
+                            bestCandidate = view;
+                        }
+                    }
+                }
+            }
+
+            if (view instanceof android.view.ViewGroup) {
+                android.view.ViewGroup group = (android.view.ViewGroup) view;
+                for (int i = 0; i < group.getChildCount(); i++) {
+                    queue.add(group.getChildAt(i));
+                }
+            }
+        }
+
+        return bestCandidate;
+    }
+
+    /**
+     * Returns true if the view is a framework-internal view that should not be used as a scroll target.
+     */
+    private boolean isFrameworkInternalScrollView(View view) {
+        String className = view.getClass().getName();
+        // Android internal framework classes
+        if (className.startsWith("com.android.internal.")) {
             return true;
         }
-
-        // Fallback: Control validation: nudge and restore
-        // Only do this if metrics were inconclusive (e.g. reflection failed)
-        boolean nudgeResult = validateWithNudge(candidate);
-        if (SCROLL_DEBUG) {
-            Log.d(TAG, "isScrollable: Nudge validation result: " + nudgeResult);
-        }
-
-        return nudgeResult;
+        return false;
     }
 
     /**
-     * Find scrollable view using coordinate probe + deepest view at point.
+     * Returns the scroll view's frame in physical pixels (global screen coordinates).
      */
-    private View findScrollableViewViaProbe(View root) {
-        int rootWidth = root.getWidth();
-        int rootHeight = root.getHeight();
-
-        // Probe point: 50% width, 55% height (slightly below center to avoid nav headers)
-        int probeX = (int) (rootWidth * 0.5f);
-        int probeY = (int) (rootHeight * 0.55f);
-
-        View deepest = findDeepestViewAt(root, probeX, probeY);
-        if (deepest == null) {
-            // Try secondary probe at 70% height
-            probeY = (int) (rootHeight * 0.70f);
-            deepest = findDeepestViewAt(root, probeX, probeY);
-        }
-
-        if (deepest == null) {
-            return null;
-        }
-
-        // Walk up parent chain to find scrollable view
-        View current = deepest;
-        while (current != null) {
-            if (current.canScrollVertically(1) || current.canScrollVertically(-1)) {
-                return current;
-            }
-            if (current.getParent() instanceof View) {
-                current = (View) current.getParent();
-            } else {
-                break;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Find the deepest view at the given coordinates.
-     */
-    private View findDeepestViewAt(View parent, int x, int y) {
-        if (!(parent instanceof android.view.ViewGroup)) {
-            android.graphics.Rect rect = new android.graphics.Rect();
-            if (parent.getGlobalVisibleRect(rect) && rect.contains(x, y)) {
-                return parent;
-            }
-            return null;
-        }
-
-        android.view.ViewGroup group = (android.view.ViewGroup) parent;
-        
-        // Traverse children in reverse order (top-most first)
-        for (int i = group.getChildCount() - 1; i >= 0; i--) {
-            View child = group.getChildAt(i);
-            if (child.getVisibility() != View.VISIBLE) {
-                continue;
-            }
-
-            android.graphics.Rect rect = new android.graphics.Rect();
-            if (child.getGlobalVisibleRect(rect) && rect.contains(x, y)) {
-                View found = findDeepestViewAt(child, x, y);
-                if (found != null) {
-                    return found;
-                }
-                return child;
-            }
-        }
-
-        android.graphics.Rect parentRect = new android.graphics.Rect();
-        if (parent.getGlobalVisibleRect(parentRect) && parentRect.contains(x, y)) {
-            return parent;
-        }
-
-        return null;
-    }
-
-    /**
-     * Fallback: Find the largest visible scrollable view in the hierarchy.
-     */
-    private View findLargestVisibleScrollableView(View root) {
-        final View[] bestCandidate = {null};
-        final int[] bestArea = {0};
-
-        traverseViewHierarchy(root, view -> {
-            if (!(view.canScrollVertically(1) || view.canScrollVertically(-1))) {
-                return;
-            }
-
-            if (view.getVisibility() != View.VISIBLE) {
-                return;
-            }
-
-            android.graphics.Rect rect = new android.graphics.Rect();
-            if (!view.getGlobalVisibleRect(rect)) {
-                return;
-            }
-
-            int area = rect.width() * rect.height();
-            if (area > bestArea[0]) {
-                bestArea[0] = area;
-                bestCandidate[0] = view;
-            }
-        });
-
-        return bestCandidate[0];
-    }
-
-    /**
-     * Traverse view hierarchy recursively.
-     */
-    private void traverseViewHierarchy(View view, java.util.function.Consumer<View> visitor) {
-        visitor.accept(view);
-        if (view instanceof android.view.ViewGroup) {
-            android.view.ViewGroup group = (android.view.ViewGroup) view;
-            for (int i = 0; i < group.getChildCount(); i++) {
-                traverseViewHierarchy(group.getChildAt(i), visitor);
-            }
-        }
+    private WritableMap getScrollViewFrameInPixels(View view) {
+        android.graphics.Rect rect = new android.graphics.Rect();
+        view.getGlobalVisibleRect(rect);
+        WritableMap frame = Arguments.createMap();
+        frame.putInt("x", rect.left);
+        frame.putInt("y", rect.top);
+        frame.putInt("width", rect.width());
+        frame.putInt("height", rect.height());
+        return frame;
     }
 
     /**

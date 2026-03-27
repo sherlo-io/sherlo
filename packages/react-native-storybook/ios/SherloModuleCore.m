@@ -219,78 +219,88 @@ static FileSystemHelper *fileSystemHelper;
 // Debug flag for logging scroll detection
 static BOOL const SCROLL_DEBUG = YES;
 
+// Locked scroll view from isScrollable(), reused by scrollToCheckpoint()
+static UIScrollView *lockedScrollView = nil;
+
 /**
  * Detects if the currently visible screen has a vertically scrollable view suitable for long-screenshot capture.
+ * Resolves with a dictionary: {scrollable: BOOL, scrollViewFrame?: {x, y, width, height}} in physical pixels.
  */
 - (void)isScrollable:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
     dispatch_async(dispatch_get_main_queue(), ^{
         @try {
-            BOOL result = [self detectScrollableView];
-            resolve(@(result));
+            NSDictionary *result = [self detectScrollableView];
+            resolve(result);
         } @catch (NSException *exception) {
             if (SCROLL_DEBUG) {
                 NSLog(@"[%@] isScrollable exception: %@", LOG_TAG, exception);
             }
-            resolve(@(NO));
+            resolve(@{@"scrollable": @(NO)});
         }
     });
 }
 
 /**
- * Main detection logic for scrollable views.
+ * Main detection logic for scrollable views. Returns a result dict with scrollable + optional frame.
  */
-- (BOOL)detectScrollableView {
-    // Constants
+- (NSDictionary *)detectScrollableView {
     const CGFloat EPSILON = 4.0;
     const CGFloat NUDGE_PX = 3.0;
-    const CGFloat MIN_SCROLL_RANGE_RATIO = 0.20; // Minimum 20% of viewport height
+    const CGFloat MIN_SCROLL_RANGE_RATIO = 0.20;
 
-    // Get key window
+    // Reset lock for each new story detection
+    lockedScrollView = nil;
+
     UIWindow *keyWindow = [self getKeyWindow];
     if (!keyWindow) {
         if (SCROLL_DEBUG) {
             NSLog(@"[%@] isScrollable: No key window found", LOG_TAG);
         }
-        return NO;
+        return @{@"scrollable": @(NO)};
     }
 
-    // Try probe-based detection first
-    UIScrollView *candidate = [self findScrollViewViaProbe:keyWindow];
-    NSString *selectionMethod = @"probe-hitTest";
-
-    // Fallback to largest visible scroll view
-    if (!candidate) {
-        candidate = [self findLargestVisibleScrollView:keyWindow];
-        selectionMethod = @"fallback-largest";
-    }
+    // BFS from root to find the best user-facing scrollable view
+    UIScrollView *candidate = [self findBestScrollViewBFS:keyWindow];
 
     if (!candidate) {
         if (SCROLL_DEBUG) {
             NSLog(@"[%@] isScrollable: No scroll view candidate found", LOG_TAG);
         }
-        return NO;
+        return @{@"scrollable": @(NO)};
     }
 
     if (SCROLL_DEBUG) {
-        NSLog(@"[%@] isScrollable: Candidate found via %@, class: %@",
-              LOG_TAG, selectionMethod, NSStringFromClass([candidate class]));
+        NSLog(@"[%@] isScrollable: Candidate found via BFS, class: %@",
+              LOG_TAG, NSStringFromClass([candidate class]));
     }
 
     // Metric-based scrollability check
-    if ([self isScrollableByMetrics:candidate epsilon:EPSILON minRangeRatio:MIN_SCROLL_RANGE_RATIO]) {
+    BOOL scrollable = [self isScrollableByMetrics:candidate epsilon:EPSILON minRangeRatio:MIN_SCROLL_RANGE_RATIO];
+
+    if (!scrollable) {
+        // Fallback: nudge and restore
+        scrollable = [self validateWithNudge:candidate nudgePx:NUDGE_PX];
         if (SCROLL_DEBUG) {
-            NSLog(@"[%@] isScrollable: Metric check passed, skipping nudge validation to prevent transient scroll indicators.", LOG_TAG);
+            NSLog(@"[%@] isScrollable: Nudge validation result: %@", LOG_TAG, scrollable ? @"YES" : @"NO");
         }
-        return YES;
+    } else {
+        if (SCROLL_DEBUG) {
+            NSLog(@"[%@] isScrollable: Metric check passed", LOG_TAG);
+        }
     }
 
-    // Fallback: Control validation: nudge and restore
-    BOOL nudgeResult = [self validateWithNudge:candidate nudgePx:NUDGE_PX];
-    if (SCROLL_DEBUG) {
-        NSLog(@"[%@] isScrollable: Nudge validation result: %@", LOG_TAG, nudgeResult ? @"YES" : @"NO");
+    if (!scrollable) {
+        return @{@"scrollable": @(NO)};
     }
 
-    return nudgeResult;
+    // Lock the candidate for reuse in scrollToCheckpoint()
+    lockedScrollView = candidate;
+
+    NSDictionary *frame = [self getScrollViewFrameInPhysicalPixels:candidate window:keyWindow];
+    return @{
+        @"scrollable": @(YES),
+        @"scrollViewFrame": frame,
+    };
 }
 
 /**
@@ -316,98 +326,89 @@ static BOOL const SCROLL_DEBUG = YES;
 }
 
 /**
- * Find scroll view using coordinate probe + hitTest.
+ * BFS traversal from root to find the largest user-facing vertically-scrollable UIScrollView.
+ * Filters out framework-internal views (private _-prefixed classes) and views covering < 10% of screen.
  */
-- (UIScrollView *)findScrollViewViaProbe:(UIWindow *)window {
-    // Probe point: 50% width, 55% height (slightly below center to avoid nav headers)
-    CGPoint probePoint = CGPointMake(
-        window.bounds.size.width * 0.5,
-        window.bounds.size.height * 0.55
-    );
+- (UIScrollView *)findBestScrollViewBFS:(UIWindow *)window {
+    CGFloat screenArea = window.bounds.size.width * window.bounds.size.height;
+    CGFloat minArea = screenArea * 0.10;
 
-    UIView *hitView = [window hitTest:probePoint withEvent:nil];
-    if (!hitView) {
-        // Try secondary probe at 70% height
-        probePoint.y = window.bounds.size.height * 0.70;
-        hitView = [window hitTest:probePoint withEvent:nil];
-    }
+    UIScrollView *bestCandidate = nil;
+    CGFloat bestArea = 0;
 
-    if (!hitView) {
-        return nil;
-    }
+    NSMutableArray<UIView *> *queue = [NSMutableArray array];
+    UIView *root = window.rootViewController.view ?: window;
+    [queue addObject:root];
 
-    // Walk up superview chain to find vertically scrollable UIScrollView
-    UIView *current = hitView;
-    while (current) {
-        if ([current isKindOfClass:[UIScrollView class]]) {
-            UIScrollView *sv = (UIScrollView *)current;
-            // Use a very low threshold (epsilon) for candidate selection,
-            // as we just want to know if it's the right "kind" of scroll view.
-            if ([self isScrollableByMetrics:sv epsilon:1.0 minRangeRatio:0.01]) {
-                return sv;
+    while (queue.count > 0) {
+        UIView *view = queue[0];
+        [queue removeObjectAtIndex:0];
+
+        if ([view isKindOfClass:[UIScrollView class]]) {
+            UIScrollView *sv = (UIScrollView *)view;
+
+            BOOL isCandidate = YES;
+
+            // Must be visible, scroll-enabled, and in window
+            if (sv.hidden || sv.alpha < 0.01 || !sv.isScrollEnabled || !sv.window) {
+                isCandidate = NO;
+            }
+
+            // Filter framework-internal scroll views (Apple private classes start with '_')
+            if (isCandidate && [self isFrameworkInternalScrollView:sv]) {
+                isCandidate = NO;
+            }
+
+            if (isCandidate) {
+                CGRect frameInWindow = [sv convertRect:sv.bounds toView:window];
+                CGRect visible = CGRectIntersection(frameInWindow, window.bounds);
+
+                if (!CGRectIsNull(visible) && !CGRectIsEmpty(visible)) {
+                    CGFloat area = visible.size.width * visible.size.height;
+
+                    // Filter views covering less than 10% of screen
+                    if (area >= minArea && [self isScrollableByMetrics:sv epsilon:1.0 minRangeRatio:0.01]) {
+                        if (area > bestArea) {
+                            bestArea = area;
+                            bestCandidate = sv;
+                        }
+                    }
+                }
             }
         }
-        current = current.superview;
+
+        for (UIView *subview in view.subviews) {
+            [queue addObject:subview];
+        }
     }
-
-    return nil;
-}
-
-/**
- * Fallback: Find the largest visible UIScrollView in the hierarchy.
- */
-- (UIScrollView *)findLargestVisibleScrollView:(UIWindow *)window {
-    UIView *rootView = window.rootViewController.view;
-    if (!rootView) {
-        return nil;
-    }
-
-    __block UIScrollView *bestCandidate = nil;
-    __block CGFloat bestArea = 0;
-
-    [self traverseViewHierarchy:rootView block:^(UIView *view) {
-        if (![view isKindOfClass:[UIScrollView class]]) {
-            return;
-        }
-
-        UIScrollView *scrollView = (UIScrollView *)view;
-
-        // Check basic visibility
-        if (scrollView.hidden || scrollView.alpha < 0.01 || !scrollView.isScrollEnabled || !scrollView.window) {
-            return;
-        }
-
-        // Must be vertically scrollable to be a candidate for long screenshots
-        if (![self isScrollableByMetrics:scrollView epsilon:1.0 minRangeRatio:0.01]) {
-            return;
-        }
-
-        // Calculate visible intersection area
-        CGRect frameInWindow = [scrollView convertRect:scrollView.bounds toView:window];
-        CGRect intersection = CGRectIntersection(frameInWindow, window.bounds);
-
-        if (CGRectIsNull(intersection) || CGRectIsEmpty(intersection)) {
-            return;
-        }
-
-        CGFloat area = intersection.size.width * intersection.size.height;
-        if (area > bestArea) {
-            bestArea = area;
-            bestCandidate = scrollView;
-        }
-    }];
 
     return bestCandidate;
 }
 
 /**
- * Recursive hierarchy traversal.
+ * Returns YES if the scroll view is a framework-internal view that should not be used as a scroll target.
  */
-- (void)traverseViewHierarchy:(UIView *)view block:(void(^)(UIView *))block {
-    block(view);
-    for (UIView *subview in view.subviews) {
-        [self traverseViewHierarchy:subview block:block];
+- (BOOL)isFrameworkInternalScrollView:(UIScrollView *)scrollView {
+    NSString *className = NSStringFromClass([scrollView class]);
+    // Apple private classes use underscore prefix
+    if ([className hasPrefix:@"_"]) {
+        return YES;
     }
+    return NO;
+}
+
+/**
+ * Returns the scroll view's frame in physical pixels relative to the window origin.
+ */
+- (NSDictionary *)getScrollViewFrameInPhysicalPixels:(UIScrollView *)scrollView window:(UIWindow *)window {
+    CGFloat scale = [UIScreen mainScreen].scale;
+    CGRect frameInWindow = [scrollView convertRect:scrollView.bounds toView:window];
+    return @{
+        @"x": @(frameInWindow.origin.x * scale),
+        @"y": @(frameInWindow.origin.y * scale),
+        @"width": @(frameInWindow.size.width * scale),
+        @"height": @(frameInWindow.size.height * scale),
+    };
 }
 
 /**
@@ -538,20 +539,12 @@ static BOOL const SCROLL_DEBUG = YES;
 }
 
 - (NSDictionary *)performScrollToCheckpoint:(NSInteger)index offset:(double)offsetPx maxIndex:(NSInteger)maxIndex {
-    // 1. Select Candidate (reuse logic)
-    UIWindow *keyWindow = [self getKeyWindow];
-    UIScrollView *candidate = nil;
-    
-    if (keyWindow) {
-        candidate = [self findScrollViewViaProbe:keyWindow];
-        if (!candidate) {
-            candidate = [self findLargestVisibleScrollView:keyWindow];
-        }
-    }
-    
-    if (!candidate) {
+    // 1. Use locked scroll view from isScrollable() - no re-detection
+    UIScrollView *candidate = lockedScrollView;
+
+    if (!candidate || !candidate.window) {
         if (SCROLL_DEBUG) {
-            NSLog(@"[%@] scrollToCheckpoint: No candidate found", LOG_TAG);
+            NSLog(@"[%@] scrollToCheckpoint: No locked candidate found", LOG_TAG);
         }
         return @{
             @"reachedBottom": @(YES),
@@ -561,6 +554,8 @@ static BOOL const SCROLL_DEBUG = YES;
             @"contentPx": @(0)
         };
     }
+
+    UIWindow *keyWindow = [self getKeyWindow];
     
     // 2. Compute Metrics
     CGFloat scale = [UIScreen mainScreen].scale;
@@ -631,12 +626,15 @@ static BOOL const SCROLL_DEBUG = YES;
     // Also if we requested an index > 0 but couldn't move past previous checkpoint, 
     // it implies stuck or bottom. But strictly check bounds here.
     
+    NSDictionary *scrollViewFrame = [self getScrollViewFrameInPhysicalPixels:candidate window:keyWindow];
+
     return @{
         @"reachedBottom": @(reachedBottom),
         @"appliedIndex": @(clampedIndex),
         @"appliedOffsetPx": @(scrolledDistancePx), // Return relative scrolled distance
         @"viewportPx": @(viewportPt * scale),
-        @"contentPx": @(contentPt * scale)
+        @"contentPx": @(contentPt * scale),
+        @"scrollViewFrame": scrollViewFrame,
     };
 }
 

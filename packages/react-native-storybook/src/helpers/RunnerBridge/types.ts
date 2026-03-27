@@ -54,6 +54,7 @@ export type AppProtocolItem =
       isScrollable?: boolean;
       isAtEnd?: boolean;
       scrollOffset?: number;
+      scrollViewFrame?: { x: number; y: number; width: number; height: number };
       safeAreaMetadata?: {
         shouldAddSafeArea: boolean;
         insetBottom: number;

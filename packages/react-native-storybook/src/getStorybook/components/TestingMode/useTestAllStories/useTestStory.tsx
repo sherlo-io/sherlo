@@ -92,6 +92,7 @@ function useTestStory({
         let finalInspectorData = inspectorData;
         let hasNetworkImage = false;
         let isScrollable = false;
+        let scrollViewFrame: { x: number; y: number; width: number; height: number } | undefined;
         let safeAreaMetadata;
 
         if (!containsError) {
@@ -106,12 +107,15 @@ function useTestStory({
           }
 
           // Detect if the screen is scrollable for long-screenshot capture
-          isScrollable = await SherloModule.isScrollable().catch((error) => {
+          const scrollableResult = await SherloModule.isScrollable().catch((error) => {
             RunnerBridge.log('error checking if scrollable', { error: error.message });
-            return false;
+            return { scrollable: false, scrollViewFrame: undefined };
           });
 
-          RunnerBridge.log('checked if scrollable', { isScrollable });
+          isScrollable = scrollableResult.scrollable;
+          scrollViewFrame = scrollableResult.scrollViewFrame;
+
+          RunnerBridge.log('checked if scrollable', { isScrollable, scrollViewFrame });
 
           safeAreaMetadata = {
             shouldAddSafeArea: !nextSnapshot.parameters?.noSafeArea,
@@ -151,6 +155,7 @@ function useTestStory({
           hasNetworkImage,
           isAtEnd,
           scrollOffset: currentScrollOffset,
+          scrollViewFrame,
         });
 
         // Loop if runner requests more scrolling
@@ -240,11 +245,12 @@ function useTestStory({
             inspectorData: JSON.stringify(finalInspectorData),
             isStable: true, // We restabilized
             isScrollable,
-            requestId: currentRequestId, 
+            requestId: currentRequestId,
             safeAreaMetadata,
             hasNetworkImage,
             isAtEnd,
             scrollOffset: currentScrollOffset,
+            scrollViewFrame,
           });
         }
       } catch (error) {
