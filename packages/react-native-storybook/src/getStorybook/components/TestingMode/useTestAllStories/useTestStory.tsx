@@ -167,6 +167,8 @@ function useTestStory({
             currentRequestId = nextRequestId;
           }
 
+          let isStableAfterScroll = true;
+
           if (scrollIndex > 0) {
              // Scroll to target
              const scrollResult = await SherloModule.scrollToCheckpoint(
@@ -177,7 +179,7 @@ function useTestStory({
                RunnerBridge.log('error scrolling to checkpoint', { error: error.message });
                throw error;
              });
-             
+
              // Check if we reached bottom locally
              if (scrollResult.reachedBottom) {
                 RunnerBridge.log('reached bottom locally during scroll');
@@ -185,7 +187,7 @@ function useTestStory({
              }
 
              // Stabilize
-             const isStableAfterScroll = await SherloModule.stabilize(
+             isStableAfterScroll = await SherloModule.stabilize(
                 config.stabilization.requiredMatches,
                 config.stabilization.minScreenshotsCount,
                 config.stabilization.intervalMs,
@@ -197,7 +199,7 @@ function useTestStory({
                 RunnerBridge.log('error stabilizing after scroll', { error: error.message });
                 throw error;
               });
-              
+
               if (!isStableAfterScroll) {
                  RunnerBridge.log('warning: UI not stable after scroll');
               }
@@ -243,7 +245,7 @@ function useTestStory({
             action: 'REQUEST_SNAPSHOT',
             hasError: containsError,
             inspectorData: JSON.stringify(finalInspectorData),
-            isStable: true, // We restabilized
+            isStable: isStableAfterScroll,
             isScrollable,
             requestId: currentRequestId,
             safeAreaMetadata,
