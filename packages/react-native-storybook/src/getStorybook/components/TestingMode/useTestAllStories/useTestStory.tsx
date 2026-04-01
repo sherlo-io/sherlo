@@ -112,7 +112,7 @@ function useTestStory({
             return { scrollable: false, scrollViewFrame: undefined };
           });
 
-          isScrollable = scrollableResult.scrollable;
+          isScrollable = typeof scrollableResult === 'boolean' ? scrollableResult : scrollableResult.scrollable;
           scrollViewFrame = scrollableResult.scrollViewFrame;
 
           RunnerBridge.log('checked if scrollable', { isScrollable, scrollViewFrame });

@@ -31,10 +31,7 @@ type SherloModule = {
     threshold: number,
     includeAA: boolean
   ) => Promise<boolean>;
-  isScrollable: () => Promise<{
-    scrollable: boolean;
-    scrollViewFrame?: { x: number; y: number; width: number; height: number };
-  }>;
+  isScrollable: () => Promise<boolean | { scrollable: boolean; scrollViewFrame?: { x: number; y: number; width: number; height: number } }>;
   scrollToCheckpoint: (
     index: number,
     offset: number,
