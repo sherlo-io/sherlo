@@ -156,4 +156,5 @@ public class SherloModule extends NativeSherloModuleSpec {
         Activity activity = getCurrentActivity();
         moduleCore.scrollToCheckpoint(activity, index, offset, maxIndex, promise);
     }
+
 } 

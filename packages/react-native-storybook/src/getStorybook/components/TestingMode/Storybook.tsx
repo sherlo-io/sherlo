@@ -5,8 +5,10 @@ import { VERIFICATION_TEST_ID } from '../../../constants';
 import { StorybookParams, StorybookView } from '../../../types';
 import { getStorybookComponent, isStorybook7 } from '../../helpers';
 import { RunnerBridge } from '../../../helpers';
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import SherloModule from '../../../SherloModule';
+
+const FONT_GRACE_PERIOD_MS = 300;
 
 /**
  * We applied styles based on how they are defined in the link below to ensure that user's stories
@@ -29,6 +31,12 @@ function Storybook({
 }) {
   const insets = useSafeAreaInsets();
   const reportedSherloJSLoaded = useRef(false);
+
+  const [gracePeriodOver, setGracePeriodOver] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setGracePeriodOver(true), FONT_GRACE_PERIOD_MS);
+    return () => clearTimeout(timer);
+  }, []);
 
   const StorybookComponent = getStorybookComponent({
     view,
@@ -77,7 +85,7 @@ function Storybook({
   return (
     <View testID={VERIFICATION_TEST_ID} style={style}>
       <View style={{ flex: 1, overflow: 'hidden' }}>
-        <StorybookComponent />
+        {gracePeriodOver ? <StorybookComponent /> : null}
       </View>
     </View>
   );
