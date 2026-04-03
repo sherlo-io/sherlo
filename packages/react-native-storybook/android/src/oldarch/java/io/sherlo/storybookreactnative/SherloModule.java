@@ -158,4 +158,5 @@ public class SherloModule extends ReactContextBaseJavaModule {
         Activity activity = getCurrentActivity();
         moduleCore.scrollToCheckpoint(activity, index, offset, maxIndex, promise);
     }
+
 }
