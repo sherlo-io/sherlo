@@ -10,6 +10,7 @@ import getValidatedBinariesInfoAndNextBuildIndex from './getValidatedBinariesInf
 import handleClientError from './handleClientError';
 import printBuildIntroMessage from './printBuildIntroMessage';
 import printResultsUrl from './printResultsUrl';
+import reporting from './reporting';
 import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
 
 async function uploadOrReuseBuildsAndRunTests({
@@ -42,6 +43,13 @@ async function uploadOrReuseBuildsAndRunTests({
   if (easUpdateData) {
     printEasUpdateData(easUpdateData);
   }
+
+  reporting.addBreadcrumb({
+    category: 'api',
+    message: 'Calling openBuild API',
+    data: { teamId, projectIndex, command: easUpdateData ? 'testEasUpdate' : 'testStandard' },
+    level: 'info',
+  });
 
   const { build } = await client
     .openBuild({

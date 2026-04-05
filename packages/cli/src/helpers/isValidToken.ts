@@ -12,11 +12,23 @@ function isValidToken(token: string): boolean {
     projectIndex >= 1
   ) {
     reporting.setContext('Project', { teamId, projectIndex });
+    reporting.setTag('team_id', teamId);
+    reporting.addBreadcrumb({
+      category: 'auth',
+      message: 'Token validated successfully',
+      data: { teamId, projectIndex },
+      level: 'info',
+    });
 
     return true;
   }
 
   reporting.setContext('Project', { teamId: '[unknown]', projectIndex: '[unknown]' });
+  reporting.addBreadcrumb({
+    category: 'auth',
+    message: 'Token validation failed — invalid format',
+    level: 'warning',
+  });
 
   return false;
 }

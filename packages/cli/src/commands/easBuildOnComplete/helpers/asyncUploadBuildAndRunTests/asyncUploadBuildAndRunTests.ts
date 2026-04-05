@@ -9,6 +9,7 @@ import {
   printResultsUrl,
   uploadOrPrintBinaryReuse,
 } from '../../../../helpers';
+import reporting from '../../../../helpers/reporting';
 import { THIS_COMMAND } from '../../constants';
 import getBuildPath from './getBuildPath';
 
@@ -42,6 +43,13 @@ async function asyncUploadBuildAndRunTests({
     projectRoot: DEFAULT_PROJECT_ROOT,
     android: platform === 'android' ? buildPath : undefined,
     ios: platform === 'ios' ? buildPath : undefined,
+  });
+
+  reporting.addBreadcrumb({
+    category: 'api',
+    message: 'Calling asyncUpload API',
+    data: { buildIndex, teamId, projectIndex, platform },
+    level: 'info',
   });
 
   const { couldRunThisBuildRightNow } = await client

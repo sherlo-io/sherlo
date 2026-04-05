@@ -1,3 +1,4 @@
+import reporting from '../reporting';
 import executeCommand from './executeCommand';
 import tryToFixPermissionAndRetryOnce from './tryToFixPermissionAndRetryOnce';
 
@@ -21,6 +22,13 @@ async function runShellCommand({
   encoding = 'utf8',
   env,
 }: Options): Promise<string | Buffer> {
+  reporting.addBreadcrumb({
+    category: 'subprocess',
+    message: `Running shell command: ${command}`,
+    data: { command, projectRoot },
+    level: 'info',
+  });
+
   try {
     return await executeCommand({ command, projectRoot, encoding, env });
   } catch (error) {

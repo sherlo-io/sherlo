@@ -4,6 +4,7 @@ import https from 'https';
 import fetch from 'node-fetch';
 import { PLATFORM_LABEL } from '../../../constants';
 import printBuildMessage from '../../printBuildMessage';
+import reporting from '../../reporting';
 import throwError from '../../throwError';
 import getBuildData from './getBuildData';
 import getSizeInMB from './getSizeInMB';
@@ -24,6 +25,13 @@ async function uploadBuild({
 }): Promise<void> {
   const buildData = await getBuildData({ buildPath, platform, projectRoot });
   const buildSizeMB = await getSizeInMB({ buffer: buildData, projectRoot });
+
+  reporting.addBreadcrumb({
+    category: 'upload',
+    message: `Uploading ${PLATFORM_LABEL[platform]} build`,
+    data: { platform, buildSizeMB, buildPath },
+    level: 'info',
+  });
 
   printBuildMessage({ message: `uploading build... (${buildSizeMB} MB)`, type: 'info' });
 
