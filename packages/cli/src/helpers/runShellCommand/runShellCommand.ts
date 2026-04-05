@@ -22,10 +22,11 @@ async function runShellCommand({
   encoding = 'utf8',
   env,
 }: Options): Promise<string | Buffer> {
+  const sanitizedCommand = command.replace(/--token=[^\s]*/g, '--token=[REDACTED]');
   reporting.addBreadcrumb({
     category: 'subprocess',
-    message: `Running shell command: ${command}`,
-    data: { command, projectRoot },
+    message: 'Running shell command',
+    data: { command: sanitizedCommand, projectRoot },
     level: 'info',
   });
 
