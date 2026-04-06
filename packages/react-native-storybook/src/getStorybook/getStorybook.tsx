@@ -11,10 +11,6 @@ import type { StoryFn } from '@storybook/react';
 // not from when the decorator first runs.
 const APP_START_TIME = Date.now();
 
-const DEFAULT_INITIAL_RENDER_DELAY_MS = 1000;
-
-const INITIAL_RENDER_DELAY_ENABLED = true;
-
 // Outermost decorator that delays story rendering in testing mode.
 // Prevents race conditions where stories render before async setup
 // (e.g. custom font registration) completes.
@@ -37,25 +33,25 @@ function SherloInitialRenderDelayDecorator(Story: StoryFn, delayMs: number) {
 function getStorybook(view: StorybookView, params?: StorybookParams): () => ReactElement {
   const mode = SherloModule.getMode();
 
-  if (mode === 'testing' && INITIAL_RENDER_DELAY_ENABLED) {
-    const delayMs =
-      SherloModule.getConfig().initialStoryRenderDelayMs ?? DEFAULT_INITIAL_RENDER_DELAY_MS;
-
-    const originalGetProjectAnnotations = view._preview.getProjectAnnotations.bind(
-      view._preview
-    );
-    view._preview.onGetProjectAnnotationsChanged({
-      getProjectAnnotations: async () => {
-        const annotations = await originalGetProjectAnnotations();
-        return {
-          ...annotations,
-          decorators: [
-            ...(annotations.decorators ?? []),
-            (Story: StoryFn) => SherloInitialRenderDelayDecorator(Story, delayMs),
-          ],
-        };
-      },
-    });
+  if (mode === 'testing') {
+    const delayMs = SherloModule.getConfig().initialStoryRenderDelayMs;
+    if (delayMs !== undefined) {
+      const originalGetProjectAnnotations = view._preview.getProjectAnnotations.bind(
+        view._preview
+      );
+      view._preview.onGetProjectAnnotationsChanged({
+        getProjectAnnotations: async () => {
+          const annotations = await originalGetProjectAnnotations();
+          return {
+            ...annotations,
+            decorators: [
+              ...(annotations.decorators ?? []),
+              (Story: StoryFn) => SherloInitialRenderDelayDecorator(Story, delayMs),
+            ],
+          };
+        },
+      });
+    }
   }
 
   return () => {
