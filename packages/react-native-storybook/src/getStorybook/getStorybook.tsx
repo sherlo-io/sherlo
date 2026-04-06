@@ -1,5 +1,6 @@
-import { ReactElement } from 'react';
+import { ReactElement, useEffect, useState } from 'react';
 import SherloModule from '../SherloModule';
+import checkSdkCompatibility from '../checkSdkCompatibility';
 import { StorybookParams, StorybookView } from '../types';
 import { TestingMode } from './components';
 import { getStorybookComponent } from './helpers';
@@ -35,7 +36,16 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 
     const mode = SherloModule.getMode();
 
+    const [compatibilityChecked, setCompatibilityChecked] = useState(false);
+
+    useEffect(() => {
+      if (mode !== 'testing') return;
+      checkSdkCompatibility().then(() => setCompatibilityChecked(true));
+    }, [mode]);
+
     if (mode === 'testing') {
+      if (!compatibilityChecked) return null as unknown as ReactElement;
+
       return (
         <SafeAreaProvider>
           <TestingMode view={view} params={params} />

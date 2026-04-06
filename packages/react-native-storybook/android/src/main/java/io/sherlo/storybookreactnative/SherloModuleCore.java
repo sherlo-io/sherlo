@@ -33,6 +33,7 @@ public class SherloModuleCore {
     private static JSONObject config = null;
     private static JSONObject lastState = null;
     private static String currentMode = MODE_DEFAULT;
+    private static String nativeVersion = null;
 
     // Helper instances
     private FileSystemHelper fileSystemHelper = null;
@@ -47,6 +48,18 @@ public class SherloModuleCore {
     public SherloModuleCore(ReactApplicationContext reactContext, Activity activity) {
         this.fileSystemHelper = new FileSystemHelper(reactContext);
         this.restartHelper = new RestartHelper(reactContext);
+
+        try {
+            java.io.InputStream is = reactContext.getAssets().open("sherlo.json");
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[1024];
+            int len;
+            while ((len = is.read(buf)) != -1) baos.write(buf, 0, len);
+            JSONObject sherloJson = new JSONObject(baos.toString("UTF-8"));
+            this.nativeVersion = sherloJson.optString("version", null);
+        } catch (Exception e) {
+            Log.w(TAG, "Could not read sherlo.json: " + e.getMessage());
+        }
 
         this.config = ConfigHelper.loadConfig(this.fileSystemHelper);
 
@@ -102,6 +115,7 @@ public class SherloModuleCore {
         constants.putString("mode", this.currentMode);
         constants.putString("config", this.config != null ? this.config.toString() : null);
         constants.putString("lastState", this.lastState != null ? this.lastState.toString() : null);
+        constants.putString("nativeVersion", this.nativeVersion);
         return constants;
     }
 
@@ -126,6 +140,26 @@ public class SherloModuleCore {
      */
     public void closeStorybook() {
         restartHelper.restart(MODE_DEFAULT);
+    }
+
+    /**
+     * Writes a NATIVE_ERROR JSON line to protocol.sherlo.
+     *
+     * @param errorCode The error code (e.g. ERROR_SDK_COMPATIBILITY)
+     * @param message Human-readable error description
+     */
+    public void sendNativeError(String errorCode, String message) {
+        JSONObject protocolItem = new JSONObject();
+        try {
+            protocolItem.put("action", "NATIVE_ERROR");
+            protocolItem.put("errorCode", errorCode);
+            protocolItem.put("message", message);
+            protocolItem.put("timestamp", System.currentTimeMillis());
+            protocolItem.put("entity", "app");
+            this.fileSystemHelper.appendFile("protocol.sherlo", protocolItem.toString() + "\n");
+        } catch (org.json.JSONException e) {
+            Log.e(TAG, "Error creating NATIVE_ERROR protocol item", e);
+        }
     }
 
     /**

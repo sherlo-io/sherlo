@@ -79,6 +79,19 @@ public class SherloModule extends ReactContextBaseJavaModule {
         moduleCore.closeStorybook();
     }
 
+    // ==== Error Reporting ====
+
+    /**
+     * Sends a native error by writing a NATIVE_ERROR JSON line to protocol.sherlo.
+     *
+     * @param errorCode The error code
+     * @param message Human-readable error description
+     */
+    @ReactMethod
+    public void sendNativeError(String errorCode, String message) {
+        moduleCore.sendNativeError(errorCode, message);
+    }
+
     // ==== File System Methods ====
 
     /**

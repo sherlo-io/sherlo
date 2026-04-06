@@ -64,6 +64,15 @@ static void SherloEarlyInit(void) {
 }
 
 /**
+ * Sends a native error by writing a NATIVE_ERROR JSON line to protocol.sherlo.
+ */
+- (void)sendNativeError:(NSString *)errorCode
+                message:(NSString *)message
+{
+  [core sendNativeError:errorCode message:message];
+}
+
+/**
  * Appends base64 encoded content to a file.
  */
 - (void)appendFile:(NSString *)path
@@ -165,6 +174,14 @@ RCT_EXPORT_METHOD(openStorybook) {
  */
 RCT_EXPORT_METHOD(closeStorybook) {
   [core closeStorybook:self.bridge];
+}
+
+/**
+ * Sends a native error by writing a NATIVE_ERROR JSON line to protocol.sherlo.
+ */
+RCT_EXPORT_METHOD(sendNativeError:(NSString *)errorCode
+                  message:(NSString *)message) {
+  [core sendNativeError:errorCode message:message];
 }
 
 /**

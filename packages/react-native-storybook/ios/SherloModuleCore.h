@@ -51,6 +51,13 @@
 - (void)closeStorybook:(RCTBridge *)bridge;
 
 /**
+ * Writes a NATIVE_ERROR JSON line to protocol.sherlo.
+ * @param errorCode The error code (e.g. ERROR_SDK_COMPATIBILITY)
+ * @param message Human-readable error description
+ */
+- (void)sendNativeError:(NSString *)errorCode message:(NSString *)message;
+
+/**
  * Appends base64 encoded content to a file
  * @param filename Name of the file
  * @param content Base64 encoded content to append

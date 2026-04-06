@@ -22,6 +22,7 @@ NSString * const MODE_TESTING = @"testing";
 static NSDictionary *config = nil;
 static NSDictionary *lastState = nil;
 static NSString *currentMode = MODE_DEFAULT;
+static NSString *nativeVersion = nil;
 
 // Helper instances
 static FileSystemHelper *fileSystemHelper;
@@ -44,7 +45,17 @@ static FileSystemHelper *fileSystemHelper;
     self = [super init];
     
     fileSystemHelper = [[FileSystemHelper alloc] init];
-    
+
+    NSBundle *podBundle = [NSBundle bundleForClass:[SherloModuleCore class]];
+    NSString *sherloJsonPath = [podBundle pathForResource:@"sherlo" ofType:@"json" inDirectory:@"assets"];
+    if (sherloJsonPath) {
+        NSData *sherloJsonData = [NSData dataWithContentsOfFile:sherloJsonPath];
+        if (sherloJsonData) {
+            NSDictionary *sherloJson = [NSJSONSerialization JSONObjectWithData:sherloJsonData options:0 error:nil];
+            nativeVersion = sherloJson[@"version"];
+        }
+    }
+
     config = [ConfigHelper loadConfig:fileSystemHelper];
 
     if (config) {
@@ -111,7 +122,8 @@ static FileSystemHelper *fileSystemHelper;
     return @{
         @"mode": currentMode,
         @"config": configString ?: [NSNull null],
-        @"lastState": lastStateString ?: [NSNull null]
+        @"lastState": lastStateString ?: [NSNull null],
+        @"nativeVersion": nativeVersion ?: [NSNull null]
     };
 }
 
@@ -151,6 +163,26 @@ static FileSystemHelper *fileSystemHelper;
 - (void)closeStorybook:(RCTBridge *)bridge {
     currentMode = MODE_DEFAULT;
     [RestartHelper restart:bridge];
+}
+
+/**
+ * Writes a NATIVE_ERROR JSON line to protocol.sherlo.
+ *
+ * @param errorCode The error code (e.g. ERROR_SDK_COMPATIBILITY)
+ * @param message Human-readable error description
+ */
+- (void)sendNativeError:(NSString *)errorCode message:(NSString *)message {
+    NSMutableDictionary *protocolItem = [NSMutableDictionary dictionary];
+    [protocolItem setObject:@([[NSDate date] timeIntervalSince1970] * 1000) forKey:@"timestamp"];
+    [protocolItem setObject:@"app" forKey:@"entity"];
+    [protocolItem setObject:@"NATIVE_ERROR" forKey:@"action"];
+    [protocolItem setObject:errorCode forKey:@"errorCode"];
+    [protocolItem setObject:message forKey:@"message"];
+
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:protocolItem options:0 error:nil];
+    NSString *jsonString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+    jsonString = [jsonString stringByAppendingString:@"\n"];
+    [fileSystemHelper appendFile:@"protocol.sherlo" content:jsonString];
 }
 
 /**

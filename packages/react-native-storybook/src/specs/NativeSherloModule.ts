@@ -3,6 +3,7 @@ import { TurboModuleRegistry } from 'react-native';
 
 export interface Spec extends TurboModule {
   getInspectorData: () => Promise<string>;
+  sendNativeError: (errorCode: string, message: string) => void;
   appendFile: (path: string, content: string) => Promise<void>;
   readFile: (path: string) => Promise<string>;
   openStorybook: () => void;
