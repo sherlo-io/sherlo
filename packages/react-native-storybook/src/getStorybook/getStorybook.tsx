@@ -13,7 +13,7 @@ const APP_START_TIME = Date.now();
 
 const DEFAULT_INITIAL_RENDER_DELAY_MS = 1000;
 
-const INITIAL_RENDER_DELAY_ENABLED = false;
+const INITIAL_RENDER_DELAY_ENABLED = true;
 
 // Outermost decorator that delays story rendering in testing mode.
 // Prevents race conditions where stories render before async setup
