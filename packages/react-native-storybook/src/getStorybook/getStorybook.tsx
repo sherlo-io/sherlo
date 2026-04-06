@@ -13,6 +13,8 @@ const APP_START_TIME = Date.now();
 
 const FONT_GRACE_PERIOD_MS = 1000;
 
+const FONT_GRACE_ENABLED = false;
+
 // Outermost decorator (added last) that delays story rendering until fonts
 // are registered. On Android, TextMeasureCache caches Roboto fallback metrics
 // if story text renders before custom fonts are registered — this prevents that.
@@ -35,7 +37,7 @@ function SherloFontGraceDecorator(Story: StoryFn) {
 function getStorybook(view: StorybookView, params?: StorybookParams): () => ReactElement {
   const mode = SherloModule.getMode();
 
-  if (mode === 'testing') {
+  if (mode === 'testing' && FONT_GRACE_ENABLED) {
     const originalGetProjectAnnotations = view._preview.getProjectAnnotations.bind(
       view._preview
     );
