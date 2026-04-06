@@ -7,24 +7,24 @@ import { useHideSplashScreen } from './hooks';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { StoryFn } from '@storybook/react';
 
-// Captured at module load time so the 1s grace is measured from app boot,
+// Captured at module load time so the delay is measured from app boot,
 // not from when the decorator first runs.
 const APP_START_TIME = Date.now();
 
-const FONT_GRACE_PERIOD_MS = 1000;
+const DEFAULT_INITIAL_RENDER_DELAY_MS = 1000;
 
-const FONT_GRACE_ENABLED = false;
+const INITIAL_RENDER_DELAY_ENABLED = false;
 
-// Outermost decorator (added last) that delays story rendering until fonts
-// are registered. On Android, TextMeasureCache caches Roboto fallback metrics
-// if story text renders before custom fonts are registered — this prevents that.
-function SherloFontGraceDecorator(Story: StoryFn) {
+// Outermost decorator that delays story rendering in testing mode.
+// Prevents race conditions where stories render before async setup
+// (e.g. custom font registration) completes.
+function SherloInitialRenderDelayDecorator(Story: StoryFn, delayMs: number) {
   const elapsed = Date.now() - APP_START_TIME;
-  const [ready, setReady] = useState(elapsed >= FONT_GRACE_PERIOD_MS);
+  const [ready, setReady] = useState(elapsed >= delayMs);
 
   useEffect(() => {
     if (!ready) {
-      const remaining = FONT_GRACE_PERIOD_MS - (Date.now() - APP_START_TIME);
+      const remaining = delayMs - (Date.now() - APP_START_TIME);
       const timer = setTimeout(() => setReady(true), Math.max(0, remaining));
       return () => clearTimeout(timer);
     }
@@ -37,7 +37,10 @@ function SherloFontGraceDecorator(Story: StoryFn) {
 function getStorybook(view: StorybookView, params?: StorybookParams): () => ReactElement {
   const mode = SherloModule.getMode();
 
-  if (mode === 'testing' && FONT_GRACE_ENABLED) {
+  if (mode === 'testing' && INITIAL_RENDER_DELAY_ENABLED) {
+    const delayMs =
+      SherloModule.getConfig().initialStoryRenderDelayMs ?? DEFAULT_INITIAL_RENDER_DELAY_MS;
+
     const originalGetProjectAnnotations = view._preview.getProjectAnnotations.bind(
       view._preview
     );
@@ -46,7 +49,10 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
         const annotations = await originalGetProjectAnnotations();
         return {
           ...annotations,
-          decorators: [...(annotations.decorators ?? []), SherloFontGraceDecorator],
+          decorators: [
+            ...(annotations.decorators ?? []),
+            (Story: StoryFn) => SherloInitialRenderDelayDecorator(Story, delayMs),
+          ],
         };
       },
     });
