@@ -31,6 +31,8 @@ jobs:
 
       - name: Build packages
         run: yarn build
+        env:
+          NX_SKIP_NX_CACHE: true
 
       - name: Prepare and publish to GitHub Packages
         run: |
