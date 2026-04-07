@@ -7,6 +7,8 @@
 #import "KeyboardHelper.h"
 #import "LastStateHelper.h"
 #import "RestartHelper.h"
+#import "SherloJsonHelper.h"
+#import "ProtocolHelper.h"
 
 #import <Foundation/Foundation.h>
 #import <React/RCTBridge.h>
@@ -46,15 +48,7 @@ static FileSystemHelper *fileSystemHelper;
     
     fileSystemHelper = [[FileSystemHelper alloc] init];
 
-    NSBundle *podBundle = [NSBundle bundleForClass:[SherloModuleCore class]];
-    NSString *sherloJsonPath = [podBundle pathForResource:@"sherlo" ofType:@"json" inDirectory:@"assets"];
-    if (sherloJsonPath) {
-        NSData *sherloJsonData = [NSData dataWithContentsOfFile:sherloJsonPath];
-        if (sherloJsonData) {
-            NSDictionary *sherloJson = [NSJSONSerialization JSONObjectWithData:sherloJsonData options:0 error:nil];
-            nativeVersion = sherloJson[@"version"];
-        }
-    }
+    nativeVersion = [SherloJsonHelper getNativeVersion];
 
     config = [ConfigHelper loadConfig:fileSystemHelper];
 
@@ -70,18 +64,7 @@ static FileSystemHelper *fileSystemHelper;
 
             NSString *requestId = lastState[@"requestId"];
 
-            NSMutableDictionary *nativeLoadedProtocolItem = [NSMutableDictionary dictionary];
-            [nativeLoadedProtocolItem setObject:@([[NSDate date] timeIntervalSince1970] * 1000) forKey:@"timestamp"];
-            [nativeLoadedProtocolItem setObject:@"app" forKey:@"entity"];
-            [nativeLoadedProtocolItem setObject:@"NATIVE_LOADED" forKey:@"action"];
-            if (requestId) {
-                [nativeLoadedProtocolItem setObject:requestId forKey:@"requestId"];
-            }
-
-            NSData *jsonData = [NSJSONSerialization dataWithJSONObject:nativeLoadedProtocolItem options:0 error:nil];
-            NSString *nativeLoadedProtocolItemString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
-            nativeLoadedProtocolItemString = [nativeLoadedProtocolItemString stringByAppendingString:@"\n"];
-            [fileSystemHelper appendFile:@"protocol.sherlo" content:nativeLoadedProtocolItemString];
+            [ProtocolHelper writeNativeLoaded:fileSystemHelper requestId:requestId];
 
             NSString *easUpdateDeeplink = config[@"easUpdateDeeplink"];
             BOOL consumingDeeplink = NO;
@@ -172,17 +155,7 @@ static FileSystemHelper *fileSystemHelper;
  * @param message Human-readable error description
  */
 - (void)sendNativeError:(NSString *)errorCode message:(NSString *)message {
-    NSMutableDictionary *protocolItem = [NSMutableDictionary dictionary];
-    [protocolItem setObject:@([[NSDate date] timeIntervalSince1970] * 1000) forKey:@"timestamp"];
-    [protocolItem setObject:@"app" forKey:@"entity"];
-    [protocolItem setObject:@"NATIVE_ERROR" forKey:@"action"];
-    [protocolItem setObject:errorCode forKey:@"errorCode"];
-    [protocolItem setObject:message forKey:@"message"];
-
-    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:protocolItem options:0 error:nil];
-    NSString *jsonString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
-    jsonString = [jsonString stringByAppendingString:@"\n"];
-    [fileSystemHelper appendFile:@"protocol.sherlo" content:jsonString];
+    [ProtocolHelper writeNativeError:fileSystemHelper errorCode:errorCode message:message];
 }
 
 /**

@@ -49,17 +49,7 @@ public class SherloModuleCore {
         this.fileSystemHelper = new FileSystemHelper(reactContext);
         this.restartHelper = new RestartHelper(reactContext);
 
-        try {
-            java.io.InputStream is = reactContext.getAssets().open("sherlo.json");
-            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-            byte[] buf = new byte[1024];
-            int len;
-            while ((len = is.read(buf)) != -1) baos.write(buf, 0, len);
-            JSONObject sherloJson = new JSONObject(baos.toString("UTF-8"));
-            this.nativeVersion = sherloJson.optString("version", null);
-        } catch (Exception e) {
-            Log.w(TAG, "Could not read sherlo.json: " + e.getMessage());
-        }
+        this.nativeVersion = SherloJsonHelper.getNativeVersion(reactContext);
 
         this.config = ConfigHelper.loadConfig(this.fileSystemHelper);
 
@@ -85,19 +75,7 @@ public class SherloModuleCore {
                     }
                 }
 
-                JSONObject nativeLoadedProtocolItem = new JSONObject();
-                try {
-                    nativeLoadedProtocolItem.put("action", "NATIVE_LOADED");
-                    if (requestId != null) {
-                        nativeLoadedProtocolItem.put("requestId", requestId);
-                    }
-                    nativeLoadedProtocolItem.put("timestamp", System.currentTimeMillis());
-                    nativeLoadedProtocolItem.put("entity", "app");
-
-                    this.fileSystemHelper.appendFile("protocol.sherlo", nativeLoadedProtocolItem.toString() + "\n");
-                } catch (org.json.JSONException e) {
-                    Log.e(TAG, "Error creating protocol item", e);
-                }
+                ProtocolHelper.writeNativeLoaded(this.fileSystemHelper, requestId);
             }
         }
 
@@ -149,17 +127,7 @@ public class SherloModuleCore {
      * @param message Human-readable error description
      */
     public void sendNativeError(String errorCode, String message) {
-        JSONObject protocolItem = new JSONObject();
-        try {
-            protocolItem.put("action", "NATIVE_ERROR");
-            protocolItem.put("errorCode", errorCode);
-            protocolItem.put("message", message);
-            protocolItem.put("timestamp", System.currentTimeMillis());
-            protocolItem.put("entity", "app");
-            this.fileSystemHelper.appendFile("protocol.sherlo", protocolItem.toString() + "\n");
-        } catch (org.json.JSONException e) {
-            Log.e(TAG, "Error creating NATIVE_ERROR protocol item", e);
-        }
+        ProtocolHelper.writeNativeError(this.fileSystemHelper, errorCode, message);
     }
 
     /**
