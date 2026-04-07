@@ -34,6 +34,11 @@
       "require": "./dist/lite.js",
       "default": "./dist/lite.js"
     },
+    "./metro": {
+      "types": "./metro.d.ts",
+      "require": "./metro.js",
+      "default": "./metro.js"
+    },
     "./dist/*": "./dist/*",
     "./package.json": "./package.json"
   },
@@ -45,7 +50,9 @@
     "app.plugin.js",
     "sherlo-react-native-storybook.podspec",
     "lite.js",
-    "lite.d.ts"
+    "lite.d.ts",
+    "metro.js",
+    "metro.d.ts"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p .",
