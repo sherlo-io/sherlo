@@ -88,8 +88,8 @@ public class SherloModule extends ReactContextBaseJavaModule {
      * @param message Human-readable error description
      */
     @ReactMethod
-    public void sendNativeError(String errorCode, String message) {
-        moduleCore.sendNativeError(errorCode, message);
+    public void sendNativeError(String errorCode, String message, String dataJson) {
+        moduleCore.sendNativeError(errorCode, message, dataJson);
     }
 
     // ==== File System Methods ====

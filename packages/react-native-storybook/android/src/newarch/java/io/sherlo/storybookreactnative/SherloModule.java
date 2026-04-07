@@ -86,8 +86,8 @@ public class SherloModule extends NativeSherloModuleSpec {
      * @param message Human-readable error description
      */
     @Override
-    public void sendNativeError(String errorCode, String message) {
-        moduleCore.sendNativeError(errorCode, message);
+    public void sendNativeError(String errorCode, String message, String dataJson) {
+        moduleCore.sendNativeError(errorCode, message, dataJson);
     }
 
     // ==== File System Methods ====

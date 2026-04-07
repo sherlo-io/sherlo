@@ -68,8 +68,9 @@ static void SherloEarlyInit(void) {
  */
 - (void)sendNativeError:(NSString *)errorCode
                 message:(NSString *)message
+               dataJson:(NSString *)dataJson
 {
-  [core sendNativeError:errorCode message:message];
+  [core sendNativeError:errorCode message:message dataJson:dataJson];
 }
 
 /**
@@ -180,8 +181,9 @@ RCT_EXPORT_METHOD(closeStorybook) {
  * Sends a native error by writing a NATIVE_ERROR JSON line to protocol.sherlo.
  */
 RCT_EXPORT_METHOD(sendNativeError:(NSString *)errorCode
-                  message:(NSString *)message) {
-  [core sendNativeError:errorCode message:message];
+                  message:(NSString *)message
+                  dataJson:(NSString *)dataJson) {
+  [core sendNativeError:errorCode message:message dataJson:dataJson];
 }
 
 /**

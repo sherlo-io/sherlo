@@ -126,8 +126,8 @@ public class SherloModuleCore {
      * @param errorCode The error code (e.g. ERROR_SDK_COMPATIBILITY)
      * @param message Human-readable error description
      */
-    public void sendNativeError(String errorCode, String message) {
-        ProtocolHelper.writeNativeError(this.fileSystemHelper, errorCode, message);
+    public void sendNativeError(String errorCode, String message, String dataJson) {
+        ProtocolHelper.writeNativeError(this.fileSystemHelper, errorCode, message, dataJson);
     }
 
     /**

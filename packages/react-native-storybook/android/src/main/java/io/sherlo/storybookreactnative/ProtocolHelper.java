@@ -36,8 +36,9 @@ public class ProtocolHelper {
      * @param fileSystemHelper The file system helper
      * @param errorCode The error code
      * @param message Human-readable error description
+     * @param dataJson JSON string with additional data fields (e.g. jsVersion, nativeVersion), or null
      */
-    public static void writeNativeError(FileSystemHelper fileSystemHelper, String errorCode, String message) {
+    public static void writeNativeError(FileSystemHelper fileSystemHelper, String errorCode, String message, String dataJson) {
         JSONObject item = new JSONObject();
         try {
             item.put("action", "NATIVE_ERROR");
@@ -45,6 +46,9 @@ public class ProtocolHelper {
             item.put("message", message);
             item.put("timestamp", System.currentTimeMillis());
             item.put("entity", "app");
+            if (dataJson != null && !dataJson.isEmpty()) {
+                item.put("data", new org.json.JSONObject(dataJson));
+            }
             fileSystemHelper.appendFile("protocol.sherlo", item.toString() + "\n");
         } catch (org.json.JSONException e) {
             Log.e(TAG, "Error creating NATIVE_ERROR protocol item", e);

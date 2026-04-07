@@ -154,8 +154,8 @@ static FileSystemHelper *fileSystemHelper;
  * @param errorCode The error code (e.g. ERROR_SDK_COMPATIBILITY)
  * @param message Human-readable error description
  */
-- (void)sendNativeError:(NSString *)errorCode message:(NSString *)message {
-    [ProtocolHelper writeNativeError:fileSystemHelper errorCode:errorCode message:message];
+- (void)sendNativeError:(NSString *)errorCode message:(NSString *)message dataJson:(NSString *)dataJson {
+    [ProtocolHelper writeNativeError:fileSystemHelper errorCode:errorCode message:message dataJson:dataJson];
 }
 
 /**

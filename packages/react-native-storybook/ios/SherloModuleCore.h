@@ -55,7 +55,7 @@
  * @param errorCode The error code (e.g. ERROR_SDK_COMPATIBILITY)
  * @param message Human-readable error description
  */
-- (void)sendNativeError:(NSString *)errorCode message:(NSString *)message;
+- (void)sendNativeError:(NSString *)errorCode message:(NSString *)message dataJson:(NSString *)dataJson;
 
 /**
  * Appends base64 encoded content to a file
