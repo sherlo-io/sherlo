@@ -7,6 +7,8 @@
 #import "KeyboardHelper.h"
 #import "LastStateHelper.h"
 #import "RestartHelper.h"
+#import "SherloJsonHelper.h"
+#import "ProtocolHelper.h"
 
 #import <Foundation/Foundation.h>
 #import <React/RCTBridge.h>
@@ -22,6 +24,7 @@ NSString * const MODE_TESTING = @"testing";
 static NSDictionary *config = nil;
 static NSDictionary *lastState = nil;
 static NSString *currentMode = MODE_DEFAULT;
+static NSString *nativeVersion = nil;
 
 // Helper instances
 static FileSystemHelper *fileSystemHelper;
@@ -44,7 +47,9 @@ static FileSystemHelper *fileSystemHelper;
     self = [super init];
     
     fileSystemHelper = [[FileSystemHelper alloc] init];
-    
+
+    nativeVersion = [SherloJsonHelper getNativeVersion];
+
     config = [ConfigHelper loadConfig:fileSystemHelper];
 
     if (config) {
@@ -59,18 +64,7 @@ static FileSystemHelper *fileSystemHelper;
 
             NSString *requestId = lastState[@"requestId"];
 
-            NSMutableDictionary *nativeLoadedProtocolItem = [NSMutableDictionary dictionary];
-            [nativeLoadedProtocolItem setObject:@([[NSDate date] timeIntervalSince1970] * 1000) forKey:@"timestamp"];
-            [nativeLoadedProtocolItem setObject:@"app" forKey:@"entity"];
-            [nativeLoadedProtocolItem setObject:@"NATIVE_LOADED" forKey:@"action"];
-            if (requestId) {
-                [nativeLoadedProtocolItem setObject:requestId forKey:@"requestId"];
-            }
-
-            NSData *jsonData = [NSJSONSerialization dataWithJSONObject:nativeLoadedProtocolItem options:0 error:nil];
-            NSString *nativeLoadedProtocolItemString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
-            nativeLoadedProtocolItemString = [nativeLoadedProtocolItemString stringByAppendingString:@"\n"];
-            [fileSystemHelper appendFile:@"protocol.sherlo" content:nativeLoadedProtocolItemString];
+            [ProtocolHelper writeNativeLoaded:fileSystemHelper requestId:requestId];
 
             NSString *easUpdateDeeplink = config[@"easUpdateDeeplink"];
             BOOL consumingDeeplink = NO;
@@ -111,7 +105,8 @@ static FileSystemHelper *fileSystemHelper;
     return @{
         @"mode": currentMode,
         @"config": configString ?: [NSNull null],
-        @"lastState": lastStateString ?: [NSNull null]
+        @"lastState": lastStateString ?: [NSNull null],
+        @"nativeVersion": nativeVersion ?: [NSNull null]
     };
 }
 
@@ -151,6 +146,16 @@ static FileSystemHelper *fileSystemHelper;
 - (void)closeStorybook:(RCTBridge *)bridge {
     currentMode = MODE_DEFAULT;
     [RestartHelper restart:bridge];
+}
+
+/**
+ * Writes a NATIVE_ERROR JSON line to protocol.sherlo.
+ *
+ * @param errorCode The error code (e.g. ERROR_SDK_COMPATIBILITY)
+ * @param message Human-readable error description
+ */
+- (void)sendNativeError:(NSString *)errorCode message:(NSString *)message dataJson:(NSString *)dataJson {
+    [ProtocolHelper writeNativeError:fileSystemHelper errorCode:errorCode message:message dataJson:dataJson];
 }
 
 /**

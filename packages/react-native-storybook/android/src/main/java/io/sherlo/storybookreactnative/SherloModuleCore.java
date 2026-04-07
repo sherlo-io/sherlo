@@ -33,6 +33,7 @@ public class SherloModuleCore {
     private static JSONObject config = null;
     private static JSONObject lastState = null;
     private static String currentMode = MODE_DEFAULT;
+    private static String nativeVersion = null;
 
     // Helper instances
     private FileSystemHelper fileSystemHelper = null;
@@ -47,6 +48,8 @@ public class SherloModuleCore {
     public SherloModuleCore(ReactApplicationContext reactContext, Activity activity) {
         this.fileSystemHelper = new FileSystemHelper(reactContext);
         this.restartHelper = new RestartHelper(reactContext);
+
+        this.nativeVersion = SherloJsonHelper.getNativeVersion(reactContext);
 
         this.config = ConfigHelper.loadConfig(this.fileSystemHelper);
 
@@ -72,19 +75,7 @@ public class SherloModuleCore {
                     }
                 }
 
-                JSONObject nativeLoadedProtocolItem = new JSONObject();
-                try {
-                    nativeLoadedProtocolItem.put("action", "NATIVE_LOADED");
-                    if (requestId != null) {
-                        nativeLoadedProtocolItem.put("requestId", requestId);
-                    }
-                    nativeLoadedProtocolItem.put("timestamp", System.currentTimeMillis());
-                    nativeLoadedProtocolItem.put("entity", "app");
-
-                    this.fileSystemHelper.appendFile("protocol.sherlo", nativeLoadedProtocolItem.toString() + "\n");
-                } catch (org.json.JSONException e) {
-                    Log.e(TAG, "Error creating protocol item", e);
-                }
+                ProtocolHelper.writeNativeLoaded(this.fileSystemHelper, requestId);
             }
         }
 
@@ -102,6 +93,7 @@ public class SherloModuleCore {
         constants.putString("mode", this.currentMode);
         constants.putString("config", this.config != null ? this.config.toString() : null);
         constants.putString("lastState", this.lastState != null ? this.lastState.toString() : null);
+        constants.putString("nativeVersion", this.nativeVersion);
         return constants;
     }
 
@@ -126,6 +118,16 @@ public class SherloModuleCore {
      */
     public void closeStorybook() {
         restartHelper.restart(MODE_DEFAULT);
+    }
+
+    /**
+     * Writes a NATIVE_ERROR JSON line to protocol.sherlo.
+     *
+     * @param errorCode The error code (e.g. ERROR_SDK_COMPATIBILITY)
+     * @param message Human-readable error description
+     */
+    public void sendNativeError(String errorCode, String message, String dataJson) {
+        ProtocolHelper.writeNativeError(this.fileSystemHelper, errorCode, message, dataJson);
     }
 
     /**
