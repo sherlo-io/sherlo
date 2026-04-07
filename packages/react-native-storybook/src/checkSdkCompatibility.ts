@@ -4,8 +4,7 @@ import SherloModule from './SherloModule';
 const ERROR_CODE = 'ERROR_SDK_COMPATIBILITY';
 
 async function checkSdkCompatibility(): Promise<void> {
-  const requiredMinNativeVersion =
-    process.env.SHERLO_TEST_REQUIRED_MIN_NATIVE_VERSION ?? REQUIRED_MIN_NATIVE_VERSION;
+  const requiredMinNativeVersion = REQUIRED_MIN_NATIVE_VERSION;
 
   const nativeVersion = SherloModule.getNativeVersion();
 
@@ -20,6 +19,7 @@ async function checkSdkCompatibility(): Promise<void> {
         : `Sherlo native version ${nativeVersion} is below the required minimum ${requiredMinNativeVersion}. Please rebuild the app.`;
 
     SherloModule.sendNativeError(ERROR_CODE, message);
+    throw new Error(message);
   }
 }
 
