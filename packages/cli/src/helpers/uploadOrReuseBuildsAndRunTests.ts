@@ -78,6 +78,7 @@ async function uploadOrReuseBuildsAndRunTests({
     .catch(handleClientError);
 
   const buildIndex = build.index;
+  reporting.setTag('build_index', String(buildIndex));
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 

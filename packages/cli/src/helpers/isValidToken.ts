@@ -13,6 +13,7 @@ function isValidToken(token: string): boolean {
   ) {
     reporting.setContext('Project', { teamId, projectIndex });
     reporting.setTag('team_id', teamId);
+    reporting.setTag('project_index', String(projectIndex));
     reporting.addBreadcrumb({
       category: 'auth',
       message: 'Token validated successfully',
