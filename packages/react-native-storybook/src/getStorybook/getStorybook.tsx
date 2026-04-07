@@ -40,7 +40,9 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 
     useEffect(() => {
       if (mode !== 'testing') return;
-      checkSdkCompatibility().then(() => setCompatibilityChecked(true));
+      checkSdkCompatibility()
+        .then(() => setCompatibilityChecked(true))
+        .catch(() => { /* native error sent, app stays blank intentionally */ });
     }, [mode]);
 
     if (mode === 'testing') {
