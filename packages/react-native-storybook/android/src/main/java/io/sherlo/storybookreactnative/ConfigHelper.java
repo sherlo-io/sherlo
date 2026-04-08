@@ -46,7 +46,6 @@ public class ConfigHelper {
             configJson = new String(decodedBytes, "UTF-8");
         } catch (Exception e) {
             Log.w(TAG, "Config is not base64 encoded, trying to parse as plain JSON");
-            return null;
         }
 
         // Parse JSON
