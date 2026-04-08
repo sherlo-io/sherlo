@@ -68,7 +68,11 @@ jobs:
       - name: Bump minimum required native dependencies version
         if: ${{ github.event.inputs.BUMP_REQUIRED_SDK_VERSION == 'true' }}
         run: |
-          echo "{\"REQUIRED_MIN_NATIVE_VERSION\": \"$NEW_VERSION_NUMBER\"}" > packages/react-native-storybook/src/sdk-compatibility.json
+          jq --arg v "$NEW_VERSION_NUMBER" '.REQUIRED_MIN_NATIVE_VERSION = $v' packages/react-native-storybook/src/sdk-compatibility.json > /tmp/sdk-compat.json && mv /tmp/sdk-compat.json packages/react-native-storybook/src/sdk-compatibility.json
+
+      - name: Update JS module version in sdk-compatibility.json
+        run: |
+          jq --arg v "$NEW_VERSION_NUMBER" '.JS_MODULE_VERSION = $v' packages/react-native-storybook/src/sdk-compatibility.json > /tmp/sdk-compat.json && mv /tmp/sdk-compat.json packages/react-native-storybook/src/sdk-compatibility.json
 
       - name: Build packages
         run: yarn build
