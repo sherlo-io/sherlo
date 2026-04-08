@@ -10,7 +10,7 @@ import getValidatedBinariesInfoAndNextBuildIndex from './getValidatedBinariesInf
 import handleClientError from './handleClientError';
 import printBuildIntroMessage from './printBuildIntroMessage';
 import printResultsUrl from './printResultsUrl';
-import { reporting } from '../helpers';
+import reporting from './reporting';
 import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
 
 async function uploadOrReuseBuildsAndRunTests({

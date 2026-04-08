@@ -4,7 +4,7 @@ import https from 'https';
 import fetch from 'node-fetch';
 import { PLATFORM_LABEL } from '../../../constants';
 import printBuildMessage from '../../printBuildMessage';
-import { reporting } from '../../../helpers';
+import reporting from '../../reporting';
 import throwError from '../../throwError';
 import getBuildData from './getBuildData';
 import getSizeInMB from './getSizeInMB';

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { DOCS_LINK, PROJECT_ROOT_OPTION } from '../../../constants';
 import { InvalidatedConfig } from '../../../types';
-import { reporting } from '../../../helpers';
+import reporting from '../../reporting';
 import throwError from '../../throwError';
 
 function parseConfigFile(path: string): InvalidatedConfig {

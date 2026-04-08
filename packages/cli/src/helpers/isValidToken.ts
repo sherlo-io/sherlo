@@ -1,5 +1,5 @@
 import { PROJECT_API_TOKEN_LENGTH, TEAM_ID_LENGTH } from '@sherlo/shared';
-import { reporting } from '../helpers';
+import reporting from './reporting';
 import getTokenParts from './getTokenParts';
 
 function isValidToken(token: string): boolean {

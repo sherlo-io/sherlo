@@ -7,7 +7,7 @@ import {
 } from '../../../constants';
 import { BinariesInfo, Command, CommandParams } from '../../../types';
 import handleClientError from '../../handleClientError';
-import { reporting } from '../../../helpers';
+import reporting from '../../reporting';
 import validateBinariesInfo from '../validateBinariesInfo';
 import getBinaryInfo from './getBinaryInfo';
 import getLocalBinariesInfo from './getLocalBinariesInfo';
