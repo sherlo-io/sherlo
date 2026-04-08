@@ -23,8 +23,8 @@ async function runShellCommand({
   env,
 }: Options): Promise<string | Buffer> {
   const sanitizedCommand = command
-    .replace(/--token=[^\s]*/g, '--token=[REDACTED]')
-    .replace(/--token\s+[^\s]*/g, '--token [REDACTED]');
+    .replace(/--token=["']?[^\s"']*["']?/g, '--token=[REDACTED]')
+    .replace(/--token\s+["']?[^\s"']*["']?/g, '--token [REDACTED]');
   reporting.addBreadcrumb({
     category: 'subprocess',
     message: 'Running shell command',
