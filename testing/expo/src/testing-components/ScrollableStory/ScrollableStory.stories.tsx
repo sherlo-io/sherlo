@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, Text, View, StyleSheet, Animated, TouchableOpacity, FlatList } from 'react-native';
+import { ScrollView, Text, View, StyleSheet, Animated, TouchableOpacity, FlatList, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 // ============================================
@@ -187,37 +187,38 @@ const InfiniteScrollComponent = () => {
 };
 
 // ============================================
-// ScrollWrapper (behavior-based detection test)
-// The ScrollView's area is < 10% of screen, so direct BFS detection would reject it.
-// The new behavior-based code detects the ScrollView via its full-screen wrapper instead.
+// ScrollWrapper (Modal window scroll detection test)
+// On iOS, React Native's <Modal> renders content in a SEPARATE UIWindow.
+// Old iOS code only searched the key window and missed ScrollViews inside modals.
+// This story reproduces that scenario.
 // ============================================
 const ScrollWrapperComponent = () => {
   return (
-    <View style={scrollWrapperStyles.container}>
-      {/* Large header - keeps wrapper area well above 10% of screen */}
-      <View style={scrollWrapperStyles.header}>
-        <Text style={scrollWrapperStyles.headerTitle}>ScrollWrapper Detection Test</Text>
-        <Text style={scrollWrapperStyles.headerSubtitle}>
-          The ScrollView below has maxHeight: 80 - its area is less than 10% of the
-          screen. Old iOS BFS rejects it outright. New behavior-based BFS finds it
-          through this wrapper view and accepts it.
-        </Text>
-      </View>
-
-      {/* Small ScrollView - area intentionally below 10% screen threshold */}
-      <ScrollView style={scrollWrapperStyles.scrollView} nestedScrollEnabled>
-        {Array.from({ length: 10 }).map((_, i) => (
-          <View key={i} style={scrollWrapperStyles.scrollItem}>
-            <Text style={scrollWrapperStyles.scrollItemText}>Scroll item {i + 1}</Text>
+    <Modal visible={true} transparent animationType="slide">
+      <View style={scrollWrapperStyles.overlay}>
+        <View style={scrollWrapperStyles.dialog}>
+          <View style={scrollWrapperStyles.header}>
+            <Text style={scrollWrapperStyles.headerTitle}>Modal Scroll Test</Text>
+            <Text style={scrollWrapperStyles.headerSubtitle}>ScrollView inside a Modal</Text>
           </View>
-        ))}
-      </ScrollView>
 
-      {/* Large footer - fills remaining space, keeps wrapper area large */}
-      <View style={scrollWrapperStyles.footer}>
-        <Text style={scrollWrapperStyles.footerText}>Footer area</Text>
+          <ScrollView style={scrollWrapperStyles.scrollView}>
+            {Array.from({ length: 30 }).map((_, i) => (
+              <View key={i} style={scrollWrapperStyles.scrollItem}>
+                <Text style={scrollWrapperStyles.scrollItemText}>Item {i + 1}</Text>
+                <Text style={scrollWrapperStyles.scrollItemDesc}>
+                  Modal content row - this ScrollView lives in a separate UIWindow on iOS.
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
+
+          <View style={scrollWrapperStyles.footer}>
+            <Text style={scrollWrapperStyles.footerText}>Modal Footer</Text>
+          </View>
+        </View>
       </View>
-    </View>
+    </Modal>
   );
 };
 
@@ -363,29 +364,36 @@ const fabStyles = StyleSheet.create({
 });
 
 const scrollWrapperStyles = StyleSheet.create({
-  container: {
+  overlay: {
     flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  dialog: {
+    height: '60%',
     backgroundColor: '#f5f0ff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    overflow: 'hidden',
   },
   header: {
-    height: 350,
+    height: 80,
     backgroundColor: '#7c4dff',
-    padding: 24,
+    padding: 16,
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 12,
   },
   headerSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#e0d7ff',
-    lineHeight: 20,
+    marginTop: 4,
   },
   scrollView: {
-    maxHeight: 80,
+    flex: 1,
     backgroundColor: '#ede7f6',
   },
   scrollItem: {
@@ -396,17 +404,24 @@ const scrollWrapperStyles = StyleSheet.create({
   },
   scrollItemText: {
     fontSize: 14,
+    fontWeight: '600',
     color: '#4a148c',
   },
+  scrollItemDesc: {
+    fontSize: 12,
+    color: '#7c4dff',
+    marginTop: 2,
+  },
   footer: {
-    flex: 1,
-    backgroundColor: '#ede7f6',
+    height: 56,
+    backgroundColor: '#7c4dff',
     justifyContent: 'center',
     alignItems: 'center',
   },
   footerText: {
-    fontSize: 16,
-    color: '#7c4dff',
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
 
