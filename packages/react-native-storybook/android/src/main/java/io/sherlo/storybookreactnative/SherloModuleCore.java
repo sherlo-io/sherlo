@@ -420,6 +420,9 @@ public class SherloModuleCore {
      * Filters out framework-internal views and non-scrollable views.
      */
     private View findBestScrollViewBFS(View root) {
+        int screenArea = root.getWidth() * root.getHeight();
+        int minArea = screenArea / 10; // 10% threshold
+
         java.util.LinkedList<View> queue = new java.util.LinkedList<>();
         queue.add(root);
 
@@ -429,10 +432,22 @@ public class SherloModuleCore {
             if (view.canScrollVertically(1) || view.canScrollVertically(-1)) {
                 if (view.getVisibility() == View.VISIBLE && !isFrameworkInternalScrollView(view)) {
                     if (isScrollableByMetrics(view)) {
-                        if (SCROLL_DEBUG) {
-                            Log.d(TAG, "BFS: Found scrollable view " + view.getClass().getSimpleName());
+                        // Check minimum area - skip tiny scrollable views (toasts, badges, etc.)
+                        android.graphics.Rect rect = new android.graphics.Rect();
+                        if (view.getGlobalVisibleRect(rect)) {
+                            int area = rect.width() * rect.height();
+                            if (area < minArea) {
+                                if (SCROLL_DEBUG) {
+                                    Log.d(TAG, "BFS: Skipping too-small scrollable view " +
+                                          view.getClass().getSimpleName() + " (area " + area + " < min " + minArea + ")");
+                                }
+                            } else {
+                                if (SCROLL_DEBUG) {
+                                    Log.d(TAG, "BFS: Found scrollable view " + view.getClass().getSimpleName());
+                                }
+                                return view;
+                            }
                         }
-                        return view;
                     }
                 }
             }
