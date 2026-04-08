@@ -1,9 +1,17 @@
 import fs from 'fs';
 import { DOCS_LINK, PROJECT_ROOT_OPTION } from '../../../constants';
 import { InvalidatedConfig } from '../../../types';
+import reporting from '../../reporting';
 import throwError from '../../throwError';
 
 function parseConfigFile(path: string): InvalidatedConfig {
+  reporting.addBreadcrumb({
+    category: 'config',
+    message: 'Parsing config file',
+    data: { path },
+    level: 'info',
+  });
+
   try {
     const configText = fs.readFileSync(path, 'utf8');
 

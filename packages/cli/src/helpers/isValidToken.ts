@@ -1,5 +1,5 @@
 import { PROJECT_API_TOKEN_LENGTH, TEAM_ID_LENGTH } from '@sherlo/shared';
-import { reporting } from '../helpers';
+import reporting from './reporting';
 import getTokenParts from './getTokenParts';
 
 function isValidToken(token: string): boolean {
@@ -12,11 +12,25 @@ function isValidToken(token: string): boolean {
     projectIndex >= 1
   ) {
     reporting.setContext('Project', { teamId, projectIndex });
+    reporting.setTag('team_id', teamId);
+    // Sentry tags must be strings; projectIndex is a number from the parsed token.
+    reporting.setTag('project_index', String(projectIndex));
+    reporting.addBreadcrumb({
+      category: 'auth',
+      message: 'Token validated successfully',
+      data: { teamId, projectIndex },
+      level: 'info',
+    });
 
     return true;
   }
 
   reporting.setContext('Project', { teamId: '[unknown]', projectIndex: '[unknown]' });
+  reporting.addBreadcrumb({
+    category: 'auth',
+    message: 'Token validation failed — invalid format',
+    level: 'warning',
+  });
 
   return false;
 }
