@@ -247,7 +247,6 @@ static UIScrollView *lockedScrollView = nil;
 
 /**
  * Main detection logic for scrollable views. Returns a result dict with scrollable + optional frame.
- * Searches ALL visible windows (topmost first) so modal content in separate UIWindows is found.
  */
 - (NSDictionary *)detectScrollableView {
     const CGFloat EPSILON = 4.0;
@@ -257,34 +256,20 @@ static UIScrollView *lockedScrollView = nil;
     // Reset lock for each new story detection
     lockedScrollView = nil;
 
-    NSArray<UIWindow *> *windows = [self getAllVisibleWindowsTopFirst];
-    if (windows.count == 0) {
+    UIWindow *keyWindow = [self getKeyWindow];
+    if (!keyWindow) {
         if (SCROLL_DEBUG) {
-            NSLog(@"[%@] isScrollable: No visible windows found", LOG_TAG);
+            NSLog(@"[%@] isScrollable: No key window found", LOG_TAG);
         }
         return @{@"scrollable": @(NO)};
     }
 
-    // Search each window top-to-bottom; first scrollable view in the topmost window wins
-    UIScrollView *candidate = nil;
-    UIWindow *candidateWindow = nil;
-
-    for (UIWindow *window in windows) {
-        if (SCROLL_DEBUG) {
-            NSLog(@"[%@] isScrollable: Searching window level %.1f, class: %@",
-                  LOG_TAG, window.windowLevel, NSStringFromClass([window class]));
-        }
-
-        candidate = [self findBestScrollViewBFS:window];
-        if (candidate) {
-            candidateWindow = window;
-            break;
-        }
-    }
+    // BFS from root to find the first user-facing scrollable view
+    UIScrollView *candidate = [self findBestScrollViewBFS:keyWindow];
 
     if (!candidate) {
         if (SCROLL_DEBUG) {
-            NSLog(@"[%@] isScrollable: No scroll view candidate found in any window", LOG_TAG);
+            NSLog(@"[%@] isScrollable: No scroll view candidate found", LOG_TAG);
         }
         return @{@"scrollable": @(NO)};
     }
@@ -316,52 +301,11 @@ static UIScrollView *lockedScrollView = nil;
     // Lock the candidate for reuse in scrollToCheckpoint()
     lockedScrollView = candidate;
 
-    NSDictionary *frame = [self getScrollViewFrameInPhysicalPixels:candidate window:candidateWindow];
+    NSDictionary *frame = [self getScrollViewFrameInPhysicalPixels:candidate window:keyWindow];
     return @{
         @"scrollable": @(YES),
         @"scrollViewFrame": frame,
     };
-}
-
-/**
- * Returns all visible windows from the active foreground scene, sorted by windowLevel descending
- * (topmost first). This ensures modal windows (RCTModalHostView) are searched before the main window.
- */
-- (NSArray<UIWindow *> *)getAllVisibleWindowsTopFirst {
-    NSMutableArray<UIWindow *> *result = [NSMutableArray array];
-
-    if (@available(iOS 13.0, *)) {
-        for (UIWindowScene *scene in [UIApplication sharedApplication].connectedScenes) {
-            if (scene.activationState == UISceneActivationStateForegroundActive) {
-                for (UIWindow *window in scene.windows) {
-                    if (!window.hidden && window.alpha > 0.01) {
-                        [result addObject:window];
-                    }
-                }
-            }
-        }
-    }
-
-    // Fallback for older iOS
-    if (result.count == 0) {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-        for (UIWindow *window in [UIApplication sharedApplication].windows) {
-            if (!window.hidden && window.alpha > 0.01) {
-                [result addObject:window];
-            }
-        }
-#pragma clang diagnostic pop
-    }
-
-    // Sort by windowLevel descending - topmost windows first
-    [result sortUsingComparator:^NSComparisonResult(UIWindow *a, UIWindow *b) {
-        if (a.windowLevel > b.windowLevel) return NSOrderedAscending;
-        if (a.windowLevel < b.windowLevel) return NSOrderedDescending;
-        return NSOrderedSame;
-    }];
-
-    return result;
 }
 
 /**
@@ -392,9 +336,29 @@ static UIScrollView *lockedScrollView = nil;
  * Filters out framework-internal views and non-scrollable views.
  */
 - (UIScrollView *)findBestScrollViewBFS:(UIWindow *)window {
+    CGFloat screenArea = window.bounds.size.width * window.bounds.size.height;
+    CGFloat minArea = screenArea * 0.10;
+
     NSMutableArray<UIView *> *queue = [NSMutableArray array];
-    UIView *root = window.rootViewController.view ?: window;
-    [queue addObject:root];
+
+    // Walk the view controller presentation chain so modals (presentedViewController) are included.
+    // React Native Modal uses presentViewController:animated: - the modal content lives on a
+    // presented VC in the same window, not reachable from rootViewController.view alone.
+    UIViewController *vc = window.rootViewController;
+    while (vc) {
+        if (vc.view) {
+            [queue addObject:vc.view];
+            if (SCROLL_DEBUG) {
+                NSLog(@"[%@] BFS: Adding root from VC %@", LOG_TAG, NSStringFromClass([vc class]));
+            }
+        }
+        vc = vc.presentedViewController;
+    }
+
+    // Fallback if no VC chain found
+    if (queue.count == 0) {
+        [queue addObject:window];
+    }
 
     while (queue.count > 0) {
         UIView *view = queue[0];
@@ -411,10 +375,22 @@ static UIScrollView *lockedScrollView = nil;
                     NSLog(@"[%@] BFS: Skipping framework-internal %@", LOG_TAG, NSStringFromClass([sv class]));
                 }
             } else if ([self isScrollableByMetrics:sv epsilon:1.0 minRangeRatio:0.01]) {
-                if (SCROLL_DEBUG) {
-                    NSLog(@"[%@] BFS: Found scrollable view %@", LOG_TAG, NSStringFromClass([sv class]));
+                // Check minimum area - skip tiny scrollable views (toasts, badges, etc.)
+                CGRect frameInWindow = [sv convertRect:sv.bounds toView:window];
+                CGRect visible = CGRectIntersection(frameInWindow, window.bounds);
+                CGFloat area = CGRectIsNull(visible) ? 0 : visible.size.width * visible.size.height;
+
+                if (area < minArea) {
+                    if (SCROLL_DEBUG) {
+                        NSLog(@"[%@] BFS: Skipping too-small scrollable view %@ (area %.0f < min %.0f)",
+                              LOG_TAG, NSStringFromClass([sv class]), area, minArea);
+                    }
+                } else {
+                    if (SCROLL_DEBUG) {
+                        NSLog(@"[%@] BFS: Found scrollable view %@", LOG_TAG, NSStringFromClass([sv class]));
+                    }
+                    return sv;
                 }
-                return sv;
             }
         }
 
