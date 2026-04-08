@@ -183,7 +183,6 @@ public class SherloModuleCore {
     private static final boolean SCROLL_DEBUG = true;
     private static final float EPSILON = 4.0f;
     private static final float NUDGE_PX = 3.0f;
-    private static final float MIN_SCROLL_RANGE_RATIO = 0.20f; // Minimum 20% of viewport height
 
     // Locked scroll view from isScrollable(), reused by scrollToCheckpoint()
     private View lockedScrollView = null;
@@ -538,15 +537,6 @@ public class SherloModuleCore {
         }
 
         if (scrollRange <= EPSILON) {
-            return false;
-        }
-
-        // Check for meaningful scroll range (at least MIN_SCROLL_RANGE_RATIO of viewport)
-        float minRange = extent * MIN_SCROLL_RANGE_RATIO;
-        if (scrollRange < minRange) {
-            if (SCROLL_DEBUG) {
-                Log.d(TAG, "Scroll range " + scrollRange + " < minimum " + minRange + " (" + (MIN_SCROLL_RANGE_RATIO * 100) + "% of viewport)");
-            }
             return false;
         }
 
