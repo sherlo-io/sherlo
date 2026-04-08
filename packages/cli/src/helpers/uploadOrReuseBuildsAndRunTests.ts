@@ -78,6 +78,7 @@ async function uploadOrReuseBuildsAndRunTests({
     .catch(handleClientError);
 
   const buildIndex = build.index;
+  // Sentry tags must be strings; buildIndex is a number from the API response.
   reporting.setTag('build_index', String(buildIndex));
 
   const platforms = [binariesInfo.android && 'android', binariesInfo.ios && 'ios']

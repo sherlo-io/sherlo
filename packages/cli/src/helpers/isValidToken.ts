@@ -13,6 +13,7 @@ function isValidToken(token: string): boolean {
   ) {
     reporting.setContext('Project', { teamId, projectIndex });
     reporting.setTag('team_id', teamId);
+    // Sentry tags must be strings; projectIndex is a number from the parsed token.
     reporting.setTag('project_index', String(projectIndex));
     reporting.addBreadcrumb({
       category: 'auth',
