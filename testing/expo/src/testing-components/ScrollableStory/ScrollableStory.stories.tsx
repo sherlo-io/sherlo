@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, Text, View, StyleSheet, Animated, TouchableOpacity, FlatList } from 'react-native';
+import { ScrollView, Text, View, StyleSheet, Animated, TouchableOpacity, FlatList, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 // ============================================
@@ -187,6 +187,42 @@ const InfiniteScrollComponent = () => {
 };
 
 // ============================================
+// ScrollWrapper (Modal window scroll detection test)
+// On iOS, React Native's <Modal> renders content in a SEPARATE UIWindow.
+// Old iOS code only searched the key window and missed ScrollViews inside modals.
+// This story reproduces that scenario.
+// ============================================
+const ScrollWrapperComponent = () => {
+  return (
+    <Modal visible={true} transparent animationType="slide">
+      <View style={scrollWrapperStyles.overlay}>
+        <View style={scrollWrapperStyles.dialog}>
+          <View style={scrollWrapperStyles.header}>
+            <Text style={scrollWrapperStyles.headerTitle}>Modal Scroll Test</Text>
+            <Text style={scrollWrapperStyles.headerSubtitle}>ScrollView inside a Modal</Text>
+          </View>
+
+          <ScrollView style={scrollWrapperStyles.scrollView}>
+            {Array.from({ length: 30 }).map((_, i) => (
+              <View key={i} style={scrollWrapperStyles.scrollItem}>
+                <Text style={scrollWrapperStyles.scrollItemText}>Item {i + 1}</Text>
+                <Text style={scrollWrapperStyles.scrollItemDesc}>
+                  Modal content row - this ScrollView lives in a separate UIWindow on iOS.
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
+
+          <View style={scrollWrapperStyles.footer}>
+            <Text style={scrollWrapperStyles.footerText}>Modal Footer</Text>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// ============================================
 // Meta & Exports
 // ============================================
 export default {};
@@ -196,6 +232,7 @@ export const FABButton = { render: () => <FABComponent /> };
 export const CollapsingHeader = { render: () => <CollapsingHeaderComponent /> };
 export const InfiniteScroll = { render: () => <InfiniteScrollComponent /> };
 export const ViewportOnly = { render: () => <InfiniteScrollComponent />, parameters: { sherlo: { disableScrollCapture: true } } };
+export const ScrollWrapper = { render: () => <ScrollWrapperComponent /> };
 
 // ============================================
 // Styles
@@ -323,6 +360,68 @@ const fabStyles = StyleSheet.create({
   },
   fabSecondaryText: {
     fontSize: 20,
+  },
+});
+
+const scrollWrapperStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  dialog: {
+    height: '60%',
+    backgroundColor: '#f5f0ff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    overflow: 'hidden',
+  },
+  header: {
+    height: 80,
+    backgroundColor: '#7c4dff',
+    padding: 16,
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#e0d7ff',
+    marginTop: 4,
+  },
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#ede7f6',
+  },
+  scrollItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#d1c4e9',
+  },
+  scrollItemText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4a148c',
+  },
+  scrollItemDesc: {
+    fontSize: 12,
+    color: '#7c4dff',
+    marginTop: 2,
+  },
+  footer: {
+    height: 56,
+    backgroundColor: '#7c4dff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
 

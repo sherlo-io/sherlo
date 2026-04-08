@@ -415,18 +415,11 @@ public class SherloModuleCore {
     }
 
     /**
-     * BFS traversal from root to find the largest user-facing vertically-scrollable view.
-     * Filters out framework-internal views and views covering < 10% of screen.
+     * BFS traversal from root to find the first (shallowest / most-wrapping) scrollable view.
+     * BFS guarantees breadth-first order so the outermost scrollable view is found first.
+     * Filters out framework-internal views and non-scrollable views.
      */
     private View findBestScrollViewBFS(View root) {
-        int screenWidth = root.getWidth();
-        int screenHeight = root.getHeight();
-        int screenArea = screenWidth * screenHeight;
-        int minArea = screenArea / 10; // 10% threshold
-
-        View bestCandidate = null;
-        int bestArea = 0;
-
         java.util.LinkedList<View> queue = new java.util.LinkedList<>();
         queue.add(root);
 
@@ -435,13 +428,11 @@ public class SherloModuleCore {
 
             if (view.canScrollVertically(1) || view.canScrollVertically(-1)) {
                 if (view.getVisibility() == View.VISIBLE && !isFrameworkInternalScrollView(view)) {
-                    android.graphics.Rect rect = new android.graphics.Rect();
-                    if (view.getGlobalVisibleRect(rect)) {
-                        int area = rect.width() * rect.height();
-                        if (area >= minArea && isScrollableByMetrics(view) && area > bestArea) {
-                            bestArea = area;
-                            bestCandidate = view;
+                    if (isScrollableByMetrics(view)) {
+                        if (SCROLL_DEBUG) {
+                            Log.d(TAG, "BFS: Found scrollable view " + view.getClass().getSimpleName());
                         }
+                        return view;
                     }
                 }
             }
@@ -454,7 +445,7 @@ public class SherloModuleCore {
             }
         }
 
-        return bestCandidate;
+        return null;
     }
 
     /**
