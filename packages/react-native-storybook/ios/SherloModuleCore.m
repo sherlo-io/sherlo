@@ -332,6 +332,8 @@ static UIScrollView *lockedScrollView = nil;
 
 /**
  * BFS traversal from root to find the largest user-facing vertically-scrollable UIScrollView.
+ * Uses behavior-based detection: checks direct UIScrollView instances and wrapper views that
+ * contain a UIScrollView child (aligns with Android's canScrollVertically approach).
  * Filters out framework-internal views (private _-prefixed classes) and views covering < 10% of screen.
  */
 - (UIScrollView *)findBestScrollViewBFS:(UIWindow *)window {
@@ -349,9 +351,25 @@ static UIScrollView *lockedScrollView = nil;
         UIView *view = queue[0];
         [queue removeObjectAtIndex:0];
 
-        if ([view isKindOfClass:[UIScrollView class]]) {
-            UIScrollView *sv = (UIScrollView *)view;
+        // Behavior-based detection: find UIScrollView to evaluate for this view.
+        // Supports both direct UIScrollView instances and wrapper views containing a UIScrollView child.
+        UIScrollView *sv = nil;
+        UIView *frameSource = view; // View used for area/frame calculation
 
+        if ([view isKindOfClass:[UIScrollView class]]) {
+            // Direct UIScrollView - existing behavior
+            sv = (UIScrollView *)view;
+        } else {
+            // Wrapper view pattern: check if this view has a direct UIScrollView subview.
+            // Use the wrapper's frame for area scoring so full-screen wrappers score correctly.
+            sv = [self findDirectScrollViewChild:view];
+            if (sv != nil && SCROLL_DEBUG) {
+                NSLog(@"[%@] BFS: Wrapper view %@ has direct UIScrollView child %@",
+                      LOG_TAG, NSStringFromClass([view class]), NSStringFromClass([sv class]));
+            }
+        }
+
+        if (sv != nil) {
             BOOL isCandidate = YES;
 
             // Must be visible, scroll-enabled, and in window
@@ -365,7 +383,8 @@ static UIScrollView *lockedScrollView = nil;
             }
 
             if (isCandidate) {
-                CGRect frameInWindow = [sv convertRect:sv.bounds toView:window];
+                // Use frameSource (wrapper or scroll view itself) for area scoring
+                CGRect frameInWindow = [frameSource convertRect:frameSource.bounds toView:window];
                 CGRect visible = CGRectIntersection(frameInWindow, window.bounds);
 
                 if (!CGRectIsNull(visible) && !CGRectIsEmpty(visible)) {
@@ -388,6 +407,23 @@ static UIScrollView *lockedScrollView = nil;
     }
 
     return bestCandidate;
+}
+
+/**
+ * Finds the first direct UIScrollView subview of the given view.
+ * Used for behavior-based wrapper view detection: a non-UIScrollView parent
+ * that wraps a UIScrollView child is treated as a scrollable wrapper.
+ */
+- (UIScrollView *)findDirectScrollViewChild:(UIView *)view {
+    for (UIView *subview in view.subviews) {
+        if ([subview isKindOfClass:[UIScrollView class]]) {
+            UIScrollView *sv = (UIScrollView *)subview;
+            if (!sv.hidden && sv.alpha >= 0.01 && sv.isScrollEnabled && sv.window) {
+                return sv;
+            }
+        }
+    }
+    return nil;
 }
 
 /**

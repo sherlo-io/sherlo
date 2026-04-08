@@ -187,6 +187,41 @@ const InfiniteScrollComponent = () => {
 };
 
 // ============================================
+// ScrollWrapper (behavior-based detection test)
+// The ScrollView's area is < 10% of screen, so direct BFS detection would reject it.
+// The new behavior-based code detects the ScrollView via its full-screen wrapper instead.
+// ============================================
+const ScrollWrapperComponent = () => {
+  return (
+    <View style={scrollWrapperStyles.container}>
+      {/* Large header - keeps wrapper area well above 10% of screen */}
+      <View style={scrollWrapperStyles.header}>
+        <Text style={scrollWrapperStyles.headerTitle}>ScrollWrapper Detection Test</Text>
+        <Text style={scrollWrapperStyles.headerSubtitle}>
+          The ScrollView below has maxHeight: 80 - its area is less than 10% of the
+          screen. Old iOS BFS rejects it outright. New behavior-based BFS finds it
+          through this wrapper view and accepts it.
+        </Text>
+      </View>
+
+      {/* Small ScrollView - area intentionally below 10% screen threshold */}
+      <ScrollView style={scrollWrapperStyles.scrollView} nestedScrollEnabled>
+        {Array.from({ length: 10 }).map((_, i) => (
+          <View key={i} style={scrollWrapperStyles.scrollItem}>
+            <Text style={scrollWrapperStyles.scrollItemText}>Scroll item {i + 1}</Text>
+          </View>
+        ))}
+      </ScrollView>
+
+      {/* Large footer - fills remaining space, keeps wrapper area large */}
+      <View style={scrollWrapperStyles.footer}>
+        <Text style={scrollWrapperStyles.footerText}>Footer area</Text>
+      </View>
+    </View>
+  );
+};
+
+// ============================================
 // Meta & Exports
 // ============================================
 export default {};
@@ -196,6 +231,7 @@ export const FABButton = { render: () => <FABComponent /> };
 export const CollapsingHeader = { render: () => <CollapsingHeaderComponent /> };
 export const InfiniteScroll = { render: () => <InfiniteScrollComponent /> };
 export const ViewportOnly = { render: () => <InfiniteScrollComponent />, parameters: { sherlo: { disableScrollCapture: true } } };
+export const ScrollWrapper = { render: () => <ScrollWrapperComponent /> };
 
 // ============================================
 // Styles
@@ -323,6 +359,54 @@ const fabStyles = StyleSheet.create({
   },
   fabSecondaryText: {
     fontSize: 20,
+  },
+});
+
+const scrollWrapperStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f0ff',
+  },
+  header: {
+    height: 350,
+    backgroundColor: '#7c4dff',
+    padding: 24,
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 12,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: '#e0d7ff',
+    lineHeight: 20,
+  },
+  scrollView: {
+    maxHeight: 80,
+    backgroundColor: '#ede7f6',
+  },
+  scrollItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#d1c4e9',
+  },
+  scrollItemText: {
+    fontSize: 14,
+    color: '#4a148c',
+  },
+  footer: {
+    flex: 1,
+    backgroundColor: '#ede7f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 16,
+    color: '#7c4dff',
   },
 });
 
