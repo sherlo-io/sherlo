@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import printLink from './printLink';
-import reporting from './reporting';
+import { reporting } from '../helpers';
 
 type Params = StandardErrorParams | UnexpectedErrorParams;
 

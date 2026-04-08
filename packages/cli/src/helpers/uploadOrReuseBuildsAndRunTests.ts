@@ -10,7 +10,7 @@ import getValidatedBinariesInfoAndNextBuildIndex from './getValidatedBinariesInf
 import handleClientError from './handleClientError';
 import printBuildIntroMessage from './printBuildIntroMessage';
 import printResultsUrl from './printResultsUrl';
-import reporting from './reporting';
+import { reporting } from '../helpers';
 import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
 
 async function uploadOrReuseBuildsAndRunTests({
@@ -79,6 +79,11 @@ async function uploadOrReuseBuildsAndRunTests({
 
   const buildIndex = build.index;
   reporting.setTag('build_index', String(buildIndex));
+
+  const platforms = [binariesInfo.android && 'android', binariesInfo.ios && 'ios']
+    .filter(Boolean)
+    .join(',');
+  reporting.setTag('platform', platforms);
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 

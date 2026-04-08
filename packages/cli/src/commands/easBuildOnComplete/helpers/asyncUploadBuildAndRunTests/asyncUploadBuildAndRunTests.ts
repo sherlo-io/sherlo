@@ -8,8 +8,8 @@ import {
   handleClientError,
   printResultsUrl,
   uploadOrPrintBinaryReuse,
+  reporting,
 } from '../../../../helpers';
-import reporting from '../../../../helpers/reporting';
 import { THIS_COMMAND } from '../../constants';
 import getBuildPath from './getBuildPath';
 

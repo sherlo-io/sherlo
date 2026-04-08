@@ -1,4 +1,3 @@
-import reporting from '../reporting';
 import executeCommand from './executeCommand';
 import tryToFixPermissionAndRetryOnce from './tryToFixPermissionAndRetryOnce';
 
@@ -22,16 +21,6 @@ async function runShellCommand({
   encoding = 'utf8',
   env,
 }: Options): Promise<string | Buffer> {
-  const sanitizedCommand = command
-    .replace(/--token=["']?[^\s"']*["']?/g, '--token=[REDACTED]')
-    .replace(/--token\s+["']?[^\s"']*["']?/g, '--token [REDACTED]');
-  reporting.addBreadcrumb({
-    category: 'subprocess',
-    message: 'Running shell command',
-    data: { command: sanitizedCommand, projectRoot },
-    level: 'info',
-  });
-
   try {
     return await executeCommand({ command, projectRoot, encoding, env });
   } catch (error) {
