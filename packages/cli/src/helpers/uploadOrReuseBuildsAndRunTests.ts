@@ -81,10 +81,8 @@ async function uploadOrReuseBuildsAndRunTests({
   // Sentry tags must be strings; buildIndex is a number from the API response.
   reporting.setTag('build_index', String(buildIndex));
 
-  const platforms = [binariesInfo.android && 'android', binariesInfo.ios && 'ios']
-    .filter(Boolean)
-    .join(',');
-  reporting.setTag('platform', platforms);
+  const platform = binariesInfo.android && binariesInfo.ios ? 'both' : binariesInfo.android ? 'android' : 'ios';
+  reporting.setTag('platform', platform);
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
