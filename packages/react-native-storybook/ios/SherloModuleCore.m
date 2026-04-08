@@ -251,7 +251,6 @@ static UIScrollView *lockedScrollView = nil;
 - (NSDictionary *)detectScrollableView {
     const CGFloat EPSILON = 4.0;
     const CGFloat NUDGE_PX = 3.0;
-    const CGFloat MIN_SCROLL_RANGE_RATIO = 0.20;
 
     // Reset lock for each new story detection
     lockedScrollView = nil;
@@ -280,7 +279,7 @@ static UIScrollView *lockedScrollView = nil;
     }
 
     // Metric-based scrollability check
-    BOOL scrollable = [self isScrollableByMetrics:candidate epsilon:EPSILON minRangeRatio:MIN_SCROLL_RANGE_RATIO];
+    BOOL scrollable = [self isScrollableByMetrics:candidate epsilon:EPSILON];
 
     if (!scrollable) {
         // Fallback: nudge and restore
@@ -374,7 +373,7 @@ static UIScrollView *lockedScrollView = nil;
                 if (SCROLL_DEBUG) {
                     NSLog(@"[%@] BFS: Skipping framework-internal %@", LOG_TAG, NSStringFromClass([sv class]));
                 }
-            } else if ([self isScrollableByMetrics:sv epsilon:1.0 minRangeRatio:0.01]) {
+            } else if ([self isScrollableByMetrics:sv epsilon:1.0]) {
                 // Check minimum area - skip tiny scrollable views (toasts, badges, etc.)
                 CGRect frameInWindow = [sv convertRect:sv.bounds toView:window];
                 CGRect visible = CGRectIntersection(frameInWindow, window.bounds);
@@ -431,7 +430,7 @@ static UIScrollView *lockedScrollView = nil;
 /**
  * Metric-based check for scrollability.
  */
-- (BOOL)isScrollableByMetrics:(UIScrollView *)scrollView epsilon:(CGFloat)epsilon minRangeRatio:(CGFloat)minRangeRatio {
+- (BOOL)isScrollableByMetrics:(UIScrollView *)scrollView epsilon:(CGFloat)epsilon {
     if (!scrollView.isScrollEnabled) {
         return NO;
     }
@@ -452,16 +451,6 @@ static UIScrollView *lockedScrollView = nil;
         return NO;
     }
     if (scrollRange <= epsilon) {
-        return NO;
-    }
-
-    // Check for meaningful scroll range (at least minRangeRatio of viewport)
-    CGFloat minRange = viewportH * minRangeRatio;
-    if (scrollRange < minRange) {
-        if (SCROLL_DEBUG) {
-            NSLog(@"[%@] Scroll range %.1f < minimum %.1f (%.0f%% of viewport)",
-                  LOG_TAG, scrollRange, minRange, minRangeRatio * 100);
-        }
         return NO;
     }
 

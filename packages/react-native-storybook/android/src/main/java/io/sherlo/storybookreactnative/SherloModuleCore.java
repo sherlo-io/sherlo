@@ -183,7 +183,6 @@ public class SherloModuleCore {
     private static final boolean SCROLL_DEBUG = true;
     private static final float EPSILON = 4.0f;
     private static final float NUDGE_PX = 3.0f;
-    private static final float MIN_SCROLL_RANGE_RATIO = 0.20f; // Minimum 20% of viewport height
 
     // Locked scroll view from isScrollable(), reused by scrollToCheckpoint()
     private View lockedScrollView = null;
@@ -477,15 +476,20 @@ public class SherloModuleCore {
 
     /**
      * Returns the scroll view's frame in physical pixels (global screen coordinates).
+     *
+     * Uses getLocationInWindow + view.getWidth()/view.getHeight() instead of
+     * getGlobalVisibleRect so that partially-clipped views (e.g. when the bottom
+     * of the scroll container sits just above the keyboard or navigation bar) still
+     * report their full logical dimensions rather than the clipped visible rect.
      */
     private WritableMap getScrollViewFrameInPixels(View view) {
-        android.graphics.Rect rect = new android.graphics.Rect();
-        view.getGlobalVisibleRect(rect);
+        int[] location = new int[2];
+        view.getLocationInWindow(location);
         WritableMap frame = Arguments.createMap();
-        frame.putInt("x", rect.left);
-        frame.putInt("y", rect.top);
-        frame.putInt("width", rect.width());
-        frame.putInt("height", rect.height());
+        frame.putInt("x", location[0]);
+        frame.putInt("y", location[1]);
+        frame.putInt("width", view.getWidth());
+        frame.putInt("height", view.getHeight());
         return frame;
     }
 
@@ -533,15 +537,6 @@ public class SherloModuleCore {
         }
 
         if (scrollRange <= EPSILON) {
-            return false;
-        }
-
-        // Check for meaningful scroll range (at least MIN_SCROLL_RANGE_RATIO of viewport)
-        float minRange = extent * MIN_SCROLL_RANGE_RATIO;
-        if (scrollRange < minRange) {
-            if (SCROLL_DEBUG) {
-                Log.d(TAG, "Scroll range " + scrollRange + " < minimum " + minRange + " (" + (MIN_SCROLL_RANGE_RATIO * 100) + "% of viewport)");
-            }
             return false;
         }
 
