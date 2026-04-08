@@ -1,5 +1,4 @@
-import { REQUIRED_MIN_NATIVE_VERSION } from './sdk-compatibility.json';
-import { version as jsVersion } from '../package.json';
+import { REQUIRED_MIN_NATIVE_VERSION, JS_MODULE_VERSION as jsVersion } from './sdk-compatibility.json';
 import SherloModule from './SherloModule';
 
 const ERROR_CODE = 'ERROR_SDK_COMPATIBILITY';
