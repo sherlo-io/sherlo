@@ -102,6 +102,23 @@ function generateWrapper(wrapperPath) {
     '\n' +
     '// Patched start(): wraps view.getStorybookUI to route through sherlo.getStorybook\n' +
     'exports.start = function patchedStart(config) {\n' +
+    '  // Storybook is disabled when withStorybook({ enabled: false }) is set -\n' +
+    '  // in that case real.start is not a function.\n' +
+    "  if (typeof real.start !== 'function') {\n" +
+    '    try {\n' +
+    "      var sherloInternal = require('@sherlo/react-native-storybook/dist/SherloModule');\n" +
+    "      var SherloModule = sherloInternal && sherloInternal.default ? sherloInternal.default : sherloInternal;\n" +
+    "      if (SherloModule && typeof SherloModule.getMode === 'function' && SherloModule.getMode() === 'testing') {\n" +
+    "        SherloModule.sendNativeError(\n" +
+    "          'ERROR_STORYBOOK_DISABLED',\n" +
+    "          'Storybook is disabled in metro.config.js. withStorybook has enabled set to false. Set enabled: true for Sherlo testing builds.',\n" +
+    "          ''\n" +
+    '        );\n' +
+    '      }\n' +
+    '    } catch (e) {}\n' +
+    '    return {};\n' +
+    '  }\n' +
+    '\n' +
     '  var view = real.start(config);\n' +
     '\n' +
     '  try {\n' +
