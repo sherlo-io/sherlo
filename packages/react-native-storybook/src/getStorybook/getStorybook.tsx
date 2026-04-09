@@ -18,22 +18,23 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
       // (e.g. when loaded eagerly by the withSherlo metro wrapper).
       // In that case initialStoryRenderDelayMs is not applied.
     }
-    if (delayMs !== undefined) {
+    if (delayMs !== undefined && view._preview?.getProjectAnnotations) {
       const originalGetProjectAnnotations = view._preview.getProjectAnnotations.bind(
         view._preview
       );
-      view._preview.onGetProjectAnnotationsChanged({
-        getProjectAnnotations: async () => {
-          const annotations = await originalGetProjectAnnotations();
-          return {
-            ...annotations,
-            loaders: [
-              ...(annotations.loaders ?? []),
-              async () => { await new Promise(r => setTimeout(r, delayMs)); },
-            ],
-          };
-        },
-      });
+      // Replace getProjectAnnotations directly so initialize() uses the wrapped
+      // version on its first call. Calling onGetProjectAnnotationsChanged instead
+      // would trigger a second async initialization path that races with initialize().
+      view._preview.getProjectAnnotations = async () => {
+        const annotations = await originalGetProjectAnnotations();
+        return {
+          ...annotations,
+          loaders: [
+            ...(annotations.loaders ?? []),
+            async () => { await new Promise(r => setTimeout(r, delayMs)); },
+          ],
+        };
+      };
     }
   }
 

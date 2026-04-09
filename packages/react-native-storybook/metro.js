@@ -179,14 +179,21 @@ function generateSherloAppRegistry(storybookIndexPath, mode) {
     : '\n' +
       '    var _originalRegisterComponent = AppRegistry.registerComponent.bind(AppRegistry);\n' +
       '    AppRegistry.registerComponent = function sherloRegisterComponent(appKey, componentProvider) {\n' +
+      "      console.log('[withSherlo] registerComponent appKey=' + appKey + ' condition=' + (" + renderCondition + "));\n" +
       '      if (' + renderCondition + ') {\n' +
-      '        // Lazy-load Storybook here to avoid circular dependency:\n' +
-      '        // loading storybook.requires triggers @storybook/react-native which re-requires\n' +
-      '        // AppRegistry while sherlo-app-registry.js is still mid-execution,\n' +
-      '        // returning an incomplete {} module and wiping AppRegistry methods.\n' +
-      '        var StorybookModule = require(' + JSON.stringify(storybookIndexPath) + ');\n' +
-      '        var Storybook = StorybookModule.default != null ? StorybookModule.default : StorybookModule;\n' +
-      '        return _originalRegisterComponent(appKey, function () { return Storybook; });\n' +
+      '        try {\n' +
+      '          // Lazy-load Storybook here to avoid circular dependency:\n' +
+      '          // loading storybook.requires triggers @storybook/react-native which re-requires\n' +
+      '          // AppRegistry while sherlo-app-registry.js is still mid-execution,\n' +
+      '          // returning an incomplete {} module and wiping AppRegistry methods.\n' +
+      '          var StorybookModule = require(' + JSON.stringify(storybookIndexPath) + ');\n' +
+      "          console.log('[withSherlo] lazy StorybookModule=' + typeof StorybookModule + ' default=' + typeof StorybookModule.default);\n" +
+      '          var Storybook = StorybookModule.default != null ? StorybookModule.default : StorybookModule;\n' +
+      "          console.log('[withSherlo] lazy Storybook=' + typeof Storybook);\n" +
+      '          return _originalRegisterComponent(appKey, function () { return Storybook; });\n' +
+      '        } catch (e) {\n' +
+      "          console.log('[withSherlo] lazy CATCH: ' + (e && e.message) + ' | ' + (e && e.stack));\n" +
+      '        }\n' +
       '      }\n' +
       '      return _originalRegisterComponent(appKey, componentProvider);\n' +
       '    };\n';
