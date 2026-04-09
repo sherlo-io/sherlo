@@ -35,47 +35,13 @@ export default useSetInitialTestingData;
 /* ========================================================================== */
 
 async function waitForStorybookReady(view: StorybookView): Promise<boolean> {
-  const viewAny = view as any;
+  while (true) {
+    const isReady = Object.keys(view._idToPrepared).length > 0;
 
-  // Wait for the Storybook preview store to finish initializing.
-  // If it rejects, log the error for diagnostics and bail out.
-  try {
-    await viewAny._preview?.ready?.();
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    RunnerBridge.log('waitForStorybookReady: preview.ready rejected', { error: msg });
-    return false;
-  }
-
-  // preview.ready() resolved → storyStoreValue is set.
-  // If _idToPrepared is still empty (the useEffect in getStorybookUI hasn't fired yet,
-  // or createPreparedStoryMapping failed silently), call it directly.
-  if (Object.keys(view._idToPrepared).length === 0) {
-    RunnerBridge.log('waitForStorybookReady: _idToPrepared empty after preview ready, retrying');
-    try {
-      await viewAny.createPreparedStoryMapping?.();
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      RunnerBridge.log('waitForStorybookReady: createPreparedStoryMapping failed', {
-        error: msg,
-        storyIndexEntries: Object.keys(viewAny._storyIndex?.entries ?? {}).length,
-      });
-    }
-  }
-
-  // Brief polling in case useEffect populates _idToPrepared asynchronously
-  // after the direct createPreparedStoryMapping call above.
-  for (let i = 0; i < 20; i++) {
-    if (Object.keys(view._idToPrepared).length > 0) {
+    if (isReady) {
       return true;
     }
+
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-
-  RunnerBridge.log('waitForStorybookReady: timed out', {
-    idToPreparedCount: Object.keys(view._idToPrepared).length,
-    storyIndexEntries: Object.keys(viewAny._storyIndex?.entries ?? {}).length,
-  });
-
-  return Object.keys(view._idToPrepared).length > 0;
 }
