@@ -110,7 +110,7 @@ function generateWrapper(wrapperPath) {
     "    console.error('[withSherlo] addStorybookToDevMenu failed:', e);\n" +
     '  }\n' +
     '\n' +
-    '  var originalGetStorybookUI = view.getStorybookUI.bind(view);\n' +
+    '  view.__sherloOriginalGetStorybookUI = view.getStorybookUI.bind(view);\n' +
     '  view.getStorybookUI = function (params) {\n' +
     '    return sherlo.getStorybook(view, params);\n' +
     '  };\n' +

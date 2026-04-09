@@ -43,7 +43,8 @@ function getStorybookComponent({
     );
   }
 
-  return view.getStorybookUI(params);
+  const getUI = (view as any).__sherloOriginalGetStorybookUI || view.getStorybookUI;
+  return getUI(params);
 }
 
 export default getStorybookComponent;
