@@ -1,18 +1,10 @@
-export interface SherloOptions {
-  /**
-   * Path to the .rnstorybook directory.
-   * Absolute path, or relative to the project root.
-   * Defaults to `.rnstorybook`.
-   */
-  storybookPath?: string;
-}
-
 /**
  * Wraps a Metro config to automatically integrate Sherlo into your React Native app.
  *
- * Auto-generates `.rnstorybook/index.ts` that imports `getStorybook` and
- * calls `addStorybookToDevMenu()`. The user's App.tsx still controls
- * rendering via `isStorybookMode`.
+ * Intercepts imports of `@storybook/react-native` at the Metro resolver level and
+ * redirects them to a generated wrapper that patches `start()` to route
+ * `view.getStorybookUI` through `getStorybook(view, params)` and call
+ * `addStorybookToDevMenu()`.
  *
  * @example
  * // metro.config.js
@@ -23,9 +15,6 @@ export interface SherloOptions {
  * const config = getDefaultConfig(__dirname);
  * module.exports = withSherlo(withStorybook(config));
  */
-export declare function withSherlo(
-  config: Record<string, any>,
-  options?: SherloOptions
-): Record<string, any>;
+export declare function withSherlo(config: Record<string, any>): Record<string, any>;
 
 export default withSherlo;
