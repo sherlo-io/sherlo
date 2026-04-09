@@ -132,6 +132,15 @@ function generateWrapper(wrapperPath) {
     '    return sherlo.getStorybook(view, params);\n' +
     '  };\n' +
     '\n' +
+    '  // Signal that Storybook has loaded and is ready\n' +
+    '  try {\n' +
+    "    var sherloInternal = require('@sherlo/react-native-storybook/dist/SherloModule');\n" +
+    "    var SherloModule = sherloInternal && sherloInternal.default ? sherloInternal.default : sherloInternal;\n" +
+    "    if (SherloModule && typeof SherloModule.getMode === 'function' && SherloModule.getMode() === 'testing') {\n" +
+    "      SherloModule.appendFile('protocol.sherlo', JSON.stringify({ action: 'STORYBOOK_LOADED', timestamp: Date.now(), entity: 'app' }) + '\\n');\n" +
+    '    }\n' +
+    '  } catch (e) {}\n' +
+    '\n' +
     '  return view;\n' +
     '};\n';
 
