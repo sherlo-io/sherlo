@@ -10,7 +10,14 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
   const mode = SherloModule.getMode();
 
   if (mode === 'testing') {
-    const delayMs = SherloModule.getConfig().initialStoryRenderDelayMs;
+    let delayMs: number | undefined;
+    try {
+      delayMs = SherloModule.getConfig().initialStoryRenderDelayMs;
+    } catch {
+      // Config may not be available when this module is first evaluated
+      // (e.g. when loaded eagerly by the withSherlo metro wrapper).
+      // In that case initialStoryRenderDelayMs is not applied.
+    }
     if (delayMs !== undefined) {
       const originalGetProjectAnnotations = view._preview.getProjectAnnotations.bind(
         view._preview

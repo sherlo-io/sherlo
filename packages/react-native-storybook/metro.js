@@ -177,12 +177,15 @@ function generateSherloAppRegistry(storybookIndexPath, mode) {
   var patchBlock = isCustom
     ? ''
     : '\n' +
-      '    var StorybookModule = require(' + JSON.stringify(storybookIndexPath) + ');\n' +
-      '    var Storybook = StorybookModule.default != null ? StorybookModule.default : StorybookModule;\n' +
-      '\n' +
       '    var _originalRegisterComponent = AppRegistry.registerComponent.bind(AppRegistry);\n' +
       '    AppRegistry.registerComponent = function sherloRegisterComponent(appKey, componentProvider) {\n' +
       '      if (' + renderCondition + ') {\n' +
+      '        // Lazy-load Storybook here to avoid circular dependency:\n' +
+      '        // loading storybook.requires triggers @storybook/react-native which re-requires\n' +
+      '        // AppRegistry while sherlo-app-registry.js is still mid-execution,\n' +
+      '        // returning an incomplete {} module and wiping AppRegistry methods.\n' +
+      '        var StorybookModule = require(' + JSON.stringify(storybookIndexPath) + ');\n' +
+      '        var Storybook = StorybookModule.default != null ? StorybookModule.default : StorybookModule;\n' +
       '        return _originalRegisterComponent(appKey, function () { return Storybook; });\n' +
       '      }\n' +
       '      return _originalRegisterComponent(appKey, componentProvider);\n' +
@@ -195,9 +198,12 @@ function generateSherloAppRegistry(storybookIndexPath, mode) {
     '// AppRegistry.js registers LogBox as a side-effect at this point, before our patch.\n' +
     "var AppRegistry = require('react-native/Libraries/ReactNative/AppRegistry');\n" +
     '\n' +
+    "console.log('[withSherlo] loaded mode=" + mode + " patched=' + AppRegistry.__sherloPatched);\n" +
+    '\n' +
     'if (!AppRegistry.__sherloPatched) {\n' +
     '  try {\n' +
     "    var sherlo = require('@sherlo/react-native-storybook');\n" +
+    "    console.log('[withSherlo] sherlo ok isStorybookMode=' + sherlo.isStorybookMode);\n" +
     '    var addStorybookToDevMenu = sherlo.addStorybookToDevMenu;\n' +
     (isCustom ? '' : '    var isStorybookMode = sherlo.isStorybookMode;\n') +
     '\n' +
@@ -205,8 +211,9 @@ function generateSherloAppRegistry(storybookIndexPath, mode) {
     patchBlock +
     '\n' +
     '    AppRegistry.__sherloPatched = true;\n' +
+    "    console.log('[withSherlo] patched ok');\n" +
     '  } catch (e) {\n' +
-    "    console.error('[withSherlo] Failed to patch AppRegistry:', e);\n" +
+    "    console.log('[withSherlo] CATCH: ' + (e && e.message) + ' | ' + (e && e.stack));\n" +
     '  }\n' +
     '}\n' +
     '\n' +
