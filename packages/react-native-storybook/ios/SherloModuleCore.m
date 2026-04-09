@@ -7,6 +7,8 @@
 #import "KeyboardHelper.h"
 #import "LastStateHelper.h"
 #import "RestartHelper.h"
+#import "SherloJsonHelper.h"
+#import "ProtocolHelper.h"
 
 #import <Foundation/Foundation.h>
 #import <React/RCTBridge.h>
@@ -22,6 +24,7 @@ NSString * const MODE_TESTING = @"testing";
 static NSDictionary *config = nil;
 static NSDictionary *lastState = nil;
 static NSString *currentMode = MODE_DEFAULT;
+static NSString *nativeVersion = nil;
 
 // Helper instances
 static FileSystemHelper *fileSystemHelper;
@@ -44,7 +47,9 @@ static FileSystemHelper *fileSystemHelper;
     self = [super init];
     
     fileSystemHelper = [[FileSystemHelper alloc] init];
-    
+
+    nativeVersion = [SherloJsonHelper getNativeVersion];
+
     config = [ConfigHelper loadConfig:fileSystemHelper];
 
     if (config) {
@@ -59,18 +64,7 @@ static FileSystemHelper *fileSystemHelper;
 
             NSString *requestId = lastState[@"requestId"];
 
-            NSMutableDictionary *nativeLoadedProtocolItem = [NSMutableDictionary dictionary];
-            [nativeLoadedProtocolItem setObject:@([[NSDate date] timeIntervalSince1970] * 1000) forKey:@"timestamp"];
-            [nativeLoadedProtocolItem setObject:@"app" forKey:@"entity"];
-            [nativeLoadedProtocolItem setObject:@"NATIVE_LOADED" forKey:@"action"];
-            if (requestId) {
-                [nativeLoadedProtocolItem setObject:requestId forKey:@"requestId"];
-            }
-
-            NSData *jsonData = [NSJSONSerialization dataWithJSONObject:nativeLoadedProtocolItem options:0 error:nil];
-            NSString *nativeLoadedProtocolItemString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
-            nativeLoadedProtocolItemString = [nativeLoadedProtocolItemString stringByAppendingString:@"\n"];
-            [fileSystemHelper appendFile:@"protocol.sherlo" content:nativeLoadedProtocolItemString];
+            [ProtocolHelper writeNativeLoaded:fileSystemHelper requestId:requestId];
 
             NSString *easUpdateDeeplink = config[@"easUpdateDeeplink"];
             BOOL consumingDeeplink = NO;
@@ -111,7 +105,8 @@ static FileSystemHelper *fileSystemHelper;
     return @{
         @"mode": currentMode,
         @"config": configString ?: [NSNull null],
-        @"lastState": lastStateString ?: [NSNull null]
+        @"lastState": lastStateString ?: [NSNull null],
+        @"nativeVersion": nativeVersion ?: [NSNull null]
     };
 }
 
@@ -151,6 +146,16 @@ static FileSystemHelper *fileSystemHelper;
 - (void)closeStorybook:(RCTBridge *)bridge {
     currentMode = MODE_DEFAULT;
     [RestartHelper restart:bridge];
+}
+
+/**
+ * Writes a NATIVE_ERROR JSON line to protocol.sherlo.
+ *
+ * @param errorCode The error code (e.g. ERROR_SDK_COMPATIBILITY)
+ * @param message Human-readable error description
+ */
+- (void)sendNativeError:(NSString *)errorCode message:(NSString *)message dataJson:(NSString *)dataJson {
+    [ProtocolHelper writeNativeError:fileSystemHelper errorCode:errorCode message:message dataJson:dataJson];
 }
 
 /**
@@ -246,7 +251,6 @@ static UIScrollView *lockedScrollView = nil;
 - (NSDictionary *)detectScrollableView {
     const CGFloat EPSILON = 4.0;
     const CGFloat NUDGE_PX = 3.0;
-    const CGFloat MIN_SCROLL_RANGE_RATIO = 0.20;
 
     // Reset lock for each new story detection
     lockedScrollView = nil;
@@ -259,7 +263,7 @@ static UIScrollView *lockedScrollView = nil;
         return @{@"scrollable": @(NO)};
     }
 
-    // BFS from root to find the best user-facing scrollable view
+    // BFS from root to find the first user-facing scrollable view
     UIScrollView *candidate = [self findBestScrollViewBFS:keyWindow];
 
     if (!candidate) {
@@ -275,7 +279,7 @@ static UIScrollView *lockedScrollView = nil;
     }
 
     // Metric-based scrollability check
-    BOOL scrollable = [self isScrollableByMetrics:candidate epsilon:EPSILON minRangeRatio:MIN_SCROLL_RANGE_RATIO];
+    BOOL scrollable = [self isScrollableByMetrics:candidate epsilon:EPSILON];
 
     if (!scrollable) {
         // Fallback: nudge and restore
@@ -326,19 +330,34 @@ static UIScrollView *lockedScrollView = nil;
 }
 
 /**
- * BFS traversal from root to find the largest user-facing vertically-scrollable UIScrollView.
- * Filters out framework-internal views (private _-prefixed classes) and views covering < 10% of screen.
+ * BFS traversal from root to find the first (shallowest / most-wrapping) scrollable UIScrollView.
+ * BFS guarantees breadth-first order so the outermost scrollable view is found first.
+ * Filters out framework-internal views and non-scrollable views.
  */
 - (UIScrollView *)findBestScrollViewBFS:(UIWindow *)window {
     CGFloat screenArea = window.bounds.size.width * window.bounds.size.height;
     CGFloat minArea = screenArea * 0.10;
 
-    UIScrollView *bestCandidate = nil;
-    CGFloat bestArea = 0;
-
     NSMutableArray<UIView *> *queue = [NSMutableArray array];
-    UIView *root = window.rootViewController.view ?: window;
-    [queue addObject:root];
+
+    // Walk the view controller presentation chain so modals (presentedViewController) are included.
+    // React Native Modal uses presentViewController:animated: - the modal content lives on a
+    // presented VC in the same window, not reachable from rootViewController.view alone.
+    UIViewController *vc = window.rootViewController;
+    while (vc) {
+        if (vc.view) {
+            [queue addObject:vc.view];
+            if (SCROLL_DEBUG) {
+                NSLog(@"[%@] BFS: Adding root from VC %@", LOG_TAG, NSStringFromClass([vc class]));
+            }
+        }
+        vc = vc.presentedViewController;
+    }
+
+    // Fallback if no VC chain found
+    if (queue.count == 0) {
+        [queue addObject:window];
+    }
 
     while (queue.count > 0) {
         UIView *view = queue[0];
@@ -347,32 +366,29 @@ static UIScrollView *lockedScrollView = nil;
         if ([view isKindOfClass:[UIScrollView class]]) {
             UIScrollView *sv = (UIScrollView *)view;
 
-            BOOL isCandidate = YES;
-
             // Must be visible, scroll-enabled, and in window
             if (sv.hidden || sv.alpha < 0.01 || !sv.isScrollEnabled || !sv.window) {
-                isCandidate = NO;
-            }
-
-            // Filter framework-internal scroll views (Apple private classes start with '_')
-            if (isCandidate && [self isFrameworkInternalScrollView:sv]) {
-                isCandidate = NO;
-            }
-
-            if (isCandidate) {
+                // Skip but still traverse children
+            } else if ([self isFrameworkInternalScrollView:sv]) {
+                if (SCROLL_DEBUG) {
+                    NSLog(@"[%@] BFS: Skipping framework-internal %@", LOG_TAG, NSStringFromClass([sv class]));
+                }
+            } else if ([self isScrollableByMetrics:sv epsilon:1.0]) {
+                // Check minimum area - skip tiny scrollable views (toasts, badges, etc.)
                 CGRect frameInWindow = [sv convertRect:sv.bounds toView:window];
                 CGRect visible = CGRectIntersection(frameInWindow, window.bounds);
+                CGFloat area = CGRectIsNull(visible) ? 0 : visible.size.width * visible.size.height;
 
-                if (!CGRectIsNull(visible) && !CGRectIsEmpty(visible)) {
-                    CGFloat area = visible.size.width * visible.size.height;
-
-                    // Filter views covering less than 10% of screen
-                    if (area >= minArea && [self isScrollableByMetrics:sv epsilon:1.0 minRangeRatio:0.01]) {
-                        if (area > bestArea) {
-                            bestArea = area;
-                            bestCandidate = sv;
-                        }
+                if (area < minArea) {
+                    if (SCROLL_DEBUG) {
+                        NSLog(@"[%@] BFS: Skipping too-small scrollable view %@ (area %.0f < min %.0f)",
+                              LOG_TAG, NSStringFromClass([sv class]), area, minArea);
                     }
+                } else {
+                    if (SCROLL_DEBUG) {
+                        NSLog(@"[%@] BFS: Found scrollable view %@", LOG_TAG, NSStringFromClass([sv class]));
+                    }
+                    return sv;
                 }
             }
         }
@@ -382,7 +398,7 @@ static UIScrollView *lockedScrollView = nil;
         }
     }
 
-    return bestCandidate;
+    return nil;
 }
 
 /**
@@ -414,7 +430,7 @@ static UIScrollView *lockedScrollView = nil;
 /**
  * Metric-based check for scrollability.
  */
-- (BOOL)isScrollableByMetrics:(UIScrollView *)scrollView epsilon:(CGFloat)epsilon minRangeRatio:(CGFloat)minRangeRatio {
+- (BOOL)isScrollableByMetrics:(UIScrollView *)scrollView epsilon:(CGFloat)epsilon {
     if (!scrollView.isScrollEnabled) {
         return NO;
     }
@@ -435,16 +451,6 @@ static UIScrollView *lockedScrollView = nil;
         return NO;
     }
     if (scrollRange <= epsilon) {
-        return NO;
-    }
-
-    // Check for meaningful scroll range (at least minRangeRatio of viewport)
-    CGFloat minRange = viewportH * minRangeRatio;
-    if (scrollRange < minRange) {
-        if (SCROLL_DEBUG) {
-            NSLog(@"[%@] Scroll range %.1f < minimum %.1f (%.0f%% of viewport)",
-                  LOG_TAG, scrollRange, minRange, minRangeRatio * 100);
-        }
         return NO;
     }
 

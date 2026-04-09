@@ -66,10 +66,14 @@ jobs:
         working-directory: testing/${{ inputs.project }}
         run: yarn build:ios:${{ inputs.profile }}
 
+      - name: Sanitize branch name
+        id: branch
+        run: echo "name=$(echo '${{ github.head_ref || github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT
+
       - name: Upload iOS Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ios-${{ inputs.profile }}-${{ inputs.project }}-${{ github.head_ref || github.ref_name }}
+          name: ios-${{ inputs.profile }}-${{ inputs.project }}-${{ steps.branch.outputs.name }}
           path: testing/${{ inputs.project }}/builds/${{ inputs.profile }}/ios.tar.gz
           retention-days: 90
           overwrite: true

@@ -10,6 +10,7 @@ interface SherloConstants {
   mode: StorybookViewMode;
   config: string;
   lastState: string;
+  nativeVersion: string | null;
 }
 
 type SherloModule = {
@@ -17,6 +18,8 @@ type SherloModule = {
   getMode: () => StorybookViewMode;
   getConfig: () => Config;
   getLastState: () => LastState | undefined;
+  getNativeVersion: () => string | null;
+  sendNativeError: (errorCode: string, message: string, data?: Record<string, string | null>) => void;
   getInspectorData: () => Promise<InspectorData>;
   appendFile: (path: string, base64: string) => Promise<void>;
   readFile: (path: string) => Promise<string>;
@@ -105,6 +108,12 @@ function createSherloModule(): SherloModule {
     getMode: () => {
       return getConstants().mode;
     },
+    getNativeVersion: () => {
+      return getConstants().nativeVersion ?? null;
+    },
+    sendNativeError: (errorCode: string, message: string, data?: Record<string, string | null>) => {
+      module.sendNativeError(errorCode, message, data ? JSON.stringify(data) : '');
+    },
     getConfig: () => {
       const configString = getConstants().config;
       const config = JSON.parse(configString) as Config | undefined;
@@ -167,6 +176,8 @@ function createDummySherloModule(): SherloModule {
     // because if user doesn't want to supply native library in their production
     // build, this will be the value returned.
     getMode: () => 'default',
+    getNativeVersion: () => null,
+    sendNativeError: () => {},
     getLastState: () => undefined,
     getConfig: () => ({
       stabilization: {

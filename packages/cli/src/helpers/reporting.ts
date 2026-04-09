@@ -15,6 +15,8 @@ const reporting = {
       environment: ENV,
     }),
   setContext: Sentry.setContext,
+  setTag: Sentry.setTag,
+  addBreadcrumb: Sentry.addBreadcrumb,
   captureException: (error: Error & { location?: string; stdout?: string; stderr?: string }) => {
     if (error.location) Sentry.setExtra('location', error.location);
 

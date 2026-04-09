@@ -59,6 +59,9 @@ if [ -z "$PROFILE" ]; then
   exit 1
 fi
 
+# Sanitize branch name - replace slashes with dashes to match artifact naming
+CURRENT_BRANCH=$(echo "$CURRENT_BRANCH" | tr '/' '-')
+
 echo "📱 Downloading testing builds"
 echo "   Project: $PROJECT"
 echo "   Profile: $PROFILE"

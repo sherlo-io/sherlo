@@ -7,6 +7,7 @@ import {
 } from '../../../constants';
 import { BinariesInfo, Command, CommandParams } from '../../../types';
 import handleClientError from '../../handleClientError';
+import reporting from '../../reporting';
 import validateBinariesInfo from '../validateBinariesInfo';
 import getBinaryInfo from './getBinaryInfo';
 import getLocalBinariesInfo from './getLocalBinariesInfo';
@@ -58,6 +59,13 @@ async function getBinariesInfoAndNextBuildIndex(
       ios: localBinariesInfo.ios ? { ...localBinariesInfo.ios, s3Key: '' } : undefined,
     },
     command,
+  });
+
+  reporting.addBreadcrumb({
+    category: 'api',
+    message: 'Calling getNextBuildInfo API',
+    data: { command, teamId, projectIndex, platforms },
+    level: 'info',
   });
 
   let { binariesInfo: remoteBinariesInfoOrUploadInfo, nextBuildIndex } = await client

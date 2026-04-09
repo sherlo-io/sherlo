@@ -33,6 +33,7 @@ public class SherloModuleCore {
     private static JSONObject config = null;
     private static JSONObject lastState = null;
     private static String currentMode = MODE_DEFAULT;
+    private static String nativeVersion = null;
 
     // Helper instances
     private FileSystemHelper fileSystemHelper = null;
@@ -47,6 +48,8 @@ public class SherloModuleCore {
     public SherloModuleCore(ReactApplicationContext reactContext, Activity activity) {
         this.fileSystemHelper = new FileSystemHelper(reactContext);
         this.restartHelper = new RestartHelper(reactContext);
+
+        this.nativeVersion = SherloJsonHelper.getNativeVersion(reactContext);
 
         this.config = ConfigHelper.loadConfig(this.fileSystemHelper);
 
@@ -72,19 +75,7 @@ public class SherloModuleCore {
                     }
                 }
 
-                JSONObject nativeLoadedProtocolItem = new JSONObject();
-                try {
-                    nativeLoadedProtocolItem.put("action", "NATIVE_LOADED");
-                    if (requestId != null) {
-                        nativeLoadedProtocolItem.put("requestId", requestId);
-                    }
-                    nativeLoadedProtocolItem.put("timestamp", System.currentTimeMillis());
-                    nativeLoadedProtocolItem.put("entity", "app");
-
-                    this.fileSystemHelper.appendFile("protocol.sherlo", nativeLoadedProtocolItem.toString() + "\n");
-                } catch (org.json.JSONException e) {
-                    Log.e(TAG, "Error creating protocol item", e);
-                }
+                ProtocolHelper.writeNativeLoaded(this.fileSystemHelper, requestId);
             }
         }
 
@@ -102,6 +93,7 @@ public class SherloModuleCore {
         constants.putString("mode", this.currentMode);
         constants.putString("config", this.config != null ? this.config.toString() : null);
         constants.putString("lastState", this.lastState != null ? this.lastState.toString() : null);
+        constants.putString("nativeVersion", this.nativeVersion);
         return constants;
     }
 
@@ -126,6 +118,16 @@ public class SherloModuleCore {
      */
     public void closeStorybook() {
         restartHelper.restart(MODE_DEFAULT);
+    }
+
+    /**
+     * Writes a NATIVE_ERROR JSON line to protocol.sherlo.
+     *
+     * @param errorCode The error code (e.g. ERROR_SDK_COMPATIBILITY)
+     * @param message Human-readable error description
+     */
+    public void sendNativeError(String errorCode, String message, String dataJson) {
+        ProtocolHelper.writeNativeError(this.fileSystemHelper, errorCode, message, dataJson);
     }
 
     /**
@@ -181,7 +183,6 @@ public class SherloModuleCore {
     private static final boolean SCROLL_DEBUG = true;
     private static final float EPSILON = 4.0f;
     private static final float NUDGE_PX = 3.0f;
-    private static final float MIN_SCROLL_RANGE_RATIO = 0.20f; // Minimum 20% of viewport height
 
     // Locked scroll view from isScrollable(), reused by scrollToCheckpoint()
     private View lockedScrollView = null;
@@ -413,17 +414,13 @@ public class SherloModuleCore {
     }
 
     /**
-     * BFS traversal from root to find the largest user-facing vertically-scrollable view.
-     * Filters out framework-internal views and views covering < 10% of screen.
+     * BFS traversal from root to find the first (shallowest / most-wrapping) scrollable view.
+     * BFS guarantees breadth-first order so the outermost scrollable view is found first.
+     * Filters out framework-internal views and non-scrollable views.
      */
     private View findBestScrollViewBFS(View root) {
-        int screenWidth = root.getWidth();
-        int screenHeight = root.getHeight();
-        int screenArea = screenWidth * screenHeight;
+        int screenArea = root.getWidth() * root.getHeight();
         int minArea = screenArea / 10; // 10% threshold
-
-        View bestCandidate = null;
-        int bestArea = 0;
 
         java.util.LinkedList<View> queue = new java.util.LinkedList<>();
         queue.add(root);
@@ -433,12 +430,22 @@ public class SherloModuleCore {
 
             if (view.canScrollVertically(1) || view.canScrollVertically(-1)) {
                 if (view.getVisibility() == View.VISIBLE && !isFrameworkInternalScrollView(view)) {
-                    android.graphics.Rect rect = new android.graphics.Rect();
-                    if (view.getGlobalVisibleRect(rect)) {
-                        int area = rect.width() * rect.height();
-                        if (area >= minArea && isScrollableByMetrics(view) && area > bestArea) {
-                            bestArea = area;
-                            bestCandidate = view;
+                    if (isScrollableByMetrics(view)) {
+                        // Check minimum area - skip tiny scrollable views (toasts, badges, etc.)
+                        android.graphics.Rect rect = new android.graphics.Rect();
+                        if (view.getGlobalVisibleRect(rect)) {
+                            int area = rect.width() * rect.height();
+                            if (area < minArea) {
+                                if (SCROLL_DEBUG) {
+                                    Log.d(TAG, "BFS: Skipping too-small scrollable view " +
+                                          view.getClass().getSimpleName() + " (area " + area + " < min " + minArea + ")");
+                                }
+                            } else {
+                                if (SCROLL_DEBUG) {
+                                    Log.d(TAG, "BFS: Found scrollable view " + view.getClass().getSimpleName());
+                                }
+                                return view;
+                            }
                         }
                     }
                 }
@@ -452,7 +459,7 @@ public class SherloModuleCore {
             }
         }
 
-        return bestCandidate;
+        return null;
     }
 
     /**
@@ -469,15 +476,20 @@ public class SherloModuleCore {
 
     /**
      * Returns the scroll view's frame in physical pixels (global screen coordinates).
+     *
+     * Uses getLocationInWindow + view.getWidth()/view.getHeight() instead of
+     * getGlobalVisibleRect so that partially-clipped views (e.g. when the bottom
+     * of the scroll container sits just above the keyboard or navigation bar) still
+     * report their full logical dimensions rather than the clipped visible rect.
      */
     private WritableMap getScrollViewFrameInPixels(View view) {
-        android.graphics.Rect rect = new android.graphics.Rect();
-        view.getGlobalVisibleRect(rect);
+        int[] location = new int[2];
+        view.getLocationInWindow(location);
         WritableMap frame = Arguments.createMap();
-        frame.putInt("x", rect.left);
-        frame.putInt("y", rect.top);
-        frame.putInt("width", rect.width());
-        frame.putInt("height", rect.height());
+        frame.putInt("x", location[0]);
+        frame.putInt("y", location[1]);
+        frame.putInt("width", view.getWidth());
+        frame.putInt("height", view.getHeight());
         return frame;
     }
 
@@ -525,15 +537,6 @@ public class SherloModuleCore {
         }
 
         if (scrollRange <= EPSILON) {
-            return false;
-        }
-
-        // Check for meaningful scroll range (at least MIN_SCROLL_RANGE_RATIO of viewport)
-        float minRange = extent * MIN_SCROLL_RANGE_RATIO;
-        if (scrollRange < minRange) {
-            if (SCROLL_DEBUG) {
-                Log.d(TAG, "Scroll range " + scrollRange + " < minimum " + minRange + " (" + (MIN_SCROLL_RANGE_RATIO * 100) + "% of viewport)");
-            }
             return false;
         }
 

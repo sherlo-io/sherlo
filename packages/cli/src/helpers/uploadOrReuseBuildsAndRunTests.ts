@@ -10,6 +10,7 @@ import getValidatedBinariesInfoAndNextBuildIndex from './getValidatedBinariesInf
 import handleClientError from './handleClientError';
 import printBuildIntroMessage from './printBuildIntroMessage';
 import printResultsUrl from './printResultsUrl';
+import reporting from './reporting';
 import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
 
 async function uploadOrReuseBuildsAndRunTests({
@@ -43,6 +44,13 @@ async function uploadOrReuseBuildsAndRunTests({
     printEasUpdateData(easUpdateData);
   }
 
+  reporting.addBreadcrumb({
+    category: 'api',
+    message: 'Calling openBuild API',
+    data: { teamId, projectIndex, command: easUpdateData ? 'testEasUpdate' : 'testStandard' },
+    level: 'info',
+  });
+
   const { build } = await client
     .openBuild({
       teamId,
@@ -70,6 +78,11 @@ async function uploadOrReuseBuildsAndRunTests({
     .catch(handleClientError);
 
   const buildIndex = build.index;
+  // Sentry tags must be strings; buildIndex is a number from the API response.
+  reporting.setTag('build_index', String(buildIndex));
+
+  const platform = binariesInfo.android && binariesInfo.ios ? 'both' : binariesInfo.android ? 'android' : 'ios';
+  reporting.setTag('platform', platform);
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 

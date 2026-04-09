@@ -1,4 +1,3 @@
-import { REQUIRED_MIN_SDK_VERSION } from '../../../sdk-compatibility.json';
 import {
   DOCS_LINK,
   EAS_BUILD_ON_COMPLETE_COMMAND,
@@ -29,8 +28,6 @@ function validateBinariesInfo({
   if (command === TEST_EAS_UPDATE_COMMAND) {
     validateEasUpdateRequirements(binariesInfo);
   }
-
-  validateSdkVersion(binariesInfo);
 }
 
 export default validateBinariesInfo;
@@ -153,32 +150,6 @@ function validateEasUpdateRequirements({ android, ios }: BinariesInfo) {
   }
 }
 
-function validateSdkVersion({ android, ios }: BinariesInfo) {
-  if (android?.sdkVersion && ios?.sdkVersion && android.sdkVersion !== ios.sdkVersion) {
-    throwError(
-      getError({
-        type: 'different_versions',
-        android: { sdkVersion: android.sdkVersion },
-        ios: { sdkVersion: ios.sdkVersion },
-      })
-    );
-  }
-
-  const sdkVersion = android?.sdkVersion || ios?.sdkVersion;
-  if (
-    sdkVersion &&
-    !isPackageVersionCompatible({ version: sdkVersion, minVersion: REQUIRED_MIN_SDK_VERSION })
-  ) {
-    throwError(
-      getError({
-        type: 'outdated_version',
-        platformLabels: getPlatformLabels({ android: !!android, ios: !!ios }),
-        sdkVersion,
-      })
-    );
-  }
-}
-
 type BinaryError =
   | { type: 'missing_sherlo'; platformLabels: string[]; hasIosSteps?: boolean }
   | { type: 'not_dev_build'; platformLabels: string[] }
@@ -195,8 +166,6 @@ type BinaryError =
       expoSdkVersion: string;
     }
   | { type: 'outdated_expo_version'; platformLabels: string[]; expoSdkVersion: string }
-  | { type: 'different_versions'; android: { sdkVersion: string }; ios: { sdkVersion: string } }
-  | { type: 'outdated_version'; platformLabels: string[]; sdkVersion: string };
 
 function getError(error: BinaryError) {
   switch (error.type) {
@@ -298,27 +267,6 @@ function getError(error: BinaryError) {
         learnMoreLink: DOCS_LINK.testEasUpdate,
       };
 
-    case 'different_versions':
-      return {
-        message:
-          `${PLATFORM_LABEL.android} and ${PLATFORM_LABEL.ios} builds use different \`${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}\` versions\n\n` +
-          `${PLATFORM_LABEL.android} version: ${error.android.sdkVersion}\n` +
-          `${PLATFORM_LABEL.ios} version: ${error.ios.sdkVersion}\n\n` +
-          `Rebuild ${PLATFORM_LABEL.android} and ${PLATFORM_LABEL.ios} builds`,
-      };
-
-    case 'outdated_version':
-      return {
-        message:
-          `${error.platformLabels.join(' and ')} ${
-            error.platformLabels.length > 1 ? 'builds' : 'build'
-          } use outdated \`${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}\` version\n\n` +
-          `Found version: ${error.sdkVersion}\n` +
-          `Minimum required version: ${REQUIRED_MIN_SDK_VERSION}\n\n` +
-          `Rebuild ${error.platformLabels.join(' and ')} ${
-            error.platformLabels.length > 1 ? 'builds' : 'build'
-          }`,
-      };
   }
 }
 
