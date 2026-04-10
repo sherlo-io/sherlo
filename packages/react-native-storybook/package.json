@@ -56,7 +56,6 @@
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p .",
-    "prepare": "yarn build",
     "dev": "yarn build --watch",
     "test": "vitest run"
   },
