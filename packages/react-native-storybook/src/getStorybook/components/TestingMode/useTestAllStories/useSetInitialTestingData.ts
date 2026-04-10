@@ -34,7 +34,7 @@ export default useSetInitialTestingData;
 
 /* ========================================================================== */
 
-async function waitForStorybookReady(view: StorybookView): Promise<boolean> {
+export async function waitForStorybookReady(view: StorybookView): Promise<boolean> {
   const TIMEOUT_MS = 10_000;
   const POLL_INTERVAL_MS = 500;
   const deadline = Date.now() + TIMEOUT_MS;
