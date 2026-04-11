@@ -1,8 +1,8 @@
 # ☁️ EAS Cloud Build Example • Sherlo
 
-React Native + Storybook app with [Sherlo](https://sherlo.io) visual regression testing, built via EAS Cloud Build:
+A minimal example app with automated visual regression testing, powered by [Sherlo](https://sherlo.io) for React Native Storybook, built with EAS Cloud Build.
 
-- iOS and Android screenshot capture
+- Sherlo integration
 - GitHub Actions workflow
 
 <br />

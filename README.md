@@ -28,7 +28,7 @@
 
 Test your UI on iOS and Android automatically in the cloud. Built for React Native Storybook.
 
-▶️ [Sherlo in 2 minutes](https://sherlo.io#video)
+▶️ [Sherlo in 2 minutes](https://sherlo.io/#video)
 
 ### How It Works
 

@@ -1,8 +1,8 @@
 # Examples
 
-Ready-to-run React Native + Storybook [visual regression testing](https://sherlo.io) projects, each featuring:
+A collection of example apps with automated visual regression testing, powered by [Sherlo](https://sherlo.io) for React Native Storybook.
 
-- iOS and Android screenshot capture
+- Sherlo integration
 - GitHub Actions workflow
 
 <br />
