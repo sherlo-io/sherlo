@@ -1,3 +1,9 @@
+# React Native Storybook screenshot testing with EAS Build – Sherlo example
+
+This example shows how to run [Sherlo](https://sherlo.io) screenshot tests on a React Native Storybook built with Expo EAS Cloud Build. Each cloud build produces a fresh iOS and Android binary. Sherlo captures every Storybook story, and visual regressions are detected automatically before the build is promoted.
+
+For the EAS Build integration guide, see the [Sherlo EAS Build docs](https://sherlo.io/docs/builds). For the underlying config format, see the [Sherlo config reference](https://sherlo.io/docs/config).
+
 # ☁️ EAS Cloud Build Example • Sherlo
 
 Minimal React Native + Storybook app with:

@@ -1,12 +1,12 @@
 <br />
 
 <p align="center">
-  <a href="https://sherlo.io/">
+  <a href="https://sherlo.io/" title="Sherlo - Visual Testing for React Native Storybook">
     <picture>
       <source media="(prefers-color-scheme: dark) and (max-width: 500px)" srcset="/assets/logo-dark.svg" width="140">
       <source media="(prefers-color-scheme: dark)" srcset="/assets/logo-dark.svg" width="176">
       <source media="(max-width: 500px)" srcset="/assets/logo-light.svg" width="140">
-      <img src="/assets/logo-light.svg" alt="Sherlo logo" width="176" />
+      <img src="/assets/logo-light.svg" alt="Sherlo - Visual Testing for React Native Storybook" width="176" />
     </picture>
   </a>
 </p>
@@ -20,7 +20,7 @@
     <source media="(prefers-color-scheme: dark) and (max-width: 500px)" srcset="/assets/hero-mobile-dark.gif" width="436">
     <source media="(max-width: 500px)" srcset="/assets/hero-mobile-light.gif" width="436">
     <source media="(prefers-color-scheme: dark)" srcset="/assets/hero-desktop-dark.gif" width="560">
-    <img src="/assets/hero-desktop-light.gif" alt="Conceptual visualization of Sherlo's workflow showing how visual testing and review process works" width="560" />
+    <img src="/assets/hero-desktop-light.gif" alt="Animated demo of Sherlo running visual regression tests on a React Native Storybook" width="560" />
   </picture>
 </div>
 
@@ -28,7 +28,7 @@
 
 Test your UI on iOS and Android automatically in the cloud. Built for React Native Storybook.
 
-▶️ [Sherlo in 2 minutes](https://www.youtube.com/watch?v=RKP3zEgzyig)
+▶️ [Sherlo in 2 minutes](https://sherlo.io#video)
 
 ### How It Works
 
@@ -157,10 +157,10 @@ Join thousands of teams using Storybook – a tool that helps you develop and do
 <br />
 
 <div align="center">
-  <a href="https://sherlo.io">Website</a> • 
-  <a href="https://app.sherlo.io">App</a> • 
-  <a href="https://sherlo.io/docs">Docs</a> • 
-  <a href="./examples">Examples</a>
+  <a href="https://sherlo.io" title="Sherlo - Visual Testing for React Native Storybook">Website</a> • 
+  <a href="https://app.sherlo.io" title="Sherlo review app">App</a> • 
+  <a href="https://sherlo.io/docs" title="Sherlo documentation">Docs</a> • 
+  <a href="./examples" title="Sherlo examples">Examples</a>
 </div>
 
 <br />
