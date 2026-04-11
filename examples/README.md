@@ -1,8 +1,8 @@
 # Examples
 
-Ready-to-run projects for different visual testing workflows, featuring:
+Ready-to-run React Native + Storybook [visual regression testing](https://sherlo.io) projects, each featuring:
 
-- Sherlo integration
+- iOS and Android screenshot capture
 - GitHub Actions workflow
 
 <br />

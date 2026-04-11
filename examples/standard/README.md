@@ -1,8 +1,8 @@
 # 📦 Standard Example • Sherlo
 
-Minimal React Native + Storybook app with:
+React Native + Storybook app with [Sherlo](https://sherlo.io) visual regression testing:
 
-- Sherlo integration
+- iOS and Android screenshot capture
 - GitHub Actions workflow
 
 <br />
