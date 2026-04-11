@@ -38,6 +38,12 @@ export type ProtocolItemMetadata = {
 
 export type AppProtocolItem =
   | {
+      action: 'NATIVE_INIT_STARTED';
+    }
+  | {
+      action: 'JS_EVAL_COMPLETE';
+    }
+  | {
       action: 'JS_LOADED';
       requestId?: string;
     }

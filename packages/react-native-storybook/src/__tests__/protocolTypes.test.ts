@@ -134,6 +134,38 @@ describe('Protocol message construction', () => {
     });
   });
 
+  describe('NATIVE_INIT_STARTED message', () => {
+    it('has correct action token', () => {
+      const msg: AppProtocolItem = {
+        action: 'NATIVE_INIT_STARTED',
+      };
+
+      expect(msg.action).toBe('NATIVE_INIT_STARTED');
+    });
+
+    it('action token is a non-empty string', () => {
+      const msg: AppProtocolItem = { action: 'NATIVE_INIT_STARTED' };
+      expect(typeof msg.action).toBe('string');
+      expect(msg.action.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('JS_EVAL_COMPLETE message', () => {
+    it('has correct action token', () => {
+      const msg: AppProtocolItem = {
+        action: 'JS_EVAL_COMPLETE',
+      };
+
+      expect(msg.action).toBe('JS_EVAL_COMPLETE');
+    });
+
+    it('action token is a non-empty string', () => {
+      const msg: AppProtocolItem = { action: 'JS_EVAL_COMPLETE' };
+      expect(typeof msg.action).toBe('string');
+      expect(msg.action.length).toBeGreaterThan(0);
+    });
+  });
+
   describe('JS_LOADED message (SDK-CONT-004)', () => {
     it('has correct structure', () => {
       const msg: AppProtocolItem = {

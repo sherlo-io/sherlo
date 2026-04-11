@@ -47,6 +47,15 @@ public class SherloModuleCore {
      */
     public SherloModuleCore(ReactApplicationContext reactContext, Activity activity) {
         this.fileSystemHelper = new FileSystemHelper(reactContext);
+
+        // Write NATIVE_INIT_STARTED unconditionally as the first protocol action.
+        // This proves the native constructor was reached regardless of mode/config.
+        try {
+            ProtocolHelper.writeNativeInitStarted(this.fileSystemHelper);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to write NATIVE_INIT_STARTED", e);
+        }
+
         this.restartHelper = new RestartHelper(reactContext);
 
         this.nativeVersion = SherloJsonHelper.getNativeVersion(reactContext);
