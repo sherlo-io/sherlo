@@ -1,9 +1,3 @@
-# React Native Storybook visual regression testing – Sherlo standard example
-
-This example shows how to set up [Sherlo](https://sherlo.io) for visual regression testing of a React Native Storybook in a standard Expo or bare React Native project. Each commit captures screenshots of every story on iOS and Android, compares them against the baseline, and surfaces visual diffs for review.
-
-For the full setup guide, see the [Sherlo documentation](https://sherlo.io/docs). For details on the story configuration used here, see [Sherlo stories docs](https://sherlo.io/docs/stories/parameters).
-
 # 📦 Standard Example • Sherlo
 
 Minimal React Native + Storybook app with:

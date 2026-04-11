@@ -1,9 +1,3 @@
-# React Native Storybook visual testing with EAS Update – Sherlo example
-
-This example shows how to run [Sherlo](https://sherlo.io) visual regression tests against a React Native Storybook delivered over Expo EAS Update. Every published EAS Update branch generates a new Sherlo snapshot batch, so visual regressions are caught before the update reaches production users.
-
-For the EAS Update setup walkthrough, see the [Sherlo EAS Update docs](https://sherlo.io/docs/testing?method=eas-update). For general EAS integration tips, see the [Sherlo builds docs](https://sherlo.io/docs/builds).
-
 # ⚡️ EAS Update Example • Sherlo
 
 Minimal React Native + Storybook app with:
