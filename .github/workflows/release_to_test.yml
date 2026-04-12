@@ -34,6 +34,12 @@ jobs:
         env:
           NX_SKIP_NX_CACHE: true
 
+      - name: Save version number to native dependencies
+        run: |
+          VERSION=$(node -p "require('./lerna.json').version")
+          echo "{\"version\": \"$VERSION\"}" > packages/react-native-storybook/android/src/main/assets/sherlo.json
+          echo "{\"version\": \"$VERSION\"}" > packages/react-native-storybook/ios/Resources/assets/sherlo.json
+
       - name: Prepare and publish to GitHub Packages
         run: |
           VERSION=$(node -p "require('./lerna.json').version")
