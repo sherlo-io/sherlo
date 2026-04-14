@@ -10,8 +10,8 @@ function getBuildRunConfig({
   commandParams: CommandParams;
   binaryS3Keys?: { android?: string; ios?: string };
   easUpdateData?: EasUpdateData;
-}): BuildRun<'withS3KeyNoDebug'>['config'] {
-  const { devices, include, exclude } = commandParams;
+}): BuildRun<'withS3KeyNoDebug'>['config'] & { diagnostics?: string[] } {
+  const { devices, include, exclude, diagnostics } = commandParams;
 
   const androidDevices = getPlatformDevices(devices, 'android');
   const iosDevices = getPlatformDevices(devices, 'ios');
@@ -36,6 +36,7 @@ function getBuildRunConfig({
             s3Key: binaryS3Keys?.ios || ASYNC_UPLOAD_S3_KEY_PLACEHOLDER,
           }
         : undefined,
+    ...(diagnostics !== undefined ? { diagnostics } : {}),
   };
 }
 

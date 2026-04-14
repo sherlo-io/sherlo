@@ -1,4 +1,4 @@
-import { INCLUDE_OPTION } from '../../constants';
+import { DIAGNOSTICS_OPTION, INCLUDE_OPTION } from '../../constants';
 import { Command, Options } from '../../types';
 
 function getNormalizedOptions<C extends Command>(
@@ -8,6 +8,10 @@ function getNormalizedOptions<C extends Command>(
 
   if (typeof options[INCLUDE_OPTION] === 'string') {
     normalizedOptions[INCLUDE_OPTION] = parseCommaSeparatedStringToArray(options[INCLUDE_OPTION]);
+  }
+
+  if (typeof options[DIAGNOSTICS_OPTION] === 'string') {
+    normalizedOptions[DIAGNOSTICS_OPTION] = parseCommaSeparatedStringToArray(options[DIAGNOSTICS_OPTION]);
   }
 
   return normalizedOptions;
