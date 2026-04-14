@@ -1,7 +1,7 @@
 {
   "name": "@sherlo/react-native-storybook",
   "version": "1.6.3",
-  "description": "Sherlo is a Visual Testing tool for React Native Storybook",
+  "description": "Sherlo SDK - visual regression testing for React Native Storybook on iOS and Android simulators",
   "keywords": [
     "visual testing",
     "react-native",
