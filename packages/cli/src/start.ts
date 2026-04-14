@@ -17,6 +17,7 @@ import {
   CONTACT_EMAIL,
   DEFAULT_CONFIG_FILENAME,
   DEFAULT_PROJECT_ROOT,
+  DIAGNOSTICS_OPTION,
   DISCORD_URL,
   EAS_ANDROID_URL_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
@@ -116,6 +117,10 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${CONFIG_OPTION} <path>`,
     `Path to the config file (default: ${DEFAULT_CONFIG_FILENAME})`,
   ],
+  [DIAGNOSTICS_OPTION]: [
+    `--${DIAGNOSTICS_OPTION} <names>`,
+    'Diagnostics to collect, comma-separated (e.g. androidWindowDump,stabilizationFrames)',
+  ],
   [EAS_ANDROID_URL_OPTION]: [
     `--${EAS_ANDROID_URL_OPTION} <url>`,
     'Direct Android EAS Update URL (bypasses expo config and eas-cli lookup)',
@@ -167,20 +172,24 @@ function addInitCommand(program: Command) {
 }
 
 function addTestCommand(program: Command) {
+  const devtoolsOptions = process.env.SHERLO_DEVTOOLS === '1' ? [DIAGNOSTICS_OPTION] : [];
+
   addCommand({
     program,
     command: TEST_COMMAND,
-    options: getTestCommonOptions('withPlatformPaths'),
+    options: [...getTestCommonOptions('withPlatformPaths'), ...devtoolsOptions],
     action: test,
   });
 }
 
 function addTestStandardCommand(program: Command) {
+  const devtoolsOptions = process.env.SHERLO_DEVTOOLS === '1' ? [DIAGNOSTICS_OPTION] : [];
+
   addCommand({
     program,
     command: TEST_STANDARD_COMMAND,
     oldCommand: 'local-builds',
-    options: getTestCommonOptions('withPlatformPaths'),
+    options: [...getTestCommonOptions('withPlatformPaths'), ...devtoolsOptions],
     action: testStandard,
   });
 }
@@ -188,7 +197,7 @@ function addTestStandardCommand(program: Command) {
 function addTestEasUpdateCommand(program: Command) {
   const devtoolsOptions =
     process.env.SHERLO_DEVTOOLS === '1'
-      ? [EAS_ANDROID_URL_OPTION, EAS_IOS_URL_OPTION, EAS_UPDATE_SLUG_OPTION]
+      ? [EAS_ANDROID_URL_OPTION, EAS_IOS_URL_OPTION, EAS_UPDATE_SLUG_OPTION, DIAGNOSTICS_OPTION]
       : [];
 
   addCommand({
@@ -201,6 +210,8 @@ function addTestEasUpdateCommand(program: Command) {
 }
 
 function addTestEasCloudBuildCommand(program: Command) {
+  const devtoolsOptions = process.env.SHERLO_DEVTOOLS === '1' ? [DIAGNOSTICS_OPTION] : [];
+
   addCommand({
     program,
     command: TEST_EAS_CLOUD_BUILD_COMMAND,
@@ -209,6 +220,7 @@ function addTestEasCloudBuildCommand(program: Command) {
       EAS_BUILD_SCRIPT_NAME_OPTION,
       WAIT_FOR_EAS_BUILD_OPTION,
       ...getTestCommonOptions('withoutPlatformPaths'),
+      ...devtoolsOptions,
     ],
     action: testEasCloudBuild,
   });
