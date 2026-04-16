@@ -1,4 +1,4 @@
-import { ReactElement, useEffect, useState } from 'react';
+import { ReactElement } from 'react';
 import SherloModule from '../SherloModule';
 import checkSdkCompatibility from '../checkSdkCompatibility';
 import { StorybookParams, StorybookView } from '../types';
@@ -6,6 +6,11 @@ import { TestingMode } from './components';
 import { getStorybookComponent } from './helpers';
 import { useHideSplashScreen } from './hooks';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+let isSdkCompatible = true;
+if (SherloModule.getMode() === 'testing') {
+  isSdkCompatible = checkSdkCompatibility();
+}
 
 function getStorybook(view: StorybookView, params?: StorybookParams): () => ReactElement {
   const mode = SherloModule.getMode();
@@ -36,17 +41,8 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 
     const mode = SherloModule.getMode();
 
-    const [compatibilityChecked, setCompatibilityChecked] = useState(false);
-
-    useEffect(() => {
-      if (mode !== 'testing') return;
-      checkSdkCompatibility()
-        .then(() => setCompatibilityChecked(true))
-        .catch(() => { /* native error sent, app stays blank intentionally */ });
-    }, [mode]);
-
     if (mode === 'testing') {
-      if (!compatibilityChecked) return null as unknown as ReactElement;
+      if (!isSdkCompatible) return null as unknown as ReactElement;
 
       return (
         <SafeAreaProvider>
