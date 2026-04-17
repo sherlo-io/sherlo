@@ -13,6 +13,13 @@
 
 <p align="center"><strong>Visual Testing for React Native Storybook</strong></p>
 
+<div align="center">
+  <a href="https://www.npmjs.com/package/@sherlo/react-native-storybook"><img src="https://img.shields.io/npm/v/@sherlo/react-native-storybook.svg" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/@sherlo/react-native-storybook"><img src="https://img.shields.io/npm/dm/@sherlo/react-native-storybook.svg" alt="npm downloads"></a>
+  <a href="https://github.com/sherlo-io/sherlo/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+</div>
+
+
 <br />
 
 <div align="center">
