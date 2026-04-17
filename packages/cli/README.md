@@ -1,6 +1,6 @@
-# `sherlo`
+# Sherlo CLI - Visual Testing for React Native Storybook
 
-Command-line interface for [Sherlo](https://github.com/sherlo-io/sherlo) - Visual Testing for React Native Storybook.
+The `sherlo` CLI orchestrates [visual regression testing for React Native Storybook](https://sherlo.io) - capture screenshots on iOS and Android simulators in the cloud, detect visual changes, and ship UI updates with confidence.
 
 > **📚 For full documentation, visit [sherlo.io/docs](https://sherlo.io/docs)**
 

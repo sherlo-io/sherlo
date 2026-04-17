@@ -9,7 +9,7 @@
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.8",
     "@react-native-async-storage/async-storage": "^2.2.0",
-    "@sherlo/react-native-storybook": "^1.6.3",
+    "@sherlo/react-native-storybook": "^1.6.4-alpha.1",
     "@storybook/react-native": "^10.2.1",
     "expo": "54.0.31",
     "expo-dev-client": "^6.0.20",

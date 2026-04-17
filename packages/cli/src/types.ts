@@ -4,6 +4,7 @@ import {
   ANDROID_OPTION,
   BRANCH_OPTION,
   CONFIG_OPTION,
+  DIAGNOSTICS_OPTION,
   EAS_ANDROID_URL_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EAS_BUILD_SCRIPT_NAME_OPTION,
@@ -70,6 +71,7 @@ type CommonOptions<M extends OptionsMode, F extends OptionsFormat> = {
   [MESSAGE_OPTION]?: string;
   [TOKEN_OPTION]?: string;
   [INCLUDE_OPTION]?: F extends 'raw' ? string : string[];
+  [DIAGNOSTICS_OPTION]?: F extends 'raw' ? string : string[];
 } & (M extends 'withDefaults'
   ? { [CONFIG_OPTION]: string; [PROJECT_ROOT_OPTION]: string }
   : { [CONFIG_OPTION]?: string; [PROJECT_ROOT_OPTION]?: string });
