@@ -49,6 +49,28 @@ static NSString *const LOG_TAG = @"SherloModule:ProtocolHelper";
 }
 
 /**
+ * Writes a NATIVE_INIT_COMPLETE JSON line to protocol.sherlo.
+ * Called from the UIApplicationDidFinishLaunchingNotification observer registered in
+ * SherloModuleCore. The notification fires on the main thread after AppDelegate
+ * didFinishLaunchingWithOptions returns YES. A crash inside didFinishLaunchingWithOptions
+ * prevents the notification from firing, so NATIVE_INIT_COMPLETE is absent – which is
+ * exactly the distinction needed between a native-init crash and a JS-eval crash.
+ *
+ * @param fileSystemHelper The file system helper
+ */
++ (void)writeNativeInitComplete:(FileSystemHelper *)fileSystemHelper {
+    NSMutableDictionary *item = [NSMutableDictionary dictionary];
+    [item setObject:@([[NSDate date] timeIntervalSince1970] * 1000) forKey:@"timestamp"];
+    [item setObject:@"app" forKey:@"entity"];
+    [item setObject:@"NATIVE_INIT_COMPLETE" forKey:@"action"];
+
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:item options:0 error:nil];
+    NSString *jsonString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+    jsonString = [jsonString stringByAppendingString:@"\n"];
+    [fileSystemHelper appendFile:@"protocol.sherlo" content:jsonString];
+}
+
+/**
  * Writes a NATIVE_ERROR JSON line to protocol.sherlo.
  *
  * @param fileSystemHelper The file system helper
