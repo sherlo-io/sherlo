@@ -30,19 +30,9 @@ export default checkSdkCompatibility;
 /* ========================================================================== */
 
 function isVersionCompatible(version: string, minVersion: string): boolean {
-  const coreComparison = compareCoreVersions(version, minVersion);
-  if (coreComparison < 0) return false;
-  if (coreComparison > 0) return true;
-
-  // Core versions are equal; handle pre-release tags
-  const versionPreRelease = extractPreReleaseTag(version);
-  const minVersionPreRelease = extractPreReleaseTag(minVersion);
-
-  // A pre-release version is considered lower than the stable release
-  if (versionPreRelease !== null && minVersionPreRelease === null) return false;
-  if (versionPreRelease === null && minVersionPreRelease !== null) return true;
-
-  return (versionPreRelease ?? '') >= (minVersionPreRelease ?? '');
+  // Only compare core X.Y.Z - all pre-release/build suffixes are ignored so that
+  // versions like 1.6.3-test.xxx are treated as compatible with min 1.6.3.
+  return compareCoreVersions(version, minVersion) >= 0;
 }
 
 function compareCoreVersions(version: string, minVersion: string): number {
@@ -62,13 +52,4 @@ function compareCoreVersions(version: string, minVersion: string): number {
     if (vn < mn) return -1;
   }
   return 0;
-}
-
-function extractPreReleaseTag(version: string): string | null {
-  const dashIndex = version.indexOf('-');
-  if (dashIndex === -1) return null;
-  const plusIndex = version.indexOf('+', dashIndex);
-  return plusIndex === -1
-    ? version.substring(dashIndex + 1)
-    : version.substring(dashIndex + 1, plusIndex);
 }

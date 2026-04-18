@@ -58,7 +58,7 @@ function Storybook({
   if (!reportedSherloJSLoaded.current) {
     reportedSherloJSLoaded.current = true;
     const content: any = {
-      action: 'JS_LOADED',
+      action: 'STORYBOOK_RENDERED',
       timestamp: Date.now(),
       entity: 'app',
     };

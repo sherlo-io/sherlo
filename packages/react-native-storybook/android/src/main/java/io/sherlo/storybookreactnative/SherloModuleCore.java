@@ -35,18 +35,103 @@ public class SherloModuleCore {
     private static String currentMode = MODE_DEFAULT;
     private static String nativeVersion = null;
 
+    // Guards early protocol emission to a single occurrence per process. Set once by
+    // performEarlyInit() - either from SherloInitProvider.onCreate() (normal path, before
+    // JS evaluates) or from this class's constructor (fallback).
+    private static volatile boolean earlyInitDone = false;
+
+    // Guards NATIVE_INIT_COMPLETE to a single emission per process.
+    private static volatile boolean nativeInitCompleteDone = false;
+
     // Helper instances
     private FileSystemHelper fileSystemHelper = null;
     private RestartHelper restartHelper = null;
 
     /**
+     * Emits the early native protocol signals (NATIVE_INIT_STARTED, NATIVE_LOADED) when the
+     * Sherlo config indicates testing mode. Idempotent - subsequent calls are no-ops.
+     *
+     * Invoked from SherloInitProvider.onCreate() so the signals land in protocol.sherlo
+     * before Application.onCreate() / JS evaluation, matching iOS __attribute__((constructor))
+     * semantics. In non-testing / production mode this is a silent no-op, so host apps that
+     * bundle the SDK without running tests incur no file writes.
+     *
+     * All work is wrapped in try/catch - a ContentProvider that throws from onCreate kills
+     * app startup for every user of the SDK.
+     *
+     * @param context Any non-null Android context (application context is sufficient).
+     */
+    public static synchronized void performEarlyInit(Context context) {
+        if (earlyInitDone) return;
+        earlyInitDone = true;
+
+        try {
+            FileSystemHelper fsHelper = new FileSystemHelper(context);
+            JSONObject earlyConfig = ConfigHelper.loadConfig(fsHelper);
+            if (earlyConfig == null) return;
+
+            String mode = ConfigHelper.determineModeFromConfig(earlyConfig);
+            if (!MODE_TESTING.equals(mode)) return;
+
+            ProtocolHelper.writeNativeInitStarted(fsHelper);
+
+            JSONObject earlyLastState = LastStateHelper.getLastState(fsHelper);
+            String requestId = null;
+            if (earlyLastState != null) {
+                try {
+                    requestId = earlyLastState.getString("requestId");
+                } catch (org.json.JSONException e) {
+                    // requestId missing is expected on first run - not an error
+                }
+            }
+            ProtocolHelper.writeNativeLoaded(fsHelper, requestId);
+        } catch (Throwable t) {
+            Log.e(TAG, "Failed to perform early init", t);
+        }
+    }
+
+    /**
+     * Emits NATIVE_INIT_COMPLETE to protocol.sherlo. Idempotent - subsequent calls are no-ops.
+     *
+     * Called from the ActivityLifecycleCallbacks.onActivityCreated registered in
+     * SherloInitProvider. That callback fires after the first Activity's onCreate returns
+     * successfully. A crash inside MainActivity.onCreate prevents onActivityCreated from
+     * firing, so this method is never reached - correctly leaving NATIVE_INIT_COMPLETE absent
+     * for native-init crashes and present for JS-eval crashes.
+     *
+     * @param context Any non-null Android context.
+     */
+    public static synchronized void performNativeInitComplete(Context context) {
+        if (nativeInitCompleteDone) return;
+        nativeInitCompleteDone = true;
+
+        try {
+            FileSystemHelper fsHelper = new FileSystemHelper(context);
+            JSONObject cfg = ConfigHelper.loadConfig(fsHelper);
+            if (cfg == null) return;
+
+            String mode = ConfigHelper.determineModeFromConfig(cfg);
+            if (!MODE_TESTING.equals(mode)) return;
+
+            ProtocolHelper.writeNativeInitComplete(fsHelper);
+        } catch (Throwable t) {
+            Log.e(TAG, "Failed to perform native init complete", t);
+        }
+    }
+
+    /**
      * Initializes the module with the React context and sets up all required helpers.
      * Loads configuration and determines the initial mode to use.
-     * 
+     *
      * @param reactContext The React application context
      */
     public SherloModuleCore(ReactApplicationContext reactContext, Activity activity) {
         this.fileSystemHelper = new FileSystemHelper(reactContext);
+
+        // Fallback - normal Android startup already runs this via SherloInitProvider before
+        // Application.onCreate(). The call is idempotent so the double-invocation costs nothing.
+        performEarlyInit(reactContext);
+
         this.restartHelper = new RestartHelper(reactContext);
 
         this.nativeVersion = SherloJsonHelper.getNativeVersion(reactContext);
@@ -62,20 +147,9 @@ public class SherloModuleCore {
             // Fallback to config-based mode
             this.currentMode = ConfigHelper.determineModeFromConfig(this.config);
             Log.d(TAG, "Using config-based mode: " + currentMode);
-            
+
             if (currentMode.equals(MODE_TESTING)) {
                 this.lastState = LastStateHelper.getLastState(this.fileSystemHelper);
-
-                String requestId = null;
-                if (this.lastState != null) {
-                    try {
-                        requestId = this.lastState.getString("requestId");
-                    } catch (org.json.JSONException e) {
-                        Log.e(TAG, "Error getting requestId from lastState", e);
-                    }
-                }
-
-                ProtocolHelper.writeNativeLoaded(this.fileSystemHelper, requestId);
             }
         }
 

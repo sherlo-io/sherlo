@@ -10,6 +10,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      test-version: ${{ steps.publish.outputs.test-version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -34,10 +36,18 @@ jobs:
         env:
           NX_SKIP_NX_CACHE: true
 
+      - name: Save version number to native dependencies
+        run: |
+          VERSION=$(node -p "require('./lerna.json').version")
+          echo "{\"version\": \"$VERSION\"}" > packages/react-native-storybook/android/src/main/assets/sherlo.json
+          echo "{\"version\": \"$VERSION\"}" > packages/react-native-storybook/ios/Resources/assets/sherlo.json
+
       - name: Prepare and publish to GitHub Packages
+        id: publish
         run: |
           VERSION=$(node -p "require('./lerna.json').version")
           TEST_VERSION="${VERSION}-test.${GITHUB_RUN_ID}"
+          echo "test-version=${TEST_VERSION}" >> $GITHUB_OUTPUT
 
           node -e "
             const fs = require('fs');

@@ -34,7 +34,11 @@ export default useSetInitialTestingData;
 
 /* ========================================================================== */
 
-async function waitForStorybookReady(view: StorybookView): Promise<boolean> {
+export async function waitForStorybookReady(view: StorybookView): Promise<boolean> {
+  const TIMEOUT_MS = 10_000;
+  const POLL_INTERVAL_MS = 500;
+  const deadline = Date.now() + TIMEOUT_MS;
+
   while (true) {
     const isReady = Object.keys(view._idToPrepared).length > 0;
 
@@ -42,6 +46,12 @@ async function waitForStorybookReady(view: StorybookView): Promise<boolean> {
       return true;
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    if (Date.now() >= deadline) {
+      // No stories registered within timeout - break out so START is sent
+      // with an empty snapshots array, which the runner classifies as noStories.
+      return false;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
 }

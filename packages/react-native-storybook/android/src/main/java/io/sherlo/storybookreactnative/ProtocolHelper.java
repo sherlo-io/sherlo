@@ -10,6 +10,25 @@ public class ProtocolHelper {
     private static final String TAG = "SherloModule:ProtocolHelper";
 
     /**
+     * Writes a NATIVE_INIT_STARTED JSON line to protocol.sherlo.
+     * Called unconditionally as the first action after FileSystemHelper is created,
+     * so the runner can detect that the native constructor was entered.
+     *
+     * @param fileSystemHelper The file system helper
+     */
+    public static void writeNativeInitStarted(FileSystemHelper fileSystemHelper) {
+        JSONObject item = new JSONObject();
+        try {
+            item.put("action", "NATIVE_INIT_STARTED");
+            item.put("timestamp", System.currentTimeMillis());
+            item.put("entity", "app");
+            fileSystemHelper.appendFile("protocol.sherlo", item.toString() + "\n");
+        } catch (org.json.JSONException e) {
+            Log.e(TAG, "Error creating NATIVE_INIT_STARTED protocol item", e);
+        }
+    }
+
+    /**
      * Writes a NATIVE_LOADED JSON line to protocol.sherlo.
      *
      * @param fileSystemHelper The file system helper
@@ -27,6 +46,27 @@ public class ProtocolHelper {
             fileSystemHelper.appendFile("protocol.sherlo", item.toString() + "\n");
         } catch (org.json.JSONException e) {
             Log.e(TAG, "Error creating NATIVE_LOADED protocol item", e);
+        }
+    }
+
+    /**
+     * Writes a NATIVE_INIT_COMPLETE JSON line to protocol.sherlo.
+     * Emitted at the end of SherloModuleCore constructor (during RN bridge initialisation,
+     * which is triggered by ReactActivity.onCreate → super.onCreate). A crash in
+     * MainActivity.onCreate before super.onCreate – i.e. before the RN bridge starts – can
+     * never reach this call site, so its absence reliably identifies a native-init crash.
+     *
+     * @param fileSystemHelper The file system helper
+     */
+    public static void writeNativeInitComplete(FileSystemHelper fileSystemHelper) {
+        JSONObject item = new JSONObject();
+        try {
+            item.put("action", "NATIVE_INIT_COMPLETE");
+            item.put("timestamp", System.currentTimeMillis());
+            item.put("entity", "app");
+            fileSystemHelper.appendFile("protocol.sherlo", item.toString() + "\n");
+        } catch (org.json.JSONException e) {
+            Log.e(TAG, "Error creating NATIVE_INIT_COMPLETE protocol item", e);
         }
     }
 
