@@ -40,9 +40,6 @@ public class SherloModuleCore {
     // JS evaluates) or from this class's constructor (fallback).
     private static volatile boolean earlyInitDone = false;
 
-    // Guards NATIVE_INIT_COMPLETE to a single emission per process.
-    private static volatile boolean nativeInitCompleteDone = false;
-
     // Helper instances
     private FileSystemHelper fileSystemHelper = null;
     private RestartHelper restartHelper = null;
@@ -73,6 +70,8 @@ public class SherloModuleCore {
             String mode = ConfigHelper.determineModeFromConfig(earlyConfig);
             if (!MODE_TESTING.equals(mode)) return;
 
+            currentMode = mode;
+
             ProtocolHelper.writeNativeInitStarted(fsHelper);
 
             JSONObject earlyLastState = LastStateHelper.getLastState(fsHelper);
@@ -87,35 +86,6 @@ public class SherloModuleCore {
             ProtocolHelper.writeNativeLoaded(fsHelper, requestId);
         } catch (Throwable t) {
             Log.e(TAG, "Failed to perform early init", t);
-        }
-    }
-
-    /**
-     * Emits NATIVE_INIT_COMPLETE to protocol.sherlo. Idempotent - subsequent calls are no-ops.
-     *
-     * Called from the ActivityLifecycleCallbacks.onActivityCreated registered in
-     * SherloInitProvider. That callback fires after the first Activity's onCreate returns
-     * successfully. A crash inside MainActivity.onCreate prevents onActivityCreated from
-     * firing, so this method is never reached - correctly leaving NATIVE_INIT_COMPLETE absent
-     * for native-init crashes and present for JS-eval crashes.
-     *
-     * @param context Any non-null Android context.
-     */
-    public static synchronized void performNativeInitComplete(Context context) {
-        if (nativeInitCompleteDone) return;
-        nativeInitCompleteDone = true;
-
-        try {
-            FileSystemHelper fsHelper = new FileSystemHelper(context);
-            JSONObject cfg = ConfigHelper.loadConfig(fsHelper);
-            if (cfg == null) return;
-
-            String mode = ConfigHelper.determineModeFromConfig(cfg);
-            if (!MODE_TESTING.equals(mode)) return;
-
-            ProtocolHelper.writeNativeInitComplete(fsHelper);
-        } catch (Throwable t) {
-            Log.e(TAG, "Failed to perform native init complete", t);
         }
     }
 

@@ -34,64 +34,59 @@ public class SherloModulePackage extends TurboReactPackage {
             final Map<String, ReactModuleInfo> moduleInfos = new HashMap<>();
             final boolean isTurboModule = BuildConfig.IS_NEW_ARCHITECTURE_ENABLED;
 
-            ReactModuleInfo info = makeInfo6(isTurboModule);
+            ReactModuleInfo sherloInfo = makeInfo6(SherloModule.NAME, isTurboModule, false);
+            if (sherloInfo == null) sherloInfo = makeInfo7(SherloModule.NAME, isTurboModule, false);
+            moduleInfos.put(SherloModule.NAME, sherloInfo);
 
-            if (info == null) {
-                info = makeInfo7(isTurboModule);
-            }
-
-            moduleInfos.put(SherloModule.NAME, info);
             return moduleInfos;
         };
     }
 
     /**
      * Try RN >= 0.74 6-arg constructor:
-     * ReactModuleInfo(String, String, boolean, boolean, boolean, boolean)
+     * ReactModuleInfo(String, String, boolean canOverride, boolean needsEagerInit, boolean isCxx, boolean isTurbo)
      */
-    private static ReactModuleInfo makeInfo6(boolean isTurboModule) {
+    private static ReactModuleInfo makeInfo6(String name, boolean isTurboModule, boolean canOverride) {
         try {
             Constructor<ReactModuleInfo> ctor = ReactModuleInfo.class.getConstructor(
                     String.class, String.class, boolean.class, boolean.class, boolean.class, boolean.class);
 
             return ctor.newInstance(
-                    SherloModule.NAME,
-                    SherloModule.NAME,
-                    /* canOverrideExistingModule */ false,
+                    name,
+                    name,
+                    canOverride,
                     /* needsEagerInit */ false,
                     /* isCxxModule */ false,
                     /* isTurboModule */ isTurboModule
             );
         } catch (NoSuchMethodException e) {
-            // RN < 0.74 — not available; signal caller to fall back.
+            // RN < 0.74 - not available; signal caller to fall back.
             return null;
         } catch (IllegalAccessException | InstantiationException | InvocationTargetException e) {
-            // Constructor exists but failed — escalate so the issue is visible.
             throw new RuntimeException("Failed to call 6-arg ReactModuleInfo constructor", e);
         }
     }
 
     /**
      * Fall back to legacy 7-arg constructor:
-     * ReactModuleInfo(String, String, boolean, boolean, boolean, boolean, boolean)
+     * ReactModuleInfo(String, String, boolean canOverride, boolean needsEagerInit, boolean hasConstants, boolean isCxx, boolean isTurbo)
      * Present on RN <= 0.73, and deprecated-but-present on >= 0.74.
      */
-    private static ReactModuleInfo makeInfo7(boolean isTurboModule) {
+    private static ReactModuleInfo makeInfo7(String name, boolean isTurboModule, boolean canOverride) {
         try {
             Constructor<ReactModuleInfo> ctor = ReactModuleInfo.class.getConstructor(
                     String.class, String.class, boolean.class, boolean.class, boolean.class, boolean.class, boolean.class);
 
             return ctor.newInstance(
-                    SherloModule.NAME,
-                    SherloModule.NAME,
-                    /* canOverrideExistingModule */ false,
+                    name,
+                    name,
+                    canOverride,
                     /* needsEagerInit */ false,
                     /* hasConstants */ true,
                     /* isCxxModule */ false,
                     /* isTurboModule */ isTurboModule
             );
         } catch (NoSuchMethodException e) {
-            // Unexpected on older RN — nothing else to try.
             throw new RuntimeException("7-arg ReactModuleInfo constructor not found on this RN version", e);
         } catch (IllegalAccessException | InstantiationException | InvocationTargetException e) {
             throw new RuntimeException("Failed to call 7-arg ReactModuleInfo constructor", e);

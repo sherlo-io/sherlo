@@ -81,26 +81,14 @@ static FileSystemHelper *fileSystemHelper;
                 consumingDeeplink = [EasUpdateHelper consumeEasUpdateDeeplinkIfNeeded:easUpdateDeeplink];
             }
 
-            // Register to emit NATIVE_INIT_COMPLETE after AppDelegate.didFinishLaunchingWithOptions
-            // returns YES. UIApplicationDidFinishLaunchingNotification fires on the main thread
-            // after the AppDelegate method returns – so a crash inside didFinishLaunchingWithOptions
-            // (e.g. a fatalError in the host app) prevents the notification from firing and
-            // NATIVE_INIT_COMPLETE is absent, clearly distinguishing a native-init crash from a
-            // JS-eval crash. SherloEarlyInit runs at dylib-load time (before main()), so this
-            // observer is always registered before UIApplicationMain posts the notification.
-            FileSystemHelper *fsHelper = fileSystemHelper;
-            __block id nativeInitObserver = [[NSNotificationCenter defaultCenter]
-                addObserverForName:UIApplicationDidFinishLaunchingNotification
-                            object:nil
-                             queue:[NSOperationQueue mainQueue]
-                        usingBlock:^(NSNotification *note) {
-                [ProtocolHelper writeNativeInitComplete:fsHelper];
-                [[NSNotificationCenter defaultCenter] removeObserver:nativeInitObserver];
-            }];
         }
     }
 
     return self;
+}
+
++ (BOOL)isTestingMode {
+    return [currentMode isEqualToString:MODE_TESTING];
 }
 
 /**
