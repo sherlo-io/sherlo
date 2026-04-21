@@ -26,7 +26,8 @@
     "cli.js"
   ],
   "scripts": {
-    "build": "rm -rf dist && ncc build src/index.ts --source-map --minify && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js"
+    "build": "rm -rf dist && ncc build src/index.ts --source-map --minify && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@inquirer/core": "^10.3.2",
@@ -55,6 +56,7 @@
     "package-manager-detector": "^0.2.9",
     "type-fest": "^4.20.1",
     "typescript": "^5.3.3",
+    "vitest": "^4.1.5",
     "wrap-ansi": "^9.0.0"
   },
   "engines": {

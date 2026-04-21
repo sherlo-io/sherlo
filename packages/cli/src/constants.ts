@@ -7,6 +7,7 @@ export const CONTACT_EMAIL = 'contact@sherlo.io';
 export const DISCORD_URL = 'https://discord.gg/G7eqTBkWZt';
 
 export const DOCS_LINK = {
+  setupMetroConfig: `${DOCS_BASE_URL}/setup#metro-config`,
   setupStorybookComponent: `${DOCS_BASE_URL}/setup#storybook-component`,
   setupStorybookAccess: `${DOCS_BASE_URL}/setup#storybook-access`,
 

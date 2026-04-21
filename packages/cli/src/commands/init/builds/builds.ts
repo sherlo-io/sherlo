@@ -5,23 +5,17 @@ import { printTitle, trackProgress } from '../helpers';
 import { EVENT } from './constants';
 import printBuildWarning from './printBuildWarning';
 
-async function builds({
-  hasUpdatedStorybookComponent,
-  sessionId,
-}: {
-  hasUpdatedStorybookComponent: boolean;
-  sessionId: string | null;
-}): Promise<void> {
+async function builds({ sessionId }: { sessionId: string | null }): Promise<void> {
   printTitle('📦 Builds');
 
-  printBuildWarning(hasUpdatedStorybookComponent);
+  printBuildWarning();
 
   console.log('Create builds aligned with your chosen testing method:');
   console.log('  ' + chalk.cyan(printLink(DOCS_LINK.builds)));
 
   await trackProgress({
     event: EVENT,
-    params: { hasUpdatedStorybookComponent },
+    params: {},
     sessionId,
   });
 }
