@@ -11,6 +11,7 @@
 #import "ProtocolHelper.h"
 
 #import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
 #import <React/RCTBridge.h>
 
 static NSString *const LOG_TAG = @"SherloModule:Core";
@@ -48,6 +49,14 @@ static FileSystemHelper *fileSystemHelper;
     
     fileSystemHelper = [[FileSystemHelper alloc] init];
 
+    // Write NATIVE_INIT_STARTED unconditionally as the first protocol action.
+    // This proves the native constructor was reached regardless of mode/config.
+    @try {
+        [ProtocolHelper writeNativeInitStarted:fileSystemHelper];
+    } @catch (NSException *e) {
+        NSLog(@"[%@] Failed to write NATIVE_INIT_STARTED: %@", LOG_TAG, e);
+    }
+
     nativeVersion = [SherloJsonHelper getNativeVersion];
 
     config = [ConfigHelper loadConfig:fileSystemHelper];
@@ -71,10 +80,15 @@ static FileSystemHelper *fileSystemHelper;
             if (easUpdateDeeplink) {
                 consumingDeeplink = [EasUpdateHelper consumeEasUpdateDeeplinkIfNeeded:easUpdateDeeplink];
             }
+
         }
     }
 
     return self;
+}
+
++ (BOOL)isTestingMode {
+    return [currentMode isEqualToString:MODE_TESTING];
 }
 
 /**

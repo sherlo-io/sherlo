@@ -9,6 +9,25 @@ static NSString *const LOG_TAG = @"SherloModule:ProtocolHelper";
 @implementation ProtocolHelper
 
 /**
+ * Writes a NATIVE_INIT_STARTED JSON line to protocol.sherlo.
+ * Called unconditionally as the first action after FileSystemHelper is created,
+ * so the runner can detect that the native constructor was entered.
+ *
+ * @param fileSystemHelper The file system helper
+ */
++ (void)writeNativeInitStarted:(FileSystemHelper *)fileSystemHelper {
+    NSMutableDictionary *item = [NSMutableDictionary dictionary];
+    [item setObject:@([[NSDate date] timeIntervalSince1970] * 1000) forKey:@"timestamp"];
+    [item setObject:@"app" forKey:@"entity"];
+    [item setObject:@"NATIVE_INIT_STARTED" forKey:@"action"];
+
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:item options:0 error:nil];
+    NSString *jsonString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+    jsonString = [jsonString stringByAppendingString:@"\n"];
+    [fileSystemHelper appendFile:@"protocol.sherlo" content:jsonString];
+}
+
+/**
  * Writes a NATIVE_LOADED JSON line to protocol.sherlo.
  *
  * @param fileSystemHelper The file system helper
