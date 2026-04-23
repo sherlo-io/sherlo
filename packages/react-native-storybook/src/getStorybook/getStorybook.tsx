@@ -1,4 +1,4 @@
-import React, { ReactElement, useEffect } from 'react';
+import React, { ReactElement, useEffect, useRef } from 'react';
 import SherloModule from '../SherloModule';
 import checkSdkCompatibility, { ERROR_STORYBOOK_NOT_DISPLAYED } from '../checkSdkCompatibility';
 import { StorybookParams, StorybookView } from '../types';
@@ -41,6 +41,25 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 
   return () => {
     useHideSplashScreen();
+
+    const storybookLoadedReported = useRef(false);
+
+    // Emit STORYBOOK_LOADED after the first render commits so the runner only
+    // sees the signal once the React tree is actually mounted.  Emitting it
+    // synchronously inside patchedStart() (before any render) caused the runner
+    // to mis-classify a mid-render crash as storybookNotDisplayed instead of
+    // appFailedToStart.
+    useEffect(() => {
+      if (!isTestingMode) return;
+      if (storybookLoadedReported.current) return;
+      storybookLoadedReported.current = true;
+      try {
+        if (SherloModule.getMode() === 'testing') {
+          const content = JSON.stringify({ action: 'STORYBOOK_LOADED', timestamp: Date.now(), entity: 'app' });
+          SherloModule.appendFile('protocol.sherlo', `${content}\n`);
+        }
+      } catch (_e) {}
+    }, []);
 
     useEffect(() => {
       if (!isTestingMode) return;

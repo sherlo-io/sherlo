@@ -73,9 +73,10 @@ function withSherlo(config) {
  *
  * The wrapper:
  *  1. Requires the real @storybook/react-native (self-bypass lets this through)
- *  2. Requires @sherlo/react-native-storybook (for addStorybookToDevMenu + getStorybook)
- *  3. Re-exports all keys from the real module
- *  4. Overrides the `start` export with a patched version that wraps view.getStorybookUI
+ *  2. Re-exports all keys from the real module (so isStorybook7 detection sees
+ *     updateView and correctly returns false for Storybook 8+)
+ *  3. Overrides the `start` export with a patched version that lazily requires
+ *     @sherlo/react-native-storybook and wraps view.getStorybookUI
  *
  * @param {string} wrapperPath
  */
@@ -89,9 +90,17 @@ function generateWrapper(wrapperPath) {
     "'use strict';\n" +
     '\n' +
     "var real = require('@storybook/react-native');\n" +
-    "var sherlo = require('@sherlo/react-native-storybook');\n" +
     '\n' +
-    '// Re-export everything from the real module\n' +
+    '// Re-export everything from the real module.\n' +
+    '// IMPORTANT: sherlo must NOT be required here at the top level.\n' +
+    '// @sherlo/react-native-storybook transitively loads isStorybook7.ts which\n' +
+    '// re-requires @storybook/react-native (this wrapper).  If sherlo were\n' +
+    '// required before the re-exports below have run, isStorybook7.ts would\n' +
+    '// see an empty exports object (circular-dep partial init), decide\n' +
+    '// isStorybook7=true, and crash on uiSettings.theme.preview.backgroundColor\n' +
+    '// (Storybook 8+ themes have no top-level .preview property).\n' +
+    '// Requiring sherlo lazily inside patchedStart ensures the re-exports are\n' +
+    '// already in place when isStorybook7.ts runs.\n' +
     'Object.keys(real).forEach(function (key) {\n' +
     "  if (key === 'start') return; // overridden below\n" +
     '  Object.defineProperty(exports, key, {\n' +
@@ -119,6 +128,11 @@ function generateWrapper(wrapperPath) {
     '    return {};\n' +
     '  }\n' +
     '\n' +
+    '  // Lazy-require sherlo AFTER the re-exports above are already set up.\n' +
+    '  // This breaks the circular dependency that would otherwise cause\n' +
+    '  // isStorybook7 to be detected incorrectly (see comment above).\n' +
+    "  var sherlo = require('@sherlo/react-native-storybook');\n" +
+    '\n' +
     '  var view = real.start(config);\n' +
     '\n' +
     '  try {\n' +
@@ -129,17 +143,18 @@ function generateWrapper(wrapperPath) {
     '\n' +
     '  view.__sherloOriginalGetStorybookUI = view.getStorybookUI.bind(view);\n' +
     '  view.getStorybookUI = function (params) {\n' +
-    '    return sherlo.getStorybook(view, params);\n' +
+    '    // Pass {} when params is undefined so Storybook always receives an object\n' +
+    '    // and applies its own defaults (theme, etc.) rather than propagating\n' +
+    '    // undefined into getStorybookUI which can strip those defaults.\n' +
+    '    return sherlo.getStorybook(view, params != null ? params : {});\n' +
     '  };\n' +
     '\n' +
-    '  // Signal that Storybook has loaded and is ready\n' +
-    '  try {\n' +
-    "    var sherloInternal = require('@sherlo/react-native-storybook/dist/SherloModule');\n" +
-    "    var SherloModule = sherloInternal && sherloInternal.default ? sherloInternal.default : sherloInternal;\n" +
-    "    if (SherloModule && typeof SherloModule.getMode === 'function' && SherloModule.getMode() === 'testing') {\n" +
-    "      SherloModule.appendFile('protocol.sherlo', JSON.stringify({ action: 'STORYBOOK_LOADED', timestamp: Date.now(), entity: 'app' }) + '\\n');\n" +
-    '    }\n' +
-    '  } catch (e) {}\n' +
+    '  // STORYBOOK_LOADED is intentionally NOT emitted here.\n' +
+    '  // Emitting it synchronously inside patchedStart() fires before any React\n' +
+    '  // render has committed, so the runner would see STORYBOOK_LOADED and then\n' +
+    '  // a crash mid-render, mis-classifying the failure scenario.\n' +
+    '  // The signal is now emitted from a useEffect inside getStorybook.tsx after\n' +
+    '  // the first render commits.\n' +
     '\n' +
     '  return view;\n' +
     '};\n';
