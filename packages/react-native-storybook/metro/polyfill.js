@@ -18,6 +18,12 @@
  * behaviour is fully preserved.
  */
 
+// Diagnostic: fires unconditionally when the polyfill is included in the bundle
+// and executed. If absent from device logs, getPolyfills wiring isn't working.
+if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+  console.warn('[Sherlo] polyfill executing');
+}
+
 /* ------------------------------------------------------------------ *
  * reportIfTesting(error, source)                                      *
  * All requires are lazy so that:                                      *
@@ -78,6 +84,7 @@ writeMarker('POLYFILL_RAN');
     var originalHandler = global.ErrorUtils.getGlobalHandler();
     global.ErrorUtils.setGlobalHandler(function sherloGlobalErrorHandler(error, isFatal) {
       // Marker 6: proves the patched global handler was invoked.
+      console.warn('[Sherlo] global handler fired', error && error.message);
       writeMarker('POLYFILL_GLOBAL_HANDLER_FIRED');
       reportIfTesting(error, 'globalHandler');
       // Chain: always invoke the original handler, regardless of mode.
@@ -87,6 +94,7 @@ writeMarker('POLYFILL_RAN');
     });
     // Marker 2: proves setGlobalHandler succeeded.
     writeMarker('POLYFILL_GLOBAL_HANDLER_INSTALLED');
+    console.warn('[Sherlo] global handler chain installed');
   } catch (_e) {}
 })();
 
@@ -139,6 +147,7 @@ writeMarker('POLYFILL_RAN');
 
         SherloErrorBoundary.prototype.componentDidCatch = function(error) {
           // Marker 5: proves the ErrorBoundary actually caught a render error.
+          console.warn('[Sherlo] errorBoundary caught', error && error.message);
           writeMarker('POLYFILL_BOUNDARY_CAUGHT');
           reportIfTesting(error, 'errorBoundary');
           // Re-propagate so RN's standard fatal flow (redbox in dev, crash in
@@ -173,5 +182,6 @@ writeMarker('POLYFILL_RAN');
     };
     // Marker 3: proves AppRegistry.registerComponent was replaced.
     writeMarker('POLYFILL_APPREGISTRY_PATCHED');
+    console.warn('[Sherlo] AppRegistry patched');
   } catch (_e) {}
 })();
