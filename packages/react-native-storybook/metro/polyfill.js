@@ -49,6 +49,26 @@ function reportIfTesting(error, source) {
 }
 
 /* ------------------------------------------------------------------ *
+ * writeMarker(action, data)                                           *
+ * Writes a single JSON line to protocol.sherlo when mode === testing. *
+ * Gated on testing mode so production is a complete no-op.           *
+ * ------------------------------------------------------------------ */
+function writeMarker(action, data) {
+  try {
+    var mod = require('../dist/SherloModule');
+    var SherloModule = mod && mod.default ? mod.default : mod;
+    if (!SherloModule || typeof SherloModule.getMode !== 'function' || SherloModule.getMode() !== 'testing') return;
+    SherloModule.appendFile(
+      'protocol.sherlo',
+      JSON.stringify(Object.assign({ action: action, timestamp: Date.now(), entity: 'sherlo-polyfill' }, data ? { data: data } : {})) + '\n'
+    );
+  } catch (_) {}
+}
+
+// Marker 1: proves the polyfill was included in the bundle and executed.
+writeMarker('POLYFILL_RAN');
+
+/* ------------------------------------------------------------------ *
  * 1. ErrorUtils global handler chain                                  *
  * Catches uncaught JS errors: async, setTimeout, event handlers.     *
  * ------------------------------------------------------------------ */
@@ -57,12 +77,16 @@ function reportIfTesting(error, source) {
     if (!global.ErrorUtils || typeof global.ErrorUtils.getGlobalHandler !== 'function') return;
     var originalHandler = global.ErrorUtils.getGlobalHandler();
     global.ErrorUtils.setGlobalHandler(function sherloGlobalErrorHandler(error, isFatal) {
+      // Marker 6: proves the patched global handler was invoked.
+      writeMarker('POLYFILL_GLOBAL_HANDLER_FIRED');
       reportIfTesting(error, 'globalHandler');
       // Chain: always invoke the original handler, regardless of mode.
       if (typeof originalHandler === 'function') {
         originalHandler(error, isFatal);
       }
     });
+    // Marker 2: proves setGlobalHandler succeeded.
+    writeMarker('POLYFILL_GLOBAL_HANDLER_INSTALLED');
   } catch (_e) {}
 })();
 
@@ -84,7 +108,15 @@ function reportIfTesting(error, source) {
 
     var originalRegisterComponent = AppRegistry.registerComponent;
 
+    // Track whether we've already written the intercept marker.
+    var interceptMarkerWritten = false;
+
     AppRegistry.registerComponent = function sherloRegisterComponent(appKey, componentProvider) {
+      // Marker 4: first time user code calls registerComponent through our patch.
+      if (!interceptMarkerWritten) {
+        interceptMarkerWritten = true;
+        writeMarker('POLYFILL_REGISTER_COMPONENT_INTERCEPTED', { appKey: appKey });
+      }
       return originalRegisterComponent.call(AppRegistry, appKey, function() {
         if (cache[appKey]) return cache[appKey];
 
@@ -106,6 +138,8 @@ function reportIfTesting(error, source) {
         };
 
         SherloErrorBoundary.prototype.componentDidCatch = function(error) {
+          // Marker 5: proves the ErrorBoundary actually caught a render error.
+          writeMarker('POLYFILL_BOUNDARY_CAUGHT');
           reportIfTesting(error, 'errorBoundary');
           // Re-propagate so RN's standard fatal flow (redbox in dev, crash in
           // prod) runs - the tree is broken, so there is nothing useful to
@@ -137,5 +171,7 @@ function reportIfTesting(error, source) {
         return SherloRootWrapper;
       });
     };
+    // Marker 3: proves AppRegistry.registerComponent was replaced.
+    writeMarker('POLYFILL_APPREGISTRY_PATCHED');
   } catch (_e) {}
 })();
