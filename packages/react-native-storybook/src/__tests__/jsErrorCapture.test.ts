@@ -103,12 +103,14 @@ describe('polyfill - ErrorUtils global handler chain', () => {
     expect(sherlo.sendJsError).not.toHaveBeenCalled();
   });
 
-  it('chains to the original handler even in testing mode', () => {
+  it('chains to the original handler even in testing mode', async () => {
     const originalHandler = vi.fn();
     // Simulate original handler already being set
     fakeGlobal.ErrorUtils.getGlobalHandler.mockReturnValue(originalHandler);
-    // Re-run polyfill to pick up the new "original"
+    // Re-run polyfill to pick up the new "original"; flush microtasks so the
+    // deferred Promise.resolve().then() callback runs before we inspect mocks.
     runPolyfill(fakeGlobal);
+    await Promise.resolve();
     const installedHandler = fakeGlobal.ErrorUtils.setGlobalHandler.mock.calls[1][0] as (e: Error, fatal: boolean) => void;
     const error = new Error('chained');
     installedHandler(error, false);
