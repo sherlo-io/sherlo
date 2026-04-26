@@ -73,4 +73,24 @@ public class ProtocolHelper {
             Log.e(TAG, "Error creating NATIVE_ERROR protocol item", e);
         }
     }
+
+    /**
+     * Writes a JS_ERROR JSON line to protocol.sherlo.
+     */
+    public static void writeJsError(FileSystemHelper fileSystemHelper, String message, String stack, String source) {
+        JSONObject item = new JSONObject();
+        try {
+            item.put("timestamp", System.currentTimeMillis());
+            item.put("entity", "app");
+            item.put("action", "JS_ERROR");
+            JSONObject data = new JSONObject();
+            data.put("message", message != null ? message : "");
+            data.put("stack", stack != null ? stack : "");
+            data.put("source", source != null ? source : "");
+            item.put("data", data);
+            fileSystemHelper.appendFile("protocol.sherlo", item.toString() + "\n");
+        } catch (org.json.JSONException e) {
+            Log.e(TAG, "Error creating JS_ERROR protocol item", e);
+        }
+    }
 }

@@ -74,6 +74,16 @@ static void SherloEarlyInit(void) {
 }
 
 /**
+ * Receives a JS error from the polyfill and writes a JS_ERROR JSON line to protocol.sherlo.
+ */
+- (void)sendJsError:(NSString *)message
+              stack:(NSString *)stack
+             source:(NSString *)source
+{
+  [core sendJsError:message stack:stack source:source];
+}
+
+/**
  * Appends base64 encoded content to a file.
  */
 - (void)appendFile:(NSString *)path
@@ -184,6 +194,15 @@ RCT_EXPORT_METHOD(sendNativeError:(NSString *)errorCode
                   message:(NSString *)message
                   dataJson:(NSString *)dataJson) {
   [core sendNativeError:errorCode message:message dataJson:dataJson];
+}
+
+/**
+ * Receives a JS error from the polyfill and writes a JS_ERROR JSON line to protocol.sherlo.
+ */
+RCT_EXPORT_METHOD(sendJsError:(NSString *)message
+                  stack:(NSString *)stack
+                  source:(NSString *)source) {
+  [core sendJsError:message stack:stack source:source];
 }
 
 /**

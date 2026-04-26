@@ -61,9 +61,24 @@ function withSherlo(config) {
       : context.resolveRequest(context, moduleName, platform);
   }
 
+  var polyfillPath = path.join(__dirname, 'metro', 'polyfill.js');
+
+  var existingGetPolyfills =
+    config.serializer && typeof config.serializer.getPolyfills === 'function'
+      ? config.serializer.getPolyfills
+      : null;
+
+  function getPolyfills(ctx) {
+    var base = existingGetPolyfills ? existingGetPolyfills(ctx) : [];
+    return base.concat([polyfillPath]);
+  }
+
   return Object.assign({}, config, {
     resolver: Object.assign({}, config.resolver, {
       resolveRequest: resolveRequest,
+    }),
+    serializer: Object.assign({}, config.serializer, {
+      getPolyfills: getPolyfills,
     }),
   });
 }

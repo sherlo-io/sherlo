@@ -76,4 +76,24 @@ static NSString *const LOG_TAG = @"SherloModule:ProtocolHelper";
     [fileSystemHelper appendFile:@"protocol.sherlo" content:jsonString];
 }
 
+/**
+ * Writes a JS_ERROR JSON line to protocol.sherlo.
+ */
++ (void)writeJsError:(FileSystemHelper *)fileSystemHelper message:(NSString *)message stack:(NSString *)stack source:(NSString *)source {
+    NSMutableDictionary *item = [NSMutableDictionary dictionary];
+    [item setObject:@([[NSDate date] timeIntervalSince1970] * 1000) forKey:@"timestamp"];
+    [item setObject:@"app" forKey:@"entity"];
+    [item setObject:@"JS_ERROR" forKey:@"action"];
+    NSMutableDictionary *data = [NSMutableDictionary dictionary];
+    [data setObject:message ?: @"" forKey:@"message"];
+    [data setObject:stack ?: @"" forKey:@"stack"];
+    [data setObject:source ?: @"" forKey:@"source"];
+    [item setObject:data forKey:@"data"];
+
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:item options:0 error:nil];
+    NSString *jsonString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+    jsonString = [jsonString stringByAppendingString:@"\n"];
+    [fileSystemHelper appendFile:@"protocol.sherlo" content:jsonString];
+}
+
 @end

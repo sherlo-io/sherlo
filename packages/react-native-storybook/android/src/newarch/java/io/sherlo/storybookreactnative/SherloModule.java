@@ -90,6 +90,14 @@ public class SherloModule extends NativeSherloModuleSpec {
         moduleCore.sendNativeError(errorCode, message, dataJson);
     }
 
+    /**
+     * Receives a JS error from the polyfill and writes a JS_ERROR JSON line to protocol.sherlo.
+     */
+    @Override
+    public void sendJsError(String message, String stack, String source) {
+        moduleCore.sendJsError(message, stack, source);
+    }
+
     // ==== File System Methods ====
 
     /**

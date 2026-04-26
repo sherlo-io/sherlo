@@ -175,6 +175,13 @@ public class SherloModuleCore {
     }
 
     /**
+     * Writes a JS_ERROR JSON line to protocol.sherlo.
+     */
+    public void sendJsError(String message, String stack, String source) {
+        ProtocolHelper.writeJsError(this.fileSystemHelper, message, stack, source);
+    }
+
+    /**
      * Appends base64 encoded content to a file.
      * 
      * @param filename The name of the file to append to

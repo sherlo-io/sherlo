@@ -173,6 +173,18 @@ static FileSystemHelper *fileSystemHelper;
 }
 
 /**
+ * Writes a JS_ERROR JSON line to protocol.sherlo.
+ * Called when the JS polyfill captures an uncaught JS error while in testing mode.
+ *
+ * @param message The JS error message
+ * @param stack The JS stack trace
+ * @param source Either "globalHandler" or "errorBoundary"
+ */
+- (void)sendJsError:(NSString *)message stack:(NSString *)stack source:(NSString *)source {
+    [ProtocolHelper writeJsError:fileSystemHelper message:message stack:stack source:source];
+}
+
+/**
  * Appends base64 encoded content to a file.
  * Creates the file if it doesn't exist, and any necessary parent directories.
  *

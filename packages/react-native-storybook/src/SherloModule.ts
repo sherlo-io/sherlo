@@ -20,6 +20,7 @@ type SherloModule = {
   getLastState: () => LastState | undefined;
   getNativeVersion: () => string | null;
   sendNativeError: (errorCode: string, message: string, data?: Record<string, string | null>) => void;
+  sendJsError: (message: string, stack: string, source: string) => void;
   getInspectorData: () => Promise<InspectorData>;
   appendFile: (path: string, base64: string) => Promise<void>;
   readFile: (path: string) => Promise<string>;
@@ -114,6 +115,9 @@ function createSherloModule(): SherloModule {
     sendNativeError: (errorCode: string, message: string, data?: Record<string, string | null>) => {
       module.sendNativeError(errorCode, message, data ? JSON.stringify(data) : '');
     },
+    sendJsError: (message: string, stack: string, source: string) => {
+      module.sendJsError(message, stack, source);
+    },
     getConfig: () => {
       const configString = getConstants().config;
       const config = JSON.parse(configString) as Config | undefined;
@@ -178,6 +182,7 @@ function createDummySherloModule(): SherloModule {
     getMode: () => 'default',
     getNativeVersion: () => null,
     sendNativeError: () => {},
+    sendJsError: () => {},
     getLastState: () => undefined,
     getConfig: () => ({
       stabilization: {

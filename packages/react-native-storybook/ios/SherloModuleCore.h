@@ -61,6 +61,14 @@
 - (void)sendNativeError:(NSString *)errorCode message:(NSString *)message dataJson:(NSString *)dataJson;
 
 /**
+ * Writes a JS_ERROR JSON line to protocol.sherlo.
+ * @param message The JS error message
+ * @param stack The JS stack trace
+ * @param source Either "globalHandler" or "errorBoundary"
+ */
+- (void)sendJsError:(NSString *)message stack:(NSString *)stack source:(NSString *)source;
+
+/**
  * Appends base64 encoded content to a file
  * @param filename Name of the file
  * @param content Base64 encoded content to append
