@@ -11,6 +11,7 @@ import {
   findSourceMap,
   symbolicateSections,
   runMetroSymbolicate,
+  reformatSymbolicatedLine,
 } from '../showError';
 
 // ---------------------------------------------------------------------------
@@ -295,6 +296,37 @@ describe('symbolicateSections', () => {
     const frameLine = '  at CrashComponent (App.tsx:7:18)';
     expect(frameLine.startsWith('  at ')).toBe(true);
     expect(frameLine.startsWith('    at ')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// reformatSymbolicatedLine
+// ---------------------------------------------------------------------------
+
+describe('reformatSymbolicatedLine', () => {
+  it('returns function-name-in-col format: strips leading slash, puts fnName first', () => {
+    // metro-symbolicate outputs: at c (/App.tsx:7:CrashComponent)
+    expect(reformatSymbolicatedLine('at c (/App.tsx:7:CrashComponent)')).toBe('at CrashComponent (App.tsx:7)');
+  });
+
+  it('returns standard numeric-col format: strips leading slash', () => {
+    // metro-symbolicate outputs: at renderWithHooks (/node_modules/react-native/Libraries/Renderer/implementations/ReactFabric-prod.js:3024:15)
+    const result = reformatSymbolicatedLine('at renderWithHooks (/node_modules/react-native/Libraries/Renderer.js:3024:15)');
+    expect(result).toBe('at renderWithHooks (node_modules/react-native/Libraries/Renderer.js:3024:15)');
+  });
+
+  it('does not strip slash from non-leading slash in path', () => {
+    expect(reformatSymbolicatedLine('at foo (src/components/App.tsx:10:SomeComponent)')).toBe('at SomeComponent (src/components/App.tsx:10)');
+  });
+
+  it('returns line unchanged when it does not match at-pattern', () => {
+    expect(reformatSymbolicatedLine('some random text')).toBe('some random text');
+  });
+
+  it('handles path with spaces (iOS Application Support)', () => {
+    const raw = 'at Gl (/Library/Application Support/.expo-internal/bundle.js:1:renderWithHooks)';
+    const result = reformatSymbolicatedLine(raw);
+    expect(result).toBe('at renderWithHooks (Library/Application Support/.expo-internal/bundle.js:1)');
   });
 });
 
