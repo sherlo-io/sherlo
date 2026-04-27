@@ -121,6 +121,18 @@ export function parseStackFrames(text: string): StackFrame[] {
 }
 
 // ---------------------------------------------------------------------------
+// Entry file detection
+// ---------------------------------------------------------------------------
+
+export function detectEntryFile(projectRoot: string): string {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'));
+    if (typeof pkg.main === 'string' && pkg.main.length > 0) return pkg.main;
+  } catch { /* ignore */ }
+  return 'index.js';
+}
+
+// ---------------------------------------------------------------------------
 // Source map build
 // ---------------------------------------------------------------------------
 
@@ -140,6 +152,8 @@ export function buildSourceMaps(
     process.stdout.write(chalk.dim(` ${elapsed}s`));
   }, 5000);
 
+  const entryFile = detectEntryFile(projectRoot);
+
   try {
     if (projectType === 'expo') {
       // Use export:embed to produce the same plain-JS bundle as the deployed app.
@@ -148,14 +162,14 @@ export function buildSourceMaps(
       const bundleOut = path.join(cacheDir, `bundle.${platform}.js`);
       const mapOut = `${bundleOut}.map`;
       execSync(
-        `npx expo export:embed --platform=${platform} --entry-file=index.js --bundle-output=${bundleOut} --sourcemap-output=${mapOut} --dev=false --reset-cache`,
+        `npx expo export:embed --platform=${platform} --entry-file=${entryFile} --bundle-output=${bundleOut} --sourcemap-output=${mapOut} --dev=false --reset-cache`,
         { cwd: projectRoot, stdio: ['pipe', 'pipe', 'pipe'] }
       );
     } else {
       const bundleOut = path.join(cacheDir, `bundle.${platform}.jsbundle`);
       const mapOut = `${bundleOut}.map`;
       execSync(
-        `npx react-native bundle --platform ${platform} --dev false --entry-file index.js --bundle-output ${bundleOut} --sourcemap-output ${mapOut}`,
+        `npx react-native bundle --platform ${platform} --dev false --entry-file ${entryFile} --bundle-output ${bundleOut} --sourcemap-output ${mapOut}`,
         { cwd: projectRoot, stdio: ['pipe', 'pipe', 'pipe'] }
       );
     }

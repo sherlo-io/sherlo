@@ -7,6 +7,7 @@ import {
   parseErrorSections,
   detectPlatform,
   detectProjectType,
+  detectEntryFile,
   findSourceMap,
   applySourceMap,
 } from '../showError';
@@ -110,6 +111,35 @@ describe('parseErrorSections', () => {
     const sections = parseErrorSections(input);
     const stackSection = sections.find((s) => s.header === 'Stack trace')!;
     expect(stackSection.lines).toContain('    (blank line above preserved)');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// detectEntryFile
+// ---------------------------------------------------------------------------
+
+describe('detectEntryFile', () => {
+  it('reads main from package.json when present', () => {
+    const dir = makeTempDir();
+    writeJson(dir, 'package.json', { main: 'index.ts' });
+    expect(detectEntryFile(dir)).toBe('index.ts');
+  });
+
+  it('falls back to index.js when main is absent', () => {
+    const dir = makeTempDir();
+    writeJson(dir, 'package.json', { dependencies: {} });
+    expect(detectEntryFile(dir)).toBe('index.js');
+  });
+
+  it('falls back to index.js when package.json missing', () => {
+    const dir = makeTempDir();
+    expect(detectEntryFile(dir)).toBe('index.js');
+  });
+
+  it('falls back to index.js when main is empty string', () => {
+    const dir = makeTempDir();
+    writeJson(dir, 'package.json', { main: '' });
+    expect(detectEntryFile(dir)).toBe('index.js');
   });
 });
 
