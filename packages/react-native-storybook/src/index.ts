@@ -28,29 +28,45 @@ try {
 } catch (_) {}
 
 function installSherloIntegration(): void {
+  console.warn('[Sherlo] index side effect: entered installSherloIntegration');
+
   const SherloModule = require('./SherloModule').default;
+  console.warn('[Sherlo] index side effect: SherloModule required, type=' + typeof SherloModule);
+
   const isTesting =
     SherloModule &&
     typeof SherloModule.getMode === 'function' &&
     SherloModule.getMode() === 'testing';
+  console.warn('[Sherlo] index side effect: isTesting=' + isTesting + ', mode=' + (typeof SherloModule?.getMode === 'function' ? SherloModule.getMode() : 'no-getMode'));
 
   if (isTesting) {
+    console.warn('[Sherlo] index side effect: about to call appendFile');
     SherloModule.appendFile(
       'protocol.sherlo',
       JSON.stringify({ action: 'JS_EVAL_COMPLETE', timestamp: Date.now(), entity: 'app' }) + '\n'
     );
+    console.warn('[Sherlo] index side effect: appendFile returned');
   }
 
+  console.warn('[Sherlo] index side effect: about to patchAppRegistryWithBoundary');
   patchAppRegistryWithBoundary(SherloModule, isTesting);
+  console.warn('[Sherlo] index side effect: patchAppRegistryWithBoundary returned');
 }
 
 function patchAppRegistryWithBoundary(SherloModule: any, isTesting: boolean): void {
+  console.warn('[Sherlo] patchAppRegistry: entered');
+
+  console.warn('[Sherlo] patchAppRegistry: about to require react-native');
   const RN = require('react-native');
+  console.warn('[Sherlo] patchAppRegistry: react-native required, has AppRegistry=' + !!(RN && RN.AppRegistry));
+
   const AR = RN && RN.AppRegistry;
   if (!AR || typeof AR.registerComponent !== 'function' || AR.__sherloBoundaryPatched) return;
   AR.__sherloBoundaryPatched = true;
 
+  console.warn('[Sherlo] patchAppRegistry: about to require react');
   const React = require('react');
+  console.warn('[Sherlo] patchAppRegistry: react required');
 
   function reportJsError(error: any, source: string): void {
     if (!isTesting) return;
@@ -83,6 +99,7 @@ function patchAppRegistryWithBoundary(SherloModule: any, isTesting: boolean): vo
     return this.state.caught ? null : this.props.children;
   };
 
+  console.warn('[Sherlo] patchAppRegistry: about to monkey-patch registerComponent');
   const origRegister = AR.registerComponent.bind(AR);
   AR.registerComponent = function sherloRegisterComponent(appKey: string, componentProvider: () => any) {
     return origRegister(appKey, () => {
@@ -97,4 +114,5 @@ function patchAppRegistryWithBoundary(SherloModule: any, isTesting: boolean): vo
       return SherloRootWrapper;
     });
   };
+  console.warn('[Sherlo] patchAppRegistry: registerComponent patched, exiting');
 }
