@@ -81,6 +81,48 @@ function patchAppRegistryWithBoundary(SherloModule: any, isTesting: boolean): vo
     } catch (_) {}
   }
 
+  function writeJsErrorEntry(error: any, errorInfo: any, source: string): void {
+    if (!isTesting) return;
+    try {
+      const RN = require('react-native');
+      const Platform = RN.Platform;
+      const sdkVersion = require('../package.json').version;
+      const rnVersion = RN.Version || 'unknown';
+
+      const data = {
+        name: (error && error.name) || 'Error',
+        message: (error && error.message) || String(error),
+        stack: normalizeStack((error && error.stack) || ''),
+        componentStack: (errorInfo && errorInfo.componentStack) || null,
+        digest: (errorInfo && errorInfo.digest) || null,
+        cause: error && error.cause
+          ? {
+              name: error.cause.name,
+              message: error.cause.message,
+              stack: normalizeStack((error.cause.stack) || ''),
+            }
+          : null,
+        source: source,
+        errorTimestamp: Date.now(),
+        context: {
+          sdkVersion: sdkVersion,
+          platform: Platform.OS,
+          platformVersion: Platform.Version != null ? String(Platform.Version) : null,
+          rnVersion: rnVersion,
+          jsEngine:
+            typeof (global as any).HermesInternal !== 'undefined' &&
+            (global as any).HermesInternal != null
+              ? 'hermes'
+              : 'jsc',
+          mode: 'testing',
+        },
+      };
+
+      const entry = { action: 'JS_ERROR', timestamp: Date.now(), entity: 'app', data: data };
+      SherloModule.appendFile('protocol.sherlo', JSON.stringify(entry) + '\n');
+    } catch (_) {}
+  }
+
   // ES5-style class to avoid transpilation surprises in user bundles.
   function SherloErrorBoundary(this: any, props: any) {
     React.Component.call(this, props);
@@ -90,8 +132,8 @@ function patchAppRegistryWithBoundary(SherloModule: any, isTesting: boolean): vo
   SherloErrorBoundary.prototype.constructor = SherloErrorBoundary;
   (SherloErrorBoundary as any).displayName = 'SherloErrorBoundary';
   (SherloErrorBoundary as any).getDerivedStateFromError = () => ({ caught: true });
-  SherloErrorBoundary.prototype.componentDidCatch = function (error: any) {
-    reportJsError(error, 'errorBoundary');
+  SherloErrorBoundary.prototype.componentDidCatch = function (error: any, errorInfo: any) {
+    writeJsErrorEntry(error, errorInfo, 'errorBoundary');
     // Re-propagate so the standard fatal flow (redbox in dev, native crash in prod) runs.
     if ((global as any).ErrorUtils && typeof (global as any).ErrorUtils.reportFatalError === 'function') {
       try { (global as any).ErrorUtils.reportFatalError(error); } catch (_) {}
