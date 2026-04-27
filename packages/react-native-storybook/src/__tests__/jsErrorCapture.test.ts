@@ -23,19 +23,26 @@ interface SherloModuleMock {
 interface FakeGlobal {
   ErrorUtils: {
     getGlobalHandler: ReturnType<typeof vi.fn>;
-    setGlobalHandler: ReturnType<typeof vi.fn>;
+    // setGlobalHandler starts as a vi.fn but gets REPLACED by the polyfill
+    // interceptor. Use _origSetGlobalHandler to access the original mock.
+    setGlobalHandler: Function;
     reportFatalError: ReturnType<typeof vi.fn>;
   };
   require: (id: string) => unknown;
+  // The original vi.fn before the polyfill interceptor replaced it.
+  // origSet(sherloChain) is how the polyfill installs the handler, so
+  // _origSetGlobalHandler.mock.calls[0][0] gives you sherloChain.
+  _origSetGlobalHandler: ReturnType<typeof vi.fn>;
 }
 
 function buildFakeGlobal(sherloModule: SherloModuleMock, appRegistryMock?: { registerComponent: ReturnType<typeof vi.fn> }): FakeGlobal {
-  const handlers: Array<(error: Error, isFatal: boolean) => void> = [];
+  const installedHandlers: Array<(error: Error, isFatal: boolean) => void> = [];
+  const origSetGlobalHandler = vi.fn((h: (error: Error, isFatal: boolean) => void) => installedHandlers.push(h));
 
   const fakeGlobal: FakeGlobal = {
     ErrorUtils: {
-      getGlobalHandler: vi.fn(() => handlers[handlers.length - 1] ?? null),
-      setGlobalHandler: vi.fn((h) => handlers.push(h)),
+      getGlobalHandler: vi.fn(() => installedHandlers[installedHandlers.length - 1] ?? null),
+      setGlobalHandler: origSetGlobalHandler,
       reportFatalError: vi.fn(),
     },
     require: (id: string) => {
@@ -53,6 +60,7 @@ function buildFakeGlobal(sherloModule: SherloModuleMock, appRegistryMock?: { reg
       }
       throw new Error(`Unexpected require: ${id}`);
     },
+    _origSetGlobalHandler: origSetGlobalHandler,
   };
 
   return fakeGlobal;
@@ -82,13 +90,16 @@ describe('polyfill - ErrorUtils global handler chain', () => {
   });
 
   it('installs a new global error handler', () => {
-    expect(fakeGlobal.ErrorUtils.setGlobalHandler).toHaveBeenCalledOnce();
+    // The polyfill installs sherloChain via origSet(sherloChain).
+    // It also replaces global.ErrorUtils.setGlobalHandler with the interceptor.
+    expect(fakeGlobal._origSetGlobalHandler).toHaveBeenCalledWith(expect.any(Function));
   });
 
   it('calls sendJsError with message, stack, and "globalHandler" source', () => {
-    const installedHandler = fakeGlobal.ErrorUtils.setGlobalHandler.mock.calls[0][0] as (e: Error, fatal: boolean) => void;
+    // sherloChain is the handler installed via origSet in the interceptor setup.
+    const sherloChain = fakeGlobal._origSetGlobalHandler.mock.calls[0][0] as (e: Error, fatal: boolean) => void;
     const error = new Error('test error');
-    installedHandler(error, true);
+    sherloChain(error, true);
     expect(sherlo.sendJsError).toHaveBeenCalledWith(
       'test error',
       error.stack ?? '',
@@ -98,22 +109,20 @@ describe('polyfill - ErrorUtils global handler chain', () => {
 
   it('does NOT call sendJsError when mode is not testing', () => {
     sherlo.getMode.mockReturnValue('default');
-    const installedHandler = fakeGlobal.ErrorUtils.setGlobalHandler.mock.calls[0][0] as (e: Error, fatal: boolean) => void;
-    installedHandler(new Error('boom'), false);
+    const sherloChain = fakeGlobal._origSetGlobalHandler.mock.calls[0][0] as (e: Error, fatal: boolean) => void;
+    sherloChain(new Error('boom'), false);
     expect(sherlo.sendJsError).not.toHaveBeenCalled();
   });
 
-  it('chains to the original handler even in testing mode', async () => {
+  it('chains to the original handler even in testing mode', () => {
     const originalHandler = vi.fn();
-    // Simulate original handler already being set
-    fakeGlobal.ErrorUtils.getGlobalHandler.mockReturnValue(originalHandler);
-    // Re-run polyfill to pick up the new "original"; flush microtasks so the
-    // deferred Promise.resolve().then() callback runs before we inspect mocks.
-    runPolyfill(fakeGlobal);
-    await Promise.resolve();
-    const installedHandler = fakeGlobal.ErrorUtils.setGlobalHandler.mock.calls[1][0] as (e: Error, fatal: boolean) => void;
+    // The interceptor replaced setGlobalHandler. Calling it updates lastHandler
+    // and re-installs sherloChain. sherloChain then chains to the new lastHandler.
+    (fakeGlobal.ErrorUtils.setGlobalHandler as (h: Function) => void)(originalHandler);
+    // sherloChain is the same function object regardless of call count.
+    const sherloChain = fakeGlobal._origSetGlobalHandler.mock.calls[0][0] as (e: Error, fatal: boolean) => void;
     const error = new Error('chained');
-    installedHandler(error, false);
+    sherloChain(error, false);
     expect(originalHandler).toHaveBeenCalledWith(error, false);
   });
 });
@@ -149,7 +158,7 @@ describe('polyfill - AppRegistry.registerComponent monkey-patch', () => {
     // with a factory that returns the wrapper.
     // The mock captures the provider function passed to the original.
     const MyComponent = () => null;
-    const appRegistryMock = fakeGlobal.require('react-native') as { AppRegistry: { registerComponent: ReturnType<typeof vi.fn> } };
+    const appRegistryMock = fakeGlobal.require('react-native') as { AppRegistry: { registerComponent: Function } };
     appRegistryMock.AppRegistry.registerComponent('TestApp', () => MyComponent);
     expect(originalRegisterComponent).toHaveBeenCalled();
   });
@@ -173,7 +182,7 @@ describe('polyfill - file structure invariants', () => {
   });
 
   it('always re-invokes original handler after reporting', () => {
-    expect(polyfillSource).toContain('originalHandler(error, isFatal)');
+    expect(polyfillSource).toContain('lastHandler(error, isFatal)');
   });
 
   it('re-propagates via ErrorUtils.reportFatalError after errorBoundary catch', () => {
