@@ -2,7 +2,6 @@ import chalk from 'chalk';
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-import { SourceMapConsumer } from 'source-map';
 
 export type ProjectType = 'expo' | 'bare-rn';
 export type Platform = 'ios' | 'android';
@@ -13,11 +12,6 @@ export type StackFrame = {
   line: number;
   col: number;
   raw: string;
-};
-
-export type SymbolicatedFrame = {
-  resolved: boolean;
-  output: string;
 };
 
 export type ErrorSection = {
@@ -74,10 +68,21 @@ export function detectProjectType(projectRoot: string): ProjectType {
 }
 
 // ---------------------------------------------------------------------------
+// Entry file detection
+// ---------------------------------------------------------------------------
+
+export function detectEntryFile(projectRoot: string): string {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'));
+    if (typeof pkg.main === 'string' && pkg.main.length > 0) return pkg.main;
+  } catch { /* ignore */ }
+  return 'index.js';
+}
+
+// ---------------------------------------------------------------------------
 // Section parsing
 // ---------------------------------------------------------------------------
 
-// Known section headers in the js-error.txt format produced by Sherlo.
 const SECTION_HEADER_RE = /^(Component tree|Stack trace|Caused by:[^\n]*):\s*$/;
 
 export function parseErrorSections(errorText: string): ErrorSection[] {
@@ -99,7 +104,7 @@ export function parseErrorSections(errorText: string): ErrorSection[] {
 }
 
 // ---------------------------------------------------------------------------
-// Stack frame parsing (from a block of lines)
+// Stack frame parsing
 // ---------------------------------------------------------------------------
 
 const FRAME_RE = /^[ \t]+at\s+(\S+)\s+\(([^)]+):(\d+):(\d+)\)\s*$/;
@@ -121,18 +126,6 @@ export function parseStackFrames(text: string): StackFrame[] {
 }
 
 // ---------------------------------------------------------------------------
-// Entry file detection
-// ---------------------------------------------------------------------------
-
-export function detectEntryFile(projectRoot: string): string {
-  try {
-    const pkg = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'));
-    if (typeof pkg.main === 'string' && pkg.main.length > 0) return pkg.main;
-  } catch { /* ignore */ }
-  return 'index.js';
-}
-
-// ---------------------------------------------------------------------------
 // Source map build
 // ---------------------------------------------------------------------------
 
@@ -144,6 +137,8 @@ export function buildSourceMaps(
   const cacheDir = path.join(projectRoot, '.sherlo-cache');
   if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
 
+  const entryFile = detectEntryFile(projectRoot);
+
   const start = Date.now();
   process.stdout.write(chalk.dim('Building source maps...'));
 
@@ -151,8 +146,6 @@ export function buildSourceMaps(
     const elapsed = Math.round((Date.now() - start) / 1000);
     process.stdout.write(chalk.dim(` ${elapsed}s`));
   }, 5000);
-
-  const entryFile = detectEntryFile(projectRoot);
 
   try {
     if (projectType === 'expo') {
@@ -199,7 +192,7 @@ export function findSourceMap(
     const plainMap = path.join(projectRoot, '.sherlo-cache', `bundle.${platform}.js.map`);
     if (fs.existsSync(plainMap)) return plainMap;
 
-    // Secondary: stale dist from old 'expo export' run — warn if it's a .hbc.map
+    // Secondary: stale dist from old 'expo export' run — refuse if it's a .hbc.map
     const distDir = path.join(projectRoot, '.sherlo-cache', 'dist', '_expo', 'static', 'js', platform);
     if (fs.existsSync(distDir)) {
       const maps = fs.readdirSync(distDir).filter((f) => f.endsWith('.map'));
@@ -228,84 +221,96 @@ export function findSourceMap(
 }
 
 // ---------------------------------------------------------------------------
-// Symbolication
+// metro-symbolicate shell-out
 // ---------------------------------------------------------------------------
 
-export async function applySourceMap(
-  frames: StackFrame[],
-  sourceMapPath: string
-): Promise<SymbolicatedFrame[]> {
-  const rawMap = JSON.parse(fs.readFileSync(sourceMapPath, 'utf8'));
-  return SourceMapConsumer.with(rawMap, null, (consumer) => {
-    return frames.map((frame) => {
-      const pos = consumer.originalPositionFor({ line: frame.line, column: frame.col });
-      if (pos.source && pos.line != null) {
-        // Use mapped name when available; fall back to minified fn name.
-        // Metro's minifier strips function names, so pos.name is often null —
-        // the file path + line:col is still actionable without the function name.
-        const name = pos.name || frame.fnName;
-        const src = pos.source.replace(/^webpack:\/\/\//, '');
-        return {
-          resolved: true,
-          output: `    at ${name} (${src}:${pos.line}:${pos.column ?? 0})`,
-        };
-      }
-      return {
-        resolved: false,
-        output: `    [unresolved] ${frame.raw.trimStart()}`,
-      };
+export function runMetroSymbolicate(
+  frameLines: string[],
+  sourceMapPath: string,
+  projectRoot: string
+): string[] {
+  if (frameLines.length === 0) return [];
+  const input = frameLines.join('\n');
+  try {
+    const result = execSync(`npx metro-symbolicate ${sourceMapPath}`, {
+      cwd: projectRoot,
+      input,
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
-  });
+    const lines = result.toString().split('\n');
+    // metro-symbolicate may output fewer or more lines; align by count
+    return lines.slice(0, frameLines.length);
+  } catch (err: any) {
+    throw new Error(`metro-symbolicate failed: ${err.message || String(err)}`);
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Section-aware symbolication
+// Section-aware symbolication via metro-symbolicate
 // ---------------------------------------------------------------------------
 
-export async function symbolicateSections(
+export type SymbolicateResult = {
+  output: string;
+  totalFrames: number;
+  resolvedFrames: number;
+};
+
+export function symbolicateSections(
   sections: ErrorSection[],
-  sourceMapPath: string
-): Promise<string> {
-  const rawMap = JSON.parse(fs.readFileSync(sourceMapPath, 'utf8'));
+  sourceMapPath: string,
+  projectRoot: string
+): SymbolicateResult {
+  // Collect all frame lines across non-preamble sections, in order
+  type FrameRef = { sectionIdx: number; lineIdx: number; originalFile: string };
+  const frameRefs: FrameRef[] = [];
+  const frameInputLines: string[] = [];
 
-  return SourceMapConsumer.with(rawMap, null, async (consumer) => {
-    const outputParts: string[] = [];
-    let totalFrames = 0;
-    let resolvedFrames = 0;
-
-    for (const section of sections) {
-      if (section.header !== null) {
-        outputParts.push(`${section.header}:`);
-      }
-
-      for (const line of section.lines) {
-        const m = FRAME_RE.exec(line);
-        if (!m) {
-          outputParts.push(line);
-          continue;
-        }
-        totalFrames++;
-        const frame: StackFrame = {
-          fnName: m[1],
-          file: m[2],
-          line: parseInt(m[3], 10),
-          col: parseInt(m[4], 10),
-          raw: line,
-        };
-        const pos = consumer.originalPositionFor({ line: frame.line, column: frame.col });
-        if (pos.source && pos.line != null) {
-          resolvedFrames++;
-          const name = pos.name || frame.fnName;
-          const src = pos.source.replace(/^webpack:\/\/\//, '');
-          outputParts.push(chalk.green(`    at ${name} (${src}:${pos.line}:${pos.column ?? 0})`));
-        } else {
-          outputParts.push(chalk.yellow(`    [unresolved] ${line.trimStart()}`));
-        }
+  for (let si = 0; si < sections.length; si++) {
+    const section = sections[si];
+    if (section.header === null) continue; // skip preamble — printed separately
+    for (let li = 0; li < section.lines.length; li++) {
+      const m = FRAME_RE.exec(section.lines[li]);
+      if (m) {
+        frameRefs.push({ sectionIdx: si, lineIdx: li, originalFile: m[2] });
+        frameInputLines.push(`    at ${m[1]} (${m[2]}:${m[3]}:${m[4]})`);
       }
     }
+  }
 
-    return JSON.stringify({ output: outputParts.join('\n'), totalFrames, resolvedFrames });
-  });
+  const symbolicatedLines = runMetroSymbolicate(frameInputLines, sourceMapPath, projectRoot);
+
+  // Rebuild sections with symbolicated frames, 2-space indent throughout
+  const outputLines: string[] = [];
+  let totalFrames = 0;
+  let resolvedFrames = 0;
+  let frameIdx = 0;
+
+  for (const section of sections) {
+    if (section.header === null) continue; // skip preamble
+
+    outputLines.push(`${section.header}:`);
+    for (const line of section.lines) {
+      const m = FRAME_RE.exec(line);
+      if (!m) {
+        // non-frame line (blank, etc.) — pass through
+        if (line.trim() !== '') outputLines.push(line);
+        continue;
+      }
+
+      totalFrames++;
+      const symLine = (symbolicatedLines[frameIdx] || '').trim();
+      frameIdx++;
+
+      const originalFile = m[2];
+      const resolved = symLine.length > 0 && !symLine.includes(originalFile);
+      if (resolved) resolvedFrames++;
+
+      const outLine = resolved ? symLine : `at ${m[1]} (${m[2]}:${m[3]}:${m[4]})`;
+      outputLines.push(`  ${outLine}`);
+    }
+  }
+
+  return { output: outputLines.join('\n'), totalFrames, resolvedFrames };
 }
 
 // ---------------------------------------------------------------------------
@@ -374,36 +379,30 @@ async function showError(url: string): Promise<void> {
   // 6. Parse sections
   const sections = parseErrorSections(errorText);
   const allFrames = parseStackFrames(errorText);
+
+  // 7. Print preamble (error message) — exactly once
+  printPreamble(sections);
+
   if (allFrames.length === 0) {
     console.log(chalk.yellow('No stack frames found in error text.'));
-    printPreamble(sections);
     return;
   }
 
-  // 7. Symbolicate with section structure preserved
-  let symbolicatedJson: string;
+  // 8. Symbolicate with section structure preserved
+  let result: SymbolicateResult;
   try {
-    symbolicatedJson = await symbolicateSections(sections, sourceMapPath);
+    result = symbolicateSections(sections, sourceMapPath, projectRoot);
   } catch (err: any) {
     console.error(chalk.red(`Symbolication failed: ${err.message}`));
     process.exit(1);
   }
 
-  const { output, totalFrames, resolvedFrames } = JSON.parse(symbolicatedJson) as {
-    output: string;
-    totalFrames: number;
-    resolvedFrames: number;
-  };
-
-  // 8. Output
-  printPreamble(sections);
+  // 9. Print symbolicated sections
+  const { output, totalFrames, resolvedFrames } = result;
+  console.log('\n' + output);
+  console.log(chalk.dim(`\nResolved ${resolvedFrames} of ${totalFrames} frames`));
 
   const pct = totalFrames > 0 ? Math.round((resolvedFrames / totalFrames) * 100) : 0;
-  const headerColor = pct === 100 ? chalk.green : pct >= 50 ? chalk.yellow : chalk.red;
-  console.log(headerColor.bold('\nSymbolicated output:'));
-  console.log(output);
-
-  console.log(chalk.dim(`\nResolved ${resolvedFrames} of ${totalFrames} frames`));
   if (pct < 50) {
     console.log(
       chalk.yellow('Most frames did not resolve. Source maps may be from a different commit.')
@@ -415,10 +414,7 @@ function printPreamble(sections: ErrorSection[]): void {
   const preamble = sections.find((s) => s.header === null);
   if (!preamble) return;
   const text = preamble.lines.join('\n').trimEnd();
-  if (text) {
-    console.log(chalk.bold('\nOriginal error:'));
-    console.log(text);
-  }
+  if (text) console.log('\n' + text);
 }
 
 export default showError;

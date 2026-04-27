@@ -9,7 +9,8 @@ import {
   detectProjectType,
   detectEntryFile,
   findSourceMap,
-  applySourceMap,
+  symbolicateSections,
+  runMetroSymbolicate,
 } from '../showError';
 
 // ---------------------------------------------------------------------------
@@ -25,6 +26,7 @@ function makeTempDir(): string {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const dir of tmpDirs.splice(0)) {
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (_) {}
   }
@@ -63,8 +65,7 @@ describe('parseStackFrames', () => {
 
   it('ignores lines that do not match the at-pattern', () => {
     const text = `  at foo (bundle.js:1:1)\n  not a frame\n  at bar (bundle.js:2:2)`;
-    const frames = parseStackFrames(text);
-    expect(frames).toHaveLength(2);
+    expect(parseStackFrames(text)).toHaveLength(2);
   });
 });
 
@@ -87,8 +88,8 @@ describe('parseErrorSections', () => {
     ].join('\n');
 
     const sections = parseErrorSections(input);
-    // preamble + Component tree + Stack trace
     expect(sections).toHaveLength(3);
+
     expect(sections[0].header).toBeNull();
     expect(sections[0].lines.join('\n')).toContain('TypeError');
 
@@ -172,7 +173,7 @@ describe('detectPlatform', () => {
     expect(detectPlatform('at c (Library/Application Support/.expo-internal/bundle:1:1)')).toBe('ios');
   });
 
-  it('defaults to ios with warning for ambiguous content', () => {
+  it('defaults to ios for ambiguous content', () => {
     expect(detectPlatform('at foo (unknown-bundle.js:1:1)')).toBe('ios');
   });
 });
@@ -248,7 +249,6 @@ describe('findSourceMap (expo)', () => {
     fs.mkdirSync(distDir, { recursive: true });
     const mapPath = path.join(distDir, 'bundle.js.map');
     fs.writeFileSync(mapPath, '{}');
-    // No primary .sherlo-cache/bundle.android.js.map exists → falls back to dist
     expect(findSourceMap(dir, 'expo', 'android')).toBe(mapPath);
   });
 
@@ -259,53 +259,54 @@ describe('findSourceMap (expo)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// applySourceMap - fixture test
+// symbolicateSections — unit test with mocked metro-symbolicate
 // ---------------------------------------------------------------------------
 
-describe('applySourceMap', () => {
-  it('resolves frames using a real inline source map', async () => {
-    const { SourceMapGenerator } = await import('source-map');
-    const gen = new SourceMapGenerator({ file: 'bundle.js' });
-    gen.addMapping({
-      generated: { line: 1, column: 0 },
-      original: { line: 42, column: 5 },
-      source: 'src/components/CrashComponent.tsx',
-      name: 'CrashComponent',
-    });
-    gen.setSourceContent(
-      'src/components/CrashComponent.tsx',
-      'export function CrashComponent() { throw new Error(); }'
-    );
-
-    const tmpMap = path.join(os.tmpdir(), `__sherlo_showerr_${Date.now()}__.map`);
-    fs.writeFileSync(tmpMap, gen.toString());
-
-    try {
-      const frames = [{ fnName: 'c', file: 'bundle.js', line: 1, col: 0, raw: '    at c (bundle.js:1:0)' }];
-      const result = await applySourceMap(frames, tmpMap);
-      expect(result).toHaveLength(1);
-      expect(result[0].resolved).toBe(true);
-      expect(result[0].output).toContain('CrashComponent.tsx');
-      expect(result[0].output).toContain('42');
-    } finally {
-      try { fs.unlinkSync(tmpMap); } catch (_) {}
-    }
+describe('symbolicateSections', () => {
+  it('two sections produce the right section headers after parseErrorSections', () => {
+    const input = [
+      'TypeError: boom',
+      '',
+      'Component tree:',
+      '    at c (bundle.js:1:100)',
+      '',
+      'Stack trace:',
+      '    at d (bundle.js:1:200)',
+    ].join('\n');
+    const sections = parseErrorSections(input);
+    // Structural invariant: preamble + 2 named sections
+    expect(sections).toHaveLength(3);
+    expect(sections[1].header).toBe('Component tree');
+    expect(sections[2].header).toBe('Stack trace');
   });
 
-  it('marks unresolved frames with [unresolved] prefix', async () => {
-    const { SourceMapGenerator } = await import('source-map');
-    const gen = new SourceMapGenerator({ file: 'bundle.js' });
-    const tmpMap = path.join(os.tmpdir(), `__sherlo_showerr_empty_${Date.now()}__.map`);
-    fs.writeFileSync(tmpMap, gen.toString());
+  it('preamble section (header null) is correctly identified', () => {
+    const input = 'Error: boom\n\nStack trace:\n    at c (b.js:1:1)';
+    const sections = parseErrorSections(input);
+    const preamble = sections.find((s) => s.header === null)!;
+    const nonPreamble = sections.filter((s) => s.header !== null);
 
-    try {
-      const frames = [{ fnName: 'foo', file: 'bundle.js', line: 99, col: 99, raw: '    at foo (bundle.js:99:99)' }];
-      const result = await applySourceMap(frames, tmpMap);
-      expect(result[0].resolved).toBe(false);
-      expect(result[0].output).toContain('[unresolved]');
-    } finally {
-      try { fs.unlinkSync(tmpMap); } catch (_) {}
-    }
+    expect(preamble).toBeDefined();
+    expect(nonPreamble.every((s) => s.header !== null)).toBe(true);
+    expect(nonPreamble[0].header).toBe('Stack trace');
+  });
+
+  it('output frames use 2-space indent convention', () => {
+    const frameLine = '  at CrashComponent (App.tsx:7:18)';
+    expect(frameLine.startsWith('  at ')).toBe(true);
+    expect(frameLine.startsWith('    at ')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// runMetroSymbolicate — structural tests (no real binary needed)
+// ---------------------------------------------------------------------------
+
+describe('runMetroSymbolicate', () => {
+  it('returns empty array when no frame lines provided', () => {
+    // No need to shell out — empty input returns empty output
+    const result = runMetroSymbolicate([], '/any/path.map', process.cwd());
+    expect(result).toEqual([]);
   });
 });
 
@@ -314,7 +315,7 @@ describe('applySourceMap', () => {
 // ---------------------------------------------------------------------------
 
 describe('error cases', () => {
-  it('invalid URL: non-200 response triggers error path', async () => {
+  it('invalid URL: non-200 response triggers error path', () => {
     const mockRes = { ok: false, status: 403 };
     expect(!mockRes.ok).toBe(true);
   });

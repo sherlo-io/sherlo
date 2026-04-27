@@ -29,9 +29,6 @@
     "build": "rm -rf dist && ncc build src/index.ts --source-map --minify && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js",
     "test": "vitest run"
   },
-  "dependencies": {
-    "source-map": "^0.7.4"
-  },
   "devDependencies": {
     "@inquirer/core": "^10.3.2",
     "@inquirer/prompts": "^7.8.4",
