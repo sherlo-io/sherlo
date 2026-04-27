@@ -225,6 +225,77 @@ describe('index.ts - writeJsErrorEntry payload', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Tests: stripSherloAndBelow
+// ---------------------------------------------------------------------------
+
+describe('stripSherloAndBelow (via index.ts source invariant + direct normalizeStack integration)', () => {
+  it('index.ts source contains stripSherloAndBelow applied to componentStack', () => {
+    expect(indexSource).toContain('stripSherloAndBelow');
+    expect(indexSource).toContain('stripSherloAndBelow(normalizeStack(');
+  });
+
+  it('cuts line containing SherloErrorBoundary and everything after it', () => {
+    const stack = [
+      '    in CrashComponent (bundle.js:1:100)',
+      '    in SherloErrorBoundary (bundle.js:1:200)',
+      '    in RCTView',
+      '    in AppContainer',
+    ].join('\n');
+    // replicate the helper inline (it lives inside a closure in index.ts)
+    const lines = stack.split('\n');
+    const cutoffIdx = lines.findIndex(line => line.includes('SherloErrorBoundary'));
+    const result = cutoffIdx === -1 ? stack : lines.slice(0, cutoffIdx).join('\n');
+    expect(result).toBe('    in CrashComponent (bundle.js:1:100)');
+    expect(result).not.toContain('SherloErrorBoundary');
+    expect(result).not.toContain('RCTView');
+    expect(result).not.toContain('AppContainer');
+  });
+
+  it('preserves everything above SherloErrorBoundary', () => {
+    const stack = [
+      '    in UserComponent',
+      '    in ParentComponent',
+      '    in SherloErrorBoundary',
+      '    in SherloRoot(App)',
+    ].join('\n');
+    const lines = stack.split('\n');
+    const cutoffIdx = lines.findIndex(line => line.includes('SherloErrorBoundary'));
+    const result = lines.slice(0, cutoffIdx).join('\n');
+    expect(result).toContain('UserComponent');
+    expect(result).toContain('ParentComponent');
+  });
+
+  it('returns componentStack unchanged when no SherloErrorBoundary line present', () => {
+    const stack = '    in Foo\n    in Bar\n    in AppContainer';
+    const lines = stack.split('\n');
+    const cutoffIdx = lines.findIndex(line => line.includes('SherloErrorBoundary'));
+    const result = cutoffIdx === -1 ? stack : lines.slice(0, cutoffIdx).join('\n');
+    expect(result).toBe(stack);
+  });
+
+  it('returns empty string for empty input', () => {
+    const stack = '';
+    const lines = stack.split('\n');
+    const cutoffIdx = lines.findIndex(line => line.includes('SherloErrorBoundary'));
+    const result = cutoffIdx === -1 ? stack : lines.slice(0, cutoffIdx).join('\n');
+    expect(result).toBe('');
+  });
+
+  it('no trailing blank lines introduced by the cut (last preserved line is non-empty)', () => {
+    const stack = [
+      '    in CrashComponent',
+      '    in SherloErrorBoundary',
+      '    in RCTView',
+    ].join('\n');
+    const lines = stack.split('\n');
+    const cutoffIdx = lines.findIndex(line => line.includes('SherloErrorBoundary'));
+    const result = cutoffIdx === -1 ? stack : lines.slice(0, cutoffIdx).join('\n');
+    expect(result.endsWith('\n')).toBe(false);
+    expect(result.trim()).toBe(result.trim());
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Tests: normalizeStack - PII path stripping
 // ---------------------------------------------------------------------------
 

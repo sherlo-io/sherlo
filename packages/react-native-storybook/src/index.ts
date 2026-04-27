@@ -81,6 +81,14 @@ function patchAppRegistryWithBoundary(SherloModule: any, isTesting: boolean): vo
     } catch (_) {}
   }
 
+  function stripSherloAndBelow(componentStack: string): string {
+    if (!componentStack) return componentStack;
+    const lines = componentStack.split('\n');
+    const cutoffIdx = lines.findIndex(line => line.includes('SherloErrorBoundary'));
+    if (cutoffIdx === -1) return componentStack;
+    return lines.slice(0, cutoffIdx).join('\n');
+  }
+
   function writeJsErrorEntry(error: any, errorInfo: any): void {
     if (!isTesting) return;
     try {
@@ -88,7 +96,7 @@ function patchAppRegistryWithBoundary(SherloModule: any, isTesting: boolean): vo
         name: (error && error.name) || 'Error',
         message: (error && error.message) || String(error),
         stack: normalizeStack((error && error.stack) || ''),
-        componentStack: normalizeStack((errorInfo && errorInfo.componentStack) || ''),
+        componentStack: stripSherloAndBelow(normalizeStack((errorInfo && errorInfo.componentStack) || '')),
         digest: (errorInfo && errorInfo.digest) || null,
         cause: error && error.cause
           ? {
