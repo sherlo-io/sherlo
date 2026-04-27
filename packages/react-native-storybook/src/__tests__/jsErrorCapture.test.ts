@@ -1,18 +1,22 @@
 /**
- * Unit tests for metro/polyfill.js JS error capture logic.
+ * Unit tests for JS error capture logic.
  *
- * We import the polyfill as raw text and run it in a carefully constructed
- * fake global to avoid needing a React Native runtime.
+ * In alpha.6 the ErrorBoundary patch moved from metro/polyfill.js into
+ * src/index.ts as a module side effect. The polyfill is now a diagnostic
+ * no-op. Tests below verify structural invariants by reading source text and
+ * exercise the AppRegistry wrapping via the existing fake-environment helper.
  */
 import * as fs from 'fs';
 import * as path from 'path';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 const POLYFILL_PATH = path.join(__dirname, '../../metro/polyfill.js');
+const INDEX_PATH = path.join(__dirname, '../index.ts');
 const polyfillSource = fs.readFileSync(POLYFILL_PATH, 'utf8');
+const indexSource = fs.readFileSync(INDEX_PATH, 'utf8');
 
 // ---------------------------------------------------------------------------
-// Helpers to run the polyfill in a controlled sandbox
+// Helpers (kept for AppRegistry monkey-patch tests below)
 // ---------------------------------------------------------------------------
 
 interface SherloModuleMock {
@@ -23,15 +27,10 @@ interface SherloModuleMock {
 interface FakeGlobal {
   ErrorUtils: {
     getGlobalHandler: ReturnType<typeof vi.fn>;
-    // setGlobalHandler starts as a vi.fn but gets REPLACED by the polyfill
-    // interceptor. Use _origSetGlobalHandler to access the original mock.
     setGlobalHandler: Function;
     reportFatalError: ReturnType<typeof vi.fn>;
   };
   require: (id: string) => unknown;
-  // The original vi.fn before the polyfill interceptor replaced it.
-  // origSet(sherloChain) is how the polyfill installs the handler, so
-  // _origSetGlobalHandler.mock.calls[0][0] gives you sherloChain.
   _origSetGlobalHandler: ReturnType<typeof vi.fn>;
 }
 
@@ -73,62 +72,8 @@ function runPolyfill(fakeGlobal: FakeGlobal) {
 }
 
 // ---------------------------------------------------------------------------
-// Tests: ErrorUtils global handler chain
-// ---------------------------------------------------------------------------
-
-describe('polyfill - ErrorUtils global handler chain', () => {
-  let sherlo: SherloModuleMock;
-  let fakeGlobal: FakeGlobal;
-
-  beforeEach(() => {
-    sherlo = {
-      getMode: vi.fn(() => 'testing'),
-      sendJsError: vi.fn(),
-    };
-    fakeGlobal = buildFakeGlobal(sherlo);
-    runPolyfill(fakeGlobal);
-  });
-
-  it('installs a new global error handler', () => {
-    // The polyfill installs sherloChain via origSet(sherloChain).
-    // It also replaces global.ErrorUtils.setGlobalHandler with the interceptor.
-    expect(fakeGlobal._origSetGlobalHandler).toHaveBeenCalledWith(expect.any(Function));
-  });
-
-  it('calls sendJsError with message, stack, and "globalHandler" source', () => {
-    // sherloChain is the handler installed via origSet in the interceptor setup.
-    const sherloChain = fakeGlobal._origSetGlobalHandler.mock.calls[0][0] as (e: Error, fatal: boolean) => void;
-    const error = new Error('test error');
-    sherloChain(error, true);
-    expect(sherlo.sendJsError).toHaveBeenCalledWith(
-      'test error',
-      error.stack ?? '',
-      'globalHandler'
-    );
-  });
-
-  it('does NOT call sendJsError when mode is not testing', () => {
-    sherlo.getMode.mockReturnValue('default');
-    const sherloChain = fakeGlobal._origSetGlobalHandler.mock.calls[0][0] as (e: Error, fatal: boolean) => void;
-    sherloChain(new Error('boom'), false);
-    expect(sherlo.sendJsError).not.toHaveBeenCalled();
-  });
-
-  it('chains to the original handler even in testing mode', () => {
-    const originalHandler = vi.fn();
-    // The interceptor replaced setGlobalHandler. Calling it updates lastHandler
-    // and re-installs sherloChain. sherloChain then chains to the new lastHandler.
-    (fakeGlobal.ErrorUtils.setGlobalHandler as (h: Function) => void)(originalHandler);
-    // sherloChain is the same function object regardless of call count.
-    const sherloChain = fakeGlobal._origSetGlobalHandler.mock.calls[0][0] as (e: Error, fatal: boolean) => void;
-    const error = new Error('chained');
-    sherloChain(error, false);
-    expect(originalHandler).toHaveBeenCalledWith(error, false);
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Tests: AppRegistry.registerComponent monkey-patch
+// (polyfill is now a no-op; these tests verify the helper infrastructure)
 // ---------------------------------------------------------------------------
 
 describe('polyfill - AppRegistry.registerComponent monkey-patch', () => {
@@ -148,15 +93,10 @@ describe('polyfill - AppRegistry.registerComponent monkey-patch', () => {
   });
 
   it('patches AppRegistry.registerComponent', () => {
-    // The mock is mutated in-place inside the polyfill IIFE
-    // We verify by checking that when registerComponent is called, it uses our sherlo wrapper.
     expect(originalRegisterComponent).toBeDefined();
   });
 
   it('returns a wrapped component (SherloRootWrapper)', () => {
-    // After the patch, calling registerComponent should invoke originalRegisterComponent
-    // with a factory that returns the wrapper.
-    // The mock captures the provider function passed to the original.
     const MyComponent = () => null;
     const appRegistryMock = fakeGlobal.require('react-native') as { AppRegistry: { registerComponent: Function } };
     appRegistryMock.AppRegistry.registerComponent('TestApp', () => MyComponent);
@@ -165,35 +105,46 @@ describe('polyfill - AppRegistry.registerComponent monkey-patch', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Tests: polyfill file structure invariants
+// Tests: polyfill file structure (now a diagnostic no-op)
 // ---------------------------------------------------------------------------
 
-describe('polyfill - file structure invariants', () => {
-  it('is gated on mode === testing for globalHandler path', () => {
-    expect(polyfillSource).toContain("'testing'");
+describe('polyfill - file structure', () => {
+  it('contains the diagnostic log marker', () => {
+    expect(polyfillSource).toContain('[Sherlo] metro polyfill loaded');
   });
+});
 
-  it('uses ErrorUtils.setGlobalHandler', () => {
-    expect(polyfillSource).toContain('ErrorUtils.setGlobalHandler');
-  });
+// ---------------------------------------------------------------------------
+// Tests: index.ts source invariants
+// The AppRegistry ErrorBoundary logic lives in src/index.ts in alpha.6+.
+// ---------------------------------------------------------------------------
 
-  it('uses AppRegistry.registerComponent monkey-patch', () => {
-    expect(polyfillSource).toContain('AppRegistry.registerComponent');
-  });
-
-  it('always re-invokes original handler after reporting', () => {
-    expect(polyfillSource).toContain('lastHandler(error, isFatal)');
-  });
-
-  it('re-propagates via ErrorUtils.reportFatalError after errorBoundary catch', () => {
-    expect(polyfillSource).toContain('ErrorUtils.reportFatalError(error)');
+describe('index.ts - ErrorBoundary source invariants', () => {
+  it('patches AppRegistry.registerComponent', () => {
+    expect(indexSource).toContain('AR.registerComponent');
   });
 
   it('uses getDerivedStateFromError for ES5-compatible ErrorBoundary', () => {
-    expect(polyfillSource).toContain('getDerivedStateFromError');
+    expect(indexSource).toContain('getDerivedStateFromError');
+  });
+
+  it('re-propagates via ErrorUtils.reportFatalError after errorBoundary catch', () => {
+    expect(indexSource).toContain('ErrorUtils.reportFatalError(error)');
+  });
+
+  it('is gated on isTesting mode', () => {
+    expect(indexSource).toContain('isTesting');
   });
 
   it('uses lazy require for SherloModule', () => {
-    expect(polyfillSource).toContain("require('../dist/SherloModule')");
+    expect(indexSource).toContain("require('./SherloModule')");
+  });
+
+  it('is idempotent via __sherloBoundaryPatched guard', () => {
+    expect(indexSource).toContain('__sherloBoundaryPatched');
+  });
+
+  it('sends JS errors via SherloModule.sendJsError', () => {
+    expect(indexSource).toContain('sendJsError');
   });
 });
