@@ -9,6 +9,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { normalizeStack } from '../normalizeStack';
 
 const POLYFILL_PATH = path.join(__dirname, '../../metro/polyfill.js');
 const INDEX_PATH = path.join(__dirname, '../index.ts');
@@ -146,5 +147,48 @@ describe('index.ts - ErrorBoundary source invariants', () => {
 
   it('sends JS errors via SherloModule.sendJsError', () => {
     expect(indexSource).toContain('sendJsError');
+  });
+
+  it('normalizes stack traces via normalizeStack before sending', () => {
+    expect(indexSource).toContain('normalizeStack');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: normalizeStack - PII path stripping
+// ---------------------------------------------------------------------------
+
+describe('normalizeStack', () => {
+  it('strips iOS dev path (address at + absolute path with spaces in dir name)', () => {
+    const input =
+      'at CrashComponent (address at /Users/jdoe/Library/Developer/CoreSimulator/Devices/DEV-UUID/data/Containers/Data/Application/APP-UUID/Library/Application Support/.expo-internal/725082b41d5a6cfa0709c88b3206c4cf.bundle:1:792150)';
+    expect(normalizeStack(input)).toBe(
+      'at CrashComponent (725082b41d5a6cfa0709c88b3206c4cf.bundle:1:792150)'
+    );
+  });
+
+  it('strips iOS preview path (no address at, .jsbundle extension)', () => {
+    const input =
+      'at c (/Users/jdoe/Library/Developer/CoreSimulator/Devices/DEV-UUID/data/Containers/Data/Application/APP-UUID/Library/Application Support/.expo-internal/bundle-91d66976-9a30-47d9-b752-57c97ac593c7.jsbundle:633:288)';
+    expect(normalizeStack(input)).toBe(
+      'at c (bundle-91d66976-9a30-47d9-b752-57c97ac593c7.jsbundle:633:288)'
+    );
+  });
+
+  it('strips Android path (address at + absolute path, no bundle extension)', () => {
+    const input =
+      'at CrashComponent (address at /data/user/0/com.sherlo.brain.tester/files/.expo-internal/253b9a00862a433a3d431bac5000eb82:1:794571)';
+    expect(normalizeStack(input)).toBe(
+      'at CrashComponent (253b9a00862a433a3d431bac5000eb82:1:794571)'
+    );
+  });
+
+  it('leaves stack lines without filesystem paths unchanged', () => {
+    const line = 'at Object.foo (<anonymous>)';
+    expect(normalizeStack(line)).toBe(line);
+  });
+
+  it('returns empty string unchanged', () => {
+    expect(normalizeStack('')).toBe('');
   });
 });

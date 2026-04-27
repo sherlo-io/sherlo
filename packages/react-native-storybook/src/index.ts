@@ -6,6 +6,8 @@ export { default as openStorybook } from './openStorybook';
 
 export * from './types';
 
+import { normalizeStack } from './normalizeStack';
+
 // Auto-install ErrorBoundary wrapper around the React root, plus the
 // JS_EVAL_COMPLETE marker. Both are gated on testing mode and wrapped in
 // try/catch so any failure here never breaks user imports.
@@ -73,7 +75,7 @@ function patchAppRegistryWithBoundary(SherloModule: any, isTesting: boolean): vo
     try {
       SherloModule.sendJsError(
         error && error.message ? error.message : String(error),
-        (error && error.stack) || '',
+        normalizeStack((error && error.stack) || ''),
         source
       );
     } catch (_) {}
