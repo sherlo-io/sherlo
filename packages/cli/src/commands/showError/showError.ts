@@ -262,7 +262,8 @@ export function reformatSymbolicatedLine(rawLine: string): string {
   if (/^\d+$/.test(colOrName)) {
     return `at ${m[1]} (${cleanSource}:${lineNum}:${colOrName})`;
   }
-  // function name in column position
+  // Function name in column position. metro-symbolicate does not emit the original source column
+  // in this format — file:line is sufficient for navigation, so we leave col out.
   return `at ${colOrName} (${cleanSource}:${lineNum})`;
 }
 
@@ -330,8 +331,12 @@ export function symbolicateSections(
       const resolved = symLine.length > 0 && !symLine.includes(originalFile);
       if (resolved) resolvedFrames++;
 
-      const outLine = resolved ? reformatSymbolicatedLine(symLine) : `at ${m[1]} (${m[2]}:${m[3]}:${m[4]})`;
-      outputLines.push(`  ${outLine}`);
+      // Strip any leading whitespace from the frame text before adding our fixed 2-space indent,
+      // so both symbolicated and unresolved frames are uniformly indented.
+      const frameText = resolved
+        ? reformatSymbolicatedLine(symLine)
+        : `at ${m[1]} (${m[2]}:${m[3]}:${m[4]})`;
+      outputLines.push(`  ${frameText.trimStart()}`);
     }
   }
 
