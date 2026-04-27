@@ -202,7 +202,20 @@ describe('index.ts - writeJsErrorEntry payload', () => {
     // These fields were removed in alpha.10
     expect(indexSource).not.toContain('errorTimestamp');
     expect(indexSource).not.toContain("require('../package.json').version");
-    expect(indexSource).not.toContain('HermesInternal');
+  });
+
+  it('includes hasExpo field via detectHasExpo()', () => {
+    expect(indexSource).toContain('detectHasExpo');
+    expect(indexSource).toContain('hasExpo: detectHasExpo()');
+  });
+
+  it('includes engine field via detectEngine()', () => {
+    expect(indexSource).toContain('detectEngine');
+    expect(indexSource).toContain('engine: detectEngine()');
+  });
+
+  it('detectEngine uses HermesInternal to detect hermes vs jsc', () => {
+    expect(indexSource).toContain('HermesInternal');
   });
 
   it('componentStack is normalized: no address-at or /Users/ paths survive normalizeStack', () => {

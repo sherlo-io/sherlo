@@ -25,6 +25,13 @@ import { normalizeStack } from './normalizeStack';
 // and App.tsx imports from `@sherlo/react-native-storybook`. By the time we
 // run, react-native is loaded (expo pulled it in transitively); by the time
 // registerRootComponent is called, our patch is already in place.
+function detectHasExpo(): boolean {
+  try { require('expo'); return true; } catch { return false; }
+}
+function detectEngine(): 'hermes' | 'jsc' {
+  try { return typeof (global as any).HermesInternal !== 'undefined' ? 'hermes' : 'jsc'; } catch { return 'jsc'; }
+}
+
 try {
   installSherloIntegration();
 } catch (_) {}
@@ -105,6 +112,8 @@ function patchAppRegistryWithBoundary(SherloModule: any, isTesting: boolean): vo
               stack: normalizeStack((error.cause.stack) || ''),
             }
           : null,
+        hasExpo: detectHasExpo(),
+        engine: detectEngine(),
       };
 
       const entry = { action: 'JS_ERROR', timestamp: Date.now(), entity: 'app', data: data };

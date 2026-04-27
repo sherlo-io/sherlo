@@ -1,12 +1,21 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import Module from 'module';
 import { describe, it, expect, afterEach, vi } from 'vitest';
+
+vi.mock('child_process', async () => {
+  const actual = await vi.importActual<typeof import('child_process')>('child_process');
+  return { ...actual, execSync: vi.fn() };
+});
+
+import * as childProcess from 'child_process';
 import {
   detectPlatform,
-  detectProjectType,
+  selectProjectType,
   detectEntryFile,
   findSourceMap,
+  buildSourceMaps,
   runMetroSymbolicate,
   symbolicateAllFrames,
   renderOutput,
@@ -106,45 +115,75 @@ describe('detectPlatform', () => {
 });
 
 // ---------------------------------------------------------------------------
-// detectProjectType
+// selectProjectType
 // ---------------------------------------------------------------------------
 
-describe('detectProjectType', () => {
-  it('returns expo when package.json has expo dep', () => {
+function makeJsonData(overrides: Partial<JsErrorJson> = {}): JsErrorJson {
+  return {
+    name: 'Error',
+    message: 'test',
+    stack: [],
+    componentStack: [],
+    digest: null,
+    cause: null,
+    hasExpo: false,
+    engine: 'jsc',
+    ...overrides,
+  };
+}
+
+describe('selectProjectType', () => {
+  it('returns bare-rn when hasExpo is false', () => {
     const dir = makeTempDir();
-    writeJson(dir, 'package.json', { dependencies: { expo: '^51.0.0', 'react-native': '*' } });
-    expect(detectProjectType(dir)).toBe('expo');
+    const data = makeJsonData({ hasExpo: false });
+    expect(selectProjectType(data, dir)).toBe('bare-rn');
   });
 
-  it('returns expo when app.json exists', () => {
+  it('returns expo when hasExpo is true and @expo/cli is resolvable', () => {
     const dir = makeTempDir();
-    writeJson(dir, 'package.json', { dependencies: { 'react-native': '*' } });
-    fs.writeFileSync(path.join(dir, 'app.json'), '{}');
-    expect(detectProjectType(dir)).toBe('expo');
+    const data = makeJsonData({ hasExpo: true });
+    // Mock Module._resolveFilename which is the implementation of require.resolve
+    const spy = vi.spyOn(Module as any, '_resolveFilename').mockReturnValueOnce('/some/path/@expo/cli');
+    expect(selectProjectType(data, dir)).toBe('expo');
+    spy.mockRestore();
   });
 
-  it('returns expo when app.config.js exists', () => {
+  it('returns bare-rn when hasExpo is true but @expo/cli is not resolvable', () => {
     const dir = makeTempDir();
-    writeJson(dir, 'package.json', { dependencies: { 'react-native': '*' } });
-    fs.writeFileSync(path.join(dir, 'app.config.js'), 'module.exports = {};');
-    expect(detectProjectType(dir)).toBe('expo');
+    const data = makeJsonData({ hasExpo: true });
+    // Empty tempdir has no node_modules, so require.resolve throws naturally
+    expect(selectProjectType(data, dir)).toBe('bare-rn');
   });
+});
 
-  it('returns bare-rn when only react-native dep present', () => {
-    const dir = makeTempDir();
-    writeJson(dir, 'package.json', { dependencies: { 'react-native': '0.73.0' } });
-    expect(detectProjectType(dir)).toBe('bare-rn');
-  });
+// ---------------------------------------------------------------------------
+// buildSourceMaps — expo fallback to bare-rn
+// ---------------------------------------------------------------------------
 
-  it('throws when no RN project detected', () => {
+describe('buildSourceMaps — expo fallback', () => {
+  it('falls back to bare-rn bundler when expo build fails', () => {
     const dir = makeTempDir();
-    writeJson(dir, 'package.json', { dependencies: {} });
-    expect(() => detectProjectType(dir)).toThrow('Run from your React Native project root');
-  });
+    writeJson(dir, 'package.json', { main: 'index.js' });
 
-  it('throws when package.json not found', () => {
-    const dir = makeTempDir();
-    expect(() => detectProjectType(dir)).toThrow('Run from your React Native project root');
+    let callCount = 0;
+    vi.spyOn(childProcess, 'execSync').mockImplementation((cmd: any) => {
+      callCount++;
+      const cmdStr = String(cmd);
+      if (cmdStr.includes('expo export:embed')) {
+        throw new Error('expo build failed');
+      }
+      if (cmdStr.includes('react-native bundle')) {
+        const cacheDir = path.join(dir, '.sherlo-cache');
+        if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
+        fs.writeFileSync(path.join(cacheDir, 'bundle.ios.jsbundle.map'), '{}');
+        return Buffer.from('');
+      }
+      return Buffer.from('');
+    });
+
+    const result = buildSourceMaps(dir, 'expo', 'ios');
+    expect(result).toContain('bundle.ios.jsbundle.map');
+    expect(callCount).toBe(2); // expo attempt + bare-rn fallback
   });
 });
 
@@ -232,6 +271,8 @@ function makeFixture(overrides: Partial<JsErrorJson> = {}): JsErrorJson {
     ],
     digest: null,
     cause: null,
+    hasExpo: false,
+    engine: 'jsc',
     ...overrides,
   };
 }
@@ -306,8 +347,8 @@ describe('renderOutput', () => {
 // ---------------------------------------------------------------------------
 
 describe('error cases', () => {
-  it('missing package.json: detectProjectType throws', () => {
+  it('missing package.json: detectEntryFile falls back to index.js', () => {
     const emptyDir = makeTempDir();
-    expect(() => detectProjectType(emptyDir)).toThrow('Run from your React Native project root');
+    expect(detectEntryFile(emptyDir)).toBe('index.js');
   });
 });

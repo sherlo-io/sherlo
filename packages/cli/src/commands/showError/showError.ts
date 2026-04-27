@@ -24,6 +24,8 @@ export interface JsErrorJson {
   componentStack: ParsedFrame[];
   digest: string | null;
   cause: { name: string; message: string; stack: ParsedFrame[] } | null;
+  hasExpo: boolean;
+  engine: 'hermes' | 'jsc';
 }
 
 // ---------------------------------------------------------------------------
@@ -48,30 +50,17 @@ export function detectPlatform(text: string): Platform {
 }
 
 // ---------------------------------------------------------------------------
-// Project type detection
+// Project type selection (runtime-signal based)
 // ---------------------------------------------------------------------------
 
-export function detectProjectType(projectRoot: string): ProjectType {
-  const pkgPath = path.join(projectRoot, 'package.json');
-  if (!fs.existsSync(pkgPath)) {
-    throw new Error('Run from your React Native project root');
+export function selectProjectType(data: JsErrorJson, projectRoot: string): ProjectType {
+  if (!data.hasExpo) return 'bare-rn';
+  try {
+    require.resolve('@expo/cli', { paths: [projectRoot] });
+    return 'expo';
+  } catch {
+    return 'bare-rn';
   }
-  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-  const deps = {
-    ...((pkg.dependencies as Record<string, string>) || {}),
-    ...((pkg.devDependencies as Record<string, string>) || {}),
-  };
-
-  const hasExpo =
-    'expo' in deps ||
-    fs.existsSync(path.join(projectRoot, 'app.json')) ||
-    fs.existsSync(path.join(projectRoot, 'app.config.js')) ||
-    fs.existsSync(path.join(projectRoot, 'app.config.ts'));
-  if (hasExpo) return 'expo';
-
-  if ('react-native' in deps) return 'bare-rn';
-
-  throw new Error('Run from your React Native project root');
 }
 
 // ---------------------------------------------------------------------------
@@ -108,6 +97,8 @@ export function buildSourceMaps(
     process.stdout.write(chalk.dim(` ${elapsed}s`));
   }, 5000);
 
+  let effectiveProjectType = projectType;
+
   try {
     if (projectType === 'expo') {
       // Use export:embed to produce the same plain-JS bundle as the deployed app.
@@ -115,10 +106,21 @@ export function buildSourceMaps(
       // map line:col coords don't match the plain JS bundle in the error stack.
       const bundleOut = path.join(cacheDir, `bundle.${platform}.js`);
       const mapOut = `${bundleOut}.map`;
-      execSync(
-        `npx expo export:embed --platform=${platform} --entry-file=${entryFile} --bundle-output=${bundleOut} --sourcemap-output=${mapOut} --dev=false --reset-cache`,
-        { cwd: projectRoot, stdio: ['pipe', 'pipe', 'pipe'] }
-      );
+      try {
+        execSync(
+          `npx expo export:embed --platform=${platform} --entry-file=${entryFile} --bundle-output=${bundleOut} --sourcemap-output=${mapOut} --dev=false --reset-cache`,
+          { cwd: projectRoot, stdio: ['pipe', 'pipe', 'pipe'] }
+        );
+      } catch (expoErr: any) {
+        console.log(chalk.yellow(`\nWarning: expo build failed (${expoErr.message || String(expoErr)}), retrying with bare-rn bundler...`));
+        const rnBundleOut = path.join(cacheDir, `bundle.${platform}.jsbundle`);
+        const rnMapOut = `${rnBundleOut}.map`;
+        execSync(
+          `npx react-native bundle --platform ${platform} --dev false --entry-file ${entryFile} --bundle-output ${rnBundleOut} --sourcemap-output ${rnMapOut}`,
+          { cwd: projectRoot, stdio: ['pipe', 'pipe', 'pipe'] }
+        );
+        effectiveProjectType = 'bare-rn';
+      }
     } else {
       const bundleOut = path.join(cacheDir, `bundle.${platform}.jsbundle`);
       const mapOut = `${bundleOut}.map`;
@@ -136,7 +138,7 @@ export function buildSourceMaps(
     throw new Error(`Source map build failed: ${err.message || String(err)}`);
   }
 
-  return findSourceMap(projectRoot, projectType, platform);
+  return findSourceMap(projectRoot, effectiveProjectType, platform);
 }
 
 // ---------------------------------------------------------------------------
@@ -352,15 +354,10 @@ async function showError(url: string): Promise<void> {
   const platform = detectPlatform(allFilePaths);
   console.log(chalk.dim(`Detected platform: ${platform}`));
 
-  // 3. Detect project type
-  let projectType: ProjectType;
-  try {
-    projectType = detectProjectType(projectRoot);
-  } catch (err: any) {
-    console.error(chalk.red(err.message));
-    process.exit(1);
-  }
+  // 3. Select project type from runtime signals in the JSON payload
+  const projectType = selectProjectType(data, projectRoot);
   console.log(chalk.dim(`Detected project type: ${projectType}`));
+  console.log(chalk.dim(`Detected engine: ${data.engine}`));
 
   // 4. Pre-flight git check
   try {
