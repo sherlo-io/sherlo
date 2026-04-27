@@ -159,59 +159,68 @@ describe('index.ts - ErrorBoundary source invariants', () => {
 // ---------------------------------------------------------------------------
 
 describe('index.ts - writeJsErrorEntry payload', () => {
-  it('JS_ERROR entry is valid JSON with required fields', () => {
-    const entry = JSON.parse(
-      '{"action":"JS_ERROR","timestamp":1,"entity":"app","data":{"name":"Error","message":"boom","stack":"","componentStack":null,"digest":null,"cause":null,"source":"errorBoundary","errorTimestamp":1,"context":{"sdkVersion":"1.6.5-alpha.9","platform":"ios","platformVersion":"17","rnVersion":"0.74","jsEngine":"hermes","mode":"testing"}}}'
-    );
-    expect(entry.action).toBe('JS_ERROR');
-    expect(entry.entity).toBe('app');
-    expect(entry.data.name).toBeDefined();
-    expect(entry.data.message).toBeDefined();
-    expect(entry.data.context).toBeDefined();
-  });
-
-  it('index.ts source uses writeJsErrorEntry in componentDidCatch', () => {
+  it('uses writeJsErrorEntry in componentDidCatch', () => {
     expect(indexSource).toContain('writeJsErrorEntry');
     expect(indexSource).toContain('componentDidCatch');
   });
 
-  it('index.ts componentDidCatch receives errorInfo as second arg', () => {
+  it('componentDidCatch receives errorInfo as second arg', () => {
     expect(indexSource).toContain('componentDidCatch = function (error: any, errorInfo: any)');
   });
 
-  it('index.ts writeJsErrorEntry writes JS_ERROR action via appendFile', () => {
+  it('writes JS_ERROR action via appendFile', () => {
     expect(indexSource).toContain("action: 'JS_ERROR'");
     expect(indexSource).toContain('appendFile');
   });
 
-  it('index.ts writeJsErrorEntry includes componentStack from errorInfo', () => {
+  it('includes componentStack and normalizes it', () => {
     expect(indexSource).toContain('componentStack');
-    expect(indexSource).toContain('errorInfo');
+    // componentStack must pass through normalizeStack
+    expect(indexSource).toMatch(/normalizeStack\([^)]*componentStack/);
   });
 
-  it('index.ts writeJsErrorEntry normalizes stack and cause.stack', () => {
+  it('normalizes stack, componentStack, and cause.stack (3 normalizeStack calls)', () => {
     const occurrences = (indexSource.match(/normalizeStack/g) || []).length;
-    expect(occurrences).toBeGreaterThanOrEqual(2);
+    expect(occurrences).toBeGreaterThanOrEqual(3);
   });
 
-  it('index.ts writeJsErrorEntry serializes cause chain when present', () => {
+  it('serializes cause chain when present', () => {
     expect(indexSource).toContain('error.cause');
     expect(indexSource).toContain('error.cause.name');
     expect(indexSource).toContain('error.cause.message');
   });
 
-  it('index.ts writeJsErrorEntry sets cause to null when absent', () => {
+  it('sets cause to null when absent', () => {
     expect(indexSource).toContain(': null,');
   });
 
-  it('index.ts context includes sdkVersion from package.json', () => {
-    expect(indexSource).toContain("require('../package.json').version");
+  it('passes digest through from errorInfo', () => {
+    expect(indexSource).toContain('errorInfo.digest');
   });
 
-  it('index.ts context detects jsEngine via HermesInternal', () => {
-    expect(indexSource).toContain('HermesInternal');
-    expect(indexSource).toContain("'hermes'");
-    expect(indexSource).toContain("'jsc'");
+  it('does not include source, errorTimestamp, or context fields', () => {
+    // These fields were removed in alpha.10
+    expect(indexSource).not.toContain('errorTimestamp');
+    expect(indexSource).not.toContain("require('../package.json').version");
+    expect(indexSource).not.toContain('HermesInternal');
+  });
+
+  it('componentStack is normalized: no address-at or /Users/ paths survive normalizeStack', () => {
+    const iosComponentStack =
+      '\n    in CrashComponent (address at /Users/jdoe/Library/Developer/CoreSimulator/Devices/DEV-UUID/data/Containers/Data/Application/APP-UUID/Library/Application Support/.expo-internal/bundle.js:1:100)\n    in RCTView';
+    const result = normalizeStack(iosComponentStack);
+    expect(result).not.toContain('/Users/');
+    expect(result).not.toContain('address at');
+    expect(result).toContain('bundle.js:1:100');
+  });
+
+  it('cause.stack is normalized when cause is present', () => {
+    const causeStack =
+      'at foo (address at /data/user/0/com.app/files/.expo-internal/abc123:1:500)';
+    const result = normalizeStack(causeStack);
+    expect(result).not.toContain('/data/user/');
+    expect(result).not.toContain('address at');
+    expect(result).toContain('abc123:1:500');
   });
 });
 
