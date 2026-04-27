@@ -237,20 +237,14 @@ function makeFixture(overrides: Partial<JsErrorJson> = {}): JsErrorJson {
 }
 
 describe('renderOutput', () => {
-  it('renders component tree before stack trace with blank line separator', () => {
+  it('never prints Component tree section even when componentStack is non-empty', () => {
     const output = renderOutput(makeFixture());
-    expect(output).toContain('Component tree:');
-    expect(output).toContain('Stack trace:');
-    const compIdx = output.indexOf('Component tree:');
-    const stackIdx = output.indexOf('Stack trace:');
-    expect(compIdx).toBeLessThan(stackIdx);
-    // blank line between sections
-    expect(output.substring(compIdx, stackIdx)).toContain('\n\n');
+    expect(output).not.toContain('Component tree:');
   });
 
-  it('renders resolved frame with 2-space indent and file:line:col', () => {
+  it('renders stack trace section', () => {
     const output = renderOutput(makeFixture());
-    expect(output).toContain('  at CrashComponent (App.tsx:7:18)');
+    expect(output).toContain('Stack trace:');
     expect(output).toContain('  at render (bundle.js:1:500)');
   });
 
@@ -264,16 +258,9 @@ describe('renderOutput', () => {
     expect(output).toContain('  at l (<anonymous>)');
   });
 
-  it('omits component tree section when componentStack is empty', () => {
-    const output = renderOutput(makeFixture({ componentStack: [] }));
-    expect(output).not.toContain('Component tree:');
-    expect(output).toContain('Stack trace:');
-  });
-
   it('omits stack trace section when stack is empty', () => {
     const output = renderOutput(makeFixture({ stack: [] }));
     expect(output).not.toContain('Stack trace:');
-    expect(output).toContain('Component tree:');
   });
 
   it('omits digest when null', () => {

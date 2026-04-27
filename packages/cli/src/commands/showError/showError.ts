@@ -303,13 +303,10 @@ function renderFrame(frame: ParsedFrame): string {
 export function renderOutput(data: JsErrorJson): string {
   const lines: string[] = [];
 
-  if (data.componentStack.length > 0) {
-    lines.push('Component tree:');
-    for (const f of data.componentStack) lines.push(renderFrame(f));
-  }
+  // componentStack is not printed: production builds have mostly <anonymous> frames that can't
+  // symbolicate, so the section adds noise without value. The data is preserved in the JSON.
 
   if (data.stack.length > 0) {
-    if (lines.length > 0) lines.push('');
     lines.push('Stack trace:');
     for (const f of data.stack) lines.push(renderFrame(f));
   }
@@ -394,33 +391,32 @@ async function showError(url: string): Promise<void> {
   // 6. Print error header
   console.log(`\n${data.name}: ${data.message}`);
 
-  const allFrames = [...data.componentStack, ...data.stack, ...(data.cause?.stack ?? [])];
-  const locatedCount = allFrames.filter(f => f.file !== null).length;
+  // Only symbolicate stack + cause (componentStack is not printed, skip for speed and clean counts)
+  const stackAndCause = [...data.stack, ...(data.cause?.stack ?? [])];
+  const locatedCount = stackAndCause.filter(f => f.file !== null).length;
   if (locatedCount === 0) {
     console.log(chalk.yellow('No stack frames with location found in error payload.'));
     return;
   }
 
-  // 7. Symbolicate all sections in a single batch
-  const compLen = data.componentStack.length;
+  // 7. Symbolicate stack + cause in a single batch
   const stackLen = data.stack.length;
 
   let symResult: ReturnType<typeof symbolicateAllFrames>;
   try {
-    symResult = symbolicateAllFrames(allFrames, sourceMapPath, projectRoot);
+    symResult = symbolicateAllFrames(stackAndCause, sourceMapPath, projectRoot);
   } catch (err: any) {
     console.error(chalk.red(`Symbolication failed: ${err.message}`));
     process.exit(1);
   }
 
-  const { frames: symAll, totalFrames, resolvedFrames } = symResult;
+  const { frames: symStackAndCause, totalFrames, resolvedFrames } = symResult;
 
   const outputData: JsErrorJson = {
     ...data,
-    componentStack: symAll.slice(0, compLen),
-    stack: symAll.slice(compLen, compLen + stackLen),
+    stack: symStackAndCause.slice(0, stackLen),
     cause: data.cause
-      ? { ...data.cause, stack: symAll.slice(compLen + stackLen) }
+      ? { ...data.cause, stack: symStackAndCause.slice(stackLen) }
       : null,
   };
 
