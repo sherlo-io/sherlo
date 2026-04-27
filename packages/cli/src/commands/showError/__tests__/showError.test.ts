@@ -4,8 +4,10 @@ import * as path from 'path';
 import { describe, it, expect, afterEach } from 'vitest';
 import {
   parseStackFrames,
+  parseErrorSections,
   detectPlatform,
   detectProjectType,
+  findSourceMap,
   applySourceMap,
 } from '../showError';
 
@@ -66,6 +68,52 @@ describe('parseStackFrames', () => {
 });
 
 // ---------------------------------------------------------------------------
+// parseErrorSections
+// ---------------------------------------------------------------------------
+
+describe('parseErrorSections', () => {
+  it('splits input with two sections into preamble + 2 named sections', () => {
+    const input = [
+      'TypeError: undefined is not an object',
+      '',
+      'Component tree:',
+      '    at CrashComponent (bundle.js:1:100)',
+      '    at View (bundle.js:1:200)',
+      '',
+      'Stack trace:',
+      '    at c (bundle.js:1:500)',
+      '    at b (bundle.js:1:300)',
+    ].join('\n');
+
+    const sections = parseErrorSections(input);
+    // preamble + Component tree + Stack trace
+    expect(sections).toHaveLength(3);
+    expect(sections[0].header).toBeNull();
+    expect(sections[0].lines.join('\n')).toContain('TypeError');
+
+    expect(sections[1].header).toBe('Component tree');
+    expect(sections[1].lines.some((l) => l.includes('CrashComponent'))).toBe(true);
+
+    expect(sections[2].header).toBe('Stack trace');
+    expect(sections[2].lines.some((l) => l.includes('at c'))).toBe(true);
+  });
+
+  it('returns a single preamble section when no section headers present', () => {
+    const input = 'Error: boom\n    at foo (bundle.js:1:1)';
+    const sections = parseErrorSections(input);
+    expect(sections).toHaveLength(1);
+    expect(sections[0].header).toBeNull();
+  });
+
+  it('preserves non-frame lines within sections unchanged', () => {
+    const input = 'Stack trace:\n    at foo (b.js:1:1)\n    (blank line above preserved)';
+    const sections = parseErrorSections(input);
+    const stackSection = sections.find((s) => s.header === 'Stack trace')!;
+    expect(stackSection.lines).toContain('    (blank line above preserved)');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // detectPlatform
 // ---------------------------------------------------------------------------
 
@@ -95,7 +143,6 @@ describe('detectPlatform', () => {
   });
 
   it('defaults to ios with warning for ambiguous content', () => {
-    // No platform-specific markers -> ios default
     expect(detectPlatform('at foo (unknown-bundle.js:1:1)')).toBe('ios');
   });
 });
@@ -144,6 +191,44 @@ describe('detectProjectType', () => {
 });
 
 // ---------------------------------------------------------------------------
+// findSourceMap — expo export:embed map preferred, hbc.map refused
+// ---------------------------------------------------------------------------
+
+describe('findSourceMap (expo)', () => {
+  it('returns plain-JS .js.map when present in .sherlo-cache', () => {
+    const dir = makeTempDir();
+    const cacheDir = path.join(dir, '.sherlo-cache');
+    fs.mkdirSync(cacheDir);
+    const mapPath = path.join(cacheDir, 'bundle.ios.js.map');
+    fs.writeFileSync(mapPath, '{}');
+    expect(findSourceMap(dir, 'expo', 'ios')).toBe(mapPath);
+  });
+
+  it('throws when only a .hbc.map is found in dist (Hermes bytecode)', () => {
+    const dir = makeTempDir();
+    const distDir = path.join(dir, '.sherlo-cache', 'dist', '_expo', 'static', 'js', 'ios');
+    fs.mkdirSync(distDir, { recursive: true });
+    fs.writeFileSync(path.join(distDir, 'bundle.hbc.map'), '{}');
+    expect(() => findSourceMap(dir, 'expo', 'ios')).toThrow('Hermes bytecode source map');
+  });
+
+  it('returns dist map (with warning) when it is not a .hbc.map', () => {
+    const dir = makeTempDir();
+    const distDir = path.join(dir, '.sherlo-cache', 'dist', '_expo', 'static', 'js', 'android');
+    fs.mkdirSync(distDir, { recursive: true });
+    const mapPath = path.join(distDir, 'bundle.js.map');
+    fs.writeFileSync(mapPath, '{}');
+    // No primary .sherlo-cache/bundle.android.js.map exists → falls back to dist
+    expect(findSourceMap(dir, 'expo', 'android')).toBe(mapPath);
+  });
+
+  it('throws when no map found at all', () => {
+    const dir = makeTempDir();
+    expect(() => findSourceMap(dir, 'expo', 'ios')).toThrow('No source map found');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // applySourceMap - fixture test
 // ---------------------------------------------------------------------------
 
@@ -170,7 +255,6 @@ describe('applySourceMap', () => {
       const result = await applySourceMap(frames, tmpMap);
       expect(result).toHaveLength(1);
       expect(result[0].resolved).toBe(true);
-      expect(result[0].output).toContain('CrashComponent');
       expect(result[0].output).toContain('CrashComponent.tsx');
       expect(result[0].output).toContain('42');
     } finally {
@@ -200,11 +284,9 @@ describe('applySourceMap', () => {
 // ---------------------------------------------------------------------------
 
 describe('error cases', () => {
-  it('invalid URL: fetch rejects cleanly (pure logic check)', async () => {
-    // Verify that a non-200 response triggers the error path
+  it('invalid URL: non-200 response triggers error path', async () => {
     const mockRes = { ok: false, status: 403 };
-    const shouldFail = !mockRes.ok;
-    expect(shouldFail).toBe(true);
+    expect(!mockRes.ok).toBe(true);
   });
 
   it('missing package.json: detectProjectType throws', () => {

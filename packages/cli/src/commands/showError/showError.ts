@@ -20,6 +20,11 @@ export type SymbolicatedFrame = {
   output: string;
 };
 
+export type ErrorSection = {
+  header: string | null; // null = preamble (error message before first section)
+  lines: string[];       // raw lines (including frame lines)
+};
+
 // ---------------------------------------------------------------------------
 // Platform detection from error content
 // ---------------------------------------------------------------------------
@@ -69,15 +74,41 @@ export function detectProjectType(projectRoot: string): ProjectType {
 }
 
 // ---------------------------------------------------------------------------
-// Stack frame parsing
+// Section parsing
 // ---------------------------------------------------------------------------
 
-export function parseStackFrames(errorText: string): StackFrame[] {
+// Known section headers in the js-error.txt format produced by Sherlo.
+const SECTION_HEADER_RE = /^(Component tree|Stack trace|Caused by:[^\n]*):\s*$/;
+
+export function parseErrorSections(errorText: string): ErrorSection[] {
+  const lines = errorText.split('\n');
+  const sections: ErrorSection[] = [];
+  let current: ErrorSection = { header: null, lines: [] };
+
+  for (const line of lines) {
+    if (SECTION_HEADER_RE.test(line.trim())) {
+      sections.push(current);
+      current = { header: line.trim().replace(/:$/, ''), lines: [] };
+    } else {
+      current.lines.push(line);
+    }
+  }
+  sections.push(current);
+
+  return sections;
+}
+
+// ---------------------------------------------------------------------------
+// Stack frame parsing (from a block of lines)
+// ---------------------------------------------------------------------------
+
+const FRAME_RE = /^[ \t]+at\s+(\S+)\s+\(([^)]+):(\d+):(\d+)\)\s*$/;
+
+export function parseStackFrames(text: string): StackFrame[] {
   const frames: StackFrame[] = [];
-  // Matches variable indent: one or more spaces then "at <fn> (<file>:<line>:<col>)"
-  const re = /^[ \t]+at\s+(\S+)\s+\(([^)]+):(\d+):(\d+)\)\s*$/gm;
+  const re = new RegExp(FRAME_RE.source, 'gm');
   let m: RegExpExecArray | null;
-  while ((m = re.exec(errorText)) !== null) {
+  while ((m = re.exec(text)) !== null) {
     frames.push({
       fnName: m[1],
       file: m[2],
@@ -111,9 +142,13 @@ export function buildSourceMaps(
 
   try {
     if (projectType === 'expo') {
-      const distDir = path.join(cacheDir, 'dist');
+      // Use export:embed to produce the same plain-JS bundle as the deployed app.
+      // 'expo export' (without :embed) produces Hermes bytecode (.hbc) whose source
+      // map line:col coords don't match the plain JS bundle in the error stack.
+      const bundleOut = path.join(cacheDir, `bundle.${platform}.js`);
+      const mapOut = `${bundleOut}.map`;
       execSync(
-        `npx expo export --platform ${platform} --output-dir ${distDir}`,
+        `npx expo export:embed --platform=${platform} --entry-file=index.js --bundle-output=${bundleOut} --sourcemap-output=${mapOut} --dev=false --reset-cache`,
         { cwd: projectRoot, stdio: ['pipe', 'pipe', 'pipe'] }
       );
     } else {
@@ -146,18 +181,31 @@ export function findSourceMap(
   platform: Platform
 ): string {
   if (projectType === 'expo') {
-    const dir = path.join(projectRoot, '.sherlo-cache', 'dist', '_expo', 'static', 'js', platform);
-    if (fs.existsSync(dir)) {
-      const maps = fs.readdirSync(dir).filter((f) => f.endsWith('.map'));
-      if (maps.length > 0) return path.join(dir, maps[0]);
-    }
-    // Fallback: dist/_expo/static/js/<platform>
-    const distDir = path.join(projectRoot, 'dist', '_expo', 'static', 'js', platform);
+    // Primary: plain-JS map produced by expo export:embed
+    const plainMap = path.join(projectRoot, '.sherlo-cache', `bundle.${platform}.js.map`);
+    if (fs.existsSync(plainMap)) return plainMap;
+
+    // Secondary: stale dist from old 'expo export' run — warn if it's a .hbc.map
+    const distDir = path.join(projectRoot, '.sherlo-cache', 'dist', '_expo', 'static', 'js', platform);
     if (fs.existsSync(distDir)) {
       const maps = fs.readdirSync(distDir).filter((f) => f.endsWith('.map'));
-      if (maps.length > 0) return path.join(distDir, maps[0]);
+      if (maps.length > 0) {
+        const mapFile = maps[0];
+        if (mapFile.endsWith('.hbc.map')) {
+          throw new Error(
+            `Found Hermes bytecode source map (${mapFile}) which does not match the plain JS bundle in your error. ` +
+            `Run sherlo show-error again to rebuild via 'expo export:embed'.`
+          );
+        }
+        console.log(chalk.yellow(`Warning: using stale map from dist/ — may produce 0 resolved frames if it was built with 'expo export' (Hermes bytecode).`));
+        return path.join(distDir, mapFile);
+      }
     }
-    throw new Error(`No source map found for ${platform} in .sherlo-cache/dist. Build may have failed.`);
+
+    throw new Error(
+      `No source map found for ${platform}. ` +
+      `Run 'npx expo export:embed --platform=${platform} --entry-file=index.js --bundle-output=.sherlo-cache/bundle.${platform}.js --sourcemap-output=.sherlo-cache/bundle.${platform}.js.map --dev=false' manually.`
+    );
   } else {
     const mapPath = path.join(projectRoot, '.sherlo-cache', `bundle.${platform}.jsbundle.map`);
     if (fs.existsSync(mapPath)) return mapPath;
@@ -178,6 +226,9 @@ export async function applySourceMap(
     return frames.map((frame) => {
       const pos = consumer.originalPositionFor({ line: frame.line, column: frame.col });
       if (pos.source && pos.line != null) {
+        // Use mapped name when available; fall back to minified fn name.
+        // Metro's minifier strips function names, so pos.name is often null —
+        // the file path + line:col is still actionable without the function name.
         const name = pos.name || frame.fnName;
         const src = pos.source.replace(/^webpack:\/\/\//, '');
         return {
@@ -190,6 +241,56 @@ export async function applySourceMap(
         output: `    [unresolved] ${frame.raw.trimStart()}`,
       };
     });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Section-aware symbolication
+// ---------------------------------------------------------------------------
+
+export async function symbolicateSections(
+  sections: ErrorSection[],
+  sourceMapPath: string
+): Promise<string> {
+  const rawMap = JSON.parse(fs.readFileSync(sourceMapPath, 'utf8'));
+
+  return SourceMapConsumer.with(rawMap, null, async (consumer) => {
+    const outputParts: string[] = [];
+    let totalFrames = 0;
+    let resolvedFrames = 0;
+
+    for (const section of sections) {
+      if (section.header !== null) {
+        outputParts.push(`${section.header}:`);
+      }
+
+      for (const line of section.lines) {
+        const m = FRAME_RE.exec(line);
+        if (!m) {
+          outputParts.push(line);
+          continue;
+        }
+        totalFrames++;
+        const frame: StackFrame = {
+          fnName: m[1],
+          file: m[2],
+          line: parseInt(m[3], 10),
+          col: parseInt(m[4], 10),
+          raw: line,
+        };
+        const pos = consumer.originalPositionFor({ line: frame.line, column: frame.col });
+        if (pos.source && pos.line != null) {
+          resolvedFrames++;
+          const name = pos.name || frame.fnName;
+          const src = pos.source.replace(/^webpack:\/\/\//, '');
+          outputParts.push(chalk.green(`    at ${name} (${src}:${pos.line}:${pos.column ?? 0})`));
+        } else {
+          outputParts.push(chalk.yellow(`    [unresolved] ${line.trimStart()}`));
+        }
+      }
+    }
+
+    return JSON.stringify({ output: outputParts.join('\n'), totalFrames, resolvedFrames });
   });
 }
 
@@ -256,36 +357,39 @@ async function showError(url: string): Promise<void> {
     process.exit(1);
   }
 
-  // 6. Parse frames
-  const frames = parseStackFrames(errorText);
-  if (frames.length === 0) {
+  // 6. Parse sections
+  const sections = parseErrorSections(errorText);
+  const allFrames = parseStackFrames(errorText);
+  if (allFrames.length === 0) {
     console.log(chalk.yellow('No stack frames found in error text.'));
-    printErrorHeader(errorText);
+    printPreamble(sections);
     return;
   }
 
-  // 7. Symbolicate
-  let symbolicated: SymbolicatedFrame[];
+  // 7. Symbolicate with section structure preserved
+  let symbolicatedJson: string;
   try {
-    symbolicated = await applySourceMap(frames, sourceMapPath);
+    symbolicatedJson = await symbolicateSections(sections, sourceMapPath);
   } catch (err: any) {
     console.error(chalk.red(`Symbolication failed: ${err.message}`));
     process.exit(1);
   }
 
+  const { output, totalFrames, resolvedFrames } = JSON.parse(symbolicatedJson) as {
+    output: string;
+    totalFrames: number;
+    resolvedFrames: number;
+  };
+
   // 8. Output
-  printErrorHeader(errorText);
+  printPreamble(sections);
 
-  const resolvedCount = symbolicated.filter((f) => f.resolved).length;
-  const pct = Math.round((resolvedCount / symbolicated.length) * 100);
+  const pct = totalFrames > 0 ? Math.round((resolvedFrames / totalFrames) * 100) : 0;
   const headerColor = pct === 100 ? chalk.green : pct >= 50 ? chalk.yellow : chalk.red;
+  console.log(headerColor.bold('\nSymbolicated output:'));
+  console.log(output);
 
-  console.log(headerColor.bold('\nSymbolicated stack:'));
-  for (const frame of symbolicated) {
-    console.log(frame.resolved ? chalk.green(frame.output) : chalk.yellow(frame.output));
-  }
-
-  console.log(chalk.dim(`\nResolved ${resolvedCount} of ${symbolicated.length} frames`));
+  console.log(chalk.dim(`\nResolved ${resolvedFrames} of ${totalFrames} frames`));
   if (pct < 50) {
     console.log(
       chalk.yellow('Most frames did not resolve. Source maps may be from a different commit.')
@@ -293,12 +397,13 @@ async function showError(url: string): Promise<void> {
   }
 }
 
-function printErrorHeader(errorText: string): void {
-  const stackIdx = errorText.search(/^[ \t]+at\s/m);
-  const header = stackIdx > 0 ? errorText.slice(0, stackIdx).trimEnd() : '';
-  if (header) {
+function printPreamble(sections: ErrorSection[]): void {
+  const preamble = sections.find((s) => s.header === null);
+  if (!preamble) return;
+  const text = preamble.lines.join('\n').trimEnd();
+  if (text) {
     console.log(chalk.bold('\nOriginal error:'));
-    console.log(header);
+    console.log(text);
   }
 }
 
