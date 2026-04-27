@@ -3,15 +3,15 @@ import * as os from 'os';
 import * as path from 'path';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import {
-  parseStackFrames,
-  parseErrorSections,
   detectPlatform,
   detectProjectType,
   detectEntryFile,
   findSourceMap,
-  symbolicateSections,
   runMetroSymbolicate,
-  reformatSymbolicatedLine,
+  symbolicateAllFrames,
+  renderOutput,
+  type ParsedFrame,
+  type JsErrorJson,
 } from '../showError';
 
 // ---------------------------------------------------------------------------
@@ -36,85 +36,6 @@ afterEach(() => {
 function writeJson(dir: string, filename: string, content: object) {
   fs.writeFileSync(path.join(dir, filename), JSON.stringify(content));
 }
-
-// ---------------------------------------------------------------------------
-// parseStackFrames
-// ---------------------------------------------------------------------------
-
-describe('parseStackFrames', () => {
-  it('extracts frames from standard 4-space indent', () => {
-    const text = `TypeError: undefined is not an object
-    at Object.render (bundle-abc.jsbundle:1:500)
-    at c (bundle-abc.jsbundle:633:288)`;
-    const frames = parseStackFrames(text);
-    expect(frames).toHaveLength(2);
-    expect(frames[0]).toMatchObject({ fnName: 'Object.render', file: 'bundle-abc.jsbundle', line: 1, col: 500 });
-    expect(frames[1]).toMatchObject({ fnName: 'c', file: 'bundle-abc.jsbundle', line: 633, col: 288 });
-  });
-
-  it('extracts frames with 2-space indent', () => {
-    const text = `Error: boom\n  at foo (index.js:10:5)\n  at bar (index.js:20:3)`;
-    const frames = parseStackFrames(text);
-    expect(frames).toHaveLength(2);
-    expect(frames[0].fnName).toBe('foo');
-    expect(frames[1].fnName).toBe('bar');
-  });
-
-  it('returns empty array when no frames present', () => {
-    expect(parseStackFrames('Error: something happened\nno frames here')).toHaveLength(0);
-  });
-
-  it('ignores lines that do not match the at-pattern', () => {
-    const text = `  at foo (bundle.js:1:1)\n  not a frame\n  at bar (bundle.js:2:2)`;
-    expect(parseStackFrames(text)).toHaveLength(2);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// parseErrorSections
-// ---------------------------------------------------------------------------
-
-describe('parseErrorSections', () => {
-  it('splits input with two sections into preamble + 2 named sections', () => {
-    const input = [
-      'TypeError: undefined is not an object',
-      '',
-      'Component tree:',
-      '    at CrashComponent (bundle.js:1:100)',
-      '    at View (bundle.js:1:200)',
-      '',
-      'Stack trace:',
-      '    at c (bundle.js:1:500)',
-      '    at b (bundle.js:1:300)',
-    ].join('\n');
-
-    const sections = parseErrorSections(input);
-    expect(sections).toHaveLength(3);
-
-    expect(sections[0].header).toBeNull();
-    expect(sections[0].lines.join('\n')).toContain('TypeError');
-
-    expect(sections[1].header).toBe('Component tree');
-    expect(sections[1].lines.some((l) => l.includes('CrashComponent'))).toBe(true);
-
-    expect(sections[2].header).toBe('Stack trace');
-    expect(sections[2].lines.some((l) => l.includes('at c'))).toBe(true);
-  });
-
-  it('returns a single preamble section when no section headers present', () => {
-    const input = 'Error: boom\n    at foo (bundle.js:1:1)';
-    const sections = parseErrorSections(input);
-    expect(sections).toHaveLength(1);
-    expect(sections[0].header).toBeNull();
-  });
-
-  it('preserves non-frame lines within sections unchanged', () => {
-    const input = 'Stack trace:\n    at foo (b.js:1:1)\n    (blank line above preserved)';
-    const sections = parseErrorSections(input);
-    const stackSection = sections.find((s) => s.header === 'Stack trace')!;
-    expect(stackSection.lines).toContain('    (blank line above preserved)');
-  });
-});
 
 // ---------------------------------------------------------------------------
 // detectEntryFile
@@ -146,36 +67,41 @@ describe('detectEntryFile', () => {
 });
 
 // ---------------------------------------------------------------------------
-// detectPlatform
+// detectPlatform — from frame file paths
 // ---------------------------------------------------------------------------
 
 describe('detectPlatform', () => {
   it('detects android from index.android.bundle', () => {
-    expect(detectPlatform('at c (index.android.bundle:1:100)')).toBe('android');
+    expect(detectPlatform('index.android.bundle')).toBe('android');
   });
 
   it('detects android from /data/user/0/ path', () => {
-    expect(detectPlatform('at c (/data/user/0/com.app/files/.expo-internal/abc:1:2)')).toBe('android');
+    expect(detectPlatform('/data/user/0/com.app/files/.expo-internal/abc')).toBe('android');
   });
 
   it('detects android from data/data/ path', () => {
-    expect(detectPlatform('at c (data/data/com.app/files/bundle:1:2)')).toBe('android');
+    expect(detectPlatform('data/data/com.app/files/bundle')).toBe('android');
   });
 
   it('detects ios from .jsbundle extension', () => {
-    expect(detectPlatform('at c (bundle-abc.jsbundle:1:100)')).toBe('ios');
+    expect(detectPlatform('bundle-abc.jsbundle')).toBe('ios');
   });
 
   it('detects ios from CoreSimulator/Devices path', () => {
-    expect(detectPlatform('at c (CoreSimulator/Devices/UUID/data/app/bundle.js:1:1)')).toBe('ios');
+    expect(detectPlatform('CoreSimulator/Devices/UUID/data/app/bundle.js')).toBe('ios');
   });
 
   it('detects ios from Library/Application Support/.expo-internal path', () => {
-    expect(detectPlatform('at c (Library/Application Support/.expo-internal/bundle:1:1)')).toBe('ios');
+    expect(detectPlatform('Library/Application Support/.expo-internal/bundle')).toBe('ios');
   });
 
-  it('defaults to ios for ambiguous content', () => {
-    expect(detectPlatform('at foo (unknown-bundle.js:1:1)')).toBe('ios');
+  it('defaults to ios for ambiguous file paths', () => {
+    expect(detectPlatform('unknown-bundle.js')).toBe('ios');
+  });
+
+  it('detects android from joined multi-frame paths', () => {
+    const paths = ['src/App.tsx', '/data/user/0/com.app/bundle', 'src/utils.ts'].join('\n');
+    expect(detectPlatform(paths)).toBe('android');
   });
 });
 
@@ -260,100 +186,131 @@ describe('findSourceMap (expo)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// symbolicateSections — unit test with mocked metro-symbolicate
-// ---------------------------------------------------------------------------
-
-describe('symbolicateSections', () => {
-  it('two sections produce the right section headers after parseErrorSections', () => {
-    const input = [
-      'TypeError: boom',
-      '',
-      'Component tree:',
-      '    at c (bundle.js:1:100)',
-      '',
-      'Stack trace:',
-      '    at d (bundle.js:1:200)',
-    ].join('\n');
-    const sections = parseErrorSections(input);
-    // Structural invariant: preamble + 2 named sections
-    expect(sections).toHaveLength(3);
-    expect(sections[1].header).toBe('Component tree');
-    expect(sections[2].header).toBe('Stack trace');
-  });
-
-  it('preamble section (header null) is correctly identified', () => {
-    const input = 'Error: boom\n\nStack trace:\n    at c (b.js:1:1)';
-    const sections = parseErrorSections(input);
-    const preamble = sections.find((s) => s.header === null)!;
-    const nonPreamble = sections.filter((s) => s.header !== null);
-
-    expect(preamble).toBeDefined();
-    expect(nonPreamble.every((s) => s.header !== null)).toBe(true);
-    expect(nonPreamble[0].header).toBe('Stack trace');
-  });
-
-  it('output frames use 2-space indent convention', () => {
-    const frameLine = '  at CrashComponent (App.tsx:7:18)';
-    expect(frameLine.startsWith('  at ')).toBe(true);
-    expect(frameLine.startsWith('    at ')).toBe(false);
-  });
-
-  it('anonymous frames (no file:line:col) are normalized to 2-space indent', () => {
-    const input = [
-      'Stack trace:',
-      '    at CrashComponent (bundle.js:1:100)',
-      '      at l (<anonymous>)',
-    ].join('\n');
-    const sections = parseErrorSections(input);
-    // Both frame lines should appear with exactly '  at ' prefix in the output
-    const stackSection = sections.find((s) => s.header === 'Stack trace')!;
-    expect(stackSection.lines.some((l) => l.includes('<anonymous>'))).toBe(true);
-    // Verify the trimmed form: the anonymous line starts with at after trim
-    const anonLine = stackSection.lines.find((l) => l.includes('<anonymous>'))!;
-    expect(anonLine.replace(/^\s+/, '').startsWith('at ')).toBe(true);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// reformatSymbolicatedLine
-// ---------------------------------------------------------------------------
-
-describe('reformatSymbolicatedLine', () => {
-  it('returns function-name-in-col format: strips leading slash, puts fnName first', () => {
-    // metro-symbolicate outputs: at c (/App.tsx:7:CrashComponent)
-    expect(reformatSymbolicatedLine('at c (/App.tsx:7:CrashComponent)')).toBe('at CrashComponent (App.tsx:7)');
-  });
-
-  it('returns standard numeric-col format: strips leading slash', () => {
-    // metro-symbolicate outputs: at renderWithHooks (/node_modules/react-native/Libraries/Renderer/implementations/ReactFabric-prod.js:3024:15)
-    const result = reformatSymbolicatedLine('at renderWithHooks (/node_modules/react-native/Libraries/Renderer.js:3024:15)');
-    expect(result).toBe('at renderWithHooks (node_modules/react-native/Libraries/Renderer.js:3024:15)');
-  });
-
-  it('does not strip slash from non-leading slash in path', () => {
-    expect(reformatSymbolicatedLine('at foo (src/components/App.tsx:10:SomeComponent)')).toBe('at SomeComponent (src/components/App.tsx:10)');
-  });
-
-  it('returns line unchanged when it does not match at-pattern', () => {
-    expect(reformatSymbolicatedLine('some random text')).toBe('some random text');
-  });
-
-  it('handles path with spaces (iOS Application Support)', () => {
-    const raw = 'at Gl (/Library/Application Support/.expo-internal/bundle.js:1:renderWithHooks)';
-    const result = reformatSymbolicatedLine(raw);
-    expect(result).toBe('at renderWithHooks (Library/Application Support/.expo-internal/bundle.js:1)');
-  });
-});
-
-// ---------------------------------------------------------------------------
 // runMetroSymbolicate — structural tests (no real binary needed)
 // ---------------------------------------------------------------------------
 
 describe('runMetroSymbolicate', () => {
   it('returns empty array when no frame lines provided', () => {
-    // No need to shell out — empty input returns empty output
     const result = runMetroSymbolicate([], '/any/path.map', process.cwd());
     expect(result).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// symbolicateAllFrames — structural tests (no real source map needed)
+// ---------------------------------------------------------------------------
+
+describe('symbolicateAllFrames', () => {
+  it('returns frames unchanged and zero counts when no frame has location', () => {
+    const frames: ParsedFrame[] = [
+      { fnName: 'foo', file: null, line: null, col: null },
+      { fnName: 'bar', file: null, line: null, col: null },
+    ];
+    const { frames: result, totalFrames, resolvedFrames } = symbolicateAllFrames(
+      frames, '/any/path.map', process.cwd()
+    );
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual(frames[0]);
+    expect(totalFrames).toBe(0);
+    expect(resolvedFrames).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// renderOutput — JSON consumer formatting
+// ---------------------------------------------------------------------------
+
+function makeFixture(overrides: Partial<JsErrorJson> = {}): JsErrorJson {
+  return {
+    name: 'TypeError',
+    message: 'undefined is not an object',
+    stack: [
+      { fnName: 'render', file: 'bundle.js', line: 1, col: 500 },
+    ],
+    componentStack: [
+      { fnName: 'CrashComponent', file: 'App.tsx', line: 7, col: 18 },
+    ],
+    digest: null,
+    cause: null,
+    ...overrides,
+  };
+}
+
+describe('renderOutput', () => {
+  it('renders component tree before stack trace with blank line separator', () => {
+    const output = renderOutput(makeFixture());
+    expect(output).toContain('Component tree:');
+    expect(output).toContain('Stack trace:');
+    const compIdx = output.indexOf('Component tree:');
+    const stackIdx = output.indexOf('Stack trace:');
+    expect(compIdx).toBeLessThan(stackIdx);
+    // blank line between sections
+    expect(output.substring(compIdx, stackIdx)).toContain('\n\n');
+  });
+
+  it('renders resolved frame with 2-space indent and file:line:col', () => {
+    const output = renderOutput(makeFixture());
+    expect(output).toContain('  at CrashComponent (App.tsx:7:18)');
+    expect(output).toContain('  at render (bundle.js:1:500)');
+  });
+
+  it('renders anonymous frame as <anonymous>', () => {
+    const data = makeFixture({
+      stack: [
+        { fnName: 'l', file: null, line: null, col: null },
+      ],
+    });
+    const output = renderOutput(data);
+    expect(output).toContain('  at l (<anonymous>)');
+  });
+
+  it('omits component tree section when componentStack is empty', () => {
+    const output = renderOutput(makeFixture({ componentStack: [] }));
+    expect(output).not.toContain('Component tree:');
+    expect(output).toContain('Stack trace:');
+  });
+
+  it('omits stack trace section when stack is empty', () => {
+    const output = renderOutput(makeFixture({ stack: [] }));
+    expect(output).not.toContain('Stack trace:');
+    expect(output).toContain('Component tree:');
+  });
+
+  it('omits digest when null', () => {
+    const output = renderOutput(makeFixture({ digest: null }));
+    expect(output).not.toContain('Digest:');
+  });
+
+  it('includes digest when present', () => {
+    const output = renderOutput(makeFixture({ digest: 'abc123' }));
+    expect(output).toContain('Digest: abc123');
+  });
+
+  it('omits cause section when null', () => {
+    const output = renderOutput(makeFixture({ cause: null }));
+    expect(output).not.toContain('Caused by:');
+  });
+
+  it('renders cause section with header and frames', () => {
+    const data = makeFixture({
+      cause: {
+        name: 'ReferenceError',
+        message: 'x is not defined',
+        stack: [{ fnName: 'init', file: 'setup.ts', line: 3, col: 10 }],
+      },
+    });
+    const output = renderOutput(data);
+    expect(output).toContain('Caused by: ReferenceError: x is not defined');
+    expect(output).toContain('  at init (setup.ts:3:10)');
+  });
+
+  it('renders frame without col as file:line (no col)', () => {
+    const data = makeFixture({
+      stack: [{ fnName: 'foo', file: 'App.tsx', line: 10, col: null }],
+    });
+    const output = renderOutput(data);
+    expect(output).toContain('  at foo (App.tsx:10)');
+    expect(output).not.toMatch(/at foo \(App\.tsx:10:\)/);
   });
 });
 
@@ -362,11 +319,6 @@ describe('runMetroSymbolicate', () => {
 // ---------------------------------------------------------------------------
 
 describe('error cases', () => {
-  it('invalid URL: non-200 response triggers error path', () => {
-    const mockRes = { ok: false, status: 403 };
-    expect(!mockRes.ok).toBe(true);
-  });
-
   it('missing package.json: detectProjectType throws', () => {
     const emptyDir = makeTempDir();
     expect(() => detectProjectType(emptyDir)).toThrow('Run from your React Native project root');

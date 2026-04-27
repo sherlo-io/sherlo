@@ -6,37 +6,44 @@ import * as path from 'path';
 export type ProjectType = 'expo' | 'bare-rn';
 export type Platform = 'ios' | 'android';
 
-export type StackFrame = {
+// ---------------------------------------------------------------------------
+// Wire format types (js-error.json)
+// ---------------------------------------------------------------------------
+
+export interface ParsedFrame {
   fnName: string;
-  file: string;
-  line: number;
-  col: number;
-  raw: string;
-};
+  file: string | null;
+  line: number | null;
+  col: number | null;
+}
 
-export type ErrorSection = {
-  header: string | null; // null = preamble (error message before first section)
-  lines: string[];       // raw lines (including frame lines)
-};
+export interface JsErrorJson {
+  name: string;
+  message: string;
+  stack: ParsedFrame[];
+  componentStack: ParsedFrame[];
+  digest: string | null;
+  cause: { name: string; message: string; stack: ParsedFrame[] } | null;
+}
 
 // ---------------------------------------------------------------------------
-// Platform detection from error content
+// Platform detection from frame file paths
 // ---------------------------------------------------------------------------
 
-export function detectPlatform(errorText: string): Platform {
+export function detectPlatform(text: string): Platform {
   const isAndroid =
-    /index\.android\.bundle/.test(errorText) ||
-    /\/data\/user\/0\//.test(errorText) ||
-    /data\/data\//.test(errorText);
+    /index\.android\.bundle/.test(text) ||
+    /\/data\/user\/0\//.test(text) ||
+    /data\/data\//.test(text);
   if (isAndroid) return 'android';
 
   const isIos =
-    /\.jsbundle/.test(errorText) ||
-    /CoreSimulator\/Devices/.test(errorText) ||
-    /Library\/Application Support\/.expo-internal/.test(errorText);
+    /\.jsbundle/.test(text) ||
+    /CoreSimulator\/Devices/.test(text) ||
+    /Library\/Application Support\/.expo-internal/.test(text);
   if (isIos) return 'ios';
 
-  console.log(chalk.yellow('Warning: could not detect platform from error content, defaulting to ios.'));
+  console.log(chalk.yellow('Warning: could not detect platform from frame paths, defaulting to ios.'));
   return 'ios';
 }
 
@@ -77,52 +84,6 @@ export function detectEntryFile(projectRoot: string): string {
     if (typeof pkg.main === 'string' && pkg.main.length > 0) return pkg.main;
   } catch { /* ignore */ }
   return 'index.js';
-}
-
-// ---------------------------------------------------------------------------
-// Section parsing
-// ---------------------------------------------------------------------------
-
-const SECTION_HEADER_RE = /^(Component tree|Stack trace|Caused by:[^\n]*):\s*$/;
-
-export function parseErrorSections(errorText: string): ErrorSection[] {
-  const lines = errorText.split('\n');
-  const sections: ErrorSection[] = [];
-  let current: ErrorSection = { header: null, lines: [] };
-
-  for (const line of lines) {
-    if (SECTION_HEADER_RE.test(line.trim())) {
-      sections.push(current);
-      current = { header: line.trim().replace(/:$/, ''), lines: [] };
-    } else {
-      current.lines.push(line);
-    }
-  }
-  sections.push(current);
-
-  return sections;
-}
-
-// ---------------------------------------------------------------------------
-// Stack frame parsing
-// ---------------------------------------------------------------------------
-
-const FRAME_RE = /^[ \t]+at\s+(\S+)\s+\(([^)]+):(\d+):(\d+)\)\s*$/;
-
-export function parseStackFrames(text: string): StackFrame[] {
-  const frames: StackFrame[] = [];
-  const re = new RegExp(FRAME_RE.source, 'gm');
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
-    frames.push({
-      fnName: m[1],
-      file: m[2],
-      line: parseInt(m[3], 10),
-      col: parseInt(m[4], 10),
-      raw: m[0],
-    });
-  }
-  return frames;
 }
 
 // ---------------------------------------------------------------------------
@@ -246,14 +207,14 @@ export function runMetroSymbolicate(
 }
 
 // ---------------------------------------------------------------------------
-// metro-symbolicate output parser
+// metro-symbolicate output parser (internal)
 // ---------------------------------------------------------------------------
 
 // metro-symbolicate outputs frames in two formats:
 //   standard:  at <fn> (<source>:<line>:<col>)       — colOrName is numeric
 //   recovered: at <minFn> (<source>:<line>:<fnName>) — colOrName is a function name
 // In both cases the source may have a leading "/" that should be stripped.
-export function reformatSymbolicatedLine(rawLine: string): string {
+function reformatSymbolicatedLine(rawLine: string): string {
   const line = rawLine.trim();
   const m = /^at\s+(\S+)\s+\((.+):(\d+):([^):]+)\)$/.exec(line);
   if (!m) return line;
@@ -268,84 +229,103 @@ export function reformatSymbolicatedLine(rawLine: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Section-aware symbolication via metro-symbolicate
+// Batch symbolication of ParsedFrame arrays
 // ---------------------------------------------------------------------------
 
-export type SymbolicateResult = {
-  output: string;
+export type SymbolicateStats = {
   totalFrames: number;
   resolvedFrames: number;
 };
 
-export function symbolicateSections(
-  sections: ErrorSection[],
+export function symbolicateAllFrames(
+  frames: ParsedFrame[],
   sourceMapPath: string,
   projectRoot: string
-): SymbolicateResult {
-  // Collect all frame lines across non-preamble sections, in order
-  type FrameRef = { sectionIdx: number; lineIdx: number; originalFile: string };
-  const frameRefs: FrameRef[] = [];
-  const frameInputLines: string[] = [];
+): { frames: ParsedFrame[] } & SymbolicateStats {
+  const resolvableIndices: number[] = [];
+  const inputLines: string[] = [];
 
-  for (let si = 0; si < sections.length; si++) {
-    const section = sections[si];
-    if (section.header === null) continue; // skip preamble — printed separately
-    for (let li = 0; li < section.lines.length; li++) {
-      const m = FRAME_RE.exec(section.lines[li]);
-      if (m) {
-        frameRefs.push({ sectionIdx: si, lineIdx: li, originalFile: m[2] });
-        frameInputLines.push(`    at ${m[1]} (${m[2]}:${m[3]}:${m[4]})`);
-      }
+  for (let i = 0; i < frames.length; i++) {
+    const f = frames[i];
+    if (f.file !== null && f.line !== null && f.col !== null) {
+      resolvableIndices.push(i);
+      inputLines.push(`    at ${f.fnName} (${f.file}:${f.line}:${f.col})`);
     }
   }
 
-  const symbolicatedLines = runMetroSymbolicate(frameInputLines, sourceMapPath, projectRoot);
+  const totalFrames = resolvableIndices.length;
+  if (totalFrames === 0) return { frames: frames.map(f => ({ ...f })), totalFrames: 0, resolvedFrames: 0 };
 
-  // Rebuild sections with symbolicated frames, 2-space indent throughout
-  const outputLines: string[] = [];
-  let totalFrames = 0;
+  const symLines = runMetroSymbolicate(inputLines, sourceMapPath, projectRoot);
+
+  const result = frames.map(f => ({ ...f }));
   let resolvedFrames = 0;
-  let frameIdx = 0;
-  let firstSection = true;
 
-  for (const section of sections) {
-    if (section.header === null) continue; // skip preamble
+  for (let idx = 0; idx < resolvableIndices.length; idx++) {
+    const frameIdx = resolvableIndices[idx];
+    const rawSym = (symLines[idx] || '').trim();
+    if (!rawSym) continue;
 
-    if (!firstSection) outputLines.push('');
-    firstSection = false;
+    const originalFile = frames[frameIdx].file!;
+    if (rawSym.includes(originalFile)) continue; // not resolved — metro returned the same bundle path
 
-    outputLines.push(`${section.header}:`);
-    for (const line of section.lines) {
-      const m = FRAME_RE.exec(line);
-      if (!m) {
-        // Lines starting with 'at ' (e.g. anonymous frames) get 2-space indent; others pass through.
-        const trimmed = line.replace(/^\s+/, '');
-        if (trimmed.startsWith('at ')) {
-          outputLines.push(`  ${trimmed}`);
-        } else if (trimmed !== '') {
-          outputLines.push(line);
-        }
-        continue;
-      }
-
-      totalFrames++;
-      const symLine = (symbolicatedLines[frameIdx] || '').trim();
-      frameIdx++;
-
-      const originalFile = m[2];
-      const resolved = symLine.length > 0 && !symLine.includes(originalFile);
-      if (resolved) resolvedFrames++;
-
-      // Strip any leading whitespace from the frame text before adding our fixed 2-space indent,
-      // so both symbolicated and unresolved frames are uniformly indented.
-      const frameText = resolved
-        ? reformatSymbolicatedLine(symLine)
-        : `at ${m[1]} (${m[2]}:${m[3]}:${m[4]})`;
-      outputLines.push(`  ${frameText.trimStart()}`);
+    const reformatted = reformatSymbolicatedLine(rawSym);
+    // Parse "at <fn> (<file>:<line>)" or "at <fn> (<file>:<line>:<col>)"
+    const m = /^at\s+(\S+)\s+\((.+):(\d+)(?::(\d+))?\)$/.exec(reformatted);
+    if (m) {
+      result[frameIdx] = {
+        fnName: m[1],
+        file: m[2],
+        line: parseInt(m[3], 10),
+        col: m[4] !== undefined ? parseInt(m[4], 10) : null,
+      };
+      resolvedFrames++;
     }
   }
 
-  return { output: outputLines.join('\n'), totalFrames, resolvedFrames };
+  return { frames: result, totalFrames, resolvedFrames };
+}
+
+// ---------------------------------------------------------------------------
+// Output rendering
+// ---------------------------------------------------------------------------
+
+function renderFrame(frame: ParsedFrame): string {
+  if (frame.file === null || frame.line === null) {
+    return `  at ${frame.fnName} (<anonymous>)`;
+  }
+  if (frame.col !== null) {
+    return `  at ${frame.fnName} (${frame.file}:${frame.line}:${frame.col})`;
+  }
+  return `  at ${frame.fnName} (${frame.file}:${frame.line})`;
+}
+
+export function renderOutput(data: JsErrorJson): string {
+  const lines: string[] = [];
+
+  if (data.componentStack.length > 0) {
+    lines.push('Component tree:');
+    for (const f of data.componentStack) lines.push(renderFrame(f));
+  }
+
+  if (data.stack.length > 0) {
+    if (lines.length > 0) lines.push('');
+    lines.push('Stack trace:');
+    for (const f of data.stack) lines.push(renderFrame(f));
+  }
+
+  if (data.cause) {
+    if (lines.length > 0) lines.push('');
+    lines.push(`Caused by: ${data.cause.name}: ${data.cause.message}`);
+    for (const f of data.cause.stack) lines.push(renderFrame(f));
+  }
+
+  if (data.digest) {
+    if (lines.length > 0) lines.push('');
+    lines.push(`Digest: ${data.digest}`);
+  }
+
+  return lines.join('\n');
 }
 
 // ---------------------------------------------------------------------------
@@ -355,20 +335,24 @@ export function symbolicateSections(
 async function showError(url: string): Promise<void> {
   const projectRoot = process.cwd();
 
-  // 1. Fetch error text
-  console.log(chalk.dim(`Fetching error from Sherlo...`));
-  let errorText: string;
+  // 1. Fetch and parse JSON payload
+  console.log(chalk.dim('Fetching error from Sherlo...'));
+  let data: JsErrorJson;
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    errorText = await res.text();
+    const text = await res.text();
+    data = JSON.parse(text) as JsErrorJson;
   } catch (err: any) {
     console.error(chalk.red(`Failed to fetch error: ${err.message}`));
     process.exit(1);
   }
 
-  // 2. Detect platform
-  const platform = detectPlatform(errorText);
+  // 2. Detect platform from frame file paths
+  const allFilePaths = [...data.stack, ...data.componentStack]
+    .map(f => f.file || '')
+    .join('\n');
+  const platform = detectPlatform(allFilePaths);
   console.log(chalk.dim(`Detected platform: ${platform}`));
 
   // 3. Detect project type
@@ -386,17 +370,13 @@ async function showError(url: string): Promise<void> {
     const gitStatus = execSync('git status --porcelain', {
       cwd: projectRoot,
       stdio: ['pipe', 'pipe', 'pipe'],
-    })
-      .toString()
-      .trim();
+    }).toString().trim();
     if (gitStatus) {
       const n = gitStatus.split('\n').length;
-      console.log(
-        chalk.yellow(
-          `Warning: ${n} uncommitted file${n === 1 ? '' : 's'} in working tree. ` +
-            `Source maps may misalign with the deployed bundle. Consider git stash first.`
-        )
-      );
+      console.log(chalk.yellow(
+        `Warning: ${n} uncommitted file${n === 1 ? '' : 's'} in working tree. ` +
+        `Source maps may misalign with the deployed bundle. Consider git stash first.`
+      ));
     }
   } catch (_) {
     // not a git repo or git unavailable — skip
@@ -411,45 +391,47 @@ async function showError(url: string): Promise<void> {
     process.exit(1);
   }
 
-  // 6. Parse sections
-  const sections = parseErrorSections(errorText);
-  const allFrames = parseStackFrames(errorText);
+  // 6. Print error header
+  console.log(`\n${data.name}: ${data.message}`);
 
-  // 7. Print preamble (error message) — exactly once
-  printPreamble(sections);
-
-  if (allFrames.length === 0) {
-    console.log(chalk.yellow('No stack frames found in error text.'));
+  const allFrames = [...data.componentStack, ...data.stack, ...(data.cause?.stack ?? [])];
+  const locatedCount = allFrames.filter(f => f.file !== null).length;
+  if (locatedCount === 0) {
+    console.log(chalk.yellow('No stack frames with location found in error payload.'));
     return;
   }
 
-  // 8. Symbolicate with section structure preserved
-  let result: SymbolicateResult;
+  // 7. Symbolicate all sections in a single batch
+  const compLen = data.componentStack.length;
+  const stackLen = data.stack.length;
+
+  let symResult: ReturnType<typeof symbolicateAllFrames>;
   try {
-    result = symbolicateSections(sections, sourceMapPath, projectRoot);
+    symResult = symbolicateAllFrames(allFrames, sourceMapPath, projectRoot);
   } catch (err: any) {
     console.error(chalk.red(`Symbolication failed: ${err.message}`));
     process.exit(1);
   }
 
-  // 9. Print symbolicated sections
-  const { output, totalFrames, resolvedFrames } = result;
-  console.log('\n' + output);
+  const { frames: symAll, totalFrames, resolvedFrames } = symResult;
+
+  const outputData: JsErrorJson = {
+    ...data,
+    componentStack: symAll.slice(0, compLen),
+    stack: symAll.slice(compLen, compLen + stackLen),
+    cause: data.cause
+      ? { ...data.cause, stack: symAll.slice(compLen + stackLen) }
+      : null,
+  };
+
+  // 8. Print symbolicated sections + footer
+  console.log('\n' + renderOutput(outputData));
   console.log(chalk.dim(`\nResolved ${resolvedFrames} of ${totalFrames} frames`));
 
   const pct = totalFrames > 0 ? Math.round((resolvedFrames / totalFrames) * 100) : 0;
   if (pct < 50) {
-    console.log(
-      chalk.yellow('Most frames did not resolve. Source maps may be from a different commit.')
-    );
+    console.log(chalk.yellow('Most frames did not resolve. Source maps may be from a different commit.'));
   }
-}
-
-function printPreamble(sections: ErrorSection[]): void {
-  const preamble = sections.find((s) => s.header === null);
-  if (!preamble) return;
-  const text = preamble.lines.join('\n').trimEnd();
-  if (text) console.log('\n' + text);
 }
 
 export default showError;
