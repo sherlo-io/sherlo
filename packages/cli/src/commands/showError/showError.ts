@@ -318,8 +318,13 @@ export function symbolicateSections(
     for (const line of section.lines) {
       const m = FRAME_RE.exec(line);
       if (!m) {
-        // non-frame line (blank, etc.) — pass through
-        if (line.trim() !== '') outputLines.push(line);
+        // Lines starting with 'at ' (e.g. anonymous frames) get 2-space indent; others pass through.
+        const trimmed = line.replace(/^\s+/, '');
+        if (trimmed.startsWith('at ')) {
+          outputLines.push(`  ${trimmed}`);
+        } else if (trimmed !== '') {
+          outputLines.push(line);
+        }
         continue;
       }
 

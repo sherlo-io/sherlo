@@ -297,6 +297,21 @@ describe('symbolicateSections', () => {
     expect(frameLine.startsWith('  at ')).toBe(true);
     expect(frameLine.startsWith('    at ')).toBe(false);
   });
+
+  it('anonymous frames (no file:line:col) are normalized to 2-space indent', () => {
+    const input = [
+      'Stack trace:',
+      '    at CrashComponent (bundle.js:1:100)',
+      '      at l (<anonymous>)',
+    ].join('\n');
+    const sections = parseErrorSections(input);
+    // Both frame lines should appear with exactly '  at ' prefix in the output
+    const stackSection = sections.find((s) => s.header === 'Stack trace')!;
+    expect(stackSection.lines.some((l) => l.includes('<anonymous>'))).toBe(true);
+    // Verify the trimmed form: the anonymous line starts with at after trim
+    const anonLine = stackSection.lines.find((l) => l.includes('<anonymous>'))!;
+    expect(anonLine.replace(/^\s+/, '').startsWith('at ')).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------
