@@ -4,6 +4,7 @@ import { version } from '../package.json';
 import {
   easBuildOnComplete,
   init,
+  symbolicate,
   test,
   testEasCloudBuild,
   testEasUpdate,
@@ -32,6 +33,12 @@ import {
   PLATFORM_LABEL,
   PROFILE_OPTION,
   PROJECT_ROOT_OPTION,
+  SYMBOLICATE_BUILD_SOURCE_MAPS_OPTION,
+  SYMBOLICATE_COMMAND,
+  SYMBOLICATE_ERROR_FILE_OPTION,
+  SYMBOLICATE_PLATFORM_OPTION,
+  SYMBOLICATE_SOURCE_MAP_OPTION,
+  SYMBOLICATE_URL_OPTION,
   TEST_COMMAND,
   TEST_EAS_CLOUD_BUILD_COMMAND,
   TEST_EAS_UPDATE_COMMAND,
@@ -64,6 +71,8 @@ async function start() {
     addTestEasUpdateCommand(program);
 
     addTestEasCloudBuildCommand(program);
+
+    addSymbolicateCommand(program);
 
     if (process.argv.length === 2) {
       console.log('Choose a Sherlo command. Use --help for more information.');
@@ -102,6 +111,7 @@ const COMMAND_DESCRIPTION = {
   [TEST_EAS_UPDATE_COMMAND]: 'Test builds with dynamic JavaScript (OTA) updates',
   [TEST_EAS_CLOUD_BUILD_COMMAND]: 'Test cloud builds created on Expo servers',
   [EAS_BUILD_ON_COMPLETE_COMMAND]: `Process EAS Build (required for \`${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
+  [SYMBOLICATE_COMMAND]: 'Decipher minified JS error stack traces using local source maps',
 };
 
 const OPTION_DEFINITION: Record<string, [string, string]> = {
@@ -158,6 +168,26 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   [WAIT_FOR_EAS_BUILD_OPTION]: [
     `--${WAIT_FOR_EAS_BUILD_OPTION}`,
     'Start waiting for EAS Build to be triggered manually',
+  ],
+  [SYMBOLICATE_ERROR_FILE_OPTION]: [
+    `--${SYMBOLICATE_ERROR_FILE_OPTION} <path>`,
+    'Path to js-error.txt copied from the Sherlo UI',
+  ],
+  [SYMBOLICATE_URL_OPTION]: [
+    `--${SYMBOLICATE_URL_OPTION} <url>`,
+    'Direct S3 URL to the js-error.txt (alternative to --error-file)',
+  ],
+  [SYMBOLICATE_SOURCE_MAP_OPTION]: [
+    `--${SYMBOLICATE_SOURCE_MAP_OPTION} <path>`,
+    'Path to a specific source map (.map) file',
+  ],
+  [SYMBOLICATE_BUILD_SOURCE_MAPS_OPTION]: [
+    `--${SYMBOLICATE_BUILD_SOURCE_MAPS_OPTION}`,
+    'Build fresh source maps locally before symbolicating',
+  ],
+  [SYMBOLICATE_PLATFORM_OPTION]: [
+    `--${SYMBOLICATE_PLATFORM_OPTION} <ios|android>`,
+    'Platform hint when source map auto-discovery finds multiple candidates',
   ],
 };
 
@@ -230,6 +260,22 @@ function addTestEasCloudBuildCommand(program: Command) {
     command: EAS_BUILD_ON_COMPLETE_COMMAND,
     options: [PROFILE_OPTION],
     action: easBuildOnComplete,
+  });
+}
+
+function addSymbolicateCommand(program: Command) {
+  addCommand({
+    program,
+    command: SYMBOLICATE_COMMAND,
+    options: [
+      SYMBOLICATE_ERROR_FILE_OPTION,
+      SYMBOLICATE_URL_OPTION,
+      SYMBOLICATE_SOURCE_MAP_OPTION,
+      SYMBOLICATE_BUILD_SOURCE_MAPS_OPTION,
+      SYMBOLICATE_PLATFORM_OPTION,
+    ],
+    action: symbolicate,
+    withTimeout: false,
   });
 }
 

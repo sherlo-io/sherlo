@@ -67,6 +67,7 @@ export const TEST_STANDARD_COMMAND = 'test:standard';
 export const TEST_EAS_UPDATE_COMMAND = 'test:eas-update';
 export const TEST_EAS_CLOUD_BUILD_COMMAND = 'test:eas-cloud-build';
 export const EAS_BUILD_ON_COMPLETE_COMMAND = 'eas-build-on-complete';
+export const SYMBOLICATE_COMMAND = 'symbolicate';
 export const FULL_INIT_COMMAND = 'npx sherlo init';
 
 /* OPTIONS */
@@ -87,6 +88,11 @@ export const PROJECT_ROOT_OPTION = 'projectRoot';
 export const TOKEN_OPTION = 'token';
 export const INCLUDE_OPTION = 'include';
 export const WAIT_FOR_EAS_BUILD_OPTION = 'waitForEasBuild';
+export const SYMBOLICATE_ERROR_FILE_OPTION = 'errorFile';
+export const SYMBOLICATE_URL_OPTION = 'url';
+export const SYMBOLICATE_SOURCE_MAP_OPTION = 'sourceMap';
+export const SYMBOLICATE_BUILD_SOURCE_MAPS_OPTION = 'buildSourceMaps';
+export const SYMBOLICATE_PLATFORM_OPTION = 'platform';
 
 export const COLOR = {
   reported: 'FFB36C',
