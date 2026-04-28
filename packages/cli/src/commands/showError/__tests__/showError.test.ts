@@ -1,7 +1,6 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import Module from 'module';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 
 vi.mock('child_process', async () => {
@@ -12,7 +11,9 @@ vi.mock('child_process', async () => {
 import * as childProcess from 'child_process';
 import {
   detectPlatform,
-  selectProjectType,
+  detectBundler,
+  parseIosBundleCommand,
+  parseAndroidBundleCommand,
   detectEntryFile,
   findSourceMap,
   buildSourceMaps,
@@ -115,44 +116,141 @@ describe('detectPlatform', () => {
 });
 
 // ---------------------------------------------------------------------------
-// selectProjectType
+// detectBundler / parseIosBundleCommand / parseAndroidBundleCommand
 // ---------------------------------------------------------------------------
 
-function makeJsonData(overrides: Partial<JsErrorJson> = {}): JsErrorJson {
-  return {
-    name: 'Error',
-    message: 'test',
-    stack: [],
-    componentStack: [],
-    digest: null,
-    cause: null,
-    hasExpo: false,
-    engine: 'jsc',
-    ...overrides,
-  };
+const EXPO_PBXPROJ = `/* Begin PBXShellScriptBuildPhase section */
+    A1 /* Bundle React Native code and images */ = {
+        isa = PBXShellScriptBuildPhase;
+        shellScript = "export BUNDLE_COMMAND=\\"export:embed\\"\\nexport CLI_PATH=\\"../node_modules/@expo/cli/build/src/cli.js\\"\\n";
+    };
+/* End PBXShellScriptBuildPhase section */`;
+
+const RN_PBXPROJ = `/* Begin PBXShellScriptBuildPhase section */
+    A2 /* Bundle React Native code and images */ = {
+        isa = PBXShellScriptBuildPhase;
+        shellScript = "export NODE_BINARY=node\\n../node_modules/react-native/scripts/react-native-xcode.sh";
+    };
+/* End PBXShellScriptBuildPhase section */`;
+
+const EXPO_GRADLE = `android { }\nreact {\n  bundleCommand = "export:embed"\n  entryFile = "index.js"\n}`;
+const RN_GRADLE = `android { }\nreact {\n  entryFile = "index.js"\n}`;
+const RN_GRADLE_LEGACY = `android { }\n// no react block`;
+
+function makeIosProject(dir: string, pbxprojContent: string): void {
+  const xcodeprojDir = path.join(dir, 'ios', 'TestApp.xcodeproj');
+  fs.mkdirSync(xcodeprojDir, { recursive: true });
+  fs.writeFileSync(path.join(xcodeprojDir, 'project.pbxproj'), pbxprojContent);
 }
 
-describe('selectProjectType', () => {
-  it('returns bare-rn when hasExpo is false', () => {
+function makeAndroidProject(dir: string, gradleContent: string): void {
+  const appDir = path.join(dir, 'android', 'app');
+  fs.mkdirSync(appDir, { recursive: true });
+  fs.writeFileSync(path.join(appDir, 'build.gradle'), gradleContent);
+}
+
+describe('parseIosBundleCommand', () => {
+  it('returns expo from BUNDLE_COMMAND=export:embed in pbxproj', () => {
     const dir = makeTempDir();
-    const data = makeJsonData({ hasExpo: false });
-    expect(selectProjectType(data, dir)).toBe('bare-rn');
+    makeIosProject(dir, EXPO_PBXPROJ);
+    expect(parseIosBundleCommand(dir)).toBe('expo');
   });
 
-  it('returns expo when hasExpo is true and @expo/cli is resolvable', () => {
+  it('returns rn from react-native-xcode.sh in pbxproj', () => {
     const dir = makeTempDir();
-    const data = makeJsonData({ hasExpo: true });
-    // Mock Module._resolveFilename which is the implementation of require.resolve
-    const spy = vi.spyOn(Module as any, '_resolveFilename').mockReturnValueOnce('/some/path/@expo/cli');
-    expect(selectProjectType(data, dir)).toBe('expo');
-    spy.mockRestore();
+    makeIosProject(dir, RN_PBXPROJ);
+    expect(parseIosBundleCommand(dir)).toBe('rn');
   });
 
-  it('returns bare-rn when hasExpo is true but @expo/cli is not resolvable', () => {
+  it('returns null when ios dir missing', () => {
     const dir = makeTempDir();
-    const data = makeJsonData({ hasExpo: true });
-    // Empty tempdir has no node_modules, so require.resolve throws naturally
-    expect(selectProjectType(data, dir)).toBe('bare-rn');
+    expect(parseIosBundleCommand(dir)).toBeNull();
+  });
+});
+
+describe('parseAndroidBundleCommand', () => {
+  it('returns expo from bundleCommand = "export:embed" in react block', () => {
+    const dir = makeTempDir();
+    makeAndroidProject(dir, EXPO_GRADLE);
+    expect(parseAndroidBundleCommand(dir)).toBe('expo');
+  });
+
+  it('returns rn when react block has no bundleCommand', () => {
+    const dir = makeTempDir();
+    makeAndroidProject(dir, RN_GRADLE);
+    expect(parseAndroidBundleCommand(dir)).toBe('rn');
+  });
+
+  it('returns rn when no react block at all (legacy bare RN)', () => {
+    const dir = makeTempDir();
+    makeAndroidProject(dir, RN_GRADLE_LEGACY);
+    expect(parseAndroidBundleCommand(dir)).toBe('rn');
+  });
+
+  it('returns null when build.gradle missing', () => {
+    const dir = makeTempDir();
+    fs.mkdirSync(path.join(dir, 'android', 'app'), { recursive: true });
+    expect(parseAndroidBundleCommand(dir)).toBeNull();
+  });
+});
+
+describe('detectBundler', () => {
+  it('returns expo when ios and android both signal expo', () => {
+    const dir = makeTempDir();
+    makeIosProject(dir, EXPO_PBXPROJ);
+    makeAndroidProject(dir, EXPO_GRADLE);
+    expect(detectBundler(dir)).toBe('expo');
+  });
+
+  it('returns rn when ios and android both signal rn', () => {
+    const dir = makeTempDir();
+    makeIosProject(dir, RN_PBXPROJ);
+    makeAndroidProject(dir, RN_GRADLE);
+    expect(detectBundler(dir)).toBe('rn');
+  });
+
+  it('throws when ios and android disagree', () => {
+    const dir = makeTempDir();
+    makeIosProject(dir, EXPO_PBXPROJ);
+    makeAndroidProject(dir, RN_GRADLE);
+    expect(() => detectBundler(dir)).toThrow("iOS and Android bundle commands disagree");
+  });
+
+  it('returns expo from ios alone', () => {
+    const dir = makeTempDir();
+    makeIosProject(dir, EXPO_PBXPROJ);
+    expect(detectBundler(dir)).toBe('expo');
+  });
+
+  it('returns rn from ios alone', () => {
+    const dir = makeTempDir();
+    makeIosProject(dir, RN_PBXPROJ);
+    expect(detectBundler(dir)).toBe('rn');
+  });
+
+  it('returns expo from android alone', () => {
+    const dir = makeTempDir();
+    makeAndroidProject(dir, EXPO_GRADLE);
+    expect(detectBundler(dir)).toBe('expo');
+  });
+
+  it('returns rn from android alone', () => {
+    const dir = makeTempDir();
+    makeAndroidProject(dir, RN_GRADLE_LEGACY);
+    expect(detectBundler(dir)).toBe('rn');
+  });
+
+  it('returns expo for managed Expo app (no native dirs, expo dep + app.config.js)', () => {
+    const dir = makeTempDir();
+    writeJson(dir, 'package.json', { dependencies: { expo: '*', 'react-native': '*' } });
+    fs.writeFileSync(path.join(dir, 'app.config.js'), 'module.exports = {};');
+    expect(detectBundler(dir)).toBe('expo');
+  });
+
+  it('throws when no native dirs and project is not managed Expo', () => {
+    const dir = makeTempDir();
+    writeJson(dir, 'package.json', { dependencies: { 'react-native': '*' } });
+    expect(() => detectBundler(dir)).toThrow('Cannot determine bundler');
   });
 });
 
@@ -272,7 +370,7 @@ function makeFixture(overrides: Partial<JsErrorJson> = {}): JsErrorJson {
     digest: null,
     cause: null,
     hasExpo: false,
-    engine: 'jsc',
+    // engine intentionally omitted to test defaulting
     ...overrides,
   };
 }

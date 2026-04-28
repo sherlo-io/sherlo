@@ -3,7 +3,7 @@ import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 
-export type ProjectType = 'expo' | 'bare-rn';
+export type ProjectType = 'expo' | 'rn';
 export type Platform = 'ios' | 'android';
 
 // ---------------------------------------------------------------------------
@@ -25,7 +25,7 @@ export interface JsErrorJson {
   digest: string | null;
   cause: { name: string; message: string; stack: ParsedFrame[] } | null;
   hasExpo: boolean;
-  engine: 'hermes' | 'jsc';
+  engine?: 'hermes' | 'jsc';
 }
 
 // ---------------------------------------------------------------------------
@@ -50,17 +50,81 @@ export function detectPlatform(text: string): Platform {
 }
 
 // ---------------------------------------------------------------------------
-// Project type selection (runtime-signal based)
+// Bundler detection from native build scripts
 // ---------------------------------------------------------------------------
 
-export function selectProjectType(data: JsErrorJson, projectRoot: string): ProjectType {
-  if (!data.hasExpo) return 'bare-rn';
-  try {
-    require.resolve('@expo/cli', { paths: [projectRoot] });
-    return 'expo';
-  } catch {
-    return 'bare-rn';
+export function parseIosBundleCommand(projectRoot: string): 'expo' | 'rn' | null {
+  const iosDir = path.join(projectRoot, 'ios');
+  if (!fs.existsSync(iosDir)) return null;
+  let entries: string[];
+  try { entries = fs.readdirSync(iosDir); } catch { return null; }
+  const xcodeproj = entries.find(e => e.endsWith('.xcodeproj'));
+  if (!xcodeproj) return null;
+  const pbxprojPath = path.join(iosDir, xcodeproj, 'project.pbxproj');
+  if (!fs.existsSync(pbxprojPath)) return null;
+  let content: string;
+  try { content = fs.readFileSync(pbxprojPath, 'utf8'); } catch { return null; }
+  // Expo markers in the bundle shell script
+  if (
+    /BUNDLE_COMMAND=\\?"export:embed\\?"/.test(content) ||
+    /expo\/scripts\/resolveAppEntry/.test(content) ||
+    /CLI_PATH=[^\n]*@expo\/cli/.test(content)
+  ) return 'expo';
+  // RN marker: the standard react-native-xcode.sh is the bundle phase script for bare RN
+  if (/react-native-xcode\.sh|Bundle React Native code/i.test(content)) return 'rn';
+  return null;
+}
+
+export function parseAndroidBundleCommand(projectRoot: string): 'expo' | 'rn' | null {
+  const buildGradlePath = path.join(projectRoot, 'android', 'app', 'build.gradle');
+  if (!fs.existsSync(buildGradlePath)) return null;
+  let content: string;
+  try { content = fs.readFileSync(buildGradlePath, 'utf8'); } catch { return null; }
+  const reactBlock = /\breact\s*\{([^}]*)\}/.exec(content);
+  if (!reactBlock) return 'rn'; // legacy bare RN without react block defaults to react-native bundle
+  const bundleCommand = /bundleCommand\s*=\s*"([^"]*)"/.exec(reactBlock[1]);
+  if (!bundleCommand) return 'rn';
+  return bundleCommand[1] === 'export:embed' ? 'expo' : 'rn';
+}
+
+export function detectBundler(projectRoot: string): ProjectType {
+  const iosExists = fs.existsSync(path.join(projectRoot, 'ios'));
+  const androidExists = fs.existsSync(path.join(projectRoot, 'android'));
+
+  if (iosExists || androidExists) {
+    const ios = iosExists ? parseIosBundleCommand(projectRoot) : null;
+    const android = androidExists ? parseAndroidBundleCommand(projectRoot) : null;
+    if (ios !== null && android !== null && ios !== android) {
+      throw new Error(
+        `iOS and Android bundle commands disagree: iOS='${ios}', Android='${android}'. ` +
+        `Check ios/*.xcodeproj/project.pbxproj and android/app/build.gradle.`
+      );
+    }
+    const result = ios ?? android;
+    if (result !== null) return result;
+    // Native dirs exist but no definitive signal — fall through to managed-Expo check
   }
+
+  // Managed Expo / CNG: no native dirs (or dirs yielded no signal)
+  let pkg: Record<string, any> = {};
+  try { pkg = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8')); } catch { /* ignore */ }
+  const deps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) };
+  const hasExpoDep = 'expo' in deps;
+  const hasExpoConfig =
+    fs.existsSync(path.join(projectRoot, 'app.config.js')) ||
+    fs.existsSync(path.join(projectRoot, 'app.config.ts')) ||
+    (() => {
+      const appJsonPath = path.join(projectRoot, 'app.json');
+      if (!fs.existsSync(appJsonPath)) return false;
+      try { return 'expo' in JSON.parse(fs.readFileSync(appJsonPath, 'utf8')); } catch { return false; }
+    })();
+
+  if (hasExpoDep && hasExpoConfig) return 'expo';
+
+  throw new Error(
+    'Cannot determine bundler: no conclusive signal in native build scripts and project does not look like a managed Expo app. ' +
+    'Run expo prebuild first or invoke sherlo show-error from a project root with ios/ or android/ directories.'
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -112,14 +176,14 @@ export function buildSourceMaps(
           { cwd: projectRoot, stdio: ['pipe', 'pipe', 'pipe'] }
         );
       } catch (expoErr: any) {
-        console.log(chalk.yellow(`\nWarning: expo build failed (${expoErr.message || String(expoErr)}), retrying with bare-rn bundler...`));
+        console.log(chalk.yellow(`\nWarning: expo build failed (${expoErr.message || String(expoErr)}), retrying with rn bundler...`));
         const rnBundleOut = path.join(cacheDir, `bundle.${platform}.jsbundle`);
         const rnMapOut = `${rnBundleOut}.map`;
         execSync(
           `npx react-native bundle --platform ${platform} --dev false --entry-file ${entryFile} --bundle-output ${rnBundleOut} --sourcemap-output ${rnMapOut}`,
           { cwd: projectRoot, stdio: ['pipe', 'pipe', 'pipe'] }
         );
-        effectiveProjectType = 'bare-rn';
+        effectiveProjectType = 'rn';
       }
     } else {
       const bundleOut = path.join(cacheDir, `bundle.${platform}.jsbundle`);
@@ -354,10 +418,17 @@ async function showError(url: string): Promise<void> {
   const platform = detectPlatform(allFilePaths);
   console.log(chalk.dim(`Detected platform: ${platform}`));
 
-  // 3. Select project type from runtime signals in the JSON payload
-  const projectType = selectProjectType(data, projectRoot);
+  // 3. Detect bundler from native build scripts
+  let projectType: ProjectType;
+  try {
+    projectType = detectBundler(projectRoot);
+  } catch (err: any) {
+    console.error(chalk.red(err.message));
+    process.exit(1);
+  }
+  const engine = data.engine ?? 'hermes';
   console.log(chalk.dim(`Detected project type: ${projectType}`));
-  console.log(chalk.dim(`Detected engine: ${data.engine}`));
+  console.log(chalk.dim(`Detected engine: ${engine}`));
 
   // 4. Pre-flight git check
   try {
