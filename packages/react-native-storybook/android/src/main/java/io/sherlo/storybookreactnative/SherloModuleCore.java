@@ -127,9 +127,18 @@ public class SherloModuleCore {
     }
     
     /**
+     * Returns the current mode string. Safe to call before constructor — falls back to
+     * MODE_DEFAULT. Used by the JSI bindings (SherloModuleJSIBindings.cpp) to read the
+     * mode synchronously on the JS thread before bundle evaluation starts.
+     */
+    public static String getCurrentMode() {
+        return currentMode != null ? currentMode : MODE_DEFAULT;
+    }
+
+    /**
      * Returns constants exposed to the JavaScript side.
      * Provides access to the current mode, configuration and last state.
-     * 
+     *
      * @return A map containing the module constants
      */
     public WritableMap getSherloConstants() {
@@ -186,6 +195,12 @@ public class SherloModuleCore {
      * Must never throw. Returns true on success, false on failure.
      */
     public boolean reportEarlyJsError(String name, String message, String stack) {
+        // Defense in depth: even if the JS-side gate (metro/polyfill.js) is bypassed,
+        // refuse to write JS errors to protocol.sherlo unless in testing mode. This
+        // makes a polyfill-bug failure mode 'no error captured' not 'protocol polluted'.
+        if (!MODE_TESTING.equals(currentMode)) {
+            return false;
+        }
         try {
             ProtocolHelper.writeEarlyJsError(this.fileSystemHelper, name, message, stack);
             return true;

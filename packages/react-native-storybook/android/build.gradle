@@ -24,6 +24,23 @@ android {
         versionCode 1
         versionName "1.0"
         buildConfigField("boolean", "IS_NEW_ARCHITECTURE_ENABLED", isNewArchitectureEnabled().toString())
+
+        if (isNewArchitectureEnabled()) {
+            externalNativeBuild {
+                cmake {
+                    arguments "-DANDROID_STL=c++_shared"
+                }
+            }
+        }
+    }
+
+    if (isNewArchitectureEnabled()) {
+        externalNativeBuild {
+            cmake {
+                path "CMakeLists.txt"
+                version "3.22.1"
+            }
+        }
     }
 
     sourceSets {
@@ -36,7 +53,7 @@ android {
             }
         }
     }
-    
+
     buildFeatures {
         buildConfig true
     }

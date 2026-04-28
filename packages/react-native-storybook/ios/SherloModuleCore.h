@@ -25,6 +25,9 @@
 /** Returns YES when Sherlo is running in automated visual test mode. */
 + (BOOL)isTestingMode;
 
+/** Returns the current mode string (e.g. 'default', 'testing', 'storybook'). */
++ (NSString *)currentMode;
+
 /**
  * Returns constants exposed to the JavaScript side
  * @return Dictionary with mode, config, and lastState

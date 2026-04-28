@@ -23,10 +23,25 @@ var path = require('path');
  * const config = getDefaultConfig(__dirname);
  * module.exports = withSherlo(withStorybook(config));
  *
+ * @example
+ * // Disable Sherlo entirely for a specific build:
+ * module.exports = withSherlo(config, { enabled: false });
+ *
  * @param {Record<string, any>} config - Metro config object
+ * @param {{ enabled?: boolean }} [options] - Optional options
+ * @param {boolean} [options.enabled=true] - When false, withSherlo is a complete
+ *   passthrough: no resolver override, no polyfill injection, no wrapper generation.
  * @returns {Record<string, any>}
  */
-function withSherlo(config) {
+function withSherlo(config, options) {
+  // Explicit opt-out: when { enabled: false } is passed, withSherlo is a
+  // complete passthrough. NO Sherlo code is added to the bundle. Use this
+  // for production builds when you want to verify zero Sherlo footprint, or
+  // for environments where Sherlo testing won't run.
+  if (options && options.enabled === false) {
+    return config;
+  }
+
   var projectRoot = config.projectRoot || process.cwd();
   var wrapperPath = path.join(
     projectRoot,
@@ -61,6 +76,10 @@ function withSherlo(config) {
       : context.resolveRequest(context, moduleName, platform);
   }
 
+  // The polyfill is added to every bundle built with withSherlo(). It self-gates
+  // on globalThis.__sherloRuntimeMode_v1 (set by the native SherloModule binding
+  // before bundle eval) and is INERT in production builds. See metro/polyfill.js
+  // for the detailed safety analysis.
   var polyfillPath = path.join(__dirname, 'metro', 'polyfill.js');
 
   var existingGetPolyfills =

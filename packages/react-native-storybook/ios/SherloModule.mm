@@ -161,6 +161,27 @@ static void SherloEarlyInit(void) {
   [core scrollToCheckpoint:index offset:offset maxIndex:maxIndex resolve:resolve reject:reject];
 }
 
+// Installed by RN runtime BEFORE bundle eval, on the JS thread.
+// This runs in EVERY app that uses Sherlo SDK (production or testing).
+// Production safety: in production, the cached mode is 'default' (no config file
+// present), so we set globalThis.__sherloRuntimeMode_v1 = 'default'. The metro
+// polyfill then immediately returns — no __r wrapping, no error capture, no
+// overhead beyond a single property read.
+// C++ exceptions are swallowed (a binding failure must NEVER crash the customer's app).
+- (void)installJSIBindingsWithRuntime:(facebook::jsi::Runtime &)runtime
+                          callInvoker:(const std::shared_ptr<facebook::react::CallInvoker> &)callInvoker
+{
+  try {
+    NSString *modeStr = [SherloModuleCore currentMode] ?: @"default";
+    const char *cMode = [modeStr UTF8String] ?: "default";
+    runtime.global().setProperty(runtime, "__sherloRuntimeMode_v1",
+      facebook::jsi::String::createFromUtf8(runtime, cMode));
+  } catch (...) {
+    // Swallow ANY exception from the JSI binding. We must never block the
+    // customer's app from starting due to a Sherlo binding failure.
+  }
+}
+
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
     (const facebook::react::ObjCTurboModule::InitParams &)params
 {

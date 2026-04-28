@@ -91,6 +91,10 @@ static FileSystemHelper *fileSystemHelper;
     return [currentMode isEqualToString:MODE_TESTING];
 }
 
++ (NSString *)currentMode {
+    return currentMode ?: MODE_DEFAULT;
+}
+
 /**
  * Returns constants that will be exposed to JavaScript.
  * Includes mode constants, current mode, and configuration.
@@ -185,6 +189,12 @@ static FileSystemHelper *fileSystemHelper;
 }
 
 - (BOOL)reportEarlyJsError:(NSString *)name message:(NSString *)message stack:(NSString *)stack {
+    // Defense in depth: even if the JS-side gate (metro/polyfill.js) is bypassed,
+    // refuse to write JS errors to protocol.sherlo unless in testing mode. This
+    // makes a polyfill-bug failure mode 'no error captured' not 'protocol polluted'.
+    if (![currentMode isEqualToString:MODE_TESTING]) {
+        return NO;
+    }
     @try {
         NSMutableDictionary *data = [NSMutableDictionary dictionary];
         [data setObject:name ?: @"Error" forKey:@"name"];

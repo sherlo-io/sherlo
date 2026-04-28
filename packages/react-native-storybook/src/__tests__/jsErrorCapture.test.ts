@@ -106,12 +106,12 @@ describe('polyfill - AppRegistry.registerComponent monkey-patch', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Tests: polyfill file structure (now a diagnostic no-op)
+// Tests: polyfill file structure
 // ---------------------------------------------------------------------------
 
 describe('polyfill - file structure', () => {
-  it('contains the diagnostic log marker', () => {
-    expect(polyfillSource).toContain('[Sherlo] metro polyfill loaded');
+  it('has no console.warn calls — polyfill is silent', () => {
+    expect(polyfillSource).not.toContain('console.warn');
   });
 });
 
@@ -368,42 +368,45 @@ function makeNativeModule(mode: string, reportEarlyJsError?: ReturnType<typeof v
 }
 
 describe('metro/polyfill.js — __r wrapper', () => {
-  it('wraps __r when isTesting=true via __turboModuleProxy', () => {
-    const nm = makeNativeModule('testing');
+  afterEach(() => {
+    delete (globalThis as any).__sherloRuntimeMode_v1;
+  });
+
+  // JSI gate: __sherloRuntimeMode_v1 is set by the native binding BEFORE bundle eval.
+  it('does NOT wrap __r when __sherloRuntimeMode_v1 is undefined (old arch / no binding)', () => {
     const originalRequire = vi.fn(() => 'result');
-    const fakeGlobal: any = {
-      __r: originalRequire,
-      __turboModuleProxy: vi.fn((name: string) => name === 'SherloModule' ? nm : null),
-    };
+    const fakeGlobal: any = { __r: originalRequire };
+    runPolyfillIIFE(fakeGlobal);
+    expect(fakeGlobal.__r).toBe(originalRequire);
+  });
+
+  it('does NOT wrap __r when __sherloRuntimeMode_v1 = "default" (production build)', () => {
+    (globalThis as any).__sherloRuntimeMode_v1 = 'default';
+    const originalRequire = vi.fn(() => 'result');
+    const fakeGlobal: any = { __r: originalRequire };
+    runPolyfillIIFE(fakeGlobal);
+    expect(fakeGlobal.__r).toBe(originalRequire);
+  });
+
+  it('wraps __r when __sherloRuntimeMode_v1 = "testing" (JSI binding set by runner)', () => {
+    (globalThis as any).__sherloRuntimeMode_v1 = 'testing';
+    const originalRequire = vi.fn(() => 'result');
+    const fakeGlobal: any = { __r: originalRequire };
     runPolyfillIIFE(fakeGlobal);
     expect(fakeGlobal.__r).not.toBe(originalRequire);
     expect(fakeGlobal.__sherloRequireWrapped).toBe(true);
   });
 
-  it('does NOT wrap __r when mode is not testing', () => {
-    const nm = makeNativeModule('default');
-    const originalRequire = vi.fn(() => 'result');
-    const fakeGlobal: any = {
-      __r: originalRequire,
-      __turboModuleProxy: vi.fn((name: string) => name === 'SherloModule' ? nm : null),
-    };
-    runPolyfillIIFE(fakeGlobal);
-    expect(fakeGlobal.__r).toBe(originalRequire);
-  });
-
   it('is idempotent — does not double-wrap when __sherloRequireWrapped is set', () => {
-    const nm = makeNativeModule('testing');
+    (globalThis as any).__sherloRuntimeMode_v1 = 'testing';
     const originalRequire = vi.fn(() => 'result');
-    const fakeGlobal: any = {
-      __r: originalRequire,
-      __sherloRequireWrapped: true,
-      __turboModuleProxy: vi.fn((name: string) => name === 'SherloModule' ? nm : null),
-    };
+    const fakeGlobal: any = { __r: originalRequire, __sherloRequireWrapped: true };
     runPolyfillIIFE(fakeGlobal);
     expect(fakeGlobal.__r).toBe(originalRequire);
   });
 
   it('calls reportEarlyJsError and re-throws on __r failure', () => {
+    (globalThis as any).__sherloRuntimeMode_v1 = 'testing';
     const reportFn = vi.fn(() => true);
     const nm = makeNativeModule('testing', reportFn);
     const err = new Error('module eval crash');
@@ -419,6 +422,7 @@ describe('metro/polyfill.js — __r wrapper', () => {
   });
 
   it('passes error name, message, and stack to reportEarlyJsError', () => {
+    (globalThis as any).__sherloRuntimeMode_v1 = 'testing';
     const reportFn = vi.fn(() => true);
     const nm = makeNativeModule('testing', reportFn);
     const err = new TypeError('bad type');
@@ -433,6 +437,7 @@ describe('metro/polyfill.js — __r wrapper', () => {
   });
 
   it('still re-throws even if reportEarlyJsError throws', () => {
+    (globalThis as any).__sherloRuntimeMode_v1 = 'testing';
     const nm = makeNativeModule('testing', vi.fn(() => { throw new Error('native exploded'); }));
     const err = new Error('original error');
     const originalRequire = vi.fn(() => { throw err; });
@@ -445,10 +450,10 @@ describe('metro/polyfill.js — __r wrapper', () => {
   });
 
   it('forwards successful require return value unchanged', () => {
-    const nm = makeNativeModule('testing');
+    (globalThis as any).__sherloRuntimeMode_v1 = 'testing';
     const fakeGlobal: any = {
       __r: vi.fn(() => ({ default: 42 })),
-      __turboModuleProxy: vi.fn((name: string) => name === 'SherloModule' ? nm : null),
+      __turboModuleProxy: vi.fn(() => null),
     };
     runPolyfillIIFE(fakeGlobal);
     expect(fakeGlobal.__r(5)).toEqual({ default: 42 });
@@ -468,8 +473,8 @@ describe('index.ts — reportEarlyJsError surface invariants', () => {
     expect(polyfillIIFESource).toContain('__sherloRequireWrapped');
   });
 
-  it('polyfill source gates on isTesting', () => {
-    expect(polyfillIIFESource).toContain('isTesting');
+  it('polyfill source gates on __sherloRuntimeMode_v1 (JSI binding gate)', () => {
+    expect(polyfillIIFESource).toContain('__sherloRuntimeMode_v1');
   });
 
   it('polyfill source re-throws original error', () => {
