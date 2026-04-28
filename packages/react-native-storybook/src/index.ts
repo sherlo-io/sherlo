@@ -96,8 +96,8 @@ function patchAppRegistryWithBoundary(SherloModule: any, isTesting: boolean): vo
     return lines.slice(0, cutoffIdx).join('\n');
   }
 
-  function writeJsErrorEntry(error: any, errorInfo: any): void {
-    if (!isTesting) return;
+  function writeJsErrorEntry(error: any, errorInfo: any): Promise<void> {
+    if (!isTesting) return Promise.resolve();
     try {
       const data = {
         name: (error && error.name) || 'Error',
@@ -117,8 +117,19 @@ function patchAppRegistryWithBoundary(SherloModule: any, isTesting: boolean): vo
       };
 
       const entry = { action: 'JS_ERROR', timestamp: Date.now(), entity: 'app', data: data };
-      SherloModule.appendFile('protocol.sherlo', JSON.stringify(entry) + '\n');
-    } catch (_) {}
+      console.warn('[Sherlo] componentDidCatch: about to write JS_ERROR');
+      return Promise.resolve(SherloModule.appendFile('protocol.sherlo', JSON.stringify(entry) + '\n'))
+        .then(function () { console.warn('[Sherlo] componentDidCatch: JS_ERROR appendFile resolved'); })
+        .catch(function () { console.warn('[Sherlo] componentDidCatch: JS_ERROR appendFile rejected'); });
+    } catch (_) {
+      return Promise.resolve();
+    }
+  }
+
+  function doReportFatalError(error: any): void {
+    if ((global as any).ErrorUtils && typeof (global as any).ErrorUtils.reportFatalError === 'function') {
+      try { (global as any).ErrorUtils.reportFatalError(error); } catch (_) {}
+    }
   }
 
   // ES5-style class to avoid transpilation surprises in user bundles.
@@ -131,10 +142,15 @@ function patchAppRegistryWithBoundary(SherloModule: any, isTesting: boolean): vo
   (SherloErrorBoundary as any).displayName = 'SherloErrorBoundary';
   (SherloErrorBoundary as any).getDerivedStateFromError = () => ({ caught: true });
   SherloErrorBoundary.prototype.componentDidCatch = function (error: any, errorInfo: any) {
-    writeJsErrorEntry(error, errorInfo);
-    // Re-propagate so the standard fatal flow (redbox in dev, native crash in prod) runs.
-    if ((global as any).ErrorUtils && typeof (global as any).ErrorUtils.reportFatalError === 'function') {
-      try { (global as any).ErrorUtils.reportFatalError(error); } catch (_) {}
+    if (isTesting) {
+      // Defer reportFatalError until the native bridge appendFile call settles so
+      // the JS_ERROR entry is persisted before the JS thread is torn down.
+      writeJsErrorEntry(error, errorInfo).finally(function () {
+        console.warn('[Sherlo] componentDidCatch: about to reportFatalError');
+        doReportFatalError(error);
+      });
+    } else {
+      doReportFatalError(error);
     }
   };
   SherloErrorBoundary.prototype.render = function () {
