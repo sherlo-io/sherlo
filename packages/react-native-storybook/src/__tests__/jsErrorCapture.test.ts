@@ -372,9 +372,10 @@ describe('metro/polyfill.js — __r wrapper', () => {
     delete (globalThis as any).__sherloRuntimeMode_v1;
   });
 
-  // The __r wrapper is always installed. The mode-check is deferred to error-time
-  // so that JSI-binding timing cannot cause missed captures.
-  it('wraps __r even when __sherloRuntimeMode_v1 is undefined (mode-check deferred to error-time)', () => {
+  // The __r wrapper is always installed and forwards unconditionally to native.
+  // Native (SherloModuleCore) gates on mode — in production (no config.sherlo),
+  // reportEarlyJsError is a no-op on the native side.
+  it('wraps __r and calls reportEarlyJsError unconditionally (native gates in production)', () => {
     const reportFn = vi.fn();
     const nm = makeNativeModule('default', reportFn);
     const err = new Error('crash');
@@ -385,13 +386,11 @@ describe('metro/polyfill.js — __r wrapper', () => {
     runPolyfillIIFE(fakeGlobal);
     expect(fakeGlobal.__r).not.toBe(vi.fn());
     expect(fakeGlobal.__sherloRequireWrapped).toBe(true);
-    // Error is rethrown but reportEarlyJsError is NOT called (mode is undefined)
     expect(() => fakeGlobal.__r(1)).toThrow('crash');
-    expect(reportFn).not.toHaveBeenCalled();
+    expect(reportFn).toHaveBeenCalled();
   });
 
-  it('wraps __r but does not call reportEarlyJsError when __sherloRuntimeMode_v1 = "default" (production build)', () => {
-    (globalThis as any).__sherloRuntimeMode_v1 = 'default';
+  it('wraps __r and calls reportEarlyJsError regardless of native module mode', () => {
     const reportFn = vi.fn();
     const nm = makeNativeModule('default', reportFn);
     const err = new Error('crash');
@@ -402,9 +401,8 @@ describe('metro/polyfill.js — __r wrapper', () => {
     runPolyfillIIFE(fakeGlobal);
     expect(fakeGlobal.__r).not.toBe(vi.fn());
     expect(fakeGlobal.__sherloRequireWrapped).toBe(true);
-    // Error is rethrown but reportEarlyJsError is NOT called (mode is 'default')
     expect(() => fakeGlobal.__r(1)).toThrow('crash');
-    expect(reportFn).not.toHaveBeenCalled();
+    expect(reportFn).toHaveBeenCalled();
   });
 
   it('wraps __r when __sherloRuntimeMode_v1 = "testing" (JSI binding set by runner)', () => {
@@ -492,8 +490,8 @@ describe('index.ts — reportEarlyJsError surface invariants', () => {
     expect(polyfillIIFESource).toContain('__sherloRequireWrapped');
   });
 
-  it('polyfill source gates on __sherloRuntimeMode_v1 (JSI binding gate)', () => {
-    expect(polyfillIIFESource).toContain('__sherloRuntimeMode_v1');
+  it('polyfill source does not gate on JS-side mode flag (native gates instead)', () => {
+    expect(polyfillIIFESource).not.toContain('__sherloRuntimeMode_v1');
   });
 
   it('polyfill source re-throws original error', () => {

@@ -66,12 +66,7 @@ function installSherloIntegration(): void {
       (global as any).__sherloGlobalHandlerInstalled = true;
       const prevHandler = typeof ErrorUtils.getGlobalHandler === 'function' ? ErrorUtils.getGlobalHandler() : null;
       ErrorUtils.setGlobalHandler(function (error: any, isFatal: any) {
-        // Mode-check at error-time: only forward to native in testing mode.
-        const isTestingNow =
-          SherloModule &&
-          typeof SherloModule.getMode === 'function' &&
-          SherloModule.getMode() === 'testing';
-        if (isTestingNow) {
+        if (SherloModule) {
           try {
             const data = {
               name: (error && error.name) || 'Error',
