@@ -14,7 +14,7 @@ static void writeDiagnostic(const char* marker) {
     auto coreClass =
         findClassStatic("io/sherlo/storybookreactnative/SherloModuleCore");
     auto diagFn =
-        coreClass->getStaticMethod<jboolean(JString)>("writeDiagnosticEntry");
+        coreClass->getStaticMethod<jboolean(alias_ref<JString>)>("writeDiagnosticEntry");
     diagFn(coreClass, make_jstring(marker));
   } catch (...) {
     // Never throw from a diagnostic helper
