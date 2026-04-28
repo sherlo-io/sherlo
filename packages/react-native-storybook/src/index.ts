@@ -55,6 +55,30 @@ function installSherloIntegration(): void {
       JSON.stringify({ action: 'JS_EVAL_COMPLETE', timestamp: Date.now(), entity: 'app' }) + '\n'
     );
     console.warn('[Sherlo] index side effect: appendFile returned');
+
+    try {
+      const ErrorUtils = (global as any).ErrorUtils;
+      if (ErrorUtils && typeof ErrorUtils.setGlobalHandler === 'function' && !(global as any).__sherloGlobalHandlerInstalled) {
+        (global as any).__sherloGlobalHandlerInstalled = true;
+        const prevHandler = typeof ErrorUtils.getGlobalHandler === 'function' ? ErrorUtils.getGlobalHandler() : null;
+        ErrorUtils.setGlobalHandler(function (error: any, isFatal: any) {
+          try {
+            const data = {
+              name: (error && error.name) || 'Error',
+              message: (error && error.message) || String(error),
+              stack: normalizeStack((error && error.stack) || ''),
+              componentStack: [],
+              digest: null,
+              cause: null,
+            };
+            const entry = { action: 'JS_ERROR', timestamp: Date.now(), entity: 'app', data: data };
+            SherloModule.appendFile('protocol.sherlo', JSON.stringify(entry) + '\n');
+          } catch (_) {}
+          if (prevHandler) { try { prevHandler(error, isFatal); } catch (_) {} }
+        });
+        console.warn('[Sherlo] index side effect: ErrorUtils.setGlobalHandler installed');
+      }
+    } catch (_) {}
   }
 
   console.warn('[Sherlo] index side effect: about to patchAppRegistryWithBoundary');
