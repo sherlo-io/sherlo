@@ -10,6 +10,7 @@ using namespace facebook::jsi;
 using namespace facebook::react;
 
 void SherloModuleJSIBindings::registerNatives() {
+  __android_log_print(ANDROID_LOG_INFO, SHERLO_TAG, "registerNatives() called");
   javaClassLocal()->registerNatives({
       makeNativeMethod(
           "getBindingsInstaller",
@@ -20,6 +21,8 @@ void SherloModuleJSIBindings::registerNatives() {
 local_ref<BindingsInstallerHolder::javaobject>
 SherloModuleJSIBindings::getBindingsInstaller(
     alias_ref<SherloModuleJSIBindings> /*jobj*/) {
+
+  __android_log_print(ANDROID_LOG_INFO, SHERLO_TAG, "getBindingsInstaller native method invoked by RN runtime");
 
   // Read the current mode from SherloModuleCore's static getCurrentMode().
   // Safe to call at any point — falls back to 'default' if core not yet init.

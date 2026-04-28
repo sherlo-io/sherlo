@@ -8,6 +8,10 @@
 
 RCT_EXPORT_MODULE(SherloModule)
 
++ (void)load {
+  NSLog(@"[Sherlo:Native] iOS SherloModule +load fired");
+}
+
 @synthesize bridge = _bridge;
 
 static SherloModuleCore *core;
@@ -22,6 +26,7 @@ static void SherloEarlyInit(void) {
  * Indicates that this module should be initialized on the main thread.
  */
 + (BOOL)requiresMainQueueSetup {
+    NSLog(@"[Sherlo:Native] requiresMainQueueSetup called");
     return YES;
 }
 
@@ -171,6 +176,7 @@ static void SherloEarlyInit(void) {
 - (void)installJSIBindingsWithRuntime:(facebook::jsi::Runtime &)runtime
                           callInvoker:(const std::shared_ptr<facebook::react::CallInvoker> &)callInvoker
 {
+  NSLog(@"[Sherlo:Native] installJSIBindingsWithRuntime entered (before try)");
   try {
     NSString *modeStr = [SherloModuleCore currentMode] ?: @"default";
     NSLog(@"[Sherlo:Native] installJSIBindingsWithRuntime fired, mode=%@", modeStr);

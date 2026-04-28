@@ -31,6 +31,7 @@ public class SherloModule extends NativeSherloModuleSpec implements TurboModuleW
         // The library is only compiled when new arch is enabled (CMakeLists.txt gate).
         try {
             System.loadLibrary("sherlo_jsi");
+            Log.i("Sherlo", "newarch SherloModule static block ran, sherlo_jsi loaded");
         } catch (UnsatisfiedLinkError e) {
             Log.w("SherloModule", "Failed to load sherlo_jsi native library: " + e.getMessage());
         }
@@ -46,6 +47,7 @@ public class SherloModule extends NativeSherloModuleSpec implements TurboModuleW
      */
     public SherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
+        Log.i("Sherlo", "newarch SherloModule constructor called");
         Activity activity = getCurrentActivity();
         this.moduleCore = new SherloModuleCore(reactContext, activity);
     }
