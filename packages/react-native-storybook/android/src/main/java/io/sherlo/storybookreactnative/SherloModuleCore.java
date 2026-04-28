@@ -182,6 +182,20 @@ public class SherloModuleCore {
     }
 
     /**
+     * Synchronously writes a JS_ERROR entry for module-eval errors caught by the metro __r polyfill.
+     * Must never throw. Returns true on success, false on failure.
+     */
+    public boolean reportEarlyJsError(String name, String message, String stack) {
+        try {
+            ProtocolHelper.writeEarlyJsError(this.fileSystemHelper, name, message, stack);
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "reportEarlyJsError failed", e);
+            return false;
+        }
+    }
+
+    /**
      * Appends base64 encoded content to a file.
      * 
      * @param filename The name of the file to append to

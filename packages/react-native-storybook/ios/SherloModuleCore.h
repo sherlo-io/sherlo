@@ -69,6 +69,12 @@
 - (void)sendJsError:(NSString *)message stack:(NSString *)stack source:(NSString *)source;
 
 /**
+ * Synchronously writes a JS_ERROR entry for module-eval errors caught by the metro __r polyfill.
+ * Must never throw. Returns YES on success, NO on failure.
+ */
+- (BOOL)reportEarlyJsError:(NSString *)name message:(NSString *)message stack:(NSString *)stack;
+
+/**
  * Appends base64 encoded content to a file
  * @param filename Name of the file
  * @param content Base64 encoded content to append

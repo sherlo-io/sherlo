@@ -84,6 +84,17 @@ static void SherloEarlyInit(void) {
 }
 
 /**
+ * Synchronously writes a JS_ERROR entry for module-eval errors caught by the __r polyfill.
+ * Must not throw — called from a polyfill catch block.
+ */
+- (NSNumber *)reportEarlyJsError:(NSString *)name
+                         message:(NSString *)message
+                           stack:(NSString *)stack
+{
+  return [core reportEarlyJsError:name message:message stack:stack] ? @YES : @NO;
+}
+
+/**
  * Appends base64 encoded content to a file.
  */
 - (void)appendFile:(NSString *)path
@@ -203,6 +214,15 @@ RCT_EXPORT_METHOD(sendJsError:(NSString *)message
                   stack:(NSString *)stack
                   source:(NSString *)source) {
   [core sendJsError:message stack:stack source:source];
+}
+
+/**
+ * Synchronously writes a JS_ERROR entry for module-eval errors caught by the __r polyfill.
+ */
+RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(reportEarlyJsError:(NSString *)name
+                                       message:(NSString *)message
+                                         stack:(NSString *)stack) {
+  return [self reportEarlyJsError:name message:message stack:stack];
 }
 
 /**

@@ -100,6 +100,14 @@ public class SherloModule extends ReactContextBaseJavaModule {
         moduleCore.sendJsError(message, stack, source);
     }
 
+    /**
+     * Synchronously writes a JS_ERROR entry for module-eval errors caught by the metro __r polyfill.
+     */
+    @ReactMethod(isBlockingSynchronousMethod = true)
+    public boolean reportEarlyJsError(String name, String message, String stack) {
+        return moduleCore.reportEarlyJsError(name, message, stack);
+    }
+
     // ==== File System Methods ====
 
     /**

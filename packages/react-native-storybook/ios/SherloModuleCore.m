@@ -184,6 +184,30 @@ static FileSystemHelper *fileSystemHelper;
     [ProtocolHelper writeJsError:fileSystemHelper message:message stack:stack source:source];
 }
 
+- (BOOL)reportEarlyJsError:(NSString *)name message:(NSString *)message stack:(NSString *)stack {
+    @try {
+        NSMutableDictionary *data = [NSMutableDictionary dictionary];
+        [data setObject:name ?: @"Error" forKey:@"name"];
+        [data setObject:message ?: @"" forKey:@"message"];
+        [data setObject:stack ?: @"" forKey:@"stack"];
+        [data setObject:@[] forKey:@"componentStack"];
+        [data setObject:[NSNull null] forKey:@"digest"];
+        [data setObject:[NSNull null] forKey:@"cause"];
+        NSMutableDictionary *entry = [NSMutableDictionary dictionary];
+        [entry setObject:@"JS_ERROR" forKey:@"action"];
+        [entry setObject:@((long long)([[NSDate date] timeIntervalSince1970] * 1000)) forKey:@"timestamp"];
+        [entry setObject:@"app" forKey:@"entity"];
+        [entry setObject:data forKey:@"data"];
+        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:entry options:0 error:nil];
+        if (!jsonData) return NO;
+        NSString *jsonString = [[[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding] stringByAppendingString:@"\n"];
+        [fileSystemHelper appendFile:@"protocol.sherlo" content:jsonString];
+        return YES;
+    } @catch (NSException *) {
+        return NO;
+    }
+}
+
 /**
  * Appends base64 encoded content to a file.
  * Creates the file if it doesn't exist, and any necessary parent directories.

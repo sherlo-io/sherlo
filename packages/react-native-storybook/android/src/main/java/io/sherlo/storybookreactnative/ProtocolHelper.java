@@ -93,4 +93,28 @@ public class ProtocolHelper {
             Log.e(TAG, "Error creating JS_ERROR protocol item", e);
         }
     }
+
+    /**
+     * Writes a JS_ERROR JSON line for module-eval errors (reportEarlyJsError).
+     * Uses the full structured shape (name, message, stack, componentStack, digest, cause).
+     */
+    public static void writeEarlyJsError(FileSystemHelper fileSystemHelper, String name, String message, String stack) {
+        JSONObject item = new JSONObject();
+        try {
+            item.put("timestamp", System.currentTimeMillis());
+            item.put("entity", "app");
+            item.put("action", "JS_ERROR");
+            JSONObject data = new JSONObject();
+            data.put("name", name != null ? name : "Error");
+            data.put("message", message != null ? message : "");
+            data.put("stack", stack != null ? stack : "");
+            data.put("componentStack", new org.json.JSONArray());
+            data.put("digest", JSONObject.NULL);
+            data.put("cause", JSONObject.NULL);
+            item.put("data", data);
+            fileSystemHelper.appendFile("protocol.sherlo", item.toString() + "\n");
+        } catch (org.json.JSONException e) {
+            Log.e(TAG, "Error creating early JS_ERROR protocol item", e);
+        }
+    }
 }
