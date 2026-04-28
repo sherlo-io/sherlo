@@ -1,14 +1,14 @@
 /**
  * Unit tests for JS error capture logic.
  *
- * In alpha.6 the ErrorBoundary patch moved from metro/polyfill.js into
- * src/index.ts as a module side effect. The polyfill is now a diagnostic
- * no-op. Tests below verify structural invariants by reading source text and
- * exercise the AppRegistry wrapping via the existing fake-environment helper.
+ * Error capture is now exclusively via ErrorUtils.setGlobalHandler installed
+ * early in metro/polyfill.js. The handler catches module-eval, async, and
+ * event-handler errors uniformly — the previous __r wrap and
+ * patchAppRegistryWithBoundary are gone.
  */
 import * as fs from 'fs';
 import * as path from 'path';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, it, expect } from 'vitest';
 import { normalizeStack } from '../normalizeStack';
 
 const POLYFILL_PATH = path.join(__dirname, '../../metro/polyfill.js');
@@ -16,92 +16,142 @@ const INDEX_PATH = path.join(__dirname, '../index.ts');
 const polyfillSource = fs.readFileSync(POLYFILL_PATH, 'utf8');
 const indexSource = fs.readFileSync(INDEX_PATH, 'utf8');
 
-// ---------------------------------------------------------------------------
-// Helpers (kept for AppRegistry monkey-patch tests below)
-// ---------------------------------------------------------------------------
-
-interface SherloModuleMock {
-  getMode: ReturnType<typeof vi.fn>;
-  sendJsError: ReturnType<typeof vi.fn>;
-}
-
-interface FakeGlobal {
-  ErrorUtils: {
-    getGlobalHandler: ReturnType<typeof vi.fn>;
-    setGlobalHandler: Function;
-    reportFatalError: ReturnType<typeof vi.fn>;
-  };
-  require: (id: string) => unknown;
-  _origSetGlobalHandler: ReturnType<typeof vi.fn>;
-}
-
-function buildFakeGlobal(sherloModule: SherloModuleMock, appRegistryMock?: { registerComponent: ReturnType<typeof vi.fn> }): FakeGlobal {
-  const installedHandlers: Array<(error: Error, isFatal: boolean) => void> = [];
-  const origSetGlobalHandler = vi.fn((h: (error: Error, isFatal: boolean) => void) => installedHandlers.push(h));
-
-  const fakeGlobal: FakeGlobal = {
-    ErrorUtils: {
-      getGlobalHandler: vi.fn(() => installedHandlers[installedHandlers.length - 1] ?? null),
-      setGlobalHandler: origSetGlobalHandler,
-      reportFatalError: vi.fn(),
-    },
-    require: (id: string) => {
-      if (id === '../dist/SherloModule') {
-        return { default: sherloModule };
-      }
-      if (id === 'react-native') {
-        return { AppRegistry: appRegistryMock ?? { registerComponent: vi.fn() } };
-      }
-      if (id === 'react') {
-        return {
-          Component: class Component { state = {}; props: unknown },
-          createElement: vi.fn((type: unknown, props: unknown, ...children: unknown[]) => ({ type, props, children })),
-        };
-      }
-      throw new Error(`Unexpected require: ${id}`);
-    },
-    _origSetGlobalHandler: origSetGlobalHandler,
-  };
-
-  return fakeGlobal;
-}
-
-function runPolyfill(fakeGlobal: FakeGlobal) {
+function runPolyfill(fakeGlobal: Record<string, any>) {
   // eslint-disable-next-line no-new-func
-  const fn = new Function('global', 'require', `"use strict";\n${polyfillSource}`);
-  fn(fakeGlobal, fakeGlobal.require);
+  const fn = new Function('global', `"use strict";\n${polyfillSource}`);
+  fn(fakeGlobal);
+}
+
+function makeNativeModule(reportEarlyJsError?: ReturnType<typeof vi.fn>) {
+  return { reportEarlyJsError: reportEarlyJsError ?? vi.fn() };
+}
+
+function buildFakeGlobal(
+  nm?: ReturnType<typeof makeNativeModule>,
+  prevHandler?: (error: Error, isFatal: boolean) => void
+): Record<string, any> {
+  const setGlobalHandler = vi.fn();
+  return {
+    ErrorUtils: {
+      setGlobalHandler,
+      getGlobalHandler: vi.fn(() => prevHandler ?? null),
+    },
+    __turboModuleProxy: nm ? vi.fn((name: string) => name === 'SherloModule' ? nm : null) : undefined,
+    _setGlobalHandler: setGlobalHandler,
+  };
+}
+
+function getInstalledHandler(fakeGlobal: Record<string, any>): (error: Error, isFatal: boolean) => void {
+  const calls = fakeGlobal._setGlobalHandler.mock.calls;
+  if (!calls.length) throw new Error('setGlobalHandler was never called');
+  return calls[0][0];
 }
 
 // ---------------------------------------------------------------------------
-// Tests: AppRegistry.registerComponent monkey-patch
-// (polyfill is now a no-op; these tests verify the helper infrastructure)
+// Tests: metro/polyfill.js — ErrorUtils.setGlobalHandler
 // ---------------------------------------------------------------------------
 
-describe('polyfill - AppRegistry.registerComponent monkey-patch', () => {
-  let sherlo: SherloModuleMock;
-  let originalRegisterComponent: ReturnType<typeof vi.fn>;
-  let fakeGlobal: FakeGlobal;
-
-  beforeEach(() => {
-    sherlo = {
-      getMode: vi.fn(() => 'testing'),
-      sendJsError: vi.fn(),
-    };
-    originalRegisterComponent = vi.fn((_appKey, providerFn) => providerFn());
-    const appRegistryMock = { registerComponent: originalRegisterComponent };
-    fakeGlobal = buildFakeGlobal(sherlo, appRegistryMock);
+describe('metro/polyfill.js — ErrorUtils.setGlobalHandler', () => {
+  it('installs handler when ErrorUtils is available', () => {
+    const fakeGlobal = buildFakeGlobal();
     runPolyfill(fakeGlobal);
+    expect(fakeGlobal._setGlobalHandler).toHaveBeenCalledOnce();
+    expect(fakeGlobal.__sherloGlobalHandlerInstalled).toBe(true);
   });
 
-  it('patches AppRegistry.registerComponent', () => {
-    expect(originalRegisterComponent).toBeDefined();
+  it('is idempotent — skips install when __sherloGlobalHandlerInstalled is already set', () => {
+    const fakeGlobal = buildFakeGlobal();
+    fakeGlobal.__sherloGlobalHandlerInstalled = true;
+    runPolyfill(fakeGlobal);
+    expect(fakeGlobal._setGlobalHandler).not.toHaveBeenCalled();
   });
 
-  it('returns a wrapped component (SherloRootWrapper)', () => {
-    const MyComponent = () => null;
-    const appRegistryMock = fakeGlobal.require('react-native') as { AppRegistry: { registerComponent: Function } };
-    appRegistryMock.AppRegistry.registerComponent('TestApp', () => MyComponent);
-    expect(originalRegisterComponent).toHaveBeenCalled();
+  it('skips installation when ErrorUtils is absent', () => {
+    const fakeGlobal: Record<string, any> = {};
+    runPolyfill(fakeGlobal);
+    expect(fakeGlobal.__sherloGlobalHandlerInstalled).toBeUndefined();
+  });
+
+  it('calls reportEarlyJsError on the turbo proxy when an error fires', () => {
+    const reportFn = vi.fn();
+    const nm = makeNativeModule(reportFn);
+    const fakeGlobal = buildFakeGlobal(nm);
+    runPolyfill(fakeGlobal);
+    const handler = getInstalledHandler(fakeGlobal);
+    handler(new Error('boom'), true);
+    expect(reportFn).toHaveBeenCalledOnce();
+    expect(reportFn).toHaveBeenCalledWith('Error', 'boom', expect.any(String));
+  });
+
+  it('passes error name, message, and stack to reportEarlyJsError', () => {
+    const reportFn = vi.fn();
+    const nm = makeNativeModule(reportFn);
+    const fakeGlobal = buildFakeGlobal(nm);
+    runPolyfill(fakeGlobal);
+    const handler = getInstalledHandler(fakeGlobal);
+    handler(new TypeError('bad type'), false);
+    expect(reportFn).toHaveBeenCalledWith('TypeError', 'bad type', expect.any(String));
+  });
+
+  it('chains to previous handler after reporting', () => {
+    const prevHandler = vi.fn();
+    const nm = makeNativeModule();
+    const fakeGlobal = buildFakeGlobal(nm, prevHandler);
+    runPolyfill(fakeGlobal);
+    const handler = getInstalledHandler(fakeGlobal);
+    const err = new Error('test');
+    handler(err, false);
+    expect(prevHandler).toHaveBeenCalledOnce();
+    expect(prevHandler).toHaveBeenCalledWith(err, false);
+  });
+
+  it('does not throw if SherloModule is unavailable', () => {
+    const fakeGlobal = buildFakeGlobal(); // no nm, no __turboModuleProxy
+    runPolyfill(fakeGlobal);
+    const handler = getInstalledHandler(fakeGlobal);
+    expect(() => handler(new Error('test'), false)).not.toThrow();
+  });
+
+  it('does not throw if reportEarlyJsError itself throws', () => {
+    const nm = makeNativeModule(vi.fn(() => { throw new Error('native exploded'); }));
+    const fakeGlobal = buildFakeGlobal(nm);
+    runPolyfill(fakeGlobal);
+    const handler = getInstalledHandler(fakeGlobal);
+    expect(() => handler(new Error('test'), false)).not.toThrow();
+  });
+
+  it('falls back to nativeModuleProxy when __turboModuleProxy is absent', () => {
+    const reportFn = vi.fn();
+    const nm = makeNativeModule(reportFn);
+    const fakeGlobal = buildFakeGlobal();
+    delete fakeGlobal.__turboModuleProxy;
+    fakeGlobal.nativeModuleProxy = { SherloModule: nm };
+    runPolyfill(fakeGlobal);
+    const handler = getInstalledHandler(fakeGlobal);
+    handler(new Error('native fallback'), false);
+    expect(reportFn).toHaveBeenCalledOnce();
+  });
+
+  it('only reports the first error to native — subsequent calls skip reportEarlyJsError', () => {
+    const reportFn = vi.fn();
+    const nm = makeNativeModule(reportFn);
+    const fakeGlobal = buildFakeGlobal(nm);
+    runPolyfill(fakeGlobal);
+    const handler = getInstalledHandler(fakeGlobal);
+    handler(new Error('first error'), true);
+    handler(new Error('cascade error'), true);
+    expect(reportFn).toHaveBeenCalledOnce();
+  });
+
+  it('chains to prevHandler for both first and cascade errors', () => {
+    const prevHandler = vi.fn();
+    const nm = makeNativeModule();
+    const fakeGlobal = buildFakeGlobal(nm, prevHandler);
+    runPolyfill(fakeGlobal);
+    const handler = getInstalledHandler(fakeGlobal);
+    handler(new Error('first'), false);
+    handler(new Error('cascade'), false);
+    expect(prevHandler).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -113,198 +163,55 @@ describe('polyfill - file structure', () => {
   it('contains temporary diagnostic console.warn markers', () => {
     expect(polyfillSource).toContain('console.warn');
   });
+
+  it('uses ErrorUtils.setGlobalHandler as the sole error capture mechanism', () => {
+    expect(polyfillSource).toContain('ErrorUtils.setGlobalHandler');
+  });
+
+  it('does not wrap global.__r (old mechanism removed)', () => {
+    expect(polyfillSource).not.toContain('global.__r');
+  });
+
+  it('guards with __sherloGlobalHandlerInstalled for idempotency', () => {
+    expect(polyfillSource).toContain('__sherloGlobalHandlerInstalled');
+  });
+
+  it('guards against cascade errors with __sherloFirstErrorReported flag', () => {
+    expect(polyfillSource).toContain('__sherloFirstErrorReported');
+  });
+
+  it('calls reportEarlyJsError', () => {
+    expect(polyfillSource).toContain('reportEarlyJsError');
+  });
 });
 
 // ---------------------------------------------------------------------------
-// Tests: index.ts source invariants
-// The AppRegistry ErrorBoundary logic lives in src/index.ts in alpha.6+.
+// Tests: index.ts — no error capture logic
 // ---------------------------------------------------------------------------
 
-describe('index.ts - ErrorBoundary source invariants', () => {
-  it('patches AppRegistry.registerComponent', () => {
-    expect(indexSource).toContain('AR.registerComponent');
+describe('index.ts — no error capture logic', () => {
+  it('does not install ErrorUtils.setGlobalHandler (moved to polyfill)', () => {
+    expect(indexSource).not.toContain('setGlobalHandler');
   });
 
-  it('uses getDerivedStateFromError for ES5-compatible ErrorBoundary', () => {
-    expect(indexSource).toContain('getDerivedStateFromError');
+  it('does not contain patchAppRegistryWithBoundary', () => {
+    expect(indexSource).not.toContain('patchAppRegistryWithBoundary');
   });
 
-  it('re-propagates via ErrorUtils.reportFatalError after errorBoundary catch', () => {
-    expect(indexSource).toContain('ErrorUtils.reportFatalError(error)');
+  it('does not contain SherloErrorBoundary', () => {
+    expect(indexSource).not.toContain('SherloErrorBoundary');
   });
 
-  it('is gated on isTesting mode', () => {
-    expect(indexSource).toContain('isTesting');
+  it('does not contain writeJsErrorEntry', () => {
+    expect(indexSource).not.toContain('writeJsErrorEntry');
+  });
+
+  it('still sends JS_EVAL_COMPLETE when in testing mode', () => {
+    expect(indexSource).toContain('JS_EVAL_COMPLETE');
   });
 
   it('uses lazy require for SherloModule', () => {
     expect(indexSource).toContain("require('./SherloModule')");
-  });
-
-  it('is idempotent via __sherloBoundaryPatched guard', () => {
-    expect(indexSource).toContain('__sherloBoundaryPatched');
-  });
-
-  it('sends JS errors via SherloModule.sendJsError', () => {
-    expect(indexSource).toContain('sendJsError');
-  });
-
-  it('normalizes stack traces via normalizeStack before sending', () => {
-    expect(indexSource).toContain('normalizeStack');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Tests: index.ts - writeJsErrorEntry (rich JS_ERROR payload)
-// ---------------------------------------------------------------------------
-
-describe('index.ts - writeJsErrorEntry payload', () => {
-  it('uses writeJsErrorEntry in componentDidCatch', () => {
-    expect(indexSource).toContain('writeJsErrorEntry');
-    expect(indexSource).toContain('componentDidCatch');
-  });
-
-  it('componentDidCatch receives errorInfo as second arg', () => {
-    expect(indexSource).toContain('componentDidCatch = function (error: any, errorInfo: any)');
-  });
-
-  it('writes JS_ERROR action via appendFile', () => {
-    expect(indexSource).toContain("action: 'JS_ERROR'");
-    expect(indexSource).toContain('appendFile');
-  });
-
-  it('includes componentStack and normalizes it', () => {
-    expect(indexSource).toContain('componentStack');
-    // componentStack must pass through normalizeStack
-    expect(indexSource).toMatch(/normalizeStack\([^)]*componentStack/);
-  });
-
-  it('normalizes stack, componentStack, and cause.stack (3 normalizeStack calls)', () => {
-    const occurrences = (indexSource.match(/normalizeStack/g) || []).length;
-    expect(occurrences).toBeGreaterThanOrEqual(3);
-  });
-
-  it('serializes cause chain when present', () => {
-    expect(indexSource).toContain('error.cause');
-    expect(indexSource).toContain('error.cause.name');
-    expect(indexSource).toContain('error.cause.message');
-  });
-
-  it('sets cause to null when absent', () => {
-    expect(indexSource).toContain(': null,');
-  });
-
-  it('passes digest through from errorInfo', () => {
-    expect(indexSource).toContain('errorInfo.digest');
-  });
-
-  it('does not include source, errorTimestamp, or context fields', () => {
-    // These fields were removed in alpha.10
-    expect(indexSource).not.toContain('errorTimestamp');
-    expect(indexSource).not.toContain("require('../package.json').version");
-  });
-
-  it('includes hasExpo field via detectHasExpo()', () => {
-    expect(indexSource).toContain('detectHasExpo');
-    expect(indexSource).toContain('hasExpo: detectHasExpo()');
-  });
-
-  it('includes engine field via detectEngine()', () => {
-    expect(indexSource).toContain('detectEngine');
-    expect(indexSource).toContain('engine: detectEngine()');
-  });
-
-  it('detectEngine uses HermesInternal to detect hermes vs jsc', () => {
-    expect(indexSource).toContain('HermesInternal');
-  });
-
-  it('componentStack is normalized: no address-at or /Users/ paths survive normalizeStack', () => {
-    const iosComponentStack =
-      '\n    in CrashComponent (address at /Users/jdoe/Library/Developer/CoreSimulator/Devices/DEV-UUID/data/Containers/Data/Application/APP-UUID/Library/Application Support/.expo-internal/bundle.js:1:100)\n    in RCTView';
-    const result = normalizeStack(iosComponentStack);
-    expect(result).not.toContain('/Users/');
-    expect(result).not.toContain('address at');
-    expect(result).toContain('bundle.js:1:100');
-  });
-
-  it('cause.stack is normalized when cause is present', () => {
-    const causeStack =
-      'at foo (address at /data/user/0/com.app/files/.expo-internal/abc123:1:500)';
-    const result = normalizeStack(causeStack);
-    expect(result).not.toContain('/data/user/');
-    expect(result).not.toContain('address at');
-    expect(result).toContain('abc123:1:500');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Tests: stripSherloAndBelow
-// ---------------------------------------------------------------------------
-
-describe('stripSherloAndBelow (via index.ts source invariant + direct normalizeStack integration)', () => {
-  it('index.ts source contains stripSherloAndBelow applied to componentStack', () => {
-    expect(indexSource).toContain('stripSherloAndBelow');
-    expect(indexSource).toContain('stripSherloAndBelow(normalizeStack(');
-  });
-
-  it('cuts line containing SherloErrorBoundary and everything after it', () => {
-    const stack = [
-      '    in CrashComponent (bundle.js:1:100)',
-      '    in SherloErrorBoundary (bundle.js:1:200)',
-      '    in RCTView',
-      '    in AppContainer',
-    ].join('\n');
-    // replicate the helper inline (it lives inside a closure in index.ts)
-    const lines = stack.split('\n');
-    const cutoffIdx = lines.findIndex(line => line.includes('SherloErrorBoundary'));
-    const result = cutoffIdx === -1 ? stack : lines.slice(0, cutoffIdx).join('\n');
-    expect(result).toBe('    in CrashComponent (bundle.js:1:100)');
-    expect(result).not.toContain('SherloErrorBoundary');
-    expect(result).not.toContain('RCTView');
-    expect(result).not.toContain('AppContainer');
-  });
-
-  it('preserves everything above SherloErrorBoundary', () => {
-    const stack = [
-      '    in UserComponent',
-      '    in ParentComponent',
-      '    in SherloErrorBoundary',
-      '    in SherloRoot(App)',
-    ].join('\n');
-    const lines = stack.split('\n');
-    const cutoffIdx = lines.findIndex(line => line.includes('SherloErrorBoundary'));
-    const result = lines.slice(0, cutoffIdx).join('\n');
-    expect(result).toContain('UserComponent');
-    expect(result).toContain('ParentComponent');
-  });
-
-  it('returns componentStack unchanged when no SherloErrorBoundary line present', () => {
-    const stack = '    in Foo\n    in Bar\n    in AppContainer';
-    const lines = stack.split('\n');
-    const cutoffIdx = lines.findIndex(line => line.includes('SherloErrorBoundary'));
-    const result = cutoffIdx === -1 ? stack : lines.slice(0, cutoffIdx).join('\n');
-    expect(result).toBe(stack);
-  });
-
-  it('returns empty string for empty input', () => {
-    const stack = '';
-    const lines = stack.split('\n');
-    const cutoffIdx = lines.findIndex(line => line.includes('SherloErrorBoundary'));
-    const result = cutoffIdx === -1 ? stack : lines.slice(0, cutoffIdx).join('\n');
-    expect(result).toBe('');
-  });
-
-  it('no trailing blank lines introduced by the cut (last preserved line is non-empty)', () => {
-    const stack = [
-      '    in CrashComponent',
-      '    in SherloErrorBoundary',
-      '    in RCTView',
-    ].join('\n');
-    const lines = stack.split('\n');
-    const cutoffIdx = lines.findIndex(line => line.includes('SherloErrorBoundary'));
-    const result = cutoffIdx === -1 ? stack : lines.slice(0, cutoffIdx).join('\n');
-    expect(result.endsWith('\n')).toBe(false);
-    expect(result.trim()).toBe(result.trim());
   });
 });
 
@@ -344,157 +251,5 @@ describe('normalizeStack', () => {
 
   it('returns empty string unchanged', () => {
     expect(normalizeStack('')).toBe('');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Tests: metro/polyfill.js — __r wrapper IIFE behaviour
-// ---------------------------------------------------------------------------
-
-const POLYFILL_IIFE_PATH = path.join(__dirname, '../../metro/polyfill.js');
-const polyfillIIFESource = fs.readFileSync(POLYFILL_IIFE_PATH, 'utf8');
-
-function runPolyfillIIFE(fakeGlobal: Record<string, any>) {
-  // eslint-disable-next-line no-new-func
-  const fn = new Function('global', `"use strict";\n${polyfillIIFESource}`);
-  fn(fakeGlobal);
-}
-
-function makeNativeModule(mode: string, reportEarlyJsError?: ReturnType<typeof vi.fn>) {
-  return {
-    getMode: vi.fn(() => mode),
-    reportEarlyJsError: reportEarlyJsError ?? vi.fn(() => true),
-  };
-}
-
-describe('metro/polyfill.js — __r wrapper', () => {
-  afterEach(() => {
-    delete (globalThis as any).__sherloRuntimeMode_v1;
-  });
-
-  // The __r wrapper is always installed and forwards unconditionally to native.
-  // Native (SherloModuleCore) gates on mode — in production (no config.sherlo),
-  // reportEarlyJsError is a no-op on the native side.
-  it('wraps __r and calls reportEarlyJsError unconditionally (native gates in production)', () => {
-    const reportFn = vi.fn();
-    const nm = makeNativeModule('default', reportFn);
-    const err = new Error('crash');
-    const fakeGlobal: any = {
-      __r: vi.fn(() => { throw err; }),
-      __turboModuleProxy: vi.fn((name: string) => name === 'SherloModule' ? nm : null),
-    };
-    runPolyfillIIFE(fakeGlobal);
-    expect(fakeGlobal.__r).not.toBe(vi.fn());
-    expect(fakeGlobal.__sherloRequireWrapped).toBe(true);
-    expect(() => fakeGlobal.__r(1)).toThrow('crash');
-    expect(reportFn).toHaveBeenCalled();
-  });
-
-  it('wraps __r and calls reportEarlyJsError regardless of native module mode', () => {
-    const reportFn = vi.fn();
-    const nm = makeNativeModule('default', reportFn);
-    const err = new Error('crash');
-    const fakeGlobal: any = {
-      __r: vi.fn(() => { throw err; }),
-      __turboModuleProxy: vi.fn((name: string) => name === 'SherloModule' ? nm : null),
-    };
-    runPolyfillIIFE(fakeGlobal);
-    expect(fakeGlobal.__r).not.toBe(vi.fn());
-    expect(fakeGlobal.__sherloRequireWrapped).toBe(true);
-    expect(() => fakeGlobal.__r(1)).toThrow('crash');
-    expect(reportFn).toHaveBeenCalled();
-  });
-
-  it('wraps __r when __sherloRuntimeMode_v1 = "testing" (JSI binding set by runner)', () => {
-    (globalThis as any).__sherloRuntimeMode_v1 = 'testing';
-    const originalRequire = vi.fn(() => 'result');
-    const fakeGlobal: any = { __r: originalRequire };
-    runPolyfillIIFE(fakeGlobal);
-    expect(fakeGlobal.__r).not.toBe(originalRequire);
-    expect(fakeGlobal.__sherloRequireWrapped).toBe(true);
-  });
-
-  it('is idempotent — does not double-wrap when __sherloRequireWrapped is set', () => {
-    (globalThis as any).__sherloRuntimeMode_v1 = 'testing';
-    const originalRequire = vi.fn(() => 'result');
-    const fakeGlobal: any = { __r: originalRequire, __sherloRequireWrapped: true };
-    runPolyfillIIFE(fakeGlobal);
-    expect(fakeGlobal.__r).toBe(originalRequire);
-  });
-
-  it('calls reportEarlyJsError and re-throws on __r failure', () => {
-    (globalThis as any).__sherloRuntimeMode_v1 = 'testing';
-    const reportFn = vi.fn(() => true);
-    const nm = makeNativeModule('testing', reportFn);
-    const err = new Error('module eval crash');
-    const originalRequire = vi.fn(() => { throw err; });
-    const fakeGlobal: any = {
-      __r: originalRequire,
-      __turboModuleProxy: vi.fn((name: string) => name === 'SherloModule' ? nm : null),
-    };
-    runPolyfillIIFE(fakeGlobal);
-    expect(() => fakeGlobal.__r(42)).toThrow('module eval crash');
-    expect(reportFn).toHaveBeenCalledOnce();
-    expect(reportFn).toHaveBeenCalledWith('Error', 'module eval crash', expect.any(String));
-  });
-
-  it('passes error name, message, and stack to reportEarlyJsError', () => {
-    (globalThis as any).__sherloRuntimeMode_v1 = 'testing';
-    const reportFn = vi.fn(() => true);
-    const nm = makeNativeModule('testing', reportFn);
-    const err = new TypeError('bad type');
-    const originalRequire = vi.fn(() => { throw err; });
-    const fakeGlobal: any = {
-      __r: originalRequire,
-      __turboModuleProxy: vi.fn((name: string) => name === 'SherloModule' ? nm : null),
-    };
-    runPolyfillIIFE(fakeGlobal);
-    try { fakeGlobal.__r(1); } catch (_) {}
-    expect(reportFn).toHaveBeenCalledWith('TypeError', 'bad type', expect.any(String));
-  });
-
-  it('still re-throws even if reportEarlyJsError throws', () => {
-    (globalThis as any).__sherloRuntimeMode_v1 = 'testing';
-    const nm = makeNativeModule('testing', vi.fn(() => { throw new Error('native exploded'); }));
-    const err = new Error('original error');
-    const originalRequire = vi.fn(() => { throw err; });
-    const fakeGlobal: any = {
-      __r: originalRequire,
-      __turboModuleProxy: vi.fn((name: string) => name === 'SherloModule' ? nm : null),
-    };
-    runPolyfillIIFE(fakeGlobal);
-    expect(() => fakeGlobal.__r(1)).toThrow('original error');
-  });
-
-  it('forwards successful require return value unchanged', () => {
-    (globalThis as any).__sherloRuntimeMode_v1 = 'testing';
-    const fakeGlobal: any = {
-      __r: vi.fn(() => ({ default: 42 })),
-      __turboModuleProxy: vi.fn(() => null),
-    };
-    runPolyfillIIFE(fakeGlobal);
-    expect(fakeGlobal.__r(5)).toEqual({ default: 42 });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Tests: SherloModule wrapper — reportEarlyJsError surface
-// ---------------------------------------------------------------------------
-
-describe('index.ts — reportEarlyJsError surface invariants', () => {
-  it('polyfill source contains reportEarlyJsError call', () => {
-    expect(polyfillIIFESource).toContain('reportEarlyJsError');
-  });
-
-  it('polyfill source guards on __sherloRequireWrapped', () => {
-    expect(polyfillIIFESource).toContain('__sherloRequireWrapped');
-  });
-
-  it('polyfill source does not gate on JS-side mode flag (native gates instead)', () => {
-    expect(polyfillIIFESource).not.toContain('__sherloRuntimeMode_v1');
-  });
-
-  it('polyfill source re-throws original error', () => {
-    expect(polyfillIIFESource).toContain('throw e');
   });
 });
