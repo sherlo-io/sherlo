@@ -372,20 +372,39 @@ describe('metro/polyfill.js — __r wrapper', () => {
     delete (globalThis as any).__sherloRuntimeMode_v1;
   });
 
-  // JSI gate: __sherloRuntimeMode_v1 is set by the native binding BEFORE bundle eval.
-  it('does NOT wrap __r when __sherloRuntimeMode_v1 is undefined (old arch / no binding)', () => {
-    const originalRequire = vi.fn(() => 'result');
-    const fakeGlobal: any = { __r: originalRequire };
+  // The __r wrapper is always installed. The mode-check is deferred to error-time
+  // so that JSI-binding timing cannot cause missed captures.
+  it('wraps __r even when __sherloRuntimeMode_v1 is undefined (mode-check deferred to error-time)', () => {
+    const reportFn = vi.fn();
+    const nm = makeNativeModule('default', reportFn);
+    const err = new Error('crash');
+    const fakeGlobal: any = {
+      __r: vi.fn(() => { throw err; }),
+      __turboModuleProxy: vi.fn((name: string) => name === 'SherloModule' ? nm : null),
+    };
     runPolyfillIIFE(fakeGlobal);
-    expect(fakeGlobal.__r).toBe(originalRequire);
+    expect(fakeGlobal.__r).not.toBe(vi.fn());
+    expect(fakeGlobal.__sherloRequireWrapped).toBe(true);
+    // Error is rethrown but reportEarlyJsError is NOT called (mode is undefined)
+    expect(() => fakeGlobal.__r(1)).toThrow('crash');
+    expect(reportFn).not.toHaveBeenCalled();
   });
 
-  it('does NOT wrap __r when __sherloRuntimeMode_v1 = "default" (production build)', () => {
+  it('wraps __r but does not call reportEarlyJsError when __sherloRuntimeMode_v1 = "default" (production build)', () => {
     (globalThis as any).__sherloRuntimeMode_v1 = 'default';
-    const originalRequire = vi.fn(() => 'result');
-    const fakeGlobal: any = { __r: originalRequire };
+    const reportFn = vi.fn();
+    const nm = makeNativeModule('default', reportFn);
+    const err = new Error('crash');
+    const fakeGlobal: any = {
+      __r: vi.fn(() => { throw err; }),
+      __turboModuleProxy: vi.fn((name: string) => name === 'SherloModule' ? nm : null),
+    };
     runPolyfillIIFE(fakeGlobal);
-    expect(fakeGlobal.__r).toBe(originalRequire);
+    expect(fakeGlobal.__r).not.toBe(vi.fn());
+    expect(fakeGlobal.__sherloRequireWrapped).toBe(true);
+    // Error is rethrown but reportEarlyJsError is NOT called (mode is 'default')
+    expect(() => fakeGlobal.__r(1)).toThrow('crash');
+    expect(reportFn).not.toHaveBeenCalled();
   });
 
   it('wraps __r when __sherloRuntimeMode_v1 = "testing" (JSI binding set by runner)', () => {

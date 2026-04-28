@@ -76,10 +76,10 @@ function withSherlo(config, options) {
       : context.resolveRequest(context, moduleName, platform);
   }
 
-  // The polyfill is added to every bundle built with withSherlo(). It self-gates
-  // on globalThis.__sherloRuntimeMode_v1 (set by the native SherloModule binding
-  // before bundle eval) and is INERT in production builds. See metro/polyfill.js
-  // for the detailed safety analysis.
+  // The polyfill is added to every bundle built with withSherlo(). It wraps
+  // global.__r to capture module-eval JS errors and is INERT in production:
+  // the catch block gates on __sherloRuntimeMode_v1 === 'testing' at error-time.
+  // See metro/polyfill.js for the detailed safety analysis.
   var polyfillPath = path.join(__dirname, 'metro', 'polyfill.js');
 
   var existingGetPolyfills =
@@ -92,31 +92,12 @@ function withSherlo(config, options) {
     return base.concat([polyfillPath]);
   }
 
-  // Eager-loads the SDK module before user entry runs. The SDK side-effect
-  // installs ErrorUtils.setGlobalHandler in time to catch module-eval crashes
-  // (errors thrown at module top level before any imports complete).
-  // Production cost: ~5-50ms one-time TurboModule load + getMode() native call
-  // at app startup. In production mode = 'default', the side-effect bails
-  // after getMode check (does not install handler).
-  var existingGetModulesRunBeforeMainModule =
-    config.serializer && typeof config.serializer.getModulesRunBeforeMainModule === 'function'
-      ? config.serializer.getModulesRunBeforeMainModule
-      : null;
-
-  function getModulesRunBeforeMainModule(entryFilePath) {
-    var base = existingGetModulesRunBeforeMainModule
-      ? existingGetModulesRunBeforeMainModule(entryFilePath)
-      : [];
-    return base.concat([require.resolve('@sherlo/react-native-storybook')]);
-  }
-
   return Object.assign({}, config, {
     resolver: Object.assign({}, config.resolver, {
       resolveRequest: resolveRequest,
     }),
     serializer: Object.assign({}, config.serializer, {
       getPolyfills: getPolyfills,
-      getModulesRunBeforeMainModule: getModulesRunBeforeMainModule,
     }),
   });
 }
