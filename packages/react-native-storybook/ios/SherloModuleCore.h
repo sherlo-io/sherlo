@@ -29,6 +29,12 @@
 + (NSString *)currentMode;
 
 /**
+ * Writes a DIAGNOSTIC JSON line to protocol.sherlo for visibility during debugging.
+ * No-op (returns NO) if fileSystemHelper is not yet initialized.
+ */
++ (BOOL)writeDiagnosticEntry:(NSString *)marker;
+
+/**
  * Returns constants exposed to the JavaScript side
  * @return Dictionary with mode, config, and lastState
  */

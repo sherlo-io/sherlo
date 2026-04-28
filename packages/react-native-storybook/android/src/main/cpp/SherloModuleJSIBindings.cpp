@@ -9,8 +9,21 @@ using namespace facebook::jni;
 using namespace facebook::jsi;
 using namespace facebook::react;
 
+static void writeDiagnostic(const char* marker) {
+  try {
+    auto coreClass =
+        findClassStatic("io/sherlo/storybookreactnative/SherloModuleCore");
+    auto diagFn =
+        coreClass->getStaticMethod<jboolean(JString)>("writeDiagnosticEntry");
+    diagFn(coreClass, make_jstring(marker));
+  } catch (...) {
+    // Never throw from a diagnostic helper
+  }
+}
+
 void SherloModuleJSIBindings::registerNatives() {
   __android_log_print(ANDROID_LOG_INFO, SHERLO_TAG, "registerNatives() called");
+  writeDiagnostic("cpp_register_natives");
   javaClassLocal()->registerNatives({
       makeNativeMethod(
           "getBindingsInstaller",
@@ -23,6 +36,7 @@ SherloModuleJSIBindings::getBindingsInstaller(
     alias_ref<SherloModuleJSIBindings> /*jobj*/) {
 
   __android_log_print(ANDROID_LOG_INFO, SHERLO_TAG, "getBindingsInstaller native method invoked by RN runtime");
+  writeDiagnostic("cpp_get_bindings_installer");
 
   // Read the current mode from SherloModuleCore's static getCurrentMode().
   // Safe to call at any point — falls back to 'default' if core not yet init.

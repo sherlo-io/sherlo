@@ -32,6 +32,7 @@ public class SherloModule extends NativeSherloModuleSpec implements TurboModuleW
         try {
             System.loadLibrary("sherlo_jsi");
             Log.i("Sherlo", "newarch SherloModule static block ran, sherlo_jsi loaded");
+            SherloModuleCore.writeDiagnosticEntry("android_newarch_static");
         } catch (UnsatisfiedLinkError e) {
             Log.w("SherloModule", "Failed to load sherlo_jsi native library: " + e.getMessage());
         }
@@ -48,6 +49,7 @@ public class SherloModule extends NativeSherloModuleSpec implements TurboModuleW
     public SherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
         Log.i("Sherlo", "newarch SherloModule constructor called");
+        SherloModuleCore.writeDiagnosticEntry("android_newarch_constructor");
         Activity activity = getCurrentActivity();
         this.moduleCore = new SherloModuleCore(reactContext, activity);
     }

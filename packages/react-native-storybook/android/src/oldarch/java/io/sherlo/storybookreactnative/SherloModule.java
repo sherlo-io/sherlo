@@ -31,6 +31,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
     public SherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
         Log.i("Sherlo", "oldarch SherloModule constructor called");
+        SherloModuleCore.writeDiagnosticEntry("android_oldarch_constructor");
         Activity activity = getCurrentActivity();
         this.moduleCore = new SherloModuleCore(reactContext, activity);
     }

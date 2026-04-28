@@ -95,6 +95,24 @@ static FileSystemHelper *fileSystemHelper;
     return currentMode ?: MODE_DEFAULT;
 }
 
++ (BOOL)writeDiagnosticEntry:(NSString *)marker {
+    if (!fileSystemHelper) return NO;
+    @try {
+        NSMutableDictionary *item = [NSMutableDictionary dictionary];
+        [item setObject:@([[NSDate date] timeIntervalSince1970] * 1000) forKey:@"timestamp"];
+        [item setObject:@"sdk" forKey:@"entity"];
+        [item setObject:@"DIAGNOSTIC" forKey:@"action"];
+        [item setObject:@{@"marker": marker ?: @""} forKey:@"data"];
+        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:item options:0 error:nil];
+        NSString *jsonString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+        jsonString = [jsonString stringByAppendingString:@"\n"];
+        [fileSystemHelper appendFile:@"protocol.sherlo" content:jsonString];
+        return YES;
+    } @catch (NSException *e) {
+        return NO;
+    }
+}
+
 /**
  * Returns constants that will be exposed to JavaScript.
  * Includes mode constants, current mode, and configuration.

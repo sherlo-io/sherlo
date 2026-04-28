@@ -44,6 +44,10 @@ public class SherloModuleCore {
     private FileSystemHelper fileSystemHelper = null;
     private RestartHelper restartHelper = null;
 
+    // Static reference to FileSystemHelper for use from static/JNI contexts.
+    // Set once in performEarlyInit (before JS runs) and refreshed in the constructor.
+    private static FileSystemHelper staticFileSystemHelper = null;
+
     /**
      * Emits the early native protocol signals (NATIVE_INIT_STARTED, NATIVE_LOADED) when the
      * Sherlo config indicates testing mode. Idempotent - subsequent calls are no-ops.
@@ -64,6 +68,7 @@ public class SherloModuleCore {
 
         try {
             FileSystemHelper fsHelper = new FileSystemHelper(context);
+            staticFileSystemHelper = fsHelper;
             JSONObject earlyConfig = ConfigHelper.loadConfig(fsHelper);
             if (earlyConfig == null) return;
 
@@ -97,6 +102,7 @@ public class SherloModuleCore {
      */
     public SherloModuleCore(ReactApplicationContext reactContext, Activity activity) {
         this.fileSystemHelper = new FileSystemHelper(reactContext);
+        staticFileSystemHelper = this.fileSystemHelper;
 
         // Fallback - normal Android startup already runs this via SherloInitProvider before
         // Application.onCreate(). The call is idempotent so the double-invocation costs nothing.
@@ -133,6 +139,28 @@ public class SherloModuleCore {
      */
     public static String getCurrentMode() {
         return currentMode != null ? currentMode : MODE_DEFAULT;
+    }
+
+    /**
+     * Writes a DIAGNOSTIC JSON line to protocol.sherlo. Safe to call from static/JNI context.
+     * No-op (returns false) if staticFileSystemHelper is not yet initialized.
+     */
+    public static boolean writeDiagnosticEntry(String marker) {
+        if (staticFileSystemHelper == null) return false;
+        try {
+            org.json.JSONObject item = new org.json.JSONObject();
+            item.put("action", "DIAGNOSTIC");
+            item.put("timestamp", System.currentTimeMillis());
+            item.put("entity", "sdk");
+            org.json.JSONObject data = new org.json.JSONObject();
+            data.put("marker", marker != null ? marker : "");
+            item.put("data", data);
+            staticFileSystemHelper.appendFile("protocol.sherlo", item.toString() + "\n");
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "writeDiagnosticEntry failed", e);
+            return false;
+        }
     }
 
     /**
