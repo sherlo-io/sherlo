@@ -195,6 +195,7 @@ public class SherloModuleCore {
      * Must never throw. Returns true on success, false on failure.
      */
     public boolean reportEarlyJsError(String name, String message, String stack) {
+        Log.i(TAG, "[Sherlo:Native] reportEarlyJsError called, mode='" + currentMode + "'");
         // Defense in depth: even if the JS-side gate (metro/polyfill.js) is bypassed,
         // refuse to write JS errors to protocol.sherlo unless in testing mode. This
         // makes a polyfill-bug failure mode 'no error captured' not 'protocol polluted'.

@@ -23,10 +23,12 @@
 (function () {
   // EARLY EXIT for production. This is the load-bearing line.
   if (typeof globalThis === 'undefined') return;
+  console.warn('[Sherlo:JS] polyfill loaded; __sherloRuntimeMode_v1=' + globalThis.__sherloRuntimeMode_v1);
   if (globalThis.__sherloRuntimeMode_v1 !== 'testing') return;
 
   // From here down: TESTING MODE ONLY. Code below this line never executes
   // in customer production builds.
+  console.warn('[Sherlo:JS] gate passed, wrapping __r');
 
   if (typeof global === 'undefined') return;
   if (typeof global.__r !== 'function') return;
@@ -38,6 +40,7 @@
     try {
       return originalRequire(moduleId);
     } catch (e) {
+      console.warn('[Sherlo:JS] __r caught error: ' + (e && e.message));
       try {
         var nm = (global.__turboModuleProxy && global.__turboModuleProxy('SherloModule')) ||
                  (global.nativeModuleProxy && global.nativeModuleProxy.SherloModule);
@@ -47,6 +50,7 @@
             (e && e.message) || String(e),
             (e && e.stack) || ''
           );
+          console.warn('[Sherlo:JS] reportEarlyJsError invoked');
         }
       } catch (_) { /* never throw from inside our error handler */ }
       throw e;

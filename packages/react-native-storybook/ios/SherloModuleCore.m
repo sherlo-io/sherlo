@@ -189,6 +189,7 @@ static FileSystemHelper *fileSystemHelper;
 }
 
 - (BOOL)reportEarlyJsError:(NSString *)name message:(NSString *)message stack:(NSString *)stack {
+    NSLog(@"[Sherlo:Native] reportEarlyJsError called, mode='%@'", currentMode);
     // Defense in depth: even if the JS-side gate (metro/polyfill.js) is bypassed,
     // refuse to write JS errors to protocol.sherlo unless in testing mode. This
     // makes a polyfill-bug failure mode 'no error captured' not 'protocol polluted'.

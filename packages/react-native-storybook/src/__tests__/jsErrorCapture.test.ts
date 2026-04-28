@@ -110,8 +110,8 @@ describe('polyfill - AppRegistry.registerComponent monkey-patch', () => {
 // ---------------------------------------------------------------------------
 
 describe('polyfill - file structure', () => {
-  it('has no console.warn calls — polyfill is silent', () => {
-    expect(polyfillSource).not.toContain('console.warn');
+  it('contains temporary diagnostic console.warn markers', () => {
+    expect(polyfillSource).toContain('console.warn');
   });
 });
 

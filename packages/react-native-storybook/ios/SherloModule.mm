@@ -173,10 +173,13 @@ static void SherloEarlyInit(void) {
 {
   try {
     NSString *modeStr = [SherloModuleCore currentMode] ?: @"default";
+    NSLog(@"[Sherlo:Native] installJSIBindingsWithRuntime fired, mode=%@", modeStr);
     const char *cMode = [modeStr UTF8String] ?: "default";
     runtime.global().setProperty(runtime, "__sherloRuntimeMode_v1",
       facebook::jsi::String::createFromUtf8(runtime, cMode));
+    NSLog(@"[Sherlo:Native] __sherloRuntimeMode_v1 set successfully");
   } catch (...) {
+    NSLog(@"[Sherlo:Native] installJSIBindingsWithRuntime FAILED with C++ exception");
     // Swallow ANY exception from the JSI binding. We must never block the
     // customer's app from starting due to a Sherlo binding failure.
   }

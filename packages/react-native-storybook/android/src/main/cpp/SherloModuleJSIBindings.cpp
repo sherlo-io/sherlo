@@ -1,4 +1,6 @@
 #include "SherloModuleJSIBindings.h"
+#include <android/log.h>
+#define SHERLO_TAG "Sherlo"
 
 namespace sherlo {
 
@@ -35,6 +37,9 @@ SherloModuleJSIBindings::getBindingsInstaller(
     // Fall through with mode = "default"
   }
 
+  __android_log_print(ANDROID_LOG_INFO, SHERLO_TAG,
+      "installJSIBindingsWithRuntime fired, mode=%s", mode.c_str());
+
   return BindingsInstallerHolder::newObjectCxxArgs(
       // This lambda runs on the JS thread BEFORE bundle eval starts.
       // Production safety: mode is 'default' in production builds, so the
@@ -45,7 +50,11 @@ SherloModuleJSIBindings::getBindingsInstaller(
               runtime,
               "__sherloRuntimeMode_v1",
               String::createFromUtf8(runtime, mode));
+          __android_log_print(ANDROID_LOG_INFO, SHERLO_TAG,
+              "__sherloRuntimeMode_v1 set successfully");
         } catch (...) {
+          __android_log_print(ANDROID_LOG_ERROR, SHERLO_TAG,
+              "installJSIBindingsWithRuntime FAILED with C++ exception");
           // Swallow ALL exceptions. A Sherlo binding failure must never
           // crash the customer's app.
         }
