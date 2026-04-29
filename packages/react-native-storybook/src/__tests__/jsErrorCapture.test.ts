@@ -186,23 +186,23 @@ describe('polyfill - file structure', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Tests: index.ts — no error capture logic
+// Tests: index.ts — error capture behavior
 // ---------------------------------------------------------------------------
 
-describe('index.ts — no error capture logic', () => {
+describe('index.ts — error capture behavior', () => {
   it('does not install ErrorUtils.setGlobalHandler (moved to polyfill)', () => {
     expect(indexSource).not.toContain('setGlobalHandler');
   });
 
-  it('does not contain patchAppRegistryWithBoundary', () => {
-    expect(indexSource).not.toContain('patchAppRegistryWithBoundary');
+  it('contains patchAppRegistryWithBoundary for render-time error capture', () => {
+    expect(indexSource).toContain('patchAppRegistryWithBoundary');
   });
 
-  it('does not contain SherloErrorBoundary', () => {
-    expect(indexSource).not.toContain('SherloErrorBoundary');
+  it('contains SherloErrorBoundary', () => {
+    expect(indexSource).toContain('SherloErrorBoundary');
   });
 
-  it('does not contain writeJsErrorEntry', () => {
+  it('does not contain writeJsErrorEntry (uses writeJsErrorFromBoundary)', () => {
     expect(indexSource).not.toContain('writeJsErrorEntry');
   });
 
@@ -212,6 +212,11 @@ describe('index.ts — no error capture logic', () => {
 
   it('uses lazy require for SherloModule', () => {
     expect(indexSource).toContain("require('./SherloModule')");
+  });
+
+  it('monkey-patches AppRegistry.registerComponent with __sherloBoundaryPatched guard', () => {
+    expect(indexSource).toContain('AR.registerComponent');
+    expect(indexSource).toContain('__sherloBoundaryPatched');
   });
 });
 
