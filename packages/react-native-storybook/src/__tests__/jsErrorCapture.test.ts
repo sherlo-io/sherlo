@@ -1,10 +1,12 @@
 /**
  * Unit tests for JS error capture logic.
  *
- * Error capture is now exclusively via ErrorUtils.setGlobalHandler installed
- * early in metro/polyfill.js. The handler catches module-eval, async, and
- * event-handler errors uniformly — the previous __r wrap and
- * patchAppRegistryWithBoundary are gone.
+ * Two complementary capture paths in metro/polyfill.js:
+ * 1. ErrorUtils.setGlobalHandler — catches entry-module throws + async/event errors.
+ * 2. __d wrap — wraps every module factory; catches nested module-eval throws that
+ *    bypass ErrorUtils because Metro's _$$_REQUIRE local ref skips global.__r.
+ *
+ * Both paths share a reportToNative helper gated by __sherloFirstErrorReported.
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -41,10 +43,29 @@ function buildFakeGlobal(
   };
 }
 
+function buildFakeGlobalWithD(
+  nm?: ReturnType<typeof makeNativeModule>,
+  prevHandler?: (error: Error, isFatal: boolean) => void
+): Record<string, any> {
+  const fakeGlobal = buildFakeGlobal(nm, prevHandler);
+  const originalD = vi.fn();
+  fakeGlobal.__d = originalD;
+  fakeGlobal._originalD = originalD;
+  return fakeGlobal;
+}
+
 function getInstalledHandler(fakeGlobal: Record<string, any>): (error: Error, isFatal: boolean) => void {
   const calls = fakeGlobal._setGlobalHandler.mock.calls;
   if (!calls.length) throw new Error('setGlobalHandler was never called');
   return calls[0][0];
+}
+
+function callWrappedFactory(
+  fakeGlobal: Record<string, any>,
+  callIndex = 0
+): (...args: any[]) => any {
+  const wrappedFactory = fakeGlobal._originalD.mock.calls[callIndex][0];
+  return (...args: any[]) => wrappedFactory({}, () => {}, () => {}, () => {}, {}, {}, args[0] ?? []);
 }
 
 // ---------------------------------------------------------------------------
@@ -156,6 +177,94 @@ describe('metro/polyfill.js — ErrorUtils.setGlobalHandler', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Tests: metro/polyfill.js — __d wrap
+// ---------------------------------------------------------------------------
+
+describe('metro/polyfill.js — __d wrap', () => {
+  it('wraps __d when present', () => {
+    const fakeGlobal = buildFakeGlobalWithD();
+    const original = fakeGlobal.__d;
+    runPolyfill(fakeGlobal);
+    expect(fakeGlobal.__d).not.toBe(original);
+    expect(fakeGlobal.__sherloDefineWrapped).toBe(true);
+  });
+
+  it('is idempotent — skips re-wrap when __sherloDefineWrapped is already set', () => {
+    const fakeGlobal = buildFakeGlobalWithD();
+    fakeGlobal.__sherloDefineWrapped = true;
+    const original = fakeGlobal.__d;
+    runPolyfill(fakeGlobal);
+    expect(fakeGlobal.__d).toBe(original);
+  });
+
+  it('does not wrap when __d is absent', () => {
+    const fakeGlobal = buildFakeGlobal();
+    runPolyfill(fakeGlobal);
+    expect(fakeGlobal.__sherloDefineWrapped).toBeUndefined();
+  });
+
+  it('wrapped factory passes through to original factory on success', () => {
+    const fakeGlobal = buildFakeGlobalWithD();
+    const factoryReturn = { foo: 'bar' };
+    const factory = vi.fn(() => factoryReturn);
+    runPolyfill(fakeGlobal);
+    fakeGlobal.__d(factory, 1, []);
+    expect(fakeGlobal._originalD).toHaveBeenCalledOnce();
+    const invoke = callWrappedFactory(fakeGlobal);
+    const result = invoke();
+    expect(factory).toHaveBeenCalledOnce();
+    expect(result).toBe(factoryReturn);
+  });
+
+  it('wrapped factory captures error, reports to native, and rethrows', () => {
+    const reportFn = vi.fn();
+    const nm = makeNativeModule(reportFn);
+    const fakeGlobal = buildFakeGlobalWithD(nm);
+    const err = new Error('module crash');
+    const factory = vi.fn(() => { throw err; });
+    runPolyfill(fakeGlobal);
+    fakeGlobal.__d(factory, 1, []);
+    const invoke = callWrappedFactory(fakeGlobal);
+    expect(() => invoke()).toThrow('module crash');
+    expect(reportFn).toHaveBeenCalledOnce();
+    expect(reportFn).toHaveBeenCalledWith('Error', 'module crash', expect.any(String));
+  });
+
+  it('only reports the first error — __sherloFirstErrorReported gates __d path', () => {
+    const reportFn = vi.fn();
+    const nm = makeNativeModule(reportFn);
+    const fakeGlobal = buildFakeGlobalWithD(nm);
+    const factory = vi.fn(() => { throw new Error('boom'); });
+    runPolyfill(fakeGlobal);
+    fakeGlobal.__d(factory, 1, []);
+    fakeGlobal.__d(factory, 2, []);
+    const invoke1 = callWrappedFactory(fakeGlobal, 0);
+    const invoke2 = callWrappedFactory(fakeGlobal, 1);
+    expect(() => invoke1()).toThrow();
+    expect(() => invoke2()).toThrow();
+    expect(reportFn).toHaveBeenCalledOnce();
+  });
+
+  it('__sherloFirstErrorReported flag is shared — __d error prevents duplicate from ErrorUtils path', () => {
+    const reportFn = vi.fn();
+    const nm = makeNativeModule(reportFn);
+    const fakeGlobal = buildFakeGlobalWithD(nm);
+    const err = new Error('transitive crash');
+    const factory = vi.fn(() => { throw err; });
+    runPolyfill(fakeGlobal);
+    fakeGlobal.__d(factory, 1, []);
+    const invoke = callWrappedFactory(fakeGlobal);
+    // __d fires first
+    expect(() => invoke()).toThrow();
+    expect(reportFn).toHaveBeenCalledOnce();
+    // ErrorUtils path fires for same error (rethrown by __d)
+    const handler = getInstalledHandler(fakeGlobal);
+    handler(err, true);
+    expect(reportFn).toHaveBeenCalledOnce(); // still once — flag blocks duplicate
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Tests: polyfill file structure
 // ---------------------------------------------------------------------------
 
@@ -164,16 +273,20 @@ describe('polyfill - file structure', () => {
     expect(polyfillSource).toContain('console.warn');
   });
 
-  it('uses ErrorUtils.setGlobalHandler as the sole error capture mechanism', () => {
+  it('installs ErrorUtils.setGlobalHandler for error capture', () => {
     expect(polyfillSource).toContain('ErrorUtils.setGlobalHandler');
   });
 
-  it('does not wrap global.__r (old mechanism removed)', () => {
-    expect(polyfillSource).not.toContain('global.__r');
+  it('wraps global.__d to catch nested module-eval throws', () => {
+    expect(polyfillSource).toContain('global.__d');
   });
 
   it('guards with __sherloGlobalHandlerInstalled for idempotency', () => {
     expect(polyfillSource).toContain('__sherloGlobalHandlerInstalled');
+  });
+
+  it('guards __d wrap with __sherloDefineWrapped for idempotency', () => {
+    expect(polyfillSource).toContain('__sherloDefineWrapped');
   });
 
   it('guards against cascade errors with __sherloFirstErrorReported flag', () => {
