@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 
 vi.mock('child_process', async () => {
   const actual = await vi.importActual<typeof import('child_process')>('child_process');
@@ -23,6 +23,7 @@ import {
   type ParsedFrame,
   type JsErrorJson,
 } from '../showError';
+import showError from '../showError';
 
 // ---------------------------------------------------------------------------
 // Temp directory helpers
@@ -283,6 +284,68 @@ describe('buildSourceMaps — expo fallback', () => {
     expect(result).toContain('bundle.ios.jsbundle.map');
     expect(callCount).toBe(2); // expo attempt + bare-rn fallback
   });
+
+  it('expo fallback bare-rn command includes --reset-cache', () => {
+    const dir = makeTempDir();
+    writeJson(dir, 'package.json', { main: 'index.js' });
+
+    const capturedCmds: string[] = [];
+    vi.spyOn(childProcess, 'execSync').mockImplementation((cmd: any) => {
+      const cmdStr = String(cmd);
+      capturedCmds.push(cmdStr);
+      if (cmdStr.includes('expo export:embed')) {
+        throw new Error('expo build failed');
+      }
+      if (cmdStr.includes('react-native bundle')) {
+        const cacheDir = path.join(dir, '.sherlo-cache');
+        if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
+        fs.writeFileSync(path.join(cacheDir, 'bundle.android.jsbundle.map'), '{}');
+      }
+      return Buffer.from('');
+    });
+
+    buildSourceMaps(dir, 'expo', 'android');
+    const rnCmd = capturedCmds.find(c => c.includes('react-native bundle'));
+    expect(rnCmd).toContain('--reset-cache');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildSourceMaps — bare-rn (rn) branch
+// ---------------------------------------------------------------------------
+
+describe('buildSourceMaps — rn branch', () => {
+  it('rn branch command includes --reset-cache', () => {
+    const dir = makeTempDir();
+    writeJson(dir, 'package.json', { main: 'index.js' });
+
+    let capturedCmd = '';
+    vi.spyOn(childProcess, 'execSync').mockImplementation((cmd: any) => {
+      capturedCmd = String(cmd);
+      if (capturedCmd.includes('react-native bundle')) {
+        const cacheDir = path.join(dir, '.sherlo-cache');
+        if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
+        fs.writeFileSync(path.join(cacheDir, 'bundle.android.jsbundle.map'), '{}');
+      }
+      return Buffer.from('');
+    });
+
+    buildSourceMaps(dir, 'rn', 'android');
+    expect(capturedCmd).toContain('--reset-cache');
+  });
+
+  it('rn branch error includes stderr output', () => {
+    const dir = makeTempDir();
+    writeJson(dir, 'package.json', { main: 'index.js' });
+
+    vi.spyOn(childProcess, 'execSync').mockImplementation(() => {
+      const err: any = new Error('Command failed: npx react-native bundle');
+      err.stderr = Buffer.from('Metro bundler error: cannot find module');
+      throw err;
+    });
+
+    expect(() => buildSourceMaps(dir, 'rn', 'android')).toThrow('Metro bundler error: cannot find module');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -448,5 +511,69 @@ describe('error cases', () => {
   it('missing package.json: detectEntryFile falls back to index.js', () => {
     const emptyDir = makeTempDir();
     expect(detectEntryFile(emptyDir)).toBe('index.js');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// showError default export — process.exitCode instead of process.exit
+// ---------------------------------------------------------------------------
+
+describe('showError — exit behaviour on error', () => {
+  let exitSpy: ReturnType<typeof vi.spyOn>;
+  let originalExitCode: number | undefined;
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    process.exitCode = originalExitCode;
+  });
+
+  beforeEach(() => {
+    originalExitCode = process.exitCode as number | undefined;
+    process.exitCode = undefined as any;
+    // Ensure process.exit is not called — spy that throws so any accidental call is caught
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation((_code?: number) => {
+      throw new Error(`process.exit(${_code}) was called but should not have been`);
+    });
+  });
+
+  it('sets process.exitCode=1 and returns (no process.exit) when fetch fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network error')));
+
+    await showError('https://example.com/error.json');
+
+    expect(process.exitCode).toBe(1);
+    expect(exitSpy).not.toHaveBeenCalled();
+
+    vi.unstubAllGlobals();
+  });
+
+  it('sets process.exitCode=1 and returns (no process.exit) when detectBundler fails', async () => {
+    const mockPayload = {
+      name: 'TypeError',
+      message: 'oops',
+      stack: [{ fnName: 'f', file: '/data/user/0/bundle.js', line: 1, col: 1 }],
+      componentStack: [],
+      digest: null,
+      cause: null,
+      hasExpo: false,
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve(JSON.stringify(mockPayload)),
+    }));
+    // detectBundler will throw because the cwd has no native dirs and no expo markers
+    const emptyDir = makeTempDir();
+    const origCwd = process.cwd;
+    vi.spyOn(process, 'cwd').mockReturnValue(emptyDir);
+    // make sure detectBundler throws (no native dirs, no expo config)
+    writeJson(emptyDir, 'package.json', { dependencies: { 'react-native': '*' } });
+
+    await showError('https://example.com/error.json');
+
+    expect(process.exitCode).toBe(1);
+    expect(exitSpy).not.toHaveBeenCalled();
+
+    process.cwd = origCwd;
+    vi.unstubAllGlobals();
   });
 });

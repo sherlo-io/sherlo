@@ -180,7 +180,7 @@ export function buildSourceMaps(
         const rnBundleOut = path.join(cacheDir, `bundle.${platform}.jsbundle`);
         const rnMapOut = `${rnBundleOut}.map`;
         execSync(
-          `npx react-native bundle --platform ${platform} --dev false --entry-file ${entryFile} --bundle-output ${rnBundleOut} --sourcemap-output ${rnMapOut}`,
+          `npx react-native bundle --platform ${platform} --dev false --entry-file ${entryFile} --bundle-output ${rnBundleOut} --sourcemap-output ${rnMapOut} --reset-cache`,
           { cwd: projectRoot, stdio: ['pipe', 'pipe', 'pipe'] }
         );
         effectiveProjectType = 'rn';
@@ -189,7 +189,7 @@ export function buildSourceMaps(
       const bundleOut = path.join(cacheDir, `bundle.${platform}.jsbundle`);
       const mapOut = `${bundleOut}.map`;
       execSync(
-        `npx react-native bundle --platform ${platform} --dev false --entry-file ${entryFile} --bundle-output ${bundleOut} --sourcemap-output ${mapOut}`,
+        `npx react-native bundle --platform ${platform} --dev false --entry-file ${entryFile} --bundle-output ${bundleOut} --sourcemap-output ${mapOut} --reset-cache`,
         { cwd: projectRoot, stdio: ['pipe', 'pipe', 'pipe'] }
       );
     }
@@ -199,7 +199,8 @@ export function buildSourceMaps(
   } catch (err: any) {
     clearInterval(tick);
     process.stdout.write('\n');
-    throw new Error(`Source map build failed: ${err.message || String(err)}`);
+    const errOutput = (err.stderr?.toString?.() || '') + (err.stdout?.toString?.() || '');
+    throw new Error(`Source map build failed: ${err.message || String(err)}${errOutput ? '\n' + errOutput : ''}`);
   }
 
   return findSourceMap(projectRoot, effectiveProjectType, platform);
@@ -259,7 +260,18 @@ export function runMetroSymbolicate(
   if (frameLines.length === 0) return [];
   const input = frameLines.join('\n');
   try {
-    const result = execSync(`npx metro-symbolicate ${sourceMapPath}`, {
+    // Invoke metro-symbolicate via 'node' explicitly, resolving the .bin symlink to
+    // the real JS file. This bypasses execute-permission issues that occur when yarn
+    // installs metro-symbolicate without the exec bit on its bin entry (e.g. 0.83.7).
+    const binLink = path.join(projectRoot, 'node_modules', '.bin', 'metro-symbolicate');
+    let cmd: string;
+    if (fs.existsSync(binLink)) {
+      const realScript = fs.realpathSync(binLink);
+      cmd = `node ${JSON.stringify(realScript)} ${JSON.stringify(sourceMapPath)}`;
+    } else {
+      cmd = `npx metro-symbolicate ${JSON.stringify(sourceMapPath)}`;
+    }
+    const result = execSync(cmd, {
       cwd: projectRoot,
       input,
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -408,7 +420,8 @@ async function showError(url: string): Promise<void> {
     data = JSON.parse(text) as JsErrorJson;
   } catch (err: any) {
     console.error(chalk.red(`Failed to fetch error: ${err.message}`));
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   // 2. Detect platform from frame file paths
@@ -424,7 +437,8 @@ async function showError(url: string): Promise<void> {
     projectType = detectBundler(projectRoot);
   } catch (err: any) {
     console.error(chalk.red(err.message));
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   const engine = data.engine ?? 'hermes';
   console.log(chalk.dim(`Detected project type: ${projectType}`));
@@ -453,7 +467,8 @@ async function showError(url: string): Promise<void> {
     sourceMapPath = buildSourceMaps(projectRoot, projectType, platform);
   } catch (err: any) {
     console.error(chalk.red(err.message));
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   // 6. Print error header
@@ -475,7 +490,8 @@ async function showError(url: string): Promise<void> {
     symResult = symbolicateAllFrames(stackAndCause, sourceMapPath, projectRoot);
   } catch (err: any) {
     console.error(chalk.red(`Symbolication failed: ${err.message}`));
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   const { frames: symStackAndCause, totalFrames, resolvedFrames } = symResult;

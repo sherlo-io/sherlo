@@ -8,11 +8,6 @@
 
 RCT_EXPORT_MODULE(SherloModule)
 
-+ (void)load {
-  NSLog(@"[Sherlo:Native] iOS SherloModule +load fired");
-  [SherloModuleCore writeDiagnosticEntry:@"ios_load"];
-}
-
 @synthesize bridge = _bridge;
 
 static SherloModuleCore *core;
@@ -20,6 +15,8 @@ static SherloModuleCore *core;
 // This runs automatically when the dynamic library is loaded
 __attribute__((constructor))
 static void SherloEarlyInit(void) {
+  NSLog(@"[Sherlo:Native] iOS SherloModule SherloEarlyInit fired");
+  [SherloModuleCore writeDiagnosticEntry:@"ios_load"];
   core = [[SherloModuleCore alloc] init];
 }
 
