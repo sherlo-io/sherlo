@@ -407,9 +407,9 @@ export function renderOutput(data: JsErrorJson): string {
 // Slug handling and API URL resolution
 // ---------------------------------------------------------------------------
 
-// slug format: {teamId 8 alphanumeric}-{projectIndex digits}-(ios|android)-{unix ms 13 digits}
+// slug format: {teamId 8 alphanumeric + underscore}-{projectIndex digits}-(ios|android)-{unix ms 13 digits}
 // example:     PsS5H1B1-30-android-1777491220857
-export const SLUG_REGEX = /^[A-Za-z0-9]{8}-\d+-(ios|android)-\d{13}$/;
+export const SLUG_REGEX = /^[A-Za-z0-9_]{8}-\d+-(ios|android)-\d{13}$/;
 
 // REST base URL. SHERLO_API_URL is the GraphQL endpoint; strip /graphql to get the HTTP base.
 export function resolveApiBaseUrl(): string {
