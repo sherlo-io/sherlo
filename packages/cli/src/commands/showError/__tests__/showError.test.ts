@@ -527,6 +527,8 @@ describe('SLUG_REGEX', () => {
     'AAAAAAAA-0-ios-1000000000000',
     'aBcDeF12-999-android-9999999999999',
     '00000000-1-ios-1234567890123',
+    'qA7_qHJ4-30-android-1777491220857',   // underscore in teamId (real-world team IDs include _)
+    'qA7_qHJ4-40-ios-1777569392938',
   ];
   const invalid = [
     '',
