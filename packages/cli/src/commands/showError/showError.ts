@@ -404,17 +404,55 @@ export function renderOutput(data: JsErrorJson): string {
 }
 
 // ---------------------------------------------------------------------------
+// Slug handling and API URL resolution
+// ---------------------------------------------------------------------------
+
+// slug format: {teamId 8 alphanumeric}-{projectIndex digits}-(ios|android)-{unix ms 13 digits}
+// example:     PsS5H1B1-30-android-1777491220857
+export const SLUG_REGEX = /^[A-Za-z0-9]{8}-\d+-(ios|android)-\d{13}$/;
+
+// REST base URL. SHERLO_API_URL is the GraphQL endpoint; strip /graphql to get the HTTP base.
+export function resolveApiBaseUrl(): string {
+  const url = process.env.SHERLO_API_URL;
+  if (url) return url.replace(/\/graphql$/, '');
+  return 'https://api.sherlo.io';
+}
+
+export function resolveShowErrorUrl(slug: string): string {
+  return `${resolveApiBaseUrl()}/v1/show-error/${slug}`;
+}
+
+// ---------------------------------------------------------------------------
 // Main command
 // ---------------------------------------------------------------------------
 
-async function showError(url: string): Promise<void> {
-  const projectRoot = process.cwd();
+async function showError(slug: string): Promise<void> {
+  if (!SLUG_REGEX.test(slug)) {
+    console.error(
+      chalk.red(
+        `Invalid slug format: "${slug}"\n` +
+        `Expected format: <teamId>-<projectIndex>-(ios|android)-<timestamp>\n` +
+        `Example: PsS5H1B1-30-android-1777491220857\n` +
+        `The slug is printed on the build error page in the Sherlo dashboard.`
+      )
+    );
+    process.exitCode = 1;
+    return;
+  }
 
-  // 1. Fetch and parse JSON payload
+  const projectRoot = process.cwd();
+  const errorUrl = resolveShowErrorUrl(slug);
+
+  // 1. Fetch and parse JSON payload (via GET /v1/show-error/{slug} → 302 → S3)
   console.log(chalk.dim('Fetching error from Sherlo...'));
   let data: JsErrorJson;
   try {
-    const res = await fetch(url);
+    const res = await fetch(errorUrl);
+    if (res.status === 404) {
+      console.error(chalk.red(`No JS error found for build ${slug}`));
+      process.exitCode = 1;
+      return;
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const text = await res.text();
     data = JSON.parse(text) as JsErrorJson;

@@ -20,6 +20,9 @@ import {
   runMetroSymbolicate,
   symbolicateAllFrames,
   renderOutput,
+  SLUG_REGEX,
+  resolveApiBaseUrl,
+  resolveShowErrorUrl,
   type ParsedFrame,
   type JsErrorJson,
 } from '../showError';
@@ -515,8 +518,96 @@ describe('error cases', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Slug validation (SLUG_REGEX)
+// ---------------------------------------------------------------------------
+
+describe('SLUG_REGEX', () => {
+  const valid = [
+    'PsS5H1B1-30-android-1777491220857',
+    'AAAAAAAA-0-ios-1000000000000',
+    'aBcDeF12-999-android-9999999999999',
+    '00000000-1-ios-1234567890123',
+  ];
+  const invalid = [
+    '',
+    'too-short',
+    'PsS5H1B1-30-android',                       // missing timestamp
+    'PsS5H1B1-30-android-177749122085',           // timestamp too short (12 digits)
+    'PsS5H1B1-30-android-17774912208570',         // timestamp too long (14 digits)
+    'PsS5H1B1-30-windows-1777491220857',          // invalid platform
+    'PsS5H1B1!-30-android-1777491220857',         // non-alphanumeric in teamId
+    'PsS5H1B1-30-android-177749122085a',          // non-numeric timestamp
+    'PsS5H1B1--30-android-1777491220857',         // double dash
+    'PsS5H1B1-30-Android-1777491220857',          // platform uppercase
+    'PsS5H1B1X-30-android-1777491220857',         // teamId 9 chars
+    'PsS5H1B-30-android-1777491220857',           // teamId 7 chars
+  ];
+
+  for (const s of valid) {
+    it(`accepts valid slug: ${s}`, () => {
+      expect(SLUG_REGEX.test(s)).toBe(true);
+    });
+  }
+
+  for (const s of invalid) {
+    it(`rejects invalid slug: "${s}"`, () => {
+      expect(SLUG_REGEX.test(s)).toBe(false);
+    });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// resolveApiBaseUrl / resolveShowErrorUrl
+// ---------------------------------------------------------------------------
+
+describe('resolveApiBaseUrl', () => {
+  const ORIG = process.env.SHERLO_API_URL;
+  afterEach(() => {
+    if (ORIG === undefined) delete process.env.SHERLO_API_URL;
+    else process.env.SHERLO_API_URL = ORIG;
+  });
+
+  it('returns production base when SHERLO_API_URL is not set', () => {
+    delete process.env.SHERLO_API_URL;
+    expect(resolveApiBaseUrl()).toBe('https://api.sherlo.io');
+  });
+
+  it('strips /graphql suffix when SHERLO_API_URL is set', () => {
+    process.env.SHERLO_API_URL = 'http://localhost:4000/graphql';
+    expect(resolveApiBaseUrl()).toBe('http://localhost:4000');
+  });
+
+  it('leaves non-graphql URL unchanged', () => {
+    process.env.SHERLO_API_URL = 'http://localhost:4000';
+    expect(resolveApiBaseUrl()).toBe('http://localhost:4000');
+  });
+});
+
+describe('resolveShowErrorUrl', () => {
+  const ORIG = process.env.SHERLO_API_URL;
+  afterEach(() => {
+    if (ORIG === undefined) delete process.env.SHERLO_API_URL;
+    else process.env.SHERLO_API_URL = ORIG;
+  });
+
+  it('builds the correct URL from slug with default base', () => {
+    delete process.env.SHERLO_API_URL;
+    expect(resolveShowErrorUrl('PsS5H1B1-30-android-1777491220857'))
+      .toBe('https://api.sherlo.io/v1/show-error/PsS5H1B1-30-android-1777491220857');
+  });
+
+  it('builds URL using SHERLO_API_URL override (local dev)', () => {
+    process.env.SHERLO_API_URL = 'http://localhost:4000/graphql';
+    expect(resolveShowErrorUrl('PsS5H1B1-30-ios-1777491220857'))
+      .toBe('http://localhost:4000/v1/show-error/PsS5H1B1-30-ios-1777491220857');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // showError default export — process.exitCode instead of process.exit
 // ---------------------------------------------------------------------------
+
+const VALID_SLUG = 'PsS5H1B1-30-android-1777491220857';
 
 describe('showError — exit behaviour on error', () => {
   let exitSpy: ReturnType<typeof vi.spyOn>;
@@ -525,6 +616,7 @@ describe('showError — exit behaviour on error', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     process.exitCode = originalExitCode;
+    vi.unstubAllGlobals();
   });
 
   beforeEach(() => {
@@ -536,15 +628,31 @@ describe('showError — exit behaviour on error', () => {
     });
   });
 
-  it('sets process.exitCode=1 and returns (no process.exit) when fetch fails', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network error')));
-
-    await showError('https://example.com/error.json');
+  it('sets process.exitCode=1 and returns (no process.exit) for invalid slug', async () => {
+    await showError('not-a-valid-slug');
 
     expect(process.exitCode).toBe(1);
     expect(exitSpy).not.toHaveBeenCalled();
+  });
 
-    vi.unstubAllGlobals();
+  it('sets process.exitCode=1 and returns (no process.exit) when fetch fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network error')));
+
+    await showError(VALID_SLUG);
+
+    expect(process.exitCode).toBe(1);
+    expect(exitSpy).not.toHaveBeenCalled();
+  });
+
+  it('sets process.exitCode=1 with "No JS error found" message on 404', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ status: 404, ok: false }));
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await showError(VALID_SLUG);
+
+    expect(process.exitCode).toBe(1);
+    expect(exitSpy).not.toHaveBeenCalled();
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining(`No JS error found for build ${VALID_SLUG}`));
   });
 
   it('sets process.exitCode=1 and returns (no process.exit) when detectBundler fails', async () => {
@@ -559,6 +667,7 @@ describe('showError — exit behaviour on error', () => {
     };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
+      status: 200,
       text: () => Promise.resolve(JSON.stringify(mockPayload)),
     }));
     // detectBundler will throw because the cwd has no native dirs and no expo markers
@@ -568,12 +677,11 @@ describe('showError — exit behaviour on error', () => {
     // make sure detectBundler throws (no native dirs, no expo config)
     writeJson(emptyDir, 'package.json', { dependencies: { 'react-native': '*' } });
 
-    await showError('https://example.com/error.json');
+    await showError(VALID_SLUG);
 
     expect(process.exitCode).toBe(1);
     expect(exitSpy).not.toHaveBeenCalled();
 
     process.cwd = origCwd;
-    vi.unstubAllGlobals();
   });
 });

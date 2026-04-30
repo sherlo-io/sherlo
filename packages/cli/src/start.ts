@@ -106,7 +106,7 @@ const COMMAND_DESCRIPTION = {
   [TEST_EAS_UPDATE_COMMAND]: 'Test builds with dynamic JavaScript (OTA) updates',
   [TEST_EAS_CLOUD_BUILD_COMMAND]: 'Test cloud builds created on Expo servers',
   [EAS_BUILD_ON_COMPLETE_COMMAND]: `Process EAS Build (required for \`${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
-  [SHOW_ERROR_COMMAND]: 'Decode minified JS error stack traces using local source maps',
+  [SHOW_ERROR_COMMAND]: 'Decode a minified JS error stack trace using the slug printed on the Sherlo build error page',
 };
 
 const OPTION_DEFINITION: Record<string, [string, string]> = {
@@ -239,13 +239,17 @@ function addTestEasCloudBuildCommand(program: Command) {
 }
 
 function addShowErrorCommand(program: Command) {
-  // show-error takes a single positional <url> arg, no options — bypass addCommand
+  // show-error takes a single positional <slug> arg, no options — bypass addCommand
   program
-    .command(`${SHOW_ERROR_COMMAND} <url>`)
-    .description(COMMAND_DESCRIPTION[SHOW_ERROR_COMMAND])
-    .action(async (url: string) => {
-      setReportingContext(SHOW_ERROR_COMMAND, { url: '[presigned-url]' });
-      await showError(url);
+    .command(`${SHOW_ERROR_COMMAND} <slug>`)
+    .description(
+      `${COMMAND_DESCRIPTION[SHOW_ERROR_COMMAND]}\n` +
+      `  Slug format: <teamId>-<projectIndex>-(ios|android)-<timestamp>\n` +
+      `  Example:     PsS5H1B1-30-android-1777491220857`
+    )
+    .action(async (slug: string) => {
+      setReportingContext(SHOW_ERROR_COMMAND, { slug });
+      await showError(slug);
     });
 }
 
