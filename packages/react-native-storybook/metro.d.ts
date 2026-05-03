@@ -15,6 +15,9 @@
  * const config = getDefaultConfig(__dirname);
  * module.exports = withSherlo(withStorybook(config));
  */
-export declare function withSherlo(config: Record<string, any>): Record<string, any>;
+export declare function withSherlo(
+  config: Record<string, any>,
+  options?: { enabled?: boolean }
+): Record<string, any>;
 
 export default withSherlo;

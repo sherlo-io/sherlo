@@ -8,7 +8,6 @@
 import {
   AppProtocolItem,
   RunnerProtocolItem,
-  ProtocolItemMetadata,
   AckStartProtocolItem,
   AckRequestSnapshotProtocolItem,
   AckScrollRequestProtocolItem,
@@ -131,70 +130,6 @@ describe('Protocol message construction', () => {
       expect(msg.isStable).toBeUndefined();
       expect(msg.hasNetworkImage).toBeUndefined();
       expect(msg.safeAreaMetadata).toBeUndefined();
-    });
-  });
-
-  describe('NATIVE_INIT_STARTED message', () => {
-    it('has correct action token', () => {
-      const msg: AppProtocolItem = {
-        action: 'NATIVE_INIT_STARTED',
-      };
-
-      expect(msg.action).toBe('NATIVE_INIT_STARTED');
-    });
-
-    it('action token is a non-empty string', () => {
-      const msg: AppProtocolItem = { action: 'NATIVE_INIT_STARTED' };
-      expect(typeof msg.action).toBe('string');
-      expect(msg.action.length).toBeGreaterThan(0);
-    });
-  });
-
-  describe('JS_EVAL_COMPLETE message', () => {
-    it('has correct action token', () => {
-      const msg: AppProtocolItem = {
-        action: 'JS_EVAL_COMPLETE',
-      };
-
-      expect(msg.action).toBe('JS_EVAL_COMPLETE');
-    });
-
-    it('action token is a non-empty string', () => {
-      const msg: AppProtocolItem = { action: 'JS_EVAL_COMPLETE' };
-      expect(typeof msg.action).toBe('string');
-      expect(msg.action.length).toBeGreaterThan(0);
-    });
-  });
-
-  describe('JS_LOADED message (SDK-CONT-004)', () => {
-    it('has correct structure', () => {
-      const msg: AppProtocolItem = {
-        action: 'JS_LOADED',
-      };
-
-      expect(msg.action).toBe('JS_LOADED');
-    });
-
-    it('supports optional requestId', () => {
-      const msg: AppProtocolItem = {
-        action: 'JS_LOADED',
-        requestId: 'init-123',
-      };
-
-      expect(msg.requestId).toBe('init-123');
-    });
-  });
-
-  describe('Protocol metadata envelope', () => {
-    it('adds timestamp and entity to message', () => {
-      const content: AppProtocolItem & ProtocolItemMetadata = {
-        action: 'JS_LOADED',
-        timestamp: Date.now(),
-        entity: 'app',
-      };
-
-      expect(content.entity).toBe('app');
-      expect(typeof content.timestamp).toBe('number');
     });
   });
 

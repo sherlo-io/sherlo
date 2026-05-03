@@ -13,30 +13,23 @@ try {
 } catch (_) {}
 
 function installSherloIntegration(): void {
-  console.warn('[Sherlo] index side effect: entered installSherloIntegration');
-
   const SherloModule = require('./SherloModule').default;
-  console.warn('[Sherlo] index side effect: SherloModule required, type=' + typeof SherloModule);
 
   const isTesting =
     SherloModule &&
     typeof SherloModule.getMode === 'function' &&
     SherloModule.getMode() === 'testing';
-  console.warn('[Sherlo] index side effect: isTesting=' + isTesting + ', mode=' + (typeof SherloModule?.getMode === 'function' ? SherloModule.getMode() : 'no-getMode'));
 
   if (isTesting) {
-    console.warn('[Sherlo] index side effect: about to call appendFile');
     SherloModule.appendFile(
       'protocol.sherlo',
       JSON.stringify({ action: 'JS_EVAL_COMPLETE', timestamp: Date.now(), entity: 'app' }) + '\n'
     );
-    console.warn('[Sherlo] index side effect: appendFile returned');
+    patchAppRegistryWithBoundary(SherloModule);
   }
-
-  patchAppRegistryWithBoundary(SherloModule, isTesting);
 }
 
-function patchAppRegistryWithBoundary(SherloModule: any, isTesting: boolean): void {
+function patchAppRegistryWithBoundary(SherloModule: any): void {
   const RN = require('react-native');
   const AR = RN && RN.AppRegistry;
   if (!AR || typeof AR.registerComponent !== 'function' || AR.__sherloBoundaryPatched) return;
@@ -45,7 +38,6 @@ function patchAppRegistryWithBoundary(SherloModule: any, isTesting: boolean): vo
   const React = require('react');
 
   function writeJsErrorFromBoundary(error: any): Promise<void> {
-    if (!isTesting) return Promise.resolve();
     try {
       const data = {
         name: (error && error.name) || 'Error',

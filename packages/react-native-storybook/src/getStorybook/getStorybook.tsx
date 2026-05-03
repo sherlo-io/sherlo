@@ -6,7 +6,8 @@ import { TestingMode } from './components';
 import { getStorybookComponent } from './helpers';
 import { useHideSplashScreen } from './hooks';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { storybookRendered } from './components/TestingMode/Storybook';
+import { storybookRenderedRef } from './components/TestingMode/Storybook';
+import { STORYBOOK_LOAD_TIMEOUT_MS } from '../constants';
 
 let isSdkCompatible = true;
 if (SherloModule.getMode() === 'testing') {
@@ -64,13 +65,13 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     useEffect(() => {
       if (!isTestingMode) return;
       const timer = setTimeout(() => {
-        if (!storybookRendered) {
+        if (!storybookRenderedRef.current) {
           SherloModule.sendNativeError(
             ERROR_STORYBOOK_NOT_DISPLAYED,
             'Storybook did not appear within 10s of withSherlo mount'
           );
         }
-      }, 10_000);
+      }, STORYBOOK_LOAD_TIMEOUT_MS);
       return () => clearTimeout(timer);
     }, []);
 

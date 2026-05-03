@@ -4,6 +4,7 @@ import SherloModule from '../../../../SherloModule';
 import prepareSnapshots from './prepareSnapshots';
 import { isStorybook7 } from '../../../helpers';
 import { StorybookView } from '../../../../types';
+import { STORYBOOK_LOAD_TIMEOUT_MS } from '../../../../constants';
 
 function useSetInitialTestingData({ view }: { view: StorybookView }): void {
   const lastState = SherloModule.getLastState();
@@ -35,7 +36,7 @@ export default useSetInitialTestingData;
 /* ========================================================================== */
 
 export async function waitForStorybookReady(view: StorybookView): Promise<boolean> {
-  const TIMEOUT_MS = 10_000;
+  const TIMEOUT_MS = STORYBOOK_LOAD_TIMEOUT_MS;
   const POLL_INTERVAL_MS = 500;
   const deadline = Date.now() + TIMEOUT_MS;
 

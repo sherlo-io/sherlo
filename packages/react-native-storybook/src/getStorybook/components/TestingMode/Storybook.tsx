@@ -8,7 +8,7 @@ import { RunnerBridge } from '../../../helpers';
 import { useRef } from 'react';
 import SherloModule from '../../../SherloModule';
 
-export let storybookRendered = false;
+export const storybookRenderedRef = { current: false };
 
 /**
  * We applied styles based on how they are defined in the link below to ensure that user's stories
@@ -59,7 +59,7 @@ function Storybook({
 
   if (!reportedSherloJSLoaded.current) {
     reportedSherloJSLoaded.current = true;
-    storybookRendered = true;
+    storybookRenderedRef.current = true;
     const content: any = {
       action: 'STORYBOOK_RENDERED',
       timestamp: Date.now(),

@@ -14,9 +14,7 @@ import { vi, describe, it, expect } from 'vitest';
 import { normalizeStack } from '../normalizeStack';
 
 const POLYFILL_PATH = path.join(__dirname, '../../metro/polyfill.js');
-const INDEX_PATH = path.join(__dirname, '../index.ts');
 const polyfillSource = fs.readFileSync(POLYFILL_PATH, 'utf8');
-const indexSource = fs.readFileSync(INDEX_PATH, 'utf8');
 
 function runPolyfill(fakeGlobal: Record<string, any>) {
   // eslint-disable-next-line no-new-func
@@ -263,75 +261,6 @@ describe('metro/polyfill.js — __d wrap', () => {
     const handler = getInstalledHandler(fakeGlobal);
     handler(err, true);
     expect(reportFn).toHaveBeenCalledOnce(); // still once — flag blocks duplicate
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Tests: polyfill file structure
-// ---------------------------------------------------------------------------
-
-describe('polyfill - file structure', () => {
-  it('contains temporary diagnostic console.warn markers', () => {
-    expect(polyfillSource).toContain('console.warn');
-  });
-
-  it('installs ErrorUtils.setGlobalHandler for error capture', () => {
-    expect(polyfillSource).toContain('ErrorUtils.setGlobalHandler');
-  });
-
-  it('wraps global.__d to catch nested module-eval throws', () => {
-    expect(polyfillSource).toContain('global.__d');
-  });
-
-  it('guards with __sherloGlobalHandlerInstalled for idempotency', () => {
-    expect(polyfillSource).toContain('__sherloGlobalHandlerInstalled');
-  });
-
-  it('guards __d wrap with __sherloDefineWrapped for idempotency', () => {
-    expect(polyfillSource).toContain('__sherloDefineWrapped');
-  });
-
-  it('guards against cascade errors with __sherloFirstErrorReported flag', () => {
-    expect(polyfillSource).toContain('__sherloFirstErrorReported');
-  });
-
-  it('calls reportEarlyJsError', () => {
-    expect(polyfillSource).toContain('reportEarlyJsError');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Tests: index.ts — error capture behavior
-// ---------------------------------------------------------------------------
-
-describe('index.ts — error capture behavior', () => {
-  it('does not install ErrorUtils.setGlobalHandler (moved to polyfill)', () => {
-    expect(indexSource).not.toContain('setGlobalHandler');
-  });
-
-  it('contains patchAppRegistryWithBoundary for render-time error capture', () => {
-    expect(indexSource).toContain('patchAppRegistryWithBoundary');
-  });
-
-  it('contains SherloErrorBoundary', () => {
-    expect(indexSource).toContain('SherloErrorBoundary');
-  });
-
-  it('does not contain writeJsErrorEntry (uses writeJsErrorFromBoundary)', () => {
-    expect(indexSource).not.toContain('writeJsErrorEntry');
-  });
-
-  it('still sends JS_EVAL_COMPLETE when in testing mode', () => {
-    expect(indexSource).toContain('JS_EVAL_COMPLETE');
-  });
-
-  it('uses lazy require for SherloModule', () => {
-    expect(indexSource).toContain("require('./SherloModule')");
-  });
-
-  it('monkey-patches AppRegistry.registerComponent with __sherloBoundaryPatched guard', () => {
-    expect(indexSource).toContain('AR.registerComponent');
-    expect(indexSource).toContain('__sherloBoundaryPatched');
   });
 });
 

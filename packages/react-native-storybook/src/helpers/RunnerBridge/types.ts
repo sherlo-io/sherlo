@@ -44,8 +44,20 @@ export type AppProtocolItem =
       action: 'JS_EVAL_COMPLETE';
     }
   | {
-      action: 'JS_LOADED';
+      action: 'STORYBOOK_LOADED';
+    }
+  | {
+      action: 'STORYBOOK_RENDERED';
       requestId?: string;
+    }
+  | {
+      action: 'JS_ERROR';
+      data: {
+        name: string;
+        message: string;
+        stack: string;
+        componentStack: string;
+      };
     }
   | {
       action: 'START';

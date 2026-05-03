@@ -49,10 +49,7 @@
   if (global.__sherloRuntimeMode_v1 !== 'testing') return;
 
   function reportToNative(error) {
-    if (global.__sherloFirstErrorReported) {
-      console.warn('[Sherlo:JS] cascade error skipped: ' + (error && error.message));
-      return;
-    }
+    if (global.__sherloFirstErrorReported) return;
     try {
       var nm = (global.__turboModuleProxy && global.__turboModuleProxy('SherloModule')) ||
                (global.nativeModuleProxy && global.nativeModuleProxy.SherloModule);
@@ -63,22 +60,15 @@
           (error && error.stack) || ''
         );
         global.__sherloFirstErrorReported = true;
-        console.warn('[Sherlo:JS] reportEarlyJsError invoked (first error captured)');
-      } else {
-        console.warn('[Sherlo:JS] SherloModule unavailable - skipping');
       }
-    } catch (innerErr) {
-      console.warn('[Sherlo:JS] reportToNative threw: ' + (innerErr && innerErr.message));
-    }
+    } catch (_) {}
   }
 
   // 1. ErrorUtils.setGlobalHandler — catches async/event errors and entry-level throws
   if (global.ErrorUtils && typeof global.ErrorUtils.setGlobalHandler === 'function' && !global.__sherloGlobalHandlerInstalled) {
     global.__sherloGlobalHandlerInstalled = true;
-    console.warn('[Sherlo:JS] polyfill installing ErrorUtils.setGlobalHandler');
     var prevHandler = typeof global.ErrorUtils.getGlobalHandler === 'function' ? global.ErrorUtils.getGlobalHandler() : null;
     global.ErrorUtils.setGlobalHandler(function (error, isFatal) {
-      console.warn('[Sherlo:JS] ErrorUtils handler caught: ' + (error && error.message));
       reportToNative(error);
       if (prevHandler) {
         try { prevHandler(error, isFatal); } catch (_) {}
@@ -93,7 +83,6 @@
   //    nested module-eval throws like App.tsx top-level errors).
   if (typeof global.__d === 'function' && !global.__sherloDefineWrapped) {
     global.__sherloDefineWrapped = true;
-    console.warn('[Sherlo:JS] polyfill installing __d wrap');
     var originalDefine = global.__d;
     global.__d = function sherloGuardedDefine(factory, moduleId, dependencyMap) {
       if (typeof factory !== 'function') {
@@ -104,7 +93,6 @@
         try {
           return factory.call(this, globalObj, requireFn, importDefault, importAll, moduleObj, exportsObj, depMap);
         } catch (e) {
-          console.warn('[Sherlo:JS] __d wrapped factory caught error: ' + (e && e.message));
           reportToNative(e);
           throw e;
         }
