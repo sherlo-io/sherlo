@@ -32,7 +32,7 @@ function buildFakeGlobal(
 ): Record<string, any> {
   const setGlobalHandler = vi.fn();
   return {
-    // Mode gate — polyfill returns early if this is not 'testing'
+    // Mode gate inside reportToNative — errors are only forwarded to native in testing mode
     __sherloRuntimeMode_v1: 'testing',
     ErrorUtils: {
       setGlobalHandler,
@@ -173,6 +173,19 @@ describe('metro/polyfill.js — ErrorUtils.setGlobalHandler', () => {
     handler(new Error('first'), false);
     handler(new Error('cascade'), false);
     expect(prevHandler).toHaveBeenCalledTimes(2);
+  });
+
+  it('installs handler even when mode is not testing — reportToNative skips, prevHandler still chains', () => {
+    const reportFn = vi.fn();
+    const prevHandler = vi.fn();
+    const nm = makeNativeModule(reportFn);
+    const fakeGlobal = buildFakeGlobal(nm, prevHandler);
+    fakeGlobal.__sherloRuntimeMode_v1 = 'default';
+    runPolyfill(fakeGlobal);
+    const handler = getInstalledHandler(fakeGlobal);
+    handler(new Error('prod error'), false);
+    expect(reportFn).not.toHaveBeenCalled();
+    expect(prevHandler).toHaveBeenCalledOnce();
   });
 });
 

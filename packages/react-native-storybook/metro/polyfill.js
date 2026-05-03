@@ -7,15 +7,20 @@
 // This file ships in EVERY customer bundle that uses withSherlo(), including
 // production App Store / Play Store builds.
 //
-// The JSI binding (SherloModuleJSIBindings.cpp / SherloModule.mm) sets
-// globalThis.__sherloRuntimeMode_v1 BEFORE bundle evaluation starts. In
-// production, no config.sherlo file exists → mode = 'default' → the polyfill
-// exits at the very first line (the mode gate at the top of the IIFE) — zero
-// ErrorUtils wrapping, zero __d wrapping, zero overhead beyond a single
-// property read.
+// Both handlers (ErrorUtils.setGlobalHandler + __d wrap) install unconditionally —
+// the work is cheap and one-time. The mode check lives inside reportToNative so
+// by the time an actual error fires, the JSI binding has had time to write
+// globalThis.__sherloRuntimeMode_v1 and the check is reliable. An install-time
+// gate was previously tried but races against module evaluation order: the polyfill
+// can run before the JSI binding sets the global, causing JS errors thrown during
+// App.tsx top-level eval to go unreported (runner sees storybookNotDisplayed
+// instead of jsLaunchCrash).
 //
-// In testing mode the gate passes, both capture paths install, and native
-// reportEarlyJsError has its own defense-in-depth mode check as well.
+// Production cost: one try/catch wrapper per module factory call at startup
+// (thousands of no-throw calls × nanoseconds = sub-millisecond), plus the two
+// install-time registrations. reportToNative starts with a property read and
+// silently returns if mode is not 'testing' — zero observable impact in production
+// unless an error is actually thrown.
 //
 // TWO complementary capture paths:
 //
@@ -36,19 +41,16 @@
 // flag to ensure only one report per session even if both paths fire for the
 // same root cause.
 //
-// Customer cost: ~100 bytes in bundle + two lightweight installs.
-//
 // No customer configuration is required. No env vars. No build flags.
 //
 (function () {
   if (typeof globalThis === 'undefined') return;
   if (typeof global === 'undefined') return;
-  // Gate: no-op in production. The JSI binding writes __sherloRuntimeMode_v1 on
-  // the JS runtime global BEFORE bundle eval, so it is always set by the time
-  // this polyfill runs. In RN, global === globalThis, so either ref works.
-  if (global.__sherloRuntimeMode_v1 !== 'testing') return;
 
   function reportToNative(error) {
+    // Mode gate lives here (not at install time) to avoid a race between polyfill
+    // eval and the JSI binding writing __sherloRuntimeMode_v1.
+    if (global.__sherloRuntimeMode_v1 !== 'testing') return;
     if (global.__sherloFirstErrorReported) return;
     try {
       var nm = (global.__turboModuleProxy && global.__turboModuleProxy('SherloModule')) ||
