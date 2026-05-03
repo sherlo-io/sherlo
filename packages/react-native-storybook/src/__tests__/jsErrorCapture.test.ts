@@ -32,8 +32,6 @@ function buildFakeGlobal(
 ): Record<string, any> {
   const setGlobalHandler = vi.fn();
   return {
-    // Mode gate inside reportToNative — errors are only forwarded to native in testing mode
-    __sherloRuntimeMode_v1: 'testing',
     ErrorUtils: {
       setGlobalHandler,
       getGlobalHandler: vi.fn(() => prevHandler ?? null),
@@ -175,7 +173,7 @@ describe('metro/polyfill.js — ErrorUtils.setGlobalHandler', () => {
     expect(prevHandler).toHaveBeenCalledTimes(2);
   });
 
-  it('installs handler even when mode is not testing — reportToNative skips, prevHandler still chains', () => {
+  it('calls reportEarlyJsError regardless of __sherloRuntimeMode_v1 — production gate is on the native side', () => {
     const reportFn = vi.fn();
     const prevHandler = vi.fn();
     const nm = makeNativeModule(reportFn);
@@ -184,7 +182,7 @@ describe('metro/polyfill.js — ErrorUtils.setGlobalHandler', () => {
     runPolyfill(fakeGlobal);
     const handler = getInstalledHandler(fakeGlobal);
     handler(new Error('prod error'), false);
-    expect(reportFn).not.toHaveBeenCalled();
+    expect(reportFn).toHaveBeenCalledOnce();
     expect(prevHandler).toHaveBeenCalledOnce();
   });
 });

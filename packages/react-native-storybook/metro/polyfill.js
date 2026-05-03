@@ -7,20 +7,15 @@
 // This file ships in EVERY customer bundle that uses withSherlo(), including
 // production App Store / Play Store builds.
 //
-// Both handlers (ErrorUtils.setGlobalHandler + __d wrap) install unconditionally —
-// the work is cheap and one-time. The mode check lives inside reportToNative so
-// by the time an actual error fires, the JSI binding has had time to write
-// globalThis.__sherloRuntimeMode_v1 and the check is reliable. An install-time
-// gate was previously tried but races against module evaluation order: the polyfill
-// can run before the JSI binding sets the global, causing JS errors thrown during
-// App.tsx top-level eval to go unreported (runner sees storybookNotDisplayed
-// instead of jsLaunchCrash).
-//
-// Production cost: one try/catch wrapper per module factory call at startup
-// (thousands of no-throw calls × nanoseconds = sub-millisecond), plus the two
-// install-time registrations. reportToNative starts with a property read and
-// silently returns if mode is not 'testing' — zero observable impact in production
-// unless an error is actually thrown.
+// Production safety lives entirely on the native side: SherloModuleCore.reportEarlyJsError
+// (both Android Java and iOS .mm) returns early if mode is not 'testing'. The JS side
+// forwards unconditionally — this is intentional. A JS-side mode gate was previously
+// tried and caused an Android race condition: the JSI binding
+// (TurboModuleWithJSIBindings.getBindingsInstaller) can race module evaluation on
+// Android, so the polyfill would sometimes check __sherloRuntimeMode_v1 before the
+// JSI binding had a chance to write it. Result: polyfill silently no-ops → JS errors
+// thrown during App.tsx top-level eval are never captured → runner times out and
+// classifies as storybookNotDisplayed instead of jsLaunchCrash.
 //
 // TWO complementary capture paths:
 //
@@ -41,6 +36,10 @@
 // flag to ensure only one report per session even if both paths fire for the
 // same root cause.
 //
+// Production cost: one try/catch wrapper per module factory call at startup
+// (thousands of no-throw calls × nanoseconds = sub-millisecond). In production
+// the native call is a no-op — native returns early before writing anything.
+//
 // No customer configuration is required. No env vars. No build flags.
 //
 (function () {
@@ -48,9 +47,6 @@
   if (typeof global === 'undefined') return;
 
   function reportToNative(error) {
-    // Mode gate lives here (not at install time) to avoid a race between polyfill
-    // eval and the JSI binding writing __sherloRuntimeMode_v1.
-    if (global.__sherloRuntimeMode_v1 !== 'testing') return;
     if (global.__sherloFirstErrorReported) return;
     try {
       var nm = (global.__turboModuleProxy && global.__turboModuleProxy('SherloModule')) ||
