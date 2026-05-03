@@ -112,6 +112,30 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Wait for npm registry propagation
+        run: |
+          TIMEOUT=600
+          INTERVAL=15
+          ELAPSED=0
+          echo "Waiting for sherlo@$NEW_VERSION_NUMBER and @sherlo/react-native-storybook@$NEW_VERSION_NUMBER on npm..."
+          while true; do
+            SHERLO_OK=$(npm view sherlo@$NEW_VERSION_NUMBER version 2>/dev/null)
+            SDK_OK=$(npm view @sherlo/react-native-storybook@$NEW_VERSION_NUMBER version 2>/dev/null)
+            if [ -n "$SHERLO_OK" ] && [ -n "$SDK_OK" ]; then
+              echo "Both packages available: sherlo@$SHERLO_OK, @sherlo/react-native-storybook@$SDK_OK"
+              break
+            fi
+            if [ $ELAPSED -ge $TIMEOUT ]; then
+              echo "ERROR: Timed out after ${TIMEOUT}s waiting for npm propagation."
+              echo "  sherlo@$NEW_VERSION_NUMBER: ${SHERLO_OK:-not found}"
+              echo "  @sherlo/react-native-storybook@$NEW_VERSION_NUMBER: ${SDK_OK:-not found}"
+              exit 1
+            fi
+            echo "Not yet available (${ELAPSED}s elapsed). Retrying in ${INTERVAL}s..."
+            sleep $INTERVAL
+            ELAPSED=$((ELAPSED + INTERVAL))
+          done
+          
       - name: Update lock files in examples and test directories
         run: |
           for dir in examples/standard examples/eas-update examples/eas-cloud-build; do
