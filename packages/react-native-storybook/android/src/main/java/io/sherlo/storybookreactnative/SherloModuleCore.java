@@ -32,7 +32,7 @@ public class SherloModuleCore {
     // Module state
     private static JSONObject config = null;
     private static JSONObject lastState = null;
-    private static String currentMode = MODE_DEFAULT;
+    private static volatile String currentMode = MODE_DEFAULT;
     private static String nativeVersion = null;
 
     // Guards early protocol emission to a single occurrence per process. Set once by
@@ -46,7 +46,7 @@ public class SherloModuleCore {
 
     // Static reference to FileSystemHelper for use from static/JNI contexts.
     // Set once in performEarlyInit (before JS runs) and refreshed in the constructor.
-    private static FileSystemHelper staticFileSystemHelper = null;
+    private static volatile FileSystemHelper staticFileSystemHelper = null;
 
     /**
      * Emits the early native protocol signals (NATIVE_INIT_STARTED, NATIVE_LOADED) when the
@@ -142,28 +142,6 @@ public class SherloModuleCore {
     }
 
     /**
-     * Writes a DIAGNOSTIC JSON line to protocol.sherlo. Safe to call from static/JNI context.
-     * No-op (returns false) if staticFileSystemHelper is not yet initialized.
-     */
-    public static boolean writeDiagnosticEntry(String marker) {
-        if (staticFileSystemHelper == null) return false;
-        try {
-            org.json.JSONObject item = new org.json.JSONObject();
-            item.put("action", "DIAGNOSTIC");
-            item.put("timestamp", System.currentTimeMillis());
-            item.put("entity", "sdk");
-            org.json.JSONObject data = new org.json.JSONObject();
-            data.put("marker", marker != null ? marker : "");
-            item.put("data", data);
-            staticFileSystemHelper.appendFile("protocol.sherlo", item.toString() + "\n");
-            return true;
-        } catch (Exception e) {
-            Log.e(TAG, "writeDiagnosticEntry failed", e);
-            return false;
-        }
-    }
-
-    /**
      * Returns constants exposed to the JavaScript side.
      * Provides access to the current mode, configuration and last state.
      *
@@ -208,6 +186,7 @@ public class SherloModuleCore {
      * @param message Human-readable error description
      */
     public void sendNativeError(String errorCode, String message, String dataJson) {
+        if (!MODE_TESTING.equals(currentMode)) return;
         ProtocolHelper.writeNativeError(this.fileSystemHelper, errorCode, message, dataJson);
     }
 
@@ -215,6 +194,7 @@ public class SherloModuleCore {
      * Writes a JS_ERROR JSON line to protocol.sherlo.
      */
     public void sendJsError(String message, String stack, String source) {
+        if (!MODE_TESTING.equals(currentMode)) return;
         ProtocolHelper.writeJsError(this.fileSystemHelper, message, stack, source);
     }
 
@@ -223,7 +203,6 @@ public class SherloModuleCore {
      * Must never throw. Returns true on success, false on failure.
      */
     public boolean reportEarlyJsError(String name, String message, String stack) {
-        Log.i(TAG, "[Sherlo:Native] reportEarlyJsError called, mode='" + currentMode + "'");
         // Defense in depth: even if the JS-side gate (metro/polyfill.js) is bypassed,
         // refuse to write JS errors to protocol.sherlo unless in testing mode. This
         // makes a polyfill-bug failure mode 'no error captured' not 'protocol polluted'.

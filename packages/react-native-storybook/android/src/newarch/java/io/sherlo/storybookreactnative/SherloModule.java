@@ -21,8 +21,8 @@ import java.util.Map;
  *
  * Implements TurboModuleWithJSIBindings so the RN runtime installs
  * globalThis.__sherloRuntimeMode_v1 BEFORE bundle evaluation starts. The
- * metro polyfill (metro/polyfill.js) reads this global and gates on it —
- * INERT in production builds where mode = 'default'.
+ * metro polyfill (metro/polyfill.js) gates on this global at the top of its
+ * IIFE — zero side effects in production builds where mode = 'default'.
  */
 public class SherloModule extends NativeSherloModuleSpec implements TurboModuleWithJSIBindings {
 
@@ -31,8 +31,6 @@ public class SherloModule extends NativeSherloModuleSpec implements TurboModuleW
         // The library is only compiled when new arch is enabled (CMakeLists.txt gate).
         try {
             System.loadLibrary("sherlo_jsi");
-            Log.i("Sherlo", "newarch SherloModule static block ran, sherlo_jsi loaded");
-            SherloModuleCore.writeDiagnosticEntry("android_newarch_static");
         } catch (UnsatisfiedLinkError e) {
             Log.w("SherloModule", "Failed to load sherlo_jsi native library: " + e.getMessage());
         }
@@ -48,8 +46,6 @@ public class SherloModule extends NativeSherloModuleSpec implements TurboModuleW
      */
     public SherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
-        Log.i("Sherlo", "newarch SherloModule constructor called");
-        SherloModuleCore.writeDiagnosticEntry("android_newarch_constructor");
         Activity activity = getCurrentActivity();
         this.moduleCore = new SherloModuleCore(reactContext, activity);
     }

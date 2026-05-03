@@ -15,8 +15,6 @@ static SherloModuleCore *core;
 // This runs automatically when the dynamic library is loaded
 __attribute__((constructor))
 static void SherloEarlyInit(void) {
-  NSLog(@"[Sherlo:Native] iOS SherloModule SherloEarlyInit fired");
-  [SherloModuleCore writeDiagnosticEntry:@"ios_load"];
   core = [[SherloModuleCore alloc] init];
 }
 
@@ -24,8 +22,6 @@ static void SherloEarlyInit(void) {
  * Indicates that this module should be initialized on the main thread.
  */
 + (BOOL)requiresMainQueueSetup {
-    NSLog(@"[Sherlo:Native] requiresMainQueueSetup called");
-    [SherloModuleCore writeDiagnosticEntry:@"ios_requiresMainQueueSetup"];
     return YES;
 }
 
@@ -166,26 +162,18 @@ static void SherloEarlyInit(void) {
 }
 
 // Installed by RN runtime BEFORE bundle eval, on the JS thread.
-// This runs in EVERY app that uses Sherlo SDK (production or testing).
-// Production safety: in production, the cached mode is 'default' (no config file
-// present), so we set globalThis.__sherloRuntimeMode_v1 = 'default'. The metro
-// polyfill then immediately returns — no __r wrapping, no error capture, no
-// overhead beyond a single property read.
-// C++ exceptions are swallowed (a binding failure must NEVER crash the customer's app).
+// Sets globalThis.__sherloRuntimeMode_v1 so the metro polyfill (metro/polyfill.js)
+// can gate at install time — zero side effects in production where mode = 'default'.
+// C++ exceptions are swallowed; a binding failure must never crash the customer's app.
 - (void)installJSIBindingsWithRuntime:(facebook::jsi::Runtime &)runtime
                           callInvoker:(const std::shared_ptr<facebook::react::CallInvoker> &)callInvoker
 {
-  NSLog(@"[Sherlo:Native] installJSIBindingsWithRuntime entered (before try)");
-  [SherloModuleCore writeDiagnosticEntry:@"ios_installJSIBindings_entered"];
   try {
     NSString *modeStr = [SherloModuleCore currentMode] ?: @"default";
-    NSLog(@"[Sherlo:Native] installJSIBindingsWithRuntime fired, mode=%@", modeStr);
     const char *cMode = [modeStr UTF8String] ?: "default";
     runtime.global().setProperty(runtime, "__sherloRuntimeMode_v1",
       facebook::jsi::String::createFromUtf8(runtime, cMode));
-    NSLog(@"[Sherlo:Native] __sherloRuntimeMode_v1 set successfully");
   } catch (...) {
-    NSLog(@"[Sherlo:Native] installJSIBindingsWithRuntime FAILED with C++ exception");
     // Swallow ANY exception from the JSI binding. We must never block the
     // customer's app from starting due to a Sherlo binding failure.
   }

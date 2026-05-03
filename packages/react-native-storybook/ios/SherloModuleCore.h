@@ -22,17 +22,8 @@
  */
 - (instancetype)init;
 
-/** Returns YES when Sherlo is running in automated visual test mode. */
-+ (BOOL)isTestingMode;
-
 /** Returns the current mode string (e.g. 'default', 'testing', 'storybook'). */
 + (NSString *)currentMode;
-
-/**
- * Writes a DIAGNOSTIC JSON line to protocol.sherlo for visibility during debugging.
- * No-op (returns NO) if fileSystemHelper is not yet initialized.
- */
-+ (BOOL)writeDiagnosticEntry:(NSString *)marker;
 
 /**
  * Returns constants exposed to the JavaScript side

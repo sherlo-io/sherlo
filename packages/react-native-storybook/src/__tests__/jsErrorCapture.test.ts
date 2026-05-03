@@ -34,6 +34,8 @@ function buildFakeGlobal(
 ): Record<string, any> {
   const setGlobalHandler = vi.fn();
   return {
+    // Mode gate — polyfill returns early if this is not 'testing'
+    __sherloRuntimeMode_v1: 'testing',
     ErrorUtils: {
       setGlobalHandler,
       getGlobalHandler: vi.fn(() => prevHandler ?? null),

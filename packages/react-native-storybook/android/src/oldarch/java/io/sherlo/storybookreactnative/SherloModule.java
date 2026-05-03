@@ -2,7 +2,6 @@ package io.sherlo.storybookreactnative;
 
 // Android Framework Imports
 import android.app.Activity;
-import android.util.Log;
 
 // React Native Bridge Imports
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -30,8 +29,6 @@ public class SherloModule extends ReactContextBaseJavaModule {
      */
     public SherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
-        Log.i("Sherlo", "oldarch SherloModule constructor called");
-        SherloModuleCore.writeDiagnosticEntry("android_oldarch_constructor");
         Activity activity = getCurrentActivity();
         this.moduleCore = new SherloModuleCore(reactContext, activity);
     }

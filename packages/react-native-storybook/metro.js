@@ -76,10 +76,10 @@ function withSherlo(config, options) {
       : context.resolveRequest(context, moduleName, platform);
   }
 
-  // The polyfill is added to every bundle built with withSherlo(). It wraps
-  // global.__r to capture module-eval JS errors and is INERT in production:
-  // the catch block gates on __sherloRuntimeMode_v1 === 'testing' at error-time.
-  // See metro/polyfill.js for the detailed safety analysis.
+  // The polyfill is added to every bundle built with withSherlo(). It is INERT
+  // in production: the first line of the IIFE gates on
+  // globalThis.__sherloRuntimeMode_v1 === 'testing' (set by the JSI binding
+  // before bundle eval). See metro/polyfill.js for the detailed safety analysis.
   var polyfillPath = path.join(__dirname, 'metro', 'polyfill.js');
 
   var existingGetPolyfills =

@@ -46,16 +46,8 @@ static FileSystemHelper *fileSystemHelper;
  */
 - (instancetype)init {
     self = [super init];
-    
-    fileSystemHelper = [[FileSystemHelper alloc] init];
 
-    // Write NATIVE_INIT_STARTED unconditionally as the first protocol action.
-    // This proves the native constructor was reached regardless of mode/config.
-    @try {
-        [ProtocolHelper writeNativeInitStarted:fileSystemHelper];
-    } @catch (NSException *e) {
-        NSLog(@"[%@] Failed to write NATIVE_INIT_STARTED: %@", LOG_TAG, e);
-    }
+    fileSystemHelper = [[FileSystemHelper alloc] init];
 
     nativeVersion = [SherloJsonHelper getNativeVersion];
 
@@ -63,10 +55,10 @@ static FileSystemHelper *fileSystemHelper;
 
     if (config) {
         currentMode = [ConfigHelper determineModeFromConfig:config];
-        
-        NSLog(@"[%@] Initialized with mode: %@", LOG_TAG, currentMode);
-        
+
         if ([currentMode isEqualToString:MODE_TESTING]) {
+            [ProtocolHelper writeNativeInitStarted:fileSystemHelper];
+
             [KeyboardHelper setupKeyboardSwizzling];
 
             lastState = [LastStateHelper getLastState:fileSystemHelper];
@@ -87,30 +79,8 @@ static FileSystemHelper *fileSystemHelper;
     return self;
 }
 
-+ (BOOL)isTestingMode {
-    return [currentMode isEqualToString:MODE_TESTING];
-}
-
 + (NSString *)currentMode {
     return currentMode ?: MODE_DEFAULT;
-}
-
-+ (BOOL)writeDiagnosticEntry:(NSString *)marker {
-    if (!fileSystemHelper) return NO;
-    @try {
-        NSMutableDictionary *item = [NSMutableDictionary dictionary];
-        [item setObject:@([[NSDate date] timeIntervalSince1970] * 1000) forKey:@"timestamp"];
-        [item setObject:@"sdk" forKey:@"entity"];
-        [item setObject:@"DIAGNOSTIC" forKey:@"action"];
-        [item setObject:@{@"marker": marker ?: @""} forKey:@"data"];
-        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:item options:0 error:nil];
-        NSString *jsonString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
-        jsonString = [jsonString stringByAppendingString:@"\n"];
-        [fileSystemHelper appendFile:@"protocol.sherlo" content:jsonString];
-        return YES;
-    } @catch (NSException *e) {
-        return NO;
-    }
 }
 
 /**
@@ -203,38 +173,18 @@ static FileSystemHelper *fileSystemHelper;
  * @param source Either "globalHandler" or "errorBoundary"
  */
 - (void)sendJsError:(NSString *)message stack:(NSString *)stack source:(NSString *)source {
+    if (![currentMode isEqualToString:MODE_TESTING]) return;
     [ProtocolHelper writeJsError:fileSystemHelper message:message stack:stack source:source];
 }
 
 - (BOOL)reportEarlyJsError:(NSString *)name message:(NSString *)message stack:(NSString *)stack {
-    NSLog(@"[Sherlo:Native] reportEarlyJsError called, mode='%@'", currentMode);
     // Defense in depth: even if the JS-side gate (metro/polyfill.js) is bypassed,
     // refuse to write JS errors to protocol.sherlo unless in testing mode. This
     // makes a polyfill-bug failure mode 'no error captured' not 'protocol polluted'.
     if (![currentMode isEqualToString:MODE_TESTING]) {
         return NO;
     }
-    @try {
-        NSMutableDictionary *data = [NSMutableDictionary dictionary];
-        [data setObject:name ?: @"Error" forKey:@"name"];
-        [data setObject:message ?: @"" forKey:@"message"];
-        [data setObject:stack ?: @"" forKey:@"stack"];
-        [data setObject:@[] forKey:@"componentStack"];
-        [data setObject:[NSNull null] forKey:@"digest"];
-        [data setObject:[NSNull null] forKey:@"cause"];
-        NSMutableDictionary *entry = [NSMutableDictionary dictionary];
-        [entry setObject:@"JS_ERROR" forKey:@"action"];
-        [entry setObject:@((long long)([[NSDate date] timeIntervalSince1970] * 1000)) forKey:@"timestamp"];
-        [entry setObject:@"app" forKey:@"entity"];
-        [entry setObject:data forKey:@"data"];
-        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:entry options:0 error:nil];
-        if (!jsonData) return NO;
-        NSString *jsonString = [[[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding] stringByAppendingString:@"\n"];
-        [fileSystemHelper appendFile:@"protocol.sherlo" content:jsonString];
-        return YES;
-    } @catch (NSException *) {
-        return NO;
-    }
+    return [ProtocolHelper writeEarlyJsError:fileSystemHelper name:name message:message stack:stack];
 }
 
 /**

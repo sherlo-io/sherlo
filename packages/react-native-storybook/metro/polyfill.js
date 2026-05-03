@@ -7,14 +7,15 @@
 // This file ships in EVERY customer bundle that uses withSherlo(), including
 // production App Store / Play Store builds.
 //
-// Production safety lives entirely on the native side: SherloModuleCore reads
-// config.sherlo at dyld load time (__attribute__((constructor)) / SherloEarlyInit).
-// In production, no config.sherlo file exists → mode = 'default' →
-// reportEarlyJsError is a no-op on the native side (writes nothing).
+// The JSI binding (SherloModuleJSIBindings.cpp / SherloModule.mm) sets
+// globalThis.__sherloRuntimeMode_v1 BEFORE bundle evaluation starts. In
+// production, no config.sherlo file exists → mode = 'default' → the polyfill
+// exits at the very first line (the mode gate at the top of the IIFE) — zero
+// ErrorUtils wrapping, zero __d wrapping, zero overhead beyond a single
+// property read.
 //
-// JS side forwards unconditionally — calling __turboModuleProxy('SherloModule')
-// triggers lazy instantiation synchronously, native resolves mode from its
-// already-loaded config, and in production the call returns silently.
+// In testing mode the gate passes, both capture paths install, and native
+// reportEarlyJsError has its own defense-in-depth mode check as well.
 //
 // TWO complementary capture paths:
 //
@@ -42,6 +43,10 @@
 (function () {
   if (typeof globalThis === 'undefined') return;
   if (typeof global === 'undefined') return;
+  // Gate: no-op in production. The JSI binding writes __sherloRuntimeMode_v1 on
+  // the JS runtime global BEFORE bundle eval, so it is always set by the time
+  // this polyfill runs. In RN, global === globalThis, so either ref works.
+  if (global.__sherloRuntimeMode_v1 !== 'testing') return;
 
   function reportToNative(error) {
     if (global.__sherloFirstErrorReported) {

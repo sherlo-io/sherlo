@@ -20,4 +20,10 @@
  */
 + (void)writeJsError:(FileSystemHelper *)fileSystemHelper message:(NSString *)message stack:(NSString *)stack source:(NSString *)source;
 
+/**
+ * Writes a JS_ERROR JSON line with full payload for module-eval errors caught
+ * by the metro __r polyfill. Returns YES on success, NO on encoding failure.
+ */
++ (BOOL)writeEarlyJsError:(FileSystemHelper *)fileSystemHelper name:(NSString *)name message:(NSString *)message stack:(NSString *)stack;
+
 @end

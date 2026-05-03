@@ -3,11 +3,11 @@
  *
  * Maps to the Java SherloModule class that declares the native method
  * getBindingsInstaller(). The RN new-arch runtime calls this before any JS
- * module factories are evaluated, which is exactly what we need.
+ * module factories are evaluated.
  *
  * Production safety: in production the mode is 'default', so the metro polyfill
- * (metro/polyfill.js) checks __sherloRuntimeMode_v1 and immediately returns —
- * zero __r wrapping, zero error capture overhead.
+ * (metro/polyfill.js) gates on __sherloRuntimeMode_v1 at the top of its IIFE
+ * and returns immediately — zero ErrorUtils wrapping, zero __d wrapping.
  */
 #pragma once
 
