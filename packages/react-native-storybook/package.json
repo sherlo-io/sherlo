@@ -55,7 +55,6 @@
     "ios/*.m",
     "ios/*.mm",
     "ios/Resources/**/*",
-    "app.plugin.js",
     "sherlo-react-native-storybook.podspec",
     "lite.js",
     "lite.d.ts",

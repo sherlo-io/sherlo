@@ -1,22 +1,24 @@
 import SherloModule from '../../../SherloModule';
 import { LogFn } from '../types';
 
-/**
- * Creates a log function that logs messages to the console and appends them to a file.
- * @param path - The path of the file to append log messages to.
- * @returns A log function that takes a key and optional parameters, logs them to the console, and appends them to the specified file.
- */
 function log(path: string): LogFn {
   return function (key, parameters): void {
-    const time = new Date().toTimeString().split(' ')[0];
+    // Only fire when actually running under the Sherlo runner. Defense-in-depth:
+    // every current caller is already inside a testing-mode-only path, but this
+    // gate ensures a future call site can't accidentally leak log output into a
+    // user's production app.
+    if (SherloModule.getMode() !== 'testing') return;
 
+    const time = new Date().toTimeString().split(' ')[0];
     const logMsg = `${time}: ${key}${parameters ? ` : ${JSON.stringify(parameters)}` : ''}\n`;
 
+    // Polarity is intentional: in dev builds Metro shows logs already, but in
+    // release builds (the kind the runner installs into the simulator) Metro
+    // isn't running and the only way to surface log lines for the runner to
+    // tail is the system log (Console.app / adb logcat).
     if (!__DEV__) console.log(`${logMsg}\n`);
 
-    if (SherloModule.getMode() === 'testing') {
-      SherloModule.appendFile(path, logMsg);
-    }
+    SherloModule.appendFile(path, logMsg);
   };
 }
 
