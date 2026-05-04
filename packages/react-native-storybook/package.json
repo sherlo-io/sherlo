@@ -1,6 +1,6 @@
 {
   "name": "@sherlo/react-native-storybook",
-  "version": "1.6.4-alpha.1",
+  "version": "1.6.5-alpha.11",
   "description": "Sherlo SDK - visual regression testing for React Native Storybook on iOS and Android simulators",
   "keywords": [
     "visual testing",
@@ -20,7 +20,6 @@
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -34,18 +33,34 @@
       "require": "./dist/lite.js",
       "default": "./dist/lite.js"
     },
+    "./metro": {
+      "types": "./metro.d.ts",
+      "require": "./metro.js",
+      "default": "./metro.js"
+    },
+    "./metro/polyfill": {
+      "require": "./metro/polyfill.js",
+      "default": "./metro/polyfill.js"
+    },
     "./dist/*": "./dist/*",
     "./package.json": "./package.json"
   },
   "files": [
     "src/specs/**/*",
     "dist/**/*",
-    "android/**/*",
-    "ios/**/*",
-    "app.plugin.js",
+    "android/src/**/*",
+    "android/CMakeLists.txt",
+    "android/build.gradle",
+    "ios/*.h",
+    "ios/*.m",
+    "ios/*.mm",
+    "ios/Resources/**/*",
     "sherlo-react-native-storybook.podspec",
     "lite.js",
-    "lite.d.ts"
+    "lite.d.ts",
+    "metro.js",
+    "metro.d.ts",
+    "metro/polyfill.js"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p .",
@@ -72,7 +87,7 @@
   "peerDependencies": {
     "@storybook/react-native": ">=7.6.11",
     "react": "*",
-    "react-native": ">=0.64.0",
+    "react-native": ">=0.74.0",
     "react-native-safe-area-context": "*"
   },
   "engines": {

@@ -1,6 +1,6 @@
 {
   "name": "sherlo",
-  "version": "1.6.4-alpha.1",
+  "version": "1.6.4-alpha.2",
   "description": "Sherlo CLI - visual regression testing for React Native Storybook on iOS and Android simulators",
   "keywords": [
     "visual testing",
@@ -26,9 +26,11 @@
     "cli.js"
   ],
   "scripts": {
-    "build": "rm -rf dist && ncc build src/index.ts --source-map --minify && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js"
+    "build": "rm -rf dist && ncc build src/index.ts --source-map --minify && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js",
+    "test": "vitest run"
   },
   "devDependencies": {
+    "@babel/parser": "^7.29.3",
     "@inquirer/core": "^10.3.2",
     "@inquirer/prompts": "^7.8.4",
     "@sentry/node": "10.47.0",
@@ -50,11 +52,13 @@
     "find-up": "^7.0.0",
     "gradient-string": "^2.0.1",
     "graphql": "^16.6.0",
+    "magicast": "^0.5.2",
     "node-fetch": "^2.6.11",
     "ora": "^8.2.0",
     "package-manager-detector": "^0.2.9",
     "type-fest": "^4.20.1",
     "typescript": "^5.3.3",
+    "vitest": "^4.1.5",
     "wrap-ansi": "^9.0.0"
   },
   "engines": {

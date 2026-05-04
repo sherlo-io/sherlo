@@ -10,6 +10,25 @@ public class ProtocolHelper {
     private static final String TAG = "SherloModule:ProtocolHelper";
 
     /**
+     * Writes a NATIVE_INIT_STARTED JSON line to protocol.sherlo.
+     * Called unconditionally as the first action after FileSystemHelper is created,
+     * so the runner can detect that the native constructor was entered.
+     *
+     * @param fileSystemHelper The file system helper
+     */
+    public static void writeNativeInitStarted(FileSystemHelper fileSystemHelper) {
+        JSONObject item = new JSONObject();
+        try {
+            item.put("action", "NATIVE_INIT_STARTED");
+            item.put("timestamp", System.currentTimeMillis());
+            item.put("entity", "app");
+            fileSystemHelper.appendFile("protocol.sherlo", item.toString() + "\n");
+        } catch (org.json.JSONException e) {
+            Log.e(TAG, "Error creating NATIVE_INIT_STARTED protocol item", e);
+        }
+    }
+
+    /**
      * Writes a NATIVE_LOADED JSON line to protocol.sherlo.
      *
      * @param fileSystemHelper The file system helper
@@ -52,6 +71,50 @@ public class ProtocolHelper {
             fileSystemHelper.appendFile("protocol.sherlo", item.toString() + "\n");
         } catch (org.json.JSONException e) {
             Log.e(TAG, "Error creating NATIVE_ERROR protocol item", e);
+        }
+    }
+
+    /**
+     * Writes a JS_ERROR JSON line to protocol.sherlo.
+     */
+    public static void writeJsError(FileSystemHelper fileSystemHelper, String message, String stack, String source) {
+        JSONObject item = new JSONObject();
+        try {
+            item.put("timestamp", System.currentTimeMillis());
+            item.put("entity", "app");
+            item.put("action", "JS_ERROR");
+            JSONObject data = new JSONObject();
+            data.put("message", message != null ? message : "");
+            data.put("stack", stack != null ? stack : "");
+            data.put("source", source != null ? source : "");
+            item.put("data", data);
+            fileSystemHelper.appendFile("protocol.sherlo", item.toString() + "\n");
+        } catch (org.json.JSONException e) {
+            Log.e(TAG, "Error creating JS_ERROR protocol item", e);
+        }
+    }
+
+    /**
+     * Writes a JS_ERROR JSON line for module-eval errors (reportEarlyJsError).
+     * Uses the full structured shape (name, message, stack, componentStack, digest, cause).
+     */
+    public static void writeEarlyJsError(FileSystemHelper fileSystemHelper, String name, String message, String stack) {
+        JSONObject item = new JSONObject();
+        try {
+            item.put("timestamp", System.currentTimeMillis());
+            item.put("entity", "app");
+            item.put("action", "JS_ERROR");
+            JSONObject data = new JSONObject();
+            data.put("name", name != null ? name : "Error");
+            data.put("message", message != null ? message : "");
+            data.put("stack", stack != null ? stack : "");
+            data.put("componentStack", new org.json.JSONArray());
+            data.put("digest", JSONObject.NULL);
+            data.put("cause", JSONObject.NULL);
+            item.put("data", data);
+            fileSystemHelper.appendFile("protocol.sherlo", item.toString() + "\n");
+        } catch (org.json.JSONException e) {
+            Log.e(TAG, "Error creating early JS_ERROR protocol item", e);
         }
     }
 }

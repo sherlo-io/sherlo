@@ -5,9 +5,9 @@ import config from './config';
 import { THIS_COMMAND } from './constants';
 import dependencies from './dependencies';
 import { trackProgress } from './helpers';
+import metroConfig from './metroConfig';
 import requirements from './requirements';
 import storybookAccess from './storybookAccess';
-import storybookComponent from './storybookComponent';
 import testing from './testing';
 
 async function init({ token }: Options<THIS_COMMAND>) {
@@ -24,13 +24,13 @@ async function init({ token }: Options<THIS_COMMAND>) {
 
   await dependencies({ sessionId });
 
-  const { hasUpdatedStorybookComponent } = await storybookComponent(sessionId);
+  await metroConfig(sessionId);
 
   await storybookAccess(sessionId);
 
   await config({ sessionId, token });
 
-  await builds({ hasUpdatedStorybookComponent, sessionId });
+  await builds({ sessionId });
 
   await testing(sessionId);
 }

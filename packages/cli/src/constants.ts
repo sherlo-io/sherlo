@@ -7,6 +7,7 @@ export const CONTACT_EMAIL = 'contact@sherlo.io';
 export const DISCORD_URL = 'https://discord.gg/G7eqTBkWZt';
 
 export const DOCS_LINK = {
+  setupMetroConfig: `${DOCS_BASE_URL}/setup#metro-config`,
   setupStorybookComponent: `${DOCS_BASE_URL}/setup#storybook-component`,
   setupStorybookAccess: `${DOCS_BASE_URL}/setup#storybook-access`,
 
@@ -66,6 +67,7 @@ export const TEST_STANDARD_COMMAND = 'test:standard';
 export const TEST_EAS_UPDATE_COMMAND = 'test:eas-update';
 export const TEST_EAS_CLOUD_BUILD_COMMAND = 'test:eas-cloud-build';
 export const EAS_BUILD_ON_COMPLETE_COMMAND = 'eas-build-on-complete';
+export const SHOW_ERROR_COMMAND = 'show-error';
 export const FULL_INIT_COMMAND = 'npx sherlo init';
 
 /* OPTIONS */

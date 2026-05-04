@@ -5,7 +5,7 @@ function getIntegratedStorybookCode(): string {
   return [
     [
       COLORS.KEYWORD('import'),
-      '{ addStorybookToDevMenu, isStorybookMode }',
+      '{ isStorybookMode }',
       COLORS.KEYWORD('from'),
       `${COLORS.COMPONENT(`"${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}"`)};`,
     ].join(' '),
@@ -15,8 +15,6 @@ function getIntegratedStorybookCode(): string {
       COLORS.KEYWORD('from'),
       `${COLORS.COMPONENT('"./.rnstorybook"')};`,
     ].join(' '),
-    '',
-    `${COLORS.FUNCTION('addStorybookToDevMenu')}();`,
     '',
     [COLORS.KEYWORD('export default function'), `${COLORS.FUNCTION('App')}() {`].join(' '),
     [' ', COLORS.KEYWORD('if'), '(isStorybookMode) {'].join(' '),

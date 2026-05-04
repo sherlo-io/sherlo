@@ -8,7 +8,6 @@
 import {
   AppProtocolItem,
   RunnerProtocolItem,
-  ProtocolItemMetadata,
   AckStartProtocolItem,
   AckRequestSnapshotProtocolItem,
   AckScrollRequestProtocolItem,
@@ -131,38 +130,6 @@ describe('Protocol message construction', () => {
       expect(msg.isStable).toBeUndefined();
       expect(msg.hasNetworkImage).toBeUndefined();
       expect(msg.safeAreaMetadata).toBeUndefined();
-    });
-  });
-
-  describe('JS_LOADED message (SDK-CONT-004)', () => {
-    it('has correct structure', () => {
-      const msg: AppProtocolItem = {
-        action: 'JS_LOADED',
-      };
-
-      expect(msg.action).toBe('JS_LOADED');
-    });
-
-    it('supports optional requestId', () => {
-      const msg: AppProtocolItem = {
-        action: 'JS_LOADED',
-        requestId: 'init-123',
-      };
-
-      expect(msg.requestId).toBe('init-123');
-    });
-  });
-
-  describe('Protocol metadata envelope', () => {
-    it('adds timestamp and entity to message', () => {
-      const content: AppProtocolItem & ProtocolItemMetadata = {
-        action: 'JS_LOADED',
-        timestamp: Date.now(),
-        entity: 'app',
-      };
-
-      expect(content.entity).toBe('app');
-      expect(typeof content.timestamp).toBe('number');
     });
   });
 

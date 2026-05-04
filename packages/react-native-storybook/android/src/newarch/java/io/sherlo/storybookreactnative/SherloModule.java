@@ -2,20 +2,40 @@ package io.sherlo.storybookreactnative;
 
 // Android Framework Imports
 import android.app.Activity;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.turbomodule.core.interfaces.BindingsInstallerHolder;
+import com.facebook.react.turbomodule.core.interfaces.TurboModuleWithJSIBindings;
 
 // Java Utility and IO Imports
 import java.util.Map;
+
 /**
  * This implementation works with the New Architecture as a TurboModule.
  * This class needs to match the JS spec in NativeSherloModule.ts
  * The actual generated interface will be created by codegen at build time.
+ *
+ * Implements TurboModuleWithJSIBindings so the RN runtime installs
+ * globalThis.__sherloRuntimeMode_v1 BEFORE bundle evaluation starts. The
+ * metro polyfill (metro/polyfill.js) gates on this global at the top of its
+ * IIFE — zero side effects in production builds where mode = 'default'.
  */
-public class SherloModule extends NativeSherloModuleSpec {
+public class SherloModule extends NativeSherloModuleSpec implements TurboModuleWithJSIBindings {
+
+    static {
+        // Load the Sherlo JSI bindings library so getBindingsInstaller() is available.
+        // The library is only compiled when new arch is enabled (CMakeLists.txt gate).
+        try {
+            System.loadLibrary("sherlo_jsi");
+        } catch (UnsatisfiedLinkError e) {
+            Log.w("SherloModule", "Failed to load sherlo_jsi native library: " + e.getMessage());
+        }
+    }
+
     public static final String NAME = "SherloModule";
     private final SherloModuleCore moduleCore;
 
@@ -50,6 +70,16 @@ public class SherloModule extends NativeSherloModuleSpec {
     public WritableMap getSherloConstants() {
         return moduleCore.getSherloConstants();
     }
+
+    // ==== JSI Bindings ====
+
+    /**
+     * Returns the JSI BindingsInstaller that sets globalThis.__sherloRuntimeMode_v1
+     * on the JS runtime BEFORE bundle evaluation starts.
+     * Implemented natively in SherloModuleJSIBindings.cpp (sherlo_jsi shared lib).
+     */
+    @Override
+    public native BindingsInstallerHolder getBindingsInstaller();
 
     // ==== Storybook Methods ====
 
@@ -88,6 +118,22 @@ public class SherloModule extends NativeSherloModuleSpec {
     @Override
     public void sendNativeError(String errorCode, String message, String dataJson) {
         moduleCore.sendNativeError(errorCode, message, dataJson);
+    }
+
+    /**
+     * Receives a JS error from the polyfill and writes a JS_ERROR JSON line to protocol.sherlo.
+     */
+    @Override
+    public void sendJsError(String message, String stack, String source) {
+        moduleCore.sendJsError(message, stack, source);
+    }
+
+    /**
+     * Synchronously writes a JS_ERROR entry for module-eval errors caught by the metro __r polyfill.
+     */
+    @Override
+    public boolean reportEarlyJsError(String name, String message, String stack) {
+        return moduleCore.reportEarlyJsError(name, message, stack);
     }
 
     // ==== File System Methods ====

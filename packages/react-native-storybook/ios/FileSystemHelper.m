@@ -10,43 +10,19 @@ static NSString *syncDirectoryPath;
  */
 @implementation FileSystemHelper
 
-/**
- * Initializes a new instance of the FileSystemHelper.
- * Sets up the sync directory during initialization.
- *
- * @return A new FileSystemHelper instance
- */
 - (instancetype)init {
     self = [super init];
     if (self) {
-        syncDirectoryPath = [self setupSyncDirectory];
+        // Compute the sync directory path without creating it. The directory is
+        // only used in testing mode; in production it stays absent. Lazy
+        // creation happens inside the appendFile* methods below, which already
+        // call createDirectoryAtPath:withIntermediateDirectories:YES on the
+        // parent of every write target.
+        NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+        NSString *documentsDirectory = [paths firstObject];
+        syncDirectoryPath = [documentsDirectory stringByAppendingPathComponent:@"sherlo"];
     }
     return self;
-}
-
-/**
- * Creates and sets up the synchronization directory in the app's documents folder.
- * The directory will be used for all file operations performed by this helper.
- *
- * @return The absolute path to the sync directory
- */
-- (NSString *)setupSyncDirectory {
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString *documentsDirectory = [paths firstObject];
-    NSString *sherloDirectory = [documentsDirectory stringByAppendingPathComponent:@"sherlo"];
-    
-    // Create the directory if it doesn't exist
-    NSError *error = nil;
-    [[NSFileManager defaultManager] createDirectoryAtPath:sherloDirectory
-                              withIntermediateDirectories:YES
-                                               attributes:nil
-                                                    error:&error];
-    
-    if (error) {
-        NSLog(@"[%@] Failed to create sync directory: %@", LOG_TAG, error.localizedDescription);
-    }
-    
-    return sherloDirectory;
 }
 
 #pragma mark - File System Operations with Promise

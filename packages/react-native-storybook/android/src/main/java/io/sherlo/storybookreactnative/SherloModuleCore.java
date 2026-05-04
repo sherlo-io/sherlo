@@ -32,21 +32,82 @@ public class SherloModuleCore {
     // Module state
     private static JSONObject config = null;
     private static JSONObject lastState = null;
-    private static String currentMode = MODE_DEFAULT;
+    private static volatile String currentMode = MODE_DEFAULT;
     private static String nativeVersion = null;
+
+    // Guards early protocol emission to a single occurrence per process. Set once by
+    // performEarlyInit() - either from SherloInitProvider.onCreate() (normal path, before
+    // JS evaluates) or from this class's constructor (fallback).
+    private static volatile boolean earlyInitDone = false;
 
     // Helper instances
     private FileSystemHelper fileSystemHelper = null;
     private RestartHelper restartHelper = null;
 
+    // Static reference to FileSystemHelper for use from static/JNI contexts.
+    // Set once in performEarlyInit (before JS runs) and refreshed in the constructor.
+    private static volatile FileSystemHelper staticFileSystemHelper = null;
+
+    /**
+     * Emits the early native protocol signals (NATIVE_INIT_STARTED, NATIVE_LOADED) when the
+     * Sherlo config indicates testing mode. Idempotent - subsequent calls are no-ops.
+     *
+     * Invoked from SherloInitProvider.onCreate() so the signals land in protocol.sherlo
+     * before Application.onCreate() / JS evaluation, matching iOS __attribute__((constructor))
+     * semantics. In non-testing / production mode this is a silent no-op, so host apps that
+     * bundle the SDK without running tests incur no file writes.
+     *
+     * All work is wrapped in try/catch - a ContentProvider that throws from onCreate kills
+     * app startup for every user of the SDK.
+     *
+     * @param context Any non-null Android context (application context is sufficient).
+     */
+    public static synchronized void performEarlyInit(Context context) {
+        if (earlyInitDone) return;
+        earlyInitDone = true;
+
+        try {
+            FileSystemHelper fsHelper = new FileSystemHelper(context);
+            staticFileSystemHelper = fsHelper;
+            JSONObject earlyConfig = ConfigHelper.loadConfig(fsHelper);
+            if (earlyConfig == null) return;
+
+            String mode = ConfigHelper.determineModeFromConfig(earlyConfig);
+            if (!MODE_TESTING.equals(mode)) return;
+
+            currentMode = mode;
+
+            ProtocolHelper.writeNativeInitStarted(fsHelper);
+
+            JSONObject earlyLastState = LastStateHelper.getLastState(fsHelper);
+            String requestId = null;
+            if (earlyLastState != null) {
+                try {
+                    requestId = earlyLastState.getString("requestId");
+                } catch (org.json.JSONException e) {
+                    // requestId missing is expected on first run - not an error
+                }
+            }
+            ProtocolHelper.writeNativeLoaded(fsHelper, requestId);
+        } catch (Throwable t) {
+            Log.e(TAG, "Failed to perform early init", t);
+        }
+    }
+
     /**
      * Initializes the module with the React context and sets up all required helpers.
      * Loads configuration and determines the initial mode to use.
-     * 
+     *
      * @param reactContext The React application context
      */
     public SherloModuleCore(ReactApplicationContext reactContext, Activity activity) {
         this.fileSystemHelper = new FileSystemHelper(reactContext);
+        staticFileSystemHelper = this.fileSystemHelper;
+
+        // Fallback - normal Android startup already runs this via SherloInitProvider before
+        // Application.onCreate(). The call is idempotent so the double-invocation costs nothing.
+        performEarlyInit(reactContext);
+
         this.restartHelper = new RestartHelper(reactContext);
 
         this.nativeVersion = SherloJsonHelper.getNativeVersion(reactContext);
@@ -62,20 +123,9 @@ public class SherloModuleCore {
             // Fallback to config-based mode
             this.currentMode = ConfigHelper.determineModeFromConfig(this.config);
             Log.d(TAG, "Using config-based mode: " + currentMode);
-            
+
             if (currentMode.equals(MODE_TESTING)) {
                 this.lastState = LastStateHelper.getLastState(this.fileSystemHelper);
-
-                String requestId = null;
-                if (this.lastState != null) {
-                    try {
-                        requestId = this.lastState.getString("requestId");
-                    } catch (org.json.JSONException e) {
-                        Log.e(TAG, "Error getting requestId from lastState", e);
-                    }
-                }
-
-                ProtocolHelper.writeNativeLoaded(this.fileSystemHelper, requestId);
             }
         }
 
@@ -83,9 +133,18 @@ public class SherloModuleCore {
     }
     
     /**
+     * Returns the current mode string. Safe to call before constructor — falls back to
+     * MODE_DEFAULT. Used by the JSI bindings (SherloModuleJSIBindings.cpp) to read the
+     * mode synchronously on the JS thread before bundle evaluation starts.
+     */
+    public static String getCurrentMode() {
+        return currentMode != null ? currentMode : MODE_DEFAULT;
+    }
+
+    /**
      * Returns constants exposed to the JavaScript side.
      * Provides access to the current mode, configuration and last state.
-     * 
+     *
      * @return A map containing the module constants
      */
     public WritableMap getSherloConstants() {
@@ -127,7 +186,36 @@ public class SherloModuleCore {
      * @param message Human-readable error description
      */
     public void sendNativeError(String errorCode, String message, String dataJson) {
+        if (!MODE_TESTING.equals(currentMode)) return;
         ProtocolHelper.writeNativeError(this.fileSystemHelper, errorCode, message, dataJson);
+    }
+
+    /**
+     * Writes a JS_ERROR JSON line to protocol.sherlo.
+     */
+    public void sendJsError(String message, String stack, String source) {
+        if (!MODE_TESTING.equals(currentMode)) return;
+        ProtocolHelper.writeJsError(this.fileSystemHelper, message, stack, source);
+    }
+
+    /**
+     * Synchronously writes a JS_ERROR entry for module-eval errors caught by the metro __r polyfill.
+     * Must never throw. Returns true on success, false on failure.
+     */
+    public boolean reportEarlyJsError(String name, String message, String stack) {
+        // Defense in depth: even if the JS-side gate (metro/polyfill.js) is bypassed,
+        // refuse to write JS errors to protocol.sherlo unless in testing mode. This
+        // makes a polyfill-bug failure mode 'no error captured' not 'protocol polluted'.
+        if (!MODE_TESTING.equals(currentMode)) {
+            return false;
+        }
+        try {
+            ProtocolHelper.writeEarlyJsError(this.fileSystemHelper, name, message, stack);
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "reportEarlyJsError failed", e);
+            return false;
+        }
     }
 
     /**

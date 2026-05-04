@@ -4,6 +4,7 @@ import { version } from '../package.json';
 import {
   easBuildOnComplete,
   init,
+  showError,
   test,
   testEasCloudBuild,
   testEasUpdate,
@@ -32,6 +33,7 @@ import {
   PLATFORM_LABEL,
   PROFILE_OPTION,
   PROJECT_ROOT_OPTION,
+  SHOW_ERROR_COMMAND,
   TEST_COMMAND,
   TEST_EAS_CLOUD_BUILD_COMMAND,
   TEST_EAS_UPDATE_COMMAND,
@@ -64,6 +66,8 @@ async function start() {
     addTestEasUpdateCommand(program);
 
     addTestEasCloudBuildCommand(program);
+
+    addShowErrorCommand(program);
 
     if (process.argv.length === 2) {
       console.log('Choose a Sherlo command. Use --help for more information.');
@@ -102,6 +106,7 @@ const COMMAND_DESCRIPTION = {
   [TEST_EAS_UPDATE_COMMAND]: 'Test builds with dynamic JavaScript (OTA) updates',
   [TEST_EAS_CLOUD_BUILD_COMMAND]: 'Test cloud builds created on Expo servers',
   [EAS_BUILD_ON_COMPLETE_COMMAND]: `Process EAS Build (required for \`${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
+  [SHOW_ERROR_COMMAND]: 'Decode a minified JS error stack trace using the slug printed on the Sherlo build error page',
 };
 
 const OPTION_DEFINITION: Record<string, [string, string]> = {
@@ -231,6 +236,21 @@ function addTestEasCloudBuildCommand(program: Command) {
     options: [PROFILE_OPTION],
     action: easBuildOnComplete,
   });
+}
+
+function addShowErrorCommand(program: Command) {
+  // show-error takes a single positional <slug> arg, no options — bypass addCommand
+  program
+    .command(`${SHOW_ERROR_COMMAND} <slug>`)
+    .description(
+      `${COMMAND_DESCRIPTION[SHOW_ERROR_COMMAND]}\n` +
+      `  Slug format: <teamId>-<projectIndex>-(ios|android)-<timestamp>\n` +
+      `  Example:     PsS5H1B1-30-android-1777491220857`
+    )
+    .action(async (slug: string) => {
+      setReportingContext(SHOW_ERROR_COMMAND, { slug });
+      await showError(slug);
+    });
 }
 
 function addCommand({
