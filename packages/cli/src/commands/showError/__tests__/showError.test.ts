@@ -606,58 +606,46 @@ describe('resolveShowErrorUrl', () => {
 });
 
 // ---------------------------------------------------------------------------
-// showError default export — process.exitCode instead of process.exit
+// showError default export — throws on error (no process.exit)
 // ---------------------------------------------------------------------------
 
 const VALID_SLUG = 'PsS5H1B1-30-android-1777491220857';
 
-describe('showError — exit behaviour on error', () => {
+describe('showError — throws on error (no process.exit)', () => {
   let exitSpy: ReturnType<typeof vi.spyOn>;
-  let originalExitCode: number | undefined;
 
   afterEach(() => {
     vi.restoreAllMocks();
-    process.exitCode = originalExitCode;
     vi.unstubAllGlobals();
   });
 
   beforeEach(() => {
-    originalExitCode = process.exitCode as number | undefined;
-    process.exitCode = undefined as any;
     // Ensure process.exit is not called — spy that throws so any accidental call is caught
     exitSpy = vi.spyOn(process, 'exit').mockImplementation((_code?: number) => {
       throw new Error(`process.exit(${_code}) was called but should not have been`);
     });
   });
 
-  it('sets process.exitCode=1 and returns (no process.exit) for invalid slug', async () => {
-    await showError('not-a-valid-slug');
-
-    expect(process.exitCode).toBe(1);
+  it('throws for invalid slug (no process.exit)', async () => {
+    await expect(showError('not-a-valid-slug')).rejects.toThrow('Invalid slug format');
     expect(exitSpy).not.toHaveBeenCalled();
   });
 
-  it('sets process.exitCode=1 and returns (no process.exit) when fetch fails', async () => {
+  it('throws when fetch fails (no process.exit)', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network error')));
 
-    await showError(VALID_SLUG);
-
-    expect(process.exitCode).toBe(1);
+    await expect(showError(VALID_SLUG)).rejects.toThrow('Failed to fetch error');
     expect(exitSpy).not.toHaveBeenCalled();
   });
 
-  it('sets process.exitCode=1 with "No JS error found" message on 404', async () => {
+  it('throws with "No JS error found" message on 404 (no process.exit)', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ status: 404, ok: false }));
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    await showError(VALID_SLUG);
-
-    expect(process.exitCode).toBe(1);
+    await expect(showError(VALID_SLUG)).rejects.toThrow(`No JS error found for build ${VALID_SLUG}`);
     expect(exitSpy).not.toHaveBeenCalled();
-    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining(`No JS error found for build ${VALID_SLUG}`));
   });
 
-  it('sets process.exitCode=1 and returns (no process.exit) when detectBundler fails', async () => {
+  it('throws when detectBundler fails (no process.exit)', async () => {
     const mockPayload = {
       name: 'TypeError',
       message: 'oops',
@@ -679,9 +667,7 @@ describe('showError — exit behaviour on error', () => {
     // make sure detectBundler throws (no native dirs, no expo config)
     writeJson(emptyDir, 'package.json', { dependencies: { 'react-native': '*' } });
 
-    await showError(VALID_SLUG);
-
-    expect(process.exitCode).toBe(1);
+    await expect(showError(VALID_SLUG)).rejects.toThrow();
     expect(exitSpy).not.toHaveBeenCalled();
 
     process.cwd = origCwd;
