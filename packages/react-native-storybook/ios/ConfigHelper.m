@@ -19,6 +19,13 @@ static NSString *const LOG_TAG = @"SherloModule:ConfigHelper";
  * @return The parsed configuration as a NSDictionary
  */
 + (NSDictionary *)loadConfig:(FileSystemHelper *)fileSystemHelper {
+    // In production no one writes config.sherlo; this is the expected case
+    // and must not produce log noise on every customer-app launch. Return
+    // nil silently when the file is absent.
+    if (![fileSystemHelper fileExists:CONFIG_FILENAME]) {
+        return nil;
+    }
+
     NSError *error = nil;
     NSString *configContent = [fileSystemHelper readFile:CONFIG_FILENAME error:&error];
     
