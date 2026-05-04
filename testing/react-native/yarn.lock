@@ -4150,7 +4150,7 @@ __metadata:
   peerDependencies:
     "@storybook/react-native": ">=7.6.11"
     react: "*"
-    react-native: ">=0.64.0"
+    react-native: ">=0.74.0"
     react-native-safe-area-context: "*"
   languageName: node
   linkType: soft
