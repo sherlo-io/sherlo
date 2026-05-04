@@ -27,12 +27,14 @@ async function installSherlo(): Promise<void> {
   const isSherloAlreadyInDevDependencies =
     !!packageJson.devDependencies?.[SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME];
 
-  // When SHERLO_SDK_PATH is set (e.g. by sherlo-tester), install from local source
-  // via portal link instead of npm.
+  // When SHERLO_SDK_PATH is set (e.g. by sherlo-tester), install from local source.
+  // .tgz → file: (real copy into node_modules, required for Metro/EAS symlink resolution)
+  // directory → portal: (symlink, back-compat for directory-based dev iteration)
   const localSdkPath = process.env.SHERLO_SDK_PATH;
   const sdkVersion = process.env.SHERLO_SDK_VERSION;
+  const localSdkProtocol = localSdkPath?.endsWith('.tgz') ? 'file' : 'portal';
   const packageSpec = localSdkPath
-    ? `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@portal:${localSdkPath}`
+    ? `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@${localSdkProtocol}:${localSdkPath}`
     : sdkVersion
       ? `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@${sdkVersion}`
       : SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME;
