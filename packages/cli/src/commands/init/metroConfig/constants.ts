@@ -1,6 +1,6 @@
 export const EVENT = '3_metro_config';
 
-export const ALREADY_WRAPPED_TOKEN = 'withSherlo(';
+export const ALREADY_WRAPPED_TOKEN = 'createSherloStorybook(';
 export const WITH_STORYBOOK_TOKEN = 'withStorybook(';
 
 export const NEW_IMPORT_PACKAGE = '@sherlo/react-native-storybook/metro';

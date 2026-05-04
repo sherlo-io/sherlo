@@ -26,38 +26,6 @@ npx sherlo test
 
 ## API Reference
 
-### `getStorybook(view, options)`
-
-Main function to wrap your Storybook component and enable Sherlo visual testing.
-
-**Parameters:**
-
-- `view` - Storybook view object (from `storybook.requires`)
-- `options` - Configuration object (storage, etc.)
-
-**Returns:** React component ready for Sherlo visual testing
-
-**Example:**
-
-```tsx
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getStorybook } from '@sherlo/react-native-storybook';
-import { view } from './storybook.requires';
-
-const Storybook = getStorybook(view, {
-  storage: {
-    getItem: AsyncStorage.getItem,
-    setItem: AsyncStorage.setItem,
-  },
-});
-
-export default Storybook;
-```
-
-[Documentation →](https://sherlo.io/docs/setup#storybook-component)
-
----
-
 ### `isStorybookMode`
 
 Checks if the app should render Storybook instead of the normal UI. Use this in your root component to conditionally render Storybook.
@@ -132,18 +100,16 @@ if (isRunningVisualTests) {
 
 <br />
 
-## Bundle Size Optimization
+## Changelog
 
-### Lightweight Imports (`/lite`)
+### 2.0.0-alpha.0 - Breaking changes vs 1.6.x
 
-If you exclude Storybook from production builds but still use helpers like `isRunningVisualTests`, import from `/lite` to prevent the heavy `getStorybookUI()` function from being bundled in projects without tree-shaking.
-
-```tsx
-// ❌ Bundles getStorybookUI() even if Storybook component is excluded
-import { isRunningVisualTests } from '@sherlo/react-native-storybook';
-
-// ✅ Bundles only lightweight helpers
-import { isRunningVisualTests } from '@sherlo/react-native-storybook/lite';
-```
-
-**Available in `/lite`:** `isRunningVisualTests`, `isStorybookMode`, `openStorybook()`, `addStorybookToDevMenu()`
+- **`withSherlo` removed** - replaced by `createSherloStorybook(withStorybook)` factory in `@sherlo/react-native-storybook/metro`. The factory wraps the Storybook-provided `withStorybook` function and returns a drop-in replacement with identical signature. Update `metro.config.js`:
+  ```js
+  const { createSherloStorybook } = require('@sherlo/react-native-storybook/metro');
+  const withSherloStorybook = createSherloStorybook(withStorybook);
+  module.exports = withSherloStorybook(defaultConfig, { enabled, configPath });
+  ```
+- **`getStorybook` no longer exported** from the main package entrypoint. It is used internally by the Metro wrapper via a deep import (`@sherlo/react-native-storybook/dist/getStorybook`).
+- **`/lite` entrypoint removed** - the main entrypoint no longer imports the Storybook runtime at module level, so the bundle-size concern that motivated `/lite` no longer applies.
+- **`sherloAtRoot` diagnostic mode** - pass `--diagnostics sherloAtRoot` to the CLI (requires `SHERLO_DEVTOOLS=1`) to have Sherlo substitute the AppRegistry root with the Storybook entry component loaded directly from `configPath/index`. Requires `configPath/index` to default-export the Storybook UI component.

@@ -16,6 +16,7 @@ async function writeMetroConfigUpdate(state: {
     const mod = parseModule(state.content);
     const body = (mod.$ast as any).body as any[];
 
+    let calleeName: string | null = null;
     let wrapped = false;
     for (const stmt of body) {
       if (
@@ -23,17 +24,24 @@ async function writeMetroConfigUpdate(state: {
         stmt.expression.type === 'AssignmentExpression' &&
         stmt.expression.operator === '=' &&
         isModuleExports(stmt.expression.left) &&
-        stmt.expression.right.type === 'CallExpression'
+        stmt.expression.right.type === 'CallExpression' &&
+        stmt.expression.right.callee.type === 'Identifier'
       ) {
-        stmt.expression.right = makeCall('withSherlo', stmt.expression.right);
+        calleeName = stmt.expression.right.callee.name;
+        stmt.expression.right.callee = { type: 'Identifier', name: 'withSherloStorybook' };
         wrapped = true;
         break;
       }
     }
 
-    if (!wrapped) return { applied: false };
+    if (!wrapped || !calleeName) return { applied: false };
 
-    const requireStmt = makeRequireDestructure('withSherlo', NEW_IMPORT_PACKAGE);
+    // Insert after the withStorybook import:
+    // 1. const { createSherloStorybook } = require('@sherlo/react-native-storybook/metro');
+    // 2. const withSherloStorybook = createSherloStorybook(<originalCallee>);
+    const requireStmt = makeRequireDestructure('createSherloStorybook', NEW_IMPORT_PACKAGE);
+    const factoryStmt = makeFactoryVariable('withSherloStorybook', 'createSherloStorybook', calleeName);
+
     let insertAt = 0;
     for (let i = 0; i < body.length; i++) {
       if (nodeContainsText(body[i], 'withStorybook', state.content)) {
@@ -41,7 +49,7 @@ async function writeMetroConfigUpdate(state: {
         break;
       }
     }
-    body.splice(insertAt, 0, requireStmt);
+    body.splice(insertAt, 0, requireStmt, factoryStmt);
 
     modified = generateCode(mod).code;
   } catch {
@@ -75,15 +83,6 @@ function nodeContainsText(node: any, text: string, source: string): boolean {
   return false;
 }
 
-function makeCall(name: string, argument: any): any {
-  return {
-    type: 'CallExpression',
-    callee: { type: 'Identifier', name },
-    arguments: [argument],
-    optional: false,
-  };
-}
-
 function makeRequireDestructure(name: string, pkg: string): any {
   return {
     type: 'VariableDeclaration',
@@ -107,6 +106,25 @@ function makeRequireDestructure(name: string, pkg: string): any {
           type: 'CallExpression',
           callee: { type: 'Identifier', name: 'require' },
           arguments: [{ type: 'StringLiteral', value: pkg }],
+          optional: false,
+        },
+      },
+    ],
+  };
+}
+
+function makeFactoryVariable(varName: string, factoryName: string, withStorybookName: string): any {
+  return {
+    type: 'VariableDeclaration',
+    kind: 'const',
+    declarations: [
+      {
+        type: 'VariableDeclarator',
+        id: { type: 'Identifier', name: varName },
+        init: {
+          type: 'CallExpression',
+          callee: { type: 'Identifier', name: factoryName },
+          arguments: [{ type: 'Identifier', name: withStorybookName }],
           optional: false,
         },
       },

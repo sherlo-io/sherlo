@@ -29,18 +29,19 @@ async function setupTest(filename: string, content: string) {
 }
 
 describe('readMetroConfigState', () => {
-  it('detects alreadyWrapped when withSherlo( is present', async () => {
+  it('detects alreadyWrapped when createSherloStorybook( is present', async () => {
     await setupTest(
       'metro.config.js',
       `const withStorybook = require('@storybook/react-native/metro/withStorybook');
-module.exports = withSherlo(withStorybook(config));`
+const { createSherloStorybook } = require('@sherlo/react-native-storybook/metro');
+const withSherloStorybook = createSherloStorybook(withStorybook);
+module.exports = withSherloStorybook(config);`
     );
 
     const { default: readMetroConfigState } = await import('../readMetroConfigState');
     const state = await readMetroConfigState();
 
     expect(state.alreadyWrapped).toBe(true);
-    expect(state.hasWithStorybook).toBe(true);
     expect(state.path).not.toBeNull();
   });
 

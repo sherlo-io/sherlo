@@ -124,7 +124,7 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   ],
   [DIAGNOSTICS_OPTION]: [
     `--${DIAGNOSTICS_OPTION} <names>`,
-    'Diagnostics to collect, comma-separated (e.g. androidWindowDump,stabilizationFrames)',
+    'Diagnostics to collect, comma-separated (e.g. androidWindowDump,stabilizationFrames,sherloAtRoot)',
   ],
   [EAS_ANDROID_URL_OPTION]: [
     `--${EAS_ANDROID_URL_OPTION} <url>`,
@@ -239,7 +239,7 @@ function addTestEasCloudBuildCommand(program: Command) {
 }
 
 function addShowErrorCommand(program: Command) {
-  // show-error takes a single positional <slug> arg, no options — bypass addCommand
+  // show-error takes a single positional <slug> arg, no options - bypass addCommand
   program
     .command(`${SHOW_ERROR_COMMAND} <slug>`)
     .description(

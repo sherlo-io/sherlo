@@ -1,7 +1,6 @@
 import { normalizeStack } from './normalizeStack';
 
 export { default as addStorybookToDevMenu } from './addStorybookToDevMenu';
-export { default as getStorybook } from './getStorybook';
 export { default as isRunningVisualTests } from './isRunningVisualTests';
 export { default as isStorybookMode } from './isStorybookMode';
 export { default as openStorybook } from './openStorybook';
@@ -70,8 +69,6 @@ function patchAppRegistryWithBoundary(SherloModule: any): void {
   (SherloErrorBoundary as any).displayName = 'SherloErrorBoundary';
   (SherloErrorBoundary as any).getDerivedStateFromError = () => ({ caught: true });
   SherloErrorBoundary.prototype.componentDidCatch = function (error: any, _errorInfo: any) {
-    // Defer reportFatalError until appendFile resolves so the JS_ERROR line is
-    // on disk before the JS thread is torn down.
     writeJsErrorFromBoundary(error).finally(function () {
       doReportFatalError(error);
     });
@@ -83,6 +80,31 @@ function patchAppRegistryWithBoundary(SherloModule: any): void {
   const origRegister = AR.registerComponent.bind(AR);
   AR.registerComponent = function sherloRegisterComponent(appKey: string, componentProvider: () => any) {
     return origRegister(appKey, () => {
+      // When sherloAtRoot is enabled, substitute the root with the Storybook entry
+      // loaded from the config path instead of calling the original componentProvider.
+      let config: any;
+      try { config = SherloModule.getConfig(); } catch (_) {}
+
+      if (config && config.sherloAtRoot === true) {
+        const storybookMod = require('@storybook/react-native');
+        const configPath = storybookMod.__sherloStorybookConfigPath;
+        const storybookIndexMod = require(configPath + '/index');
+        const UserStorybookEntry = storybookIndexMod && storybookIndexMod.default;
+        if (!UserStorybookEntry) {
+          throw new Error(
+            '[sherlo] sherloAtRoot requires ' + configPath + '/index to default-export the Storybook UI component' +
+            ' (canonical Storybook RN template shape: see https://github.com/storybookjs/react-native template).' +
+            ' Got module with keys: [' + Object.keys(storybookIndexMod).join(', ') + ']'
+          );
+        }
+        function SherloRootWrapperAtRoot(props: any) {
+          return React.createElement(SherloErrorBoundary, null, React.createElement(UserStorybookEntry, props));
+        }
+        (SherloRootWrapperAtRoot as any).displayName = 'SherloRoot(sherloAtRoot)';
+        (SherloRootWrapperAtRoot as any)._sherloWrapped = true;
+        return SherloRootWrapperAtRoot;
+      }
+
       const Component = componentProvider();
       if (!Component || (Component as any)._sherloWrapped) return Component;
       function SherloRootWrapper(props: any) {

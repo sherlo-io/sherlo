@@ -1,23 +1,20 @@
 /**
- * Wraps a Metro config to automatically integrate Sherlo into your React Native app.
- *
- * Intercepts imports of `@storybook/react-native` at the Metro resolver level and
- * redirects them to a generated wrapper that patches `start()` to route
- * `view.getStorybookUI` through `getStorybook(view, params)` and call
- * `addStorybookToDevMenu()`.
+ * Factory that creates a Sherlo-enhanced Metro config wrapper with the same signature
+ * as the provided withStorybook function.
  *
  * @example
  * // metro.config.js
  * const { getDefaultConfig } = require('@react-native/metro-config');
  * const { withStorybook } = require('@storybook/react-native/metro/withStorybook');
- * const { withSherlo } = require('@sherlo/react-native-storybook/metro');
+ * const { createSherloStorybook } = require('@sherlo/react-native-storybook/metro');
  *
- * const config = getDefaultConfig(__dirname);
- * module.exports = withSherlo(withStorybook(config));
+ * const withSherloStorybook = createSherloStorybook(withStorybook);
+ *
+ * const defaultConfig = getDefaultConfig(__dirname);
+ * module.exports = withSherloStorybook(defaultConfig, { enabled: true, configPath: __dirname + '/.rnstorybook' });
  */
-export declare function withSherlo(
-  config: Record<string, any>,
-  options?: { enabled?: boolean }
-): Record<string, any>;
+export declare function createSherloStorybook<W extends (config: any, opts?: any) => any>(
+  withStorybook: W
+): W;
 
-export default withSherlo;
+export default createSherloStorybook;

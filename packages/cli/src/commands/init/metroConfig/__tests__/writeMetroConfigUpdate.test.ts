@@ -52,7 +52,8 @@ describe('writeMetroConfigUpdate', () => {
 
     const output = await fs.promises.readFile(filePath, 'utf-8');
     expect(output).toContain(`require('@sherlo/react-native-storybook/metro')`);
-    expect(output).toContain('module.exports = withSherlo(withStorybook(defaultConfig))');
+    expect(output).toContain('createSherloStorybook(withStorybook)');
+    expect(output).toContain('module.exports = withSherloStorybook(defaultConfig)');
   });
 
   it('wraps multi-line module.exports correctly', async () => {
@@ -63,7 +64,8 @@ describe('writeMetroConfigUpdate', () => {
 
     const output = await fs.promises.readFile(filePath, 'utf-8');
     expect(output).toContain(`require('@sherlo/react-native-storybook/metro')`);
-    expect(output).toMatch(/module\.exports = withSherlo\(withStorybook\([\s\S]*?\)\)/);
+    expect(output).toContain('createSherloStorybook(withStorybook)');
+    expect(output).toMatch(/module\.exports = withSherloStorybook\([\s\S]*?\)/);
   });
 
   it('wraps correctly when ); appears inside a comment (regex-killer case)', async () => {
@@ -73,14 +75,15 @@ describe('writeMetroConfigUpdate', () => {
     expect(result.applied).toBe(true);
 
     const output = await fs.promises.readFile(filePath, 'utf-8');
-    expect(output).toContain('withSherlo(');
-    expect(output).toMatch(/module\.exports = withSherlo\(withStorybook\([\s\S]*?\)\)/);
+    expect(output).toContain('createSherloStorybook(');
+    expect(output).toMatch(/module\.exports = withSherloStorybook\([\s\S]*?\)/);
   });
 
   it('is idempotent: already-wrapped file returns applied:true without rewriting', async () => {
-    const alreadyWrapped = `const { withSherlo } = require('@sherlo/react-native-storybook/metro');
+    const alreadyWrapped = `const { createSherloStorybook } = require('@sherlo/react-native-storybook/metro');
 const withStorybook = require('@storybook/react-native/metro/withStorybook');
-module.exports = withSherlo(withStorybook(getDefaultConfig(__dirname)));`;
+const withSherloStorybook = createSherloStorybook(withStorybook);
+module.exports = withSherloStorybook(getDefaultConfig(__dirname));`;
 
     const filePath = await writeFixture('metro.config.js', alreadyWrapped);
     const mtimeBefore = (await fs.promises.stat(filePath)).mtimeMs;
@@ -125,7 +128,7 @@ module.exports = withStorybook(config);`;
     const filePath = await writeFixture('metro.config.ts', tsContent);
     const result = await writeMetroConfigUpdate({ path: filePath, content: tsContent });
 
-    // Either outcome is acceptable — must not throw
+    // Either outcome is acceptable - must not throw
     expect(typeof result.applied).toBe('boolean');
   });
 });
