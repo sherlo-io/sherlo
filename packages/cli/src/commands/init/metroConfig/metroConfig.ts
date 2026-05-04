@@ -53,7 +53,7 @@ async function metroConfig(sessionId: string | null): Promise<void> {
 
   let result;
   try {
-    result = await writeMetroConfigUpdate(state as { path: string; content: string; quoteChar: '"' | "'" });
+    result = await writeMetroConfigUpdate({ path: state.path!, content: state.content! });
   } catch (error) {
     await trackProgress({
       event: EVENT,

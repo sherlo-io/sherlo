@@ -41,7 +41,7 @@ module.exports = withStorybook(config);`,
     await expect(validateHasWithStorybookInMetroConfig()).resolves.toBeUndefined();
   });
 
-  it('throws when no metro config file is found', async () => {
+  it('throws with "No metro.config.js found" when no metro config file exists', async () => {
     const { getCwd } = await import('../../../../helpers');
     vi.mocked(getCwd).mockReturnValue(tmpDir);
 
@@ -50,11 +50,11 @@ module.exports = withStorybook(config);`,
     );
 
     await expect(validateHasWithStorybookInMetroConfig()).rejects.toThrow(
-      'Set up Storybook integration in metro.config.js before initializing Sherlo'
+      'No metro.config.js found in your project'
     );
   });
 
-  it('throws when metro.config.js exists but has no withStorybook(', async () => {
+  it('throws with "does not call withStorybook" when config exists but lacks withStorybook(', async () => {
     const filePath = path.join(tmpDir, 'metro.config.js');
     await fs.promises.writeFile(filePath, `module.exports = getDefaultConfig(__dirname);`, 'utf-8');
 
@@ -66,7 +66,7 @@ module.exports = withStorybook(config);`,
     );
 
     await expect(validateHasWithStorybookInMetroConfig()).rejects.toThrow(
-      'Set up Storybook integration in metro.config.js before initializing Sherlo'
+      'does not call withStorybook'
     );
   });
 });

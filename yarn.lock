@@ -251,6 +251,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@babel/parser@npm:^7.29.3":
+  version: 7.29.3
+  resolution: "@babel/parser@npm:7.29.3"
+  dependencies:
+    "@babel/types": "npm:^7.29.0"
+  bin:
+    parser: ./bin/babel-parser.js
+  checksum: 10/10e8f34e0fdaa495b9db8be71f4eb29b16d8a57e0818c1bb1c4084015b0383803fd77812ed41597760cbf3d9ab3ae9f4af54f39ff5e5d8e081ba43593232f0ca
+  languageName: node
+  linkType: hard
+
 "@babel/plugin-syntax-async-generators@npm:^7.8.4":
   version: 7.8.4
   resolution: "@babel/plugin-syntax-async-generators@npm:7.8.4"
@@ -8609,6 +8620,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"magicast@npm:^0.5.2":
+  version: 0.5.2
+  resolution: "magicast@npm:0.5.2"
+  dependencies:
+    "@babel/parser": "npm:^7.29.0"
+    "@babel/types": "npm:^7.29.0"
+    source-map-js: "npm:^1.2.1"
+  checksum: 10/724d47bfa70cc5046992cf6defae51a3cb701307b35e5637faede1b109fb19ccb47d3f3886df569f5b1281deb6a1ae6993f4542e7c7c6312f70d7be0f4194833
+  languageName: node
+  linkType: hard
+
 "make-dir@npm:4.0.0":
   version: 4.0.0
   resolution: "make-dir@npm:4.0.0"
@@ -11477,6 +11499,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "sherlo@workspace:packages/cli"
   dependencies:
+    "@babel/parser": "npm:^7.29.3"
     "@inquirer/core": "npm:^10.3.2"
     "@inquirer/prompts": "npm:^7.8.4"
     "@sentry/node": "npm:10.47.0"
@@ -11498,6 +11521,7 @@ __metadata:
     find-up: "npm:^7.0.0"
     gradient-string: "npm:^2.0.1"
     graphql: "npm:^16.6.0"
+    magicast: "npm:^0.5.2"
     node-fetch: "npm:^2.6.11"
     ora: "npm:^8.2.0"
     package-manager-detector: "npm:^0.2.9"

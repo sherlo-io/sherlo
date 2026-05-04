@@ -2,32 +2,21 @@ import chalk from 'chalk';
 import fs from 'fs';
 import path from 'path';
 import { FULL_INIT_COMMAND } from '../../../constants';
-import { getCwd, throwError } from '../../../helpers';
-
-const METRO_CONFIG_NAMES = [
-  'metro.config.js',
-  'metro.config.ts',
-  'metro.config.cjs',
-  'metro.config.mjs',
-];
+import { throwError } from '../../../helpers';
+import getMetroConfigPath from '../metroConfig/getMetroConfigPath';
 
 async function validateHasWithStorybookInMetroConfig(): Promise<void> {
-  const cwd = getCwd();
-
-  let configPath: string | null = null;
-  for (const name of METRO_CONFIG_NAMES) {
-    const full = path.join(cwd, name);
-    if (fs.existsSync(full)) {
-      configPath = full;
-      break;
-    }
-  }
+  const configPath = getMetroConfigPath();
 
   if (!configPath) {
     throwError({
-      message: 'Set up Storybook integration in metro.config.js before initializing Sherlo',
+      message: 'No metro.config.js found in your project',
       learnMoreLink: 'https://github.com/storybookjs/react-native#setup',
-      below: '\n' + chalk.reset('Then re-run:\n') + chalk.cyan(`  ${FULL_INIT_COMMAND}`),
+      below:
+        '\n' +
+        chalk.reset('Create one and integrate Storybook (see link above).\n') +
+        chalk.reset('Then re-run:\n') +
+        chalk.cyan(`  ${FULL_INIT_COMMAND}`),
     });
     return;
   }
@@ -36,9 +25,13 @@ async function validateHasWithStorybookInMetroConfig(): Promise<void> {
 
   if (!content.includes('withStorybook(')) {
     throwError({
-      message: 'Set up Storybook integration in metro.config.js before initializing Sherlo',
+      message: `Found ${path.basename(configPath)} but it does not call withStorybook(...)`,
       learnMoreLink: 'https://github.com/storybookjs/react-native#setup',
-      below: '\n' + chalk.reset('Then re-run:\n') + chalk.cyan(`  ${FULL_INIT_COMMAND}`),
+      below:
+        '\n' +
+        chalk.reset('Add the withStorybook wrap from @storybook/react-native (see link above).\n') +
+        chalk.reset('Then re-run:\n') +
+        chalk.cyan(`  ${FULL_INIT_COMMAND}`),
     });
   }
 }

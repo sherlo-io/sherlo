@@ -70,30 +70,4 @@ module.exports = withStorybook(config);`
     expect(state.alreadyWrapped).toBe(false);
     expect(state.hasWithStorybook).toBe(false);
   });
-
-  it('detects single quoteChar', async () => {
-    await setupTest(
-      'metro.config.js',
-      `const withStorybook = require('@storybook/react-native/metro/withStorybook');
-module.exports = withStorybook(config);`
-    );
-
-    const { default: readMetroConfigState } = await import('../readMetroConfigState');
-    const state = await readMetroConfigState();
-
-    expect(state.quoteChar).toBe("'");
-  });
-
-  it('detects double quoteChar', async () => {
-    await setupTest(
-      'metro.config.js',
-      `const withStorybook = require("@storybook/react-native/metro/withStorybook");
-module.exports = withStorybook(config);`
-    );
-
-    const { default: readMetroConfigState } = await import('../readMetroConfigState');
-    const state = await readMetroConfigState();
-
-    expect(state.quoteChar).toBe('"');
-  });
 });
