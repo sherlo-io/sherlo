@@ -33,11 +33,11 @@ function createSherloStorybook(withStorybook) {
     // Call withStorybook first to get the base config.
     var result = withStorybook(config, opts);
 
-    // When enabled: false, return the withStorybook result unchanged (complete passthrough).
-    // No Sherlo resolver override, no polyfill injection, no wrapper generation.
-    if (opts && opts.enabled === false) {
-      return result;
-    }
+    // Sherlo plumbing (resolver override, polyfill, wrapper) is ALWAYS installed,
+    // regardless of opts.enabled. The wrapper's patchedStart handles the
+    // disabled-storybook case (real.start not a function) by emitting
+    // ERROR_STORYBOOK_DISABLED via SherloModule, which is only reachable when
+    // the wrapper is present. opts.enabled only controls withStorybook above.
 
     var projectRoot =
       (result && result.projectRoot) || (config && config.projectRoot) || process.cwd();

@@ -76,37 +76,35 @@ describe('createSherloStorybook - factory', () => {
 // enabled: false → complete passthrough (no Sherlo transforms)
 // ---------------------------------------------------------------------------
 
-describe('createSherloStorybook - enabled: false passthrough', () => {
-  it('returns the withStorybook result unchanged (same reference)', () => {
-    const sentinel = { projectRoot: '/fake', resolver: { sentinel: true } };
-    const withStorybook = () => sentinel;
-    const withSherloStorybook = metro.createSherloStorybook(withStorybook);
-    const result = withSherloStorybook({ projectRoot: '/fake', resolver: {} }, { enabled: false });
-    expect(result).toBe(sentinel);
-  });
-
-  it('does NOT add resolver.resolveRequest', () => {
-    const inputConfig = { projectRoot: '/fake', resolver: {} };
-    const withSherloStorybook = metro.createSherloStorybook((c: any) => c);
-    const result = withSherloStorybook(inputConfig, { enabled: false });
-    expect(result.resolver?.resolveRequest).toBeUndefined();
-  });
-
-  it('does NOT inject polyfill via serializer.getPolyfills', () => {
-    const inputConfig = { projectRoot: '/fake', resolver: {} };
-    const withSherloStorybook = metro.createSherloStorybook((c: any) => c);
-    const result = withSherloStorybook(inputConfig, { enabled: false });
-    expect(result.serializer).toBeUndefined();
-  });
-
-  it('does NOT generate storybook-wrapper.js', () => {
+// Sherlo plumbing must be installed even when enabled:false so the wrapper's
+// patchedStart can detect the disabled-storybook case and emit ERROR_STORYBOOK_DISABLED
+// via SherloModule. opts.enabled only controls withStorybook, not Sherlo plumbing.
+describe('createSherloStorybook - enabled: false still installs Sherlo plumbing', () => {
+  it('adds resolver.resolveRequest even when enabled: false', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-disabled-test-'));
+    const withSherloStorybook = metro.createSherloStorybook((c: any) => c);
+    const result = withSherloStorybook({ projectRoot: tmpDir, resolver: {} }, { enabled: false });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    expect(typeof result.resolver?.resolveRequest).toBe('function');
+  });
+
+  it('injects Sherlo polyfill via serializer.getPolyfills even when enabled: false', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-disabled-pol-test-'));
+    const withSherloStorybook = metro.createSherloStorybook((c: any) => c);
+    const result = withSherloStorybook({ projectRoot: tmpDir, resolver: {} }, { enabled: false });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    const polyfills = result.serializer.getPolyfills({});
+    expect(polyfills).toContain(POLYFILL_PATH);
+  });
+
+  it('generates storybook-wrapper.js even when enabled: false', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-disabled-wrap-test-'));
     const withSherloStorybook = metro.createSherloStorybook((c: any) => c);
     withSherloStorybook({ projectRoot: tmpDir, resolver: {} }, { enabled: false });
     const wrapperPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'storybook-wrapper.js');
     const exists = fs.existsSync(wrapperPath);
     fs.rmSync(tmpDir, { recursive: true, force: true });
-    expect(exists).toBe(false);
+    expect(exists).toBe(true);
   });
 });
 
