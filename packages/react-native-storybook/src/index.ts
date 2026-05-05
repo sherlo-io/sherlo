@@ -88,13 +88,16 @@ function patchAppRegistryWithBoundary(SherloModule: any): void {
       if (config && config.sherloAtRoot === true) {
         const storybookMod = require('@storybook/react-native');
         const configPath = storybookMod.__sherloStorybookConfigPath;
-        const storybookIndexMod = require(configPath + '/index');
+        // Use the statically-baked entry from the Metro wrapper. Metro resolves the
+        // require literal at bundle time; a dynamic require(configPath + '/index')
+        // cannot be statically analyzed and is never bundled.
+        const storybookIndexMod = storybookMod.__sherloStorybookEntry;
         const UserStorybookEntry = storybookIndexMod && storybookIndexMod.default;
         if (!UserStorybookEntry) {
           throw new Error(
             '[sherlo] sherloAtRoot requires ' + configPath + '/index to default-export the Storybook UI component' +
             ' (canonical Storybook RN template shape: see https://github.com/storybookjs/react-native template).' +
-            ' Got module with keys: [' + Object.keys(storybookIndexMod).join(', ') + ']'
+            ' Got module with keys: [' + Object.keys(storybookIndexMod || {}).join(', ') + ']'
           );
         }
         function SherloRootWrapperAtRoot(props: any) {

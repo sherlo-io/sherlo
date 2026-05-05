@@ -118,11 +118,19 @@ function generateWrapper(wrapperPath, configPath) {
     fs.mkdirSync(cacheDir, { recursive: true });
   }
 
+  // Build the static entry require line (only when configPath is known).
+  // JSON.stringify produces a string literal that Metro resolves at bundle time,
+  // unlike a runtime-computed path which Metro cannot statically analyze.
+  var entryRequireLine = configPath !== null
+    ? 'exports.__sherloStorybookEntry = require(' + JSON.stringify(configPath + '/index') + ');\n'
+    : 'exports.__sherloStorybookEntry = null;\n';
+
   var content =
     "'use strict';\n" +
     '\n' +
     'var SHERLO_STORYBOOK_CONFIG_PATH = ' + JSON.stringify(configPath) + ';\n' +
     'exports.__sherloStorybookConfigPath = SHERLO_STORYBOOK_CONFIG_PATH;\n' +
+    entryRequireLine +
     '\n' +
     "var real = require('@storybook/react-native');\n" +
     '\n' +

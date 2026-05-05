@@ -212,8 +212,16 @@ describe('generated storybook-wrapper.js - content', () => {
     expect(wrapperContent).toContain('exports.__sherloStorybookConfigPath');
   });
 
+  it('exports __sherloStorybookEntry', () => {
+    expect(wrapperContent).toContain('exports.__sherloStorybookEntry');
+  });
+
   it('sets SHERLO_STORYBOOK_CONFIG_PATH to null when no configPath provided', () => {
     expect(wrapperContent).toContain('var SHERLO_STORYBOOK_CONFIG_PATH = null;');
+  });
+
+  it('sets __sherloStorybookEntry to null when no configPath provided', () => {
+    expect(wrapperContent).toContain('exports.__sherloStorybookEntry = null;');
   });
 
   it('sets SHERLO_STORYBOOK_CONFIG_PATH to resolved path when configPath is provided', () => {
@@ -225,6 +233,17 @@ describe('generated storybook-wrapper.js - content', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
     const expected = JSON.stringify(path.resolve(tmpDir, '.rnstorybook'));
     expect(content).toContain('var SHERLO_STORYBOOK_CONFIG_PATH = ' + expected + ';');
+  });
+
+  it('bakes a static require literal for the entry when configPath is provided', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-entry-test-'));
+    const withSherloStorybook = makeWithSherloStorybook();
+    withSherloStorybook({ projectRoot: tmpDir, resolver: {} }, { configPath: '.rnstorybook' });
+    const wrapperPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'storybook-wrapper.js');
+    const content = fs.readFileSync(wrapperPath, 'utf8');
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    const resolvedEntry = JSON.stringify(path.resolve(tmpDir, '.rnstorybook') + '/index');
+    expect(content).toContain('exports.__sherloStorybookEntry = require(' + resolvedEntry + ');');
   });
 
   it('does NOT require @sherlo/react-native-storybook at the top level', () => {
