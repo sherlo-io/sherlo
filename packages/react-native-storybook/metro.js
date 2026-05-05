@@ -118,11 +118,13 @@ function generateWrapper(wrapperPath, configPath) {
     fs.mkdirSync(cacheDir, { recursive: true });
   }
 
-  // Build the static entry require line (only when configPath is known).
-  // JSON.stringify produces a string literal that Metro resolves at bundle time,
-  // unlike a runtime-computed path which Metro cannot statically analyze.
-  var entryRequireLine = configPath !== null
-    ? 'exports.__sherloStorybookEntry = require(' + JSON.stringify(configPath + '/index') + ');\n'
+  // Build the lazy entry loader (only when configPath is known).
+  // The static string literal inside require() lets Metro bundle the module at build
+  // time. Wrapping it in a function defers EXECUTION to the sherloAtRoot branch so
+  // the user's .rnstorybook side-effects (addons, getStorybookUI) do not fire at
+  // @storybook/react-native module load time and crash non-sherloAtRoot apps.
+  var entryLoaderLine = configPath !== null
+    ? 'exports.__sherloStorybookEntry = function () { return require(' + JSON.stringify(configPath + '/index') + '); };\n'
     : 'exports.__sherloStorybookEntry = null;\n';
 
   var content =
@@ -130,7 +132,7 @@ function generateWrapper(wrapperPath, configPath) {
     '\n' +
     'var SHERLO_STORYBOOK_CONFIG_PATH = ' + JSON.stringify(configPath) + ';\n' +
     'exports.__sherloStorybookConfigPath = SHERLO_STORYBOOK_CONFIG_PATH;\n' +
-    entryRequireLine +
+    entryLoaderLine +
     '\n' +
     "var real = require('@storybook/react-native');\n" +
     '\n' +

@@ -88,10 +88,17 @@ function patchAppRegistryWithBoundary(SherloModule: any): void {
       if (config && config.sherloAtRoot === true) {
         const storybookMod = require('@storybook/react-native');
         const configPath = storybookMod.__sherloStorybookConfigPath;
-        // Use the statically-baked entry from the Metro wrapper. Metro resolves the
-        // require literal at bundle time; a dynamic require(configPath + '/index')
-        // cannot be statically analyzed and is never bundled.
-        const storybookIndexMod = storybookMod.__sherloStorybookEntry;
+        // __sherloStorybookEntry is a lazy loader function baked by the Metro wrapper.
+        // Metro statically resolves the literal require() inside at bundle time, but
+        // execution is deferred to here so storybook side-effects don't fire on app boot.
+        const loader = storybookMod.__sherloStorybookEntry;
+        if (typeof loader !== 'function') {
+          throw new Error(
+            '[sherlo] sherloAtRoot requires configPath to be set in metro.config.js so the' +
+            ' Storybook entry can be bundled. Rebuild the app after adding configPath.'
+          );
+        }
+        const storybookIndexMod = loader();
         const UserStorybookEntry = storybookIndexMod && storybookIndexMod.default;
         if (!UserStorybookEntry) {
           throw new Error(

@@ -54,6 +54,27 @@ module.exports = withStorybook(config);`,
     );
   });
 
+  it('does not throw when metro.config.js contains createSherloStorybook( (factory shape)', async () => {
+    const filePath = path.join(tmpDir, 'metro.config.js');
+    await fs.promises.writeFile(
+      filePath,
+      `const withStorybook = require('@storybook/react-native/metro/withStorybook');
+const { createSherloStorybook } = require('@sherlo/react-native-storybook/metro');
+const withSherloStorybook = createSherloStorybook(withStorybook);
+module.exports = withSherloStorybook(defaultConfig, { enabled: true });`,
+      'utf-8'
+    );
+
+    const { getCwd } = await import('../../../../helpers');
+    vi.mocked(getCwd).mockReturnValue(tmpDir);
+
+    const { default: validateHasWithStorybookInMetroConfig } = await import(
+      '../validateHasWithStorybookInMetroConfig'
+    );
+
+    await expect(validateHasWithStorybookInMetroConfig()).resolves.toBeUndefined();
+  });
+
   it('throws with "does not call withStorybook" when config exists but lacks withStorybook(', async () => {
     const filePath = path.join(tmpDir, 'metro.config.js');
     await fs.promises.writeFile(filePath, `module.exports = getDefaultConfig(__dirname);`, 'utf-8');

@@ -224,6 +224,12 @@ describe('generated storybook-wrapper.js - content', () => {
     expect(wrapperContent).toContain('exports.__sherloStorybookEntry = null;');
   });
 
+  it('__sherloStorybookEntry is a lazy loader function, not an eager require', () => {
+    // Must NOT be an immediate assignment - the value must be a function wrapper
+    // so storybook side-effects do not fire at module load time.
+    expect(wrapperContent).not.toMatch(/exports\.__sherloStorybookEntry = require\(/);
+  });
+
   it('sets SHERLO_STORYBOOK_CONFIG_PATH to resolved path when configPath is provided', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-configpath-test-'));
     const withSherloStorybook = makeWithSherloStorybook();
@@ -235,7 +241,7 @@ describe('generated storybook-wrapper.js - content', () => {
     expect(content).toContain('var SHERLO_STORYBOOK_CONFIG_PATH = ' + expected + ';');
   });
 
-  it('bakes a static require literal for the entry when configPath is provided', () => {
+  it('bakes a lazy loader with static require literal for the entry when configPath is provided', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-entry-test-'));
     const withSherloStorybook = makeWithSherloStorybook();
     withSherloStorybook({ projectRoot: tmpDir, resolver: {} }, { configPath: '.rnstorybook' });
@@ -243,7 +249,9 @@ describe('generated storybook-wrapper.js - content', () => {
     const content = fs.readFileSync(wrapperPath, 'utf8');
     fs.rmSync(tmpDir, { recursive: true, force: true });
     const resolvedEntry = JSON.stringify(path.resolve(tmpDir, '.rnstorybook') + '/index');
-    expect(content).toContain('exports.__sherloStorybookEntry = require(' + resolvedEntry + ');');
+    expect(content).toContain(
+      'exports.__sherloStorybookEntry = function () { return require(' + resolvedEntry + '); };'
+    );
   });
 
   it('does NOT require @sherlo/react-native-storybook at the top level', () => {
