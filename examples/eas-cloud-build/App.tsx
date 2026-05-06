@@ -7,7 +7,7 @@
  * Learn how: https://sherlo.io/docs/setup?storybook=integrated#storybook-access
  */
 
-import Storybook from './.rnstorybook'; // Modified for Sherlo
+import Storybook from './.rnstorybook';
 
 export default function App() {
   return <Storybook />;
