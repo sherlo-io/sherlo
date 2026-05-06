@@ -105,6 +105,22 @@ module.exports = withStorybook(defaultConfig, {
 
 ---
 
+## Local Development
+
+`testing/expo`, `testing/react-native`, and the `examples/` apps reference this package via `file:../../packages/react-native-storybook`. Unlike `portal:`, `file:` snapshots the package at install time, so source edits are not automatically reflected in consumers.
+
+After editing SDK source, rebuild and reinstall:
+
+```bash
+# Rebuild the SDK
+yarn workspace @sherlo/react-native-storybook build
+
+# Reinstall in any affected consumer (e.g. testing/expo)
+cd testing/expo && yarn install
+```
+
+---
+
 ## Changelog
 
 ### v2.0.0-alpha.1

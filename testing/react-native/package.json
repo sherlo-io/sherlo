@@ -50,7 +50,7 @@
     "@react-native/eslint-config": "0.77.2",
     "@react-native/metro-config": "0.77.2",
     "@react-native/typescript-config": "0.77.2",
-    "@sherlo/react-native-storybook": "portal:../../packages/react-native-storybook",
+    "@sherlo/react-native-storybook": "file:../../packages/react-native-storybook",
     "@storybook/addon-ondevice-actions": "7.6.20",
     "@storybook/addon-ondevice-controls": "7.6.20",
     "@storybook/react-native": "7.6.20",
