@@ -1,22 +1,13 @@
 const path = require('path');
 const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
-const {generate} = require('@storybook/react-native/scripts/generate');
-
-generate({
-  // update ./.storybook to your storybook folder
-  configPath: path.resolve(__dirname, './.storybook'),
-});
+const withStorybook = require('@sherlo/react-native-storybook/withStorybook');
 
 const resolvePath = relativePath => path.resolve(__dirname, relativePath);
 
-// Tell Metro to *forcefully* resolve and watch source versions of shared packages
 const linkedModules = {
-  '@sherlo/react-native-storybook': resolvePath(
-    '../../packages/react-native-storybook/src',
-  ),
+  '@sherlo/react-native-storybook': resolvePath('../../packages/react-native-storybook/src'),
 };
 
-// Tell Metro to resolve these package names to their real source paths
 const extraNodeModules = new Proxy(
   {},
   {
@@ -28,8 +19,7 @@ const extraNodeModules = new Proxy(
 
 const defaultConfig = getDefaultConfig(__dirname);
 
-/** @type {import('@react-native/metro-config').MetroConfig} */
-const config = {
+const customConfig = mergeConfig(defaultConfig, {
   transformer: {
     unstable_allowRequireContext: true,
   },
@@ -38,6 +28,9 @@ const config = {
     sourceExts: [...defaultConfig.resolver.sourceExts, 'mjs'],
   },
   watchFolders: Object.values(linkedModules),
-};
+});
 
-module.exports = mergeConfig(defaultConfig, config);
+module.exports = withStorybook(customConfig, {
+  enabled: true,
+  configPath: path.resolve(__dirname, './.storybook'),
+});

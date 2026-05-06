@@ -1,6 +1,9 @@
 const { getDefaultConfig } = require('expo/metro-config');
-const { withStorybook } = require('@storybook/react-native/metro/withStorybook');
+const withStorybook = require('@sherlo/react-native-storybook/withStorybook');
 
 const config = getDefaultConfig(__dirname);
 
-module.exports = withStorybook(config);
+module.exports = withStorybook(config, {
+  enabled: true,
+  configPath: __dirname + '/.rnstorybook',
+});
