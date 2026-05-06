@@ -44,7 +44,7 @@ jobs:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Install dependencies
-        run: yarn && cd packages/cli && yarn build
+        run: yarn && cd packages/cli && yarn build && cd ../react-native-storybook && yarn build
 
       - name: Setup EAS
         uses: expo/expo-github-action@v8

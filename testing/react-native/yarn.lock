@@ -4138,9 +4138,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sherlo/react-native-storybook@portal:../../packages/react-native-storybook::locator=%40sherlo%2Freact-native%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@sherlo/react-native-storybook@portal:../../packages/react-native-storybook::locator=%40sherlo%2Freact-native%40workspace%3A."
+"@sherlo/react-native-storybook@file:../../packages/react-native-storybook::locator=%40sherlo%2Freact-native%40workspace%3A.":
+  version: 2.0.0-alpha.1
+  resolution: "@sherlo/react-native-storybook@file:../../packages/react-native-storybook#../../packages/react-native-storybook::hash=553788&locator=%40sherlo%2Freact-native%40workspace%3A."
   dependencies:
     base-64: "npm:1.0.0"
     deepmerge: "npm:4.3.1"
@@ -4152,8 +4152,9 @@ __metadata:
     react: "*"
     react-native: ">=0.74.0"
     react-native-safe-area-context: "*"
+  checksum: 10/a512f72419a25df27c66259bb9e175aa10f6badb903ccfc5f2be0a48b9019285818f81ce10aa0455e135f376c32bf6783c43aec33cf6519a8b4eb6244e555b54
   languageName: node
-  linkType: soft
+  linkType: hard
 
 "@sherlo/react-native@workspace:.":
   version: 0.0.0-use.local
@@ -4172,7 +4173,7 @@ __metadata:
     "@react-native/eslint-config": "npm:0.77.2"
     "@react-native/metro-config": "npm:0.77.2"
     "@react-native/typescript-config": "npm:0.77.2"
-    "@sherlo/react-native-storybook": "portal:../../packages/react-native-storybook"
+    "@sherlo/react-native-storybook": "file:../../packages/react-native-storybook"
     "@storybook/addon-ondevice-actions": "npm:7.6.20"
     "@storybook/addon-ondevice-controls": "npm:7.6.20"
     "@storybook/react-native": "npm:7.6.20"
