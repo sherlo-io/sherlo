@@ -67,21 +67,6 @@ import { Button } from 'react-native';
 
 ---
 
-### `addStorybookToDevMenu()`
-
-Add a "Toggle Storybook" option to the React Native Dev Menu.
-
-**Example:**
-
-```tsx
-import { addStorybookToDevMenu } from '@sherlo/react-native-storybook';
-
-// In your app initialization
-addStorybookToDevMenu();
-```
-
----
-
 ### `isRunningVisualTests`
 
 Boolean that indicates if Sherlo visual tests are currently running. Use this to disable animations, mock network data, or apply other deterministic behavior that helps produce consistent screenshots.

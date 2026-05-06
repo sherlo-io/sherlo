@@ -1,6 +1,5 @@
 import { normalizeStack } from './normalizeStack';
 
-export { default as addStorybookToDevMenu } from './addStorybookToDevMenu';
 export { default as isRunningVisualTests } from './isRunningVisualTests';
 export { default as isStorybookMode } from './isStorybookMode';
 export { default as openStorybook } from './openStorybook';
@@ -45,7 +44,9 @@ function patchAppRegistryWithBoundary(SherloModule: any): void {
         componentStack: '',
       };
       const entry = { action: 'JS_ERROR', timestamp: Date.now(), entity: 'app', data };
-      return Promise.resolve(SherloModule.appendFile('protocol.sherlo', JSON.stringify(entry) + '\n'))
+      return Promise.resolve(
+        SherloModule.appendFile('protocol.sherlo', JSON.stringify(entry) + '\n')
+      )
         .then(function () {})
         .catch(function () {});
     } catch (_) {
@@ -54,8 +55,13 @@ function patchAppRegistryWithBoundary(SherloModule: any): void {
   }
 
   function doReportFatalError(error: any): void {
-    if ((global as any).ErrorUtils && typeof (global as any).ErrorUtils.reportFatalError === 'function') {
-      try { (global as any).ErrorUtils.reportFatalError(error); } catch (_) {}
+    if (
+      (global as any).ErrorUtils &&
+      typeof (global as any).ErrorUtils.reportFatalError === 'function'
+    ) {
+      try {
+        (global as any).ErrorUtils.reportFatalError(error);
+      } catch (_) {}
     }
   }
 
@@ -78,12 +84,17 @@ function patchAppRegistryWithBoundary(SherloModule: any): void {
   };
 
   const origRegister = AR.registerComponent.bind(AR);
-  AR.registerComponent = function sherloRegisterComponent(appKey: string, componentProvider: () => any) {
+  AR.registerComponent = function sherloRegisterComponent(
+    appKey: string,
+    componentProvider: () => any
+  ) {
     return origRegister(appKey, () => {
       // When sherloAtRoot is enabled, substitute the root with the Storybook entry
       // loaded from the config path instead of calling the original componentProvider.
       let config: any;
-      try { config = SherloModule.getConfig(); } catch (_) {}
+      try {
+        config = SherloModule.getConfig();
+      } catch (_) {}
 
       if (config && config.sherloAtRoot === true) {
         const storybookMod = require('@storybook/react-native');
@@ -95,20 +106,28 @@ function patchAppRegistryWithBoundary(SherloModule: any): void {
         if (typeof loader !== 'function') {
           throw new Error(
             '[sherlo] sherloAtRoot requires configPath to be set in metro.config.js so the' +
-            ' Storybook entry can be bundled. Rebuild the app after adding configPath.'
+              ' Storybook entry can be bundled. Rebuild the app after adding configPath.'
           );
         }
         const storybookIndexMod = loader();
         const UserStorybookEntry = storybookIndexMod && storybookIndexMod.default;
         if (!UserStorybookEntry) {
           throw new Error(
-            '[sherlo] sherloAtRoot requires ' + configPath + '/index to default-export the Storybook UI component' +
-            ' (canonical Storybook RN template shape: see https://github.com/storybookjs/react-native template).' +
-            ' Got module with keys: [' + Object.keys(storybookIndexMod || {}).join(', ') + ']'
+            '[sherlo] sherloAtRoot requires ' +
+              configPath +
+              '/index to default-export the Storybook UI component' +
+              ' (canonical Storybook RN template shape: see https://github.com/storybookjs/react-native template).' +
+              ' Got module with keys: [' +
+              Object.keys(storybookIndexMod || {}).join(', ') +
+              ']'
           );
         }
         function SherloRootWrapperAtRoot(props: any) {
-          return React.createElement(SherloErrorBoundary, null, React.createElement(UserStorybookEntry, props));
+          return React.createElement(
+            SherloErrorBoundary,
+            null,
+            React.createElement(UserStorybookEntry, props)
+          );
         }
         (SherloRootWrapperAtRoot as any).displayName = 'SherloRoot(sherloAtRoot)';
         (SherloRootWrapperAtRoot as any)._sherloWrapped = true;
@@ -118,7 +137,11 @@ function patchAppRegistryWithBoundary(SherloModule: any): void {
       const Component = componentProvider();
       if (!Component || (Component as any)._sherloWrapped) return Component;
       function SherloRootWrapper(props: any) {
-        return React.createElement(SherloErrorBoundary, null, React.createElement(Component, props));
+        return React.createElement(
+          SherloErrorBoundary,
+          null,
+          React.createElement(Component, props)
+        );
       }
       (SherloRootWrapper as any).displayName =
         'SherloRoot(' + ((Component as any).displayName || (Component as any).name || appKey) + ')';

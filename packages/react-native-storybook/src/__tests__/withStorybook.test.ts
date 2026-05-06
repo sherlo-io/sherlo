@@ -235,17 +235,17 @@ describe('generated storybook-wrapper.js - content', () => {
     expect(wrapperContent).not.toMatch(topLevelSherloRequire);
   });
 
-  it('requires @sherlo/react-native-storybook lazily inside patchedStart', () => {
-    const lazyRequire = /[ \t]+var sherlo = require\('@sherlo\/react-native-storybook'\)/;
+  it('deep-requires addStorybookToDevMenu lazily inside patchedStart', () => {
+    const lazyRequire = /[ \t]+var addStorybookToDevMenuMod = require\('@sherlo\/react-native-storybook\/dist\/addStorybookToDevMenu'\)/;
     expect(wrapperContent).toMatch(lazyRequire);
   });
 
-  it('requires @sherlo/react-native-storybook AFTER the re-export loop', () => {
+  it('deep-requires addStorybookToDevMenu AFTER the re-export loop', () => {
     const reExportIdx = wrapperContent.indexOf('Object.keys(real).forEach');
-    const sherloRequireIdx = wrapperContent.indexOf("var sherlo = require('@sherlo/react-native-storybook')");
+    const devMenuRequireIdx = wrapperContent.indexOf("var addStorybookToDevMenuMod = require('@sherlo/react-native-storybook/dist/addStorybookToDevMenu')");
     expect(reExportIdx).toBeGreaterThan(-1);
-    expect(sherloRequireIdx).toBeGreaterThan(-1);
-    expect(sherloRequireIdx).toBeGreaterThan(reExportIdx);
+    expect(devMenuRequireIdx).toBeGreaterThan(-1);
+    expect(devMenuRequireIdx).toBeGreaterThan(reExportIdx);
   });
 
   it('passes params ?? {} to getStorybook so undefined params use Storybook defaults', () => {
