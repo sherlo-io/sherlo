@@ -22,6 +22,8 @@ export type Config = {
   overrideLastState?: LastState;
   initialStoryRenderDelayMs?: number;
   sherloAtRoot?: boolean;
+  /** Kebab-case Storybook story ID (e.g. "components-button--basic"). When set and mode is 'storybook', renders this story on first paint. */
+  initialStoryId?: string;
 };
 
 export type LastState = {

@@ -38,6 +38,15 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     }
   }
 
+  if (mode === 'storybook') {
+    try {
+      const config = SherloModule.getConfig();
+      if (config.initialStoryId) {
+        params = { ...(params ?? {}), initialSelection: config.initialStoryId };
+      }
+    } catch (_e) {}
+  }
+
   const isTestingMode = mode === 'testing';
 
   return () => {
