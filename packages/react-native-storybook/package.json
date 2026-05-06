@@ -1,6 +1,6 @@
 {
   "name": "@sherlo/react-native-storybook",
-  "version": "2.0.0-alpha.0",
+  "version": "2.0.0-alpha.1",
   "description": "Sherlo SDK - visual regression testing for React Native Storybook on iOS and Android simulators",
   "keywords": [
     "visual testing",
@@ -27,10 +27,10 @@
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./metro": {
-      "types": "./metro.d.ts",
-      "require": "./metro.js",
-      "default": "./metro.js"
+    "./withStorybook": {
+      "types": "./withStorybook.d.ts",
+      "require": "./withStorybook.js",
+      "default": "./withStorybook.js"
     },
     "./metro/polyfill": {
       "require": "./metro/polyfill.js",
@@ -50,9 +50,10 @@
     "ios/*.mm",
     "ios/Resources/**/*",
     "sherlo-react-native-storybook.podspec",
-    "metro.js",
-    "metro.d.ts",
-    "metro/polyfill.js"
+    "withStorybook.js",
+    "withStorybook.d.ts",
+    "metro/polyfill.js",
+    "metro/applySherloTransforms.js"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p .",

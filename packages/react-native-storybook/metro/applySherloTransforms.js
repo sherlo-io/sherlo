@@ -4,106 +4,82 @@ var fs = require('fs');
 var path = require('path');
 
 /**
- * Factory that creates a Sherlo-enhanced Metro config wrapper with the same signature
- * as the provided withStorybook function.
+ * Applies Sherlo Metro transforms to an already-configured Metro config object.
  *
- * Intercepts imports of `@storybook/react-native` at the Metro resolver level and
- * redirects them to a generated wrapper. The wrapper re-exports everything from the
- * real package, bakes in SHERLO_STORYBOOK_CONFIG_PATH for the sherloAtRoot diagnostic,
- * and patches `start()` to:
- *  - Call `addStorybookToDevMenu()` once
- *  - Wrap `view.getStorybookUI` to route through `getStorybook(view, params)`
+ * Takes the result of withStorybook() + opts and returns the Sherlo-augmented config.
+ * Installs the resolver redirect, polyfill injection, and storybook-wrapper.js generation.
  *
- * @example
- * // metro.config.js
- * const { getDefaultConfig } = require('@react-native/metro-config');
- * const { withStorybook } = require('@storybook/react-native/metro/withStorybook');
- * const { createSherloStorybook } = require('@sherlo/react-native-storybook/metro');
+ * Sherlo plumbing is ALWAYS installed regardless of opts.enabled. The wrapper's
+ * patchedStart handles the disabled-storybook case (real.start not a function) by
+ * emitting ERROR_STORYBOOK_DISABLED via SherloModule. opts.enabled only controls
+ * withStorybook above.
  *
- * const withSherloStorybook = createSherloStorybook(withStorybook);
- *
- * const defaultConfig = getDefaultConfig(__dirname);
- * module.exports = withSherloStorybook(defaultConfig, { enabled: true, configPath: __dirname + '/.rnstorybook' });
- *
- * @param {Function} withStorybook - The withStorybook function from @storybook/react-native
- * @returns {Function} A function with the same signature as withStorybook
+ * @param {object} result - The Metro config returned by withStorybook()
+ * @param {object} [opts] - The same opts passed to withStorybook (e.g. { enabled, configPath })
+ * @returns {object} Sherlo-augmented Metro config
  */
-function createSherloStorybook(withStorybook) {
-  return function withSherloStorybook(config, opts) {
-    // Call withStorybook first to get the base config.
-    var result = withStorybook(config, opts);
+function applySherloTransforms(result, opts) {
+  var projectRoot =
+    (result && result.projectRoot) || process.cwd();
 
-    // Sherlo plumbing (resolver override, polyfill, wrapper) is ALWAYS installed,
-    // regardless of opts.enabled. The wrapper's patchedStart handles the
-    // disabled-storybook case (real.start not a function) by emitting
-    // ERROR_STORYBOOK_DISABLED via SherloModule, which is only reachable when
-    // the wrapper is present. opts.enabled only controls withStorybook above.
+  var resolvedConfigPath =
+    opts && opts.configPath ? path.resolve(projectRoot, opts.configPath) : null;
 
-    var projectRoot =
-      (result && result.projectRoot) || (config && config.projectRoot) || process.cwd();
+  var wrapperPath = path.join(
+    projectRoot,
+    'node_modules',
+    '.cache',
+    'sherlo',
+    'storybook-wrapper.js'
+  );
 
-    // Resolve configPath to an absolute path so the SDK can require() it at runtime.
-    var resolvedConfigPath =
-      opts && opts.configPath ? path.resolve(projectRoot, opts.configPath) : null;
+  generateWrapper(wrapperPath, resolvedConfigPath);
 
-    var wrapperPath = path.join(
-      projectRoot,
-      'node_modules',
-      '.cache',
-      'sherlo',
-      'storybook-wrapper.js'
-    );
+  var existingResolveRequest =
+    result && result.resolver && result.resolver.resolveRequest
+      ? result.resolver.resolveRequest
+      : null;
 
-    generateWrapper(wrapperPath, resolvedConfigPath);
-
-    var existingResolveRequest =
-      result.resolver && result.resolver.resolveRequest
-        ? result.resolver.resolveRequest
-        : null;
-
-    function resolveRequest(context, moduleName, platform) {
-      // Self-bypass: let the wrapper itself import the real @storybook/react-native
-      if (context.originModulePath === wrapperPath) {
-        return existingResolveRequest
-          ? existingResolveRequest(context, moduleName, platform)
-          : context.resolveRequest(context, moduleName, platform);
-      }
-
-      // Intercept @storybook/react-native and redirect to wrapper
-      if (moduleName === '@storybook/react-native') {
-        return { type: 'sourceFile', filePath: wrapperPath };
-      }
-
+  function resolveRequest(context, moduleName, platform) {
+    if (context.originModulePath === wrapperPath) {
       return existingResolveRequest
         ? existingResolveRequest(context, moduleName, platform)
         : context.resolveRequest(context, moduleName, platform);
     }
 
-    // The polyfill is added to every bundle built with createSherloStorybook(). It is INERT
-    // in production: the first line of the IIFE gates on
-    // globalThis.__sherloRuntimeMode_v1 === 'testing' (set by the JSI binding
-    // before bundle eval). See metro/polyfill.js for the detailed safety analysis.
-    var polyfillPath = path.join(__dirname, 'metro', 'polyfill.js');
-
-    var existingGetPolyfills =
-      result.serializer && typeof result.serializer.getPolyfills === 'function'
-        ? result.serializer.getPolyfills
-        : null;
-
-    function getPolyfills(ctx) {
-      var base = existingGetPolyfills ? existingGetPolyfills(ctx) : [];
-      return base.concat([polyfillPath]);
+    if (moduleName === '@storybook/react-native') {
+      return { type: 'sourceFile', filePath: wrapperPath };
     }
 
-    return Object.assign({}, result, {
-      resolver: Object.assign({}, result.resolver, {
-        resolveRequest: resolveRequest,
-      }),
-      serializer: Object.assign({}, result.serializer, {
-        getPolyfills: getPolyfills,
-      }),
-    });
-  };
+    return existingResolveRequest
+      ? existingResolveRequest(context, moduleName, platform)
+      : context.resolveRequest(context, moduleName, platform);
+  }
+
+  // The polyfill is added to every bundle. It is INERT in production: production
+  // safety lives entirely on the native side (SherloModuleCore.reportEarlyJsError
+  // returns early if mode is not 'testing'). See metro/polyfill.js for details.
+  var polyfillPath = path.join(__dirname, 'polyfill.js');
+
+  var existingGetPolyfills =
+    result && result.serializer && typeof result.serializer.getPolyfills === 'function'
+      ? result.serializer.getPolyfills
+      : null;
+
+  function getPolyfills(ctx) {
+    var base = existingGetPolyfills ? existingGetPolyfills(ctx) : [];
+    return base.concat([polyfillPath]);
+  }
+
+  var baseResult = result || {};
+  return Object.assign({}, baseResult, {
+    resolver: Object.assign({}, baseResult.resolver, {
+      resolveRequest: resolveRequest,
+    }),
+    serializer: Object.assign({}, baseResult.serializer, {
+      getPolyfills: getPolyfills,
+    }),
+  });
 }
 
 /**
@@ -119,10 +95,8 @@ function generateWrapper(wrapperPath, configPath) {
   }
 
   // Build the lazy entry loader (only when configPath is known).
-  // The static string literal inside require() lets Metro bundle the module at build
-  // time. Wrapping it in a function defers EXECUTION to the sherloAtRoot branch so
-  // the user's .rnstorybook side-effects (addons, getStorybookUI) do not fire at
-  // @storybook/react-native module load time and crash non-sherloAtRoot apps.
+  // Wrapping in a function defers EXECUTION to the sherloAtRoot branch so
+  // user's .rnstorybook side-effects do not fire at module load time.
   var entryLoaderLine = configPath !== null
     ? 'exports.__sherloStorybookEntry = function () { return require(' + JSON.stringify(configPath + '/index') + '); };\n'
     : 'exports.__sherloStorybookEntry = null;\n';
@@ -185,7 +159,7 @@ function generateWrapper(wrapperPath, configPath) {
     '  try {\n' +
     '    sherlo.addStorybookToDevMenu();\n' +
     '  } catch (e) {\n' +
-    "    console.error('[createSherloStorybook] addStorybookToDevMenu failed:', e);\n" +
+    "    console.error('[sherlo withStorybook] addStorybookToDevMenu failed:', e);\n" +
     '  }\n' +
     '\n' +
     '  view.__sherloOriginalGetStorybookUI = view.getStorybookUI.bind(view);\n' +
@@ -209,6 +183,6 @@ function generateWrapper(wrapperPath, configPath) {
   fs.writeFileSync(wrapperPath, content, 'utf8');
 }
 
-module.exports = { createSherloStorybook: createSherloStorybook };
-module.exports.createSherloStorybook = createSherloStorybook;
-module.exports.default = createSherloStorybook;
+module.exports = applySherloTransforms;
+module.exports.applySherloTransforms = applySherloTransforms;
+module.exports.generateWrapper = generateWrapper;

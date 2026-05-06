@@ -4,38 +4,17 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-// metro.js is a CJS file at the package root (../../ from src/__tests__/)
-const metro = require('../../metro.js');
+// applySherloTransforms is the core logic extracted from the old createSherloStorybook factory.
+// We test it directly so we don't need to mock @storybook/react-native peer dep.
+const applySherloTransforms = require('../../metro/applySherloTransforms');
 
 const POLYFILL_PATH = path.resolve(__dirname, '../../metro/polyfill.js');
 
-// Minimal stub for withStorybook: returns the config object with any opts merged in,
-// so callers can verify Sherlo transforms are applied ON TOP of the withStorybook result.
-function makeWithStorybook(opts?: { returnValue?: any }) {
-  return function withStorybook(config: any, _options?: any) {
-    return opts?.returnValue ?? config;
-  };
-}
-
-function makeWithSherloStorybook(withStorybookOpts?: { returnValue?: any }) {
-  const withStorybook = makeWithStorybook(withStorybookOpts);
-  return metro.createSherloStorybook(withStorybook);
-}
-
-// Helper: run the factory-produced function with a temp projectRoot,
-// clean up afterwards, and return the Metro config result.
-function runFactory(
-  sherloOpts?: Record<string, unknown>,
-  withStorybookReturnOverride?: any
-): any {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-factory-test-'));
-  const withSherloStorybook = makeWithSherloStorybook(
-    withStorybookReturnOverride !== undefined
-      ? { returnValue: withStorybookReturnOverride }
-      : undefined
-  );
-  const baseConfig = { projectRoot: tmpDir, resolver: {} };
-  const result = withSherloStorybook(baseConfig, sherloOpts);
+// Helper: run applySherloTransforms with a temp projectRoot, clean up, return result.
+function runTransform(sherloOpts?: Record<string, unknown>, configOverride?: any): any {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-transform-test-'));
+  const baseConfig = configOverride ?? { projectRoot: tmpDir, resolver: {} };
+  const result = applySherloTransforms(baseConfig, sherloOpts);
   fs.rmSync(tmpDir, { recursive: true, force: true });
   return result;
 }
@@ -43,9 +22,8 @@ function runFactory(
 // Helper: generate wrapper content on disk and return its text.
 function readGeneratedWrapper(configPath?: string): string {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-wrapper-test-'));
-  const withSherloStorybook = makeWithSherloStorybook();
   const baseConfig = { projectRoot: tmpDir, resolver: {} };
-  withSherloStorybook(baseConfig, configPath !== undefined ? { configPath } : undefined);
+  applySherloTransforms(baseConfig, configPath !== undefined ? { configPath } : undefined);
   const wrapperPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'storybook-wrapper.js');
   const content = fs.readFileSync(wrapperPath, 'utf8');
   fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -53,45 +31,55 @@ function readGeneratedWrapper(configPath?: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// createSherloStorybook - factory shape
+// withStorybook.js - file structure (not loaded to avoid peer dep resolution)
 // ---------------------------------------------------------------------------
 
-describe('createSherloStorybook - factory', () => {
-  it('exports createSherloStorybook', () => {
-    expect(typeof metro.createSherloStorybook).toBe('function');
-  });
-
-  it('does NOT export withSherlo (removed API)', () => {
-    expect(metro.withSherlo).toBeUndefined();
-  });
-
-  it('returns a function with the same arity as the provided withStorybook', () => {
-    const withStorybook = makeWithStorybook();
-    const wrapped = metro.createSherloStorybook(withStorybook);
-    expect(typeof wrapped).toBe('function');
+describe('withStorybook.js - file structure', () => {
+  it('withStorybook.js file exists at package root', () => {
+    const withStorybookPath = require.resolve('../../withStorybook.js');
+    expect(withStorybookPath).toBeTruthy();
+    const fs2 = require('fs');
+    const src = fs2.readFileSync(withStorybookPath, 'utf8');
+    // Must export a function as module.exports
+    expect(src).toContain('module.exports = withStorybook');
+    // Must expose named export
+    expect(src).toContain('module.exports.withStorybook = withStorybook');
+    // Must delegate to applySherloTransforms
+    expect(src).toContain('applySherloTransforms');
+    // Must resolve storybook peer dep
+    expect(src).toContain('@storybook/react-native/metro/withStorybook');
   });
 });
 
 // ---------------------------------------------------------------------------
-// enabled: false → complete passthrough (no Sherlo transforms)
+// applySherloTransforms - module shape
 // ---------------------------------------------------------------------------
 
-// Sherlo plumbing must be installed even when enabled:false so the wrapper's
-// patchedStart can detect the disabled-storybook case and emit ERROR_STORYBOOK_DISABLED
-// via SherloModule. opts.enabled only controls withStorybook, not Sherlo plumbing.
-describe('createSherloStorybook - enabled: false still installs Sherlo plumbing', () => {
+describe('applySherloTransforms - module shape', () => {
+  it('exports applySherloTransforms as default', () => {
+    expect(typeof applySherloTransforms).toBe('function');
+  });
+
+  it('does NOT export createSherloStorybook (removed API)', () => {
+    expect((applySherloTransforms as any).createSherloStorybook).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// enabled: false → Sherlo plumbing still installed
+// ---------------------------------------------------------------------------
+
+describe('applySherloTransforms - enabled: false still installs Sherlo plumbing', () => {
   it('adds resolver.resolveRequest even when enabled: false', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-disabled-test-'));
-    const withSherloStorybook = metro.createSherloStorybook((c: any) => c);
-    const result = withSherloStorybook({ projectRoot: tmpDir, resolver: {} }, { enabled: false });
+    const result = applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: false });
     fs.rmSync(tmpDir, { recursive: true, force: true });
     expect(typeof result.resolver?.resolveRequest).toBe('function');
   });
 
   it('injects Sherlo polyfill via serializer.getPolyfills even when enabled: false', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-disabled-pol-test-'));
-    const withSherloStorybook = metro.createSherloStorybook((c: any) => c);
-    const result = withSherloStorybook({ projectRoot: tmpDir, resolver: {} }, { enabled: false });
+    const result = applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: false });
     fs.rmSync(tmpDir, { recursive: true, force: true });
     const polyfills = result.serializer.getPolyfills({});
     expect(polyfills).toContain(POLYFILL_PATH);
@@ -99,8 +87,7 @@ describe('createSherloStorybook - enabled: false still installs Sherlo plumbing'
 
   it('generates storybook-wrapper.js even when enabled: false', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-disabled-wrap-test-'));
-    const withSherloStorybook = metro.createSherloStorybook((c: any) => c);
-    withSherloStorybook({ projectRoot: tmpDir, resolver: {} }, { enabled: false });
+    applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: false });
     const wrapperPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'storybook-wrapper.js');
     const exists = fs.existsSync(wrapperPath);
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -109,28 +96,28 @@ describe('createSherloStorybook - enabled: false still installs Sherlo plumbing'
 });
 
 // ---------------------------------------------------------------------------
-// enabled: true / undefined → Sherlo Metro transforms applied
+// Sherlo Metro transforms applied
 // ---------------------------------------------------------------------------
 
-describe('createSherloStorybook - Sherlo transforms applied', () => {
+describe('applySherloTransforms - Sherlo transforms applied', () => {
   it('adds resolver.resolveRequest when enabled is true', () => {
-    const result = runFactory({ enabled: true });
+    const result = runTransform({ enabled: true });
     expect(typeof result.resolver?.resolveRequest).toBe('function');
   });
 
   it('adds resolver.resolveRequest when enabled is undefined (default)', () => {
-    const result = runFactory();
+    const result = runTransform();
     expect(typeof result.resolver?.resolveRequest).toBe('function');
   });
 
   it('injects Sherlo polyfill into getPolyfills when enabled: true', () => {
-    const result = runFactory({ enabled: true });
+    const result = runTransform({ enabled: true });
     const polyfills = result.serializer.getPolyfills({});
     expect(polyfills).toContain(POLYFILL_PATH);
   });
 
   it('injects Sherlo polyfill when no options provided', () => {
-    const result = runFactory();
+    const result = runTransform();
     const polyfills = result.serializer.getPolyfills({});
     expect(polyfills).toContain(POLYFILL_PATH);
   });
@@ -138,14 +125,12 @@ describe('createSherloStorybook - Sherlo transforms applied', () => {
   it('preserves base polyfills from existing serializer.getPolyfills', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-base-test-'));
     const basePolyfill = '/fake/base.js';
-    const withSherloStorybook = makeWithSherloStorybook({
-      returnValue: {
-        projectRoot: tmpDir,
-        resolver: {},
-        serializer: { getPolyfills: () => [basePolyfill] },
-      },
-    });
-    const result = withSherloStorybook({ projectRoot: tmpDir, resolver: {} });
+    const configWithPolyfills = {
+      projectRoot: tmpDir,
+      resolver: {},
+      serializer: { getPolyfills: () => [basePolyfill] },
+    };
+    const result = applySherloTransforms(configWithPolyfills, {});
     fs.rmSync(tmpDir, { recursive: true, force: true });
     const polyfills = result.serializer.getPolyfills({});
     expect(polyfills).toContain(basePolyfill);
@@ -154,8 +139,7 @@ describe('createSherloStorybook - Sherlo transforms applied', () => {
 
   it('generates storybook-wrapper.js on disk', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-wrapper-gen-test-'));
-    const withSherloStorybook = makeWithSherloStorybook();
-    withSherloStorybook({ projectRoot: tmpDir, resolver: {} });
+    applySherloTransforms({ projectRoot: tmpDir, resolver: {} });
     const wrapperPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'storybook-wrapper.js');
     const exists = fs.existsSync(wrapperPath);
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -164,8 +148,7 @@ describe('createSherloStorybook - Sherlo transforms applied', () => {
 
   it('redirects @storybook/react-native to the generated wrapper', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-redirect-test-'));
-    const withSherloStorybook = makeWithSherloStorybook();
-    const result = withSherloStorybook({ projectRoot: tmpDir, resolver: {} });
+    const result = applySherloTransforms({ projectRoot: tmpDir, resolver: {} });
     const wrapperPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'storybook-wrapper.js');
     const fakeContext = {
       originModulePath: '/some/other/module.js',
@@ -178,8 +161,7 @@ describe('createSherloStorybook - Sherlo transforms applied', () => {
 
   it('self-bypass: wrapper module importing @storybook/react-native falls through', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-bypass-test-'));
-    const withSherloStorybook = makeWithSherloStorybook();
-    const result = withSherloStorybook({ projectRoot: tmpDir, resolver: {} });
+    const result = applySherloTransforms({ projectRoot: tmpDir, resolver: {} });
     const wrapperPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'storybook-wrapper.js');
     const fakeContext = {
       originModulePath: wrapperPath,
@@ -223,15 +205,12 @@ describe('generated storybook-wrapper.js - content', () => {
   });
 
   it('__sherloStorybookEntry is a lazy loader function, not an eager require', () => {
-    // Must NOT be an immediate assignment - the value must be a function wrapper
-    // so storybook side-effects do not fire at module load time.
     expect(wrapperContent).not.toMatch(/exports\.__sherloStorybookEntry = require\(/);
   });
 
   it('sets SHERLO_STORYBOOK_CONFIG_PATH to resolved path when configPath is provided', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-configpath-test-'));
-    const withSherloStorybook = makeWithSherloStorybook();
-    withSherloStorybook({ projectRoot: tmpDir, resolver: {} }, { configPath: '.rnstorybook' });
+    applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { configPath: '.rnstorybook' });
     const wrapperPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'storybook-wrapper.js');
     const content = fs.readFileSync(wrapperPath, 'utf8');
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -241,8 +220,7 @@ describe('generated storybook-wrapper.js - content', () => {
 
   it('bakes a lazy loader with static require literal for the entry when configPath is provided', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-entry-test-'));
-    const withSherloStorybook = makeWithSherloStorybook();
-    withSherloStorybook({ projectRoot: tmpDir, resolver: {} }, { configPath: '.rnstorybook' });
+    applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { configPath: '.rnstorybook' });
     const wrapperPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'storybook-wrapper.js');
     const content = fs.readFileSync(wrapperPath, 'utf8');
     fs.rmSync(tmpDir, { recursive: true, force: true });

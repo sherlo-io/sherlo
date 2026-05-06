@@ -100,16 +100,40 @@ if (isRunningVisualTests) {
 
 <br />
 
+## Metro Config
+
+Add the following to your `metro.config.js`:
+
+```js
+const { getDefaultConfig } = require('@react-native/metro-config');
+const withStorybook = require('@sherlo/react-native-storybook/withStorybook');
+
+const defaultConfig = getDefaultConfig(__dirname);
+
+module.exports = withStorybook(defaultConfig, {
+  enabled: true,
+  configPath: __dirname + '/.rnstorybook',
+});
+```
+
+`withStorybook` is a drop-in replacement for `@storybook/react-native/metro/withStorybook` - it resolves the real one internally via the peer dependency and applies Sherlo's Metro transforms on top.
+
+---
+
 ## Changelog
 
-### 2.0.0-alpha.0 - Breaking changes vs 1.6.x
+### v2.0.0-alpha.1
 
-- **`withSherlo` removed** - replaced by `createSherloStorybook(withStorybook)` factory in `@sherlo/react-native-storybook/metro`. The factory wraps the Storybook-provided `withStorybook` function and returns a drop-in replacement with identical signature. Update `metro.config.js`:
+- **Simplified API** - `createSherloStorybook` factory removed. Use `withStorybook` from `@sherlo/react-native-storybook/withStorybook` instead. Single import, no factory, no destructuring.
   ```js
-  const { createSherloStorybook } = require('@sherlo/react-native-storybook/metro');
-  const withSherloStorybook = createSherloStorybook(withStorybook);
-  module.exports = withSherloStorybook(defaultConfig, { enabled, configPath });
+  const withStorybook = require('@sherlo/react-native-storybook/withStorybook');
+  module.exports = withStorybook(defaultConfig, { enabled: true, configPath: ... });
   ```
+- **No separate `@storybook/react-native` import needed** - sherlo's `withStorybook` resolves the real storybook function internally via peer dep.
+
+### v2.0.0-alpha.0 - Breaking changes vs 1.6.x
+
+- **`withSherlo` removed** - replaced by `createSherloStorybook(withStorybook)` factory (now further simplified in v2.0.0-alpha.1).
 - **`getStorybook` no longer exported** from the main package entrypoint. It is used internally by the Metro wrapper via a deep import (`@sherlo/react-native-storybook/dist/getStorybook`).
 - **`/lite` entrypoint removed** - the main entrypoint no longer imports the Storybook runtime at module level, so the bundle-size concern that motivated `/lite` no longer applies.
 - **`sherloAtRoot` diagnostic mode** - pass `--diagnostics sherloAtRoot` to the CLI (requires `SHERLO_DEVTOOLS=1`) to have Sherlo substitute the AppRegistry root with the Storybook entry component loaded directly from `configPath/index`. Requires `configPath/index` to default-export the Storybook UI component.

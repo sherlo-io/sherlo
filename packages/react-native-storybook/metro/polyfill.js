@@ -1,15 +1,15 @@
 'use strict';
 
 //
-// Sherlo metro polyfill — JS error capture via ErrorUtils.setGlobalHandler + __d wrap.
+// Sherlo metro polyfill - JS error capture via ErrorUtils.setGlobalHandler + __d wrap.
 //
 // PRODUCTION SAFETY (read carefully):
-// This file ships in EVERY customer bundle that uses createSherloStorybook(), including
+// This file ships in every customer bundle that uses sherlo's withStorybook, including
 // production App Store / Play Store builds.
 //
 // Production safety lives entirely on the native side: SherloModuleCore.reportEarlyJsError
 // (both Android Java and iOS .mm) returns early if mode is not 'testing'. The JS side
-// forwards unconditionally — this is intentional. A JS-side mode gate was previously
+// forwards unconditionally - this is intentional. A JS-side mode gate was previously
 // tried and caused an Android race condition: the JSI binding
 // (TurboModuleWithJSIBindings.getBindingsInstaller) can race module evaluation on
 // Android, so the polyfill would sometimes check __sherloRuntimeMode_v1 before the
@@ -19,12 +19,12 @@
 //
 // TWO complementary capture paths:
 //
-// 1. ErrorUtils.setGlobalHandler — catches module-eval throws in the ENTRY
+// 1. ErrorUtils.setGlobalHandler - catches module-eval throws in the ENTRY
 //    module (Metro's guardedLoadModule → ErrorUtils.reportFatalError), async
 //    unhandled rejections, and event-handler errors. Installed early in the
 //    polyfill, before user entry.
 //
-// 2. __d wrap — wraps every module's factory function with try/catch.
+// 2. __d wrap - wraps every module's factory function with try/catch.
 //    Catches throws in module body regardless of how Metro's local metroRequire
 //    (_$$_REQUIRE) was wired. Metro injects _$$_REQUIRE as a local reference
 //    into each factory, so any global.__r replacement is bypassed for nested
@@ -38,7 +38,7 @@
 //
 // Production cost: one try/catch wrapper per module factory call at startup
 // (thousands of no-throw calls × nanoseconds = sub-millisecond). In production
-// the native call is a no-op — native returns early before writing anything.
+// the native call is a no-op - native returns early before writing anything.
 //
 // No customer configuration is required. No env vars. No build flags.
 //
@@ -62,7 +62,7 @@
     } catch (_) {}
   }
 
-  // 1. ErrorUtils.setGlobalHandler — catches async/event errors and entry-level throws
+  // 1. ErrorUtils.setGlobalHandler - catches async/event errors and entry-level throws
   if (global.ErrorUtils && typeof global.ErrorUtils.setGlobalHandler === 'function' && !global.__sherloGlobalHandlerInstalled) {
     global.__sherloGlobalHandlerInstalled = true;
     var prevHandler = typeof global.ErrorUtils.getGlobalHandler === 'function' ? global.ErrorUtils.getGlobalHandler() : null;
@@ -74,7 +74,7 @@
     });
   }
 
-  // 2. __d wrap — wraps every module's factory function with try/catch.
+  // 2. __d wrap - wraps every module's factory function with try/catch.
   //    Catches throws in module body regardless of nested _$$_REQUIRE chain
   //    (Metro's local metroRequire ref bypasses any global.__r replacement,
   //    so wrapping __d at the source is the only reliable way to catch
@@ -84,7 +84,7 @@
     var originalDefine = global.__d;
     global.__d = function sherloGuardedDefine(factory, moduleId, dependencyMap) {
       if (typeof factory !== 'function') {
-        // Fallback for any unexpected shape — pass through unwrapped.
+        // Fallback for any unexpected shape - pass through unwrapped.
         return originalDefine.apply(this, arguments);
       }
       function wrappedFactory(globalObj, requireFn, importDefault, importAll, moduleObj, exportsObj, depMap) {
