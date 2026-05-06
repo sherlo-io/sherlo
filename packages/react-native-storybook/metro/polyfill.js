@@ -4,7 +4,7 @@
 // Sherlo metro polyfill — JS error capture via ErrorUtils.setGlobalHandler + __d wrap.
 //
 // PRODUCTION SAFETY (read carefully):
-// This file ships in EVERY customer bundle that uses withSherlo(), including
+// This file ships in EVERY customer bundle that uses createSherloStorybook(), including
 // production App Store / Play Store builds.
 //
 // Production safety lives entirely on the native side: SherloModuleCore.reportEarlyJsError

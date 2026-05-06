@@ -66,7 +66,7 @@ async function metroConfig(sessionId: string | null): Promise<void> {
   if (!result.applied) {
     printMessage({ type: 'fail', message: `Could not automatically update ${state.path}` });
     logWarning({
-      message: 'metro.config.js has a non-standard shape - add withSherlo(...) wrap manually',
+      message: 'metro.config.js has a non-standard shape - add createSherloStorybook(withStorybook) wrap manually',
       learnMoreLink: DOCS_LINK.setupMetroConfig,
     });
     await trackProgress({

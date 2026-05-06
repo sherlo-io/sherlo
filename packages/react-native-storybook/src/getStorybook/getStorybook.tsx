@@ -68,7 +68,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
         if (!storybookRenderedRef.current) {
           SherloModule.sendNativeError(
             ERROR_STORYBOOK_NOT_DISPLAYED,
-            'Storybook did not appear within 10s of withSherlo mount'
+            'Storybook did not appear within 10s of createSherloStorybook mount'
           );
         }
       }, STORYBOOK_LOAD_TIMEOUT_MS);
