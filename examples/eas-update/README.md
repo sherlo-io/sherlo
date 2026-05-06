@@ -163,7 +163,7 @@ _💡 First test won't show "changes" since there's nothing to compare against y
 ## 📁 Key Files
 
 - **[`App.tsx`](./App.tsx)** – Root component rendering Storybook for testing _([docs](https://sherlo.io/docs/setup#storybook-access))_
-- **[`.rnstorybook/index.ts`](./.rnstorybook/index.ts)** – Storybook component modified for Sherlo integration _([docs](https://sherlo.io/docs/setup#storybook-component))_
+- **[`metro.config.js`](./metro.config.js)** – Metro config wrapped with Sherlo's `withStorybook` _([docs](https://sherlo.io/docs/setup#metro-config))_
 - **[`sherlo.config.json`](./sherlo.config.json)** – Config file with testing devices _([docs](https://sherlo.io/docs/config))_
 - **[`.github/workflows/eas-update.yml`](./.github/workflows/eas-update.yml)** – CI workflow for automated testing process
 - **[`package.json`](./package.json)** – Dependencies and scripts for Sherlo integration
