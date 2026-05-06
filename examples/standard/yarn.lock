@@ -2165,9 +2165,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sherlo/react-native-storybook@file:../../packages/react-native-storybook::locator=sherlo-example-standard%40workspace%3A.":
-  version: 2.0.0-alpha.1
-  resolution: "@sherlo/react-native-storybook@file:../../packages/react-native-storybook#../../packages/react-native-storybook::hash=553788&locator=sherlo-example-standard%40workspace%3A."
+"@sherlo/react-native-storybook@npm:^1.6.4-alpha.1":
+  version: 1.6.4-alpha.1
+  resolution: "@sherlo/react-native-storybook@npm:1.6.4-alpha.1"
   dependencies:
     base-64: "npm:1.0.0"
     deepmerge: "npm:4.3.1"
@@ -2177,9 +2177,9 @@ __metadata:
   peerDependencies:
     "@storybook/react-native": ">=7.6.11"
     react: "*"
-    react-native: ">=0.74.0"
+    react-native: ">=0.64.0"
     react-native-safe-area-context: "*"
-  checksum: 10/a512f72419a25df27c66259bb9e175aa10f6badb903ccfc5f2be0a48b9019285818f81ce10aa0455e135f376c32bf6783c43aec33cf6519a8b4eb6244e555b54
+  checksum: 10/697fdd8558c26c513019379353fb722c1210944e6a0e056c575bf394729dede61fbc58980a4a310896b4178a375eb4e7d6dba04a2e9c2bb1b016047a511a2055
   languageName: node
   linkType: hard
 
@@ -6846,7 +6846,7 @@ __metadata:
   dependencies:
     "@gorhom/bottom-sheet": "npm:^5.2.8"
     "@react-native-async-storage/async-storage": "npm:^2.2.0"
-    "@sherlo/react-native-storybook": "file:../../packages/react-native-storybook"
+    "@sherlo/react-native-storybook": "npm:^1.6.4-alpha.1"
     "@storybook/react-native": "npm:^10.2.1"
     "@types/react": "npm:~19.1.10"
     expo: "npm:54.0.31"
