@@ -1,6 +1,7 @@
 import React, { ReactElement, useEffect, useRef } from 'react';
 import SherloModule from '../SherloModule';
 import checkSdkCompatibility, { ERROR_STORYBOOK_NOT_DISPLAYED } from '../checkSdkCompatibility';
+import type { InitialSelection } from '@storybook/react-native';
 import { StorybookParams, StorybookView } from '../types';
 import { TestingMode } from './components';
 import { getStorybookComponent } from './helpers';
@@ -42,7 +43,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     try {
       const config = SherloModule.getConfig();
       if (config.initialStoryId) {
-        params = { ...(params ?? {}), initialSelection: config.initialStoryId };
+        params = { ...(params ?? {}), initialSelection: config.initialStoryId as InitialSelection };
       }
     } catch (_e) {}
   }
