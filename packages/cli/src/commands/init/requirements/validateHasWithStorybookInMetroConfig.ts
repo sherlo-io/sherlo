@@ -23,7 +23,10 @@ async function validateHasWithStorybookInMetroConfig(): Promise<void> {
 
   const content = await fs.promises.readFile(configPath, 'utf-8');
 
-  if (!content.includes('withStorybook(')) {
+  const isWired =
+    content.includes('withStorybook(') || content.includes('createSherloStorybook(');
+
+  if (!isWired) {
     throwError({
       message: `Found ${path.basename(configPath)} but it does not call withStorybook(...)`,
       learnMoreLink: 'https://github.com/storybookjs/react-native#setup',

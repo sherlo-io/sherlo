@@ -44,43 +44,44 @@ module.exports = withStorybook(getDefaultConfig(__dirname), {
 });`;
 
 describe('writeMetroConfigUpdate', () => {
-  it('wraps single-line module.exports correctly', async () => {
+  it('replaces storybook require with sherlo withStorybook require (single-line)', async () => {
     const filePath = await writeFixture('metro.config.js', SINGLE_LINE);
     const result = await writeMetroConfigUpdate({ path: filePath, content: SINGLE_LINE });
 
     expect(result.applied).toBe(true);
 
     const output = await fs.promises.readFile(filePath, 'utf-8');
-    expect(output).toContain(`require('@sherlo/react-native-storybook/metro')`);
-    expect(output).toContain('module.exports = withSherlo(withStorybook(defaultConfig))');
+    expect(output).toContain(`require('@sherlo/react-native-storybook/withStorybook')`);
+    expect(output).not.toContain(`require('@storybook/react-native/metro/withStorybook')`);
+    expect(output).toMatch(/module\.exports = withStorybook\(defaultConfig\)/);
   });
 
-  it('wraps multi-line module.exports correctly', async () => {
+  it('replaces storybook require with sherlo withStorybook require (multi-line)', async () => {
     const filePath = await writeFixture('metro.config.js', MULTI_LINE);
     const result = await writeMetroConfigUpdate({ path: filePath, content: MULTI_LINE });
 
     expect(result.applied).toBe(true);
 
     const output = await fs.promises.readFile(filePath, 'utf-8');
-    expect(output).toContain(`require('@sherlo/react-native-storybook/metro')`);
-    expect(output).toMatch(/module\.exports = withSherlo\(withStorybook\([\s\S]*?\)\)/);
+    expect(output).toContain(`require('@sherlo/react-native-storybook/withStorybook')`);
+    expect(output).not.toContain(`require('@storybook/react-native/metro/withStorybook')`);
+    expect(output).toMatch(/module\.exports = withStorybook\([\s\S]*?\)/);
   });
 
-  it('wraps correctly when ); appears inside a comment (regex-killer case)', async () => {
+  it('handles regex-killer case (comment with ); inside)', async () => {
     const filePath = await writeFixture('metro.config.js', REGEX_KILLER);
     const result = await writeMetroConfigUpdate({ path: filePath, content: REGEX_KILLER });
 
     expect(result.applied).toBe(true);
 
     const output = await fs.promises.readFile(filePath, 'utf-8');
-    expect(output).toContain('withSherlo(');
-    expect(output).toMatch(/module\.exports = withSherlo\(withStorybook\([\s\S]*?\)\)/);
+    expect(output).toContain(`require('@sherlo/react-native-storybook/withStorybook')`);
+    expect(output).toMatch(/module\.exports = withStorybook\([\s\S]*?\)/);
   });
 
   it('is idempotent: already-wrapped file returns applied:true without rewriting', async () => {
-    const alreadyWrapped = `const { withSherlo } = require('@sherlo/react-native-storybook/metro');
-const withStorybook = require('@storybook/react-native/metro/withStorybook');
-module.exports = withSherlo(withStorybook(getDefaultConfig(__dirname)));`;
+    const alreadyWrapped = `const withStorybook = require('@sherlo/react-native-storybook/withStorybook');
+module.exports = withStorybook(getDefaultConfig(__dirname));`;
 
     const filePath = await writeFixture('metro.config.js', alreadyWrapped);
     const mtimeBefore = (await fs.promises.stat(filePath)).mtimeMs;
@@ -88,7 +89,6 @@ module.exports = withSherlo(withStorybook(getDefaultConfig(__dirname)));`;
     const result = await writeMetroConfigUpdate({ path: filePath, content: alreadyWrapped });
 
     expect(result.applied).toBe(true);
-    // File must not have been rewritten
     const mtimeAfter = (await fs.promises.stat(filePath)).mtimeMs;
     expect(mtimeAfter).toBe(mtimeBefore);
   });
@@ -102,7 +102,6 @@ module.exports = config;`;
     const result = await writeMetroConfigUpdate({ path: filePath, content: nonCanonical });
 
     expect(result.applied).toBe(false);
-    // File must be unchanged
     expect(await fs.promises.readFile(filePath, 'utf-8')).toBe(nonCanonical);
   });
 
@@ -113,7 +112,7 @@ module.exports = config;`;
 
     expect(result.applied).toBe(true);
     const output = await fs.promises.readFile(filePath, 'utf-8');
-    expect(output).toContain(`require("@sherlo/react-native-storybook/metro")`);
+    expect(output).toContain(`require("@sherlo/react-native-storybook/withStorybook")`);
   });
 
   it('handles TypeScript metro config gracefully (wraps or returns applied:false)', async () => {
@@ -125,7 +124,6 @@ module.exports = withStorybook(config);`;
     const filePath = await writeFixture('metro.config.ts', tsContent);
     const result = await writeMetroConfigUpdate({ path: filePath, content: tsContent });
 
-    // Either outcome is acceptable — must not throw
     expect(typeof result.applied).toBe('boolean');
   });
 });

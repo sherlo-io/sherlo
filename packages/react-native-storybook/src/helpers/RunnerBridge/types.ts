@@ -21,6 +21,7 @@ export type Config = {
   easUpdateDeeplink?: string;
   overrideLastState?: LastState;
   initialStoryRenderDelayMs?: number;
+  sherloAtRoot?: boolean;
 };
 
 export type LastState = {
