@@ -263,6 +263,25 @@ describe('generated storybook-wrapper.js - content', () => {
     expect(wrapperContent).toContain('Object.keys(real).forEach');
     expect(wrapperContent).toContain("get: function () { return real[key]; }");
   });
+
+  it("typeof real.start !== 'function' branch returns {} silently without calling sendNativeError", () => {
+    // ERROR_STORYBOOK_DISABLED is now reported by the disabled-notifier polyfill;
+    // the runtime branch just exits cleanly.
+    const startNotFnIdx = wrapperContent.indexOf("typeof real.start !== 'function'");
+    expect(startNotFnIdx).toBeGreaterThan(-1);
+    // Grab the text of the branch up to and including 'return {}'
+    const branchText = wrapperContent.slice(startNotFnIdx, wrapperContent.indexOf('return {};', startNotFnIdx) + 'return {};'.length);
+    expect(branchText).toContain('return {}');
+    expect(branchText).not.toContain('sendNativeError');
+    expect(branchText).not.toContain('ERROR_STORYBOOK_DISABLED');
+  });
+
+  it("typeof real.start !== 'function' branch does NOT deep-require SherloModule", () => {
+    const startNotFnIdx = wrapperContent.indexOf("typeof real.start !== 'function'");
+    expect(startNotFnIdx).toBeGreaterThan(-1);
+    const branchText = wrapperContent.slice(startNotFnIdx, wrapperContent.indexOf('return {};', startNotFnIdx) + 'return {};'.length);
+    expect(branchText).not.toContain('@sherlo/react-native-storybook/dist/SherloModule.js');
+  });
 });
 
 // ---------------------------------------------------------------------------
