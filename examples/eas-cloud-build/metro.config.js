@@ -1,8 +1,10 @@
 /**
  * Sherlo Metro wrapper
  *
- * Wraps Metro to integrate Storybook so it can be toggled via the Dev Menu
- * and controlled by Sherlo during cloud testing.
+ * Wrap your Metro config with `withStorybook` from Sherlo.
+ * It pulls in `@storybook/react-native` automatically and
+ * adds Sherlo's instrumentation to control viewing Storybook during cloud testing
+ * and allow user to toggle Storybook via the Dev Menu
  *
  * Learn more: https://sherlo.io/docs/setup#metro-config
  */
