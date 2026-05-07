@@ -27,10 +27,10 @@
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./withStorybook": {
-      "types": "./withStorybook.d.ts",
-      "require": "./withStorybook.js",
-      "default": "./withStorybook.js"
+    "./metro/withStorybook": {
+      "types": "./metro/withStorybook.d.ts",
+      "require": "./metro/withStorybook.js",
+      "default": "./metro/withStorybook.js"
     },
     "./metro/polyfill": {
       "require": "./metro/polyfill.js",
@@ -50,8 +50,8 @@
     "ios/*.mm",
     "ios/Resources/**/*",
     "sherlo-react-native-storybook.podspec",
-    "withStorybook.js",
-    "withStorybook.d.ts",
+    "metro/withStorybook.js",
+    "metro/withStorybook.d.ts",
     "metro/polyfill.js",
     "metro/applySherloTransforms.js"
   ],

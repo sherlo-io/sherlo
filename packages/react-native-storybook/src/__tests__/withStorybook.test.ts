@@ -35,8 +35,8 @@ function readGeneratedWrapper(configPath?: string): string {
 // ---------------------------------------------------------------------------
 
 describe('withStorybook.js - file structure', () => {
-  it('withStorybook.js file exists at package root', () => {
-    const withStorybookPath = require.resolve('../../withStorybook.js');
+  it('withStorybook.js file exists under metro/', () => {
+    const withStorybookPath = require.resolve('../../metro/withStorybook.js');
     expect(withStorybookPath).toBeTruthy();
     const fs2 = require('fs');
     const src = fs2.readFileSync(withStorybookPath, 'utf8');
@@ -46,8 +46,9 @@ describe('withStorybook.js - file structure', () => {
     expect(src).toContain('module.exports.withStorybook = withStorybook');
     // Must delegate to applySherloTransforms
     expect(src).toContain('applySherloTransforms');
-    // Must resolve storybook peer dep
+    // Must resolve storybook peer dep for both v9 and v10
     expect(src).toContain('@storybook/react-native/metro/withStorybook');
+    expect(src).toContain('@storybook/react-native/withStorybook');
   });
 });
 

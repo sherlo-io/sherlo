@@ -29,10 +29,10 @@ async function setupTest(filename: string, content: string) {
 }
 
 describe('readMetroConfigState', () => {
-  it('detects alreadyWrapped when @sherlo/react-native-storybook/withStorybook require is present', async () => {
+  it('detects alreadyWrapped when @sherlo/react-native-storybook/metro/withStorybook require is present', async () => {
     await setupTest(
       'metro.config.js',
-      `const withStorybook = require('@sherlo/react-native-storybook/withStorybook');
+      `const withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');
 module.exports = withStorybook(config);`
     );
 
@@ -43,7 +43,21 @@ module.exports = withStorybook(config);`
     expect(state.path).not.toBeNull();
   });
 
-  it('detects hasWithStorybook when withStorybook( is present but not wrapped', async () => {
+  it('detects hasWithStorybook for v10 path when withStorybook( is present but not wrapped', async () => {
+    await setupTest(
+      'metro.config.js',
+      `const withStorybook = require('@storybook/react-native/withStorybook');
+module.exports = withStorybook(config);`
+    );
+
+    const { default: readMetroConfigState } = await import('../readMetroConfigState');
+    const state = await readMetroConfigState();
+
+    expect(state.alreadyWrapped).toBe(false);
+    expect(state.hasWithStorybook).toBe(true);
+  });
+
+  it('detects hasWithStorybook for v9 path when withStorybook( is present but not wrapped', async () => {
     await setupTest(
       'metro.config.js',
       `const withStorybook = require('@storybook/react-native/metro/withStorybook');
