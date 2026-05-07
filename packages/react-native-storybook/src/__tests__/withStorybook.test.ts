@@ -237,13 +237,13 @@ describe('generated storybook-wrapper.js - content', () => {
   });
 
   it('deep-requires addStorybookToDevMenu lazily inside patchedStart', () => {
-    const lazyRequire = /[ \t]+var addStorybookToDevMenu = require\('@sherlo\/react-native-storybook\/dist\/addStorybookToDevMenu\.js'\)\.default/;
+    const lazyRequire = /[ \t]+var addStorybookToDevMenu = require\('@sherlo\/react-native-storybook\/dist\/addStorybookToDevMenu'\)\.default/;
     expect(wrapperContent).toMatch(lazyRequire);
   });
 
   it('deep-requires addStorybookToDevMenu AFTER the re-export loop', () => {
     const reExportIdx = wrapperContent.indexOf('Object.keys(real).forEach');
-    const devMenuRequireIdx = wrapperContent.indexOf("var addStorybookToDevMenu = require('@sherlo/react-native-storybook/dist/addStorybookToDevMenu.js').default");
+    const devMenuRequireIdx = wrapperContent.indexOf("var addStorybookToDevMenu = require('@sherlo/react-native-storybook/dist/addStorybookToDevMenu').default");
     expect(reExportIdx).toBeGreaterThan(-1);
     expect(devMenuRequireIdx).toBeGreaterThan(-1);
     expect(devMenuRequireIdx).toBeGreaterThan(reExportIdx);
