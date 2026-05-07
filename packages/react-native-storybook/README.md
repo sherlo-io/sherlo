@@ -91,7 +91,7 @@ Add the following to your `metro.config.js`:
 
 ```js
 const { getDefaultConfig } = require('@react-native/metro-config');
-const withStorybook = require('@sherlo/react-native-storybook/withStorybook');
+const withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');
 
 const defaultConfig = getDefaultConfig(__dirname);
 
@@ -127,9 +127,9 @@ The `examples/` apps stay on the published `@sherlo/react-native-storybook` vers
 
 ### v2.0.0-alpha.1
 
-- **Simplified API** - `createSherloStorybook` factory removed. Use `withStorybook` from `@sherlo/react-native-storybook/withStorybook` instead. Single import, no factory, no destructuring.
+- **Simplified API** - `createSherloStorybook` factory removed. Use `withStorybook` from `@sherlo/react-native-storybook/metro/withStorybook` instead. Single import, no factory, no destructuring.
   ```js
-  const withStorybook = require('@sherlo/react-native-storybook/withStorybook');
+  const withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');
   module.exports = withStorybook(defaultConfig, { enabled: true, configPath: ... });
   ```
 - **No separate `@storybook/react-native` import needed** - sherlo's `withStorybook` resolves the real storybook function internally via peer dep.
