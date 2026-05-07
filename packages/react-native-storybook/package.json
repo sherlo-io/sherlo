@@ -36,7 +36,7 @@
       "require": "./metro/polyfill.js",
       "default": "./metro/polyfill.js"
     },
-    "./dist/*": "./dist/*",
+    "./dist/*.js": "./dist/*.js",
     "./package.json": "./package.json"
   },
   "files": [

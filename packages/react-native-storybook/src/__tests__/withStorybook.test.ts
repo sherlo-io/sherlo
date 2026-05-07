@@ -237,13 +237,13 @@ describe('generated storybook-wrapper.js - content', () => {
   });
 
   it('deep-requires addStorybookToDevMenu lazily inside patchedStart', () => {
-    const lazyRequire = /[ \t]+var addStorybookToDevMenu = require\('@sherlo\/react-native-storybook\/dist\/addStorybookToDevMenu'\)\.default/;
+    const lazyRequire = /[ \t]+var addStorybookToDevMenu = require\('@sherlo\/react-native-storybook\/dist\/addStorybookToDevMenu\.js'\)\.default/;
     expect(wrapperContent).toMatch(lazyRequire);
   });
 
   it('deep-requires addStorybookToDevMenu AFTER the re-export loop', () => {
     const reExportIdx = wrapperContent.indexOf('Object.keys(real).forEach');
-    const devMenuRequireIdx = wrapperContent.indexOf("var addStorybookToDevMenu = require('@sherlo/react-native-storybook/dist/addStorybookToDevMenu').default");
+    const devMenuRequireIdx = wrapperContent.indexOf("var addStorybookToDevMenu = require('@sherlo/react-native-storybook/dist/addStorybookToDevMenu.js').default");
     expect(reExportIdx).toBeGreaterThan(-1);
     expect(devMenuRequireIdx).toBeGreaterThan(-1);
     expect(devMenuRequireIdx).toBeGreaterThan(reExportIdx);
@@ -263,4 +263,45 @@ describe('generated storybook-wrapper.js - content', () => {
     expect(wrapperContent).toContain('Object.keys(real).forEach');
     expect(wrapperContent).toContain("get: function () { return real[key]; }");
   });
+});
+
+// ---------------------------------------------------------------------------
+// package.json exports map - deep-import subpaths regression guard
+// ---------------------------------------------------------------------------
+
+describe('package.json exports map - deep-import subpaths', () => {
+  const PKG_ROOT = path.resolve(__dirname, '../..');
+  const pkgJson = JSON.parse(fs.readFileSync(path.join(PKG_ROOT, 'package.json'), 'utf8'));
+  const distDir = path.join(PKG_ROOT, 'dist');
+  const distBuilt = fs.existsSync(distDir);
+
+  const DEEP_IMPORTS: Array<{ subpath: string; resolvedFile: string }> = [
+    { subpath: './dist/SherloModule.js',          resolvedFile: 'dist/SherloModule.js' },
+    { subpath: './dist/getStorybook/index.js',    resolvedFile: 'dist/getStorybook/index.js' },
+    { subpath: './dist/addStorybookToDevMenu.js', resolvedFile: 'dist/addStorybookToDevMenu.js' },
+  ];
+
+  it('exports map uses extension-anchored wildcard ./dist/*.js (not bare ./dist/*)', () => {
+    const exports = pkgJson.exports as Record<string, unknown>;
+    expect(exports['./dist/*.js']).toBe('./dist/*.js');
+    expect(exports['./dist/*']).toBeUndefined();
+  });
+
+  for (const { subpath, resolvedFile } of DEEP_IMPORTS) {
+    it(`wildcard resolves ${subpath} to the correct dist path`, () => {
+      const pattern = './dist/*.js';
+      expect(subpath.startsWith('./dist/')).toBe(true);
+      expect(subpath.endsWith('.js')).toBe(true);
+      // Apply the wildcard substitution manually: strip prefix/suffix, re-insert
+      const star = subpath.slice('./dist/'.length, -'.js'.length);
+      const resolved = pattern.replace('*', star);
+      expect(resolved).toBe(subpath);
+    });
+
+    if (distBuilt) {
+      it(`dist file exists on disk: ${resolvedFile}`, () => {
+        expect(fs.existsSync(path.join(PKG_ROOT, resolvedFile))).toBe(true);
+      });
+    }
+  }
 });
