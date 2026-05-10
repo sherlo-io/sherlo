@@ -1,3 +1,4 @@
+
 import { StorybookView } from '../types';
 
 export interface StoryMeta {
@@ -9,6 +10,7 @@ export interface StoryMeta {
 
 export interface StorybookAdapter {
   enumerateStories(view: StorybookView): StoryMeta[];
+  prepareForTesting(view: StorybookView): void;
 }
 
 const SANITIZE_REGEX = /[ '–-―′¿'`~!@#$%^&*()_|+\-=?;:'",.<>\{\}\[\]\\\/]/gi;
@@ -23,7 +25,7 @@ function sanitize(str: string): string {
 }
 
 export function toId(kind: string, name?: string): string {
-  return name ? `${sanitize(kind)}--${sanitize(name)}` : sanitize(kind);
+  return name ? sanitize(kind) + '--' + sanitize(name) : sanitize(kind);
 }
 
 export function storyNameFromExport(key: string): string {
@@ -42,7 +44,10 @@ interface RawRequireContext {
 
 interface ViewInternal {
   _storyIndex?: { entries?: Record<string, { id: string; title: string; name: string; importPath: string }> };
+  _preview?: { importFn?: (importPath: string) => Promise<any> };
 }
+
+const PATCH_FLAG = '__sherloImportFnPatched';
 
 const DefaultAdapter: StorybookAdapter = {
   enumerateStories(view): StoryMeta[] {
@@ -81,6 +86,43 @@ const DefaultAdapter: StorybookAdapter = {
     }
 
     return result;
+  },
+
+  prepareForTesting(view): void {
+    const preview = (view as unknown as ViewInternal)._preview as
+      | { importFn?: (importPath: string) => Promise<any>; [k: string]: any }
+      | undefined;
+    if (!preview || typeof preview.importFn !== 'function') return;
+    if (preview[PATCH_FLAG]) return;
+
+    const originalImportFn = preview.importFn.bind(preview);
+
+    const metaByImportPath: Record<string, any> = {};
+    const storyEntries = readStoryEntries();
+    for (const entry of storyEntries) {
+      if (!entry.req || !entry.directory) continue;
+      for (const filename of entry.req.keys()) {
+        try {
+          const fileExports = entry.req(filename);
+          if (!fileExports || !fileExports.default) continue;
+          const importPath = entry.directory + '/' + filename.substring(2);
+          metaByImportPath[importPath] = fileExports.default;
+        } catch (_) {
+          continue;
+        }
+      }
+    }
+
+    preview.importFn = async (importPath: string) => {
+      const original = await originalImportFn(importPath);
+      const meta = metaByImportPath[importPath];
+      if (original && meta && !original.default) {
+        return { ...original, default: meta };
+      }
+      return original;
+    };
+
+    preview[PATCH_FLAG] = true;
   },
 };
 

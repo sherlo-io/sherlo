@@ -8,6 +8,7 @@ import { getStorybookComponent } from './helpers';
 import { useHideSplashScreen } from './hooks';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { storybookRenderedRef } from './components/TestingMode/Storybook';
+import { getAdapter } from '../storybook/adapter';
 import { STORYBOOK_LOAD_TIMEOUT_MS } from '../constants';
 
 let isSdkCompatible = true;
@@ -19,6 +20,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
   const mode = SherloModule.getMode();
 
   if (mode === 'testing') {
+    getAdapter(view).prepareForTesting(view);
     const delayMs = SherloModule.getConfig().initialStoryRenderDelayMs;
     if (delayMs !== undefined) {
       const originalGetProjectAnnotations = view._preview.getProjectAnnotations.bind(
