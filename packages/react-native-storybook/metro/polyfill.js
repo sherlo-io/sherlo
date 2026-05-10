@@ -205,6 +205,25 @@
     pdiag('view.getStorybookUI patched via polyfill');
   }
 
+  // Post-hoc detection: TypeScript's CJS output for `export const view = ...`
+  // can compile to Object.defineProperty(_e, 'view', {value: ...}), which
+  // BYPASSES our setter trap (defineProperty replaces the descriptor entirely
+  // rather than invoking the setter). Check exportsObj.view's value at end of
+  // factory execution. Patching here is still safe: subsequent modules that
+  // import `view` haven't read view.getStorybookUI yet, so Hermes IC for those
+  // call sites is clear and will lock onto our patched method.
+  function maybeCaptureAndPatchView(_e) {
+    if (!_e) return;
+    var v = _e.view;
+    if (v
+        && typeof v.getStorybookUI === 'function'
+        && typeof v._preview === 'object'
+        && v._preview !== null
+        && !v.__sherloViewPatched) {
+      try { patchStorybookView(v); } catch (_) {}
+    }
+  }
+
   // Patch AppRegistry.registerComponent to wrap the root component in a
   // polyfill-level SherloErrorBoundary. React is resolved lazily at call time
   // from the globally stashed reference.
@@ -429,6 +448,7 @@
           try { maybeCaptureSherloModule(exportsObj); } catch (_) {}
           try { maybeCaptureStorybookMod(exportsObj); } catch (_) {}
           try { maybeCaptureSdkGetStorybook(exportsObj); } catch (_) {}
+          try { maybeCaptureAndPatchView(exportsObj); } catch (_) {}
         }
       }
       return originalDefine.call(this, wrappedFactory, moduleId, dependencyMap);
