@@ -159,8 +159,8 @@ function generateWrapper(wrapperPath, configPath) {
     '  // Lazy-require sherlo AFTER the re-exports above are already set up.\n' +
     '  // This breaks the circular dependency that would otherwise cause\n' +
     '  // isStorybook7 to be detected incorrectly (see comment above).\n' +
-    "  var getStorybook = require('@sherlo/react-native-storybook/dist/getStorybook').default;\n" +
-    "  var addStorybookToDevMenu = require('@sherlo/react-native-storybook/dist/addStorybookToDevMenu').default;\n" +
+    "  var getStorybook = require('@sherlo/react-native-storybook/dist/getStorybook.js').default;\n" +
+    "  var addStorybookToDevMenu = require('@sherlo/react-native-storybook/dist/addStorybookToDevMenu.js').default;\n" +
     '\n' +
     '  var view = real.start(config);\n' +
     '\n' +
