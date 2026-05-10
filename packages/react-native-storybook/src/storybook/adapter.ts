@@ -150,6 +150,38 @@ const DefaultAdapter: StorybookAdapter = {
 
     preview[PATCH_FLAG] = true;
     log('patched');
+
+    // Wrap _preview.ready() so we can see if/when it resolves or rejects.
+    if (typeof preview.ready === 'function') {
+      const origReady = preview.ready.bind(preview);
+      preview.ready = () => {
+        const promise = origReady();
+        promise.then(
+          () => log('preview.ready:resolved'),
+          (err: unknown) => log('preview.ready:rejected', { message: err && (err as { message?: string }).message }),
+        );
+        return promise;
+      };
+    }
+
+    // Wrap view.createPreparedStoryMapping so we know when it fires & what fails.
+    const v = view as unknown as { createPreparedStoryMapping?: () => Promise<void>; _idToPrepared?: Record<string, unknown> };
+    if (typeof v.createPreparedStoryMapping === 'function') {
+      const origCpsm = v.createPreparedStoryMapping.bind(view);
+      v.createPreparedStoryMapping = async () => {
+        log('createPreparedStoryMapping:start', { idToPreparedCount: Object.keys(v._idToPrepared ?? {}).length });
+        try {
+          const result = await origCpsm();
+          log('createPreparedStoryMapping:done', { idToPreparedCount: Object.keys(v._idToPrepared ?? {}).length });
+          return result;
+        } catch (err: unknown) {
+          log('createPreparedStoryMapping:error', { message: err && (err as { message?: string }).message, stack: err && (err as { stack?: string }).stack && String((err as { stack?: string }).stack).slice(0, 600) });
+          throw err;
+        }
+      };
+    } else {
+      log('createPreparedStoryMapping:not-a-function');
+    }
   },
 };
 
