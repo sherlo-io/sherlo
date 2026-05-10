@@ -40,26 +40,59 @@ export async function waitForStorybookReady(view: StorybookView): Promise<boolea
   const POLL_INTERVAL_MS = 500;
   const deadline = Date.now() + TIMEOUT_MS;
 
-  // Storybook RN v10+ populates view._idToPrepared lazily via createPreparedStoryMapping.
-  // v8/v9 auto-populated. Optional-call kicks the eager-load path on v10 without
-  // breaking older versions that don't expose this method.
   const eagerLoad = (view as unknown as { createPreparedStoryMapping?: () => Promise<void> })
     .createPreparedStoryMapping;
+
+  RunnerBridge.log('waitForStorybookReady:start', {
+    eagerLoadExists: typeof eagerLoad === 'function',
+    storyIndexEntriesCount: Object.keys(
+      ((view as unknown as { _storyIndex?: { entries?: Record<string, unknown> } })._storyIndex
+        ?.entries) ?? {}
+    ).length,
+    idToPreparedCount: Object.keys(view._idToPrepared).length,
+  });
+
   if (typeof eagerLoad === 'function') {
+    const t0 = Date.now();
     try {
       await eagerLoad.call(view);
-    } catch (_) {
+      RunnerBridge.log('waitForStorybookReady:eagerLoad:done', {
+        ms: Date.now() - t0,
+        idToPreparedCountAfter: Object.keys(view._idToPrepared).length,
+      });
+    } catch (err: any) {
+      RunnerBridge.log('waitForStorybookReady:eagerLoad:error', {
+        ms: Date.now() - t0,
+        message: err && err.message,
+        name: err && err.name,
+      });
     }
   }
 
+  let pollIter = 0;
   while (true) {
     const isReady = Object.keys(view._idToPrepared).length > 0;
 
+    if (pollIter % 4 === 0) {
+      RunnerBridge.log('waitForStorybookReady:poll', {
+        iter: pollIter,
+        idToPreparedCount: Object.keys(view._idToPrepared).length,
+        isReady,
+      });
+    }
+    pollIter++;
+
     if (isReady) {
+      RunnerBridge.log('waitForStorybookReady:ready', {
+        idToPreparedCount: Object.keys(view._idToPrepared).length,
+      });
       return true;
     }
 
     if (Date.now() >= deadline) {
+      RunnerBridge.log('waitForStorybookReady:timeout', {
+        idToPreparedCount: Object.keys(view._idToPrepared).length,
+      });
       return false;
     }
 
