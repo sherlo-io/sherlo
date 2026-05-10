@@ -40,6 +40,18 @@ export async function waitForStorybookReady(view: StorybookView): Promise<boolea
   const POLL_INTERVAL_MS = 500;
   const deadline = Date.now() + TIMEOUT_MS;
 
+  // Storybook RN v10+ populates view._idToPrepared lazily via createPreparedStoryMapping.
+  // v8/v9 auto-populated. Optional-call kicks the eager-load path on v10 without
+  // breaking older versions that don't expose this method.
+  const eagerLoad = (view as unknown as { createPreparedStoryMapping?: () => Promise<void> })
+    .createPreparedStoryMapping;
+  if (typeof eagerLoad === 'function') {
+    try {
+      await eagerLoad.call(view);
+    } catch (_) {
+    }
+  }
+
   while (true) {
     const isReady = Object.keys(view._idToPrepared).length > 0;
 
@@ -48,8 +60,6 @@ export async function waitForStorybookReady(view: StorybookView): Promise<boolea
     }
 
     if (Date.now() >= deadline) {
-      // No stories registered within timeout - break out so START is sent
-      // with an empty snapshots array, which the runner classifies as noStories.
       return false;
     }
 
