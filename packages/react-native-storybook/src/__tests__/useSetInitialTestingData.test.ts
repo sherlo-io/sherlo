@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Mock react's useEffect to execute the callback synchronously so we can test the hook logic
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
 vi.mock('react', async () => {
   const actual = await vi.importActual<typeof import('react')>('react');
   return {
@@ -25,142 +25,60 @@ vi.mock('../SherloModule', () => ({
   },
 }));
 
+vi.mock('../storybook/adapter', () => ({
+  getAdapter: vi.fn().mockReturnValue({
+    enumerateStories: vi.fn().mockReturnValue([]),
+  }),
+}));
+
 vi.mock('../getStorybook/components/TestingMode/useTestAllStories/prepareSnapshots', () => ({
   default: vi.fn().mockReturnValue([]),
 }));
 
-import useSetInitialTestingData, {
-  waitForStorybookReady,
-} from '../getStorybook/components/TestingMode/useTestAllStories/useSetInitialTestingData';
+import useSetInitialTestingData from '../getStorybook/components/TestingMode/useTestAllStories/useSetInitialTestingData';
 import { RunnerBridge } from '../helpers';
 import SherloModule from '../SherloModule';
+import { getAdapter } from '../storybook/adapter';
+import prepareSnapshots from '../getStorybook/components/TestingMode/useTestAllStories/prepareSnapshots';
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
-afterEach(() => {
-  vi.useRealTimers();
-});
-
-/* -------------------------------------------------------------------------- */
-/* waitForStorybookReady                                                       */
-/* -------------------------------------------------------------------------- */
-
-describe('waitForStorybookReady', () => {
-  it('returns true immediately when view._idToPrepared already has stories', async () => {
-    const view = {
-      _idToPrepared: { 'button--primary': { id: 'button--primary' } },
-    } as any;
-
-    const result = await waitForStorybookReady(view);
-
-    expect(result).toBe(true);
-  });
-
-  it('returns false after 10 seconds when _idToPrepared stays empty', async () => {
-    vi.useFakeTimers();
-
-    const view = { _idToPrepared: {} } as any;
-
-    const promise = waitForStorybookReady(view);
-
-    // Advance past the 10-second deadline (function polls every 500 ms)
-    await vi.advanceTimersByTimeAsync(10_001);
-
-    const result = await promise;
-
-    expect(result).toBe(false);
-  });
-
-  it('v10: calls createPreparedStoryMapping when present and returns true after it populates _idToPrepared', async () => {
-    const view = { _idToPrepared: {} } as any;
-    view.createPreparedStoryMapping = vi.fn(async () => {
-      view._idToPrepared = { 'button--primary': { id: 'button--primary' } };
-    });
-
-    const result = await waitForStorybookReady(view);
-
-    expect(view.createPreparedStoryMapping).toHaveBeenCalledOnce();
-    expect(result).toBe(true);
-  });
-
-  it('v8/v9: does not throw when createPreparedStoryMapping is absent', async () => {
-    const view = {
-      _idToPrepared: { 'button--primary': { id: 'button--primary' } },
-    } as any;
-    // no createPreparedStoryMapping on view
-
-    await expect(waitForStorybookReady(view)).resolves.toBe(true);
-  });
-
-  it('v10: falls through to polling when createPreparedStoryMapping throws', async () => {
-    vi.useFakeTimers();
-
-    const view = { _idToPrepared: {} } as any;
-    view.createPreparedStoryMapping = vi.fn(async () => {
-      throw new Error('not ready');
-    });
-
-    const promise = waitForStorybookReady(view);
-
-    // Advance past timeout - polling should still time out gracefully
-    await vi.advanceTimersByTimeAsync(10_001);
-
-    const result = await promise;
-
-    expect(view.createPreparedStoryMapping).toHaveBeenCalledOnce();
-    expect(result).toBe(false);
-  });
-
-  it('v10: still polls after eager call if dict not populated synchronously', async () => {
-    vi.useFakeTimers();
-
-    const view = { _idToPrepared: {} } as any;
-    let resolveEager!: () => void;
-    view.createPreparedStoryMapping = vi.fn(
-      () =>
-        new Promise<void>((res) => {
-          resolveEager = res;
-        })
-    );
-
-    const promise = waitForStorybookReady(view);
-
-    // Resolve eager load without populating the dict yet
-    resolveEager();
-    await Promise.resolve();
-
-    // Now populate via side-effect (simulates internal listener firing)
-    view._idToPrepared = { 'button--primary': { id: 'button--primary' } };
-
-    // Advance one poll interval so the while-loop picks it up
-    await vi.advanceTimersByTimeAsync(500);
-
-    const result = await promise;
-
-    expect(result).toBe(true);
-  });
-});
-
-/* -------------------------------------------------------------------------- */
-/* useSetInitialTestingData                                                    */
-/* -------------------------------------------------------------------------- */
-
 describe('useSetInitialTestingData', () => {
-  it('sends START with empty snapshots when waitForStorybookReady returns false (no stories loaded)', async () => {
-    vi.useFakeTimers();
+  it('enumerates via adapter, calls prepareSnapshots, and sends START', async () => {
+    const fakeStoryMetas = [{ id: 'a--b', title: 'A', name: 'B', parameters: {} }];
+    const fakeSnapshots = [{ viewId: 'a--b-deviceHeight' }];
+    (getAdapter as any).mockReturnValue({
+      enumerateStories: vi.fn().mockReturnValue(fakeStoryMetas),
+    });
+    (prepareSnapshots as any).mockReturnValue(fakeSnapshots);
 
-    // No stories in the view - waitForStorybookReady will time out after 10 s
-    const view = { _idToPrepared: {} } as any;
-
-    // Calling the hook starts the async flow inside useEffect
+    const view = {} as any;
     useSetInitialTestingData({ view });
 
-    // Advance clock past the 10-second timeout so waitForStorybookReady resolves
-    await vi.advanceTimersByTimeAsync(10_001);
+    await Promise.resolve();
+    await Promise.resolve();
 
-    // Flush microtasks created after waitForStorybookReady returns (prepareSnapshots + send)
+    expect(prepareSnapshots).toHaveBeenCalledWith({
+      storyMetas: fakeStoryMetas,
+      splitByMode: true,
+    });
+    expect(RunnerBridge.send).toHaveBeenCalledWith({
+      action: 'START',
+      snapshots: fakeSnapshots,
+    });
+  });
+
+  it('sends START with empty snapshots when adapter enumerates none', async () => {
+    (getAdapter as any).mockReturnValue({
+      enumerateStories: vi.fn().mockReturnValue([]),
+    });
+    (prepareSnapshots as any).mockReturnValue([]);
+
+    const view = {} as any;
+    useSetInitialTestingData({ view });
+
     await Promise.resolve();
     await Promise.resolve();
 
@@ -171,19 +89,15 @@ describe('useSetInitialTestingData', () => {
   });
 
   it('returns early and does NOT send START when lastState exists', async () => {
-    vi.useFakeTimers();
-
     (SherloModule.getLastState as ReturnType<typeof vi.fn>).mockReturnValue({
       requestId: 'abc',
       nextSnapshot: null,
     });
 
-    const view = { _idToPrepared: {} } as any;
-
+    const view = {} as any;
     useSetInitialTestingData({ view });
 
-    // Advance time - even if something async was started it should not reach send
-    await vi.advanceTimersByTimeAsync(10_001);
+    await Promise.resolve();
     await Promise.resolve();
 
     expect(RunnerBridge.send).not.toHaveBeenCalled();
