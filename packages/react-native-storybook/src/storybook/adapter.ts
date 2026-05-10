@@ -89,19 +89,30 @@ const DefaultAdapter: StorybookAdapter = {
   },
 
   prepareForTesting(view): void {
+    const log = (tag: string, extra?: unknown): void => {
+      try {
+        const SherloModule = require('../SherloModule').default;
+        SherloModule.appendFile('log.sherlo', new Date().toISOString().slice(11, 19) + ': adapter:' + tag + ' : ' + JSON.stringify(extra ?? {}) + String.fromCharCode(10));
+      } catch (_) {}
+    };
+
     const preview = (view as unknown as ViewInternal)._preview as
       | { importFn?: (importPath: string) => Promise<any>; [k: string]: any }
       | undefined;
-    if (!preview || typeof preview.importFn !== 'function') return;
-    if (preview[PATCH_FLAG]) return;
+    if (!preview) { log('no-preview'); return; }
+    if (typeof preview.importFn !== 'function') { log('no-importFn'); return; }
+    if (preview[PATCH_FLAG]) { log('already-patched'); return; }
 
     const originalImportFn = preview.importFn.bind(preview);
 
     const metaByImportPath: Record<string, any> = {};
     const storyEntries = readStoryEntries();
+    log('storyEntries-count', { count: storyEntries.length });
     for (const entry of storyEntries) {
       if (!entry.req || !entry.directory) continue;
-      for (const filename of entry.req.keys()) {
+      const keys = entry.req.keys();
+      log('entry', { directory: entry.directory, keysCount: keys.length, sampleKey: keys[0] });
+      for (const filename of keys) {
         try {
           const fileExports = entry.req(filename);
           if (!fileExports || !fileExports.default) continue;
@@ -112,17 +123,33 @@ const DefaultAdapter: StorybookAdapter = {
         }
       }
     }
+    const sampleKey = Object.keys(metaByImportPath)[0];
+    log('metaByImportPath', { count: Object.keys(metaByImportPath).length, sampleKey });
 
+    let invokeCount = 0;
     preview.importFn = async (importPath: string) => {
+      invokeCount++;
       const original = await originalImportFn(importPath);
       const meta = metaByImportPath[importPath];
-      if (original && meta && !original.default) {
+      const wrapping = !!(original && meta && !original.default);
+      if (invokeCount <= 8) {
+        log('importFn:call', {
+          n: invokeCount,
+          importPath,
+          originalIsObject: original !== null && typeof original === 'object',
+          originalHasDefault: !!(original && original.default),
+          metaFound: !!meta,
+          wrapping,
+        });
+      }
+      if (wrapping) {
         return { ...original, default: meta };
       }
       return original;
     };
 
     preview[PATCH_FLAG] = true;
+    log('patched');
   },
 };
 
