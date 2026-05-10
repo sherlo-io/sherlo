@@ -61,10 +61,35 @@ export async function waitForStorybookReady(view: StorybookView): Promise<boolea
         idToPreparedCountAfter: Object.keys(view._idToPrepared).length,
       });
     } catch (err: any) {
+      const previewProbe = (() => {
+        try {
+          const v = view as unknown as {
+            _preview?: {
+              getProjectAnnotations?: unknown;
+              onGetProjectAnnotationsChanged?: unknown;
+              ready?: unknown;
+              getProjectAnnotationsCallback?: () => Promise<unknown>;
+            };
+          };
+          const preview = v._preview;
+          return {
+            previewExists: !!preview,
+            hasGetProjectAnnotations: typeof preview?.getProjectAnnotations === 'function',
+            hasOnGetProjectAnnotationsChanged:
+              typeof preview?.onGetProjectAnnotationsChanged === 'function',
+            hasReady: typeof preview?.ready === 'function',
+          };
+        } catch (probeErr: any) {
+          return { probeError: probeErr && probeErr.message };
+        }
+      })();
+
       RunnerBridge.log('waitForStorybookReady:eagerLoad:error', {
         ms: Date.now() - t0,
         message: err && err.message,
         name: err && err.name,
+        stack: err && err.stack ? String(err.stack).slice(0, 800) : undefined,
+        previewProbe,
       });
     }
   }
