@@ -146,6 +146,65 @@
     }
   }
 
+  // Stash the SDK's getStorybook function. Detected via shape: ESM module
+  // whose default export is a function named 'getStorybook'.
+  function maybeCaptureSdkGetStorybook(_e) {
+    if (global.__sherloGetStorybookRef) return;
+    if (!_e) return;
+    var candidate = _e.default;
+    if (typeof candidate === 'function' && candidate.name === 'getStorybook') {
+      global.__sherloGetStorybookRef = candidate;
+      pdiag('captured SDK getStorybook');
+      // Drain any queued views that were assigned before we captured getStorybook.
+      var pending = global.__sherloPendingViewPatches;
+      if (pending && pending.length) {
+        global.__sherloPendingViewPatches = [];
+        for (var i = 0; i < pending.length; i++) {
+          try { patchStorybookView(pending[i]); } catch (_) {}
+        }
+      }
+    }
+  }
+
+  // Patch a Storybook RN view so view.getStorybookUI() routes through
+  // SDK's getStorybook(view, params). Production-safe: only patches in
+  // testing mode. Mirrors patchAppRegistry's mode gate.
+  function patchStorybookView(view) {
+    if (!view || typeof view.getStorybookUI !== 'function') return;
+    if (view.__sherloViewPatched) return;
+
+    var nm = (global.__turboModuleProxy && global.__turboModuleProxy('SherloModule')) ||
+             (global.nativeModuleProxy && global.nativeModuleProxy.SherloModule);
+    if (!nm) return;
+    var mode = null;
+    try {
+      var c = (typeof nm.getSherloConstants === 'function' ? nm.getSherloConstants() : null) ||
+              (typeof nm.getConstants === 'function' ? nm.getConstants() : null);
+      mode = c && c.mode;
+    } catch (_) {}
+    if (mode !== 'testing') {
+      pdiag('mode not testing, skipping view patch (production/storybook safety)', { mode: mode });
+      return;
+    }
+
+    var sdkGetStorybook = global.__sherloGetStorybookRef;
+    if (typeof sdkGetStorybook !== 'function') {
+      pdiag('cannot patch view - SDK getStorybook not captured yet, queuing');
+      if (!global.__sherloPendingViewPatches) global.__sherloPendingViewPatches = [];
+      global.__sherloPendingViewPatches.push(view);
+      return;
+    }
+
+    view.__sherloViewPatched = true;
+    var origFn = view.getStorybookUI.bind(view);
+    view.__sherloOriginalGetStorybookUI = origFn;
+    view.getStorybookUI = function sherloGetStorybookUIPolyfill(params) {
+      pdiag('sherloGetStorybookUIPolyfill INVOKED');
+      return sdkGetStorybook(view, params != null ? params : {});
+    };
+    pdiag('view.getStorybookUI patched via polyfill');
+  }
+
   // Patch AppRegistry.registerComponent to wrap the root component in a
   // polyfill-level SherloErrorBoundary. React is resolved lazily at call time
   // from the globally stashed reference.
@@ -333,6 +392,34 @@
         } catch (_) {}
 
         try {
+          var _viewValue;
+          Object.defineProperty(exportsObj, 'view', {
+            configurable: true,
+            enumerable: true,
+            get: function () { return _viewValue; },
+            set: function (v) {
+              _viewValue = v;
+              // Storybook RN view shape: getStorybookUI function + _preview object.
+              // Other modules with `view` exports (e.g. CSS-in-JS libs) won't match.
+              if (v
+                  && typeof v.getStorybookUI === 'function'
+                  && typeof v._preview === 'object'
+                  && v._preview !== null) {
+                try { patchStorybookView(v); } catch (_) {}
+                try {
+                  Object.defineProperty(exportsObj, 'view', {
+                    value: v,
+                    writable: true,
+                    enumerable: true,
+                    configurable: true,
+                  });
+                } catch (_) {}
+              }
+            }
+          });
+        } catch (_) {}
+
+        try {
           return factory.call(this, globalObj, requireFn, importDefault, importAll, moduleObj, exportsObj, depMap);
         } catch (e) {
           reportToNative(e);
@@ -341,6 +428,7 @@
           try { maybeCaptureReact(exportsObj); } catch (_) {}
           try { maybeCaptureSherloModule(exportsObj); } catch (_) {}
           try { maybeCaptureStorybookMod(exportsObj); } catch (_) {}
+          try { maybeCaptureSdkGetStorybook(exportsObj); } catch (_) {}
         }
       }
       return originalDefine.call(this, wrappedFactory, moduleId, dependencyMap);
