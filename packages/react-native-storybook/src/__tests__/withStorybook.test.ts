@@ -249,6 +249,19 @@ describe('generated storybook-wrapper.js - content', () => {
     expect(devMenuRequireIdx).toBeGreaterThan(reExportIdx);
   });
 
+  it('deep-requires getStorybook lazily inside patchedStart via directory index', () => {
+    const lazyRequire = /[ \t]+var getStorybook = require\('@sherlo\/react-native-storybook\/dist\/getStorybook\/index\.js'\)\.default/;
+    expect(wrapperContent).toMatch(lazyRequire);
+  });
+
+  it('deep-requires getStorybook AFTER the re-export loop', () => {
+    const reExportIdx = wrapperContent.indexOf('Object.keys(real).forEach');
+    const getStorybookRequireIdx = wrapperContent.indexOf("var getStorybook = require('@sherlo/react-native-storybook/dist/getStorybook/index.js').default");
+    expect(reExportIdx).toBeGreaterThan(-1);
+    expect(getStorybookRequireIdx).toBeGreaterThan(-1);
+    expect(getStorybookRequireIdx).toBeGreaterThan(reExportIdx);
+  });
+
   it('passes params ?? {} to getStorybook so undefined params use Storybook defaults', () => {
     const paramsGuard = /getStorybook\(view,\s*params\s*!=\s*null\s*\?\s*params\s*:\s*\{\}\)/;
     expect(wrapperContent).toMatch(paramsGuard);
