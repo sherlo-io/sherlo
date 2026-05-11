@@ -116,31 +116,21 @@ const DefaultAdapter: StorybookAdapter = {
   },
 
   prepareForTesting(view): void {
-    const log = (tag: string, extra?: unknown): void => {
-      try {
-        const SherloModule = require('../SherloModule').default;
-        SherloModule.appendFile('log.sherlo', new Date().toISOString().slice(11, 19) + ': adapter:' + tag + ' : ' + JSON.stringify(extra ?? {}) + String.fromCharCode(10));
-      } catch (_) {}
-    };
-
     const preview = (view as unknown as ViewInternal)._preview as
       | { importFn?: (importPath: string) => Promise<any>; [k: string]: any }
       | undefined;
-    if (!preview) { log('no-preview'); return; }
-    if (typeof preview.importFn !== 'function') { log('no-importFn'); return; }
-    if (preview[PATCH_FLAG]) { log('already-patched'); return; }
+    if (!preview) { return; }
+    if (typeof preview.importFn !== 'function') { return; }
+    if (preview[PATCH_FLAG]) { return; }
 
     const originalImportFn = preview.importFn.bind(preview);
 
     const metaByImportPath: Record<string, any> = {};
     const moduleExportsByImportPath: Record<string, any> = {};
     const storyEntries = readStoryEntries();
-    log('storyEntries-count', { count: storyEntries.length });
     for (const entry of storyEntries) {
       if (!entry.req || !entry.directory) continue;
-      const keys = entry.req.keys();
-      log('entry', { directory: entry.directory, keysCount: keys.length, sampleKey: keys[0] });
-      for (const filename of keys) {
+      for (const filename of entry.req.keys()) {
         try {
           const fileExports = entry.req(filename);
           if (!fileExports || !fileExports.default) continue;
@@ -164,77 +154,26 @@ const DefaultAdapter: StorybookAdapter = {
         }
       }
     }
-    const sampleKey = Object.keys(metaByImportPath)[0];
-    log('metaByImportPath', { count: Object.keys(metaByImportPath).length, sampleKey });
-    const sampleImportPath = Object.keys(moduleExportsByImportPath)[0];
-    const sampleSanitized = sampleImportPath ? moduleExportsByImportPath[sampleImportPath] : null;
-    log('moduleExports:sample', {
-      importPath: sampleImportPath,
-      keys: sampleSanitized ? Object.keys(sampleSanitized) : [],
-      namedExportsOrder: sampleSanitized?.__namedExportsOrder,
-      hasDefault: !!sampleSanitized?.default,
-    });
 
-    let invokeCount = 0;
     preview.importFn = async (importPath: string) => {
-      invokeCount++;
       const original = await originalImportFn(importPath);
       const meta = metaByImportPath[importPath];
-      const wrapping = !!(original && meta && !original.default);
-      if (invokeCount <= 8) {
-        log('importFn:call', {
-          n: invokeCount,
-          importPath,
-          originalIsObject: original !== null && typeof original === 'object',
-          originalHasDefault: !!(original && original.default),
-          metaFound: !!meta,
-          wrapping,
-        });
-      }
-      if (wrapping) {
+      if (original && meta && !original.default) {
         return { ...original, default: meta };
       }
       return original;
     };
 
     preview[PATCH_FLAG] = true;
-    log('patched');
-
-    // Enumerate top-level shape of preview to find any other importFn references
-    try {
-      const previewKeys = Object.keys(preview as any);
-      const fnKeys = previewKeys.filter(k => typeof (preview as any)[k] === 'function');
-      log('preview:keys', { totalKeys: previewKeys.length, fnKeys: fnKeys.slice(0, 30) });
-    } catch (err: unknown) {
-      log('preview:keys:error', { message: err && (err as { message?: string }).message });
-    }
-
-    try {
-      const viewKeys = Object.keys(view as any);
-      const fnKeys = viewKeys.filter(k => typeof (view as any)[k] === 'function');
-      log('view:keys', { totalKeys: viewKeys.length, fnKeys: fnKeys.slice(0, 30) });
-    } catch (err: unknown) {
-      log('view:keys:error', { message: err && (err as { message?: string }).message });
-    }
 
     const STORE_PATCH_FLAG = '__sherloStoreImportFnPatched';
     const wrappedImportFn = preview.importFn;
-    const patchStoreInstance = (store: any, origin: string): void => {
-      if (!store) {
-        log('storyStoreValue:absent', { origin });
-        return;
-      }
-      if (store[STORE_PATCH_FLAG]) {
-        log('storyStoreValue:already-patched', { origin });
-        return;
-      }
-      if (typeof store.importFn !== 'function') {
-        log('storyStoreValue:no-importFn', { origin });
-        return;
-      }
+    const patchStoreInstance = (store: any): void => {
+      if (!store) { return; }
+      if (store[STORE_PATCH_FLAG]) { return; }
+      if (typeof store.importFn !== 'function') { return; }
       store.importFn = wrappedImportFn;
       store[STORE_PATCH_FLAG] = true;
-      log('storyStoreValue:patched', { origin });
 
       // Storybook RN v10's processCSFFileWithCache memoized closure is broken for
       // legacy/CSF3 module shapes when fed through its captured (unpatched) importFn.
@@ -293,60 +232,21 @@ const DefaultAdapter: StorybookAdapter = {
         return { meta, stories };
       };
 
-      let processCSFInvokes = 0;
       store.processCSFFileWithCache = function ownedProcessCSFFileWithCache(...args: any[]) {
-        processCSFInvokes++;
         const incomingExports = args[0];
         const importPath = typeof args[1] === 'string' ? args[1] : '';
         const title = typeof args[2] === 'string' ? args[2] : '';
         const finalExports = incomingExports && typeof incomingExports === 'object'
           ? incomingExports
           : moduleExportsByImportPath[importPath];
-        if (!finalExports) {
-          log('processCSFFileWithCache:no-exports', { importPath, invokes: processCSFInvokes });
-          return undefined;
-        }
-        try {
-          const csfFile = buildCSFFile(finalExports, importPath, title);
-          if (processCSFInvokes <= 3) {
-            log('processCSFFileWithCache:built', {
-              invokes: processCSFInvokes,
-              importPath,
-              metaId: csfFile.meta.id,
-              storyCount: Object.keys(csfFile.stories).length,
-              sampleStoryId: Object.keys(csfFile.stories)[0],
-            });
-          }
-          return csfFile;
-        } catch (err: unknown) {
-          log('processCSFFileWithCache:build-error', {
-            invokes: processCSFInvokes,
-            importPath,
-            message: err && (err as { message?: string }).message,
-          });
-          throw err;
-        }
+        if (!finalExports) { return undefined; }
+        return buildCSFFile(finalExports, importPath, title);
       };
-      log('processCSFFileWithCache:replaced');
-
-      try {
-        const storeKeys = Object.keys(store);
-        const fnKeys = storeKeys.filter(k => typeof store[k] === 'function');
-        log('storyStoreValue:keys', { origin, totalKeys: storeKeys.length, fnKeys: fnKeys.slice(0, 30) });
-        // Also probe for importFn-shaped fields anywhere on store
-        const importFnLikeKeys = storeKeys.filter(k => {
-          const v = store[k];
-          return typeof v === 'function' || (v && typeof v === 'object' && typeof v.fetchCSFFile === 'function');
-        });
-        log('storyStoreValue:importFn-candidates', { keys: importFnLikeKeys });
-      } catch (err: unknown) {
-        log('storyStoreValue:keys:error', { message: err && (err as { message?: string }).message });
-      }
     };
 
     let storyStoreValueRef: any = (preview as any).storyStoreValue;
     if (storyStoreValueRef) {
-      patchStoreInstance(storyStoreValueRef, 'sync-existing');
+      patchStoreInstance(storyStoreValueRef);
     }
     try {
       Object.defineProperty(preview, 'storyStoreValue', {
@@ -357,64 +257,10 @@ const DefaultAdapter: StorybookAdapter = {
         },
         set(value: any) {
           storyStoreValueRef = value;
-          log('storyStoreValue:setter-fired', { hasValue: !!value });
-          if (value) patchStoreInstance(value, 'setter');
+          if (value) patchStoreInstance(value);
         },
       });
-      log('storyStoreValue:accessor-installed');
-    } catch (err: unknown) {
-      log('storyStoreValue:accessor-install-failed', { message: err && (err as { message?: string }).message });
-    }
-
-    // Wrap _preview.ready() so we can see if/when it resolves or rejects.
-    if (typeof preview.ready === 'function') {
-      const origReady = preview.ready.bind(preview);
-      preview.ready = () => {
-        const promise = origReady();
-        promise.then(
-          () => log('preview.ready:resolved'),
-          (err: unknown) => log('preview.ready:rejected', { message: err && (err as { message?: string }).message }),
-        );
-        return promise;
-      };
-    }
-
-    // Wrap view.createPreparedStoryMapping so we know when it fires & what fails.
-    const v = view as unknown as { createPreparedStoryMapping?: () => Promise<void>; _idToPrepared?: Record<string, unknown> };
-    if (typeof v.createPreparedStoryMapping === 'function') {
-      const origCpsm = v.createPreparedStoryMapping.bind(view);
-      v.createPreparedStoryMapping = async () => {
-        log('createPreparedStoryMapping:start', { idToPreparedCount: Object.keys(v._idToPrepared ?? {}).length });
-        try {
-          const previewKeys = Object.keys(preview as any);
-          const previewFns = previewKeys.filter(k => typeof (preview as any)[k] === 'function');
-          const storeNow = (preview as any).storyStoreValue;
-          const storeKeys = storeNow ? Object.keys(storeNow) : [];
-          const storeFns = storeNow ? storeKeys.filter(k => typeof storeNow[k] === 'function') : [];
-          const previewImportFnIsWrapped = (preview as any).importFn === wrappedImportFn;
-          const storeImportFnIsWrapped = storeNow && storeNow.importFn === wrappedImportFn;
-          log('cpsm:snapshot', {
-            previewImportFnIsWrapped,
-            storeImportFnIsWrapped,
-            previewFns: previewFns.slice(0, 20),
-            storeFns: storeFns.slice(0, 20),
-            storeFlags: storeNow ? { hasMyFlag: !!storeNow[STORE_PATCH_FLAG] } : null,
-          });
-        } catch (err: unknown) {
-          log('cpsm:snapshot:error', { message: err && (err as { message?: string }).message });
-        }
-        try {
-          const result = await origCpsm();
-          log('createPreparedStoryMapping:done', { idToPreparedCount: Object.keys(v._idToPrepared ?? {}).length });
-          return result;
-        } catch (err: unknown) {
-          log('createPreparedStoryMapping:error', { message: err && (err as { message?: string }).message, stack: err && (err as { stack?: string }).stack && String((err as { stack?: string }).stack).slice(0, 600) });
-          throw err;
-        }
-      };
-    } else {
-      log('createPreparedStoryMapping:not-a-function');
-    }
+    } catch (_) { /* swallow */ }
   },
 };
 
