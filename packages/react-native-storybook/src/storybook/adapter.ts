@@ -164,6 +164,38 @@ const DefaultAdapter: StorybookAdapter = {
       return original;
     };
 
+    // Populate view._storyIndex.entries with every story we enumerate from raw
+    // require.context. Storybook's storyIndex can be incomplete for legacy/CSF3
+    // files (only one named export registered per file). When createPreparedStoryMapping
+    // iterates entries, only that one story gets into _idToPrepared. Other
+    // stories then fail to render via view.setStory(...) - Storybook stays on
+    // its 'Please select a story to preview' placeholder, the runner captures
+    // that, and auto-reports the snapshot as a render error.
+    // Adding the missing entries lets Storybook process every enumerated story.
+    const viewInternal = view as unknown as ViewInternal;
+    if (viewInternal._storyIndex && viewInternal._storyIndex.entries) {
+      const entries = viewInternal._storyIndex.entries;
+      for (const importPath of Object.keys(moduleExportsByImportPath)) {
+        const moduleExports = moduleExportsByImportPath[importPath];
+        const metaInput = moduleExports.default || {};
+        const titleStr = typeof metaInput.title === 'string' ? metaInput.title : '';
+        if (!titleStr) continue;
+        const namedExportsOrder: string[] = Array.isArray(moduleExports.__namedExportsOrder)
+          ? moduleExports.__namedExportsOrder
+          : Object.keys(moduleExports).filter((k: string) => k !== 'default' && k !== '__esModule' && k !== '__namedExportsOrder' && !k.startsWith('_'));
+        for (const exportName of namedExportsOrder) {
+          const storyExport = moduleExports[exportName];
+          if (!storyExport) continue;
+          const annotations: any = typeof storyExport === 'function' ? (storyExport.story || {}) : storyExport;
+          const explicitName = typeof annotations.name === 'string' ? annotations.name : undefined;
+          const storyName = explicitName || storyNameFromExport(exportName);
+          const id = toId(titleStr, storyName);
+          if (entries[id]) continue;
+          entries[id] = { id, title: titleStr, name: storyName, importPath };
+        }
+      }
+    }
+
     preview[PATCH_FLAG] = true;
 
     const STORE_PATCH_FLAG = '__sherloStoreImportFnPatched';
