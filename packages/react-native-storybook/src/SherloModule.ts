@@ -123,12 +123,6 @@ function createSherloModule(): SherloModule {
       return config;
     },
     getLastState: () => {
-      const configString = getConstants().config;
-      const config = JSON.parse(configString) as Config | undefined;
-      if (config?.overrideLastState) {
-        return config.overrideLastState;
-      }
-
       const lastState = getConstants().lastState;
       const parsedLastState = lastState ? JSON.parse(lastState) : undefined;
 

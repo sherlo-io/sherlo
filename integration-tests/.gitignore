@@ -1,0 +1,39 @@
+node_modules
+.builds/
+.vitest-cache/
+*.log
+.logcats/
+apps/*/.applied-variant.json
+apps/*/.variant-backups/
+apps/integrated-app-bare-rn/sherlo-rn-storybook-int-tests-*.tgz
+.global-emulator.json
+.global-ios-simulator.json
+.app/
+
+# Android build artifacts
+apps/*/android/build/
+apps/*/android/app/build/
+apps/*/android/app/.cxx/
+apps/*/android/.gradle/
+apps/*/android/.cxx/
+apps/*/android/local.properties
+
+# Yarn Berry cache + state (nodeLinker: node-modules, so cache is regenerated from yarn.lock)
+apps/*/.yarn/cache/
+apps/*/.yarn/install-state.gz
+apps/*/.yarn/unplugged/
+apps/*/.yarn/build-state.yml
+apps/*/.pnp.*
+
+# iOS build artifacts
+apps/*/ios/Pods/
+apps/*/ios/build/
+apps/*/ios/Podfile.lock
+apps/*/ios/*.xcworkspace/xcuserdata/
+apps/*/ios/*.xcodeproj/xcuserdata/
+apps/*/ios/*.xcodeproj/project.xcworkspace/xcuserdata/
+apps/*/ios/DerivedData/
+
+# Build/diagnostic scratch
+apps/*/build/
+__snapshots__/*.tmp

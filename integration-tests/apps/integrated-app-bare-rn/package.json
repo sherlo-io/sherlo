@@ -1,0 +1,49 @@
+{
+  "name": "integrated-app-bare-rn-sherlo-integration-tests",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "start": "react-native start",
+    "storybook:generate": "sb-rn-get-stories --config-path ./.rnstorybook",
+    "postinstall": "bash scripts/postinstall.sh",
+    "build:android:development": "cd android && ./gradlew assembleDebug",
+    "build:android:preview": "cd android && ./gradlew assembleRelease",
+    "build:ios:development": "cd ios && pod install && xcodebuild -workspace BareRnHermesApp.xcworkspace -derivedDataPath build -configuration Debug -scheme BareRnHermesApp -destination 'generic/platform=iOS Simulator' -sdk iphonesimulator && tar -czf build/ios.tar.gz -C build/Build/Products/Debug-iphonesimulator BareRnHermesApp.app",
+    "build:ios:preview": "cd ios && pod install && xcodebuild -workspace BareRnHermesApp.xcworkspace -derivedDataPath build -configuration Release -scheme BareRnHermesApp -destination 'generic/platform=iOS Simulator' -sdk iphonesimulator && tar -czf build/ios.tar.gz -C build/Build/Products/Release-iphonesimulator BareRnHermesApp.app"
+  },
+  "dependencies": {
+    "@gorhom/bottom-sheet": "^5.0.2",
+    "@react-native-async-storage/async-storage": "^2.1.0",
+    "@react-native-community/datetimepicker": "8.4.4",
+    "@react-native-community/slider": "5.0.1",
+    "@sherlo/react-native-storybook": "file:/Users/michalziolkowski/sherlo-workspace/sherlo-brain/.worktrees/sherlo-1352/sherlo-brain/.repositories/sherlo/packages/react-native-storybook/sherlo-rn-storybook-int-tests-1779033667845.tgz",
+    "@types/react": "^19.1.0",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-gesture-handler": "~2.28.0",
+    "react-native-reanimated": "~4.1.1",
+    "react-native-safe-area-context": "^5.6.2",
+    "react-native-svg": "^15.15.3",
+    "react-native-worklets": "0.5.1",
+    "typescript": "~5.9.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@babel/runtime": "^7.25.0",
+    "@react-native-community/cli": "20.0.0",
+    "@react-native-community/cli-platform-android": "20.0.0",
+    "@react-native-community/cli-platform-ios": "20.0.0",
+    "@react-native/babel-preset": "0.81.5",
+    "@react-native/metro-config": "0.81.5",
+    "@react-native/typescript-config": "0.81.5",
+    "babel-loader": "^8.2.3"
+  },
+  "engines": {
+    "node": ">=18",
+    "yarn": ">=4.3.1"
+  },
+  "packageManager": "yarn@4.3.1"
+}

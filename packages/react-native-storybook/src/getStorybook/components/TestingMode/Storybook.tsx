@@ -58,8 +58,24 @@ function Storybook({
   }
 
   if (!reportedSherloJSLoaded.current) {
+    try {
+      const viewAny = view as any;
+      const entries = viewAny?._preview?.storyStoreValue?._storyIndex?.entries
+        || viewAny?._storyIndex?.entries
+        || {};
+      const prepared = viewAny?._idToPrepared || {};
+      SherloModule.appendFile('protocol.sherlo', JSON.stringify({
+        action: 'JS_DIAG',
+        tag: 'storybook:render-check',
+        storyIndexKeys: Object.keys(entries),
+        preparedKeys: Object.keys(prepared),
+        timestamp: Date.now(),
+        entity: 'app',
+      }) + '\n');
+    } catch (_) {}
     reportedSherloJSLoaded.current = true;
     storybookRenderedRef.current = true;
+    (global as any).__sherloStorybookRendered = true;
     const content: any = {
       action: 'STORYBOOK_RENDERED',
       timestamp: Date.now(),

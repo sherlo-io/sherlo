@@ -69,12 +69,11 @@ public class ConfigHelper {
     public static String determineModeFromConfig(JSONObject config) {
         try {
             if (config.length() > 0) {
-                if (config.has("overrideMode")) {
-                    String overrideMode = config.getString("overrideMode");
-                    Log.i(TAG, "Running in " + overrideMode + " mode");
-                    return overrideMode;
+                if (config.has("inspect")) {
+                    Log.i(TAG, "Running in storybook mode (inspect)");
+                    return SherloModuleCore.MODE_STORYBOOK;
                 }
-                
+                Log.i(TAG, "Running in testing mode");
                 return SherloModuleCore.MODE_TESTING;
             }
         } catch (Exception e) {

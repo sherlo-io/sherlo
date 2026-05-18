@@ -306,11 +306,17 @@
       }
       function wrappedFactory(globalObj, requireFn, importDefault, importAll, moduleObj, exportsObj, depMap) {
         // Install a setter trap so we can intercept _e.AppRegistry = t synchronously.
+        // The trap is non-enumerable until AppRegistry is actually assigned. If it
+        // were enumerable, every module's exports would carry AppRegistry=undefined
+        // in Object.entries(exports), breaking sb9's startup story-loader at
+        // node_modules/@storybook/react-native/dist/index.js:1232 which reads
+        // story.play across all enumerable exports. Once the setter fires with a
+        // real value, we re-define the property as a normal enumerable data prop.
         try {
           var _arValue;
           Object.defineProperty(exportsObj, 'AppRegistry', {
             configurable: true,
-            enumerable: true,
+            enumerable: false,
             get: function () { return _arValue; },
             set: function (v) {
               _arValue = v;
@@ -345,5 +351,33 @@
       }
       return originalDefine.call(this, wrappedFactory, moduleId, dependencyMap);
     };
+  }
+  // 3. ERROR_STORYBOOK_NOT_DISPLAYED timer - fires if the Sherlo Storybook wrapper
+  //    was never mounted (e.g. user forgot to wire getStorybook in App.tsx).
+  //    Runs unconditionally at boot so the error is detected even when the wrapper
+  //    component's useEffect never executes. Mode is read lazily inside the callback
+  //    (after 10s) to avoid the Android JSI race condition described above.
+  //    global.__sherloStorybookRendered is set by Storybook.tsx when the wrapper renders.
+  //    Error code source of truth: src/checkSdkCompatibility.ts
+  if (!global.__sherloStorybookNotDisplayedTimerInstalled) {
+    global.__sherloStorybookNotDisplayedTimerInstalled = true;
+    setTimeout(function () {
+      try {
+        if (global.__sherloStorybookRendered === true) return;
+        var sherloNm = (global.__turboModuleProxy && global.__turboModuleProxy('SherloModule')) ||
+                       (global.nativeModuleProxy && global.nativeModuleProxy.SherloModule);
+        if (!sherloNm) return;
+        var turboConsts = (typeof sherloNm.getSherloConstants === 'function' && sherloNm.getSherloConstants()) || {};
+        var nativeConsts = (typeof sherloNm.getConstants === 'function' && sherloNm.getConstants()) || {};
+        var mode = turboConsts.mode || nativeConsts.mode;
+        if (mode !== 'testing') return;
+        var ref = global.__sherloModuleRef;
+        if (ref && typeof ref.sendNativeError === 'function') {
+          ref.sendNativeError('ERROR_STORYBOOK_NOT_DISPLAYED', 'Storybook did not appear within 10s of app launch');
+        } else if (typeof sherloNm.sendNativeError === 'function') {
+          sherloNm.sendNativeError('ERROR_STORYBOOK_NOT_DISPLAYED', 'Storybook did not appear within 10s of app launch', '');
+        }
+      } catch (_) {}
+    }, 10000);
   }
 })();

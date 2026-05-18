@@ -1,5 +1,6 @@
 
 import { StorybookView } from '../types';
+import SherloModule from '../SherloModule';
 
 export interface StoryMeta {
   id: string;
@@ -116,6 +117,9 @@ const DefaultAdapter: StorybookAdapter = {
   },
 
   prepareForTesting(view): void {
+    // BISECT: disabled to test if adapter.prepareForTesting is the regression
+    // cause beyond polyfill. 1.6.3 had no adapter at all.
+    if ((true as any)) { return; }
     const preview = (view as unknown as ViewInternal)._preview as
       | { importFn?: (importPath: string) => Promise<any>; [k: string]: any }
       | undefined;
@@ -136,18 +140,17 @@ const DefaultAdapter: StorybookAdapter = {
           if (!fileExports || !fileExports.default) continue;
           const importPath = entry.directory + '/' + filename.substring(2);
           metaByImportPath[importPath] = fileExports.default;
-          // Sanitize for Storybook v10 processCSFFile:
-          //  - drop __esModule and any underscore-prefixed keys (processCSFFile may iterate
-          //    Object.keys and treat __esModule as a story export, crashing on .story access)
-          //  - synthesize __namedExportsOrder from the remaining named exports
+          // Match Storybook v10 importMap shape: drop __esModule and underscore-prefixed keys,
+          // keep `default` (the meta) and the named story exports. Storybook's processCSFFile
+          // expects exactly this shape; any extra key (e.g. __namedExportsOrder) is treated
+          // as a story candidate and triggers a 'Cannot read property story of undefined' crash.
           const sanitized: Record<string, any> = { default: fileExports.default };
-          const namedKeys: string[] = [];
           for (const key of Object.keys(fileExports)) {
             if (key === 'default' || key === '__esModule' || key === '__namedExportsOrder' || key.startsWith('_')) continue;
-            sanitized[key] = fileExports[key];
-            namedKeys.push(key);
+            const val = fileExports[key];
+            if (val == null) continue;
+            sanitized[key] = val;
           }
-          sanitized.__namedExportsOrder = namedKeys;
           moduleExportsByImportPath[importPath] = sanitized;
         } catch (_) {
           continue;
@@ -155,15 +158,26 @@ const DefaultAdapter: StorybookAdapter = {
       }
     }
 
+    // Apply importFn wrap on ALL Storybook versions. v10's processCSFFile is the
+    // known crash site; v8/v9 may also crash the same way (also missing importMap
+    // entries when story files' default export isn't bound at start() time).
+    // Earlier comment claimed wrapping importFn on v8/v9 hangs - that was for an
+    // older fallback shape. Our current fallback returns the Storybook importMap
+    // shape verbatim (default + named exports), so memoization should be fine.
     preview.importFn = async (importPath: string) => {
       const original = await originalImportFn(importPath);
-      const meta = metaByImportPath[importPath];
-      if (original && meta && !original.default) {
-        return { ...original, default: meta };
+      if (original) {
+        const meta = metaByImportPath[importPath];
+        if (meta && !original.default) {
+          return { ...original, default: meta };
+        }
+        return original;
       }
-      return original;
+      return moduleExportsByImportPath[importPath];
     };
 
+    // All Storybook versions' storyIndex can be incomplete for legacy/CSF3 files (only one
+    // named export registered per file). Populating _storyIndex.entries fixes that.
     // Populate view._storyIndex.entries with every story we enumerate from raw
     // require.context. Storybook's storyIndex can be incomplete for legacy/CSF3
     // files (only one named export registered per file). When createPreparedStoryMapping
@@ -197,102 +211,6 @@ const DefaultAdapter: StorybookAdapter = {
     }
 
     preview[PATCH_FLAG] = true;
-
-    const STORE_PATCH_FLAG = '__sherloStoreImportFnPatched';
-    const wrappedImportFn = preview.importFn;
-    const patchStoreInstance = (store: any): void => {
-      if (!store) { return; }
-      if (store[STORE_PATCH_FLAG]) { return; }
-      if (typeof store.importFn !== 'function') { return; }
-      store.importFn = wrappedImportFn;
-      store[STORE_PATCH_FLAG] = true;
-
-      // Storybook RN v10's processCSFFileWithCache memoized closure is broken for
-      // legacy/CSF3 module shapes when fed through its captured (unpatched) importFn.
-      // Calling the original always crashes inside normalizeStory ('story of undefined').
-      // We bypass the closure entirely and build the CSF file struct ourselves from
-      // the raw require.context module exports we already collected.
-      const buildCSFFile = (moduleExports: any, importPath: string, fallbackTitle: string): any => {
-        const metaInput = moduleExports.default || {};
-        const titleStr = (typeof metaInput.title === 'string' && metaInput.title) || fallbackTitle || importPath;
-        const metaId = toId(titleStr);
-        const meta: any = {
-          id: metaId,
-          title: titleStr,
-          parameters: metaInput.parameters || {},
-          args: metaInput.args || {},
-          argTypes: metaInput.argTypes || {},
-          decorators: Array.isArray(metaInput.decorators) ? metaInput.decorators : [],
-          loaders: Array.isArray(metaInput.loaders) ? metaInput.loaders : [],
-          component: metaInput.component,
-          subcomponents: metaInput.subcomponents,
-          tags: Array.isArray(metaInput.tags) ? metaInput.tags : [],
-          play: metaInput.play,
-          render: metaInput.render,
-        };
-        const stories: Record<string, any> = {};
-        const namedExportsOrder: string[] = Array.isArray(moduleExports.__namedExportsOrder)
-          ? moduleExports.__namedExportsOrder
-          : Object.keys(moduleExports).filter(k => k !== 'default' && k !== '__esModule' && k !== '__namedExportsOrder' && !k.startsWith('_'));
-        for (const exportName of namedExportsOrder) {
-          const storyExport = moduleExports[exportName];
-          if (!storyExport) continue;
-          const isFunction = typeof storyExport === 'function';
-          const annotations: any = isFunction ? (storyExport.story || {}) : storyExport;
-          const explicitName = typeof annotations.name === 'string' ? annotations.name : undefined;
-          const storyName = explicitName || storyNameFromExport(exportName);
-          const storyId = toId(titleStr, storyName);
-          const render = isFunction
-            ? storyExport
-            : (typeof annotations.render === 'function' ? annotations.render : undefined);
-          stories[storyId] = {
-            id: storyId,
-            exportName,
-            name: storyName,
-            title: titleStr,
-            render,
-            parameters: annotations.parameters || {},
-            args: annotations.args || {},
-            argTypes: annotations.argTypes || {},
-            decorators: Array.isArray(annotations.decorators) ? annotations.decorators : [],
-            loaders: Array.isArray(annotations.loaders) ? annotations.loaders : [],
-            tags: Array.isArray(annotations.tags) ? annotations.tags : [],
-            play: annotations.play,
-            moduleExport: storyExport,
-          };
-        }
-        return { meta, stories };
-      };
-
-      store.processCSFFileWithCache = function ownedProcessCSFFileWithCache(...args: any[]) {
-        const incomingExports = args[0];
-        const importPath = typeof args[1] === 'string' ? args[1] : '';
-        const title = typeof args[2] === 'string' ? args[2] : '';
-        const finalExports = incomingExports && typeof incomingExports === 'object'
-          ? incomingExports
-          : moduleExportsByImportPath[importPath];
-        if (!finalExports) { return undefined; }
-        return buildCSFFile(finalExports, importPath, title);
-      };
-    };
-
-    let storyStoreValueRef: any = (preview as any).storyStoreValue;
-    if (storyStoreValueRef) {
-      patchStoreInstance(storyStoreValueRef);
-    }
-    try {
-      Object.defineProperty(preview, 'storyStoreValue', {
-        configurable: true,
-        enumerable: true,
-        get() {
-          return storyStoreValueRef;
-        },
-        set(value: any) {
-          storyStoreValueRef = value;
-          if (value) patchStoreInstance(value);
-        },
-      });
-    } catch (_) { /* swallow */ }
   },
 };
 
@@ -300,6 +218,19 @@ function readStoryEntries(): Array<{ titlePrefix?: string; directory?: string; r
   const stories = (globalThis as any).STORIES;
   if (!Array.isArray(stories)) return [];
   return stories;
+}
+
+function isStorybookV10OrLater(): boolean {
+  try {
+    const pkg = (require as any)('@storybook/react-native/package.json');
+    const version = typeof pkg?.version === 'string' ? pkg.version : '0';
+    const major = parseInt(version.split('.')[0], 10);
+    return major >= 10;
+  } catch (_) {
+    // If package.json is unresolvable, assume NOT v10 to avoid applying
+    // the patch to sb8/sb9 where it may break story preparation.
+    return false;
+  }
 }
 
 function readGlobalParameters(): Record<string, any> {
@@ -311,38 +242,6 @@ function readGlobalParameters(): Record<string, any> {
   }
 }
 
-function resolveFileExports(
-  importPath: string,
-  storyEntries: Array<{ directory?: string; req?: RawRequireContext }>
-): Record<string, any> | null {
-  for (const entry of storyEntries) {
-    if (!entry.req || !entry.directory) continue;
-    if (!importPath.startsWith(entry.directory + '/')) continue;
-    const relative = importPath.slice(entry.directory.length + 1);
-    const reqKey = './' + relative;
-    try {
-      return entry.req(reqKey);
-    } catch (_) {
-      return null;
-    }
-  }
-  return null;
-}
-
-function findExportKeyForStory(
-  fileExports: Record<string, any>,
-  meta: any,
-  indexEntry: { id: string; name: string; title: string }
-): string | null {
-  for (const key of Object.keys(fileExports)) {
-    if (key === 'default' || key === '__esModule' || key === '__namedExportsOrder') continue;
-    const value = fileExports[key];
-    if (!value) continue;
-    const candidateId = toId(meta.title ?? indexEntry.title, storyNameFromExport(key));
-    if (candidateId === indexEntry.id) return key;
-  }
-  return null;
-}
 
 export function getAdapter(_view: StorybookView): StorybookAdapter {
   return DefaultAdapter;

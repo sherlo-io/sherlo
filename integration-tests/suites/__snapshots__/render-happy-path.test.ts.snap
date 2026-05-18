@@ -1,0 +1,286 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Render: happy paths produce snapshots with hasError=false - sb8 > render--async-settle renders successfully > android-render--async-settle-hierarchy 1`] = `
+{
+  "children": [
+    {
+      "children": [],
+      "className": "RCTText",
+      "isVisible": true,
+      "properties": {},
+    },
+  ],
+  "className": "RCTView",
+  "isVisible": true,
+  "properties": {
+    "style": {
+      "flex": 1,
+      "overflow": "hidden",
+    },
+    "testID": "render--async-settle",
+  },
+}
+`;
+
+exports[`Render: happy paths produce snapshots with hasError=false - sb8 > render--stateful renders successfully > android-render--stateful-hierarchy 1`] = `
+{
+  "children": [
+    {
+      "children": [],
+      "className": "RCTText",
+      "isVisible": true,
+      "properties": {},
+    },
+  ],
+  "className": "RCTView",
+  "isVisible": true,
+  "properties": {
+    "style": {
+      "flex": 1,
+      "overflow": "hidden",
+    },
+    "testID": "render--stateful",
+  },
+}
+`;
+
+exports[`Render: happy paths produce snapshots with hasError=false - sb8 > render--static renders successfully > android-render--static-hierarchy 1`] = `
+{
+  "children": [
+    {
+      "children": [],
+      "className": "RCTText",
+      "isVisible": true,
+      "properties": {},
+    },
+  ],
+  "className": "RCTView",
+  "isVisible": true,
+  "properties": {
+    "style": {
+      "flex": 1,
+      "overflow": "hidden",
+    },
+    "testID": "render--static",
+  },
+}
+`;
+
+exports[`Render: happy paths produce snapshots with hasError=false - sb9 > render--async-settle renders successfully > android-render--async-settle-hierarchy 1`] = `
+{
+  "children": [
+    {
+      "children": [],
+      "className": "RCTText",
+      "isVisible": true,
+      "properties": {},
+    },
+  ],
+  "className": "RCTView",
+  "isVisible": true,
+  "properties": {
+    "style": {
+      "flex": 1,
+      "overflow": "hidden",
+    },
+    "testID": "render--async-settle",
+  },
+}
+`;
+
+exports[`Render: happy paths produce snapshots with hasError=false - sb9 > render--stateful renders successfully > android-render--stateful-hierarchy 1`] = `
+{
+  "children": [
+    {
+      "children": [],
+      "className": "RCTText",
+      "isVisible": true,
+      "properties": {},
+    },
+  ],
+  "className": "RCTView",
+  "isVisible": true,
+  "properties": {
+    "style": {
+      "flex": 1,
+      "overflow": "hidden",
+    },
+    "testID": "render--stateful",
+  },
+}
+`;
+
+exports[`Render: happy paths produce snapshots with hasError=false - sb9 > render--static renders successfully > android-render--static-hierarchy 1`] = `
+{
+  "children": [
+    {
+      "children": [],
+      "className": "RCTText",
+      "isVisible": true,
+      "properties": {},
+    },
+  ],
+  "className": "RCTView",
+  "isVisible": true,
+  "properties": {
+    "style": {
+      "flex": 1,
+      "overflow": "hidden",
+    },
+    "testID": "render--static",
+  },
+}
+`;
+
+exports[`Render: happy paths produce snapshots with hasError=false - sb10 > render--async-settle renders successfully > android-render--async-settle-hierarchy 1`] = `
+{
+  "children": [
+    {
+      "children": [],
+      "className": "RCTText",
+      "isVisible": true,
+      "properties": {},
+    },
+  ],
+  "className": "RCTView",
+  "isVisible": true,
+  "properties": {
+    "style": {
+      "flex": 1,
+      "overflow": "hidden",
+    },
+    "testID": "render--async-settle",
+  },
+}
+`;
+
+exports[`Render: happy paths produce snapshots with hasError=false - sb10 > render--async-settle renders successfully > ios-render--async-settle-hierarchy 1`] = `
+{
+  "children": [
+    {
+      "children": [
+        {
+          "children": [],
+          "className": "RCTParagraphTextView",
+          "isVisible": true,
+          "properties": {},
+        },
+      ],
+      "className": "RCTText",
+      "isVisible": true,
+      "properties": {},
+    },
+  ],
+  "className": "RCTView",
+  "isVisible": true,
+  "properties": {
+    "style": {
+      "flex": 1,
+      "overflow": "hidden",
+    },
+    "testID": "render--async-settle",
+  },
+}
+`;
+
+exports[`Render: happy paths produce snapshots with hasError=false - sb10 > render--stateful renders successfully > android-render--stateful-hierarchy 1`] = `
+{
+  "children": [
+    {
+      "children": [],
+      "className": "RCTText",
+      "isVisible": true,
+      "properties": {},
+    },
+  ],
+  "className": "RCTView",
+  "isVisible": true,
+  "properties": {
+    "style": {
+      "flex": 1,
+      "overflow": "hidden",
+    },
+    "testID": "render--stateful",
+  },
+}
+`;
+
+exports[`Render: happy paths produce snapshots with hasError=false - sb10 > render--stateful renders successfully > ios-render--stateful-hierarchy 1`] = `
+{
+  "children": [
+    {
+      "children": [
+        {
+          "children": [],
+          "className": "RCTParagraphTextView",
+          "isVisible": true,
+          "properties": {},
+        },
+      ],
+      "className": "RCTText",
+      "isVisible": true,
+      "properties": {},
+    },
+  ],
+  "className": "RCTView",
+  "isVisible": true,
+  "properties": {
+    "style": {
+      "flex": 1,
+      "overflow": "hidden",
+    },
+    "testID": "render--stateful",
+  },
+}
+`;
+
+exports[`Render: happy paths produce snapshots with hasError=false - sb10 > render--static renders successfully > android-render--static-hierarchy 1`] = `
+{
+  "children": [
+    {
+      "children": [],
+      "className": "RCTText",
+      "isVisible": true,
+      "properties": {},
+    },
+  ],
+  "className": "RCTView",
+  "isVisible": true,
+  "properties": {
+    "style": {
+      "flex": 1,
+      "overflow": "hidden",
+    },
+    "testID": "render--static",
+  },
+}
+`;
+
+exports[`Render: happy paths produce snapshots with hasError=false - sb10 > render--static renders successfully > ios-render--static-hierarchy 1`] = `
+{
+  "children": [
+    {
+      "children": [
+        {
+          "children": [],
+          "className": "RCTParagraphTextView",
+          "isVisible": true,
+          "properties": {},
+        },
+      ],
+      "className": "RCTText",
+      "isVisible": true,
+      "properties": {},
+    },
+  ],
+  "className": "RCTView",
+  "isVisible": true,
+  "properties": {
+    "style": {
+      "flex": 1,
+      "overflow": "hidden",
+    },
+    "testID": "render--static",
+  },
+}
+`;

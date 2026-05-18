@@ -1,0 +1,1 @@
+{ "compatibleWith": ["sb10", "sb9", "sb8"], "scripts": { "prepare": "scripts/prepare.sh", "cleanup": "scripts/cleanup.sh" } }

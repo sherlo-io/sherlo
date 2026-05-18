@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isStorybook7 } from '../../../helpers';
 import { MetadataProviderRef } from '../MetadataProvider';
 import { prepareInspectorData } from './prepareInspectorData';
+import { readStoryError, clearStoryError } from '../../../storyErrorRegistry';
 
 function useTestStory({
   metadataProviderRef,
@@ -85,9 +86,10 @@ function useTestStory({
 
         RunnerBridge.log('got fabric metadata');
 
-        const containsError = fabricMetadata?.texts.includes(
-          'Something went wrong rendering your story'
-        );
+        const recordedError = readStoryError(nextSnapshot.storyId);
+        const containsError =
+          recordedError !== undefined ||
+          fabricMetadata?.texts.includes('Something went wrong rendering your story');
 
         let finalInspectorData = inspectorData;
         let hasNetworkImage = false;
@@ -146,6 +148,8 @@ function useTestStory({
 
         let response = await RunnerBridge.send({
           action: 'REQUEST_SNAPSHOT',
+          storyId: nextSnapshot.storyId,
+          error: recordedError,
           hasError: containsError,
           inspectorData: JSON.stringify(finalInspectorData),
           isStable,
@@ -243,6 +247,8 @@ function useTestStory({
 
           response = await RunnerBridge.send({
             action: 'REQUEST_SNAPSHOT',
+            storyId: nextSnapshot.storyId,
+            error: recordedError,
             hasError: containsError,
             inspectorData: JSON.stringify(finalInspectorData),
             isStable: isStableAfterScroll,
@@ -255,6 +261,7 @@ function useTestStory({
             scrollViewFrame,
           });
         }
+        clearStoryError(nextSnapshot.storyId);
       } catch (error) {
         // @ts-ignore
         RunnerBridge.log('story capturing failed', { errorMessage: error?.message });

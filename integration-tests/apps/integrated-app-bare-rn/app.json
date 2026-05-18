@@ -1,0 +1,15 @@
+{
+  "name": "BareRnHermesApp",
+  "displayName": "BareRnHermesApp",
+  "expo": {
+    "owner": "ziolkowskimichal",
+    "name": "BareRnHermesApp",
+    "slug": "barernhermesapp",
+    "version": "1.0.0",
+    "extra": {
+      "eas": {
+        "projectId": "4afa1d08-96bc-4622-9a86-15f8939ac12e"
+      }
+    }
+  }
+}

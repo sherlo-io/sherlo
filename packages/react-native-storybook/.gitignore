@@ -6,3 +6,4 @@ node_modules
 android/build
 android/.gradle/
 sherlo-rn-storybook-local*.tgz
+sherlo-rn-storybook-int-tests-*.tgz

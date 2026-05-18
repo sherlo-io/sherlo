@@ -70,6 +70,10 @@ static NSString *const PROTOCOL_FILENAME = @"protocol.sherlo";
         if ([action isEqualToString:@"ACK_START"] && !ackStart) {
           ackStart = responseItem;
         } else if ([action isEqualToString:@"ACK_REQUEST_SNAPSHOT"] && !lastRequestSnapshot) {
+          // Skip end-of-session markers: runner writes ACK_REQUEST_SNAPSHOT { nextSnapshot: null }
+          // when terminating a story. We only want the latest entry that actually points to a story.
+          id nextSnap = responseItem[@"nextSnapshot"];
+          if (!nextSnap || nextSnap == [NSNull null]) continue;
           lastRequestSnapshot = responseItem;
         } else if ([action isEqualToString:@"START"] && !startItem) {
           startItem = responseItem;

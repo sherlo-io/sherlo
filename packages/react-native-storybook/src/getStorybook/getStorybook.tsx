@@ -1,15 +1,14 @@
 import React, { ReactElement, useEffect, useRef } from 'react';
 import SherloModule from '../SherloModule';
-import checkSdkCompatibility, { ERROR_STORYBOOK_NOT_DISPLAYED } from '../checkSdkCompatibility';
+import checkSdkCompatibility from '../checkSdkCompatibility';
 import type { InitialSelection } from '@storybook/react-native';
 import { StorybookParams, StorybookView } from '../types';
 import { TestingMode } from './components';
 import { getStorybookComponent } from './helpers';
 import { useHideSplashScreen } from './hooks';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { storybookRenderedRef } from './components/TestingMode/Storybook';
 import { getAdapter } from '../storybook/adapter';
-import { STORYBOOK_LOAD_TIMEOUT_MS } from '../constants';
+import SherloStoryErrorBoundary from './components/SherloStoryErrorBoundary';
 
 let isSdkCompatible = true;
 if (SherloModule.getMode() === 'testing') {
@@ -21,32 +20,46 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 
   if (mode === 'testing') {
     getAdapter(view).prepareForTesting(view);
+
     const delayMs = SherloModule.getConfig().initialStoryRenderDelayMs;
-    if (delayMs !== undefined) {
-      const originalGetProjectAnnotations = view._preview.getProjectAnnotations.bind(
-        view._preview
-      );
-      view._preview.onGetProjectAnnotationsChanged({
-        getProjectAnnotations: async () => {
-          const annotations = await originalGetProjectAnnotations();
-          return {
-            ...annotations,
+    const originalGetProjectAnnotations = view._preview.getProjectAnnotations.bind(
+      view._preview
+    );
+    view._preview.onGetProjectAnnotationsChanged({
+      getProjectAnnotations: async () => {
+        const annotations = await originalGetProjectAnnotations();
+        return {
+          ...annotations,
+          decorators: [
+            (Story: any, context: any) => (
+              <SherloStoryErrorBoundary storyId={context.id}>
+                <Story />
+              </SherloStoryErrorBoundary>
+            ),
+            ...(annotations.decorators ?? []),
+          ],
+          ...(delayMs !== undefined && {
             loaders: [
               ...(annotations.loaders ?? []),
               async () => { await new Promise(r => setTimeout(r, delayMs)); },
             ],
-          };
-        },
-      });
-    }
+          }),
+        };
+      },
+    });
   }
 
   if (mode === 'storybook') {
     try {
       const config = SherloModule.getConfig();
-      if (config.initialStoryId) {
-        params = { ...(params ?? {}), initialSelection: config.initialStoryId as InitialSelection };
-      }
+      const initialStoryId = config.inspect?.initialStoryId;
+      // Force shouldPersistSelection:false so inspect.initialStoryId always wins
+      // over persisted AsyncStorage state from a previous launch.
+      params = {
+        ...(params ?? {}),
+        shouldPersistSelection: false,
+        ...(initialStoryId && { initialSelection: initialStoryId as InitialSelection }),
+      };
     } catch (_e) {}
   }
 
@@ -72,19 +85,6 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
           SherloModule.appendFile('protocol.sherlo', `${content}\n`);
         }
       } catch (_e) {}
-    }, []);
-
-    useEffect(() => {
-      if (!isTestingMode) return;
-      const timer = setTimeout(() => {
-        if (!storybookRenderedRef.current) {
-          SherloModule.sendNativeError(
-            ERROR_STORYBOOK_NOT_DISPLAYED,
-            'Storybook did not appear within 10s of sherlo withStorybook mount'
-          );
-        }
-      }, STORYBOOK_LOAD_TIMEOUT_MS);
-      return () => clearTimeout(timer);
     }, []);
 
     if (isTestingMode) {

@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "@storybook/addon-ondevice-actions": "^8.3.3",
+    "@storybook/addon-ondevice-backgrounds": "^8.3.3",
+    "@storybook/addon-ondevice-controls": "^8.3.3",
+    "@storybook/addon-ondevice-notes": "^8.3.3",
+    "@storybook/react-native": "^8.3.3",
+    "storybook": "^8.0.0"
+  }
+}

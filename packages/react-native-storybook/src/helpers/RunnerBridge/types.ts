@@ -17,13 +17,16 @@ export type Config = {
     includeAA: boolean;
     saveScreenshots?: boolean;
   };
-  overrideMode?: 'default' | 'storybook' | 'testing';
   easUpdateDeeplink?: string;
-  overrideLastState?: LastState;
   initialStoryRenderDelayMs?: number;
   sherloAtRoot?: boolean;
-  /** Kebab-case Storybook story ID (e.g. "components-button--basic"). When set and mode is 'storybook', renders this story on first paint. */
-  initialStoryId?: string;
+  /**
+   * When set, launches the app in interactive storybook-UI mode (not testing).
+   * Used for manual inspection of stories. The runner never sets this; humans/devtools do.
+   */
+  inspect?: {
+    initialStoryId?: string;
+  };
 };
 
 export type LastState = {
@@ -68,6 +71,13 @@ export type AppProtocolItem =
     }
   | {
       action: 'REQUEST_SNAPSHOT';
+      storyId: string;
+      error?: {
+        name: string;
+        message: string;
+        stack: string;
+        componentStack: string;
+      };
       hasError?: boolean;
       inspectorData?: string;
       isStable?: boolean;
