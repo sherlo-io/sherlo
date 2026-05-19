@@ -7,17 +7,40 @@
 // This file ships in every customer bundle that uses sherlo's withStorybook, including
 // production App Store / Play Store builds.
 //
-// Production safety lives entirely on the native side: SherloModuleCore.reportEarlyJsError
-// (both Android Java and iOS .mm) returns early if mode is not 'testing'. The JS side
-// forwards unconditionally - this is intentional. A JS-side mode gate was previously
-// tried and caused an Android race condition: the JSI binding
-// (TurboModuleWithJSIBindings.getBindingsInstaller) can race module evaluation on
-// Android, so the polyfill would sometimes check __sherloRuntimeMode_v1 before the
-// JSI binding had a chance to write it. Result: polyfill silently no-ops → JS errors
-// thrown during App.tsx top-level eval are never captured → runner times out and
-// classifies as storybookNotDisplayed instead of jsLaunchCrash.
+// IIFE-TIME MODE GATE (TurboModule bridge call):
 //
-// TWO complementary capture paths:
+// The polyfill performs ONE TurboModule bridge call at IIFE time to determine mode.
+// TurboModules are registered before bundle eval starts on both old and new arch, so
+// nm.getSherloConstants() called at IIFE time returns the correct mode reliably.
+//
+// If mode is the literal string 'default' (production: config.sherlo absent or
+// invalid, no Sherlo testing or inspect mode active), the IIFE returns immediately.
+// The polyfill does NOTHING - no ErrorUtils handler install, no __d wrap, no
+// AppRegistry trap, no captures, no 10s timer. Zero production overhead.
+//
+// For any other mode (testing, storybook, undefined, or a thrown exception during
+// the read), the full polyfill body runs. Conservative default: when uncertain,
+// run the polyfill.
+//
+// WHY THE BRIDGE CALL IS SAFE (and the JSI global is not):
+//
+// A previous attempt used globalThis.__sherloRuntimeMode_v1 as a gate and caused
+// an Android race condition: the JSI binding (TurboModuleWithJSIBindings
+// .getBindingsInstaller) can race module evaluation on Android, so the polyfill
+// would sometimes read __sherloRuntimeMode_v1 before the JSI binding had written it.
+// Gating on that global also broke testing: when the JSI binding had not yet written
+// the global at the AR-exporting module's factory-call time, the AppRegistry trap was
+// skipped, patchAppRegistry never fired, the SherloErrorBoundary was never installed,
+// and JS_ERROR was never written to protocol - integration test
+// error-js-runtime-crash failed on sb8/sb9/sb10.
+//
+// The TurboModule bridge call is a separate, more deterministic mechanism. TurboModules
+// are registered before bundle eval begins. The JSI global write can race; the bridge
+// call cannot. Do NOT use __sherloRuntimeMode_v1 or any JSI-set global as a gate.
+// The single IIFE-time bridge call is the only gate; do NOT add mode-check gates
+// inside individual handlers, wrappers, or capture probes.
+//
+// TWO complementary capture paths (active when mode is not 'default'):
 //
 // 1. ErrorUtils.setGlobalHandler - catches module-eval throws in the ENTRY
 //    module (Metro's guardedLoadModule → ErrorUtils.reportFatalError), async
@@ -36,15 +59,39 @@
 // flag to ensure only one report per session even if both paths fire for the
 // same root cause.
 //
-// Production cost: one try/catch wrapper per module factory call at startup
-// (thousands of no-throw calls × nanoseconds = sub-millisecond). In production
-// the native call is a no-op - native returns early before writing anything.
-//
 // No customer configuration is required. No env vars. No build flags.
 //
 (function () {
   if (typeof globalThis === 'undefined') return;
   if (typeof global === 'undefined') return;
+
+  // Production safety gate. Read mode ONCE via the TurboModule bridge.
+  // The bridge call is reliable here (TurboModules are registered before
+  // bundle eval). The JSI-set global __sherloRuntimeMode_v1 has a known
+  // Android race and must NOT be used as a gate. A previous attempt did
+  // that and broke testing-mode JS_ERROR capture.
+  //
+  // If mode is the literal string 'default' (production: no Sherlo
+  // testing or inspect mode active), return early. The polyfill does
+  // NOTHING in production - no ErrorUtils handler install, no __d wrap,
+  // no AppRegistry trap, no captures, no 10s timer. Native-side
+  // protocol writes are independently gated and a no-op too.
+  //
+  // For any other outcome (mode 'testing', 'storybook', undefined, or
+  // a thrown exception in the read), continue with the full polyfill
+  // behavior. Conservative default: when uncertain, run the polyfill.
+  try {
+    var __sherloModeProbe = (global.__turboModuleProxy && global.__turboModuleProxy('SherloModule')) ||
+                            (global.nativeModuleProxy && global.nativeModuleProxy.SherloModule);
+    if (__sherloModeProbe) {
+      var __sherloConstsProbe =
+        (typeof __sherloModeProbe.getSherloConstants === 'function' ? __sherloModeProbe.getSherloConstants() : null) ||
+        (typeof __sherloModeProbe.getConstants === 'function' ? __sherloModeProbe.getConstants() : null);
+      if (__sherloConstsProbe && __sherloConstsProbe.mode === 'default') {
+        return;
+      }
+    }
+  } catch (_) {}
 
   function reportToNative(error) {
     if (global.__sherloFirstErrorReported) return;
@@ -241,10 +288,13 @@
   //    (Metro's local metroRequire ref bypasses any global.__r replacement,
   //    so wrapping __d at the source is the only reliable way to catch
   //    nested module-eval throws like App.tsx top-level errors).
-  //    Also installs a setter trap on exportsObj.AppRegistry so that when
-  //    RN's AppRegistry re-exporter assigns _e.AppRegistry = t, patchAppRegistry
-  //    fires synchronously before RN's own LogBox registerComponent call locks
-  //    in the unpatched reference in Hermes' inline cache.
+  //    Unconditionally installs a setter trap on exportsObj.AppRegistry so
+  //    patchAppRegistry fires synchronously when RN's AppRegistry re-exporter
+  //    assigns _e.AppRegistry = t, before RN's own LogBox registerComponent call
+  //    locks in the unpatched reference in Hermes' inline cache. The trap is cheap
+  //    (one defineProperty per module) and inert; patchAppRegistry has its own
+  //    getSherloConstants mode gate. The maybeCapture* probes in finally run
+  //    unconditionally (see file header for rationale).
   if (typeof global.__d === 'function' && !global.__sherloDefineWrapped) {
     global.__sherloDefineWrapped = true;
     var originalDefine = global.__d;
@@ -255,12 +305,10 @@
       }
       function wrappedFactory(globalObj, requireFn, importDefault, importAll, moduleObj, exportsObj, depMap) {
         // Install a setter trap so we can intercept _e.AppRegistry = t synchronously.
-        // The trap is non-enumerable until AppRegistry is actually assigned. If it
-        // were enumerable, every module's exports would carry AppRegistry=undefined
-        // in Object.entries(exports), breaking sb9's startup story-loader at
-        // node_modules/@storybook/react-native/dist/index.js:1232 which reads
-        // story.play across all enumerable exports. Once the setter fires with a
-        // real value, we re-define the property as a normal enumerable data prop.
+        // (UNCONDITIONAL - patchAppRegistry has its own internal mode gate via
+        // getSherloConstants. Gating this trap on globalThis.__sherloRuntimeMode_v1
+        // was tried and broke testing on Android when the JSI binding had not yet
+        // written the global at the AR-exporting module's factory-call time.)
         try {
           var _arValue;
           Object.defineProperty(exportsObj, 'AppRegistry', {
