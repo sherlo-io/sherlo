@@ -44,10 +44,6 @@ public class SherloModuleCore {
     private FileSystemHelper fileSystemHelper = null;
     private RestartHelper restartHelper = null;
 
-    // Static reference to FileSystemHelper for use from static/JNI contexts.
-    // Set once in performEarlyInit (before JS runs) and refreshed in the constructor.
-    private static volatile FileSystemHelper staticFileSystemHelper = null;
-
     /**
      * Emits the early native protocol signals (NATIVE_INIT_STARTED, NATIVE_LOADED) when the
      * Sherlo config indicates testing mode. Idempotent - subsequent calls are no-ops.
@@ -68,7 +64,6 @@ public class SherloModuleCore {
 
         try {
             FileSystemHelper fsHelper = new FileSystemHelper(context);
-            staticFileSystemHelper = fsHelper;
             JSONObject earlyConfig = ConfigHelper.loadConfig(fsHelper);
             if (earlyConfig == null) return;
 
@@ -102,7 +97,6 @@ public class SherloModuleCore {
      */
     public SherloModuleCore(ReactApplicationContext reactContext, Activity activity) {
         this.fileSystemHelper = new FileSystemHelper(reactContext);
-        staticFileSystemHelper = this.fileSystemHelper;
 
         // Fallback - normal Android startup already runs this via SherloInitProvider before
         // Application.onCreate(). The call is idempotent so the double-invocation costs nothing.
@@ -133,7 +127,7 @@ public class SherloModuleCore {
     }
     
     /**
-     * Returns the current mode string. Safe to call before constructor — falls back to
+     * Returns the current mode string. Safe to call before constructor - falls back to
      * MODE_DEFAULT. Used by the JSI bindings (SherloModuleJSIBindings.cpp) to read the
      * mode synchronously on the JS thread before bundle evaluation starts.
      */
@@ -188,14 +182,6 @@ public class SherloModuleCore {
     public void sendNativeError(String errorCode, String message, String dataJson) {
         if (!MODE_TESTING.equals(currentMode)) return;
         ProtocolHelper.writeNativeError(this.fileSystemHelper, errorCode, message, dataJson);
-    }
-
-    /**
-     * Writes a JS_ERROR JSON line to protocol.sherlo.
-     */
-    public void sendJsError(String message, String stack, String source) {
-        if (!MODE_TESTING.equals(currentMode)) return;
-        ProtocolHelper.writeJsError(this.fileSystemHelper, message, stack, source);
     }
 
     /**

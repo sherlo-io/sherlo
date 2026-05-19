@@ -7,3 +7,4 @@ android/build
 android/.gradle/
 sherlo-rn-storybook-local*.tgz
 sherlo-rn-storybook-int-tests-*.tgz
+sherlo-react-native-storybook-*.tgz

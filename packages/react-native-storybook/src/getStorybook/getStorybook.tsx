@@ -19,8 +19,6 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
   const mode = SherloModule.getMode();
 
   if (mode === 'testing') {
-    getAdapter(view).prepareForTesting(view);
-
     const delayMs = SherloModule.getConfig().initialStoryRenderDelayMs;
     const originalGetProjectAnnotations = view._preview.getProjectAnnotations.bind(
       view._preview

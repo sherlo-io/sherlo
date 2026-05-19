@@ -61,14 +61,6 @@
 - (void)sendNativeError:(NSString *)errorCode message:(NSString *)message dataJson:(NSString *)dataJson;
 
 /**
- * Writes a JS_ERROR JSON line to protocol.sherlo.
- * @param message The JS error message
- * @param stack The JS stack trace
- * @param source Either "globalHandler" or "errorBoundary"
- */
-- (void)sendJsError:(NSString *)message stack:(NSString *)stack source:(NSString *)source;
-
-/**
  * Synchronously writes a JS_ERROR entry for module-eval errors caught by the metro __r polyfill.
  * Must never throw. Returns YES on success, NO on failure.
  */

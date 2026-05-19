@@ -164,19 +164,6 @@ static FileSystemHelper *fileSystemHelper;
     [ProtocolHelper writeNativeError:fileSystemHelper errorCode:errorCode message:message dataJson:dataJson];
 }
 
-/**
- * Writes a JS_ERROR JSON line to protocol.sherlo.
- * Called when the JS polyfill captures an uncaught JS error while in testing mode.
- *
- * @param message The JS error message
- * @param stack The JS stack trace
- * @param source Either "globalHandler" or "errorBoundary"
- */
-- (void)sendJsError:(NSString *)message stack:(NSString *)stack source:(NSString *)source {
-    if (![currentMode isEqualToString:MODE_TESTING]) return;
-    [ProtocolHelper writeJsError:fileSystemHelper message:message stack:stack source:source];
-}
-
 - (BOOL)reportEarlyJsError:(NSString *)name message:(NSString *)message stack:(NSString *)stack {
     // Defense in depth: even if the JS-side gate (metro/polyfill.js) is bypassed,
     // refuse to write JS errors to protocol.sherlo unless in testing mode. This

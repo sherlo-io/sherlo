@@ -93,14 +93,6 @@ public class SherloModule extends ReactContextBaseJavaModule {
     }
 
     /**
-     * Receives a JS error from the polyfill and writes a JS_ERROR JSON line to protocol.sherlo.
-     */
-    @ReactMethod
-    public void sendJsError(String message, String stack, String source) {
-        moduleCore.sendJsError(message, stack, source);
-    }
-
-    /**
      * Synchronously writes a JS_ERROR entry for module-eval errors caught by the metro __r polyfill.
      */
     @ReactMethod(isBlockingSynchronousMethod = true)

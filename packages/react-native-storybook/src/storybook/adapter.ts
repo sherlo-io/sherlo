@@ -10,7 +10,6 @@ export interface StoryMeta {
 
 export interface StorybookAdapter {
   enumerateStories(view: StorybookView): StoryMeta[];
-  prepareForTesting(view: StorybookView): void;
 }
 
 const SANITIZE_REGEX = /[ '–-―′¿'`~!@#$%^&*()_|+\-=?;:'",.<>\{\}\[\]\\\/]/gi;
@@ -112,12 +111,6 @@ const DefaultAdapter: StorybookAdapter = {
     return result;
   },
 
-  prepareForTesting(_view): void {
-    // No-op by design - matches 1.6.3 parity (no adapter intervention needed for v9/v10
-    // testing flow). The story-index enumeration via enumerateStories covers our use cases;
-    // mutating preview.importFn (the old implementation, removed here) caused render-storm
-    // regressions on integrated-app-expo.
-  },
 };
 
 function readStoryEntries(): Array<{ titlePrefix?: string; directory?: string; req?: RawRequireContext }> {

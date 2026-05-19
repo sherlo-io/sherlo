@@ -63,22 +63,6 @@ static NSString *const LOG_TAG = @"SherloModule:ProtocolHelper";
 }
 
 /**
- * Writes a JS_ERROR JSON line to protocol.sherlo.
- */
-+ (void)writeJsError:(FileSystemHelper *)fileSystemHelper message:(NSString *)message stack:(NSString *)stack source:(NSString *)source {
-    NSMutableDictionary *item = [NSMutableDictionary dictionary];
-    [item setObject:@([[NSDate date] timeIntervalSince1970] * 1000) forKey:@"timestamp"];
-    [item setObject:@"app" forKey:@"entity"];
-    [item setObject:@"JS_ERROR" forKey:@"action"];
-    NSMutableDictionary *data = [NSMutableDictionary dictionary];
-    [data setObject:message ?: @"" forKey:@"message"];
-    [data setObject:stack ?: @"" forKey:@"stack"];
-    [data setObject:source ?: @"" forKey:@"source"];
-    [item setObject:data forKey:@"data"];
-    [self appendProtocolLine:item to:fileSystemHelper];
-}
-
-/**
  * Writes a JS_ERROR JSON line with full payload for module-eval errors caught by the metro polyfill.
  * Returns YES on success, NO if JSON encoding fails.
  */

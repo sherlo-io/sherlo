@@ -8,8 +8,6 @@ import { RunnerBridge } from '../../../helpers';
 import { useRef } from 'react';
 import SherloModule from '../../../SherloModule';
 
-export const storybookRenderedRef = { current: false };
-
 /**
  * We applied styles based on how they are defined in the link below to ensure that user's stories
  * look exactly the same in Sherlo as they do in their Storybook
@@ -58,23 +56,7 @@ function Storybook({
   }
 
   if (!reportedSherloJSLoaded.current) {
-    try {
-      const viewAny = view as any;
-      const entries = viewAny?._preview?.storyStoreValue?._storyIndex?.entries
-        || viewAny?._storyIndex?.entries
-        || {};
-      const prepared = viewAny?._idToPrepared || {};
-      SherloModule.appendFile('protocol.sherlo', JSON.stringify({
-        action: 'JS_DIAG',
-        tag: 'storybook:render-check',
-        storyIndexKeys: Object.keys(entries),
-        preparedKeys: Object.keys(prepared),
-        timestamp: Date.now(),
-        entity: 'app',
-      }) + '\n');
-    } catch (_) {}
     reportedSherloJSLoaded.current = true;
-    storybookRenderedRef.current = true;
     (global as any).__sherloStorybookRendered = true;
     const content: any = {
       action: 'STORYBOOK_RENDERED',
