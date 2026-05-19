@@ -74,32 +74,6 @@
     });
   }
 
-  // Polyfill diagnostics. Gated on mode==='testing' so production builds get no log noise.
-  // We cache the testing flag lazily on first access (native SherloModule is initialized
-  // by the time pdiag is first called from inside a wrapped factory).
-  var SHERLO_POLYFILL_DIAG_SEQ = 0;
-  var SHERLO_POLYFILL_DIAG_ENABLED = null; // null = uncomputed, true/false = cached
-  function pdiagIsTesting() {
-    if (SHERLO_POLYFILL_DIAG_ENABLED !== null) return SHERLO_POLYFILL_DIAG_ENABLED;
-    try {
-      var nm = (global.__turboModuleProxy && global.__turboModuleProxy('SherloModule')) ||
-               (global.nativeModuleProxy && global.nativeModuleProxy.SherloModule);
-      if (!nm) return false;
-      var c = (typeof nm.getSherloConstants === 'function' ? nm.getSherloConstants() : null) ||
-              (typeof nm.getConstants === 'function' ? nm.getConstants() : null);
-      SHERLO_POLYFILL_DIAG_ENABLED = !!(c && c.mode === 'testing');
-      return SHERLO_POLYFILL_DIAG_ENABLED;
-    } catch (_) {
-      return false;
-    }
-  }
-  function pdiag(tag, extra) {
-    if (!pdiagIsTesting()) return;
-    SHERLO_POLYFILL_DIAG_SEQ += 1;
-    var data = extra ? ' ' + JSON.stringify(extra) : '';
-    try { console.log('[sherlo:polyfill #' + SHERLO_POLYFILL_DIAG_SEQ + '] ' + tag + data); } catch (_) {}
-  }
-
   // Stash a reference to React when we see it (any module whose exports has both
   // createElement and Component as functions).
   function maybeCaptureReact(_e) {
@@ -107,7 +81,6 @@
     if (!_e) return;
     if (typeof _e.createElement === 'function' && typeof _e.Component === 'function') {
       global.__sherloReactRef = _e;
-      pdiag('captured React');
     }
   }
 
@@ -125,7 +98,6 @@
         typeof candidate.getMode === 'function' &&
         typeof candidate.sendNativeError === 'function') {
       global.__sherloModuleRef = candidate;
-      pdiag('captured SherloModule');
     }
   }
 
@@ -139,10 +111,6 @@
     if (typeof _e.__sherloStorybookEntry !== 'undefined' ||
         typeof _e.__sherloStorybookConfigPath !== 'undefined') {
       global.__sherloStorybookMod = _e;
-      pdiag('captured @storybook/react-native wrapper', {
-        hasEntry: typeof _e.__sherloStorybookEntry === 'function',
-        configPath: _e.__sherloStorybookConfigPath || null,
-      });
     }
   }
 
@@ -159,7 +127,6 @@
     var nm = (global.__turboModuleProxy && global.__turboModuleProxy('SherloModule')) ||
              (global.nativeModuleProxy && global.nativeModuleProxy.SherloModule);
     if (!nm) {
-      pdiag('no native SherloModule, skipping patch');
       return;
     }
     var mode = null;
@@ -175,38 +142,31 @@
     } catch (_) {}
 
     if (mode !== 'testing') {
-      pdiag('mode not testing, skipping patch (production/storybook safety)', { mode: mode });
       return;
     }
 
     AR.__sherloBoundaryPatched = true;
     var sherloAtRoot = !!(config && config.sherloAtRoot === true);
-    pdiag('patching AR via polyfill (testing mode)', { sherloAtRoot: sherloAtRoot });
 
     var orig = AR.registerComponent.bind(AR);
     AR.registerComponent = function sherloRegisterComponentPolyfill(appKey, componentProvider) {
-      pdiag('sherloRegisterComponentPolyfill INVOKED', { appKey: appKey });
       return orig(appKey, function () {
         var React = global.__sherloReactRef;
         if (!React) {
-          pdiag('no React captured, returning raw component', { appKey: appKey });
           return componentProvider();
         }
 
         function SherloErrorBoundaryP(props) {
           React.Component.call(this, props);
           this.state = { caught: false };
-          pdiag('boundary CONSTRUCT');
         }
         SherloErrorBoundaryP.prototype = Object.create(React.Component.prototype);
         SherloErrorBoundaryP.prototype.constructor = SherloErrorBoundaryP;
         SherloErrorBoundaryP.displayName = 'SherloErrorBoundary';
-        SherloErrorBoundaryP.getDerivedStateFromError = function (error) {
-          pdiag('boundary getDerivedStateFromError', { message: error && error.message });
+        SherloErrorBoundaryP.getDerivedStateFromError = function (_error) {
           return { caught: true };
         };
         SherloErrorBoundaryP.prototype.componentDidCatch = function (error, _info) {
-          pdiag('boundary componentDidCatch', { message: error && error.message });
           try {
             var sherloMod = global.__sherloModuleRef;
             if (sherloMod && typeof sherloMod.appendFile === 'function') {
@@ -218,12 +178,8 @@
               };
               var entry = { action: 'JS_ERROR', timestamp: Date.now(), entity: 'app', data: data };
               sherloMod.appendFile('protocol.sherlo', JSON.stringify(entry) + '\n');
-              pdiag('JS_ERROR written via captured SherloModule');
-            } else {
-              pdiag('SherloModule not captured - JS_ERROR not written');
             }
-          } catch (e) {
-            pdiag('JS_ERROR write threw', { message: e && e.message });
+          } catch (_) {
           }
           try {
             if (global.ErrorUtils && typeof global.ErrorUtils.reportFatalError === 'function') {
@@ -240,23 +196,19 @@
         if (sherloAtRoot) {
           var sbMod = global.__sherloStorybookMod;
           if (!sbMod) {
-            pdiag('sherloAtRoot enabled but @storybook/react-native wrapper not captured');
             return componentProvider();
           }
           var loader = sbMod.__sherloStorybookEntry;
           var configPath = sbMod.__sherloStorybookConfigPath;
           if (typeof loader !== 'function') {
-            pdiag('sherloAtRoot requires configPath in metro.config.js', { configPath: configPath });
             return componentProvider();
           }
           var storybookIndexMod;
-          try { storybookIndexMod = loader(); } catch (e) {
-            pdiag('sherloAtRoot loader threw', { message: e && e.message });
+          try { storybookIndexMod = loader(); } catch (_) {
             return componentProvider();
           }
           var UserStorybookEntry = storybookIndexMod && storybookIndexMod.default;
           if (!UserStorybookEntry) {
-            pdiag('sherloAtRoot: configPath/index has no default export', { configPath: configPath });
             return componentProvider();
           }
           function SherloRootWrapperAtRootP(props) {
@@ -268,7 +220,6 @@
           }
           SherloRootWrapperAtRootP.displayName = 'SherloRoot(sherloAtRoot)';
           SherloRootWrapperAtRootP._sherloWrapped = true;
-          pdiag('inner componentProvider returning SherloRootWrapperAtRootP', { appKey: appKey });
           return SherloRootWrapperAtRootP;
         }
 
@@ -280,11 +231,9 @@
         }
         SherloRootP._sherloWrapped = true;
         SherloRootP.displayName = 'SherloRoot(' + ((Component && (Component.displayName || Component.name)) || appKey) + ')';
-        pdiag('inner componentProvider returning SherloRootP', { appKey: appKey });
         return SherloRootP;
       });
     };
-    pdiag('AR patched via polyfill');
   }
 
   // 2. __d wrap - wraps every module's factory function with try/catch.

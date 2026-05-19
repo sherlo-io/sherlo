@@ -6,23 +6,11 @@ export { default as openStorybook } from './openStorybook';
 
 export * from './types';
 
-let SHERLO_DIAG_SEQ = 0;
-function diag(tag: string, extra?: any): void {
-  SHERLO_DIAG_SEQ += 1;
-  const data = extra ? ' ' + JSON.stringify(extra) : '';
-  try { console.log('[sherlo:diag #' + SHERLO_DIAG_SEQ + '] ' + tag + data); } catch (_) {}
-}
-
-diag('index.ts factory START');
-
 try {
   installSherloIntegration();
-} catch (e: any) {
-  diag('installSherloIntegration THREW', { message: e?.message, name: e?.name });
-}
+} catch (_) {}
 
 function installSherloIntegration(): void {
-  diag('installSherloIntegration ENTER');
   const SherloModule = require('./SherloModule').default;
 
   const isTesting =
@@ -30,7 +18,6 @@ function installSherloIntegration(): void {
     typeof SherloModule.getMode === 'function' &&
     SherloModule.getMode() === 'testing';
 
-  diag('mode check', { mode: typeof SherloModule?.getMode === 'function' ? SherloModule.getMode() : null, isTesting: isTesting });
   if (isTesting) {
     SherloModule.appendFile(
       'protocol.sherlo',
@@ -43,12 +30,6 @@ function installSherloIntegration(): void {
 function patchAppRegistryWithBoundary(SherloModule: any): void {
   const RN = require('react-native');
   const AR = RN && RN.AppRegistry;
-  diag('patch ENTER', {
-    hasRN: !!RN,
-    hasAR: !!AR,
-    registerComponentType: typeof (AR && AR.registerComponent),
-    alreadyPatched: !!(AR && AR.__sherloBoundaryPatched)
-  });
   if (!AR || typeof AR.registerComponent !== 'function' || AR.__sherloBoundaryPatched) return;
   AR.__sherloBoundaryPatched = true;
 
@@ -88,17 +69,14 @@ function patchAppRegistryWithBoundary(SherloModule: any): void {
   function SherloErrorBoundary(this: any, props: any) {
     React.Component.call(this, props);
     this.state = { caught: false };
-    diag('boundary CONSTRUCT');
   }
   SherloErrorBoundary.prototype = Object.create(React.Component.prototype);
   SherloErrorBoundary.prototype.constructor = SherloErrorBoundary;
   (SherloErrorBoundary as any).displayName = 'SherloErrorBoundary';
-  (SherloErrorBoundary as any).getDerivedStateFromError = function (error: any) {
-    diag('boundary getDerivedStateFromError', { message: error && error.message, name: error && error.name });
+  (SherloErrorBoundary as any).getDerivedStateFromError = function (_error: any) {
     return { caught: true };
   };
   SherloErrorBoundary.prototype.componentDidCatch = function (error: any, _errorInfo: any) {
-    diag('boundary componentDidCatch', { message: error && error.message, name: error && error.name });
     writeJsErrorFromBoundary(error).finally(function () {
       doReportFatalError(error);
     });
@@ -108,12 +86,10 @@ function patchAppRegistryWithBoundary(SherloModule: any): void {
   };
 
   const origRegister = AR.registerComponent.bind(AR);
-  diag('patch ABOUT TO REPLACE', { origName: (origRegister && (origRegister.name || 'fn')) || 'unknown' });
   const sherloRegisterComponent = function sherloRegisterComponent(
     appKey: string,
     componentProvider: () => any
   ) {
-    diag('sherloRegisterComponent INVOKED', { appKey: appKey });
     return origRegister(appKey, () => {
       // When sherloAtRoot is enabled, substitute the root with the Storybook entry
       // loaded from the config path instead of calling the original componentProvider.
@@ -157,7 +133,6 @@ function patchAppRegistryWithBoundary(SherloModule: any): void {
         }
         (SherloRootWrapperAtRoot as any).displayName = 'SherloRoot(sherloAtRoot)';
         (SherloRootWrapperAtRoot as any)._sherloWrapped = true;
-        diag('inner componentProvider INVOKED returning SherloRootWrapperAtRoot');
         return SherloRootWrapperAtRoot;
       }
 
@@ -173,7 +148,6 @@ function patchAppRegistryWithBoundary(SherloModule: any): void {
       (SherloRootWrapper as any).displayName =
         'SherloRoot(' + ((Component as any).displayName || (Component as any).name || appKey) + ')';
       (SherloRootWrapper as any)._sherloWrapped = true;
-      diag('inner componentProvider INVOKED returning SherloRootWrapper');
       return SherloRootWrapper;
     });
   };
@@ -181,13 +155,10 @@ function patchAppRegistryWithBoundary(SherloModule: any): void {
     configurable: true,
     enumerable: true,
     get: function () {
-      diag('AR.registerComponent GETTER ACCESSED');
       return sherloRegisterComponent;
     },
-    set: function (newFn: any) {
-      diag('AR.registerComponent SETTER IGNORED (reassign attempted)', { newFnName: newFn && newFn.name });
+    set: function (_newFn: any) {
       /* intentionally ignore - keep our function */
     },
   });
-  diag('patch REPLACED via defineProperty');
 }

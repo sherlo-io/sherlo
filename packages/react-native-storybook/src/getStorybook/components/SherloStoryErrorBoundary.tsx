@@ -27,7 +27,6 @@ class SherloStoryErrorBoundary extends React.Component<Props, State> {
     // Note: this method is NOT called when render() re-throws the error because
     // React treats a boundary that throws from render as a failed boundary and
     // escalates to the parent. Recording happens in render() instead.
-    console.log('[sherlo:boundary] componentDidCatch storyId=', this.props.storyId, 'error=', (error && (error as any).message) || String(error));
     RunnerBridge.log('SherloStoryErrorBoundary componentDidCatch', { storyId: this.props.storyId, errorMessage: (error as any)?.message });
   }
 
