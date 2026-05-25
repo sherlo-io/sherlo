@@ -42,8 +42,9 @@ let SherloModule: Spec | null = null;
 
 try {
   SherloModule = TurboModuleRegistry.getEnforcing<Spec>('SherloModule') as Spec;
+  console.warn(`[SherloModule diag] TurboModuleRegistry.getEnforcing OK, module=${SherloModule === null ? 'NULL' : 'OK'}, type=${(SherloModule as any)?.constructor?.name}`);
 } catch (e) {
-  // Ignore if module is not found
+  console.warn(`[SherloModule diag] TurboModuleRegistry.getEnforcing THREW: ${e}`);
 }
 
 export default SherloModule;

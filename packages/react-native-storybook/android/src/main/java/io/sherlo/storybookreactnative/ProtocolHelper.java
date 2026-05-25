@@ -75,6 +75,40 @@ public class ProtocolHelper {
     }
 
     /**
+     * Writes a JS_ERROR JSON line for bundle-eval crashes caught by the native exception handler.
+     * Uses the top-level exception message (which contains the full Hermes JS stack trace), or
+     * the root-cause message if the top-level one doesn't look like a useful JS error.
+     */
+    public static void writeJsErrorFromException(FileSystemHelper fileSystemHelper, Throwable t) {
+        String name = t.getClass().getSimpleName();
+        String message = bestMessage(t);
+        String stack = stackToString(t);
+        writeEarlyJsError(fileSystemHelper, name, message, stack);
+    }
+
+    /**
+     * Returns the most informative message from the exception chain.
+     * Prefers the top-level message (JavascriptException typically contains the full Hermes stack
+     * including the original JS Error message). Falls back through causes if the top is empty.
+     */
+    private static String bestMessage(Throwable t) {
+        // Walk the chain: collect all non-null messages, return the first non-blank one.
+        Throwable cur = t;
+        while (cur != null) {
+            String msg = cur.getMessage();
+            if (msg != null && !msg.isEmpty()) return msg;
+            cur = cur.getCause();
+        }
+        return t.toString();
+    }
+
+    private static String stackToString(Throwable t) {
+        java.io.StringWriter sw = new java.io.StringWriter();
+        t.printStackTrace(new java.io.PrintWriter(sw));
+        return sw.toString();
+    }
+
+    /**
      * Writes a JS_ERROR JSON line for module-eval errors (reportEarlyJsError).
      * Uses the full structured shape (name, message, stack, componentStack, digest, cause).
      */

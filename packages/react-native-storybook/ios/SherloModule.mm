@@ -3,6 +3,7 @@
 #import <React/RCTUIManagerUtils.h>
 #import <React/RCTBridge.h>
 #import "SherloModuleCore.h"
+#import "SherloIOSExceptionHandler.h"
 
 @implementation SherloModule
 
@@ -16,6 +17,9 @@ static SherloModuleCore *core;
 __attribute__((constructor))
 static void SherloEarlyInit(void) {
   core = [[SherloModuleCore alloc] init];
+  if ([[SherloModuleCore currentMode] isEqualToString:@"testing"]) {
+    [SherloIOSExceptionHandler install];
+  }
 }
 
 /**

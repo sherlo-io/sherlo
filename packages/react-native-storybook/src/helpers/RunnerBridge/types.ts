@@ -19,7 +19,6 @@ export type Config = {
   };
   easUpdateDeeplink?: string;
   initialStoryRenderDelayMs?: number;
-  sherloAtRoot?: boolean;
   /**
    * When set, launches the app in interactive storybook-UI mode (not testing).
    * Used for manual inspection of stories. The runner never sets this; humans/devtools do.

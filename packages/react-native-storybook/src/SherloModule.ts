@@ -57,6 +57,8 @@ const { SherloModule: SherloNativeModule } = NativeModules;
 
 const module: Spec = TurboModule || SherloNativeModule;
 
+console.warn(`[SherloModule diag] TurboModule=${TurboModule === null ? 'NULL' : 'OK'}, SherloNativeModule=${SherloNativeModule === null || SherloNativeModule === undefined ? 'NULL/UNDEF' : 'OK'}, module=${module === null || module === undefined ? 'NULL/UNDEF' : 'OK'}`);
+
 if (module !== null) {
   SherloModule = createSherloModule();
 } else {
@@ -134,7 +136,10 @@ function createSherloModule(): SherloModule {
     },
     appendFile: (filename: string, data: string) => {
       const encodedData = base64.encode(utf8.encode(data));
-      return module.appendFile(filename, encodedData);
+      console.warn(`[SherloModule diag] appendFile called: path=${filename}, module.appendFile type=${typeof module.appendFile}`);
+      const result = module.appendFile(filename, encodedData);
+      console.warn(`[SherloModule diag] appendFile returned: ${result}`);
+      return result;
     },
     readFile: (filename: string) => {
       const decodeData = (data: string) => utf8.decode(base64.decode(data));

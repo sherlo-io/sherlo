@@ -67,6 +67,17 @@ static FileSystemHelper *fileSystemHelper;
 
             [ProtocolHelper writeNativeLoaded:fileSystemHelper requestId:requestId];
 
+            // Check for build-time sherlo-storybook-disabled marker spliced into the .app bundle.
+            // Written by applySherloTransforms.js when opts.enabled === false.
+            // Mirrors Android SherloInitProvider.checkStorybookDisabledMarker().
+            NSString *disabledMarkerPath = [[NSBundle mainBundle] pathForResource:@"sherlo-storybook-disabled" ofType:nil];
+            if (disabledMarkerPath) {
+                [ProtocolHelper writeNativeError:fileSystemHelper
+                                       errorCode:@"ERROR_STORYBOOK_DISABLED"
+                                         message:@"Storybook is disabled in metro.config.js. Set enabled: true for Sherlo testing builds."
+                                        dataJson:@""];
+            }
+
             NSString *easUpdateDeeplink = config[@"easUpdateDeeplink"];
             BOOL consumingDeeplink = NO;
             if (easUpdateDeeplink) {

@@ -4,17 +4,78 @@ var fs = require('fs');
 var path = require('path');
 
 /**
+ * Detects the iOS app name by finding a .xcodeproj in the ios/ directory.
+ * Returns null if ios/ doesn't exist or no .xcodeproj is found.
+ *
+ * @param {string} projectRoot
+ * @returns {string|null}
+ */
+function detectIosAppName(projectRoot) {
+  var iosDir = path.join(projectRoot, 'ios');
+  if (!fs.existsSync(iosDir)) return null;
+  var entries;
+  try { entries = fs.readdirSync(iosDir); } catch (e) { return null; }
+  var xcodeproj = entries.find(function (e) { return e.endsWith('.xcodeproj'); });
+  if (!xcodeproj) return null;
+  return xcodeproj.replace('.xcodeproj', '');
+}
+
+/**
+ * Writes the sherlo-storybook-disabled marker files to Android assets and iOS source dirs.
+ * These are detected at app startup by the native SherloInitProvider / SherloModuleCore
+ * to emit ERROR_STORYBOOK_DISABLED when in testing mode.
+ * Silently skips platforms whose directories do not exist.
+ *
+ * @param {string} projectRoot
+ */
+function writeMarkerFiles(projectRoot) {
+  var androidAssetsDir = path.join(projectRoot, 'android', 'app', 'src', 'main', 'assets');
+  try {
+    if (!fs.existsSync(androidAssetsDir)) {
+      fs.mkdirSync(androidAssetsDir, { recursive: true });
+    }
+    fs.writeFileSync(path.join(androidAssetsDir, 'sherlo-storybook-disabled'), '', 'utf8');
+  } catch (e) { /* android dir may not exist - skip */ }
+
+  var iosAppName = detectIosAppName(projectRoot);
+  if (iosAppName) {
+    var iosAppDir = path.join(projectRoot, 'ios', iosAppName);
+    try {
+      if (!fs.existsSync(iosAppDir)) {
+        fs.mkdirSync(iosAppDir, { recursive: true });
+      }
+      fs.writeFileSync(path.join(iosAppDir, 'sherlo-storybook-disabled'), '', 'utf8');
+    } catch (e) { /* ios app dir not writable - skip */ }
+  }
+}
+
+/**
+ * Removes the sherlo-storybook-disabled marker files from both platforms.
+ * Silently skips if files don't exist.
+ *
+ * @param {string} projectRoot
+ */
+function removeMarkerFiles(projectRoot) {
+  var androidMarker = path.join(projectRoot, 'android', 'app', 'src', 'main', 'assets', 'sherlo-storybook-disabled');
+  try { if (fs.existsSync(androidMarker)) fs.unlinkSync(androidMarker); } catch (e) { /* ignore */ }
+
+  var iosAppName = detectIosAppName(projectRoot);
+  if (iosAppName) {
+    var iosMarker = path.join(projectRoot, 'ios', iosAppName, 'sherlo-storybook-disabled');
+    try { if (fs.existsSync(iosMarker)) fs.unlinkSync(iosMarker); } catch (e) { /* ignore */ }
+  }
+}
+
+/**
  * Applies Sherlo Metro transforms to an already-configured Metro config object.
  *
  * Takes the result of withStorybook() + opts and returns the Sherlo-augmented config.
  * Installs the resolver redirect, polyfill injection, and storybook-wrapper.js generation.
  *
- * When opts.enabled === false, a disabled-notifier.js polyfill is generated and
- * injected. It fires SherloModule.sendNativeError(ERROR_STORYBOOK_DISABLED) at app
- * boot before any module factories, which works for both Storybook v9 and v10.
- * In Storybook v10, withStorybook({ enabled: false }) stubs .rnstorybook/index.tsx
- * so @storybook/react-native is never imported - making the wrapper-based runtime
- * detection dead code. The polyfill approach bypasses this.
+ * When opts.enabled === false, writes build-time marker files to native source directories
+ * (android/app/src/main/assets/ and ios/<AppName>/) so the native SherloInitProvider /
+ * SherloModuleCore can detect at startup that Storybook was disabled and emit
+ * ERROR_STORYBOOK_DISABLED without depending on JS module load order.
  *
  * @param {object} result - The Metro config returned by withStorybook()
  * @param {object} [opts] - The same opts passed to withStorybook (e.g. { enabled, configPath })
@@ -24,9 +85,6 @@ function applySherloTransforms(result, opts) {
   var projectRoot =
     (result && result.projectRoot) || process.cwd();
 
-  var resolvedConfigPath =
-    opts && opts.configPath ? path.resolve(projectRoot, opts.configPath) : null;
-
   var wrapperPath = path.join(
     projectRoot,
     'node_modules',
@@ -35,7 +93,16 @@ function applySherloTransforms(result, opts) {
     'storybook-wrapper.js'
   );
 
-  generateWrapper(wrapperPath, resolvedConfigPath);
+  generateWrapper(wrapperPath);
+
+  // Write or remove native marker files for ERROR_STORYBOOK_DISABLED detection.
+  // Native side (SherloInitProvider / SherloModuleCore) reads the marker at app startup
+  // and emits NATIVE_ERROR if present and mode === 'testing'.
+  if (opts && opts.enabled === false) {
+    writeMarkerFiles(projectRoot);
+  } else {
+    removeMarkerFiles(projectRoot);
+  }
 
   var existingResolveRequest =
     result && result.resolver && result.resolver.resolveRequest
@@ -64,21 +131,6 @@ function applySherloTransforms(result, opts) {
   var polyfillPath = path.join(__dirname, 'polyfill.js');
   var sherloPolyfills = [polyfillPath];
 
-  // When Storybook is explicitly disabled, inject a polyfill that fires
-  // ERROR_STORYBOOK_DISABLED at app boot via the native module, before any module
-  // factories run. Guard is strictly === false so default-undefined is unchanged.
-  if (opts && opts.enabled === false) {
-    var notifierPath = path.join(
-      projectRoot,
-      'node_modules',
-      '.cache',
-      'sherlo',
-      'disabled-notifier.js'
-    );
-    generateDisabledNotifier(notifierPath);
-    sherloPolyfills = sherloPolyfills.concat([notifierPath]);
-  }
-
   var existingGetPolyfills =
     result && result.serializer && typeof result.serializer.getPolyfills === 'function'
       ? result.serializer.getPolyfills
@@ -89,13 +141,31 @@ function applySherloTransforms(result, opts) {
     return base.concat(sherloPolyfills);
   }
 
+  var existingGetModulesRunBeforeMainModule =
+    result && result.serializer && typeof result.serializer.getModulesRunBeforeMainModule === 'function'
+      ? result.serializer.getModulesRunBeforeMainModule
+      : null;
+
+  function getModulesRunBeforeMainModule(entryFilePath) {
+    return existingGetModulesRunBeforeMainModule
+      ? existingGetModulesRunBeforeMainModule(entryFilePath)
+      : [];
+  }
+
   var baseResult = result || {};
   return Object.assign({}, baseResult, {
+    // unstable_allowRequireContext: sb8/sb9 withStorybook(enabled:false) omits this flag, but
+    // storybook.requires.ts still uses require.context(). Without this, Metro 0.81.x embeds a
+    // throwing stub for r.context, crashing the app before any Sherlo error handling fires.
+    transformer: Object.assign({}, baseResult.transformer, {
+      unstable_allowRequireContext: true,
+    }),
     resolver: Object.assign({}, baseResult.resolver, {
       resolveRequest: resolveRequest,
     }),
     serializer: Object.assign({}, baseResult.serializer, {
       getPolyfills: getPolyfills,
+      getModulesRunBeforeMainModule: getModulesRunBeforeMainModule,
     }),
   });
 }
@@ -103,28 +173,21 @@ function applySherloTransforms(result, opts) {
 /**
  * Generates the storybook-wrapper.js file.
  *
+ * The wrapper redirects @storybook/react-native imports through Sherlo's patched start().
+ * ERROR_STORYBOOK_DISABLED is now detected natively (SherloInitProvider / SherloModuleCore
+ * reads the marker file written by writeMarkerFiles()) rather than in the wrapper, so there
+ * is no SHERLO_BUILD_DISABLED constant here.
+ *
  * @param {string} wrapperPath
- * @param {string|null} configPath - Resolved absolute config path (or null if not provided)
  */
-function generateWrapper(wrapperPath, configPath) {
+function generateWrapper(wrapperPath) {
   var cacheDir = path.dirname(wrapperPath);
   if (!fs.existsSync(cacheDir)) {
     fs.mkdirSync(cacheDir, { recursive: true });
   }
 
-  // Build the lazy entry loader (only when configPath is known).
-  // Wrapping in a function defers EXECUTION to the sherloAtRoot branch so
-  // user's .rnstorybook side-effects do not fire at module load time.
-  var entryLoaderLine = configPath !== null
-    ? 'exports.__sherloStorybookEntry = function () { return require(' + JSON.stringify(configPath + '/index') + '); };\n'
-    : 'exports.__sherloStorybookEntry = null;\n';
-
   var content =
     "'use strict';\n" +
-    '\n' +
-    'var SHERLO_STORYBOOK_CONFIG_PATH = ' + JSON.stringify(configPath) + ';\n' +
-    'exports.__sherloStorybookConfigPath = SHERLO_STORYBOOK_CONFIG_PATH;\n' +
-    entryLoaderLine +
     '\n' +
     "var real = require('@storybook/react-native');\n" +
     '\n' +
@@ -149,11 +212,12 @@ function generateWrapper(wrapperPath, configPath) {
     '// Patched start(): wraps view.getStorybookUI to route through sherlo getStorybook\n' +
     'exports.start = function patchedStart(config) {\n' +
     '  // Storybook is disabled when withStorybook({ enabled: false }) is set -\n' +
-    '  // in that case real.start is not a function.\n' +
-    '  // ERROR_STORYBOOK_DISABLED is reported by the disabled-notifier polyfill\n' +
-    '  // at app boot (before module factories), so no sendNativeError call here.\n' +
+    '  // in that case real.start is not a function (sb8/sb9 make @storybook/react-native\n' +
+    '  // an empty module; sb10 replaces .rnstorybook/index with a stub instead).\n' +
+    '  // Return a stub view with getStorybookUI so .rnstorybook/index.tsx does not crash\n' +
+    '  // when it calls view.getStorybookUI({...}) at module-evaluation time.\n' +
     "  if (typeof real.start !== 'function') {\n" +
-    '    return {};\n' +
+    "    return { getStorybookUI: function () { return function SherloDisabledUI() { return null; }; } };\n" +
     '  }\n' +
     '\n' +
     '  // Lazy-require sherlo AFTER the re-exports above are already set up.\n' +
@@ -191,41 +255,8 @@ function generateWrapper(wrapperPath, configPath) {
   fs.writeFileSync(wrapperPath, content, 'utf8');
 }
 
-/**
- * Generates the disabled-notifier.js polyfill.
- *
- * Fires SherloModule.sendNativeError(ERROR_STORYBOOK_DISABLED) at app boot,
- * before any module factories. No JS-side mode gate - native side gates
- * production via SherloModuleCore early-return, same pattern as metro/polyfill.js.
- *
- * @param {string} notifierPath - Absolute path to write the file to
- */
-function generateDisabledNotifier(notifierPath) {
-  var cacheDir = path.dirname(notifierPath);
-  if (!fs.existsSync(cacheDir)) {
-    fs.mkdirSync(cacheDir, { recursive: true });
-  }
-
-  var content =
-    "'use strict';\n" +
-    '(function () {\n' +
-    '  try {\n' +
-    "    var nm = (global.__turboModuleProxy && global.__turboModuleProxy('SherloModule')) ||\n" +
-    '             (global.nativeModuleProxy && global.nativeModuleProxy.SherloModule);\n' +
-    "    if (nm && typeof nm.sendNativeError === 'function') {\n" +
-    '      nm.sendNativeError(\n' +
-    "        'ERROR_STORYBOOK_DISABLED',\n" +
-    "        'Storybook is disabled in metro.config.js. Set enabled: true for Sherlo testing builds.',\n" +
-    "        ''\n" +
-    '      );\n' +
-    '    }\n' +
-    '  } catch (e) {}\n' +
-    '})();\n';
-
-  fs.writeFileSync(notifierPath, content, 'utf8');
-}
-
 module.exports = applySherloTransforms;
 module.exports.applySherloTransforms = applySherloTransforms;
 module.exports.generateWrapper = generateWrapper;
-module.exports.generateDisabledNotifier = generateDisabledNotifier;
+module.exports.writeMarkerFiles = writeMarkerFiles;
+module.exports.removeMarkerFiles = removeMarkerFiles;

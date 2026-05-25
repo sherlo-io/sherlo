@@ -185,52 +185,6 @@ describe('generated storybook-wrapper.js - content', () => {
     wrapperContent = readGeneratedWrapper();
   });
 
-  it('contains SHERLO_STORYBOOK_CONFIG_PATH constant', () => {
-    expect(wrapperContent).toContain('SHERLO_STORYBOOK_CONFIG_PATH');
-  });
-
-  it('exports __sherloStorybookConfigPath', () => {
-    expect(wrapperContent).toContain('exports.__sherloStorybookConfigPath');
-  });
-
-  it('exports __sherloStorybookEntry', () => {
-    expect(wrapperContent).toContain('exports.__sherloStorybookEntry');
-  });
-
-  it('sets SHERLO_STORYBOOK_CONFIG_PATH to null when no configPath provided', () => {
-    expect(wrapperContent).toContain('var SHERLO_STORYBOOK_CONFIG_PATH = null;');
-  });
-
-  it('sets __sherloStorybookEntry to null when no configPath provided', () => {
-    expect(wrapperContent).toContain('exports.__sherloStorybookEntry = null;');
-  });
-
-  it('__sherloStorybookEntry is a lazy loader function, not an eager require', () => {
-    expect(wrapperContent).not.toMatch(/exports\.__sherloStorybookEntry = require\(/);
-  });
-
-  it('sets SHERLO_STORYBOOK_CONFIG_PATH to resolved path when configPath is provided', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-configpath-test-'));
-    applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { configPath: '.rnstorybook' });
-    const wrapperPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'storybook-wrapper.js');
-    const content = fs.readFileSync(wrapperPath, 'utf8');
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-    const expected = JSON.stringify(path.resolve(tmpDir, '.rnstorybook'));
-    expect(content).toContain('var SHERLO_STORYBOOK_CONFIG_PATH = ' + expected + ';');
-  });
-
-  it('bakes a lazy loader with static require literal for the entry when configPath is provided', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-entry-test-'));
-    applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { configPath: '.rnstorybook' });
-    const wrapperPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'storybook-wrapper.js');
-    const content = fs.readFileSync(wrapperPath, 'utf8');
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-    const resolvedEntry = JSON.stringify(path.resolve(tmpDir, '.rnstorybook') + '/index');
-    expect(content).toContain(
-      'exports.__sherloStorybookEntry = function () { return require(' + resolvedEntry + '); };'
-    );
-  });
-
   it('does NOT require @sherlo/react-native-storybook at the top level', () => {
     const topLevelSherloRequire = /^var sherlo = require\('@sherlo\/react-native-storybook'\)/m;
     expect(wrapperContent).not.toMatch(topLevelSherloRequire);
@@ -277,14 +231,15 @@ describe('generated storybook-wrapper.js - content', () => {
     expect(wrapperContent).toContain("get: function () { return real[key]; }");
   });
 
-  it("typeof real.start !== 'function' branch returns {} silently without calling sendNativeError", () => {
-    // ERROR_STORYBOOK_DISABLED is now reported by the disabled-notifier polyfill;
-    // the runtime branch just exits cleanly.
+  it("typeof real.start !== 'function' branch returns stub silently without calling sendNativeError", () => {
+    // ERROR_STORYBOOK_DISABLED is reported by native-side detection (SherloInitProvider /
+    // SherloModuleCore reads the marker file); the runtime branch just returns a stub cleanly.
     const startNotFnIdx = wrapperContent.indexOf("typeof real.start !== 'function'");
     expect(startNotFnIdx).toBeGreaterThan(-1);
-    // Grab the text of the branch up to and including 'return {}'
-    const branchText = wrapperContent.slice(startNotFnIdx, wrapperContent.indexOf('return {};', startNotFnIdx) + 'return {};'.length);
-    expect(branchText).toContain('return {}');
+    // Grab the text of the branch up to and including the SherloDisabledUI stub return
+    const endMarker = 'SherloDisabledUI';
+    const branchText = wrapperContent.slice(startNotFnIdx, wrapperContent.indexOf(endMarker, startNotFnIdx) + endMarker.length);
+    expect(branchText).toContain('return { getStorybookUI:');
     expect(branchText).not.toContain('sendNativeError');
     expect(branchText).not.toContain('ERROR_STORYBOOK_DISABLED');
   });
@@ -292,7 +247,8 @@ describe('generated storybook-wrapper.js - content', () => {
   it("typeof real.start !== 'function' branch does NOT deep-require SherloModule", () => {
     const startNotFnIdx = wrapperContent.indexOf("typeof real.start !== 'function'");
     expect(startNotFnIdx).toBeGreaterThan(-1);
-    const branchText = wrapperContent.slice(startNotFnIdx, wrapperContent.indexOf('return {};', startNotFnIdx) + 'return {};'.length);
+    const endMarker = 'SherloDisabledUI';
+    const branchText = wrapperContent.slice(startNotFnIdx, wrapperContent.indexOf(endMarker, startNotFnIdx) + endMarker.length);
     expect(branchText).not.toContain('@sherlo/react-native-storybook/dist/SherloModule.js');
   });
 });

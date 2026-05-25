@@ -40,6 +40,18 @@ public class SherloModuleCore {
     // JS evaluates) or from this class's constructor (fallback).
     private static volatile boolean earlyInitDone = false;
 
+    // Static fs helper shared with SherloExceptionHandler (installed in SherloInitProvider).
+    // Set once in performEarlyInit(); never reassigned after that.
+    private static volatile FileSystemHelper staticFsHelper = null;
+
+    // Stored during processPackages() (before initializeWithInstance). Used by
+    // SherloInitProvider at PRE_RUN_JS_BUNDLE_START to retrieve the CatalystInstance.
+    private static volatile java.lang.ref.WeakReference<ReactApplicationContext> sEarlyReactContext = null;
+
+    // Set to true by SherloJSExceptionCapture when the original JS error is written.
+    // Prevents the fallback UncaughtExceptionHandler from overwriting with the wrong message.
+    private static volatile boolean sJsErrorCaptured = false;
+
     // Helper instances
     private FileSystemHelper fileSystemHelper = null;
     private RestartHelper restartHelper = null;
@@ -64,6 +76,7 @@ public class SherloModuleCore {
 
         try {
             FileSystemHelper fsHelper = new FileSystemHelper(context);
+            staticFsHelper = fsHelper;
             JSONObject earlyConfig = ConfigHelper.loadConfig(fsHelper);
             if (earlyConfig == null) return;
 
@@ -96,6 +109,8 @@ public class SherloModuleCore {
      * @param reactContext The React application context
      */
     public SherloModuleCore(ReactApplicationContext reactContext, Activity activity) {
+        // Store context before initializeWithInstance() runs so PRE_RUN_JS_BUNDLE_START can retrieve it.
+        storeEarlyReactContext(reactContext);
         this.fileSystemHelper = new FileSystemHelper(reactContext);
 
         // Fallback - normal Android startup already runs this via SherloInitProvider before
@@ -133,6 +148,32 @@ public class SherloModuleCore {
      */
     public static String getCurrentMode() {
         return currentMode != null ? currentMode : MODE_DEFAULT;
+    }
+
+    /**
+     * Returns the static FileSystemHelper created during performEarlyInit(), or null if
+     * performEarlyInit() has not run yet. Used by SherloInitProvider's uncaught-exception
+     * handler to write JS_ERROR to protocol without needing a ReactContext.
+     */
+    public static FileSystemHelper getStaticFsHelper() {
+        return staticFsHelper;
+    }
+
+    public static void storeEarlyReactContext(ReactApplicationContext ctx) {
+        sEarlyReactContext = new java.lang.ref.WeakReference<>(ctx);
+    }
+
+    public static ReactApplicationContext getEarlyReactContext() {
+        java.lang.ref.WeakReference<ReactApplicationContext> ref = sEarlyReactContext;
+        return ref != null ? ref.get() : null;
+    }
+
+    public static void markJsErrorCaptured() {
+        sJsErrorCaptured = true;
+    }
+
+    public static boolean isJsErrorCaptured() {
+        return sJsErrorCaptured;
     }
 
     /**
@@ -197,6 +238,9 @@ public class SherloModuleCore {
         }
         try {
             ProtocolHelper.writeEarlyJsError(this.fileSystemHelper, name, message, stack);
+            // Set the flag so the native UncaughtExceptionHandler fallback knows
+            // a correct JS_ERROR was already written and skips the wrong secondary exception.
+            markJsErrorCaptured();
             return true;
         } catch (Exception e) {
             Log.e(TAG, "reportEarlyJsError failed", e);
