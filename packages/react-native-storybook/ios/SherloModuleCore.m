@@ -27,6 +27,10 @@ static NSDictionary *lastState = nil;
 static NSString *currentMode = MODE_DEFAULT;
 static NSString *nativeVersion = nil;
 
+// Native NOT_DISPLAYED watchdog timer state
+static BOOL getStorybookWasCalled = NO;
+static dispatch_block_t storybookNotDisplayedBlock = nil;
+
 // Helper instances
 static FileSystemHelper *fileSystemHelper;
 
@@ -84,10 +88,38 @@ static FileSystemHelper *fileSystemHelper;
                 consumingDeeplink = [EasUpdateHelper consumeEasUpdateDeeplinkIfNeeded:easUpdateDeeplink];
             }
 
+            // Native NOT_DISPLAYED watchdog: fires if getStorybook() is never called within 10s.
+            // The cancel signal arrives via notifyGetStorybookCalled on the native module.
+            __block dispatch_block_t block = dispatch_block_create(0, ^{
+                if (!getStorybookWasCalled) {
+                    [ProtocolHelper writeNativeError:fileSystemHelper
+                                           errorCode:@"ERROR_STORYBOOK_NOT_DISPLAYED"
+                                             message:@"Storybook did not appear within 10s of app launch"
+                                            dataJson:@""];
+                    NSLog(@"[%@] ERROR_STORYBOOK_NOT_DISPLAYED written by native timer", LOG_TAG);
+                }
+            });
+            storybookNotDisplayedBlock = block;
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC),
+                           dispatch_get_main_queue(),
+                           block);
+            NSLog(@"[%@] storybookNotDisplayed native timer scheduled (10s)", LOG_TAG);
+
         }
     }
 
     return self;
+}
+
++ (void)setGetStorybookCalled {
+    getStorybookWasCalled = YES;
+}
+
++ (void)cancelStorybookNotDisplayedTimer {
+    if (storybookNotDisplayedBlock) {
+        dispatch_block_cancel(storybookNotDisplayedBlock);
+        storybookNotDisplayedBlock = nil;
+    }
 }
 
 + (NSString *)currentMode {

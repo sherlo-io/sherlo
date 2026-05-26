@@ -183,4 +183,14 @@ public class SherloModule extends ReactContextBaseJavaModule {
         moduleCore.scrollToCheckpoint(activity, index, offset, maxIndex, promise);
     }
 
+    /**
+     * Cancel signal for the native NOT_DISPLAYED watchdog timer.
+     * Called from JS getStorybook() to indicate Storybook is being used.
+     */
+    @ReactMethod
+    public void notifyGetStorybookCalled() {
+        SherloInitProvider.setGetStorybookCalled();
+        SherloInitProvider.cancelStorybookNotDisplayedTimer();
+    }
+
 }

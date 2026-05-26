@@ -16,6 +16,10 @@ if (SherloModule.getMode() === 'testing') {
 }
 
 function getStorybook(view: StorybookView, params?: StorybookParams): () => ReactElement {
+  // Notify native that getStorybook() was called - cancels the native NOT_DISPLAYED watchdog timer.
+  // Runs synchronously so the cancel signal reaches native before the 10s timer fires.
+  try { SherloModule.notifyGetStorybookCalled(); } catch (_) {}
+
   const mode = SherloModule.getMode();
 
   if (mode === 'testing') {

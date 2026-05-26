@@ -147,13 +147,10 @@
       return originalDefine.call(this, wrappedFactory, moduleId, dependencyMap);
     };
   }
-  // 3. ERROR_STORYBOOK_NOT_DISPLAYED timer - fires if the Sherlo Storybook wrapper
-  //    was never mounted (e.g. user forgot to wire getStorybook in App.tsx).
-  //    Runs unconditionally at boot so the error is detected even when the wrapper
-  //    component's useEffect never executes. Mode is read lazily inside the callback
-  //    (after 10s) to avoid the Android JSI race condition described above.
-  //    global.__sherloStorybookRendered is set by Storybook.tsx when the wrapper renders.
-  //    Error code source of truth: src/checkSdkCompatibility.ts
+  // 3. ERROR_STORYBOOK_NOT_DISPLAYED timer - JS-side watchdog, covers new-arch where
+  //    JS setTimeout reliably fires. The native-side timer (SherloInitProvider /
+  //    SherloModuleCore) covers old-arch where this JS callback may not reach native.
+  //    Both run (defense in depth); duplicate entries are fine (test expects any entry).
   if (!global.__sherloStorybookNotDisplayedTimerInstalled && typeof setTimeout === 'function') {
     global.__sherloStorybookNotDisplayedTimerInstalled = true;
     setTimeout(function () {
@@ -163,12 +160,12 @@
         if (!sherloNm) return;
         var turboConsts = (typeof sherloNm.getSherloConstants === 'function' && sherloNm.getSherloConstants()) || {};
         var nativeConsts = (typeof sherloNm.getConstants === 'function' && sherloNm.getConstants()) || {};
-        var mode = turboConsts.mode || nativeConsts.mode;
+        var mode = turboConsts.mode || nativeConsts.mode || sherloNm.mode;
         if (mode !== 'testing') return;
         if (typeof sherloNm.sendNativeError === 'function') {
           sherloNm.sendNativeError('ERROR_STORYBOOK_NOT_DISPLAYED', 'Storybook did not appear within 10s of app launch', '');
         }
-      } catch (_) {}
+      } catch (e) {}
     }, 10000);
   }
 })();

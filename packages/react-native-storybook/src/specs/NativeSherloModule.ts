@@ -36,6 +36,7 @@ export interface Spec extends TurboModule {
     scrollViewFrame?: { x: number; y: number; width: number; height: number };
   }>;
   getSherloConstants: () => {};
+  notifyGetStorybookCalled: () => void;
 }
 
 let SherloModule: Spec | null = null;

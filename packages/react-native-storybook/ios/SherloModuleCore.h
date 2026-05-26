@@ -25,6 +25,12 @@
 /** Returns the current mode string (e.g. 'default', 'testing', 'storybook'). */
 + (NSString *)currentMode;
 
+/** Records that getStorybook() was called; prevents the NOT_DISPLAYED timer from firing. */
++ (void)setGetStorybookCalled;
+
+/** Cancels the pending NOT_DISPLAYED watchdog timer. Safe to call even after it fired. */
++ (void)cancelStorybookNotDisplayedTimer;
+
 /**
  * Returns constants exposed to the JavaScript side
  * @return Dictionary with mode, config, and lastState

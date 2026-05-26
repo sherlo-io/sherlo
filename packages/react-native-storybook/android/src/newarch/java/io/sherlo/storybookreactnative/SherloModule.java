@@ -181,4 +181,14 @@ public class SherloModule extends NativeSherloModuleSpec {
         moduleCore.scrollToCheckpoint(activity, index, offset, maxIndex, promise);
     }
 
+    /**
+     * Cancel signal for the native NOT_DISPLAYED watchdog timer.
+     * Called from JS getStorybook() to indicate Storybook is being used.
+     */
+    @Override
+    public void notifyGetStorybookCalled() {
+        SherloInitProvider.setGetStorybookCalled();
+        SherloInitProvider.cancelStorybookNotDisplayedTimer();
+    }
+
 }

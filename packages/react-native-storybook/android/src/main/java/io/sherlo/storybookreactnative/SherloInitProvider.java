@@ -6,6 +6,8 @@ import android.content.Context;
 import android.content.res.AssetManager;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import com.facebook.react.bridge.JSExceptionHandler;
@@ -13,6 +15,7 @@ import com.facebook.react.bridge.ReactMarker;
 import com.facebook.react.bridge.ReactMarkerConstants;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Lifecycle-only ContentProvider that triggers Sherlo's native early-init emission
@@ -28,6 +31,11 @@ import java.io.IOException;
 public class SherloInitProvider extends ContentProvider {
     private static final String TAG = "SherloModule:InitProvider";
 
+    // Native watchdog timer: fires if getStorybook() is never called within 10s of launch.
+    private static final AtomicBoolean getStorybookCalled = new AtomicBoolean(false);
+    private static Handler timerHandler;
+    private static Runnable timerRunnable;
+
     @Override
     public boolean onCreate() {
         try {
@@ -35,6 +43,7 @@ public class SherloInitProvider extends ContentProvider {
             if (ctx != null) {
                 SherloModuleCore.performEarlyInit(ctx);
                 checkStorybookDisabledMarker(ctx);
+                scheduleStorybookNotDisplayedTimer();
             }
             installJsExceptionHandler();
             installJsBundleEvalHook();
@@ -43,6 +52,45 @@ public class SherloInitProvider extends ContentProvider {
             Log.e(TAG, "SherloInitProvider.onCreate failed", t);
         }
         return true;
+    }
+
+    /**
+     * Schedules a 10s native timer that writes ERROR_STORYBOOK_NOT_DISPLAYED if
+     * getStorybook() is never called. Only active in testing mode; no-op otherwise.
+     * The cancel signal arrives via notifyGetStorybookCalled() on the native module.
+     */
+    private void scheduleStorybookNotDisplayedTimer() {
+        try {
+            if (!SherloModuleCore.MODE_TESTING.equals(SherloModuleCore.getCurrentMode())) return;
+            FileSystemHelper fs = SherloModuleCore.getStaticFsHelper();
+            if (fs == null) return;
+            timerHandler = new Handler(Looper.getMainLooper());
+            timerRunnable = () -> {
+                if (!getStorybookCalled.get()) {
+                    ProtocolHelper.writeNativeError(fs,
+                        "ERROR_STORYBOOK_NOT_DISPLAYED",
+                        "Storybook did not appear within 10s of app launch",
+                        "");
+                    Log.i(TAG, "ERROR_STORYBOOK_NOT_DISPLAYED written by native timer");
+                }
+            };
+            timerHandler.postDelayed(timerRunnable, 10000);
+            Log.i(TAG, "storybookNotDisplayed native timer scheduled (10s)");
+        } catch (Throwable t) {
+            Log.e(TAG, "scheduleStorybookNotDisplayedTimer failed", t);
+        }
+    }
+
+    /** Called from SherloModule.notifyGetStorybookCalled() to mark getStorybook() was invoked. */
+    public static void setGetStorybookCalled() {
+        getStorybookCalled.set(true);
+    }
+
+    /** Cancels the pending NOT_DISPLAYED timer. Safe to call even if timer already fired. */
+    public static void cancelStorybookNotDisplayedTimer() {
+        if (timerHandler != null && timerRunnable != null) {
+            timerHandler.removeCallbacks(timerRunnable);
+        }
     }
 
     /**

@@ -155,6 +155,15 @@ static void SherloEarlyInit(void) {
   [core scrollToCheckpoint:index offset:offset maxIndex:maxIndex resolve:resolve reject:reject];
 }
 
+/**
+ * Cancel signal for the native NOT_DISPLAYED watchdog timer.
+ * Called from JS getStorybook() synchronously to indicate Storybook is being used.
+ */
+- (void)notifyGetStorybookCalled {
+  [SherloModuleCore setGetStorybookCalled];
+  [SherloModuleCore cancelStorybookNotDisplayedTimer];
+}
+
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
     (const facebook::react::ObjCTurboModule::InitParams &)params
 {
@@ -269,6 +278,15 @@ RCT_EXPORT_METHOD(scrollToCheckpoint:(double)index
                    resolve:(RCTPromiseResolveBlock)resolve
                    reject:(RCTPromiseRejectBlock)reject) {
   [core scrollToCheckpoint:index offset:offset maxIndex:maxIndex resolve:resolve reject:reject];
+}
+
+/**
+ * Cancel signal for the native NOT_DISPLAYED watchdog timer.
+ * Called from JS getStorybook() synchronously to indicate Storybook is being used.
+ */
+RCT_EXPORT_METHOD(notifyGetStorybookCalled) {
+  [SherloModuleCore setGetStorybookCalled];
+  [SherloModuleCore cancelStorybookNotDisplayedTimer];
 }
 
 #endif

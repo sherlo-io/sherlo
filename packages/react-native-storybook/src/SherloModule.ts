@@ -50,6 +50,7 @@ type SherloModule = {
     contentPx: number;
     scrollViewFrame?: { x: number; y: number; width: number; height: number };
   }>;
+  notifyGetStorybookCalled: () => void;
 };
 
 let SherloModule: SherloModule;
@@ -150,6 +151,11 @@ function createSherloModule(): SherloModule {
     isScrollable: () => module.isScrollable(),
     scrollToCheckpoint: (index: number, offset: number, maxIndex: number) =>
       module.scrollToCheckpoint(index, offset, maxIndex),
+    notifyGetStorybookCalled: () => {
+      if (typeof (module as any).notifyGetStorybookCalled === 'function') {
+        (module as any).notifyGetStorybookCalled();
+      }
+    },
   };
 
   return sherloModule;
@@ -201,6 +207,7 @@ function createDummySherloModule(): SherloModule {
       viewportPx: 0,
       contentPx: 0,
     }),
+    notifyGetStorybookCalled: () => {},
     stabilize: async (
       _requiredMatches: number,
       _minScreenshotsCount: number,
