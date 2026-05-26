@@ -21,5 +21,21 @@ function installSherloIntegration(): void {
       'protocol.sherlo',
       JSON.stringify({ action: 'JS_EVAL_COMPLETE', timestamp: Date.now(), entity: 'app' }) + '\n'
     );
+    if ((global as any).__sherloWithStorybookApplied === true) {
+      try {
+        SherloModule.appendFile(
+          'protocol.sherlo',
+          JSON.stringify({ action: 'WITHSTORYBOOK_APPLIED', timestamp: Date.now(), entity: 'app' }) + '\n'
+        );
+      } catch (_) {}
+    }
+    if ((global as any).__sherloStorybookDisabledFlag === true) {
+      try {
+        SherloModule.appendFile(
+          'protocol.sherlo',
+          JSON.stringify({ action: 'WITHSTORYBOOK_DISABLED', timestamp: Date.now(), entity: 'app' }) + '\n'
+        );
+      } catch (_) {}
+    }
   }
 }

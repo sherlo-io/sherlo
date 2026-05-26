@@ -60,6 +60,11 @@
   if (typeof globalThis === 'undefined') return;
   if (typeof global === 'undefined') return;
 
+  // Mark that sherlo's Metro polyfill is in the bundle. This is the bridge-independent
+  // signal of "withStorybook was applied to the user's Metro config". src/index.ts reads
+  // this global at SDK-import time and emits the WITHSTORYBOOK_APPLIED protocol marker.
+  global.__sherloWithStorybookApplied = true;
+
   function getSherloNativeModule() {
     // Each attempt is isolated: a throw in one does not block the next.
     try {
@@ -146,26 +151,5 @@
       }
       return originalDefine.call(this, wrappedFactory, moduleId, dependencyMap);
     };
-  }
-  // 3. ERROR_STORYBOOK_NOT_DISPLAYED timer - JS-side watchdog, covers new-arch where
-  //    JS setTimeout reliably fires. The native-side timer (SherloInitProvider /
-  //    SherloModuleCore) covers old-arch where this JS callback may not reach native.
-  //    Both run (defense in depth); duplicate entries are fine (test expects any entry).
-  if (!global.__sherloStorybookNotDisplayedTimerInstalled && typeof setTimeout === 'function') {
-    global.__sherloStorybookNotDisplayedTimerInstalled = true;
-    setTimeout(function () {
-      try {
-        if (global.__sherloStorybookRendered === true) return;
-        var sherloNm = getSherloNativeModule();
-        if (!sherloNm) return;
-        var turboConsts = (typeof sherloNm.getSherloConstants === 'function' && sherloNm.getSherloConstants()) || {};
-        var nativeConsts = (typeof sherloNm.getConstants === 'function' && sherloNm.getConstants()) || {};
-        var mode = turboConsts.mode || nativeConsts.mode || sherloNm.mode;
-        if (mode !== 'testing') return;
-        if (typeof sherloNm.sendNativeError === 'function') {
-          sherloNm.sendNativeError('ERROR_STORYBOOK_NOT_DISPLAYED', 'Storybook did not appear within 10s of app launch', '');
-        }
-      } catch (e) {}
-    }, 10000);
   }
 })();

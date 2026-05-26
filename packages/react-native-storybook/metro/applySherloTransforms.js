@@ -4,66 +4,20 @@ var fs = require('fs');
 var path = require('path');
 
 /**
- * Detects the iOS app name by finding a .xcodeproj in the ios/ directory.
- * Returns null if ios/ doesn't exist or no .xcodeproj is found.
+ * Writes a tiny polyfill that sets global.__sherloStorybookDisabledFlag = true.
+ * This file is prepended to the bundle's polyfill list when opts.enabled === false,
+ * so src/index.ts can read the flag and emit the WITHSTORYBOOK_DISABLED protocol marker.
  *
- * @param {string} projectRoot
- * @returns {string|null}
+ * @param {string} cacheDir - directory to write the file into (e.g. node_modules/.cache/sherlo/)
+ * @returns {string} absolute path to the generated file
  */
-function detectIosAppName(projectRoot) {
-  var iosDir = path.join(projectRoot, 'ios');
-  if (!fs.existsSync(iosDir)) return null;
-  var entries;
-  try { entries = fs.readdirSync(iosDir); } catch (e) { return null; }
-  var xcodeproj = entries.find(function (e) { return e.endsWith('.xcodeproj'); });
-  if (!xcodeproj) return null;
-  return xcodeproj.replace('.xcodeproj', '');
-}
-
-/**
- * Writes the sherlo-storybook-disabled marker files to Android assets and iOS source dirs.
- * These are detected at app startup by the native SherloInitProvider / SherloModuleCore
- * to emit ERROR_STORYBOOK_DISABLED when in testing mode.
- * Silently skips platforms whose directories do not exist.
- *
- * @param {string} projectRoot
- */
-function writeMarkerFiles(projectRoot) {
-  var androidAssetsDir = path.join(projectRoot, 'android', 'app', 'src', 'main', 'assets');
-  try {
-    if (!fs.existsSync(androidAssetsDir)) {
-      fs.mkdirSync(androidAssetsDir, { recursive: true });
-    }
-    fs.writeFileSync(path.join(androidAssetsDir, 'sherlo-storybook-disabled'), '', 'utf8');
-  } catch (e) { /* android dir may not exist - skip */ }
-
-  var iosAppName = detectIosAppName(projectRoot);
-  if (iosAppName) {
-    var iosAppDir = path.join(projectRoot, 'ios', iosAppName);
-    try {
-      if (!fs.existsSync(iosAppDir)) {
-        fs.mkdirSync(iosAppDir, { recursive: true });
-      }
-      fs.writeFileSync(path.join(iosAppDir, 'sherlo-storybook-disabled'), '', 'utf8');
-    } catch (e) { /* ios app dir not writable - skip */ }
+function writeDisabledFlagPolyfill(cacheDir) {
+  if (!fs.existsSync(cacheDir)) {
+    fs.mkdirSync(cacheDir, { recursive: true });
   }
-}
-
-/**
- * Removes the sherlo-storybook-disabled marker files from both platforms.
- * Silently skips if files don't exist.
- *
- * @param {string} projectRoot
- */
-function removeMarkerFiles(projectRoot) {
-  var androidMarker = path.join(projectRoot, 'android', 'app', 'src', 'main', 'assets', 'sherlo-storybook-disabled');
-  try { if (fs.existsSync(androidMarker)) fs.unlinkSync(androidMarker); } catch (e) { /* ignore */ }
-
-  var iosAppName = detectIosAppName(projectRoot);
-  if (iosAppName) {
-    var iosMarker = path.join(projectRoot, 'ios', iosAppName, 'sherlo-storybook-disabled');
-    try { if (fs.existsSync(iosMarker)) fs.unlinkSync(iosMarker); } catch (e) { /* ignore */ }
-  }
+  var flagPath = path.join(cacheDir, 'storybook-disabled-flag.js');
+  fs.writeFileSync(flagPath, "'use strict';\nglobal.__sherloStorybookDisabledFlag = true;\n", 'utf8');
+  return flagPath;
 }
 
 /**
@@ -72,10 +26,9 @@ function removeMarkerFiles(projectRoot) {
  * Takes the result of withStorybook() + opts and returns the Sherlo-augmented config.
  * Installs the resolver redirect, polyfill injection, and storybook-wrapper.js generation.
  *
- * When opts.enabled === false, writes build-time marker files to native source directories
- * (android/app/src/main/assets/ and ios/<AppName>/) so the native SherloInitProvider /
- * SherloModuleCore can detect at startup that Storybook was disabled and emit
- * ERROR_STORYBOOK_DISABLED without depending on JS module load order.
+ * When opts.enabled === false, prepends a JS polyfill that sets global.__sherloStorybookDisabledFlag.
+ * src/index.ts reads this flag at SDK-import time and emits the WITHSTORYBOOK_DISABLED protocol marker.
+ * ERROR_STORYBOOK_DISABLED is detected via runner-side inference from the protocol log.
  *
  * @param {object} result - The Metro config returned by withStorybook()
  * @param {object} [opts] - The same opts passed to withStorybook (e.g. { enabled, configPath })
@@ -95,14 +48,22 @@ function applySherloTransforms(result, opts) {
 
   generateWrapper(wrapperPath);
 
-  // Write or remove native marker files for ERROR_STORYBOOK_DISABLED detection.
-  // Native side (SherloInitProvider / SherloModuleCore) reads the marker at app startup
-  // and emits NATIVE_ERROR if present and mode === 'testing'.
-  if (opts && opts.enabled === false) {
-    writeMarkerFiles(projectRoot);
-  } else {
-    removeMarkerFiles(projectRoot);
-  }
+  // cacheDir is the same directory that wrapperPath lives in; already created by generateWrapper().
+  var cacheDir = path.dirname(wrapperPath);
+
+  // Write build-meta sidecar that the runner reads to know whether withStorybook was applied
+  // and whether it was called with enabled:false. Runner uses absence of this file to detect
+  // ERROR_WITHSTORYBOOK_NOT_USED.
+  try {
+    var buildMetaPath = path.join(cacheDir, 'build-meta.json');
+    var buildMeta = {
+      withStorybookApplied: true,
+      enabled: !(opts && opts.enabled === false),
+      sdkVersion: require('../package.json').version,
+      writtenAt: new Date().toISOString(),
+    };
+    fs.writeFileSync(buildMetaPath, JSON.stringify(buildMeta, null, 2), 'utf8');
+  } catch (_) {}
 
   var existingResolveRequest =
     result && result.resolver && result.resolver.resolveRequest
@@ -129,7 +90,11 @@ function applySherloTransforms(result, opts) {
   // safety lives entirely on the native side (SherloModuleCore.reportEarlyJsError
   // returns early if mode is not 'testing'). See metro/polyfill.js for details.
   var polyfillPath = path.join(__dirname, 'polyfill.js');
-  var sherloPolyfills = [polyfillPath];
+  // When enabled:false, prepend a tiny polyfill that sets the global disabled flag.
+  // src/index.ts reads this flag and emits the WITHSTORYBOOK_DISABLED protocol marker.
+  var sherloPolyfills = (opts && opts.enabled === false)
+    ? [writeDisabledFlagPolyfill(cacheDir), polyfillPath]
+    : [polyfillPath];
 
   var existingGetPolyfills =
     result && result.serializer && typeof result.serializer.getPolyfills === 'function'
@@ -174,9 +139,9 @@ function applySherloTransforms(result, opts) {
  * Generates the storybook-wrapper.js file.
  *
  * The wrapper redirects @storybook/react-native imports through Sherlo's patched start().
- * ERROR_STORYBOOK_DISABLED is now detected natively (SherloInitProvider / SherloModuleCore
- * reads the marker file written by writeMarkerFiles()) rather than in the wrapper, so there
- * is no SHERLO_BUILD_DISABLED constant here.
+ * ERROR_STORYBOOK_DISABLED is detected via runner-side inference: when opts.enabled === false,
+ * applySherloTransforms prepends storybook-disabled-flag.js (sets global.__sherloStorybookDisabledFlag)
+ * to the polyfill list; src/index.ts reads the flag and emits the WITHSTORYBOOK_DISABLED marker.
  *
  * @param {string} wrapperPath
  */
@@ -258,5 +223,4 @@ function generateWrapper(wrapperPath) {
 module.exports = applySherloTransforms;
 module.exports.applySherloTransforms = applySherloTransforms;
 module.exports.generateWrapper = generateWrapper;
-module.exports.writeMarkerFiles = writeMarkerFiles;
-module.exports.removeMarkerFiles = removeMarkerFiles;
+module.exports.writeDisabledFlagPolyfill = writeDisabledFlagPolyfill;
