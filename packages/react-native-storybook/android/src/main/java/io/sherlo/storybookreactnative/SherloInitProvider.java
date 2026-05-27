@@ -290,6 +290,15 @@ public class SherloInitProvider extends ContentProvider {
      * JNI rethrow swallows it and replaces it with the secondary "Could not get BatchedBridge"
      * C++ exception. Writes JS_ERROR to protocol.sherlo with the correct message, then rethrows
      * to preserve normal crash propagation behavior.
+     *
+     * <p>On old-arch Android the exception {@code e} typically has message
+     * "Could not get BatchedBridge" rather than the original JS error - because Hermes
+     * routes the throw through a different code path that loses the JS message before
+     * it reaches Java.  The polyfill (metro/polyfill.js) writes
+     * {@code global.__sherloLastJsError} before its bridge-call attempt, so we can
+     * recover the real message by reading that global via JSI.
+     * {@link SherloJsiReader#tryReadLastJsError} is called first; if it succeeds we
+     * use the polyfill-captured fields; otherwise we fall back to the exception message.
      */
     private static class SherloJSExceptionCapture implements JSExceptionHandler {
         private static final String CAPTURE_TAG = "SherloModule:JsCapture";
@@ -299,10 +308,21 @@ public class SherloInitProvider extends ContentProvider {
             try {
                 FileSystemHelper fs = SherloModuleCore.getStaticFsHelper();
                 if (fs != null) {
-                    ProtocolHelper.writeJsErrorFromException(fs, e);
+                    // Try to recover the real JS error from the global written by the polyfill.
+                    // On old-arch Android, 'e' arrives with "Could not get BatchedBridge" instead
+                    // of the original JS error message.  The JSI read bypasses the broken bridge.
+                    SherloJsiReader.JsError jsError =
+                            SherloJsiReader.tryReadLastJsError(SherloModuleCore.getEarlyReactContext());
+                    if (jsError != null) {
+                        Log.i(CAPTURE_TAG, "Recovered real JS error via JSI: " + jsError.message);
+                        ProtocolHelper.writeEarlyJsError(fs, jsError.name, jsError.message, jsError.stack);
+                    } else {
+                        // Fallback: use whatever the bridge provided (may be secondary exception).
+                        ProtocolHelper.writeJsErrorFromException(fs, e);
+                        Log.i(CAPTURE_TAG, "Captured JS error (bridge fallback): "
+                                + (e.getMessage() != null ? e.getMessage() : e.toString()));
+                    }
                     SherloModuleCore.markJsErrorCaptured();
-                    Log.i(CAPTURE_TAG, "Captured original JS error: "
-                            + (e.getMessage() != null ? e.getMessage() : e.toString()));
                 } else {
                     Log.w(CAPTURE_TAG, "staticFsHelper null - cannot write JS_ERROR");
                 }

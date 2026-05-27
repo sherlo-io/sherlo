@@ -102,6 +102,18 @@
 
   function reportToNative(error) {
     if (global.__sherloFirstErrorReported) return;
+    // Stash the original JS error in a global so the native exception handler can
+    // recover the real message if the bridge-call path fails (e.g. on old-arch Android,
+    // getSherloNativeModule() returns null and the C++ layer produces a secondary
+    // "Could not get BatchedBridge" exception that would otherwise overwrite the message).
+    // The native SherloJSExceptionCapture reads this via JSI on the same JS thread.
+    try {
+      global.__sherloLastJsError = {
+        name: (error && error.name) || 'Error',
+        message: (error && error.message) || String(error),
+        stack: (error && error.stack) || ''
+      };
+    } catch (_) {}
     try {
       var nm = getSherloNativeModule();
       if (nm && typeof nm.reportEarlyJsError === 'function') {
