@@ -1,6 +1,6 @@
 # 📦 Standard Example • Sherlo
 
-A minimal example app with automated visual regression testing, powered by [Sherlo](https://sherlo.io) for React Native.
+A minimal example app showing Sherlo running automated [visual regression testing for React Native](https://sherlo.io). Sherlo captures Storybook stories on iOS and Android simulators in the cloud. App binaries ship with bundled JavaScript.
 
 - Sherlo integration
 - GitHub Actions workflow

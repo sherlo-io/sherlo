@@ -1,4 +1,4 @@
-# Sherlo SDK - Visual testing for React Native
+# Sherlo Storybook integration: Visual testing for React Native
 
 The `@sherlo/react-native-storybook` SDK integrates [visual regression testing for React Native](https://sherlo.io) into your app via Storybook - capture stories on iOS and Android simulators in the cloud, catch UI regressions before they ship.
 

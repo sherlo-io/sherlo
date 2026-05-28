@@ -33,7 +33,7 @@
 
 # Sherlo
 
-**Visual regression testing for React Native**. Capture screenshots on iOS and Android simulators in the cloud, detect visual changes, and ship UI updates with confidence.
+**Visual regression testing for React Native, integrated with Storybook**. Capture screenshots on iOS and Android simulators in the cloud, detect visual changes, and ship UI updates with confidence.
 
 ▶️ [Sherlo in 2 minutes](https://sherlo.io/#video)
 
@@ -62,18 +62,7 @@
 npx sherlo init
 ```
 
-#### 2)<sup>\*</sup> Customize [test devices](https://sherlo.io/docs/config#devices) _(optional)_
-
-<!-- prettier-ignore -->
-```json
-[
-  { "id": "iphone.15", "osVersion": "17" },
-  { "id": "pixel.7", "osVersion": "13", "theme": "dark" },
-  { "id": "ipad.10.gen", "osVersion": "17", "locale": "en_GB", "fontScale": "+2" }
-]
-```
-
-#### 3) Run visual tests
+#### 2) Run visual tests
 
 ```bash
 npx sherlo test

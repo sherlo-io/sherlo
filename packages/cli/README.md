@@ -1,4 +1,4 @@
-# Sherlo CLI - Visual testing for React Native
+# Sherlo CLI: Visual testing for React Native
 
 The `sherlo` CLI orchestrates [visual regression testing for React Native](https://sherlo.io) - capture screenshots on iOS and Android simulators in the cloud, detect visual changes, and ship UI updates with confidence.
 
