@@ -18,6 +18,11 @@ if (SherloModule.getMode() === 'testing') {
 function getStorybook(view: StorybookView, params?: StorybookParams): () => ReactElement {
   const mode = SherloModule.getMode();
 
+  // Cancel the native NOT_DISPLAYED watchdog: SDK is being activated.
+  // Safe in all modes: the dummy SherloModule is a no-op; the real native
+  // implementation is idempotent (safe to call even after the timer fired).
+  SherloModule.notifyGetStorybookCalled();
+
   if (mode === 'testing') {
     const delayMs = SherloModule.getConfig().initialStoryRenderDelayMs;
     const originalGetProjectAnnotations = view._preview.getProjectAnnotations.bind(
@@ -62,11 +67,13 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
   }
 
   const isTestingMode = mode === 'testing';
+  const isStorybookMode = mode === 'storybook';
 
   return () => {
     useHideSplashScreen();
 
     const storybookLoadedReported = useRef(false);
+    const inspectLogReported = useRef(false);
 
     // Emit STORYBOOK_LOADED after the first render commits so the runner only
     // sees the signal once the React tree is actually mounted.  Emitting it
@@ -82,6 +89,20 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
           const content = JSON.stringify({ action: 'STORYBOOK_LOADED', timestamp: Date.now(), entity: 'app' });
           SherloModule.appendFile('protocol.sherlo', `${content}\n`);
         }
+      } catch (_e) {}
+    }, []);
+
+    // Emit INSPECT_STORY_OPENED to log.sherlo so the runner can deterministically
+    // observe that the configured inspect.initialStoryId was applied.
+    useEffect(() => {
+      if (!isStorybookMode) return;
+      if (inspectLogReported.current) return;
+      try {
+        const cfg = SherloModule.getConfig();
+        const storyId = cfg.inspect?.initialStoryId;
+        if (!storyId) return;
+        inspectLogReported.current = true;
+        SherloModule.appendFile('log.sherlo', `INSPECT_STORY_OPENED:${storyId}\n`);
       } catch (_e) {}
     }, []);
 
