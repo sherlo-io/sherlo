@@ -55,7 +55,7 @@ async function start() {
     program
       .name('sherlo')
       .version(version, '--version', 'Output the version number')
-      .description('Sherlo CLI for React Native visual testing');
+      .description('Sherlo CLI - visual regression testing for React Native');
 
     addInitCommand(program);
 
