@@ -8,4 +8,4 @@ CLI for initializing and running visual tests.
 
 ## [react-native-storybook](./react-native-storybook) (`@sherlo/react-native-storybook`)
 
-Main package that enables Sherlo's Storybook integration for React Native.
+Main package that enables integration with Storybook for React Native.
