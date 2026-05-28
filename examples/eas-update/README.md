@@ -1,6 +1,6 @@
 # ⚡️ EAS Update Example • Sherlo
 
-A minimal example app with automated visual regression testing, powered by [Sherlo](https://sherlo.io) for React Native Storybook, delivered via EAS Update.
+A minimal example app with automated visual regression testing, powered by [Sherlo](https://sherlo.io) for React Native, delivered via EAS Update.
 
 - Sherlo integration
 - GitHub Actions workflow
