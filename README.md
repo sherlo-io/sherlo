@@ -27,7 +27,7 @@
     <source media="(prefers-color-scheme: dark) and (max-width: 500px)" srcset="/assets/hero-mobile-dark.gif" width="436">
     <source media="(max-width: 500px)" srcset="/assets/hero-mobile-light.gif" width="436">
     <source media="(prefers-color-scheme: dark)" srcset="/assets/hero-desktop-dark.gif" width="560">
-    <img src="/assets/hero-desktop-light.gif" alt="Animated demo of Sherlo running visual regression tests on a React Native Storybook" width="560" />
+    <img src="/assets/hero-desktop-light.gif" alt="Animated demo of Sherlo running visual regression tests on React Native components in Storybook" width="560" />
   </picture>
 </div>
 
