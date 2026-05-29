@@ -88,22 +88,22 @@ static FileSystemHelper *fileSystemHelper;
                 consumingDeeplink = [EasUpdateHelper consumeEasUpdateDeeplinkIfNeeded:easUpdateDeeplink];
             }
 
-            // Native NOT_DISPLAYED watchdog: fires if getStorybook() is never called within 10s.
+            // Native NOT_DISPLAYED watchdog: fires if getStorybook() is never called within 30s.
             // The cancel signal arrives via notifyGetStorybookCalled on the native module.
             __block dispatch_block_t block = dispatch_block_create(0, ^{
                 if (!getStorybookWasCalled) {
                     [ProtocolHelper writeNativeError:fileSystemHelper
                                            errorCode:@"ERROR_STORYBOOK_NOT_DISPLAYED"
-                                             message:@"Storybook did not appear within 10s of app launch"
+                                             message:@"Storybook did not appear within 30s of app launch"
                                             dataJson:@""];
                     NSLog(@"[%@] ERROR_STORYBOOK_NOT_DISPLAYED written by native timer", LOG_TAG);
                 }
             });
             storybookNotDisplayedBlock = block;
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC),
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 30 * NSEC_PER_SEC),
                            dispatch_get_main_queue(),
                            block);
-            NSLog(@"[%@] storybookNotDisplayed native timer scheduled (10s)", LOG_TAG);
+            NSLog(@"[%@] storybookNotDisplayed native timer scheduled (30s)", LOG_TAG);
 
         }
     }

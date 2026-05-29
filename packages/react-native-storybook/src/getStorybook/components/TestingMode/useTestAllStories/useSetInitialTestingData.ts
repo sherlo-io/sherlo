@@ -6,6 +6,14 @@ import { isStorybook7 } from '../../../helpers';
 import { StorybookView } from '../../../../types';
 import { getAdapter } from '../../../../storybook/adapter';
 
+export function filterStoryMetas<T extends { id: string }>(
+  storyMetas: T[],
+  includeStoryIds: string[] | undefined
+): T[] {
+  if (!Array.isArray(includeStoryIds)) return storyMetas;
+  return storyMetas.filter((m) => includeStoryIds.includes(m.id));
+}
+
 function useSetInitialTestingData({ view }: { view: StorybookView }): void {
   const lastState = SherloModule.getLastState();
 
@@ -15,7 +23,9 @@ function useSetInitialTestingData({ view }: { view: StorybookView }): void {
     (async () => {
       const adapter = getAdapter(view);
       const storyMetas = adapter.enumerateStories(view);
-      const allStories = prepareSnapshots({ storyMetas, splitByMode: true });
+      const config = SherloModule.getConfig();
+      const filteredStoryMetas = filterStoryMetas(storyMetas, config.discoveryFilter?.includeStoryIds);
+      const allStories = prepareSnapshots({ storyMetas: filteredStoryMetas, splitByMode: true });
 
       RunnerBridge.log('start testing session', {
         isStorybook7,

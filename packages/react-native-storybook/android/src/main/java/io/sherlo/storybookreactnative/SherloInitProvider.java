@@ -55,7 +55,7 @@ public class SherloInitProvider extends ContentProvider {
     }
 
     /**
-     * Schedules a 10s native timer that writes ERROR_STORYBOOK_NOT_DISPLAYED if
+     * Schedules a 30s native timer that writes ERROR_STORYBOOK_NOT_DISPLAYED if
      * getStorybook() is never called. Only active in testing mode; no-op otherwise.
      * The cancel signal arrives via notifyGetStorybookCalled() on the native module.
      */
@@ -69,13 +69,13 @@ public class SherloInitProvider extends ContentProvider {
                 if (!getStorybookCalled.get()) {
                     ProtocolHelper.writeNativeError(fs,
                         "ERROR_STORYBOOK_NOT_DISPLAYED",
-                        "Storybook did not appear within 10s of app launch",
+                        "Storybook did not appear within 30s of app launch",
                         "");
                     Log.i(TAG, "ERROR_STORYBOOK_NOT_DISPLAYED written by native timer");
                 }
             };
-            timerHandler.postDelayed(timerRunnable, 10000);
-            Log.i(TAG, "storybookNotDisplayed native timer scheduled (10s)");
+            timerHandler.postDelayed(timerRunnable, 30000);
+            Log.i(TAG, "storybookNotDisplayed native timer scheduled (30s)");
         } catch (Throwable t) {
             Log.e(TAG, "scheduleStorybookNotDisplayedTimer failed", t);
         }

@@ -26,6 +26,9 @@ export type Config = {
   inspect?: {
     initialStoryId?: string;
   };
+  discoveryFilter?: {
+    includeStoryIds?: string[];
+  };
 };
 
 export type LastState = {
