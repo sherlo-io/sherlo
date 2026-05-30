@@ -137,6 +137,14 @@ public class SherloInitProvider extends ContentProvider {
      */
     private void installJsExceptionHandler() {
         try {
+            Log.i(TAG, "[diag Android] SherloInitProvider.installJsExceptionHandler called - thread=" + Thread.currentThread().getName());
+            FileSystemHelper diagFs = SherloModuleCore.getStaticFsHelper();
+            if (diagFs != null) {
+                try {
+                    diagFs.appendFile("sherlo-diag.log",
+                        "[diag Android] SherloInitProvider.installJsExceptionHandler called - thread=" + Thread.currentThread().getName() + "\n");
+                } catch (Throwable d) { /* ignore */ }
+            }
             Thread.UncaughtExceptionHandler originalHandler = Thread.getDefaultUncaughtExceptionHandler();
             Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
                 Log.i(TAG, "UncaughtException on thread: "
@@ -211,6 +219,14 @@ public class SherloInitProvider extends ContentProvider {
                 }
                 wrapCatalystJsExceptionHandler();
             });
+            Log.i(TAG, "[diag Android] mJSExceptionHandler reflected onto ReactInstanceManager: yes (ReactMarker listener installed)");
+            FileSystemHelper preFs = SherloModuleCore.getStaticFsHelper();
+            if (preFs != null) {
+                try {
+                    preFs.appendFile("sherlo-diag.log",
+                        "[diag Android] mJSExceptionHandler reflected onto ReactInstanceManager: yes (ReactMarker listener installed)\n");
+                } catch (Throwable d) { /* ignore */ }
+            }
             Log.i(TAG, "ReactMarker PRE_RUN_JS_BUNDLE_START listener installed");
         } catch (Throwable t) {
             Log.e(TAG, "installJsBundleEvalHook failed", t);
@@ -305,6 +321,17 @@ public class SherloInitProvider extends ContentProvider {
 
         @Override
         public void handleException(Exception e) {
+            String exMsg = e.getMessage() != null ? e.getMessage() : e.toString();
+            Log.i(CAPTURE_TAG, "[diag Android] SherloJSExceptionCapture.handleException FIRED with: " + exMsg);
+            try {
+                FileSystemHelper fs = SherloModuleCore.getStaticFsHelper();
+                if (fs != null) {
+                    try {
+                        fs.appendFile("sherlo-diag.log",
+                            "[diag Android] SherloJSExceptionCapture.handleException FIRED with: " + exMsg + "\n");
+                    } catch (Throwable d) { /* ignore */ }
+                }
+            } catch (Throwable d) { /* ignore */ }
             try {
                 FileSystemHelper fs = SherloModuleCore.getStaticFsHelper();
                 if (fs != null) {
@@ -323,6 +350,11 @@ public class SherloInitProvider extends ContentProvider {
                                 + (e.getMessage() != null ? e.getMessage() : e.toString()));
                     }
                     SherloModuleCore.markJsErrorCaptured();
+                    Log.i(CAPTURE_TAG, "[diag Android] FsHelper.appendProtocol returned");
+                    try {
+                        fs.appendFile("sherlo-diag.log",
+                            "[diag Android] FsHelper.appendProtocol returned\n");
+                    } catch (Throwable d) { /* ignore */ }
                 } else {
                     Log.w(CAPTURE_TAG, "staticFsHelper null - cannot write JS_ERROR");
                 }

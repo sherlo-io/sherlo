@@ -208,13 +208,23 @@ static FileSystemHelper *fileSystemHelper;
 }
 
 - (BOOL)reportEarlyJsError:(NSString *)name message:(NSString *)message stack:(NSString *)stack {
+    NSLog(@"[diag native] reportEarlyJsError CALLED with: %@/%@", name ?: @"(nil)", message ?: @"(nil)");
+    [fileSystemHelper appendFile:@"sherlo-diag.log"
+                         content:[NSString stringWithFormat:@"[diag native] reportEarlyJsError CALLED with: %@/%@\n", name ?: @"(nil)", message ?: @"(nil)"]];
     // Defense in depth: even if the JS-side gate (metro/polyfill.js) is bypassed,
     // refuse to write JS errors to protocol.sherlo unless in testing mode. This
     // makes a polyfill-bug failure mode 'no error captured' not 'protocol polluted'.
     if (![currentMode isEqualToString:MODE_TESTING]) {
+        NSLog(@"[diag native] reportEarlyJsError: mode=%@ (not testing) - returning NO", currentMode);
+        [fileSystemHelper appendFile:@"sherlo-diag.log"
+                             content:[NSString stringWithFormat:@"[diag native] reportEarlyJsError: mode=%@ (not testing) - returning NO\n", currentMode]];
         return NO;
     }
-    return [ProtocolHelper writeEarlyJsError:fileSystemHelper name:name message:message stack:stack];
+    BOOL result = [ProtocolHelper writeEarlyJsError:fileSystemHelper name:name message:message stack:stack];
+    NSLog(@"[diag native] reportEarlyJsError returning - write completed, result=%d", result);
+    [fileSystemHelper appendFile:@"sherlo-diag.log"
+                         content:[NSString stringWithFormat:@"[diag native] reportEarlyJsError returning - write completed, result=%d\n", result]];
+    return result;
 }
 
 /**

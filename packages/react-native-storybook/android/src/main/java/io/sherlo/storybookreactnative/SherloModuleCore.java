@@ -230,10 +230,24 @@ public class SherloModuleCore {
      * Must never throw. Returns true on success, false on failure.
      */
     public boolean reportEarlyJsError(String name, String message, String stack) {
+        Log.i(TAG, "[diag native] reportEarlyJsError CALLED with: " + name + "/" + message);
+        try {
+            if (this.fileSystemHelper != null) {
+                this.fileSystemHelper.appendFile("sherlo-diag.log",
+                    "[diag native] reportEarlyJsError CALLED with: " + name + "/" + message + "\n");
+            }
+        } catch (Throwable diagErr) { /* ignore */ }
         // Defense in depth: even if the JS-side gate (metro/polyfill.js) is bypassed,
         // refuse to write JS errors to protocol.sherlo unless in testing mode. This
         // makes a polyfill-bug failure mode 'no error captured' not 'protocol polluted'.
         if (!MODE_TESTING.equals(currentMode)) {
+            Log.i(TAG, "[diag native] reportEarlyJsError: mode=" + currentMode + " (not testing) - returning false");
+            try {
+                if (this.fileSystemHelper != null) {
+                    this.fileSystemHelper.appendFile("sherlo-diag.log",
+                        "[diag native] reportEarlyJsError: mode=" + currentMode + " (not testing) - returning false\n");
+                }
+            } catch (Throwable diagErr) { /* ignore */ }
             return false;
         }
         try {
@@ -241,6 +255,13 @@ public class SherloModuleCore {
             // Set the flag so the native UncaughtExceptionHandler fallback knows
             // a correct JS_ERROR was already written and skips the wrong secondary exception.
             markJsErrorCaptured();
+            Log.i(TAG, "[diag native] reportEarlyJsError returning - write completed");
+            try {
+                if (this.fileSystemHelper != null) {
+                    this.fileSystemHelper.appendFile("sherlo-diag.log",
+                        "[diag native] reportEarlyJsError returning - write completed\n");
+                }
+            } catch (Throwable diagErr) { /* ignore */ }
             return true;
         } catch (Exception e) {
             Log.e(TAG, "reportEarlyJsError failed", e);

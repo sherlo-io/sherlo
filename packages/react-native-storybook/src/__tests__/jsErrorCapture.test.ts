@@ -2,8 +2,9 @@
  * Unit tests for JS error capture logic.
  *
  * Two complementary capture paths in metro/polyfill.js:
- * 1. ErrorUtils.setGlobalHandler — catches entry-module throws + async/event errors.
- * 2. __d wrap — wraps every module factory; catches nested module-eval throws that
+ * 1. ErrorUtils.setGlobalHandler - deferred via Promise.resolve().then() so it
+ *    chains OVER ExceptionsManager rather than being overwritten by it.
+ * 2. __d wrap - wraps every module factory; catches nested module-eval throws that
  *    bypass ErrorUtils because Metro's _$$_REQUIRE local ref skips global.__r.
  *
  * Both paths share a reportToNative helper gated by __sherloFirstErrorReported.
@@ -26,18 +27,27 @@ function makeNativeModule(reportEarlyJsError?: ReturnType<typeof vi.fn>) {
   return { reportEarlyJsError: reportEarlyJsError ?? vi.fn() };
 }
 
+/**
+ * Build a fake global whose ErrorUtils properly stores/retrieves the handler,
+ * so the __sherlo idempotency check (existing.__sherlo) works correctly.
+ */
 function buildFakeGlobal(
   nm?: ReturnType<typeof makeNativeModule>,
   prevHandler?: (error: Error, isFatal: boolean) => void
 ): Record<string, any> {
-  const setGlobalHandler = vi.fn();
+  let _storedHandler: ((error: Error, isFatal: boolean) => void) | null = prevHandler ?? null;
+  const setGlobalHandler = vi.fn((h: (error: Error, isFatal: boolean) => void) => {
+    _storedHandler = h;
+  });
+  const getGlobalHandler = vi.fn(() => _storedHandler);
   return {
     ErrorUtils: {
       setGlobalHandler,
-      getGlobalHandler: vi.fn(() => prevHandler ?? null),
+      getGlobalHandler,
     },
     __turboModuleProxy: nm ? vi.fn((name: string) => name === 'SherloModule' ? nm : null) : undefined,
     _setGlobalHandler: setGlobalHandler,
+    _getGlobalHandler: getGlobalHandler,
   };
 }
 
@@ -55,7 +65,7 @@ function buildFakeGlobalWithD(
 function getInstalledHandler(fakeGlobal: Record<string, any>): (error: Error, isFatal: boolean) => void {
   const calls = fakeGlobal._setGlobalHandler.mock.calls;
   if (!calls.length) throw new Error('setGlobalHandler was never called');
-  return calls[0][0];
+  return calls[calls.length - 1][0];
 }
 
 function callWrappedFactory(
@@ -67,56 +77,67 @@ function callWrappedFactory(
 }
 
 // ---------------------------------------------------------------------------
-// Tests: metro/polyfill.js — ErrorUtils.setGlobalHandler
+// Tests: metro/polyfill.js - ErrorUtils.setGlobalHandler
 // ---------------------------------------------------------------------------
+// NOTE: The handler install is now deferred via Promise.resolve().then() so it
+// chains over ExceptionsManager (which installs its handler synchronously and
+// would overwrite an early-installed sherlo handler). Tests must await a
+// microtask tick after runPolyfill() for the install to fire.
 
-describe('metro/polyfill.js — ErrorUtils.setGlobalHandler', () => {
-  it('installs handler when ErrorUtils is available', () => {
+describe('metro/polyfill.js - ErrorUtils.setGlobalHandler', () => {
+  it('installs handler when ErrorUtils is available', async () => {
     const fakeGlobal = buildFakeGlobal();
     runPolyfill(fakeGlobal);
+    await Promise.resolve(); // flush deferred installSherloErrorUtilsHandler
     expect(fakeGlobal._setGlobalHandler).toHaveBeenCalledOnce();
-    expect(fakeGlobal.__sherloGlobalHandlerInstalled).toBe(true);
   });
 
-  it('is idempotent — skips install when __sherloGlobalHandlerInstalled is already set', () => {
-    const fakeGlobal = buildFakeGlobal();
-    fakeGlobal.__sherloGlobalHandlerInstalled = true;
+  it('is idempotent - skips install when handler is already sherlo-wrapped', async () => {
+    const existingHandler = vi.fn() as ReturnType<typeof vi.fn> & { __sherlo?: boolean };
+    existingHandler.__sherlo = true; // simulate already-wrapped handler
+    const fakeGlobal = buildFakeGlobal(undefined, existingHandler as any);
     runPolyfill(fakeGlobal);
+    await Promise.resolve();
+    // installSherloErrorUtilsHandler sees existing.__sherlo === true and skips
     expect(fakeGlobal._setGlobalHandler).not.toHaveBeenCalled();
   });
 
-  it('skips installation when ErrorUtils is absent', () => {
+  it('skips installation when ErrorUtils is absent', async () => {
     const fakeGlobal: Record<string, any> = {};
     runPolyfill(fakeGlobal);
-    expect(fakeGlobal.__sherloGlobalHandlerInstalled).toBeUndefined();
+    await Promise.resolve();
+    // no setGlobalHandler exists - just shouldn't throw
   });
 
-  it('calls reportEarlyJsError on the turbo proxy when an error fires', () => {
+  it('calls reportEarlyJsError on the turbo proxy when an error fires', async () => {
     const reportFn = vi.fn();
     const nm = makeNativeModule(reportFn);
     const fakeGlobal = buildFakeGlobal(nm);
     runPolyfill(fakeGlobal);
+    await Promise.resolve();
     const handler = getInstalledHandler(fakeGlobal);
     handler(new Error('boom'), true);
     expect(reportFn).toHaveBeenCalledOnce();
     expect(reportFn).toHaveBeenCalledWith('Error', 'boom', expect.any(String));
   });
 
-  it('passes error name, message, and stack to reportEarlyJsError', () => {
+  it('passes error name, message, and stack to reportEarlyJsError', async () => {
     const reportFn = vi.fn();
     const nm = makeNativeModule(reportFn);
     const fakeGlobal = buildFakeGlobal(nm);
     runPolyfill(fakeGlobal);
+    await Promise.resolve();
     const handler = getInstalledHandler(fakeGlobal);
     handler(new TypeError('bad type'), false);
     expect(reportFn).toHaveBeenCalledWith('TypeError', 'bad type', expect.any(String));
   });
 
-  it('chains to previous handler after reporting', () => {
+  it('chains to previous handler after reporting', async () => {
     const prevHandler = vi.fn();
     const nm = makeNativeModule();
     const fakeGlobal = buildFakeGlobal(nm, prevHandler);
     runPolyfill(fakeGlobal);
+    await Promise.resolve();
     const handler = getInstalledHandler(fakeGlobal);
     const err = new Error('test');
     handler(err, false);
@@ -124,62 +145,68 @@ describe('metro/polyfill.js — ErrorUtils.setGlobalHandler', () => {
     expect(prevHandler).toHaveBeenCalledWith(err, false);
   });
 
-  it('does not throw if SherloModule is unavailable', () => {
+  it('does not throw if SherloModule is unavailable', async () => {
     const fakeGlobal = buildFakeGlobal(); // no nm, no __turboModuleProxy
     runPolyfill(fakeGlobal);
+    await Promise.resolve();
     const handler = getInstalledHandler(fakeGlobal);
     expect(() => handler(new Error('test'), false)).not.toThrow();
   });
 
-  it('does not throw if reportEarlyJsError itself throws', () => {
+  it('does not throw if reportEarlyJsError itself throws', async () => {
     const nm = makeNativeModule(vi.fn(() => { throw new Error('native exploded'); }));
     const fakeGlobal = buildFakeGlobal(nm);
     runPolyfill(fakeGlobal);
+    await Promise.resolve();
     const handler = getInstalledHandler(fakeGlobal);
     expect(() => handler(new Error('test'), false)).not.toThrow();
   });
 
-  it('falls back to nativeModuleProxy when __turboModuleProxy is absent', () => {
+  it('falls back to nativeModuleProxy when __turboModuleProxy is absent', async () => {
     const reportFn = vi.fn();
     const nm = makeNativeModule(reportFn);
     const fakeGlobal = buildFakeGlobal();
     delete fakeGlobal.__turboModuleProxy;
     fakeGlobal.nativeModuleProxy = { SherloModule: nm };
     runPolyfill(fakeGlobal);
+    await Promise.resolve();
     const handler = getInstalledHandler(fakeGlobal);
     handler(new Error('native fallback'), false);
     expect(reportFn).toHaveBeenCalledOnce();
   });
 
-  it('only reports the first error to native — subsequent calls skip reportEarlyJsError', () => {
+  it('only reports the first error to native - subsequent calls skip reportEarlyJsError', async () => {
     const reportFn = vi.fn();
     const nm = makeNativeModule(reportFn);
     const fakeGlobal = buildFakeGlobal(nm);
     runPolyfill(fakeGlobal);
+    await Promise.resolve();
     const handler = getInstalledHandler(fakeGlobal);
     handler(new Error('first error'), true);
     handler(new Error('cascade error'), true);
     expect(reportFn).toHaveBeenCalledOnce();
   });
 
-  it('chains to prevHandler for both first and cascade errors', () => {
+  it('chains to prevHandler for both first and cascade errors', async () => {
     const prevHandler = vi.fn();
     const nm = makeNativeModule();
     const fakeGlobal = buildFakeGlobal(nm, prevHandler);
     runPolyfill(fakeGlobal);
+    await Promise.resolve();
     const handler = getInstalledHandler(fakeGlobal);
     handler(new Error('first'), false);
     handler(new Error('cascade'), false);
     expect(prevHandler).toHaveBeenCalledTimes(2);
   });
 
-  it('calls reportEarlyJsError regardless of __sherloRuntimeMode_v1 — production gate is on the native side', () => {
+  it('calls reportEarlyJsError regardless of __sherloRuntimeMode_v1 - production gate is on the native side', async () => {
     const reportFn = vi.fn();
     const prevHandler = vi.fn();
     const nm = makeNativeModule(reportFn);
     const fakeGlobal = buildFakeGlobal(nm, prevHandler);
     fakeGlobal.__sherloRuntimeMode_v1 = 'default';
     runPolyfill(fakeGlobal);
+    await Promise.resolve();
     const handler = getInstalledHandler(fakeGlobal);
     handler(new Error('prod error'), false);
     expect(reportFn).toHaveBeenCalledOnce();
@@ -188,10 +215,10 @@ describe('metro/polyfill.js — ErrorUtils.setGlobalHandler', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Tests: metro/polyfill.js — __d wrap
+// Tests: metro/polyfill.js - __d wrap
 // ---------------------------------------------------------------------------
 
-describe('metro/polyfill.js — __d wrap', () => {
+describe('metro/polyfill.js - __d wrap', () => {
   it('wraps __d when present', () => {
     const fakeGlobal = buildFakeGlobalWithD();
     const original = fakeGlobal.__d;
@@ -200,7 +227,7 @@ describe('metro/polyfill.js — __d wrap', () => {
     expect(fakeGlobal.__sherloDefineWrapped).toBe(true);
   });
 
-  it('is idempotent — skips re-wrap when __sherloDefineWrapped is already set', () => {
+  it('is idempotent - skips re-wrap when __sherloDefineWrapped is already set', () => {
     const fakeGlobal = buildFakeGlobalWithD();
     fakeGlobal.__sherloDefineWrapped = true;
     const original = fakeGlobal.__d;
@@ -241,7 +268,7 @@ describe('metro/polyfill.js — __d wrap', () => {
     expect(reportFn).toHaveBeenCalledWith('Error', 'module crash', expect.any(String));
   });
 
-  it('only reports the first error — __sherloFirstErrorReported gates __d path', () => {
+  it('only reports the first error - __sherloFirstErrorReported gates __d path', () => {
     const reportFn = vi.fn();
     const nm = makeNativeModule(reportFn);
     const fakeGlobal = buildFakeGlobalWithD(nm);
@@ -256,13 +283,14 @@ describe('metro/polyfill.js — __d wrap', () => {
     expect(reportFn).toHaveBeenCalledOnce();
   });
 
-  it('__sherloFirstErrorReported flag is shared — __d error prevents duplicate from ErrorUtils path', () => {
+  it('__sherloFirstErrorReported flag is shared - __d error prevents duplicate from ErrorUtils path', async () => {
     const reportFn = vi.fn();
     const nm = makeNativeModule(reportFn);
     const fakeGlobal = buildFakeGlobalWithD(nm);
     const err = new Error('transitive crash');
     const factory = vi.fn(() => { throw err; });
     runPolyfill(fakeGlobal);
+    await Promise.resolve(); // flush installSherloErrorUtilsHandler
     fakeGlobal.__d(factory, 1, []);
     const invoke = callWrappedFactory(fakeGlobal);
     // __d fires first
@@ -271,7 +299,7 @@ describe('metro/polyfill.js — __d wrap', () => {
     // ErrorUtils path fires for same error (rethrown by __d)
     const handler = getInstalledHandler(fakeGlobal);
     handler(err, true);
-    expect(reportFn).toHaveBeenCalledOnce(); // still once — flag blocks duplicate
+    expect(reportFn).toHaveBeenCalledOnce(); // still once - flag blocks duplicate
   });
 });
 

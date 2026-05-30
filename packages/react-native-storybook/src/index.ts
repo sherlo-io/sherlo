@@ -25,16 +25,19 @@ function installSherloIntegration(): void {
     );
 
     // Run SDK compatibility check BEFORE writing WITHSTORYBOOK_APPLIED.
-    // sendNativeError (NATIVE_ERROR) is enqueued ahead of appendFile (WITHSTORYBOOK_APPLIED)
-    // in the native bridge queue, so waitForAnyProtocolEntry in the test harness sees
-    // NATIVE_ERROR first and is not mis-resolved by WITHSTORYBOOK_APPLIED.
     // checkSdkCompatibility() is idempotent: a second call from getStorybook.tsx returns
     // the cached result without calling sendNativeError again.
+    let isSdkCompatible: boolean | null = null;
     try {
-      checkSdkCompatibility();
+      isSdkCompatible = checkSdkCompatibility();
     } catch (_) {}
 
-    if ((global as any).__sherloWithStorybookApplied === true) {
+    // Only write WITHSTORYBOOK_APPLIED when SDK is compatible.
+    // When incompatible, sendNativeError(ERROR_SDK_COMPATIBILITY) was dispatched async on iOS
+    // (methodQueue = RCTGetUIManagerQueue). appendFile goes through a different (faster) queue
+    // on iOS new-arch, so WITHSTORYBOOK_APPLIED can land in the file before NATIVE_ERROR,
+    // causing waitForAnyProtocolEntry to resolve prematurely and miss the compat error.
+    if ((global as any).__sherloWithStorybookApplied === true && isSdkCompatible !== false) {
       try {
         SherloModule.appendFile(
           'protocol.sherlo',

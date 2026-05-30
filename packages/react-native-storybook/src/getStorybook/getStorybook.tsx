@@ -23,7 +23,12 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
   // implementation is idempotent (safe to call even after the timer fired).
   SherloModule.notifyGetStorybookCalled();
 
-  if (mode === 'testing') {
+  // Only set up testing-mode story decorators when SDK is compatible.
+  // When isSdkCompatible=false the component returns null anyway, and calling
+  // getConfig() here can throw if config.sherlo isn't on disk yet (EAS-update
+  // timing edge case), which would crash the app before the async iOS
+  // sendNativeError(ERROR_SDK_COMPATIBILITY) write completes.
+  if (mode === 'testing' && isSdkCompatible) {
     const delayMs = SherloModule.getConfig().initialStoryRenderDelayMs;
     const originalGetProjectAnnotations = view._preview.getProjectAnnotations.bind(
       view._preview
