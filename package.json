@@ -1,20 +1,17 @@
 {
   "name": "@sherlo/root",
   "private": true,
-  "description": "Sherlo is a Visual Testing tool for React Native Storybook",
+  "description": "Sherlo: Visual testing for React Native",
   "keywords": [
-    "testing",
     "visual testing",
     "visual regression testing",
-    "components",
-    "documentation",
-    "frontend",
-    "react-native",
-    "storybook",
-    "storybookjs",
-    "tool",
-    "ui",
-    "user interface"
+    "react native",
+    "react native visual testing",
+    "ios",
+    "android",
+    "simulators",
+    "screenshot testing",
+    "ui"
   ],
   "homepage": "https://sherlo.io",
   "repository": {

@@ -1,17 +1,17 @@
 <br />
 
 <p align="center">
-  <a href="https://sherlo.io/" title="Sherlo - Visual Testing for React Native Storybook">
+  <a href="https://sherlo.io/" title="Sherlo - Visual testing for React Native">
     <picture>
       <source media="(prefers-color-scheme: dark) and (max-width: 500px)" srcset="/assets/logo-dark.svg" width="140">
       <source media="(prefers-color-scheme: dark)" srcset="/assets/logo-dark.svg" width="176">
       <source media="(max-width: 500px)" srcset="/assets/logo-light.svg" width="140">
-      <img src="/assets/logo-light.svg" alt="Sherlo - Visual Testing for React Native Storybook" width="176" />
+      <img src="/assets/logo-light.svg" alt="Sherlo - Visual testing for React Native" width="176" />
     </picture>
   </a>
 </p>
 
-<p align="center"><strong>Visual Testing for React Native Storybook</strong></p>
+<p align="center"><strong>Visual testing for React Native</strong></p>
 
 <div align="center">
   <a href="https://www.npmjs.com/package/@sherlo/react-native-storybook"><img src="https://img.shields.io/npm/v/@sherlo/react-native-storybook.svg" alt="npm version"></a>
@@ -27,13 +27,13 @@
     <source media="(prefers-color-scheme: dark) and (max-width: 500px)" srcset="/assets/hero-mobile-dark.gif" width="436">
     <source media="(max-width: 500px)" srcset="/assets/hero-mobile-light.gif" width="436">
     <source media="(prefers-color-scheme: dark)" srcset="/assets/hero-desktop-dark.gif" width="560">
-    <img src="/assets/hero-desktop-light.gif" alt="Animated demo of Sherlo running visual regression tests on a React Native Storybook" width="560" />
+    <img src="/assets/hero-desktop-light.gif" alt="Animated demo of Sherlo running visual regression tests on React Native components in Storybook" width="560" />
   </picture>
 </div>
 
 # Sherlo
 
-**Visual regression testing for React Native Storybook**. Capture screenshots on iOS and Android simulators in the cloud, detect visual changes, and ship UI updates with confidence.
+**Visual regression testing for React Native, integrated with Storybook**. Capture screenshots on iOS and Android simulators in the cloud, detect visual changes, and ship UI updates with confidence.
 
 ▶️ [Sherlo in 2 minutes](https://sherlo.io/#video)
 
@@ -62,18 +62,7 @@
 npx sherlo init
 ```
 
-#### 2)<sup>\*</sup> Customize [test devices](https://sherlo.io/docs/config#devices) _(optional)_
-
-<!-- prettier-ignore -->
-```json
-[
-  { "id": "iphone.15", "osVersion": "17" },
-  { "id": "pixel.7", "osVersion": "13", "theme": "dark" },
-  { "id": "ipad.10.gen", "osVersion": "17", "locale": "en_GB", "fontScale": "+2" }
-]
-```
-
-#### 3) Run visual tests
+#### 2) Run visual tests
 
 ```bash
 npx sherlo test
@@ -164,7 +153,7 @@ Join thousands of teams using Storybook - a tool that helps you develop and docu
 <br />
 
 <div align="center">
-  <a href="https://sherlo.io" title="Sherlo - Visual Testing for React Native Storybook">Website</a> • 
+  <a href="https://sherlo.io" title="Sherlo - Visual testing for React Native">Website</a> • 
   <a href="https://app.sherlo.io" title="Sherlo review app">App</a> • 
   <a href="https://sherlo.io/docs" title="Sherlo documentation">Docs</a> • 
   <a href="./examples" title="Sherlo examples">Examples</a>
