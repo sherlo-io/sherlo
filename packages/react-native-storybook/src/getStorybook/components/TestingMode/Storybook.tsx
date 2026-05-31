@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VERIFICATION_TEST_ID } from '../../../constants';
 import { StorybookParams, StorybookView } from '../../../types';
-import { getStorybookComponent, isStorybook7 } from '../../helpers';
+import { getStorybookComponent } from '../../helpers';
 import { RunnerBridge } from '../../../helpers';
 import { useRef } from 'react';
 import SherloModule from '../../../SherloModule';
@@ -13,7 +13,6 @@ import SherloModule from '../../../SherloModule';
  * look exactly the same in Sherlo as they do in their Storybook
  *
  * Storybook 8: https://github.com/storybookjs/react-native/blob/v8.6.0/packages/react-native/src/View.tsx
- * Storybook 7: https://github.com/storybookjs/react-native/blob/v7.6.20/packages/react-native/src/components/OnDeviceUI/OnDeviceUI.tsx
  */
 function Storybook({
   params,
@@ -36,24 +35,11 @@ function Storybook({
     isTestingMode: true,
   });
 
-  let style;
-
-  if (isStorybook7) {
-    style = {
-      flex: 1,
-      paddingBottom: uiSettings.shouldAddSafeArea ? insets.bottom : 0,
-      paddingTop: uiSettings.shouldAddSafeArea ? insets.top : 0,
-      // We are typechecking with Storybook 8 so we need to ignore the error
-      // @ts-ignore
-      backgroundColor: uiSettings.theme.preview.backgroundColor,
-    };
-  } else {
-    style = {
-      flex: 1,
-      paddingTop: uiSettings.shouldAddSafeArea ? insets.top : 0,
-      backgroundColor: uiSettings.theme.background.content,
-    };
-  }
+  const style = {
+    flex: 1,
+    paddingTop: uiSettings.shouldAddSafeArea ? insets.top : 0,
+    backgroundColor: uiSettings.theme.background.content,
+  };
 
   if (!reportedSherloJSLoaded.current) {
     reportedSherloJSLoaded.current = true;

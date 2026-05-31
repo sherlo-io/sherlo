@@ -93,7 +93,6 @@ export type AppProtocolItem =
         shouldAddSafeArea: boolean;
         insetBottom: number;
         insetTop: number;
-        isStorybook7: boolean;
       };
     };
 

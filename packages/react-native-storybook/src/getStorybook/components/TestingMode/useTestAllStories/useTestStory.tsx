@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { RunnerBridge } from '../../../../helpers';
 import SherloModule from '../../../../SherloModule';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { isStorybook7 } from '../../../helpers';
 import { MetadataProviderRef } from '../MetadataProvider';
 import { prepareInspectorData } from './prepareInspectorData';
 import { readStoryError, clearStoryError } from '../../../storyErrorRegistry';
@@ -123,7 +122,6 @@ function useTestStory({
             shouldAddSafeArea: !nextSnapshot.parameters?.noSafeArea,
             insetBottom: Math.round(insets.bottom * finalInspectorData.density),
             insetTop: Math.round(insets.top * finalInspectorData.density),
-            isStorybook7,
           };
         }
 

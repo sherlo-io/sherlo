@@ -80,7 +80,6 @@ describe('Protocol message construction', () => {
           shouldAddSafeArea: true,
           insetBottom: 102,
           insetTop: 141,
-          isStorybook7: false,
         },
       };
 
@@ -104,7 +103,6 @@ describe('Protocol message construction', () => {
           shouldAddSafeArea: true,
           insetBottom: 102,
           insetTop: 141,
-          isStorybook7: true,
         },
       };
 
@@ -112,11 +110,9 @@ describe('Protocol message construction', () => {
       expect(meta).toHaveProperty('shouldAddSafeArea');
       expect(meta).toHaveProperty('insetBottom');
       expect(meta).toHaveProperty('insetTop');
-      expect(meta).toHaveProperty('isStorybook7');
       expect(typeof meta.shouldAddSafeArea).toBe('boolean');
       expect(typeof meta.insetBottom).toBe('number');
       expect(typeof meta.insetTop).toBe('number');
-      expect(typeof meta.isStorybook7).toBe('boolean');
     });
 
     it('allows optional fields to be undefined', () => {

@@ -146,14 +146,9 @@ function generateWrapper(wrapperPath) {
     '\n' +
     '// Re-export everything from the real module.\n' +
     '// IMPORTANT: sherlo must NOT be required here at the top level.\n' +
-    '// @sherlo/react-native-storybook transitively loads isStorybook7.ts which\n' +
-    '// re-requires @storybook/react-native (this wrapper).  If sherlo were\n' +
-    '// required before the re-exports below have run, isStorybook7.ts would\n' +
-    '// see an empty exports object (circular-dep partial init), decide\n' +
-    '// isStorybook7=true, and crash on uiSettings.theme.preview.backgroundColor\n' +
-    '// (Storybook 8+ themes have no top-level .preview property).\n' +
-    '// Requiring sherlo lazily inside patchedStart ensures the re-exports are\n' +
-    '// already in place when isStorybook7.ts runs.\n' +
+    '// @sherlo/react-native-storybook transitively re-requires @storybook/react-native\n' +
+    '// (this wrapper); requiring sherlo lazily inside patchedStart breaks the\n' +
+    '// circular-dep partial-init scenario that would otherwise expose empty exports.\n' +
     'Object.keys(real).forEach(function (key) {\n' +
     "  if (key === 'start') return; // overridden below\n" +
     '  Object.defineProperty(exports, key, {\n' +
@@ -174,8 +169,7 @@ function generateWrapper(wrapperPath) {
     '  }\n' +
     '\n' +
     '  // Lazy-require sherlo AFTER the re-exports above are already set up.\n' +
-    '  // This breaks the circular dependency that would otherwise cause\n' +
-    '  // isStorybook7 to be detected incorrectly (see comment above).\n' +
+    '  // This breaks the circular dependency (see comment above).\n' +
     "  var getStorybook = require('@sherlo/react-native-storybook/dist/getStorybook/index.js').default;\n" +
     "  var addStorybookToDevMenu = require('@sherlo/react-native-storybook/dist/addStorybookToDevMenu.js').default;\n" +
     '\n' +
