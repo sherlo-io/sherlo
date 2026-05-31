@@ -4,9 +4,9 @@
   <a href="https://sherlo.io/" title="Sherlo - Visual testing for React Native">
     <picture>
       <source media="(prefers-color-scheme: dark) and (max-width: 500px)" srcset="/assets/logo-dark.svg" width="140">
-      <source media="(prefers-color-scheme: dark)" srcset="/assets/logo-dark.svg" width="176">
+      <source media="(prefers-color-scheme: dark)" srcset="/assets/logo-dark.svg" width="168">
       <source media="(max-width: 500px)" srcset="/assets/logo-light.svg" width="140">
-      <img src="/assets/logo-light.svg" alt="Sherlo - Visual testing for React Native" width="176" />
+      <img src="/assets/logo-light.svg" alt="Sherlo - Visual testing for React Native" width="168" />
     </picture>
   </a>
 </p>
