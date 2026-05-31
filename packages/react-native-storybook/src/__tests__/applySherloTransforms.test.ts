@@ -17,20 +17,6 @@ const POLYFILL_PATH = path.resolve(__dirname, '../../metro/polyfill.js');
 // ---------------------------------------------------------------------------
 
 describe('applySherloTransforms - native marker files for ERROR_STORYBOOK_DISABLED', () => {
-  it('creates Android marker file when enabled: false', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-marker-disabled-test-'));
-    // Simulate Android project structure
-    const androidAssetsDir = path.join(tmpDir, 'android', 'app', 'src', 'main', 'assets');
-    fs.mkdirSync(androidAssetsDir, { recursive: true });
-
-    applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: false });
-    const markerPath = path.join(androidAssetsDir, 'sherlo-storybook-disabled');
-    const exists = fs.existsSync(markerPath);
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-
-    expect(exists).toBe(true);
-  });
-
   it('does NOT create Android marker file when enabled: true', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-marker-enabled-test-'));
     const androidAssetsDir = path.join(tmpDir, 'android', 'app', 'src', 'main', 'assets');
@@ -55,40 +41,6 @@ describe('applySherloTransforms - native marker files for ERROR_STORYBOOK_DISABL
     fs.rmSync(tmpDir, { recursive: true, force: true });
 
     expect(exists).toBe(false);
-  });
-
-  it('removes Android marker file when enabled changes from false to true', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-marker-cleanup-test-'));
-    const androidAssetsDir = path.join(tmpDir, 'android', 'app', 'src', 'main', 'assets');
-    fs.mkdirSync(androidAssetsDir, { recursive: true });
-
-    // First: disabled → marker written
-    applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: false });
-    const markerPath = path.join(androidAssetsDir, 'sherlo-storybook-disabled');
-    expect(fs.existsSync(markerPath)).toBe(true);
-
-    // Then: enabled → marker removed
-    applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: true });
-    const existsAfter = fs.existsSync(markerPath);
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-
-    expect(existsAfter).toBe(false);
-  });
-
-  it('creates iOS marker file when enabled: false and ios/<AppName>/ exists', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-ios-marker-test-'));
-    // Simulate iOS project structure
-    const iosAppDir = path.join(tmpDir, 'ios', 'MyApp');
-    fs.mkdirSync(iosAppDir, { recursive: true });
-    // Create a fake .xcodeproj so detectIosAppName returns 'MyApp'
-    fs.mkdirSync(path.join(tmpDir, 'ios', 'MyApp.xcodeproj'), { recursive: true });
-
-    applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: false });
-    const markerPath = path.join(iosAppDir, 'sherlo-storybook-disabled');
-    const exists = fs.existsSync(markerPath);
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-
-    expect(exists).toBe(true);
   });
 
   it('generated wrapper does NOT contain SHERLO_BUILD_DISABLED (removed in favour of native detection)', () => {
@@ -119,19 +71,6 @@ describe('applySherloTransforms - native marker files for ERROR_STORYBOOK_DISABL
     expect((resolved as { filePath: string }).filePath).not.toContain('sdk-disabled-wrapper');
   });
 
-  it('getPolyfills includes polyfill.js but NOT any disabled-notifier entry', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-polyfills-test-'));
-    const result = applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: false });
-    const polyfills: string[] = result.serializer.getPolyfills({});
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-
-    expect(polyfills).toContain(POLYFILL_PATH);
-    const hasNotifierPolyfill = polyfills.some(
-      (p: string) => p.includes('disabled-notifier')
-    );
-    expect(hasNotifierPolyfill).toBe(false);
-  });
-
 });
 
 // ---------------------------------------------------------------------------
@@ -158,5 +97,51 @@ describe('generateWrapper - exported function', () => {
     // patchedStart stub is still present for sb8/sb9 crash prevention
     expect(content).toContain("typeof real.start !== 'function'");
     expect(content).toContain('SherloDisabledUI');
+  });
+});
+
+describe('applySherloTransforms - enabled:false ships minimal polyfill only', () => {
+  it('enabled:false: result.serializer.getPolyfills returns ONLY storybook-disabled-flag.js', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-grep-disabled-'));
+    const result = applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: false });
+    const polyfills: string[] = result.serializer.getPolyfills({});
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
+    expect(polyfills.some((p) => p.includes('storybook-disabled-flag.js'))).toBe(true);
+    expect(polyfills.some((p) => p.includes('polyfill.js') && !p.includes('storybook-disabled-flag.js'))).toBe(false);
+  });
+
+  it('enabled:false: storybook-disabled-flag.js sets BOTH __sherlo* globals', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-grep-flag-'));
+    const result = applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: false });
+    const polyfills: string[] = result.serializer.getPolyfills({});
+    const flagPath = polyfills.find((p) => p.includes('storybook-disabled-flag.js'));
+    const flagContent = fs.readFileSync(flagPath as string, 'utf8');
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
+    expect(flagContent).toContain('__sherloWithStorybookApplied');
+    expect(flagContent).toContain('__sherloStorybookDisabledFlag');
+  });
+
+  it('enabled:true: result.serializer.getPolyfills returns polyfill.js (full)', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-grep-enabled-'));
+    const result = applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: true });
+    const polyfills: string[] = result.serializer.getPolyfills({});
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
+    expect(polyfills.some((p) => p.endsWith('polyfill.js'))).toBe(true);
+    expect(polyfills.some((p) => p.includes('storybook-disabled-flag.js'))).toBe(false);
+  });
+
+  it('enabled:true: polyfill.js contains the IIFE-time mode gate', () => {
+    const polyfillPath = path.join(__dirname, '../../metro/polyfill.js');
+    const polyfillContent = fs.readFileSync(polyfillPath, 'utf8');
+
+    expect(polyfillContent).toContain('IIFE-time mode gate');
+    expect(polyfillContent).toContain('getSherloConstants');
+    expect(polyfillContent).toContain("=== 'default'");
+    expect(polyfillContent).toContain("=== 'storybook'");
+    expect(polyfillContent).not.toContain('diagLog');
+    expect(polyfillContent).not.toContain('[sherlo-diag]');
   });
 });

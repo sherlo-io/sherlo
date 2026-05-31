@@ -16,7 +16,13 @@ function writeDisabledFlagPolyfill(cacheDir) {
     fs.mkdirSync(cacheDir, { recursive: true });
   }
   var flagPath = path.join(cacheDir, 'storybook-disabled-flag.js');
-  fs.writeFileSync(flagPath, "'use strict';\nglobal.__sherloStorybookDisabledFlag = true;\n", 'utf8');
+  fs.writeFileSync(
+    flagPath,
+    "'use strict';\n" +
+    "global.__sherloWithStorybookApplied = true;\n" +
+    "global.__sherloStorybookDisabledFlag = true;\n",
+    'utf8'
+  );
   return flagPath;
 }
 
@@ -51,20 +57,6 @@ function applySherloTransforms(result, opts) {
   // cacheDir is the same directory that wrapperPath lives in; already created by generateWrapper().
   var cacheDir = path.dirname(wrapperPath);
 
-  // Write build-meta sidecar that the runner reads to know whether withStorybook was applied
-  // and whether it was called with enabled:false. Runner uses absence of this file to detect
-  // ERROR_WITHSTORYBOOK_NOT_USED.
-  try {
-    var buildMetaPath = path.join(cacheDir, 'build-meta.json');
-    var buildMeta = {
-      withStorybookApplied: true,
-      enabled: !(opts && opts.enabled === false),
-      sdkVersion: require('../package.json').version,
-      writtenAt: new Date().toISOString(),
-    };
-    fs.writeFileSync(buildMetaPath, JSON.stringify(buildMeta, null, 2), 'utf8');
-  } catch (_) {}
-
   var existingResolveRequest =
     result && result.resolver && result.resolver.resolveRequest
       ? result.resolver.resolveRequest
@@ -86,15 +78,10 @@ function applySherloTransforms(result, opts) {
       : context.resolveRequest(context, moduleName, platform);
   }
 
-  // The polyfill is added to every bundle. It is INERT in production: production
-  // safety lives entirely on the native side (SherloModuleCore.reportEarlyJsError
-  // returns early if mode is not 'testing'). See metro/polyfill.js for details.
   var polyfillPath = path.join(__dirname, 'polyfill.js');
-  // When enabled:false, prepend a tiny polyfill that sets the global disabled flag.
-  // src/index.ts reads this flag and emits the WITHSTORYBOOK_DISABLED protocol marker.
   var sherloPolyfills = (opts && opts.enabled === false)
-    ? [writeDisabledFlagPolyfill(cacheDir), polyfillPath]
-    : [polyfillPath];
+    ? [writeDisabledFlagPolyfill(cacheDir)]   // minimal only
+    : [polyfillPath];                          // full polyfill for enabled: true
 
   var existingGetPolyfills =
     result && result.serializer && typeof result.serializer.getPolyfills === 'function'

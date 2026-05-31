@@ -78,12 +78,13 @@ describe('applySherloTransforms - enabled: false still installs Sherlo plumbing'
     expect(typeof result.resolver?.resolveRequest).toBe('function');
   });
 
-  it('injects Sherlo polyfill via serializer.getPolyfills even when enabled: false', () => {
+  it('injects storybook-disabled-flag.js (not full polyfill) via serializer.getPolyfills when enabled: false', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-disabled-pol-test-'));
     const result = applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: false });
-    fs.rmSync(tmpDir, { recursive: true, force: true });
     const polyfills = result.serializer.getPolyfills({});
-    expect(polyfills).toContain(POLYFILL_PATH);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    expect(polyfills.some((p: string) => p.includes('storybook-disabled-flag.js'))).toBe(true);
+    expect(polyfills).not.toContain(POLYFILL_PATH);
   });
 
   it('generates storybook-wrapper.js even when enabled: false', () => {

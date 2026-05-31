@@ -9,18 +9,19 @@
 //
 // IIFE-TIME MODE GATE (TurboModule bridge call):
 //
-// The polyfill performs ONE TurboModule bridge call at IIFE time to determine mode.
+// The FIRST statement inside the IIFE sets global.__sherloWithStorybookApplied = true.
+// This is an in-memory boolean only; src/index.ts reads it at SDK-import time for
+// WSU (withStorybook-applied) detection. It must be set BEFORE any early return.
+//
+// Immediately after, the polyfill performs ONE TurboModule bridge call to query mode.
 // TurboModules are registered before bundle eval starts on both old and new arch, so
-// nm.getSherloConstants() called at IIFE time returns the correct mode reliably.
+// the bridge call is deterministic (no race condition).
 //
-// If mode is the literal string 'default' (production: config.sherlo absent or
-// invalid, no Sherlo testing or inspect mode active), the IIFE returns immediately.
-// The polyfill does NOTHING - no ErrorUtils handler install, no __d wrap,
-// no captures, no 10s timer. Zero production overhead.
+// If mode is 'default' OR 'storybook', the IIFE returns immediately after setting the
+// flag. The polyfill body (ErrorUtils handler install, __d wrap, AppRegistry wrap,
+// 10s NOT_DISPLAYED timer) does NOT run. Zero production/storybook overhead.
 //
-// For any other mode (testing, storybook, undefined, or a thrown exception during
-// the read), the full polyfill body runs. Conservative default: when uncertain,
-// run the polyfill.
+// Only when mode === 'testing' does the full polyfill body execute.
 //
 // WHY THE BRIDGE CALL IS SAFE (and the JSI global is not):
 //
@@ -35,7 +36,7 @@
 // The single IIFE-time bridge call is the only gate; do NOT add mode-check gates
 // inside individual handlers or wrappers.
 //
-// TWO complementary capture paths (active when mode is not 'default'):
+// TWO complementary capture paths (active when mode === 'testing'):
 //
 // 1. ErrorUtils.setGlobalHandler - catches module-eval throws in the ENTRY
 //    module (Metro's guardedLoadModule → ErrorUtils.reportFatalError), async
@@ -66,64 +67,28 @@ var PROTOCOL_FILE = 'protocol.sherlo';
   if (typeof globalThis === 'undefined') return;
   if (typeof global === 'undefined') return;
 
-  // ── DIAGNOSTIC SPIKE: pure observation, no behavior changes ───────────────
-  // diagLog writes to:
-  // 1. console.log (Metro/logcat/Xcode) always
-  // 2. protocol.sherlo via __sherloModuleRef.appendFile (when available, fire-and-forget)
-  //    Using action 'DIAG_...' prefix which the harness pulls but skips as "meaningful".
-  //    This survives the test run and is visible in readProtocol() output.
-  var _diagSeq = 0;
-  function diagLog(msg) {
-    try {
-      var line = '[sherlo-diag] ' + (typeof msg === 'string' ? msg : JSON.stringify(msg));
-      console.log(line);
-    } catch (_) {}
-    try {
-      var ref = global.__sherloModuleRef;
-      if (ref && typeof ref.appendFile === 'function') {
-        var entry = { action: 'DIAG_POLYFILL', seq: ++_diagSeq, msg: msg, ts: Date.now() };
-        ref.appendFile(PROTOCOL_FILE, JSON.stringify(entry) + '\n');
+  // Mark first - SDK's WSU detection (src/index.ts) reads this at import time.
+  // Must be set BEFORE early return so detection still works when customer's
+  // app is imported under testing mode later in the same session.
+  global.__sherloWithStorybookApplied = true;
+
+  // IIFE-time mode gate: customer is not running Sherlo visual tests -> no-op.
+  try {
+    var _gateNm = global.__turboModuleProxy ? global.__turboModuleProxy('SherloModule') : null;
+    if (!_gateNm && global.nativeModuleProxy && global.nativeModuleProxy.SherloModule) {
+      _gateNm = global.nativeModuleProxy.SherloModule;
+    }
+    if (_gateNm) {
+      var _gateC = (typeof _gateNm.getSherloConstants === 'function' ? _gateNm.getSherloConstants() : null) ||
+                   (typeof _gateNm.getConstants === 'function' ? _gateNm.getConstants() : null);
+      var _gateMode = _gateC && _gateC.mode;
+      if (_gateMode === 'default' || _gateMode === 'storybook') {
+        return;
       }
-    } catch (_) {}
-  }
-
-  diagLog('polyfill IIFE entered');
-
-  // Arch detection (best-effort at IIFE time).
-  try {
-    var _hasTMP = !!(global.__turboModuleProxy);
-    var _hasNMP = !!(global.nativeModuleProxy);
-    diagLog('arch detected: turboModuleProxy=' + _hasTMP + ' nativeModuleProxy=' + _hasNMP);
-  } catch (_) {
-    diagLog('arch detected: probe threw');
-  }
-
-  // Mode probe note: mode probe block was removed from IIFE (see comment below).
-  // Mode will be detected later in patchAppRegistry() after module factories run.
-  diagLog('sherlo mode detected: IIFE-time probe removed (see DIAGNOSTIC comment) - mode deferred to patchAppRegistry');
-
-  // RN version: modules not yet resolved at polyfill IIFE time; best-effort via PlatformConstants.
-  try {
-    var _pc = (global.nativeModuleProxy && global.nativeModuleProxy.PlatformConstants) ||
-              (global.__turboModuleProxy && global.__turboModuleProxy('PlatformConstants'));
-    if (_pc) {
-      var _rnVer = (_pc.reactNativeVersion && (
-        (_pc.reactNativeVersion.major || '?') + '.' +
-        (_pc.reactNativeVersion.minor || '?') + '.' +
-        (_pc.reactNativeVersion.patch || '?')
-      )) || 'unknown';
-      diagLog('RN version: ' + _rnVer);
-    } else {
-      diagLog('RN version: PlatformConstants unavailable at IIFE time');
     }
   } catch (_) {
-    diagLog('RN version: probe threw');
+    // Probe threw - conservative default: continue (run full body).
   }
-
-  // Mark that sherlo's Metro polyfill is in the bundle. This is the bridge-independent
-  // signal of "withStorybook was applied to the user's Metro config". src/index.ts reads
-  // this global at SDK-import time and emits the WITHSTORYBOOK_APPLIED protocol marker.
-  global.__sherloWithStorybookApplied = true;
 
   function getSherloNativeModule() {
     // Each attempt is isolated: a throw in one does not block the next.
@@ -154,12 +119,6 @@ var PROTOCOL_FILE = 'protocol.sherlo';
     return null;
   }
 
-  // DIAGNOSTIC: mode-probe block temporarily removed to test iOS-new × preview crash.
-  // Hypothesis (Brain, 2026-05-25): calling global.__turboModuleProxy('SherloModule')
-  // during debugJavaScript on iOS new-arch (RN 0.81 bare, Fabric/ReactInstance)
-  // causes a SIGSEGV before JS execution completes. Removed to isolate the cause.
-  // TODO: restore or replace with a safe alternative once root cause confirmed.
-
   // Stash a reference to React when we see it (any module whose exports has both
   // createElement and Component as functions).
   function maybeCaptureReact(_e) {
@@ -167,7 +126,6 @@ var PROTOCOL_FILE = 'protocol.sherlo';
     if (!_e) return;
     if (typeof _e.createElement === 'function' && typeof _e.Component === 'function') {
       global.__sherloReactRef = _e;
-      diagLog('React version: ' + (_e.version || 'unknown'));
     }
   }
 
@@ -205,7 +163,6 @@ var PROTOCOL_FILE = 'protocol.sherlo';
   // polyfill-level SherloErrorBoundary. React is resolved lazily at call time
   // from the globally stashed reference.
   function patchAppRegistry(AR) {
-    diagLog('patchAppRegistry called - SherloErrorBoundary will wrap root');
     if (!AR || typeof AR.registerComponent !== 'function') return;
     if (AR.__sherloBoundaryPatched) return;
 
@@ -214,7 +171,6 @@ var PROTOCOL_FILE = 'protocol.sherlo';
     // SherloModule is fully initialized.
     var nm = getSherloNativeModule();
     if (!nm) {
-      diagLog('patchAppRegistry: getSherloNativeModule() returned null - skipping patch');
       return;
     }
     var mode = null;
@@ -229,14 +185,11 @@ var PROTOCOL_FILE = 'protocol.sherlo';
       }
     } catch (_) {}
 
-    diagLog('sherlo mode detected: ' + mode + ' (from getSherloConstants in patchAppRegistry)');
     if (mode !== 'testing') {
-      diagLog('patchAppRegistry: mode is not testing (' + mode + ') - skipping patch');
       return;
     }
 
     AR.__sherloBoundaryPatched = true;
-    diagLog('patchAppRegistry: installing SherloErrorBoundary wrapper on AppRegistry.registerComponent');
     var sherloAtRoot = !!(config && config.sherloAtRoot === true);
 
     var orig = AR.registerComponent.bind(AR);
@@ -248,7 +201,6 @@ var PROTOCOL_FILE = 'protocol.sherlo';
         }
 
         function SherloErrorBoundaryP(props) {
-          diagLog('SherloErrorBoundary.constructor called for root');
           React.Component.call(this, props);
           this.state = { caught: false };
         }
@@ -256,11 +208,9 @@ var PROTOCOL_FILE = 'protocol.sherlo';
         SherloErrorBoundaryP.prototype.constructor = SherloErrorBoundaryP;
         SherloErrorBoundaryP.displayName = 'SherloErrorBoundary';
         SherloErrorBoundaryP.getDerivedStateFromError = function (_error) {
-          diagLog('SherloErrorBoundary.getDerivedStateFromError called with: ' + ((_error && _error.message) || String(_error)));
           return { caught: true };
         };
         SherloErrorBoundaryP.prototype.componentDidCatch = function (error, _info) {
-          diagLog('SherloErrorBoundary.componentDidCatch called with: ' + ((error && error.message) || String(error)));
           try {
             var sherloMod = global.__sherloModuleRef;
             if (sherloMod && typeof sherloMod.appendFile === 'function') {
@@ -271,15 +221,9 @@ var PROTOCOL_FILE = 'protocol.sherlo';
                 componentStack: ''
               };
               var entry = { action: 'JS_ERROR', timestamp: Date.now(), entity: 'app', data: data };
-              diagLog('SherloErrorBoundary.render with caught=true (about to write JS_ERROR via appendFile)');
               sherloMod.appendFile(PROTOCOL_FILE, JSON.stringify(entry) + '\n');
-              diagLog('SherloModule.appendProtocolJsError(appendFile) returned');
-            } else {
-              diagLog('SherloErrorBoundary.componentDidCatch: sherloModuleRef unavailable - skipping appendFile write');
             }
-          } catch (_) {
-            diagLog('SherloErrorBoundary.componentDidCatch: appendFile threw');
-          }
+          } catch (_) {}
           try {
             if (global.ErrorUtils && typeof global.ErrorUtils.reportFatalError === 'function') {
               global.ErrorUtils.reportFatalError(error);
@@ -287,9 +231,6 @@ var PROTOCOL_FILE = 'protocol.sherlo';
           } catch (_) {}
         };
         SherloErrorBoundaryP.prototype.render = function () {
-          if (this.state.caught) {
-            diagLog('SherloErrorBoundary.render: returning null (caught=true)');
-          }
           return this.state.caught ? null : this.props.children;
         };
 
@@ -372,20 +313,15 @@ var PROTOCOL_FILE = 'protocol.sherlo';
   //    otherwise swallow the error before it reaches ExceptionsManager or native handlers.
   //    Reuses the existing reportToNative helper (same sync path as module-eval errors;
   //    reportEarlyJsError is a synchronous TurboModule call returning boolean).
-  try { diagLog('previous globalThis.reportError: ' + typeof globalThis.reportError); } catch (_) {}
   if (typeof globalThis !== 'undefined' && !globalThis.__sherloReportErrorInstalled) {
     globalThis.__sherloReportErrorInstalled = true;
     var __sherloPrevReportError = globalThis.reportError;
     globalThis.reportError = function (err) {
-      diagLog('globalThis.reportError handler fired: ' + ((err && err.message) || String(err)));
       try { reportToNative(err); } catch (_) {}
       if (typeof __sherloPrevReportError === 'function') {
         try { __sherloPrevReportError.call(globalThis, err); } catch (_) {}
       }
     };
-    diagLog('global.reportError replaced: yes');
-  } else {
-    diagLog('global.reportError: skipped (already installed or globalThis undefined)');
   }
 
   // 1. ErrorUtils deferred handler - catches async/event errors and entry-level throws.
@@ -395,22 +331,17 @@ var PROTOCOL_FILE = 'protocol.sherlo';
   //    We late-install by wrapping whatever handler ExceptionsManager set, chaining to it.
   //    Scheduled via Promise.resolve().then() at the bottom of the IIFE so it runs
   //    after all synchronous module evaluation completes.
-  try { diagLog('ErrorUtils detected at IIFE time: ' + !!(global.ErrorUtils) + ' (deferred install pending)'); } catch (_) {}
   function installSherloErrorUtilsHandler() {
     try {
       var EU = (typeof ErrorUtils !== 'undefined') ? ErrorUtils : (global && global.ErrorUtils);
       if (!EU || typeof EU.getGlobalHandler !== 'function' || typeof EU.setGlobalHandler !== 'function') {
-        diagLog('installSherloErrorUtilsHandler: ErrorUtils/getGlobalHandler/setGlobalHandler unavailable - skipping');
         return;
       }
       var existing = EU.getGlobalHandler();
       if (existing && existing.__sherlo) {
-        diagLog('installSherloErrorUtilsHandler: already wrapped - skipping');
         return;
       }
-      diagLog('installSherloErrorUtilsHandler: installing (chaining over existing handler: ' + (typeof existing) + ')');
       function sherloWrapping(error, isFatal) {
-        diagLog('ErrorUtils global handler fired: error=' + ((error && error.message) || String(error)) + ' isFatal=' + isFatal);
         try { reportToNative(error); } catch (_) {}
         if (typeof existing === 'function') {
           try { existing(error, isFatal); } catch (_) {}
@@ -418,10 +349,7 @@ var PROTOCOL_FILE = 'protocol.sherlo';
       }
       sherloWrapping.__sherlo = true;
       EU.setGlobalHandler(sherloWrapping);
-      diagLog('installSherloErrorUtilsHandler: installed successfully');
-    } catch (err) {
-      try { diagLog('installSherloErrorUtilsHandler: threw ' + err); } catch (_) {}
-    }
+    } catch (err) {}
   }
 
   // 2. __d wrap - wraps every module's factory function with try/catch.
@@ -430,7 +358,6 @@ var PROTOCOL_FILE = 'protocol.sherlo';
   //    so wrapping __d at the source is the only reliable way to catch
   //    nested module-eval throws).
   //    Rethrows after capturing so RN's native path still fires.
-  diagLog('AppRegistry trap installed on _e.AppRegistry: yes (__d wrapping ' + (typeof global.__d === 'function' && !global.__sherloDefineWrapped ? 'will be applied' : 'skipped') + ')');
   if (typeof global.__d === 'function' && !global.__sherloDefineWrapped) {
     global.__sherloDefineWrapped = true;
     var originalDefine = global.__d;
@@ -454,7 +381,6 @@ var PROTOCOL_FILE = 'protocol.sherlo';
               // RN's AR re-exporter writes `_e.AppRegistry = void 0` first, then
               // `_e.AppRegistry = t`; keep the trap armed across the void-0 init.
               if (v && typeof v.registerComponent === 'function') {
-                diagLog('_e.AppRegistry setter trap fired - patching registerComponent');
                 try { patchAppRegistry(v); } catch (_) {}
                 try {
                   Object.defineProperty(exportsObj, 'AppRegistry', {
@@ -487,7 +413,6 @@ var PROTOCOL_FILE = 'protocol.sherlo';
             var _arGlobal = (typeof global !== 'undefined' && global.RN$AppRegistry) ||
                             (typeof globalThis !== 'undefined' && globalThis.RN$AppRegistry);
             if (_arGlobal && !_arGlobal.__sherloBoundaryPatched) {
-              diagLog('Prong1: global.RN$AppRegistry found after module factory, calling patchAppRegistry');
               patchAppRegistry(_arGlobal);
             }
           } catch (_) {}
