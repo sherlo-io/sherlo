@@ -8,10 +8,6 @@ export interface StoryMeta {
   parameters: Record<string, any>;
 }
 
-export interface StorybookAdapter {
-  enumerateStories(view: StorybookView): StoryMeta[];
-}
-
 const SANITIZE_REGEX = /[ '–-―′¿'`~!@#$%^&*()_|+\-=?;:'",.<>\{\}\[\]\\\/]/gi;
 
 function sanitize(str: string): string {
@@ -45,8 +41,7 @@ interface ViewInternal {
   _storyIndex?: { entries?: Record<string, { id: string; title: string; name: string; importPath: string }> };
 }
 
-const DefaultAdapter: StorybookAdapter = {
-  enumerateStories(view): StoryMeta[] {
+export function enumerateStories(view: StorybookView): StoryMeta[] {
     const indexEntries = (view as unknown as ViewInternal)._storyIndex?.entries ?? {};
     const storyEntries = readStoryEntries();
     const globalParams = readGlobalParameters();
@@ -109,9 +104,7 @@ const DefaultAdapter: StorybookAdapter = {
     }
 
     return result;
-  },
-
-};
+}
 
 function readStoryEntries(): Array<{ titlePrefix?: string; directory?: string; req?: RawRequireContext }> {
   const stories = (globalThis as any).STORIES;
@@ -129,6 +122,3 @@ function readGlobalParameters(): Record<string, any> {
 }
 
 
-export function getAdapter(_view: StorybookView): StorybookAdapter {
-  return DefaultAdapter;
-}

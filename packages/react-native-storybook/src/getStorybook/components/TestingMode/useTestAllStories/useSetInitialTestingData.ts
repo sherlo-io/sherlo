@@ -3,7 +3,7 @@ import { RunnerBridge } from '../../../../helpers';
 import SherloModule from '../../../../SherloModule';
 import prepareSnapshots from './prepareSnapshots';
 import { StorybookView } from '../../../../types';
-import { getAdapter } from '../../../../storybook/adapter';
+import { enumerateStories } from '../../../../storybook/adapter';
 
 export function filterStoryMetas<T extends { id: string }>(
   storyMetas: T[],
@@ -20,8 +20,7 @@ function useSetInitialTestingData({ view }: { view: StorybookView }): void {
     if (lastState) return;
 
     (async () => {
-      const adapter = getAdapter(view);
-      const storyMetas = adapter.enumerateStories(view);
+      const storyMetas = enumerateStories(view);
       const config = SherloModule.getConfig();
       const filteredStoryMetas = filterStoryMetas(storyMetas, config.discoveryFilter?.includeStoryIds);
       const allStories = prepareSnapshots({ storyMetas: filteredStoryMetas, splitByMode: true });

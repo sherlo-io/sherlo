@@ -25,9 +25,7 @@ vi.mock('../SherloModule', () => ({
 }));
 
 vi.mock('../storybook/adapter', () => ({
-  getAdapter: vi.fn().mockReturnValue({
-    enumerateStories: vi.fn().mockReturnValue([]),
-  }),
+  enumerateStories: vi.fn().mockReturnValue([]),
 }));
 
 vi.mock('../getStorybook/components/TestingMode/useTestAllStories/prepareSnapshots', () => ({
@@ -37,7 +35,7 @@ vi.mock('../getStorybook/components/TestingMode/useTestAllStories/prepareSnapsho
 import useSetInitialTestingData, { filterStoryMetas } from '../getStorybook/components/TestingMode/useTestAllStories/useSetInitialTestingData';
 import { RunnerBridge } from '../helpers';
 import SherloModule from '../SherloModule';
-import { getAdapter } from '../storybook/adapter';
+import { enumerateStories } from '../storybook/adapter';
 import prepareSnapshots from '../getStorybook/components/TestingMode/useTestAllStories/prepareSnapshots';
 
 beforeEach(() => {
@@ -50,9 +48,7 @@ describe('useSetInitialTestingData', () => {
   it('enumerates via adapter, calls prepareSnapshots, and sends START', async () => {
     const fakeStoryMetas = [{ id: 'a--b', title: 'A', name: 'B', parameters: {} }];
     const fakeSnapshots = [{ viewId: 'a--b-deviceHeight' }];
-    (getAdapter as any).mockReturnValue({
-      enumerateStories: vi.fn().mockReturnValue(fakeStoryMetas),
-    });
+    (enumerateStories as any).mockReturnValue(fakeStoryMetas);
     (prepareSnapshots as any).mockReturnValue(fakeSnapshots);
 
     const view = {} as any;
@@ -72,9 +68,7 @@ describe('useSetInitialTestingData', () => {
   });
 
   it('sends START with empty snapshots when adapter enumerates none', async () => {
-    (getAdapter as any).mockReturnValue({
-      enumerateStories: vi.fn().mockReturnValue([]),
-    });
+    (enumerateStories as any).mockReturnValue([]);
     (prepareSnapshots as any).mockReturnValue([]);
 
     const view = {} as any;
@@ -111,9 +105,7 @@ describe('useSetInitialTestingData', () => {
       { id: 'b--2', title: 'B', name: '2', parameters: {} },
       { id: 'c--3', title: 'C', name: '3', parameters: {} },
     ];
-    (getAdapter as any).mockReturnValue({
-      enumerateStories: vi.fn().mockReturnValue(allMetas),
-    });
+    (enumerateStories as any).mockReturnValue(allMetas);
     (SherloModule.getConfig as ReturnType<typeof vi.fn>).mockReturnValue({
       stabilization: {},
       discoveryFilter: { includeStoryIds: ['a--1', 'c--3'] },

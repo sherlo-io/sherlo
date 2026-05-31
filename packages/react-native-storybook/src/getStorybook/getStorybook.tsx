@@ -7,7 +7,6 @@ import { TestingMode } from './components';
 import { getStorybookComponent } from './helpers';
 import { useHideSplashScreen } from './hooks';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { getAdapter } from '../storybook/adapter';
 import SherloStoryErrorBoundary from './components/SherloStoryErrorBoundary';
 import { LOG_FILE, PROTOCOL_FILE } from '../constants';
 
