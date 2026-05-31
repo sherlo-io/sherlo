@@ -2,7 +2,6 @@ import { REQUIRED_MIN_NATIVE_VERSION, JS_MODULE_VERSION as jsVersion } from './s
 import SherloModule from './SherloModule';
 
 const ERROR_CODE = 'ERROR_SDK_COMPATIBILITY';
-export const ERROR_STORYBOOK_NOT_DISPLAYED = 'ERROR_STORYBOOK_NOT_DISPLAYED';
 
 // Cached result so sendNativeError is only called once even if checkSdkCompatibility
 // is invoked multiple times (e.g., from index.ts early-check and from getStorybook.tsx).

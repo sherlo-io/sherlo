@@ -47,5 +47,3 @@ export function useHideSplashScreen() {
     hideSplashScreens.forEach((hide) => hide());
   }, []);
 }
-
-export default useHideSplashScreen;

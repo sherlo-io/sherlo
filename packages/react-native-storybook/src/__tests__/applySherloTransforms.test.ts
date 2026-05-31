@@ -132,15 +132,6 @@ describe('applySherloTransforms - native marker files for ERROR_STORYBOOK_DISABL
     expect(hasNotifierPolyfill).toBe(false);
   });
 
-  it('getModulesRunBeforeMainModule does NOT include disabled-notifier when enabled: false', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-gmrbmm-disabled-test-'));
-    const result = applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: false });
-    const modules: string[] = result.serializer.getModulesRunBeforeMainModule('index.js');
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-
-    const hasNotifier = modules.some((p: string) => p.includes('disabled-notifier'));
-    expect(hasNotifier).toBe(false);
-  });
 });
 
 // ---------------------------------------------------------------------------

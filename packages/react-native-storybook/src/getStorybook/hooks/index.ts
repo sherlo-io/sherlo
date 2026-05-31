@@ -1,1 +1,1 @@
-export { default as useHideSplashScreen } from './useHideSplashScreen';
+export { useHideSplashScreen } from './useHideSplashScreen';

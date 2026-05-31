@@ -106,17 +106,6 @@ function applySherloTransforms(result, opts) {
     return base.concat(sherloPolyfills);
   }
 
-  var existingGetModulesRunBeforeMainModule =
-    result && result.serializer && typeof result.serializer.getModulesRunBeforeMainModule === 'function'
-      ? result.serializer.getModulesRunBeforeMainModule
-      : null;
-
-  function getModulesRunBeforeMainModule(entryFilePath) {
-    return existingGetModulesRunBeforeMainModule
-      ? existingGetModulesRunBeforeMainModule(entryFilePath)
-      : [];
-  }
-
   var baseResult = result || {};
   return Object.assign({}, baseResult, {
     // unstable_allowRequireContext: sb8/sb9 withStorybook(enabled:false) omits this flag, but
@@ -130,7 +119,6 @@ function applySherloTransforms(result, opts) {
     }),
     serializer: Object.assign({}, baseResult.serializer, {
       getPolyfills: getPolyfills,
-      getModulesRunBeforeMainModule: getModulesRunBeforeMainModule,
     }),
   });
 }

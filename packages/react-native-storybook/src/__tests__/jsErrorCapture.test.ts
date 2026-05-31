@@ -11,7 +11,6 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
-import { vi, describe, it, expect } from 'vitest';
 import { normalizeStack } from '../normalizeStack';
 
 const POLYFILL_PATH = path.join(__dirname, '../../metro/polyfill.js');

@@ -74,7 +74,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
   const isTestingMode = mode === 'testing';
   const isStorybookMode = mode === 'storybook';
 
-  return () => {
+  return function SherloStorybookEntry() {
     useHideSplashScreen();
 
     const storybookLoadedReported = useRef(false);
