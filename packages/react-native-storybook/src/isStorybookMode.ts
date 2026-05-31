@@ -11,3 +11,4 @@ import SherloModule from './SherloModule';
 const isStorybookMode = ['storybook', 'testing'].includes(SherloModule.getMode());
 
 export default isStorybookMode;
+

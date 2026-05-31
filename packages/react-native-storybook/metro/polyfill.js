@@ -56,6 +56,12 @@
 //
 // No customer configuration is required. No env vars. No build flags.
 //
+
+// Protocol file constants - keep in sync with src/constants.ts.
+// polyfill.js cannot import from compiled dist/ (it runs before the bundle is fully evaluated).
+var LOG_FILE = 'log.sherlo';
+var PROTOCOL_FILE = 'protocol.sherlo';
+
 (function () {
   if (typeof globalThis === 'undefined') return;
   if (typeof global === 'undefined') return;
@@ -76,7 +82,7 @@
       var ref = global.__sherloModuleRef;
       if (ref && typeof ref.appendFile === 'function') {
         var entry = { action: 'DIAG_POLYFILL', seq: ++_diagSeq, msg: msg, ts: Date.now() };
-        ref.appendFile('protocol.sherlo', JSON.stringify(entry) + '\n');
+        ref.appendFile(PROTOCOL_FILE, JSON.stringify(entry) + '\n');
       }
     } catch (_) {}
   }
@@ -266,7 +272,7 @@
               };
               var entry = { action: 'JS_ERROR', timestamp: Date.now(), entity: 'app', data: data };
               diagLog('SherloErrorBoundary.render with caught=true (about to write JS_ERROR via appendFile)');
-              sherloMod.appendFile('protocol.sherlo', JSON.stringify(entry) + '\n');
+              sherloMod.appendFile(PROTOCOL_FILE, JSON.stringify(entry) + '\n');
               diagLog('SherloModule.appendProtocolJsError(appendFile) returned');
             } else {
               diagLog('SherloErrorBoundary.componentDidCatch: sherloModuleRef unavailable - skipping appendFile write');

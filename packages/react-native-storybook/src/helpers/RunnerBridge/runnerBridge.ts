@@ -1,16 +1,14 @@
 import { log, send } from './actions';
 import { LogFn, SendFn } from './types';
-
-const logPath = 'log.sherlo';
-const protocolPath = 'protocol.sherlo';
+import { LOG_FILE, PROTOCOL_FILE } from '../../constants';
 
 export type RunnerBridge = {
   log: LogFn;
   send: SendFn;
 };
 
-const logFn: LogFn = log(logPath);
-const sendFn: SendFn = send(protocolPath, logFn);
+const logFn: LogFn = log(LOG_FILE);
+const sendFn: SendFn = send(PROTOCOL_FILE, logFn);
 
 const runnerBridge: RunnerBridge = {
   log: logFn,

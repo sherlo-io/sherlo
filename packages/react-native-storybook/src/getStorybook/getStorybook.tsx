@@ -9,6 +9,7 @@ import { useHideSplashScreen } from './hooks';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { getAdapter } from '../storybook/adapter';
 import SherloStoryErrorBoundary from './components/SherloStoryErrorBoundary';
+import { LOG_FILE, PROTOCOL_FILE } from '../constants';
 
 let isSdkCompatible = true;
 if (SherloModule.getMode() === 'testing') {
@@ -92,7 +93,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
       try {
         if (SherloModule.getMode() === 'testing') {
           const content = JSON.stringify({ action: 'STORYBOOK_LOADED', timestamp: Date.now(), entity: 'app' });
-          SherloModule.appendFile('protocol.sherlo', `${content}\n`);
+          SherloModule.appendFile(PROTOCOL_FILE, `${content}\n`);
         }
       } catch (_e) {}
     }, []);
@@ -107,7 +108,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
         const storyId = cfg.inspect?.initialStoryId;
         if (!storyId) return;
         inspectLogReported.current = true;
-        SherloModule.appendFile('log.sherlo', `INSPECT_STORY_OPENED:${storyId}\n`);
+        SherloModule.appendFile(LOG_FILE, `INSPECT_STORY_OPENED:${storyId}\n`);
       } catch (_e) {}
     }, []);
 

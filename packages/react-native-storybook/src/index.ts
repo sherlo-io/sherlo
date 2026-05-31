@@ -1,4 +1,5 @@
 import checkSdkCompatibility from './checkSdkCompatibility';
+import { PROTOCOL_FILE } from './constants';
 
 export { default as isRunningVisualTests } from './isRunningVisualTests';
 export { default as isStorybookMode } from './isStorybookMode';
@@ -20,7 +21,7 @@ function installSherloIntegration(): void {
 
   if (isTesting) {
     SherloModule.appendFile(
-      'protocol.sherlo',
+      PROTOCOL_FILE,
       JSON.stringify({ action: 'JS_EVAL_COMPLETE', timestamp: Date.now(), entity: 'app' }) + '\n'
     );
 
@@ -40,7 +41,7 @@ function installSherloIntegration(): void {
     if ((global as any).__sherloWithStorybookApplied === true && isSdkCompatible !== false) {
       try {
         SherloModule.appendFile(
-          'protocol.sherlo',
+          PROTOCOL_FILE,
           JSON.stringify({ action: 'WITHSTORYBOOK_APPLIED', timestamp: Date.now(), entity: 'app' }) + '\n'
         );
       } catch (_) {}
@@ -48,7 +49,7 @@ function installSherloIntegration(): void {
     if ((global as any).__sherloStorybookDisabledFlag === true) {
       try {
         SherloModule.appendFile(
-          'protocol.sherlo',
+          PROTOCOL_FILE,
           JSON.stringify({ action: 'WITHSTORYBOOK_DISABLED', timestamp: Date.now(), entity: 'app' }) + '\n'
         );
       } catch (_) {}

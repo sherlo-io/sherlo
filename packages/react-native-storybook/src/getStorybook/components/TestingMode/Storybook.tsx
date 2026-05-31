@@ -1,7 +1,7 @@
 import type { Theme } from '@storybook/react-native-theming';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { VERIFICATION_TEST_ID } from '../../../constants';
+import { VERIFICATION_TEST_ID, PROTOCOL_FILE } from '../../../constants';
 import { StorybookParams, StorybookView } from '../../../types';
 import { getStorybookComponent } from '../../helpers';
 import { RunnerBridge } from '../../../helpers';
@@ -56,7 +56,7 @@ function Storybook({
     }
 
     const contentString = JSON.stringify(content);
-    SherloModule.appendFile('protocol.sherlo', `${contentString}\n`);
+    SherloModule.appendFile(PROTOCOL_FILE, `${contentString}\n`);
   }
 
   RunnerBridge.log('storybook style', { style });
