@@ -49,6 +49,16 @@ export function enumerateStories(view: StorybookView): StoryMeta[] {
     const result: StoryMeta[] = [];
     const seen = new Set<string>();
 
+    // Cache for auto-titled files (no title: in default export): maps the
+    // require.context filename (= importPath) to the file's raw exports and
+    // default-export meta. The fallback pass below uses this to merge
+    // story-level parameters when recovering auto-titled stories from
+    // _storyIndex.entries, instead of emitting only globalParams.
+    const cachedAutoTitled: Record<string, {
+      meta: { title?: string; parameters?: Record<string, any> };
+      fileExports: Record<string, any>;
+    }> = {};
+
     // Primary source: raw require.context per story entry. Storybook v10's
     // _storyIndex.entries can be incomplete for legacy/CSF3 files (only one
     // named export registered per file), so we cannot rely on it as the
@@ -67,7 +77,20 @@ export function enumerateStories(view: StorybookView): StoryMeta[] {
         if (!fileExports || !fileExports.default || typeof fileExports.default !== 'object') continue;
         const meta = fileExports.default as { title?: string; parameters?: Record<string, any> };
         const titleStr = typeof meta.title === 'string' ? meta.title : '';
-        if (!titleStr) continue;
+        if (!titleStr) {
+          // Auto-titled story: the title is resolved by Storybook at runtime
+          // and lives only in _storyIndex.entries. Cache the raw exports so the
+          // fallback pass can merge story-level parameters correctly.
+          // Key by the importPath format that _storyIndex.entries uses:
+          // `${directory}/${filename.substring(2)}` - mirrors what
+          // @storybook/react-native/dist/index.js builds at line ~1224.
+          // require.context keys are context-root-relative ("./Button.stories.tsx")
+          // while importPath is project-root-relative ("./src/Button.stories.tsx"),
+          // so keying by filename alone always misses the lookup below.
+          const importPathKey = `${entry.directory}/${filename.substring(2)}`;
+          cachedAutoTitled[importPathKey] = { meta, fileExports };
+          continue;
+        }
         for (const exportKey of Object.keys(fileExports)) {
           if (exportKey === 'default' || exportKey === '__esModule' || exportKey === '__namedExportsOrder' || exportKey.startsWith('_')) continue;
           const storyExport = fileExports[exportKey];
@@ -90,18 +113,50 @@ export function enumerateStories(view: StorybookView): StoryMeta[] {
       }
     }
 
-    // Fallback: if storyEntries was empty for some reason, also include
-    // anything in _storyIndex.entries that we have not already emitted.
-    // Stops a misconfigured app from receiving zero snapshots.
+    // Fallback: include anything in _storyIndex.entries not already emitted.
+    // This covers auto-titled stories (title resolved by Storybook only at
+    // runtime) and any stories missed by the primary path. For auto-titled
+    // stories the cachedAutoTitled map supplies the raw file exports so we
+    // can merge story-level parameters rather than emitting only globalParams.
     for (const id of Object.keys(indexEntries)) {
       if (seen.has(id)) continue;
       const indexEntry = indexEntries[id];
-      result.push({
-        id,
-        title: indexEntry.title,
-        name: indexEntry.name,
-        parameters: { ...(globalParams ?? {}) },
-      });
+      const cached = cachedAutoTitled[indexEntry.importPath];
+      if (cached) {
+        // Find the named export whose computed story name matches the index entry.
+        let storyAnnotations: Record<string, any> = {};
+        for (const exportKey of Object.keys(cached.fileExports)) {
+          if (exportKey === 'default' || exportKey === '__esModule' || exportKey === '__namedExportsOrder' || exportKey.startsWith('_')) continue;
+          const storyExport = cached.fileExports[exportKey];
+          if (!storyExport) continue;
+          const ann: Record<string, any> = typeof storyExport === 'function'
+            ? ((storyExport as any).story || {})
+            : (storyExport as Record<string, any>);
+          const explicitName = typeof ann.name === 'string' ? ann.name : undefined;
+          const computedName = explicitName || storyNameFromExport(exportKey);
+          if (computedName === indexEntry.name) {
+            storyAnnotations = ann;
+            break;
+          }
+        }
+        result.push({
+          id,
+          title: indexEntry.title,
+          name: indexEntry.name,
+          parameters: {
+            ...(globalParams ?? {}),
+            ...(cached.meta.parameters ?? {}),
+            ...(storyAnnotations.parameters ?? {}),
+          },
+        });
+      } else {
+        result.push({
+          id,
+          title: indexEntry.title,
+          name: indexEntry.name,
+          parameters: { ...(globalParams ?? {}) },
+        });
+      }
     }
 
     if (result.length === 0 && SherloModule.getMode() === 'testing') {
