@@ -1,6 +1,6 @@
 {
   "name": "sherlo",
-  "version": "2.0.0-alpha.1",
+  "version": "1.6.4-alpha.2",
   "description": "Sherlo CLI: Visual testing for React Native",
   "keywords": [
     "visual testing",

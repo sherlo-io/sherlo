@@ -1,6 +1,6 @@
 {
   "name": "@sherlo/react-native-storybook",
-  "version": "2.0.0-alpha.1",
+  "version": "1.6.4-alpha.1",
   "description": "Sherlo Storybook integration: Visual testing for React Native",
   "keywords": [
     "visual testing",
@@ -68,7 +68,7 @@
     "base-64": "1.0.0",
     "deepmerge": "4.3.1",
     "its-fine": "2.0.0",
-    "sherlo": "^2.0.0-alpha.1",
+    "sherlo": "^1.6.4-alpha.1",
     "utf8": "3.0.0"
   },
   "devDependencies": {
