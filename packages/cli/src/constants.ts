@@ -56,8 +56,8 @@ export const SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME = '@sherlo/react-native-
 export const STORYBOOK_REACT_NATIVE_PACKAGE_NAME = '@storybook/react-native';
 
 export const MIN_EAS_UPDATE_EXPO_VERSION = '51.0.0';
-export const MIN_REACT_NATIVE_VERSION = '0.64.0';
-export const MIN_STORYBOOK_REACT_NATIVE_VERSION = '7.6.11';
+export const MIN_REACT_NATIVE_VERSION = '0.74.0';
+export const MIN_STORYBOOK_REACT_NATIVE_VERSION = '8.0.0';
 
 /* COMMANDS */
 
