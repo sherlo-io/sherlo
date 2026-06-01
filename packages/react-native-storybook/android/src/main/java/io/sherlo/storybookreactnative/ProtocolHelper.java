@@ -75,23 +75,37 @@ public class ProtocolHelper {
     }
 
     /**
-     * Writes a JS_ERROR JSON line to protocol.sherlo.
+     * Writes a JS_ERROR JSON line for bundle-eval crashes caught by the native exception handler.
+     * Uses the top-level exception message (which contains the full Hermes JS stack trace), or
+     * the root-cause message if the top-level one doesn't look like a useful JS error.
      */
-    public static void writeJsError(FileSystemHelper fileSystemHelper, String message, String stack, String source) {
-        JSONObject item = new JSONObject();
-        try {
-            item.put("timestamp", System.currentTimeMillis());
-            item.put("entity", "app");
-            item.put("action", "JS_ERROR");
-            JSONObject data = new JSONObject();
-            data.put("message", message != null ? message : "");
-            data.put("stack", stack != null ? stack : "");
-            data.put("source", source != null ? source : "");
-            item.put("data", data);
-            fileSystemHelper.appendFile("protocol.sherlo", item.toString() + "\n");
-        } catch (org.json.JSONException e) {
-            Log.e(TAG, "Error creating JS_ERROR protocol item", e);
+    public static void writeJsErrorFromException(FileSystemHelper fileSystemHelper, Throwable t) {
+        String name = t.getClass().getSimpleName();
+        String message = bestMessage(t);
+        String stack = stackToString(t);
+        writeEarlyJsError(fileSystemHelper, name, message, stack);
+    }
+
+    /**
+     * Returns the most informative message from the exception chain.
+     * Prefers the top-level message (JavascriptException typically contains the full Hermes stack
+     * including the original JS Error message). Falls back through causes if the top is empty.
+     */
+    private static String bestMessage(Throwable t) {
+        // Walk the chain: collect all non-null messages, return the first non-blank one.
+        Throwable cur = t;
+        while (cur != null) {
+            String msg = cur.getMessage();
+            if (msg != null && !msg.isEmpty()) return msg;
+            cur = cur.getCause();
         }
+        return t.toString();
+    }
+
+    private static String stackToString(Throwable t) {
+        java.io.StringWriter sw = new java.io.StringWriter();
+        t.printStackTrace(new java.io.PrintWriter(sw));
+        return sw.toString();
     }
 
     /**

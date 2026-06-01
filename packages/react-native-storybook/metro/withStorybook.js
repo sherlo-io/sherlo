@@ -1,8 +1,13 @@
 'use strict';
 
-var realModule = require('@storybook/react-native/metro/withStorybook');
+var realModule;
+try {
+  realModule = require('@storybook/react-native/metro/withStorybook');
+} catch (_) {
+  realModule = require('@storybook/react-native/withStorybook');
+}
 var realWithStorybook = realModule.withStorybook || realModule.default || realModule;
-var applySherloTransforms = require('./metro/applySherloTransforms');
+var applySherloTransforms = require('./applySherloTransforms');
 
 function withStorybook(config, opts) {
   var result = realWithStorybook(config, opts);

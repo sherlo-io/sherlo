@@ -3,6 +3,7 @@
 #import <React/RCTUIManagerUtils.h>
 #import <React/RCTBridge.h>
 #import "SherloModuleCore.h"
+#import "SherloIOSExceptionHandler.h"
 
 @implementation SherloModule
 
@@ -16,6 +17,9 @@ static SherloModuleCore *core;
 __attribute__((constructor))
 static void SherloEarlyInit(void) {
   core = [[SherloModuleCore alloc] init];
+  if ([[SherloModuleCore currentMode] isEqualToString:@"testing"]) {
+    [SherloIOSExceptionHandler install];
+  }
 }
 
 /**
@@ -43,7 +47,7 @@ static void SherloEarlyInit(void) {
  * Toggles between Storybook and default modes.
  */
 - (void)toggleStorybook
-{ 
+{
   [core toggleStorybook:self.bridge];
 }
 
@@ -74,18 +78,8 @@ static void SherloEarlyInit(void) {
 }
 
 /**
- * Receives a JS error from the polyfill and writes a JS_ERROR JSON line to protocol.sherlo.
- */
-- (void)sendJsError:(NSString *)message
-              stack:(NSString *)stack
-             source:(NSString *)source
-{
-  [core sendJsError:message stack:stack source:source];
-}
-
-/**
  * Synchronously writes a JS_ERROR entry for module-eval errors caught by the __r polyfill.
- * Must not throw — called from a polyfill catch block.
+ * Must not throw - called from a polyfill catch block.
  */
 - (NSNumber *)reportEarlyJsError:(NSString *)name
                          message:(NSString *)message
@@ -161,22 +155,13 @@ static void SherloEarlyInit(void) {
   [core scrollToCheckpoint:index offset:offset maxIndex:maxIndex resolve:resolve reject:reject];
 }
 
-// Installed by RN runtime BEFORE bundle eval, on the JS thread.
-// Sets globalThis.__sherloRuntimeMode_v1 so the metro polyfill (metro/polyfill.js)
-// can gate at install time — zero side effects in production where mode = 'default'.
-// C++ exceptions are swallowed; a binding failure must never crash the customer's app.
-- (void)installJSIBindingsWithRuntime:(facebook::jsi::Runtime &)runtime
-                          callInvoker:(const std::shared_ptr<facebook::react::CallInvoker> &)callInvoker
-{
-  try {
-    NSString *modeStr = [SherloModuleCore currentMode] ?: @"default";
-    const char *cMode = [modeStr UTF8String] ?: "default";
-    runtime.global().setProperty(runtime, "__sherloRuntimeMode_v1",
-      facebook::jsi::String::createFromUtf8(runtime, cMode));
-  } catch (...) {
-    // Swallow ANY exception from the JSI binding. We must never block the
-    // customer's app from starting due to a Sherlo binding failure.
-  }
+/**
+ * Cancel signal for the native NOT_DISPLAYED watchdog timer.
+ * Called from JS getStorybook() synchronously to indicate Storybook is being used.
+ */
+- (void)notifyGetStorybookCalled {
+  [SherloModuleCore setGetStorybookCalled];
+  [SherloModuleCore cancelStorybookNotDisplayedTimer];
 }
 
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
@@ -223,15 +208,6 @@ RCT_EXPORT_METHOD(sendNativeError:(NSString *)errorCode
                   message:(NSString *)message
                   dataJson:(NSString *)dataJson) {
   [core sendNativeError:errorCode message:message dataJson:dataJson];
-}
-
-/**
- * Receives a JS error from the polyfill and writes a JS_ERROR JSON line to protocol.sherlo.
- */
-RCT_EXPORT_METHOD(sendJsError:(NSString *)message
-                  stack:(NSString *)stack
-                  source:(NSString *)source) {
-  [core sendJsError:message stack:stack source:source];
 }
 
 /**
@@ -302,6 +278,15 @@ RCT_EXPORT_METHOD(scrollToCheckpoint:(double)index
                    resolve:(RCTPromiseResolveBlock)resolve
                    reject:(RCTPromiseRejectBlock)reject) {
   [core scrollToCheckpoint:index offset:offset maxIndex:maxIndex resolve:resolve reject:reject];
+}
+
+/**
+ * Cancel signal for the native NOT_DISPLAYED watchdog timer.
+ * Called from JS getStorybook() synchronously to indicate Storybook is being used.
+ */
+RCT_EXPORT_METHOD(notifyGetStorybookCalled) {
+  [SherloModuleCore setGetStorybookCalled];
+  [SherloModuleCore cancelStorybookNotDisplayedTimer];
 }
 
 #endif

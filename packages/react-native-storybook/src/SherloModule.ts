@@ -50,6 +50,7 @@ type SherloModule = {
     contentPx: number;
     scrollViewFrame?: { x: number; y: number; width: number; height: number };
   }>;
+  notifyGetStorybookCalled: () => void;
 };
 
 let SherloModule: SherloModule;
@@ -123,12 +124,6 @@ function createSherloModule(): SherloModule {
       return config;
     },
     getLastState: () => {
-      const configString = getConstants().config;
-      const config = JSON.parse(configString) as Config | undefined;
-      if (config?.overrideLastState) {
-        return config.overrideLastState;
-      }
-
       const lastState = getConstants().lastState;
       const parsedLastState = lastState ? JSON.parse(lastState) : undefined;
 
@@ -140,7 +135,8 @@ function createSherloModule(): SherloModule {
     },
     appendFile: (filename: string, data: string) => {
       const encodedData = base64.encode(utf8.encode(data));
-      return module.appendFile(filename, encodedData);
+      const result = module.appendFile(filename, encodedData);
+      return result;
     },
     readFile: (filename: string) => {
       const decodeData = (data: string) => utf8.decode(base64.decode(data));
@@ -151,6 +147,11 @@ function createSherloModule(): SherloModule {
     isScrollable: () => module.isScrollable(),
     scrollToCheckpoint: (index: number, offset: number, maxIndex: number) =>
       module.scrollToCheckpoint(index, offset, maxIndex),
+    notifyGetStorybookCalled: () => {
+      if (typeof (module as any).notifyGetStorybookCalled === 'function') {
+        (module as any).notifyGetStorybookCalled();
+      }
+    },
   };
 
   return sherloModule;
@@ -202,6 +203,7 @@ function createDummySherloModule(): SherloModule {
       viewportPx: 0,
       contentPx: 0,
     }),
+    notifyGetStorybookCalled: () => {},
     stabilize: async (
       _requiredMatches: number,
       _minScreenshotsCount: number,

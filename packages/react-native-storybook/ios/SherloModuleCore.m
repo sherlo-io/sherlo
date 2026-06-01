@@ -27,6 +27,10 @@ static NSDictionary *lastState = nil;
 static NSString *currentMode = MODE_DEFAULT;
 static NSString *nativeVersion = nil;
 
+// Native NOT_DISPLAYED watchdog timer state
+static BOOL getStorybookWasCalled = NO;
+static dispatch_block_t storybookNotDisplayedBlock = nil;
+
 // Helper instances
 static FileSystemHelper *fileSystemHelper;
 
@@ -67,16 +71,55 @@ static FileSystemHelper *fileSystemHelper;
 
             [ProtocolHelper writeNativeLoaded:fileSystemHelper requestId:requestId];
 
+            // Check for build-time sherlo-storybook-disabled marker spliced into the .app bundle.
+            // Written by applySherloTransforms.js when opts.enabled === false.
+            // Mirrors Android SherloInitProvider.checkStorybookDisabledMarker().
+            NSString *disabledMarkerPath = [[NSBundle mainBundle] pathForResource:@"sherlo-storybook-disabled" ofType:nil];
+            if (disabledMarkerPath) {
+                [ProtocolHelper writeNativeError:fileSystemHelper
+                                       errorCode:@"ERROR_STORYBOOK_DISABLED"
+                                         message:@"Storybook is disabled in metro.config.js. Set enabled: true for Sherlo testing builds."
+                                        dataJson:@""];
+            }
+
             NSString *easUpdateDeeplink = config[@"easUpdateDeeplink"];
             BOOL consumingDeeplink = NO;
             if (easUpdateDeeplink) {
                 consumingDeeplink = [EasUpdateHelper consumeEasUpdateDeeplinkIfNeeded:easUpdateDeeplink];
             }
 
+            // Native NOT_DISPLAYED watchdog: fires if getStorybook() is never called within 30s.
+            // The cancel signal arrives via notifyGetStorybookCalled on the native module.
+            __block dispatch_block_t block = dispatch_block_create(0, ^{
+                if (!getStorybookWasCalled) {
+                    [ProtocolHelper writeNativeError:fileSystemHelper
+                                           errorCode:@"ERROR_STORYBOOK_NOT_DISPLAYED"
+                                             message:@"Storybook did not appear within 30s of app launch"
+                                            dataJson:@""];
+                    NSLog(@"[%@] ERROR_STORYBOOK_NOT_DISPLAYED written by native timer", LOG_TAG);
+                }
+            });
+            storybookNotDisplayedBlock = block;
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 30 * NSEC_PER_SEC),
+                           dispatch_get_main_queue(),
+                           block);
+            NSLog(@"[%@] storybookNotDisplayed native timer scheduled (30s)", LOG_TAG);
+
         }
     }
 
     return self;
+}
+
++ (void)setGetStorybookCalled {
+    getStorybookWasCalled = YES;
+}
+
++ (void)cancelStorybookNotDisplayedTimer {
+    if (storybookNotDisplayedBlock) {
+        dispatch_block_cancel(storybookNotDisplayedBlock);
+        storybookNotDisplayedBlock = nil;
+    }
 }
 
 + (NSString *)currentMode {
@@ -164,27 +207,24 @@ static FileSystemHelper *fileSystemHelper;
     [ProtocolHelper writeNativeError:fileSystemHelper errorCode:errorCode message:message dataJson:dataJson];
 }
 
-/**
- * Writes a JS_ERROR JSON line to protocol.sherlo.
- * Called when the JS polyfill captures an uncaught JS error while in testing mode.
- *
- * @param message The JS error message
- * @param stack The JS stack trace
- * @param source Either "globalHandler" or "errorBoundary"
- */
-- (void)sendJsError:(NSString *)message stack:(NSString *)stack source:(NSString *)source {
-    if (![currentMode isEqualToString:MODE_TESTING]) return;
-    [ProtocolHelper writeJsError:fileSystemHelper message:message stack:stack source:source];
-}
-
 - (BOOL)reportEarlyJsError:(NSString *)name message:(NSString *)message stack:(NSString *)stack {
+    NSLog(@"[diag native] reportEarlyJsError CALLED with: %@/%@", name ?: @"(nil)", message ?: @"(nil)");
+    [fileSystemHelper appendFile:@"sherlo-diag.log"
+                         content:[NSString stringWithFormat:@"[diag native] reportEarlyJsError CALLED with: %@/%@\n", name ?: @"(nil)", message ?: @"(nil)"]];
     // Defense in depth: even if the JS-side gate (metro/polyfill.js) is bypassed,
     // refuse to write JS errors to protocol.sherlo unless in testing mode. This
     // makes a polyfill-bug failure mode 'no error captured' not 'protocol polluted'.
     if (![currentMode isEqualToString:MODE_TESTING]) {
+        NSLog(@"[diag native] reportEarlyJsError: mode=%@ (not testing) - returning NO", currentMode);
+        [fileSystemHelper appendFile:@"sherlo-diag.log"
+                             content:[NSString stringWithFormat:@"[diag native] reportEarlyJsError: mode=%@ (not testing) - returning NO\n", currentMode]];
         return NO;
     }
-    return [ProtocolHelper writeEarlyJsError:fileSystemHelper name:name message:message stack:stack];
+    BOOL result = [ProtocolHelper writeEarlyJsError:fileSystemHelper name:name message:message stack:stack];
+    NSLog(@"[diag native] reportEarlyJsError returning - write completed, result=%d", result);
+    [fileSystemHelper appendFile:@"sherlo-diag.log"
+                         content:[NSString stringWithFormat:@"[diag native] reportEarlyJsError returning - write completed, result=%d\n", result]];
+    return result;
 }
 
 /**

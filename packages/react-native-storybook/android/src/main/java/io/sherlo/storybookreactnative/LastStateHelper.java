@@ -60,6 +60,9 @@ public class LastStateHelper {
                     if ("ACK_START".equals(action) && ackStart == null) {
                         ackStart = responseItem;
                     } else if ("ACK_REQUEST_SNAPSHOT".equals(action) && lastRequestSnapshot == null) {
+                        // Skip end-of-session markers: runner writes ACK_REQUEST_SNAPSHOT { nextSnapshot: null }
+                        // when terminating a story. We only want the latest entry that actually points to a story.
+                        if (!responseItem.has("nextSnapshot") || responseItem.isNull("nextSnapshot")) continue;
                         lastRequestSnapshot = responseItem;
                     } else if ("START".equals(action) && startItem == null) {
                         startItem = responseItem;

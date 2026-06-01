@@ -1,21 +1,18 @@
 import type { Theme } from '@storybook/react-native-theming';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { VERIFICATION_TEST_ID } from '../../../constants';
+import { DUMMY_STORY_ID, VERIFICATION_TEST_ID, PROTOCOL_FILE } from '../../../constants';
 import { StorybookParams, StorybookView } from '../../../types';
-import { getStorybookComponent, isStorybook7 } from '../../helpers';
+import { getStorybookComponent } from '../../helpers';
 import { RunnerBridge } from '../../../helpers';
 import { useRef } from 'react';
 import SherloModule from '../../../SherloModule';
-
-export const storybookRenderedRef = { current: false };
 
 /**
  * We applied styles based on how they are defined in the link below to ensure that user's stories
  * look exactly the same in Sherlo as they do in their Storybook
  *
  * Storybook 8: https://github.com/storybookjs/react-native/blob/v8.6.0/packages/react-native/src/View.tsx
- * Storybook 7: https://github.com/storybookjs/react-native/blob/v7.6.20/packages/react-native/src/components/OnDeviceUI/OnDeviceUI.tsx
  */
 function Storybook({
   params,
@@ -32,34 +29,34 @@ function Storybook({
   const insets = useSafeAreaInsets();
   const reportedSherloJSLoaded = useRef(false);
 
+  // Sherlo runs Storybook in non-interactive testing mode. We supply param overrides
+  // that disable on-device UI, the websocket dev-menu connection, persistent selection,
+  // and force a specific initial story (the runner's queued snapshot, or a placeholder).
+  const lastState = SherloModule.getLastState();
+  const storyId = lastState?.nextSnapshot.storyId;
+  const testingParams: StorybookParams = {
+    ...(params ?? {}),
+    host: undefined,
+    enableWebsockets: false,
+    onDeviceUI: false,
+    shouldPersistSelection: false,
+    initialSelection: storyId || DUMMY_STORY_ID,
+  };
+
   const StorybookComponent = getStorybookComponent({
     view,
-    params,
-    isTestingMode: true,
+    params: testingParams,
   });
 
-  let style;
-
-  if (isStorybook7) {
-    style = {
-      flex: 1,
-      paddingBottom: uiSettings.shouldAddSafeArea ? insets.bottom : 0,
-      paddingTop: uiSettings.shouldAddSafeArea ? insets.top : 0,
-      // We are typechecking with Storybook 8 so we need to ignore the error
-      // @ts-ignore
-      backgroundColor: uiSettings.theme.preview.backgroundColor,
-    };
-  } else {
-    style = {
-      flex: 1,
-      paddingTop: uiSettings.shouldAddSafeArea ? insets.top : 0,
-      backgroundColor: uiSettings.theme.background.content,
-    };
-  }
+  const style = {
+    flex: 1,
+    paddingTop: uiSettings.shouldAddSafeArea ? insets.top : 0,
+    backgroundColor: uiSettings.theme.background.content,
+  };
 
   if (!reportedSherloJSLoaded.current) {
     reportedSherloJSLoaded.current = true;
-    storybookRenderedRef.current = true;
+    (global as any).__sherloStorybookRendered = true;
     const content: any = {
       action: 'STORYBOOK_RENDERED',
       timestamp: Date.now(),
@@ -72,7 +69,7 @@ function Storybook({
     }
 
     const contentString = JSON.stringify(content);
-    SherloModule.appendFile('protocol.sherlo', `${contentString}\n`);
+    SherloModule.appendFile(PROTOCOL_FILE, `${contentString}\n`);
   }
 
   RunnerBridge.log('storybook style', { style });

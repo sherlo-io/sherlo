@@ -2950,7 +2950,7 @@ __metadata:
     utf8: "npm:3.0.0"
     vitest: "npm:^4.0.0"
   peerDependencies:
-    "@storybook/react-native": ">=7.6.11"
+    "@storybook/react-native": ">=8.0.0"
     react: "*"
     react-native: ">=0.74.0"
     react-native-safe-area-context: "*"

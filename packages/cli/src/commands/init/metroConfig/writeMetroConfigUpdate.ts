@@ -122,7 +122,7 @@ function isStorybookRequireCall(node: any): boolean {
     arg &&
     (arg.type === 'StringLiteral' || arg.type === 'Literal') &&
     typeof arg.value === 'string' &&
-    arg.value.includes('@storybook/react-native/metro/withStorybook')
+    /^@storybook\/react-native\/(?:metro\/)?withStorybook$/.test(arg.value)
   );
 }
 

@@ -25,6 +25,12 @@
 /** Returns the current mode string (e.g. 'default', 'testing', 'storybook'). */
 + (NSString *)currentMode;
 
+/** Records that getStorybook() was called; prevents the NOT_DISPLAYED timer from firing. */
++ (void)setGetStorybookCalled;
+
+/** Cancels the pending NOT_DISPLAYED watchdog timer. Safe to call even after it fired. */
++ (void)cancelStorybookNotDisplayedTimer;
+
 /**
  * Returns constants exposed to the JavaScript side
  * @return Dictionary with mode, config, and lastState
@@ -59,14 +65,6 @@
  * @param message Human-readable error description
  */
 - (void)sendNativeError:(NSString *)errorCode message:(NSString *)message dataJson:(NSString *)dataJson;
-
-/**
- * Writes a JS_ERROR JSON line to protocol.sherlo.
- * @param message The JS error message
- * @param stack The JS stack trace
- * @param source Either "globalHandler" or "errorBoundary"
- */
-- (void)sendJsError:(NSString *)message stack:(NSString *)stack source:(NSString *)source;
 
 /**
  * Synchronously writes a JS_ERROR entry for module-eval errors caught by the metro __r polyfill.

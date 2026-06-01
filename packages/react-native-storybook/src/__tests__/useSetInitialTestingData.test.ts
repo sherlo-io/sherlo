@@ -1,6 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Mock react's useEffect to execute the callback synchronously so we can test the hook logic
 vi.mock('react', async () => {
   const actual = await vi.importActual<typeof import('react')>('react');
   return {
@@ -22,76 +20,60 @@ vi.mock('../helpers', () => ({
 vi.mock('../SherloModule', () => ({
   default: {
     getLastState: vi.fn().mockReturnValue(undefined),
+    getConfig: vi.fn().mockReturnValue({ stabilization: {} }),
   },
+}));
+
+vi.mock('../storybook/adapter', () => ({
+  enumerateStories: vi.fn().mockReturnValue([]),
 }));
 
 vi.mock('../getStorybook/components/TestingMode/useTestAllStories/prepareSnapshots', () => ({
   default: vi.fn().mockReturnValue([]),
 }));
 
-import useSetInitialTestingData, {
-  waitForStorybookReady,
-} from '../getStorybook/components/TestingMode/useTestAllStories/useSetInitialTestingData';
+import useSetInitialTestingData, { filterStoryMetas } from '../getStorybook/components/TestingMode/useTestAllStories/useSetInitialTestingData';
 import { RunnerBridge } from '../helpers';
 import SherloModule from '../SherloModule';
+import { enumerateStories } from '../storybook/adapter';
+import prepareSnapshots from '../getStorybook/components/TestingMode/useTestAllStories/prepareSnapshots';
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (SherloModule.getLastState as ReturnType<typeof vi.fn>).mockReturnValue(undefined);
+  (SherloModule.getConfig as ReturnType<typeof vi.fn>).mockReturnValue({ stabilization: {} });
 });
-
-afterEach(() => {
-  vi.useRealTimers();
-});
-
-/* -------------------------------------------------------------------------- */
-/* waitForStorybookReady                                                       */
-/* -------------------------------------------------------------------------- */
-
-describe('waitForStorybookReady', () => {
-  it('returns true immediately when view._idToPrepared already has stories', async () => {
-    const view = {
-      _idToPrepared: { 'button--primary': { id: 'button--primary' } },
-    } as any;
-
-    const result = await waitForStorybookReady(view);
-
-    expect(result).toBe(true);
-  });
-
-  it('returns false after 10 seconds when _idToPrepared stays empty', async () => {
-    vi.useFakeTimers();
-
-    const view = { _idToPrepared: {} } as any;
-
-    const promise = waitForStorybookReady(view);
-
-    // Advance past the 10-second deadline (function polls every 500 ms)
-    await vi.advanceTimersByTimeAsync(10_001);
-
-    const result = await promise;
-
-    expect(result).toBe(false);
-  });
-});
-
-/* -------------------------------------------------------------------------- */
-/* useSetInitialTestingData                                                    */
-/* -------------------------------------------------------------------------- */
 
 describe('useSetInitialTestingData', () => {
-  it('sends START with empty snapshots when waitForStorybookReady returns false (no stories loaded)', async () => {
-    vi.useFakeTimers();
+  it('enumerates via adapter, calls prepareSnapshots, and sends START', async () => {
+    const fakeStoryMetas = [{ id: 'a--b', title: 'A', name: 'B', parameters: {} }];
+    const fakeSnapshots = [{ viewId: 'a--b-deviceHeight' }];
+    (enumerateStories as any).mockReturnValue(fakeStoryMetas);
+    (prepareSnapshots as any).mockReturnValue(fakeSnapshots);
 
-    // No stories in the view - waitForStorybookReady will time out after 10 s
-    const view = { _idToPrepared: {} } as any;
-
-    // Calling the hook starts the async flow inside useEffect
+    const view = {} as any;
     useSetInitialTestingData({ view });
 
-    // Advance clock past the 10-second timeout so waitForStorybookReady resolves
-    await vi.advanceTimersByTimeAsync(10_001);
+    await Promise.resolve();
+    await Promise.resolve();
 
-    // Flush microtasks created after waitForStorybookReady returns (prepareSnapshots + send)
+    expect(prepareSnapshots).toHaveBeenCalledWith({
+      storyMetas: fakeStoryMetas,
+      splitByMode: true,
+    });
+    expect(RunnerBridge.send).toHaveBeenCalledWith({
+      action: 'START',
+      snapshots: fakeSnapshots,
+    });
+  });
+
+  it('sends START with empty snapshots when adapter enumerates none', async () => {
+    (enumerateStories as any).mockReturnValue([]);
+    (prepareSnapshots as any).mockReturnValue([]);
+
+    const view = {} as any;
+    useSetInitialTestingData({ view });
+
     await Promise.resolve();
     await Promise.resolve();
 
@@ -102,21 +84,67 @@ describe('useSetInitialTestingData', () => {
   });
 
   it('returns early and does NOT send START when lastState exists', async () => {
-    vi.useFakeTimers();
-
     (SherloModule.getLastState as ReturnType<typeof vi.fn>).mockReturnValue({
       requestId: 'abc',
       nextSnapshot: null,
     });
 
-    const view = { _idToPrepared: {} } as any;
-
+    const view = {} as any;
     useSetInitialTestingData({ view });
 
-    // Advance time - even if something async was started it should not reach send
-    await vi.advanceTimersByTimeAsync(10_001);
+    await Promise.resolve();
     await Promise.resolve();
 
     expect(RunnerBridge.send).not.toHaveBeenCalled();
+  });
+
+  it('applies discoveryFilter when config.discoveryFilter.includeStoryIds is set', async () => {
+    (SherloModule.getLastState as ReturnType<typeof vi.fn>).mockReturnValue(undefined);
+    const allMetas = [
+      { id: 'a--1', title: 'A', name: '1', parameters: {} },
+      { id: 'b--2', title: 'B', name: '2', parameters: {} },
+      { id: 'c--3', title: 'C', name: '3', parameters: {} },
+    ];
+    (enumerateStories as any).mockReturnValue(allMetas);
+    (SherloModule.getConfig as ReturnType<typeof vi.fn>).mockReturnValue({
+      stabilization: {},
+      discoveryFilter: { includeStoryIds: ['a--1', 'c--3'] },
+    });
+    (prepareSnapshots as any).mockReturnValue([{ viewId: 'a--1-deviceHeight' }, { viewId: 'c--3-deviceHeight' }]);
+
+    useSetInitialTestingData({ view: {} as any });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(prepareSnapshots).toHaveBeenCalledWith({
+      storyMetas: [allMetas[0], allMetas[2]],
+      splitByMode: true,
+    });
+  });
+});
+
+describe('filterStoryMetas', () => {
+  const metas = [
+    { id: 'a--1', title: 'A', name: '1' },
+    { id: 'b--2', title: 'B', name: '2' },
+    { id: 'c--3', title: 'C', name: '3' },
+  ];
+
+  it('returns all metas when includeStoryIds is undefined', () => {
+    expect(filterStoryMetas(metas, undefined)).toEqual(metas);
+  });
+
+  it('filters to only matching IDs', () => {
+    expect(filterStoryMetas(metas, ['a--1', 'c--3'])).toEqual([metas[0], metas[2]]);
+  });
+
+  it('returns empty array when includeStoryIds is empty', () => {
+    expect(filterStoryMetas(metas, [])).toEqual([]);
+  });
+
+  it('does not mutate the original array', () => {
+    const copy = [...metas];
+    filterStoryMetas(metas, ['a--1']);
+    expect(metas).toEqual(copy);
   });
 });

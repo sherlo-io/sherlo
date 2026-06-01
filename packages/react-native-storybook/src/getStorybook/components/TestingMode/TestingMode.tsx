@@ -11,7 +11,7 @@ import { MetadataProvider, MetadataProviderRef } from './MetadataProvider';
 
 setupErrorSilencing();
 
-const lastState = SherloModule.getLastState();
+let lastState = SherloModule.getLastState();
 
 function TestingMode({
   view,
@@ -47,3 +47,7 @@ function TestingMode({
 }
 
 export default TestingMode;
+
+export function __resetForTests(): void {
+  lastState = undefined;
+}

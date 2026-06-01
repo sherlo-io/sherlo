@@ -74,19 +74,17 @@ static NSString *const LOG_TAG = @"SherloModule:ConfigHelper";
 + (NSString *)determineModeFromConfig:(NSDictionary *)config {
     @try {
         if (config && config.count > 0) {
-            NSString *overrideMode = config[@"overrideMode"];
-
-            if (overrideMode) {
-                NSLog(@"[%@] Running in %@ mode", LOG_TAG, overrideMode);
-                return overrideMode;
+            if (config[@"inspect"]) {
+                NSLog(@"[%@] Running in storybook mode (inspect)", LOG_TAG);
+                return MODE_STORYBOOK;
             }
-            
+            NSLog(@"[%@] Running in testing mode", LOG_TAG);
             return MODE_TESTING;
         }
     } @catch (NSException *exception) {
         NSLog(@"[%@] Failed to determine initial mode: %@", LOG_TAG, exception.reason);
     }
-    
+
     return MODE_DEFAULT;
 }
 

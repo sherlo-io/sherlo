@@ -1,6 +1,6 @@
 {
   "name": "@sherlo/react-native-storybook",
-  "version": "2.0.0-alpha.1",
+  "version": "1.6.4-alpha.1",
   "description": "Sherlo Storybook integration: Visual testing for React Native",
   "keywords": [
     "visual testing",
@@ -29,16 +29,18 @@
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./withStorybook": {
-      "types": "./withStorybook.d.ts",
-      "require": "./withStorybook.js",
-      "default": "./withStorybook.js"
+    "./metro/withStorybook": {
+      "types": "./metro/withStorybook.d.ts",
+      "require": "./metro/withStorybook.js",
+      "default": "./metro/withStorybook.js"
     },
     "./metro/polyfill": {
       "require": "./metro/polyfill.js",
       "default": "./metro/polyfill.js"
     },
-    "./dist/*": "./dist/*",
+    "./dist/getStorybook/index.js": "./dist/getStorybook/index.js",
+    "./dist/addStorybookToDevMenu.js": "./dist/addStorybookToDevMenu.js",
+    "./dist/SherloModule.js": "./dist/SherloModule.js",
     "./package.json": "./package.json"
   },
   "files": [
@@ -52,8 +54,8 @@
     "ios/*.mm",
     "ios/Resources/**/*",
     "sherlo-react-native-storybook.podspec",
-    "withStorybook.js",
-    "withStorybook.d.ts",
+    "metro/withStorybook.js",
+    "metro/withStorybook.d.ts",
     "metro/polyfill.js",
     "metro/applySherloTransforms.js"
   ],
@@ -80,7 +82,7 @@
     "vitest": "^4.0.0"
   },
   "peerDependencies": {
-    "@storybook/react-native": ">=7.6.11",
+    "@storybook/react-native": ">=8.0.0",
     "react": "*",
     "react-native": ">=0.74.0",
     "react-native-safe-area-context": "*"

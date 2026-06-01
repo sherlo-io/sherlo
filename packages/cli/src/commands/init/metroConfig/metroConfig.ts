@@ -66,7 +66,7 @@ async function metroConfig(sessionId: string | null): Promise<void> {
   if (!result.applied) {
     printMessage({ type: 'fail', message: `Could not automatically update ${state.path}` });
     logWarning({
-      message: 'metro.config.js has a non-standard shape - add withStorybook from @sherlo/react-native-storybook/withStorybook manually',
+      message: 'metro.config.js has a non-standard shape - add withStorybook from @sherlo/react-native-storybook/metro/withStorybook manually',
       learnMoreLink: DOCS_LINK.setupMetroConfig,
     });
     await trackProgress({

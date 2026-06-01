@@ -40,13 +40,21 @@ public class SherloModuleCore {
     // JS evaluates) or from this class's constructor (fallback).
     private static volatile boolean earlyInitDone = false;
 
+    // Static fs helper shared with SherloExceptionHandler (installed in SherloInitProvider).
+    // Set once in performEarlyInit(); never reassigned after that.
+    private static volatile FileSystemHelper staticFsHelper = null;
+
+    // Stored during processPackages() (before initializeWithInstance). Used by
+    // SherloInitProvider at PRE_RUN_JS_BUNDLE_START to retrieve the CatalystInstance.
+    private static volatile java.lang.ref.WeakReference<ReactApplicationContext> sEarlyReactContext = null;
+
+    // Set to true by SherloJSExceptionCapture when the original JS error is written.
+    // Prevents the fallback UncaughtExceptionHandler from overwriting with the wrong message.
+    private static volatile boolean sJsErrorCaptured = false;
+
     // Helper instances
     private FileSystemHelper fileSystemHelper = null;
     private RestartHelper restartHelper = null;
-
-    // Static reference to FileSystemHelper for use from static/JNI contexts.
-    // Set once in performEarlyInit (before JS runs) and refreshed in the constructor.
-    private static volatile FileSystemHelper staticFileSystemHelper = null;
 
     /**
      * Emits the early native protocol signals (NATIVE_INIT_STARTED, NATIVE_LOADED) when the
@@ -68,7 +76,7 @@ public class SherloModuleCore {
 
         try {
             FileSystemHelper fsHelper = new FileSystemHelper(context);
-            staticFileSystemHelper = fsHelper;
+            staticFsHelper = fsHelper;
             JSONObject earlyConfig = ConfigHelper.loadConfig(fsHelper);
             if (earlyConfig == null) return;
 
@@ -101,8 +109,9 @@ public class SherloModuleCore {
      * @param reactContext The React application context
      */
     public SherloModuleCore(ReactApplicationContext reactContext, Activity activity) {
+        // Store context before initializeWithInstance() runs so PRE_RUN_JS_BUNDLE_START can retrieve it.
+        storeEarlyReactContext(reactContext);
         this.fileSystemHelper = new FileSystemHelper(reactContext);
-        staticFileSystemHelper = this.fileSystemHelper;
 
         // Fallback - normal Android startup already runs this via SherloInitProvider before
         // Application.onCreate(). The call is idempotent so the double-invocation costs nothing.
@@ -133,12 +142,38 @@ public class SherloModuleCore {
     }
     
     /**
-     * Returns the current mode string. Safe to call before constructor — falls back to
+     * Returns the current mode string. Safe to call before constructor - falls back to
      * MODE_DEFAULT. Used by the JSI bindings (SherloModuleJSIBindings.cpp) to read the
      * mode synchronously on the JS thread before bundle evaluation starts.
      */
     public static String getCurrentMode() {
         return currentMode != null ? currentMode : MODE_DEFAULT;
+    }
+
+    /**
+     * Returns the static FileSystemHelper created during performEarlyInit(), or null if
+     * performEarlyInit() has not run yet. Used by SherloInitProvider's uncaught-exception
+     * handler to write JS_ERROR to protocol without needing a ReactContext.
+     */
+    public static FileSystemHelper getStaticFsHelper() {
+        return staticFsHelper;
+    }
+
+    public static void storeEarlyReactContext(ReactApplicationContext ctx) {
+        sEarlyReactContext = new java.lang.ref.WeakReference<>(ctx);
+    }
+
+    public static ReactApplicationContext getEarlyReactContext() {
+        java.lang.ref.WeakReference<ReactApplicationContext> ref = sEarlyReactContext;
+        return ref != null ? ref.get() : null;
+    }
+
+    public static void markJsErrorCaptured() {
+        sJsErrorCaptured = true;
+    }
+
+    public static boolean isJsErrorCaptured() {
+        return sJsErrorCaptured;
     }
 
     /**
@@ -191,26 +226,42 @@ public class SherloModuleCore {
     }
 
     /**
-     * Writes a JS_ERROR JSON line to protocol.sherlo.
-     */
-    public void sendJsError(String message, String stack, String source) {
-        if (!MODE_TESTING.equals(currentMode)) return;
-        ProtocolHelper.writeJsError(this.fileSystemHelper, message, stack, source);
-    }
-
-    /**
      * Synchronously writes a JS_ERROR entry for module-eval errors caught by the metro __r polyfill.
      * Must never throw. Returns true on success, false on failure.
      */
     public boolean reportEarlyJsError(String name, String message, String stack) {
+        Log.i(TAG, "[diag native] reportEarlyJsError CALLED with: " + name + "/" + message);
+        try {
+            if (this.fileSystemHelper != null) {
+                this.fileSystemHelper.appendFile("sherlo-diag.log",
+                    "[diag native] reportEarlyJsError CALLED with: " + name + "/" + message + "\n");
+            }
+        } catch (Throwable diagErr) { /* ignore */ }
         // Defense in depth: even if the JS-side gate (metro/polyfill.js) is bypassed,
         // refuse to write JS errors to protocol.sherlo unless in testing mode. This
         // makes a polyfill-bug failure mode 'no error captured' not 'protocol polluted'.
         if (!MODE_TESTING.equals(currentMode)) {
+            Log.i(TAG, "[diag native] reportEarlyJsError: mode=" + currentMode + " (not testing) - returning false");
+            try {
+                if (this.fileSystemHelper != null) {
+                    this.fileSystemHelper.appendFile("sherlo-diag.log",
+                        "[diag native] reportEarlyJsError: mode=" + currentMode + " (not testing) - returning false\n");
+                }
+            } catch (Throwable diagErr) { /* ignore */ }
             return false;
         }
         try {
             ProtocolHelper.writeEarlyJsError(this.fileSystemHelper, name, message, stack);
+            // Set the flag so the native UncaughtExceptionHandler fallback knows
+            // a correct JS_ERROR was already written and skips the wrong secondary exception.
+            markJsErrorCaptured();
+            Log.i(TAG, "[diag native] reportEarlyJsError returning - write completed");
+            try {
+                if (this.fileSystemHelper != null) {
+                    this.fileSystemHelper.appendFile("sherlo-diag.log",
+                        "[diag native] reportEarlyJsError returning - write completed\n");
+                }
+            } catch (Throwable diagErr) { /* ignore */ }
             return true;
         } catch (Exception e) {
             Log.e(TAG, "reportEarlyJsError failed", e);

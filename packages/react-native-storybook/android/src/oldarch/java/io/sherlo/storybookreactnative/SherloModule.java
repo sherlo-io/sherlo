@@ -2,6 +2,7 @@ package io.sherlo.storybookreactnative;
 
 // Android Framework Imports
 import android.app.Activity;
+import android.util.Log;
 
 // React Native Bridge Imports
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -20,6 +21,7 @@ import java.util.Map;
  */
 public class SherloModule extends ReactContextBaseJavaModule {
     public static final String NAME = "SherloModule";
+    private static final String TAG = "SherloModule:Construct";
     private final SherloModuleCore moduleCore;
 
     /**
@@ -29,6 +31,7 @@ public class SherloModule extends ReactContextBaseJavaModule {
      */
     public SherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
+        Log.i(TAG, "constructor fired tid=" + Thread.currentThread().getName());
         Activity activity = getCurrentActivity();
         this.moduleCore = new SherloModuleCore(reactContext, activity);
     }
@@ -90,14 +93,6 @@ public class SherloModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void sendNativeError(String errorCode, String message, String dataJson) {
         moduleCore.sendNativeError(errorCode, message, dataJson);
-    }
-
-    /**
-     * Receives a JS error from the polyfill and writes a JS_ERROR JSON line to protocol.sherlo.
-     */
-    @ReactMethod
-    public void sendJsError(String message, String stack, String source) {
-        moduleCore.sendJsError(message, stack, source);
     }
 
     /**
@@ -186,6 +181,16 @@ public class SherloModule extends ReactContextBaseJavaModule {
     public void scrollToCheckpoint(double index, double offset, double maxIndex, Promise promise) {
         Activity activity = getCurrentActivity();
         moduleCore.scrollToCheckpoint(activity, index, offset, maxIndex, promise);
+    }
+
+    /**
+     * Cancel signal for the native NOT_DISPLAYED watchdog timer.
+     * Called from JS getStorybook() to indicate Storybook is being used.
+     */
+    @ReactMethod
+    public void notifyGetStorybookCalled() {
+        SherloInitProvider.setGetStorybookCalled();
+        SherloInitProvider.cancelStorybookNotDisplayedTimer();
     }
 
 }

@@ -2,9 +2,16 @@ import { useEffect } from 'react';
 import { RunnerBridge } from '../../../../helpers';
 import SherloModule from '../../../../SherloModule';
 import prepareSnapshots from './prepareSnapshots';
-import { isStorybook7 } from '../../../helpers';
 import { StorybookView } from '../../../../types';
-import { STORYBOOK_LOAD_TIMEOUT_MS } from '../../../../constants';
+import { enumerateStories } from '../../../../storybook/adapter';
+
+export function filterStoryMetas<T extends { id: string }>(
+  storyMetas: T[],
+  includeStoryIds: string[] | undefined
+): T[] {
+  if (!Array.isArray(includeStoryIds)) return storyMetas;
+  return storyMetas.filter((m) => includeStoryIds.includes(m.id));
+}
 
 function useSetInitialTestingData({ view }: { view: StorybookView }): void {
   const lastState = SherloModule.getLastState();
@@ -13,12 +20,12 @@ function useSetInitialTestingData({ view }: { view: StorybookView }): void {
     if (lastState) return;
 
     (async () => {
-      await waitForStorybookReady(view);
-
-      const allStories = prepareSnapshots({ view, splitByMode: true });
+      const storyMetas = enumerateStories(view);
+      const config = SherloModule.getConfig();
+      const filteredStoryMetas = filterStoryMetas(storyMetas, config.discoveryFilter?.includeStoryIds);
+      const allStories = prepareSnapshots({ storyMetas: filteredStoryMetas, splitByMode: true });
 
       RunnerBridge.log('start testing session', {
-        isStorybook7,
         storiesCount: allStories.length,
       });
 
@@ -32,27 +39,3 @@ function useSetInitialTestingData({ view }: { view: StorybookView }): void {
 }
 
 export default useSetInitialTestingData;
-
-/* ========================================================================== */
-
-export async function waitForStorybookReady(view: StorybookView): Promise<boolean> {
-  const TIMEOUT_MS = STORYBOOK_LOAD_TIMEOUT_MS;
-  const POLL_INTERVAL_MS = 500;
-  const deadline = Date.now() + TIMEOUT_MS;
-
-  while (true) {
-    const isReady = Object.keys(view._idToPrepared).length > 0;
-
-    if (isReady) {
-      return true;
-    }
-
-    if (Date.now() >= deadline) {
-      // No stories registered within timeout - break out so START is sent
-      // with an empty snapshots array, which the runner classifies as noStories.
-      return false;
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-  }
-}

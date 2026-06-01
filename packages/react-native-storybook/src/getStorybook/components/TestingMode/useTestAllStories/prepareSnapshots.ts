@@ -1,19 +1,21 @@
-import { Snapshot, SnapshotMode, StorybookView, StoryId } from '../../../../types';
+import { Snapshot, SnapshotMode, StoryId } from '../../../../types';
+import { StoryMeta } from '../../../../storybook/adapter';
 
 function prepareSnapshots({
-  view,
+  storyMetas,
   splitByMode,
 }: {
-  view: StorybookView;
+  storyMetas: StoryMeta[];
   splitByMode?: boolean;
 }): Snapshot[] {
   let snapshots: Snapshot[] = [];
 
-  Object.values(view._idToPrepared).forEach((rawStory) => {
+  storyMetas.forEach((storyMeta) => {
+    const parameters = storyMeta.parameters ?? {};
     let modesArray: SnapshotMode[] = [modes.DEFAULT_MODE];
 
-    if (rawStory.parameters.sherlo?.mode && splitByMode) {
-      const mode: SnapshotMode = rawStory.parameters.sherlo?.mode;
+    if (parameters.sherlo?.mode && splitByMode) {
+      const mode: SnapshotMode = parameters.sherlo?.mode;
 
       if (mode === modes.DEFAULT_MODE || mode === modes.FULL_HEIGHT_MODE) {
         modesArray = Array.isArray(mode) ? mode : [mode];
@@ -22,26 +24,26 @@ function prepareSnapshots({
 
     modesArray.forEach((mode: string) => {
       if (mode === modes.DEFAULT_MODE || mode === modes.FULL_HEIGHT_MODE) {
-        let sherloParameters = rawStory.parameters.sherlo || {};
+        let sherloParameters = parameters.sherlo || {};
 
-        if (rawStory.parameters?.design?.url) {
-          sherloParameters = { figmaUrl: rawStory.parameters.design.url, ...sherloParameters };
+        if (parameters.design?.url) {
+          sherloParameters = { figmaUrl: parameters.design.url, ...sherloParameters };
         }
 
         snapshots.push({
-          viewId: `${rawStory.id}-${mode}`,
+          viewId: storyMeta.id + '-' + mode,
           mode: modes.DEFAULT_MODE,
-          displayName: `${rawStory.title} - ${rawStory.name}`,
+          displayName: storyMeta.title + ' - ' + storyMeta.name,
           sherloParameters,
 
-          componentId: rawStory.componentId,
-          componentTitle: rawStory.title,
-          storyId: rawStory.id as StoryId,
-          storyTitle: rawStory.name,
+          componentId: storyMeta.id,
+          componentTitle: storyMeta.title,
+          storyId: storyMeta.id as StoryId,
+          storyTitle: storyMeta.name,
 
-          parameters: rawStory.parameters,
-          argTypes: rawStory.argTypes,
-          args: rawStory.initialArgs,
+          parameters,
+          argTypes: {},
+          args: {},
         });
       }
     });

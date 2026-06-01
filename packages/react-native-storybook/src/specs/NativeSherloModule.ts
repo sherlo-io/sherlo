@@ -4,7 +4,6 @@ import { TurboModuleRegistry } from 'react-native';
 export interface Spec extends TurboModule {
   getInspectorData: () => Promise<string>;
   sendNativeError: (errorCode: string, message: string, dataJson: string) => void;
-  sendJsError: (message: string, stack: string, source: string) => void;
   reportEarlyJsError: (name: string, message: string, stack: string) => boolean;
   appendFile: (path: string, content: string) => Promise<void>;
   readFile: (path: string) => Promise<string>;
@@ -37,14 +36,13 @@ export interface Spec extends TurboModule {
     scrollViewFrame?: { x: number; y: number; width: number; height: number };
   }>;
   getSherloConstants: () => {};
+  notifyGetStorybookCalled: () => void;
 }
 
 let SherloModule: Spec | null = null;
 
 try {
   SherloModule = TurboModuleRegistry.getEnforcing<Spec>('SherloModule') as Spec;
-} catch (e) {
-  // Ignore if module is not found
-}
+} catch (e) {}
 
 export default SherloModule;

@@ -10,7 +10,10 @@ import com.facebook.react.module.model.ReactModuleInfoProvider;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -18,6 +21,23 @@ import java.util.Map;
  * This class gets registered in the app's MainApplication.
  */
 public class SherloModulePackage extends TurboReactPackage {
+
+    /**
+     * On old-arch, TurboReactPackage.getModule() is only called lazily (when JS requires the
+     * module). We override createNativeModules() to force eager instantiation of SherloModule
+     * so its constructor - and therefore storeEarlyReactContext() / performEarlyInit() - runs
+     * during processPackages(), which happens BEFORE the JS bundle is evaluated.
+     *
+     * On new-arch (TurboModules) createNativeModules() is not used; we return empty so there
+     * is no double-registration. getModule() / getReactModuleInfoProvider() handle that path.
+     */
+    @Override
+    public List<NativeModule> createNativeModules(ReactApplicationContext reactContext) {
+        if (!BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
+            return Arrays.asList(new SherloModule(reactContext));
+        }
+        return Collections.emptyList();
+    }
 
     @Nullable
     @Override
@@ -55,7 +75,7 @@ public class SherloModulePackage extends TurboReactPackage {
                     SherloModule.NAME,
                     SherloModule.NAME,
                     /* canOverride */ false,
-                    /* needsEagerInit */ false,
+                    /* needsEagerInit */ true,
                     /* isCxxModule */ false,
                     /* isTurboModule */ isTurboModule
             );
@@ -81,7 +101,7 @@ public class SherloModulePackage extends TurboReactPackage {
                     SherloModule.NAME,
                     SherloModule.NAME,
                     /* canOverride */ false,
-                    /* needsEagerInit */ false,
+                    /* needsEagerInit */ true,
                     /* hasConstants */ true,
                     /* isCxxModule */ false,
                     /* isTurboModule */ isTurboModule

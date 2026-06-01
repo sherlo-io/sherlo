@@ -1,6 +1,6 @@
 const path = require('path');
 const { getDefaultConfig } = require('@expo/metro-config');
-const withStorybook = require('@sherlo/react-native-storybook/withStorybook');
+const withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');
 
 const resolvePath = (relativePath) => path.resolve(__dirname, relativePath);
 

@@ -2,9 +2,14 @@ import { REQUIRED_MIN_NATIVE_VERSION, JS_MODULE_VERSION as jsVersion } from './s
 import SherloModule from './SherloModule';
 
 const ERROR_CODE = 'ERROR_SDK_COMPATIBILITY';
-export const ERROR_STORYBOOK_NOT_DISPLAYED = 'ERROR_STORYBOOK_NOT_DISPLAYED';
+
+// Cached result so sendNativeError is only called once even if checkSdkCompatibility
+// is invoked multiple times (e.g., from index.ts early-check and from getStorybook.tsx).
+let _cachedResult: boolean | null = null;
 
 function checkSdkCompatibility(): boolean {
+  if (_cachedResult !== null) return _cachedResult;
+
   const requiredMinNativeVersion = REQUIRED_MIN_NATIVE_VERSION;
 
   const nativeVersion = SherloModule.getNativeVersion();
@@ -20,13 +25,19 @@ function checkSdkCompatibility(): boolean {
         : `Sherlo native version ${nativeVersion} is below the required minimum ${requiredMinNativeVersion}. Please rebuild the app.`;
 
     SherloModule.sendNativeError(ERROR_CODE, message, { jsVersion, nativeVersion: nativeVersion ?? null });
+    _cachedResult = false;
     return false;
   }
 
+  _cachedResult = true;
   return true;
 }
 
 export default checkSdkCompatibility;
+
+export function __resetCacheForTests(): void {
+  _cachedResult = null;
+}
 
 /* ========================================================================== */
 
