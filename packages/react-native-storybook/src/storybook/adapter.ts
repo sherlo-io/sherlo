@@ -1,5 +1,6 @@
 
 import { StorybookView } from '../types';
+import SherloModule from '../SherloModule';
 
 export interface StoryMeta {
   id: string;
@@ -101,6 +102,10 @@ export function enumerateStories(view: StorybookView): StoryMeta[] {
         name: indexEntry.name,
         parameters: { ...(globalParams ?? {}) },
       });
+    }
+
+    if (result.length === 0 && SherloModule.getMode() === 'testing') {
+      console.warn('[Sherlo] enumerated zero stories - check storybook.requires.ts or your Storybook config');
     }
 
     return result;

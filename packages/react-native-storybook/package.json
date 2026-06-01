@@ -38,8 +38,9 @@
       "require": "./metro/polyfill.js",
       "default": "./metro/polyfill.js"
     },
-    "./dist/*.js": "./dist/*.js",
-    "./dist/*/index.js": "./dist/*/index.js",
+    "./dist/getStorybook/index.js": "./dist/getStorybook/index.js",
+    "./dist/addStorybookToDevMenu.js": "./dist/addStorybookToDevMenu.js",
+    "./dist/SherloModule.js": "./dist/SherloModule.js",
     "./package.json": "./package.json"
   },
   "files": [

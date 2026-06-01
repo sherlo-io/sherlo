@@ -1,6 +1,6 @@
 import React, { ReactElement, useEffect, useRef } from 'react';
 import SherloModule from '../SherloModule';
-import checkSdkCompatibility from '../checkSdkCompatibility';
+import checkSdkCompatibility, { __resetCacheForTests as checkSdkCompatibilityReset } from '../checkSdkCompatibility';
 import type { InitialSelection } from '@storybook/react-native';
 import { StorybookParams, StorybookView } from '../types';
 import { TestingMode } from './components';
@@ -128,3 +128,8 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 }
 
 export default getStorybook;
+
+export function __resetForTests(): void {
+  isSdkCompatible = true;
+  checkSdkCompatibilityReset();
+}

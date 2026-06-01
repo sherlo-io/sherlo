@@ -35,6 +35,10 @@ function checkSdkCompatibility(): boolean {
 
 export default checkSdkCompatibility;
 
+export function __resetCacheForTests(): void {
+  _cachedResult = null;
+}
+
 /* ========================================================================== */
 
 function isVersionCompatible(version: string, minVersion: string): boolean {

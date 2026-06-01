@@ -270,21 +270,17 @@ describe('package.json exports map - deep-import subpaths', () => {
     { subpath: './dist/addStorybookToDevMenu.js', resolvedFile: 'dist/addStorybookToDevMenu.js' },
   ];
 
-  it('exports map uses extension-anchored wildcard ./dist/*.js (not bare ./dist/*)', () => {
+  it('exports map uses explicit subpath exports (no dist/* wildcards)', () => {
     const exports = pkgJson.exports as Record<string, unknown>;
-    expect(exports['./dist/*.js']).toBe('./dist/*.js');
+    expect(exports['./dist/*.js']).toBeUndefined();
     expect(exports['./dist/*']).toBeUndefined();
+    expect(exports['./dist/*/index.js']).toBeUndefined();
   });
 
   for (const { subpath, resolvedFile } of DEEP_IMPORTS) {
-    it(`wildcard resolves ${subpath} to the correct dist path`, () => {
-      const pattern = './dist/*.js';
-      expect(subpath.startsWith('./dist/')).toBe(true);
-      expect(subpath.endsWith('.js')).toBe(true);
-      // Apply the wildcard substitution manually: strip prefix/suffix, re-insert
-      const star = subpath.slice('./dist/'.length, -'.js'.length);
-      const resolved = pattern.replace('*', star);
-      expect(resolved).toBe(subpath);
+    it(`explicit export exists for ${subpath}`, () => {
+      const exports = pkgJson.exports as Record<string, unknown>;
+      expect(exports[subpath]).toBe(subpath);
     });
 
     if (distBuilt) {
