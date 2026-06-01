@@ -4139,20 +4139,20 @@ __metadata:
   linkType: hard
 
 "@sherlo/react-native-storybook@file:../../packages/react-native-storybook::locator=%40sherlo%2Freact-native%40workspace%3A.":
-  version: 2.0.0-alpha.1
-  resolution: "@sherlo/react-native-storybook@file:../../packages/react-native-storybook#../../packages/react-native-storybook::hash=553788&locator=%40sherlo%2Freact-native%40workspace%3A."
+  version: 2.0.0
+  resolution: "@sherlo/react-native-storybook@file:../../packages/react-native-storybook#../../packages/react-native-storybook::hash=4f4e3e&locator=%40sherlo%2Freact-native%40workspace%3A."
   dependencies:
     base-64: "npm:1.0.0"
     deepmerge: "npm:4.3.1"
     its-fine: "npm:2.0.0"
-    sherlo: "npm:^1.6.4-alpha.1"
+    sherlo: "npm:^2.0.0"
     utf8: "npm:3.0.0"
   peerDependencies:
-    "@storybook/react-native": ">=7.6.11"
+    "@storybook/react-native": ">=8.0.0"
     react: "*"
     react-native: ">=0.74.0"
     react-native-safe-area-context: "*"
-  checksum: 10/a512f72419a25df27c66259bb9e175aa10f6badb903ccfc5f2be0a48b9019285818f81ce10aa0455e135f376c32bf6783c43aec33cf6519a8b4eb6244e555b54
+  checksum: 10/b813fad425eee43f559ab8eab49c5efeddfcb44d6a1a6c9b189619cc3ce80fe727ee81e1dd1762722c5019148c593e5a865de5184e6e0b6271f16f347f210313
   languageName: node
   linkType: hard
 

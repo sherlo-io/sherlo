@@ -2165,21 +2165,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sherlo/react-native-storybook@npm:^1.6.4-alpha.1":
-  version: 1.6.4-alpha.1
-  resolution: "@sherlo/react-native-storybook@npm:1.6.4-alpha.1"
+"@sherlo/react-native-storybook@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "@sherlo/react-native-storybook@npm:2.0.0"
   dependencies:
     base-64: "npm:1.0.0"
     deepmerge: "npm:4.3.1"
     its-fine: "npm:2.0.0"
-    sherlo: "npm:^1.6.4-alpha.1"
+    sherlo: "npm:^2.0.0"
     utf8: "npm:3.0.0"
   peerDependencies:
-    "@storybook/react-native": ">=7.6.11"
+    "@storybook/react-native": ">=8.0.0"
     react: "*"
-    react-native: ">=0.64.0"
+    react-native: ">=0.74.0"
     react-native-safe-area-context: "*"
-  checksum: 10/697fdd8558c26c513019379353fb722c1210944e6a0e056c575bf394729dede61fbc58980a4a310896b4178a375eb4e7d6dba04a2e9c2bb1b016047a511a2055
+  checksum: 10/c52397f26dc8101188a737fb7d142f82595d5985d704862a447a7f844fd1d21fe5d8edc09bbfa0bab15e62c3a97ed2d1bf40f3aef5f726c80a671c420f932861
   languageName: node
   linkType: hard
 
@@ -6846,7 +6846,7 @@ __metadata:
   dependencies:
     "@gorhom/bottom-sheet": "npm:^5.2.8"
     "@react-native-async-storage/async-storage": "npm:^2.2.0"
-    "@sherlo/react-native-storybook": "npm:^1.6.4-alpha.1"
+    "@sherlo/react-native-storybook": "npm:^2.0.0"
     "@storybook/react-native": "npm:^10.2.1"
     "@types/react": "npm:~19.1.10"
     expo: "npm:54.0.31"
@@ -6862,12 +6862,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"sherlo@npm:^1.6.4-alpha.1":
-  version: 1.6.4-alpha.1
-  resolution: "sherlo@npm:1.6.4-alpha.1"
+"sherlo@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "sherlo@npm:2.0.0"
   bin:
     sherlo: cli.js
-  checksum: 10/332bc6175404c8112b856d2820dcc4c5daa8c077f17d7af0c1f4e34995999bde65d2637bea701cde580ffeaadb2f367c77570e4f5a5ac72cccfa9e09091fe0da
+  checksum: 10/b7e2b1fa54cd304355dd40472f085b5d1822146584f9a41e24ed05161760335b8af35657b494ca9a0399b7915e11fb94fda485cabb55cd0a05cc08e2296fd8c4
   languageName: node
   linkType: hard
 
