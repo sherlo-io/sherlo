@@ -30,7 +30,7 @@ jobs:
 
       - name: Install project dependencies
         working-directory: testing/expo
-        run: yarn
+        run: yarn install --immutable
 
       - name: Setup EAS
         uses: expo/expo-github-action@v8

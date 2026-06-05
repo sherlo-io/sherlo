@@ -54,7 +54,7 @@ jobs:
 
       - name: Install project dependencies
         working-directory: testing/expo
-        run: yarn
+        run: yarn install --immutable
 
       - name: Trigger EAS update and capture manifest URLs
         working-directory: testing/expo
