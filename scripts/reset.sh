@@ -45,13 +45,20 @@ yarn build
 echo "✓ All packages built"
 echo ""
 
+echo "Packing react-native-storybook SDK..."
+mkdir -p "$APP_ROOT_DIR/testing/expo/sherlo-lib" "$APP_ROOT_DIR/testing/react-native/sherlo-lib"
+(cd "$APP_ROOT_DIR/packages/react-native-storybook" && yarn pack --out ../../testing/expo/sherlo-lib/react-native-storybook.tgz)
+cp "$APP_ROOT_DIR/testing/expo/sherlo-lib/react-native-storybook.tgz" "$APP_ROOT_DIR/testing/react-native/sherlo-lib/react-native-storybook.tgz"
+echo "✓ SDK packed to testing/*/sherlo-lib/react-native-storybook.tgz"
+echo ""
+
 echo "Installing dependencies for testing/expo..."
-cd "$APP_ROOT_DIR/testing/expo" && yarn
+cd "$APP_ROOT_DIR/testing/expo" && yarn install
 echo "✓ Testing/expo dependencies installed"
 echo ""
 
 echo "Installing dependencies for testing/react-native..."
-cd "$APP_ROOT_DIR/testing/react-native" && yarn
+cd "$APP_ROOT_DIR/testing/react-native" && yarn install
 echo "✓ Testing/react-native dependencies installed"
 echo ""
 
