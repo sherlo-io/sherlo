@@ -10,6 +10,7 @@ import {
   EAS_BUILD_SCRIPT_NAME_OPTION,
   EAS_IOS_URL_OPTION,
   EAS_UPDATE_SLUG_OPTION,
+  GIT_BRANCH_OPTION,
   INCLUDE_OPTION,
   INIT_COMMAND,
   IOS_FILE_TYPES,
@@ -70,6 +71,7 @@ type OptionsFormat = 'raw' | 'normalized';
 type CommonOptions<M extends OptionsMode, F extends OptionsFormat> = {
   [MESSAGE_OPTION]?: string;
   [TOKEN_OPTION]?: string;
+  [GIT_BRANCH_OPTION]?: string;
   [INCLUDE_OPTION]?: F extends 'raw' ? string : string[];
   [DIAGNOSTICS_OPTION]?: F extends 'raw' ? string : string[];
 } & (M extends 'withDefaults'

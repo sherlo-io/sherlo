@@ -48,7 +48,7 @@ async function testEasCloudBuild(passedOptions: Options<THIS_COMMAND>) {
       projectIndex,
       asyncUpload: true,
       buildRunConfig: getBuildRunConfig({ commandParams }),
-      gitInfo: await getGitInfo(commandParams.projectRoot),
+      gitInfo: await getGitInfo(commandParams.projectRoot, { branchOverride: commandParams.gitBranch }),
       message: commandParams.message,
     })
     .catch(handleClientError);

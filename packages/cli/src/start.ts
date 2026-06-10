@@ -25,6 +25,7 @@ import {
   EAS_BUILD_SCRIPT_NAME_OPTION,
   EAS_IOS_URL_OPTION,
   EAS_UPDATE_SLUG_OPTION,
+  GIT_BRANCH_OPTION,
   INCLUDE_OPTION,
   INIT_COMMAND,
   IOS_FILE_TYPES,
@@ -117,6 +118,10 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   [BRANCH_OPTION]: [
     `--${BRANCH_OPTION} <branch>`,
     'Name of the EAS Update branch to fetch the latest update from',
+  ],
+  [GIT_BRANCH_OPTION]: [
+    `--git-branch <branch>`,
+    'Override the git branch name captured for this build (takes precedence over SHERLO_BRANCH and all CI-provider env vars)',
   ],
   [CONFIG_OPTION]: [
     `--${CONFIG_OPTION} <path>`,
@@ -330,6 +335,7 @@ function getTestCommonOptions(variant: 'withPlatformPaths' | 'withoutPlatformPat
     ...(variant === 'withPlatformPaths' ? [IOS_OPTION] : []),
     TOKEN_OPTION,
     MESSAGE_OPTION,
+    GIT_BRANCH_OPTION,
     INCLUDE_OPTION,
     CONFIG_OPTION,
     PROJECT_ROOT_OPTION,
