@@ -24,16 +24,7 @@ async function executeCommand(
     delete filteredOptions[IOS_OPTION];
   }
 
-  const args = [command];
-  Object.entries(filteredOptions).forEach(([key, value]) => {
-    if (typeof value === 'boolean') {
-      if (value) {
-        args.push(`--${key}`);
-      }
-    } else if (value) {
-      args.push(`--${key}`, String(value));
-    }
-  });
+  const args = buildRerunArgs(command, filteredOptions);
 
   console.log();
 
@@ -70,3 +61,23 @@ async function executeCommand(
 }
 
 export default executeCommand;
+
+/**
+ * Builds the args array for the re-run hint, converting each camelCase option
+ * key to its kebab-case CLI flag (e.g. `gitBranch` → `--git-branch`).
+ */
+export function buildRerunArgs(
+  command: string,
+  options: Record<string, string | boolean>
+): string[] {
+  const args = [command];
+  for (const [key, value] of Object.entries(options)) {
+    const flag = key.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`);
+    if (typeof value === 'boolean') {
+      if (value) args.push(`--${flag}`);
+    } else if (value) {
+      args.push(`--${flag}`, String(value));
+    }
+  }
+  return args;
+}

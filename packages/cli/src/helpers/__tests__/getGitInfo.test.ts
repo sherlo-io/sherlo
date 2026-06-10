@@ -281,6 +281,58 @@ describe('getGitInfo - merge_group (gh-readonly-queue)', () => {
 
     expect(info.prHeadCommitHash).toBeUndefined();
   });
+
+  it('sets parentCommitHashes and ancestorCommitHashes relative to the PR head', async () => {
+    fixture = GitFixture.create();
+    const base = fixture.commitFile('base on main');
+
+    fixture.branch('feature', { checkout: true });
+    const prParent = fixture.commitFile('pr commit 1', 'f.txt');
+    const prHead = fixture.commitFile('pr head', 'f.txt');
+
+    fixture.checkout('main');
+    const mergeSha = fixture.merge('feature');
+    fixture.detach(mergeSha);
+
+    process.env.GITHUB_REF_NAME = 'gh-readonly-queue/main/pr-42-abc';
+
+    const info = await getGitInfo(fixture.dir);
+
+    // Canonicalised to PR head – ancestry is relative to the real PR commit.
+    expect(info.commitHash).toBe(prHead);
+    // PR head's immediate parent is prParent, not the merge's [base, prHead].
+    expect(info.parentCommitHashes).toEqual([prParent]);
+    // First-parent ancestry of PR head: prParent → base.
+    expect(info.ancestorCommitHashes).toEqual([prParent, base]);
+  });
+
+  it('degrades gracefully on a shallow clone of a merge_group ref (no crash, isShallow detected)', async () => {
+    fixture = GitFixture.create();
+    fixture.commitFile('base on main');
+    fixture.branch('feature', { checkout: true });
+    fixture.commitFile('pr head', 'feature.txt');
+    fixture.checkout('main');
+    fixture.merge('feature');
+
+    // Shallow clone at depth=1: merge commit is present but parent history is grafted away.
+    const shallow = fixture.shallowClone(1, 'main');
+    try {
+      process.env.GITHUB_REF_NAME = 'gh-readonly-queue/main/pr-5-xyz';
+
+      const info = await getGitInfo(shallow.dir);
+
+      // Must not throw; base fields must always be present.
+      expect(info.branchName).toBeDefined();
+      expect(info.commitHash).toBeDefined();
+      expect(info.commitName).toBeDefined();
+      // Shallow clone is detected.
+      expect(info.isShallow).toBe(true);
+      // Deep ancestry is unavailable in a shallow clone – omitted rather than crashing.
+      expect(info.ancestorCommitHashes).toBeUndefined();
+    } finally {
+      shallow.cleanup();
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -573,6 +625,30 @@ describe('getGitInfo - shallow clone', () => {
     const shallow = fixture.shallowClone(1, 'main');
     try {
       const info = await getGitInfo(shallow.dir);
+      expect(info.isShallow).toBe(true);
+    } finally {
+      shallow.cleanup();
+    }
+  });
+
+  it('degrades gracefully on a shallow merge-ref clone: no crash, base fields populated', async () => {
+    fixture = GitFixture.create();
+    fixture.commitFile('base on main');
+    fixture.branch('feature', { checkout: true });
+    fixture.commitFile('pr head', 'feature.txt');
+    fixture.checkout('main');
+    fixture.merge('feature');
+
+    // depth=1 → only the merge commit is available; parent commits are truncated.
+    const shallow = fixture.shallowClone(1, 'main');
+    try {
+      process.env.GITHUB_REF_NAME = '5/merge';
+      const info = await getGitInfo(shallow.dir);
+
+      // Must not fall back to the 'unknown' sentinel - we're inside a valid repo.
+      expect(info.commitName).not.toBe('unknown');
+      expect(info.commitHash).not.toBe('unknown');
+      expect(info.branchName).not.toBe('unknown');
       expect(info.isShallow).toBe(true);
     } finally {
       shallow.cleanup();
