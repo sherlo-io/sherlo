@@ -71,7 +71,7 @@ async function uploadOrReuseBuildsAndRunTests({
         },
         easUpdateData,
       }),
-      gitInfo: await getGitInfo(commandParams.projectRoot),
+      gitInfo: await getGitInfo(commandParams.projectRoot, { branchOverride: commandParams.gitBranch }),
       sdkVersion: binariesInfo.sdkVersion,
       message: commandParams.message,
     })
