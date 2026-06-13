@@ -8,7 +8,7 @@ import { BinaryInfo, BuildType, Command } from '../../../../types';
 import { validatePlatformPaths } from '../../../shared';
 import throwError from '../../../throwError';
 import runShellCommand from '../../../runShellCommand';
-import accessFileInArchive from './accessFileInArchive';
+import accessFileInArchive, { listApkLibEntries } from './accessFileInArchive';
 import accessFileInDirectory from './accessFileInDirectory';
 
 const SHERLO_JSON_FILENAME = 'sherlo.json';
@@ -36,7 +36,7 @@ const IOS_TAR_BUNDLE_PREFIX = '*.app/';
 type LocalBinariesInfo = { android?: LocalBinaryInfo; ios?: LocalBinaryInfo };
 type LocalBinaryInfo = Pick<
   BinaryInfo,
-  'hash' | 'buildType' | 'sdkVersion' | 'fileName' | 'expoSdkVersion' | 'hasExpoDevClient'
+  'hash' | 'buildType' | 'sdkVersion' | 'fileName' | 'expoSdkVersion' | 'hasExpoDevClient' | 'androidAbis' | 'apkPath'
 >;
 
 async function getLocalBinariesInfo({
@@ -108,6 +108,8 @@ async function getLocalBinaryInfoForPlatform({
   let readSherloFile: () => Promise<string | undefined>;
   let checkHasExpoDevClient: () => Promise<boolean>;
   let readExpoAppConfig: () => Promise<string | undefined>;
+  let androidAbis: string[] | undefined;
+  let apkPath: string | undefined;
 
   if (fileName.endsWith('.app')) {
     checkHasJsBundle = () =>
@@ -199,6 +201,11 @@ async function getLocalBinaryInfoForPlatform({
         type: archiveType,
         projectRoot,
       });
+
+    if (fileName.endsWith('.apk')) {
+      androidAbis = await getAndroidApkAbis({ apkPath: platformPath, projectRoot });
+      apkPath = platformPath;
+    }
   } else {
     throwError({
       type: 'unexpected',
@@ -237,7 +244,7 @@ async function getLocalBinaryInfoForPlatform({
     projectRoot,
   });
 
-  return { hash, buildType, sdkVersion, fileName, expoSdkVersion, hasExpoDevClient };
+  return { hash, buildType, sdkVersion, fileName, expoSdkVersion, hasExpoDevClient, androidAbis, apkPath };
 }
 
 async function getExpoSdkVersion({
@@ -312,6 +319,22 @@ async function checkApkManifestContains({
   } catch {
     return false;
   }
+}
+
+async function getAndroidApkAbis({
+  apkPath,
+  projectRoot,
+}: {
+  apkPath: string;
+  projectRoot: string;
+}): Promise<string[]> {
+  const libEntries = await listApkLibEntries({ archive: apkPath, projectRoot });
+  const abis = new Set<string>();
+  for (const entry of libEntries) {
+    const match = entry.match(/^lib\/([^/]+)\//);
+    if (match) abis.add(match[1]);
+  }
+  return Array.from(abis);
 }
 
 async function getBinaryHash(filePath: string): Promise<string> {
