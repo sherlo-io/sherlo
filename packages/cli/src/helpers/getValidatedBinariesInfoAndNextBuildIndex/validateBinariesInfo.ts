@@ -99,12 +99,12 @@ function validateAndroidAbiRequirements({ android }: BinariesInfo) {
 
   if (!abis.includes(ANDROID_ARM64_ABI)) {
     const detectedAbis = abis.join(', ');
-    const apkPath = android.apkPath ?? android.fileName;
+    const fileName = android.fileName;
 
     throwError(getError(
       android.expoSdkVersion
-        ? { type: 'missing_arm64_abi_expo', detectedAbis, apkPath }
-        : { type: 'missing_arm64_abi_bare_rn', detectedAbis, apkPath }
+        ? { type: 'missing_arm64_abi_expo', detectedAbis, fileName }
+        : { type: 'missing_arm64_abi_bare_rn', detectedAbis, fileName }
     ));
   }
 }
@@ -188,8 +188,8 @@ type BinaryError =
       expoSdkVersion: string;
     }
   | { type: 'outdated_expo_version'; platformLabels: string[]; expoSdkVersion: string }
-  | { type: 'missing_arm64_abi_expo'; detectedAbis: string; apkPath: string }
-  | { type: 'missing_arm64_abi_bare_rn'; detectedAbis: string; apkPath: string }
+  | { type: 'missing_arm64_abi_expo'; detectedAbis: string; fileName: string }
+  | { type: 'missing_arm64_abi_bare_rn'; detectedAbis: string; fileName: string }
 
 function getError(error: BinaryError) {
   switch (error.type) {
@@ -301,7 +301,7 @@ function getError(error: BinaryError) {
           `1. \`expo-build-properties\` plugin is in your app config and \`buildArchs\` includes \`arm64-v8a\` ` +
           `(the Expo default already does - check if it was overridden)\n` +
           `2. A new build was created after any config changes\n` +
-          `3. Run \`unzip -l ${error.apkPath} | grep lib/\` to confirm which ABIs are in the APK\n`,
+          `3. Run \`unzip -l ${error.fileName} | grep lib/\` to confirm which ABIs are in the APK\n`,
         learnMoreLink: DOCS_LINK.buildAndroidAbiRequirements,
       };
 
@@ -314,7 +314,7 @@ function getError(error: BinaryError) {
           `Please verify:\n` +
           `1. \`reactNativeArchitectures\` in \`android/gradle.properties\` includes \`arm64-v8a\`\n` +
           `2. A new build was created after any config changes\n` +
-          `3. Run \`unzip -l ${error.apkPath} | grep lib/\` to confirm which ABIs are in the APK\n`,
+          `3. Run \`unzip -l ${error.fileName} | grep lib/\` to confirm which ABIs are in the APK\n`,
         learnMoreLink: DOCS_LINK.buildAndroidAbiRequirements,
       };
 

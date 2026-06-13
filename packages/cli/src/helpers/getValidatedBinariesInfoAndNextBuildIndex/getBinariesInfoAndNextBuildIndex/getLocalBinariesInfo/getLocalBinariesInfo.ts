@@ -36,7 +36,7 @@ const IOS_TAR_BUNDLE_PREFIX = '*.app/';
 type LocalBinariesInfo = { android?: LocalBinaryInfo; ios?: LocalBinaryInfo };
 type LocalBinaryInfo = Pick<
   BinaryInfo,
-  'hash' | 'buildType' | 'sdkVersion' | 'fileName' | 'expoSdkVersion' | 'hasExpoDevClient' | 'androidAbis' | 'apkPath'
+  'hash' | 'buildType' | 'sdkVersion' | 'fileName' | 'expoSdkVersion' | 'hasExpoDevClient' | 'androidAbis'
 >;
 
 async function getLocalBinariesInfo({
@@ -109,7 +109,6 @@ async function getLocalBinaryInfoForPlatform({
   let checkHasExpoDevClient: () => Promise<boolean>;
   let readExpoAppConfig: () => Promise<string | undefined>;
   let androidAbis: string[] | undefined;
-  let apkPath: string | undefined;
 
   if (fileName.endsWith('.app')) {
     checkHasJsBundle = () =>
@@ -204,7 +203,6 @@ async function getLocalBinaryInfoForPlatform({
 
     if (fileName.endsWith('.apk')) {
       androidAbis = await getAndroidApkAbis({ apkPath: platformPath, projectRoot });
-      apkPath = platformPath;
     }
   } else {
     throwError({
@@ -244,7 +242,7 @@ async function getLocalBinaryInfoForPlatform({
     projectRoot,
   });
 
-  return { hash, buildType, sdkVersion, fileName, expoSdkVersion, hasExpoDevClient, androidAbis, apkPath };
+  return { hash, buildType, sdkVersion, fileName, expoSdkVersion, hasExpoDevClient, androidAbis };
 }
 
 async function getExpoSdkVersion({
