@@ -51,6 +51,39 @@ async function accessFileInArchive({
 
 export default accessFileInArchive;
 
+/**
+ * Lists all entries under lib/ in an APK (zip archive).
+ * Returns the raw entry paths (e.g. "lib/arm64-v8a/libfoo.so").
+ * Returns [] when the APK has no lib/ entries (no native libraries).
+ */
+export async function listApkLibEntries({
+  archive,
+  projectRoot,
+}: {
+  archive: string;
+  projectRoot: string;
+}): Promise<string[]> {
+  let output: string;
+  try {
+    output = await runShellCommand({
+      command: `unzip -l "${archive}" "lib/*"`,
+      projectRoot,
+    });
+  } catch (error) {
+    // exit code 11 = no matching entries; APK has no native libraries
+    if ((error as any)?.code === 11) return [];
+    throwError({ type: 'unexpected', error });
+  }
+
+  const entries: string[] = [];
+  for (const line of output!.split('\n')) {
+    // Each content line in `unzip -l` output ends with the entry path after <length> <date> <time>
+    const match = line.match(/\s+(lib\/.*)$/);
+    if (match) entries.push(match[1]);
+  }
+  return entries;
+}
+
 /* ========================================================================== */
 
 type TarVersion = 'GNU' | 'BSD';

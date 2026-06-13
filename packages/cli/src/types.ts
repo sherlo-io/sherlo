@@ -142,6 +142,7 @@ export type BinaryInfo = {
   url?: string;
   expoSdkVersion?: string;
   hasExpoDevClient?: boolean;
+  androidAbis?: string[];
 };
 
 export type EasUpdateInfo = {

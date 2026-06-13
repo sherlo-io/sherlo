@@ -52,9 +52,11 @@ function getBinaryInfo(params: Params): BinaryInfo | undefined {
     });
   }
 
+  // androidAbis is local-only validation data - strip it before building the upload payload
+  const { androidAbis: _androidAbis, ...localInfo } = localBinariesInfo[platform] ?? {};
   let binaryInfo = {
     ...mapRemoteBinaryInfo(remoteBinariesInfoOrUploadInfo[platform]),
-    ...localBinariesInfo[platform],
+    ...localInfo,
   };
 
   if (checkIfBinaryInfoIsMissingRequiredFields(binaryInfo)) {
