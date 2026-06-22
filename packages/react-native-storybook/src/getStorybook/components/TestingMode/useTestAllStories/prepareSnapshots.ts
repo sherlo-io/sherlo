@@ -35,6 +35,7 @@ function prepareSnapshots({
           mode: modes.DEFAULT_MODE,
           displayName: storyMeta.title + ' - ' + storyMeta.name,
           sherloParameters,
+          importPath: storyMeta.importPath,
 
           componentId: storyMeta.id,
           componentTitle: storyMeta.title,

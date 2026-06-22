@@ -53,6 +53,8 @@ export type Config = {
   ios?: string;
   include?: string[];
   exclude?: string[];
+  /** TurboSnap opt-out: forces a full capture regardless of changed-file analysis. */
+  fullRun?: boolean;
 };
 
 export type InvalidatedConfig = PartialDeep<Config, { recurseIntoArrays: true }>;

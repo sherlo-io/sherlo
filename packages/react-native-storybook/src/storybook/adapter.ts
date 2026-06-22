@@ -7,6 +7,13 @@ export interface StoryMeta {
   title: string;
   name: string;
   parameters: Record<string, any>;
+  /**
+   * Project-root-relative import path of the story file (e.g. "./src/Button.stories.tsx").
+   * Used by TurboSnap to map storyId → source file without static reconstruction.
+   * Sourced from _storyIndex.entries[id].importPath; derived from the require.context
+   * directory + filename for the primary (titled) path.
+   */
+  importPath?: string;
 }
 
 const SANITIZE_REGEX = /[ '–-―′¿'`~!@#$%^&*()_|+\-=?;:'",.<>\{\}\[\]\\\/]/gi;
@@ -91,6 +98,7 @@ export function enumerateStories(view: StorybookView): StoryMeta[] {
           cachedAutoTitled[importPathKey] = { meta, fileExports };
           continue;
         }
+        const primaryImportPath = `${entry.directory}/${filename.substring(2)}`;
         for (const exportKey of Object.keys(fileExports)) {
           if (exportKey === 'default' || exportKey === '__esModule' || exportKey === '__namedExportsOrder' || exportKey.startsWith('_')) continue;
           const storyExport = fileExports[exportKey];
@@ -108,7 +116,7 @@ export function enumerateStories(view: StorybookView): StoryMeta[] {
             ...(meta.parameters ?? {}),
             ...(annotations.parameters ?? {}),
           };
-          result.push({ id, title: titleStr, name: storyName, parameters });
+          result.push({ id, title: titleStr, name: storyName, parameters, importPath: primaryImportPath });
         }
       }
     }
@@ -148,6 +156,7 @@ export function enumerateStories(view: StorybookView): StoryMeta[] {
             ...(cached.meta.parameters ?? {}),
             ...(storyAnnotations.parameters ?? {}),
           },
+          importPath: indexEntry.importPath,
         });
       } else {
         result.push({
@@ -155,6 +164,7 @@ export function enumerateStories(view: StorybookView): StoryMeta[] {
           title: indexEntry.title,
           name: indexEntry.name,
           parameters: { ...(globalParams ?? {}) },
+          importPath: indexEntry.importPath,
         });
       }
     }
