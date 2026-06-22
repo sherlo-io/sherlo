@@ -3,6 +3,7 @@ import sdkClient from '@sherlo/sdk-client';
 import { DEFAULT_PROJECT_ROOT, PLATFORM_LABEL } from '../../../../constants';
 import {
   getAppBuildUrl,
+  getGitInfo,
   getTokenParts,
   getValidatedBinariesInfoAndNextBuildIndex,
   handleClientError,
@@ -10,7 +11,11 @@ import {
   uploadOrPrintBinaryReuse,
   reporting,
 } from '../../../../helpers';
-import { collectDependencyGraph } from '../../../../helpers/turbosnap';
+import {
+  collectDependencyGraph,
+  computeChangedFiles,
+  computeNativeFingerprint,
+} from '../../../../helpers/turbosnap';
 import { THIS_COMMAND } from '../../constants';
 import getBuildPath from './getBuildPath';
 
@@ -53,6 +58,18 @@ async function asyncUploadBuildAndRunTests({
     ? JSON.stringify(dependencyGraphRaw)
     : undefined;
 
+  // TurboSnap: compute changed files and native fingerprint for the EAS-cloud path.
+  // The same bail-to-full conditions apply: shallow clone, dirty tree, no mergeBaseSha.
+  const gitInfo = await getGitInfo(DEFAULT_PROJECT_ROOT);
+  const changedFilesResult = await computeChangedFiles(DEFAULT_PROJECT_ROOT, gitInfo);
+  let changedFiles: string[] | undefined;
+  if ('changedFiles' in changedFilesResult) {
+    changedFiles = changedFilesResult.changedFiles;
+  } else {
+    console.log(`[Sherlo] TurboSnap: full capture - ${changedFilesResult.reason}`);
+  }
+  const nativeFingerprint = (await computeNativeFingerprint(DEFAULT_PROJECT_ROOT)) ?? undefined;
+
   reporting.addBreadcrumb({
     category: 'api',
     message: 'Calling asyncUpload API',
@@ -70,6 +87,8 @@ async function asyncUploadBuildAndRunTests({
       sdkVersion: binariesInfo.sdkVersion,
       fileName: binariesInfo[platform]?.fileName,
       dependencyGraph,
+      changedFiles,
+      nativeFingerprint,
     })
     .catch(handleClientError);
 
