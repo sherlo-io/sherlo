@@ -1,5 +1,6 @@
 import { GitInfo } from '../getGitInfo';
 import runShellCommand from '../runShellCommand';
+import { checkStoryImportsStory } from './storyImportsStory';
 
 export type ChangedFilesResult =
   | { changedFiles: string[] }
@@ -67,7 +68,7 @@ export async function computeChangedFiles(
       projectRoot,
     });
     const changedFiles = output.split('\n').filter(Boolean);
-    return { changedFiles };
+    return checkStoryImportsStory(projectRoot, changedFiles);
   } catch (err) {
     return { fullRun: true, reason: `git diff failed: ${err instanceof Error ? err.message : String(err)}` };
   }
