@@ -38,6 +38,12 @@ export type Snapshot = {
   mode: SnapshotMode; // deviceHeight
   displayName: string; // components/Avatar - Basic
   sherloParameters?: SherloParameters;
+  /**
+   * Project-root-relative import path of the story file (e.g. "./src/Button.stories.tsx").
+   * Emitted by the device so TurboSnap can map storyId → source file server-side.
+   * Absent on older SDK versions; runner bails to full capture when missing.
+   */
+  importPath?: string;
 
   // storybook parameters
   componentId: string; // components-avatar

@@ -11,6 +11,7 @@ import handleClientError from './handleClientError';
 import printBuildIntroMessage from './printBuildIntroMessage';
 import printResultsUrl from './printResultsUrl';
 import reporting from './reporting';
+import { computeChangedFiles, computeNativeFingerprint } from './turbosnap';
 import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
 
 async function uploadOrReuseBuildsAndRunTests({
@@ -44,6 +45,21 @@ async function uploadOrReuseBuildsAndRunTests({
     printEasUpdateData(easUpdateData);
   }
 
+  const gitInfo = await getGitInfo(commandParams.projectRoot, { branchOverride: commandParams.gitBranch });
+
+  const changedFilesResult = await computeChangedFiles(commandParams.projectRoot, gitInfo, {
+    forceFullRun: commandParams.fullRun,
+  });
+
+  let changedFiles: string[] | undefined;
+  if ('changedFiles' in changedFilesResult) {
+    changedFiles = changedFilesResult.changedFiles;
+  } else {
+    console.log(`[Sherlo] TurboSnap: full capture - ${changedFilesResult.reason}`);
+  }
+
+  const nativeFingerprint = await computeNativeFingerprint(commandParams.projectRoot) ?? undefined;
+
   reporting.addBreadcrumb({
     category: 'api',
     message: 'Calling openBuild API',
@@ -71,9 +87,11 @@ async function uploadOrReuseBuildsAndRunTests({
         },
         easUpdateData,
       }),
-      gitInfo: await getGitInfo(commandParams.projectRoot, { branchOverride: commandParams.gitBranch }),
+      gitInfo,
       sdkVersion: binariesInfo.sdkVersion,
       message: commandParams.message,
+      changedFiles,
+      nativeFingerprint,
     })
     .catch(handleClientError);
 
