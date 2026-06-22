@@ -278,6 +278,70 @@ module.exports = { default: { title: 'Composite' } };`
 });
 
 // ---------------------------------------------------------------------------
+// (f) Path-aliased imports of story files -> bail-open
+// ---------------------------------------------------------------------------
+
+describe('(f) path-aliased story imports - bail-open', () => {
+  it('returns fullRun when a story has an aliased import that looks like a story file', () => {
+    // StoryA uses a path alias (@/components/Base.stories) - the alias cannot
+    // be resolved on disk, but the specifier matches the story-file pattern.
+    // We cannot rule out a hidden story->story edge, so we force full.
+    fx.write('Base.stories.tsx', `export const Primary = () => null;`);
+    fx.write(
+      'StoryA.stories.tsx',
+      `import { Primary } from '@/components/Base.stories';
+export default { title: 'A' };`
+    );
+
+    // StoryA itself is changed; the aliased import bails open.
+    const result = checkStoryImportsStory(fx.dir, ['StoryA.stories.tsx']);
+
+    expect(result).toMatchObject({ fullRun: true });
+    const r = result as { fullRun: true; reason: string };
+    expect(r.reason).toMatch(/story-imports-story/);
+  });
+
+  it('does NOT bail for an aliased import that cannot be a story file', () => {
+    // '@/components/SharedButton' has no .stories in the path -> resolveSpecifier
+    // returns null -> fast path preserved.
+    fx.write(
+      'StoryA.stories.tsx',
+      `import { SharedButton } from '@/components/SharedButton';
+export default { title: 'A' };`
+    );
+
+    const changed = ['StoryA.stories.tsx'];
+    const result = checkStoryImportsStory(fx.dir, changed);
+
+    expect(result).toEqual({ changedFiles: changed });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// (g) Dynamic imports of story files -> story->story edge
+// ---------------------------------------------------------------------------
+
+describe('(g) dynamic imports of story files', () => {
+  it('returns fullRun when a story dynamically imports a changed story file', () => {
+    // Base.stories is changed; StoryA dynamically imports it.
+    // The dynamic import creates a story->story edge so editing Base forces full.
+    fx.write('Base.stories.tsx', `export const Primary = () => null;`);
+    fx.write(
+      'StoryA.stories.tsx',
+      `export const Lazy = () => import('./Base.stories');
+export default { title: 'A' };`
+    );
+
+    const result = checkStoryImportsStory(fx.dir, ['Base.stories.tsx']);
+
+    expect(result).toMatchObject({ fullRun: true });
+    const r = result as { fullRun: true; reason: string };
+    expect(r.reason).toMatch(/story-imports-story/);
+    expect(r.reason).toContain('Base.stories.tsx');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Additional edge cases
 // ---------------------------------------------------------------------------
 

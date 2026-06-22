@@ -6,8 +6,13 @@ const STORY_FILE_RE = /\.stories\.[jt]sx?$/;
 const EXTENSIONS = ['.tsx', '.ts', '.jsx', '.js'];
 
 /**
- * Checks whether any changed story file is statically imported (directly or
- * transitively via other story files) by another story file in the project.
+ * Checks whether any changed story file is imported (directly or transitively
+ * via other story files) by another story file in the project.
+ *
+ * Covers three import forms:
+ *   - Static:        import { X } from '<spec>'
+ *   - Dynamic:       import('<spec>')
+ *   - CommonJS:      require('<spec>')
  *
  * If so, returns { fullRun, reason } because the API only receives file paths -
  * it cannot see that StoryA.stories.tsx re-uses Button's render by importing
@@ -15,7 +20,9 @@ const EXTENSIONS = ['.tsx', '.ts', '.jsx', '.js'];
  *
  * BAIL-OPEN: any condition that prevents a reliable graph (can't enumerate
  * story files, can't read a story file, can't resolve a story-looking specifier)
- * returns fullRun.
+ * returns fullRun. This includes path-aliased imports (e.g. '@/X.stories') that
+ * look like story files but cannot be resolved on disk - we cannot rule out a
+ * hidden story->story edge, so we force full rather than silently skip.
  *
  * Precondition: called only after computeChangedFiles would return { changedFiles }
  * (i.e. the partial-eligible path). The common fast path where no story imports
@@ -64,7 +71,7 @@ export function checkStoryImportsStory(
       };
     }
 
-    for (const spec of extractRelativeSpecifiers(content)) {
+    for (const spec of extractSpecifiers(content)) {
       const resolved = resolveSpecifier(storyFile, spec, storyFileSet);
 
       if (resolved === 'bail') {
@@ -126,31 +133,43 @@ function scanDir(dir: string, out: string[]): void {
 }
 
 /**
- * Extracts relative import/require specifiers from source text.
- * Uses a simple regex - may match strings inside comments, which is intentional
+ * Extracts all import/require specifiers from source text.
+ *
+ * Covers three forms:
+ *   - Static / re-export:  from '<spec>'
+ *   - Dynamic import:      import('<spec>')
+ *   - CommonJS:            require('<spec>')
+ *
+ * Returns specifiers verbatim (relative, aliased, bare package - all included).
+ * Uses a simple regex; may match strings inside comments, which is intentional
  * (over-detection is safe for bail-open; we never under-detect).
  */
-function extractRelativeSpecifiers(content: string): string[] {
+function extractSpecifiers(content: string): string[] {
   const out: string[] = [];
-  const re = /\bfrom\s+['"]([^'"]+)['"]|\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+  const re =
+    /\bfrom\s+['"]([^'"]+)['"]|\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)|\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(content)) !== null) {
-    const spec = m[1] ?? m[2];
-    if (spec && (spec.startsWith('./') || spec.startsWith('../'))) {
-      out.push(spec);
-    }
+    const spec = m[1] ?? m[2] ?? m[3];
+    if (spec) out.push(spec);
   }
   return out;
 }
 
 /**
- * Resolves a relative import specifier from a story file.
+ * Resolves an import specifier from a story file.
  *
  * Returns:
- *   absolute path - specifier resolves to a story file
- *   null          - specifier resolves to a non-story file (safe to skip)
- *   'bail'        - specifier looks like a story file but cannot be resolved
- *                   (a hidden story->story edge cannot be ruled out)
+ *   absolute path - specifier resolves to a story file on disk
+ *   null          - specifier resolves to a non-story file, or is unresolvable
+ *                   but cannot possibly match the story-file pattern (e.g. bare
+ *                   npm packages like 'react', aliased non-story components like
+ *                   '@/components/SharedButton') - safe to skip
+ *   'bail'        - specifier looks like a story file (its path matches
+ *                   STORY_FILE_RE with or without an extension suffix) but cannot
+ *                   be resolved on disk; we cannot rule out a hidden story->story
+ *                   edge (e.g. a path alias '@/X.stories' or a dynamic import of
+ *                   a story that was moved), so we force full rather than skip
  */
 function resolveSpecifier(
   fromFile: string,
