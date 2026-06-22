@@ -10,6 +10,7 @@ import {
   uploadOrPrintBinaryReuse,
   reporting,
 } from '../../../../helpers';
+import { collectDependencyGraph } from '../../../../helpers/turbosnap';
 import { THIS_COMMAND } from '../../constants';
 import getBuildPath from './getBuildPath';
 
@@ -45,6 +46,13 @@ async function asyncUploadBuildAndRunTests({
     ios: platform === 'ios' ? buildPath : undefined,
   });
 
+  // Collect the Metro dependency-graph sidecar emitted during the EAS cloud build.
+  // The serializer writes it to node_modules/.cache/sherlo/graph.json in the build workspace.
+  const dependencyGraphRaw = collectDependencyGraph(DEFAULT_PROJECT_ROOT);
+  const dependencyGraph = dependencyGraphRaw !== null
+    ? JSON.stringify(dependencyGraphRaw)
+    : undefined;
+
   reporting.addBreadcrumb({
     category: 'api',
     message: 'Calling asyncUpload API',
@@ -61,6 +69,7 @@ async function asyncUploadBuildAndRunTests({
       iosS3Key: binariesInfo.ios?.s3Key,
       sdkVersion: binariesInfo.sdkVersion,
       fileName: binariesInfo[platform]?.fileName,
+      dependencyGraph,
     })
     .catch(handleClientError);
 

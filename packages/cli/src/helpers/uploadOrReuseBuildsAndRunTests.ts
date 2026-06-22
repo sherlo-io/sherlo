@@ -11,7 +11,7 @@ import handleClientError from './handleClientError';
 import printBuildIntroMessage from './printBuildIntroMessage';
 import printResultsUrl from './printResultsUrl';
 import reporting from './reporting';
-import { computeChangedFiles, computeNativeFingerprint } from './turbosnap';
+import { collectDependencyGraph, computeChangedFiles, computeNativeFingerprint } from './turbosnap';
 import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
 
 async function uploadOrReuseBuildsAndRunTests({
@@ -60,6 +60,14 @@ async function uploadOrReuseBuildsAndRunTests({
 
   const nativeFingerprint = await computeNativeFingerprint(commandParams.projectRoot) ?? undefined;
 
+  // Collect the Metro dependency-graph sidecar emitted by applySherloTransforms.
+  // Returns null when the sidecar is absent (first build, Metro not configured, etc.).
+  // The API falls back to the coarse changedFiles gate when dependencyGraph is absent.
+  const dependencyGraphRaw = collectDependencyGraph(commandParams.projectRoot);
+  const dependencyGraph = dependencyGraphRaw !== null
+    ? JSON.stringify(dependencyGraphRaw)
+    : undefined;
+
   reporting.addBreadcrumb({
     category: 'api',
     message: 'Calling openBuild API',
@@ -92,6 +100,7 @@ async function uploadOrReuseBuildsAndRunTests({
       message: commandParams.message,
       changedFiles,
       nativeFingerprint,
+      dependencyGraph,
     })
     .catch(handleClientError);
 
