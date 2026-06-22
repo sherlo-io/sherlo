@@ -25,11 +25,13 @@ const EXTENSIONS = ['.tsx', '.ts', '.jsx', '.js'];
  * hidden story->story edge, so we force full rather than silently skip.
  *
  * BARREL DETECTION (one level): when a story imports a local non-story module
- * that resolves on disk, that module is scanned one level for re-exports of
- * changed story files. Example: Composed.stories imports './index', and index.ts
- * does `export { Primary } from './Base.stories'`. If Base.stories is changed,
- * Composed must be re-captured. Unresolvable barrel specifiers are not chased.
- * If the barrel module cannot be read, we bail open.
+ * that resolves on disk, that module is scanned one level using resolveSpecifier,
+ * so the story-looking-alias bail rule is uniform whether the aliased import is
+ * at the top level or inside a barrel. Example: index.ts does
+ * `export { P } from '@/Base.stories'` - even though the alias cannot be
+ * resolved on disk, it is story-looking and forces full. Unresolvable barrel
+ * specifiers that are NOT story-looking are skipped. If the barrel module cannot
+ * be read, we bail open.
  *
  * Precondition: called only after computeChangedFiles would return { changedFiles }
  * (i.e. the partial-eligible path). The common fast path where no story imports
@@ -95,7 +97,7 @@ export function checkStoryImportsStory(
         // a changed story file.
         const barrelPath = resolveToFile(storyFile, spec);
         if (barrelPath !== null && !storyFileSet.has(barrelPath)) {
-          const bailReason = barrelForwardsChangedStory(barrelPath, changedStoryAbsPaths);
+          const bailReason = barrelForwardsChangedStory(barrelPath, changedStoryAbsPaths, storyFileSet);
           if (bailReason !== null) {
             return { fullRun: true, reason: bailReason };
           }
@@ -245,18 +247,29 @@ function resolveToFile(fromFile: string, spec: string): string | null {
 
 /**
  * Scans one level of a non-story module (barrel) to check whether it re-exports
- * any file listed in changedStoryAbsPaths.
+ * a changed story file or contains a story-looking but unresolvable specifier.
+ *
+ * Uses resolveSpecifier (the same function as the main loop) so the
+ * story-looking-alias bail rule is UNIFORM whether the aliased story import
+ * is at the top level or inside a barrel. A 'bail' result from resolveSpecifier
+ * means force full; a resolved path in changedStoryAbsPaths means force full;
+ * a resolved non-changed story or null means continue.
  *
  * Returns a reason string (force full) if a match is found, null otherwise.
  * Bails open if the barrel module cannot be read.
  *
- * ONE LEVEL ONLY - if a barrel specifier resolves to another non-story module,
- * it is NOT recursed into (documented limit, covered by the Phase-2 Metro graph).
- * Unresolvable barrel specifiers are not chased.
+ * Deliberate limits (not built here, left to Phase-2 Metro graph + SHERLO-1487):
+ *   - ONE LEVEL ONLY: if a barrel specifier resolves to another non-story module
+ *     it is NOT recursed into. Depth-2-or-deeper barrel chains (index re-exports
+ *     a sub-index which re-exports Base.stories) are not detected at this layer.
+ *   - If the barrel itself is imported via an unresolved alias from the story
+ *     (e.g. Composed.stories does `import from '@/index'`) it is never reached
+ *     here; that structural case stays undetected at this layer.
  */
 function barrelForwardsChangedStory(
   barrelPath: string,
-  changedStoryAbsPaths: Set<string>
+  changedStoryAbsPaths: Set<string>,
+  storyFileSet: Set<string>
 ): string | null {
   let content: string;
   try {
@@ -267,7 +280,10 @@ function barrelForwardsChangedStory(
   }
 
   for (const spec of extractSpecifiers(content)) {
-    const resolved = resolveToFile(barrelPath, spec);
+    const resolved = resolveSpecifier(barrelPath, spec, storyFileSet);
+    if (resolved === 'bail') {
+      return `story-imports-story: unresolved story-looking specifier in barrel ${path.basename(barrelPath)}, forcing full`;
+    }
     if (resolved !== null && changedStoryAbsPaths.has(resolved)) {
       return `story-imports-story: changed story re-exported via barrel ${path.basename(barrelPath)}`;
     }

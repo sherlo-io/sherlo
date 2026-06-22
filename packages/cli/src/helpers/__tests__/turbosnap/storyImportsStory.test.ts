@@ -399,6 +399,25 @@ export default { title: 'Composed' };`
 
     expect(result).toEqual({ changedFiles: changed });
   });
+
+  it('forces full when a barrel contains an aliased re-export that looks like a story file', () => {
+    // index.ts has `export { P } from '@/Base.stories'` - the alias cannot be
+    // resolved on disk but is story-looking. The same bail rule applied in the
+    // main loop applies uniformly inside the barrel scan.
+    fx.write('index.ts', `export { P } from '@/Base.stories';`);
+    fx.write(
+      'StoryA.stories.tsx',
+      `import { P } from './index';
+export default { title: 'A' };`
+    );
+
+    // StoryA is changed so the scan runs.
+    const result = checkStoryImportsStory(fx.dir, ['StoryA.stories.tsx']);
+
+    expect(result).toMatchObject({ fullRun: true });
+    const r = result as { fullRun: true; reason: string };
+    expect(r.reason).toMatch(/story-imports-story/);
+  });
 });
 
 // ---------------------------------------------------------------------------
