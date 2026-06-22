@@ -24,6 +24,13 @@ const EXTENSIONS = ['.tsx', '.ts', '.jsx', '.js'];
  * look like story files but cannot be resolved on disk - we cannot rule out a
  * hidden story->story edge, so we force full rather than silently skip.
  *
+ * BARREL DETECTION (one level): when a story imports a local non-story module
+ * that resolves on disk, that module is scanned one level for re-exports of
+ * changed story files. Example: Composed.stories imports './index', and index.ts
+ * does `export { Primary } from './Base.stories'`. If Base.stories is changed,
+ * Composed must be re-captured. Unresolvable barrel specifiers are not chased.
+ * If the barrel module cannot be read, we bail open.
+ *
  * Precondition: called only after computeChangedFiles would return { changedFiles }
  * (i.e. the partial-eligible path). The common fast path where no story imports
  * another story is not affected (returns { changedFiles } unchanged).
@@ -81,7 +88,20 @@ export function checkStoryImportsStory(
         };
       }
 
-      if (resolved === null) continue; // resolves to non-story or safely unresolvable
+      if (resolved === null) {
+        // The specifier either resolves to a non-story file on disk (potential barrel)
+        // or is unresolvable and not story-looking (safe to skip). Scan one level: if
+        // the specifier resolves to a real non-story file, check whether it re-exports
+        // a changed story file.
+        const barrelPath = resolveToFile(storyFile, spec);
+        if (barrelPath !== null && !storyFileSet.has(barrelPath)) {
+          const bailReason = barrelForwardsChangedStory(barrelPath, changedStoryAbsPaths);
+          if (bailReason !== null) {
+            return { fullRun: true, reason: bailReason };
+          }
+        }
+        continue;
+      }
 
       // storyFile imports resolved (another story): record reverse edge.
       const importers = reverseEdges.get(resolved);
@@ -210,6 +230,50 @@ function isFile(p: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** Resolves a specifier to an absolute path if a file exists on disk, null otherwise. */
+function resolveToFile(fromFile: string, spec: string): string | null {
+  const base = path.resolve(path.dirname(fromFile), spec);
+  if (isFile(base)) return base;
+  for (const ext of EXTENSIONS) {
+    const candidate = base + ext;
+    if (isFile(candidate)) return candidate;
+  }
+  return null;
+}
+
+/**
+ * Scans one level of a non-story module (barrel) to check whether it re-exports
+ * any file listed in changedStoryAbsPaths.
+ *
+ * Returns a reason string (force full) if a match is found, null otherwise.
+ * Bails open if the barrel module cannot be read.
+ *
+ * ONE LEVEL ONLY - if a barrel specifier resolves to another non-story module,
+ * it is NOT recursed into (documented limit, covered by the Phase-2 Metro graph).
+ * Unresolvable barrel specifiers are not chased.
+ */
+function barrelForwardsChangedStory(
+  barrelPath: string,
+  changedStoryAbsPaths: Set<string>
+): string | null {
+  let content: string;
+  try {
+    content = fs.readFileSync(barrelPath, 'utf8');
+  } catch {
+    // Bail open: consistent with story-file read-failure handling.
+    return 'story-imports-story: failed to read barrel module, forcing full';
+  }
+
+  for (const spec of extractSpecifiers(content)) {
+    const resolved = resolveToFile(barrelPath, spec);
+    if (resolved !== null && changedStoryAbsPaths.has(resolved)) {
+      return `story-imports-story: changed story re-exported via barrel ${path.basename(barrelPath)}`;
+    }
+  }
+
+  return null;
 }
 
 /**

@@ -342,6 +342,66 @@ export default { title: 'A' };`
 });
 
 // ---------------------------------------------------------------------------
+// (h) Barrel re-export detection (one level)
+// ---------------------------------------------------------------------------
+
+describe('(h) barrel re-export detection', () => {
+  it('forces full when a non-story barrel re-exports a changed story imported by a story', () => {
+    // Base.stories (changed) is re-exported by index.ts (barrel).
+    // Composed.stories imports from the barrel, not directly from Base.stories.
+    fx.write('Base.stories.tsx', `export const Primary = () => null;`);
+    fx.write('index.ts', `export { Primary } from './Base.stories';`);
+    fx.write(
+      'Composed.stories.tsx',
+      `import { Primary } from './index';
+export default { title: 'Composed' };`
+    );
+
+    const result = checkStoryImportsStory(fx.dir, ['Base.stories.tsx']);
+
+    expect(result).toMatchObject({ fullRun: true });
+    const r = result as { fullRun: true; reason: string };
+    expect(r.reason).toMatch(/story-imports-story/);
+  });
+
+  it('does not bail when a barrel re-exports only a non-story component', () => {
+    // index.ts forwards Button.tsx (not a story) - no story->story edge via barrel.
+    fx.write('Button.tsx', `export const Button = () => null;`);
+    fx.write('index.ts', `export { Button } from './Button';`);
+    fx.write(
+      'StoryA.stories.tsx',
+      `import { Button } from './index';
+export default { title: 'A' };`
+    );
+    // An unrelated leaf story is the only changed file.
+    fx.write('Leaf.stories.tsx', `export default { title: 'Leaf' };`);
+
+    const changed = ['Leaf.stories.tsx'];
+    const result = checkStoryImportsStory(fx.dir, changed);
+
+    expect(result).toEqual({ changedFiles: changed });
+  });
+
+  it('does not bail when a barrel forwards a non-changed story', () => {
+    // index.ts re-exports Base.stories, but Base.stories is NOT in changedFiles.
+    // Only LeafStory is changed - the barrel path is harmless.
+    fx.write('Base.stories.tsx', `export const Primary = () => null;`);
+    fx.write('index.ts', `export { Primary } from './Base.stories';`);
+    fx.write(
+      'Composed.stories.tsx',
+      `import { Primary } from './index';
+export default { title: 'Composed' };`
+    );
+    fx.write('LeafStory.stories.tsx', `export default { title: 'Leaf' };`);
+
+    const changed = ['LeafStory.stories.tsx'];
+    const result = checkStoryImportsStory(fx.dir, changed);
+
+    expect(result).toEqual({ changedFiles: changed });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Additional edge cases
 // ---------------------------------------------------------------------------
 
