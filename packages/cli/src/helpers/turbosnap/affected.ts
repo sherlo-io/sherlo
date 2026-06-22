@@ -1,3 +1,5 @@
+// PHASE 2 DORMANT SCAFFOLDING – not yet called by the CLI send path.
+// Kept for future Phase 2 API integration (story-level narrowing on the server).
 import { DependencyGraph } from './dependencyGraph';
 
 export type StoryEntry = {

@@ -12,7 +12,6 @@ import {
   reporting,
 } from '../../../../helpers';
 import {
-  collectDependencyGraph,
   computeChangedFiles,
   computeNativeFingerprint,
 } from '../../../../helpers/turbosnap';
@@ -51,13 +50,6 @@ async function asyncUploadBuildAndRunTests({
     ios: platform === 'ios' ? buildPath : undefined,
   });
 
-  // Collect the Metro dependency-graph sidecar emitted during the EAS cloud build.
-  // The serializer writes it to node_modules/.cache/sherlo/graph.json in the build workspace.
-  const dependencyGraphRaw = collectDependencyGraph(DEFAULT_PROJECT_ROOT);
-  const dependencyGraph = dependencyGraphRaw !== null
-    ? JSON.stringify(dependencyGraphRaw)
-    : undefined;
-
   // TurboSnap: compute changed files and native fingerprint for the EAS-cloud path.
   // The same bail-to-full conditions apply: shallow clone, dirty tree, no mergeBaseSha.
   const gitInfo = await getGitInfo(DEFAULT_PROJECT_ROOT);
@@ -86,7 +78,6 @@ async function asyncUploadBuildAndRunTests({
       iosS3Key: binariesInfo.ios?.s3Key,
       sdkVersion: binariesInfo.sdkVersion,
       fileName: binariesInfo[platform]?.fileName,
-      dependencyGraph,
       changedFiles,
       nativeFingerprint,
     })

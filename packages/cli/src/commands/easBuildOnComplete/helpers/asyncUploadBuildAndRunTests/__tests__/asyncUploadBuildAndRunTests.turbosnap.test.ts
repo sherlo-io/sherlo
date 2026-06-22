@@ -32,7 +32,6 @@ const mocks = vi.hoisted(() => {
     uploadOrPrintBinaryReuse: vi.fn().mockResolvedValue(undefined),
     reporting: { addBreadcrumb: vi.fn() },
     getAppBuildUrl: vi.fn().mockReturnValue('https://app.sherlo.io/test/1'),
-    collectDependencyGraph: vi.fn().mockReturnValue(null),
     computeChangedFiles: vi.fn(),
     computeNativeFingerprint: vi.fn(),
     getBuildPath: vi.fn().mockReturnValue('/tmp/app.apk'),
@@ -53,7 +52,6 @@ vi.mock('../../../../../helpers', () => ({
 }));
 
 vi.mock('../../../../../helpers/turbosnap', () => ({
-  collectDependencyGraph: mocks.collectDependencyGraph,
   computeChangedFiles: mocks.computeChangedFiles,
   computeNativeFingerprint: mocks.computeNativeFingerprint,
 }));

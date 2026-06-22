@@ -1,8 +1,12 @@
 /**
+ * PHASE 2 DORMANT SCAFFOLDING – not yet wired to the API.
+ *
  * Sherlo dependency-graph sidecar format (node_modules/.cache/sherlo/graph.json).
  *
  * Emitted by the Metro customSerializer in applySherloTransforms.js at bundle time.
- * Collected by the CLI at upload time and forwarded to the API.
+ * Used by the pure affected() function for story-level narrowing (Phase 2 feature).
+ * The CLI does NOT forward this to the API yet; server-side graph consumption is
+ * unbuilt. Keep for future Phase 2 integration.
  *
  * inverseGraph  – static reverse edges only.
  *   key:   project-root-relative path of a module (e.g. "./src/Button.tsx")
