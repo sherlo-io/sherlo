@@ -87,6 +87,142 @@ afterEach(() => {
   delete (globalThis as any).STORIES;
 });
 
+// ---------------------------------------------------------------------------
+// Explicit-name regression (SHERLO-1491 / SHERLO-1492)
+// ---------------------------------------------------------------------------
+// Bug: adapter derived the story ID from the explicit `name` field instead of
+// the export key. Storybook keys its store by export key, so when the explicit
+// name slug differs from the export key slug, the SDK emitted an ID that
+// Storybook didn't recognise. The app fell back to the default "Please select
+// a story to preview" screen and `hasError: true` was captured.
+//
+// Fix: always derive the ID via toId(title, storyNameFromExport(exportKey)).
+// The explicit name is retained as the display `name` field only.
+
+describe('enumerateStories – explicit name regression (SHERLO-1491)', () => {
+  afterEach(() => {
+    delete (globalThis as any).STORIES;
+  });
+
+  it('derives story ID from export key, not explicit name', () => {
+    // Story: export const Foo = { name: 'Bar' } under title: 'Explicit Name'
+    // Correct ID (Storybook): 'explicit-name--foo'  (export key 'Foo')
+    // Buggy ID (pre-fix):     'explicit-name--bar'  (explicit name 'Bar')
+    const fileExports = {
+      default: { title: 'Explicit Name' },
+      Foo: { name: 'Bar', render: (): null => null },
+    };
+    const req = Object.assign(
+      (_filename: string) => fileExports,
+      { keys: () => ['./ExplicitName.stories.tsx'] },
+    );
+    (globalThis as any).STORIES = [{ directory: './src', req }];
+
+    const view = {
+      _storyIndex: {
+        entries: {
+          'explicit-name--foo': {
+            id: 'explicit-name--foo',
+            title: 'Explicit Name',
+            name: 'Bar',  // Storybook stores the display name here
+            importPath: './src/ExplicitName.stories.tsx',
+          },
+        },
+      },
+    } as unknown as StorybookView;
+
+    const storyMetas = enumerateStories(view);
+
+    expect(storyMetas).toHaveLength(1);
+    // ID must be export-key-based (not explicit-name-based)
+    expect(storyMetas[0]!.id).toBe('explicit-name--foo');
+    // Display name must still be the explicit name
+    expect(storyMetas[0]!.name).toBe('Bar');
+    // The emitted ID must be a key in _storyIndex.entries
+    const indexIds = Object.keys((view as any)._storyIndex.entries);
+    expect(indexIds).toContain(storyMetas[0]!.id);
+  });
+
+  it('every emitted StoryMeta.id is a member of _storyIndex.entries when present in index', () => {
+    // Two stories: one with explicit name (FooBar → 'Custom Display'),
+    // one without (AnotherOne). Both must emit export-key-based IDs.
+    const fileExports = {
+      default: { title: 'My Title' },
+      FooBar: { name: 'Custom Display', render: (): null => null },
+      AnotherOne: {},
+    };
+    const req = Object.assign(
+      (_filename: string) => fileExports,
+      { keys: () => ['./MyTitle.stories.tsx'] },
+    );
+    (globalThis as any).STORIES = [{ directory: './src', req }];
+
+    const view = {
+      _storyIndex: {
+        entries: {
+          'my-title--foo-bar': {
+            id: 'my-title--foo-bar',
+            title: 'My Title',
+            name: 'Custom Display',
+            importPath: './src/MyTitle.stories.tsx',
+          },
+          'my-title--another-one': {
+            id: 'my-title--another-one',
+            title: 'My Title',
+            name: 'Another One',
+            importPath: './src/MyTitle.stories.tsx',
+          },
+        },
+      },
+    } as unknown as StorybookView;
+
+    const storyMetas = enumerateStories(view);
+
+    expect(storyMetas).toHaveLength(2);
+    const indexIds = new Set(Object.keys((view as any)._storyIndex.entries));
+    for (const meta of storyMetas) {
+      expect(indexIds.has(meta.id)).toBe(true);
+    }
+    const emittedIds = storyMetas.map(m => m.id).sort();
+    expect(emittedIds).toEqual(['my-title--another-one', 'my-title--foo-bar']);
+  });
+
+  it('does not emit a duplicate entry when explicit name slug differs from export key slug', () => {
+    // Pre-fix: primary pass emitted 'sometitle--bar' (from explicit name),
+    // then fallback pass found 'sometitle--foo' in indexEntries and emitted it
+    // too → two entries for the same story.
+    // Post-fix: primary pass emits 'sometitle--foo', fallback skips it → one entry.
+    const fileExports = {
+      default: { title: 'SomeTitle' },
+      Foo: { name: 'Bar', render: (): null => null },
+    };
+    const req = Object.assign(
+      (_filename: string) => fileExports,
+      { keys: () => ['./SomeTitle.stories.tsx'] },
+    );
+    (globalThis as any).STORIES = [{ directory: './src', req }];
+
+    const view = {
+      _storyIndex: {
+        entries: {
+          'sometitle--foo': {
+            id: 'sometitle--foo',
+            title: 'SomeTitle',
+            name: 'Bar',
+            importPath: './src/SomeTitle.stories.tsx',
+          },
+        },
+      },
+    } as unknown as StorybookView;
+
+    const storyMetas = enumerateStories(view);
+
+    // Exactly one entry - no duplicate from the fallback pass
+    expect(storyMetas).toHaveLength(1);
+    expect(storyMetas[0]!.id).toBe('sometitle--foo');
+  });
+});
+
 describe('enumerateStories – auto-titled stories (component: without title:)', () => {
   it('preserves story-level parameters when the default export has component: but no title:', () => {
     // AUTO-TITLED story: default export uses `component:` with NO `title:`.

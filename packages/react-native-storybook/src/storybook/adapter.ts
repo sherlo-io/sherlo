@@ -107,8 +107,11 @@ export function enumerateStories(view: StorybookView): StoryMeta[] {
             ? ((storyExport as any).story || {})
             : (storyExport as Record<string, any>);
           const explicitName = typeof annotations.name === 'string' ? annotations.name : undefined;
-          const storyName = explicitName || storyNameFromExport(exportKey);
-          const id = toId(titleStr, storyName);
+          const exportKeyName = storyNameFromExport(exportKey);
+          const exportKeyId = toId(titleStr, exportKeyName);
+          // ID is always export-key-based: Storybook keys its store by export key, not display name.
+          // Prefer the real index ID when available; synthesize only when genuinely absent from index.
+          const id = indexEntries[exportKeyId]?.id ?? exportKeyId;
           if (seen.has(id)) continue;
           seen.add(id);
           const parameters = {
@@ -116,7 +119,7 @@ export function enumerateStories(view: StorybookView): StoryMeta[] {
             ...(meta.parameters ?? {}),
             ...(annotations.parameters ?? {}),
           };
-          result.push({ id, title: titleStr, name: storyName, parameters, importPath: primaryImportPath });
+          result.push({ id, title: titleStr, name: explicitName ?? exportKeyName, parameters, importPath: primaryImportPath });
         }
       }
     }
