@@ -30,3 +30,27 @@ jobs:
       - name: Run CLI unit tests
         working-directory: packages/cli
         run: yarn test
+
+  rn-storybook-unit-tests:
+    name: SDK unit tests (@sherlo/react-native-storybook)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Download Sherlo packages
+        run: ./scripts/init-env.sh
+        env:
+          CLIENT_STAGE: dev
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Install dependencies
+        run: yarn
+
+      - name: Run SDK unit tests
+        working-directory: packages/react-native-storybook
+        run: yarn test

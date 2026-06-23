@@ -107,8 +107,23 @@ export function enumerateStories(view: StorybookView): StoryMeta[] {
             ? ((storyExport as any).story || {})
             : (storyExport as Record<string, any>);
           const explicitName = typeof annotations.name === 'string' ? annotations.name : undefined;
-          const storyName = explicitName || storyNameFromExport(exportKey);
-          const id = toId(titleStr, storyName);
+          const exportKeyName = storyNameFromExport(exportKey);
+          const displayName = explicitName ?? exportKeyName;
+          const exportKeyId = toId(titleStr, exportKeyName);
+          // Layered ID resolution - prefer Storybook's real id, synthesize only when absent:
+          // 1) exact: SDK-computed export-key id matches an index key (common case)
+          // 2) divergent slug: match by importPath + display name (handles curly-apostrophe,
+          //    digit/acronym casing, and other slug divergences between storyNameFromExport
+          //    and Storybook's own normalisation)
+          // 3) genuinely absent from the index (e.g. v10 require.context-only): synthesize
+          let resolvedId: string | undefined = indexEntries[exportKeyId]?.id;
+          if (!resolvedId) {
+            const match = Object.values(indexEntries).find(
+              (e) => e.importPath === primaryImportPath && e.name === displayName
+            );
+            resolvedId = match?.id;
+          }
+          const id = resolvedId ?? exportKeyId;
           if (seen.has(id)) continue;
           seen.add(id);
           const parameters = {
@@ -116,7 +131,7 @@ export function enumerateStories(view: StorybookView): StoryMeta[] {
             ...(meta.parameters ?? {}),
             ...(annotations.parameters ?? {}),
           };
-          result.push({ id, title: titleStr, name: storyName, parameters, importPath: primaryImportPath });
+          result.push({ id, title: titleStr, name: displayName, parameters, importPath: primaryImportPath });
         }
       }
     }
