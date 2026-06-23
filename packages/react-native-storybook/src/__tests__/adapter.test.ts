@@ -187,6 +187,43 @@ describe('enumerateStories – explicit name regression (SHERLO-1491)', () => {
     expect(emittedIds).toEqual(['my-title--another-one', 'my-title--foo-bar']);
   });
 
+  it('resolves to the real Storybook index id when slug diverges (importPath+name fallback)', () => {
+    // Simulates a divergent-slug scenario: the SDK computes 'my-title--foo'
+    // from the export key via toId('My Title', storyNameFromExport('Foo')),
+    // but the real Storybook index has a different id 'my-title--foo-x'.
+    // The layered resolution must fall back to the importPath+displayName match
+    // to return Storybook's own id. This test FAILS on the no-op one-liner
+    // `indexEntries[exportKeyId]?.id ?? exportKeyId` because that key is absent.
+    const fileExports = {
+      default: { title: 'My Title' },
+      Foo: {}, // no explicit name
+    };
+    const req = Object.assign(
+      (_filename: string) => fileExports,
+      { keys: () => ['./MyTitle.stories.tsx'] },
+    );
+    (globalThis as any).STORIES = [{ directory: './src', req }];
+
+    const view = {
+      _storyIndex: {
+        entries: {
+          'my-title--foo-x': {
+            id: 'my-title--foo-x',   // Storybook's real id (differs from SDK-computed 'my-title--foo')
+            title: 'My Title',
+            name: 'Foo',             // = storyNameFromExport('Foo')
+            importPath: './src/MyTitle.stories.tsx',
+          },
+        },
+      },
+    } as unknown as StorybookView;
+
+    const storyMetas = enumerateStories(view);
+
+    expect(storyMetas).toHaveLength(1);
+    // Must resolve to Storybook's real id, not the SDK-computed 'my-title--foo'
+    expect(storyMetas[0]!.id).toBe('my-title--foo-x');
+  });
+
   it('does not emit a duplicate entry when explicit name slug differs from export key slug', () => {
     // Pre-fix: primary pass emitted 'sometitle--bar' (from explicit name),
     // then fallback pass found 'sometitle--foo' in indexEntries and emitted it
