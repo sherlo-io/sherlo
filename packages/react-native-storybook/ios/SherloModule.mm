@@ -135,6 +135,16 @@ static void SherloEarlyInit(void) {
 }
 
 /**
+ * Native paint barrier (SHERLO-1497): resolves on the next real display frame.
+ */
+- (void)awaitFrameCommit:(double)timeoutMs
+                 resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject
+{
+  [core awaitFrameCommit:timeoutMs resolve:resolve reject:reject];
+}
+
+/**
  * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
  */
 - (void)isScrollable:(RCTPromiseResolveBlock)resolve
@@ -259,6 +269,15 @@ RCT_EXPORT_METHOD(stabilize:(double)requiredMatches
                    resolve:(RCTPromiseResolveBlock)resolve
                    reject:(RCTPromiseRejectBlock)reject) {
   [core stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs saveScreenshots:saveScreenshots threshold:threshold includeAA:includeAA resolve:resolve reject:reject];
+}
+
+/**
+ * Native paint barrier (SHERLO-1497): resolves on the next real display frame.
+ */
+RCT_EXPORT_METHOD(awaitFrameCommit:(double)timeoutMs
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
+  [core awaitFrameCommit:timeoutMs resolve:resolve reject:reject];
 }
 
 /**

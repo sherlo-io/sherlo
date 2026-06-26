@@ -31,6 +31,23 @@ NS_ASSUME_NONNULL_BEGIN
           resolve:(RCTPromiseResolveBlock)resolve
           reject:(RCTPromiseRejectBlock)reject;
 
+/**
+ * Native paint barrier (SHERLO-1497).
+ *
+ * Forces a layout + redraw of the key window and resolves on the next real
+ * display frame via a one-shot CADisplayLink - closing the gap between a story
+ * being logically rendered and its pixels actually reaching the screen.
+ * Content-agnostic. On timeout resolves @NO (best-effort; the caller proceeds to
+ * the stability loop).
+ *
+ * @param timeoutMs Cap on how long to wait for a frame in milliseconds
+ * @param resolve Promise resolver called with @YES on frame commit, @NO on timeout
+ * @param reject Promise rejecter (unused; the barrier never hard-fails)
+ */
++ (void)awaitFrameCommit:(double)timeoutMs
+                 resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject;
+
 @end
 
 NS_ASSUME_NONNULL_END

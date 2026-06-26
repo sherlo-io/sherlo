@@ -317,6 +317,18 @@ public class SherloModuleCore {
         StabilityHelper.stabilize(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs, saveScreenshots, threshold, includeAA, promise);
     }
 
+    /**
+     * Native paint barrier (SHERLO-1497): force a redraw and resolve on the next
+     * real frame commit, capped at timeoutMs.
+     *
+     * @param activity  The current activity
+     * @param timeoutMs Cap on how long to wait for a frame commit (ms)
+     * @param promise   Resolves true if a frame commit was observed, false on timeout
+     */
+    public void awaitFrameCommit(Activity activity, int timeoutMs, Promise promise) {
+        StabilityHelper.awaitFrameCommit(activity, timeoutMs, promise);
+    }
+
     // ============ Scroll Detection ============
 
     private static final boolean SCROLL_DEBUG = true;

@@ -135,6 +135,13 @@ beforeEach(() => {
       threshold: 0,
       includeAA: true,
     },
+    // SHERLO-1497 readiness knobs represented here; flag DEFAULT-OFF so this
+    // suite continues to exercise the legacy substring-poll path unchanged.
+    useStoryRenderedReadiness: false,
+    scrollableFallbackDelayMs: 3000,
+    storyRenderedTimeoutMs: 5000,
+    paintBarrierTimeoutMs: 1000,
+    paintBarrierPerScrollPart: true,
   });
 
   mockGetLastState.mockReturnValue(makeLastState());

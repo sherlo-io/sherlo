@@ -9,6 +9,10 @@ import { useHideSplashScreen } from './hooks';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import SherloStoryErrorBoundary from './components/SherloStoryErrorBoundary';
 import { LOG_FILE, PROTOCOL_FILE } from '../constants';
+import {
+  getStorybookChannel,
+  startStoryRenderedTracking,
+} from './components/TestingMode/useTestAllStories/storyRenderedReadiness';
 
 let isSdkCompatible = true;
 if (SherloModule.getMode() === 'testing') {
@@ -29,7 +33,18 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
   // timing edge case), which would crash the app before the async iOS
   // sendNativeError(ERROR_SDK_COMPATIBILITY) write completes.
   if (mode === 'testing' && isSdkCompatible) {
-    const delayMs = SherloModule.getConfig().initialStoryRenderDelayMs;
+    const testingConfig = SherloModule.getConfig();
+    const delayMs = testingConfig.initialStoryRenderDelayMs;
+
+    // SHERLO-1497 (flag-gated, DEFAULT-OFF): attach the early STORY_RENDERED
+    // listener here - the earliest JS access to the Storybook channel - so a
+    // story that renders before useTestStory mounts is buffered, not missed.
+    if (testingConfig.useStoryRenderedReadiness) {
+      try {
+        startStoryRenderedTracking(getStorybookChannel(view));
+      } catch (_e) {}
+    }
+
     const originalGetProjectAnnotations = view._preview.getProjectAnnotations.bind(
       view._preview
     );

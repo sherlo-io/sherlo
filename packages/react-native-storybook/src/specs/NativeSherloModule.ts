@@ -37,6 +37,13 @@ export interface Spec extends TurboModule {
   }>;
   getSherloConstants: () => {};
   notifyGetStorybookCalled: () => void;
+  /**
+   * Native paint barrier (SHERLO-1497): force a redraw and resolve on the next
+   * real frame commit (Android ViewTreeObserver.registerFrameCommitCallback /
+   * iOS CADisplayLink), capped at timeoutMs. Resolves true if a frame commit was
+   * observed, false if the cap elapsed first. Content-agnostic.
+   */
+  awaitFrameCommit: (timeoutMs: number) => Promise<boolean>;
 }
 
 let SherloModule: Spec | null = null;

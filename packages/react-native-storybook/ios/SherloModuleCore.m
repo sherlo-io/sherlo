@@ -288,6 +288,14 @@ static FileSystemHelper *fileSystemHelper;
     [StabilityHelper stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs saveScreenshots:saveScreenshots threshold:threshold includeAA:includeAA resolve:resolve reject:reject];
 }
 
+// Native paint barrier (SHERLO-1497): force a redraw and resolve on the next
+// real display frame (CADisplayLink), capped at timeoutMs.
+- (void)awaitFrameCommit:(double)timeoutMs
+                 resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject {
+    [StabilityHelper awaitFrameCommit:timeoutMs resolve:resolve reject:reject];
+}
+
 #pragma mark - Scroll Detection
 
 // Debug flag for logging scroll detection

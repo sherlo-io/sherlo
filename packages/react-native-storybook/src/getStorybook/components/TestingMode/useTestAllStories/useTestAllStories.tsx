@@ -16,6 +16,7 @@ function useTestAllStories({
 
   useTestStory({
     metadataProviderRef,
+    view,
   });
 }
 
