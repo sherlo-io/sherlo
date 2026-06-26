@@ -12,7 +12,6 @@
  *  - early-buffer: a story that rendered before useTestStory mounted
  *  - timeout -> scrollable fallback delay
  *  - paint-barrier sequencing (awaitFrameCommit resolves before stabilize)
- *  - hard-fail on unstable (no grab-at-timeout)
  *  - per-scroll-part paint barrier
  */
 
@@ -26,7 +25,6 @@ const {
   mockIsScrollable,
   mockScrollToCheckpoint,
   mockAwaitFrameCommit,
-  mockSendNativeError,
 } = vi.hoisted(() => ({
   mockSend: vi.fn(),
   mockLog: vi.fn(),
@@ -37,7 +35,6 @@ const {
   mockIsScrollable: vi.fn(),
   mockScrollToCheckpoint: vi.fn(),
   mockAwaitFrameCommit: vi.fn(),
-  mockSendNativeError: vi.fn(),
 }));
 
 vi.mock('react', async () => {
@@ -68,7 +65,6 @@ vi.mock('../SherloModule', () => ({
     isScrollable: mockIsScrollable,
     scrollToCheckpoint: mockScrollToCheckpoint,
     awaitFrameCommit: mockAwaitFrameCommit,
-    sendNativeError: mockSendNativeError,
   },
 }));
 
@@ -319,22 +315,6 @@ describe('useTestStory readiness - native paint barrier sequencing', () => {
     const barrierOrder = mockAwaitFrameCommit.mock.invocationCallOrder[0];
     const stabilizeOrder = mockStabilize.mock.invocationCallOrder[0];
     expect(barrierOrder).toBeLessThan(stabilizeOrder);
-  });
-});
-
-describe('useTestStory readiness - hard-fail', () => {
-  it('signals a native error and does NOT send a snapshot when stabilize fails (no grab-at-timeout)', async () => {
-    const channel = makeChannel();
-    startStoryRenderedTracking(channel);
-    channel.emit('storyRendered', FAKE_STORY_ID);
-
-    mockStabilize.mockResolvedValue(false); // never stable
-
-    useTestStory({ metadataProviderRef: makeMetadataRefWithout(), view: makeView(channel) });
-    await flushAll();
-
-    expect(mockSendNativeError).toHaveBeenCalled();
-    expect(mockSend).not.toHaveBeenCalled();
   });
 });
 

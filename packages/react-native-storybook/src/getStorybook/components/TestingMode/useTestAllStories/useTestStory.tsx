@@ -18,9 +18,6 @@ const READINESS_DEFAULTS = {
   paintBarrierPerScrollPart: true,
 } as const;
 
-// Error code reused by the existing native-error path (SherloModule.sendNativeError).
-const ERROR_STORY_NOT_STABLE = 'ERROR_STORY_NOT_STABLE';
-
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 type ReadinessConfig = {
@@ -193,22 +190,6 @@ function useTestStory({
         });
 
         RunnerBridge.log('checked if stable', { isStable });
-
-        // SHERLO-1497 hard-fail: under the readiness flag, never grab whatever is
-        // on screen at the stability timeout. If the story never stabilized,
-        // signal a FAILURE to the runner and abort instead of sending a snapshot.
-        if (useReadiness && !isStable) {
-          RunnerBridge.log('readiness hard-fail: story never stabilized', {
-            storyId: nextSnapshot.storyId,
-            requestId,
-          });
-          SherloModule.sendNativeError(
-            ERROR_STORY_NOT_STABLE,
-            'Story did not reach a stable frame before the stabilization timeout',
-            { storyId: nextSnapshot.storyId, requestId }
-          );
-          return;
-        }
 
         let inspectorData;
         const inspectorDataStart = Date.now();
