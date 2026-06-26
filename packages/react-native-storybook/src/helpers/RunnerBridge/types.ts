@@ -30,8 +30,8 @@ export type Config = {
    */
   /**
    * Feature flag for the whole new readiness path (STORY_RENDERED subscription +
-   * fallback delay + native paint barrier + re-seeded stabilize ordering +
-   * hard-fail). DEFAULT-OFF. The runner enables/disables it via config without
+   * fallback delay + native paint barrier + re-seeded stabilize ordering).
+   * DEFAULT-OFF. The runner enables/disables it via config without
    * needing an SDK rollback.
    */
   useStoryRenderedReadiness?: boolean;
