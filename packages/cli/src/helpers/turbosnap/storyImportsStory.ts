@@ -68,9 +68,7 @@ export function checkStoryImportsStory(
   const storyFileSet = new Set(allStoryFiles);
 
   // Absolute paths of changed story files for comparison with the resolved graph paths.
-  const changedStoryAbsPaths = new Set(
-    changedStories.map((f) => path.resolve(absRoot, f))
-  );
+  const changedStoryAbsPaths = new Set(changedStories.map((f) => path.resolve(absRoot, f)));
 
   // Build reverse-import graph: importee (abs) -> Set<importer (abs)>.
   // Only story->story edges are tracked.
@@ -104,7 +102,11 @@ export function checkStoryImportsStory(
         // a changed story file.
         const barrelPath = resolveToFile(storyFile, spec);
         if (barrelPath !== null && !storyFileSet.has(barrelPath)) {
-          const bailReason = barrelForwardsChangedStory(barrelPath, changedStoryAbsPaths, storyFileSet);
+          const bailReason = barrelForwardsChangedStory(
+            barrelPath,
+            changedStoryAbsPaths,
+            storyFileSet
+          );
           if (bailReason !== null) {
             return { fullRun: true, reason: bailReason };
           }
@@ -128,7 +130,10 @@ export function checkStoryImportsStory(
     if (importer !== null) {
       return {
         fullRun: true,
-        reason: `story-imports-story: ${path.relative(absRoot, changedAbs)} reused by ${path.relative(absRoot, importer)}`,
+        reason: `story-imports-story: ${path.relative(
+          absRoot,
+          changedAbs
+        )} reused by ${path.relative(absRoot, importer)}`,
       };
     }
   }
@@ -289,10 +294,14 @@ function barrelForwardsChangedStory(
   for (const spec of extractSpecifiers(content)) {
     const resolved = resolveSpecifier(barrelPath, spec, storyFileSet);
     if (resolved === 'bail') {
-      return `story-imports-story: unresolved story-looking specifier in barrel ${path.basename(barrelPath)}, forcing full`;
+      return `story-imports-story: unresolved story-looking specifier in barrel ${path.basename(
+        barrelPath
+      )}, forcing full`;
     }
     if (resolved !== null && changedStoryAbsPaths.has(resolved)) {
-      return `story-imports-story: changed story re-exported via barrel ${path.basename(barrelPath)}`;
+      return `story-imports-story: changed story re-exported via barrel ${path.basename(
+        barrelPath
+      )}`;
     }
   }
 
@@ -306,10 +315,7 @@ function barrelForwardsChangedStory(
  * A→B→C always implies that B directly imports C, so C's direct importers set
  * is never empty when C is transitively reachable from another story.
  */
-function findImporter(
-  changedAbs: string,
-  reverseEdges: Map<string, Set<string>>
-): string | null {
+function findImporter(changedAbs: string, reverseEdges: Map<string, Set<string>>): string | null {
   const importers = reverseEdges.get(changedAbs);
   if (!importers) return null;
   for (const imp of importers) {

@@ -177,7 +177,9 @@ async function collectIos(
   let iosPath;
   try {
     iosPath = await fileBrowserPrompt({
-      message: `Select iOS ${getBuildTypeLabel(command)} build (${IOS_FILE_TYPES.join(', ')})${chalk.reset.dim(` (--${IOS_OPTION})`)}:`,
+      message: `Select iOS ${getBuildTypeLabel(command)} build (${IOS_FILE_TYPES.join(
+        ', '
+      )})${chalk.reset.dim(` (--${IOS_OPTION})`)}:`,
       extensions: [...IOS_FILE_TYPES],
       pageSize: 10,
     });
@@ -211,7 +213,9 @@ async function collectAndroid(
   let androidPath;
   try {
     androidPath = await fileBrowserPrompt({
-      message: `Select Android ${getBuildTypeLabel(command)} build (${ANDROID_FILE_TYPES.join(', ')})${chalk.reset.dim(` (--${ANDROID_OPTION})`)}:`,
+      message: `Select Android ${getBuildTypeLabel(command)} build (${ANDROID_FILE_TYPES.join(
+        ', '
+      )})${chalk.reset.dim(` (--${ANDROID_OPTION})`)}:`,
       extensions: [...ANDROID_FILE_TYPES],
       pageSize: 10,
     });

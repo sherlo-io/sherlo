@@ -2,9 +2,7 @@ import { GitInfo } from '../getGitInfo';
 import runShellCommand from '../runShellCommand';
 import { checkStoryImportsStory } from './storyImportsStory';
 
-export type ChangedFilesResult =
-  | { changedFiles: string[] }
-  | { fullRun: true; reason: string };
+export type ChangedFilesResult = { changedFiles: string[] } | { fullRun: true; reason: string };
 
 /**
  * Derives the list of changed files to send in the openBuild TurboSnap payload.
@@ -49,7 +47,10 @@ export async function computeChangedFiles(
   }
 
   if (gitInfo.isShallow) {
-    return { fullRun: true, reason: 'shallow clone: ancestry is grafted, diff base is untrustworthy' };
+    return {
+      fullRun: true,
+      reason: 'shallow clone: ancestry is grafted, diff base is untrustworthy',
+    };
   }
 
   if (gitInfo.isDirty) {
@@ -70,6 +71,9 @@ export async function computeChangedFiles(
     const changedFiles = output.split('\n').filter(Boolean);
     return checkStoryImportsStory(projectRoot, changedFiles);
   } catch (err) {
-    return { fullRun: true, reason: `git diff failed: ${err instanceof Error ? err.message : String(err)}` };
+    return {
+      fullRun: true,
+      reason: `git diff failed: ${err instanceof Error ? err.message : String(err)}`,
+    };
   }
 }

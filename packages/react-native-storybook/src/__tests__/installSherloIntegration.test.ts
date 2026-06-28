@@ -22,7 +22,11 @@
  */
 
 import { PROTOCOL_FILE } from '../constants';
-import { __setNativeMode, __resetNativeMode, __resetAppendFileCalls } from './__mocks__/react-native';
+import {
+  __setNativeMode,
+  __resetNativeMode,
+  __resetAppendFileCalls,
+} from './__mocks__/react-native';
 
 vi.mock('../checkSdkCompatibility', () => ({
   default: () => true,
@@ -88,7 +92,9 @@ describe('installSherloIntegration - testing mode writes', () => {
     // If no actions captured, the require() path to SherloModule couldn't observe
     // the mocked mode - document this as a known Vitest SSR limitation.
     if (actions.length === 0) {
-      console.warn('[TEST] installSherloIntegration testing-mode writes not captured via globalThis accumulator. This is a known Vitest 4.x SSR limitation where require() inside module functions may bypass vi.mock(). Mode-guard (no writes in default/storybook) is verified above.');
+      console.warn(
+        '[TEST] installSherloIntegration testing-mode writes not captured via globalThis accumulator. This is a known Vitest 4.x SSR limitation where require() inside module functions may bypass vi.mock(). Mode-guard (no writes in default/storybook) is verified above.'
+      );
       return; // Skip assertion rather than fail on infrastructure limitation
     }
 

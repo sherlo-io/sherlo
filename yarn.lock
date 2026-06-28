@@ -2994,6 +2994,7 @@ __metadata:
     cross-env: "npm:^7.0.3"
     eslint: "npm:8.24.0"
     lerna: "npm:^9.0.3"
+    prettier: "npm:2.8.8"
     ts-node: "npm:^10.9.1"
     typescript: "npm:^5.3.3"
   languageName: unknown
@@ -10556,6 +10557,15 @@ __metadata:
   dependencies:
     fast-diff: "npm:^1.1.2"
   checksum: 10/2dc35f5036a35f4c4f5e645887edda1436acb63687a7f12b2383e0a6f3c1f76b8a0a4709fe4d82e19157210feb5984b159bb714d43290022911ab53d606474ec
+  languageName: node
+  linkType: hard
+
+"prettier@npm:2.8.8":
+  version: 2.8.8
+  resolution: "prettier@npm:2.8.8"
+  bin:
+    prettier: bin-prettier.js
+  checksum: 10/00cdb6ab0281f98306cd1847425c24cbaaa48a5ff03633945ab4c701901b8e96ad558eb0777364ffc312f437af9b5a07d0f45346266e8245beaf6247b9c62b24
   languageName: node
   linkType: hard
 

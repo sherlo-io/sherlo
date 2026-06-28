@@ -6,7 +6,11 @@ import { Platform, ProjectType } from '../types';
 import { detectEntryFile } from '../detectBundler';
 import findSourceMap from './findSourceMap';
 
-function buildSourceMaps(projectRoot: string, projectType: ProjectType, platform: Platform): string {
+function buildSourceMaps(
+  projectRoot: string,
+  projectType: ProjectType,
+  platform: Platform
+): string {
   const cacheDir = path.join(projectRoot, '.sherlo-cache');
   if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
 
@@ -29,7 +33,9 @@ function buildSourceMaps(projectRoot: string, projectType: ProjectType, platform
           { cwd: projectRoot, stdio: ['pipe', 'pipe', 'pipe'] }
         );
       } catch (expoErr: any) {
-        spinner.warn(`expo build failed (${expoErr.message || String(expoErr)}), retrying with rn bundler...`);
+        spinner.warn(
+          `expo build failed (${expoErr.message || String(expoErr)}), retrying with rn bundler...`
+        );
         const rnBundleOut = path.join(cacheDir, `bundle.${platform}.jsbundle`);
         const rnMapOut = `${rnBundleOut}.map`;
         execSync(
@@ -52,7 +58,9 @@ function buildSourceMaps(projectRoot: string, projectType: ProjectType, platform
   } catch (err: any) {
     spinner.fail('Source map build failed');
     const errOutput = (err.stderr?.toString?.() || '') + (err.stdout?.toString?.() || '');
-    throw new Error(`Source map build failed: ${err.message || String(err)}${errOutput ? '\n' + errOutput : ''}`);
+    throw new Error(
+      `Source map build failed: ${err.message || String(err)}${errOutput ? '\n' + errOutput : ''}`
+    );
   }
 
   return findSourceMap(projectRoot, effectiveProjectType, platform);

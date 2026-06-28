@@ -9,11 +9,7 @@ import GitFixture from './gitFixture';
 describe('GitFixture determinism', () => {
   function buildSequence(): { fixture: GitFixture; shas: string[] } {
     const fixture = GitFixture.create();
-    const shas = [
-      fixture.commitFile('c1'),
-      fixture.commitFile('c2'),
-      fixture.commitFile('c3'),
-    ];
+    const shas = [fixture.commitFile('c1'), fixture.commitFile('c2'), fixture.commitFile('c3')];
     return { fixture, shas };
   }
 

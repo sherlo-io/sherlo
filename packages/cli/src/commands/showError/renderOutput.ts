@@ -7,9 +7,10 @@ function renderFrame(frame: ParsedFrame): string {
   }
   const isTTY = process.stdout.isTTY;
   if (isTTY) {
-    const loc = frame.col !== null
-      ? `${chalk.cyan(frame.file)}${chalk.dim(`:${frame.line}:${frame.col}`)}`
-      : `${chalk.cyan(frame.file)}${chalk.dim(`:${frame.line}`)}`;
+    const loc =
+      frame.col !== null
+        ? `${chalk.cyan(frame.file)}${chalk.dim(`:${frame.line}:${frame.col}`)}`
+        : `${chalk.cyan(frame.file)}${chalk.dim(`:${frame.line}`)}`;
     return `  at ${frame.fnName} (${loc})`;
   }
   if (frame.col !== null) {

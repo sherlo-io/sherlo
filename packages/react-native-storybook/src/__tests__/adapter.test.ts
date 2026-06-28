@@ -18,10 +18,9 @@ describe('enumerateStories – importPath bridge (TurboSnap)', () => {
       default: { title: 'Components/Button' },
       Primary: { parameters: { sherlo: { platform: 'ios' as const } } },
     };
-    const req = Object.assign(
-      (_filename: string) => fileExports,
-      { keys: () => ['./Button.stories.tsx'] },
-    );
+    const req = Object.assign((_filename: string) => fileExports, {
+      keys: () => ['./Button.stories.tsx'],
+    });
     (globalThis as any).STORIES = [{ directory: './src/components', req }];
 
     const view = { _storyIndex: { entries: {} } } as unknown as StorybookView;
@@ -34,13 +33,16 @@ describe('enumerateStories – importPath bridge (TurboSnap)', () => {
 
   it('includes importPath for auto-titled stories from _storyIndex.entries', () => {
     const autoTitledExports = {
-      default: { component: function AutoBtn() { return null; } },
+      default: {
+        component: function AutoBtn() {
+          return null;
+        },
+      },
       Basic: { parameters: {} },
     };
-    const req = Object.assign(
-      (_filename: string) => autoTitledExports,
-      { keys: () => ['./AutoBtn.stories.tsx'] },
-    );
+    const req = Object.assign((_filename: string) => autoTitledExports, {
+      keys: () => ['./AutoBtn.stories.tsx'],
+    });
     (globalThis as any).STORIES = [{ directory: './src', req }];
 
     const view = {
@@ -68,10 +70,9 @@ describe('enumerateStories – importPath bridge (TurboSnap)', () => {
       default: { title: 'Components/Badge' },
       Default: {},
     };
-    const req = Object.assign(
-      (_filename: string) => fileExports,
-      { keys: () => ['./Badge.stories.tsx'] },
-    );
+    const req = Object.assign((_filename: string) => fileExports, {
+      keys: () => ['./Badge.stories.tsx'],
+    });
     (globalThis as any).STORIES = [{ directory: './src', req }];
 
     const view = { _storyIndex: { entries: {} } } as unknown as StorybookView;
@@ -112,10 +113,9 @@ describe('enumerateStories – explicit name regression (SHERLO-1491)', () => {
       default: { title: 'Explicit Name' },
       Foo: { name: 'Bar', render: (): null => null },
     };
-    const req = Object.assign(
-      (_filename: string) => fileExports,
-      { keys: () => ['./ExplicitName.stories.tsx'] },
-    );
+    const req = Object.assign((_filename: string) => fileExports, {
+      keys: () => ['./ExplicitName.stories.tsx'],
+    });
     (globalThis as any).STORIES = [{ directory: './src', req }];
 
     const view = {
@@ -124,7 +124,7 @@ describe('enumerateStories – explicit name regression (SHERLO-1491)', () => {
           'explicit-name--foo': {
             id: 'explicit-name--foo',
             title: 'Explicit Name',
-            name: 'Bar',  // Storybook stores the display name here
+            name: 'Bar', // Storybook stores the display name here
             importPath: './src/ExplicitName.stories.tsx',
           },
         },
@@ -151,10 +151,9 @@ describe('enumerateStories – explicit name regression (SHERLO-1491)', () => {
       FooBar: { name: 'Custom Display', render: (): null => null },
       AnotherOne: {},
     };
-    const req = Object.assign(
-      (_filename: string) => fileExports,
-      { keys: () => ['./MyTitle.stories.tsx'] },
-    );
+    const req = Object.assign((_filename: string) => fileExports, {
+      keys: () => ['./MyTitle.stories.tsx'],
+    });
     (globalThis as any).STORIES = [{ directory: './src', req }];
 
     const view = {
@@ -183,7 +182,7 @@ describe('enumerateStories – explicit name regression (SHERLO-1491)', () => {
     for (const meta of storyMetas) {
       expect(indexIds.has(meta.id)).toBe(true);
     }
-    const emittedIds = storyMetas.map(m => m.id).sort();
+    const emittedIds = storyMetas.map((m) => m.id).sort();
     expect(emittedIds).toEqual(['my-title--another-one', 'my-title--foo-bar']);
   });
 
@@ -198,19 +197,18 @@ describe('enumerateStories – explicit name regression (SHERLO-1491)', () => {
       default: { title: 'My Title' },
       Foo: {}, // no explicit name
     };
-    const req = Object.assign(
-      (_filename: string) => fileExports,
-      { keys: () => ['./MyTitle.stories.tsx'] },
-    );
+    const req = Object.assign((_filename: string) => fileExports, {
+      keys: () => ['./MyTitle.stories.tsx'],
+    });
     (globalThis as any).STORIES = [{ directory: './src', req }];
 
     const view = {
       _storyIndex: {
         entries: {
           'my-title--foo-x': {
-            id: 'my-title--foo-x',   // Storybook's real id (differs from SDK-computed 'my-title--foo')
+            id: 'my-title--foo-x', // Storybook's real id (differs from SDK-computed 'my-title--foo')
             title: 'My Title',
-            name: 'Foo',             // = storyNameFromExport('Foo')
+            name: 'Foo', // = storyNameFromExport('Foo')
             importPath: './src/MyTitle.stories.tsx',
           },
         },
@@ -233,10 +231,9 @@ describe('enumerateStories – explicit name regression (SHERLO-1491)', () => {
       default: { title: 'SomeTitle' },
       Foo: { name: 'Bar', render: (): null => null },
     };
-    const req = Object.assign(
-      (_filename: string) => fileExports,
-      { keys: () => ['./SomeTitle.stories.tsx'] },
-    );
+    const req = Object.assign((_filename: string) => fileExports, {
+      keys: () => ['./SomeTitle.stories.tsx'],
+    });
     (globalThis as any).STORIES = [{ directory: './src', req }];
 
     const view = {
@@ -269,7 +266,9 @@ describe('enumerateStories – auto-titled stories (component: without title:)',
     const autoTitledFileExports = {
       default: {
         // NOTE: component: present, title: ABSENT - this is the auto-titled case
-        component: function SomeAutoTitledComponent() { return null; },
+        component: function SomeAutoTitledComponent() {
+          return null;
+        },
       },
       Basic: {
         parameters: {
@@ -289,7 +288,7 @@ describe('enumerateStories – auto-titled stories (component: without title:)',
       // NOT to the project root.  Real example from testing/expo:
       //   directory: "./src"  +  req.keys() → ["./AutoTitled.stories.tsx"]
       //   → importPath built by @storybook/react-native: "./src/AutoTitled.stories.tsx"
-      { keys: () => ['./AutoTitled.stories.tsx'] },
+      { keys: () => ['./AutoTitled.stories.tsx'] }
     );
 
     (globalThis as any).STORIES = [{ directory: './src', req }];

@@ -19,7 +19,11 @@ type SherloModule = {
   getConfig: () => Config;
   getLastState: () => LastState | undefined;
   getNativeVersion: () => string | null;
-  sendNativeError: (errorCode: string, message: string, data?: Record<string, string | null>) => void;
+  sendNativeError: (
+    errorCode: string,
+    message: string,
+    data?: Record<string, string | null>
+  ) => void;
   getInspectorData: () => Promise<InspectorData>;
   appendFile: (path: string, base64: string) => Promise<void>;
   readFile: (path: string) => Promise<string>;

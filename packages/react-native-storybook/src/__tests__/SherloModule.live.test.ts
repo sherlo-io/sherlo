@@ -60,14 +60,32 @@ import SherloModule from '../SherloModule';
 
 const NEW_ARCH_CONSTANTS = {
   mode: 'testing',
-  config: JSON.stringify({ stabilization: { requiredMatches: 3, minScreenshotsCount: 3, intervalMs: 500, timeoutMs: 5000, threshold: 0, includeAA: true } }),
+  config: JSON.stringify({
+    stabilization: {
+      requiredMatches: 3,
+      minScreenshotsCount: 3,
+      intervalMs: 500,
+      timeoutMs: 5000,
+      threshold: 0,
+      includeAA: true,
+    },
+  }),
   lastState: JSON.stringify({ nextSnapshot: { storyId: 'comp--story' }, requestId: 'req-1' }),
   nativeVersion: '2.0.0',
 };
 
 const OLD_ARCH_CONSTANTS = {
   mode: 'default',
-  config: JSON.stringify({ stabilization: { requiredMatches: 2, minScreenshotsCount: 2, intervalMs: 300, timeoutMs: 4000, threshold: 0, includeAA: false } }),
+  config: JSON.stringify({
+    stabilization: {
+      requiredMatches: 2,
+      minScreenshotsCount: 2,
+      intervalMs: 300,
+      timeoutMs: 4000,
+      threshold: 0,
+      includeAA: false,
+    },
+  }),
   lastState: '',
   nativeVersion: '1.5.0',
 };
@@ -144,7 +162,10 @@ describe('SherloModule live - getConfig / getLastState', () => {
   });
 
   it('getLastState() returns undefined when lastState is empty object', () => {
-    mockGetSherloConstants.mockReturnValue({ ...NEW_ARCH_CONSTANTS, lastState: JSON.stringify({}) });
+    mockGetSherloConstants.mockReturnValue({
+      ...NEW_ARCH_CONSTANTS,
+      lastState: JSON.stringify({}),
+    });
     expect(SherloModule.getLastState()).toBeUndefined();
   });
 

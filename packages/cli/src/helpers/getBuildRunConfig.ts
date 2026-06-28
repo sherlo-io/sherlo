@@ -47,5 +47,10 @@ export default getBuildRunConfig;
 function getPlatformDevices(configDevices: Config['devices'], platform: Platform): Device[] {
   return configDevices
     .filter(({ id }) => getPlatformFromDeviceId(id) === platform)
-    .map(({ theme, locale, fontScale, ...rest }) => ({ osTheme: theme, osLocale: locale, osFontScale: fontScale, ...rest }));
+    .map(({ theme, locale, fontScale, ...rest }) => ({
+      osTheme: theme,
+      osLocale: locale,
+      osFontScale: fontScale,
+      ...rest,
+    }));
 }

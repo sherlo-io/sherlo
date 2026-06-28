@@ -45,7 +45,9 @@ async function uploadOrReuseBuildsAndRunTests({
     printEasUpdateData(easUpdateData);
   }
 
-  const gitInfo = await getGitInfo(commandParams.projectRoot, { branchOverride: commandParams.gitBranch });
+  const gitInfo = await getGitInfo(commandParams.projectRoot, {
+    branchOverride: commandParams.gitBranch,
+  });
 
   const changedFilesResult = await computeChangedFiles(commandParams.projectRoot, gitInfo, {
     forceFullRun: commandParams.fullRun,
@@ -58,7 +60,8 @@ async function uploadOrReuseBuildsAndRunTests({
     console.log(`[Sherlo] TurboSnap: full capture - ${changedFilesResult.reason}`);
   }
 
-  const nativeFingerprint = await computeNativeFingerprint(commandParams.projectRoot) ?? undefined;
+  const nativeFingerprint =
+    (await computeNativeFingerprint(commandParams.projectRoot)) ?? undefined;
 
   reporting.addBreadcrumb({
     category: 'api',
@@ -99,7 +102,8 @@ async function uploadOrReuseBuildsAndRunTests({
   // Sentry tags must be strings; buildIndex is a number from the API response.
   reporting.setTag('build_index', String(buildIndex));
 
-  const platform = binariesInfo.android && binariesInfo.ios ? 'both' : binariesInfo.android ? 'android' : 'ios';
+  const platform =
+    binariesInfo.android && binariesInfo.ios ? 'both' : binariesInfo.android ? 'android' : 'ios';
   reporting.setTag('platform', platform);
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });

@@ -18,13 +18,12 @@
  * matrix in sherlo-developer, which runs on real devices with expo-dev-menu installed.
  */
 
-const { mockAddMenuItem, mockGetMode, mockOpenStorybook, mockToggleStorybook } =
-  vi.hoisted(() => ({
-    mockAddMenuItem: vi.fn(),
-    mockGetMode: vi.fn().mockReturnValue('default'),
-    mockOpenStorybook: vi.fn(),
-    mockToggleStorybook: vi.fn(),
-  }));
+const { mockAddMenuItem, mockGetMode, mockOpenStorybook, mockToggleStorybook } = vi.hoisted(() => ({
+  mockAddMenuItem: vi.fn(),
+  mockGetMode: vi.fn().mockReturnValue('default'),
+  mockOpenStorybook: vi.fn(),
+  mockToggleStorybook: vi.fn(),
+}));
 
 vi.stubGlobal('__DEV__', true);
 

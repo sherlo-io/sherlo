@@ -13,19 +13,13 @@ const makeNode = (overrides: Partial<InspectorDataNode> = {}): InspectorDataNode
   ...overrides,
 });
 
-const makeInspectorData = (
-  viewHierarchy: InspectorDataNode,
-  density = 1
-): InspectorData => ({
+const makeInspectorData = (viewHierarchy: InspectorDataNode, density = 1): InspectorData => ({
   viewHierarchy,
   density,
   fontScale: 1,
 });
 
-const makeMetadata = (
-  viewProps: Metadata['viewProps'] = {},
-  texts: string[] = []
-): Metadata => ({
+const makeMetadata = (viewProps: Metadata['viewProps'] = {}, texts: string[] = []): Metadata => ({
   viewProps,
   texts,
 });
@@ -174,16 +168,11 @@ describe('prepareInspectorData', () => {
       4: { className: 'DeepView', hasNetworkImage: true },
     });
 
-    const { inspectorData, hasNetworkImage } = prepareInspectorData(
-      data,
-      metadata,
-      'story-id'
-    );
+    const { inspectorData, hasNetworkImage } = prepareInspectorData(data, metadata, 'story-id');
 
     expect(hasNetworkImage).toBe(true);
     // Find the deep child
-    const deep =
-      inspectorData.viewHierarchy.children![0].children![0].children![0];
+    const deep = inspectorData.viewHierarchy.children![0].children![0].children![0];
     expect(deep.className).toBe('DeepView');
     expect(deep.adjustedWidth).toBe(60);
     expect(deep.adjustedHeight).toBe(120);
@@ -197,11 +186,7 @@ describe('prepareInspectorData', () => {
     };
     const metadata = makeMetadata();
 
-    const { inspectorData, hasNetworkImage } = prepareInspectorData(
-      data,
-      metadata,
-      'story-id'
-    );
+    const { inspectorData, hasNetworkImage } = prepareInspectorData(data, metadata, 'story-id');
 
     expect(inspectorData.viewHierarchy).toBeNull();
     expect(hasNetworkImage).toBe(false);

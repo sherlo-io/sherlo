@@ -34,10 +34,13 @@ function parseConfigFile(path: string): InvalidatedConfig {
     switch (nodeError.code) {
       case 'ENOENT':
         throwError(getError({ type: 'not_found', path }));
+        break;
       case 'EACCES':
         throwError(getError({ type: 'no_access', path }));
+        break;
       case 'EISDIR':
         throwError(getError({ type: 'is_directory', path }));
+        break;
       default:
         if (error instanceof SyntaxError) {
           throwError(getError({ type: 'invalid_json', path }));

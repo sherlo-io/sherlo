@@ -44,7 +44,9 @@ function buildFakeGlobal(
       setGlobalHandler,
       getGlobalHandler,
     },
-    __turboModuleProxy: nm ? vi.fn((name: string) => name === 'SherloModule' ? nm : null) : undefined,
+    __turboModuleProxy: nm
+      ? vi.fn((name: string) => (name === 'SherloModule' ? nm : null))
+      : undefined,
     _setGlobalHandler: setGlobalHandler,
     _getGlobalHandler: getGlobalHandler,
   };
@@ -61,7 +63,9 @@ function buildFakeGlobalWithD(
   return fakeGlobal;
 }
 
-function getInstalledHandler(fakeGlobal: Record<string, any>): (error: Error, isFatal: boolean) => void {
+function getInstalledHandler(
+  fakeGlobal: Record<string, any>
+): (error: Error, isFatal: boolean) => void {
   const calls = fakeGlobal._setGlobalHandler.mock.calls;
   if (!calls.length) throw new Error('setGlobalHandler was never called');
   return calls[calls.length - 1][0];
@@ -72,7 +76,16 @@ function callWrappedFactory(
   callIndex = 0
 ): (...args: any[]) => any {
   const wrappedFactory = fakeGlobal._originalD.mock.calls[callIndex][0];
-  return (...args: any[]) => wrappedFactory({}, () => {}, () => {}, () => {}, {}, {}, args[0] ?? []);
+  return (...args: any[]) =>
+    wrappedFactory(
+      {},
+      () => {},
+      () => {},
+      () => {},
+      {},
+      {},
+      args[0] ?? []
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -153,7 +166,11 @@ describe('metro/polyfill.js - ErrorUtils.setGlobalHandler', () => {
   });
 
   it('does not throw if reportEarlyJsError itself throws', async () => {
-    const nm = makeNativeModule(vi.fn(() => { throw new Error('native exploded'); }));
+    const nm = makeNativeModule(
+      vi.fn(() => {
+        throw new Error('native exploded');
+      })
+    );
     const fakeGlobal = buildFakeGlobal(nm);
     runPolyfill(fakeGlobal);
     await Promise.resolve();
@@ -258,7 +275,9 @@ describe('metro/polyfill.js - __d wrap', () => {
     const nm = makeNativeModule(reportFn);
     const fakeGlobal = buildFakeGlobalWithD(nm);
     const err = new Error('module crash');
-    const factory = vi.fn(() => { throw err; });
+    const factory = vi.fn(() => {
+      throw err;
+    });
     runPolyfill(fakeGlobal);
     fakeGlobal.__d(factory, 1, []);
     const invoke = callWrappedFactory(fakeGlobal);
@@ -271,7 +290,9 @@ describe('metro/polyfill.js - __d wrap', () => {
     const reportFn = vi.fn();
     const nm = makeNativeModule(reportFn);
     const fakeGlobal = buildFakeGlobalWithD(nm);
-    const factory = vi.fn(() => { throw new Error('boom'); });
+    const factory = vi.fn(() => {
+      throw new Error('boom');
+    });
     runPolyfill(fakeGlobal);
     fakeGlobal.__d(factory, 1, []);
     fakeGlobal.__d(factory, 2, []);
@@ -287,7 +308,9 @@ describe('metro/polyfill.js - __d wrap', () => {
     const nm = makeNativeModule(reportFn);
     const fakeGlobal = buildFakeGlobalWithD(nm);
     const err = new Error('transitive crash');
-    const factory = vi.fn(() => { throw err; });
+    const factory = vi.fn(() => {
+      throw err;
+    });
     runPolyfill(fakeGlobal);
     await Promise.resolve(); // flush installSherloErrorUtilsHandler
     fakeGlobal.__d(factory, 1, []);

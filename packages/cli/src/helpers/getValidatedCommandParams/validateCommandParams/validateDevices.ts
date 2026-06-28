@@ -17,8 +17,7 @@ function validateDevices(config: InvalidatedConfig): void {
   }
 
   for (let i = 0; i < devices.length; i++) {
-    const { id, locale, osVersion, theme, fontScale, ...unsupportedProperties } =
-      devices[i] ?? {};
+    const { id, locale, osVersion, theme, fontScale, ...unsupportedProperties } = devices[i] ?? {};
 
     if (!id || typeof id !== 'string' || !osVersion || typeof osVersion !== 'string') {
       throwError(getError({ type: 'requiredDeviceProps' }));
@@ -75,8 +74,8 @@ function validateDevices(config: InvalidatedConfig): void {
     const deviceFontScaleLevels = DEVICE_OS_FONT_SCALE[platform]
       ? Object.keys(DEVICE_OS_FONT_SCALE[platform]).sort((a, b) => {
           // Convert to numbers for proper ordering
-          const numA = parseInt(a.replace('+', ''));
-          const numB = parseInt(b.replace('+', ''));
+          const numA = parseInt(a.replace('+', ''), 10);
+          const numB = parseInt(b.replace('+', ''), 10);
           return numA - numB;
         })
       : [];

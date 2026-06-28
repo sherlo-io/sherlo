@@ -17,7 +17,9 @@ async function storybookAccess(sessionId: string | null): Promise<void> {
 
   console.log();
 
-  console.log(wrapInBox({ title: 'Root component', text: getStandaloneStorybookCode(), indent: 2 }));
+  console.log(
+    wrapInBox({ title: 'Root component', text: getStandaloneStorybookCode(), indent: 2 })
+  );
 
   printSubtitle('Option 2: Integrated Storybook');
 
@@ -27,7 +29,9 @@ async function storybookAccess(sessionId: string | null): Promise<void> {
 
   console.log();
 
-  console.log(wrapInBox({ title: 'Root component', text: getIntegratedStorybookCode(), indent: 2 }));
+  console.log(
+    wrapInBox({ title: 'Root component', text: getIntegratedStorybookCode(), indent: 2 })
+  );
 
   console.log();
 

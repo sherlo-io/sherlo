@@ -5,7 +5,11 @@ import {
   validateLocalBinaries,
 } from '../../helpers';
 import { EasUpdateData, Options } from '../../types';
-import { EAS_ANDROID_URL_OPTION, EAS_IOS_URL_OPTION, EAS_UPDATE_SLUG_OPTION } from '../../constants';
+import {
+  EAS_ANDROID_URL_OPTION,
+  EAS_IOS_URL_OPTION,
+  EAS_UPDATE_SLUG_OPTION,
+} from '../../constants';
 import { THIS_COMMAND } from './constants';
 import { getValidatedEasUpdateData } from './helpers';
 
@@ -23,8 +27,7 @@ async function testEasUpdate(passedOptions: Options<THIS_COMMAND>): Promise<{ ur
 
   const easAndroidUrl = passedOptions[EAS_ANDROID_URL_OPTION];
   const easIosUrl = passedOptions[EAS_IOS_URL_OPTION];
-  const hasDevtoolsBypass =
-    process.env.SHERLO_DEVTOOLS === '1' && easAndroidUrl && easIosUrl;
+  const hasDevtoolsBypass = process.env.SHERLO_DEVTOOLS === '1' && easAndroidUrl && easIosUrl;
 
   const easUpdateData: EasUpdateData = hasDevtoolsBypass
     ? {

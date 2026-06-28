@@ -36,8 +36,8 @@ async function installSherlo(): Promise<void> {
   const packageSpec = localSdkPath
     ? `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@${localSdkProtocol}:${localSdkPath}`
     : sdkVersion
-      ? `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@${sdkVersion}`
-      : SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME;
+    ? `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@${sdkVersion}`
+    : SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME;
 
   const packageManager = (await detect())?.name ?? 'npm';
   const resolvedCommand = resolveCommand(

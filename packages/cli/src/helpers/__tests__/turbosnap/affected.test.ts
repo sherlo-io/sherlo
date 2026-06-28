@@ -124,7 +124,9 @@ describe('affected – integration: native-fingerprint note', () => {
 
 describe('affected – integration: missing or unparseable graph', () => {
   it('returns fullRun when graph is null (sidecar absent)', () => {
-    const stories: StoryEntry[] = [{ id: 'button--primary', importPath: './src/Button.stories.tsx' }];
+    const stories: StoryEntry[] = [
+      { id: 'button--primary', importPath: './src/Button.stories.tsx' },
+    ];
     const result = affected(['src/Button.tsx'], null, stories);
 
     expect(isFullRun(result)).toBe(true);
@@ -275,6 +277,7 @@ describe('affected – SUPERSET PROPERTY TEST', () => {
     stories: StoryEntry[];
     changedFiles: string[];
   } {
+    // eslint-disable-next-line no-bitwise
     const pseudo = (n: number) => ((seed * 1103515245 + 12345 + n * 214013) & 0x7fffffff) % 100;
 
     const nodeCount = 8 + (pseudo(0) % 8); // 8..15 modules
@@ -282,9 +285,9 @@ describe('affected – SUPERSET PROPERTY TEST', () => {
     const changedCount = 1 + (pseudo(2) % 4); // 1..4 changed files
 
     const nodes = Array.from({ length: nodeCount }, (_, i) => `./src/module${i}.ts`);
-    const storyNodes = nodes.slice(0, storyCount).map((n) =>
-      n.replace('module', 'story').replace('.ts', '.stories.tsx')
-    );
+    const storyNodes = nodes
+      .slice(0, storyCount)
+      .map((n) => n.replace('module', 'story').replace('.ts', '.stories.tsx'));
     const allNodes = [...storyNodes, ...nodes.slice(storyCount)];
 
     // Build forward edges randomly, ensuring story nodes are "leaf" importers only

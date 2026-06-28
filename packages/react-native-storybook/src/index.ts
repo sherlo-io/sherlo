@@ -42,7 +42,11 @@ function installSherloIntegration(): void {
       try {
         SherloModule.appendFile(
           PROTOCOL_FILE,
-          JSON.stringify({ action: 'WITHSTORYBOOK_APPLIED', timestamp: Date.now(), entity: 'app' }) + '\n'
+          JSON.stringify({
+            action: 'WITHSTORYBOOK_APPLIED',
+            timestamp: Date.now(),
+            entity: 'app',
+          }) + '\n'
         );
       } catch (_) {}
     }
@@ -50,7 +54,11 @@ function installSherloIntegration(): void {
       try {
         SherloModule.appendFile(
           PROTOCOL_FILE,
-          JSON.stringify({ action: 'WITHSTORYBOOK_DISABLED', timestamp: Date.now(), entity: 'app' }) + '\n'
+          JSON.stringify({
+            action: 'WITHSTORYBOOK_DISABLED',
+            timestamp: Date.now(),
+            entity: 'app',
+          }) + '\n'
         );
       } catch (_) {}
     }

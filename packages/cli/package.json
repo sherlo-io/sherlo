@@ -29,6 +29,7 @@
   ],
   "scripts": {
     "build": "rm -rf dist && ncc build src/index.ts --source-map --minify && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js",
+    "lint": "NODE_ENV=production yarn run -T eslint --ext .ts,.tsx src",
     "test": "vitest run"
   },
   "devDependencies": {
