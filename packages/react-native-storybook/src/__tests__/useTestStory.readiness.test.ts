@@ -1,10 +1,10 @@
 /**
  * STORY_RENDERED readiness + native paint barrier.
  *
- * These tests are MUST-GO-RED: they assert behavior that only exists once the
- * new readiness path is implemented and the `useStoryRenderedReadiness` flag is
- * honored. Against the pre-fix useTestStory (substring poll, no paint barrier,
- * grab-at-timeout) they fail.
+ * These tests are MUST-GO-RED: they assert behavior that only exists with the
+ * readiness path (STORY_RENDERED subscription + native paint barrier). Swap the
+ * readiness logic back for the old substring poll / grab-at-timeout behavior and
+ * they fail.
  *
  * What they cover (all SEQUENCING / behavioral, NOT pixel content):
  *  - committed-but-not-painted repro: stabilize must run AFTER the paint barrier
@@ -153,7 +153,6 @@ const READINESS_CONFIG = {
     threshold: 0,
     includeAA: true,
   },
-  useStoryRenderedReadiness: true,
   scrollableFallbackDelayMs: 3000,
   storyRenderedTimeoutMs: 5000,
   paintBarrierTimeoutMs: 1000,

@@ -202,8 +202,7 @@ function createDummySherloModule(): SherloModule {
         includeAA: true,
       },
       // Readiness knobs - represented here so the dummy config shape
-      // matches the real one. Feature flag stays DEFAULT-OFF.
-      useStoryRenderedReadiness: false,
+      // matches the real one.
       scrollableFallbackDelayMs: 3000,
       storyRenderedTimeoutMs: 5000,
       paintBarrierTimeoutMs: 1000,

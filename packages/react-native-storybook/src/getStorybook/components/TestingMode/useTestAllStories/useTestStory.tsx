@@ -124,57 +124,30 @@ function useTestStory({
           requestId,
         });
 
-        // Feature flag (DEFAULT-OFF). With it off the legacy
-        // substring-poll + grab-at-timeout behavior is byte-for-byte preserved.
-        const useReadiness = config.useStoryRenderedReadiness === true;
         const readiness = resolveReadinessConfig(config);
 
         // We wait until the story is displayed in the UI
         // before we start stabilizing and taking screenshots
-        // This is to avoid taking screenshots of the loading state
-        if (useReadiness) {
-          // Observability: log BOTH the readiness config received from the
-          // runner and the values actually applied after defaults. Confirming a
-          // value is honored is a log read, not an investigation.
-          RunnerBridge.log('readiness config', {
-            received: {
-              useStoryRenderedReadiness: config.useStoryRenderedReadiness,
-              scrollableFallbackDelayMs: config.scrollableFallbackDelayMs,
-              storyRenderedTimeoutMs: config.storyRenderedTimeoutMs,
-              paintBarrierTimeoutMs: config.paintBarrierTimeoutMs,
-              paintBarrierPerScrollPart: config.paintBarrierPerScrollPart,
-            },
-            applied: readiness,
-          });
+        // This is to avoid taking screenshots of the loading state.
+        //
+        // Observability: log BOTH the readiness config received from the
+        // runner and the values actually applied after defaults. Confirming a
+        // value is honored is a log read, not an investigation.
+        RunnerBridge.log('readiness config', {
+          received: {
+            scrollableFallbackDelayMs: config.scrollableFallbackDelayMs,
+            storyRenderedTimeoutMs: config.storyRenderedTimeoutMs,
+            paintBarrierTimeoutMs: config.paintBarrierTimeoutMs,
+            paintBarrierPerScrollPart: config.paintBarrierPerScrollPart,
+          },
+          applied: readiness,
+        });
 
-          await awaitStoryReadyAndPaint({
-            view,
-            storyId: nextSnapshot.storyId,
-            readiness,
-          });
-        } else {
-          let storyIsDisplayed = false;
-          let waitCount = 0;
-          do {
-            await new Promise((resolve) => setTimeout(resolve, 500));
-            waitCount++;
-
-            const controlFabricMetadata = JSON.stringify(
-              metadataProviderRef?.current?.collectMetadata()
-            );
-
-            if (controlFabricMetadata.includes(nextSnapshot.storyId)) {
-              RunnerBridge.log('story is displayed', {
-                waitCount,
-              });
-              storyIsDisplayed = true;
-            } else {
-              RunnerBridge.log('story is not displayed', {
-                waitCount,
-              });
-            }
-          } while (!storyIsDisplayed);
-        }
+        await awaitStoryReadyAndPaint({
+          view,
+          storyId: nextSnapshot.storyId,
+          readiness,
+        });
 
         const isStable = await SherloModule.stabilize(
           config.stabilization.requiredMatches,
@@ -314,7 +287,7 @@ function useTestStory({
 
              // Re-run the native paint barrier for this scroll part
              // so the post-scroll stabilize settles on freshly-painted content.
-             if (useReadiness && readiness.paintBarrierPerScrollPart) {
+             if (readiness.paintBarrierPerScrollPart) {
                await runPaintBarrier(readiness, { phase: 'scroll-part', scrollIndex });
              }
 

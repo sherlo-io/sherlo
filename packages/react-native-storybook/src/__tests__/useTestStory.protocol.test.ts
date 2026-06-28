@@ -2,8 +2,9 @@
  * SIMPLIFIED protocol-loop test for useTestStory.
  *
  * What this test covers:
- *  - Basic REQUEST_SNAPSHOT flow: lastState present → story displayed → stabilize
- *    → inspector data → REQUEST_SNAPSHOT sent with correct action/storyId/requestId
+ *  - Basic REQUEST_SNAPSHOT flow: lastState present → readiness (no-channel quick
+ *    path) → stabilize → inspector data → REQUEST_SNAPSHOT sent with correct
+ *    action/storyId/requestId
  *  - Protocol message fields: hasError, isStable, inspectorData present
  *  - ACK_SCROLL_REQUEST loop: scrollToCheckpoint called → next REQUEST_SNAPSHOT sent
  *  - isAtEnd flag set correctly when scrollToCheckpoint returns reachedBottom=true
@@ -11,10 +12,10 @@
  * What is STUBBED / simplified:
  *  - useSafeAreaInsets() → static zeroes
  *  - prepareInspectorData() → returns input inspector data unchanged + hasNetworkImage=false
- *  - The metadata wait-loop exits immediately: collectMetadata() returns an object
- *    whose JSON.stringify includes the storyId on the first call
- *  - vi.useFakeTimers() replaces real setTimeout so the 500ms wait-loop
- *    resolves without actual delay (vi.runAllTimersAsync() flushes it)
+ *  - No Storybook channel is wired, so the (now unconditional) readiness path
+ *    resolves immediately via its no-channel quick path; awaitFrameCommit is
+ *    mocked to resolve true for the paint barrier that follows
+ *  - vi.useFakeTimers() replaces real setTimeout (vi.runAllTimersAsync() flushes)
  *  - readStoryError() returns undefined; clearStoryError() is a no-op
  *  - React useEffect runs synchronously via mock
  *
@@ -30,6 +31,7 @@ const {
   mockGetInspectorData,
   mockIsScrollable,
   mockScrollToCheckpoint,
+  mockAwaitFrameCommit,
 } = vi.hoisted(() => ({
   mockSend: vi.fn(),
   mockLog: vi.fn(),
@@ -39,6 +41,7 @@ const {
   mockGetInspectorData: vi.fn(),
   mockIsScrollable: vi.fn(),
   mockScrollToCheckpoint: vi.fn(),
+  mockAwaitFrameCommit: vi.fn(),
 }));
 
 vi.mock('react', async () => {
@@ -66,6 +69,7 @@ vi.mock('../SherloModule', () => ({
     getInspectorData: mockGetInspectorData,
     isScrollable: mockIsScrollable,
     scrollToCheckpoint: mockScrollToCheckpoint,
+    awaitFrameCommit: mockAwaitFrameCommit,
   },
 }));
 
@@ -135,9 +139,7 @@ beforeEach(() => {
       threshold: 0,
       includeAA: true,
     },
-    // Readiness knobs represented here; flag DEFAULT-OFF so this
-    // suite continues to exercise the legacy substring-poll path unchanged.
-    useStoryRenderedReadiness: false,
+    // Readiness knobs represented here so the config shape matches the real one.
     scrollableFallbackDelayMs: 3000,
     storyRenderedTimeoutMs: 5000,
     paintBarrierTimeoutMs: 1000,
@@ -148,6 +150,11 @@ beforeEach(() => {
   mockStabilize.mockResolvedValue(true);
   mockGetInspectorData.mockResolvedValue(FAKE_INSPECTOR_DATA);
   mockIsScrollable.mockResolvedValue({ scrollable: false });
+  // With the readiness path now unconditional, useTestStory always runs the
+  // native paint barrier. No view/channel is passed here, so readiness takes
+  // the no-channel quick path (non-scrollable => no fallback delay) and the
+  // REQUEST_SNAPSHOT / ACK_SCROLL_REQUEST loop below is exercised as before.
+  mockAwaitFrameCommit.mockResolvedValue(true);
 });
 
 afterEach(() => {

@@ -24,17 +24,8 @@ export type Config = {
    *
    * All optional: an OLD runner that omits them, paired with this SDK, still
    * works because every value falls back to a SDK-side default (see
-   * READINESS_DEFAULTS in useTestStory). They are consumed only when
-   * `useStoryRenderedReadiness` is true; with the flag off the capture flow is
-   * byte-for-byte the legacy substring-poll + grab-at-timeout behavior.
+   * READINESS_DEFAULTS in useTestStory).
    */
-  /**
-   * Feature flag for the whole new readiness path (STORY_RENDERED subscription +
-   * fallback delay + native paint barrier + re-seeded stabilize ordering).
-   * DEFAULT-OFF. The runner enables/disables it via config without
-   * needing an SDK rollback.
-   */
-  useStoryRenderedReadiness?: boolean;
   /**
    * When STORY_RENDERED is not received in time (or no Storybook channel is
    * reachable), wait this many ms before the first stabilize for SCROLLABLE
