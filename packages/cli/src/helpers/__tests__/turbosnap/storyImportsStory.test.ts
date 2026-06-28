@@ -464,3 +464,91 @@ export default { title: 'Home' };`
     expect(r.reason).toContain('Button.stories.tsx');
   });
 });
+
+// ---------------------------------------------------------------------------
+// (i) Relative projectRoot - the real runtime passes DEFAULT_PROJECT_ROOT = '.'
+//
+// REGRESSION GUARD: all the tests above pass an ABSOLUTE fx.dir as projectRoot,
+// so they never exercised the production code path where projectRoot is '.'.
+// With a relative root, findStoryFiles emitted relative paths into storyFileSet
+// while resolveSpecifier compares against ABSOLUTE (path.resolve) paths, so the
+// membership test never matched and no story->story edge was ever recorded - the
+// detector silently fell through to { changedFiles } in every real build.
+// These cases run with cwd set to the fixture and a relative projectRoot so they
+// mirror the EAS-cloud runtime exactly.
+// ---------------------------------------------------------------------------
+
+describe('(i) relative projectRoot (production DEFAULT_PROJECT_ROOT = ".")', () => {
+  let originalCwd: string;
+
+  beforeEach(() => {
+    originalCwd = process.cwd();
+    process.chdir(fx.dir);
+  });
+
+  afterEach(() => {
+    process.chdir(originalCwd);
+  });
+
+  it('detects a direct cross-import with projectRoot "." (S6)', () => {
+    // Mirrors the e2e fixture: ComposedCard imports the changed SharedButton story.
+    fx.write(
+      'src/components/TurboSnap/SharedButton.stories.tsx',
+      `export const Primary = () => null;
+export default { title: 'SharedButton' };`
+    );
+    fx.write(
+      'src/components/TurboSnap/ComposedCard.stories.tsx',
+      `import { Primary } from './SharedButton.stories';
+export default { title: 'ComposedCard' };
+export const WithButton = Primary;`
+    );
+
+    const result = checkStoryImportsStory('.', [
+      'src/components/TurboSnap/SharedButton.stories.tsx',
+    ]);
+
+    expect(result).toMatchObject({ fullRun: true });
+    const r = result as { fullRun: true; reason: string };
+    expect(r.reason).toMatch(/story-imports-story/);
+    expect(r.reason).toContain('SharedButton.stories.tsx');
+    expect(r.reason).toContain('ComposedCard.stories.tsx');
+  });
+
+  it('detects a barrel chain with projectRoot "." (S7)', () => {
+    // BarrelBase.stories (changed) re-exported via storyBarrel.ts, imported by BarrelCard.
+    fx.write(
+      'src/components/TurboSnap/BarrelBase.stories.tsx',
+      `export const Base = () => null;
+export default { title: 'BarrelBase' };`
+    );
+    fx.write(
+      'src/components/TurboSnap/storyBarrel.ts',
+      `export { Base } from './BarrelBase.stories';`
+    );
+    fx.write(
+      'src/components/TurboSnap/BarrelCard.stories.tsx',
+      `import { Base } from './storyBarrel';
+export default { title: 'BarrelCard' };
+export const Reused = Base;`
+    );
+
+    const result = checkStoryImportsStory('.', [
+      'src/components/TurboSnap/BarrelBase.stories.tsx',
+    ]);
+
+    expect(result).toMatchObject({ fullRun: true });
+    const r = result as { fullRun: true; reason: string };
+    expect(r.reason).toMatch(/story-imports-story/);
+  });
+
+  it('preserves the fast path with projectRoot "." when no story imports another', () => {
+    fx.write('src/A.stories.tsx', `export default { title: 'A' };`);
+    fx.write('src/B.stories.tsx', `export default { title: 'B' };`);
+
+    const changed = ['src/A.stories.tsx'];
+    const result = checkStoryImportsStory('.', changed);
+
+    expect(result).toEqual({ changedFiles: changed });
+  });
+});
