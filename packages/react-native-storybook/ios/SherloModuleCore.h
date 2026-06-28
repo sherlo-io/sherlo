@@ -119,7 +119,7 @@
         reject:(RCTPromiseRejectBlock)reject;
 
 /**
- * Native paint barrier (SHERLO-1497): forces a redraw and resolves on the next
+ * Native paint barrier: forces a redraw and resolves on the next
  * real display frame, capped at timeoutMs.
  * @param timeoutMs Cap on how long to wait for a frame (ms)
  * @param resolve Promise resolver called with @YES on frame commit, @NO on timeout

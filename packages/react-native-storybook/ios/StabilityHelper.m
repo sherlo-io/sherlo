@@ -123,7 +123,7 @@ static NSString *const LOG_TAG = @"SherloModule:StabilityHelper";
 }
 
 /**
- * Native paint barrier (SHERLO-1497). See header for rationale.
+ * Native paint barrier. See header for rationale.
  * Forces a layout + redraw of the key window, then resolves on the next display
  * frame via a one-shot CADisplayLink. Best-effort: resolves @NO on timeout.
  */

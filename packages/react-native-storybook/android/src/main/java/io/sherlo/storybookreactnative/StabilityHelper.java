@@ -76,17 +76,17 @@ public class StabilityHelper {
     }
 
     /**
-     * Native paint barrier (SHERLO-1497).
+     * Native paint barrier.
      *
      * Forces a redraw of the root view and resolves only once the GPU has
      * actually committed a frame - closing the React "committed-but-not-painted"
      * gap that let PixelCopy read a blank / stale surface. Content-agnostic.
      *
      * API 29+ uses ViewTreeObserver.registerFrameCommitCallback (the same signal
-     * Jetpack Compose's captureToImage waits on). Below 29 we fall back to a
-     * one-shot OnDrawListener. On timeout we resolve(false): the caller treats a
-     * paint-barrier timeout as best-effort and proceeds to the stability loop
-     * (design decision 3).
+     * Jetpack Compose's captureToImage waits on). Below 29 there is no
+     * frame-commit API, so we resolve(false) immediately and proceed best-effort.
+     * On timeout we resolve(false): the caller treats a paint-barrier timeout as
+     * best-effort and proceeds to the stability loop (design decision 3).
      *
      * @param activity  Current activity (resolves false if null).
      * @param timeoutMs Cap on how long to wait for a frame commit.
@@ -104,37 +104,29 @@ public class StabilityHelper {
 
         mainHandler.post(() -> {
             try {
+                // No frame-commit API below API 29: resolve(false) immediately and
+                // let the caller proceed best-effort to the stability loop (same as
+                // today's no-barrier behavior).
+                if (Build.VERSION.SDK_INT < 29) {
+                    if (settled.compareAndSet(false, true)) {
+                        promise.resolve(false);
+                    }
+                    return;
+                }
+
                 final ViewTreeObserver observer = rootView.getViewTreeObserver();
 
                 // Force the next frame to be produced.
                 rootView.invalidate();
                 rootView.requestLayout();
 
-                if (Build.VERSION.SDK_INT >= 29) {
-                    // registerFrameCommitCallback is one-shot: it auto-unregisters
-                    // after firing, so no explicit removal is needed.
-                    observer.registerFrameCommitCallback(() -> {
-                        if (settled.compareAndSet(false, true)) {
-                            promise.resolve(true);
-                        }
-                    });
-                } else {
-                    final ViewTreeObserver.OnDrawListener[] holder = new ViewTreeObserver.OnDrawListener[1];
-                    holder[0] = () -> {
-                        if (settled.compareAndSet(false, true)) {
-                            // Removing a listener from inside onDraw is illegal;
-                            // defer the removal and the resolve to the next loop.
-                            mainHandler.post(() -> {
-                                ViewTreeObserver obs = rootView.getViewTreeObserver();
-                                if (obs.isAlive() && holder[0] != null) {
-                                    obs.removeOnDrawListener(holder[0]);
-                                }
-                                promise.resolve(true);
-                            });
-                        }
-                    };
-                    observer.addOnDrawListener(holder[0]);
-                }
+                // registerFrameCommitCallback is one-shot: it auto-unregisters
+                // after firing, so no explicit removal is needed.
+                observer.registerFrameCommitCallback(() -> {
+                    if (settled.compareAndSet(false, true)) {
+                        promise.resolve(true);
+                    }
+                });
 
                 // Kick a redraw on the next animation frame.
                 rootView.postInvalidateOnAnimation();

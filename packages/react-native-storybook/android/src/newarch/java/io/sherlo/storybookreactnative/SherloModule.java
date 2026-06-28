@@ -158,7 +158,7 @@ public class SherloModule extends NativeSherloModuleSpec {
     }
 
     /**
-     * Native paint barrier (SHERLO-1497): resolves once a real frame is committed,
+     * Native paint barrier: resolves once a real frame is committed,
      * or false if timeoutMs elapses first.
      *
      * @param timeoutMs Cap on how long to wait for a frame commit (ms)

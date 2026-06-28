@@ -1,5 +1,5 @@
 /**
- * STORY_RENDERED readiness tracker (SHERLO-1497).
+ * STORY_RENDERED readiness tracker.
  *
  * WHY THIS EXISTS
  * The old readiness gate waited only for the storyId substring to appear in the

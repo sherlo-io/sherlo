@@ -20,7 +20,7 @@ export type Config = {
   easUpdateDeeplink?: string;
   initialStoryRenderDelayMs?: number;
   /**
-   * Story-readiness + native-paint-barrier knobs (SHERLO-1497).
+   * Story-readiness + native-paint-barrier knobs.
    *
    * All optional: an OLD runner that omits them, paired with this SDK, still
    * works because every value falls back to a SDK-side default (see

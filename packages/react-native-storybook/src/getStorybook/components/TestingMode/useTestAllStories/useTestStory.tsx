@@ -9,7 +9,7 @@ import { Config } from '../../../../helpers/RunnerBridge/types';
 import { StorybookView } from '../../../../types';
 import { getStorybookChannel, waitForStoryRendered } from './storyRenderedReadiness';
 
-// SHERLO-1497 readiness defaults, applied SDK-side so an OLD runner that omits
+// Readiness defaults, applied SDK-side so an OLD runner that omits
 // these fields still works. Documented in Config (RunnerBridge/types.ts).
 const READINESS_DEFAULTS = {
   scrollableFallbackDelayMs: 3000,
@@ -58,7 +58,7 @@ async function runPaintBarrier(readiness: ReadinessConfig, context: Record<strin
 }
 
 /**
- * New readiness path (SHERLO-1497): wait for Storybook's STORY_RENDERED (exact
+ * New readiness path: wait for Storybook's STORY_RENDERED (exact
  * storyId), or fall back to the configured scrollable delay, then run the native
  * paint barrier - so the stability loop that follows settles on real painted
  * content rather than a frozen spinner or blank.
@@ -124,7 +124,7 @@ function useTestStory({
           requestId,
         });
 
-        // SHERLO-1497 feature flag (DEFAULT-OFF). With it off the legacy
+        // Feature flag (DEFAULT-OFF). With it off the legacy
         // substring-poll + grab-at-timeout behavior is byte-for-byte preserved.
         const useReadiness = config.useStoryRenderedReadiness === true;
         const readiness = resolveReadinessConfig(config);
@@ -312,7 +312,7 @@ function useTestStory({
                 isAtEnd = true;
              }
 
-             // SHERLO-1497: re-run the native paint barrier for this scroll part
+             // Re-run the native paint barrier for this scroll part
              // so the post-scroll stabilize settles on freshly-painted content.
              if (useReadiness && readiness.paintBarrierPerScrollPart) {
                await runPaintBarrier(readiness, { phase: 'scroll-part', scrollIndex });

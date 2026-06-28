@@ -135,7 +135,7 @@ static void SherloEarlyInit(void) {
 }
 
 /**
- * Native paint barrier (SHERLO-1497): resolves on the next real display frame.
+ * Native paint barrier: resolves on the next real display frame.
  */
 - (void)awaitFrameCommit:(double)timeoutMs
                  resolve:(RCTPromiseResolveBlock)resolve
@@ -272,7 +272,7 @@ RCT_EXPORT_METHOD(stabilize:(double)requiredMatches
 }
 
 /**
- * Native paint barrier (SHERLO-1497): resolves on the next real display frame.
+ * Native paint barrier: resolves on the next real display frame.
  */
 RCT_EXPORT_METHOD(awaitFrameCommit:(double)timeoutMs
                   resolve:(RCTPromiseResolveBlock)resolve

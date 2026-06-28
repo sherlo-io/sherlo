@@ -201,7 +201,7 @@ function createDummySherloModule(): SherloModule {
         threshold: 0.0,
         includeAA: true,
       },
-      // SHERLO-1497 readiness knobs - represented here so the dummy config shape
+      // Readiness knobs - represented here so the dummy config shape
       // matches the real one. Feature flag stays DEFAULT-OFF.
       useStoryRenderedReadiness: false,
       scrollableFallbackDelayMs: 3000,

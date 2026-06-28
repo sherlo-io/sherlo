@@ -135,7 +135,7 @@ beforeEach(() => {
       threshold: 0,
       includeAA: true,
     },
-    // SHERLO-1497 readiness knobs represented here; flag DEFAULT-OFF so this
+    // Readiness knobs represented here; flag DEFAULT-OFF so this
     // suite continues to exercise the legacy substring-poll path unchanged.
     useStoryRenderedReadiness: false,
     scrollableFallbackDelayMs: 3000,

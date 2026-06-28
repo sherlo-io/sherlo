@@ -32,7 +32,7 @@ NS_ASSUME_NONNULL_BEGIN
           reject:(RCTPromiseRejectBlock)reject;
 
 /**
- * Native paint barrier (SHERLO-1497).
+ * Native paint barrier.
  *
  * Forces a layout + redraw of the key window and resolves on the next real
  * display frame via a one-shot CADisplayLink - closing the gap between a story

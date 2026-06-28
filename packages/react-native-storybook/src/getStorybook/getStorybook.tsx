@@ -36,7 +36,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     const testingConfig = SherloModule.getConfig();
     const delayMs = testingConfig.initialStoryRenderDelayMs;
 
-    // SHERLO-1497 (flag-gated, DEFAULT-OFF): attach the early STORY_RENDERED
+    // Flag-gated (DEFAULT-OFF): attach the early STORY_RENDERED
     // listener here - the earliest JS access to the Storybook channel - so a
     // story that renders before useTestStory mounts is buffered, not missed.
     if (testingConfig.useStoryRenderedReadiness) {

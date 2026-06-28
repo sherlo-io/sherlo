@@ -318,7 +318,7 @@ public class SherloModuleCore {
     }
 
     /**
-     * Native paint barrier (SHERLO-1497): force a redraw and resolve on the next
+     * Native paint barrier: force a redraw and resolve on the next
      * real frame commit, capped at timeoutMs.
      *
      * @param activity  The current activity

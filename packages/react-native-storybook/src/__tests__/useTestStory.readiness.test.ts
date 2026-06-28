@@ -1,5 +1,5 @@
 /**
- * SHERLO-1497 - STORY_RENDERED readiness + native paint barrier.
+ * STORY_RENDERED readiness + native paint barrier.
  *
  * These tests are MUST-GO-RED: they assert behavior that only exists once the
  * new readiness path is implemented and the `useStoryRenderedReadiness` flag is
