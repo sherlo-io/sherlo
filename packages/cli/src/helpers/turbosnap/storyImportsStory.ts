@@ -47,10 +47,17 @@ export function checkStoryImportsStory(
     return { changedFiles };
   }
 
+  // Normalize projectRoot to an absolute path. The runtime passes a relative root
+  // (DEFAULT_PROJECT_ROOT = '.'), which would make findStoryFiles emit relative
+  // paths into storyFileSet while resolveSpecifier compares against ABSOLUTE paths
+  // (path.resolve), so storyFileSet.has(...) would never match and no story->story
+  // edge would ever be recorded. Resolving here keeps both sides absolute.
+  const absRoot = path.resolve(projectRoot);
+
   // Enumerate all story files in the project (absolute paths, excluding node_modules/.git).
   let allStoryFiles: string[];
   try {
-    allStoryFiles = findStoryFiles(projectRoot);
+    allStoryFiles = findStoryFiles(absRoot);
   } catch {
     return {
       fullRun: true,
@@ -62,7 +69,7 @@ export function checkStoryImportsStory(
 
   // Absolute paths of changed story files for comparison with the resolved graph paths.
   const changedStoryAbsPaths = new Set(
-    changedStories.map((f) => path.resolve(projectRoot, f))
+    changedStories.map((f) => path.resolve(absRoot, f))
   );
 
   // Build reverse-import graph: importee (abs) -> Set<importer (abs)>.
@@ -121,7 +128,7 @@ export function checkStoryImportsStory(
     if (importer !== null) {
       return {
         fullRun: true,
-        reason: `story-imports-story: ${path.relative(projectRoot, changedAbs)} reused by ${path.relative(projectRoot, importer)}`,
+        reason: `story-imports-story: ${path.relative(absRoot, changedAbs)} reused by ${path.relative(absRoot, importer)}`,
       };
     }
   }
