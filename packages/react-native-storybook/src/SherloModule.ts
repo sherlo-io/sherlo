@@ -34,6 +34,7 @@ type SherloModule = {
     threshold: number,
     includeAA: boolean
   ) => Promise<boolean>;
+  awaitFrameCommit: (timeoutMs: number) => Promise<boolean>;
   isScrollable: () => Promise<{
     scrollable: boolean;
     scrollViewFrame?: { x: number; y: number; width: number; height: number };
@@ -105,6 +106,16 @@ function createSherloModule(): SherloModule {
         threshold,
         includeAA
       );
+    },
+    awaitFrameCommit: async (timeoutMs: number) => {
+      // Graceful degradation: an OLD native binary paired with this newer JS may
+      // not expose awaitFrameCommit. Treat its absence as "no barrier available"
+      // (resolve false) so the capture flow continues best-effort rather than
+      // throwing. The stability loop still runs afterwards.
+      if (typeof (module as any).awaitFrameCommit !== 'function') {
+        return false;
+      }
+      return (module as any).awaitFrameCommit(timeoutMs);
     },
     getMode: () => {
       return getConstants().mode;
@@ -190,11 +201,18 @@ function createDummySherloModule(): SherloModule {
         threshold: 0.0,
         includeAA: true,
       },
+      // Readiness knobs - represented here so the dummy config shape
+      // matches the real one.
+      scrollableFallbackDelayMs: 3000,
+      storyRenderedTimeoutMs: 5000,
+      paintBarrierTimeoutMs: 1000,
+      paintBarrierPerScrollPart: true,
     }),
     appendFile: async () => {},
     readFile: async () => '',
     openStorybook: () => {},
     toggleStorybook: () => {},
+    awaitFrameCommit: async () => false,
     isScrollable: async () => ({ scrollable: false }),
     scrollToCheckpoint: async () => ({
       reachedBottom: true,

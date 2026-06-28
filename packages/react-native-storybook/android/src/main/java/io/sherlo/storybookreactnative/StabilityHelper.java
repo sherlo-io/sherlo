@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
@@ -13,9 +14,12 @@ import android.view.Choreographer;
 import android.view.PixelCopy;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.inputmethod.InputMethodManager;
 
 import com.facebook.react.bridge.Promise;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -69,6 +73,78 @@ public class StabilityHelper {
                         promise.resolve(isStable);
                     }
                 });
+    }
+
+    /**
+     * Native paint barrier.
+     *
+     * Forces a redraw of the root view and resolves only once the GPU has
+     * actually committed a frame - closing the React "committed-but-not-painted"
+     * gap that let PixelCopy read a blank / stale surface. Content-agnostic.
+     *
+     * API 29+ uses ViewTreeObserver.registerFrameCommitCallback (the same signal
+     * Jetpack Compose's captureToImage waits on). Below 29 there is no
+     * frame-commit API, so we resolve(false) immediately and proceed best-effort.
+     * On timeout we resolve(false): the caller treats a paint-barrier timeout as
+     * best-effort and proceeds to the stability loop (design decision 3).
+     *
+     * @param activity  Current activity (resolves false if null).
+     * @param timeoutMs Cap on how long to wait for a frame commit.
+     * @param promise   Resolves true if a frame commit was observed, false on timeout/error.
+     */
+    public static void awaitFrameCommit(Activity activity, int timeoutMs, Promise promise) {
+        if (activity == null) {
+            promise.resolve(false);
+            return;
+        }
+
+        final View rootView = activity.getWindow().getDecorView().getRootView();
+        final Handler mainHandler = new Handler(Looper.getMainLooper());
+        final AtomicBoolean settled = new AtomicBoolean(false);
+
+        mainHandler.post(() -> {
+            try {
+                // No frame-commit API below API 29: resolve(false) immediately and
+                // let the caller proceed best-effort to the stability loop (same as
+                // today's no-barrier behavior).
+                if (Build.VERSION.SDK_INT < 29) {
+                    if (settled.compareAndSet(false, true)) {
+                        promise.resolve(false);
+                    }
+                    return;
+                }
+
+                final ViewTreeObserver observer = rootView.getViewTreeObserver();
+
+                // Force the next frame to be produced.
+                rootView.invalidate();
+                rootView.requestLayout();
+
+                // registerFrameCommitCallback is one-shot: it auto-unregisters
+                // after firing, so no explicit removal is needed.
+                observer.registerFrameCommitCallback(() -> {
+                    if (settled.compareAndSet(false, true)) {
+                        promise.resolve(true);
+                    }
+                });
+
+                // Kick a redraw on the next animation frame.
+                rootView.postInvalidateOnAnimation();
+
+                // Timeout: warn + proceed (best-effort catch-up).
+                mainHandler.postDelayed(() -> {
+                    if (settled.compareAndSet(false, true)) {
+                        Log.w(TAG, "awaitFrameCommit timed out after " + timeoutMs + "ms; proceeding best-effort");
+                        promise.resolve(false);
+                    }
+                }, Math.max(timeoutMs, 1));
+            } catch (Throwable t) {
+                Log.w(TAG, "awaitFrameCommit failed", t);
+                if (settled.compareAndSet(false, true)) {
+                    promise.resolve(false);
+                }
+            }
+        });
     }
 
     /**

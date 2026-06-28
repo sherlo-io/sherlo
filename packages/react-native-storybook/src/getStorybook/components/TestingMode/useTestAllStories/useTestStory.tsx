@@ -5,11 +5,108 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MetadataProviderRef } from '../MetadataProvider';
 import { prepareInspectorData } from './prepareInspectorData';
 import { readStoryError, clearStoryError } from '../../../storyErrorRegistry';
+import { Config } from '../../../../helpers/RunnerBridge/types';
+import { StorybookView } from '../../../../types';
+import { getStorybookChannel, waitForStoryRendered } from './storyRenderedReadiness';
+
+// Readiness defaults, applied SDK-side so an OLD runner that omits
+// these fields still works. Documented in Config (RunnerBridge/types.ts).
+const READINESS_DEFAULTS = {
+  scrollableFallbackDelayMs: 3000,
+  storyRenderedTimeoutMs: 5000,
+  paintBarrierTimeoutMs: 1000,
+  paintBarrierPerScrollPart: true,
+} as const;
+
+const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+type ReadinessConfig = {
+  scrollableFallbackDelayMs: number;
+  storyRenderedTimeoutMs: number;
+  paintBarrierTimeoutMs: number;
+  paintBarrierPerScrollPart: boolean;
+};
+
+function resolveReadinessConfig(config: Config): ReadinessConfig {
+  return {
+    scrollableFallbackDelayMs:
+      config.scrollableFallbackDelayMs ?? READINESS_DEFAULTS.scrollableFallbackDelayMs,
+    storyRenderedTimeoutMs:
+      config.storyRenderedTimeoutMs ?? READINESS_DEFAULTS.storyRenderedTimeoutMs,
+    paintBarrierTimeoutMs:
+      config.paintBarrierTimeoutMs ?? READINESS_DEFAULTS.paintBarrierTimeoutMs,
+    paintBarrierPerScrollPart:
+      config.paintBarrierPerScrollPart ?? READINESS_DEFAULTS.paintBarrierPerScrollPart,
+  };
+}
+
+/**
+ * Run the native paint barrier (force a redraw, resolve on the next real frame
+ * commit). Best-effort: on timeout/error we warn and proceed - the stability
+ * loop runs afterwards regardless (design decision 3).
+ */
+async function runPaintBarrier(readiness: ReadinessConfig, context: Record<string, any>): Promise<void> {
+  const painted = await SherloModule.awaitFrameCommit(readiness.paintBarrierTimeoutMs).catch((error) => {
+    RunnerBridge.log('paint barrier error', { error: error?.message, ...context });
+    return false;
+  });
+  RunnerBridge.log('paint barrier', {
+    painted,
+    timeoutMs: readiness.paintBarrierTimeoutMs,
+    ...context,
+  });
+}
+
+/**
+ * New readiness path: wait for Storybook's STORY_RENDERED (exact
+ * storyId), or fall back to the configured scrollable delay, then run the native
+ * paint barrier - so the stability loop that follows settles on real painted
+ * content rather than a frozen spinner or blank.
+ */
+async function awaitStoryReadyAndPaint({
+  view,
+  storyId,
+  readiness,
+}: {
+  view: StorybookView | undefined;
+  storyId: string;
+  readiness: ReadinessConfig;
+}): Promise<void> {
+  const channel = getStorybookChannel(view);
+  const result = await waitForStoryRendered({
+    storyId,
+    timeoutMs: readiness.storyRenderedTimeoutMs,
+    channel,
+  });
+  RunnerBridge.log('readiness result', {
+    path: result.path,
+    rendered: result.rendered,
+    waitedMs: result.waitedMs,
+  });
+
+  if (!result.rendered) {
+    // STORY_RENDERED never arrived (timeout) or no channel was reachable.
+    // For scrollable snapshots wait the configured fallback before stabilizing.
+    const probe = await SherloModule.isScrollable().catch(() => ({ scrollable: false }));
+    if (probe.scrollable) {
+      RunnerBridge.log('readiness fallback delay (scrollable)', {
+        delayMs: readiness.scrollableFallbackDelayMs,
+      });
+      await delay(readiness.scrollableFallbackDelayMs);
+    } else {
+      RunnerBridge.log('readiness fallback skipped (not scrollable)');
+    }
+  }
+
+  await runPaintBarrier(readiness, { phase: 'initial' });
+}
 
 function useTestStory({
   metadataProviderRef,
+  view,
 }: {
   metadataProviderRef: React.RefObject<MetadataProviderRef>;
+  view?: StorybookView;
 }): void {
   const config = SherloModule.getConfig();
   const lastState = SherloModule.getLastState();
@@ -27,30 +124,30 @@ function useTestStory({
           requestId,
         });
 
+        const readiness = resolveReadinessConfig(config);
+
         // We wait until the story is displayed in the UI
         // before we start stabilizing and taking screenshots
-        // This is to avoid taking screenshots of the loading state
-        let storyIsDisplayed = false;
-        let waitCount = 0;
-        do {
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          waitCount++;
+        // This is to avoid taking screenshots of the loading state.
+        //
+        // Observability: log BOTH the readiness config received from the
+        // runner and the values actually applied after defaults. Confirming a
+        // value is honored is a log read, not an investigation.
+        RunnerBridge.log('readiness config', {
+          received: {
+            scrollableFallbackDelayMs: config.scrollableFallbackDelayMs,
+            storyRenderedTimeoutMs: config.storyRenderedTimeoutMs,
+            paintBarrierTimeoutMs: config.paintBarrierTimeoutMs,
+            paintBarrierPerScrollPart: config.paintBarrierPerScrollPart,
+          },
+          applied: readiness,
+        });
 
-          const controlFabricMetadata = JSON.stringify(
-            metadataProviderRef?.current?.collectMetadata()
-          );
-
-          if (controlFabricMetadata.includes(nextSnapshot.storyId)) {
-            RunnerBridge.log('story is displayed', {
-              waitCount,
-            });
-            storyIsDisplayed = true;
-          } else {
-            RunnerBridge.log('story is not displayed', {
-              waitCount,
-            });
-          }
-        } while (!storyIsDisplayed);
+        await awaitStoryReadyAndPaint({
+          view,
+          storyId: nextSnapshot.storyId,
+          readiness,
+        });
 
         const isStable = await SherloModule.stabilize(
           config.stabilization.requiredMatches,
@@ -186,6 +283,12 @@ function useTestStory({
              if (scrollResult.reachedBottom) {
                 RunnerBridge.log('reached bottom locally during scroll');
                 isAtEnd = true;
+             }
+
+             // Re-run the native paint barrier for this scroll part
+             // so the post-scroll stabilize settles on freshly-painted content.
+             if (readiness.paintBarrierPerScrollPart) {
+               await runPaintBarrier(readiness, { phase: 'scroll-part', scrollIndex });
              }
 
              // Stabilize

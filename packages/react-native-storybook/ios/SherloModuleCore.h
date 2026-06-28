@@ -119,6 +119,17 @@
         reject:(RCTPromiseRejectBlock)reject;
 
 /**
+ * Native paint barrier: forces a redraw and resolves on the next
+ * real display frame, capped at timeoutMs.
+ * @param timeoutMs Cap on how long to wait for a frame (ms)
+ * @param resolve Promise resolver called with @YES on frame commit, @NO on timeout
+ * @param reject Promise rejecter (unused; the barrier is best-effort)
+ */
+- (void)awaitFrameCommit:(double)timeoutMs
+                 resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject;
+
+/**
  * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
  * Uses read-only view inspection: finds a primary scroll container, checks scroll metrics,
  * and validates with a small programmatic nudge that is immediately restored.

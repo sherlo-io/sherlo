@@ -1,7 +1,25 @@
 #import "StabilityHelper.h"
 #import "Pixelmatch.h"
+#import <QuartzCore/QuartzCore.h>
 
 static NSString *const LOG_TAG = @"SherloModule:StabilityHelper";
+
+/**
+ * One-shot CADisplayLink target for the native paint barrier. CADisplayLink
+ * requires an Obj-C target + selector (it cannot take a block directly), so this
+ * tiny class adapts the frame callback into a block.
+ */
+@interface SherloPaintBarrierTarget : NSObject
+@property (nonatomic, copy) void (^onFrame)(void);
+@end
+
+@implementation SherloPaintBarrierTarget
+- (void)handleFrame:(CADisplayLink *)link {
+    if (self.onFrame) {
+        self.onFrame();
+    }
+}
+@end
 
 @implementation StabilityHelper
 
@@ -102,6 +120,72 @@ static NSString *const LOG_TAG = @"SherloModule:StabilityHelper";
             }
         }];
     });
+}
+
+/**
+ * Native paint barrier. See header for rationale.
+ * Forces a layout + redraw of the key window, then resolves on the next display
+ * frame via a one-shot CADisplayLink. Best-effort: resolves @NO on timeout.
+ */
++ (void)awaitFrameCommit:(double)timeoutMs
+                 resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIWindow *window = [self barrierKeyWindow];
+        if (!window) {
+            resolve(@NO);
+            return;
+        }
+
+        // Force the next frame to be produced.
+        [window setNeedsLayout];
+        [window layoutIfNeeded];
+        [window.layer setNeedsDisplay];
+
+        __block BOOL settled = NO;
+        __block CADisplayLink *link = nil;
+        SherloPaintBarrierTarget *target = [SherloPaintBarrierTarget new];
+
+        void (^finish)(BOOL) = ^(BOOL painted) {
+            if (settled) {
+                return;
+            }
+            settled = YES;
+            [link invalidate];
+            link = nil;
+            resolve(painted ? @YES : @NO);
+        };
+
+        // Resolve on the first display frame after the forced redraw.
+        target.onFrame = ^{
+            finish(YES);
+        };
+        link = [CADisplayLink displayLinkWithTarget:target selector:@selector(handleFrame:)];
+        [link addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
+
+        // Timeout: warn + proceed (best-effort catch-up).
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(MAX(timeoutMs, 1) * NSEC_PER_MSEC)),
+                       dispatch_get_main_queue(), ^{
+            if (!settled) {
+                NSLog(@"[%@] awaitFrameCommit timed out after %.0fms; proceeding best-effort", LOG_TAG, timeoutMs);
+                finish(NO);
+            }
+        });
+    });
+}
+
+// Resolves the foreground key window (same scene logic as captureScreenshot).
++ (UIWindow *)barrierKeyWindow {
+    UIWindow *window = nil;
+    if (@available(iOS 13.0, *)) {
+        NSSet<UIScene *> *scenes = UIApplication.sharedApplication.connectedScenes;
+        UIScene *scene = scenes.allObjects.firstObject;
+        if ([scene isKindOfClass:[UIWindowScene class]]) {
+            UIWindowScene *windowScene = (UIWindowScene *)scene;
+            window = windowScene.windows.firstObject;
+        }
+    }
+    return window;
 }
 
 // Helper method to save a screenshot to the filesystem
