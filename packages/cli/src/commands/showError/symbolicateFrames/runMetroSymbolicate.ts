@@ -2,7 +2,11 @@ import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 
-function runMetroSymbolicate(frameLines: string[], sourceMapPath: string, projectRoot: string): string[] {
+function runMetroSymbolicate(
+  frameLines: string[],
+  sourceMapPath: string,
+  projectRoot: string
+): string[] {
   if (frameLines.length === 0) return [];
   const input = frameLines.join('\n');
   try {

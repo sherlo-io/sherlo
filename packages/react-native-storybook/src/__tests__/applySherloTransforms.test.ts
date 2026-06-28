@@ -6,8 +6,6 @@ import * as path from 'path';
 
 const applySherloTransforms = require('../../metro/applySherloTransforms');
 
-const POLYFILL_PATH = path.resolve(__dirname, '../../metro/polyfill.js');
-
 // ---------------------------------------------------------------------------
 // Native marker file detection for ERROR_STORYBOOK_DISABLED (enabled: false)
 // Architecture: applySherloTransforms writes build-time marker files to
@@ -46,7 +44,13 @@ describe('applySherloTransforms - native marker files for ERROR_STORYBOOK_DISABL
   it('generated wrapper does NOT contain SHERLO_BUILD_DISABLED (removed in favour of native detection)', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-no-builddisabled-test-'));
     applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: false });
-    const wrapperPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'storybook-wrapper.js');
+    const wrapperPath = path.join(
+      tmpDir,
+      'node_modules',
+      '.cache',
+      'sherlo',
+      'storybook-wrapper.js'
+    );
     const content = fs.readFileSync(wrapperPath, 'utf8');
     fs.rmSync(tmpDir, { recursive: true, force: true });
 
@@ -61,16 +65,24 @@ describe('applySherloTransforms - native marker files for ERROR_STORYBOOK_DISABL
 
     const fakeContext = {
       originModulePath: '/some/module.js',
-      resolveRequest: (_ctx: unknown, name: string) => ({ type: 'sourceFile', filePath: `/resolved/${name}` }),
+      resolveRequest: (_ctx: unknown, name: string) => ({
+        type: 'sourceFile',
+        filePath: `/resolved/${name}`,
+      }),
     };
-    const resolved = result.resolver.resolveRequest(fakeContext, '@sherlo/react-native-storybook', 'android');
+    const resolved = result.resolver.resolveRequest(
+      fakeContext,
+      '@sherlo/react-native-storybook',
+      'android'
+    );
     fs.rmSync(tmpDir, { recursive: true, force: true });
 
     // Falls through to the default resolver - no sdk-disabled-wrapper redirect
-    expect((resolved as { filePath: string }).filePath).toContain('/resolved/@sherlo/react-native-storybook');
+    expect((resolved as { filePath: string }).filePath).toContain(
+      '/resolved/@sherlo/react-native-storybook'
+    );
     expect((resolved as { filePath: string }).filePath).not.toContain('sdk-disabled-wrapper');
   });
-
 });
 
 // ---------------------------------------------------------------------------
@@ -108,7 +120,9 @@ describe('applySherloTransforms - enabled:false ships minimal polyfill only', ()
     fs.rmSync(tmpDir, { recursive: true, force: true });
 
     expect(polyfills.some((p) => p.includes('storybook-disabled-flag.js'))).toBe(true);
-    expect(polyfills.some((p) => p.includes('polyfill.js') && !p.includes('storybook-disabled-flag.js'))).toBe(false);
+    expect(
+      polyfills.some((p) => p.includes('polyfill.js') && !p.includes('storybook-disabled-flag.js'))
+    ).toBe(false);
   });
 
   it('enabled:false: storybook-disabled-flag.js sets BOTH __sherlo* globals', () => {
@@ -166,7 +180,10 @@ describe('applySherloTransforms – emitDependencyGraphSidecar (via customSerial
     expect(typeof result.serializer.customSerializer).toBe('function');
     // Calling it should delegate to fakeSerializer (tmpDir still exists here)
     const output = result.serializer.customSerializer(
-      'index.js', [], { dependencies: new Map() }, { projectRoot: tmpDir }
+      'index.js',
+      [],
+      { dependencies: new Map() },
+      { projectRoot: tmpDir }
     );
     fs.rmSync(tmpDir, { recursive: true, force: true });
 
@@ -187,13 +204,16 @@ describe('applySherloTransforms – emitDependencyGraphSidecar (via customSerial
     const storiesPath = path.join(tmpDir, 'src', 'Button.stories.tsx');
     const fakeDeps = new Map();
     fakeDeps.set(buttonPath, {
-      dependencies: new Map([
-        ['key1', { absolutePath: storiesPath, data: { data: {} } }],
-      ]),
+      dependencies: new Map([['key1', { absolutePath: storiesPath, data: { data: {} } }]]),
     });
     fakeDeps.set(storiesPath, { dependencies: new Map() });
 
-    result.serializer.customSerializer('index.js', [], { dependencies: fakeDeps }, { projectRoot: tmpDir });
+    result.serializer.customSerializer(
+      'index.js',
+      [],
+      { dependencies: fakeDeps },
+      { projectRoot: tmpDir }
+    );
 
     const sidecarPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'graph.json');
     const exists = fs.existsSync(sidecarPath);
@@ -219,7 +239,12 @@ describe('applySherloTransforms – emitDependencyGraphSidecar (via customSerial
     );
 
     // Unrecognised graph: dependencies is not a Map
-    result.serializer.customSerializer('index.js', [], { dependencies: {} }, { projectRoot: tmpDir });
+    result.serializer.customSerializer(
+      'index.js',
+      [],
+      { dependencies: {} },
+      { projectRoot: tmpDir }
+    );
 
     const sidecarPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'graph.json');
     const exists = fs.existsSync(sidecarPath);
@@ -238,7 +263,10 @@ describe('applySherloTransforms – emitDependencyGraphSidecar (via customSerial
     );
 
     const output = result.serializer.customSerializer(
-      'index.js', [], { dependencies: new Map() }, { projectRoot: tmpDir }
+      'index.js',
+      [],
+      { dependencies: new Map() },
+      { projectRoot: tmpDir }
     );
     fs.rmSync(tmpDir, { recursive: true, force: true });
 
@@ -250,10 +278,7 @@ describe('applySherloTransforms – emitDependencyGraphSidecar (via customSerial
     // we should NOT set customSerializer (to avoid a null-returning serializer crashing Metro).
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-graph-no-delegate-'));
     // Pass a config with no customSerializer
-    const result = applySherloTransforms(
-      { projectRoot: tmpDir, resolver: {} },
-      { enabled: true }
-    );
+    const result = applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: true });
     fs.rmSync(tmpDir, { recursive: true, force: true });
 
     // In the test environment Metro internals may or may not be available.

@@ -56,10 +56,7 @@ describe('isNetworkImageSource', () => {
 
   it('handles array source with one remote', () => {
     expect(
-      isNetworkImageSource([
-        { uri: 'file:///local.png' },
-        { uri: 'https://example.com/img.png' },
-      ])
+      isNetworkImageSource([{ uri: 'file:///local.png' }, { uri: 'https://example.com/img.png' }])
     ).toBe(true);
   });
 
@@ -80,12 +77,7 @@ describe('isNetworkImageSource', () => {
   });
 
   it('handles array of all local sources', () => {
-    expect(
-      isNetworkImageSource([
-        { uri: 'file:///a.png' },
-        { uri: 'file:///b.png' },
-      ])
-    ).toBe(false);
+    expect(isNetworkImageSource([{ uri: 'file:///a.png' }, { uri: 'file:///b.png' }])).toBe(false);
   });
 });
 
@@ -145,7 +137,11 @@ describe('isNetworkImageComponent (fiber stub)', () => {
   });
 
   it('falls back to memoizedProps when pendingProps is null', () => {
-    const fiber: any = { type: 'ReactImageView', pendingProps: null, memoizedProps: { source: { uri: 'https://example.com/img.png' } } };
+    const fiber: any = {
+      type: 'ReactImageView',
+      pendingProps: null,
+      memoizedProps: { source: { uri: 'https://example.com/img.png' } },
+    };
     expect(isNetworkImageComponent(fiber)).toBe(true);
   });
 
@@ -155,12 +151,35 @@ describe('isNetworkImageComponent (fiber stub)', () => {
   });
 
   it('reads alternative source props (src / srcSet / svgXmlData)', () => {
-    expect(isNetworkImageComponent({ type: 'ReactImageView', pendingProps: { src: 'https://example.com/img.png' }, memoizedProps: null })).toBe(true);
-    expect(isNetworkImageComponent({ type: 'ReactImageView', pendingProps: { srcSet: 'https://example.com/img.png' }, memoizedProps: null })).toBe(true);
-    expect(isNetworkImageComponent({ type: 'ReactImageView', pendingProps: { svgXmlData: 'https://example.com/img.png' }, memoizedProps: null })).toBe(true);
+    expect(
+      isNetworkImageComponent({
+        type: 'ReactImageView',
+        pendingProps: { src: 'https://example.com/img.png' },
+        memoizedProps: null,
+      })
+    ).toBe(true);
+    expect(
+      isNetworkImageComponent({
+        type: 'ReactImageView',
+        pendingProps: { srcSet: 'https://example.com/img.png' },
+        memoizedProps: null,
+      })
+    ).toBe(true);
+    expect(
+      isNetworkImageComponent({
+        type: 'ReactImageView',
+        pendingProps: { svgXmlData: 'https://example.com/img.png' },
+        memoizedProps: null,
+      })
+    ).toBe(true);
   });
 
   it('returns false for typeless fiber', () => {
-    expect(isNetworkImageComponent({ type: null, pendingProps: { source: { uri: 'https://example.com/img.png' } } })).toBe(false);
+    expect(
+      isNetworkImageComponent({
+        type: null,
+        pendingProps: { source: { uri: 'https://example.com/img.png' } },
+      })
+    ).toBe(false);
   });
 });

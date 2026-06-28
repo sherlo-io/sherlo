@@ -14,10 +14,12 @@
  */
 export function normalizeStack(stack: string): string {
   if (!stack) return stack;
-  return stack
-    // Strip 'address at ' prefix added by iOS dev builds
-    .replace(/address at /g, '')
-    // Replace absolute filesystem path (everything up to and including the last /)
-    // with just the filename + optional :line:col inside each () group
-    .replace(/\([^)]*\/([^)/]+)\)/g, '($1)');
+  return (
+    stack
+      // Strip 'address at ' prefix added by iOS dev builds
+      .replace(/address at /g, '')
+      // Replace absolute filesystem path (everything up to and including the last /)
+      // with just the filename + optional :line:col inside each () group
+      .replace(/\([^)]*\/([^)/]+)\)/g, '($1)')
+  );
 }

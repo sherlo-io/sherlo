@@ -9,10 +9,7 @@ function validatePackageRequirement(requirement: PackageRequirement) {
   const { packageName, minVersion } = requirement;
   const version = getPackageVersion(packageName);
 
-  const below =
-    '\n' +
-    chalk.reset('Then re-run:\n') +
-    chalk.cyan(`  ${FULL_INIT_COMMAND}`);
+  const below = '\n' + chalk.reset('Then re-run:\n') + chalk.cyan(`  ${FULL_INIT_COMMAND}`);
 
   if (!version) {
     throwError({

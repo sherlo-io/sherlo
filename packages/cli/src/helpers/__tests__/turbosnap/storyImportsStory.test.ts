@@ -533,9 +533,7 @@ export default { title: 'BarrelCard' };
 export const Reused = Base;`
     );
 
-    const result = checkStoryImportsStory('.', [
-      'src/components/TurboSnap/BarrelBase.stories.tsx',
-    ]);
+    const result = checkStoryImportsStory('.', ['src/components/TurboSnap/BarrelBase.stories.tsx']);
 
     expect(result).toMatchObject({ fullRun: true });
     const r = result as { fullRun: true; reason: string };

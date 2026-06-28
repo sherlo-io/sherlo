@@ -72,7 +72,7 @@ export function buildRerunArgs(
 ): string[] {
   const args = [command];
   for (const [key, value] of Object.entries(options)) {
-    const flag = key.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`);
+    const flag = key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
     if (typeof value === 'boolean') {
       if (value) args.push(`--${flag}`);
     } else if (value) {

@@ -48,7 +48,9 @@ vi.mock('react', async () => {
   const actual = await vi.importActual<typeof import('react')>('react');
   return {
     ...actual,
-    useEffect: (fn: () => void | (() => void), _deps?: any[]) => { fn(); },
+    useEffect: (fn: () => void | (() => void), _deps?: any[]) => {
+      fn();
+    },
   };
 });
 

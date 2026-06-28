@@ -1,4 +1,3 @@
-
 vi.mock('react', async () => {
   const actual = await vi.importActual<typeof import('react')>('react');
   return {
@@ -32,7 +31,9 @@ vi.mock('../getStorybook/components/TestingMode/useTestAllStories/prepareSnapsho
   default: vi.fn().mockReturnValue([]),
 }));
 
-import useSetInitialTestingData, { filterStoryMetas } from '../getStorybook/components/TestingMode/useTestAllStories/useSetInitialTestingData';
+import useSetInitialTestingData, {
+  filterStoryMetas,
+} from '../getStorybook/components/TestingMode/useTestAllStories/useSetInitialTestingData';
 import { RunnerBridge } from '../helpers';
 import SherloModule from '../SherloModule';
 import { enumerateStories } from '../storybook/adapter';
@@ -110,7 +111,10 @@ describe('useSetInitialTestingData', () => {
       stabilization: {},
       discoveryFilter: { includeStoryIds: ['a--1', 'c--3'] },
     });
-    (prepareSnapshots as any).mockReturnValue([{ viewId: 'a--1-deviceHeight' }, { viewId: 'c--3-deviceHeight' }]);
+    (prepareSnapshots as any).mockReturnValue([
+      { viewId: 'a--1-deviceHeight' },
+      { viewId: 'c--3-deviceHeight' },
+    ]);
 
     useSetInitialTestingData({ view: {} as any });
     await Promise.resolve();

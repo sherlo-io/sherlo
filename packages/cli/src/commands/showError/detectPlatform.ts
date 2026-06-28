@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 import logWarning from '../../helpers/logWarning';
 import { Platform } from './types';
 

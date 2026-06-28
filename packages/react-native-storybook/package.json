@@ -62,6 +62,7 @@
   "scripts": {
     "build": "rm -rf dist && tsc -p .",
     "dev": "yarn build --watch",
+    "lint": "NODE_ENV=production yarn run -T eslint --ext .ts,.tsx src",
     "test": "vitest run"
   },
   "dependencies": {

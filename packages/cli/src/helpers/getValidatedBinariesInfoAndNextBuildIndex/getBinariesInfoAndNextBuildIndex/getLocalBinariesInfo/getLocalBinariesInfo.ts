@@ -36,7 +36,13 @@ const IOS_TAR_BUNDLE_PREFIX = '*.app/';
 type LocalBinariesInfo = { android?: LocalBinaryInfo; ios?: LocalBinaryInfo };
 type LocalBinaryInfo = Pick<
   BinaryInfo,
-  'hash' | 'buildType' | 'sdkVersion' | 'fileName' | 'expoSdkVersion' | 'hasExpoDevClient' | 'androidAbis'
+  | 'hash'
+  | 'buildType'
+  | 'sdkVersion'
+  | 'fileName'
+  | 'expoSdkVersion'
+  | 'hasExpoDevClient'
+  | 'androidAbis'
 >;
 
 async function getLocalBinariesInfo({

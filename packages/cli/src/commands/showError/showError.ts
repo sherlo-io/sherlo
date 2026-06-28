@@ -4,7 +4,12 @@ import throwError from '../../helpers/throwError';
 import logWarning from '../../helpers/logWarning';
 import { printTitle } from '../init/helpers';
 import { SLUG_REGEX } from './constants';
-import { detectEntryFile, default as detectBundler, parseAndroidBundleCommand, parseIosBundleCommand } from './detectBundler';
+import {
+  detectEntryFile,
+  default as detectBundler,
+  parseAndroidBundleCommand,
+  parseIosBundleCommand,
+} from './detectBundler';
 import detectPlatform from './detectPlatform';
 import { default as buildSourceMaps, findSourceMap } from './buildSourceMaps';
 import { default as symbolicateAllFrames, runMetroSymbolicate } from './symbolicateFrames';
@@ -16,9 +21,9 @@ async function showError(slug: string): Promise<void> {
     throwError({
       message: `Invalid slug format: "${slug}"`,
       below: chalk.dim(
-        `  Expected format: <teamId>-<projectIndex>-(ios|android)-<timestamp>\n` +
-        `  Example: PsS5H1B1-30-android-1777491220857\n` +
-        `  The slug is printed on the build error page in the Sherlo dashboard.`
+        '  Expected format: <teamId>-<projectIndex>-(ios|android)-<timestamp>\n' +
+          '  Example: PsS5H1B1-30-android-1777491220857\n' +
+          '  The slug is printed on the build error page in the Sherlo dashboard.'
       ),
     });
   }
@@ -38,9 +43,7 @@ async function showError(slug: string): Promise<void> {
   }
 
   // 2. Detect platform from frame file paths
-  const allFilePaths = [...data.stack, ...data.componentStack]
-    .map(f => f.file || '')
-    .join('\n');
+  const allFilePaths = [...data.stack, ...data.componentStack].map((f) => f.file || '').join('\n');
   const platform = detectPlatform(allFilePaths);
 
   // 3. Detect bundler from native build scripts
@@ -59,16 +62,19 @@ async function showError(slug: string): Promise<void> {
     const gitStatus = execSync('git status --porcelain', {
       cwd: projectRoot,
       stdio: ['pipe', 'pipe', 'pipe'],
-    }).toString().trim();
+    })
+      .toString()
+      .trim();
     if (gitStatus) {
       const n = gitStatus.split('\n').length;
       logWarning({
-        message: `${n} uncommitted file${n === 1 ? '' : 's'} in working tree. ` +
-          `Source maps may misalign with the deployed bundle. Consider git stash first.`,
+        message:
+          `${n} uncommitted file${n === 1 ? '' : 's'} in working tree. ` +
+          'Source maps may misalign with the deployed bundle. Consider git stash first.',
       });
     }
   } catch (_) {
-    // not a git repo or git unavailable — skip
+    // not a git repo or git unavailable - skip
   }
 
   // 5. Build source maps
@@ -84,7 +90,7 @@ async function showError(slug: string): Promise<void> {
 
   // Only symbolicate stack + cause (componentStack is not printed, skip for speed and clean counts)
   const stackAndCause = [...data.stack, ...(data.cause?.stack ?? [])];
-  const locatedCount = stackAndCause.filter(f => f.file !== null).length;
+  const locatedCount = stackAndCause.filter((f) => f.file !== null).length;
   if (locatedCount === 0) {
     logWarning({ message: 'No stack frames with location found in error payload.' });
     return;
@@ -104,9 +110,7 @@ async function showError(slug: string): Promise<void> {
   const outputData = {
     ...data,
     stack: symStackAndCause.slice(0, stackLen),
-    cause: data.cause
-      ? { ...data.cause, stack: symStackAndCause.slice(stackLen) }
-      : null,
+    cause: data.cause ? { ...data.cause, stack: symStackAndCause.slice(stackLen) } : null,
   };
 
   // 8. Print symbolicated sections + footer
@@ -115,7 +119,9 @@ async function showError(slug: string): Promise<void> {
   console.log(chalk.dim(`\nResolved ${resolvedFrames} of ${totalFrames} frames`));
 
   if (totalFrames > 0 && resolvedFrames / totalFrames < 0.5) {
-    logWarning({ message: 'Most frames did not resolve. Source maps may be from a different commit.' });
+    logWarning({
+      message: 'Most frames did not resolve. Source maps may be from a different commit.',
+    });
   }
 
   console.log(chalk.green('\n✓ Done'));

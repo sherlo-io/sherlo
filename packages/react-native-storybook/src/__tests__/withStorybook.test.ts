@@ -90,7 +90,13 @@ describe('applySherloTransforms - enabled: false still installs Sherlo plumbing'
   it('generates storybook-wrapper.js even when enabled: false', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-disabled-wrap-test-'));
     applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: false });
-    const wrapperPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'storybook-wrapper.js');
+    const wrapperPath = path.join(
+      tmpDir,
+      'node_modules',
+      '.cache',
+      'sherlo',
+      'storybook-wrapper.js'
+    );
     const exists = fs.existsSync(wrapperPath);
     fs.rmSync(tmpDir, { recursive: true, force: true });
     expect(exists).toBe(true);
@@ -142,7 +148,13 @@ describe('applySherloTransforms - Sherlo transforms applied', () => {
   it('generates storybook-wrapper.js on disk', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-wrapper-gen-test-'));
     applySherloTransforms({ projectRoot: tmpDir, resolver: {} });
-    const wrapperPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'storybook-wrapper.js');
+    const wrapperPath = path.join(
+      tmpDir,
+      'node_modules',
+      '.cache',
+      'sherlo',
+      'storybook-wrapper.js'
+    );
     const exists = fs.existsSync(wrapperPath);
     fs.rmSync(tmpDir, { recursive: true, force: true });
     expect(exists).toBe(true);
@@ -151,7 +163,13 @@ describe('applySherloTransforms - Sherlo transforms applied', () => {
   it('redirects @storybook/react-native to the generated wrapper', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-redirect-test-'));
     const result = applySherloTransforms({ projectRoot: tmpDir, resolver: {} });
-    const wrapperPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'storybook-wrapper.js');
+    const wrapperPath = path.join(
+      tmpDir,
+      'node_modules',
+      '.cache',
+      'sherlo',
+      'storybook-wrapper.js'
+    );
     const fakeContext = {
       originModulePath: '/some/other/module.js',
       resolveRequest: (_ctx: any, mod: string) => ({ type: 'sourceFile', filePath: mod }),
@@ -164,10 +182,19 @@ describe('applySherloTransforms - Sherlo transforms applied', () => {
   it('self-bypass: wrapper module importing @storybook/react-native falls through', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-bypass-test-'));
     const result = applySherloTransforms({ projectRoot: tmpDir, resolver: {} });
-    const wrapperPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'storybook-wrapper.js');
+    const wrapperPath = path.join(
+      tmpDir,
+      'node_modules',
+      '.cache',
+      'sherlo',
+      'storybook-wrapper.js'
+    );
     const fakeContext = {
       originModulePath: wrapperPath,
-      resolveRequest: (_ctx: any, mod: string) => ({ type: 'sourceFile', filePath: '/real/' + mod }),
+      resolveRequest: (_ctx: any, mod: string) => ({
+        type: 'sourceFile',
+        filePath: '/real/' + mod,
+      }),
     };
     const resolved = result.resolver.resolveRequest(fakeContext, '@storybook/react-native', 'ios');
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -192,26 +219,32 @@ describe('generated storybook-wrapper.js - content', () => {
   });
 
   it('deep-requires addStorybookToDevMenu lazily inside patchedStart', () => {
-    const lazyRequire = /[ \t]+var addStorybookToDevMenu = require\('@sherlo\/react-native-storybook\/dist\/addStorybookToDevMenu\.js'\)\.default/;
+    const lazyRequire =
+      /[ \t]+var addStorybookToDevMenu = require\('@sherlo\/react-native-storybook\/dist\/addStorybookToDevMenu\.js'\)\.default/;
     expect(wrapperContent).toMatch(lazyRequire);
   });
 
   it('deep-requires addStorybookToDevMenu AFTER the re-export loop', () => {
     const reExportIdx = wrapperContent.indexOf('Object.keys(real).forEach');
-    const devMenuRequireIdx = wrapperContent.indexOf("var addStorybookToDevMenu = require('@sherlo/react-native-storybook/dist/addStorybookToDevMenu.js').default");
+    const devMenuRequireIdx = wrapperContent.indexOf(
+      "var addStorybookToDevMenu = require('@sherlo/react-native-storybook/dist/addStorybookToDevMenu.js').default"
+    );
     expect(reExportIdx).toBeGreaterThan(-1);
     expect(devMenuRequireIdx).toBeGreaterThan(-1);
     expect(devMenuRequireIdx).toBeGreaterThan(reExportIdx);
   });
 
   it('deep-requires getStorybook lazily inside patchedStart via directory index', () => {
-    const lazyRequire = /[ \t]+var getStorybook = require\('@sherlo\/react-native-storybook\/dist\/getStorybook\/index\.js'\)\.default/;
+    const lazyRequire =
+      /[ \t]+var getStorybook = require\('@sherlo\/react-native-storybook\/dist\/getStorybook\/index\.js'\)\.default/;
     expect(wrapperContent).toMatch(lazyRequire);
   });
 
   it('deep-requires getStorybook AFTER the re-export loop', () => {
     const reExportIdx = wrapperContent.indexOf('Object.keys(real).forEach');
-    const getStorybookRequireIdx = wrapperContent.indexOf("var getStorybook = require('@sherlo/react-native-storybook/dist/getStorybook/index.js').default");
+    const getStorybookRequireIdx = wrapperContent.indexOf(
+      "var getStorybook = require('@sherlo/react-native-storybook/dist/getStorybook/index.js').default"
+    );
     expect(reExportIdx).toBeGreaterThan(-1);
     expect(getStorybookRequireIdx).toBeGreaterThan(-1);
     expect(getStorybookRequireIdx).toBeGreaterThan(reExportIdx);
@@ -229,7 +262,7 @@ describe('generated storybook-wrapper.js - content', () => {
 
   it('re-exports keys from the real Storybook module via forEach loop', () => {
     expect(wrapperContent).toContain('Object.keys(real).forEach');
-    expect(wrapperContent).toContain("get: function () { return real[key]; }");
+    expect(wrapperContent).toContain('get: function () { return real[key]; }');
   });
 
   it("typeof real.start !== 'function' branch returns stub silently without calling sendNativeError", () => {
@@ -239,7 +272,10 @@ describe('generated storybook-wrapper.js - content', () => {
     expect(startNotFnIdx).toBeGreaterThan(-1);
     // Grab the text of the branch up to and including the SherloDisabledUI stub return
     const endMarker = 'SherloDisabledUI';
-    const branchText = wrapperContent.slice(startNotFnIdx, wrapperContent.indexOf(endMarker, startNotFnIdx) + endMarker.length);
+    const branchText = wrapperContent.slice(
+      startNotFnIdx,
+      wrapperContent.indexOf(endMarker, startNotFnIdx) + endMarker.length
+    );
     expect(branchText).toContain('return { getStorybookUI:');
     expect(branchText).not.toContain('sendNativeError');
     expect(branchText).not.toContain('ERROR_STORYBOOK_DISABLED');
@@ -249,7 +285,10 @@ describe('generated storybook-wrapper.js - content', () => {
     const startNotFnIdx = wrapperContent.indexOf("typeof real.start !== 'function'");
     expect(startNotFnIdx).toBeGreaterThan(-1);
     const endMarker = 'SherloDisabledUI';
-    const branchText = wrapperContent.slice(startNotFnIdx, wrapperContent.indexOf(endMarker, startNotFnIdx) + endMarker.length);
+    const branchText = wrapperContent.slice(
+      startNotFnIdx,
+      wrapperContent.indexOf(endMarker, startNotFnIdx) + endMarker.length
+    );
     expect(branchText).not.toContain('@sherlo/react-native-storybook/dist/SherloModule.js');
   });
 });
@@ -265,8 +304,8 @@ describe('package.json exports map - deep-import subpaths', () => {
   const distBuilt = fs.existsSync(distDir);
 
   const DEEP_IMPORTS: Array<{ subpath: string; resolvedFile: string }> = [
-    { subpath: './dist/SherloModule.js',          resolvedFile: 'dist/SherloModule.js' },
-    { subpath: './dist/getStorybook/index.js',    resolvedFile: 'dist/getStorybook/index.js' },
+    { subpath: './dist/SherloModule.js', resolvedFile: 'dist/SherloModule.js' },
+    { subpath: './dist/getStorybook/index.js', resolvedFile: 'dist/getStorybook/index.js' },
     { subpath: './dist/addStorybookToDevMenu.js', resolvedFile: 'dist/addStorybookToDevMenu.js' },
   ];
 

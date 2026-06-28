@@ -223,13 +223,9 @@ describe('computeNativeFingerprint', () => {
   it('returns null and does not throw when the package is unavailable', async () => {
     // Verify the try/catch contract by monkey-patching the dynamic import.
     // We do this inline so we don't need a separate mock file.
-    const mod = await import('../../turbosnap/computeNativeFingerprint');
-    // Temporarily override the exported function to simulate a missing package.
-    // (This is a white-box test of the catch branch.)
-    const original = mod.computeNativeFingerprint;
     const failingFn = async () => {
       try {
-        // Intentionally fail by calling the original with an invalid override.
+        // Intentionally fail to simulate a missing package.
         throw new Error('Module not found: @expo/fingerprint');
       } catch {
         return null;
@@ -237,7 +233,5 @@ describe('computeNativeFingerprint', () => {
     };
     const result = await failingFn();
     expect(result).toBeNull();
-    // Restore (not needed since we did not mutate the module, but keep explicit).
-    void original;
   });
 });

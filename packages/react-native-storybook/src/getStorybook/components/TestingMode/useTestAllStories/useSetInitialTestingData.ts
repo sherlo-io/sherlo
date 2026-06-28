@@ -22,7 +22,10 @@ function useSetInitialTestingData({ view }: { view: StorybookView }): void {
     (async () => {
       const storyMetas = enumerateStories(view);
       const config = SherloModule.getConfig();
-      const filteredStoryMetas = filterStoryMetas(storyMetas, config.discoveryFilter?.includeStoryIds);
+      const filteredStoryMetas = filterStoryMetas(
+        storyMetas,
+        config.discoveryFilter?.includeStoryIds
+      );
       const allStories = prepareSnapshots({ storyMetas: filteredStoryMetas, splitByMode: true });
 
       RunnerBridge.log('start testing session', {

@@ -32,6 +32,10 @@ jobs:
           CLIENT_STAGE: dev
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
+      - name: Eslint
+        working-directory: ${{ matrix.package.dir }}
+        run: yarn lint
+
       - name: Typecheck
         run: yarn tsc --noEmit -p ${{ matrix.package.dir }}
 

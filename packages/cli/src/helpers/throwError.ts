@@ -23,7 +23,9 @@ type ErrorType = 'default' | 'auth' | 'unexpected';
 function throwError(params: Params): never {
   reportError(params);
 
-  const error: Error & { skipReporting?: boolean; cause?: Error } = new Error(getErrorMessage(params));
+  const error: Error & { skipReporting?: boolean; cause?: Error } = new Error(
+    getErrorMessage(params)
+  );
   error.skipReporting = true; // Error has been already reported above
 
   if (params.type === 'unexpected') {

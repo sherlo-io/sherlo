@@ -19,11 +19,13 @@ function symbolicateAllFrames(
   }
 
   const totalFrames = resolvableIndices.length;
-  if (totalFrames === 0) return { frames: frames.map(f => ({ ...f })), totalFrames: 0, resolvedFrames: 0 };
+  if (totalFrames === 0) {
+    return { frames: frames.map((f) => ({ ...f })), totalFrames: 0, resolvedFrames: 0 };
+  }
 
   const symLines = runMetroSymbolicate(inputLines, sourceMapPath, projectRoot);
 
-  const result = frames.map(f => ({ ...f }));
+  const result = frames.map((f) => ({ ...f }));
   let resolvedFrames = 0;
 
   for (let idx = 0; idx < resolvableIndices.length; idx++) {
@@ -32,7 +34,7 @@ function symbolicateAllFrames(
     if (!rawSym) continue;
 
     const originalFile = frames[frameIdx].file!;
-    if (rawSym.includes(originalFile)) continue; // not resolved — metro returned the same bundle path
+    if (rawSym.includes(originalFile)) continue; // not resolved - metro returned the same bundle path
 
     const reformatted = reformatSymbolicatedLine(rawSym);
     const m = /^at\s+(\S+)\s+\((.+):(\d+)(?::(\d+))?\)$/.exec(reformatted);

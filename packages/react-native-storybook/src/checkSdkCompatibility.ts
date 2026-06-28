@@ -1,4 +1,7 @@
-import { REQUIRED_MIN_NATIVE_VERSION, JS_MODULE_VERSION as jsVersion } from './sdk-compatibility.json';
+import {
+  REQUIRED_MIN_NATIVE_VERSION,
+  JS_MODULE_VERSION as jsVersion,
+} from './sdk-compatibility.json';
 import SherloModule from './SherloModule';
 
 const ERROR_CODE = 'ERROR_SDK_COMPATIBILITY';
@@ -24,7 +27,10 @@ function checkSdkCompatibility(): boolean {
         ? `Sherlo native version is missing. Required minimum: ${requiredMinNativeVersion}. Please rebuild the app.`
         : `Sherlo native version ${nativeVersion} is below the required minimum ${requiredMinNativeVersion}. Please rebuild the app.`;
 
-    SherloModule.sendNativeError(ERROR_CODE, message, { jsVersion, nativeVersion: nativeVersion ?? null });
+    SherloModule.sendNativeError(ERROR_CODE, message, {
+      jsVersion,
+      nativeVersion: nativeVersion ?? null,
+    });
     _cachedResult = false;
     return false;
   }
@@ -48,11 +54,7 @@ function isVersionCompatible(version: string, minVersion: string): boolean {
 }
 
 function compareCoreVersions(version: string, minVersion: string): number {
-  const parse = (v: string) =>
-    v
-      .split(/[-+]/)[0]
-      .split('.')
-      .map(Number);
+  const parse = (v: string) => v.split(/[-+]/)[0].split('.').map(Number);
 
   const vParts = parse(version);
   const mParts = parse(minVersion);

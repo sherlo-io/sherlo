@@ -1,11 +1,6 @@
 import { Platform } from '@sherlo/api-types';
 import fs from 'fs';
-import {
-  ANDROID_FILE_TYPES,
-  ANDROID_OPTION,
-  IOS_FILE_TYPES,
-  IOS_OPTION,
-} from '../../constants';
+import { ANDROID_FILE_TYPES, ANDROID_OPTION, IOS_FILE_TYPES, IOS_OPTION } from '../../constants';
 import { Command } from '../../types';
 import getBuildTypeLabel from '../getBuildTypeLabel';
 import getBuildTypeTipBox from '../getBuildTypeTipBox';

@@ -138,7 +138,7 @@ describe('getGitInfo - PR merge ref (refs/pull/N/merge)', () => {
     const base = fixture.commitFile('base on main');
 
     fixture.branch('feature', { checkout: true });
-    const prHead = fixture.commitFile('pr head commit', 'feature.txt');
+    fixture.commitFile('pr head commit', 'feature.txt');
 
     fixture.checkout('main');
     const mergeSha = fixture.merge('feature');

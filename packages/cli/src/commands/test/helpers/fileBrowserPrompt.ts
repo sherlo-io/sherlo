@@ -40,7 +40,9 @@ function getIcon(entry: FileEntry): string {
   if (entry.isDirectory) return ICONS.folder;
   const name = entry.name.toLowerCase();
   if (name.endsWith('.apk')) return ICONS.android;
-  if (name.endsWith('.app') || name.endsWith('.tar.gz') || name.endsWith('.tar')) return ICONS.apple;
+  if (name.endsWith('.app') || name.endsWith('.tar.gz') || name.endsWith('.tar')) {
+    return ICONS.apple;
+  }
   return ICONS.file;
 }
 
@@ -144,7 +146,7 @@ function isInView(index: number, scrollOffset: number, pageSize: number, total: 
 }
 
 const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done) => {
-  const extensions = config.extensions ?? [];
+  const extensions = useMemo(() => config.extensions ?? [], [config.extensions]);
   const pageSize = config.pageSize ?? 10;
   const cwd = process.cwd();
 
@@ -191,10 +193,7 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
     return all.filter((e) => e.isParent || e.name.toLowerCase().startsWith(lower));
   }, [dirPath, dirExists, extensions, filter]);
 
-  const hiddenCount = useMemo(
-    () => countHiddenFiles(dirPath, extensions),
-    [dirPath, extensions]
-  );
+  const hiddenCount = useMemo(() => countHiddenFiles(dirPath, extensions), [dirPath, extensions]);
 
   // Clamp active to valid range (entries may shrink after filtering)
   const resolvedActive = useMemo(
@@ -330,8 +329,8 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
         const name = isActive
           ? chalk.cyan(displayName)
           : item.isDirectory
-            ? chalk.bold(displayName)
-            : displayName;
+          ? chalk.bold(displayName)
+          : displayName;
         rows.push(`${cursor} ${icon} ${name}`);
       }
     }
@@ -344,9 +343,7 @@ const fileBrowserPrompt = createPrompt<string, FileBrowserConfig>((config, done)
   ];
 
   if (hiddenCount > 0) {
-    lines.push(
-      chalk.dim(`  (+ ${hiddenCount} hidden ${hiddenCount === 1 ? 'file' : 'files'})`)
-    );
+    lines.push(chalk.dim(`  (+ ${hiddenCount} hidden ${hiddenCount === 1 ? 'file' : 'files'})`));
   }
 
   lines.push('');

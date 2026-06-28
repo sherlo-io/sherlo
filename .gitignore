@@ -26,3 +26,5 @@ sherlo.config.json
 
 *storybook.log
 storybook-static
+
+.cache/

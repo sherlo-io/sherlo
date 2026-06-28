@@ -82,7 +82,10 @@ function validateBuildType({
       throwError(
         getError({
           type: 'dev_build',
-          platformLabels: getPlatformLabels({ android: isDevelopmentAndroid, ios: isDevelopmentIos }),
+          platformLabels: getPlatformLabels({
+            android: isDevelopmentAndroid,
+            ios: isDevelopmentIos,
+          }),
           command,
         })
       );
@@ -101,11 +104,13 @@ function validateAndroidAbiRequirements({ android }: BinariesInfo) {
     const detectedAbis = abis.join(', ');
     const fileName = android.fileName;
 
-    throwError(getError(
-      android.expoSdkVersion
-        ? { type: 'missing_arm64_abi_expo', detectedAbis, fileName }
-        : { type: 'missing_arm64_abi_bare_rn', detectedAbis, fileName }
-    ));
+    throwError(
+      getError(
+        android.expoSdkVersion
+          ? { type: 'missing_arm64_abi_expo', detectedAbis, fileName }
+          : { type: 'missing_arm64_abi_bare_rn', detectedAbis, fileName }
+      )
+    );
   }
 }
 
@@ -189,7 +194,7 @@ type BinaryError =
     }
   | { type: 'outdated_expo_version'; platformLabels: string[]; expoSdkVersion: string }
   | { type: 'missing_arm64_abi_expo'; detectedAbis: string; fileName: string }
-  | { type: 'missing_arm64_abi_bare_rn'; detectedAbis: string; fileName: string }
+  | { type: 'missing_arm64_abi_bare_rn'; detectedAbis: string; fileName: string };
 
 function getError(error: BinaryError) {
   switch (error.type) {
@@ -248,9 +253,7 @@ function getError(error: BinaryError) {
       return {
         message:
           `${error.platformLabels.join(' and ')} ${
-            error.platformLabels.length > 1
-              ? 'builds do not include'
-              : 'build does not include'
+            error.platformLabels.length > 1 ? 'builds do not include' : 'build does not include'
           } \`${EXPO_DEV_CLIENT_PACKAGE_NAME}\`; EAS Update testing requires it to load updates\n\n` +
           'Please verify:\n' +
           `1. \`${EXPO_DEV_CLIENT_PACKAGE_NAME}\` package is installed\n` +
@@ -263,13 +266,17 @@ function getError(error: BinaryError) {
     case 'missing_dev_client_and_outdated_expo':
       return {
         message:
-          `Multiple EAS Update requirements not met:\n\n` +
+          'Multiple EAS Update requirements not met:\n\n' +
           `1. ${error.missingDevClientPlatformLabels.join(' and ')} ${
             error.missingDevClientPlatformLabels.length > 1
               ? 'builds do not include'
               : 'build does not include'
           } \`${EXPO_DEV_CLIENT_PACKAGE_NAME}\`\n` +
-          `2. Expo SDK ${error.expoSdkVersion} is below minimum ${MIN_EAS_UPDATE_EXPO_VERSION} (${error.outdatedExpoPlatformLabels.join(' and ')})\n\n` +
+          `2. Expo SDK ${
+            error.expoSdkVersion
+          } is below minimum ${MIN_EAS_UPDATE_EXPO_VERSION} (${error.outdatedExpoPlatformLabels.join(
+            ' and '
+          )})\n\n` +
           'Please verify:\n' +
           `1. \`${EXPO_PACKAGE_NAME}\` package is updated to version ${MIN_EAS_UPDATE_EXPO_VERSION} or higher\n` +
           `2. \`${EXPO_DEV_CLIENT_PACKAGE_NAME}\` package is installed\n` +
@@ -282,7 +289,9 @@ function getError(error: BinaryError) {
         message:
           `${error.platformLabels.join(' and ')} ${
             error.platformLabels.length > 1 ? 'builds use' : 'build uses'
-          } Expo SDK ${error.expoSdkVersion}; EAS Update testing requires SDK ${MIN_EAS_UPDATE_EXPO_VERSION} or higher\n\n` +
+          } Expo SDK ${
+            error.expoSdkVersion
+          }; EAS Update testing requires SDK ${MIN_EAS_UPDATE_EXPO_VERSION} or higher\n\n` +
           'Please verify:\n' +
           `1. \`${EXPO_PACKAGE_NAME}\` package is updated to version ${MIN_EAS_UPDATE_EXPO_VERSION} or higher\n` +
           `2. ${
@@ -294,13 +303,13 @@ function getError(error: BinaryError) {
     case 'missing_arm64_abi_expo':
       return {
         message:
-          `Android build is missing arm64-v8a native libraries; ` +
-          `Sherlo's Android emulators require arm64-v8a\n\n` +
+          'Android build is missing arm64-v8a native libraries; ' +
+          "Sherlo's Android emulators require arm64-v8a\n\n" +
           `Detected ABIs: ${error.detectedAbis}\n\n` +
-          `Please verify:\n` +
-          `1. \`expo-build-properties\` plugin is in your app config and \`buildArchs\` includes \`arm64-v8a\` ` +
-          `(the Expo default already does - check if it was overridden)\n` +
-          `2. A new build was created after any config changes\n` +
+          'Please verify:\n' +
+          '1. `expo-build-properties` plugin is in your app config and `buildArchs` includes `arm64-v8a` ' +
+          '(the Expo default already does - check if it was overridden)\n' +
+          '2. A new build was created after any config changes\n' +
           `3. Run \`unzip -l ${error.fileName} | grep lib/\` to confirm which ABIs are in the APK\n`,
         learnMoreLink: DOCS_LINK.buildAndroidAbiRequirements,
       };
@@ -308,16 +317,15 @@ function getError(error: BinaryError) {
     case 'missing_arm64_abi_bare_rn':
       return {
         message:
-          `Android build is missing arm64-v8a native libraries; ` +
-          `Sherlo's Android emulators require arm64-v8a\n\n` +
+          'Android build is missing arm64-v8a native libraries; ' +
+          "Sherlo's Android emulators require arm64-v8a\n\n" +
           `Detected ABIs: ${error.detectedAbis}\n\n` +
-          `Please verify:\n` +
-          `1. \`reactNativeArchitectures\` in \`android/gradle.properties\` includes \`arm64-v8a\`\n` +
-          `2. A new build was created after any config changes\n` +
+          'Please verify:\n' +
+          '1. `reactNativeArchitectures` in `android/gradle.properties` includes `arm64-v8a`\n' +
+          '2. A new build was created after any config changes\n' +
           `3. Run \`unzip -l ${error.fileName} | grep lib/\` to confirm which ABIs are in the APK\n`,
         learnMoreLink: DOCS_LINK.buildAndroidAbiRequirements,
       };
-
   }
 }
 

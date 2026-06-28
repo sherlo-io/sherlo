@@ -7,9 +7,7 @@ export type StoryEntry = {
   importPath?: string;
 };
 
-export type AffectedResult =
-  | { storyIds: string[] }
-  | { fullRun: true; reason: string };
+export type AffectedResult = { storyIds: string[] } | { fullRun: true; reason: string };
 
 /**
  * Determines which story IDs are affected by a set of changed files using the
@@ -71,12 +69,8 @@ export function affected(
   }
 
   // ── Precompute contextGraph key/target sets for O(1) lookups ───────────
-  const contextKeys = new Set(
-    Object.keys(graph.contextGraph).map(normaliseRelPath)
-  );
-  const contextTargets = new Set(
-    Object.values(graph.contextGraph).flat().map(normaliseRelPath)
-  );
+  const contextKeys = new Set(Object.keys(graph.contextGraph).map(normaliseRelPath));
+  const contextTargets = new Set(Object.values(graph.contextGraph).flat().map(normaliseRelPath));
 
   // ── Force-full checks (source-scan via graph) ───────────────────────────
   for (const c of changed) {

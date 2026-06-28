@@ -11,10 +11,7 @@ import {
   uploadOrPrintBinaryReuse,
   reporting,
 } from '../../../../helpers';
-import {
-  computeChangedFiles,
-  computeNativeFingerprint,
-} from '../../../../helpers/turbosnap';
+import { computeChangedFiles, computeNativeFingerprint } from '../../../../helpers/turbosnap';
 import { THIS_COMMAND } from '../../constants';
 import getBuildPath from './getBuildPath';
 

@@ -33,8 +33,7 @@ function resolveReadinessConfig(config: Config): ReadinessConfig {
       config.scrollableFallbackDelayMs ?? READINESS_DEFAULTS.scrollableFallbackDelayMs,
     storyRenderedTimeoutMs:
       config.storyRenderedTimeoutMs ?? READINESS_DEFAULTS.storyRenderedTimeoutMs,
-    paintBarrierTimeoutMs:
-      config.paintBarrierTimeoutMs ?? READINESS_DEFAULTS.paintBarrierTimeoutMs,
+    paintBarrierTimeoutMs: config.paintBarrierTimeoutMs ?? READINESS_DEFAULTS.paintBarrierTimeoutMs,
     paintBarrierPerScrollPart:
       config.paintBarrierPerScrollPart ?? READINESS_DEFAULTS.paintBarrierPerScrollPart,
   };
@@ -45,11 +44,16 @@ function resolveReadinessConfig(config: Config): ReadinessConfig {
  * commit). Best-effort: on timeout/error we warn and proceed - the stability
  * loop runs afterwards regardless (design decision 3).
  */
-async function runPaintBarrier(readiness: ReadinessConfig, context: Record<string, any>): Promise<void> {
-  const painted = await SherloModule.awaitFrameCommit(readiness.paintBarrierTimeoutMs).catch((error) => {
-    RunnerBridge.log('paint barrier error', { error: error?.message, ...context });
-    return false;
-  });
+async function runPaintBarrier(
+  readiness: ReadinessConfig,
+  context: Record<string, any>
+): Promise<void> {
+  const painted = await SherloModule.awaitFrameCommit(readiness.paintBarrierTimeoutMs).catch(
+    (error) => {
+      RunnerBridge.log('paint barrier error', { error: error?.message, ...context });
+      return false;
+    }
+  );
   RunnerBridge.log('paint barrier', {
     painted,
     timeoutMs: readiness.paintBarrierTimeoutMs,
@@ -269,73 +273,75 @@ function useTestStory({
           let isStableAfterScroll = true;
 
           if (scrollIndex > 0) {
-             // Scroll to target
-             const scrollResult = await SherloModule.scrollToCheckpoint(
-               scrollIndex,
-               offsetPx,
-               50 // Guardrail max index
-             ).catch((error) => {
-               RunnerBridge.log('error scrolling to checkpoint', { error: error.message });
-               throw error;
-             });
+            // Scroll to target
+            const scrollResult = await SherloModule.scrollToCheckpoint(
+              scrollIndex,
+              offsetPx,
+              50 // Guardrail max index
+            ).catch((error) => {
+              RunnerBridge.log('error scrolling to checkpoint', { error: error.message });
+              throw error;
+            });
 
-             // Check if we reached bottom locally
-             if (scrollResult.reachedBottom) {
-                RunnerBridge.log('reached bottom locally during scroll');
-                isAtEnd = true;
-             }
+            // Check if we reached bottom locally
+            if (scrollResult.reachedBottom) {
+              RunnerBridge.log('reached bottom locally during scroll');
+              isAtEnd = true;
+            }
 
-             // Re-run the native paint barrier for this scroll part
-             // so the post-scroll stabilize settles on freshly-painted content.
-             if (readiness.paintBarrierPerScrollPart) {
-               await runPaintBarrier(readiness, { phase: 'scroll-part', scrollIndex });
-             }
+            // Re-run the native paint barrier for this scroll part
+            // so the post-scroll stabilize settles on freshly-painted content.
+            if (readiness.paintBarrierPerScrollPart) {
+              await runPaintBarrier(readiness, { phase: 'scroll-part', scrollIndex });
+            }
 
-             // Stabilize
-             isStableAfterScroll = await SherloModule.stabilize(
-                config.stabilization.requiredMatches,
-                config.stabilization.minScreenshotsCount,
-                config.stabilization.intervalMs,
-                config.stabilization.timeoutMs,
-                !!config.stabilization.saveScreenshots,
-                config.stabilization.threshold,
-                config.stabilization.includeAA
-              ).catch((error) => {
-                RunnerBridge.log('error stabilizing after scroll', { error: error.message });
-                throw error;
+            // Stabilize
+            isStableAfterScroll = await SherloModule.stabilize(
+              config.stabilization.requiredMatches,
+              config.stabilization.minScreenshotsCount,
+              config.stabilization.intervalMs,
+              config.stabilization.timeoutMs,
+              !!config.stabilization.saveScreenshots,
+              config.stabilization.threshold,
+              config.stabilization.includeAA
+            ).catch((error) => {
+              RunnerBridge.log('error stabilizing after scroll', { error: error.message });
+              throw error;
+            });
+
+            if (!isStableAfterScroll) {
+              RunnerBridge.log('warning: UI not stable after scroll');
+            }
+            currentScrollOffset = scrollResult.appliedOffsetPx;
+
+            // Recapture Metadata after scroll to get dynamic elements (below fold)
+            let newInspectorData;
+            const scrollInspectorStart = Date.now();
+            while (!newInspectorData) {
+              if (Date.now() - scrollInspectorStart > 10000) {
+                RunnerBridge.log('getInspectorData (scroll) timed out after 10s');
+                throw new Error('getInspectorData (scroll) timed out after 10s');
+              }
+              newInspectorData = await SherloModule.getInspectorData().catch((error) => {
+                RunnerBridge.log('error getting inspector data (scroll)', {
+                  error: JSON.stringify(error),
+                });
               });
+            }
 
-              if (!isStableAfterScroll) {
-                 RunnerBridge.log('warning: UI not stable after scroll');
-              }
-              currentScrollOffset = scrollResult.appliedOffsetPx;
+            const newFabricMetadata = metadataProviderRef?.current?.collectMetadata();
 
-              // Recapture Metadata after scroll to get dynamic elements (below fold)
-              let newInspectorData;
-              const scrollInspectorStart = Date.now();
-              while (!newInspectorData) {
-                 if (Date.now() - scrollInspectorStart > 10000) {
-                   RunnerBridge.log('getInspectorData (scroll) timed out after 10s');
-                   throw new Error('getInspectorData (scroll) timed out after 10s');
-                 }
-                 newInspectorData = await SherloModule.getInspectorData().catch((error) => {
-                     RunnerBridge.log('error getting inspector data (scroll)', { error: JSON.stringify(error) });
-                 });
-              }
-
-              const newFabricMetadata = metadataProviderRef?.current?.collectMetadata();
-              
-              if (newInspectorData) {
-                  const prepared = prepareInspectorData(
-                      newInspectorData,
-                      newFabricMetadata!,
-                      nextSnapshot.storyId // We assume story ID doesn't change
-                  );
-                  finalInspectorData = prepared.inspectorData;
-                  hasNetworkImage = prepared.hasNetworkImage;
-              }
+            if (newInspectorData) {
+              const prepared = prepareInspectorData(
+                newInspectorData,
+                newFabricMetadata!,
+                nextSnapshot.storyId // We assume story ID doesn't change
+              );
+              finalInspectorData = prepared.inspectorData;
+              hasNetworkImage = prepared.hasNetworkImage;
+            }
           }
-          
+
           checkpointIndex = scrollIndex;
 
           // Send next part
