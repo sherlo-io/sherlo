@@ -44,9 +44,6 @@ import {
 } from './constants';
 import { logWarning, reporting, withCommandTimeout } from './helpers';
 
-// SHERLO-1508: deliberate lint violation to verify the CI eslint gate. Reverted in the next commit.
-const SHERLO_LINT_GATE_PROBE = 'unused';
-
 // Disable all Node.js warnings
 process.removeAllListeners('warning');
 
