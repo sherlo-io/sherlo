@@ -1,0 +1,40 @@
+name: 'pr_checks'
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  checks:
+    name: checks (${{ matrix.package.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - name: cli
+            dir: packages/cli
+          - name: react-native-storybook
+            dir: packages/react-native-storybook
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Download Sherlo packages
+        run: ./scripts/init-env.sh
+        env:
+          CLIENT_STAGE: dev
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Typecheck
+        run: yarn tsc --noEmit -p ${{ matrix.package.dir }}
+
+      - name: Unit tests
+        working-directory: ${{ matrix.package.dir }}
+        run: yarn test
