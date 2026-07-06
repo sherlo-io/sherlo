@@ -1,6 +1,22 @@
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import getGitInfo, { ANCESTOR_LIMIT } from '../getGitInfo';
 import GitFixture from './support/gitFixture';
+
+/**
+ * Writes a GitHub Actions event payload to a temp file and returns its path, so
+ * a test can point GITHUB_EVENT_PATH at it (mirroring how the runner exposes the
+ * triggering event's JSON to a job). Registered for cleanup in afterEach.
+ */
+const eventFiles: string[] = [];
+function writeGitHubEvent(payload: unknown): string {
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-gh-event-')), 'event.json');
+  fs.writeFileSync(file, JSON.stringify(payload), 'utf8');
+  eventFiles.push(file);
+  return file;
+}
 
 /**
  * Real-git tests for getGitInfo, driven by the deterministic {@link GitFixture}
@@ -15,6 +31,7 @@ let fixture: GitFixture;
 const GIT_ENV_KEYS = [
   'GITHUB_HEAD_REF',
   'GITHUB_REF_NAME',
+  'GITHUB_EVENT_PATH',
   'SHERLO_BRANCH',
   'BITRISE_GIT_BRANCH',
   'CIRCLE_BRANCH',
@@ -35,6 +52,9 @@ beforeEach(() => {
 afterEach(() => {
   fixture?.cleanup();
   fixture = undefined as unknown as GitFixture;
+  while (eventFiles.length) {
+    fs.rmSync(path.dirname(eventFiles.pop()!), { recursive: true, force: true });
+  }
   for (const key of GIT_ENV_KEYS) {
     if (savedEnv[key] === undefined) {
       delete process.env[key];
@@ -214,6 +234,95 @@ describe('getGitInfo - PR merge ref (refs/pull/N/merge)', () => {
     expect(info.commitHash).toBe(mergeSha);
     expect(info.prHeadCommitHash).toBeUndefined();
     expect(info.mergeBaseSha).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PR merge ref – shallow clone (fetch-depth:1) PR-head recovery (SHERLO-1629)
+//
+// On GitHub's DEFAULT actions/checkout (fetch-depth:1) the synthetic merge
+// commit is present but its parents are grafted away, so `git rev-parse HEAD^2`
+// fails and the PR head can't be read from local history. Without a fallback,
+// prHeadCommitHash is omitted and commitHash decays to the ephemeral merge SHA -
+// which the server then uses as the commit-hash GSI key, hiding an approved PR
+// build from later builds. The CLI recovers the real PR head from the CI event
+// payload (GITHUB_EVENT_PATH -> pull_request.head.sha) instead.
+// ---------------------------------------------------------------------------
+
+describe('getGitInfo - PR merge ref shallow clone (event-payload PR-head recovery)', () => {
+  it('recovers the real PR head from the GitHub event payload when HEAD^2 is unavailable', async () => {
+    fixture = GitFixture.create();
+    fixture.commitFile('base on main');
+    fixture.branch('feature', { checkout: true });
+    const prHead = fixture.commitFile('pr head commit', 'feature.txt');
+    fixture.checkout('main');
+    const mergeSha = fixture.merge('feature');
+
+    // depth=1 clone of the merge commit: HEAD^2 (the PR head) is grafted away.
+    const shallow = fixture.shallowClone(1, 'main');
+    try {
+      process.env.GITHUB_REF_NAME = '123/merge';
+      // The runner exposes the pull_request event, whose payload carries the PR head.
+      process.env.GITHUB_EVENT_PATH = writeGitHubEvent({ pull_request: { head: { sha: prHead } } });
+
+      const info = await getGitInfo(shallow.dir);
+
+      // The fix: prHeadCommitHash is the REAL PR head, recovered from the CI signal.
+      expect(info.prHeadCommitHash).toBe(prHead);
+      expect(info.prHeadCommitHash).not.toBe(mergeSha);
+      // commitHash can't be anchored to grafted-away history, so it gracefully stays
+      // the merge SHA. The server keys on `prHeadCommitHash ?? commitHash`, so the
+      // real PR head still wins.
+      expect(info.commitHash).toBe(mergeSha);
+      expect(info.isShallow).toBe(true);
+    } finally {
+      shallow.cleanup();
+    }
+  });
+
+  it('omits prHeadCommitHash (never the merge SHA) on a shallow merge ref with no event payload', async () => {
+    fixture = GitFixture.create();
+    fixture.commitFile('base on main');
+    fixture.branch('feature', { checkout: true });
+    fixture.commitFile('pr head commit', 'feature.txt');
+    fixture.checkout('main');
+    const mergeSha = fixture.merge('feature');
+
+    const shallow = fixture.shallowClone(1, 'main');
+    try {
+      process.env.GITHUB_REF_NAME = '123/merge';
+      // No GITHUB_EVENT_PATH: neither HEAD^2 nor a CI signal is available.
+
+      const info = await getGitInfo(shallow.dir);
+
+      // Omit rather than record the wrong (merge) SHA - do not fabricate a PR head.
+      expect(info.prHeadCommitHash).toBeUndefined();
+      expect(info.prHeadCommitHash).not.toBe(mergeSha);
+      expect(info.isShallow).toBe(true);
+    } finally {
+      shallow.cleanup();
+    }
+  });
+
+  it('prefers the local HEAD^2 over the event payload on a full clone', async () => {
+    fixture = GitFixture.create();
+    fixture.commitFile('base on main');
+    fixture.branch('feature', { checkout: true });
+    const prHead = fixture.commitFile('pr head commit', 'feature.txt');
+    fixture.checkout('main');
+    const mergeSha = fixture.merge('feature');
+    fixture.detach(mergeSha);
+
+    process.env.GITHUB_REF_NAME = '123/merge';
+    // A deliberately wrong event payload must NOT override the authoritative local HEAD^2.
+    process.env.GITHUB_EVENT_PATH = writeGitHubEvent({
+      pull_request: { head: { sha: 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef' } },
+    });
+
+    const info = await getGitInfo(fixture.dir);
+
+    expect(info.prHeadCommitHash).toBe(prHead);
+    expect(info.commitHash).toBe(prHead);
   });
 });
 

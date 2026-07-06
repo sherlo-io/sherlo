@@ -1,3 +1,4 @@
+import fs from 'fs';
 import { Build } from '@sherlo/api-types';
 import runShellCommand from './runShellCommand';
 
@@ -71,6 +72,31 @@ function isPullRequestMergeRef(): boolean {
   const refName = process.env.GITHUB_REF_NAME;
   if (!refName) return false;
   return /^\d+\/merge$/.test(refName) || refName.startsWith('gh-readonly-queue/');
+}
+
+/**
+ * The real PR-head SHA reported directly by GitHub Actions, independent of the
+ * local clone depth.
+ *
+ * On a `pull_request` event GitHub writes the triggering event's JSON payload to
+ * the file named by `GITHUB_EVENT_PATH`, and `pull_request.head.sha` in that
+ * payload is the tip of the PR branch - exactly the second parent (HEAD^2) of
+ * the synthetic `refs/pull/N/merge` commit. We read it as a shallow-clone-proof
+ * source for the PR head: on GitHub's default fetch-depth:1 checkout the merge
+ * commit's parents are grafted away, so `git rev-parse HEAD^2` can't recover
+ * this SHA locally. Returns undefined when the file or field is absent (e.g. a
+ * merge_group event, which carries no PR head).
+ */
+function getPrHeadShaFromGitHubEvent(): string | undefined {
+  const eventPath = process.env.GITHUB_EVENT_PATH;
+  if (!eventPath) return undefined;
+  try {
+    const payload = JSON.parse(fs.readFileSync(eventPath, 'utf8'));
+    const sha = payload?.pull_request?.head?.sha;
+    return typeof sha === 'string' && sha.length > 0 ? sha : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -185,23 +211,44 @@ async function getAdditionalGitInfo(
     }
   };
 
+  // Resolves a git revision to its SHA, returning undefined instead of throwing
+  // when the revision can't be resolved (e.g. HEAD^2 on a shallow clone whose
+  // parent objects were grafted away).
+  const safeRevParse = async (rev: string): Promise<string | undefined> => {
+    try {
+      return await runShellCommand({ command: `git rev-parse ${rev}`, projectRoot });
+    } catch {
+      return undefined;
+    }
+  };
+
   const onMergeRef = isPullRequestMergeRef();
 
-  // Determine the canonical commit SHA to anchor all ancestry queries.
-  // On a PR merge ref the real PR head is the SECOND parent (HEAD^2).
+  // On a synthetic merge-ref checkout, resolve the REAL PR head.
+  //
+  // The PR head is the second parent (HEAD^2) of the merge commit. On a full
+  // clone `git rev-parse HEAD^2` returns it directly. On GitHub's DEFAULT
+  // fetch-depth:1 shallow checkout the parent objects are grafted away and that
+  // command fails, so we fall back to the PR-head SHA GitHub records in the
+  // pull_request event payload.
+  //
+  // `prHeadCommitHash` must carry the real PR head in BOTH cases: the server
+  // keys the commit-hash GSI on it, so a wrong value (e.g. the ephemeral merge
+  // SHA) makes an approved PR build invisible to later builds. It also signals
+  // that this build originates from a synthetic merge ref - without it a
+  // canonicalised commitHash is indistinguishable from a direct push.
+  //
+  // `canonicalSha` anchors the LOCAL ancestry queries below. We only set it when
+  // the PR head actually exists in this clone (deep clone); on a shallow clone
+  // it stays undefined so those queries run against HEAD and degrade gracefully
+  // instead of failing on a grafted-away object.
   let canonicalSha: string | undefined;
-  await safe(async () => {
-    if (onMergeRef) {
-      canonicalSha = await runShellCommand({
-        command: 'git rev-parse HEAD^2',
-        projectRoot,
-      });
-      // Signal to the server that this build originates from a synthetic merge
-      // ref.  Without this field a canonicalised commitHash is indistinguishable
-      // from a direct push to the same SHA.
-      additional.prHeadCommitHash = canonicalSha;
-    }
-  });
+  if (onMergeRef) {
+    const localPrHead = await safeRevParse('HEAD^2');
+    const prHead = localPrHead ?? getPrHeadShaFromGitHubEvent();
+    if (prHead) additional.prHeadCommitHash = prHead;
+    canonicalSha = localPrHead;
+  }
 
   // Parent SHAs of the canonical commit.
   await safe(async () => {
