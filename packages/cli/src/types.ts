@@ -24,6 +24,8 @@ import {
   TEST_STANDARD_COMMAND,
   TOKEN_OPTION,
   WAIT_FOR_EAS_BUILD_OPTION,
+  WAIT_OPTION,
+  WAIT_TIMEOUT_OPTION,
 } from './constants';
 
 /* === GENERAL === */
@@ -76,6 +78,8 @@ type CommonOptions<M extends OptionsMode, F extends OptionsFormat> = {
   [GIT_BRANCH_OPTION]?: string;
   [INCLUDE_OPTION]?: F extends 'raw' ? string : string[];
   [DIAGNOSTICS_OPTION]?: F extends 'raw' ? string : string[];
+  [WAIT_OPTION]?: boolean;
+  [WAIT_TIMEOUT_OPTION]?: F extends 'raw' ? string : string;
 } & (M extends 'withDefaults'
   ? { [CONFIG_OPTION]: string; [PROJECT_ROOT_OPTION]: string }
   : { [CONFIG_OPTION]?: string; [PROJECT_ROOT_OPTION]?: string });

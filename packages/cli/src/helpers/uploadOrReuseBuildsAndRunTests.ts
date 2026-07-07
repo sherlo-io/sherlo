@@ -13,6 +13,7 @@ import printResultsUrl from './printResultsUrl';
 import reporting from './reporting';
 import { computeChangedFiles, computeNativeFingerprint } from './turbosnap';
 import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
+import waitForBuildResult from './waitForBuildResult';
 
 async function uploadOrReuseBuildsAndRunTests({
   commandParams,
@@ -110,6 +111,21 @@ async function uploadOrReuseBuildsAndRunTests({
 
   printResultsUrl(url);
 
+  if (commandParams.wait) {
+    const exitCode = await waitForBuildResult({
+      token: commandParams.token,
+      buildIndex: buildIndex,
+      projectIndex,
+      teamId,
+      waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
+    });
+
+    // --wait mode: the exit code IS the contract. Flush telemetry then exit.
+    await reporting.flush().finally(() => {
+      process.exit(exitCode);
+    });
+  }
+
   return { url };
 }
 
@@ -125,4 +141,11 @@ function printEasUpdateData(easUpdateData: EasUpdateData) {
       `└─ author: ${chalk.blue(easUpdateData.author)}\n` +
       `└─ branch: ${chalk.blue(easUpdateData.branch)}\n`
   );
+}
+
+function parseWaitTimeout(raw: string | undefined): number | undefined {
+  if (!raw) return undefined;
+  const minutes = parseInt(raw, 10);
+  if (isNaN(minutes) || minutes < 1) return undefined;
+  return minutes;
 }

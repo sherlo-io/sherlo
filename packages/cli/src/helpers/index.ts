@@ -29,5 +29,6 @@ export { default as stripAnsi } from './stripAnsi';
 export { default as throwError } from './throwError';
 export { default as uploadOrReuseBuildsAndRunTests } from './uploadOrReuseBuildsAndRunTests';
 export { default as validateLocalBinaries } from './validateLocalBinaries';
+export { default as waitForBuildResult } from './waitForBuildResult';
 export { default as withCommandTimeout } from './withCommandTimeout';
 export { default as wrapInBox } from './wrapInBox';
