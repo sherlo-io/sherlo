@@ -35,7 +35,7 @@ const DEFAULT_WAIT_TIMEOUT_MINUTES = 45;
 const POLL_INTERVAL_MS = 15_000; // fixed interval, no API hammering
 
 type BuildStatusResponse = {
-  getBuild: {
+  getBuildStatus: {
     runStatus: 'canceled' | 'error' | 'finished' | 'inProgress' | 'queued' | 'waiting';
     viewStatusesCount?: {
       approved: number;
@@ -79,6 +79,7 @@ async function waitForBuildResult({
   );
 
   let lastStatus = '';
+  let pollCount = 0;
 
   while (true) {
     // Check timeout before each poll
@@ -95,7 +96,7 @@ async function waitForBuildResult({
       return EXIT_TIMEOUT;
     }
 
-    let build: NonNullable<BuildStatusResponse['getBuild']> | null = null;
+    let build: NonNullable<BuildStatusResponse['getBuildStatus']> | null = null;
 
     try {
       build = await fetchBuildStatus(endpointUrl, apiToken, {
@@ -138,6 +139,14 @@ async function waitForBuildResult({
       return exitCode;
     }
 
+    // Periodic heartbeat so CI systems never see 5+ min of silence
+    pollCount++;
+    if (pollCount % 20 === 0) {
+      const elapsedMin = Math.round((Date.now() - startTime) / 60_000);
+      const statusLabel = build.runStatus === 'inProgress' ? 'running' : build.runStatus;
+      console.log(chalk.dim(`   still ${statusLabel}... (${elapsedMin}m elapsed)`));
+    }
+
     await sleep(POLL_INTERVAL_MS);
   }
 }
@@ -162,7 +171,7 @@ async function fetchBuildStatus(
   endpointUrl: string,
   apiToken: string,
   variables: { index: number; projectIndex: number; teamId: string }
-): Promise<NonNullable<BuildStatusResponse['getBuild']> | null> {
+): Promise<NonNullable<BuildStatusResponse['getBuildStatus']> | null> {
   const response = await fetch(endpointUrl, {
     method: 'POST',
     headers: {
@@ -171,8 +180,8 @@ async function fetchBuildStatus(
     },
     body: JSON.stringify({
       query: `
-        query getBuild($index: Int!, $projectIndex: Int!, $teamId: String!) {
-          getBuild(index: $index, projectIndex: $projectIndex, teamId: $teamId) {
+        query getBuildStatus($index: Int!, $projectIndex: Int!, $teamId: String!) {
+          getBuildStatus(index: $index, projectIndex: $projectIndex, teamId: $teamId) {
             runStatus
             viewStatusesCount {
               approved
@@ -210,11 +219,11 @@ async function fetchBuildStatus(
     throw new Error(`GraphQL errors: ${JSON.stringify(json.errors)}`);
   }
 
-  return json.data?.getBuild ?? null;
+  return json.data?.getBuildStatus ?? null;
 }
 
 function evaluateTerminalState(
-  build: NonNullable<BuildStatusResponse['getBuild']>,
+  build: NonNullable<BuildStatusResponse['getBuildStatus']>,
   url: string
 ): number | null {
   const { runStatus, viewStatusesCount } = build;
@@ -263,7 +272,7 @@ function evaluateTerminalState(
   }
 }
 
-function formatProgressLine(build: NonNullable<BuildStatusResponse['getBuild']>): string {
+function formatProgressLine(build: NonNullable<BuildStatusResponse['getBuildStatus']>): string {
   const { runStatus, startedAt, queuedAt, finishedAt } = build;
 
   const statusLabel: Record<string, string> = {

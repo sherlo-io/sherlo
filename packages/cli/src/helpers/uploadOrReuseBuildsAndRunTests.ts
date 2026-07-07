@@ -1,5 +1,6 @@
 import sdkClient from '@sherlo/sdk-client';
 import chalk from 'chalk';
+import logWarning from './logWarning';
 import { TEST_EAS_UPDATE_COMMAND, TEST_STANDARD_COMMAND } from '../constants';
 import { CommandParams, EasUpdateData } from '../types';
 import getAppBuildUrl from './getAppBuildUrl';
@@ -146,6 +147,11 @@ function printEasUpdateData(easUpdateData: EasUpdateData) {
 function parseWaitTimeout(raw: string | undefined): number | undefined {
   if (!raw) return undefined;
   const minutes = parseInt(raw, 10);
-  if (isNaN(minutes) || minutes < 1) return undefined;
+  if (isNaN(minutes) || minutes < 1) {
+    logWarning({
+      message: `Invalid --wait-timeout "${raw}"; using default 45 minutes.`,
+    });
+    return undefined;
+  }
   return minutes;
 }

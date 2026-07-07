@@ -33,9 +33,9 @@ function buildResponse(
   runStatus: string,
   viewStatusesCount?: { approved: number; noChanges: number; reported: number; unreviewed: number },
   runError?: unknown
-): { getBuild: Record<string, unknown> } {
+): { getBuildStatus: Record<string, unknown> } {
   return {
-    getBuild: {
+    getBuildStatus: {
       runStatus,
       viewStatusesCount: viewStatusesCount ?? null,
       runError: runError ?? null,
@@ -311,7 +311,7 @@ describe('waitForBuildResult', () => {
   /* AUTH - header format and auth-failure handling                      */
   /* ------------------------------------------------------------------ */
 
-  it('sends the correct Authorization header (JSON-stringified token object)', async () => {
+  it('sends the correct Authorization header and getBuildStatus query', async () => {
     mockGraphqlResponse(
       200,
       buildResponse('finished', { approved: 0, noChanges: 1, reported: 0, unreviewed: 0 })
@@ -334,6 +334,11 @@ describe('waitForBuildResult', () => {
     const headers = fetchCallArgs[1]?.headers;
     expect(headers).toBeDefined();
     expect(headers.Authorization).toBe(JSON.stringify({ authToken: API_TOKEN }));
+
+    // Verify the POST body uses getBuildStatus (machine-auth query), not getBuild
+    const body = JSON.parse(fetchCallArgs[1]?.body);
+    expect(body.query).toMatch('getBuildStatus');
+    expect(body.query).not.toMatch(/\bgetBuild\b/);
   });
 
   it('exits 2 (ERROR) immediately on HTTP 401 without retrying', async () => {
@@ -434,12 +439,12 @@ describe('waitForBuildResult', () => {
   /* NULL BUILD - build not found yet                                     */
   /* ------------------------------------------------------------------ */
 
-  it('retries when getBuild returns null (build not found)', async () => {
+  it('retries when getBuildStatus returns null (build not found)', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
       statusText: 'OK',
-      json: async () => ({ data: { getBuild: null } }),
+      json: async () => ({ data: { getBuildStatus: null } }),
     });
     mockGraphqlResponse(
       200,
