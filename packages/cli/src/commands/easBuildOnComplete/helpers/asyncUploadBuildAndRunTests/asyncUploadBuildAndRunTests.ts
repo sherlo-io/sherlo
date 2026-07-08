@@ -11,7 +11,7 @@ import {
   uploadOrPrintBinaryReuse,
   reporting,
 } from '../../../../helpers';
-import { computeChangedFiles, computeNativeFingerprint } from '../../../../helpers/turbosnap';
+import { computeChangedFiles, computeNativeFingerprint } from '../../../../helpers/diffScope';
 import { THIS_COMMAND } from '../../constants';
 import getBuildPath from './getBuildPath';
 
@@ -47,7 +47,7 @@ async function asyncUploadBuildAndRunTests({
     ios: platform === 'ios' ? buildPath : undefined,
   });
 
-  // TurboSnap: compute changed files and native fingerprint for the EAS-cloud path.
+  // Diff Scope: compute changed files and native fingerprint for the EAS-cloud path.
   // The same bail-to-full conditions apply: shallow clone, dirty tree, no mergeBaseSha.
   const gitInfo = await getGitInfo(DEFAULT_PROJECT_ROOT);
   const changedFilesResult = await computeChangedFiles(DEFAULT_PROJECT_ROOT, gitInfo);
@@ -55,7 +55,7 @@ async function asyncUploadBuildAndRunTests({
   if ('changedFiles' in changedFilesResult) {
     changedFiles = changedFilesResult.changedFiles;
   } else {
-    console.log(`[Sherlo] TurboSnap: full capture - ${changedFilesResult.reason}`);
+    console.log(`[Sherlo] Diff Scope: full capture - ${changedFilesResult.reason}`);
   }
   const nativeFingerprint = (await computeNativeFingerprint(DEFAULT_PROJECT_ROOT)) ?? undefined;
 

@@ -8,7 +8,7 @@ export interface StoryMeta {
   parameters: Record<string, any>;
   /**
    * Project-root-relative import path of the story file (e.g. "./src/Button.stories.tsx").
-   * Used by TurboSnap to map storyId → source file without static reconstruction.
+   * Used by Diff Scope to map storyId → source file without static reconstruction.
    * Sourced from _storyIndex.entries[id].importPath; derived from the require.context
    * directory + filename for the primary (titled) path.
    */

@@ -51,7 +51,7 @@ vi.mock('../../../../../helpers', () => ({
   reporting: mocks.reporting,
 }));
 
-vi.mock('../../../../../helpers/turbosnap', () => ({
+vi.mock('../../../../../helpers/diffScope', () => ({
   computeChangedFiles: mocks.computeChangedFiles,
   computeNativeFingerprint: mocks.computeNativeFingerprint,
 }));
@@ -83,7 +83,7 @@ const BASE_GIT_INFO = {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('asyncUploadBuildAndRunTests – TurboSnap (changedFiles + nativeFingerprint)', () => {
+describe('asyncUploadBuildAndRunTests – Diff Scope (changedFiles + nativeFingerprint)', () => {
   beforeEach(() => {
     process.env.EAS_BUILD_PLATFORM = 'android';
     mocks.getGitInfo.mockResolvedValue(BASE_GIT_INFO);

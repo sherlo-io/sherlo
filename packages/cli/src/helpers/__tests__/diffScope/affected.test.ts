@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { affected } from '../../turbosnap/affected';
-import type { DependencyGraph } from '../../turbosnap/dependencyGraph';
-import type { StoryEntry } from '../../turbosnap/affected';
+import { affected } from '../../diffScope/affected';
+import type { DependencyGraph } from '../../diffScope/dependencyGraph';
+import type { StoryEntry } from '../../diffScope/affected';
 
 // ---------------------------------------------------------------------------
 // Helpers
