@@ -44,9 +44,6 @@ type BuildStatusResponse = {
       unreviewed: number;
     };
     runError?: unknown;
-    startedAt?: string;
-    queuedAt?: string;
-    finishedAt?: string;
   } | null;
 };
 
@@ -190,9 +187,6 @@ async function fetchBuildStatus(
               unreviewed
             }
             runError
-            startedAt
-            queuedAt
-            finishedAt
           }
         }
       `,
@@ -273,7 +267,7 @@ function evaluateTerminalState(
 }
 
 function formatProgressLine(build: NonNullable<BuildStatusResponse['getBuildStatus']>): string {
-  const { runStatus, startedAt, queuedAt, finishedAt } = build;
+  const { runStatus } = build;
 
   const statusLabel: Record<string, string> = {
     queued: '🟡 Queued',
@@ -284,19 +278,7 @@ function formatProgressLine(build: NonNullable<BuildStatusResponse['getBuildStat
     canceled: '⚪ Canceled',
   };
 
-  let line = chalk.dim(`   ${statusLabel[runStatus] ?? runStatus}`);
-
-  if (queuedAt) {
-    line += chalk.dim(` | queued: ${queuedAt}`);
-  }
-  if (startedAt) {
-    line += chalk.dim(` | started: ${startedAt}`);
-  }
-  if (finishedAt) {
-    line += chalk.dim(` | finished: ${finishedAt}`);
-  }
-
-  return line;
+  return chalk.dim(`   ${statusLabel[runStatus] ?? runStatus}`);
 }
 
 function sleep(ms: number): Promise<void> {
