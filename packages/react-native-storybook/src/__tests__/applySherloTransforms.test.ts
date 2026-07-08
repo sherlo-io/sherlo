@@ -161,7 +161,7 @@ describe('applySherloTransforms - enabled:false ships minimal polyfill only', ()
 });
 
 // ---------------------------------------------------------------------------
-// TurboSnap Phase 2 – dependency graph sidecar
+// Diff Scope Phase 2 – dependency graph sidecar
 // ---------------------------------------------------------------------------
 
 describe('applySherloTransforms – emitDependencyGraphSidecar (via customSerializer)', () => {

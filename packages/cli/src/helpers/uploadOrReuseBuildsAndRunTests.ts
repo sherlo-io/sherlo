@@ -12,7 +12,7 @@ import handleClientError from './handleClientError';
 import printBuildIntroMessage from './printBuildIntroMessage';
 import printResultsUrl from './printResultsUrl';
 import reporting from './reporting';
-import { computeChangedFiles, computeNativeFingerprint } from './turbosnap';
+import { computeChangedFiles, computeNativeFingerprint } from './diffScope';
 import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
 import waitForBuildResult from './waitForBuildResult';
 
@@ -59,7 +59,7 @@ async function uploadOrReuseBuildsAndRunTests({
   if ('changedFiles' in changedFilesResult) {
     changedFiles = changedFilesResult.changedFiles;
   } else {
-    console.log(`[Sherlo] TurboSnap: full capture - ${changedFilesResult.reason}`);
+    console.log(`[Sherlo] Diff Scope: full capture - ${changedFilesResult.reason}`);
   }
 
   const nativeFingerprint =

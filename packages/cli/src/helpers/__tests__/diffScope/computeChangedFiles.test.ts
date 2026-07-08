@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { computeChangedFiles } from '../../turbosnap/computeChangedFiles';
+import { computeChangedFiles } from '../../diffScope/computeChangedFiles';
 import GitFixture from '../support/gitFixture';
 import type { GitInfo } from '../../getGitInfo';
 
@@ -205,7 +205,7 @@ describe('computeChangedFiles – successful diff derivation', () => {
 
 describe('computeNativeFingerprint', () => {
   it('returns a non-null string when @expo/fingerprint can compute a hash', async () => {
-    const { computeNativeFingerprint } = await import('../../turbosnap/computeNativeFingerprint');
+    const { computeNativeFingerprint } = await import('../../diffScope/computeNativeFingerprint');
     // @expo/fingerprint is installed in the monorepo; use the fixture dir so it
     // has a real filesystem context (it hashes what it can find, returning empty
     // sources for a bare dir, but always returns a stable hash string).

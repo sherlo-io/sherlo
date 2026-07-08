@@ -2,7 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { checkStoryImportsStory } from '../../turbosnap/storyImportsStory';
+import { checkStoryImportsStory } from '../../diffScope/storyImportsStory';
 
 // ---------------------------------------------------------------------------
 // Minimal filesystem fixture
@@ -493,19 +493,19 @@ describe('(i) relative projectRoot (production DEFAULT_PROJECT_ROOT = ".")', () 
   it('detects a direct cross-import with projectRoot "." (S6)', () => {
     // Mirrors the e2e fixture: ComposedCard imports the changed SharedButton story.
     fx.write(
-      'src/components/TurboSnap/SharedButton.stories.tsx',
+      'src/components/DiffScope/SharedButton.stories.tsx',
       `export const Primary = () => null;
 export default { title: 'SharedButton' };`
     );
     fx.write(
-      'src/components/TurboSnap/ComposedCard.stories.tsx',
+      'src/components/DiffScope/ComposedCard.stories.tsx',
       `import { Primary } from './SharedButton.stories';
 export default { title: 'ComposedCard' };
 export const WithButton = Primary;`
     );
 
     const result = checkStoryImportsStory('.', [
-      'src/components/TurboSnap/SharedButton.stories.tsx',
+      'src/components/DiffScope/SharedButton.stories.tsx',
     ]);
 
     expect(result).toMatchObject({ fullRun: true });
@@ -518,22 +518,22 @@ export const WithButton = Primary;`
   it('detects a barrel chain with projectRoot "." (S7)', () => {
     // BarrelBase.stories (changed) re-exported via storyBarrel.ts, imported by BarrelCard.
     fx.write(
-      'src/components/TurboSnap/BarrelBase.stories.tsx',
+      'src/components/DiffScope/BarrelBase.stories.tsx',
       `export const Base = () => null;
 export default { title: 'BarrelBase' };`
     );
     fx.write(
-      'src/components/TurboSnap/storyBarrel.ts',
+      'src/components/DiffScope/storyBarrel.ts',
       `export { Base } from './BarrelBase.stories';`
     );
     fx.write(
-      'src/components/TurboSnap/BarrelCard.stories.tsx',
+      'src/components/DiffScope/BarrelCard.stories.tsx',
       `import { Base } from './storyBarrel';
 export default { title: 'BarrelCard' };
 export const Reused = Base;`
     );
 
-    const result = checkStoryImportsStory('.', ['src/components/TurboSnap/BarrelBase.stories.tsx']);
+    const result = checkStoryImportsStory('.', ['src/components/DiffScope/BarrelBase.stories.tsx']);
 
     expect(result).toMatchObject({ fullRun: true });
     const r = result as { fullRun: true; reason: string };

@@ -4,7 +4,7 @@ var fs = require('fs');
 var path = require('path');
 
 // ---------------------------------------------------------------------------
-// Dependency graph sidecar (TurboSnap Phase 2)
+// Dependency graph sidecar (Diff Scope Phase 2)
 // ---------------------------------------------------------------------------
 
 /**
@@ -209,7 +209,7 @@ function applySherloTransforms(result, opts) {
     return base.concat(sherloPolyfills);
   }
 
-  // ---- TurboSnap Phase 2: non-destructive dependency graph sidecar ----
+  // ---- Diff Scope Phase 2: non-destructive dependency graph sidecar ----
   // Wrap (or install) a customSerializer that side-effects a graph.json sidecar
   // and then delegates to the original serializer unchanged.
   var existingCustomSerializer =

@@ -5,7 +5,7 @@ import { checkStoryImportsStory } from './storyImportsStory';
 export type ChangedFilesResult = { changedFiles: string[] } | { fullRun: true; reason: string };
 
 /**
- * Derives the list of changed files to send in the openBuild TurboSnap payload.
+ * Derives the list of changed files to send in the openBuild Diff Scope payload.
  *
  * Returns changedFiles when it is safe to do so, or { fullRun, reason } when
  * any condition prevents a sound partial selection:
