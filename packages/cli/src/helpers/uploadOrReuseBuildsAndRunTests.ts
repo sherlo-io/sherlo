@@ -1,5 +1,6 @@
 import sdkClient from '@sherlo/sdk-client';
 import chalk from 'chalk';
+import logWarning from './logWarning';
 import { TEST_EAS_UPDATE_COMMAND, TEST_STANDARD_COMMAND } from '../constants';
 import { CommandParams, EasUpdateData } from '../types';
 import getAppBuildUrl from './getAppBuildUrl';
@@ -13,6 +14,7 @@ import printResultsUrl from './printResultsUrl';
 import reporting from './reporting';
 import { computeChangedFiles, computeNativeFingerprint } from './turbosnap';
 import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
+import waitForBuildResult from './waitForBuildResult';
 
 async function uploadOrReuseBuildsAndRunTests({
   commandParams,
@@ -110,6 +112,21 @@ async function uploadOrReuseBuildsAndRunTests({
 
   printResultsUrl(url);
 
+  if (commandParams.wait) {
+    const exitCode = await waitForBuildResult({
+      token: commandParams.token,
+      buildIndex: buildIndex,
+      projectIndex,
+      teamId,
+      waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
+    });
+
+    // --wait mode: the exit code IS the contract. Flush telemetry then exit.
+    await reporting.flush().finally(() => {
+      process.exit(exitCode);
+    });
+  }
+
   return { url };
 }
 
@@ -125,4 +142,16 @@ function printEasUpdateData(easUpdateData: EasUpdateData) {
       `└─ author: ${chalk.blue(easUpdateData.author)}\n` +
       `└─ branch: ${chalk.blue(easUpdateData.branch)}\n`
   );
+}
+
+function parseWaitTimeout(raw: string | undefined): number | undefined {
+  if (!raw) return undefined;
+  const minutes = parseInt(raw, 10);
+  if (isNaN(minutes) || minutes < 1) {
+    logWarning({
+      message: `Invalid --wait-timeout "${raw}"; using default 45 minutes.`,
+    });
+    return undefined;
+  }
+  return minutes;
 }

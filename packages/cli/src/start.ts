@@ -41,6 +41,8 @@ import {
   TEST_STANDARD_COMMAND,
   TOKEN_OPTION,
   WAIT_FOR_EAS_BUILD_OPTION,
+  WAIT_OPTION,
+  WAIT_TIMEOUT_OPTION,
 } from './constants';
 import { logWarning, reporting, withCommandTimeout } from './helpers';
 
@@ -170,6 +172,16 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${WAIT_FOR_EAS_BUILD_OPTION}`,
     'Start waiting for EAS Build to be triggered manually',
   ],
+  [WAIT_OPTION]: [
+    `--${WAIT_OPTION}`,
+    'Wait for test results and exit with a code encoding the outcome:\n' +
+      '  0 = GREEN (no changes), 1 = changes require review,\n' +
+      '  2 = build/system error, 3 = timeout (block, never pass)',
+  ],
+  [WAIT_TIMEOUT_OPTION]: [
+    '--wait-timeout <minutes>',
+    'Max minutes to wait for results (default: 45). Exit code 3 on timeout.',
+  ],
 };
 
 function addInitCommand(program: Command) {
@@ -188,7 +200,12 @@ function addTestCommand(program: Command) {
   addCommand({
     program,
     command: TEST_COMMAND,
-    options: [...getTestCommonOptions('withPlatformPaths'), ...devtoolsOptions],
+    options: [
+      ...getTestCommonOptions('withPlatformPaths'),
+      WAIT_OPTION,
+      WAIT_TIMEOUT_OPTION,
+      ...devtoolsOptions,
+    ],
     action: test,
   });
 }
@@ -200,7 +217,12 @@ function addTestStandardCommand(program: Command) {
     program,
     command: TEST_STANDARD_COMMAND,
     oldCommand: 'local-builds',
-    options: [...getTestCommonOptions('withPlatformPaths'), ...devtoolsOptions],
+    options: [
+      ...getTestCommonOptions('withPlatformPaths'),
+      WAIT_OPTION,
+      WAIT_TIMEOUT_OPTION,
+      ...devtoolsOptions,
+    ],
     action: testStandard,
   });
 }
@@ -215,7 +237,13 @@ function addTestEasUpdateCommand(program: Command) {
     program,
     command: TEST_EAS_UPDATE_COMMAND,
     oldCommand: 'expo-update',
-    options: [BRANCH_OPTION, ...getTestCommonOptions('withPlatformPaths'), ...devtoolsOptions],
+    options: [
+      BRANCH_OPTION,
+      ...getTestCommonOptions('withPlatformPaths'),
+      WAIT_OPTION,
+      WAIT_TIMEOUT_OPTION,
+      ...devtoolsOptions,
+    ],
     action: testEasUpdate,
   });
 }
