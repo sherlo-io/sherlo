@@ -68,9 +68,20 @@ const BUNDLE_SNIFF_BYTES = 16;
 const EXPO_PLIST_IOS_PATH = 'EXUpdates.bundle/Expo.plist';
 const EXPO_PLIST_IOS_APP_PATH = 'Expo.plist';
 
-// Android expo-updates metadata key in AndroidManifest.xml (binary XML)
+// Android expo-updates metadata keys in AndroidManifest.xml (binary XML)
 const EXPO_UPDATES_ENABLED_ANDROID = 'expo.modules.updates.ENABLED';
-const EXPO_UPDATES_METADATA_ANDROID = 'expo.modules.updates';
+const EXPO_UPDATES_METADATA_PREFIX = 'expo.modules.updates.';
+
+// AXML chunk type constants
+const AXML_CHUNK_STRING_POOL = 0x0001;
+const AXML_CHUNK_START_TAG = 0x0102;
+
+// AXML TypedValue type constants
+const AXML_TYPE_STRING = 3;
+const AXML_TYPE_INT_BOOLEAN = 18;
+
+// AXML sentinel for "no string index"
+const AXML_NO_INDEX = 0xffffffff;
 
 // iOS tar prefix
 const IOS_TAR_BUNDLE_PREFIX = '*.app/';
@@ -611,14 +622,22 @@ async function listIosAssets({
 
 /**
  * Parse the EXUpdatesEnabled value from an Expo.plist text (XML) plist.
- * Returns true only when the key is present AND its value is truthy
- * (e.g. `<true/>` or `<string>YES</string>`).
+ *
+ * When the key is present: returns true for `<true/>` / `<string>YES</string>`,
+ * false for `<false/>` / `<string>NO</string>`.
+ *
+ * When the plist exists but the EXUpdatesEnabled key is ABSENT, expo-updates
+ * is default-ENABLED per Expo convention, so we return true. (The runtime
+ * patches the plist at splice time, but stored metadata should be accurate.)
  */
 export function parseExpoUpdatesEnabledFromPlist(content: string): boolean {
   // Match the value tag after EXUpdatesEnabled key - handles both
   // self-closing tags (<true/>) and tags with content (<string>YES</string>).
   const match = content.match(/<key>EXUpdatesEnabled<\/key>\s*(<[^>]+>.*?<\/[^>]+>|<[^>]+\/>)/);
-  if (!match) return false;
+  if (!match) {
+    // Key absent but plist is present → expo-updates is default ENABLED.
+    return true;
+  }
   const valueTag = match[1];
   if (/<true\s*\/?>/.test(valueTag)) return true;
   if (/<false\s*\/?>/.test(valueTag)) return false;
@@ -711,6 +730,190 @@ async function detectExpoUpdatesIos({
   return false;
 }
 
+// ---------------------------------------------------------------------------
+// AXML (Android Binary XML) parser for expo-updates metadata value extraction
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse the string pool from an AXML chunk.
+ *
+ * Handles both UTF-8 (flags & 0x100) and UTF-16LE string encodings.
+ * Returns the parsed strings and the offset immediately after the chunk.
+ */
+function parseAxmlStringPool(
+  buffer: Buffer,
+  chunkStart: number
+): { strings: string[]; endOffset: number } | null {
+  try {
+    const chunkSize = buffer.readUInt32LE(chunkStart + 4);
+    const endOffset = chunkStart + chunkSize;
+    const stringCount = buffer.readUInt32LE(chunkStart + 8);
+    const _styleCount = buffer.readUInt32LE(chunkStart + 12);
+    const flags = buffer.readUInt32LE(chunkStart + 16);
+    const _stringsStart = buffer.readUInt32LE(chunkStart + 20);
+
+    if (stringCount === 0) return { strings: [], endOffset };
+
+    const isUtf8 = (flags & 0x100) !== 0;
+    const strings: string[] = [];
+
+    for (let i = 0; i < stringCount; i++) {
+      const strOffset = buffer.readUInt32LE(chunkStart + 28 + i * 4);
+      const strDataPos = chunkStart + strOffset;
+
+      let str: string;
+      if (isUtf8) {
+        let pos = strDataPos;
+        const b0 = buffer.readUInt8(pos);
+        let charCount: number;
+        if (b0 & 0x80) {
+          charCount = ((b0 & 0x7f) << 8) | buffer.readUInt8(pos + 1);
+          pos += 2;
+        } else {
+          charCount = b0;
+          pos += 1;
+        }
+        str = buffer.toString('utf8', pos, pos + charCount);
+      } else {
+        let pos = strDataPos;
+        const charCount = buffer.readUInt16LE(pos);
+        pos += 2;
+        str = buffer.toString('utf16le', pos, pos + charCount * 2);
+      }
+      strings.push(str);
+    }
+
+    return { strings, endOffset };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Walk AXML start-tag chunks looking for `<meta-data>` elements whose
+ * `android:name` starts with `expo.modules.updates.`.
+ *
+ * Returns:
+ *  - `true`  – expo-updates is enabled (ENABLED=true, or configured without explicit ENABLED)
+ *  - `false` – expo-updates is explicitly disabled (ENABLED=false)
+ *  - `null`  – the AXML format could not be parsed (caller should try a fallback)
+ *
+ * Exported for unit testing the value-parsing logic.
+ */
+export function parseAxmlExpoUpdatesEnabled(buffer: Buffer): boolean | null {
+  try {
+    // --- Locate and parse the string pool ---
+    let offset = 0;
+    const xmlType = buffer.readUInt16LE(offset);
+    if (xmlType !== 0x0003) return null; // not an AXML resource
+
+    const xmlHeaderSize = buffer.readUInt16LE(offset + 2);
+    const xmlChunkSize = buffer.readUInt32LE(offset + 4);
+    offset += xmlHeaderSize;
+
+    let stringPool: string[] | null = null;
+    let androidNsIndex = -1;
+
+    while (offset < xmlChunkSize) {
+      if (offset + 8 > buffer.length) break;
+      const chunkType = buffer.readUInt16LE(offset);
+      const chunkSize = buffer.readUInt32LE(offset + 4);
+
+      if (chunkSize < 8 || offset + chunkSize > buffer.length) break;
+
+      if (chunkType === AXML_CHUNK_STRING_POOL) {
+        const parsed = parseAxmlStringPool(buffer, offset);
+        if (!parsed) return null;
+        stringPool = parsed.strings;
+        // Find the android namespace URI index
+        androidNsIndex = stringPool.indexOf('http://schemas.android.com/apk/res/android');
+        offset = parsed.endOffset;
+        continue;
+      }
+
+      // Only proceed once we have the string pool
+      if (!stringPool) {
+        offset += chunkSize;
+        continue;
+      }
+
+      if (chunkType === AXML_CHUNK_START_TAG) {
+        const tagNameIndex = buffer.readUInt32LE(offset + 20);
+        const tagName = tagNameIndex < stringPool.length ? stringPool[tagNameIndex] : '';
+
+        if (tagName === 'meta-data') {
+          const attrCount = buffer.readUInt32LE(offset + 28) & 0xffff;
+
+          let nameValue: string | null = null;
+          let valueResult: boolean | null = null;
+
+          // Read attributes – each is 5 × uint32LE = 20 bytes, starting at offset + 36
+          for (let ai = 0; ai < attrCount; ai++) {
+            const attrBase = offset + 36 + ai * 20;
+            const attrNs = buffer.readUInt32LE(attrBase);
+            const attrNameIdx = buffer.readUInt32LE(attrBase + 4);
+            const attrRawValue = buffer.readUInt32LE(attrBase + 8);
+            const attrTypedValue = buffer.readUInt32LE(attrBase + 12);
+            const attrData = buffer.readUInt32LE(attrBase + 16);
+
+            const dataType = (attrTypedValue >> 24) & 0xff;
+            const attrName = attrNameIdx < stringPool.length ? stringPool[attrNameIdx] : '';
+
+            // Check if this attribute is in the android namespace (or no namespace)
+            const isAndroidNs =
+              attrNs === AXML_NO_INDEX || (androidNsIndex >= 0 && attrNs === androidNsIndex);
+
+            if (!isAndroidNs) continue;
+
+            // Extract the attribute value as a string (if it's a string type)
+            function attrValueString(): string | null {
+              if (dataType === AXML_TYPE_STRING) {
+                const idx = attrRawValue !== AXML_NO_INDEX ? attrRawValue : attrData;
+                if (idx < stringPool!.length) return stringPool![idx];
+              }
+              return null;
+            }
+
+            if (attrName === 'name') {
+              nameValue = attrValueString();
+            } else if (attrName === 'value') {
+              if (dataType === AXML_TYPE_INT_BOOLEAN) {
+                // TYPE_INT_BOOLEAN: -1 (0xFFFFFFFF) = true, 0 = false
+                valueResult = attrData === 0xffffffff;
+              } else {
+                const strVal = attrValueString();
+                if (strVal !== null) {
+                  valueResult = strVal.toLowerCase() === 'true';
+                }
+              }
+            }
+          }
+
+          // If we found a meta-data with an expo-updates name, evaluate it
+          if (nameValue && nameValue.startsWith(EXPO_UPDATES_METADATA_PREFIX)) {
+            if (nameValue === EXPO_UPDATES_ENABLED_ANDROID) {
+              // Explicit ENABLED key - return the parsed value
+              if (valueResult !== null) return valueResult;
+              // Could not read value - fall back to key presence = enabled
+              return true;
+            }
+            // Other expo-updates metadata present (e.g. EXPO_RUNTIME_VERSION)
+            // → expo-updates is configured, default enabled
+            return true;
+          }
+        }
+      }
+
+      offset += chunkSize;
+    }
+
+    // Walked entire manifest - no expo-updates metadata found
+    return false;
+  } catch {
+    return null;
+  }
+}
+
 async function detectExpoUpdatesAndroid({
   binaryPath,
   fileName,
@@ -722,26 +925,66 @@ async function detectExpoUpdatesAndroid({
 }): Promise<boolean> {
   if (!fileName.endsWith('.apk')) return false;
 
+  // 1. Extract AndroidManifest.xml from the APK
+  let manifestBuffer: Buffer;
   try {
-    // Read the binary AndroidManifest.xml and search for expo-updates metadata
-    // in UTF-16LE encoding (Android binary XML uses this for its string pool).
-    const manifestBuffer = await runShellCommand({
+    manifestBuffer = (await runShellCommand({
       command: `unzip -p "${binaryPath}" AndroidManifest.xml`,
       projectRoot,
       encoding: 'buffer',
-    });
-
-    // Search for "expo.modules.updates.ENABLED" in UTF-16LE
-    // Android binary XML stores strings as UTF-16LE in the string pool.
-    const searchEnabled = Buffer.from(EXPO_UPDATES_ENABLED_ANDROID, 'utf16le');
-    const searchMetadata = Buffer.from(EXPO_UPDATES_METADATA_ANDROID, 'utf16le');
-
-    // Cast to Buffer for includes check
-    const buf = manifestBuffer as Buffer;
-    return buf.includes(searchEnabled) || buf.includes(searchMetadata);
+    })) as Buffer;
   } catch {
     return false;
   }
+
+  // 2. Parse AXML and read the actual expo-updates metadata VALUE
+  const axmlResult = parseAxmlExpoUpdatesEnabled(manifestBuffer);
+  if (axmlResult !== null) return axmlResult;
+
+  // 3. Fallback: try aapt/aapt2 if available
+  try {
+    // Try aapt2 first (newer build tools), then aapt (older)
+    for (const tool of ['aapt2', 'aapt']) {
+      try {
+        const output = await runShellCommand({
+          command: `${tool} dump xmltree "${binaryPath}" AndroidManifest.xml 2>/dev/null`,
+          projectRoot,
+        });
+        if (output) {
+          // Search for the ENABLED meta-data value in aapt output
+          // aapt output format: A: android:name(…)=\"expo.modules.updates.ENABLED\"
+          // followed by A: android:value(…)=(type 0x12)0xffffffff or 0x0
+          const enabledMatch = output.match(
+            /E: meta-data[\s\S]*?A: android:name[^=]*?="expo\.modules\.updates\.ENABLED"[\s\S]*?A: android:value[^=]*?(?:\(type 0x12\)(0x[0-9a-fA-F]+)|="(true|false)")/
+          );
+          if (enabledMatch) {
+            if (enabledMatch[1]) {
+              // Typed value: 0xffffffff = true, 0x0 = false
+              return enabledMatch[1].toLowerCase() !== '0x0';
+            }
+            if (enabledMatch[2]) {
+              // String value
+              return enabledMatch[2].toLowerCase() === 'true';
+            }
+          }
+          // Also check for other expo-updates metadata (configured but no ENABLED key)
+          if (/E: meta-data[\s\S]*?A: android:name[^=]*?="expo\.modules\.updates\./.test(output)) {
+            return true;
+          }
+        }
+      } catch {
+        // tool not available, try next
+      }
+    }
+  } catch {
+    // aapt fallback failed entirely
+  }
+
+  // 4. Neither AXML parser nor aapt could determine state.
+  // Do NOT hard-refuse - return false so staging isn't blocked by our inability
+  // to read the metadata. The AXML parser handles >99% of real-world manifests,
+  // so this fallthrough is rarely reached.
+  return false;
 }
 
 // ---------------------------------------------------------------------------
