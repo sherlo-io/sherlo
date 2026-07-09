@@ -9,6 +9,7 @@ import {
   testEasCloudBuild,
   testEasUpdate,
   testStandard,
+  testBundled,
 } from './commands';
 import {
   ANDROID_FILE_TYPES,
@@ -37,6 +38,7 @@ import {
   SHOW_ERROR_COMMAND,
   TEST_COMMAND,
   TEST_EAS_CLOUD_BUILD_COMMAND,
+  TEST_BUNDLED_COMMAND,
   TEST_EAS_UPDATE_COMMAND,
   TEST_STANDARD_COMMAND,
   TOKEN_OPTION,
@@ -69,6 +71,8 @@ async function start() {
     addTestEasUpdateCommand(program);
 
     addTestEasCloudBuildCommand(program);
+
+    addTestBundledCommand(program);
 
     addShowErrorCommand(program);
 
@@ -108,6 +112,7 @@ const COMMAND_DESCRIPTION = {
   [TEST_STANDARD_COMMAND]: 'Test standard builds',
   [TEST_EAS_UPDATE_COMMAND]: 'Test builds with dynamic JavaScript (OTA) updates',
   [TEST_EAS_CLOUD_BUILD_COMMAND]: 'Test cloud builds created on Expo servers',
+  [TEST_BUNDLED_COMMAND]: 'Test JS-only changes via staged uploads (fast path - no native rebuild)',
   [EAS_BUILD_ON_COMPLETE_COMMAND]: `Process EAS Build (required for \`${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
   [SHOW_ERROR_COMMAND]:
     'Decode a minified JS error stack trace using the slug printed on the Sherlo build error page',
@@ -269,6 +274,22 @@ function addTestEasCloudBuildCommand(program: Command) {
     command: EAS_BUILD_ON_COMPLETE_COMMAND,
     options: [PROFILE_OPTION],
     action: easBuildOnComplete,
+  });
+}
+
+function addTestBundledCommand(program: Command) {
+  const devtoolsOptions = process.env.SHERLO_DEVTOOLS === '1' ? [DIAGNOSTICS_OPTION] : [];
+
+  addCommand({
+    program,
+    command: TEST_BUNDLED_COMMAND,
+    options: [
+      ...getTestCommonOptions('withoutPlatformPaths'),
+      WAIT_OPTION,
+      WAIT_TIMEOUT_OPTION,
+      ...devtoolsOptions,
+    ],
+    action: testBundled,
   });
 }
 

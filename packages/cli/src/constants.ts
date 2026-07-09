@@ -28,6 +28,7 @@ export const DOCS_LINK = {
   testStandard: `${DOCS_BASE_URL}/testing?method=standard#testing-methods`,
   testEasUpdate: `${DOCS_BASE_URL}/testing?method=eas-update#testing-methods`,
   testEasCloudBuild: `${DOCS_BASE_URL}/testing?method=eas-cloud-build#testing-methods`,
+  testBundled: `${DOCS_BASE_URL}/testing?method=bundled#testing-methods`,
 
   devices: `${DOCS_BASE_URL}/devices`,
 };
@@ -70,6 +71,7 @@ export const TEST_COMMAND = 'test';
 export const TEST_STANDARD_COMMAND = 'test:standard';
 export const TEST_EAS_UPDATE_COMMAND = 'test:eas-update';
 export const TEST_EAS_CLOUD_BUILD_COMMAND = 'test:eas-cloud-build';
+export const TEST_BUNDLED_COMMAND = 'test:bundled';
 export const EAS_BUILD_ON_COMPLETE_COMMAND = 'eas-build-on-complete';
 export const SHOW_ERROR_COMMAND = 'show-error';
 export const FULL_INIT_COMMAND = 'npx sherlo init';
