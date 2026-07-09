@@ -34,10 +34,6 @@ vi.mock('../buildBundle', () => ({
   buildBundleForPlatform: vi.fn(),
 }));
 
-vi.mock('../buildStagedRunConfig', () => ({
-  buildStagedRunConfig: vi.fn(),
-}));
-
 // ---------------------------------------------------------------------------
 // Mocked dependency accessors (vi.mocked gives proper Mock types)
 // ---------------------------------------------------------------------------
@@ -49,14 +45,12 @@ import {
 } from '../../../helpers';
 import { computeBaseFingerprint as _computeBaseFingerprint } from '../../../helpers/fingerprint';
 import { buildBundleForPlatform as _buildBundleForPlatform } from '../buildBundle';
-import { buildStagedRunConfig as _buildStagedRunConfig } from '../buildStagedRunConfig';
 
 const mockGetPlatformsToTest = vi.mocked(_getPlatformsToTest);
 const mockGetValidatedCommandParams = vi.mocked(_getValidatedCommandParams);
 const mockPrintSherloIntro = vi.mocked(_printSherloIntro);
 const mockComputeBaseFingerprint = vi.mocked(_computeBaseFingerprint);
 const mockBuildBundleForPlatform = vi.mocked(_buildBundleForPlatform);
-const mockBuildStagedRunConfig = vi.mocked(_buildStagedRunConfig);
 
 // ---------------------------------------------------------------------------
 // Subject under test
@@ -137,13 +131,6 @@ describe('readiness gate', () => {
       assetInventory: [],
       assetsDest: undefined,
     } as any);
-    mockBuildStagedRunConfig.mockReturnValue({
-      url: '',
-      baseReference: 'abc123def456',
-      jsBundleUrl: '',
-      bundleSizeMb: 2.0,
-    } as any);
-
     const result = await testBundled(mockOptions());
     expect(result).toEqual({ url: '' });
     expect(exitSpy).not.toHaveBeenCalled();
@@ -261,13 +248,6 @@ describe('fingerprint unavailable', () => {
       assetInventory: [],
       assetsDest: undefined,
     } as any);
-    mockBuildStagedRunConfig.mockReturnValue({
-      url: '',
-      baseReference: 'abc123def456',
-      jsBundleUrl: '',
-      bundleSizeMb: 2.0,
-    } as any);
-
     const result = await testBundled(mockOptions());
     expect(result).toEqual({ url: '' });
     expect(exitSpy).not.toHaveBeenCalled();
