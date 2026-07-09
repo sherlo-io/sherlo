@@ -13,6 +13,7 @@ import printBuildIntroMessage from './printBuildIntroMessage';
 import printResultsUrl from './printResultsUrl';
 import reporting from './reporting';
 import { computeChangedFiles, computeNativeFingerprint } from './diffScope';
+import { computeBaseFingerprint, registerBase, type GateMetadataInput } from './fingerprint';
 import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
 import waitForBuildResult from './waitForBuildResult';
 
@@ -65,6 +66,54 @@ async function uploadOrReuseBuildsAndRunTests({
   const nativeFingerprint =
     (await computeNativeFingerprint(commandParams.projectRoot)) ?? undefined;
 
+  // ------------------------------------------------------------------
+  // Compute base fingerprint (project-level, once) and per-platform
+  // gate metadata BEFORE the API call so they can be wired into the
+  // openBuild payload.
+  // ------------------------------------------------------------------
+  const fpResult = await computeBaseFingerprint(commandParams.projectRoot);
+
+  let baseFingerprint: string | undefined;
+  const gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput } = {};
+
+  if (fpResult.hash) {
+    baseFingerprint = fpResult.hash;
+
+    // Extract gate metadata per platform (fail-soft per platform).
+    const platforms: ('android' | 'ios')[] = [];
+    if (binariesInfo.android && commandParams.android) platforms.push('android');
+    if (binariesInfo.ios && commandParams.ios) platforms.push('ios');
+
+    for (const platform of platforms) {
+      try {
+        const binaryPath = platform === 'android' ? commandParams.android! : commandParams.ios!;
+        const binaryInfo = platform === 'android' ? binariesInfo.android! : binariesInfo.ios!;
+        const bundlePath = getBundlePathInBinary(platform, commandParams.projectRoot);
+
+        const result = await registerBase({
+          binaryPath,
+          platform,
+          projectRoot: commandParams.projectRoot,
+          bundlePath,
+          buildType: binaryInfo.buildType,
+          baseFingerprintHash: fpResult.hash,
+        });
+
+        if (result.gateMetadata) {
+          gateMetadata[platform] = result.gateMetadata;
+        }
+      } catch {
+        // Fail-soft: base registration errors are non-fatal.
+      }
+    }
+  } else {
+    console.log(
+      `[Sherlo] Staged uploads unavailable - ${
+        fpResult.debugMessage ?? 'fingerprint computation failed'
+      }`
+    );
+  }
+
   reporting.addBreadcrumb({
     category: 'api',
     message: 'Calling openBuild API',
@@ -97,6 +146,7 @@ async function uploadOrReuseBuildsAndRunTests({
       message: commandParams.message,
       changedFiles,
       nativeFingerprint,
+      ...(baseFingerprint ? { baseFingerprint, gateMetadata } : {}),
     })
     .catch(handleClientError);
 
@@ -142,6 +192,21 @@ function printEasUpdateData(easUpdateData: EasUpdateData) {
       `└─ author: ${chalk.blue(easUpdateData.author)}\n` +
       `└─ branch: ${chalk.blue(easUpdateData.branch)}\n`
   );
+}
+
+/**
+ * Determine the JS bundle path within the built binary for a given platform.
+ *
+ * Uses the FIXED platform default for the embedded bundle asset name:
+ * `assets/index.android.bundle` on Android, `main.jsbundle` on iOS.
+ * This is the default set by React Native's Gradle bundle task and
+ * `expo export:embed` - it does NOT vary with the JS entry file.
+ */
+function getBundlePathInBinary(platform: 'android' | 'ios', _projectRoot: string): string {
+  if (platform === 'android') {
+    return 'assets/index.android.bundle';
+  }
+  return 'main.jsbundle';
 }
 
 function parseWaitTimeout(raw: string | undefined): number | undefined {
