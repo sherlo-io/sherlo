@@ -59,6 +59,7 @@ vi.mock('../../../../../helpers/diffScope', () => ({
 vi.mock('../getBuildPath', () => ({ default: mocks.getBuildPath }));
 
 vi.mock('../../../../../helpers/fingerprint', () => ({
+  computeBaseFingerprint: vi.fn().mockResolvedValue({ hash: null }),
   registerBase: vi.fn().mockResolvedValue({ registered: false }),
 }));
 

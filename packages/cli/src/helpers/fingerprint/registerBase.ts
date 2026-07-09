@@ -11,7 +11,7 @@
  */
 import { Platform } from '@sherlo/api-types';
 import { computeBaseFingerprint } from './baseFingerprint';
-import { extractGateMetadata, type GateMetadata } from './gateMetadata';
+import { extractGateMetadata, type GateMetadataInput } from './gateMetadata';
 import { checkStageable } from './notStageable';
 
 // ---------------------------------------------------------------------------
@@ -29,18 +29,22 @@ export type RegisterBaseParams = {
   bundlePath: string;
   /** 'preview' when the binary has an embedded bundle, 'development' otherwise. */
   buildType: 'preview' | 'development';
-  // TODO(SHERLO-1688): re-add buildIndex, projectIndex, teamId, apiToken
-  // once they are wired onto openBuild/asyncUpload.
+  /**
+   * Pre-computed base fingerprint hash.  When omitted the fingerprint is
+   * computed internally.  Callers that register multiple platforms pass a
+   * single project-level hash computed once.
+   */
+  baseFingerprintHash?: string | null;
 };
 
 export type RegisterBaseResult = {
   /** The computed base fingerprint hash, if stageable. */
   baseFingerprint?: string;
-  /** Gate metadata extracted from the binary. */
-  gateMetadata?: GateMetadata;
+  /** Gate metadata extracted from the binary (per-platform). */
+  gateMetadata?: GateMetadataInput;
   /** When not stageable, a human-readable reason (already printed). */
   notStageableReason?: string;
-  /** Whether the base was successfully registered. */
+  /** Whether the base was successfully registered and is stageable. */
   registered: boolean;
 };
 
@@ -55,28 +59,39 @@ export type RegisterBaseResult = {
  * Fail-soft: NEVER throws.  Errors are printed and the caller proceeds.
  */
 export async function registerBase(params: RegisterBaseParams): Promise<RegisterBaseResult> {
-  const { binaryPath, platform, projectRoot, bundlePath, buildType } = params;
+  const { binaryPath, platform, projectRoot, bundlePath, buildType, baseFingerprintHash } = params;
 
   // ------------------------------------------------------------------
-  // 1. Compute baseFingerprint (Layer 1-3).
+  // 1. Compute baseFingerprint (Layer 1-3), unless pre-computed.
   // ------------------------------------------------------------------
-  const fpResult = await computeBaseFingerprint(projectRoot);
+  let fpHash: string | null;
 
-  if (fpResult.hash === null) {
-    console.log(
-      `[Sherlo] Staged uploads unavailable - ${
-        fpResult.debugMessage ?? 'fingerprint computation failed'
-      }`
-    );
-    return { registered: false, notStageableReason: fpResult.debugMessage };
+  if (baseFingerprintHash !== undefined) {
+    fpHash = baseFingerprintHash;
+  } else {
+    const fpResult = await computeBaseFingerprint(projectRoot);
+    if (fpResult.hash === null) {
+      console.log(
+        `[Sherlo] Staged uploads unavailable - ${
+          fpResult.debugMessage ?? 'fingerprint computation failed'
+        }`
+      );
+      return { registered: false, notStageableReason: fpResult.debugMessage };
+    }
+    fpHash = fpResult.hash;
   }
 
-  console.log(`[Sherlo] baseFingerprint: ${fpResult.hash}`);
+  if (fpHash === null) {
+    console.log('[Sherlo] Staged uploads unavailable - fingerprint computation returned null');
+    return { registered: false };
+  }
+
+  console.log(`[Sherlo] baseFingerprint: ${fpHash}`);
 
   // ------------------------------------------------------------------
   // 2. Extract gate metadata from the binary.
   // ------------------------------------------------------------------
-  let gateMetadata: GateMetadata;
+  let gateMetadata: GateMetadataInput;
   try {
     gateMetadata = await extractGateMetadata({
       binaryPath,
@@ -94,15 +109,12 @@ export async function registerBase(params: RegisterBaseParams): Promise<Register
   }
 
   // ------------------------------------------------------------------
-  // 3. Check stageability (AC3 cases).
+  // 3. Check stageability (aligned with API failReason derivation).
   // ------------------------------------------------------------------
   const stageableCheck = await checkStageable({
-    binaryPath,
     platform,
-    bundlePath,
     gateMetadata,
     buildType,
-    projectRoot,
   });
 
   if (!stageableCheck.stageable) {
@@ -113,31 +125,29 @@ export async function registerBase(params: RegisterBaseParams): Promise<Register
     );
     return {
       registered: false,
-      baseFingerprint: fpResult.hash,
+      baseFingerprint: fpHash,
       gateMetadata,
       notStageableReason: stageableCheck.reason,
     };
   }
 
   // ------------------------------------------------------------------
-  // 4. Print what WOULD be registered.
-  //
-  // TODO(SHERLO-1688): attach baseFingerprint + gateMetadata as optional
-  // fields on the existing openBuild/asyncUpload call once
-  // @sherlo/sdk-client exposes them.  Registration rides the upload
-  // already in flight - there is no separate registerBase mutation.
+  // 4. Print registration metadata summary.
   // ------------------------------------------------------------------
   console.log(
-    '[Sherlo] Staged registration metadata computed (wire integration pending - SHERLO-1688):\n' +
-      `  baseFingerprint: ${fpResult.hash}\n` +
+    '[Sherlo] Staged registration metadata computed:\n' +
+      `  baseFingerprint: ${fpHash}\n` +
       `  engineClass: ${gateMetadata.engineClass}\n` +
+      `  bundleFormat: ${gateMetadata.bundleFormat}\n` +
+      `  hasEmbeddedBundle: ${gateMetadata.hasEmbeddedBundle}\n` +
       `  expoUpdatesEnabled: ${gateMetadata.expoUpdatesEnabled}\n` +
+      `  sdkProtocolVersion: ${gateMetadata.sdkProtocolVersion ?? 'unknown'}\n` +
       `  assets: ${gateMetadata.assetInventory.length} items`
   );
 
   return {
     registered: true,
-    baseFingerprint: fpResult.hash,
+    baseFingerprint: fpHash,
     gateMetadata,
   };
 }

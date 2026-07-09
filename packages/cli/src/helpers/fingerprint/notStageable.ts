@@ -4,12 +4,15 @@
  * Each check returns a human-readable reason string when the artifact CANNOT
  * be a staging base, or `null` when it passes.  All checks are non-fatal -
  * they produce a printed note and let the test run proceed untouched.
+ *
+ * Reasons are aligned with the API's failReason derivation so local and
+ * server agree:
+ *   - expo-updates-enabled-android
+ *   - ram-bundle
+ *   - missing-embedded-bundle
  */
-import path from 'path';
 import { Platform } from '@sherlo/api-types';
-import accessFileInArchive from '../getValidatedBinariesInfoAndNextBuildIndex/getBinariesInfoAndNextBuildIndex/getLocalBinariesInfo/accessFileInArchive';
-import accessFileInDirectory from '../getValidatedBinariesInfoAndNextBuildIndex/getBinariesInfoAndNextBuildIndex/getLocalBinariesInfo/accessFileInDirectory';
-import type { GateMetadata } from './gateMetadata';
+import type { GateMetadataInput } from './gateMetadata';
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -23,31 +26,26 @@ export type StageableCheck = {
 };
 
 /**
- * Run all not-stageable checks against a binary.
+ * Run all not-stageable checks against a binary's gate metadata.
  *
  * Returns the FIRST failing reason, or `{ stageable: true }` when all pass.
- * Each failing case corresponds to one AC3 sub-case and includes a documented
- * one-line config change where applicable.
+ * Each failing case corresponds to one API failReason and includes a
+ * documented one-line config change where applicable.
+ *
+ * Unlike the prior version, this does NOT re-sniff the binary for RAM or
+ * embedded-bundle checks - those are already populated in gateMetadata by
+ * extractGateMetadata().
  */
 export async function checkStageable({
-  binaryPath,
   platform,
-  bundlePath,
   gateMetadata,
   buildType,
-  projectRoot,
 }: {
-  binaryPath: string;
   platform: Platform;
-  /** Bundle path within the binary (e.g. "assets/index.android.bundle"). */
-  bundlePath: string;
-  gateMetadata: GateMetadata;
+  gateMetadata: GateMetadataInput;
   buildType: 'preview' | 'development';
-  projectRoot: string;
 }): Promise<StageableCheck> {
-  const fileName = path.basename(binaryPath);
-
-  // (a) expo-updates-enabled Android APK
+  // (a) expo-updates-enabled Android APK → API failReason: expo-updates-enabled-android
   if (platform === 'android' && gateMetadata.expoUpdatesEnabled) {
     return {
       stageable: false,
@@ -58,22 +56,20 @@ export async function checkStageable({
     };
   }
 
-  // (b) RAM/indexed bundle detection
-  const ramBundleCheck = await checkRamBundle({ binaryPath, bundlePath, fileName, projectRoot });
-  if (!ramBundleCheck.stageable) return ramBundleCheck;
+  // (b) RAM/indexed bundle → API failReason: ram-bundle
+  if (gateMetadata.bundleFormat === 'ram') {
+    return {
+      stageable: false,
+      reason:
+        'RAM/indexed bundle format detected. Staged uploads require a ' +
+        'single-file JS bundle. Disable RAM bundling in your Metro config.',
+    };
+  }
 
   // (c) + (d) Embedded bundle existence at the platform-default path.
-  // `bundlePath` is the fixed platform default (assets/index.android.bundle
-  // or main.jsbundle).  If that file is absent:
-  //   - development build → AC3c: Debug build without an embedded bundle
-  //   - preview / release build → AC3d: custom/brownfield bundle name
-  const hasBundle = await checkHasEmbeddedBundle({
-    binaryPath,
-    bundlePath,
-    fileName,
-    projectRoot,
-  });
-  if (!hasBundle) {
+  //   - development build → API failReason: missing-embedded-bundle (debug wording)
+  //   - preview / release build → API failReason: missing-embedded-bundle (brownfield wording)
+  if (!gateMetadata.hasEmbeddedBundle) {
     if (buildType === 'development') {
       return {
         stageable: false,
@@ -86,7 +82,7 @@ export async function checkStageable({
     return {
       stageable: false,
       reason:
-        `No embedded bundle found at the default path "${bundlePath}". ` +
+        'No embedded bundle found at the default path. ' +
         'Brownfield / custom-bundle-name projects cannot use staged uploads. ' +
         'Set the bundle asset name to the platform default or use standard testing.',
     };
@@ -100,141 +96,4 @@ export async function checkStageable({
   // cheaply, skip this check rather than ship false positives.
 
   return { stageable: true };
-}
-
-// ---------------------------------------------------------------------------
-// Individual checks
-// ---------------------------------------------------------------------------
-
-/**
- * RAM / indexed bundle: the bundle file is actually a directory with
- * multiple JS files rather than a single bundled file.
- */
-async function checkRamBundle({
-  binaryPath,
-  bundlePath,
-  fileName,
-  projectRoot,
-}: {
-  binaryPath: string;
-  bundlePath: string;
-  fileName: string;
-  projectRoot: string;
-}): Promise<StageableCheck> {
-  try {
-    let content: string | undefined;
-
-    if (fileName.endsWith('.apk')) {
-      // For APK, the bundle is a single entry. Check if there are sibling
-      // entries indicating RAM bundle format (e.g. "assets/index.android.bundle/js-modules/...").
-      const ramIndicator = bundlePath.replace(/\.bundle$/, '') + '/';
-      const exists = (await accessFileInArchive({
-        operation: 'exists',
-        file: ramIndicator,
-        archive: binaryPath,
-        type: 'unzip',
-        projectRoot,
-      })) as boolean;
-      if (exists) {
-        return {
-          stageable: false,
-          reason:
-            'RAM/indexed bundle format detected. Staged uploads require a ' +
-            'single-file JS bundle. Disable RAM bundling in your Metro config.',
-        };
-      }
-
-      // Also check the first bytes of the bundle for RAM/ indexed magic
-      content = (await accessFileInArchive({
-        operation: 'read',
-        file: bundlePath,
-        archive: binaryPath,
-        type: 'unzip',
-        projectRoot,
-      })) as string | undefined;
-    } else if (fileName.endsWith('.app')) {
-      content = (await accessFileInDirectory({
-        operation: 'read',
-        file: bundlePath,
-        directory: binaryPath,
-      })) as string | undefined;
-    } else {
-      // tar - try reading the bundle
-      content = (await accessFileInArchive({
-        operation: 'read',
-        file: '*.app/' + bundlePath,
-        archive: binaryPath,
-        type: 'tar',
-        projectRoot,
-      })) as string | undefined;
-    }
-
-    if (content) {
-      // RAM bundles start with a magic number or reference the RAM format.
-      // Common indicators:
-      // - `__jac_` prefix (jest/mock RAM format)
-      // - Source map containing `magicMapping` (indexed RAM)
-      // - First line is `var __BUNDLE_START_TIME__=...` followed by RAM modules
-      if (
-        content.startsWith('__jac_') ||
-        content.includes('"magicMapping"') ||
-        content.includes('require.unbundle')
-      ) {
-        return {
-          stageable: false,
-          reason:
-            'RAM/indexed bundle format detected. Staged uploads require a ' +
-            'single-file JS bundle. Disable RAM bundling in your Metro config.',
-        };
-      }
-    }
-  } catch {
-    // Can't read bundle - assume single-file.
-  }
-
-  return { stageable: true };
-}
-
-/**
- * Check whether the binary has an embedded JS bundle at the expected path.
- */
-async function checkHasEmbeddedBundle({
-  binaryPath,
-  bundlePath,
-  fileName,
-  projectRoot,
-}: {
-  binaryPath: string;
-  bundlePath: string;
-  fileName: string;
-  projectRoot: string;
-}): Promise<boolean> {
-  try {
-    if (fileName.endsWith('.apk')) {
-      return (await accessFileInArchive({
-        operation: 'exists',
-        file: bundlePath,
-        archive: binaryPath,
-        type: 'unzip',
-        projectRoot,
-      })) as boolean;
-    }
-    if (fileName.endsWith('.app')) {
-      return (await accessFileInDirectory({
-        operation: 'exists',
-        file: bundlePath,
-        directory: binaryPath,
-      })) as boolean;
-    }
-    // tar
-    return (await accessFileInArchive({
-      operation: 'exists',
-      file: '*.app/' + bundlePath,
-      archive: binaryPath,
-      type: 'tar',
-      projectRoot,
-    })) as boolean;
-  } catch {
-    return false;
-  }
 }

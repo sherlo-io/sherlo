@@ -4,19 +4,26 @@
  * Each not-stageable condition must produce a documented note WITHOUT
  * failing the test run.  This test suite verifies that each refusal is
  * detected and the reason is non-empty.
+ *
+ * The checkStageable function now receives gate metadata as a pre-computed
+ * GateMetadataInput - it no longer re-sniffs the binary for RAM or embedded
+ * bundle checks.  Tests control behavior through the metadata fields directly.
  */
 import { describe, expect, it } from 'vitest';
 import { checkStageable } from '../notStageable';
-import type { GateMetadata } from '../gateMetadata';
+import type { GateMetadataInput } from '../gateMetadata';
 
 // ---------------------------------------------------------------------------
 // Minimal valid metadata used as the "passing" baseline.
 // ---------------------------------------------------------------------------
 
-const PASSING_METADATA: GateMetadata = {
+const PASSING_METADATA: GateMetadataInput = {
   engineClass: 'hermes',
+  bundleFormat: 'hbc',
+  hasEmbeddedBundle: true,
   assetInventory: ['assets/index.android.bundle'],
   expoUpdatesEnabled: false,
+  sdkProtocolVersion: '1.0.0',
   buildMetadata: { buildMode: 'release' },
 };
 
@@ -25,16 +32,13 @@ const PASSING_METADATA: GateMetadata = {
 // ---------------------------------------------------------------------------
 
 describe('checkStageable', () => {
-  // --- AC3a: expo-updates-enabled Android APK ---
+  // --- AC3a: expo-updates-enabled Android APK → failReason: expo-updates-enabled-android ---
 
   it('refuses stageable on expo-updates-enabled Android APK (AC3a)', async () => {
     const result = await checkStageable({
-      binaryPath: '/tmp/app.apk',
       platform: 'android',
-      bundlePath: 'assets/index.android.bundle',
       gateMetadata: { ...PASSING_METADATA, expoUpdatesEnabled: true },
       buildType: 'preview',
-      projectRoot: '/tmp',
     });
 
     expect(result.stageable).toBe(false);
@@ -43,71 +47,52 @@ describe('checkStageable', () => {
   });
 
   // expo-updates on iOS is NOT a refusal (only Android is gated by AC3a).
-  // The embedded-bundle check may fail on a nonexistent binary - that's
-  // a brownfield refusal, not an expo-updates refusal.  The key assertion
-  // is that the reason does NOT mention expo-updates.
   it('allows expo-updates on iOS (no expo-updates refusal)', async () => {
     const result = await checkStageable({
-      binaryPath: '/tmp/app.app',
       platform: 'ios',
-      bundlePath: 'main.jsbundle',
       gateMetadata: { ...PASSING_METADATA, expoUpdatesEnabled: true },
       buildType: 'preview',
-      projectRoot: '/tmp',
     });
 
-    // May fail on embedded-bundle existence (nonexistent binary), but
-    // must NOT fail because of expo-updates.
-    if (!result.stageable) {
-      expect(result.reason).not.toMatch(/expo-updates/i);
-    }
+    // On iOS with hasEmbeddedBundle: true and bundleFormat: 'hbc', should pass.
+    expect(result.stageable).toBe(true);
   });
 
-  // --- AC3c: Debug build without an embedded bundle ---
+  // --- AC3b: RAM bundle → failReason: ram-bundle ---
 
-  it('refuses stageable on development build without JS bundle (AC3c)', async () => {
+  it('refuses stageable on RAM bundle (AC3b)', async () => {
     const result = await checkStageable({
-      binaryPath: '/tmp/app.app',
-      platform: 'ios',
-      bundlePath: 'main.jsbundle',
-      gateMetadata: PASSING_METADATA,
-      buildType: 'development',
-      projectRoot: '/tmp',
+      platform: 'android',
+      gateMetadata: { ...PASSING_METADATA, bundleFormat: 'ram' },
+      buildType: 'preview',
     });
 
-    // The .app directory doesn't exist, so the bundle check fails → not stageable.
+    expect(result.stageable).toBe(false);
+    expect(result.reason).toBeTruthy();
+    expect(result.reason).toMatch(/ram/i);
+  });
+
+  // --- AC3c: Debug build without an embedded bundle → failReason: missing-embedded-bundle ---
+
+  it('refuses stageable on development build without embedded bundle (AC3c)', async () => {
+    const result = await checkStageable({
+      platform: 'ios',
+      gateMetadata: { ...PASSING_METADATA, hasEmbeddedBundle: false },
+      buildType: 'development',
+    });
+
     expect(result.stageable).toBe(false);
     expect(result.reason).toBeTruthy();
     expect(result.reason).toMatch(/debug|embedded bundle/i);
   });
 
-  // --- AC3d: Custom/brownfield bundle name ---
+  // --- AC3d: Preview build without an embedded bundle → failReason: missing-embedded-bundle (brownfield wording) ---
 
-  it('refuses stageable on custom bundle name (AC3d)', async () => {
+  it('refuses stageable on preview build without embedded bundle - brownfield (AC3d)', async () => {
     const result = await checkStageable({
-      binaryPath: '/tmp/app.apk',
       platform: 'android',
-      bundlePath: 'assets/custom.bundle',
-      gateMetadata: PASSING_METADATA,
+      gateMetadata: { ...PASSING_METADATA, hasEmbeddedBundle: false },
       buildType: 'preview',
-      projectRoot: '/tmp',
-    });
-
-    expect(result.stageable).toBe(false);
-    expect(result.reason).toBeTruthy();
-    expect(result.reason).toMatch(/custom.bundle|custom-bundle|brownfield/i);
-  });
-
-  it('refuses preview build when default bundle is absent - brownfield (AC3d)', async () => {
-    // With a nonexistent binary, the default-bundle existence check fails.
-    // On a preview build that means custom/brownfield.
-    const result = await checkStageable({
-      binaryPath: '/tmp/app.apk',
-      platform: 'android',
-      bundlePath: 'assets/index.android.bundle',
-      gateMetadata: PASSING_METADATA,
-      buildType: 'preview',
-      projectRoot: '/tmp',
     });
 
     expect(result.stageable).toBe(false);
@@ -115,39 +100,15 @@ describe('checkStageable', () => {
     expect(result.reason).toMatch(/default path|custom-bundle|brownfield/i);
   });
 
-  it('development build without bundle gets the debug-specific refusal (AC3c)', async () => {
-    // Same nonexistent binary but buildType 'development' → different reason.
+  // --- All checks pass ---
+
+  it('passes stageable check when all conditions are met', async () => {
     const result = await checkStageable({
-      binaryPath: '/tmp/app.app',
-      platform: 'ios',
-      bundlePath: 'main.jsbundle',
-      gateMetadata: PASSING_METADATA,
-      buildType: 'development',
-      projectRoot: '/tmp',
-    });
-
-    expect(result.stageable).toBe(false);
-    expect(result.reason).toBeTruthy();
-    expect(result.reason).toMatch(/debug|embedded bundle/i);
-  });
-
-  // --- AC3b: RAM/indexed bundle ---
-
-  it('detects RAM bundle by magic content (AC3b)', async () => {
-    // checkRamBundle reads the bundle content. We test the detection logic
-    // indirectly through checkStageable - a file that contains RAM magic.
-    // Since we're testing against a real filesystem, this is best-effort.
-    // The key thing: if the check runs, it doesn't throw.
-    const result = await checkStageable({
-      binaryPath: '/tmp/nonexistent.apk',
       platform: 'android',
-      bundlePath: 'assets/index.android.bundle',
       gateMetadata: PASSING_METADATA,
       buildType: 'preview',
-      projectRoot: '/tmp',
     });
 
-    // Should not throw, regardless of outcome.
-    expect(result).toHaveProperty('stageable');
+    expect(result.stageable).toBe(true);
   });
 });

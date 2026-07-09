@@ -12,7 +12,11 @@ import {
   reporting,
 } from '../../../../helpers';
 import { computeChangedFiles, computeNativeFingerprint } from '../../../../helpers/diffScope';
-import { registerBase } from '../../../../helpers/fingerprint';
+import {
+  computeBaseFingerprint,
+  registerBase,
+  type GateMetadataInput,
+} from '../../../../helpers/fingerprint';
 import { THIS_COMMAND } from '../../constants';
 import getBuildPath from './getBuildPath';
 
@@ -60,6 +64,47 @@ async function asyncUploadBuildAndRunTests({
   }
   const nativeFingerprint = (await computeNativeFingerprint(DEFAULT_PROJECT_ROOT)) ?? undefined;
 
+  // ------------------------------------------------------------------
+  // Compute base fingerprint (project-level, once) and per-platform
+  // gate metadata BEFORE the API call so they can be wired into the
+  // asyncUpload payload.
+  // ------------------------------------------------------------------
+  const fpResult = await computeBaseFingerprint(DEFAULT_PROJECT_ROOT);
+
+  let baseFingerprint: string | undefined;
+  const gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput } = {};
+
+  if (fpResult.hash) {
+    baseFingerprint = fpResult.hash;
+
+    // Extract gate metadata for this single platform (fail-soft).
+    try {
+      const bundlePath = platform === 'android' ? 'assets/index.android.bundle' : 'main.jsbundle';
+      const binaryBuildType = binariesInfo[platform]?.buildType;
+
+      const result = await registerBase({
+        binaryPath: buildPath,
+        platform,
+        projectRoot: DEFAULT_PROJECT_ROOT,
+        bundlePath,
+        buildType: binaryBuildType ?? 'preview',
+        baseFingerprintHash: fpResult.hash,
+      });
+
+      if (result.gateMetadata) {
+        gateMetadata[platform] = result.gateMetadata;
+      }
+    } catch {
+      // Fail-soft: base registration errors are non-fatal.
+    }
+  } else {
+    console.log(
+      `[Sherlo] Staged uploads unavailable - ${
+        fpResult.debugMessage ?? 'fingerprint computation failed'
+      }`
+    );
+  }
+
   reporting.addBreadcrumb({
     category: 'api',
     message: 'Calling asyncUpload API',
@@ -78,6 +123,7 @@ async function asyncUploadBuildAndRunTests({
       fileName: binariesInfo[platform]?.fileName,
       changedFiles,
       nativeFingerprint,
+      ...(baseFingerprint ? { baseFingerprint, gateMetadata } : {}),
     })
     .catch(handleClientError);
 
@@ -95,44 +141,7 @@ async function asyncUploadBuildAndRunTests({
     printResultsUrl(url);
   }
 
-  // Register the uploaded binary as the stageable base (fail-soft).
-  // The fingerprint is computed INSIDE the EAS build environment, attesting
-  // the binary that was actually built.
-  await registerEasBase({
-    buildPath,
-    platform,
-    binaryBuildType: binariesInfo[platform]?.buildType,
-  });
-
   return { buildIndex, url };
-}
-
-/**
- * Register the EAS-built binary as the stageable base.
- * Fail-soft: errors print a message and never fail the run.
- */
-async function registerEasBase({
-  buildPath,
-  platform,
-  binaryBuildType,
-}: {
-  buildPath: string;
-  platform: Platform;
-  binaryBuildType: 'preview' | 'development' | undefined;
-}): Promise<void> {
-  try {
-    const bundlePath = platform === 'android' ? 'assets/index.android.bundle' : 'main.jsbundle';
-
-    await registerBase({
-      binaryPath: buildPath,
-      platform,
-      projectRoot: DEFAULT_PROJECT_ROOT,
-      bundlePath,
-      buildType: binaryBuildType ?? 'preview',
-    });
-  } catch {
-    // Fail-soft: base registration errors are non-fatal.
-  }
 }
 
 export default asyncUploadBuildAndRunTests;

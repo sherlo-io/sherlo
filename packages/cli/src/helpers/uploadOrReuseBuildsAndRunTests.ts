@@ -2,7 +2,7 @@ import sdkClient from '@sherlo/sdk-client';
 import chalk from 'chalk';
 import logWarning from './logWarning';
 import { TEST_EAS_UPDATE_COMMAND, TEST_STANDARD_COMMAND } from '../constants';
-import { BinariesInfo, CommandParams, EasUpdateData } from '../types';
+import { CommandParams, EasUpdateData } from '../types';
 import getAppBuildUrl from './getAppBuildUrl';
 import getBuildRunConfig from './getBuildRunConfig';
 import getGitInfo from './getGitInfo';
@@ -13,7 +13,7 @@ import printBuildIntroMessage from './printBuildIntroMessage';
 import printResultsUrl from './printResultsUrl';
 import reporting from './reporting';
 import { computeChangedFiles, computeNativeFingerprint } from './diffScope';
-import { registerBase } from './fingerprint';
+import { computeBaseFingerprint, registerBase, type GateMetadataInput } from './fingerprint';
 import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
 import waitForBuildResult from './waitForBuildResult';
 
@@ -66,6 +66,54 @@ async function uploadOrReuseBuildsAndRunTests({
   const nativeFingerprint =
     (await computeNativeFingerprint(commandParams.projectRoot)) ?? undefined;
 
+  // ------------------------------------------------------------------
+  // Compute base fingerprint (project-level, once) and per-platform
+  // gate metadata BEFORE the API call so they can be wired into the
+  // openBuild payload.
+  // ------------------------------------------------------------------
+  const fpResult = await computeBaseFingerprint(commandParams.projectRoot);
+
+  let baseFingerprint: string | undefined;
+  const gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput } = {};
+
+  if (fpResult.hash) {
+    baseFingerprint = fpResult.hash;
+
+    // Extract gate metadata per platform (fail-soft per platform).
+    const platforms: ('android' | 'ios')[] = [];
+    if (binariesInfo.android && commandParams.android) platforms.push('android');
+    if (binariesInfo.ios && commandParams.ios) platforms.push('ios');
+
+    for (const platform of platforms) {
+      try {
+        const binaryPath = platform === 'android' ? commandParams.android! : commandParams.ios!;
+        const binaryInfo = platform === 'android' ? binariesInfo.android! : binariesInfo.ios!;
+        const bundlePath = getBundlePathInBinary(platform, commandParams.projectRoot);
+
+        const result = await registerBase({
+          binaryPath,
+          platform,
+          projectRoot: commandParams.projectRoot,
+          bundlePath,
+          buildType: binaryInfo.buildType,
+          baseFingerprintHash: fpResult.hash,
+        });
+
+        if (result.gateMetadata) {
+          gateMetadata[platform] = result.gateMetadata;
+        }
+      } catch {
+        // Fail-soft: base registration errors are non-fatal.
+      }
+    }
+  } else {
+    console.log(
+      `[Sherlo] Staged uploads unavailable - ${
+        fpResult.debugMessage ?? 'fingerprint computation failed'
+      }`
+    );
+  }
+
   reporting.addBreadcrumb({
     category: 'api',
     message: 'Calling openBuild API',
@@ -98,6 +146,7 @@ async function uploadOrReuseBuildsAndRunTests({
       message: commandParams.message,
       changedFiles,
       nativeFingerprint,
+      ...(baseFingerprint ? { baseFingerprint, gateMetadata } : {}),
     })
     .catch(handleClientError);
 
@@ -112,13 +161,6 @@ async function uploadOrReuseBuildsAndRunTests({
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
   printResultsUrl(url);
-
-  // Register each platform's binary as the stageable base (fail-soft).
-  // This is additive - nativeFingerprint and gitInfo are unchanged.
-  await registerPlatformBases({
-    binariesInfo,
-    commandParams,
-  });
 
   if (commandParams.wait) {
     const exitCode = await waitForBuildResult({
@@ -150,42 +192,6 @@ function printEasUpdateData(easUpdateData: EasUpdateData) {
       `└─ author: ${chalk.blue(easUpdateData.author)}\n` +
       `└─ branch: ${chalk.blue(easUpdateData.branch)}\n`
   );
-}
-
-/**
- * Register each platform's uploaded binary as the stageable base.
- * Fail-soft: errors are printed but NEVER fail the test run.
- */
-async function registerPlatformBases({
-  binariesInfo,
-  commandParams,
-}: {
-  binariesInfo: BinariesInfo;
-  commandParams: CommandParams;
-}): Promise<void> {
-  const platforms: ('android' | 'ios')[] = [];
-  if (binariesInfo.android && commandParams.android) platforms.push('android');
-  if (binariesInfo.ios && commandParams.ios) platforms.push('ios');
-
-  for (const platform of platforms) {
-    try {
-      const binaryPath = platform === 'android' ? commandParams.android! : commandParams.ios!;
-      const binaryInfo = platform === 'android' ? binariesInfo.android! : binariesInfo.ios!;
-
-      // Derive the JS bundle path within the binary.
-      const bundlePath = getBundlePathInBinary(platform, commandParams.projectRoot);
-
-      await registerBase({
-        binaryPath,
-        platform,
-        projectRoot: commandParams.projectRoot,
-        bundlePath,
-        buildType: binaryInfo.buildType,
-      });
-    } catch {
-      // Fail-soft: base registration errors are non-fatal.
-    }
-  }
 }
 
 /**
