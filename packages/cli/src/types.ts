@@ -19,6 +19,7 @@ import {
   PROFILE_OPTION,
   PROJECT_ROOT_OPTION,
   TEST_COMMAND,
+  TEST_BUNDLED_COMMAND,
   TEST_EAS_CLOUD_BUILD_COMMAND,
   TEST_EAS_UPDATE_COMMAND,
   TEST_STANDARD_COMMAND,
@@ -34,6 +35,7 @@ export type Command =
   | typeof TEST_STANDARD_COMMAND
   | typeof TEST_EAS_UPDATE_COMMAND
   | typeof TEST_EAS_CLOUD_BUILD_COMMAND
+  | typeof TEST_BUNDLED_COMMAND
   | typeof EAS_BUILD_ON_COMPLETE_COMMAND
   | typeof TEST_COMMAND
   | typeof INIT_COMMAND;
@@ -110,10 +112,12 @@ type CommandOptions = {
     [IOS_OPTION]?: string;
   };
   [INIT_COMMAND]: {};
+  [TEST_BUNDLED_COMMAND]: {};
   any: Partial<
     CommandOptions[typeof TEST_STANDARD_COMMAND] &
       CommandOptions[typeof TEST_EAS_UPDATE_COMMAND] &
       CommandOptions[typeof TEST_EAS_CLOUD_BUILD_COMMAND] &
+      CommandOptions[typeof TEST_BUNDLED_COMMAND] &
       CommandOptions[typeof EAS_BUILD_ON_COMPLETE_COMMAND]
   >;
 };
