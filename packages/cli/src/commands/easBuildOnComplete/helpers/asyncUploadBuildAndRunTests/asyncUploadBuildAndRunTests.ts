@@ -12,6 +12,7 @@ import {
   reporting,
 } from '../../../../helpers';
 import { computeChangedFiles, computeNativeFingerprint } from '../../../../helpers/diffScope';
+import { registerBase } from '../../../../helpers/fingerprint';
 import { THIS_COMMAND } from '../../constants';
 import getBuildPath from './getBuildPath';
 
@@ -94,7 +95,44 @@ async function asyncUploadBuildAndRunTests({
     printResultsUrl(url);
   }
 
+  // Register the uploaded binary as the stageable base (fail-soft).
+  // The fingerprint is computed INSIDE the EAS build environment, attesting
+  // the binary that was actually built.
+  await registerEasBase({
+    buildPath,
+    platform,
+    binaryBuildType: binariesInfo[platform]?.buildType,
+  });
+
   return { buildIndex, url };
+}
+
+/**
+ * Register the EAS-built binary as the stageable base.
+ * Fail-soft: errors print a message and never fail the run.
+ */
+async function registerEasBase({
+  buildPath,
+  platform,
+  binaryBuildType,
+}: {
+  buildPath: string;
+  platform: Platform;
+  binaryBuildType: 'preview' | 'development' | undefined;
+}): Promise<void> {
+  try {
+    const bundlePath = platform === 'android' ? 'assets/index.android.bundle' : 'main.jsbundle';
+
+    await registerBase({
+      binaryPath: buildPath,
+      platform,
+      projectRoot: DEFAULT_PROJECT_ROOT,
+      bundlePath,
+      buildType: binaryBuildType ?? 'preview',
+    });
+  } catch {
+    // Fail-soft: base registration errors are non-fatal.
+  }
 }
 
 export default asyncUploadBuildAndRunTests;
