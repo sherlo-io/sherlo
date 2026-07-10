@@ -26,14 +26,38 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import {
-  createFingerprintAsync,
-  SourceSkips,
-  type FileHookTransformFunction,
-  type FileHookTransformSource,
-  type Options as FingerprintOptions,
+import type {
+  FileHookTransformFunction,
+  FileHookTransformSource,
+  Options as FingerprintOptions,
 } from '@expo/fingerprint';
 import runShellCommand from '../runShellCommand';
+
+/**
+ * `@expo/fingerprint` is an EXTERNAL runtime dependency: it is declared in
+ * `dependencies` and EXCLUDED from the ncc bundle (see the
+ * `--external @expo/fingerprint` build flag in package.json). It must stay
+ * external because at runtime it SPAWNS a helper file it ships -
+ * `ExpoConfigLoader.js` - resolved relative to its own `__dirname`. If it were
+ * inlined into the CLI's `dist/`, that `__dirname` would point at `dist/`,
+ * where the helper was never emitted, and the spawned subprocess would die with
+ * MODULE_NOT_FOUND (SHERLO-1742). Kept external, the library runs from its own
+ * installed package directory with its helper assets intact.
+ *
+ * Because it is external (and only the types above are compiled in), it is
+ * loaded LAZILY here via a dynamic `import()` rather than a top-level `import`
+ * value binding. A top-level binding compiles to an eager
+ * `require('@expo/fingerprint')` that would run when the CLI module graph loads,
+ * so a missing or broken install would crash the ENTIRE CLI at startup. Loading
+ * it inside `computeBaseFingerprint`'s fail-soft try/catch instead means an
+ * unavailable fingerprint library degrades only this one function to
+ * `hash: null` (staged flow unavailable) and NEVER crashes a push.
+ */
+type ExpoFingerprintModule = typeof import('@expo/fingerprint');
+
+function loadExpoFingerprint(): Promise<ExpoFingerprintModule> {
+  return import('@expo/fingerprint');
+}
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -66,6 +90,10 @@ export async function computeBaseFingerprint(projectRoot: string): Promise<BaseF
   let layer1Hash: string | null = null;
 
   try {
+    // Lazy, fail-soft load: a missing/broken @expo/fingerprint install rejects
+    // here and is caught below, degrading to hash:null instead of crashing.
+    const { createFingerprintAsync, SourceSkips } = await loadExpoFingerprint();
+
     const options: FingerprintOptions =
       workflow === 'managed'
         ? {
