@@ -22,9 +22,10 @@ import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER } from '@sherlo/shared';
 // Hoisted SDK-client mock handles (shared across the factory + assertions).
 // ---------------------------------------------------------------------------
 
-const { mockGetStagedUploadUrls, mockOpenBuild } = vi.hoisted(() => ({
+const { mockGetStagedUploadUrls, mockOpenBuild, mockCheckStagedGate } = vi.hoisted(() => ({
   mockGetStagedUploadUrls: vi.fn(),
   mockOpenBuild: vi.fn(),
+  mockCheckStagedGate: vi.fn(),
 }));
 
 // ---------------------------------------------------------------------------
@@ -33,6 +34,7 @@ const { mockGetStagedUploadUrls, mockOpenBuild } = vi.hoisted(() => ({
 
 vi.mock('@sherlo/sdk-client', () => ({
   default: vi.fn(() => ({
+    checkStagedGate: mockCheckStagedGate,
     getStagedUploadUrls: mockGetStagedUploadUrls,
     openBuild: mockOpenBuild,
   })),
@@ -247,6 +249,8 @@ describe('gitInfo parity with test:standard', () => {
     } as any);
     mockGetPlatformsToTest.mockReturnValue(['ios'] as any);
     mockComputeBaseFingerprint.mockResolvedValue({ hash: 'BASE_FP' } as any);
+    // Gate says fast so the happy path proceeds to upload + openBuild.
+    mockCheckStagedGate.mockResolvedValue({ outcome: 'fast', diff: [] });
     mockBuildBundleForPlatform.mockResolvedValue(bundleResult());
     mockBuildGateMetadata.mockResolvedValue({ engineClass: 'hermes' } as any);
     mockGetTokenParts.mockReturnValue({

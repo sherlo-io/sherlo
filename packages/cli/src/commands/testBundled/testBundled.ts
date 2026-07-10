@@ -15,7 +15,7 @@
  * server-side) alongside the real jsBundleS3Key / assetsS3Key.
  */
 import sdkClient from '@sherlo/sdk-client';
-import { GateMetadataByPlatform, Platform } from '@sherlo/api-types';
+import { GateMetadata, GateMetadataByPlatform, Platform } from '@sherlo/api-types';
 import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER } from '@sherlo/shared';
 import chalk from 'chalk';
 import path from 'path';
@@ -37,11 +37,8 @@ import {
 import { computeBaseFingerprint, type GateMetadataInput } from '../../helpers/fingerprint';
 import { THIS_COMMAND } from './constants';
 import { buildBundleForPlatform, buildGateMetadata, type BundleResult } from './buildBundle';
-import {
-  formatStagedGateRefusal,
-  parseStagedGateRefusal,
-  FALLBACK_LINE,
-} from './stagedGateRefusal';
+import { parseStagedGateRefusal, FALLBACK_LINE, type StagedGateRefusal } from './stagedGateRefusal';
+import { getOnStaleMode, handleStaleBase } from './onStale';
 import uploadStagedArtifacts, { type StagedUploadKeys } from './uploadStagedArtifacts';
 
 // ---------------------------------------------------------------------------
@@ -56,6 +53,9 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
     { command: THIS_COMMAND, passedOptions },
     { requirePlatformPaths: false }
   );
+
+  // Resolve --on-stale up front so an invalid value fails before any work.
+  const onStale = getOnStaleMode(passedOptions);
 
   // Determine which platforms have devices configured.
   const platformsToTest = getPlatformsToTest(commandParams.devices);
@@ -124,6 +124,41 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
   // 4. Resolve token + SDK client.
   const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
   const client = sdkClient({ authToken: apiToken });
+
+  // 4.5 Staged gate check (SHERLO-1718): decide fast vs stale BEFORE uploading.
+  //     checkStagedGate is per platform; a non-fast outcome on any platform
+  //     means the base is stale, so --on-stale decides what happens next (fail
+  //     with the diff, or rebuild + full run). Tests are never silently skipped.
+  reporting.addBreadcrumb({
+    category: 'api',
+    message: 'Calling checkStagedGate API',
+    data: { teamId, projectIndex, platforms: platformsToTest },
+    level: 'info',
+  });
+
+  const staleRefusals: StagedGateRefusal[] = [];
+  try {
+    for (const platform of platformsToTest) {
+      const { outcome, diff } = await client.checkStagedGate({
+        baseFingerprint,
+        gateMetadata: (gateMetadata[platform] ?? {}) as GateMetadata,
+        platform,
+        projectIndex,
+        teamId,
+      });
+
+      if (outcome !== 'fast') {
+        staleRefusals.push({ outcome, platform, diff });
+      }
+    }
+  } catch (error) {
+    handleClientError(error); // always throws (bad token, network, ...)
+    throw error; // unreachable - satisfies control flow / typing
+  }
+
+  if (staleRefusals.length > 0) {
+    return handleStaleBase({ onStale, refusals: staleRefusals, commandParams, passedOptions });
+  }
 
   // 5. Request staged upload slots (getStagedUploadUrls - NOT getBuildUploadUrls).
   reporting.addBreadcrumb({
@@ -200,11 +235,12 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
       gateMetadata: gateMetadata as GateMetadataByPlatform,
     });
   } catch (error) {
+    // Safety net: the server gate may still refuse at openBuild even though the
+    // upfront checkStagedGate said fast (e.g. a base registered between calls).
+    // Route it through the SAME --on-stale handler so behavior stays consistent.
     const refusal = parseStagedGateRefusal(error);
     if (refusal) {
-      console.log(chalk.red(`\n${formatStagedGateRefusal(refusal)}`));
-      await reporting.flush().finally(() => process.exit(1));
-      throw error; // unreachable - satisfies control flow when exit is stubbed
+      return handleStaleBase({ onStale, refusals: [refusal], commandParams, passedOptions });
     }
     handleClientError(error); // always throws
     throw error; // unreachable - satisfies control flow / typing

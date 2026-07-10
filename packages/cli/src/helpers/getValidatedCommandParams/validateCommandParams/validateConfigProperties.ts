@@ -2,7 +2,7 @@ import { DOCS_LINK } from '../../../constants';
 import { InvalidatedConfig } from '../../../types';
 import logWarning from '../../logWarning';
 
-const supportedProperties = ['token', 'android', 'ios', 'devices'];
+const supportedProperties = ['token', 'android', 'ios', 'devices', 'staged'];
 
 function validateConfigProperties(config: InvalidatedConfig): void {
   const unsupportedProperties = Object.keys(config).filter(

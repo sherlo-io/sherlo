@@ -5,6 +5,7 @@ import {
   easBuildOnComplete,
   init,
   showError,
+  stagedCheck,
   test,
   testEasCloudBuild,
   testEasUpdate,
@@ -31,11 +32,14 @@ import {
   INIT_COMMAND,
   IOS_FILE_TYPES,
   IOS_OPTION,
+  JSON_OPTION,
   MESSAGE_OPTION,
+  ON_STALE_OPTION,
   PLATFORM_LABEL,
   PROFILE_OPTION,
   PROJECT_ROOT_OPTION,
   SHOW_ERROR_COMMAND,
+  STAGED_CHECK_COMMAND,
   TEST_COMMAND,
   TEST_EAS_CLOUD_BUILD_COMMAND,
   TEST_BUNDLED_COMMAND,
@@ -73,6 +77,8 @@ async function start() {
     addTestEasCloudBuildCommand(program);
 
     addTestBundledCommand(program);
+
+    addStagedCheckCommand(program);
 
     addShowErrorCommand(program);
 
@@ -113,6 +119,8 @@ const COMMAND_DESCRIPTION = {
   [TEST_EAS_UPDATE_COMMAND]: 'Test builds with dynamic JavaScript (OTA) updates',
   [TEST_EAS_CLOUD_BUILD_COMMAND]: 'Test cloud builds created on Expo servers',
   [TEST_BUNDLED_COMMAND]: 'Test JS-only changes via staged uploads (fast path - no native rebuild)',
+  [STAGED_CHECK_COMMAND]:
+    'Check whether the staged fast path is available (CI routing - no build, no upload)',
   [EAS_BUILD_ON_COMPLETE_COMMAND]: `Process EAS Build (required for \`${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
   [SHOW_ERROR_COMMAND]:
     'Decode a minified JS error stack trace using the slug printed on the Sherlo build error page',
@@ -163,7 +171,14 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${IOS_OPTION} <path>`,
     `Path to ${PLATFORM_LABEL.ios} build (${IOS_FILE_TYPES.join(', ')})`,
   ],
+  [JSON_OPTION]: [`--${JSON_OPTION}`, 'Output machine-readable JSON instead of formatted text'],
   [MESSAGE_OPTION]: [`--${MESSAGE_OPTION} <message>`, 'Custom message to label the test'],
+  [ON_STALE_OPTION]: [
+    '--on-stale <mode>',
+    'What to do when the staged gate finds the base stale: "fail" (default) exits with the ' +
+      'fingerprint diff and runs no tests; "build" runs the `staged.fullBuild` commands from ' +
+      'the config and proceeds as a full run',
+  ],
   [PROFILE_OPTION]: [
     `--${PROFILE_OPTION} <profile>`,
     `EAS Build profile (must match profile used in \`${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
@@ -285,11 +300,26 @@ function addTestBundledCommand(program: Command) {
     command: TEST_BUNDLED_COMMAND,
     options: [
       ...getTestCommonOptions('withoutPlatformPaths'),
+      ON_STALE_OPTION,
       WAIT_OPTION,
       WAIT_TIMEOUT_OPTION,
       ...devtoolsOptions,
     ],
     action: testBundled,
+  });
+}
+
+function addStagedCheckCommand(program: Command) {
+  // staged:check is a CI routing probe: every expected outcome exits through its
+  // own report-and-exit funnel with a contractual code, so it must NOT be
+  // wrapped in withCommandTimeout's throwing error path. Only genuine tool
+  // errors fall through to the CLI's normal non-zero exit.
+  addCommand({
+    program,
+    command: STAGED_CHECK_COMMAND,
+    options: [TOKEN_OPTION, CONFIG_OPTION, PROJECT_ROOT_OPTION, JSON_OPTION],
+    action: stagedCheck,
+    withTimeout: false,
   });
 }
 
