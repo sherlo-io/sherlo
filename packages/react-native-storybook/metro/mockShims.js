@@ -36,16 +36,15 @@ var CREATE_MOCKABLE_SPECIFIER = '@sherlo/react-native-storybook/mocking';
 var PLATFORM_SUFFIXES = ['ios', 'android', 'native', 'web'];
 
 // A deny-list entry is either an exact specifier ('react') or a scope glob
-// ('@storybook/*'). The glob matches the bare scope and anything under it.
+// ('@storybook/*'). Both forms deny the entry itself AND everything under it, so
+// 'react/jsx-runtime' and 'react-native/Libraries/Core/InitializeCore' are
+// denied via their 'react'/'react-native' roots (FG-02). A non-denied lookalike
+// like 'react-native-svg' is NOT matched because the '/' boundary is required.
 function isDeniedKey(key) {
   for (var i = 0; i < MOCK_DENY_LIST.length; i++) {
     var entry = MOCK_DENY_LIST[i];
-    if (entry.slice(-2) === '/*') {
-      var scope = entry.slice(0, -2);
-      if (key === scope || key.indexOf(scope + '/') === 0) return true;
-    } else if (key === entry) {
-      return true;
-    }
+    var base = entry.slice(-2) === '/*' ? entry.slice(0, -2) : entry;
+    if (key === base || key.indexOf(base + '/') === 0) return true;
   }
   return false;
 }
@@ -105,6 +104,17 @@ function resolveAppModuleFile(basePath) {
   return null;
 }
 
+// Build the app-module resolution result shared by the './'-prefixed and the
+// dotless project-root-relative branches: canonical identity and require
+// specifier are the same realpath-normalised, extensionless absolute path so
+// Metro re-resolves the platform-split file per platform.
+function appModuleResult(file) {
+  return {
+    canonicalRealPath: canonicalizeModulePath(file),
+    requireSpecifier: canonicalizeModulePath(file),
+  };
+}
+
 // Resolve one mock key to:
 //   - canonicalRealPath: the identity the resolver matches delegate output on,
 //   - requireSpecifier:  what the shim's inner require() targets. Bare package
@@ -113,21 +123,30 @@ function resolveAppModuleFile(basePath) {
 //     the platform-split file per platform.
 // Throws when the key cannot be resolved (FG-01).
 function resolveMockKey(key, projectRoot) {
+  // Explicit './'-prefixed or absolute keys are always app modules.
   if (isRelativeOrAbsolute(key)) {
     var basePath = path.resolve(projectRoot, key);
     var file = resolveAppModuleFile(basePath);
     if (!file) throw new Error('cannot resolve app module');
-    return {
-      canonicalRealPath: canonicalizeModulePath(file),
-      requireSpecifier: canonicalizeModulePath(file),
-    };
+    return appModuleResult(file);
   }
 
-  var resolved = require.resolve(key, { paths: [projectRoot] });
-  return {
-    canonicalRealPath: canonicalizeModulePath(resolved),
-    requireSpecifier: key,
-  };
+  // Otherwise the key is a bare specifier. Try node_modules resolution FIRST so
+  // MK-03 subpath packages ('pkg/submodule') keep their runtime bare-specifier
+  // semantics. Only when that fails do we treat the key as a DOTLESS
+  // project-root-relative app module ('src/api/client'), matching the epic's
+  // canonical app-module key form. FG-01 fires only when both routes fail.
+  try {
+    var resolved = require.resolve(key, { paths: [projectRoot] });
+    return {
+      canonicalRealPath: canonicalizeModulePath(resolved),
+      requireSpecifier: key,
+    };
+  } catch (_) {
+    var appFile = resolveAppModuleFile(path.resolve(projectRoot, key));
+    if (appFile) return appModuleResult(appFile);
+    throw new Error('cannot resolve mock key');
+  }
 }
 
 // Deterministic shim filename: a short hash of the key. Same key -> same file,

@@ -178,6 +178,16 @@ describe('mockShims deny list (FG-02)', () => {
     expect(mockShims.isDeniedKey('expo-localization')).toBe(false);
     expect(mockShims.isDeniedKey('react-native-svg')).toBe(false);
   });
+
+  it('denies subpaths of exact deny entries (FG-02), not lookalikes', () => {
+    // Exact entries deny their subpaths too, so Storybook-critical internals
+    // can't slip through under a deeper specifier.
+    expect(mockShims.isDeniedKey('react/jsx-runtime')).toBe(true);
+    expect(mockShims.isDeniedKey('react-native/Libraries/Core/InitializeCore')).toBe(true);
+    // A distinct package that merely shares a prefix is still mockable - the '/'
+    // boundary keeps 'react-native-svg' from matching the 'react-native' entry.
+    expect(mockShims.isDeniedKey('react-native-svg')).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -307,6 +317,41 @@ describe('mockShims.resolveMockKey', () => {
     expect(resolved.requireSpecifier).toBe(expectedBase);
   });
 
+  it('MK-04 (dotless): resolves a DOTLESS project-root-relative app module to the extensionless abs path', () => {
+    const root = mkProject('sherlo-resolvekey-dotless-');
+    writeFile(root, 'src/utils/localization.ts', 'export default {};');
+    const realRoot = fs.realpathSync(root);
+
+    // No './' prefix - the canonical app-module key form from the epic. It is
+    // not an installed package, so require.resolve fails and we fall back to the
+    // project-root-relative app-module file.
+    const resolved = mockShims.resolveMockKey('src/utils/localization', root);
+    cleanup(root);
+
+    const expectedBase = path.join(realRoot, 'src', 'utils', 'localization');
+    expect(resolved.canonicalRealPath).toBe(expectedBase);
+    expect(resolved.requireSpecifier).toBe(expectedBase);
+  });
+
+  it('MK-03: a subpath package still resolves as a BARE package, not an app module', () => {
+    const root = mkProject('sherlo-resolvekey-subpath-');
+    writePackage(root, 'libpkg', 'index.js', {
+      'index.js': 'module.exports = {};',
+      'submodule.js': 'module.exports = {};',
+    });
+    const realRoot = fs.realpathSync(root);
+
+    // require.resolve wins first, so the shim keeps the bare specifier and the
+    // canonical identity points into node_modules (not a project-root file).
+    const resolved = mockShims.resolveMockKey('libpkg/submodule', root);
+    cleanup(root);
+
+    expect(resolved.requireSpecifier).toBe('libpkg/submodule');
+    expect(resolved.canonicalRealPath).toBe(
+      path.join(realRoot, 'node_modules', 'libpkg', 'submodule')
+    );
+  });
+
   it('MK-06: platform-split app module resolves to one canonical identity + extensionless specifier', () => {
     const root = mkProject('sherlo-resolvekey-plat-');
     writeFile(root, 'src/Plat.ios.tsx', 'export default {};');
@@ -410,6 +455,39 @@ describe('applySherloTransforms resolver redirect', () => {
     cleanup(root);
 
     expect(resolved.filePath).toContain(path.join('.cache', 'sherlo', 'mocks'));
+  });
+
+  it('MK-04 (dotless): redirects a DOTLESS project-root-relative app-module import', () => {
+    const root = mkProject('sherlo-redirect-app-dotless-');
+    writeFile(root, 'src/utils/localization.ts', 'export default {};');
+    writeFile(
+      root,
+      'src/Comp.stories.tsx',
+      `export const S = { parameters: { sherlo: { mocks: { 'src/utils/localization': {} } } } };`
+    );
+
+    const result = applySherloTransforms({ projectRoot: root, resolver: {} }, { enabled: true });
+    const realPath = path.join(root, 'src', 'utils', 'localization.ts');
+    // Importer uses a relative specifier that Metro resolves to the same file.
+    const ctx = makeContext(path.join(root, 'src', 'screens', 'Home.tsx'), {
+      '../utils/localization': realPath,
+    });
+
+    const resolved = result.resolver.resolveRequest(ctx, '../utils/localization', 'ios');
+    // The dotless key also emitted a shim (scan-to-shim path).
+    const shimPath = path.join(
+      root,
+      'node_modules',
+      '.cache',
+      'sherlo',
+      'mocks',
+      mockShims.shimFileName('src/utils/localization')
+    );
+    const shimExists = fs.existsSync(shimPath);
+    cleanup(root);
+
+    expect(resolved.filePath).toContain(path.join('.cache', 'sherlo', 'mocks'));
+    expect(shimExists).toBe(true);
   });
 
   it('MK-06: both platform variants redirect to the SAME single shim', () => {
