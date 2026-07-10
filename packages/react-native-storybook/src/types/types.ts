@@ -1,5 +1,17 @@
 import type { View } from '@storybook/react-native';
+import type { MockSet } from '../mocking/types';
+
 export interface SherloParameters {
+  /**
+   * Module Mocking (SHERLO-1734): a map of module specifier -> mock definition,
+   * applied for the duration of the story's snapshot. Declaring a key here also
+   * registers it for the config-time Metro scan, which emits the shim that makes
+   * the module mockable. The key must be a string literal so the static scan can
+   * see it. Deny-listed modules (react, react-native, @storybook/*, @sherlo/*)
+   * cannot be mocked - mock a wrapper module you own instead.
+   */
+  mocks?: MockSet;
+
   /**
    * Setting exclude to true skips the story during testing. This might be
    * useful if the story has animations that cannot be stabilized for testing

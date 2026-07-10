@@ -3,6 +3,8 @@
 var fs = require('fs');
 var path = require('path');
 
+var mockShims = require('./mockShims');
+
 // ---------------------------------------------------------------------------
 // Dependency graph sidecar (Diff Scope Phase 2)
 // ---------------------------------------------------------------------------
@@ -173,25 +175,72 @@ function applySherloTransforms(result, opts) {
   // cacheDir is the same directory that wrapperPath lives in; already created by generateWrapper().
   var cacheDir = path.dirname(wrapperPath);
 
+  // ---- Module Mocking (SHERLO-1734 Phase 2) ----
+  // Gated entirely behind enabled !== false (EB-01): when disabled we scan
+  // nothing, emit no shims, and install no resolver branch.
+  var mockingEnabled = !(opts && opts.enabled === false);
+  var mocksDir = null;
+  var mockedPathToShim = null;
+  if (mockingEnabled) {
+    var mockSetup = mockShims.setupMocks({
+      projectRoot: projectRoot,
+      cacheDir: cacheDir,
+      mockModules: opts && opts.mockModules,
+    });
+    mocksDir = mockSetup.mocksDir;
+    mockedPathToShim = mockSetup.mockedPathToShim;
+  }
+
+  // True when a module path lives inside the emitted mocks directory. Requests
+  // originating from a shim must NEVER be redirected back into a shim, otherwise
+  // the shim's own require(real) would loop onto itself.
+  function isShimPath(absPath) {
+    return !!absPath && !!mocksDir && absPath.indexOf(mocksDir + path.sep) === 0;
+  }
+
   var existingResolveRequest =
     result && result.resolver && result.resolver.resolveRequest
       ? result.resolver.resolveRequest
       : null;
 
+  function delegateResolve(context, moduleName, platform) {
+    return existingResolveRequest
+      ? existingResolveRequest(context, moduleName, platform)
+      : context.resolveRequest(context, moduleName, platform);
+  }
+
   function resolveRequest(context, moduleName, platform) {
     if (context.originModulePath === wrapperPath) {
-      return existingResolveRequest
-        ? existingResolveRequest(context, moduleName, platform)
-        : context.resolveRequest(context, moduleName, platform);
+      return delegateResolve(context, moduleName, platform);
     }
 
     if (moduleName === '@storybook/react-native') {
       return { type: 'sourceFile', filePath: wrapperPath };
     }
 
-    return existingResolveRequest
-      ? existingResolveRequest(context, moduleName, platform)
-      : context.resolveRequest(context, moduleName, platform);
+    var resolution = delegateResolve(context, moduleName, platform);
+
+    // Delegate-first mock redirect: once the real request has resolved, redirect
+    // to the shim when the resolved absolute path belongs to a mocked module and
+    // the importer is not itself a shim (MK-01..04, MK-08).
+    if (
+      mockingEnabled &&
+      mockedPathToShim &&
+      mockedPathToShim.size > 0 &&
+      resolution &&
+      resolution.type === 'sourceFile' &&
+      resolution.filePath &&
+      !isShimPath(context.originModulePath)
+    ) {
+      var shimPath = mockedPathToShim.get(
+        mockShims.canonicalizeModulePath(resolution.filePath)
+      );
+      if (shimPath && shimPath !== resolution.filePath) {
+        return { type: 'sourceFile', filePath: shimPath };
+      }
+    }
+
+    return resolution;
   }
 
   var polyfillPath = path.join(__dirname, 'polyfill.js');
