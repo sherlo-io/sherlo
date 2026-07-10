@@ -15,9 +15,12 @@ import {
   INIT_COMMAND,
   IOS_FILE_TYPES,
   IOS_OPTION,
+  JSON_OPTION,
   MESSAGE_OPTION,
+  ON_STALE_OPTION,
   PROFILE_OPTION,
   PROJECT_ROOT_OPTION,
+  STAGED_CHECK_COMMAND,
   TEST_COMMAND,
   TEST_BUNDLED_COMMAND,
   TEST_EAS_CLOUD_BUILD_COMMAND,
@@ -36,6 +39,7 @@ export type Command =
   | typeof TEST_EAS_UPDATE_COMMAND
   | typeof TEST_EAS_CLOUD_BUILD_COMMAND
   | typeof TEST_BUNDLED_COMMAND
+  | typeof STAGED_CHECK_COMMAND
   | typeof EAS_BUILD_ON_COMPLETE_COMMAND
   | typeof TEST_COMMAND
   | typeof INIT_COMMAND;
@@ -59,6 +63,19 @@ export type Config = {
   exclude?: string[];
   /** Diff Scope opt-out: forces a full capture regardless of changed-file analysis. */
   fullRun?: boolean;
+  /** Staged fast-path config (SHERLO-1692). */
+  staged?: {
+    /**
+     * Shell commands that produce a fresh native build, run in order per
+     * platform by `test:bundled --on-stale=build` when the staged gate finds
+     * the base stale. Each command is expected to leave the binary at this
+     * config's `android` / `ios` path.
+     */
+    fullBuild?: {
+      android?: string[];
+      ios?: string[];
+    };
+  };
 };
 
 export type InvalidatedConfig = PartialDeep<Config, { recurseIntoArrays: true }>;
@@ -112,12 +129,19 @@ type CommandOptions = {
     [IOS_OPTION]?: string;
   };
   [INIT_COMMAND]: {};
-  [TEST_BUNDLED_COMMAND]: {};
+  [TEST_BUNDLED_COMMAND]: {
+    /** Fallback when the staged gate finds the base stale (default: 'fail'). */
+    [ON_STALE_OPTION]?: 'fail' | 'build';
+  };
+  [STAGED_CHECK_COMMAND]: {
+    [JSON_OPTION]?: boolean;
+  };
   any: Partial<
     CommandOptions[typeof TEST_STANDARD_COMMAND] &
       CommandOptions[typeof TEST_EAS_UPDATE_COMMAND] &
       CommandOptions[typeof TEST_EAS_CLOUD_BUILD_COMMAND] &
       CommandOptions[typeof TEST_BUNDLED_COMMAND] &
+      CommandOptions[typeof STAGED_CHECK_COMMAND] &
       CommandOptions[typeof EAS_BUILD_ON_COMPLETE_COMMAND]
   >;
 };
