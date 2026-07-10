@@ -108,6 +108,17 @@ describe('formatStagedGateRefusal - user-facing message', () => {
     expect(message).toContain('test:standard');
   });
 
+  it('names the bundleFormat diff source', () => {
+    const message = formatStagedGateRefusal({
+      outcome: 'full-build-needed',
+      platform: 'android',
+      diff: ['bundleFormat'],
+    });
+
+    expect(message).toContain('JS bundle format (hbc/plain-js/ram)');
+    expect(message).toContain('test:standard');
+  });
+
   it('omits the changed-sources line for a not-stageable refusal (empty diff)', () => {
     const message = formatStagedGateRefusal({
       outcome: 'not-stageable',
