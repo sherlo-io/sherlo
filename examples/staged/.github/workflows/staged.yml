@@ -1,0 +1,163 @@
+name: Sherlo Test - Staged
+
+# ══════════════════════════════════════════════════════════════════════════════
+# WORKFLOW: two-job staged router
+#
+#                            [ ⚡ Staged Gate ]
+#                          (sherlo staged:check)
+#                                    │
+#                     mode? ─────────┼─────────────────┐
+#                       │                              │
+#              mode == 'fast'            mode == 'full' | 'not-stageable'
+#                       │                              │
+#                       ▼                              ▼
+#              [ ⚡ Fast Test ]              [ 🔨 Full Test ]
+#           test:bundled (Linux)      native build + test:standard
+#            no native build          REGISTERS a fresh base
+#
+# The gate routes ONE of the two downstream jobs. On a native change the full
+# job registers a fresh base, so the NEXT push (native unchanged) routes fast.
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Triggers on:
+# - Push to main branch
+# - Manual trigger from GitHub UI
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────────
+  # ⚡ STAGED GATE
+  #
+  # Runs the routing probe and exposes `mode` as a job output. Downstream jobs
+  # route on `needs.gate.outputs.mode` - NEVER on an exit code (the gate action
+  # handles the exit-code trap internally).
+  # ────────────────────────────────────────────────────────────────────────────
+  gate:
+    name: Staged Gate
+    runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.gate.outputs.mode }}
+      reason: ${{ steps.gate.outputs.reason }}
+
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v6
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 'lts/*'
+          cache: 'yarn'
+
+      - name: 📥 Install dependencies
+        run: yarn install
+
+      # The gate action runs `sherlo staged:check` and exposes mode/reason.
+      # Pin to a released tag (or a commit SHA) in your own repository.
+      - name: ⚡ Run staged routing probe
+        id: gate
+        uses: sherlo-io/sherlo/actions/staged-gate@v1
+        with:
+          sherlo-token: ${{ secrets.SHERLO_TOKEN }}
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # ⚡ FAST TEST (JS-only, on Linux)
+  #
+  # Native inputs unchanged -> reuse the registered base. Builds a plain-JS
+  # bundle and runs the staged test. NO native build, so it runs on ubuntu.
+  # ────────────────────────────────────────────────────────────────────────────
+  fast-test:
+    name: Fast Test
+    runs-on: ubuntu-latest
+    needs: gate
+    if: needs.gate.outputs.mode == 'fast'
+
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v6
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 'lts/*'
+          cache: 'yarn'
+
+      - name: 📥 Install dependencies
+        run: yarn install
+
+      # Uses 'test:bundled' - JS-only fast path, no native rebuild.
+      - name: ⚡ Run Sherlo bundled test
+        run: |
+          npx sherlo test:bundled \
+            --token ${{ secrets.SHERLO_TOKEN }}
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # 🔨 FULL TEST (native build + base registration)
+  #
+  # Native inputs moved (or the project can't stage) -> do a full native build,
+  # then run 'test:standard'. test:standard REGISTERS A FRESH BASE, so the NEXT
+  # push on this branch (with native unchanged) will route to the fast job above.
+  #
+  # Builds run here with `eas build --local` (mirror the standard example). iOS
+  # requires macOS, so this job runs on macos-latest and builds both platforms.
+  # To parallelise, split into separate build jobs + artifact upload/download
+  # like examples/standard - the routing contract is unchanged.
+  # ────────────────────────────────────────────────────────────────────────────
+  full-test:
+    name: Full Test
+    runs-on: macos-latest
+    needs: gate
+    if: needs.gate.outputs.mode == 'full' || needs.gate.outputs.mode == 'not-stageable'
+
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v6
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 'lts/*'
+          cache: 'yarn'
+
+      - name: 🏗 Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 📥 Install dependencies
+        run: yarn install
+
+      # ▼▼▼ USER-SUPPLIED native build steps ▼▼▼
+      # Uses 'preview-simulator' profile from eas.json.
+      - name: 🤖 Build Android Simulator
+        run: |
+          eas build \
+            --non-interactive \
+            --local \
+            --platform android \
+            --profile preview-simulator \
+            --output android.apk
+
+      - name: 🍎 Build iOS Simulator
+        run: |
+          eas build \
+            --non-interactive \
+            --local \
+            --platform ios \
+            --profile preview-simulator \
+            --output ios.tar.gz
+      # ▲▲▲ USER-SUPPLIED native build steps ▲▲▲
+
+      # 'test:standard' registers the freshly built native binaries as the new
+      # base. After this run the base fingerprint matches source again, so the
+      # next push (native unchanged) is routed 'fast' by the gate.
+      - name: 🧪 Run Sherlo test (registers fresh base)
+        run: |
+          npx sherlo test:standard \
+            --android android.apk \
+            --ios ios.tar.gz \
+            --token ${{ secrets.SHERLO_TOKEN }}

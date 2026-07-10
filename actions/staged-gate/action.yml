@@ -1,0 +1,137 @@
+name: Sherlo Staged Gate
+description: >-
+  Runs the Sherlo staged routing probe (`sherlo staged:check`) and exposes the
+  routing mode so a caller workflow can send the run down a JS-only fast path or
+  a full native-build path.
+
+# ══════════════════════════════════════════════════════════════════════════════
+# WHAT THIS ACTION DOES
+#
+# `sherlo staged:check` is a CI ROUTING PROBE, not a pass/fail gate. It runs
+# post-install with no build artifacts, computes a source fingerprint, asks the
+# Sherlo gate, and decides one of three routing modes:
+#
+#   mode=fast           -> native inputs unchanged; reuse the registered base and
+#                          run `test:bundled` (JS-only, on Linux). No native build.
+#   mode=full           -> native inputs moved; do a full native build, then
+#                          `test:standard` (which registers a fresh base).
+#   mode=not-stageable  -> project can't use the staged path; treat like `full`.
+#
+# This action exposes `mode` (plus `reason` and `base-fingerprint`) as action
+# outputs so a caller can route two jobs off `needs.<gate>.outputs.mode`.
+#
+# THE EXIT-CODE TRAP (handled below):
+#   staged:check exits 0=fast, 1=full, 2=not-stageable. The 1 and 2 exits are
+#   EXPECTED routing outcomes, NOT failures - a naive gate would fail the whole
+#   workflow on a native change. BUT a GENUINE tool error (bad token, network)
+#   ALSO exits 1. Exit code alone cannot tell `full` routing from a real error.
+#
+#   The reliable discriminator: on a real routing decision the CLI writes
+#   `mode=...` to $GITHUB_OUTPUT BEFORE exiting; on a genuine error it throws and
+#   NEVER writes `mode`. So we tolerate the non-zero exit (set +e) and branch on
+#   the `mode` OUTPUT, never on the raw exit status:
+#     - `mode` empty -> genuine tool error -> fail the gate loudly.
+#     - `mode` set   -> real routing decision -> expose it for downstream jobs.
+# ══════════════════════════════════════════════════════════════════════════════
+
+inputs:
+  sherlo-token:
+    description: "Sherlo project token (SHERLO_TOKEN)"
+    required: true
+  working-directory:
+    description: "Directory to run `sherlo staged:check` in (project root)"
+    required: false
+    default: "."
+  config:
+    description: "Path to the Sherlo config file (default: sherlo.config.json)"
+    required: false
+    default: ""
+
+outputs:
+  mode:
+    description: "Routing mode: fast | full | not-stageable"
+    # Mapped straight from the CLI-written $GITHUB_OUTPUT value. The guard step
+    # below has already failed the action if this was empty (genuine error).
+    value: ${{ steps.staged-check.outputs.mode }}
+  reason:
+    description: "Single-line human explanation of the routing decision"
+    value: ${{ steps.staged-check.outputs.reason }}
+  base-fingerprint:
+    description: "Source base fingerprint (maps the CLI's baseFingerprint output; may be empty)"
+    value: ${{ steps.staged-check.outputs.baseFingerprint }}
+
+runs:
+  using: composite
+  steps:
+    # ────────────────────────────────────────────────────────────────────────
+    # Run the routing probe. The CLI writes mode/reason/baseFingerprint to this
+    # step's $GITHUB_OUTPUT file ITSELF (do NOT echo them here). We tolerate a
+    # non-zero exit because full(1)/not-stageable(2) are EXPECTED - the genuine
+    # error check happens in the next step by testing whether `mode` was written.
+    # ────────────────────────────────────────────────────────────────────────
+    - name: ⚡ Run Sherlo staged routing probe
+      id: staged-check
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        SHERLO_TOKEN: ${{ inputs.sherlo-token }}
+        CONFIG: ${{ inputs.config }}
+      run: |
+        set +e
+
+        CONFIG_ARG=()
+        if [ -n "$CONFIG" ]; then
+          CONFIG_ARG=(--config "$CONFIG")
+        fi
+
+        echo "⚡ Running sherlo staged:check (routing probe)..."
+        echo "────────────────────────────────────"
+
+        # The CLI appends mode=/reason=/baseFingerprint= to $GITHUB_OUTPUT before
+        # exiting. Capture stderr to a file so a genuine tool error can be
+        # surfaced by the guard step, then re-emit it into the live log.
+        # Redirecting stderr does NOT affect the $GITHUB_OUTPUT file.
+        npx sherlo staged:check \
+          --token "$SHERLO_TOKEN" \
+          "${CONFIG_ARG[@]}" \
+          2> staged-check.stderr
+        CLI_EXIT=$?
+
+        cat staged-check.stderr >&2
+
+        echo "────────────────────────────────────"
+        echo "staged:check exited with code ${CLI_EXIT} (0=fast, 1=full, 2=not-stageable)"
+
+        # NEVER fail here on the exit code - 1/2 are expected routing outcomes.
+        # The genuine-error discriminator runs in the next step.
+        exit 0
+
+    # ────────────────────────────────────────────────────────────────────────
+    # Discriminate a real routing decision from a genuine tool error. Branch on
+    # the `mode` OUTPUT, never on the raw exit code above.
+    # ────────────────────────────────────────────────────────────────────────
+    - name: 🧭 Validate routing decision
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        MODE: ${{ steps.staged-check.outputs.mode }}
+        REASON: ${{ steps.staged-check.outputs.reason }}
+      run: |
+        set -euo pipefail
+
+        if [ -z "$MODE" ]; then
+          echo ""
+          echo "❌ Sherlo staged:check did not produce a routing mode."
+          echo ""
+          echo "This means the probe threw a GENUINE error (e.g. bad token, network"
+          echo "failure) rather than making a routing decision - a real routing"
+          echo "decision always writes a mode. CLI stderr:"
+          echo "────────────────────────────────────"
+          if [ -f staged-check.stderr ]; then cat staged-check.stderr; fi
+          echo "────────────────────────────────────"
+          echo "::error title=Sherlo staged:check failed::staged:check produced no routing mode - treated as a genuine tool error (see stderr above)"
+          exit 1
+        fi
+
+        echo "✅ Routing mode: ${MODE}"
+        if [ -n "$REASON" ]; then echo "   ${REASON}"; fi
