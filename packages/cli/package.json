@@ -28,13 +28,15 @@
     "cli.js"
   ],
   "scripts": {
-    "build": "rm -rf dist && ncc build src/index.ts --source-map --minify && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js",
+    "build": "rm -rf dist && ncc build src/index.ts --source-map --minify --external @expo/fingerprint && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js",
     "lint": "NODE_ENV=production yarn run -T eslint --ext .ts,.tsx src",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@expo/fingerprint": "^0.11.0"
+  },
   "devDependencies": {
     "@babel/parser": "^7.29.3",
-    "@expo/fingerprint": "^0.11.0",
     "@inquirer/core": "^10.3.2",
     "@inquirer/prompts": "^7.8.4",
     "@sentry/node": "10.47.0",
