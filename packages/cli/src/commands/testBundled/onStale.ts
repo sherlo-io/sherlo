@@ -121,6 +121,12 @@ async function buildThenFullRun({
     return failWithDiff(refusals);
   }
 
+  // Trust model: the staged.fullBuild commands are USER-AUTHORED and declared in
+  // the project's own sherlo.config.json. They run through the standard
+  // runShellCommand helper - the same trust boundary as every other
+  // config-driven command execution in the CLI (e.g. testEasCloudBuild's
+  // runScript). No new privilege is granted here: staged:fullBuild runs exactly
+  // what the project owner put in their own config, nothing the CLI synthesizes.
   for (const platform of stalePlatforms) {
     const commands = fullBuild[platform] ?? [];
     console.log(chalk.bold(`\n🔨 Rebuilding ${platform} (staged.fullBuild)...`));
