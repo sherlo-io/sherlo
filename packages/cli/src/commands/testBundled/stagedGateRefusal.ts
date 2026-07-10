@@ -81,7 +81,7 @@ const DIFF_LABELS: Record<GateDiffSource, string> = {
   expoUpdatesEnabled: 'expo-updates configuration',
   sdkProtocolVersion: 'Sherlo SDK protocol version',
   buildMetadata: 'native build metadata',
-  bundleFormat: 'JS bundle format (HBC/plain JS/RAM)',
+  bundleFormat: 'JS bundle format (hbc/plain-js/ram)',
 };
 
 /** Human-readable reason per non-fast outcome. */
