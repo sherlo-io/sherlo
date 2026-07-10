@@ -1,7 +1,15 @@
-import { activateMocks, clearMocks, resolveMockExports } from '../../mocking/registry';
+import {
+  activateMocks,
+  clearMocks,
+  resolveMockExports,
+  registerShimmedKey,
+  isKeyShimmed,
+  __resetShimmedKeysForTests,
+} from '../../mocking/registry';
 
 afterEach(() => {
   clearMocks();
+  __resetShimmedKeysForTests();
 });
 
 describe('registry', () => {
@@ -38,5 +46,22 @@ describe('registry', () => {
     clearMocks();
 
     expect(resolveMockExports('pkg/a', {})).toBeUndefined();
+  });
+});
+
+describe('registry - shimmed key tracking (FG-03)', () => {
+  it('a key is not shimmed until registerShimmedKey is called for it', () => {
+    expect(isKeyShimmed('pkg/unregistered')).toBe(false);
+
+    registerShimmedKey('pkg/unregistered');
+
+    expect(isKeyShimmed('pkg/unregistered')).toBe(true);
+  });
+
+  it('registering the same key twice is a harmless no-op', () => {
+    registerShimmedKey('pkg/a');
+    registerShimmedKey('pkg/a');
+
+    expect(isKeyShimmed('pkg/a')).toBe(true);
   });
 });

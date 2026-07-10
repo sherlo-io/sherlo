@@ -1,8 +1,24 @@
 import createMockable from '../../mocking/createMockable';
-import { activateMocks, clearMocks } from '../../mocking/registry';
+import {
+  activateMocks,
+  clearMocks,
+  isKeyShimmed,
+  __resetShimmedKeysForTests,
+} from '../../mocking/registry';
 
 afterEach(() => {
   clearMocks();
+  __resetShimmedKeysForTests();
+});
+
+describe('createMockable - registers its key as shimmed (FG-03)', () => {
+  it('registers the key the moment the shim module evaluates, before any activation', () => {
+    expect(isKeyShimmed('pkg/registers-on-eval')).toBe(false);
+
+    createMockable('pkg/registers-on-eval', {});
+
+    expect(isKeyShimmed('pkg/registers-on-eval')).toBe(true);
+  });
 });
 
 describe('createMockable - no active mock set (IS-07)', () => {

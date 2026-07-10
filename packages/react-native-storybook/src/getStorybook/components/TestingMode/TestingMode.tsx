@@ -8,6 +8,8 @@ import useTestAllStories from './useTestAllStories';
 import SherloModule from '../../../SherloModule';
 import deepmerge from 'deepmerge';
 import { MetadataProvider, MetadataProviderRef } from './MetadataProvider';
+import { enumerateStories } from '../../../storybook/adapter';
+import { activateStoryMocks } from '../../../mocking';
 
 setupErrorSilencing();
 
@@ -23,12 +25,23 @@ function TestingMode({
   const defaultTheme = useColorScheme() === 'dark' ? darkTheme : theme;
   const metadataProviderRef = useRef<MetadataProviderRef>(null);
 
+  const nextSnapshot = lastState?.nextSnapshot;
+
+  // Install this story's mock set before Storybook (rendered below) mounts it - a plain
+  // render-body call, not an effect, so it runs before any child component's effects
+  // (React flushes child effects before the parent's). Guarded to run once per boot;
+  // each story capture is a fresh app boot, so there is at most one story to activate.
+  const mocksActivatedRef = useRef(false);
+  if (!mocksActivatedRef.current && nextSnapshot) {
+    mocksActivatedRef.current = true;
+    const storyMeta = enumerateStories(view).find((story) => story.id === nextSnapshot.storyId);
+    activateStoryMocks(storyMeta?.mocks ?? {});
+  }
+
   useTestAllStories({
     view,
     metadataProviderRef,
   });
-
-  const nextSnapshot = lastState?.nextSnapshot;
   const uiSettings = nextSnapshot
     ? {
         theme: deepmerge(defaultTheme, nextSnapshot.parameters?.theme ?? {}),
