@@ -1,4 +1,4 @@
-import { resolveMockExports } from './registry';
+import { registerShimmedKey, resolveMockExports } from './registry';
 import { ModuleExports } from './types';
 
 const hasOwn = (obj: ModuleExports, prop: PropertyKey): boolean =>
@@ -10,6 +10,10 @@ const hasOwn = (obj: ModuleExports, prop: PropertyKey): boolean =>
 // itself, so trap results are never constrained by invariants coming from a frozen or sealed
 // real module.
 function createMockable<T extends ModuleExports>(key: string, realModule: T): T {
+  // Runs once, when the shim module is first evaluated - proof that `key` is really
+  // mockable at runtime. Read by the FG-03 declared-but-unshimmed tripwire.
+  registerShimmedKey(key);
+
   const delegate: ModuleExports = {};
 
   return new Proxy(delegate, {

@@ -8,6 +8,10 @@ type Activation = {
 
 let activeActivation: Activation | null = null;
 
+// Keys that a generated shim has actually registered via createMockable, i.e. modules
+// that are really mockable at runtime. Populated as shim modules are evaluated (FG-03).
+const shimmedKeys = new Set<string>();
+
 // Installs the mock set for one story, replacing any previously active set.
 function activateMocks(mocks: MockSet): void {
   activeActivation = { mocks, resolved: new Map() };
@@ -43,4 +47,28 @@ function resolveMockExports(key: string, realModule: ModuleExports): ModuleExpor
   return exports;
 }
 
-export { activateMocks, clearMocks, resolveMockExports };
+// Called once by createMockable when a shim module is evaluated, i.e. the module is
+// really mockable. Idempotent - the module cache guarantees a shim evaluates once anyway.
+function registerShimmedKey(key: string): void {
+  shimmedKeys.add(key);
+}
+
+// Whether `key` has a generated shim that has actually run createMockable. A declared
+// mock key that is NOT shimmed can never apply - see warnUnshimmedKeys (FG-03).
+function isKeyShimmed(key: string): boolean {
+  return shimmedKeys.has(key);
+}
+
+/** Test-only: reset shimmedKeys between unit tests so shim registration doesn't leak. */
+function __resetShimmedKeysForTests(): void {
+  shimmedKeys.clear();
+}
+
+export {
+  activateMocks,
+  clearMocks,
+  resolveMockExports,
+  registerShimmedKey,
+  isKeyShimmed,
+  __resetShimmedKeysForTests,
+};

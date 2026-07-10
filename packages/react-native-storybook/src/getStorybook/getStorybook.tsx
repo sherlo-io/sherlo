@@ -15,6 +15,10 @@ import {
   getStorybookChannel,
   startStoryRenderedTracking,
 } from './components/TestingMode/useTestAllStories/storyRenderedReadiness';
+import {
+  startInteractiveMockActivation,
+  stopInteractiveMockActivation,
+} from './interactiveMockActivation';
 
 let isSdkCompatible = true;
 if (SherloModule.getMode() === 'testing') {
@@ -84,6 +88,13 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
         ...(initialStoryId && { initialSelection: initialStoryId as InitialSelection }),
       };
     } catch (_e) {}
+
+    // Attach the story-change listener here - the earliest JS access to the channel in
+    // this mode, before the component tree below ever renders - so the very first
+    // selection Storybook resolves on mount is not missed.
+    try {
+      startInteractiveMockActivation(view, getStorybookChannel(view));
+    } catch (_e) {}
   }
 
   const isTestingMode = mode === 'testing';
@@ -128,6 +139,15 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
         inspectLogReported.current = true;
         SherloModule.appendFile(LOG_FILE, `INSPECT_STORY_OPENED:${storyId}\n`);
       } catch (_e) {}
+    }, []);
+
+    // Leaving Storybook (unmount) tears down the mock activation started above:
+    // stop tracking selection changes and pass every module through to real again.
+    useEffect(() => {
+      if (!isStorybookMode) return;
+      return () => {
+        stopInteractiveMockActivation();
+      };
     }, []);
 
     if (isTestingMode) {
