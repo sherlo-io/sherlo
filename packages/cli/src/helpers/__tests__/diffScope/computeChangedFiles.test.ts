@@ -199,39 +199,7 @@ describe('computeChangedFiles – successful diff derivation', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// computeNativeFingerprint – behaviour
-// ---------------------------------------------------------------------------
-
-describe('computeNativeFingerprint', () => {
-  it('returns a non-null string when @expo/fingerprint can compute a hash', async () => {
-    const { computeNativeFingerprint } = await import('../../diffScope/computeNativeFingerprint');
-    // @expo/fingerprint is installed in the monorepo; use the fixture dir so it
-    // has a real filesystem context (it hashes what it can find, returning empty
-    // sources for a bare dir, but always returns a stable hash string).
-    const dir = fixture?.dir ?? process.cwd();
-    const result = await computeNativeFingerprint(dir);
-    // When @expo/fingerprint is available the result is a non-empty hash string.
-    // null would indicate the package is missing or threw (bail-open).
-    if (result !== null) {
-      expect(typeof result).toBe('string');
-      expect(result.length).toBeGreaterThan(0);
-    }
-    // null is also valid (package missing / install path differs) – both paths are safe.
-  });
-
-  it('returns null and does not throw when the package is unavailable', async () => {
-    // Verify the try/catch contract by monkey-patching the dynamic import.
-    // We do this inline so we don't need a separate mock file.
-    const failingFn = async () => {
-      try {
-        // Intentionally fail to simulate a missing package.
-        throw new Error('Module not found: @expo/fingerprint');
-      } catch {
-        return null;
-      }
-    };
-    const result = await failingFn();
-    expect(result).toBeNull();
-  });
-});
+// NOTE: the former standalone `computeNativeFingerprint` raw compute was deleted
+// in SHERLO-1756. The native fingerprint wire value is now sourced from the
+// single sanitized Layer-1 compute inside `computeBaseFingerprint`; its behaviour
+// is covered by the fingerprint suite (baseFingerprint + crossCommandDeterminism).

@@ -37,7 +37,6 @@ const mocks = vi.hoisted(() => {
     }),
     reporting: { addBreadcrumb: vi.fn(), setTag: vi.fn(), flush: vi.fn() },
     computeChangedFiles: vi.fn(),
-    computeNativeFingerprint: vi.fn(),
     computeBaseFingerprint: vi.fn(),
     registerBase: vi.fn(),
     waitForBuildResult: vi.fn(),
@@ -62,7 +61,6 @@ vi.mock('../logWarning', () => ({ default: mocks.logWarning }));
 vi.mock('../waitForBuildResult', () => ({ default: mocks.waitForBuildResult }));
 vi.mock('../diffScope', () => ({
   computeChangedFiles: mocks.computeChangedFiles,
-  computeNativeFingerprint: mocks.computeNativeFingerprint,
 }));
 vi.mock('../fingerprint', () => ({
   computeBaseFingerprint: mocks.computeBaseFingerprint,
@@ -135,8 +133,12 @@ beforeEach(() => {
   mocks.getGitInfo.mockResolvedValue(GIT_INFO);
   mocks.getBuildRunConfig.mockReturnValue(BUILD_RUN_CONFIG);
   mocks.computeChangedFiles.mockResolvedValue({ changedFiles: ['src/Button.tsx'] });
-  mocks.computeNativeFingerprint.mockResolvedValue('native-fp');
-  mocks.computeBaseFingerprint.mockResolvedValue({ hash: null });
+  // The diffScope `nativeFingerprint` wire value is now sourced from the single
+  // sanitized Layer-1 compute (SHERLO-1756): `computeBaseFingerprint` returns it
+  // as `nativeFingerprint`. Default to a null base hash (base-fingerprint branch
+  // off) that still carries a Layer-1 nativeFingerprint, so the wire path is
+  // exercised independently of the base-fingerprint spread.
+  mocks.computeBaseFingerprint.mockResolvedValue({ hash: null, nativeFingerprint: 'native-fp' });
   mocks.registerBase.mockResolvedValue({ gateMetadata: undefined });
   mocks.getAppBuildUrl.mockReturnValue('https://app.sherlo.io/team1234/7/build/42');
   mocks.openBuild.mockResolvedValue({ build: { index: 42 } });
@@ -243,7 +245,8 @@ describe('openBuild payload - diff scope', () => {
       fullRun: true,
       reason: 'shallow clone: ancestry is grafted',
     });
-    mocks.computeNativeFingerprint.mockResolvedValue('native-fp');
+    // nativeFingerprint is sourced from the single Layer-1 compute (default mock
+    // already supplies 'native-fp'); it survives a changedFiles bail-to-full.
 
     await callSubject();
     const payload = lastOpenBuildPayload();
@@ -253,7 +256,8 @@ describe('openBuild payload - diff scope', () => {
   });
 
   it('sends undefined nativeFingerprint when fingerprint is unavailable', async () => {
-    mocks.computeNativeFingerprint.mockResolvedValue(null);
+    // A failed Layer-1 compute returns no nativeFingerprint (fail-soft).
+    mocks.computeBaseFingerprint.mockResolvedValue({ hash: null });
 
     await callSubject();
     expect(lastOpenBuildPayload().nativeFingerprint).toBeUndefined();
