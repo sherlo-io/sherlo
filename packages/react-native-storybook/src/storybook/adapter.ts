@@ -264,10 +264,15 @@ function readStoryEntries(): Array<{
 // Preview-level (global) parameters, sourced from Storybook's live preview object.
 //
 // On device the app's `.rnstorybook/preview.ts` annotations are composed into
-// view._preview.storyStoreValue.projectAnnotations once the preview is ready
-// (which it always is by the time enumerateStories runs - during testing capture
-// or interactive selection). This is the SAME merged project object that
-// getStorybook.tsx reads via view._preview, and it carries `parameters.sherlo.mocks`.
+// view._preview.storyStoreValue.projectAnnotations, the SAME merged project object
+// getStorybook.tsx reads via view._preview; it carries `parameters.sherlo.mocks`.
+//
+// TIMING: this composition is ASYNCHRONOUS - Storybook populates storyStoreValue
+// during preview init (view._preview.ready() resolves at that point). On a fresh boot,
+// enumerateStories can run BEFORE it, so this returns {} and global-level mocks are
+// absent. That is by design here: callers that must include global mocks (the mock
+// activation path) re-read once the preview is ready - see storyMockActivation. Do NOT
+// assume this is populated on the first call.
 //
 // The old source - require('@storybook/react-native/preview') - resolves to an
 // internal package stub that never carries the user's project annotations, so

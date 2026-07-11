@@ -25,13 +25,13 @@
  * (e.g. inspect.initialStoryId) would serve REAL values until the user navigated away
  * and back. We therefore activate the initial story's mocks IMMEDIATELY when tracking
  * starts, using the same activation path as the storyChanged handler so the two can
- * never diverge. Story- and meta-level mocks resolve synchronously here (they come from
- * the story exports, already loaded); global-level mocks depend on the preview being
- * ready and are handled elsewhere.
+ * never diverge. Story- and meta-level mocks resolve synchronously; global-level mocks
+ * fold in once the preview is ready - activateMocksForStory (the shared path used by
+ * the testing-capture entry point too) handles both.
  */
 import { StorybookView } from '../types';
-import { enumerateStories } from '../storybook/adapter';
-import { activateStoryMocks, clearMocks } from '../mocking';
+import { activateMocksForStory } from './storyMockActivation';
+import { clearMocks } from '../mocking';
 
 const STORY_CHANGED = 'storyChanged';
 
@@ -53,20 +53,9 @@ function extractStoryId(args: unknown[]): string | undefined {
   return undefined;
 }
 
-/**
- * Install the merged mock set for `storyId` (or clear it when the story has no mocks).
- * The single activation path shared by the initial-story activation and the
- * storyChanged handler, so the two can never resolve mocks differently.
- */
-function activateMocksForStory(storyId: string | undefined): void {
-  if (!storyId || !trackedView) return;
-
-  const storyMeta = enumerateStories(trackedView).find((story) => story.id === storyId);
-  activateStoryMocks(storyMeta?.mocks ?? {});
-}
-
 function handleStoryChanged(...args: unknown[]): void {
-  activateMocksForStory(extractStoryId(args));
+  if (!trackedView) return;
+  activateMocksForStory(trackedView, extractStoryId(args));
 }
 
 /**
@@ -85,7 +74,7 @@ export function startInteractiveMockActivation(
   trackedChannel = channel;
   trackedView = view;
   channel.on(STORY_CHANGED, handleStoryChanged as (...args: unknown[]) => void);
-  activateMocksForStory(initialStoryId);
+  activateMocksForStory(view, initialStoryId);
 }
 
 /** Call when Storybook is torn down / left: stop tracking and clear the active mock set. */
