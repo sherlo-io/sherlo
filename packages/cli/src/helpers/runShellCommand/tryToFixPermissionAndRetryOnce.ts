@@ -12,12 +12,14 @@ async function tryToFixPermissionAndRetryOnce({
   projectRoot,
   encoding,
   env,
+  envMode,
 }: {
   error: Error & { stderr?: string };
   command: string;
   projectRoot: string;
   encoding: 'utf8' | 'buffer';
   env?: NodeJS.ProcessEnv;
+  envMode?: 'merge' | 'replace';
 }): Promise<string | Buffer> {
   const filePath = extractFilePath(error.stderr || '');
 
@@ -29,7 +31,7 @@ async function tryToFixPermissionAndRetryOnce({
       throw error;
     }
 
-    return await executeCommand({ command, projectRoot, encoding, env });
+    return await executeCommand({ command, projectRoot, encoding, env, envMode });
   }
 
   // If we couldn't extract a valid path, throw the original error

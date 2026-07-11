@@ -71,7 +71,10 @@ async function uploadOrReuseBuildsAndRunTests({
   // gate metadata BEFORE the API call so they can be wired into the
   // openBuild payload.
   // ------------------------------------------------------------------
-  const fpResult = await computeBaseFingerprint(commandParams.projectRoot);
+  const fingerprintCommand = easUpdateData ? TEST_EAS_UPDATE_COMMAND : TEST_STANDARD_COMMAND;
+  const fpResult = await computeBaseFingerprint(commandParams.projectRoot, {
+    command: fingerprintCommand,
+  });
 
   let baseFingerprint: string | undefined;
   const gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput } = {};
@@ -97,6 +100,7 @@ async function uploadOrReuseBuildsAndRunTests({
           bundlePath,
           buildType: binaryInfo.buildType,
           baseFingerprintHash: fpResult.hash,
+          command: fingerprintCommand,
         });
 
         if (result.gateMetadata) {
