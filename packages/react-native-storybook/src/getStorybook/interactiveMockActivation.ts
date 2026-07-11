@@ -18,6 +18,16 @@
  * effects before its parent's, so a listener attached from a hook inside the rendered
  * tree could lose the race against Storybook's own initial-selection effects; attaching
  * imperatively from getStorybook() has no such race.
+ *
+ * INITIAL STORY
+ * `storyChanged` fires only on SUBSEQUENT selections - it does NOT fire for the story
+ * Storybook lands on at launch. So a session that starts directly on a mocked story
+ * (e.g. inspect.initialStoryId) would serve REAL values until the user navigated away
+ * and back. We therefore activate the initial story's mocks IMMEDIATELY when tracking
+ * starts, using the same activation path as the storyChanged handler so the two can
+ * never diverge. Story- and meta-level mocks resolve synchronously here (they come from
+ * the story exports, already loaded); global-level mocks depend on the preview being
+ * ready and are handled elsewhere.
  */
 import { StorybookView } from '../types';
 import { enumerateStories } from '../storybook/adapter';
@@ -43,26 +53,39 @@ function extractStoryId(args: unknown[]): string | undefined {
   return undefined;
 }
 
-function handleStoryChanged(...args: unknown[]): void {
-  const storyId = extractStoryId(args);
+/**
+ * Install the merged mock set for `storyId` (or clear it when the story has no mocks).
+ * The single activation path shared by the initial-story activation and the
+ * storyChanged handler, so the two can never resolve mocks differently.
+ */
+function activateMocksForStory(storyId: string | undefined): void {
   if (!storyId || !trackedView) return;
 
   const storyMeta = enumerateStories(trackedView).find((story) => story.id === storyId);
   activateStoryMocks(storyMeta?.mocks ?? {});
 }
 
+function handleStoryChanged(...args: unknown[]): void {
+  activateMocksForStory(extractStoryId(args));
+}
+
 /**
- * Attach the story-change listener. Idempotent: only the first usable channel is
- * bound, subsequent calls are no-ops - safe to call once from getStorybook().
+ * Attach the story-change listener and activate the initial story's mocks.
+ * Idempotent: only the first usable channel is bound, subsequent calls are no-ops -
+ * safe to call once from getStorybook(). `initialStoryId` is the story Storybook lands
+ * on at launch; its mocks are activated immediately because storyChanged does not fire
+ * for that first selection (see INITIAL STORY above).
  */
 export function startInteractiveMockActivation(
   view: StorybookView,
-  channel: StorybookChannel | null
+  channel: StorybookChannel | null,
+  initialStoryId?: string
 ): void {
   if (trackedChannel || !channel) return;
   trackedChannel = channel;
   trackedView = view;
   channel.on(STORY_CHANGED, handleStoryChanged as (...args: unknown[]) => void);
+  activateMocksForStory(initialStoryId);
 }
 
 /** Call when Storybook is torn down / left: stop tracking and clear the active mock set. */
