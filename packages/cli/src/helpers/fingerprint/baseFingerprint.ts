@@ -87,20 +87,77 @@ export type ComputeBaseFingerprintOptions = {
  * (missing @expo/fingerprint, no native dirs, …).  Callers MUST treat a null
  * hash as "stageable flow unavailable" and print the debugMessage.
  *
- * DETERMINISM CONTRACT (SHERLO-1744): over an identical tree, this MUST return
- * the SAME hash no matter which command called it. Two inputs used to break
- * that and are now pinned:
+ * DETERMINISM CONTRACT (SHERLO-1744, SHERLO-1746): over an identical tree, this
+ * MUST return the SAME hash no matter which command called it. Three inputs used
+ * to break that and are now pinned:
  *   1. `projectRoot` path form. `@expo/fingerprint` is path-form-sensitive -
  *      the '.'-form and the absolute form of the SAME tree hash differently
  *      (proved by harness run 29142544470). We `path.resolve()` to an absolute
  *      canonical form before handing it to any layer, so a caller passing '.'
  *      and a caller passing an absolute path agree.
  *   2. The Layer-2 autolinking subprocess environment (see
- *      {@link buildDeterministicAutolinkEnv}).
+ *      {@link buildDeterministicEnv}).
+ *   3. The Layer-1 `@expo/fingerprint` compute environment (SHERLO-1746). The
+ *      library internally spawns `ExpoConfigLoader.js` to evaluate the app
+ *      config, which inherits the CLI's per-command ambient env; an
+ *      app.config.js that reads env would then hash differently per command. We
+ *      swap in the same deterministic env around the library call (see
+ *      {@link withDeterministicEnv}).
  *
  * Set `SHERLO_FINGERPRINT_DEBUG=1` to print the full per-layer breakdown
  * (tagged by command) - permanent, off-by-default observability.
  */
+/** The env mode applied to the Layer-1 compute - surfaced by the debug instrument. */
+const LAYER1_ENV_MODE = 'sanitized';
+
+/**
+ * Run `fn` with `process.env` temporarily replaced by the deterministic env
+ * ({@link buildDeterministicEnv}), restoring the exact original env afterward.
+ *
+ * WHY ENV-SWAP (and not a child process): Layer 1 is
+ * `createFingerprintAsync`, and its BARE path passes `fileHookTransform:
+ * createVersionStrippingTransform()` - a live JS closure that cannot be
+ * serialized across a process boundary. Running the library in a child process
+ * would force us to reimplement/duplicate that transform. Instead we keep
+ * `createFingerprintAsync` IN-PROCESS (the closure works) and control the
+ * ambient env it exposes to the `ExpoConfigLoader.js` subprocess it spawns
+ * internally: an app.config.js that reads env (API urls, feature flags, build
+ * profiles - the standard Expo pattern) then evaluates identically per command.
+ *
+ * The swap is done by IN-PLACE mutation of `process.env` (delete-all +
+ * Object.assign) rather than reassigning `process.env` to a new object: Node
+ * snapshots the live `process.env` object at `child_process` spawn time, so an
+ * in-place mutation is guaranteed to be reflected in the child ExpoConfigLoader
+ * spawn, whereas a reassignment can be missed.
+ *
+ * ASYNC / EXCEPTION / CONCURRENCY SAFETY:
+ *   - Exception-safe: the finally-block restores the original env even when
+ *     `fn` throws; the throw then propagates to the outer try/catch in
+ *     `computeBaseFingerprint`, which returns `{ hash: null }` (fail-soft
+ *     preserved). No allowlist value leaks past this call on any path.
+ *   - Concurrency-safe within the CLI process: `computeBaseFingerprint` is only
+ *     ever `await`ed as a single standalone call in each of its 5 callers
+ *     (registerBase, stagedCheck, testBundled, easBuildOnComplete's
+ *     asyncUploadBuildAndRunTests, uploadOrReuseBuildsAndRunTests). None wraps
+ *     it in `Promise.all`/`Promise.race` or runs other env-reading/subprocess
+ *     work concurrently during the compute (in the two callers that also compute
+ *     a native fingerprint, that work is fully awaited on a preceding line). The
+ *     swap window is also kept as narrow as possible - only the single library
+ *     call is wrapped - further shrinking any theoretical window.
+ */
+async function withDeterministicEnv<T>(fn: () => Promise<T>): Promise<T> {
+  const saved = { ...process.env };
+  const deterministic = buildDeterministicEnv();
+  for (const key of Object.keys(process.env)) delete process.env[key];
+  Object.assign(process.env, deterministic);
+  try {
+    return await fn();
+  } finally {
+    for (const key of Object.keys(process.env)) delete process.env[key];
+    Object.assign(process.env, saved);
+  }
+}
+
 export async function computeBaseFingerprint(
   projectRoot: string,
   options: ComputeBaseFingerprintOptions = {}
@@ -139,7 +196,13 @@ export async function computeBaseFingerprint(
             fileHookTransform: createVersionStrippingTransform(),
           };
 
-    const fingerprint = await createFingerprintAsync(resolvedProjectRoot, fingerprintOptions);
+    // Layer 1 (SHERLO-1746): swap in the deterministic env around the library
+    // call so the `ExpoConfigLoader.js` subprocess @expo/fingerprint spawns
+    // internally cannot inherit the per-command ambient env. Layer 2 handles its
+    // own env via `runShellCommand` (`envMode: 'replace'`) and is NOT wrapped.
+    const fingerprint = await withDeterministicEnv(() =>
+      createFingerprintAsync(resolvedProjectRoot, fingerprintOptions)
+    );
     layer1Hash = fingerprint.hash;
   } catch (err) {
     // @expo/fingerprint may not be installed, or the project may have no
@@ -189,6 +252,7 @@ export async function computeBaseFingerprint(
     resolvedProjectRoot,
     workflow,
     layer1Hash,
+    layer1EnvMode: LAYER1_ENV_MODE,
     lockfileHashes,
     autolinkedModules,
     finalHash,
@@ -217,6 +281,7 @@ function emitFingerprintDebug(fields: {
   resolvedProjectRoot: string;
   workflow: Workflow;
   layer1Hash: string;
+  layer1EnvMode: string;
   lockfileHashes: string[];
   autolinkedModules: string;
   finalHash: string;
@@ -241,7 +306,12 @@ function emitFingerprintDebug(fields: {
     )
   );
 
-  // Layer 1 - @expo/fingerprint hash.
+  // Layer 1 - @expo/fingerprint hash + the env mode its compute ran under.
+  // `layer1.envMode=sanitized` means the deterministic env-swap (SHERLO-1746)
+  // was in force around the library call, so its internal ExpoConfigLoader
+  // subprocess could not observe the per-command ambient env. Any other value
+  // here would name an env leak - a future regression is one grep away.
+  lines.push(tag(`layer1.envMode=${fields.layer1EnvMode}`));
   lines.push(tag(`layer1.hash=${fields.layer1Hash}`));
 
   // Layer 2 - augmented sources: each lockfile SHA + the sorted autolinked set.
@@ -448,25 +518,31 @@ async function hashLockfiles(projectRoot: string): Promise<string[]> {
 // ---------------------------------------------------------------------------
 
 /**
- * Determinism fix #2 (SHERLO-1744): the autolinking resolve subprocess must be
- * COMMAND-INDEPENDENT.
+ * Determinism: any subprocess that participates in the fingerprint must see a
+ * COMMAND-INDEPENDENT environment.
  *
- * `getAutolinkedModules` shells out (`npx react-native config` /
- * `npx expo-modules-autolinking resolve`). By default `executeCommand` spreads
- * the CLI's ENTIRE ambient `process.env` into the child. That ambient env is
- * NOT stable across commands: a package manager injects `NODE_ENV`,
- * `npm_lifecycle_event`, `npm_config_*`, `NODE_OPTIONS`, … that differ depending
- * on which yarn script (test:standard vs staged:check vs test:bundled) launched
- * the CLI. Those leak into the child and can change its resolution / output, so
- * the SAME tree hashes differently per command - the divergent layer that the
- * `SHERLO_FINGERPRINT_DEBUG` instrument names is `layer2.autolinked`.
+ * Ambient `process.env` is NOT stable across commands: a package manager injects
+ * `NODE_ENV`, `npm_lifecycle_event`, `npm_config_*`, `NODE_OPTIONS`, … that
+ * differ depending on which yarn script (test:standard vs staged:check vs
+ * test:bundled) launched the CLI. If any of those leak into a fingerprint-time
+ * subprocess and that subprocess branches on them, the SAME tree hashes
+ * differently per command and the staged gate lookup misses.
  *
- * We run the subprocess with `envMode: 'replace'` and a fixed allowlist of
- * resolution-stable variables, so the autolinked set is identical no matter how
- * the CLI was launched. `NODE_ENV` is pinned so tools that branch dev-vs-prod
- * resolve the same way every time.
+ * This env is the single deterministic environment used by BOTH layers:
+ *   - Layer 2 (SHERLO-1744): the autolinking resolve subprocess
+ *     (`npx react-native config` / `npx expo-modules-autolinking resolve`) runs
+ *     with `envMode: 'replace'` and exactly this env.
+ *   - Layer 1 (SHERLO-1746): `@expo/fingerprint` internally spawns its own
+ *     `ExpoConfigLoader.js` to evaluate the app config; that child inherits the
+ *     CLI's ambient env at spawn time. We swap `process.env` to this same env
+ *     around the `createFingerprintAsync` call (see {@link withDeterministicEnv})
+ *     so an app.config.js that reads env hashes identically per command.
+ *
+ * It is a fixed allowlist of resolution-stable variables plus a pinned
+ * `NODE_ENV='production'`, so tools that branch dev-vs-prod resolve the same way
+ * every time regardless of the launching script.
  */
-const AUTOLINK_ENV_ALLOWLIST = [
+const DETERMINISTIC_ENV_ALLOWLIST = [
   'PATH',
   'HOME',
   'USER',
@@ -487,9 +563,9 @@ const AUTOLINK_ENV_ALLOWLIST = [
   'ComSpec',
 ];
 
-function buildDeterministicAutolinkEnv(): NodeJS.ProcessEnv {
+function buildDeterministicEnv(): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
-  for (const key of AUTOLINK_ENV_ALLOWLIST) {
+  for (const key of DETERMINISTIC_ENV_ALLOWLIST) {
     const value = process.env[key];
     if (value !== undefined) env[key] = value;
   }
@@ -508,7 +584,7 @@ function buildDeterministicAutolinkEnv(): NodeJS.ProcessEnv {
  * neither command succeeds (best-effort).
  *
  * The subprocess runs with a deterministic, command-independent environment -
- * see {@link buildDeterministicAutolinkEnv}.
+ * see {@link buildDeterministicEnv}.
  */
 async function getAutolinkedModules(projectRoot: string, workflow: Workflow): Promise<string> {
   try {
@@ -526,7 +602,7 @@ async function getBareAutolinkedModules(projectRoot: string): Promise<string> {
     const output = await runShellCommand({
       command: 'npx react-native config',
       projectRoot,
-      env: buildDeterministicAutolinkEnv(),
+      env: buildDeterministicEnv(),
       envMode: 'replace',
     });
     const config = JSON.parse(output);
@@ -548,7 +624,7 @@ async function getManagedAutolinkedModules(projectRoot: string): Promise<string>
     const output = await runShellCommand({
       command: 'npx expo-modules-autolinking resolve --json',
       projectRoot,
-      env: buildDeterministicAutolinkEnv(),
+      env: buildDeterministicEnv(),
       envMode: 'replace',
     });
     const modules: { podName?: string; npmPackageName?: string; version?: string }[] =
@@ -569,7 +645,7 @@ async function getManagedAutolinkedModules(projectRoot: string): Promise<string>
       const output = await runShellCommand({
         command: 'npx expo config --json',
         projectRoot,
-        env: buildDeterministicAutolinkEnv(),
+        env: buildDeterministicEnv(),
         envMode: 'replace',
       });
       const config = JSON.parse(output);
