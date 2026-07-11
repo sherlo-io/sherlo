@@ -285,10 +285,36 @@ function generateShimContent(key, requireSpecifier) {
   );
 }
 
+// -------------------------------------------------------------------------
+// Config-time scan overhead budget (WS7 / SHERLO-1738 Phase 6)
+// -------------------------------------------------------------------------
+// setupMocks (scanProjectForMockKeys + deny-list + per-key resolve + shim
+// emission) runs ONCE per `metro` config load, not per request. Measured on
+// the fixtures in this repo (Apple M-series, warm fs cache):
+//   - largest real fixture (integrated-app-expo-sb8, ~520 files): ~0.7 ms scan
+//   - synthetic monorepo, 13 mock stories + 2000 source files:    ~7 ms scan
+//   - pathological, ~120 mock stories + 2000 files:               ~28 ms scan
+//   - setupMocks resolving+emitting 10 / 40 / 100 mock keys: ~6 / 15 / 32 ms
+// So a realistic app lands well under 50 ms combined; even a pathological
+// monorepo (120 stories + 100 keys + 2000 files) stays around ~60 ms.
+//
+// BUDGET: the combined scan + setup MUST stay under 250 ms for the largest
+// project. That is ~4x the pathological measurement above - headroom for a
+// cold fs cache, slower CI disks, and future growth. If a change pushes past
+// it, profile before shipping: the dominant costs are the babel parse per
+// story/preview file and the require.resolve per package key, both of which
+// scale linearly and are the first places to optimise (e.g. memoise resolves
+// across keys, or cache parsed keys by file mtime so unchanged files are not
+// re-parsed on a warm Metro restart).
+// -------------------------------------------------------------------------
+//
 // Build the complete mock setup for a config run.
 //
-// Returns { mocksDir, mockedPathToShim, shimPaths }:
+// Returns { mocksDir, mockedPathToShim, mockedPathToKey, shimPaths }:
 //   - mockedPathToShim: Map<canonicalRealPath, shimAbsolutePath> for the resolver.
+//   - mockedPathToKey:  Map<canonicalRealPath, mockKey> for Diff Scope - lets the
+//                       graph sidecar attribute a changed real-module file back to
+//                       the mock key that stories declare against it (EB-07).
 //   - shimPaths:        every emitted shim path (for tests / diagnostics).
 //
 // Side effect: the <cacheDir>/mocks/ directory is rewritten to contain exactly
@@ -333,6 +359,7 @@ function setupMocks(opts) {
 
   // 4. Resolve each key (FG-01) and emit its shim.
   var mockedPathToShim = new Map();
+  var mockedPathToKey = new Map();
   var shimPaths = [];
 
   keyToSource.forEach(function (source, key) {
@@ -354,16 +381,24 @@ function setupMocks(opts) {
 
     // Register the primary identity plus any alternate package-root entries
     // (main/react-native/exports) so the redirect hits whichever file Metro
-    // resolves the key to at bundle time (MK-02).
+    // resolves the key to at bundle time (MK-02). The same identities map back
+    // to the mock key for Diff Scope attribution (EB-07).
     mockedPathToShim.set(resolved.canonicalRealPath, shimPath);
+    mockedPathToKey.set(resolved.canonicalRealPath, key);
     var alternates = resolved.alternateCanonicalPaths || [];
     for (var a = 0; a < alternates.length; a++) {
       mockedPathToShim.set(alternates[a], shimPath);
+      mockedPathToKey.set(alternates[a], key);
     }
     shimPaths.push(shimPath);
   });
 
-  return { mocksDir: mocksDir, mockedPathToShim: mockedPathToShim, shimPaths: shimPaths };
+  return {
+    mocksDir: mocksDir,
+    mockedPathToShim: mockedPathToShim,
+    mockedPathToKey: mockedPathToKey,
+    shimPaths: shimPaths,
+  };
 }
 
 // Scan an explicit list of files into a key -> source-file Map (test entry).

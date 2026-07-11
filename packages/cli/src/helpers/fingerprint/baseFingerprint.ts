@@ -237,7 +237,7 @@ function emitFingerprintDebug(fields: {
     tag(
       `projectRoot.raw=${JSON.stringify(fields.rawProjectRoot)} ` +
         `projectRoot.resolved=${JSON.stringify(fields.resolvedProjectRoot)} ` +
-        `(FOOTGUN: @expo/fingerprint is path-form-sensitive; normalized to resolved before hashing)`
+        '(FOOTGUN: @expo/fingerprint is path-form-sensitive; normalized to resolved before hashing)'
     )
   );
 

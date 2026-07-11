@@ -16,6 +16,14 @@
  *   key:   project-root-relative path of the module containing require.context()
  *   value: project-root-relative paths of all files matched by the context glob
  *
+ * mockedFileToKey – real mocked-module file → the mock key stories declare against it (EB-07).
+ *   key:   project-root-relative path of a mocked module's real file (e.g. "./src/api/client.ts")
+ *   value: the mock key that file backs (e.g. "./src/api/client" or "@scope/pkg")
+ *   A mocked module is reached only through its generated shim, so no static story→module
+ *   edge exists in inverseGraph. affected() uses this map together with each story's declared
+ *   mock keys to attribute a changed mocked-module file to the stories that mock it.
+ *   Optional: older sidecars omit it; affected() simply skips mock attribution then.
+ *
  * Safety guarantee: the source-scan (contextGraph) + force-full triggers always widen;
  * inverseGraph only narrows.  Missing or unparseable graph → force full (bail-open).
  */
@@ -23,4 +31,5 @@ export type DependencyGraph = {
   version: 1;
   inverseGraph: Record<string, string[]>;
   contextGraph: Record<string, string[]>;
+  mockedFileToKey?: Record<string, string>;
 };

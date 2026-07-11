@@ -416,3 +416,145 @@ describe('affected – empty changed files', () => {
     expect(storyIds(result)).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// 10. Mock attribution through shim edges (EB-07)
+// ---------------------------------------------------------------------------
+
+describe('affected – mock attribution (EB-07)', () => {
+  // A mocked module is imported only through its shim, so it has NO static edge
+  // to the stories that mock it. mockedFileToKey + each story's declared mock
+  // keys bridge that gap.
+  function makeMockGraph(mockedFileToKey: Record<string, string>): DependencyGraph {
+    return {
+      version: 1,
+      // The mocked module's real file has no story importers (only the shim
+      // imports it), so inverseGraph carries no edge for it.
+      inverseGraph: {
+        './src/mocking/modules/analytics.ts': [],
+        './src/mocking/stories/Uses.stories.tsx': [],
+        './src/mocking/stories/Other.stories.tsx': [],
+      },
+      contextGraph: {},
+      mockedFileToKey,
+    };
+  }
+
+  it('changing a mocked module file flags every story that declares a mock for it', () => {
+    const graph = makeMockGraph({
+      './src/mocking/modules/analytics.ts': './src/mocking/modules/analytics',
+    });
+    const stories: StoryEntry[] = [
+      {
+        id: 'uses--mocks-analytics',
+        importPath: './src/mocking/stories/Uses.stories.tsx',
+        mockKeys: ['./src/mocking/modules/analytics'],
+      },
+      {
+        id: 'other--no-mocks',
+        importPath: './src/mocking/stories/Other.stories.tsx',
+        mockKeys: [],
+      },
+    ];
+
+    const result = affected(['./src/mocking/modules/analytics.ts'], graph, stories);
+
+    expect(isFullRun(result)).toBe(false);
+    expect(storyIds(result)).toEqual(['uses--mocks-analytics']);
+  });
+
+  it('accepts changed paths without the leading "./"', () => {
+    const graph = makeMockGraph({
+      './src/mocking/modules/analytics.ts': './src/mocking/modules/analytics',
+    });
+    const stories: StoryEntry[] = [
+      {
+        id: 'uses--mocks-analytics',
+        importPath: './src/mocking/stories/Uses.stories.tsx',
+        mockKeys: ['./src/mocking/modules/analytics'],
+      },
+    ];
+
+    const result = affected(['src/mocking/modules/analytics.ts'], graph, stories);
+
+    expect(storyIds(result)).toEqual(['uses--mocks-analytics']);
+  });
+
+  it('editing the mock VALUE in a story file flags that story via the normal file→story path', () => {
+    const graph = makeMockGraph({
+      './src/mocking/modules/analytics.ts': './src/mocking/modules/analytics',
+    });
+    const stories: StoryEntry[] = [
+      {
+        id: 'uses--mocks-analytics',
+        importPath: './src/mocking/stories/Uses.stories.tsx',
+        mockKeys: ['./src/mocking/modules/analytics'],
+      },
+    ];
+
+    // The mock value lives in the story source; changing that file attributes to
+    // the story directly (no mock edge needed).
+    const result = affected(['./src/mocking/stories/Uses.stories.tsx'], graph, stories);
+
+    expect(storyIds(result)).toEqual(['uses--mocks-analytics']);
+  });
+
+  it('a mocked module change does not flag stories that mock a DIFFERENT key', () => {
+    const graph = makeMockGraph({
+      './src/mocking/modules/analytics.ts': './src/mocking/modules/analytics',
+      './src/mocking/modules/apiClient.ts': './src/mocking/modules/apiClient',
+    });
+    const stories: StoryEntry[] = [
+      {
+        id: 'uses--mocks-api',
+        importPath: './src/mocking/stories/Uses.stories.tsx',
+        mockKeys: ['./src/mocking/modules/apiClient'],
+      },
+    ];
+
+    const result = affected(['./src/mocking/modules/analytics.ts'], graph, stories);
+
+    expect(storyIds(result)).toEqual([]);
+  });
+
+  it('two stories mocking the same key are both flagged', () => {
+    const graph = makeMockGraph({
+      './src/mocking/modules/analytics.ts': './src/mocking/modules/analytics',
+    });
+    const stories: StoryEntry[] = [
+      {
+        id: 'a--mock',
+        importPath: './src/a.stories.tsx',
+        mockKeys: ['./src/mocking/modules/analytics'],
+      },
+      {
+        id: 'b--mock',
+        importPath: './src/b.stories.tsx',
+        mockKeys: ['./src/mocking/modules/analytics'],
+      },
+    ];
+
+    const result = affected(['./src/mocking/modules/analytics.ts'], graph, stories);
+
+    expect(storyIds(result)).toEqual(['a--mock', 'b--mock']);
+  });
+
+  it('is a no-op when the sidecar omits mockedFileToKey (older SDK)', () => {
+    const graph = makeGraph({
+      './src/mocking/modules/analytics.ts': [],
+      './src/a.stories.tsx': [],
+    });
+    const stories: StoryEntry[] = [
+      {
+        id: 'a--mock',
+        importPath: './src/a.stories.tsx',
+        mockKeys: ['./src/mocking/modules/analytics'],
+      },
+    ];
+
+    const result = affected(['./src/mocking/modules/analytics.ts'], graph, stories);
+
+    expect(isFullRun(result)).toBe(false);
+    expect(storyIds(result)).toEqual([]);
+  });
+});

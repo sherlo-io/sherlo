@@ -4,8 +4,14 @@ vi.mock('../../SherloModule', () => ({
   },
 }));
 
+vi.mock('../../helpers/RunnerBridge', () => ({
+  default: { log: vi.fn(), send: vi.fn() },
+}));
+
 import createMockable from '../../mocking/createMockable';
 import { activateStoryMocks } from '../../mocking';
+import { UNSHIMMED_KEYS_LOG } from '../../mocking/activateStoryMocks';
+import RunnerBridge from '../../helpers/RunnerBridge';
 import { clearMocks, __resetShimmedKeysForTests } from '../../mocking/registry';
 import { enumerateStories } from '../../storybook/adapter';
 import type { StorybookView } from '../../types';
@@ -14,6 +20,10 @@ afterEach(() => {
   clearMocks();
   __resetShimmedKeysForTests();
   vi.restoreAllMocks();
+  // RunnerBridge.log is a module mock (not a spy), so restoreAllMocks does not
+  // clear its call history - clear it explicitly so per-test call assertions
+  // (e.g. not.toHaveBeenCalled) do not see calls leaked from earlier tests.
+  vi.clearAllMocks();
   delete (globalThis as any).STORIES;
 });
 
@@ -97,6 +107,25 @@ describe('activateStoryMocks - declared-but-unshimmed tripwire (FG-03)', () => {
     const message = warnSpy.mock.calls[0][0] as string;
     expect(message).toContain('"pkg/not-shimmed"');
     expect(message).not.toContain('"pkg/shimmed"');
+  });
+
+  it('routes the warning to RunnerBridge.log (so it survives console.warn silencing in capture builds)', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    activateStoryMocks({ 'pkg/unshimmed-logged': { value: 1 } });
+
+    expect(RunnerBridge.log).toHaveBeenCalledWith(UNSHIMMED_KEYS_LOG, {
+      keys: ['pkg/unshimmed-logged'],
+    });
+  });
+
+  it('does not touch RunnerBridge.log when every declared key is shimmed', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    createMockable('pkg/shimmed-no-log', {});
+
+    activateStoryMocks({ 'pkg/shimmed-no-log': { value: 1 } });
+
+    expect(RunnerBridge.log).not.toHaveBeenCalled();
   });
 
   it('does not warn when no mocks are declared at all', () => {
