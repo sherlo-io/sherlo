@@ -115,12 +115,119 @@ function appModuleResult(file) {
   };
 }
 
+// A bare key is a package ROOT (not a subpath) when it has no path segment past
+// the package name: 'async-storage' or '@scope/name', but NOT 'pkg/submodule' or
+// '@scope/name/submodule'. Only roots need alternate-entry registration below -
+// subpath keys resolve to one concrete file that Node and Metro agree on.
+function isPackageRootKey(key) {
+  if (key.charAt(0) === '@') return key.split('/').length === 2;
+  return key.indexOf('/') === -1;
+}
+
+// Walk up from a resolved file to the directory of the package that owns it,
+// returning { dir, pkg } once a package.json whose "name" matches the key is
+// found. Matching on name (not just "first package.json up") skips nested
+// dependency package.jsons and lands on the real package root.
+function findPackageDir(fromFile, key) {
+  var dir = path.dirname(fromFile);
+  while (true) {
+    try {
+      var pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+      if (pkg && pkg.name === key) return { dir: dir, pkg: pkg };
+    } catch (_) {
+      /* no package.json here (or unreadable) - keep walking up */
+    }
+    var parent = path.dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+}
+
+// Collect every string leaf under a package.json "exports" value that applies to
+// the package root ("."). exports can be a bare string, a { ".": ... } map, or a
+// pure conditions object (no subpath keys). Different conditions (react-native,
+// import, require, default) can each point at a DIFFERENT file, and Metro follows
+// the 'react-native' condition while Node follows 'require'/'default' - so we
+// gather them all as alternate entries.
+function collectExportsRootLeaves(exportsField) {
+  if (!exportsField) return [];
+  var rootEntry;
+  if (typeof exportsField === 'string') {
+    rootEntry = exportsField;
+  } else if (Object.prototype.hasOwnProperty.call(exportsField, '.')) {
+    rootEntry = exportsField['.'];
+  } else if (Object.keys(exportsField).some((k) => k.charAt(0) === '.')) {
+    // Has subpath keys but no '.' entry -> no root entry to register.
+    return [];
+  } else {
+    // A pure conditions object applies to the root.
+    rootEntry = exportsField;
+  }
+  return collectStringLeaves(rootEntry);
+}
+
+function collectStringLeaves(node) {
+  if (typeof node === 'string') return [node];
+  if (node && typeof node === 'object') {
+    var out = [];
+    for (var k of Object.keys(node)) {
+      out = out.concat(collectStringLeaves(node[k]));
+    }
+    return out;
+  }
+  return [];
+}
+
+// For a package-root key, the canonical entry file Node's require.resolve picks
+// (e.g. lib/commonjs/index.js via "main"/exports.require) can differ from the one
+// Metro picks (e.g. src/index.ts via the "react-native" field/condition). When
+// they diverge the resolver's map lookup misses and the redirect silently no-ops
+// (MK-02). To keep config-time identity in agreement with Metro's bundle-time
+// resolution, register EVERY plausible root entry - "main", "react-native", and
+// all exports-root leaves - as an alternate canonical path pointing at the same
+// shim. Whichever file Metro resolves at bundle time then matches.
+function packageRootAlternateCanonicalPaths(key, resolved, primaryCanonicalPath) {
+  if (!isPackageRootKey(key)) return [];
+  var located = findPackageDir(resolved, key);
+  if (!located) return [];
+
+  var candidates = [located.pkg.main, located.pkg['react-native']].concat(
+    collectExportsRootLeaves(located.pkg.exports)
+  );
+
+  var seen = {};
+  var alternates = [];
+  for (var i = 0; i < candidates.length; i++) {
+    var candidate = candidates[i];
+    if (!candidate || typeof candidate !== 'string') continue;
+    // Resolve the candidate (a package-relative specifier) to a concrete file,
+    // probing extensions/index the same way an app module is resolved.
+    var abs = path.resolve(located.dir, candidate);
+    var file = null;
+    try {
+      if (fs.statSync(abs).isFile()) file = abs;
+    } catch (_) {
+      /* not a direct file - fall through to extension/index probing */
+    }
+    if (!file) file = resolveAppModuleFile(abs);
+    if (!file) continue;
+
+    var canonical = canonicalizeModulePath(file);
+    if (canonical === primaryCanonicalPath || seen[canonical]) continue;
+    seen[canonical] = true;
+    alternates.push(canonical);
+  }
+  return alternates;
+}
+
 // Resolve one mock key to:
 //   - canonicalRealPath: the identity the resolver matches delegate output on,
 //   - requireSpecifier:  what the shim's inner require() targets. Bare package
 //     keys keep their specifier so Metro re-resolves per platform (MK-06);
 //     app-module keys use the extensionless absolute path so Metro re-resolves
 //     the platform-split file per platform.
+//   - alternateCanonicalPaths: extra identities (for package roots) that Metro
+//     might resolve the same key to, all pointing at the same shim (MK-02).
 // Throws when the key cannot be resolved (FG-01).
 function resolveMockKey(key, projectRoot) {
   // Explicit './'-prefixed or absolute keys are always app modules.
@@ -138,9 +245,15 @@ function resolveMockKey(key, projectRoot) {
   // canonical app-module key form. FG-01 fires only when both routes fail.
   try {
     var resolved = require.resolve(key, { paths: [projectRoot] });
+    var canonicalRealPath = canonicalizeModulePath(resolved);
     return {
-      canonicalRealPath: canonicalizeModulePath(resolved),
+      canonicalRealPath: canonicalRealPath,
       requireSpecifier: key,
+      alternateCanonicalPaths: packageRootAlternateCanonicalPaths(
+        key,
+        resolved,
+        canonicalRealPath
+      ),
     };
   } catch (_) {
     var appFile = resolveAppModuleFile(path.resolve(projectRoot, key));
@@ -239,7 +352,14 @@ function setupMocks(opts) {
     var shimPath = path.join(mocksDir, shimFileName(key));
     fs.writeFileSync(shimPath, generateShimContent(key, resolved.requireSpecifier), 'utf8');
 
+    // Register the primary identity plus any alternate package-root entries
+    // (main/react-native/exports) so the redirect hits whichever file Metro
+    // resolves the key to at bundle time (MK-02).
     mockedPathToShim.set(resolved.canonicalRealPath, shimPath);
+    var alternates = resolved.alternateCanonicalPaths || [];
+    for (var a = 0; a < alternates.length; a++) {
+      mockedPathToShim.set(alternates[a], shimPath);
+    }
     shimPaths.push(shimPath);
   });
 
