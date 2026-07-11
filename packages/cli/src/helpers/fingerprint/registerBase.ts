@@ -13,6 +13,7 @@ import { Platform } from '@sherlo/api-types';
 import { computeBaseFingerprint } from './baseFingerprint';
 import { extractGateMetadata, type GateMetadataInput } from './gateMetadata';
 import { checkStageable } from './notStageable';
+import logWarning from '../logWarning';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -35,6 +36,11 @@ export type RegisterBaseParams = {
    * single project-level hash computed once.
    */
   baseFingerprintHash?: string | null;
+  /**
+   * CLI command that triggered registration - tags `SHERLO_FINGERPRINT_DEBUG`
+   * output when the fingerprint is computed internally. No effect on the hash.
+   */
+  command?: string;
 };
 
 export type RegisterBaseResult = {
@@ -59,7 +65,8 @@ export type RegisterBaseResult = {
  * Fail-soft: NEVER throws.  Errors are printed and the caller proceeds.
  */
 export async function registerBase(params: RegisterBaseParams): Promise<RegisterBaseResult> {
-  const { binaryPath, platform, projectRoot, bundlePath, buildType, baseFingerprintHash } = params;
+  const { binaryPath, platform, projectRoot, bundlePath, buildType, baseFingerprintHash, command } =
+    params;
 
   // ------------------------------------------------------------------
   // 1. Compute baseFingerprint (Layer 1-3), unless pre-computed.
@@ -69,20 +76,22 @@ export async function registerBase(params: RegisterBaseParams): Promise<Register
   if (baseFingerprintHash !== undefined) {
     fpHash = baseFingerprintHash;
   } else {
-    const fpResult = await computeBaseFingerprint(projectRoot);
+    const fpResult = await computeBaseFingerprint(projectRoot, { command });
     if (fpResult.hash === null) {
-      console.log(
-        `[Sherlo] Staged uploads unavailable - ${
+      logWarning({
+        message: `Staged uploads unavailable - ${
           fpResult.debugMessage ?? 'fingerprint computation failed'
-        }`
-      );
+        }`,
+      });
       return { registered: false, notStageableReason: fpResult.debugMessage };
     }
     fpHash = fpResult.hash;
   }
 
   if (fpHash === null) {
-    console.log('[Sherlo] Staged uploads unavailable - fingerprint computation returned null');
+    logWarning({
+      message: 'Staged uploads unavailable - fingerprint computation returned null',
+    });
     return { registered: false };
   }
 
@@ -100,11 +109,11 @@ export async function registerBase(params: RegisterBaseParams): Promise<Register
       bundlePath,
     });
   } catch (err) {
-    console.log(
-      `[Sherlo] Staged uploads unavailable - gate metadata extraction failed: ${
+    logWarning({
+      message: `Staged uploads unavailable - gate metadata extraction failed: ${
         err instanceof Error ? err.message : String(err)
-      }`
-    );
+      }`,
+    });
     return { registered: false };
   }
 
@@ -118,11 +127,14 @@ export async function registerBase(params: RegisterBaseParams): Promise<Register
   });
 
   if (!stageableCheck.stageable) {
-    console.log(
-      `[Sherlo] Staged uploads unavailable - ${
+    // Loud, but still fail-soft: registration is refused as INELIGIBLE, so make
+    // it visible in CLI output instead of a silent no-op (SHERLO-1744). The test
+    // run itself proceeds unchanged.
+    logWarning({
+      message: `Staged uploads unavailable - ${
         stageableCheck.reason ?? 'artifact is not stageable'
-      }`
-    );
+      }`,
+    });
     return {
       registered: false,
       baseFingerprint: fpHash,

@@ -69,7 +69,7 @@ async function asyncUploadBuildAndRunTests({
   // gate metadata BEFORE the API call so they can be wired into the
   // asyncUpload payload.
   // ------------------------------------------------------------------
-  const fpResult = await computeBaseFingerprint(DEFAULT_PROJECT_ROOT);
+  const fpResult = await computeBaseFingerprint(DEFAULT_PROJECT_ROOT, { command: THIS_COMMAND });
 
   let baseFingerprint: string | undefined;
   const gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput } = {};
@@ -89,6 +89,7 @@ async function asyncUploadBuildAndRunTests({
         bundlePath,
         buildType: binaryBuildType ?? 'preview',
         baseFingerprintHash: fpResult.hash,
+        command: THIS_COMMAND,
       });
 
       if (result.gateMetadata) {

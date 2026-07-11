@@ -72,7 +72,9 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
 
   // 2. Compute base fingerprint - identifies which base binary to stage against.
   //    A null hash means the staged flow is unavailable for this project.
-  const fpResult = await computeBaseFingerprint(commandParams.projectRoot);
+  const fpResult = await computeBaseFingerprint(commandParams.projectRoot, {
+    command: THIS_COMMAND,
+  });
   if (!fpResult.hash) {
     console.log(
       chalk.red(

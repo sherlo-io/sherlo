@@ -4,7 +4,7 @@
  * AC1: baseFingerprint is deterministic - same inputs → same hash.
  * AC2: Version bumps MUST NOT change baseFingerprint.
  */
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -199,6 +199,102 @@ describe('computeBaseFingerprint', () => {
     } finally {
       cleanup(dir);
     }
+  });
+
+  // ------------------------------------------------------------------
+  // Fail-soft, asserted (SHERLO-1744 AC6): fingerprint unavailability must
+  // degrade to hash:null and the autolinking subprocess failing must NEVER
+  // crash - it degrades to an empty autolinked set and still computes a hash.
+  // ------------------------------------------------------------------
+
+  it('autolinking subprocess failure degrades to a hash, never throws (AC6)', async () => {
+    // The suite-wide mock makes runShellCommand REJECT (subprocess unavailable).
+    // computeBaseFingerprint must still resolve with a real hash, not throw and
+    // not return null - the missing autolinked set just hashes as empty.
+    const dir = makeTempDir();
+    try {
+      writeFile(dir, 'package.json', JSON.stringify({ name: 'test' }));
+      writeFile(dir, 'yarn.lock', '# yarn lockfile\n');
+
+      const result = await computeBaseFingerprint(dir);
+      expect(result.hash).toMatch(/^[a-f0-9]{64}$/);
+    } finally {
+      cleanup(dir);
+    }
+  });
+
+  it('never rejects even when @expo/fingerprint throws - resolves to null (AC6)', async () => {
+    mockCreateFingerprintAsync.mockRejectedValue(new Error('no native dirs'));
+    const dir = makeTempDir();
+    try {
+      writeFile(dir, 'package.json', JSON.stringify({ name: 'test' }));
+      // Must resolve (not reject) with a null hash + a debug message.
+      await expect(computeBaseFingerprint(dir)).resolves.toEqual(
+        expect.objectContaining({ hash: null })
+      );
+    } finally {
+      cleanup(dir);
+    }
+  });
+
+  // ------------------------------------------------------------------
+  // Debug instrument (SHERLO-1744 AC1): env-gated, permanent, tagged-by-command.
+  // ------------------------------------------------------------------
+
+  describe('SHERLO_FINGERPRINT_DEBUG instrument (AC1)', () => {
+    let logSpy: ReturnType<typeof vi.spyOn>;
+    let originalFlag: string | undefined;
+
+    beforeEach(() => {
+      originalFlag = process.env.SHERLO_FINGERPRINT_DEBUG;
+      logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      logSpy.mockRestore();
+      if (originalFlag === undefined) delete process.env.SHERLO_FINGERPRINT_DEBUG;
+      else process.env.SHERLO_FINGERPRINT_DEBUG = originalFlag;
+    });
+
+    it('prints ZERO output when the flag is unset', async () => {
+      delete process.env.SHERLO_FINGERPRINT_DEBUG;
+      const dir = makeTempDir();
+      try {
+        writeFile(dir, 'package.json', JSON.stringify({ name: 'test' }));
+        await computeBaseFingerprint(dir, { command: 'test:standard' });
+        const debugLines = logSpy.mock.calls
+          .flat()
+          .filter((a: unknown) => typeof a === 'string' && a.includes('[sherlo:fp-debug]'));
+        expect(debugLines).toHaveLength(0);
+      } finally {
+        cleanup(dir);
+      }
+    });
+
+    it('prints the per-layer breakdown tagged by command when set to 1', async () => {
+      process.env.SHERLO_FINGERPRINT_DEBUG = '1';
+      const dir = makeTempDir();
+      try {
+        writeFile(dir, 'package.json', JSON.stringify({ name: 'test' }));
+        const result = await computeBaseFingerprint(dir, { command: 'staged:check' });
+        const out = logSpy.mock.calls.flat().join('\n');
+
+        // Tagged by the triggering command.
+        expect(out).toContain('[sherlo:fp-debug][staged:check]');
+        // Path-form footgun surfaced.
+        expect(out).toContain('projectRoot.raw=');
+        expect(out).toContain('projectRoot.resolved=');
+        expect(out).toMatch(/path-form-sensitive/i);
+        // Every layer + the final wire value.
+        expect(out).toContain('layer1.hash=fp-layer1-abc123');
+        expect(out).toContain('layer2.autolinked.count=');
+        expect(out).toContain('layer2.hash=');
+        expect(out).toContain('layer3.workflow=');
+        expect(out).toContain(`final.wire=${result.hash}`);
+      } finally {
+        cleanup(dir);
+      }
+    });
   });
 
   // The fileHookTransform correctly strips version lines.

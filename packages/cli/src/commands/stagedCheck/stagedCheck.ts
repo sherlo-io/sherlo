@@ -67,7 +67,9 @@ async function stagedCheck(passedOptions: Options<THIS_COMMAND>): Promise<void> 
 
   // Compute the base fingerprint from source (no binary required). A null hash
   // means the staged flow is unavailable for this project.
-  const fpResult = await computeBaseFingerprint(commandParams.projectRoot);
+  const fpResult = await computeBaseFingerprint(commandParams.projectRoot, {
+    command: THIS_COMMAND,
+  });
   if (!fpResult.hash) {
     return reportAndExit({
       jsonOutput,
