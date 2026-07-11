@@ -59,12 +59,25 @@ interface ViewInternal {
   _storyIndex?: {
     entries?: Record<string, { id: string; title: string; name: string; importPath: string }>;
   };
+  // Storybook's live Preview instance (PreviewWithSelection). Not on the public
+  // StorybookView type, so - like the other internal fields here and in
+  // getStorybook.tsx - it is reached through a cast. `storyStoreValue` is the
+  // StoryStore that Storybook builds once the preview is ready; its
+  // `projectAnnotations.parameters` holds the composed PROJECT (preview-level)
+  // parameters, including `parameters.sherlo.mocks` declared in the app's
+  // .rnstorybook/preview.ts. This is the only runtime source of global-level
+  // mocks on device (see readGlobalParameters).
+  _preview?: {
+    storyStoreValue?: {
+      projectAnnotations?: { parameters?: Record<string, any> };
+    };
+  };
 }
 
 export function enumerateStories(view: StorybookView): StoryMeta[] {
   const indexEntries = (view as unknown as ViewInternal)._storyIndex?.entries ?? {};
   const storyEntries = readStoryEntries();
-  const globalParams = readGlobalParameters();
+  const globalParams = readGlobalParameters(view);
   const globalMocks: MockSet = globalParams?.sherlo?.mocks ?? {};
   const result: StoryMeta[] = [];
   const seen = new Set<string>();
@@ -248,11 +261,18 @@ function readStoryEntries(): Array<{
   return stories;
 }
 
-function readGlobalParameters(): Record<string, any> {
-  try {
-    const sbRnPreview = (require as any)('@storybook/react-native/preview');
-    return (sbRnPreview && sbRnPreview.default && sbRnPreview.default.parameters) || {};
-  } catch (_) {
-    return {};
-  }
+// Preview-level (global) parameters, sourced from Storybook's live preview object.
+//
+// On device the app's `.rnstorybook/preview.ts` annotations are composed into
+// view._preview.storyStoreValue.projectAnnotations once the preview is ready
+// (which it always is by the time enumerateStories runs - during testing capture
+// or interactive selection). This is the SAME merged project object that
+// getStorybook.tsx reads via view._preview, and it carries `parameters.sherlo.mocks`.
+//
+// The old source - require('@storybook/react-native/preview') - resolves to an
+// internal package stub that never carries the user's project annotations, so
+// global-level mocks were silently dropped on device (SHERLO-1743, Defect 1).
+function readGlobalParameters(view: StorybookView): Record<string, any> {
+  const preview = (view as unknown as ViewInternal)._preview;
+  return preview?.storyStoreValue?.projectAnnotations?.parameters ?? {};
 }

@@ -48,6 +48,31 @@ function writePackage(
   }
 }
 
+// Like writePackage but lets the caller supply arbitrary package.json fields
+// (e.g. a `react-native` field or an `exports` map whose entries diverge from
+// `main`). Used to reproduce the MK-02 scoped-root divergence: Node's
+// require.resolve picks `main` at config time while Metro follows the
+// `react-native` condition to a different file at bundle time.
+function writePackageWithJson(
+  root: string,
+  name: string,
+  pkgJson: Record<string, unknown>,
+  files: Record<string, string>
+): void {
+  const pkgDir = path.join(root, 'node_modules', name);
+  fs.mkdirSync(pkgDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(pkgDir, 'package.json'),
+    JSON.stringify({ name, version: '1.0.0', ...pkgJson }),
+    'utf8'
+  );
+  for (const rel of Object.keys(files)) {
+    const f = path.join(pkgDir, rel);
+    fs.mkdirSync(path.dirname(f), { recursive: true });
+    fs.writeFileSync(f, files[rel], 'utf8');
+  }
+}
+
 // Fake Metro resolver context whose delegate maps module names -> absolute paths.
 function makeContext(originModulePath: string, resolveMap: Record<string, string>) {
   return {
@@ -375,6 +400,93 @@ describe('mockShims.resolveMockKey', () => {
     expect(() => mockShims.resolveMockKey('totally-not-installed', root)).toThrow();
     cleanup(root);
   });
+
+  it('MK-02: a scoped package ROOT whose react-native field diverges from main registers BOTH entries', () => {
+    // require.resolve follows `main` (lib/commonjs/index.js); Metro follows the
+    // `react-native` field (src/index.ts). The two canonical identities diverge,
+    // so the config-time identity must ALSO include Metro's entry as an alternate.
+    const root = mkProject('sherlo-resolvekey-scoped-root-');
+    writePackageWithJson(
+      root,
+      '@react-native-async-storage/async-storage',
+      { main: 'lib/commonjs/index.js', 'react-native': 'src/index.ts' },
+      { 'lib/commonjs/index.js': 'module.exports = {};', 'src/index.ts': 'export default {};' }
+    );
+    const realRoot = fs.realpathSync(root);
+
+    const resolved = mockShims.resolveMockKey('@react-native-async-storage/async-storage', root);
+    cleanup(root);
+
+    const mainCanonical = path.join(
+      realRoot,
+      'node_modules',
+      '@react-native-async-storage',
+      'async-storage',
+      'lib',
+      'commonjs',
+      'index'
+    );
+    const rnCanonical = path.join(
+      realRoot,
+      'node_modules',
+      '@react-native-async-storage',
+      'async-storage',
+      'src',
+      'index'
+    );
+
+    // Primary is whatever Node picked (main); the react-native entry is registered
+    // as an alternate so Metro's bundle-time resolution still matches.
+    expect(resolved.canonicalRealPath).toBe(mainCanonical);
+    expect(resolved.alternateCanonicalPaths).toContain(rnCanonical);
+    expect(resolved.requireSpecifier).toBe('@react-native-async-storage/async-storage');
+  });
+
+  it('MK-02: an exports map whose react-native condition diverges from require is registered too', () => {
+    const root = mkProject('sherlo-resolvekey-exports-');
+    writePackageWithJson(
+      root,
+      '@react-native-community/slider',
+      {
+        main: 'lib/commonjs/index.js',
+        exports: {
+          '.': {
+            'react-native': './src/index.ts',
+            require: './lib/commonjs/index.js',
+            default: './lib/module/index.js',
+          },
+        },
+      },
+      {
+        'lib/commonjs/index.js': 'module.exports = {};',
+        'lib/module/index.js': 'export default {};',
+        'src/index.ts': 'export default {};',
+      }
+    );
+    const realRoot = fs.realpathSync(root);
+    const pkgRoot = path.join(realRoot, 'node_modules', '@react-native-community', 'slider');
+
+    const resolved = mockShims.resolveMockKey('@react-native-community/slider', root);
+    cleanup(root);
+
+    // The react-native condition (src/index) is the one Metro follows - it must be
+    // among the registered identities regardless of which entry Node picked.
+    const allIdentities = [resolved.canonicalRealPath, ...resolved.alternateCanonicalPaths];
+    expect(allIdentities).toContain(path.join(pkgRoot, 'src', 'index'));
+  });
+
+  it('subpath keys get no alternate root entries (require.resolve already matches Metro)', () => {
+    const root = mkProject('sherlo-resolvekey-subpath-noalt-');
+    writePackage(root, 'libpkg', 'index.js', {
+      'index.js': 'module.exports = {};',
+      'submodule.js': 'module.exports = {};',
+    });
+
+    const resolved = mockShims.resolveMockKey('libpkg/submodule', root);
+    cleanup(root);
+
+    expect(resolved.alternateCanonicalPaths).toEqual([]);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -433,6 +545,48 @@ describe('applySherloTransforms resolver redirect', () => {
     expect(scopedResolved.filePath).toContain(path.join('.cache', 'sherlo', 'mocks'));
     expect(subResolved.filePath).toContain(path.join('.cache', 'sherlo', 'mocks'));
     expect(scopedResolved.filePath).not.toBe(subResolved.filePath);
+  });
+
+  it('MK-02: redirects a scoped package ROOT even when Metro resolves it to the react-native entry (not main)', () => {
+    // The regression: config-time require.resolve lands on `main`
+    // (lib/commonjs/index.js) while Metro's delegate resolver follows the
+    // `react-native` field to src/index.ts. Before the alternate-identity fix the
+    // resolver map lookup missed and the redirect silently no-op'd.
+    const root = mkProject('sherlo-redirect-scoped-root-');
+    writePackageWithJson(
+      root,
+      '@react-native-async-storage/async-storage',
+      { main: 'lib/commonjs/index.js', 'react-native': 'src/index.ts' },
+      { 'lib/commonjs/index.js': 'module.exports = {};', 'src/index.ts': 'export default {};' }
+    );
+    writeFile(
+      root,
+      'src/Comp.stories.tsx',
+      `export const S = { parameters: { sherlo: { mocks: { '@react-native-async-storage/async-storage': {} } } } };`
+    );
+
+    const result = applySherloTransforms({ projectRoot: root, resolver: {} }, { enabled: true });
+    // Metro resolves the import to the react-native entry, NOT the main entry.
+    const metroEntry = path.join(
+      root,
+      'node_modules',
+      '@react-native-async-storage',
+      'async-storage',
+      'src',
+      'index.ts'
+    );
+    const ctx = makeContext(path.join(root, 'src', 'Screen.tsx'), {
+      '@react-native-async-storage/async-storage': metroEntry,
+    });
+
+    const resolved = result.resolver.resolveRequest(
+      ctx,
+      '@react-native-async-storage/async-storage',
+      'android'
+    );
+    cleanup(root);
+
+    expect(resolved.filePath).toContain(path.join('.cache', 'sherlo', 'mocks'));
   });
 
   it('MK-04: redirects a project-relative app-module import', () => {
