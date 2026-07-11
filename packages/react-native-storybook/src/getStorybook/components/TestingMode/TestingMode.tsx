@@ -8,8 +8,7 @@ import useTestAllStories from './useTestAllStories';
 import SherloModule from '../../../SherloModule';
 import deepmerge from 'deepmerge';
 import { MetadataProvider, MetadataProviderRef } from './MetadataProvider';
-import { enumerateStories } from '../../../storybook/adapter';
-import { activateStoryMocks } from '../../../mocking';
+import { activateMocksForStory } from '../../storyMockActivation';
 
 setupErrorSilencing();
 
@@ -31,11 +30,12 @@ function TestingMode({
   // render-body call, not an effect, so it runs before any child component's effects
   // (React flushes child effects before the parent's). Guarded to run once per boot;
   // each story capture is a fresh app boot, so there is at most one story to activate.
+  // activateMocksForStory applies meta/story mocks now and folds in global mocks once
+  // the preview is ready (see storyMockActivation).
   const mocksActivatedRef = useRef(false);
   if (!mocksActivatedRef.current && nextSnapshot) {
     mocksActivatedRef.current = true;
-    const storyMeta = enumerateStories(view).find((story) => story.id === nextSnapshot.storyId);
-    activateStoryMocks(storyMeta?.mocks ?? {});
+    activateMocksForStory(view, nextSnapshot.storyId);
   }
 
   useTestAllStories({
