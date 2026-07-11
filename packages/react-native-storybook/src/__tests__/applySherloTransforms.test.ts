@@ -230,6 +230,46 @@ describe('applySherloTransforms – emitDependencyGraphSidecar (via customSerial
     expect(sidecar.inverseGraph['./src/Button.stories.tsx']).toContain('./src/Button.tsx');
   });
 
+  it('emits mockedFileToKey mapping the mocked real file back to its mock key (EB-07)', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-graph-mockedge-'));
+
+    // A real mocked module and a story that declares a mock for it.
+    const modulesDir = path.join(tmpDir, 'src', 'api');
+    fs.mkdirSync(modulesDir, { recursive: true });
+    const realModulePath = path.join(modulesDir, 'client.ts');
+    fs.writeFileSync(realModulePath, 'export const get = () => "real";\n', 'utf8');
+    fs.writeFileSync(
+      path.join(tmpDir, 'src', 'Api.stories.tsx'),
+      "export default { title: 'Api', parameters: { sherlo: { mocks: { './src/api/client': () => ({ get: () => 'mock' }) } } } };\n",
+      'utf8'
+    );
+
+    const fakeSerializer = () => 'BYTES';
+    const result = applySherloTransforms(
+      { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: fakeSerializer } },
+      { enabled: true }
+    );
+
+    // The mocked module is in the graph because its shim requires it; model that
+    // by putting the real file (with extension) in the dependency map.
+    const fakeDeps = new Map();
+    fakeDeps.set(realModulePath, { dependencies: new Map() });
+
+    result.serializer.customSerializer(
+      'index.js',
+      [],
+      { dependencies: fakeDeps },
+      { projectRoot: tmpDir }
+    );
+
+    const sidecarPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'graph.json');
+    const sidecar = JSON.parse(fs.readFileSync(sidecarPath, 'utf8'));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
+    expect(sidecar.mockedFileToKey).toBeDefined();
+    expect(sidecar.mockedFileToKey['./src/api/client.ts']).toBe('./src/api/client');
+  });
+
   it('does NOT emit sidecar for unrecognised Metro Graph shape (bail-open)', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-graph-bail-'));
     const fakeSerializer = () => 'BYTES';

@@ -77,9 +77,10 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
   }
 
   if (mode === 'storybook') {
+    let initialStoryId: string | undefined;
     try {
       const config = SherloModule.getConfig();
-      const initialStoryId = config.inspect?.initialStoryId;
+      initialStoryId = config.inspect?.initialStoryId;
       // Force shouldPersistSelection:false so inspect.initialStoryId always wins
       // over persisted AsyncStorage state from a previous launch.
       params = {
@@ -91,9 +92,12 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 
     // Attach the story-change listener here - the earliest JS access to the channel in
     // this mode, before the component tree below ever renders - so the very first
-    // selection Storybook resolves on mount is not missed.
+    // selection Storybook resolves on mount is not missed. Pass initialStoryId so the
+    // story Storybook lands on has its mocks activated immediately: storyChanged does
+    // not fire for that first selection, so without this a direct launch onto a mocked
+    // story would serve real values.
     try {
-      startInteractiveMockActivation(view, getStorybookChannel(view));
+      startInteractiveMockActivation(view, getStorybookChannel(view), initialStoryId);
     } catch (_e) {}
   }
 

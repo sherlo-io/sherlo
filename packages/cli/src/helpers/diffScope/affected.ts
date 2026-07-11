@@ -5,6 +5,13 @@ import { DependencyGraph } from './dependencyGraph';
 export type StoryEntry = {
   id: string;
   importPath?: string;
+  /**
+   * Module Mocking (EB-07): the mock keys this story declares (Object.keys of the
+   * story's merged mock set, i.e. StoryMeta.mocks). Used to attribute a change to
+   * a mocked module file back to the stories that mock it. Absent for SDKs that do
+   * not emit it - mock attribution is simply skipped then.
+   */
+  mockKeys?: string[];
 };
 
 export type AffectedResult = { storyIds: string[] } | { fullRun: true; reason: string };
@@ -88,10 +95,36 @@ export function affected(
     }
   }
 
+  // ── Mock attribution (EB-07) ──────────────────────────────────────────
+  // A mocked module is imported only through its generated shim, so a change to
+  // it has no static inverse edge to any story. Bridge that gap here: map the
+  // changed file → mock key (graph.mockedFileToKey) → the stories that declare
+  // that key. Editing the mock VALUE inside a story file is covered by the normal
+  // BFS below (the story file is its own importPath); this handles editing the
+  // mocked MODULE itself.
+  const mockKeyToStoryIds = new Map<string, string[]>();
+  for (const s of stories) {
+    if (!s.mockKeys) continue;
+    for (const key of s.mockKeys) {
+      const list = mockKeyToStoryIds.get(key);
+      if (list) list.push(s.id);
+      else mockKeyToStoryIds.set(key, [s.id]);
+    }
+  }
+
+  const mockAttributedIds: string[] = [];
+  const mockedFileToKey = graph.mockedFileToKey ?? {};
+  for (const c of changed) {
+    const mockKey = mockedFileToKey[c];
+    if (!mockKey) continue;
+    const ids = mockKeyToStoryIds.get(mockKey);
+    if (ids) mockAttributedIds.push(...ids);
+  }
+
   // ── BFS over static inverse edges ─────────────────────────────────────
   // Stories without an importPath are always included (conservative, back-compat
   // with older SDKs that do not emit importPath).
-  const affectedIds = new Set<string>(storiesWithoutImportPath);
+  const affectedIds = new Set<string>([...storiesWithoutImportPath, ...mockAttributedIds]);
   const visited = new Set<string>();
   const frontier: string[] = [...changed];
 

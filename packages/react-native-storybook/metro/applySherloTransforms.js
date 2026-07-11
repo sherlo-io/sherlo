@@ -31,19 +31,25 @@ function toRelativePath(absPath, projectRoot) {
  *   {
  *     "version": 1,
  *     "inverseGraph": { "./src/Button.tsx": ["./src/Button.stories.tsx"] },
- *     "contextGraph":  { "./src/.rnstorybook/storybook.requires.ts": ["./src/Button.stories.tsx"] }
+ *     "contextGraph":  { "./src/.rnstorybook/storybook.requires.ts": ["./src/Button.stories.tsx"] },
+ *     "mockedFileToKey": { "./src/api/client.ts": "./src/api/client" }
  *   }
  *
- * inverseGraph  – static (non-dynamic) reverse edges only: file → files that statically import it.
- * contextGraph  – require.context targets grouped by the module that owns the require.context call.
+ * inverseGraph    – static (non-dynamic) reverse edges only: file → files that statically import it.
+ * contextGraph    – require.context targets grouped by the module that owns the require.context call.
+ * mockedFileToKey – real mocked-module file → the mock key stories declare against it (EB-07).
+ *   A mocked module is imported only through its generated shim, so there is no static story→module
+ *   edge in inverseGraph. This map lets the CLI attribute a changed mocked-module file to the mock
+ *   key, then (via each story's declared mock keys) to the stories that mock it.
  *
  * Bail-open: any unrecognised Metro Graph shape or error → no sidecar (CLI forces full run).
  *
  * @param {object} graph      Metro ReadOnlyGraph passed to the customSerializer
  * @param {string} projectRoot absolute project root
  * @param {string} cacheDir   absolute cache directory (node_modules/.cache/sherlo)
+ * @param {Map<string,string>|null} mockedPathToKey canonical real path → mock key (from setupMocks)
  */
-function emitDependencyGraphSidecar(graph, projectRoot, cacheDir) {
+function emitDependencyGraphSidecar(graph, projectRoot, cacheDir, mockedPathToKey) {
   try {
     // Feature-detect Metro Graph shape: bail-open if unrecognised.
     if (
@@ -58,6 +64,8 @@ function emitDependencyGraphSidecar(graph, projectRoot, cacheDir) {
     var inverseGraph = {};
     /** @type {Record<string, string[]>} */
     var contextGraph = {};
+    /** @type {Record<string, string>} */
+    var mockedFileToKey = {};
 
     graph.dependencies.forEach(function (module, absPath) {
       var rel = toRelativePath(absPath, projectRoot);
@@ -65,6 +73,16 @@ function emitDependencyGraphSidecar(graph, projectRoot, cacheDir) {
 
       // Ensure every real module appears as a key (even if it has no importers).
       if (!inverseGraph[rel]) inverseGraph[rel] = [];
+
+      // Diff Scope (EB-07): if this real module is mocked, record the file (with
+      // whatever extension/platform variant Metro bundled) → mock key. The mocked
+      // module is in the graph because its shim requires it (the shim's own
+      // require is not redirected). Canonicalising collapses platform/ext so it
+      // matches the identity setupMocks registered.
+      if (mockedPathToKey && mockedPathToKey.size > 0) {
+        var mockKey = mockedPathToKey.get(mockShims.canonicalizeModulePath(absPath));
+        if (mockKey) mockedFileToKey[rel] = mockKey;
+      }
 
       if (!module.dependencies || !(module.dependencies instanceof Map)) return;
 
@@ -94,7 +112,12 @@ function emitDependencyGraphSidecar(graph, projectRoot, cacheDir) {
       });
     });
 
-    var sidecar = JSON.stringify({ version: 1, inverseGraph: inverseGraph, contextGraph: contextGraph });
+    var sidecar = JSON.stringify({
+      version: 1,
+      inverseGraph: inverseGraph,
+      contextGraph: contextGraph,
+      mockedFileToKey: mockedFileToKey,
+    });
     fs.writeFileSync(path.join(cacheDir, 'graph.json'), sidecar, 'utf8');
   } catch (err) {
     // Non-fatal: if we fail, no sidecar is emitted and the CLI bails to a full run.
@@ -181,6 +204,7 @@ function applySherloTransforms(result, opts) {
   var mockingEnabled = !(opts && opts.enabled === false);
   var mocksDir = null;
   var mockedPathToShim = null;
+  var mockedPathToKey = null;
   if (mockingEnabled) {
     var mockSetup = mockShims.setupMocks({
       projectRoot: projectRoot,
@@ -189,6 +213,7 @@ function applySherloTransforms(result, opts) {
     });
     mocksDir = mockSetup.mocksDir;
     mockedPathToShim = mockSetup.mockedPathToShim;
+    mockedPathToKey = mockSetup.mockedPathToKey;
   }
 
   // True when a module path lives inside the emitted mocks directory. Requests
@@ -277,7 +302,7 @@ function applySherloTransforms(result, opts) {
       // Emit the sidecar as a pure side-effect; never affects bundle output.
       var serializerProjectRoot =
         (options && options.projectRoot) || projectRoot;
-      emitDependencyGraphSidecar(graph, serializerProjectRoot, cacheDir);
+      emitDependencyGraphSidecar(graph, serializerProjectRoot, cacheDir, mockedPathToKey);
       // Delegate to the original serializer and return its output unchanged.
       return delegateSerializer(entryPoint, preModules, graph, options);
     };

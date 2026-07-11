@@ -812,6 +812,151 @@ describe('applySherloTransforms resolver redirect', () => {
 });
 
 // ---------------------------------------------------------------------------
+// MK-05 - workspace-package mocking (monorepo layout, symlinked node_modules)
+// ---------------------------------------------------------------------------
+
+describe('mockShims - workspace package resolution (MK-05)', () => {
+  it('mocks a local workspace package resolved through a symlinked node_modules entry', () => {
+    const root = mkProject('sherlo-workspace-');
+
+    // The real workspace package lives OUTSIDE node_modules (packages/ui).
+    writeFile(
+      root,
+      'packages/ui/package.json',
+      JSON.stringify({ name: '@myorg/ui', version: '1.0.0', main: 'index.js' })
+    );
+    writeFile(root, 'packages/ui/index.js', 'module.exports = { widget: "real" };');
+
+    // yarn/npm workspaces symlink node_modules/@myorg/ui -> ../../packages/ui.
+    // require.resolve and Metro both follow the symlink to the real file; the
+    // resolver's realpath-based canonicalization is what keeps the config-time
+    // identity and the bundle-time identity in agreement across the symlink.
+    fs.mkdirSync(path.join(root, 'node_modules', '@myorg'), { recursive: true });
+    fs.symlinkSync(
+      path.join(root, 'packages', 'ui'),
+      path.join(root, 'node_modules', '@myorg', 'ui'),
+      'dir'
+    );
+
+    writeFile(
+      root,
+      'src/Comp.stories.tsx',
+      `export const S = { parameters: { sherlo: { mocks: { '@myorg/ui': {} } } } };`
+    );
+
+    const result = applySherloTransforms({ projectRoot: root, resolver: {} }, { enabled: true });
+
+    // Metro resolves the import through the symlinked node_modules path.
+    const metroPath = path.join(root, 'node_modules', '@myorg', 'ui', 'index.js');
+    const ctx = makeContext(path.join(root, 'src', 'Screen.tsx'), { '@myorg/ui': metroPath });
+    const resolved = result.resolver.resolveRequest(ctx, '@myorg/ui', 'ios');
+    cleanup(root);
+
+    expect(resolved.filePath).toContain(path.join('.cache', 'sherlo', 'mocks'));
+  });
+
+  it('resolveMockKey resolves a workspace package by name to its real (realpath) file', () => {
+    const root = mkProject('sherlo-workspace-resolve-');
+    writeFile(
+      root,
+      'packages/ui/package.json',
+      JSON.stringify({ name: '@myorg/ui', version: '1.0.0', main: 'index.js' })
+    );
+    writeFile(root, 'packages/ui/index.js', 'module.exports = {};');
+    fs.mkdirSync(path.join(root, 'node_modules', '@myorg'), { recursive: true });
+    fs.symlinkSync(
+      path.join(root, 'packages', 'ui'),
+      path.join(root, 'node_modules', '@myorg', 'ui'),
+      'dir'
+    );
+
+    const resolved = mockShims.resolveMockKey('@myorg/ui', root);
+    cleanup(root);
+
+    // The bare package name is kept as the require specifier (Metro re-resolves it),
+    // and the canonical identity is the realpath under packages/ui (not the symlink).
+    expect(resolved.requireSpecifier).toBe('@myorg/ui');
+    expect(resolved.canonicalRealPath).toContain(
+      `${path.sep}packages${path.sep}ui${path.sep}index`
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// WS4 - resolver composition with real-world resolveRequest wrappers
+// ---------------------------------------------------------------------------
+
+describe('applySherloTransforms - composes with a pre-existing resolveRequest wrapper', () => {
+  // Models a metro.config.js that already wraps resolveRequest the way real apps
+  // do: an expo-router-style virtual redirect AND a react-native-svg-transformer
+  // -style .svg -> component swap, delegating everything else to Metro's default.
+  function makeWrappedProject(prefix: string) {
+    const root = mkProject(prefix);
+    writePackage(root, 'analytics-lib', 'index.js', { 'index.js': 'module.exports = {};' });
+    writeFile(
+      root,
+      'src/Comp.stories.tsx',
+      `export const S = { parameters: { sherlo: { mocks: { 'analytics-lib': {} } } } };`
+    );
+
+    const svgComponentPath = path.join(root, 'node_modules', 'svg-transformer-runtime.js');
+    const routerVirtualPath = path.join(root, 'node_modules', 'expo-router-virtual-ctx.js');
+
+    const existingResolveRequest = (context: any, moduleName: string, platform: string) => {
+      if (moduleName.endsWith('.svg')) {
+        return { type: 'sourceFile', filePath: svgComponentPath };
+      }
+      if (moduleName === 'expo-router/virtual-ctx') {
+        return { type: 'sourceFile', filePath: routerVirtualPath };
+      }
+      // Everything else falls through to Metro's default resolver.
+      return context.resolveRequest(context, moduleName, platform);
+    };
+
+    const result = applySherloTransforms(
+      { projectRoot: root, resolver: { resolveRequest: existingResolveRequest } },
+      { enabled: true }
+    );
+    return { root, result, svgComponentPath, routerVirtualPath };
+  }
+
+  it('the third-party transforms still run AND mocked modules still redirect', () => {
+    const { root, result, svgComponentPath, routerVirtualPath } =
+      makeWrappedProject('sherlo-compose-');
+
+    const realAnalytics = path.join(root, 'node_modules', 'analytics-lib', 'index.js');
+    const ctx = makeContext(path.join(root, 'src', 'Screen.tsx'), {
+      'analytics-lib': realAnalytics,
+    });
+
+    // svg-transformer behavior preserved (Sherlo did not intercept it).
+    const svg = result.resolver.resolveRequest(ctx, './logo.svg', 'ios');
+    // expo-router virtual redirect preserved.
+    const router = result.resolver.resolveRequest(ctx, 'expo-router/virtual-ctx', 'ios');
+    // Mocking still applies: the real module the wrapper resolved is redirected
+    // to its shim (delegate-first - Sherlo runs AFTER the existing wrapper).
+    const mocked = result.resolver.resolveRequest(ctx, 'analytics-lib', 'ios');
+    cleanup(root);
+
+    expect(svg.filePath).toBe(svgComponentPath);
+    expect(router.filePath).toBe(routerVirtualPath);
+    expect(mocked.filePath).toContain(path.join('.cache', 'sherlo', 'mocks'));
+  });
+
+  it('a non-mocked normal import passes through both the wrapper and Sherlo untouched', () => {
+    const { root, result } = makeWrappedProject('sherlo-compose-passthrough-');
+
+    const otherReal = path.join(root, 'node_modules', 'other', 'index.js');
+    const ctx = makeContext(path.join(root, 'src', 'Screen.tsx'), { other: otherReal });
+
+    const resolved = result.resolver.resolveRequest(ctx, 'other', 'ios');
+    cleanup(root);
+
+    expect(resolved.filePath).toBe(otherReal);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // EB-01 - enabled:false contributes nothing
 // ---------------------------------------------------------------------------
 
