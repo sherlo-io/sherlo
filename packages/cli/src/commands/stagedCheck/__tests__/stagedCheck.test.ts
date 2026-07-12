@@ -1,16 +1,17 @@
 /**
- * Tests for the staged:check command (SHERLO-1692).
+ * Tests for the staged:check command (SHERLO-1692, SHERLO-1760).
  *
  * Covers the CI-routing exit-code contract (fast=0, full=1, not-stageable=2),
  * the --json payload shape, and that GITHUB_OUTPUT is always written regardless
  * of --json - the three output forms must never drift apart. The gate is queried
  * through sdkClient.checkStagedGate (SHERLO-1718).
  *
- * A drift-guard test (see "gate metadata is real, not empty") asserts that
- * staged:check constructs gate metadata via the SAME buildBundleForPlatform +
- * buildGateMetadata path test:bundled uses and sends that non-empty metadata to
- * the gate - so a future refactor can never silently reintroduce `{}`, which
- * would make the command answer `full` even on a perfect fingerprint match.
+ * staged:check is a TRUE no-build probe: it never runs a bundler and never opens
+ * a binary, so it must not fabricate any APK-derived identity dimension. The
+ * probe-payload guard below asserts the sent gate metadata carries ONLY the
+ * `derivedFrom: 'none'` marker and no bundleFormat / assetInventory /
+ * hasEmbeddedBundle / sdkProtocolVersion - the deployed gate then rests a `fast`
+ * decision on the fingerprint match alone (SHERLO-1761).
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -20,14 +21,6 @@ const { mockCheckStagedGate } = vi.hoisted(() => ({
 
 vi.mock('@sherlo/sdk-client', () => ({
   default: vi.fn(() => ({ checkStagedGate: mockCheckStagedGate })),
-}));
-
-// staged:check builds a bundle and derives gate metadata through the exact same
-// module test:bundled imports. Mock that module so the unit test never shells out
-// to a real bundler, while still asserting the construction path is exercised.
-vi.mock('../../testBundled/buildBundle', () => ({
-  buildBundleForPlatform: vi.fn(),
-  buildGateMetadata: vi.fn(),
 }));
 
 // Keep the real gate-decision mappers (outcomeToMode / resolveOverallMode /
@@ -64,46 +57,19 @@ import {
   writeGithubOutput as _writeGithubOutput,
 } from '../../../helpers';
 import { computeBaseFingerprint as _computeBaseFingerprint } from '../../../helpers/fingerprint';
-import {
-  buildBundleForPlatform as _buildBundleForPlatform,
-  buildGateMetadata as _buildGateMetadata,
-} from '../../testBundled/buildBundle';
 
 const mockGetPlatformsToTest = vi.mocked(_getPlatformsToTest);
 const mockGetTokenParts = vi.mocked(_getTokenParts);
 const mockGetValidatedCommandParams = vi.mocked(_getValidatedCommandParams);
 const mockWriteGithubOutput = vi.mocked(_writeGithubOutput);
 const mockComputeBaseFingerprint = vi.mocked(_computeBaseFingerprint);
-const mockBuildBundleForPlatform = vi.mocked(_buildBundleForPlatform);
-const mockBuildGateMetadata = vi.mocked(_buildGateMetadata);
 
 let stagedCheck: (passedOptions: any) => Promise<void>;
 let exitSpy: ReturnType<typeof vi.spyOn>;
 let logSpy: ReturnType<typeof vi.spyOn>;
 
-/** A realistic non-empty bundle result (matches BundleResult shape). */
-function bundleResult(overrides: Record<string, unknown> = {}): any {
-  return {
-    bundlePath: '/proj/.sherlo/bundled/bundle.ios.js',
-    bundleFormat: 'plain-js',
-    bundleSizeMb: 1.5,
-    bundleHash: 'abc123',
-    assetsDest: undefined,
-    assetInventory: [],
-    bundler: 'expo',
-    ...overrides,
-  };
-}
-
-/** A realistic non-empty GateMetadataInput - what buildGateMetadata produces. */
-const GATE_METADATA = {
-  engineClass: 'hermes',
-  bundleFormat: 'plain-js',
-  hasEmbeddedBundle: true,
-  assetInventory: [],
-  expoUpdatesEnabled: false,
-  buildMetadata: { reactNativeVersion: '0.74.0', buildMode: 'release' },
-};
+/** The ONLY gate metadata a no-build probe may send: the `none` marker, nothing else. */
+const PROBE_METADATA = { derivedFrom: 'none' };
 
 beforeEach(async () => {
   vi.clearAllMocks();
@@ -122,8 +88,6 @@ beforeEach(async () => {
   } as any);
   mockGetTokenParts.mockReturnValue({ apiToken: 'api', projectIndex: 3, teamId: 'team' });
   mockComputeBaseFingerprint.mockResolvedValue({ hash: 'FP1' } as any);
-  mockBuildBundleForPlatform.mockResolvedValue(bundleResult());
-  mockBuildGateMetadata.mockResolvedValue(GATE_METADATA as any);
 
   const mod = await import('../stagedCheck');
   stagedCheck = mod.default;
@@ -136,10 +100,10 @@ describe('staged:check exit-code contract', () => {
 
     await expect(stagedCheck({})).rejects.toThrow('process.exit(0)');
     expect(exitSpy).toHaveBeenCalledWith(0);
-    // Sends the REAL gate metadata built for this platform - never empty `{}`.
+    // Sends ONLY the `none` derivation marker - never a fabricated dimension.
     expect(mockCheckStagedGate).toHaveBeenCalledWith({
       baseFingerprint: 'FP1',
-      gateMetadata: GATE_METADATA,
+      gateMetadata: PROBE_METADATA,
       platform: 'ios',
       projectIndex: 3,
       teamId: 'team',
@@ -154,7 +118,7 @@ describe('staged:check exit-code contract', () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
-  it('exits 2 for mode=not-stageable', async () => {
+  it('exits 2 for mode=not-stageable when no base is registered for the fingerprint', async () => {
     mockGetPlatformsToTest.mockReturnValue(['android'] as any);
     mockCheckStagedGate.mockResolvedValue({ outcome: 'not-stageable', diff: [] });
 
@@ -180,26 +144,6 @@ describe('staged:check exit-code contract', () => {
     await expect(stagedCheck({})).rejects.toThrow('process.exit(2)');
     expect(exitSpy).toHaveBeenCalledWith(2);
     expect(mockCheckStagedGate).not.toHaveBeenCalled();
-  });
-
-  it('exits 2 (not-stageable) and never crashes when bundling fails', async () => {
-    mockGetPlatformsToTest.mockReturnValue(['ios'] as any);
-    // buildBundleForPlatform throws a user-facing, multi-line message for a
-    // non-stageable project (Hermes bytecode, version floor, ...).
-    mockBuildBundleForPlatform.mockRejectedValue(
-      new Error('Hermes bytecode (.hbc) bundle detected.\n\nStaged uploads require plain JS.')
-    );
-
-    await expect(stagedCheck({})).rejects.toThrow('process.exit(2)');
-    expect(exitSpy).toHaveBeenCalledWith(2);
-    // The gate is never queried when there is nothing stageable to describe.
-    expect(mockCheckStagedGate).not.toHaveBeenCalled();
-
-    // The reason is collapsed to a single, GITHUB_OUTPUT-safe line.
-    const written = mockWriteGithubOutput.mock.calls[0][0] as Record<string, string>;
-    expect(written.mode).toBe('not-stageable');
-    expect(written.reason).toContain('Hermes bytecode');
-    expect(written.reason).not.toContain('\n');
   });
 
   it('takes the worst outcome across platforms (one full + one fast -> full)', async () => {
@@ -254,47 +198,29 @@ describe('output forms stay in sync', () => {
   });
 });
 
-// Drift guard (Director review, PR #180): staged:check MUST construct real gate
-// metadata via the same code path test:bundled uses and send it to the gate. An
-// empty `{}` makes every field comparison a mismatch, so the command could never
-// answer `fast` against a genuinely registered base (violates AC1). A client-mock
-// alone cannot catch that regression - these assertions verify the
-// metadata-CONSTRUCTION path, not just the gate's return handling.
-describe('gate metadata is real, not empty (drift guard)', () => {
-  it('builds a bundle and derives metadata per platform via the test:bundled path', async () => {
+// Probe-payload guard (SHERLO-1760): staged:check is a NO-BUILD probe. It must
+// never bundle and never fabricate a binary-identity dimension it cannot know
+// without opening an APK. The gate excludes none-marked dims from the identity
+// diff, so any fabricated dimension here would be dead weight at best and, before
+// SHERLO-1761, forced a false `full` on a byte-identical workspace. These
+// assertions pin the honest, marker-only payload so a refactor cannot silently
+// reintroduce a source-derived estimate.
+describe('probe payload is marker-only (no fabricated identity dimensions)', () => {
+  it('sends derivedFrom: none and NOTHING else per platform', async () => {
     mockGetPlatformsToTest.mockReturnValue(['android', 'ios'] as any);
     mockCheckStagedGate.mockResolvedValue({ outcome: 'fast', diff: [] });
 
     await expect(stagedCheck({})).rejects.toThrow('process.exit(0)');
 
-    // The SAME construction functions test:bundled imports are exercised, once
-    // per platform - not re-implemented locally.
-    expect(mockBuildBundleForPlatform).toHaveBeenCalledWith({
-      projectRoot: '/proj',
-      platform: 'android',
-    });
-    expect(mockBuildBundleForPlatform).toHaveBeenCalledWith({
-      projectRoot: '/proj',
-      platform: 'ios',
-    });
-    expect(mockBuildGateMetadata).toHaveBeenCalledWith(
-      expect.objectContaining({
-        projectRoot: '/proj',
-        platform: 'android',
-        bundleResult: expect.any(Object),
-      })
-    );
-  });
-
-  it('forwards the constructed metadata to the gate (never an empty object)', async () => {
-    mockGetPlatformsToTest.mockReturnValue(['ios'] as any);
-    mockCheckStagedGate.mockResolvedValue({ outcome: 'fast', diff: [] });
-
-    await expect(stagedCheck({})).rejects.toThrow('process.exit(0)');
-
-    const sent = mockCheckStagedGate.mock.calls[0][0].gateMetadata;
-    // Exactly the object buildGateMetadata returned - and it is non-empty.
-    expect(sent).toBe(GATE_METADATA);
-    expect(Object.keys(sent).length).toBeGreaterThan(0);
+    for (const call of mockCheckStagedGate.mock.calls) {
+      const sent = call[0].gateMetadata;
+      expect(sent).toEqual({ derivedFrom: 'none' });
+      // No binary-identity / bundle-derived facts a no-build probe cannot know.
+      expect(sent).not.toHaveProperty('bundleFormat');
+      expect(sent).not.toHaveProperty('assetInventory');
+      expect(sent).not.toHaveProperty('hasEmbeddedBundle');
+      expect(sent).not.toHaveProperty('sdkProtocolVersion');
+      expect(sent).not.toHaveProperty('engineClass');
+    }
   });
 });
