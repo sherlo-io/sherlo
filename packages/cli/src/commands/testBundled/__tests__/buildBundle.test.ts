@@ -18,7 +18,6 @@ import {
   stripVersionLines,
 } from '../../../helpers/fingerprint/baseFingerprint';
 import { buildBundleForPlatform, buildGateMetadata, type BundleResult } from '../buildBundle';
-import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../constants';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -37,15 +36,21 @@ vi.mock('../../init/requirements/getPackageVersion', () => ({
   default: vi.fn(),
 }));
 
+vi.mock('../readBundledSdkProtocolVersion', () => ({
+  readBundledSdkProtocolVersion: vi.fn(),
+}));
+
 // The local imports resolve the mocked modules because vi.mock is hoisted.
 import detectBundlerDefault from '../../showError/detectBundler';
 import { detectEntryFile as detectEntryFileNamed } from '../../showError/detectBundler';
 import getPackageVersionDefault from '../../init/requirements/getPackageVersion';
+import { readBundledSdkProtocolVersion } from '../readBundledSdkProtocolVersion';
 
 const mockExecSync = vi.mocked(execSync);
 const mockDetectBundler = vi.mocked(detectBundlerDefault);
 const mockDetectEntryFile = vi.mocked(detectEntryFileNamed);
 const mockGetPackageVersion = vi.mocked(getPackageVersionDefault);
+const mockReadBundledSdkProtocolVersion = vi.mocked(readBundledSdkProtocolVersion);
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -629,7 +634,7 @@ describe('buildGateMetadata (test:bundled = source)', () => {
     };
   }
 
-  /** Resolve package versions by name so the two getPackageVersion reads differ. */
+  /** Resolve getPackageVersion reads (react-native) by name. */
   function mockVersions(versions: Record<string, string | null>) {
     mockGetPackageVersion.mockImplementation((name: string) =>
       name in versions ? versions[name] : null
@@ -637,10 +642,8 @@ describe('buildGateMetadata (test:bundled = source)', () => {
   }
 
   it('marks source, sends bundle-derivable dims + the SDK-protocol compat input', async () => {
-    mockVersions({
-      'react-native': '0.76.0',
-      [SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME]: '2.0.1',
-    });
+    mockVersions({ 'react-native': '0.76.0' });
+    mockReadBundledSdkProtocolVersion.mockReturnValue('2.0.1');
 
     const result = bundleResult();
     const metadata = await buildGateMetadata({
@@ -673,10 +676,8 @@ describe('buildGateMetadata (test:bundled = source)', () => {
   });
 
   it('omits the SDK-protocol compat input when the package is not installed (absent, not fabricated)', async () => {
-    mockVersions({
-      'react-native': '0.76.0',
-      [SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME]: null, // getPackageVersion -> null
-    });
+    mockVersions({ 'react-native': '0.76.0' });
+    mockReadBundledSdkProtocolVersion.mockReturnValue(undefined); // package not installed
 
     const metadata = await buildGateMetadata({
       projectRoot: tempDir,

@@ -23,7 +23,7 @@ import {
 import detectBundler from '../../commands/showError/detectBundler';
 import { detectEntryFile } from '../../commands/showError/detectBundler';
 import getPackageVersion from '../../commands/init/requirements/getPackageVersion';
-import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../constants';
+import { readBundledSdkProtocolVersion } from './readBundledSdkProtocolVersion';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -282,8 +282,7 @@ export async function buildGateMetadata({
     platform,
   });
 
-  const requiredSdkProtocolVersion =
-    getPackageVersion(SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME) ?? undefined;
+  const requiredSdkProtocolVersion = readBundledSdkProtocolVersion(projectRoot);
 
   const rnVersion = getPackageVersion('react-native');
   const expoSdkVer = getExpoSdkVersion(projectRoot);
