@@ -154,7 +154,7 @@ export async function registerBase(params: RegisterBaseParams): Promise<Register
       `  hasEmbeddedBundle: ${gateMetadata.hasEmbeddedBundle}\n` +
       `  expoUpdatesEnabled: ${gateMetadata.expoUpdatesEnabled}\n` +
       `  sdkProtocolVersion: ${gateMetadata.sdkProtocolVersion ?? 'unknown'}\n` +
-      `  assets: ${gateMetadata.assetInventory.length} items`
+      `  assets: ${gateMetadata.assetInventory?.length ?? 0} items`
   );
 
   return {

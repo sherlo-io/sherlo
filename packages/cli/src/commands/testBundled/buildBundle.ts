@@ -23,6 +23,7 @@ import {
 import detectBundler from '../../commands/showError/detectBundler';
 import { detectEntryFile } from '../../commands/showError/detectBundler';
 import getPackageVersion from '../../commands/init/requirements/getPackageVersion';
+import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../constants';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -247,10 +248,23 @@ export async function buildBundleForPlatform({
 /**
  * Construct the per-platform {@link GateMetadataInput} for a bundled run.
  *
- * Unlike test:standard which extracts gate metadata from a built binary via
- * {@link extractGateMetadata}, the bundled flow constructs it from project
- * config + the bundle we just built.  The shape is identical so the API
- * resolver compares fields field-for-field.
+ * test:standard extracts BINARY-derived gate metadata from a built APK/IPA via
+ * {@link extractGateMetadata}. The bundled flow has no binary, so it marks its
+ * metadata `derivedFrom: 'source'` and sends ONLY what the JS bundle + project
+ * config honestly know:
+ *   - `bundleFormat` sniffed from the bundle we just built,
+ *   - `assetInventory` from Metro's `--assets-dest` output,
+ *   - `engineClass` / `expoUpdatesEnabled` / `buildMetadata.*` read from project
+ *     config (source signals; the gate excludes source-marked dims from the
+ *     identity diff, so they are honest observability, never a fabricated match).
+ *
+ * It deliberately does NOT send the binary-only identity facts a bundle can only
+ * guess: no `hasEmbeddedBundle` (always-true fabrication) and no baked
+ * `sdkProtocolVersion`. Instead it sends the bundle-REQUIRED SDK protocol
+ * version as the explicit `requiredSdkProtocolVersion` compat input, resolved
+ * from the installed @sherlo/react-native-storybook package (whose version IS
+ * the protocol version). If the package is not installed it is sent ABSENT -
+ * never fabricated.
  */
 export async function buildGateMetadata({
   projectRoot,
@@ -268,19 +282,19 @@ export async function buildGateMetadata({
     platform,
   });
 
-  const sdkProtocolVersion = readSdkProtocolVersion(projectRoot);
+  const requiredSdkProtocolVersion =
+    getPackageVersion(SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME) ?? undefined;
 
   const rnVersion = getPackageVersion('react-native');
   const expoSdkVer = getExpoSdkVersion(projectRoot);
 
   return {
+    derivedFrom: 'source',
     engineClass,
     bundleFormat: bundleResult.bundleFormat,
-    // A bundled run always has a bundle (we just built it).
-    hasEmbeddedBundle: true,
     assetInventory: bundleResult.assetInventory,
     expoUpdatesEnabled,
-    ...(sdkProtocolVersion ? { sdkProtocolVersion } : {}),
+    ...(requiredSdkProtocolVersion ? { requiredSdkProtocolVersion } : {}),
     buildMetadata: {
       ...(rnVersion ? { reactNativeVersion: rnVersion } : {}),
       ...(expoSdkVer !== null ? { expoSdkVersion: String(expoSdkVer) } : {}),
@@ -522,19 +536,4 @@ async function detectExpoUpdatesEnabled({
   }
 
   return false;
-}
-
-// ---------------------------------------------------------------------------
-// SDK protocol version
-// ---------------------------------------------------------------------------
-
-function readSdkProtocolVersion(projectRoot: string): string | undefined {
-  const sherloJsonPath = path.join(projectRoot, 'assets', 'sherlo.json');
-  try {
-    const raw = fs.readFileSync(sherloJsonPath, 'utf8');
-    const parsed = JSON.parse(raw);
-    return parsed.version;
-  } catch {
-    return undefined;
-  }
 }

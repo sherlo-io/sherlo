@@ -9,7 +9,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { Platform } from '@sherlo/api-types';
+import { GateDerivation, Platform } from '@sherlo/api-types';
 import accessFileInArchive, {
   detectTarVersion,
 } from '../getValidatedBinariesInfoAndNextBuildIndex/getBinariesInfoAndNextBuildIndex/getLocalBinariesInfo/accessFileInArchive';
@@ -27,21 +27,45 @@ export type EngineClass = 'hermes' | 'jsc';
 /** Bundle format detected from the embedded bundle bytes. */
 export type BundleFormat = 'hbc' | 'plain-js' | 'ram';
 
+/**
+ * How a probe's gate metadata was derived (SHERLO-1761). Re-exported from the
+ * wire contract so the CLI and the gate name the derivations identically:
+ *   - 'binary' - read out of a compiled APK/IPA (test:standard registration).
+ *   - 'source' - estimated from the source tree + JS bundle (test:bundled).
+ *   - 'none'   - a no-build probe carrying no identity metadata (staged:check).
+ */
+export type { GateDerivation };
+
 export type GateMetadataInput = {
+  /**
+   * How this metadata was derived. REQUIRED so every construction site must
+   * state its provenance - the compiler then guarantees no path silently omits
+   * or fabricates. The gate excludes source/none-marked dimensions from the
+   * binary-identity diff, so only 'binary' metadata is compared field-for-field
+   * against the stored (always binary-derived) base.
+   */
+  derivedFrom: GateDerivation;
   /** Runtime engine of the shell - derived from project config, NOT bundle sniff. */
-  engineClass: EngineClass;
+  engineClass?: EngineClass;
   /** Bundle format sniffed from the embedded bundle header. */
-  bundleFormat: BundleFormat;
-  /** Whether an embedded JS bundle exists at the platform-default path. */
-  hasEmbeddedBundle: boolean;
-  /** Sorted list of asset paths/names recorded in the binary. */
-  assetInventory: string[];
+  bundleFormat?: BundleFormat;
+  /** Whether an embedded JS bundle exists at the platform-default path (binary-only fact). */
+  hasEmbeddedBundle?: boolean;
+  /** Sorted list of asset paths/names recorded in the binary or produced by Metro. */
+  assetInventory?: string[];
   /** Whether expo-updates is detected as enabled on this platform. */
-  expoUpdatesEnabled: boolean;
-  /** Sherlo SDK protocol version read from assets/sherlo.json. */
+  expoUpdatesEnabled?: boolean;
+  /** Sherlo SDK protocol version BAKED into the binary - a binary-identity dimension. */
   sdkProtocolVersion?: string;
+  /**
+   * SDK protocol version the JS bundle REQUIRES (SHERLO-1761 compat input, NOT
+   * an identity dimension). Source-derivable, checked by the gate's compat rule
+   * against the base APK's baked `sdkProtocolVersion`; never folded into the
+   * identity diff. Absent -> the compat rule does not apply.
+   */
+  requiredSdkProtocolVersion?: string;
   /** RN / Expo SDK versions, build mode - best-effort. */
-  buildMetadata: BuildMetadata;
+  buildMetadata?: BuildMetadata;
 };
 
 export type BuildMetadata = {
@@ -153,6 +177,10 @@ export async function extractGateMetadata({
   });
 
   return {
+    // Read out of a compiled APK/IPA - the genuine binary identity the stored
+    // base is compared against. Behavior-preserving vs. the legacy unmarked CLI:
+    // SHERLO-1761 diffs binary-marked and absent-marker metadata identically.
+    derivedFrom: 'binary',
     engineClass,
     bundleFormat,
     hasEmbeddedBundle,
