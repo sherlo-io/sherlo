@@ -503,7 +503,10 @@ describe('applySherloTransforms resolver redirect', () => {
       `export const S = { parameters: { sherlo: { mocks: { 'expo-localization': {} } } } };`
     );
 
-    const result = applySherloTransforms({ projectRoot: root, resolver: {} }, { enabled: true });
+    const result = applySherloTransforms(
+      { projectRoot: root, resolver: {} },
+      { experimentalMocks: true }
+    );
     const realPath = path.join(root, 'node_modules', 'expo-localization', 'index.js');
     const ctx = makeContext(path.join(root, 'src', 'Screen.tsx'), {
       'expo-localization': realPath,
@@ -530,7 +533,10 @@ describe('applySherloTransforms resolver redirect', () => {
       `export const S = { parameters: { sherlo: { mocks: { '@scope/pkg': {}, 'libpkg/submodule': {} } } } };`
     );
 
-    const result = applySherloTransforms({ projectRoot: root, resolver: {} }, { enabled: true });
+    const result = applySherloTransforms(
+      { projectRoot: root, resolver: {} },
+      { experimentalMocks: true }
+    );
     const scopedReal = path.join(root, 'node_modules', '@scope', 'pkg', 'index.js');
     const subReal = path.join(root, 'node_modules', 'libpkg', 'submodule.js');
     const ctx = makeContext(path.join(root, 'src', 'Screen.tsx'), {
@@ -565,7 +571,10 @@ describe('applySherloTransforms resolver redirect', () => {
       `export const S = { parameters: { sherlo: { mocks: { '@react-native-async-storage/async-storage': {} } } } };`
     );
 
-    const result = applySherloTransforms({ projectRoot: root, resolver: {} }, { enabled: true });
+    const result = applySherloTransforms(
+      { projectRoot: root, resolver: {} },
+      { experimentalMocks: true }
+    );
     // Metro resolves the import to the react-native entry, NOT the main entry.
     const metroEntry = path.join(
       root,
@@ -598,7 +607,10 @@ describe('applySherloTransforms resolver redirect', () => {
       `export const S = { parameters: { sherlo: { mocks: { './src/utils/localization': {} } } } };`
     );
 
-    const result = applySherloTransforms({ projectRoot: root, resolver: {} }, { enabled: true });
+    const result = applySherloTransforms(
+      { projectRoot: root, resolver: {} },
+      { experimentalMocks: true }
+    );
     const realPath = path.join(root, 'src', 'utils', 'localization.ts');
     // Importer uses a relative specifier that Metro resolves to the same file.
     const ctx = makeContext(path.join(root, 'src', 'screens', 'Home.tsx'), {
@@ -620,7 +632,10 @@ describe('applySherloTransforms resolver redirect', () => {
       `export const S = { parameters: { sherlo: { mocks: { 'src/utils/localization': {} } } } };`
     );
 
-    const result = applySherloTransforms({ projectRoot: root, resolver: {} }, { enabled: true });
+    const result = applySherloTransforms(
+      { projectRoot: root, resolver: {} },
+      { experimentalMocks: true }
+    );
     const realPath = path.join(root, 'src', 'utils', 'localization.ts');
     // Importer uses a relative specifier that Metro resolves to the same file.
     const ctx = makeContext(path.join(root, 'src', 'screens', 'Home.tsx'), {
@@ -654,7 +669,10 @@ describe('applySherloTransforms resolver redirect', () => {
       `export const S = { parameters: { sherlo: { mocks: { './src/Plat': {} } } } };`
     );
 
-    const result = applySherloTransforms({ projectRoot: root, resolver: {} }, { enabled: true });
+    const result = applySherloTransforms(
+      { projectRoot: root, resolver: {} },
+      { experimentalMocks: true }
+    );
     const iosCtx = makeContext(path.join(root, 'src', 'App.tsx'), {
       './Plat': path.join(root, 'src', 'Plat.ios.tsx'),
     });
@@ -679,7 +697,10 @@ describe('applySherloTransforms resolver redirect', () => {
       `export const S = { parameters: { sherlo: { mocks: { 'expo-localization': {} } } } };`
     );
 
-    const result = applySherloTransforms({ projectRoot: root, resolver: {} }, { enabled: true });
+    const result = applySherloTransforms(
+      { projectRoot: root, resolver: {} },
+      { experimentalMocks: true }
+    );
     const realPath = path.join(root, 'node_modules', 'expo-localization', 'index.js');
     // Origin is a file INSIDE node_modules (a transitive dependency).
     const ctx = makeContext(path.join(root, 'node_modules', 'some-lib', 'index.js'), {
@@ -701,7 +722,10 @@ describe('applySherloTransforms resolver redirect', () => {
       `export const S = { parameters: { sherlo: { mocks: { 'expo-localization': {} } } } };`
     );
 
-    const result = applySherloTransforms({ projectRoot: root, resolver: {} }, { enabled: true });
+    const result = applySherloTransforms(
+      { projectRoot: root, resolver: {} },
+      { experimentalMocks: true }
+    );
     const realPath = path.join(root, 'node_modules', 'expo-localization', 'index.js');
     const shimPath = path.join(
       root,
@@ -727,7 +751,7 @@ describe('applySherloTransforms resolver redirect', () => {
 
     const result = applySherloTransforms(
       { projectRoot: root, resolver: {} },
-      { enabled: true, mockModules: ['native-only-lib'] }
+      { experimentalMocks: true, mockModules: ['native-only-lib'] }
     );
     const realPath = path.join(root, 'node_modules', 'native-only-lib', 'index.js');
     const ctx = makeContext(path.join(root, 'src', 'Screen.tsx'), { 'native-only-lib': realPath });
@@ -747,7 +771,10 @@ describe('applySherloTransforms resolver redirect', () => {
       `export const S = { parameters: { sherlo: { mocks: { 'expo-localization': {} } } } };`
     );
 
-    const result = applySherloTransforms({ projectRoot: root, resolver: {} }, { enabled: true });
+    const result = applySherloTransforms(
+      { projectRoot: root, resolver: {} },
+      { experimentalMocks: true }
+    );
     const shimPath = path.join(
       root,
       'node_modules',
@@ -768,46 +795,78 @@ describe('applySherloTransforms resolver redirect', () => {
     expect(resolved.filePath).toBe(otherReal); // unrelated import untouched
   });
 
-  it('FG-01: an unresolvable mock key fails config naming the story file AND key', () => {
+  it('FG-01 (B4): an unresolvable mock key warns-and-skips (never throws), naming the story file AND key', () => {
     const root = mkProject('sherlo-fg01-');
+    writePackage(root, 'installed-lib', 'index.js', { 'index.js': 'module.exports = {};' });
     writeFile(
       root,
       'src/Broken.stories.tsx',
-      `export const S = { parameters: { sherlo: { mocks: { 'not-installed-pkg': {} } } } };`
+      `export const S = { parameters: { sherlo: { mocks: { 'not-installed-pkg': {}, 'installed-lib': {} } } } };`
     );
 
-    let error: Error | null = null;
-    try {
-      applySherloTransforms({ projectRoot: root, resolver: {} }, { enabled: true });
-    } catch (e) {
-      error = e as Error;
-    }
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // A bad key must never fail the build - this call must not throw.
+    const result = applySherloTransforms(
+      { projectRoot: root, resolver: {} },
+      { experimentalMocks: true }
+    );
+
+    const warnings = warnSpy.mock.calls.map((c) => String(c[0]));
+    const badWarning = warnings.find((m) => m.includes('not-installed-pkg'));
+
+    // The good key still resolved and redirects; the bad key was skipped (no shim).
+    const realPath = path.join(root, 'node_modules', 'installed-lib', 'index.js');
+    const badShim = path.join(
+      root,
+      'node_modules',
+      '.cache',
+      'sherlo',
+      'mocks',
+      mockShims.shimFileName('not-installed-pkg')
+    );
+    const ctx = makeContext(path.join(root, 'src', 'Screen.tsx'), { 'installed-lib': realPath });
+    const goodResolved = result.resolver.resolveRequest(ctx, 'installed-lib', 'ios');
+    const badShimExists = fs.existsSync(badShim);
+    warnSpy.mockRestore();
     cleanup(root);
 
-    expect(error).not.toBeNull();
-    expect(error!.message).toContain('not-installed-pkg');
-    expect(error!.message).toContain('Broken.stories.tsx');
+    expect(badWarning).toBeDefined();
+    expect(badWarning).toContain('not-installed-pkg');
+    expect(badWarning).toContain('Broken.stories.tsx');
+    expect(badWarning).toContain('[Sherlo]');
+    expect(badShimExists).toBe(false); // skipped: no shim emitted for the bad key
+    expect(goodResolved.filePath).toContain(path.join('.cache', 'sherlo', 'mocks')); // others still resolve
   });
 
-  it('FG-02: a deny-listed key fails with guidance to mock a wrapper module', () => {
+  it('FG-02 (B4): a deny-listed key warns-and-skips (never throws) with wrapper-module guidance', () => {
     const root = mkProject('sherlo-fg02-');
+    writePackage(root, 'installed-lib', 'index.js', { 'index.js': 'module.exports = {};' });
     writeFile(
       root,
       'src/Bad.stories.tsx',
-      `export const S = { parameters: { sherlo: { mocks: { 'react-native': {} } } } };`
+      `export const S = { parameters: { sherlo: { mocks: { 'react-native': {}, 'installed-lib': {} } } } };`
     );
 
-    let error: Error | null = null;
-    try {
-      applySherloTransforms({ projectRoot: root, resolver: {} }, { enabled: true });
-    } catch (e) {
-      error = e as Error;
-    }
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = applySherloTransforms(
+      { projectRoot: root, resolver: {} },
+      { experimentalMocks: true }
+    );
+
+    const warnings = warnSpy.mock.calls.map((c) => String(c[0]));
+    const denyWarning = warnings.find((m) => m.includes('react-native'));
+
+    const realPath = path.join(root, 'node_modules', 'installed-lib', 'index.js');
+    const ctx = makeContext(path.join(root, 'src', 'Screen.tsx'), { 'installed-lib': realPath });
+    const goodResolved = result.resolver.resolveRequest(ctx, 'installed-lib', 'ios');
+    warnSpy.mockRestore();
     cleanup(root);
 
-    expect(error).not.toBeNull();
-    expect(error!.message).toContain('react-native');
-    expect(error!.message.toLowerCase()).toContain('wrapper');
+    expect(denyWarning).toBeDefined();
+    expect(denyWarning).toContain('react-native');
+    expect(denyWarning!.toLowerCase()).toContain('wrapper');
+    expect(denyWarning).toContain('[Sherlo]');
+    expect(goodResolved.filePath).toContain(path.join('.cache', 'sherlo', 'mocks')); // others still resolve
   });
 });
 
@@ -844,7 +903,10 @@ describe('mockShims - workspace package resolution (MK-05)', () => {
       `export const S = { parameters: { sherlo: { mocks: { '@myorg/ui': {} } } } };`
     );
 
-    const result = applySherloTransforms({ projectRoot: root, resolver: {} }, { enabled: true });
+    const result = applySherloTransforms(
+      { projectRoot: root, resolver: {} },
+      { experimentalMocks: true }
+    );
 
     // Metro resolves the import through the symlinked node_modules path.
     const metroPath = path.join(root, 'node_modules', '@myorg', 'ui', 'index.js');
@@ -915,7 +977,7 @@ describe('applySherloTransforms - composes with a pre-existing resolveRequest wr
 
     const result = applySherloTransforms(
       { projectRoot: root, resolver: { resolveRequest: existingResolveRequest } },
-      { enabled: true }
+      { experimentalMocks: true }
     );
     return { root, result, svgComponentPath, routerVirtualPath };
   }
@@ -957,12 +1019,49 @@ describe('applySherloTransforms - composes with a pre-existing resolveRequest wr
 });
 
 // ---------------------------------------------------------------------------
-// EB-01 - enabled:false contributes nothing
+// SHERLO-1764 - experimentalMocks opt-in gate (default OFF)
 // ---------------------------------------------------------------------------
 
-describe('EB-01: enabled:false disables the mocking system entirely', () => {
-  it('emits no shims and installs no resolver redirect', () => {
-    const root = mkProject('sherlo-eb01-');
+describe('experimentalMocks opt-in gate (SHERLO-1764)', () => {
+  // Every off-case (flag absent, flag false, and the unrelated enabled:false) must
+  // emit no shims and install no resolver redirect - the whole mocking pipeline is
+  // dormant unless the caller explicitly opts in.
+  const OFF_CASES: Array<[string, Record<string, unknown>]> = [
+    ['flag absent (default)', {}],
+    ['experimentalMocks: false', { experimentalMocks: false }],
+    ['enabled: true but no experimentalMocks', { enabled: true }],
+    ['enabled: false', { enabled: false }],
+  ];
+
+  OFF_CASES.forEach(([label, opts]) => {
+    it(`${label}: no scan, no shims, no resolver redirect`, () => {
+      const root = mkProject('sherlo-gate-off-');
+      writePackage(root, 'expo-localization', 'index.js', { 'index.js': 'module.exports = {};' });
+      writeFile(
+        root,
+        'src/Comp.stories.tsx',
+        `export const S = { parameters: { sherlo: { mocks: { 'expo-localization': {} } } } };`
+      );
+
+      const result = applySherloTransforms({ projectRoot: root, resolver: {} }, opts);
+
+      const mocksDir = path.join(root, 'node_modules', '.cache', 'sherlo', 'mocks');
+      const mocksDirExists = fs.existsSync(mocksDir);
+
+      const realPath = path.join(root, 'node_modules', 'expo-localization', 'index.js');
+      const ctx = makeContext(path.join(root, 'src', 'Screen.tsx'), {
+        'expo-localization': realPath,
+      });
+      const resolved = result.resolver.resolveRequest(ctx, 'expo-localization', 'ios');
+      cleanup(root);
+
+      expect(mocksDirExists).toBe(false); // no shims emitted
+      expect(resolved.filePath).toBe(realPath); // no redirect - reaches the real module
+    });
+  });
+
+  it('experimentalMocks: true: scans, emits a shim, and redirects the mocked import', () => {
+    const root = mkProject('sherlo-gate-on-');
     writePackage(root, 'expo-localization', 'index.js', { 'index.js': 'module.exports = {};' });
     writeFile(
       root,
@@ -970,19 +1069,20 @@ describe('EB-01: enabled:false disables the mocking system entirely', () => {
       `export const S = { parameters: { sherlo: { mocks: { 'expo-localization': {} } } } };`
     );
 
-    const result = applySherloTransforms({ projectRoot: root, resolver: {} }, { enabled: false });
-
-    const mocksDir = path.join(root, 'node_modules', '.cache', 'sherlo', 'mocks');
-    const mocksDirExists = fs.existsSync(mocksDir);
+    const result = applySherloTransforms(
+      { projectRoot: root, resolver: {} },
+      { experimentalMocks: true }
+    );
 
     const realPath = path.join(root, 'node_modules', 'expo-localization', 'index.js');
     const ctx = makeContext(path.join(root, 'src', 'Screen.tsx'), {
       'expo-localization': realPath,
     });
     const resolved = result.resolver.resolveRequest(ctx, 'expo-localization', 'ios');
+    const shimExists = fs.existsSync(resolved.filePath);
     cleanup(root);
 
-    expect(mocksDirExists).toBe(false); // no shims emitted
-    expect(resolved.filePath).toBe(realPath); // no redirect - reaches the real module
+    expect(resolved.filePath).toContain(path.join('.cache', 'sherlo', 'mocks')); // redirected
+    expect(shimExists).toBe(true);
   });
 });

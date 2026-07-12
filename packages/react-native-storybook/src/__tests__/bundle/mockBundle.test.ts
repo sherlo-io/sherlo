@@ -6,9 +6,9 @@
 //
 // JS-only lane (no device/emulator): it builds a tiny fixture app with REAL
 // Metro programmatically and asserts on the bundle output:
-//   - enabled: true  -> the mock shim is present (the mocked import was
-//                       redirected through createMockable).
-//   - enabled: false -> zero mocking artifacts (EB-01 at bundle level).
+//   - experimentalMocks: true  -> the mock shim is present (the mocked import was
+//                                 redirected through createMockable).
+//   - experimentalMocks: false -> zero mocking artifacts (opt-in gate off, SHERLO-1764).
 //
 // This runs under `yarn test` alongside the unit tests, so a red bundle lane
 // fails the PR.
@@ -87,7 +87,7 @@ function createFixture(): string {
   return root;
 }
 
-async function buildBundle(root: string, opts: { enabled: boolean }): Promise<string> {
+async function buildBundle(root: string, opts: { experimentalMocks: boolean }): Promise<string> {
   const baseConfig = await getDefaultConfig(root);
 
   // Metro's own runtime/polyfills and babel helpers live in the repo
@@ -95,7 +95,7 @@ async function buildBundle(root: string, opts: { enabled: boolean }): Promise<st
   // against both. Use the node crawler (watchman does not cover the OS temp dir)
   // and disable caches so each build is fresh.
   const repoNodeModules = path.dirname(path.dirname(require.resolve('metro-runtime/package.json')));
-  // The @sherlo package dir, so the sherlo polyfill.js (added for enabled:true)
+  // The @sherlo package dir, so the sherlo polyfill.js (added for the enabled path)
   // is crawlable.
   const packageRoot = path.resolve(__dirname, '../../..');
   baseConfig.watchFolders = [root, repoNodeModules, packageRoot];
@@ -121,11 +121,11 @@ describe('bundle lane - module mocking shims in real Metro output', () => {
   const TIMEOUT = 120_000;
 
   it(
-    'enabled: true -> the mocked import is redirected through a createMockable shim',
+    'experimentalMocks: true -> the mocked import is redirected through a createMockable shim',
     async () => {
       const root = createFixture();
       try {
-        const code = await buildBundle(root, { enabled: true });
+        const code = await buildBundle(root, { experimentalMocks: true });
 
         // The shim's body (a createMockable call for the mocked key) is bundled.
         expect(code).toContain('createMockable');
@@ -145,11 +145,11 @@ describe('bundle lane - module mocking shims in real Metro output', () => {
   );
 
   it(
-    'enabled: false -> the bundle contains zero mocking artifacts (EB-01)',
+    'experimentalMocks: false -> the bundle contains zero mocking artifacts (opt-in gate off)',
     async () => {
       const root = createFixture();
       try {
-        const code = await buildBundle(root, { enabled: false });
+        const code = await buildBundle(root, { experimentalMocks: false });
 
         // The real module is bundled directly, with no shim indirection.
         expect(code).toContain('MOCKED_LIB_REAL_MODULE');

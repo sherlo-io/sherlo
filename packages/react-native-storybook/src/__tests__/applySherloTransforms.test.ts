@@ -247,7 +247,7 @@ describe('applySherloTransforms – emitDependencyGraphSidecar (via customSerial
     const fakeSerializer = () => 'BYTES';
     const result = applySherloTransforms(
       { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: fakeSerializer } },
-      { enabled: true }
+      { experimentalMocks: true }
     );
 
     // The mocked module is in the graph because its shim requires it; model that
