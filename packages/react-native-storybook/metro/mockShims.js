@@ -342,12 +342,12 @@ function setupMocks(opts) {
   keyToSource.forEach(function (source, key) {
     if (isDeniedKey(key)) {
       throw new Error(
-        '[Sherlo] Cannot mock "' +
+        'Sherlo: "' +
           key +
-          '" (declared in ' +
-          source +
-          '): this module is on the mock deny list because mocking it would break ' +
-          "Storybook's own runtime. Mock a thin wrapper module you own that re-exports it instead."
+          '" cannot be mocked directly. react, react-native, @storybook/*, and @sherlo/* are off-limits. ' +
+          'Create a wrapper module in your own code that re-exports what you need from "' +
+          key +
+          '", then mock the wrapper\'s path instead.'
       );
     }
   });
@@ -368,11 +368,12 @@ function setupMocks(opts) {
       resolved = resolveMockKey(key, projectRoot);
     } catch (_) {
       throw new Error(
-        '[Sherlo] Cannot resolve mocked module "' +
+        'Sherlo: mock key "' +
           key +
-          '" declared in ' +
+          '" in ' +
           source +
-          '. Check the module specifier is spelled correctly and installed.'
+          ' did not resolve to a real module. Check for a typo, confirm the package is installed, ' +
+          'or write the path relative to the project root (with or without a leading "./").'
       );
     }
 
