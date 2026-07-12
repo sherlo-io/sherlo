@@ -12,7 +12,7 @@ import handleClientError from './handleClientError';
 import printBuildIntroMessage from './printBuildIntroMessage';
 import printResultsUrl from './printResultsUrl';
 import reporting from './reporting';
-import { computeChangedFiles, computeNativeFingerprint } from './diffScope';
+import { computeChangedFiles } from './diffScope';
 import { computeBaseFingerprint, registerBase, type GateMetadataInput } from './fingerprint';
 import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
 import waitForBuildResult from './waitForBuildResult';
@@ -52,6 +52,26 @@ async function uploadOrReuseBuildsAndRunTests({
     branchOverride: commandParams.gitBranch,
   });
 
+  // ------------------------------------------------------------------
+  // Compute the base fingerprint FIRST - before computeChangedFiles or any
+  // other work that could load the Expo app config (SHERLO-1756). Loading the
+  // app config mutates process.env as a dotenv-class side effect; if that ran
+  // before the sanitized Layer-1 compute it would pollute the env that compute
+  // snapshots, producing a base fingerprint no probe (staged:check /
+  // test:bundled, which never load the config first) could ever match.
+  //
+  // This is the ONLY `createFingerprintAsync` invocation on this path: both the
+  // `baseFingerprint` value AND the diffScope `nativeFingerprint` wire value are
+  // sourced from this single result. `fpResult.nativeFingerprint` is the
+  // sanitized Layer-1 hash, or undefined when the compute fails (fail-soft,
+  // exactly as the old computeNativeFingerprint returned null -> undefined).
+  // ------------------------------------------------------------------
+  const fingerprintCommand = easUpdateData ? TEST_EAS_UPDATE_COMMAND : TEST_STANDARD_COMMAND;
+  const fpResult = await computeBaseFingerprint(commandParams.projectRoot, {
+    command: fingerprintCommand,
+  });
+  const nativeFingerprint = fpResult.nativeFingerprint;
+
   const changedFilesResult = await computeChangedFiles(commandParams.projectRoot, gitInfo, {
     forceFullRun: commandParams.fullRun,
   });
@@ -62,19 +82,6 @@ async function uploadOrReuseBuildsAndRunTests({
   } else {
     console.log(`[Sherlo] Diff Scope: full capture - ${changedFilesResult.reason}`);
   }
-
-  const nativeFingerprint =
-    (await computeNativeFingerprint(commandParams.projectRoot)) ?? undefined;
-
-  // ------------------------------------------------------------------
-  // Compute base fingerprint (project-level, once) and per-platform
-  // gate metadata BEFORE the API call so they can be wired into the
-  // openBuild payload.
-  // ------------------------------------------------------------------
-  const fingerprintCommand = easUpdateData ? TEST_EAS_UPDATE_COMMAND : TEST_STANDARD_COMMAND;
-  const fpResult = await computeBaseFingerprint(commandParams.projectRoot, {
-    command: fingerprintCommand,
-  });
 
   let baseFingerprint: string | undefined;
   const gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput } = {};

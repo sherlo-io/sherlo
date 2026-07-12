@@ -2,6 +2,12 @@
  * Unit tests proving that asyncUploadBuildAndRunTests (EAS-cloud path) sends
  * changedFiles + nativeFingerprint to the asyncUpload API, and correctly omits
  * changedFiles on bail-to-full conditions (shallow / dirty / no mergeBaseSha).
+ *
+ * SHERLO-1756: the `nativeFingerprint` wire value is now sourced from the single
+ * sanitized Layer-1 compute inside `computeBaseFingerprint` (returned as
+ * `nativeFingerprint`), NOT from a separate `computeNativeFingerprint` raw
+ * compute (which was deleted). These tests drive that value through the base
+ * fingerprint mock.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -33,7 +39,8 @@ const mocks = vi.hoisted(() => {
     reporting: { addBreadcrumb: vi.fn() },
     getAppBuildUrl: vi.fn().mockReturnValue('https://app.sherlo.io/test/1'),
     computeChangedFiles: vi.fn(),
-    computeNativeFingerprint: vi.fn(),
+    computeBaseFingerprint: vi.fn().mockResolvedValue({ hash: null }),
+    registerBase: vi.fn().mockResolvedValue({ registered: false }),
     getBuildPath: vi.fn().mockReturnValue('/tmp/app.apk'),
   };
 });
@@ -53,14 +60,13 @@ vi.mock('../../../../../helpers', () => ({
 
 vi.mock('../../../../../helpers/diffScope', () => ({
   computeChangedFiles: mocks.computeChangedFiles,
-  computeNativeFingerprint: mocks.computeNativeFingerprint,
 }));
 
 vi.mock('../getBuildPath', () => ({ default: mocks.getBuildPath }));
 
 vi.mock('../../../../../helpers/fingerprint', () => ({
-  computeBaseFingerprint: vi.fn().mockResolvedValue({ hash: null }),
-  registerBase: vi.fn().mockResolvedValue({ registered: false }),
+  computeBaseFingerprint: mocks.computeBaseFingerprint,
+  registerBase: mocks.registerBase,
 }));
 
 import asyncUploadBuildAndRunTests from '../asyncUploadBuildAndRunTests';
@@ -92,7 +98,10 @@ describe('asyncUploadBuildAndRunTests – Diff Scope (changedFiles + nativeFinge
   beforeEach(() => {
     process.env.EAS_BUILD_PLATFORM = 'android';
     mocks.getGitInfo.mockResolvedValue(BASE_GIT_INFO);
-    mocks.computeNativeFingerprint.mockResolvedValue('fp-abc123');
+    // nativeFingerprint is the sanitized Layer-1 hash returned by the single
+    // computeBaseFingerprint compute (SHERLO-1756). Base hash null keeps the
+    // base-fingerprint branch off while still carrying a Layer-1 fingerprint.
+    mocks.computeBaseFingerprint.mockResolvedValue({ hash: null, nativeFingerprint: 'fp-abc123' });
     mocks.asyncUploadSpy.mockClear();
   });
 
@@ -162,7 +171,7 @@ describe('asyncUploadBuildAndRunTests – Diff Scope (changedFiles + nativeFinge
       fullRun: true,
       reason: 'shallow clone: ancestry is grafted, diff base is untrustworthy',
     });
-    mocks.computeNativeFingerprint.mockResolvedValue('fp-xyz789');
+    mocks.computeBaseFingerprint.mockResolvedValue({ hash: null, nativeFingerprint: 'fp-xyz789' });
 
     await asyncUploadBuildAndRunTests(BASE_ARGS);
 
@@ -173,7 +182,8 @@ describe('asyncUploadBuildAndRunTests – Diff Scope (changedFiles + nativeFinge
 
   it('sends undefined nativeFingerprint when @expo/fingerprint is unavailable', async () => {
     mocks.computeChangedFiles.mockResolvedValue({ changedFiles: ['App.tsx'] });
-    mocks.computeNativeFingerprint.mockResolvedValue(null);
+    // A failed Layer-1 compute returns no nativeFingerprint (fail-soft).
+    mocks.computeBaseFingerprint.mockResolvedValue({ hash: null });
 
     await asyncUploadBuildAndRunTests(BASE_ARGS);
 

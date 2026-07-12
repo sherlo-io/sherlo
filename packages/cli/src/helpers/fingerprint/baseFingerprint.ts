@@ -66,6 +66,17 @@ function loadExpoFingerprint(): Promise<ExpoFingerprintModule> {
 export type BaseFingerprintResult = {
   /** The computed base fingerprint hash, or null when unrecoverable. */
   hash: string | null;
+  /**
+   * The sanitized Layer-1 `@expo/fingerprint` hash that this base fingerprint
+   * was built on (version-suppressed, computed under the deterministic env).
+   *
+   * This is the SINGLE `createFingerprintAsync` result for the whole process:
+   * the diffScope `nativeFingerprint` wire value is sourced from here rather
+   * than from a second, raw `createFingerprintAsync` call (SHERLO-1756). It is
+   * `undefined` whenever the base fingerprint is unrecoverable (`hash: null`),
+   * matching the previous fail-soft behaviour of `computeNativeFingerprint`.
+   */
+  nativeFingerprint?: string;
   /** Human-readable description of what happened. */
   debugMessage?: string;
 };
@@ -258,7 +269,11 @@ export async function computeBaseFingerprint(
     finalHash,
   });
 
-  return { hash: finalHash };
+  // `nativeFingerprint` is the sanitized Layer-1 hash, exposed so the diffScope
+  // wire value can be sourced from this SINGLE compute instead of a second, raw
+  // `createFingerprintAsync` call (SHERLO-1756). `layer1Hash` is guaranteed
+  // non-null here (the null case returned early above).
+  return { hash: finalHash, nativeFingerprint: layer1Hash };
 }
 
 // ---------------------------------------------------------------------------

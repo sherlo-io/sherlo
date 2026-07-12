@@ -36,6 +36,8 @@ import { execFileSync } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import * as diffScope from '../../diffScope';
+import type { GitInfo } from '../../getGitInfo';
 
 // Layer 1 mocked to a fixed hash - keeps the test fast and focuses it on the
 // Layer-2 autolinking subprocess (the divergent input).
@@ -255,6 +257,108 @@ describe('cross-command Layer-1 env determinism (SHERLO-1746)', () => {
       expect(process.env.SHERLO_1746_CANARY).toBe(marker);
 
       delete process.env.SHERLO_1746_CANARY;
+    },
+    RUN_TIMEOUT_MS
+  );
+});
+
+describe('test:standard pre-step ordering determinism (SHERLO-1756)', () => {
+  /**
+   * SHERLO-1756: on the test:standard path the consumer used to run a SECOND,
+   * RAW `createFingerprintAsync` (via diffScope's `computeNativeFingerprint`)
+   * BEFORE `computeBaseFingerprint`, in the same process. Loading the Expo app
+   * config mutates `process.env` as a dotenv-class side effect, so that raw
+   * pre-compute polluted the env `computeBaseFingerprint` then snapshotted: the
+   * registration Layer-1 ran "sanitized-from-polluted" while every probe
+   * (staged:check / test:bundled, which never do a native pre-compute) ran
+   * "sanitized-from-clean". Byte-identical tree, two different base hashes, dead
+   * staged fast-path.
+   *
+   * The fix DELETES the raw pre-compute: `computeBaseFingerprint` is the ONLY
+   * `createFingerprintAsync` invocation, and the diffScope `nativeFingerprint`
+   * wire value is sourced from its sanitized Layer-1 result. This case replicates
+   * the full test:standard pre-step sequence (computeChangedFiles + native
+   * fingerprint consumption + computeBaseFingerprint) and asserts the
+   * registration base hash equals a bare probe-style compute.
+   *
+   * FAILS ON MAIN: `diffScope.computeNativeFingerprint` still exists, so the
+   * sequence runs the polluting raw pre-compute and the two hashes diverge.
+   * PASSES ON THE FIX: that export is gone, nothing touches the config before the
+   * single sanitized compute, and the hashes agree.
+   */
+  // An ALLOWLISTED env var, so pollution survives the deterministic-env
+  // sanitization (a non-allowlisted var would be stripped and mask the hazard).
+  const POLLUTABLE_ENV_KEY = 'LANG';
+  let savedLang: string | undefined;
+
+  beforeEach(() => {
+    savedLang = process.env[POLLUTABLE_ENV_KEY];
+    // Model an app.config.js whose evaluation (a) reads env to shape its hash and
+    // (b) as a dotenv-class side effect MUTATES an allowlisted env var. Under the
+    // env-swap that mutation is reverted, but a RAW (unswapped) pre-compute leaks
+    // it into the ambient env, skewing any base compute whose snapshot follows.
+    vi.mocked(createFingerprintAsync).mockImplementation(async () => {
+      const variant = process.env[POLLUTABLE_ENV_KEY] ?? 'unset';
+      process.env[POLLUTABLE_ENV_KEY] = 'polluted-by-config-load';
+      return { hash: `layer1-${variant}` } as never;
+    });
+  });
+
+  afterEach(() => {
+    if (savedLang === undefined) delete process.env[POLLUTABLE_ENV_KEY];
+    else process.env[POLLUTABLE_ENV_KEY] = savedLang;
+  });
+
+  /**
+   * Native fingerprint consumption as the consumer did it: the raw pre-compute on
+   * main, a no-op after the fix (the export was deleted). Accessed dynamically so
+   * this file typechecks against the fixed diffScope shape either way.
+   */
+  const rawNativePreCompute = (diffScope as unknown as Record<string, unknown>)
+    .computeNativeFingerprint as ((projectRoot: string) => Promise<string | null>) | undefined;
+
+  it(
+    'sanity: a raw native pre-compute leaks pollution that survives sanitization',
+    async () => {
+      // Proves the fixture is meaningful: a RAW createFingerprintAsync (no env
+      // swap) persistently mutates the allowlisted var, so a base compute run
+      // afterward sees a different sanitized env than one run from a clean env.
+      process.env[POLLUTABLE_ENV_KEY] = 'clean';
+      const clean = await computeBaseFingerprint(fixtureDir, { command: 'staged:check' });
+
+      process.env[POLLUTABLE_ENV_KEY] = 'clean';
+      await createFingerprintAsync(fixtureDir); // raw, unswapped - leaks pollution
+      const afterRaw = await computeBaseFingerprint(fixtureDir, { command: 'test:standard' });
+
+      expect(afterRaw.hash).not.toBe(clean.hash);
+    },
+    RUN_TIMEOUT_MS
+  );
+
+  it(
+    'registration and probe base hashes agree over the full pre-step sequence',
+    async () => {
+      // Probe path (staged:check): no native pre-compute, clean env.
+      process.env[POLLUTABLE_ENV_KEY] = 'clean';
+      const probe = await computeBaseFingerprint(fixtureDir, { command: 'staged:check' });
+
+      // Registration path (test:standard): replicate the exact pre-step sequence -
+      // computeChangedFiles, then native-fingerprint consumption, then the base
+      // compute. On main the native consumption is the polluting raw pre-compute;
+      // after the fix it is sourced from the single base compute (no pre-call).
+      process.env[POLLUTABLE_ENV_KEY] = 'clean';
+      await diffScope.computeChangedFiles(fixtureDir, { isDirty: true } as GitInfo);
+      if (rawNativePreCompute) {
+        await rawNativePreCompute(fixtureDir);
+      }
+      const registration = await computeBaseFingerprint(fixtureDir, { command: 'test:standard' });
+
+      // The base hash (which folds in Layer-1) must match the probe's...
+      expect(registration.hash).toMatch(/^[a-f0-9]{64}$/);
+      expect(registration.hash).toBe(probe.hash);
+      // ...and the diffScope nativeFingerprint (the single sanitized Layer-1) is
+      // sourced from that same compute and likewise matches the probe's.
+      expect(registration.nativeFingerprint).toBe(probe.nativeFingerprint);
     },
     RUN_TIMEOUT_MS
   );

@@ -11,7 +11,7 @@ import {
   uploadOrPrintBinaryReuse,
   reporting,
 } from '../../../../helpers';
-import { computeChangedFiles, computeNativeFingerprint } from '../../../../helpers/diffScope';
+import { computeChangedFiles } from '../../../../helpers/diffScope';
 import {
   computeBaseFingerprint,
   registerBase,
@@ -52,9 +52,26 @@ async function asyncUploadBuildAndRunTests({
     ios: platform === 'ios' ? buildPath : undefined,
   });
 
-  // Diff Scope: compute changed files and native fingerprint for the EAS-cloud path.
-  // The same bail-to-full conditions apply: shallow clone, dirty tree, no mergeBaseSha.
   const gitInfo = await getGitInfo(DEFAULT_PROJECT_ROOT);
+
+  // ------------------------------------------------------------------
+  // Compute the base fingerprint FIRST - before computeChangedFiles or any
+  // other work that could load the Expo app config (SHERLO-1756). Loading the
+  // app config mutates process.env as a dotenv-class side effect; if that ran
+  // before the sanitized Layer-1 compute it would pollute the env that compute
+  // snapshots, producing a base fingerprint no probe could ever match.
+  //
+  // This is the ONLY `createFingerprintAsync` invocation on this path: both the
+  // `baseFingerprint` value AND the diffScope `nativeFingerprint` wire value are
+  // sourced from this single result. `fpResult.nativeFingerprint` is the
+  // sanitized Layer-1 hash, or undefined when the compute fails (fail-soft,
+  // exactly as the old computeNativeFingerprint returned null -> undefined).
+  // ------------------------------------------------------------------
+  const fpResult = await computeBaseFingerprint(DEFAULT_PROJECT_ROOT, { command: THIS_COMMAND });
+  const nativeFingerprint = fpResult.nativeFingerprint;
+
+  // Diff Scope: compute changed files for the EAS-cloud path.
+  // The same bail-to-full conditions apply: shallow clone, dirty tree, no mergeBaseSha.
   const changedFilesResult = await computeChangedFiles(DEFAULT_PROJECT_ROOT, gitInfo);
   let changedFiles: string[] | undefined;
   if ('changedFiles' in changedFilesResult) {
@@ -62,14 +79,6 @@ async function asyncUploadBuildAndRunTests({
   } else {
     console.log(`[Sherlo] Diff Scope: full capture - ${changedFilesResult.reason}`);
   }
-  const nativeFingerprint = (await computeNativeFingerprint(DEFAULT_PROJECT_ROOT)) ?? undefined;
-
-  // ------------------------------------------------------------------
-  // Compute base fingerprint (project-level, once) and per-platform
-  // gate metadata BEFORE the API call so they can be wired into the
-  // asyncUpload payload.
-  // ------------------------------------------------------------------
-  const fpResult = await computeBaseFingerprint(DEFAULT_PROJECT_ROOT, { command: THIS_COMMAND });
 
   let baseFingerprint: string | undefined;
   const gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput } = {};
