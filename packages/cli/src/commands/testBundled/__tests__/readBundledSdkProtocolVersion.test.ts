@@ -80,6 +80,45 @@ describe('readBundledSdkProtocolVersion', () => {
     expect(readBundledSdkProtocolVersion(tempDir)).toBeUndefined();
   });
 
+  it('strips a CI-republished test-build suffix down to the base semver', () => {
+    installPackage({
+      name: SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME,
+      version: '2.0.1-test.29194907781',
+    });
+
+    expect(readBundledSdkProtocolVersion(tempDir)).toBe('2.0.1');
+  });
+
+  it('strips a dev-build suffix down to the base semver', () => {
+    installPackage({ name: SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME, version: '2.0.1-dev.42' });
+
+    expect(readBundledSdkProtocolVersion(tempDir)).toBe('2.0.1');
+  });
+
+  it('leaves a plain release version unchanged', () => {
+    installPackage({ name: SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME, version: '2.0.1' });
+
+    expect(readBundledSdkProtocolVersion(tempDir)).toBe('2.0.1');
+  });
+
+  it('returns undefined for an unparseable version', () => {
+    installPackage({ name: SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME, version: 'not-a-version' });
+
+    expect(readBundledSdkProtocolVersion(tempDir)).toBeUndefined();
+  });
+
+  it('returns undefined for a version missing the patch component', () => {
+    installPackage({ name: SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME, version: '2.0' });
+
+    expect(readBundledSdkProtocolVersion(tempDir)).toBeUndefined();
+  });
+
+  it('returns undefined for a version with a non-numeric component', () => {
+    installPackage({ name: SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME, version: '2.x.1' });
+
+    expect(readBundledSdkProtocolVersion(tempDir)).toBeUndefined();
+  });
+
   it('never throws across all failure modes', () => {
     installPackage('{ this is not valid json');
     expect(() => readBundledSdkProtocolVersion(tempDir)).not.toThrow();
