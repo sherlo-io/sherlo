@@ -65,13 +65,17 @@ function createMockable<T extends ModuleExports>(key: string, realModule: T): T 
     apply(_target, thisArg, args) {
       const mock = resolveMockExports(key, realModule);
       const callee = typeof mock === 'function' ? mock : realModule;
-      return Reflect.apply(callee as (...fnArgs: unknown[]) => unknown, thisArg, args);
+      return Reflect.apply(callee as unknown as (...fnArgs: unknown[]) => unknown, thisArg, args);
     },
 
     construct(_target, args, newTarget) {
       const mock = resolveMockExports(key, realModule);
       const ctor = typeof mock === 'function' ? mock : realModule;
-      return Reflect.construct(ctor as new (...ctorArgs: unknown[]) => object, args, newTarget);
+      return Reflect.construct(
+        ctor as unknown as new (...ctorArgs: unknown[]) => object,
+        args,
+        newTarget
+      );
     },
   }) as T;
 }
