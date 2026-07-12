@@ -17,7 +17,8 @@ import {
   computeBaseFingerprint,
   stripVersionLines,
 } from '../../../helpers/fingerprint/baseFingerprint';
-import { buildBundleForPlatform } from '../buildBundle';
+import { buildBundleForPlatform, buildGateMetadata, type BundleResult } from '../buildBundle';
+import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../constants';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -608,6 +609,85 @@ describe('baseFingerprint version suppression (SHERLO-1690 AC)', () => {
 // ---------------------------------------------------------------------------
 // No __DEV__ check (design §5 - removed because unreliable)
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// buildGateMetadata - honest, source-marked, bundle-comparable dimensions
+// ---------------------------------------------------------------------------
+
+describe('buildGateMetadata (test:bundled = source)', () => {
+  /** A minimal BundleResult standing in for a freshly built plain-JS bundle. */
+  function bundleResult(overrides: Partial<BundleResult> = {}): BundleResult {
+    return {
+      bundlePath: '/tmp/bundle.android.js',
+      bundleFormat: 'plain-js',
+      bundleSizeMb: 1.2,
+      bundleHash: 'deadbeef',
+      assetsDest: '/tmp/assets.android',
+      assetInventory: ['drawable/icon.png', 'raw/data.json'],
+      bundler: 'rn',
+      ...overrides,
+    };
+  }
+
+  /** Resolve package versions by name so the two getPackageVersion reads differ. */
+  function mockVersions(versions: Record<string, string | null>) {
+    mockGetPackageVersion.mockImplementation((name: string) =>
+      name in versions ? versions[name] : null
+    );
+  }
+
+  it('marks source, sends bundle-derivable dims + the SDK-protocol compat input', async () => {
+    mockVersions({
+      'react-native': '0.76.0',
+      [SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME]: '2.0.1',
+    });
+
+    const result = bundleResult();
+    const metadata = await buildGateMetadata({
+      projectRoot: tempDir,
+      platform: 'android' as Platform,
+      bundleResult: result,
+    });
+
+    // Honest derivation marker - the gate excludes source-marked dims from the
+    // binary-identity diff.
+    expect(metadata.derivedFrom).toBe('source');
+    // Bundle-derivable identity dims.
+    expect(metadata.bundleFormat).toBe('plain-js');
+    expect(metadata.assetInventory).toEqual(result.assetInventory);
+    // Source/config signals.
+    expect(metadata.engineClass).toBe('hermes'); // RN >= 0.70 default, no jsc config
+    expect(metadata.expoUpdatesEnabled).toBe(false);
+    expect(metadata.buildMetadata).toEqual({
+      reactNativeVersion: '0.76.0',
+      buildMode: 'release',
+    });
+    // The SDK-protocol version is the bundle REQUIREMENT (compat input), read
+    // from the installed @sherlo/react-native-storybook package version.
+    expect(metadata.requiredSdkProtocolVersion).toBe('2.0.1');
+
+    // Binary-only facts a bundle cannot know are DROPPED, not fabricated.
+    expect(metadata).not.toHaveProperty('hasEmbeddedBundle');
+    // The baked binary-identity sdkProtocolVersion is never sent from a bundle.
+    expect(metadata).not.toHaveProperty('sdkProtocolVersion');
+  });
+
+  it('omits the SDK-protocol compat input when the package is not installed (absent, not fabricated)', async () => {
+    mockVersions({
+      'react-native': '0.76.0',
+      [SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME]: null, // getPackageVersion -> null
+    });
+
+    const metadata = await buildGateMetadata({
+      projectRoot: tempDir,
+      platform: 'android' as Platform,
+      bundleResult: bundleResult(),
+    });
+
+    expect(metadata.derivedFrom).toBe('source');
+    expect(metadata).not.toHaveProperty('requiredSdkProtocolVersion');
+  });
+});
 
 describe('no __DEV__ check', () => {
   it('does NOT refuse a bundle containing __DEV__ = true string', async () => {

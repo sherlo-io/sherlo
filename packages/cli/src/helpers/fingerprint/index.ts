@@ -6,7 +6,13 @@ export {
   checkRamBundle,
   deriveEngineClass,
 } from './gateMetadata';
-export type { GateMetadataInput, EngineClass, BundleFormat, BuildMetadata } from './gateMetadata';
+export type {
+  GateMetadataInput,
+  GateDerivation,
+  EngineClass,
+  BundleFormat,
+  BuildMetadata,
+} from './gateMetadata';
 export { checkStageable } from './notStageable';
 export type { StageableCheck } from './notStageable';
 export { registerBase } from './registerBase';

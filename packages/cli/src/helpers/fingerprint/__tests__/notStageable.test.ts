@@ -18,6 +18,7 @@ import type { GateMetadataInput } from '../gateMetadata';
 // ---------------------------------------------------------------------------
 
 const PASSING_METADATA: GateMetadataInput = {
+  derivedFrom: 'binary',
   engineClass: 'hermes',
   bundleFormat: 'hbc',
   hasEmbeddedBundle: true,
