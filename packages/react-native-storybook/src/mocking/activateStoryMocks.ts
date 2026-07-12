@@ -23,12 +23,13 @@ function warnUnshimmedKeys(mocks: MockSet): void {
   const plural = unshimmedKeys.length > 1;
 
   const message =
-    `[Sherlo] Mock declared for ${
-      plural ? 'modules' : 'module'
-    } ${keyList} but no shim was generated - ` +
-    `${plural ? 'these mocks' : 'this mock'} will not apply. Fix by either: ` +
-    '(1) restarting Metro so the mock scan picks up the new key, or ' +
-    `(2) adding ${plural ? 'them' : 'it'} to the "mockModules" option in your Sherlo Metro config.`;
+    `Sherlo: mock declared but unshimmed for ${keyList}. ` +
+    `${
+      plural ? 'These mocks' : 'This mock'
+    } will not apply. Restart Metro so the build-time scan ` +
+    `can find ${plural ? 'newly added keys' : 'a newly added key'}, or, if ${
+      plural ? 'the keys are' : 'the key is'
+    } composed at runtime, list ${plural ? 'them' : 'it'} under mockModules in your Sherlo config.`;
 
   console.warn(message);
   RunnerBridge.log(UNSHIMMED_KEYS_LOG, { keys: unshimmedKeys });
