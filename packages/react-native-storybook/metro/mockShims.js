@@ -338,43 +338,52 @@ function setupMocks(opts) {
     }
   }
 
-  // 2. Enforce the deny list (FG-02).
-  keyToSource.forEach(function (source, key) {
-    if (isDeniedKey(key)) {
-      throw new Error(
-        'Sherlo: "' +
-          key +
-          '" cannot be mocked directly. react, react-native, @storybook/*, and @sherlo/* are off-limits. ' +
-          'Create a wrapper module in your own code that re-exports what you need from "' +
-          key +
-          '", then mock the wrapper\'s path instead.'
-      );
-    }
-  });
-
-  // 3. Rewrite the mocks directory from scratch so no stale shims survive.
+  // 2. Rewrite the mocks directory from scratch so no stale shims survive.
   var mocksDir = path.join(cacheDir, 'mocks');
   fs.rmSync(mocksDir, { recursive: true, force: true });
   fs.mkdirSync(mocksDir, { recursive: true });
 
-  // 4. Resolve each key (FG-01) and emit its shim.
+  // 3. Resolve each key and emit its shim.
+  //
+  // A bad key (deny-listed or unresolvable) must NEVER fail the build (SHERLO-1765 B4):
+  // metro config is evaluated in the client's production build pipeline, so a throw here
+  // would fail a store build on a typo in a Sherlo story fixture. Instead we warn-and-skip:
+  // emit a clear console.warn naming the key AND its source, skip that key (no shim, no map
+  // entry), and continue with the rest. A skipped key still surfaces at runtime via the FG-03
+  // unshimmed-key tripwire.
   var mockedPathToShim = new Map();
   var mockedPathToKey = new Map();
   var shimPaths = [];
 
   keyToSource.forEach(function (source, key) {
+    // Deny list (FG-02): react, react-native, @storybook/*, and @sherlo/* are off-limits.
+    if (isDeniedKey(key)) {
+      console.warn(
+        '[Sherlo] Skipping mock key "' +
+          key +
+          '" in ' +
+          source +
+          ': react, react-native, @storybook/*, and @sherlo/* cannot be mocked directly. ' +
+          'Create a wrapper module in your own code that re-exports what you need from "' +
+          key +
+          '", then mock the wrapper\'s path instead.'
+      );
+      return;
+    }
+
     var resolved;
     try {
       resolved = resolveMockKey(key, projectRoot);
     } catch (_) {
-      throw new Error(
-        'Sherlo: mock key "' +
+      console.warn(
+        '[Sherlo] Skipping mock key "' +
           key +
           '" in ' +
           source +
-          ' did not resolve to a real module. Check for a typo, confirm the package is installed, ' +
+          ': it did not resolve to a real module. Check for a typo, confirm the package is installed, ' +
           'or write the path relative to the project root (with or without a leading "./").'
       );
+      return;
     }
 
     var shimPath = path.join(mocksDir, shimFileName(key));

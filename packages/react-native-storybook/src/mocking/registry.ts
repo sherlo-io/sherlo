@@ -1,4 +1,5 @@
 import { MockSet, ModuleExports } from './types';
+import SherloModule from '../SherloModule';
 
 type Activation = {
   mocks: MockSet;
@@ -13,7 +14,18 @@ let activeActivation: Activation | null = null;
 const shimmedKeys = new Set<string>();
 
 // Installs the mock set for one story, replacing any previously active set.
+//
+// Defense-in-depth (SHERLO-1765 B2): activation is a no-op outside 'testing' and
+// 'storybook' modes, mirroring the guard in helpers/RunnerBridge/actions/log.ts.
+// A production app reports 'default', so even a stray activation call there leaves
+// every createMockable trap passing straight through to the real module. This is
+// the single choke point - activateStoryMocks delegates here, so both public entry
+// points are covered. Interactive 'storybook' mode is a legitimate mock context and
+// is intentionally NOT blocked.
 function activateMocks(mocks: MockSet): void {
+  const mode = SherloModule.getMode();
+  if (mode !== 'testing' && mode !== 'storybook') return;
+
   activeActivation = { mocks, resolved: new Map() };
 }
 

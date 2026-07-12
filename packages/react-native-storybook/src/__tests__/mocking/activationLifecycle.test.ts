@@ -1,6 +1,8 @@
+// 'testing' so the SHERLO-1765 B2 activation mode guard lets these mocks install
+// (the guard no-ops in 'default'; activation lifecycle is only exercised under test).
 vi.mock('../../SherloModule', () => ({
   default: {
-    getMode: vi.fn().mockReturnValue('default'),
+    getMode: vi.fn().mockReturnValue('testing'),
   },
 }));
 

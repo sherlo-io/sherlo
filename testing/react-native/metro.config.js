@@ -32,5 +32,8 @@ const customConfig = mergeConfig(defaultConfig, {
 
 module.exports = withStorybook(customConfig, {
   enabled: true,
+  // Opt in to the experimental module-mocking pipeline so parameters.sherlo.mocks
+  // takes effect here (this app is a device-validation harness for the mocking matrix).
+  experimentalMocks: true,
   configPath: path.resolve(__dirname, './.storybook'),
 });

@@ -39,6 +39,13 @@ function applyStoryMocks(view: StorybookView, storyId: string): void {
   activateStoryMocks(storyMeta?.mocks ?? {});
 }
 
+// Monotonic id for the latest activation. Each activateMocksForStory call bumps it and
+// captures its own value; a deferred ready() continuation only re-applies when its captured
+// value is still the latest. Without this, the async re-apply for a story that was already
+// superseded/torn down could re-install its mocks on top of the current story (SHERLO-1765 B3),
+// producing a wrong-screenshot capture.
+let activationGeneration = 0;
+
 /**
  * Install `storyId`'s merged mock set. Meta/story mocks apply immediately; global
  * mocks fold in once the preview is ready (see file header). Safe to call before the
@@ -47,6 +54,8 @@ function applyStoryMocks(view: StorybookView, storyId: string): void {
 export function activateMocksForStory(view: StorybookView, storyId: string | undefined): void {
   if (!storyId) return;
 
+  const generation = (activationGeneration += 1);
+
   applyStoryMocks(view, storyId);
 
   // If the preview has not yet composed its project (global) params, the pass above
@@ -54,7 +63,12 @@ export function activateMocksForStory(view: StorybookView, storyId: string | und
   const preview = getPreview(view);
   if (preview && !preview.storyStoreValue && typeof preview.ready === 'function') {
     preview.ready().then(
-      () => applyStoryMocks(view, storyId),
+      () => {
+        // A newer activation ran while we awaited ready() - this one is stale, so
+        // re-applying now would clobber the current story's mocks. Bail out.
+        if (generation !== activationGeneration) return;
+        applyStoryMocks(view, storyId);
+      },
       () => {
         // best effort - meta/story mocks are already active from the first pass
       }

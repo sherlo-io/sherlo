@@ -71,6 +71,13 @@ import { Button } from 'react-native';
 
 `@sherlo/react-native-storybook` can mock any module a story imports, scoped to that story. Declare mocks under `parameters.sherlo.mocks`; each key is a module specifier (an npm package, a scoped package, a subpath, or a project-root-relative app path), and each value is a factory that receives the real module and returns the exports to replace.
 
+> Mocking is experimental and **off** by default, so a normal App Store / Play Store build ships zero mocking code. Opt in per build profile by passing `experimentalMocks: true` to `withStorybook` in your Metro config. Leave it **off** (or unset) for your production build profile.
+
+```js
+// metro.config.js
+module.exports = withStorybook(config, { experimentalMocks: true });
+```
+
 ```ts
 const meta = {
   title: 'Mocking/Factories',

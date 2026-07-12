@@ -29,13 +29,15 @@ function setupView({
   storyMocks,
   globalMocks,
   readyUpfront,
+  title = 'Mocking/Config',
 }: {
   storyMocks?: Record<string, unknown>;
   globalMocks?: Record<string, unknown>;
   readyUpfront?: boolean;
+  title?: string;
 }): { view: StorybookView; storyId: string; becomeReady: () => Promise<void> } {
   const fileExports = {
-    default: { title: 'Mocking/Config' },
+    default: { title },
     Default: storyMocks ? { parameters: { sherlo: { mocks: storyMocks } } } : {},
   };
   const req = Object.assign((_filename: string) => fileExports, {
@@ -74,8 +76,10 @@ function setupView({
     await readyPromise; // flush the ready() .then re-apply before the test asserts
   };
 
-  // toId('Mocking/Config', 'Default')
-  return { view, storyId: 'mocking-config--default', becomeReady };
+  // toId(title, 'Default') - kebab-cases the title the same way Storybook does for
+  // the simple ASCII titles these tests use.
+  const storyId = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}--default`;
+  return { view, storyId, becomeReady };
 }
 
 afterEach(() => {
@@ -156,5 +160,35 @@ describe('activateMocksForStory - global mocks are robust to preview readiness (
     activateMocksForStory(view, undefined);
 
     expect(mockable.flag).toBe('real');
+  });
+});
+
+describe('activateMocksForStory - stale re-apply guard (SHERLO-1765 B3)', () => {
+  it('a superseded activation’s late ready() continuation does not install its mocks', async () => {
+    const mockable = createMockable('pkg/stale', { v: 'real' }) as { v: string };
+
+    // Story A boots with a GLOBAL-level mock, preview NOT ready yet. Its meta/story pass sees
+    // no readable global params, so it schedules a ready() re-apply that would fold in v:'A'.
+    const a = setupView({
+      title: 'Mocking/Stale-A',
+      globalMocks: { 'pkg/stale': { v: 'A' } },
+    });
+    activateMocksForStory(a.view, a.storyId);
+    expect(mockable.v).toBe('real'); // A's global not applied yet (preview not ready)
+
+    // Before A's preview resolves, story B supersedes it with a STORY-level mock that applies
+    // synchronously - this is the current, on-screen story.
+    const b = setupView({
+      title: 'Mocking/Stale-B',
+      storyMocks: { 'pkg/stale': { v: 'B' } },
+    });
+    activateMocksForStory(b.view, b.storyId);
+    expect(mockable.v).toBe('B'); // B is now active
+
+    // A's preview finally becomes ready. Its deferred continuation must bail (A was superseded);
+    // if it re-applied it would clobber B (wrong-screenshot risk) or, worse, reset to real.
+    await a.becomeReady();
+
+    expect(mockable.v).toBe('B'); // still B - the stale continuation was ignored
   });
 });

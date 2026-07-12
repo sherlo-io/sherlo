@@ -199,9 +199,13 @@ function applySherloTransforms(result, opts) {
   var cacheDir = path.dirname(wrapperPath);
 
   // ---- Module Mocking (SHERLO-1734 Phase 2) ----
-  // Gated entirely behind enabled !== false (EB-01): when disabled we scan
-  // nothing, emit no shims, and install no resolver branch.
-  var mockingEnabled = !(opts && opts.enabled === false);
+  // Gated entirely behind the opt-in `experimentalMocks` flag (SHERLO-1764):
+  // default OFF, so a normal store release ships zero mocking artifacts. When the
+  // flag is absent or false we scan nothing, emit no shims, and install no
+  // resolver branch, and the `./mocking` runtime stays unreachable from the bundle.
+  // This is INDEPENDENT of `opts.enabled`, which gates the storybook-disabled
+  // polyfill path below and must not influence mocking either way.
+  var mockingEnabled = !!(opts && opts.experimentalMocks);
   var mocksDir = null;
   var mockedPathToShim = null;
   var mockedPathToKey = null;

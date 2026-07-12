@@ -1,3 +1,8 @@
+// 'testing' so the SHERLO-1765 B2 activation mode guard lets activateMocks install.
+vi.mock('../../SherloModule', () => ({
+  default: { getMode: () => 'testing' },
+}));
+
 import createMockable from '../../mocking/createMockable';
 import { activateMocks, clearMocks } from '../../mocking/registry';
 
