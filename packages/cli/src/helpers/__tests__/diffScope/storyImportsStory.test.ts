@@ -151,6 +151,36 @@ export const Primary = () => <Button />;`
     expect(result).toEqual({ changedFiles: changed });
   });
 
+  // (S2) bail-open conservatism, CLI-side finding: editing a shared non-story
+  // component (SharedButton.tsx, imported by ProductCard.stories.tsx AND
+  // CheckoutScreen.stories.tsx, but not itself a story file) does NOT trigger a
+  // CLI-side bail. changedStories stays empty (SharedButton.tsx fails
+  // STORY_FILE_RE), so checkStoryImportsStory takes the fast path and returns
+  // { changedFiles } unchanged - it has no notion of a component->story edge in
+  // v1. The "full capture" guarantee for this scenario is proven server-side by
+  // the API's non-story-file coarse gate (reason `non-story-file-changed:`,
+  // see computeDiffScopeDecision.unit.test.ts in sherlo-api), not here.
+  it('does NOT bail for a changed shared non-story component (S2) - full capture is enforced by the API coarse gate, not the CLI', () => {
+    fx.write('SharedButton.tsx', `export const SharedButton = () => null;`);
+    fx.write(
+      'ProductCard.stories.tsx',
+      `import { SharedButton } from './SharedButton';
+export default { title: 'ProductCard' };
+export const Primary = () => <SharedButton />;`
+    );
+    fx.write(
+      'CheckoutScreen.stories.tsx',
+      `import { SharedButton } from './SharedButton';
+export default { title: 'CheckoutScreen' };
+export const Primary = () => <SharedButton />;`
+    );
+
+    const changed = ['SharedButton.tsx'];
+    const result = checkStoryImportsStory(fx.dir, changed);
+
+    expect(result).toEqual({ changedFiles: changed });
+  });
+
   it('returns { changedFiles } with non-story file changes alongside story changes when no cross-imports exist', () => {
     fx.write('Button.tsx', `export const Button = () => null;`);
     fx.write(
