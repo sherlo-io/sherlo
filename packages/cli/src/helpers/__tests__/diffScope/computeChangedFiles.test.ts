@@ -74,7 +74,8 @@ describe('computeChangedFiles – bail-to-full conditions', () => {
     expect((result as any).reason).toMatch(/dirty/i);
   });
 
-  it('bails to full when mergeBaseSha is absent (non-PR build)', async () => {
+  // (S3e) push-to-main / non-PR build: no mergeBaseSha -> bail to full.
+  it('bails to full when mergeBaseSha is absent (non-PR build) (S3e)', async () => {
     fixture = GitFixture.create();
     fixture.commitFile('c1');
 
@@ -120,7 +121,9 @@ describe('computeChangedFiles – bail-to-full conditions', () => {
 // ---------------------------------------------------------------------------
 
 describe('computeChangedFiles – successful diff derivation', () => {
-  it('returns only feature-branch-changed files relative to the fork point', async () => {
+  // (S4) PR-event changedFiles derivation: git diff --name-only <mergeBaseSha> <head>
+  // yields exactly the changed files on the feature branch.
+  it('returns only feature-branch-changed files relative to the fork point (S4)', async () => {
     fixture = GitFixture.create();
     const forkPoint = fixture.commitFile('shared-base');
 
@@ -171,7 +174,9 @@ describe('computeChangedFiles – successful diff derivation', () => {
     expect((result as { changedFiles: string[] }).changedFiles).toHaveLength(0);
   });
 
-  it('captures multiple files changed across multiple PR commits', async () => {
+  // (S4) multi-commit variant: the diff still spans the whole feature branch,
+  // not just the last commit.
+  it('captures multiple files changed across multiple PR commits (S4)', async () => {
     fixture = GitFixture.create();
     const forkPoint = fixture.commitFile('base');
 
