@@ -317,4 +317,33 @@ describe('gitInfo parity with test:standard', () => {
 
     logSpy.mockRestore();
   });
+
+  // SHERLO-1894: the manifest S3 key rides onto the platform config ONLY when the
+  // upload produced one. Absent -> nothing extra is sent (old-API / bail-open).
+  it('mirrors manifestS3Key onto the build config when the manifest was uploaded', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockUploadStagedArtifacts.mockResolvedValue({
+      jsBundleS3Key: 'js-s3-key',
+      manifestS3Key: 'manifest-s3-key',
+    });
+
+    await testBundled(mockOptions());
+
+    const openBuildArg = mockOpenBuild.mock.calls[0][0];
+    expect(openBuildArg.buildRunConfig.ios.manifestS3Key).toBe('manifest-s3-key');
+
+    logSpy.mockRestore();
+  });
+
+  it('does NOT set manifestS3Key when no manifest was uploaded (bail-open, nothing extra sent)', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockUploadStagedArtifacts.mockResolvedValue({ jsBundleS3Key: 'js-s3-key' });
+
+    await testBundled(mockOptions());
+
+    const openBuildArg = mockOpenBuild.mock.calls[0][0];
+    expect('manifestS3Key' in openBuildArg.buildRunConfig.ios).toBe(false);
+
+    logSpy.mockRestore();
+  });
 });

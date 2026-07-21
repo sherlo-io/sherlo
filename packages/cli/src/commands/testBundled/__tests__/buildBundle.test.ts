@@ -723,3 +723,94 @@ describe('buildBundleForPlatform - empty bundle', () => {
     ).rejects.toThrow('Bundle file is empty');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Cross-platform module-manifest contamination (SHERLO-1894 §2)
+// ---------------------------------------------------------------------------
+
+describe('buildBundleForPlatform - module-manifest cross-platform isolation', () => {
+  const MANIFEST_REL = ['node_modules', '.cache', 'sherlo', 'module-manifest.json'];
+
+  function manifestPath(): string {
+    return path.join(tempDir, ...MANIFEST_REL);
+  }
+
+  function validManifest() {
+    return JSON.stringify({
+      version: 1,
+      header: { metroVersion: '0.81.0', envDigest: 'abc', envKeys: [], absolutePathLeaks: [] },
+      moduleHashes: { './src/Button.tsx': 'a'.repeat(64) },
+      storyClosures: { './src/Button.stories.tsx': ['./src/Button.tsx'] },
+    });
+  }
+
+  /**
+   * Configure the execSync mock to write the bundle AND (when `emitManifest`) the
+   * serializer's manifest sidecar - modeling a single platform's bundler run.
+   * A platform whose serializer bails open passes emitManifest=false: it writes a
+   * bundle but no sidecar, exactly as emitModuleManifestSidecar does when it swallows
+   * an internal error.
+   */
+  function mockBundlerRun(emitManifest: boolean) {
+    mockGetPackageVersion.mockReturnValue('0.76.0');
+    mockDetectBundler.mockReturnValue('rn');
+    mockDetectEntryFile.mockReturnValue('index.js');
+    mockExecSync.mockImplementation(((cmd: string) => {
+      const bundleMatch = cmd.match(/--bundle-output[= ](\S+)/);
+      if (bundleMatch) {
+        const dir = path.dirname(bundleMatch[1]);
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(bundleMatch[1], plainJsBundle());
+      }
+      if (emitManifest) {
+        const mp = manifestPath();
+        fs.mkdirSync(path.dirname(mp), { recursive: true });
+        fs.writeFileSync(mp, validManifest(), 'utf8');
+      }
+      return Buffer.alloc(0);
+    }) as any);
+  }
+
+  it('does NOT attribute one platform manifest to the next when the second serializer emits nothing', async () => {
+    // Platform A (ios) builds and its serializer emits a manifest.
+    mockBundlerRun(true);
+    const iosResult = await buildBundleForPlatform({
+      projectRoot: tempDir,
+      platform: 'ios' as Platform,
+    });
+    expect(iosResult.moduleManifest).toBeDefined();
+    // The sidecar A wrote is on disk.
+    expect(fs.existsSync(manifestPath())).toBe(true);
+
+    // Platform B (android) builds next against the SAME projectRoot, but its
+    // serializer bails open internally and emits NO sidecar.
+    mockBundlerRun(false);
+    const androidResult = await buildBundleForPlatform({
+      projectRoot: tempDir,
+      platform: 'android' as Platform,
+    });
+
+    // The defensive delete ran before android's bundler spawned, so A's leftover
+    // was cleared and android reads NO manifest - it will upload none.
+    expect(androidResult.moduleManifest).toBeUndefined();
+    // And the stale sidecar is gone from disk, not lingering to poison a later read.
+    expect(fs.existsSync(manifestPath())).toBe(false);
+  });
+
+  it('each platform keeps its own manifest when both serializers emit one', async () => {
+    mockBundlerRun(true);
+    const iosResult = await buildBundleForPlatform({
+      projectRoot: tempDir,
+      platform: 'ios' as Platform,
+    });
+    mockBundlerRun(true);
+    const androidResult = await buildBundleForPlatform({
+      projectRoot: tempDir,
+      platform: 'android' as Platform,
+    });
+
+    // Both read a manifest - the delete never suppresses a genuinely-emitted sidecar.
+    expect(iosResult.moduleManifest).toBeDefined();
+    expect(androidResult.moduleManifest).toBeDefined();
+  });
+});

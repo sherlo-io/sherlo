@@ -41,6 +41,17 @@ import { parseStagedGateRefusal, FALLBACK_LINE, type StagedGateRefusal } from '.
 import { getOnStaleMode, handleStaleBase } from './onStale';
 import uploadStagedArtifacts, { type StagedUploadKeys } from './uploadStagedArtifacts';
 
+/**
+ * The per-platform staged build config plus the SHERLO-1894 `manifestS3Key` the api
+ * department is adding to the openBuild `buildRunConfig` in parallel. Optional and
+ * local because the published @sherlo/api-types config type this repo typechecks
+ * against does not carry it yet - the same dev-stage skew the `manifest` upload slot
+ * has. Mirrors the existing `GateMetadataInput` pattern (CLI owns its wire shape,
+ * bridged at the API boundary) rather than casting to `any`. Drop this once api-types
+ * republishes with the field.
+ */
+type PlatformConfigWithManifest = { manifestS3Key?: string };
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -213,6 +224,13 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
     platformConfig.bundleSizeMb = bundleResult.bundleSizeMb;
     if (keys.assetsS3Key) {
       platformConfig.assetsS3Key = keys.assetsS3Key;
+    }
+    // Mirror the manifest S3 key when a manifest was uploaded (SHERLO-1894). Only set
+    // when present, so old-API runs (no manifest slot -> no key) send nothing extra.
+    // `manifestS3Key` is a forward-compat field the published api-types config type
+    // does not carry yet; see PlatformConfigWithManifest.
+    if (keys.manifestS3Key) {
+      (platformConfig as PlatformConfigWithManifest).manifestS3Key = keys.manifestS3Key;
     }
   }
 

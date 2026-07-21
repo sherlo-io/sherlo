@@ -517,3 +517,101 @@ describe('applySherloTransforms – module manifest sidecar when flag ON', () =>
     expect(exists).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// SHERLO-1894 Phase B - the manifest travels
+//   1. CLI turns the manifest ON for the test:bundled path ONLY, via the
+//      SHERLO_EXPERIMENTAL_MODULE_MANIFEST env var (opt stays default-OFF).
+//   2. Cross-machine determinism guard: modules whose transformed output inlines
+//      the absolute project root are FLAGGED in header.absolutePathLeaks.
+// ---------------------------------------------------------------------------
+
+describe('applySherloTransforms - module manifest env-var enable (SHERLO-1894)', () => {
+  const manifestRelPath = ['node_modules', '.cache', 'sherlo', 'module-manifest.json'];
+  const ENV_FLAG = 'SHERLO_EXPERIMENTAL_MODULE_MANIFEST';
+
+  afterEach(() => {
+    delete process.env[ENV_FLAG];
+  });
+
+  function runSerializer(opts: Record<string, unknown>) {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-env-'));
+    const result = applySherloTransforms(
+      { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: () => 'BYTES' } },
+      opts
+    );
+    const { graph } = buildFakeGraph(tmpDir);
+    result.serializer.customSerializer('index.js', [], graph, { projectRoot: tmpDir });
+    const exists = fs.existsSync(path.join(tmpDir, ...manifestRelPath));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    return exists;
+  }
+
+  it('env var = "1" enables the manifest even when the opt is absent', () => {
+    process.env[ENV_FLAG] = '1';
+    expect(runSerializer({ enabled: true })).toBe(true);
+  });
+
+  it('env var unset AND opt absent -> no manifest (default OFF preserved)', () => {
+    expect(runSerializer({ enabled: true })).toBe(false);
+  });
+
+  it('env var set to a non-"1" value does not enable the manifest', () => {
+    process.env[ENV_FLAG] = 'true';
+    expect(runSerializer({ enabled: true })).toBe(false);
+  });
+});
+
+describe('applySherloTransforms - cross-machine absolute-path guard (SHERLO-1894)', () => {
+  const manifestRelPath = ['node_modules', '.cache', 'sherlo', 'module-manifest.json'];
+
+  function emitWith(mutate: (graph: any, tmpDir: string) => void) {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-leak-'));
+    const result = applySherloTransforms(
+      { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: () => 'BYTES' } },
+      { enabled: true, experimentalModuleManifest: true }
+    );
+    const { graph, buttonPath } = buildFakeGraph(tmpDir);
+    mutate(graph, tmpDir);
+    result.serializer.customSerializer('index.js', [], graph, { projectRoot: tmpDir });
+    const manifest = JSON.parse(fs.readFileSync(path.join(tmpDir, ...manifestRelPath), 'utf8'));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    return { manifest, buttonPath };
+  }
+
+  it('no leak -> header.absolutePathLeaks is present and empty', () => {
+    const { manifest } = emitWith(() => {});
+    expect(Array.isArray(manifest.header.absolutePathLeaks)).toBe(true);
+    expect(manifest.header.absolutePathLeaks).toEqual([]);
+  });
+
+  it('a module whose transformed output inlines the abs project root is FLAGGED (not thrown)', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { manifest } = emitWith((graph, tmpDir) => {
+      const buttonAbs = path.join(tmpDir, 'src', 'Button.tsx');
+      // Inline the absolute project root into Button's transformed code.
+      graph.dependencies.get(buttonAbs).output[0].data.code =
+        'var p = "' + tmpDir + '/src/asset.png";';
+    });
+    // Flagged by its source-path key; the manifest is still emitted (bail-open).
+    expect(manifest.header.absolutePathLeaks).toContain('./src/Button.tsx');
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('the leak flag does NOT change the flagged module hash (hash stays verbatim)', () => {
+    // Same code content, once without and once with the abs path; the abs-path
+    // variant is flagged but its hash is simply the hash of its (leaky) code -
+    // the guard is a pure read that never alters hashing.
+    const clean = emitWith(() => {});
+    const cleanHash = clean.manifest.moduleHashes['./src/Button.tsx'];
+    const leaked = emitWith((graph, tmpDir) => {
+      const buttonAbs = path.join(tmpDir, 'src', 'Button.tsx');
+      graph.dependencies.get(buttonAbs).output[0].data.code = tmpDir + '/x';
+    });
+    // Different code -> different hash (expected); the point is the guard flags it
+    // without suppressing or rewriting the hash.
+    expect(leaked.manifest.moduleHashes['./src/Button.tsx']).not.toBe(cleanHash);
+    expect(leaked.manifest.header.absolutePathLeaks).toContain('./src/Button.tsx');
+  });
+});
