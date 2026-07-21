@@ -2,6 +2,7 @@
 
 var fs = require('fs');
 var path = require('path');
+var crypto = require('crypto');
 
 var mockShims = require('./mockShims');
 
@@ -122,6 +123,260 @@ function emitDependencyGraphSidecar(graph, projectRoot, cacheDir, mockedPathToKe
   } catch (err) {
     // Non-fatal: if we fail, no sidecar is emitted and the CLI bails to a full run.
     console.warn('[Sherlo] Failed to emit dependency graph sidecar:', err && err.message);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Module manifest sidecar (SHERLO-1890 Diff Scope v2 - Phase A SPIKE)
+// ---------------------------------------------------------------------------
+// Emitted ONLY when the opt-in `experimentalModuleManifest` flag is set (default
+// OFF). This is a spike deliverable: it ships INERT. Nothing consumes the
+// manifest; with the flag off, not one byte of this code runs inside a build.
+//
+// The manifest answers one empirical question: are per-module content hashes,
+// keyed by SOURCE PATH, deterministic across clean rebuilds of unchanged source?
+// It records:
+//   1. moduleHashes  - source-path -> sha256 of the module's TRANSFORMED output.
+//                      Keyed by source path (never Metro's ordinal module id,
+//                      which renumbers on any import add/remove/reorder).
+//   2. storyClosures - story source-path -> its transitive forward dependency
+//                      set (source paths). Stories are the require.context
+//                      targets the existing graph sidecar already resolves.
+//   3. header        - toolchain/env fingerprint (metro version, transformer/
+//                      babel config digest, env digest) so a build produced by a
+//                      different toolchain/env is never mistaken for an unchanged one.
+//
+// Bail-open on any unrecognised Metro shape or error, exactly like
+// emitDependencyGraphSidecar - never throw into a user's bundle.
+
+/**
+ * sha256 of a module's transformed output code.
+ *
+ * Metro puts transformed code on module.output[].data.code. We hash the code of
+ * every output entry in array order (a module can have >1 output, e.g. js/module
+ * + js/script). The code references dependencies through a per-module dependency
+ * map by LOCAL index, not by global module id, so this hash is stable across the
+ * ordinal-id renumbering that import add/remove/reorder causes elsewhere.
+ *
+ * @returns {string|null} hex digest, or null if the module has no hashable output.
+ */
+function hashModuleOutput(module) {
+  if (!module || !Array.isArray(module.output)) return null;
+  var hash = crypto.createHash('sha256');
+  var hashedAnything = false;
+  module.output.forEach(function (out) {
+    var code = out && out.data && out.data.code;
+    if (typeof code === 'string') {
+      hash.update(code);
+      hashedAnything = true;
+    }
+  });
+  return hashedAnything ? hash.digest('hex') : null;
+}
+
+/**
+ * Collects the absolute paths of every story module: the targets of every
+ * require.context() edge in the graph. Mirrors how emitDependencyGraphSidecar
+ * resolves contextGraph - a require.context dependency is a synthetic module
+ * whose own dependencies are the matched files.
+ *
+ * @returns {string[]} unique story absolute paths.
+ */
+function collectStoryAbsPaths(graph) {
+  var seen = {};
+  var stories = [];
+  graph.dependencies.forEach(function (module) {
+    if (!module.dependencies || !(module.dependencies instanceof Map)) return;
+    module.dependencies.forEach(function (dep) {
+      var contextParams = dep.data && dep.data.data && dep.data.data.contextParams;
+      if (!contextParams) return;
+      var ctxModule = graph.dependencies.get(dep.absolutePath);
+      if (!ctxModule || !(ctxModule.dependencies instanceof Map)) return;
+      ctxModule.dependencies.forEach(function (ctxDep) {
+        if (ctxDep.absolutePath && !seen[ctxDep.absolutePath]) {
+          seen[ctxDep.absolutePath] = true;
+          stories.push(ctxDep.absolutePath);
+        }
+      });
+    });
+  });
+  return stories;
+}
+
+/**
+ * Transitive forward dependency closure of one story, as a sorted list of
+ * repo-relative source paths (the story itself is NOT included).
+ *
+ * Follows every dependency edge - static, async (dynamic import) and
+ * require.context. A require.context edge points at a synthetic module; we
+ * descend THROUGH it (recording its matched targets, not the synthetic path
+ * itself), so files reached only via require.context still land in the closure.
+ * Paths outside the project root (toRelativePath -> null) are skipped as keys but
+ * still traversed, so a source file reached only through a node_modules hop is
+ * not lost.
+ */
+function collectForwardClosure(graph, storyAbsPath, projectRoot) {
+  var closure = {};
+  var visited = {};
+  var stack = [storyAbsPath];
+  while (stack.length) {
+    var absPath = stack.pop();
+    if (visited[absPath]) continue;
+    visited[absPath] = true;
+    var module = graph.dependencies.get(absPath);
+    if (!module || !(module.dependencies instanceof Map)) continue;
+    module.dependencies.forEach(function (dep) {
+      var depAbs = dep.absolutePath;
+      if (!depAbs) return;
+      var contextParams = dep.data && dep.data.data && dep.data.data.contextParams;
+      // A require.context edge resolves to a synthetic module: don't record its
+      // path, just traverse into it so its matched targets get recorded.
+      if (!contextParams) {
+        var rel = toRelativePath(depAbs, projectRoot);
+        if (rel) closure[rel] = true;
+      }
+      if (!visited[depAbs]) stack.push(depAbs);
+    });
+  }
+  return Object.keys(closure).sort();
+}
+
+/**
+ * Deterministic JSON: object keys are emitted in sorted order at every depth, so
+ * two runs that produce equal data produce BYTE-IDENTICAL output regardless of
+ * the order Metro happened to enumerate its graph. Arrays keep their order (the
+ * caller sorts the arrays it cares about).
+ */
+function stableStringify(value) {
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return '[' + value.map(stableStringify).join(',') + ']';
+  }
+  var keys = Object.keys(value).sort();
+  var parts = keys.map(function (key) {
+    return JSON.stringify(key) + ':' + stableStringify(value[key]);
+  });
+  return '{' + parts.join(',') + '}';
+}
+
+/**
+ * The env vars whose values can inline into a bundle, so a change to any of them
+ * is a legitimate reason for otherwise-unchanged source to produce a different
+ * bundle. Populated from Phase A spike question 4 (measured empirically, not read
+ * from docs): NODE_ENV / BABEL_ENV drive dead-code branches (`__DEV__`,
+ * `process.env.NODE_ENV === 'production'`); EXPO_PUBLIC_* are string-inlined by
+ * babel-preset-expo. The header records BOTH the digest and the sorted key list,
+ * so the manifest is self-describing about which vars were considered.
+ */
+function selectBundleInliningEnv() {
+  var picked = {};
+  Object.keys(process.env).forEach(function (name) {
+    if (
+      name === 'NODE_ENV' ||
+      name === 'BABEL_ENV' ||
+      name.indexOf('EXPO_PUBLIC_') === 0
+    ) {
+      picked[name] = process.env[name];
+    }
+  });
+  return picked;
+}
+
+/**
+ * Builds the toolchain/env header. Every input is stable across rebuilds on the
+ * same machine with the same toolchain and env, and changes exactly when the
+ * thing it fingerprints changes - never on wall-clock or run identity.
+ */
+function buildManifestHeader(projectRoot) {
+  var metroVersion = null;
+  try {
+    metroVersion = require('metro/package.json').version || null;
+  } catch (_) {
+    metroVersion = null;
+  }
+
+  // Transformer/babel config digest: hash the project's babel config source. This
+  // is the config that actually shapes every module's transformed output.
+  var babelConfigDigest = null;
+  var babelCandidates = ['babel.config.js', 'babel.config.cjs', '.babelrc', '.babelrc.js'];
+  for (var i = 0; i < babelCandidates.length; i++) {
+    var candidate = path.join(projectRoot, babelCandidates[i]);
+    if (fs.existsSync(candidate)) {
+      babelConfigDigest = crypto
+        .createHash('sha256')
+        .update(fs.readFileSync(candidate, 'utf8'))
+        .digest('hex');
+      break;
+    }
+  }
+
+  var env = selectBundleInliningEnv();
+  var envKeys = Object.keys(env).sort();
+  var envDigest = crypto
+    .createHash('sha256')
+    .update(stableStringify(env))
+    .digest('hex');
+
+  return {
+    metroVersion: metroVersion,
+    babelConfigDigest: babelConfigDigest,
+    envDigest: envDigest,
+    envKeys: envKeys,
+  };
+}
+
+/**
+ * Emits the module manifest sidecar to node_modules/.cache/sherlo/module-manifest.json.
+ *
+ * Written to a SEPARATE file from graph.json so the existing sidecar's bytes are
+ * untouched. Pure side-effect: never influences bundle output.
+ *
+ * Bail-open: any unrecognised Metro Graph shape or error -> no manifest.
+ *
+ * @param {object} graph      Metro ReadOnlyGraph passed to the customSerializer
+ * @param {string} projectRoot absolute project root
+ * @param {string} cacheDir   absolute cache directory (node_modules/.cache/sherlo)
+ */
+function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
+  try {
+    if (!graph || typeof graph !== 'object' || !(graph.dependencies instanceof Map)) {
+      return;
+    }
+
+    /** @type {Record<string, string>} */
+    var moduleHashes = {};
+    graph.dependencies.forEach(function (module, absPath) {
+      var rel = toRelativePath(absPath, projectRoot);
+      if (!rel) return; // skip synthetic/out-of-root modules
+      var digest = hashModuleOutput(module);
+      if (digest) moduleHashes[rel] = digest;
+    });
+
+    /** @type {Record<string, string[]>} */
+    var storyClosures = {};
+    collectStoryAbsPaths(graph).forEach(function (storyAbsPath) {
+      var storyRel = toRelativePath(storyAbsPath, projectRoot);
+      if (!storyRel) return;
+      storyClosures[storyRel] = collectForwardClosure(graph, storyAbsPath, projectRoot);
+    });
+
+    var manifest = {
+      version: 1,
+      header: buildManifestHeader(projectRoot),
+      moduleHashes: moduleHashes,
+      storyClosures: storyClosures,
+    };
+
+    fs.writeFileSync(
+      path.join(cacheDir, 'module-manifest.json'),
+      stableStringify(manifest),
+      'utf8'
+    );
+  } catch (err) {
+    // Non-fatal: if we fail, no manifest is emitted. Never throw into the bundle.
+    console.warn('[Sherlo] Failed to emit module manifest sidecar:', err && err.message);
   }
 }
 
@@ -295,6 +550,13 @@ function applySherloTransforms(result, opts) {
       ? result.serializer.customSerializer
       : null;
 
+  // ---- Module manifest sidecar (SHERLO-1890 Diff Scope v2 Phase A SPIKE) ----
+  // Gated behind the opt-in `experimentalModuleManifest` flag: default OFF,
+  // mirroring how `experimentalMocks` is gated above. With the flag off the
+  // serializer's behaviour is byte-for-byte identical to today - only graph.json
+  // is emitted - and none of the manifest code runs. INDEPENDENT of opts.enabled.
+  var moduleManifestEnabled = !!(opts && opts.experimentalModuleManifest);
+
   // Only install the serializer wrapper when we can safely delegate to something.
   // If there is no pre-existing serializer we try to load Metro's default; if that
   // also fails we skip the wrapper rather than risk corrupting the bundle.
@@ -307,6 +569,9 @@ function applySherloTransforms(result, opts) {
       var serializerProjectRoot =
         (options && options.projectRoot) || projectRoot;
       emitDependencyGraphSidecar(graph, serializerProjectRoot, cacheDir, mockedPathToKey);
+      if (moduleManifestEnabled) {
+        emitModuleManifestSidecar(graph, serializerProjectRoot, cacheDir);
+      }
       // Delegate to the original serializer and return its output unchanged.
       return delegateSerializer(entryPoint, preModules, graph, options);
     };
@@ -418,3 +683,6 @@ module.exports = applySherloTransforms;
 module.exports.applySherloTransforms = applySherloTransforms;
 module.exports.generateWrapper = generateWrapper;
 module.exports.writeDisabledFlagPolyfill = writeDisabledFlagPolyfill;
+// Exported for SHERLO-1890 spike unit tests (module manifest sidecar).
+module.exports.emitModuleManifestSidecar = emitModuleManifestSidecar;
+module.exports.stableStringify = stableStringify;
