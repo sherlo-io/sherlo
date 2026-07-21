@@ -22,6 +22,7 @@ import {
   DEFAULT_PROJECT_ROOT,
   DIAGNOSTICS_OPTION,
   DISCORD_URL,
+  DRY_RUN_OPTION,
   EAS_ANDROID_URL_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EAS_BUILD_SCRIPT_NAME_OPTION,
@@ -171,6 +172,13 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${IOS_OPTION} <path>`,
     `Path to ${PLATFORM_LABEL.ios} build (${IOS_FILE_TYPES.join(', ')})`,
   ],
+  [DRY_RUN_OPTION]: [
+    '--dry-run',
+    'Preview which stories a real run would capture (Diff Scope), then exit. ' +
+      'Bundles and produces the manifest locally, asks the server for a read-only ' +
+      'decision, and prints the per-platform "would capture" lists with reasons. ' +
+      'Creates no build and uploads nothing.',
+  ],
   [JSON_OPTION]: [`--${JSON_OPTION}`, 'Output machine-readable JSON instead of formatted text'],
   [MESSAGE_OPTION]: [`--${MESSAGE_OPTION} <message>`, 'Custom message to label the test'],
   [ON_STALE_OPTION]: [
@@ -301,6 +309,7 @@ function addTestBundledCommand(program: Command) {
     options: [
       ...getTestCommonOptions('withoutPlatformPaths'),
       ON_STALE_OPTION,
+      DRY_RUN_OPTION,
       WAIT_OPTION,
       WAIT_TIMEOUT_OPTION,
       ...devtoolsOptions,

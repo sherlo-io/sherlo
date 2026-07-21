@@ -9,6 +9,11 @@
  * STAGED_GATE_REFUSAL payload that we translate into a named-diff message plus
  * the test:standard fallback line.
  *
+ * --dry-run (SHERLO-1895 Phase C) short-circuits after bundling: it produces the
+ * manifest via the SAME real bundling path, previews the server's read-only Diff
+ * Scope decision (which stories a real run would capture), and STOPS - no gate
+ * check, no upload, no build. See ./dryRun.
+ *
  * Upload-slot decision: staged runs use getStagedUploadUrls (NOT
  * getBuildUploadUrls) - a bundled run has no native binary, so the per-platform
  * config carries the ASYNC_UPLOAD_S3_KEY_PLACEHOLDER for `s3Key` (mirrored
@@ -40,6 +45,7 @@ import { buildBundleForPlatform, buildGateMetadata, type BundleResult } from './
 import { parseStagedGateRefusal, FALLBACK_LINE, type StagedGateRefusal } from './stagedGateRefusal';
 import { getOnStaleMode, handleStaleBase } from './onStale';
 import uploadStagedArtifacts, { type StagedUploadKeys } from './uploadStagedArtifacts';
+import { runDryRunPreview } from './dryRun';
 
 /**
  * The per-platform staged build config plus the SHERLO-1894 `manifestS3Key` the api
@@ -68,6 +74,11 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
   // Resolve --on-stale up front so an invalid value fails before any work.
   const onStale = getOnStaleMode(passedOptions);
 
+  // --dry-run (SHERLO-1895 Phase C): bundle + produce the manifest exactly as a
+  // normal run, then preview the server's Diff Scope decision and STOP. Resolved
+  // here so the branch below is unmistakable; the bundling path is identical.
+  const isDryRun = passedOptions.dryRun === true;
+
   // Determine which platforms have devices configured.
   const platformsToTest = getPlatformsToTest(commandParams.devices);
   if (platformsToTest.length === 0) {
@@ -79,14 +90,21 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
     await reporting.flush().finally(() => process.exit(1));
   }
 
-  console.log(chalk.bold('\n📦 Bundling for staged upload...\n'));
+  console.log(
+    chalk.bold(
+      isDryRun ? '\n📦 Bundling for dry-run preview...\n' : '\n📦 Bundling for staged upload...\n'
+    )
+  );
 
   // 2. Compute base fingerprint - identifies which base binary to stage against.
   //    A null hash means the staged flow is unavailable for this project.
+  //    A dry run does NOT stage a binary, so a missing fingerprint is a
+  //    staged-only concern that must not hard-fail the preview - it bails open
+  //    downstream (a real run would capture everything) rather than exiting here.
   const fpResult = await computeBaseFingerprint(commandParams.projectRoot, {
     command: THIS_COMMAND,
   });
-  if (!fpResult.hash) {
+  if (!fpResult.hash && !isDryRun) {
     console.log(
       chalk.red(
         'Staged upload unavailable - ' + (fpResult.debugMessage ?? 'fingerprint computation failed')
@@ -95,7 +113,7 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
     console.log(chalk.yellow(FALLBACK_LINE));
     await reporting.flush().finally(() => process.exit(1));
   }
-  const baseFingerprint = fpResult.hash!;
+  const baseFingerprint = fpResult.hash ?? '';
 
   // 3. Build bundle + assets and construct gate metadata for each platform.
   const bundles: Partial<Record<Platform, BundleResult>> = {};
@@ -137,6 +155,30 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
   // 4. Resolve token + SDK client.
   const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
   const client = sdkClient({ authToken: apiToken });
+
+  // 4-dry. --dry-run (SHERLO-1895 Phase C): we now have the REAL bundle + manifest
+  //   for every platform and an SDK client. Preview which stories a real run would
+  //   capture via the read-only decision query, print it, and STOP here. A dry run
+  //   never runs the staged gate, uploads nothing, opens no build, and advances no
+  //   ancestry - so it also works with the Diff Scope v2 flag OFF. Bail-open lives
+  //   inside runDryRunPreview; it prints a preview even when the decision is unsure.
+  if (isDryRun) {
+    // Reuse the SAME git info openBuild is given (step 7 below) - the read-only
+    // decision query takes the identical GitInfoInput; do not build a second one.
+    const gitInfo = await getGitInfo(commandParams.projectRoot, {
+      branchOverride: commandParams.gitBranch,
+    });
+    await runDryRunPreview({
+      client,
+      bundles,
+      platformsToTest,
+      projectIndex,
+      teamId,
+      gitInfo,
+      baseReference: baseFingerprint,
+    });
+    return { url: '' };
+  }
 
   // 4.5 Staged gate check (SHERLO-1718): decide fast vs stale BEFORE uploading.
   //     checkStagedGate is per platform; a non-fast outcome on any platform
