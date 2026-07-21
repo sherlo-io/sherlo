@@ -5,6 +5,7 @@ import {
   BRANCH_OPTION,
   CONFIG_OPTION,
   DIAGNOSTICS_OPTION,
+  DRY_RUN_OPTION,
   EAS_ANDROID_URL_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EAS_BUILD_SCRIPT_NAME_OPTION,
@@ -132,6 +133,13 @@ type CommandOptions = {
   [TEST_BUNDLED_COMMAND]: {
     /** Fallback when the staged gate finds the base stale (default: 'fail'). */
     [ON_STALE_OPTION]?: 'fail' | 'build';
+    /**
+     * Preview-only mode (SHERLO-1895 Diff Scope v2 Phase C): bundle + produce the
+     * manifest locally, ask the server which stories a real run WOULD capture, print
+     * the per-platform decision, and create NO build. Never enables Diff Scope; it
+     * is a read-only preview.
+     */
+    [DRY_RUN_OPTION]?: boolean;
   };
   [STAGED_CHECK_COMMAND]: {
     [JSON_OPTION]?: boolean;

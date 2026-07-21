@@ -74,6 +74,10 @@ vi.mock('../uploadStagedArtifacts', () => ({
   default: vi.fn(),
 }));
 
+vi.mock('../dryRun', () => ({
+  runDryRunPreview: vi.fn(),
+}));
+
 // ---------------------------------------------------------------------------
 // Mocked dependency accessors
 // ---------------------------------------------------------------------------
@@ -94,6 +98,7 @@ import {
   buildGateMetadata as _buildGateMetadata,
 } from '../buildBundle';
 import _uploadStagedArtifacts from '../uploadStagedArtifacts';
+import { runDryRunPreview as _runDryRunPreview } from '../dryRun';
 
 const mockGetAppBuildUrl = vi.mocked(_getAppBuildUrl);
 const mockGetBuildRunConfig = vi.mocked(_getBuildRunConfig);
@@ -107,6 +112,7 @@ const mockComputeBaseFingerprint = vi.mocked(_computeBaseFingerprint);
 const mockBuildBundleForPlatform = vi.mocked(_buildBundleForPlatform);
 const mockBuildGateMetadata = vi.mocked(_buildGateMetadata);
 const mockUploadStagedArtifacts = vi.mocked(_uploadStagedArtifacts);
+const mockRunDryRunPreview = vi.mocked(_runDryRunPreview);
 
 // ---------------------------------------------------------------------------
 // Subject under test
@@ -344,6 +350,86 @@ describe('gitInfo parity with test:standard', () => {
     const openBuildArg = mockOpenBuild.mock.calls[0][0];
     expect('manifestS3Key' in openBuildArg.buildRunConfig.ios).toBe(false);
 
+    logSpy.mockRestore();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// --dry-run: preview only, creates nothing (SHERLO-1895 Phase C)
+// ---------------------------------------------------------------------------
+
+describe('--dry-run', () => {
+  beforeEach(() => {
+    mockGetValidatedCommandParams.mockReturnValue({
+      projectRoot: '/proj',
+      token: 'token-value',
+      devices: [IOS_DEVICE],
+    } as any);
+    mockGetPlatformsToTest.mockReturnValue(['ios'] as any);
+    mockComputeBaseFingerprint.mockResolvedValue({ hash: 'BASE_FP' } as any);
+    mockBuildBundleForPlatform.mockResolvedValue(bundleResult());
+    mockBuildGateMetadata.mockResolvedValue({ engineClass: 'hermes' } as any);
+    mockGetTokenParts.mockReturnValue({ apiToken: 'api', projectIndex: 3, teamId: 'team' });
+    mockRunDryRunPreview.mockResolvedValue(undefined);
+  });
+
+  it('runs the preview and creates NO build: no gate check, no upload, no openBuild', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const result = await testBundled({ dryRun: true });
+
+    expect(mockRunDryRunPreview).toHaveBeenCalledTimes(1);
+    const arg = mockRunDryRunPreview.mock.calls[0][0];
+    expect(arg.platformsToTest).toEqual(['ios']);
+    expect(arg.projectIndex).toBe(3);
+    expect(arg.teamId).toBe('team');
+    expect(arg.bundles.ios).toBeDefined();
+
+    // The whole build-creating pipeline is skipped.
+    expect(mockCheckStagedGate).not.toHaveBeenCalled();
+    expect(mockGetStagedUploadUrls).not.toHaveBeenCalled();
+    expect(mockUploadStagedArtifacts).not.toHaveBeenCalled();
+    expect(mockOpenBuild).not.toHaveBeenCalled();
+
+    expect(result).toEqual({ url: '' });
+
+    logSpy.mockRestore();
+  });
+
+  it('bundles via the SAME real path (buildBundleForPlatform) before previewing', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await testBundled({ dryRun: true });
+
+    // The manifest comes from the real bundle path, not a synthetic one.
+    expect(mockBuildBundleForPlatform).toHaveBeenCalledTimes(1);
+    expect(mockBuildBundleForPlatform).toHaveBeenCalledWith({
+      projectRoot: '/proj',
+      platform: 'ios',
+    });
+
+    logSpy.mockRestore();
+  });
+
+  // A missing base fingerprint hard-fails a real staged run, but for a preview it
+  // is a staged-only concern: the dry run proceeds and still produces its preview.
+  it('does NOT hard-fail on a missing base fingerprint (staged-only concern)', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: number) => {
+      throw new Error(`process.exit(${code})`);
+    });
+    mockComputeBaseFingerprint.mockResolvedValue({
+      hash: '',
+      debugMessage: 'No base binary found',
+    } as any);
+
+    const result = await testBundled({ dryRun: true });
+
+    expect(mockRunDryRunPreview).toHaveBeenCalledTimes(1);
+    expect(exitSpy).not.toHaveBeenCalled();
+    expect(result).toEqual({ url: '' });
+
+    exitSpy.mockRestore();
     logSpy.mockRestore();
   });
 });
