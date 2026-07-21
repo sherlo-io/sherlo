@@ -235,7 +235,7 @@ export async function requestDryRunDecision(
     throw new Error('The Diff Scope dry-run decision returned no platform results.');
   }
 
-  return result.platforms.map((r) => ({
+  return result.platforms.map((r: DiffScopeDryRunPlatformResult) => ({
     platform: r.platform,
     isFullCapture: r.isFullCapture,
     // Defensive: the SDL guarantees a list, but never render undefined as a list.
