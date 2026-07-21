@@ -25,7 +25,11 @@ const customConfig = mergeConfig(defaultConfig, {
   },
   resolver: {
     extraNodeModules,
-    sourceExts: [...defaultConfig.resolver.sourceExts, 'mjs'],
+    // Some deps (e.g. @tamagui/config/v4) ship only .mjs/.cjs entrypoints and
+    // declare no matching package `exports` subpath, so Metro must fall back to
+    // filesystem resolution - which only works if these extensions are known.
+    // @react-native/metro-config omits both; @expo/metro-config includes them.
+    sourceExts: [...defaultConfig.resolver.sourceExts, 'mjs', 'cjs'],
   },
   watchFolders: Object.values(linkedModules),
 });
