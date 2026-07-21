@@ -175,6 +175,28 @@ function hashModuleOutput(module) {
 }
 
 /**
+ * Cross-machine determinism guard (SHERLO-1894). Returns true when a module's
+ * TRANSFORMED output inlines the absolute project root - the one path fragment that
+ * necessarily differs machine-to-machine, so its presence means the module's content
+ * hash is NOT portable across machines. Scans the exact same bytes hashModuleOutput
+ * hashes (module.output[].data.code), so a leak found here is a leak in the hash.
+ * Pure read: never mutates output, never influences the hash.
+ *
+ * @returns {boolean} true if any output entry's code contains the absolute projectRoot.
+ */
+function moduleOutputLeaksAbsolutePath(module, projectRoot) {
+  if (!module || !Array.isArray(module.output) || !projectRoot) return false;
+  for (var i = 0; i < module.output.length; i++) {
+    var out = module.output[i];
+    var code = out && out.data && out.data.code;
+    if (typeof code === 'string' && code.indexOf(projectRoot) !== -1) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Collects the absolute paths of every story module: the targets of every
  * require.context() edge in the graph. Mirrors how emitDependencyGraphSidecar
  * resolves contextGraph - a require.context dependency is a synthetic module
@@ -347,12 +369,18 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
 
     /** @type {Record<string, string>} */
     var moduleHashes = {};
+    /** @type {string[]} source-path keys whose transformed output leaks an abs path. */
+    var absolutePathLeaks = [];
     graph.dependencies.forEach(function (module, absPath) {
       var rel = toRelativePath(absPath, projectRoot);
       if (!rel) return; // skip synthetic/out-of-root modules
       var digest = hashModuleOutput(module);
       if (digest) moduleHashes[rel] = digest;
+      if (moduleOutputLeaksAbsolutePath(module, projectRoot)) {
+        absolutePathLeaks.push(rel);
+      }
     });
+    absolutePathLeaks.sort();
 
     /** @type {Record<string, string[]>} */
     var storyClosures = {};
@@ -362,9 +390,26 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
       storyClosures[storyRel] = collectForwardClosure(graph, storyAbsPath, projectRoot);
     });
 
+    var header = buildManifestHeader(projectRoot);
+    // Cross-machine determinism guard (SHERLO-1894): FLAG (never fail) modules whose
+    // transformed output inlines the absolute project root - their hashes are not
+    // portable across machines. Recorded in the header so the manifest is
+    // self-describing; a non-empty list means the hashes are machine-local. Bail-open
+    // is preserved: we warn and still emit, never throw.
+    header.absolutePathLeaks = absolutePathLeaks;
+    if (absolutePathLeaks.length > 0) {
+      console.warn(
+        '[Sherlo] Module manifest: ' +
+          absolutePathLeaks.length +
+          ' module(s) inline an absolute path into transformed output; their hashes ' +
+          'are not cross-machine portable: ' +
+          absolutePathLeaks.join(', ')
+      );
+    }
+
     var manifest = {
       version: 1,
-      header: buildManifestHeader(projectRoot),
+      header: header,
       moduleHashes: moduleHashes,
       storyClosures: storyClosures,
     };
@@ -550,12 +595,19 @@ function applySherloTransforms(result, opts) {
       ? result.serializer.customSerializer
       : null;
 
-  // ---- Module manifest sidecar (SHERLO-1890 Diff Scope v2 Phase A SPIKE) ----
+  // ---- Module manifest sidecar (SHERLO-1890 Phase A / SHERLO-1894 Phase B) ----
   // Gated behind the opt-in `experimentalModuleManifest` flag: default OFF,
   // mirroring how `experimentalMocks` is gated above. With the flag off the
   // serializer's behaviour is byte-for-byte identical to today - only graph.json
   // is emitted - and none of the manifest code runs. INDEPENDENT of opts.enabled.
-  var moduleManifestEnabled = !!(opts && opts.experimentalModuleManifest);
+  //
+  // Phase B (SHERLO-1894): the CLI test:bundled path turns the manifest ON for that
+  // path ONLY by setting SHERLO_EXPERIMENTAL_MODULE_MANIFEST=1 in the bundler
+  // subprocess env it spawns. That env var is scoped to that one child process, so
+  // the opt stays default-OFF for every normal build / every other user.
+  var moduleManifestEnabled =
+    !!(opts && opts.experimentalModuleManifest) ||
+    process.env.SHERLO_EXPERIMENTAL_MODULE_MANIFEST === '1';
 
   // Only install the serializer wrapper when we can safely delegate to something.
   // If there is no pre-existing serializer we try to load Metro's default; if that

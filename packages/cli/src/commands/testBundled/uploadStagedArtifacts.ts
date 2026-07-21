@@ -17,9 +17,11 @@ import http from 'http';
 import https from 'https';
 import os from 'os';
 import path from 'path';
-import { Platform, StagedPlatformUploadUrls } from '@sherlo/api-types';
+import zlib from 'zlib';
+import { Platform, StagedPlatformUploadUrls, StagedPresignedUploadUrl } from '@sherlo/api-types';
 import fetch from 'node-fetch';
 import { PLATFORM_LABEL } from '../../constants';
+import logWarning from '../../helpers/logWarning';
 import reporting from '../../helpers/reporting';
 import throwError from '../../helpers/throwError';
 import type { BundleResult } from './buildBundle';
@@ -30,6 +32,21 @@ const TIMEOUT = 5 * 60 * 1000; // 5 minutes
 export type StagedUploadKeys = {
   jsBundleS3Key: string;
   assetsS3Key?: string;
+  /** S3 key of the uploaded module manifest (SHERLO-1894). Absent unless a manifest was uploaded. */
+  manifestS3Key?: string;
+};
+
+/**
+ * getStagedUploadUrls with the SHERLO-1894 `manifest` slot the api department is
+ * adding in parallel. The slot is OPTIONAL here on purpose: the published
+ * @sherlo/api-types this repo typechecks against does not carry it yet, and the
+ * published sdk-client's GraphQL query does not select it, so at runtime it is
+ * simply absent until both republish. A missing slot is a bail-open case, never an
+ * error (old CLI vs new API and vice versa). Local forward-compat extension - drop
+ * this and use the published type once api-types republishes with the slot.
+ */
+type StagedUploadUrlsWithManifest = StagedPlatformUploadUrls & {
+  manifest?: StagedPresignedUploadUrl;
 };
 
 async function uploadStagedArtifacts({
@@ -39,7 +56,7 @@ async function uploadStagedArtifacts({
 }: {
   platform: Platform;
   bundleResult: BundleResult;
-  urls: StagedPlatformUploadUrls;
+  urls: StagedUploadUrlsWithManifest;
 }): Promise<StagedUploadKeys> {
   // 1. Upload the JS bundle verbatim.
   const bundleBuffer = fs.readFileSync(bundleResult.bundlePath);
@@ -74,6 +91,33 @@ async function uploadStagedArtifacts({
       keys.assetsS3Key = urls.assets.s3Key;
     } finally {
       fs.rmSync(archivePath, { force: true });
+    }
+  }
+
+  // 3. Upload the gzipped module manifest - only when the build produced one AND the
+  //    server offered a `manifest` slot (SHERLO-1894). BAIL-OPEN throughout: a
+  //    missing slot (old API / published sdk-client that doesn't select it) is
+  //    skipped silently, and any error gzipping or uploading is caught, warned, and
+  //    swallowed. A manifest problem can NEVER fail or block the build.
+  if (bundleResult.moduleManifest && urls.manifest) {
+    try {
+      const gzipped = zlib.gzipSync(bundleResult.moduleManifest.raw);
+      await putBuffer({
+        platform,
+        label: 'module manifest',
+        uploadUrl: urls.manifest.url,
+        buffer: gzipped,
+      });
+      keys.manifestS3Key = urls.manifest.s3Key;
+    } catch (error) {
+      // putBuffer throws after its retries are exhausted; for the manifest that is a
+      // warning, not a failure - the build proceeds without it.
+      logWarning({
+        message:
+          `Failed to upload the ${PLATFORM_LABEL[platform]} module manifest ` +
+          `(${error instanceof Error ? error.message : String(error)}); ` +
+          'continuing without it.',
+      });
     }
   }
 

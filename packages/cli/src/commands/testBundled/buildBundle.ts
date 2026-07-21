@@ -24,6 +24,11 @@ import detectBundler from '../../commands/showError/detectBundler';
 import { detectEntryFile } from '../../commands/showError/detectBundler';
 import getPackageVersion from '../../commands/init/requirements/getPackageVersion';
 import { readBundledSdkProtocolVersion } from './readBundledSdkProtocolVersion';
+import {
+  deleteModuleManifestSidecar,
+  readValidatedModuleManifest,
+  type ValidatedModuleManifest,
+} from './readModuleManifest';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -46,6 +51,13 @@ export type BundleResult = {
   assetInventory: string[];
   /** Which bundler was used. */
   bundler: 'expo' | 'rn';
+  /**
+   * The validated module-manifest sidecar the serializer emitted for THIS build
+   * (SHERLO-1894 Phase B), or undefined when none was produced / it was invalid.
+   * Bail-open: a missing or bad manifest is never an error - the build ships
+   * without it. Uploaded (gzipped) to the staged `manifest` slot when present.
+   */
+  moduleManifest?: ValidatedModuleManifest;
 };
 
 // ---------------------------------------------------------------------------
@@ -136,6 +148,14 @@ export async function buildBundleForPlatform({
       /* ok */
     }
   }
+
+  // Delete any module-manifest sidecar left by a PREVIOUS platform's build before
+  // we spawn this platform's bundler (SHERLO-1894 §2). The sidecar lives at ONE
+  // fixed path with no platform recorded, and the loop reuses this projectRoot for
+  // every platform, so a leftover would be read and uploaded as THIS platform's
+  // manifest if this platform's serializer bails open and emits nothing. Deleting
+  // here makes absence mean absence: anything read afterward came from this run.
+  deleteModuleManifestSidecar(projectRoot);
 
   // ------------------------------------------------------------------
   // 2. Build the bundle with --dev false --minify true (design §5).
@@ -234,6 +254,14 @@ export async function buildBundleForPlatform({
     }
   }
 
+  // ------------------------------------------------------------------
+  // 8. Read the module-manifest sidecar the serializer emitted for this
+  //    build (SHERLO-1894 Phase B). Bail-open: a missing / unreadable /
+  //    shape-invalid sidecar yields undefined (the reader warns, never
+  //    throws), so a manifest problem can never block the build.
+  // ------------------------------------------------------------------
+  const moduleManifest = readValidatedModuleManifest(projectRoot) ?? undefined;
+
   return {
     bundlePath: bundleOut,
     bundleFormat,
@@ -242,6 +270,7 @@ export async function buildBundleForPlatform({
     assetsDest: assetsDestResult,
     assetInventory,
     bundler: projectType,
+    moduleManifest,
   };
 }
 
@@ -320,6 +349,16 @@ function execBundler(
 ): void {
   const { projectRoot, entryFile, bundleOut, assetsDest } = opts;
 
+  // Turn the module manifest ON for the test:bundled path ONLY (SHERLO-1894 Phase B).
+  // The Sherlo Metro serializer reads SHERLO_EXPERIMENTAL_MODULE_MANIFEST; setting it
+  // here scopes it to this spawned bundler process, so the `experimentalModuleManifest`
+  // opt stays default-OFF for every other build. Nothing else in this env changes, so
+  // the bundle output is byte-for-byte what it would be without the flag.
+  const bundlerEnv: NodeJS.ProcessEnv = {
+    ...process.env,
+    SHERLO_EXPERIMENTAL_MODULE_MANIFEST: '1',
+  };
+
   if (bundler === 'expo') {
     const cmd = [
       'npx expo export:embed',
@@ -335,6 +374,7 @@ function execBundler(
       execSync(cmd, {
         cwd: projectRoot,
         stdio: ['pipe', 'pipe', 'pipe'],
+        env: bundlerEnv,
       });
     } catch (err: any) {
       const detail = (err.stderr?.toString?.() || '') + (err.stdout?.toString?.() || '');
@@ -357,6 +397,7 @@ function execBundler(
       execSync(cmd, {
         cwd: projectRoot,
         stdio: ['pipe', 'pipe', 'pipe'],
+        env: bundlerEnv,
       });
     } catch (err: any) {
       const detail = (err.stderr?.toString?.() || '') + (err.stdout?.toString?.() || '');
