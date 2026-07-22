@@ -295,6 +295,78 @@ describe('computeBaseFingerprint', () => {
         cleanup(dir);
       }
     });
+
+    // SHERLO-1904: the aggregate `layer1.hash` cannot name WHICH @expo/fingerprint source
+    // moved. This proves the per-source lines do - one `layer1.source` line per source, so
+    // two captures diff to the exact differing file/contents source.
+    it('names every Layer-1 source so a Layer-1-internal divergence is diffable', async () => {
+      process.env.SHERLO_FINGERPRINT_DEBUG = '1';
+      mockCreateFingerprintAsync.mockResolvedValueOnce({
+        hash: 'fp-layer1-abc123',
+        sources: [
+          {
+            type: 'contents',
+            id: 'expoConfig',
+            contents: '{}',
+            reasons: ['expoConfig'],
+            hash: 'h-config',
+          },
+          {
+            type: 'file',
+            filePath: 'plugins/with-crash-trigger.js',
+            reasons: ['expoConfigPlugins'],
+            hash: 'h-plugin',
+          },
+          {
+            type: 'dir',
+            filePath: 'node_modules/react-native-svg/android',
+            reasons: ['expoAutolinkingAndroid'],
+            hash: 'h-svg',
+          },
+          // A source excluded by dirExcludes has a null hash - must render as (excluded).
+          {
+            type: 'file',
+            filePath: 'excluded/thing',
+            reasons: ['bareRncliAutolinking'],
+            hash: null,
+          },
+        ],
+      });
+      const dir = makeTempDir();
+      try {
+        writeFile(dir, 'package.json', JSON.stringify({ name: 'test' }));
+        await computeBaseFingerprint(dir, { command: 'staged:check' });
+        const debugLines = logSpy.mock.calls
+          .flat()
+          .filter((a: unknown): a is string => typeof a === 'string')
+          .join('\n')
+          .split('\n')
+          .filter((line: string) => line.includes('[sherlo:fp-debug]'));
+        const out = debugLines.join('\n');
+
+        expect(out).toContain('layer1.sources.count=4');
+        // Contents source keyed by id; file/dir sources keyed by filePath; reasons + hash shown.
+        expect(out).toContain('layer1.source contents expoConfig h-config [expoConfig]');
+        expect(out).toContain(
+          'layer1.source file plugins/with-crash-trigger.js h-plugin [expoConfigPlugins]'
+        );
+        expect(out).toContain(
+          'layer1.source dir node_modules/react-native-svg/android h-svg [expoAutolinkingAndroid]'
+        );
+        // Null hash (excluded source) renders as (excluded), never as the string "null".
+        expect(out).toContain(
+          'layer1.source file excluded/thing (excluded) [bareRncliAutolinking]'
+        );
+
+        // The source lines are sorted for stable line-for-line diffing across captures.
+        const sourceLines = debugLines
+          .map((line: string) => line.slice(line.indexOf('layer1.source ')))
+          .filter((line: string) => line.startsWith('layer1.source '));
+        expect(sourceLines).toEqual([...sourceLines].sort());
+      } finally {
+        cleanup(dir);
+      }
+    });
   });
 
   // The fileHookTransform correctly strips version lines.

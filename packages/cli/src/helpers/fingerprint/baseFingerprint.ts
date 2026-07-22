@@ -29,6 +29,7 @@ import path from 'path';
 import type {
   FileHookTransformFunction,
   FileHookTransformSource,
+  FingerprintSource,
   Options as FingerprintOptions,
 } from '@expo/fingerprint';
 import runShellCommand from '../runShellCommand';
@@ -191,6 +192,10 @@ export async function computeBaseFingerprint(
   // Layer 1 - @expo/fingerprint with version suppression.
   // ------------------------------------------------------------------
   let layer1Hash: string | null = null;
+  // The individual @expo/fingerprint sources behind `layer1Hash`. Kept ONLY so the
+  // debug instrument can name which source moved when two computes disagree; it has
+  // NO effect on the computed hash (SHERLO-1904).
+  let layer1Sources: readonly FingerprintSource[] = [];
 
   try {
     // Lazy, fail-soft load: a missing/broken @expo/fingerprint install rejects
@@ -215,6 +220,7 @@ export async function computeBaseFingerprint(
       createFingerprintAsync(resolvedProjectRoot, fingerprintOptions)
     );
     layer1Hash = fingerprint.hash;
+    layer1Sources = fingerprint.sources ?? [];
   } catch (err) {
     // @expo/fingerprint may not be installed, or the project may have no
     // native dirs.  Fail-soft - return null and let the caller proceed.
@@ -263,6 +269,7 @@ export async function computeBaseFingerprint(
     resolvedProjectRoot,
     workflow,
     layer1Hash,
+    layer1Sources,
     layer1EnvMode: LAYER1_ENV_MODE,
     lockfileHashes,
     autolinkedModules,
@@ -296,6 +303,7 @@ function emitFingerprintDebug(fields: {
   resolvedProjectRoot: string;
   workflow: Workflow;
   layer1Hash: string;
+  layer1Sources: readonly FingerprintSource[];
   layer1EnvMode: string;
   lockfileHashes: string[];
   autolinkedModules: string;
@@ -328,6 +336,26 @@ function emitFingerprintDebug(fields: {
   // here would name an env leak - a future regression is one grep away.
   lines.push(tag(`layer1.envMode=${fields.layer1EnvMode}`));
   lines.push(tag(`layer1.hash=${fields.layer1Hash}`));
+
+  // Layer 1 per-source breakdown. `layer1.hash` above is a SINGLE aggregate over every
+  // @expo/fingerprint source, so when it moves between two commands it cannot say WHICH
+  // source moved - localizing a Layer-1-internal divergence took three departments and a
+  // DB dig (SHERLO-1904). These lines name each source (evaluated config contents, every
+  // config-plugin file, each autolinked native-module dir, the lib-seen lockfiles, ...)
+  // with its own hash, so two captures diff line-for-line to the exact differing source.
+  // Sorted by source id for stable diffing; a source @expo/fingerprint reports with a
+  // null hash (e.g. one dropped by a bare project's `dirExcludes`) prints as `(excluded)`.
+  lines.push(tag(`layer1.sources.count=${fields.layer1Sources.length}`));
+  const layer1SourceLines = fields.layer1Sources
+    .map((source) => {
+      const id = source.type === 'contents' ? source.id : source.filePath;
+      const hash = source.hash ?? '(excluded)';
+      return `layer1.source ${source.type} ${id} ${hash} [${source.reasons.join(',')}]`;
+    })
+    .sort();
+  for (const sourceLine of layer1SourceLines) {
+    lines.push(tag(sourceLine));
+  }
 
   // Layer 2 - augmented sources: each lockfile SHA + the sorted autolinked set.
   if (fields.lockfileHashes.length === 0) {
