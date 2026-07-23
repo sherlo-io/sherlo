@@ -22,6 +22,21 @@ function toRelativePath(absPath, projectRoot) {
   }
   var rel = path.relative(projectRoot, absPath);
   if (rel.indexOf('..') === 0) return null; // outside project root
+  // The leading "./" is INTENTIONAL and load-bearing - do not strip it to match
+  // sherlo-api's DiffScope.md "Serialized shape" doc, which shows bare paths
+  // (e.g. "src/Button.tsx"). That doc describes the server's canonicalized
+  // form, not what the SDK is supposed to emit. This helper's "./"-prefixed
+  // output is part of two contracts:
+  //   1. Diff Scope v1's graph.json sidecar (emitDependencyGraphSidecar below)
+  //      - its consumers expect the "./" form as-is.
+  //   2. Diff Scope v2's module manifest (moduleHashes/storyClosures keys) -
+  //      the server strips the prefix at ingestion, in sherlo-api's
+  //      parseModuleManifest (computeDiffScopeDecision/moduleManifest.ts),
+  //      per SHERLO-1912.
+  // Emitting bare paths here would break v1's sidecar consumers and, for v2,
+  // mismatch every "./"-keyed ancestor manifest already stored in S3 -
+  // making every module look changed and silently degrading partial capture
+  // to whole-suite capture for every diff going forward.
   return './' + rel.split(path.sep).join('/');
 }
 
