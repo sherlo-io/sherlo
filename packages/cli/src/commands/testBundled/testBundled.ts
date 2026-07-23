@@ -46,6 +46,8 @@ import { parseStagedGateRefusal, FALLBACK_LINE, type StagedGateRefusal } from '.
 import { getOnStaleMode, handleStaleBase } from './onStale';
 import uploadStagedArtifacts, { type StagedUploadKeys } from './uploadStagedArtifacts';
 import { runDryRunPreview } from './dryRun';
+import { countBundleStories } from './readModuleManifest';
+import { formatDiffScopeReport, type DiffScopePlatformReport } from './diffScopeReport';
 
 /**
  * The per-platform staged build config plus the SHERLO-1894 `manifestS3Key` the api
@@ -57,6 +59,31 @@ import { runDryRunPreview } from './dryRun';
  * republishes with the field.
  */
 type PlatformConfigWithManifest = { manifestS3Key?: string };
+
+/**
+ * The per-platform Diff Scope decision the server records at openBuild, read
+ * forward-compatibly off the openBuild response (SHERLO-1915). Two fields are
+ * involved and BOTH are declared locally + read defensively, the same pattern as
+ * {@link PlatformConfigWithManifest} and the optional `computeDiffScopeDryRun`
+ * method - the published @sherlo/api-types this repo typechecks against does not
+ * carry them yet, so a cast to `any` is avoided in favour of a precise local
+ * extension. Absent at runtime -> the live report degrades cleanly (see below).
+ *
+ * - `captureScope` on the per-platform buildRun config: the captured set this
+ *   run selected. `full: true` means EVERY story was in scope (an empty
+ *   `storyFilePaths` in that case means "everything", not "nothing"). Absent for
+ *   a platform -> the report says NOTHING about it (the server made no decision).
+ * - `diffScopeInfo.platforms[platform].reason`: the path-legible closure-diff
+ *   string, byte-identical to the dashboard's. The api department selects this in
+ *   a parallel PR; until it lands the field is absent and the reason ladder falls
+ *   through to `fullCaptureTriggerReason` or omits the reason entirely.
+ */
+type CaptureScope = { full: boolean; storyFilePaths?: string[] };
+type PlatformConfigWithCaptureScope = { captureScope?: CaptureScope };
+type DiffScopeInfoWithPlatformReasons = {
+  fullCaptureTriggerReason?: string;
+  platforms?: Partial<Record<Platform, { reason?: string }>>;
+};
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -318,6 +345,12 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
 
   printResultsUrl(url);
 
+  // The command now EXPLAINS its own Diff Scope decision (SHERLO-1915): which
+  // stories this run captured, which it reused from the base, and why - read
+  // straight off the openBuild response, no extra API call. Prints nothing for a
+  // platform the server made no decision for (Diff Scope v2 off, or older API).
+  printLiveDiffScopeReport({ openBuildReturn, bundles, platformsToTest });
+
   if (commandParams.wait) {
     const exitCode = await waitForBuildResult({
       token: commandParams.token,
@@ -339,6 +372,85 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
 export default testBundled;
 
 /* ========================================================================== */
+
+/**
+ * Print this run's Diff Scope decision, per platform, straight off the openBuild
+ * response (SHERLO-1915). No extra API call: `captureScope` carries the captured
+ * set and `diffScopeInfo` carries the reason. Renders through the SAME shared
+ * formatter the dry run uses, so the two modes read identically apart from tense.
+ *
+ * A platform the server made no decision for (no `captureScope`) is skipped
+ * entirely - silence, never an invented "captured everything". If NO platform
+ * has a decision, nothing is printed at all.
+ */
+function printLiveDiffScopeReport({
+  openBuildReturn,
+  bundles,
+  platformsToTest,
+}: {
+  openBuildReturn: Awaited<ReturnType<ReturnType<typeof sdkClient>['openBuild']>>;
+  bundles: Partial<Record<Platform, BundleResult>>;
+  platformsToTest: Platform[];
+}): void {
+  const diffScopeInfo = openBuildReturn.build.diffScopeInfo as
+    | DiffScopeInfoWithPlatformReasons
+    | undefined;
+
+  const platforms: DiffScopePlatformReport[] = [];
+  for (const platform of platformsToTest) {
+    const platformConfig = openBuildReturn.buildRun?.config?.[platform] as
+      | PlatformConfigWithCaptureScope
+      | undefined;
+    const captureScope = platformConfig?.captureScope;
+
+    // No decision recorded for this platform -> stay silent. Asserting "captured
+    // everything" here would claim a decision the server never made.
+    if (!captureScope) continue;
+
+    const manifest = bundles[platform]?.moduleManifest;
+    platforms.push({
+      kind: 'decided',
+      platform,
+      // INVERSION GUARD: full === true is "every story", regardless of the list.
+      full: captureScope.full,
+      // A full capture selects everything; its per-story list is not meaningful.
+      capturedStoryFilePaths: captureScope.full ? [] : captureScope.storyFilePaths ?? [],
+      // M is the whole bundle's story set, counted the ONE canonical way.
+      totalStoriesInBundle: manifest ? countBundleStories(manifest) : undefined,
+      reason: resolveLiveReason({ platform, full: captureScope.full, diffScopeInfo }),
+    });
+  }
+
+  if (platforms.length === 0) return;
+
+  console.log('\n' + formatDiffScopeReport('live', platforms));
+}
+
+/**
+ * The reason ladder, in strict order (SHERLO-1915). The reason is byte-identical
+ * to the persisted server decision or absent - never CLI-invented:
+ *   1. the per-platform closure-diff reason, when present -> verbatim;
+ *   2. else, on a FULL capture only, the build-wide fullCaptureTriggerReason;
+ *   3. else -> omitted.
+ */
+function resolveLiveReason({
+  platform,
+  full,
+  diffScopeInfo,
+}: {
+  platform: Platform;
+  full: boolean;
+  diffScopeInfo: DiffScopeInfoWithPlatformReasons | undefined;
+}): string | undefined {
+  const perPlatformReason = diffScopeInfo?.platforms?.[platform]?.reason;
+  if (perPlatformReason) return perPlatformReason;
+
+  if (full && diffScopeInfo?.fullCaptureTriggerReason) {
+    return diffScopeInfo.fullCaptureTriggerReason;
+  }
+
+  return undefined;
+}
 
 function parseWaitTimeout(raw: string | undefined): number | undefined {
   if (!raw) return undefined;

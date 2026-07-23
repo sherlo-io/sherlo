@@ -31,7 +31,7 @@ import sdkClient from '@sherlo/sdk-client';
 import { Platform } from '@sherlo/api-types';
 import reporting from '../../helpers/reporting';
 import type { GitInfo } from '../../helpers/getGitInfo';
-import type { ValidatedModuleManifest } from './readModuleManifest';
+import { countBundleStories, type ValidatedModuleManifest } from './readModuleManifest';
 
 // ---------------------------------------------------------------------------
 // Contract-mirrored wire types (SHERLO-1895 Phase C)
@@ -209,7 +209,7 @@ export async function requestDryRunDecision(
   const totalByPlatform = new Map<Platform, number>();
   for (const p of input.platforms) {
     if (p.manifest) {
-      totalByPlatform.set(p.platform, Object.keys(p.manifest.parsed.storyClosures).length);
+      totalByPlatform.set(p.platform, countBundleStories(p.manifest));
     }
   }
 
