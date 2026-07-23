@@ -78,7 +78,10 @@ describe('formatDryRunPreview', () => {
     const output = formatDryRunPreview([{ status: 'decided', decision }]);
 
     expect(output).toContain('Diff Scope preview - dry run (no build created)');
-    expect(output).toContain('iOS - would capture 2 of 5 stories');
+    // The fraction NAMES ITS UNIVERSE - "in this bundle", not the --include scope.
+    expect(output).toContain('iOS - would capture 2 of 5 stories in this bundle');
+    // Reused side (M - N = 3) is now shown alongside the captured side.
+    expect(output).toContain('Would reuse the other 3');
     expect(output).toContain('• src/components/Storefront/Storefront.stories.tsx');
     expect(output).toContain('• src/components/Cart/Cart.stories.tsx');
     // Reason printed EXACTLY as the server returned it - no re-rendering.
@@ -88,7 +91,7 @@ describe('formatDryRunPreview', () => {
     expect(output).toContain('no build was created and nothing was uploaded');
   });
 
-  it('renders a PARTIAL zero-capture as "capture nothing" with its verbatim reason', () => {
+  it('renders a PARTIAL zero-capture as "nothing captured" with its verbatim reason', () => {
     const decision: DryRunPlatformDecision = {
       platform: 'android',
       isFullCapture: false,
@@ -99,8 +102,8 @@ describe('formatDryRunPreview', () => {
 
     const output = formatDryRunPreview([{ status: 'decided', decision }]);
 
-    expect(output).toContain('Android - would capture 0 of 5 stories');
-    expect(output).toContain('a real run would capture nothing');
+    expect(output).toContain('Android - would capture 0 of 5 stories in this bundle');
+    expect(output).toContain('so all 5 would be reused from the base build');
     expect(output).toContain('captured 0 - no module changes reach any story');
     // A partial-zero is NOT a full capture.
     expect(output).not.toContain('EVERY story');

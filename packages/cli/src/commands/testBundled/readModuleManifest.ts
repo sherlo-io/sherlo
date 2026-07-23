@@ -130,4 +130,20 @@ export function readValidatedModuleManifest(projectRoot: string): ValidatedModul
   };
 }
 
+/**
+ * The number of stories THIS build's manifest carries - the "M" in every Diff
+ * Scope "N of M" fraction. It is the count of story closures the serializer
+ * recorded, keyed by story SOURCE FILE. This is the ONE definition of M; both
+ * the live and dry-run Diff Scope reports (SHERLO-1915) count it through here so
+ * the two modes can never disagree on the denominator.
+ *
+ * Note this counts the WHOLE bundle's story set, NOT the `--include` / `--exclude`
+ * scope: the scope filter runs on-device against story TITLES, while the manifest
+ * is keyed by file paths, so the CLI has no honest way to scope this number at
+ * bundle time. The report wording names the number "in this bundle" to say so.
+ */
+export function countBundleStories(manifest: ValidatedModuleManifest): number {
+  return Object.keys(manifest.parsed.storyClosures).length;
+}
+
 export default readValidatedModuleManifest;

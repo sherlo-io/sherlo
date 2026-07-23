@@ -26,7 +26,6 @@
  */
 import { Platform } from '@sherlo/api-types';
 import reporting from '../../helpers/reporting';
-import { PLATFORM_LABEL } from '../../constants';
 import type { GitInfo } from '../../helpers/getGitInfo';
 import type { BundleResult } from './buildBundle';
 import {
@@ -35,6 +34,7 @@ import {
   type DryRunPlatformDecision,
   type DryRunPlatformRequest,
 } from './dryRunDecision';
+import { formatDiffScopeReport, type DiffScopePlatformReport } from './diffScopeReport';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -143,73 +143,31 @@ export default runDryRunPreview;
 // ---------------------------------------------------------------------------
 
 /**
- * Render the whole dry-run preview as a plain-text block (no color - the caller
- * prints it as-is, and tests assert on it directly). Header, one block per
- * platform, then a footer making the read-only nature explicit.
+ * Render the whole dry-run preview by mapping each platform's preview onto the
+ * shared {@link formatDiffScopeReport}. The dry run and the live run print the
+ * SAME per-platform block; only the tense (here: "would capture") and the
+ * preview header/footer differ, and both live in that one shared module.
  */
 export function formatDryRunPreview(previews: DryRunPlatformPreview[]): string {
-  const lines: string[] = [];
+  const platforms: DiffScopePlatformReport[] = previews.map((preview) =>
+    preview.status === 'bailed-open'
+      ? { kind: 'bailed-open', platform: preview.platform, reason: preview.reason }
+      : decisionToReport(preview.decision)
+  );
 
-  lines.push('📋 Diff Scope preview - dry run (no build created)');
-
-  for (const preview of previews) {
-    lines.push('');
-    if (preview.status === 'bailed-open') {
-      lines.push(...formatBailedOpen(preview.platform, preview.reason));
-    } else {
-      lines.push(...formatDecided(preview.decision));
-    }
-  }
-
-  lines.push('');
-  lines.push('This is a preview: no build was created and nothing was uploaded.');
-
-  return lines.join('\n');
+  return formatDiffScopeReport('dry-run', platforms);
 }
 
 /* ========================================================================== */
 
-function formatDecided(decision: DryRunPlatformDecision): string[] {
-  const label = PLATFORM_LABEL[decision.platform];
-  const emoji = decision.platform === 'android' ? '🤖' : '🍎';
-
-  // isFullCapture = "a real run would capture EVERYTHING for this platform".
-  // capturedStoryFilePaths is empty here and must NEVER be rendered as an empty
-  // list / "captures nothing" - that inversion is the single worst misread.
-  if (decision.isFullCapture) {
-    return [`${emoji} ${label} - would capture EVERY story`, `   Reason: ${decision.reason}`];
-  }
-
-  const captured = decision.capturedStoryFilePaths.length;
-  const count =
-    decision.totalStories !== undefined
-      ? `${captured} of ${decision.totalStories} stories`
-      : `${captured} ${captured === 1 ? 'story' : 'stories'}`;
-
-  const lines = [`${emoji} ${label} - would capture ${count}`];
-
-  if (captured > 0) {
-    lines.push('   Story files:');
-    for (const filePath of decision.capturedStoryFilePaths) {
-      lines.push(`     • ${filePath}`);
-    }
-  } else {
-    // A PARTIAL capture that reaches no story genuinely captures nothing (this is
-    // NOT the isFullCapture branch above).
-    lines.push('   No module changes reach any story - a real run would capture nothing.');
-  }
-
-  // Reason is printed VERBATIM (path-legible server string).
-  lines.push(`   Reason: ${decision.reason}`);
-
-  return lines;
-}
-
-function formatBailedOpen(platform: Platform, reason: string): string[] {
-  const label = PLATFORM_LABEL[platform];
-  const emoji = platform === 'android' ? '🤖' : '🍎';
-  return [
-    `${emoji} ${label} - preview unavailable; a real run would capture EVERY story`,
-    `   Reason: ${reason}`,
-  ];
+/** Map a server decision onto the shared per-platform report shape. */
+function decisionToReport(decision: DryRunPlatformDecision): DiffScopePlatformReport {
+  return {
+    kind: 'decided',
+    platform: decision.platform,
+    full: decision.isFullCapture,
+    capturedStoryFilePaths: decision.capturedStoryFilePaths,
+    totalStoriesInBundle: decision.totalStories,
+    reason: decision.reason,
+  };
 }
