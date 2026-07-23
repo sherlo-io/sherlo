@@ -147,10 +147,12 @@ export function formatDiffScopeBlock(
   // even with an empty captured-file list - never let the empty list read as
   // "nothing". Only the partial branch below can render "nothing to capture".
   if (block.full) {
-    // "all N story/stories" agrees in number with M (M === 1 -> "story"); with no
-    // manifest it degrades to a bare "all stories".
+    // "all N story/stories in this bundle" agrees in number with M (M === 1 ->
+    // "story") and names the fraction's universe so M cannot be misread as the
+    // --include scope; with no manifest it degrades to a bare "all stories" (no M,
+    // so nothing to name).
     const allStories =
-      M !== undefined ? `all ${M} ${M === 1 ? 'story' : 'stories'}` : 'all stories';
+      M !== undefined ? `all ${M} ${M === 1 ? 'story' : 'stories'} in this bundle` : 'all stories';
     lines.push(headingLine(block.platform, `${verb} ${allStories}`));
     if (block.reason) {
       lines.push(whyRow(block.reason));
@@ -187,7 +189,15 @@ export function formatDiffScopeBlock(
     // "reusing 0 from the previous build" only states that nothing happened - drop
     // the clause entirely when nothing is reused and print just the fraction.
     const reuseClause = reused === 0 ? '' : `, reusing ${reused} from the previous build`;
-    lines.push(headingLine(block.platform, `${verb} ${captured} of ${M} stories${reuseClause}`));
+    // "in this bundle" names the fraction's universe (M is the whole bundle's
+    // story set, NOT the --include scope) and sits between the fraction and the
+    // reuse clause: "N of M stories in this bundle, reusing K ...".
+    lines.push(
+      headingLine(
+        block.platform,
+        `${verb} ${captured} of ${M} stories in this bundle${reuseClause}`
+      )
+    );
   } else {
     // No manifest -> no honest denominator and no reuse count. Degrade to a bare
     // captured count; still list the captured stories and the reason below.

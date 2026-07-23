@@ -47,7 +47,7 @@ import { getOnStaleMode, handleStaleBase } from './onStale';
 import uploadStagedArtifacts, { type StagedUploadKeys } from './uploadStagedArtifacts';
 import { runDryRunPreview } from './dryRun';
 import { countBundleStories } from './readModuleManifest';
-import { SEPARATOR, formatDiffScopeReport, type DiffScopePlatformReport } from './diffScopeReport';
+import { formatDiffScopeReport, type DiffScopePlatformReport } from './diffScopeReport';
 
 /**
  * The per-platform staged build config plus the SHERLO-1894 `manifestS3Key` the api
@@ -378,8 +378,9 @@ export default testBundled;
  * response (SHERLO-1919). No extra API call: `captureScope` carries the captured
  * set and `diffScopeInfo` carries the reason. Renders through the SAME shared
  * formatter the dry run uses, so the two modes read identically apart from the
- * capture verb. Then closes with "✓ Build created" (dim " - running on devices"
- * when at least one platform captured a story) and the Review URL LAST.
+ * capture verb. Then closes with a plain "✓ Build created" and the Review URL
+ * LAST - the closer never promises runner behavior (Decision 5), so it carries no
+ * "- running on devices" suffix regardless of what was captured.
  *
  * A platform the server made no decision for (no `captureScope`) is skipped
  * entirely - silence, never an invented "captured everything". If NO platform has
@@ -430,19 +431,11 @@ function printCapturePlanAndCloser({
     console.log('\n' + formatDiffScopeReport('live', platforms));
   }
 
-  // The closer, LAST (SHERLO-1919 ordering). "- running on devices" is shown when
-  // at least one platform is capturing a story; a run that reuses everything on
-  // every platform gets the plain "✓ Build created". With no plan at all (Diff
-  // Scope off) the build still runs on devices, so keep the suffix.
-  const somethingCaptured = platforms.length === 0 || platforms.some(platformCapturesAStory);
-  const runningSuffix = somethingCaptured ? chalk.dim(` ${SEPARATOR} running on devices`) : '';
-  console.log('\n' + chalk.green('✓') + chalk.bold(' Build created') + runningSuffix);
+  // The closer, LAST (SHERLO-1919 ordering). Always the plain "✓ Build created":
+  // the closer never promises runner behavior (Decision 5), so it carries no
+  // "- running on devices" suffix regardless of what was captured.
+  console.log('\n' + chalk.green('✓') + chalk.bold(' Build created'));
   console.log(`🔗 Review: ${printLink(url)}`);
-}
-
-/** True when this platform is capturing at least one story (full, or a partial > 0). */
-function platformCapturesAStory(block: DiffScopePlatformReport): boolean {
-  return block.full || block.capturedStoryFilePaths.length > 0;
 }
 
 /**

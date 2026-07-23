@@ -140,7 +140,8 @@ export function readValidatedModuleManifest(projectRoot: string): ValidatedModul
  * Note this counts the WHOLE bundle's story set, NOT the `--include` / `--exclude`
  * scope: the scope filter runs on-device against story TITLES, while the manifest
  * is keyed by file paths, so the CLI has no honest way to scope this number at
- * bundle time. `--include` therefore never moves M.
+ * bundle time. `--include` therefore never moves M. The report wording names the
+ * number "in this bundle" to say so.
  */
 export function countBundleStories(manifest: ValidatedModuleManifest): number {
   return Object.keys(manifest.parsed.storyClosures).length;

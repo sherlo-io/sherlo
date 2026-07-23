@@ -55,7 +55,7 @@ describe('approved output (verbatim)', () => {
     expect(out).toBe(
       [
         '📸 Capture plan',
-        '  🤖 Android - capturing 1 of 22 stories, reusing 21 from the previous build',
+        '  🤖 Android - capturing 1 of 22 stories in this bundle, reusing 21 from the previous build',
         '     why: Sanity/Hello.stories.tsx changed',
         '     stories:',
         '       • Sanity/Hello',
@@ -84,7 +84,7 @@ describe('approved output (verbatim)', () => {
     expect(out).toBe(
       [
         '📸 Capture plan',
-        '  🤖 Android - capturing 6 of 22 stories, reusing 16 from the previous build',
+        '  🤖 Android - capturing 6 of 22 stories in this bundle, reusing 16 from the previous build',
         '     why: SharedButton.tsx changed',
         '     stories:',
         '       • Storefront/CheckoutScreen',
@@ -158,9 +158,9 @@ describe('approved output (verbatim)', () => {
     expect(out).toBe(
       [
         '📸 Capture plan',
-        '  🤖 Android - capturing all 22 stories',
+        '  🤖 Android - capturing all 22 stories in this bundle',
         '     why: first build - nothing to compare against yet',
-        '  🍎 iOS - capturing all 22 stories',
+        '  🍎 iOS - capturing all 22 stories in this bundle',
         '     why: native code changed - everything re-shot',
       ].join('\n')
     );
@@ -187,7 +187,7 @@ describe('approved output (verbatim)', () => {
     expect(out).toBe(
       [
         '📸 Capture plan',
-        '  🍎 iOS - capturing 1 of 22 stories, reusing 21 from the previous build',
+        '  🍎 iOS - capturing 1 of 22 stories in this bundle, reusing 21 from the previous build',
         '     why: ProductCardPlatformNote.ios.tsx changed',
         '     stories:',
         '       • Storefront/ProductCard',
@@ -211,7 +211,7 @@ describe('approved output (verbatim)', () => {
     expect(out).toBe(
       [
         '📸 Capture plan',
-        '  🤖 Android - capturing all 22 stories',
+        '  🤖 Android - capturing all 22 stories in this bundle',
         "     ! couldn't compute what changed - capturing everything to be safe",
       ].join('\n')
     );
@@ -243,7 +243,9 @@ describe('formatDiffScopeBlock', () => {
 
     const out = formatDiffScopeBlock(block, 'capturing').join('\n');
 
-    expect(out).toBe(['  🍎 iOS - capturing all 12 stories', '     why: main-branch'].join('\n'));
+    expect(out).toBe(
+      ['  🍎 iOS - capturing all 12 stories in this bundle', '     why: main-branch'].join('\n')
+    );
     // None of the "nothing" / partial renderings may leak.
     expect(out).not.toContain('nothing');
     expect(out).not.toContain('capturing 0');
@@ -309,11 +311,36 @@ describe('formatDiffScopeBlock', () => {
 
     expect(out).toBe(
       [
-        '  🤖 Android - capturing all 1 story',
+        '  🤖 Android - capturing all 1 story in this bundle',
         '     why: first build - nothing to compare against yet',
       ].join('\n')
     );
     expect(out).not.toContain('all 1 stories');
+  });
+
+  it('EMPTY MANIFEST at M === 0: a full capture reads "capturing all 0 stories in this bundle"', () => {
+    // M = 0 is a real, reachable edge: readValidatedModuleManifest accepts an empty
+    // storyClosures object, so countBundleStories returns 0. A full capture then
+    // still renders through the M !== undefined branch - "all 0 stories in this
+    // bundle" (plural at 0), NOT the no-manifest "all stories" degrade.
+    const block = decided({
+      platform: 'android',
+      full: true,
+      capturedStoryFilePaths: [],
+      totalStoriesInBundle: 0,
+      reason: 'first build - nothing to compare against yet',
+    });
+
+    const out = formatDiffScopeBlock(block, 'capturing').join('\n');
+
+    expect(out).toBe(
+      [
+        '  🤖 Android - capturing all 0 stories in this bundle',
+        '     why: first build - nothing to compare against yet',
+      ].join('\n')
+    );
+    // M is present (0), so it must NOT fall through to the bare "all stories" degrade.
+    expect(out).not.toContain('capturing all stories');
   });
 
   it('SINGULAR at M === 1: a zero-capture reads "all 1 story reused", not "all 1 stories reused"', () => {
@@ -349,7 +376,7 @@ describe('formatDiffScopeBlock', () => {
 
     expect(out).toBe(
       [
-        '  🤖 Android - capturing 1 of 1 stories',
+        '  🤖 Android - capturing 1 of 1 stories in this bundle',
         '     why: Sanity/Hello.stories.tsx changed',
         '     stories:',
         '       • Sanity/Hello',
@@ -387,7 +414,7 @@ describe('formatDiffScopeBlock', () => {
 
     expect(out).toBe(
       [
-        '  🍎 iOS - capturing 1 of 4 stories, reusing 3 from the previous build',
+        '  🍎 iOS - capturing 1 of 4 stories in this bundle, reusing 3 from the previous build',
         '     stories:',
         '       • A/A',
       ].join('\n')

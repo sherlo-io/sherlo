@@ -87,7 +87,7 @@ describe('formatDryRunPreview', () => {
     expect(output).toBe(
       [
         '📸 Capture plan (dry run)',
-        '  🤖 Android - would capture 6 of 22 stories, reusing 16 from the previous build',
+        '  🤖 Android - would capture 6 of 22 stories in this bundle, reusing 16 from the previous build',
         '     why: SharedButton.tsx changed',
         '     stories:',
         '       • Storefront/CheckoutScreen',
@@ -130,7 +130,7 @@ describe('formatDryRunPreview', () => {
 
     const output = formatDryRunPreview([{ status: 'decided', decision }]);
 
-    expect(output).toContain('🍎 iOS - would capture all 12 stories');
+    expect(output).toContain('🍎 iOS - would capture all 12 stories in this bundle');
     expect(output).toContain('     why: main-branch');
     // The dangerous misreads: never render the empty list as "nothing".
     expect(output).not.toContain('nothing to capture');
@@ -150,7 +150,7 @@ describe('formatDryRunPreview', () => {
 
     const output = formatDryRunPreview([{ status: 'decided', decision }]);
 
-    expect(output).toContain('🤖 Android - would capture all 8 stories');
+    expect(output).toContain('🤖 Android - would capture all 8 stories in this bundle');
     expect(output).toContain('     why: dry-run-error: base ancestry lookup timed out');
   });
 
@@ -228,7 +228,7 @@ describe('runDryRunPreview', () => {
 
     const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
     expect(printed).toContain(
-      '🍎 iOS - would capture 1 of 3 stories, reusing 2 from the previous build'
+      '🍎 iOS - would capture 1 of 3 stories in this bundle, reusing 2 from the previous build'
     );
     expect(printed).toContain('why: App.tsx changed');
     expect(printed).toContain('◦ Dry run - no build created, nothing uploaded');
@@ -357,10 +357,10 @@ describe('runDryRunPreview', () => {
 
     const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
     expect(printed).toContain(
-      '🍎 iOS - would capture 1 of 4 stories, reusing 3 from the previous build'
+      '🍎 iOS - would capture 1 of 4 stories in this bundle, reusing 3 from the previous build'
     );
     expect(printed).toContain('• x/X');
-    expect(printed).toContain('🤖 Android - would capture all 4 stories');
+    expect(printed).toContain('🤖 Android - would capture all 4 stories in this bundle');
     expect(printed).toContain('why: native-changed');
 
     logSpy.mockRestore();

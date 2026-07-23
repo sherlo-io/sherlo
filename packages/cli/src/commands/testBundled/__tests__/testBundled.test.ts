@@ -538,7 +538,9 @@ describe('live capture plan', () => {
 
     const out = printed(logSpy);
     expect(out).toContain('📸 Capture plan');
-    expect(out).toContain('🍎 iOS - capturing 2 of 22 stories, reusing 20 from the previous build');
+    expect(out).toContain(
+      '🍎 iOS - capturing 2 of 22 stories in this bundle, reusing 20 from the previous build'
+    );
     expect(out).toContain('     why: SharedButton.tsx changed');
     expect(out).toContain('     stories:');
     expect(out).toContain('       • Storefront/Storefront');
@@ -567,7 +569,7 @@ describe('live capture plan', () => {
     await testBundled(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('🍎 iOS - capturing all 22 stories');
+    expect(out).toContain('🍎 iOS - capturing all 22 stories in this bundle');
     expect(out).toContain('     why: native code changed - everything re-shot');
     // Inversion: an empty list on a full capture is "everything", never "nothing".
     expect(out).not.toContain('capturing 0');
@@ -622,7 +624,7 @@ describe('live capture plan', () => {
     await testBundled(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('🍎 iOS - capturing all 22 stories');
+    expect(out).toContain('🍎 iOS - capturing all 22 stories in this bundle');
     expect(out).toContain("     ! couldn't compute what changed - capturing everything to be safe");
     expect(out).not.toContain('why:');
 
@@ -654,7 +656,9 @@ describe('live capture plan', () => {
     await testBundled(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('🍎 iOS - capturing 1 of 8 stories, reusing 7 from the previous build');
+    expect(out).toContain(
+      '🍎 iOS - capturing 1 of 8 stories in this bundle, reusing 7 from the previous build'
+    );
     expect(out).toContain('       • x/X');
     // The block renders in full; it simply carries no why line.
     expect(out).not.toContain('why:');
@@ -677,8 +681,10 @@ describe('live capture plan', () => {
     // No plan: no header, no per-platform block, no assertion of a decision.
     expect(out).not.toContain('Capture plan');
     expect(out).not.toContain('capturing');
-    // The build still ran on devices, and the link is never withheld.
-    expect(out).toContain('✓ Build created - running on devices');
+    // The closer never promises runner behavior (Decision 5): plain "✓ Build
+    // created", no "- running on devices" suffix. The link is never withheld.
+    expect(out).toContain('✓ Build created');
+    expect(out).not.toContain('running on devices');
     expect(out).toContain('🔗 Review: http://app/build');
 
     logSpy.mockRestore();
@@ -718,15 +724,19 @@ describe('live capture plan', () => {
     await testBundled(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('🍎 iOS - capturing 1 of 22 stories, reusing 21 from the previous build');
+    expect(out).toContain(
+      '🍎 iOS - capturing 1 of 22 stories in this bundle, reusing 21 from the previous build'
+    );
     expect(out).toContain('     why: ProductCardPlatformNote.ios.tsx changed');
     expect(out).toContain('       • Storefront/ProductCard');
     expect(out).toContain(
       '🤖 Android - nothing to capture - the change never reaches the Android app'
     );
     expect(out).toContain('     ✓ all 22 stories reused from the previous build');
-    // iOS captured a story -> "- running on devices" on the closer.
-    expect(out).toContain('✓ Build created - running on devices');
+    // The closer is always the plain "✓ Build created" (Decision 5) - even though
+    // iOS captured a story, it carries no "- running on devices" suffix.
+    expect(out).toContain('✓ Build created');
+    expect(out).not.toContain('running on devices');
 
     logSpy.mockRestore();
   });
@@ -795,10 +805,10 @@ describe('live capture plan', () => {
     await testBundled(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('🍎 iOS - capturing all 10 stories');
+    expect(out).toContain('🍎 iOS - capturing all 10 stories in this bundle');
     expect(out).toContain('     why: native-changed');
     expect(out).toContain(
-      '🤖 Android - capturing 1 of 10 stories, reusing 9 from the previous build'
+      '🤖 Android - capturing 1 of 10 stories in this bundle, reusing 9 from the previous build'
     );
     expect(out).toContain('       • x/X');
     expect(out).toContain('     why: x.tsx changed');
@@ -840,7 +850,9 @@ describe('live capture plan', () => {
 
     const out = printed(logSpy);
     // The exact fraction is pinned so the invariant is stated, not inferred.
-    expect(out).toContain('🍎 iOS - capturing 2 of 22 stories, reusing 20 from the previous build');
+    expect(out).toContain(
+      '🍎 iOS - capturing 2 of 22 stories in this bundle, reusing 20 from the previous build'
+    );
 
     logSpy.mockRestore();
   });
