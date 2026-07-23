@@ -1,21 +1,24 @@
 /**
- * Tests for the test:bundled --dry-run preview (SHERLO-1895 Diff Scope Phase C).
+ * Tests for the test:bundled --dry-run capture-plan preview (SHERLO-1919, format
+ * replacing SHERLO-1895/1915).
  *
  * Covers the two contract-INDEPENDENT halves of the dry run:
  *   - formatDryRunPreview: the plain-text rendering of decided (partial + full)
  *     and bailed-open platforms, including that server reason strings are printed
- *     VERBATIM and that an isFullCapture=true result with an EMPTY
- *     capturedStoryFilePaths list renders as "capture EVERY story", never as
- *     "capture nothing".
- *   - runDryRunPreview: orchestration + bail-open. It issues ONE decision call
- *     for all platforms; a platform the server omits, or a query that throws,
- *     is previewed as "capture EVERY story" and is never dropped; the run never
- *     throws for a decision problem.
+ *     VERBATIM, that an isFullCapture=true result with an EMPTY
+ *     capturedStoryFilePaths list renders as "would capture all N stories" (never
+ *     "nothing"), and that the "◦ Dry run" closer is appended.
+ *   - runDryRunPreview: orchestration + bail-open. It issues ONE decision call for
+ *     all platforms; a platform the server omits, or a query that throws, is
+ *     previewed as "would capture all stories" (bail-open safety) and never
+ *     dropped; the run never throws for a decision problem.
  *
  * The decision query itself (requestDryRunDecision) is the contract seam and is
- * mocked here - this suite asserts everything AROUND it. The seam's own mapping
- * onto the real contract is covered in dryRunDecision.test.ts.
+ * mocked here - this suite asserts everything AROUND it.
  */
+import chalk from 'chalk';
+chalk.level = 0;
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { mockRequestDryRunDecision } = vi.hoisted(() => ({
@@ -63,56 +66,60 @@ const gitInfo: any = { branchName: 'feature', commitHash: 'abc', commitName: 'ms
 // ---------------------------------------------------------------------------
 
 describe('formatDryRunPreview', () => {
-  it('renders a partial platform with its story-file list, count, and verbatim reason', () => {
+  it('Case 6: renders a partial platform verbatim, closing with the dry-run notice', () => {
     const decision: DryRunPlatformDecision = {
-      platform: 'ios',
+      platform: 'android',
       isFullCapture: false,
       capturedStoryFilePaths: [
-        'src/components/Storefront/Storefront.stories.tsx',
-        'src/components/Cart/Cart.stories.tsx',
+        'src/components/Storefront/CheckoutScreen.stories.tsx',
+        'src/components/Storefront/PriceTag.stories.tsx',
+        'src/components/Storefront/PriceTagInline.stories.tsx',
+        'src/components/Storefront/ProductCard.stories.tsx',
+        'src/components/Storefront/ProductCardCompact.stories.tsx',
+        'src/components/Storefront/SharedButton.stories.tsx',
       ],
-      totalStories: 5,
-      reason: 'captured 2 - closure changed via src/components/Storefront/SharedButton.tsx',
+      totalStories: 22,
+      reason: 'SharedButton.tsx changed',
     };
 
     const output = formatDryRunPreview([{ status: 'decided', decision }]);
 
-    expect(output).toContain('Diff Scope preview - dry run (no build created)');
-    // The fraction NAMES ITS UNIVERSE - "in this bundle", not the --include scope.
-    expect(output).toContain('iOS - would capture 2 of 5 stories in this bundle');
-    // Reused side (M - N = 3) is now shown alongside the captured side.
-    expect(output).toContain('Would reuse the other 3');
-    expect(output).toContain('• src/components/Storefront/Storefront.stories.tsx');
-    expect(output).toContain('• src/components/Cart/Cart.stories.tsx');
-    // Reason printed EXACTLY as the server returned it - no re-rendering.
-    expect(output).toContain(
-      'captured 2 - closure changed via src/components/Storefront/SharedButton.tsx'
+    expect(output).toBe(
+      [
+        '📸 Capture plan (dry run)',
+        '  🤖 Android - would capture 6 of 22 stories, reusing 16 from the previous build',
+        '     why: SharedButton.tsx changed',
+        '     stories:',
+        '       • Storefront/CheckoutScreen',
+        '       • Storefront/PriceTag',
+        '       • Storefront/PriceTagInline',
+        '       • Storefront/ProductCard',
+        '       • Storefront/ProductCardCompact',
+        '       • Storefront/SharedButton',
+        '',
+        '◦ Dry run - no build created, nothing uploaded',
+      ].join('\n')
     );
-    expect(output).toContain('no build was created and nothing was uploaded');
   });
 
-  it('renders a PARTIAL zero-capture as "nothing captured" with its verbatim reason', () => {
+  it('renders a PARTIAL zero-capture as "nothing to capture" with its verbatim reason', () => {
     const decision: DryRunPlatformDecision = {
       platform: 'android',
       isFullCapture: false,
       capturedStoryFilePaths: [],
       totalStories: 5,
-      reason: 'captured 0 - no module changes reach any story',
+      reason: 'no change reaches any story',
     };
 
     const output = formatDryRunPreview([{ status: 'decided', decision }]);
 
-    expect(output).toContain('Android - would capture 0 of 5 stories in this bundle');
-    expect(output).toContain('so all 5 would be reused from the base build');
-    expect(output).toContain('captured 0 - no module changes reach any story');
-    // A partial-zero is NOT a full capture.
-    expect(output).not.toContain('EVERY story');
+    expect(output).toContain('🤖 Android - nothing to capture - no change reaches any story');
+    expect(output).toContain('     ✓ all 5 stories reused from the previous build');
+    // A partial-zero has no capture verb at all.
+    expect(output).not.toContain('would capture');
   });
 
-  it('renders a FULL capture (isFullCapture=true, EMPTY list) as "capture EVERY story", never "nothing"', () => {
-    // Point 4 of the contract: isFullCapture=true means "would capture
-    // EVERYTHING", and capturedStoryFilePaths is empty in that case. The empty
-    // list must NOT be read as "captures nothing".
+  it('renders a FULL capture (isFullCapture=true, EMPTY list) as "would capture all N stories"', () => {
     const decision: DryRunPlatformDecision = {
       platform: 'ios',
       isFullCapture: true,
@@ -123,13 +130,12 @@ describe('formatDryRunPreview', () => {
 
     const output = formatDryRunPreview([{ status: 'decided', decision }]);
 
-    expect(output).toContain('iOS - would capture EVERY story');
-    expect(output).toContain('Reason: main-branch');
-    // The dangerous misreads: never render the empty list as "nothing", and
-    // never leak a "0 stories" / "Story files:" partial rendering.
-    expect(output).not.toContain('capture nothing');
+    expect(output).toContain('🍎 iOS - would capture all 12 stories');
+    expect(output).toContain('     why: main-branch');
+    // The dangerous misreads: never render the empty list as "nothing".
+    expect(output).not.toContain('nothing to capture');
     expect(output).not.toContain('would capture 0');
-    expect(output).not.toContain('Story files:');
+    expect(output).not.toContain('stories:');
   });
 
   it("renders a full capture from the server's in-band bail-open reason verbatim", () => {
@@ -138,21 +144,22 @@ describe('formatDryRunPreview', () => {
       platform: 'android',
       isFullCapture: true,
       capturedStoryFilePaths: [],
+      totalStories: 8,
       reason: 'dry-run-error: base ancestry lookup timed out',
     };
 
     const output = formatDryRunPreview([{ status: 'decided', decision }]);
 
-    expect(output).toContain('Android - would capture EVERY story');
-    expect(output).toContain('Reason: dry-run-error: base ancestry lookup timed out');
+    expect(output).toContain('🤖 Android - would capture all 8 stories');
+    expect(output).toContain('     why: dry-run-error: base ancestry lookup timed out');
   });
 
   it('omits the "of M" total on a partial when the decision does not report one', () => {
     const decision: DryRunPlatformDecision = {
       platform: 'ios',
       isFullCapture: false,
-      capturedStoryFilePaths: ['src/a/A.stories.tsx'],
-      reason: 'captured 1 - closure changed via src/a/a.ts',
+      capturedStoryFilePaths: ['src/components/a/A.stories.tsx'],
+      reason: 'a.ts changed',
     };
 
     const output = formatDryRunPreview([{ status: 'decided', decision }]);
@@ -161,15 +168,19 @@ describe('formatDryRunPreview', () => {
     expect(output).not.toContain(' of ');
   });
 
-  it('renders a bailed-open platform as "capture EVERY story" with its reason', () => {
+  it('renders a bailed-open platform as "would capture all stories" with the couldn\'t-compute row', () => {
     const previews: DryRunPlatformPreview[] = [
       { status: 'bailed-open', platform: 'ios', reason: 'network exploded' },
     ];
 
     const output = formatDryRunPreview(previews);
 
-    expect(output).toContain('iOS - preview unavailable; a real run would capture EVERY story');
-    expect(output).toContain('Reason: network exploded');
+    expect(output).toContain('🍎 iOS - would capture all stories');
+    expect(output).toContain(
+      "     ! couldn't compute what changed - capturing everything to be safe"
+    );
+    // The raw error stays in telemetry, not on the user's line.
+    expect(output).not.toContain('network exploded');
   });
 });
 
@@ -186,9 +197,9 @@ describe('runDryRunPreview', () => {
       {
         platform: 'ios',
         isFullCapture: false,
-        capturedStoryFilePaths: ['src/App.stories.tsx'],
+        capturedStoryFilePaths: ['src/components/App/App.stories.tsx'],
         totalStories: 3,
-        reason: 'captured 1 - closure changed via src/App.tsx',
+        reason: 'App.tsx changed',
       },
     ] as DryRunPlatformDecision[]);
 
@@ -216,8 +227,11 @@ describe('runDryRunPreview', () => {
     expect(arg.platforms[0].manifest.parsed.version).toBe(1);
 
     const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
-    expect(printed).toContain('iOS - would capture 1 of 3 stories');
-    expect(printed).toContain('captured 1 - closure changed via src/App.tsx');
+    expect(printed).toContain(
+      '🍎 iOS - would capture 1 of 3 stories, reusing 2 from the previous build'
+    );
+    expect(printed).toContain('why: App.tsx changed');
+    expect(printed).toContain('◦ Dry run - no build created, nothing uploaded');
 
     logSpy.mockRestore();
   });
@@ -253,8 +267,9 @@ describe('runDryRunPreview', () => {
     expect(arg.platforms[0].baseReference).toBeUndefined();
 
     const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
-    expect(printed).toContain('Android - would capture EVERY story');
-    expect(printed).toContain('Reason: manifest-missing');
+    // No manifest total -> full capture degrades to "all stories" (no number).
+    expect(printed).toContain('🤖 Android - would capture all stories');
+    expect(printed).toContain('why: manifest-missing');
 
     logSpy.mockRestore();
   });
@@ -275,11 +290,11 @@ describe('runDryRunPreview', () => {
     ).resolves.toBeUndefined();
 
     const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
-    expect(printed).toContain('iOS - preview unavailable; a real run would capture EVERY story');
-    expect(printed).toContain(
-      'Android - preview unavailable; a real run would capture EVERY story'
-    );
-    expect(printed).toContain('network exploded');
+    expect(printed).toContain('🍎 iOS - would capture all stories');
+    expect(printed).toContain('🤖 Android - would capture all stories');
+    expect(printed).toContain("! couldn't compute what changed - capturing everything to be safe");
+    // The raw error is telemetry-only, never on the user's line.
+    expect(printed).not.toContain('network exploded');
 
     logSpy.mockRestore();
   });
@@ -290,8 +305,8 @@ describe('runDryRunPreview', () => {
       {
         platform: 'ios',
         isFullCapture: false,
-        capturedStoryFilePaths: ['src/x/X.stories.tsx'],
-        reason: 'captured 1 - closure changed via src/x.tsx',
+        capturedStoryFilePaths: ['src/components/x/X.stories.tsx'],
+        reason: 'x.tsx changed',
       },
       // android intentionally absent from the server's results.
     ] as DryRunPlatformDecision[]);
@@ -306,11 +321,8 @@ describe('runDryRunPreview', () => {
     });
 
     const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
-    expect(printed).toContain('iOS - would capture 1 story');
-    expect(printed).toContain(
-      'Android - preview unavailable; a real run would capture EVERY story'
-    );
-    expect(printed).toContain('the dry-run decision returned no result for this platform');
+    expect(printed).toContain('🍎 iOS - would capture 1 story');
+    expect(printed).toContain('🤖 Android - would capture all stories');
 
     logSpy.mockRestore();
   });
@@ -321,14 +333,15 @@ describe('runDryRunPreview', () => {
       {
         platform: 'ios',
         isFullCapture: false,
-        capturedStoryFilePaths: ['src/x/X.stories.tsx'],
+        capturedStoryFilePaths: ['src/components/x/X.stories.tsx'],
         totalStories: 4,
-        reason: 'captured 1 - closure changed via src/x.tsx',
+        reason: 'x.tsx changed',
       },
       {
         platform: 'android',
         isFullCapture: true,
         capturedStoryFilePaths: [],
+        totalStories: 4,
         reason: 'native-changed',
       },
     ] as DryRunPlatformDecision[]);
@@ -343,10 +356,12 @@ describe('runDryRunPreview', () => {
     });
 
     const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
-    expect(printed).toContain('iOS - would capture 1 of 4 stories');
-    expect(printed).toContain('• src/x/X.stories.tsx');
-    expect(printed).toContain('Android - would capture EVERY story');
-    expect(printed).toContain('Reason: native-changed');
+    expect(printed).toContain(
+      '🍎 iOS - would capture 1 of 4 stories, reusing 3 from the previous build'
+    );
+    expect(printed).toContain('• x/X');
+    expect(printed).toContain('🤖 Android - would capture all 4 stories');
+    expect(printed).toContain('why: native-changed');
 
     logSpy.mockRestore();
   });

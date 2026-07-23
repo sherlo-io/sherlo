@@ -25,6 +25,7 @@
  * and are printed VERBATIM - never re-rendered into module numbers.
  */
 import { Platform } from '@sherlo/api-types';
+import chalk from 'chalk';
 import reporting from '../../helpers/reporting';
 import type { GitInfo } from '../../helpers/getGitInfo';
 import type { BundleResult } from './buildBundle';
@@ -34,7 +35,7 @@ import {
   type DryRunPlatformDecision,
   type DryRunPlatformRequest,
 } from './dryRunDecision';
-import { formatDiffScopeReport, type DiffScopePlatformReport } from './diffScopeReport';
+import { SEPARATOR, formatDiffScopeReport, type DiffScopePlatformReport } from './diffScopeReport';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -143,19 +144,36 @@ export default runDryRunPreview;
 // ---------------------------------------------------------------------------
 
 /**
+ * The dry-run closer, printed after the plan instead of the live "✓ Build
+ * created" + Review URL. A dry run creates nothing, so it says exactly that.
+ */
+const DRY_RUN_CLOSER = chalk.yellow(`◦ Dry run ${SEPARATOR} no build created, nothing uploaded`);
+
+/**
  * Render the whole dry-run preview by mapping each platform's preview onto the
- * shared {@link formatDiffScopeReport}. The dry run and the live run print the
- * SAME per-platform block; only the tense (here: "would capture") and the
- * preview header/footer differ, and both live in that one shared module.
+ * shared {@link formatDiffScopeReport}, then appending the dry-run closer. The
+ * dry run and the live run print the SAME per-platform block; only the capture
+ * verb ("would capture") differs, and it lives in that one shared module.
+ *
+ * A bail-open (the decision query gave no trustworthy answer for a platform)
+ * maps onto a FULL capture with no reason - the shared formatter renders that as
+ * "would capture all stories" plus the "couldn't compute" safety row, the same
+ * honest degrade the live run shows. The raw error stays in telemetry, not on the
+ * user's line.
  */
 export function formatDryRunPreview(previews: DryRunPlatformPreview[]): string {
   const platforms: DiffScopePlatformReport[] = previews.map((preview) =>
     preview.status === 'bailed-open'
-      ? { kind: 'bailed-open', platform: preview.platform, reason: preview.reason }
+      ? {
+          kind: 'decided',
+          platform: preview.platform,
+          full: true,
+          capturedStoryFilePaths: [],
+        }
       : decisionToReport(preview.decision)
   );
 
-  return formatDiffScopeReport('dry-run', platforms);
+  return `${formatDiffScopeReport('dry-run', platforms)}\n\n${DRY_RUN_CLOSER}`;
 }
 
 /* ========================================================================== */

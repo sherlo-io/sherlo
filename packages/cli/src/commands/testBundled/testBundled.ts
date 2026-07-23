@@ -34,11 +34,11 @@ import {
   getValidatedCommandParams,
   handleClientError,
   logWarning,
-  printResultsUrl,
   printSherloIntro,
   reporting,
   waitForBuildResult,
 } from '../../helpers';
+import printLink from '../../helpers/printLink';
 import { computeBaseFingerprint, type GateMetadataInput } from '../../helpers/fingerprint';
 import { THIS_COMMAND } from './constants';
 import { buildBundleForPlatform, buildGateMetadata, type BundleResult } from './buildBundle';
@@ -47,7 +47,7 @@ import { getOnStaleMode, handleStaleBase } from './onStale';
 import uploadStagedArtifacts, { type StagedUploadKeys } from './uploadStagedArtifacts';
 import { runDryRunPreview } from './dryRun';
 import { countBundleStories } from './readModuleManifest';
-import { formatDiffScopeReport, type DiffScopePlatformReport } from './diffScopeReport';
+import { SEPARATOR, formatDiffScopeReport, type DiffScopePlatformReport } from './diffScopeReport';
 
 /**
  * The per-platform staged build config plus the SHERLO-1894 `manifestS3Key` the api
@@ -343,13 +343,13 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
-  printResultsUrl(url);
-
-  // The command now EXPLAINS its own Diff Scope decision (SHERLO-1915): which
-  // stories this run captured, which it reused from the base, and why - read
-  // straight off the openBuild response, no extra API call. Prints nothing for a
-  // platform the server made no decision for (Diff Scope off, or older API).
-  printLiveDiffScopeReport({ openBuildReturn, bundles, platformsToTest });
+  // The command EXPLAINS its own capture plan (SHERLO-1919): which stories this
+  // run is capturing, which it is reusing from the previous build, and why - read
+  // straight off the openBuild response, no extra API call - then closes with
+  // "✓ Build created" and the Review URL LAST. Prints no plan block for a platform
+  // the server made no decision for (Diff Scope off, or older API), but always
+  // closes with the build-created line + URL so the link never disappears.
+  printCapturePlanAndCloser({ openBuildReturn, bundles, platformsToTest, url });
 
   if (commandParams.wait) {
     const exitCode = await waitForBuildResult({
@@ -374,23 +374,28 @@ export default testBundled;
 /* ========================================================================== */
 
 /**
- * Print this run's Diff Scope decision, per platform, straight off the openBuild
- * response (SHERLO-1915). No extra API call: `captureScope` carries the captured
+ * Print this run's capture plan, per platform, straight off the openBuild
+ * response (SHERLO-1919). No extra API call: `captureScope` carries the captured
  * set and `diffScopeInfo` carries the reason. Renders through the SAME shared
- * formatter the dry run uses, so the two modes read identically apart from tense.
+ * formatter the dry run uses, so the two modes read identically apart from the
+ * capture verb. Then closes with "✓ Build created" (dim " - running on devices"
+ * when at least one platform captured a story) and the Review URL LAST.
  *
  * A platform the server made no decision for (no `captureScope`) is skipped
- * entirely - silence, never an invented "captured everything". If NO platform
- * has a decision, nothing is printed at all.
+ * entirely - silence, never an invented "captured everything". If NO platform has
+ * a decision, no plan block prints, but the build-created line + URL still do so
+ * the developer always gets their link.
  */
-function printLiveDiffScopeReport({
+function printCapturePlanAndCloser({
   openBuildReturn,
   bundles,
   platformsToTest,
+  url,
 }: {
   openBuildReturn: Awaited<ReturnType<ReturnType<typeof sdkClient>['openBuild']>>;
   bundles: Partial<Record<Platform, BundleResult>>;
   platformsToTest: Platform[];
+  url: string;
 }): void {
   const diffScopeInfo = openBuildReturn.build.diffScopeInfo as
     | DiffScopeInfoWithPlatformReasons
@@ -421,9 +426,23 @@ function printLiveDiffScopeReport({
     });
   }
 
-  if (platforms.length === 0) return;
+  if (platforms.length > 0) {
+    console.log('\n' + formatDiffScopeReport('live', platforms));
+  }
 
-  console.log('\n' + formatDiffScopeReport('live', platforms));
+  // The closer, LAST (SHERLO-1919 ordering). "- running on devices" is shown when
+  // at least one platform is capturing a story; a run that reuses everything on
+  // every platform gets the plain "✓ Build created". With no plan at all (Diff
+  // Scope off) the build still runs on devices, so keep the suffix.
+  const somethingCaptured = platforms.length === 0 || platforms.some(platformCapturesAStory);
+  const runningSuffix = somethingCaptured ? chalk.dim(` ${SEPARATOR} running on devices`) : '';
+  console.log('\n' + chalk.green('✓') + chalk.bold(' Build created') + runningSuffix);
+  console.log(`🔗 Review: ${printLink(url)}`);
+}
+
+/** True when this platform is capturing at least one story (full, or a partial > 0). */
+function platformCapturesAStory(block: DiffScopePlatformReport): boolean {
+  return block.full || block.capturedStoryFilePaths.length > 0;
 }
 
 /**
