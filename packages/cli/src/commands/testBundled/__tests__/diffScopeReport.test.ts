@@ -1,16 +1,22 @@
 /**
- * Tests for the shared Diff Scope report renderer (SHERLO-1915).
+ * Tests for the shared "Capture plan" renderer (SHERLO-1919).
  *
  * This is the ONE formatter both the live run and the --dry-run preview print
  * through, so the assertions here are the load-bearing ones:
+ *   - every approved output case (1, 2, 2b tiers, 3, 4, 5, 7) renders VERBATIM;
  *   - the inversion pin: a FULL capture with an EMPTY captured-file list renders
- *     as "EVERY story", NEVER "nothing" (Deliverable 3);
- *   - tense parity: the live and dry-run blocks are byte-identical once the tense
- *     words are normalised, asserted DIRECTLY against the formatter rather than by
- *     eyeballing two snapshots (Deliverable 5.5);
- *   - the reused side and the "N of M stories in this bundle" relabel that names
- *     the fraction's universe (Deliverable 4).
+ *     as "all N stories", NEVER "nothing";
+ *   - tense parity: the live and dry-run blocks are byte-identical once the
+ *     capture verb is normalised - asserted DIRECTLY against the formatter;
+ *   - the "N of M stories" fraction is manifest-denominated;
+ *   - the no-manifest degrade drops "of M" and the reuse clause.
+ *
+ * chalk is forced off so the assertions compare against the exact plain text the
+ * e2e suite (which also runs chalk-disabled) parses.
  */
+import chalk from 'chalk';
+chalk.level = 0;
+
 import { describe, expect, it } from 'vitest';
 import {
   formatDiffScopeBlock,
@@ -18,9 +24,7 @@ import {
   type DiffScopePlatformReport,
 } from '../diffScopeReport';
 
-type DecidedBlock = Extract<DiffScopePlatformReport, { kind: 'decided' }>;
-
-function decided(overrides: Partial<DecidedBlock> = {}): DecidedBlock {
+function decided(overrides: Partial<DiffScopePlatformReport> = {}): DiffScopePlatformReport {
   return {
     kind: 'decided',
     platform: 'ios',
@@ -33,40 +37,200 @@ function decided(overrides: Partial<DecidedBlock> = {}): DecidedBlock {
 }
 
 // ---------------------------------------------------------------------------
+// The approved output cases, rendered VERBATIM (SHERLO-1919 spec)
+// ---------------------------------------------------------------------------
+
+describe('approved output (verbatim)', () => {
+  it('Case 1: partial capture - one story', () => {
+    const out = formatDiffScopeReport('live', [
+      decided({
+        platform: 'android',
+        full: false,
+        capturedStoryFilePaths: ['src/components/Sanity/Hello.stories.tsx'],
+        totalStoriesInBundle: 22,
+        reason: 'Sanity/Hello.stories.tsx changed',
+      }),
+    ]);
+
+    expect(out).toBe(
+      [
+        '📸 Capture plan',
+        '  🤖 Android - capturing 1 of 22 stories in this bundle, reusing 21 from the previous build',
+        '     why: Sanity/Hello.stories.tsx changed',
+        '     stories:',
+        '       • Sanity/Hello',
+      ].join('\n')
+    );
+  });
+
+  it('Case 2: shared file, several stories', () => {
+    const out = formatDiffScopeReport('live', [
+      decided({
+        platform: 'android',
+        full: false,
+        capturedStoryFilePaths: [
+          'src/components/Storefront/CheckoutScreen.stories.tsx',
+          'src/components/Storefront/PriceTag.stories.tsx',
+          'src/components/Storefront/PriceTagInline.stories.tsx',
+          'src/components/Storefront/ProductCard.stories.tsx',
+          'src/components/Storefront/ProductCardCompact.stories.tsx',
+          'src/components/Storefront/SharedButton.stories.tsx',
+        ],
+        totalStoriesInBundle: 22,
+        reason: 'SharedButton.tsx changed',
+      }),
+    ]);
+
+    expect(out).toBe(
+      [
+        '📸 Capture plan',
+        '  🤖 Android - capturing 6 of 22 stories in this bundle, reusing 16 from the previous build',
+        '     why: SharedButton.tsx changed',
+        '     stories:',
+        '       • Storefront/CheckoutScreen',
+        '       • Storefront/PriceTag',
+        '       • Storefront/PriceTagInline',
+        '       • Storefront/ProductCard',
+        '       • Storefront/ProductCardCompact',
+        '       • Storefront/SharedButton',
+      ].join('\n')
+    );
+  });
+
+  // Case 2b: the why-line is SERVER-composed and printed VERBATIM after "why: ".
+  // The CLI does not compose the tier wording - it passes whatever it is given
+  // straight through, so both tiers below are a pure pass-through assertion.
+  it.each([
+    ['3-file tier', '3 files changed - SharedButton.tsx, theme.ts, Hello.stories.tsx'],
+    ['many-file tier', '14 files changed'],
+  ])('Case 2b: the why-line is passed through verbatim (%s)', (_name, reason) => {
+    const out = formatDiffScopeReport('live', [
+      decided({
+        platform: 'android',
+        full: false,
+        capturedStoryFilePaths: ['src/components/Storefront/ProductCard.stories.tsx'],
+        totalStoriesInBundle: 22,
+        reason,
+      }),
+    ]);
+
+    expect(out).toContain(`     why: ${reason}`);
+  });
+
+  it('Case 3: nothing to capture', () => {
+    const out = formatDiffScopeReport('live', [
+      decided({
+        platform: 'android',
+        full: false,
+        capturedStoryFilePaths: [],
+        totalStoriesInBundle: 22,
+        reason: 'no change reaches any story',
+      }),
+    ]);
+
+    expect(out).toBe(
+      [
+        '📸 Capture plan',
+        '  🤖 Android - nothing to capture - no change reaches any story',
+        '     ✓ all 22 stories reused from the previous build',
+      ].join('\n')
+    );
+  });
+
+  it('Case 4: full capture, both platforms', () => {
+    const out = formatDiffScopeReport('live', [
+      decided({
+        platform: 'android',
+        full: true,
+        capturedStoryFilePaths: [],
+        totalStoriesInBundle: 22,
+        reason: 'first build - nothing to compare against yet',
+      }),
+      decided({
+        platform: 'ios',
+        full: true,
+        capturedStoryFilePaths: [],
+        totalStoriesInBundle: 22,
+        reason: 'native code changed - everything re-shot',
+      }),
+    ]);
+
+    expect(out).toBe(
+      [
+        '📸 Capture plan',
+        '  🤖 Android - capturing all 22 stories in this bundle',
+        '     why: first build - nothing to compare against yet',
+        '  🍎 iOS - capturing all 22 stories in this bundle',
+        '     why: native code changed - everything re-shot',
+      ].join('\n')
+    );
+  });
+
+  it('Case 5: platforms disagree (one partial, one nothing)', () => {
+    const out = formatDiffScopeReport('live', [
+      decided({
+        platform: 'ios',
+        full: false,
+        capturedStoryFilePaths: ['src/components/Storefront/ProductCard.stories.tsx'],
+        totalStoriesInBundle: 22,
+        reason: 'ProductCardPlatformNote.ios.tsx changed',
+      }),
+      decided({
+        platform: 'android',
+        full: false,
+        capturedStoryFilePaths: [],
+        totalStoriesInBundle: 22,
+        reason: 'the change never reaches the Android app',
+      }),
+    ]);
+
+    expect(out).toBe(
+      [
+        '📸 Capture plan',
+        '  🍎 iOS - capturing 1 of 22 stories in this bundle, reusing 21 from the previous build',
+        '     why: ProductCardPlatformNote.ios.tsx changed',
+        '     stories:',
+        '       • Storefront/ProductCard',
+        '  🤖 Android - nothing to capture - the change never reaches the Android app',
+        '     ✓ all 22 stories reused from the previous build',
+      ].join('\n')
+    );
+  });
+
+  it('Case 7: decision unavailable - full capture with no reason (degraded / older server)', () => {
+    const out = formatDiffScopeReport('live', [
+      decided({
+        platform: 'android',
+        full: true,
+        capturedStoryFilePaths: [],
+        totalStoriesInBundle: 22,
+        reason: undefined,
+      }),
+    ]);
+
+    expect(out).toBe(
+      [
+        '📸 Capture plan',
+        '  🤖 Android - capturing all 22 stories in this bundle',
+        "     ! couldn't compute what changed - capturing everything to be safe",
+      ].join('\n')
+    );
+  });
+
+  it('the dry-run header appends " (dry run)"', () => {
+    const out = formatDiffScopeReport('dry-run', [
+      decided({ platform: 'android', full: true, totalStoriesInBundle: 3, reason: 'x' }),
+    ]);
+    expect(out.split('\n')[0]).toBe('📸 Capture plan (dry run)');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // formatDiffScopeBlock - the shared per-platform core
 // ---------------------------------------------------------------------------
 
 describe('formatDiffScopeBlock', () => {
-  it('renders a partial capture with its fraction, reused side, story list, and verbatim reason', () => {
-    const block = decided({
-      platform: 'ios',
-      full: false,
-      capturedStoryFilePaths: [
-        'src/components/Storefront/Storefront.stories.tsx',
-        'src/components/Cart/Cart.stories.tsx',
-      ],
-      totalStoriesInBundle: 22,
-      reason: 'captured 2 - closure changed via src/components/Storefront/SharedButton.tsx',
-    });
-
-    const live = formatDiffScopeBlock(block, 'captured').join('\n');
-
-    // The fraction NAMES ITS UNIVERSE - "in this bundle", not the --include scope.
-    expect(live).toContain('🍎 iOS - captured 2 of 22 stories in this bundle');
-    // Reused = M - N = 20, shown as its own line.
-    expect(live).toContain(
-      'Reused the other 20 (already photographed on the base build, not re-shot here).'
-    );
-    expect(live).toContain('Stories captured:');
-    expect(live).toContain('• src/components/Storefront/Storefront.stories.tsx');
-    expect(live).toContain('• src/components/Cart/Cart.stories.tsx');
-    // Reason is byte-for-byte the server string.
-    expect(live).toContain(
-      'Reason: captured 2 - closure changed via src/components/Storefront/SharedButton.tsx'
-    );
-  });
-
-  it('THE INVERSION PIN: a FULL capture with an EMPTY list renders "EVERY story", never "nothing"', () => {
+  it('THE INVERSION PIN: a FULL capture with an EMPTY list renders "all N stories", never "nothing"', () => {
     // full: true is "everything"; the empty capturedStoryFilePaths must never be
     // read as "nothing" - the single worst misread this formatter guards.
     const block = decided({
@@ -77,114 +241,251 @@ describe('formatDiffScopeBlock', () => {
       reason: 'main-branch',
     });
 
-    const out = formatDiffScopeBlock(block, 'captured').join('\n');
+    const out = formatDiffScopeBlock(block, 'capturing').join('\n');
 
-    expect(out).toContain('🍎 iOS - captured EVERY story in this bundle');
-    expect(out).toContain('Reason: main-branch');
+    expect(out).toBe(
+      ['  🍎 iOS - capturing all 12 stories in this bundle', '     why: main-branch'].join('\n')
+    );
     // None of the "nothing" / partial renderings may leak.
     expect(out).not.toContain('nothing');
-    expect(out).not.toContain('captured 0');
-    expect(out).not.toContain('Stories captured:');
-    expect(out).not.toContain('Reused');
+    expect(out).not.toContain('capturing 0');
+    expect(out).not.toContain('stories:');
+    expect(out).not.toContain('reusing');
   });
 
-  it('renders a PARTIAL zero-capture as "nothing captured" with the whole bundle reused', () => {
+  it('renders a PARTIAL zero-capture as "nothing to capture" with the whole bundle reused', () => {
     const block = decided({
       platform: 'android',
       full: false,
       capturedStoryFilePaths: [],
       totalStoriesInBundle: 22,
-      reason: 'captured 0 - no module changes reach any story',
+      reason: 'no change reaches any story',
     });
 
-    const out = formatDiffScopeBlock(block, 'captured').join('\n');
+    const out = formatDiffScopeBlock(block, 'capturing').join('\n');
 
-    expect(out).toContain('🤖 Android - captured 0 of 22 stories in this bundle');
-    expect(out).toContain(
-      'Nothing your changes touch reaches a story, so all 22 were reused from the base build.'
+    expect(out).toBe(
+      [
+        '  🤖 Android - nothing to capture - no change reaches any story',
+        '     ✓ all 22 stories reused from the previous build',
+      ].join('\n')
     );
-    expect(out).toContain('Reason: captured 0 - no module changes reach any story');
-    // A partial-zero is NOT a full capture.
-    expect(out).not.toContain('EVERY story');
-    expect(out).not.toContain('Stories captured:');
+    // A partial-zero is NOT a full capture and never lists stories.
+    expect(out).not.toContain('capturing');
+    expect(out).not.toContain('stories:');
   });
 
-  it('degrades to a bare count (no "of M", no reused line) when the bundle has no manifest', () => {
+  it('degrades to a bare count (no "of M", no reuse clause) when the bundle has no manifest', () => {
     const block = decided({
       platform: 'ios',
       full: false,
-      capturedStoryFilePaths: ['src/a/A.stories.tsx'],
+      capturedStoryFilePaths: ['src/components/A/A.stories.tsx'],
       totalStoriesInBundle: undefined,
-      reason: 'captured 1 - closure changed via src/a/a.ts',
+      reason: 'a.ts changed',
     });
 
-    const out = formatDiffScopeBlock(block, 'captured').join('\n');
+    const out = formatDiffScopeBlock(block, 'capturing').join('\n');
 
-    expect(out).toContain('🍎 iOS - captured 1 story');
+    expect(out).toBe(
+      [
+        '  🍎 iOS - capturing 1 story',
+        '     why: a.ts changed',
+        '     stories:',
+        '       • A/A',
+      ].join('\n')
+    );
     expect(out).not.toContain(' of ');
-    expect(out).not.toContain('Reused');
-    expect(out).toContain('• src/a/A.stories.tsx');
+    expect(out).not.toContain('reusing');
   });
 
-  it('omits the reason line entirely when no reason is given (live ladder rung 3)', () => {
+  it('SINGULAR at M === 1: a full capture reads "all 1 story", not "all 1 stories"', () => {
+    const block = decided({
+      platform: 'android',
+      full: true,
+      capturedStoryFilePaths: [],
+      totalStoriesInBundle: 1,
+      reason: 'first build - nothing to compare against yet',
+    });
+
+    const out = formatDiffScopeBlock(block, 'capturing').join('\n');
+
+    expect(out).toBe(
+      [
+        '  🤖 Android - capturing all 1 story in this bundle',
+        '     why: first build - nothing to compare against yet',
+      ].join('\n')
+    );
+    expect(out).not.toContain('all 1 stories');
+  });
+
+  it('EMPTY MANIFEST at M === 0: a full capture reads "capturing all 0 stories in this bundle"', () => {
+    // M = 0 is a real, reachable edge: readValidatedModuleManifest accepts an empty
+    // storyClosures object, so countBundleStories returns 0. A full capture then
+    // still renders through the M !== undefined branch - "all 0 stories in this
+    // bundle" (plural at 0), NOT the no-manifest "all stories" degrade.
+    const block = decided({
+      platform: 'android',
+      full: true,
+      capturedStoryFilePaths: [],
+      totalStoriesInBundle: 0,
+      reason: 'first build - nothing to compare against yet',
+    });
+
+    const out = formatDiffScopeBlock(block, 'capturing').join('\n');
+
+    expect(out).toBe(
+      [
+        '  🤖 Android - capturing all 0 stories in this bundle',
+        '     why: first build - nothing to compare against yet',
+      ].join('\n')
+    );
+    // M is present (0), so it must NOT fall through to the bare "all stories" degrade.
+    expect(out).not.toContain('capturing all stories');
+  });
+
+  it('SINGULAR at M === 1: a zero-capture reads "all 1 story reused", not "all 1 stories reused"', () => {
+    const block = decided({
+      platform: 'android',
+      full: false,
+      capturedStoryFilePaths: [],
+      totalStoriesInBundle: 1,
+      reason: 'no change reaches any story',
+    });
+
+    const out = formatDiffScopeBlock(block, 'capturing').join('\n');
+
+    expect(out).toBe(
+      [
+        '  🤖 Android - nothing to capture - no change reaches any story',
+        '     ✓ all 1 story reused from the previous build',
+      ].join('\n')
+    );
+    expect(out).not.toContain('all 1 stories');
+  });
+
+  it('drops the "reusing 0" clause when nothing is reused (partial 1 of 1)', () => {
+    const block = decided({
+      platform: 'android',
+      full: false,
+      capturedStoryFilePaths: ['src/components/Sanity/Hello.stories.tsx'],
+      totalStoriesInBundle: 1,
+      reason: 'Sanity/Hello.stories.tsx changed',
+    });
+
+    const out = formatDiffScopeBlock(block, 'capturing').join('\n');
+
+    expect(out).toBe(
+      [
+        '  🤖 Android - capturing 1 of 1 stories in this bundle',
+        '     why: Sanity/Hello.stories.tsx changed',
+        '     stories:',
+        '       • Sanity/Hello',
+      ].join('\n')
+    );
+    // The meaningless "nothing happened" clause must not appear.
+    expect(out).not.toContain('reusing');
+    expect(out).not.toContain('reusing 0');
+  });
+
+  it('a full capture with no manifest degrades to "all stories" (no number)', () => {
+    const block = decided({
+      platform: 'ios',
+      full: true,
+      capturedStoryFilePaths: [],
+      totalStoriesInBundle: undefined,
+      reason: 'native-changed',
+    });
+
+    const out = formatDiffScopeBlock(block, 'capturing').join('\n');
+
+    expect(out).toBe(['  🍎 iOS - capturing all stories', '     why: native-changed'].join('\n'));
+  });
+
+  it('omits the why line entirely on a partial when no reason is given', () => {
     const block = decided({
       platform: 'ios',
       full: false,
-      capturedStoryFilePaths: ['src/a/A.stories.tsx'],
+      capturedStoryFilePaths: ['src/components/A/A.stories.tsx'],
       totalStoriesInBundle: 4,
       reason: undefined,
     });
 
-    const out = formatDiffScopeBlock(block, 'captured').join('\n');
+    const out = formatDiffScopeBlock(block, 'capturing').join('\n');
 
-    expect(out).toContain('captured 1 of 4 stories in this bundle');
-    expect(out).not.toContain('Reason:');
+    expect(out).toBe(
+      [
+        '  🍎 iOS - capturing 1 of 4 stories in this bundle, reusing 3 from the previous build',
+        '     stories:',
+        '       • A/A',
+      ].join('\n')
+    );
+    expect(out).not.toContain('why:');
   });
 
-  it('bounds the story list and summarises the remainder', () => {
-    const paths = Array.from({ length: 25 }, (_, i) => `src/s${i}/S${i}.stories.tsx`);
+  it('lists the FULL story set with no "+N more" truncation (MAX_LISTED_STORIES deleted)', () => {
+    const paths = Array.from({ length: 25 }, (_, i) => `src/components/g${i}/S${i}.stories.tsx`);
     const block = decided({
       platform: 'ios',
       full: false,
       capturedStoryFilePaths: paths,
       totalStoriesInBundle: 30,
-      reason: 'captured 25 - many changed',
+      reason: 'many changed',
     });
 
-    const out = formatDiffScopeBlock(block, 'captured').join('\n');
+    const out = formatDiffScopeBlock(block, 'capturing').join('\n');
 
-    expect(out).toContain('• src/s0/S0.stories.tsx');
-    expect(out).toContain('• src/s19/S19.stories.tsx');
-    // Path 20 (the 21st) is past the cap of 20.
-    expect(out).not.toContain('• src/s20/S20.stories.tsx');
-    expect(out).toContain('• ... and 5 more');
+    // Every path is listed - including the 21st and beyond, which the old
+    // renderer would have summarised as "... and N more".
+    expect(out).toContain('       • g0/S0');
+    expect(out).toContain('       • g20/S20');
+    expect(out).toContain('       • g24/S24');
+    expect(out).not.toContain('more');
+    // 25 bullets present.
+    expect(out.split('\n').filter((l) => l.includes('• g')).length).toBe(25);
+  });
+
+  it('cleans story paths to "group/name", dropping the src/... prefix and .stories.<ext> suffix', () => {
+    const block = decided({
+      platform: 'ios',
+      full: false,
+      capturedStoryFilePaths: [
+        'src/components/Storefront/ProductCard.stories.tsx',
+        'src/features/checkout/components/Cart/Cart.stories.jsx',
+        'packages/ui/src/Sanity/Hello.stories.ts',
+      ],
+      totalStoriesInBundle: 10,
+      reason: 'x changed',
+    });
+
+    const out = formatDiffScopeBlock(block, 'capturing').join('\n');
+
+    expect(out).toContain('       • Storefront/ProductCard');
+    expect(out).toContain('       • Cart/Cart');
+    expect(out).toContain('       • Sanity/Hello');
   });
 });
 
 // ---------------------------------------------------------------------------
-// Tense parity - live and dry-run read identically apart from tense
+// Tense parity - live and dry-run read identically apart from the capture verb
 // ---------------------------------------------------------------------------
 
-describe('tense parity (Deliverable 5.5)', () => {
-  /** Rewrite a would-capture block into its captured form using ONLY tense words. */
-  function normaliseTense(wouldLines: string[]): string[] {
-    return wouldLines.map((line) =>
-      line
-        .replace('would capture', 'captured')
-        .replace('Would reuse', 'Reused')
-        .replace('would be reused', 'were reused')
-        .replace('Stories to capture:', 'Stories captured:')
-    );
+describe('tense parity', () => {
+  /** Rewrite a would-capture block into its capturing form using ONLY the verb. */
+  function normaliseVerb(wouldLines: string[]): string[] {
+    return wouldLines.map((line) => line.replace('would capture', 'capturing'));
   }
 
-  const cases: Array<[string, DecidedBlock]> = [
+  const cases: Array<[string, DiffScopePlatformReport]> = [
     [
       'partial with captures',
       decided({
         full: false,
-        capturedStoryFilePaths: ['src/a/A.stories.tsx', 'src/b/B.stories.tsx'],
+        capturedStoryFilePaths: [
+          'src/components/a/A.stories.tsx',
+          'src/components/b/B.stories.tsx',
+        ],
         totalStoriesInBundle: 22,
-        reason: 'captured 2 - closure changed via src/a/a.ts',
+        reason: 'a.ts changed',
       }),
     ],
     [
@@ -193,89 +494,52 @@ describe('tense parity (Deliverable 5.5)', () => {
         full: false,
         capturedStoryFilePaths: [],
         totalStoriesInBundle: 22,
-        reason: 'captured 0',
+        reason: 'no change reaches any story',
       }),
     ],
-    ['full capture', decided({ full: true, capturedStoryFilePaths: [], reason: 'main-branch' })],
+    ['full capture', decided({ full: true, totalStoriesInBundle: 12, reason: 'main-branch' })],
+    ['full capture, no reason', decided({ full: true, totalStoriesInBundle: 12 })],
     [
       'no-manifest degrade',
       decided({
         full: false,
-        capturedStoryFilePaths: ['src/a/A.stories.tsx'],
-        reason: 'captured 1',
+        capturedStoryFilePaths: ['src/components/a/A.stories.tsx'],
+        reason: 'x',
       }),
     ],
   ];
 
-  it.each(cases)('%s reads identically once tense is normalised', (_name, block) => {
+  it.each(cases)('%s reads identically once the verb is normalised', (_name, block) => {
     const would = formatDiffScopeBlock(block, 'would-capture');
-    const captured = formatDiffScopeBlock(block, 'captured');
+    const capturing = formatDiffScopeBlock(block, 'capturing');
 
-    // The ONLY difference between the two tenses is the tense words themselves.
-    expect(normaliseTense(would)).toEqual(captured);
-    // Sanity: the tense genuinely changed the raw text (nothing is a no-op).
-    expect(would.join('\n')).not.toEqual(captured.join('\n'));
-  });
-});
-
-// ---------------------------------------------------------------------------
-// formatDiffScopeReport - headers, footer, mode -> tense
-// ---------------------------------------------------------------------------
-
-describe('formatDiffScopeReport', () => {
-  const partial: DiffScopePlatformReport = decided({
-    platform: 'ios',
-    full: false,
-    capturedStoryFilePaths: ['src/a/A.stories.tsx'],
-    totalStoriesInBundle: 4,
-    reason: 'captured 1 - closure changed via src/a/a.ts',
+    // The ONLY difference between the two tenses is the capture verb.
+    expect(normaliseVerb(would)).toEqual(capturing);
   });
 
-  it('dry-run mode uses the preview header/footer and the "would capture" tense', () => {
-    const out = formatDiffScopeReport('dry-run', [partial]);
-
-    expect(out).toContain('📋 Diff Scope preview - dry run (no build created)');
-    expect(out).toContain('iOS - would capture 1 of 4 stories in this bundle');
-    expect(out).toContain('This is a preview: no build was created and nothing was uploaded.');
+  it('the capture verb genuinely changes a capturing block (nothing is a no-op)', () => {
+    const block = decided({
+      full: false,
+      capturedStoryFilePaths: ['src/components/a/A.stories.tsx'],
+      totalStoriesInBundle: 22,
+      reason: 'a.ts changed',
+    });
+    expect(formatDiffScopeBlock(block, 'would-capture').join('\n')).not.toEqual(
+      formatDiffScopeBlock(block, 'capturing').join('\n')
+    );
   });
 
-  it('live mode uses the live header (no preview footer) and the "captured" tense', () => {
-    const out = formatDiffScopeReport('live', [partial]);
-
-    expect(out).toContain('📋 Diff Scope - what this run photographed');
-    expect(out).toContain('iOS - captured 1 of 4 stories in this bundle');
-    expect(out).not.toContain('This is a preview');
-  });
-
-  it('renders a mix of one full and one partial platform', () => {
-    const out = formatDiffScopeReport('live', [
-      decided({
-        platform: 'ios',
-        full: true,
-        capturedStoryFilePaths: [],
-        reason: 'native-changed',
-      }),
-      decided({
-        platform: 'android',
-        full: false,
-        capturedStoryFilePaths: ['src/x/X.stories.tsx'],
-        totalStoriesInBundle: 8,
-        reason: 'captured 1 - closure changed via src/x.tsx',
-      }),
-    ]);
-
-    expect(out).toContain('🍎 iOS - captured EVERY story in this bundle');
-    expect(out).toContain('Reason: native-changed');
-    expect(out).toContain('🤖 Android - captured 1 of 8 stories in this bundle');
-    expect(out).toContain('• src/x/X.stories.tsx');
-  });
-
-  it('renders a dry-run bail-open as "a real run would capture EVERY story"', () => {
-    const out = formatDiffScopeReport('dry-run', [
-      { kind: 'bailed-open', platform: 'ios', reason: 'network exploded' },
-    ]);
-
-    expect(out).toContain('🍎 iOS - preview unavailable; a real run would capture EVERY story');
-    expect(out).toContain('Reason: network exploded');
+  // A partial-zero block has NO capture verb, so it is byte-identical in both
+  // modes - the "reusing ... from the previous build" wording stays present tense.
+  it('a partial-zero block is byte-identical across both modes', () => {
+    const block = decided({
+      full: false,
+      capturedStoryFilePaths: [],
+      totalStoriesInBundle: 22,
+      reason: 'no change reaches any story',
+    });
+    expect(formatDiffScopeBlock(block, 'would-capture')).toEqual(
+      formatDiffScopeBlock(block, 'capturing')
+    );
   });
 });

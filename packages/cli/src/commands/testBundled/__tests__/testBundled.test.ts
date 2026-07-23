@@ -15,6 +15,9 @@
  * those are covered by buildBundle.test.ts. The STAGED_GATE_REFUSAL wire format
  * is covered by stagedGateRefusal.test.ts.
  */
+import chalk from 'chalk';
+chalk.level = 0;
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER } from '@sherlo/shared';
 
@@ -435,10 +438,11 @@ describe('--dry-run', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Live Diff Scope report (SHERLO-1915): the command EXPLAINS its own decision.
+// Live capture plan (SHERLO-1919): the command EXPLAINS its own decision, then
+// closes with "✓ Build created" and the Review URL LAST.
 // ---------------------------------------------------------------------------
 
-describe('live Diff Scope report', () => {
+describe('live capture plan', () => {
   const ANDROID_DEVICE = { ...IOS_DEVICE, id: 'test-pixel' };
 
   /** A module manifest whose story-closure count is `storyCount` (the "M"). */
@@ -495,14 +499,13 @@ describe('live Diff Scope report', () => {
     mockGetGitInfo.mockResolvedValue({ commitHash: 'c', branchName: 'b', commitName: 'm' } as any);
     mockOpenBuild.mockResolvedValue(openBuildReturn);
     mockGetAppBuildUrl.mockReturnValue('http://app/build');
-    mockPrintResultsUrl.mockImplementation(() => {});
   }
 
   function printed(logSpy: ReturnType<typeof vi.spyOn>): string {
     return logSpy.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
   }
 
-  it('renders a partial capture WITH a per-platform reason: fraction, reused side, list, reason', async () => {
+  it('Case 2: partial capture WITH a per-platform reason - fraction, reuse clause, list, why', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       storyCount: 22,
@@ -511,12 +514,7 @@ describe('live Diff Scope report', () => {
           index: 7,
           diffScopeInfo: {
             isFullCapture: false,
-            platforms: {
-              ios: {
-                reason:
-                  'captured 2 - closure changed via src/components/Storefront/SharedButton.tsx',
-              },
-            },
+            platforms: { ios: { reason: 'SharedButton.tsx changed' } },
           },
         },
         buildRun: {
@@ -539,28 +537,28 @@ describe('live Diff Scope report', () => {
     await testBundled(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('📋 Diff Scope - what this run photographed');
-    expect(out).toContain('🍎 iOS - captured 2 of 22 stories in this bundle');
+    expect(out).toContain('📸 Capture plan');
     expect(out).toContain(
-      'Reused the other 20 (already photographed on the base build, not re-shot here).'
+      '🍎 iOS - capturing 2 of 22 stories in this bundle, reusing 20 from the previous build'
     );
-    expect(out).toContain('Stories captured:');
-    expect(out).toContain('• src/components/Storefront/Storefront.stories.tsx');
-    expect(out).toContain('• src/components/Cart/Cart.stories.tsx');
-    expect(out).toContain(
-      'Reason: captured 2 - closure changed via src/components/Storefront/SharedButton.tsx'
-    );
+    expect(out).toContain('     why: SharedButton.tsx changed');
+    expect(out).toContain('     stories:');
+    expect(out).toContain('       • Storefront/Storefront');
+    expect(out).toContain('       • Cart/Cart');
 
     logSpy.mockRestore();
   });
 
-  it('renders a full capture, taking the reason from fullCaptureTriggerReason (ladder rung 2)', async () => {
+  it('Case 4: full capture, taking the reason from fullCaptureTriggerReason (ladder rung 2)', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       openBuildReturn: {
         build: {
           index: 7,
-          diffScopeInfo: { isFullCapture: true, fullCaptureTriggerReason: 'native-changed' },
+          diffScopeInfo: {
+            isFullCapture: true,
+            fullCaptureTriggerReason: 'native code changed - everything re-shot',
+          },
         },
         buildRun: {
           config: { ios: { devices: [], captureScope: { full: true, storyFilePaths: [] } } },
@@ -571,28 +569,84 @@ describe('live Diff Scope report', () => {
     await testBundled(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('🍎 iOS - captured EVERY story in this bundle');
-    expect(out).toContain('Reason: native-changed');
+    expect(out).toContain('🍎 iOS - capturing all 22 stories in this bundle');
+    expect(out).toContain('     why: native code changed - everything re-shot');
     // Inversion: an empty list on a full capture is "everything", never "nothing".
-    expect(out).not.toContain('captured 0');
+    expect(out).not.toContain('capturing 0');
     expect(out).not.toContain('nothing');
 
     logSpy.mockRestore();
   });
 
-  it('renders a partial WITHOUT a reason (forward-compat degrade): counts + list, no reason line', async () => {
+  it('Case 3: nothing to capture - the whole bundle reused, plain "✓ Build created" closer', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({
+      storyCount: 22,
+      openBuildReturn: {
+        build: {
+          index: 7,
+          diffScopeInfo: {
+            isFullCapture: false,
+            platforms: { ios: { reason: 'no change reaches any story' } },
+          },
+        },
+        buildRun: {
+          config: { ios: { devices: [], captureScope: { full: false, storyFilePaths: [] } } },
+        },
+      },
+    });
+
+    await testBundled(mockOptions());
+
+    const out = printed(logSpy);
+    expect(out).toContain('🍎 iOS - nothing to capture - no change reaches any story');
+    expect(out).toContain('     ✓ all 22 stories reused from the previous build');
+    // Nothing captured on any platform -> the plain closer, NOT "- running on devices".
+    expect(out).toContain('✓ Build created');
+    expect(out).not.toContain('running on devices');
+
+    logSpy.mockRestore();
+  });
+
+  it('Case 7: full capture with NO reason degrades to the "couldn\'t compute" safety row', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({
+      storyCount: 22,
+      openBuildReturn: {
+        // Full capture recorded, but no reason available (older server / degraded).
+        build: { index: 7, diffScopeInfo: { isFullCapture: true } },
+        buildRun: {
+          config: { ios: { devices: [], captureScope: { full: true, storyFilePaths: [] } } },
+        },
+      },
+    });
+
+    await testBundled(mockOptions());
+
+    const out = printed(logSpy);
+    expect(out).toContain('🍎 iOS - capturing all 22 stories in this bundle');
+    expect(out).toContain("     ! couldn't compute what changed - capturing everything to be safe");
+    expect(out).not.toContain('why:');
+
+    logSpy.mockRestore();
+  });
+
+  it('renders a partial WITHOUT a reason (forward-compat degrade): counts + list, no why line', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       storyCount: 8,
       openBuildReturn: {
         // diffScopeInfo has NO per-platform reason yet (api PR not landed), and this
-        // is not a full capture, so the reason line is omitted entirely.
+        // is not a full capture, so the why line is omitted entirely.
         build: { index: 7, diffScopeInfo: { isFullCapture: false } },
         buildRun: {
           config: {
             ios: {
               devices: [],
-              captureScope: { full: false, storyFilePaths: ['src/x/X.stories.tsx'] },
+              captureScope: {
+                full: false,
+                storyFilePaths: ['src/components/x/X.stories.tsx'],
+              },
             },
           },
         },
@@ -602,15 +656,17 @@ describe('live Diff Scope report', () => {
     await testBundled(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('🍎 iOS - captured 1 of 8 stories in this bundle');
-    expect(out).toContain('• src/x/X.stories.tsx');
-    // The block renders in full; it simply carries no reason line.
-    expect(out).not.toContain('Reason:');
+    expect(out).toContain(
+      '🍎 iOS - capturing 1 of 8 stories in this bundle, reusing 7 from the previous build'
+    );
+    expect(out).toContain('       • x/X');
+    // The block renders in full; it simply carries no why line.
+    expect(out).not.toContain('why:');
 
     logSpy.mockRestore();
   });
 
-  it('prints NOTHING about diff scope when captureScope is absent (Diff Scope off / older API)', async () => {
+  it('prints NO plan block when captureScope is absent, but still closes with the build + URL', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       openBuildReturn: {
@@ -622,9 +678,100 @@ describe('live Diff Scope report', () => {
     await testBundled(mockOptions());
 
     const out = printed(logSpy);
-    // Silence is correct: no header, no per-platform block, no assertion of a decision.
-    expect(out).not.toContain('Diff Scope');
-    expect(out).not.toContain('captured');
+    // No plan: no header, no per-platform block, no assertion of a decision.
+    expect(out).not.toContain('Capture plan');
+    expect(out).not.toContain('capturing');
+    // The closer never promises runner behavior (Decision 5): plain "✓ Build
+    // created", no "- running on devices" suffix. The link is never withheld.
+    expect(out).toContain('✓ Build created');
+    expect(out).not.toContain('running on devices');
+    expect(out).toContain('🔗 Review: http://app/build');
+
+    logSpy.mockRestore();
+  });
+
+  it('Case 5: platforms disagree - one partial captures, one reuses everything', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({
+      platforms: ['ios', 'android'],
+      storyCount: 22,
+      openBuildReturn: {
+        build: {
+          index: 7,
+          diffScopeInfo: {
+            isFullCapture: false,
+            platforms: {
+              ios: { reason: 'ProductCardPlatformNote.ios.tsx changed' },
+              android: { reason: 'the change never reaches the Android app' },
+            },
+          },
+        },
+        buildRun: {
+          config: {
+            ios: {
+              devices: [],
+              captureScope: {
+                full: false,
+                storyFilePaths: ['src/components/Storefront/ProductCard.stories.tsx'],
+              },
+            },
+            android: { devices: [], captureScope: { full: false, storyFilePaths: [] } },
+          },
+        },
+      },
+    });
+
+    await testBundled(mockOptions());
+
+    const out = printed(logSpy);
+    expect(out).toContain(
+      '🍎 iOS - capturing 1 of 22 stories in this bundle, reusing 21 from the previous build'
+    );
+    expect(out).toContain('     why: ProductCardPlatformNote.ios.tsx changed');
+    expect(out).toContain('       • Storefront/ProductCard');
+    expect(out).toContain(
+      '🤖 Android - nothing to capture - the change never reaches the Android app'
+    );
+    expect(out).toContain('     ✓ all 22 stories reused from the previous build');
+    // The closer is always the plain "✓ Build created" (Decision 5) - even though
+    // iOS captured a story, it carries no "- running on devices" suffix.
+    expect(out).toContain('✓ Build created');
+    expect(out).not.toContain('running on devices');
+
+    logSpy.mockRestore();
+  });
+
+  // ORDERING: the Review URL prints LAST - after the capture plan and the
+  // build-created closer, never before them (SHERLO-1919 ordering change).
+  it('prints the Review URL LAST, after the capture plan and the build-created line', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({
+      storyCount: 22,
+      openBuildReturn: {
+        build: {
+          index: 7,
+          diffScopeInfo: { isFullCapture: false, platforms: { ios: { reason: 'x changed' } } },
+        },
+        buildRun: {
+          config: {
+            ios: {
+              devices: [],
+              captureScope: { full: false, storyFilePaths: ['src/components/x/X.stories.tsx'] },
+            },
+          },
+        },
+      },
+    });
+
+    await testBundled(mockOptions());
+
+    const out = printed(logSpy);
+    const planIdx = out.indexOf('📸 Capture plan');
+    const builtIdx = out.indexOf('✓ Build created');
+    const urlIdx = out.indexOf('🔗 Review:');
+    expect(planIdx).toBeGreaterThanOrEqual(0);
+    expect(builtIdx).toBeGreaterThan(planIdx);
+    expect(urlIdx).toBeGreaterThan(builtIdx);
 
     logSpy.mockRestore();
   });
@@ -640,7 +787,7 @@ describe('live Diff Scope report', () => {
           diffScopeInfo: {
             isFullCapture: false,
             fullCaptureTriggerReason: 'native-changed',
-            platforms: { android: { reason: 'captured 1 - closure changed via src/x.tsx' } },
+            platforms: { android: { reason: 'x.tsx changed' } },
           },
         },
         buildRun: {
@@ -648,7 +795,7 @@ describe('live Diff Scope report', () => {
             ios: { devices: [], captureScope: { full: true, storyFilePaths: [] } },
             android: {
               devices: [],
-              captureScope: { full: false, storyFilePaths: ['src/x/X.stories.tsx'] },
+              captureScope: { full: false, storyFilePaths: ['src/components/x/X.stories.tsx'] },
             },
           },
         },
@@ -658,23 +805,24 @@ describe('live Diff Scope report', () => {
     await testBundled(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('🍎 iOS - captured EVERY story in this bundle');
-    expect(out).toContain('Reason: native-changed');
-    expect(out).toContain('🤖 Android - captured 1 of 10 stories in this bundle');
-    expect(out).toContain('• src/x/X.stories.tsx');
-    expect(out).toContain('Reason: captured 1 - closure changed via src/x.tsx');
+    expect(out).toContain('🍎 iOS - capturing all 10 stories in this bundle');
+    expect(out).toContain('     why: native-changed');
+    expect(out).toContain(
+      '🤖 Android - capturing 1 of 10 stories in this bundle, reusing 9 from the previous build'
+    );
+    expect(out).toContain('       • x/X');
+    expect(out).toContain('     why: x.tsx changed');
 
     logSpy.mockRestore();
   });
 
-  // Deliverable 5.1: the fraction is MANIFEST-denominated, so --include never moves
-  // it. Same M, same "2 of 22 in this bundle" label, whether include is unset,
-  // matches a subset, or matches nothing.
+  // The fraction is MANIFEST-denominated, so --include never moves it. Same M,
+  // same "2 of 22" label, whether include is unset, matches a subset, or nothing.
   it.each([
     ['no --include', undefined],
     ['--include matching a subset', ['Sanity', 'Storefront']],
     ['--include matching nothing', ['DoesNotExist']],
-  ])('the fraction is unchanged by %s (tier-1 relabel invariant)', async (_name, include) => {
+  ])('the fraction is unchanged by %s (--include invariant)', async (_name, include) => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       include: include as string[] | undefined,
@@ -687,7 +835,10 @@ describe('live Diff Scope report', () => {
               devices: [],
               captureScope: {
                 full: false,
-                storyFilePaths: ['src/a/A.stories.tsx', 'src/b/B.stories.tsx'],
+                storyFilePaths: [
+                  'src/components/a/A.stories.tsx',
+                  'src/components/b/B.stories.tsx',
+                ],
               },
             },
           },
@@ -698,27 +849,29 @@ describe('live Diff Scope report', () => {
     await testBundled(mockOptions());
 
     const out = printed(logSpy);
-    // The exact label is pinned so the invariant is stated, not inferred.
-    expect(out).toContain('🍎 iOS - captured 2 of 22 stories in this bundle');
+    // The exact fraction is pinned so the invariant is stated, not inferred.
+    expect(out).toContain(
+      '🍎 iOS - capturing 2 of 22 stories in this bundle, reusing 20 from the previous build'
+    );
 
     logSpy.mockRestore();
   });
 
-  // Deliverable 5.2: this task is DISPLAY ONLY. The openBuild request (the decision
-  // inputs) must not move because the response now carries a diff-scope decision.
-  it('does NOT alter the openBuild request or the buildRunConfig when printing the report', async () => {
+  // DISPLAY ONLY. The openBuild request (the decision inputs) must not move
+  // because the response now carries a diff-scope decision.
+  it('does NOT alter the openBuild request or the buildRunConfig when printing the plan', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       openBuildReturn: {
         build: {
           index: 7,
-          diffScopeInfo: { isFullCapture: false, platforms: { ios: { reason: 'captured 1 - x' } } },
+          diffScopeInfo: { isFullCapture: false, platforms: { ios: { reason: 'x changed' } } },
         },
         buildRun: {
           config: {
             ios: {
               devices: [],
-              captureScope: { full: false, storyFilePaths: ['src/x/X.stories.tsx'] },
+              captureScope: { full: false, storyFilePaths: ['src/components/x/X.stories.tsx'] },
             },
           },
         },
