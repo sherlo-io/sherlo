@@ -350,13 +350,13 @@ function execBundler(
   const { projectRoot, entryFile, bundleOut, assetsDest } = opts;
 
   // Turn the module manifest ON for the test:bundled path ONLY (SHERLO-1894 Phase B).
-  // The Sherlo Metro serializer reads SHERLO_EXPERIMENTAL_MODULE_MANIFEST; setting it
-  // here scopes it to this spawned bundler process, so the `experimentalModuleManifest`
-  // opt stays default-OFF for every other build. Nothing else in this env changes, so
-  // the bundle output is byte-for-byte what it would be without the flag.
+  // The Sherlo Metro serializer reads SHERLO_MODULE_MANIFEST; setting it here scopes
+  // emission to this spawned bundler process, so every other build (local dev,
+  // non-Sherlo CI) is unaffected. Nothing else in this env changes, so the bundle
+  // output is byte-for-byte what it would be without it.
   const bundlerEnv: NodeJS.ProcessEnv = {
     ...process.env,
-    SHERLO_EXPERIMENTAL_MODULE_MANIFEST: '1',
+    SHERLO_MODULE_MANIFEST: '1',
   };
 
   if (bundler === 'expo') {

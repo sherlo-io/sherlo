@@ -187,7 +187,7 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
   //   for every platform and an SDK client. Preview which stories a real run would
   //   capture via the read-only decision query, print it, and STOP here. A dry run
   //   never runs the staged gate, uploads nothing, opens no build, and advances no
-  //   ancestry - so it also works with the Diff Scope v2 flag OFF. Bail-open lives
+  //   ancestry - so it also works with the Diff Scope flag OFF. Bail-open lives
   //   inside runDryRunPreview; it prints a preview even when the decision is unsure.
   if (isDryRun) {
     // Reuse the SAME git info openBuild is given (step 7 below) - the read-only
@@ -348,7 +348,7 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
   // The command now EXPLAINS its own Diff Scope decision (SHERLO-1915): which
   // stories this run captured, which it reused from the base, and why - read
   // straight off the openBuild response, no extra API call. Prints nothing for a
-  // platform the server made no decision for (Diff Scope v2 off, or older API).
+  // platform the server made no decision for (Diff Scope off, or older API).
   printLiveDiffScopeReport({ openBuildReturn, bundles, platformsToTest });
 
   if (commandParams.wait) {

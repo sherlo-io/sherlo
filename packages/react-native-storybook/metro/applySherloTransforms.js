@@ -7,7 +7,7 @@ var crypto = require('crypto');
 var mockShims = require('./mockShims');
 
 // ---------------------------------------------------------------------------
-// Dependency graph sidecar (Diff Scope Phase 2)
+// Module path helper (shared by the Diff Scope module manifest)
 // ---------------------------------------------------------------------------
 
 /**
@@ -26,127 +26,23 @@ function toRelativePath(absPath, projectRoot) {
   // sherlo-api's DiffScope.md "Serialized shape" doc, which shows bare paths
   // (e.g. "src/Button.tsx"). That doc describes the server's canonicalized
   // form, not what the SDK is supposed to emit. This helper's "./"-prefixed
-  // output is part of two contracts:
-  //   1. Diff Scope v1's graph.json sidecar (emitDependencyGraphSidecar below)
-  //      - its consumers expect the "./" form as-is.
-  //   2. Diff Scope v2's module manifest (moduleHashes/storyClosures keys) -
-  //      the server strips the prefix at ingestion, in sherlo-api's
-  //      parseModuleManifest (computeDiffScopeDecision/moduleManifest.ts),
-  //      per SHERLO-1912.
-  // Emitting bare paths here would break v1's sidecar consumers and, for v2,
-  // mismatch every "./"-keyed ancestor manifest already stored in S3 -
-  // making every module look changed and silently degrading partial capture
-  // to whole-suite capture for every diff going forward.
+  // output feeds the Diff Scope module manifest (the moduleHashes/storyClosures
+  // keys emitted by emitModuleManifestSidecar below). The server strips the
+  // prefix at ingestion, in sherlo-api's parseModuleManifest
+  // (computeDiffScopeDecision/moduleManifest.ts), per SHERLO-1912. Emitting bare
+  // paths here would mismatch every "./"-keyed ancestor manifest already stored
+  // in S3 - making every module look changed and silently degrading partial
+  // capture to whole-suite capture for every diff going forward.
   return './' + rel.split(path.sep).join('/');
 }
 
-/**
- * Emits a NON-DESTRUCTIVE graph sidecar to node_modules/.cache/sherlo/graph.json.
- *
- * Format:
- *   {
- *     "version": 1,
- *     "inverseGraph": { "./src/Button.tsx": ["./src/Button.stories.tsx"] },
- *     "contextGraph":  { "./src/.rnstorybook/storybook.requires.ts": ["./src/Button.stories.tsx"] },
- *     "mockedFileToKey": { "./src/api/client.ts": "./src/api/client" }
- *   }
- *
- * inverseGraph    – static (non-dynamic) reverse edges only: file → files that statically import it.
- * contextGraph    – require.context targets grouped by the module that owns the require.context call.
- * mockedFileToKey – real mocked-module file → the mock key stories declare against it (EB-07).
- *   A mocked module is imported only through its generated shim, so there is no static story→module
- *   edge in inverseGraph. This map lets the CLI attribute a changed mocked-module file to the mock
- *   key, then (via each story's declared mock keys) to the stories that mock it.
- *
- * Bail-open: any unrecognised Metro Graph shape or error → no sidecar (CLI forces full run).
- *
- * @param {object} graph      Metro ReadOnlyGraph passed to the customSerializer
- * @param {string} projectRoot absolute project root
- * @param {string} cacheDir   absolute cache directory (node_modules/.cache/sherlo)
- * @param {Map<string,string>|null} mockedPathToKey canonical real path → mock key (from setupMocks)
- */
-function emitDependencyGraphSidecar(graph, projectRoot, cacheDir, mockedPathToKey) {
-  try {
-    // Feature-detect Metro Graph shape: bail-open if unrecognised.
-    if (
-      !graph ||
-      typeof graph !== 'object' ||
-      !(graph.dependencies instanceof Map)
-    ) {
-      return;
-    }
-
-    /** @type {Record<string, string[]>} */
-    var inverseGraph = {};
-    /** @type {Record<string, string[]>} */
-    var contextGraph = {};
-    /** @type {Record<string, string>} */
-    var mockedFileToKey = {};
-
-    graph.dependencies.forEach(function (module, absPath) {
-      var rel = toRelativePath(absPath, projectRoot);
-      if (!rel) return; // skip synthetic modules
-
-      // Ensure every real module appears as a key (even if it has no importers).
-      if (!inverseGraph[rel]) inverseGraph[rel] = [];
-
-      // Diff Scope (EB-07): if this real module is mocked, record the file (with
-      // whatever extension/platform variant Metro bundled) → mock key. The mocked
-      // module is in the graph because its shim requires it (the shim's own
-      // require is not redirected). Canonicalising collapses platform/ext so it
-      // matches the identity setupMocks registered.
-      if (mockedPathToKey && mockedPathToKey.size > 0) {
-        var mockKey = mockedPathToKey.get(mockShims.canonicalizeModulePath(absPath));
-        if (mockKey) mockedFileToKey[rel] = mockKey;
-      }
-
-      if (!module.dependencies || !(module.dependencies instanceof Map)) return;
-
-      module.dependencies.forEach(function (dep) {
-        // contextParams is set on require.context() edges.
-        var contextParams =
-          dep.data && dep.data.data && dep.data.data.contextParams;
-
-        if (contextParams) {
-          // This dependency is a synthetic context module.
-          // Resolve one level deeper to find the actual target files.
-          var ctxModule = graph.dependencies.get(dep.absolutePath);
-          if (ctxModule && ctxModule.dependencies instanceof Map) {
-            if (!contextGraph[rel]) contextGraph[rel] = [];
-            ctxModule.dependencies.forEach(function (ctxDep) {
-              var targetRel = toRelativePath(ctxDep.absolutePath, projectRoot);
-              if (targetRel) contextGraph[rel].push(targetRel);
-            });
-          }
-        } else {
-          // Static (or async) import → record as a reverse edge.
-          var depRel = toRelativePath(dep.absolutePath, projectRoot);
-          if (!depRel) return;
-          if (!inverseGraph[depRel]) inverseGraph[depRel] = [];
-          inverseGraph[depRel].push(rel);
-        }
-      });
-    });
-
-    var sidecar = JSON.stringify({
-      version: 1,
-      inverseGraph: inverseGraph,
-      contextGraph: contextGraph,
-      mockedFileToKey: mockedFileToKey,
-    });
-    fs.writeFileSync(path.join(cacheDir, 'graph.json'), sidecar, 'utf8');
-  } catch (err) {
-    // Non-fatal: if we fail, no sidecar is emitted and the CLI bails to a full run.
-    console.warn('[Sherlo] Failed to emit dependency graph sidecar:', err && err.message);
-  }
-}
-
 // ---------------------------------------------------------------------------
-// Module manifest sidecar (SHERLO-1890 Diff Scope v2 - Phase A SPIKE)
+// Module manifest sidecar (SHERLO-1890 Diff Scope - Phase A)
 // ---------------------------------------------------------------------------
-// Emitted ONLY when the opt-in `experimentalModuleManifest` flag is set (default
-// OFF). This is a spike deliverable: it ships INERT. Nothing consumes the
-// manifest; with the flag off, not one byte of this code runs inside a build.
+// Emitted on the test:bundled bundling path only: the CLI sets
+// SHERLO_MODULE_MANIFEST=1 in the bundler subprocess it spawns (see the
+// serializer below), and off that path the env var is unset so not one byte of
+// this code runs inside a build.
 //
 // The manifest answers one empirical question: are per-module content hashes,
 // keyed by SOURCE PATH, deterministic across clean rebuilds of unchanged source?
@@ -156,13 +52,13 @@ function emitDependencyGraphSidecar(graph, projectRoot, cacheDir, mockedPathToKe
 //                      which renumbers on any import add/remove/reorder).
 //   2. storyClosures - story source-path -> its transitive forward dependency
 //                      set (source paths). Stories are the require.context
-//                      targets the existing graph sidecar already resolves.
+//                      targets collectStoryAbsPaths resolves below.
 //   3. header        - toolchain/env fingerprint (metro version, transformer/
 //                      babel config digest, env digest) so a build produced by a
 //                      different toolchain/env is never mistaken for an unchanged one.
 //
-// Bail-open on any unrecognised Metro shape or error, exactly like
-// emitDependencyGraphSidecar - never throw into a user's bundle.
+// Bail-open on any unrecognised Metro shape or error - never throw into a user's
+// bundle.
 
 /**
  * sha256 of a module's transformed output code.
@@ -213,9 +109,8 @@ function moduleOutputLeaksAbsolutePath(module, projectRoot) {
 
 /**
  * Collects the absolute paths of every story module: the targets of every
- * require.context() edge in the graph. Mirrors how emitDependencyGraphSidecar
- * resolves contextGraph - a require.context dependency is a synthetic module
- * whose own dependencies are the matched files.
+ * require.context() edge in the graph. A require.context dependency is a
+ * synthetic module whose own dependencies are the matched files.
  *
  * @returns {string[]} unique story absolute paths.
  */
@@ -367,8 +262,7 @@ function buildManifestHeader(projectRoot) {
 /**
  * Emits the module manifest sidecar to node_modules/.cache/sherlo/module-manifest.json.
  *
- * Written to a SEPARATE file from graph.json so the existing sidecar's bytes are
- * untouched. Pure side-effect: never influences bundle output.
+ * Pure side-effect: never influences bundle output.
  *
  * Bail-open: any unrecognised Metro Graph shape or error -> no manifest.
  *
@@ -523,7 +417,6 @@ function applySherloTransforms(result, opts) {
   var mockingEnabled = !!(opts && opts.experimentalMocks);
   var mocksDir = null;
   var mockedPathToShim = null;
-  var mockedPathToKey = null;
   if (mockingEnabled) {
     var mockSetup = mockShims.setupMocks({
       projectRoot: projectRoot,
@@ -532,7 +425,6 @@ function applySherloTransforms(result, opts) {
     });
     mocksDir = mockSetup.mocksDir;
     mockedPathToShim = mockSetup.mockedPathToShim;
-    mockedPathToKey = mockSetup.mockedPathToKey;
   }
 
   // True when a module path lives inside the emitted mocks directory. Requests
@@ -602,46 +494,39 @@ function applySherloTransforms(result, opts) {
     return base.concat(sherloPolyfills);
   }
 
-  // ---- Diff Scope Phase 2: non-destructive dependency graph sidecar ----
-  // Wrap (or install) a customSerializer that side-effects a graph.json sidecar
-  // and then delegates to the original serializer unchanged.
-  var existingCustomSerializer =
-    result && result.serializer && typeof result.serializer.customSerializer === 'function'
-      ? result.serializer.customSerializer
-      : null;
+  // ---- Diff Scope module manifest sidecar ----
+  // The manifest is emitted on the test:bundled bundling path ONLY: the CLI sets
+  // SHERLO_MODULE_MANIFEST=1 in the bundler subprocess it spawns, scoping emission
+  // to that one child process so every normal build / every other user is
+  // unaffected. INDEPENDENT of opts.enabled.
+  var moduleManifestEnabled = process.env.SHERLO_MODULE_MANIFEST === '1';
 
-  // ---- Module manifest sidecar (SHERLO-1890 Phase A / SHERLO-1894 Phase B) ----
-  // Gated behind the opt-in `experimentalModuleManifest` flag: default OFF,
-  // mirroring how `experimentalMocks` is gated above. With the flag off the
-  // serializer's behaviour is byte-for-byte identical to today - only graph.json
-  // is emitted - and none of the manifest code runs. INDEPENDENT of opts.enabled.
-  //
-  // Phase B (SHERLO-1894): the CLI test:bundled path turns the manifest ON for that
-  // path ONLY by setting SHERLO_EXPERIMENTAL_MODULE_MANIFEST=1 in the bundler
-  // subprocess env it spawns. That env var is scoped to that one child process, so
-  // the opt stays default-OFF for every normal build / every other user.
-  var moduleManifestEnabled =
-    !!(opts && opts.experimentalModuleManifest) ||
-    process.env.SHERLO_EXPERIMENTAL_MODULE_MANIFEST === '1';
-
-  // Only install the serializer wrapper when we can safely delegate to something.
-  // If there is no pre-existing serializer we try to load Metro's default; if that
-  // also fails we skip the wrapper rather than risk corrupting the bundle.
-  var delegateSerializer = existingCustomSerializer || getMetroDefaultSerializer();
-
+  // Off the bundling path the manifest is never emitted, so there is nothing for
+  // the serializer wrapper to do. Skip installing it entirely - Sherlo does not
+  // touch the user's result.serializer.customSerializer slot and never forces
+  // Metro's default serializer to load. We only wrap (or install) a serializer
+  // when moduleManifestEnabled is true and we can safely delegate to something:
+  // the user's existing customSerializer if present, else Metro's default; if
+  // that also fails to load we skip the wrapper rather than risk corrupting the
+  // bundle (bail-open).
   var sherloCustomSerializer = null;
-  if (delegateSerializer) {
-    sherloCustomSerializer = function sherloSerializer(entryPoint, preModules, graph, options) {
-      // Emit the sidecar as a pure side-effect; never affects bundle output.
-      var serializerProjectRoot =
-        (options && options.projectRoot) || projectRoot;
-      emitDependencyGraphSidecar(graph, serializerProjectRoot, cacheDir, mockedPathToKey);
-      if (moduleManifestEnabled) {
+  if (moduleManifestEnabled) {
+    var existingCustomSerializer =
+      result && result.serializer && typeof result.serializer.customSerializer === 'function'
+        ? result.serializer.customSerializer
+        : null;
+    var delegateSerializer = existingCustomSerializer || getMetroDefaultSerializer();
+
+    if (delegateSerializer) {
+      sherloCustomSerializer = function sherloSerializer(entryPoint, preModules, graph, options) {
+        // Emit the manifest as a pure side-effect; never affects bundle output.
+        var serializerProjectRoot =
+          (options && options.projectRoot) || projectRoot;
         emitModuleManifestSidecar(graph, serializerProjectRoot, cacheDir);
-      }
-      // Delegate to the original serializer and return its output unchanged.
-      return delegateSerializer(entryPoint, preModules, graph, options);
-    };
+        // Delegate to the original serializer and return its output unchanged.
+        return delegateSerializer(entryPoint, preModules, graph, options);
+      };
+    }
   }
 
   var baseResult = result || {};

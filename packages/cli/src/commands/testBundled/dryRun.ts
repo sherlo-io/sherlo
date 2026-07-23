@@ -1,13 +1,13 @@
 /**
  * `test:bundled --dry-run` orchestration + formatting (SHERLO-1895 Diff Scope
- * v2 Phase C).
+ * Phase C).
  *
  * A dry run bundles and produces the manifest locally exactly like a normal
  * test:bundled (the SAME real bundling path, not a synthetic manifest), then
  * asks the server - read-only, in ONE call for all platforms - which stories a
  * real run WOULD capture, prints the per-platform decision, and STOPS. It
  * creates no build, advances no ancestry, uploads nothing, and does not persist
- * the manifest server-side. It works even when the project's Diff Scope v2 flag
+ * the manifest server-side. It works even when the project's Diff Scope flag
  * is OFF: a preview is not enablement.
  *
  * BAIL-OPEN is the spine: every uncertainty resolves toward "a real run would

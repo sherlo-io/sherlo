@@ -3,8 +3,8 @@
  * uploadOrReuseBuildsAndRunTests - the CLI -> api "front door".
  *
  * Everything below the decision spine is stubbed (sdk-client, each helper
- * module, diffScope, fingerprint) so we exercise ONLY the payload assembly and
- * branch selection - no git, no S3, no network, no hashing.
+ * module, fingerprint) so we exercise ONLY the payload assembly and branch
+ * selection - no git, no S3, no network, no hashing.
  *
  * This file is deliberately named `openBuildPayload.contract.test.ts` so the
  * future contract-fixtures ticket can find the exact openBuild wire shape here.
@@ -36,7 +36,6 @@ const mocks = vi.hoisted(() => {
       throw error;
     }),
     reporting: { addBreadcrumb: vi.fn(), setTag: vi.fn(), flush: vi.fn() },
-    computeChangedFiles: vi.fn(),
     computeBaseFingerprint: vi.fn(),
     registerBase: vi.fn(),
     waitForBuildResult: vi.fn(),
@@ -59,9 +58,6 @@ vi.mock('../handleClientError', () => ({ default: mocks.handleClientError }));
 vi.mock('../reporting', () => ({ default: mocks.reporting }));
 vi.mock('../logWarning', () => ({ default: mocks.logWarning }));
 vi.mock('../waitForBuildResult', () => ({ default: mocks.waitForBuildResult }));
-vi.mock('../diffScope', () => ({
-  computeChangedFiles: mocks.computeChangedFiles,
-}));
 vi.mock('../fingerprint', () => ({
   computeBaseFingerprint: mocks.computeBaseFingerprint,
   registerBase: mocks.registerBase,
@@ -102,7 +98,6 @@ const COMMAND_PARAMS = {
   ios: '/builds/app.app',
   message: 'my build message',
   gitBranch: 'flag-branch',
-  fullRun: false,
   wait: false,
   waitTimeout: undefined,
   devices: [],
@@ -132,9 +127,8 @@ beforeEach(() => {
   mocks.uploadOrPrintBinaryReuse.mockResolvedValue(undefined);
   mocks.getGitInfo.mockResolvedValue(GIT_INFO);
   mocks.getBuildRunConfig.mockReturnValue(BUILD_RUN_CONFIG);
-  mocks.computeChangedFiles.mockResolvedValue({ changedFiles: ['src/Button.tsx'] });
-  // The diffScope `nativeFingerprint` wire value is now sourced from the single
-  // sanitized Layer-1 compute (SHERLO-1756): `computeBaseFingerprint` returns it
+  // The `nativeFingerprint` wire value is sourced from the single sanitized
+  // Layer-1 compute (SHERLO-1756): `computeBaseFingerprint` returns it
   // as `nativeFingerprint`. Default to a null base hash (base-fingerprint branch
   // off) that still carries a Layer-1 nativeFingerprint, so the wire path is
   // exercised independently of the base-fingerprint spread.
@@ -155,7 +149,7 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('openBuild payload - core shape', () => {
-  it('assembles the exact payload from token parts, binaries, git and diff scope', async () => {
+  it('assembles the exact payload from token parts, binaries, git and fingerprint', async () => {
     await callSubject();
 
     expect(mocks.openBuild).toHaveBeenCalledTimes(1);
@@ -168,12 +162,20 @@ describe('openBuild payload - core shape', () => {
       binaryFileNames: { android: 'app.apk', ios: 'app.app' },
       sdkVersion: '2.0.0',
       message: 'my build message',
-      changedFiles: ['src/Button.tsx'],
       nativeFingerprint: 'native-fp',
     });
     // buildRunConfig + gitInfo flow through by identity (no reshaping).
     expect(payload.buildRunConfig).toBe(BUILD_RUN_CONFIG);
     expect(payload.gitInfo).toBe(GIT_INFO);
+
+    // The client MUST NOT send `changedFiles` on the openBuild payload. This is a
+    // deliberate client-side contract, not an incidental omission: Diff Scope is
+    // now computed server-side, and the wire schema still ACCEPTS `changedFiles`
+    // so older published CLIs keep working. Because the shape assertion above uses
+    // `toMatchObject` (which ignores unlisted keys), this explicit negative is the
+    // only thing that keeps the field from silently returning via a bad merge or a
+    // restored helper. Do not delete it as redundant.
+    expect(payload).not.toHaveProperty('changedFiles');
   });
 
   it('forwards the full GitInfo object verbatim (passthrough, no reshaping)', async () => {
@@ -236,23 +238,15 @@ describe('openBuild payload - baseFingerprint/gateMetadata spread', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Diff scope pass-through
+// nativeFingerprint pass-through
 // ---------------------------------------------------------------------------
 
-describe('openBuild payload - diff scope', () => {
-  it('omits changedFiles (bail-to-full) but still sends nativeFingerprint', async () => {
-    mocks.computeChangedFiles.mockResolvedValue({
-      fullRun: true,
-      reason: 'shallow clone: ancestry is grafted',
-    });
+describe('openBuild payload - nativeFingerprint', () => {
+  it('sends nativeFingerprint from the single Layer-1 compute', async () => {
     // nativeFingerprint is sourced from the single Layer-1 compute (default mock
-    // already supplies 'native-fp'); it survives a changedFiles bail-to-full.
-
+    // supplies 'native-fp'), independent of the base-fingerprint branch.
     await callSubject();
-    const payload = lastOpenBuildPayload();
-
-    expect(payload.changedFiles).toBeUndefined();
-    expect(payload.nativeFingerprint).toBe('native-fp');
+    expect(lastOpenBuildPayload().nativeFingerprint).toBe('native-fp');
   });
 
   it('sends undefined nativeFingerprint when fingerprint is unavailable', async () => {

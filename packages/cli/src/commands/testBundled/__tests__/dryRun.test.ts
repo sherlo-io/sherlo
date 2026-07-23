@@ -1,5 +1,5 @@
 /**
- * Tests for the test:bundled --dry-run preview (SHERLO-1895 Diff Scope v2 Phase C).
+ * Tests for the test:bundled --dry-run preview (SHERLO-1895 Diff Scope Phase C).
  *
  * Covers the two contract-INDEPENDENT halves of the dry run:
  *   - formatDryRunPreview: the plain-text rendering of decided (partial + full)

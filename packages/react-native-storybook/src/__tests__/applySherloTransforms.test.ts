@@ -161,176 +161,128 @@ describe('applySherloTransforms - enabled:false ships minimal polyfill only', ()
 });
 
 // ---------------------------------------------------------------------------
-// Diff Scope Phase 2 – dependency graph sidecar
+// customSerializer wrapper
 // ---------------------------------------------------------------------------
 
-describe('applySherloTransforms – emitDependencyGraphSidecar (via customSerializer)', () => {
-  it('installs a customSerializer when an existing one is passed in', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-graph-serializer-'));
-    let delegateCalled = false;
-    const fakeSerializer = (_ep: unknown, _pre: unknown, _g: unknown, _opts: unknown) => {
-      delegateCalled = true;
-      return 'BUNDLE_BYTES';
-    };
-    const result = applySherloTransforms(
-      { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: fakeSerializer } },
-      { enabled: true }
-    );
-
-    expect(typeof result.serializer.customSerializer).toBe('function');
-    // Calling it should delegate to fakeSerializer (tmpDir still exists here)
-    const output = result.serializer.customSerializer(
-      'index.js',
-      [],
-      { dependencies: new Map() },
-      { projectRoot: tmpDir }
-    );
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-
-    expect(delegateCalled).toBe(true);
-    expect(output).toBe('BUNDLE_BYTES');
-  });
-
-  it('emits graph.json sidecar with valid schema when serializer runs', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-graph-sidecar-'));
-    const fakeSerializer = () => 'BYTES';
-    const result = applySherloTransforms(
-      { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: fakeSerializer } },
-      { enabled: true }
-    );
-
-    // Build a minimal Metro-like graph using paths WITHIN tmpDir so toRelativePath works.
-    const buttonPath = path.join(tmpDir, 'src', 'Button.tsx');
-    const storiesPath = path.join(tmpDir, 'src', 'Button.stories.tsx');
-    const fakeDeps = new Map();
-    fakeDeps.set(buttonPath, {
-      dependencies: new Map([['key1', { absolutePath: storiesPath, data: { data: {} } }]]),
+describe('applySherloTransforms – customSerializer wrapper', () => {
+  // ---- ON the test:bundled bundling path (SHERLO_MODULE_MANIFEST=1) ----
+  // The wrapper is installed so the manifest can be emitted, and it must delegate
+  // to the original serializer with byte-identical output.
+  describe('on the bundling path (SHERLO_MODULE_MANIFEST=1)', () => {
+    beforeEach(() => {
+      process.env.SHERLO_MODULE_MANIFEST = '1';
     });
-    fakeDeps.set(storiesPath, { dependencies: new Map() });
+    afterEach(() => {
+      delete process.env.SHERLO_MODULE_MANIFEST;
+    });
 
-    result.serializer.customSerializer(
-      'index.js',
-      [],
-      { dependencies: fakeDeps },
-      { projectRoot: tmpDir }
-    );
+    it('installs a customSerializer when an existing one is passed in', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-graph-serializer-'));
+      let delegateCalled = false;
+      const fakeSerializer = (_ep: unknown, _pre: unknown, _g: unknown, _opts: unknown) => {
+        delegateCalled = true;
+        return 'BUNDLE_BYTES';
+      };
+      const result = applySherloTransforms(
+        { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: fakeSerializer } },
+        { enabled: true }
+      );
 
-    const sidecarPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'graph.json');
-    const exists = fs.existsSync(sidecarPath);
-    const sidecar = exists ? JSON.parse(fs.readFileSync(sidecarPath, 'utf8')) : null;
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+      // A NEW wrapper is installed (not the identity of the user's serializer).
+      expect(typeof result.serializer.customSerializer).toBe('function');
+      expect(result.serializer.customSerializer).not.toBe(fakeSerializer);
+      // Calling it should delegate to fakeSerializer (tmpDir still exists here)
+      const output = result.serializer.customSerializer(
+        'index.js',
+        [],
+        { dependencies: new Map() },
+        { projectRoot: tmpDir }
+      );
+      fs.rmSync(tmpDir, { recursive: true, force: true });
 
-    expect(exists).toBe(true);
-    expect(sidecar).not.toBeNull();
-    expect(sidecar.version).toBe(1);
-    expect(typeof sidecar.inverseGraph).toBe('object');
-    expect(typeof sidecar.contextGraph).toBe('object');
-    // Button.tsx statically imports Button.stories.tsx → inverse: stories.tsx ← Button.tsx
-    expect(Array.isArray(sidecar.inverseGraph['./src/Button.stories.tsx'])).toBe(true);
-    expect(sidecar.inverseGraph['./src/Button.stories.tsx']).toContain('./src/Button.tsx');
+      expect(delegateCalled).toBe(true);
+      expect(output).toBe('BUNDLE_BYTES');
+    });
+
+    it('delegate output is returned UNCHANGED (byte-equality)', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-graph-byte-eq-'));
+      const ORIGINAL_OUTPUT = 'BUNDLE_SOURCE_CODE_12345';
+      const fakeSerializer = () => ORIGINAL_OUTPUT;
+      const result = applySherloTransforms(
+        { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: fakeSerializer } },
+        { enabled: true }
+      );
+
+      const output = result.serializer.customSerializer(
+        'index.js',
+        [],
+        { dependencies: new Map() },
+        { projectRoot: tmpDir }
+      );
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+
+      expect(output).toBe(ORIGINAL_OUTPUT);
+    });
+
+    it('does NOT install customSerializer when no existing serializer and Metro default unavailable', () => {
+      // When there's no existing customSerializer and Metro's internals can't be required,
+      // we should NOT set customSerializer (to avoid a null-returning serializer crashing Metro).
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-graph-no-delegate-'));
+      // Pass a config with no customSerializer
+      const result = applySherloTransforms(
+        { projectRoot: tmpDir, resolver: {} },
+        { enabled: true }
+      );
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+
+      // In the test environment Metro internals may or may not be available.
+      // The test only asserts the function doesn't throw and the serializer
+      // object is still valid (getPolyfills is still set).
+      expect(typeof result.serializer.getPolyfills).toBe('function');
+    });
   });
 
-  it('emits mockedFileToKey mapping the mocked real file back to its mock key (EB-07)', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-graph-mockedge-'));
+  // ---- OFF the bundling path (SHERLO_MODULE_MANIFEST unset) ----
+  // There is nothing for the wrapper to do, so Sherlo must NOT touch the user's
+  // customSerializer slot at all: no wrapper installed, the user's serializer is
+  // left exactly as passed in, and Metro's default serializer is never forced to
+  // load.
+  describe('off the bundling path (SHERLO_MODULE_MANIFEST unset)', () => {
+    beforeEach(() => {
+      delete process.env.SHERLO_MODULE_MANIFEST;
+    });
 
-    // A real mocked module and a story that declares a mock for it.
-    const modulesDir = path.join(tmpDir, 'src', 'api');
-    fs.mkdirSync(modulesDir, { recursive: true });
-    const realModulePath = path.join(modulesDir, 'client.ts');
-    fs.writeFileSync(realModulePath, 'export const get = () => "real";\n', 'utf8');
-    fs.writeFileSync(
-      path.join(tmpDir, 'src', 'Api.stories.tsx'),
-      "export default { title: 'Api', parameters: { sherlo: { mocks: { './src/api/client': () => ({ get: () => 'mock' }) } } } };\n",
-      'utf8'
-    );
+    it("leaves the user's existing customSerializer untouched (same identity)", () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-graph-off-path-'));
+      const fakeSerializer = () => 'BUNDLE_BYTES';
+      const result = applySherloTransforms(
+        { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: fakeSerializer } },
+        { enabled: true }
+      );
+      fs.rmSync(tmpDir, { recursive: true, force: true });
 
-    const fakeSerializer = () => 'BYTES';
-    const result = applySherloTransforms(
-      { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: fakeSerializer } },
-      { experimentalMocks: true }
-    );
+      // The user's serializer passes through by identity - not wrapped.
+      expect(result.serializer.customSerializer).toBe(fakeSerializer);
+    });
 
-    // The mocked module is in the graph because its shim requires it; model that
-    // by putting the real file (with extension) in the dependency map.
-    const fakeDeps = new Map();
-    fakeDeps.set(realModulePath, { dependencies: new Map() });
+    it('does not install a customSerializer when the user had none', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-graph-off-path-none-'));
+      const result = applySherloTransforms(
+        { projectRoot: tmpDir, resolver: {} },
+        { enabled: true }
+      );
+      fs.rmSync(tmpDir, { recursive: true, force: true });
 
-    result.serializer.customSerializer(
-      'index.js',
-      [],
-      { dependencies: fakeDeps },
-      { projectRoot: tmpDir }
-    );
-
-    const sidecarPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'graph.json');
-    const sidecar = JSON.parse(fs.readFileSync(sidecarPath, 'utf8'));
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-
-    expect(sidecar.mockedFileToKey).toBeDefined();
-    expect(sidecar.mockedFileToKey['./src/api/client.ts']).toBe('./src/api/client');
-  });
-
-  it('does NOT emit sidecar for unrecognised Metro Graph shape (bail-open)', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-graph-bail-'));
-    const fakeSerializer = () => 'BYTES';
-    const result = applySherloTransforms(
-      { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: fakeSerializer } },
-      { enabled: true }
-    );
-
-    // Unrecognised graph: dependencies is not a Map
-    result.serializer.customSerializer(
-      'index.js',
-      [],
-      { dependencies: {} },
-      { projectRoot: tmpDir }
-    );
-
-    const sidecarPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'graph.json');
-    const exists = fs.existsSync(sidecarPath);
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-
-    expect(exists).toBe(false);
-  });
-
-  it('delegate output is returned UNCHANGED (byte-equality)', () => {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-graph-byte-eq-'));
-    const ORIGINAL_OUTPUT = 'BUNDLE_SOURCE_CODE_12345';
-    const fakeSerializer = () => ORIGINAL_OUTPUT;
-    const result = applySherloTransforms(
-      { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: fakeSerializer } },
-      { enabled: true }
-    );
-
-    const output = result.serializer.customSerializer(
-      'index.js',
-      [],
-      { dependencies: new Map() },
-      { projectRoot: tmpDir }
-    );
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-
-    expect(output).toBe(ORIGINAL_OUTPUT);
-  });
-
-  it('does NOT install customSerializer when no existing serializer and Metro default unavailable', () => {
-    // When there's no existing customSerializer and Metro's internals can't be required,
-    // we should NOT set customSerializer (to avoid a null-returning serializer crashing Metro).
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-graph-no-delegate-'));
-    // Pass a config with no customSerializer
-    const result = applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: true });
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-
-    // In the test environment Metro internals may or may not be available.
-    // The test only asserts the function doesn't throw and the serializer
-    // object is still valid (getPolyfills is still set).
-    expect(typeof result.serializer.getPolyfills).toBe('function');
+      // No wrapper, and Metro's default serializer was never forced to load.
+      expect(result.serializer.customSerializer).toBeUndefined();
+      expect(typeof result.serializer.getPolyfills).toBe('function');
+    });
   });
 });
 
 // ---------------------------------------------------------------------------
-// SHERLO-1890 Diff Scope v2 Phase A – module manifest sidecar
-//   (opt-in `experimentalModuleManifest`, default OFF, must ship INERT)
+// Module manifest sidecar (SHERLO-1890 Diff Scope Phase A)
+//   Enabled on the test:bundled bundling path via SHERLO_MODULE_MANIFEST=1.
 // ---------------------------------------------------------------------------
 
 // A minimal Metro-like graph inside `root`:
@@ -378,71 +330,22 @@ function buildFakeGraph(root: string) {
   return { graph: { dependencies: deps }, storiesPath, buttonPath, labelPath };
 }
 
-describe('applySherloTransforms – module manifest sidecar OFF-is-inert', () => {
-  const manifestRelPath = ['node_modules', '.cache', 'sherlo', 'module-manifest.json'];
-  const graphRelPath = ['node_modules', '.cache', 'sherlo', 'graph.json'];
-
-  function runSerializer(opts: Record<string, unknown>) {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-'));
-    const DELEGATE_OUTPUT = 'BUNDLE_BYTES_DELEGATE_OUTPUT';
-    const result = applySherloTransforms(
-      {
-        projectRoot: tmpDir,
-        resolver: {},
-        serializer: { customSerializer: () => DELEGATE_OUTPUT },
-      },
-      opts
-    );
-    const { graph } = buildFakeGraph(tmpDir);
-    const output = result.serializer.customSerializer('index.js', [], graph, {
-      projectRoot: tmpDir,
-    });
-    return { tmpDir, output, DELEGATE_OUTPUT };
-  }
-
-  it('flag OFF (absent): no module-manifest.json is written', () => {
-    const { tmpDir } = runSerializer({ enabled: true });
-    const exists = fs.existsSync(path.join(tmpDir, ...manifestRelPath));
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-    expect(exists).toBe(false);
-  });
-
-  it('flag OFF (explicit false): no module-manifest.json is written', () => {
-    const { tmpDir } = runSerializer({ enabled: true, experimentalModuleManifest: false });
-    const exists = fs.existsSync(path.join(tmpDir, ...manifestRelPath));
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-    expect(exists).toBe(false);
-  });
-
-  it('flag OFF: bundle output byte-identical to flag ON (manifest never touches the bundle)', () => {
-    const off = runSerializer({ enabled: true });
-    const on = runSerializer({ enabled: true, experimentalModuleManifest: true });
-    fs.rmSync(off.tmpDir, { recursive: true, force: true });
-    fs.rmSync(on.tmpDir, { recursive: true, force: true });
-    expect(off.output).toBe(off.DELEGATE_OUTPUT);
-    expect(on.output).toBe(on.DELEGATE_OUTPUT);
-    expect(on.output).toBe(off.output);
-  });
-
-  it('flag OFF vs ON: graph.json bytes are IDENTICAL (manifest never touches the existing sidecar)', () => {
-    const off = runSerializer({ enabled: true });
-    const on = runSerializer({ enabled: true, experimentalModuleManifest: true });
-    const graphOff = fs.readFileSync(path.join(off.tmpDir, ...graphRelPath), 'utf8');
-    const graphOn = fs.readFileSync(path.join(on.tmpDir, ...graphRelPath), 'utf8');
-    fs.rmSync(off.tmpDir, { recursive: true, force: true });
-    fs.rmSync(on.tmpDir, { recursive: true, force: true });
-    expect(graphOn).toBe(graphOff);
-  });
-});
-
-describe('applySherloTransforms – module manifest sidecar when flag ON', () => {
+describe('applySherloTransforms – module manifest sidecar (enabled)', () => {
   const manifestRelPath = ['node_modules', '.cache', 'sherlo', 'module-manifest.json'];
 
-  function emitAndRead(opts: Record<string, unknown>) {
+  // The manifest is enabled by the env var the CLI sets on the test:bundled path.
+  beforeEach(() => {
+    process.env.SHERLO_MODULE_MANIFEST = '1';
+  });
+  afterEach(() => {
+    delete process.env.SHERLO_MODULE_MANIFEST;
+  });
+
+  function emitAndRead() {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-on-'));
     const result = applySherloTransforms(
       { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: () => 'BYTES' } },
-      opts
+      { enabled: true }
     );
     const built = buildFakeGraph(tmpDir);
     result.serializer.customSerializer('index.js', [], built.graph, { projectRoot: tmpDir });
@@ -451,8 +354,31 @@ describe('applySherloTransforms – module manifest sidecar when flag ON', () =>
     return { raw, manifest: JSON.parse(raw), built };
   }
 
+  it('the manifest emission never changes the bundle output (pure side-effect)', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-byte-eq-'));
+    const DELEGATE_OUTPUT = 'BUNDLE_BYTES_DELEGATE_OUTPUT';
+    const result = applySherloTransforms(
+      {
+        projectRoot: tmpDir,
+        resolver: {},
+        serializer: { customSerializer: () => DELEGATE_OUTPUT },
+      },
+      { enabled: true }
+    );
+    const { graph } = buildFakeGraph(tmpDir);
+    const output = result.serializer.customSerializer('index.js', [], graph, {
+      projectRoot: tmpDir,
+    });
+    // Manifest WAS written (env var on)...
+    const manifestExists = fs.existsSync(path.join(tmpDir, ...manifestRelPath));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    // ...yet the delegate's bundle bytes come back untouched.
+    expect(manifestExists).toBe(true);
+    expect(output).toBe(DELEGATE_OUTPUT);
+  });
+
   it('writes module-manifest.json with per-module hashes keyed by source path + a header', () => {
-    const { manifest } = emitAndRead({ enabled: true, experimentalModuleManifest: true });
+    const { manifest } = emitAndRead();
     expect(manifest.version).toBe(1);
     expect(typeof manifest.header).toBe('object');
     expect('metroVersion' in manifest.header).toBe(true);
@@ -464,24 +390,24 @@ describe('applySherloTransforms – module manifest sidecar when flag ON', () =>
   });
 
   it('story closure is the transitive forward dependency set (reached through require.context)', () => {
-    const { manifest } = emitAndRead({ enabled: true, experimentalModuleManifest: true });
+    const { manifest } = emitAndRead();
     const closure = manifest.storyClosures['./src/Button.stories.tsx'];
     expect(closure).toEqual(['./src/Button.tsx', './src/shared/Label.tsx']);
   });
 
   it('is emitted deterministically: two runs of the same graph produce byte-identical manifests', () => {
-    const a = emitAndRead({ enabled: true, experimentalModuleManifest: true });
-    const b = emitAndRead({ enabled: true, experimentalModuleManifest: true });
+    const a = emitAndRead();
+    const b = emitAndRead();
     expect(a.raw).toBe(b.raw);
   });
 
   it('a content change to one module changes ONLY that module hash (source-path keying is stable)', () => {
-    const a = emitAndRead({ enabled: true, experimentalModuleManifest: true });
+    const a = emitAndRead();
     // Re-emit with Label's code changed; every other module keeps its hash.
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-edit-'));
     const result = applySherloTransforms(
       { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: () => 'BYTES' } },
-      { enabled: true, experimentalModuleManifest: true }
+      { enabled: true }
     );
     const built = buildFakeGraph(tmpDir);
     const labelAbs = path.join(tmpDir, 'src', 'shared', 'Label.tsx');
@@ -504,7 +430,7 @@ describe('applySherloTransforms – module manifest sidecar when flag ON', () =>
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-bail-'));
     const result = applySherloTransforms(
       { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: () => 'BYTES' } },
-      { enabled: true, experimentalModuleManifest: true }
+      { enabled: true }
     );
     result.serializer.customSerializer(
       'index.js',
@@ -520,25 +446,25 @@ describe('applySherloTransforms – module manifest sidecar when flag ON', () =>
 
 // ---------------------------------------------------------------------------
 // SHERLO-1894 Phase B - the manifest travels
-//   1. CLI turns the manifest ON for the test:bundled path ONLY, via the
-//      SHERLO_EXPERIMENTAL_MODULE_MANIFEST env var (opt stays default-OFF).
+//   1. The manifest is emitted ONLY on the test:bundled bundling path, which the
+//      CLI scopes by setting SHERLO_MODULE_MANIFEST=1 in its bundler subprocess.
 //   2. Cross-machine determinism guard: modules whose transformed output inlines
 //      the absolute project root are FLAGGED in header.absolutePathLeaks.
 // ---------------------------------------------------------------------------
 
 describe('applySherloTransforms - module manifest env-var enable (SHERLO-1894)', () => {
   const manifestRelPath = ['node_modules', '.cache', 'sherlo', 'module-manifest.json'];
-  const ENV_FLAG = 'SHERLO_EXPERIMENTAL_MODULE_MANIFEST';
+  const ENV_FLAG = 'SHERLO_MODULE_MANIFEST';
 
   afterEach(() => {
     delete process.env[ENV_FLAG];
   });
 
-  function runSerializer(opts: Record<string, unknown>) {
+  function runSerializer() {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-env-'));
     const result = applySherloTransforms(
       { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: () => 'BYTES' } },
-      opts
+      { enabled: true }
     );
     const { graph } = buildFakeGraph(tmpDir);
     result.serializer.customSerializer('index.js', [], graph, { projectRoot: tmpDir });
@@ -547,29 +473,36 @@ describe('applySherloTransforms - module manifest env-var enable (SHERLO-1894)',
     return exists;
   }
 
-  it('env var = "1" enables the manifest even when the opt is absent', () => {
+  it('env var = "1" enables the manifest', () => {
     process.env[ENV_FLAG] = '1';
-    expect(runSerializer({ enabled: true })).toBe(true);
+    expect(runSerializer()).toBe(true);
   });
 
-  it('env var unset AND opt absent -> no manifest (default OFF preserved)', () => {
-    expect(runSerializer({ enabled: true })).toBe(false);
+  it('env var unset -> no manifest (default OFF preserved)', () => {
+    expect(runSerializer()).toBe(false);
   });
 
   it('env var set to a non-"1" value does not enable the manifest', () => {
     process.env[ENV_FLAG] = 'true';
-    expect(runSerializer({ enabled: true })).toBe(false);
+    expect(runSerializer()).toBe(false);
   });
 });
 
 describe('applySherloTransforms - cross-machine absolute-path guard (SHERLO-1894)', () => {
   const manifestRelPath = ['node_modules', '.cache', 'sherlo', 'module-manifest.json'];
 
+  beforeEach(() => {
+    process.env.SHERLO_MODULE_MANIFEST = '1';
+  });
+  afterEach(() => {
+    delete process.env.SHERLO_MODULE_MANIFEST;
+  });
+
   function emitWith(mutate: (graph: any, tmpDir: string) => void) {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-leak-'));
     const result = applySherloTransforms(
       { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: () => 'BYTES' } },
-      { enabled: true, experimentalModuleManifest: true }
+      { enabled: true }
     );
     const { graph, buttonPath } = buildFakeGraph(tmpDir);
     mutate(graph, tmpDir);

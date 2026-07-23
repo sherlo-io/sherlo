@@ -610,7 +610,7 @@ describe('live Diff Scope report', () => {
     logSpy.mockRestore();
   });
 
-  it('prints NOTHING about diff scope when captureScope is absent (Diff Scope v2 off / older API)', async () => {
+  it('prints NOTHING about diff scope when captureScope is absent (Diff Scope off / older API)', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       openBuildReturn: {

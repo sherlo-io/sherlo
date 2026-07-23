@@ -1,10 +1,10 @@
 /**
  * Fail-soft reader for the module-manifest sidecar the Sherlo Metro serializer
- * emits during a test:bundled bundler run (SHERLO-1894 Diff Scope v2 Phase B).
+ * emits during a test:bundled bundler run (SHERLO-1894 Diff Scope Phase B).
  *
  * The serializer writes node_modules/.cache/sherlo/module-manifest.json ONLY when
  * the manifest is enabled - which the test:bundled path does by setting
- * SHERLO_EXPERIMENTAL_MODULE_MANIFEST=1 in the bundler subprocess env.
+ * SHERLO_MODULE_MANIFEST=1 in the bundler subprocess env.
  *
  * BAIL-OPEN IS THE HEADLINE CONTRACT (SHERLO-1894 §2): a missing, unreadable, or
  * shape-invalid sidecar must NEVER fail or block a build. Every failure mode here

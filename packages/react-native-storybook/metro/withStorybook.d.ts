@@ -25,19 +25,6 @@ export interface WithStorybookOptions {
    */
   mockModules?: string[];
 
-  /**
-   * Opt in to the experimental module manifest sidecar (SHERLO-1890, Diff Scope v2
-   * Phase A spike). Default `false`.
-   *
-   * When `false` (the default) no manifest is emitted and none of the manifest
-   * code runs; the bundle and the existing graph.json sidecar are byte-for-byte
-   * unchanged. When `true`, a second sidecar (module-manifest.json) is written
-   * alongside graph.json recording per-module content hashes keyed by source path
-   * and each story's transitive dependency closure. The manifest is INERT - nothing
-   * consumes it yet.
-   */
-  experimentalModuleManifest?: boolean;
-
   [key: string]: unknown;
 }
 

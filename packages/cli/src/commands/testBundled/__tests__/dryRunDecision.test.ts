@@ -1,5 +1,5 @@
 /**
- * Tests for the dry-run decision contract seam (SHERLO-1895 Diff Scope v2 Phase C).
+ * Tests for the dry-run decision contract seam (SHERLO-1895 Diff Scope Phase C).
  *
  * requestDryRunDecision is the ONE place bound to the server's
  * `computeDiffScopeDryRun` query. This suite pins the seam's behaviour against
