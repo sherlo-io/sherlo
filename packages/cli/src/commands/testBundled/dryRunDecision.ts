@@ -1,6 +1,6 @@
 /**
  * The read-only Diff Scope decision query for `test:bundled --dry-run`
- * (SHERLO-1895 Diff Scope v2 Phase C).
+ * (SHERLO-1895 Diff Scope Phase C).
  *
  * THIS FILE IS THE CONTRACT SEAM. It is the ONE place that binds to the
  * server-side `computeDiffScopeDryRun` query (query name, input SDL, output
@@ -10,7 +10,7 @@
  *
  * The query is READ-ONLY: it opens no build, advances no ancestry, and the
  * dry-run manifest it carries is NOT persisted durably server-side. It works
- * even when the project's Diff Scope v2 feature flag is OFF - a dry run is a
+ * even when the project's Diff Scope feature flag is OFF - a dry run is a
  * PREVIEW, never enablement.
  *
  * ONE CALL, ALL PLATFORMS: the contract takes a `platforms` array and returns a

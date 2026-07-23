@@ -62,8 +62,6 @@ export type Config = {
   ios?: string;
   include?: string[];
   exclude?: string[];
-  /** Diff Scope opt-out: forces a full capture regardless of changed-file analysis. */
-  fullRun?: boolean;
   /** Staged fast-path config (SHERLO-1692). */
   staged?: {
     /**
@@ -134,7 +132,7 @@ type CommandOptions = {
     /** Fallback when the staged gate finds the base stale (default: 'fail'). */
     [ON_STALE_OPTION]?: 'fail' | 'build';
     /**
-     * Preview-only mode (SHERLO-1895 Diff Scope v2 Phase C): bundle + produce the
+     * Preview-only mode (SHERLO-1895 Diff Scope Phase C): bundle + produce the
      * manifest locally, ask the server which stories a real run WOULD capture, print
      * the per-platform decision, and create NO build. Never enables Diff Scope; it
      * is a read-only preview.

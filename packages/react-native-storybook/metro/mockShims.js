@@ -310,11 +310,8 @@ function generateShimContent(key, requireSpecifier) {
 //
 // Build the complete mock setup for a config run.
 //
-// Returns { mocksDir, mockedPathToShim, mockedPathToKey, shimPaths }:
+// Returns { mocksDir, mockedPathToShim, shimPaths }:
 //   - mockedPathToShim: Map<canonicalRealPath, shimAbsolutePath> for the resolver.
-//   - mockedPathToKey:  Map<canonicalRealPath, mockKey> for Diff Scope - lets the
-//                       graph sidecar attribute a changed real-module file back to
-//                       the mock key that stories declare against it (EB-07).
 //   - shimPaths:        every emitted shim path (for tests / diagnostics).
 //
 // Side effect: the <cacheDir>/mocks/ directory is rewritten to contain exactly
@@ -352,7 +349,6 @@ function setupMocks(opts) {
   // entry), and continue with the rest. A skipped key still surfaces at runtime via the FG-03
   // unshimmed-key tripwire.
   var mockedPathToShim = new Map();
-  var mockedPathToKey = new Map();
   var shimPaths = [];
 
   keyToSource.forEach(function (source, key) {
@@ -391,14 +387,11 @@ function setupMocks(opts) {
 
     // Register the primary identity plus any alternate package-root entries
     // (main/react-native/exports) so the redirect hits whichever file Metro
-    // resolves the key to at bundle time (MK-02). The same identities map back
-    // to the mock key for Diff Scope attribution (EB-07).
+    // resolves the key to at bundle time (MK-02).
     mockedPathToShim.set(resolved.canonicalRealPath, shimPath);
-    mockedPathToKey.set(resolved.canonicalRealPath, key);
     var alternates = resolved.alternateCanonicalPaths || [];
     for (var a = 0; a < alternates.length; a++) {
       mockedPathToShim.set(alternates[a], shimPath);
-      mockedPathToKey.set(alternates[a], key);
     }
     shimPaths.push(shimPath);
   });
@@ -406,7 +399,6 @@ function setupMocks(opts) {
   return {
     mocksDir: mocksDir,
     mockedPathToShim: mockedPathToShim,
-    mockedPathToKey: mockedPathToKey,
     shimPaths: shimPaths,
   };
 }

@@ -3,7 +3,6 @@ import sdkClient from '@sherlo/sdk-client';
 import { DEFAULT_PROJECT_ROOT, PLATFORM_LABEL } from '../../../../constants';
 import {
   getAppBuildUrl,
-  getGitInfo,
   getTokenParts,
   getValidatedBinariesInfoAndNextBuildIndex,
   handleClientError,
@@ -11,7 +10,6 @@ import {
   uploadOrPrintBinaryReuse,
   reporting,
 } from '../../../../helpers';
-import { computeChangedFiles } from '../../../../helpers/diffScope';
 import {
   computeBaseFingerprint,
   registerBase,
@@ -52,33 +50,20 @@ async function asyncUploadBuildAndRunTests({
     ios: platform === 'ios' ? buildPath : undefined,
   });
 
-  const gitInfo = await getGitInfo(DEFAULT_PROJECT_ROOT);
-
   // ------------------------------------------------------------------
-  // Compute the base fingerprint FIRST - before computeChangedFiles or any
-  // other work that could load the Expo app config (SHERLO-1756). Loading the
-  // app config mutates process.env as a dotenv-class side effect; if that ran
-  // before the sanitized Layer-1 compute it would pollute the env that compute
-  // snapshots, producing a base fingerprint no probe could ever match.
+  // Compute the base fingerprint FIRST - before any other work that could load
+  // the Expo app config (SHERLO-1756). Loading the app config mutates
+  // process.env as a dotenv-class side effect; if that ran before the sanitized
+  // Layer-1 compute it would pollute the env that compute snapshots, producing a
+  // base fingerprint no probe could ever match.
   //
   // This is the ONLY `createFingerprintAsync` invocation on this path: both the
-  // `baseFingerprint` value AND the diffScope `nativeFingerprint` wire value are
-  // sourced from this single result. `fpResult.nativeFingerprint` is the
-  // sanitized Layer-1 hash, or undefined when the compute fails (fail-soft,
-  // exactly as the old computeNativeFingerprint returned null -> undefined).
+  // `baseFingerprint` value AND the `nativeFingerprint` wire value are sourced
+  // from this single result. `fpResult.nativeFingerprint` is the sanitized
+  // Layer-1 hash, or undefined when the compute fails (fail-soft).
   // ------------------------------------------------------------------
   const fpResult = await computeBaseFingerprint(DEFAULT_PROJECT_ROOT, { command: THIS_COMMAND });
   const nativeFingerprint = fpResult.nativeFingerprint;
-
-  // Diff Scope: compute changed files for the EAS-cloud path.
-  // The same bail-to-full conditions apply: shallow clone, dirty tree, no mergeBaseSha.
-  const changedFilesResult = await computeChangedFiles(DEFAULT_PROJECT_ROOT, gitInfo);
-  let changedFiles: string[] | undefined;
-  if ('changedFiles' in changedFilesResult) {
-    changedFiles = changedFilesResult.changedFiles;
-  } else {
-    console.log(`[Sherlo] Diff Scope: full capture - ${changedFilesResult.reason}`);
-  }
 
   let baseFingerprint: string | undefined;
   const gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput } = {};
@@ -131,7 +116,6 @@ async function asyncUploadBuildAndRunTests({
       iosS3Key: binariesInfo.ios?.s3Key,
       sdkVersion: binariesInfo.sdkVersion,
       fileName: binariesInfo[platform]?.fileName,
-      changedFiles,
       nativeFingerprint,
       ...(baseFingerprint ? { baseFingerprint, gateMetadata } : {}),
     })
