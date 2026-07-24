@@ -74,7 +74,7 @@
     "build": "rm -rf dist && tsc -p .",
     "dev": "yarn build --watch",
     "lint": "NODE_ENV=production yarn run -T eslint --ext .ts,.tsx src",
-    "test": "vitest run"
+    "test": "../../scripts/require-test-exec-optin.sh && vitest run"
   },
   "dependencies": {
     "base-64": "1.0.0",
