@@ -5,7 +5,7 @@ exports[`waitForBuildResult > server-bypassed build closing message > prints the
    🟢 Finished
 
 ✅ Nothing needed capturing - every screenshot was reused from the previous build.
-   Sanity/Hello.stories.tsx changed
+   no change reaches any story
    https://app.sherlo.io/build?t=BBBBBBBB&p=42&b=1
 "
 `;
