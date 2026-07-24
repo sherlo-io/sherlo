@@ -39,7 +39,10 @@ function buildResponse(
   diffScopeInfo?: {
     capturedSnapshotCount?: number;
     inheritedSnapshotCount?: number;
-    fullCaptureTriggerReason?: string;
+    platforms?: {
+      android?: { reason?: string };
+      ios?: { reason?: string };
+    };
   }
 ): { getBuildStatus: Record<string, unknown> } {
   return {
@@ -134,9 +137,15 @@ describe('waitForBuildResult', () => {
   });
 
   /* ------------------------------------------------------------------ */
-  /* EXIT 0 - GREEN, server-bypassed build (SHERLO-1959/1962)             */
+  /* EXIT 0 - GREEN, server-bypassed build (SHERLO-1959/1962/1963)        */
   /* the API closed the build without ever running it: zero captures,    */
-  /* every snapshot inherited, diffScopeInfo reason preserved             */
+  /* every snapshot inherited, per-platform prose reason preserved.       */
+  /*                                                                      */
+  /* Fixtures mirror the REAL persisted shape pinned by the API's own     */
+  /* closeAsZeroCaptureNoOp.unit.test.ts: the reason lives in             */
+  /* diffScopeInfo.platforms.<platform>.reason (plain prose), and there   */
+  /* is NO fullCaptureTriggerReason (a machine enum code only ever set on */
+  /* a FULL capture, never on a bypassed partial-capture build).          */
   /* ------------------------------------------------------------------ */
 
   describe('server-bypassed build closing message', () => {
@@ -164,7 +173,7 @@ describe('waitForBuildResult', () => {
           {
             capturedSnapshotCount: 0,
             inheritedSnapshotCount: 15,
-            fullCaptureTriggerReason: 'Sanity/Hello.stories.tsx changed',
+            platforms: { android: { reason: 'no change reaches any story' } },
           }
         )
       );
@@ -183,6 +192,111 @@ describe('waitForBuildResult', () => {
 
       const printed = printedOutput(logSpy);
       expect(printed).toMatchSnapshot();
+    });
+
+    it('prints the bypassed closer off the real API shape even with no fullCaptureTriggerReason (regression, SHERLO-1963)', async () => {
+      // Exactly what the deployed API persists for a server-bypassed build:
+      // zero captured, some inherited, a per-platform prose reason, and NO
+      // fullCaptureTriggerReason. Under the pre-fix gate (which required
+      // fullCaptureTriggerReason) this case wrongly printed the generic line.
+      mockGraphqlResponse(
+        200,
+        buildResponse(
+          'finished',
+          { approved: 0, noChanges: 2, reported: 0, unreviewed: 0 },
+          undefined,
+          {
+            capturedSnapshotCount: 0,
+            inheritedSnapshotCount: 2,
+            platforms: { android: { reason: 'no change reaches any story' } },
+          }
+        )
+      );
+
+      const promise = waitForBuildResult({
+        token: TOKEN,
+        buildIndex: BUILD_INDEX,
+        projectIndex: PROJECT_INDEX,
+        teamId: TEAM_ID,
+      });
+
+      await vi.runAllTimersAsync();
+      const result = await promise;
+
+      expect(result).toBe(EXIT_GREEN);
+
+      const printed = printedOutput(logSpy);
+      expect(printed).toContain('Nothing needed capturing');
+      // The platform reason is printed verbatim as the closer's reason line.
+      expect(printed).toContain('no change reaches any story');
+      expect(printed).not.toContain('All stories passed');
+    });
+
+    it('picks the android reason when both platforms carry prose (deterministic tie-break)', async () => {
+      // Both platforms present with distinct prose: the fixed
+      // PLATFORM_REASON_ORDER (android, then ios) makes the chosen line
+      // deterministic regardless of JSON key order.
+      mockGraphqlResponse(
+        200,
+        buildResponse(
+          'finished',
+          { approved: 0, noChanges: 4, reported: 0, unreviewed: 0 },
+          undefined,
+          {
+            capturedSnapshotCount: 0,
+            inheritedSnapshotCount: 4,
+            platforms: {
+              android: { reason: 'no change reaches any story' },
+              ios: { reason: 'ios: nothing to capture' },
+            },
+          }
+        )
+      );
+
+      const promise = waitForBuildResult({
+        token: TOKEN,
+        buildIndex: BUILD_INDEX,
+        projectIndex: PROJECT_INDEX,
+        teamId: TEAM_ID,
+      });
+
+      await vi.runAllTimersAsync();
+      await promise;
+
+      const printed = printedOutput(logSpy);
+      expect(printed).toContain('Nothing needed capturing');
+      expect(printed).toContain('no change reaches any story');
+      expect(printed).not.toContain('ios: nothing to capture');
+    });
+
+    it('falls back to the ios reason when only ios carries prose', async () => {
+      mockGraphqlResponse(
+        200,
+        buildResponse(
+          'finished',
+          { approved: 0, noChanges: 3, reported: 0, unreviewed: 0 },
+          undefined,
+          {
+            capturedSnapshotCount: 0,
+            inheritedSnapshotCount: 3,
+            platforms: { ios: { reason: 'no change reaches any story' } },
+          }
+        )
+      );
+
+      const promise = waitForBuildResult({
+        token: TOKEN,
+        buildIndex: BUILD_INDEX,
+        projectIndex: PROJECT_INDEX,
+        teamId: TEAM_ID,
+      });
+
+      await vi.runAllTimersAsync();
+      await promise;
+
+      const printed = printedOutput(logSpy);
+      expect(printed).toContain('Nothing needed capturing');
+      expect(printed).toContain('no change reaches any story');
     });
 
     it('falls back to the generic green message when diffScopeInfo is absent', async () => {
@@ -216,7 +330,7 @@ describe('waitForBuildResult', () => {
           {
             capturedSnapshotCount: 2,
             inheritedSnapshotCount: 13,
-            fullCaptureTriggerReason: 'reason',
+            platforms: { android: { reason: 'no change reaches any story' } },
           }
         )
       );
@@ -236,7 +350,7 @@ describe('waitForBuildResult', () => {
       expect(printed).not.toContain('Nothing needed capturing');
     });
 
-    it('falls back to the generic green message when no reason is present', async () => {
+    it('falls back to the generic green message when no platform reason is present', async () => {
       mockGraphqlResponse(
         200,
         buildResponse(

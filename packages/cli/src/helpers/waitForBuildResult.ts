@@ -51,13 +51,23 @@ type BuildStatusResponse = {
      * the generic "All stories passed" line (SHERLO-1962). A server-bypassed
      * build (SHERLO-1959: the runner never ran because the server already knew
      * every story's screenshot could be inherited) reports capturedSnapshotCount
-     * 0, inheritedSnapshotCount equal to the whole suite, and
-     * fullCaptureTriggerReason carrying the server's explanation.
+     * 0, inheritedSnapshotCount equal to the whole suite, and a per-platform
+     * `platforms.<platform>.reason` carrying the server's plain-prose explanation.
+     *
+     * We read `platforms.<platform>.reason`, NOT `fullCaptureTriggerReason`.
+     * Per the API schema (build.graphql) `reason` is the operator-approved prose
+     * the CLI prints verbatim, while `fullCaptureTriggerReason` is a machine enum
+     * code that (a) is only set for FULL captures and so is always absent on a
+     * bypassed build - which is a partial capture by definition - and (b) would
+     * print a raw machine code if it ever were surfaced (SHERLO-1919/1963).
      */
     diffScopeInfo?: {
       capturedSnapshotCount?: number;
       inheritedSnapshotCount?: number;
-      fullCaptureTriggerReason?: string;
+      platforms?: {
+        android?: { reason?: string };
+        ios?: { reason?: string };
+      };
     };
   } | null;
 };
@@ -205,7 +215,14 @@ async function fetchBuildStatus(
             diffScopeInfo {
               capturedSnapshotCount
               inheritedSnapshotCount
-              fullCaptureTriggerReason
+              platforms {
+                android {
+                  reason
+                }
+                ios {
+                  reason
+                }
+              }
             }
           }
         }
@@ -249,13 +266,14 @@ function evaluateTerminalState(
 
       if (unreviewed === 0 && reported === 0) {
         console.log();
-        if (isServerBypassed(diffScopeInfo)) {
+        const serverBypassReason = getServerBypassReason(diffScopeInfo);
+        if (serverBypassReason) {
           console.log(
             chalk.green(
               '✅ Nothing needed capturing - every screenshot was reused from the previous build.'
             )
           );
-          console.log(chalk.dim(`   ${diffScopeInfo!.fullCaptureTriggerReason}`));
+          console.log(chalk.dim(`   ${serverBypassReason}`));
         } else {
           console.log(chalk.green('✅ All stories passed - no visual changes require review.'));
         }
@@ -296,22 +314,50 @@ function evaluateTerminalState(
 }
 
 /**
- * A server-bypassed build (SHERLO-1959): the API already knew every story's
- * screenshot could be inherited from the previous build, so it closed the
- * build without ever handing it to the runner. Recognized off the SAME shape
- * closeBuild fills for the GitHub check summary - zero captures, at least one
- * inherited snapshot, and the server's reason for the decision - never
- * inferred from the absence of a runner error, which also covers other
- * "nothing changed" cases the generic message already handles correctly.
+ * Platforms consulted in this fixed order when picking the reason line for a
+ * server-bypassed build. The order is explicit (not JSON key order) so the
+ * output is deterministic; android is first only to match the field-declaration
+ * order of DiffScopePlatformsInfo in the API schema. A server-bypassed build is
+ * bypassed for the suite as a whole, so every present platform's reason
+ * describes the same "nothing changed" verdict - we surface the first one that
+ * carries prose and never merge or reformat it.
  */
-function isServerBypassed(
+const PLATFORM_REASON_ORDER = ['android', 'ios'] as const;
+
+/**
+ * When the API server-bypassed the build (SHERLO-1959) - it already knew every
+ * story's screenshot could be inherited from the previous build, so it closed
+ * the build without ever handing it to the runner - return the plain-prose
+ * reason line to print beneath the closing message; otherwise return undefined
+ * so the caller falls back to the generic "All stories passed" line.
+ *
+ * Recognized off the SAME shape closeBuild persists (see the API unit test
+ * closeAsZeroCaptureNoOp.unit.test.ts): zero captures, at least one inherited
+ * snapshot, and a per-platform prose `reason`. The reason is taken from
+ * `platforms.<platform>.reason` - the operator-approved prose the CLI prints
+ * verbatim - never from `fullCaptureTriggerReason`, which is a machine enum
+ * code and is always absent on a bypassed (partial-capture) build anyway
+ * (SHERLO-1963). An older API response with no `diffScopeInfo` (or no
+ * `platforms.<platform>.reason`) yields undefined and degrades gracefully.
+ */
+function getServerBypassReason(
   diffScopeInfo: NonNullable<BuildStatusResponse['getBuildStatus']>['diffScopeInfo']
-): boolean {
-  return (
-    diffScopeInfo?.capturedSnapshotCount === 0 &&
-    (diffScopeInfo?.inheritedSnapshotCount ?? 0) > 0 &&
-    Boolean(diffScopeInfo?.fullCaptureTriggerReason)
-  );
+): string | undefined {
+  const bypassed =
+    diffScopeInfo?.capturedSnapshotCount === 0 && (diffScopeInfo?.inheritedSnapshotCount ?? 0) > 0;
+
+  if (!bypassed) {
+    return undefined;
+  }
+
+  for (const platform of PLATFORM_REASON_ORDER) {
+    const reason = diffScopeInfo?.platforms?.[platform]?.reason;
+    if (reason) {
+      return reason;
+    }
+  }
+
+  return undefined;
 }
 
 function formatProgressLine(build: NonNullable<BuildStatusResponse['getBuildStatus']>): string {
