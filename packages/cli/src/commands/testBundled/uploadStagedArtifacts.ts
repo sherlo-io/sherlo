@@ -128,7 +128,13 @@ export default uploadStagedArtifacts;
 
 /* ========================================================================== */
 
-async function putBuffer({
+/**
+ * PUTs a buffer to a presigned S3 URL with protocol-appropriate keep-alive +
+ * retry. Exported so other staged-upload producers (e.g. test:standard's
+ * module-manifest pass, SHERLO-1943) reuse the exact same upload mechanics
+ * instead of re-implementing the retry/agent logic.
+ */
+export async function putBuffer({
   platform,
   label,
   uploadUrl,

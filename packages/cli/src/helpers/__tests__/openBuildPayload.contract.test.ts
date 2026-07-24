@@ -40,6 +40,7 @@ const mocks = vi.hoisted(() => {
     registerBase: vi.fn(),
     waitForBuildResult: vi.fn(),
     logWarning: vi.fn(),
+    emitAndUploadModuleManifests: vi.fn(),
   };
 });
 
@@ -61,6 +62,9 @@ vi.mock('../waitForBuildResult', () => ({ default: mocks.waitForBuildResult }));
 vi.mock('../fingerprint', () => ({
   computeBaseFingerprint: mocks.computeBaseFingerprint,
   registerBase: mocks.registerBase,
+}));
+vi.mock('../emitAndUploadModuleManifests', () => ({
+  emitAndUploadModuleManifests: mocks.emitAndUploadModuleManifests,
 }));
 
 import uploadOrReuseBuildsAndRunTests from '../uploadOrReuseBuildsAndRunTests';
@@ -134,6 +138,7 @@ beforeEach(() => {
   // exercised independently of the base-fingerprint spread.
   mocks.computeBaseFingerprint.mockResolvedValue({ hash: null, nativeFingerprint: 'native-fp' });
   mocks.registerBase.mockResolvedValue({ gateMetadata: undefined });
+  mocks.emitAndUploadModuleManifests.mockResolvedValue({});
   mocks.getAppBuildUrl.mockReturnValue('https://app.sherlo.io/team1234/7/build/42');
   mocks.openBuild.mockResolvedValue({ build: { index: 42 } });
   vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -290,6 +295,76 @@ describe('reuse-vs-upload branch selection', () => {
       android: 'android-hash',
       ios: 'ios-hash',
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Module manifest wiring (SHERLO-1943) - reuses the SAME producer as
+// test:bundled via emitAndUploadModuleManifests; only the wiring at the
+// openBuild-payload boundary is exercised here (the producer/guard logic has
+// its own suite in emitAndUploadModuleManifests.test.ts).
+// ---------------------------------------------------------------------------
+
+describe('module manifest wiring (SHERLO-1943)', () => {
+  beforeEach(() => {
+    mocks.computeBaseFingerprint.mockResolvedValue({ hash: 'base-fp-hash' });
+    mocks.registerBase.mockResolvedValue({ gateMetadata: undefined });
+    mocks.getBuildRunConfig.mockReturnValue({ android: {}, ios: {} });
+  });
+
+  it('runs the manifest pass with the platforms being registered + the SAME gitInfo, only when a base fingerprint exists', async () => {
+    await callSubject();
+
+    expect(mocks.emitAndUploadModuleManifests).toHaveBeenCalledTimes(1);
+    expect(mocks.emitAndUploadModuleManifests).toHaveBeenCalledWith({
+      client: expect.anything(),
+      projectRoot: '/proj',
+      platforms: ['android', 'ios'],
+      gitInfo: GIT_INFO,
+      projectIndex: 7,
+      teamId: 'team1234',
+    });
+  });
+
+  it('never runs the manifest pass when there is no base fingerprint (nothing to compare it against)', async () => {
+    mocks.computeBaseFingerprint.mockResolvedValue({ hash: null });
+
+    await callSubject();
+
+    expect(mocks.emitAndUploadModuleManifests).not.toHaveBeenCalled();
+  });
+
+  it('mirrors manifestS3Key onto each platform config when the pass vouched and uploaded (present)', async () => {
+    mocks.emitAndUploadModuleManifests.mockResolvedValue({
+      android: 'android-manifest-key',
+      ios: 'ios-manifest-key',
+    });
+
+    await callSubject();
+    const payload = lastOpenBuildPayload();
+
+    expect(payload.buildRunConfig.android.manifestS3Key).toBe('android-manifest-key');
+    expect(payload.buildRunConfig.ios.manifestS3Key).toBe('ios-manifest-key');
+  });
+
+  it('does NOT set manifestS3Key when the pass was skipped/failed (bail-open, absent)', async () => {
+    mocks.emitAndUploadModuleManifests.mockResolvedValue({});
+
+    await callSubject();
+    const payload = lastOpenBuildPayload();
+
+    expect('manifestS3Key' in payload.buildRunConfig.android).toBe(false);
+    expect('manifestS3Key' in payload.buildRunConfig.ios).toBe(false);
+  });
+
+  it('sets manifestS3Key only for the platform that got one (partial vouch/upload)', async () => {
+    mocks.emitAndUploadModuleManifests.mockResolvedValue({ ios: 'ios-manifest-key' });
+
+    await callSubject();
+    const payload = lastOpenBuildPayload();
+
+    expect('manifestS3Key' in payload.buildRunConfig.android).toBe(false);
+    expect(payload.buildRunConfig.ios.manifestS3Key).toBe('ios-manifest-key');
   });
 });
 
