@@ -36,7 +36,7 @@
   "scripts": {
     "build": "rm -rf dist && ncc build src/index.ts --source-map --minify && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js",
     "lint": "NODE_ENV=production yarn run -T eslint --ext .ts,.tsx src",
-    "test": "vitest run"
+    "test": "../../scripts/require-test-exec-optin.sh && vitest run"
   },
   "devDependencies": {
     "@babel/parser": "^7.29.3",

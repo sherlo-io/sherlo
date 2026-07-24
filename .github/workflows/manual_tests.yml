@@ -1,0 +1,92 @@
+name: Manual Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Which package(s) to test"
+        type: choice
+        options:
+          - cli
+          - react-native-storybook
+          - both
+        default: cli
+      path_filter:
+        description: "Space-separated vitest path substrings, e.g. getTokenParts commands/test"
+        type: string
+        required: false
+        default: ""
+      test_name:
+        description: "Vitest -t title pattern (may be multiple words)"
+        type: string
+        required: false
+        default: ""
+
+jobs:
+  cli:
+    if: ${{ inputs.package == 'cli' || inputs.package == 'both' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Download Sherlo packages
+        run: ./scripts/init-env.sh
+        env:
+          CLIENT_STAGE: dev
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Unit tests
+        working-directory: packages/cli
+        env:
+          PATH_FILTER: ${{ inputs.path_filter }}
+          TEST_NAME: ${{ inputs.test_name }}
+        run: |
+          args=()
+          if [ -n "$PATH_FILTER" ]; then
+            # word-split path_filter into separate positional path substrings
+            # shellcheck disable=SC2206
+            args+=($PATH_FILTER)
+          fi
+          if [ -n "$TEST_NAME" ]; then
+            args+=(-t "$TEST_NAME")
+          fi
+          yarn test "${args[@]}"
+
+  react-native-storybook:
+    if: ${{ inputs.package == 'react-native-storybook' || inputs.package == 'both' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Download Sherlo packages
+        run: ./scripts/init-env.sh
+        env:
+          CLIENT_STAGE: dev
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Unit tests
+        working-directory: packages/react-native-storybook
+        env:
+          PATH_FILTER: ${{ inputs.path_filter }}
+          TEST_NAME: ${{ inputs.test_name }}
+        run: |
+          args=()
+          if [ -n "$PATH_FILTER" ]; then
+            # word-split path_filter into separate positional path substrings
+            # shellcheck disable=SC2206
+            args+=($PATH_FILTER)
+          fi
+          if [ -n "$TEST_NAME" ]; then
+            args+=(-t "$TEST_NAME")
+          fi
+          yarn test "${args[@]}"
