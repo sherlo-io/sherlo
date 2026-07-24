@@ -44,6 +44,21 @@ type BuildStatusResponse = {
       unreviewed: number;
     };
     runError?: unknown;
+    /**
+     * Build-wide Diff Scope capture accounting, mirrored off Build.diffScopeInfo
+     * (same shape already used by BuildFragment/CloseBuildFragment elsewhere in
+     * the API). Absent on older API responses -> the closing message degrades to
+     * the generic "All stories passed" line (SHERLO-1962). A server-bypassed
+     * build (SHERLO-1959: the runner never ran because the server already knew
+     * every story's screenshot could be inherited) reports capturedSnapshotCount
+     * 0, inheritedSnapshotCount equal to the whole suite, and
+     * fullCaptureTriggerReason carrying the server's explanation.
+     */
+    diffScopeInfo?: {
+      capturedSnapshotCount?: number;
+      inheritedSnapshotCount?: number;
+      fullCaptureTriggerReason?: string;
+    };
   } | null;
 };
 
@@ -187,6 +202,11 @@ async function fetchBuildStatus(
               unreviewed
             }
             runError
+            diffScopeInfo {
+              capturedSnapshotCount
+              inheritedSnapshotCount
+              fullCaptureTriggerReason
+            }
           }
         }
       `,
@@ -220,7 +240,7 @@ function evaluateTerminalState(
   build: NonNullable<BuildStatusResponse['getBuildStatus']>,
   url: string
 ): number | null {
-  const { runStatus, viewStatusesCount } = build;
+  const { runStatus, viewStatusesCount, diffScopeInfo } = build;
 
   switch (runStatus) {
     case 'finished': {
@@ -229,7 +249,16 @@ function evaluateTerminalState(
 
       if (unreviewed === 0 && reported === 0) {
         console.log();
-        console.log(chalk.green('✅ All stories passed - no visual changes require review.'));
+        if (isServerBypassed(diffScopeInfo)) {
+          console.log(
+            chalk.green(
+              '✅ Nothing needed capturing - every screenshot was reused from the previous build.'
+            )
+          );
+          console.log(chalk.dim(`   ${diffScopeInfo!.fullCaptureTriggerReason}`));
+        } else {
+          console.log(chalk.green('✅ All stories passed - no visual changes require review.'));
+        }
         console.log(chalk.blue(`   ${url}`));
         console.log();
         return EXIT_GREEN;
@@ -264,6 +293,25 @@ function evaluateTerminalState(
       // queued, waiting, inProgress - still running
       return null;
   }
+}
+
+/**
+ * A server-bypassed build (SHERLO-1959): the API already knew every story's
+ * screenshot could be inherited from the previous build, so it closed the
+ * build without ever handing it to the runner. Recognized off the SAME shape
+ * closeBuild fills for the GitHub check summary - zero captures, at least one
+ * inherited snapshot, and the server's reason for the decision - never
+ * inferred from the absence of a runner error, which also covers other
+ * "nothing changed" cases the generic message already handles correctly.
+ */
+function isServerBypassed(
+  diffScopeInfo: NonNullable<BuildStatusResponse['getBuildStatus']>['diffScopeInfo']
+): boolean {
+  return (
+    diffScopeInfo?.capturedSnapshotCount === 0 &&
+    (diffScopeInfo?.inheritedSnapshotCount ?? 0) > 0 &&
+    Boolean(diffScopeInfo?.fullCaptureTriggerReason)
+  );
 }
 
 function formatProgressLine(build: NonNullable<BuildStatusResponse['getBuildStatus']>): string {
