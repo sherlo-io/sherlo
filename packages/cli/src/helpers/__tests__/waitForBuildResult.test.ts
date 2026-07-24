@@ -7,6 +7,7 @@
  */
 
 import fetch from 'node-fetch';
+import chalk from 'chalk';
 import { afterEach, beforeEach, describe, expect, it, vi, Mock } from 'vitest';
 import waitForBuildResult, {
   EXIT_BLOCK,
@@ -14,6 +15,8 @@ import waitForBuildResult, {
   EXIT_GREEN,
   EXIT_TIMEOUT,
 } from '../waitForBuildResult';
+
+chalk.level = 0;
 
 // The token format used throughout: 32-char apiToken + 8-char teamId + projectIndex
 const API_TOKEN = 'A'.repeat(32);
@@ -32,13 +35,19 @@ const mockFetch = fetch as unknown as Mock;
 function buildResponse(
   runStatus: string,
   viewStatusesCount?: { approved: number; noChanges: number; reported: number; unreviewed: number },
-  runError?: unknown
+  runError?: unknown,
+  diffScopeInfo?: {
+    capturedSnapshotCount?: number;
+    inheritedSnapshotCount?: number;
+    fullCaptureTriggerReason?: string;
+  }
 ): { getBuildStatus: Record<string, unknown> } {
   return {
     getBuildStatus: {
       runStatus,
       viewStatusesCount: viewStatusesCount ?? null,
       runError: runError ?? null,
+      diffScopeInfo: diffScopeInfo ?? null,
       startedAt: null,
       queuedAt: null,
       finishedAt: null,
@@ -122,6 +131,136 @@ describe('waitForBuildResult', () => {
     const result = await promise;
 
     expect(result).toBe(EXIT_GREEN);
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* EXIT 0 - GREEN, server-bypassed build (SHERLO-1959/1962)             */
+  /* the API closed the build without ever running it: zero captures,    */
+  /* every snapshot inherited, diffScopeInfo reason preserved             */
+  /* ------------------------------------------------------------------ */
+
+  describe('server-bypassed build closing message', () => {
+    function printedOutput(spy: ReturnType<typeof vi.spyOn>): string {
+      return spy.mock.calls.map((call: unknown[]) => call[0] ?? '').join('\n');
+    }
+
+    let logSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+      logSpy.mockRestore();
+    });
+
+    it('prints the "nothing needed capturing" closing line and pins its wording', async () => {
+      mockGraphqlResponse(
+        200,
+        buildResponse(
+          'finished',
+          { approved: 5, noChanges: 10, reported: 0, unreviewed: 0 },
+          undefined,
+          {
+            capturedSnapshotCount: 0,
+            inheritedSnapshotCount: 15,
+            fullCaptureTriggerReason: 'Sanity/Hello.stories.tsx changed',
+          }
+        )
+      );
+
+      const promise = waitForBuildResult({
+        token: TOKEN,
+        buildIndex: BUILD_INDEX,
+        projectIndex: PROJECT_INDEX,
+        teamId: TEAM_ID,
+      });
+
+      await vi.runAllTimersAsync();
+      const result = await promise;
+
+      expect(result).toBe(EXIT_GREEN);
+
+      const printed = printedOutput(logSpy);
+      expect(printed).toMatchSnapshot();
+    });
+
+    it('falls back to the generic green message when diffScopeInfo is absent', async () => {
+      mockGraphqlResponse(
+        200,
+        buildResponse('finished', { approved: 5, noChanges: 10, reported: 0, unreviewed: 0 })
+      );
+
+      const promise = waitForBuildResult({
+        token: TOKEN,
+        buildIndex: BUILD_INDEX,
+        projectIndex: PROJECT_INDEX,
+        teamId: TEAM_ID,
+      });
+
+      await vi.runAllTimersAsync();
+      await promise;
+
+      const printed = printedOutput(logSpy);
+      expect(printed).toContain('All stories passed');
+      expect(printed).not.toContain('Nothing needed capturing');
+    });
+
+    it('falls back to the generic green message when capturedSnapshotCount is not 0', async () => {
+      mockGraphqlResponse(
+        200,
+        buildResponse(
+          'finished',
+          { approved: 5, noChanges: 10, reported: 0, unreviewed: 0 },
+          undefined,
+          {
+            capturedSnapshotCount: 2,
+            inheritedSnapshotCount: 13,
+            fullCaptureTriggerReason: 'reason',
+          }
+        )
+      );
+
+      const promise = waitForBuildResult({
+        token: TOKEN,
+        buildIndex: BUILD_INDEX,
+        projectIndex: PROJECT_INDEX,
+        teamId: TEAM_ID,
+      });
+
+      await vi.runAllTimersAsync();
+      await promise;
+
+      const printed = printedOutput(logSpy);
+      expect(printed).toContain('All stories passed');
+      expect(printed).not.toContain('Nothing needed capturing');
+    });
+
+    it('falls back to the generic green message when no reason is present', async () => {
+      mockGraphqlResponse(
+        200,
+        buildResponse(
+          'finished',
+          { approved: 5, noChanges: 10, reported: 0, unreviewed: 0 },
+          undefined,
+          { capturedSnapshotCount: 0, inheritedSnapshotCount: 15 }
+        )
+      );
+
+      const promise = waitForBuildResult({
+        token: TOKEN,
+        buildIndex: BUILD_INDEX,
+        projectIndex: PROJECT_INDEX,
+        teamId: TEAM_ID,
+      });
+
+      await vi.runAllTimersAsync();
+      await promise;
+
+      const printed = printedOutput(logSpy);
+      expect(printed).toContain('All stories passed');
+      expect(printed).not.toContain('Nothing needed capturing');
+    });
   });
 
   /* ------------------------------------------------------------------ */
