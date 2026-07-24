@@ -6,6 +6,7 @@ import {
   getTokenParts,
   getValidatedBinariesInfoAndNextBuildIndex,
   handleClientError,
+  logWarning,
   printResultsUrl,
   uploadOrPrintBinaryReuse,
   reporting,
@@ -93,11 +94,11 @@ async function asyncUploadBuildAndRunTests({
       // Fail-soft: base registration errors are non-fatal.
     }
   } else {
-    console.log(
-      `[Sherlo] Staged uploads unavailable - ${
+    logWarning({
+      message: `Staged uploads unavailable - ${
         fpResult.debugMessage ?? 'fingerprint computation failed'
-      }`
-    );
+      }`,
+    });
   }
 
   reporting.addBreadcrumb({

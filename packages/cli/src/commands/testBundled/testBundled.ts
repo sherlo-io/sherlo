@@ -345,10 +345,11 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
 
   // The command EXPLAINS its own capture plan (SHERLO-1919): which stories this
   // run is capturing, which it is reusing from the previous build, and why - read
-  // straight off the openBuild response, no extra API call - then closes with
-  // "✓ Build created" and the Review URL LAST. Prints no plan block for a platform
-  // the server made no decision for (Diff Scope off, or older API), but always
-  // closes with the build-created line + URL so the link never disappears.
+  // straight off the openBuild response, no extra API call - then closes with the
+  // Review URL LAST (SHERLO-1937: no "Build created" line - the URL IS the
+  // ending). Prints no plan block for a platform the server made no decision for
+  // (Diff Scope off, or older API), but always closes with the URL so the link
+  // never disappears.
   printCapturePlanAndCloser({ openBuildReturn, bundles, platformsToTest, url });
 
   if (commandParams.wait) {
@@ -378,14 +379,13 @@ export default testBundled;
  * response (SHERLO-1919). No extra API call: `captureScope` carries the captured
  * set and `diffScopeInfo` carries the reason. Renders through the SAME shared
  * formatter the dry run uses, so the two modes read identically apart from the
- * capture verb. Then closes with a plain "✓ Build created" and the Review URL
- * LAST - the closer never promises runner behavior (Decision 5), so it carries no
- * "- running on devices" suffix regardless of what was captured.
+ * capture verb. Then closes with the Review URL LAST - no "Build created" line
+ * (SHERLO-1937 operator ruling: a live run's ending IS the Review URL).
  *
  * A platform the server made no decision for (no `captureScope`) is skipped
  * entirely - silence, never an invented "captured everything". If NO platform has
- * a decision, no plan block prints, but the build-created line + URL still do so
- * the developer always gets their link.
+ * a decision, no plan block prints, but the URL still does so the developer
+ * always gets their link.
  */
 function printCapturePlanAndCloser({
   openBuildReturn,
@@ -431,11 +431,9 @@ function printCapturePlanAndCloser({
     console.log('\n' + formatDiffScopeReport('live', platforms));
   }
 
-  // The closer, LAST (SHERLO-1919 ordering). Always the plain "✓ Build created":
-  // the closer never promises runner behavior (Decision 5), so it carries no
-  // "- running on devices" suffix regardless of what was captured.
-  console.log('\n' + chalk.green('✓') + chalk.bold(' Build created'));
-  console.log(`🔗 Review: ${printLink(url)}`);
+  // The closer, LAST (SHERLO-1919 ordering). A live run has no "Build created"
+  // line (SHERLO-1937 operator ruling) - the Review URL IS the ending.
+  console.log(`\n🔗 Review: ${printLink(url)}`);
 }
 
 /**
