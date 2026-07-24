@@ -1,8 +1,10 @@
 import sdkClient from '@sherlo/sdk-client';
+import { Platform } from '@sherlo/api-types';
 import chalk from 'chalk';
 import logWarning from './logWarning';
 import { TEST_EAS_UPDATE_COMMAND, TEST_STANDARD_COMMAND } from '../constants';
 import { CommandParams, EasUpdateData } from '../types';
+import { emitAndUploadModuleManifests } from './emitAndUploadModuleManifests';
 import getAppBuildUrl from './getAppBuildUrl';
 import getBuildRunConfig from './getBuildRunConfig';
 import getGitInfo from './getGitInfo';
@@ -15,6 +17,15 @@ import reporting from './reporting';
 import { computeBaseFingerprint, registerBase, type GateMetadataInput } from './fingerprint';
 import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
 import waitForBuildResult from './waitForBuildResult';
+
+/**
+ * The per-platform `manifestS3Key` the api department is adding to the
+ * openBuild `buildRunConfig` in parallel (SHERLO-1894/1943). Optional and
+ * local for the same reason testBundled.ts's `PlatformConfigWithManifest`
+ * is: the published @sherlo/api-types config type this repo typechecks
+ * against does not carry it yet. Drop once api-types republishes with it.
+ */
+type PlatformConfigWithManifest = { manifestS3Key?: string };
 
 async function uploadOrReuseBuildsAndRunTests({
   commandParams,
@@ -72,12 +83,13 @@ async function uploadOrReuseBuildsAndRunTests({
 
   let baseFingerprint: string | undefined;
   const gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput } = {};
+  let manifestS3Keys: Partial<Record<Platform, string>> = {};
 
   if (fpResult.hash) {
     baseFingerprint = fpResult.hash;
 
     // Extract gate metadata per platform (fail-soft per platform).
-    const platforms: ('android' | 'ios')[] = [];
+    const platforms: Platform[] = [];
     if (binariesInfo.android && commandParams.android) platforms.push('android');
     if (binariesInfo.ios && commandParams.ios) platforms.push('ios');
 
@@ -104,12 +116,45 @@ async function uploadOrReuseBuildsAndRunTests({
         // Fail-soft: base registration errors are non-fatal.
       }
     }
+
+    // SHERLO-1943: emit + upload the per-platform module manifest via the SAME
+    // producer test:bundled uses, guarded by provenance (clean tree + known
+    // commit). Runs alongside base registration since the manifest is only
+    // meaningful when compared against the base being registered here.
+    manifestS3Keys = await emitAndUploadModuleManifests({
+      client,
+      projectRoot: commandParams.projectRoot,
+      platforms,
+      gitInfo,
+      projectIndex,
+      teamId,
+    });
   } else {
     logWarning({
       message: `Staged uploads unavailable - ${
         fpResult.debugMessage ?? 'fingerprint computation failed'
       }`,
     });
+  }
+
+  const buildRunConfig = getBuildRunConfig({
+    commandParams,
+    binaryS3Keys: {
+      android: binariesInfo.android?.s3Key,
+      ios: binariesInfo.ios?.s3Key,
+    },
+    easUpdateData,
+  });
+
+  // Mirror the manifest S3 key onto its platform config, exactly like
+  // testBundled.ts's manifestS3Key wiring. Only set when present, so a
+  // skipped/failed manifest sends nothing extra.
+  for (const platform of Object.keys(manifestS3Keys) as Platform[]) {
+    const key = manifestS3Keys[platform];
+    const platformConfig = buildRunConfig[platform];
+    if (platformConfig && key) {
+      (platformConfig as PlatformConfigWithManifest).manifestS3Key = key;
+    }
   }
 
   reporting.addBreadcrumb({
@@ -131,14 +176,7 @@ async function uploadOrReuseBuildsAndRunTests({
         android: binariesInfo.android?.fileName,
         ios: binariesInfo.ios?.fileName,
       },
-      buildRunConfig: getBuildRunConfig({
-        commandParams,
-        binaryS3Keys: {
-          android: binariesInfo.android?.s3Key,
-          ios: binariesInfo.ios?.s3Key,
-        },
-        easUpdateData,
-      }),
+      buildRunConfig,
       gitInfo,
       sdkVersion: binariesInfo.sdkVersion,
       message: commandParams.message,
