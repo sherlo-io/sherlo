@@ -439,7 +439,7 @@ describe('--dry-run', () => {
 
 // ---------------------------------------------------------------------------
 // Live capture plan (SHERLO-1919): the command EXPLAINS its own decision, then
-// closes with "✓ Build created" and the Review URL LAST.
+// closes with the Review URL LAST (SHERLO-1937: no "Build created" line).
 // ---------------------------------------------------------------------------
 
 describe('live capture plan', () => {
@@ -578,7 +578,7 @@ describe('live capture plan', () => {
     logSpy.mockRestore();
   });
 
-  it('Case 3: nothing to capture - the whole bundle reused, plain "✓ Build created" closer', async () => {
+  it('Case 3: nothing to capture - the whole bundle reused, no "Build created" closer', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       storyCount: 22,
@@ -601,8 +601,9 @@ describe('live capture plan', () => {
     const out = printed(logSpy);
     expect(out).toContain('🍎 iOS - nothing to capture - no change reaches any story');
     expect(out).toContain('     ✓ all 22 stories reused from the previous build');
-    // Nothing captured on any platform -> the plain closer, NOT "- running on devices".
-    expect(out).toContain('✓ Build created');
+    // No "Build created" line (SHERLO-1937) - the Review URL is the ending.
+    expect(out).not.toContain('Build created');
+    expect(out).toContain('🔗 Review: http://app/build');
     expect(out).not.toContain('running on devices');
 
     logSpy.mockRestore();
@@ -666,7 +667,7 @@ describe('live capture plan', () => {
     logSpy.mockRestore();
   });
 
-  it('prints NO plan block when captureScope is absent, but still closes with the build + URL', async () => {
+  it('prints NO plan block when captureScope is absent, but still closes with the URL', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       openBuildReturn: {
@@ -681,9 +682,8 @@ describe('live capture plan', () => {
     // No plan: no header, no per-platform block, no assertion of a decision.
     expect(out).not.toContain('Capture plan');
     expect(out).not.toContain('capturing');
-    // The closer never promises runner behavior (Decision 5): plain "✓ Build
-    // created", no "- running on devices" suffix. The link is never withheld.
-    expect(out).toContain('✓ Build created');
+    // No "Build created" line (SHERLO-1937) - the link is never withheld though.
+    expect(out).not.toContain('Build created');
     expect(out).not.toContain('running on devices');
     expect(out).toContain('🔗 Review: http://app/build');
 
@@ -733,17 +733,18 @@ describe('live capture plan', () => {
       '🤖 Android - nothing to capture - the change never reaches the Android app'
     );
     expect(out).toContain('     ✓ all 22 stories reused from the previous build');
-    // The closer is always the plain "✓ Build created" (Decision 5) - even though
-    // iOS captured a story, it carries no "- running on devices" suffix.
-    expect(out).toContain('✓ Build created');
+    // No "Build created" line (SHERLO-1937) - even though iOS captured a story,
+    // there is no "- running on devices" suffix either.
+    expect(out).not.toContain('Build created');
     expect(out).not.toContain('running on devices');
 
     logSpy.mockRestore();
   });
 
-  // ORDERING: the Review URL prints LAST - after the capture plan and the
-  // build-created closer, never before them (SHERLO-1919 ordering change).
-  it('prints the Review URL LAST, after the capture plan and the build-created line', async () => {
+  // ORDERING: the Review URL prints LAST - after the capture plan, never before
+  // it (SHERLO-1919 ordering change; SHERLO-1937 dropped the "Build created" line
+  // that used to sit between the plan and the URL).
+  it('prints the Review URL LAST, after the capture plan, with no "Build created" line', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       storyCount: 22,
@@ -767,11 +768,10 @@ describe('live capture plan', () => {
 
     const out = printed(logSpy);
     const planIdx = out.indexOf('📸 Capture plan');
-    const builtIdx = out.indexOf('✓ Build created');
     const urlIdx = out.indexOf('🔗 Review:');
     expect(planIdx).toBeGreaterThanOrEqual(0);
-    expect(builtIdx).toBeGreaterThan(planIdx);
-    expect(urlIdx).toBeGreaterThan(builtIdx);
+    expect(urlIdx).toBeGreaterThan(planIdx);
+    expect(out).not.toContain('Build created');
 
     logSpy.mockRestore();
   });

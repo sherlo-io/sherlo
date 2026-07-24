@@ -105,11 +105,11 @@ async function uploadOrReuseBuildsAndRunTests({
       }
     }
   } else {
-    console.log(
-      `[Sherlo] Staged uploads unavailable - ${
+    logWarning({
+      message: `Staged uploads unavailable - ${
         fpResult.debugMessage ?? 'fingerprint computation failed'
-      }`
-    );
+      }`,
+    });
   }
 
   reporting.addBreadcrumb({

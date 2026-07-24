@@ -112,9 +112,9 @@ export const SEPARATOR = '-';
 
 /**
  * Render the whole "Capture plan": the header and one block per platform. The
- * closers (live: "✓ Build created" + the Review URL; dry run: the "◦ Dry run"
- * notice) are printed by the CALLERS, not here - this module owns the plan, not
- * the run's outcome line.
+ * closers (live: the Review URL; dry run: the "◦ Dry run" notice) are printed
+ * by the CALLERS, not here - this module owns the plan, not the run's outcome
+ * line.
  */
 export function formatDiffScopeReport(
   mode: DiffScopeMode,

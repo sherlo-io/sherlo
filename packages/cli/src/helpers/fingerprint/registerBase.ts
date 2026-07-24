@@ -95,8 +95,6 @@ export async function registerBase(params: RegisterBaseParams): Promise<Register
     return { registered: false };
   }
 
-  console.log(`[Sherlo] baseFingerprint: ${fpHash}`);
-
   // ------------------------------------------------------------------
   // 2. Extract gate metadata from the binary.
   // ------------------------------------------------------------------
@@ -144,18 +142,22 @@ export async function registerBase(params: RegisterBaseParams): Promise<Register
   }
 
   // ------------------------------------------------------------------
-  // 4. Print registration metadata summary.
+  // 4. Debug-only registration metadata summary - gated behind the SAME
+  //    SHERLO_FINGERPRINT_DEBUG flag baseFingerprint.ts uses (off by default,
+  //    never on default stdout). See baseFingerprint.ts's emitFingerprintDebug.
   // ------------------------------------------------------------------
-  console.log(
-    '[Sherlo] Staged registration metadata computed:\n' +
-      `  baseFingerprint: ${fpHash}\n` +
-      `  engineClass: ${gateMetadata.engineClass}\n` +
-      `  bundleFormat: ${gateMetadata.bundleFormat}\n` +
-      `  hasEmbeddedBundle: ${gateMetadata.hasEmbeddedBundle}\n` +
-      `  expoUpdatesEnabled: ${gateMetadata.expoUpdatesEnabled}\n` +
-      `  sdkProtocolVersion: ${gateMetadata.sdkProtocolVersion ?? 'unknown'}\n` +
-      `  assets: ${gateMetadata.assetInventory?.length ?? 0} items`
-  );
+  if (process.env.SHERLO_FINGERPRINT_DEBUG === '1') {
+    console.log(
+      '[sherlo:fp-debug] Staged registration metadata computed:\n' +
+        `  baseFingerprint: ${fpHash}\n` +
+        `  engineClass: ${gateMetadata.engineClass}\n` +
+        `  bundleFormat: ${gateMetadata.bundleFormat}\n` +
+        `  hasEmbeddedBundle: ${gateMetadata.hasEmbeddedBundle}\n` +
+        `  expoUpdatesEnabled: ${gateMetadata.expoUpdatesEnabled}\n` +
+        `  sdkProtocolVersion: ${gateMetadata.sdkProtocolVersion ?? 'unknown'}\n` +
+        `  assets: ${gateMetadata.assetInventory?.length ?? 0} items`
+    );
+  }
 
   return {
     registered: true,
