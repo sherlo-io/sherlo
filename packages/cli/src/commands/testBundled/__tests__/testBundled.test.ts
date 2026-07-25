@@ -81,6 +81,16 @@ vi.mock('../dryRun', () => ({
   runDryRunPreview: vi.fn(),
 }));
 
+// testBundled imports isServerBypassed / printServerBypassCloser / the network
+// fetchServerBypassReason directly from the waitForBuildResult module. Keep the
+// pure helpers real (so bypass detection + the closer text are exercised for
+// real) and mock ONLY the network read, so tests control the reason without
+// hitting the API.
+vi.mock('../../../helpers/waitForBuildResult', async (importActual) => {
+  const actual = await importActual<typeof import('../../../helpers/waitForBuildResult')>();
+  return { ...actual, fetchServerBypassReason: vi.fn() };
+});
+
 // ---------------------------------------------------------------------------
 // Mocked dependency accessors
 // ---------------------------------------------------------------------------
@@ -94,6 +104,7 @@ import {
   getValidatedCommandParams as _getValidatedCommandParams,
   printResultsUrl as _printResultsUrl,
   printSherloIntro as _printSherloIntro,
+  waitForBuildResult as _waitForBuildResult,
 } from '../../../helpers';
 import { computeBaseFingerprint as _computeBaseFingerprint } from '../../../helpers/fingerprint';
 import {
@@ -102,6 +113,7 @@ import {
 } from '../buildBundle';
 import _uploadStagedArtifacts from '../uploadStagedArtifacts';
 import { runDryRunPreview as _runDryRunPreview } from '../dryRun';
+import { fetchServerBypassReason as _fetchServerBypassReason } from '../../../helpers/waitForBuildResult';
 
 const mockGetAppBuildUrl = vi.mocked(_getAppBuildUrl);
 const mockGetBuildRunConfig = vi.mocked(_getBuildRunConfig);
@@ -116,6 +128,8 @@ const mockBuildBundleForPlatform = vi.mocked(_buildBundleForPlatform);
 const mockBuildGateMetadata = vi.mocked(_buildGateMetadata);
 const mockUploadStagedArtifacts = vi.mocked(_uploadStagedArtifacts);
 const mockRunDryRunPreview = vi.mocked(_runDryRunPreview);
+const mockWaitForBuildResult = vi.mocked(_waitForBuildResult);
+const mockFetchServerBypassReason = vi.mocked(_fetchServerBypassReason);
 
 // ---------------------------------------------------------------------------
 // Subject under test
@@ -889,5 +903,199 @@ describe('live capture plan', () => {
     expect(openBuildArg.buildRunConfig.ios.jsBundleS3Key).toBe('js-key');
 
     logSpy.mockRestore();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Server-bypassed build (SHERLO-1952): the API closed the build itself without a
+// device run (0 captured, >0 inherited). The CLI must stop pointing at the
+// review page (SHERLO-1974) and stop implying device work happened, in BOTH
+// modes. Detection is off the openBuild COUNTS. In --wait mode the compact closer
+// comes from the poll (waitForBuildResult, mocked here). In non-wait mode it
+// comes from a single guarded getBuildStatus read (fetchServerBypassReason,
+// mocked here); if that read yields no reason the CLI falls back to today's
+// Review URL - a working link beats silence.
+// ---------------------------------------------------------------------------
+
+describe('server-bypassed build (SHERLO-1952)', () => {
+  let exitSpy: ReturnType<typeof vi.spyOn>;
+
+  /**
+   * Wire a run whose openBuild response reports the given diffScopeInfo counts.
+   * `wait` toggles --wait; `bypassed` picks the count shape (0/>0 vs a normal
+   * partial capture).
+   */
+  function setup({ wait, bypassed }: { wait: boolean; bypassed: boolean }): void {
+    mockGetValidatedCommandParams.mockReturnValue({
+      projectRoot: '/proj',
+      token: 'token-value',
+      devices: [IOS_DEVICE],
+      wait,
+      waitTimeout: undefined,
+    } as any);
+    mockGetPlatformsToTest.mockReturnValue(['ios'] as any);
+    mockComputeBaseFingerprint.mockResolvedValue({ hash: 'BASE_FP' } as any);
+    mockCheckStagedGate.mockResolvedValue({ outcome: 'fast', diff: [] });
+    mockBuildBundleForPlatform.mockResolvedValue(bundleResult());
+    mockBuildGateMetadata.mockResolvedValue({ engineClass: 'hermes' } as any);
+    mockGetTokenParts.mockReturnValue({ apiToken: 'api', projectIndex: 3, teamId: 'team' });
+    mockGetStagedUploadUrls.mockResolvedValue({
+      stagedPresignedUploadUrls: { ios: { jsBundle: { s3Key: 'js', url: 'http://s3/js' } } },
+    });
+    mockUploadStagedArtifacts.mockResolvedValue({ jsBundleS3Key: 'js' });
+    mockGetBuildRunConfig.mockReturnValue({ ios: { devices: [], s3Key: 'unset' } } as any);
+    mockGetGitInfo.mockResolvedValue({ commitHash: 'c', branchName: 'b', commitName: 'm' } as any);
+    mockGetAppBuildUrl.mockReturnValue('http://app/build');
+    mockWaitForBuildResult.mockResolvedValue(0);
+
+    const diffScopeInfo = bypassed
+      ? { capturedSnapshotCount: 0, inheritedSnapshotCount: 12 }
+      : { capturedSnapshotCount: 3, inheritedSnapshotCount: 9 };
+
+    mockOpenBuild.mockResolvedValue({
+      build: { index: 7, diffScopeInfo },
+      // No captureScope -> no plan block; keeps these tests focused on the closer.
+      buildRun: { config: { ios: { devices: [] } } },
+    });
+  }
+
+  function printed(logSpy: ReturnType<typeof vi.spyOn>): string {
+    return logSpy.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
+  }
+
+  beforeEach(() => {
+    // --wait exits the process with the code; make that inert so the test can
+    // inspect what was printed and how waitForBuildResult was called.
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as any);
+  });
+
+  afterEach(() => {
+    exitSpy.mockRestore();
+  });
+
+  it('--wait: withholds the Review URL, makes NO non-wait read, flags the bypass to the poll', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({ wait: true, bypassed: true });
+
+    await testBundled(mockOptions());
+
+    const out = printed(logSpy);
+    // No review URL here - the --wait poll's closer speaks for the build instead.
+    expect(out).not.toContain('🔗 Review');
+    expect(out).not.toContain('http://app/build');
+
+    expect(mockWaitForBuildResult).toHaveBeenCalledTimes(1);
+    expect(mockWaitForBuildResult.mock.calls[0][0]).toMatchObject({ serverBypassed: true });
+    // The non-wait single read is exclusive to the non-wait path.
+    expect(mockFetchServerBypassReason).not.toHaveBeenCalled();
+
+    logSpy.mockRestore();
+  });
+
+  it('NON-wait: prints the compact closer with the verbatim reason and NO Review URL', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({ wait: false, bypassed: true });
+    mockFetchServerBypassReason.mockResolvedValue('no change reaches any story');
+
+    await testBundled(mockOptions());
+
+    const out = printed(logSpy);
+    expect(out).toContain('✅ Nothing needed capturing - no change reaches any story');
+    expect(out).toContain('closed by the server - no device run was needed');
+    // The whole point: no URL of any kind on the bypassed path.
+    expect(out).not.toContain('🔗 Review');
+    expect(out).not.toContain('http://app/build');
+
+    // One getBuildStatus read against the already-closed build; no polling.
+    expect(mockWaitForBuildResult).not.toHaveBeenCalled();
+    expect(mockFetchServerBypassReason).toHaveBeenCalledTimes(1);
+    expect(mockFetchServerBypassReason.mock.calls[0][0]).toMatchObject({
+      token: 'token-value',
+      buildIndex: 7,
+      projectIndex: 3,
+      teamId: 'team',
+    });
+
+    logSpy.mockRestore();
+  });
+
+  it('NON-wait fallback: reason unavailable -> keeps the Review URL, never a bare closer', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({ wait: false, bypassed: true });
+    // The read degraded (network / older API / no per-platform prose).
+    mockFetchServerBypassReason.mockResolvedValue(undefined);
+
+    await testBundled(mockOptions());
+
+    const out = printed(logSpy);
+    // A working link beats silence; a closer never prints with nothing after the dash.
+    expect(out).toContain('🔗 Review: http://app/build');
+    expect(out).not.toContain('Nothing needed capturing');
+
+    logSpy.mockRestore();
+  });
+
+  it('non-bypassed --wait: Review URL prints, serverBypassed=false, ZERO extra reads', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({ wait: true, bypassed: false });
+
+    await testBundled(mockOptions());
+
+    const out = printed(logSpy);
+    expect(out).toContain('🔗 Review: http://app/build');
+
+    expect(mockWaitForBuildResult).toHaveBeenCalledTimes(1);
+    expect(mockWaitForBuildResult.mock.calls[0][0]).toMatchObject({ serverBypassed: false });
+    // Guard rail 1: a normal build makes NO extra call.
+    expect(mockFetchServerBypassReason).not.toHaveBeenCalled();
+
+    logSpy.mockRestore();
+  });
+
+  it('non-bypassed NON-wait: Review URL prints and makes ZERO extra reads', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({ wait: false, bypassed: false });
+
+    await testBundled(mockOptions());
+
+    const out = printed(logSpy);
+    expect(out).toContain('🔗 Review: http://app/build');
+    expect(mockFetchServerBypassReason).not.toHaveBeenCalled();
+
+    logSpy.mockRestore();
+  });
+
+  it('NON-wait bypassed output is pinned', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({ wait: false, bypassed: true });
+    mockFetchServerBypassReason.mockResolvedValue('no change reaches any story');
+
+    await testBundled(mockOptions());
+
+    expect(printed(logSpy)).toMatchSnapshot();
+
+    logSpy.mockRestore();
+  });
+
+  // BYTE-IDENTICAL guarantee (explicit acceptance criterion): a non-bypassed
+  // build's own printed output is unchanged, and identical whether or not --wait
+  // is set (the wait poll adds nothing to testBundled's own output here).
+  it('non-bypassed output is byte-identical with and without --wait', async () => {
+    const logA = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({ wait: false, bypassed: false });
+    await testBundled(mockOptions());
+    const withoutWait = printed(logA);
+    logA.mockRestore();
+
+    vi.clearAllMocks();
+
+    const logB = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({ wait: true, bypassed: false });
+    await testBundled(mockOptions());
+    const withWait = printed(logB);
+    logB.mockRestore();
+
+    expect(withWait).toBe(withoutWait);
+    expect(withoutWait).toMatchSnapshot();
   });
 });

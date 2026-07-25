@@ -39,6 +39,11 @@ import {
   waitForBuildResult,
 } from '../../helpers';
 import printLink from '../../helpers/printLink';
+import {
+  isServerBypassed,
+  fetchServerBypassReason,
+  printServerBypassCloser,
+} from '../../helpers/waitForBuildResult';
 import { computeBaseFingerprint, type GateMetadataInput } from '../../helpers/fingerprint';
 import { THIS_COMMAND } from './constants';
 import { buildBundleForPlatform, buildGateMetadata, type BundleResult } from './buildBundle';
@@ -343,14 +348,24 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
+  // The API may close the build itself, without ever running it on a device
+  // (SHERLO-1959), when every story's screenshot can be inherited from the
+  // previous build. Detected off the openBuild COUNTS (the per-platform prose
+  // reason is not selected by BuildFragment, so it is unavailable here). Such a
+  // build has nothing to review and the review page cannot render its shape yet
+  // (SHERLO-1974), so - in BOTH modes - we withhold the review/build URL and
+  // print the compact bypassed closer instead (SHERLO-1952).
+  const serverBypassed = isServerBypassed(openBuildReturn.build.diffScopeInfo);
+
   // The command EXPLAINS its own capture plan (SHERLO-1919): which stories this
   // run is capturing, which it is reusing from the previous build, and why - read
   // straight off the openBuild response, no extra API call - then closes with the
   // Review URL LAST (SHERLO-1937: no "Build created" line - the URL IS the
   // ending). Prints no plan block for a platform the server made no decision for
   // (Diff Scope off, or older API), but always closes with the URL so the link
-  // never disappears.
-  printCapturePlanAndCloser({ openBuildReturn, bundles, platformsToTest, url });
+  // never disappears - UNLESS the build was server-bypassed, whose compact closer
+  // is printed below instead (by the --wait poll, or the non-wait branch).
+  printCapturePlanAndCloser({ openBuildReturn, bundles, platformsToTest, url, serverBypassed });
 
   if (commandParams.wait) {
     const exitCode = await waitForBuildResult({
@@ -359,11 +374,23 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
       projectIndex,
       teamId,
       waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
+      serverBypassed,
     });
 
     // --wait mode: the exit code IS the contract. Flush telemetry then exit.
     await reporting.flush().finally(() => {
       process.exit(exitCode);
+    });
+  } else if (serverBypassed) {
+    // Non-wait bypassed build: --wait is not printing the closer, so fetch the
+    // server's verbatim reason with a single getBuildStatus read and print the
+    // compact closer here (SHERLO-1952). Best-effort - see printBypassedCloser.
+    await printBypassedCloser({
+      token: commandParams.token,
+      buildIndex,
+      projectIndex,
+      teamId,
+      url,
     });
   }
 
@@ -386,17 +413,24 @@ export default testBundled;
  * entirely - silence, never an invented "captured everything". If NO platform has
  * a decision, no plan block prints, but the URL still does so the developer
  * always gets their link.
+ *
+ * The one exception (SHERLO-1952): a server-bypassed build. There is nothing to
+ * review and the review page cannot render this build shape yet (SHERLO-1974), so
+ * the Review URL is withheld here in BOTH modes; the compact bypassed closer is
+ * printed by the caller instead (the --wait poll, or the non-wait branch).
  */
 function printCapturePlanAndCloser({
   openBuildReturn,
   bundles,
   platformsToTest,
   url,
+  serverBypassed,
 }: {
   openBuildReturn: Awaited<ReturnType<ReturnType<typeof sdkClient>['openBuild']>>;
   bundles: Partial<Record<Platform, BundleResult>>;
   platformsToTest: Platform[];
   url: string;
+  serverBypassed: boolean;
 }): void {
   const diffScopeInfo = openBuildReturn.build.diffScopeInfo as
     | DiffScopeInfoWithPlatformReasons
@@ -431,9 +465,51 @@ function printCapturePlanAndCloser({
     console.log('\n' + formatDiffScopeReport('live', platforms));
   }
 
+  // A server-bypassed build has its compact closer printed by the caller (the
+  // --wait poll, or the non-wait branch), never a Review URL - the review page
+  // cannot render this build shape yet (SHERLO-1952/1974). Withhold the URL here
+  // in both modes.
+  if (serverBypassed) {
+    return;
+  }
+
   // The closer, LAST (SHERLO-1919 ordering). A live run has no "Build created"
   // line (SHERLO-1937 operator ruling) - the Review URL IS the ending.
   console.log(`\n🔗 Review: ${printLink(url)}`);
+}
+
+/**
+ * Non-wait closer for a server-bypassed build (SHERLO-1952). Sources the server's
+ * verbatim reason with a single getBuildStatus read (the build is already closed,
+ * so it returns immediately - a read, not a wait) and prints the compact closer.
+ *
+ * Best-effort by ruling: if the reason cannot be fetched (network, auth, timeout,
+ * older API with no per-platform prose), fall back to TODAY's full output - the
+ * Review URL - rather than a closer with nothing after the dash. A working link
+ * beats silence, and a build that succeeded is never reported failed over this
+ * cosmetic query (fetchServerBypassReason swallows every error).
+ */
+async function printBypassedCloser({
+  token,
+  buildIndex,
+  projectIndex,
+  teamId,
+  url,
+}: {
+  token: string;
+  buildIndex: number;
+  projectIndex: number;
+  teamId: string;
+  url: string;
+}): Promise<void> {
+  const reason = await fetchServerBypassReason({ token, buildIndex, projectIndex, teamId });
+
+  if (reason) {
+    console.log();
+    printServerBypassCloser(reason);
+  } else {
+    console.log(`\n🔗 Review: ${printLink(url)}`);
+  }
 }
 
 /**

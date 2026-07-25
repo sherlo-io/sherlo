@@ -14,6 +14,7 @@ import waitForBuildResult, {
   EXIT_ERROR,
   EXIT_GREEN,
   EXIT_TIMEOUT,
+  fetchServerBypassReason,
 } from '../waitForBuildResult';
 
 chalk.level = 0;
@@ -153,6 +154,20 @@ describe('waitForBuildResult', () => {
       return spy.mock.calls.map((call: unknown[]) => call[0] ?? '').join('\n');
     }
 
+    // A build the caller already flagged as server-bypassed off the openBuild
+    // counts (SHERLO-1952) passes `serverBypassed: true` - that is how testBundled
+    // invokes it in the real flow. The poll response is set up per test via
+    // mockGraphqlResponse before this is called.
+    function bypassedBuild() {
+      return waitForBuildResult({
+        token: TOKEN,
+        buildIndex: BUILD_INDEX,
+        projectIndex: PROJECT_INDEX,
+        teamId: TEAM_ID,
+        serverBypassed: true,
+      });
+    }
+
     let logSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(() => {
@@ -163,7 +178,7 @@ describe('waitForBuildResult', () => {
       logSpy.mockRestore();
     });
 
-    it('prints the "nothing needed capturing" closing line and pins its wording', async () => {
+    it('pins the compact bypassed closer and the absence of all device-run output', async () => {
       mockGraphqlResponse(
         200,
         buildResponse(
@@ -178,20 +193,21 @@ describe('waitForBuildResult', () => {
         )
       );
 
-      const promise = waitForBuildResult({
-        token: TOKEN,
-        buildIndex: BUILD_INDEX,
-        projectIndex: PROJECT_INDEX,
-        teamId: TEAM_ID,
-      });
+      const promise = bypassedBuild();
 
       await vi.runAllTimersAsync();
       const result = await promise;
 
+      // The exit-code contract is unchanged: a closed, clean build is GREEN.
       expect(result).toBe(EXIT_GREEN);
 
       const printed = printedOutput(logSpy);
       expect(printed).toMatchSnapshot();
+
+      // Absence assertions are the point of SHERLO-1952: no wait theatre, no URL.
+      expect(printed).not.toContain('Waiting for build results');
+      expect(printed).not.toContain('🟢 Finished');
+      expect(printed).not.toContain('http'); // neither a review nor a build URL
     });
 
     it('prints the bypassed closer off the real API shape even with no fullCaptureTriggerReason (regression, SHERLO-1963)', async () => {
@@ -213,12 +229,7 @@ describe('waitForBuildResult', () => {
         )
       );
 
-      const promise = waitForBuildResult({
-        token: TOKEN,
-        buildIndex: BUILD_INDEX,
-        projectIndex: PROJECT_INDEX,
-        teamId: TEAM_ID,
-      });
+      const promise = bypassedBuild();
 
       await vi.runAllTimersAsync();
       const result = await promise;
@@ -227,8 +238,12 @@ describe('waitForBuildResult', () => {
 
       const printed = printedOutput(logSpy);
       expect(printed).toContain('Nothing needed capturing');
-      // The platform reason is printed verbatim as the closer's reason line.
-      expect(printed).toContain('no change reaches any story');
+      // The platform reason is printed verbatim, INLINE in the headline.
+      expect(printed).toContain('✅ Nothing needed capturing - no change reaches any story');
+      // The fixed dim line replaces the old CLI-invented "every screenshot was
+      // reused" sentence.
+      expect(printed).toContain('closed by the server - no device run was needed');
+      expect(printed).not.toContain('every screenshot was reused');
       expect(printed).not.toContain('All stories passed');
     });
 
@@ -253,12 +268,7 @@ describe('waitForBuildResult', () => {
         )
       );
 
-      const promise = waitForBuildResult({
-        token: TOKEN,
-        buildIndex: BUILD_INDEX,
-        projectIndex: PROJECT_INDEX,
-        teamId: TEAM_ID,
-      });
+      const promise = bypassedBuild();
 
       await vi.runAllTimersAsync();
       await promise;
@@ -284,12 +294,7 @@ describe('waitForBuildResult', () => {
         )
       );
 
-      const promise = waitForBuildResult({
-        token: TOKEN,
-        buildIndex: BUILD_INDEX,
-        projectIndex: PROJECT_INDEX,
-        teamId: TEAM_ID,
-      });
+      const promise = bypassedBuild();
 
       await vi.runAllTimersAsync();
       await promise;
@@ -300,6 +305,8 @@ describe('waitForBuildResult', () => {
     });
 
     it('falls back to the generic green message when diffScopeInfo is absent', async () => {
+      // Not a bypass at openBuild (no counts) -> serverBypassed omitted -> today's
+      // behaviour, waiting line and URL included.
       mockGraphqlResponse(
         200,
         buildResponse('finished', { approved: 5, noChanges: 10, reported: 0, unreviewed: 0 })
@@ -350,7 +357,12 @@ describe('waitForBuildResult', () => {
       expect(printed).not.toContain('Nothing needed capturing');
     });
 
-    it('falls back to the generic green message when no platform reason is present', async () => {
+    it('forward-compat degrade: counts say bypass but the poll carries no reason -> generic green WITH the link', async () => {
+      // The gate condition (SHERLO-1952): 0 captured, >0 inherited, AND a
+      // per-platform reason. Reason absent (older API) -> keep the link. The
+      // caller still flags the bypass off the counts (serverBypassed: true), so
+      // the wait theatre is suppressed, but the closer keeps the URL because a
+      // working link beats silence.
       mockGraphqlResponse(
         200,
         buildResponse(
@@ -361,12 +373,7 @@ describe('waitForBuildResult', () => {
         )
       );
 
-      const promise = waitForBuildResult({
-        token: TOKEN,
-        buildIndex: BUILD_INDEX,
-        projectIndex: PROJECT_INDEX,
-        teamId: TEAM_ID,
-      });
+      const promise = bypassedBuild();
 
       await vi.runAllTimersAsync();
       await promise;
@@ -374,6 +381,8 @@ describe('waitForBuildResult', () => {
       const printed = printedOutput(logSpy);
       expect(printed).toContain('All stories passed');
       expect(printed).not.toContain('Nothing needed capturing');
+      // The link is preserved - silence is never better than a working link.
+      expect(printed).toContain('http');
     });
   });
 
@@ -716,5 +725,124 @@ describe('waitForBuildResult', () => {
 
     expect(result).toBe(EXIT_GREEN);
     expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+/* ========================================================================== */
+/* fetchServerBypassReason - the non-wait single-shot reason read (SHERLO-1952) */
+/*                                                                              */
+/* This is the function guard rail 2 rests on: it must degrade EVERY failure    */
+/* (network, auth, timeout, malformed, or simply no per-platform reason) to     */
+/* `undefined` and NEVER throw, so the closing of a build that actually         */
+/* succeeded can never be turned into a failure by a cosmetic display query.    */
+/* Tested directly here (the testBundled tests mock it out and so cannot catch  */
+/* it throwing). Real timers - the mocked fetch resolves synchronously.         */
+/* ========================================================================== */
+
+describe('fetchServerBypassReason', () => {
+  const args = {
+    token: TOKEN,
+    buildIndex: BUILD_INDEX,
+    projectIndex: PROJECT_INDEX,
+    teamId: TEAM_ID,
+  };
+
+  beforeEach(() => {
+    mockFetch.mockReset();
+  });
+
+  it('returns the verbatim per-platform reason for a bypassed poll shape', async () => {
+    mockGraphqlResponse(
+      200,
+      buildResponse(
+        'finished',
+        { approved: 0, noChanges: 3, reported: 0, unreviewed: 0 },
+        undefined,
+        {
+          capturedSnapshotCount: 0,
+          inheritedSnapshotCount: 15,
+          platforms: { android: { reason: 'no change reaches any story' } },
+        }
+      )
+    );
+
+    await expect(fetchServerBypassReason(args)).resolves.toBe('no change reaches any story');
+  });
+
+  it('resolves undefined (never throws) when the request rejects - network error', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+
+    await expect(fetchServerBypassReason(args)).resolves.toBeUndefined();
+  });
+
+  it('resolves undefined (never throws) on an auth failure - an expired token must not turn a green build red', async () => {
+    // fetchBuildStatus throws AuthError on HTTP 401; fetchServerBypassReason must
+    // convert that into undefined rather than let it escape.
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+      json: async () => ({}),
+    });
+
+    await expect(fetchServerBypassReason(args)).resolves.toBeUndefined();
+  });
+
+  it('resolves undefined for a non-bypassed shape (counts do not match)', async () => {
+    mockGraphqlResponse(
+      200,
+      buildResponse(
+        'finished',
+        { approved: 5, noChanges: 10, reported: 0, unreviewed: 0 },
+        undefined,
+        {
+          capturedSnapshotCount: 2,
+          inheritedSnapshotCount: 13,
+          platforms: { android: { reason: 'no change reaches any story' } },
+        }
+      )
+    );
+
+    await expect(fetchServerBypassReason(args)).resolves.toBeUndefined();
+  });
+
+  it('resolves undefined for a bypassed shape carrying no per-platform reason', async () => {
+    mockGraphqlResponse(
+      200,
+      buildResponse(
+        'finished',
+        { approved: 5, noChanges: 10, reported: 0, unreviewed: 0 },
+        undefined,
+        {
+          capturedSnapshotCount: 0,
+          inheritedSnapshotCount: 15,
+        }
+      )
+    );
+
+    await expect(fetchServerBypassReason(args)).resolves.toBeUndefined();
+  });
+
+  it('makes EXACTLY ONE request and passes the 10s timeout to fetch (a read, not a poll)', async () => {
+    mockGraphqlResponse(
+      200,
+      buildResponse(
+        'finished',
+        { approved: 0, noChanges: 1, reported: 0, unreviewed: 0 },
+        undefined,
+        {
+          capturedSnapshotCount: 0,
+          inheritedSnapshotCount: 4,
+          platforms: { ios: { reason: 'nothing changed' } },
+        }
+      )
+    );
+
+    await fetchServerBypassReason(args);
+
+    // One shot - a regression that turned this into a retry loop must fail here.
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    // The single call is bounded so a wedged API cannot hang a non-wait run.
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({ timeout: 10_000 });
   });
 });

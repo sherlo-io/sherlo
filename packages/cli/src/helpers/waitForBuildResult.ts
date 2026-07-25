@@ -78,12 +78,23 @@ async function waitForBuildResult({
   projectIndex,
   teamId,
   waitTimeoutMinutes,
+  serverBypassed = false,
 }: {
   token: string;
   buildIndex: number;
   projectIndex: number;
   teamId: string;
   waitTimeoutMinutes?: number;
+  /**
+   * The build was already closed server-side without ever running on a device
+   * (SHERLO-1959/1952), detected off the openBuild counts by the caller. When
+   * set we keep the poll and the exit-code contract EXACTLY as they are - the
+   * build is already terminal, so the first poll returns immediately - but we
+   * suppress the output that implies device work happened: the "waiting" line
+   * below and the "🟢 Finished" progress line. The compact bypassed closer is
+   * printed by evaluateTerminalState off the poll's verbatim reason.
+   */
+  serverBypassed?: boolean;
 }): Promise<number> {
   const timeoutMs = (waitTimeoutMinutes ?? DEFAULT_WAIT_TIMEOUT_MINUTES) * 60 * 1000;
   const startTime = Date.now();
@@ -92,13 +103,15 @@ async function waitForBuildResult({
   const { apiToken } = getTokenParts(token);
   const endpointUrl = getEndpointUrl();
 
-  console.log(
-    chalk.dim(
-      `⏳ Waiting for build results (timeout: ${
-        waitTimeoutMinutes ?? DEFAULT_WAIT_TIMEOUT_MINUTES
-      }min)...`
-    )
-  );
+  if (!serverBypassed) {
+    console.log(
+      chalk.dim(
+        `⏳ Waiting for build results (timeout: ${
+          waitTimeoutMinutes ?? DEFAULT_WAIT_TIMEOUT_MINUTES
+        }min)...`
+      )
+    );
+  }
 
   let lastStatus = '';
   let pollCount = 0;
@@ -148,9 +161,11 @@ async function waitForBuildResult({
       continue;
     }
 
-    // Print progress when status changes
+    // Print progress when status changes. Suppressed for a server-bypassed build
+    // (SHERLO-1952): its only progress line would be "🟢 Finished", which implies
+    // a device run that never happened.
     const progressLine = formatProgressLine(build);
-    if (progressLine !== lastStatus) {
+    if (!serverBypassed && progressLine !== lastStatus) {
       console.log(progressLine);
       lastStatus = progressLine;
     }
@@ -192,10 +207,15 @@ class AuthError extends Error {
 async function fetchBuildStatus(
   endpointUrl: string,
   apiToken: string,
-  variables: { index: number; projectIndex: number; teamId: string }
+  variables: { index: number; projectIndex: number; teamId: string },
+  // Single-shot callers (fetchServerBypassReason) bound the request so a slow API
+  // can never hang a non-wait run. The poll loop omits it - its own outer timeout
+  // governs - so the wait path is unchanged.
+  timeoutMs?: number
 ): Promise<NonNullable<BuildStatusResponse['getBuildStatus']> | null> {
   const response = await fetch(endpointUrl, {
     method: 'POST',
+    ...(timeoutMs !== undefined ? { timeout: timeoutMs } : {}),
     headers: {
       'Content-Type': 'application/json',
       Authorization: JSON.stringify({ authToken: apiToken }),
@@ -268,16 +288,19 @@ function evaluateTerminalState(
         console.log();
         const serverBypassReason = getServerBypassReason(diffScopeInfo);
         if (serverBypassReason) {
-          console.log(
-            chalk.green(
-              '✅ Nothing needed capturing - every screenshot was reused from the previous build.'
-            )
-          );
-          console.log(chalk.dim(`   ${serverBypassReason}`));
+          // Server-bypassed build (SHERLO-1952): there is nothing to review (zero
+          // new screenshots) and the review page cannot render this build shape
+          // yet (SHERLO-1974), so the closer stays compact and points at no URL.
+          // The caller (printCapturePlanAndCloser) has already withheld the review
+          // URL for a bypassed build, so omitting it here loses no link.
+          printServerBypassCloser(serverBypassReason);
         } else {
+          // No verbatim reason -> today's behaviour, keeping the link. Covers the
+          // forward-compat degrade of a counts-bypassed build whose poll carries
+          // no prose (a working link beats silence) and every ordinary green build.
           console.log(chalk.green('✅ All stories passed - no visual changes require review.'));
+          console.log(chalk.blue(`   ${url}`));
         }
-        console.log(chalk.blue(`   ${url}`));
         console.log();
         return EXIT_GREEN;
       }
@@ -325,15 +348,40 @@ function evaluateTerminalState(
 const PLATFORM_REASON_ORDER = ['android', 'ios'] as const;
 
 /**
+ * The counts-only signature of a server-bypassed build (SHERLO-1959): zero
+ * captures with at least one inherited snapshot. This is the SINGLE detection of
+ * the bypass shape - it needs only the two counts, which are present both on the
+ * poll response here AND on the openBuild response (BuildFragment selects
+ * `capturedSnapshotCount`/`inheritedSnapshotCount` but NOT the per-platform
+ * `reason`). testBundled calls this at openBuild time to decide whether to
+ * withhold the review URL (both modes) and suppress the "waiting"/"finished"
+ * lines (--wait only) for a build that never ran on a device (SHERLO-1952). The
+ * prose reason is not needed for that decision and is not available at openBuild
+ * anyway; it is read from a getBuildStatus response - the --wait poll's, or the
+ * single non-wait call in {@link fetchServerBypassReason} - by
+ * {@link getServerBypassReason}.
+ */
+export function isServerBypassed(
+  diffScopeInfo:
+    | { capturedSnapshotCount?: number; inheritedSnapshotCount?: number }
+    | null
+    | undefined
+): boolean {
+  return (
+    diffScopeInfo?.capturedSnapshotCount === 0 && (diffScopeInfo?.inheritedSnapshotCount ?? 0) > 0
+  );
+}
+
+/**
  * When the API server-bypassed the build (SHERLO-1959) - it already knew every
  * story's screenshot could be inherited from the previous build, so it closed
  * the build without ever handing it to the runner - return the plain-prose
- * reason line to print beneath the closing message; otherwise return undefined
- * so the caller falls back to the generic "All stories passed" line.
+ * reason line to print in the closing message; otherwise return undefined so the
+ * caller falls back to the generic "All stories passed" line.
  *
  * Recognized off the SAME shape closeBuild persists (see the API unit test
- * closeAsZeroCaptureNoOp.unit.test.ts): zero captures, at least one inherited
- * snapshot, and a per-platform prose `reason`. The reason is taken from
+ * closeAsZeroCaptureNoOp.unit.test.ts): the {@link isServerBypassed} counts plus
+ * a per-platform prose `reason`. The reason is taken from
  * `platforms.<platform>.reason` - the operator-approved prose the CLI prints
  * verbatim - never from `fullCaptureTriggerReason`, which is a machine enum
  * code and is always absent on a bypassed (partial-capture) build anyway
@@ -343,10 +391,7 @@ const PLATFORM_REASON_ORDER = ['android', 'ios'] as const;
 function getServerBypassReason(
   diffScopeInfo: NonNullable<BuildStatusResponse['getBuildStatus']>['diffScopeInfo']
 ): string | undefined {
-  const bypassed =
-    diffScopeInfo?.capturedSnapshotCount === 0 && (diffScopeInfo?.inheritedSnapshotCount ?? 0) > 0;
-
-  if (!bypassed) {
+  if (!isServerBypassed(diffScopeInfo)) {
     return undefined;
   }
 
@@ -358,6 +403,63 @@ function getServerBypassReason(
   }
 
   return undefined;
+}
+
+/**
+ * The compact closer for a server-bypassed build (SHERLO-1952): the server's
+ * verbatim reason inline in the headline, then the fixed dim line. No URL - the
+ * build has nothing to review and the review page cannot render this shape yet
+ * (SHERLO-1974). One definition, used by BOTH the --wait terminal path here and
+ * the non-wait closer in testBundled, so the two modes print identical text.
+ */
+export function printServerBypassCloser(reason: string): void {
+  console.log(chalk.green(`✅ Nothing needed capturing - ${reason}`));
+  console.log(chalk.dim('   closed by the server - no device run was needed'));
+}
+
+/**
+ * How long the single-shot bypass-reason query may take before it is abandoned.
+ * Generous enough for a healthy API, short enough that a wedged endpoint cannot
+ * stall a non-wait run.
+ */
+const BYPASS_REASON_QUERY_TIMEOUT_MS = 10_000;
+
+/**
+ * Fetch the server's verbatim bypass reason with ONE getBuildStatus call against
+ * the already-closed build - the non-wait counterpart to the --wait poll, using
+ * the SAME query/wire shape (`fetchBuildStatus`) so there is one place to change
+ * if the shape moves. The build is already terminal server-side, so this returns
+ * immediately; it is a single read, not a wait.
+ *
+ * Best-effort by contract (SHERLO-1952 guard rail): any failure - network, auth,
+ * timeout, malformed response, or simply no per-platform reason - degrades to
+ * `undefined`, and the caller falls back to today's review URL. A build that
+ * succeeded must never be reported failed over this cosmetic closing query, so
+ * nothing here is allowed to throw.
+ */
+export async function fetchServerBypassReason({
+  token,
+  buildIndex,
+  projectIndex,
+  teamId,
+}: {
+  token: string;
+  buildIndex: number;
+  projectIndex: number;
+  teamId: string;
+}): Promise<string | undefined> {
+  try {
+    const { apiToken } = getTokenParts(token);
+    const build = await fetchBuildStatus(
+      getEndpointUrl(),
+      apiToken,
+      { index: buildIndex, projectIndex, teamId },
+      BYPASS_REASON_QUERY_TIMEOUT_MS
+    );
+    return getServerBypassReason(build?.diffScopeInfo);
+  } catch {
+    return undefined;
+  }
 }
 
 function formatProgressLine(build: NonNullable<BuildStatusResponse['getBuildStatus']>): string {
