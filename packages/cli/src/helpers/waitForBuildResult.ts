@@ -207,10 +207,15 @@ class AuthError extends Error {
 async function fetchBuildStatus(
   endpointUrl: string,
   apiToken: string,
-  variables: { index: number; projectIndex: number; teamId: string }
+  variables: { index: number; projectIndex: number; teamId: string },
+  // Single-shot callers (fetchServerBypassReason) bound the request so a slow API
+  // can never hang a non-wait run. The poll loop omits it - its own outer timeout
+  // governs - so the wait path is unchanged.
+  timeoutMs?: number
 ): Promise<NonNullable<BuildStatusResponse['getBuildStatus']> | null> {
   const response = await fetch(endpointUrl, {
     method: 'POST',
+    ...(timeoutMs !== undefined ? { timeout: timeoutMs } : {}),
     headers: {
       'Content-Type': 'application/json',
       Authorization: JSON.stringify({ authToken: apiToken }),
@@ -286,17 +291,13 @@ function evaluateTerminalState(
           // Server-bypassed build (SHERLO-1952): there is nothing to review (zero
           // new screenshots) and the review page cannot render this build shape
           // yet (SHERLO-1974), so the closer stays compact and points at no URL.
-          // The reason is the server's verbatim prose (SHERLO-1919) - the CLI
-          // never composes it. The caller has already suppressed the review URL
-          // (printCapturePlanAndCloser) when it flagged the bypass, so omitting
-          // the URL here loses no link.
-          console.log(chalk.green(`✅ Nothing needed capturing - ${serverBypassReason}`));
-          console.log(chalk.dim('   closed by the server - no device run was needed'));
+          // The caller (printCapturePlanAndCloser) has already withheld the review
+          // URL for a bypassed build, so omitting it here loses no link.
+          printServerBypassCloser(serverBypassReason);
         } else {
-          // No verbatim reason -> today's behaviour, keeping the link. Covers
-          // both the forward-compat degrade of a counts-bypassed build whose poll
-          // carries no prose (SHERLO-1952 gate: a working link beats silence) and
-          // every ordinary green build.
+          // No verbatim reason -> today's behaviour, keeping the link. Covers the
+          // forward-compat degrade of a counts-bypassed build whose poll carries
+          // no prose (a working link beats silence) and every ordinary green build.
           console.log(chalk.green('✅ All stories passed - no visual changes require review.'));
           console.log(chalk.blue(`   ${url}`));
         }
@@ -352,11 +353,13 @@ const PLATFORM_REASON_ORDER = ['android', 'ios'] as const;
  * the bypass shape - it needs only the two counts, which are present both on the
  * poll response here AND on the openBuild response (BuildFragment selects
  * `capturedSnapshotCount`/`inheritedSnapshotCount` but NOT the per-platform
- * `reason`). testBundled calls this at openBuild time to decide, BEFORE the first
- * poll, whether to suppress the "waiting"/"finished" lines and the review URL for
- * a build that never ran on a device (SHERLO-1952). The prose reason is not
- * needed for that decision and is not available at openBuild anyway; it is read
- * from the poll response by {@link getServerBypassReason}.
+ * `reason`). testBundled calls this at openBuild time to decide whether to
+ * withhold the review URL (both modes) and suppress the "waiting"/"finished"
+ * lines (--wait only) for a build that never ran on a device (SHERLO-1952). The
+ * prose reason is not needed for that decision and is not available at openBuild
+ * anyway; it is read from a getBuildStatus response - the --wait poll's, or the
+ * single non-wait call in {@link fetchServerBypassReason} - by
+ * {@link getServerBypassReason}.
  */
 export function isServerBypassed(
   diffScopeInfo:
@@ -400,6 +403,63 @@ function getServerBypassReason(
   }
 
   return undefined;
+}
+
+/**
+ * The compact closer for a server-bypassed build (SHERLO-1952): the server's
+ * verbatim reason inline in the headline, then the fixed dim line. No URL - the
+ * build has nothing to review and the review page cannot render this shape yet
+ * (SHERLO-1974). One definition, used by BOTH the --wait terminal path here and
+ * the non-wait closer in testBundled, so the two modes print identical text.
+ */
+export function printServerBypassCloser(reason: string): void {
+  console.log(chalk.green(`✅ Nothing needed capturing - ${reason}`));
+  console.log(chalk.dim('   closed by the server - no device run was needed'));
+}
+
+/**
+ * How long the single-shot bypass-reason query may take before it is abandoned.
+ * Generous enough for a healthy API, short enough that a wedged endpoint cannot
+ * stall a non-wait run.
+ */
+const BYPASS_REASON_QUERY_TIMEOUT_MS = 10_000;
+
+/**
+ * Fetch the server's verbatim bypass reason with ONE getBuildStatus call against
+ * the already-closed build - the non-wait counterpart to the --wait poll, using
+ * the SAME query/wire shape (`fetchBuildStatus`) so there is one place to change
+ * if the shape moves. The build is already terminal server-side, so this returns
+ * immediately; it is a single read, not a wait.
+ *
+ * Best-effort by contract (SHERLO-1952 guard rail): any failure - network, auth,
+ * timeout, malformed response, or simply no per-platform reason - degrades to
+ * `undefined`, and the caller falls back to today's review URL. A build that
+ * succeeded must never be reported failed over this cosmetic closing query, so
+ * nothing here is allowed to throw.
+ */
+export async function fetchServerBypassReason({
+  token,
+  buildIndex,
+  projectIndex,
+  teamId,
+}: {
+  token: string;
+  buildIndex: number;
+  projectIndex: number;
+  teamId: string;
+}): Promise<string | undefined> {
+  try {
+    const { apiToken } = getTokenParts(token);
+    const build = await fetchBuildStatus(
+      getEndpointUrl(),
+      apiToken,
+      { index: buildIndex, projectIndex, teamId },
+      BYPASS_REASON_QUERY_TIMEOUT_MS
+    );
+    return getServerBypassReason(build?.diffScopeInfo);
+  } catch {
+    return undefined;
+  }
 }
 
 function formatProgressLine(build: NonNullable<BuildStatusResponse['getBuildStatus']>): string {

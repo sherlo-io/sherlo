@@ -14,6 +14,7 @@ import waitForBuildResult, {
   EXIT_ERROR,
   EXIT_GREEN,
   EXIT_TIMEOUT,
+  fetchServerBypassReason,
 } from '../waitForBuildResult';
 
 chalk.level = 0;
@@ -724,5 +725,124 @@ describe('waitForBuildResult', () => {
 
     expect(result).toBe(EXIT_GREEN);
     expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+/* ========================================================================== */
+/* fetchServerBypassReason - the non-wait single-shot reason read (SHERLO-1952) */
+/*                                                                              */
+/* This is the function guard rail 2 rests on: it must degrade EVERY failure    */
+/* (network, auth, timeout, malformed, or simply no per-platform reason) to     */
+/* `undefined` and NEVER throw, so the closing of a build that actually         */
+/* succeeded can never be turned into a failure by a cosmetic display query.    */
+/* Tested directly here (the testBundled tests mock it out and so cannot catch  */
+/* it throwing). Real timers - the mocked fetch resolves synchronously.         */
+/* ========================================================================== */
+
+describe('fetchServerBypassReason', () => {
+  const args = {
+    token: TOKEN,
+    buildIndex: BUILD_INDEX,
+    projectIndex: PROJECT_INDEX,
+    teamId: TEAM_ID,
+  };
+
+  beforeEach(() => {
+    mockFetch.mockReset();
+  });
+
+  it('returns the verbatim per-platform reason for a bypassed poll shape', async () => {
+    mockGraphqlResponse(
+      200,
+      buildResponse(
+        'finished',
+        { approved: 0, noChanges: 3, reported: 0, unreviewed: 0 },
+        undefined,
+        {
+          capturedSnapshotCount: 0,
+          inheritedSnapshotCount: 15,
+          platforms: { android: { reason: 'no change reaches any story' } },
+        }
+      )
+    );
+
+    await expect(fetchServerBypassReason(args)).resolves.toBe('no change reaches any story');
+  });
+
+  it('resolves undefined (never throws) when the request rejects - network error', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+
+    await expect(fetchServerBypassReason(args)).resolves.toBeUndefined();
+  });
+
+  it('resolves undefined (never throws) on an auth failure - an expired token must not turn a green build red', async () => {
+    // fetchBuildStatus throws AuthError on HTTP 401; fetchServerBypassReason must
+    // convert that into undefined rather than let it escape.
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+      json: async () => ({}),
+    });
+
+    await expect(fetchServerBypassReason(args)).resolves.toBeUndefined();
+  });
+
+  it('resolves undefined for a non-bypassed shape (counts do not match)', async () => {
+    mockGraphqlResponse(
+      200,
+      buildResponse(
+        'finished',
+        { approved: 5, noChanges: 10, reported: 0, unreviewed: 0 },
+        undefined,
+        {
+          capturedSnapshotCount: 2,
+          inheritedSnapshotCount: 13,
+          platforms: { android: { reason: 'no change reaches any story' } },
+        }
+      )
+    );
+
+    await expect(fetchServerBypassReason(args)).resolves.toBeUndefined();
+  });
+
+  it('resolves undefined for a bypassed shape carrying no per-platform reason', async () => {
+    mockGraphqlResponse(
+      200,
+      buildResponse(
+        'finished',
+        { approved: 5, noChanges: 10, reported: 0, unreviewed: 0 },
+        undefined,
+        {
+          capturedSnapshotCount: 0,
+          inheritedSnapshotCount: 15,
+        }
+      )
+    );
+
+    await expect(fetchServerBypassReason(args)).resolves.toBeUndefined();
+  });
+
+  it('makes EXACTLY ONE request and passes the 10s timeout to fetch (a read, not a poll)', async () => {
+    mockGraphqlResponse(
+      200,
+      buildResponse(
+        'finished',
+        { approved: 0, noChanges: 1, reported: 0, unreviewed: 0 },
+        undefined,
+        {
+          capturedSnapshotCount: 0,
+          inheritedSnapshotCount: 4,
+          platforms: { ios: { reason: 'nothing changed' } },
+        }
+      )
+    );
+
+    await fetchServerBypassReason(args);
+
+    // One shot - a regression that turned this into a retry loop must fail here.
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    // The single call is bounded so a wedged API cannot hang a non-wait run.
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({ timeout: 10_000 });
   });
 });

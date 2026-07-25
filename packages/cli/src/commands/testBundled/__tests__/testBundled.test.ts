@@ -81,6 +81,16 @@ vi.mock('../dryRun', () => ({
   runDryRunPreview: vi.fn(),
 }));
 
+// testBundled imports isServerBypassed / printServerBypassCloser / the network
+// fetchServerBypassReason directly from the waitForBuildResult module. Keep the
+// pure helpers real (so bypass detection + the closer text are exercised for
+// real) and mock ONLY the network read, so tests control the reason without
+// hitting the API.
+vi.mock('../../../helpers/waitForBuildResult', async (importActual) => {
+  const actual = await importActual<typeof import('../../../helpers/waitForBuildResult')>();
+  return { ...actual, fetchServerBypassReason: vi.fn() };
+});
+
 // ---------------------------------------------------------------------------
 // Mocked dependency accessors
 // ---------------------------------------------------------------------------
@@ -103,6 +113,7 @@ import {
 } from '../buildBundle';
 import _uploadStagedArtifacts from '../uploadStagedArtifacts';
 import { runDryRunPreview as _runDryRunPreview } from '../dryRun';
+import { fetchServerBypassReason as _fetchServerBypassReason } from '../../../helpers/waitForBuildResult';
 
 const mockGetAppBuildUrl = vi.mocked(_getAppBuildUrl);
 const mockGetBuildRunConfig = vi.mocked(_getBuildRunConfig);
@@ -118,6 +129,7 @@ const mockBuildGateMetadata = vi.mocked(_buildGateMetadata);
 const mockUploadStagedArtifacts = vi.mocked(_uploadStagedArtifacts);
 const mockRunDryRunPreview = vi.mocked(_runDryRunPreview);
 const mockWaitForBuildResult = vi.mocked(_waitForBuildResult);
+const mockFetchServerBypassReason = vi.mocked(_fetchServerBypassReason);
 
 // ---------------------------------------------------------------------------
 // Subject under test
@@ -897,10 +909,12 @@ describe('live capture plan', () => {
 // ---------------------------------------------------------------------------
 // Server-bypassed build (SHERLO-1952): the API closed the build itself without a
 // device run (0 captured, >0 inherited). The CLI must stop pointing at the
-// review page (SHERLO-1974) and stop implying device work happened - but ONLY
-// when --wait will print the compact bypassed closer in its place. Non-wait keeps
-// the link (the verbatim reason is unavailable without a poll). Detection is off
-// the openBuild COUNTS; the fact is threaded into waitForBuildResult.
+// review page (SHERLO-1974) and stop implying device work happened, in BOTH
+// modes. Detection is off the openBuild COUNTS. In --wait mode the compact closer
+// comes from the poll (waitForBuildResult, mocked here). In non-wait mode it
+// comes from a single guarded getBuildStatus read (fetchServerBypassReason,
+// mocked here); if that read yields no reason the CLI falls back to today's
+// Review URL - a working link beats silence.
 // ---------------------------------------------------------------------------
 
 describe('server-bypassed build (SHERLO-1952)', () => {
@@ -959,38 +973,69 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     exitSpy.mockRestore();
   });
 
-  it('--wait: withholds the Review URL and flags the bypass to waitForBuildResult', async () => {
+  it('--wait: withholds the Review URL, makes NO non-wait read, flags the bypass to the poll', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({ wait: true, bypassed: true });
 
     await testBundled(mockOptions());
 
     const out = printed(logSpy);
-    // No review URL here - the --wait closer speaks for the build instead.
+    // No review URL here - the --wait poll's closer speaks for the build instead.
     expect(out).not.toContain('🔗 Review');
     expect(out).not.toContain('http://app/build');
 
     expect(mockWaitForBuildResult).toHaveBeenCalledTimes(1);
     expect(mockWaitForBuildResult.mock.calls[0][0]).toMatchObject({ serverBypassed: true });
+    // The non-wait single read is exclusive to the non-wait path.
+    expect(mockFetchServerBypassReason).not.toHaveBeenCalled();
 
     logSpy.mockRestore();
   });
 
-  it('NON-wait: keeps the Review URL (the verbatim reason needs a poll that never runs)', async () => {
+  it('NON-wait: prints the compact closer with the verbatim reason and NO Review URL', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({ wait: false, bypassed: true });
+    mockFetchServerBypassReason.mockResolvedValue('no change reaches any story');
 
     await testBundled(mockOptions());
 
     const out = printed(logSpy);
-    // A working link beats silence - non-wait cannot print the verbatim closer.
-    expect(out).toContain('🔗 Review: http://app/build');
+    expect(out).toContain('✅ Nothing needed capturing - no change reaches any story');
+    expect(out).toContain('closed by the server - no device run was needed');
+    // The whole point: no URL of any kind on the bypassed path.
+    expect(out).not.toContain('🔗 Review');
+    expect(out).not.toContain('http://app/build');
+
+    // One getBuildStatus read against the already-closed build; no polling.
     expect(mockWaitForBuildResult).not.toHaveBeenCalled();
+    expect(mockFetchServerBypassReason).toHaveBeenCalledTimes(1);
+    expect(mockFetchServerBypassReason.mock.calls[0][0]).toMatchObject({
+      token: 'token-value',
+      buildIndex: 7,
+      projectIndex: 3,
+      teamId: 'team',
+    });
 
     logSpy.mockRestore();
   });
 
-  it('non-bypassed --wait: Review URL prints and waitForBuildResult is told serverBypassed=false', async () => {
+  it('NON-wait fallback: reason unavailable -> keeps the Review URL, never a bare closer', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({ wait: false, bypassed: true });
+    // The read degraded (network / older API / no per-platform prose).
+    mockFetchServerBypassReason.mockResolvedValue(undefined);
+
+    await testBundled(mockOptions());
+
+    const out = printed(logSpy);
+    // A working link beats silence; a closer never prints with nothing after the dash.
+    expect(out).toContain('🔗 Review: http://app/build');
+    expect(out).not.toContain('Nothing needed capturing');
+
+    logSpy.mockRestore();
+  });
+
+  it('non-bypassed --wait: Review URL prints, serverBypassed=false, ZERO extra reads', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({ wait: true, bypassed: false });
 
@@ -1001,6 +1046,33 @@ describe('server-bypassed build (SHERLO-1952)', () => {
 
     expect(mockWaitForBuildResult).toHaveBeenCalledTimes(1);
     expect(mockWaitForBuildResult.mock.calls[0][0]).toMatchObject({ serverBypassed: false });
+    // Guard rail 1: a normal build makes NO extra call.
+    expect(mockFetchServerBypassReason).not.toHaveBeenCalled();
+
+    logSpy.mockRestore();
+  });
+
+  it('non-bypassed NON-wait: Review URL prints and makes ZERO extra reads', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({ wait: false, bypassed: false });
+
+    await testBundled(mockOptions());
+
+    const out = printed(logSpy);
+    expect(out).toContain('🔗 Review: http://app/build');
+    expect(mockFetchServerBypassReason).not.toHaveBeenCalled();
+
+    logSpy.mockRestore();
+  });
+
+  it('NON-wait bypassed output is pinned', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({ wait: false, bypassed: true });
+    mockFetchServerBypassReason.mockResolvedValue('no change reaches any story');
+
+    await testBundled(mockOptions());
+
+    expect(printed(logSpy)).toMatchSnapshot();
 
     logSpy.mockRestore();
   });
