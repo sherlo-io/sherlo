@@ -1,0 +1,14 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`server-bypassed build (SHERLO-1952) > non-bypassed output is byte-identical with and without --wait 1`] = `
+"
+📦 Bundling for staged upload...
+
+
+🍎 Building ios bundle...
+  ✓ Bundle: bundle.ios.js (1.5 MB, plain-js, expo)
+
+⬆️  Uploading ios bundle...
+
+🔗 Review: http://app/build"
+`;

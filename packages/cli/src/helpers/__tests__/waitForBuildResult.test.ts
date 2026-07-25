@@ -153,6 +153,20 @@ describe('waitForBuildResult', () => {
       return spy.mock.calls.map((call: unknown[]) => call[0] ?? '').join('\n');
     }
 
+    // A build the caller already flagged as server-bypassed off the openBuild
+    // counts (SHERLO-1952) passes `serverBypassed: true` - that is how testBundled
+    // invokes it in the real flow. The poll response is set up per test via
+    // mockGraphqlResponse before this is called.
+    function bypassedBuild() {
+      return waitForBuildResult({
+        token: TOKEN,
+        buildIndex: BUILD_INDEX,
+        projectIndex: PROJECT_INDEX,
+        teamId: TEAM_ID,
+        serverBypassed: true,
+      });
+    }
+
     let logSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(() => {
@@ -163,7 +177,7 @@ describe('waitForBuildResult', () => {
       logSpy.mockRestore();
     });
 
-    it('prints the "nothing needed capturing" closing line and pins its wording', async () => {
+    it('pins the compact bypassed closer and the absence of all device-run output', async () => {
       mockGraphqlResponse(
         200,
         buildResponse(
@@ -178,20 +192,21 @@ describe('waitForBuildResult', () => {
         )
       );
 
-      const promise = waitForBuildResult({
-        token: TOKEN,
-        buildIndex: BUILD_INDEX,
-        projectIndex: PROJECT_INDEX,
-        teamId: TEAM_ID,
-      });
+      const promise = bypassedBuild();
 
       await vi.runAllTimersAsync();
       const result = await promise;
 
+      // The exit-code contract is unchanged: a closed, clean build is GREEN.
       expect(result).toBe(EXIT_GREEN);
 
       const printed = printedOutput(logSpy);
       expect(printed).toMatchSnapshot();
+
+      // Absence assertions are the point of SHERLO-1952: no wait theatre, no URL.
+      expect(printed).not.toContain('Waiting for build results');
+      expect(printed).not.toContain('🟢 Finished');
+      expect(printed).not.toContain('http'); // neither a review nor a build URL
     });
 
     it('prints the bypassed closer off the real API shape even with no fullCaptureTriggerReason (regression, SHERLO-1963)', async () => {
@@ -213,12 +228,7 @@ describe('waitForBuildResult', () => {
         )
       );
 
-      const promise = waitForBuildResult({
-        token: TOKEN,
-        buildIndex: BUILD_INDEX,
-        projectIndex: PROJECT_INDEX,
-        teamId: TEAM_ID,
-      });
+      const promise = bypassedBuild();
 
       await vi.runAllTimersAsync();
       const result = await promise;
@@ -227,8 +237,12 @@ describe('waitForBuildResult', () => {
 
       const printed = printedOutput(logSpy);
       expect(printed).toContain('Nothing needed capturing');
-      // The platform reason is printed verbatim as the closer's reason line.
-      expect(printed).toContain('no change reaches any story');
+      // The platform reason is printed verbatim, INLINE in the headline.
+      expect(printed).toContain('✅ Nothing needed capturing - no change reaches any story');
+      // The fixed dim line replaces the old CLI-invented "every screenshot was
+      // reused" sentence.
+      expect(printed).toContain('closed by the server - no device run was needed');
+      expect(printed).not.toContain('every screenshot was reused');
       expect(printed).not.toContain('All stories passed');
     });
 
@@ -253,12 +267,7 @@ describe('waitForBuildResult', () => {
         )
       );
 
-      const promise = waitForBuildResult({
-        token: TOKEN,
-        buildIndex: BUILD_INDEX,
-        projectIndex: PROJECT_INDEX,
-        teamId: TEAM_ID,
-      });
+      const promise = bypassedBuild();
 
       await vi.runAllTimersAsync();
       await promise;
@@ -284,12 +293,7 @@ describe('waitForBuildResult', () => {
         )
       );
 
-      const promise = waitForBuildResult({
-        token: TOKEN,
-        buildIndex: BUILD_INDEX,
-        projectIndex: PROJECT_INDEX,
-        teamId: TEAM_ID,
-      });
+      const promise = bypassedBuild();
 
       await vi.runAllTimersAsync();
       await promise;
@@ -300,6 +304,8 @@ describe('waitForBuildResult', () => {
     });
 
     it('falls back to the generic green message when diffScopeInfo is absent', async () => {
+      // Not a bypass at openBuild (no counts) -> serverBypassed omitted -> today's
+      // behaviour, waiting line and URL included.
       mockGraphqlResponse(
         200,
         buildResponse('finished', { approved: 5, noChanges: 10, reported: 0, unreviewed: 0 })
@@ -350,7 +356,12 @@ describe('waitForBuildResult', () => {
       expect(printed).not.toContain('Nothing needed capturing');
     });
 
-    it('falls back to the generic green message when no platform reason is present', async () => {
+    it('forward-compat degrade: counts say bypass but the poll carries no reason -> generic green WITH the link', async () => {
+      // The gate condition (SHERLO-1952): 0 captured, >0 inherited, AND a
+      // per-platform reason. Reason absent (older API) -> keep the link. The
+      // caller still flags the bypass off the counts (serverBypassed: true), so
+      // the wait theatre is suppressed, but the closer keeps the URL because a
+      // working link beats silence.
       mockGraphqlResponse(
         200,
         buildResponse(
@@ -361,12 +372,7 @@ describe('waitForBuildResult', () => {
         )
       );
 
-      const promise = waitForBuildResult({
-        token: TOKEN,
-        buildIndex: BUILD_INDEX,
-        projectIndex: PROJECT_INDEX,
-        teamId: TEAM_ID,
-      });
+      const promise = bypassedBuild();
 
       await vi.runAllTimersAsync();
       await promise;
@@ -374,6 +380,8 @@ describe('waitForBuildResult', () => {
       const printed = printedOutput(logSpy);
       expect(printed).toContain('All stories passed');
       expect(printed).not.toContain('Nothing needed capturing');
+      // The link is preserved - silence is never better than a working link.
+      expect(printed).toContain('http');
     });
   });
 

@@ -39,6 +39,7 @@ import {
   waitForBuildResult,
 } from '../../helpers';
 import printLink from '../../helpers/printLink';
+import { isServerBypassed } from '../../helpers/waitForBuildResult';
 import { computeBaseFingerprint, type GateMetadataInput } from '../../helpers/fingerprint';
 import { THIS_COMMAND } from './constants';
 import { buildBundleForPlatform, buildGateMetadata, type BundleResult } from './buildBundle';
@@ -343,14 +344,31 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
+  // The API may close the build itself, without ever running it on a device
+  // (SHERLO-1959), when every story's screenshot can be inherited from the
+  // previous build. Detected off the openBuild COUNTS (the per-platform prose
+  // reason is not selected by BuildFragment, so it is unavailable here - it comes
+  // from the --wait poll where it IS selected). A bypassed build has nothing to
+  // review, so we suppress the review/build URL and the --wait "device work"
+  // theatre (SHERLO-1952/1974).
+  const serverBypassed = isServerBypassed(openBuildReturn.build.diffScopeInfo);
+
   // The command EXPLAINS its own capture plan (SHERLO-1919): which stories this
   // run is capturing, which it is reusing from the previous build, and why - read
   // straight off the openBuild response, no extra API call - then closes with the
   // Review URL LAST (SHERLO-1937: no "Build created" line - the URL IS the
   // ending). Prints no plan block for a platform the server made no decision for
   // (Diff Scope off, or older API), but always closes with the URL so the link
-  // never disappears.
-  printCapturePlanAndCloser({ openBuildReturn, bundles, platformsToTest, url });
+  // never disappears - UNLESS the build was server-bypassed and --wait will print
+  // the compact bypassed closer instead (SHERLO-1952).
+  printCapturePlanAndCloser({
+    openBuildReturn,
+    bundles,
+    platformsToTest,
+    url,
+    serverBypassed,
+    wait: commandParams.wait,
+  });
 
   if (commandParams.wait) {
     const exitCode = await waitForBuildResult({
@@ -359,6 +377,7 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
       projectIndex,
       teamId,
       waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
+      serverBypassed,
     });
 
     // --wait mode: the exit code IS the contract. Flush telemetry then exit.
@@ -386,17 +405,28 @@ export default testBundled;
  * entirely - silence, never an invented "captured everything". If NO platform has
  * a decision, no plan block prints, but the URL still does so the developer
  * always gets their link.
+ *
+ * The one exception (SHERLO-1952): a server-bypassed build under --wait. There is
+ * nothing to review and the review page cannot render this build shape yet
+ * (SHERLO-1974), so the Review URL is withheld here and the --wait poll prints
+ * the compact bypassed closer (with the server's verbatim reason) instead. In
+ * NON-wait mode there is no poll and hence no verbatim reason, so the link is
+ * kept (a working link beats silence) and the closer prints as usual.
  */
 function printCapturePlanAndCloser({
   openBuildReturn,
   bundles,
   platformsToTest,
   url,
+  serverBypassed,
+  wait,
 }: {
   openBuildReturn: Awaited<ReturnType<ReturnType<typeof sdkClient>['openBuild']>>;
   bundles: Partial<Record<Platform, BundleResult>>;
   platformsToTest: Platform[];
   url: string;
+  serverBypassed: boolean;
+  wait: boolean | undefined;
 }): void {
   const diffScopeInfo = openBuildReturn.build.diffScopeInfo as
     | DiffScopeInfoWithPlatformReasons
@@ -429,6 +459,14 @@ function printCapturePlanAndCloser({
 
   if (platforms.length > 0) {
     console.log('\n' + formatDiffScopeReport('live', platforms));
+  }
+
+  // A server-bypassed build under --wait has its closer printed by the poll (the
+  // compact "Nothing needed capturing" line, no URL); withhold the Review URL
+  // here so it is not pointed at a build the review page cannot render yet
+  // (SHERLO-1952/1974).
+  if (serverBypassed && wait) {
+    return;
   }
 
   // The closer, LAST (SHERLO-1919 ordering). A live run has no "Build created"

@@ -1,11 +1,8 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`waitForBuildResult > server-bypassed build closing message > prints the "nothing needed capturing" closing line and pins its wording 1`] = `
-"⏳ Waiting for build results (timeout: 45min)...
-   🟢 Finished
-
-✅ Nothing needed capturing - every screenshot was reused from the previous build.
-   no change reaches any story
-   https://app.sherlo.io/build?t=BBBBBBBB&p=42&b=1
+exports[`waitForBuildResult > server-bypassed build closing message > pins the compact bypassed closer and the absence of all device-run output 1`] = `
+"
+✅ Nothing needed capturing - no change reaches any story
+   closed by the server - no device run was needed
 "
 `;

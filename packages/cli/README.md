@@ -114,3 +114,17 @@ npx sherlo eas-build-on-complete [--profile <profile>]
 **Options:**
 
 - `--profile <profile>` - EAS Build profile (must match profile used in `test:eas-cloud-build`)
+
+<br />
+
+## Configuration file
+
+Test settings live in `sherlo.config.json` (or the file passed to `--config`). Supported properties:
+
+- `token` - Authentication token for the project
+- `android` - Path to the Android build (.apk)
+- `ios` - Path to the iOS build (.app, .tar.gz, .tar)
+- `devices` - Devices to test on, each with its OS version, theme, locale, and font scale
+- `staged` - Staged fast-path settings for `test:bundled` (e.g. the commands that rebuild a stale base)
+- `include` - Story names to test; every other story is skipped
+- `exclude` - Story names to skip; every other story is tested

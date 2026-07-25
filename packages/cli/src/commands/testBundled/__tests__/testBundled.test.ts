@@ -94,6 +94,7 @@ import {
   getValidatedCommandParams as _getValidatedCommandParams,
   printResultsUrl as _printResultsUrl,
   printSherloIntro as _printSherloIntro,
+  waitForBuildResult as _waitForBuildResult,
 } from '../../../helpers';
 import { computeBaseFingerprint as _computeBaseFingerprint } from '../../../helpers/fingerprint';
 import {
@@ -116,6 +117,7 @@ const mockBuildBundleForPlatform = vi.mocked(_buildBundleForPlatform);
 const mockBuildGateMetadata = vi.mocked(_buildGateMetadata);
 const mockUploadStagedArtifacts = vi.mocked(_uploadStagedArtifacts);
 const mockRunDryRunPreview = vi.mocked(_runDryRunPreview);
+const mockWaitForBuildResult = vi.mocked(_waitForBuildResult);
 
 // ---------------------------------------------------------------------------
 // Subject under test
@@ -889,5 +891,139 @@ describe('live capture plan', () => {
     expect(openBuildArg.buildRunConfig.ios.jsBundleS3Key).toBe('js-key');
 
     logSpy.mockRestore();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Server-bypassed build (SHERLO-1952): the API closed the build itself without a
+// device run (0 captured, >0 inherited). The CLI must stop pointing at the
+// review page (SHERLO-1974) and stop implying device work happened - but ONLY
+// when --wait will print the compact bypassed closer in its place. Non-wait keeps
+// the link (the verbatim reason is unavailable without a poll). Detection is off
+// the openBuild COUNTS; the fact is threaded into waitForBuildResult.
+// ---------------------------------------------------------------------------
+
+describe('server-bypassed build (SHERLO-1952)', () => {
+  let exitSpy: ReturnType<typeof vi.spyOn>;
+
+  /**
+   * Wire a run whose openBuild response reports the given diffScopeInfo counts.
+   * `wait` toggles --wait; `bypassed` picks the count shape (0/>0 vs a normal
+   * partial capture).
+   */
+  function setup({ wait, bypassed }: { wait: boolean; bypassed: boolean }): void {
+    mockGetValidatedCommandParams.mockReturnValue({
+      projectRoot: '/proj',
+      token: 'token-value',
+      devices: [IOS_DEVICE],
+      wait,
+      waitTimeout: undefined,
+    } as any);
+    mockGetPlatformsToTest.mockReturnValue(['ios'] as any);
+    mockComputeBaseFingerprint.mockResolvedValue({ hash: 'BASE_FP' } as any);
+    mockCheckStagedGate.mockResolvedValue({ outcome: 'fast', diff: [] });
+    mockBuildBundleForPlatform.mockResolvedValue(bundleResult());
+    mockBuildGateMetadata.mockResolvedValue({ engineClass: 'hermes' } as any);
+    mockGetTokenParts.mockReturnValue({ apiToken: 'api', projectIndex: 3, teamId: 'team' });
+    mockGetStagedUploadUrls.mockResolvedValue({
+      stagedPresignedUploadUrls: { ios: { jsBundle: { s3Key: 'js', url: 'http://s3/js' } } },
+    });
+    mockUploadStagedArtifacts.mockResolvedValue({ jsBundleS3Key: 'js' });
+    mockGetBuildRunConfig.mockReturnValue({ ios: { devices: [], s3Key: 'unset' } } as any);
+    mockGetGitInfo.mockResolvedValue({ commitHash: 'c', branchName: 'b', commitName: 'm' } as any);
+    mockGetAppBuildUrl.mockReturnValue('http://app/build');
+    mockWaitForBuildResult.mockResolvedValue(0);
+
+    const diffScopeInfo = bypassed
+      ? { capturedSnapshotCount: 0, inheritedSnapshotCount: 12 }
+      : { capturedSnapshotCount: 3, inheritedSnapshotCount: 9 };
+
+    mockOpenBuild.mockResolvedValue({
+      build: { index: 7, diffScopeInfo },
+      // No captureScope -> no plan block; keeps these tests focused on the closer.
+      buildRun: { config: { ios: { devices: [] } } },
+    });
+  }
+
+  function printed(logSpy: ReturnType<typeof vi.spyOn>): string {
+    return logSpy.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
+  }
+
+  beforeEach(() => {
+    // --wait exits the process with the code; make that inert so the test can
+    // inspect what was printed and how waitForBuildResult was called.
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as any);
+  });
+
+  afterEach(() => {
+    exitSpy.mockRestore();
+  });
+
+  it('--wait: withholds the Review URL and flags the bypass to waitForBuildResult', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({ wait: true, bypassed: true });
+
+    await testBundled(mockOptions());
+
+    const out = printed(logSpy);
+    // No review URL here - the --wait closer speaks for the build instead.
+    expect(out).not.toContain('🔗 Review');
+    expect(out).not.toContain('http://app/build');
+
+    expect(mockWaitForBuildResult).toHaveBeenCalledTimes(1);
+    expect(mockWaitForBuildResult.mock.calls[0][0]).toMatchObject({ serverBypassed: true });
+
+    logSpy.mockRestore();
+  });
+
+  it('NON-wait: keeps the Review URL (the verbatim reason needs a poll that never runs)', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({ wait: false, bypassed: true });
+
+    await testBundled(mockOptions());
+
+    const out = printed(logSpy);
+    // A working link beats silence - non-wait cannot print the verbatim closer.
+    expect(out).toContain('🔗 Review: http://app/build');
+    expect(mockWaitForBuildResult).not.toHaveBeenCalled();
+
+    logSpy.mockRestore();
+  });
+
+  it('non-bypassed --wait: Review URL prints and waitForBuildResult is told serverBypassed=false', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({ wait: true, bypassed: false });
+
+    await testBundled(mockOptions());
+
+    const out = printed(logSpy);
+    expect(out).toContain('🔗 Review: http://app/build');
+
+    expect(mockWaitForBuildResult).toHaveBeenCalledTimes(1);
+    expect(mockWaitForBuildResult.mock.calls[0][0]).toMatchObject({ serverBypassed: false });
+
+    logSpy.mockRestore();
+  });
+
+  // BYTE-IDENTICAL guarantee (explicit acceptance criterion): a non-bypassed
+  // build's own printed output is unchanged, and identical whether or not --wait
+  // is set (the wait poll adds nothing to testBundled's own output here).
+  it('non-bypassed output is byte-identical with and without --wait', async () => {
+    const logA = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({ wait: false, bypassed: false });
+    await testBundled(mockOptions());
+    const withoutWait = printed(logA);
+    logA.mockRestore();
+
+    vi.clearAllMocks();
+
+    const logB = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({ wait: true, bypassed: false });
+    await testBundled(mockOptions());
+    const withWait = printed(logB);
+    logB.mockRestore();
+
+    expect(withWait).toBe(withoutWait);
+    expect(withoutWait).toMatchSnapshot();
   });
 });
