@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - feature/sherlo-3
 
 jobs:
   checks:

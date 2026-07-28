@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - dev
+      - feature/sherlo-3
 
 jobs:
   release-to-dev:
