@@ -5,10 +5,14 @@
   "keywords": [
     "react-native",
     "storybook",
+    "expo",
+    "eas",
+    "visual-testing",
     "visual-regression-testing",
     "screenshot-testing",
     "ui-testing",
-    "visual-testing"
+    "ios",
+    "android"
   ],
   "license": "MIT",
   "author": "Sherlo",
