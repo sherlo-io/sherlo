@@ -9,10 +9,10 @@
     "eas",
     "ios",
     "android",
-    "visual testing",
-    "visual regression testing",
-    "screenshot testing",
-    "ui testing"
+    "visual-testing",
+    "visual-regression-testing",
+    "screenshot-testing",
+    "ui-testing"
   ],
   "license": "MIT",
   "author": "Sherlo",
