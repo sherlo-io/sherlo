@@ -7,12 +7,12 @@
     "storybook",
     "expo",
     "eas",
-    "visual-testing",
-    "visual-regression-testing",
-    "screenshot-testing",
-    "ui-testing",
     "ios",
-    "android"
+    "android",
+    "visual testing",
+    "visual regression testing",
+    "screenshot testing",
+    "ui testing"
   ],
   "license": "MIT",
   "author": "Sherlo",

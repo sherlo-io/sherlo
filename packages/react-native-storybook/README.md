@@ -1,6 +1,6 @@
-# Sherlo Storybook integration: Visual testing for React Native
+# Sherlo - visual regression testing for React Native (Storybook SDK)
 
-Sherlo is a visual regression testing tool for React Native. The `@sherlo/react-native-storybook` SDK integrates [Sherlo](https://sherlo.io) into your app via Storybook - capture stories on iOS and Android simulators in the cloud, catch UI regressions before they ship.
+Sherlo is a [visual regression testing tool for React Native](https://sherlo.io). The `@sherlo/react-native-storybook` SDK integrates it into your app via Storybook - capture stories on iOS and Android simulators in the cloud, catch visual regressions before they ship.
 
 > **📚 For full documentation, visit [sherlo.io/docs](https://sherlo.io/docs)**
 
@@ -21,26 +21,6 @@ This will automatically install `@sherlo/react-native-storybook` and configure y
 ```bash
 npx sherlo test
 ```
-
-<br />
-
-## Metro Config
-
-Add the following to your `metro.config.js`:
-
-```js
-const { getDefaultConfig } = require('@react-native/metro-config');
-const withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');
-
-const defaultConfig = getDefaultConfig(__dirname);
-
-module.exports = withStorybook(defaultConfig, {
-  enabled: true,
-  configPath: __dirname + '/.rnstorybook',
-});
-```
-
-`withStorybook` is a drop-in replacement for `@storybook/react-native/metro/withStorybook` - it resolves the real one internally via the peer dependency and applies Sherlo's Metro transforms on top.
 
 <br />
 
