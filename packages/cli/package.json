@@ -1,16 +1,19 @@
 {
   "name": "sherlo",
   "version": "2.0.0-alpha.1",
-  "description": "Sherlo CLI: Visual testing for React Native",
+  "description": "Visual regression testing for React Native - Sherlo CLI",
   "keywords": [
-    "visual testing",
     "react-native",
-    "visual regression testing",
-    "react native visual testing",
     "storybook",
-    "screenshot testing",
     "expo",
-    "eas"
+    "eas",
+    "ios",
+    "android",
+    "cli",
+    "visual-testing",
+    "visual-regression-testing",
+    "screenshot-testing",
+    "ui-testing"
   ],
   "license": "MIT",
   "author": "Sherlo",
