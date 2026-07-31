@@ -100,22 +100,22 @@ var PROTOCOL_FILE = 'protocol.sherlo';
     } catch (_) {}
     try {
       // RN 0.81 old-arch: nativeModuleProxy may exist but return null for non-TurboModules.
-      // Kept isolated so a JSI property-access throw doesn't suppress the __r fallback.
       if (global.nativeModuleProxy && global.nativeModuleProxy.SherloModule) {
         return global.nativeModuleProxy.SherloModule;
       }
     } catch (_) {}
-    try {
-      // Works when 'react-native' is in the bundle (all real apps, some test variants).
-      // At polyfill IIFE time this will fail (modules not defined yet); error-handler
-      // callers benefit once module factories have been registered via __d().
-      if (typeof global.__r === 'function') {
-        var rn = global.__r('react-native');
-        if (rn && rn.NativeModules && rn.NativeModules.SherloModule) {
-          return rn.NativeModules.SherloModule;
-        }
-      }
-    } catch (_) {}
+    // NOTE: a third probe (global.__r('react-native') to reach NativeModules) used to
+    // live here as a fallback. It is intentionally removed: metro-runtime's metroRequire
+    // only resolves a string module id (via getModuleIdForVerboseName) when __DEV__ is
+    // true (see metro-runtime src/polyfills/require.js, the versions shipped with
+    // supported RN releases e.g. 0.82.x for RN 0.79.x). In a release bundle the string id
+    // is passed straight through, modules.get() misses, and guardedLoadModule's catch
+    // routes the resulting unknownModuleError to ErrorUtils.reportFatalError instead of
+    // throwing - so the try/catch here never runs and the app is fatally killed ~10s
+    // after JS start (see the ERROR_STORYBOOK_NOT_DISPLAYED timer below). Probes 1-2
+    // above (TurboModuleProxy / nativeModuleProxy) are the deterministic native-module
+    // resolution paths and cover every real app regardless of __DEV__; if both miss,
+    // SherloModule is genuinely not linked and callers here correctly treat it as absent.
     return null;
   }
 
