@@ -1,13 +1,18 @@
 {
   "name": "@sherlo/react-native-storybook",
   "version": "2.0.1",
-  "description": "Sherlo Storybook integration: Visual testing for React Native",
+  "description": "Visual regression testing for React Native - Sherlo Storybook integration SDK",
   "keywords": [
-    "visual testing",
     "react-native",
     "storybook",
-    "visual regression testing",
-    "react native visual testing"
+    "expo",
+    "eas",
+    "ios",
+    "android",
+    "visual-testing",
+    "visual-regression-testing",
+    "screenshot-testing",
+    "ui-testing"
   ],
   "license": "MIT",
   "author": "Sherlo",
