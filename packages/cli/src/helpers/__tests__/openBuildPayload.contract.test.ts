@@ -38,8 +38,6 @@ const mocks = vi.hoisted(() => {
     reporting: { addBreadcrumb: vi.fn(), setTag: vi.fn(), flush: vi.fn() },
     computeChangedFiles: vi.fn(),
     computeNativeFingerprint: vi.fn(),
-    computeBaseFingerprint: vi.fn(),
-    registerBase: vi.fn(),
     waitForBuildResult: vi.fn(),
     logWarning: vi.fn(),
   };
@@ -60,13 +58,9 @@ vi.mock('../handleClientError', () => ({ default: mocks.handleClientError }));
 vi.mock('../reporting', () => ({ default: mocks.reporting }));
 vi.mock('../logWarning', () => ({ default: mocks.logWarning }));
 vi.mock('../waitForBuildResult', () => ({ default: mocks.waitForBuildResult }));
-vi.mock('../diffScope', () => ({
+vi.mock('../turbosnap', () => ({
   computeChangedFiles: mocks.computeChangedFiles,
   computeNativeFingerprint: mocks.computeNativeFingerprint,
-}));
-vi.mock('../fingerprint', () => ({
-  computeBaseFingerprint: mocks.computeBaseFingerprint,
-  registerBase: mocks.registerBase,
 }));
 
 import uploadOrReuseBuildsAndRunTests from '../uploadOrReuseBuildsAndRunTests';
@@ -136,8 +130,6 @@ beforeEach(() => {
   mocks.getBuildRunConfig.mockReturnValue(BUILD_RUN_CONFIG);
   mocks.computeChangedFiles.mockResolvedValue({ changedFiles: ['src/Button.tsx'] });
   mocks.computeNativeFingerprint.mockResolvedValue('native-fp');
-  mocks.computeBaseFingerprint.mockResolvedValue({ hash: null });
-  mocks.registerBase.mockResolvedValue({ gateMetadata: undefined });
   mocks.getAppBuildUrl.mockReturnValue('https://app.sherlo.io/team1234/7/build/42');
   mocks.openBuild.mockResolvedValue({ build: { index: 42 } });
   vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -191,47 +183,10 @@ describe('openBuild payload - core shape', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Conditional baseFingerprint / gateMetadata spread - BOTH branches
-// ---------------------------------------------------------------------------
-
-describe('openBuild payload - baseFingerprint/gateMetadata spread', () => {
-  it('OMITS baseFingerprint and gateMetadata when no base fingerprint is available', async () => {
-    mocks.computeBaseFingerprint.mockResolvedValue({ hash: null });
-
-    await callSubject();
-    const payload = lastOpenBuildPayload();
-
-    expect(payload).not.toHaveProperty('baseFingerprint');
-    expect(payload).not.toHaveProperty('gateMetadata');
-  });
-
-  it('INCLUDES baseFingerprint and per-platform gateMetadata when a base fingerprint exists', async () => {
-    mocks.computeBaseFingerprint.mockResolvedValue({ hash: 'base-fp-hash' });
-    mocks.registerBase.mockResolvedValue({ gateMetadata: { engineClass: 'hermes' } });
-
-    await callSubject();
-    const payload = lastOpenBuildPayload();
-
-    expect(payload.baseFingerprint).toBe('base-fp-hash');
-    // Both platforms are present + requested, so both carry gate metadata.
-    expect(payload.gateMetadata).toEqual({
-      android: { engineClass: 'hermes' },
-      ios: { engineClass: 'hermes' },
-    });
-  });
-
-  it('still includes baseFingerprint with empty gateMetadata when registerBase yields none', async () => {
-    mocks.computeBaseFingerprint.mockResolvedValue({ hash: 'base-fp-hash' });
-    mocks.registerBase.mockResolvedValue({ gateMetadata: undefined });
-
-    await callSubject();
-    const payload = lastOpenBuildPayload();
-
-    expect(payload.baseFingerprint).toBe('base-fp-hash');
-    expect(payload.gateMetadata).toEqual({});
-  });
-});
+// Note: baseFingerprint/gateMetadata payload fields don't exist on this tree
+// (they belong to TurboSnap-fingerprinting commits outside this task's
+// approved pick list of #183/#205/#216) - that describe block was dropped
+// rather than importing that unauthorized code.
 
 // ---------------------------------------------------------------------------
 // Diff scope pass-through
