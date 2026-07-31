@@ -326,6 +326,70 @@ describe('metro/polyfill.js - __d wrap', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Tests: metro/polyfill.js - getSherloNativeModule (native module resolution)
+// ---------------------------------------------------------------------------
+// A third fallback (global.__r('react-native')) used to exist here. Metro's
+// string-to-moduleId resolution only runs under __DEV__, so in release builds - the
+// only mode this polyfill's capture logic is active in - the fallback always missed
+// and fell through to Metro's guardedLoadModule calling ErrorUtils.reportFatalError(),
+// risking a recursive re-entry into this same reporting path. It was removed as dead
+// (and risky) code; these tests guard against it being reintroduced.
+
+describe('metro/polyfill.js - getSherloNativeModule', () => {
+  it('does not fall back to global.__r - removed release-mode dead code', async () => {
+    const reportFn = vi.fn();
+    const fakeGlobal = buildFakeGlobal();
+    // No __turboModuleProxy, no nativeModuleProxy - only a legacy global.__r is present.
+    fakeGlobal.__r = vi.fn((name: string) => {
+      if (name === 'react-native') {
+        return { NativeModules: { SherloModule: { reportEarlyJsError: reportFn } } };
+      }
+      return null;
+    });
+    runPolyfill(fakeGlobal);
+    await Promise.resolve();
+    const handler = getInstalledHandler(fakeGlobal);
+    handler(new Error('boom'), true);
+    expect(reportFn).not.toHaveBeenCalled();
+    expect(fakeGlobal.__r).not.toHaveBeenCalledWith('react-native');
+  });
+
+  it('source no longer calls global.__r(...) for native module resolution', () => {
+    // Only asserts the removed call form (the fallback used to assign its result to
+    // `rn`) - explanatory comments elsewhere in the file legitimately mention
+    // "global.__r(" as prose and should not trip this regression guard.
+    expect(polyfillSource).not.toMatch(/=\s*global\.__r\(/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: android/consumer-rules.pro - CatalystInstanceImpl.mJSExceptionHandler
+// R8 protection
+// ---------------------------------------------------------------------------
+// SherloInitProvider.wrapCatalystJsExceptionHandler reflects into
+// CatalystInstanceImpl.mJSExceptionHandler by literal field name at runtime to install
+// the primary JS-fatal capture path. Without a keep rule, R8 minification in a
+// customer's release build can rename that field, silently breaking the reflection
+// lookup with no JS_ERROR ever written - a release-only, 100%-reproducible failure
+// mode (unlike a timing race) matching the reported incident.
+
+describe('android/consumer-rules.pro', () => {
+  const CONSUMER_RULES_PATH = path.join(__dirname, '../../android/consumer-rules.pro');
+  const BUILD_GRADLE_PATH = path.join(__dirname, '../../android/build.gradle');
+
+  it('keeps CatalystInstanceImpl.mJSExceptionHandler from R8 renaming', () => {
+    const rules = fs.readFileSync(CONSUMER_RULES_PATH, 'utf8');
+    expect(rules).toMatch(/-keepclassmembers class com\.facebook\.react\.bridge\.CatalystInstanceImpl/);
+    expect(rules).toMatch(/mJSExceptionHandler/);
+  });
+
+  it('wires consumer-rules.pro into the library build via consumerProguardFiles', () => {
+    const gradle = fs.readFileSync(BUILD_GRADLE_PATH, 'utf8');
+    expect(gradle).toMatch(/consumerProguardFiles\s+'consumer-rules\.pro'/);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Tests: normalizeStack - PII path stripping
 // ---------------------------------------------------------------------------
 

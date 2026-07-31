@@ -69,6 +69,10 @@ android {
         versionCode 1
         versionName "1.0"
         buildConfigField("boolean", "IS_NEW_ARCHITECTURE_ENABLED", isNewArchitectureEnabled().toString())
+        // Protects SherloInitProvider's reflection-based access to
+        // CatalystInstanceImpl.mJSExceptionHandler from R8 field renaming in
+        // consuming apps' release builds - see android/consumer-rules.pro.
+        consumerProguardFiles 'consumer-rules.pro'
         // Pass the resolved react-native directory to CMake so SherloJsiReader.cpp
         // can include <jsi/jsi.h> from the correct react-native version.
         externalNativeBuild {
