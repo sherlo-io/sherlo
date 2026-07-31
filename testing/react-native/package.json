@@ -14,7 +14,7 @@
     "install:ios:preview": "tar -xzvf builds/preview/ios.tar.gz -C builds/preview && xcrun simctl install booted builds/preview/SherloRNExample.app",
     "install:ios:development": "tar -xzvf builds/development/ios.tar.gz -C builds/development && xcrun simctl install booted builds/development/SherloRNExample.app",
     "test": "jest",
-    "storybook-generate": "sb-rn-get-stories",
+    "storybook-generate": "sb-rn-get-stories --config-path ./.storybook",
     "sherlo": "npx sherlo"
   },
   "dependencies": {
@@ -51,9 +51,9 @@
     "@react-native/metro-config": "0.77.2",
     "@react-native/typescript-config": "0.77.2",
     "@sherlo/react-native-storybook": "file:./sherlo-lib/react-native-storybook.tgz",
-    "@storybook/addon-ondevice-actions": "7.6.20",
-    "@storybook/addon-ondevice-controls": "7.6.20",
-    "@storybook/react-native": "7.6.20",
+    "@storybook/addon-ondevice-actions": "9.1.4",
+    "@storybook/addon-ondevice-controls": "9.1.4",
+    "@storybook/react-native": "9.1.4",
     "@types/jest": "^29.5.13",
     "@types/react": "^18.2.6",
     "@types/react-test-renderer": "^18.0.0",
@@ -62,6 +62,7 @@
     "jest": "^29.6.3",
     "prettier": "2.8.8",
     "react-test-renderer": "18.3.1",
+    "storybook": "9.1.4",
     "typescript": "5.0.4"
   },
   "resolutions": {
