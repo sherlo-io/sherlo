@@ -100,22 +100,22 @@ var PROTOCOL_FILE = 'protocol.sherlo';
     } catch (_) {}
     try {
       // RN 0.81 old-arch: nativeModuleProxy may exist but return null for non-TurboModules.
-      // Kept isolated so a JSI property-access throw doesn't suppress the __r fallback.
       if (global.nativeModuleProxy && global.nativeModuleProxy.SherloModule) {
         return global.nativeModuleProxy.SherloModule;
       }
     } catch (_) {}
-    try {
-      // Works when 'react-native' is in the bundle (all real apps, some test variants).
-      // At polyfill IIFE time this will fail (modules not defined yet); error-handler
-      // callers benefit once module factories have been registered via __d().
-      if (typeof global.__r === 'function') {
-        var rn = global.__r('react-native');
-        if (rn && rn.NativeModules && rn.NativeModules.SherloModule) {
-          return rn.NativeModules.SherloModule;
-        }
-      }
-    } catch (_) {}
+    // NOTE: a third fallback via global.__r('react-native') used to live here and was
+    // removed. Metro's string-to-moduleId resolution (getModuleIdForVerboseName) only
+    // runs under __DEV__ (see metro-runtime/src/polyfills/require.js) - in release
+    // builds global.__r('react-native') looks up the literal string 'react-native' in
+    // a Map keyed by numeric module ids, always misses, and falls through to Metro's
+    // guardedLoadModule, which calls global.ErrorUtils.reportFatalError() on the miss.
+    // Since that call can happen while this very function is being invoked from inside
+    // reportToNative() (itself invoked from an ErrorUtils/1 __d-wrap handler), it risked
+    // recursively re-entering the same reporting path for a bogus "unknown module" error
+    // instead of - or interleaved with - the real one. It never provided real coverage in
+    // release (the only mode this polyfill's capture logic is active in - see IIFE-time
+    // mode gate above), so removing it is a strict improvement.
     return null;
   }
 
