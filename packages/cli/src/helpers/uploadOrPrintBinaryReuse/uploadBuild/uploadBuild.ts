@@ -28,7 +28,7 @@ async function uploadBuild({
 
   reporting.addBreadcrumb({
     category: 'api',
-    message: `Uploading build to S3`,
+    message: 'Uploading build to S3',
     data: { platform, buildSizeMB, buildPath },
     level: 'info',
   });

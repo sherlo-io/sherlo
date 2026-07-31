@@ -1,6 +1,8 @@
 import React, { ReactElement, useEffect, useRef } from 'react';
 import SherloModule from '../SherloModule';
-import checkSdkCompatibility, { __resetCacheForTests as checkSdkCompatibilityReset } from '../checkSdkCompatibility';
+import checkSdkCompatibility, {
+  __resetCacheForTests as checkSdkCompatibilityReset,
+} from '../checkSdkCompatibility';
 import type { InitialSelection } from '@storybook/react-native';
 import { StorybookParams, StorybookView } from '../types';
 import { TestingMode } from './components';
@@ -9,6 +11,10 @@ import { useHideSplashScreen } from './hooks';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import SherloStoryErrorBoundary from './components/SherloStoryErrorBoundary';
 import { LOG_FILE, PROTOCOL_FILE } from '../constants';
+import {
+  getStorybookChannel,
+  startStoryRenderedTracking,
+} from './components/TestingMode/useTestAllStories/storyRenderedReadiness';
 
 let isSdkCompatible = true;
 if (SherloModule.getMode() === 'testing') {
@@ -29,10 +35,17 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
   // timing edge case), which would crash the app before the async iOS
   // sendNativeError(ERROR_SDK_COMPATIBILITY) write completes.
   if (mode === 'testing' && isSdkCompatible) {
-    const delayMs = SherloModule.getConfig().initialStoryRenderDelayMs;
-    const originalGetProjectAnnotations = view._preview.getProjectAnnotations.bind(
-      view._preview
-    );
+    const testingConfig = SherloModule.getConfig();
+    const delayMs = testingConfig.initialStoryRenderDelayMs;
+
+    // Attach the early STORY_RENDERED listener here - the earliest JS access to
+    // the Storybook channel - so a story that renders before useTestStory mounts
+    // is buffered, not missed.
+    try {
+      startStoryRenderedTracking(getStorybookChannel(view));
+    } catch (_e) {}
+
+    const originalGetProjectAnnotations = view._preview.getProjectAnnotations.bind(view._preview);
     view._preview.onGetProjectAnnotationsChanged({
       getProjectAnnotations: async () => {
         const annotations = await originalGetProjectAnnotations();
@@ -49,7 +62,9 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
           ...(delayMs !== undefined && {
             loaders: [
               ...(annotations.loaders ?? []),
-              async () => { await new Promise(r => setTimeout(r, delayMs)); },
+              async () => {
+                await new Promise((r) => setTimeout(r, delayMs));
+              },
             ],
           }),
         };
@@ -91,7 +106,11 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
       storybookLoadedReported.current = true;
       try {
         if (SherloModule.getMode() === 'testing') {
-          const content = JSON.stringify({ action: 'STORYBOOK_LOADED', timestamp: Date.now(), entity: 'app' });
+          const content = JSON.stringify({
+            action: 'STORYBOOK_LOADED',
+            timestamp: Date.now(),
+            entity: 'app',
+          });
           SherloModule.appendFile(PROTOCOL_FILE, `${content}\n`);
         }
       } catch (_e) {}

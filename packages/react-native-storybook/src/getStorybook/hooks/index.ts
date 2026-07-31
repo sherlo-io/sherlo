@@ -1,2 +1,1 @@
 export { useHideSplashScreen } from './useHideSplashScreen';
-

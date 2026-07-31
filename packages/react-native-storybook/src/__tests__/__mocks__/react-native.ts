@@ -12,7 +12,8 @@
  */
 
 // Use globalThis so the accumulator persists across module resets
-(globalThis as any).__sherloTestAppendFileCalls = (globalThis as any).__sherloTestAppendFileCalls || [];
+(globalThis as any).__sherloTestAppendFileCalls =
+  (globalThis as any).__sherloTestAppendFileCalls || [];
 
 function getMode(): string {
   return (globalThis as any).__sherloTestNativeMode || 'default';
@@ -42,7 +43,14 @@ export function __resetAppendFileCalls(): void {
 }
 
 const _config = JSON.stringify({
-  stabilization: { requiredMatches: 3, minScreenshotsCount: 3, intervalMs: 500, timeoutMs: 5000, threshold: 0, includeAA: true },
+  stabilization: {
+    requiredMatches: 3,
+    minScreenshotsCount: 3,
+    intervalMs: 500,
+    timeoutMs: 5000,
+    threshold: 0,
+    includeAA: true,
+  },
 });
 
 export const NativeModules: Record<string, any> = {
@@ -60,7 +68,14 @@ export const NativeModules: Record<string, any> = {
     closeStorybook: () => {},
     toggleStorybook: () => {},
     isScrollable: () => Promise.resolve({ scrollable: false }),
-    scrollToCheckpoint: () => Promise.resolve({ reachedBottom: true, appliedIndex: 0, appliedOffsetPx: 0, viewportPx: 0, contentPx: 0 }),
+    scrollToCheckpoint: () =>
+      Promise.resolve({
+        reachedBottom: true,
+        appliedIndex: 0,
+        appliedOffsetPx: 0,
+        viewportPx: 0,
+        contentPx: 0,
+      }),
     stabilize: () => Promise.resolve(true),
     getInspectorData: () => Promise.resolve('{}'),
     notifyGetStorybookCalled: () => {},

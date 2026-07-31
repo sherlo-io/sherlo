@@ -25,9 +25,10 @@
   },
   "scripts": {
     "build": "lerna run build",
+    "lint": "NODE_ENV=production yarn run -T eslint --ext .ts,.tsx packages/cli/src packages/react-native-storybook/src",
     "lint:circular-dependencies": "npx madge --extensions ts --circular .",
     "lint:js": "cross-env NODE_ENV=production eslint --cache --cache-location=.cache/eslint --ext .js,.jsx,.html,.ts,.tsx,.mjs --report-unused-disable-directives",
-    "lint:js:fix": "yarn lint . --fix",
+    "lint:js:fix": "cross-env NODE_ENV=production eslint --fix --cache --cache-location=.cache/eslint --ext .js,.jsx,.html,.ts,.tsx,.mjs --report-unused-disable-directives",
     "lint:types": "tsc --noEmit",
     "reset": "./scripts/reset.sh",
     "switch-env:test": "./scripts/switch-env.sh test",
@@ -39,6 +40,7 @@
     "cross-env": "^7.0.3",
     "eslint": "8.24.0",
     "lerna": "^9.0.3",
+    "prettier": "2.8.8",
     "ts-node": "^10.9.1",
     "typescript": "^5.3.3"
   },

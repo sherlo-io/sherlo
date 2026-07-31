@@ -9,7 +9,6 @@ import { PackageRequirement } from './types';
 import validatePackageRequirement from './validatePackageRequirement';
 
 function validateCorePackagesVersions() {
-
   const packageVersions = CORE_PACKAGES_REQUIREMENTS.map((requirement) =>
     validatePackageRequirement(requirement)
   );

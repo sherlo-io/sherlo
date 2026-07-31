@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../../constants';
 
 // Derives the packageSpec string using the same logic as installSherlo.ts,
@@ -11,8 +11,8 @@ function derivePackageSpec(
   return localSdkPath
     ? `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@${localSdkProtocol}:${localSdkPath}`
     : sdkVersion
-      ? `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@${sdkVersion}`
-      : SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME;
+    ? `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@${sdkVersion}`
+    : SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME;
 }
 
 const PKG = SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME;

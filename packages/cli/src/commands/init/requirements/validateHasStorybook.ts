@@ -15,10 +15,7 @@ async function validateHasStorybook(): Promise<void> {
     throwError({
       message: 'Set up Storybook before initializing Sherlo',
       learnMoreLink: 'https://github.com/storybookjs/react-native',
-      below:
-        '\n' +
-        chalk.reset('Then re-run:\n') +
-        chalk.cyan(`  ${FULL_INIT_COMMAND}`),
+      below: '\n' + chalk.reset('Then re-run:\n') + chalk.cyan(`  ${FULL_INIT_COMMAND}`),
     });
   }
 }

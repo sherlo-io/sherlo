@@ -8,14 +8,18 @@ function getBuildTypeTipBox(command: Command): string | undefined {
   if (command === TEST_STANDARD_COMMAND) {
     return wrapInBox({
       title: 'Preview Simulator Build',
-      text: `Standard testing requires a ${chalk.bold('preview simulator build')} (with JS bundle)\n\nHow to build: ${printLink(DOCS_LINK.buildPreview)}`,
+      text: `Standard testing requires a ${chalk.bold(
+        'preview simulator build'
+      )} (with JS bundle)\n\nHow to build: ${printLink(DOCS_LINK.buildPreview)}`,
       type: 'default',
     });
   }
   if (command === TEST_EAS_UPDATE_COMMAND) {
     return wrapInBox({
       title: 'Development Simulator Build',
-      text: `EAS Update testing requires a ${chalk.bold('development simulator build')} (without JS bundle)\n\nHow to build: ${printLink(DOCS_LINK.buildDevelopment)}`,
+      text: `EAS Update testing requires a ${chalk.bold(
+        'development simulator build'
+      )} (without JS bundle)\n\nHow to build: ${printLink(DOCS_LINK.buildDevelopment)}`,
       type: 'default',
     });
   }

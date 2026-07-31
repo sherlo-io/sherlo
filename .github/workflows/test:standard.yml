@@ -39,7 +39,7 @@ jobs:
 
       - name: Install project dependencies
         working-directory: testing/${{ inputs.project }}
-        run: yarn
+        run: yarn install --immutable
 
       - name: Download builds
         run: ./scripts/download-testing-builds.sh --project ${{ inputs.project }} --profile preview --branch ${{ github.head_ref || github.ref_name }}
