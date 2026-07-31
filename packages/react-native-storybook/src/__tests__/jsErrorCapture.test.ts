@@ -379,7 +379,9 @@ describe('android/consumer-rules.pro', () => {
 
   it('keeps CatalystInstanceImpl.mJSExceptionHandler from R8 renaming', () => {
     const rules = fs.readFileSync(CONSUMER_RULES_PATH, 'utf8');
-    expect(rules).toMatch(/-keepclassmembers class com\.facebook\.react\.bridge\.CatalystInstanceImpl/);
+    expect(rules).toMatch(
+      /-keepclassmembers class com\.facebook\.react\.bridge\.CatalystInstanceImpl/
+    );
     expect(rules).toMatch(/mJSExceptionHandler/);
   });
 

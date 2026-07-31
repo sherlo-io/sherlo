@@ -40,7 +40,10 @@ describe('getLocalBinariesInfo - iOS .app directory', () => {
   it('resolves sdkVersion from a valid assets/sherlo.json', async () => {
     const appDir = makeAppDir();
     fs.mkdirSync(path.join(appDir, 'assets'));
-    fs.writeFileSync(path.join(appDir, 'assets', 'sherlo.json'), JSON.stringify({ version: '1.2.3' }));
+    fs.writeFileSync(
+      path.join(appDir, 'assets', 'sherlo.json'),
+      JSON.stringify({ version: '1.2.3' })
+    );
 
     const result = await getLocalBinariesInfo({
       paths: { ios: appDir },
