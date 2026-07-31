@@ -11,13 +11,13 @@ type BaseOptions = {
   file: string;
 };
 
-function accessFileInDirectory(options: ReadOptions): Promise<string>;
+function accessFileInDirectory(options: ReadOptions): Promise<string | undefined>;
 function accessFileInDirectory(options: ExistsOptions): Promise<boolean>;
 async function accessFileInDirectory({
   directory,
   file,
   operation,
-}: Options): Promise<string | boolean> {
+}: Options): Promise<string | undefined | boolean> {
   const filePath = path.join(directory, file);
 
   try {
@@ -30,6 +30,8 @@ async function accessFileInDirectory({
     return content;
   } catch (error) {
     if (operation === 'exists') return false;
+
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
 
     throwError({ type: 'unexpected', error });
   }
