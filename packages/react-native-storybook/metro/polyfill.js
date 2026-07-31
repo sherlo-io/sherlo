@@ -104,18 +104,18 @@ var PROTOCOL_FILE = 'protocol.sherlo';
         return global.nativeModuleProxy.SherloModule;
       }
     } catch (_) {}
-    // NOTE: a third probe (global.__r('react-native') to reach NativeModules) used to
-    // live here as a fallback. It is intentionally removed: metro-runtime's metroRequire
-    // only resolves a string module id (via getModuleIdForVerboseName) when __DEV__ is
-    // true (see metro-runtime src/polyfills/require.js, the versions shipped with
-    // supported RN releases e.g. 0.82.x for RN 0.79.x). In a release bundle the string id
-    // is passed straight through, modules.get() misses, and guardedLoadModule's catch
-    // routes the resulting unknownModuleError to ErrorUtils.reportFatalError instead of
-    // throwing - so the try/catch here never runs and the app is fatally killed ~10s
-    // after JS start (see the ERROR_STORYBOOK_NOT_DISPLAYED timer below). Probes 1-2
-    // above (TurboModuleProxy / nativeModuleProxy) are the deterministic native-module
-    // resolution paths and cover every real app regardless of __DEV__; if both miss,
-    // SherloModule is genuinely not linked and callers here correctly treat it as absent.
+    // NOTE: a third fallback via global.__r('react-native') used to live here and was
+    // removed. Metro's string-to-moduleId resolution (getModuleIdForVerboseName) only
+    // runs under __DEV__ (see metro-runtime/src/polyfills/require.js) - in release
+    // builds global.__r('react-native') looks up the literal string 'react-native' in
+    // a Map keyed by numeric module ids, always misses, and falls through to Metro's
+    // guardedLoadModule, which calls global.ErrorUtils.reportFatalError() on the miss.
+    // Since that call can happen while this very function is being invoked from inside
+    // reportToNative() (itself invoked from an ErrorUtils/1 __d-wrap handler), it risked
+    // recursively re-entering the same reporting path for a bogus "unknown module" error
+    // instead of - or interleaved with - the real one. It never provided real coverage in
+    // release (the only mode this polyfill's capture logic is active in - see IIFE-time
+    // mode gate above), so removing it is a strict improvement.
     return null;
   }
 
