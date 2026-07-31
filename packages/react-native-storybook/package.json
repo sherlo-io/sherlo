@@ -1,6 +1,6 @@
 {
   "name": "@sherlo/react-native-storybook",
-  "version": "2.0.0-alpha.1",
+  "version": "2.0.1",
   "description": "Visual regression testing for React Native - Sherlo Storybook integration SDK",
   "keywords": [
     "react-native",
@@ -67,13 +67,14 @@
   "scripts": {
     "build": "rm -rf dist && tsc -p .",
     "dev": "yarn build --watch",
+    "lint": "NODE_ENV=production yarn run -T eslint --ext .ts,.tsx src",
     "test": "vitest run"
   },
   "dependencies": {
     "base-64": "1.0.0",
     "deepmerge": "4.3.1",
     "its-fine": "2.0.0",
-    "sherlo": "^2.0.0-alpha.1",
+    "sherlo": "^2.0.1",
     "utf8": "3.0.0"
   },
   "devDependencies": {

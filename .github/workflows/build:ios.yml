@@ -53,7 +53,7 @@ jobs:
 
       - name: Install project dependencies
         working-directory: testing/${{ inputs.project }}
-        run: yarn
+        run: yarn install --immutable
 
       - name: Setup EAS
         if: ${{ !inputs.skip_build }}

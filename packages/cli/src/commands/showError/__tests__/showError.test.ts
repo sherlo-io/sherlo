@@ -43,7 +43,9 @@ function makeTempDir(): string {
 afterEach(() => {
   vi.restoreAllMocks();
   for (const dir of tmpDirs.splice(0)) {
-    try { fs.rmSync(dir, { recursive: true, force: true }); } catch (_) {}
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+    } catch (_) {}
   }
 });
 
@@ -81,7 +83,7 @@ describe('detectEntryFile', () => {
 });
 
 // ---------------------------------------------------------------------------
-// detectPlatform — from frame file paths
+// detectPlatform - from frame file paths
 // ---------------------------------------------------------------------------
 
 describe('detectPlatform', () => {
@@ -217,7 +219,7 @@ describe('detectBundler', () => {
     const dir = makeTempDir();
     makeIosProject(dir, EXPO_PBXPROJ);
     makeAndroidProject(dir, RN_GRADLE);
-    expect(() => detectBundler(dir)).toThrow("iOS and Android bundle commands disagree");
+    expect(() => detectBundler(dir)).toThrow('iOS and Android bundle commands disagree');
   });
 
   it('returns expo from ios alone', () => {
@@ -259,10 +261,10 @@ describe('detectBundler', () => {
 });
 
 // ---------------------------------------------------------------------------
-// buildSourceMaps — expo fallback to bare-rn
+// buildSourceMaps - expo fallback to bare-rn
 // ---------------------------------------------------------------------------
 
-describe('buildSourceMaps — expo fallback', () => {
+describe('buildSourceMaps - expo fallback', () => {
   it('falls back to bare-rn bundler when expo build fails', () => {
     const dir = makeTempDir();
     writeJson(dir, 'package.json', { main: 'index.js' });
@@ -308,16 +310,16 @@ describe('buildSourceMaps — expo fallback', () => {
     });
 
     buildSourceMaps(dir, 'expo', 'android');
-    const rnCmd = capturedCmds.find(c => c.includes('react-native bundle'));
+    const rnCmd = capturedCmds.find((c) => c.includes('react-native bundle'));
     expect(rnCmd).toContain('--reset-cache');
   });
 });
 
 // ---------------------------------------------------------------------------
-// buildSourceMaps — bare-rn (rn) branch
+// buildSourceMaps - bare-rn (rn) branch
 // ---------------------------------------------------------------------------
 
-describe('buildSourceMaps — rn branch', () => {
+describe('buildSourceMaps - rn branch', () => {
   it('rn branch command includes --reset-cache', () => {
     const dir = makeTempDir();
     writeJson(dir, 'package.json', { main: 'index.js' });
@@ -347,12 +349,14 @@ describe('buildSourceMaps — rn branch', () => {
       throw err;
     });
 
-    expect(() => buildSourceMaps(dir, 'rn', 'android')).toThrow('Metro bundler error: cannot find module');
+    expect(() => buildSourceMaps(dir, 'rn', 'android')).toThrow(
+      'Metro bundler error: cannot find module'
+    );
   });
 });
 
 // ---------------------------------------------------------------------------
-// findSourceMap — expo export:embed map preferred, hbc.map refused
+// findSourceMap - expo export:embed map preferred, hbc.map refused
 // ---------------------------------------------------------------------------
 
 describe('findSourceMap (expo)', () => {
@@ -389,7 +393,7 @@ describe('findSourceMap (expo)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// runMetroSymbolicate — structural tests (no real binary needed)
+// runMetroSymbolicate - structural tests (no real binary needed)
 // ---------------------------------------------------------------------------
 
 describe('runMetroSymbolicate', () => {
@@ -400,7 +404,7 @@ describe('runMetroSymbolicate', () => {
 });
 
 // ---------------------------------------------------------------------------
-// symbolicateAllFrames — structural tests (no real source map needed)
+// symbolicateAllFrames - structural tests (no real source map needed)
 // ---------------------------------------------------------------------------
 
 describe('symbolicateAllFrames', () => {
@@ -409,9 +413,11 @@ describe('symbolicateAllFrames', () => {
       { fnName: 'foo', file: null, line: null, col: null },
       { fnName: 'bar', file: null, line: null, col: null },
     ];
-    const { frames: result, totalFrames, resolvedFrames } = symbolicateAllFrames(
-      frames, '/any/path.map', process.cwd()
-    );
+    const {
+      frames: result,
+      totalFrames,
+      resolvedFrames,
+    } = symbolicateAllFrames(frames, '/any/path.map', process.cwd());
     expect(result).toHaveLength(2);
     expect(result[0]).toEqual(frames[0]);
     expect(totalFrames).toBe(0);
@@ -420,19 +426,15 @@ describe('symbolicateAllFrames', () => {
 });
 
 // ---------------------------------------------------------------------------
-// renderOutput — JSON consumer formatting
+// renderOutput - JSON consumer formatting
 // ---------------------------------------------------------------------------
 
 function makeFixture(overrides: Partial<JsErrorJson> = {}): JsErrorJson {
   return {
     name: 'TypeError',
     message: 'undefined is not an object',
-    stack: [
-      { fnName: 'render', file: 'bundle.js', line: 1, col: 500 },
-    ],
-    componentStack: [
-      { fnName: 'CrashComponent', file: 'App.tsx', line: 7, col: 18 },
-    ],
+    stack: [{ fnName: 'render', file: 'bundle.js', line: 1, col: 500 }],
+    componentStack: [{ fnName: 'CrashComponent', file: 'App.tsx', line: 7, col: 18 }],
     digest: null,
     cause: null,
     hasExpo: false,
@@ -455,9 +457,7 @@ describe('renderOutput', () => {
 
   it('renders anonymous frame as <anonymous>', () => {
     const data = makeFixture({
-      stack: [
-        { fnName: 'l', file: null, line: null, col: null },
-      ],
+      stack: [{ fnName: 'l', file: null, line: null, col: null }],
     });
     const output = renderOutput(data);
     expect(output).toContain('  at l (<anonymous>)');
@@ -527,22 +527,22 @@ describe('SLUG_REGEX', () => {
     'AAAAAAAA-0-ios-1000000000000',
     'aBcDeF12-999-android-9999999999999',
     '00000000-1-ios-1234567890123',
-    'qA7_qHJ4-30-android-1777491220857',   // underscore in teamId (real-world team IDs include _)
+    'qA7_qHJ4-30-android-1777491220857', // underscore in teamId (real-world team IDs include _)
     'qA7_qHJ4-40-ios-1777569392938',
   ];
   const invalid = [
     '',
     'too-short',
-    'PsS5H1B1-30-android',                       // missing timestamp
-    'PsS5H1B1-30-android-177749122085',           // timestamp too short (12 digits)
-    'PsS5H1B1-30-android-17774912208570',         // timestamp too long (14 digits)
-    'PsS5H1B1-30-windows-1777491220857',          // invalid platform
-    'PsS5H1B1!-30-android-1777491220857',         // non-alphanumeric in teamId
-    'PsS5H1B1-30-android-177749122085a',          // non-numeric timestamp
-    'PsS5H1B1--30-android-1777491220857',         // double dash
-    'PsS5H1B1-30-Android-1777491220857',          // platform uppercase
-    'PsS5H1B1X-30-android-1777491220857',         // teamId 9 chars
-    'PsS5H1B-30-android-1777491220857',           // teamId 7 chars
+    'PsS5H1B1-30-android', // missing timestamp
+    'PsS5H1B1-30-android-177749122085', // timestamp too short (12 digits)
+    'PsS5H1B1-30-android-17774912208570', // timestamp too long (14 digits)
+    'PsS5H1B1-30-windows-1777491220857', // invalid platform
+    'PsS5H1B1!-30-android-1777491220857', // non-alphanumeric in teamId
+    'PsS5H1B1-30-android-177749122085a', // non-numeric timestamp
+    'PsS5H1B1--30-android-1777491220857', // double dash
+    'PsS5H1B1-30-Android-1777491220857', // platform uppercase
+    'PsS5H1B1X-30-android-1777491220857', // teamId 9 chars
+    'PsS5H1B-30-android-1777491220857', // teamId 7 chars
   ];
 
   for (const s of valid) {
@@ -594,24 +594,26 @@ describe('resolveShowErrorUrl', () => {
 
   it('builds the correct URL from slug with default base', () => {
     delete process.env.SHERLO_API_URL;
-    expect(resolveShowErrorUrl('PsS5H1B1-30-android-1777491220857'))
-      .toBe('https://api.sherlo.io/v1/show-error/PsS5H1B1-30-android-1777491220857');
+    expect(resolveShowErrorUrl('PsS5H1B1-30-android-1777491220857')).toBe(
+      'https://api.sherlo.io/v1/show-error/PsS5H1B1-30-android-1777491220857'
+    );
   });
 
   it('builds URL using SHERLO_API_URL override (local dev)', () => {
     process.env.SHERLO_API_URL = 'http://localhost:4000/graphql';
-    expect(resolveShowErrorUrl('PsS5H1B1-30-ios-1777491220857'))
-      .toBe('http://localhost:4000/v1/show-error/PsS5H1B1-30-ios-1777491220857');
+    expect(resolveShowErrorUrl('PsS5H1B1-30-ios-1777491220857')).toBe(
+      'http://localhost:4000/v1/show-error/PsS5H1B1-30-ios-1777491220857'
+    );
   });
 });
 
 // ---------------------------------------------------------------------------
-// showError default export — throws on error (no process.exit)
+// showError default export - throws on error (no process.exit)
 // ---------------------------------------------------------------------------
 
 const VALID_SLUG = 'PsS5H1B1-30-android-1777491220857';
 
-describe('showError — throws on error (no process.exit)', () => {
+describe('showError - throws on error (no process.exit)', () => {
   let exitSpy: ReturnType<typeof vi.spyOn>;
 
   afterEach(() => {
@@ -620,7 +622,7 @@ describe('showError — throws on error (no process.exit)', () => {
   });
 
   beforeEach(() => {
-    // Ensure process.exit is not called — spy that throws so any accidental call is caught
+    // Ensure process.exit is not called - spy that throws so any accidental call is caught
     exitSpy = vi.spyOn(process, 'exit').mockImplementation((_code?: number) => {
       throw new Error(`process.exit(${_code}) was called but should not have been`);
     });
@@ -641,7 +643,9 @@ describe('showError — throws on error (no process.exit)', () => {
   it('throws with "No JS error found" message on 404 (no process.exit)', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ status: 404, ok: false }));
 
-    await expect(showError(VALID_SLUG)).rejects.toThrow(`No JS error found for build ${VALID_SLUG}`);
+    await expect(showError(VALID_SLUG)).rejects.toThrow(
+      `No JS error found for build ${VALID_SLUG}`
+    );
     expect(exitSpy).not.toHaveBeenCalled();
   });
 
@@ -655,11 +659,14 @@ describe('showError — throws on error (no process.exit)', () => {
       cause: null,
       hasExpo: false,
     };
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      text: () => Promise.resolve(JSON.stringify(mockPayload)),
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(JSON.stringify(mockPayload)),
+      })
+    );
     // detectBundler will throw because the cwd has no native dirs and no expo markers
     const emptyDir = makeTempDir();
     const origCwd = process.cwd;

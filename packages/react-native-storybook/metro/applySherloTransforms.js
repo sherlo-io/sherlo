@@ -3,6 +3,122 @@
 var fs = require('fs');
 var path = require('path');
 
+// ---------------------------------------------------------------------------
+// Dependency graph sidecar (TurboSnap Phase 2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Converts an absolute Metro module path to a project-root-relative path
+ * (e.g. "./src/Button.tsx").  Returns null for:
+ *   - synthetic/virtual paths (Metro require.context modules contain "?")
+ *   - paths outside the project root
+ */
+function toRelativePath(absPath, projectRoot) {
+  if (!absPath || absPath.indexOf('?') !== -1 || absPath.indexOf('\0') !== -1) {
+    return null;
+  }
+  var rel = path.relative(projectRoot, absPath);
+  if (rel.indexOf('..') === 0) return null; // outside project root
+  return './' + rel.split(path.sep).join('/');
+}
+
+/**
+ * Emits a NON-DESTRUCTIVE graph sidecar to node_modules/.cache/sherlo/graph.json.
+ *
+ * Format:
+ *   {
+ *     "version": 1,
+ *     "inverseGraph": { "./src/Button.tsx": ["./src/Button.stories.tsx"] },
+ *     "contextGraph":  { "./src/.rnstorybook/storybook.requires.ts": ["./src/Button.stories.tsx"] }
+ *   }
+ *
+ * inverseGraph  – static (non-dynamic) reverse edges only: file → files that statically import it.
+ * contextGraph  – require.context targets grouped by the module that owns the require.context call.
+ *
+ * Bail-open: any unrecognised Metro Graph shape or error → no sidecar (CLI forces full run).
+ *
+ * @param {object} graph      Metro ReadOnlyGraph passed to the customSerializer
+ * @param {string} projectRoot absolute project root
+ * @param {string} cacheDir   absolute cache directory (node_modules/.cache/sherlo)
+ */
+function emitDependencyGraphSidecar(graph, projectRoot, cacheDir) {
+  try {
+    // Feature-detect Metro Graph shape: bail-open if unrecognised.
+    if (
+      !graph ||
+      typeof graph !== 'object' ||
+      !(graph.dependencies instanceof Map)
+    ) {
+      return;
+    }
+
+    /** @type {Record<string, string[]>} */
+    var inverseGraph = {};
+    /** @type {Record<string, string[]>} */
+    var contextGraph = {};
+
+    graph.dependencies.forEach(function (module, absPath) {
+      var rel = toRelativePath(absPath, projectRoot);
+      if (!rel) return; // skip synthetic modules
+
+      // Ensure every real module appears as a key (even if it has no importers).
+      if (!inverseGraph[rel]) inverseGraph[rel] = [];
+
+      if (!module.dependencies || !(module.dependencies instanceof Map)) return;
+
+      module.dependencies.forEach(function (dep) {
+        // contextParams is set on require.context() edges.
+        var contextParams =
+          dep.data && dep.data.data && dep.data.data.contextParams;
+
+        if (contextParams) {
+          // This dependency is a synthetic context module.
+          // Resolve one level deeper to find the actual target files.
+          var ctxModule = graph.dependencies.get(dep.absolutePath);
+          if (ctxModule && ctxModule.dependencies instanceof Map) {
+            if (!contextGraph[rel]) contextGraph[rel] = [];
+            ctxModule.dependencies.forEach(function (ctxDep) {
+              var targetRel = toRelativePath(ctxDep.absolutePath, projectRoot);
+              if (targetRel) contextGraph[rel].push(targetRel);
+            });
+          }
+        } else {
+          // Static (or async) import → record as a reverse edge.
+          var depRel = toRelativePath(dep.absolutePath, projectRoot);
+          if (!depRel) return;
+          if (!inverseGraph[depRel]) inverseGraph[depRel] = [];
+          inverseGraph[depRel].push(rel);
+        }
+      });
+    });
+
+    var sidecar = JSON.stringify({ version: 1, inverseGraph: inverseGraph, contextGraph: contextGraph });
+    fs.writeFileSync(path.join(cacheDir, 'graph.json'), sidecar, 'utf8');
+  } catch (err) {
+    // Non-fatal: if we fail, no sidecar is emitted and the CLI bails to a full run.
+    console.warn('[Sherlo] Failed to emit dependency graph sidecar:', err && err.message);
+  }
+}
+
+/**
+ * Returns Metro's built-in default serializer (baseJSBundle + bundleToString).
+ * Used when there is no pre-existing customSerializer to delegate to.
+ * Returns null if Metro internals cannot be resolved (non-fatal, just skip wrapping).
+ */
+function getMetroDefaultSerializer() {
+  try {
+    var baseJSBundle = require('metro/src/DeltaBundler/Serializers/baseJSBundle').default
+      || require('metro/src/DeltaBundler/Serializers/baseJSBundle');
+    var bundleToString = require('metro/src/lib/bundleToString').default
+      || require('metro/src/lib/bundleToString');
+    return function defaultSerializer(entryPoint, preModules, graph, options) {
+      return bundleToString(baseJSBundle(entryPoint, preModules, graph, options)).code;
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
 /**
  * Writes a tiny polyfill that sets global.__sherloStorybookDisabledFlag = true.
  * This file is prepended to the bundle's polyfill list when opts.enabled === false,
@@ -93,7 +209,40 @@ function applySherloTransforms(result, opts) {
     return base.concat(sherloPolyfills);
   }
 
+  // ---- TurboSnap Phase 2: non-destructive dependency graph sidecar ----
+  // Wrap (or install) a customSerializer that side-effects a graph.json sidecar
+  // and then delegates to the original serializer unchanged.
+  var existingCustomSerializer =
+    result && result.serializer && typeof result.serializer.customSerializer === 'function'
+      ? result.serializer.customSerializer
+      : null;
+
+  // Only install the serializer wrapper when we can safely delegate to something.
+  // If there is no pre-existing serializer we try to load Metro's default; if that
+  // also fails we skip the wrapper rather than risk corrupting the bundle.
+  var delegateSerializer = existingCustomSerializer || getMetroDefaultSerializer();
+
+  var sherloCustomSerializer = null;
+  if (delegateSerializer) {
+    sherloCustomSerializer = function sherloSerializer(entryPoint, preModules, graph, options) {
+      // Emit the sidecar as a pure side-effect; never affects bundle output.
+      var serializerProjectRoot =
+        (options && options.projectRoot) || projectRoot;
+      emitDependencyGraphSidecar(graph, serializerProjectRoot, cacheDir);
+      // Delegate to the original serializer and return its output unchanged.
+      return delegateSerializer(entryPoint, preModules, graph, options);
+    };
+  }
+
   var baseResult = result || {};
+
+  var serializer = Object.assign({}, baseResult.serializer, {
+    getPolyfills: getPolyfills,
+  });
+  if (sherloCustomSerializer) {
+    serializer.customSerializer = sherloCustomSerializer;
+  }
+
   return Object.assign({}, baseResult, {
     // unstable_allowRequireContext: sb8/sb9 withStorybook(enabled:false) omits this flag, but
     // storybook.requires.ts still uses require.context(). Without this, Metro 0.81.x embeds a
@@ -104,9 +253,7 @@ function applySherloTransforms(result, opts) {
     resolver: Object.assign({}, baseResult.resolver, {
       resolveRequest: resolveRequest,
     }),
-    serializer: Object.assign({}, baseResult.serializer, {
-      getPolyfills: getPolyfills,
-    }),
+    serializer: serializer,
   });
 }
 

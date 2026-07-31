@@ -26,9 +26,7 @@ async function validateLocalBinaries({
 
   validateBinariesInfo({
     binariesInfo: {
-      android: localBinariesInfo.android
-        ? { ...localBinariesInfo.android, s3Key: '' }
-        : undefined,
+      android: localBinariesInfo.android ? { ...localBinariesInfo.android, s3Key: '' } : undefined,
       ios: localBinariesInfo.ios ? { ...localBinariesInfo.ios, s3Key: '' } : undefined,
     },
     command,

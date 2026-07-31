@@ -23,8 +23,7 @@ async function validateHasWithStorybookInMetroConfig(): Promise<void> {
 
   const content = await fs.promises.readFile(configPath, 'utf-8');
 
-  const isWired =
-    content.includes('withStorybook(') || content.includes('createSherloStorybook(');
+  const isWired = content.includes('withStorybook(') || content.includes('createSherloStorybook(');
 
   if (!isWired) {
     throwError({

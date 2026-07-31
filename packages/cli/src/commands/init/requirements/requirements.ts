@@ -82,10 +82,7 @@ async function validateRequirements(token?: string): Promise<void> {
           '\n' +
           chalk.reset('Make sure you copied it correctly or generate a new one at ') +
           printLink(APP_DOMAIN),
-        below:
-          '\n' +
-          chalk.reset('Then re-run:\n') +
-          chalk.cyan(`  ${FULL_INIT_COMMAND}`),
+        below: '\n' + chalk.reset('Then re-run:\n') + chalk.cyan(`  ${FULL_INIT_COMMAND}`),
         errorToReport: new Error('Invalid token: ' + token),
       });
     }

@@ -9,11 +9,11 @@ import SherloModule from '../../../SherloModule';
 function setupErrorSilencing(): void {
   if (SherloModule.getMode() !== 'testing') return;
 
-  LogBox.ignoreAllLogs(true);          // hide LogBox UI overlay
-  console.warn = () => null;            // hide YellowBox-style warnings
-  console.error = () => null;           // hide RedBox-style errors
+  LogBox.ignoreAllLogs(true); // hide LogBox UI overlay
+  console.warn = () => null; // hide YellowBox-style warnings
+  console.error = () => null; // hide RedBox-style errors
   // @ts-ignore
-  console.reportErrorsAsExceptions = false;  // iOS: don't promote console.error to native exception
+  console.reportErrorsAsExceptions = false; // iOS: don't promote console.error to native exception
 }
 
 export default setupErrorSilencing;

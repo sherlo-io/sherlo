@@ -13,6 +13,12 @@ builds/
 *.tar.gz
 
 sherlo-lib/
+!testing/expo/sherlo-lib/
+testing/expo/sherlo-lib/*
+!testing/expo/sherlo-lib/react-native-storybook.tgz
+!testing/react-native/sherlo-lib/
+testing/react-native/sherlo-lib/*
+!testing/react-native/sherlo-lib/react-native-storybook.tgz
 .env
 
 *storybook.log

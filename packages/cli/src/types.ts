@@ -10,6 +10,7 @@ import {
   EAS_BUILD_SCRIPT_NAME_OPTION,
   EAS_IOS_URL_OPTION,
   EAS_UPDATE_SLUG_OPTION,
+  GIT_BRANCH_OPTION,
   INCLUDE_OPTION,
   INIT_COMMAND,
   IOS_FILE_TYPES,
@@ -52,6 +53,8 @@ export type Config = {
   ios?: string;
   include?: string[];
   exclude?: string[];
+  /** TurboSnap opt-out: forces a full capture regardless of changed-file analysis. */
+  fullRun?: boolean;
 };
 
 export type InvalidatedConfig = PartialDeep<Config, { recurseIntoArrays: true }>;
@@ -70,6 +73,7 @@ type OptionsFormat = 'raw' | 'normalized';
 type CommonOptions<M extends OptionsMode, F extends OptionsFormat> = {
   [MESSAGE_OPTION]?: string;
   [TOKEN_OPTION]?: string;
+  [GIT_BRANCH_OPTION]?: string;
   [INCLUDE_OPTION]?: F extends 'raw' ? string : string[];
   [DIAGNOSTICS_OPTION]?: F extends 'raw' ? string : string[];
 } & (M extends 'withDefaults'
@@ -140,6 +144,7 @@ export type BinaryInfo = {
   url?: string;
   expoSdkVersion?: string;
   hasExpoDevClient?: boolean;
+  androidAbis?: string[];
 };
 
 export type EasUpdateInfo = {

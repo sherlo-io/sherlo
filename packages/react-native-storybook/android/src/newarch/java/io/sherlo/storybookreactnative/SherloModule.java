@@ -158,6 +158,19 @@ public class SherloModule extends NativeSherloModuleSpec {
     }
 
     /**
+     * Native paint barrier: resolves once a real frame is committed,
+     * or false if timeoutMs elapses first.
+     *
+     * @param timeoutMs Cap on how long to wait for a frame commit (ms)
+     * @param promise Promise to resolve with true on frame commit, false on timeout
+     */
+    @Override
+    public void awaitFrameCommit(double timeoutMs, Promise promise) {
+        Activity activity = getCurrentActivity();
+        moduleCore.awaitFrameCommit(activity, (int)timeoutMs, promise);
+    }
+
+    /**
      * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
      *
      * @param promise Promise to resolve with boolean (true if scrollable, false otherwise)

@@ -11,7 +11,9 @@ function getNormalizedOptions<C extends Command>(
   }
 
   if (typeof options[DIAGNOSTICS_OPTION] === 'string') {
-    normalizedOptions[DIAGNOSTICS_OPTION] = parseCommaSeparatedStringToArray(options[DIAGNOSTICS_OPTION]);
+    normalizedOptions[DIAGNOSTICS_OPTION] = parseCommaSeparatedStringToArray(
+      options[DIAGNOSTICS_OPTION]
+    );
   }
 
   return normalizedOptions;

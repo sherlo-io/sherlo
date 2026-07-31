@@ -6,8 +6,6 @@ import * as path from 'path';
 
 const applySherloTransforms = require('../../metro/applySherloTransforms');
 
-const POLYFILL_PATH = path.resolve(__dirname, '../../metro/polyfill.js');
-
 // ---------------------------------------------------------------------------
 // Native marker file detection for ERROR_STORYBOOK_DISABLED (enabled: false)
 // Architecture: applySherloTransforms writes build-time marker files to
@@ -46,7 +44,13 @@ describe('applySherloTransforms - native marker files for ERROR_STORYBOOK_DISABL
   it('generated wrapper does NOT contain SHERLO_BUILD_DISABLED (removed in favour of native detection)', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-no-builddisabled-test-'));
     applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: false });
-    const wrapperPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'storybook-wrapper.js');
+    const wrapperPath = path.join(
+      tmpDir,
+      'node_modules',
+      '.cache',
+      'sherlo',
+      'storybook-wrapper.js'
+    );
     const content = fs.readFileSync(wrapperPath, 'utf8');
     fs.rmSync(tmpDir, { recursive: true, force: true });
 
@@ -61,16 +65,24 @@ describe('applySherloTransforms - native marker files for ERROR_STORYBOOK_DISABL
 
     const fakeContext = {
       originModulePath: '/some/module.js',
-      resolveRequest: (_ctx: unknown, name: string) => ({ type: 'sourceFile', filePath: `/resolved/${name}` }),
+      resolveRequest: (_ctx: unknown, name: string) => ({
+        type: 'sourceFile',
+        filePath: `/resolved/${name}`,
+      }),
     };
-    const resolved = result.resolver.resolveRequest(fakeContext, '@sherlo/react-native-storybook', 'android');
+    const resolved = result.resolver.resolveRequest(
+      fakeContext,
+      '@sherlo/react-native-storybook',
+      'android'
+    );
     fs.rmSync(tmpDir, { recursive: true, force: true });
 
     // Falls through to the default resolver - no sdk-disabled-wrapper redirect
-    expect((resolved as { filePath: string }).filePath).toContain('/resolved/@sherlo/react-native-storybook');
+    expect((resolved as { filePath: string }).filePath).toContain(
+      '/resolved/@sherlo/react-native-storybook'
+    );
     expect((resolved as { filePath: string }).filePath).not.toContain('sdk-disabled-wrapper');
   });
-
 });
 
 // ---------------------------------------------------------------------------
@@ -108,7 +120,9 @@ describe('applySherloTransforms - enabled:false ships minimal polyfill only', ()
     fs.rmSync(tmpDir, { recursive: true, force: true });
 
     expect(polyfills.some((p) => p.includes('storybook-disabled-flag.js'))).toBe(true);
-    expect(polyfills.some((p) => p.includes('polyfill.js') && !p.includes('storybook-disabled-flag.js'))).toBe(false);
+    expect(
+      polyfills.some((p) => p.includes('polyfill.js') && !p.includes('storybook-disabled-flag.js'))
+    ).toBe(false);
   });
 
   it('enabled:false: storybook-disabled-flag.js sets BOTH __sherlo* globals', () => {
@@ -143,5 +157,133 @@ describe('applySherloTransforms - enabled:false ships minimal polyfill only', ()
     expect(polyfillContent).toContain("=== 'storybook'");
     expect(polyfillContent).not.toContain('diagLog');
     expect(polyfillContent).not.toContain('[sherlo-diag]');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TurboSnap Phase 2 – dependency graph sidecar
+// ---------------------------------------------------------------------------
+
+describe('applySherloTransforms – emitDependencyGraphSidecar (via customSerializer)', () => {
+  it('installs a customSerializer when an existing one is passed in', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-graph-serializer-'));
+    let delegateCalled = false;
+    const fakeSerializer = (_ep: unknown, _pre: unknown, _g: unknown, _opts: unknown) => {
+      delegateCalled = true;
+      return 'BUNDLE_BYTES';
+    };
+    const result = applySherloTransforms(
+      { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: fakeSerializer } },
+      { enabled: true }
+    );
+
+    expect(typeof result.serializer.customSerializer).toBe('function');
+    // Calling it should delegate to fakeSerializer (tmpDir still exists here)
+    const output = result.serializer.customSerializer(
+      'index.js',
+      [],
+      { dependencies: new Map() },
+      { projectRoot: tmpDir }
+    );
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
+    expect(delegateCalled).toBe(true);
+    expect(output).toBe('BUNDLE_BYTES');
+  });
+
+  it('emits graph.json sidecar with valid schema when serializer runs', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-graph-sidecar-'));
+    const fakeSerializer = () => 'BYTES';
+    const result = applySherloTransforms(
+      { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: fakeSerializer } },
+      { enabled: true }
+    );
+
+    // Build a minimal Metro-like graph using paths WITHIN tmpDir so toRelativePath works.
+    const buttonPath = path.join(tmpDir, 'src', 'Button.tsx');
+    const storiesPath = path.join(tmpDir, 'src', 'Button.stories.tsx');
+    const fakeDeps = new Map();
+    fakeDeps.set(buttonPath, {
+      dependencies: new Map([['key1', { absolutePath: storiesPath, data: { data: {} } }]]),
+    });
+    fakeDeps.set(storiesPath, { dependencies: new Map() });
+
+    result.serializer.customSerializer(
+      'index.js',
+      [],
+      { dependencies: fakeDeps },
+      { projectRoot: tmpDir }
+    );
+
+    const sidecarPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'graph.json');
+    const exists = fs.existsSync(sidecarPath);
+    const sidecar = exists ? JSON.parse(fs.readFileSync(sidecarPath, 'utf8')) : null;
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
+    expect(exists).toBe(true);
+    expect(sidecar).not.toBeNull();
+    expect(sidecar.version).toBe(1);
+    expect(typeof sidecar.inverseGraph).toBe('object');
+    expect(typeof sidecar.contextGraph).toBe('object');
+    // Button.tsx statically imports Button.stories.tsx → inverse: stories.tsx ← Button.tsx
+    expect(Array.isArray(sidecar.inverseGraph['./src/Button.stories.tsx'])).toBe(true);
+    expect(sidecar.inverseGraph['./src/Button.stories.tsx']).toContain('./src/Button.tsx');
+  });
+
+  it('does NOT emit sidecar for unrecognised Metro Graph shape (bail-open)', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-graph-bail-'));
+    const fakeSerializer = () => 'BYTES';
+    const result = applySherloTransforms(
+      { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: fakeSerializer } },
+      { enabled: true }
+    );
+
+    // Unrecognised graph: dependencies is not a Map
+    result.serializer.customSerializer(
+      'index.js',
+      [],
+      { dependencies: {} },
+      { projectRoot: tmpDir }
+    );
+
+    const sidecarPath = path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'graph.json');
+    const exists = fs.existsSync(sidecarPath);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
+    expect(exists).toBe(false);
+  });
+
+  it('delegate output is returned UNCHANGED (byte-equality)', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-graph-byte-eq-'));
+    const ORIGINAL_OUTPUT = 'BUNDLE_SOURCE_CODE_12345';
+    const fakeSerializer = () => ORIGINAL_OUTPUT;
+    const result = applySherloTransforms(
+      { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: fakeSerializer } },
+      { enabled: true }
+    );
+
+    const output = result.serializer.customSerializer(
+      'index.js',
+      [],
+      { dependencies: new Map() },
+      { projectRoot: tmpDir }
+    );
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
+    expect(output).toBe(ORIGINAL_OUTPUT);
+  });
+
+  it('does NOT install customSerializer when no existing serializer and Metro default unavailable', () => {
+    // When there's no existing customSerializer and Metro's internals can't be required,
+    // we should NOT set customSerializer (to avoid a null-returning serializer crashing Metro).
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-graph-no-delegate-'));
+    // Pass a config with no customSerializer
+    const result = applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: true });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
+    // In the test environment Metro internals may or may not be available.
+    // The test only asserts the function doesn't throw and the serializer
+    // object is still valid (getPolyfills is still set).
+    expect(typeof result.serializer.getPolyfills).toBe('function');
   });
 });

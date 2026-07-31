@@ -63,7 +63,6 @@ function Storybook({
       entity: 'app',
     };
 
-    const lastState = SherloModule.getLastState();
     if (lastState?.requestId) {
       content.requestId = lastState.requestId;
     }
