@@ -40,8 +40,8 @@ export type Snapshot = {
   sherloParameters?: SherloParameters;
   /**
    * Project-root-relative import path of the story file (e.g. "./src/Button.stories.tsx").
-   * Emitted by the device so TurboSnap can map storyId → source file server-side.
-   * Absent on older SDK versions; runner bails to full capture when missing.
+   * Emitted by the device so a story can be mapped to its source file server-side.
+   * Absent on older SDK versions; runner captures every story when missing.
    */
   importPath?: string;
 
