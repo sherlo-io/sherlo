@@ -53,7 +53,7 @@ export type Config = {
   ios?: string;
   include?: string[];
   exclude?: string[];
-  /** TurboSnap opt-out: forces a full capture regardless of changed-file analysis. */
+  /** Captures every story, skipping the changed-file analysis that can narrow a run. */
   fullRun?: boolean;
 };
 

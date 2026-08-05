@@ -53,11 +53,13 @@ async function uploadOrReuseBuildsAndRunTests({
     forceFullRun: commandParams.fullRun,
   });
 
+  // No changedFiles means the API captures every story. That is the normal,
+  // correct outcome and is not worth announcing: the reason is an internal
+  // detail ("no fork point available to diff from") that a developer can
+  // neither act on nor interpret.
   let changedFiles: string[] | undefined;
   if ('changedFiles' in changedFilesResult) {
     changedFiles = changedFilesResult.changedFiles;
-  } else {
-    console.log(`[Sherlo] TurboSnap: full capture - ${changedFilesResult.reason}`);
   }
 
   const nativeFingerprint =
