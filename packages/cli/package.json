@@ -1,6 +1,6 @@
 {
   "name": "sherlo",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Visual regression testing for React Native - Sherlo CLI",
   "keywords": [
     "react-native",
