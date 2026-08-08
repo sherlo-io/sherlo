@@ -41,6 +41,7 @@ import {
   TEST_STANDARD_COMMAND,
   TOKEN_OPTION,
   WAIT_FOR_EAS_BUILD_OPTION,
+  WAIT_OPTION,
 } from './constants';
 import { logWarning, reporting, withCommandTimeout } from './helpers';
 
@@ -170,6 +171,11 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${WAIT_FOR_EAS_BUILD_OPTION}`,
     'Start waiting for EAS Build to be triggered manually',
   ],
+  [WAIT_OPTION]: [
+    `--${WAIT_OPTION}`,
+    'Wait for the test run to finish (times out after 30 minutes). Exit code: ' +
+      '0 = nothing to review, 1 = changes to review, 2 = error, 3 = timeout',
+  ],
 };
 
 function addInitCommand(program: Command) {
@@ -188,7 +194,7 @@ function addTestCommand(program: Command) {
   addCommand({
     program,
     command: TEST_COMMAND,
-    options: [...getTestCommonOptions('withPlatformPaths'), ...devtoolsOptions],
+    options: [...getTestCommonOptions('withPlatformPaths'), WAIT_OPTION, ...devtoolsOptions],
     action: test,
   });
 }
@@ -200,7 +206,7 @@ function addTestStandardCommand(program: Command) {
     program,
     command: TEST_STANDARD_COMMAND,
     oldCommand: 'local-builds',
-    options: [...getTestCommonOptions('withPlatformPaths'), ...devtoolsOptions],
+    options: [...getTestCommonOptions('withPlatformPaths'), WAIT_OPTION, ...devtoolsOptions],
     action: testStandard,
   });
 }
@@ -215,7 +221,12 @@ function addTestEasUpdateCommand(program: Command) {
     program,
     command: TEST_EAS_UPDATE_COMMAND,
     oldCommand: 'expo-update',
-    options: [BRANCH_OPTION, ...getTestCommonOptions('withPlatformPaths'), ...devtoolsOptions],
+    options: [
+      BRANCH_OPTION,
+      ...getTestCommonOptions('withPlatformPaths'),
+      WAIT_OPTION,
+      ...devtoolsOptions,
+    ],
     action: testEasUpdate,
   });
 }
