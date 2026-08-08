@@ -13,6 +13,7 @@ import printResultsUrl from './printResultsUrl';
 import reporting from './reporting';
 import { computeChangedFiles, computeNativeFingerprint } from './turbosnap';
 import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
+import waitForBuildResult from './waitForBuildResult';
 
 async function uploadOrReuseBuildsAndRunTests({
   commandParams,
@@ -111,6 +112,10 @@ async function uploadOrReuseBuildsAndRunTests({
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
   printResultsUrl(url);
+
+  if (commandParams.wait) {
+    await waitForBuildResult({ client, teamId, projectIndex, buildIndex, url });
+  }
 
   return { url };
 }

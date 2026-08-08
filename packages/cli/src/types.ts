@@ -24,6 +24,7 @@ import {
   TEST_STANDARD_COMMAND,
   TOKEN_OPTION,
   WAIT_FOR_EAS_BUILD_OPTION,
+  WAIT_OPTION,
 } from './constants';
 
 /* === GENERAL === */
@@ -84,6 +85,7 @@ type CommandOptions = {
   [TEST_STANDARD_COMMAND]: {
     [ANDROID_OPTION]?: string;
     [IOS_OPTION]?: string;
+    [WAIT_OPTION]?: boolean;
   };
   [TEST_EAS_UPDATE_COMMAND]: {
     [BRANCH_OPTION]: string;
@@ -93,6 +95,7 @@ type CommandOptions = {
     [EAS_ANDROID_URL_OPTION]?: string;
     [EAS_IOS_URL_OPTION]?: string;
     [EAS_UPDATE_SLUG_OPTION]?: string;
+    [WAIT_OPTION]?: boolean;
   };
   [TEST_EAS_CLOUD_BUILD_COMMAND]: {
     [EAS_BUILD_SCRIPT_NAME_OPTION]?: string;
@@ -104,6 +107,7 @@ type CommandOptions = {
   [TEST_COMMAND]: {
     [ANDROID_OPTION]?: string;
     [IOS_OPTION]?: string;
+    [WAIT_OPTION]?: boolean;
   };
   [INIT_COMMAND]: {};
   any: Partial<
