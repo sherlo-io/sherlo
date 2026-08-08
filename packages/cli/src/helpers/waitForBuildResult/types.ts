@@ -2,9 +2,7 @@
  * One poll result from a build status source. `terminal: false` means keep
  * polling; `terminal: true` carries the final outcome.
  */
-export type BuildStatusPoll =
-  | { terminal: false }
-  | { terminal: true; hasChangesToReview: boolean };
+export type BuildStatusPoll = { terminal: false } | { terminal: true; hasChangesToReview: boolean };
 
 /**
  * The narrow interface `runWaitLoop` polls against. Today's implementation

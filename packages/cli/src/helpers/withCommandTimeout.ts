@@ -11,7 +11,9 @@ const TIMEOUT_IN_MINUTES = 30;
  * which owns the timeout exit code (3) for that case - this wrapper racing
  * it here would throw first and clobber that exit code.
  */
-function withCommandTimeout<T, P extends { wait?: boolean }>(commandFn: (options: P) => Promise<T>) {
+function withCommandTimeout<T, P extends { wait?: boolean }>(
+  commandFn: (options: P) => Promise<T>
+) {
   return async (options: P): Promise<T> => {
     if (options.wait) {
       return commandFn(options);
