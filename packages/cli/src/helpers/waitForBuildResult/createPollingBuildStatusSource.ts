@@ -22,7 +22,7 @@ type BuildStatusClient = {
     teamId: string;
     projectIndex: number;
     buildIndex: number;
-  }) => Promise<{ runStatus: RunStatus; viewStatusesCount: ViewStatusesCount }>;
+  }) => Promise<{ runStatus: RunStatus; viewStatusesCount: ViewStatusesCount | null | undefined }>;
 };
 
 function createPollingBuildStatusSource({
@@ -57,15 +57,24 @@ export default createPollingBuildStatusSource;
 // as a poll error (same path as a network/client error) rather than a
 // terminal outcome. `queued`/`waiting`/`inProgress` keep polling. `finished`
 // is terminal; whether there's anything to review comes from
-// `viewStatusesCount.reported`, since there's no single overall status
-// string in this response.
+// `viewStatusesCount.unreviewed`/`reported` (diffs nobody has judged yet,
+// or ones already flagged), since there's no single overall status string
+// in this response. `viewStatusesCount` can arrive null/undefined on a
+// just-finished poll (a race with the count not being written yet) - treat
+// that as not-yet-terminal so the next poll picks it up.
 function toBuildStatusPoll(
   runStatus: RunStatus,
-  viewStatusesCount: ViewStatusesCount
+  viewStatusesCount: ViewStatusesCount | null | undefined
 ): BuildStatusPoll {
   switch (runStatus) {
     case 'finished':
-      return { terminal: true, hasChangesToReview: viewStatusesCount.reported > 0 };
+      if (!viewStatusesCount) {
+        return { terminal: false };
+      }
+      return {
+        terminal: true,
+        hasChangesToReview: viewStatusesCount.unreviewed > 0 || viewStatusesCount.reported > 0,
+      };
     case 'error':
     case 'canceled':
       throw new Error(`Test run ended with status "${runStatus}"`);
