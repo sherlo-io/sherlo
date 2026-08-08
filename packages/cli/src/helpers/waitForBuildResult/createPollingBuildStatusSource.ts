@@ -4,13 +4,25 @@ import { BuildStatusPoll, BuildStatusSource } from './types';
 
 // The `getBuildStatus` field isn't visible on the sdk-client type from this
 // workspace (it's generated in the sibling sherlo-lib repo) - narrowed here
-// to the one field this source actually reads off the build.
+// to the fields this source actually reads. There is no single overall
+// status string: `runStatus` says where the run is, and `viewStatusesCount`
+// (only meaningful once `runStatus` is `finished`) says whether there's
+// anything to review.
+type RunStatus = 'canceled' | 'error' | 'finished' | 'inProgress' | 'queued' | 'waiting';
+
+type ViewStatusesCount = {
+  approved: number;
+  noChanges: number;
+  reported: number;
+  unreviewed: number;
+};
+
 type BuildStatusClient = {
   getBuildStatus: (params: {
     teamId: string;
     projectIndex: number;
     buildIndex: number;
-  }) => Promise<{ build: { status: string } }>;
+  }) => Promise<{ runStatus: RunStatus; viewStatusesCount: ViewStatusesCount }>;
 };
 
 function createPollingBuildStatusSource({
@@ -28,11 +40,11 @@ function createPollingBuildStatusSource({
 
   return {
     poll: async (): Promise<BuildStatusPoll> => {
-      const { build } = await statusClient
+      const { runStatus, viewStatusesCount } = await statusClient
         .getBuildStatus({ teamId, projectIndex, buildIndex })
         .catch(handleClientError);
 
-      return toBuildStatusPoll(build.status);
+      return toBuildStatusPoll(runStatus, viewStatusesCount);
     },
   };
 }
@@ -41,17 +53,25 @@ export default createPollingBuildStatusSource;
 
 /* ========================================================================== */
 
-// Terminal statuses mirror the ones the dashboard renders (see the `COLOR`
-// map in constants.ts): `reported` has diffs to review, `approved` and
-// `noChanges` don't. Anything else (queued/running) is still in progress.
-function toBuildStatusPoll(status: string): BuildStatusPoll {
-  switch (status) {
-    case 'reported':
-      return { terminal: true, hasChangesToReview: true };
-    case 'approved':
-    case 'noChanges':
-      return { terminal: true, hasChangesToReview: false };
-    default:
+// `error`/`canceled` is a run that ended without a usable result - surfaced
+// as a poll error (same path as a network/client error) rather than a
+// terminal outcome. `queued`/`waiting`/`inProgress` keep polling. `finished`
+// is terminal; whether there's anything to review comes from
+// `viewStatusesCount.reported`, since there's no single overall status
+// string in this response.
+function toBuildStatusPoll(
+  runStatus: RunStatus,
+  viewStatusesCount: ViewStatusesCount
+): BuildStatusPoll {
+  switch (runStatus) {
+    case 'finished':
+      return { terminal: true, hasChangesToReview: viewStatusesCount.reported > 0 };
+    case 'error':
+    case 'canceled':
+      throw new Error(`Test run ended with status "${runStatus}"`);
+    case 'queued':
+    case 'waiting':
+    case 'inProgress':
       return { terminal: false };
   }
 }
