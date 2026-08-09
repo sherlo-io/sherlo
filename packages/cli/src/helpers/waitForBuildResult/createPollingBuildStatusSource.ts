@@ -2,12 +2,9 @@ import sdkClient from '@sherlo/sdk-client';
 import handleClientError from '../handleClientError';
 import { BuildStatusPoll, BuildStatusSource } from './types';
 
-// The `getBuildStatus` field isn't visible on the sdk-client type from this
-// workspace (it's generated in the sibling sherlo-lib repo) - narrowed here
-// to the fields this source actually reads. There is no single overall
-// status string: `runStatus` says where the run is, and `viewStatusesCount`
-// (only meaningful once `runStatus` is `finished`) says whether there's
-// anything to review.
+// There is no single overall status string: `runStatus` says where the run
+// is, and `viewStatusesCount` (only meaningful once `runStatus` is
+// `finished`) says whether there's anything to review.
 type RunStatus = 'canceled' | 'error' | 'finished' | 'inProgress' | 'queued' | 'waiting';
 
 type ViewStatusesCount = {
@@ -15,14 +12,6 @@ type ViewStatusesCount = {
   noChanges: number;
   reported: number;
   unreviewed: number;
-};
-
-type BuildStatusClient = {
-  getBuildStatus: (params: {
-    teamId: string;
-    projectIndex: number;
-    buildIndex: number;
-  }) => Promise<{ runStatus: RunStatus; viewStatusesCount: ViewStatusesCount | null | undefined }>;
 };
 
 function createPollingBuildStatusSource({
@@ -36,12 +25,10 @@ function createPollingBuildStatusSource({
   projectIndex: number;
   buildIndex: number;
 }): BuildStatusSource {
-  const statusClient = client as unknown as BuildStatusClient;
-
   return {
     poll: async (): Promise<BuildStatusPoll> => {
-      const { runStatus, viewStatusesCount } = await statusClient
-        .getBuildStatus({ teamId, projectIndex, buildIndex })
+      const { runStatus, viewStatusesCount } = await client
+        .getBuildStatus({ teamId, projectIndex, index: buildIndex })
         .catch(handleClientError);
 
       return toBuildStatusPoll(runStatus, viewStatusesCount);
