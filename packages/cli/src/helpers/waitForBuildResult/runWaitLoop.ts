@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import printResultsUrl from '../printResultsUrl';
 import { POLL_INTERVAL_MS, WAIT_TIMEOUT_MINUTES, WAIT_TIMEOUT_MS } from './constants';
 import { BuildStatusSource } from './types';
@@ -26,10 +27,10 @@ async function runWaitLoop({
   try {
     while (true) {
       if (Date.now() >= deadline) {
-        printResultsUrl(url);
         console.error(
-          `Timed out waiting for the test run to finish after ${WAIT_TIMEOUT_MINUTES} minutes`
+          `⌛ ${chalk.yellow(`Deadline passed after ${WAIT_TIMEOUT_MINUTES}min - the run is still open`)}\n`
         );
+        printResultsUrl(url);
         process.exitCode = 3;
         return;
       }
@@ -43,19 +44,25 @@ async function runWaitLoop({
       ]);
 
       if (polled.type === 'sigint') {
+        console.log(`${chalk.dim('Stopped waiting. The run is still going in Sherlo:')}\n`);
         printResultsUrl(url);
         process.exitCode = 130;
         return;
       }
 
       if (polled.type === 'error') {
-        printResultsUrl(url);
         console.error((polled.error as Error).message);
+        printResultsUrl(url);
         process.exitCode = 2;
         return;
       }
 
       if (polled.result.terminal) {
+        if (polled.result.hasChangesToReview) {
+          console.log(`🟠 ${chalk.yellow('Run finished - snapshots require review')}\n`);
+        } else {
+          console.log(`✅ ${chalk.green('Run finished - nothing is waiting on a human')}\n`);
+        }
         printResultsUrl(url);
         process.exitCode = polled.result.hasChangesToReview ? 1 : 0;
         return;
@@ -68,6 +75,7 @@ async function runWaitLoop({
       ]);
 
       if (waited === 'sigint') {
+        console.log(`${chalk.dim('Stopped waiting. The run is still going in Sherlo:')}\n`);
         printResultsUrl(url);
         process.exitCode = 130;
         return;
