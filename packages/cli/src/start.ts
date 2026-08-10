@@ -30,6 +30,7 @@ import {
   INIT_COMMAND,
   IOS_FILE_TYPES,
   IOS_OPTION,
+  MAX_WAIT_TIME_OPTION,
   MESSAGE_OPTION,
   PLATFORM_LABEL,
   PROFILE_OPTION,
@@ -44,6 +45,7 @@ import {
   WAIT_OPTION,
 } from './constants';
 import { logWarning, reporting, withCommandTimeout } from './helpers';
+import { WAIT_TIMEOUT_MINUTES } from './helpers/waitForBuildResult/constants';
 
 // Disable all Node.js warnings
 process.removeAllListeners('warning');
@@ -173,8 +175,14 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   ],
   [WAIT_OPTION]: [
     `--${WAIT_OPTION}`,
-    'Wait for the test run to finish (times out after 30 minutes). Exit code: ' +
+    `Wait for the test run to finish (times out after ${WAIT_TIMEOUT_MINUTES} minutes, ` +
+      `override with --${MAX_WAIT_TIME_OPTION}). Exit code: ` +
       '0 = nothing to review, 1 = changes to review, 2 = error, 3 = timeout',
+  ],
+  [MAX_WAIT_TIME_OPTION]: [
+    `--${MAX_WAIT_TIME_OPTION} <minutes>`,
+    `Override how long --${WAIT_OPTION} waits before timing out (default: ${WAIT_TIMEOUT_MINUTES} minutes). ` +
+      'Must be an integer of at least 1',
   ],
 };
 
@@ -194,7 +202,12 @@ function addTestCommand(program: Command) {
   addCommand({
     program,
     command: TEST_COMMAND,
-    options: [...getTestCommonOptions('withPlatformPaths'), WAIT_OPTION, ...devtoolsOptions],
+    options: [
+      ...getTestCommonOptions('withPlatformPaths'),
+      WAIT_OPTION,
+      MAX_WAIT_TIME_OPTION,
+      ...devtoolsOptions,
+    ],
     action: test,
   });
 }
@@ -206,7 +219,12 @@ function addTestStandardCommand(program: Command) {
     program,
     command: TEST_STANDARD_COMMAND,
     oldCommand: 'local-builds',
-    options: [...getTestCommonOptions('withPlatformPaths'), WAIT_OPTION, ...devtoolsOptions],
+    options: [
+      ...getTestCommonOptions('withPlatformPaths'),
+      WAIT_OPTION,
+      MAX_WAIT_TIME_OPTION,
+      ...devtoolsOptions,
+    ],
     action: testStandard,
   });
 }
@@ -225,6 +243,7 @@ function addTestEasUpdateCommand(program: Command) {
       BRANCH_OPTION,
       ...getTestCommonOptions('withPlatformPaths'),
       WAIT_OPTION,
+      MAX_WAIT_TIME_OPTION,
       ...devtoolsOptions,
     ],
     action: testEasUpdate,

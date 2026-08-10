@@ -94,6 +94,7 @@ export const TOKEN_OPTION = 'token';
 export const INCLUDE_OPTION = 'include';
 export const WAIT_FOR_EAS_BUILD_OPTION = 'waitForEasBuild';
 export const WAIT_OPTION = 'wait';
+export const MAX_WAIT_TIME_OPTION = 'maxWaitTime';
 
 export const COLOR = {
   reported: 'FFB36C',
