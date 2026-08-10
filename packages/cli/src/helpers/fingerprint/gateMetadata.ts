@@ -713,19 +713,23 @@ async function detectExpoUpdatesIos({
         file: EXPO_PLIST_IOS_PATH,
         directory: binaryPath,
       });
-      return parseExpoUpdatesEnabledFromPlist(content);
+      if (content) return parseExpoUpdatesEnabledFromPlist(content);
     } catch {
-      try {
-        const content = await accessFileInDirectory({
-          operation: 'read',
-          file: EXPO_PLIST_IOS_APP_PATH,
-          directory: binaryPath,
-        });
-        return parseExpoUpdatesEnabledFromPlist(content);
-      } catch {
-        return false;
-      }
+      // try alternative path
     }
+
+    try {
+      const content = await accessFileInDirectory({
+        operation: 'read',
+        file: EXPO_PLIST_IOS_APP_PATH,
+        directory: binaryPath,
+      });
+      if (content) return parseExpoUpdatesEnabledFromPlist(content);
+    } catch {
+      // not found
+    }
+
+    return false;
   }
 
   // tar archive
