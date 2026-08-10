@@ -124,11 +124,19 @@ type CommandOptions = {
 
 /* === COMMAND PARAMS === */
 
+/**
+ * `maxWaitTime` is declared here (not only per-command in `CommandOptions`)
+ * because `validateMaxWaitTime` consumes params typed by the GENERIC `C` -
+ * TypeScript cannot resolve `CommandOptions[C]` structurally for an unresolved
+ * `C`, so the shared params shape must carry the optional field itself.
+ */
 export type CommandParams<C extends Command | 'any' = 'any'> = Config &
-  Options<C, 'withDefaults', 'normalized'> & { token: string };
+  Options<C, 'withDefaults', 'normalized'> & { token: string } & {
+    [MAX_WAIT_TIME_OPTION]?: string;
+  };
 
 export type InvalidatedCommandParams<C extends Command | 'any' = 'any'> = InvalidatedConfig &
-  Options<C, 'withDefaults', 'normalized'>;
+  Options<C, 'withDefaults', 'normalized'> & { [MAX_WAIT_TIME_OPTION]?: string };
 
 /* === OTHERS === */
 
