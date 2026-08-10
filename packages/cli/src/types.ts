@@ -15,6 +15,7 @@ import {
   INIT_COMMAND,
   IOS_FILE_TYPES,
   IOS_OPTION,
+  MAX_WAIT_TIME_OPTION,
   MESSAGE_OPTION,
   PROFILE_OPTION,
   PROJECT_ROOT_OPTION,
@@ -24,6 +25,7 @@ import {
   TEST_STANDARD_COMMAND,
   TOKEN_OPTION,
   WAIT_FOR_EAS_BUILD_OPTION,
+  WAIT_OPTION,
 } from './constants';
 
 /* === GENERAL === */
@@ -76,6 +78,14 @@ type CommonOptions<M extends OptionsMode, F extends OptionsFormat> = {
   [GIT_BRANCH_OPTION]?: string;
   [INCLUDE_OPTION]?: F extends 'raw' ? string : string[];
   [DIAGNOSTICS_OPTION]?: F extends 'raw' ? string : string[];
+  /**
+   * Registered only on the wait-capable test commands (`test`,
+   * `test:standard`, `test:eas-update`), but declared on the shared shape:
+   * `validateMaxWaitTime` and `getCommandParams` consume params typed by a
+   * GENERIC command `C`, and TypeScript cannot resolve `CommandOptions[C]`
+   * structurally while `C` is unresolved.
+   */
+  [MAX_WAIT_TIME_OPTION]?: string;
 } & (M extends 'withDefaults'
   ? { [CONFIG_OPTION]: string; [PROJECT_ROOT_OPTION]: string }
   : { [CONFIG_OPTION]?: string; [PROJECT_ROOT_OPTION]?: string });
@@ -84,6 +94,7 @@ type CommandOptions = {
   [TEST_STANDARD_COMMAND]: {
     [ANDROID_OPTION]?: string;
     [IOS_OPTION]?: string;
+    [WAIT_OPTION]?: boolean;
   };
   [TEST_EAS_UPDATE_COMMAND]: {
     [BRANCH_OPTION]: string;
@@ -93,6 +104,7 @@ type CommandOptions = {
     [EAS_ANDROID_URL_OPTION]?: string;
     [EAS_IOS_URL_OPTION]?: string;
     [EAS_UPDATE_SLUG_OPTION]?: string;
+    [WAIT_OPTION]?: boolean;
   };
   [TEST_EAS_CLOUD_BUILD_COMMAND]: {
     [EAS_BUILD_SCRIPT_NAME_OPTION]?: string;
@@ -104,6 +116,7 @@ type CommandOptions = {
   [TEST_COMMAND]: {
     [ANDROID_OPTION]?: string;
     [IOS_OPTION]?: string;
+    [WAIT_OPTION]?: boolean;
   };
   [INIT_COMMAND]: {};
   any: Partial<
