@@ -14,11 +14,19 @@ async function runWaitLoop({
   statusSource,
   url,
   maxWaitTimeMinutes,
+  now = Date.now,
 }: {
   statusSource: BuildStatusSource;
   url: string;
   /** Overrides `WAIT_TIMEOUT_MINUTES` for this run when provided (e.g. `--maxWaitTime`). */
   maxWaitTimeMinutes?: number;
+  /**
+   * Injectable clock so the deadline tests can stub time deterministically
+   * instead of spying on the global `Date.now` - keeps them immune to any
+   * other `Date.now` caller in the process (e.g. a test reporter timestamping
+   * console output) under any test reporter.
+   */
+  now?: () => number;
 }): Promise<void> {
   const waitTimeoutMinutes = maxWaitTimeMinutes ?? WAIT_TIMEOUT_MINUTES;
   const waitTimeoutMs = waitTimeoutMinutes * 60 * 1000;
@@ -27,12 +35,12 @@ async function runWaitLoop({
     `⏳ Waiting for the test run to finish (times out after ${waitTimeoutMinutes} minutes)...\n`
   );
 
-  const deadline = Date.now() + waitTimeoutMs;
+  const deadline = now() + waitTimeoutMs;
   const sigint = createSigintSignal();
 
   try {
     while (true) {
-      if (Date.now() >= deadline) {
+      if (now() >= deadline) {
         console.error(
           `⌛ ${chalk.yellow(
             `Deadline passed after ${waitTimeoutMinutes}min - the run is still open`
@@ -76,7 +84,7 @@ async function runWaitLoop({
         return;
       }
 
-      const remainingMs = Math.max(deadline - Date.now(), 0);
+      const remainingMs = Math.max(deadline - now(), 0);
       const waited = await Promise.race([
         delay(Math.min(POLL_INTERVAL_MS, remainingMs)).then(() => 'elapsed' as const),
         sigint.promise.then(() => 'sigint' as const),
