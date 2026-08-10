@@ -17,6 +17,9 @@ import getTokenParts from './getTokenParts';
  *               failure, canceled, or authentication/permission denied).
  *   3 - TIMEOUT: --wait-timeout elapsed before reaching a terminal state.
  *               Conservative - timeout is a BLOCK, never a pass.
+ *   130 - SIGINT: the user pressed Ctrl-C while waiting. The run keeps going
+ *               in Sherlo; we stop cleanly, reprint the dashboard URL, and
+ *               exit with the conventional 128+SIGINT(2) code.
  *
  * GitHub check mapping (for reference):
  *   exit 0 → conclusion: "success"
@@ -30,6 +33,7 @@ export const EXIT_GREEN = 0;
 export const EXIT_BLOCK = 1;
 export const EXIT_ERROR = 2;
 export const EXIT_TIMEOUT = 3;
+export const EXIT_SIGINT = 130;
 
 const DEFAULT_WAIT_TIMEOUT_MINUTES = 45;
 const POLL_INTERVAL_MS = 15_000; // fixed interval, no API hammering
@@ -79,12 +83,20 @@ async function waitForBuildResult({
   teamId,
   waitTimeoutMinutes,
   serverBypassed = false,
+  now = Date.now,
 }: {
   token: string;
   buildIndex: number;
   projectIndex: number;
   teamId: string;
   waitTimeoutMinutes?: number;
+  /**
+   * Injectable clock so the deadline tests can stub time deterministically
+   * instead of spying on the global `Date.now` - keeps them immune to any
+   * other `Date.now` caller in the process (e.g. a test reporter timestamping
+   * console output) under any test reporter.
+   */
+  now?: () => number;
   /**
    * The build was already closed server-side without ever running on a device
    * (SHERLO-1959/1952), detected off the openBuild counts by the caller. When
@@ -97,7 +109,8 @@ async function waitForBuildResult({
   serverBypassed?: boolean;
 }): Promise<number> {
   const timeoutMs = (waitTimeoutMinutes ?? DEFAULT_WAIT_TIMEOUT_MINUTES) * 60 * 1000;
-  const startTime = Date.now();
+  const startTime = now();
+  const deadline = startTime + timeoutMs;
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
   const { apiToken } = getTokenParts(token);
@@ -116,75 +129,119 @@ async function waitForBuildResult({
   let lastStatus = '';
   let pollCount = 0;
 
-  while (true) {
-    // Check timeout before each poll
-    if (Date.now() - startTime > timeoutMs) {
-      console.log();
-      console.log(
-        chalk.yellow(
-          `⏰ Timeout reached after ${waitTimeoutMinutes ?? DEFAULT_WAIT_TIMEOUT_MINUTES} minutes.`
-        )
-      );
-      console.log(chalk.yellow('   The build may still be running. Check the dashboard:'));
-      console.log(chalk.blue(`   ${url}`));
-      console.log();
-      return EXIT_TIMEOUT;
-    }
+  // Overrides Node's default "exit immediately" SIGINT behavior so the wait
+  // loop can stop cleanly, reprint the dashboard URL, and exit(130) itself
+  // instead of killing the process mid-print. The run keeps going in Sherlo.
+  const sigint = createSigintSignal();
 
-    let build: NonNullable<BuildStatusResponse['getBuildStatus']> | null = null;
+  // Every sleep in the loop is bounded to the remaining time until the
+  // deadline, so a timeout fires on time instead of overshooting by up to one
+  // poll interval - and is raced against SIGINT so Ctrl-C never has to wait
+  // out a sleep.
+  const sleepUnlessInterrupted = async (): Promise<'elapsed' | 'sigint'> => {
+    const remainingMs = Math.max(deadline - now(), 0);
+    return Promise.race([
+      sleep(Math.min(POLL_INTERVAL_MS, remainingMs)).then(() => 'elapsed' as const),
+      sigint.promise.then(() => 'sigint' as const),
+    ]);
+  };
 
-    try {
-      build = await fetchBuildStatus(endpointUrl, apiToken, {
-        index: buildIndex,
-        projectIndex,
-        teamId,
-      });
-    } catch (error) {
-      // Auth failures are not retryable - stop immediately
-      if (error instanceof AuthError) {
+  const printSigintCloser = (): number => {
+    console.log();
+    console.log(chalk.dim('Stopped waiting. The run is still going in Sherlo:'));
+    console.log(chalk.blue(`   ${url}`));
+    console.log();
+    return EXIT_SIGINT;
+  };
+
+  try {
+    while (true) {
+      // Check timeout before each poll
+      if (now() >= deadline) {
         console.log();
-        console.log(chalk.red(`🔒 ${error.message}`));
-        console.log(chalk.blue(`   Dashboard: ${url}`));
+        console.log(
+          chalk.yellow(
+            `⏰ Timeout reached after ${waitTimeoutMinutes ?? DEFAULT_WAIT_TIMEOUT_MINUTES} minutes.`
+          )
+        );
+        console.log(chalk.yellow('   The build may still be running. Check the dashboard:'));
+        console.log(chalk.blue(`   ${url}`));
         console.log();
-        return EXIT_ERROR;
+        return EXIT_TIMEOUT;
       }
 
-      // Transient network blips are retried
-      console.log(chalk.dim(`   Network error, retrying... (${(error as Error).message})`));
-      await sleep(POLL_INTERVAL_MS);
-      continue;
+      let build: NonNullable<BuildStatusResponse['getBuildStatus']> | null = null;
+
+      try {
+        const polled = await Promise.race([
+          fetchBuildStatus(endpointUrl, apiToken, {
+            index: buildIndex,
+            projectIndex,
+            teamId,
+          }).then((result) => ({ type: 'result' as const, result })),
+          sigint.promise.then(() => ({ type: 'sigint' as const })),
+        ]);
+
+        if (polled.type === 'sigint') {
+          return printSigintCloser();
+        }
+
+        build = polled.result;
+      } catch (error) {
+        // Auth failures are not retryable - stop immediately
+        if (error instanceof AuthError) {
+          console.log();
+          console.log(chalk.red(`🔒 ${error.message}`));
+          console.log(chalk.blue(`   Dashboard: ${url}`));
+          console.log();
+          return EXIT_ERROR;
+        }
+
+        // Transient network blips are retried
+        console.log(chalk.dim(`   Network error, retrying... (${(error as Error).message})`));
+        if ((await sleepUnlessInterrupted()) === 'sigint') {
+          return printSigintCloser();
+        }
+        continue;
+      }
+
+      if (!build) {
+        console.log(chalk.dim('   Build not found, retrying...'));
+        if ((await sleepUnlessInterrupted()) === 'sigint') {
+          return printSigintCloser();
+        }
+        continue;
+      }
+
+      // Print progress when status changes. Suppressed for a server-bypassed build
+      // (SHERLO-1952): its only progress line would be "🟢 Finished", which implies
+      // a device run that never happened.
+      const progressLine = formatProgressLine(build);
+      if (!serverBypassed && progressLine !== lastStatus) {
+        console.log(progressLine);
+        lastStatus = progressLine;
+      }
+
+      const exitCode = evaluateTerminalState(build, url);
+
+      if (exitCode !== null) {
+        return exitCode;
+      }
+
+      // Periodic heartbeat so CI systems never see 5+ min of silence
+      pollCount++;
+      if (pollCount % 20 === 0) {
+        const elapsedMin = Math.round((now() - startTime) / 60_000);
+        const statusLabel = build.runStatus === 'inProgress' ? 'running' : build.runStatus;
+        console.log(chalk.dim(`   still ${statusLabel}... (${elapsedMin}m elapsed)`));
+      }
+
+      if ((await sleepUnlessInterrupted()) === 'sigint') {
+        return printSigintCloser();
+      }
     }
-
-    if (!build) {
-      console.log(chalk.dim('   Build not found, retrying...'));
-      await sleep(POLL_INTERVAL_MS);
-      continue;
-    }
-
-    // Print progress when status changes. Suppressed for a server-bypassed build
-    // (SHERLO-1952): its only progress line would be "🟢 Finished", which implies
-    // a device run that never happened.
-    const progressLine = formatProgressLine(build);
-    if (!serverBypassed && progressLine !== lastStatus) {
-      console.log(progressLine);
-      lastStatus = progressLine;
-    }
-
-    const exitCode = evaluateTerminalState(build, url);
-
-    if (exitCode !== null) {
-      return exitCode;
-    }
-
-    // Periodic heartbeat so CI systems never see 5+ min of silence
-    pollCount++;
-    if (pollCount % 20 === 0) {
-      const elapsedMin = Math.round((Date.now() - startTime) / 60_000);
-      const statusLabel = build.runStatus === 'inProgress' ? 'running' : build.runStatus;
-      console.log(chalk.dim(`   still ${statusLabel}... (${elapsedMin}m elapsed)`));
-    }
-
-    await sleep(POLL_INTERVAL_MS);
+  } finally {
+    sigint.cleanup();
   }
 }
 
@@ -281,8 +338,16 @@ function evaluateTerminalState(
 
   switch (runStatus) {
     case 'finished': {
-      const unreviewed = viewStatusesCount?.unreviewed ?? 0;
-      const reported = viewStatusesCount?.reported ?? 0;
+      // `viewStatusesCount` can arrive null/undefined on a just-finished poll
+      // (a race with the counts not being written yet). Treat that as
+      // not-yet-terminal so the next poll picks it up - defaulting the counts
+      // to 0 here would declare a false GREEN.
+      if (!viewStatusesCount) {
+        return null;
+      }
+
+      const unreviewed = viewStatusesCount.unreviewed;
+      const reported = viewStatusesCount.reported;
 
       if (unreviewed === 0 && reported === 0) {
         console.log();
@@ -479,6 +544,24 @@ function formatProgressLine(build: NonNullable<BuildStatusResponse['getBuildStat
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Replaces Node's default "exit immediately" SIGINT behavior for the duration
+ * of the wait: the returned promise resolves on the first Ctrl-C, letting the
+ * poll loop stop cleanly and exit with {@link EXIT_SIGINT}. `cleanup` restores
+ * the default by removing the listener.
+ */
+function createSigintSignal(): { promise: Promise<void>; cleanup: () => void } {
+  let resolveSignal: () => void;
+  const promise = new Promise<void>((resolve) => {
+    resolveSignal = resolve;
+  });
+
+  const handler = () => resolveSignal();
+  process.once('SIGINT', handler);
+
+  return { promise, cleanup: () => process.off('SIGINT', handler) };
 }
 
 export default waitForBuildResult;

@@ -204,7 +204,7 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${WAIT_OPTION}`,
     'Wait for test results and exit with a code encoding the outcome:\n' +
       '  0 = GREEN (no changes), 1 = changes require review,\n' +
-      '  2 = build/system error, 3 = timeout (block, never pass)',
+      '  2 = build/system error, 3 = timeout (block, never pass), 130 = interrupted (Ctrl-C)',
   ],
   [WAIT_TIMEOUT_OPTION]: [
     '--wait-timeout <minutes>',

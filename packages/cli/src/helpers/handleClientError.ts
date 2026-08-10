@@ -2,7 +2,7 @@ import { APP_DOMAIN } from '../constants';
 import { printLink } from '../helpers';
 import throwError from './throwError';
 
-function handleClientError(error: any) {
+function handleClientError(error: any): never {
   if (error.networkError?.statusCode === 401) {
     throwError({
       type: 'auth',

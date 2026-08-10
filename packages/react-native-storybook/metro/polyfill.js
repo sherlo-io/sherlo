@@ -79,8 +79,9 @@ var PROTOCOL_FILE = 'protocol.sherlo';
       _gateNm = global.nativeModuleProxy.SherloModule;
     }
     if (_gateNm) {
-      var _gateC = (typeof _gateNm.getSherloConstants === 'function' ? _gateNm.getSherloConstants() : null) ||
-                   (typeof _gateNm.getConstants === 'function' ? _gateNm.getConstants() : null);
+      var _gateC =
+        (typeof _gateNm.getSherloConstants === 'function' ? _gateNm.getSherloConstants() : null) ||
+        (typeof _gateNm.getConstants === 'function' ? _gateNm.getConstants() : null);
       var _gateMode = _gateC && _gateC.mode;
       if (_gateMode === 'default' || _gateMode === 'storybook') {
         return;
@@ -100,22 +101,22 @@ var PROTOCOL_FILE = 'protocol.sherlo';
     } catch (_) {}
     try {
       // RN 0.81 old-arch: nativeModuleProxy may exist but return null for non-TurboModules.
-      // Kept isolated so a JSI property-access throw doesn't suppress the __r fallback.
       if (global.nativeModuleProxy && global.nativeModuleProxy.SherloModule) {
         return global.nativeModuleProxy.SherloModule;
       }
     } catch (_) {}
-    try {
-      // Works when 'react-native' is in the bundle (all real apps, some test variants).
-      // At polyfill IIFE time this will fail (modules not defined yet); error-handler
-      // callers benefit once module factories have been registered via __d().
-      if (typeof global.__r === 'function') {
-        var rn = global.__r('react-native');
-        if (rn && rn.NativeModules && rn.NativeModules.SherloModule) {
-          return rn.NativeModules.SherloModule;
-        }
-      }
-    } catch (_) {}
+    // NOTE: a third fallback via global.__r('react-native') used to live here and was
+    // removed. Metro's string-to-moduleId resolution (getModuleIdForVerboseName) only
+    // runs under __DEV__ (see metro-runtime/src/polyfills/require.js) - in release
+    // builds global.__r('react-native') looks up the literal string 'react-native' in
+    // a Map keyed by numeric module ids, always misses, and falls through to Metro's
+    // guardedLoadModule, which calls global.ErrorUtils.reportFatalError() on the miss.
+    // Since that call can happen while this very function is being invoked from inside
+    // reportToNative() (itself invoked from an ErrorUtils/1 __d-wrap handler), it risked
+    // recursively re-entering the same reporting path for a bogus "unknown module" error
+    // instead of - or interleaved with - the real one. It never provided real coverage in
+    // release (the only mode this polyfill's capture logic is active in - see IIFE-time
+    // mode gate above), so removing it is a strict improvement.
     return null;
   }
 
@@ -138,10 +139,12 @@ var PROTOCOL_FILE = 'protocol.sherlo';
     if (global.__sherloModuleRef) return;
     if (!_e) return;
     var candidate = _e.default || _e;
-    if (candidate &&
-        typeof candidate.appendFile === 'function' &&
-        typeof candidate.getMode === 'function' &&
-        typeof candidate.sendNativeError === 'function') {
+    if (
+      candidate &&
+      typeof candidate.appendFile === 'function' &&
+      typeof candidate.getMode === 'function' &&
+      typeof candidate.sendNativeError === 'function'
+    ) {
       global.__sherloModuleRef = candidate;
     }
   }
@@ -153,8 +156,10 @@ var PROTOCOL_FILE = 'protocol.sherlo';
   function maybeCaptureStorybookMod(_e) {
     if (global.__sherloStorybookMod) return;
     if (!_e) return;
-    if (typeof _e.__sherloStorybookEntry !== 'undefined' ||
-        typeof _e.__sherloStorybookConfigPath !== 'undefined') {
+    if (
+      typeof _e.__sherloStorybookEntry !== 'undefined' ||
+      typeof _e.__sherloStorybookConfigPath !== 'undefined'
+    ) {
       global.__sherloStorybookMod = _e;
     }
   }
@@ -176,12 +181,15 @@ var PROTOCOL_FILE = 'protocol.sherlo';
     var mode = null;
     var config = null;
     try {
-      var c = (typeof nm.getSherloConstants === 'function' ? nm.getSherloConstants() : null) ||
-              (typeof nm.getConstants === 'function' ? nm.getConstants() : null);
+      var c =
+        (typeof nm.getSherloConstants === 'function' ? nm.getSherloConstants() : null) ||
+        (typeof nm.getConstants === 'function' ? nm.getConstants() : null);
       mode = c && c.mode;
       var configString = c && c.config;
       if (configString) {
-        try { config = JSON.parse(configString); } catch (_) {}
+        try {
+          config = JSON.parse(configString);
+        } catch (_) {}
       }
     } catch (_) {}
 
@@ -218,7 +226,7 @@ var PROTOCOL_FILE = 'protocol.sherlo';
                 name: (error && error.name) || 'Error',
                 message: (error && error.message) || String(error),
                 stack: (error && error.stack) || '',
-                componentStack: ''
+                componentStack: '',
               };
               var entry = { action: 'JS_ERROR', timestamp: Date.now(), entity: 'app', data: data };
               sherloMod.appendFile(PROTOCOL_FILE, JSON.stringify(entry) + '\n');
@@ -247,7 +255,9 @@ var PROTOCOL_FILE = 'protocol.sherlo';
             return componentProvider();
           }
           var storybookIndexMod;
-          try { storybookIndexMod = loader(); } catch (_) {
+          try {
+            storybookIndexMod = loader();
+          } catch (_) {
             return componentProvider();
           }
           var UserStorybookEntry = storybookIndexMod && storybookIndexMod.default;
@@ -270,10 +280,17 @@ var PROTOCOL_FILE = 'protocol.sherlo';
         var Component = componentProvider();
         if (!Component || Component._sherloWrapped) return Component;
         function SherloRootP(props) {
-          return React.createElement(SherloErrorBoundaryP, null, React.createElement(Component, props));
+          return React.createElement(
+            SherloErrorBoundaryP,
+            null,
+            React.createElement(Component, props)
+          );
         }
         SherloRootP._sherloWrapped = true;
-        SherloRootP.displayName = 'SherloRoot(' + ((Component && (Component.displayName || Component.name)) || appKey) + ')';
+        SherloRootP.displayName =
+          'SherloRoot(' +
+          ((Component && (Component.displayName || Component.name)) || appKey) +
+          ')';
         return SherloRootP;
       });
     };
@@ -290,7 +307,7 @@ var PROTOCOL_FILE = 'protocol.sherlo';
       global.__sherloLastJsError = {
         name: (error && error.name) || 'Error',
         message: (error && error.message) || String(error),
-        stack: (error && error.stack) || ''
+        stack: (error && error.stack) || '',
       };
     } catch (_) {}
     try {
@@ -317,9 +334,13 @@ var PROTOCOL_FILE = 'protocol.sherlo';
     globalThis.__sherloReportErrorInstalled = true;
     var __sherloPrevReportError = globalThis.reportError;
     globalThis.reportError = function (err) {
-      try { reportToNative(err); } catch (_) {}
+      try {
+        reportToNative(err);
+      } catch (_) {}
       if (typeof __sherloPrevReportError === 'function') {
-        try { __sherloPrevReportError.call(globalThis, err); } catch (_) {}
+        try {
+          __sherloPrevReportError.call(globalThis, err);
+        } catch (_) {}
       }
     };
   }
@@ -333,8 +354,12 @@ var PROTOCOL_FILE = 'protocol.sherlo';
   //    after all synchronous module evaluation completes.
   function installSherloErrorUtilsHandler() {
     try {
-      var EU = (typeof ErrorUtils !== 'undefined') ? ErrorUtils : (global && global.ErrorUtils);
-      if (!EU || typeof EU.getGlobalHandler !== 'function' || typeof EU.setGlobalHandler !== 'function') {
+      var EU = typeof ErrorUtils !== 'undefined' ? ErrorUtils : global && global.ErrorUtils;
+      if (
+        !EU ||
+        typeof EU.getGlobalHandler !== 'function' ||
+        typeof EU.setGlobalHandler !== 'function'
+      ) {
         return;
       }
       var existing = EU.getGlobalHandler();
@@ -342,9 +367,13 @@ var PROTOCOL_FILE = 'protocol.sherlo';
         return;
       }
       function sherloWrapping(error, isFatal) {
-        try { reportToNative(error); } catch (_) {}
+        try {
+          reportToNative(error);
+        } catch (_) {}
         if (typeof existing === 'function') {
-          try { existing(error, isFatal); } catch (_) {}
+          try {
+            existing(error, isFatal);
+          } catch (_) {}
         }
       }
       sherloWrapping.__sherlo = true;
@@ -366,7 +395,15 @@ var PROTOCOL_FILE = 'protocol.sherlo';
         // Fallback for any unexpected shape - pass through unwrapped.
         return originalDefine.apply(this, arguments);
       }
-      function wrappedFactory(globalObj, requireFn, importDefault, importAll, moduleObj, exportsObj, depMap) {
+      function wrappedFactory(
+        globalObj,
+        requireFn,
+        importDefault,
+        importAll,
+        moduleObj,
+        exportsObj,
+        depMap
+      ) {
         // Install a setter trap so we can intercept _e.AppRegistry = t synchronously.
         // (UNCONDITIONAL - patchAppRegistry has its own internal mode gate via
         // getSherloConstants. Gating this trap on a JSI-set global risks Android races.)
@@ -375,13 +412,17 @@ var PROTOCOL_FILE = 'protocol.sherlo';
           Object.defineProperty(exportsObj, 'AppRegistry', {
             configurable: true,
             enumerable: false,
-            get: function () { return _arValue; },
+            get: function () {
+              return _arValue;
+            },
             set: function (v) {
               _arValue = v;
               // RN's AR re-exporter writes `_e.AppRegistry = void 0` first, then
               // `_e.AppRegistry = t`; keep the trap armed across the void-0 init.
               if (v && typeof v.registerComponent === 'function') {
-                try { patchAppRegistry(v); } catch (_) {}
+                try {
+                  patchAppRegistry(v);
+                } catch (_) {}
                 try {
                   Object.defineProperty(exportsObj, 'AppRegistry', {
                     value: v,
@@ -391,27 +432,43 @@ var PROTOCOL_FILE = 'protocol.sherlo';
                   });
                 } catch (_) {}
               }
-            }
+            },
           });
         } catch (_) {}
 
         try {
-          return factory.call(this, globalObj, requireFn, importDefault, importAll, moduleObj, exportsObj, depMap);
+          return factory.call(
+            this,
+            globalObj,
+            requireFn,
+            importDefault,
+            importAll,
+            moduleObj,
+            exportsObj,
+            depMap
+          );
         } catch (e) {
           reportToNative(e);
           throw e;
         } finally {
-          try { maybeCaptureReact(exportsObj); } catch (_) {}
-          try { maybeCaptureSherloModule(exportsObj); } catch (_) {}
-          try { maybeCaptureStorybookMod(exportsObj); } catch (_) {}
+          try {
+            maybeCaptureReact(exportsObj);
+          } catch (_) {}
+          try {
+            maybeCaptureSherloModule(exportsObj);
+          } catch (_) {}
+          try {
+            maybeCaptureStorybookMod(exportsObj);
+          } catch (_) {}
           // Prong 1 - patch global.RN$AppRegistry directly (new arch).
           // The setter trap on exportsObj.AppRegistry gets overwritten by RN's own
           // getter-only Object.defineProperty redefinition (spike finding #1), so we
           // can't rely on it. New arch publishes AppRegistry as global.RN$AppRegistry
           // - patch that reference directly after each module factory runs.
           try {
-            var _arGlobal = (typeof global !== 'undefined' && global.RN$AppRegistry) ||
-                            (typeof globalThis !== 'undefined' && globalThis.RN$AppRegistry);
+            var _arGlobal =
+              (typeof global !== 'undefined' && global.RN$AppRegistry) ||
+              (typeof globalThis !== 'undefined' && globalThis.RN$AppRegistry);
             if (_arGlobal && !_arGlobal.__sherloBoundaryPatched) {
               patchAppRegistry(_arGlobal);
             }
@@ -425,7 +482,9 @@ var PROTOCOL_FILE = 'protocol.sherlo';
   //     By the time this microtask runs, ExceptionsManager's setGlobalHandler call
   //     (synchronous, during module evaluation) will already have completed, so
   //     installSherloErrorUtilsHandler wraps it rather than getting overwritten by it.
-  try { Promise.resolve().then(installSherloErrorUtilsHandler); } catch (_) {}
+  try {
+    Promise.resolve().then(installSherloErrorUtilsHandler);
+  } catch (_) {}
 
   // 3. ERROR_STORYBOOK_NOT_DISPLAYED timer - fires if the Sherlo Storybook wrapper
   //    was never mounted (e.g. user forgot to wire getStorybook in App.tsx).
@@ -444,15 +503,25 @@ var PROTOCOL_FILE = 'protocol.sherlo';
           if (global.__sherloStorybookRendered === true) return;
           var sherloNm = getSherloNativeModule();
           if (!sherloNm) return;
-          var turboConsts = (typeof sherloNm.getSherloConstants === 'function' && sherloNm.getSherloConstants()) || {};
-          var nativeConsts = (typeof sherloNm.getConstants === 'function' && sherloNm.getConstants()) || {};
+          var turboConsts =
+            (typeof sherloNm.getSherloConstants === 'function' && sherloNm.getSherloConstants()) ||
+            {};
+          var nativeConsts =
+            (typeof sherloNm.getConstants === 'function' && sherloNm.getConstants()) || {};
           var mode = turboConsts.mode || nativeConsts.mode;
           if (mode !== 'testing') return;
           var ref = global.__sherloModuleRef;
           if (ref && typeof ref.sendNativeError === 'function') {
-            ref.sendNativeError('ERROR_STORYBOOK_NOT_DISPLAYED', 'Storybook did not appear within 10s of app launch');
+            ref.sendNativeError(
+              'ERROR_STORYBOOK_NOT_DISPLAYED',
+              'Storybook did not appear within 10s of app launch'
+            );
           } else if (typeof sherloNm.sendNativeError === 'function') {
-            sherloNm.sendNativeError('ERROR_STORYBOOK_NOT_DISPLAYED', 'Storybook did not appear within 10s of app launch', '');
+            sherloNm.sendNativeError(
+              'ERROR_STORYBOOK_NOT_DISPLAYED',
+              'Storybook did not appear within 10s of app launch',
+              ''
+            );
           }
         } catch (_) {}
       }, 10000);

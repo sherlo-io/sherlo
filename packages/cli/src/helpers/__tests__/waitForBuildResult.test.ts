@@ -121,8 +121,15 @@ describe('waitForBuildResult', () => {
     expect(result).toBe(EXIT_GREEN);
   });
 
-  it('exits 0 (GREEN) when viewStatusesCount is missing (treat as zero)', async () => {
+  it('keeps polling when finished arrives without viewStatusesCount (counts race), then exits on the counted poll', async () => {
+    // `finished` with no counts is a race with the counts not being written
+    // yet - defaulting them to 0 would declare a false GREEN, so the poll
+    // treats it as not-yet-terminal and the next (counted) poll decides.
     mockGraphqlResponse(200, buildResponse('finished'));
+    mockGraphqlResponse(
+      200,
+      buildResponse('finished', { approved: 0, noChanges: 3, reported: 0, unreviewed: 0 })
+    );
 
     const promise = waitForBuildResult({
       token: TOKEN,
@@ -134,6 +141,7 @@ describe('waitForBuildResult', () => {
     await vi.runAllTimersAsync();
     const result = await promise;
 
+    expect(mockFetch).toHaveBeenCalledTimes(2);
     expect(result).toBe(EXIT_GREEN);
   });
 
