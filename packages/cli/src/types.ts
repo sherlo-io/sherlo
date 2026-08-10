@@ -78,6 +78,14 @@ type CommonOptions<M extends OptionsMode, F extends OptionsFormat> = {
   [GIT_BRANCH_OPTION]?: string;
   [INCLUDE_OPTION]?: F extends 'raw' ? string : string[];
   [DIAGNOSTICS_OPTION]?: F extends 'raw' ? string : string[];
+  /**
+   * Registered only on the wait-capable test commands (`test`,
+   * `test:standard`, `test:eas-update`), but declared on the shared shape:
+   * `validateMaxWaitTime` and `getCommandParams` consume params typed by a
+   * GENERIC command `C`, and TypeScript cannot resolve `CommandOptions[C]`
+   * structurally while `C` is unresolved.
+   */
+  [MAX_WAIT_TIME_OPTION]?: string;
 } & (M extends 'withDefaults'
   ? { [CONFIG_OPTION]: string; [PROJECT_ROOT_OPTION]: string }
   : { [CONFIG_OPTION]?: string; [PROJECT_ROOT_OPTION]?: string });
@@ -87,7 +95,6 @@ type CommandOptions = {
     [ANDROID_OPTION]?: string;
     [IOS_OPTION]?: string;
     [WAIT_OPTION]?: boolean;
-    [MAX_WAIT_TIME_OPTION]?: string;
   };
   [TEST_EAS_UPDATE_COMMAND]: {
     [BRANCH_OPTION]: string;
@@ -98,7 +105,6 @@ type CommandOptions = {
     [EAS_IOS_URL_OPTION]?: string;
     [EAS_UPDATE_SLUG_OPTION]?: string;
     [WAIT_OPTION]?: boolean;
-    [MAX_WAIT_TIME_OPTION]?: string;
   };
   [TEST_EAS_CLOUD_BUILD_COMMAND]: {
     [EAS_BUILD_SCRIPT_NAME_OPTION]?: string;
@@ -111,7 +117,6 @@ type CommandOptions = {
     [ANDROID_OPTION]?: string;
     [IOS_OPTION]?: string;
     [WAIT_OPTION]?: boolean;
-    [MAX_WAIT_TIME_OPTION]?: string;
   };
   [INIT_COMMAND]: {};
   any: Partial<
@@ -124,19 +129,11 @@ type CommandOptions = {
 
 /* === COMMAND PARAMS === */
 
-/**
- * `maxWaitTime` is declared here (not only per-command in `CommandOptions`)
- * because `validateMaxWaitTime` consumes params typed by the GENERIC `C` -
- * TypeScript cannot resolve `CommandOptions[C]` structurally for an unresolved
- * `C`, so the shared params shape must carry the optional field itself.
- */
 export type CommandParams<C extends Command | 'any' = 'any'> = Config &
-  Options<C, 'withDefaults', 'normalized'> & { token: string } & {
-    [MAX_WAIT_TIME_OPTION]?: string;
-  };
+  Options<C, 'withDefaults', 'normalized'> & { token: string };
 
 export type InvalidatedCommandParams<C extends Command | 'any' = 'any'> = InvalidatedConfig &
-  Options<C, 'withDefaults', 'normalized'> & { [MAX_WAIT_TIME_OPTION]?: string };
+  Options<C, 'withDefaults', 'normalized'>;
 
 /* === OTHERS === */
 
