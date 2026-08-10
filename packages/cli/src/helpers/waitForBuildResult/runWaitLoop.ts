@@ -34,7 +34,9 @@ async function runWaitLoop({
     while (true) {
       if (Date.now() >= deadline) {
         console.error(
-          `⌛ ${chalk.yellow(`Deadline passed after ${waitTimeoutMinutes}min - the run is still open`)}\n`
+          `⌛ ${chalk.yellow(
+            `Deadline passed after ${waitTimeoutMinutes}min - the run is still open`
+          )}\n`
         );
         printResultsUrl(url);
         process.exitCode = 3;
