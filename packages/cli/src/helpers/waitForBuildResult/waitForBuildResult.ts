@@ -8,16 +8,19 @@ async function waitForBuildResult({
   projectIndex,
   buildIndex,
   url,
+  maxWaitTime,
 }: {
   client: ReturnType<typeof sdkClient>;
   teamId: string;
   projectIndex: number;
   buildIndex: number;
   url: string;
+  /** Overrides the default wait timeout (in minutes) for this run. */
+  maxWaitTime?: number;
 }): Promise<void> {
   const statusSource = createPollingBuildStatusSource({ client, teamId, projectIndex, buildIndex });
 
-  await runWaitLoop({ statusSource, url });
+  await runWaitLoop({ statusSource, url, maxWaitTimeMinutes: maxWaitTime });
 }
 
 export default waitForBuildResult;

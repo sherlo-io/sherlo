@@ -15,6 +15,7 @@ import {
   INIT_COMMAND,
   IOS_FILE_TYPES,
   IOS_OPTION,
+  MAX_WAIT_TIME_OPTION,
   MESSAGE_OPTION,
   PROFILE_OPTION,
   PROJECT_ROOT_OPTION,
@@ -86,6 +87,7 @@ type CommandOptions = {
     [ANDROID_OPTION]?: string;
     [IOS_OPTION]?: string;
     [WAIT_OPTION]?: boolean;
+    [MAX_WAIT_TIME_OPTION]?: string;
   };
   [TEST_EAS_UPDATE_COMMAND]: {
     [BRANCH_OPTION]: string;
@@ -96,6 +98,7 @@ type CommandOptions = {
     [EAS_IOS_URL_OPTION]?: string;
     [EAS_UPDATE_SLUG_OPTION]?: string;
     [WAIT_OPTION]?: boolean;
+    [MAX_WAIT_TIME_OPTION]?: string;
   };
   [TEST_EAS_CLOUD_BUILD_COMMAND]: {
     [EAS_BUILD_SCRIPT_NAME_OPTION]?: string;
@@ -108,6 +111,7 @@ type CommandOptions = {
     [ANDROID_OPTION]?: string;
     [IOS_OPTION]?: string;
     [WAIT_OPTION]?: boolean;
+    [MAX_WAIT_TIME_OPTION]?: string;
   };
   [INIT_COMMAND]: {};
   any: Partial<

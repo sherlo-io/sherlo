@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import printResultsUrl from '../printResultsUrl';
-import { POLL_INTERVAL_MS, WAIT_TIMEOUT_MINUTES, WAIT_TIMEOUT_MS } from './constants';
+import { POLL_INTERVAL_MS, WAIT_TIMEOUT_MINUTES } from './constants';
 import { BuildStatusSource } from './types';
 
 /**
@@ -13,22 +13,28 @@ import { BuildStatusSource } from './types';
 async function runWaitLoop({
   statusSource,
   url,
+  maxWaitTimeMinutes,
 }: {
   statusSource: BuildStatusSource;
   url: string;
+  /** Overrides `WAIT_TIMEOUT_MINUTES` for this run when provided (e.g. `--maxWaitTime`). */
+  maxWaitTimeMinutes?: number;
 }): Promise<void> {
+  const waitTimeoutMinutes = maxWaitTimeMinutes ?? WAIT_TIMEOUT_MINUTES;
+  const waitTimeoutMs = waitTimeoutMinutes * 60 * 1000;
+
   console.log(
-    `⏳ Waiting for the test run to finish (times out after ${WAIT_TIMEOUT_MINUTES} minutes)...\n`
+    `⏳ Waiting for the test run to finish (times out after ${waitTimeoutMinutes} minutes)...\n`
   );
 
-  const deadline = Date.now() + WAIT_TIMEOUT_MS;
+  const deadline = Date.now() + waitTimeoutMs;
   const sigint = createSigintSignal();
 
   try {
     while (true) {
       if (Date.now() >= deadline) {
         console.error(
-          `⌛ ${chalk.yellow(`Deadline passed after ${WAIT_TIMEOUT_MINUTES}min - the run is still open`)}\n`
+          `⌛ ${chalk.yellow(`Deadline passed after ${waitTimeoutMinutes}min - the run is still open`)}\n`
         );
         printResultsUrl(url);
         process.exitCode = 3;

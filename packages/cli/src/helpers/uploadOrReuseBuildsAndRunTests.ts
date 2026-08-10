@@ -8,6 +8,7 @@ import getGitInfo from './getGitInfo';
 import getTokenParts from './getTokenParts';
 import getValidatedBinariesInfoAndNextBuildIndex from './getValidatedBinariesInfoAndNextBuildIndex';
 import handleClientError from './handleClientError';
+import parseMaxWaitTime from './parseMaxWaitTime';
 import printBuildIntroMessage from './printBuildIntroMessage';
 import printResultsUrl from './printResultsUrl';
 import reporting from './reporting';
@@ -114,7 +115,9 @@ async function uploadOrReuseBuildsAndRunTests({
   printResultsUrl(url);
 
   if (commandParams.wait) {
-    await waitForBuildResult({ client, teamId, projectIndex, buildIndex, url });
+    const maxWaitTime = parseMaxWaitTime(commandParams.maxWaitTime);
+
+    await waitForBuildResult({ client, teamId, projectIndex, buildIndex, url, maxWaitTime });
   }
 
   return { url };
