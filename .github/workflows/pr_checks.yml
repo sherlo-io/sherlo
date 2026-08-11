@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/sherlo-3
+      - epic/**
 
 jobs:
   checks:
