@@ -28,11 +28,38 @@ jobs:
         with:
           node-version: '24'
 
+      # feature/sherlo-3 and every epic/** branch build against the SAME sherlo-api ref
+      # (feature/sherlo-3) - the S3 dev-stage canon can predate lib/SDK changes an epic's
+      # CLI code depends on (composition gap: CLI source is current, its @sherlo/* portal
+      # deps are not). A PR against main keeps the unchanged S3-canon path - empty `ref`
+      # here is that opt-out.
+      - name: Resolve sherlo-lib source
+        id: libs
+        run: |
+          if [ "$GITHUB_BASE_REF" = "feature/sherlo-3" ] || [[ "$GITHUB_BASE_REF" == epic/* ]]; then
+            echo "ref=feature/sherlo-3" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Only minted when a from-source libs build is actually needed - mirrors the
+      # release_to_dev.yml SHERLO_BOT app-token pattern, since GITHUB_TOKEN has no access
+      # to sherlo-io/sherlo-api (a separate private repo).
+      - name: Create GH App Token (sherlo-api clone)
+        if: steps.libs.outputs.ref != ''
+        id: github_app_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.SHERLO_BOT_APP_ID }}
+          private_key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
+
       - name: Download Sherlo packages
         run: ./scripts/init-env.sh
         env:
           CLIENT_STAGE: dev
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          LIBS_REF: ${{ steps.libs.outputs.ref }}
+          SHERLO_API_CLONE_TOKEN: ${{ steps.github_app_token.outputs.token }}
 
       - name: Eslint
         working-directory: ${{ matrix.package.dir }}
