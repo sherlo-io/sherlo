@@ -866,6 +866,28 @@ describe('waitForBuildResult', () => {
       expect(result).toBe(EXIT_SIGINT);
       expect(printedOutput()).not.toContain('http');
     });
+
+    it('AuthError at poll time does not reprint the link', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        json: async () => ({}),
+      });
+
+      const promise = waitForBuildResult({
+        token: TOKEN,
+        buildIndex: BUILD_INDEX,
+        projectIndex: PROJECT_INDEX,
+        teamId: TEAM_ID,
+      });
+
+      await vi.runAllTimersAsync();
+      const result = await promise;
+
+      expect(result).toBe(EXIT_ERROR);
+      expect(printedOutput()).not.toContain('http');
+    });
   });
 });
 

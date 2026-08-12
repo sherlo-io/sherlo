@@ -163,7 +163,7 @@ async function waitForBuildResult({
             } minutes.`
           )
         );
-        console.log(chalk.yellow('   The build may still be running. Check the dashboard.'));
+        console.log(chalk.yellow('   The build may still be running.'));
         console.log();
         return EXIT_TIMEOUT;
       }
