@@ -36,6 +36,7 @@ import {
   logWarning,
   printSherloIntro,
   reporting,
+  throwError,
   waitForBuildResult,
 } from '../../helpers';
 import printLink from '../../helpers/printLink';
@@ -51,6 +52,7 @@ import { parseStagedGateRefusal, FALLBACK_LINE, type StagedGateRefusal } from '.
 import { getOnStaleMode, handleStaleBase } from './onStale';
 import uploadStagedArtifacts, { type StagedUploadKeys } from './uploadStagedArtifacts';
 import { runDryRunPreview } from './dryRun';
+import { runEmitExpectation } from './emitExpectation';
 import { countBundleStories } from './readModuleManifest';
 import { formatDiffScopeReport, type DiffScopePlatformReport } from './diffScopeReport';
 
@@ -96,6 +98,21 @@ type DiffScopeInfoWithPlatformReasons = {
 
 async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
   printSherloIntro();
+
+  // --emit-expectation (expectation-emit mode): rides the --dry-run path rather
+  // than a parallel print path. Runs before command params are even validated -
+  // the mode builds its own synthetic, scenario-specific input for the guard it
+  // exercises, so it needs none of this invocation's real options. See
+  // ./emitExpectation for the scenario catalogue and placeholder vocabulary.
+  if (passedOptions.emitExpectation !== undefined) {
+    if (passedOptions.dryRun !== true) {
+      throwError({
+        message: '--emit-expectation requires --dry-run',
+      });
+    }
+    runEmitExpectation(passedOptions.emitExpectation);
+    return { url: '' }; // unreachable - runEmitExpectation always exits the process
+  }
 
   // 1. Validate params (no platform binary paths required - bundle only).
   const commandParams = getValidatedCommandParams(

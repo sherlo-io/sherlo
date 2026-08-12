@@ -11,6 +11,7 @@ import {
   EAS_BUILD_SCRIPT_NAME_OPTION,
   EAS_IOS_URL_OPTION,
   EAS_UPDATE_SLUG_OPTION,
+  EMIT_EXPECTATION_OPTION,
   GIT_BRANCH_OPTION,
   INCLUDE_OPTION,
   INIT_COMMAND,
@@ -141,6 +142,12 @@ type CommandOptions = {
      * is a read-only preview.
      */
     [DRY_RUN_OPTION]?: boolean;
+    /**
+     * Expectation-emit mode (requires --dry-run): renders the exact refusal text a
+     * live run would print for the named preflight scenario, then exits - no
+     * bundling, no build, no network. See ../commands/testBundled/emitExpectation.
+     */
+    [EMIT_EXPECTATION_OPTION]?: string;
   };
   [STAGED_CHECK_COMMAND]: {
     [JSON_OPTION]?: boolean;
