@@ -1,6 +1,5 @@
 import fetch from 'node-fetch';
 import chalk from 'chalk';
-import getAppBuildUrl from './getAppBuildUrl';
 import getTokenParts from './getTokenParts';
 
 /*
@@ -18,8 +17,8 @@ import getTokenParts from './getTokenParts';
  *   3 - TIMEOUT: --wait-timeout elapsed before reaching a terminal state.
  *               Conservative - timeout is a BLOCK, never a pass.
  *   130 - SIGINT: the user pressed Ctrl-C while waiting. The run keeps going
- *               in Sherlo; we stop cleanly, reprint the dashboard URL, and
- *               exit with the conventional 128+SIGINT(2) code.
+ *               in Sherlo; we stop cleanly and exit with the conventional
+ *               128+SIGINT(2) code.
  *
  * GitHub check mapping (for reference):
  *   exit 0 → conclusion: "success"
@@ -111,7 +110,6 @@ async function waitForBuildResult({
   const timeoutMs = (waitTimeoutMinutes ?? DEFAULT_WAIT_TIMEOUT_MINUTES) * 60 * 1000;
   const startTime = now();
   const deadline = startTime + timeoutMs;
-  const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
   const { apiToken } = getTokenParts(token);
   const endpointUrl = getEndpointUrl();
@@ -130,8 +128,8 @@ async function waitForBuildResult({
   let pollCount = 0;
 
   // Overrides Node's default "exit immediately" SIGINT behavior so the wait
-  // loop can stop cleanly, reprint the dashboard URL, and exit(130) itself
-  // instead of killing the process mid-print. The run keeps going in Sherlo.
+  // loop can stop cleanly and exit(130) itself instead of killing the process
+  // mid-print. The run keeps going in Sherlo.
   const sigint = createSigintSignal();
 
   // Every sleep in the loop is bounded to the remaining time until the
@@ -148,8 +146,7 @@ async function waitForBuildResult({
 
   const printSigintCloser = (): number => {
     console.log();
-    console.log(chalk.dim('Stopped waiting. The run is still going in Sherlo:'));
-    console.log(chalk.blue(`   ${url}`));
+    console.log(chalk.dim('Stopped waiting. The run is still going in Sherlo.'));
     console.log();
     return EXIT_SIGINT;
   };
@@ -166,8 +163,7 @@ async function waitForBuildResult({
             } minutes.`
           )
         );
-        console.log(chalk.yellow('   The build may still be running. Check the dashboard:'));
-        console.log(chalk.blue(`   ${url}`));
+        console.log(chalk.yellow('   The build may still be running. Check the dashboard.'));
         console.log();
         return EXIT_TIMEOUT;
       }
@@ -194,7 +190,6 @@ async function waitForBuildResult({
         if (error instanceof AuthError) {
           console.log();
           console.log(chalk.red(`🔒 ${error.message}`));
-          console.log(chalk.blue(`   Dashboard: ${url}`));
           console.log();
           return EXIT_ERROR;
         }
@@ -224,7 +219,7 @@ async function waitForBuildResult({
         lastStatus = progressLine;
       }
 
-      const exitCode = evaluateTerminalState(build, url);
+      const exitCode = evaluateTerminalState(build);
 
       if (exitCode !== null) {
         return exitCode;
@@ -333,8 +328,7 @@ async function fetchBuildStatus(
 }
 
 function evaluateTerminalState(
-  build: NonNullable<BuildStatusResponse['getBuildStatus']>,
-  url: string
+  build: NonNullable<BuildStatusResponse['getBuildStatus']>
 ): number | null {
   const { runStatus, viewStatusesCount, diffScopeInfo } = build;
 
@@ -362,11 +356,12 @@ function evaluateTerminalState(
           // URL for a bypassed build, so omitting it here loses no link.
           printServerBypassCloser(serverBypassReason);
         } else {
-          // No verbatim reason -> today's behaviour, keeping the link. Covers the
+          // No verbatim reason -> today's generic message. Covers the
           // forward-compat degrade of a counts-bypassed build whose poll carries
-          // no prose (a working link beats silence) and every ordinary green build.
+          // no prose, and every ordinary green build. The build's link was
+          // already printed once, right when the build became ready - never
+          // repeated here.
           console.log(chalk.green('✅ All stories passed - no visual changes require review.'));
-          console.log(chalk.blue(`   ${url}`));
         }
         console.log();
         return EXIT_GREEN;
@@ -380,7 +375,6 @@ function evaluateTerminalState(
       if (reported > 0) {
         console.log(chalk.yellow(`   ${reported} story/stories reported.`));
       }
-      console.log(chalk.blue(`   Review here: ${url}`));
       console.log();
       return EXIT_BLOCK;
     }
@@ -392,7 +386,6 @@ function evaluateTerminalState(
       if (build.runError) {
         console.log(chalk.red(`   Error: ${JSON.stringify(build.runError)}`));
       }
-      console.log(chalk.blue(`   ${url}`));
       console.log();
       return EXIT_ERROR;
     }

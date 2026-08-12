@@ -13,6 +13,7 @@ import waitForBuildResult, {
   EXIT_BLOCK,
   EXIT_ERROR,
   EXIT_GREEN,
+  EXIT_SIGINT,
   EXIT_TIMEOUT,
   fetchServerBypassReason,
 } from '../waitForBuildResult';
@@ -314,7 +315,7 @@ describe('waitForBuildResult', () => {
 
     it('falls back to the generic green message when diffScopeInfo is absent', async () => {
       // Not a bypass at openBuild (no counts) -> serverBypassed omitted -> today's
-      // behaviour, waiting line and URL included.
+      // behaviour, waiting line included.
       mockGraphqlResponse(
         200,
         buildResponse('finished', { approved: 5, noChanges: 10, reported: 0, unreviewed: 0 })
@@ -365,12 +366,13 @@ describe('waitForBuildResult', () => {
       expect(printed).not.toContain('Nothing needed capturing');
     });
 
-    it('forward-compat degrade: counts say bypass but the poll carries no reason -> generic green WITH the link', async () => {
+    it('forward-compat degrade: counts say bypass but the poll carries no reason -> generic green, no link', async () => {
       // The gate condition (SHERLO-1952): 0 captured, >0 inherited, AND a
-      // per-platform reason. Reason absent (older API) -> keep the link. The
-      // caller still flags the bypass off the counts (serverBypassed: true), so
-      // the wait theatre is suppressed, but the closer keeps the URL because a
-      // working link beats silence.
+      // per-platform reason. Reason absent (older API) -> generic green
+      // message. The caller still flags the bypass off the counts
+      // (serverBypassed: true), so the wait theatre is suppressed. No ending
+      // ever reprints the build link - it was already printed once, right
+      // when the build became ready.
       mockGraphqlResponse(
         200,
         buildResponse(
@@ -389,8 +391,7 @@ describe('waitForBuildResult', () => {
       const printed = printedOutput(logSpy);
       expect(printed).toContain('All stories passed');
       expect(printed).not.toContain('Nothing needed capturing');
-      // The link is preserved - silence is never better than a working link.
-      expect(printed).toContain('http');
+      expect(printed).not.toContain('http');
     });
   });
 
@@ -733,6 +734,138 @@ describe('waitForBuildResult', () => {
 
     expect(result).toBe(EXIT_GREEN);
     expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* LINK-ONCE-PER-PUSH - the build link is printed once, by the caller,  */
+  /* right after the build is ready. No --wait ending (clean finish,      */
+  /* timeout, or SIGINT) may reprint it.                                  */
+  /* ------------------------------------------------------------------ */
+
+  describe('epilogue never reprints the build link', () => {
+    let logSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+      logSpy.mockRestore();
+    });
+
+    function printedOutput(): string {
+      return logSpy.mock.calls.map((call: unknown[]) => call[0] ?? '').join('\n');
+    }
+
+    it('clean finish (GREEN) does not reprint the link', async () => {
+      mockGraphqlResponse(
+        200,
+        buildResponse('finished', { approved: 5, noChanges: 10, reported: 0, unreviewed: 0 })
+      );
+
+      const promise = waitForBuildResult({
+        token: TOKEN,
+        buildIndex: BUILD_INDEX,
+        projectIndex: PROJECT_INDEX,
+        teamId: TEAM_ID,
+      });
+
+      await vi.runAllTimersAsync();
+      const result = await promise;
+
+      expect(result).toBe(EXIT_GREEN);
+      expect(printedOutput()).not.toContain('http');
+    });
+
+    it('clean finish (BLOCK) does not reprint the link', async () => {
+      mockGraphqlResponse(
+        200,
+        buildResponse('finished', { approved: 3, noChanges: 5, reported: 0, unreviewed: 3 })
+      );
+
+      const promise = waitForBuildResult({
+        token: TOKEN,
+        buildIndex: BUILD_INDEX,
+        projectIndex: PROJECT_INDEX,
+        teamId: TEAM_ID,
+      });
+
+      await vi.runAllTimersAsync();
+      const result = await promise;
+
+      expect(result).toBe(EXIT_BLOCK);
+      expect(printedOutput()).not.toContain('http');
+    });
+
+    it('clean finish (ERROR) does not reprint the link', async () => {
+      mockGraphqlResponse(200, buildResponse('error'));
+
+      const promise = waitForBuildResult({
+        token: TOKEN,
+        buildIndex: BUILD_INDEX,
+        projectIndex: PROJECT_INDEX,
+        teamId: TEAM_ID,
+      });
+
+      await vi.runAllTimersAsync();
+      const result = await promise;
+
+      expect(result).toBe(EXIT_ERROR);
+      expect(printedOutput()).not.toContain('http');
+    });
+
+    it('TIMEOUT does not reprint the link', async () => {
+      mockFetch.mockImplementation(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: async () => ({ data: buildResponse('inProgress') }),
+        })
+      );
+
+      const promise = waitForBuildResult({
+        token: TOKEN,
+        buildIndex: BUILD_INDEX,
+        projectIndex: PROJECT_INDEX,
+        teamId: TEAM_ID,
+        waitTimeoutMinutes: 1,
+      });
+
+      await vi.advanceTimersByTimeAsync(120_000);
+      const result = await promise;
+
+      expect(result).toBe(EXIT_TIMEOUT);
+      expect(printedOutput()).not.toContain('http');
+    }, 10_000);
+
+    it('SIGINT does not reprint the link', async () => {
+      mockFetch.mockImplementation(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: async () => ({ data: buildResponse('inProgress') }),
+        })
+      );
+
+      const promise = waitForBuildResult({
+        token: TOKEN,
+        buildIndex: BUILD_INDEX,
+        projectIndex: PROJECT_INDEX,
+        teamId: TEAM_ID,
+      });
+
+      // Let the first poll land and the loop reach its sleep, then Ctrl-C.
+      await vi.advanceTimersByTimeAsync(0);
+      process.emit('SIGINT');
+      await vi.advanceTimersByTimeAsync(0);
+
+      const result = await promise;
+
+      expect(result).toBe(EXIT_SIGINT);
+      expect(printedOutput()).not.toContain('http');
+    });
   });
 });
 
