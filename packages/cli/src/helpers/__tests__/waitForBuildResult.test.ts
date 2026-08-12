@@ -858,7 +858,7 @@ describe('waitForBuildResult', () => {
 
       // Let the first poll land and the loop reach its sleep, then Ctrl-C.
       await vi.advanceTimersByTimeAsync(0);
-      process.emit('SIGINT');
+      process.emit('SIGINT' as NodeJS.Signals);
       await vi.advanceTimersByTimeAsync(0);
 
       const result = await promise;
