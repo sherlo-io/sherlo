@@ -47,7 +47,21 @@ if [ -n "${LIBS_REF:-}" ]; then
   # unrelated to this repo's yarn@4 (Berry). Bare `yarn` here resolves whatever this
   # runner has on PATH for a repo with no `.yarnrc.yml`/`yarnPath` override, which is
   # sherlo-api's own pin.
+  #
+  # `yarn install`'s postinstall (scripts/build-unless-ci.sh) skips the build whenever
+  # CI=true (GitHub Actions sets this) - it exists purely for a local bare `yarn` to
+  # produce working dist/ output, and defers to CI's own explicit build step otherwise
+  # (see that script's own comment). sherlo-api's own workflows always follow `yarn`
+  # with an explicit `yarn build` for exactly this reason; skipping it here left
+  # `dist/` empty on every real (CI=true) runner, unnoticed locally only because a
+  # bare `yarn` outside CI builds anyway. `yarn build` (scripts/build.sh) builds every
+  # client package in DEPENDENCY order (api-types, shared, then the *-client packages
+  # that import shared) - required before scripts/prepare-packages.sh below, whose own
+  # per-package rebuild loop is ordered admin/app/sdk/runner-client THEN shared last,
+  # so admin-client/app-client's rebuild fails resolving `@sherlo/shared` types unless
+  # shared's dist already exists on disk from this step.
   (cd "$API_BUILD_DIR" && yarn install)
+  (cd "$API_BUILD_DIR" && yarn build)
   (cd "$API_BUILD_DIR" && bash scripts/prepare-packages.sh)
 
   for i in "${!PKGS[@]}"; do
