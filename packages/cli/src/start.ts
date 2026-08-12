@@ -28,6 +28,7 @@ import {
   EAS_BUILD_SCRIPT_NAME_OPTION,
   EAS_IOS_URL_OPTION,
   EAS_UPDATE_SLUG_OPTION,
+  EMIT_EXPECTATION_OPTION,
   GIT_BRANCH_OPTION,
   INCLUDE_OPTION,
   INIT_COMMAND,
@@ -179,6 +180,14 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
       'decision, and prints the per-platform "would capture" lists with reasons. ' +
       'Creates no build and uploads nothing.',
   ],
+  [EMIT_EXPECTATION_OPTION]: [
+    '--emit-expectation <scenario>',
+    'Expectation-emit mode (requires --dry-run): renders the exact refusal text a real ' +
+      'run would print for <scenario> - the same guard, the same formatter - with every ' +
+      'volatile value (an absolute path, a build file name) replaced by a stable ' +
+      'placeholder (e.g. <SHERLO_CONFIG_PATH>). Pass "list" to print every scenario and ' +
+      'the full placeholder vocabulary. Makes no build, no upload, no network call.',
+  ],
   [JSON_OPTION]: [`--${JSON_OPTION}`, 'Output machine-readable JSON instead of formatted text'],
   [MESSAGE_OPTION]: [`--${MESSAGE_OPTION} <message>`, 'Custom message to label the test'],
   [ON_STALE_OPTION]: [
@@ -310,6 +319,7 @@ function addTestBundledCommand(program: Command) {
       ...getTestCommonOptions('withoutPlatformPaths'),
       ON_STALE_OPTION,
       DRY_RUN_OPTION,
+      EMIT_EXPECTATION_OPTION,
       WAIT_OPTION,
       WAIT_TIMEOUT_OPTION,
       ...devtoolsOptions,

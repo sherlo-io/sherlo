@@ -82,6 +82,7 @@ export const FULL_INIT_COMMAND = 'npx sherlo init';
 export const ANDROID_OPTION = 'android';
 export const BRANCH_OPTION = 'branch';
 export const DRY_RUN_OPTION = 'dryRun';
+export const EMIT_EXPECTATION_OPTION = 'emitExpectation';
 export const GIT_BRANCH_OPTION = 'gitBranch';
 export const CONFIG_OPTION = 'config';
 export const DIAGNOSTICS_OPTION = 'diagnostics';

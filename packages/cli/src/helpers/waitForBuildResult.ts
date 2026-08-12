@@ -161,7 +161,9 @@ async function waitForBuildResult({
         console.log();
         console.log(
           chalk.yellow(
-            `⏰ Timeout reached after ${waitTimeoutMinutes ?? DEFAULT_WAIT_TIMEOUT_MINUTES} minutes.`
+            `⏰ Timeout reached after ${
+              waitTimeoutMinutes ?? DEFAULT_WAIT_TIMEOUT_MINUTES
+            } minutes.`
           )
         );
         console.log(chalk.yellow('   The build may still be running. Check the dashboard:'));
