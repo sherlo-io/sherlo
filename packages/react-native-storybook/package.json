@@ -69,6 +69,7 @@
     "metro/withStorybook.d.ts",
     "metro/polyfill.js",
     "metro/applySherloTransforms.js",
+    "metro/ensureStorybookRequires.js",
     "metro/mockScan.js",
     "metro/mockShims.js"
   ],
