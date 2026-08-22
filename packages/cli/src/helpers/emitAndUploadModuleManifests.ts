@@ -2,14 +2,14 @@
  * test:standard's module-manifest producer pass (SHERLO-1943).
  *
  * test:standard registers a user-supplied PRE-BUILT binary as the stageable
- * base; it has no bundling step of its own. To let a later test:bundled run
+ * base; it has no bundling step of its own. To let a later staged run
  * compare its module manifest against an ancestor, test:standard runs
  * Sherlo's OWN bundling pass here purely to produce that manifest - the EXACT
- * same producer test:bundled uses ({@link buildBundleForPlatform} from
- * commands/testBundled/buildBundle.ts, which sets SHERLO_MODULE_MANIFEST=1 and
+ * same producer the staged road uses ({@link buildBundleForPlatform} from
+ * commands/test/buildBundle.ts, which sets SHERLO_MODULE_MANIFEST=1 and
  * reads the sidecar via readValidatedModuleManifest). No second producer is
  * implemented here: same producer + same env header => guaranteed comparable
- * with whatever manifest test:bundled would emit on the same tree.
+ * with whatever manifest the staged road would emit on the same tree.
  *
  * HARD PROVENANCE GUARD: because test:standard's binary is user-supplied
  * (requirePlatformPaths: true), the CLI can only vouch that a manifest built
@@ -28,8 +28,8 @@ import { Platform, StagedPlatformUploadUrls, StagedPresignedUploadUrl } from '@s
 import sdkClient from '@sherlo/sdk-client';
 import chalk from 'chalk';
 import { PLATFORM_LABEL } from '../constants';
-import { buildBundleForPlatform } from '../commands/testBundled/buildBundle';
-import { putBuffer } from '../commands/testBundled/uploadStagedArtifacts';
+import { buildBundleForPlatform } from '../commands/test/buildBundle';
+import { putBuffer } from '../commands/test/uploadStagedArtifacts';
 import type { GitInfo } from './getGitInfo';
 import logWarning from './logWarning';
 
@@ -119,7 +119,7 @@ export async function emitAndUploadModuleManifests({
 
   console.log(chalk.cyan('\n📄 Producing the module manifest for Diff Scope...'));
 
-  // 1. Build the bundle for each platform via the EXACT test:bundled producer,
+  // 1. Build the bundle for each platform via the EXACT staged-road producer,
   //    purely to obtain the manifest sidecar it emits. Fail-soft per platform:
   //    a bundling failure here must never block test:standard's real run.
   const manifests: Partial<Record<Platform, Buffer>> = {};

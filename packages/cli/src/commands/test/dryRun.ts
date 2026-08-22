@@ -1,9 +1,9 @@
 /**
- * `test:bundled --dry-run` orchestration + formatting (SHERLO-1895 Diff Scope
+ * `sherlo test --dry-run` orchestration + formatting (SHERLO-1895 Diff Scope
  * Phase C).
  *
  * A dry run bundles and produces the manifest locally exactly like a normal
- * test:bundled (the SAME real bundling path, not a synthetic manifest), then
+ * a live staged run (the SAME real bundling path, not a synthetic manifest), then
  * asks the server - read-only, in ONE call for all platforms - which stories a
  * real run WOULD capture, prints the per-platform decision, and STOPS. It
  * creates no build, advances no ancestry, uploads nothing, and does not persist
@@ -83,7 +83,7 @@ export async function runDryRunPreview({
 }): Promise<void> {
   reporting.addBreadcrumb({
     category: 'api',
-    message: 'Running test:bundled --dry-run preview',
+    message: 'Running sherlo test --dry-run preview',
     data: { teamId, projectIndex, platforms: platformsToTest },
     level: 'info',
   });

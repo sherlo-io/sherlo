@@ -1,12 +1,16 @@
 /**
- * Tests for the testBundled command - staged wiring + exit-code contract.
+ * Tests for the staged road of `sherlo test` - staged wiring + capture-plan
+ * output.
  *
  * Covers:
- *  - "No devices configured" path exits non-zero.
- *  - Fingerprint-unavailable path prints the test:standard fallback line and
- *    exits non-zero.
- *  - gitInfo parity: test:bundled captures git info with the SAME getGitInfo
- *    call as test:standard and forwards that exact object to openBuild.
+ *  - "No devices configured" is a TOOL ERROR, not a routing answer: it exits
+ *    non-zero and publishes no `native-needed` key.
+ *  - gitInfo parity: the staged road captures git info with the SAME getGitInfo
+ *    call as the standard road and forwards that exact object to openBuild.
+ *  - the capture plan + closer, and the server-bypassed build's closer.
+ *
+ * The ROUTING outcomes themselves (which decision publishes which key, and with
+ * which exit code) live in ./stagedRouting.test.ts.
  *
  * The SHERLO_DEVTOOLS readiness gate has been removed - staged consume-mode is
  * live (SHERLO-1707), so there is no gate to test.
@@ -43,26 +47,39 @@ vi.mock('@sherlo/sdk-client', () => ({
   })),
 }));
 
-vi.mock('../../../helpers', () => ({
-  getAppBuildUrl: vi.fn(),
-  getBuildRunConfig: vi.fn(),
-  getGitInfo: vi.fn(),
-  getPlatformsToTest: vi.fn(),
-  getTokenParts: vi.fn(),
-  getValidatedCommandParams: vi.fn(),
-  handleClientError: vi.fn((error) => {
-    throw error;
-  }),
-  logWarning: vi.fn(),
-  printResultsUrl: vi.fn(),
-  printSherloIntro: vi.fn(),
-  reporting: {
-    flush: vi.fn().mockResolvedValue(undefined),
-    addBreadcrumb: vi.fn(),
-    setTag: vi.fn(),
-  },
-  waitForBuildResult: vi.fn(),
-}));
+// describeDiffSources stays REAL - the routing reason the command publishes is
+// built from it, and it is pure. Only the IO-bound helpers are stubbed.
+vi.mock('../../../helpers', async () => {
+  const stagedGate = await vi.importActual<typeof import('../../../helpers/stagedGate')>(
+    '../../../helpers/stagedGate'
+  );
+
+  return {
+    describeDiffSources: stagedGate.describeDiffSources,
+    getAppBuildUrl: vi.fn(),
+    getBuildRunConfig: vi.fn(),
+    getGitInfo: vi.fn(),
+    getPlatformsToTest: vi.fn(),
+    getTokenParts: vi.fn(),
+    getValidatedCommandParams: vi.fn(),
+    handleClientError: vi.fn((error) => {
+      throw error;
+    }),
+    logWarning: vi.fn(),
+    printResultsUrl: vi.fn(),
+    printSherloIntro: vi.fn(),
+    reporting: {
+      flush: vi.fn().mockResolvedValue(undefined),
+      addBreadcrumb: vi.fn(),
+      setTag: vi.fn(),
+    },
+    throwError: vi.fn(({ message }: { message: string }) => {
+      throw new Error(message);
+    }),
+    waitForBuildResult: vi.fn(),
+    writeGithubOutput: vi.fn(),
+  };
+});
 
 vi.mock('../../../helpers/fingerprint', () => ({
   computeBaseFingerprint: vi.fn(),
@@ -81,7 +98,7 @@ vi.mock('../dryRun', () => ({
   runDryRunPreview: vi.fn(),
 }));
 
-// testBundled imports isServerBypassed / printServerBypassCloser / the network
+// stagedRun imports isServerBypassed / printServerBypassCloser / the network
 // fetchServerBypassReason directly from the waitForBuildResult module. Keep the
 // pure helpers real (so bypass detection + the closer text are exercised for
 // real) and mock ONLY the network read, so tests control the reason without
@@ -105,6 +122,7 @@ import {
   printResultsUrl as _printResultsUrl,
   printSherloIntro as _printSherloIntro,
   waitForBuildResult as _waitForBuildResult,
+  writeGithubOutput as _writeGithubOutput,
 } from '../../../helpers';
 import { computeBaseFingerprint as _computeBaseFingerprint } from '../../../helpers/fingerprint';
 import {
@@ -129,19 +147,20 @@ const mockBuildGateMetadata = vi.mocked(_buildGateMetadata);
 const mockUploadStagedArtifacts = vi.mocked(_uploadStagedArtifacts);
 const mockRunDryRunPreview = vi.mocked(_runDryRunPreview);
 const mockWaitForBuildResult = vi.mocked(_waitForBuildResult);
+const mockWriteGithubOutput = vi.mocked(_writeGithubOutput);
 const mockFetchServerBypassReason = vi.mocked(_fetchServerBypassReason);
 
 // ---------------------------------------------------------------------------
 // Subject under test
 // ---------------------------------------------------------------------------
 
-let testBundled: (passedOptions: any) => Promise<{ url: string }>;
+let stagedRun: (passedOptions: any) => Promise<{ url: string }>;
 
 beforeEach(async () => {
   vi.clearAllMocks();
   mockPrintSherloIntro.mockImplementation(() => {});
-  const mod = await import('../testBundled');
-  testBundled = mod.default;
+  const mod = await import('../stagedRun');
+  stagedRun = mod.default;
 });
 
 function mockOptions(): any {
@@ -170,7 +189,9 @@ function bundleResult(overrides: Record<string, unknown> = {}): any {
 }
 
 // ---------------------------------------------------------------------------
-// No devices configured - exit non-zero
+// No devices configured - a TOOL ERROR, not a routing answer. Building natively
+// would not make this project testable either, so the command must NOT tell a
+// caller to go build: it exits non-zero and publishes no routing key at all.
 // ---------------------------------------------------------------------------
 
 describe('no devices configured', () => {
@@ -195,53 +216,14 @@ describe('no devices configured', () => {
   it('exits non-zero and prints guidance when no devices are configured', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    await expect(testBundled(mockOptions())).rejects.toThrow('process.exit(1)');
+    await expect(stagedRun(mockOptions())).rejects.toThrow('process.exit(1)');
     expect(exitSpy).toHaveBeenCalledWith(1);
 
     const allCalls = logSpy.mock.calls.map((c) => c.join(' '));
     expect(allCalls.some((call) => call.includes('No devices configured'))).toBe(true);
-
-    logSpy.mockRestore();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Fingerprint unavailable - exit non-zero
-// ---------------------------------------------------------------------------
-
-describe('fingerprint unavailable', () => {
-  let exitSpy: ReturnType<typeof vi.spyOn>;
-
-  beforeEach(() => {
-    exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: number) => {
-      throw new Error(`process.exit(${code})`);
-    });
-
-    mockGetValidatedCommandParams.mockReturnValue({
-      projectRoot: '/tmp/test-project',
-      devices: [IOS_DEVICE],
-    } as any);
-    mockGetPlatformsToTest.mockReturnValue(['ios'] as any);
-  });
-
-  afterEach(() => {
-    exitSpy.mockRestore();
-  });
-
-  it('prints the test:standard fallback line and exits non-zero', async () => {
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
-    mockComputeBaseFingerprint.mockResolvedValue({
-      hash: '',
-      debugMessage: 'No base binary found',
-    } as any);
-
-    await expect(testBundled(mockOptions())).rejects.toThrow('process.exit(1)');
-    expect(exitSpy).toHaveBeenCalledWith(1);
-
-    const allCalls = logSpy.mock.calls.map((c) => c.join(' '));
-    expect(allCalls.some((call) => call.includes('test:standard'))).toBe(true);
-    expect(allCalls.some((call) => call.includes('Staged upload unavailable'))).toBe(true);
+    // No routing key, in either output form - there is nothing to route to.
+    expect(allCalls.some((call) => call.includes('native-needed'))).toBe(false);
+    expect(mockWriteGithubOutput).not.toHaveBeenCalled();
 
     logSpy.mockRestore();
   });
@@ -302,7 +284,7 @@ describe('gitInfo parity with test:standard', () => {
   it('calls getGitInfo with projectRoot + branchOverride (same signature as test:standard)', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
 
     expect(mockGetGitInfo).toHaveBeenCalledTimes(1);
     expect(mockGetGitInfo).toHaveBeenCalledWith('/proj', { branchOverride: 'flag-branch' });
@@ -313,7 +295,7 @@ describe('gitInfo parity with test:standard', () => {
   it('forwards the exact getGitInfo result to openBuild (verbatim - no reshaping)', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    const result = await testBundled(mockOptions());
+    const result = await stagedRun(mockOptions());
 
     expect(mockOpenBuild).toHaveBeenCalledTimes(1);
     const openBuildArg = mockOpenBuild.mock.calls[0][0];
@@ -329,7 +311,7 @@ describe('gitInfo parity with test:standard', () => {
   it('mirrors the staged S3 keys + placeholder onto the per-platform build config', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
 
     const openBuildArg = mockOpenBuild.mock.calls[0][0];
     expect(openBuildArg.buildRunConfig.ios.s3Key).toBe(ASYNC_UPLOAD_S3_KEY_PLACEHOLDER);
@@ -350,7 +332,7 @@ describe('gitInfo parity with test:standard', () => {
       manifestS3Key: 'manifest-s3-key',
     });
 
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
 
     const openBuildArg = mockOpenBuild.mock.calls[0][0];
     expect(openBuildArg.buildRunConfig.ios.manifestS3Key).toBe('manifest-s3-key');
@@ -362,7 +344,7 @@ describe('gitInfo parity with test:standard', () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     mockUploadStagedArtifacts.mockResolvedValue({ jsBundleS3Key: 'js-s3-key' });
 
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
 
     const openBuildArg = mockOpenBuild.mock.calls[0][0];
     expect('manifestS3Key' in openBuildArg.buildRunConfig.ios).toBe(false);
@@ -393,7 +375,7 @@ describe('--dry-run', () => {
   it('runs the preview and creates NO build: no gate check, no upload, no openBuild', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    const result = await testBundled({ dryRun: true });
+    const result = await stagedRun({ dryRun: true });
 
     expect(mockRunDryRunPreview).toHaveBeenCalledTimes(1);
     const arg = mockRunDryRunPreview.mock.calls[0][0];
@@ -416,7 +398,7 @@ describe('--dry-run', () => {
   it('bundles via the SAME real path (buildBundleForPlatform) before previewing', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    await testBundled({ dryRun: true });
+    await stagedRun({ dryRun: true });
 
     // The manifest comes from the real bundle path, not a synthetic one.
     expect(mockBuildBundleForPlatform).toHaveBeenCalledTimes(1);
@@ -440,7 +422,7 @@ describe('--dry-run', () => {
       debugMessage: 'No base binary found',
     } as any);
 
-    const result = await testBundled({ dryRun: true });
+    const result = await stagedRun({ dryRun: true });
 
     expect(mockRunDryRunPreview).toHaveBeenCalledTimes(1);
     expect(exitSpy).not.toHaveBeenCalled();
@@ -548,7 +530,7 @@ describe('live capture plan', () => {
       },
     });
 
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
 
     const out = printed(logSpy);
     expect(out).toContain('📸 Capture plan');
@@ -580,7 +562,7 @@ describe('live capture plan', () => {
       },
     });
 
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
 
     const out = printed(logSpy);
     expect(out).toContain('🍎 iOS - capturing all 22 stories in this bundle');
@@ -610,7 +592,7 @@ describe('live capture plan', () => {
       },
     });
 
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
 
     const out = printed(logSpy);
     expect(out).toContain('🍎 iOS - nothing to capture - no change reaches any story');
@@ -636,7 +618,7 @@ describe('live capture plan', () => {
       },
     });
 
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
 
     const out = printed(logSpy);
     expect(out).toContain('🍎 iOS - capturing all 22 stories in this bundle');
@@ -668,7 +650,7 @@ describe('live capture plan', () => {
       },
     });
 
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
 
     const out = printed(logSpy);
     expect(out).toContain(
@@ -690,7 +672,7 @@ describe('live capture plan', () => {
       },
     });
 
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
 
     const out = printed(logSpy);
     // No plan: no header, no per-platform block, no assertion of a decision.
@@ -735,7 +717,7 @@ describe('live capture plan', () => {
       },
     });
 
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
 
     const out = printed(logSpy);
     expect(out).toContain(
@@ -778,7 +760,7 @@ describe('live capture plan', () => {
       },
     });
 
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
 
     const out = printed(logSpy);
     const planIdx = out.indexOf('📸 Capture plan');
@@ -816,7 +798,7 @@ describe('live capture plan', () => {
       },
     });
 
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
 
     const out = printed(logSpy);
     expect(out).toContain('🍎 iOS - capturing all 10 stories in this bundle');
@@ -860,7 +842,7 @@ describe('live capture plan', () => {
       },
     });
 
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
 
     const out = printed(logSpy);
     // The exact fraction is pinned so the invariant is stated, not inferred.
@@ -892,7 +874,7 @@ describe('live capture plan', () => {
       },
     });
 
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
 
     const openBuildArg = mockOpenBuild.mock.calls[0][0];
     // Nothing about the decision inputs moved: no diff-scope field is sent, and the
@@ -977,7 +959,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({ wait: true, bypassed: true });
 
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
 
     const out = printed(logSpy);
     // No review URL here - the --wait poll's closer speaks for the build instead.
@@ -997,7 +979,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     setup({ wait: false, bypassed: true });
     mockFetchServerBypassReason.mockResolvedValue('no change reaches any story');
 
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
 
     const out = printed(logSpy);
     expect(out).toContain('✅ Nothing needed capturing - no change reaches any story');
@@ -1025,7 +1007,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     // The read degraded (network / older API / no per-platform prose).
     mockFetchServerBypassReason.mockResolvedValue(undefined);
 
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
 
     const out = printed(logSpy);
     // A working link beats silence; a closer never prints with nothing after the dash.
@@ -1039,7 +1021,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({ wait: true, bypassed: false });
 
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
 
     const out = printed(logSpy);
     expect(out).toContain('🔗 Review: http://app/build');
@@ -1056,7 +1038,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({ wait: false, bypassed: false });
 
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
 
     const out = printed(logSpy);
     expect(out).toContain('🔗 Review: http://app/build');
@@ -1070,7 +1052,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     setup({ wait: false, bypassed: true });
     mockFetchServerBypassReason.mockResolvedValue('no change reaches any story');
 
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
 
     expect(printed(logSpy)).toMatchSnapshot();
 
@@ -1079,11 +1061,11 @@ describe('server-bypassed build (SHERLO-1952)', () => {
 
   // BYTE-IDENTICAL guarantee (explicit acceptance criterion): a non-bypassed
   // build's own printed output is unchanged, and identical whether or not --wait
-  // is set (the wait poll adds nothing to testBundled's own output here).
+  // is set (the wait poll adds nothing to stagedRun's own output here).
   it('non-bypassed output is byte-identical with and without --wait', async () => {
     const logA = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({ wait: false, bypassed: false });
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
     const withoutWait = printed(logA);
     logA.mockRestore();
 
@@ -1091,7 +1073,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
 
     const logB = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({ wait: true, bypassed: false });
-    await testBundled(mockOptions());
+    await stagedRun(mockOptions());
     const withWait = printed(logB);
     logB.mockRestore();
 

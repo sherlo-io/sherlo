@@ -4,7 +4,7 @@
  * The server's `checkStagedGate` query answers per platform with a
  * `GateOutcome` ("fast" | "full-build-needed" | "not-stageable") plus the named
  * `GateDiffSource`s that moved. This module turns those raw server values into
- * the CLI-facing vocabulary that BOTH `staged:check` and `test:bundled` speak,
+ * the CLI-facing vocabulary that BOTH gate checks on the staged road speak,
  * so the routing decision reads the same everywhere:
  *
  *   - `StagedMode`         - the three routing outcomes (fast / full / not-stageable).

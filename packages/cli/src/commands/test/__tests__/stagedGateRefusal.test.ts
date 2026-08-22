@@ -92,7 +92,7 @@ describe('parseStagedGateRefusal - exact wire format', () => {
 });
 
 describe('formatStagedGateRefusal - user-facing message', () => {
-  it('names each diff source and appends the test:standard fallback line', () => {
+  it('names each diff source and appends the full-run fallback line', () => {
     const message = formatStagedGateRefusal({
       outcome: 'full-build-needed',
       platform: 'android',
@@ -103,9 +103,9 @@ describe('formatStagedGateRefusal - user-facing message', () => {
     expect(message).toContain('Android');
     expect(message).toContain('JS engine (Hermes/JSC)');
     expect(message).toContain('bundled assets');
-    // test:standard fallback line.
+    // Full-run fallback line, naming the ONE verb that takes native builds.
     expect(message).toContain(FALLBACK_LINE);
-    expect(message).toContain('test:standard');
+    expect(message).toContain('sherlo test --android <path> [--ios <path>]');
   });
 
   it('names the bundleFormat diff source', () => {
@@ -116,7 +116,7 @@ describe('formatStagedGateRefusal - user-facing message', () => {
     });
 
     expect(message).toContain('JS bundle format (hbc/plain-js/ram)');
-    expect(message).toContain('test:standard');
+    expect(message).toContain(FALLBACK_LINE);
   });
 
   it('omits the changed-sources line for a not-stageable refusal (empty diff)', () => {
@@ -128,7 +128,7 @@ describe('formatStagedGateRefusal - user-facing message', () => {
 
     expect(message).toContain('iOS');
     expect(message).not.toContain('Changed since the base build');
-    expect(message).toContain('test:standard');
+    expect(message).toContain(FALLBACK_LINE);
   });
 
   it('round-trips a parsed refusal into a formatted message', () => {
@@ -140,6 +140,6 @@ describe('formatStagedGateRefusal - user-facing message', () => {
     const message = formatStagedGateRefusal(refusal!);
     expect(message).toContain('JS engine (Hermes/JSC)');
     expect(message).toContain('bundled assets');
-    expect(message).toContain('test:standard');
+    expect(message).toContain(FALLBACK_LINE);
   });
 });

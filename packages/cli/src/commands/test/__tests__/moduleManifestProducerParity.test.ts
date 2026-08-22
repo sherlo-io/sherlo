@@ -120,7 +120,7 @@ afterEach(() => {
 describe('module manifest producer parity (SHERLO-1943)', () => {
   it('test:standard and test:bundled route through the SAME buildBundleForPlatform and produce byte-identical headers', async () => {
     // --- "test:bundled" side: call the producer directly, exactly as
-    // testBundled.ts does. ---
+    // stagedRun.ts does. ---
     mockBundlerRun();
     const bundledResult = await buildBundleForPlatform({
       projectRoot: tempDir,

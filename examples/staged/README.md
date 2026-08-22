@@ -1,53 +1,53 @@
 # ⚡ Staged Example • Sherlo
 
-An example showing Sherlo's staged fast path: a single gate routes CI to a
-JS-only fast lane on Linux when native inputs are unchanged, and to a full
-native build only when they move. Fewer native builds, faster feedback on the
-common case.
+An example showing Sherlo's staged fast path: `sherlo test` runs the test JS-only
+on Linux when native inputs are unchanged, and asks for a native build only when
+they move. Fewer native builds, faster feedback on the common case.
 
 - Sherlo integration
-- GitHub Actions workflow (two-job staged router)
+- GitHub Actions workflow (JS-only first, native build only when asked)
 
 <br />
 
 ## 🔄 Workflow
 
-A gate runs `sherlo staged:check` and routes ONE of two downstream jobs:
+One job runs `sherlo test`; a second job runs only if it asked for a native build:
 
 ```mermaid
 flowchart TB
    UI(🧑‍💻 Code Changes)
-   Gate(⚡ Staged Gate)
-   Fast("⚡ Fast Test<br/>JS-only on Linux")
-   Full("🔨 Full Test<br/>native rebuild")
+   Test("⚡ Sherlo Test<br/>JS-only on Linux")
+   Native("🔨 Native Test<br/>native build + sherlo test --android/--ios")
    Review(👀 Review Results)
 
-   UI --> Gate
-   Gate -->|fast| Fast
-   Gate -->|full| Full
-   Fast --> Review
-   Full --> Review
+   UI --> Test
+   Test -->|native-needed=false| Review
+   Test -->|native-needed=true| Native
+   Native --> Review
 ```
 
-The full job's `test:standard` run registers a fresh native base, so the next
-push with native unchanged is routed to the fast lane.
+The native job's run registers a fresh native base, so the next push with native
+unchanged is tested JS-only again.
 
 <br />
 
-## 🧭 How routing works
+## 🧭 How it works
 
-`sherlo staged:check` decides a routing `mode`:
+`sherlo test`, given no build paths, answers one question and publishes it as
+`native-needed` (on stdout and in `$GITHUB_OUTPUT`):
 
-- **`fast`** - native inputs unchanged; reuse the registered base and run
-  `test:bundled` (JS-only, on Linux). No native build.
-- **`full`** - native inputs moved; do a full native build, then `test:standard`
-  (which registers a fresh base).
-- **`not-stageable`** - the project can't use the staged path; treated like
-  `full`.
+- **`native-needed=false`** - native inputs unchanged; a registered base matches
+  source. The test **already ran**, JS-only, on the Linux runner. Nothing else to
+  do.
+- **`native-needed=true`** - native inputs moved, or no base is registered yet.
+  **Nothing** was built and no test ran. Build natively, then run the same verb
+  with build paths: `sherlo test --android <path> --ios <path>` - which also
+  registers the fresh base.
 
-The [`staged-gate`](../../actions/staged-gate) action wraps the probe and exposes
-`mode` as an output. Jobs route on `needs.gate.outputs.mode`, never on an exit
-code - see the action README for how the exit-code trap is handled.
+The [`staged-gate`](../../actions/staged-gate) action wraps the first run and
+exposes `native-needed` as an output. The follow-up job routes on
+`needs.test.outputs.native-needed`, never on an exit code - see the action README
+for how the exit code is handled.
 
 <br />
 
@@ -72,19 +72,9 @@ Then push to `main` to trigger the workflow.
 
 ## 📁 Key Files
 
-- **[`.github/workflows/staged.yml`](./.github/workflows/staged.yml)** – Two-job staged router workflow
-- **[`sherlo.config.json`](./sherlo.config.json)** – Devices plus a `staged.fullBuild` block (used by the single-job `--on-stale=build` alternative)
-- **[`../../actions/staged-gate`](../../actions/staged-gate)** – The gate action and full docs for both patterns
-
-<br />
-
-## 🔀 Single-job alternative
-
-Prefer one job? Run `npx sherlo test:bundled --on-stale=build`: fast path when the
-base matches, and a config-driven native rebuild plus base-registering full run
-when it is stale. See the
-[gate action README](../../actions/staged-gate#pattern-b-the-single-job---on-stalebuild-alternative)
-for the trade-off (simpler, but no Linux-only fast lane).
+- **[`.github/workflows/staged.yml`](./.github/workflows/staged.yml)** – JS-only first, native build only when asked
+- **[`sherlo.config.json`](./sherlo.config.json)** – Devices to test on
+- **[`../../actions/staged-gate`](../../actions/staged-gate)** – The action and full docs, including a single-job variant
 
 <br />
 

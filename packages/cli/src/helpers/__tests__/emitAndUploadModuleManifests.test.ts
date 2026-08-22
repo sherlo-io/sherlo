@@ -29,11 +29,11 @@ const mocks = vi.hoisted(() => ({
   logWarning: vi.fn(),
 }));
 
-vi.mock('../../commands/testBundled/buildBundle', () => ({
+vi.mock('../../commands/test/buildBundle', () => ({
   buildBundleForPlatform: mocks.buildBundleForPlatform,
 }));
 
-vi.mock('../../commands/testBundled/uploadStagedArtifacts', () => ({
+vi.mock('../../commands/test/uploadStagedArtifacts', () => ({
   putBuffer: mocks.putBuffer,
 }));
 

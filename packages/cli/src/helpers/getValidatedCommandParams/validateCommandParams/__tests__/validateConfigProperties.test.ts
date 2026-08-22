@@ -49,12 +49,22 @@ describe('validateConfigProperties', () => {
       android: 'app.apk',
       ios: 'app.app',
       devices: [],
-      staged: {},
       include: ['a'],
       exclude: ['b'],
     } as any);
 
     expect(warnings()).toEqual([]);
+  });
+
+  // `staged.fullBuild` configured the removed `test:bundled --on-stale=build`
+  // fallback. Nothing reads it any more, so a config that still carries it must
+  // be told - silently accepting a block the CLI ignores is the worse failure.
+  it('warns for the removed `staged` block', () => {
+    validateConfigProperties({ token: 'abc', staged: {} } as any);
+
+    const warned = warnings();
+    expect(warned).toHaveLength(1);
+    expect(warned[0]).toContain('Unsupported property `staged` in config file');
   });
 
   it('still warns for a genuinely unknown property', () => {

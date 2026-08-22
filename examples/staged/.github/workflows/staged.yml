@@ -1,22 +1,25 @@
 name: Sherlo Test - Staged
 
 # ══════════════════════════════════════════════════════════════════════════════
-# WORKFLOW: two-job staged router
+# WORKFLOW: run JS-only first, build natively only when asked
 #
-#                            [ ⚡ Staged Gate ]
-#                          (sherlo staged:check)
+#                        [ ⚡ Sherlo Test (Linux) ]
+#                              (sherlo test)
 #                                    │
-#                     mode? ─────────┼─────────────────┐
-#                       │                              │
-#              mode == 'fast'            mode == 'full' | 'not-stageable'
-#                       │                              │
-#                       ▼                              ▼
-#              [ ⚡ Fast Test ]              [ 🔨 Full Test ]
-#           test:bundled (Linux)      native build + test:standard
-#            no native build          REGISTERS a fresh base
+#                    native-needed? ─┴──────────────┐
+#                       │                           │
+#                    'false'                      'true'
+#                       │                           │
+#                       ▼                           ▼
+#            ✅ already tested,          [ 🔨 Native Test (macOS) ]
+#               JS-only, done            native build + sherlo test
+#                                        --android/--ios
+#                                        REGISTERS a fresh base
 #
-# The gate routes ONE of the two downstream jobs. On a native change the full
-# job registers a fresh base, so the NEXT push (native unchanged) routes fast.
+# The first job does not "route to a fast job" - on the common case it has
+# ALREADY run the test. The second job only runs when native inputs moved; its
+# run registers a fresh base, so the NEXT push (native unchanged) is JS-only
+# again.
 # ══════════════════════════════════════════════════════════════════════════════
 
 # Triggers on:
@@ -29,18 +32,22 @@ on:
 
 jobs:
   # ────────────────────────────────────────────────────────────────────────────
-  # ⚡ STAGED GATE
+  # ⚡ SHERLO TEST (JS-only, on Linux)
   #
-  # Runs the routing probe and exposes `mode` as a job output. Downstream jobs
-  # route on `needs.gate.outputs.mode` - NEVER on an exit code (the gate action
-  # handles the exit-code trap internally).
+  # Runs `sherlo test` with no build paths. When the registered base still
+  # matches this commit it bundles the JS and runs the test right here - no
+  # native build, so ubuntu is enough. When it doesn't, it builds NOTHING and
+  # just answers `native-needed=true`.
+  #
+  # Downstream routes on `needs.test.outputs.native-needed` - NEVER on an exit
+  # code (the action handles the exit-code trap internally).
   # ────────────────────────────────────────────────────────────────────────────
-  gate:
-    name: Staged Gate
+  test:
+    name: Sherlo Test
     runs-on: ubuntu-latest
     outputs:
-      mode: ${{ steps.gate.outputs.mode }}
-      reason: ${{ steps.gate.outputs.reason }}
+      native-needed: ${{ steps.sherlo.outputs.native-needed }}
+      reason: ${{ steps.sherlo.outputs.reason }}
 
     steps:
       - name: 📦 Checkout code
@@ -55,62 +62,31 @@ jobs:
       - name: 📥 Install dependencies
         run: yarn install
 
-      # The gate action runs `sherlo staged:check` and exposes mode/reason.
+      # The action runs `sherlo test` and exposes native-needed/reason.
       # Pin to a released tag (or a commit SHA) in your own repository.
-      - name: ⚡ Run staged routing probe
-        id: gate
+      - name: ⚡ Run Sherlo test (JS-only)
+        id: sherlo
         uses: sherlo-io/sherlo/actions/staged-gate@v1
         with:
           sherlo-token: ${{ secrets.SHERLO_TOKEN }}
 
   # ────────────────────────────────────────────────────────────────────────────
-  # ⚡ FAST TEST (JS-only, on Linux)
+  # 🔨 NATIVE TEST (native build + base registration)
   #
-  # Native inputs unchanged -> reuse the registered base. Builds a plain-JS
-  # bundle and runs the staged test. NO native build, so it runs on ubuntu.
-  # ────────────────────────────────────────────────────────────────────────────
-  fast-test:
-    name: Fast Test
-    runs-on: ubuntu-latest
-    needs: gate
-    if: needs.gate.outputs.mode == 'fast'
-
-    steps:
-      - name: 📦 Checkout code
-        uses: actions/checkout@v6
-
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 'lts/*'
-          cache: 'yarn'
-
-      - name: 📥 Install dependencies
-        run: yarn install
-
-      # Uses 'test:bundled' - JS-only fast path, no native rebuild.
-      - name: ⚡ Run Sherlo bundled test
-        run: |
-          npx sherlo test:bundled \
-            --token ${{ secrets.SHERLO_TOKEN }}
-
-  # ────────────────────────────────────────────────────────────────────────────
-  # 🔨 FULL TEST (native build + base registration)
-  #
-  # Native inputs moved (or the project can't stage) -> do a full native build,
-  # then run 'test:standard'. test:standard REGISTERS A FRESH BASE, so the NEXT
-  # push on this branch (with native unchanged) will route to the fast job above.
+  # Only runs when the job above said a native build is needed. Builds the app,
+  # then runs THE SAME VERB with build paths - which registers the freshly built
+  # binaries as the new base, so the next push (native unchanged) is JS-only.
   #
   # Builds run here with `eas build --local` (mirror the standard example). iOS
   # requires macOS, so this job runs on macos-latest and builds both platforms.
   # To parallelise, split into separate build jobs + artifact upload/download
-  # like examples/standard - the routing contract is unchanged.
+  # like examples/standard - the contract is unchanged.
   # ────────────────────────────────────────────────────────────────────────────
-  full-test:
-    name: Full Test
+  native-test:
+    name: Native Test
     runs-on: macos-latest
-    needs: gate
-    if: needs.gate.outputs.mode == 'full' || needs.gate.outputs.mode == 'not-stageable'
+    needs: test
+    if: needs.test.outputs.native-needed == 'true'
 
     steps:
       - name: 📦 Checkout code
@@ -152,12 +128,13 @@ jobs:
             --output ios.tar.gz
       # ▲▲▲ USER-SUPPLIED native build steps ▲▲▲
 
-      # 'test:standard' registers the freshly built native binaries as the new
-      # base. After this run the base fingerprint matches source again, so the
-      # next push (native unchanged) is routed 'fast' by the gate.
+      # Given build paths, `sherlo test` runs a full test AND registers the
+      # freshly built binaries as the new base. After this run the base
+      # fingerprint matches source again, so the next push (native unchanged)
+      # is tested JS-only by the job above.
       - name: 🧪 Run Sherlo test (registers fresh base)
         run: |
-          npx sherlo test:standard \
+          npx sherlo test \
             --android android.apk \
             --ios ios.tar.gz \
             --token ${{ secrets.SHERLO_TOKEN }}

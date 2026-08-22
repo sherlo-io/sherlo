@@ -5,12 +5,10 @@ import {
   easBuildOnComplete,
   init,
   showError,
-  stagedCheck,
   test,
   testEasCloudBuild,
   testEasUpdate,
   testStandard,
-  testBundled,
 } from './commands';
 import {
   ANDROID_FILE_TYPES,
@@ -34,17 +32,13 @@ import {
   INIT_COMMAND,
   IOS_FILE_TYPES,
   IOS_OPTION,
-  JSON_OPTION,
   MESSAGE_OPTION,
-  ON_STALE_OPTION,
   PLATFORM_LABEL,
   PROFILE_OPTION,
   PROJECT_ROOT_OPTION,
   SHOW_ERROR_COMMAND,
-  STAGED_CHECK_COMMAND,
   TEST_COMMAND,
   TEST_EAS_CLOUD_BUILD_COMMAND,
-  TEST_BUNDLED_COMMAND,
   TEST_EAS_UPDATE_COMMAND,
   TEST_STANDARD_COMMAND,
   TOKEN_OPTION,
@@ -77,10 +71,6 @@ async function start() {
     addTestEasUpdateCommand(program);
 
     addTestEasCloudBuildCommand(program);
-
-    addTestBundledCommand(program);
-
-    addStagedCheckCommand(program);
 
     addShowErrorCommand(program);
 
@@ -116,13 +106,17 @@ export default start;
 
 const COMMAND_DESCRIPTION = {
   [INIT_COMMAND]: 'Initialize Sherlo',
-  [TEST_COMMAND]: 'Run test interactively',
+  [TEST_COMMAND]:
+    'Run visual tests.\n' +
+    `  Without \`--${ANDROID_OPTION}\`/\`--${IOS_OPTION}\`: tests JS-only changes against the registered\n` +
+    '  native base. Prints (and writes to $GITHUB_OUTPUT) `native-needed=true` and builds\n' +
+    '  nothing when this commit needs a native rebuild first, `native-needed=false` when it\n' +
+    '  ran the test to completion.\n' +
+    `  With \`--${ANDROID_OPTION} <path>\` (and optionally \`--${IOS_OPTION} <path>\`): runs a full test on\n` +
+    '  those builds and registers them as the new base.',
   [TEST_STANDARD_COMMAND]: 'Test standard builds',
   [TEST_EAS_UPDATE_COMMAND]: 'Test builds with dynamic JavaScript (OTA) updates',
   [TEST_EAS_CLOUD_BUILD_COMMAND]: 'Test cloud builds created on Expo servers',
-  [TEST_BUNDLED_COMMAND]: 'Test JS-only changes via staged uploads (fast path - no native rebuild)',
-  [STAGED_CHECK_COMMAND]:
-    'Check whether the staged fast path is available (CI routing - no build, no upload)',
   [EAS_BUILD_ON_COMPLETE_COMMAND]: `Process EAS Build (required for \`${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
   [SHOW_ERROR_COMMAND]:
     'Decode a minified JS error stack trace using the slug printed on the Sherlo build error page',
@@ -188,14 +182,7 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
       'placeholder (e.g. <SHERLO_CONFIG_PATH>). Pass "list" to print every scenario and ' +
       'the full placeholder vocabulary. Makes no build, no upload, no network call.',
   ],
-  [JSON_OPTION]: [`--${JSON_OPTION}`, 'Output machine-readable JSON instead of formatted text'],
   [MESSAGE_OPTION]: [`--${MESSAGE_OPTION} <message>`, 'Custom message to label the test'],
-  [ON_STALE_OPTION]: [
-    '--on-stale <mode>',
-    'What to do when the staged gate finds the base stale: "fail" (default) exits with the ' +
-      'fingerprint diff and runs no tests; "build" runs the `staged.fullBuild` commands from ' +
-      'the config and proceeds as a full run',
-  ],
   [PROFILE_OPTION]: [
     `--${PROFILE_OPTION} <profile>`,
     `EAS Build profile (must match profile used in \`${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
@@ -231,6 +218,9 @@ function addInitCommand(program: Command) {
   });
 }
 
+// `sherlo test` is the ONE testing command: it carries the union of both roads'
+// options. The platform paths pick the standard road; without them the staged
+// road runs and --dry-run / --emit-expectation preview its bundling decision.
 function addTestCommand(program: Command) {
   const devtoolsOptions = process.env.SHERLO_DEVTOOLS === '1' ? [DIAGNOSTICS_OPTION] : [];
 
@@ -239,6 +229,8 @@ function addTestCommand(program: Command) {
     command: TEST_COMMAND,
     options: [
       ...getTestCommonOptions('withPlatformPaths'),
+      DRY_RUN_OPTION,
+      EMIT_EXPECTATION_OPTION,
       WAIT_OPTION,
       WAIT_TIMEOUT_OPTION,
       ...devtoolsOptions,
@@ -306,39 +298,6 @@ function addTestEasCloudBuildCommand(program: Command) {
     command: EAS_BUILD_ON_COMPLETE_COMMAND,
     options: [PROFILE_OPTION],
     action: easBuildOnComplete,
-  });
-}
-
-function addTestBundledCommand(program: Command) {
-  const devtoolsOptions = process.env.SHERLO_DEVTOOLS === '1' ? [DIAGNOSTICS_OPTION] : [];
-
-  addCommand({
-    program,
-    command: TEST_BUNDLED_COMMAND,
-    options: [
-      ...getTestCommonOptions('withoutPlatformPaths'),
-      ON_STALE_OPTION,
-      DRY_RUN_OPTION,
-      EMIT_EXPECTATION_OPTION,
-      WAIT_OPTION,
-      WAIT_TIMEOUT_OPTION,
-      ...devtoolsOptions,
-    ],
-    action: testBundled,
-  });
-}
-
-function addStagedCheckCommand(program: Command) {
-  // staged:check is a CI routing probe: every expected outcome exits through its
-  // own report-and-exit funnel with a contractual code, so it must NOT be
-  // wrapped in withCommandTimeout's throwing error path. Only genuine tool
-  // errors fall through to the CLI's normal non-zero exit.
-  addCommand({
-    program,
-    command: STAGED_CHECK_COMMAND,
-    options: [TOKEN_OPTION, CONFIG_OPTION, PROJECT_ROOT_OPTION, JSON_OPTION],
-    action: stagedCheck,
-    withTimeout: false,
   });
 }
 

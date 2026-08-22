@@ -1,5 +1,5 @@
 /**
- * `test:bundled --dry-run --emit-expectation <scenario>` - expectation-emit mode.
+ * `sherlo test --dry-run --emit-expectation <scenario>` - expectation-emit mode.
  *
  * Renders the exact refusal text a LIVE run would print for a named preflight
  * scenario - same guard function, same throwError formatter - so consumers that

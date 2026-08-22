@@ -371,7 +371,7 @@ describe('buildBundleForPlatform - version-floor refusal', () => {
     expect(result.bundleFormat).toBe('plain-js');
   });
 
-  it('includes the test:standard fallback line in version refusal', async () => {
+  it('includes the full-run fallback line in version refusal', async () => {
     mockGetPackageVersion.mockReturnValue('0.69.0');
     mockDetectBundler.mockReturnValue('rn');
     mockDetectEntryFile.mockReturnValue('index.js');
@@ -381,7 +381,7 @@ describe('buildBundleForPlatform - version-floor refusal', () => {
         projectRoot: tempDir,
         platform: 'android' as Platform,
       })
-    ).rejects.toThrow('sherlo test:standard');
+    ).rejects.toThrow('sherlo test --android <path>');
   });
 });
 
@@ -466,10 +466,10 @@ describe('buildBundleForPlatform - asset inventory', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Refusal messages include test:standard fallback
+// Refusal messages include full-run fallback
 // ---------------------------------------------------------------------------
 
-describe('refusal messages include test:standard fallback', () => {
+describe('refusal messages include full-run fallback', () => {
   it('HBC refusal ends with the fallback line', async () => {
     setupBundleBuild(hbcBundle());
 
@@ -480,7 +480,7 @@ describe('refusal messages include test:standard fallback', () => {
       });
       expect.unreachable('Should have thrown');
     } catch (err: any) {
-      expect(err.message).toContain('sherlo test:standard');
+      expect(err.message).toContain('sherlo test --android <path>');
     }
   });
 
@@ -494,7 +494,7 @@ describe('refusal messages include test:standard fallback', () => {
       });
       expect.unreachable('Should have thrown');
     } catch (err: any) {
-      expect(err.message).toContain('sherlo test:standard');
+      expect(err.message).toContain('sherlo test --android <path>');
     }
   });
 
@@ -510,7 +510,7 @@ describe('refusal messages include test:standard fallback', () => {
       });
       expect.unreachable('Should have thrown');
     } catch (err: any) {
-      expect(err.message).toContain('sherlo test:standard');
+      expect(err.message).toContain('sherlo test --android <path>');
     }
   });
 });
@@ -562,8 +562,8 @@ describe('buildBundleForPlatform - result metadata', () => {
 // ---------------------------------------------------------------------------
 
 describe('baseFingerprint version suppression (SHERLO-1690 AC)', () => {
-  it('computeBaseFingerprint is imported and used by testBundled', async () => {
-    // Integration-level assertion: the testBundled module imports
+  it('computeBaseFingerprint is imported and used by stagedRun', async () => {
+    // Integration-level assertion: the stagedRun module imports
     // computeBaseFingerprint from the same path as test:standard.
     // This guards against accidental divergence.
     expect(computeBaseFingerprint).toBeDefined();

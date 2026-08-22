@@ -1,5 +1,5 @@
 /**
- * The read-only Diff Scope decision query for `test:bundled --dry-run`
+ * The read-only Diff Scope decision query for `sherlo test --dry-run`
  * (SHERLO-1895 Diff Scope Phase C).
  *
  * THIS FILE IS THE CONTRACT SEAM. It is the ONE place that binds to the
@@ -46,7 +46,7 @@ import { countBundleStories, type ValidatedModuleManifest } from './readModuleMa
 export type DiffScopeDryRunPlatformInput = {
   platform: Platform;
   /**
-   * Whether this platform is a bundled (staged) upload. test:bundled sets true;
+   * Whether this platform is a bundled (staged) upload. the staged road sets true;
    * a standard upload (false) previews as full (standard-upload).
    */
   bundled: boolean;
@@ -145,7 +145,7 @@ export type DryRunPlatformDecision = {
 /** One platform's inputs for the dry-run request (before it is mapped to wire form). */
 export type DryRunPlatformRequest = {
   platform: Platform;
-  /** test:bundled is a bundled (staged) upload. */
+  /** The staged road is a bundled (staged) upload. */
   bundled: boolean;
   /** This platform's base identity (the base fingerprint), or undefined if none. */
   baseReference?: string;

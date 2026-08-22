@@ -31,8 +31,8 @@ export type BundleFormat = 'hbc' | 'plain-js' | 'ram';
  * How a probe's gate metadata was derived (SHERLO-1761). Re-exported from the
  * wire contract so the CLI and the gate name the derivations identically:
  *   - 'binary' - read out of a compiled APK/IPA (test:standard registration).
- *   - 'source' - estimated from the source tree + JS bundle (test:bundled).
- *   - 'none'   - a no-build probe carrying no identity metadata (staged:check).
+ *   - 'source' - estimated from the source tree + JS bundle (the staged road).
+ *   - 'none'   - a no-build probe carrying no identity metadata (the staged road's pre-bundle probe).
  */
 export type { GateDerivation };
 

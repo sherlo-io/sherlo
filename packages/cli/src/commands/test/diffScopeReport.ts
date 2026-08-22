@@ -1,8 +1,8 @@
 /**
- * The ONE "Capture plan" renderer, shared by BOTH the live test:bundled run and
+ * The ONE "Capture plan" renderer, shared by BOTH the live staged run and
  * its --dry-run preview (SHERLO-1919, format replacing SHERLO-1915).
  *
- * test:bundled photographs only the stories a change can affect and reuses the
+ * The staged road photographs only the stories a change can affect and reuses the
  * previous build's photos for the rest. This module renders a per-platform
  * "Capture plan" block that reads IDENTICALLY in both modes except for the
  * capture VERB: the live run says "capturing", the dry run says "would capture".

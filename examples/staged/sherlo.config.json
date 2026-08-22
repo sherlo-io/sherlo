@@ -8,15 +8,5 @@
       "id": "pixel.7.pro",
       "osVersion": "13"
     }
-  ],
-  "staged": {
-    "fullBuild": {
-      "android": [
-        "eas build --non-interactive --local --platform android --profile preview-simulator --output android.apk"
-      ],
-      "ios": [
-        "eas build --non-interactive --local --platform ios --profile preview-simulator --output ios.tar.gz"
-      ]
-    }
-  }
+  ]
 }

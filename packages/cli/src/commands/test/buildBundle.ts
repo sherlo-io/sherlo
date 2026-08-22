@@ -1,6 +1,6 @@
 /**
  * Bundle building, format sniffing, asset collection, and gate-metadata
- * construction for the test:bundled command.
+ * construction for the staged road of `sherlo test`.
  *
  * Detects the project type via the same detectBundler that showError's
  * buildSourceMaps uses, calls the canonical bundler with --dev false
@@ -23,6 +23,7 @@ import {
 import detectBundler from '../../commands/showError/detectBundler';
 import { detectEntryFile } from '../../commands/showError/detectBundler';
 import getPackageVersion from '../../commands/init/requirements/getPackageVersion';
+import { FALLBACK_LINE as SHARED_FALLBACK_LINE } from './stagedGateRefusal';
 import { readBundledSdkProtocolVersion } from './readBundledSdkProtocolVersion';
 import {
   deleteModuleManifestSidecar,
@@ -73,8 +74,12 @@ const MIN_RN_VERSION = '0.71.0';
 /** Minimum Expo SDK version for staged uploads. */
 const MIN_EXPO_SDK = 50;
 
-/** Test:standard fallback line appended to every refusal message. */
-const FALLBACK_LINE = '\nRun `sherlo test:standard` for a full build with the same options.';
+/**
+ * The full-run fallback line appended to every refusal message. The sentence
+ * itself is owned by ./stagedGateRefusal so every staged exit path says the same
+ * thing; only the leading blank line is local formatting.
+ */
+const FALLBACK_LINE = `\n${SHARED_FALLBACK_LINE}`;
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -84,8 +89,8 @@ const FALLBACK_LINE = '\nRun `sherlo test:standard` for a full build with the sa
  * Build a production (dev=false, minify=true) plain-JS bundle for a single
  * platform and collect its metadata + asset inventory.
  *
- * Throws with a user-facing message that already includes the test:standard
- * fallback line.  Callers catch, print, and exit.
+ * Throws with a user-facing message that already includes the full-run fallback
+ * line.  Callers catch, print, and exit.
  */
 export async function buildBundleForPlatform({
   projectRoot,
@@ -349,7 +354,7 @@ function execBundler(
 ): void {
   const { projectRoot, entryFile, bundleOut, assetsDest } = opts;
 
-  // Turn the module manifest ON for the test:bundled path ONLY (SHERLO-1894 Phase B).
+  // Turn the module manifest ON for the staged road ONLY (SHERLO-1894 Phase B).
   // The Sherlo Metro serializer reads SHERLO_MODULE_MANIFEST; setting it here scopes
   // emission to this spawned bundler process, so every other build (local dev,
   // non-Sherlo CI) is unaffected. Nothing else in this env changes, so the bundle

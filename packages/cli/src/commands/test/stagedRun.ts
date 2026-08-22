@@ -1,18 +1,25 @@
 /**
- * test:bundled command - the bundle-only fast path for staged builds.
+ * The STAGED ROAD of `sherlo test` - the JS-only fast path, taken when the
+ * command is given no native build paths (see ./test.ts for the routing).
  *
- * Builds a production plain-JS bundle + assets via the project's canonical
- * bundler, computes the base fingerprint and per-platform gate metadata,
- * uploads the bundle (and assets) to staged S3 slots, then opens a staged
- * build. The server-side gate decides whether the staged run can proceed on
- * the fast path; when it can't it refuses with a machine-parseable
- * STAGED_GATE_REFUSAL payload that we translate into a named-diff message plus
- * the test:standard fallback line.
+ * It asks ONE question first: can this commit be tested without a native
+ * rebuild? The gate answers from the source fingerprint alone, BEFORE anything
+ * is built. On "no" the road stops right there - nothing is bundled, nothing is
+ * uploaded, no test runs - and publishes `native-needed=true` so the caller can
+ * route to its own native-build job (see ./nativeNeeded.ts).
  *
- * --dry-run (SHERLO-1895 Phase C) short-circuits after bundling: it produces the
- * manifest via the SAME real bundling path, previews the server's read-only Diff
- * Scope decision (which stories a real run would capture), and STOPS - no gate
- * check, no upload, no build. See ./dryRun.
+ * On "yes" it builds a production plain-JS bundle + assets via the project's
+ * canonical bundler, re-asks the gate with the REAL bundle-derived identity
+ * (the fingerprint probe cannot know the engine class, bundle format or asset
+ * inventory without bundling), uploads the bundle to staged S3 slots, and opens
+ * a staged build. The server-side gate may still refuse at openBuild with a
+ * machine-parseable STAGED_GATE_REFUSAL payload; that is the same answer,
+ * arriving later, and is published the same way.
+ *
+ * --dry-run (SHERLO-1895 Phase C) short-circuits before the gate: it produces
+ * the manifest via the SAME real bundling path, previews the server's read-only
+ * Diff Scope decision (which stories a real run would capture), and STOPS - no
+ * gate check, no upload, no build, no routing output. See ./dryRun.
  *
  * Upload-slot decision: staged runs use getStagedUploadUrls (NOT
  * getBuildUploadUrls) - a bundled run has no native binary, so the per-platform
@@ -26,6 +33,7 @@ import chalk from 'chalk';
 import path from 'path';
 import { Options } from '../../types';
 import {
+  describeDiffSources,
   getAppBuildUrl,
   getBuildRunConfig,
   getGitInfo,
@@ -48,13 +56,27 @@ import {
 import { computeBaseFingerprint, type GateMetadataInput } from '../../helpers/fingerprint';
 import { THIS_COMMAND } from './constants';
 import { buildBundleForPlatform, buildGateMetadata, type BundleResult } from './buildBundle';
-import { parseStagedGateRefusal, FALLBACK_LINE, type StagedGateRefusal } from './stagedGateRefusal';
-import { getOnStaleMode, handleStaleBase } from './onStale';
+import {
+  formatStagedGateRefusal,
+  parseStagedGateRefusal,
+  FALLBACK_LINE,
+  type StagedGateRefusal,
+} from './stagedGateRefusal';
+import reportNativeNeeded, { reportFastPathRunning } from './nativeNeeded';
 import uploadStagedArtifacts, { type StagedUploadKeys } from './uploadStagedArtifacts';
 import { runDryRunPreview } from './dryRun';
 import { runEmitExpectation } from './emitExpectation';
 import { countBundleStories } from './readModuleManifest';
 import { formatDiffScopeReport, type DiffScopePlatformReport } from './diffScopeReport';
+
+/**
+ * The ONLY gate metadata the pre-bundle probe may send: the `none` derivation
+ * marker, and nothing else. Nothing has been built at that point, so the probe
+ * must not fabricate a single binary-identity dimension it cannot know without
+ * opening an APK. SHERLO-1761 excludes none-marked dimensions from the identity
+ * diff, so the gate rests this decision on the fingerprint match alone.
+ */
+const PROBE_GATE_METADATA: GateMetadataInput = { derivedFrom: 'none' };
 
 /**
  * The per-platform staged build config plus the SHERLO-1894 `manifestS3Key` the api
@@ -96,7 +118,7 @@ type DiffScopeInfoWithPlatformReasons = {
 // Public API
 // ---------------------------------------------------------------------------
 
-async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
+async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
   printSherloIntro();
 
   // --emit-expectation (expectation-emit mode): rides the --dry-run path rather
@@ -120,15 +142,16 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
     { requirePlatformPaths: false }
   );
 
-  // Resolve --on-stale up front so an invalid value fails before any work.
-  const onStale = getOnStaleMode(passedOptions);
-
   // --dry-run (SHERLO-1895 Phase C): bundle + produce the manifest exactly as a
   // normal run, then preview the server's Diff Scope decision and STOP. Resolved
   // here so the branch below is unmistakable; the bundling path is identical.
   const isDryRun = passedOptions.dryRun === true;
 
-  // Determine which platforms have devices configured.
+  // 2. Determine which platforms have devices configured. Unreachable in
+  //    practice - validateDevices above already refuses an empty/unknown device
+  //    list - but a misconfiguration is a TOOL ERROR, not a routing outcome: it
+  //    exits without writing any `native-needed` key, because building natively
+  //    would not make this project testable either.
   const platformsToTest = getPlatformsToTest(commandParams.devices);
   if (platformsToTest.length === 0) {
     console.log(
@@ -139,87 +162,45 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
     await reporting.flush().finally(() => process.exit(1));
   }
 
-  console.log(
-    chalk.bold(
-      isDryRun ? '\n📦 Bundling for dry-run preview...\n' : '\n📦 Bundling for staged upload...\n'
-    )
-  );
-
-  // 2. Compute base fingerprint - identifies which base binary to stage against.
-  //    A null hash means the staged flow is unavailable for this project.
+  // 3. Compute the base fingerprint - identifies which base binary to stage
+  //    against. A null hash means this project has no staged fast path to take,
+  //    which IS a routing answer: a native build is needed.
   //    A dry run does NOT stage a binary, so a missing fingerprint is a
-  //    staged-only concern that must not hard-fail the preview - it bails open
-  //    downstream (a real run would capture everything) rather than exiting here.
+  //    staged-only concern that must not stop the preview - it bails open
+  //    downstream (a real run would capture everything) rather than routing.
   const fpResult = await computeBaseFingerprint(commandParams.projectRoot, {
     command: THIS_COMMAND,
   });
   if (!fpResult.hash && !isDryRun) {
-    console.log(
-      chalk.red(
-        'Staged upload unavailable - ' + (fpResult.debugMessage ?? 'fingerprint computation failed')
-      )
-    );
-    console.log(chalk.yellow(FALLBACK_LINE));
-    await reporting.flush().finally(() => process.exit(1));
+    return reportNativeNeeded({
+      reason: fpResult.debugMessage ?? 'the base fingerprint could not be computed',
+    });
   }
   const baseFingerprint = fpResult.hash ?? '';
-
-  // 3. Build bundle + assets and construct gate metadata for each platform.
-  const bundles: Partial<Record<Platform, BundleResult>> = {};
-  const gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput } = {};
-
-  for (const platform of platformsToTest) {
-    const emoji = platform === 'android' ? '🤖' : '🍎';
-    console.log(chalk.cyan(`\n${emoji} Building ${platform} bundle...`));
-
-    try {
-      const result = await buildBundleForPlatform({
-        projectRoot: commandParams.projectRoot,
-        platform,
-      });
-      bundles[platform] = result;
-
-      console.log(
-        chalk.green(`  ✓ Bundle: ${path.basename(result.bundlePath)}`) +
-          ` (${result.bundleSizeMb} MB, ${result.bundleFormat}, ${result.bundler})`
-      );
-      if (result.assetsDest) {
-        console.log(chalk.green(`  ✓ Assets: ${result.assetInventory.length} files`));
-      }
-
-      gateMetadata[platform] = await buildGateMetadata({
-        projectRoot: commandParams.projectRoot,
-        platform,
-        bundleResult: result,
-      });
-    } catch (err) {
-      // buildBundleForPlatform throws user-facing messages that already include
-      // the test:standard fallback line.
-      const message = err instanceof Error ? err.message : String(err);
-      console.log(chalk.red(`\n  ✗ ${message}`));
-      await reporting.flush().finally(() => process.exit(1));
-    }
-  }
 
   // 4. Resolve token + SDK client.
   const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
   const client = sdkClient({ authToken: apiToken });
 
-  // 4-dry. --dry-run (SHERLO-1895 Phase C): we now have the REAL bundle + manifest
-  //   for every platform and an SDK client. Preview which stories a real run would
-  //   capture via the read-only decision query, print it, and STOP here. A dry run
-  //   never runs the staged gate, uploads nothing, opens no build, and advances no
-  //   ancestry - so it also works with the Diff Scope flag OFF. Bail-open lives
-  //   inside runDryRunPreview; it prints a preview even when the decision is unsure.
+  // 5-dry. --dry-run (SHERLO-1895 Phase C): bundle for real, preview which
+  //   stories a real run would capture, and STOP here. A dry run never runs the
+  //   staged gate, uploads nothing, opens no build, and advances no ancestry -
+  //   so it also works with the Diff Scope flag OFF, and publishes no routing
+  //   output (it decided nothing to route on). Bail-open lives inside
+  //   runDryRunPreview; it prints a preview even when the decision is unsure.
   if (isDryRun) {
-    // Reuse the SAME git info openBuild is given (step 7 below) - the read-only
+    console.log(chalk.bold('\n📦 Bundling for dry-run preview...\n'));
+
+    const bundles = await buildBundles({ projectRoot: commandParams.projectRoot, platformsToTest });
+
+    // Reuse the SAME git info openBuild is given (step 10 below) - the read-only
     // decision query takes the identical GitInfoInput; do not build a second one.
     const gitInfo = await getGitInfo(commandParams.projectRoot, {
       branchOverride: commandParams.gitBranch,
     });
     await runDryRunPreview({
       client,
-      bundles,
+      bundles: bundles.results,
       platformsToTest,
       projectIndex,
       teamId,
@@ -229,42 +210,59 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
     return { url: '' };
   }
 
-  // 4.5 Staged gate check (SHERLO-1718): decide fast vs stale BEFORE uploading.
-  //     checkStagedGate is per platform; a non-fast outcome on any platform
-  //     means the base is stale, so --on-stale decides what happens next (fail
-  //     with the diff, or rebuild + full run). Tests are never silently skipped.
-  reporting.addBreadcrumb({
-    category: 'api',
-    message: 'Calling checkStagedGate API',
-    data: { teamId, projectIndex, platforms: platformsToTest },
-    level: 'info',
+  // 6. THE ROUTING GATE, before anything is built (SHERLO-1692). The fingerprint
+  //    alone answers "can this commit reuse the registered base?", so a commit
+  //    that needs a native build costs a single API call and no bundler run.
+  const probeRefusals = await checkGate({
+    client,
+    platformsToTest,
+    baseFingerprint,
+    gateMetadata: () => PROBE_GATE_METADATA,
+    projectIndex,
+    teamId,
   });
 
-  const staleRefusals: StagedGateRefusal[] = [];
-  try {
-    for (const platform of platformsToTest) {
-      const { outcome, diff } = await client.checkStagedGate({
-        baseFingerprint,
-        gateMetadata: (gateMetadata[platform] ?? {}) as GateMetadata,
-        platform,
-        projectIndex,
-        teamId,
-      });
-
-      if (outcome !== 'fast') {
-        staleRefusals.push({ outcome, platform, diff });
-      }
-    }
-  } catch (error) {
-    handleClientError(error); // always throws (bad token, network, ...)
-    throw error; // unreachable - satisfies control flow / typing
+  if (probeRefusals.length > 0) {
+    return reportNativeNeeded({
+      reason: describeRefusals(probeRefusals),
+      details: probeRefusals.map(formatStagedGateRefusal),
+      baseFingerprint,
+    });
   }
 
-  if (staleRefusals.length > 0) {
-    return handleStaleBase({ onStale, refusals: staleRefusals, commandParams, passedOptions });
+  // 7. Build bundle + assets and construct gate metadata for each platform.
+  console.log(chalk.bold('\n📦 Bundling for staged upload...\n'));
+
+  const { results: bundles, gateMetadata } = await buildBundles({
+    projectRoot: commandParams.projectRoot,
+    platformsToTest,
+  });
+
+  // 8. Re-ask the gate with the REAL bundle-derived identity. Step 6 could only
+  //    compare fingerprints; only a built bundle carries the engine class,
+  //    bundle format, asset inventory and SDK protocol version the gate diffs.
+  //    A refusal here is the same routing answer, just better informed.
+  const identityRefusals = await checkGate({
+    client,
+    platformsToTest,
+    baseFingerprint,
+    // Unreachable fallback: buildBundles fills every tested platform or exits.
+    // If it ever were empty, the marker is the honest thing to send - "I know
+    // nothing about this bundle's identity" - never a fabricated dimension.
+    gateMetadata: (platform) => gateMetadata[platform] ?? PROBE_GATE_METADATA,
+    projectIndex,
+    teamId,
+  });
+
+  if (identityRefusals.length > 0) {
+    return reportNativeNeeded({
+      reason: describeRefusals(identityRefusals),
+      details: identityRefusals.map(formatStagedGateRefusal),
+      baseFingerprint,
+    });
   }
 
-  // 5. Request staged upload slots (getStagedUploadUrls - NOT getBuildUploadUrls).
+  // 9. Request staged upload slots (getStagedUploadUrls - NOT getBuildUploadUrls).
   reporting.addBreadcrumb({
     category: 'api',
     message: 'Calling getStagedUploadUrls API',
@@ -276,7 +274,7 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
     .getStagedUploadUrls({ platforms: platformsToTest, projectIndex, teamId })
     .catch(handleClientError);
 
-  // 6. Upload the bundle (+ assets) for each platform and collect its S3 keys.
+  // 10. Upload the bundle (+ assets) for each platform and collect its S3 keys.
   const stagedKeys: Partial<Record<Platform, StagedUploadKeys>> = {};
 
   for (const platform of platformsToTest) {
@@ -294,12 +292,12 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
     stagedKeys[platform] = await uploadStagedArtifacts({ platform, bundleResult, urls });
   }
 
-  // 7. Capture git info - IDENTICAL to test:standard (same helper, same override).
+  // 11. Capture git info - IDENTICAL to the standard road (same helper, same override).
   const gitInfo = await getGitInfo(commandParams.projectRoot, {
     branchOverride: commandParams.gitBranch,
   });
 
-  // 8. Build the run config and mirror the staged S3 keys / bundle size onto each
+  // 12. Build the run config and mirror the staged S3 keys / bundle size onto each
   //    platform. getBuildRunConfig already sets `s3Key` to the async-upload
   //    placeholder (no binary S3 keys passed); the server mirrors it back.
   const buildRunConfig = getBuildRunConfig({ commandParams });
@@ -325,7 +323,7 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
     }
   }
 
-  // 9. Open the staged build. The server gate may refuse with a
+  // 13. Open the staged build. The server gate may refuse with a
   //    STAGED_GATE_REFUSAL payload we translate for the user.
   reporting.addBreadcrumb({
     category: 'api',
@@ -347,15 +345,23 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
     });
   } catch (error) {
     // Safety net: the server gate may still refuse at openBuild even though the
-    // upfront checkStagedGate said fast (e.g. a base registered between calls).
-    // Route it through the SAME --on-stale handler so behavior stays consistent.
+    // checks above said fast (e.g. a base registered between calls). It is the
+    // SAME routing answer, so it is published the SAME way.
     const refusal = parseStagedGateRefusal(error);
     if (refusal) {
-      return handleStaleBase({ onStale, refusals: [refusal], commandParams, passedOptions });
+      return reportNativeNeeded({
+        reason: describeRefusals([refusal]),
+        details: [formatStagedGateRefusal(refusal)],
+        baseFingerprint,
+      });
     }
     handleClientError(error); // always throws
     throw error; // unreachable - satisfies control flow / typing
   }
+
+  // 14. The fast path is committed: this commit is being tested with no native
+  //     rebuild. Publish that answer before the run's own output.
+  reportFastPathRunning({ baseFingerprint });
 
   const { build } = openBuildReturn;
   const buildIndex = build.index;
@@ -414,9 +420,136 @@ async function testBundled(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
   return { url };
 }
 
-export default testBundled;
+export default stagedRun;
 
 /* ========================================================================== */
+
+/**
+ * Ask the staged gate about every platform and return the ones that answered
+ * anything other than "fast". checkStagedGate is per platform, and a single
+ * non-fast platform takes the whole run off the fast path.
+ *
+ * `gateMetadata` is a per-platform lookup rather than a value because the two
+ * callers know DIFFERENT things: the pre-bundle probe knows only that it knows
+ * nothing ({@link PROBE_GATE_METADATA}), while the post-bundle check carries the
+ * real bundle-derived identity.
+ */
+async function checkGate({
+  client,
+  platformsToTest,
+  baseFingerprint,
+  gateMetadata,
+  projectIndex,
+  teamId,
+}: {
+  client: ReturnType<typeof sdkClient>;
+  platformsToTest: Platform[];
+  baseFingerprint: string;
+  gateMetadata: (platform: Platform) => GateMetadataInput;
+  projectIndex: number;
+  teamId: string;
+}): Promise<StagedGateRefusal[]> {
+  reporting.addBreadcrumb({
+    category: 'api',
+    message: 'Calling checkStagedGate API',
+    data: { teamId, projectIndex, platforms: platformsToTest },
+    level: 'info',
+  });
+
+  const refusals: StagedGateRefusal[] = [];
+
+  try {
+    for (const platform of platformsToTest) {
+      const { outcome, diff } = await client.checkStagedGate({
+        baseFingerprint,
+        gateMetadata: gateMetadata(platform) as GateMetadata,
+        platform,
+        projectIndex,
+        teamId,
+      });
+
+      if (outcome !== 'fast') {
+        refusals.push({ outcome, platform, diff });
+      }
+    }
+  } catch (error) {
+    handleClientError(error); // always throws (bad token, network, ...)
+    throw error; // unreachable - satisfies control flow / typing
+  }
+
+  return refusals;
+}
+
+/** One single-line, platform-prefixed reason per refusal, joined for the output key. */
+function describeRefusals(refusals: StagedGateRefusal[]): string {
+  return refusals
+    .map(({ platform, outcome, diff }) => {
+      if (outcome === 'not-stageable') {
+        return `${platform}: this project can't use the staged fast path`;
+      }
+
+      const named = describeDiffSources(diff);
+      return named
+        ? `${platform}: changed since the base build: ${named}`
+        : `${platform}: native inputs changed since the base build`;
+    })
+    .join('; ');
+}
+
+/**
+ * Build the production bundle + assets for every platform and, alongside each,
+ * the REAL gate metadata derived from it. Both the dry run and the live run
+ * bundle through this exact path, so a preview can never diverge from the run
+ * it is previewing.
+ *
+ * A bundling failure is user-facing and already carries the fallback line, so it
+ * is printed and exits here rather than propagating as a crash.
+ */
+async function buildBundles({
+  projectRoot,
+  platformsToTest,
+}: {
+  projectRoot: string;
+  platformsToTest: Platform[];
+}): Promise<{
+  results: Partial<Record<Platform, BundleResult>>;
+  gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput };
+}> {
+  const results: Partial<Record<Platform, BundleResult>> = {};
+  const gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput } = {};
+
+  for (const platform of platformsToTest) {
+    const emoji = platform === 'android' ? '🤖' : '🍎';
+    console.log(chalk.cyan(`\n${emoji} Building ${platform} bundle...`));
+
+    try {
+      const result = await buildBundleForPlatform({ projectRoot, platform });
+      results[platform] = result;
+
+      console.log(
+        chalk.green(`  ✓ Bundle: ${path.basename(result.bundlePath)}`) +
+          ` (${result.bundleSizeMb} MB, ${result.bundleFormat}, ${result.bundler})`
+      );
+      if (result.assetsDest) {
+        console.log(chalk.green(`  ✓ Assets: ${result.assetInventory.length} files`));
+      }
+
+      gateMetadata[platform] = await buildGateMetadata({
+        projectRoot,
+        platform,
+        bundleResult: result,
+      });
+    } catch (err) {
+      // buildBundleForPlatform throws user-facing messages that already include
+      // the fallback line.
+      const message = err instanceof Error ? err.message : String(err);
+      console.log(chalk.red(`\n  ✗ ${message}`));
+      await reporting.flush().finally(() => process.exit(1));
+    }
+  }
+
+  return { results, gateMetadata };
+}
 
 /**
  * Print this run's capture plan, per platform, straight off the openBuild

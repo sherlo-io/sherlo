@@ -67,7 +67,7 @@ async function uploadOrReuseBuildsAndRunTests({
   // the Expo app config (SHERLO-1756). Loading the app config mutates
   // process.env as a dotenv-class side effect; if that ran before the sanitized
   // Layer-1 compute it would pollute the env that compute snapshots, producing a
-  // base fingerprint no probe (staged:check / test:bundled, which never load the
+  // base fingerprint no probe (the staged road, which never loads the
   // config first) could ever match.
   //
   // This is the ONLY `createFingerprintAsync` invocation on this path: both the
@@ -118,7 +118,7 @@ async function uploadOrReuseBuildsAndRunTests({
     }
 
     // SHERLO-1943: emit + upload the per-platform module manifest via the SAME
-    // producer test:bundled uses, guarded by provenance (clean tree + known
+    // producer the staged road uses, guarded by provenance (clean tree + known
     // commit). Runs alongside base registration since the manifest is only
     // meaningful when compared against the base being registered here.
     manifestS3Keys = await emitAndUploadModuleManifests({

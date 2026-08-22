@@ -1,54 +1,53 @@
-import {
-  TEST_EAS_CLOUD_BUILD_COMMAND,
-  TEST_EAS_UPDATE_COMMAND,
-  TEST_STANDARD_COMMAND,
-} from '../../constants';
-import { printSherloIntro } from '../../helpers';
+/**
+ * `sherlo test` - the ONE testing command.
+ *
+ * It has exactly two roads, and the flags you pass pick the road:
+ *
+ *   sherlo test
+ *     THE STAGED ROAD. No native build paths were given, so the command asks
+ *     whether this commit can be tested against the already-registered native
+ *     base. It answers with `native-needed=<true|false>` on stdout AND in
+ *     $GITHUB_OUTPUT. On `false` it has already built the JS bundle and run the
+ *     test to completion. On `true` it built NOTHING and ran NOTHING - the
+ *     caller routes to its own native-build job and comes back down the other
+ *     road. See ./stagedRun.ts and ./nativeNeeded.ts.
+ *
+ *   sherlo test --android <path> [--ios <path>]
+ *     THE STANDARD ROAD. Native builds were handed to the command, so it runs a
+ *     full test on them and REGISTERS them as the new base - which is what makes
+ *     the staged road available on the next commit. Delegated verbatim to the
+ *     standard road so there is exactly one implementation of a full run.
+ *
+ * The road is chosen by the FLAGS, never by the config file: a caller that
+ * passes no `--android`/`--ios` is asking the routing question, whatever paths
+ * sherlo.config.json happens to carry.
+ */
+import { ANDROID_OPTION, IOS_OPTION } from '../../constants';
+import { throwError } from '../../helpers';
 import { Options } from '../../types';
+import testStandard from '../testStandard';
+import stagedRun from './stagedRun';
 import { THIS_COMMAND } from './constants';
-import {
-  checkSherloInitialization,
-  collectMissingOptions,
-  collectTestEasCloudBuildOptions,
-  collectTestEasUpdateOptions,
-  executeCommand,
-  promptForTestingMethod,
-} from './helpers';
 
-async function test(passedOptions: Options<typeof THIS_COMMAND>): Promise<void> {
-  printSherloIntro();
+async function test(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
+  const hasNativeBuildPaths = Boolean(passedOptions[ANDROID_OPTION] || passedOptions[IOS_OPTION]);
 
-  // Step 1: Check if Sherlo is initialized
-  await checkSherloInitialization({
-    projectRoot: passedOptions.projectRoot,
-    config: passedOptions.config,
-  });
-
-  // Set flag to prevent duplicate intro printing in sub-commands
-  process.env.SKIP_INTRO = 'true';
-
-  // Step 2: Ask user to select testing method
-  const selectedCommand = await promptForTestingMethod();
-
-  // Step 3: Check for missing required options and prompt user
-  const missingOptions = await collectMissingOptions(selectedCommand, passedOptions);
-
-  // Step 4: Collect command-specific options
-  let commandOptions: Record<string, string | boolean> = {};
-  switch (selectedCommand) {
-    case TEST_STANDARD_COMMAND:
-      break;
-    case TEST_EAS_UPDATE_COMMAND:
-      commandOptions = await collectTestEasUpdateOptions();
-      break;
-    case TEST_EAS_CLOUD_BUILD_COMMAND:
-      commandOptions = await collectTestEasCloudBuildOptions(passedOptions);
-      break;
+  if (!hasNativeBuildPaths) {
+    return stagedRun(passedOptions);
   }
 
-  // Step 5: Execute the selected command
-  const finalOptions = { ...passedOptions, ...missingOptions, ...commandOptions };
-  await executeCommand(selectedCommand, finalOptions);
+  // --dry-run / --emit-expectation preview the BUNDLING decision, which the
+  // standard road never makes. Refuse the combination rather than silently
+  // ignoring the flag.
+  if (passedOptions.dryRun === true || passedOptions.emitExpectation !== undefined) {
+    throwError({
+      message:
+        '`--dry-run` and `--emit-expectation` preview the staged (JS-only) road, so they cannot be ' +
+        `combined with \`--${ANDROID_OPTION}\` / \`--${IOS_OPTION}\`. Drop the build paths to preview.`,
+    });
+  }
+
+  return testStandard(passedOptions);
 }
 
 export default test;

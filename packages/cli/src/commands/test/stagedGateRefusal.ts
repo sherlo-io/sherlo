@@ -1,5 +1,5 @@
 /**
- * Staged gate-refusal parsing for the test:bundled command (SHERLO-1707).
+ * Staged gate-refusal parsing for the staged road of `sherlo test` (SHERLO-1707).
  *
  * When a staged openBuild's server-side gate resolves to anything other than
  * "fast" it throws a graphQL error whose MESSAGE carries a machine-parseable
@@ -10,21 +10,23 @@
  *
  * The wire format is defined by the openBuild resolver (@sherlo/api-types,
  * `StagedGateRefusal`). This module extracts it back into a typed struct and
- * renders the user-facing refusal (named diff sources + the test:standard
- * fallback line). Keep the prefix + field order in lock-step with the resolver.
+ * renders the user-facing refusal (named diff sources + the full-run fallback
+ * line). Keep the prefix + field order in lock-step with the resolver.
  */
 import { GateDiffSource, GateOutcome } from '@sherlo/api-types';
-import { TEST_STANDARD_COMMAND } from '../../constants';
+import { ANDROID_OPTION, IOS_OPTION, TEST_COMMAND } from '../../constants';
 
 /** Machine-parseable prefix emitted by the openBuild resolver on refusal. */
 export const STAGED_GATE_REFUSAL_PREFIX = 'STAGED_GATE_REFUSAL';
 
 /**
- * The test:standard fallback line appended to every refusal. Kept identical to
- * buildBundle's FALLBACK_LINE wording so the "run a full build" guidance is
- * consistent across every test:bundled exit path.
+ * The full-run fallback line: the ONE sentence that tells a developer what to do
+ * when the JS-only road is unavailable. Defined once and imported by every exit
+ * path that needs it (the gate refusals here, the bundling refusals in
+ * ./buildBundle, the routing output in ./nativeNeeded) so the guidance can never
+ * differ between them.
  */
-export const FALLBACK_LINE = `Run \`sherlo ${TEST_STANDARD_COMMAND}\` for a full build with the same options.`;
+export const FALLBACK_LINE = `Run \`sherlo ${TEST_COMMAND} --${ANDROID_OPTION} <path> [--${IOS_OPTION} <path>]\` for a full build with the same options.`;
 
 export type StagedGateRefusal = {
   /** Machine-readable gate outcome (never "fast" - that path doesn't refuse). */
@@ -92,7 +94,7 @@ const OUTCOME_REASON: Record<Exclude<GateOutcome, 'fast'>, string> = {
 
 /**
  * Render a refusal into the user-facing message: a one-line reason, the named
- * diff sources that changed (when present), and the test:standard fallback line.
+ * diff sources that changed (when present), and the full-run fallback line.
  */
 export function formatStagedGateRefusal(refusal: StagedGateRefusal): string {
   const platformLabel = refusal.platform === 'android' ? 'Android' : 'iOS';

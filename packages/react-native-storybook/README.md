@@ -19,8 +19,12 @@ This will automatically install `@sherlo/react-native-storybook` and configure y
 ### 2. Run visual tests
 
 ```bash
-npx sherlo test
+npx sherlo test --android <path> --ios <path>
 ```
+
+That first run registers your builds as the base. After it, plain `npx sherlo
+test` tests JS-only changes with no native rebuild - and tells you when a fresh
+native build is needed.
 
 <br />
 

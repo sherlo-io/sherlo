@@ -10,6 +10,8 @@ exports[`server-bypassed build (SHERLO-1952) > NON-wait bypassed output is pinne
 
 ⬆️  Uploading ios bundle...
 
+native-needed=false
+
 ✅ Nothing needed capturing - no change reaches any story
    closed by the server - no device run was needed"
 `;
@@ -23,6 +25,8 @@ exports[`server-bypassed build (SHERLO-1952) > non-bypassed output is byte-ident
   ✓ Bundle: bundle.ios.js (1.5 MB, plain-js, expo)
 
 ⬆️  Uploading ios bundle...
+
+native-needed=false
 
 🔗 Review: http://app/build"
 `;
