@@ -77,7 +77,6 @@ vi.mock('../../../helpers', async () => {
       throw new Error(message);
     }),
     waitForBuildResult: vi.fn(),
-    writeGithubOutput: vi.fn(),
   };
 });
 
@@ -122,7 +121,6 @@ import {
   printResultsUrl as _printResultsUrl,
   printSherloIntro as _printSherloIntro,
   waitForBuildResult as _waitForBuildResult,
-  writeGithubOutput as _writeGithubOutput,
 } from '../../../helpers';
 import { computeBaseFingerprint as _computeBaseFingerprint } from '../../../helpers/fingerprint';
 import {
@@ -147,7 +145,6 @@ const mockBuildGateMetadata = vi.mocked(_buildGateMetadata);
 const mockUploadStagedArtifacts = vi.mocked(_uploadStagedArtifacts);
 const mockRunDryRunPreview = vi.mocked(_runDryRunPreview);
 const mockWaitForBuildResult = vi.mocked(_waitForBuildResult);
-const mockWriteGithubOutput = vi.mocked(_writeGithubOutput);
 const mockFetchServerBypassReason = vi.mocked(_fetchServerBypassReason);
 
 // ---------------------------------------------------------------------------
@@ -221,9 +218,8 @@ describe('no devices configured', () => {
 
     const allCalls = logSpy.mock.calls.map((c) => c.join(' '));
     expect(allCalls.some((call) => call.includes('No devices configured'))).toBe(true);
-    // No routing key, in either output form - there is nothing to route to.
+    // No routing key printed at all - there is nothing to route to.
     expect(allCalls.some((call) => call.includes('native-needed'))).toBe(false);
-    expect(mockWriteGithubOutput).not.toHaveBeenCalled();
 
     logSpy.mockRestore();
   });

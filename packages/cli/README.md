@@ -36,8 +36,7 @@ npx sherlo test --android <path> [--ios <path>] [options]
 ```
 
 **Without `--android`/`--ios` (the staged road)** it asks whether this commit can
-be tested without a native rebuild, and publishes the answer as `native-needed`
-both on stdout and in `$GITHUB_OUTPUT`:
+be tested without a native rebuild, and publishes the answer as `native-needed`:
 
 - `native-needed=false` - the JS bundle was built and the test **already ran**.
   No native build was needed. Exit code `0`.
@@ -45,9 +44,22 @@ both on stdout and in `$GITHUB_OUTPUT`:
   **Nothing** was built and no test ran; build natively and re-run with
   `--android`/`--ios`. Exit code `4`.
 
+The answers are plain `key=value` lines on stdout, so any CI can read them:
+
+```
+native-needed=false
+reason=the registered base still matches this commit - running JS-only
+base-fingerprint=<hash>
+url=<review url>            # printed by a run that reached a build
+```
+
 A genuine tool error (bad token, network failure) throws and publishes **no**
 `native-needed` key at all - that, not the exit code, is how a CI job tells an
 answer from a crash. Route on the output.
+
+On GitHub Actions the
+[`sherlo-io/sherlo`](https://github.com/sherlo-io/sherlo/blob/main/action.yml)
+action runs this command and republishes those lines as step outputs.
 
 **Options:**
 

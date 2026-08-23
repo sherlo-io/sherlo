@@ -48,6 +48,7 @@ import {
   waitForBuildResult,
 } from '../../helpers';
 import printLink from '../../helpers/printLink';
+import printOutputKeys from '../../helpers/printOutputKeys';
 import {
   isServerBypassed,
   fetchServerBypassReason,
@@ -624,7 +625,13 @@ function printCapturePlanAndCloser({
   }
 
   // The closer, LAST (SHERLO-1919 ordering). A live run has no "Build created"
-  // line (SHERLO-1937 operator ruling) - the Review URL IS the ending.
+  // line (SHERLO-1937 operator ruling) - the Review URL IS the ending. The
+  // machine-readable `url=` line goes just above it, so a CI can republish the
+  // link the developer is reading (a server-bypassed build returns above without
+  // either one - there is no review to link to).
+  console.log();
+  printOutputKeys({ url });
+
   console.log(`\n🔗 Review: ${printLink(url)}`);
 }
 

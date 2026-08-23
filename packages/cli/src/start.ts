@@ -109,9 +109,8 @@ const COMMAND_DESCRIPTION = {
   [TEST_COMMAND]:
     'Run visual tests.\n' +
     `  Without \`--${ANDROID_OPTION}\`/\`--${IOS_OPTION}\`: tests JS-only changes against the registered\n` +
-    '  native base. Prints (and writes to $GITHUB_OUTPUT) `native-needed=true` and builds\n' +
-    '  nothing when this commit needs a native rebuild first, `native-needed=false` when it\n' +
-    '  ran the test to completion.\n' +
+    '  native base. Prints `native-needed=true` and builds nothing when this commit needs\n' +
+    '  a native rebuild first, `native-needed=false` when it ran the test to completion.\n' +
     `  With \`--${ANDROID_OPTION} <path>\` (and optionally \`--${IOS_OPTION} <path>\`): runs a full test on\n` +
     '  those builds and registers them as the new base.',
   [TEST_STANDARD_COMMAND]: 'Test standard builds',

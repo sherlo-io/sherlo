@@ -6,8 +6,8 @@
  *   sherlo test
  *     THE STAGED ROAD. No native build paths were given, so the command asks
  *     whether this commit can be tested against the already-registered native
- *     base. It answers with `native-needed=<true|false>` on stdout AND in
- *     $GITHUB_OUTPUT. On `false` it has already built the JS bundle and run the
+ *     base. It answers with `native-needed=<true|false>` on stdout. On `false` it
+ *     has already built the JS bundle and run the
  *     test to completion. On `true` it built NOTHING and ran NOTHING - the
  *     caller routes to its own native-build job and comes back down the other
  *     road. See ./stagedRun.ts and ./nativeNeeded.ts.

@@ -7,10 +7,9 @@ export type THIS_COMMAND = typeof THIS_COMMAND;
  * EXIT CODE CONTRACT - `sherlo test`
  * =============================================================================
  * ROUTE ON THE OUTPUT, NOT ON THE EXIT CODE. Every staged-road run prints a
- * machine-readable `native-needed=<true|false>` line and writes the same key to
- * $GITHUB_OUTPUT. A caller decides what to do next by reading that key. The
- * exit code exists so an UNROUTED caller still fails closed - it is never the
- * routing signal.
+ * machine-readable `native-needed=<true|false>` line on stdout. A caller decides
+ * what to do next by reading that key. The exit code exists so an UNROUTED
+ * caller still fails closed - it is never the routing signal.
  *
  *   0                   - the run completed. Either the staged fast path ran to
  *                          completion (`native-needed=false`), or, with
@@ -35,5 +34,5 @@ export type THIS_COMMAND = typeof THIS_COMMAND;
  */
 export const EXIT_NATIVE_NEEDED = 4;
 
-/** The output key carried by BOTH the stdout line and $GITHUB_OUTPUT. */
+/** The stdout key that carries the routing answer. */
 export const NATIVE_NEEDED_KEY = 'native-needed';

@@ -35,7 +35,7 @@
   ],
   "scripts": {
     "build": "rm -rf dist && ncc build src/index.ts --source-map --minify --external @expo/fingerprint && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js",
-    "lint": "NODE_ENV=production yarn run -T eslint --ext .ts,.tsx src",
+    "lint": "NODE_ENV=production yarn run -T eslint --ext .ts,.tsx,.mjs src ../../actions/lib",
     "test": "../../scripts/require-test-exec-optin.sh && vitest run"
   },
   "dependencies": {

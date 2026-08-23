@@ -2,23 +2,29 @@
  * The routing OUTPUT of `sherlo test`'s staged road.
  *
  * `sherlo test` answers one routing question: can this commit be tested without
- * a native rebuild? The answer is published as `native-needed=<true|false>` in
- * two forms that are written together, here, and can therefore never drift:
+ * a native rebuild? The answer is published as CI-AGNOSTIC stdout lines, written
+ * together here so they can never drift:
  *
- *   1. a machine-readable stdout line (`native-needed=true`), for any CI;
- *   2. the same key in $GITHUB_OUTPUT, for GitHub Actions.
+ *   native-needed=<true|false>   the answer itself
+ *   reason=<single line>         why, in words a human can read
+ *   base-fingerprint=<hash>      which base the answer was measured against
  *
- * ROUTE ON THAT KEY, NOT ON THE EXIT CODE. A genuine tool error (bad token,
- * network failure) throws and writes NO key at all, which is what lets a caller
- * tell a real routing decision from a crash. The exit code (see ./constants)
- * only exists so an unrouted caller still fails closed.
+ * The CLI publishes NOTHING else and knows about no CI in particular: the GitHub
+ * Action at this repo's root reads these lines and republishes them as step
+ * outputs (see actions/lib/cliOutputs.mjs), and any other CI can do the same.
+ *
+ * ROUTE ON `native-needed`, NOT ON THE EXIT CODE. A genuine tool error (bad
+ * token, network failure) throws and prints NO key at all, which is what lets a
+ * caller tell a real routing decision from a crash. The exit code (see
+ * ./constants) only exists so an unrouted caller still fails closed.
  *
  * This module is the ONLY place the staged road decides that a native build is
- * needed, so the human sentence, the machine key and the exit code are always
+ * needed, so the human sentence, the machine keys and the exit code are always
  * the same three faces of one decision.
  */
 import chalk from 'chalk';
-import { reporting, writeGithubOutput } from '../../helpers';
+import { reporting } from '../../helpers';
+import printOutputKeys from '../../helpers/printOutputKeys';
 import { EXIT_NATIVE_NEEDED, NATIVE_NEEDED_KEY } from './constants';
 import { FALLBACK_LINE } from './stagedGateRefusal';
 
@@ -45,7 +51,13 @@ async function reportNativeNeeded({
     console.log(chalk.red(`\n${detail}`));
   }
 
-  console.log(`\n${NATIVE_NEEDED_KEY}=true`);
+  console.log();
+  printOutputKeys({
+    [NATIVE_NEEDED_KEY]: true,
+    reason,
+    'base-fingerprint': baseFingerprint,
+  });
+
   console.log(
     chalk.yellow(
       `\nA native build is required before this commit can be tested: ${reason}.\n` +
@@ -53,12 +65,6 @@ async function reportNativeNeeded({
         FALLBACK_LINE
     )
   );
-
-  writeGithubOutput({
-    [NATIVE_NEEDED_KEY]: true,
-    reason,
-    ...(baseFingerprint ? { 'base-fingerprint': baseFingerprint } : {}),
-  });
 
   await reporting.flush().finally(() => {
     process.exit(EXIT_NATIVE_NEEDED);
@@ -77,9 +83,8 @@ export default reportNativeNeeded;
  * and Review URL as it always has.
  */
 export function reportFastPathRunning({ baseFingerprint }: { baseFingerprint: string }): void {
-  console.log(`\n${NATIVE_NEEDED_KEY}=false`);
-
-  writeGithubOutput({
+  console.log();
+  printOutputKeys({
     [NATIVE_NEEDED_KEY]: false,
     reason: 'the registered base still matches this commit - running JS-only',
     'base-fingerprint': baseFingerprint,

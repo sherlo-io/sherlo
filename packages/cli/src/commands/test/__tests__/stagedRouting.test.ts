@@ -2,15 +2,19 @@
  * Tests for the ROUTING CONTRACT of `sherlo test`'s staged road.
  *
  * The command answers exactly one question - can this commit be tested without a
- * native rebuild? - and publishes the answer three ways that must never drift:
- * a machine-readable stdout line, the same key in $GITHUB_OUTPUT, and an exit
- * code. These tests pin all three against every outcome:
+ * native rebuild? - and publishes the answer two ways that must never drift:
+ * machine-readable stdout lines (`native-needed=`, `reason=`, `base-fingerprint=`)
+ * and an exit code. These tests pin both against every outcome:
  *
  *   fast-completed   `native-needed=false`, exit 0, the run really happened.
  *   native-needed    `native-needed=true`, exit EXIT_NATIVE_NEEDED, and NOTHING
  *                     was built or uploaded on the way out.
- *   tool error       throws, and writes NO key at all - which is precisely what
+ *   tool error       throws, and prints NO key at all - which is precisely what
  *                     lets a CI gate tell a routing decision from a crash.
+ *
+ * The keys are plain stdout lines and nothing else: turning them into a
+ * particular CI's step outputs is the GitHub Action's job, tested in
+ * actions/lib/__tests__/cliOutputs.test.mjs.
  *
  * The gate is asked TWICE on a fast run: once before bundling (fingerprint only)
  * and once after (real bundle-derived identity). Either refusal is the same
@@ -64,7 +68,6 @@ vi.mock('../../../helpers', async () => {
       throw new Error(message);
     }),
     waitForBuildResult: vi.fn(async () => 0),
-    writeGithubOutput: vi.fn(),
   };
 });
 
@@ -79,7 +82,6 @@ vi.mock('../dryRun', () => ({ runDryRunPreview: vi.fn() }));
 import {
   getValidatedCommandParams as _getValidatedCommandParams,
   waitForBuildResult as _waitForBuildResult,
-  writeGithubOutput as _writeGithubOutput,
 } from '../../../helpers';
 import { computeBaseFingerprint as _computeBaseFingerprint } from '../../../helpers/fingerprint';
 import {
@@ -92,7 +94,6 @@ import { EXIT_NATIVE_NEEDED } from '../constants';
 
 const mockGetValidatedCommandParams = vi.mocked(_getValidatedCommandParams);
 const mockWaitForBuildResult = vi.mocked(_waitForBuildResult);
-const mockWriteGithubOutput = vi.mocked(_writeGithubOutput);
 const mockComputeBaseFingerprint = vi.mocked(_computeBaseFingerprint);
 const mockBuildBundleForPlatform = vi.mocked(_buildBundleForPlatform);
 const mockBuildGateMetadata = vi.mocked(_buildGateMetadata);
@@ -158,10 +159,19 @@ function printed(): string {
   return logSpy.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
 }
 
-/** The single $GITHUB_OUTPUT payload the command wrote. */
-function githubOutput(): Record<string, unknown> {
-  expect(mockWriteGithubOutput).toHaveBeenCalledTimes(1);
-  return mockWriteGithubOutput.mock.calls[0][0] as Record<string, unknown>;
+/**
+ * Every machine-readable `key=value` line the command printed, as an object -
+ * read exactly the way a CI wrapper reads them (see actions/lib/cliOutputs.mjs).
+ */
+function outputKeys(): Record<string, string> {
+  const keys: Record<string, string> = {};
+
+  for (const line of printed().split('\n')) {
+    const match = /^(native-needed|reason|base-fingerprint|url)=(.*)$/.exec(line.trim());
+    if (match) keys[match[1]] = match[2];
+  }
+
+  return keys;
 }
 
 // ---------------------------------------------------------------------------
@@ -179,14 +189,12 @@ describe('native-needed (nothing is built)', () => {
 
       await expect(stagedRun({})).rejects.toThrow(`process.exit(${EXIT_NATIVE_NEEDED})`);
 
-      // The machine-readable line, on stdout, for any CI.
-      expect(printed()).toContain('native-needed=true');
-
-      // The same answer in $GITHUB_OUTPUT, with a reason a human can read.
-      const output = githubOutput();
-      expect(output['native-needed']).toBe(true);
+      // The machine-readable lines, on stdout, for any CI: the answer, the base
+      // it was measured against, and a reason a human can read.
+      const output = outputKeys();
+      expect(output['native-needed']).toBe('true');
       expect(output['base-fingerprint']).toBe('BASE_FP');
-      expect(String(output.reason)).toContain(expectedReasonFragment);
+      expect(output.reason).toContain(expectedReasonFragment);
 
       // THE POINT: not one byte of work was done on the way out.
       expect(mockBuildBundleForPlatform).not.toHaveBeenCalled();
@@ -219,8 +227,8 @@ describe('native-needed (nothing is built)', () => {
 
     await expect(stagedRun({})).rejects.toThrow(`process.exit(${EXIT_NATIVE_NEEDED})`);
 
-    expect(printed()).toContain('native-needed=true');
-    expect(githubOutput().reason).toBe('not a React Native project');
+    expect(outputKeys()['native-needed']).toBe('true');
+    expect(outputKeys().reason).toBe('not a React Native project');
     expect(mockCheckStagedGate).not.toHaveBeenCalled();
     expect(mockBuildBundleForPlatform).not.toHaveBeenCalled();
   });
@@ -267,8 +275,8 @@ describe('native-needed after bundling (real bundle identity)', () => {
     // The second ask carries the real bundle-derived metadata, not the marker.
     expect(mockCheckStagedGate.mock.calls[1][0].gateMetadata).toEqual({ engineClass: 'hermes' });
 
-    expect(printed()).toContain('native-needed=true');
-    expect(String(githubOutput().reason)).toContain('JS bundle format');
+    expect(outputKeys()['native-needed']).toBe('true');
+    expect(outputKeys().reason).toContain('JS bundle format');
     expect(mockGetStagedUploadUrls).not.toHaveBeenCalled();
     expect(mockOpenBuild).not.toHaveBeenCalled();
   });
@@ -281,8 +289,8 @@ describe('native-needed after bundling (real bundle identity)', () => {
 
     await expect(stagedRun({})).rejects.toThrow(`process.exit(${EXIT_NATIVE_NEEDED})`);
 
-    expect(printed()).toContain('native-needed=true');
-    expect(String(githubOutput().reason)).toContain('bundled assets');
+    expect(outputKeys()['native-needed']).toBe('true');
+    expect(outputKeys().reason).toContain('bundled assets');
   });
 });
 
@@ -298,10 +306,12 @@ describe('fast path ran to completion', () => {
   it('publishes native-needed=false, opens the build, and returns the review URL', async () => {
     const result = await stagedRun({});
 
-    expect(printed()).toContain('native-needed=false');
-    const output = githubOutput();
-    expect(output['native-needed']).toBe(false);
+    const output = outputKeys();
+    expect(output['native-needed']).toBe('false');
     expect(output['base-fingerprint']).toBe('BASE_FP');
+    // The run reached a build, so the link is published as a key too - that is
+    // what a CI wrapper turns into the `url` output.
+    expect(output.url).toBe('http://app/build');
 
     expect(mockOpenBuild).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ url: 'http://app/build' });
@@ -334,7 +344,7 @@ describe('nothing is published when there is no routing decision', () => {
 
     await expect(stagedRun({})).rejects.toThrow('Invalid token');
 
-    expect(mockWriteGithubOutput).not.toHaveBeenCalled();
+    expect(outputKeys()).toEqual({});
     expect(printed()).not.toContain('native-needed');
   });
 
@@ -345,7 +355,7 @@ describe('nothing is published when there is no routing decision', () => {
 
     expect(mockRunDryRunPreview).toHaveBeenCalledTimes(1);
     expect(mockCheckStagedGate).not.toHaveBeenCalled();
-    expect(mockWriteGithubOutput).not.toHaveBeenCalled();
+    expect(outputKeys()).toEqual({});
     expect(printed()).not.toContain('native-needed');
     expect(result).toEqual({ url: '' });
   });

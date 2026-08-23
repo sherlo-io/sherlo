@@ -62,13 +62,14 @@ jobs:
       - name: 📥 Install dependencies
         run: yarn install
 
-      # The action runs `sherlo test` and exposes native-needed/reason.
-      # Pin to a released tag (or a commit SHA) in your own repository.
+      # The action runs `sherlo test` and exposes native-needed/reason. Given no
+      # build paths, that is the routing question.
+      # Pin to a released tag (as here) or a commit SHA in your own repository.
       - name: ⚡ Run Sherlo test (JS-only)
         id: sherlo
-        uses: sherlo-io/sherlo/actions/staged-gate@v1
+        uses: sherlo-io/sherlo@v2
         with:
-          sherlo-token: ${{ secrets.SHERLO_TOKEN }}
+          token: ${{ secrets.SHERLO_TOKEN }}
 
   # ────────────────────────────────────────────────────────────────────────────
   # 🔨 NATIVE TEST (native build + base registration)
@@ -128,13 +129,13 @@ jobs:
             --output ios.tar.gz
       # ▲▲▲ USER-SUPPLIED native build steps ▲▲▲
 
-      # Given build paths, `sherlo test` runs a full test AND registers the
-      # freshly built binaries as the new base. After this run the base
-      # fingerprint matches source again, so the next push (native unchanged)
-      # is tested JS-only by the job above.
+      # The SAME action, given build paths: `sherlo test` runs a full test AND
+      # registers the freshly built binaries as the new base. After this run the
+      # base fingerprint matches source again, so the next push (native
+      # unchanged) is tested JS-only by the job above.
       - name: 🧪 Run Sherlo test (registers fresh base)
-        run: |
-          npx sherlo test \
-            --android android.apk \
-            --ios ios.tar.gz \
-            --token ${{ secrets.SHERLO_TOKEN }}
+        uses: sherlo-io/sherlo@v2
+        with:
+          token: ${{ secrets.SHERLO_TOKEN }}
+          android: android.apk
+          ios: ios.tar.gz

@@ -22,6 +22,7 @@ export { default as logWarning } from './logWarning';
 export { default as printBuildMessage } from './printBuildMessage';
 export { default as printBuildPlatformLabel } from './printBuildPlatformLabel';
 export { default as printLink } from './printLink';
+export { default as printOutputKeys } from './printOutputKeys';
 export { default as printResultsUrl } from './printResultsUrl';
 export { default as printSherloIntro } from './printSherloIntro';
 export { default as reporting } from './reporting';
@@ -33,7 +34,6 @@ export {
   type StagedMode,
 } from './stagedGate';
 export { default as stripAnsi } from './stripAnsi';
-export { default as writeGithubOutput } from './writeGithubOutput';
 export { default as throwError } from './throwError';
 export { default as uploadOrReuseBuildsAndRunTests } from './uploadOrReuseBuildsAndRunTests';
 export { default as validateLocalBinaries } from './validateLocalBinaries';

@@ -72,6 +72,20 @@ That first run registers your builds as the base. After it, plain `npx sherlo
 test` tests JS-only changes with no native rebuild - and tells you when a fresh
 native build is needed.
 
+#### 3) Run it in CI
+
+The same verb, as a GitHub Action:
+
+```yaml
+- uses: sherlo-io/sherlo@v2
+  with:
+    token: ${{ secrets.SHERLO_TOKEN }}
+```
+
+Without build paths it tests JS-only and outputs `native-needed`; give it
+`android` / `ios` build paths and it runs the full test that registers a fresh
+base. See [`examples/staged`](./examples/staged) for the two-job workflow.
+
 <br />
 
 🎉 **That's it!** Your visual testing is ready.

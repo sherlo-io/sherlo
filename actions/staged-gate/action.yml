@@ -1,39 +1,19 @@
-name: Sherlo Staged Gate
+name: Sherlo Staged Gate (deprecated)
 description: >-
-  Runs `sherlo test` on the JS-only staged road and exposes whether this commit
-  needs a native build first, so a caller workflow can send it to a native-build
-  job only when one is actually required.
+  DEPRECATED - use `sherlo-io/sherlo@v2` instead. Kept so pinned workflows keep
+  working; it delegates to the root action's body unchanged.
 
 # ══════════════════════════════════════════════════════════════════════════════
-# WHAT THIS ACTION DOES
+# This action was superseded by the ROOT action, which runs the same one verb and
+# additionally takes `android` / `ios` build paths (the full-run road) and
+# publishes the run's `url`. Everything below is a pass-through: the same runner
+# script, the same outputs, the same exit-code trap.
 #
-# `sherlo test` (with no build paths) asks ONE question: can this commit be
-# tested against the already-registered native base?
+#   - uses: sherlo-io/sherlo/actions/staged-gate@v1     # this, deprecated
+#   + uses: sherlo-io/sherlo@v2                         # with: token: ...
 #
-#   native-needed=false -> it already RAN the test, JS-only, right here. Nothing
-#                          else is needed. No native build, so this runs on Linux.
-#   native-needed=true  -> native inputs moved (or no base is registered yet). It
-#                          built NOTHING and ran NOTHING. The caller builds
-#                          natively and re-runs as
-#                          `sherlo test --android <path> [--ios <path>]`, which
-#                          also REGISTERS the fresh base - so the next commit
-#                          with native unchanged answers false again.
-#
-# Note the shape: the fast case is not "routed to a fast job", it is ALREADY
-# DONE when this action finishes. Only the native case needs a second job.
-#
-# ROUTE ON THE OUTPUT, NOT ON THE EXIT CODE.
-#   `sherlo test` exits 0 when the run completed and 4 when a native build is
-#   needed. 4 is an EXPECTED answer, not a failure - a naive gate would fail the
-#   whole workflow on any native change. So we tolerate the non-zero exit
-#   (set +e) and branch on the `native-needed` OUTPUT instead.
-#
-#   The discriminator between an answer and a crash is the output itself: on a
-#   real decision the CLI writes `native-needed=...` to $GITHUB_OUTPUT before
-#   exiting; a genuine tool error (bad token, network failure) throws and writes
-#   NOTHING.
-#     - `native-needed` empty -> genuine tool error -> fail the gate loudly.
-#     - `native-needed` set   -> real answer -> expose it for downstream jobs.
+# The only surface difference is the token input's name: `sherlo-token` here,
+# `token` on the root action.
 # ══════════════════════════════════════════════════════════════════════════════
 
 inputs:
@@ -54,93 +34,24 @@ outputs:
     description: >-
       "true" when this commit needs a native build before it can be tested (no
       test ran); "false" when the JS-only run already completed.
-    # Mapped straight from the CLI-written $GITHUB_OUTPUT value. The guard step
-    # below has already failed the action if this was empty (genuine error).
-    value: ${{ steps.sherlo-test.outputs.native-needed }}
+    value: ${{ steps.sherlo.outputs.native-needed }}
   reason:
     description: "Single-line human explanation of the answer"
-    value: ${{ steps.sherlo-test.outputs.reason }}
+    value: ${{ steps.sherlo.outputs.reason }}
   base-fingerprint:
     description: "Source base fingerprint (may be empty)"
-    value: ${{ steps.sherlo-test.outputs.base-fingerprint }}
+    value: ${{ steps.sherlo.outputs.base-fingerprint }}
 
 runs:
   using: composite
   steps:
-    # ────────────────────────────────────────────────────────────────────────
-    # Run the staged road. The CLI writes native-needed/reason/base-fingerprint
-    # to this step's $GITHUB_OUTPUT file ITSELF (do NOT echo them here). We
-    # tolerate a non-zero exit because 4 (native needed) is EXPECTED - the
-    # genuine error check happens in the next step by testing whether
-    # `native-needed` was written.
-    # ────────────────────────────────────────────────────────────────────────
-    - name: ⚡ Run Sherlo test (JS-only staged road)
-      id: sherlo-test
+    - name: Run Sherlo test (JS-only staged road)
+      id: sherlo
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
         SHERLO_TOKEN: ${{ inputs.sherlo-token }}
-        CONFIG: ${{ inputs.config }}
+        SHERLO_CONFIG: ${{ inputs.config }}
       run: |
-        set +e
-
-        CONFIG_ARG=()
-        if [ -n "$CONFIG" ]; then
-          CONFIG_ARG=(--config "$CONFIG")
-        fi
-
-        echo "⚡ Running sherlo test (JS-only staged road)..."
-        echo "────────────────────────────────────"
-
-        # The CLI appends native-needed=/reason=/base-fingerprint= to
-        # $GITHUB_OUTPUT before exiting. Capture stderr to a file so a genuine
-        # tool error can be surfaced by the guard step, then re-emit it into the
-        # live log. Redirecting stderr does NOT affect the $GITHUB_OUTPUT file.
-        npx sherlo test \
-          --token "$SHERLO_TOKEN" \
-          "${CONFIG_ARG[@]}" \
-          2> sherlo-test.stderr
-        CLI_EXIT=$?
-
-        cat sherlo-test.stderr >&2
-
-        echo "────────────────────────────────────"
-        echo "sherlo test exited with code ${CLI_EXIT} (0=run completed, 4=native build needed)"
-
-        # NEVER fail here on the exit code - 4 is an expected answer.
-        # The genuine-error discriminator runs in the next step.
-        exit 0
-
-    # ────────────────────────────────────────────────────────────────────────
-    # Discriminate a real answer from a genuine tool error. Branch on the
-    # `native-needed` OUTPUT, never on the raw exit code above.
-    # ────────────────────────────────────────────────────────────────────────
-    - name: 🧭 Validate the answer
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      env:
-        NATIVE_NEEDED: ${{ steps.sherlo-test.outputs.native-needed }}
-        REASON: ${{ steps.sherlo-test.outputs.reason }}
-      run: |
-        set -euo pipefail
-
-        if [ -z "$NATIVE_NEEDED" ]; then
-          echo ""
-          echo "❌ Sherlo test did not answer whether a native build is needed."
-          echo ""
-          echo "This means it hit a GENUINE error (e.g. bad token, network"
-          echo "failure) rather than making a decision - a real decision always"
-          echo "writes native-needed. CLI stderr:"
-          echo "────────────────────────────────────"
-          if [ -f sherlo-test.stderr ]; then cat sherlo-test.stderr; fi
-          echo "────────────────────────────────────"
-          echo "::error title=Sherlo test failed::sherlo test produced no native-needed answer - treated as a genuine tool error (see stderr above)"
-          exit 1
-        fi
-
-        if [ "$NATIVE_NEEDED" = "false" ]; then
-          echo "✅ Tested JS-only - no native build was needed"
-        else
-          echo "🔨 A native build is needed before this commit can be tested"
-        fi
-        if [ -n "$REASON" ]; then echo "   ${REASON}"; fi
+        echo "::warning title=Sherlo::sherlo-io/sherlo/actions/staged-gate is deprecated - use sherlo-io/sherlo@v2 (input \`token\` instead of \`sherlo-token\`)"
+        node "${{ github.action_path }}/../lib/runSherloTest.mjs"

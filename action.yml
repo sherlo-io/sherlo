@@ -1,0 +1,111 @@
+# The action's NAME is the one the root action carried at 1.3.1 ("Run Sherlo"),
+# kept so the Marketplace listing of this repository stays the same entry.
+name: Run Sherlo
+description: >-
+  Run Sherlo visual tests with the ONE verb, `sherlo test`, and expose its answer
+  as step outputs - including whether this commit needs a native build first.
+author: Sherlo
+branding:
+  icon: play
+  color: gray-dark
+
+# ══════════════════════════════════════════════════════════════════════════════
+# WHAT THIS ACTION DOES
+#
+# It runs `sherlo test` - the project's OWN installed CLI, never a bundled copy -
+# and republishes what the CLI printed as this step's outputs. The flags you give
+# it pick the road, exactly as they do on your machine:
+#
+#   no `android` / `ios` input   THE STAGED ROAD. Asks whether this commit can be
+#                                tested against the already-registered native
+#                                base, and answers `native-needed`:
+#                                  false -> it ALREADY RAN the test, JS-only,
+#                                           right here. Nothing else is needed,
+#                                           so this can run on Linux.
+#                                  true  -> native inputs moved (or no base is
+#                                           registered yet). It built NOTHING and
+#                                           ran NOTHING; build natively and call
+#                                           this action again WITH the paths.
+#   `android` / `ios` given      THE STANDARD ROAD. Runs a full test on those
+#                                builds and REGISTERS them as the new base - so
+#                                the next commit with native unchanged answers
+#                                `native-needed=false` again.
+#
+# Note the shape of the fast case: it is not "routed to a fast job", it is
+# ALREADY DONE when this action finishes. Only the native case needs a second job.
+#
+# ROUTE ON THE OUTPUT, NOT ON THE EXIT CODE.
+#   `sherlo test` exits 0 when the run completed and 4 when a native build is
+#   needed. 4 is an EXPECTED answer, not a failure - a naive gate would fail the
+#   whole workflow on any native change. This action absorbs that trap: it
+#   succeeds on every routing outcome and fails only when the CLI answered
+#   NOTHING and exited non-zero (a genuine tool error - bad token, network
+#   failure). See actions/lib/cliOutputs.mjs.
+# ══════════════════════════════════════════════════════════════════════════════
+
+inputs:
+  token:
+    description: "Sherlo project token (SHERLO_TOKEN)"
+    required: true
+  config:
+    description: "Path to the Sherlo config file"
+    required: false
+    default: "sherlo.config.json"
+  project-root:
+    description: "Root directory of the React Native project"
+    required: false
+    default: "."
+  android:
+    description: >-
+      Path to the Android build (.apk). Given a build path, the run is a FULL test
+      that registers a fresh native base. Leave empty to ask the routing question.
+    required: false
+    default: ""
+  ios:
+    description: >-
+      Path to the iOS build (.app, .tar.gz, .tar). Given a build path, the run is a
+      FULL test that registers a fresh native base. Leave empty to ask the routing
+      question.
+    required: false
+    default: ""
+  working-directory:
+    description: "Directory to run `sherlo test` in (where node_modules lives)"
+    required: false
+    default: "."
+
+outputs:
+  native-needed:
+    description: >-
+      "true" when this commit needs a native build before it can be tested (no test
+      ran); "false" when the JS-only run already completed. Empty on the standard
+      road, which asks no routing question.
+    value: ${{ steps.sherlo.outputs.native-needed }}
+  reason:
+    description: "Single-line human explanation of the answer"
+    value: ${{ steps.sherlo.outputs.reason }}
+  base-fingerprint:
+    description: "Source base fingerprint the answer was measured against (may be empty)"
+    value: ${{ steps.sherlo.outputs.base-fingerprint }}
+  url:
+    description: "Review URL of the build this run opened (empty when no test ran)"
+    value: ${{ steps.sherlo.outputs.url }}
+
+runs:
+  using: composite
+  steps:
+    # The runner resolves the installed CLI's entry point itself (both the normal
+    # and the aliased install shape - see actions/lib/cliEntry.mjs), runs the one
+    # verb, and writes the CLI's published keys to this step's $GITHUB_OUTPUT.
+    # It also owns the exit-code trap, so this step's own exit code is already
+    # the right one: 0 for any routing answer, 1 only for a genuine tool error.
+    - name: Run Sherlo test
+      id: sherlo
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        SHERLO_TOKEN: ${{ inputs.token }}
+        SHERLO_CONFIG: ${{ inputs.config }}
+        SHERLO_PROJECT_ROOT: ${{ inputs.project-root }}
+        SHERLO_ANDROID: ${{ inputs.android }}
+        SHERLO_IOS: ${{ inputs.ios }}
+      run: node "${{ github.action_path }}/actions/lib/runSherloTest.mjs"
