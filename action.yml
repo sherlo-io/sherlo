@@ -34,6 +34,14 @@ branding:
 # Note the shape of the fast case: it is not "routed to a fast job", it is
 # ALREADY DONE when this action finishes. Only the native case needs a second job.
 #
+# YOU DO NOT NEED `fetch-depth` ON actions/checkout.
+#   Sherlo inherits a baseline by walking a build's commit ancestry, and the
+#   default depth-1 checkout has none - which used to make every run a cold
+#   start unless you remembered to set `fetch-depth`. This action deepens a
+#   shallow checkout itself before running the CLI, on every event. If it can't
+#   (you set `persist-credentials: false`), it says so loudly and runs anyway.
+#   See actions/lib/deepenCheckout.mjs.
+#
 # ROUTE ON THE OUTPUT, NOT ON THE EXIT CODE.
 #   `sherlo test` exits 0 when the run completed and 4 when a native build is
 #   needed. 4 is an EXPECTED answer, not a failure - a naive gate would fail the

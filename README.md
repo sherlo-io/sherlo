@@ -86,6 +86,10 @@ Without build paths it tests JS-only and outputs `native-needed`; give it
 `android` / `ios` build paths and it runs the full test that registers a fresh
 base. See [`examples/staged`](./examples/staged) for the two-job workflow.
 
+No `fetch-depth` needed on `actions/checkout` - the action deepens a shallow
+checkout itself, so Sherlo always has the commit history it needs to inherit a
+baseline.
+
 <br />
 
 🎉 **That's it!** Your visual testing is ready.

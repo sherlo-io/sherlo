@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * The body of the Sherlo GitHub Action: run `sherlo test` once, then publish what
- * it said as step outputs.
+ * The body of the Sherlo GitHub Action: repair a shallow checkout, run
+ * `sherlo test` once, then publish what it said as step outputs.
  *
  * This script is the glue - every decision it makes lives in a unit-tested module
- * next to it (./cliEntry.mjs, ./testCommand.mjs, ./cliOutputs.mjs).
+ * next to it (./cliEntry.mjs, ./deepenCheckout.mjs, ./testCommand.mjs,
+ * ./cliOutputs.mjs).
  *
  * IT ABSORBS THE EXIT-CODE TRAP. `sherlo test` exits 4 to mean "a native build is
  * needed first", which is an ANSWER, not a failure. This script never lets the
@@ -18,6 +19,7 @@
 import fs from 'node:fs';
 import { spawn } from 'node:child_process';
 import { resolveCliEntry } from './cliEntry.mjs';
+import { deepenShallowCheckout } from './deepenCheckout.mjs';
 import { buildTestArgs } from './testCommand.mjs';
 import { formatOutputFileLines, readRunResult } from './cliOutputs.mjs';
 
@@ -28,6 +30,12 @@ async function main() {
     const cli = resolveCliEntry(process.cwd());
     console.log(`Sherlo CLI: ${cli.packageName}@${cli.version}`);
     console.log(`            ${cli.entry}`);
+
+    // Both roads run the CLI through here, so the shallow-checkout repair sits
+    // here too - once, ahead of the verb, for every event. On a full clone it is
+    // one `git rev-parse` and nothing more; when it cannot repair a shallow one
+    // it warns and returns, because the CLI survives a shallow clone.
+    deepenShallowCheckout({ workingDirectory: process.cwd() });
 
     const args = buildTestArgs({
       token: process.env.SHERLO_TOKEN,

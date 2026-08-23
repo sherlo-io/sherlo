@@ -61,6 +61,11 @@ paths are what pick the road:
     ios: ios.tar.gz
 ```
 
+Neither job sets `fetch-depth` on `actions/checkout`. Sherlo inherits a baseline
+by walking a build's commit ancestry, which the default depth-1 checkout does not
+have - so the action deepens a shallow checkout itself, on every event, before it
+runs the CLI. Nothing for you to configure.
+
 The follow-up job routes on `needs.test.outputs.native-needed`, never on an exit
 code. `sherlo test` exits `4` when a native build is needed - an expected answer,
 not a failure - and the action absorbs that: it succeeds on every routing outcome

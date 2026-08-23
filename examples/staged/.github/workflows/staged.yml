@@ -50,6 +50,9 @@ jobs:
       reason: ${{ steps.sherlo.outputs.reason }}
 
     steps:
+      # No `fetch-depth` here on purpose: the Sherlo action deepens the default
+      # depth-1 checkout itself, so the commit ancestry it needs to inherit a
+      # baseline is there without you configuring anything.
       - name: 📦 Checkout code
         uses: actions/checkout@v6
 
