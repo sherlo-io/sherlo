@@ -735,6 +735,68 @@ describe('getGitInfo - defaultBranch', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Non-PR trigger shapes (schedule / workflow_dispatch)
+// ---------------------------------------------------------------------------
+
+describe('getGitInfo - non-PR trigger shapes (schedule / workflow_dispatch)', () => {
+  it('a schedule-shaped env (ref name = default branch, no pull_request) skips merge-ref canonicalisation', async () => {
+    fixture = GitFixture.create();
+    fixture.commitFile('c1');
+
+    process.env.GITHUB_REF_NAME = 'main';
+    process.env.GITHUB_HEAD_REF = '';
+    process.env.GITHUB_EVENT_PATH = writeGitHubEvent({
+      repository: { default_branch: 'main' },
+    });
+
+    const info = await getGitInfo(fixture.dir);
+
+    expect(info.prHeadCommitHash).toBeUndefined();
+    expect(info.mergeBaseSha).toBeUndefined();
+    expect(info.branchName).toBe('main');
+    expect(info.defaultBranch).toBe('main');
+  });
+
+  it('a workflow_dispatch-shaped env (payload also carries `inputs`) is byte-equal to the schedule case', async () => {
+    fixture = GitFixture.create();
+    fixture.commitFile('c1');
+
+    process.env.GITHUB_REF_NAME = 'main';
+    process.env.GITHUB_HEAD_REF = '';
+    process.env.GITHUB_EVENT_PATH = writeGitHubEvent({
+      repository: { default_branch: 'main' },
+      inputs: { someFlag: 'true' },
+    });
+
+    const info = await getGitInfo(fixture.dir);
+
+    expect(info.prHeadCommitHash).toBeUndefined();
+    expect(info.mergeBaseSha).toBeUndefined();
+    expect(info.branchName).toBe('main');
+    expect(info.defaultBranch).toBe('main');
+  });
+
+  // Pins current behavior deliberately (research 2026-08-24): whether a tag name
+  // is the right value for `branchName` when resolving a baseline is an open
+  // product question. Changing this is a decision, not a refactor.
+  it('a workflow_dispatch run on a tag lands the tag name in branchName (pinned, not endorsed)', async () => {
+    fixture = GitFixture.create();
+    fixture.commitFile('c1');
+
+    process.env.GITHUB_REF_NAME = 'v1.2.3';
+    process.env.GITHUB_HEAD_REF = '';
+    process.env.GITHUB_EVENT_PATH = writeGitHubEvent({
+      repository: { default_branch: 'main' },
+      inputs: {},
+    });
+
+    const info = await getGitInfo(fixture.dir);
+
+    expect(info.branchName).toBe('v1.2.3');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // mergeBaseSha
 // ---------------------------------------------------------------------------
 
