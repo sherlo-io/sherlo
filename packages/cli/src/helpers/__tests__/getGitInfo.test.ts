@@ -651,6 +651,90 @@ describe('getGitInfo - repoSlug', () => {
 });
 
 // ---------------------------------------------------------------------------
+// defaultBranch (the repository's main line)
+// ---------------------------------------------------------------------------
+
+describe('getGitInfo - defaultBranch', () => {
+  it('reads repository.default_branch from the GitHub Actions event payload', async () => {
+    fixture = GitFixture.create();
+    fixture.commitFile('c1');
+
+    process.env.GITHUB_EVENT_PATH = writeGitHubEvent({
+      repository: { default_branch: 'trunk' },
+    });
+
+    const info = await getGitInfo(fixture.dir);
+
+    expect(info.defaultBranch).toBe('trunk');
+    // It is the repository's main line, not the branch being built.
+    expect(info.branchName).toBe('main');
+  });
+
+  it('falls back to origin/HEAD when no event payload is available', async () => {
+    fixture = GitFixture.create();
+    fixture.commitFile('c1');
+    // What a normal `git clone` records: origin/HEAD points at the remote default.
+    fixture.git(['update-ref', 'refs/remotes/origin/develop', 'HEAD']);
+    fixture.git(['symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/develop']);
+
+    const info = await getGitInfo(fixture.dir);
+
+    expect(info.defaultBranch).toBe('develop');
+  });
+
+  it('prefers the event payload over origin/HEAD', async () => {
+    fixture = GitFixture.create();
+    fixture.commitFile('c1');
+    fixture.git(['update-ref', 'refs/remotes/origin/develop', 'HEAD']);
+    fixture.git(['symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/develop']);
+
+    process.env.GITHUB_EVENT_PATH = writeGitHubEvent({
+      repository: { default_branch: 'trunk' },
+    });
+
+    const info = await getGitInfo(fixture.dir);
+
+    expect(info.defaultBranch).toBe('trunk');
+  });
+
+  it('is omitted (never guessed) when neither source answers', async () => {
+    fixture = GitFixture.create();
+    fixture.commitFile('c1');
+    // No event payload and no origin/HEAD ref.
+
+    const info = await getGitInfo(fixture.dir);
+
+    expect(info.defaultBranch).toBeUndefined();
+  });
+
+  it('is omitted on a shallow single-branch checkout, which records no origin/HEAD', async () => {
+    fixture = GitFixture.create();
+    fixture.commitFile('c1');
+
+    const shallow = fixture.shallowClone(1, 'main');
+    try {
+      const info = await getGitInfo(shallow.dir);
+      expect(info.defaultBranch).toBeUndefined();
+    } finally {
+      shallow.cleanup();
+    }
+  });
+
+  it('is omitted when the event payload carries no repository object (e.g. merge_group)', async () => {
+    fixture = GitFixture.create();
+    fixture.commitFile('c1');
+
+    process.env.GITHUB_EVENT_PATH = writeGitHubEvent({
+      pull_request: { head: { sha: 'abc123' } },
+    });
+
+    const info = await getGitInfo(fixture.dir);
+
+    expect(info.defaultBranch).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // mergeBaseSha
 // ---------------------------------------------------------------------------
 

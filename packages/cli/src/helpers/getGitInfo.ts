@@ -53,6 +53,17 @@ export type GitInfo = Build['gitInfo'] & {
   isShallow?: boolean;
   /** Whether the working tree has uncommitted changes. */
   isDirty?: boolean;
+  /**
+   * The repository's DEFAULT branch (its main line), bare - e.g. `main`.
+   *
+   * This is the repository-level fact ("which branch is this project's trunk"),
+   * never the branch being built ({@link GitInfo.branchName}). It lets the
+   * server infer a project's main line instead of guessing at a name.
+   *
+   * Captured on a best-effort basis and omitted - never guessed - when no
+   * source answers. See {@link getDefaultBranch} for each rung's honesty.
+   */
+  defaultBranch?: string;
 };
 
 /** Maximum number of ancestor SHAs captured per ancestry window. */
@@ -94,6 +105,64 @@ function getPrHeadShaFromGitHubEvent(): string | undefined {
     const payload = JSON.parse(fs.readFileSync(eventPath, 'utf8'));
     const sha = payload?.pull_request?.head?.sha;
     return typeof sha === 'string' && sha.length > 0 ? sha : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The repository's default branch as reported by GitHub Actions.
+ *
+ * The runner writes the triggering event's JSON payload to the file named by
+ * `GITHUB_EVENT_PATH` - the same road {@link getPrHeadShaFromGitHubEvent}
+ * travels - and MOST events (push, pull_request, workflow_dispatch, …) embed
+ * the full `repository` object, whose `default_branch` is the branch GitHub
+ * itself considers the project's main line. That makes this the most
+ * authoritative rung: it is the platform's own answer, and it holds even on a
+ * fetch-depth:1 checkout that carries no remote refs at all.
+ *
+ * Returns undefined when the variable, the file, or the field is absent (e.g.
+ * outside GitHub Actions, or on an event type that carries no `repository`).
+ */
+function getDefaultBranchFromGitHubEvent(): string | undefined {
+  const eventPath = process.env.GITHUB_EVENT_PATH;
+  if (!eventPath) return undefined;
+  try {
+    const payload = JSON.parse(fs.readFileSync(eventPath, 'utf8'));
+    const branch = payload?.repository?.default_branch;
+    return typeof branch === 'string' && branch.length > 0 ? branch : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Resolves the repository's default branch, most authoritative rung first:
+ *
+ * 1. **GitHub Actions event payload** - `repository.default_branch`, the
+ *    platform's own answer (see {@link getDefaultBranchFromGitHubEvent}).
+ * 2. **`git symbolic-ref refs/remotes/origin/HEAD`** - the generic, host-
+ *    agnostic fallback. That ref is written by a normal `git clone` and points
+ *    at the remote's HEAD, so on a full clone it is an honest local record of
+ *    the default branch. It is ABSENT on many CI checkouts (shallow or
+ *    `--single-branch` clones fetch no such ref, and `actions/checkout` never
+ *    writes one), in which case the command fails.
+ * 3. **undefined** - neither source answered. We never fall back to a guess
+ *    like "main"/"master": a wrong main line is worse for the server than no
+ *    main line, which it can simply treat as unknown.
+ */
+async function getDefaultBranch(projectRoot: string): Promise<string | undefined> {
+  const fromEvent = getDefaultBranchFromGitHubEvent();
+  if (fromEvent) return fromEvent;
+
+  try {
+    // e.g. "refs/remotes/origin/main" -> "main"
+    const ref = await runShellCommand({
+      command: 'git symbolic-ref refs/remotes/origin/HEAD',
+      projectRoot,
+    });
+    const branch = ref.trim().replace(/^refs\/remotes\/origin\//, '');
+    return branch.length > 0 && branch !== ref.trim() ? branch : undefined;
   } catch {
     return undefined;
   }
@@ -326,6 +395,12 @@ async function getAdditionalGitInfo(
       projectRoot,
     });
     additional.isShallow = isShallow.trim() === 'true';
+  });
+
+  // defaultBranch: the repository's main line (NOT the branch being built).
+  await safe(async () => {
+    const defaultBranch = await getDefaultBranch(projectRoot);
+    if (defaultBranch) additional.defaultBranch = defaultBranch;
   });
 
   await safe(async () => {
