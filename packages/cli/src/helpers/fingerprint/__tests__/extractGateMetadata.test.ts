@@ -15,8 +15,13 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+// A vi.mock specifier resolves relative to THIS file, not to the subject. The
+// subject sits in `src/helpers/fingerprint/`, so its `../x` is `src/helpers/x`;
+// from `src/helpers/fingerprint/__tests__/` the same module is `../../x`. These
+// paths used to be one directory short, so NONE of the mocks below applied and
+// the extractor ran real unzip / tar / shell subprocesses until the 30s timeout.
 vi.mock(
-  '../getValidatedBinariesInfoAndNextBuildIndex/getBinariesInfoAndNextBuildIndex/getLocalBinariesInfo/accessFileInArchive',
+  '../../getValidatedBinariesInfoAndNextBuildIndex/getBinariesInfoAndNextBuildIndex/getLocalBinariesInfo/accessFileInArchive',
   () => ({
     default: vi.fn().mockRejectedValue(new Error('no archive in test')),
     detectTarVersion: vi.fn().mockResolvedValue('BSD'),
@@ -24,17 +29,17 @@ vi.mock(
 );
 
 vi.mock(
-  '../getValidatedBinariesInfoAndNextBuildIndex/getBinariesInfoAndNextBuildIndex/getLocalBinariesInfo/accessFileInDirectory',
+  '../../getValidatedBinariesInfoAndNextBuildIndex/getBinariesInfoAndNextBuildIndex/getLocalBinariesInfo/accessFileInDirectory',
   () => ({
     default: vi.fn().mockRejectedValue(new Error('no directory in test')),
   })
 );
 
-vi.mock('../runShellCommand', () => ({
+vi.mock('../../runShellCommand', () => ({
   default: vi.fn().mockRejectedValue(new Error('no shell in test')),
 }));
 
-vi.mock('../../commands/init/requirements/getPackageVersion', () => ({
+vi.mock('../../../commands/init/requirements/getPackageVersion', () => ({
   default: vi.fn().mockReturnValue(null),
 }));
 
