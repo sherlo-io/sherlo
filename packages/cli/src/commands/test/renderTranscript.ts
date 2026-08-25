@@ -63,6 +63,8 @@ const SCRIPTED_BASE_FINGERPRINT = 'scenario-base-fingerprint';
 /** What the verb writes to stderr beside the transcript. */
 type TranscriptEnvelope = {
   scenarioId: string;
+  /** The committed fixture these bytes must equal once the shipped masker runs. */
+  fixture: string;
   command: string;
   exitCode: number;
   capture: TranscriptScenario['capture'];
@@ -77,7 +79,11 @@ type TranscriptEnvelope = {
  */
 export async function runRenderTranscript(scenarioId: string): Promise<void> {
   if (scenarioId === 'list') {
+    // Two halves, the same split every render writes: the human catalog on
+    // stdout, and on stderr the machine one `tester expected-render` reads so it
+    // never has to parse prose or keep its own copy of the fixture paths.
     console.log(formatTranscriptCatalog());
+    process.stderr.write(`${JSON.stringify(transcriptCatalogIndex())}\n`);
     process.exit(0);
   }
 
@@ -105,6 +111,7 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
 
   const envelope: TranscriptEnvelope = {
     scenarioId,
+    fixture: scenario.fixture,
     command: `sherlo test --dry-run --render-transcript ${scenarioId}`,
     // A dry run creates nothing and routes nothing; it always completes.
     exitCode: 0,
@@ -224,6 +231,15 @@ function sha256(transcript: CapturedTranscript): string {
     .update(`${transcript.stdout} ${transcript.stderr}`)
     .digest('hex')
     .slice(0, 16);
+}
+
+/** The machine catalog: what every scenario answers for, and how it is captured. */
+function transcriptCatalogIndex(): Record<string, { fixture: string; capture: string }> {
+  const index: Record<string, { fixture: string; capture: string }> = {};
+  for (const [id, scenario] of Object.entries(DRY_RUN_TRANSCRIPTS)) {
+    index[id] = { fixture: scenario.fixture, capture: scenario.capture };
+  }
+  return index;
 }
 
 function formatTranscriptCatalog(): string {
