@@ -134,7 +134,6 @@ async function uploadOrReuseBuildsAndRunTests({
   // from this single result. `fpResult.nativeFingerprint` is the sanitized
   // Layer-1 hash, or undefined when the compute fails (fail-soft).
   // ------------------------------------------------------------------
-  const fingerprintCommand = command;
   const fpResult = await io.computeFingerprint();
   const nativeFingerprint = fpResult.nativeFingerprint;
 
@@ -164,7 +163,7 @@ async function uploadOrReuseBuildsAndRunTests({
             bundlePath,
             buildType: binaryInfo.buildType,
             baseFingerprintHash: fpResult.hash,
-            command: fingerprintCommand,
+            command,
           },
           io.baseRegistration
         );
