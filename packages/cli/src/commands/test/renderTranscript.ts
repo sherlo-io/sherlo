@@ -49,6 +49,8 @@ import {
 } from './dryRun.transcripts';
 import { PUSH_TRANSCRIPTS, type PushTranscriptScenario } from './push.transcripts';
 import { renderPushScenarioTranscript } from './renderPushTranscript';
+import { VERDICT_TRANSCRIPTS, type VerdictTranscriptScenario } from './verdict.transcripts';
+import { renderVerdictScenarioTranscript } from './renderVerdictTranscript';
 
 /**
  * Which command's transcript a scenario is.
@@ -60,12 +62,13 @@ import { renderPushScenarioTranscript } from './renderPushTranscript';
  * consumer guessing, and a wrong guess is a fixture that matches for the wrong
  * reason.
  */
-export type TranscriptFamily = 'dry-run' | 'push';
+export type TranscriptFamily = 'dry-run' | 'push' | 'verdict';
 
 /** One catalog entry, whichever family it belongs to. */
 type CatalogEntry =
   | { family: 'dry-run'; scenario: TranscriptScenario }
-  | { family: 'push'; scenario: PushTranscriptScenario };
+  | { family: 'push'; scenario: PushTranscriptScenario }
+  | { family: 'verdict'; scenario: VerdictTranscriptScenario };
 
 /**
  * Every scenario the CLI can render, across families, in one lookup.
@@ -90,8 +93,39 @@ function transcriptCatalog(): Record<string, CatalogEntry> {
     }
     catalog[id] = { family: 'push', scenario };
   }
+  for (const [id, scenario] of Object.entries(VERDICT_TRANSCRIPTS)) {
+    if (catalog[id]) {
+      throw new Error(
+        `REFUSING TO RENDER (duplicate scenario id): '${id}' is declared by two families. ` +
+          'A scenario id names one transcript; two would make --render-transcript ambiguous.'
+      );
+    }
+    catalog[id] = { family: 'verdict', scenario };
+  }
 
   return catalog;
+}
+
+/**
+ * The committed fixture a scenario must render byte-identically, or `null` when
+ * no such fixture exists.
+ *
+ * `null` IS THE HONEST ANSWER FOR THE WHOLE VERDICT FAMILY, and it is the reason
+ * this is a function rather than a field read. Three of that family's scenarios
+ * depict behaviour nothing implements, so no run could ever have produced a
+ * fixture for them; the other three DO render the shipped path, but their
+ * baselines are on AWAITING_REMINT and carry a token their own masker cannot
+ * produce (see ./verdict.transcripts). Publishing `null` rather than a path is
+ * what lets `yarn tester expected-render` report the gap out loud instead of
+ * writing a fixture nothing judges.
+ */
+function fixtureFor(entry: CatalogEntry): string | null {
+  return entry.family === 'verdict' ? null : entry.scenario.fixture;
+}
+
+/** How a scenario's values were grounded, as one word a catalog reader can filter on. */
+function groundingFor(entry: CatalogEntry): string {
+  return entry.scenario.groundedBy.kind;
 }
 
 /** The git info a scenario that CAN read git reports. Fixed, never a wall-clock read. */
@@ -111,8 +145,17 @@ type TranscriptEnvelope = {
   scenarioId: string;
   /** Which masker the tester must apply to these bytes. */
   family: TranscriptFamily;
-  /** The committed fixture these bytes must equal once the shipped masker runs. */
-  fixture: string;
+  /**
+   * The committed fixture these bytes must equal once the shipped masker runs,
+   * or `null` when the scenario has none - see {@link fixtureFor}.
+   */
+  fixture: string | null;
+  /**
+   * How the scenario's values were grounded. `depicts-future` means these bytes
+   * describe behaviour NOTHING implements: a consumer must not read such a
+   * transcript as a report of what the CLI does.
+   */
+  grounded: string;
   command: string;
   exitCode: number;
   capture: TranscriptScenario['capture'];
@@ -162,7 +205,8 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
   const envelope: TranscriptEnvelope = {
     scenarioId,
     family,
-    fixture: scenario.fixture,
+    fixture: fixtureFor(entry),
+    grounded: groundingFor(entry),
     command: `sherlo test --dry-run --render-transcript ${scenarioId}`,
     // Neither a dry run nor a scripted push creates anything or routes
     // anything; both always complete.
@@ -182,9 +226,14 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
 
 /** One full render of a catalog entry, through whichever family's producer owns it. */
 function renderEntry(entry: CatalogEntry): Promise<CapturedTranscript> {
-  return entry.family === 'push'
-    ? renderPushScenarioTranscript(entry.scenario)
-    : renderScenarioTranscript(entry.scenario);
+  switch (entry.family) {
+    case 'push':
+      return renderPushScenarioTranscript(entry.scenario);
+    case 'verdict':
+      return renderVerdictScenarioTranscript(entry.scenario);
+    case 'dry-run':
+      return renderScenarioTranscript(entry.scenario);
+  }
 }
 
 /**
@@ -304,23 +353,51 @@ function sha256(transcript: CapturedTranscript): string {
  * The machine catalog: what every scenario answers for, how it is captured, and
  * which family's masker judges it.
  */
-function transcriptCatalogIndex(): Record<
-  string,
-  { family: TranscriptFamily; fixture: string; capture: string }
-> {
-  const index: Record<string, { family: TranscriptFamily; fixture: string; capture: string }> = {};
-  for (const [id, { family, scenario }] of Object.entries(transcriptCatalog())) {
-    index[id] = { family, fixture: scenario.fixture, capture: scenario.capture };
+type CatalogIndexEntry = {
+  family: TranscriptFamily;
+  /** `null` -> no committed fixture to ratchet against; see {@link fixtureFor}. */
+  fixture: string | null;
+  capture: string;
+  /** `depicts-future` -> these bytes describe behaviour nothing implements. */
+  grounded: string;
+};
+
+function transcriptCatalogIndex(): Record<string, CatalogIndexEntry> {
+  const index: Record<string, CatalogIndexEntry> = {};
+  for (const [id, entry] of Object.entries(transcriptCatalog())) {
+    index[id] = {
+      family: entry.family,
+      fixture: fixtureFor(entry),
+      capture: entry.scenario.capture,
+      grounded: groundingFor(entry),
+    };
   }
   return index;
 }
 
 function formatTranscriptCatalog(): string {
-  const lines = Object.entries(transcriptCatalog()).map(
-    ([id, { family, scenario }]) =>
-      `  ${id}  (${family})\n    ${scenario.description}\n    fixture: ${scenario.fixture}\n` +
-      `    capture: ${scenario.capture}  grounded: ${scenario.groundedBy.kind}`
-  );
+  const lines = Object.entries(transcriptCatalog()).map(([id, entry]) => {
+    const fixture = fixtureFor(entry);
+    // A scenario with no fixture says so in the place a fixture path would have
+    // been, rather than showing an empty field a reader could take for a
+    // formatting slip. `depicts-future` is called out by name in the same line,
+    // because "no fixture" and "no such behaviour" are different gaps and a
+    // reader of this catalog has to be able to tell them apart.
+    const grounding = groundingFor(entry);
+    const provenance =
+      fixture === null
+        ? `    fixture: none - ${
+            grounding === 'depicts-future'
+              ? '⚠⚠ DEPICTS FUTURE: no shipped code path emits these bytes'
+              : 'the committed baseline is awaiting a re-mint'
+          }`
+        : `    fixture: ${fixture}`;
+
+    return (
+      `  ${id}  (${entry.family})\n    ${entry.scenario.description}\n${provenance}\n` +
+      `    capture: ${entry.scenario.capture}  grounded: ${grounding}`
+    );
+  });
 
   return ['Available --render-transcript scenarios:', '', ...lines].join('\n');
 }

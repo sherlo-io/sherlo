@@ -375,6 +375,157 @@ const PINS: Pin[] = [
     stream: 'stdout',
     prints: [['native-needed=true'], ['reason=a b']],
   },
+
+  /* -------------------- the verdict family (F4) -------------------- */
+
+  {
+    kind: 'blank-line',
+    what: 'the closer frame: ONE argument-less console.log(), which is not the same call as console.log("")',
+    segment: { kind: 'blank-line' },
+    stream: 'stdout',
+    prints: [[]],
+  },
+  {
+    kind: 'wait-header',
+    what: 'the --wait header, dim, with the minute count and no space before "min"',
+    segment: { kind: 'wait-header', timeoutMinutes: 45 },
+    stream: 'stdout',
+    prints: [[`${ESC}[2m⏳ Waiting for build results (timeout: 45min)...${ESC}[22m`]],
+  },
+  {
+    kind: 'wait-progress',
+    what: 'the progress line for a known status: three leading spaces INSIDE the dim, and the emoji label',
+    segment: { kind: 'wait-progress', runStatus: 'inProgress' },
+    stream: 'stdout',
+    prints: [[`${ESC}[2m   🔵 Running${ESC}[22m`]],
+  },
+  {
+    kind: 'wait-heartbeat',
+    what: 'the heartbeat, whose label and elapsed minutes both arrive pre-computed because both come from the clock',
+    segment: { kind: 'wait-heartbeat', statusLabel: 'running', elapsedMinutes: 5 },
+    stream: 'stdout',
+    prints: [[`${ESC}[2m   still running... (5m elapsed)${ESC}[22m`]],
+  },
+  {
+    kind: 'wait-network-retry',
+    what: "the transient-blip line, carrying the transport's own message in parentheses",
+    segment: { kind: 'wait-network-retry', message: 'ENOTFOUND api.sherlo.io' },
+    stream: 'stdout',
+    prints: [[`${ESC}[2m   Network error, retrying... (ENOTFOUND api.sherlo.io)${ESC}[22m`]],
+  },
+  {
+    kind: 'wait-build-not-found',
+    what: 'the build-not-found retry line',
+    segment: { kind: 'wait-build-not-found' },
+    stream: 'stdout',
+    prints: [[`${ESC}[2m   Build not found, retrying...${ESC}[22m`]],
+  },
+  {
+    kind: 'wait-auth-failed',
+    what: 'the credential-refused closer, red, with the error message verbatim after the lock',
+    segment: {
+      kind: 'wait-auth-failed',
+      message: 'Authentication failed (HTTP 401) - check your token',
+    },
+    stream: 'stdout',
+    prints: [[`${ESC}[31m🔒 Authentication failed (HTTP 401) - check your token${ESC}[39m`]],
+  },
+  {
+    kind: 'wait-timed-out',
+    what: 'the deadline closer: TWO print calls, and "minutes" spelled out where the header abbreviates',
+    segment: { kind: 'wait-timed-out', timeoutMinutes: 45 },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[33m⏰ Timeout reached after 45 minutes.${ESC}[39m`],
+      [`${ESC}[33m   The build may still be running.${ESC}[39m`],
+    ],
+  },
+  {
+    kind: 'wait-interrupted',
+    what: "the Ctrl-C closer, dim - the same style the progress lines use, which is why the tester's collapse anchors on its TEXT and not on its colour",
+    segment: { kind: 'wait-interrupted' },
+    stream: 'stdout',
+    prints: [[`${ESC}[2mStopped waiting. The run is still going in Sherlo.${ESC}[22m`]],
+  },
+  {
+    kind: 'verdict-passed',
+    what: "today's generic green closer",
+    segment: { kind: 'verdict-passed' },
+    stream: 'stdout',
+    prints: [[`${ESC}[32m✅ All stories passed - no visual changes require review.${ESC}[39m`]],
+  },
+  {
+    kind: 'verdict-server-bypassed',
+    what: "the server-bypassed closer: the server's prose inline in a green headline, then a fixed dim line",
+    segment: {
+      kind: 'verdict-server-bypassed',
+      reason: 'no change on this branch reaches any story',
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[32m✅ Nothing needed capturing - no change on this branch reaches any story${ESC}[39m`,
+      ],
+      [`${ESC}[2m   closed by the server - no device run was needed${ESC}[22m`],
+    ],
+  },
+  {
+    kind: 'verdict-review-required',
+    what: 'the block closer with BOTH counts non-zero - three print calls, because how many lines it makes is a function of the state',
+    segment: { kind: 'verdict-review-required', unreviewed: 2, reported: 1 },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[33m⚠️  Build finished with changes requiring review.${ESC}[39m`],
+      [`${ESC}[33m   2 story/stories unreviewed.${ESC}[39m`],
+      [`${ESC}[33m   1 story/stories reported.${ESC}[39m`],
+    ],
+  },
+  {
+    kind: 'verdict-run-errored',
+    what: "the infrastructure closer, with the server's error blob stringified rather than phrased",
+    segment: {
+      kind: 'verdict-run-errored',
+      runStatus: 'error',
+      runError: { code: 'RUNNER_CRASH' },
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[31m❌ Build ended in "error" state.${ESC}[39m`],
+      [`${ESC}[31m   Error: {"code":"RUNNER_CRASH"}${ESC}[39m`],
+    ],
+  },
+
+  /* ⚠⚠ DEPICTS FUTURE. Pinned exactly like the rest, because a drawing whose
+   * bytes can drift silently is worse than no drawing: these are the bytes an
+   * operator is being asked to approve a product design from. */
+
+  {
+    kind: 'verdict-no-changes',
+    what: "⚠⚠ DEPICTS FUTURE: the sparse green, in the GitHub check's own words (CHECK_COPY.noChanges title + summary)",
+    segment: { kind: 'verdict-no-changes' },
+    stream: 'stdout',
+    prints: [[`${ESC}[32m✅ No visual changes - all snapshots match their baselines.${ESC}[39m`]],
+  },
+  {
+    kind: 'verdict-capture-accounting',
+    what: '⚠⚠ DEPICTS FUTURE: the sparse accounting line - what this branch photographed, and what it carried over',
+    segment: { kind: 'verdict-capture-accounting', captured: 3, inherited: 41 },
+    stream: 'stdout',
+    prints: [[`${ESC}[2m   3 captured on this branch, 41 inherited unchanged${ESC}[22m`]],
+  },
+  {
+    kind: 'verdict-nothing-recorded',
+    what: '⚠⚠ DEPICTS FUTURE: the guard case - an all-zero tally over an all-zero suite, which is evidence of nothing and is deliberately NOT green',
+    segment: { kind: 'verdict-nothing-recorded' },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[33m⚠️  Build finished without recording any snapshots.${ESC}[39m`],
+      [
+        `${ESC}[33m   Nothing was captured and nothing was inherited, so this build is not${ESC}[39m`,
+      ],
+      [`${ESC}[33m   evidence that nothing changed. Check the run in Sherlo.${ESC}[39m`],
+    ],
+  },
 ];
 
 /**

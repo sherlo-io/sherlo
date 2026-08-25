@@ -1,6 +1,6 @@
 import fetch from 'node-fetch';
-import chalk from 'chalk';
 import getTokenParts from './getTokenParts';
+import { emit } from './transcriptSink';
 
 /*
  * EXIT CODE CONTRACT
@@ -37,7 +37,15 @@ export const EXIT_SIGINT = 130;
 const DEFAULT_WAIT_TIMEOUT_MINUTES = 45;
 const POLL_INTERVAL_MS = 15_000; // fixed interval, no API hammering
 
-type BuildStatusResponse = {
+/**
+ * The `getBuildStatus` wire shape, exported because two things outside this file
+ * must be typed against it and neither may keep its own copy: the sparse-build
+ * verdict decider (helpers/sparseBuildVerdict.ts) and the verdict transcript
+ * catalog, whose scripted states ARE poll responses. A scenario that could
+ * describe a build the backend cannot shape would let a product design be
+ * approved off a state that can never occur.
+ */
+export type BuildStatusResponse = {
   getBuildStatus: {
     runStatus: 'canceled' | 'error' | 'finished' | 'inProgress' | 'queued' | 'waiting';
     viewStatusesCount?: {
@@ -75,6 +83,9 @@ type BuildStatusResponse = {
   } | null;
 };
 
+/** One poll answer for a build that exists, as the loop and the deciders see it. */
+export type BuildStatus = NonNullable<BuildStatusResponse['getBuildStatus']>;
+
 async function waitForBuildResult({
   token,
   buildIndex,
@@ -83,6 +94,7 @@ async function waitForBuildResult({
   waitTimeoutMinutes,
   serverBypassed = false,
   now = Date.now,
+  pollBuildStatus,
 }: {
   token: string;
   buildIndex: number;
@@ -106,22 +118,44 @@ async function waitForBuildResult({
    * printed by evaluateTerminalState off the poll's verbatim reason.
    */
   serverBypassed?: boolean;
+  /**
+   * The ONE effect this loop performs, injectable so a caller can supply the
+   * answers instead of the network.
+   *
+   * It exists for the transcript producer (commands/test/renderVerdictTranscript.ts),
+   * which renders this family's expectations by running THIS function - the
+   * shipped one - over a scripted sequence of poll answers. Substituting the
+   * poll and nothing else is what keeps a rendered transcript evidence about the
+   * CLI rather than about the producer: every branch, every dedupe and every
+   * literal below is still the shipped one.
+   *
+   * Absent (the shipped path) it is the real GraphQL read, and both the token
+   * parsing and the endpoint resolution happen inside it - so an injected poll
+   * needs neither a real token nor a resolvable SDK env file.
+   */
+  pollBuildStatus?: () => Promise<BuildStatus | null>;
 }): Promise<number> {
   const timeoutMs = (waitTimeoutMinutes ?? DEFAULT_WAIT_TIMEOUT_MINUTES) * 60 * 1000;
   const startTime = now();
   const deadline = startTime + timeoutMs;
 
-  const { apiToken } = getTokenParts(token);
-  const endpointUrl = getEndpointUrl();
+  // Resolved ONCE, before the loop, exactly where the token parse and the
+  // endpoint read happened before this parameter existed - so a malformed token
+  // still throws out of the call rather than inside the loop's retry catch,
+  // where it would be mistaken for a transient network blip and retried forever.
+  const poll = pollBuildStatus ?? realPoll();
+
+  function realPoll(): () => Promise<BuildStatus | null> {
+    const { apiToken } = getTokenParts(token);
+    const endpointUrl = getEndpointUrl();
+    return () =>
+      fetchBuildStatus(endpointUrl, apiToken, { index: buildIndex, projectIndex, teamId });
+  }
+
+  const timeoutMinutes = waitTimeoutMinutes ?? DEFAULT_WAIT_TIMEOUT_MINUTES;
 
   if (!serverBypassed) {
-    console.log(
-      chalk.dim(
-        `⏳ Waiting for build results (timeout: ${
-          waitTimeoutMinutes ?? DEFAULT_WAIT_TIMEOUT_MINUTES
-        }min)...`
-      )
-    );
+    emit({ kind: 'wait-header', timeoutMinutes });
   }
 
   let lastStatus = '';
@@ -145,9 +179,9 @@ async function waitForBuildResult({
   };
 
   const printSigintCloser = (): number => {
-    console.log();
-    console.log(chalk.dim('Stopped waiting. The run is still going in Sherlo.'));
-    console.log();
+    emit({ kind: 'blank-line' });
+    emit({ kind: 'wait-interrupted' });
+    emit({ kind: 'blank-line' });
     return EXIT_SIGINT;
   };
 
@@ -155,16 +189,9 @@ async function waitForBuildResult({
     while (true) {
       // Check timeout before each poll
       if (now() >= deadline) {
-        console.log();
-        console.log(
-          chalk.yellow(
-            `⏰ Timeout reached after ${
-              waitTimeoutMinutes ?? DEFAULT_WAIT_TIMEOUT_MINUTES
-            } minutes.`
-          )
-        );
-        console.log(chalk.yellow('   The build may still be running.'));
-        console.log();
+        emit({ kind: 'blank-line' });
+        emit({ kind: 'wait-timed-out', timeoutMinutes });
+        emit({ kind: 'blank-line' });
         return EXIT_TIMEOUT;
       }
 
@@ -172,11 +199,7 @@ async function waitForBuildResult({
 
       try {
         const polled = await Promise.race([
-          fetchBuildStatus(endpointUrl, apiToken, {
-            index: buildIndex,
-            projectIndex,
-            teamId,
-          }).then((result) => ({ type: 'result' as const, result })),
+          poll().then((result) => ({ type: 'result' as const, result })),
           sigint.promise.then(() => ({ type: 'sigint' as const })),
         ]);
 
@@ -188,14 +211,14 @@ async function waitForBuildResult({
       } catch (error) {
         // Auth failures are not retryable - stop immediately
         if (error instanceof AuthError) {
-          console.log();
-          console.log(chalk.red(`🔒 ${error.message}`));
-          console.log();
+          emit({ kind: 'blank-line' });
+          emit({ kind: 'wait-auth-failed', message: error.message });
+          emit({ kind: 'blank-line' });
           return EXIT_ERROR;
         }
 
         // Transient network blips are retried
-        console.log(chalk.dim(`   Network error, retrying... (${(error as Error).message})`));
+        emit({ kind: 'wait-network-retry', message: (error as Error).message });
         if ((await sleepUnlessInterrupted()) === 'sigint') {
           return printSigintCloser();
         }
@@ -203,7 +226,7 @@ async function waitForBuildResult({
       }
 
       if (!build) {
-        console.log(chalk.dim('   Build not found, retrying...'));
+        emit({ kind: 'wait-build-not-found' });
         if ((await sleepUnlessInterrupted()) === 'sigint') {
           return printSigintCloser();
         }
@@ -213,10 +236,12 @@ async function waitForBuildResult({
       // Print progress when status changes. Suppressed for a server-bypassed build
       // (SHERLO-1952): its only progress line would be "🟢 Finished", which implies
       // a device run that never happened.
-      const progressLine = formatProgressLine(build);
-      if (!serverBypassed && progressLine !== lastStatus) {
-        console.log(progressLine);
-        lastStatus = progressLine;
+      // Deduped on the wire's `runStatus` rather than on the rendered line. The
+      // two are equivalent - each status renders to its own distinct label - and
+      // deduping on STATE keeps the loop from having to hold a rendered string.
+      if (!serverBypassed && build.runStatus !== lastStatus) {
+        emit({ kind: 'wait-progress', runStatus: build.runStatus });
+        lastStatus = build.runStatus;
       }
 
       const exitCode = evaluateTerminalState(build);
@@ -228,9 +253,11 @@ async function waitForBuildResult({
       // Periodic heartbeat so CI systems never see 5+ min of silence
       pollCount++;
       if (pollCount % 20 === 0) {
-        const elapsedMin = Math.round((now() - startTime) / 60_000);
-        const statusLabel = build.runStatus === 'inProgress' ? 'running' : build.runStatus;
-        console.log(chalk.dim(`   still ${statusLabel}... (${elapsedMin}m elapsed)`));
+        emit({
+          kind: 'wait-heartbeat',
+          statusLabel: build.runStatus === 'inProgress' ? 'running' : build.runStatus,
+          elapsedMinutes: Math.round((now() - startTime) / 60_000),
+        });
       }
 
       if ((await sleepUnlessInterrupted()) === 'sigint') {
@@ -346,7 +373,7 @@ function evaluateTerminalState(
       const reported = viewStatusesCount.reported;
 
       if (unreviewed === 0 && reported === 0) {
-        console.log();
+        emit({ kind: 'blank-line' });
         const serverBypassReason = getServerBypassReason(diffScopeInfo);
         if (serverBypassReason) {
           // Server-bypassed build (SHERLO-1952): there is nothing to review (zero
@@ -361,32 +388,23 @@ function evaluateTerminalState(
           // no prose, and every ordinary green build. The build's link was
           // already printed once, right when the build became ready - never
           // repeated here.
-          console.log(chalk.green('✅ All stories passed - no visual changes require review.'));
+          emit({ kind: 'verdict-passed' });
         }
-        console.log();
+        emit({ kind: 'blank-line' });
         return EXIT_GREEN;
       }
 
-      console.log();
-      console.log(chalk.yellow('⚠️  Build finished with changes requiring review.'));
-      if (unreviewed > 0) {
-        console.log(chalk.yellow(`   ${unreviewed} story/stories unreviewed.`));
-      }
-      if (reported > 0) {
-        console.log(chalk.yellow(`   ${reported} story/stories reported.`));
-      }
-      console.log();
+      emit({ kind: 'blank-line' });
+      emit({ kind: 'verdict-review-required', unreviewed, reported });
+      emit({ kind: 'blank-line' });
       return EXIT_BLOCK;
     }
 
     case 'error':
     case 'canceled': {
-      console.log();
-      console.log(chalk.red(`❌ Build ended in "${runStatus}" state.`));
-      if (build.runError) {
-        console.log(chalk.red(`   Error: ${JSON.stringify(build.runError)}`));
-      }
-      console.log();
+      emit({ kind: 'blank-line' });
+      emit({ kind: 'verdict-run-errored', runStatus, runError: build.runError });
+      emit({ kind: 'blank-line' });
       return EXIT_ERROR;
     }
 
@@ -473,8 +491,7 @@ function getServerBypassReason(
  * the non-wait closer in testBundled, so the two modes print identical text.
  */
 export function printServerBypassCloser(reason: string): void {
-  console.log(chalk.green(`✅ Nothing needed capturing - ${reason}`));
-  console.log(chalk.dim('   closed by the server - no device run was needed'));
+  emit({ kind: 'verdict-server-bypassed', reason });
 }
 
 /**
@@ -520,21 +537,6 @@ export async function fetchServerBypassReason({
   } catch {
     return undefined;
   }
-}
-
-function formatProgressLine(build: NonNullable<BuildStatusResponse['getBuildStatus']>): string {
-  const { runStatus } = build;
-
-  const statusLabel: Record<string, string> = {
-    queued: '🟡 Queued',
-    waiting: '🟡 Waiting',
-    inProgress: '🔵 Running',
-    finished: '🟢 Finished',
-    error: '🔴 Error',
-    canceled: '⚪ Canceled',
-  };
-
-  return chalk.dim(`   ${statusLabel[runStatus] ?? runStatus}`);
 }
 
 function sleep(ms: number): Promise<void> {

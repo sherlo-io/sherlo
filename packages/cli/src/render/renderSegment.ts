@@ -38,6 +38,23 @@ import {
   renderRunHeader,
 } from './pushSpine';
 import type { TranscriptSegment, TranscriptStream } from './segments';
+import {
+  renderVerdictCaptureAccounting,
+  renderVerdictNoChanges,
+  renderVerdictNothingRecorded,
+  renderVerdictPassed,
+  renderVerdictReviewRequired,
+  renderVerdictRunErrored,
+  renderVerdictServerBypassed,
+  renderWaitAuthFailed,
+  renderWaitBuildNotFound,
+  renderWaitHeader,
+  renderWaitHeartbeat,
+  renderWaitInterrupted,
+  renderWaitNetworkRetry,
+  renderWaitProgress,
+  renderWaitTimedOut,
+} from './verdictCloser';
 
 /** The sherlo wordmark, rendered per character by `gradient-string`. */
 const INTRO_HEADER = `
@@ -229,6 +246,84 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return {
         stream: 'stdout',
         prints: renderOutputKeys(segment.entries).map((line) => [line]),
+      };
+
+    /* -------------------- the verdict family (F4) -------------------- */
+
+    case 'blank-line':
+      // One ARGUMENT-LESS console.log(). `console.log('')` is a different call
+      // and util.format renders it differently, so the empty argument list is
+      // the content here.
+      return { stream: 'stdout', prints: [[]] };
+
+    case 'wait-header':
+      return { stream: 'stdout', prints: [[renderWaitHeader(segment.timeoutMinutes)]] };
+
+    case 'wait-progress':
+      return { stream: 'stdout', prints: [[renderWaitProgress(segment.runStatus)]] };
+
+    case 'wait-heartbeat':
+      return {
+        stream: 'stdout',
+        prints: [[renderWaitHeartbeat(segment.statusLabel, segment.elapsedMinutes)]],
+      };
+
+    case 'wait-network-retry':
+      return { stream: 'stdout', prints: [[renderWaitNetworkRetry(segment.message)]] };
+
+    case 'wait-build-not-found':
+      return { stream: 'stdout', prints: [[renderWaitBuildNotFound()]] };
+
+    case 'wait-auth-failed':
+      return { stream: 'stdout', prints: [[renderWaitAuthFailed(segment.message)]] };
+
+    case 'wait-timed-out':
+      return {
+        stream: 'stdout',
+        prints: renderWaitTimedOut(segment.timeoutMinutes).map((line) => [line]),
+      };
+
+    case 'wait-interrupted':
+      return { stream: 'stdout', prints: [[renderWaitInterrupted()]] };
+
+    case 'verdict-passed':
+      return { stream: 'stdout', prints: [[renderVerdictPassed()]] };
+
+    case 'verdict-server-bypassed':
+      return {
+        stream: 'stdout',
+        prints: renderVerdictServerBypassed(segment.reason).map((line) => [line]),
+      };
+
+    case 'verdict-review-required':
+      return {
+        stream: 'stdout',
+        prints: renderVerdictReviewRequired(segment.unreviewed, segment.reported).map((line) => [
+          line,
+        ]),
+      };
+
+    case 'verdict-run-errored':
+      return {
+        stream: 'stdout',
+        prints: renderVerdictRunErrored(segment.runStatus, segment.runError).map((line) => [line]),
+      };
+
+    /* ⚠⚠ DEPICTS FUTURE - see ./verdictCloser and helpers/sparseBuildVerdict. */
+
+    case 'verdict-no-changes':
+      return { stream: 'stdout', prints: [[renderVerdictNoChanges()]] };
+
+    case 'verdict-capture-accounting':
+      return {
+        stream: 'stdout',
+        prints: [[renderVerdictCaptureAccounting(segment.captured, segment.inherited)]],
+      };
+
+    case 'verdict-nothing-recorded':
+      return {
+        stream: 'stdout',
+        prints: renderVerdictNothingRecorded().map((line) => [line]),
       };
   }
 }

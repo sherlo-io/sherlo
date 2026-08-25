@@ -134,7 +134,67 @@ export type TranscriptSegment =
    */
   | { kind: 'results-url'; url: string }
   /** Machine-readable `key=value` answer lines. A key with no value is not printed. */
-  | { kind: 'output-keys'; entries: Record<string, string | number | boolean | undefined> };
+  | { kind: 'output-keys'; entries: Record<string, string | number | boolean | undefined> }
+  /* ---------------------------------------------------------------------- *
+   * THE VERDICT FAMILY (F4) - what `--wait` prints while it polls, and what  *
+   * it prints when the build reaches a terminal state.                      *
+   * ---------------------------------------------------------------------- */
+  /**
+   * One bare `console.log()`.
+   *
+   * Every verdict closer in this family sits between two of them. Baking that
+   * frame into each closer would be nine copies of one print call, and a tenth
+   * closer would be free to forget it - so the frame is a segment the wait loop
+   * emits around a closer, which is exactly the shape the shipped code had.
+   */
+  | { kind: 'blank-line' }
+  /** `⏳ Waiting for build results (timeout: 45min)...`, printed before the first poll. */
+  | { kind: 'wait-header'; timeoutMinutes: number }
+  /** `   🔵 Running` - reprinted only when the wire's `runStatus` CHANGES. */
+  | { kind: 'wait-progress'; runStatus: string }
+  /**
+   * `   still running... (5m elapsed)`.
+   *
+   * Both values arrive already computed because both come from the CLOCK, which
+   * a renderer may not read: the label is `running` where the wire says
+   * `inProgress`, and the elapsed minutes are measured against the loop's own
+   * start time.
+   */
+  | { kind: 'wait-heartbeat'; statusLabel: string; elapsedMinutes: number }
+  /** `   Network error, retrying... (<message>)` - a transient blip, not a verdict. */
+  | { kind: 'wait-network-retry'; message: string }
+  /** `   Build not found, retrying...`. */
+  | { kind: 'wait-build-not-found' }
+  /** `🔒 <message>` - a credential refused mid-poll, which is not retryable. */
+  | { kind: 'wait-auth-failed'; message: string }
+  /** The deadline closer, both lines. */
+  | { kind: 'wait-timed-out'; timeoutMinutes: number }
+  /** The Ctrl-C closer: the waiting stopped, the run did not. */
+  | { kind: 'wait-interrupted' }
+  /** Today's generic green: `✅ All stories passed - no visual changes require review.` */
+  | { kind: 'verdict-passed' }
+  /**
+   * The compact closer for a build the server closed without a device run. The
+   * reason is the SERVER's prose, printed verbatim - which is why it is a value
+   * here and not a branch.
+   */
+  | { kind: 'verdict-server-bypassed'; reason: string }
+  /** `⚠️  Build finished with changes requiring review.` plus whichever counts are non-zero. */
+  | { kind: 'verdict-review-required'; unreviewed: number; reported: number }
+  /** `❌ Build ended in "error" state.` plus the server's error blob, if any. */
+  | { kind: 'verdict-run-errored'; runStatus: string; runError: unknown }
+  /* ---------------------------------------------------------------------- *
+   * ⚠⚠ DEPICTS FUTURE. The three kinds below render bytes NO shipped code    *
+   * path emits. They are reachable only from `decideSparseBuildVerdict`      *
+   * (helpers/sparseBuildVerdict.ts), which nothing calls but the transcript  *
+   * producer and its tests. See that module's header for what they are for.  *
+   * ---------------------------------------------------------------------- */
+  /** `✅ No visual changes - all snapshots match their baselines.` (the check's own copy). */
+  | { kind: 'verdict-no-changes' }
+  /** `   3 captured on this branch, 41 inherited unchanged` - the sparse accounting. */
+  | { kind: 'verdict-capture-accounting'; captured: number; inherited: number }
+  /** The build recorded nothing at all, so it is evidence of nothing. Not green. */
+  | { kind: 'verdict-nothing-recorded' };
 
 /**
  * Where rendered segments go. The CLI installs a sink that writes to the
