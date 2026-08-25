@@ -20,9 +20,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => {
   const openBuild = vi.fn();
+  const CLIENT = { openBuild };
+  const MANIFEST_EFFECTS = {};
   return {
     openBuild,
-    sdkClient: vi.fn().mockReturnValue({ openBuild }),
+    client: CLIENT,
+    sdkClient: vi.fn().mockReturnValue(CLIENT),
     getTokenParts: vi.fn(),
     getValidatedBinariesInfoAndNextBuildIndex: vi.fn(),
     uploadOrPrintBinaryReuse: vi.fn(),
@@ -47,11 +50,14 @@ const mocks = vi.hoisted(() => {
      * reaches has to be present here - and this one is reached unconditionally,
      * before any branch the tests are about.
      *
-     * It returns an empty object because nothing here is called: the pass itself
-     * is `emitAndUploadModuleManifests`, already mocked above, and these effects
-     * are only its arguments. What matters is that the export EXISTS.
+     * It returns a SENTINEL, not a fresh object: nothing here is ever called
+     * (the pass itself is `emitAndUploadModuleManifests`, already mocked above,
+     * and these effects are only its argument), so the only thing worth
+     * asserting is identity - that the bundle built from THIS client is the one
+     * the pass receives.
      */
-    realManifestEffects: vi.fn(() => ({})),
+    manifestEffects: MANIFEST_EFFECTS,
+    realManifestEffects: vi.fn(() => MANIFEST_EFFECTS),
   };
 });
 
@@ -83,6 +89,10 @@ vi.mock('../emitAndUploadModuleManifests', () => ({
 }));
 
 import uploadOrReuseBuildsAndRunTests from '../uploadOrReuseBuildsAndRunTests';
+// NOT mocked: `../uploadOrPrintBinaryReuse` is replaced wholesale above, but
+// `../uploadOrPrintBinaryReuse/uploadBuild` is a different module, so this is
+// the real effects bundle - the exact object identity the subject must inject.
+import { REAL_BINARY_UPLOAD_EFFECTS } from '../uploadOrPrintBinaryReuse/uploadBuild';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -283,7 +293,7 @@ describe('openBuild payload - nativeFingerprint', () => {
 // ---------------------------------------------------------------------------
 
 describe('reuse-vs-upload branch selection', () => {
-  it('delegates the reuse/upload decision to uploadOrPrintBinaryReuse with binaries + platform paths', async () => {
+  it('delegates the reuse/upload decision to uploadOrPrintBinaryReuse with binaries + platform paths, the upload effects and an injected clock', async () => {
     await callSubject();
 
     expect(mocks.uploadOrPrintBinaryReuse).toHaveBeenCalledWith({
@@ -291,6 +301,21 @@ describe('reuse-vs-upload branch selection', () => {
       projectRoot: '/proj',
       android: '/builds/app.apk',
       ios: '/builds/app.app',
+      // Both seams are asserted ON PURPOSE, so a refactor that silently stops
+      // injecting either one reds here:
+      //
+      // - `uploadEffects` is the mechanism the whole render/expectation layer
+      //   rests on: an expectation producer swaps this bundle to run the real
+      //   upload block offline. A subject that stopped passing it would send
+      //   the producer down a different code path than the shipped one.
+      // - `now` fixes the instant a reuse line's "N minutes ago" is measured
+      //   against. It exists because `getTimeAgo` used to read the wall clock
+      //   directly, so a captured reuse line drifted from "7 minutes ago" to
+      //   "1 week ago" as the calendar moved. Dropping the injection would
+      //   reintroduce that bug; only the seam is contractual here, not the
+      //   value, so the type is what is asserted.
+      uploadEffects: REAL_BINARY_UPLOAD_EFFECTS,
+      now: expect.any(Date),
     });
   });
 
@@ -327,18 +352,25 @@ describe('module manifest wiring (SHERLO-1943)', () => {
     mocks.getBuildRunConfig.mockReturnValue({ android: {}, ios: {} });
   });
 
-  it('runs the manifest pass with the platforms being registered + the SAME gitInfo, only when a base fingerprint exists', async () => {
+  it('runs the manifest pass with the platforms being registered + the SAME gitInfo and the effects built from the client, only when a base fingerprint exists', async () => {
     await callSubject();
 
     expect(mocks.emitAndUploadModuleManifests).toHaveBeenCalledTimes(1);
     expect(mocks.emitAndUploadModuleManifests).toHaveBeenCalledWith({
-      client: expect.anything(),
+      client: mocks.client,
       projectRoot: '/proj',
       platforms: ['android', 'ios'],
       gitInfo: GIT_INFO,
       projectIndex: 7,
       teamId: 'team1234',
+      // Asserted ON PURPOSE: the effects bundle is the seam an expectation
+      // producer swaps to run this exact pass offline. A refactor that stopped
+      // injecting it would send the producer down a different path than the
+      // shipped one, so its disappearance must red here. Identity is the
+      // assertion - the bundle handed over is the one built from this client.
+      effects: mocks.manifestEffects,
     });
+    expect(mocks.realManifestEffects).toHaveBeenCalledWith(mocks.client);
   });
 
   it('never runs the manifest pass when there is no base fingerprint (nothing to compare it against)', async () => {
