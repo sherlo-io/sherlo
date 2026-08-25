@@ -309,7 +309,7 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
         prints: renderVerdictRunErrored(segment.runStatus, segment.runError).map((line) => [line]),
       };
 
-    /* ⚠⚠ DEPICTS FUTURE - see ./verdictCloser and helpers/sparseBuildVerdict. */
+    /* GATED on showsOnlyBranchChanges - see ./verdictCloser and helpers/sparseBuildVerdict. */
 
     case 'verdict-no-changes':
       return { stream: 'stdout', prints: [[renderVerdictNoChanges()]] };

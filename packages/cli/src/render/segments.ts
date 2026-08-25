@@ -184,10 +184,11 @@ export type TranscriptSegment =
   /** `❌ Build ended in "error" state.` plus the server's error blob, if any. */
   | { kind: 'verdict-run-errored'; runStatus: string; runError: unknown }
   /* ---------------------------------------------------------------------- *
-   * ⚠⚠ DEPICTS FUTURE. The three kinds below render bytes NO shipped code    *
-   * path emits. They are reachable only from `decideSparseBuildVerdict`      *
-   * (helpers/sparseBuildVerdict.ts), which nothing calls but the transcript  *
-   * producer and its tests. See that module's header for what they are for.  *
+   * GATED. The three kinds below are emitted by the shipped wait loop, but   *
+   * ONLY for a build the server marked `showsOnlyBranchChanges` - a project  *
+   * that opted into sparse builds. They are reachable only from             *
+   * `decideSparseBuildVerdict` (helpers/sparseBuildVerdict.ts); a build with *
+   * no gate on it never reaches any of them. See that module's header.       *
    * ---------------------------------------------------------------------- */
   /** `✅ No visual changes - all snapshots match their baselines.` (the check's own copy). */
   | { kind: 'verdict-no-changes' }

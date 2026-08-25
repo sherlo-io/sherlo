@@ -1,38 +1,14 @@
 import fetch from 'node-fetch';
 import getTokenParts from './getTokenParts';
 import { emit } from './transcriptSink';
+import { EXIT_BLOCK, EXIT_ERROR, EXIT_GREEN, EXIT_SIGINT, EXIT_TIMEOUT } from './exitCodes';
+import { decideSparseBuildVerdict, routesThroughSparseVerdict } from './sparseBuildVerdict';
 
 /*
- * EXIT CODE CONTRACT
- * =============================================================================
- * Mirrors the GitHub check-state mapping decided for the sherlo/visual-tests
- * check, so the CI exit code and the GitHub check conclusion never drift.
- *
- *   0 - GREEN:  build finished, every story noChanges or already approved
- *               (zero unreviewed, zero reported).
- *   1 - BLOCK:  build finished with unreviewed or reported/denied changes.
- *               A human must review in the dashboard.
- *   2 - ERROR:  build ended in a build/system error (infrastructure/capture
- *               failure, canceled, or authentication/permission denied).
- *   3 - TIMEOUT: --wait-timeout elapsed before reaching a terminal state.
- *               Conservative - timeout is a BLOCK, never a pass.
- *   130 - SIGINT: the user pressed Ctrl-C while waiting. The run keeps going
- *               in Sherlo; we stop cleanly and exit with the conventional
- *               128+SIGINT(2) code.
- *
- * GitHub check mapping (for reference):
- *   exit 0 → conclusion: "success"
- *   exit 1 → conclusion: "action_required"
- *   exit 2 → conclusion: "failure"
- *   exit 3 → conclusion: "action_required" (timeout)
- * =============================================================================
+ * The exit-code contract this loop returns under - including the ONE input on
+ * which it used to disagree with the GitHub check, and how the sparse verdict
+ * repairs that - lives in ./exitCodes, next to the codes themselves.
  */
-
-export const EXIT_GREEN = 0;
-export const EXIT_BLOCK = 1;
-export const EXIT_ERROR = 2;
-export const EXIT_TIMEOUT = 3;
-export const EXIT_SIGINT = 130;
 
 const DEFAULT_WAIT_TIMEOUT_MINUTES = 45;
 const POLL_INTERVAL_MS = 15_000; // fixed interval, no API hammering
@@ -48,6 +24,48 @@ const POLL_INTERVAL_MS = 15_000; // fixed interval, no API hammering
 export type BuildStatusResponse = {
   getBuildStatus: {
     runStatus: 'canceled' | 'error' | 'finished' | 'inProgress' | 'queued' | 'waiting';
+    /**
+     * THE GATE, and the CLI does not decide it - the server does.
+     *
+     * `true` means this build is one the sparse-build redesign governs: the
+     * project opted in AND the build is on a non-main branch. Both halves are
+     * folded in server-side and frozen onto the build record at openBuild, so
+     * the CLI never has to know the branch axis and a build cannot change its
+     * mind halfway through a poll loop.
+     *
+     * ABSENT OR `false` MEANS OFF, and off means byte-identical to what this
+     * loop has always printed. Absent is the older-API case and must never be
+     * read as opt-in - every project that has not opted in is on that path.
+     *
+     * There is exactly ONE such switch. The GitHub check reads this same
+     * boolean off the same build record (`Build.showsOnlyBranchChanges`), which
+     * is the whole point: two surfaces reading two flags is how the drift this
+     * redesign repairs would come back. The per-project opt-in
+     * (`Project.shouldShowOnlyBranchChanges`) is deliberately NOT on the wire -
+     * it has no branch axis applied, so a CLI reading it would gate builds the
+     * check does not.
+     */
+    showsOnlyBranchChanges?: boolean;
+    /**
+     * The build's review status, EXACTLY as the server's own `getBuildStatus`
+     * util computes it - the same value `deriveBuildCheckState` hands the
+     * GitHub check for a finished build.
+     *
+     * WHY THE CLI READS THIS RATHER THAN COMPUTING GREENNESS ITSELF. The defect
+     * the sparse redesign repairs is two surfaces deriving one build's verdict
+     * from the same tally by two different formulas. Adding a third formula
+     * here - however carefully written - would be the same mistake one layer
+     * further out. So on the gated path the CLI stops deciding greenness and
+     * mirrors the server's answer, and the two cannot drift by construction.
+     *
+     * Spelled inline rather than imported from `@sherlo/api-types`'s `Status`
+     * for the same reason every other field of this wire shape is: this type
+     * describes what THIS query selects. It is the same four values.
+     *
+     * Absent on an older API -> the gated path degrades to today's count-based
+     * logic rather than inventing a verdict from a field nobody sent.
+     */
+    status?: 'approved' | 'noChanges' | 'reported' | 'unreviewed';
     viewStatusesCount?: {
       approved: number;
       noChanges: number;
@@ -306,6 +324,8 @@ async function fetchBuildStatus(
         query getBuildStatus($index: Int!, $projectIndex: Int!, $teamId: String!) {
           getBuildStatus(index: $index, projectIndex: $projectIndex, teamId: $teamId) {
             runStatus
+            showsOnlyBranchChanges
+            status
             viewStatusesCount {
               approved
               noChanges
@@ -369,6 +389,14 @@ function evaluateTerminalState(
         return null;
       }
 
+      // THE GATE. A build the server did not mark - which is every build of
+      // every project that has not opted in, and every build answered by an API
+      // that predates the field - skips this entirely and falls through to the
+      // block below, which is unchanged to the byte.
+      if (routesThroughSparseVerdict(build)) {
+        return closeUnderSparseRules(build);
+      }
+
       const unreviewed = viewStatusesCount.unreviewed;
       const reported = viewStatusesCount.reported;
 
@@ -412,6 +440,49 @@ function evaluateTerminalState(
       // queued, waiting, inProgress - still running
       return null;
   }
+}
+
+/**
+ * The finished branch for a build the server marked `showsOnlyBranchChanges` -
+ * the sparse-build redesign's CLI half, and the ONLY new closing path in this
+ * file.
+ *
+ * It emits the same frame every closer in this loop has always sat inside (one
+ * blank line above, one below), and inside it either the sparse verdict's
+ * segments or - when the build is one the SERVER closed without a device run -
+ * that build's existing compact closer, carrying the server's own prose. The
+ * bypass keeps precedence deliberately: it is a MORE specific green than
+ * `noChanges`, it already ships, and a project that opted into sparse builds
+ * must not lose the one sentence the CLI has that explains why nothing ran.
+ * Its exit code is `EXIT_GREEN` on both paths, so precedence changes the words
+ * and never the verdict.
+ *
+ * `null` means "not terminal, poll again", the same answer the ungated branch
+ * gives for a counts race. It is unreachable from the current call site (which
+ * has already checked both) and is returned rather than assumed, because a
+ * false GREEN is the one answer that must never be reachable by accident.
+ */
+function closeUnderSparseRules(
+  build: NonNullable<BuildStatusResponse['getBuildStatus']>
+): number | null {
+  const verdict = decideSparseBuildVerdict(build);
+  if (!verdict) {
+    return null;
+  }
+
+  emit({ kind: 'blank-line' });
+
+  const serverBypassReason = getServerBypassReason(build.diffScopeInfo);
+  if (verdict.exitCode === EXIT_GREEN && serverBypassReason) {
+    printServerBypassCloser(serverBypassReason);
+  } else {
+    for (const segment of verdict.segments) {
+      emit(segment);
+    }
+  }
+
+  emit({ kind: 'blank-line' });
+  return verdict.exitCode;
 }
 
 /**

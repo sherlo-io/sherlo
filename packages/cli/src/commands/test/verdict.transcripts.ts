@@ -34,16 +34,23 @@
  * TWO KINDS OF SCENARIO LIVE HERE, AND `groundedBy` IS HOW YOU TELL.
  *
  *   PRESENT-PROVING (`kind: 'awaiting-remint'`) - the bytes the SHIPPED
- *   `waitForBuildResult` prints today, rendered by running that function over a
- *   scripted poll. Unratcheted only because its fixture is broken; the code path
- *   is the live one.
+ *   `waitForBuildResult` prints today for a build with no gate on it.
+ *   Unratcheted only because its fixture is broken; the code path is the live
+ *   one.
  *
- *   DEPICTS-FUTURE (`kind: 'depicts-future'`) - bytes NO shipped code path
- *   emits. Rendered by `decideSparseBuildVerdict`, which nothing in the product
- *   calls. These are the redesign's proposal, drawn so it can be reviewed before
- *   it is built. A reader who wants one test for "is this real today?" has it:
- *   a depicts-future transcript's grounding says so, and `--render-transcript
- *   list` prints the grounding beside every id.
+ *   GATED (`kind: 'gated-shipped'`) - the sparse-build verdict. These bytes ARE
+ *   emitted by the shipped CLI, but ONLY for a build the server marked
+ *   `showsOnlyBranchChanges`, which is a project that has opted in. They were
+ *   authored and reviewed as a drawing BEFORE the behaviour existed; the
+ *   behaviour now exists, and the scenarios' grounding was changed in the commit
+ *   that wired it rather than left saying something that had stopped being true.
+ *
+ * EVERY SCENARIO IN THIS FAMILY IS NOW RENDERED THE SAME WAY: by running the
+ * shipped {@link waitForBuildResult} over the scripted poll answer. There is no
+ * second renderer and no proposal path. The ONLY difference between the two
+ * kinds above is what the scripted poll answer says - which is the point, and is
+ * what makes these transcripts evidence about the CLI rather than about the
+ * producer.
  */
 import type { BuildStatus } from '../../helpers/waitForBuildResult';
 
@@ -56,21 +63,18 @@ export type VerdictGrounding =
    */
   | { kind: 'awaiting-remint'; fixture: string; token: string }
   /**
-   * ⚠⚠ Depicts behaviour NOTHING implements. `implies` says what would have to
-   * be built for these bytes to become real, so a reader is never left inferring
-   * how big the gap is.
+   * The shipped code path BEHIND A GATE. `gate` names the wire field that has to
+   * be true for a real user to see these bytes, so a reader is never left
+   * guessing whether a transcript describes the default experience. It does not:
+   * a project that has not opted in never reaches this path.
    */
-  | { kind: 'depicts-future'; implies: string };
-
-/** Which decider renders a scenario - the shipped loop, or the unwired proposal. */
-export type VerdictRenderer = 'shipped-wait-loop' | 'sparse-verdict-proposal';
+  | { kind: 'gated-shipped'; gate: string };
 
 export type VerdictTranscriptScenario = {
   description: string;
   groundedBy: VerdictGrounding;
   ambient: { skipIntro: boolean };
   capture: 'stdout' | 'stdout+stderr';
-  renderer: VerdictRenderer;
   /**
    * The poll answer, typed as the wire shape the shipped query selects. A state
    * the backend could not return is a `tsc` failure - which is the shield that
@@ -117,6 +121,22 @@ function finished({
   };
 }
 
+/**
+ * The same poll answer, from a project that has OPTED IN - the gate the server
+ * sets on the build, plus the review status the server computed for it.
+ *
+ * `status` is scripted rather than derived from the tally on purpose, and it is
+ * the sharpest thing in this file: the CLI does not compute greenness on this
+ * path, it mirrors the server's answer, so a scenario that derived the status
+ * from its own counts would be testing an arithmetic nothing performs and would
+ * hide the very coupling these transcripts exist to show. Where the two look
+ * inconsistent - `recorded nothing` below is `unreviewed` over an all-zero tally
+ * - that inconsistency IS the case, and it is the server's ruling, not ours.
+ */
+function optedIn(build: BuildStatus, status: NonNullable<BuildStatus['status']>): BuildStatus {
+  return { ...build, showsOnlyBranchChanges: true, status };
+}
+
 export const VERDICT_TRANSCRIPTS: Record<string, VerdictTranscriptScenario> = {
   /* --- what ships today ---------------------------------------------------- */
 
@@ -134,7 +154,6 @@ export const VERDICT_TRANSCRIPTS: Record<string, VerdictTranscriptScenario> = {
     },
     ambient: { skipIntro: true },
     capture: 'stdout',
-    renderer: 'shipped-wait-loop',
     build: finished({ approved: 5, noChanges: SUITE_SIZE - 5 }),
     waitTimeoutMinutes: 45,
   },
@@ -152,7 +171,6 @@ export const VERDICT_TRANSCRIPTS: Record<string, VerdictTranscriptScenario> = {
     },
     ambient: { skipIntro: true },
     capture: 'stdout',
-    renderer: 'shipped-wait-loop',
     build: finished({ noChanges: SUITE_SIZE - 3, unreviewed: 3 }),
     waitTimeoutMinutes: 45,
   },
@@ -171,7 +189,6 @@ export const VERDICT_TRANSCRIPTS: Record<string, VerdictTranscriptScenario> = {
     },
     ambient: { skipIntro: true },
     capture: 'stdout',
-    renderer: 'shipped-wait-loop',
     build: {
       runStatus: 'finished',
       viewStatusesCount: { approved: 0, noChanges: SUITE_SIZE, reported: 0, unreviewed: 0 },
@@ -184,66 +201,52 @@ export const VERDICT_TRANSCRIPTS: Record<string, VerdictTranscriptScenario> = {
     waitTimeoutMinutes: 45,
   },
 
-  /* --- ⚠⚠ what the branch-build redesign implies. Nothing implements these. -- */
+  /* --- the branch-build redesign, behind the server-set gate ---------------- */
 
   'verdict-branch-build-nothing-differed': {
     description:
-      '⚠⚠ DEPICTS FUTURE. THE FIRST OUTPUT THE REDESIGN NEEDS. A branch build that ran, ' +
+      'GATED. THE FIRST OUTPUT THE REDESIGN NEEDS. A branch build that ran, ' +
       'photographed the three stories its own diff reaches, and found all three identical. ' +
       'Today this exits 0 saying "All stories passed" while the required check independently ' +
       "re-derives unreviewed and posts action_required. Here it is `noChanges` in the CHECK'S " +
       'OWN WORDS, and the accounting line says how little of the suite the branch actually ' +
       'touched - which is the whole claim a sparse build is making.',
-    groundedBy: {
-      kind: 'depicts-future',
-      implies:
-        'waitForBuildResult routes its finished branch through decideSparseBuildVerdict, and the ' +
-        'API stops re-deriving `unreviewed` from an all-zero tally that has capture accounting ' +
-        'behind it.',
-    },
+    groundedBy: { kind: 'gated-shipped', gate: 'getBuildStatus.showsOnlyBranchChanges' },
     ambient: { skipIntro: true },
     capture: 'stdout',
-    renderer: 'sparse-verdict-proposal',
-    build: finished({ noChanges: 3, captured: 3, inherited: SUITE_SIZE - 3 }),
+    build: optedIn(finished({ noChanges: 3, captured: 3, inherited: SUITE_SIZE - 3 }), 'noChanges'),
     waitTimeoutMinutes: 45,
   },
 
   'verdict-branch-build-only-the-branch-stories': {
     description:
-      '⚠⚠ DEPICTS FUTURE. THE ORDINARY SPARSE CASE. The same branch, one commit later: of the ' +
+      'GATED. THE ORDINARY SPARSE CASE. The same branch, one commit later: of the ' +
       'three stories it caused to be captured, two differ. The verdict is a block, and the ' +
       'accounting line is what makes it readable - two unreviewed out of THREE captured, not two ' +
       'out of forty-four, so a reviewer knows the branch is being judged on its own surface.',
-    groundedBy: {
-      kind: 'depicts-future',
-      implies:
-        'the same routing as above, plus the capture accounting being printed on the block path ' +
-        'as well as the green one.',
-    },
+    groundedBy: { kind: 'gated-shipped', gate: 'getBuildStatus.showsOnlyBranchChanges' },
     ambient: { skipIntro: true },
     capture: 'stdout',
-    renderer: 'sparse-verdict-proposal',
-    build: finished({ noChanges: 1, unreviewed: 2, captured: 3, inherited: SUITE_SIZE - 3 }),
+    build: optedIn(
+      finished({ noChanges: 1, unreviewed: 2, captured: 3, inherited: SUITE_SIZE - 3 }),
+      'unreviewed'
+    ),
     waitTimeoutMinutes: 45,
   },
 
   'verdict-branch-build-recorded-nothing': {
     description:
-      '⚠⚠ DEPICTS FUTURE. THE CASE THE GUARD EXISTS FOR, and the reason the green above is ' +
-      'guarded by a count rather than by the tally alone. This build finished with the same ' +
-      'all-zero tally as a perfectly clean branch - but it captured nothing AND inherited ' +
-      'nothing, so it is evidence of nothing. It must not go green, and it does not: this is ' +
-      'today\'s "we do not know why" case, kept exactly where it is.',
-    groundedBy: {
-      kind: 'depicts-future',
-      implies:
-        'decideSparseBuildVerdict being the routing, which is what makes an all-zero tally ' +
-        'ambiguous rather than automatically green.',
-    },
+      'GATED. THE CASE THE SAFETY NET EXISTS FOR, and the reason the green above is not read ' +
+      'off the tally alone. This build finished with the same all-zero tally as a perfectly ' +
+      'clean branch - but it captured nothing AND inherited nothing, so it is evidence of ' +
+      'nothing. The SERVER calls it `unreviewed` rather than green (the SHERLO-2013 ' +
+      'fallthrough, deliberately kept), and the CLI reads that verdict off the wire; what the ' +
+      'capture accounting decides here is only the WORDS - "0 stories unreviewed" would be ' +
+      'accurate and useless, so it says what actually happened instead.',
+    groundedBy: { kind: 'gated-shipped', gate: 'getBuildStatus.showsOnlyBranchChanges' },
     ambient: { skipIntro: true },
     capture: 'stdout',
-    renderer: 'sparse-verdict-proposal',
-    build: finished({ captured: 0, inherited: 0 }),
+    build: optedIn(finished({ captured: 0, inherited: 0 }), 'unreviewed'),
     waitTimeoutMinutes: 45,
   },
 };

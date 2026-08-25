@@ -1,63 +1,71 @@
 /**
- * ⚠⚠ DEPICTS FUTURE - NOTHING IN THE SHIPPED CLI CALLS THIS.
+ * THE SPARSE-BUILD VERDICT - what `--wait` prints and exits with for a build the
+ * server marked `showsOnlyBranchChanges`.
  *
- * The verdict a BRANCH BUILD would earn under sparse-build rules, as a pure
- * function of the poll answer the backend already returns. It exists so the
- * redesign's CLI half can be RENDERED and reviewed before it is built - the
- * operator's build order is surfaces first, engine second - and it is
- * deliberately not wired into {@link waitForBuildResult}: a real user's run
- * today takes exactly the path it took yesterday.
- *
- * HOW A READER TELLS THIS APART FROM THE PRESENT. Three independent marks, any
- * one of which is enough:
- *   1. this banner, and the same banner on every renderer it reaches
- *      (render/verdictCloser.ts, the three kinds under the DEPICTS FUTURE rule
- *      in render/segments.ts);
- *   2. no import of this module from anything under `src/commands/` or from
- *      `waitForBuildResult` - it is reachable only from the transcript producer
- *      and its tests, which a grep for the filename shows in full;
- *   3. every transcript it renders declares `groundedBy: { kind:
- *      'depicts-future' }` in the catalog, and that grounding kind is printed in
- *      `--render-transcript list`.
+ * This is a pure function of the poll answer the backend already returns, and it
+ * ships: {@link waitForBuildResult}'s finished branch routes through it whenever
+ * {@link routesThroughSparseVerdict} says the server turned the gate on for this
+ * build. A build that is NOT marked never reaches this file, and prints exactly
+ * what it printed yesterday.
  *
  * ------------------------------------------------------------------------
- * THE DEFECT IT ANSWERS, stated as the two surfaces that disagree.
+ * THE DEFECT IT ANSWERS, stated as the two surfaces that disagreed.
  *
- * A build that finished with `unreviewed: 0, reported: 0` exits GREEN here and
- * prints `All stories passed` (waitForBuildResult's `finished` branch). The
- * GitHub check, looking at the SAME build, re-derives its own state from the
- * same tally and - when the tally is all-zero because nothing was recorded -
- * lands on `unreviewed`, whose conclusion is `action_required`
- * (sherlo-api `deriveBuildCheckState` -> `mapBuildStateToCheckRun`). So the CLI
- * says pass and the required check says block, over one build. The exit-code
- * contract's own header in waitForBuildResult claims the two "never drift"; on
- * this input they do.
+ * A build that finished with `unreviewed: 0, reported: 0` exits GREEN today and
+ * prints `All stories passed`. The GitHub check, looking at the SAME build,
+ * re-derives its own state from the same tally and - when the tally is all-zero
+ * because nothing was recorded - lands on `unreviewed`, whose conclusion is
+ * `action_required`. So the CLI said pass and the required check said block,
+ * over one build. The exit-code contract's own header claimed the two "never
+ * drift"; on this input they did.
  *
- * THE OPERATOR'S RULING, implemented below and nowhere else: reuse the EXISTING
- * `noChanges` state and its EXISTING copy, guarded by the CAPTURE COUNT.
- *   - the build RECORDED entries and none differed  -> `no-changes`, green.
- *   - the build recorded NOTHING at all             -> unchanged from today's
- *     "we do not know why" case, and it does NOT go green.
- * The second half is the whole point of the guard. An all-zero tally is
- * ambiguous on its own: it is what a perfectly clean branch looks like AND what
- * a build that never photographed anything looks like. Only the capture
- * accounting separates them, and reading a zero as "nothing changed" would turn
- * every silently-empty run into a passing required check.
+ * ------------------------------------------------------------------------
+ * HOW IT REPAIRS THAT, AND THE ONE THING IT REFUSES TO DO.
+ *
+ * IT DOES NOT COMPUTE GREENNESS. That is the whole repair. The defect was two
+ * surfaces deriving one build's verdict from one tally by two different
+ * formulas; a third formula here - however carefully written - would be the same
+ * mistake one layer further out. So on this path the CLI reads
+ * `build.status`, which is the server's own answer, the SAME value
+ * `deriveBuildCheckState` hands the GitHub check for this build:
+ *
+ *   `noChanges` / `approved`   -> green, exit 0
+ *   `unreviewed` / `reported`  -> not green, exit 1
+ *
+ * The two surfaces now cannot drift, because there is only one derivation left.
+ *
+ * WHAT IT STILL DECIDES: WHICH WORDS. Greenness is the server's; the message is
+ * the CLI's, and one message needs a fact the status cannot carry.
+ * `status: 'unreviewed'` is the answer for BOTH "two stories are waiting for a
+ * human" and "this build recorded nothing at all, so we do not know why" - the
+ * SHERLO-2013 fallthrough. Those are the same verdict and very different
+ * sentences, and only the capture accounting separates them. So the recorded
+ * count chooses the COPY on a non-green build and never the exit code: the
+ * safety net is narrowed to the case it was built for, and is not weakened by an
+ * inch, because either way the build does not go green.
+ *
+ * THE OPERATOR'S RULINGS, and where each one actually lives now:
+ *   - the build RECORDED entries and none differed -> `noChanges`, green,
+ *     reusing the EXISTING state's EXISTING copy. Enforced SERVER-SIDE, over the
+ *     recorded entries themselves; read here off `status`.
+ *   - the build recorded NOTHING at all -> not green, and it says so in its own
+ *     words rather than claiming zero stories need review.
+ *   - a server-bypassed build (zero captured, the whole suite inherited) is
+ *     green today and stays green: it records a full set of `noChanges` entries,
+ *     so the server's status is `noChanges` and no new arm is involved.
  */
 import type { BuildStatus } from './waitForBuildResult';
 import type { TranscriptSegment } from '../render/segments';
-import { EXIT_BLOCK, EXIT_GREEN } from './waitForBuildResult';
+import { EXIT_BLOCK, EXIT_GREEN } from './exitCodes';
 
-/** What the sparse verdict decided, and the bytes it would print to say so. */
+/** What the sparse verdict decided, and the bytes it prints to say so. */
 export type SparseBuildVerdict = {
   /**
-   * Which normalized state the GitHub check would post for this same build.
-   * Named in the CHECK's vocabulary (`BuildCheckState` in sherlo-api's
-   * `mapBuildStateToCheckRun`) on purpose: the two surfaces disagreeing is the
-   * defect, so the CLI's decision is expressed in terms the check shares rather
-   * than in a private CLI vocabulary that could drift again.
+   * The build's review status, as the SERVER computed it and the GitHub check
+   * reads it. Carried through rather than re-labelled so that a reader of this
+   * verdict is looking at the same word both surfaces are looking at.
    */
-  checkState: 'noChanges' | 'unreviewed' | 'reported';
+  checkState: NonNullable<BuildStatus['status']>;
   /** The process exit code, under the same contract the shipped loop uses. */
   exitCode: number;
   /** The closer, WITHOUT its framing blank lines - the caller emits those. */
@@ -65,14 +73,34 @@ export type SparseBuildVerdict = {
 };
 
 /**
+ * Whether this build's verdict comes from the sparse decider rather than from
+ * the count-based branch that has always shipped.
+ *
+ * BOTH HALVES ARE REQUIRED, and the second one is not a formality. The gate says
+ * the server intends sparse rules for this build; `status` is the answer those
+ * rules are read from. An API that sent the gate but not the status has given us
+ * no verdict to mirror, and the only safe reading of a half-answer is to keep
+ * today's behaviour rather than to guess - so that build takes the ungated path
+ * and prints what it always did.
+ *
+ * `=== true` rather than a truthiness test, because the meaningful third value
+ * here is ABSENT: every project that has not opted in, and every response from
+ * an API that predates the field, arrives with no `showsOnlyBranchChanges` at
+ * all, and every one of them must stay on the untouched path.
+ */
+export function routesThroughSparseVerdict(build: BuildStatus): boolean {
+  return build.showsOnlyBranchChanges === true && build.status !== undefined;
+}
+
+/**
  * How many snapshot entries this build accounted for at all - captured on this
  * branch plus inherited unchanged from the build it branched from.
  *
  * ABSENT COUNTS ARE NOT ZERO. An older API answers with no `diffScopeInfo`, and
- * reading that absence as "recorded nothing" would push every such build into
- * the not-green branch. `undefined` therefore means UNKNOWN and is returned as
- * such, so the caller can keep today's behaviour rather than invent a verdict
- * from a field the server never sent.
+ * reading that absence as "recorded nothing" would put every such build's
+ * not-green closer into the wrong words. `undefined` therefore means UNKNOWN and
+ * is returned as such, so the caller can say the ordinary thing rather than
+ * assert something about a field the server never sent.
  */
 function recordedEntryCount(build: BuildStatus): number | undefined {
   const info = build.diffScopeInfo;
@@ -86,15 +114,15 @@ function recordedEntryCount(build: BuildStatus): number | undefined {
 /**
  * Decide a finished build's verdict under sparse rules.
  *
- * Takes the whole poll answer rather than the two counts, because the guard the
- * ruling turns on lives in a different field of the same answer - handing this
- * function pre-extracted counts is exactly how the capture guard would get lost
- * at a call site later.
+ * Takes the whole poll answer rather than the status and the two counts, because
+ * the facts this needs live in three different fields of one answer - handing it
+ * pre-extracted values is exactly how the capture accounting would get lost at a
+ * call site later.
  *
- * `null` means NOT TERMINAL: the build has not finished, or it finished but its
- * counts have not been written yet. The shipped loop already treats the second
- * case as "poll again" rather than defaulting the counts to zero, and so does
- * this - a false green is the one answer that must never be reachable by
+ * `null` means NOT TERMINAL: the build has not finished, its counts have not
+ * been written yet, or the server sent no status. The shipped loop already
+ * treats the counts race as "poll again" rather than defaulting to zero, and so
+ * does this - a false green is the one answer that must never be reachable by
  * accident.
  */
 export function decideSparseBuildVerdict(build: BuildStatus): SparseBuildVerdict | null {
@@ -103,48 +131,39 @@ export function decideSparseBuildVerdict(build: BuildStatus): SparseBuildVerdict
   const counts = build.viewStatusesCount;
   if (!counts) return null;
 
-  const { reported, unreviewed } = counts;
+  const checkState = build.status;
+  if (checkState === undefined) return null;
 
-  if (unreviewed > 0 || reported > 0) {
+  if (checkState === 'noChanges' || checkState === 'approved') {
     return {
-      checkState: reported > 0 ? 'reported' : 'unreviewed',
-      exitCode: EXIT_BLOCK,
-      segments: [
-        { kind: 'verdict-review-required', unreviewed, reported },
-        ...captureAccounting(build),
-      ],
-    };
-  }
-
-  const recorded = recordedEntryCount(build);
-
-  // The server answered with no capture accounting at all (an older API). There
-  // is no guard to apply, so this degrades to exactly what ships today rather
-  // than to a verdict computed from a field that was never sent.
-  if (recorded === undefined) {
-    return {
-      checkState: 'noChanges',
+      checkState,
       exitCode: EXIT_GREEN,
-      segments: [{ kind: 'verdict-passed' }],
+      segments: [{ kind: 'verdict-no-changes' }, ...captureAccounting(build)],
     };
   }
 
-  // Nothing was recorded: no captures, no inheritances. An all-zero tally over
-  // an all-zero suite is evidence of nothing, so it does not go green.
-  if (recorded === 0) {
+  // Not green. The status has already settled that; all that is left is which
+  // sentence tells the truth about it.
+  //
+  // A build that recorded nothing - no captures, no inheritances - reached its
+  // all-zero tally because nothing happened, not because nothing changed. Saying
+  // "0 stories unreviewed" about it would be technically accurate and actively
+  // misleading, so it gets the words for the thing that actually occurred.
+  if (recordedEntryCount(build) === 0) {
     return {
-      checkState: 'unreviewed',
+      checkState,
       exitCode: EXIT_BLOCK,
       segments: [{ kind: 'verdict-nothing-recorded' }],
     };
   }
 
-  // The build recorded entries and none of them differed. THIS is `noChanges`,
-  // and it says so in the check's own words.
   return {
-    checkState: 'noChanges',
-    exitCode: EXIT_GREEN,
-    segments: [{ kind: 'verdict-no-changes' }, ...captureAccounting(build)],
+    checkState,
+    exitCode: EXIT_BLOCK,
+    segments: [
+      { kind: 'verdict-review-required', unreviewed: counts.unreviewed, reported: counts.reported },
+      ...captureAccounting(build),
+    ],
   };
 }
 

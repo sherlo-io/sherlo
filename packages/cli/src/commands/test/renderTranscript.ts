@@ -111,13 +111,13 @@ function transcriptCatalog(): Record<string, CatalogEntry> {
  * no such fixture exists.
  *
  * `null` IS THE HONEST ANSWER FOR THE WHOLE VERDICT FAMILY, and it is the reason
- * this is a function rather than a field read. Three of that family's scenarios
- * depict behaviour nothing implements, so no run could ever have produced a
- * fixture for them; the other three DO render the shipped path, but their
- * baselines are on AWAITING_REMINT and carry a token their own masker cannot
- * produce (see ./verdict.transcripts). Publishing `null` rather than a path is
- * what lets `yarn tester expected-render` report the gap out loud instead of
- * writing a fixture nothing judges.
+ * this is a function rather than a field read. Every scenario in that family
+ * renders the shipped wait loop, but none of them has a usable baseline: three
+ * are gated on `showsOnlyBranchChanges`, which no committed e2e run has ever set,
+ * and the other three have baselines on AWAITING_REMINT carrying a token their
+ * own masker cannot produce (see ./verdict.transcripts). Publishing `null`
+ * rather than a path is what lets `yarn tester expected-render` report the gap
+ * out loud instead of writing a fixture nothing judges.
  */
 function fixtureFor(entry: CatalogEntry): string | null {
   return entry.family === 'verdict' ? null : entry.scenario.fixture;
@@ -151,9 +151,9 @@ type TranscriptEnvelope = {
    */
   fixture: string | null;
   /**
-   * How the scenario's values were grounded. `depicts-future` means these bytes
-   * describe behaviour NOTHING implements: a consumer must not read such a
-   * transcript as a report of what the CLI does.
+   * How the scenario's values were grounded. `gated-shipped` means the shipped
+   * CLI does emit these bytes, but only for a build the server marked opted-in:
+   * a consumer must not read such a transcript as the DEFAULT experience.
    */
   grounded: string;
   command: string;
@@ -358,7 +358,7 @@ type CatalogIndexEntry = {
   /** `null` -> no committed fixture to ratchet against; see {@link fixtureFor}. */
   fixture: string | null;
   capture: string;
-  /** `depicts-future` -> these bytes describe behaviour nothing implements. */
+  /** `gated-shipped` -> the shipped path emits these, but only when opted in. */
   grounded: string;
 };
 
@@ -387,8 +387,8 @@ function formatTranscriptCatalog(): string {
     const provenance =
       fixture === null
         ? `    fixture: none - ${
-            grounding === 'depicts-future'
-              ? '⚠⚠ DEPICTS FUTURE: no shipped code path emits these bytes'
+            grounding === 'gated-shipped'
+              ? 'GATED: the shipped path emits these bytes, but only for an opted-in project'
               : 'the committed baseline is awaiting a re-mint'
           }`
         : `    fixture: ${fixture}`;

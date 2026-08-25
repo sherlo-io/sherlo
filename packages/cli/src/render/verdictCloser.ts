@@ -14,11 +14,12 @@
  * closer by the loop, exactly as the shipped code's two bare `console.log()`
  * calls did before this layer existed.
  *
- * WHAT IS DEPICTED-FUTURE IN HERE IS MARKED, LINE BY LINE. Three of these
- * builders render bytes NO shipped code path emits today: the sparse-build
- * verdict the branch-build redesign implies. They carry a `DEPICTS FUTURE`
- * banner and are reachable only from {@link decideSparseBuildVerdict}, which is
- * itself unwired. Nothing a real user sees today passes through them.
+ * WHAT IS GATED IN HERE IS MARKED, LINE BY LINE. Three of these builders render
+ * the sparse-build verdict, which the shipped wait loop emits ONLY for a build
+ * the server marked `showsOnlyBranchChanges` - a project that opted into sparse
+ * builds. They carry a `GATED` banner and are reachable only from
+ * {@link decideSparseBuildVerdict}. A project that has not opted in never
+ * reaches them, and its output is byte-identical to what it has always been.
  */
 import chalk from 'chalk';
 
@@ -123,15 +124,15 @@ export function renderVerdictRunErrored(runStatus: string, runError: unknown): s
 }
 
 /* ========================================================================== */
-/* DEPICTS FUTURE: the sparse-build verdict. Nothing shipped emits these.      */
+/* GATED: the sparse-build verdict, for an opted-in project's branch build.    */
 /* ========================================================================== */
 
 /**
- * ⚠⚠ DEPICTS FUTURE - NO SHIPPED CODE PATH EMITS THIS.
+ * GATED on `showsOnlyBranchChanges` - an ungated build never reaches this.
  *
  * The verdict a BRANCH BUILD earns when it recorded snapshots and none of them
- * differed. Today such a build falls into {@link renderVerdictPassed} while the
- * GitHub check independently re-derives `unreviewed` from the same all-zero
+ * differed. Ungated, such a build falls into {@link renderVerdictPassed} while
+ * the GitHub check independently re-derives `unreviewed` from the same all-zero
  * tally and posts `action_required` - so the CLI says pass and the check says
  * block, over one build.
  *
@@ -148,26 +149,27 @@ export function renderVerdictNoChanges(): string {
 }
 
 /**
- * ⚠⚠ DEPICTS FUTURE - NO SHIPPED CODE PATH EMITS THIS.
+ * GATED on `showsOnlyBranchChanges` - an ungated build never reaches this.
  *
  * The accounting line under a sparse branch build's verdict: how much of the
  * suite this build actually photographed, and how much it carried over from the
  * build it branched from. It is the CLI's half of "a branch build surfaces only
- * the stories that branch caused to differ" - the numbers are already on the
- * wire (`diffScopeInfo.capturedSnapshotCount` / `inheritedSnapshotCount`), and
- * nothing prints them.
+ * the stories that branch caused to differ" - the numbers come straight off the
+ * wire (`diffScopeInfo.capturedSnapshotCount` / `inheritedSnapshotCount`).
  */
 export function renderVerdictCaptureAccounting(captured: number, inherited: number): string {
   return chalk.dim(`   ${captured} captured on this branch, ${inherited} inherited unchanged`);
 }
 
 /**
- * ⚠⚠ DEPICTS FUTURE - NO SHIPPED CODE PATH EMITS THIS.
+ * GATED on `showsOnlyBranchChanges` - an ungated build never reaches this.
  *
  * The build recorded NOTHING - it captured nothing and inherited nothing - so
- * there is no evidence either way. This is the case the capture-count guard
- * exists to hold back: an all-zero tally that reached zero because nothing
- * happened must not read as "nothing changed". It is deliberately not green.
+ * there is no evidence either way. The SERVER already calls such a build
+ * `unreviewed` rather than green (the SHERLO-2013 fallthrough); the capture
+ * count decides only that it gets THESE words instead of a literal "0
+ * story/stories unreviewed", which would be accurate and tell the reader
+ * nothing. The verdict is not green either way.
  */
 export function renderVerdictNothingRecorded(): string[] {
   return [

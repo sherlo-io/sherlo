@@ -9,40 +9,40 @@
  *
  * WHAT IT SUBSTITUTES, AND WHAT IT DOES NOT. A `--wait` run performs exactly one
  * effect - it asks the backend, repeatedly, what state the build is in - and
- * this supplies that one and nothing else. For a `shipped-wait-loop` scenario
- * {@link waitForBuildResult} is the shipped function `stagedRun` itself calls:
- * its deadline check, its status dedupe, its terminal switch and every literal
- * it reaches are the live ones. That is why those transcripts are evidence about
- * the CLI and not about this file.
+ * this supplies that one and nothing else. {@link waitForBuildResult} is the
+ * shipped function `stagedRun` itself calls: its deadline check, its status
+ * dedupe, its terminal switch, its gate read and every literal it reaches are
+ * the live ones. That is why these transcripts are evidence about the CLI and
+ * not about this file.
  *
  * ------------------------------------------------------------------------
- * ⚠⚠ AND WHAT IT DELIBERATELY DOES NOT PROVE.
+ * ONE RENDERER, FOR EVERY SCENARIO IN THE FAMILY - INCLUDING THE SPARSE ONES.
  *
- * A `sparse-verdict-proposal` scenario is rendered by
- * {@link decideSparseBuildVerdict}, which NO shipped code path calls. Its
- * transcripts are a DRAWING of behaviour that does not exist - the redesign's
- * CLI half, rendered so it can be reviewed before it is built. Three things say
- * so at once, and any one of them is enough for a reader:
+ * This file used to have two. The three sparse-verdict transcripts were drawn by
+ * calling `decideSparseBuildVerdict` directly and re-emitting the loop's frame
+ * around it by hand, because at the time nothing in the product called that
+ * function: they were a proposal, rendered so the redesign could be reviewed
+ * before it was built.
  *
- *   1. the scenario's `groundedBy.kind` is `depicts-future`, and it carries an
- *      `implies` sentence naming what would have to be built;
- *   2. `--render-transcript list` prints that grounding beside the id, so the
- *      distinction survives into the catalog a consumer reads;
- *   3. every literal such a scenario reaches carries a `DEPICTS FUTURE` banner
- *      in render/verdictCloser.ts.
+ * The redesign has now been built, so that second path is gone. All six
+ * scenarios run the SAME shipped loop over their scripted poll answer, and the
+ * only thing that differs between a sparse transcript and a present one is what
+ * that answer says - specifically whether the server set
+ * `showsOnlyBranchChanges` on the build. That is the strongest form this proof
+ * can take: the bytes reviewed as a drawing and the bytes a user gets are now
+ * produced by one function, and if the wiring were removed these transcripts
+ * would change, loudly, instead of continuing to render from a function nothing
+ * calls.
  *
- * A transcript that merely LOOKED like the others would be a specification
- * wearing the costume of a description, which is the one failure this family
- * must not commit: these renders exist for a product design to be approved off,
- * and approving a drawing believing it is a photograph is exactly the mistake
- * that would cost most.
+ * WHAT THEY STILL DO NOT CLAIM. These are gated bytes. A project that has not
+ * opted in never reaches them, and the scenarios say so: `groundedBy.kind` is
+ * `gated-shipped` and names the wire field, and `--render-transcript list`
+ * prints that grounding beside the id.
  */
 import { PROJECT_API_TOKEN_LENGTH } from '@sherlo/shared';
 import printSherloIntro from '../../helpers/printSherloIntro';
 import { captureTranscript, type CapturedTranscript } from '../../helpers/transcriptSink';
-import { emit } from '../../helpers/transcriptSink';
 import waitForBuildResult from '../../helpers/waitForBuildResult';
-import { decideSparseBuildVerdict } from '../../helpers/sparseBuildVerdict';
 import type { VerdictTranscriptScenario } from './verdict.transcripts';
 
 /**
@@ -67,61 +67,26 @@ export async function renderVerdictScenarioTranscript(
     return await captureTranscript(async () => {
       printSherloIntro();
 
-      if (scenario.renderer === 'shipped-wait-loop') {
-        await waitForBuildResult({
-          token: SCRIPTED_TOKEN,
-          buildIndex: 1,
-          projectIndex: 1,
-          teamId: 'scenteam',
-          waitTimeoutMinutes: scenario.waitTimeoutMinutes,
-          // A scripted build is already terminal, so the loop's FIRST poll
-          // returns it and no sleep, heartbeat or retry is reached. Those
-          // branches are real and unrendered here; a scenario that wanted them
-          // would script a sequence, which this family does not carry yet.
-          pollBuildStatus: async () => scenario.build,
-          // Fixed, because the loop measures its deadline against this and a
-          // real clock would make the render irreproducible - which the
-          // producer's two-pass check would catch, loudly, rather than quietly
-          // shipping a coin toss.
-          now: () => 0,
-        });
-        return;
-      }
-
-      renderSparseVerdict(scenario);
+      await waitForBuildResult({
+        token: SCRIPTED_TOKEN,
+        buildIndex: 1,
+        projectIndex: 1,
+        teamId: 'scenteam',
+        waitTimeoutMinutes: scenario.waitTimeoutMinutes,
+        // A scripted build is already terminal, so the loop's FIRST poll
+        // returns it and no sleep, heartbeat or retry is reached. Those
+        // branches are real and unrendered here; a scenario that wanted them
+        // would script a sequence, which this family does not carry yet.
+        pollBuildStatus: async () => scenario.build,
+        // Fixed, because the loop measures its deadline against this and a
+        // real clock would make the render irreproducible - which the
+        // producer's two-pass check would catch, loudly, rather than quietly
+        // shipping a coin toss.
+        now: () => 0,
+      });
     });
   } finally {
     if (previousSkipIntro === undefined) delete process.env.SKIP_INTRO;
     else process.env.SKIP_INTRO = previousSkipIntro;
   }
-}
-
-/* ========================================================================== */
-
-/**
- * ⚠⚠ DEPICTS FUTURE. The shape `waitForBuildResult`'s finished branch WOULD have
- * if it routed through the sparse decider - the wait header, then the closer
- * inside its two framing blank lines.
- *
- * The frame is spelled out here rather than folded into the decider because it
- * is the LOOP's, not the verdict's: every closer in this family, present and
- * proposed, sits between the same two bare `console.log()` calls, and the
- * proposal changes what is said, not how it is framed.
- */
-function renderSparseVerdict(scenario: VerdictTranscriptScenario): void {
-  emit({ kind: 'wait-header', timeoutMinutes: scenario.waitTimeoutMinutes });
-  emit({ kind: 'wait-progress', runStatus: scenario.build.runStatus });
-
-  const verdict = decideSparseBuildVerdict(scenario.build);
-  if (!verdict) {
-    throw new Error(
-      'REFUSING TO RENDER (not terminal): the scripted build is not finished, or finished with no ' +
-        'viewStatusesCount. The sparse decider answers null for both - deliberately, so a build ' +
-        'whose counts have not been written yet can never be rendered as a verdict.'
-    );
-  }
-
-  emit({ kind: 'blank-line' });
-  for (const segment of verdict.segments) emit(segment);
-  emit({ kind: 'blank-line' });
 }

@@ -9,14 +9,8 @@
 import fetch from 'node-fetch';
 import chalk from 'chalk';
 import { afterEach, beforeEach, describe, expect, it, vi, Mock } from 'vitest';
-import waitForBuildResult, {
-  EXIT_BLOCK,
-  EXIT_ERROR,
-  EXIT_GREEN,
-  EXIT_SIGINT,
-  EXIT_TIMEOUT,
-  fetchServerBypassReason,
-} from '../waitForBuildResult';
+import waitForBuildResult, { fetchServerBypassReason } from '../waitForBuildResult';
+import { EXIT_BLOCK, EXIT_ERROR, EXIT_GREEN, EXIT_SIGINT, EXIT_TIMEOUT } from '../exitCodes';
 
 chalk.level = 0;
 
