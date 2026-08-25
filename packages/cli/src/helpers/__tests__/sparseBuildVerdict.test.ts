@@ -259,6 +259,37 @@ describe('an opted-in build takes its verdict from the server, not from the tall
   });
 
   /**
+   * ABSENT ACCOUNTING IS UNKNOWN, NEVER ZERO - and this is the regression the
+   * API lane asked for by name.
+   *
+   * `diffScopeInfo` is absent entirely on a gate-off or bailed-open build, so
+   * "the server sent no numbers" and "the server said nothing was recorded" are
+   * different facts that a careless edit collapses into one `?? 0`. Collapsing
+   * them would put every accounting-less build under the nothing-recorded copy,
+   * telling a user who has two stories genuinely waiting for review that their
+   * build photographed nothing.
+   *
+   * The verdict is exit 1 either way, which is exactly why this needs a test:
+   * the exit code cannot catch it, only the words can.
+   */
+  it('a not-green build with NO diffScopeInfo says review-required, not nothing-recorded', async () => {
+    const { exitCode, stdout } = await runWaitLoop(
+      optedIn(
+        {
+          runStatus: 'finished',
+          viewStatusesCount: { approved: 0, noChanges: 42, reported: 0, unreviewed: 2 },
+        },
+        'unreviewed'
+      )
+    );
+
+    expect(exitCode).toBe(EXIT_BLOCK);
+    expect(stdout).toContain('⚠️  Build finished with changes requiring review.');
+    expect(stdout).toContain('   2 story/stories unreviewed.');
+    expect(stdout).not.toContain('without recording any snapshots');
+  });
+
+  /**
    * The accounting line is omitted rather than zero-filled when the server sent
    * no numbers to say it with - an older API must not be made to assert
    * "0 captured, 0 inherited" about a build it never described.

@@ -235,7 +235,20 @@ async function waitForBuildResult({
           return EXIT_ERROR;
         }
 
-        // Transient network blips are retried
+        // Transient network blips are retried.
+        //
+        // ⚠ AND SO IS EVERY OTHER NON-AUTH ERROR, INCLUDING A PERMANENT ONE.
+        // This branch cannot tell a dropped packet from a GraphQL
+        // `Cannot query field` - so a CLI that selects a field its API does not
+        // know does not fail fast, it retries every 15s until --wait-timeout and
+        // exits 3 after 45 minutes of nothing.
+        //
+        // THE RULE THAT FALLS OUT, for anyone adding to the query below: an
+        // additive selection is only safe once the schema carrying it is
+        // DEPLOYED. That is not specific to the sparse-verdict fields
+        // (`status`, `showsOnlyBranchChanges`) - it is true of every future
+        // field, which is why it is written here at the hazard rather than in
+        // the commit that happened to hit it first.
         emit({ kind: 'wait-network-retry', message: (error as Error).message });
         if ((await sleepUnlessInterrupted()) === 'sigint') {
           return printSigintCloser();
@@ -320,6 +333,20 @@ async function fetchBuildStatus(
       Authorization: JSON.stringify({ authToken: apiToken }),
     },
     body: JSON.stringify({
+      // ⚠ THIS IS THE SECOND `getBuildStatus` DOCUMENT, AND THE OTHER ONE IS IN
+      // ANOTHER REPO: sherlo-api-full's sdk client ships its own at
+      // packages/clients/sdk/src/requests/queries/getBuildStatus.ts.
+      //
+      // The duplication is deliberate, not an oversight. This poll is issued
+      // over raw node-fetch because it needs three things the sdk client does
+      // not give it: 401/403 mapped to a non-retryable AuthError, a per-request
+      // timeout for the single-shot bypass read, and errors surfaced rather
+      // than thrown as opaque client failures. All three are load-bearing for
+      // the exit-code contract.
+      //
+      // THE COST IS THAT A FIELD ADDED THERE DOES NOT ARRIVE HERE. Both
+      // documents have to be kept in step by hand, so a schema change that this
+      // loop should see must be added to the selection below as well.
       query: `
         query getBuildStatus($index: Int!, $projectIndex: Int!, $teamId: String!) {
           getBuildStatus(index: $index, projectIndex: $projectIndex, teamId: $teamId) {
