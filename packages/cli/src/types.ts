@@ -12,6 +12,7 @@ import {
   EAS_IOS_URL_OPTION,
   EAS_UPDATE_SLUG_OPTION,
   EMIT_EXPECTATION_OPTION,
+  RENDER_TRANSCRIPT_OPTION,
   GIT_BRANCH_OPTION,
   INCLUDE_OPTION,
   INIT_COMMAND,
@@ -128,6 +129,13 @@ type CommandOptions = {
      * bundling, no build, no network. See ../commands/test/emitExpectation.
      */
     [EMIT_EXPECTATION_OPTION]?: string;
+    /**
+     * Transcript-render mode (requires --dry-run): renders the named scenario's
+     * scripted state through the CLI's OWN dry-run code path and writes the bytes
+     * it printed, then exits - no bundling, no build, no network. See
+     * ../commands/test/renderTranscript.
+     */
+    [RENDER_TRANSCRIPT_OPTION]?: string;
   };
   [INIT_COMMAND]: {};
   any: Partial<

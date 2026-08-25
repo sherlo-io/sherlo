@@ -1,6 +1,7 @@
 import fs from 'fs';
 import { Build } from '@sherlo/api-types';
 import runShellCommand from './runShellCommand';
+import { emit } from './transcriptSink';
 
 /**
  * Git metadata captured for a build.
@@ -450,14 +451,27 @@ async function getGitInfo(
 
     return { commitName, commitHash, branchName, ...additional };
   } catch (error) {
-    console.warn("Couldn't get git info", error);
-
-    return {
-      commitName: 'unknown',
-      commitHash: 'unknown',
-      branchName: 'unknown',
-    };
+    return degradeGitInfo(error);
   }
+}
+
+/**
+ * The git read failed: warn, and carry on with unknown commit/branch. The CLI
+ * never fails a run over this.
+ *
+ * Exported because it is BOTH halves of one behaviour - the warn a user sees and
+ * the values everything downstream then works from - and a scenario that scripts
+ * "this project has no git" must produce both, from here, rather than from a
+ * second author's idea of them.
+ */
+export function degradeGitInfo(error: unknown): GitInfo {
+  emit({ kind: 'git-info-unavailable', error });
+
+  return {
+    commitName: 'unknown',
+    commitHash: 'unknown',
+    branchName: 'unknown',
+  };
 }
 
 export default getGitInfo;

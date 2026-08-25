@@ -27,6 +27,7 @@ import {
   EAS_IOS_URL_OPTION,
   EAS_UPDATE_SLUG_OPTION,
   EMIT_EXPECTATION_OPTION,
+  RENDER_TRANSCRIPT_OPTION,
   GIT_BRANCH_OPTION,
   INCLUDE_OPTION,
   INIT_COMMAND,
@@ -181,6 +182,14 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
       'placeholder (e.g. <SHERLO_CONFIG_PATH>). Pass "list" to print every scenario and ' +
       'the full placeholder vocabulary. Makes no build, no upload, no network call.',
   ],
+  [RENDER_TRANSCRIPT_OPTION]: [
+    '--render-transcript <scenario>',
+    "Transcript-render mode (requires --dry-run): renders the named scenario's scripted " +
+      "wire state through the CLI's OWN dry-run code path and writes the transcript it " +
+      'printed to stdout, with a JSON envelope (exit code, command, ambient, stderr) on ' +
+      'stderr. Pass "list" to print every scenario. Makes no build, no bundle, no network ' +
+      'call. Mint captures from a world; render computes from a scenario.',
+  ],
   [MESSAGE_OPTION]: [`--${MESSAGE_OPTION} <message>`, 'Custom message to label the test'],
   [PROFILE_OPTION]: [
     `--${PROFILE_OPTION} <profile>`,
@@ -230,6 +239,7 @@ function addTestCommand(program: Command) {
       ...getTestCommonOptions('withPlatformPaths'),
       DRY_RUN_OPTION,
       EMIT_EXPECTATION_OPTION,
+      RENDER_TRANSCRIPT_OPTION,
       WAIT_OPTION,
       WAIT_TIMEOUT_OPTION,
       ...devtoolsOptions,

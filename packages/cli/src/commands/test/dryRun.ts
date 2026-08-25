@@ -25,30 +25,25 @@
  * and are printed VERBATIM - never re-rendered into module numbers.
  */
 import { Platform } from '@sherlo/api-types';
-import chalk from 'chalk';
 import reporting from '../../helpers/reporting';
+import { emit } from '../../helpers/transcriptSink';
 import type { GitInfo } from '../../helpers/getGitInfo';
 import type { BundleResult } from './buildBundle';
 import {
   requestDryRunDecision,
   type DryRunDecisionClient,
-  type DryRunPlatformDecision,
   type DryRunPlatformRequest,
 } from './dryRunDecision';
-import { SEPARATOR, formatDiffScopeReport, type DiffScopePlatformReport } from './diffScopeReport';
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 /**
- * One platform's preview outcome: either a decision from the server (which may
- * itself be a confident full capture), or a CLI bail-open (we could not get a
- * trustworthy answer at all, so a real run would capture everything).
+ * The preview shape and its formatter live in the render layer now
+ * (../../render/dryRunPlan). Re-exported here so every existing importer of
+ * `DryRunPlatformPreview` keeps its import path - the move is a move, not a
+ * rename campaign.
  */
-export type DryRunPlatformPreview =
-  | { status: 'decided'; decision: DryRunPlatformDecision }
-  | { status: 'bailed-open'; platform: Platform; reason: string };
+import type { DryRunPlatformPreview } from '../../render/dryRunPlan';
+export type { DryRunPlatformPreview };
+export { formatDryRunPreview } from '../../render/dryRunPlan';
 
 // ---------------------------------------------------------------------------
 // Orchestration
@@ -134,58 +129,7 @@ export async function runDryRunPreview({
     previews = platformsToTest.map((platform) => ({ status: 'bailed-open', platform, reason }));
   }
 
-  console.log(formatDryRunPreview(previews));
+  emit({ kind: 'dry-run-capture-plan', previews });
 }
 
 export default runDryRunPreview;
-
-// ---------------------------------------------------------------------------
-// Formatting
-// ---------------------------------------------------------------------------
-
-/**
- * The dry-run closer, printed after the plan instead of the live "✓ Build
- * created" + Review URL. A dry run creates nothing, so it says exactly that.
- */
-const DRY_RUN_CLOSER = chalk.yellow(`◦ Dry run ${SEPARATOR} no build created, nothing uploaded`);
-
-/**
- * Render the whole dry-run preview by mapping each platform's preview onto the
- * shared {@link formatDiffScopeReport}, then appending the dry-run closer. The
- * dry run and the live run print the SAME per-platform block; only the capture
- * verb ("would capture") differs, and it lives in that one shared module.
- *
- * A bail-open (the decision query gave no trustworthy answer for a platform)
- * maps onto a FULL capture with no reason - the shared formatter renders that as
- * "would capture all stories" plus the "couldn't compute" safety row, the same
- * honest degrade the live run shows. The raw error stays in telemetry, not on the
- * user's line.
- */
-export function formatDryRunPreview(previews: DryRunPlatformPreview[]): string {
-  const platforms: DiffScopePlatformReport[] = previews.map((preview) =>
-    preview.status === 'bailed-open'
-      ? {
-          kind: 'decided',
-          platform: preview.platform,
-          full: true,
-          capturedStoryFilePaths: [],
-        }
-      : decisionToReport(preview.decision)
-  );
-
-  return `${formatDiffScopeReport('dry-run', platforms)}\n\n${DRY_RUN_CLOSER}`;
-}
-
-/* ========================================================================== */
-
-/** Map a server decision onto the shared per-platform report shape. */
-function decisionToReport(decision: DryRunPlatformDecision): DiffScopePlatformReport {
-  return {
-    kind: 'decided',
-    platform: decision.platform,
-    full: decision.isFullCapture,
-    capturedStoryFilePaths: decision.capturedStoryFilePaths,
-    totalStoriesInBundle: decision.totalStories,
-    reason: decision.reason,
-  };
-}

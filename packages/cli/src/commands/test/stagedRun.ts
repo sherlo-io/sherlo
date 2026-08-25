@@ -30,7 +30,6 @@ import sdkClient from '@sherlo/sdk-client';
 import { GateMetadata, GateMetadataByPlatform, Platform } from '@sherlo/api-types';
 import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER } from '@sherlo/shared';
 import chalk from 'chalk';
-import path from 'path';
 import { Options } from '../../types';
 import {
   describeDiffSources,
@@ -56,7 +55,7 @@ import {
 } from '../../helpers/waitForBuildResult';
 import { computeBaseFingerprint, type GateMetadataInput } from '../../helpers/fingerprint';
 import { THIS_COMMAND } from './constants';
-import { buildBundleForPlatform, buildGateMetadata, type BundleResult } from './buildBundle';
+import type { BundleResult } from './buildBundle';
 import {
   formatStagedGateRefusal,
   parseStagedGateRefusal,
@@ -65,8 +64,9 @@ import {
 } from './stagedGateRefusal';
 import reportNativeNeeded, { reportFastPathRunning } from './nativeNeeded';
 import uploadStagedArtifacts, { type StagedUploadKeys } from './uploadStagedArtifacts';
-import { runDryRunPreview } from './dryRun';
+import { buildBundles, runDryRunFlow } from './bundleAndPreview';
 import { runEmitExpectation } from './emitExpectation';
+import { runRenderTranscript } from './renderTranscript';
 import { countBundleStories } from './readModuleManifest';
 import { formatDiffScopeReport, type DiffScopePlatformReport } from './diffScopeReport';
 
@@ -137,6 +137,19 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     return { url: '' }; // unreachable - runEmitExpectation always exits the process
   }
 
+  // --render-transcript (transcript-render mode): the same shape as the mode
+  // above - it rides --dry-run, builds its own scenario-specific input, and needs
+  // none of this invocation's real options. See ./renderTranscript.
+  if (passedOptions.renderTranscript !== undefined) {
+    if (passedOptions.dryRun !== true) {
+      throwError({
+        message: '--render-transcript requires --dry-run',
+      });
+    }
+    await runRenderTranscript(passedOptions.renderTranscript);
+    return { url: '' }; // unreachable - runRenderTranscript always exits the process
+  }
+
   // 1. Validate params (no platform binary paths required - bundle only).
   const commandParams = getValidatedCommandParams(
     { command: THIS_COMMAND, passedOptions },
@@ -190,23 +203,17 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   //   output (it decided nothing to route on). Bail-open lives inside
   //   runDryRunPreview; it prints a preview even when the decision is unsure.
   if (isDryRun) {
-    console.log(chalk.bold('\n📦 Bundling for dry-run preview...\n'));
-
-    const bundles = await buildBundles({ projectRoot: commandParams.projectRoot, platformsToTest });
-
-    // Reuse the SAME git info openBuild is given (step 10 below) - the read-only
-    // decision query takes the identical GitInfoInput; do not build a second one.
-    const gitInfo = await getGitInfo(commandParams.projectRoot, {
-      branchOverride: commandParams.gitBranch,
-    });
-    await runDryRunPreview({
-      client,
-      bundles: bundles.results,
+    await runDryRunFlow({
+      projectRoot: commandParams.projectRoot,
       platformsToTest,
+      client,
       projectIndex,
       teamId,
-      gitInfo,
-      baseReference: baseFingerprint,
+      baseFingerprint,
+      // Reuse the SAME git info openBuild is given (step 10 below) - the read-only
+      // decision query takes the identical GitInfoInput; do not build a second one.
+      resolveGitInfo: () =>
+        getGitInfo(commandParams.projectRoot, { branchOverride: commandParams.gitBranch }),
     });
     return { url: '' };
   }
@@ -495,61 +502,6 @@ function describeRefusals(refusals: StagedGateRefusal[]): string {
         : `${platform}: native inputs changed since the base build`;
     })
     .join('; ');
-}
-
-/**
- * Build the production bundle + assets for every platform and, alongside each,
- * the REAL gate metadata derived from it. Both the dry run and the live run
- * bundle through this exact path, so a preview can never diverge from the run
- * it is previewing.
- *
- * A bundling failure is user-facing and already carries the fallback line, so it
- * is printed and exits here rather than propagating as a crash.
- */
-async function buildBundles({
-  projectRoot,
-  platformsToTest,
-}: {
-  projectRoot: string;
-  platformsToTest: Platform[];
-}): Promise<{
-  results: Partial<Record<Platform, BundleResult>>;
-  gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput };
-}> {
-  const results: Partial<Record<Platform, BundleResult>> = {};
-  const gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput } = {};
-
-  for (const platform of platformsToTest) {
-    const emoji = platform === 'android' ? '🤖' : '🍎';
-    console.log(chalk.cyan(`\n${emoji} Building ${platform} bundle...`));
-
-    try {
-      const result = await buildBundleForPlatform({ projectRoot, platform });
-      results[platform] = result;
-
-      console.log(
-        chalk.green(`  ✓ Bundle: ${path.basename(result.bundlePath)}`) +
-          ` (${result.bundleSizeMb} MB, ${result.bundleFormat}, ${result.bundler})`
-      );
-      if (result.assetsDest) {
-        console.log(chalk.green(`  ✓ Assets: ${result.assetInventory.length} files`));
-      }
-
-      gateMetadata[platform] = await buildGateMetadata({
-        projectRoot,
-        platform,
-        bundleResult: result,
-      });
-    } catch (err) {
-      // buildBundleForPlatform throws user-facing messages that already include
-      // the fallback line.
-      const message = err instanceof Error ? err.message : String(err);
-      console.log(chalk.red(`\n  ✗ ${message}`));
-      await reporting.flush().finally(() => process.exit(1));
-    }
-  }
-
-  return { results, gateMetadata };
 }
 
 /**
