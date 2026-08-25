@@ -68,6 +68,36 @@ jobs:
       - name: Typecheck
         run: yarn tsc --noEmit -p ${{ matrix.package.dir }}
 
+      # THE BYTE RATCHET's other half, for the cli package only (nothing in
+      # react-native-storybook compares against a committed fixture). The CLI's
+      # render-layer suites compare what the CLI renders against fixtures
+      # committed in sherlo-tester; without this checkout those cases classify as
+      # SKIPPED and the lane goes green having proved nothing about what a real
+      # user sees - which is precisely how a render-layer refactor could change
+      # the product with a green PR. The checkout gate in
+      # packages/cli/src/commands/test/__tests__/testerCheckout.ts REDS in CI if
+      # this step is ever removed. See scripts/checkout-tester.sh for how the
+      # sherlo-tester ref is resolved from the PR's base branch, and what a ref
+      # mismatch across the two repositories does.
+      - name: Create GH App Token (sherlo-tester clone)
+        if: matrix.package.name == 'cli'
+        id: tester_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.SHERLO_BOT_APP_ID }}
+          private_key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
+
+      - name: Check out sherlo-tester (byte-ratchet fixtures)
+        if: matrix.package.name == 'cli'
+        run: ./scripts/checkout-tester.sh "$GITHUB_BASE_REF" "${{ runner.temp }}/sherlo-tester"
+        env:
+          TESTER_CLONE_TOKEN: ${{ steps.tester_token.outputs.token }}
+
       - name: Unit tests
         working-directory: ${{ matrix.package.dir }}
+        env:
+          # Deliberately OUTSIDE this repository's tree, so 4,700 sherlo-tester
+          # files never reach eslint, tsc or vitest's own file discovery. Empty
+          # for react-native-storybook, whose suite never reads it.
+          SHERLO_TESTER_ROOT: ${{ matrix.package.name == 'cli' && format('{0}/sherlo-tester', runner.temp) || '' }}
         run: yarn test

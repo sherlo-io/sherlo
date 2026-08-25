@@ -85,7 +85,6 @@
  * class, this family does not - the byte ratchet below covers it directly, and the
  * case at the bottom asserts that property rather than assuming it.
  */
-import * as fs from 'fs';
 import * as path from 'path';
 import { describe, expect, it } from 'vitest';
 import chalk from 'chalk';
@@ -95,11 +94,12 @@ import {
   PREFLIGHT_REFUSAL_IDS,
   UNBOUND_SCENARIOS,
 } from '../preflight.refusals';
-
-const TESTER_ROOT =
-  process.env.SHERLO_TESTER_ROOT ?? path.resolve(__dirname, '../../../../../../sherlo-tester');
-
-const TESTER_AVAILABLE = fs.existsSync(path.join(TESTER_ROOT, 'e2e/helpers/test-app-init.ts'));
+import {
+  TESTER_AVAILABLE,
+  committedFixture,
+  declareTesterCheckoutGate,
+  fixtureExists,
+} from './testerCheckout';
 
 /**
  * Colour is pinned ON, once, before anything renders. The refusal formatter bakes
@@ -109,10 +109,6 @@ const TESTER_AVAILABLE = fs.existsSync(path.join(TESTER_ROOT, 'e2e/helpers/test-
  */
 chalk.level = 1;
 
-function committedFixture(fixture: string): string {
-  return fs.readFileSync(path.join(TESTER_ROOT, fixture), 'utf8');
-}
-
 /** Every (scenario, fixture) pair the ratchet must prove - the flattened catalog. */
 function everyBoundPair(): { id: string; fixture: string }[] {
   return PREFLIGHT_REFUSAL_IDS.flatMap((id) =>
@@ -121,6 +117,8 @@ function everyBoundPair(): { id: string; fixture: string }[] {
 }
 
 describe('the preflight refusal catalog', () => {
+  declareTesterCheckoutGate();
+
   it('has scenarios (an emptied catalog would pass every case below by covering nothing)', () => {
     expect(PREFLIGHT_REFUSAL_IDS.length).toBeGreaterThan(0);
     expect(everyBoundPair().length).toBeGreaterThan(0);
@@ -181,17 +179,10 @@ describe('the preflight refusal catalog', () => {
 
   it.runIf(TESTER_AVAILABLE)('every bound fixture exists', () => {
     const missing = everyBoundPair()
-      .filter(({ fixture }) => !fs.existsSync(path.join(TESTER_ROOT, fixture)))
+      .filter(({ fixture }) => !fixtureExists(fixture))
       .map(({ id, fixture }) => `${id} -> ${fixture}`);
     expect(missing, 'a scenario answers for a fixture that is not in the tree').toEqual([]);
   });
-
-  it.skipIf(TESTER_AVAILABLE)(
-    'SKIPPED (classified): the sherlo-tester checkout is absent, so the byte cases cannot run',
-    () => {
-      expect(TESTER_AVAILABLE).toBe(false);
-    }
-  );
 
   for (const { id, fixture } of everyBoundPair()) {
     it.runIf(TESTER_AVAILABLE)(`${id}: renders every byte of ${path.basename(fixture)}`, () => {

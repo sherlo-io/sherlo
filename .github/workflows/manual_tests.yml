@@ -21,6 +21,11 @@ on:
         type: string
         required: false
         default: ""
+      tester_ref:
+        description: "sherlo-tester ref to ratchet the CLI's render layer against (empty = the branch this runs on, falling back to sherlo-tester's dev)"
+        type: string
+        required: false
+        default: ""
 
 jobs:
   cli:
@@ -40,11 +45,33 @@ jobs:
           CLIENT_STAGE: dev
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
+      # THE BYTE RATCHET's other half. packages/cli's render-layer suites compare
+      # what the CLI renders against fixtures committed in sherlo-tester; without
+      # this checkout those cases classify as SKIPPED and the suite goes green
+      # having proved nothing about what a real user sees. The checkout gate in
+      # packages/cli/src/commands/test/__tests__/testerCheckout.ts REDS in CI if
+      # this step is ever removed, so deleting it cannot quietly restore that
+      # silence. See scripts/checkout-tester.sh for the ref-resolution rules.
+      - name: Create GH App Token (sherlo-tester clone)
+        id: tester_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.SHERLO_BOT_APP_ID }}
+          private_key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
+
+      - name: Check out sherlo-tester (byte-ratchet fixtures)
+        run: ./scripts/checkout-tester.sh "${{ inputs.tester_ref || github.ref_name }}" "${{ runner.temp }}/sherlo-tester"
+        env:
+          TESTER_CLONE_TOKEN: ${{ steps.tester_token.outputs.token }}
+
       - name: Unit tests
         working-directory: packages/cli
         env:
           PATH_FILTER: ${{ inputs.path_filter }}
           TEST_NAME: ${{ inputs.test_name }}
+          # Deliberately OUTSIDE this repository's tree, so 4,700 sherlo-tester
+          # files never reach eslint, tsc or vitest's own file discovery.
+          SHERLO_TESTER_ROOT: ${{ runner.temp }}/sherlo-tester
         run: |
           args=()
           if [ -n "$PATH_FILTER" ]; then

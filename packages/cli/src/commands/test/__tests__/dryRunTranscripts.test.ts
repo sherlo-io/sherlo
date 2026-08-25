@@ -14,15 +14,14 @@
  * the world moves. Renewing the date is the reconciliation lane's job, not this
  * file's.
  *
- * WHY IT SKIPS LOUDLY. The fixtures live in the sibling sherlo-tester checkout,
- * and so does the masker the capture applies - which this file uses rather than
- * copying, because a producer-local masker is a second implementation that can
- * drift from the one the capture runs. Without that checkout the byte cases
- * cannot run, so they skip with a classified reason. The SHAPE cases below never
- * skip, so this file is never a silent no-op.
+ * WHERE THE FIXTURES ARE. In the sibling sherlo-tester checkout, and so is the
+ * masker the capture applies - which this file uses rather than copying, because
+ * a producer-local masker is a second implementation that can drift from the one
+ * the capture runs. `testerCheckout.ts` owns locating that checkout and deciding
+ * what an absent one means: a developer may skip the byte cases, CI may NOT (an
+ * absent checkout REDS there). The SHAPE cases below never skip either way, so
+ * this file is never a silent no-op.
  */
-import * as fs from 'fs';
-import * as path from 'path';
 import { describe, expect, it } from 'vitest';
 import chalk from 'chalk';
 import {
@@ -31,16 +30,13 @@ import {
   type TranscriptScenario,
 } from '../dryRun.transcripts';
 import { renderScenarioTranscript, transcriptForCapture } from '../renderTranscript';
-
-/**
- * The sherlo-tester checkout holding the committed fixtures and the shipped
- * masker. Overridable so CI can point at wherever it checked the repo out.
- */
-const TESTER_ROOT =
-  process.env.SHERLO_TESTER_ROOT ?? path.resolve(__dirname, '../../../../../../sherlo-tester');
-
-const MASKER_PATH = path.join(TESTER_ROOT, 'e2e/helpers/test-bundled/mask-cli-output.ts');
-const TESTER_AVAILABLE = fs.existsSync(MASKER_PATH);
+import {
+  TESTER_AVAILABLE,
+  committedFixture,
+  declareTesterCheckoutGate,
+  fixtureExists,
+  testBundledMasker,
+} from './testerCheckout';
 
 /**
  * Colour is pinned ON, once, before anything renders. `render/dryRunPlan` bakes
@@ -51,12 +47,14 @@ const TESTER_AVAILABLE = fs.existsSync(MASKER_PATH);
 chalk.level = 1;
 
 async function renderMasked(scenario: TranscriptScenario): Promise<string> {
-  const { maskTestBundledCli } = await import(/* @vite-ignore */ MASKER_PATH);
+  const { maskTestBundledCli } = await testBundledMasker();
   const transcript = await renderScenarioTranscript(scenario);
   return maskTestBundledCli(transcriptForCapture(scenario, transcript));
 }
 
 describe('the dry-run transcript catalog', () => {
+  declareTesterCheckoutGate();
+
   it('has scenarios (an emptied catalog would pass every case below by covering nothing)', () => {
     expect(DRY_RUN_TRANSCRIPT_IDS.length).toBeGreaterThan(0);
   });
@@ -90,17 +88,10 @@ describe('the dry-run transcript catalog', () => {
 
   it.runIf(TESTER_AVAILABLE)('every scenario names a fixture that exists', () => {
     const missing = Object.entries(DRY_RUN_TRANSCRIPTS)
-      .filter(([, s]) => !fs.existsSync(path.join(TESTER_ROOT, s.fixture)))
+      .filter(([, s]) => !fixtureExists(s.fixture))
       .map(([id, s]) => `${id} -> ${s.fixture}`);
     expect(missing, 'a scenario answers for a fixture that is not in the tree').toEqual([]);
   });
-
-  it.skipIf(TESTER_AVAILABLE)(
-    'SKIPPED (classified): the sherlo-tester checkout is absent, so the byte cases cannot run',
-    () => {
-      expect(TESTER_AVAILABLE).toBe(false);
-    }
-  );
 
   for (const id of DRY_RUN_TRANSCRIPT_IDS) {
     it.runIf(TESTER_AVAILABLE)(
@@ -108,7 +99,7 @@ describe('the dry-run transcript catalog', () => {
       async () => {
         const scenario = DRY_RUN_TRANSCRIPTS[id];
         const rendered = await renderMasked(scenario);
-        const committed = fs.readFileSync(path.join(TESTER_ROOT, scenario.fixture), 'utf8');
+        const committed = committedFixture(scenario.fixture);
 
         expect(
           rendered,
@@ -134,7 +125,7 @@ describe('the dry-run transcript catalog', () => {
     async () => {
       const scenario = DRY_RUN_TRANSCRIPTS[DRY_RUN_TRANSCRIPT_IDS[0]];
       const rendered = await renderMasked(scenario);
-      const committed = fs.readFileSync(path.join(TESTER_ROOT, scenario.fixture), 'utf8');
+      const committed = committedFixture(scenario.fixture);
       // One byte. Without this case a comparison that had degenerated into
       // `expect(x).toBe(x)` would look exactly as green as a real proof.
       expect(`${rendered} `).not.toBe(committed);

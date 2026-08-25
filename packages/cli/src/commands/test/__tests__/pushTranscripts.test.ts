@@ -41,19 +41,19 @@
  * asserts a fixture is minted, and a fixture nothing can render byte-identically
  * is not.
  */
-import * as fs from 'fs';
-import * as path from 'path';
 import { describe, expect, it } from 'vitest';
 import chalk from 'chalk';
 import { PUSH_TRANSCRIPTS, PUSH_TRANSCRIPT_IDS } from '../push.transcripts';
 import { renderPushScenarioTranscript } from '../renderPushTranscript';
 import type { PushTranscriptScenario } from '../push.transcripts';
 
-const TESTER_ROOT =
-  process.env.SHERLO_TESTER_ROOT ?? path.resolve(__dirname, '../../../../../../sherlo-tester');
-
-const MASKER_PATH = path.join(TESTER_ROOT, 'e2e/helpers/test-app-init.ts');
-const TESTER_AVAILABLE = fs.existsSync(MASKER_PATH);
+import {
+  TESTER_AVAILABLE,
+  committedFixture as readCommittedFixture,
+  declareTesterCheckoutGate,
+  fixtureExists,
+  testerMasker,
+} from './testerCheckout';
 
 /**
  * Colour is pinned ON, once, before anything renders. Modules in this layer bake
@@ -76,7 +76,7 @@ chalk.level = 1;
 const STALE_URL_KEY_LINE = /^url=/;
 
 async function renderMasked(scenario: PushTranscriptScenario): Promise<string> {
-  const { maskPushOutput } = await import(/* @vite-ignore */ MASKER_PATH);
+  const { maskPushOutput } = await testerMasker();
   const transcript = await renderPushScenarioTranscript(scenario);
   const raw =
     scenario.capture === 'stdout+stderr'
@@ -86,7 +86,7 @@ async function renderMasked(scenario: PushTranscriptScenario): Promise<string> {
 }
 
 function committedFixture(scenario: PushTranscriptScenario): string {
-  return fs.readFileSync(path.join(TESTER_ROOT, scenario.fixture), 'utf8');
+  return readCommittedFixture(scenario.fixture);
 }
 
 function withoutStaleLine(rendered: string): string {
@@ -97,6 +97,8 @@ function withoutStaleLine(rendered: string): string {
 }
 
 describe('the push transcript catalog', () => {
+  declareTesterCheckoutGate();
+
   it('has scenarios (an emptied catalog would pass every case below by covering nothing)', () => {
     expect(PUSH_TRANSCRIPT_IDS.length).toBeGreaterThan(0);
   });
@@ -143,17 +145,10 @@ describe('the push transcript catalog', () => {
 
   it.runIf(TESTER_AVAILABLE)('every scenario names a fixture that exists', () => {
     const missing = Object.entries(PUSH_TRANSCRIPTS)
-      .filter(([, scenario]) => !fs.existsSync(path.join(TESTER_ROOT, scenario.fixture)))
+      .filter(([, scenario]) => !fixtureExists(scenario.fixture))
       .map(([id, scenario]) => `${id} -> ${scenario.fixture}`);
     expect(missing, 'a scenario answers for a fixture that is not in the tree').toEqual([]);
   });
-
-  it.skipIf(TESTER_AVAILABLE)(
-    'SKIPPED (classified): the sherlo-tester checkout is absent, so the byte cases cannot run',
-    () => {
-      expect(TESTER_AVAILABLE).toBe(false);
-    }
-  );
 
   for (const id of PUSH_TRANSCRIPT_IDS) {
     it.runIf(TESTER_AVAILABLE)(`${id}: renders every byte of its committed fixture`, async () => {
