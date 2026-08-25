@@ -43,6 +43,24 @@ export type RegisterBaseParams = {
   command?: string;
 };
 
+/**
+ * The one effect base registration performs that reaches the filesystem: reading
+ * the binary to derive its gate metadata.
+ *
+ * A parameter so an expectation producer runs THIS function - `checkStageable`
+ * is pure and stays real, so the not-stageable REASON a transcript prints comes
+ * from the shipped rule set, never from a scenario. A scenario supplies the
+ * metadata a binary would have had; the sentence about it is the CLI's.
+ */
+export type BaseRegistrationEffects = {
+  extractGateMetadataFor: (params: {
+    binaryPath: string;
+    platform: Platform;
+    projectRoot: string;
+    bundlePath: string;
+  }) => Promise<GateMetadataInput>;
+};
+
 export type RegisterBaseResult = {
   /** The computed base fingerprint hash, if stageable. */
   baseFingerprint?: string;
@@ -64,7 +82,14 @@ export type RegisterBaseResult = {
  *
  * Fail-soft: NEVER throws.  Errors are printed and the caller proceeds.
  */
-export async function registerBase(params: RegisterBaseParams): Promise<RegisterBaseResult> {
+export const REAL_BASE_REGISTRATION_EFFECTS: BaseRegistrationEffects = {
+  extractGateMetadataFor: (params) => extractGateMetadata(params),
+};
+
+export async function registerBase(
+  params: RegisterBaseParams,
+  effects: BaseRegistrationEffects = REAL_BASE_REGISTRATION_EFFECTS
+): Promise<RegisterBaseResult> {
   const { binaryPath, platform, projectRoot, bundlePath, buildType, baseFingerprintHash, command } =
     params;
 
@@ -100,7 +125,7 @@ export async function registerBase(params: RegisterBaseParams): Promise<Register
   // ------------------------------------------------------------------
   let gateMetadata: GateMetadataInput;
   try {
-    gateMetadata = await extractGateMetadata({
+    gateMetadata = await effects.extractGateMetadataFor({
       binaryPath,
       platform,
       projectRoot,

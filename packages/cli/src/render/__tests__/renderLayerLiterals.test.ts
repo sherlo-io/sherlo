@@ -185,6 +185,196 @@ const PINS: Pin[] = [
       ],
     ],
   },
+
+  /* ---------------------------------------------------------------------- *
+   * THE PUSH SPINE (F1).                                                   *
+   *                                                                        *
+   * This family's masker (`maskPushOutput`) PRESERVES colour, so unlike    *
+   * everything above it the byte ratchet does see a moved chalk boundary   *
+   * here. These pins are therefore not the only cover - they are the       *
+   * cheaper, more legible one, and they keep the rule that a kind cannot   *
+   * join the union uncovered. They also cover the family's un-fixtured     *
+   * branches (the upload retry, the INFO notice, the generic build         *
+   * message, `output-keys`), which no committed transcript watches at all. *
+   * ---------------------------------------------------------------------- */
+  {
+    kind: 'run-header',
+    what: 'the run header for two devices on two platforms - plural noun, comma-joined breakdown, and the TRAILING newline that is the blank line under it',
+    segment: {
+      kind: 'run-header',
+      nextBuildIndex: 3,
+      devices: [
+        { id: 'pixel.4.xl', osVersion: '13', theme: 'light', locale: 'en_US', fontScale: '1' },
+        { id: 'iphone.14', osVersion: '16.4', theme: 'light', locale: 'en_US', fontScale: '1' },
+      ],
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[32mTest 3${ESC}[39m will run on ${ESC}[34m2 devices${ESC}[39m (1 Android, 1 iOS)\n`],
+    ],
+  },
+  {
+    kind: 'run-header',
+    what: 'the run header for ONE device - the singular noun, which is a different word and not a different style',
+    segment: {
+      kind: 'run-header',
+      nextBuildIndex: 1,
+      devices: [
+        { id: 'pixel.4.xl', osVersion: '13', theme: 'light', locale: 'en_US', fontScale: '1' },
+      ],
+    },
+    stream: 'stdout',
+    prints: [[`${ESC}[32mTest 1${ESC}[39m will run on ${ESC}[34m1 device${ESC}[39m (1 Android)\n`]],
+  },
+  {
+    kind: 'binary-platform-label',
+    what: 'the Android binary-block label - the emoji and its ONE trailing space sit OUTSIDE the bold',
+    segment: { kind: 'binary-platform-label', platform: 'android' },
+    stream: 'stdout',
+    prints: [[`📦 ${ESC}[1mAndroid${ESC}[22m`]],
+  },
+  {
+    kind: 'binary-platform-label',
+    what: 'the iOS binary-block label - the label is "iOS", capitalised as the product spells it',
+    segment: { kind: 'binary-platform-label', platform: 'ios' },
+    stream: 'stdout',
+    prints: [[`📦 ${ESC}[1miOS${ESC}[22m`]],
+  },
+  {
+    kind: 'binary-uploading',
+    what: 'the uploading line - the blue closes after the icon, and TWO spaces follow it to align with the section title above',
+    segment: { kind: 'binary-uploading', sizeMb: '41.2' },
+    stream: 'stdout',
+    prints: [[`${ESC}[34m➜${ESC}[39m  uploading build... (41.2 MB)`]],
+  },
+  {
+    kind: 'binary-uploaded',
+    what: 'the upload-complete line and the BARE console.log() that follows it - two print calls, not one string with a trailing newline',
+    segment: { kind: 'binary-uploaded' },
+    stream: 'stdout',
+    prints: [[`${ESC}[32m✔${ESC}[39m  upload complete`], []],
+  },
+  {
+    kind: 'binary-upload-retry',
+    what: 'the upload retry notice - a real branch no committed fixture watches, which is exactly why it is pinned here',
+    segment: { kind: 'binary-upload-retry', attempt: 1, maxRetries: 3 },
+    stream: 'stdout',
+    prints: [[`${ESC}[34m➜${ESC}[39m  Upload failed (attempt 1/3), retrying...`]],
+  },
+  {
+    kind: 'binary-reused',
+    what: 'the reuse line - THREE nested style boundaries on one line, and a bare newline after it',
+    segment: { kind: 'binary-reused', buildIndex: 1, timeAgo: '7 minutes ago' },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[32m✔${ESC}[39m  reusing unchanged build (${ESC}[32mTest 1${ESC}[39m, ${ESC}[34m7 minutes ago${ESC}[39m)`,
+      ],
+      [],
+    ],
+  },
+  {
+    kind: 'eas-update',
+    what: 'the whole EAS Update block - four `└─` rows in one print call, and the trailing newline that is the blank line under it',
+    segment: {
+      kind: 'eas-update',
+      message: '"tester update"',
+      timeAgo: '2 minutes ago',
+      author: 'github-actions (robot)',
+      branch: 'e2e-comparison',
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `🔄 ${ESC}[1mEAS Update${ESC}[22m\n` +
+          `└─ message: ${ESC}[34m"tester update"${ESC}[39m\n` +
+          `└─ created: ${ESC}[34m2 minutes ago${ESC}[39m\n` +
+          `└─ author: ${ESC}[34mgithub-actions (robot)${ESC}[39m\n` +
+          `└─ branch: ${ESC}[34me2e-comparison${ESC}[39m\n`,
+      ],
+    ],
+  },
+  {
+    kind: 'notice',
+    what: 'a WARNING with no learn-more link - one line, the whole thing yellow',
+    segment: { kind: 'notice', level: 'warning', message: 'Staged uploads unavailable - reason.' },
+    stream: 'stdout',
+    prints: [[`${ESC}[33mWARNING: Staged uploads unavailable - reason.${ESC}[39m`]],
+  },
+  {
+    kind: 'notice',
+    what: 'an INFO with a learn-more link - two lines joined INSIDE one print call, the link underlined inside the dim',
+    segment: {
+      kind: 'notice',
+      level: 'info',
+      message: 'Something worth knowing.',
+      learnMoreLink: 'https://sherlo.io/docs',
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[34mINFO: Something worth knowing.${ESC}[39m\n` +
+          `${ESC}[2m↳ Learn more: ${ESC}[4mhttps://sherlo.io/docs${ESC}[24m${ESC}[22m`,
+      ],
+    ],
+  },
+  {
+    kind: 'build-message',
+    what: 'the generic build line for the call sites outside the spine - the same icon framing, so the two roads cannot drift',
+    segment: { kind: 'build-message', message: 'reading build...', type: 'info' },
+    stream: 'stdout',
+    prints: [[`${ESC}[34m➜${ESC}[39m  reading build...`]],
+  },
+  {
+    kind: 'build-message',
+    what: 'the generic build line with endsWithNewLine - the flag adds a BARE console.log(), not a "\\n"',
+    segment: { kind: 'build-message', message: 'done', type: 'success', endsWithNewLine: true },
+    stream: 'stdout',
+    prints: [[`${ESC}[32m✔${ESC}[39m  done`], []],
+  },
+  {
+    kind: 'manifest-producing',
+    what: 'the manifest header, whose leading blank line lives INSIDE the cyan - the single sharpest byte in this family',
+    segment: { kind: 'manifest-producing' },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[36m${ESC}[39m\n${ESC}[36m📄 Producing the module manifest for Diff Scope...${ESC}[39m`,
+      ],
+    ],
+  },
+  {
+    kind: 'manifest-uploaded',
+    what: 'the manifest-uploaded line - two leading spaces INSIDE the green, like the bundle lines above',
+    segment: { kind: 'manifest-uploaded', platform: 'android' },
+    stream: 'stdout',
+    prints: [[`${ESC}[32m  ✓ Android module manifest uploaded${ESC}[39m`]],
+  },
+  {
+    kind: 'results-url',
+    what: 'the closer - the machine-readable `url=` line FIRST, then the human link with its trailing blank line',
+    segment: { kind: 'results-url', url: 'https://app.sherlo.io/build?t=tm000001&p=7&b=1' },
+    stream: 'stdout',
+    prints: [
+      ['url=https://app.sherlo.io/build?t=tm000001&p=7&b=1'],
+      [`🔗 ${ESC}[4mhttps://app.sherlo.io/build?t=tm000001&p=7&b=1${ESC}[24m\n`],
+    ],
+  },
+  {
+    kind: 'output-keys',
+    what: 'the machine-readable answer lines - one print call each, an empty and an undefined value BOTH omitted, and a newline in a value flattened to a space',
+    segment: {
+      kind: 'output-keys',
+      entries: {
+        'native-needed': true,
+        reason: 'a\nb',
+        empty: '',
+        absent: undefined,
+      },
+    },
+    stream: 'stdout',
+    prints: [['native-needed=true'], ['reason=a b']],
+  },
 ];
 
 /**

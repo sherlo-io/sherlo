@@ -47,6 +47,52 @@ import {
   type ScriptedBundle,
   type TranscriptScenario,
 } from './dryRun.transcripts';
+import { PUSH_TRANSCRIPTS, type PushTranscriptScenario } from './push.transcripts';
+import { renderPushScenarioTranscript } from './renderPushTranscript';
+
+/**
+ * Which command's transcript a scenario is.
+ *
+ * It reaches the envelope and the machine catalog because the TESTER needs it:
+ * each family is judged through the masker its own capture applies, and
+ * `maskPushOutput` keeps colour where `maskTestBundledCli` strips it. A producer
+ * that published bytes without saying which masker they are for would leave the
+ * consumer guessing, and a wrong guess is a fixture that matches for the wrong
+ * reason.
+ */
+export type TranscriptFamily = 'dry-run' | 'push';
+
+/** One catalog entry, whichever family it belongs to. */
+type CatalogEntry =
+  | { family: 'dry-run'; scenario: TranscriptScenario }
+  | { family: 'push'; scenario: PushTranscriptScenario };
+
+/**
+ * Every scenario the CLI can render, across families, in one lookup.
+ *
+ * ONE namespace on purpose: `--render-transcript <id>` names a transcript, not a
+ * family, so a caller never has to know which command a scenario belongs to -
+ * and two families cannot quietly claim the same id, because building this map
+ * would collide (see the refusal below).
+ */
+function transcriptCatalog(): Record<string, CatalogEntry> {
+  const catalog: Record<string, CatalogEntry> = {};
+
+  for (const [id, scenario] of Object.entries(DRY_RUN_TRANSCRIPTS)) {
+    catalog[id] = { family: 'dry-run', scenario };
+  }
+  for (const [id, scenario] of Object.entries(PUSH_TRANSCRIPTS)) {
+    if (catalog[id]) {
+      throw new Error(
+        `REFUSING TO RENDER (duplicate scenario id): '${id}' is declared by two families. ` +
+          'A scenario id names one transcript; two would make --render-transcript ambiguous.'
+      );
+    }
+    catalog[id] = { family: 'push', scenario };
+  }
+
+  return catalog;
+}
 
 /** The git info a scenario that CAN read git reports. Fixed, never a wall-clock read. */
 const SCRIPTED_GIT_INFO: GitInfo = {
@@ -63,6 +109,8 @@ const SCRIPTED_BASE_FINGERPRINT = 'scenario-base-fingerprint';
 /** What the verb writes to stderr beside the transcript. */
 type TranscriptEnvelope = {
   scenarioId: string;
+  /** Which masker the tester must apply to these bytes. */
+  family: TranscriptFamily;
   /** The committed fixture these bytes must equal once the shipped masker runs. */
   fixture: string;
   command: string;
@@ -87,8 +135,8 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
     process.exit(0);
   }
 
-  const scenario = DRY_RUN_TRANSCRIPTS[scenarioId];
-  if (!scenario) {
+  const entry = transcriptCatalog()[scenarioId];
+  if (!entry) {
     console.error(
       `REFUSING TO RENDER (unknown scenario): "${scenarioId}" is not in the transcript catalog.\n\n` +
         formatTranscriptCatalog()
@@ -96,8 +144,10 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
     process.exit(1);
   }
 
-  const first = await renderScenarioTranscript(scenario);
-  const second = await renderScenarioTranscript(scenario);
+  const { family, scenario } = entry;
+
+  const first = await renderEntry(entry);
+  const second = await renderEntry(entry);
 
   if (sha256(first) !== sha256(second)) {
     console.error(
@@ -111,9 +161,11 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
 
   const envelope: TranscriptEnvelope = {
     scenarioId,
+    family,
     fixture: scenario.fixture,
     command: `sherlo test --dry-run --render-transcript ${scenarioId}`,
-    // A dry run creates nothing and routes nothing; it always completes.
+    // Neither a dry run nor a scripted push creates anything or routes
+    // anything; both always complete.
     exitCode: 0,
     capture: scenario.capture,
     ambient: scenario.ambient,
@@ -127,6 +179,13 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
 }
 
 /* ========================================================================== */
+
+/** One full render of a catalog entry, through whichever family's producer owns it. */
+function renderEntry(entry: CatalogEntry): Promise<CapturedTranscript> {
+  return entry.family === 'push'
+    ? renderPushScenarioTranscript(entry.scenario)
+    : renderScenarioTranscript(entry.scenario);
+}
 
 /**
  * One full render of a scenario. Exported because the byte-identity gate renders
@@ -241,19 +300,25 @@ function sha256(transcript: CapturedTranscript): string {
     .slice(0, 16);
 }
 
-/** The machine catalog: what every scenario answers for, and how it is captured. */
-function transcriptCatalogIndex(): Record<string, { fixture: string; capture: string }> {
-  const index: Record<string, { fixture: string; capture: string }> = {};
-  for (const [id, scenario] of Object.entries(DRY_RUN_TRANSCRIPTS)) {
-    index[id] = { fixture: scenario.fixture, capture: scenario.capture };
+/**
+ * The machine catalog: what every scenario answers for, how it is captured, and
+ * which family's masker judges it.
+ */
+function transcriptCatalogIndex(): Record<
+  string,
+  { family: TranscriptFamily; fixture: string; capture: string }
+> {
+  const index: Record<string, { family: TranscriptFamily; fixture: string; capture: string }> = {};
+  for (const [id, { family, scenario }] of Object.entries(transcriptCatalog())) {
+    index[id] = { family, fixture: scenario.fixture, capture: scenario.capture };
   }
   return index;
 }
 
 function formatTranscriptCatalog(): string {
-  const lines = Object.entries(DRY_RUN_TRANSCRIPTS).map(
-    ([id, scenario]) =>
-      `  ${id}\n    ${scenario.description}\n    fixture: ${scenario.fixture}\n` +
+  const lines = Object.entries(transcriptCatalog()).map(
+    ([id, { family, scenario }]) =>
+      `  ${id}  (${family})\n    ${scenario.description}\n    fixture: ${scenario.fixture}\n` +
       `    capture: ${scenario.capture}  grounded: ${scenario.groundedBy.kind}`
   );
 

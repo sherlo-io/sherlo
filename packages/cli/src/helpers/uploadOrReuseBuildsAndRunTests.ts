@@ -1,10 +1,15 @@
 import sdkClient from '@sherlo/sdk-client';
 import { Platform } from '@sherlo/api-types';
-import chalk from 'chalk';
 import logWarning from './logWarning';
 import { TEST_EAS_UPDATE_COMMAND, TEST_STANDARD_COMMAND } from '../constants';
 import { CommandParams, EasUpdateData } from '../types';
-import { emitAndUploadModuleManifests } from './emitAndUploadModuleManifests';
+import { emit } from './transcriptSink';
+import { emitAndUploadModuleManifests, type ManifestEffects } from './emitAndUploadModuleManifests';
+import type { BinaryUploadEffects } from './uploadOrPrintBinaryReuse/uploadBuild';
+import type { BaseRegistrationEffects } from './fingerprint/registerBase';
+import type { BaseFingerprintResult } from './fingerprint';
+import type { GitInfo } from './getGitInfo';
+import type { BinariesInfo } from '../types';
 import getAppBuildUrl from './getAppBuildUrl';
 import getBuildRunConfig from './getBuildRunConfig';
 import getGitInfo from './getGitInfo';
@@ -15,6 +20,9 @@ import printBuildIntroMessage from './printBuildIntroMessage';
 import printResultsUrl from './printResultsUrl';
 import reporting from './reporting';
 import { computeBaseFingerprint, registerBase, type GateMetadataInput } from './fingerprint';
+import { REAL_BASE_REGISTRATION_EFFECTS } from './fingerprint/registerBase';
+import { realManifestEffects } from './emitAndUploadModuleManifests';
+import { REAL_BINARY_UPLOAD_EFFECTS } from './uploadOrPrintBinaryReuse/uploadBuild';
 import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
 import waitForBuildResult from './waitForBuildResult';
 
@@ -27,23 +35,74 @@ import waitForBuildResult from './waitForBuildResult';
  */
 type PlatformConfigWithManifest = { manifestS3Key?: string };
 
+/**
+ * EVERY EFFECT THE PUSH SPINE PERFORMS, AS PARAMETERS - which is what lets an
+ * expectation producer run THIS function rather than a re-implementation of it.
+ *
+ * The spine's transcript is emitted from here and from the shipped helpers it
+ * calls, interleaved with these awaits: the run header before the binaries go
+ * up, each platform's block around its own upload, the EAS block, the
+ * fingerprint warnings from inside `registerBase`, the manifest block from
+ * inside `emitAndUploadModuleManifests`, and the closer after `openBuild`
+ * answers. A producer that re-implemented that order could drift from it
+ * silently; supplying the effects means the order, the branching and every
+ * literal come from the shipped code, unforked.
+ *
+ * WHAT IS *NOT* HERE IS THE POINT. There is no substitute for a formatter, a
+ * print site, a segment or a branch - only for the things that touch the
+ * network, the filesystem and the clock.
+ */
+export type PushEffects = {
+  /**
+   * The instant a reuse line's "N minutes ago" is measured against - the ONE
+   * wall-clock read on this transcript's path, and an effect for exactly the
+   * reason the network ones are: a fixed scripted state that read the real clock
+   * would render different bytes tomorrow.
+   */
+  now: () => Date;
+  resolveBinaries: () => Promise<{ binariesInfo: BinariesInfo; nextBuildIndex: number }>;
+  resolveGitInfo: () => Promise<GitInfo>;
+  computeFingerprint: () => Promise<BaseFingerprintResult>;
+  openBuild: (input: Record<string, unknown>) => Promise<{ build: { index: number } }>;
+  binaryUpload: BinaryUploadEffects;
+  baseRegistration: BaseRegistrationEffects;
+  manifest: ManifestEffects;
+};
+
 async function uploadOrReuseBuildsAndRunTests({
   commandParams,
   easUpdateData,
+  effects,
 }: {
   commandParams: CommandParams;
   easUpdateData?: EasUpdateData;
+  effects?: PushEffects;
 }): Promise<{ url: string }> {
   const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
   const client = sdkClient({ authToken: apiToken });
 
-  const { binariesInfo, nextBuildIndex } = await getValidatedBinariesInfoAndNextBuildIndex({
-    client,
-    command: easUpdateData ? TEST_EAS_UPDATE_COMMAND : TEST_STANDARD_COMMAND,
-    commandParams,
-    projectIndex,
-    teamId,
-  });
+  const command = easUpdateData ? TEST_EAS_UPDATE_COMMAND : TEST_STANDARD_COMMAND;
+
+  const io: PushEffects = effects ?? {
+    now: () => new Date(),
+    resolveBinaries: () =>
+      getValidatedBinariesInfoAndNextBuildIndex({
+        client,
+        command,
+        commandParams,
+        projectIndex,
+        teamId,
+      }),
+    resolveGitInfo: () =>
+      getGitInfo(commandParams.projectRoot, { branchOverride: commandParams.gitBranch }),
+    computeFingerprint: () => computeBaseFingerprint(commandParams.projectRoot, { command }),
+    openBuild: (input) => client.openBuild(input as never).catch(handleClientError),
+    binaryUpload: REAL_BINARY_UPLOAD_EFFECTS,
+    baseRegistration: REAL_BASE_REGISTRATION_EFFECTS,
+    manifest: realManifestEffects(client),
+  };
+
+  const { binariesInfo, nextBuildIndex } = await io.resolveBinaries();
 
   printBuildIntroMessage({ commandParams, nextBuildIndex });
 
@@ -52,15 +111,15 @@ async function uploadOrReuseBuildsAndRunTests({
     projectRoot: commandParams.projectRoot,
     android: commandParams.android,
     ios: commandParams.ios,
+    uploadEffects: io.binaryUpload,
+    now: io.now(),
   });
 
   if (easUpdateData) {
     printEasUpdateData(easUpdateData);
   }
 
-  const gitInfo = await getGitInfo(commandParams.projectRoot, {
-    branchOverride: commandParams.gitBranch,
-  });
+  const gitInfo = await io.resolveGitInfo();
 
   // ------------------------------------------------------------------
   // Compute the base fingerprint FIRST - before any other work that could load
@@ -75,10 +134,8 @@ async function uploadOrReuseBuildsAndRunTests({
   // from this single result. `fpResult.nativeFingerprint` is the sanitized
   // Layer-1 hash, or undefined when the compute fails (fail-soft).
   // ------------------------------------------------------------------
-  const fingerprintCommand = easUpdateData ? TEST_EAS_UPDATE_COMMAND : TEST_STANDARD_COMMAND;
-  const fpResult = await computeBaseFingerprint(commandParams.projectRoot, {
-    command: fingerprintCommand,
-  });
+  const fingerprintCommand = command;
+  const fpResult = await io.computeFingerprint();
   const nativeFingerprint = fpResult.nativeFingerprint;
 
   let baseFingerprint: string | undefined;
@@ -99,15 +156,18 @@ async function uploadOrReuseBuildsAndRunTests({
         const binaryInfo = platform === 'android' ? binariesInfo.android! : binariesInfo.ios!;
         const bundlePath = getBundlePathInBinary(platform, commandParams.projectRoot);
 
-        const result = await registerBase({
-          binaryPath,
-          platform,
-          projectRoot: commandParams.projectRoot,
-          bundlePath,
-          buildType: binaryInfo.buildType,
-          baseFingerprintHash: fpResult.hash,
-          command: fingerprintCommand,
-        });
+        const result = await registerBase(
+          {
+            binaryPath,
+            platform,
+            projectRoot: commandParams.projectRoot,
+            bundlePath,
+            buildType: binaryInfo.buildType,
+            baseFingerprintHash: fpResult.hash,
+            command: fingerprintCommand,
+          },
+          io.baseRegistration
+        );
 
         if (result.gateMetadata) {
           gateMetadata[platform] = result.gateMetadata;
@@ -128,6 +188,7 @@ async function uploadOrReuseBuildsAndRunTests({
       gitInfo,
       projectIndex,
       teamId,
+      effects: io.manifest,
     });
   } else {
     logWarning({
@@ -164,26 +225,24 @@ async function uploadOrReuseBuildsAndRunTests({
     level: 'info',
   });
 
-  const { build } = await client
-    .openBuild({
-      teamId,
-      projectIndex,
-      binaryHashes: {
-        android: binariesInfo.android?.hash,
-        ios: binariesInfo.ios?.hash,
-      },
-      binaryFileNames: {
-        android: binariesInfo.android?.fileName,
-        ios: binariesInfo.ios?.fileName,
-      },
-      buildRunConfig,
-      gitInfo,
-      sdkVersion: binariesInfo.sdkVersion,
-      message: commandParams.message,
-      nativeFingerprint,
-      ...(baseFingerprint ? { baseFingerprint, gateMetadata } : {}),
-    })
-    .catch(handleClientError);
+  const { build } = await io.openBuild({
+    teamId,
+    projectIndex,
+    binaryHashes: {
+      android: binariesInfo.android?.hash,
+      ios: binariesInfo.ios?.hash,
+    },
+    binaryFileNames: {
+      android: binariesInfo.android?.fileName,
+      ios: binariesInfo.ios?.fileName,
+    },
+    buildRunConfig,
+    gitInfo,
+    sdkVersion: binariesInfo.sdkVersion,
+    message: commandParams.message,
+    nativeFingerprint,
+    ...(baseFingerprint ? { baseFingerprint, gateMetadata } : {}),
+  });
 
   const buildIndex = build.index;
   // Sentry tags must be strings; buildIndex is a number from the API response.
@@ -220,13 +279,13 @@ export default uploadOrReuseBuildsAndRunTests;
 /* ========================================================================== */
 
 function printEasUpdateData(easUpdateData: EasUpdateData) {
-  console.log(
-    `🔄 ${chalk.bold('EAS Update')}\n` +
-      `└─ message: ${chalk.blue(easUpdateData.message)}\n` +
-      `└─ created: ${chalk.blue(easUpdateData.timeAgo)}\n` +
-      `└─ author: ${chalk.blue(easUpdateData.author)}\n` +
-      `└─ branch: ${chalk.blue(easUpdateData.branch)}\n`
-  );
+  emit({
+    kind: 'eas-update',
+    message: easUpdateData.message,
+    timeAgo: easUpdateData.timeAgo,
+    author: easUpdateData.author,
+    branch: easUpdateData.branch,
+  });
 }
 
 /**

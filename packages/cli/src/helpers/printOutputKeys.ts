@@ -1,3 +1,5 @@
+import { emit } from './transcriptSink';
+
 /**
  * Print machine-readable `key=value` lines on stdout - the CI-agnostic form of a
  * command's answer (SHERLO-1692).
@@ -7,18 +9,12 @@
  * and republishes them in its own vocabulary - the GitHub Action in this repo
  * turns them into step outputs. The CLI knows nothing about $GITHUB_OUTPUT.
  *
- * A key with no value is not printed: an absent answer must read as absent, never
- * as an empty one.
- *
- * Values are newline-stripped so a multi-line reason can never break the
- * `key=value` line format a parser depends on.
+ * The skipping rule - a key with no value is not printed, so an absent answer
+ * reads as absent rather than as an empty one - lives with the bytes, in
+ * ../render/pushSpine.
  */
 function printOutputKeys(entries: Record<string, string | number | boolean | undefined>): void {
-  for (const [key, value] of Object.entries(entries)) {
-    if (value === undefined || value === '') continue;
-
-    console.log(`${key}=${String(value).replace(/\r?\n/g, ' ')}`);
-  }
+  emit({ kind: 'output-keys', entries });
 }
 
 export default printOutputKeys;

@@ -25,6 +25,7 @@
  */
 import { Platform } from '@sherlo/api-types';
 import type { BundleFormat } from '../commands/test/buildBundle';
+import type { Config } from '../types';
 import type { DryRunPlatformPreview } from './dryRunPlan';
 
 /** Which of the process's two streams a segment is written to. */
@@ -33,9 +34,11 @@ export type TranscriptStream = 'stdout' | 'stderr';
 /**
  * One printable block of a sherlo CLI transcript.
  *
- * Scoped, deliberately, to what the `--dry-run` family emits (slice S0a). The
- * next family (the push transcript) adds variants here; it does not add a second
- * union, and it does not add a second renderer.
+ * Two families live here now - the `--dry-run` preview (slice S0a) and the PUSH
+ * SPINE (slice S0b/F1), which is the transcript `sherlo test:standard` emits and
+ * the one every other family's preamble is a subset of. They share ONE union and
+ * ONE renderer on purpose: the intro is the same intro, and a second union would
+ * be a second place for a literal to drift.
  */
 export type TranscriptSegment =
   /** The gradient wordmark, the tagline and the trailing blank line. */
@@ -59,7 +62,79 @@ export type TranscriptSegment =
   /** The whole `📸 Capture plan (dry run)` block plus the `◦ Dry run` closer. */
   | { kind: 'dry-run-capture-plan'; previews: DryRunPlatformPreview[] }
   /** `Couldn't get git info <error>` - on stderr, the one degrade the family shows. */
-  | { kind: 'git-info-unavailable'; error: unknown };
+  | { kind: 'git-info-unavailable'; error: unknown }
+  /* ---------------------------------------------------------------------- *
+   * THE PUSH SPINE (F1). The order below is the order a push prints them.   *
+   * ---------------------------------------------------------------------- */
+  /**
+   * `Test 3 will run on 2 devices (1 Android, 1 iOS)`, plus its trailing blank.
+   *
+   * It carries the DEVICE LIST, not the counts: counting is a rendering
+   * decision (which platforms appear, in which order, singular or plural), and
+   * a scenario that could hand over "2 devices" could claim a count its own
+   * device list contradicts.
+   */
+  | { kind: 'run-header'; nextBuildIndex: number; devices: Config['devices'] }
+  /** `📦 Android` / `📦 iOS` - the header of one platform's binary block. */
+  | { kind: 'binary-platform-label'; platform: Platform }
+  /** `➜  uploading build... (41.2 MB)` - printed BEFORE the bytes go up. */
+  | { kind: 'binary-uploading'; sizeMb: string }
+  /** `✔  upload complete`, plus its trailing blank. */
+  | { kind: 'binary-uploaded' }
+  /** `➜  Upload failed (attempt 1/3), retrying...` - the per-attempt notice. */
+  | { kind: 'binary-upload-retry'; attempt: number; maxRetries: number }
+  /**
+   * `✔  reusing unchanged build (Test 1, 7 minutes ago)`, plus its trailing
+   * blank. `timeAgo` arrives already phrased because computing it reads the
+   * WALL CLOCK, which a renderer may not do - see helpers/.../getTimeAgo.
+   */
+  | { kind: 'binary-reused'; buildIndex: number; timeAgo: string }
+  /** The whole `🔄 EAS Update` block: message, created, author, branch, blank. */
+  | {
+      kind: 'eas-update';
+      message: string;
+      timeAgo: string | undefined;
+      author: string | undefined;
+      branch: string;
+    }
+  /**
+   * `WARNING: ...` / `INFO: ...`, optionally with a `↳ Learn more:` line.
+   *
+   * The one segment that carries TEXT rather than data, and deliberately: the
+   * message is a value computed by logic (a stageability reason from
+   * `checkStageable`, an error's own `.message`), not a sentence this layer
+   * would otherwise own. A scenario still cannot write one, because a scenario
+   * declares wire state and never emits.
+   */
+  | { kind: 'notice'; level: 'warning' | 'info'; message: string; learnMoreLink?: string }
+  /**
+   * The generic `➜ ` / `✔ ` build line, for the print sites OUTSIDE the push
+   * spine that still call `printBuildMessage` with a pre-composed string
+   * (testEasCloudBuild, getBuildData). It exists so the icon-and-spacing
+   * framing has exactly ONE implementation, in this layer, rather than a second
+   * copy that could drift from the spine's. Everything F1 fixtures watch uses
+   * the data-carrying variants above.
+   */
+  | { kind: 'build-message'; message: string; type: 'info' | 'success'; endsWithNewLine?: boolean }
+  /**
+   * `📄 Producing the module manifest for Diff Scope...`
+   *
+   * ITS LEADING BLANK LINE IS INSIDE THE CHALK CALL, so chalk closes and
+   * reopens the style around it and the blank line is emitted as a STYLED
+   * empty line rather than an empty one. Twenty-three committed fixtures carry
+   * those bytes. Hoisting the newline out - the tidy thing to do - changes all
+   * twenty-three while changing nothing a human sees.
+   */
+  | { kind: 'manifest-producing' }
+  /** `  ✓ Android module manifest uploaded`. */
+  | { kind: 'manifest-uploaded'; platform: Platform }
+  /**
+   * The closer of a run that reached a build: the machine-readable `url=` line
+   * a CI republishes, then the human `🔗` link, then a blank.
+   */
+  | { kind: 'results-url'; url: string }
+  /** Machine-readable `key=value` answer lines. A key with no value is not printed. */
+  | { kind: 'output-keys'; entries: Record<string, string | number | boolean | undefined> };
 
 /**
  * Where rendered segments go. The CLI installs a sink that writes to the

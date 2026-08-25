@@ -26,12 +26,12 @@
 import zlib from 'zlib';
 import { Platform, StagedPlatformUploadUrls, StagedPresignedUploadUrl } from '@sherlo/api-types';
 import sdkClient from '@sherlo/sdk-client';
-import chalk from 'chalk';
 import { PLATFORM_LABEL } from '../constants';
 import { buildBundleForPlatform } from '../commands/test/buildBundle';
 import { putBuffer } from '../commands/test/uploadStagedArtifacts';
 import type { GitInfo } from './getGitInfo';
 import logWarning from './logWarning';
+import { emit } from './transcriptSink';
 
 /**
  * getStagedUploadUrls with the SHERLO-1894 `manifest` slot. Optional on
@@ -42,6 +42,41 @@ type StagedUploadUrlsWithManifest = StagedPlatformUploadUrls & {
 };
 
 export type ModuleManifestUploadResult = Partial<Record<Platform, string>>;
+
+/**
+ * The three effects this pass performs, as parameters so an expectation producer
+ * runs THIS function rather than a re-implementation of it.
+ *
+ * The manifest block's transcript - the `📄 Producing...` header, the per-platform
+ * `✓ uploaded` lines, and the four fail-soft warnings that replace them - is
+ * emitted from here, interleaved with these awaits and their `try`/`catch`
+ * branching. Supplying the effects is what lets a scenario exercise a failure
+ * path (an upload-slot request that throws) that a live e2e can only reach by
+ * provoking a backend outage.
+ */
+export type ManifestEffects = {
+  bundleFor: (
+    projectRoot: string,
+    platform: Platform
+  ) => Promise<{ moduleManifest?: { raw: Buffer } }>;
+  requestUploadSlots: (params: {
+    platforms: Platform[];
+    projectIndex: number;
+    teamId: string;
+  }) => Promise<{
+    stagedPresignedUploadUrls: Partial<Record<Platform, StagedUploadUrlsWithManifest>>;
+  }>;
+  putManifest: (params: { platform: Platform; uploadUrl: string; buffer: Buffer }) => Promise<void>;
+};
+
+export function realManifestEffects(client: ReturnType<typeof sdkClient>): ManifestEffects {
+  return {
+    bundleFor: (projectRoot, platform) => buildBundleForPlatform({ projectRoot, platform }),
+    requestUploadSlots: (params) => client.getStagedUploadUrls(params),
+    putManifest: ({ platform, uploadUrl, buffer }) =>
+      putBuffer({ platform, label: 'module manifest', uploadUrl, buffer }),
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Provenance guard
@@ -99,6 +134,7 @@ export async function emitAndUploadModuleManifests({
   gitInfo,
   projectIndex,
   teamId,
+  effects,
 }: {
   client: ReturnType<typeof sdkClient>;
   projectRoot: string;
@@ -106,7 +142,10 @@ export async function emitAndUploadModuleManifests({
   gitInfo: GitInfo;
   projectIndex: number;
   teamId: string;
+  effects?: ManifestEffects;
 }): Promise<ModuleManifestUploadResult> {
+  const io = effects ?? realManifestEffects(client);
+
   if (platforms.length === 0) return {};
 
   const provenance = assessManifestProvenance(gitInfo);
@@ -117,7 +156,7 @@ export async function emitAndUploadModuleManifests({
     return {};
   }
 
-  console.log(chalk.cyan('\n📄 Producing the module manifest for Diff Scope...'));
+  emit({ kind: 'manifest-producing' });
 
   // 1. Build the bundle for each platform via the EXACT staged-road producer,
   //    purely to obtain the manifest sidecar it emits. Fail-soft per platform:
@@ -126,7 +165,7 @@ export async function emitAndUploadModuleManifests({
 
   for (const platform of platforms) {
     try {
-      const { moduleManifest } = await buildBundleForPlatform({ projectRoot, platform });
+      const { moduleManifest } = await io.bundleFor(projectRoot, platform);
       if (moduleManifest) {
         manifests[platform] = moduleManifest.raw;
       }
@@ -148,7 +187,7 @@ export async function emitAndUploadModuleManifests({
   //    getStagedUploadUrls call exactly (same API, same wire shape).
   let stagedPresignedUploadUrls: Partial<Record<Platform, StagedUploadUrlsWithManifest>>;
   try {
-    ({ stagedPresignedUploadUrls } = await client.getStagedUploadUrls({
+    ({ stagedPresignedUploadUrls } = await io.requestUploadSlots({
       platforms: platformsWithManifest,
       projectIndex,
       teamId,
@@ -174,14 +213,9 @@ export async function emitAndUploadModuleManifests({
 
     try {
       const gzipped = zlib.gzipSync(manifestRaw);
-      await putBuffer({
-        platform,
-        label: 'module manifest',
-        uploadUrl: manifestUrl.url,
-        buffer: gzipped,
-      });
+      await io.putManifest({ platform, uploadUrl: manifestUrl.url, buffer: gzipped });
       result[platform] = manifestUrl.s3Key;
-      console.log(chalk.green(`  ✓ ${PLATFORM_LABEL[platform]} module manifest uploaded`));
+      emit({ kind: 'manifest-uploaded', platform });
     } catch (error) {
       logWarning({
         message:

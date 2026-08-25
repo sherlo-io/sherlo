@@ -25,8 +25,18 @@
 import path from 'path';
 import chalk from 'chalk';
 import gradientString from 'gradient-string';
-import { COLOR } from '../constants';
+import { COLOR, PLATFORM_LABEL } from '../constants';
 import { formatDryRunPreview } from './dryRunPlan';
+import {
+  formatLink,
+  renderBinaryPlatformLabel,
+  renderBinaryReused,
+  renderBuildMessageLine,
+  renderEasUpdate,
+  renderNotice,
+  renderOutputKeys,
+  renderRunHeader,
+} from './pushSpine';
 import type { TranscriptSegment, TranscriptStream } from './segments';
 
 /** The sherlo wordmark, rendered per character by `gradient-string`. */
@@ -122,6 +132,103 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return {
         stream: 'stderr',
         prints: [[GIT_INFO_UNAVAILABLE, segment.error]],
+      };
+
+    /* ---------------------- the push spine (F1) ---------------------- */
+
+    case 'run-header':
+      return {
+        stream: 'stdout',
+        prints: [[renderRunHeader(segment.nextBuildIndex, segment.devices)]],
+      };
+
+    case 'binary-platform-label':
+      return {
+        stream: 'stdout',
+        prints: [[renderBinaryPlatformLabel(segment.platform)]],
+      };
+
+    case 'binary-uploading':
+      return {
+        stream: 'stdout',
+        prints: [[renderBuildMessageLine(`uploading build... (${segment.sizeMb} MB)`, 'info')]],
+      };
+
+    case 'binary-uploaded':
+      // Two print calls, not one string with a trailing newline: the shipped
+      // `endsWithNewLine` branch was a second bare `console.log()`, and a bare
+      // one is what a buffering sink has to reproduce to stay byte-faithful.
+      return {
+        stream: 'stdout',
+        prints: [[renderBuildMessageLine('upload complete', 'success')], []],
+      };
+
+    case 'binary-upload-retry':
+      return {
+        stream: 'stdout',
+        prints: [
+          [
+            renderBuildMessageLine(
+              `Upload failed (attempt ${segment.attempt}/${segment.maxRetries}), retrying...`,
+              'info'
+            ),
+          ],
+        ],
+      };
+
+    case 'binary-reused':
+      return {
+        stream: 'stdout',
+        prints: [[renderBinaryReused(segment.buildIndex, segment.timeAgo)], []],
+      };
+
+    case 'eas-update':
+      return {
+        stream: 'stdout',
+        prints: [[renderEasUpdate(segment)]],
+      };
+
+    case 'notice':
+      return {
+        stream: 'stdout',
+        prints: [[renderNotice(segment)]],
+      };
+
+    case 'build-message':
+      return {
+        stream: 'stdout',
+        prints: [
+          [renderBuildMessageLine(segment.message, segment.type)],
+          ...(segment.endsWithNewLine ? [[]] : []),
+        ],
+      };
+
+    case 'manifest-producing':
+      // The `\n` is INSIDE the chalk call on purpose - see ./pushSpine's header.
+      return {
+        stream: 'stdout',
+        prints: [[chalk.cyan('\n📄 Producing the module manifest for Diff Scope...')]],
+      };
+
+    case 'manifest-uploaded':
+      return {
+        stream: 'stdout',
+        prints: [[chalk.green(`  ✓ ${PLATFORM_LABEL[segment.platform]} module manifest uploaded`)]],
+      };
+
+    case 'results-url':
+      return {
+        stream: 'stdout',
+        prints: [
+          ...renderOutputKeys({ url: segment.url }).map((line) => [line]),
+          [`🔗 ${formatLink(segment.url)}\n`],
+        ],
+      };
+
+    case 'output-keys':
+      return {
+        stream: 'stdout',
+        prints: renderOutputKeys(segment.entries).map((line) => [line]),
       };
   }
 }
