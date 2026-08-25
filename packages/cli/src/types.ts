@@ -166,6 +166,21 @@ export type BinariesInfo = {
   ios?: BinaryInfo;
 };
 
+/**
+ * What `getValidatedBinariesInfoAndNextBuildIndex` answers: the per-platform
+ * binaries PLUS the one `sdkVersion` it lifted off whichever platform carried
+ * it. Validation has already refused the run if neither platform had one, so
+ * here the field is present, not optional - and `openBuild` reads it off the
+ * top level, never off a platform.
+ *
+ * Anything that stands between that function and the `openBuild` call (an
+ * effects seam, a scripted transcript state) must carry THIS type. Typing such
+ * a hop as plain `BinariesInfo` silently drops `sdkVersion` from the type while
+ * the value still flows at runtime, and the read at the far end stops
+ * compiling.
+ */
+export type ValidatedBinariesInfo = BinariesInfo & { sdkVersion: string };
+
 export type BinaryInfo = {
   hash: string;
   buildType: BuildType;

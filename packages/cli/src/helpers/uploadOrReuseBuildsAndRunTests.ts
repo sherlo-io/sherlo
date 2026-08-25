@@ -9,7 +9,7 @@ import type { BinaryUploadEffects } from './uploadOrPrintBinaryReuse/uploadBuild
 import type { BaseRegistrationEffects } from './fingerprint/registerBase';
 import type { BaseFingerprintResult } from './fingerprint';
 import type { GitInfo } from './getGitInfo';
-import type { BinariesInfo } from '../types';
+import type { ValidatedBinariesInfo } from '../types';
 import getAppBuildUrl from './getAppBuildUrl';
 import getBuildRunConfig from './getBuildRunConfig';
 import getGitInfo from './getGitInfo';
@@ -60,7 +60,14 @@ export type PushEffects = {
    * would render different bytes tomorrow.
    */
   now: () => Date;
-  resolveBinaries: () => Promise<{ binariesInfo: BinariesInfo; nextBuildIndex: number }>;
+  /**
+   * `ValidatedBinariesInfo`, not `BinariesInfo`: the `openBuild` call below
+   * reads `binariesInfo.sdkVersion`, which only the VALIDATED shape carries.
+   */
+  resolveBinaries: () => Promise<{
+    binariesInfo: ValidatedBinariesInfo;
+    nextBuildIndex: number;
+  }>;
   resolveGitInfo: () => Promise<GitInfo>;
   computeFingerprint: () => Promise<BaseFingerprintResult>;
   openBuild: (input: Record<string, unknown>) => Promise<{ build: { index: number } }>;

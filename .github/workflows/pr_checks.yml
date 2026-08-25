@@ -68,6 +68,19 @@ jobs:
       - name: Typecheck
         run: yarn tsc --noEmit -p ${{ matrix.package.dir }}
 
+      # THE PACKAGED-BUILD GATE, cli only - the command the e2e suites run when a
+      # run is dispatched with `cli_ref=<this branch>`. A ref whose packaged build
+      # fails kills EVERY e2e run that names it, at install, before a single test
+      # starts. Not redundant with the Typecheck above: `tsc -p` checks every file
+      # under the package, while ncc type-checks only the graph reachable from
+      # `src/index.ts` - but ncc is the one that ships, and the one e2e installs
+      # through. Keep both. See manual_tests.yml, which carries the same step on
+      # the dispatch path along with the full account of why.
+      - name: Packaged build (the gate every e2e run installs through)
+        if: matrix.package.name == 'cli'
+        working-directory: ${{ matrix.package.dir }}
+        run: yarn build
+
       # THE BYTE RATCHET's other half, for the cli package only (nothing in
       # react-native-storybook compares against a committed fixture). The CLI's
       # render-layer suites compare what the CLI renders against fixtures

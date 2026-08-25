@@ -46,7 +46,7 @@
  * AMBIENT IS DECLARED, NEVER DEFAULTED - see ./dryRun.transcripts for the rule.
  */
 import { Platform } from '@sherlo/api-types';
-import type { BinariesInfo, Config, EasUpdateData } from '../../types';
+import type { Config, EasUpdateData, ValidatedBinariesInfo } from '../../types';
 import type { GitInfo } from '../../helpers/getGitInfo';
 import type { BaseFingerprintResult, GateMetadataInput } from '../../helpers/fingerprint';
 import type { TranscriptGrounding } from './dryRun.transcripts';
@@ -74,7 +74,7 @@ export type PushTranscriptState = {
   /** The devices the config asks for - the run header counts these itself. */
   devices: Config['devices'];
   /** What `getValidatedBinariesInfoAndNextBuildIndex` answered. */
-  binariesInfo: BinariesInfo;
+  binariesInfo: ValidatedBinariesInfo;
   nextBuildIndex: number;
   /**
    * Per platform, the size string `getSizeInMB` derived from the binary. Needed
@@ -129,6 +129,12 @@ const PUSHED_AT = '2026-08-18T09:07:00.000Z';
 
 /** Seven minutes before the push - a reuse line reads "7 minutes ago" from these two. */
 const REUSED_BUILD_CREATED_AT = '2026-08-18T09:00:00.000Z';
+
+/**
+ * The SDK version validation lifted off the binaries. It goes to `openBuild`
+ * and is never printed, so no transcript byte is a function of it.
+ */
+const SCENARIO_SDK_VERSION = '2.0.0';
 
 const ANDROID_DEVICE: Config['devices'][number] = {
   id: 'pixel.4.xl',
@@ -205,7 +211,7 @@ function pushScenario(delta: PushDelta): PushTranscriptScenario {
     ? ['android', 'ios']
     : ['android'];
 
-  const binariesInfo: BinariesInfo = {};
+  const binariesInfo: ValidatedBinariesInfo = { sdkVersion: SCENARIO_SDK_VERSION };
   const binarySizesMb: Partial<Record<Platform, string>> = {};
   const gateMetadata: Partial<Record<Platform, GateMetadataInput>> = {};
 
