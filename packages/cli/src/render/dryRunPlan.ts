@@ -35,7 +35,7 @@ export type DryRunPlatformPreview =
  * The dry-run closer, printed after the plan instead of the live "✓ Build
  * created" + Review URL. A dry run creates nothing, so it says exactly that.
  */
-const DRY_RUN_CLOSER = chalk.yellow(`◦ Dry Run ${SEPARATOR} no build created, nothing uploaded`);
+const DRY_RUN_CLOSER = chalk.yellow(`◦ Dry run ${SEPARATOR} no build created, nothing uploaded`);
 
 /**
  * Render the whole dry-run preview by mapping each platform's preview onto the
