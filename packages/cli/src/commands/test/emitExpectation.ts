@@ -173,6 +173,22 @@ export function renderExpectation(scenarioId: string): string {
 }
 
 /**
+ * THE BYTES A MINT COMMITS - the scenario's rendered text plus the ONE trailing
+ * newline `console.log` appends, which lands in the fixture like any other byte.
+ *
+ * Named and exported rather than left implicit inside {@link runEmitExpectation}
+ * because the ratchet (preflightRefusals.test.ts) compares against committed
+ * fixtures that CONTAIN that newline. Without this, the ratchet would have to
+ * re-derive the closer as `renderExpectation(id) + '\n'` - a second, private copy
+ * of a formatting decision this file owns, and one that would silently stop
+ * matching the day the emit road changed how it terminates its output. One
+ * producer, two callers: the command prints it, the ratchet compares it.
+ */
+export function renderEmittedStdout(scenarioId: string): string {
+  return `${renderExpectation(scenarioId)}\n`;
+}
+
+/**
  * Runs the named scenario and prints its minted expectation to stdout, or prints
  * the scenario catalogue (`list`). Exits the process: 0 on success (including
  * `list`), 1 for an unknown scenario id.
@@ -183,15 +199,18 @@ export function runEmitExpectation(scenarioId: string): void {
     process.exit(0);
   }
 
-  let rendered: string;
+  let emitted: string;
   try {
-    rendered = renderExpectation(scenarioId);
+    emitted = renderEmittedStdout(scenarioId);
   } catch (error) {
     console.error((error as Error).message);
     process.exit(1);
   }
 
-  console.log(rendered);
+  // `process.stdout.write`, not `console.log`, because the trailing newline is
+  // now part of what renderEmittedStdout returns. Byte-for-byte the same output
+  // as the `console.log(rendered)` this replaced - a user sees no difference.
+  process.stdout.write(emitted);
   process.exit(0);
 }
 
