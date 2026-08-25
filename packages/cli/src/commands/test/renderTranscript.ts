@@ -140,28 +140,36 @@ export async function renderScenarioTranscript(
 
   // The ambient the scenario DECLARES, applied to the read the shipped code
   // makes - so `printSherloIntro` takes its own real branch rather than being
-  // bypassed. Never defaulted: the scenario type makes it mandatory.
+  // bypassed. Never defaulted: the scenario type makes it mandatory. Restored
+  // afterwards, because a caller that renders several scenarios in one process
+  // (the gate does) must not have one scenario's ambient reach the next.
+  const previousSkipIntro = process.env.SKIP_INTRO;
   process.env.SKIP_INTRO = scenario.ambient.skipIntro ? 'true' : 'false';
 
-  return captureTranscript(async () => {
-    printSherloIntro();
+  try {
+    return await captureTranscript(async () => {
+      printSherloIntro();
 
-    await runDryRunFlow({
-      projectRoot: '/Users/sherlo-user/my-app',
-      platformsToTest: state.platformsToTest,
-      client: scriptedDecisionClient(state),
-      projectIndex: SCRIPTED_PROJECT_INDEX,
-      teamId: SCRIPTED_TEAM_ID,
-      baseFingerprint: SCRIPTED_BASE_FINGERPRINT,
-      resolveGitInfo: async () =>
-        state.gitInfoAvailable
-          ? SCRIPTED_GIT_INFO
-          : degradeGitInfo(
-              new Error('fatal: not a git repository (or any of the parent directories): .git')
-            ),
-      effects: scriptedBundlingEffects(state),
+      await runDryRunFlow({
+        projectRoot: '/Users/sherlo-user/my-app',
+        platformsToTest: state.platformsToTest,
+        client: scriptedDecisionClient(state),
+        projectIndex: SCRIPTED_PROJECT_INDEX,
+        teamId: SCRIPTED_TEAM_ID,
+        baseFingerprint: SCRIPTED_BASE_FINGERPRINT,
+        resolveGitInfo: async () =>
+          state.gitInfoAvailable
+            ? SCRIPTED_GIT_INFO
+            : degradeGitInfo(
+                new Error('fatal: not a git repository (or any of the parent directories): .git')
+              ),
+        effects: scriptedBundlingEffects(state),
+      });
     });
-  });
+  } finally {
+    if (previousSkipIntro === undefined) delete process.env.SKIP_INTRO;
+    else process.env.SKIP_INTRO = previousSkipIntro;
+  }
 }
 
 /**
