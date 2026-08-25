@@ -41,6 +41,17 @@ const mocks = vi.hoisted(() => {
     waitForBuildResult: vi.fn(),
     logWarning: vi.fn(),
     emitAndUploadModuleManifests: vi.fn(),
+    /**
+     * The effects bundle `uploadOrReuseBuildsAndRunTests` builds for its manifest
+     * pass. The module is mocked WHOLESALE below, so every export the subject
+     * reaches has to be present here - and this one is reached unconditionally,
+     * before any branch the tests are about.
+     *
+     * It returns an empty object because nothing here is called: the pass itself
+     * is `emitAndUploadModuleManifests`, already mocked above, and these effects
+     * are only its arguments. What matters is that the export EXISTS.
+     */
+    realManifestEffects: vi.fn(() => ({})),
   };
 });
 
@@ -63,8 +74,12 @@ vi.mock('../fingerprint', () => ({
   computeBaseFingerprint: mocks.computeBaseFingerprint,
   registerBase: mocks.registerBase,
 }));
+// A whole-module factory REPLACES the module: an export missing here does not
+// fall through to the real one, it throws on first access. So this must list
+// every export the subject touches, not only the ones a test asserts on.
 vi.mock('../emitAndUploadModuleManifests', () => ({
   emitAndUploadModuleManifests: mocks.emitAndUploadModuleManifests,
+  realManifestEffects: mocks.realManifestEffects,
 }));
 
 import uploadOrReuseBuildsAndRunTests from '../uploadOrReuseBuildsAndRunTests';
