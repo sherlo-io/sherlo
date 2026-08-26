@@ -85,6 +85,34 @@ export type SidecarProjectIdentity = {
   dependencyClosure: DependencyClosure;
 };
 
+/**
+ * A digest of the APP'S OWN SOURCE, as the bundle's module graph names it.
+ *
+ * This closes the one hole nothing else here can see. Every other field answers
+ * "was this bundle built for this project?" - none of them answers "was it built
+ * from this project's CURRENT code". Edit a screen and rebuild nothing: the
+ * platform still matches, the dependencies still match, the toolchain still
+ * matches, the manifest is still valid. The run goes green having captured the
+ * screens as they were BEFORE the edit, which is worse than a loud failure -
+ * the change you were testing for is precisely the thing that silently vanished.
+ *
+ * The module manifest already lists every source file in the bundle's graph, so
+ * the file list is free. The digest is over the raw bytes of those files, read
+ * from disk - not over the serializer's own module hashes, which are hashes of
+ * TRANSFORMED output and so cannot be recomputed without running a bundler,
+ * which would defeat the entire point of supplying a bundle.
+ *
+ * `node_modules` paths are excluded deliberately: dependency bytes are already
+ * covered by {@link DependencyClosure}, and re-reading thousands of files to say
+ * the same thing twice would make every accepted bundle pay for nothing.
+ */
+export type AppSourceClosure = {
+  source: 'module-graph';
+  /** How many app source files the digest covers - diagnostics for a refusal. */
+  fileCount: number;
+  hash: string;
+};
+
 export type BundleSidecar = {
   sidecarVersion: number;
   platform: Platform;
@@ -106,6 +134,8 @@ export type BundleSidecar = {
     sha256: string;
   };
   project: SidecarProjectIdentity;
+  /** The app's own source, as the bundle's module graph saw it. */
+  appSource: AppSourceClosure;
   /**
    * The native shell this bundle was built beside, when known.
    *
@@ -308,6 +338,53 @@ function hashInstalledClosure(projectRoot: string): string | null {
   return sha256OfString(JSON.stringify(canonical));
 }
 
+/**
+ * Digest the app source files a module manifest names, read from the CURRENT tree.
+ *
+ * The ONE computation, run at emit and again at accept, so the two sides cannot
+ * disagree about how it is derived. At accept the file LIST comes from the
+ * supplied manifest (it describes the bundle that was built) while the BYTES come
+ * from the working tree - which is exactly the comparison that catches a bundle
+ * built before the code was edited.
+ *
+ * A file the manifest names but the tree no longer has is recorded as missing
+ * rather than skipped: a deleted screen must move the digest, or deleting one
+ * would be the single edit this check cannot see.
+ */
+export function computeAppSourceClosure({
+  projectRoot,
+  modulePaths,
+}: {
+  projectRoot: string;
+  /** Project-relative source paths, as the module manifest keys them. */
+  modulePaths: string[];
+}): AppSourceClosure {
+  const appPaths = modulePaths
+    .filter((modulePath) => !modulePath.split(/[\\/]/).includes('node_modules'))
+    .sort();
+
+  const entries = appPaths.map((modulePath) => {
+    try {
+      return [modulePath, sha256OfBuffer(fs.readFileSync(path.resolve(projectRoot, modulePath)))];
+    } catch {
+      return [modulePath, 'missing'];
+    }
+  });
+
+  return {
+    source: 'module-graph',
+    fileCount: appPaths.length,
+    hash: sha256OfString(JSON.stringify(entries)),
+  };
+}
+
+/** The source paths a validated module manifest names. */
+export function moduleManifestSourcePaths(manifest: {
+  parsed: { moduleHashes: object };
+}): string[] {
+  return Object.keys(manifest.parsed.moduleHashes);
+}
+
 /** sha256 of the project's babel config bytes, or null when it has none. */
 function computeBabelConfigDigest(projectRoot: string): string | null {
   const candidates = [
@@ -409,7 +486,8 @@ export function parseBundleSidecar(
     typeof parsed.bundle?.sha256 !== 'string' ||
     !parsed.moduleManifest?.file ||
     typeof parsed.moduleManifest?.sha256 !== 'string' ||
-    !parsed.project?.dependencyClosure?.source
+    !parsed.project?.dependencyClosure?.source ||
+    typeof parsed.appSource?.hash !== 'string'
   ) {
     return {
       ok: false,

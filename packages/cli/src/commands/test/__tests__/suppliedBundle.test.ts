@@ -64,11 +64,25 @@ let bundleDir: string;
 /** Where the "bundler" leaves its output, standing in for .sherlo/bundled. */
 let bundlerOut: string;
 
+/**
+ * The manifest names the app's source files. Those paths are what the staleness
+ * check reads from the working tree, so the fixture project below actually
+ * creates them - a manifest pointing at files that do not exist would make the
+ * digest a constant and the check vacuous.
+ */
+const APP_SOURCE_FILES = ['src/App.tsx', 'src/Button.stories.tsx'];
+
 const MANIFEST_BYTES = Buffer.from(
   JSON.stringify({
     version: 1,
     header: { metroVersion: '0.81.0' },
-    moduleHashes: { 'src/App.tsx': 'abc' },
+    moduleHashes: {
+      'src/App.tsx': 'abc',
+      'src/Button.stories.tsx': 'def',
+      // A dependency module: excluded from the app-source digest, because
+      // dependency bytes are already covered by the dependency closure.
+      'node_modules/react-native/index.js': 'ghi',
+    },
     storyClosures: { 'src/Button.stories.tsx': ['Button/Primary'] },
   })
 );
@@ -87,6 +101,11 @@ beforeEach(() => {
     JSON.stringify({ dependencies: { 'react-native': '0.76.0' } })
   );
   fs.writeFileSync(path.join(projectRoot, 'babel.config.js'), 'module.exports = {};');
+
+  fs.mkdirSync(path.join(projectRoot, 'src'), { recursive: true });
+  for (const sourceFile of APP_SOURCE_FILES) {
+    fs.writeFileSync(path.join(projectRoot, sourceFile), `// ${sourceFile}\n`);
+  }
 
   mockGetPackageVersion.mockReturnValue('0.76.0');
   mockReadBundledSdkProtocolVersion.mockReturnValue('2.1.0');
@@ -402,6 +421,61 @@ describe('a sidecar that does not match is refused by field', () => {
     expect(error.message).toMatch(/Sherlo SDK protocol version:/);
   });
 
+  // The staleness check. Everything else answers "was this bundle built for this
+  // project?"; only this answers "was it built from this project's CURRENT code".
+  it('refuses a bundle built before a source file was edited', async () => {
+    await emit(['android']);
+
+    // Exactly what a variant push does: rewrite a screen, change nothing else.
+    fs.writeFileSync(
+      path.join(projectRoot, 'src/App.tsx'),
+      '// App.tsx, now with a visible change\n'
+    );
+
+    const error = await refusalFrom('android');
+
+    expect(error.message).toMatch(/app source:/);
+    expect(error.message).toMatch(/BEFORE those edits/);
+  });
+
+  it('refuses a bundle whose source file has since been deleted', async () => {
+    await emit(['android']);
+    fs.rmSync(path.join(projectRoot, 'src/Button.stories.tsx'));
+
+    const error = await refusalFrom('android');
+
+    expect(error.message).toMatch(/app source:/);
+  });
+
+  it('ignores dependency files when digesting app source', async () => {
+    await emit(['android']);
+
+    // The manifest names a node_modules module. Dependency bytes are covered by
+    // the dependency closure, so materializing one must not move the app digest.
+    fs.mkdirSync(path.join(projectRoot, 'node_modules/react-native'), { recursive: true });
+    fs.writeFileSync(
+      path.join(projectRoot, 'node_modules/react-native/index.js'),
+      'module.exports = {};'
+    );
+    fs.writeFileSync(
+      path.join(projectRoot, 'node_modules/react-native/package.json'),
+      JSON.stringify({ name: 'react-native', version: '0.76.0' })
+    );
+
+    const error = await refusalFrom('android');
+
+    // It still refuses - a node_modules tree appeared, so the DEPENDENCY closure
+    // legitimately changed - but the app source must not be what it complains of.
+    expect(error.message).toMatch(/dependency closure:|dependencies:/);
+    expect(error.message).not.toMatch(/app source:/);
+  });
+
+  it('accepts when the source is untouched, so the check is not vacuous', async () => {
+    await emit(['android']);
+
+    await expect(accept('android')).resolves.toBeDefined();
+  });
+
   it('refuses a sidecar written by a future CLI rather than guessing its fields', async () => {
     await emit(['android']);
     writeSidecar('android', { ...readSidecar('android'), sidecarVersion: 99 });
@@ -487,6 +561,17 @@ describe('emit', () => {
     expect(sidecar.project.babelConfigDigest).toEqual(expect.any(String));
     expect(sidecar.project.dependencyClosure.source).toBe('package.json');
     expect(sidecar.project.dependencyClosure.hash).toEqual(expect.any(String));
+  });
+
+  it('records the app source digest over the graph, excluding dependencies', async () => {
+    await emit(['android']);
+
+    const sidecar = readSidecar('android');
+
+    expect(sidecar.appSource.source).toBe('module-graph');
+    expect(sidecar.appSource.hash).toEqual(expect.any(String));
+    // The manifest names three modules; the node_modules one is not app source.
+    expect(sidecar.appSource.fileCount).toBe(APP_SOURCE_FILES.length);
   });
 
   it('overwrites a previous emit rather than merging into it', async () => {

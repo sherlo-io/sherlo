@@ -35,7 +35,9 @@ import { validateModuleManifestBuffer } from './readModuleManifest';
 import {
   assetsDirName,
   bundleFileName,
+  computeAppSourceClosure,
   moduleManifestFileName,
+  moduleManifestSourcePaths,
   parseBundleSidecar,
   readProjectIdentity,
   sha256OfBuffer,
@@ -157,11 +159,40 @@ export async function resolveSuppliedBundle({
     );
   }
 
+  // The manifest must be well-formed before anything can be asked of it. It is
+  // also what names the app's source files, so this has to resolve before the
+  // staleness check below.
+  const moduleManifest = validateModuleManifestBuffer(manifestBuffer);
+  if (!moduleManifest) {
+    throw new Error(
+      `The supplied ${platform} module manifest at ${manifestPath} is not a valid ` +
+        'manifest (expected version, header, moduleHashes, storyClosures).\n\n' +
+        'Re-emit the bundle directory with `sherlo test --emit-bundle-dir <dir>`.' +
+        FALLBACK_LINE
+    );
+  }
+
   // Identity, against the CURRENT project. This is what catches the failure the
   // bytes never can: a bundle that is perfectly well-formed and built from the
   // wrong app, the wrong React Native, or the wrong toolchain.
   const project = await readProjectIdentity({ projectRoot, platform });
   mismatches.push(...compareProjectIdentity({ recorded: sidecar.project, current: project }));
+
+  // STALENESS - the check every other field misses. A bundle built before someone
+  // edited a screen matches this project in every respect except the one that
+  // matters, and running it would capture the code as it used to be.
+  const appSource = computeAppSourceClosure({
+    projectRoot,
+    modulePaths: moduleManifestSourcePaths(moduleManifest),
+  });
+  if (appSource.hash !== sidecar.appSource.hash) {
+    mismatches.push(
+      "app source: this project's source has changed since the bundle was built " +
+        `(${appSource.fileCount} source file(s) in the bundle's module graph now hash to ` +
+        `${short(appSource.hash)}, the bundle recorded ${short(sidecar.appSource.hash)}) - ` +
+        'running it would test the code as it was BEFORE those edits'
+    );
+  }
 
   if (mismatches.length > 0) {
     throw new Error(
@@ -175,21 +206,7 @@ export async function resolveSuppliedBundle({
   }
 
   // ------------------------------------------------------------------
-  // 4. The manifest must be well-formed. It matched its own hash above, so a
-  //    bad shape here means it was emitted broken, not corrupted in transit.
-  // ------------------------------------------------------------------
-  const moduleManifest = validateModuleManifestBuffer(manifestBuffer);
-  if (!moduleManifest) {
-    throw new Error(
-      `The supplied ${platform} module manifest at ${manifestPath} is not a valid ` +
-        'manifest (expected version, header, moduleHashes, storyClosures).\n\n' +
-        'Re-emit the bundle directory with `sherlo test --emit-bundle-dir <dir>`.' +
-        FALLBACK_LINE
-    );
-  }
-
-  // ------------------------------------------------------------------
-  // 5. The SAME acceptance checks a freshly built bundle passes.
+  // 4. The SAME acceptance checks a freshly built bundle passes.
   // ------------------------------------------------------------------
   const result = inspectBundleArtifacts({
     bundlePath,
