@@ -177,6 +177,28 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     });
   }
 
+  // A dry run bundles for real - that is what makes its preview trustworthy - and
+  // it does not read a supplied directory. Accepting `--bundle-dir` here would
+  // bundle anyway and print a transcript claiming it had, which is the silent
+  // fallback the supplied road exists to rule out. Refuse instead of lying.
+  if (isDryRun && bundleDir !== undefined) {
+    throwError({
+      message:
+        '`--dry-run` bundles for real to preview what a run would capture, so it cannot ' +
+        'use `--bundle-dir`. Drop one of the two.',
+    });
+  }
+
+  // Emitting is not a preview and a preview does not emit; running both would beg
+  // the question of which one the exit code belongs to.
+  if (isDryRun && emitBundleDirPath !== undefined) {
+    throwError({
+      message:
+        '`--emit-bundle-dir` produces a bundle directory and exits, so it cannot be ' +
+        'combined with `--dry-run`. Drop one of the two.',
+    });
+  }
+
   // 2. Determine which platforms have devices configured. Unreachable in
   //    practice - validateDevices above already refuses an empty/unknown device
   //    list - but a misconfiguration is a TOOL ERROR, not a routing outcome: it

@@ -99,3 +99,28 @@ describe('preview flags are staged-road only', () => {
     expect(mockStagedRun).toHaveBeenCalledTimes(1);
   });
 });
+
+// The bundle-supply flags act on the staged road's bundling step, which the
+// standard road does not have. Ignoring them would be the worst outcome: a caller
+// who passed --bundle-dir to skip bundling would still pay for it on every run,
+// with nothing on screen to say why.
+describe('bundle-supply flags are staged-road only', () => {
+  it.each([
+    ['--bundle-dir', { bundleDir: '/tmp/bundles' }],
+    ['--emit-bundle-dir', { emitBundleDir: '/tmp/bundles' }],
+  ])('refuses %s together with a build path', async (_name, supplyFlags) => {
+    await expect(test({ token: 'tok', android: 'app.apk', ...supplyFlags })).rejects.toThrow();
+
+    expect(mockTestStandard).not.toHaveBeenCalled();
+    expect(mockStagedRun).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['--bundle-dir', { bundleDir: '/tmp/bundles' }],
+    ['--emit-bundle-dir', { emitBundleDir: '/tmp/bundles' }],
+  ])('allows %s on the staged road', async (_name, supplyFlags) => {
+    await test({ token: 'tok', ...supplyFlags });
+
+    expect(mockStagedRun).toHaveBeenCalledTimes(1);
+  });
+});
