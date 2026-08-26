@@ -57,6 +57,27 @@ export type TranscriptSegment =
     }
   /** `  ✓ Assets: 6 files` - emitted only when the bundler produced an assets dir. */
   | { kind: 'platform-bundle-assets'; assetCount: number }
+  /**
+   * `  ✓ Bundle supplied: bundle.android.js (4.29 MB, plain-js, expo)`.
+   *
+   * The honest line for `--bundle-dir`. It deliberately does NOT reuse
+   * `platform-bundle-built`: a run that skipped bundling must SAY it skipped
+   * bundling, or a caller whose supply road silently broke would read a transcript
+   * claiming work that never happened.
+   */
+  | {
+      kind: 'platform-bundle-supplied';
+      bundlePath: string;
+      bundleSizeMb: number;
+      bundleFormat: BundleFormat;
+      bundler: 'expo' | 'rn';
+    }
+  /** `  ! <note>` - an advisory about a supplied bundle that is NOT a refusal. */
+  | { kind: 'platform-bundle-supplied-note'; note: string }
+  /** `📦 Emitting bundle directory to <dir>...`, wrapped in its own blank lines. */
+  | { kind: 'bundle-emit-header'; bundleDir: string }
+  /** `  ✓ Emitted android bundle (6 assets)` - one per platform written. */
+  | { kind: 'platform-bundle-emitted'; platform: Platform; bundleDir: string; assetCount: number }
   /** `  ✗ <message>` - a bundling failure, already carrying its own fallback line. */
   | { kind: 'platform-bundle-failed'; message: string }
   /** The whole `📸 Capture plan (dry run)` block plus the `◦ Dry run` closer. */

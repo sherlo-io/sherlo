@@ -94,13 +94,36 @@ export function readValidatedModuleManifest(projectRoot: string): ValidatedModul
     return null;
   }
 
+  const validated = validateModuleManifestBuffer(raw);
+  if (!validated) {
+    logWarning({
+      message:
+        `The module manifest at ${manifestPath} is not valid JSON, or has an unexpected shape ` +
+        '(expected version, header, moduleHashes, storyClosures); continuing without it.',
+    });
+    return null;
+  }
+
+  return validated;
+}
+
+/**
+ * Validate manifest bytes, wherever they came from.
+ *
+ * Split out of {@link readValidatedModuleManifest} because a SUPPLIED bundle
+ * directory carries its manifest as a plain file rather than at the serializer's
+ * fixed cache path - and it must be judged by the same shape rules, with the same
+ * verbatim-bytes contract, as one the serializer just wrote.
+ *
+ * Returns null on any problem and never throws or logs; the caller owns the
+ * reaction, which differs by road: the built road warns and continues, the
+ * supplied road refuses.
+ */
+export function validateModuleManifestBuffer(raw: Buffer): ValidatedModuleManifest | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw.toString('utf8'));
   } catch {
-    logWarning({
-      message: `The module manifest at ${manifestPath} is not valid JSON; continuing without it.`,
-    });
     return null;
   }
 
@@ -111,11 +134,6 @@ export function readValidatedModuleManifest(projectRoot: string): ValidatedModul
     !isPlainObject(parsed.moduleHashes) ||
     !isPlainObject(parsed.storyClosures)
   ) {
-    logWarning({
-      message:
-        `The module manifest at ${manifestPath} has an unexpected shape ` +
-        '(expected version, header, moduleHashes, storyClosures); continuing without it.',
-    });
     return null;
   }
 

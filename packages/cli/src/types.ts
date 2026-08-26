@@ -5,7 +5,9 @@ import {
   BRANCH_OPTION,
   CONFIG_OPTION,
   DIAGNOSTICS_OPTION,
+  BUNDLE_DIR_OPTION,
   DRY_RUN_OPTION,
+  EMIT_BUNDLE_DIR_OPTION,
   EAS_ANDROID_URL_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EAS_BUILD_SCRIPT_NAME_OPTION,
@@ -123,6 +125,19 @@ type CommandOptions = {
      * is a read-only preview. Staged road only.
      */
     [DRY_RUN_OPTION]?: boolean;
+    /**
+     * Accept a prebuilt bundle directory instead of running the bundler. The
+     * directory holds, per platform, the bundle, its assets, its module manifest
+     * and a sidecar recording what it was built from - every field of which is
+     * checked against this project before the bundle is used. Staged road only.
+     */
+    [BUNDLE_DIR_OPTION]?: string;
+    /**
+     * Produce a bundle directory `--bundle-dir` will accept, then exit. The exact
+     * inverse of the flag above, and the only writer of the sidecar it reads.
+     * Uploads nothing and creates no build. Staged road only.
+     */
+    [EMIT_BUNDLE_DIR_OPTION]?: string;
     /**
      * Expectation-emit mode (requires --dry-run): renders the exact refusal text a
      * live run would print for the named preflight scenario, then exits - no

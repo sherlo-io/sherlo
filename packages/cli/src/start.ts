@@ -20,7 +20,9 @@ import {
   DEFAULT_PROJECT_ROOT,
   DIAGNOSTICS_OPTION,
   DISCORD_URL,
+  BUNDLE_DIR_OPTION,
   DRY_RUN_OPTION,
+  EMIT_BUNDLE_DIR_OPTION,
   EAS_ANDROID_URL_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EAS_BUILD_SCRIPT_NAME_OPTION,
@@ -167,6 +169,21 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${IOS_OPTION} <path>`,
     `Path to ${PLATFORM_LABEL.ios} build (${IOS_FILE_TYPES.join(', ')})`,
   ],
+  [BUNDLE_DIR_OPTION]: [
+    '--bundle-dir <path>',
+    'Use a prebuilt bundle from <path> instead of running the bundler. The directory ' +
+      'must hold, for each tested platform, the bundle, its assets, its module manifest ' +
+      'and the sidecar recording what it was built from - produce one with ' +
+      '`--emit-bundle-dir`. Every field of that sidecar is checked against this project ' +
+      'first, and a mismatch is refused rather than bundled around.',
+  ],
+  [EMIT_BUNDLE_DIR_OPTION]: [
+    '--emit-bundle-dir <path>',
+    'Bundle as usual, write the result to <path> in the layout `--bundle-dir` accepts, ' +
+      'then exit. Uploads nothing, creates no build, makes no network call. Use it to ' +
+      'build the bundle once (in CI, in a monorepo pipeline) and hand it to every run ' +
+      'that follows.',
+  ],
   [DRY_RUN_OPTION]: [
     '--dry-run',
     'Preview which stories a real run would capture (Diff Scope), then exit. ' +
@@ -237,6 +254,8 @@ function addTestCommand(program: Command) {
     command: TEST_COMMAND,
     options: [
       ...getTestCommonOptions('withPlatformPaths'),
+      BUNDLE_DIR_OPTION,
+      EMIT_BUNDLE_DIR_OPTION,
       DRY_RUN_OPTION,
       EMIT_EXPECTATION_OPTION,
       RENDER_TRANSCRIPT_OPTION,

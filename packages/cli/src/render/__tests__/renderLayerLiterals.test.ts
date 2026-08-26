@@ -145,6 +145,54 @@ const PINS: Pin[] = [
     prints: [[`${ESC}[32m  ✓ Assets: 6 files${ESC}[39m`]],
   },
   {
+    kind: 'platform-bundle-supplied',
+    what: 'the supplied-bundle line - it SAYS "supplied", and the green closes before the parenthetical exactly as the built line does',
+    segment: {
+      kind: 'platform-bundle-supplied',
+      bundlePath: '/tmp/supplied/bundle.android.js',
+      bundleSizeMb: 4.29,
+      bundleFormat: 'plain-js',
+      bundler: 'expo',
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[32m  ✓ Bundle supplied: bundle.android.js${ESC}[39m (4.29 MB, plain-js, expo)`],
+    ],
+  },
+  {
+    kind: 'platform-bundle-supplied-note',
+    what: 'the supplied-bundle advisory - yellow, two leading spaces, a bang not a cross (it is not a failure)',
+    segment: {
+      kind: 'platform-bundle-supplied-note',
+      note: 'built beside a different native base (abc123def456)',
+    },
+    stream: 'stdout',
+    prints: [[`${ESC}[33m  ! built beside a different native base (abc123def456)${ESC}[39m`]],
+  },
+  {
+    kind: 'bundle-emit-header',
+    what: 'the emit header, whose blank lines live INSIDE the bold like every other header',
+    segment: { kind: 'bundle-emit-header', bundleDir: '/tmp/out' },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[1m${ESC}[22m\n${ESC}[1m📦 Emitting bundle directory to /tmp/out...${ESC}[22m\n${ESC}[1m${ESC}[22m`,
+      ],
+    ],
+  },
+  {
+    kind: 'platform-bundle-emitted',
+    what: 'the emitted line, where the green closes before the asset parenthetical',
+    segment: {
+      kind: 'platform-bundle-emitted',
+      platform: 'android',
+      bundleDir: '/tmp/out',
+      assetCount: 6,
+    },
+    stream: 'stdout',
+    prints: [[`${ESC}[32m  ✓ Emitted android bundle${ESC}[39m (6 assets)`]],
+  },
+  {
     kind: 'platform-bundle-failed',
     what: 'the bundling failure, whose leading blank line is inside the red',
     segment: { kind: 'platform-bundle-failed', message: 'metro exited with code 1' },

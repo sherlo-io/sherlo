@@ -78,6 +78,10 @@ export const FULL_INIT_COMMAND = 'npx sherlo init';
 
 export const ANDROID_OPTION = 'android';
 export const BRANCH_OPTION = 'branch';
+/** Accept a prebuilt bundle directory instead of bundling (see commands/test/suppliedBundle). */
+export const BUNDLE_DIR_OPTION = 'bundleDir';
+/** Produce a bundle directory `--bundle-dir` will accept (see commands/test/emitBundleDir). */
+export const EMIT_BUNDLE_DIR_OPTION = 'emitBundleDir';
 export const DRY_RUN_OPTION = 'dryRun';
 export const EMIT_EXPECTATION_OPTION = 'emitExpectation';
 export const RENDER_TRANSCRIPT_OPTION = 'renderTranscript';

@@ -65,6 +65,9 @@ import {
 import reportNativeNeeded, { reportFastPathRunning } from './nativeNeeded';
 import uploadStagedArtifacts, { type StagedUploadKeys } from './uploadStagedArtifacts';
 import { buildBundles, runDryRunFlow } from './bundleAndPreview';
+import { buildGateMetadata } from './buildBundle';
+import { emitBundleDir } from './emitBundleDir';
+import { resolveSuppliedBundles } from './suppliedBundle';
 import { runEmitExpectation } from './emitExpectation';
 import { runRenderTranscript } from './renderTranscript';
 import { countBundleStories } from './readModuleManifest';
@@ -161,6 +164,19 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   // here so the branch below is unmistakable; the bundling path is identical.
   const isDryRun = passedOptions.dryRun === true;
 
+  // The two bundle-supply roads. They are opposites and only one can run, so the
+  // combination is refused rather than resolved by precedence - a caller who passed
+  // both is asking for two different things and should be told, not guessed at.
+  const bundleDir = passedOptions.bundleDir;
+  const emitBundleDirPath = passedOptions.emitBundleDir;
+  if (bundleDir !== undefined && emitBundleDirPath !== undefined) {
+    throwError({
+      message:
+        '`--bundle-dir` accepts a prebuilt bundle and `--emit-bundle-dir` produces one, ' +
+        'so they cannot be combined. Pass whichever one this run is doing.',
+    });
+  }
+
   // 2. Determine which platforms have devices configured. Unreachable in
   //    practice - validateDevices above already refuses an empty/unknown device
   //    list - but a misconfiguration is a TOOL ERROR, not a routing outcome: it
@@ -185,12 +201,28 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   const fpResult = await computeBaseFingerprint(commandParams.projectRoot, {
     command: THIS_COMMAND,
   });
-  if (!fpResult.hash && !isDryRun) {
+  //    An emit run does not stage a binary either - it only writes a directory to
+  //    disk - so like a dry run it must not route on a missing fingerprint.
+  if (!fpResult.hash && !isDryRun && emitBundleDirPath === undefined) {
     return reportNativeNeeded({
       reason: fpResult.debugMessage ?? 'the base fingerprint could not be computed',
     });
   }
   const baseFingerprint = fpResult.hash ?? '';
+
+  // 5-emit. --emit-bundle-dir: bundle for real, write the triple + sidecar, STOP.
+  //   It runs before the routing gate on purpose - producing a bundle directory is
+  //   not a test run and asks the server nothing, so it needs no token, opens no
+  //   build, and publishes no routing output. See ./emitBundleDir.
+  if (emitBundleDirPath !== undefined) {
+    await emitBundleDir({
+      projectRoot: commandParams.projectRoot,
+      platformsToTest,
+      bundleDir: emitBundleDirPath,
+      ...(baseFingerprint ? { nativeFingerprint: baseFingerprint } : {}),
+    });
+    return { url: '' };
+  }
 
   // 4. Resolve token + SDK client.
   const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
@@ -238,13 +270,33 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     });
   }
 
-  // 7. Build bundle + assets and construct gate metadata for each platform.
-  console.log(chalk.bold('\n📦 Bundling for staged upload...\n'));
+  // 7. Get the bundle + assets for each platform, and construct gate metadata
+  //    from it. Either the bundler produces them here, or the caller already
+  //    produced them and `--bundle-dir` accepts them after checking they belong to
+  //    this project. Both roads end at the SAME BundleResult, so nothing below
+  //    this point knows or cares which one ran.
+  let bundles: Partial<Record<Platform, BundleResult>>;
+  let gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput };
 
-  const { results: bundles, gateMetadata } = await buildBundles({
-    projectRoot: commandParams.projectRoot,
-    platformsToTest,
-  });
+  if (bundleDir !== undefined) {
+    console.log(chalk.bold('\n📦 Using the supplied bundle...\n'));
+
+    ({ results: bundles, gateMetadata } = await resolveSuppliedBundles({
+      bundleDir,
+      projectRoot: commandParams.projectRoot,
+      platformsToTest,
+      ...(baseFingerprint ? { nativeFingerprint: baseFingerprint } : {}),
+      gateMetadataFor: (projectRoot, platform, bundleResult) =>
+        buildGateMetadata({ projectRoot, platform, bundleResult }),
+    }));
+  } else {
+    console.log(chalk.bold('\n📦 Bundling for staged upload...\n'));
+
+    ({ results: bundles, gateMetadata } = await buildBundles({
+      projectRoot: commandParams.projectRoot,
+      platformsToTest,
+    }));
+  }
 
   // 8. Re-ask the gate with the REAL bundle-derived identity. Step 6 could only
   //    compare fingerprints; only a built bundle carries the engine class,

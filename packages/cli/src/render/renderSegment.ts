@@ -133,6 +133,40 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
         prints: [[chalk.green(`  ✓ Assets: ${segment.assetCount} files`)]],
       };
 
+    case 'platform-bundle-supplied':
+      return {
+        stream: 'stdout',
+        prints: [
+          [
+            chalk.green(`  ✓ Bundle supplied: ${path.basename(segment.bundlePath)}`) +
+              ` (${segment.bundleSizeMb} MB, ${segment.bundleFormat}, ${segment.bundler})`,
+          ],
+        ],
+      };
+
+    case 'platform-bundle-supplied-note':
+      return {
+        stream: 'stdout',
+        prints: [[chalk.yellow(`  ! ${segment.note}`)]],
+      };
+
+    case 'bundle-emit-header':
+      return {
+        stream: 'stdout',
+        prints: [[chalk.bold(`\n📦 Emitting bundle directory to ${segment.bundleDir}...\n`)]],
+      };
+
+    case 'platform-bundle-emitted':
+      return {
+        stream: 'stdout',
+        prints: [
+          [
+            chalk.green(`  ✓ Emitted ${segment.platform} bundle`) +
+              ` (${segment.assetCount} assets)`,
+          ],
+        ],
+      };
+
     case 'platform-bundle-failed':
       return {
         stream: 'stdout',

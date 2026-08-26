@@ -47,6 +47,18 @@ async function test(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string
     });
   }
 
+  // The bundle-supply flags act on the staged road's bundling step, which the
+  // standard road does not have. Silently ignoring them would be the worst
+  // outcome: a caller who passed --bundle-dir to save the bundling time would
+  // still pay it, on every run, with nothing on screen to say why.
+  if (passedOptions.bundleDir !== undefined || passedOptions.emitBundleDir !== undefined) {
+    throwError({
+      message:
+        '`--bundle-dir` and `--emit-bundle-dir` act on the staged (JS-only) road, so they cannot be ' +
+        `combined with \`--${ANDROID_OPTION}\` / \`--${IOS_OPTION}\`. Drop the build paths.`,
+    });
+  }
+
   return testStandard(passedOptions);
 }
 

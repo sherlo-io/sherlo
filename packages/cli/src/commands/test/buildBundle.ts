@@ -182,21 +182,54 @@ export async function buildBundleForPlatform({
   }
 
   // ------------------------------------------------------------------
+  // 3-8. Accept the artifacts the bundler just produced. These checks are
+  //      NOT specific to a bundle we built - they are what makes ANY bundle
+  //      safe to stage - so they live in one shared function that the
+  //      supplied-bundle road runs too. See {@link inspectBundleArtifacts}.
+  // ------------------------------------------------------------------
+  return inspectBundleArtifacts({
+    bundlePath: bundleOut,
+    assetsDest,
+    bundler: projectType,
+    moduleManifest: readValidatedModuleManifest(projectRoot) ?? undefined,
+  });
+}
+
+/**
+ * THE ACCEPTANCE CHECKS - the single gate every staged bundle passes, whoever
+ * built it.
+ *
+ * Steps 3-8 of {@link buildBundleForPlatform} used to live inline. They are
+ * extracted here because `--bundle-dir` accepts a bundle this CLI did not build,
+ * and a supplied bundle must be judged by THE SAME CODE, not by a second
+ * implementation of the same intent. Two copies of a safety check drift, and the
+ * copy that drifts is the one nobody is watching.
+ *
+ * Throws user-facing messages that already carry the full-run fallback line.
+ */
+export function inspectBundleArtifacts({
+  bundlePath,
+  assetsDest,
+  bundler,
+  moduleManifest,
+}: {
+  bundlePath: string;
+  assetsDest?: string;
+  bundler: 'expo' | 'rn';
+  moduleManifest?: ValidatedModuleManifest;
+}): BundleResult {
   // 3. Verify the bundle file exists and is non-empty.
-  // ------------------------------------------------------------------
-  if (!fs.existsSync(bundleOut)) {
-    throw new Error(`Bundle file was not produced at ${bundleOut}` + FALLBACK_LINE);
+  if (!fs.existsSync(bundlePath)) {
+    throw new Error(`Bundle file was not produced at ${bundlePath}` + FALLBACK_LINE);
   }
 
-  const bundleBuffer = fs.readFileSync(bundleOut);
+  const bundleBuffer = fs.readFileSync(bundlePath);
   if (bundleBuffer.length === 0) {
-    throw new Error(`Bundle file is empty: ${bundleOut}` + FALLBACK_LINE);
+    throw new Error(`Bundle file is empty: ${bundlePath}` + FALLBACK_LINE);
   }
 
-  // ------------------------------------------------------------------
   // 4. Sniff the bundle header for HBC magic (12-byte sniff, design §4).
   //    Hermes bytecode CANNOT be staged - the runner needs plain JS.
-  // ------------------------------------------------------------------
   const sniffBytes = bundleBuffer.subarray(0, Math.min(BUNDLE_SNIFF_BYTES, bundleBuffer.length));
 
   if (sniffBytes.length >= 8 && sniffBytes.subarray(0, 8).equals(HBC_MAGIC)) {
@@ -217,12 +250,10 @@ export async function buildBundleForPlatform({
     );
   }
 
-  // ------------------------------------------------------------------
   // 5. Check for RAM/indexed bundle format.  Uses the same heuristic
   //    as checkRamBundle in gateMetadata.ts: the bundle file starts
   //    with __jac_ (RAM magic) or references require.unbundle /
   //    "magicMapping" in the first 4 KB.
-  // ------------------------------------------------------------------
   const ramSniff = bundleBuffer.subarray(0, Math.min(4096, bundleBuffer.length)).toString('utf8');
   if (
     ramSniff.startsWith('__jac_') ||
@@ -238,20 +269,16 @@ export async function buildBundleForPlatform({
     );
   }
 
-  // ------------------------------------------------------------------
   // 6. Compute bundle metadata.
-  // ------------------------------------------------------------------
   const bundleSizeMb = parseFloat((bundleBuffer.length / (1024 * 1024)).toFixed(2));
   const bundleHash = crypto.createHash('sha256').update(bundleBuffer).digest('hex');
   const bundleFormat: BundleFormat = 'plain-js';
 
-  // ------------------------------------------------------------------
   // 7. Collect asset inventory from the Metro --assets-dest output.
-  // ------------------------------------------------------------------
   let assetsDestResult: string | undefined;
   let assetInventory: string[] = [];
 
-  if (fs.existsSync(assetsDest)) {
+  if (assetsDest && fs.existsSync(assetsDest)) {
     const files = collectAssetInventory(assetsDest);
     if (files.length > 0) {
       assetsDestResult = assetsDest;
@@ -259,22 +286,24 @@ export async function buildBundleForPlatform({
     }
   }
 
-  // ------------------------------------------------------------------
-  // 8. Read the module-manifest sidecar the serializer emitted for this
-  //    build (SHERLO-1894 Phase B). Bail-open: a missing / unreadable /
-  //    shape-invalid sidecar yields undefined (the reader warns, never
-  //    throws), so a manifest problem can never block the build.
-  // ------------------------------------------------------------------
-  const moduleManifest = readValidatedModuleManifest(projectRoot) ?? undefined;
-
+  // 8. The module-manifest sidecar the serializer emitted for this build
+  //    (SHERLO-1894 Phase B). Bail-open on the BUILT road: a missing /
+  //    unreadable / shape-invalid sidecar yields undefined (the reader warns,
+  //    never throws), so a manifest problem can never block a build.
+  //
+  //    The SUPPLIED road does not get that latitude, and refuses a missing
+  //    manifest before it ever reaches here - see ./suppliedBundle. Bailing open
+  //    is right when the alternative is failing a build that would have worked;
+  //    it is wrong when a caller explicitly handed over a triple and one third of
+  //    it is absent.
   return {
-    bundlePath: bundleOut,
+    bundlePath,
     bundleFormat,
     bundleSizeMb,
     bundleHash,
     assetsDest: assetsDestResult,
     assetInventory,
-    bundler: projectType,
+    bundler,
     moduleManifest,
   };
 }
@@ -453,7 +482,7 @@ function collectAssetInventory(assetsDest: string): string[] {
 // Version helpers
 // ---------------------------------------------------------------------------
 
-function getExpoSdkVersion(projectRoot: string): number | null {
+export function getExpoSdkVersion(projectRoot: string): number | null {
   // app.json / app.config.js written sdkVersion.
   try {
     const appJson = JSON.parse(fs.readFileSync(path.join(projectRoot, 'app.json'), 'utf8'));
