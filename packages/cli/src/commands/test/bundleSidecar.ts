@@ -378,11 +378,17 @@ export function computeAppSourceClosure({
   };
 }
 
-/** The source paths a validated module manifest names. */
+/**
+ * The source paths a validated module manifest names.
+ *
+ * Tolerates a manifest with no module map rather than throwing: a serializer that
+ * emitted an empty graph is a degraded manifest, not a crash, and the resulting
+ * digest simply covers no files. The manifest validator is what judges shape.
+ */
 export function moduleManifestSourcePaths(manifest: {
-  parsed: { moduleHashes: object };
+  parsed: { moduleHashes?: object };
 }): string[] {
-  return Object.keys(manifest.parsed.moduleHashes);
+  return Object.keys(manifest.parsed.moduleHashes ?? {});
 }
 
 /** sha256 of the project's babel config bytes, or null when it has none. */

@@ -146,7 +146,17 @@ function scriptedBundle(
     ...(assetsDest ? { assetsDest } : {}),
     assetInventory: withAssets ? ['drawable-mdpi/logo.png'] : [],
     bundler: 'rn' as const,
-    ...(withManifest ? { moduleManifest: { raw: MANIFEST_BYTES, parsed: {} as any } } : {}),
+    // The parsed half is derived from the raw bytes, exactly as the real reader
+    // derives it. A hand-stubbed `parsed` would let the fixture disagree with its
+    // own manifest, and the app-source digest reads the module list from it.
+    ...(withManifest
+      ? {
+          moduleManifest: {
+            raw: MANIFEST_BYTES,
+            parsed: JSON.parse(MANIFEST_BYTES.toString('utf8')),
+          },
+        }
+      : {}),
   };
 }
 
