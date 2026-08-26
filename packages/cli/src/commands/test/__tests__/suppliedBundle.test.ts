@@ -42,6 +42,19 @@ import type { BundleResult } from '../buildBundle';
 const mockGetPackageVersion = vi.mocked(getPackageVersionDefault);
 const mockReadBundledSdkProtocolVersion = vi.mocked(readBundledSdkProtocolVersion);
 
+/**
+ * These tests run the REAL project-identity reader, which touches the project
+ * config the way a live run does - and a round trip runs it twice, once to write
+ * the sidecar and once to check it. That is comfortably slower than vitest's 5s
+ * default on a cold CI runner.
+ *
+ * The reader is deliberately not mocked: it is the thing under test. Both sides
+ * of the comparison go through it, so faking it would leave the one property
+ * these tests exist to prove - that emit and accept agree about what the project
+ * is - asserted against a stub instead of the code that ships.
+ */
+vi.setConfig({ testTimeout: 60_000 });
+
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
