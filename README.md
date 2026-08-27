@@ -82,6 +82,11 @@ The same verb, as a GitHub Action:
     token: ${{ secrets.SHERLO_TOKEN }}
 ```
 
+`v2` is the major tag the action is released under, and each release moves it to
+that release's commit. It is minted by the first v2 release of the action, so
+until that release lands, pin `sherlo-io/sherlo@main` instead - a job pinning
+`main` runs the CLI installed in the project.
+
 It runs the Sherlo CLI your project has installed. If the job has none, it runs
 the CLI carried at the ref you pinned, so a job needs no install step just to
 give the action a CLI to find. The first line of the log names the one that ran.
@@ -112,7 +117,7 @@ Try Sherlo with ready-to-run example projects.
 
 - **📱 Minimal Apps** - React Native + Storybook integrated with Sherlo
 - **🤖 GitHub Actions** - CI/CD workflows for automated testing
-- **🔄 Different Workflows** - Standard builds, OTA updates, and Expo cloud builds
+- **🔄 Different Workflows** - Standard builds, a JS-only fast lane, and Expo cloud builds
 
 <br />
 

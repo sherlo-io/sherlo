@@ -81,7 +81,14 @@ as a bad token).
 | `project-root`      | no       | `.`                  | Root directory of the React Native project           |
 | `android`           | no       | -                    | Android build (.apk); switches to the full run       |
 | `ios`               | no       | -                    | iOS build (.app, .tar.gz, .tar); switches to the full run |
+| `bundle-dir`        | no       | -                    | Test a prebuilt bundle from this path instead of running the bundler |
+| `emit-bundle-dir`   | no       | -                    | Bundle, write the result to this path, and exit without testing |
 | `working-directory` | no       | `.`                  | Directory to run `sherlo test` in                    |
+
+`emit-bundle-dir` and `bundle-dir` are a pair: one job bundles once and uploads
+the directory, and every job that follows tests from it with no bundler and no
+install of its own. Reach for them in a monorepo, or in a pipeline whose earlier
+job already builds the bundle.
 
 | Output             | Description                                                                |
 | ------------------ | -------------------------------------------------------------------------- |

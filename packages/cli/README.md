@@ -73,48 +73,38 @@ action runs this command and republishes those lines as step outputs.
 - `--wait` - Wait for test results and exit with a code encoding the outcome
 - `--wait-timeout <minutes>` - Max minutes to wait for results (default: 45)
 - `--dry-run` - Staged road only: preview which stories a real run would capture, then exit. Creates no build and uploads nothing.
+- `--emit-bundle-dir <path>` - Bundle, write the result to `<path>`, and exit without testing
+- `--bundle-dir <path>` - Test a bundle written by `--emit-bundle-dir` instead of running the bundler
 
----
+#### Supplying the bundle instead of building it
 
-### `test:standard`
-
-Test standard builds. Kept for existing setups - `sherlo test --android <path>
-[--ios <path>]` does exactly the same thing.
-
-```bash
-npx sherlo test:standard [options]
-```
-
-**Options:**
-
-- `--android <path>` - Path to Android build (.apk)
-- `--ios <path>` - Path to iOS build (.app, .tar.gz, .tar)
-- `--token <token>` - Authentication token for the project
-- `--message <message>` - Custom message to label the test
-- `--include <stories>` - List of story names to include (e.g. "My Story","Another Story")
-- `--config <path>` - Path to the config file (default: sherlo.config.json)
-- `--project-root <path>` - Path to the root directory of your project (default: .)
-
----
-
-### `test:eas-update`
-
-Test builds with dynamic JavaScript (OTA) updates.
+By default `test` bundles your JavaScript itself, on both roads. `--emit-bundle-dir`
+and `--bundle-dir` split that into two steps, so the bundle can be built once and
+reused:
 
 ```bash
-npx sherlo test:eas-update [options]
+# Step one: bundle, and write it out. Uploads nothing, creates no build.
+npx sherlo test --emit-bundle-dir sherlo-bundle
+
+# Step two, anywhere else: test that bundle. No bundler runs here.
+npx sherlo test --bundle-dir sherlo-bundle --token <token>
 ```
 
-**Options:**
+Reach for it when something in your pipeline already builds the bundle:
 
-- `--branch <branch>` - Name of the EAS Update branch to fetch the latest update from
-- `--android <path>` - Path to Android build (.apk)
-- `--ios <path>` - Path to iOS build (.app, .tar.gz, .tar)
-- `--token <token>` - Authentication token for the project
-- `--message <message>` - Custom message to label the test
-- `--include <stories>` - List of story names to include (e.g. "My Story","Another Story")
-- `--config <path>` - Path to the config file (default: sherlo.config.json)
-- `--project-root <path>` - Path to the root directory of your project (default: .)
+- **A monorepo**, where the bundle is produced by the app package's own build and
+  the Sherlo run lives elsewhere.
+- **A CI pipeline with an earlier build job**, so the Sherlo job reuses that
+  artifact rather than paying for a second bundle.
+
+The directory carries a sidecar recording what the bundle was built from. Every
+field of it is checked against your project before the bundle is accepted, and a
+mismatch is refused rather than silently tested. Those checks read the checkout
+and the lockfile only, so **the job that passes `--bundle-dir` needs no
+`node_modules` of its own** - it needs neither an install nor a bundler.
+
+On GitHub Actions the same pair are the `emit-bundle-dir` and `bundle-dir`
+action inputs.
 
 ---
 
