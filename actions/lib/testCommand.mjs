@@ -8,7 +8,15 @@
  */
 
 /** Every argument after the executable, in the order the CLI documents them. */
-export function buildTestArgs({ token, config, projectRoot, android, ios }) {
+export function buildTestArgs({
+  token,
+  config,
+  projectRoot,
+  android,
+  ios,
+  bundleDir,
+  emitBundleDir,
+}) {
   if (!token) {
     throw new Error(
       "No Sherlo token was given. Pass it as the action's `token` input, e.g. " +
@@ -26,6 +34,11 @@ export function buildTestArgs({ token, config, projectRoot, android, ios }) {
     ...optionalFlag('--projectRoot', projectRoot),
     ...optionalFlag('--android', android),
     ...optionalFlag('--ios', ios),
+    // A prebuilt bundle handed to the run, and the flag that produces one. With
+    // `--bundle-dir` the job needs no bundler and no node_modules of its own: the
+    // CLI checks the directory's sidecar against the checkout and the lockfile.
+    ...optionalFlag('--bundle-dir', bundleDir),
+    ...optionalFlag('--emit-bundle-dir', emitBundleDir),
   ];
 }
 
