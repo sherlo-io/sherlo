@@ -611,15 +611,46 @@ function readExpoSdkVersion(projectRoot: string): string | null {
   return major === null ? null : String(major);
 }
 
-/** The CLI's own version - it chooses the bundler flags, so it shapes the output. */
+/** The package names this CLI is published under, on any channel. */
+const CLI_PACKAGE_NAMES = ['sherlo', '@sherlo-io/cli'];
+
+/**
+ * The CLI's own version - it chooses the bundler flags, so it shapes the output.
+ *
+ * Found by walking UP from this file to the first package.json that names this CLI,
+ * because __dirname is at a different depth in the two layouts this code runs in:
+ * `src/commands/test` from source, and `dist` after the ncc build (which flattens
+ * every module into one file). A fixed number of `..` hops is right in one layout
+ * and wrong in the other - and a hop too far in an installed CLI lands on the
+ * CONSUMER's package.json, which reported the app's version as the CLI's.
+ *
+ * Returns null rather than a wrong answer when no such package.json is above us.
+ */
 export function readCliVersion(): string | null {
-  try {
-    const pkg = JSON.parse(
-      fs.readFileSync(path.join(__dirname, '..', '..', '..', 'package.json'), 'utf8')
-    );
-    return typeof pkg?.version === 'string' ? pkg.version : null;
-  } catch {
-    return null;
+  return findCliVersionFrom(__dirname);
+}
+
+/** The walk itself, so both layouts can be exercised by a test. */
+export function findCliVersionFrom(startDirectory: string): string | null {
+  let directory = startDirectory;
+
+  while (true) {
+    const manifestPath = path.join(directory, 'package.json');
+
+    if (fs.existsSync(manifestPath)) {
+      try {
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+        if (CLI_PACKAGE_NAMES.includes(manifest?.name)) {
+          return typeof manifest.version === 'string' ? manifest.version : null;
+        }
+      } catch {
+        // An unreadable package.json on the way up is not this CLI's - keep walking.
+      }
+    }
+
+    const parent = path.dirname(directory);
+    if (parent === directory) return null;
+    directory = parent;
   }
 }
 
