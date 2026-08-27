@@ -383,7 +383,6 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       platformConfig,
       keys,
       bundleSizeMb: bundleResult.bundleSizeMb,
-      baseReference: baseFingerprint,
     });
   }
 

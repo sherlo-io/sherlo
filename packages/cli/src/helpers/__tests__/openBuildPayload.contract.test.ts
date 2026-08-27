@@ -14,6 +14,7 @@
  * getGitInfo is NOT re-tested here (it has a real-git suite); we stub it and
  * assert its output flows verbatim into the payload.
  */
+import { keysTheApiRejects } from './openBuildPlatformConfigKeys';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ---------------------------------------------------------------------------
@@ -370,7 +371,6 @@ describe('the fresh bundle on the platform config', () => {
       s3Key: 'android-s3-key',
       jsBundleS3Key: 'android-js-key',
       bundleSizeMb: 4.29,
-      baseReference: 'base-fp-hash',
       assetsS3Key: 'android-assets-key',
     });
     expect(ios).toEqual({
@@ -378,9 +378,20 @@ describe('the fresh bundle on the platform config', () => {
       s3Key: 'ios-s3-key',
       jsBundleS3Key: 'ios-js-key',
       bundleSizeMb: 5.1,
-      baseReference: 'base-fp-hash',
       manifestS3Key: 'ios-manifest-key',
     });
+  });
+
+  it('sends ONLY the fields BuildRunConfigPlatformInput accepts, per platform', async () => {
+    await callSubject();
+    const { android, ios } = lastOpenBuildPayload().buildRunConfig;
+
+    expect(keysTheApiRejects(android)).toEqual([]);
+    expect(keysTheApiRejects(ios)).toEqual([]);
+    // The server stamps baseReference from the top-level baseFingerprint; the
+    // CLI must never send it (the api rejects the whole openBuild if it does).
+    expect(android).not.toHaveProperty('baseReference');
+    expect(ios).not.toHaveProperty('baseReference');
   });
 
   it('only registers and bundles the platforms the caller handed a binary for', async () => {

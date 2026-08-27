@@ -250,7 +250,6 @@ async function uploadOrReuseBuildsAndRunTests({
       platformConfig,
       keys: uploaded.keys,
       bundleSizeMb: uploaded.bundleSizeMb,
-      baseReference: baseFingerprint,
     });
   }
 

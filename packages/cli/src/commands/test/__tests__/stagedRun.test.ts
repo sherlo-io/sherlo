@@ -24,6 +24,7 @@ chalk.level = 0;
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER } from '@sherlo/shared';
+import { keysTheApiRejects } from '../../../helpers/__tests__/openBuildPlatformConfigKeys';
 
 // ---------------------------------------------------------------------------
 // Hoisted SDK-client mock handles (shared across the factory + assertions).
@@ -315,6 +316,20 @@ describe('gitInfo parity with the standard road', () => {
     expect(openBuildArg.buildRunConfig.ios.bundleSizeMb).toBe(1.5);
     // No assets produced (assetsDest undefined) -> no assetsS3Key.
     expect(openBuildArg.buildRunConfig.ios.assetsS3Key).toBeUndefined();
+
+    logSpy.mockRestore();
+  });
+
+  it('sends ONLY the fields BuildRunConfigPlatformInput accepts on the platform config', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await stagedRun(mockOptions());
+
+    const { ios } = mockOpenBuild.mock.calls[0][0].buildRunConfig;
+    expect(keysTheApiRejects(ios)).toEqual([]);
+    // The server stamps baseReference from the top-level baseFingerprint; the
+    // CLI must never send it (the api rejects the whole openBuild if it does).
+    expect(ios).not.toHaveProperty('baseReference');
 
     logSpy.mockRestore();
   });
