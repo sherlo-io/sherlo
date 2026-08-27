@@ -27,8 +27,13 @@ main();
 
 async function main() {
   try {
+    // WHICH CLI RAN, first line of the log. The project's own install wins when it
+    // has one; otherwise the action runs the copy it carries at this ref. A reader
+    // must never have to guess which of the two produced the results.
     const cli = resolveCliEntry(process.cwd());
-    console.log(`Sherlo CLI: ${cli.packageName}@${cli.version}`);
+    const origin =
+      cli.source === 'project' ? 'installed in your project' : 'carried by this action';
+    console.log(`Sherlo CLI: ${cli.packageName}@${cli.version} (${origin})`);
     console.log(`            ${cli.entry}`);
 
     // Both roads run the CLI through here, so the shallow-checkout repair sits
@@ -43,6 +48,8 @@ async function main() {
       projectRoot: process.env.SHERLO_PROJECT_ROOT,
       android: process.env.SHERLO_ANDROID,
       ios: process.env.SHERLO_IOS,
+      bundleDir: process.env.SHERLO_BUNDLE_DIR,
+      emitBundleDir: process.env.SHERLO_EMIT_BUNDLE_DIR,
     });
 
     const { exitCode, output } = await runCli(cli.entry, args);

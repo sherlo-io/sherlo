@@ -12,9 +12,8 @@ branding:
 # ══════════════════════════════════════════════════════════════════════════════
 # WHAT THIS ACTION DOES
 #
-# It runs `sherlo test` - the project's OWN installed CLI, never a bundled copy -
-# and republishes what the CLI printed as this step's outputs. The flags you give
-# it pick the road, exactly as they do on your machine:
+# It runs `sherlo test` and republishes what the CLI printed as this step's
+# outputs. The flags you give it pick the road, exactly as they do on your machine:
 #
 #   no `android` / `ios` input   THE STAGED ROAD. Asks whether this commit can be
 #                                tested against the already-registered native
@@ -33,6 +32,14 @@ branding:
 #
 # Note the shape of the fast case: it is not "routed to a fast job", it is
 # ALREADY DONE when this action finishes. Only the native case needs a second job.
+#
+# WHICH CLI IT RUNS: YOURS IF YOU HAVE ONE, OTHERWISE THE ONE IT CARRIES.
+#   If the job's `working-directory` has a Sherlo CLI installed, that one runs -
+#   the version your lockfile pinned, so CI matches your machine and stays
+#   coherent with the SDK your app was built with. If it has none, the action
+#   runs the CLI committed at the ref you pinned, so a job that installs nothing
+#   still works. The first line of the log names the one that ran and its
+#   version. See actions/lib/cliEntry.mjs.
 #
 # YOU DO NOT NEED `fetch-depth` ON actions/checkout.
 #   Sherlo inherits a baseline by walking a build's commit ancestry, and the
@@ -76,8 +83,26 @@ inputs:
       question.
     required: false
     default: ""
+  bundle-dir:
+    description: >-
+      Path to a prebuilt bundle directory produced by `emit-bundle-dir` (the CLI's
+      `--bundle-dir`). Given one, this job runs NO bundler: the CLI checks the
+      directory's sidecar against this checkout and the lockfile, then tests from it.
+      A job that passes this needs neither a bundler nor an install of its own.
+    required: false
+    default: ""
+  emit-bundle-dir:
+    description: >-
+      Bundle as usual, write the result to this path in the layout `bundle-dir`
+      accepts, then exit (the CLI's `--emit-bundle-dir`). Uploads nothing and creates
+      no build. Use it to bundle once and hand the directory to every job that follows.
+    required: false
+    default: ""
   working-directory:
-    description: "Directory to run `sherlo test` in (where node_modules lives)"
+    description: >-
+      Directory to run `sherlo test` in. Point it at the project root: it is both
+      where the CLI is looked for (when the project has one installed) and where the
+      config and the checkout are read from.
     required: false
     default: "."
 
@@ -101,8 +126,9 @@ outputs:
 runs:
   using: composite
   steps:
-    # The runner resolves the installed CLI's entry point itself (both the normal
-    # and the aliased install shape - see actions/lib/cliEntry.mjs), runs the one
+    # The runner resolves the CLI's entry point itself - the project's install
+    # first (both the normal and the aliased shape), then the copy this ref
+    # carries - see actions/lib/cliEntry.mjs. It runs the one
     # verb, and writes the CLI's published keys to this step's $GITHUB_OUTPUT.
     # It also owns the exit-code trap, so this step's own exit code is already
     # the right one: 0 for any routing answer, 1 only for a genuine tool error.
@@ -116,4 +142,6 @@ runs:
         SHERLO_PROJECT_ROOT: ${{ inputs.project-root }}
         SHERLO_ANDROID: ${{ inputs.android }}
         SHERLO_IOS: ${{ inputs.ios }}
+        SHERLO_BUNDLE_DIR: ${{ inputs.bundle-dir }}
+        SHERLO_EMIT_BUNDLE_DIR: ${{ inputs.emit-bundle-dir }}
       run: node "${{ github.action_path }}/actions/lib/runSherloTest.mjs"

@@ -82,6 +82,10 @@ The same verb, as a GitHub Action:
     token: ${{ secrets.SHERLO_TOKEN }}
 ```
 
+It runs the Sherlo CLI your project has installed. If the job has none, it runs
+the CLI carried at the ref you pinned, so a job needs no install step just to
+give the action a CLI to find. The first line of the log names the one that ran.
+
 Without build paths it tests JS-only and outputs `native-needed`; give it
 `android` / `ios` build paths and it runs the full test that registers a fresh
 base. See [`examples/staged`](./examples/staged) for the two-job workflow.

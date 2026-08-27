@@ -144,6 +144,12 @@ describe('the action body', () => {
     ]);
   });
 
+  it('names the CLI that ran, and where it came from, before anything else', () => {
+    const run = runAction({ fake: { FAKE_KEYS: 'completed' } });
+
+    expect(run.log).toContain('Sherlo CLI: sherlo@2.0.2 (installed in your project)');
+  });
+
   it('mirrors the CLI stderr into the step log (a failure is readable in CI)', () => {
     const run = runAction({ fake: { FAKE_KEYS: 'completed' } });
 
