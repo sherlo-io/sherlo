@@ -92,6 +92,8 @@ type CommandOptions = {
     [ANDROID_OPTION]?: string;
     [IOS_OPTION]?: string;
     [WAIT_OPTION]?: boolean;
+    /** The prebuilt bundle to splice into the binaries; see `sherlo test`'s flag below. */
+    [BUNDLE_DIR_OPTION]?: string;
   };
   [TEST_EAS_UPDATE_COMMAND]: {
     [BRANCH_OPTION]: string;
@@ -129,7 +131,9 @@ type CommandOptions = {
      * Accept a prebuilt bundle directory instead of running the bundler. The
      * directory holds, per platform, the bundle, its assets, its module manifest
      * and a sidecar recording what it was built from - every field of which is
-     * checked against this project before the bundle is used. Staged road only.
+     * checked against this project before the bundle is used. Both roads: the
+     * staged road uploads it against the registered base, the standard road
+     * against the binaries passed alongside.
      */
     [BUNDLE_DIR_OPTION]?: string;
     /**

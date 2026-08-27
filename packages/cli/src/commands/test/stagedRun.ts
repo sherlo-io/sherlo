@@ -63,7 +63,13 @@ import {
   type StagedGateRefusal,
 } from './stagedGateRefusal';
 import reportNativeNeeded, { reportFastPathRunning } from './nativeNeeded';
-import uploadStagedArtifacts, { type StagedUploadKeys } from './uploadStagedArtifacts';
+import {
+  applyBundleToPlatformConfig,
+  realBundleUploadEffects,
+  StagedSlotMissingError,
+  uploadBundles,
+} from './uploadBundles';
+import type { StagedUploadKeys } from './uploadStagedArtifacts';
 import { buildBundles, runDryRunFlow } from './bundleAndPreview';
 import { buildGateMetadata } from './buildBundle';
 import { emitBundleDir } from './emitBundleDir';
@@ -83,24 +89,14 @@ import { formatDiffScopeReport, type DiffScopePlatformReport } from './diffScope
 const PROBE_GATE_METADATA: GateMetadataInput = { derivedFrom: 'none' };
 
 /**
- * The per-platform staged build config plus the SHERLO-1894 `manifestS3Key` the api
- * department is adding to the openBuild `buildRunConfig` in parallel. Optional and
- * local because the published @sherlo/api-types config type this repo typechecks
- * against does not carry it yet - the same dev-stage skew the `manifest` upload slot
- * has. Mirrors the existing `GateMetadataInput` pattern (CLI owns its wire shape,
- * bridged at the API boundary) rather than casting to `any`. Drop this once api-types
- * republishes with the field.
- */
-type PlatformConfigWithManifest = { manifestS3Key?: string };
-
-/**
  * The per-platform Diff Scope decision the server records at openBuild, read
  * forward-compatibly off the openBuild response (SHERLO-1915). Two fields are
  * involved and BOTH are declared locally + read defensively, the same pattern as
- * {@link PlatformConfigWithManifest} and the optional `computeDiffScopeDryRun`
- * method - the published @sherlo/api-types this repo typechecks against does not
- * carry them yet, so a cast to `any` is avoided in favour of a precise local
- * extension. Absent at runtime -> the live report degrades cleanly (see below).
+ * the `manifestS3Key` bridge in ./uploadBundles and the optional
+ * `computeDiffScopeDryRun` method - the published @sherlo/api-types this repo
+ * typechecks against does not carry them yet, so a cast to `any` is avoided in
+ * favour of a precise local extension. Absent at runtime -> the live report
+ * degrades cleanly (see below).
  *
  * - `captureScope` on the per-platform buildRun config: the captured set this
  *   run selected. `full: true` means EVERY story was in scope (an empty
@@ -344,44 +340,36 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     });
   }
 
-  // 9. Request staged upload slots (getStagedUploadUrls - NOT getBuildUploadUrls).
-  reporting.addBreadcrumb({
-    category: 'api',
-    message: 'Calling getStagedUploadUrls API',
-    data: { teamId, projectIndex, platforms: platformsToTest },
-    level: 'info',
-  });
+  // 9. Upload the bundle (+ assets) for each platform to staged slots
+  //    (getStagedUploadUrls - NOT getBuildUploadUrls) and collect its S3 keys.
+  //    The SAME upload step the standard road runs; see ./uploadBundles.
+  let stagedKeys: Partial<Record<Platform, StagedUploadKeys>>;
+  try {
+    stagedKeys = await uploadBundles({
+      platformsToTest,
+      bundles,
+      projectIndex,
+      teamId,
+      effects: realBundleUploadEffects(client),
+    });
+  } catch (error) {
+    if (!(error instanceof StagedSlotMissingError)) throw error;
 
-  const { stagedPresignedUploadUrls } = await client
-    .getStagedUploadUrls({ platforms: platformsToTest, projectIndex, teamId })
-    .catch(handleClientError);
-
-  // 10. Upload the bundle (+ assets) for each platform and collect its S3 keys.
-  const stagedKeys: Partial<Record<Platform, StagedUploadKeys>> = {};
-
-  for (const platform of platformsToTest) {
-    const urls = stagedPresignedUploadUrls[platform];
-    const bundleResult = bundles[platform];
-
-    if (!urls || !bundleResult) {
-      console.log(chalk.red(`\nStaged upload slot missing for ${platform}.`));
-      console.log(chalk.yellow(FALLBACK_LINE));
-      await reporting.flush().finally(() => process.exit(1));
-      return { url: '' }; // unreachable - satisfies control flow when exit is stubbed
-    }
-
-    console.log(chalk.cyan(`\n⬆️  Uploading ${platform} bundle...`));
-    stagedKeys[platform] = await uploadStagedArtifacts({ platform, bundleResult, urls });
+    console.log(chalk.red(`\n${error.message}`));
+    console.log(chalk.yellow(FALLBACK_LINE));
+    await reporting.flush().finally(() => process.exit(1));
+    return { url: '' }; // unreachable - satisfies control flow when exit is stubbed
   }
 
-  // 11. Capture git info - IDENTICAL to the standard road (same helper, same override).
+  // 10. Capture git info - IDENTICAL to the standard road (same helper, same override).
   const gitInfo = await getGitInfo(commandParams.projectRoot, {
     branchOverride: commandParams.gitBranch,
   });
 
-  // 12. Build the run config and mirror the staged S3 keys / bundle size onto each
-  //    platform. getBuildRunConfig already sets `s3Key` to the async-upload
-  //    placeholder (no binary S3 keys passed); the server mirrors it back.
+  // 11. Build the run config and put each platform's bundle on it. This road
+  //     uploaded no binary, so `s3Key` carries the async-upload placeholder: the
+  //     server mirrors it back and the runner splices the bundle into the
+  //     registered base instead.
   const buildRunConfig = getBuildRunConfig({ commandParams });
 
   for (const platform of platformsToTest) {
@@ -391,21 +379,15 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     if (!platformConfig || !keys || !bundleResult) continue;
 
     platformConfig.s3Key = ASYNC_UPLOAD_S3_KEY_PLACEHOLDER;
-    platformConfig.jsBundleS3Key = keys.jsBundleS3Key;
-    platformConfig.bundleSizeMb = bundleResult.bundleSizeMb;
-    if (keys.assetsS3Key) {
-      platformConfig.assetsS3Key = keys.assetsS3Key;
-    }
-    // Mirror the manifest S3 key when a manifest was uploaded (SHERLO-1894). Only set
-    // when present, so old-API runs (no manifest slot -> no key) send nothing extra.
-    // `manifestS3Key` is a forward-compat field the published api-types config type
-    // does not carry yet; see PlatformConfigWithManifest.
-    if (keys.manifestS3Key) {
-      (platformConfig as PlatformConfigWithManifest).manifestS3Key = keys.manifestS3Key;
-    }
+    applyBundleToPlatformConfig({
+      platformConfig,
+      keys,
+      bundleSizeMb: bundleResult.bundleSizeMb,
+      baseReference: baseFingerprint,
+    });
   }
 
-  // 13. Open the staged build. The server gate may refuse with a
+  // 12. Open the staged build. The server gate may refuse with a
   //    STAGED_GATE_REFUSAL payload we translate for the user.
   reporting.addBreadcrumb({
     category: 'api',
@@ -441,7 +423,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     throw error; // unreachable - satisfies control flow / typing
   }
 
-  // 14. The fast path is committed: this commit is being tested with no native
+  // 13. The fast path is committed: this commit is being tested with no native
   //     rebuild. Publish that answer before the run's own output.
   reportFastPathRunning({ baseFingerprint });
 

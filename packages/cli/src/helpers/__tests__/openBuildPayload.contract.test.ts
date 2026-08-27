@@ -4,7 +4,9 @@
  *
  * Everything below the decision spine is stubbed (sdk-client, each helper
  * module, fingerprint) so we exercise ONLY the payload assembly and branch
- * selection - no git, no S3, no network, no hashing.
+ * selection - no git, no S3, no network, no hashing. The one thing kept REAL is
+ * applyBundleToPlatformConfig: the fields it writes ARE the contract the runner
+ * reads, so the standard-road cases below assert them through the shipped code.
  *
  * This file is deliberately named `openBuildPayload.contract.test.ts` so the
  * future contract-fixtures ticket can find the exact openBuild wire shape here.
@@ -22,6 +24,7 @@ const mocks = vi.hoisted(() => {
   const openBuild = vi.fn();
   const CLIENT = { openBuild };
   const MANIFEST_EFFECTS = {};
+  const FRESH_BUNDLE_EFFECTS = {};
   return {
     openBuild,
     client: CLIENT,
@@ -44,20 +47,22 @@ const mocks = vi.hoisted(() => {
     waitForBuildResult: vi.fn(),
     logWarning: vi.fn(),
     emitAndUploadModuleManifests: vi.fn(),
+    uploadFreshBundles: vi.fn(),
     /**
-     * The effects bundle `uploadOrReuseBuildsAndRunTests` builds for its manifest
-     * pass. The module is mocked WHOLESALE below, so every export the subject
-     * reaches has to be present here - and this one is reached unconditionally,
+     * The effects bundles `uploadOrReuseBuildsAndRunTests` builds for its two
+     * roads. Both modules are mocked WHOLESALE below, so every export the subject
+     * reaches has to be present here - and these are reached unconditionally,
      * before any branch the tests are about.
      *
-     * It returns a SENTINEL, not a fresh object: nothing here is ever called
-     * (the pass itself is `emitAndUploadModuleManifests`, already mocked above,
-     * and these effects are only its argument), so the only thing worth
-     * asserting is identity - that the bundle built from THIS client is the one
-     * the pass receives.
+     * Each returns a SENTINEL, not a fresh object: nothing here is ever called
+     * (the passes themselves are mocked above, and these effects are only their
+     * argument), so the only thing worth asserting is identity - that the bundle
+     * built from THIS client is the one the pass receives.
      */
     manifestEffects: MANIFEST_EFFECTS,
     realManifestEffects: vi.fn(() => MANIFEST_EFFECTS),
+    freshBundleEffects: FRESH_BUNDLE_EFFECTS,
+    realFreshBundleEffects: vi.fn(() => FRESH_BUNDLE_EFFECTS),
   };
 });
 
@@ -87,6 +92,10 @@ vi.mock('../emitAndUploadModuleManifests', () => ({
   emitAndUploadModuleManifests: mocks.emitAndUploadModuleManifests,
   realManifestEffects: mocks.realManifestEffects,
 }));
+vi.mock('../uploadFreshBundles', () => ({
+  uploadFreshBundles: mocks.uploadFreshBundles,
+  realFreshBundleEffects: mocks.realFreshBundleEffects,
+}));
 
 import uploadOrReuseBuildsAndRunTests from '../uploadOrReuseBuildsAndRunTests';
 // NOT mocked: `../uploadOrPrintBinaryReuse` is replaced wholesale above, but
@@ -107,7 +116,6 @@ const GIT_INFO = {
   isDirty: false,
   mergeBaseSha: 'forkpoint789',
 };
-const BUILD_RUN_CONFIG = { __buildRunConfig: true } as any;
 
 const BINARIES_INFO = {
   android: {
@@ -132,9 +140,42 @@ const COMMAND_PARAMS = {
   devices: [],
 } as any;
 
-function callSubject(overrides: { easUpdateData?: any } = {}) {
+const EAS_UPDATE_DATA = {
+  slug: 'my-app',
+  updateUrls: {},
+  message: 'update',
+  timeAgo: '1 minute ago',
+  author: 'me',
+  branch: 'main',
+} as any;
+
+/** What the fresh-bundle step hands back on a happy standard-road run. */
+const FRESH_BUNDLES = {
+  android: {
+    keys: { jsBundleS3Key: 'android-js-key', assetsS3Key: 'android-assets-key' },
+    bundleSizeMb: 4.29,
+  },
+  ios: {
+    keys: { jsBundleS3Key: 'ios-js-key', manifestS3Key: 'ios-manifest-key' },
+    bundleSizeMb: 5.1,
+  },
+};
+
+/**
+ * A fresh config per call, shaped like getBuildRunConfig's output for two
+ * platforms with real binary keys. Fresh because the standard road WRITES into
+ * it, and a shared constant would leak one test's fields into the next.
+ */
+function buildRunConfig() {
+  return {
+    android: { devices: [], s3Key: 'android-s3-key' },
+    ios: { devices: [], s3Key: 'ios-s3-key' },
+  } as any;
+}
+
+function callSubject(overrides: { easUpdateData?: any; commandParams?: any } = {}) {
   return uploadOrReuseBuildsAndRunTests({
-    commandParams: COMMAND_PARAMS,
+    commandParams: overrides.commandParams ?? COMMAND_PARAMS,
     easUpdateData: overrides.easUpdateData,
   });
 }
@@ -155,15 +196,19 @@ beforeEach(() => {
   });
   mocks.uploadOrPrintBinaryReuse.mockResolvedValue(undefined);
   mocks.getGitInfo.mockResolvedValue(GIT_INFO);
-  mocks.getBuildRunConfig.mockReturnValue(BUILD_RUN_CONFIG);
+  mocks.getBuildRunConfig.mockImplementation(buildRunConfig);
   // The `nativeFingerprint` wire value is sourced from the single sanitized
-  // Layer-1 compute (SHERLO-1756): `computeBaseFingerprint` returns it
-  // as `nativeFingerprint`. Default to a null base hash (base-fingerprint branch
-  // off) that still carries a Layer-1 nativeFingerprint, so the wire path is
-  // exercised independently of the base-fingerprint spread.
-  mocks.computeBaseFingerprint.mockResolvedValue({ hash: null, nativeFingerprint: 'native-fp' });
-  mocks.registerBase.mockResolvedValue({ gateMetadata: undefined });
+  // Layer-1 compute (SHERLO-1756): `computeBaseFingerprint` returns it as
+  // `nativeFingerprint`. The default is a computed base hash with a registered,
+  // spliceable binary per platform - the state a standard-road run needs to
+  // start at all.
+  mocks.computeBaseFingerprint.mockResolvedValue({
+    hash: 'base-fp-hash',
+    nativeFingerprint: 'native-fp',
+  });
+  mocks.registerBase.mockResolvedValue({ registered: true, gateMetadata: { engineClass: 'hermes' } });
   mocks.emitAndUploadModuleManifests.mockResolvedValue({});
+  mocks.uploadFreshBundles.mockResolvedValue(FRESH_BUNDLES);
   mocks.getAppBuildUrl.mockReturnValue('https://app.sherlo.io/team1234/7/build/42');
   mocks.openBuild.mockResolvedValue({ build: { index: 42 } });
   vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -193,9 +238,10 @@ describe('openBuild payload - core shape', () => {
       sdkVersion: '2.0.0',
       message: 'my build message',
       nativeFingerprint: 'native-fp',
+      baseFingerprint: 'base-fp-hash',
     });
     // buildRunConfig + gitInfo flow through by identity (no reshaping).
-    expect(payload.buildRunConfig).toBe(BUILD_RUN_CONFIG);
+    expect(payload.buildRunConfig).toBe(mocks.getBuildRunConfig.mock.results[0].value);
     expect(payload.gitInfo).toBe(GIT_INFO);
 
     // The client MUST NOT send `changedFiles` on the openBuild payload. This is a
@@ -230,10 +276,10 @@ describe('openBuild payload - core shape', () => {
 // ---------------------------------------------------------------------------
 
 describe('openBuild payload - baseFingerprint/gateMetadata spread', () => {
-  it('OMITS baseFingerprint and gateMetadata when no base fingerprint is available', async () => {
+  it('OMITS baseFingerprint and gateMetadata when no base fingerprint is available (EAS-update road, which tolerates it)', async () => {
     mocks.computeBaseFingerprint.mockResolvedValue({ hash: null });
 
-    await callSubject();
+    await callSubject({ easUpdateData: EAS_UPDATE_DATA });
     const payload = lastOpenBuildPayload();
 
     expect(payload).not.toHaveProperty('baseFingerprint');
@@ -241,9 +287,6 @@ describe('openBuild payload - baseFingerprint/gateMetadata spread', () => {
   });
 
   it('INCLUDES baseFingerprint and per-platform gateMetadata when a base fingerprint exists', async () => {
-    mocks.computeBaseFingerprint.mockResolvedValue({ hash: 'base-fp-hash' });
-    mocks.registerBase.mockResolvedValue({ gateMetadata: { engineClass: 'hermes' } });
-
     await callSubject();
     const payload = lastOpenBuildPayload();
 
@@ -255,11 +298,10 @@ describe('openBuild payload - baseFingerprint/gateMetadata spread', () => {
     });
   });
 
-  it('still includes baseFingerprint with empty gateMetadata when registerBase yields none', async () => {
-    mocks.computeBaseFingerprint.mockResolvedValue({ hash: 'base-fp-hash' });
-    mocks.registerBase.mockResolvedValue({ gateMetadata: undefined });
+  it('still includes baseFingerprint with empty gateMetadata when registerBase yields none (EAS-update road)', async () => {
+    mocks.registerBase.mockResolvedValue({ registered: false, gateMetadata: undefined });
 
-    await callSubject();
+    await callSubject({ easUpdateData: EAS_UPDATE_DATA });
     const payload = lastOpenBuildPayload();
 
     expect(payload.baseFingerprint).toBe('base-fp-hash');
@@ -279,11 +321,11 @@ describe('openBuild payload - nativeFingerprint', () => {
     expect(lastOpenBuildPayload().nativeFingerprint).toBe('native-fp');
   });
 
-  it('sends undefined nativeFingerprint when fingerprint is unavailable', async () => {
+  it('sends undefined nativeFingerprint when fingerprint is unavailable (EAS-update road)', async () => {
     // A failed Layer-1 compute returns no nativeFingerprint (fail-soft).
     mocks.computeBaseFingerprint.mockResolvedValue({ hash: null });
 
-    await callSubject();
+    await callSubject({ easUpdateData: EAS_UPDATE_DATA });
     expect(lastOpenBuildPayload().nativeFingerprint).toBeUndefined();
   });
 });
@@ -339,21 +381,140 @@ describe('reuse-vs-upload branch selection', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Module manifest wiring (SHERLO-1943) - reuses the SAME producer as
-// test:bundled via emitAndUploadModuleManifests; only the wiring at the
-// openBuild-payload boundary is exercised here (the producer/guard logic has
-// its own suite in emitAndUploadModuleManifests.test.ts).
+// THE STANDARD ROAD RENDERS A FRESH BUNDLE. The user's binary keeps its own
+// s3Key, and the bundle fields the runner splices by are written next to it -
+// the shape the api tells apart from a staged run (placeholder s3Key) and from
+// an old CLI's full run (no bundle fields) by fields alone.
 // ---------------------------------------------------------------------------
 
-describe('module manifest wiring (SHERLO-1943)', () => {
-  beforeEach(() => {
-    mocks.computeBaseFingerprint.mockResolvedValue({ hash: 'base-fp-hash' });
-    mocks.registerBase.mockResolvedValue({ gateMetadata: undefined });
-    mocks.getBuildRunConfig.mockReturnValue({ android: {}, ios: {} });
+describe('standard road - the fresh bundle on the platform config', () => {
+  it('runs the fresh-bundle step with the registered platforms, the base fingerprint, the caller`s --bundle-dir and the effects built from the client', async () => {
+    await callSubject({ commandParams: { ...COMMAND_PARAMS, bundleDir: '/tmp/bundles' } });
+
+    expect(mocks.uploadFreshBundles).toHaveBeenCalledTimes(1);
+    expect(mocks.uploadFreshBundles).toHaveBeenCalledWith({
+      projectRoot: '/proj',
+      platforms: ['android', 'ios'],
+      bundleDir: '/tmp/bundles',
+      baseFingerprint: 'base-fp-hash',
+      projectIndex: 7,
+      teamId: 'team1234',
+      // Asserted ON PURPOSE: the effects bundle is the seam an expectation
+      // producer swaps to run this exact step offline. Identity is the assertion.
+      effects: mocks.freshBundleEffects,
+    });
+    expect(mocks.realFreshBundleEffects).toHaveBeenCalledWith(mocks.client);
   });
 
-  it('runs the manifest pass with the platforms being registered + the SAME gitInfo and the effects built from the client, only when a base fingerprint exists', async () => {
+  it('keeps the REAL binary s3Key and writes the bundle fields beside it, per platform', async () => {
     await callSubject();
+    const { android, ios } = lastOpenBuildPayload().buildRunConfig;
+
+    expect(android).toEqual({
+      devices: [],
+      s3Key: 'android-s3-key',
+      jsBundleS3Key: 'android-js-key',
+      bundleSizeMb: 4.29,
+      baseReference: 'base-fp-hash',
+      assetsS3Key: 'android-assets-key',
+    });
+    expect(ios).toEqual({
+      devices: [],
+      s3Key: 'ios-s3-key',
+      jsBundleS3Key: 'ios-js-key',
+      bundleSizeMb: 5.1,
+      baseReference: 'base-fp-hash',
+      manifestS3Key: 'ios-manifest-key',
+    });
+  });
+
+  it('never runs the EAS-update manifest pass', async () => {
+    await callSubject();
+    expect(mocks.emitAndUploadModuleManifests).not.toHaveBeenCalled();
+  });
+
+  it('only registers and bundles the platforms the caller handed a binary for', async () => {
+    await callSubject({ commandParams: { ...COMMAND_PARAMS, ios: undefined } });
+
+    expect(mocks.registerBase).toHaveBeenCalledTimes(1);
+    expect(mocks.uploadFreshBundles.mock.calls[0][0].platforms).toEqual(['android']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// THE STANDARD ROAD REFUSES A RUN THAT WOULD RENDER THE EMBEDDED BUNDLE. A
+// binary a bundle cannot be spliced into, or a run with no base to name, is
+// refused before anything is bundled, uploaded or opened - naming every reason.
+// ---------------------------------------------------------------------------
+
+describe('standard road - refusal when the fresh bundle cannot render', () => {
+  it('refuses when a binary is not spliceable, quoting the platform and the shipped reason', async () => {
+    mocks.registerBase.mockImplementation(async ({ platform }: { platform: string }) =>
+      platform === 'ios'
+        ? { registered: true, gateMetadata: {} }
+        : {
+            registered: false,
+            gateMetadata: {},
+            notStageableReason: 'No embedded bundle found at the default path.',
+          }
+    );
+
+    await expect(callSubject()).rejects.toThrow(
+      /Android: No embedded bundle found at the default path\./
+    );
+
+    expect(mocks.uploadFreshBundles).not.toHaveBeenCalled();
+    expect(mocks.openBuild).not.toHaveBeenCalled();
+  });
+
+  it('refuses when there is no base fingerprint to splice against, quoting why', async () => {
+    mocks.computeBaseFingerprint.mockResolvedValue({
+      hash: null,
+      debugMessage: 'no native project found',
+    });
+
+    await expect(callSubject()).rejects.toThrow(/base fingerprint: no native project found/);
+
+    expect(mocks.uploadFreshBundles).not.toHaveBeenCalled();
+    expect(mocks.openBuild).not.toHaveBeenCalled();
+  });
+
+  it('names every reason at once', async () => {
+    mocks.registerBase.mockResolvedValue({
+      registered: false,
+      gateMetadata: {},
+      notStageableReason: 'RAM/indexed bundle format detected.',
+    });
+
+    const refusal = await callSubject().catch((error: Error) => error.message);
+
+    expect(refusal).toContain('Android: RAM/indexed bundle format detected.');
+    expect(refusal).toContain('iOS: RAM/indexed bundle format detected.');
+  });
+
+  it('treats a registration whose gate metadata could not be read as not spliceable', async () => {
+    mocks.registerBase.mockResolvedValue({ registered: false });
+
+    await expect(callSubject()).rejects.toThrow(/gate metadata could not be read/);
+  });
+
+  it('lets a fresh-bundle failure end the run without opening a build', async () => {
+    mocks.uploadFreshBundles.mockRejectedValue(new Error('Staged upload slot missing for ios.'));
+
+    await expect(callSubject()).rejects.toThrow('Staged upload slot missing for ios.');
+    expect(mocks.openBuild).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// THE EAS-UPDATE ROAD (SHERLO-1943) is untouched: a development build renders
+// the update's JS, so this road produces only the module manifest, through
+// emitAndUploadModuleManifests, and never a fresh bundle.
+// ---------------------------------------------------------------------------
+
+describe('EAS-update road - module manifest wiring (SHERLO-1943)', () => {
+  it('runs the manifest pass with the platforms being registered + the SAME gitInfo and the effects built from the client, only when a base fingerprint exists', async () => {
+    await callSubject({ easUpdateData: EAS_UPDATE_DATA });
 
     expect(mocks.emitAndUploadModuleManifests).toHaveBeenCalledTimes(1);
     expect(mocks.emitAndUploadModuleManifests).toHaveBeenCalledWith({
@@ -376,9 +537,21 @@ describe('module manifest wiring (SHERLO-1943)', () => {
   it('never runs the manifest pass when there is no base fingerprint (nothing to compare it against)', async () => {
     mocks.computeBaseFingerprint.mockResolvedValue({ hash: null });
 
-    await callSubject();
+    await callSubject({ easUpdateData: EAS_UPDATE_DATA });
 
     expect(mocks.emitAndUploadModuleManifests).not.toHaveBeenCalled();
+  });
+
+  it('never bundles, and still opens the build, when the binary is not stageable (today`s fail-soft behaviour)', async () => {
+    mocks.registerBase.mockResolvedValue({
+      registered: false,
+      notStageableReason: 'Debug builds without an embedded JS bundle cannot be staged.',
+    });
+
+    await callSubject({ easUpdateData: EAS_UPDATE_DATA });
+
+    expect(mocks.uploadFreshBundles).not.toHaveBeenCalled();
+    expect(mocks.openBuild).toHaveBeenCalledTimes(1);
   });
 
   it('mirrors manifestS3Key onto each platform config when the pass vouched and uploaded (present)', async () => {
@@ -387,27 +560,27 @@ describe('module manifest wiring (SHERLO-1943)', () => {
       ios: 'ios-manifest-key',
     });
 
-    await callSubject();
+    await callSubject({ easUpdateData: EAS_UPDATE_DATA });
     const payload = lastOpenBuildPayload();
 
     expect(payload.buildRunConfig.android.manifestS3Key).toBe('android-manifest-key');
     expect(payload.buildRunConfig.ios.manifestS3Key).toBe('ios-manifest-key');
   });
 
-  it('does NOT set manifestS3Key when the pass was skipped/failed (bail-open, absent)', async () => {
+  it('does NOT set manifestS3Key, nor any bundle field, when the pass was skipped/failed (bail-open, absent)', async () => {
     mocks.emitAndUploadModuleManifests.mockResolvedValue({});
 
-    await callSubject();
+    await callSubject({ easUpdateData: EAS_UPDATE_DATA });
     const payload = lastOpenBuildPayload();
 
-    expect('manifestS3Key' in payload.buildRunConfig.android).toBe(false);
-    expect('manifestS3Key' in payload.buildRunConfig.ios).toBe(false);
+    expect(payload.buildRunConfig.android).toEqual({ devices: [], s3Key: 'android-s3-key' });
+    expect(payload.buildRunConfig.ios).toEqual({ devices: [], s3Key: 'ios-s3-key' });
   });
 
   it('sets manifestS3Key only for the platform that got one (partial vouch/upload)', async () => {
     mocks.emitAndUploadModuleManifests.mockResolvedValue({ ios: 'ios-manifest-key' });
 
-    await callSubject();
+    await callSubject({ easUpdateData: EAS_UPDATE_DATA });
     const payload = lastOpenBuildPayload();
 
     expect('manifestS3Key' in payload.buildRunConfig.android).toBe(false);

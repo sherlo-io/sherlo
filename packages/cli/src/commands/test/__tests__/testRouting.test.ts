@@ -80,8 +80,9 @@ describe('road choice', () => {
   });
 });
 
-// The preview flags describe a BUNDLING decision. The standard road never makes
-// one, so the combination is refused rather than silently ignored.
+// The preview flags preview what the staged road would decide and create no
+// build. The standard road always creates one, so the combination is refused
+// rather than silently ignored.
 describe('preview flags are staged-road only', () => {
   it.each([
     ['--dry-run', { dryRun: true }],
@@ -100,16 +101,23 @@ describe('preview flags are staged-road only', () => {
   });
 });
 
-// The bundle-supply flags act on the staged road's bundling step, which the
-// standard road does not have. Ignoring them would be the worst outcome: a caller
-// who passed --bundle-dir to skip bundling would still pay for it on every run,
-// with nothing on screen to say why.
-describe('bundle-supply flags are staged-road only', () => {
-  it.each([
-    ['--bundle-dir', { bundleDir: '/tmp/bundles' }],
-    ['--emit-bundle-dir', { emitBundleDir: '/tmp/bundles' }],
-  ])('refuses %s together with a build path', async (_name, supplyFlags) => {
-    await expect(test({ token: 'tok', android: 'app.apk', ...supplyFlags })).rejects.toThrow();
+// Both roads bundle, so a prebuilt bundle can be handed to either. Emitting one
+// is a run-less operation, so a build path alongside it is refused rather than
+// uploaded for nothing.
+describe('bundle-supply flags', () => {
+  it('forwards --bundle-dir to the STANDARD road together with a build path', async () => {
+    const options = { token: 'tok', android: 'app.apk', bundleDir: '/tmp/bundles' };
+
+    await test(options);
+
+    expect(mockTestStandard).toHaveBeenCalledWith(options);
+    expect(mockStagedRun).not.toHaveBeenCalled();
+  });
+
+  it('refuses --emit-bundle-dir together with a build path', async () => {
+    await expect(
+      test({ token: 'tok', android: 'app.apk', emitBundleDir: '/tmp/bundles' })
+    ).rejects.toThrow();
 
     expect(mockTestStandard).not.toHaveBeenCalled();
     expect(mockStagedRun).not.toHaveBeenCalled();

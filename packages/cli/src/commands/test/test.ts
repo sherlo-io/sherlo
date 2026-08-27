@@ -1,7 +1,9 @@
 /**
  * `sherlo test` - the ONE testing command.
  *
- * It has exactly two roads, and the flags you pass pick the road:
+ * Every run renders a JS bundle built from the project as it is now - never the
+ * bundle embedded in a native binary. The flags you pass pick which of two
+ * roads gets that bundle onto a device:
  *
  *   sherlo test
  *     THE STAGED ROAD. No native build paths were given, so the command asks
@@ -13,14 +15,20 @@
  *     road. See ./stagedRun.ts and ./nativeNeeded.ts.
  *
  *   sherlo test --android <path> [--ios <path>]
- *     THE STANDARD ROAD. Native builds were handed to the command, so it runs a
- *     full test on them and REGISTERS them as the new base - which is what makes
- *     the staged road available on the next commit. Delegated verbatim to the
+ *     THE STANDARD ROAD. Native builds were handed to the command, so it
+ *     uploads them, REGISTERS them as the new base - which is what makes the
+ *     staged road available on the next commit - and runs a full test on them
+ *     with the freshly built bundle spliced in. Delegated verbatim to the
  *     standard road so there is exactly one implementation of a full run.
  *
  * The road is chosen by the FLAGS, never by the config file: a caller that
  * passes no `--android`/`--ios` is asking the routing question, whatever paths
  * sherlo.config.json happens to carry.
+ *
+ * Both roads bundle, so `--bundle-dir` (hand over a prebuilt bundle instead of
+ * bundling) works on both, with the same checks that the directory belongs to
+ * this project and is not stale. The remaining staged-only flags are refused
+ * with build paths rather than silently ignored.
  */
 import { ANDROID_OPTION, IOS_OPTION } from '../../constants';
 import { throwError } from '../../helpers';
@@ -36,9 +44,10 @@ async function test(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string
     return stagedRun(passedOptions);
   }
 
-  // --dry-run / --emit-expectation preview the BUNDLING decision, which the
-  // standard road never makes. Refuse the combination rather than silently
-  // ignoring the flag.
+  // --dry-run / --emit-expectation preview what the staged road would decide
+  // and create no build. The standard road always creates one, so there is
+  // nothing for them to preview there. Refuse the combination rather than
+  // silently ignoring the flag.
   if (passedOptions.dryRun === true || passedOptions.emitExpectation !== undefined) {
     throwError({
       message:
@@ -47,14 +56,13 @@ async function test(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string
     });
   }
 
-  // The bundle-supply flags act on the staged road's bundling step, which the
-  // standard road does not have. Silently ignoring them would be the worst
-  // outcome: a caller who passed --bundle-dir to save the bundling time would
-  // still pay it, on every run, with nothing on screen to say why.
-  if (passedOptions.bundleDir !== undefined || passedOptions.emitBundleDir !== undefined) {
+  // --emit-bundle-dir writes a bundle directory and exits without a run, so a
+  // build path handed to it would be uploaded for nothing. Refuse it rather than
+  // ignore either half of the request.
+  if (passedOptions.emitBundleDir !== undefined) {
     throwError({
       message:
-        '`--bundle-dir` and `--emit-bundle-dir` act on the staged (JS-only) road, so they cannot be ' +
+        '`--emit-bundle-dir` produces a bundle directory and exits, so it cannot be ' +
         `combined with \`--${ANDROID_OPTION}\` / \`--${IOS_OPTION}\`. Drop the build paths.`,
     });
   }

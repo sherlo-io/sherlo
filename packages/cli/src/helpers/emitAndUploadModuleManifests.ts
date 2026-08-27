@@ -1,27 +1,33 @@
 /**
- * test:standard's module-manifest producer pass (SHERLO-1943).
+ * The EAS-update road's module-manifest producer pass (SHERLO-1943).
  *
- * test:standard registers a user-supplied PRE-BUILT binary as the stageable
- * base; it has no bundling step of its own. To let a later staged run
- * compare its module manifest against an ancestor, test:standard runs
- * Sherlo's OWN bundling pass here purely to produce that manifest - the EXACT
- * same producer the staged road uses ({@link buildBundleForPlatform} from
- * commands/test/buildBundle.ts, which sets SHERLO_MODULE_MANIFEST=1 and
- * reads the sidecar via readValidatedModuleManifest). No second producer is
- * implemented here: same producer + same env header => guaranteed comparable
- * with whatever manifest the staged road would emit on the same tree.
+ * `sherlo test:eas-update` registers a user-supplied PRE-BUILT development
+ * binary as the base, and the JS it renders arrives through the EAS update -
+ * a development build has no embedded bundle a fresh one could be spliced
+ * into. To let a later run compare its module manifest against an ancestor,
+ * this road runs Sherlo's OWN bundling pass here purely to produce that
+ * manifest - the EXACT same producer the other roads use
+ * ({@link buildBundleForPlatform} from commands/test/buildBundle.ts, which
+ * sets SHERLO_MODULE_MANIFEST=1 and reads the sidecar via
+ * readValidatedModuleManifest). No second producer is implemented here: same
+ * producer + same env header => guaranteed comparable with whatever manifest
+ * the other roads would emit on the same tree.
  *
- * HARD PROVENANCE GUARD: because test:standard's binary is user-supplied
- * (requirePlatformPaths: true), the CLI can only vouch that a manifest built
- * from the CURRENT working tree actually describes that binary's provenance
- * when the tree is clean and the commit is known. When it can't vouch, this
- * pass is skipped entirely (no bundling, no upload, no manifestS3Key) and one
- * plain line states why - degrading to today's cold-start full run, never to
- * a wrong partial one.
+ * The standard road (`sherlo test --android <apk>`) does NOT come through
+ * here: it keeps the bundle this pass would throw away and renders it - see
+ * ./uploadFreshBundles.
+ *
+ * HARD PROVENANCE GUARD: because the binary is user-supplied and renders JS
+ * this CLI did not build, the CLI can only vouch that a manifest built from
+ * the CURRENT working tree actually describes that run's provenance when the
+ * tree is clean and the commit is known. When it can't vouch, this pass is
+ * skipped entirely (no bundling, no upload, no manifestS3Key) and one plain
+ * line states why - degrading to a cold-start full run, never to a wrong
+ * partial one.
  *
  * Fail-soft throughout: any bundling, upload-slot, or upload failure is
  * logged and swallowed. A module-manifest problem can never fail or slow down
- * (beyond the one bundling pass) a test:standard run.
+ * (beyond the one bundling pass) the run.
  */
 import zlib from 'zlib';
 import { Platform, StagedPlatformUploadUrls, StagedPresignedUploadUrl } from '@sherlo/api-types';
@@ -86,8 +92,8 @@ export type ProvenanceAssessment = { vouched: true } | { vouched: false; reason:
 
 /**
  * Can the CLI vouch that a manifest built from the CURRENT working tree
- * describes the SAME provenance as the pre-built binary test:standard is
- * about to register? Only when:
+ * describes the SAME provenance as the pre-built binary this road is about to
+ * register? Only when:
  *  - the working tree is clean (`isDirty === false`, not merely falsy - an
  *    UNDETERMINED dirtiness must refuse, not pass), AND
  *  - commit metadata is present and not the getGitInfo `'unknown'` sentinel.
@@ -120,11 +126,11 @@ export function assessManifestProvenance(gitInfo: GitInfo): ProvenanceAssessment
 // ---------------------------------------------------------------------------
 
 /**
- * Produces + uploads the per-platform module manifest for a test:standard
+ * Produces + uploads the per-platform module manifest for an EAS-update
  * registration, guarded by {@link assessManifestProvenance}.
  *
  * Returns the per-platform manifest S3 key to mirror onto the openBuild
- * buildRunConfig (mirrors testBundled.ts's `manifestS3Key` wiring exactly).
+ * buildRunConfig (the same `manifestS3Key` wiring the staged road uses).
  * Absent entries mean "send nothing extra" - never a fabricated key.
  */
 export async function emitAndUploadModuleManifests({
@@ -160,7 +166,7 @@ export async function emitAndUploadModuleManifests({
 
   // 1. Build the bundle for each platform via the EXACT staged-road producer,
   //    purely to obtain the manifest sidecar it emits. Fail-soft per platform:
-  //    a bundling failure here must never block test:standard's real run.
+  //    a bundling failure here must never block the real run.
   const manifests: Partial<Record<Platform, Buffer>> = {};
 
   for (const platform of platforms) {

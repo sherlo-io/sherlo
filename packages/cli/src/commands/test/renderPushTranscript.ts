@@ -5,11 +5,12 @@
  * scenario's scripted wire state, runs the CLI's OWN push code over it, and
  * returns what that code printed.
  *
- * WHAT IT SUBSTITUTES, AND WHAT IT DOES NOT. A push performs seven effects - it
+ * WHAT IT SUBSTITUTES, AND WHAT IT DOES NOT. A push performs eight effects - it
  * asks the backend which build this is, reads and PUTs each binary, reads git,
  * computes a fingerprint, reads gate metadata out of each binary, produces and
- * uploads module manifests, and opens the build - and this supplies those seven
- * and nothing else. It does not stub a formatter, a print site, a segment or a
+ * uploads module manifests (the EAS-update road) or a fresh bundle (the
+ * standard road), and opens the build - and this supplies those eight and
+ * nothing else. It does not stub a formatter, a print site, a segment or a
  * branch: {@link uploadOrReuseBuildsAndRunTests} is the shipped function the
  * `test:standard` verb itself calls.
  *
@@ -178,5 +179,27 @@ function scriptedPushEffects(state: PushTranscriptState): PushEffects {
         if (failure) throw new Error(failure);
       },
     },
+
+    // Every scenario in this family is an EAS-update push, so the standard
+    // road's fresh bundle is never reached. A scenario that IS a standard-road
+    // push needs a scripted bundle and scripted slots; until one exists, reaching
+    // this is a scenario error, not something to render around.
+    freshBundle: {
+      bundling: {
+        bundleFor: async (_projectRoot, platform) => refuseFreshBundle(platform),
+        gateMetadataFor: async (_projectRoot, platform) => refuseFreshBundle(platform),
+      },
+      upload: {
+        requestUploadSlots: async ({ platforms }) => refuseFreshBundle(platforms[0]),
+        uploadBundle: async ({ platform }) => refuseFreshBundle(platform),
+      },
+    },
   };
+}
+
+function refuseFreshBundle(platform: Platform | undefined): never {
+  throw new Error(
+    `REFUSING TO RENDER (incomplete state): the run reached the standard road's fresh bundle for ` +
+      `'${platform}', but no push scenario scripts a bundle or its upload slots yet.`
+  );
 }

@@ -2,8 +2,26 @@
  * Not-stageable detection.
  *
  * Each check returns a human-readable reason string when the artifact CANNOT
- * be a staging base, or `null` when it passes.  All checks are non-fatal -
- * they produce a printed note and let the test run proceed untouched.
+ * be a staging base, or `null` when it passes.
+ *
+ * ALL THREE CHECKS ASK THE SAME QUESTION: will this binary load a plain-JS
+ * bundle from the platform-default path at launch? That is what the runner's
+ * splice relies on - it overwrites exactly that path with the bundle a run
+ * renders and never checks that the app reads it - so a binary that fails here
+ * would boot the JS it was built with, whatever was spliced in:
+ *   - no embedded bundle at the default path: the app loads its JS from
+ *     somewhere else (a custom bundle name, or a dev server), so the spliced
+ *     file is never read;
+ *   - expo-updates enabled: the updates runtime picks the launch bundle, not
+ *     the default asset;
+ *   - a RAM bundle: the binary's loader was built for the indexed format, and
+ *     a flat bundle in its place is not a run this CLI vouches for.
+ *
+ * So "stageable" and "spliceable" are one fact, not two. A base is registered
+ * so that later bundles can be spliced into it, and a fresh bundle is spliced
+ * into a binary this run registers; both are refused, for the same reason, on
+ * the same binary. Registration additionally needs a computed base fingerprint
+ * to file the base under, which is judged by the caller, not here.
  *
  * Reasons are aligned with the API's failReason derivation so local and
  * server agree:
