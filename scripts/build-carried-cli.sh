@@ -60,6 +60,14 @@ rm -f "$CARRIED_ROOT/runtime-dependencies.txt"
 # under the name `sherlo`, which is the directory name every install shape uses.
 mkdir -p "$CARRIED_CLI_DIR"
 cp -R "$CLI_DIR/dist" "$CARRIED_CLI_DIR/dist"
+
+# Only what RUNS. The published tarball also carries the ncc source map (about
+# 9 MB) and the emitted type declarations; neither is read when the action executes
+# the bundle, and every release commits this tree onto a release ref, so keeping
+# them would grow that ref by an order of magnitude per release for nothing.
+find "$CARRIED_CLI_DIR/dist" -name '*.map' -delete
+find "$CARRIED_CLI_DIR/dist" -name '*.d.ts' -delete
+find "$CARRIED_CLI_DIR/dist" -type d -empty -delete
 cp "$CLI_DIR/cli.js" "$CARRIED_CLI_DIR/cli.js"
 if [ -f "$CLI_DIR/sdk-compatibility.json" ]; then
   cp "$CLI_DIR/sdk-compatibility.json" "$CARRIED_CLI_DIR/sdk-compatibility.json"
