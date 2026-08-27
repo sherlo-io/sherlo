@@ -57,9 +57,27 @@ export type DependencyClosureSource =
   | 'pnpm-lock.yaml'
   | 'package.json';
 
+/** One package name and every version of it the closure found, sorted. */
+export type InstalledPackageVersions = {
+  name: string;
+  versions: string[];
+};
+
 export type DependencyClosure = {
   source: DependencyClosureSource;
   hash: string;
+  /**
+   * The pre-image of `hash` when it was read from `node_modules`: the exact
+   * name -> versions map that was hashed, which is what lets a later step say
+   * WHICH package moved instead of only that the closure did.
+   *
+   * `null` for every other source - a lockfile or package.json hash is taken over
+   * raw bytes, and there is no per-package pre-image to keep.
+   *
+   * NOT PERSISTED in the sidecar file: `emitBundleDir` writes the closure without
+   * it, so a sidecar on disk keeps exactly the bytes it has always had.
+   */
+  installedPackages: InstalledPackageVersions[] | null;
 };
 
 /**
@@ -83,6 +101,14 @@ export type SidecarProjectIdentity = {
    * changes bundle bytes. This is why the closure is a refusal and not a warning.
    */
   dependencyClosure: DependencyClosure;
+};
+
+/** One app source file and the digest of its bytes as read from the tree. */
+export type AppSourceFileDigest = {
+  /** Project-relative path, exactly as the module manifest keys it. */
+  path: string;
+  /** sha256 of the file's bytes, or `missing` when the tree no longer has it. */
+  digest: string;
 };
 
 /**
@@ -111,6 +137,30 @@ export type AppSourceClosure = {
   /** How many app source files the digest covers - diagnostics for a refusal. */
   fileCount: number;
   hash: string;
+  /**
+   * The pre-image of `hash`: the per-file digests it was computed over, in the
+   * same order. This is what turns "the source changed" into "these files did".
+   *
+   * NOT PERSISTED in the sidecar file: `emitBundleDir` writes the closure without
+   * it, so a sidecar on disk keeps exactly the bytes it has always had.
+   */
+  files: AppSourceFileDigest[];
+};
+
+/**
+ * The two closures as the SIDECAR FILE stores them: digest and provenance, WITHOUT
+ * the pre-image.
+ *
+ * The pre-image is retained in memory so a refusal can be explained, but it is not
+ * written down. Persisting it would add the project's whole node_modules closure
+ * and every app source digest to a file that has always been a few kilobytes, and
+ * would change bytes that older CLIs read. The sidecar's job is to be COMPARED;
+ * both sides recompute the pre-image from their own tree when they need it.
+ */
+export type PersistedDependencyClosure = Omit<DependencyClosure, 'installedPackages'>;
+export type PersistedAppSourceClosure = Omit<AppSourceClosure, 'files'>;
+export type PersistedProjectIdentity = Omit<SidecarProjectIdentity, 'dependencyClosure'> & {
+  dependencyClosure: PersistedDependencyClosure;
 };
 
 export type BundleSidecar = {
@@ -133,9 +183,9 @@ export type BundleSidecar = {
     file: string;
     sha256: string;
   };
-  project: SidecarProjectIdentity;
+  project: PersistedProjectIdentity;
   /** The app's own source, as the bundle's module graph saw it. */
-  appSource: AppSourceClosure;
+  appSource: PersistedAppSourceClosure;
   /**
    * The native shell this bundle was built beside, when known.
    *
@@ -223,7 +273,13 @@ export async function readProjectIdentity({
  */
 export function computeDependencyClosure(projectRoot: string): DependencyClosure {
   const installed = hashInstalledClosure(projectRoot);
-  if (installed) return { source: 'node_modules', hash: installed };
+  if (installed) {
+    return {
+      source: 'node_modules',
+      hash: installed.hash,
+      installedPackages: installed.packages,
+    };
+  }
 
   const lockfiles: DependencyClosureSource[] = ['yarn.lock', 'package-lock.json', 'pnpm-lock.yaml'];
 
@@ -231,7 +287,7 @@ export function computeDependencyClosure(projectRoot: string): DependencyClosure
     const lockfilePath = path.join(projectRoot, source);
     try {
       const bytes = fs.readFileSync(lockfilePath);
-      return { source, hash: sha256OfBuffer(bytes) };
+      return { source, hash: sha256OfBuffer(bytes), installedPackages: null };
     } catch {
       // Not this one - try the next.
     }
@@ -254,7 +310,11 @@ export function computeDependencyClosure(projectRoot: string): DependencyClosure
     // works (both sides read it the same way); it simply carries less information.
   }
 
-  return { source: 'package.json', hash: sha256OfString(JSON.stringify(declared)) };
+  return {
+    source: 'package.json',
+    hash: sha256OfString(JSON.stringify(declared)),
+    installedPackages: null,
+  };
 }
 
 /**
@@ -267,7 +327,9 @@ export function computeDependencyClosure(projectRoot: string): DependencyClosure
  * map is blind to hoisting and sensitive to exactly the thing that matters: which
  * versions of which packages Metro will find and inline.
  */
-function hashInstalledClosure(projectRoot: string): string | null {
+function hashInstalledClosure(
+  projectRoot: string
+): { hash: string; packages: InstalledPackageVersions[] } | null {
   const modulesRoot = path.join(projectRoot, 'node_modules');
   if (!fs.existsSync(modulesRoot)) return null;
 
@@ -330,12 +392,17 @@ function hashInstalledClosure(projectRoot: string): string | null {
   walkModulesDir(modulesRoot);
   if (versionsByName.size === 0) return null;
 
-  const canonical = [...versionsByName.keys()].sort().map((name) => {
-    const versions = [...(versionsByName.get(name) as Set<string>)].sort();
-    return [name, versions];
-  });
+  const packages: InstalledPackageVersions[] = [...versionsByName.keys()].sort().map((name) => ({
+    name,
+    versions: [...(versionsByName.get(name) as Set<string>)].sort(),
+  }));
 
-  return sha256OfString(JSON.stringify(canonical));
+  // The hashed form is the [name, versions] tuple array - kept exactly as it was,
+  // and derived here from the same `packages` list the caller retains, so the
+  // digest and its pre-image can never describe different things.
+  const canonical = packages.map(({ name, versions }) => [name, versions]);
+
+  return { hash: sha256OfString(JSON.stringify(canonical)), packages };
 }
 
 /**
@@ -363,18 +430,27 @@ export function computeAppSourceClosure({
     .filter((modulePath) => !modulePath.split(/[\\/]/).includes('node_modules'))
     .sort();
 
-  const entries = appPaths.map((modulePath) => {
+  const files: AppSourceFileDigest[] = appPaths.map((modulePath) => {
     try {
-      return [modulePath, sha256OfBuffer(fs.readFileSync(path.resolve(projectRoot, modulePath)))];
+      return {
+        path: modulePath,
+        digest: sha256OfBuffer(fs.readFileSync(path.resolve(projectRoot, modulePath))),
+      };
     } catch {
-      return [modulePath, 'missing'];
+      return { path: modulePath, digest: 'missing' };
     }
   });
+
+  // The hashed form is the [path, digest] tuple array - kept exactly as it was,
+  // and derived here from the same `files` list the caller retains, so the digest
+  // and its pre-image can never describe different things.
+  const entries = files.map(({ path: modulePath, digest }) => [modulePath, digest]);
 
   return {
     source: 'module-graph',
     fileCount: appPaths.length,
     hash: sha256OfString(JSON.stringify(entries)),
+    files,
   };
 }
 

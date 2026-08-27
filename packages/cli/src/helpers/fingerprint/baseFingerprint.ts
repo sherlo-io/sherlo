@@ -29,6 +29,8 @@ import path from 'path';
 import type {
   FileHookTransformFunction,
   FileHookTransformSource,
+  Fingerprint,
+  FingerprintSource,
   Options as FingerprintOptions,
 } from '@expo/fingerprint';
 import runShellCommand from '../runShellCommand';
@@ -63,9 +65,60 @@ function loadExpoFingerprint(): Promise<ExpoFingerprintModule> {
 // Public API
 // ---------------------------------------------------------------------------
 
+/**
+ * ONE `@expo/fingerprint` source, reduced to what is safe to keep.
+ *
+ * SECURITY - READ BEFORE ADDING A FIELD. `@expo/fingerprint` emits sources of
+ * type `contents` whose VALUE IS the hashed input: the resolved autolinking
+ * output and the resolved `expo config --json`. A resolved Expo config routinely
+ * carries customer secrets in `extra` (API keys, tokens, EAS project secrets).
+ * Retaining that value would put secrets into a structure meant to be written to
+ * a file and diffed, so the value is NEVER kept - only its `id` and its `hash`,
+ * which is all a diff needs to say "this source changed". The same rule holds for
+ * `file`/`dir` sources: the PATH and the hash, never the bytes.
+ */
+export type FingerprintSourceDigest = {
+  type: 'file' | 'dir' | 'contents';
+  /** The path for a `file`/`dir` source, the source id for a `contents` source. */
+  id: string;
+  /** `@expo/fingerprint`'s hash of this source; null when it excluded the source. */
+  hash: string | null;
+};
+
+/** One lockfile that contributed to the fingerprint, and the digest of its bytes. */
+export type LockfileDigest = {
+  /** Project-relative lockfile path, e.g. `yarn.lock` or `ios/Podfile.lock`. */
+  file: string;
+  /** sha256 of the lockfile's bytes. */
+  digest: string;
+};
+
+/**
+ * The INPUTS the base fingerprint hash was computed over - the pre-image.
+ *
+ * Everything here is already computed on the way to the hash and was previously
+ * discarded. Keeping it lets a later step explain a fingerprint change instead of
+ * only reporting that one happened. It is plain JSON so it can be written to a
+ * file as-is. It carries digests and identifiers only, never source text.
+ */
+export type BaseFingerprintPreimage = {
+  workflow: Workflow;
+  /** The Layer-1 `@expo/fingerprint` sources, digest-only (see the type doc). */
+  nativeSources: FingerprintSourceDigest[];
+  /** Layer-2 lockfiles, sorted by filename, one digest each. */
+  lockfiles: LockfileDigest[];
+  /** Layer-2 autolinked native modules as sorted `name@version` entries. */
+  autolinkedModules: string[];
+};
+
 export type BaseFingerprintResult = {
   /** The computed base fingerprint hash, or null when unrecoverable. */
   hash: string | null;
+  /**
+   * The inputs `hash` was computed over. Present exactly when `hash` is - an
+   * unrecoverable fingerprint has no pre-image to report.
+   */
+  preimage?: BaseFingerprintPreimage;
   /**
    * The sanitized Layer-1 `@expo/fingerprint` hash that this base fingerprint
    * was built on (version-suppressed, computed under the deterministic env).
@@ -191,6 +244,7 @@ export async function computeBaseFingerprint(
   // Layer 1 - @expo/fingerprint with version suppression.
   // ------------------------------------------------------------------
   let layer1Hash: string | null = null;
+  let layer1Sources: FingerprintSourceDigest[] = [];
 
   try {
     // Lazy, fail-soft load: a missing/broken @expo/fingerprint install rejects
@@ -211,10 +265,21 @@ export async function computeBaseFingerprint(
     // call so the `ExpoConfigLoader.js` subprocess @expo/fingerprint spawns
     // internally cannot inherit the per-command ambient env. Layer 2 handles its
     // own env via `runShellCommand` (`envMode: 'replace'`) and is NOT wrapped.
-    const fingerprint = await withDeterministicEnv(() =>
+    const fingerprint: Fingerprint = await withDeterministicEnv(() =>
       createFingerprintAsync(resolvedProjectRoot, fingerprintOptions)
     );
     layer1Hash = fingerprint.hash;
+
+    // Retain the sources @expo/fingerprint already computed, reduced to
+    // identifier + hash. A `contents` source's VALUE is deliberately dropped: it
+    // is the resolved autolinking output or the resolved `expo config --json`,
+    // and a resolved Expo config routinely holds customer secrets in `extra`.
+    // See {@link FingerprintSourceDigest} - do not widen this mapping.
+    layer1Sources = (fingerprint.sources ?? []).map((source: FingerprintSource) => ({
+      type: source.type,
+      id: source.type === 'contents' ? source.id : source.filePath,
+      hash: source.hash,
+    }));
   } catch (err) {
     // @expo/fingerprint may not be installed, or the project may have no
     // native dirs.  Fail-soft - return null and let the caller proceed.
@@ -233,7 +298,7 @@ export async function computeBaseFingerprint(
   // ------------------------------------------------------------------
   // Layer 2 - augmented sources.
   // ------------------------------------------------------------------
-  const lockfileHashes = await hashLockfiles(resolvedProjectRoot);
+  const lockfiles = await hashLockfiles(resolvedProjectRoot);
   const autolinkedModules = await getAutolinkedModules(resolvedProjectRoot, workflow);
 
   // ------------------------------------------------------------------
@@ -245,8 +310,8 @@ export async function computeBaseFingerprint(
   combined.update(layer1Hash);
 
   combined.update('|lockfiles:');
-  for (const lh of lockfileHashes) {
-    combined.update(lh);
+  for (const lockfile of lockfiles) {
+    combined.update(lockfileHashLine(lockfile));
   }
 
   combined.update('|autolinked:');
@@ -264,7 +329,7 @@ export async function computeBaseFingerprint(
     workflow,
     layer1Hash,
     layer1EnvMode: LAYER1_ENV_MODE,
-    lockfileHashes,
+    lockfiles,
     autolinkedModules,
     finalHash,
   });
@@ -273,7 +338,18 @@ export async function computeBaseFingerprint(
   // wire value can be sourced from this SINGLE compute instead of a second, raw
   // `createFingerprintAsync` call (SHERLO-1756). `layer1Hash` is guaranteed
   // non-null here (the null case returned early above).
-  return { hash: finalHash, nativeFingerprint: layer1Hash };
+  return {
+    hash: finalHash,
+    nativeFingerprint: layer1Hash,
+    preimage: {
+      workflow,
+      nativeSources: layer1Sources,
+      lockfiles,
+      // `getAutolinkedModules` returns the entries newline-joined because that is
+      // the exact string the hash consumes; the pre-image wants them as a list.
+      autolinkedModules: autolinkedModules ? autolinkedModules.split('\n') : [],
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -297,7 +373,7 @@ function emitFingerprintDebug(fields: {
   workflow: Workflow;
   layer1Hash: string;
   layer1EnvMode: string;
-  lockfileHashes: string[];
+  lockfiles: LockfileDigest[];
   autolinkedModules: string;
   finalHash: string;
 }): void {
@@ -330,11 +406,11 @@ function emitFingerprintDebug(fields: {
   lines.push(tag(`layer1.hash=${fields.layer1Hash}`));
 
   // Layer 2 - augmented sources: each lockfile SHA + the sorted autolinked set.
-  if (fields.lockfileHashes.length === 0) {
+  if (fields.lockfiles.length === 0) {
     lines.push(tag('layer2.lockfiles=(none present)'));
   } else {
-    for (const lockfileHash of fields.lockfileHashes) {
-      lines.push(tag(`layer2.lockfile ${lockfileHash}`));
+    for (const lockfile of fields.lockfiles) {
+      lines.push(tag(`layer2.lockfile ${lockfileHashLine(lockfile)}`));
     }
   }
 
@@ -347,7 +423,10 @@ function emitFingerprintDebug(fields: {
   // changed value even before scanning the per-entry lines above.
   const layer2Hash = crypto
     .createHash('sha256')
-    .update(`lockfiles:${fields.lockfileHashes.join('')}|autolinked:${fields.autolinkedModules}`)
+    .update(
+      `lockfiles:${fields.lockfiles.map(lockfileHashLine).join('')}` +
+        `|autolinked:${fields.autolinkedModules}`
+    )
     .digest('hex');
   lines.push(tag(`layer2.hash=${layer2Hash}`));
 
@@ -508,24 +587,33 @@ const LOCKFILES = [
 ];
 
 /**
- * Returns a SHA-256 hex string for each lockfile present in the project,
+ * Returns the filename and SHA-256 of each lockfile present in the project,
  * sorted by filename for determinism.
+ *
+ * The pair is kept structured rather than pre-joined so the pre-image can name
+ * WHICH lockfile moved. The hash still consumes the joined `file:digest` form -
+ * see {@link lockfileHashLine}, the one place that form is built.
  */
-async function hashLockfiles(projectRoot: string): Promise<string[]> {
-  const results: string[] = [];
+async function hashLockfiles(projectRoot: string): Promise<LockfileDigest[]> {
+  const results: LockfileDigest[] = [];
 
   for (const lockfile of LOCKFILES.sort()) {
     const lockPath = path.join(projectRoot, lockfile);
     try {
       const content = await fs.promises.readFile(lockPath, 'utf8');
-      const hash = crypto.createHash('sha256').update(content).digest('hex');
-      results.push(`${lockfile}:${hash}`);
+      const digest = crypto.createHash('sha256').update(content).digest('hex');
+      results.push({ file: lockfile, digest });
     } catch {
       // Lockfile absent - skip.
     }
   }
 
   return results;
+}
+
+/** The exact `file:digest` string a lockfile contributes to the hash. */
+function lockfileHashLine({ file, digest }: LockfileDigest): string {
+  return `${file}:${digest}`;
 }
 
 // ---------------------------------------------------------------------------

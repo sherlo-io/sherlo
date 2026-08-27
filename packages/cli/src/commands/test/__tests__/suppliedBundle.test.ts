@@ -584,6 +584,18 @@ describe('emit', () => {
     expect(sidecar.appSource.fileCount).toBe(APP_SOURCE_FILES.length);
   });
 
+  it('writes the closure digests without their pre-image', async () => {
+    await emit(['android']);
+
+    const sidecar = readSidecar('android');
+
+    // The closures carry a pre-image in memory (which packages, which files) so a
+    // refusal can be explained. The FILE stores only the digest and its
+    // provenance - both sides recompute the pre-image from their own tree.
+    expect(Object.keys(sidecar.project.dependencyClosure).sort()).toEqual(['hash', 'source']);
+    expect(Object.keys(sidecar.appSource).sort()).toEqual(['fileCount', 'hash', 'source']);
+  });
+
   it('overwrites a previous emit rather than merging into it', async () => {
     await emit(['android']);
     const first = readSidecar('android');

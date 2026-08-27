@@ -42,7 +42,7 @@ import {
   readProjectIdentity,
   sha256OfBuffer,
   sidecarFileName,
-  type SidecarProjectIdentity,
+  type PersistedProjectIdentity,
 } from './bundleSidecar';
 
 const FALLBACK_LINE = `\n${SHARED_FALLBACK_LINE}`;
@@ -315,12 +315,12 @@ export function compareProjectIdentity({
   recorded,
   current,
 }: {
-  recorded: SidecarProjectIdentity;
-  current: SidecarProjectIdentity;
+  recorded: PersistedProjectIdentity;
+  current: PersistedProjectIdentity;
 }): string[] {
   const mismatches: string[] = [];
 
-  const fields: { key: keyof SidecarProjectIdentity; label: string }[] = [
+  const fields: { key: keyof PersistedProjectIdentity; label: string }[] = [
     { key: 'reactNativeVersion', label: 'React Native version' },
     { key: 'expoSdkVersion', label: 'Expo SDK version' },
     { key: 'requiredSdkProtocolVersion', label: 'Sherlo SDK protocol version' },
@@ -371,7 +371,7 @@ export function compareProjectIdentity({
 }
 
 /** Render a value for a refusal, hashing digests down to something readable. */
-function describe(value: string | null, key: keyof SidecarProjectIdentity): string {
+function describe(value: string | null, key: keyof PersistedProjectIdentity): string {
   if (value === null) return 'none';
   return key === 'babelConfigDigest' ? short(value) : value;
 }

@@ -100,6 +100,18 @@ export async function emitBundleDir({
     const manifestTarget = path.join(bundleDir, moduleManifestFileName(platform));
     fs.writeFileSync(manifestTarget, result.moduleManifest.raw);
 
+    // The closures carry their pre-image (which packages, which files) so a
+    // refusal can be explained. The SIDECAR FILE stores only the digest and its
+    // provenance - see `PersistedDependencyClosure` / `PersistedAppSourceClosure`
+    // in bundleSidecar.ts for why the pre-image is deliberately not written down.
+    const identity = await readProjectIdentity({ projectRoot, platform });
+    const { installedPackages: _installedPackages, ...dependencyClosure } =
+      identity.dependencyClosure;
+    const { files: _appSourceFiles, ...appSource } = computeAppSourceClosure({
+      projectRoot,
+      modulePaths: moduleManifestSourcePaths(result.moduleManifest),
+    });
+
     const sidecar: BundleSidecar = {
       sidecarVersion: SIDECAR_VERSION,
       platform,
@@ -119,11 +131,8 @@ export async function emitBundleDir({
         file: moduleManifestFileName(platform),
         sha256: sha256OfBuffer(result.moduleManifest.raw),
       },
-      project: await readProjectIdentity({ projectRoot, platform }),
-      appSource: computeAppSourceClosure({
-        projectRoot,
-        modulePaths: moduleManifestSourcePaths(result.moduleManifest),
-      }),
+      project: { ...identity, dependencyClosure },
+      appSource,
       nativeFingerprint: nativeFingerprint ?? null,
       createdAt: new Date().toISOString(),
       createdBy: { cliVersion: readCliVersion() },
