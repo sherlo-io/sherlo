@@ -83,9 +83,10 @@ The same verb, as a GitHub Action:
 ```
 
 `v2` is the major tag the action is released under, and each release moves it to
-that release's commit. It is minted by the first v2 release of the action, so
-until that release lands, pin `sherlo-io/sherlo@main` instead - a job pinning
-`main` runs the CLI installed in the project.
+that release's commit. The action ships with the next release, so `v2` does not
+resolve yet and no earlier ref carries the action either. Until that release
+lands, run the CLI directly (`npx sherlo test`) rather than pinning a ref that
+does not exist.
 
 It runs the Sherlo CLI your project has installed. If the job has none, it runs
 the CLI carried at the ref you pinned, so a job needs no install step just to
