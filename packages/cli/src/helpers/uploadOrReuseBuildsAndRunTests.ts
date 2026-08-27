@@ -9,6 +9,7 @@ import {
   type FreshBundleEffects,
 } from './uploadFreshBundles';
 import { applyBundleToPlatformConfig } from '../commands/test/uploadBundles';
+import { resolveBaseFingerprintForSuppliedBundle } from '../commands/test/recordedBaseFingerprint';
 import type { BinaryUploadEffects } from './uploadOrPrintBinaryReuse/uploadBuild';
 import type { BaseRegistrationEffects } from './fingerprint/registerBase';
 import type { BaseFingerprintResult } from './fingerprint';
@@ -99,7 +100,18 @@ async function uploadOrReuseBuildsAndRunTests({
       }),
     resolveGitInfo: () =>
       getGitInfo(commandParams.projectRoot, { branchOverride: commandParams.gitBranch }),
-    computeFingerprint: () => computeBaseFingerprint(commandParams.projectRoot, { command }),
+    // A run that supplies its bundle takes the fingerprint the bundle recorded
+    // when this tree's native inputs still match - the machine that accepts a
+    // bundle has no install to compute one with. See ./recordedBaseFingerprint.
+    computeFingerprint: () =>
+      commandParams.bundleDir !== undefined
+        ? resolveBaseFingerprintForSuppliedBundle({
+            bundleDir: commandParams.bundleDir,
+            projectRoot: commandParams.projectRoot,
+            platforms: platformsWithBinaries(commandParams),
+            command,
+          })
+        : computeBaseFingerprint(commandParams.projectRoot, { command }),
     openBuild: (input) => client.openBuild(input as never).catch(handleClientError),
     binaryUpload: REAL_BINARY_UPLOAD_EFFECTS,
     baseRegistration: REAL_BASE_REGISTRATION_EFFECTS,
@@ -324,6 +336,14 @@ export default uploadOrReuseBuildsAndRunTests;
  * and in what format; the runner later overwrites the same path with the
  * freshly built bundle, which is what actually runs.
  */
+/** The platforms the user handed a binary for - the ones this run tests. */
+function platformsWithBinaries(commandParams: CommandParams): Platform[] {
+  const platforms: Platform[] = [];
+  if (commandParams.android) platforms.push('android');
+  if (commandParams.ios) platforms.push('ios');
+  return platforms;
+}
+
 function defaultEmbeddedBundlePath(platform: Platform): string {
   if (platform === 'android') {
     return 'assets/index.android.bundle';

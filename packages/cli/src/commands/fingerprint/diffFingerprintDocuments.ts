@@ -9,10 +9,11 @@
  * value, so "computed before, not computed now" is a change). The entries under
  * it explain the change from the pre-image:
  *
- *   - packages (installed, autolinked): per package, `~ name old -> new`,
+ *   - packages (resolved, autolinked): per package, `~ name old -> new`,
  *     `+ name version`, `- name version`.
  *   - files (app source, lockfiles, native file/dir sources): per path, with the
- *     digest on each side. Never the contents.
+ *     digest on each side. Never the contents. A generated app source file is
+ *     listed as its inputs, so the entry names the input that changed.
  *   - a `contents`-type native source: `~ <id>` and nothing finer, by design -
  *     its value is never retained anywhere.
  */
@@ -20,7 +21,7 @@ import type {
   FingerprintSourceDigest,
   LockfileDigest,
 } from '../../helpers/fingerprint/baseFingerprint';
-import type { AppSourceFileDigest, InstalledPackageVersions } from '../test/bundleSidecar';
+import type { AppSourceFileDigest, PackageVersions } from '../test/bundleSidecar';
 import type { FingerprintDocument } from './fingerprintDocument';
 
 export type DeltaEntry = {
@@ -57,10 +58,7 @@ export function diffFingerprintDocuments(
     ]),
     layerDelta('dependencies', baseline.dependencies.hash, current.dependencies.hash, [
       ...diffDependencySource(baseline, current),
-      ...diffPackages(
-        baseline.dependencies.installedPackages ?? [],
-        current.dependencies.installedPackages ?? []
-      ),
+      ...diffPackages(baseline.dependencies.packages ?? [], current.dependencies.packages ?? []),
     ]),
     ...diffJsLayers(baseline, current),
     layerDelta('base', baseline.base.hash, current.base.hash, [
@@ -100,7 +98,7 @@ function lockfilesAsFiles(lockfiles: LockfileDigest[]): AppSourceFileDigest[] {
 }
 
 /** `name@version` entries are packages with exactly one version each. */
-function autolinkedAsPackages(entries: string[]): InstalledPackageVersions[] {
+function autolinkedAsPackages(entries: string[]): PackageVersions[] {
   return entries.map((entry) => {
     // A scoped name holds its own `@`, so the version starts at the LAST one.
     const separator = entry.lastIndexOf('@');
@@ -110,9 +108,9 @@ function autolinkedAsPackages(entries: string[]): InstalledPackageVersions[] {
 }
 
 /**
- * The closure's SOURCE is part of what it means: a node_modules hash and a
- * lockfile hash are different numbers over different bytes, so a source change
- * is named first, before any package entry.
+ * The closure's SOURCE is part of what it means: a lockfile set and a
+ * package.json hash are different numbers over different inputs, so a source
+ * change is named first, before any package entry.
  */
 function diffDependencySource(
   baseline: FingerprintDocument,
@@ -126,7 +124,7 @@ function diffDependencySource(
   }
 
   // Without a per-package pre-image on both sides the digest is all there is.
-  const perPackageOnBothSides = before.installedPackages && after.installedPackages;
+  const perPackageOnBothSides = before.packages && after.packages;
   if (!perPackageOnBothSides && before.hash !== after.hash) {
     return [{ kind: 'changed', name: before.source, before: before.hash, after: after.hash }];
   }
@@ -150,8 +148,8 @@ function diffJsLayers(baseline: FingerprintDocument, current: FingerprintDocumen
 }
 
 export function diffPackages(
-  before: InstalledPackageVersions[],
-  after: InstalledPackageVersions[]
+  before: PackageVersions[],
+  after: PackageVersions[]
 ): DeltaEntry[] {
   const beforeByName = new Map(before.map((pkg) => [pkg.name, pkg.versions.join(', ')]));
   const afterByName = new Map(after.map((pkg) => [pkg.name, pkg.versions.join(', ')]));

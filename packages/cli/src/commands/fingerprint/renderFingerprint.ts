@@ -36,7 +36,7 @@ export function renderLayers(
   lines.push(layerLine('dependencies', document.dependencies.hash));
   if (verbose) {
     lines.push(`  source   ${document.dependencies.source}`);
-    for (const pkg of document.dependencies.installedPackages ?? []) {
+    for (const pkg of document.dependencies.packages ?? []) {
       lines.push(`  package  ${pkg.name}@${pkg.versions.join(', ')}`);
     }
   }

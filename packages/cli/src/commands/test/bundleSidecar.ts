@@ -16,6 +16,13 @@
  * its prebuilt native binary (a `fingerprint.txt` beside the artifact, hard-failing
  * on mismatch) - one mechanism, both artifacts.
  *
+ * THE ACCEPTING MACHINE HAS NO node_modules. The bundle was built elsewhere, so
+ * the machine that accepts it needs the project's dependencies for nothing - it
+ * uploads bytes that already exist. Every field below is therefore derived from
+ * the CHECKOUT alone (source files, config files, the lockfile) or recorded at
+ * emit time and verified at accept time against the checkout. Nothing here reads
+ * an installed package unless the project has no lockfile to read instead.
+ *
  * ONE STRUCT, ONE WRITER, ONE READER. The producer and the acceptor are the same
  * code reading and writing this schema. A second implementation on either side is
  * a drift bug waiting to happen, and would defeat the whole point: the sidecar is
@@ -25,10 +32,14 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { Platform } from '@sherlo/api-types';
-import { deriveEngineClass } from '../../helpers/fingerprint/gateMetadata';
+import type { GateMetadataInput } from '../../helpers/fingerprint/gateMetadata';
 import getPackageVersion from '../../commands/init/requirements/getPackageVersion';
 import { readBundledSdkProtocolVersion } from './readBundledSdkProtocolVersion';
 import { getExpoSdkVersion, type BundleFormat } from './buildBundle';
+import { findLockfile, readLockfilePackages, type PackageVersions } from './lockfilePackages';
+import type { RecordedBaseFingerprint } from './recordedBaseFingerprint';
+
+export type { PackageVersions } from './lockfilePackages';
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -37,47 +48,43 @@ import { getExpoSdkVersion, type BundleFormat } from './buildBundle';
 /**
  * The schema version. Bump ONLY on a breaking change to the shape below; the
  * acceptor refuses a version it does not know rather than guessing at fields.
+ *
+ * 2: the dependency closure is read from the lockfile (a version-1 lockfile hash
+ *    was over raw bytes, so the same source name means a different number), the
+ *    gate metadata and the base fingerprint are recorded, and `engineClass` moved
+ *    from the identity into the recorded gate metadata.
  */
-export const SIDECAR_VERSION = 1;
+export const SIDECAR_VERSION = 2;
 
 /**
  * Where a project's dependency closure was read from.
  *
- * The SOURCE is load-bearing, not decoration. A lockfile hash and a package.json
- * hash are different numbers over different bytes, so comparing one against the
+ * The SOURCE is load-bearing, not decoration. A lockfile set and a package.json
+ * hash are different numbers over different inputs, so comparing one against the
  * other is meaningless - two trees that agree perfectly would still "mismatch".
  * Recording the source lets the acceptor refuse a source CHANGE explicitly ("this
  * bundle was resolved from a lockfile, this project has none") instead of
  * reporting a confusing hash difference that hides the real problem.
  */
 export type DependencyClosureSource =
-  | 'node_modules'
   | 'yarn.lock'
   | 'package-lock.json'
   | 'pnpm-lock.yaml'
+  | 'node_modules'
   | 'package.json';
-
-/** One package name and every version of it the closure found, sorted. */
-export type InstalledPackageVersions = {
-  name: string;
-  versions: string[];
-};
 
 export type DependencyClosure = {
   source: DependencyClosureSource;
   hash: string;
   /**
-   * The pre-image of `hash` when it was read from `node_modules`: the exact
-   * name -> versions map that was hashed, which is what lets a later step say
-   * WHICH package moved instead of only that the closure did.
+   * The pre-image of `hash`: the exact name -> versions map that was hashed,
+   * which is what lets a refusal say WHICH package moved instead of only that
+   * the closure did. Present for a lockfile and for an installed tree.
    *
-   * `null` for every other source - a lockfile or package.json hash is taken over
-   * raw bytes, and there is no per-package pre-image to keep.
-   *
-   * NOT PERSISTED in the sidecar file: `emitBundleDir` writes the closure without
-   * it, so a sidecar on disk keeps exactly the bytes it has always had.
+   * `null` for the package.json source - a hash over declared ranges has no
+   * resolved per-package pre-image to keep.
    */
-  installedPackages: InstalledPackageVersions[] | null;
+  packages: PackageVersions[] | null;
 };
 
 /**
@@ -86,15 +93,19 @@ export type DependencyClosure = {
  * Every field here is compared at accept time and every mismatch is a refusal.
  * A field is `null` when the project genuinely does not have it - never faked, and
  * `null` on both sides matches (two projects that both lack Expo agree about Expo).
+ *
+ * The toolchain versions are read from the dependency closure when it has a
+ * per-package pre-image (a lockfile or an installed tree), and only from the
+ * installed package when it does not. A lockfile names the same version on every
+ * machine; an installed package exists only where an install ran.
  */
 export type SidecarProjectIdentity = {
   reactNativeVersion: string | null;
   expoSdkVersion: string | null;
   requiredSdkProtocolVersion: string | null;
-  engineClass: string | null;
   /** sha256 of the project's babel config bytes - the transform shape. */
   babelConfigDigest: string | null;
-  /** The installed Metro version - the other half of the transform shape. */
+  /** The resolved Metro version - the other half of the transform shape. */
   metroVersion: string | null;
   /**
    * Metro INLINES every transitive JS dependency, so any dependency change
@@ -109,6 +120,26 @@ export type AppSourceFileDigest = {
   path: string;
   /** sha256 of the file's bytes, or `missing` when the tree no longer has it. */
   digest: string;
+};
+
+/**
+ * A file in the bundle's module graph that a tool WROTE at bundle time, and the
+ * files it wrote it from.
+ *
+ * The Sherlo Metro serializer records these in the module manifest's header
+ * (`header.generatedFiles`, keyed like `moduleHashes`). `.rnstorybook/
+ * storybook.requires.ts` is the one today: Storybook's requires generator
+ * rewrites it on every bundle from the storybook config directory, and projects
+ * are told NOT to track it (a tracked copy is rewritten at bundle time, which
+ * dirties the tree and drops the build's ancestor). On a machine that never ran a
+ * bundler the file does not exist - so its BYTES can never be the thing compared.
+ * Its inputs can: they are ordinary tracked files on both machines.
+ */
+export type GeneratedFile = {
+  /** Which generator wrote the file - `storybook-requires` today. */
+  generatedBy: string;
+  /** Project-relative paths of the files the generator read, sorted. */
+  inputs: string[];
 };
 
 /**
@@ -128,41 +159,35 @@ export type AppSourceFileDigest = {
  * TRANSFORMED output and so cannot be recomputed without running a bundler,
  * which would defeat the entire point of supplying a bundle.
  *
+ * A GENERATED file in the graph is replaced by its inputs (see
+ * {@link GeneratedFile}): the generator is a pure function of them, so equal
+ * inputs mean an equal generated file, and the inputs exist on a machine where
+ * the generator never ran.
+ *
  * `node_modules` paths are excluded deliberately: dependency bytes are already
  * covered by {@link DependencyClosure}, and re-reading thousands of files to say
  * the same thing twice would make every accepted bundle pay for nothing.
  */
 export type AppSourceClosure = {
   source: 'module-graph';
-  /** How many app source files the digest covers - diagnostics for a refusal. */
+  /** How many files the digest covers - diagnostics for a refusal. */
   fileCount: number;
   hash: string;
   /**
    * The pre-image of `hash`: the per-file digests it was computed over, in the
    * same order. This is what turns "the source changed" into "these files did".
-   *
-   * NOT PERSISTED in the sidecar file: `emitBundleDir` writes the closure without
-   * it, so a sidecar on disk keeps exactly the bytes it has always had.
    */
   files: AppSourceFileDigest[];
 };
 
 /**
- * The two closures as the SIDECAR FILE stores them: digest and provenance, WITHOUT
- * the pre-image.
- *
- * The pre-image is retained in memory so a refusal can be explained, but it is not
- * written down. Persisting it would add the project's whole node_modules closure
- * and every app source digest to a file that has always been a few kilobytes, and
- * would change bytes that older CLIs read. The sidecar's job is to be COMPARED;
- * both sides recompute the pre-image from their own tree when they need it.
+ * THE PRE-IMAGES ARE WRITTEN DOWN. Both closures keep the list they hashed, and
+ * the sidecar file carries those lists: a refusal that says "the dependencies
+ * differ" sends the caller hunting through two lockfiles, while one that says
+ * `~ react-native 0.76.0 -> 0.77.0` is fixed in one pass. The lists are names,
+ * versions and digests only - never file contents - and they cost tens of
+ * kilobytes beside a bundle that costs megabytes.
  */
-export type PersistedDependencyClosure = Omit<DependencyClosure, 'installedPackages'>;
-export type PersistedAppSourceClosure = Omit<AppSourceClosure, 'files'>;
-export type PersistedProjectIdentity = Omit<SidecarProjectIdentity, 'dependencyClosure'> & {
-  dependencyClosure: PersistedDependencyClosure;
-};
-
 export type BundleSidecar = {
   sidecarVersion: number;
   platform: Platform;
@@ -183,19 +208,28 @@ export type BundleSidecar = {
     file: string;
     sha256: string;
   };
-  project: PersistedProjectIdentity;
+  project: SidecarProjectIdentity;
   /** The app's own source, as the bundle's module graph saw it. */
-  appSource: PersistedAppSourceClosure;
+  appSource: AppSourceClosure;
   /**
-   * The native shell this bundle was built beside, when known.
+   * The source-derived gate metadata the staged road sends to the staged gate,
+   * as it was derived beside the bundle at emit time.
    *
-   * RECORDED AND COMPARED, BUT NEVER A REFUSAL. A bundle does not depend on the
-   * native shell - only the PAIRING does, and `checkStagedGate` already judges
-   * pairing on every run. Refusing here would throw away a perfectly good supplied
-   * bundle on a native-only change, which is exactly the waste that keeping the
-   * native and JS caches independent exists to prevent.
+   * RECORDED, NOT RE-DERIVED. Deriving it reads the engine class from the app
+   * config (a dynamic `app.config.js` needs `expo` installed to evaluate) and the
+   * SDK protocol version from the installed SDK. It is a pure function of the
+   * project identity above plus the bundle - both of which the acceptor verifies -
+   * so once the identity matches, the recorded value is what the acceptor would
+   * have derived, had it been able to.
    */
-  nativeFingerprint: string | null;
+  gateMetadata: GateMetadataInput;
+  /**
+   * The base fingerprint of the tree the bundle was built from, with a digest of
+   * the native inputs it was computed over - null when the emitting machine could
+   * not compute one. See ./recordedBaseFingerprint for what the acceptor trusts
+   * and why.
+   */
+  baseFingerprint: RecordedBaseFingerprint | null;
   createdAt: string;
   createdBy: { cliVersion: string | null };
 };
@@ -239,62 +273,88 @@ export function sidecarFileName(platform: Platform): string {
  * is wrong, it is wrong identically on both sides and the comparison still holds -
  * which is precisely the property a parallel implementation would destroy.
  */
-export async function readProjectIdentity({
-  projectRoot,
-  platform,
-}: {
-  projectRoot: string;
-  platform: Platform;
-}): Promise<SidecarProjectIdentity> {
+export function readProjectIdentity(projectRoot: string): SidecarProjectIdentity {
+  const dependencyClosure = computeDependencyClosure(projectRoot);
+
   return {
-    reactNativeVersion: getPackageVersion('react-native') ?? null,
+    reactNativeVersion:
+      resolvedPackageVersion(dependencyClosure, 'react-native') ??
+      getPackageVersion('react-native') ??
+      null,
     expoSdkVersion: readExpoSdkVersion(projectRoot),
-    requiredSdkProtocolVersion: readBundledSdkProtocolVersion(projectRoot) ?? null,
-    engineClass: (await deriveEngineClass({ platform, projectRoot })) ?? null,
+    requiredSdkProtocolVersion:
+      resolvedSdkProtocolVersion(dependencyClosure) ??
+      readBundledSdkProtocolVersion(projectRoot) ??
+      null,
     babelConfigDigest: computeBabelConfigDigest(projectRoot),
-    metroVersion: readMetroVersion(projectRoot),
-    dependencyClosure: computeDependencyClosure(projectRoot),
+    metroVersion:
+      resolvedPackageVersion(dependencyClosure, 'metro') ?? readInstalledMetroVersion(projectRoot),
+    dependencyClosure,
   };
+}
+
+/**
+ * The versions the closure resolved for one package, joined when there are
+ * several (a monorepo can resolve two Metro versions; both shape the bundle), or
+ * null when the closure has no per-package pre-image or does not list it.
+ */
+export function resolvedPackageVersion(closure: DependencyClosure, name: string): string | null {
+  const versions = closure.packages?.find((pkg) => pkg.name === name)?.versions;
+  return versions && versions.length > 0 ? versions.join(', ') : null;
+}
+
+/**
+ * The Sherlo SDK's version names the protocol it implements - the same number
+ * `readBundledSdkProtocolVersion` reads off the installed package - so the
+ * resolved set already carries it. The SDK is looked up under both the name a
+ * project declares it as and the name it is published under, because an aliased
+ * install keys it by the former in one lockfile format and the latter in another.
+ */
+const SDK_PACKAGE_NAMES = ['@sherlo/react-native-storybook', '@sherlo-io/react-native-storybook'];
+
+function resolvedSdkProtocolVersion(closure: DependencyClosure): string | null {
+  for (const name of SDK_PACKAGE_NAMES) {
+    const version = resolvedPackageVersion(closure, name);
+    if (version === null) continue;
+    // The base semver only: a `-test.<run>` suffix says how the build was
+    // produced, not which protocol it implements (see readBundledSdkProtocolVersion).
+    return /^(\d+\.\d+\.\d+)(?:[-+]|$)/.exec(version)?.[1] ?? version;
+  }
+  return null;
 }
 
 /**
  * The project's dependency closure, as a hash plus the source it was read from.
  *
- * PREFERRED SOURCE: the INSTALLED tree. Metro inlines the dependency bytes that
- * are actually on disk, so what shapes the bundle is the RESOLVED closure, not the
- * declared one. A tree that installs mutably from floating ranges can resolve a
- * newer patch between one install and the next while its package.json never moves -
- * a real difference in inlined bytes that a declared-range hash cannot see. Hashing
- * the installed tree closes that hole, and costs one pass over node_modules.
+ * PREFERRED SOURCE: THE LOCKFILE. It resolves every package to one version, it is
+ * committed, and it reads the same on every machine - including one that never
+ * ran an install, which is what a machine accepting a prebuilt bundle is. The
+ * platform-conditional packages a lockfile lists but an OS skips at install time
+ * are in the set on both sides, so a macOS emit and a Linux accept agree.
  *
- * A lockfile is the next best statement, and the declared ranges in package.json
- * the weakest. The recorded source names which guarantee this hash actually carries,
- * so neither side has to guess and a source CHANGE refuses explicitly.
+ * FALLBACK: THE INSTALLED TREE, for a project with no lockfile at all. It says
+ * which versions Metro actually inlined, but only where an install ran and only
+ * for the packages this OS installed - so a sidecar that names this source can
+ * be accepted only by a machine with a matching install.
+ *
+ * LAST: the declared ranges in package.json, the weakest statement. The recorded
+ * source names which guarantee the hash carries, so neither side has to guess and
+ * a source CHANGE refuses explicitly.
  */
 export function computeDependencyClosure(projectRoot: string): DependencyClosure {
-  const installed = hashInstalledClosure(projectRoot);
+  const lockfile = findLockfile(projectRoot);
+  if (lockfile) {
+    const packages = readLockfilePackages(lockfile.filePath, lockfile.name);
+    return { source: lockfile.name, hash: hashPackages(packages), packages };
+  }
+
+  const installed = readInstalledPackages(projectRoot);
   if (installed) {
-    return {
-      source: 'node_modules',
-      hash: installed.hash,
-      installedPackages: installed.packages,
-    };
+    return { source: 'node_modules', hash: hashPackages(installed), packages: installed };
   }
 
-  const lockfiles: DependencyClosureSource[] = ['yarn.lock', 'package-lock.json', 'pnpm-lock.yaml'];
-
-  for (const source of lockfiles) {
-    const lockfilePath = path.join(projectRoot, source);
-    try {
-      const bytes = fs.readFileSync(lockfilePath);
-      return { source, hash: sha256OfBuffer(bytes), installedPackages: null };
-    } catch {
-      // Not this one - try the next.
-    }
-  }
-
-  // No lockfile: hash the DECLARED dependency ranges, sorted so key order in the
-  // file can never move the hash.
+  // No lockfile, no install: hash the DECLARED dependency ranges, sorted so key
+  // order in the file can never move the hash.
   let declared: [string, string][] = [];
   try {
     const pkg = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'));
@@ -313,13 +373,24 @@ export function computeDependencyClosure(projectRoot: string): DependencyClosure
   return {
     source: 'package.json',
     hash: sha256OfString(JSON.stringify(declared)),
-    installedPackages: null,
+    packages: null,
   };
 }
 
 /**
- * Hash every package version actually installed under node_modules, or null when
- * the project has no installed tree to read.
+ * The hashed form of a package set is the [name, versions] tuple array, derived
+ * from the same list the caller retains, so the digest and its pre-image can
+ * never describe different things. It is the same form for a lockfile and for an
+ * installed tree, so the two sources hash an identical set to an identical digest.
+ */
+function hashPackages(packages: PackageVersions[]): string {
+  const canonical = packages.map(({ name, versions }) => [name, versions]);
+  return sha256OfString(JSON.stringify(canonical));
+}
+
+/**
+ * Every package version actually installed under node_modules, or null when the
+ * project has no installed tree to read.
  *
  * KEYED BY PACKAGE NAME, NOT BY PATH, and deliberately so. Two installs of the
  * identical dependency set can hoist packages to different depths, which would make
@@ -327,9 +398,7 @@ export function computeDependencyClosure(projectRoot: string): DependencyClosure
  * map is blind to hoisting and sensitive to exactly the thing that matters: which
  * versions of which packages Metro will find and inline.
  */
-function hashInstalledClosure(
-  projectRoot: string
-): { hash: string; packages: InstalledPackageVersions[] } | null {
+function readInstalledPackages(projectRoot: string): PackageVersions[] | null {
   const modulesRoot = path.join(projectRoot, 'node_modules');
   if (!fs.existsSync(modulesRoot)) return null;
 
@@ -392,17 +461,10 @@ function hashInstalledClosure(
   walkModulesDir(modulesRoot);
   if (versionsByName.size === 0) return null;
 
-  const packages: InstalledPackageVersions[] = [...versionsByName.keys()].sort().map((name) => ({
+  return [...versionsByName.keys()].sort().map((name) => ({
     name,
     versions: [...(versionsByName.get(name) as Set<string>)].sort(),
   }));
-
-  // The hashed form is the [name, versions] tuple array - kept exactly as it was,
-  // and derived here from the same `packages` list the caller retains, so the
-  // digest and its pre-image can never describe different things.
-  const canonical = packages.map(({ name, versions }) => [name, versions]);
-
-  return { hash: sha256OfString(JSON.stringify(canonical)), packages };
 }
 
 /**
@@ -417,54 +479,91 @@ function hashInstalledClosure(
  * A file the manifest names but the tree no longer has is recorded as missing
  * rather than skipped: a deleted screen must move the digest, or deleting one
  * would be the single edit this check cannot see.
+ *
+ * A generated file is never read: it stands for its inputs, which are read in its
+ * place (see {@link GeneratedFile}). Its absence on a machine that ran no
+ * bundler therefore moves nothing, while an edit to any input still does.
  */
 export function computeAppSourceClosure({
   projectRoot,
   modulePaths,
+  generatedFiles = {},
 }: {
   projectRoot: string;
   /** Project-relative source paths, as the module manifest keys them. */
   modulePaths: string[];
+  /** The generated files among them, keyed exactly as `modulePaths` names them. */
+  generatedFiles?: Record<string, GeneratedFile>;
 }): AppSourceClosure {
-  const appPaths = modulePaths
-    .filter((modulePath) => !modulePath.split(/[\\/]/).includes('node_modules'))
-    .sort();
+  const filePaths = new Set<string>();
+  for (const modulePath of modulePaths) {
+    if (isDependencyPath(modulePath)) continue;
 
-  const files: AppSourceFileDigest[] = appPaths.map((modulePath) => {
+    const generated = generatedFiles[modulePath];
+    if (!generated) {
+      filePaths.add(modulePath);
+      continue;
+    }
+    for (const input of generated.inputs) {
+      if (!isDependencyPath(input)) filePaths.add(input);
+    }
+  }
+
+  const files: AppSourceFileDigest[] = [...filePaths].sort().map((filePath) => {
     try {
       return {
-        path: modulePath,
-        digest: sha256OfBuffer(fs.readFileSync(path.resolve(projectRoot, modulePath))),
+        path: filePath,
+        digest: sha256OfBuffer(fs.readFileSync(path.resolve(projectRoot, filePath))),
       };
     } catch {
-      return { path: modulePath, digest: 'missing' };
+      return { path: filePath, digest: 'missing' };
     }
   });
 
   // The hashed form is the [path, digest] tuple array - kept exactly as it was,
   // and derived here from the same `files` list the caller retains, so the digest
   // and its pre-image can never describe different things.
-  const entries = files.map(({ path: modulePath, digest }) => [modulePath, digest]);
+  const entries = files.map(({ path: filePath, digest }) => [filePath, digest]);
 
   return {
     source: 'module-graph',
-    fileCount: appPaths.length,
+    fileCount: files.length,
     hash: sha256OfString(JSON.stringify(entries)),
     files,
   };
 }
 
+function isDependencyPath(modulePath: string): boolean {
+  return modulePath.split(/[\\/]/).includes('node_modules');
+}
+
 /**
- * The source paths a validated module manifest names.
+ * The app-source inputs a validated module manifest names: every module path in
+ * its graph, and which of them are generated files.
  *
  * Tolerates a manifest with no module map rather than throwing: a serializer that
  * emitted an empty graph is a degraded manifest, not a crash, and the resulting
- * digest simply covers no files. The manifest validator is what judges shape.
+ * digest simply covers no files. The manifest validator is what judges shape. A
+ * `generatedFiles` header entry of the wrong shape is ignored the same way - the
+ * file is then digested by its bytes, as it was before the header existed.
  */
-export function moduleManifestSourcePaths(manifest: {
-  parsed: { moduleHashes?: object };
-}): string[] {
-  return Object.keys(manifest.parsed.moduleHashes ?? {});
+export function moduleManifestAppSourceInputs(manifest: {
+  parsed: { header: Record<string, unknown>; moduleHashes?: object };
+}): { modulePaths: string[]; generatedFiles: Record<string, GeneratedFile> } {
+  const generatedFiles: Record<string, GeneratedFile> = {};
+
+  const recorded = manifest.parsed.header.generatedFiles;
+  if (recorded && typeof recorded === 'object' && !Array.isArray(recorded)) {
+    for (const [filePath, entry] of Object.entries<any>(recorded)) {
+      const isWellFormed =
+        typeof entry?.generatedBy === 'string' &&
+        Array.isArray(entry?.inputs) &&
+        entry.inputs.every((input: unknown) => typeof input === 'string');
+      if (isWellFormed) generatedFiles[filePath] = { generatedBy: entry.generatedBy, inputs: entry.inputs };
+    }
+  }
+
+  return { modulePaths: Object.keys(manifest.parsed.moduleHashes ?? {}), generatedFiles };
 }
 
 /** sha256 of the project's babel config bytes, or null when it has none. */
@@ -490,7 +589,7 @@ function computeBabelConfigDigest(projectRoot: string): string | null {
   return null;
 }
 
-function readMetroVersion(projectRoot: string): string | null {
+function readInstalledMetroVersion(projectRoot: string): string | null {
   try {
     const pkgPath = require.resolve('metro/package.json', { paths: [projectRoot] });
     const version = JSON.parse(fs.readFileSync(pkgPath, 'utf8'))?.version;
@@ -505,6 +604,7 @@ function readMetroVersion(projectRoot: string): string | null {
  *
  * Delegates to the reader the bundling road already uses, so the version recorded
  * in a sidecar is by construction the same number the version-floor refusal reads.
+ * That reader looks at app.json and package.json only - never at an install.
  */
 function readExpoSdkVersion(projectRoot: string): string | null {
   const major = getExpoSdkVersion(projectRoot);
@@ -569,7 +669,9 @@ export function parseBundleSidecar(
     !parsed.moduleManifest?.file ||
     typeof parsed.moduleManifest?.sha256 !== 'string' ||
     !parsed.project?.dependencyClosure?.source ||
-    typeof parsed.appSource?.hash !== 'string'
+    typeof parsed.appSource?.hash !== 'string' ||
+    typeof parsed.gateMetadata?.derivedFrom !== 'string' ||
+    !('baseFingerprint' in parsed)
   ) {
     return {
       ok: false,

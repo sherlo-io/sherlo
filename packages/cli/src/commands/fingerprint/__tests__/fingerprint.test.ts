@@ -53,14 +53,20 @@ function writeText(dir: string, relativePath: string, text: string): void {
   fs.writeFileSync(fullPath, text);
 }
 
-/** A bare project with an installed tree, a lockfile and one app source file. */
+/** A yarn classic lockfile resolving exactly the given packages. */
+function yarnLock(packages: Record<string, string>): string {
+  const blocks = Object.entries(packages).map(
+    ([name, version]) => `${name}@^${version}:\n  version "${version}"\n`
+  );
+  return `# yarn lockfile v1\n\n\n${blocks.join("\n")}`;
+}
+
+/** A bare project with a lockfile and one app source file. */
 function makeProject(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-fp-cmd-'));
   writeJson(dir, 'package.json', { name: 'app', version: '1.0.0' });
-  writeText(dir, 'yarn.lock', '# lockfile v1');
+  writeText(dir, 'yarn.lock', yarnLock({ react: '18.2.0', 'left-pad': '1.3.0' }));
   writeText(dir, 'ios/Podfile', 'platform :ios');
-  writeJson(dir, 'node_modules/react/package.json', { name: 'react', version: '18.2.0' });
-  writeJson(dir, 'node_modules/left-pad/package.json', { name: 'left-pad', version: '1.3.0' });
   writeText(dir, 'src/App.tsx', 'export const App = 1;');
   return dir;
 }
@@ -142,7 +148,7 @@ describe('sherlo fingerprint', () => {
     const out = output();
     expect(out).toContain(`  file     ios/Podfile  ${'f'.repeat(12)}`);
     expect(out).toContain(`  contents expoConfig  ${'c'.repeat(12)}`);
-    expect(out).toContain('  source   node_modules');
+    expect(out).toContain('  source   yarn.lock');
     expect(out).toContain('  package  react@18.2.0');
     expect(out).toContain('  file     src/App.tsx  ');
     expect(out).toContain('  workflow bare');
@@ -184,7 +190,7 @@ describe('sherlo fingerprint', () => {
       await fingerprint({ projectRoot: dir, write: documentPath });
 
       const document = JSON.parse(fs.readFileSync(documentPath, 'utf8'));
-      expect(document.formatVersion).toBe(1);
+      expect(document.formatVersion).toBe(2);
       expect(typeof document.cliVersion).toBe('string');
       expect(document.native).toEqual({
         hash: 'layer1-hash',
@@ -196,8 +202,8 @@ describe('sherlo fingerprint', () => {
       });
       expect(document.dependencies).toEqual({
         hash: expect.stringMatching(/^[0-9a-f]{64}$/),
-        source: 'node_modules',
-        installedPackages: [
+        source: 'yarn.lock',
+        packages: [
           { name: 'left-pad', versions: ['1.3.0'] },
           { name: 'react', versions: ['18.2.0'] },
         ],
@@ -253,15 +259,14 @@ describe('sherlo fingerprint', () => {
       expect(process.exitCode).toBeUndefined();
     });
 
-    it('exits 1 and names the moved package when a dependency changed', async () => {
+    it('exits 1 and names the moved package, from the lockfile, when a dependency changed', async () => {
       const dir = project();
       const baseline = path.join(dir, 'baseline.json');
       await fingerprint({ projectRoot: dir, write: baseline });
       logSpy.mockClear();
 
-      writeJson(dir, 'node_modules/react/package.json', { name: 'react', version: '18.3.1' });
-      fs.rmSync(path.join(dir, 'node_modules/left-pad'), { recursive: true });
-      writeJson(dir, 'node_modules/dayjs/package.json', { name: 'dayjs', version: '1.11.0' });
+      // The lockfile moved: one bump, one removal, one addition.
+      writeText(dir, 'yarn.lock', yarnLock({ react: '18.3.1', dayjs: '1.11.0' }));
 
       await fingerprint({ projectRoot: dir, baseline });
 
@@ -270,7 +275,10 @@ describe('sherlo fingerprint', () => {
       expect(out).toContain('  + dayjs 1.11.0');
       expect(out).toContain('  - left-pad 1.3.0');
       expect(out).toContain('  ~ react 18.2.0 -> 18.3.1');
-      expect(out).toContain('1 layer(s) changed');
+      // The lockfile's bytes are a base input too, so the base layer moves with it.
+      expect(out).toContain('base          changed');
+      expect(out).toMatch(/ {2}~ yarn\.lock [0-9a-f]{12} -> [0-9a-f]{12}/);
+      expect(out).toContain('2 layer(s) changed');
       expect(process.exitCode).toBe(1);
     });
 
@@ -280,7 +288,8 @@ describe('sherlo fingerprint', () => {
       await fingerprint({ projectRoot: dir, write: baseline });
       logSpy.mockClear();
 
-      writeText(dir, 'yarn.lock', '# lockfile v2');
+      // A lockfile edit that resolves nothing new moves only the base layer.
+      writeText(dir, 'yarn.lock', `${yarnLock({ react: '18.2.0', 'left-pad': '1.3.0' })}# edited\n`);
       mockCreateFingerprintAsync.mockResolvedValue({
         ...EXPO_FINGERPRINT,
         hash: 'layer1-hash-2',
@@ -298,6 +307,40 @@ describe('sherlo fingerprint', () => {
       expect(out).toMatch(/ {2}~ yarn\.lock [0-9a-f]{12} -> [0-9a-f]{12}/);
       expect(out).toContain('2 layer(s) changed');
       expect(out).not.toContain(SECRET);
+      expect(process.exitCode).toBe(1);
+    });
+
+    it('names the changed INPUT of a generated file, never the generated file itself', async () => {
+      const dir = project();
+      writeText(dir, '.rnstorybook/main.ts', 'export default { stories: ["a"] };');
+      // The generated file is absent, as on any tree that did not just bundle.
+      const bundleDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-fp-generated-'));
+      cleanupDirs.push(bundleDir);
+      writeJson(bundleDir, 'module-manifest.android.json', {
+        version: 1,
+        header: {
+          generatedFiles: {
+            './.rnstorybook/storybook.requires.ts': {
+              generatedBy: 'storybook-requires',
+              inputs: ['./.rnstorybook/main.ts'],
+            },
+          },
+        },
+        moduleHashes: { 'src/App.tsx': 'm1', './.rnstorybook/storybook.requires.ts': 'm3' },
+        storyClosures: {},
+      });
+      const baseline = path.join(dir, 'baseline.json');
+      await fingerprint({ projectRoot: dir, bundleDir, write: baseline });
+      logSpy.mockClear();
+
+      writeText(dir, '.rnstorybook/main.ts', 'export default { stories: ["a", "b"] };');
+
+      await fingerprint({ projectRoot: dir, bundleDir, baseline });
+
+      const out = output();
+      expect(out).toContain('js android    changed');
+      expect(out).toMatch(/ {2}~ \.\/\.rnstorybook\/main\.ts [0-9a-f]{12} -> [0-9a-f]{12}/);
+      expect(out).not.toContain('storybook.requires');
       expect(process.exitCode).toBe(1);
     });
 
@@ -322,10 +365,10 @@ describe('sherlo fingerprint', () => {
     it('fails with a clear message on a baseline of a different format version', async () => {
       const dir = project();
       const baseline = path.join(dir, 'baseline.json');
-      writeJson(dir, 'baseline.json', { formatVersion: 2 });
+      writeJson(dir, 'baseline.json', { formatVersion: 1 });
 
       await expect(fingerprint({ projectRoot: dir, baseline })).rejects.toThrow(
-        'has format version 2, but this CLI reads format version 1'
+        'has format version 1, but this CLI reads format version 2'
       );
     });
   });

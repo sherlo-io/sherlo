@@ -165,7 +165,8 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
       'must hold, for each tested platform, the bundle, its assets, its module manifest ' +
       'and the sidecar recording what it was built from - produce one with ' +
       '`--emit-bundle-dir`. Every field of that sidecar is checked against this project ' +
-      'first, and a mismatch is refused rather than bundled around.',
+      'first, and a mismatch is refused rather than bundled around. The checks read the ' +
+      'checkout and the lockfile only: the accepting machine needs no `node_modules`.',
   ],
   [EMIT_BUNDLE_DIR_OPTION]: [
     '--emit-bundle-dir <path>',

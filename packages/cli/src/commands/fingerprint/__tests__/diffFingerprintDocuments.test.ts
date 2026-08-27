@@ -13,7 +13,7 @@ const HASH_C = 'c'.repeat(64);
 
 function makeDocument(): FingerprintDocument {
   return {
-    formatVersion: 1,
+    formatVersion: 2,
     cliVersion: '2.0.2',
     native: {
       hash: 'native-1',
@@ -25,8 +25,8 @@ function makeDocument(): FingerprintDocument {
     },
     dependencies: {
       hash: 'deps-1',
-      source: 'node_modules',
-      installedPackages: [
+      source: 'yarn.lock',
+      packages: [
         { name: '@scope/lib', versions: ['2.1.0'] },
         { name: 'loose', versions: ['1.0.1', '1.2.0'] },
         { name: 'react', versions: ['18.2.0'] },
@@ -68,7 +68,7 @@ describe('diffFingerprintDocuments', () => {
   it('names the changed, added and removed packages with versions on both sides', () => {
     const current = makeDocument();
     current.dependencies.hash = 'deps-2';
-    current.dependencies.installedPackages = [
+    current.dependencies.packages = [
       { name: '@scope/lib', versions: ['2.1.0'] },
       { name: 'left-pad', versions: ['1.3.0'] },
       { name: 'react', versions: ['18.3.1'] },
@@ -97,7 +97,7 @@ describe('diffFingerprintDocuments', () => {
 
   it('names a dependency closure source change before any package', () => {
     const current = makeDocument();
-    current.dependencies = { hash: 'deps-2', source: 'yarn.lock', installedPackages: null };
+    current.dependencies = { hash: 'deps-2', source: 'package.json', packages: null };
 
     const delta = diffFingerprintDocuments(makeDocument(), current);
     const dependencies = delta.layers.find((layer) => layer.layer === 'dependencies');
@@ -105,20 +105,20 @@ describe('diffFingerprintDocuments', () => {
     expect(dependencies?.entries[0]).toEqual({
       kind: 'changed',
       name: 'source',
-      before: 'node_modules',
-      after: 'yarn.lock',
+      before: 'yarn.lock',
+      after: 'package.json',
     });
   });
 
   it('falls back to the digests when neither side has a per-package pre-image', () => {
     const baseline = makeDocument();
-    baseline.dependencies = { hash: HASH_A, source: 'yarn.lock', installedPackages: null };
+    baseline.dependencies = { hash: HASH_A, source: 'package.json', packages: null };
     const current = makeDocument();
-    current.dependencies = { hash: HASH_B, source: 'yarn.lock', installedPackages: null };
+    current.dependencies = { hash: HASH_B, source: 'package.json', packages: null };
 
     const delta = diffFingerprintDocuments(baseline, current);
 
-    expect(renderDelta(delta)).toContain(`  ~ yarn.lock ${'a'.repeat(12)} -> ${'b'.repeat(12)}`);
+    expect(renderDelta(delta)).toContain(`  ~ package.json ${'a'.repeat(12)} -> ${'b'.repeat(12)}`);
   });
 
   it('names the changed, added and removed app source files with their digest prefixes', () => {

@@ -18,7 +18,9 @@
  * `sherlo test --emit-bundle-dir <dir>` (`--bundle-dir`), and prints
  * `js: not computed` with the reason when none is supplied. The file LIST comes
  * from that manifest; the BYTES are always read from the current tree, which is
- * exactly how `sherlo test --bundle-dir` judges a supplied bundle.
+ * exactly how `sherlo test --bundle-dir` judges a supplied bundle. A file the
+ * manifest marks as generated at bundle time is read as its inputs, so a diff
+ * names the input that changed rather than a file this tree may not even have.
  *
  * `--baseline` exits 1 when any layer changed and 0 otherwise, so CI can gate on
  * it. Every other failure (an unreadable file, a wrong format version) is an
@@ -33,8 +35,8 @@ import throwError from '../../helpers/throwError';
 import {
   computeAppSourceClosure,
   computeDependencyClosure,
+  moduleManifestAppSourceInputs,
   moduleManifestFileName,
-  moduleManifestSourcePaths,
   readCliVersion,
 } from '../test/bundleSidecar';
 import { validateModuleManifestBuffer } from '../test/readModuleManifest';
@@ -127,7 +129,7 @@ export async function computeFingerprintDocument({
     dependencies: {
       hash: dependencies.hash,
       source: dependencies.source,
-      installedPackages: dependencies.installedPackages,
+      packages: dependencies.packages,
     },
     js,
     base: {
@@ -170,7 +172,7 @@ function computeJsLayers({
 
     const closure = computeAppSourceClosure({
       projectRoot,
-      modulePaths: moduleManifestSourcePaths(manifest),
+      ...moduleManifestAppSourceInputs(manifest),
     });
     layers[platform] = { hash: closure.hash, fileCount: closure.fileCount, files: closure.files };
   }

@@ -20,13 +20,13 @@ function makeTempDir(): string {
 }
 
 const DOCUMENT: FingerprintDocument = {
-  formatVersion: 1,
+  formatVersion: 2,
   cliVersion: '2.0.2',
   native: { hash: 'native-1', sources: [{ type: 'contents', id: 'expoConfig', hash: 'h1' }] },
   dependencies: {
     hash: 'deps-1',
-    source: 'node_modules',
-    installedPackages: [{ name: 'react', versions: ['18.2.0'] }],
+    source: 'yarn.lock',
+    packages: [{ name: 'react', versions: ['18.2.0'] }],
   },
   js: { android: { hash: 'js-1', fileCount: 1, files: [{ path: 'src/App.tsx', digest: 'h2' }] } },
   base: {
@@ -97,7 +97,7 @@ describe('fingerprint document', () => {
       expect(() => readFingerprintDocument(notJson)).toThrow('not valid JSON');
 
       const noLayers = path.join(dir, 'no-layers.json');
-      fs.writeFileSync(noLayers, JSON.stringify({ formatVersion: 1, native: {} }));
+      fs.writeFileSync(noLayers, JSON.stringify({ formatVersion: 2, native: {} }));
       expect(() => readFingerprintDocument(noLayers)).toThrow('missing its "dependencies" layer');
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });

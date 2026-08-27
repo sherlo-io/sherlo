@@ -22,7 +22,7 @@ import { Platform } from '@sherlo/api-types';
 import type {
   AppSourceFileDigest,
   DependencyClosureSource,
-  InstalledPackageVersions,
+  PackageVersions,
 } from '../test/bundleSidecar';
 import type {
   FingerprintSourceDigest,
@@ -30,8 +30,13 @@ import type {
   Workflow,
 } from '../../helpers/fingerprint/baseFingerprint';
 
-/** Bump ONLY on a breaking change to the shape below. A reader refuses any other. */
-export const FINGERPRINT_DOCUMENT_FORMAT_VERSION = 1;
+/**
+ * Bump ONLY on a breaking change to the shape below. A reader refuses any other.
+ *
+ * 2: the dependencies layer is read from the lockfile and its per-package
+ *    pre-image is `packages` (was `installedPackages`, node_modules only).
+ */
+export const FINGERPRINT_DOCUMENT_FORMAT_VERSION = 2;
 
 /**
  * The `native` layer: the version-suppressed `@expo/fingerprint` hash - the same
@@ -62,14 +67,14 @@ export type BaseLayer = {
 
 /**
  * The `dependencies` layer: the dependency closure Metro inlines into a bundle.
- * `installedPackages` is present only when the closure was read from
- * `node_modules`; a lockfile or package.json closure is a hash over raw bytes and
- * has no per-package pre-image.
+ * `packages` is the resolved name -> versions set behind the hash, read from the
+ * lockfile (or the installed tree when there is none); a package.json closure is
+ * a hash over declared ranges and has no per-package pre-image.
  */
 export type DependenciesLayer = {
   hash: string;
   source: DependencyClosureSource;
-  installedPackages: InstalledPackageVersions[] | null;
+  packages: PackageVersions[] | null;
 };
 
 /**
