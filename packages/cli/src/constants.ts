@@ -72,11 +72,14 @@ export const TEST_EAS_UPDATE_COMMAND = 'test:eas-update';
 export const TEST_EAS_CLOUD_BUILD_COMMAND = 'test:eas-cloud-build';
 export const EAS_BUILD_ON_COMPLETE_COMMAND = 'eas-build-on-complete';
 export const SHOW_ERROR_COMMAND = 'show-error';
+export const FINGERPRINT_COMMAND = 'fingerprint';
 export const FULL_INIT_COMMAND = 'npx sherlo init';
 
 /* OPTIONS */
 
 export const ANDROID_OPTION = 'android';
+/** `sherlo fingerprint`: the file to diff the current fingerprints against. */
+export const BASELINE_OPTION = 'baseline';
 export const BRANCH_OPTION = 'branch';
 /** Accept a prebuilt bundle directory instead of bundling (see commands/test/suppliedBundle). */
 export const BUNDLE_DIR_OPTION = 'bundleDir';
@@ -98,6 +101,10 @@ export const MESSAGE_OPTION = 'message';
 export const PROFILE_OPTION = 'profile';
 export const PROJECT_ROOT_OPTION = 'projectRoot';
 export const TOKEN_OPTION = 'token';
+/** `sherlo fingerprint`: print every source, package and file under its layer. */
+export const VERBOSE_OPTION = 'verbose';
+/** `sherlo fingerprint`: the file to write the fingerprint document to. */
+export const WRITE_OPTION = 'write';
 export const INCLUDE_OPTION = 'include';
 export const WAIT_FOR_EAS_BUILD_OPTION = 'waitForEasBuild';
 export const WAIT_OPTION = 'wait';

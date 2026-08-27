@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { version } from '../package.json';
 import {
   easBuildOnComplete,
+  fingerprint,
   init,
   showError,
   test,
@@ -13,6 +14,7 @@ import {
 import {
   ANDROID_FILE_TYPES,
   ANDROID_OPTION,
+  BASELINE_OPTION,
   BRANCH_OPTION,
   CONFIG_OPTION,
   CONTACT_EMAIL,
@@ -29,6 +31,7 @@ import {
   EAS_IOS_URL_OPTION,
   EAS_UPDATE_SLUG_OPTION,
   EMIT_EXPECTATION_OPTION,
+  FINGERPRINT_COMMAND,
   RENDER_TRANSCRIPT_OPTION,
   GIT_BRANCH_OPTION,
   INCLUDE_OPTION,
@@ -45,9 +48,11 @@ import {
   TEST_EAS_UPDATE_COMMAND,
   TEST_STANDARD_COMMAND,
   TOKEN_OPTION,
+  VERBOSE_OPTION,
   WAIT_FOR_EAS_BUILD_OPTION,
   WAIT_OPTION,
   WAIT_TIMEOUT_OPTION,
+  WRITE_OPTION,
 } from './constants';
 import { logWarning, reporting, withCommandTimeout } from './helpers';
 
@@ -76,6 +81,8 @@ async function start() {
     addTestEasCloudBuildCommand(program);
 
     addShowErrorCommand(program);
+
+    addFingerprintCommand(program);
 
     if (process.argv.length === 2) {
       console.log('Choose a Sherlo command. Use --help for more information.');
@@ -122,6 +129,13 @@ const COMMAND_DESCRIPTION = {
   [EAS_BUILD_ON_COMPLETE_COMMAND]: `Process EAS Build (required for \`${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
   [SHOW_ERROR_COMMAND]:
     'Decode a minified JS error stack trace using the slug printed on the Sherlo build error page',
+  [FINGERPRINT_COMMAND]:
+    'Print the fingerprints `test` computes for this project, one line per layer\n' +
+    '  (native, dependencies, js, base). Runs entirely locally: no token, no upload.\n' +
+    `  With \`--${WRITE_OPTION} <file>\`: also writes the digests and what they were computed\n` +
+    '  over (package versions, file digests) to <file>.\n' +
+    `  With \`--${BASELINE_OPTION} <file>\`: diffs the current project against a file written by\n` +
+    `  \`--${WRITE_OPTION}\` and prints what changed per layer. Exits 1 when any layer changed.`,
 };
 
 const OPTION_DEFINITION: Record<string, [string, string]> = {
@@ -168,6 +182,12 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   [IOS_OPTION]: [
     `--${IOS_OPTION} <path>`,
     `Path to ${PLATFORM_LABEL.ios} build (${IOS_FILE_TYPES.join(', ')})`,
+  ],
+  [BASELINE_OPTION]: [
+    `--${BASELINE_OPTION} <file>`,
+    `Diff the current fingerprints against a file written by \`--${WRITE_OPTION}\`. ` +
+      'Prints, per layer, unchanged or changed followed by the changed packages and files. ' +
+      'Exits 1 when any layer changed, 0 otherwise.',
   ],
   [BUNDLE_DIR_OPTION]: [
     '--bundle-dir <path>',
@@ -217,6 +237,10 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `Path to the root directory of your project (default: ${DEFAULT_PROJECT_ROOT})`,
   ],
   [TOKEN_OPTION]: [`--${TOKEN_OPTION} <token>`, 'Authentication token for the project'],
+  [VERBOSE_OPTION]: [
+    `--${VERBOSE_OPTION}`,
+    'List every native source, package and file under its layer, with its digest',
+  ],
   [WAIT_FOR_EAS_BUILD_OPTION]: [
     `--${WAIT_FOR_EAS_BUILD_OPTION}`,
     'Start waiting for EAS Build to be triggered manually',
@@ -230,6 +254,12 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   [WAIT_TIMEOUT_OPTION]: [
     '--wait-timeout <minutes>',
     'Max minutes to wait for results (default: 45). Exit code 3 on timeout.',
+  ],
+  [WRITE_OPTION]: [
+    `--${WRITE_OPTION} <file>`,
+    'Write the digests and their pre-image (native sources, lockfiles, autolinked modules, ' +
+      'installed packages, app source files - identifiers and digests only, never contents) ' +
+      `to <file> as JSON, for a later \`--${BASELINE_OPTION}\`.`,
   ],
 };
 
@@ -342,6 +372,29 @@ function addShowErrorCommand(program: Command) {
       setReportingContext(SHOW_ERROR_COMMAND, { slug });
       await showError(slug);
     });
+}
+
+// `sherlo fingerprint` reuses `--bundle-dir` with its own meaning: the directory is
+// READ for its module manifests (the js layer's file list), never checked or run.
+function addFingerprintCommand(program: Command) {
+  const commandInstance = program
+    .command(FINGERPRINT_COMMAND)
+    .description(COMMAND_DESCRIPTION[FINGERPRINT_COMMAND]);
+  addOptionsToCommand(commandInstance, [
+    PROJECT_ROOT_OPTION,
+    WRITE_OPTION,
+    BASELINE_OPTION,
+    VERBOSE_OPTION,
+  ]);
+  commandInstance.option(
+    '--bundle-dir <path>',
+    'Compute the js layer from the module manifests in a directory written by ' +
+      '`sherlo test --emit-bundle-dir`. Without it the js layer is not computed.'
+  );
+  commandInstance.action(async (actionOptions) => {
+    setReportingContext(FINGERPRINT_COMMAND, actionOptions);
+    await fingerprint(actionOptions);
+  });
 }
 
 function addCommand({

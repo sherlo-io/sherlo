@@ -37,8 +37,9 @@ export type RegisterBaseParams = {
    */
   baseFingerprintHash?: string | null;
   /**
-   * CLI command that triggered registration - tags `SHERLO_FINGERPRINT_DEBUG`
-   * output when the fingerprint is computed internally. No effect on the hash.
+   * CLI command that triggered registration - passed through to the fingerprint
+   * computation when it runs internally, for its reporting breadcrumb. No
+   * effect on the hash.
    */
   command?: string;
 };
@@ -164,24 +165,6 @@ export async function registerBase(
       gateMetadata,
       notStageableReason: stageableCheck.reason,
     };
-  }
-
-  // ------------------------------------------------------------------
-  // 4. Debug-only registration metadata summary - gated behind the SAME
-  //    SHERLO_FINGERPRINT_DEBUG flag baseFingerprint.ts uses (off by default,
-  //    never on default stdout). See baseFingerprint.ts's emitFingerprintDebug.
-  // ------------------------------------------------------------------
-  if (process.env.SHERLO_FINGERPRINT_DEBUG === '1') {
-    console.log(
-      '[sherlo:fp-debug] Staged registration metadata computed:\n' +
-        `  baseFingerprint: ${fpHash}\n` +
-        `  engineClass: ${gateMetadata.engineClass}\n` +
-        `  bundleFormat: ${gateMetadata.bundleFormat}\n` +
-        `  hasEmbeddedBundle: ${gateMetadata.hasEmbeddedBundle}\n` +
-        `  expoUpdatesEnabled: ${gateMetadata.expoUpdatesEnabled}\n` +
-        `  sdkProtocolVersion: ${gateMetadata.sdkProtocolVersion ?? 'unknown'}\n` +
-        `  assets: ${gateMetadata.assetInventory?.length ?? 0} items`
-    );
   }
 
   return {
