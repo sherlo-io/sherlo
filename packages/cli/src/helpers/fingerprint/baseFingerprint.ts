@@ -137,8 +137,7 @@ export type BaseFingerprintResult = {
 
 export type ComputeBaseFingerprintOptions = {
   /**
-   * The CLI command that triggered this computation (e.g. 'test:standard',
-   * 'test'). Recorded on the reporting breadcrumb so a reported failure names
+   * The CLI command that triggered this computation (e.g. 'test'). Recorded on the reporting breadcrumb so a reported failure names
    * its caller. Has no effect on the computed hash.
    */
   command?: string;
@@ -530,8 +529,7 @@ function lockfileHashLine({ file, digest }: LockfileDigest): string {
  *
  * Ambient `process.env` is NOT stable across commands: a package manager injects
  * `NODE_ENV`, `npm_lifecycle_event`, `npm_config_*`, `NODE_OPTIONS`, … that
- * differ depending on which yarn script (test:standard vs test vs
- * test:eas-update) launched the CLI. If any of those leak into a fingerprint-time
+ * differ depending on which yarn script launched the CLI. If any of those leak into a fingerprint-time
  * subprocess and that subprocess branches on them, the SAME tree hashes
  * differently per command and the staged gate lookup misses.
  *

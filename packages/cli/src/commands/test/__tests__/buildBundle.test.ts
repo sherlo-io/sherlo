@@ -564,7 +564,7 @@ describe('buildBundleForPlatform - result metadata', () => {
 describe('baseFingerprint version suppression (SHERLO-1690 AC)', () => {
   it('computeBaseFingerprint is imported and used by stagedRun', async () => {
     // Integration-level assertion: the stagedRun module imports
-    // computeBaseFingerprint from the same path as test:standard.
+    // computeBaseFingerprint from the same path as the standard road.
     // This guards against accidental divergence.
     expect(computeBaseFingerprint).toBeDefined();
     expect(typeof computeBaseFingerprint).toBe('function');

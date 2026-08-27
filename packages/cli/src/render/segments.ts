@@ -35,7 +35,7 @@ export type TranscriptStream = 'stdout' | 'stderr';
  * One printable block of a sherlo CLI transcript.
  *
  * Two families live here now - the `--dry-run` preview (slice S0a) and the PUSH
- * SPINE (slice S0b/F1), which is the transcript `sherlo test:standard` emits and
+ * SPINE (slice S0b/F1), which is the transcript `sherlo test --android/--ios` emits and
  * the one every other family's preamble is a subset of. They share ONE union and
  * ONE renderer on purpose: the intro is the same intro, and a second union would
  * be a second place for a literal to drift.
@@ -110,14 +110,6 @@ export type TranscriptSegment =
    * WALL CLOCK, which a renderer may not do - see helpers/.../getTimeAgo.
    */
   | { kind: 'binary-reused'; buildIndex: number; timeAgo: string }
-  /** The whole `🔄 EAS Update` block: message, created, author, branch, blank. */
-  | {
-      kind: 'eas-update';
-      message: string;
-      timeAgo: string | undefined;
-      author: string | undefined;
-      branch: string;
-    }
   /**
    * `WARNING: ...` / `INFO: ...`, optionally with a `↳ Learn more:` line.
    *
@@ -137,18 +129,6 @@ export type TranscriptSegment =
    * the data-carrying variants above.
    */
   | { kind: 'build-message'; message: string; type: 'info' | 'success'; endsWithNewLine?: boolean }
-  /**
-   * `📄 Producing the module manifest for Diff Scope...`
-   *
-   * ITS LEADING BLANK LINE IS INSIDE THE CHALK CALL, so chalk closes and
-   * reopens the style around it and the blank line is emitted as a STYLED
-   * empty line rather than an empty one. Twenty-three committed fixtures carry
-   * those bytes. Hoisting the newline out - the tidy thing to do - changes all
-   * twenty-three while changing nothing a human sees.
-   */
-  | { kind: 'manifest-producing' }
-  /** `  ✓ Android module manifest uploaded`. */
-  | { kind: 'manifest-uploaded'; platform: Platform }
   /**
    * The closer of a run that reached a build: the machine-readable `url=` line
    * a CI republishes, then the human `🔗` link, then a blank.

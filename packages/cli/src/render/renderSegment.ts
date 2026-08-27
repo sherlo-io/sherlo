@@ -25,14 +25,13 @@
 import path from 'path';
 import chalk from 'chalk';
 import gradientString from 'gradient-string';
-import { COLOR, PLATFORM_LABEL } from '../constants';
+import { COLOR } from '../constants';
 import { formatDryRunPreview } from './dryRunPlan';
 import {
   formatLink,
   renderBinaryPlatformLabel,
   renderBinaryReused,
   renderBuildMessageLine,
-  renderEasUpdate,
   renderNotice,
   renderOutputKeys,
   renderRunHeader,
@@ -233,12 +232,6 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
         prints: [[renderBinaryReused(segment.buildIndex, segment.timeAgo)], []],
       };
 
-    case 'eas-update':
-      return {
-        stream: 'stdout',
-        prints: [[renderEasUpdate(segment)]],
-      };
-
     case 'notice':
       return {
         stream: 'stdout',
@@ -252,19 +245,6 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
           [renderBuildMessageLine(segment.message, segment.type)],
           ...(segment.endsWithNewLine ? [[]] : []),
         ],
-      };
-
-    case 'manifest-producing':
-      // The `\n` is INSIDE the chalk call on purpose - see ./pushSpine's header.
-      return {
-        stream: 'stdout',
-        prints: [[chalk.cyan('\n📄 Producing the module manifest for Diff Scope...')]],
-      };
-
-    case 'manifest-uploaded':
-      return {
-        stream: 'stdout',
-        prints: [[chalk.green(`  ✓ ${PLATFORM_LABEL[segment.platform]} module manifest uploaded`)]],
       };
 
     case 'results-url':

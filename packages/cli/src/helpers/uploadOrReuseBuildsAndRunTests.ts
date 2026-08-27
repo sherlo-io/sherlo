@@ -1,23 +1,14 @@
 import sdkClient from '@sherlo/sdk-client';
 import { Platform } from '@sherlo/api-types';
 import logWarning from './logWarning';
-import { PLATFORM_LABEL, TEST_EAS_UPDATE_COMMAND, TEST_STANDARD_COMMAND } from '../constants';
-import { CommandParams, EasUpdateData } from '../types';
-import { emit } from './transcriptSink';
-import {
-  emitAndUploadModuleManifests,
-  realManifestEffects,
-  type ManifestEffects,
-} from './emitAndUploadModuleManifests';
+import { PLATFORM_LABEL, TEST_COMMAND } from '../constants';
+import { CommandParams } from '../types';
 import {
   realFreshBundleEffects,
   uploadFreshBundles,
   type FreshBundleEffects,
 } from './uploadFreshBundles';
-import {
-  applyBundleToPlatformConfig,
-  type PlatformConfigWithManifest,
-} from '../commands/test/uploadBundles';
+import { applyBundleToPlatformConfig } from '../commands/test/uploadBundles';
 import type { BinaryUploadEffects } from './uploadOrPrintBinaryReuse/uploadBuild';
 import type { BaseRegistrationEffects } from './fingerprint/registerBase';
 import type { BaseFingerprintResult } from './fingerprint';
@@ -45,11 +36,9 @@ import waitForBuildResult from './waitForBuildResult';
  *
  * The spine's transcript is emitted from here and from the shipped helpers it
  * calls, interleaved with these awaits: the run header before the binaries go
- * up, each platform's block around its own upload, the EAS block, the
- * fingerprint warnings from inside `registerBase`, then either the manifest
- * block from inside `emitAndUploadModuleManifests` (the EAS-update road) or the
- * bundle block from inside `uploadFreshBundles` (the standard road), and the
- * closer after `openBuild` answers. A producer that re-implemented that order
+ * up, each platform's block around its own upload, the fingerprint warnings
+ * from inside `registerBase`, the bundle block from inside `uploadFreshBundles`,
+ * and the closer after `openBuild` answers. A producer that re-implemented that order
  * could drift from it silently; supplying the effects means the order, the
  * branching and every literal come from the shipped code, unforked.
  *
@@ -78,25 +67,25 @@ export type PushEffects = {
   openBuild: (input: Record<string, unknown>) => Promise<{ build: { index: number } }>;
   binaryUpload: BinaryUploadEffects;
   baseRegistration: BaseRegistrationEffects;
-  /** The EAS-update road's manifest pass. Never reached on the standard road. */
-  manifest: ManifestEffects;
-  /** The standard road's fresh bundle. Never reached on the EAS-update road. */
+  /** The fresh bundle spliced into every binary this run renders. */
   freshBundle: FreshBundleEffects;
 };
 
+/**
+ * The standard road of `sherlo test`: upload (or reuse) the binaries, register
+ * them as the native base, splice a freshly built bundle in and open the build.
+ */
 async function uploadOrReuseBuildsAndRunTests({
   commandParams,
-  easUpdateData,
   effects,
 }: {
   commandParams: CommandParams;
-  easUpdateData?: EasUpdateData;
   effects?: PushEffects;
 }): Promise<{ url: string }> {
   const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
   const client = sdkClient({ authToken: apiToken });
 
-  const command = easUpdateData ? TEST_EAS_UPDATE_COMMAND : TEST_STANDARD_COMMAND;
+  const command = TEST_COMMAND;
 
   const io: PushEffects = effects ?? {
     now: () => new Date(),
@@ -114,7 +103,6 @@ async function uploadOrReuseBuildsAndRunTests({
     openBuild: (input) => client.openBuild(input as never).catch(handleClientError),
     binaryUpload: REAL_BINARY_UPLOAD_EFFECTS,
     baseRegistration: REAL_BASE_REGISTRATION_EFFECTS,
-    manifest: realManifestEffects(client),
     freshBundle: realFreshBundleEffects(client),
   };
 
@@ -130,10 +118,6 @@ async function uploadOrReuseBuildsAndRunTests({
     uploadEffects: io.binaryUpload,
     now: io.now(),
   });
-
-  if (easUpdateData) {
-    printEasUpdateData(easUpdateData);
-  }
 
   const gitInfo = await io.resolveGitInfo();
 
@@ -154,7 +138,7 @@ async function uploadOrReuseBuildsAndRunTests({
   const nativeFingerprint = fpResult.nativeFingerprint;
 
   // The platforms the user handed a binary for. Each is registered as the
-  // native base below and, on the standard road, rendered with a fresh bundle.
+  // native base below and rendered with a fresh bundle.
   const platforms: Platform[] = [];
   if (binariesInfo.android && commandParams.android) platforms.push('android');
   if (binariesInfo.ios && commandParams.ios) platforms.push('ios');
@@ -169,7 +153,6 @@ async function uploadOrReuseBuildsAndRunTests({
    * refused splice, and its reason is the one to show.
    */
   const notSpliceableReasons: Partial<Record<Platform, string>> = {};
-  let manifestS3Keys: Partial<Record<Platform, string>> = {};
 
   if (fpResult.hash) {
     baseFingerprint = fpResult.hash;
@@ -205,23 +188,6 @@ async function uploadOrReuseBuildsAndRunTests({
         notSpliceableReasons[platform] = 'base registration failed';
       }
     }
-
-    // THE EAS-UPDATE ROAD (SHERLO-1943): a development build has no embedded
-    // bundle to splice a fresh one into - the update carries the JS - so the
-    // bundling pass here produces only the module manifest, guarded by
-    // provenance (clean tree + known commit). Runs alongside base registration
-    // since the manifest is only meaningful against the base registered here.
-    if (easUpdateData) {
-      manifestS3Keys = await emitAndUploadModuleManifests({
-        client,
-        projectRoot: commandParams.projectRoot,
-        platforms,
-        gitInfo,
-        projectIndex,
-        teamId,
-        effects: io.manifest,
-      });
-    }
   } else {
     logWarning({
       message: `Staged uploads unavailable - ${
@@ -236,77 +202,62 @@ async function uploadOrReuseBuildsAndRunTests({
       android: binariesInfo.android?.s3Key,
       ios: binariesInfo.ios?.s3Key,
     },
-    easUpdateData,
   });
 
-  if (easUpdateData) {
-    // Mirror the manifest S3 key onto its platform config. Only set when
-    // present, so a skipped/failed manifest sends nothing extra.
-    for (const platform of Object.keys(manifestS3Keys) as Platform[]) {
-      const key = manifestS3Keys[platform];
-      const platformConfig = buildRunConfig[platform];
-      if (platformConfig && key) {
-        (platformConfig as PlatformConfigWithManifest).manifestS3Key = key;
-      }
-    }
-  } else {
-    // THE STANDARD ROAD RENDERS A FRESHLY BUILT BUNDLE, OR IT DOES NOT RUN.
-    //
-    // The runner splices the bundle into the binary at the platform-default
-    // bundle path, so a binary that does not load a plain-JS bundle from that
-    // path cannot render it, and without a base fingerprint there is no base to
-    // name the splice against. Either way the binary's own embedded bundle would
-    // render instead - the run this road no longer performs - so the run is
-    // refused, naming every reason at once.
-    const reasons = platforms
-      .filter((platform) => notSpliceableReasons[platform])
-      .map((platform) => `${PLATFORM_LABEL[platform]}: ${notSpliceableReasons[platform]}`);
-    if (!baseFingerprint) {
-      reasons.push(
-        `base fingerprint: ${fpResult.debugMessage ?? 'fingerprint computation failed'}`
-      );
-    }
-    if (reasons.length > 0 || !baseFingerprint) {
-      throwError({
-        message:
-          'This run cannot render a freshly built JS bundle, so it was not started.\n\n' +
-          `${reasons.map((reason) => `  - ${reason}`).join('\n')}\n\n` +
-          'Every `sherlo test` run renders the bundle built from your current project, ' +
-          'spliced into the binary you passed. A binary that cannot take it would render ' +
-          'the JS it was built with instead, so it is refused rather than tested stale.',
-      });
-    }
-
-    const freshBundles = await uploadFreshBundles({
-      projectRoot: commandParams.projectRoot,
-      platforms,
-      bundleDir: commandParams.bundleDir,
-      baseFingerprint,
-      projectIndex,
-      teamId,
-      effects: io.freshBundle,
+  // THE RUN RENDERS A FRESHLY BUILT BUNDLE, OR IT DOES NOT RUN.
+  //
+  // The runner splices the bundle into the binary at the platform-default
+  // bundle path, so a binary that does not load a plain-JS bundle from that
+  // path cannot render it, and without a base fingerprint there is no base to
+  // name the splice against. Either way the binary's own embedded bundle would
+  // render instead - a run this command never performs - so the run is
+  // refused, naming every reason at once.
+  const reasons = platforms
+    .filter((platform) => notSpliceableReasons[platform])
+    .map((platform) => `${PLATFORM_LABEL[platform]}: ${notSpliceableReasons[platform]}`);
+  if (!baseFingerprint) {
+    reasons.push(`base fingerprint: ${fpResult.debugMessage ?? 'fingerprint computation failed'}`);
+  }
+  if (reasons.length > 0 || !baseFingerprint) {
+    throwError({
+      message:
+        'This run cannot render a freshly built JS bundle, so it was not started.\n\n' +
+        `${reasons.map((reason) => `  - ${reason}`).join('\n')}\n\n` +
+        'Every `sherlo test` run renders the bundle built from your current project, ' +
+        'spliced into the binary you passed. A binary that cannot take it would render ' +
+        'the JS it was built with instead, so it is refused rather than tested stale.',
     });
+  }
 
-    // The binary keeps its own `s3Key` (set by getBuildRunConfig above): the
-    // bundle is spliced into THIS binary, not into a registered base.
-    for (const platform of platforms) {
-      const platformConfig = buildRunConfig[platform];
-      const uploaded = freshBundles[platform];
-      if (!platformConfig || !uploaded) continue;
+  const freshBundles = await uploadFreshBundles({
+    projectRoot: commandParams.projectRoot,
+    platforms,
+    bundleDir: commandParams.bundleDir,
+    baseFingerprint,
+    projectIndex,
+    teamId,
+    effects: io.freshBundle,
+  });
 
-      applyBundleToPlatformConfig({
-        platformConfig,
-        keys: uploaded.keys,
-        bundleSizeMb: uploaded.bundleSizeMb,
-        baseReference: baseFingerprint,
-      });
-    }
+  // The binary keeps its own `s3Key` (set by getBuildRunConfig above): the
+  // bundle is spliced into THIS binary, not into a registered base.
+  for (const platform of platforms) {
+    const platformConfig = buildRunConfig[platform];
+    const uploaded = freshBundles[platform];
+    if (!platformConfig || !uploaded) continue;
+
+    applyBundleToPlatformConfig({
+      platformConfig,
+      keys: uploaded.keys,
+      bundleSizeMb: uploaded.bundleSizeMb,
+      baseReference: baseFingerprint,
+    });
   }
 
   reporting.addBreadcrumb({
     category: 'api',
     message: 'Calling openBuild API',
-    data: { teamId, projectIndex, command: easUpdateData ? 'testEasUpdate' : 'testStandard' },
+    data: { teamId, projectIndex, command },
     level: 'info',
   });
 
@@ -362,16 +313,6 @@ async function uploadOrReuseBuildsAndRunTests({
 export default uploadOrReuseBuildsAndRunTests;
 
 /* ========================================================================== */
-
-function printEasUpdateData(easUpdateData: EasUpdateData) {
-  emit({
-    kind: 'eas-update',
-    message: easUpdateData.message,
-    timeAgo: easUpdateData.timeAgo,
-    author: easUpdateData.author,
-    branch: easUpdateData.branch,
-  });
-}
 
 /**
  * Where a React Native binary embeds its JS bundle by default:

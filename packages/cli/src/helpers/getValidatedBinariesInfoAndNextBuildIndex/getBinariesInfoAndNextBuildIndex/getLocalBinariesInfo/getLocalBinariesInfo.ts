@@ -2,10 +2,9 @@ import { Platform } from '@sherlo/api-types';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { PLATFORMS, PLATFORM_LABEL, TEST_EAS_UPDATE_COMMAND } from '../../../../constants';
+import { PLATFORMS, PLATFORM_LABEL } from '../../../../constants';
 import { getErrorWithCustomMessage } from '../../../../helpers';
-import { BinaryInfo, BuildType, Command } from '../../../../types';
-import { validatePlatformPaths } from '../../../shared';
+import { BinaryInfo, BuildType } from '../../../../types';
 import throwError from '../../../throwError';
 import runShellCommand from '../../../runShellCommand';
 import accessFileInArchive, { listApkLibEntries } from './accessFileInArchive';
@@ -49,7 +48,6 @@ async function getLocalBinariesInfo({
   paths,
   platforms,
   projectRoot,
-  command,
 }: {
   paths: {
     android?: string;
@@ -57,27 +55,12 @@ async function getLocalBinariesInfo({
   };
   platforms: Platform[];
   projectRoot: string;
-  command: Command;
 }): Promise<LocalBinariesInfo> {
   const result: LocalBinariesInfo = {};
 
   for (const platform of PLATFORMS) {
     // Get the local binary info for the platform if it should be tested and there's a path for it
     if (platforms.includes(platform) && paths[platform]) {
-      if (command === TEST_EAS_UPDATE_COMMAND) {
-        /**
-         * We validate the BUILD FILE TYPE at this stage because TEST_EAS_UPDATE_COMMAND
-         * does not validate it earlier (due to { requiredPlatformPaths: false })
-         */
-
-        validatePlatformPaths({
-          platformsToValidate: [platform],
-          android: paths.android,
-          ios: paths.ios,
-          command,
-        });
-      }
-
       result[platform] = await getLocalBinaryInfoForPlatform({
         platform,
         platformPath: paths[platform],

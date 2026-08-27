@@ -8,14 +8,11 @@ import {
   showError,
   test,
   testEasCloudBuild,
-  testEasUpdate,
-  testStandard,
 } from './commands';
 import {
   ANDROID_FILE_TYPES,
   ANDROID_OPTION,
   BASELINE_OPTION,
-  BRANCH_OPTION,
   CONFIG_OPTION,
   CONTACT_EMAIL,
   DEFAULT_CONFIG_FILENAME,
@@ -25,11 +22,8 @@ import {
   BUNDLE_DIR_OPTION,
   DRY_RUN_OPTION,
   EMIT_BUNDLE_DIR_OPTION,
-  EAS_ANDROID_URL_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EAS_BUILD_SCRIPT_NAME_OPTION,
-  EAS_IOS_URL_OPTION,
-  EAS_UPDATE_SLUG_OPTION,
   EMIT_EXPECTATION_OPTION,
   FINGERPRINT_COMMAND,
   RENDER_TRANSCRIPT_OPTION,
@@ -45,8 +39,6 @@ import {
   SHOW_ERROR_COMMAND,
   TEST_COMMAND,
   TEST_EAS_CLOUD_BUILD_COMMAND,
-  TEST_EAS_UPDATE_COMMAND,
-  TEST_STANDARD_COMMAND,
   TOKEN_OPTION,
   VERBOSE_OPTION,
   WAIT_FOR_EAS_BUILD_OPTION,
@@ -73,10 +65,6 @@ async function start() {
     addInitCommand(program);
 
     addTestCommand(program);
-
-    addTestStandardCommand(program);
-
-    addTestEasUpdateCommand(program);
 
     addTestEasCloudBuildCommand(program);
 
@@ -123,8 +111,6 @@ const COMMAND_DESCRIPTION = {
     '  a native rebuild first, `native-needed=false` when it ran the test to completion.\n' +
     `  With \`--${ANDROID_OPTION} <path>\` (and optionally \`--${IOS_OPTION} <path>\`): runs a full test on\n` +
     '  those builds and registers them as the new base.',
-  [TEST_STANDARD_COMMAND]: 'Test standard builds',
-  [TEST_EAS_UPDATE_COMMAND]: 'Test builds with dynamic JavaScript (OTA) updates',
   [TEST_EAS_CLOUD_BUILD_COMMAND]: 'Test cloud builds created on Expo servers',
   [EAS_BUILD_ON_COMPLETE_COMMAND]: `Process EAS Build (required for \`${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
   [SHOW_ERROR_COMMAND]:
@@ -143,10 +129,6 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${ANDROID_OPTION} <path>`,
     `Path to ${PLATFORM_LABEL.android} build (${ANDROID_FILE_TYPES.join(', ')})`,
   ],
-  [BRANCH_OPTION]: [
-    `--${BRANCH_OPTION} <branch>`,
-    'Name of the EAS Update branch to fetch the latest update from',
-  ],
   [GIT_BRANCH_OPTION]: [
     '--git-branch <branch>',
     'Override the git branch name captured for this build (takes precedence over SHERLO_BRANCH and all CI-provider env vars)',
@@ -159,21 +141,9 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${DIAGNOSTICS_OPTION} <names>`,
     'Diagnostics to collect, comma-separated (e.g. androidWindowDump,stabilizationFrames,sherloAtRoot)',
   ],
-  [EAS_ANDROID_URL_OPTION]: [
-    `--${EAS_ANDROID_URL_OPTION} <url>`,
-    'Direct Android EAS Update URL (bypasses expo config and eas-cli lookup)',
-  ],
   [EAS_BUILD_SCRIPT_NAME_OPTION]: [
     `--${EAS_BUILD_SCRIPT_NAME_OPTION} <name>`,
     'Name of the package.json script that triggers EAS Build',
-  ],
-  [EAS_IOS_URL_OPTION]: [
-    `--${EAS_IOS_URL_OPTION} <url>`,
-    'Direct iOS EAS Update URL (bypasses expo config and eas-cli lookup)',
-  ],
-  [EAS_UPDATE_SLUG_OPTION]: [
-    `--${EAS_UPDATE_SLUG_OPTION} <slug>`,
-    'EAS project slug (bypasses expo config lookup)',
   ],
   [INCLUDE_OPTION]: [
     `--${INCLUDE_OPTION} <stories>`,
@@ -294,44 +264,6 @@ function addTestCommand(program: Command) {
       ...devtoolsOptions,
     ],
     action: test,
-  });
-}
-
-function addTestStandardCommand(program: Command) {
-  const devtoolsOptions = process.env.SHERLO_DEVTOOLS === '1' ? [DIAGNOSTICS_OPTION] : [];
-
-  addCommand({
-    program,
-    command: TEST_STANDARD_COMMAND,
-    oldCommand: 'local-builds',
-    options: [
-      ...getTestCommonOptions('withPlatformPaths'),
-      WAIT_OPTION,
-      WAIT_TIMEOUT_OPTION,
-      ...devtoolsOptions,
-    ],
-    action: testStandard,
-  });
-}
-
-function addTestEasUpdateCommand(program: Command) {
-  const devtoolsOptions =
-    process.env.SHERLO_DEVTOOLS === '1'
-      ? [EAS_ANDROID_URL_OPTION, EAS_IOS_URL_OPTION, EAS_UPDATE_SLUG_OPTION, DIAGNOSTICS_OPTION]
-      : [];
-
-  addCommand({
-    program,
-    command: TEST_EAS_UPDATE_COMMAND,
-    oldCommand: 'expo-update',
-    options: [
-      BRANCH_OPTION,
-      ...getTestCommonOptions('withPlatformPaths'),
-      WAIT_OPTION,
-      WAIT_TIMEOUT_OPTION,
-      ...devtoolsOptions,
-    ],
-    action: testEasUpdate,
   });
 }
 

@@ -322,27 +322,6 @@ const PINS: Pin[] = [
     ],
   },
   {
-    kind: 'eas-update',
-    what: 'the whole EAS Update block - four `└─` rows in one print call, and the trailing newline that is the blank line under it',
-    segment: {
-      kind: 'eas-update',
-      message: '"tester update"',
-      timeAgo: '2 minutes ago',
-      author: 'github-actions (robot)',
-      branch: 'e2e-comparison',
-    },
-    stream: 'stdout',
-    prints: [
-      [
-        `🔄 ${ESC}[1mEAS Update${ESC}[22m\n` +
-          `└─ message: ${ESC}[34m"tester update"${ESC}[39m\n` +
-          `└─ created: ${ESC}[34m2 minutes ago${ESC}[39m\n` +
-          `└─ author: ${ESC}[34mgithub-actions (robot)${ESC}[39m\n` +
-          `└─ branch: ${ESC}[34me2e-comparison${ESC}[39m\n`,
-      ],
-    ],
-  },
-  {
     kind: 'notice',
     what: 'a WARNING with no learn-more link - one line, the whole thing yellow',
     segment: { kind: 'notice', level: 'warning', message: 'Staged uploads unavailable - reason.' },
@@ -379,24 +358,6 @@ const PINS: Pin[] = [
     segment: { kind: 'build-message', message: 'done', type: 'success', endsWithNewLine: true },
     stream: 'stdout',
     prints: [[`${ESC}[32m✔${ESC}[39m  done`], []],
-  },
-  {
-    kind: 'manifest-producing',
-    what: 'the manifest header, whose leading blank line lives INSIDE the cyan - the single sharpest byte in this family',
-    segment: { kind: 'manifest-producing' },
-    stream: 'stdout',
-    prints: [
-      [
-        `${ESC}[36m${ESC}[39m\n${ESC}[36m📄 Producing the module manifest for Diff Scope...${ESC}[39m`,
-      ],
-    ],
-  },
-  {
-    kind: 'manifest-uploaded',
-    what: 'the manifest-uploaded line - two leading spaces INSIDE the green, like the bundle lines above',
-    segment: { kind: 'manifest-uploaded', platform: 'android' },
-    stream: 'stdout',
-    prints: [[`${ESC}[32m  ✓ Android module manifest uploaded${ESC}[39m`]],
   },
   {
     kind: 'results-url',

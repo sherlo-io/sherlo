@@ -226,10 +226,10 @@ describe('no devices configured', () => {
 });
 
 // ---------------------------------------------------------------------------
-// gitInfo parity - identical to test:standard
+// gitInfo parity - identical to the standard road
 // ---------------------------------------------------------------------------
 
-describe('gitInfo parity with test:standard', () => {
+describe('gitInfo parity with the standard road', () => {
   // A sentinel object we can assert identity on: whatever getGitInfo returns
   // must be forwarded verbatim to openBuild.
   const GIT_INFO = {
@@ -277,7 +277,7 @@ describe('gitInfo parity with test:standard', () => {
     mockPrintResultsUrl.mockImplementation(() => {});
   });
 
-  it('calls getGitInfo with projectRoot + branchOverride (same signature as test:standard)', async () => {
+  it('calls getGitInfo with projectRoot + branchOverride (same signature as the standard road)', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     await stagedRun(mockOptions());
@@ -295,7 +295,7 @@ describe('gitInfo parity with test:standard', () => {
 
     expect(mockOpenBuild).toHaveBeenCalledTimes(1);
     const openBuildArg = mockOpenBuild.mock.calls[0][0];
-    // Identity check: parity means the SAME object test:standard would send.
+    // Identity check: parity means the SAME object the standard road would send.
     expect(openBuildArg.gitInfo).toBe(GIT_INFO);
     expect(openBuildArg.baseFingerprint).toBe('BASE_FP');
     expect(openBuildArg.gateMetadata.ios).toEqual({ engineClass: 'hermes' });

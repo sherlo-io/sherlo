@@ -1,7 +1,7 @@
 /**
  * Tests for registerBase's default-stdout hygiene (SHERLO-1937).
  *
- * registerBase is called once per platform on every test:standard run, so
+ * registerBase is called once per platform on every `sherlo test --android/--ios` run, so
  * anything it prints unconditionally ships to every user's terminal. These
  * tests pin that internal staged-registration diagnostics (the raw
  * baseFingerprint hash dump and the per-platform metadata block) never reach

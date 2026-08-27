@@ -47,8 +47,6 @@ import {
   type ScriptedBundle,
   type TranscriptScenario,
 } from './dryRun.transcripts';
-import { PUSH_TRANSCRIPTS, type PushTranscriptScenario } from './push.transcripts';
-import { renderPushScenarioTranscript } from './renderPushTranscript';
 import { VERDICT_TRANSCRIPTS, type VerdictTranscriptScenario } from './verdict.transcripts';
 import { renderVerdictScenarioTranscript } from './renderVerdictTranscript';
 
@@ -56,18 +54,23 @@ import { renderVerdictScenarioTranscript } from './renderVerdictTranscript';
  * Which command's transcript a scenario is.
  *
  * It reaches the envelope and the machine catalog because the TESTER needs it:
- * each family is judged through the masker its own capture applies, and
- * `maskPushOutput` keeps colour where `maskTestBundledCli` strips it. A producer
+ * each family is judged through the masker its own capture applies. A producer
  * that published bytes without saying which masker they are for would leave the
  * consumer guessing, and a wrong guess is a fixture that matches for the wrong
  * reason.
+ *
+ * THERE IS NO PUSH FAMILY YET. The one that existed scripted `test:eas-update`
+ * runs - an EAS block, a module-manifest block, a development binary - and left
+ * with that command. Every committed push fixture was minted by it, so none can
+ * be rendered by the CLI as it ships now; once they are re-minted as
+ * `sherlo test --android/--ios` runs, a push family scripting THAT state (a
+ * fresh bundle and its upload slots) belongs here, grounded on those fixtures.
  */
-export type TranscriptFamily = 'dry-run' | 'push' | 'verdict';
+export type TranscriptFamily = 'dry-run' | 'verdict';
 
 /** One catalog entry, whichever family it belongs to. */
 type CatalogEntry =
   | { family: 'dry-run'; scenario: TranscriptScenario }
-  | { family: 'push'; scenario: PushTranscriptScenario }
   | { family: 'verdict'; scenario: VerdictTranscriptScenario };
 
 /**
@@ -83,15 +86,6 @@ function transcriptCatalog(): Record<string, CatalogEntry> {
 
   for (const [id, scenario] of Object.entries(DRY_RUN_TRANSCRIPTS)) {
     catalog[id] = { family: 'dry-run', scenario };
-  }
-  for (const [id, scenario] of Object.entries(PUSH_TRANSCRIPTS)) {
-    if (catalog[id]) {
-      throw new Error(
-        `REFUSING TO RENDER (duplicate scenario id): '${id}' is declared by two families. ` +
-          'A scenario id names one transcript; two would make --render-transcript ambiguous.'
-      );
-    }
-    catalog[id] = { family: 'push', scenario };
   }
   for (const [id, scenario] of Object.entries(VERDICT_TRANSCRIPTS)) {
     if (catalog[id]) {
@@ -208,7 +202,7 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
     fixture: fixtureFor(entry),
     grounded: groundingFor(entry),
     command: `sherlo test --dry-run --render-transcript ${scenarioId}`,
-    // Neither a dry run nor a scripted push creates anything or routes
+    // Neither a dry run nor a scripted wait creates anything or routes
     // anything; both always complete.
     exitCode: 0,
     capture: scenario.capture,
@@ -227,8 +221,6 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
 /** One full render of a catalog entry, through whichever family's producer owns it. */
 function renderEntry(entry: CatalogEntry): Promise<CapturedTranscript> {
   switch (entry.family) {
-    case 'push':
-      return renderPushScenarioTranscript(entry.scenario);
     case 'verdict':
       return renderVerdictScenarioTranscript(entry.scenario);
     case 'dry-run':

@@ -2,17 +2,13 @@ import { DeviceID, DeviceTheme } from '@sherlo/api-types';
 import { PartialDeep } from 'type-fest';
 import {
   ANDROID_OPTION,
-  BRANCH_OPTION,
   CONFIG_OPTION,
   DIAGNOSTICS_OPTION,
   BUNDLE_DIR_OPTION,
   DRY_RUN_OPTION,
   EMIT_BUNDLE_DIR_OPTION,
-  EAS_ANDROID_URL_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EAS_BUILD_SCRIPT_NAME_OPTION,
-  EAS_IOS_URL_OPTION,
-  EAS_UPDATE_SLUG_OPTION,
   EMIT_EXPECTATION_OPTION,
   RENDER_TRANSCRIPT_OPTION,
   GIT_BRANCH_OPTION,
@@ -25,8 +21,6 @@ import {
   PROJECT_ROOT_OPTION,
   TEST_COMMAND,
   TEST_EAS_CLOUD_BUILD_COMMAND,
-  TEST_EAS_UPDATE_COMMAND,
-  TEST_STANDARD_COMMAND,
   TOKEN_OPTION,
   WAIT_FOR_EAS_BUILD_OPTION,
   WAIT_OPTION,
@@ -36,8 +30,6 @@ import {
 /* === GENERAL === */
 
 export type Command =
-  | typeof TEST_STANDARD_COMMAND
-  | typeof TEST_EAS_UPDATE_COMMAND
   | typeof TEST_EAS_CLOUD_BUILD_COMMAND
   | typeof EAS_BUILD_ON_COMPLETE_COMMAND
   | typeof TEST_COMMAND
@@ -88,23 +80,6 @@ type CommonOptions<M extends OptionsMode, F extends OptionsFormat> = {
   : { [CONFIG_OPTION]?: string; [PROJECT_ROOT_OPTION]?: string });
 
 type CommandOptions = {
-  [TEST_STANDARD_COMMAND]: {
-    [ANDROID_OPTION]?: string;
-    [IOS_OPTION]?: string;
-    [WAIT_OPTION]?: boolean;
-    /** The prebuilt bundle to splice into the binaries; see `sherlo test`'s flag below. */
-    [BUNDLE_DIR_OPTION]?: string;
-  };
-  [TEST_EAS_UPDATE_COMMAND]: {
-    [BRANCH_OPTION]: string;
-    [ANDROID_OPTION]?: string;
-    [IOS_OPTION]?: string;
-    // [EAS_UPDATE_JSON_OUTPUT_OPTION]?: string;
-    [EAS_ANDROID_URL_OPTION]?: string;
-    [EAS_IOS_URL_OPTION]?: string;
-    [EAS_UPDATE_SLUG_OPTION]?: string;
-    [WAIT_OPTION]?: boolean;
-  };
   [TEST_EAS_CLOUD_BUILD_COMMAND]: {
     [EAS_BUILD_SCRIPT_NAME_OPTION]?: string;
     [WAIT_FOR_EAS_BUILD_OPTION]?: boolean;
@@ -158,9 +133,7 @@ type CommandOptions = {
   };
   [INIT_COMMAND]: {};
   any: Partial<
-    CommandOptions[typeof TEST_STANDARD_COMMAND] &
-      CommandOptions[typeof TEST_EAS_UPDATE_COMMAND] &
-      CommandOptions[typeof TEST_EAS_CLOUD_BUILD_COMMAND] &
+    CommandOptions[typeof TEST_EAS_CLOUD_BUILD_COMMAND] &
       CommandOptions[typeof TEST_COMMAND] &
       CommandOptions[typeof EAS_BUILD_ON_COMPLETE_COMMAND]
   >;
@@ -212,22 +185,4 @@ export type BinaryInfo = {
   expoSdkVersion?: string;
   hasExpoDevClient?: boolean;
   androidAbis?: string[];
-};
-
-export type EasUpdateInfo = {
-  branch: string;
-  group: {
-    android?: string;
-    ios?: string;
-  };
-  message: string;
-};
-
-export type EasUpdateData = {
-  branch: string;
-  message: string;
-  updateUrls: { android?: string; ios?: string };
-  slug: string;
-  author?: string;
-  timeAgo?: string;
 };
