@@ -1,22 +1,22 @@
 <br />
 
 <p align="center">
-  <a href="https://sherlo.io/" title="Sherlo - Visual testing for React Native">
+  <a href="https://sherlo.io/" title="Sherlo - Visual regression testing for React Native">
     <picture>
       <source media="(prefers-color-scheme: dark) and (max-width: 500px)" srcset="/assets/logo-dark.svg" width="140">
       <source media="(prefers-color-scheme: dark)" srcset="/assets/logo-dark.svg" width="168">
       <source media="(max-width: 500px)" srcset="/assets/logo-light.svg" width="140">
-      <img src="/assets/logo-light.svg" alt="Sherlo - Visual testing for React Native" width="168" />
+      <img src="/assets/logo-light.svg" alt="Sherlo - Visual regression testing for React Native" width="168" />
     </picture>
   </a>
 </p>
 
-<p align="center"><strong>Visual testing for React Native</strong></p>
+<p align="center"><strong>Visual regression testing for React Native</strong></p>
 
 <div align="center">
   <a href="https://www.npmjs.com/package/@sherlo/react-native-storybook"><img src="https://img.shields.io/npm/v/@sherlo/react-native-storybook.svg" alt="npm version"></a>
   <a href="https://www.npmjs.com/package/@sherlo/react-native-storybook"><img src="https://img.shields.io/npm/dm/@sherlo/react-native-storybook.svg" alt="npm downloads"></a>
-  <a href="https://github.com/sherlo-io/sherlo/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="license"></a>
+  <a href="[https://www.npmjs.com/package/@sherlo/react-native-storybook](https://discord.gg/G7eqTBkWZt)"><img src="https://img.shields.io/discord/1194981477130190929?label=discord" alt="discord"></a>
 </div>
 
 
