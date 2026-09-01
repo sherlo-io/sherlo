@@ -1,0 +1,9 @@
+{
+  "name": "sherlo-action-carried-cli",
+  "version": "2.0.2-test.33568587264",
+  "private": true,
+  "description": "The Sherlo CLI this action runs when the project has none installed. Built by scripts/build-carried-cli.sh on a release ref.",
+  "dependencies": {
+    "@expo/fingerprint": "^0.11.11"
+  }
+}
