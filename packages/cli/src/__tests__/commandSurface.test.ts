@@ -96,6 +96,51 @@ describe('sherlo --help', () => {
     expect(stdout).toContain('--android');
     expect(stdout).toContain('--ios');
   });
+
+  it('lists `view`, with its build as an OPTIONAL positional', async () => {
+    // Optional at the parser so the command can refuse in its own words and say
+    // why there is no default yet - see commands/view.
+    const exitCode = await runCli('--help');
+
+    expect(exitCode).toBe(0);
+    // Commander renders a subcommand as `<name> [options] <args>`, so the
+    // argument is asserted on the same line rather than immediately after.
+    expect(stdout).toMatch(/^\s+view\b.*\[build\]/m);
+  });
+});
+
+describe('sherlo view --help', () => {
+  it('takes the wait flags and --metadata, and none of the test-only options', async () => {
+    const exitCode = await runCli('view', '--help');
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain('--wait');
+    expect(stdout).toContain('--wait-timeout');
+    expect(stdout).toContain('--metadata');
+    expect(stdout).toContain('--token');
+
+    // `view` opens nothing, so nothing about building or bundling belongs on it.
+    expect(stdout).not.toContain('--android');
+    expect(stdout).not.toContain('--dry-run');
+    expect(stdout).not.toContain('--bundle-dir');
+  });
+
+  it('does NOT offer --branch, because no read behind it exists', async () => {
+    // An option that always refuses is a worse surface than an absent one. The
+    // gap is recorded in commands/view's header, not promised in --help.
+    await runCli('view', '--help');
+
+    expect(stdout).not.toContain('--branch');
+  });
+});
+
+describe('sherlo test --help', () => {
+  it('offers --metadata beside the wait flags', async () => {
+    const exitCode = await runCli('test', '--help');
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain('--metadata');
+  });
 });
 
 describe('a removed command', () => {

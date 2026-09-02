@@ -68,6 +68,7 @@ export const TEST_EAS_CLOUD_BUILD_COMMAND = 'test:eas-cloud-build';
 export const EAS_BUILD_ON_COMPLETE_COMMAND = 'eas-build-on-complete';
 export const SHOW_ERROR_COMMAND = 'show-error';
 export const FINGERPRINT_COMMAND = 'fingerprint';
+export const VIEW_COMMAND = 'view';
 export const FULL_INIT_COMMAND = 'npx sherlo init';
 
 /* OPTIONS */
@@ -87,6 +88,8 @@ export const CONFIG_OPTION = 'config';
 export const DIAGNOSTICS_OPTION = 'diagnostics';
 export const EAS_BUILD_SCRIPT_NAME_OPTION = 'easBuildScriptName';
 export const IOS_OPTION = 'ios';
+/** `sherlo view` / `sherlo test --wait`: print the `-- details --` block. */
+export const METADATA_OPTION = 'metadata';
 export const MESSAGE_OPTION = 'message';
 export const PROFILE_OPTION = 'profile';
 export const PROJECT_ROOT_OPTION = 'projectRoot';

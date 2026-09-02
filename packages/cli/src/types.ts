@@ -17,11 +17,13 @@ import {
   IOS_FILE_TYPES,
   IOS_OPTION,
   MESSAGE_OPTION,
+  METADATA_OPTION,
   PROFILE_OPTION,
   PROJECT_ROOT_OPTION,
   TEST_COMMAND,
   TEST_EAS_CLOUD_BUILD_COMMAND,
   TOKEN_OPTION,
+  VIEW_COMMAND,
   WAIT_FOR_EAS_BUILD_OPTION,
   WAIT_OPTION,
   WAIT_TIMEOUT_OPTION,
@@ -33,6 +35,7 @@ export type Command =
   | typeof TEST_EAS_CLOUD_BUILD_COMMAND
   | typeof EAS_BUILD_ON_COMPLETE_COMMAND
   | typeof TEST_COMMAND
+  | typeof VIEW_COMMAND
   | typeof INIT_COMMAND;
 
 export type IOSFileType = (typeof IOS_FILE_TYPES)[number];
@@ -75,6 +78,12 @@ type CommonOptions<M extends OptionsMode, F extends OptionsFormat> = {
   [DIAGNOSTICS_OPTION]?: F extends 'raw' ? string : string[];
   [WAIT_OPTION]?: boolean;
   [WAIT_TIMEOUT_OPTION]?: F extends 'raw' ? string : string;
+  /**
+   * Print the `-- details --` block after the command's normal output. Carried
+   * on the COMMON options because two commands take it - `sherlo view` and the
+   * `--wait` roads of `sherlo test` - and both print the same block.
+   */
+  [METADATA_OPTION]?: boolean;
 } & (M extends 'withDefaults'
   ? { [CONFIG_OPTION]: string; [PROJECT_ROOT_OPTION]: string }
   : { [CONFIG_OPTION]?: string; [PROJECT_ROOT_OPTION]?: string });
@@ -131,6 +140,13 @@ type CommandOptions = {
      */
     [RENDER_TRANSCRIPT_OPTION]?: string;
   };
+  /**
+   * `sherlo view` takes no options of its own: the build it looks at is a
+   * POSITIONAL argument (see commands/view), and everything else it accepts -
+   * the token, the config, `--wait`, `--wait-timeout`, `--metadata` - is
+   * already common to every command.
+   */
+  [VIEW_COMMAND]: {};
   [INIT_COMMAND]: {};
   any: Partial<
     CommandOptions[typeof TEST_EAS_CLOUD_BUILD_COMMAND] &
