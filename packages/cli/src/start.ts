@@ -212,10 +212,11 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   [MESSAGE_OPTION]: [`--${MESSAGE_OPTION} <message>`, 'Custom message to label the test'],
   [METADATA_OPTION]: [
     `--${METADATA_OPTION}`,
-    'Print a `-- details -- ` block after the normal output: the branch and commit the\n' +
-      '  build was made from, the project main line, what the build was judged over, what\n' +
-      '  the runner did, the capture accounting, and how many verdicts a human has cast.\n' +
-      '  Plain aligned text, no colour - one line per fact the API actually provides.',
+    'Print a `\u2500\u2500 details \u2500\u2500` block after the normal output - ONE LINE PER FACT THE API\n' +
+      '  PROVIDES, and nothing for one it does not: what the build was judged over, what the\n' +
+      '  runner did, the capture accounting, and how many verdicts a human has cast. On\n' +
+      `  \`${TEST_COMMAND}\` it also names the branch and commit the run was made from, which that run\n` +
+      '  composed itself. Plain aligned text, no colour.',
   ],
   [PROFILE_OPTION]: [
     `--${PROFILE_OPTION} <profile>`,
