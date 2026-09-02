@@ -53,6 +53,7 @@
  * producer.
  */
 import type { BuildStatus } from '../../helpers/waitForBuildResult';
+import type { BuildDetailsGitFacts } from '../../render/buildView';
 
 /** Where a verdict scenario's values came from, and whether it is real today. */
 export type VerdictGrounding =
@@ -85,6 +86,16 @@ export type VerdictTranscriptScenario = {
   build: BuildStatus;
   /** How long the run was told to wait - the `⏳` header prints it. */
   waitTimeoutMinutes: number;
+  /**
+   * `--metadata`: the `── details ──` block the loop appends after the closer.
+   *
+   * ABSENT MEANS THE FLAG WAS NOT PASSED, which is every scenario that does not
+   * declare it and every run that does not ask for it. Present means it was, and
+   * `git` is the build's git identity the way the ROAD supplies it: `sherlo
+   * test` composed that value itself and sends it at openBuild, so its scenario
+   * scripts one; `sherlo view` has none to give and scripts `{}`.
+   */
+  metadata?: { git?: BuildDetailsGitFacts };
 };
 
 /* ========================================================================== */
@@ -120,6 +131,21 @@ function finished({
       : { diffScopeInfo: { capturedSnapshotCount: captured, inheritedSnapshotCount: inherited } }),
   };
 }
+
+/**
+ * The git identity a `sherlo test --wait --metadata` run reports.
+ *
+ * It is the value THAT RUN composed and sent at openBuild, never something read
+ * back off the build: `getBuildStatus` returns no git info at all. That is why
+ * only the test road's scenario carries one - the `view` scenario beside it is
+ * the same block minus every fact the wire cannot serve.
+ */
+const SCENARIO_GIT_INFO: BuildDetailsGitFacts = {
+  branchName: 'feature/login-copy',
+  commitHash: '4f3a9c1e77b0d2a6f5c8419e3b7d0a1c2e6f8b04',
+  isDirty: false,
+  defaultBranch: 'main',
+};
 
 /**
  * The same poll answer, from a project that has OPTED IN - the gate the server
@@ -232,6 +258,59 @@ export const VERDICT_TRANSCRIPTS: Record<string, VerdictTranscriptScenario> = {
       'unreviewed'
     ),
     waitTimeoutMinutes: 45,
+  },
+
+  /* --- the `── details ──` block, on both roads that print it -------------- */
+
+  'verdict-metadata-after-test-wait': {
+    description:
+      'THE DETAILS BLOCK on the road that knows the most. `sherlo test --wait --metadata`: the ' +
+      'ordinary closer first, then the block - and because THIS run opened the build, it can say ' +
+      'which branch and commit the build was made from and whether the tree was clean. Every ' +
+      'other row is read off the poll answer. The block is plain, aligned and colourless on ' +
+      'purpose: a kept-output fixture compares it byte for byte with the run-specific values ' +
+      'masked, and its label column is a function of the LABELS, which a masker never rewrites.',
+    groundedBy: {
+      kind: 'awaiting-remint',
+      fixture:
+        'e2e/suites/cli/test-standard/wait-clean/01-wait-clean.spec.ts-snapshots/push-wait-finished-CLI-Wait-Clean-darwin.txt',
+      token: 'Test <N>',
+    },
+    ambient: { skipIntro: true },
+    capture: 'stdout',
+    build: finished({
+      approved: 5,
+      noChanges: SUITE_SIZE - 5,
+      captured: 3,
+      inherited: SUITE_SIZE - 3,
+    }),
+    waitTimeoutMinutes: 45,
+    metadata: { git: SCENARIO_GIT_INFO },
+  },
+
+  'verdict-metadata-after-view-wait': {
+    description:
+      'THE SAME BLOCK from `sherlo view <build> --wait --metadata`, and the difference IS the ' +
+      'finding. This road did not open the build, so it hands over no git - and the branch and ' +
+      'main-line rows are simply not there, because the only build read a project token has does ' +
+      'not carry them. An absent row means the CLI was not told, never that the answer was ' +
+      'nothing.',
+    groundedBy: {
+      kind: 'awaiting-remint',
+      fixture:
+        'e2e/suites/cli/test-standard/wait-review/01-wait-review.spec.ts-snapshots/push-wait-review-CLI-Wait-Review-darwin.txt',
+      token: 'Test <N>',
+    },
+    ambient: { skipIntro: true },
+    capture: 'stdout',
+    build: finished({
+      noChanges: SUITE_SIZE - 3,
+      unreviewed: 3,
+      captured: 3,
+      inherited: SUITE_SIZE - 3,
+    }),
+    waitTimeoutMinutes: 45,
+    metadata: {},
   },
 
   'verdict-branch-build-recorded-nothing': {
