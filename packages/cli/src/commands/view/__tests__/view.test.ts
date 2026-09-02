@@ -2,26 +2,24 @@
  * `sherlo view` AS A COMMAND - which build it looks at, what it refuses, and
  * what its exit code means.
  *
- * What it prints is covered next door (./viewTranscripts.test.ts) by rendering
+ * What it PRINTS is covered next door (./viewTranscripts.test.ts) by rendering
  * the shipped print path over a scripted read. This file covers the half that
- * happens BEFORE and AFTER that: resolving the build, refusing an invocation it
+ * happens before and after that: resolving the build, refusing an invocation it
  * cannot serve, and the exit-code split that makes `--wait` the CI form of the
  * command and the bare form a read.
  *
- * The one effect the command performs - the build read - is mocked at the module
- * that owns it, which is also the module the wait loop lives in, so `--wait` can
- * be exercised without a network or a clock.
+ * WHAT IS STUBBED, AND WHAT IS DELIBERATELY NOT. Only the two things that reach
+ * the outside world are: the build read and the wait loop. `getTokenParts`,
+ * `getAppBuildUrl`, `parseWaitTimeout` and `throwError` stay real, so the cases
+ * below are asserting that the command SPLITS the token, COMPOSES the URL and
+ * PARSES the timeout, rather than that it was handed all three.
  */
 import { PROJECT_API_TOKEN_LENGTH } from '@sherlo/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const readBuildStatus = vi.fn();
-const waitForBuildResult = vi.fn();
-
-vi.mock('../../../helpers/waitForBuildResult', () => ({
-  default: (...args: unknown[]) => waitForBuildResult(...args),
-  readBuildStatus: (...args: unknown[]) => readBuildStatus(...args),
-}));
+// ---------------------------------------------------------------------------
+// Module mocks (hoisted by vitest above all imports)
+// ---------------------------------------------------------------------------
 
 vi.mock('../../../helpers/reporting', () => ({
   default: {
@@ -34,18 +32,32 @@ vi.mock('../../../helpers/reporting', () => ({
   },
 }));
 
-const getValidatedCommandParams = vi.fn();
+vi.mock('../../../helpers/getValidatedCommandParams', () => ({ default: vi.fn() }));
 
-vi.mock('../../../helpers/getValidatedCommandParams', () => ({
-  default: (...args: unknown[]) => getValidatedCommandParams(...args),
-}));
+// The read and the loop are the command's only two effects. Everything else in
+// this module - the wire shape, the exit codes - stays real.
+vi.mock('../../../helpers/waitForBuildResult', async (importActual) => {
+  const actual = await importActual<typeof import('../../../helpers/waitForBuildResult')>();
+  return { ...actual, default: vi.fn(), readBuildStatus: vi.fn() };
+});
 
+// ---------------------------------------------------------------------------
+// Mocked dependency accessors
+// ---------------------------------------------------------------------------
+
+import _getValidatedCommandParams from '../../../helpers/getValidatedCommandParams';
+import _waitForBuildResult, {
+  readBuildStatus as _readBuildStatus,
+} from '../../../helpers/waitForBuildResult';
 import view from '../view';
+
+const getValidatedCommandParams = vi.mocked(_getValidatedCommandParams);
+const waitForBuildResult = vi.mocked(_waitForBuildResult);
+const readBuildStatus = vi.mocked(_readBuildStatus);
 
 /**
  * A token of the real fixed-width layout `getTokenParts` slices: the api token,
- * then the eight-character team id, then the project index. The cases below
- * assert that the command splits THIS token rather than being handed the parts.
+ * then the eight-character team id, then the project index.
  */
 const TEAM_ID = 'tm000001';
 const PROJECT_INDEX = 7;
@@ -70,11 +82,13 @@ beforeEach(() => {
   exitCodes = [];
   readBuildStatus.mockReset().mockResolvedValue(FINISHED_BUILD);
   waitForBuildResult.mockReset().mockResolvedValue(0);
-  // The real resolution is covered by its own suite; what matters here is that
-  // the command works from the params it is GIVEN, options included.
+  // The real resolution has its own suite; what matters here is that the
+  // command works from the params it is GIVEN, options included.
   getValidatedCommandParams
     .mockReset()
-    .mockImplementation(({ passedOptions }) => ({ ...passedOptions, token: TOKEN, devices: [] }));
+    .mockImplementation(
+      ({ passedOptions }) => ({ ...passedOptions, token: TOKEN, devices: [] } as never)
+    );
 
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
@@ -100,7 +114,7 @@ async function runView(
 }
 
 describe('which build `sherlo view` looks at', () => {
-  it('reads the build the argument names', async () => {
+  it('reads the build the argument names, off ids it split out of the token', async () => {
     await runView('7');
 
     expect(readBuildStatus).toHaveBeenCalledWith(
@@ -115,8 +129,8 @@ describe('which build `sherlo view` looks at', () => {
     expect(readBuildStatus).not.toHaveBeenCalled();
   });
 
-  it.each(['abc', '0', '-3', '2.5', ''])('refuses `%s` as a build index', async (argument) => {
-    await expect(runView(argument)).rejects.toThrow(/not a build index|needs the build/);
+  it.each(['abc', '0', '-3', '2.5', ''])('refuses "%s" as a build index', async (argument) => {
+    await expect(runView(argument)).rejects.toThrow(/not a build index/);
     expect(readBuildStatus).not.toHaveBeenCalled();
   });
 
@@ -143,21 +157,16 @@ describe('the exit-code split', () => {
     expect(exitCodes, 'a read reports a verdict; it does not gate on one').toEqual([]);
   });
 
-  it('with --wait it exits with the loop`s code, unchanged', async () => {
-    waitForBuildResult.mockResolvedValue(1);
+  it.each([0, 1, 2, 3, 130])(
+    'with --wait it carries exit code %i straight through',
+    async (code) => {
+      waitForBuildResult.mockResolvedValue(code);
 
-    await runView('7', { wait: true });
+      await runView('7', { wait: true });
 
-    expect(exitCodes).toEqual([1]);
-  });
-
-  it.each([0, 1, 2, 3, 130])('carries exit code %i straight through', async (code) => {
-    waitForBuildResult.mockResolvedValue(code);
-
-    await runView('7', { wait: true });
-
-    expect(exitCodes).toEqual([code]);
-  });
+      expect(exitCodes).toEqual([code]);
+    }
+  );
 
   it('passes --wait-timeout on to the loop, and drops an unusable one', async () => {
     await runView('7', { wait: true, waitTimeout: '10' });
@@ -168,7 +177,7 @@ describe('the exit-code split', () => {
     await runView('7', { wait: true, waitTimeout: 'soon' });
     expect(
       waitForBuildResult,
-      'an unparseable timeout must fall back to the loop`s own default, never to zero'
+      'an unparseable timeout must fall back to the loop own default, never to zero'
     ).toHaveBeenLastCalledWith(expect.objectContaining({ waitTimeoutMinutes: undefined }));
   });
 });
@@ -189,7 +198,7 @@ describe('--metadata', () => {
     // which is not the one the build was made from.
     await runView('7', { wait: true, metadata: true });
 
-    const [{ metadata }] = waitForBuildResult.mock.lastCall as [{ metadata: { git?: unknown } }];
-    expect(metadata.git).toBeUndefined();
+    const lastCall = waitForBuildResult.mock.lastCall as [{ metadata?: { git?: unknown } }];
+    expect(lastCall[0].metadata?.git).toBeUndefined();
   });
 });
