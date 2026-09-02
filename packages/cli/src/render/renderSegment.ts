@@ -26,6 +26,12 @@ import path from 'path';
 import chalk from 'chalk';
 import gradientString from 'gradient-string';
 import { COLOR } from '../constants';
+import {
+  renderBuildDetails,
+  renderBuildViewHeader,
+  renderBuildViewStatus,
+  renderBuildViewTally,
+} from './buildView';
 import { formatDryRunPreview } from './dryRunPlan';
 import {
   formatLink,
@@ -338,6 +344,32 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return {
         stream: 'stdout',
         prints: renderVerdictNothingRecorded().map((line) => [line]),
+      };
+
+    /* ---------------------- the build view (F5) ---------------------- */
+
+    case 'build-view-header':
+      return {
+        stream: 'stdout',
+        prints: [[renderBuildViewHeader(segment.buildIndex, segment.runStatus)]],
+      };
+
+    case 'build-view-tally':
+      return { stream: 'stdout', prints: [[renderBuildViewTally(segment.counts)]] };
+
+    case 'build-view-status':
+      // Zero print calls when the wire gave the CLI no sentence to print - an
+      // empty list is how this layer says nothing, and it is not the same as a
+      // blank line.
+      return {
+        stream: 'stdout',
+        prints: renderBuildViewStatus(segment.runStatus, segment.status).map((line) => [line]),
+      };
+
+    case 'build-details':
+      return {
+        stream: 'stdout',
+        prints: renderBuildDetails(segment.details).map((line) => [line]),
       };
   }
 }

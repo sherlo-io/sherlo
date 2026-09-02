@@ -26,6 +26,7 @@
 import { Platform } from '@sherlo/api-types';
 import type { BundleFormat } from '../commands/test/buildBundle';
 import type { Config } from '../types';
+import type { BuildDetails } from './buildView';
 import type { DryRunPlatformPreview } from './dryRunPlan';
 
 /** Which of the process's two streams a segment is written to. */
@@ -196,7 +197,37 @@ export type TranscriptSegment =
   /** `   3 captured on this branch, 41 inherited unchanged` - the sparse accounting. */
   | { kind: 'verdict-capture-accounting'; captured: number; inherited: number }
   /** The build recorded nothing at all, so it is evidence of nothing. Not green. */
-  | { kind: 'verdict-nothing-recorded' };
+  | { kind: 'verdict-nothing-recorded' }
+  /* ---------------------------------------------------------------------- *
+   * THE BUILD VIEW (F5) - what `sherlo view` prints about one build, and    *
+   * the `── details ──` block `--metadata` adds to it and to the `--wait`   *
+   * roads of `sherlo test`. See ./buildView.                               *
+   * ---------------------------------------------------------------------- */
+  /** `Build #7 · finished` - the line `sherlo view` opens with. */
+  | { kind: 'build-view-header'; buildIndex: number; runStatus: string }
+  /** `approved 5 · reported 0 · unreviewed 0 · noChanges 39` - the review tally. */
+  | {
+      kind: 'build-view-tally';
+      counts: { approved: number; noChanges: number; reported: number; unreviewed: number };
+    }
+  /**
+   * The check-style status sentence.
+   *
+   * It carries the two WIRE fields rather than a resolved state, because which
+   * state they collapse to - and whether they collapse to one at all - is a
+   * rendering decision the catalog in ./buildView owns. A finished build whose
+   * review status the API did not send renders NO line.
+   */
+  | {
+      kind: 'build-view-status';
+      runStatus: string;
+      status?: 'approved' | 'noChanges' | 'reported' | 'unreviewed';
+    }
+  /**
+   * The whole `── details ──` block: plain, aligned, colourless, deterministic.
+   * Carries the build's facts, never their formatting - see ./buildView.
+   */
+  | { kind: 'build-details'; details: BuildDetails };
 
 /**
  * Where rendered segments go. The CLI installs a sink that writes to the
