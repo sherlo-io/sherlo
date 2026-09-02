@@ -45,7 +45,7 @@ export type StagedUploadKeys = {
  * error (old CLI vs new API and vice versa). Local forward-compat extension - drop
  * this and use the published type once api-types republishes with the slot.
  */
-type StagedUploadUrlsWithManifest = StagedPlatformUploadUrls & {
+export type StagedUploadUrlsWithManifest = StagedPlatformUploadUrls & {
   manifest?: StagedPresignedUploadUrl;
 };
 

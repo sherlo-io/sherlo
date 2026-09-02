@@ -23,6 +23,7 @@ import {
   MESSAGE_OPTION,
   PROFILE_OPTION,
   PROJECT_ROOT_OPTION,
+  SIM_OPTION,
   TEST_COMMAND,
   TEST_EAS_CLOUD_BUILD_COMMAND,
   TEST_EAS_UPDATE_COMMAND,
@@ -155,6 +156,14 @@ type CommandOptions = {
      * ../commands/test/renderTranscript.
      */
     [RENDER_TRANSCRIPT_OPTION]?: string;
+    /**
+     * Sim mode: test the declared JSON world at <path> instead of a real app.
+     * The CLI derives the module manifest from the world file and opens a sim
+     * build - no bundler, no binary, no native base. Also auto-detected from a
+     * `sim-world.json` in the project root. Refused together with native build
+     * paths and the bundler-road preview/supply flags. See ../commands/test/simRun.
+     */
+    [SIM_OPTION]?: string;
   };
   [INIT_COMMAND]: {};
   any: Partial<

@@ -76,7 +76,7 @@ import { emitBundleDir } from './emitBundleDir';
 import { resolveSuppliedBundles } from './suppliedBundle';
 import { runEmitExpectation } from './emitExpectation';
 import { runRenderTranscript } from './renderTranscript';
-import { countBundleStories } from './readModuleManifest';
+import { countBundleStories, type ValidatedModuleManifest } from './readModuleManifest';
 import { formatDiffScopeReport, type DiffScopePlatformReport } from './diffScopeReport';
 
 /**
@@ -452,7 +452,13 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   // (Diff Scope off, or older API), but always closes with the URL so the link
   // never disappears - UNLESS the build was server-bypassed, whose compact closer
   // is printed below instead (by the --wait poll, or the non-wait branch).
-  printCapturePlanAndCloser({ openBuildReturn, bundles, platformsToTest, url, serverBypassed });
+  printCapturePlanAndCloser({
+    openBuildReturn,
+    moduleManifests: collectModuleManifests(bundles, platformsToTest),
+    platformsToTest,
+    url,
+    serverBypassed,
+  });
 
   if (commandParams.wait) {
     const exitCode = await waitForBuildResult({
@@ -544,6 +550,19 @@ async function checkGate({
   return refusals;
 }
 
+/** The per-platform module manifests the capture plan reads, lifted off the bundles. */
+function collectModuleManifests(
+  bundles: Partial<Record<Platform, BundleResult>>,
+  platformsToTest: Platform[]
+): Partial<Record<Platform, ValidatedModuleManifest>> {
+  const moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>> = {};
+  for (const platform of platformsToTest) {
+    const manifest = bundles[platform]?.moduleManifest;
+    if (manifest) moduleManifests[platform] = manifest;
+  }
+  return moduleManifests;
+}
+
 /** One single-line, platform-prefixed reason per refusal, joined for the output key. */
 function describeRefusals(refusals: StagedGateRefusal[]): string {
   return refusals
@@ -577,16 +596,20 @@ function describeRefusals(refusals: StagedGateRefusal[]): string {
  * review and the review page cannot render this build shape yet (SHERLO-1974), so
  * the Review URL is withheld here in BOTH modes; the compact bypassed closer is
  * printed by the caller instead (the --wait poll, or the non-wait branch).
+ *
+ * Exported (with the closer + wait helpers below) because the SIM road reuses
+ * this exact output road - it has no bundles, so the plan is keyed on each
+ * platform's module manifest, the one input the report actually reads.
  */
-function printCapturePlanAndCloser({
+export function printCapturePlanAndCloser({
   openBuildReturn,
-  bundles,
+  moduleManifests,
   platformsToTest,
   url,
   serverBypassed,
 }: {
   openBuildReturn: Awaited<ReturnType<ReturnType<typeof sdkClient>['openBuild']>>;
-  bundles: Partial<Record<Platform, BundleResult>>;
+  moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>>;
   platformsToTest: Platform[];
   url: string;
   serverBypassed: boolean;
@@ -606,7 +629,7 @@ function printCapturePlanAndCloser({
     // everything" here would claim a decision the server never made.
     if (!captureScope) continue;
 
-    const manifest = bundles[platform]?.moduleManifest;
+    const manifest = moduleManifests[platform];
     platforms.push({
       kind: 'decided',
       platform,
@@ -654,7 +677,7 @@ function printCapturePlanAndCloser({
  * beats silence, and a build that succeeded is never reported failed over this
  * cosmetic query (fetchServerBypassReason swallows every error).
  */
-async function printBypassedCloser({
+export async function printBypassedCloser({
   token,
   buildIndex,
   projectIndex,
@@ -703,7 +726,7 @@ function resolveLiveReason({
   return undefined;
 }
 
-function parseWaitTimeout(raw: string | undefined): number | undefined {
+export function parseWaitTimeout(raw: string | undefined): number | undefined {
   if (!raw) return undefined;
   const minutes = parseInt(raw, 10);
   if (isNaN(minutes) || minutes < 1) {
