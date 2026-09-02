@@ -21,6 +21,7 @@ import getGitInfo from './getGitInfo';
 import getTokenParts from './getTokenParts';
 import getValidatedBinariesInfoAndNextBuildIndex from './getValidatedBinariesInfoAndNextBuildIndex';
 import handleClientError from './handleClientError';
+import parseWaitTimeout from './parseWaitTimeout';
 import printBuildIntroMessage from './printBuildIntroMessage';
 import printResultsUrl from './printResultsUrl';
 import reporting from './reporting';
@@ -310,6 +311,10 @@ async function uploadOrReuseBuildsAndRunTests({
       projectIndex,
       teamId,
       waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
+      // --metadata: the details block, carrying the git identity THIS run
+      // composed and sent at openBuild - `getBuildStatus` does not return it, so
+      // the only honest source is the value that created the build.
+      metadata: commandParams.metadata === true ? { git: gitInfo } : undefined,
     });
 
     // --wait mode: the exit code IS the contract. Flush telemetry then exit.
@@ -349,16 +354,4 @@ function defaultEmbeddedBundlePath(platform: Platform): string {
     return 'assets/index.android.bundle';
   }
   return 'main.jsbundle';
-}
-
-function parseWaitTimeout(raw: string | undefined): number | undefined {
-  if (!raw) return undefined;
-  const minutes = parseInt(raw, 10);
-  if (isNaN(minutes) || minutes < 1) {
-    logWarning({
-      message: `Invalid --wait-timeout "${raw}"; using default 45 minutes.`,
-    });
-    return undefined;
-  }
-  return minutes;
 }

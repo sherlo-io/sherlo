@@ -40,12 +40,12 @@ import {
   getTokenParts,
   getValidatedCommandParams,
   handleClientError,
-  logWarning,
   printSherloIntro,
   reporting,
   throwError,
   waitForBuildResult,
 } from '../../helpers';
+import parseWaitTimeout from '../../helpers/parseWaitTimeout';
 import printLink from '../../helpers/printLink';
 import printOutputKeys from '../../helpers/printOutputKeys';
 import {
@@ -472,6 +472,10 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       teamId,
       waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
       serverBypassed,
+      // --metadata: the details block, carrying the git identity THIS run
+      // composed and sent at openBuild - `getBuildStatus` does not return it, so
+      // the only honest source is the value that created the build.
+      metadata: commandParams.metadata === true ? { git: gitInfo } : undefined,
     });
 
     // --wait mode: the exit code IS the contract. Flush telemetry then exit.
@@ -711,16 +715,4 @@ function resolveLiveReason({
   }
 
   return undefined;
-}
-
-function parseWaitTimeout(raw: string | undefined): number | undefined {
-  if (!raw) return undefined;
-  const minutes = parseInt(raw, 10);
-  if (isNaN(minutes) || minutes < 1) {
-    logWarning({
-      message: `Invalid --wait-timeout "${raw}"; using default 45 minutes.`,
-    });
-    return undefined;
-  }
-  return minutes;
 }
