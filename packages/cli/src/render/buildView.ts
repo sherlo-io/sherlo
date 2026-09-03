@@ -188,6 +188,18 @@ export type BuildDetails = {
     capturedSnapshotCount?: number;
     inheritedSnapshotCount?: number;
   };
+  /**
+   * The Diff Scope block (view-metadata, operator ruling 2026-09-03) - the
+   * same shape `sherlo view --metadata` prints as `diffScope`, reused here so
+   * `sherlo test --wait --metadata` says the same thing about the same build.
+   * Absent on an older API (no `diffScope` field) or a gate-off build.
+   */
+  diffScope?: {
+    reason: string;
+    captured: string[];
+    inherited: string[];
+    ancestorBuildIndex: number | null;
+  };
 };
 
 /** One `label: value` line of the block. */
@@ -223,7 +235,7 @@ export function renderBuildDetails(details: BuildDetails): string[] {
  */
 function detailRows(details: BuildDetails): DetailRow[] {
   const rows: DetailRow[] = [];
-  const { git, viewStatusesCount, diffScopeInfo } = details;
+  const { git, viewStatusesCount, diffScopeInfo, diffScope } = details;
 
   if (git) {
     rows.push({ label: 'branch', value: branchValue(git) });
@@ -250,6 +262,27 @@ function detailRows(details: BuildDetails): DetailRow[] {
         `captured ${diffScopeInfo.capturedSnapshotCount} · ` +
         `inherited ${diffScopeInfo.inheritedSnapshotCount ?? 0}`,
     });
+  }
+
+  // The Diff Scope block, story-shaped (view-metadata, operator ruling
+  // 2026-09-03): the same `diffScope` the JSON contract prints, spelled as
+  // aligned rows instead. Absent on an older API or a gate-off build.
+  if (diffScope) {
+    rows.push({ label: 'diff scope why', value: diffScope.reason });
+    rows.push({
+      label: 'diff scope captured',
+      value: diffScope.captured.length > 0 ? diffScope.captured.join(', ') : 'none',
+    });
+    if (diffScope.inherited.length > 0) {
+      const from =
+        diffScope.ancestorBuildIndex !== null
+          ? ` (from build #${diffScope.ancestorBuildIndex})`
+          : '';
+      rows.push({
+        label: 'diff scope inherited',
+        value: `${diffScope.inherited.join(', ')}${from}`,
+      });
+    }
   }
 
   if (viewStatusesCount) {
@@ -361,6 +394,20 @@ export type ViewMetadataJson = {
     unreviewed: number;
   };
   stories?: ViewMetadataStory[];
+  /**
+   * The Diff Scope block (view-metadata, operator ruling 2026-09-03): what
+   * `sherlo view --metadata` prints as `diffScope`. `reason` is the primary
+   * platform's prose, `captured`/`inherited` are story display names, and
+   * `ancestorBuildIndex` is the build this decision diffed against (`null`
+   * when there was none). Absent whenever the API sent no `diffScope` (an
+   * older API, or a gate-off build).
+   */
+  diffScope?: {
+    reason: string;
+    captured: string[];
+    inherited: string[];
+    ancestorBuildIndex: number | null;
+  };
 };
 
 /**

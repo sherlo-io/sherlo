@@ -31,6 +31,7 @@ export function buildDetailsOf(build: BuildStatus, git?: BuildDetailsGitFacts): 
     showsOnlyBranchChanges: build.showsOnlyBranchChanges,
     viewStatusesCount: build.viewStatusesCount,
     diffScopeInfo: build.diffScopeInfo,
+    diffScope: build.diffScope,
   };
 }
 
@@ -51,5 +52,6 @@ export function buildViewMetadataJson(build: BuildStatus, buildIndex: number): V
       : undefined,
     viewStatusesCount: build.viewStatusesCount,
     stories: build.stories,
+    diffScope: build.diffScope,
   };
 }

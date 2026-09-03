@@ -125,6 +125,20 @@ export type BuildStatusResponse = {
       reason?: string;
       candidates?: { buildIndex: number }[];
     }[];
+    /**
+     * The Diff Scope block (view-metadata, operator ruling 2026-09-03): what
+     * `sherlo view --metadata` prints as `diffScope`. Hand-typed rather than
+     * imported from `@sherlo/api-types` for the same reason every other field
+     * of this wire shape is (see this file's module doc) - server commit
+     * e7c7d5a (sherlo-api `feature/sherlo-3`) added it and the portal tarball
+     * this repo builds against may not carry it yet. Absent on an older API.
+     */
+    diffScope?: {
+      reason: string;
+      captured: string[];
+      inherited: string[];
+      ancestorBuildIndex: number | null;
+    };
   } | null;
 };
 
@@ -432,6 +446,12 @@ async function fetchBuildStatus(
               candidates {
                 buildIndex
               }
+            }
+            diffScope {
+              reason
+              captured
+              inherited
+              ancestorBuildIndex
             }
           }
         }

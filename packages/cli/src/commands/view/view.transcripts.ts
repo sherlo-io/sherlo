@@ -199,6 +199,40 @@ export const VIEW_TRANSCRIPTS: Record<string, ViewTranscriptScenario> = {
     ),
   },
 
+  'view-metadata-diff-scope': {
+    ...scenario(
+      'THE DIFF SCOPE BLOCK, under `--metadata`. A partial-capture build: one story was left ' +
+        "out of this run and its accepted ancestor image was carried forward untouched - its " +
+        'status reads `not-captured` (distinct from `unchanged`, which means a fresh capture ' +
+        "matched its baseline), and the wire's own `diffScope` names it in `inherited` alongside " +
+        "the build it was carried from. `reason` is the server's own prose, printed verbatim.",
+      {
+        runStatus: 'finished',
+        status: 'unreviewed',
+        gitInfo: {
+          branchName: 'feature/checkout',
+          commitHash: '9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b',
+        },
+        viewStatusesCount: { approved: 0, noChanges: 1, reported: 0, unreviewed: 1 },
+        stories: [
+          { name: 'Sanity/Hello - Basic', status: 'changed', baseline: { buildIndex: 6 } },
+          {
+            name: 'Typography - Dense',
+            status: 'not-captured',
+            baseline: { buildIndex: 6 },
+          },
+        ],
+        diffScope: {
+          reason: 'Card.stories.tsx changed',
+          captured: ['Sanity/Hello - Basic'],
+          inherited: ['Typography - Dense'],
+          ancestorBuildIndex: 6,
+        },
+      },
+      true
+    ),
+  },
+
   'view-finished-with-stories-table': {
     ...scenario(
       'THE HUMAN VIEW, with stories. Without `--metadata` the per-story table sits between the ' +
