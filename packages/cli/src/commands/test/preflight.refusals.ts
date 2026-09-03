@@ -2,7 +2,7 @@
  * THE CATALOG for the PREFLIGHT REFUSAL family (F3) - which committed fixture in
  * sherlo-tester each `--emit-expectation` scenario answers for.
  *
- * The peer families (`dryRun.transcripts.ts`, `push.transcripts.ts`) each carry a
+ * The peer families (`dryRun.transcripts.ts`, `verdict.transcripts.ts`) each carry a
  * catalog of SCRIPTED WIRE STATE plus the fixture it renders. This family's
  * catalog is thinner on purpose, and the reason is the whole argument for why F3
  * was ALIGNED rather than MIGRATED onto the segment/sink layer:

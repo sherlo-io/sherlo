@@ -1,11 +1,7 @@
 import {
-  BRANCH_OPTION,
   DOCS_LINK,
-  EAS_ANDROID_URL_OPTION,
   EAS_BUILD_SCRIPT_NAME_OPTION,
-  EAS_IOS_URL_OPTION,
   TEST_EAS_CLOUD_BUILD_COMMAND,
-  TEST_EAS_UPDATE_COMMAND,
   WAIT_FOR_EAS_BUILD_OPTION,
 } from '../../constants';
 import { Command, Options } from '../../types';
@@ -22,10 +18,6 @@ function validateRequiredOptions({
     case TEST_EAS_CLOUD_BUILD_COMMAND:
       validateTestEasCloudBuildOptions(passedOptions);
       break;
-
-    case TEST_EAS_UPDATE_COMMAND:
-      validateTestEasUpdateOptions(passedOptions);
-      break;
   }
 }
 
@@ -33,7 +25,6 @@ export default validateRequiredOptions;
 
 /* ========================================================================== */
 
-const BRANCH_FLAG = `--${BRANCH_OPTION}`;
 const EAS_BUILD_SCRIPT_NAME_FLAG = `--${EAS_BUILD_SCRIPT_NAME_OPTION}`;
 const WAIT_FOR_EAS_BUILD_FLAG = `--${WAIT_FOR_EAS_BUILD_OPTION}`;
 
@@ -52,20 +43,6 @@ function validateTestEasCloudBuildOptions(options: Options<any>): void {
     throwError({
       message: `\`sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\` command cannot use \`${EAS_BUILD_SCRIPT_NAME_FLAG}\` and \`${WAIT_FOR_EAS_BUILD_FLAG}\` options together`,
       learnMoreLink: DOCS_LINK.testEasCloudBuild,
-    });
-  }
-}
-
-function validateTestEasUpdateOptions(options: Options<any>): void {
-  const hasDevtoolsBypass =
-    process.env.SHERLO_DEVTOOLS === '1' &&
-    options[EAS_ANDROID_URL_OPTION] &&
-    options[EAS_IOS_URL_OPTION];
-
-  if (!hasDevtoolsBypass && !options[BRANCH_OPTION]) {
-    throwError({
-      message: `\`sherlo ${TEST_EAS_UPDATE_COMMAND}\` command requires \`${BRANCH_FLAG}\` option`,
-      learnMoreLink: DOCS_LINK.testEasUpdate,
     });
   }
 }

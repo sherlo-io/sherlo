@@ -1,5 +1,5 @@
 /**
- * THE PUSH SPINE'S LITERALS - the bytes of the transcript `sherlo test:standard`
+ * THE PUSH SPINE'S LITERALS - the bytes of the transcript `sherlo test --android/--ios`
  * prints, and the one every other family's preamble is a subset of.
  *
  * Pure, like everything under ./: state in, print-call argument lists out. It is
@@ -10,11 +10,10 @@
  * WHAT IS DELIBERATE HERE AND MUST NOT BE TIDIED:
  *
  *   - A LEADING `\n` INSIDE A CHALK CALL IS NOT THE SAME BYTES AS A BLANK LINE.
- *     `chalk.cyan('\n📄 ...')` closes and reopens the style around the newline,
- *     so the preceding blank line is emitted as a STYLED empty line. Twenty-three
- *     committed fixtures carry those bytes. Hoisting the `\n` out changes all
- *     twenty-three and changes nothing a human sees - which is why it looks like
- *     a cleanup and is not one.
+ *     `chalk.cyan('\n📦 ...')` closes and reopens the style around the newline,
+ *     so the preceding blank line is emitted as a STYLED empty line. Committed
+ *     fixtures carry those bytes. Hoisting the `\n` out changes them and changes
+ *     nothing a human sees - which is why it looks like a cleanup and is not one.
  *   - A TRAILING `\n` INSIDE A STRING IS CONTENT. `console.log('x\n')` prints two
  *     lines; the second is blank and a fixture compares it byte-for-byte.
  *   - TWO SPACES AFTER AN ICON align the text with the section titles above it.
@@ -90,27 +89,6 @@ export function renderBinaryReused(buildIndex: number, timeAgo: string): string 
   return renderBuildMessageLine(
     `reusing unchanged build (${chalk.green(`Test ${buildIndex}`)}, ${chalk.blue(timeAgo)})`,
     'success'
-  );
-}
-
-/** The whole `🔄 EAS Update` block, including the blank line it ends on. */
-export function renderEasUpdate({
-  message,
-  timeAgo,
-  author,
-  branch,
-}: {
-  message: string;
-  timeAgo: string | undefined;
-  author: string | undefined;
-  branch: string;
-}): string {
-  return (
-    `🔄 ${chalk.bold('EAS Update')}\n` +
-    `└─ message: ${chalk.blue(message)}\n` +
-    `└─ created: ${chalk.blue(timeAgo)}\n` +
-    `└─ author: ${chalk.blue(author)}\n` +
-    `└─ branch: ${chalk.blue(branch)}\n`
   );
 }
 

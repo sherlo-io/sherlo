@@ -55,7 +55,9 @@ function toRelativePath(absPath, projectRoot) {
 //                      targets collectStoryAbsPaths resolves below.
 //   3. header        - toolchain/env fingerprint (metro version, transformer/
 //                      babel config digest, env digest) so a build produced by a
-//                      different toolchain/env is never mistaken for an unchanged one.
+//                      different toolchain/env is never mistaken for an unchanged one,
+//                      plus `generatedFiles`: the graph files a tool wrote at
+//                      bundle time and the inputs it wrote them from.
 //
 // Bail-open on any unrecognised Metro shape or error - never throw into a user's
 // bundle.
@@ -259,6 +261,57 @@ function buildManifestHeader(projectRoot) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Generated files in the graph
+// ---------------------------------------------------------------------------
+//
+// Storybook's requires generator rewrites `<config dir>/storybook.requires.ts`
+// (or .js) on every bundle, from the config directory it sits in: main.* names
+// the story globs and addons, preview.* is imported when present, and the
+// generator options come from the same withStorybook call. Projects are told
+// not to track the file - a tracked copy is rewritten at bundle time, which
+// dirties the tree - so on a machine that never bundled it does not exist.
+//
+// The CLI digests every app source file in this graph to decide whether a
+// prebuilt bundle still matches a tree. A generated file cannot be digested by
+// its bytes on a machine that has no copy, but its INPUTS can, and equal inputs
+// mean an equal output. So the manifest header names each generated file and
+// the files it was generated from, and the CLI digests those instead.
+
+var STORYBOOK_REQUIRES_BASENAMES = ['storybook.requires.ts', 'storybook.requires.js'];
+
+/**
+ * The generated files among the graph's modules, keyed like moduleHashes, each
+ * with the generator that wrote it and the project-relative inputs it read.
+ *
+ * @returns {Record<string, { generatedBy: string, inputs: string[] }>}
+ */
+function describeGeneratedFiles(graph, projectRoot) {
+  var generated = {};
+  graph.dependencies.forEach(function (_module, absPath) {
+    if (STORYBOOK_REQUIRES_BASENAMES.indexOf(path.basename(absPath)) === -1) return;
+    var rel = toRelativePath(absPath, projectRoot);
+    if (!rel) return;
+
+    var inputs = [];
+    try {
+      fs.readdirSync(path.dirname(absPath), { withFileTypes: true }).forEach(function (entry) {
+        if (!entry.isFile()) return;
+        if (STORYBOOK_REQUIRES_BASENAMES.indexOf(entry.name) !== -1) return;
+        var inputRel = toRelativePath(path.join(path.dirname(absPath), entry.name), projectRoot);
+        if (inputRel) inputs.push(inputRel);
+      });
+    } catch (_) {
+      // An unreadable config directory leaves the file with no inputs; the CLI
+      // then digests nothing for it, exactly as if it were absent.
+    }
+    inputs.sort();
+
+    generated[rel] = { generatedBy: 'storybook-requires', inputs: inputs };
+  });
+  return generated;
+}
+
 /**
  * Emits the module manifest sidecar to node_modules/.cache/sherlo/module-manifest.json.
  *
@@ -306,6 +359,9 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
     // self-describing; a non-empty list means the hashes are machine-local. Bail-open
     // is preserved: we warn and still emit, never throw.
     header.absolutePathLeaks = absolutePathLeaks;
+    // Files a tool wrote at bundle time, and what it wrote them from - see
+    // describeGeneratedFiles. Keyed like moduleHashes.
+    header.generatedFiles = describeGeneratedFiles(graph, projectRoot);
     if (absolutePathLeaks.length > 0) {
       console.warn(
         '[Sherlo] Module manifest: ' +

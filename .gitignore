@@ -9,6 +9,9 @@ node_modules/
 .local-data/
 
 dist/
+# The CLI copy the GitHub Action carries (actions/carried-cli) is built by
+# scripts/build-carried-cli.sh and committed onto release refs with `git add -f`.
+# On every other ref it is absent, and the rules above keep a local build untracked.
 builds/
 *.apk
 *.app

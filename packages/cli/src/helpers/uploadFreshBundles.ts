@@ -103,8 +103,11 @@ export async function uploadFreshBundles({
       bundleDir,
       projectRoot,
       platformsToTest: platforms,
-      nativeFingerprint: baseFingerprint,
-      gateMetadataFor: effects.bundling.gateMetadataFor,
+      baseFingerprint,
+      // The metadata the sidecar recorded is not wanted here either - this road
+      // registers what it reads out of the binary.
+      gateMetadataFor: (platform, bundleResult) =>
+        effects.bundling.gateMetadataFor(projectRoot, platform, bundleResult),
     }));
   } else {
     console.log(chalk.bold('\n📦 Bundling for this run...\n'));

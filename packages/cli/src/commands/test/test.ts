@@ -18,8 +18,8 @@
  *     THE STANDARD ROAD. Native builds were handed to the command, so it
  *     uploads them, REGISTERS them as the new base - which is what makes the
  *     staged road available on the next commit - and runs a full test on them
- *     with the freshly built bundle spliced in. Delegated verbatim to the
- *     standard road so there is exactly one implementation of a full run.
+ *     with the freshly built bundle spliced in. See ./standardRun.ts - the
+ *     one implementation of a full run.
  *
  * Between those two the road is chosen by the FLAGS, never by the config file: a
  * caller that passes no `--android`/`--ios` is asking the routing question,
@@ -41,10 +41,10 @@
 import { ANDROID_OPTION, IOS_OPTION } from '../../constants';
 import { throwError } from '../../helpers';
 import { Options } from '../../types';
-import testStandard from '../testStandard';
 import simRun from './simRun';
 import { resolveSimulationWorldPath, SIMULATION_CONFIG_FIELD } from './simWorld';
 import stagedRun from './stagedRun';
+import standardRun from './standardRun';
 import { THIS_COMMAND } from './constants';
 
 async function test(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
@@ -113,7 +113,7 @@ async function test(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string
     });
   }
 
-  return testStandard(passedOptions);
+  return standardRun(passedOptions);
 }
 
 export default test;

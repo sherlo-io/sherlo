@@ -11,5 +11,5 @@ Working examples of Sherlo running automated [visual regression testing for Reac
 | ------------------------------------------- | ------------------------------------------------------- |
 | 📦 [**Standard**](./standard)               | Test app builds with bundled JavaScript                 |
 | ⚡ [**Staged**](./staged)                   | Route CI to a JS-only fast lane when native is unchanged |
-| ⚡ [**EAS Update**](./eas-update)           | Test builds with OTA JavaScript updates - skip rebuilds |
+| ⚡ [**EAS Update**](./eas-update)           | Reuse app binaries across runs, rebuilding only when native changes |
 | ☁️ [**EAS Cloud Build**](./eas-cloud-build) | Automatically test builds created on Expo servers       |

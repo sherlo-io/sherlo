@@ -14,7 +14,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../stagedRun', () => ({ default: vi.fn() }));
-vi.mock('../../testStandard', () => ({ default: vi.fn() }));
+vi.mock('../standardRun', () => ({ default: vi.fn() }));
 vi.mock('../simRun', () => ({ default: vi.fn() }));
 vi.mock('../simWorld', () => ({
   resolveSimulationWorldPath: vi.fn(),
@@ -22,12 +22,12 @@ vi.mock('../simWorld', () => ({
 }));
 
 import _stagedRun from '../stagedRun';
-import _testStandard from '../../testStandard';
+import _standardRun from '../standardRun';
 import _simRun from '../simRun';
 import { resolveSimulationWorldPath as _resolveSimulationWorldPath } from '../simWorld';
 
 const mockStagedRun = vi.mocked(_stagedRun);
-const mockTestStandard = vi.mocked(_testStandard);
+const mockStandardRun = vi.mocked(_standardRun);
 const mockSimRun = vi.mocked(_simRun);
 const mockResolveSimulationWorldPath = vi.mocked(_resolveSimulationWorldPath);
 
@@ -36,7 +36,7 @@ let test: (passedOptions: any) => Promise<{ url: string }>;
 beforeEach(async () => {
   vi.clearAllMocks();
   mockStagedRun.mockResolvedValue({ url: 'http://app/staged' });
-  mockTestStandard.mockResolvedValue({ url: 'http://app/standard' });
+  mockStandardRun.mockResolvedValue({ url: 'http://app/standard' });
   mockSimRun.mockResolvedValue({ url: 'http://app/sim' });
   mockResolveSimulationWorldPath.mockReturnValue(undefined);
 
@@ -49,7 +49,7 @@ describe('road choice', () => {
     const result = await test({ token: 'tok' });
 
     expect(mockStagedRun).toHaveBeenCalledTimes(1);
-    expect(mockTestStandard).not.toHaveBeenCalled();
+    expect(mockStandardRun).not.toHaveBeenCalled();
     expect(result).toEqual({ url: 'http://app/staged' });
   });
 
@@ -60,7 +60,7 @@ describe('road choice', () => {
   ])('takes the STANDARD road with %s', async (_name, paths) => {
     const result = await test({ token: 'tok', ...paths });
 
-    expect(mockTestStandard).toHaveBeenCalledTimes(1);
+    expect(mockStandardRun).toHaveBeenCalledTimes(1);
     expect(mockStagedRun).not.toHaveBeenCalled();
     expect(result).toEqual({ url: 'http://app/standard' });
   });
@@ -80,7 +80,7 @@ describe('road choice', () => {
 
     await test(options);
 
-    expect(mockTestStandard).toHaveBeenCalledWith(options);
+    expect(mockStandardRun).toHaveBeenCalledWith(options);
   });
 
   it('forwards the options VERBATIM to the staged road too', async () => {
@@ -105,7 +105,7 @@ describe('the sim road', () => {
 
     expect(mockSimRun).toHaveBeenCalledWith(options, '/proj/sim-world.json');
     expect(mockStagedRun).not.toHaveBeenCalled();
-    expect(mockTestStandard).not.toHaveBeenCalled();
+    expect(mockStandardRun).not.toHaveBeenCalled();
     expect(result).toEqual({ url: 'http://app/sim' });
   });
 
@@ -128,7 +128,7 @@ describe('the sim road', () => {
     );
 
     expect(mockSimRun).not.toHaveBeenCalled();
-    expect(mockTestStandard).not.toHaveBeenCalled();
+    expect(mockStandardRun).not.toHaveBeenCalled();
     expect(mockStagedRun).not.toHaveBeenCalled();
   });
 
@@ -166,7 +166,7 @@ describe('preview flags are staged-road only', () => {
   ])('refuses %s together with a build path', async (_name, previewFlags) => {
     await expect(test({ token: 'tok', android: 'app.apk', ...previewFlags })).rejects.toThrow();
 
-    expect(mockTestStandard).not.toHaveBeenCalled();
+    expect(mockStandardRun).not.toHaveBeenCalled();
     expect(mockStagedRun).not.toHaveBeenCalled();
   });
 
@@ -186,7 +186,7 @@ describe('bundle-supply flags', () => {
 
     await test(options);
 
-    expect(mockTestStandard).toHaveBeenCalledWith(options);
+    expect(mockStandardRun).toHaveBeenCalledWith(options);
     expect(mockStagedRun).not.toHaveBeenCalled();
   });
 
@@ -195,7 +195,7 @@ describe('bundle-supply flags', () => {
       test({ token: 'tok', android: 'app.apk', emitBundleDir: '/tmp/bundles' })
     ).rejects.toThrow();
 
-    expect(mockTestStandard).not.toHaveBeenCalled();
+    expect(mockStandardRun).not.toHaveBeenCalled();
     expect(mockStagedRun).not.toHaveBeenCalled();
   });
 

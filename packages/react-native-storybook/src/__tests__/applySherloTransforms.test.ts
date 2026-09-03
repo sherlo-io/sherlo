@@ -426,6 +426,39 @@ describe('applySherloTransforms – module manifest sidecar (enabled)', () => {
     );
   });
 
+  it('names storybook.requires as generated from the files in its config directory', () => {
+    // The requires file is regenerated on every bundle from the config directory
+    // it sits in, and projects do not track it - so the header records which
+    // files it was generated FROM, and the CLI digests those in its place.
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-generated-'));
+    const configDir = path.join(tmpDir, 'src', '.rnstorybook');
+    fs.mkdirSync(path.join(configDir, 'nested'), { recursive: true });
+    fs.writeFileSync(path.join(configDir, 'main.ts'), 'export default { stories: [] };');
+    fs.writeFileSync(path.join(configDir, 'index.tsx'), 'export {};');
+    fs.writeFileSync(path.join(configDir, 'storybook.requires.ts'), '// generated');
+    fs.writeFileSync(path.join(configDir, 'nested', 'ignored.ts'), '// not a direct input');
+
+    const result = applySherloTransforms(
+      { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: () => 'BYTES' } },
+      { enabled: true }
+    );
+    const { graph } = buildFakeGraph(tmpDir);
+    result.serializer.customSerializer('index.js', [], graph, { projectRoot: tmpDir });
+    const manifest = JSON.parse(fs.readFileSync(path.join(tmpDir, ...manifestRelPath), 'utf8'));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
+    expect(manifest.header.generatedFiles).toEqual({
+      './src/.rnstorybook/storybook.requires.ts': {
+        generatedBy: 'storybook-requires',
+        inputs: ['./src/.rnstorybook/index.tsx', './src/.rnstorybook/main.ts'],
+      },
+    });
+    // The generated file is still an ordinary module of the graph.
+    expect(manifest.moduleHashes['./src/.rnstorybook/storybook.requires.ts']).toMatch(
+      /^[0-9a-f]{64}$/
+    );
+  });
+
   it('bails open (no manifest) on an unrecognised Metro graph shape', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-bail-'));
     const result = applySherloTransforms(

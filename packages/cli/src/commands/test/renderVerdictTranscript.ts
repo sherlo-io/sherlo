@@ -73,6 +73,10 @@ export async function renderVerdictScenarioTranscript(
         projectIndex: 1,
         teamId: 'scenteam',
         waitTimeoutMinutes: scenario.waitTimeoutMinutes,
+        // `--metadata`, exactly as a road passes it: absent when the flag was
+        // not given, `{}` from a road that has no git to report, and the git
+        // facts themselves from a road that opened the build.
+        metadata: scenario.metadata,
         // A scripted build is already terminal, so the loop's FIRST poll
         // returns it and no sleep, heartbeat or retry is reached. Those
         // branches are real and unrendered here; a scenario that wanted them

@@ -126,7 +126,6 @@ type PlatformBundleConfig = {
   jsBundleS3Key?: string;
   bundleSizeMb?: number;
   assetsS3Key?: string;
-  baseReference?: string;
 } & PlatformConfigWithManifest;
 
 /**
@@ -135,25 +134,26 @@ type PlatformBundleConfig = {
  *
  * The runner treats a platform as bundle-carrying only when `baseReference`,
  * the bundle URL (derived from `jsBundleS3Key`) and a positive `bundleSizeMb`
- * are ALL present, so all three are written unconditionally. `assetsS3Key` and
- * `manifestS3Key` are written only when that artifact was uploaded: an absent
- * key means "nothing extra", never a fabricated one.
+ * are ALL present on the STORED config. The CLI writes the bundle URL key and
+ * the size unconditionally; `baseReference` it NEVER writes. The api's
+ * `BuildRunConfigPlatformInput` does not accept that field (sending it fails
+ * openBuild with "contains a field that is not defined"), and the server
+ * stamps it onto the stored config itself from the top-level `baseFingerprint`
+ * every road sends beside `buildRunConfig`. `assetsS3Key` and `manifestS3Key`
+ * are written only when that artifact was uploaded: an absent key means
+ * "nothing extra", never a fabricated one.
  */
 export function applyBundleToPlatformConfig({
   platformConfig,
   keys,
   bundleSizeMb,
-  baseReference,
 }: {
   platformConfig: PlatformBundleConfig;
   keys: StagedUploadKeys;
   bundleSizeMb: number;
-  /** The base fingerprint this run was computed against. */
-  baseReference: string;
 }): void {
   platformConfig.jsBundleS3Key = keys.jsBundleS3Key;
   platformConfig.bundleSizeMb = bundleSizeMb;
-  platformConfig.baseReference = baseReference;
   if (keys.assetsS3Key) {
     platformConfig.assetsS3Key = keys.assetsS3Key;
   }

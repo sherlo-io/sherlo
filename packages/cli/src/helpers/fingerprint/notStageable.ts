@@ -69,8 +69,8 @@ export async function checkStageable({
       stageable: false,
       reason:
         'Staged uploads are not supported on Android when expo-updates is enabled. ' +
-        'Set "expo.updates.enabled: false" in your Android app config or use a ' +
-        'test:standard build without expo-updates for staging.',
+        'Set "expo.updates.enabled: false" in your Android app config or register a ' +
+        'build without expo-updates for staging.',
     };
   }
 

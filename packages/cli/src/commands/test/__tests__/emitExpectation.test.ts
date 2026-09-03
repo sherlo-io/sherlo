@@ -21,7 +21,7 @@ import validateDevices from '../../../helpers/getValidatedCommandParams/validate
 import validateToken from '../../../helpers/getValidatedCommandParams/validateCommandParams/validateToken';
 import validateBinariesInfo from '../../../helpers/getValidatedBinariesInfoAndNextBuildIndex/validateBinariesInfo';
 import { validatePlatformPaths } from '../../../helpers/shared';
-import { TEST_STANDARD_COMMAND } from '../../../constants';
+import { TEST_COMMAND } from '../../../constants';
 import { BinariesInfo, InvalidatedConfig } from '../../../types';
 
 /** Runs a guard expected to throw and returns the raw thrown message ("the live call"). */
@@ -57,7 +57,7 @@ describe('renderExpectation - no volatile values', () => {
       validatePlatformPaths({
         platformsToValidate: ['android'],
         android: undefined,
-        command: TEST_STANDARD_COMMAND,
+        command: TEST_COMMAND,
       })
     );
     expect(renderExpectation('binary-path-missing')).toBe(live);
@@ -89,7 +89,7 @@ describe('renderExpectation - masks the volatile value it fed in', () => {
       validatePlatformPaths({
         platformsToValidate: ['android'],
         android: androidPath,
-        command: TEST_STANDARD_COMMAND,
+        command: TEST_COMMAND,
       })
     );
     const minted = renderExpectation('binary-path-nonexistent');
@@ -112,9 +112,7 @@ describe('renderExpectation - masks the volatile value it fed in', () => {
         androidAbis: ['x86_64'],
       },
     };
-    const live = liveMessage(() =>
-      validateBinariesInfo({ binariesInfo, command: TEST_STANDARD_COMMAND })
-    );
+    const live = liveMessage(() => validateBinariesInfo({ binariesInfo, command: TEST_COMMAND }));
     const minted = renderExpectation('binary-abi-x86-only');
 
     expect(live).toContain(fileName);
