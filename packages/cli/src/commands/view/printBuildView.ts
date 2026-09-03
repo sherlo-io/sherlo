@@ -1,4 +1,4 @@
-import { buildDetailsOf } from '../../helpers/buildDetails';
+import { buildViewMetadataJson } from '../../helpers/buildDetails';
 import printResultsUrl from '../../helpers/printResultsUrl';
 import { emit } from '../../helpers/transcriptSink';
 import type { BuildStatus } from '../../helpers/waitForBuildResult';
@@ -14,9 +14,15 @@ import type { BuildStatus } from '../../helpers/waitForBuildResult';
  * re-implementation of it (see ./renderViewTranscript). Nothing here awaits,
  * fetches, or reads the process.
  *
- * The order is the order a reader needs it in: WHICH build, then how its review
- * stands, then what that amounts to in the check's own words, then the link, and
- * last - only when asked - the details block.
+ * TWO DISTINCT OUTPUTS, NOT ONE OUTPUT WITH AN OPTIONAL TAIL (view-metadata,
+ * operator ruling 2026-09-03).
+ *
+ * `--metadata` prints ONLY the JSON contract (see render/buildView's
+ * ViewMetadataJson) - no header, no colour, no url line - because it is meant
+ * to be piped and parsed, and mixing it with the human header would make every
+ * consumer re-find the JSON inside prose. Without `--metadata` the command
+ * prints for a person: which build, the tally, the check's own sentence, the
+ * per-story table (when the build has stories), then the link.
  */
 export function printBuildView({
   build,
@@ -27,9 +33,14 @@ export function printBuildView({
   build: BuildStatus;
   buildIndex: number;
   url: string;
-  /** `--metadata`: append the `── details ──` block. */
+  /** `--metadata`: print the JSON contract instead of the human view. */
   showDetails: boolean;
 }): void {
+  if (showDetails) {
+    emit({ kind: 'build-view-json', json: buildViewMetadataJson(build, buildIndex) });
+    return;
+  }
+
   emit({ kind: 'build-view-header', buildIndex, runStatus: build.runStatus });
 
   // A build that has not written its counts yet prints no tally rather than four
@@ -40,16 +51,13 @@ export function printBuildView({
 
   emit({ kind: 'build-view-status', runStatus: build.runStatus, status: build.status });
 
+  // Absent, not empty: a build with no view rows yet (queued, or errored before
+  // any capture) prints no table rather than a header with nothing under it.
+  if (build.stories && build.stories.length > 0) {
+    emit({ kind: 'blank-line' });
+    emit({ kind: 'build-view-stories-table', stories: build.stories });
+  }
+
   emit({ kind: 'blank-line' });
   printResultsUrl(url);
-
-  if (showDetails) {
-    // NO GIT FACTS. `sherlo view` did not open this build, `getBuildStatus` does
-    // not return the git info it was opened with, and this checkout's git
-    // describes whatever commit happens to be sitting here - which is not the
-    // one the build was made from. So the branch rows are absent rather than
-    // wrong. See helpers/buildDetails.
-    emit({ kind: 'build-details', details: buildDetailsOf(build) });
-    emit({ kind: 'blank-line' });
-  }
 }

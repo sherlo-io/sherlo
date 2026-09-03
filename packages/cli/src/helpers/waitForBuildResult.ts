@@ -100,6 +100,31 @@ export type BuildStatusResponse = {
         ios?: { reason?: string };
       };
     };
+    /**
+     * The build's frozen git identity (view-metadata, operator ruling
+     * 2026-09-03) - only the two fields `getBuildStatus` sends. Absent on an
+     * older API.
+     */
+    gitInfo?: {
+      branchName: string;
+      commitHash: string;
+    };
+    /**
+     * Per-story rows (view-metadata, operator ruling 2026-09-03): what `sherlo
+     * view --metadata` prints as `stories[]`. `status` is spelled as the plain
+     * string the wire sends (including the hyphenated `"review-required"`)
+     * rather than a narrowed union, because `@sherlo/api-types` is not the
+     * source of this hand-written wire shape (see this file's module doc) and a
+     * value this CLI has not learned yet must still pass through rather than
+     * fail to parse. Absent for a build with no view rows yet.
+     */
+    stories?: {
+      name: string;
+      status: string;
+      baseline: { buildIndex: number } | null;
+      reason?: string;
+      candidates?: { buildIndex: number }[];
+    }[];
   } | null;
 };
 
@@ -391,6 +416,21 @@ async function fetchBuildStatus(
                 ios {
                   reason
                 }
+              }
+            }
+            gitInfo {
+              branchName
+              commitHash
+            }
+            stories {
+              name
+              status
+              baseline {
+                buildIndex
+              }
+              reason
+              candidates {
+                buildIndex
               }
             }
           }

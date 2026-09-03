@@ -72,45 +72,84 @@ const EXPECTED: Record<string, string[]> = {
     ...LINK_LINES,
   ],
 
-  'view-errored': [
-    'Build #7 · error',
-    '❌ Visual tests errored - the Sherlo build did not finish. Re-run to try again.',
-    '',
-    ...LINK_LINES,
-    '── details ──',
-    // One row, so the column is as narrow as one row makes it.
-    'runner: errored (user_runner)',
-    '',
-  ],
+  // `--metadata` prints ONLY the JSON contract - no header, no colour, no url
+  // line. See helpers/buildDetails's buildViewMetadataJson and
+  // render/buildView's renderViewMetadataJson.
+  'view-errored': ['{', '  "runStatus": "error",', '  "buildIndex": 7', '}'],
 
   'view-metadata-branch-build': [
-    'Build #7 · finished',
-    'approved 0 · reported 0 · unreviewed 2 · noChanges 1',
-    '⚠️  Visual changes need review - snapshots changed and are awaiting review in Sherlo.',
-    '',
-    ...LINK_LINES,
-    '── details ──',
-    // NO branch and NO main line: `getBuildStatus` carries no git info, and this
-    // command did not open the build. The absence is the finding.
-    'scope:         branch-only · feature build',
-    'runner:        finished',
-    'diff scope:    captured 3 · inherited 41',
-    'verdicts cast: 0',
-    '',
+    '{',
+    '  "runStatus": "finished",',
+    '  "buildIndex": 7,',
+    '  "commit": {',
+    '    "sha": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c",',
+    '    "branch": "e2e/sherlo-3/dev"',
+    '  },',
+    '  "viewStatusesCount": {',
+    '    "approved": 5,',
+    '    "noChanges": 0,',
+    '    "reported": 0,',
+    '    "unreviewed": 1',
+    '  },',
+    '  "stories": [',
+    '    {',
+    '      "name": "Typography - Scales",',
+    '      "status": "review-required",',
+    '      "baseline": null,',
+    '      "reason": "two-baselines",',
+    '      "candidates": [',
+    '        {',
+    '          "buildIndex": 2',
+    '        },',
+    '        {',
+    '          "buildIndex": 4',
+    '        }',
+    '      ]',
+    '    },',
+    '    {',
+    '      "name": "Typography - Dense",',
+    '      "status": "unchanged",',
+    '      "baseline": {',
+    '        "buildIndex": 1',
+    '      }',
+    '    },',
+    '    {',
+    '      "name": "Sanity/Hello - Basic",',
+    '      "status": "unchanged",',
+    '      "baseline": {',
+    '        "buildIndex": 1',
+    '      }',
+    '    }',
+    '  ]',
+    '}',
   ],
 
+  // ABSENT, not zero-filled: an older API sends no gitInfo/stories, so `commit`
+  // and `stories` are missing keys, not `null` / `[]`.
   'view-metadata-older-api': [
+    '{',
+    '  "runStatus": "finished",',
+    '  "buildIndex": 7,',
+    '  "viewStatusesCount": {',
+    '    "approved": 4,',
+    '    "noChanges": 40,',
+    '    "reported": 0,',
+    '    "unreviewed": 0',
+    '  }',
+    '}',
+  ],
+
+  'view-finished-with-stories-table': [
     'Build #7 · finished',
-    'approved 4 · reported 0 · unreviewed 0 · noChanges 40',
-    '✅ Visual changes approved - all changed snapshots were approved in Sherlo.',
+    'approved 1 · reported 0 · unreviewed 1 · noChanges 1',
+    '⚠️  Visual changes need review - snapshots changed and are awaiting review in Sherlo.',
+    '',
+    'STORY                 STATUS           BASELINE',
+    'Typography - Scales   review-required  two baselines (#2, #4)',
+    'Typography - Dense    unchanged        build #1',
+    'Sanity/Hello - Basic  approved         build #1',
     '',
     ...LINK_LINES,
-    '── details ──',
-    // The scope and accounting rows are ABSENT, not false and zero - and the
-    // column narrows to the widest label that is left.
-    'runner:        finished',
-    'verdicts cast: 4',
-    '',
   ],
 };
 
@@ -181,17 +220,16 @@ describe('what `sherlo view` prints', () => {
     expect(`${rendered} `).not.toBe(rendered);
   });
 
-  it('the details block is COLOURLESS, which is what makes it byte-comparable', async () => {
+  it("`--metadata`'s JSON is COLOURLESS, which is what makes it parseable", async () => {
     const transcript = await renderViewScenarioTranscript(
       VIEW_TRANSCRIPTS['view-metadata-branch-build']
     );
 
-    const block = transcript.stdout.slice(transcript.stdout.indexOf('── details ──'));
-
     expect(
-      block,
-      'the details block grew an escape. A kept-output fixture compares it byte for byte, and a ' +
-        'style that renders differently under a pipe than under a TTY would make it unstable.'
+      transcript.stdout,
+      'the JSON contract grew an escape. It is meant to be piped into `JSON.parse`, and a style ' +
+        'that renders differently under a pipe than under a TTY - or that simply is not valid ' +
+        'JSON any more - would break every consumer of `sherlo view --metadata`.'
     ).not.toMatch(ANSI_ESCAPE);
   });
 });

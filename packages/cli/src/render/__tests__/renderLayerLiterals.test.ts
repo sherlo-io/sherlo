@@ -634,6 +634,39 @@ const PINS: Pin[] = [
     stream: 'stdout',
     prints: [['── details ──'], ['runner:        errored (user_runner)'], ['verdicts cast: 0']],
   },
+  {
+    kind: 'build-view-json',
+    what: "`--metadata`'s whole output - pretty-printed JSON, NO colour, as ONE print call so a pipe gets exactly `JSON.parse`-able bytes",
+    segment: {
+      kind: 'build-view-json',
+      json: { runStatus: 'error', buildIndex: 7 },
+    },
+    stream: 'stdout',
+    prints: [['{\n  "runStatus": "error",\n  "buildIndex": 7\n}']],
+  },
+  {
+    kind: 'build-view-stories-table',
+    what: 'the per-story table - NO colour, three columns padded to the widest cell present, one row per story',
+    segment: {
+      kind: 'build-view-stories-table',
+      stories: [
+        { name: 'Sanity/Hello - Basic', status: 'unchanged', baseline: { buildIndex: 1 } },
+        {
+          name: 'Typography - Scales',
+          status: 'review-required',
+          baseline: null,
+          reason: 'two-baselines',
+          candidates: [{ buildIndex: 2 }, { buildIndex: 4 }],
+        },
+      ],
+    },
+    stream: 'stdout',
+    prints: [
+      ['STORY                 STATUS           BASELINE'],
+      ['Sanity/Hello - Basic  unchanged        build #1'],
+      ['Typography - Scales   review-required  two baselines (#2, #4)'],
+    ],
+  },
 ];
 
 /**

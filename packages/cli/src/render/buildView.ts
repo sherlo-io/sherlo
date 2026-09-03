@@ -318,3 +318,99 @@ function runnerValue({ runStatus, runError }: BuildDetails): string {
 
   return `${word} (${reason})`;
 }
+
+/* ========================================================================== */
+/* `--metadata`'s JSON contract (view-metadata, operator ruling 2026-09-03)    */
+/* ========================================================================== */
+
+/**
+ * One row of `stories[]`, exactly as `getBuildStatus` sends it and exactly as
+ * the JSON prints it - a field lift, like {@link BuildDetails} above, never a
+ * translation. `status` stays a plain string (not a narrowed union) for the
+ * same reason it does on the wire type in helpers/waitForBuildResult: a status
+ * this CLI has not learned yet must still pass through.
+ */
+export type ViewMetadataStory = {
+  name: string;
+  status: string;
+  baseline: { buildIndex: number } | null;
+  reason?: string;
+  candidates?: { buildIndex: number }[];
+};
+
+/**
+ * The whole `sherlo view --metadata` JSON payload (view-metadata, operator
+ * ruling 2026-09-03). This IS the contract - see docs/view-metadata-spec.md in
+ * the epic branch history - so every key here is one the JSON prints under its
+ * own name, in this order.
+ */
+export type ViewMetadataJson = {
+  runStatus: string;
+  buildIndex: number;
+  /**
+   * The build's frozen git identity. Unlike the old `── details ──` block (see
+   * {@link BuildDetailsGitFacts}'s doc), this DOES come from the wire now -
+   * `getBuildStatus` carries it - so it is present whenever the API sent
+   * `gitInfo`, for `sherlo view` exactly as for `sherlo test`.
+   */
+  commit?: { sha: string; branch: string };
+  viewStatusesCount?: {
+    approved: number;
+    noChanges: number;
+    reported: number;
+    unreviewed: number;
+  };
+  stories?: ViewMetadataStory[];
+};
+
+/**
+ * `--metadata`'s entire output: the JSON payload, pretty-printed, and nothing
+ * else - no header, no colour, no url line. It is meant to be piped and parsed,
+ * so the bytes are exactly `JSON.stringify(json, null, 2)`.
+ */
+export function renderViewMetadataJson(json: ViewMetadataJson): string {
+  return JSON.stringify(json, null, 2);
+}
+
+/* ========================================================================== */
+/* The stories table (human-readable, no `--metadata`)                       */
+/* ========================================================================== */
+
+/**
+ * The per-story table `sherlo view` prints (without `--metadata`) under the
+ * check sentence. Plain and aligned like {@link renderBuildDetails}'s block,
+ * for the same reason: three columns, one row per story, widths driven by the
+ * widest cell actually present.
+ *
+ * A `review-required` row's baseline column carries the reason instead of a
+ * build index - there IS no baseline for that story (see
+ * ViewMetadataStory.baseline), and printing blank there would read as an
+ * omission rather than the answer.
+ */
+export function renderStoriesTable(stories: ViewMetadataStory[]): string[] {
+  if (stories.length === 0) return [];
+
+  const rows = stories.map((story) => ({
+    name: story.name,
+    status: story.status,
+    baseline: baselineCell(story),
+  }));
+
+  const nameWidth = Math.max(...rows.map((row) => row.name.length)) + 2;
+  const statusWidth = Math.max(...rows.map((row) => row.status.length)) + 2;
+
+  return [
+    'STORY'.padEnd(nameWidth) + 'STATUS'.padEnd(statusWidth) + 'BASELINE',
+    ...rows.map(
+      (row) => row.name.padEnd(nameWidth) + row.status.padEnd(statusWidth) + row.baseline
+    ),
+  ];
+}
+
+function baselineCell(story: ViewMetadataStory): string {
+  if (story.baseline) return `build #${story.baseline.buildIndex}`;
+  if (story.reason === 'two-baselines' && story.candidates) {
+    return `two baselines (#${story.candidates.map((c) => c.buildIndex).join(', #')})`;
+  }
+  return '-';
+}

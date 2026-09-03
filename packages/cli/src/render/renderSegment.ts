@@ -31,6 +31,8 @@ import {
   renderBuildViewHeader,
   renderBuildViewStatus,
   renderBuildViewTally,
+  renderStoriesTable,
+  renderViewMetadataJson,
 } from './buildView';
 import { formatDryRunPreview } from './dryRunPlan';
 import {
@@ -370,6 +372,15 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return {
         stream: 'stdout',
         prints: renderBuildDetails(segment.details).map((line) => [line]),
+      };
+
+    case 'build-view-json':
+      return { stream: 'stdout', prints: [[renderViewMetadataJson(segment.json)]] };
+
+    case 'build-view-stories-table':
+      return {
+        stream: 'stdout',
+        prints: renderStoriesTable(segment.stories).map((line) => [line]),
       };
   }
 }

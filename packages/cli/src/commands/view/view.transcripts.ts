@@ -24,14 +24,14 @@
  * render/__tests__/renderLayerLiterals.test.ts, which pin the escapes.
  *
  * ------------------------------------------------------------------------
- * WHAT NO SCENARIO HERE CAN SHOW, AND WHY THAT IS THE POINT OF LOOKING.
- *
- * No `view` transcript carries a branch, a commit or a baseline comparison,
- * because `getBuildStatus` does not return them - and it is the only build read
- * a project token is authorized for. A scenario that showed them would be a
- * drawing of a product the API cannot serve, which is exactly the mistake this
- * catalog's type makes impossible: the state is the WIRE shape, so a fact the
- * backend cannot send is a `tsc` failure rather than a transcript.
+ * A `view` TRANSCRIPT CAN NOW CARRY A BRANCH, A COMMIT AND A BASELINE
+ * (view-metadata, operator ruling 2026-09-03) - a correction to this file's
+ * earlier claim that none of it could ever appear here. `getBuildStatus` now
+ * returns the build's frozen `gitInfo` and per-story `stories[]`, so a scenario
+ * that scripts them is describing a real answer the project-token read can
+ * send, not a drawing of a product the API cannot serve. The type stays the
+ * enforcement mechanism either way: a fact this catalog scripts that the wire
+ * cannot send is still a `tsc` failure, not a runtime one.
  */
 import type { BuildStatus } from '../../helpers/waitForBuildResult';
 
@@ -58,7 +58,11 @@ export type ViewTranscriptScenario = {
    * state the backend could not return does not compile.
    */
   build: BuildStatus;
-  /** `--metadata`: whether this scenario appends the `── details ──` block. */
+  /**
+   * `--metadata`: whether this scenario renders the JSON contract INSTEAD of
+   * the human view (view-metadata, operator ruling 2026-09-03) - not a block
+   * appended after it, a different output entirely.
+   */
   showDetails: boolean;
 };
 
@@ -140,9 +144,10 @@ export const VIEW_TRANSCRIPTS: Record<string, ViewTranscriptScenario> = {
 
   'view-errored': {
     ...scenario(
-      "THE RUN THAT DID NOT FINISH. The server's own error value reaches the details block " +
-        'verbatim, and the sentence is the check\'s "errored" copy rather than a verdict about ' +
-        'snapshots nobody captured.',
+      'THE RUN THAT DID NOT FINISH, under `--metadata`. `--metadata` prints ONLY the JSON ' +
+        'contract, so an errored build with no counts and no gitInfo prints the two facts the ' +
+        'wire actually sent (runStatus, buildIndex) and nothing else - no zero-filled ' +
+        'viewStatusesCount, no empty stories array.',
       { runStatus: 'error', runError: 'user_runner' },
       true
     ),
@@ -150,18 +155,30 @@ export const VIEW_TRANSCRIPTS: Record<string, ViewTranscriptScenario> = {
 
   'view-metadata-branch-build': {
     ...scenario(
-      'THE DETAILS BLOCK, over a branch build. Everything in it is a fact the wire actually ' +
-        'sent: the scope is the verdict the SERVER froze onto the build, the accounting is the ' +
-        'capture counts, and "verdicts cast" is approved plus reported - the two statuses a human ' +
-        'has to put there. What is missing is missing for one reason: `getBuildStatus` carries no ' +
-        'git info and no per-screen baseline, so no branch row and no comparison line can appear ' +
-        'here however much a reader would like them to.',
+      'THE JSON CONTRACT, over a branch build with one review-required story. `commit` is the ' +
+        "build's frozen gitInfo, `stories[]` is the per-story wire answer verbatim, and the " +
+        '`review-required` row carries `reason: "two-baselines"` with the two candidate builds ' +
+        'the ancestry walk could not choose between - exactly the shape docs/view-metadata-spec.md ' +
+        'describes. `--metadata` prints ONLY this JSON: no header, no colour, no url line.',
       {
         runStatus: 'finished',
         status: 'unreviewed',
-        showsOnlyBranchChanges: true,
-        viewStatusesCount: { approved: 0, noChanges: 1, reported: 0, unreviewed: 2 },
-        diffScopeInfo: { capturedSnapshotCount: 3, inheritedSnapshotCount: SUITE_SIZE - 3 },
+        gitInfo: {
+          branchName: 'e2e/sherlo-3/dev',
+          commitHash: '4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c',
+        },
+        viewStatusesCount: { approved: 5, noChanges: 0, reported: 0, unreviewed: 1 },
+        stories: [
+          {
+            name: 'Typography - Scales',
+            status: 'review-required',
+            baseline: null,
+            reason: 'two-baselines',
+            candidates: [{ buildIndex: 2 }, { buildIndex: 4 }],
+          },
+          { name: 'Typography - Dense', status: 'unchanged', baseline: { buildIndex: 1 } },
+          { name: 'Sanity/Hello - Basic', status: 'unchanged', baseline: { buildIndex: 1 } },
+        ],
       },
       true
     ),
@@ -169,16 +186,41 @@ export const VIEW_TRANSCRIPTS: Record<string, ViewTranscriptScenario> = {
 
   'view-metadata-older-api': {
     ...scenario(
-      'THE DEGRADE, and the case that proves the block never zero-fills. An API that predates ' +
-        'the scope flag and the capture accounting sends neither, so those rows are ABSENT rather ' +
-        'than reported as false and zero - and the label column narrows to the rows that remain, ' +
-        'which is what "aligned to the widest label present" means.',
+      'THE DEGRADE, and the case that proves the JSON never zero-fills or invents. An API that ' +
+        'predates gitInfo and stories sends neither, so `commit` and `stories` are ABSENT from the ' +
+        'JSON (not `null`, not `[]`) - `JSON.stringify` drops an `undefined` key rather than ' +
+        'printing a fact nobody sent.',
       {
         runStatus: 'finished',
         status: 'approved',
         viewStatusesCount: { approved: 4, noChanges: SUITE_SIZE - 4, reported: 0, unreviewed: 0 },
       },
       true
+    ),
+  },
+
+  'view-finished-with-stories-table': {
+    ...scenario(
+      'THE HUMAN VIEW, with stories. Without `--metadata` the per-story table sits between the ' +
+        "check's sentence and the link: one row per story, its status, and its baseline build - " +
+        'or, for the one review-required row, the two candidates instead of a baseline, since ' +
+        'there IS no baseline for that story.',
+      {
+        runStatus: 'finished',
+        status: 'unreviewed',
+        viewStatusesCount: { approved: 1, noChanges: 1, reported: 0, unreviewed: 1 },
+        stories: [
+          {
+            name: 'Typography - Scales',
+            status: 'review-required',
+            baseline: null,
+            reason: 'two-baselines',
+            candidates: [{ buildIndex: 2 }, { buildIndex: 4 }],
+          },
+          { name: 'Typography - Dense', status: 'unchanged', baseline: { buildIndex: 1 } },
+          { name: 'Sanity/Hello - Basic', status: 'approved', baseline: { buildIndex: 1 } },
+        ],
+      }
     ),
   },
 };

@@ -26,7 +26,7 @@
 import { Platform } from '@sherlo/api-types';
 import type { BundleFormat } from '../commands/test/buildBundle';
 import type { Config } from '../types';
-import type { BuildDetails } from './buildView';
+import type { BuildDetails, ViewMetadataJson, ViewMetadataStory } from './buildView';
 import type { DryRunPlatformPreview } from './dryRunPlan';
 
 /** Which of the process's two streams a segment is written to. */
@@ -227,7 +227,18 @@ export type TranscriptSegment =
    * The whole `── details ──` block: plain, aligned, colourless, deterministic.
    * Carries the build's facts, never their formatting - see ./buildView.
    */
-  | { kind: 'build-details'; details: BuildDetails };
+  | { kind: 'build-details'; details: BuildDetails }
+  /**
+   * `sherlo view --metadata`'s WHOLE output (view-metadata, operator ruling
+   * 2026-09-03): the JSON contract, pretty-printed, and nothing around it - no
+   * header, no url line. See ./buildView's ViewMetadataJson.
+   */
+  | { kind: 'build-view-json'; json: ViewMetadataJson }
+  /**
+   * The per-story table `sherlo view` prints (without `--metadata`): one row
+   * per story with its status and baseline. See ./buildView.
+   */
+  | { kind: 'build-view-stories-table'; stories: ViewMetadataStory[] };
 
 /**
  * Where rendered segments go. The CLI installs a sink that writes to the
