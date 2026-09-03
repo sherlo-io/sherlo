@@ -21,6 +21,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formatDiffScopeBlock,
   formatDiffScopeReport,
+  formatDiffScopeSummaryLine,
   type DiffScopePlatformReport,
 } from '../diffScopeReport';
 
@@ -462,6 +463,129 @@ describe('formatDiffScopeBlock', () => {
     expect(out).toContain('       • Storefront/ProductCard');
     expect(out).toContain('       • Cart/Cart');
     expect(out).toContain('       • Sanity/Hello');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatDiffScopeSummaryLine - the one-line "Diff Scope:" summary printed
+// once at build open (view-metadata, operator ruling 2026-09-03)
+// ---------------------------------------------------------------------------
+
+describe('formatDiffScopeSummaryLine', () => {
+  it('partial capture: names what was captured and what was inherited, from the ancestor build', () => {
+    const line = formatDiffScopeSummaryLine({
+      full: false,
+      capturedStoryFilePaths: ['src/components/Storefront/SharedButton.stories.tsx'],
+      totalStoriesInBundle: 3,
+      reason: 'SharedButton.tsx changed',
+      allStoryFilePaths: [
+        'src/components/Storefront/SharedButton.stories.tsx',
+        'src/components/Sanity/Hello.stories.tsx',
+        'src/components/Typography/Dense.stories.tsx',
+      ],
+      ancestorBuildIndex: 6,
+    });
+
+    expect(line).toBe(
+      'Diff Scope: SharedButton.tsx changed - capturing 1 of 3 stories: Storefront/SharedButton; ' +
+        'inheriting 2 from build #6: Sanity/Hello, Typography/Dense'
+    );
+  });
+
+  it('full capture: "capturing all M stories: <reason>", no inherit clause', () => {
+    const line = formatDiffScopeSummaryLine({
+      full: true,
+      capturedStoryFilePaths: [],
+      totalStoriesInBundle: 22,
+      reason: 'main branch build - every story is captured here',
+      allStoryFilePaths: Array.from({ length: 22 }, (_, i) => `S${i}.stories.tsx`),
+    });
+
+    expect(line).toBe(
+      'Diff Scope: capturing all 22 stories: main branch build - every story is captured here'
+    );
+  });
+
+  it('SINGULAR at M === 1 on a full capture', () => {
+    const line = formatDiffScopeSummaryLine({
+      full: true,
+      capturedStoryFilePaths: [],
+      totalStoriesInBundle: 1,
+      reason: 'first build - nothing to compare against yet',
+      allStoryFilePaths: ['S.stories.tsx'],
+    });
+
+    expect(line).toBe(
+      'Diff Scope: capturing all 1 story: first build - nothing to compare against yet'
+    );
+  });
+
+  it('drops the inherit clause when nothing is inherited (partial capturing everything present)', () => {
+    const line = formatDiffScopeSummaryLine({
+      full: false,
+      capturedStoryFilePaths: ['A.stories.tsx', 'B.stories.tsx'],
+      totalStoriesInBundle: 2,
+      reason: 'x changed',
+      allStoryFilePaths: ['A.stories.tsx', 'B.stories.tsx'],
+      ancestorBuildIndex: 6,
+    });
+
+    expect(line).toBe('Diff Scope: x changed - capturing 2 of 2 stories: A, B');
+    expect(line).not.toContain('inheriting');
+  });
+
+  it('drops the inherit clause when the ancestor build index is unknown, even with inherited stories', () => {
+    const line = formatDiffScopeSummaryLine({
+      full: false,
+      capturedStoryFilePaths: ['A.stories.tsx'],
+      totalStoriesInBundle: 2,
+      reason: 'x changed',
+      allStoryFilePaths: ['A.stories.tsx', 'B.stories.tsx'],
+      ancestorBuildIndex: undefined,
+    });
+
+    expect(line).toBe('Diff Scope: x changed - capturing 1 of 2 stories: A');
+    expect(line).not.toContain('inheriting');
+  });
+
+  it('omits the "<reason> - " prefix when no reason is given', () => {
+    const line = formatDiffScopeSummaryLine({
+      full: false,
+      capturedStoryFilePaths: ['A.stories.tsx'],
+      totalStoriesInBundle: 2,
+      reason: undefined,
+      allStoryFilePaths: ['A.stories.tsx', 'B.stories.tsx'],
+      ancestorBuildIndex: 6,
+    });
+
+    expect(line).toBe('Diff Scope: capturing 1 of 2 stories: A; inheriting 1 from build #6: B');
+  });
+
+  it('returns undefined with no manifest (no M, nothing honest to say)', () => {
+    expect(
+      formatDiffScopeSummaryLine({
+        full: false,
+        capturedStoryFilePaths: ['A.stories.tsx'],
+        totalStoriesInBundle: undefined,
+        allStoryFilePaths: undefined,
+      })
+    ).toBeUndefined();
+  });
+
+  it('partial-zero: "none" captured, everything inherited by name', () => {
+    const line = formatDiffScopeSummaryLine({
+      full: false,
+      capturedStoryFilePaths: [],
+      totalStoriesInBundle: 2,
+      reason: 'no change reaches any story',
+      allStoryFilePaths: ['A.stories.tsx', 'B.stories.tsx'],
+      ancestorBuildIndex: 6,
+    });
+
+    expect(line).toBe(
+      'Diff Scope: no change reaches any story - capturing 0 of 2 stories: none; ' +
+        'inheriting 2 from build #6: A, B'
+    );
   });
 });
 

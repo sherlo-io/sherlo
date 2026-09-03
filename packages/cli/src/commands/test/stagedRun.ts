@@ -28,6 +28,7 @@
  */
 import sdkClient from '@sherlo/sdk-client';
 import { GateMetadata, GateMetadataByPlatform, Platform } from '@sherlo/api-types';
+import { PLATFORMS } from '../../constants';
 import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER } from '@sherlo/shared';
 import chalk from 'chalk';
 import { Options } from '../../types';
@@ -77,7 +78,11 @@ import { resolveSuppliedBundles } from './suppliedBundle';
 import { runEmitExpectation } from './emitExpectation';
 import { runRenderTranscript } from './renderTranscript';
 import { countBundleStories, type ValidatedModuleManifest } from './readModuleManifest';
-import { formatDiffScopeReport, type DiffScopePlatformReport } from './diffScopeReport';
+import {
+  formatDiffScopeReport,
+  formatDiffScopeSummaryLine,
+  type DiffScopePlatformReport,
+} from './diffScopeReport';
 
 /**
  * The ONLY gate metadata the pre-bundle probe may send: the `none` derivation
@@ -112,6 +117,15 @@ type PlatformConfigWithCaptureScope = { captureScope?: CaptureScope };
 type DiffScopeInfoWithPlatformReasons = {
   fullCaptureTriggerReason?: string;
   platforms?: Partial<Record<Platform, { reason?: string }>>;
+  /**
+   * The primary frozen ancestor build index this decision diffed against.
+   * Hand-typed rather than imported from `@sherlo/api-types` for the same
+   * forward-compat reason as the two fields above (this file's module doc):
+   * sherlo-api commit e7c7d5a (`feature/sherlo-3`) added it to
+   * `Build.diffScopeInfo` and the portal tarball this repo builds against may
+   * not carry it yet. Absent -> no ancestor, or an older API.
+   */
+  ancestorBuildIndex?: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -659,6 +673,28 @@ export function printCapturePlanAndCloser({
 
   if (platforms.length > 0) {
     console.log('\n' + formatDiffScopeReport('live', platforms));
+
+    // The one-line "Diff Scope:" summary (view-metadata, operator ruling
+    // 2026-09-03), printed once for the build - not per platform - keyed on
+    // the PRIMARY platform (first-present, PLATFORMS-ordered: android before
+    // ios), the same convention the server uses for its own single reason.
+    const primary = PLATFORMS.map((platform) =>
+      platforms.find((p) => p.platform === platform)
+    ).find((p): p is DiffScopePlatformReport => p !== undefined);
+
+    if (primary) {
+      const summaryLine = formatDiffScopeSummaryLine({
+        full: primary.full,
+        capturedStoryFilePaths: primary.capturedStoryFilePaths,
+        totalStoriesInBundle: primary.totalStoriesInBundle,
+        reason: primary.reason,
+        allStoryFilePaths: moduleManifests[primary.platform]
+          ? Object.keys(moduleManifests[primary.platform]!.parsed.storyClosures)
+          : undefined,
+        ancestorBuildIndex: diffScopeInfo?.ancestorBuildIndex,
+      });
+      if (summaryLine) console.log('\n' + summaryLine);
+    }
   }
 
   // A server-bypassed build has its compact closer printed by the caller (the
