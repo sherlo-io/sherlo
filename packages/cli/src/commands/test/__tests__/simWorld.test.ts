@@ -13,12 +13,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  readSimWorld,
-  resolveSimWorldPath,
-  SIM_WORLD_FILENAME,
-  validateSimWorld,
-} from '../simWorld';
+import { readSimWorld, resolveSimulationWorldPath, validateSimWorld } from '../simWorld';
 
 let tempDir: string;
 
@@ -179,7 +174,7 @@ describe('validateSimWorld', () => {
 
 describe('readSimWorld', () => {
   it('returns the exact committed bytes plus the normalized parse', () => {
-    const filePath = path.join(tempDir, SIM_WORLD_FILENAME);
+    const filePath = path.join(tempDir, 'sim-world.json');
     const bytes = JSON.stringify(validWorldJson(), null, 2);
     fs.writeFileSync(filePath, bytes, 'utf8');
 
@@ -197,14 +192,14 @@ describe('readSimWorld', () => {
   });
 
   it('says invalid JSON is invalid JSON, naming the path', () => {
-    const filePath = path.join(tempDir, SIM_WORLD_FILENAME);
+    const filePath = path.join(tempDir, 'sim-world.json');
     fs.writeFileSync(filePath, '{ not json', 'utf8');
 
     expect(() => readSimWorld(filePath)).toThrow(/is not valid JSON/);
   });
 
   it('lists every shape problem in the thrown message', () => {
-    const filePath = path.join(tempDir, SIM_WORLD_FILENAME);
+    const filePath = path.join(tempDir, 'sim-world.json');
     const json = validWorldJson();
     json.stories[0].imports = ['src/components/Ghost.tsx'];
     (json as Record<string, unknown>).simVersion = 9;
@@ -216,24 +211,78 @@ describe('readSimWorld', () => {
   });
 });
 
-describe('resolveSimWorldPath', () => {
-  it('prefers the explicit --sim path and marks it explicit', () => {
-    expect(resolveSimWorldPath({ sim: '/worlds/w.json', projectRoot: tempDir })).toEqual({
-      filePath: '/worlds/w.json',
-      explicit: true,
-    });
+/**
+ * Sim-ness lives in the config file's `simulation` field and NOWHERE else: no
+ * `--sim` flag, no sniffing for a file that happens to sit in the project root.
+ */
+describe('resolveSimulationWorldPath', () => {
+  /** Write a config file into the temp project root, returning nothing. */
+  function writeConfig(config: Record<string, unknown>): void {
+    fs.writeFileSync(
+      path.join(tempDir, 'sherlo.config.json'),
+      JSON.stringify(config, null, 2),
+      'utf8'
+    );
+  }
+
+  it('is sim mode when `simulation` names an existing file, resolved from the config directory', () => {
+    writeConfig({ token: 'tok', simulation: 'worlds/w.json' });
+    fs.mkdirSync(path.join(tempDir, 'worlds'));
+    fs.writeFileSync(path.join(tempDir, 'worlds/w.json'), '{}', 'utf8');
+
+    expect(resolveSimulationWorldPath({ projectRoot: tempDir })).toBe(
+      path.join(tempDir, 'worlds/w.json')
+    );
   });
 
-  it('detects sim-world.json in the project root', () => {
-    fs.writeFileSync(path.join(tempDir, SIM_WORLD_FILENAME), '{}', 'utf8');
+  it('is a normal run when the field is absent, even with a sim-world.json lying around', () => {
+    writeConfig({ token: 'tok' });
+    fs.writeFileSync(path.join(tempDir, 'sim-world.json'), '{}', 'utf8');
 
-    expect(resolveSimWorldPath({ projectRoot: tempDir })).toEqual({
-      filePath: path.join(tempDir, SIM_WORLD_FILENAME),
-      explicit: false,
-    });
+    expect(resolveSimulationWorldPath({ projectRoot: tempDir })).toBeUndefined();
   });
 
-  it('returns undefined when neither the flag nor the file is present', () => {
-    expect(resolveSimWorldPath({ projectRoot: tempDir })).toBeUndefined();
+  it('names the field AND the resolved path when the file does not exist', () => {
+    writeConfig({ token: 'tok', simulation: 'worlds/missing.json' });
+
+    expect(() => resolveSimulationWorldPath({ projectRoot: tempDir })).toThrow(
+      new RegExp(
+        `\`simulation\` in ${escapeForRegex(path.join(tempDir, 'sherlo.config.json'))}.*` +
+          escapeForRegex(path.join(tempDir, 'worlds/missing.json')),
+        's'
+      )
+    );
+  });
+
+  it.each([
+    ['a number', 7],
+    ['an empty string', ''],
+    ['whitespace only', '   '],
+    ['an object', { path: 'w.json' }],
+    ['null', null],
+  ])('refuses a `simulation` that is %s', (_name, simulation) => {
+    writeConfig({ token: 'tok', simulation });
+
+    expect(() => resolveSimulationWorldPath({ projectRoot: tempDir })).toThrow(
+      /`simulation`.*must be a non-empty string/s
+    );
+  });
+
+  it('reads the config named by the --config option, relative to the project root', () => {
+    fs.mkdirSync(path.join(tempDir, 'ci'));
+    fs.writeFileSync(
+      path.join(tempDir, 'ci/sherlo.config.json'),
+      JSON.stringify({ simulation: '../w.json' }),
+      'utf8'
+    );
+    fs.writeFileSync(path.join(tempDir, 'w.json'), '{}', 'utf8');
+
+    expect(
+      resolveSimulationWorldPath({ projectRoot: tempDir, config: 'ci/sherlo.config.json' })
+    ).toBe(path.join(tempDir, 'w.json'));
   });
 });
+
+function escapeForRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}

@@ -1,7 +1,8 @@
 /**
  * Tests for `sherlo test`'s ROAD CHOICE - the outer routing in ./test.ts.
  *
- * One rule decides everything: were native build paths given? The flags decide,
+ * The config file's `simulation` field decides sim mode. Failing that, one rule
+ * decides everything: were native build paths given? There the flags decide,
  * never the config file, so a caller that passes no `--android`/`--ios` is
  * asking the staged road's routing question whatever paths sherlo.config.json
  * happens to carry.
@@ -16,19 +17,19 @@ vi.mock('../stagedRun', () => ({ default: vi.fn() }));
 vi.mock('../../testStandard', () => ({ default: vi.fn() }));
 vi.mock('../simRun', () => ({ default: vi.fn() }));
 vi.mock('../simWorld', () => ({
-  resolveSimWorldPath: vi.fn(),
-  SIM_WORLD_FILENAME: 'sim-world.json',
+  resolveSimulationWorldPath: vi.fn(),
+  SIMULATION_CONFIG_FIELD: 'simulation',
 }));
 
 import _stagedRun from '../stagedRun';
 import _testStandard from '../../testStandard';
 import _simRun from '../simRun';
-import { resolveSimWorldPath as _resolveSimWorldPath } from '../simWorld';
+import { resolveSimulationWorldPath as _resolveSimulationWorldPath } from '../simWorld';
 
 const mockStagedRun = vi.mocked(_stagedRun);
 const mockTestStandard = vi.mocked(_testStandard);
 const mockSimRun = vi.mocked(_simRun);
-const mockResolveSimWorldPath = vi.mocked(_resolveSimWorldPath);
+const mockResolveSimulationWorldPath = vi.mocked(_resolveSimulationWorldPath);
 
 let test: (passedOptions: any) => Promise<{ url: string }>;
 
@@ -37,7 +38,7 @@ beforeEach(async () => {
   mockStagedRun.mockResolvedValue({ url: 'http://app/staged' });
   mockTestStandard.mockResolvedValue({ url: 'http://app/standard' });
   mockSimRun.mockResolvedValue({ url: 'http://app/sim' });
-  mockResolveSimWorldPath.mockReturnValue(undefined);
+  mockResolveSimulationWorldPath.mockReturnValue(undefined);
 
   const mod = await import('../test');
   test = mod.default;
@@ -91,39 +92,39 @@ describe('road choice', () => {
   });
 });
 
-// A sim world (explicit --sim, or a detected sim-world.json) IS the app, so it
-// routes to the sim road alone; native build paths and the bundler-road flags
-// are refused alongside it rather than half-honored.
+// Sim-ness lives in the config file's `simulation` field and nowhere else: when
+// it resolves to a world path the run takes the sim road alone; native build
+// paths and the bundler-road flags are refused alongside it rather than
+// half-honored.
 describe('the sim road', () => {
-  it('routes to the SIM road when --sim is passed, handing it the world path', async () => {
-    mockResolveSimWorldPath.mockReturnValue({ filePath: '/worlds/w.json', explicit: true });
-    const options = { token: 'tok', sim: '/worlds/w.json' };
+  it('routes to the SIM road when the config declares a simulation, handing it the world path', async () => {
+    mockResolveSimulationWorldPath.mockReturnValue('/proj/sim-world.json');
+    const options = { token: 'tok' };
 
     const result = await test(options);
 
-    expect(mockSimRun).toHaveBeenCalledWith(options, '/worlds/w.json');
+    expect(mockSimRun).toHaveBeenCalledWith(options, '/proj/sim-world.json');
     expect(mockStagedRun).not.toHaveBeenCalled();
     expect(mockTestStandard).not.toHaveBeenCalled();
     expect(result).toEqual({ url: 'http://app/sim' });
   });
 
-  it('routes to the SIM road on a DETECTED sim-world.json too', async () => {
-    mockResolveSimWorldPath.mockReturnValue({
-      filePath: '/proj/sim-world.json',
-      explicit: false,
-    });
+  it('asks the config file itself - the options are handed to the resolver verbatim', async () => {
+    mockResolveSimulationWorldPath.mockReturnValue('/proj/worlds/w.json');
+    const options = { token: 'tok', config: 'sherlo.config.json', projectRoot: '/proj' };
 
-    await test({ token: 'tok' });
+    await test(options);
 
-    expect(mockSimRun).toHaveBeenCalledWith({ token: 'tok' }, '/proj/sim-world.json');
+    expect(mockResolveSimulationWorldPath).toHaveBeenCalledWith(options);
+    expect(mockSimRun).toHaveBeenCalledWith(options, '/proj/worlds/w.json');
     expect(mockStagedRun).not.toHaveBeenCalled();
   });
 
   it('refuses a sim world together with native build paths', async () => {
-    mockResolveSimWorldPath.mockReturnValue({ filePath: '/worlds/w.json', explicit: true });
+    mockResolveSimulationWorldPath.mockReturnValue('/proj/sim-world.json');
 
-    await expect(test({ token: 'tok', sim: '/worlds/w.json', android: 'app.apk' })).rejects.toThrow(
-      /--sim.*cannot be\s+combined with.*--android/s
+    await expect(test({ token: 'tok', android: 'app.apk' })).rejects.toThrow(
+      /`simulation` in the config file.*cannot be\s+combined with.*--android/s
     );
 
     expect(mockSimRun).not.toHaveBeenCalled();
@@ -137,18 +138,16 @@ describe('the sim road', () => {
     ['--emit-bundle-dir', { emitBundleDir: '/tmp/bundles' }],
     ['--emit-expectation', { dryRun: true, emitExpectation: 'token-missing' }],
   ])('refuses a sim world together with %s', async (flagName, flags) => {
-    mockResolveSimWorldPath.mockReturnValue({ filePath: '/worlds/w.json', explicit: true });
+    mockResolveSimulationWorldPath.mockReturnValue('/proj/sim-world.json');
 
-    await expect(test({ token: 'tok', sim: '/worlds/w.json', ...flags })).rejects.toThrow(
-      /runs no\s+bundler/
-    );
+    await expect(test({ token: 'tok', ...flags })).rejects.toThrow(/runs no\s+bundler/);
 
     expect(mockSimRun).not.toHaveBeenCalled();
     expect(mockStagedRun).not.toHaveBeenCalled();
   });
 
   it('leaves both existing roads untouched when no sim world is in play', async () => {
-    mockResolveSimWorldPath.mockReturnValue(undefined);
+    mockResolveSimulationWorldPath.mockReturnValue(undefined);
 
     await test({ token: 'tok' });
 

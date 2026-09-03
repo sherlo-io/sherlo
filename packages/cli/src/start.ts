@@ -40,7 +40,6 @@ import {
   PROFILE_OPTION,
   PROJECT_ROOT_OPTION,
   SHOW_ERROR_COMMAND,
-  SIM_OPTION,
   TEST_COMMAND,
   TEST_EAS_CLOUD_BUILD_COMMAND,
   TEST_EAS_UPDATE_COMMAND,
@@ -209,13 +208,6 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
       'call. Mint captures from a world; render computes from a scenario.',
   ],
   [MESSAGE_OPTION]: [`--${MESSAGE_OPTION} <message>`, 'Custom message to label the test'],
-  [SIM_OPTION]: [
-    `--${SIM_OPTION} <path>`,
-    'Test the declared sim world (JSON) at <path> instead of a real app: derive its ' +
-      'module manifest, upload both to staged slots, and open a sim build. No bundler ' +
-      'runs and no binary is needed. Auto-detected from a sim-world.json in the ' +
-      'project root. Cannot be combined with --android/--ios or the bundling flags.',
-  ],
   [PROFILE_OPTION]: [
     `--${PROFILE_OPTION} <profile>`,
     `EAS Build profile (must match profile used in \`${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
@@ -267,7 +259,6 @@ function addTestCommand(program: Command) {
       DRY_RUN_OPTION,
       EMIT_EXPECTATION_OPTION,
       RENDER_TRANSCRIPT_OPTION,
-      SIM_OPTION,
       WAIT_OPTION,
       WAIT_TIMEOUT_OPTION,
       ...devtoolsOptions,

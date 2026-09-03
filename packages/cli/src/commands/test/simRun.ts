@@ -1,7 +1,7 @@
 /**
  * The SIM ROAD of `sherlo test` (sim-mode design section 2) - taken when a sim
- * world file is in play (explicit `--sim <path>`, or `sim-world.json` detected
- * in the project root; see ./test.ts for the routing and the refusals).
+ * world file is in play, which is exactly when `sherlo.config.json` carries a
+ * `simulation` path (see ./test.ts for the routing and the refusals).
  *
  * A sim run travels the REAL road end to end - the same staged slots, the same
  * openBuild, the same output - and only the app is replaced: a declared JSON
@@ -262,7 +262,7 @@ async function uploadSimArtifacts({
       throwError({
         message:
           `The server offered no ${platform} manifest upload slot, which sim mode requires - ` +
-          'the API this project points at is too old for `--sim`.',
+          'the API this project points at is too old for sim mode.',
       });
     }
 

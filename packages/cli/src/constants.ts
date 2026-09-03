@@ -95,8 +95,6 @@ export const EAS_IOS_URL_OPTION = 'easIosUrl';
 export const EAS_UPDATE_SLUG_OPTION = 'easUpdateSlug';
 export const IOS_OPTION = 'ios';
 export const MESSAGE_OPTION = 'message';
-/** Test a declared sim world instead of a real app (see commands/test/simRun). */
-export const SIM_OPTION = 'sim';
 export const PROFILE_OPTION = 'profile';
 export const PROJECT_ROOT_OPTION = 'projectRoot';
 export const TOKEN_OPTION = 'token';

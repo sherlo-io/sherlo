@@ -16,11 +16,12 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { DEFAULT_PROJECT_ROOT } from '../../constants';
+import { DEFAULT_CONFIG_FILENAME, DEFAULT_PROJECT_ROOT } from '../../constants';
+import parseConfigFile from '../../helpers/getValidatedCommandParams/getNormalizedConfig/parseConfigFile';
 import throwError from '../../helpers/throwError';
 
-/** The world file `sherlo test` auto-detects in the project root. */
-export const SIM_WORLD_FILENAME = 'sim-world.json';
+/** The config field that declares a run's sim world - its presence IS sim mode. */
+export const SIMULATION_CONFIG_FIELD = 'simulation';
 
 /** The one world-file format version this CLI understands. */
 export const SIM_WORLD_VERSION = 1;
@@ -58,24 +59,47 @@ export type ValidatedSimWorld = {
 const OUTCOME_STRINGS = ['ok', 'crash-on-launch', 'system-error'] as const;
 
 /**
- * Where this run's sim world lives, if anywhere: the explicit `--sim <path>`
- * wins, else a `sim-world.json` sitting in the project root is auto-detected.
- * Returns undefined when neither applies - the run is not a sim run.
+ * Where this run's sim world lives, if anywhere: SOLELY the `simulation` field
+ * of the config file, holding a path relative to that config file's directory.
+ * Present -> sim mode, reading the world from there. Absent -> undefined, and
+ * the run is a normal one. There is no file sniffing and no flag.
  */
-export function resolveSimWorldPath(options: {
-  sim?: string;
+export function resolveSimulationWorldPath(options: {
+  config?: string;
   projectRoot?: string;
-}): { filePath: string; explicit: boolean } | undefined {
-  if (options.sim !== undefined) {
-    return { filePath: options.sim, explicit: true };
+}): string | undefined {
+  const configFilePath = path.resolve(
+    options.projectRoot || DEFAULT_PROJECT_ROOT,
+    options.config || DEFAULT_CONFIG_FILENAME
+  );
+
+  const { simulation } = parseConfigFile(configFilePath) as {
+    simulation?: unknown;
+  };
+
+  if (simulation === undefined) {
+    return undefined;
   }
 
-  const detected = path.join(options.projectRoot || DEFAULT_PROJECT_ROOT, SIM_WORLD_FILENAME);
-  if (fs.existsSync(detected)) {
-    return { filePath: detected, explicit: false };
+  if (typeof simulation !== 'string' || simulation.trim() === '') {
+    throwError({
+      message:
+        `\`${SIMULATION_CONFIG_FIELD}\` in ${configFilePath} must be a non-empty string - the path ` +
+        `of the sim world file, relative to the config file's directory (got ` +
+        `${JSON.stringify(simulation)}).`,
+    });
   }
 
-  return undefined;
+  const worldFilePath = path.resolve(path.dirname(configFilePath), simulation);
+  if (!fs.existsSync(worldFilePath)) {
+    throwError({
+      message:
+        `\`${SIMULATION_CONFIG_FIELD}\` in ${configFilePath} names a sim world file that does not ` +
+        `exist: ${worldFilePath}. The path is resolved relative to the config file's directory.`,
+    });
+  }
+
+  return worldFilePath;
 }
 
 /**
