@@ -211,10 +211,11 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   [MESSAGE_OPTION]: [`--${MESSAGE_OPTION} <message>`, 'Custom message to label the test'],
   [SIM_OPTION]: [
     `--${SIM_OPTION} <path>`,
-    'Test the declared sim world (JSON) at <path> instead of a real app: derive its ' +
-      'module manifest, upload both to staged slots, and open a sim build. No bundler ' +
-      'runs and no binary is needed. Auto-detected from a sim-world.json in the ' +
-      'project root. Cannot be combined with --android/--ios or the bundling flags.',
+    'Test the declared sim world tree at <path> instead of a real app - one JSON file ' +
+      'per module: derive its module manifest, upload both to staged slots, and open a ' +
+      'sim build. No bundler runs and no binary is needed. Auto-detected from a ' +
+      'sim-world/ directory in the project root. Cannot be combined with --android/--ios ' +
+      'or the bundling flags.',
   ],
   [PROFILE_OPTION]: [
     `--${PROFILE_OPTION} <profile>`,

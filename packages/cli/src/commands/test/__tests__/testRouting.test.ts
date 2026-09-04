@@ -17,7 +17,7 @@ vi.mock('../../testStandard', () => ({ default: vi.fn() }));
 vi.mock('../simRun', () => ({ default: vi.fn() }));
 vi.mock('../simWorld', () => ({
   resolveSimWorldPath: vi.fn(),
-  SIM_WORLD_FILENAME: 'sim-world.json',
+  SIM_WORLD_DIRNAME: 'sim-world',
 }));
 
 import _stagedRun from '../stagedRun';
@@ -91,38 +91,38 @@ describe('road choice', () => {
   });
 });
 
-// A sim world (explicit --sim, or a detected sim-world.json) IS the app, so it
+// A sim world (explicit --sim, or a detected sim-world/) IS the app, so it
 // routes to the sim road alone; native build paths and the bundler-road flags
 // are refused alongside it rather than half-honored.
 describe('the sim road', () => {
   it('routes to the SIM road when --sim is passed, handing it the world path', async () => {
-    mockResolveSimWorldPath.mockReturnValue({ filePath: '/worlds/w.json', explicit: true });
-    const options = { token: 'tok', sim: '/worlds/w.json' };
+    mockResolveSimWorldPath.mockReturnValue({ dirPath: '/worlds/w', explicit: true });
+    const options = { token: 'tok', sim: '/worlds/w' };
 
     const result = await test(options);
 
-    expect(mockSimRun).toHaveBeenCalledWith(options, '/worlds/w.json');
+    expect(mockSimRun).toHaveBeenCalledWith(options, '/worlds/w');
     expect(mockStagedRun).not.toHaveBeenCalled();
     expect(mockTestStandard).not.toHaveBeenCalled();
     expect(result).toEqual({ url: 'http://app/sim' });
   });
 
-  it('routes to the SIM road on a DETECTED sim-world.json too', async () => {
+  it('routes to the SIM road on a DETECTED sim-world/ too', async () => {
     mockResolveSimWorldPath.mockReturnValue({
-      filePath: '/proj/sim-world.json',
+      dirPath: '/proj/sim-world',
       explicit: false,
     });
 
     await test({ token: 'tok' });
 
-    expect(mockSimRun).toHaveBeenCalledWith({ token: 'tok' }, '/proj/sim-world.json');
+    expect(mockSimRun).toHaveBeenCalledWith({ token: 'tok' }, '/proj/sim-world');
     expect(mockStagedRun).not.toHaveBeenCalled();
   });
 
   it('refuses a sim world together with native build paths', async () => {
-    mockResolveSimWorldPath.mockReturnValue({ filePath: '/worlds/w.json', explicit: true });
+    mockResolveSimWorldPath.mockReturnValue({ dirPath: '/worlds/w', explicit: true });
 
-    await expect(test({ token: 'tok', sim: '/worlds/w.json', android: 'app.apk' })).rejects.toThrow(
+    await expect(test({ token: 'tok', sim: '/worlds/w', android: 'app.apk' })).rejects.toThrow(
       /--sim.*cannot be\s+combined with.*--android/s
     );
 
@@ -137,9 +137,9 @@ describe('the sim road', () => {
     ['--emit-bundle-dir', { emitBundleDir: '/tmp/bundles' }],
     ['--emit-expectation', { dryRun: true, emitExpectation: 'token-missing' }],
   ])('refuses a sim world together with %s', async (flagName, flags) => {
-    mockResolveSimWorldPath.mockReturnValue({ filePath: '/worlds/w.json', explicit: true });
+    mockResolveSimWorldPath.mockReturnValue({ dirPath: '/worlds/w', explicit: true });
 
-    await expect(test({ token: 'tok', sim: '/worlds/w.json', ...flags })).rejects.toThrow(
+    await expect(test({ token: 'tok', sim: '/worlds/w', ...flags })).rejects.toThrow(
       /runs no\s+bundler/
     );
 

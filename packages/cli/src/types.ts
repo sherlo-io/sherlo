@@ -157,10 +157,10 @@ type CommandOptions = {
      */
     [RENDER_TRANSCRIPT_OPTION]?: string;
     /**
-     * Sim mode: test the declared JSON world at <path> instead of a real app.
-     * The CLI derives the module manifest from the world file and opens a sim
-     * build - no bundler, no binary, no native base. Also auto-detected from a
-     * `sim-world.json` in the project root. Refused together with native build
+     * Sim mode: test the declared world TREE at <path> instead of a real app -
+     * one JSON file per module. The CLI derives the module manifest from that
+     * tree and opens a sim build - no bundler, no binary, no native base. Also
+     * auto-detected from a `sim-world/` directory in the project root. Refused together with native build
      * paths and the bundler-road preview/supply flags. See ../commands/test/simRun.
      */
     [SIM_OPTION]?: string;
