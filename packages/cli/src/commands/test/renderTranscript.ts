@@ -315,6 +315,7 @@ function toBundleResult(scripted: ScriptedBundle): BundleResult {
 
   return {
     bundlePath: scripted.bundlePath,
+    entryFile: 'node_modules/.cache/sherlo/entry.js',
     bundleFormat: scripted.bundleFormat,
     bundleSizeMb: scripted.bundleSizeMb,
     bundleHash: 'scenario-bundle-hash',

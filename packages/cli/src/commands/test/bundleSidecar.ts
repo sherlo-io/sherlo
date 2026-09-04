@@ -559,7 +559,9 @@ export function moduleManifestAppSourceInputs(manifest: {
         typeof entry?.generatedBy === 'string' &&
         Array.isArray(entry?.inputs) &&
         entry.inputs.every((input: unknown) => typeof input === 'string');
-      if (isWellFormed) generatedFiles[filePath] = { generatedBy: entry.generatedBy, inputs: entry.inputs };
+      if (isWellFormed) {
+        generatedFiles[filePath] = { generatedBy: entry.generatedBy, inputs: entry.inputs };
+      }
     }
   }
 

@@ -35,8 +35,18 @@ describe('SherloModule dummy (no native module)', () => {
     expect(typeof config.stabilization.requiredMatches).toBe('number');
   });
 
-  it('sendNativeError() does not throw', () => {
-    expect(() => SherloModule.sendNativeError('ERROR_CODE', 'message')).not.toThrow();
+  it('invoke() rejects with a sherlo_no_native_module error - absence must never look like an empty answer', async () => {
+    await expect(SherloModule.invoke('anyCapability')).rejects.toMatchObject({
+      code: 'sherlo_no_native_module',
+    });
+  });
+
+  it('invokeSync() returns the same ok:false envelope shape the shim uses when refusing', () => {
+    expect(SherloModule.invokeSync('anyCapability')).toEqual({
+      ok: false,
+      code: 'sherlo_no_native_module',
+      message: expect.any(String),
+    });
   });
 
   it('appendFile() resolves without throwing', async () => {
@@ -53,21 +63,6 @@ describe('SherloModule dummy (no native module)', () => {
 
   it('toggleStorybook() does not throw', () => {
     expect(() => SherloModule.toggleStorybook()).not.toThrow();
-  });
-
-  it('isScrollable() resolves to non-scrollable', async () => {
-    const result = await SherloModule.isScrollable();
-    expect(result.scrollable).toBe(false);
-  });
-
-  it('scrollToCheckpoint() resolves with reachedBottom=true', async () => {
-    const result = await SherloModule.scrollToCheckpoint(0, 0, 10);
-    expect(result.reachedBottom).toBe(true);
-  });
-
-  it('stabilize() resolves to true', async () => {
-    const result = await SherloModule.stabilize(3, 3, 500, 5000, true, 0.0, true);
-    expect(result).toBe(true);
   });
 
   it('notifyGetStorybookCalled() does not throw', () => {

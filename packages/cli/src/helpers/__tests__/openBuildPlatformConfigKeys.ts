@@ -25,5 +25,7 @@ export const BUILD_RUN_CONFIG_PLATFORM_INPUT_KEYS = new Set([
 
 /** The keys on a platform config the api would reject. */
 export function keysTheApiRejects(platformConfig: object): string[] {
-  return Object.keys(platformConfig).filter((key) => !BUILD_RUN_CONFIG_PLATFORM_INPUT_KEYS.has(key));
+  return Object.keys(platformConfig).filter(
+    (key) => !BUILD_RUN_CONFIG_PLATFORM_INPUT_KEYS.has(key)
+  );
 }

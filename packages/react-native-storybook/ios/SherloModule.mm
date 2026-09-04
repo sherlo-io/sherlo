@@ -1,9 +1,22 @@
+/**
+ * THE SHIM. This is the code that ships inside a customer's app.
+ *
+ * getSherloConstants and setMode (the one invokeSync builtin) prefer whatever
+ * implementation SherloShimRegisterImplV1 registered, and fall back to the
+ * pre-main read SherloModuleCore already did when nothing is injected;
+ * reportEarlyJsError, appendFile and readFile forward to the implementation
+ * unconditionally, because the shim writes nothing to protocol.sherlo on its
+ * own. `invoke`/`invokeSync` are pure transports - the shim never inspects the
+ * name it is carrying.
+ */
 #import "SherloModule.h"
 #import <React/RCTUtils.h>
 #import <React/RCTUIManagerUtils.h>
 #import <React/RCTBridge.h>
 #import "SherloModuleCore.h"
-#import "SherloIOSExceptionHandler.h"
+#import "SherloImplV1.h"
+
+#import <atomic>
 
 @implementation SherloModule
 
@@ -17,9 +30,6 @@ static SherloModuleCore *core;
 __attribute__((constructor))
 static void SherloEarlyInit(void) {
   core = [[SherloModuleCore alloc] init];
-  if ([[SherloModuleCore currentMode] isEqualToString:@"testing"]) {
-    [SherloIOSExceptionHandler install];
-  }
 }
 
 /**
@@ -34,144 +44,188 @@ static void SherloEarlyInit(void) {
     return RCTGetUIManagerQueue();
 }
 
-#ifdef RCT_NEW_ARCH_ENABLED // ------------------- NEW ARCH -------------------
+// ---------------------------------------------------------------------------
+// The dispatch table.
+// ---------------------------------------------------------------------------
 
 /**
- * Returns the Sherlo constants.
+ * Written once, pre-main, by the injected dylib's load constructor. Read later,
+ * from whichever thread JS happens to call on. Atomic because "written on one
+ * thread before any read on another" needs the release/acquire pair to be
+ * guaranteed, not merely true in practice on arm64.
+ */
+static std::atomic<SherloImplV1 *> gImpl{nullptr};
+
+/** Diagnostics only - never consulted for dispatch. */
+static NSString *gRefusedReason = nil;
+
+extern "C" __attribute__((used, visibility("default")))
+void SherloShimRegisterImplV1(SherloImplV1 *impl) {
+  if (impl == NULL) {
+    gRefusedReason = @"implementation registered a NULL struct";
+    return;
+  }
+
+  // Refuse by name rather than calling into an ABI we do not understand. A
+  // wrong-version implementation is a Sherlo bug the customer cannot fix, so it
+  // has to be loud on our side and harmless on theirs.
+  if (impl->abiVersion != SHERLO_ABI_VERSION_V1) {
+    gRefusedReason = [NSString stringWithFormat:
+        @"implementation declares ABI v%d, this shim speaks v%d",
+        impl->abiVersion, SHERLO_ABI_VERSION_V1];
+    NSLog(@"[SherloModule] REFUSED: %@", gRefusedReason);
+    return;
+  }
+
+  if (impl->getSherloConstants == NULL || impl->reportEarlyJsError == NULL ||
+      impl->appendFile == NULL || impl->readFile == NULL || impl->invoke == NULL ||
+      impl->invokeSync == NULL) {
+    gRefusedReason = @"implementation left a required slot NULL";
+    NSLog(@"[SherloModule] REFUSED: %@", gRefusedReason);
+    return;
+  }
+
+  gImpl.store(impl, std::memory_order_release);
+  NSLog(@"[SherloModule] accepted implementation %s (ABI v%d)",
+        impl->implVersion ? impl->implVersion : "(unnamed)", impl->abiVersion);
+}
+
+// ---------------------------------------------------------------------------
+// The six-method spec.
+// ---------------------------------------------------------------------------
+
+/**
+ * SYNCHRONOUS, same as invokeSync's setMode: the implementation wins when
+ * registered (see SherloImplV1.h's getSherloConstants doc - by the time this
+ * can possibly be called, an implementation loaded pre-main is already
+ * registered), and the shim's own pre-main read (SherloModuleCore) is the
+ * FALLBACK for a customer running with nothing injected at all.
  */
 - (NSDictionary *)getSherloConstants {
+    SherloImplV1 *impl = gImpl.load(std::memory_order_acquire);
+    if (impl != NULL) {
+        NSString *json = impl->getSherloConstants();
+        NSData *data = json ? [json dataUsingEncoding:NSUTF8StringEncoding] : nil;
+        id parsed = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+        if ([parsed isKindOfClass:NSDictionary.class]) {
+            return parsed;
+        }
+    }
     return [core getSherloConstants];
 }
 
-/**
- * Toggles between Storybook and default modes.
- */
-- (void)toggleStorybook
-{
-  [core toggleStorybook:self.bridge];
-}
-
-/**
- * Explicitly switches to Storybook mode.
- */
-- (void)openStorybook
-{
-  [core openStorybook:self.bridge];
-}
-
-/**
- * Explicitly switches to default mode.
- */
-- (void)closeStorybook
-{
-  [core closeStorybook:self.bridge];
-}
-
-/**
- * Sends a native error by writing a NATIVE_ERROR JSON line to protocol.sherlo.
- */
-- (void)sendNativeError:(NSString *)errorCode
-                message:(NSString *)message
-               dataJson:(NSString *)dataJson
-{
-  [core sendNativeError:errorCode message:message dataJson:dataJson];
-}
-
-/**
- * Synchronously writes a JS_ERROR entry for module-eval errors caught by the __r polyfill.
- * Must not throw - called from a polyfill catch block.
- */
 - (NSNumber *)reportEarlyJsError:(NSString *)name
                          message:(NSString *)message
                            stack:(NSString *)stack
 {
-  return [core reportEarlyJsError:name message:message stack:stack] ? @YES : @NO;
+  SherloImplV1 *impl = gImpl.load(std::memory_order_acquire);
+  if (impl == NULL) {
+    return @NO;
+  }
+  return @(impl->reportEarlyJsError(name ?: @"", message ?: @"", stack ?: @""));
 }
 
-/**
- * Appends base64 encoded content to a file.
- */
 - (void)appendFile:(NSString *)path
           content:(NSString *)content
           resolve:(RCTPromiseResolveBlock)resolve
            reject:(RCTPromiseRejectBlock)reject
 {
-  [core appendFile:path withContent:content resolve:resolve reject:reject];
+  SherloImplV1 *impl = gImpl.load(std::memory_order_acquire);
+  if (impl == NULL) {
+    reject(@"sherlo_no_implementation", @"the shim is present but nothing was injected", nil);
+    return;
+  }
+  impl->appendFile(path ?: @"", content ?: @"",
+                   ^(NSString *value) { resolve(value); },
+                   ^(NSString *code, NSString *message) { reject(code, message, nil); });
 }
 
-/**
- * Reads a file and returns its contents as base64 encoded string.
- */
 - (void)readFile:(NSString *)path
         resolve:(RCTPromiseResolveBlock)resolve
          reject:(RCTPromiseRejectBlock)reject
 {
-  [core readFile:path resolve:resolve reject:reject];
+  SherloImplV1 *impl = gImpl.load(std::memory_order_acquire);
+  if (impl == NULL) {
+    reject(@"sherlo_no_implementation", @"the shim is present but nothing was injected", nil);
+    return;
+  }
+  impl->readFile(path ?: @"",
+                 ^(NSString *value) { resolve(value); },
+                 ^(NSString *code, NSString *message) { reject(code, message, nil); });
 }
 
-/**
- * Gets UI inspector data from the current view hierarchy.
- */
-- (void)getInspectorData:(RCTPromiseResolveBlock)resolve
-                 reject:(RCTPromiseRejectBlock)reject
+- (void)invoke:(NSString *)name
+      argsJson:(NSString *)argsJson
+       resolve:(RCTPromiseResolveBlock)resolve
+        reject:(RCTPromiseRejectBlock)reject
 {
-  [core getInspectorData:resolve reject:reject];
+  SherloImplV1 *impl = gImpl.load(std::memory_order_acquire);
+  if (impl == NULL) {
+    // Reject rather than resolve-with-nothing. A caller awaiting this must be
+    // able to tell "Sherlo is not attached" from "Sherlo did the work and the
+    // answer was empty", and a resolved Promise cannot carry that difference.
+    reject(@"sherlo_no_implementation", @"the shim is present but nothing was injected", nil);
+    return;
+  }
+  impl->invoke(name ?: @"", argsJson ?: @"{}",
+               ^(NSString *value) { resolve(value); },
+               ^(NSString *code, NSString *message) { reject(code, message, nil); });
 }
 
 /**
- * Checks UI stability by comparing screenshots taken over a specified interval.
+ * THE SHIM'S ONE BUILTIN.
+ *
+ * `setMode` is reachable only through invokeSync - it is the developer path,
+ * openStorybook()/toggleStorybook() called on a machine with nothing injected,
+ * so it has to answer synchronously with no implementation in the picture at
+ * all. Deliberately mechanical: set a flag, reload. No policy, because policy
+ * frozen at a customer's build can never be corrected. An injected
+ * implementation is consulted FIRST and can override it - see invokeSync below.
+ *
+ * Returns nil when the name is not a builtin, so the caller falls through.
  */
-- (void)stabilize:(double)requiredMatches
-        minScreenshotsCount:(double)minScreenshotsCount
-       intervalMs:(double)intervalMs
-        timeoutMs:(double)timeoutMs
-  saveScreenshots:(BOOL)saveScreenshots
-        threshold:(double)threshold
-        includeAA:(BOOL)includeAA
-         resolve:(RCTPromiseResolveBlock)resolve
-          reject:(RCTPromiseRejectBlock)reject
-{
-  [core stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs saveScreenshots:saveScreenshots threshold:threshold includeAA:includeAA resolve:resolve reject:reject];
+static NSString *SherloModuleBuiltin(NSString *name, NSDictionary *args) {
+  if ([name isEqualToString:@"setMode"]) {
+    NSString *mode = args[@"mode"];
+    if (![mode isKindOfClass:NSString.class]) {
+      return @"{\"ok\":false,\"code\":\"BAD_ARGS\",\"message\":\"setMode needs a mode string\"}";
+    }
+
+    [core setMode:mode reload:[args[@"reload"] boolValue]];
+    return @"{\"ok\":true,\"value\":null}";
+  }
+
+  return nil;
 }
 
-/**
- * Native paint barrier: resolves on the next real display frame.
- */
-- (void)awaitFrameCommit:(double)timeoutMs
-                 resolve:(RCTPromiseResolveBlock)resolve
-                  reject:(RCTPromiseRejectBlock)reject
-{
-  [core awaitFrameCommit:timeoutMs resolve:resolve reject:reject];
-}
+- (NSString *)invokeSync:(NSString *)name argsJson:(NSString *)argsJson {
+  SherloImplV1 *impl = gImpl.load(std::memory_order_acquire);
 
-/**
- * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
- */
-- (void)isScrollable:(RCTPromiseResolveBlock)resolve
-                      reject:(RCTPromiseRejectBlock)reject
-{
-  [core isScrollable:resolve reject:reject];
-}
+  // The implementation wins when present, so a test run can behave differently
+  // from a developer toggle. The builtin is the FALLBACK, not an override.
+  if (impl != NULL) {
+    // Copied immediately: the implementation owns the returned string only
+    // until its next call on this thread.
+    NSString *result = [NSString stringWithString:impl->invokeSync(name ?: @"", argsJson ?: @"{}")];
 
-/**
- * Deterministically scrolls to a checkpoint index.
- */
-- (void)scrollToCheckpoint:(double)index
-                    offset:(double)offset
-                  maxIndex:(double)maxIndex
-                   resolve:(RCTPromiseResolveBlock)resolve
-                    reject:(RCTPromiseRejectBlock)reject
-{
-  [core scrollToCheckpoint:index offset:offset maxIndex:maxIndex resolve:resolve reject:reject];
-}
+    // An implementation that does not know this name is not an error here -
+    // the shim may still handle it. That is what lets a NEWER customer binary
+    // work with an OLDER implementation.
+    if (![result containsString:@"UNKNOWN_METHOD"]) return result;
+  }
 
-/**
- * Cancel signal for the native NOT_DISPLAYED watchdog timer.
- * Called from JS getStorybook() synchronously to indicate Storybook is being used.
- */
-- (void)notifyGetStorybookCalled {
-  [SherloModuleCore setGetStorybookCalled];
-  [SherloModuleCore cancelStorybookNotDisplayedTimer];
+  NSData *data = [(argsJson ?: @"{}") dataUsingEncoding:NSUTF8StringEncoding];
+  id parsed = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+  NSDictionary *args = [parsed isKindOfClass:NSDictionary.class] ? parsed : @{};
+
+  NSString *builtin = SherloModuleBuiltin(name ?: @"", args);
+  if (builtin != nil) return builtin;
+
+  if (impl == NULL) {
+    return @"{\"ok\":false,\"code\":\"sherlo_no_implementation\","
+           @"\"message\":\"the shim is present but nothing was injected\"}";
+  }
+  return @"{\"ok\":false,\"code\":\"UNKNOWN_METHOD\",\"message\":\"no implementation and no builtin\"}";
 }
 
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
@@ -179,135 +233,5 @@ static void SherloEarlyInit(void) {
 {
   return std::make_shared<facebook::react::NativeSherloModuleSpecJSI>(params);
 }
-
-#else // ------------------- OLD ARCH -------------------
-
-/**
- * Returns the Sherlo constants.
- */
-- (NSDictionary *)constantsToExport
-{
-  return [core getSherloConstants];
-}
-
-/**
- * Toggles between Storybook and default modes.
- */
-RCT_EXPORT_METHOD(toggleStorybook) {
-  [core toggleStorybook:self.bridge];
-}
-
-/**
- * Explicitly switches to Storybook mode.
- */
-RCT_EXPORT_METHOD(openStorybook) {
-  [core openStorybook:self.bridge];
-}
-
-/**
- * Explicitly switches to default mode.
- */
-RCT_EXPORT_METHOD(closeStorybook) {
-  [core closeStorybook:self.bridge];
-}
-
-/**
- * Sends a native error by writing a NATIVE_ERROR JSON line to protocol.sherlo.
- */
-RCT_EXPORT_METHOD(sendNativeError:(NSString *)errorCode
-                  message:(NSString *)message
-                  dataJson:(NSString *)dataJson) {
-  [core sendNativeError:errorCode message:message dataJson:dataJson];
-}
-
-/**
- * Synchronously writes a JS_ERROR entry for module-eval errors caught by the __r polyfill.
- */
-RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(reportEarlyJsError:(NSString *)name
-                                       message:(NSString *)message
-                                         stack:(NSString *)stack) {
-  return [self reportEarlyJsError:name message:message stack:stack];
-}
-
-/**
- * Appends base64 encoded content to a file.
- */
-RCT_EXPORT_METHOD(appendFile:(NSString *)path
-                  withContent:(NSString *)content
-                     resolver:(RCTPromiseResolveBlock)resolve
-                     rejecter:(RCTPromiseRejectBlock)reject) {
-  [core appendFile:path withContent:content resolve:resolve reject:reject];
-}
-
-/**
- * Reads a file and returns its contents as base64 encoded string.
- */
-RCT_EXPORT_METHOD(readFile:(NSString *)path
-                  resolve:(RCTPromiseResolveBlock)resolve
-                   reject:(RCTPromiseRejectBlock)reject) {
-  [core readFile:path resolve:resolve reject:reject];
-}
-
-/**
- * Gets UI inspector data from the current view hierarchy.
- */
-RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve
-                  reject:(RCTPromiseRejectBlock)reject) {
-  [core getInspectorData:resolve reject:reject];
-}
-
-/**
- * Checks UI stability by comparing screenshots taken over a specified interval.
- */
-RCT_EXPORT_METHOD(stabilize:(double)requiredMatches
-                  minScreenshotsCount:(double)minScreenshotsCount
-                 intervalMs:(double)intervalMs
-                  timeoutMs:(double)timeoutMs
-                  saveScreenshots:(BOOL)saveScreenshots
-                  threshold:(double)threshold
-                  includeAA:(BOOL)includeAA
-                   resolve:(RCTPromiseResolveBlock)resolve
-                   reject:(RCTPromiseRejectBlock)reject) {
-  [core stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs saveScreenshots:saveScreenshots threshold:threshold includeAA:includeAA resolve:resolve reject:reject];
-}
-
-/**
- * Native paint barrier: resolves on the next real display frame.
- */
-RCT_EXPORT_METHOD(awaitFrameCommit:(double)timeoutMs
-                  resolve:(RCTPromiseResolveBlock)resolve
-                  reject:(RCTPromiseRejectBlock)reject) {
-  [core awaitFrameCommit:timeoutMs resolve:resolve reject:reject];
-}
-
-/**
- * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
- */
-RCT_EXPORT_METHOD(isScrollable:(RCTPromiseResolveBlock)resolve
-                  reject:(RCTPromiseRejectBlock)reject) {
-  [core isScrollable:resolve reject:reject];
-}
-
-/**
- * Deterministically scrolls to a checkpoint index.
- */
-RCT_EXPORT_METHOD(scrollToCheckpoint:(double)index
-                  offset:(double)offset
-                  maxIndex:(double)maxIndex
-                   resolve:(RCTPromiseResolveBlock)resolve
-                   reject:(RCTPromiseRejectBlock)reject) {
-  [core scrollToCheckpoint:index offset:offset maxIndex:maxIndex resolve:resolve reject:reject];
-}
-
-/**
- * Cancel signal for the native NOT_DISPLAYED watchdog timer.
- * Called from JS getStorybook() synchronously to indicate Storybook is being used.
- */
-RCT_EXPORT_METHOD(notifyGetStorybookCalled) {
-  [SherloModuleCore setGetStorybookCalled];
-  [SherloModuleCore cancelStorybookNotDisplayedTimer];
-}
-
-#endif
 
 @end
