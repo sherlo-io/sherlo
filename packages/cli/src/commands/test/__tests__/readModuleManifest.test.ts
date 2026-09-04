@@ -54,7 +54,7 @@ describe('readValidatedModuleManifest - happy path', () => {
     expect(result!.parsed.storyClosures['./src/Button.stories.tsx']).toEqual(['./src/Button.tsx']);
   });
 
-  it('OLD emitter shape (version 1, no seamVersion/platform in header) still validates - a new CLI must keep reading an old SDK\'s manifest', () => {
+  it("OLD emitter shape (version 1, no seamVersion/platform in header) still validates - a new CLI must keep reading an old SDK's manifest", () => {
     // validManifest() above IS the old shape: no seamVersion, no platform.
     // This test names that fact explicitly rather than leaving it implicit.
     writeManifest(JSON.stringify(validManifest()));

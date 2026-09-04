@@ -35,11 +35,7 @@ import path from 'path';
 import { Platform } from '@sherlo/api-types';
 import { emit } from '../../helpers/transcriptSink';
 import type { GateMetadataInput } from '../../helpers/fingerprint';
-import {
-  diffFiles,
-  diffPackages,
-  type DeltaEntry,
-} from '../fingerprint/diffFingerprintDocuments';
+import { diffFiles, diffPackages, type DeltaEntry } from '../fingerprint/diffFingerprintDocuments';
 import { FALLBACK_LINE as SHARED_FALLBACK_LINE } from './stagedGateRefusal';
 import { inspectBundleArtifacts, type BundleResult } from './buildBundle';
 import { validateModuleManifestBuffer } from './readModuleManifest';
@@ -421,7 +417,9 @@ export function compareAppSource({
 function nameEntries(entries: DeltaEntry[]): string {
   if (entries.length === 0) return '';
 
-  const named = entries.slice(0, MAX_NAMED_ENTRIES).map((entry) => `\n      ${describeEntry(entry)}`);
+  const named = entries
+    .slice(0, MAX_NAMED_ENTRIES)
+    .map((entry) => `\n      ${describeEntry(entry)}`);
   const rest = entries.length - named.length;
   return named.join('') + (rest > 0 ? `\n      ... and ${rest} more` : '');
 }

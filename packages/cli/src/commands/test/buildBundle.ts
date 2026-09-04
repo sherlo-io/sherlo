@@ -239,9 +239,10 @@ function generateSherloEntry(projectRoot: string, realEntry: string): string {
     }
     throw err;
   }
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const entryModule: { generateEntry: (projectRoot: string, realEntry: string) => string } =
-    require(entryModulePath);
+
+  const entryModule: {
+    generateEntry: (projectRoot: string, realEntry: string) => string;
+  } = require(entryModulePath);
   return entryModule.generateEntry(projectRoot, realEntry);
 }
 

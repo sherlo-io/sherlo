@@ -842,7 +842,7 @@ describe('buildBundleForPlatform - generated entry, feature-detected', () => {
     return seen;
   }
 
-  it('OLD package shape (no metro/entry.js) - falls back to detectEntryFile\'s result, byte for byte', async () => {
+  it("OLD package shape (no metro/entry.js) - falls back to detectEntryFile's result, byte for byte", async () => {
     // No node_modules/@sherlo/react-native-storybook at all in tempDir: this is
     // exactly what every other test in this file already exercises, made explicit.
     const entryFileArgs = captureEntryFileArg(plainJsBundle());
@@ -888,7 +888,13 @@ describe('buildBundleForPlatform - generated entry, feature-detected', () => {
       platform: 'android' as Platform,
     });
 
-    const expectedGeneratedPath = path.join(tempDir, 'node_modules', '.cache', 'sherlo', 'entry.js');
+    const expectedGeneratedPath = path.join(
+      tempDir,
+      'node_modules',
+      '.cache',
+      'sherlo',
+      'entry.js'
+    );
     expect(result.entryFile).toBe(expectedGeneratedPath);
     expect(entryFileArgs).toEqual([expectedGeneratedPath]);
     expect(fs.existsSync(expectedGeneratedPath)).toBe(true);

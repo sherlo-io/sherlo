@@ -173,11 +173,15 @@ function digestDirectory(directory: string): string {
     for (const entry of entries) {
       const relativePath = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
       if (entry.isDirectory()) {
-        if (!SKIPPED_DIRECTORY_NAMES.has(entry.name)) walk(path.join(dir, entry.name), relativePath);
+        if (!SKIPPED_DIRECTORY_NAMES.has(entry.name)) {
+          walk(path.join(dir, entry.name), relativePath);
+        }
         continue;
       }
       if (!entry.isFile() || SKIPPED_FILE_NAMES.has(entry.name)) continue;
-      hash.update(`${relativePath}:${sha256OfBuffer(fs.readFileSync(path.join(dir, entry.name)))}\n`);
+      hash.update(
+        `${relativePath}:${sha256OfBuffer(fs.readFileSync(path.join(dir, entry.name)))}\n`
+      );
     }
   }
 
