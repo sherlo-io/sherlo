@@ -2974,14 +2974,14 @@ __metadata:
     deepmerge: "npm:4.3.1"
     its-fine: "npm:2.0.0"
     react-native-safe-area-context: "npm:4.11.0"
-    sherlo: "npm:^2.0.2"
+    terser: "npm:^5.46.0"
     typescript: "npm:^5.3.3"
     utf8: "npm:3.0.0"
     vitest: "npm:^4.0.0"
   peerDependencies:
     "@storybook/react-native": ">=8.0.0"
     react: "*"
-    react-native: ">=0.74.0"
+    react-native: ">=0.76.0"
     react-native-safe-area-context: "*"
   languageName: unknown
   linkType: soft
@@ -11557,7 +11557,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sherlo@npm:^2.0.2, sherlo@workspace:packages/cli":
+"sherlo@workspace:packages/cli":
   version: 0.0.0-use.local
   resolution: "sherlo@workspace:packages/cli"
   dependencies:
@@ -12174,6 +12174,20 @@ __metadata:
   bin:
     terser: bin/terser
   checksum: 10/331e4f5a165d91d16ac6a95b510d4f5ef24679e4bc9e1b4e4182e89b7245f614d24ce0def583e2ca3ca45f82ba810991e0c5b66dd4353a6e0b7082786af6bd35
+  languageName: node
+  linkType: hard
+
+"terser@npm:^5.46.0":
+  version: 5.51.2
+  resolution: "terser@npm:5.51.2"
+  dependencies:
+    "@jridgewell/source-map": "npm:^0.3.3"
+    acorn: "npm:^8.15.0"
+    commander: "npm:^2.20.0"
+    source-map-support: "npm:~0.5.20"
+  bin:
+    terser: bin/terser
+  checksum: 10/1cb6f4189eba6406ef3aad5356ce1441bfe5ab419b5e66a1054db254fd92ce881d6c4718097621044c777922282640397104fb22e651974245bbabd5e138f3d9
   languageName: node
   linkType: hard
 
