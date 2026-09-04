@@ -13,6 +13,17 @@ interface SherloConstants {
   nativeVersion: string | null;
 }
 
+/**
+ * The raw result envelope of invokeSync: `{"ok":true,"value":T}` or
+ * `{"ok":false,"code":"...","message":"..."}`. Returned UNCHANGED, never
+ * unwrapped to just `value` - unwrapping would throw away a not-ok answer's
+ * code, making absence look like an empty answer on this path too (the same
+ * class of bug the dummy module's invoke/invokeSync were fixed for). This is
+ * also the shape sherlo-runner's private runtime was ported against (see the
+ * PoC's src/module.js invokeSync).
+ */
+type InvokeSyncEnvelope<T> = { ok: boolean; value?: T; code?: string; message?: string };
+
 type SherloModule = {
   isTurboModule: boolean;
   getMode: () => StorybookViewMode;
@@ -35,7 +46,10 @@ type SherloModule = {
    * calls capabilities by name, never through a method this file grows.
    */
   invoke: <T = unknown>(name: string, args?: Record<string, unknown>) => Promise<T>;
-  invokeSync: <T = unknown>(name: string, args?: Record<string, unknown>) => T | undefined;
+  invokeSync: <T = unknown>(
+    name: string,
+    args?: Record<string, unknown>
+  ) => InvokeSyncEnvelope<T> | undefined;
   /**
    * Re-exported so the seam (src/seam.js, resolved from `dist/SherloModule.js`
    * - an already-frozen export path) can reach the protocol file names
@@ -77,11 +91,12 @@ function createSherloModule(module: Spec): SherloModule {
     return raw ? (JSON.parse(raw) as T) : (undefined as T);
   }
 
-  /** Result envelope of invokeSync: `{"ok":true,"value":T}` or `{"ok":false,...}`. */
-  function invokeSync<T>(name: string, args: Record<string, unknown> = {}): T | undefined {
+  function invokeSync<T>(
+    name: string,
+    args: Record<string, unknown> = {}
+  ): InvokeSyncEnvelope<T> | undefined {
     const raw = module.invokeSync(name, JSON.stringify(args));
-    const envelope = JSON.parse(raw) as { ok: boolean; value?: T };
-    return envelope.ok ? envelope.value : undefined;
+    return raw ? (JSON.parse(raw) as InvokeSyncEnvelope<T>) : undefined;
   }
 
   const sherloModule: SherloModule = {
@@ -160,15 +175,14 @@ function createDummySherloModule(): SherloModule {
       error.code = NO_NATIVE_MODULE_CODE;
       return Promise.reject(error);
     },
-    // Mirrors the envelope shape the shim's own invokeSync returns when
-    // nothing is injected: {"ok":false,"code":"...","message":"..."} - not
-    // the unwrapped `value` a successful call would return.
-    invokeSync: <T = unknown>(): T =>
-      ({
-        ok: false,
-        code: NO_NATIVE_MODULE_CODE,
-        message: NO_NATIVE_MODULE_MESSAGE,
-      } as unknown as T),
+    // The same envelope shape the shim's own invokeSync returns when nothing
+    // is injected - invokeSync never unwraps to a bare value (see live's
+    // invokeSync and InvokeSyncEnvelope's doc comment).
+    invokeSync: <T = unknown>(): InvokeSyncEnvelope<T> => ({
+      ok: false,
+      code: NO_NATIVE_MODULE_CODE,
+      message: NO_NATIVE_MODULE_MESSAGE,
+    }),
     // IMPORTANT: We should make sure that the mode is always 'default'
     // because if user doesn't want to supply native library in their production
     // build, this will be the value returned.
