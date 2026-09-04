@@ -1,24 +1,48 @@
-import React, { ReactElement, useEffect, useRef } from 'react';
+import React, { ReactElement, useEffect } from 'react';
 import SherloModule from '../SherloModule';
 import type { InitialSelection } from '@storybook/react-native';
 import { StorybookParams, StorybookView } from '../types';
-import { TestingMode } from './components';
 import { getStorybookComponent } from './helpers';
 import { useHideSplashScreen } from './hooks';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import SherloStoryErrorBoundary from './components/SherloStoryErrorBoundary';
-import { LOG_FILE, PROTOCOL_FILE } from '../constants';
-import {
-  getStorybookChannel,
-  startStoryRenderedTracking,
-} from './components/TestingMode/useTestAllStories/storyRenderedReadiness';
+import { getStorybookChannel } from './storybookChannel';
 import {
   startInteractiveMockActivation,
   stopInteractiveMockActivation,
 } from './interactiveMockActivation';
 
+interface SherloHost {
+  storybook: { view: StorybookView; params: StorybookParams | undefined } | null;
+  takenOverBy: React.ComponentType | null;
+}
+
+function getHost(): SherloHost | undefined {
+  return (globalThis as unknown as { __SHERLO_HOST__?: SherloHost }).__SHERLO_HOST__;
+}
+
+/**
+ * THE PUBLIC HALF ONLY. Everything downstream of this - story enumeration,
+ * the capture loop, readiness, mock activation IN TESTING MODE, metadata
+ * collection, the runner protocol - is private, reused through the seam by
+ * whatever attaches. This file has exactly one job in testing mode: capture
+ * view/params on the seam (`host.storybook`), install the position-bound
+ * decorator (the only place a story's throw is observable - see
+ * SherloStoryErrorBoundary), and hand rendering off to `host.takenOverBy`
+ * inside a SafeAreaProvider shell that wraps whatever the private runtime
+ * renders. No TestingMode, no protocol writes, no compatibility gate - a
+ * customer on an older or newer native binary than whatever attaches simply
+ * negotiates per capability now, never a blanket refusal.
+ */
 function getStorybook(view: StorybookView, params?: StorybookParams): () => ReactElement {
   const mode = SherloModule.getMode();
+  const host = getHost();
+
+  // The one handle the build-time half captures, for a late-attached runtime
+  // to read - unconditionally, since the runtime decides whether it cares.
+  if (host) {
+    host.storybook = { view, params };
+  }
 
   // Cancel the native NOT_DISPLAYED watchdog: SDK is being activated.
   // Safe in all modes: the dummy SherloModule is a no-op; the real native
@@ -28,13 +52,6 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
   if (mode === 'testing') {
     const testingConfig = SherloModule.getConfig();
     const delayMs = testingConfig.initialStoryRenderDelayMs;
-
-    // Attach the early STORY_RENDERED listener here - the earliest JS access to
-    // the Storybook channel - so a story that renders before useTestStory mounts
-    // is buffered, not missed.
-    try {
-      startStoryRenderedTracking(getStorybookChannel(view));
-    } catch (_e) {}
 
     // Guarded PER PREVIEW, not per getStorybookUI() call: view.getStorybookUI is
     // called from getStorybook() every time the wrapper's patchedStart() runs it,
@@ -107,44 +124,6 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
   return function SherloStorybookEntry() {
     useHideSplashScreen();
 
-    const storybookLoadedReported = useRef(false);
-    const inspectLogReported = useRef(false);
-
-    // Emit STORYBOOK_LOADED after the first render commits so the runner only
-    // sees the signal once the React tree is actually mounted.  Emitting it
-    // synchronously inside patchedStart() (before any render) caused the runner
-    // to mis-classify a mid-render crash as storybookNotDisplayed instead of
-    // appFailedToStart.
-    useEffect(() => {
-      if (!isTestingMode) return;
-      if (storybookLoadedReported.current) return;
-      storybookLoadedReported.current = true;
-      try {
-        if (SherloModule.getMode() === 'testing') {
-          const content = JSON.stringify({
-            action: 'STORYBOOK_LOADED',
-            timestamp: Date.now(),
-            entity: 'app',
-          });
-          SherloModule.appendFile(PROTOCOL_FILE, `${content}\n`);
-        }
-      } catch (_e) {}
-    }, []);
-
-    // Emit INSPECT_STORY_OPENED to log.sherlo so the runner can deterministically
-    // observe that the configured inspect.initialStoryId was applied.
-    useEffect(() => {
-      if (!isStorybookMode) return;
-      if (inspectLogReported.current) return;
-      try {
-        const cfg = SherloModule.getConfig();
-        const storyId = cfg.inspect?.initialStoryId;
-        if (!storyId) return;
-        inspectLogReported.current = true;
-        SherloModule.appendFile(LOG_FILE, `INSPECT_STORY_OPENED:${storyId}\n`);
-      } catch (_e) {}
-    }, []);
-
     // Leaving Storybook (unmount) tears down the mock activation started above:
     // stop tracking selection changes and pass every module through to real again.
     useEffect(() => {
@@ -155,11 +134,8 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     }, []);
 
     if (isTestingMode) {
-      return (
-        <SafeAreaProvider>
-          <TestingMode view={view} params={params} />
-        </SafeAreaProvider>
-      );
+      const TakenOver = getHost()?.takenOverBy;
+      return <SafeAreaProvider>{TakenOver ? <TakenOver /> : null}</SafeAreaProvider>;
     }
 
     const Storybook = getStorybookComponent({ view, params });

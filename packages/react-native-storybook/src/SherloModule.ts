@@ -2,7 +2,7 @@ import base64 from 'base-64';
 import utf8 from 'utf8';
 import isExpoGo from './helpers/isExpoGo';
 import { StorybookViewMode, InspectorData } from './types/types';
-import { Config, LastState } from './helpers/RunnerBridge/types';
+import { Config, LastState } from './helpers/config';
 import TurboModule, { Spec } from './specs/NativeSherloModule';
 import * as constants from './constants';
 
