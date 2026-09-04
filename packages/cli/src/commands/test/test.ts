@@ -26,8 +26,10 @@
  * whatever paths sherlo.config.json happens to carry.
  *
  *   sherlo test   with `"simulation": "<path>"` in sherlo.config.json
- *     THE SIM ROAD. A declared JSON world stands in for the real app: the CLI
- *     derives the module manifest from the world file, uploads both to staged
+ *     THE SIM ROAD. `<path>` names a declared source TREE that stands in for the
+ *     real app - one JSON file per module, so a branch's diff reads like the
+ *     source change it stands for and git merges two of them. The CLI derives
+ *     the module manifest from that tree, uploads it and the world to staged
  *     slots, and opens a sim build - no bundler, no binary, no routing
  *     question. See ./simRun.ts. A sim world cannot be combined with native
  *     build paths or the bundler-road preview/supply flags; the combinations
@@ -50,8 +52,8 @@ import { THIS_COMMAND } from './constants';
 async function test(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
   const hasNativeBuildPaths = Boolean(passedOptions[ANDROID_OPTION] || passedOptions[IOS_OPTION]);
 
-  const simWorldFilePath = resolveSimulationWorldPath(passedOptions);
-  if (simWorldFilePath !== undefined) {
+  const simWorldDirPath = resolveSimulationWorldPath(passedOptions);
+  if (simWorldDirPath !== undefined) {
     const simTrigger = `\`${SIMULATION_CONFIG_FIELD}\` in the config file`;
 
     // A sim world IS the app, so a native binary alongside it could only test
@@ -61,7 +63,7 @@ async function test(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string
         message:
           `${simTrigger} tests a declared world instead of a real app, so it cannot be ` +
           `combined with \`--${ANDROID_OPTION}\` / \`--${IOS_OPTION}\`. Drop the build paths, ` +
-          `or remove the field to test real builds.`,
+          'or remove the field to test real builds.',
       });
     }
 
@@ -83,7 +85,7 @@ async function test(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string
       });
     }
 
-    return simRun(passedOptions, simWorldFilePath);
+    return simRun(passedOptions, simWorldDirPath);
   }
 
   if (!hasNativeBuildPaths) {

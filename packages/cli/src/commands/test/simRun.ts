@@ -1,18 +1,20 @@
 /**
  * The SIM ROAD of `sherlo test` (sim-mode design section 2) - taken when a sim
- * world file is in play, which is exactly when `sherlo.config.json` carries a
- * `simulation` path (see ./test.ts for the routing and the refusals).
+ * world tree is in play, which is exactly when `sherlo.config.json` carries a
+ * `simulation` path naming that tree's directory (see ./test.ts for the routing
+ * and the refusals).
  *
  * A sim run travels the REAL road end to end - the same staged slots, the same
  * openBuild, the same output - and only the app is replaced: a declared JSON
  * world stands in for source + bundler + binary. Client-side that means:
  *
- *   1. read + validate the world file (./simWorld - strict, every problem named);
+ *   1. read + validate the world tree (./simWorld - strict, every problem named);
  *   2. derive the real-format module manifest from it (./deriveSimManifest -
  *      the one algorithm), so the server's diff scope runs unchanged;
  *   3. gzip + PUT the manifest to the staged `manifest` slot exactly as
- *      uploadStagedArtifacts does, and PUT the world file itself (verbatim) to
- *      the staged `jsBundle` slot - the sim executor reads it from there;
+ *      uploadStagedArtifacts does, and PUT the world - folded into the single
+ *      document the executor reads (./composeSimWorldFile) - to the staged
+ *      `jsBundle` slot, which is where the sim executor reads it from;
  *   4. open the build with, per platform: `sim: true`, `manifestS3Key`,
  *      `simWorldS3Key`, and `s3Key` MIRRORING the manifest key - prefix-valid
  *      and a real S3 object, so the one genuine binary existence check passes
@@ -50,6 +52,7 @@ import {
 } from '../../helpers';
 import { isServerBypassed } from '../../helpers/waitForBuildResult';
 import { THIS_COMMAND } from './constants';
+import composeSimWorldFile from './composeSimWorldFile';
 import deriveSimManifest from './deriveSimManifest';
 import { readSimWorld } from './simWorld';
 import { parseWaitTimeout, printBypassedCloser, printCapturePlanAndCloser } from './stagedRun';
@@ -78,12 +81,12 @@ type SimStagedKeys = {
 
 async function simRun(
   passedOptions: Options<THIS_COMMAND>,
-  simWorldFilePath: string
+  simWorldDirPath: string
 ): Promise<{ url: string }> {
   printSherloIntro();
 
-  // 1. The world file - strict validation, every problem named at once.
-  const world = readSimWorld(simWorldFilePath);
+  // 1. The world tree - strict validation, every problem named at once.
+  const world = readSimWorld(simWorldDirPath);
 
   // 2. Validate params (no platform binary paths - the world is the app).
   const commandParams = getValidatedCommandParams(
@@ -104,11 +107,15 @@ async function simRun(
     await reporting.flush().finally(() => process.exit(1));
   }
 
-  console.log(chalk.bold(`\n🧪 Sim mode: testing the declared world (${world.filePath})...\n`));
+  console.log(chalk.bold(`\n🧪 Sim mode: testing the declared world (${world.dirPath})...\n`));
 
   // 3. Derive the manifest - the one algorithm. Same bytes for every platform:
   //    a sim world has no per-platform toolchain to differ by.
   const manifest = deriveSimManifest(world.parsed);
+
+  //    ...and fold the tree into the one document the executor reads. The split
+  //    is the CLI's; the wire format is the API's, unchanged (./composeSimWorldFile).
+  const worldFile = composeSimWorldFile(world.parsed);
 
   const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
   const client = sdkClient({ authToken: apiToken });
@@ -118,7 +125,7 @@ async function simRun(
     client,
     platformsToTest,
     manifest,
-    worldRaw: world.raw,
+    worldFile,
     projectIndex,
     teamId,
   });
@@ -218,23 +225,23 @@ export default simRun;
 
 /**
  * PUT the gzipped manifest to each platform's staged `manifest` slot (exactly
- * as uploadStagedArtifacts's manifest branch does) and the world file bytes -
- * verbatim - to the staged `jsBundle` slot, which is where the sim executor
- * reads its world from. FATAL on any miss, unlike the bail-open manifest pass
+ * as uploadStagedArtifacts's manifest branch does) and the composed world
+ * document to the staged `jsBundle` slot, which is where the sim executor reads
+ * its world from. FATAL on any miss, unlike the bail-open manifest pass
  * of the real roads: a sim run without either artifact is not a run.
  */
 async function uploadSimArtifacts({
   client,
   platformsToTest,
   manifest,
-  worldRaw,
+  worldFile,
   projectIndex,
   teamId,
 }: {
   client: ReturnType<typeof sdkClient>;
   platformsToTest: Platform[];
   manifest: ValidatedModuleManifest;
-  worldRaw: Buffer;
+  worldFile: Buffer;
   projectIndex: number;
   teamId: string;
 }): Promise<Partial<Record<Platform, SimStagedKeys>>> {
@@ -278,7 +285,7 @@ async function uploadSimArtifacts({
       platform,
       label: 'sim world',
       uploadUrl: urls.jsBundle.url,
-      buffer: worldRaw,
+      buffer: worldFile,
     });
 
     simKeys[platform] = {

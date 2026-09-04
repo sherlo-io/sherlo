@@ -2,21 +2,24 @@
  * Tests for THE ONE ALGORITHM - deriving the real-format module manifest from a
  * sim world (./deriveSimManifest, sim-mode design section 1).
  *
- * Three claims carry the whole sim saga, and each is asserted here:
+ * Four claims carry the whole sim saga, and each is asserted here:
  *
  *   1. DETERMINISM - the same world produces byte-identical manifest bytes,
- *      whatever order the JSON happened to declare its keys in.
- *   2. THE (a)/(b)/(c) EDIT SHAPES - ordinary edits to the ONE world file land
- *      exactly where the server's diff scope expects them, asserted against a
- *      verbatim copy of the API's changed-set rule (see below).
- *   3. FORMAT PARITY - the derived manifest round-trips the CLI's own manifest
+ *      whatever order its modules were walked in.
+ *   2. THE (a)/(b)/(c) EDIT SHAPES - ordinary edits to the world land exactly
+ *      where the server's diff scope expects them, asserted against a verbatim
+ *      copy of the API's changed-set rule (see below).
+ *   3. A REAL GRAPH - closures are WALKED over module import edges, so a
+ *      dependency two hops from a story is in that story's closure without any
+ *      fixture hand-flattening it there.
+ *   4. FORMAT PARITY - the derived manifest round-trips the CLI's own manifest
  *      validator, and its header/version are CONSTANT across worlds, so two sim
  *      manifests are always comparable (the toolchain-mismatch rung never fires).
  */
 import { describe, expect, it } from 'vitest';
 import deriveSimManifest, { SIM_MANIFEST_HEADER } from '../deriveSimManifest';
 import { validateModuleManifestBuffer } from '../readModuleManifest';
-import { validateSimWorld, type SimWorld } from '../simWorld';
+import type { SimModule, SimStory, SimWorld } from '../simWorld';
 import stableStringify from '../../../helpers/stableStringify';
 
 // ---------------------------------------------------------------------------
@@ -55,38 +58,56 @@ function capturedStories(current: Manifest, changed: Set<string>): string[] {
 // ---------------------------------------------------------------------------
 
 const BUTTON = 'src/components/SharedButton.tsx';
+const CARD = 'src/components/ProductCard.tsx';
 const HOME = 'src/screens/HomeScreen.tsx';
-const STORY_FILE = 'src/stories/SharedButton.stories.tsx';
-const STORY_ID = 'sharedbutton--primary';
+const STORY_FILE = 'src/stories/ProductCard.stories.tsx';
+const STORY_ID = 'productcard--basic';
 
-/** The design section 1 example world: one story, one shared dep, one module no closure reaches. */
-function baseWorldJson() {
-  return {
-    simVersion: 1,
-    modules: {
-      [BUTTON]: 'SharedButton v1',
-      [HOME]: 'home, imports nothing captured',
-      [STORY_FILE]: 'story shell',
-    } as Record<string, string>,
-    stories: [
-      {
-        id: STORY_ID,
-        file: STORY_FILE,
-        imports: [BUTTON],
-        render: { text: 'Primary Button', bg: '#ffffff' },
-      },
-    ],
-    run: { outcome: 'ok' },
-  };
+/** Assemble a world from modules - the shape ./simWorld hands the derivation. */
+function world(modules: SimModule[]): SimWorld {
+  return { simVersion: 1, modules, run: { outcome: 'ok' } };
 }
 
-/** Validate a raw world value the same way the sim road does, or fail the test. */
-function world(json: unknown): SimWorld {
-  const result = validateSimWorld(json);
-  if (!result.world) {
-    throw new Error(`fixture world is invalid:\n${result.problems.join('\n')}`);
-  }
-  return result.world;
+function module(
+  path: string,
+  content: string,
+  imports: string[] = [],
+  stories: SimStory[] = []
+): SimModule {
+  return { path, content, imports, stories };
+}
+
+/**
+ * The design section 1 example world, with the graph a real app would have:
+ * the story file imports the card, the card imports the button, and one module
+ * sits outside every closure.
+ */
+function baseWorld(): SimModule[] {
+  return [
+    module(BUTTON, 'SharedButton v1'),
+    module(CARD, 'ProductCard v1', [BUTTON]),
+    module(HOME, 'home, imports nothing captured'),
+    module(
+      STORY_FILE,
+      'story shell',
+      [CARD],
+      [
+        {
+          id: STORY_ID,
+          title: 'Storefront/ProductCard',
+          name: 'Basic',
+          render: { text: 'Card', bg: '#ffffff' },
+        },
+      ]
+    ),
+  ];
+}
+
+/** Find one module of a fixture world so a test can edit it. */
+function moduleAt(modules: SimModule[], path: string): SimModule {
+  const found = modules.find((entry) => entry.path === path);
+  if (!found) throw new Error(`fixture has no module ${path}`);
+  return found;
 }
 
 // ---------------------------------------------------------------------------
@@ -95,46 +116,17 @@ function world(json: unknown): SimWorld {
 
 describe('determinism', () => {
   it('derives byte-identical manifests from the same world twice', () => {
-    const first = deriveSimManifest(world(baseWorldJson()));
-    const second = deriveSimManifest(world(baseWorldJson()));
+    const first = deriveSimManifest(world(baseWorld()));
+    const second = deriveSimManifest(world(baseWorld()));
 
     expect(first.raw.equals(second.raw)).toBe(true);
   });
 
-  it('is independent of the order the world file declared its keys and stories in', () => {
-    // The same world with every enumerable order permuted: modules reversed,
-    // story keys shuffled, a second story listed first.
-    const ordered = {
-      simVersion: 1,
-      modules: {
-        [BUTTON]: 'SharedButton v1',
-        [HOME]: 'home',
-        [STORY_FILE]: 'story shell',
-      },
-      stories: [
-        { id: 'a--first', file: STORY_FILE, imports: [BUTTON], render: { text: 'A', bg: '#fff' } },
-        { id: 'b--second', file: STORY_FILE, imports: [], render: { text: 'B', bg: '#000' } },
-      ],
-      run: { outcome: 'ok' },
-    };
-    const permuted = {
-      run: { outcome: 'ok' },
-      stories: [
-        { render: { bg: '#000', text: 'B' }, imports: [], file: STORY_FILE, id: 'b--second' },
-        { imports: [BUTTON], render: { bg: '#fff', text: 'A' }, id: 'a--first', file: STORY_FILE },
-      ],
-      modules: {
-        [STORY_FILE]: 'story shell',
-        [HOME]: 'home',
-        [BUTTON]: 'SharedButton v1',
-      },
-      simVersion: 1,
-    };
+  it('is independent of the order the tree was walked in', () => {
+    const forwards = deriveSimManifest(world(baseWorld()));
+    const backwards = deriveSimManifest(world(baseWorld().reverse()));
 
-    const fromOrdered = deriveSimManifest(world(ordered));
-    const fromPermuted = deriveSimManifest(world(permuted));
-
-    expect(fromOrdered.raw.equals(fromPermuted.raw)).toBe(true);
+    expect(forwards.raw.equals(backwards.raw)).toBe(true);
   });
 });
 
@@ -144,10 +136,10 @@ describe('determinism', () => {
 
 describe('the (a)/(b)/(c) edit shapes against the API changed-set rule', () => {
   it('(a) a module outside every closure: changed, but ZERO stories captured', () => {
-    const ancestor = deriveSimManifest(world(baseWorldJson())).parsed;
+    const ancestor = deriveSimManifest(world(baseWorld())).parsed;
 
-    const edited = baseWorldJson();
-    edited.modules[HOME] = 'home v2 - reworked, still imported by nothing captured';
+    const edited = baseWorld();
+    moduleAt(edited, HOME).content = 'home v2 - reworked, still imported by nothing captured';
     const current = deriveSimManifest(world(edited)).parsed;
 
     const changed = changedPaths(current, ancestor);
@@ -156,10 +148,10 @@ describe('the (a)/(b)/(c) edit shapes against the API changed-set rule', () => {
   });
 
   it("(b) a module IN the story's closure: story captured, story file's own hash UNMOVED", () => {
-    const ancestor = deriveSimManifest(world(baseWorldJson())).parsed;
+    const ancestor = deriveSimManifest(world(baseWorld())).parsed;
 
-    const edited = baseWorldJson();
-    edited.modules[BUTTON] = 'SharedButton v2';
+    const edited = baseWorld();
+    moduleAt(edited, BUTTON).content = 'SharedButton v2';
     const current = deriveSimManifest(world(edited)).parsed;
 
     const changed = changedPaths(current, ancestor);
@@ -173,10 +165,10 @@ describe('the (a)/(b)/(c) edit shapes against the API changed-set rule', () => {
   });
 
   it("(c) a story's render content: its OWN story file hash moves, story captured", () => {
-    const ancestor = deriveSimManifest(world(baseWorldJson())).parsed;
+    const ancestor = deriveSimManifest(world(baseWorld())).parsed;
 
-    const edited = baseWorldJson();
-    edited.stories[0].render.text = 'Primary Button v2';
+    const edited = baseWorld();
+    moduleAt(edited, STORY_FILE).stories[0].render.text = 'Card v2';
     const current = deriveSimManifest(world(edited)).parsed;
 
     const changed = changedPaths(current, ancestor);
@@ -188,20 +180,62 @@ describe('the (a)/(b)/(c) edit shapes against the API changed-set rule', () => {
     expect(current.moduleHashes[BUTTON]).toBe(ancestor.moduleHashes[BUTTON]);
   });
 
+  // In a real app a rename is a source edit like any other. It used not to be
+  // here: `title`/`name` were invisible to the CLI, so renaming a story changed
+  // the name the product shows and moved no hash at all.
+  it('a story RENAME moves its file hash, so the diff scope sees it', () => {
+    const ancestor = deriveSimManifest(world(baseWorld())).parsed;
+
+    const renamed = baseWorld();
+    moduleAt(renamed, STORY_FILE).stories[0].name = 'Default';
+    const current = deriveSimManifest(world(renamed)).parsed;
+
+    expect(changedPaths(current, ancestor)).toEqual(new Set([STORY_FILE]));
+  });
+
+  // A story that throws is what the DEVICE observes, so declaring it is a story
+  // edit, and a story edit is a source edit.
+  it("a story's error flag moves its file hash", () => {
+    const ancestor = deriveSimManifest(world(baseWorld())).parsed;
+
+    const broken = baseWorld();
+    moduleAt(broken, STORY_FILE).stories[0].error = true;
+    const current = deriveSimManifest(world(broken)).parsed;
+
+    expect(changedPaths(current, ancestor)).toEqual(new Set([STORY_FILE]));
+  });
+
+  // An import edge is part of a module's source, so adding one is an edit the
+  // diff scope must see - both in the hash and in every closure it widens.
+  it('adding an import moves the importing module and widens the closure', () => {
+    const ancestor = deriveSimManifest(world(baseWorld())).parsed;
+
+    const edited = baseWorld();
+    moduleAt(edited, CARD).imports = [BUTTON, HOME];
+    const current = deriveSimManifest(world(edited)).parsed;
+
+    expect(changedPaths(current, ancestor)).toEqual(new Set([CARD]));
+    expect(current.storyClosures[STORY_FILE]).toEqual([CARD, BUTTON, HOME]);
+  });
+
   it('two stories in one file swapping renders still moves the file hash (id is folded in)', () => {
-    const twoStories = () => ({
-      ...baseWorldJson(),
-      stories: [
-        { id: 'a--one', file: STORY_FILE, imports: [], render: { text: 'One', bg: '#fff' } },
-        { id: 'b--two', file: STORY_FILE, imports: [], render: { text: 'Two', bg: '#fff' } },
-      ],
-    });
+    const twoStories = (): SimModule[] => [
+      module(
+        STORY_FILE,
+        'story shell',
+        [],
+        [
+          { id: 'a--one', render: { text: 'One', bg: '#ffffff' } },
+          { id: 'b--two', render: { text: 'Two', bg: '#ffffff' } },
+        ]
+      ),
+    ];
 
     const ancestor = deriveSimManifest(world(twoStories())).parsed;
 
     const swapped = twoStories();
-    swapped.stories[0].render.text = 'Two';
-    swapped.stories[1].render.text = 'One';
+    swapped[0].stories[0].render.text = 'Two';
+    swapped[0].stories[1].render.text = 'One';
     const current = deriveSimManifest(world(swapped)).parsed;
 
     expect(current.moduleHashes[STORY_FILE]).not.toBe(ancestor.moduleHashes[STORY_FILE]);
@@ -209,80 +243,77 @@ describe('the (a)/(b)/(c) edit shapes against the API changed-set rule', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 3. Closures
+// 3. Closures over a real module graph
 // ---------------------------------------------------------------------------
 
 describe('story closures', () => {
   it('excludes the story file from its own closure and sorts members', () => {
-    const manifest = deriveSimManifest(world(baseWorldJson())).parsed;
+    const manifest = deriveSimManifest(world(baseWorld())).parsed;
 
-    expect(manifest.storyClosures[STORY_FILE]).toEqual([BUTTON]);
+    expect(manifest.storyClosures[STORY_FILE]).toEqual([CARD, BUTTON]);
     expect(manifest.storyClosures[STORY_FILE]).not.toContain(STORY_FILE);
   });
 
-  it('follows declared imports transitively through other story files', () => {
-    const json = {
-      simVersion: 1,
-      modules: {
-        'src/a.stories.tsx': 'a',
-        'src/b.stories.tsx': 'b',
-        'src/leaf.tsx': 'leaf',
-        'src/z.tsx': 'z',
-      },
-      stories: [
-        {
-          id: 'a--story',
-          file: 'src/a.stories.tsx',
-          // z declared after b: the closure must come back sorted regardless.
-          imports: ['src/z.tsx', 'src/b.stories.tsx'],
-          render: { text: 'A', bg: '#fff' },
-        },
-        {
-          id: 'b--story',
-          file: 'src/b.stories.tsx',
-          imports: ['src/leaf.tsx'],
-          render: { text: 'B', bg: '#fff' },
-        },
-      ],
-      run: { outcome: 'ok' },
-    };
+  // THE POINT OF PUTTING IMPORTS ON MODULES. `SharedButton` is two hops from
+  // the story and no file mentions it beside the card that actually imports it.
+  // Edges used to hang off STORIES only, so a non-story module had no imports
+  // of its own and the fixture author had to list every transitive dependency
+  // on the story by hand - making the closure whatever they typed.
+  it('reaches a dependency THROUGH a non-story module nobody hand-flattened', () => {
+    const manifest = deriveSimManifest(world(baseWorld())).parsed;
 
-    const manifest = deriveSimManifest(world(json)).parsed;
+    expect(moduleAt(baseWorld(), STORY_FILE).imports).toEqual([CARD]);
+    expect(manifest.storyClosures[STORY_FILE]).toContain(BUTTON);
+  });
 
-    // a reaches b's file directly and leaf THROUGH b, transitively; sorted.
-    expect(manifest.storyClosures['src/a.stories.tsx']).toEqual([
-      'src/b.stories.tsx',
-      'src/leaf.tsx',
-      'src/z.tsx',
+  it('walks a chain of ordinary modules to any depth', () => {
+    const chain = [
+      module(
+        'src/one.stories.tsx',
+        'one',
+        ['src/two.tsx'],
+        [{ id: 'one--story', render: { text: 'One', bg: '#ffffff' } }]
+      ),
+      module('src/two.tsx', 'two', ['src/three.tsx']),
+      module('src/three.tsx', 'three', ['src/four.tsx']),
+      module('src/four.tsx', 'four'),
+    ];
+
+    const manifest = deriveSimManifest(world(chain)).parsed;
+
+    expect(manifest.storyClosures['src/one.stories.tsx']).toEqual([
+      'src/four.tsx',
+      'src/three.tsx',
+      'src/two.tsx',
     ]);
-    expect(manifest.storyClosures['src/b.stories.tsx']).toEqual(['src/leaf.tsx']);
   });
 
   it('survives an import cycle without pulling the story into its own closure', () => {
-    const json = {
-      simVersion: 1,
-      modules: { 'src/a.stories.tsx': 'a', 'src/b.stories.tsx': 'b' },
-      stories: [
-        {
-          id: 'a--story',
-          file: 'src/a.stories.tsx',
-          imports: ['src/b.stories.tsx'],
-          render: { text: 'A', bg: '#fff' },
-        },
-        {
-          id: 'b--story',
-          file: 'src/b.stories.tsx',
-          imports: ['src/a.stories.tsx'],
-          render: { text: 'B', bg: '#fff' },
-        },
-      ],
-      run: { outcome: 'ok' },
-    };
+    const cycle = [
+      module(
+        'src/a.stories.tsx',
+        'a',
+        ['src/b.stories.tsx'],
+        [{ id: 'a--story', render: { text: 'A', bg: '#ffffff' } }]
+      ),
+      module(
+        'src/b.stories.tsx',
+        'b',
+        ['src/a.stories.tsx'],
+        [{ id: 'b--story', render: { text: 'B', bg: '#ffffff' } }]
+      ),
+    ];
 
-    const manifest = deriveSimManifest(world(json)).parsed;
+    const manifest = deriveSimManifest(world(cycle)).parsed;
 
     expect(manifest.storyClosures['src/a.stories.tsx']).toEqual(['src/b.stories.tsx']);
     expect(manifest.storyClosures['src/b.stories.tsx']).toEqual(['src/a.stories.tsx']);
+  });
+
+  it('gives a closure only to modules that declare stories', () => {
+    const manifest = deriveSimManifest(world(baseWorld())).parsed;
+
+    expect(Object.keys(manifest.storyClosures)).toEqual([STORY_FILE]);
   });
 });
 
@@ -292,7 +323,7 @@ describe('story closures', () => {
 
 describe('format parity', () => {
   it("round-trips the CLI's own module-manifest validator", () => {
-    const manifest = deriveSimManifest(world(baseWorldJson()));
+    const manifest = deriveSimManifest(world(baseWorld()));
 
     const validated = validateModuleManifestBuffer(manifest.raw);
     expect(validated).not.toBeNull();
@@ -301,11 +332,11 @@ describe('format parity', () => {
   });
 
   it('emits a CONSTANT header and version across different worlds (comparability)', () => {
-    const first = deriveSimManifest(world(baseWorldJson()));
+    const first = deriveSimManifest(world(baseWorld()));
 
-    const other = baseWorldJson();
-    other.modules['src/other.tsx'] = 'a whole different world';
-    other.stories[0].render.text = 'Different';
+    const other = baseWorld();
+    other.push(module('src/other.tsx', 'a whole different world'));
+    moduleAt(other, STORY_FILE).stories[0].render.text = 'Different';
     const second = deriveSimManifest(world(other));
 
     // The server's areManifestsComparable check: version equal AND the
@@ -314,20 +345,5 @@ describe('format parity', () => {
     expect(first.parsed.version).toBe(second.parsed.version);
     expect(stableStringify(first.parsed.header)).toBe(stableStringify(second.parsed.header));
     expect(first.parsed.header).toEqual(SIM_MANIFEST_HEADER);
-  });
-
-  it('normalizes `./`-prefixed declared paths to the `./`-free posix form', () => {
-    const json = baseWorldJson();
-    json.modules = {
-      ['./' + BUTTON]: 'SharedButton v1',
-      [HOME]: 'home',
-      ['./' + STORY_FILE]: 'story shell',
-    };
-    json.stories[0].imports = ['./' + BUTTON];
-
-    const manifest = deriveSimManifest(world(json)).parsed;
-
-    expect(Object.keys(manifest.moduleHashes).sort()).toEqual([BUTTON, HOME, STORY_FILE].sort());
-    expect(manifest.storyClosures[STORY_FILE]).toEqual([BUTTON]);
   });
 });

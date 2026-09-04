@@ -55,7 +55,12 @@ export type Config = {
   ios?: string;
   include?: string[];
   exclude?: string[];
-  /** Path (relative to this config file) of the sim world declaration; its presence puts the run in sim mode. */
+  /**
+   * Path (relative to this config file) of the sim world DIRECTORY - the source
+   * tree that stands in for the app: a `world.json` plus one `<module path>.json`
+   * per module. Its presence puts the run in sim mode. See
+   * ../commands/test/simWorld.
+   */
   simulation?: string;
 };
 

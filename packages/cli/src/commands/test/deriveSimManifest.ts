@@ -1,24 +1,34 @@
 /**
- * THE ONE ALGORITHM: derive the real-format module manifest from a sim world
- * file, exactly as Metro's serializer derives one from source (sim-mode design
+ * THE ONE ALGORITHM: derive the real-format module manifest from a sim world,
+ * exactly as Metro's serializer derives one from source (sim-mode design
  * section 1). The server never learns a second manifest format -
  * readModuleManifest / computeDiffScopeDecision run unchanged on what this
  * produces.
  *
  * The rules, and why each is load-bearing:
  *
- * - `moduleHashes[path] = sha256(declared content, WITH each of the module's
- *   own stories' render content folded in)`. Folding the render into the story
- *   file's OWN hashed content is what makes the visual lever and the diff-scope
- *   lever the same edit - change a story's `render.text` and its story file's
- *   hash moves, so the story is captured AND draws differently, just as in a
- *   real app. Without it, a world edit could change pixels the diff scope never
- *   sees coming.
+ * - `moduleHashes[path] = sha256(everything the module's own file declares)`:
+ *   its content, its import edges, and - when it is a story file - its stories'
+ *   identity, error flag and render. Folding all of it into the module's OWN
+ *   hash is what makes the visual lever and the diff-scope lever the same edit -
+ *   change a story's `render.text` and its story file's hash moves, so the
+ *   story is captured AND draws differently, just as in a real app. The story's
+ *   `title`/`name` are in there for the same reason: a rename is a source edit,
+ *   and a source edit the diff scope cannot see is a lie about the app.
  *
- * - `storyClosures[storyFile] = sorted transitive declared imports, the story
- *   file excluded from its own closure` - mirroring the serializer's
- *   collectForwardClosure (story-not-in-own-closure included; the server's
- *   capture rule has a dedicated term for direct story edits).
+ * - `storyClosures[storyFile] = sorted transitive closure over the MODULE
+ *   import graph, the story file excluded from its own closure` - mirroring the
+ *   serializer's collectForwardClosure (story-not-in-own-closure included; the
+ *   server's capture rule has a dedicated term for direct story edits).
+ *
+ *   The graph is walked, not read. Imports are declared per MODULE, so
+ *   `ProductCard.stories.tsx -> ProductCard.tsx -> SharedButton.tsx` is three
+ *   files each naming only what it imports, and the closure of the story file
+ *   contains SharedButton because the walk REACHES it. Imports used to sit on
+ *   stories, which gave the graph edges out of story files only: a fixture
+ *   author had to hand-flatten every transitive dependency onto the story, so
+ *   the closure was whatever they typed rather than anything the graph implied,
+ *   and a depth-two change could not be expressed at all.
  *
  * - `header` is CONSTANT across builds and worlds. The server compares headers
  *   byte-for-byte (`areManifestsComparable`); ANY variation would hit the
@@ -35,7 +45,7 @@
 import crypto from 'crypto';
 import stableStringify from '../../helpers/stableStringify';
 import type { ValidatedModuleManifest } from './readModuleManifest';
-import type { SimStory, SimWorld } from './simWorld';
+import type { SimModule, SimWorld } from './simWorld';
 
 /**
  * The constant sim manifest header. The `'sim'` sentinels replace toolchain
@@ -72,17 +82,18 @@ export type SimModuleManifest = ValidatedModuleManifest & {
  * byte-identical manifest out.
  */
 function deriveSimManifest(world: SimWorld): SimModuleManifest {
-  const storiesByFile = groupStoriesByFile(world.stories);
-
+  const importsByModule = new Map<string, string[]>();
   const moduleHashes: Record<string, string> = {};
-  for (const [modulePath, content] of Object.entries(world.modules)) {
-    moduleHashes[modulePath] = hashModuleContent(content, storiesByFile.get(modulePath));
+
+  for (const module of world.modules) {
+    importsByModule.set(module.path, module.imports);
+    moduleHashes[module.path] = hashModule(module);
   }
 
-  const importsByFile = collectImportsByFile(storiesByFile);
   const storyClosures: Record<string, string[]> = {};
-  for (const storyFile of storiesByFile.keys()) {
-    storyClosures[storyFile] = collectTransitiveImports(storyFile, importsByFile);
+  for (const module of world.modules) {
+    if (module.stories.length === 0) continue;
+    storyClosures[module.path] = collectTransitiveImports(module.path, importsByModule);
   }
 
   const parsed = {
@@ -99,55 +110,29 @@ export default deriveSimManifest;
 
 /* ========================================================================== */
 
-/** Stories grouped under their declared file, sorted by id for determinism. */
-function groupStoriesByFile(stories: SimStory[]): Map<string, SimStory[]> {
-  const storiesByFile = new Map<string, SimStory[]>();
-  for (const story of stories) {
-    const fileStories = storiesByFile.get(story.file) ?? [];
-    fileStories.push(story);
-    storiesByFile.set(story.file, fileStories);
-  }
-  for (const fileStories of storiesByFile.values()) {
-    fileStories.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  }
-  return storiesByFile;
-}
-
 /**
- * A module's hash pre-image: its declared content, plus - when the module is a
- * story file - each of its stories' id + render, canonically serialized. The id
- * is included so two stories in one file swapping renders still moves the hash.
+ * A module's hash pre-image: everything its own file declares, canonically
+ * serialized. Nothing a module file can say is left out - an edit that changes
+ * no hash would be an edit the diff scope cannot see.
  */
-function hashModuleContent(content: string, fileStories: SimStory[] | undefined): string {
-  let preimage = content;
-  for (const story of fileStories ?? []) {
-    preimage += '\n' + stableStringify({ id: story.id, render: story.render });
-  }
+function hashModule(module: SimModule): string {
+  const preimage = stableStringify({
+    content: module.content,
+    imports: module.imports,
+    stories: module.stories,
+  });
+
   return crypto.createHash('sha256').update(preimage, 'utf8').digest('hex');
 }
 
-/** The declared direct-import edges: story file -> union of its stories' imports. */
-function collectImportsByFile(storiesByFile: Map<string, SimStory[]>): Map<string, string[]> {
-  const importsByFile = new Map<string, string[]>();
-  for (const [storyFile, fileStories] of storiesByFile) {
-    const merged = new Set<string>();
-    for (const story of fileStories) {
-      for (const imported of story.imports) merged.add(imported);
-    }
-    importsByFile.set(storyFile, Array.from(merged));
-  }
-  return importsByFile;
-}
-
 /**
- * Every module reachable from a story file over the declared import edges
- * (edges exist only where stories declare them, so importing another STORY file
- * pulls that story's own imports in transitively), with the story file itself
- * excluded from its own closure - even when a cycle reaches back to it.
+ * Every module reachable from a story file over the declared import edges, with
+ * the story file itself excluded from its own closure - even when a cycle
+ * reaches back to it.
  */
 function collectTransitiveImports(
   storyFile: string,
-  importsByFile: ReadonlyMap<string, string[]>
+  importsByModule: ReadonlyMap<string, string[]>
 ): string[] {
   const reached = new Set<string>();
   const followed = new Set<string>();
@@ -158,7 +143,7 @@ function collectTransitiveImports(
     if (followed.has(from)) continue;
     followed.add(from);
 
-    for (const imported of importsByFile.get(from) ?? []) {
+    for (const imported of importsByModule.get(from) ?? []) {
       reached.add(imported);
       if (!followed.has(imported)) stack.push(imported);
     }

@@ -93,35 +93,36 @@ describe('road choice', () => {
 });
 
 // Sim-ness lives in the config file's `simulation` field and nowhere else: when
-// it resolves to a world path the run takes the sim road alone; native build
+// it resolves to a world TREE the run takes the sim road alone; native build
 // paths and the bundler-road flags are refused alongside it rather than
 // half-honored.
 describe('the sim road', () => {
   it('routes to the SIM road when the config declares a simulation, handing it the world path', async () => {
-    mockResolveSimulationWorldPath.mockReturnValue('/proj/sim-world.json');
+    mockResolveSimulationWorldPath.mockReturnValue('/proj/sim-world');
     const options = { token: 'tok' };
 
     const result = await test(options);
 
-    expect(mockSimRun).toHaveBeenCalledWith(options, '/proj/sim-world.json');
+    // The path handed on is the tree's DIRECTORY - what the reader walks.
+    expect(mockSimRun).toHaveBeenCalledWith(options, '/proj/sim-world');
     expect(mockStagedRun).not.toHaveBeenCalled();
     expect(mockStandardRun).not.toHaveBeenCalled();
     expect(result).toEqual({ url: 'http://app/sim' });
   });
 
   it('asks the config file itself - the options are handed to the resolver verbatim', async () => {
-    mockResolveSimulationWorldPath.mockReturnValue('/proj/worlds/w.json');
+    mockResolveSimulationWorldPath.mockReturnValue('/proj/worlds/w');
     const options = { token: 'tok', config: 'sherlo.config.json', projectRoot: '/proj' };
 
     await test(options);
 
     expect(mockResolveSimulationWorldPath).toHaveBeenCalledWith(options);
-    expect(mockSimRun).toHaveBeenCalledWith(options, '/proj/worlds/w.json');
+    expect(mockSimRun).toHaveBeenCalledWith(options, '/proj/worlds/w');
     expect(mockStagedRun).not.toHaveBeenCalled();
   });
 
   it('refuses a sim world together with native build paths', async () => {
-    mockResolveSimulationWorldPath.mockReturnValue('/proj/sim-world.json');
+    mockResolveSimulationWorldPath.mockReturnValue('/proj/sim-world');
 
     await expect(test({ token: 'tok', android: 'app.apk' })).rejects.toThrow(
       /`simulation` in the config file.*cannot be\s+combined with.*--android/s
@@ -138,7 +139,7 @@ describe('the sim road', () => {
     ['--emit-bundle-dir', { emitBundleDir: '/tmp/bundles' }],
     ['--emit-expectation', { dryRun: true, emitExpectation: 'token-missing' }],
   ])('refuses a sim world together with %s', async (flagName, flags) => {
-    mockResolveSimulationWorldPath.mockReturnValue('/proj/sim-world.json');
+    mockResolveSimulationWorldPath.mockReturnValue('/proj/sim-world');
 
     await expect(test({ token: 'tok', ...flags })).rejects.toThrow(/runs no\s+bundler/);
 
