@@ -19,11 +19,9 @@ function installSherloIntegration(): void {
     SherloModule.getMode() === 'testing';
 
   if (isTesting) {
-    SherloModule.appendFile(
-      PROTOCOL_FILE,
-      JSON.stringify({ action: 'JS_EVAL_COMPLETE', timestamp: Date.now(), entity: 'app' }) + '\n'
-    );
-
+    // JS_EVAL_COMPLETE itself moved to src/seam.js: the seam runs unconditionally
+    // from the generated entry, even when the customer's own code never imports
+    // this package - which a standalone Storybook entry may never do.
     if ((global as any).__sherloWithStorybookApplied === true) {
       try {
         SherloModule.appendFile(

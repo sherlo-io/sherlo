@@ -4,6 +4,7 @@ import isExpoGo from './helpers/isExpoGo';
 import { StorybookViewMode, InspectorData } from './types/types';
 import { Config, LastState } from './helpers/RunnerBridge/types';
 import TurboModule, { Spec } from './specs/NativeSherloModule';
+import * as constants from './constants';
 
 interface SherloConstants {
   mode: StorybookViewMode;
@@ -55,6 +56,12 @@ type SherloModule = {
     scrollViewFrame?: { x: number; y: number; width: number; height: number };
   }>;
   notifyGetStorybookCalled: () => void;
+  /**
+   * Re-exported so the seam (src/seam.js, resolved from `dist/SherloModule.js`
+   * - an already-frozen export path) can reach the protocol file names
+   * without a new subpath of its own.
+   */
+  constants: typeof constants;
 };
 
 let SherloModule: SherloModule;
@@ -187,6 +194,7 @@ function createSherloModule(module: Spec): SherloModule {
         /* nothing to notify when nothing is injected */
       });
     },
+    constants,
   };
 
   return sherloModule;
@@ -255,5 +263,6 @@ function createDummySherloModule(): SherloModule {
       _threshold: number,
       _includeAA: boolean
     ) => true,
+    constants,
   };
 }
