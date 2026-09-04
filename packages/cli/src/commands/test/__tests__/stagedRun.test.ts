@@ -24,6 +24,7 @@ chalk.level = 0;
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER } from '@sherlo/shared';
+import { keysTheApiRejects } from '../../../helpers/__tests__/openBuildPlatformConfigKeys';
 
 // ---------------------------------------------------------------------------
 // Hoisted SDK-client mock handles (shared across the factory + assertions).
@@ -226,10 +227,10 @@ describe('no devices configured', () => {
 });
 
 // ---------------------------------------------------------------------------
-// gitInfo parity - identical to test:standard
+// gitInfo parity - identical to the standard road
 // ---------------------------------------------------------------------------
 
-describe('gitInfo parity with test:standard', () => {
+describe('gitInfo parity with the standard road', () => {
   // A sentinel object we can assert identity on: whatever getGitInfo returns
   // must be forwarded verbatim to openBuild.
   const GIT_INFO = {
@@ -277,7 +278,7 @@ describe('gitInfo parity with test:standard', () => {
     mockPrintResultsUrl.mockImplementation(() => {});
   });
 
-  it('calls getGitInfo with projectRoot + branchOverride (same signature as test:standard)', async () => {
+  it('calls getGitInfo with projectRoot + branchOverride (same signature as the standard road)', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     await stagedRun(mockOptions());
@@ -295,7 +296,7 @@ describe('gitInfo parity with test:standard', () => {
 
     expect(mockOpenBuild).toHaveBeenCalledTimes(1);
     const openBuildArg = mockOpenBuild.mock.calls[0][0];
-    // Identity check: parity means the SAME object test:standard would send.
+    // Identity check: parity means the SAME object the standard road would send.
     expect(openBuildArg.gitInfo).toBe(GIT_INFO);
     expect(openBuildArg.baseFingerprint).toBe('BASE_FP');
     expect(openBuildArg.gateMetadata.ios).toEqual({ engineClass: 'hermes' });
@@ -315,6 +316,20 @@ describe('gitInfo parity with test:standard', () => {
     expect(openBuildArg.buildRunConfig.ios.bundleSizeMb).toBe(1.5);
     // No assets produced (assetsDest undefined) -> no assetsS3Key.
     expect(openBuildArg.buildRunConfig.ios.assetsS3Key).toBeUndefined();
+
+    logSpy.mockRestore();
+  });
+
+  it('sends ONLY the fields BuildRunConfigPlatformInput accepts on the platform config', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await stagedRun(mockOptions());
+
+    const { ios } = mockOpenBuild.mock.calls[0][0].buildRunConfig;
+    expect(keysTheApiRejects(ios)).toEqual([]);
+    // The server stamps baseReference from the top-level baseFingerprint; the
+    // CLI must never send it (the api rejects the whole openBuild if it does).
+    expect(ios).not.toHaveProperty('baseReference');
 
     logSpy.mockRestore();
   });

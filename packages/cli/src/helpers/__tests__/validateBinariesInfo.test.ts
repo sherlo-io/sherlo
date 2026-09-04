@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import validateBinariesInfo from '../getValidatedBinariesInfoAndNextBuildIndex/validateBinariesInfo';
 import { BinariesInfo, BinaryInfo } from '../../types';
-import { TEST_STANDARD_COMMAND } from '../../constants';
+import { TEST_COMMAND } from '../../constants';
 
 /**
  * Minimal valid android BinaryInfo that passes all non-ABI validations
@@ -16,7 +16,7 @@ const validAndroidBinary: BinaryInfo = {
   sdkVersion: '2.0.0',
 };
 
-const command = TEST_STANDARD_COMMAND;
+const command = TEST_COMMAND;
 
 // ---------------------------------------------------------------------------
 // ABI preflight – rejection

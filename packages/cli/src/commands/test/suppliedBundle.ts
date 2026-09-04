@@ -6,6 +6,12 @@
  * lets a caller who already built it (a monorepo pipeline, a prestage job, our own
  * e2e harness) hand it over instead, and the CLI skips straight to upload.
  *
+ * THE ACCEPTING MACHINE NEEDS: the checkout, this CLI, the bundle directory and
+ * (on the standard road) the binary. Not the project's node_modules - it bundles
+ * nothing, so it installs nothing. Every check below reads the checkout and the
+ * sidecar only; see ./bundleSidecar for how each field is derived without an
+ * install, and ./recordedBaseFingerprint for the fingerprint.
+ *
  * THREE RULES SHAPE EVERY DECISION IN THIS FILE.
  *
  * 1. THE ARTIFACT IS A TRIPLE, NEVER A FILE. A bundle alone is not enough: the
@@ -29,6 +35,11 @@ import path from 'path';
 import { Platform } from '@sherlo/api-types';
 import { emit } from '../../helpers/transcriptSink';
 import type { GateMetadataInput } from '../../helpers/fingerprint';
+import {
+  diffFiles,
+  diffPackages,
+  type DeltaEntry,
+} from '../fingerprint/diffFingerprintDocuments';
 import { FALLBACK_LINE as SHARED_FALLBACK_LINE } from './stagedGateRefusal';
 import { inspectBundleArtifacts, type BundleResult } from './buildBundle';
 import { validateModuleManifestBuffer } from './readModuleManifest';
@@ -36,16 +47,20 @@ import {
   assetsDirName,
   bundleFileName,
   computeAppSourceClosure,
+  moduleManifestAppSourceInputs,
   moduleManifestFileName,
-  moduleManifestSourcePaths,
   parseBundleSidecar,
   readProjectIdentity,
   sha256OfBuffer,
   sidecarFileName,
-  type PersistedProjectIdentity,
+  type AppSourceClosure,
+  type SidecarProjectIdentity,
 } from './bundleSidecar';
 
 const FALLBACK_LINE = `\n${SHARED_FALLBACK_LINE}`;
+
+/** How many moved packages or files a refusal names before summarizing the rest. */
+const MAX_NAMED_ENTRIES = 20;
 
 /**
  * Resolve one platform's bundle from a supplied directory.
@@ -53,6 +68,8 @@ const FALLBACK_LINE = `\n${SHARED_FALLBACK_LINE}`;
  * Returns exactly the {@link BundleResult} the bundling road would have returned,
  * so everything downstream - the gate, the transcript, the upload - cannot tell
  * which road produced it, and there is no second code path to keep in step.
+ * Alongside it comes the gate metadata the emitting machine derived beside the
+ * bundle, which is the staged road's to send.
  *
  * Throws user-facing messages carrying the full-run fallback line.
  */
@@ -60,14 +77,14 @@ export async function resolveSuppliedBundle({
   bundleDir,
   projectRoot,
   platform,
-  nativeFingerprint,
+  baseFingerprint,
 }: {
   bundleDir: string;
   projectRoot: string;
   platform: Platform;
   /** The base fingerprint of this run, for the advisory pairing note. */
-  nativeFingerprint?: string;
-}): Promise<{ result: BundleResult; notes: string[] }> {
+  baseFingerprint?: string;
+}): Promise<{ result: BundleResult; gateMetadata: GateMetadataInput; notes: string[] }> {
   const bundlePath = path.join(bundleDir, bundleFileName(platform));
   const assetsDest = path.join(bundleDir, assetsDirName(platform));
   const manifestPath = path.join(bundleDir, moduleManifestFileName(platform));
@@ -175,7 +192,7 @@ export async function resolveSuppliedBundle({
   // Identity, against the CURRENT project. This is what catches the failure the
   // bytes never can: a bundle that is perfectly well-formed and built from the
   // wrong app, the wrong React Native, or the wrong toolchain.
-  const project = await readProjectIdentity({ projectRoot, platform });
+  const project = readProjectIdentity(projectRoot);
   mismatches.push(...compareProjectIdentity({ recorded: sidecar.project, current: project }));
 
   // STALENESS - the check every other field misses. A bundle built before someone
@@ -183,16 +200,9 @@ export async function resolveSuppliedBundle({
   // matters, and running it would capture the code as it used to be.
   const appSource = computeAppSourceClosure({
     projectRoot,
-    modulePaths: moduleManifestSourcePaths(moduleManifest),
+    ...moduleManifestAppSourceInputs(moduleManifest),
   });
-  if (appSource.hash !== sidecar.appSource.hash) {
-    mismatches.push(
-      "app source: this project's source has changed since the bundle was built " +
-        `(${appSource.fileCount} source file(s) in the bundle's module graph now hash to ` +
-        `${short(appSource.hash)}, the bundle recorded ${short(sidecar.appSource.hash)}) - ` +
-        'running it would test the code as it was BEFORE those edits'
-    );
-  }
+  mismatches.push(...compareAppSource({ recorded: sidecar.appSource, current: appSource }));
 
   if (mismatches.length > 0) {
     throw new Error(
@@ -216,7 +226,7 @@ export async function resolveSuppliedBundle({
   });
 
   // ------------------------------------------------------------------
-  // 6. Advisory only: the native shell this bundle was built beside.
+  // 5. Advisory only: the native base this bundle was built beside.
   //
   //    NOT a refusal, deliberately. A bundle does not depend on the native shell -
   //    only the pairing does, and the staged gate judges pairing on every run. If
@@ -224,18 +234,15 @@ export async function resolveSuppliedBundle({
   //    useless in exactly the case it is most valuable.
   // ------------------------------------------------------------------
   const notes: string[] = [];
-  if (
-    nativeFingerprint &&
-    sidecar.nativeFingerprint &&
-    sidecar.nativeFingerprint !== nativeFingerprint
-  ) {
+  const recordedBase = sidecar.baseFingerprint?.hash;
+  if (baseFingerprint && recordedBase && recordedBase !== baseFingerprint) {
     notes.push(
-      `built beside a different native base (${short(sidecar.nativeFingerprint)}); ` +
+      `built beside a different native base (${short(recordedBase)}); ` +
         'the staged gate still judges this pairing'
     );
   }
 
-  return { result, notes };
+  return { result, gateMetadata: sidecar.gateMetadata, notes };
 }
 
 /**
@@ -249,22 +256,27 @@ export async function resolveSuppliedBundle({
  * either, or its transcript claims work it did not do. The acceptance logic - the
  * part where a bug would be dangerous - is shared through
  * {@link inspectBundleArtifacts}; only the narration differs, and it should.
+ *
+ * `gateMetadataFor` receives the metadata the sidecar RECORDED beside the bundle.
+ * The staged road sends it as is (it was derived from the same source the
+ * acceptor just verified, on a machine that had the install to derive it); the
+ * standard road registers metadata read out of the binary and ignores it.
  */
 export async function resolveSuppliedBundles({
   bundleDir,
   projectRoot,
   platformsToTest,
-  nativeFingerprint,
+  baseFingerprint,
   gateMetadataFor,
 }: {
   bundleDir: string;
   projectRoot: string;
   platformsToTest: Platform[];
-  nativeFingerprint?: string;
+  baseFingerprint?: string;
   gateMetadataFor: (
-    projectRoot: string,
     platform: Platform,
-    bundleResult: BundleResult
+    bundleResult: BundleResult,
+    recordedGateMetadata: GateMetadataInput
   ) => Promise<GateMetadataInput>;
 }): Promise<{
   results: Partial<Record<Platform, BundleResult>>;
@@ -274,11 +286,15 @@ export async function resolveSuppliedBundles({
   const gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput } = {};
 
   for (const platform of platformsToTest) {
-    const { result, notes } = await resolveSuppliedBundle({
+    const {
+      result,
+      gateMetadata: recordedGateMetadata,
+      notes,
+    } = await resolveSuppliedBundle({
       bundleDir,
       projectRoot,
       platform,
-      ...(nativeFingerprint ? { nativeFingerprint } : {}),
+      ...(baseFingerprint ? { baseFingerprint } : {}),
     });
 
     results[platform] = result;
@@ -297,7 +313,7 @@ export async function resolveSuppliedBundles({
       emit({ kind: 'platform-bundle-supplied-note', note });
     }
 
-    gateMetadata[platform] = await gateMetadataFor(projectRoot, platform, result);
+    gateMetadata[platform] = await gateMetadataFor(platform, result, recordedGateMetadata);
   }
 
   return { results, gateMetadata };
@@ -315,16 +331,15 @@ export function compareProjectIdentity({
   recorded,
   current,
 }: {
-  recorded: PersistedProjectIdentity;
-  current: PersistedProjectIdentity;
+  recorded: SidecarProjectIdentity;
+  current: SidecarProjectIdentity;
 }): string[] {
   const mismatches: string[] = [];
 
-  const fields: { key: keyof PersistedProjectIdentity; label: string }[] = [
+  const fields: { key: keyof SidecarProjectIdentity; label: string }[] = [
     { key: 'reactNativeVersion', label: 'React Native version' },
     { key: 'expoSdkVersion', label: 'Expo SDK version' },
     { key: 'requiredSdkProtocolVersion', label: 'Sherlo SDK protocol version' },
-    { key: 'engineClass', label: 'JS engine' },
     { key: 'babelConfigDigest', label: 'Babel config' },
     { key: 'metroVersion', label: 'Metro version' },
   ];
@@ -341,43 +356,90 @@ export function compareProjectIdentity({
   }
 
   // The dependency closure is two fields, and the SOURCE difference is reported on
-  // its own. A lockfile hash and a package.json hash are hashes of different bytes,
-  // so showing them side by side would read as a content difference when the real
-  // problem is that the two trees were measured in different ways.
-  if (recorded.dependencyClosure.source !== current.dependencyClosure.source) {
+  // its own. A lockfile set and a package.json hash are hashes of different
+  // inputs, so showing them side by side would read as a content difference when
+  // the real problem is that the two trees were measured in different ways.
+  const recordedDependencies = recorded.dependencyClosure;
+  const currentDependencies = current.dependencyClosure;
+
+  if (recordedDependencies.source !== currentDependencies.source) {
     mismatches.push(
       "dependency closure: the bundle's dependencies were read from " +
-        `${recorded.dependencyClosure.source}, this project's from ` +
-        `${current.dependencyClosure.source} - the two cannot be compared`
+        `${recordedDependencies.source}, this project's from ` +
+        `${currentDependencies.source} - the two cannot be compared`
     );
-  } else if (recorded.dependencyClosure.hash !== current.dependencyClosure.hash) {
-    // Name what was ACTUALLY compared. `node_modules` means the installed versions
-    // genuinely differ; a lockfile or package.json source means the DECLARED set
-    // differs, which is a weaker statement - claiming more than that would be a
-    // refusal message that lies about its own evidence.
+  } else if (recordedDependencies.hash !== currentDependencies.hash) {
+    // Name what was ACTUALLY compared. A lockfile or an installed tree carries the
+    // resolved versions, so the moved packages are named; the package.json source
+    // is a digest over declared ranges and can only say that they differ.
     const what =
-      current.dependencyClosure.source === 'node_modules'
-        ? 'the installed dependency versions differ'
-        : `the dependencies declared in ${current.dependencyClosure.source} differ`;
+      currentDependencies.source === 'package.json'
+        ? 'the dependencies declared in package.json differ'
+        : `the packages resolved in ${currentDependencies.source} differ`;
 
     mismatches.push(
       `dependencies: ${what} from the ones the bundle was built against ` +
-        `(this project hashes to ${short(current.dependencyClosure.hash)}, ` +
-        `the bundle recorded ${short(recorded.dependencyClosure.hash)})`
+        `(this project hashes to ${short(currentDependencies.hash)}, ` +
+        `the bundle recorded ${short(recordedDependencies.hash)})` +
+        nameEntries(
+          diffPackages(recordedDependencies.packages ?? [], currentDependencies.packages ?? [])
+        )
     );
   }
 
   return mismatches;
 }
 
+/**
+ * Compare the app source the bundle was built from against the tree now. The
+ * per-file pre-image on both sides names the edited, added and removed files; a
+ * generated file appears as its INPUTS, since those are what was compared.
+ */
+export function compareAppSource({
+  recorded,
+  current,
+}: {
+  recorded: AppSourceClosure;
+  current: AppSourceClosure;
+}): string[] {
+  if (recorded.hash === current.hash) return [];
+
+  return [
+    "app source: this project's source has changed since the bundle was built " +
+      `(${current.fileCount} source file(s) in the bundle's module graph now hash to ` +
+      `${short(current.hash)}, the bundle recorded ${short(recorded.hash)}) - ` +
+      'running it would test the code as it was BEFORE those edits' +
+      nameEntries(diffFiles(recorded.files ?? [], current.files ?? [])),
+  ];
+}
+
+/**
+ * The moved entries, one per line under the mismatch, in the same `~ name old
+ * -> new` / `+ name` / `- name` form `sherlo fingerprint --baseline` prints.
+ */
+function nameEntries(entries: DeltaEntry[]): string {
+  if (entries.length === 0) return '';
+
+  const named = entries.slice(0, MAX_NAMED_ENTRIES).map((entry) => `\n      ${describeEntry(entry)}`);
+  const rest = entries.length - named.length;
+  return named.join('') + (rest > 0 ? `\n      ... and ${rest} more` : '');
+}
+
+function describeEntry({ kind, name, before, after }: DeltaEntry): string {
+  if (kind === 'added') return `+ ${name}${after === undefined ? '' : ` ${short(after)}`}`;
+  if (kind === 'removed') return `- ${name}${before === undefined ? '' : ` ${short(before)}`}`;
+  return `~ ${name} ${short(before ?? '')} -> ${short(after ?? '')}`;
+}
+
 /** Render a value for a refusal, hashing digests down to something readable. */
-function describe(value: string | null, key: keyof PersistedProjectIdentity): string {
+function describe(value: string | null, key: keyof SidecarProjectIdentity): string {
   if (value === null) return 'none';
   return key === 'babelConfigDigest' ? short(value) : value;
 }
 
-function short(hash: string): string {
-  return hash.slice(0, 12);
+/** A version stays whole; a hex digest is cut to its first 12 characters. */
+function short(value: string): string {
+  return /^[0-9a-f]{40,}$/.test(value) ? value.slice(0, 12) : value;
 }
 
 /**

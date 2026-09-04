@@ -21,7 +21,7 @@ import {
   formatSimModuleFile,
   formatSimWorldConfig,
   readSimWorld,
-  resolveSimWorldPath,
+  resolveSimulationWorldPath,
   SIM_WORLD_CONFIG_FILENAME,
   SIM_WORLD_DIRNAME,
   validateSimWorldTree,
@@ -384,24 +384,78 @@ describe('readSimWorld', () => {
   });
 });
 
-describe('resolveSimWorldPath', () => {
-  it('prefers the explicit --sim path and marks it explicit', () => {
-    expect(resolveSimWorldPath({ sim: '/worlds/w', projectRoot: tempDir })).toEqual({
-      dirPath: '/worlds/w',
-      explicit: true,
-    });
+/**
+ * Sim-ness lives in the config file's `simulation` field and NOWHERE else: no
+ * `--sim` flag, no sniffing for a `sim-world/` that happens to sit in the
+ * project root. The field's value names the world TREE's directory.
+ */
+describe('resolveSimulationWorldPath', () => {
+  /** Write a config file into the temp project root, returning nothing. */
+  function writeConfig(config: Record<string, unknown>): void {
+    fs.writeFileSync(
+      path.join(tempDir, 'sherlo.config.json'),
+      JSON.stringify(config, null, 2),
+      'utf8'
+    );
+  }
+
+  it('is sim mode when `simulation` names an existing tree, resolved from the config directory', () => {
+    writeConfig({ token: 'tok', simulation: 'worlds/w' });
+    fs.mkdirSync(path.join(tempDir, 'worlds/w'), { recursive: true });
+
+    expect(resolveSimulationWorldPath({ projectRoot: tempDir })).toBe(
+      path.join(tempDir, 'worlds/w')
+    );
   });
 
-  it('detects sim-world/ in the project root', () => {
+  it('is a normal run when the field is absent, even with a sim-world/ lying around', () => {
+    writeConfig({ token: 'tok' });
     fs.mkdirSync(path.join(tempDir, SIM_WORLD_DIRNAME));
 
-    expect(resolveSimWorldPath({ projectRoot: tempDir })).toEqual({
-      dirPath: path.join(tempDir, SIM_WORLD_DIRNAME),
-      explicit: false,
-    });
+    expect(resolveSimulationWorldPath({ projectRoot: tempDir })).toBeUndefined();
   });
 
-  it('returns undefined when neither the flag nor the directory is present', () => {
-    expect(resolveSimWorldPath({ projectRoot: tempDir })).toBeUndefined();
+  it('names the field AND the resolved path when the tree does not exist', () => {
+    writeConfig({ token: 'tok', simulation: 'worlds/missing' });
+
+    expect(() => resolveSimulationWorldPath({ projectRoot: tempDir })).toThrow(
+      new RegExp(
+        `\`simulation\` in ${escapeForRegex(path.join(tempDir, 'sherlo.config.json'))}.*` +
+          escapeForRegex(path.join(tempDir, 'worlds/missing')),
+        's'
+      )
+    );
+  });
+
+  it.each([
+    ['a number', 7],
+    ['an empty string', ''],
+    ['whitespace only', '   '],
+    ['an object', { path: 'w' }],
+    ['null', null],
+  ])('refuses a `simulation` that is %s', (_name, simulation) => {
+    writeConfig({ token: 'tok', simulation });
+
+    expect(() => resolveSimulationWorldPath({ projectRoot: tempDir })).toThrow(
+      /`simulation`.*must be a non-empty string/s
+    );
+  });
+
+  it('reads the config named by the --config option, relative to the project root', () => {
+    fs.mkdirSync(path.join(tempDir, 'ci'));
+    fs.writeFileSync(
+      path.join(tempDir, 'ci/sherlo.config.json'),
+      JSON.stringify({ simulation: '../w' }),
+      'utf8'
+    );
+    fs.mkdirSync(path.join(tempDir, 'w'));
+
+    expect(
+      resolveSimulationWorldPath({ projectRoot: tempDir, config: 'ci/sherlo.config.json' })
+    ).toBe(path.join(tempDir, 'w'));
   });
 });
+
+function escapeForRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}

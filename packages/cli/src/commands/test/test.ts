@@ -18,19 +18,20 @@
  *     THE STANDARD ROAD. Native builds were handed to the command, so it
  *     uploads them, REGISTERS them as the new base - which is what makes the
  *     staged road available on the next commit - and runs a full test on them
- *     with the freshly built bundle spliced in. Delegated verbatim to the
- *     standard road so there is exactly one implementation of a full run.
+ *     with the freshly built bundle spliced in. See ./standardRun.ts - the
+ *     one implementation of a full run.
  *
- * The road is chosen by the FLAGS, never by the config file: a caller that
- * passes no `--android`/`--ios` is asking the routing question, whatever paths
- * sherlo.config.json happens to carry.
+ * Between those two the road is chosen by the FLAGS, never by the config file: a
+ * caller that passes no `--android`/`--ios` is asking the routing question,
+ * whatever paths sherlo.config.json happens to carry.
  *
- *   sherlo test --sim <path>   (or a `sim-world/` in the project root)
- *     THE SIM ROAD. A declared source TREE stands in for the real app - one
- *     JSON file per module, so a branch's diff reads like the source change it
- *     stands for and git merges two of them. The CLI derives the module
- *     manifest from that tree, uploads it and the world to staged slots, and
- *     opens a sim build - no bundler, no binary, no routing question. See ./simRun.ts. A sim world cannot be combined with native
+ *   sherlo test   with `"simulation": "<path>"` in sherlo.config.json
+ *     THE SIM ROAD. `<path>` names a declared source TREE that stands in for the
+ *     real app - one JSON file per module, so a branch's diff reads like the
+ *     source change it stands for and git merges two of them. The CLI derives
+ *     the module manifest from that tree, uploads it and the world to staged
+ *     slots, and opens a sim build - no bundler, no binary, no routing
+ *     question. See ./simRun.ts. A sim world cannot be combined with native
  *     build paths or the bundler-road preview/supply flags; the combinations
  *     are refused rather than half-honored.
  *
@@ -39,23 +40,21 @@
  * belongs to this project and is not stale. The remaining staged-only flags are
  * refused with build paths rather than silently ignored.
  */
-import { ANDROID_OPTION, IOS_OPTION, SIM_OPTION } from '../../constants';
+import { ANDROID_OPTION, IOS_OPTION } from '../../constants';
 import { throwError } from '../../helpers';
 import { Options } from '../../types';
-import testStandard from '../testStandard';
 import simRun from './simRun';
-import { resolveSimWorldPath, SIM_WORLD_DIRNAME } from './simWorld';
+import { resolveSimulationWorldPath, SIMULATION_CONFIG_FIELD } from './simWorld';
 import stagedRun from './stagedRun';
+import standardRun from './standardRun';
 import { THIS_COMMAND } from './constants';
 
 async function test(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
   const hasNativeBuildPaths = Boolean(passedOptions[ANDROID_OPTION] || passedOptions[IOS_OPTION]);
 
-  const simWorld = resolveSimWorldPath(passedOptions);
-  if (simWorld !== undefined) {
-    const simTrigger = simWorld.explicit
-      ? `\`--${SIM_OPTION}\``
-      : `the detected ${SIM_WORLD_DIRNAME}/`;
+  const simWorldDirPath = resolveSimulationWorldPath(passedOptions);
+  if (simWorldDirPath !== undefined) {
+    const simTrigger = `\`${SIMULATION_CONFIG_FIELD}\` in the config file`;
 
     // A sim world IS the app, so a native binary alongside it could only test
     // something else. Refuse rather than pick one silently.
@@ -64,7 +63,7 @@ async function test(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string
         message:
           `${simTrigger} tests a declared world instead of a real app, so it cannot be ` +
           `combined with \`--${ANDROID_OPTION}\` / \`--${IOS_OPTION}\`. Drop the build paths, ` +
-          'or remove the world to test real builds.',
+          'or remove the field to test real builds.',
       });
     }
 
@@ -86,7 +85,7 @@ async function test(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string
       });
     }
 
-    return simRun(passedOptions, simWorld.dirPath);
+    return simRun(passedOptions, simWorldDirPath);
   }
 
   if (!hasNativeBuildPaths) {
@@ -116,7 +115,7 @@ async function test(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string
     });
   }
 
-  return testStandard(passedOptions);
+  return standardRun(passedOptions);
 }
 
 export default test;

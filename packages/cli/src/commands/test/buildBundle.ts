@@ -311,7 +311,7 @@ export function inspectBundleArtifacts({
 /**
  * Construct the per-platform {@link GateMetadataInput} for a bundled run.
  *
- * test:standard extracts BINARY-derived gate metadata from a built APK/IPA via
+ * `sherlo test --android/--ios` extracts BINARY-derived gate metadata from a built APK/IPA via
  * {@link extractGateMetadata}. The bundled flow has no binary, so it marks its
  * metadata `derivedFrom: 'source'` and sends ONLY what the JS bundle + project
  * config honestly know:

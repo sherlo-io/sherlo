@@ -55,10 +55,14 @@
 import fs from 'fs';
 import path from 'path';
 import { SIM_WORLD_VERSION, type SimRunOutcome } from '@sherlo/api-types';
-import { DEFAULT_PROJECT_ROOT } from '../../constants';
+import { DEFAULT_CONFIG_FILENAME, DEFAULT_PROJECT_ROOT } from '../../constants';
+import parseConfigFile from '../../helpers/getValidatedCommandParams/getNormalizedConfig/parseConfigFile';
 import throwError from '../../helpers/throwError';
 
-/** The world tree `sherlo test` auto-detects in the project root. */
+/** The config field that declares a run's sim world - its presence IS sim mode. */
+export const SIMULATION_CONFIG_FIELD = 'simulation';
+
+/** The conventional name of a world tree's directory. */
 export const SIM_WORLD_DIRNAME = 'sim-world';
 
 /** The world's own config, at the root of the tree. */
@@ -116,24 +120,55 @@ export type ValidatedSimWorld = {
 };
 
 /**
- * Where this run's sim world lives, if anywhere: the explicit `--sim <path>`
- * wins, else a `sim-world/` sitting in the project root is auto-detected.
- * Returns undefined when neither applies - the run is not a sim run.
+ * Where this run's sim world lives, if anywhere: SOLELY the `simulation` field
+ * of the config file, holding a path relative to that config file's directory.
+ * Present -> sim mode, reading the world from there. Absent -> undefined, and
+ * the run is a normal one. There is no file sniffing and no flag.
+ *
+ * The value names a DIRECTORY, not a file: since the world became a source tree
+ * the declared path is the root of that tree - the directory holding
+ * `world.json` and one `<module path>.json` per module (conventionally
+ * `sim-world/`, but the field names whatever directory the project chose). Only
+ * the path's EXISTENCE is checked here; that it is a directory holding a
+ * well-formed tree is {@link readSimWorld}'s answer, which names every problem
+ * at once.
  */
-export function resolveSimWorldPath(options: {
-  sim?: string;
+export function resolveSimulationWorldPath(options: {
+  config?: string;
   projectRoot?: string;
-}): { dirPath: string; explicit: boolean } | undefined {
-  if (options.sim !== undefined) {
-    return { dirPath: options.sim, explicit: true };
+}): string | undefined {
+  const configFilePath = path.resolve(
+    options.projectRoot || DEFAULT_PROJECT_ROOT,
+    options.config || DEFAULT_CONFIG_FILENAME
+  );
+
+  const { simulation } = parseConfigFile(configFilePath) as {
+    simulation?: unknown;
+  };
+
+  if (simulation === undefined) {
+    return undefined;
   }
 
-  const detected = path.join(options.projectRoot || DEFAULT_PROJECT_ROOT, SIM_WORLD_DIRNAME);
-  if (fs.existsSync(detected)) {
-    return { dirPath: detected, explicit: false };
+  if (typeof simulation !== 'string' || simulation.trim() === '') {
+    throwError({
+      message:
+        `\`${SIMULATION_CONFIG_FIELD}\` in ${configFilePath} must be a non-empty string - the path ` +
+        `of the sim world DIRECTORY, relative to the config file's directory (got ` +
+        `${JSON.stringify(simulation)}).`,
+    });
   }
 
-  return undefined;
+  const worldDirPath = path.resolve(path.dirname(configFilePath), simulation);
+  if (!fs.existsSync(worldDirPath)) {
+    throwError({
+      message:
+        `\`${SIMULATION_CONFIG_FIELD}\` in ${configFilePath} names a sim world tree that does not ` +
+        `exist: ${worldDirPath}. The path is resolved relative to the config file's directory.`,
+    });
+  }
+
+  return worldDirPath;
 }
 
 /**

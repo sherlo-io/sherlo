@@ -117,9 +117,18 @@ describe('uploadFreshBundles - supplied (--bundle-dir)', () => {
       projectRoot: '/proj',
       platformsToTest: ['android'],
       // The advisory pairing note compares against the base this run registers.
-      nativeFingerprint: 'base-fp',
-      gateMetadataFor: EFFECTS.bundling.gateMetadataFor,
+      baseFingerprint: 'base-fp',
+      gateMetadataFor: expect.any(Function),
     });
+    // The metadata the sidecar recorded is ignored: this road registers what it
+    // reads out of the binary, through its own effect.
+    const { gateMetadataFor } = mocks.resolveSuppliedBundles.mock.calls[0][0];
+    await gateMetadataFor('android', BUNDLES.android, { derivedFrom: 'source' });
+    expect(EFFECTS.bundling.gateMetadataFor).toHaveBeenCalledWith(
+      '/proj',
+      'android',
+      BUNDLES.android
+    );
     expect(mocks.buildBundles).not.toHaveBeenCalled();
     expect(uploaded).toEqual({ android: { keys: KEYS.android, bundleSizeMb: 1.5 } });
   });

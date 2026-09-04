@@ -51,7 +51,49 @@ describe('dependency closure pre-image', () => {
 
       expect(closure.source).toBe('node_modules');
       expect(closure.hash).toBe('4afaaf1efe61d17302996c4c0ed9cf7f01a10c6faaebbdeb16d61bfb14a5aaa0');
-      expect(closure.installedPackages).toEqual([
+      expect(closure.packages).toEqual([
+        { name: '@scope/lib', versions: ['2.1.0'] },
+        { name: 'loose', versions: ['1.0.1', '1.2.0'] },
+        { name: 'react', versions: ['18.2.0'] },
+      ]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('prefers the lockfile over the installed tree, and hashes the same set to the same digest', () => {
+    const dir = makeInstalledTree();
+    try {
+      // The lockfile resolves the SAME set the tree above installs. It wins over
+      // the tree - an installed react at another version is not consulted - and
+      // the canonical form is shared, so the digest is the one pinned above.
+      fs.writeFileSync(
+        path.join(dir, 'yarn.lock'),
+        [
+          '# yarn lockfile v1',
+          '',
+          '',
+          '"@scope/lib@^2.1.0":',
+          '  version "2.1.0"',
+          '',
+          'loose@^1.0.0:',
+          '  version "1.0.1"',
+          '',
+          'loose@^1.2.0:',
+          '  version "1.2.0"',
+          '',
+          'react@^18.2.0:',
+          '  version "18.2.0"',
+          '',
+        ].join('\n')
+      );
+      writeJson(dir, 'node_modules/react/package.json', { name: 'react', version: '18.3.1' });
+
+      const closure = computeDependencyClosure(dir);
+
+      expect(closure.source).toBe('yarn.lock');
+      expect(closure.hash).toBe('4afaaf1efe61d17302996c4c0ed9cf7f01a10c6faaebbdeb16d61bfb14a5aaa0');
+      expect(closure.packages).toEqual([
         { name: '@scope/lib', versions: ['2.1.0'] },
         { name: 'loose', versions: ['1.0.1', '1.2.0'] },
         { name: 'react', versions: ['18.2.0'] },
@@ -76,7 +118,7 @@ describe('dependency closure pre-image', () => {
       expect(closure.hash).toBe('1b1f9e775631a5fc39876fc70cbff8fcd31f6a8248d303d3630a3ffbd00c719e');
       // A package.json digest is taken over raw text, so there is nothing
       // per-package to keep - and null says so rather than pretending otherwise.
-      expect(closure.installedPackages).toBeNull();
+      expect(closure.packages).toBeNull();
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -84,6 +126,39 @@ describe('dependency closure pre-image', () => {
 });
 
 describe('app source closure pre-image', () => {
+  it('digests a generated file by its inputs, so a tree without the file agrees', () => {
+    const dir = makeTempDir('sherlo-app-generated-');
+    try {
+      fs.mkdirSync(path.join(dir, '.rnstorybook'));
+      fs.writeFileSync(path.join(dir, '.rnstorybook/main.ts'), 'export default {};\n');
+      fs.writeFileSync(path.join(dir, '.rnstorybook/storybook.requires.ts'), '// generated\n');
+      fs.writeFileSync(path.join(dir, 'index.js'), 'console.log(1);\n');
+
+      const inputs = {
+        modulePaths: ['index.js', './.rnstorybook/storybook.requires.ts'],
+        generatedFiles: {
+          './.rnstorybook/storybook.requires.ts': {
+            generatedBy: 'storybook-requires',
+            inputs: ['./.rnstorybook/main.ts'],
+          },
+        },
+      };
+
+      const withFile = computeAppSourceClosure({ projectRoot: dir, ...inputs });
+      fs.rmSync(path.join(dir, '.rnstorybook/storybook.requires.ts'));
+      const withoutFile = computeAppSourceClosure({ projectRoot: dir, ...inputs });
+
+      expect(withoutFile.hash).toBe(withFile.hash);
+      expect(withFile.files.map(({ path: filePath }) => filePath)).toEqual([
+        './.rnstorybook/main.ts',
+        'index.js',
+      ]);
+      expect(withFile.fileCount).toBe(2);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('hashes the module graph to the pinned digest and keeps the per-file digests', () => {
     const dir = makeTempDir('sherlo-app-closure-');
     try {

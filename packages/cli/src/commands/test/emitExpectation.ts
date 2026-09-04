@@ -17,7 +17,7 @@
  * runs entirely against local input and never touches the network, matching
  * every real invocation of these guards elsewhere in the CLI.
  */
-import { TEST_STANDARD_COMMAND } from '../../constants';
+import { TEST_COMMAND } from '../../constants';
 import { BinariesInfo, InvalidatedConfig } from '../../types';
 import parseConfigFile from '../../helpers/getValidatedCommandParams/getNormalizedConfig/parseConfigFile';
 import validateDevices from '../../helpers/getValidatedCommandParams/validateCommandParams/validateDevices';
@@ -37,7 +37,7 @@ export const EXPECTATION_PLACEHOLDERS = {
 } as const;
 
 /** The command context every scenario's guard is evaluated under. */
-const SCENARIO_COMMAND = TEST_STANDARD_COMMAND;
+const SCENARIO_COMMAND = TEST_COMMAND;
 
 type ExpectationScenario = {
   guard: string;

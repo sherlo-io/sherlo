@@ -33,6 +33,7 @@ import type {
   FingerprintSource,
   Options as FingerprintOptions,
 } from '@expo/fingerprint';
+import reporting from '../reporting';
 import runShellCommand from '../runShellCommand';
 
 /**
@@ -136,10 +137,8 @@ export type BaseFingerprintResult = {
 
 export type ComputeBaseFingerprintOptions = {
   /**
-   * The CLI command that triggered this computation (e.g. 'test:standard',
-   * 'test'). Used ONLY to tag `SHERLO_FINGERPRINT_DEBUG` output so a
-   * per-command breakdown can be diffed across commands. Has no effect on the
-   * computed hash.
+   * The CLI command that triggered this computation (e.g. 'test'). Recorded on the reporting breadcrumb so a reported failure names
+   * its caller. Has no effect on the computed hash.
    */
   command?: string;
 };
@@ -168,11 +167,9 @@ export type ComputeBaseFingerprintOptions = {
  *      swap in the same deterministic env around the library call (see
  *      {@link withDeterministicEnv}).
  *
- * Set `SHERLO_FINGERPRINT_DEBUG=1` to print the full per-layer breakdown
- * (tagged by command) - permanent, off-by-default observability.
+ * `sherlo fingerprint --verbose` prints the full per-layer breakdown - every
+ * source, lockfile and autolinked module behind the hash.
  */
-/** The env mode applied to the Layer-1 compute - surfaced by the debug instrument. */
-const LAYER1_ENV_MODE = 'sanitized';
 
 /**
  * Run `fn` with `process.env` temporarily replaced by the deterministic env
@@ -226,7 +223,12 @@ export async function computeBaseFingerprint(
   projectRoot: string,
   options: ComputeBaseFingerprintOptions = {}
 ): Promise<BaseFingerprintResult> {
-  const command = options.command ?? 'unknown';
+  reporting.addBreadcrumb({
+    category: 'fingerprint',
+    message: 'Computing base fingerprint',
+    data: { command: options.command ?? 'unknown', projectRoot },
+    level: 'info',
+  });
 
   // Determinism fix #1: normalize the project root to an absolute canonical
   // path BEFORE any layer runs. `@expo/fingerprint` (Layer 1) is path-form
@@ -322,18 +324,6 @@ export async function computeBaseFingerprint(
 
   const finalHash = combined.digest('hex');
 
-  emitFingerprintDebug({
-    command,
-    rawProjectRoot: projectRoot,
-    resolvedProjectRoot,
-    workflow,
-    layer1Hash,
-    layer1EnvMode: LAYER1_ENV_MODE,
-    lockfiles,
-    autolinkedModules,
-    finalHash,
-  });
-
   // `nativeFingerprint` is the sanitized Layer-1 hash, exposed so the diffScope
   // wire value can be sourced from this SINGLE compute instead of a second, raw
   // `createFingerprintAsync` call (SHERLO-1756). `layer1Hash` is guaranteed
@@ -353,97 +343,10 @@ export async function computeBaseFingerprint(
 }
 
 // ---------------------------------------------------------------------------
-// Debug instrument (SHERLO-1744, AC1) - permanent, env-gated observability
-// ---------------------------------------------------------------------------
-
-/**
- * When `SHERLO_FINGERPRINT_DEBUG=1`, print the full per-layer breakdown of ONE
- * base-fingerprint computation, TAGGED BY COMMAND. This is permanent product
- * code - it stays after the SHERLO-1744 fix as the tool that names any future
- * cross-command divergence. Off by default: zero output unless the env var is
- * set.
- *
- * Every line is prefixed `[sherlo:fp-debug]` and carries the triggering command
- * so two commands' breakdowns can be captured and diffed line-for-line.
- */
-function emitFingerprintDebug(fields: {
-  command: string;
-  rawProjectRoot: string;
-  resolvedProjectRoot: string;
-  workflow: Workflow;
-  layer1Hash: string;
-  layer1EnvMode: string;
-  lockfiles: LockfileDigest[];
-  autolinkedModules: string;
-  finalHash: string;
-}): void {
-  if (process.env.SHERLO_FINGERPRINT_DEBUG !== '1') return;
-
-  const { command } = fields;
-  const tag = (line: string): string => `[sherlo:fp-debug][${command}] ${line}`;
-  const lines: string[] = [];
-
-  lines.push(tag(`command=${command}`));
-
-  // Layer 0 - path form. @expo/fingerprint is PATH-FORM-SENSITIVE: the '.'-form
-  // and the absolute form of one tree hash differently. We normalize to the
-  // resolved form before hashing; both forms are surfaced here so a path-form
-  // skew between commands is immediately visible.
-  lines.push(
-    tag(
-      `projectRoot.raw=${JSON.stringify(fields.rawProjectRoot)} ` +
-        `projectRoot.resolved=${JSON.stringify(fields.resolvedProjectRoot)} ` +
-        '(FOOTGUN: @expo/fingerprint is path-form-sensitive; normalized to resolved before hashing)'
-    )
-  );
-
-  // Layer 1 - @expo/fingerprint hash + the env mode its compute ran under.
-  // `layer1.envMode=sanitized` means the deterministic env-swap (SHERLO-1746)
-  // was in force around the library call, so its internal ExpoConfigLoader
-  // subprocess could not observe the per-command ambient env. Any other value
-  // here would name an env leak - a future regression is one grep away.
-  lines.push(tag(`layer1.envMode=${fields.layer1EnvMode}`));
-  lines.push(tag(`layer1.hash=${fields.layer1Hash}`));
-
-  // Layer 2 - augmented sources: each lockfile SHA + the sorted autolinked set.
-  if (fields.lockfiles.length === 0) {
-    lines.push(tag('layer2.lockfiles=(none present)'));
-  } else {
-    for (const lockfile of fields.lockfiles) {
-      lines.push(tag(`layer2.lockfile ${lockfileHashLine(lockfile)}`));
-    }
-  }
-
-  const autolinkedEntries = fields.autolinkedModules ? fields.autolinkedModules.split('\n') : [];
-  lines.push(tag(`layer2.autolinked.count=${autolinkedEntries.length}`));
-  for (const entry of autolinkedEntries) {
-    lines.push(tag(`layer2.autolinked ${entry}`));
-  }
-  // A sub-hash of the Layer-2 inputs, so a divergence shows up as a single
-  // changed value even before scanning the per-entry lines above.
-  const layer2Hash = crypto
-    .createHash('sha256')
-    .update(
-      `lockfiles:${fields.lockfiles.map(lockfileHashLine).join('')}` +
-        `|autolinked:${fields.autolinkedModules}`
-    )
-    .digest('hex');
-  lines.push(tag(`layer2.hash=${layer2Hash}`));
-
-  // Layer 3 - workflow detection.
-  lines.push(tag(`layer3.workflow=${fields.workflow}`));
-
-  // Final wire value - what actually gets sent to the gate.
-  lines.push(tag(`final.wire=${fields.finalHash}`));
-
-  console.log(lines.join('\n'));
-}
-
-// ---------------------------------------------------------------------------
 // Layer 3 - workflow detection
 // ---------------------------------------------------------------------------
 
-type Workflow = 'managed' | 'bare';
+export type Workflow = 'managed' | 'bare';
 
 function detectWorkflow(projectRoot: string): Workflow {
   const bareIndicators = [
@@ -626,8 +529,7 @@ function lockfileHashLine({ file, digest }: LockfileDigest): string {
  *
  * Ambient `process.env` is NOT stable across commands: a package manager injects
  * `NODE_ENV`, `npm_lifecycle_event`, `npm_config_*`, `NODE_OPTIONS`, … that
- * differ depending on which yarn script (test:standard vs test vs
- * test:eas-update) launched the CLI. If any of those leak into a fingerprint-time
+ * differ depending on which yarn script launched the CLI. If any of those leak into a fingerprint-time
  * subprocess and that subprocess branches on them, the SAME tree hashes
  * differently per command and the staged gate lookup misses.
  *

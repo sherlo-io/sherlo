@@ -28,6 +28,7 @@
  */
 import sdkClient from '@sherlo/sdk-client';
 import { GateMetadata, GateMetadataByPlatform, Platform } from '@sherlo/api-types';
+import { PLATFORMS } from '../../constants';
 import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER } from '@sherlo/shared';
 import chalk from 'chalk';
 import { Options } from '../../types';
@@ -40,12 +41,12 @@ import {
   getTokenParts,
   getValidatedCommandParams,
   handleClientError,
-  logWarning,
   printSherloIntro,
   reporting,
   throwError,
   waitForBuildResult,
 } from '../../helpers';
+import parseWaitTimeout from '../../helpers/parseWaitTimeout';
 import printLink from '../../helpers/printLink';
 import printOutputKeys from '../../helpers/printOutputKeys';
 import {
@@ -71,13 +72,17 @@ import {
 } from './uploadBundles';
 import type { StagedUploadKeys } from './uploadStagedArtifacts';
 import { buildBundles, runDryRunFlow } from './bundleAndPreview';
-import { buildGateMetadata } from './buildBundle';
 import { emitBundleDir } from './emitBundleDir';
+import { resolveBaseFingerprintForSuppliedBundle } from './recordedBaseFingerprint';
 import { resolveSuppliedBundles } from './suppliedBundle';
 import { runEmitExpectation } from './emitExpectation';
 import { runRenderTranscript } from './renderTranscript';
 import { countBundleStories, type ValidatedModuleManifest } from './readModuleManifest';
-import { formatDiffScopeReport, type DiffScopePlatformReport } from './diffScopeReport';
+import {
+  formatDiffScopeReport,
+  formatDiffScopeSummaryLine,
+  type DiffScopePlatformReport,
+} from './diffScopeReport';
 
 /**
  * The ONLY gate metadata the pre-bundle probe may send: the `none` derivation
@@ -112,6 +117,15 @@ type PlatformConfigWithCaptureScope = { captureScope?: CaptureScope };
 type DiffScopeInfoWithPlatformReasons = {
   fullCaptureTriggerReason?: string;
   platforms?: Partial<Record<Platform, { reason?: string }>>;
+  /**
+   * The primary frozen ancestor build index this decision diffed against.
+   * Hand-typed rather than imported from `@sherlo/api-types` for the same
+   * forward-compat reason as the two fields above (this file's module doc):
+   * sherlo-api commit e7c7d5a (`feature/sherlo-3`) added it to
+   * `Build.diffScopeInfo` and the portal tarball this repo builds against may
+   * not carry it yet. Absent -> no ancestor, or an older API.
+   */
+  ancestorBuildIndex?: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -216,9 +230,18 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   //    A dry run does NOT stage a binary, so a missing fingerprint is a
   //    staged-only concern that must not stop the preview - it bails open
   //    downstream (a real run would capture everything) rather than routing.
-  const fpResult = await computeBaseFingerprint(commandParams.projectRoot, {
-    command: THIS_COMMAND,
-  });
+  //    A run that supplies its bundle takes the fingerprint the bundle recorded
+  //    when this tree's native inputs still match - the machine that accepts a
+  //    bundle has no install to compute one with. See ./recordedBaseFingerprint.
+  const fpResult =
+    bundleDir !== undefined
+      ? await resolveBaseFingerprintForSuppliedBundle({
+          bundleDir,
+          projectRoot: commandParams.projectRoot,
+          platforms: platformsToTest,
+          command: THIS_COMMAND,
+        })
+      : await computeBaseFingerprint(commandParams.projectRoot, { command: THIS_COMMAND });
   //    An emit run does not stage a binary either - it only writes a directory to
   //    disk - so like a dry run it must not route on a missing fingerprint.
   if (!fpResult.hash && !isDryRun && emitBundleDirPath === undefined) {
@@ -237,7 +260,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       projectRoot: commandParams.projectRoot,
       platformsToTest,
       bundleDir: emitBundleDirPath,
-      ...(baseFingerprint ? { nativeFingerprint: baseFingerprint } : {}),
+      baseFingerprint: fpResult,
     });
     return { url: '' };
   }
@@ -303,9 +326,11 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       bundleDir,
       projectRoot: commandParams.projectRoot,
       platformsToTest,
-      ...(baseFingerprint ? { nativeFingerprint: baseFingerprint } : {}),
-      gateMetadataFor: (projectRoot, platform, bundleResult) =>
-        buildGateMetadata({ projectRoot, platform, bundleResult }),
+      ...(baseFingerprint ? { baseFingerprint } : {}),
+      // The source-derived metadata was derived beside the bundle, on the machine
+      // that had the install to derive it; the acceptor verified the source it
+      // came from, so it is sent as recorded.
+      gateMetadataFor: async (_platform, _bundleResult, recorded) => recorded,
     }));
   } else {
     console.log(chalk.bold('\n📦 Bundling for staged upload...\n'));
@@ -383,7 +408,6 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       platformConfig,
       keys,
       bundleSizeMb: bundleResult.bundleSizeMb,
-      baseReference: baseFingerprint,
     });
   }
 
@@ -468,6 +492,10 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       teamId,
       waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
       serverBypassed,
+      // --metadata: the details block, carrying the git identity THIS run
+      // composed and sent at openBuild - `getBuildStatus` does not return it, so
+      // the only honest source is the value that created the build.
+      metadata: commandParams.metadata === true ? { git: gitInfo } : undefined,
     });
 
     // --wait mode: the exit code IS the contract. Flush telemetry then exit.
@@ -645,6 +673,28 @@ export function printCapturePlanAndCloser({
 
   if (platforms.length > 0) {
     console.log('\n' + formatDiffScopeReport('live', platforms));
+
+    // The one-line "Diff Scope:" summary (view-metadata, operator ruling
+    // 2026-09-03), printed once for the build - not per platform - keyed on
+    // the PRIMARY platform (first-present, PLATFORMS-ordered: android before
+    // ios), the same convention the server uses for its own single reason.
+    const primary = PLATFORMS.map((platform) =>
+      platforms.find((p) => p.platform === platform)
+    ).find((p): p is DiffScopePlatformReport => p !== undefined);
+
+    if (primary) {
+      const summaryLine = formatDiffScopeSummaryLine({
+        full: primary.full,
+        capturedStoryFilePaths: primary.capturedStoryFilePaths,
+        totalStoriesInBundle: primary.totalStoriesInBundle,
+        reason: primary.reason,
+        allStoryFilePaths: moduleManifests[primary.platform]
+          ? Object.keys(moduleManifests[primary.platform]!.parsed.storyClosures)
+          : undefined,
+        ancestorBuildIndex: diffScopeInfo?.ancestorBuildIndex,
+      });
+      if (summaryLine) console.log('\n' + summaryLine);
+    }
   }
 
   // A server-bypassed build has its compact closer printed by the caller (the
@@ -726,14 +776,4 @@ function resolveLiveReason({
   return undefined;
 }
 
-export function parseWaitTimeout(raw: string | undefined): number | undefined {
-  if (!raw) return undefined;
-  const minutes = parseInt(raw, 10);
-  if (isNaN(minutes) || minutes < 1) {
-    logWarning({
-      message: `Invalid --wait-timeout "${raw}"; using default 45 minutes.`,
-    });
-    return undefined;
-  }
-  return minutes;
-}
+export { parseWaitTimeout };

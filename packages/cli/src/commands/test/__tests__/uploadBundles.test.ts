@@ -137,7 +137,6 @@ describe('applyBundleToPlatformConfig', () => {
       platformConfig,
       keys: { jsBundleS3Key: 'js-key', assetsS3Key: 'assets-key', manifestS3Key: 'manifest-key' },
       bundleSizeMb: 4.29,
-      baseReference: 'base-fp',
     });
 
     expect(platformConfig).toEqual({
@@ -145,7 +144,6 @@ describe('applyBundleToPlatformConfig', () => {
       s3Key: 'binary-key',
       jsBundleS3Key: 'js-key',
       bundleSizeMb: 4.29,
-      baseReference: 'base-fp',
       assetsS3Key: 'assets-key',
       manifestS3Key: 'manifest-key',
     });
@@ -158,7 +156,6 @@ describe('applyBundleToPlatformConfig', () => {
       platformConfig,
       keys: { jsBundleS3Key: 'js-key' },
       bundleSizeMb: 1,
-      baseReference: 'base-fp',
     });
 
     expect('assetsS3Key' in platformConfig).toBe(false);

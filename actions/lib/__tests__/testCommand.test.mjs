@@ -62,6 +62,26 @@ describe('buildTestArgs', () => {
     ).toEqual(['test', '--token', 'T']);
   });
 
+  it('hands the CLI a prebuilt bundle directory, so the job runs no bundler', () => {
+    expect(buildTestArgs({ token: 'T', bundleDir: 'sherlo-bundle' })).toEqual([
+      'test',
+      '--token',
+      'T',
+      '--bundle-dir',
+      'sherlo-bundle',
+    ]);
+  });
+
+  it('emits a bundle directory for later jobs to consume', () => {
+    expect(buildTestArgs({ token: 'T', emitBundleDir: 'sherlo-bundle' })).toEqual([
+      'test',
+      '--token',
+      'T',
+      '--emit-bundle-dir',
+      'sherlo-bundle',
+    ]);
+  });
+
   it('refuses to run without a token, naming the input to set', () => {
     expect(() => buildTestArgs({ token: '' })).toThrow(/secrets.SHERLO_TOKEN/);
   });

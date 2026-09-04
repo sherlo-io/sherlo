@@ -47,28 +47,34 @@ import {
   type ScriptedBundle,
   type TranscriptScenario,
 } from './dryRun.transcripts';
-import { PUSH_TRANSCRIPTS, type PushTranscriptScenario } from './push.transcripts';
-import { renderPushScenarioTranscript } from './renderPushTranscript';
 import { VERDICT_TRANSCRIPTS, type VerdictTranscriptScenario } from './verdict.transcripts';
 import { renderVerdictScenarioTranscript } from './renderVerdictTranscript';
+import { VIEW_TRANSCRIPTS, type ViewTranscriptScenario } from '../view/view.transcripts';
+import { renderViewScenarioTranscript } from '../view/renderViewTranscript';
 
 /**
  * Which command's transcript a scenario is.
  *
  * It reaches the envelope and the machine catalog because the TESTER needs it:
- * each family is judged through the masker its own capture applies, and
- * `maskPushOutput` keeps colour where `maskTestBundledCli` strips it. A producer
+ * each family is judged through the masker its own capture applies. A producer
  * that published bytes without saying which masker they are for would leave the
  * consumer guessing, and a wrong guess is a fixture that matches for the wrong
  * reason.
+ *
+ * THERE IS NO PUSH FAMILY YET. The one that existed scripted `test:eas-update`
+ * runs - an EAS block, a module-manifest block, a development binary - and left
+ * with that command. Every committed push fixture was minted by it, so none can
+ * be rendered by the CLI as it ships now; once they are re-minted as
+ * `sherlo test --android/--ios` runs, a push family scripting THAT state (a
+ * fresh bundle and its upload slots) belongs here, grounded on those fixtures.
  */
-export type TranscriptFamily = 'dry-run' | 'push' | 'verdict';
+export type TranscriptFamily = 'dry-run' | 'verdict' | 'view';
 
 /** One catalog entry, whichever family it belongs to. */
 type CatalogEntry =
   | { family: 'dry-run'; scenario: TranscriptScenario }
-  | { family: 'push'; scenario: PushTranscriptScenario }
-  | { family: 'verdict'; scenario: VerdictTranscriptScenario };
+  | { family: 'verdict'; scenario: VerdictTranscriptScenario }
+  | { family: 'view'; scenario: ViewTranscriptScenario };
 
 /**
  * Every scenario the CLI can render, across families, in one lookup.
@@ -84,26 +90,26 @@ function transcriptCatalog(): Record<string, CatalogEntry> {
   for (const [id, scenario] of Object.entries(DRY_RUN_TRANSCRIPTS)) {
     catalog[id] = { family: 'dry-run', scenario };
   }
-  for (const [id, scenario] of Object.entries(PUSH_TRANSCRIPTS)) {
-    if (catalog[id]) {
-      throw new Error(
-        `REFUSING TO RENDER (duplicate scenario id): '${id}' is declared by two families. ` +
-          'A scenario id names one transcript; two would make --render-transcript ambiguous.'
-      );
-    }
-    catalog[id] = { family: 'push', scenario };
-  }
   for (const [id, scenario] of Object.entries(VERDICT_TRANSCRIPTS)) {
-    if (catalog[id]) {
-      throw new Error(
-        `REFUSING TO RENDER (duplicate scenario id): '${id}' is declared by two families. ` +
-          'A scenario id names one transcript; two would make --render-transcript ambiguous.'
-      );
-    }
+    claim(catalog, id);
     catalog[id] = { family: 'verdict', scenario };
+  }
+  for (const [id, scenario] of Object.entries(VIEW_TRANSCRIPTS)) {
+    claim(catalog, id);
+    catalog[id] = { family: 'view', scenario };
   }
 
   return catalog;
+}
+
+/** Refuse before a second family can quietly overwrite a scenario id. */
+function claim(catalog: Record<string, CatalogEntry>, id: string): void {
+  if (catalog[id]) {
+    throw new Error(
+      `REFUSING TO RENDER (duplicate scenario id): '${id}' is declared by two families. ` +
+        'A scenario id names one transcript; two would make --render-transcript ambiguous.'
+    );
+  }
 }
 
 /**
@@ -120,7 +126,7 @@ function transcriptCatalog(): Record<string, CatalogEntry> {
  * out loud instead of writing a fixture nothing judges.
  */
 function fixtureFor(entry: CatalogEntry): string | null {
-  return entry.family === 'verdict' ? null : entry.scenario.fixture;
+  return entry.family === 'dry-run' ? entry.scenario.fixture : null;
 }
 
 /** How a scenario's values were grounded, as one word a catalog reader can filter on. */
@@ -208,7 +214,7 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
     fixture: fixtureFor(entry),
     grounded: groundingFor(entry),
     command: `sherlo test --dry-run --render-transcript ${scenarioId}`,
-    // Neither a dry run nor a scripted push creates anything or routes
+    // Neither a dry run nor a scripted wait creates anything or routes
     // anything; both always complete.
     exitCode: 0,
     capture: scenario.capture,
@@ -227,10 +233,10 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
 /** One full render of a catalog entry, through whichever family's producer owns it. */
 function renderEntry(entry: CatalogEntry): Promise<CapturedTranscript> {
   switch (entry.family) {
-    case 'push':
-      return renderPushScenarioTranscript(entry.scenario);
     case 'verdict':
       return renderVerdictScenarioTranscript(entry.scenario);
+    case 'view':
+      return renderViewScenarioTranscript(entry.scenario);
     case 'dry-run':
       return renderScenarioTranscript(entry.scenario);
   }
@@ -375,6 +381,22 @@ function transcriptCatalogIndex(): Record<string, CatalogIndexEntry> {
   return index;
 }
 
+/**
+ * Why a scenario has no fixture to ratchet against, per grounding.
+ *
+ * The distinctions are load-bearing and a reader has to be able to tell them
+ * apart: "the baseline is broken", "these bytes are behind a gate" and "the
+ * command is too new to have been captured yet" are three different gaps, and
+ * only the first one is fixed by a re-mint. An unlisted grounding falls through
+ * to its own name rather than to a sentence that might not be true of it.
+ */
+const WHY_NO_FIXTURE: Record<string, string> = {
+  'awaiting-remint': 'the committed baseline is awaiting a re-mint',
+  'gated-shipped': 'GATED: the shipped path emits these bytes, but only for an opted-in project',
+  'unratcheted-shipped':
+    'the command is newer than every committed capture - covered by unit gates',
+};
+
 function formatTranscriptCatalog(): string {
   const lines = Object.entries(transcriptCatalog()).map(([id, entry]) => {
     const fixture = fixtureFor(entry);
@@ -386,11 +408,7 @@ function formatTranscriptCatalog(): string {
     const grounding = groundingFor(entry);
     const provenance =
       fixture === null
-        ? `    fixture: none - ${
-            grounding === 'gated-shipped'
-              ? 'GATED: the shipped path emits these bytes, but only for an opted-in project'
-              : 'the committed baseline is awaiting a re-mint'
-          }`
+        ? `    fixture: none - ${WHY_NO_FIXTURE[grounding] ?? grounding}`
         : `    fixture: ${fixture}`;
 
     return (

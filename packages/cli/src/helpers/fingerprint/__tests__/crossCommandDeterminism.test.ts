@@ -3,7 +3,7 @@
  *
  * This is the test that would have FAILED the whole night of 2026-07-10/11.
  *
- * Registration (test:standard) and the probe (staged:check / test:bundled) both
+ * Registration (`sherlo test --android`) and the probe (staged:check / test:bundled) both
  * call `computeBaseFingerprint(projectRoot)` over an identical tree, yet were
  * producing DIFFERENT base fingerprints - so the staged gate lookup never hit
  * and the fast path was silently dead for every user. The root cause is
@@ -148,7 +148,7 @@ describe('cross-command base fingerprint determinism (SHERLO-1744 AC4)', () => {
       // Registration path runs under one ambient env; the probe under another -
       // exactly the CI condition that broke the staged gate.
       process.env.NODE_ENV = 'development';
-      const registration = await computeBaseFingerprint(fixtureDir, { command: 'test:standard' });
+      const registration = await computeBaseFingerprint(fixtureDir, { command: 'test' });
 
       process.env.NODE_ENV = 'production';
       const probe = await computeBaseFingerprint(fixtureDir, { command: 'staged:check' });
@@ -165,7 +165,7 @@ describe('cross-command base fingerprint determinism (SHERLO-1744 AC4)', () => {
       // Registration passes an absolute projectRoot; the probe passes '.'-form
       // from the same cwd. @expo/fingerprint is path-form-sensitive, so without
       // normalization these could disagree.
-      const registration = await computeBaseFingerprint(fixtureDir, { command: 'test:standard' });
+      const registration = await computeBaseFingerprint(fixtureDir, { command: 'test' });
 
       process.chdir(fixtureDir);
       const probe = await computeBaseFingerprint('.', { command: 'staged:check' });
@@ -214,13 +214,13 @@ describe('cross-command Layer-1 env determinism (SHERLO-1746)', () => {
   it(
     'registration and probe paths agree despite a per-command Layer-1 ambient-env difference',
     async () => {
-      // Registration path runs under the test:standard ambient env; the probe
+      // Registration path runs under a package-manager ambient env; the probe
       // under the test:bundled one - exactly the CI condition that broke the
       // staged gate. Without the swap the two Layer-1 hashes (and the finals)
       // diverge; with it both see the pinned NODE_ENV='production'.
       process.env.NODE_ENV = 'development';
       process.env.npm_lifecycle_event = 'test:standard';
-      const registration = await computeBaseFingerprint(fixtureDir, { command: 'test:standard' });
+      const registration = await computeBaseFingerprint(fixtureDir, { command: 'test' });
 
       process.env.NODE_ENV = 'production';
       process.env.npm_lifecycle_event = 'test:bundled';
@@ -244,7 +244,7 @@ describe('cross-command Layer-1 env determinism (SHERLO-1746)', () => {
 
       vi.mocked(createFingerprintAsync).mockRejectedValue(new Error('boom'));
 
-      const result = await computeBaseFingerprint(fixtureDir, { command: 'test:standard' });
+      const result = await computeBaseFingerprint(fixtureDir, { command: 'test' });
 
       // (a) fail-soft: unrecoverable Layer-1 error degrades to a null hash.
       expect(result.hash).toBeNull();
@@ -260,9 +260,9 @@ describe('cross-command Layer-1 env determinism (SHERLO-1746)', () => {
   );
 });
 
-describe('test:standard pre-step ordering determinism (SHERLO-1756)', () => {
+describe('registration pre-step ordering determinism (SHERLO-1756)', () => {
   /**
-   * SHERLO-1756: on the test:standard path the consumer used to run a SECOND,
+   * SHERLO-1756: on the registration path the consumer used to run a SECOND,
    * RAW `createFingerprintAsync` (a standalone native pre-compute) BEFORE
    * `computeBaseFingerprint`, in the same process. Loading the Expo app config
    * mutates `process.env` as a dotenv-class side effect, so that raw pre-compute
@@ -311,7 +311,7 @@ describe('test:standard pre-step ordering determinism (SHERLO-1756)', () => {
 
       process.env[POLLUTABLE_ENV_KEY] = 'clean';
       await createFingerprintAsync(fixtureDir); // raw, unswapped - leaks pollution
-      const afterRaw = await computeBaseFingerprint(fixtureDir, { command: 'test:standard' });
+      const afterRaw = await computeBaseFingerprint(fixtureDir, { command: 'test' });
 
       expect(afterRaw.hash).not.toBe(clean.hash);
     },
@@ -325,11 +325,11 @@ describe('test:standard pre-step ordering determinism (SHERLO-1756)', () => {
       process.env[POLLUTABLE_ENV_KEY] = 'clean';
       const probe = await computeBaseFingerprint(fixtureDir, { command: 'staged:check' });
 
-      // Registration path (test:standard): the base compute is the ONLY
+      // Registration path (sherlo test --android): the base compute is the ONLY
       // createFingerprintAsync invocation - no native pre-call touches the config
       // before it, so nothing pollutes the env it snapshots.
       process.env[POLLUTABLE_ENV_KEY] = 'clean';
-      const registration = await computeBaseFingerprint(fixtureDir, { command: 'test:standard' });
+      const registration = await computeBaseFingerprint(fixtureDir, { command: 'test' });
 
       // The base hash (which folds in Layer-1) must match the probe's...
       expect(registration.hash).toMatch(/^[a-f0-9]{64}$/);

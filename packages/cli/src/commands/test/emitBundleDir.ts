@@ -10,20 +10,27 @@
  * in ./bundleSidecar. Nobody hand-assembles a bundle directory: if a caller finds
  * themselves writing that JSON, the flag has failed them. That symmetry is what
  * makes the round trip provable, and an emit-then-accept test pins it.
+ *
+ * THIS MACHINE HAS THE INSTALL; THE ACCEPTING ONE DOES NOT. Everything the
+ * accepting run would otherwise need node_modules for is derived HERE and
+ * recorded: the source-derived gate metadata and the base fingerprint. The
+ * acceptor verifies the tree they were derived from (see ./bundleSidecar and
+ * ./recordedBaseFingerprint) and uses the recorded values.
  */
 import fs from 'fs';
 import path from 'path';
 import { Platform } from '@sherlo/api-types';
 import { emit } from '../../helpers/transcriptSink';
 import { detectEntryFile } from '../../commands/showError/detectBundler';
+import type { BaseFingerprintResult, GateMetadataInput } from '../../helpers/fingerprint';
 import { FALLBACK_LINE as SHARED_FALLBACK_LINE } from './stagedGateRefusal';
-import { buildBundleForPlatform, type BundleResult } from './buildBundle';
+import { buildBundleForPlatform, buildGateMetadata, type BundleResult } from './buildBundle';
 import {
   SIDECAR_VERSION,
   assetsDirName,
   bundleFileName,
   computeAppSourceClosure,
-  moduleManifestSourcePaths,
+  moduleManifestAppSourceInputs,
   moduleManifestFileName,
   readCliVersion,
   readProjectIdentity,
@@ -31,6 +38,7 @@ import {
   sidecarFileName,
   type BundleSidecar,
 } from './bundleSidecar';
+import { recordBaseFingerprint } from './recordedBaseFingerprint';
 
 const FALLBACK_LINE = `\n${SHARED_FALLBACK_LINE}`;
 
@@ -38,22 +46,30 @@ const FALLBACK_LINE = `\n${SHARED_FALLBACK_LINE}`;
  * Build each platform's bundle and write it, its assets, its module manifest and
  * its sidecar into `bundleDir`.
  *
- * `bundleFor` is a parameter for the same reason the bundling loop's is: a test
- * can supply a scripted {@link BundleResult} and exercise this writer without
- * running a real bundler.
+ * `bundleFor` and `gateMetadataFor` are parameters for the same reason the
+ * bundling loop's are: a test can supply a scripted {@link BundleResult} and
+ * exercise this writer without running a real bundler.
  */
 export async function emitBundleDir({
   projectRoot,
   platformsToTest,
   bundleDir,
-  nativeFingerprint,
+  baseFingerprint,
   bundleFor = (root, platform) => buildBundleForPlatform({ projectRoot: root, platform }),
+  gateMetadataFor = (root, platform, bundleResult) =>
+    buildGateMetadata({ projectRoot: root, platform, bundleResult }),
 }: {
   projectRoot: string;
   platformsToTest: Platform[];
   bundleDir: string;
-  nativeFingerprint?: string;
+  /** The base fingerprint this machine computed for the tree, when it could. */
+  baseFingerprint?: BaseFingerprintResult;
   bundleFor?: (projectRoot: string, platform: Platform) => Promise<BundleResult>;
+  gateMetadataFor?: (
+    projectRoot: string,
+    platform: Platform,
+    bundleResult: BundleResult
+  ) => Promise<GateMetadataInput>;
 }): Promise<void> {
   fs.mkdirSync(bundleDir, { recursive: true });
 
@@ -100,16 +116,12 @@ export async function emitBundleDir({
     const manifestTarget = path.join(bundleDir, moduleManifestFileName(platform));
     fs.writeFileSync(manifestTarget, result.moduleManifest.raw);
 
-    // The closures carry their pre-image (which packages, which files) so a
-    // refusal can be explained. The SIDECAR FILE stores only the digest and its
-    // provenance - see `PersistedDependencyClosure` / `PersistedAppSourceClosure`
-    // in bundleSidecar.ts for why the pre-image is deliberately not written down.
-    const identity = await readProjectIdentity({ projectRoot, platform });
-    const { installedPackages: _installedPackages, ...dependencyClosure } =
-      identity.dependencyClosure;
-    const { files: _appSourceFiles, ...appSource } = computeAppSourceClosure({
+    // The closures carry their pre-image (which packages, which files) and the
+    // sidecar writes it down, so a refusal can name what moved.
+    const identity = readProjectIdentity(projectRoot);
+    const appSource = computeAppSourceClosure({
       projectRoot,
-      modulePaths: moduleManifestSourcePaths(result.moduleManifest),
+      ...moduleManifestAppSourceInputs(result.moduleManifest),
     });
 
     const sidecar: BundleSidecar = {
@@ -131,9 +143,10 @@ export async function emitBundleDir({
         file: moduleManifestFileName(platform),
         sha256: sha256OfBuffer(result.moduleManifest.raw),
       },
-      project: { ...identity, dependencyClosure },
+      project: identity,
       appSource,
-      nativeFingerprint: nativeFingerprint ?? null,
+      gateMetadata: await gateMetadataFor(projectRoot, platform, result),
+      baseFingerprint: baseFingerprint ? recordBaseFingerprint(baseFingerprint, projectRoot) : null,
       createdAt: new Date().toISOString(),
       createdBy: { cliVersion: readCliVersion() },
     };

@@ -8,10 +8,15 @@ jobs:
     runs-on: ubuntu-latest
     concurrency: release-to-test
     permissions:
-      contents: read
+      # `contents: write` is for the action release ref this job pushes (see the last
+      # step); the packages scope is for the npm publish.
+      contents: write
       packages: write
     outputs:
       test-version: ${{ steps.publish.outputs.test-version }}
+      action-ref: ${{ steps.action-ref.outputs.ref }}
+      action-tag: ${{ steps.action-ref.outputs.tag }}
+      action-sha: ${{ steps.action-ref.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
 
@@ -69,3 +74,56 @@ jobs:
           cd ../react-native-storybook && npm publish --tag test
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ────────────────────────────────────────────────────────────────────────
+      # THE ACTION RELEASE REF.
+      #
+      # `uses: sherlo-io/sherlo@<ref>` checks out this repository at <ref> and runs
+      # what is committed there. A ref that carries a built CLI lets a job use the
+      # action with no install of its own, so this step commits the built copy onto
+      # the test ref and tags the exact commit with this run's id.
+      #
+      # HOW TO LEARN THE SHA of the action this release produced - the tag is bound
+      # to the run id, so it is exact even when several releases race:
+      #
+      #   gh api repos/${{ github.repository }}/git/ref/tags/action-test-<runId> \
+      #     --jq .object.sha
+      #
+      # It is also this job's `action-sha` output and is printed in the run summary.
+      # ────────────────────────────────────────────────────────────────────────
+      - name: Push the action release ref
+        id: action-ref
+        run: |
+          REF="action-release/test"
+          TAG="action-test-${GITHUB_RUN_ID}"
+
+          ./scripts/build-carried-cli.sh "${{ steps.publish.outputs.test-version }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Only the carried CLI is committed: the publish step above rewrote the
+          # package manifests in the working tree, and none of that belongs on a ref
+          # customers or our own e2e run the action from.
+          git checkout -B "$REF"
+          git add -f actions/carried-cli
+          git commit -m "Action release: sherlo@${{ steps.publish.outputs.test-version }}"
+
+          git push --force origin "$REF"
+          git tag "$TAG"
+          git push origin "$TAG"
+
+          SHA=$(git rev-parse HEAD)
+          echo "ref=$REF" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
+
+          {
+            echo "### Action release ref"
+            echo ""
+            echo "- branch: \`$REF\`"
+            echo "- tag: \`$TAG\`"
+            echo "- sha: \`$SHA\`"
+            echo ""
+            echo "Pin it with \`uses: ${{ github.repository }}@$SHA\`."
+          } >> $GITHUB_STEP_SUMMARY

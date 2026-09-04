@@ -1,7 +1,7 @@
 /**
- * test:standard binary-derivation regression (SHERLO-1760).
+ * Binary-derivation regression for `sherlo test --android/--ios` (SHERLO-1760).
  *
- * extractGateMetadata is the ONLY gate-metadata constructor for the test:standard
+ * extractGateMetadata is the ONLY gate-metadata constructor for the binary
  * registration path, and its metadata IS genuinely read out of the compiled
  * APK/IPA. This test pins that it marks the metadata `derivedFrom: 'binary'`.
  *
@@ -45,7 +45,7 @@ vi.mock('../../../commands/init/requirements/getPackageVersion', () => ({
 
 import { extractGateMetadata } from '../gateMetadata';
 
-describe('extractGateMetadata (test:standard = binary)', () => {
+describe('extractGateMetadata (binary registration)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

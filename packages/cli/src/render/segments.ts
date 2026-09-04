@@ -26,6 +26,7 @@
 import { Platform } from '@sherlo/api-types';
 import type { BundleFormat } from '../commands/test/buildBundle';
 import type { Config } from '../types';
+import type { BuildDetails, ViewMetadataJson, ViewMetadataStory } from './buildView';
 import type { DryRunPlatformPreview } from './dryRunPlan';
 
 /** Which of the process's two streams a segment is written to. */
@@ -35,7 +36,7 @@ export type TranscriptStream = 'stdout' | 'stderr';
  * One printable block of a sherlo CLI transcript.
  *
  * Two families live here now - the `--dry-run` preview (slice S0a) and the PUSH
- * SPINE (slice S0b/F1), which is the transcript `sherlo test:standard` emits and
+ * SPINE (slice S0b/F1), which is the transcript `sherlo test --android/--ios` emits and
  * the one every other family's preamble is a subset of. They share ONE union and
  * ONE renderer on purpose: the intro is the same intro, and a second union would
  * be a second place for a literal to drift.
@@ -110,14 +111,6 @@ export type TranscriptSegment =
    * WALL CLOCK, which a renderer may not do - see helpers/.../getTimeAgo.
    */
   | { kind: 'binary-reused'; buildIndex: number; timeAgo: string }
-  /** The whole `🔄 EAS Update` block: message, created, author, branch, blank. */
-  | {
-      kind: 'eas-update';
-      message: string;
-      timeAgo: string | undefined;
-      author: string | undefined;
-      branch: string;
-    }
   /**
    * `WARNING: ...` / `INFO: ...`, optionally with a `↳ Learn more:` line.
    *
@@ -137,18 +130,6 @@ export type TranscriptSegment =
    * the data-carrying variants above.
    */
   | { kind: 'build-message'; message: string; type: 'info' | 'success'; endsWithNewLine?: boolean }
-  /**
-   * `📄 Producing the module manifest for Diff Scope...`
-   *
-   * ITS LEADING BLANK LINE IS INSIDE THE CHALK CALL, so chalk closes and
-   * reopens the style around it and the blank line is emitted as a STYLED
-   * empty line rather than an empty one. Twenty-three committed fixtures carry
-   * those bytes. Hoisting the newline out - the tidy thing to do - changes all
-   * twenty-three while changing nothing a human sees.
-   */
-  | { kind: 'manifest-producing' }
-  /** `  ✓ Android module manifest uploaded`. */
-  | { kind: 'manifest-uploaded'; platform: Platform }
   /**
    * The closer of a run that reached a build: the machine-readable `url=` line
    * a CI republishes, then the human `🔗` link, then a blank.
@@ -216,7 +197,48 @@ export type TranscriptSegment =
   /** `   3 captured on this branch, 41 inherited unchanged` - the sparse accounting. */
   | { kind: 'verdict-capture-accounting'; captured: number; inherited: number }
   /** The build recorded nothing at all, so it is evidence of nothing. Not green. */
-  | { kind: 'verdict-nothing-recorded' };
+  | { kind: 'verdict-nothing-recorded' }
+  /* ---------------------------------------------------------------------- *
+   * THE BUILD VIEW (F5) - what `sherlo view` prints about one build, and    *
+   * the `── details ──` block `--metadata` adds to it and to the `--wait`   *
+   * roads of `sherlo test`. See ./buildView.                               *
+   * ---------------------------------------------------------------------- */
+  /** `Build #7 · finished` - the line `sherlo view` opens with. */
+  | { kind: 'build-view-header'; buildIndex: number; runStatus: string }
+  /** `approved 5 · reported 0 · unreviewed 0 · noChanges 39` - the review tally. */
+  | {
+      kind: 'build-view-tally';
+      counts: { approved: number; noChanges: number; reported: number; unreviewed: number };
+    }
+  /**
+   * The check-style status sentence.
+   *
+   * It carries the two WIRE fields rather than a resolved state, because which
+   * state they collapse to - and whether they collapse to one at all - is a
+   * rendering decision the catalog in ./buildView owns. A finished build whose
+   * review status the API did not send renders NO line.
+   */
+  | {
+      kind: 'build-view-status';
+      runStatus: string;
+      status?: 'approved' | 'noChanges' | 'reported' | 'unreviewed';
+    }
+  /**
+   * The whole `── details ──` block: plain, aligned, colourless, deterministic.
+   * Carries the build's facts, never their formatting - see ./buildView.
+   */
+  | { kind: 'build-details'; details: BuildDetails }
+  /**
+   * `sherlo view --metadata`'s WHOLE output (view-metadata, operator ruling
+   * 2026-09-03): the JSON contract, pretty-printed, and nothing around it - no
+   * header, no url line. See ./buildView's ViewMetadataJson.
+   */
+  | { kind: 'build-view-json'; json: ViewMetadataJson }
+  /**
+   * The per-story table `sherlo view` prints (without `--metadata`): one row
+   * per story with its status and baseline. See ./buildView.
+   */
+  | { kind: 'build-view-stories-table'; stories: ViewMetadataStory[] };
 
 /**
  * Where rendered segments go. The CLI installs a sink that writes to the
