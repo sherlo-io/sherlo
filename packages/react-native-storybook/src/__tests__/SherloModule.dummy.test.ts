@@ -35,12 +35,18 @@ describe('SherloModule dummy (no native module)', () => {
     expect(typeof config.stabilization.requiredMatches).toBe('number');
   });
 
-  it('invoke() resolves to undefined - nothing to transport with no native module', async () => {
-    await expect(SherloModule.invoke('anyCapability')).resolves.toBeUndefined();
+  it('invoke() rejects with a sherlo_no_native_module error - absence must never look like an empty answer', async () => {
+    await expect(SherloModule.invoke('anyCapability')).rejects.toMatchObject({
+      code: 'sherlo_no_native_module',
+    });
   });
 
-  it('invokeSync() returns undefined - nothing to transport with no native module', () => {
-    expect(SherloModule.invokeSync('anyCapability')).toBeUndefined();
+  it('invokeSync() returns the same ok:false envelope shape the shim uses when refusing', () => {
+    expect(SherloModule.invokeSync('anyCapability')).toEqual({
+      ok: false,
+      code: 'sherlo_no_native_module',
+      message: expect.any(String),
+    });
   });
 
   it('appendFile() resolves without throwing', async () => {

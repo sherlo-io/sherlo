@@ -137,13 +137,38 @@ function createSherloModule(module: Spec): SherloModule {
   return sherloModule;
 }
 
+/**
+ * ABSENCE MUST NEVER LOOK LIKE AN EMPTY ANSWER - the same rule the iOS/Android
+ * shim already follows by rejecting with `sherlo_no_implementation` rather
+ * than resolving with nothing (see ios/SherloModule.mm's invoke/readFile: "a
+ * caller awaiting this must be able to tell 'Sherlo is not attached' from
+ * 'Sherlo did the work and the answer was empty'"). This wrapper is frozen in
+ * the customer's bundle, so the no-native-module case gets the same
+ * treatment: `sherlo_no_native_module`, distinct from the shim's own
+ * `sherlo_no_implementation` (shim present, nothing injected) - here there is
+ * no shim at all.
+ */
+const NO_NATIVE_MODULE_CODE = 'sherlo_no_native_module';
+const NO_NATIVE_MODULE_MESSAGE =
+  'the SDK has no native module linked - rebuild the app to link it on the native side';
+
 function createDummySherloModule(): SherloModule {
   return {
     isTurboModule: false,
-    // Nothing to transport when there is no native module at all - matches
-    // every other graceful-absence path below.
-    invoke: async <T = unknown>(): Promise<T> => undefined as T,
-    invokeSync: <T = unknown>(): T | undefined => undefined,
+    invoke: <T = unknown>(): Promise<T> => {
+      const error = new Error(NO_NATIVE_MODULE_MESSAGE) as Error & { code: string };
+      error.code = NO_NATIVE_MODULE_CODE;
+      return Promise.reject(error);
+    },
+    // Mirrors the envelope shape the shim's own invokeSync returns when
+    // nothing is injected: {"ok":false,"code":"...","message":"..."} - not
+    // the unwrapped `value` a successful call would return.
+    invokeSync: <T = unknown>(): T =>
+      ({
+        ok: false,
+        code: NO_NATIVE_MODULE_CODE,
+        message: NO_NATIVE_MODULE_MESSAGE,
+      } as unknown as T),
     // IMPORTANT: We should make sure that the mode is always 'default'
     // because if user doesn't want to supply native library in their production
     // build, this will be the value returned.
