@@ -202,7 +202,7 @@ export const VIEW_TRANSCRIPTS: Record<string, ViewTranscriptScenario> = {
   'view-metadata-diff-scope': {
     ...scenario(
       'THE DIFF SCOPE BLOCK, under `--metadata`. A partial-capture build: one story was left ' +
-        "out of this run and its accepted ancestor image was carried forward untouched - its " +
+        'out of this run and its accepted ancestor image was carried forward untouched - its ' +
         'status reads `not-captured` (distinct from `unchanged`, which means a fresh capture ' +
         "matched its baseline), and the wire's own `diffScope` names it in `inherited` alongside " +
         "the build it was carried from. `reason` is the server's own prose, printed verbatim.",
