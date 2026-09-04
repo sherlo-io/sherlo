@@ -1,7 +1,7 @@
 import base64 from 'base-64';
 import utf8 from 'utf8';
 import isExpoGo from './helpers/isExpoGo';
-import { StorybookViewMode, InspectorData } from './types/types';
+import { StorybookViewMode } from './types/types';
 import { Config, LastState } from './helpers/config';
 import TurboModule, { Spec } from './specs/NativeSherloModule';
 import * as constants from './constants';
@@ -24,7 +24,12 @@ type SherloModule = {
     message: string,
     data?: Record<string, string | null>
   ) => void;
-  getInspectorData: () => Promise<InspectorData>;
+  /**
+   * Untyped: the view-hierarchy wire shape (InspectorData) is a runner shape
+   * with no public reader - only the private capture loop interprets it,
+   * reused through the seam.
+   */
+  getInspectorData: () => Promise<unknown>;
   appendFile: (path: string, base64: string) => Promise<void>;
   readFile: (path: string) => Promise<string>;
   openStorybook: () => void;
@@ -106,10 +111,7 @@ function createSherloModule(module: Spec): SherloModule {
 
   const sherloModule: SherloModule = {
     isTurboModule: !!TurboModule,
-    getInspectorData: () =>
-      invoke<{ viewHierarchy: InspectorData['viewHierarchy']; density: number; fontScale: number }>(
-        'getInspectorData'
-      ) as Promise<InspectorData>,
+    getInspectorData: () => invoke<unknown>('getInspectorData'),
     stabilize: async (
       requiredMatches: number,
       minScreenshotsCount: number,
