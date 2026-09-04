@@ -138,20 +138,27 @@ See the full [Module Mocking guide](https://sherlo.io/docs/stories/mocking) for 
 
 ## The native shim
 
-This package ships a codegen'd TurboModule (`SherloModule`) that answers exactly two things
-locally - `getSherloConstants` (from a pre-main config read) and `setMode` (the developer-path
-mode switch, e.g. `openStorybook()`) - and forwards everything else through a frozen ABI to an
-implementation registered at runner launch. See `ios/SherloImplV1.h` for the full contract.
+This package ships a codegen'd TurboModule (`SherloModule`) whose six methods forward through a
+frozen ABI to an implementation registered at runner launch, except `setMode` (the developer-path
+mode switch, e.g. `openStorybook()`), which is the shim's own builtin. `getSherloConstants` prefers
+a registered implementation's own synchronous answer and falls back to the shim's pre-main config
+read only when nothing is injected - same as `setMode`'s fallback. See `ios/SherloImplV1.h` for the
+full contract.
 
-Two names from that boundary are frozen and exported from `@sherlo/react-native-storybook/constants`
-(`ANDROID_SHIM_LIBRARY_NAME`, `IOS_SHIM_REGISTRATION_SYMBOL`) so nothing outside this package has to
-hardcode a second copy of them:
+Three names from that boundary are frozen and exported from `@sherlo/react-native-storybook/constants`
+(`ANDROID_SHIM_LIBRARY_NAME`, `IOS_SHIM_REGISTRATION_SYMBOL`, `SEAM_VERSION_GLOBAL_NAME` /
+`SEAM_VERSION_GATE_REGEX`) so nothing outside this package has to hardcode a second copy of them:
 
 - **Android** - the shim's JNI library name is `sherloshim`, i.e. `libsherloshim.so` in the built
-  APK (see `android/CMakeLists.txt`).
+  APK (see `android/CMakeLists.txt`). The JNI shim resolves the injected implementation by calling
+  `dlsym(RTLD_DEFAULT, "SherloGetImplV1")` and lends it host services via `SherloSetHostV1` (see
+  `android/src/main/cpp/sherlo-shim-jni.cpp`).
 - **iOS** - the injected implementation registers by calling the exported C symbol
   `SherloShimRegisterImplV1` (see `ios/SherloImplV1.h`), found via `dlsym(RTLD_DEFAULT, ...)`
   because the shim is statically linked into the main executable.
+- **The seam** (`src/seam.js`) sets `globalThis.__SHERLO_SEAM_VERSION__ = '1'` as a string literal.
+  `SEAM_VERSION_GATE_REGEX` is the pattern that finds and extracts it from a *built bundle*, without
+  executing it.
 
 A runner verifies the shim is actually *in* the base artifact by checking for these - `unzip -l
 app-release.apk | grep libsherloshim.so` on Android, `nm` / `dlsym`-style symbol presence on iOS -

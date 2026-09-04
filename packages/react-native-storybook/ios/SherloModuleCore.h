@@ -19,9 +19,10 @@
 - (instancetype)init;
 
 /**
- * Returns constants exposed to the JavaScript side. Answered entirely from the
- * pre-main read: a late-attached implementation reads these frozen values off
- * the shim and never re-derives them.
+ * Returns constants derived entirely from the pre-main read: mode/config as
+ * this device's OWN files on disk determine them, with nothing injected. This
+ * is the shim's fallback answer - see SherloModule.mm's getSherloConstants,
+ * which prefers a registered implementation's own synchronous answer first.
  * @return Dictionary with mode, config, lastState and nativeVersion
  */
 - (NSDictionary *)getSherloConstants;

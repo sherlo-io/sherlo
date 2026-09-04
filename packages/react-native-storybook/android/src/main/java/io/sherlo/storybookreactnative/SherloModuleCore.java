@@ -85,8 +85,10 @@ public class SherloModuleCore {
     }
 
     /**
-     * Returns constants exposed to the JavaScript side. Exactly four keys -
-     * mode, config, lastState, nativeVersion - frozen by the design.
+     * Returns constants derived entirely from the pre-main read. Exactly four
+     * keys - mode, config, lastState, nativeVersion - frozen by the design.
+     * This is the shim's fallback answer - see SherloModule.getSherloConstants,
+     * which prefers a registered implementation's own synchronous answer first.
      */
     public WritableMap getSherloConstants() {
         final WritableMap constants = Arguments.createMap();

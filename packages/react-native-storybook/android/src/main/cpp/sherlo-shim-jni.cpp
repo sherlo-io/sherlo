@@ -28,13 +28,18 @@ typedef void (*SherloResolve)(void *ctx, const char *json);
 typedef void (*SherloReject)(void *ctx, const char *code, const char *message);
 
 /**
- * Declared identically on both sides; abiVersion is what makes that safe.
- * getSherloConstants has no slot: mode/config/lastState/nativeVersion are read
- * by SherloModuleCore's pre-main init, not forwarded.
+ * Declared identically on both sides (and identically to ios/SherloImplV1.h);
+ * abiVersion is what makes that safe.
+ *
+ * getSherloConstants is SYNCHRONOUS, same as on iOS: by the time this can
+ * possibly be called, an implementation loaded via LD_PRELOAD is already
+ * resolved. A registered implementation's answer wins; SherloModuleCore's own
+ * pre-main read is the fallback for a customer running with nothing injected.
  */
 typedef struct SherloImplV1 {
   int abiVersion;
   const char *implVersion;
+  const char *(*getSherloConstants)(void);
   int (*reportEarlyJsError)(const char *name, const char *message, const char *stack);
   void (*appendFile)(const char *path, const char *base64Content,
                      void *ctx, SherloResolve resolve, SherloReject reject);
@@ -173,8 +178,9 @@ static void resolveImpl() {
     return;
   }
 
-  if (impl->reportEarlyJsError == nullptr || impl->appendFile == nullptr ||
-      impl->readFile == nullptr || impl->invoke == nullptr || impl->invokeSync == nullptr) {
+  if (impl->getSherloConstants == nullptr || impl->reportEarlyJsError == nullptr ||
+      impl->appendFile == nullptr || impl->readFile == nullptr || impl->invoke == nullptr ||
+      impl->invokeSync == nullptr) {
     gRefusedReason = "implementation left a required slot NULL";
     LOGW("REFUSED: %s", gRefusedReason.c_str());
     return;
@@ -262,6 +268,23 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *) {
   }
 
   return JNI_VERSION_1_6;
+}
+
+/**
+ * Returns nullptr (not a "no-implementation" sentinel JSON) when nothing is
+ * registered, so the Java side's own fallback - SherloModuleCore's pre-main
+ * read - can win instead. The implementation's answer is JSON already; it is
+ * copied into a jstring immediately, since it is only valid until this
+ * thread's next call into the implementation.
+ */
+JNIEXPORT jstring JNICALL
+Java_io_sherlo_storybookreactnative_SherloModule_nativeGetSherloConstants(
+    JNIEnv *env, jclass) {
+  resolveImpl();
+  if (gImpl == nullptr) return nullptr;
+
+  const char *result = gImpl->getSherloConstants();
+  return env->NewStringUTF(result != nullptr ? result : "{}");
 }
 
 JNIEXPORT jboolean JNICALL

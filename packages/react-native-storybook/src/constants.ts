@@ -18,3 +18,14 @@ export const PROTOCOL_FILE = 'protocol.sherlo';
  */
 export const ANDROID_SHIM_LIBRARY_NAME = 'sherloshim'; // produces libsherloshim.so
 export const IOS_SHIM_REGISTRATION_SYMBOL = 'SherloShimRegisterImplV1';
+
+/**
+ * The global seam.js sets to announce its own version, and the pattern that
+ * finds it in a BUILT BUNDLE without executing it - see seam.js's
+ * `globalThis.__SHERLO_SEAM_VERSION__ = '1';`. Exported for the same reason
+ * as the shim constants above: the runner's splice gate greps a bundle for
+ * this literal and must never carry a second, hand-copied copy of the
+ * pattern that could drift out of sync with what seam.js actually emits.
+ */
+export const SEAM_VERSION_GLOBAL_NAME = '__SHERLO_SEAM_VERSION__';
+export const SEAM_VERSION_GATE_REGEX = /__SHERLO_SEAM_VERSION__\s*=\s*["'](\d+)["']/;

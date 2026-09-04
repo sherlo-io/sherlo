@@ -1,12 +1,13 @@
 /**
  * THE SHIM. This is the code that ships inside a customer's app.
  *
- * Four of its six methods answer locally: getSherloConstants and setMode (the
- * one invokeSync builtin) from the pre-main read SherloModuleCore already did;
- * reportEarlyJsError, appendFile and readFile forward to whatever implementation
- * SherloShimRegisterImplV1 registered, because the shim writes nothing to
- * protocol.sherlo on its own. `invoke`/`invokeSync` are pure transports - the
- * shim never inspects the name it is carrying.
+ * getSherloConstants and setMode (the one invokeSync builtin) prefer whatever
+ * implementation SherloShimRegisterImplV1 registered, and fall back to the
+ * pre-main read SherloModuleCore already did when nothing is injected;
+ * reportEarlyJsError, appendFile and readFile forward to the implementation
+ * unconditionally, because the shim writes nothing to protocol.sherlo on its
+ * own. `invoke`/`invokeSync` are pure transports - the shim never inspects the
+ * name it is carrying.
  */
 #import "SherloModule.h"
 #import <React/RCTUtils.h>
@@ -76,8 +77,9 @@ void SherloShimRegisterImplV1(SherloImplV1 *impl) {
     return;
   }
 
-  if (impl->reportEarlyJsError == NULL || impl->appendFile == NULL ||
-      impl->readFile == NULL || impl->invoke == NULL || impl->invokeSync == NULL) {
+  if (impl->getSherloConstants == NULL || impl->reportEarlyJsError == NULL ||
+      impl->appendFile == NULL || impl->readFile == NULL || impl->invoke == NULL ||
+      impl->invokeSync == NULL) {
     gRefusedReason = @"implementation left a required slot NULL";
     NSLog(@"[SherloModule] REFUSED: %@", gRefusedReason);
     return;
@@ -93,11 +95,22 @@ void SherloShimRegisterImplV1(SherloImplV1 *impl) {
 // ---------------------------------------------------------------------------
 
 /**
- * Answered entirely from the pre-main read - never forwarded. See
- * SherloModuleCore: "a late runtime reads those frozen values and never
- * re-derives them."
+ * SYNCHRONOUS, same as invokeSync's setMode: the implementation wins when
+ * registered (see SherloImplV1.h's getSherloConstants doc - by the time this
+ * can possibly be called, an implementation loaded pre-main is already
+ * registered), and the shim's own pre-main read (SherloModuleCore) is the
+ * FALLBACK for a customer running with nothing injected at all.
  */
 - (NSDictionary *)getSherloConstants {
+    SherloImplV1 *impl = gImpl.load(std::memory_order_acquire);
+    if (impl != NULL) {
+        NSString *json = impl->getSherloConstants();
+        NSData *data = json ? [json dataUsingEncoding:NSUTF8StringEncoding] : nil;
+        id parsed = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+        if ([parsed isKindOfClass:NSDictionary.class]) {
+            return parsed;
+        }
+    }
     return [core getSherloConstants];
 }
 
