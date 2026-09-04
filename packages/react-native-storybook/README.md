@@ -6,6 +6,36 @@ Sherlo is a [visual regression testing tool for React Native](https://sherlo.io)
 
 <br />
 
+## Architecture: this is the public half
+
+This package is deliberately small. It ships in every customer's binary and is frozen the
+moment they build - so it carries only what has to be public: anything that runs **before**
+the splice (a native module registered pre-main, a Metro polyfill concatenated as source
+text) or is **named by a literal** a customer's build already generated (a require
+specifier baked into an emitted shim or a generated wrapper). Everything else - story
+enumeration for a real test run, the capture loop, the runner protocol, every native method
+body beyond a pre-main config read and the developer-path mode switch - is private, and
+lives in a separate runner package that attaches to this one at runner launch, replaceable
+without a customer ever rebuilding.
+
+Four things you're touching if you're reading this repo, not sherlo.io's docs:
+
+- **The native shim** (`ios/`, `android/`) - a six-method TurboModule. Two methods answer
+  locally (`getSherloConstants`, and `setMode` behind `invokeSync` - the developer path,
+  e.g. `openStorybook()`, with nothing injected); everything else forwards through the frozen
+  ABI in `ios/SherloImplV1.h` to whatever registers at runner launch. See "The native shim"
+  below.
+- **The seam** (`src/seam.js`, exported as `./seam`) - the one global
+  (`globalThis.__SHERLO_HOST__`) that passes everything a spliced runtime needs BY VALUE:
+  the wrapped native module, host module instances (React, optional peers), the mocking
+  registry, and a hand-off point (`takenOverBy`) for the runtime to take the screen.
+- **The Metro plugin** (`metro/`) - resolver redirects, mock shim emission, and the
+  generated entry (`metro/entry.js`) that puts the seam in front of the customer's own code,
+  since nothing else guarantees it runs.
+- **`getStorybook`** (`src/getStorybook/`) - the public half only: view/params capture,
+  the position-bound story-error boundary (the only place a story's throw is observable),
+  splash hiding, and a `SafeAreaProvider` shell around whatever the runtime hands back.
+
 ## Quick Start
 
 ### 1. Initialize Sherlo
