@@ -21,24 +21,70 @@
  *     with the freshly built bundle spliced in. See ./standardRun.ts - the
  *     one implementation of a full run.
  *
- * The road is chosen by the FLAGS, never by the config file: a caller that
- * passes no `--android`/`--ios` is asking the routing question, whatever paths
- * sherlo.config.json happens to carry.
+ * Between those two the road is chosen by the FLAGS, never by the config file: a
+ * caller that passes no `--android`/`--ios` is asking the routing question,
+ * whatever paths sherlo.config.json happens to carry.
  *
- * Both roads bundle, so `--bundle-dir` (hand over a prebuilt bundle instead of
- * bundling) works on both, with the same checks that the directory belongs to
- * this project and is not stale. The remaining staged-only flags are refused
- * with build paths rather than silently ignored.
+ *   sherlo test   with `"simulation": "<path>"` in sherlo.config.json
+ *     THE SIM ROAD. A declared JSON world stands in for the real app: the CLI
+ *     derives the module manifest from the world file, uploads both to staged
+ *     slots, and opens a sim build - no bundler, no binary, no routing
+ *     question. See ./simRun.ts. A sim world cannot be combined with native
+ *     build paths or the bundler-road preview/supply flags; the combinations
+ *     are refused rather than half-honored.
+ *
+ * Both non-sim roads bundle, so `--bundle-dir` (hand over a prebuilt bundle
+ * instead of bundling) works on both, with the same checks that the directory
+ * belongs to this project and is not stale. The remaining staged-only flags are
+ * refused with build paths rather than silently ignored.
  */
 import { ANDROID_OPTION, IOS_OPTION } from '../../constants';
 import { throwError } from '../../helpers';
 import { Options } from '../../types';
+import simRun from './simRun';
+import { resolveSimulationWorldPath, SIMULATION_CONFIG_FIELD } from './simWorld';
 import stagedRun from './stagedRun';
 import standardRun from './standardRun';
 import { THIS_COMMAND } from './constants';
 
 async function test(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
   const hasNativeBuildPaths = Boolean(passedOptions[ANDROID_OPTION] || passedOptions[IOS_OPTION]);
+
+  const simWorldFilePath = resolveSimulationWorldPath(passedOptions);
+  if (simWorldFilePath !== undefined) {
+    const simTrigger = `\`${SIMULATION_CONFIG_FIELD}\` in the config file`;
+
+    // A sim world IS the app, so a native binary alongside it could only test
+    // something else. Refuse rather than pick one silently.
+    if (hasNativeBuildPaths) {
+      throwError({
+        message:
+          `${simTrigger} tests a declared world instead of a real app, so it cannot be ` +
+          `combined with \`--${ANDROID_OPTION}\` / \`--${IOS_OPTION}\`. Drop the build paths, ` +
+          `or remove the field to test real builds.`,
+      });
+    }
+
+    // The bundler-road modes preview/produce/consume a real bundle; a sim run
+    // has no bundler for them to speak about.
+    const bundlerRoadFlag = [
+      passedOptions.dryRun === true ? '--dry-run' : undefined,
+      passedOptions.bundleDir !== undefined ? '--bundle-dir' : undefined,
+      passedOptions.emitBundleDir !== undefined ? '--emit-bundle-dir' : undefined,
+      passedOptions.emitExpectation !== undefined ? '--emit-expectation' : undefined,
+      passedOptions.renderTranscript !== undefined ? '--render-transcript' : undefined,
+    ].find((flag) => flag !== undefined);
+
+    if (bundlerRoadFlag !== undefined) {
+      throwError({
+        message:
+          `\`${bundlerRoadFlag}\` belongs to the bundling roads, and ${simTrigger} runs no ` +
+          'bundler. Drop one of the two.',
+      });
+    }
+
+    return simRun(passedOptions, simWorldFilePath);
+  }
 
   if (!hasNativeBuildPaths) {
     return stagedRun(passedOptions);

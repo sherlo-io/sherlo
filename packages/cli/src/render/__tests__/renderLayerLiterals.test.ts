@@ -535,6 +535,138 @@ const PINS: Pin[] = [
       [`${ESC}[33m   evidence that nothing changed. Check the run in Sherlo.${ESC}[39m`],
     ],
   },
+
+  /* -------------------- the build view (F5) -------------------- */
+
+  {
+    kind: 'build-view-header',
+    what: "`sherlo view`'s first line - only the index is coloured, and the separator is a middle dot with a space either side",
+    segment: { kind: 'build-view-header', buildIndex: 7, runStatus: 'finished' },
+    stream: 'stdout',
+    prints: [[`${ESC}[32mBuild #7${ESC}[39m · finished`]],
+  },
+  {
+    kind: 'build-view-tally',
+    what: "the review tally - dim, the wire's own four names, in a fixed order that is NOT the wire's alphabetical one",
+    segment: {
+      kind: 'build-view-tally',
+      counts: { approved: 5, noChanges: 39, reported: 0, unreviewed: 0 },
+    },
+    stream: 'stdout',
+    prints: [[`${ESC}[2mapproved 5 · reported 0 · unreviewed 0 · noChanges 39${ESC}[22m`]],
+  },
+  {
+    kind: 'build-view-status',
+    what: "the green status sentence - the GitHub check's own noChanges copy, byte-identical to the sparse closer's",
+    segment: { kind: 'build-view-status', runStatus: 'finished', status: 'noChanges' },
+    stream: 'stdout',
+    prints: [[`${ESC}[32m✅ No visual changes - all snapshots match their baselines.${ESC}[39m`]],
+  },
+  {
+    kind: 'build-view-status',
+    what: 'the blocked status sentence - yellow, and the warning emoji carries a trailing space of its own so the text lines up with the green one',
+    segment: { kind: 'build-view-status', runStatus: 'finished', status: 'unreviewed' },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[33m⚠️  Visual changes need review - snapshots changed and are awaiting review in Sherlo.${ESC}[39m`,
+      ],
+    ],
+  },
+  {
+    kind: 'build-view-status',
+    what: 'a build still running - the review status the wire sent is DELIBERATELY not read, because the server computes it whatever the run is doing',
+    segment: { kind: 'build-view-status', runStatus: 'inProgress', status: 'unreviewed' },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[34m🔵 Running visual tests - Sherlo is capturing and comparing snapshots for this commit.${ESC}[39m`,
+      ],
+    ],
+  },
+  {
+    kind: 'build-view-status',
+    what: 'a finished build whose review status the API did not send - ZERO print calls, which is how this layer says nothing and is not the same as a blank line',
+    segment: { kind: 'build-view-status', runStatus: 'finished' },
+    stream: 'stdout',
+    prints: [],
+  },
+  {
+    kind: 'build-details',
+    what: 'the whole details block from the road that knows the most - NO colour anywhere in it, and the label column padded to the widest label present',
+    segment: {
+      kind: 'build-details',
+      details: {
+        git: {
+          branchName: 'feature/login-copy',
+          commitHash: '4f3a9c1e77b0d2a6f5c8419e3b7d0a1c2e6f8b04',
+          isDirty: false,
+          defaultBranch: 'main',
+        },
+        runStatus: 'finished',
+        showsOnlyBranchChanges: true,
+        viewStatusesCount: { approved: 5, noChanges: 36, reported: 1, unreviewed: 2 },
+        diffScopeInfo: { capturedSnapshotCount: 3, inheritedSnapshotCount: 41 },
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      ['── details ──'],
+      ['branch:        feature/login-copy @ 4f3a9c1 (clean tree)'],
+      ['main line:     main'],
+      ['scope:         branch-only · feature build'],
+      ['runner:        finished'],
+      ['diff scope:    captured 3 · inherited 41'],
+      ['verdicts cast: 6'],
+    ],
+  },
+  {
+    kind: 'build-details',
+    what: 'the same block with no git and no accounting - the rows are ABSENT rather than zero-filled, and the column narrows to the widest label that remains',
+    segment: {
+      kind: 'build-details',
+      details: {
+        runStatus: 'error',
+        runError: 'user_runner',
+        viewStatusesCount: { approved: 0, noChanges: 0, reported: 0, unreviewed: 0 },
+      },
+    },
+    stream: 'stdout',
+    prints: [['── details ──'], ['runner:        errored (user_runner)'], ['verdicts cast: 0']],
+  },
+  {
+    kind: 'build-view-json',
+    what: "`--metadata`'s whole output - pretty-printed JSON, NO colour, as ONE print call so a pipe gets exactly `JSON.parse`-able bytes",
+    segment: {
+      kind: 'build-view-json',
+      json: { runStatus: 'error', buildIndex: 7 },
+    },
+    stream: 'stdout',
+    prints: [['{\n  "runStatus": "error",\n  "buildIndex": 7\n}']],
+  },
+  {
+    kind: 'build-view-stories-table',
+    what: 'the per-story table - NO colour, three columns padded to the widest cell present, one row per story',
+    segment: {
+      kind: 'build-view-stories-table',
+      stories: [
+        { name: 'Sanity/Hello - Basic', status: 'unchanged', baseline: { buildIndex: 1 } },
+        {
+          name: 'Typography - Scales',
+          status: 'review-required',
+          baseline: null,
+          reason: 'two-baselines',
+          candidates: [{ buildIndex: 2 }, { buildIndex: 4 }],
+        },
+      ],
+    },
+    stream: 'stdout',
+    prints: [
+      ['STORY                 STATUS           BASELINE'],
+      ['Sanity/Hello - Basic  unchanged        build #1'],
+      ['Typography - Scales   review-required  two baselines (#2, #4)'],
+    ],
+  },
 ];
 
 /**

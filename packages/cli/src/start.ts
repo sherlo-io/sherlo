@@ -8,6 +8,7 @@ import {
   showError,
   test,
   testEasCloudBuild,
+  view,
 } from './commands';
 import {
   ANDROID_FILE_TYPES,
@@ -33,6 +34,7 @@ import {
   IOS_FILE_TYPES,
   IOS_OPTION,
   MESSAGE_OPTION,
+  METADATA_OPTION,
   PLATFORM_LABEL,
   PROFILE_OPTION,
   PROJECT_ROOT_OPTION,
@@ -41,6 +43,7 @@ import {
   TEST_EAS_CLOUD_BUILD_COMMAND,
   TOKEN_OPTION,
   VERBOSE_OPTION,
+  VIEW_COMMAND,
   WAIT_FOR_EAS_BUILD_OPTION,
   WAIT_OPTION,
   WAIT_TIMEOUT_OPTION,
@@ -65,6 +68,8 @@ async function start() {
     addInitCommand(program);
 
     addTestCommand(program);
+
+    addViewCommand(program);
 
     addTestEasCloudBuildCommand(program);
 
@@ -115,6 +120,12 @@ const COMMAND_DESCRIPTION = {
   [EAS_BUILD_ON_COMPLETE_COMMAND]: `Process EAS Build (required for \`${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
   [SHOW_ERROR_COMMAND]:
     'Decode a minified JS error stack trace using the slug printed on the Sherlo build error page',
+  [VIEW_COMMAND]:
+    'Look at a build without touching it: its run status, its review tally, the same\n' +
+    '  status sentence the GitHub check posts, and its link. Opens nothing and uploads\n' +
+    `  nothing. \`--${WAIT_OPTION}\` blocks until the build is terminal and exits under the\n` +
+    `  same contract as \`test --${WAIT_OPTION}\`; without it the exit code is 0 whatever the\n` +
+    '  build says.',
   [FINGERPRINT_COMMAND]:
     'Print the fingerprints `test` computes for this project, one line per layer\n' +
     '  (native, dependencies, js, base). Runs entirely locally: no token, no upload.\n' +
@@ -199,6 +210,14 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
       'call. Mint captures from a world; render computes from a scenario.',
   ],
   [MESSAGE_OPTION]: [`--${MESSAGE_OPTION} <message>`, 'Custom message to label the test'],
+  [METADATA_OPTION]: [
+    `--${METADATA_OPTION}`,
+    'Print a `\u2500\u2500 details \u2500\u2500` block after the normal output - ONE LINE PER FACT THE API\n' +
+      '  PROVIDES, and nothing for one it does not: what the build was judged over, what the\n' +
+      '  runner did, the capture accounting, and how many verdicts a human has cast. On\n' +
+      `  \`${TEST_COMMAND}\` it also names the branch and commit the run was made from, which that run\n` +
+      '  composed itself. Plain aligned text, no colour.',
+  ],
   [PROFILE_OPTION]: [
     `--${PROFILE_OPTION} <profile>`,
     `EAS Build profile (must match profile used in \`${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
@@ -262,9 +281,41 @@ function addTestCommand(program: Command) {
       RENDER_TRANSCRIPT_OPTION,
       WAIT_OPTION,
       WAIT_TIMEOUT_OPTION,
+      METADATA_OPTION,
       ...devtoolsOptions,
     ],
     action: test,
+  });
+}
+
+/**
+ * `sherlo view [build]` takes its build as a POSITIONAL argument, so it is
+ * registered by hand rather than through `addCommand` - which only knows how to
+ * wire options. The argument is OPTIONAL at the parser so the command can refuse
+ * in its own words, with the reason there is no default yet (see
+ * ./commands/view); commander's bare "missing required argument" would say less.
+ */
+function addViewCommand(program: Command) {
+  const commandInstance = program
+    .command(`${VIEW_COMMAND} [build]`)
+    .description(COMMAND_DESCRIPTION[VIEW_COMMAND]);
+
+  addOptionsToCommand(commandInstance, [
+    TOKEN_OPTION,
+    CONFIG_OPTION,
+    PROJECT_ROOT_OPTION,
+    WAIT_OPTION,
+    WAIT_TIMEOUT_OPTION,
+    METADATA_OPTION,
+  ]);
+
+  commandInstance.action(async (build: string | undefined, actionOptions) => {
+    setReportingContext(VIEW_COMMAND, actionOptions);
+
+    // `withCommandTimeout` wraps a one-argument command, and it already skips
+    // its own 30-minute race whenever `--wait` is set - which is the case that
+    // legitimately runs longer and owns exit code 3.
+    await withCommandTimeout(() => view(build, actionOptions))(actionOptions);
   });
 }
 

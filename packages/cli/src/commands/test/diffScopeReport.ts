@@ -217,6 +217,87 @@ export function formatDiffScopeBlock(
 }
 
 /* ========================================================================== */
+/* The one-line "Diff Scope:" summary (view-metadata, operator ruling         */
+/* 2026-09-03) - printed once at build open, alongside the "Capture plan"     */
+/* block above, for a plain sentence a developer reads in CI.                 */
+/* ========================================================================== */
+
+/**
+ * One platform's data for the "Diff Scope:" summary line: the same decision
+ * {@link DiffScopePlatformReport} already carries, plus the two things that
+ * block does not need - the WHOLE bundle's story set (to name what was
+ * inherited, not just what was captured) and the ancestor build this run's
+ * decision diffed against.
+ */
+export type DiffScopeSummaryInput = {
+  full: boolean;
+  capturedStoryFilePaths: string[];
+  totalStoriesInBundle?: number;
+  reason?: string;
+  /**
+   * Every story SOURCE FILE path in this build's bundle (the manifest's whole
+   * `storyClosures` key set), so the inherited names can be named rather than
+   * just counted: inherited = allStoryFilePaths - capturedStoryFilePaths.
+   * Absent -> no manifest, so the summary line is not printed at all (see
+   * {@link formatDiffScopeSummaryLine}).
+   */
+  allStoryFilePaths?: string[];
+  /**
+   * The primary frozen ancestor build index this run's decision diffed
+   * against (sherlo-api `Build.diffScopeInfo.ancestorBuildIndex`, commit
+   * e7c7d5a on `feature/sherlo-3`), or `undefined` when the server sent none -
+   * an older API, or a build with no ancestor at all (first build).
+   */
+  ancestorBuildIndex?: number;
+};
+
+/**
+ * The plain, one-line summary a developer reads in CI: what Diff Scope did
+ * and why, in one sentence, distinct from the multi-line "Capture plan" block
+ * above (which stays the detailed per-platform breakdown; this line is the
+ * short version at build open).
+ *
+ *   Full capture:    `Diff Scope: capturing all M stories: <reason>`
+ *   Partial capture: `Diff Scope: <reason> - capturing N of M stories: <names>;
+ *                      inheriting K from build #A: <names>`
+ *
+ * Returns undefined when there is nothing honest to say: no manifest (no `M`,
+ * so no fraction and no name list) degrades to silence rather than a line with
+ * blanks in it - the multi-line block above already covers that case with its
+ * own bare-count degrade.
+ */
+export function formatDiffScopeSummaryLine(input: DiffScopeSummaryInput): string | undefined {
+  const { full, capturedStoryFilePaths, totalStoriesInBundle: M, reason, allStoryFilePaths } =
+    input;
+
+  if (M === undefined || allStoryFilePaths === undefined) return undefined;
+
+  if (full) {
+    const noun = M === 1 ? 'story' : 'stories';
+    const tail = reason ? `: ${reason}` : '';
+    return `Diff Scope: capturing all ${M} ${noun}${tail}`;
+  }
+
+  const capturedNames = capturedStoryFilePaths.map(cleanStoryPath);
+  const capturedSet = new Set(capturedStoryFilePaths);
+  const inheritedNames = allStoryFilePaths
+    .filter((path) => !capturedSet.has(path))
+    .map(cleanStoryPath);
+
+  const prefix = reason ? `${reason} - ` : '';
+  const captureClause = `capturing ${capturedStoryFilePaths.length} of ${M} stories: ${
+    capturedNames.length > 0 ? capturedNames.join(', ') : 'none'
+  }`;
+
+  const inheritClause =
+    inheritedNames.length > 0 && input.ancestorBuildIndex !== undefined
+      ? `; inheriting ${inheritedNames.length} from build #${
+          input.ancestorBuildIndex
+        }: ${inheritedNames.join(', ')}`
+      : '';
+
+  return `Diff Scope: ${prefix}${captureClause}${inheritClause}`;
+}
 
 function platformEmoji(platform: Platform): string {
   return platform === 'android' ? '🤖' : '🍎';
@@ -239,7 +320,7 @@ function whyRow(reason: string): string {
  * suffix, so `src/components/Storefront/ProductCard.stories.tsx` reads
  * `Storefront/ProductCard`. This is pure path cleanup - NOT a story-title map.
  */
-function cleanStoryPath(filePath: string): string {
+export function cleanStoryPath(filePath: string): string {
   const withoutSuffix = filePath.replace(/\.stories\.[jt]sx?$/, '');
   const segments = withoutSuffix.split('/').filter(Boolean);
   return segments.slice(-2).join('/');

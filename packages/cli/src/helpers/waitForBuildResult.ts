@@ -1,4 +1,6 @@
 import fetch from 'node-fetch';
+import type { BuildDetailsGitFacts } from '../render/buildView';
+import { buildDetailsOf } from './buildDetails';
 import getTokenParts from './getTokenParts';
 import { emit } from './transcriptSink';
 import { EXIT_BLOCK, EXIT_ERROR, EXIT_GREEN, EXIT_SIGINT, EXIT_TIMEOUT } from './exitCodes';
@@ -98,6 +100,45 @@ export type BuildStatusResponse = {
         ios?: { reason?: string };
       };
     };
+    /**
+     * The build's frozen git identity (view-metadata, operator ruling
+     * 2026-09-03) - only the two fields `getBuildStatus` sends. Absent on an
+     * older API.
+     */
+    gitInfo?: {
+      branchName: string;
+      commitHash: string;
+    };
+    /**
+     * Per-story rows (view-metadata, operator ruling 2026-09-03): what `sherlo
+     * view --metadata` prints as `stories[]`. `status` is spelled as the plain
+     * string the wire sends (including the hyphenated `"review-required"`)
+     * rather than a narrowed union, because `@sherlo/api-types` is not the
+     * source of this hand-written wire shape (see this file's module doc) and a
+     * value this CLI has not learned yet must still pass through rather than
+     * fail to parse. Absent for a build with no view rows yet.
+     */
+    stories?: {
+      name: string;
+      status: string;
+      baseline: { buildIndex: number } | null;
+      reason?: string;
+      candidates?: { buildIndex: number }[];
+    }[];
+    /**
+     * The Diff Scope block (view-metadata, operator ruling 2026-09-03): what
+     * `sherlo view --metadata` prints as `diffScope`. Hand-typed rather than
+     * imported from `@sherlo/api-types` for the same reason every other field
+     * of this wire shape is (see this file's module doc) - server commit
+     * e7c7d5a (sherlo-api `feature/sherlo-3`) added it and the portal tarball
+     * this repo builds against may not carry it yet. Absent on an older API.
+     */
+    diffScope?: {
+      reason: string;
+      captured: string[];
+      inherited: string[];
+      ancestorBuildIndex: number | null;
+    };
   } | null;
 };
 
@@ -111,6 +152,7 @@ async function waitForBuildResult({
   teamId,
   waitTimeoutMinutes,
   serverBypassed = false,
+  metadata,
   now = Date.now,
   pollBuildStatus,
 }: {
@@ -136,6 +178,20 @@ async function waitForBuildResult({
    * printed by evaluateTerminalState off the poll's verbatim reason.
    */
   serverBypassed?: boolean;
+  /**
+   * `--metadata`: print the `── details ──` block after the terminal closer.
+   *
+   * PRESENCE IS THE REQUEST. `undefined` prints no block at all; `{}` prints one
+   * carrying only what the poll answer itself knows. The block is emitted ONLY
+   * for a build that reached a terminal state - a deadline, a Ctrl-C and a
+   * refused credential end the wait with no build to describe, and a details
+   * block about a build nobody looked at would be worse than none.
+   *
+   * `git` is the one fact the poll cannot serve: `getBuildStatus` does not
+   * return the build's git info. A caller that OPENED this build composed that
+   * info itself and hands it over here; `sherlo view` cannot, and passes `{}`.
+   */
+  metadata?: { git?: BuildDetailsGitFacts };
   /**
    * The ONE effect this loop performs, injectable so a caller can supply the
    * answers instead of the network.
@@ -278,6 +334,10 @@ async function waitForBuildResult({
       const exitCode = evaluateTerminalState(build);
 
       if (exitCode !== null) {
+        if (metadata) {
+          emit({ kind: 'build-details', details: buildDetailsOf(build, metadata.git) });
+          emit({ kind: 'blank-line' });
+        }
         return exitCode;
       }
 
@@ -371,6 +431,27 @@ async function fetchBuildStatus(
                   reason
                 }
               }
+            }
+            gitInfo {
+              branchName
+              commitHash
+            }
+            stories {
+              name
+              status
+              baseline {
+                buildIndex
+              }
+              reason
+              candidates {
+                buildIndex
+              }
+            }
+            diffScope {
+              reason
+              captured
+              inherited
+              ancestorBuildIndex
             }
           }
         }
@@ -593,11 +674,45 @@ export function printServerBypassCloser(reason: string): void {
 }
 
 /**
- * How long the single-shot bypass-reason query may take before it is abandoned.
- * Generous enough for a healthy API, short enough that a wedged endpoint cannot
- * stall a non-wait run.
+ * How long a SINGLE-SHOT read of a build's status may take before it is
+ * abandoned. Generous enough for a healthy API, short enough that a wedged
+ * endpoint cannot stall a run that is not waiting for anything.
+ *
+ * The poll loop above deliberately omits it - its own deadline governs there.
  */
-const BYPASS_REASON_QUERY_TIMEOUT_MS = 10_000;
+const SINGLE_READ_TIMEOUT_MS = 10_000;
+
+/**
+ * Read a build's status ONCE - the read `sherlo view` is built on, and the same
+ * query the `--wait` loop polls (`fetchBuildStatus`), so there is one wire shape
+ * and one document to keep in step.
+ *
+ * `null` means the build does not exist, which is a real answer a caller acts
+ * on. EVERY OTHER FAILURE THROWS, unlike {@link fetchServerBypassReason}: that
+ * one is a cosmetic closing query on a run that already succeeded, while this
+ * one IS the command's answer - a `view` that swallowed a refused credential
+ * would print nothing and exit as though all was well.
+ */
+export async function readBuildStatus({
+  token,
+  buildIndex,
+  projectIndex,
+  teamId,
+}: {
+  token: string;
+  buildIndex: number;
+  projectIndex: number;
+  teamId: string;
+}): Promise<BuildStatus | null> {
+  const { apiToken } = getTokenParts(token);
+
+  return fetchBuildStatus(
+    getEndpointUrl(),
+    apiToken,
+    { index: buildIndex, projectIndex, teamId },
+    SINGLE_READ_TIMEOUT_MS
+  );
+}
 
 /**
  * Fetch the server's verbatim bypass reason with ONE getBuildStatus call against
@@ -629,7 +744,7 @@ export async function fetchServerBypassReason({
       getEndpointUrl(),
       apiToken,
       { index: buildIndex, projectIndex, teamId },
-      BYPASS_REASON_QUERY_TIMEOUT_MS
+      SINGLE_READ_TIMEOUT_MS
     );
     return getServerBypassReason(build?.diffScopeInfo);
   } catch {

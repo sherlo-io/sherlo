@@ -28,6 +28,7 @@
  */
 import sdkClient from '@sherlo/sdk-client';
 import { GateMetadata, GateMetadataByPlatform, Platform } from '@sherlo/api-types';
+import { PLATFORMS } from '../../constants';
 import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER } from '@sherlo/shared';
 import chalk from 'chalk';
 import { Options } from '../../types';
@@ -40,12 +41,12 @@ import {
   getTokenParts,
   getValidatedCommandParams,
   handleClientError,
-  logWarning,
   printSherloIntro,
   reporting,
   throwError,
   waitForBuildResult,
 } from '../../helpers';
+import parseWaitTimeout from '../../helpers/parseWaitTimeout';
 import printLink from '../../helpers/printLink';
 import printOutputKeys from '../../helpers/printOutputKeys';
 import {
@@ -76,8 +77,12 @@ import { resolveBaseFingerprintForSuppliedBundle } from './recordedBaseFingerpri
 import { resolveSuppliedBundles } from './suppliedBundle';
 import { runEmitExpectation } from './emitExpectation';
 import { runRenderTranscript } from './renderTranscript';
-import { countBundleStories } from './readModuleManifest';
-import { formatDiffScopeReport, type DiffScopePlatformReport } from './diffScopeReport';
+import { countBundleStories, type ValidatedModuleManifest } from './readModuleManifest';
+import {
+  formatDiffScopeReport,
+  formatDiffScopeSummaryLine,
+  type DiffScopePlatformReport,
+} from './diffScopeReport';
 
 /**
  * The ONLY gate metadata the pre-bundle probe may send: the `none` derivation
@@ -112,6 +117,15 @@ type PlatformConfigWithCaptureScope = { captureScope?: CaptureScope };
 type DiffScopeInfoWithPlatformReasons = {
   fullCaptureTriggerReason?: string;
   platforms?: Partial<Record<Platform, { reason?: string }>>;
+  /**
+   * The primary frozen ancestor build index this decision diffed against.
+   * Hand-typed rather than imported from `@sherlo/api-types` for the same
+   * forward-compat reason as the two fields above (this file's module doc):
+   * sherlo-api commit e7c7d5a (`feature/sherlo-3`) added it to
+   * `Build.diffScopeInfo` and the portal tarball this repo builds against may
+   * not carry it yet. Absent -> no ancestor, or an older API.
+   */
+  ancestorBuildIndex?: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -462,7 +476,13 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   // (Diff Scope off, or older API), but always closes with the URL so the link
   // never disappears - UNLESS the build was server-bypassed, whose compact closer
   // is printed below instead (by the --wait poll, or the non-wait branch).
-  printCapturePlanAndCloser({ openBuildReturn, bundles, platformsToTest, url, serverBypassed });
+  printCapturePlanAndCloser({
+    openBuildReturn,
+    moduleManifests: collectModuleManifests(bundles, platformsToTest),
+    platformsToTest,
+    url,
+    serverBypassed,
+  });
 
   if (commandParams.wait) {
     const exitCode = await waitForBuildResult({
@@ -472,6 +492,10 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       teamId,
       waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
       serverBypassed,
+      // --metadata: the details block, carrying the git identity THIS run
+      // composed and sent at openBuild - `getBuildStatus` does not return it, so
+      // the only honest source is the value that created the build.
+      metadata: commandParams.metadata === true ? { git: gitInfo } : undefined,
     });
 
     // --wait mode: the exit code IS the contract. Flush telemetry then exit.
@@ -554,6 +578,19 @@ async function checkGate({
   return refusals;
 }
 
+/** The per-platform module manifests the capture plan reads, lifted off the bundles. */
+function collectModuleManifests(
+  bundles: Partial<Record<Platform, BundleResult>>,
+  platformsToTest: Platform[]
+): Partial<Record<Platform, ValidatedModuleManifest>> {
+  const moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>> = {};
+  for (const platform of platformsToTest) {
+    const manifest = bundles[platform]?.moduleManifest;
+    if (manifest) moduleManifests[platform] = manifest;
+  }
+  return moduleManifests;
+}
+
 /** One single-line, platform-prefixed reason per refusal, joined for the output key. */
 function describeRefusals(refusals: StagedGateRefusal[]): string {
   return refusals
@@ -587,16 +624,20 @@ function describeRefusals(refusals: StagedGateRefusal[]): string {
  * review and the review page cannot render this build shape yet (SHERLO-1974), so
  * the Review URL is withheld here in BOTH modes; the compact bypassed closer is
  * printed by the caller instead (the --wait poll, or the non-wait branch).
+ *
+ * Exported (with the closer + wait helpers below) because the SIM road reuses
+ * this exact output road - it has no bundles, so the plan is keyed on each
+ * platform's module manifest, the one input the report actually reads.
  */
-function printCapturePlanAndCloser({
+export function printCapturePlanAndCloser({
   openBuildReturn,
-  bundles,
+  moduleManifests,
   platformsToTest,
   url,
   serverBypassed,
 }: {
   openBuildReturn: Awaited<ReturnType<ReturnType<typeof sdkClient>['openBuild']>>;
-  bundles: Partial<Record<Platform, BundleResult>>;
+  moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>>;
   platformsToTest: Platform[];
   url: string;
   serverBypassed: boolean;
@@ -616,7 +657,7 @@ function printCapturePlanAndCloser({
     // everything" here would claim a decision the server never made.
     if (!captureScope) continue;
 
-    const manifest = bundles[platform]?.moduleManifest;
+    const manifest = moduleManifests[platform];
     platforms.push({
       kind: 'decided',
       platform,
@@ -632,6 +673,28 @@ function printCapturePlanAndCloser({
 
   if (platforms.length > 0) {
     console.log('\n' + formatDiffScopeReport('live', platforms));
+
+    // The one-line "Diff Scope:" summary (view-metadata, operator ruling
+    // 2026-09-03), printed once for the build - not per platform - keyed on
+    // the PRIMARY platform (first-present, PLATFORMS-ordered: android before
+    // ios), the same convention the server uses for its own single reason.
+    const primary = PLATFORMS.map((platform) =>
+      platforms.find((p) => p.platform === platform)
+    ).find((p): p is DiffScopePlatformReport => p !== undefined);
+
+    if (primary) {
+      const summaryLine = formatDiffScopeSummaryLine({
+        full: primary.full,
+        capturedStoryFilePaths: primary.capturedStoryFilePaths,
+        totalStoriesInBundle: primary.totalStoriesInBundle,
+        reason: primary.reason,
+        allStoryFilePaths: moduleManifests[primary.platform]
+          ? Object.keys(moduleManifests[primary.platform]!.parsed.storyClosures)
+          : undefined,
+        ancestorBuildIndex: diffScopeInfo?.ancestorBuildIndex,
+      });
+      if (summaryLine) console.log('\n' + summaryLine);
+    }
   }
 
   // A server-bypassed build has its compact closer printed by the caller (the
@@ -664,7 +727,7 @@ function printCapturePlanAndCloser({
  * beats silence, and a build that succeeded is never reported failed over this
  * cosmetic query (fetchServerBypassReason swallows every error).
  */
-async function printBypassedCloser({
+export async function printBypassedCloser({
   token,
   buildIndex,
   projectIndex,
@@ -713,14 +776,4 @@ function resolveLiveReason({
   return undefined;
 }
 
-function parseWaitTimeout(raw: string | undefined): number | undefined {
-  if (!raw) return undefined;
-  const minutes = parseInt(raw, 10);
-  if (isNaN(minutes) || minutes < 1) {
-    logWarning({
-      message: `Invalid --wait-timeout "${raw}"; using default 45 minutes.`,
-    });
-    return undefined;
-  }
-  return minutes;
-}
+export { parseWaitTimeout };
