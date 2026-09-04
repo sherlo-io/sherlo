@@ -363,35 +363,6 @@ describe('metro/polyfill.js - getSherloNativeModule', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Tests: android/consumer-rules.pro - CatalystInstanceImpl.mJSExceptionHandler
-// R8 protection
-// ---------------------------------------------------------------------------
-// SherloInitProvider.wrapCatalystJsExceptionHandler reflects into
-// CatalystInstanceImpl.mJSExceptionHandler by literal field name at runtime to install
-// the primary JS-fatal capture path. Without a keep rule, R8 minification in a
-// customer's release build can rename that field, silently breaking the reflection
-// lookup with no JS_ERROR ever written - a release-only, 100%-reproducible failure
-// mode (unlike a timing race) matching the reported incident.
-
-describe('android/consumer-rules.pro', () => {
-  const CONSUMER_RULES_PATH = path.join(__dirname, '../../android/consumer-rules.pro');
-  const BUILD_GRADLE_PATH = path.join(__dirname, '../../android/build.gradle');
-
-  it('keeps CatalystInstanceImpl.mJSExceptionHandler from R8 renaming', () => {
-    const rules = fs.readFileSync(CONSUMER_RULES_PATH, 'utf8');
-    expect(rules).toMatch(
-      /-keepclassmembers class com\.facebook\.react\.bridge\.CatalystInstanceImpl/
-    );
-    expect(rules).toMatch(/mJSExceptionHandler/);
-  });
-
-  it('wires consumer-rules.pro into the library build via consumerProguardFiles', () => {
-    const gradle = fs.readFileSync(BUILD_GRADLE_PATH, 'utf8');
-    expect(gradle).toMatch(/consumerProguardFiles\s+'consumer-rules\.pro'/);
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Tests: normalizeStack - PII path stripping
 // ---------------------------------------------------------------------------
 

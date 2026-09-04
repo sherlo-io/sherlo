@@ -1,8 +1,5 @@
 import React, { ReactElement, useEffect, useRef } from 'react';
 import SherloModule from '../SherloModule';
-import checkSdkCompatibility, {
-  __resetCacheForTests as checkSdkCompatibilityReset,
-} from '../checkSdkCompatibility';
 import type { InitialSelection } from '@storybook/react-native';
 import { StorybookParams, StorybookView } from '../types';
 import { TestingMode } from './components';
@@ -20,11 +17,6 @@ import {
   stopInteractiveMockActivation,
 } from './interactiveMockActivation';
 
-let isSdkCompatible = true;
-if (SherloModule.getMode() === 'testing') {
-  isSdkCompatible = checkSdkCompatibility();
-}
-
 function getStorybook(view: StorybookView, params?: StorybookParams): () => ReactElement {
   const mode = SherloModule.getMode();
 
@@ -33,12 +25,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
   // implementation is idempotent (safe to call even after the timer fired).
   SherloModule.notifyGetStorybookCalled();
 
-  // Only set up testing-mode story decorators when SDK is compatible.
-  // When isSdkCompatible=false the component returns null anyway, and calling
-  // getConfig() here can throw if config.sherlo isn't on disk yet (EAS-update
-  // timing edge case), which would crash the app before the async iOS
-  // sendNativeError(ERROR_SDK_COMPATIBILITY) write completes.
-  if (mode === 'testing' && isSdkCompatible) {
+  if (mode === 'testing') {
     const testingConfig = SherloModule.getConfig();
     const delayMs = testingConfig.initialStoryRenderDelayMs;
 
@@ -155,8 +142,6 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     }, []);
 
     if (isTestingMode) {
-      if (!isSdkCompatible) return null as unknown as ReactElement;
-
       return (
         <SafeAreaProvider>
           <TestingMode view={view} params={params} />
@@ -171,8 +156,3 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 }
 
 export default getStorybook;
-
-export function __resetForTests(): void {
-  isSdkCompatible = true;
-  checkSdkCompatibilityReset();
-}

@@ -28,10 +28,6 @@ import {
   __resetAppendFileCalls,
 } from './__mocks__/react-native';
 
-vi.mock('../checkSdkCompatibility', () => ({
-  default: () => true,
-  __resetCacheForTests: () => {},
-}));
 vi.mock('../isRunningVisualTests', () => ({ default: false }));
 vi.mock('../isStorybookMode', () => ({ default: false }));
 vi.mock('../openStorybook', () => ({ default: () => {} }));

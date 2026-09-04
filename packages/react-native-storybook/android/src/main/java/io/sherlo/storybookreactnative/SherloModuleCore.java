@@ -44,11 +44,7 @@ public class SherloModuleCore {
     // Set once in performEarlyInit(); never reassigned after that.
     private static volatile FileSystemHelper staticFsHelper = null;
 
-    // Stored during processPackages() (before initializeWithInstance). Used by
-    // SherloInitProvider at PRE_RUN_JS_BUNDLE_START to retrieve the CatalystInstance.
-    private static volatile java.lang.ref.WeakReference<ReactApplicationContext> sEarlyReactContext = null;
-
-    // Set to true by SherloJSExceptionCapture when the original JS error is written.
+    // Set to true when reportEarlyJsError() writes the original JS error.
     // Prevents the fallback UncaughtExceptionHandler from overwriting with the wrong message.
     private static volatile boolean sJsErrorCaptured = false;
 
@@ -109,8 +105,6 @@ public class SherloModuleCore {
      * @param reactContext The React application context
      */
     public SherloModuleCore(ReactApplicationContext reactContext, Activity activity) {
-        // Store context before initializeWithInstance() runs so PRE_RUN_JS_BUNDLE_START can retrieve it.
-        storeEarlyReactContext(reactContext);
         this.fileSystemHelper = new FileSystemHelper(reactContext);
 
         // Fallback - normal Android startup already runs this via SherloInitProvider before
@@ -159,15 +153,6 @@ public class SherloModuleCore {
         return staticFsHelper;
     }
 
-    public static void storeEarlyReactContext(ReactApplicationContext ctx) {
-        sEarlyReactContext = new java.lang.ref.WeakReference<>(ctx);
-    }
-
-    public static ReactApplicationContext getEarlyReactContext() {
-        java.lang.ref.WeakReference<ReactApplicationContext> ref = sEarlyReactContext;
-        return ref != null ? ref.get() : null;
-    }
-
     public static void markJsErrorCaptured() {
         sJsErrorCaptured = true;
     }
@@ -205,13 +190,6 @@ public class SherloModuleCore {
      */
     public void openStorybook() {
         restartHelper.restart(MODE_STORYBOOK);
-    }
-
-    /**
-     * Switches to default mode and restarts the React context.
-     */
-    public void closeStorybook() {
-        restartHelper.restart(MODE_DEFAULT);
     }
 
     /**

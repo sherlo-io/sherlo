@@ -3,7 +3,6 @@
 #import <React/RCTUIManagerUtils.h>
 #import <React/RCTBridge.h>
 #import "SherloModuleCore.h"
-#import "SherloIOSExceptionHandler.h"
 
 @implementation SherloModule
 
@@ -17,9 +16,6 @@ static SherloModuleCore *core;
 __attribute__((constructor))
 static void SherloEarlyInit(void) {
   core = [[SherloModuleCore alloc] init];
-  if ([[SherloModuleCore currentMode] isEqualToString:@"testing"]) {
-    [SherloIOSExceptionHandler install];
-  }
 }
 
 /**
@@ -33,8 +29,6 @@ static void SherloEarlyInit(void) {
 - (dispatch_queue_t)methodQueue {
     return RCTGetUIManagerQueue();
 }
-
-#ifdef RCT_NEW_ARCH_ENABLED // ------------------- NEW ARCH -------------------
 
 /**
  * Returns the Sherlo constants.
@@ -57,14 +51,6 @@ static void SherloEarlyInit(void) {
 - (void)openStorybook
 {
   [core openStorybook:self.bridge];
-}
-
-/**
- * Explicitly switches to default mode.
- */
-- (void)closeStorybook
-{
-  [core closeStorybook:self.bridge];
 }
 
 /**
@@ -179,135 +165,5 @@ static void SherloEarlyInit(void) {
 {
   return std::make_shared<facebook::react::NativeSherloModuleSpecJSI>(params);
 }
-
-#else // ------------------- OLD ARCH -------------------
-
-/**
- * Returns the Sherlo constants.
- */
-- (NSDictionary *)constantsToExport
-{
-  return [core getSherloConstants];
-}
-
-/**
- * Toggles between Storybook and default modes.
- */
-RCT_EXPORT_METHOD(toggleStorybook) {
-  [core toggleStorybook:self.bridge];
-}
-
-/**
- * Explicitly switches to Storybook mode.
- */
-RCT_EXPORT_METHOD(openStorybook) {
-  [core openStorybook:self.bridge];
-}
-
-/**
- * Explicitly switches to default mode.
- */
-RCT_EXPORT_METHOD(closeStorybook) {
-  [core closeStorybook:self.bridge];
-}
-
-/**
- * Sends a native error by writing a NATIVE_ERROR JSON line to protocol.sherlo.
- */
-RCT_EXPORT_METHOD(sendNativeError:(NSString *)errorCode
-                  message:(NSString *)message
-                  dataJson:(NSString *)dataJson) {
-  [core sendNativeError:errorCode message:message dataJson:dataJson];
-}
-
-/**
- * Synchronously writes a JS_ERROR entry for module-eval errors caught by the __r polyfill.
- */
-RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(reportEarlyJsError:(NSString *)name
-                                       message:(NSString *)message
-                                         stack:(NSString *)stack) {
-  return [self reportEarlyJsError:name message:message stack:stack];
-}
-
-/**
- * Appends base64 encoded content to a file.
- */
-RCT_EXPORT_METHOD(appendFile:(NSString *)path
-                  withContent:(NSString *)content
-                     resolver:(RCTPromiseResolveBlock)resolve
-                     rejecter:(RCTPromiseRejectBlock)reject) {
-  [core appendFile:path withContent:content resolve:resolve reject:reject];
-}
-
-/**
- * Reads a file and returns its contents as base64 encoded string.
- */
-RCT_EXPORT_METHOD(readFile:(NSString *)path
-                  resolve:(RCTPromiseResolveBlock)resolve
-                   reject:(RCTPromiseRejectBlock)reject) {
-  [core readFile:path resolve:resolve reject:reject];
-}
-
-/**
- * Gets UI inspector data from the current view hierarchy.
- */
-RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve
-                  reject:(RCTPromiseRejectBlock)reject) {
-  [core getInspectorData:resolve reject:reject];
-}
-
-/**
- * Checks UI stability by comparing screenshots taken over a specified interval.
- */
-RCT_EXPORT_METHOD(stabilize:(double)requiredMatches
-                  minScreenshotsCount:(double)minScreenshotsCount
-                 intervalMs:(double)intervalMs
-                  timeoutMs:(double)timeoutMs
-                  saveScreenshots:(BOOL)saveScreenshots
-                  threshold:(double)threshold
-                  includeAA:(BOOL)includeAA
-                   resolve:(RCTPromiseResolveBlock)resolve
-                   reject:(RCTPromiseRejectBlock)reject) {
-  [core stabilize:(NSInteger)requiredMatches minScreenshotsCount:(NSInteger)minScreenshotsCount intervalMs:(NSInteger)intervalMs timeoutMs:(NSInteger)timeoutMs saveScreenshots:saveScreenshots threshold:threshold includeAA:includeAA resolve:resolve reject:reject];
-}
-
-/**
- * Native paint barrier: resolves on the next real display frame.
- */
-RCT_EXPORT_METHOD(awaitFrameCommit:(double)timeoutMs
-                  resolve:(RCTPromiseResolveBlock)resolve
-                  reject:(RCTPromiseRejectBlock)reject) {
-  [core awaitFrameCommit:timeoutMs resolve:resolve reject:reject];
-}
-
-/**
- * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
- */
-RCT_EXPORT_METHOD(isScrollable:(RCTPromiseResolveBlock)resolve
-                  reject:(RCTPromiseRejectBlock)reject) {
-  [core isScrollable:resolve reject:reject];
-}
-
-/**
- * Deterministically scrolls to a checkpoint index.
- */
-RCT_EXPORT_METHOD(scrollToCheckpoint:(double)index
-                  offset:(double)offset
-                  maxIndex:(double)maxIndex
-                   resolve:(RCTPromiseResolveBlock)resolve
-                   reject:(RCTPromiseRejectBlock)reject) {
-  [core scrollToCheckpoint:index offset:offset maxIndex:maxIndex resolve:resolve reject:reject];
-}
-
-/**
- * Cancel signal for the native NOT_DISPLAYED watchdog timer.
- * Called from JS getStorybook() synchronously to indicate Storybook is being used.
- */
-RCT_EXPORT_METHOD(notifyGetStorybookCalled) {
-  [SherloModuleCore setGetStorybookCalled];
-  [SherloModuleCore cancelStorybookNotDisplayedTimer];
-}
-
-#endif
 
 @end

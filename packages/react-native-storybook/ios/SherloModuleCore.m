@@ -187,17 +187,6 @@ static FileSystemHelper *fileSystemHelper;
 }
 
 /**
- * Switches to default mode and reloads the React Native application.
- * Updates the current mode, saves state, and triggers a reload.
- *
- * @param bridge The React Native bridge needed for reloading
- */
-- (void)closeStorybook:(RCTBridge *)bridge {
-    currentMode = MODE_DEFAULT;
-    [RestartHelper restart:bridge];
-}
-
-/**
  * Writes a NATIVE_ERROR JSON line to protocol.sherlo.
  *
  * @param errorCode The error code (e.g. ERROR_SDK_COMPATIBILITY)

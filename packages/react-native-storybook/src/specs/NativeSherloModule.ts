@@ -8,7 +8,6 @@ export interface Spec extends TurboModule {
   appendFile: (path: string, content: string) => Promise<void>;
   readFile: (path: string) => Promise<string>;
   openStorybook: () => void;
-  closeStorybook: () => void;
   toggleStorybook: () => void;
   stabilize: (
     requiredMatches: number,

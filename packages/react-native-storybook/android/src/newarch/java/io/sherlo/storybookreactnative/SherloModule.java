@@ -72,14 +72,6 @@ public class SherloModule extends NativeSherloModuleSpec {
         moduleCore.openStorybook();
     }
 
-    /**
-     * Explicitly switches to default mode.
-     */
-    @Override
-    public void closeStorybook() {
-        moduleCore.closeStorybook();
-    }
-
     // ==== Error Reporting ====
 
     /**

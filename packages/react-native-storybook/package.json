@@ -58,7 +58,6 @@
     "src/specs/**/*",
     "dist/**/*",
     "android/src/**/*",
-    "android/CMakeLists.txt",
     "android/build.gradle",
     "ios/*.h",
     "ios/*.m",
@@ -83,7 +82,6 @@
     "base-64": "1.0.0",
     "deepmerge": "4.3.1",
     "its-fine": "2.0.0",
-    "sherlo": "^2.0.2",
     "utf8": "3.0.0"
   },
   "devDependencies": {
@@ -99,7 +97,7 @@
   "peerDependencies": {
     "@storybook/react-native": ">=8.0.0",
     "react": "*",
-    "react-native": ">=0.74.0",
+    "react-native": ">=0.76.0",
     "react-native-safe-area-context": "*"
   },
   "engines": {

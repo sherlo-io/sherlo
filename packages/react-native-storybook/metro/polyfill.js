@@ -149,21 +149,6 @@ var PROTOCOL_FILE = 'protocol.sherlo';
     }
   }
 
-  // Stash a reference to the metro-wrapped @storybook/react-native module.
-  // The metro wrapper exposes __sherloStorybookEntry (lazy loader) and
-  // __sherloStorybookConfigPath. Used by the sherloAtRoot branch to load the
-  // user's Storybook config entry as the AppRegistry root.
-  function maybeCaptureStorybookMod(_e) {
-    if (global.__sherloStorybookMod) return;
-    if (!_e) return;
-    if (
-      typeof _e.__sherloStorybookEntry !== 'undefined' ||
-      typeof _e.__sherloStorybookConfigPath !== 'undefined'
-    ) {
-      global.__sherloStorybookMod = _e;
-    }
-  }
-
   // Patch AppRegistry.registerComponent to wrap the root component in a
   // polyfill-level SherloErrorBoundary. React is resolved lazily at call time
   // from the globally stashed reference.
@@ -179,18 +164,11 @@ var PROTOCOL_FILE = 'protocol.sherlo';
       return;
     }
     var mode = null;
-    var config = null;
     try {
       var c =
         (typeof nm.getSherloConstants === 'function' ? nm.getSherloConstants() : null) ||
         (typeof nm.getConstants === 'function' ? nm.getConstants() : null);
       mode = c && c.mode;
-      var configString = c && c.config;
-      if (configString) {
-        try {
-          config = JSON.parse(configString);
-        } catch (_) {}
-      }
     } catch (_) {}
 
     if (mode !== 'testing') {
@@ -198,7 +176,6 @@ var PROTOCOL_FILE = 'protocol.sherlo';
     }
 
     AR.__sherloBoundaryPatched = true;
-    var sherloAtRoot = !!(config && config.sherloAtRoot === true);
 
     var orig = AR.registerComponent.bind(AR);
     AR.registerComponent = function sherloRegisterComponentPolyfill(appKey, componentProvider) {
@@ -242,41 +219,6 @@ var PROTOCOL_FILE = 'protocol.sherlo';
           return this.state.caught ? null : this.props.children;
         };
 
-        // sherloAtRoot branch: substitute root with the user's Storybook entry.
-        // Mirrors SDK src/index.ts SherloRootWrapperAtRoot logic.
-        if (sherloAtRoot) {
-          var sbMod = global.__sherloStorybookMod;
-          if (!sbMod) {
-            return componentProvider();
-          }
-          var loader = sbMod.__sherloStorybookEntry;
-          var configPath = sbMod.__sherloStorybookConfigPath;
-          if (typeof loader !== 'function') {
-            return componentProvider();
-          }
-          var storybookIndexMod;
-          try {
-            storybookIndexMod = loader();
-          } catch (_) {
-            return componentProvider();
-          }
-          var UserStorybookEntry = storybookIndexMod && storybookIndexMod.default;
-          if (!UserStorybookEntry) {
-            return componentProvider();
-          }
-          function SherloRootWrapperAtRootP(props) {
-            return React.createElement(
-              SherloErrorBoundaryP,
-              null,
-              React.createElement(UserStorybookEntry, props)
-            );
-          }
-          SherloRootWrapperAtRootP.displayName = 'SherloRoot(sherloAtRoot)';
-          SherloRootWrapperAtRootP._sherloWrapped = true;
-          return SherloRootWrapperAtRootP;
-        }
-
-        // Default branch: wrap user's component in boundary.
         var Component = componentProvider();
         if (!Component || Component._sherloWrapped) return Component;
         function SherloRootP(props) {
@@ -457,9 +399,6 @@ var PROTOCOL_FILE = 'protocol.sherlo';
           try {
             maybeCaptureSherloModule(exportsObj);
           } catch (_) {}
-          try {
-            maybeCaptureStorybookMod(exportsObj);
-          } catch (_) {}
           // Prong 1 - patch global.RN$AppRegistry directly (new arch).
           // The setter trap on exportsObj.AppRegistry gets overwritten by RN's own
           // getter-only Object.defineProperty redefinition (spike finding #1), so we
@@ -492,7 +431,6 @@ var PROTOCOL_FILE = 'protocol.sherlo';
   //    component's useEffect never executes. Mode is read lazily inside the callback
   //    (after 10s) to avoid the Android JSI race condition described above.
   //    global.__sherloStorybookRendered is set by Storybook.tsx when the wrapper renders.
-  //    Error code source of truth: src/checkSdkCompatibility.ts
   //    setTimeout may not be available at IIFE time on old-arch Expo 52 (bridge timers
   //    polyfill loads after metro polyfills); the try/catch prevents a polyfill crash.
   try {

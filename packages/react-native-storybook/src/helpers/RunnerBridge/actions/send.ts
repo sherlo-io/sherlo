@@ -1,4 +1,3 @@
-import { getGlobalStates } from '../../../utils';
 import SherloModule from '../../../SherloModule';
 import { LogFn, SendFn, RunnerProtocolItem, AppProtocolItem, ProtocolItemMetadata } from '../types';
 
@@ -22,19 +21,6 @@ function send(path: string, log: LogFn): SendFn {
       let ackReadInterval: ReturnType<typeof setInterval>;
       let responseItem: RunnerProtocolItem | undefined;
 
-      const resolveForTestMode = async (
-        ms: number,
-        mockedResponseItem: RunnerProtocolItem
-      ): Promise<void> => {
-        const shouldFakeRunner = getGlobalStates().testStoryId !== undefined;
-
-        if (shouldFakeRunner) {
-          await new Promise<void>((r) => setTimeout(() => r(), ms));
-          clearInterval(ackReadInterval);
-          resolve(mockedResponseItem);
-        }
-      };
-
       ackReadInterval = setInterval(async () => {
         try {
           const response = await SherloModule.readFile(path);
@@ -48,16 +34,6 @@ function send(path: string, log: LogFn): SendFn {
             switch (protocolItem.action) {
               case 'START':
                 hasAck = responseItem.action === 'ACK_START';
-
-                const storyIndex = protocolItem.snapshots.findIndex(
-                  (snapshot) => snapshot.storyId === getGlobalStates().testStoryId
-                );
-
-                await resolveForTestMode(1000, {
-                  action: 'ACK_START',
-                  requestId: 'fake-request-id',
-                  nextSnapshot: protocolItem.snapshots[storyIndex],
-                });
                 break;
 
               case 'REQUEST_SNAPSHOT':
