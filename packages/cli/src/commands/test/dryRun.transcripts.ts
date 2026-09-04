@@ -99,7 +99,11 @@ export type TranscriptScenario = {
    * though it was printed in the middle of the run.
    */
   capture: 'stdout' | 'stdout+stderr';
-  /** The committed fixture this scenario must render byte-identically. */
+  /**
+   * The committed fixture this scenario must render byte-identically, as a path
+   * relative to the sherlo-tester repo ROOT - not to any one tree inside it. See
+   * {@link FIXTURE_ROOTS} for the roots this catalog draws from.
+   */
   fixture: string;
   state: DryRunTranscriptState;
 };
@@ -144,7 +148,45 @@ function firstBuildEverywhere(platforms: Platform[]): ComputeDiffScopeDryRunResu
 
 const BOTH_PLATFORMS: Platform[] = ['android', 'ios'];
 
-const SNAPSHOTS = 'e2e/suites/snapshots';
+/**
+ * THE FIXTURE ROOTS this catalog draws from, each a path relative to the
+ * SHERLO-TESTER REPO ROOT - the base both consumers resolve a `fixture` against:
+ * the ratchet's `committedFixture` joins it onto the checkout, and
+ * `yarn tester expected-render --check` joins it onto that repository's root.
+ *
+ * Neither consumer has ever cared which tree inside the checkout a path lands
+ * in; what this catalog lacked was a place to SAY which trees it draws from, so
+ * that a fixture outside the snapshot trees reads as a decision rather than as a
+ * typo nobody caught.
+ */
+export const FIXTURE_ROOTS = {
+  /**
+   * The suite snapshot trees: a fixture a Playwright spec captured from a real
+   * device run against the real backend, and a person reviewed into git. Every
+   * scenario below answers under this root.
+   */
+  suiteSnapshots: 'e2e/suites/snapshots',
+  /**
+   * The BEATS suites tree. A beats chapter keeps its kept-output fixtures BESIDE
+   * THE CHAPTER, in Playwright's default snapshot sidecar, so a transcript a
+   * beat shows is named:
+   *
+   *   `<saga>/<storyline>/<NN-chapter>.spec.ts-snapshots/<slot>-<Project-Name>-<platform>.txt`
+   *
+   * e.g. `diff-scope/closure/01-<chapter>.spec.ts-snapshots/<slot>-Diff-Scope-Closure-darwin.txt`.
+   * That file name is not an author's choice: it carries the Playwright PROJECT
+   * NAME with its spaces hyphenated, and the platform, because that is
+   * Playwright's default `snapshotPathTemplate` and no beats project pins its
+   * own - so the path a scenario names here follows from the project its chapter
+   * runs under.
+   *
+   * A beat is read before any run of the behaviour exists - that is what an
+   * expected report is - so a scenario answering under this root has no captured
+   * snapshot behind it, and its `groundedBy` is `captured-run` or `enumerated`:
+   * `derived` names an upstream fixture, and a beat has none.
+   */
+  beatsSnapshots: 'e2e-beats/suites',
+} as const;
 
 export const DRY_RUN_TRANSCRIPTS: Record<string, TranscriptScenario> = {
   'dry-run-single-platform-nothing-to-capture': {
@@ -154,11 +196,11 @@ export const DRY_RUN_TRANSCRIPTS: Record<string, TranscriptScenario> = {
       'capture" and the one the inversion hazard exists to protect.',
     groundedBy: {
       kind: 'derived',
-      fromFixture: `${SNAPSHOTS}/test-bundled/06-single-platform.spec.ts-snapshots/u4-single-platform-cli-Test-Bundled-darwin.txt`,
+      fromFixture: `${FIXTURE_ROOTS.suiteSnapshots}/test-bundled/06-single-platform.spec.ts-snapshots/u4-single-platform-cli-Test-Bundled-darwin.txt`,
     },
     ambient: { skipIntro: false },
     capture: 'stdout',
-    fixture: `${SNAPSHOTS}/test-bundled/06-single-platform.spec.ts-snapshots/u4-single-platform-cli-Test-Bundled-darwin.txt`,
+    fixture: `${FIXTURE_ROOTS.suiteSnapshots}/test-bundled/06-single-platform.spec.ts-snapshots/u4-single-platform-cli-Test-Bundled-darwin.txt`,
     state: {
       platformsToTest: ['android'],
       bundles: { android: bundleFor('android') },
@@ -186,11 +228,11 @@ export const DRY_RUN_TRANSCRIPTS: Record<string, TranscriptScenario> = {
       'verbatim why - never the "couldn\'t compute" degrade.',
     groundedBy: {
       kind: 'derived',
-      fromFixture: `${SNAPSHOTS}/test-bundled/09-cold-start.spec.ts-snapshots/c3-cold-start-cli-Test-Bundled-darwin.txt`,
+      fromFixture: `${FIXTURE_ROOTS.suiteSnapshots}/test-bundled/09-cold-start.spec.ts-snapshots/c3-cold-start-cli-Test-Bundled-darwin.txt`,
     },
     ambient: { skipIntro: false },
     capture: 'stdout',
-    fixture: `${SNAPSHOTS}/test-bundled/09-cold-start.spec.ts-snapshots/c3-cold-start-cli-Test-Bundled-darwin.txt`,
+    fixture: `${FIXTURE_ROOTS.suiteSnapshots}/test-bundled/09-cold-start.spec.ts-snapshots/c3-cold-start-cli-Test-Bundled-darwin.txt`,
     state: {
       platformsToTest: BOTH_PLATFORMS,
       bundles: { android: bundleFor('android'), ios: bundleFor('ios') },
@@ -207,11 +249,11 @@ export const DRY_RUN_TRANSCRIPTS: Record<string, TranscriptScenario> = {
       'for the guard-skip route.',
     groundedBy: {
       kind: 'derived',
-      fromFixture: `${SNAPSHOTS}/test-bundled/10-provenance-guard-skip.spec.ts-snapshots/c4b-guard-skip-cli-Test-Bundled-darwin.txt`,
+      fromFixture: `${FIXTURE_ROOTS.suiteSnapshots}/test-bundled/10-provenance-guard-skip.spec.ts-snapshots/c4b-guard-skip-cli-Test-Bundled-darwin.txt`,
     },
     ambient: { skipIntro: false },
     capture: 'stdout',
-    fixture: `${SNAPSHOTS}/test-bundled/10-provenance-guard-skip.spec.ts-snapshots/c4b-guard-skip-cli-Test-Bundled-darwin.txt`,
+    fixture: `${FIXTURE_ROOTS.suiteSnapshots}/test-bundled/10-provenance-guard-skip.spec.ts-snapshots/c4b-guard-skip-cli-Test-Bundled-darwin.txt`,
     state: {
       platformsToTest: BOTH_PLATFORMS,
       bundles: { android: bundleFor('android'), ios: bundleFor('ios') },
@@ -228,11 +270,11 @@ export const DRY_RUN_TRANSCRIPTS: Record<string, TranscriptScenario> = {
       "a bail-open carries no reason and no denominator - and no error text on the user's line.",
     groundedBy: {
       kind: 'derived',
-      fromFixture: `${SNAPSHOTS}/test-bundled-checks/02-failure-modes.spec.ts-snapshots/f4-api-unreachable-cli-Test-Bundled-Checks-darwin.txt`,
+      fromFixture: `${FIXTURE_ROOTS.suiteSnapshots}/test-bundled-checks/02-failure-modes.spec.ts-snapshots/f4-api-unreachable-cli-Test-Bundled-Checks-darwin.txt`,
     },
     ambient: { skipIntro: false },
     capture: 'stdout',
-    fixture: `${SNAPSHOTS}/test-bundled-checks/02-failure-modes.spec.ts-snapshots/f4-api-unreachable-cli-Test-Bundled-Checks-darwin.txt`,
+    fixture: `${FIXTURE_ROOTS.suiteSnapshots}/test-bundled-checks/02-failure-modes.spec.ts-snapshots/f4-api-unreachable-cli-Test-Bundled-Checks-darwin.txt`,
     state: {
       platformsToTest: BOTH_PLATFORMS,
       bundles: { android: bundleFor('android'), ios: bundleFor('ios') },
@@ -251,11 +293,11 @@ export const DRY_RUN_TRANSCRIPTS: Record<string, TranscriptScenario> = {
       'detached-head case degrades nothing a user sees.',
     groundedBy: {
       kind: 'derived',
-      fromFixture: `${SNAPSHOTS}/test-bundled-checks/02-failure-modes.spec.ts-snapshots/f6-detached-head-cli-Test-Bundled-Checks-darwin.txt`,
+      fromFixture: `${FIXTURE_ROOTS.suiteSnapshots}/test-bundled-checks/02-failure-modes.spec.ts-snapshots/f6-detached-head-cli-Test-Bundled-Checks-darwin.txt`,
     },
     ambient: { skipIntro: false },
     capture: 'stdout+stderr',
-    fixture: `${SNAPSHOTS}/test-bundled-checks/02-failure-modes.spec.ts-snapshots/f6-detached-head-cli-Test-Bundled-Checks-darwin.txt`,
+    fixture: `${FIXTURE_ROOTS.suiteSnapshots}/test-bundled-checks/02-failure-modes.spec.ts-snapshots/f6-detached-head-cli-Test-Bundled-Checks-darwin.txt`,
     state: {
       platformsToTest: BOTH_PLATFORMS,
       bundles: { android: bundleFor('android'), ios: bundleFor('ios') },
@@ -271,11 +313,11 @@ export const DRY_RUN_TRANSCRIPTS: Record<string, TranscriptScenario> = {
       'fixture, because the fixture is stdout followed by stderr.',
     groundedBy: {
       kind: 'derived',
-      fromFixture: `${SNAPSHOTS}/test-bundled-checks/02-failure-modes.spec.ts-snapshots/f6-no-git-cli-Test-Bundled-Checks-darwin.txt`,
+      fromFixture: `${FIXTURE_ROOTS.suiteSnapshots}/test-bundled-checks/02-failure-modes.spec.ts-snapshots/f6-no-git-cli-Test-Bundled-Checks-darwin.txt`,
     },
     ambient: { skipIntro: false },
     capture: 'stdout+stderr',
-    fixture: `${SNAPSHOTS}/test-bundled-checks/02-failure-modes.spec.ts-snapshots/f6-no-git-cli-Test-Bundled-Checks-darwin.txt`,
+    fixture: `${FIXTURE_ROOTS.suiteSnapshots}/test-bundled-checks/02-failure-modes.spec.ts-snapshots/f6-no-git-cli-Test-Bundled-Checks-darwin.txt`,
     state: {
       platformsToTest: BOTH_PLATFORMS,
       bundles: { android: bundleFor('android'), ios: bundleFor('ios') },

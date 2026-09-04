@@ -27,6 +27,7 @@ import chalk from 'chalk';
 import {
   DRY_RUN_TRANSCRIPTS,
   DRY_RUN_TRANSCRIPT_IDS,
+  FIXTURE_ROOTS,
   type TranscriptScenario,
 } from '../dryRun.transcripts';
 import { renderScenarioTranscript, transcriptForCapture } from '../renderTranscript';
@@ -73,6 +74,97 @@ describe('the dry-run transcript catalog', () => {
     }
     expect(unstated).toEqual([]);
   });
+
+  it("every scenario answers for a fixture under one of the catalog's declared roots", () => {
+    // A fixture path is resolved by joining it onto the sherlo-tester checkout,
+    // so a path under ANY tree in that repository resolves. What this case is
+    // for is the other direction: a root nobody declared is how a typo, or a
+    // tree that quietly moved, reaches a consumer as a missing file rather than
+    // as a review finding.
+    const declaredRoots = Object.values(FIXTURE_ROOTS);
+    const strays = Object.entries(DRY_RUN_TRANSCRIPTS)
+      .filter(
+        ([, scenario]) => !declaredRoots.some((root) => scenario.fixture.startsWith(`${root}/`))
+      )
+      .map(([id, scenario]) => `${id} -> ${scenario.fixture}`);
+
+    expect(
+      strays,
+      'a scenario names a fixture root this catalog does not declare - add it to FIXTURE_ROOTS, ' +
+        'saying what lives there, or fix the path'
+    ).toEqual([]);
+  });
+
+  it('the six committed fixture paths are UNCHANGED - the legacy suites still consume them', () => {
+    // Pinned as literals, not derived from FIXTURE_ROOTS: a case that composed
+    // the expected paths the same way the catalog does would agree with any
+    // move of the root, which is exactly the change it exists to catch. These
+    // six are consumed by suites that are still green, so moving one is a red
+    // capture night, not a refactor.
+    const declared = Object.fromEntries(
+      Object.entries(DRY_RUN_TRANSCRIPTS).map(([id, scenario]) => [id, scenario.fixture])
+    );
+
+    expect(declared).toEqual({
+      'dry-run-single-platform-nothing-to-capture':
+        'e2e/suites/snapshots/test-bundled/06-single-platform.spec.ts-snapshots/u4-single-platform-cli-Test-Bundled-darwin.txt',
+      'dry-run-cold-start':
+        'e2e/suites/snapshots/test-bundled/09-cold-start.spec.ts-snapshots/c3-cold-start-cli-Test-Bundled-darwin.txt',
+      'dry-run-provenance-guard-skip':
+        'e2e/suites/snapshots/test-bundled/10-provenance-guard-skip.spec.ts-snapshots/c4b-guard-skip-cli-Test-Bundled-darwin.txt',
+      'dry-run-api-unreachable':
+        'e2e/suites/snapshots/test-bundled-checks/02-failure-modes.spec.ts-snapshots/f4-api-unreachable-cli-Test-Bundled-Checks-darwin.txt',
+      'dry-run-detached-head':
+        'e2e/suites/snapshots/test-bundled-checks/02-failure-modes.spec.ts-snapshots/f6-detached-head-cli-Test-Bundled-Checks-darwin.txt',
+      'dry-run-no-git':
+        'e2e/suites/snapshots/test-bundled-checks/02-failure-modes.spec.ts-snapshots/f6-no-git-cli-Test-Bundled-Checks-darwin.txt',
+    });
+  });
+
+  it('every declared root is a path RELATIVE TO THE CHECKOUT ROOT', () => {
+    // The one claim about a root that holds whether or not the tree behind it
+    // exists yet, and the one both consumers depend on: a root is joined onto a
+    // repository root, so an absolute path or a `..` escape would resolve
+    // somewhere neither the ratchet nor `expected-render` means. This runs with
+    // no checkout, which is what lets a root be declared BEFORE the tree it
+    // names is created - `e2e-beats/suites` is such a root today.
+    const malformed = Object.entries(FIXTURE_ROOTS)
+      .filter(
+        ([, root]) => root.startsWith('/') || root.endsWith('/') || root.split('/').includes('..')
+      )
+      .map(([name, root]) => `${name} -> ${root}`);
+
+    expect(
+      malformed,
+      'a fixture root must be relative to the sherlo-tester repo root, with no trailing slash'
+    ).toEqual([]);
+  });
+
+  it.runIf(TESTER_AVAILABLE)(
+    'every root a SCENARIO ANSWERS UNDER is a real tree in the checkout',
+    () => {
+      // Scoped to the roots in use, because that is the strongest form of this
+      // claim that can be true: a root may be declared before its tree exists
+      // (the beats suites are not in the checkout yet), and a case that demanded
+      // otherwise would red for a tree nobody has authored rather than for a
+      // mistake. The moment a scenario answers under a root, the root has to be
+      // there - and the per-scenario `fixtureExists` case below then proves the
+      // whole path, not just its head.
+      const rootsInUse = new Set(
+        Object.values(DRY_RUN_TRANSCRIPTS).map(
+          (scenario) =>
+            Object.values(FIXTURE_ROOTS).find((root) => scenario.fixture.startsWith(`${root}/`)) ??
+            ''
+        )
+      );
+
+      const unreachable = [...rootsInUse].filter((root) => !fixtureExists(root));
+
+      expect(unreachable, 'a fixture root a scenario answers under is not in the checkout').toEqual(
+        []
+      );
+    }
+  );
 
   it('every scenario scripts a bundle for every platform it puts under test', () => {
     // A missing bundle is a refusal at render time; catching it here names every
