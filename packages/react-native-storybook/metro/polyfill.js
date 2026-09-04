@@ -84,6 +84,12 @@ var PROTOCOL_FILE = 'protocol.sherlo';
   global.__sherloWithStorybookApplied = true;
 
   // IIFE-time mode gate: customer is not running Sherlo visual tests -> no-op.
+  //
+  // The resolved mode is recorded on global.__sherloPolyfillFacts BEFORE the
+  // early return below, whichever branch is taken - so a test evaluating this
+  // file against a fake proxy can assert what the gate actually saw, not just
+  // its effect (the early return itself is silent from the outside).
+  var _gateMode = 'no-shim';
   try {
     var _gateNm = global.__turboModuleProxy ? global.__turboModuleProxy('SherloModule') : null;
     if (!_gateNm && global.nativeModuleProxy && global.nativeModuleProxy.SherloModule) {
@@ -93,13 +99,16 @@ var PROTOCOL_FILE = 'protocol.sherlo';
       var _gateC =
         (typeof _gateNm.getSherloConstants === 'function' ? _gateNm.getSherloConstants() : null) ||
         (typeof _gateNm.getConstants === 'function' ? _gateNm.getConstants() : null);
-      var _gateMode = _gateC && _gateC.mode;
-      if (_gateMode === 'default' || _gateMode === 'storybook') {
-        return;
-      }
+      _gateMode = (_gateC && _gateC.mode) || 'no-shim';
     }
   } catch (_) {
-    // Probe threw - conservative default: continue (run full body).
+    // Probe threw - conservative default: continue (run full body) with mode
+    // left at 'no-shim', a fact rather than a guess.
+  }
+  global.__sherloPolyfillFacts = { mode: _gateMode };
+
+  if (_gateMode === 'default' || _gateMode === 'storybook') {
+    return;
   }
 
   function getSherloNativeModule() {

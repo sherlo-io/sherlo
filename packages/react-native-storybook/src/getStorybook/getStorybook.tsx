@@ -30,7 +30,7 @@ function getHost(): SherloHost | undefined {
  * decorator (the only place a story's throw is observable - see
  * SherloStoryErrorBoundary), and hand rendering off to `host.takenOverBy`
  * inside a SafeAreaProvider shell that wraps whatever the private runtime
- * renders. No TestingMode, no protocol writes, no compatibility gate - a
+ * renders. No private capture-mode component, no protocol writes, no compatibility gate - a
  * customer on an older or newer native binary than whatever attaches simply
  * negotiates per capability now, never a blanket refusal.
  */
@@ -118,7 +118,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     } catch (_e) {}
   }
 
-  const isTestingMode = mode === 'testing';
+  const isCapturing = mode === 'testing';
   const isStorybookMode = mode === 'storybook';
 
   return function SherloStorybookEntry() {
@@ -133,7 +133,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
       };
     }, []);
 
-    if (isTestingMode) {
+    if (isCapturing) {
       const TakenOver = getHost()?.takenOverBy;
       return <SafeAreaProvider>{TakenOver ? <TakenOver /> : null}</SafeAreaProvider>;
     }

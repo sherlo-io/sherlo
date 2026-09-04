@@ -1,7 +1,7 @@
 /**
  * The shapes SherloModule.ts's getConfig()/getLastState() return. Both moved
- * here from the (now private, moved to sherlo-runner) RunnerBridge protocol
- * types module: SherloModule.ts is public, so its return types must be too.
+ * here from the old runner-bridge protocol types module (now private, moved
+ * off this package): SherloModule.ts is public, so its return types must be too.
  */
 export type Config = {
   stabilization: {
