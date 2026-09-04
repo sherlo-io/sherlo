@@ -36,31 +36,44 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
       startStoryRenderedTracking(getStorybookChannel(view));
     } catch (_e) {}
 
-    const originalGetProjectAnnotations = view._preview.getProjectAnnotations.bind(view._preview);
-    view._preview.onGetProjectAnnotationsChanged({
-      getProjectAnnotations: async () => {
-        const annotations = await originalGetProjectAnnotations();
-        return {
-          ...annotations,
-          decorators: [
-            (Story: any, context: any) => (
-              <SherloStoryErrorBoundary storyId={context.id}>
-                <Story />
-              </SherloStoryErrorBoundary>
-            ),
-            ...(annotations.decorators ?? []),
-          ],
-          ...(delayMs !== undefined && {
-            loaders: [
-              ...(annotations.loaders ?? []),
-              async () => {
-                await new Promise((r) => setTimeout(r, delayMs));
-              },
+    // Guarded PER PREVIEW, not per getStorybookUI() call: view.getStorybookUI is
+    // called from getStorybook() every time the wrapper's patchedStart() runs it,
+    // which can happen more than once for the same preview. Without this guard
+    // each call installs another decorator, so a story ends up wrapped in one
+    // boundary per call - harmless today because the boundary is a pass-through
+    // and boundaries nest cleanly, but not harmless in general: this hook is
+    // where every future decorator goes, and one that counts or measures
+    // anything would silently run N times.
+    const preview = view._preview as unknown as { __sherloDecoratorInstalled?: boolean };
+    if (!preview.__sherloDecoratorInstalled) {
+      preview.__sherloDecoratorInstalled = true;
+
+      const originalGetProjectAnnotations = view._preview.getProjectAnnotations.bind(view._preview);
+      view._preview.onGetProjectAnnotationsChanged({
+        getProjectAnnotations: async () => {
+          const annotations = await originalGetProjectAnnotations();
+          return {
+            ...annotations,
+            decorators: [
+              (Story: any, context: any) => (
+                <SherloStoryErrorBoundary storyId={context.id}>
+                  <Story />
+                </SherloStoryErrorBoundary>
+              ),
+              ...(annotations.decorators ?? []),
             ],
-          }),
-        };
-      },
-    });
+            ...(delayMs !== undefined && {
+              loaders: [
+                ...(annotations.loaders ?? []),
+                async () => {
+                  await new Promise((r) => setTimeout(r, delayMs));
+                },
+              ],
+            }),
+          };
+        },
+      });
+    }
   }
 
   if (mode === 'storybook') {

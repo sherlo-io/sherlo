@@ -40,6 +40,14 @@ export type { BundleFormat };
 export type BundleResult = {
   /** Absolute path to the built bundle file. */
   bundlePath: string;
+  /**
+   * Absolute path to the entry file the bundler was actually pointed at - the
+   * Sherlo-generated entry (seam, then the Storybook config, then the file
+   * detectEntryFile chose), not detectEntryFile's raw result. Recorded so the
+   * sidecar (emitBundleDir.ts) records the SAME value rather than
+   * re-deriving it.
+   */
+  entryFile: string;
   /** Bundle format sniffed from the file header. */
   bundleFormat: BundleFormat;
   /** Bundle file size in megabytes. */
@@ -141,7 +149,11 @@ export async function buildBundleForPlatform({
   const cacheDir = path.join(projectRoot, '.sherlo', 'bundled');
   fs.mkdirSync(cacheDir, { recursive: true });
 
-  const entryFile = detectEntryFile(projectRoot);
+  // The Sherlo-generated entry (seam, then the Storybook config, then the file
+  // detectEntryFile chose) REPLACES detectEntryFile's result as what the
+  // bundler is actually pointed at: nothing else guarantees the seam is even
+  // in the graph, let alone required before the app's own code runs.
+  const entryFile = generateSherloEntry(projectRoot, detectEntryFile(projectRoot));
   const bundleOut = path.join(cacheDir, `bundle.${platform}.js`);
   const assetsDest = path.join(cacheDir, `assets.${platform}`);
 
@@ -155,11 +167,13 @@ export async function buildBundleForPlatform({
   }
 
   // Delete any module-manifest sidecar left by a PREVIOUS platform's build before
-  // we spawn this platform's bundler (SHERLO-1894 §2). The sidecar lives at ONE
-  // fixed path with no platform recorded, and the loop reuses this projectRoot for
-  // every platform, so a leftover would be read and uploaded as THIS platform's
-  // manifest if this platform's serializer bails open and emits nothing. Deleting
-  // here makes absence mean absence: anything read afterward came from this run.
+  // we spawn this platform's bundler (SHERLO-1894 §2). The sidecar now records
+  // `platform` in its header (SHERLO_MODULE_MANIFEST_PLATFORM below), but the
+  // loop still reuses this projectRoot for every platform and the serializer
+  // may still bail open (unrecognised graph shape, write error) and emit
+  // nothing at all - so a leftover from a previous platform is still
+  // indistinguishable from this run's until this delete runs. Deleting here
+  // makes absence mean absence: anything read afterward came from this run.
   deleteModuleManifestSidecar(projectRoot);
 
   // ------------------------------------------------------------------
@@ -189,10 +203,37 @@ export async function buildBundleForPlatform({
   // ------------------------------------------------------------------
   return inspectBundleArtifacts({
     bundlePath: bundleOut,
+    entryFile,
     assetsDest,
     bundler: projectType,
     moduleManifest: readValidatedModuleManifest(projectRoot) ?? undefined,
   });
+}
+
+/**
+ * Generates the entry the bundler is actually pointed at, when the installed
+ * @sherlo/react-native-storybook exposes the generator (the public Metro
+ * layer, resolved the same way {@link readBundledSdkProtocolVersion} resolves
+ * the package's version).
+ *
+ * FEATURE-DETECTED, not required: a customer's project may still have an OLDER
+ * @sherlo/react-native-storybook installed - one predating the split - whose
+ * metro/entry.js does not exist. A new CLI must keep working against that
+ * install exactly as it did before the split, so absence here falls back to
+ * `realEntry` (detectEntryFile's result) rather than refusing the build.
+ */
+function generateSherloEntry(projectRoot: string, realEntry: string): string {
+  try {
+    const entryModulePath = require.resolve('@sherlo/react-native-storybook/metro/entry', {
+      paths: [projectRoot],
+    });
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const entryModule: { generateEntry: (projectRoot: string, realEntry: string) => string } =
+      require(entryModulePath);
+    return entryModule.generateEntry(projectRoot, realEntry);
+  } catch {
+    return realEntry;
+  }
 }
 
 /**
@@ -209,11 +250,13 @@ export async function buildBundleForPlatform({
  */
 export function inspectBundleArtifacts({
   bundlePath,
+  entryFile,
   assetsDest,
   bundler,
   moduleManifest,
 }: {
   bundlePath: string;
+  entryFile: string;
   assetsDest?: string;
   bundler: 'expo' | 'rn';
   moduleManifest?: ValidatedModuleManifest;
@@ -298,6 +341,7 @@ export function inspectBundleArtifacts({
   //    it is absent.
   return {
     bundlePath,
+    entryFile,
     bundleFormat,
     bundleSizeMb,
     bundleHash,
@@ -388,9 +432,14 @@ function execBundler(
   // emission to this spawned bundler process, so every other build (local dev,
   // non-Sherlo CI) is unaffected. Nothing else in this env changes, so the bundle
   // output is byte-for-byte what it would be without it.
+  //
+  // SHERLO_MODULE_MANIFEST_PLATFORM threads `platform` into the manifest
+  // header the same way: Metro config load has no other way to know which
+  // platform it is building for this subprocess.
   const bundlerEnv: NodeJS.ProcessEnv = {
     ...process.env,
     SHERLO_MODULE_MANIFEST: '1',
+    SHERLO_MODULE_MANIFEST_PLATFORM: platform,
   };
 
   if (bundler === 'expo') {

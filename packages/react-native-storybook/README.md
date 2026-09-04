@@ -106,6 +106,32 @@ See the full [Module Mocking guide](https://sherlo.io/docs/stories/mocking) for 
 
 ---
 
+## The native shim
+
+This package ships a codegen'd TurboModule (`SherloModule`) that answers exactly two things
+locally - `getSherloConstants` (from a pre-main config read) and `setMode` (the developer-path
+mode switch, e.g. `openStorybook()`) - and forwards everything else through a frozen ABI to an
+implementation registered at runner launch. See `ios/SherloImplV1.h` for the full contract.
+
+Two names from that boundary are frozen and exported from `@sherlo/react-native-storybook/constants`
+(`ANDROID_SHIM_LIBRARY_NAME`, `IOS_SHIM_REGISTRATION_SYMBOL`) so nothing outside this package has to
+hardcode a second copy of them:
+
+- **Android** - the shim's JNI library name is `sherloshim`, i.e. `libsherloshim.so` in the built
+  APK (see `android/CMakeLists.txt`).
+- **iOS** - the injected implementation registers by calling the exported C symbol
+  `SherloShimRegisterImplV1` (see `ios/SherloImplV1.h`), found via `dlsym(RTLD_DEFAULT, ...)`
+  because the shim is statically linked into the main executable.
+
+A runner verifies the shim is actually *in* the base artifact by checking for these - `unzip -l
+app-release.apk | grep libsherloshim.so` on Android, `nm` / `dlsym`-style symbol presence on iOS -
+rather than only checking that the build exited zero. An omitted native module is silent on iOS
+(no podspec means no pod, no error, and the app simply throws at runtime when JS reaches for it)
+and loud but easy to miss on Android (a manifest-merger or link error naming a file nobody
+recognises), so asserting on the artifact is the check that catches both failure shapes.
+
+---
+
 ## Local Development
 
 The `testing/expo` and `testing/react-native` apps reference `@sherlo/react-native-storybook` via a **committed** pre-packed tarball at `./sherlo-lib/react-native-storybook.tgz`.

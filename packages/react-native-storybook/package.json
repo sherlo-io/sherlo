@@ -53,6 +53,20 @@
       "require": "./src/seam.js",
       "default": "./src/seam.js"
     },
+    "./metro": {
+      "require": "./metro/withStorybook.js",
+      "default": "./metro/withStorybook.js"
+    },
+    "./metro/entry": {
+      "require": "./metro/entry.js",
+      "default": "./metro/entry.js"
+    },
+    "./constants": {
+      "types": "./dist/constants.d.ts",
+      "react-native": "./dist/constants.js",
+      "require": "./dist/constants.js",
+      "default": "./dist/constants.js"
+    },
     "./dist/getStorybook/index.js": "./dist/getStorybook/index.js",
     "./dist/addStorybookToDevMenu.js": "./dist/addStorybookToDevMenu.js",
     "./dist/SherloModule.js": "./dist/SherloModule.js",
@@ -76,7 +90,8 @@
     "metro/applySherloTransforms.js",
     "metro/ensureStorybookRequires.js",
     "metro/mockScan.js",
-    "metro/mockShims.js"
+    "metro/mockShims.js",
+    "metro/entry.js"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p .",

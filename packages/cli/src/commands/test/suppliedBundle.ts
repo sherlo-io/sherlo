@@ -220,6 +220,7 @@ export async function resolveSuppliedBundle({
   // ------------------------------------------------------------------
   const result = inspectBundleArtifacts({
     bundlePath,
+    entryFile: sidecar.bundle.entryFile,
     ...(suppliedAssets ? { assetsDest: suppliedAssets } : {}),
     bundler: sidecar.bundle.bundler,
     moduleManifest,

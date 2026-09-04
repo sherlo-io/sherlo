@@ -53,6 +53,35 @@ describe('readValidatedModuleManifest - happy path', () => {
     expect(result!.parsed.moduleHashes['./src/Button.tsx']).toBe('a'.repeat(64));
     expect(result!.parsed.storyClosures['./src/Button.stories.tsx']).toEqual(['./src/Button.tsx']);
   });
+
+  it('OLD emitter shape (version 1, no seamVersion/platform in header) still validates - a new CLI must keep reading an old SDK\'s manifest', () => {
+    // validManifest() above IS the old shape: no seamVersion, no platform.
+    // This test names that fact explicitly rather than leaving it implicit.
+    writeManifest(JSON.stringify(validManifest()));
+
+    const result = readValidatedModuleManifest(projectRoot);
+
+    expect(result).not.toBeNull();
+    expect(result!.parsed.header.seamVersion).toBeUndefined();
+    expect(result!.parsed.header.platform).toBeUndefined();
+  });
+
+  it('NEW emitter shape (version 2, header carries seamVersion + platform) also validates', () => {
+    writeManifest(
+      JSON.stringify({
+        ...validManifest(),
+        version: 2,
+        header: { ...validManifest().header, seamVersion: 1, platform: 'ios' },
+      })
+    );
+
+    const result = readValidatedModuleManifest(projectRoot);
+
+    expect(result).not.toBeNull();
+    expect(result!.parsed.version).toBe(2);
+    expect(result!.parsed.header.seamVersion).toBe(1);
+    expect(result!.parsed.header.platform).toBe('ios');
+  });
 });
 
 describe('readValidatedModuleManifest - BAIL-OPEN failure modes (returns null, never throws)', () => {
