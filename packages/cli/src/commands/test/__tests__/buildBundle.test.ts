@@ -893,4 +893,36 @@ describe('buildBundleForPlatform - generated entry, feature-detected', () => {
     expect(entryFileArgs).toEqual([expectedGeneratedPath]);
     expect(fs.existsSync(expectedGeneratedPath)).toBe(true);
   });
+
+  it('generator present but THROWS - the build fails loudly, never silently falls back to detectEntryFile', async () => {
+    // A bug inside generateEntry is not the same failure as an absent, older
+    // SDK: falling back here would ship a seam-less bundle the runner later
+    // refuses with no signal at build time, so this must propagate instead.
+    const sherloPkgDir = path.join(tempDir, 'node_modules', '@sherlo', 'react-native-storybook');
+    fs.mkdirSync(path.join(sherloPkgDir, 'metro'), { recursive: true });
+    fs.mkdirSync(path.join(sherloPkgDir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(sherloPkgDir, 'package.json'),
+      JSON.stringify({ name: '@sherlo/react-native-storybook', version: '3.0.0' })
+    );
+    fs.writeFileSync(path.join(sherloPkgDir, 'src', 'seam.js'), 'module.exports = {};\n');
+    fs.writeFileSync(
+      path.join(sherloPkgDir, 'metro', 'entry.js'),
+      [
+        'function generateEntry() {',
+        "  throw new Error('generateEntry blew up');",
+        '}',
+        'module.exports = { generateEntry: generateEntry };',
+      ].join('\n')
+    );
+
+    setupBundleBuild(plainJsBundle());
+
+    await expect(
+      buildBundleForPlatform({
+        projectRoot: tempDir,
+        platform: 'android' as Platform,
+      })
+    ).rejects.toThrow('generateEntry blew up');
+  });
 });

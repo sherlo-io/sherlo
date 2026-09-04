@@ -219,21 +219,30 @@ export async function buildBundleForPlatform({
  * FEATURE-DETECTED, not required: a customer's project may still have an OLDER
  * @sherlo/react-native-storybook installed - one predating the split - whose
  * metro/entry.js does not exist. A new CLI must keep working against that
- * install exactly as it did before the split, so absence here falls back to
- * `realEntry` (detectEntryFile's result) rather than refusing the build.
+ * install exactly as it did before the split, so ABSENCE (require.resolve's
+ * MODULE_NOT_FOUND) falls back to `realEntry` (detectEntryFile's result)
+ * rather than refusing the build. A bug INSIDE the generator is a different
+ * failure entirely: silently falling back there would ship a seam-less
+ * bundle that the runner later refuses as "built without the Sherlo
+ * package", with no signal at build time - so anything else propagates and
+ * fails the build loudly instead.
  */
 function generateSherloEntry(projectRoot: string, realEntry: string): string {
+  let entryModulePath: string;
   try {
-    const entryModulePath = require.resolve('@sherlo/react-native-storybook/metro/entry', {
+    entryModulePath = require.resolve('@sherlo/react-native-storybook/metro/entry', {
       paths: [projectRoot],
     });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const entryModule: { generateEntry: (projectRoot: string, realEntry: string) => string } =
-      require(entryModulePath);
-    return entryModule.generateEntry(projectRoot, realEntry);
-  } catch {
-    return realEntry;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code === 'MODULE_NOT_FOUND') {
+      return realEntry;
+    }
+    throw err;
   }
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const entryModule: { generateEntry: (projectRoot: string, realEntry: string) => string } =
+    require(entryModulePath);
+  return entryModule.generateEntry(projectRoot, realEntry);
 }
 
 /**
