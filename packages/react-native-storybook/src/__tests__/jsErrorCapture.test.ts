@@ -178,7 +178,7 @@ describe('metro/polyfill.js - ErrorUtils.setGlobalHandler', () => {
     expect(() => handler(new Error('test'), false)).not.toThrow();
   });
 
-  it('falls back to nativeModuleProxy when __turboModuleProxy is absent', async () => {
+  it('does NOT fall back to nativeModuleProxy when __turboModuleProxy is absent - RN 0.76 New Architecture only, no old-arch probe', async () => {
     const reportFn = vi.fn();
     const nm = makeNativeModule(reportFn);
     const fakeGlobal = buildFakeGlobal();
@@ -187,8 +187,8 @@ describe('metro/polyfill.js - ErrorUtils.setGlobalHandler', () => {
     runPolyfill(fakeGlobal);
     await Promise.resolve();
     const handler = getInstalledHandler(fakeGlobal);
-    handler(new Error('native fallback'), false);
-    expect(reportFn).toHaveBeenCalledOnce();
+    expect(() => handler(new Error('no turbo proxy'), false)).not.toThrow();
+    expect(reportFn).not.toHaveBeenCalled();
   });
 
   it('only reports the first error to native - subsequent calls skip reportEarlyJsError', async () => {

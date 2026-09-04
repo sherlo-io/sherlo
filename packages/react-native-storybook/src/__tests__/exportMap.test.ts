@@ -13,12 +13,14 @@
  * The eight subpaths present before the lite-SDK split
  * (., ./metro/withStorybook, ./mocking, ./metro/polyfill,
  * ./dist/getStorybook/index.js, ./dist/addStorybookToDevMenu.js,
- * ./dist/SherloModule.js, ./package.json) plus four added by it: ./seam (the
+ * ./dist/SherloModule.js, ./package.json) plus three added by it: ./seam (the
  * public surface a spliced runtime reads), ./metro (a bare alias to
- * withStorybook, named by the CLI's own requirement-validator test), ./metro/entry
- * (the generated-entry generator buildBundle.ts calls), and ./constants (the
- * shim's frozen native library/symbol names, per the architect's backward-
- * compatibility ruling 2026-09-04).
+ * withStorybook, named by the CLI's own requirement-validator test), and
+ * ./metro/entry (the generated-entry generator buildBundle.ts calls). The
+ * shim's frozen native library/symbol names and the seam-version gate regex
+ * (architect's backward-compatibility ruling 2026-09-04, and the cross-repo
+ * ABI ruling that followed it) are exported from the package ROOT (`.`)
+ * instead of a new subpath - see src/index.ts.
  *
  * Adding a subpath here is a real decision - update this list deliberately,
  * in the same PR as the export, never as a side effect of an unrelated change.
@@ -33,7 +35,6 @@ const FROZEN_EXPORT_SUBPATHS = [
   './seam',
   './metro',
   './metro/entry',
-  './constants',
   './dist/getStorybook/index.js',
   './dist/addStorybookToDevMenu.js',
   './dist/SherloModule.js',

@@ -1,14 +1,15 @@
 /**
  * Unit tests for getSherloNativeModule's release-build safety.
  *
- * The third probe (global.__r('react-native') to reach NativeModules) was removed
+ * A second probe (global.__r('react-native') to reach NativeModules) was removed
  * from metro/polyfill.js: metro-runtime's metroRequire only resolves a string module
  * id when __DEV__ is true. In a release bundle it is passed straight through,
  * modules.get() misses, and guardedLoadModule's catch routes the resulting
  * unknownModuleError to ErrorUtils.reportFatalError instead of throwing - so a
  * try/catch around the call never runs and the app is fatally killed. This can only
  * be observed when getSherloNativeModule() is actually invoked from the error path
- * (reportToNative, via the __d wrap on a module-eval throw) with probes 1-2 missing.
+ * (reportToNative, via the __d wrap on a module-eval throw) with the __turboModuleProxy
+ * probe missing (RN 0.76 New Architecture only - there is no old-arch fallback probe).
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -24,8 +25,8 @@ function runPolyfill(fakeGlobal: Record<string, any>) {
 
 describe('metro/polyfill.js - getSherloNativeModule release-build safety', () => {
   it(
-    'does not call global.__r and does not trigger a fatal error when probes 1-2 ' +
-      'miss in a release bundle (__DEV__ false, string module ids unresolved)',
+    'does not call global.__r and does not trigger a fatal error when the ' +
+      '__turboModuleProxy probe misses in a release bundle (__DEV__ false, string module ids unresolved)',
     () => {
       const reportFatalError = vi.fn();
       // Mirrors metro-runtime's release-mode metroRequire: a string moduleId is not
@@ -47,9 +48,8 @@ describe('metro/polyfill.js - getSherloNativeModule release-build safety', () =>
           getGlobalHandler: vi.fn(() => null),
           reportFatalError,
         },
-        // Probes 1 & 2 both miss - SherloModule genuinely not linked.
+        // The only probe misses - SherloModule genuinely not linked.
         __turboModuleProxy: undefined,
-        nativeModuleProxy: {},
         __r: releaseModeRequire,
         __d: originalD,
       };

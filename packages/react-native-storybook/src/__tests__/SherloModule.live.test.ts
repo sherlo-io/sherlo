@@ -5,8 +5,11 @@
  *  - appendFile base64-encodes the content before calling native
  *  - readFile base64-decodes the native return value
  *  - getMode/getConfig/getLastState delegate to getSherloConstants()
- *  - everything else (sendNativeError, getInspectorData, stabilize, ...)
- *    routes through invoke()/invokeSync() with the right name and args
+ *  - the public invoke()/invokeSync() generic transport JSON-encodes args,
+ *    decodes the result (invoke) or unwraps the ok/value envelope
+ *    (invokeSync) - everything beyond the frozen named methods (screenshots,
+ *    settle, scroll, inspector data, sendNativeError, ...) is the PRIVATE
+ *    runtime calling through these two by name, never a named method here
  */
 import base64 from 'base-64';
 import utf8 from 'utf8';
@@ -127,23 +130,36 @@ describe('SherloModule live - getConfig / getLastState', () => {
     expect(SherloModule.getLastState()).toBeUndefined();
   });
 
-  it('sendNativeError() invokes "sendNativeError" with errorCode/message/data as args', () => {
-    mockInvoke.mockResolvedValue('{}');
-    const data = { jsVersion: '2.0.0', nativeVersion: '1.0.0' };
-    SherloModule.sendNativeError('ERROR_SDK_COMPATIBILITY', 'msg', data);
-    expect(mockInvoke).toHaveBeenCalledWith(
-      'sendNativeError',
-      JSON.stringify({ errorCode: 'ERROR_SDK_COMPATIBILITY', message: 'msg', data })
-    );
+  it('invoke() JSON-encodes name and args, and decodes the resolved JSON', async () => {
+    mockInvoke.mockResolvedValue(JSON.stringify({ scrollable: false }));
+    const result = await SherloModule.invoke<{ scrollable: boolean }>('isScrollable', {
+      viewTag: 42,
+    });
+    expect(mockInvoke).toHaveBeenCalledWith('isScrollable', JSON.stringify({ viewTag: 42 }));
+    expect(result).toEqual({ scrollable: false });
   });
 
-  it('sendNativeError() passes null data when data is undefined', () => {
-    mockInvoke.mockResolvedValue('{}');
-    SherloModule.sendNativeError('ERROR_CODE', 'msg');
-    expect(mockInvoke).toHaveBeenCalledWith(
-      'sendNativeError',
-      JSON.stringify({ errorCode: 'ERROR_CODE', message: 'msg', data: null })
+  it('invoke() defaults args to {} when omitted', async () => {
+    mockInvoke.mockResolvedValue('null');
+    await SherloModule.invoke('notifyGetStorybookCalled');
+    expect(mockInvoke).toHaveBeenCalledWith('notifyGetStorybookCalled', JSON.stringify({}));
+  });
+
+  it('invokeSync() JSON-encodes name and args, and unwraps the ok/value envelope', () => {
+    mockInvokeSync.mockReturnValue(JSON.stringify({ ok: true, value: { stable: true } }));
+    const result = SherloModule.invokeSync<{ stable: boolean }>('stabilize', {
+      requiredMatches: 3,
+    });
+    expect(mockInvokeSync).toHaveBeenCalledWith(
+      'stabilize',
+      JSON.stringify({ requiredMatches: 3 })
     );
+    expect(result).toEqual({ stable: true });
+  });
+
+  it('invokeSync() returns undefined when the envelope is not ok', () => {
+    mockInvokeSync.mockReturnValue(JSON.stringify({ ok: false, code: 'UNKNOWN_METHOD' }));
+    expect(SherloModule.invokeSync('unknownCapability')).toBeUndefined();
   });
 
   it('isTurboModule is true when TurboModule is present', () => {

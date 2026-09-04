@@ -73,7 +73,7 @@ describe('seam - optional peers are bare try/require, not wrapped in a helper ca
  * resolve and execute the genuine seam.js against it.
  */
 describe('seam - module shape (real require, temp node_modules fixture)', () => {
-  function writeFixture(overrides: { mode: string }): { root: string } {
+  function writeFixture(overrides: { mode: string; getLastStateImpl?: string }): { root: string } {
     const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-seam-fixture-')));
 
     const write = (rel: string, content: string) => {
@@ -114,7 +114,7 @@ describe('seam - module shape (real require, temp node_modules fixture)', () => 
         `  getMode: () => '${overrides.mode}',`,
         "  getNativeVersion: () => '3.0.0',",
         "  getConfig: () => { throw new Error('Config is undefined'); },",
-        '  getLastState: () => undefined,',
+        `  getLastState: ${overrides.getLastStateImpl ?? '() => undefined'},`,
         '  appendFile: (path, content) => {',
         "    globalThis.__seamTestCalls.push(['appendFile', path, content]);",
         '    return Promise.resolve();',
@@ -160,6 +160,20 @@ describe('seam - module shape (real require, temp node_modules fixture)', () => 
         lastState: undefined,
         nativeVersion: '3.0.0',
       });
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('tolerates a getLastState() that throws (a malformed lastState.sherlo file) without crashing bundle evaluation', () => {
+    const { root } = writeFixture({
+      mode: 'storybook',
+      getLastStateImpl: "() => { throw new Error('lastState is corrupt'); }",
+    });
+    try {
+      expect(() => require(path.join(root, 'seam.js'))).not.toThrow();
+      const host = (globalThis as any).__SHERLO_HOST__;
+      expect(host.native.lastState).toBeUndefined();
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

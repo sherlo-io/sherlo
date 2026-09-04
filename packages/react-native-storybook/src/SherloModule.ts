@@ -19,48 +19,23 @@ type SherloModule = {
   getConfig: () => Config;
   getLastState: () => LastState | undefined;
   getNativeVersion: () => string | null;
-  sendNativeError: (
-    errorCode: string,
-    message: string,
-    data?: Record<string, string | null>
-  ) => void;
-  /**
-   * Untyped: the view-hierarchy wire shape (InspectorData) is a runner shape
-   * with no public reader - only the private capture loop interprets it,
-   * reused through the seam.
-   */
-  getInspectorData: () => Promise<unknown>;
   appendFile: (path: string, base64: string) => Promise<void>;
   readFile: (path: string) => Promise<string>;
   openStorybook: () => void;
   toggleStorybook: () => void;
-  stabilize: (
-    requiredMatches: number,
-    minScreenshotsCount: number,
-    intervalMs: number,
-    timeoutMs: number,
-    saveScreenshots: boolean,
-    threshold: number,
-    includeAA: boolean
-  ) => Promise<boolean>;
-  awaitFrameCommit: (timeoutMs: number) => Promise<boolean>;
-  isScrollable: () => Promise<{
-    scrollable: boolean;
-    scrollViewFrame?: { x: number; y: number; width: number; height: number };
-  }>;
-  scrollToCheckpoint: (
-    index: number,
-    offset: number,
-    maxIndex: number
-  ) => Promise<{
-    reachedBottom: boolean;
-    appliedIndex: number;
-    appliedOffsetPx: number;
-    viewportPx: number;
-    contentPx: number;
-    scrollViewFrame?: { x: number; y: number; width: number; height: number };
-  }>;
   notifyGetStorybookCalled: () => void;
+  /**
+   * THE GENERIC TRANSPORT for every capability beyond this frozen list -
+   * screenshots, settle, scroll, inspector data, sendNativeError, and
+   * whatever is invented later. This wrapper ships in the customer's bundle
+   * and is frozen at their build, so a NAMED method here (`stabilize(...)`,
+   * `getInspectorData()`, ...) would freeze that call's signature forever -
+   * exactly the tax the six-method spec exists to remove. The private
+   * runtime is the only caller, reused through the seam's `host.module`; it
+   * calls capabilities by name, never through a method this file grows.
+   */
+  invoke: <T = unknown>(name: string, args?: Record<string, unknown>) => Promise<T>;
+  invokeSync: <T = unknown>(name: string, args?: Record<string, unknown>) => T | undefined;
   /**
    * Re-exported so the seam (src/seam.js, resolved from `dist/SherloModule.js`
    * - an already-frozen export path) can reach the protocol file names
@@ -111,50 +86,13 @@ function createSherloModule(module: Spec): SherloModule {
 
   const sherloModule: SherloModule = {
     isTurboModule: !!TurboModule,
-    getInspectorData: () => invoke<unknown>('getInspectorData'),
-    stabilize: async (
-      requiredMatches: number,
-      minScreenshotsCount: number,
-      intervalMs: number,
-      timeoutMs: number,
-      saveScreenshots: boolean,
-      threshold: number,
-      includeAA: boolean
-    ) => {
-      const result = await invoke<{ stable: boolean }>('stabilize', {
-        requiredMatches,
-        minScreenshotsCount,
-        intervalMs,
-        timeoutMs,
-        saveScreenshots,
-        threshold,
-        includeAA,
-      });
-      return result.stable;
-    },
-    awaitFrameCommit: async (timeoutMs: number) => {
-      // Graceful degradation: an OLD implementation paired with this newer JS
-      // may not know this name. Treat UNKNOWN_METHOD/no-implementation as "no
-      // barrier available" (resolve false) so the capture flow continues
-      // best-effort rather than throwing. The stability loop still runs
-      // afterwards.
-      try {
-        const result = await invoke<{ painted: boolean }>('awaitFrameCommit', { timeoutMs });
-        return result.painted;
-      } catch {
-        return false;
-      }
-    },
+    invoke,
+    invokeSync,
     getMode: () => {
       return getConstants().mode;
     },
     getNativeVersion: () => {
       return getConstants().nativeVersion ?? null;
-    },
-    sendNativeError: (errorCode: string, message: string, data?: Record<string, string | null>) => {
-      invoke('sendNativeError', { errorCode, message, data: data ?? null }).catch(() => {
-        /* best-effort - nothing to fall back to when reporting itself fails */
-      });
     },
     getConfig: () => {
       const configString = getConstants().config;
@@ -188,9 +126,6 @@ function createSherloModule(module: Spec): SherloModule {
     toggleStorybook: () => {
       invokeSync('setMode', { mode: 'toggle', reload: true });
     },
-    isScrollable: () => invoke('isScrollable'),
-    scrollToCheckpoint: (index: number, offset: number, maxIndex: number) =>
-      invoke('scrollToCheckpoint', { index, offset, maxIndex }),
     notifyGetStorybookCalled: () => {
       invoke('notifyGetStorybookCalled').catch(() => {
         /* nothing to notify when nothing is injected */
@@ -205,25 +140,15 @@ function createSherloModule(module: Spec): SherloModule {
 function createDummySherloModule(): SherloModule {
   return {
     isTurboModule: false,
-    getInspectorData: async () => ({
-      viewHierarchy: {
-        id: 1,
-        className: 'View',
-        isVisible: true,
-        x: 0,
-        y: 0,
-        width: 0,
-        height: 0,
-      },
-      density: 1,
-      fontScale: 1,
-    }),
+    // Nothing to transport when there is no native module at all - matches
+    // every other graceful-absence path below.
+    invoke: async <T = unknown>(): Promise<T> => undefined as T,
+    invokeSync: <T = unknown>(): T | undefined => undefined,
     // IMPORTANT: We should make sure that the mode is always 'default'
     // because if user doesn't want to supply native library in their production
     // build, this will be the value returned.
     getMode: () => 'default',
     getNativeVersion: () => null,
-    sendNativeError: () => {},
     getLastState: () => undefined,
     getConfig: () => ({
       stabilization: {
@@ -246,25 +171,7 @@ function createDummySherloModule(): SherloModule {
     readFile: async () => '',
     openStorybook: () => {},
     toggleStorybook: () => {},
-    awaitFrameCommit: async () => false,
-    isScrollable: async () => ({ scrollable: false }),
-    scrollToCheckpoint: async () => ({
-      reachedBottom: true,
-      appliedIndex: 0,
-      appliedOffsetPx: 0,
-      viewportPx: 0,
-      contentPx: 0,
-    }),
     notifyGetStorybookCalled: () => {},
-    stabilize: async (
-      _requiredMatches: number,
-      _minScreenshotsCount: number,
-      _intervalMs: number,
-      _timeoutMs: number,
-      _saveScreenshots: boolean,
-      _threshold: number,
-      _includeAA: boolean
-    ) => true,
     constants,
   };
 }

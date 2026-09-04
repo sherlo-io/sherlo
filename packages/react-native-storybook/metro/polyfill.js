@@ -92,13 +92,8 @@ var PROTOCOL_FILE = 'protocol.sherlo';
   var _gateMode = 'no-shim';
   try {
     var _gateNm = global.__turboModuleProxy ? global.__turboModuleProxy('SherloModule') : null;
-    if (!_gateNm && global.nativeModuleProxy && global.nativeModuleProxy.SherloModule) {
-      _gateNm = global.nativeModuleProxy.SherloModule;
-    }
-    if (_gateNm) {
-      var _gateC =
-        (typeof _gateNm.getSherloConstants === 'function' ? _gateNm.getSherloConstants() : null) ||
-        (typeof _gateNm.getConstants === 'function' ? _gateNm.getConstants() : null);
+    if (_gateNm && typeof _gateNm.getSherloConstants === 'function') {
+      var _gateC = _gateNm.getSherloConstants();
       _gateMode = (_gateC && _gateC.mode) || 'no-shim';
     }
   } catch (_) {
@@ -112,20 +107,14 @@ var PROTOCOL_FILE = 'protocol.sherlo';
   }
 
   function getSherloNativeModule() {
-    // Each attempt is isolated: a throw in one does not block the next.
+    // RN 0.76 New Architecture only - a single probe, no old-arch fallback.
     try {
       if (global.__turboModuleProxy) {
         var tm = global.__turboModuleProxy('SherloModule');
         if (tm) return tm;
       }
     } catch (_) {}
-    try {
-      // RN 0.81 old-arch: nativeModuleProxy may exist but return null for non-TurboModules.
-      if (global.nativeModuleProxy && global.nativeModuleProxy.SherloModule) {
-        return global.nativeModuleProxy.SherloModule;
-      }
-    } catch (_) {}
-    // NOTE: a third fallback via global.__r('react-native') used to live here and was
+    // NOTE: a second fallback via global.__r('react-native') used to live here and was
     // removed. Metro's string-to-moduleId resolution (getModuleIdForVerboseName) only
     // runs under __DEV__ (see metro-runtime/src/polyfills/require.js) - in release
     // builds global.__r('react-native') looks up the literal string 'react-native' in

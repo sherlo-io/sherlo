@@ -145,7 +145,7 @@ a registered implementation's own synchronous answer and falls back to the shim'
 read only when nothing is injected - same as `setMode`'s fallback. See `ios/SherloImplV1.h` for the
 full contract.
 
-Three names from that boundary are frozen and exported from `@sherlo/react-native-storybook/constants`
+Three names from that boundary are frozen and exported from the package root, `@sherlo/react-native-storybook`
 (`ANDROID_SHIM_LIBRARY_NAME`, `IOS_SHIM_REGISTRATION_SYMBOL`, `SEAM_VERSION_GLOBAL_NAME` /
 `SEAM_VERSION_GATE_REGEX`) so nothing outside this package has to hardcode a second copy of them:
 

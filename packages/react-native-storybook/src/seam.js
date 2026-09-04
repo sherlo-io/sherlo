@@ -67,8 +67,9 @@ function readNative() {
   const nativeVersion = SherloModule.getNativeVersion();
 
   // getConfig()/getLastState() throw or return undefined when nothing was
-  // written for this launch (the ordinary case outside a real test run) -
-  // absence here must not crash bundle evaluation.
+  // written for this launch (the ordinary case outside a real test run), or
+  // when a written file is malformed (getLastState JSON.parses it) - absence
+  // OR corruption here must not crash bundle evaluation.
   let config;
   try {
     config = SherloModule.getConfig();
@@ -76,7 +77,14 @@ function readNative() {
     config = undefined;
   }
 
-  return { mode, config, lastState: SherloModule.getLastState(), nativeVersion };
+  let lastState;
+  try {
+    lastState = SherloModule.getLastState();
+  } catch {
+    lastState = undefined;
+  }
+
+  return { mode, config, lastState, nativeVersion };
 }
 
 const host = {

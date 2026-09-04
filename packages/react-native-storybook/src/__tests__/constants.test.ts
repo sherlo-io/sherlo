@@ -84,4 +84,12 @@ describe('cross-repo canonical constants (runner base-binary gate)', () => {
     expect(`globalThis.${SEAM_VERSION_GLOBAL_NAME} = '1';`).toMatch(SEAM_VERSION_GATE_REGEX);
     expect(`globalThis.${SEAM_VERSION_GLOBAL_NAME} = "1";`).toMatch(SEAM_VERSION_GATE_REGEX);
   });
+
+  it('all four are re-exported from the package root (`.`) - there is no dedicated ./constants subpath', async () => {
+    const rootExports = await import('../index');
+    expect(rootExports.ANDROID_SHIM_LIBRARY_NAME).toBe(ANDROID_SHIM_LIBRARY_NAME);
+    expect(rootExports.IOS_SHIM_REGISTRATION_SYMBOL).toBe(IOS_SHIM_REGISTRATION_SYMBOL);
+    expect(rootExports.SEAM_VERSION_GLOBAL_NAME).toBe(SEAM_VERSION_GLOBAL_NAME);
+    expect(rootExports.SEAM_VERSION_GATE_REGEX).toBe(SEAM_VERSION_GATE_REGEX);
+  });
 });
