@@ -12,10 +12,8 @@ static NSString *const LOG_TAG = @"SherloModule:RestartHelper";
 /**
  * Reloads the React Native application by triggering the reload command.
  * Handles the reloading on the main thread to ensure UI safety.
- *
- * @param bridge The React Native bridge
  */
-+ (void)restart:(RCTBridge *)bridge {
++ (void)restart {
     NSLog(@"[%@] Restarting", LOG_TAG);
     
     if ([NSThread isMainThread]) {

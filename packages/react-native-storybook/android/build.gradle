@@ -29,6 +29,13 @@ android {
     buildFeatures {
         buildConfig true
     }
+
+    // Builds libsherloshim.so - the shim's JNI dispatch table. See CMakeLists.txt.
+    externalNativeBuild {
+        cmake {
+            path "CMakeLists.txt"
+        }
+    }
 }
 
 repositories {

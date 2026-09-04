@@ -1,5 +1,4 @@
 import base64 from 'base-64';
-import { NativeModules } from 'react-native';
 import utf8 from 'utf8';
 import isExpoGo from './helpers/isExpoGo';
 import { StorybookViewMode, InspectorData } from './types/types';
@@ -59,12 +58,9 @@ type SherloModule = {
 };
 
 let SherloModule: SherloModule;
-const { SherloModule: SherloNativeModule } = NativeModules;
 
-const module: Spec = TurboModule || SherloNativeModule;
-
-if (module !== null) {
-  SherloModule = createSherloModule();
+if (TurboModule !== null) {
+  SherloModule = createSherloModule(TurboModule);
 } else {
   SherloModule = createDummySherloModule();
 
@@ -79,19 +75,34 @@ export default SherloModule;
 
 /* ========================================================================== */
 
-function createSherloModule(): SherloModule {
-  const getConstants = (): SherloConstants => {
-    const turboModuleConstants = module.getSherloConstants?.() || {};
-    const nativeModuleConstants = module.getConstants?.() || {};
-    return { ...turboModuleConstants, ...nativeModuleConstants } as SherloConstants;
-  };
+/**
+ * Everything beyond the four dedicated methods (getSherloConstants,
+ * reportEarlyJsError, appendFile, readFile) goes through invoke/invokeSync -
+ * see specs/NativeSherloModule.ts. This wrapper keeps the same call shape
+ * every other file in the package already uses; only the plumbing under each
+ * method changed.
+ */
+function createSherloModule(module: Spec): SherloModule {
+  const getConstants = (): SherloConstants => module.getSherloConstants() as SherloConstants;
+
+  async function invoke<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
+    const raw = await module.invoke(name, JSON.stringify(args));
+    return raw ? (JSON.parse(raw) as T) : (undefined as T);
+  }
+
+  /** Result envelope of invokeSync: `{"ok":true,"value":T}` or `{"ok":false,...}`. */
+  function invokeSync<T>(name: string, args: Record<string, unknown> = {}): T | undefined {
+    const raw = module.invokeSync(name, JSON.stringify(args));
+    const envelope = JSON.parse(raw) as { ok: boolean; value?: T };
+    return envelope.ok ? envelope.value : undefined;
+  }
 
   const sherloModule: SherloModule = {
     isTurboModule: !!TurboModule,
-    getInspectorData: async () => {
-      const inspectorDataString = await module.getInspectorData();
-      return JSON.parse(inspectorDataString) as InspectorData;
-    },
+    getInspectorData: () =>
+      invoke<{ viewHierarchy: InspectorData['viewHierarchy']; density: number; fontScale: number }>(
+        'getInspectorData'
+      ) as Promise<InspectorData>,
     stabilize: async (
       requiredMatches: number,
       minScreenshotsCount: number,
@@ -101,25 +112,29 @@ function createSherloModule(): SherloModule {
       threshold: number,
       includeAA: boolean
     ) => {
-      return module.stabilize(
+      const result = await invoke<{ stable: boolean }>('stabilize', {
         requiredMatches,
         minScreenshotsCount,
         intervalMs,
         timeoutMs,
         saveScreenshots,
         threshold,
-        includeAA
-      );
+        includeAA,
+      });
+      return result.stable;
     },
     awaitFrameCommit: async (timeoutMs: number) => {
-      // Graceful degradation: an OLD native binary paired with this newer JS may
-      // not expose awaitFrameCommit. Treat its absence as "no barrier available"
-      // (resolve false) so the capture flow continues best-effort rather than
-      // throwing. The stability loop still runs afterwards.
-      if (typeof (module as any).awaitFrameCommit !== 'function') {
+      // Graceful degradation: an OLD implementation paired with this newer JS
+      // may not know this name. Treat UNKNOWN_METHOD/no-implementation as "no
+      // barrier available" (resolve false) so the capture flow continues
+      // best-effort rather than throwing. The stability loop still runs
+      // afterwards.
+      try {
+        const result = await invoke<{ painted: boolean }>('awaitFrameCommit', { timeoutMs });
+        return result.painted;
+      } catch {
         return false;
       }
-      return (module as any).awaitFrameCommit(timeoutMs);
     },
     getMode: () => {
       return getConstants().mode;
@@ -128,7 +143,9 @@ function createSherloModule(): SherloModule {
       return getConstants().nativeVersion ?? null;
     },
     sendNativeError: (errorCode: string, message: string, data?: Record<string, string | null>) => {
-      module.sendNativeError(errorCode, message, data ? JSON.stringify(data) : '');
+      invoke('sendNativeError', { errorCode, message, data: data ?? null }).catch(() => {
+        /* best-effort - nothing to fall back to when reporting itself fails */
+      });
     },
     getConfig: () => {
       const configString = getConstants().config;
@@ -150,22 +167,25 @@ function createSherloModule(): SherloModule {
     },
     appendFile: (filename: string, data: string) => {
       const encodedData = base64.encode(utf8.encode(data));
-      const result = module.appendFile(filename, encodedData);
-      return result;
+      return module.appendFile(filename, encodedData);
     },
     readFile: (filename: string) => {
       const decodeData = (data: string) => utf8.decode(base64.decode(data));
       return module.readFile(filename).then(decodeData);
     },
-    openStorybook: () => module.openStorybook(),
-    toggleStorybook: () => module.toggleStorybook(),
-    isScrollable: () => module.isScrollable(),
+    openStorybook: () => {
+      invokeSync('setMode', { mode: 'storybook', reload: true });
+    },
+    toggleStorybook: () => {
+      invokeSync('setMode', { mode: 'toggle', reload: true });
+    },
+    isScrollable: () => invoke('isScrollable'),
     scrollToCheckpoint: (index: number, offset: number, maxIndex: number) =>
-      module.scrollToCheckpoint(index, offset, maxIndex),
+      invoke('scrollToCheckpoint', { index, offset, maxIndex }),
     notifyGetStorybookCalled: () => {
-      if (typeof (module as any).notifyGetStorybookCalled === 'function') {
-        (module as any).notifyGetStorybookCalled();
-      }
+      invoke('notifyGetStorybookCalled').catch(() => {
+        /* nothing to notify when nothing is injected */
+      });
     },
   };
 

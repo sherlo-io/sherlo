@@ -58,6 +58,7 @@
     "src/specs/**/*",
     "dist/**/*",
     "android/src/**/*",
+    "android/CMakeLists.txt",
     "android/build.gradle",
     "ios/*.h",
     "ios/*.m",
