@@ -18,12 +18,14 @@ async function testing(sessionId: string | null): Promise<void> {
   console.log();
 
   console.log('To test your app run:');
-  console.log('  ' + chalk.cyan('npx sherlo test'));
+  console.log('  ' + chalk.cyan('npx sherlo test --android <path> --ios <path>'));
 
   console.log();
 
   logInfo({
-    message: 'For CI/CD or automated testing, see docs for non-interactive commands',
+    message:
+      'That first run registers your builds as the base. After it, plain `npx sherlo test` ' +
+      'tests JS-only changes with no native rebuild, and tells you when a fresh native build is needed',
     learnMoreLink: DOCS_LINK.testing,
   });
 

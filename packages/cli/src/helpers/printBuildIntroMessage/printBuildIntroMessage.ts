@@ -1,8 +1,13 @@
-import chalk from 'chalk';
-import { PLATFORM_LABEL } from '../../constants';
 import { CommandParams } from '../../types';
-import countDevicesByPlatform from './countDevicesByPlatform';
+import { emit } from '../transcriptSink';
 
+/**
+ * Announce which test this push is and what it will run on.
+ *
+ * The line's bytes live in the render layer (../../render/pushSpine), and so
+ * does the device counting: which platforms appear, in which order, and whether
+ * the noun is singular are all decisions about what the line looks like.
+ */
 function printBuildIntroMessage({
   commandParams,
   nextBuildIndex,
@@ -10,23 +15,7 @@ function printBuildIntroMessage({
   commandParams: CommandParams;
   nextBuildIndex: number;
 }) {
-  const platformCounts = countDevicesByPlatform(commandParams.devices);
-  const totalDevices = platformCounts.android + platformCounts.ios;
-  const deviceText = totalDevices === 1 ? 'device' : 'devices';
-
-  const platformBreakdown = [];
-  if (platformCounts.android) {
-    platformBreakdown.push(`${platformCounts.android} ${PLATFORM_LABEL.android}`);
-  }
-  if (platformCounts.ios) {
-    platformBreakdown.push(`${platformCounts.ios} ${PLATFORM_LABEL.ios}`);
-  }
-
-  console.log(
-    `${chalk.green(`Test ${nextBuildIndex}`)} will run on ${chalk.blue(
-      `${totalDevices} ${deviceText}`
-    )} (${platformBreakdown.join(', ')})\n`
-  );
+  emit({ kind: 'run-header', nextBuildIndex, devices: commandParams.devices });
 }
 
 export default printBuildIntroMessage;

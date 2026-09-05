@@ -25,8 +25,6 @@ export const DOCS_LINK = {
 
   testing: `${DOCS_BASE_URL}/testing`,
   testingMethods: `${DOCS_BASE_URL}/testing#testing-methods`,
-  testStandard: `${DOCS_BASE_URL}/testing?method=standard#testing-methods`,
-  testEasUpdate: `${DOCS_BASE_URL}/testing?method=eas-update#testing-methods`,
   testEasCloudBuild: `${DOCS_BASE_URL}/testing?method=eas-cloud-build#testing-methods`,
 
   devices: `${DOCS_BASE_URL}/devices`,
@@ -59,7 +57,6 @@ export const REACT_NATIVE_PACKAGE_NAME = 'react-native';
 export const SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME = '@sherlo/react-native-storybook';
 export const STORYBOOK_REACT_NATIVE_PACKAGE_NAME = '@storybook/react-native';
 
-export const MIN_EAS_UPDATE_EXPO_VERSION = '51.0.0';
 export const MIN_REACT_NATIVE_VERSION = '0.74.0';
 export const MIN_STORYBOOK_REACT_NATIVE_VERSION = '8.0.0';
 
@@ -67,34 +64,46 @@ export const MIN_STORYBOOK_REACT_NATIVE_VERSION = '8.0.0';
 
 export const INIT_COMMAND = 'init';
 export const TEST_COMMAND = 'test';
-export const TEST_STANDARD_COMMAND = 'test:standard';
-export const TEST_EAS_UPDATE_COMMAND = 'test:eas-update';
 export const TEST_EAS_CLOUD_BUILD_COMMAND = 'test:eas-cloud-build';
 export const EAS_BUILD_ON_COMPLETE_COMMAND = 'eas-build-on-complete';
 export const SHOW_ERROR_COMMAND = 'show-error';
+export const FINGERPRINT_COMMAND = 'fingerprint';
+export const VIEW_COMMAND = 'view';
 export const FULL_INIT_COMMAND = 'npx sherlo init';
 
 /* OPTIONS */
 
 export const ANDROID_OPTION = 'android';
-export const BRANCH_OPTION = 'branch';
+/** `sherlo fingerprint`: the file to diff the current fingerprints against. */
+export const BASELINE_OPTION = 'baseline';
+/** Accept a prebuilt bundle directory instead of bundling (see commands/test/suppliedBundle). */
+export const BUNDLE_DIR_OPTION = 'bundleDir';
+/** Produce a bundle directory `--bundle-dir` will accept (see commands/test/emitBundleDir). */
+export const EMIT_BUNDLE_DIR_OPTION = 'emitBundleDir';
+export const DRY_RUN_OPTION = 'dryRun';
+export const EMIT_EXPECTATION_OPTION = 'emitExpectation';
+export const RENDER_TRANSCRIPT_OPTION = 'renderTranscript';
+/** Render a transcript from a caller-declared pose (see commands/view/viewPose). */
+export const RENDER_TRANSCRIPT_STATE_OPTION = 'renderTranscriptState';
 export const GIT_BRANCH_OPTION = 'gitBranch';
 export const CONFIG_OPTION = 'config';
 export const DIAGNOSTICS_OPTION = 'diagnostics';
-export const EAS_ANDROID_URL_OPTION = 'easAndroidUrl';
 export const EAS_BUILD_SCRIPT_NAME_OPTION = 'easBuildScriptName';
-// export const EAS_UPDATE_JSON_OUTPUT_OPTION = 'easUpdateJsonOutput';
-export const EAS_IOS_URL_OPTION = 'easIosUrl';
-export const EAS_UPDATE_SLUG_OPTION = 'easUpdateSlug';
 export const IOS_OPTION = 'ios';
+/** `sherlo view` / `sherlo test --wait`: print the `-- details --` block. */
+export const METADATA_OPTION = 'metadata';
 export const MESSAGE_OPTION = 'message';
 export const PROFILE_OPTION = 'profile';
 export const PROJECT_ROOT_OPTION = 'projectRoot';
 export const TOKEN_OPTION = 'token';
+/** `sherlo fingerprint`: print every source, package and file under its layer. */
+export const VERBOSE_OPTION = 'verbose';
+/** `sherlo fingerprint`: the file to write the fingerprint document to. */
+export const WRITE_OPTION = 'write';
 export const INCLUDE_OPTION = 'include';
 export const WAIT_FOR_EAS_BUILD_OPTION = 'waitForEasBuild';
 export const WAIT_OPTION = 'wait';
-export const MAX_WAIT_TIME_OPTION = 'maxWaitTime';
+export const WAIT_TIMEOUT_OPTION = 'waitTimeout';
 
 export const COLOR = {
   reported: 'FFB36C',

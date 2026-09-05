@@ -1,0 +1,333 @@
+/**
+ * THE TRANSCRIPT SCENARIO CATALOG for the VERDICT family (F4) - what `--wait`
+ * prints when a build reaches a terminal state.
+ *
+ * A storybook story is a component plus scripted props. A CLI transcript is a
+ * command plus scripted state, and for this family the scripted state is exactly
+ * one thing: THE POLL ANSWER. Every scenario below declares a
+ * {@link BuildStatus} - the shape `getBuildStatus` returns, imported from the
+ * file that declares it for the shipped query, never re-typed here - and the
+ * verdict logic runs unforked over it.
+ *
+ * ------------------------------------------------------------------------
+ * THIS FAMILY IS NOT RATCHETED, AND THAT IS A FINDING, NOT A SHORTCUT.
+ *
+ * Its three peers each bind every scenario to a committed fixture a real device
+ * run produced, and `yarn tester expected-render --check` demands byte-identity
+ * against it. This family cannot do that YET, because all three committed
+ * `--wait` baselines are on AWAITING_REMINT:
+ *
+ *   suites/cli/test-standard/wait-clean/...push-wait-finished-CLI-Wait-Clean-darwin.txt
+ *   suites/cli/test-standard/wait-review/...push-wait-review-CLI-Wait-Review-darwin.txt
+ *   suites/cli/test-standard/wait-deadline/...push-wait-timeout-CLI-Wait-Deadline-darwin.txt
+ *
+ * (sherlo-tester e2e/__tests__/push-road-placeholders.test.ts). Each carries a
+ * `Test <N>` token on line 13 that `maskPushOutput` has no rule to produce - the
+ * same defect the push family's header names, for the same nine baselines. No
+ * honest render can ever equal them, so binding one here would be a fixture
+ * that fails for a reason that has nothing to do with this family. They are
+ * named above rather than omitted, so the gap is visible instead of looking like
+ * completeness. When the re-mint dispatch lands, `fixture` becomes fillable for
+ * the three PRESENT-PROVING scenarios below and this family joins the ratchet.
+ *
+ * ------------------------------------------------------------------------
+ * TWO KINDS OF SCENARIO LIVE HERE, AND `groundedBy` IS HOW YOU TELL.
+ *
+ *   PRESENT-PROVING (`kind: 'awaiting-remint'`) - the bytes the SHIPPED
+ *   `waitForBuildResult` prints today for a build with no gate on it.
+ *   Unratcheted only because its fixture is broken; the code path is the live
+ *   one.
+ *
+ *   GATED (`kind: 'gated-shipped'`) - the sparse-build verdict. These bytes ARE
+ *   emitted by the shipped CLI, but ONLY for a build the server marked
+ *   `showsOnlyBranchChanges`, which is a project that has opted in. They were
+ *   authored and reviewed as a drawing BEFORE the behaviour existed; the
+ *   behaviour now exists, and the scenarios' grounding was changed in the commit
+ *   that wired it rather than left saying something that had stopped being true.
+ *
+ * EVERY SCENARIO IN THIS FAMILY IS NOW RENDERED THE SAME WAY: by running the
+ * shipped {@link waitForBuildResult} over the scripted poll answer. There is no
+ * second renderer and no proposal path. The ONLY difference between the two
+ * kinds above is what the scripted poll answer says - which is the point, and is
+ * what makes these transcripts evidence about the CLI rather than about the
+ * producer.
+ */
+import type { BuildStatus } from '../../helpers/waitForBuildResult';
+import type { BuildDetailsGitFacts } from '../../render/buildView';
+
+/** Where a verdict scenario's values came from, and whether it is real today. */
+export type VerdictGrounding =
+  /**
+   * The shipped code path, whose committed fixture is currently unrenderable -
+   * it carries a masked token its own masker cannot produce. `fixture` names the
+   * baseline this scenario will bind to once the re-mint dispatch clears it.
+   */
+  | { kind: 'awaiting-remint'; fixture: string; token: string }
+  /**
+   * The shipped code path BEHIND A GATE. `gate` names the wire field that has to
+   * be true for a real user to see these bytes, so a reader is never left
+   * guessing whether a transcript describes the default experience. It does not:
+   * a project that has not opted in never reaches this path.
+   */
+  | { kind: 'gated-shipped'; gate: string };
+
+export type VerdictTranscriptScenario = {
+  description: string;
+  groundedBy: VerdictGrounding;
+  ambient: { skipIntro: boolean };
+  capture: 'stdout' | 'stdout+stderr';
+  /**
+   * The poll answer, typed as the wire shape the shipped query selects. A state
+   * the backend could not return is a `tsc` failure - which is the shield that
+   * matters most in this family, because these renders exist to have a PRODUCT
+   * DESIGN approved off them: a transcript depicting a build the engine can
+   * never produce would let us approve something that cannot exist.
+   */
+  build: BuildStatus;
+  /** How long the run was told to wait - the `⏳` header prints it. */
+  waitTimeoutMinutes: number;
+  /**
+   * `--metadata`: the `── details ──` block the loop appends after the closer.
+   *
+   * ABSENT MEANS THE FLAG WAS NOT PASSED, which is every scenario that does not
+   * declare it and every run that does not ask for it. Present means it was, and
+   * `git` is the build's git identity the way the ROAD supplies it: `sherlo
+   * test` composed that value itself and sends it at openBuild, so its scenario
+   * scripts one; `sherlo view` has none to give and scripts `{}`.
+   */
+  metadata?: { git?: BuildDetailsGitFacts };
+};
+
+/* ========================================================================== */
+
+/**
+ * The suite these scenarios describe: forty-four snapshot entries across the
+ * branch's whole story catalog. Every accounting line below adds up to it, so a
+ * reader can check the arithmetic rather than take the numbers on trust.
+ */
+const SUITE_SIZE = 44;
+
+/** A finished build's poll answer, with the tally and accounting a scenario chooses. */
+function finished({
+  approved = 0,
+  noChanges = 0,
+  reported = 0,
+  unreviewed = 0,
+  captured,
+  inherited,
+}: {
+  approved?: number;
+  noChanges?: number;
+  reported?: number;
+  unreviewed?: number;
+  captured?: number;
+  inherited?: number;
+}): BuildStatus {
+  return {
+    runStatus: 'finished',
+    viewStatusesCount: { approved, noChanges, reported, unreviewed },
+    ...(captured === undefined
+      ? {}
+      : { diffScopeInfo: { capturedSnapshotCount: captured, inheritedSnapshotCount: inherited } }),
+  };
+}
+
+/**
+ * The git identity a `sherlo test --wait --metadata` run reports.
+ *
+ * It is the value THAT RUN composed and sent at openBuild, never something read
+ * back off the build: `getBuildStatus` returns no git info at all. That is why
+ * only the test road's scenario carries one - the `view` scenario beside it is
+ * the same block minus every fact the wire cannot serve.
+ */
+const SCENARIO_GIT_INFO: BuildDetailsGitFacts = {
+  branchName: 'feature/login-copy',
+  commitHash: '4f3a9c1e77b0d2a6f5c8419e3b7d0a1c2e6f8b04',
+  isDirty: false,
+  defaultBranch: 'main',
+};
+
+/**
+ * The same poll answer, from a project that has OPTED IN - the gate the server
+ * sets on the build, plus the review status the server computed for it.
+ *
+ * `status` is scripted rather than derived from the tally on purpose, and it is
+ * the sharpest thing in this file: the CLI does not compute greenness on this
+ * path, it mirrors the server's answer, so a scenario that derived the status
+ * from its own counts would be testing an arithmetic nothing performs and would
+ * hide the very coupling these transcripts exist to show. Where the two look
+ * inconsistent - `recorded nothing` below is `unreviewed` over an all-zero tally
+ * - that inconsistency IS the case, and it is the server's ruling, not ours.
+ */
+function optedIn(build: BuildStatus, status: NonNullable<BuildStatus['status']>): BuildStatus {
+  return { ...build, showsOnlyBranchChanges: true, status };
+}
+
+export const VERDICT_TRANSCRIPTS: Record<string, VerdictTranscriptScenario> = {
+  /* --- what ships today ---------------------------------------------------- */
+
+  'verdict-today-all-passed': {
+    description:
+      "TODAY'S GREEN. Every story either matched its baseline or was already approved, so the " +
+      'shipped loop prints one line and exits 0. It is also the transcript the defect hides ' +
+      'inside: the SAME branch renders these bytes when the tally is all-zero because the build ' +
+      'recorded nothing, and the GitHub check calls that same build action_required.',
+    groundedBy: {
+      kind: 'awaiting-remint',
+      fixture:
+        'e2e/suites/cli/test-standard/wait-clean/01-wait-clean.spec.ts-snapshots/push-wait-finished-CLI-Wait-Clean-darwin.txt',
+      token: 'Test <N>',
+    },
+    ambient: { skipIntro: true },
+    capture: 'stdout',
+    build: finished({ approved: 5, noChanges: SUITE_SIZE - 5 }),
+    waitTimeoutMinutes: 45,
+  },
+
+  'verdict-today-review-required': {
+    description:
+      "TODAY'S BLOCK. Three stories changed and nobody has looked at them, so the loop exits 1 " +
+      'and names the count. Note what it does NOT say: which stories, or how much of the suite ' +
+      'this build even photographed.',
+    groundedBy: {
+      kind: 'awaiting-remint',
+      fixture:
+        'e2e/suites/cli/test-standard/wait-review/01-wait-review.spec.ts-snapshots/push-wait-review-CLI-Wait-Review-darwin.txt',
+      token: 'Test <N>',
+    },
+    ambient: { skipIntro: true },
+    capture: 'stdout',
+    build: finished({ noChanges: SUITE_SIZE - 3, unreviewed: 3 }),
+    waitTimeoutMinutes: 45,
+  },
+
+  'verdict-today-server-bypassed': {
+    description:
+      'The build the SERVER closed without a device run: zero captures, the whole suite ' +
+      "inherited. The closer is compact and carries the server's own prose verbatim - the one " +
+      'place the CLI already says something about capture accounting, and the shape the sparse ' +
+      'verdict below generalises.',
+    groundedBy: {
+      kind: 'awaiting-remint',
+      fixture:
+        'e2e/suites/cli/test-standard/wait-clean/01-wait-clean.spec.ts-snapshots/push-wait-finished-CLI-Wait-Clean-darwin.txt',
+      token: 'Test <N>',
+    },
+    ambient: { skipIntro: true },
+    capture: 'stdout',
+    build: {
+      runStatus: 'finished',
+      viewStatusesCount: { approved: 0, noChanges: SUITE_SIZE, reported: 0, unreviewed: 0 },
+      diffScopeInfo: {
+        capturedSnapshotCount: 0,
+        inheritedSnapshotCount: SUITE_SIZE,
+        platforms: { android: { reason: 'no change on this branch reaches any story' } },
+      },
+    },
+    waitTimeoutMinutes: 45,
+  },
+
+  /* --- the branch-build redesign, behind the server-set gate ---------------- */
+
+  'verdict-branch-build-nothing-differed': {
+    description:
+      'GATED. THE FIRST OUTPUT THE REDESIGN NEEDS. A branch build that ran, ' +
+      'photographed the three stories its own diff reaches, and found all three identical. ' +
+      'Today this exits 0 saying "All stories passed" while the required check independently ' +
+      "re-derives unreviewed and posts action_required. Here it is `noChanges` in the CHECK'S " +
+      'OWN WORDS, and the accounting line says how little of the suite the branch actually ' +
+      'touched - which is the whole claim a sparse build is making.',
+    groundedBy: { kind: 'gated-shipped', gate: 'getBuildStatus.showsOnlyBranchChanges' },
+    ambient: { skipIntro: true },
+    capture: 'stdout',
+    build: optedIn(finished({ noChanges: 3, captured: 3, inherited: SUITE_SIZE - 3 }), 'noChanges'),
+    waitTimeoutMinutes: 45,
+  },
+
+  'verdict-branch-build-only-the-branch-stories': {
+    description:
+      'GATED. THE ORDINARY SPARSE CASE. The same branch, one commit later: of the ' +
+      'three stories it caused to be captured, two differ. The verdict is a block, and the ' +
+      'accounting line is what makes it readable - two unreviewed out of THREE captured, not two ' +
+      'out of forty-four, so a reviewer knows the branch is being judged on its own surface.',
+    groundedBy: { kind: 'gated-shipped', gate: 'getBuildStatus.showsOnlyBranchChanges' },
+    ambient: { skipIntro: true },
+    capture: 'stdout',
+    build: optedIn(
+      finished({ noChanges: 1, unreviewed: 2, captured: 3, inherited: SUITE_SIZE - 3 }),
+      'unreviewed'
+    ),
+    waitTimeoutMinutes: 45,
+  },
+
+  /* --- the `── details ──` block, on both roads that print it -------------- */
+
+  'verdict-metadata-after-test-wait': {
+    description:
+      'THE DETAILS BLOCK on the road that knows the most. `sherlo test --wait --metadata`: the ' +
+      'ordinary closer first, then the block - and because THIS run opened the build, it can say ' +
+      'which branch and commit the build was made from and whether the tree was clean. Every ' +
+      'other row is read off the poll answer. The block is plain, aligned and colourless on ' +
+      'purpose: a kept-output fixture compares it byte for byte with the run-specific values ' +
+      'masked, and its label column is a function of the LABELS, which a masker never rewrites.',
+    groundedBy: {
+      kind: 'awaiting-remint',
+      fixture:
+        'e2e/suites/cli/test-standard/wait-clean/01-wait-clean.spec.ts-snapshots/push-wait-finished-CLI-Wait-Clean-darwin.txt',
+      token: 'Test <N>',
+    },
+    ambient: { skipIntro: true },
+    capture: 'stdout',
+    build: finished({
+      approved: 5,
+      noChanges: SUITE_SIZE - 5,
+      captured: 3,
+      inherited: SUITE_SIZE - 3,
+    }),
+    waitTimeoutMinutes: 45,
+    metadata: { git: SCENARIO_GIT_INFO },
+  },
+
+  'verdict-metadata-after-view-wait': {
+    description:
+      'THE SAME BLOCK from `sherlo view <build> --wait --metadata`, and the difference IS the ' +
+      'finding. This road did not open the build, so it hands over no git - and the branch and ' +
+      'main-line rows are simply not there, because the only build read a project token has does ' +
+      'not carry them. An absent row means the CLI was not told, never that the answer was ' +
+      'nothing.',
+    groundedBy: {
+      kind: 'awaiting-remint',
+      fixture:
+        'e2e/suites/cli/test-standard/wait-review/01-wait-review.spec.ts-snapshots/push-wait-review-CLI-Wait-Review-darwin.txt',
+      token: 'Test <N>',
+    },
+    ambient: { skipIntro: true },
+    capture: 'stdout',
+    build: finished({
+      noChanges: SUITE_SIZE - 3,
+      unreviewed: 3,
+      captured: 3,
+      inherited: SUITE_SIZE - 3,
+    }),
+    waitTimeoutMinutes: 45,
+    metadata: {},
+  },
+
+  'verdict-branch-build-recorded-nothing': {
+    description:
+      'GATED. THE CASE THE SAFETY NET EXISTS FOR, and the reason the green above is not read ' +
+      'off the tally alone. This build finished with the same all-zero tally as a perfectly ' +
+      'clean branch - but it captured nothing AND inherited nothing, so it is evidence of ' +
+      'nothing. The SERVER calls it `unreviewed` rather than green (the SHERLO-2013 ' +
+      'fallthrough, deliberately kept), and the CLI reads that verdict off the wire; what the ' +
+      'capture accounting decides here is only the WORDS - "0 stories unreviewed" would be ' +
+      'accurate and useless, so it says what actually happened instead.',
+    groundedBy: { kind: 'gated-shipped', gate: 'getBuildStatus.showsOnlyBranchChanges' },
+    ambient: { skipIntro: true },
+    capture: 'stdout',
+    build: optedIn(finished({ captured: 0, inherited: 0 }), 'unreviewed'),
+    waitTimeoutMinutes: 45,
+  },
+};
+
+export const VERDICT_TRANSCRIPT_IDS = Object.keys(VERDICT_TRANSCRIPTS);

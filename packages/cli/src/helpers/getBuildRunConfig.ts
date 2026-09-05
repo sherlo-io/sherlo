@@ -1,15 +1,13 @@
 import { BuildRun, Device, Platform } from '@sherlo/api-types';
 import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER, getPlatformFromDeviceId } from '@sherlo/shared';
-import { CommandParams, Config, EasUpdateData } from '../types';
+import { CommandParams, Config } from '../types';
 
 function getBuildRunConfig({
   commandParams,
   binaryS3Keys,
-  easUpdateData,
 }: {
   commandParams: CommandParams;
   binaryS3Keys?: { android?: string; ios?: string };
-  easUpdateData?: EasUpdateData;
 }): BuildRun<'withS3KeyNoDebug'>['config'] & { diagnostics?: string[] } {
   const { devices, include, exclude, diagnostics } = commandParams;
 
@@ -19,12 +17,10 @@ function getBuildRunConfig({
   return {
     include,
     exclude,
-    easUpdateSlug: easUpdateData?.slug,
     android:
       androidDevices.length > 0
         ? {
             devices: androidDevices,
-            easUpdateUrl: easUpdateData?.updateUrls.android,
             s3Key: binaryS3Keys?.android || ASYNC_UPLOAD_S3_KEY_PLACEHOLDER,
           }
         : undefined,
@@ -32,7 +28,6 @@ function getBuildRunConfig({
       iosDevices.length > 0
         ? {
             devices: iosDevices,
-            easUpdateUrl: easUpdateData?.updateUrls.ios,
             s3Key: binaryS3Keys?.ios || ASYNC_UPLOAD_S3_KEY_PLACEHOLDER,
           }
         : undefined,

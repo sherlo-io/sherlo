@@ -65,8 +65,40 @@ npx sherlo init
 #### 2) Run visual tests
 
 ```bash
-npx sherlo test
+npx sherlo test --android <path> --ios <path>
 ```
+
+That first run registers your builds as the base. After it, plain `npx sherlo
+test` tests JS-only changes with no native rebuild - and tells you when a fresh
+native build is needed.
+
+#### 3) Run it in CI
+
+The same verb, as a GitHub Action:
+
+```yaml
+- uses: sherlo-io/sherlo@v2
+  with:
+    token: ${{ secrets.SHERLO_TOKEN }}
+```
+
+`v2` is the major tag the action is released under, and each release moves it to
+that release's commit. The action ships with the next release, so `v2` does not
+resolve yet and no earlier ref carries the action either. Until that release
+lands, run the CLI directly (`npx sherlo test`) rather than pinning a ref that
+does not exist.
+
+It runs the Sherlo CLI your project has installed. If the job has none, it runs
+the CLI carried at the ref you pinned, so a job needs no install step just to
+give the action a CLI to find. The first line of the log names the one that ran.
+
+Without build paths it tests JS-only and outputs `native-needed`; give it
+`android` / `ios` build paths and it runs the full test that registers a fresh
+base. See [`examples/staged`](./examples/staged) for the two-job workflow.
+
+No `fetch-depth` needed on `actions/checkout` - the action deepens a shallow
+checkout itself, so Sherlo always has the commit history it needs to inherit a
+baseline.
 
 <br />
 
@@ -86,7 +118,7 @@ Try Sherlo with ready-to-run example projects.
 
 - **📱 Minimal Apps** - React Native + Storybook integrated with Sherlo
 - **🤖 GitHub Actions** - CI/CD workflows for automated testing
-- **🔄 Different Workflows** - Standard builds, OTA updates, and Expo cloud builds
+- **🔄 Different Workflows** - Standard builds, a JS-only fast lane, and Expo cloud builds
 
 <br />
 

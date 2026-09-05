@@ -1,0 +1,144 @@
+name: Sherlo Test - Staged
+
+# ══════════════════════════════════════════════════════════════════════════════
+# WORKFLOW: run JS-only first, build natively only when asked
+#
+#                        [ ⚡ Sherlo Test (Linux) ]
+#                              (sherlo test)
+#                                    │
+#                    native-needed? ─┴──────────────┐
+#                       │                           │
+#                    'false'                      'true'
+#                       │                           │
+#                       ▼                           ▼
+#            ✅ already tested,          [ 🔨 Native Test (macOS) ]
+#               JS-only, done            native build + sherlo test
+#                                        --android/--ios
+#                                        REGISTERS a fresh base
+#
+# The first job does not "route to a fast job" - on the common case it has
+# ALREADY run the test. The second job only runs when native inputs moved; its
+# run registers a fresh base, so the NEXT push (native unchanged) is JS-only
+# again.
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Triggers on:
+# - Push to main branch
+# - Manual trigger from GitHub UI
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────────
+  # ⚡ SHERLO TEST (JS-only, on Linux)
+  #
+  # Runs `sherlo test` with no build paths. When the registered base still
+  # matches this commit it bundles the JS and runs the test right here - no
+  # native build, so ubuntu is enough. When it doesn't, it builds NOTHING and
+  # just answers `native-needed=true`.
+  #
+  # Downstream routes on `needs.test.outputs.native-needed` - NEVER on an exit
+  # code (the action handles the exit-code trap internally).
+  # ────────────────────────────────────────────────────────────────────────────
+  test:
+    name: Sherlo Test
+    runs-on: ubuntu-latest
+    outputs:
+      native-needed: ${{ steps.sherlo.outputs.native-needed }}
+      reason: ${{ steps.sherlo.outputs.reason }}
+
+    steps:
+      # No `fetch-depth` here on purpose: the Sherlo action deepens the default
+      # depth-1 checkout itself, so the commit ancestry it needs to inherit a
+      # baseline is there without you configuring anything.
+      - name: 📦 Checkout code
+        uses: actions/checkout@v6
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 'lts/*'
+          cache: 'yarn'
+
+      - name: 📥 Install dependencies
+        run: yarn install
+
+      # The action runs `sherlo test` and exposes native-needed/reason. Given no
+      # build paths, that is the routing question.
+      # Pin to a released tag (as here) or a commit SHA in your own repository.
+      - name: ⚡ Run Sherlo test (JS-only)
+        id: sherlo
+        uses: sherlo-io/sherlo@v2
+        with:
+          token: ${{ secrets.SHERLO_TOKEN }}
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # 🔨 NATIVE TEST (native build + base registration)
+  #
+  # Only runs when the job above said a native build is needed. Builds the app,
+  # then runs THE SAME VERB with build paths - which registers the freshly built
+  # binaries as the new base, so the next push (native unchanged) is JS-only.
+  #
+  # Builds run here with `eas build --local` (mirror the standard example). iOS
+  # requires macOS, so this job runs on macos-latest and builds both platforms.
+  # To parallelise, split into separate build jobs + artifact upload/download
+  # like examples/standard - the contract is unchanged.
+  # ────────────────────────────────────────────────────────────────────────────
+  native-test:
+    name: Native Test
+    runs-on: macos-latest
+    needs: test
+    if: needs.test.outputs.native-needed == 'true'
+
+    steps:
+      - name: 📦 Checkout code
+        uses: actions/checkout@v6
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 'lts/*'
+          cache: 'yarn'
+
+      - name: 🏗 Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 📥 Install dependencies
+        run: yarn install
+
+      # ▼▼▼ USER-SUPPLIED native build steps ▼▼▼
+      # Uses 'preview-simulator' profile from eas.json.
+      - name: 🤖 Build Android Simulator
+        run: |
+          eas build \
+            --non-interactive \
+            --local \
+            --platform android \
+            --profile preview-simulator \
+            --output android.apk
+
+      - name: 🍎 Build iOS Simulator
+        run: |
+          eas build \
+            --non-interactive \
+            --local \
+            --platform ios \
+            --profile preview-simulator \
+            --output ios.tar.gz
+      # ▲▲▲ USER-SUPPLIED native build steps ▲▲▲
+
+      # The SAME action, given build paths: `sherlo test` runs a full test AND
+      # registers the freshly built binaries as the new base. After this run the
+      # base fingerprint matches source again, so the next push (native
+      # unchanged) is tested JS-only by the job above.
+      - name: 🧪 Run Sherlo test (registers fresh base)
+        uses: sherlo-io/sherlo@v2
+        with:
+          token: ${{ secrets.SHERLO_TOKEN }}
+          android: android.apk
+          ios: ios.tar.gz
