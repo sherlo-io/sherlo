@@ -1,10 +1,10 @@
 import base64 from 'base-64';
-import { NativeModules } from 'react-native';
 import utf8 from 'utf8';
 import isExpoGo from './helpers/isExpoGo';
-import { StorybookViewMode, InspectorData } from './types/types';
-import { Config, LastState } from './helpers/RunnerBridge/types';
+import { StorybookViewMode } from './types/types';
+import { Config, LastState } from './helpers/config';
 import TurboModule, { Spec } from './specs/NativeSherloModule';
+import * as constants from './constants';
 
 interface SherloConstants {
   mode: StorybookViewMode;
@@ -13,58 +13,55 @@ interface SherloConstants {
   nativeVersion: string | null;
 }
 
+/**
+ * The raw result envelope of invokeSync: `{"ok":true,"value":T}` or
+ * `{"ok":false,"code":"...","message":"..."}`. Returned UNCHANGED, never
+ * unwrapped to just `value` - unwrapping would throw away a not-ok answer's
+ * code, making absence look like an empty answer on this path too (the same
+ * class of bug the dummy module's invoke/invokeSync were fixed for). This is
+ * also the shape sherlo-runner's private runtime was ported against (see the
+ * PoC's src/module.js invokeSync).
+ */
+type InvokeSyncEnvelope<T> = { ok: boolean; value?: T; code?: string; message?: string };
+
 type SherloModule = {
   isTurboModule: boolean;
   getMode: () => StorybookViewMode;
   getConfig: () => Config;
   getLastState: () => LastState | undefined;
   getNativeVersion: () => string | null;
-  sendNativeError: (
-    errorCode: string,
-    message: string,
-    data?: Record<string, string | null>
-  ) => void;
-  getInspectorData: () => Promise<InspectorData>;
   appendFile: (path: string, base64: string) => Promise<void>;
   readFile: (path: string) => Promise<string>;
   openStorybook: () => void;
   toggleStorybook: () => void;
-  stabilize: (
-    requiredMatches: number,
-    minScreenshotsCount: number,
-    intervalMs: number,
-    timeoutMs: number,
-    saveScreenshots: boolean,
-    threshold: number,
-    includeAA: boolean
-  ) => Promise<boolean>;
-  awaitFrameCommit: (timeoutMs: number) => Promise<boolean>;
-  isScrollable: () => Promise<{
-    scrollable: boolean;
-    scrollViewFrame?: { x: number; y: number; width: number; height: number };
-  }>;
-  scrollToCheckpoint: (
-    index: number,
-    offset: number,
-    maxIndex: number
-  ) => Promise<{
-    reachedBottom: boolean;
-    appliedIndex: number;
-    appliedOffsetPx: number;
-    viewportPx: number;
-    contentPx: number;
-    scrollViewFrame?: { x: number; y: number; width: number; height: number };
-  }>;
   notifyGetStorybookCalled: () => void;
+  /**
+   * THE GENERIC TRANSPORT for every capability beyond this frozen list -
+   * screenshots, settle, scroll, inspector data, sendNativeError, and
+   * whatever is invented later. This wrapper ships in the customer's bundle
+   * and is frozen at their build, so a NAMED method here (`stabilize(...)`,
+   * `getInspectorData()`, ...) would freeze that call's signature forever -
+   * exactly the tax the six-method spec exists to remove. The private
+   * runtime is the only caller, reused through the seam's `host.module`; it
+   * calls capabilities by name, never through a method this file grows.
+   */
+  invoke: <T = unknown>(name: string, args?: Record<string, unknown>) => Promise<T>;
+  invokeSync: <T = unknown>(
+    name: string,
+    args?: Record<string, unknown>
+  ) => InvokeSyncEnvelope<T> | undefined;
+  /**
+   * Re-exported so the seam (src/seam.js, resolved from `dist/SherloModule.js`
+   * - an already-frozen export path) can reach the protocol file names
+   * without a new subpath of its own.
+   */
+  constants: typeof constants;
 };
 
 let SherloModule: SherloModule;
-const { SherloModule: SherloNativeModule } = NativeModules;
 
-const module: Spec = TurboModule || SherloNativeModule;
-
-if (module !== null) {
-  SherloModule = createSherloModule();
+if (TurboModule !== null) {
+  SherloModule = createSherloModule(TurboModule);
 } else {
   SherloModule = createDummySherloModule();
 
@@ -79,56 +76,38 @@ export default SherloModule;
 
 /* ========================================================================== */
 
-function createSherloModule(): SherloModule {
-  const getConstants = (): SherloConstants => {
-    const turboModuleConstants = module.getSherloConstants?.() || {};
-    const nativeModuleConstants = module.getConstants?.() || {};
-    return { ...turboModuleConstants, ...nativeModuleConstants } as SherloConstants;
-  };
+/**
+ * Everything beyond the four dedicated methods (getSherloConstants,
+ * reportEarlyJsError, appendFile, readFile) goes through invoke/invokeSync -
+ * see specs/NativeSherloModule.ts. This wrapper keeps the same call shape
+ * every other file in the package already uses; only the plumbing under each
+ * method changed.
+ */
+function createSherloModule(module: Spec): SherloModule {
+  const getConstants = (): SherloConstants => module.getSherloConstants() as SherloConstants;
+
+  async function invoke<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
+    const raw = await module.invoke(name, JSON.stringify(args));
+    return raw ? (JSON.parse(raw) as T) : (undefined as T);
+  }
+
+  function invokeSync<T>(
+    name: string,
+    args: Record<string, unknown> = {}
+  ): InvokeSyncEnvelope<T> | undefined {
+    const raw = module.invokeSync(name, JSON.stringify(args));
+    return raw ? (JSON.parse(raw) as InvokeSyncEnvelope<T>) : undefined;
+  }
 
   const sherloModule: SherloModule = {
     isTurboModule: !!TurboModule,
-    getInspectorData: async () => {
-      const inspectorDataString = await module.getInspectorData();
-      return JSON.parse(inspectorDataString) as InspectorData;
-    },
-    stabilize: async (
-      requiredMatches: number,
-      minScreenshotsCount: number,
-      intervalMs: number,
-      timeoutMs: number,
-      saveScreenshots: boolean,
-      threshold: number,
-      includeAA: boolean
-    ) => {
-      return module.stabilize(
-        requiredMatches,
-        minScreenshotsCount,
-        intervalMs,
-        timeoutMs,
-        saveScreenshots,
-        threshold,
-        includeAA
-      );
-    },
-    awaitFrameCommit: async (timeoutMs: number) => {
-      // Graceful degradation: an OLD native binary paired with this newer JS may
-      // not expose awaitFrameCommit. Treat its absence as "no barrier available"
-      // (resolve false) so the capture flow continues best-effort rather than
-      // throwing. The stability loop still runs afterwards.
-      if (typeof (module as any).awaitFrameCommit !== 'function') {
-        return false;
-      }
-      return (module as any).awaitFrameCommit(timeoutMs);
-    },
+    invoke,
+    invokeSync,
     getMode: () => {
       return getConstants().mode;
     },
     getNativeVersion: () => {
       return getConstants().nativeVersion ?? null;
-    },
-    sendNativeError: (errorCode: string, message: string, data?: Record<string, string | null>) => {
-      module.sendNativeError(errorCode, message, data ? JSON.stringify(data) : '');
     },
     getConfig: () => {
       const configString = getConstants().config;
@@ -150,50 +129,65 @@ function createSherloModule(): SherloModule {
     },
     appendFile: (filename: string, data: string) => {
       const encodedData = base64.encode(utf8.encode(data));
-      const result = module.appendFile(filename, encodedData);
-      return result;
+      return module.appendFile(filename, encodedData);
     },
     readFile: (filename: string) => {
       const decodeData = (data: string) => utf8.decode(base64.decode(data));
       return module.readFile(filename).then(decodeData);
     },
-    openStorybook: () => module.openStorybook(),
-    toggleStorybook: () => module.toggleStorybook(),
-    isScrollable: () => module.isScrollable(),
-    scrollToCheckpoint: (index: number, offset: number, maxIndex: number) =>
-      module.scrollToCheckpoint(index, offset, maxIndex),
-    notifyGetStorybookCalled: () => {
-      if (typeof (module as any).notifyGetStorybookCalled === 'function') {
-        (module as any).notifyGetStorybookCalled();
-      }
+    openStorybook: () => {
+      invokeSync('setMode', { mode: 'storybook', reload: true });
     },
+    toggleStorybook: () => {
+      invokeSync('setMode', { mode: 'toggle', reload: true });
+    },
+    notifyGetStorybookCalled: () => {
+      invoke('notifyGetStorybookCalled').catch(() => {
+        /* nothing to notify when nothing is injected */
+      });
+    },
+    constants,
   };
 
   return sherloModule;
 }
 
+/**
+ * ABSENCE MUST NEVER LOOK LIKE AN EMPTY ANSWER - the same rule the iOS/Android
+ * shim already follows by rejecting with `sherlo_no_implementation` rather
+ * than resolving with nothing (see ios/SherloModule.mm's invoke/readFile: "a
+ * caller awaiting this must be able to tell 'Sherlo is not attached' from
+ * 'Sherlo did the work and the answer was empty'"). This wrapper is frozen in
+ * the customer's bundle, so the no-native-module case gets the same
+ * treatment: `sherlo_no_native_module`, distinct from the shim's own
+ * `sherlo_no_implementation` (shim present, nothing injected) - here there is
+ * no shim at all.
+ */
+const NO_NATIVE_MODULE_CODE = 'sherlo_no_native_module';
+const NO_NATIVE_MODULE_MESSAGE =
+  'the SDK has no native module linked - rebuild the app to link it on the native side';
+
 function createDummySherloModule(): SherloModule {
   return {
     isTurboModule: false,
-    getInspectorData: async () => ({
-      viewHierarchy: {
-        id: 1,
-        className: 'View',
-        isVisible: true,
-        x: 0,
-        y: 0,
-        width: 0,
-        height: 0,
-      },
-      density: 1,
-      fontScale: 1,
+    invoke: <T = unknown>(): Promise<T> => {
+      const error = new Error(NO_NATIVE_MODULE_MESSAGE) as Error & { code: string };
+      error.code = NO_NATIVE_MODULE_CODE;
+      return Promise.reject(error);
+    },
+    // The same envelope shape the shim's own invokeSync returns when nothing
+    // is injected - invokeSync never unwraps to a bare value (see live's
+    // invokeSync and InvokeSyncEnvelope's doc comment).
+    invokeSync: <T = unknown>(): InvokeSyncEnvelope<T> => ({
+      ok: false,
+      code: NO_NATIVE_MODULE_CODE,
+      message: NO_NATIVE_MODULE_MESSAGE,
     }),
     // IMPORTANT: We should make sure that the mode is always 'default'
     // because if user doesn't want to supply native library in their production
     // build, this will be the value returned.
     getMode: () => 'default',
     getNativeVersion: () => null,
-    sendNativeError: () => {},
     getLastState: () => undefined,
     getConfig: () => ({
       stabilization: {
@@ -216,24 +210,7 @@ function createDummySherloModule(): SherloModule {
     readFile: async () => '',
     openStorybook: () => {},
     toggleStorybook: () => {},
-    awaitFrameCommit: async () => false,
-    isScrollable: async () => ({ scrollable: false }),
-    scrollToCheckpoint: async () => ({
-      reachedBottom: true,
-      appliedIndex: 0,
-      appliedOffsetPx: 0,
-      viewportPx: 0,
-      contentPx: 0,
-    }),
     notifyGetStorybookCalled: () => {},
-    stabilize: async (
-      _requiredMatches: number,
-      _minScreenshotsCount: number,
-      _intervalMs: number,
-      _timeoutMs: number,
-      _saveScreenshots: boolean,
-      _threshold: number,
-      _includeAA: boolean
-    ) => true,
+    constants,
   };
 }

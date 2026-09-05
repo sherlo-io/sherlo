@@ -1,5 +1,4 @@
 #import <Foundation/Foundation.h>
-#import <React/RCTBridgeModule.h>
 
 @interface FileSystemHelper : NSObject
 
@@ -9,33 +8,12 @@
 - (instancetype)init;
 
 /**
- * Appends base64 encoded content to a file.
- */
-- (void)appendFileWithPromise:(NSString *)filename 
-                base64Content:(NSString *)base64Content 
-                    resolve:(RCTPromiseResolveBlock)resolve 
-                    reject:(RCTPromiseRejectBlock)reject;
-
-/**
- * Appends content to a file.
- */
-- (void)appendFile:(NSString *)filename content:(NSString *)content;
-
-/**
- * Reads a file and returns its contents as base64 encoded string.
- */
-- (void)readFileWithPromise:(NSString *)filename 
-                  resolve:(RCTPromiseResolveBlock)resolve 
-                  reject:(RCTPromiseRejectBlock)reject;
-
-/**
  * Checks if a file exists in the sync directory.
  */
 - (BOOL)fileExists:(NSString *)filename;
 
 /**
  * Reads a file as string.
- * Used for internal operations that need to work with text content.
  */
 - (NSString *)readFile:(NSString *)filename error:(NSError **)error;
 

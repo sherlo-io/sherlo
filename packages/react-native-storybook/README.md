@@ -6,6 +6,36 @@ Sherlo is a [visual regression testing tool for React Native](https://sherlo.io)
 
 <br />
 
+## Architecture: this is the public half
+
+This package is deliberately small. It ships in every customer's binary and is frozen the
+moment they build - so it carries only what has to be public: anything that runs **before**
+the splice (a native module registered pre-main, a Metro polyfill concatenated as source
+text) or is **named by a literal** a customer's build already generated (a require
+specifier baked into an emitted shim or a generated wrapper). Everything else - story
+enumeration for a real test run, the capture loop, the runner protocol, every native method
+body beyond a pre-main config read and the developer-path mode switch - is private, and
+lives in a separate runner package that attaches to this one at runner launch, replaceable
+without a customer ever rebuilding.
+
+Four things you're touching if you're reading this repo, not sherlo.io's docs:
+
+- **The native shim** (`ios/`, `android/`) - a six-method TurboModule. Two methods answer
+  locally (`getSherloConstants`, and `setMode` behind `invokeSync` - the developer path,
+  e.g. `openStorybook()`, with nothing injected); everything else forwards through the frozen
+  ABI in `ios/SherloImplV1.h` to whatever registers at runner launch. See "The native shim"
+  below.
+- **The seam** (`src/seam.js`, exported as `./seam`) - the one global
+  (`globalThis.__SHERLO_HOST__`) that passes everything a spliced runtime needs BY VALUE:
+  the wrapped native module, host module instances (React, optional peers), the mocking
+  registry, and a hand-off point (`takenOverBy`) for the runtime to take the screen.
+- **The Metro plugin** (`metro/`) - resolver redirects, mock shim emission, and the
+  generated entry (`metro/entry.js`) that puts the seam in front of the customer's own code,
+  since nothing else guarantees it runs.
+- **`getStorybook`** (`src/getStorybook/`) - the public half only: view/params capture,
+  the position-bound story-error boundary (the only place a story's throw is observable),
+  splash hiding, and a `SafeAreaProvider` shell around whatever the runtime hands back.
+
 ## Quick Start
 
 ### 1. Initialize Sherlo
@@ -103,6 +133,39 @@ Mocks can also be declared in a story's meta (applies to every story in the file
 A couple of things to know before you start: mocking `react`, `react-native`, `@storybook/*`, or `@sherlo/*` directly is not allowed (wrap them instead), and mocking a module for the first time needs a Metro restart before it takes effect.
 
 See the full [Module Mocking guide](https://sherlo.io/docs/stories/mocking) for factory patterns, precedence rules, module key edge cases, and known limitations.
+
+---
+
+## The native shim
+
+This package ships a codegen'd TurboModule (`SherloModule`) whose six methods forward through a
+frozen ABI to an implementation registered at runner launch, except `setMode` (the developer-path
+mode switch, e.g. `openStorybook()`), which is the shim's own builtin. `getSherloConstants` prefers
+a registered implementation's own synchronous answer and falls back to the shim's pre-main config
+read only when nothing is injected - same as `setMode`'s fallback. See `ios/SherloImplV1.h` for the
+full contract.
+
+Three names from that boundary are frozen and exported from the package root, `@sherlo/react-native-storybook`
+(`ANDROID_SHIM_LIBRARY_NAME`, `IOS_SHIM_REGISTRATION_SYMBOL`, `SEAM_VERSION_GLOBAL_NAME` /
+`SEAM_VERSION_GATE_REGEX`) so nothing outside this package has to hardcode a second copy of them:
+
+- **Android** - the shim's JNI library name is `sherloshim`, i.e. `libsherloshim.so` in the built
+  APK (see `android/CMakeLists.txt`). The JNI shim resolves the injected implementation by calling
+  `dlsym(RTLD_DEFAULT, "SherloGetImplV1")` and lends it host services via `SherloSetHostV1` (see
+  `android/src/main/cpp/sherlo-shim-jni.cpp`).
+- **iOS** - the injected implementation registers by calling the exported C symbol
+  `SherloShimRegisterImplV1` (see `ios/SherloImplV1.h`), found via `dlsym(RTLD_DEFAULT, ...)`
+  because the shim is statically linked into the main executable.
+- **The seam** (`src/seam.js`) sets `globalThis.__SHERLO_SEAM_VERSION__ = '1'` as a string literal.
+  `SEAM_VERSION_GATE_REGEX` is the pattern that finds and extracts it from a *built bundle*, without
+  executing it.
+
+A runner verifies the shim is actually *in* the base artifact by checking for these - `unzip -l
+app-release.apk | grep libsherloshim.so` on Android, `nm` / `dlsym`-style symbol presence on iOS -
+rather than only checking that the build exited zero. An omitted native module is silent on iOS
+(no podspec means no pod, no error, and the app simply throws at runtime when JS reaches for it)
+and loud but easy to miss on Android (a manifest-merger or link error naming a file nobody
+recognises), so asserting on the artifact is the check that catches both failure shapes.
 
 ---
 

@@ -267,8 +267,13 @@ export type DiffScopeSummaryInput = {
  * own bare-count degrade.
  */
 export function formatDiffScopeSummaryLine(input: DiffScopeSummaryInput): string | undefined {
-  const { full, capturedStoryFilePaths, totalStoriesInBundle: M, reason, allStoryFilePaths } =
-    input;
+  const {
+    full,
+    capturedStoryFilePaths,
+    totalStoriesInBundle: M,
+    reason,
+    allStoryFilePaths,
+  } = input;
 
   if (M === undefined || allStoryFilePaths === undefined) return undefined;
 

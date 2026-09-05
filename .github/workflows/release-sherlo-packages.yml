@@ -6,11 +6,6 @@ on:
       NEW_VERSION_NUMBER:
         description: 'New version number (e.g., 1.0.1)'
         required: false
-      BUMP_REQUIRED_SDK_VERSION:
-        description: 'SDK contains breaking changes'
-        required: false
-        default: false
-        type: boolean
       IS_ALPHA:
         description: 'Is alpha release'
         required: false
@@ -64,15 +59,6 @@ jobs:
         run: |
           echo "{\"version\": \"$NEW_VERSION_NUMBER\"}" > packages/react-native-storybook/android/src/main/assets/sherlo.json
           echo "{\"version\": \"$NEW_VERSION_NUMBER\"}" > packages/react-native-storybook/ios/Resources/assets/sherlo.json
-
-      - name: Bump minimum required native dependencies version
-        if: ${{ github.event.inputs.BUMP_REQUIRED_SDK_VERSION == 'true' }}
-        run: |
-          jq --arg v "$NEW_VERSION_NUMBER" '.REQUIRED_MIN_NATIVE_VERSION = $v' packages/react-native-storybook/src/sdk-compatibility.json > /tmp/sdk-compat.json && mv /tmp/sdk-compat.json packages/react-native-storybook/src/sdk-compatibility.json
-
-      - name: Update JS module version in sdk-compatibility.json
-        run: |
-          jq --arg v "$NEW_VERSION_NUMBER" '.JS_MODULE_VERSION = $v' packages/react-native-storybook/src/sdk-compatibility.json > /tmp/sdk-compat.json && mv /tmp/sdk-compat.json packages/react-native-storybook/src/sdk-compatibility.json
 
       - name: Build packages
         run: yarn build

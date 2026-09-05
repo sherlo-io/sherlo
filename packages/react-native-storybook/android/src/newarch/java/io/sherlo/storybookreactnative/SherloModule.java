@@ -1,207 +1,167 @@
 package io.sherlo.storybookreactnative;
 
-// Android Framework Imports
 import android.app.Activity;
-import android.util.Log;
-
-import androidx.annotation.NonNull;
-import com.facebook.react.bridge.ReactApplicationContext;
+import android.os.Handler;
+import android.os.Looper;
+import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Promise;
+import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.WritableMap;
 
-// Java Utility and IO Imports
-import java.util.Map;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.lang.ref.WeakReference;
 
 /**
- * This implementation works with the New Architecture as a TurboModule.
- * This class needs to match the JS spec in NativeSherloModule.ts
- * The actual generated interface will be created by codegen at build time.
+ * THE SHIM. This is the code that ships inside a customer's app.
+ *
+ * getSherloConstants and setMode (reached through invokeSync) prefer whatever
+ * implementation an LD_PRELOADed library registered - see
+ * sherlo-shim-jni.cpp's resolveImpl() - and fall back to the pre-main read
+ * SherloModuleCore already did when nothing is injected. reportEarlyJsError,
+ * appendFile, readFile and invoke forward to that implementation
+ * unconditionally, through libsherloshim.so's JNI layer. This class also
+ * lends that implementation two things it cannot get for itself: a way onto
+ * the main thread, and the foreground Activity. An injected native library
+ * ships no dex, so it cannot construct the Runnable every main-thread API
+ * demands. Both are mechanism, not behaviour: this class does not know the
+ * name of a single Sherlo capability beyond setMode.
  */
 public class SherloModule extends NativeSherloModuleSpec {
 
     public static final String NAME = "SherloModule";
     private final SherloModuleCore moduleCore;
 
-    /**
-     * Initializes the module with the React context and creates the core implementation.
-     *
-     * @param reactContext The React Native application context
-     */
-    public SherloModule(ReactApplicationContext reactContext) {
-        super(reactContext);
-        Activity activity = getCurrentActivity();
-        this.moduleCore = new SherloModuleCore(reactContext, activity);
+    static {
+        System.loadLibrary("sherloshim");
     }
 
-    /**
-     * Returns the name of this module for React Native.
-     *
-     * @return The module name ("SherloModule")
-     */
+    private static WeakReference<ReactApplicationContext> hostContext;
+    private static final Handler mainHandler = new Handler(Looper.getMainLooper());
+
+    static native String nativeGetSherloConstants();
+    static native boolean nativeReportEarlyJsError(String name, String message, String stack);
+    static native void nativeAppendFile(String path, String content, Object promise);
+    static native void nativeReadFile(String path, Object promise);
+    static native void nativeInvoke(String name, String argsJson, Object promise);
+    static native String nativeInvokeSync(String name, String argsJson);
+    static native void nativeRunUiTask(long fnPtr, long ctxPtr);
+
+    public SherloModule(ReactApplicationContext reactContext) {
+        super(reactContext);
+        hostContext = new WeakReference<>(reactContext);
+        this.moduleCore = new SherloModuleCore(reactContext);
+    }
+
     @Override
-    @NonNull
     public String getName() {
         return NAME;
     }
 
+    /** LENT SERVICE: the only door onto the app's main thread. */
+    static void postToMainThread(long fnPtr, long ctxPtr) {
+        mainHandler.post(() -> nativeRunUiTask(fnPtr, ctxPtr));
+    }
+
+    /** LENT SERVICE: the foreground Activity, or null if none is resumed. */
+    static Activity currentActivity() {
+        ReactApplicationContext ctx = hostContext != null ? hostContext.get() : null;
+        return ctx != null ? ctx.getCurrentActivity() : null;
+    }
+
     /**
-     * Exposes constants to JavaScript, including mode, config, and state information.
-     *
-     * @return A map of constants for the JavaScript side
+     * Settling is routed back through Java because the implementation finishes
+     * on whichever thread its work ended on, and a Promise is easier to settle
+     * correctly from Java than from JNI.
+     */
+    static void resolvePromise(Object promise, String json) {
+        if (promise instanceof Promise) {
+            ((Promise) promise).resolve(json);
+        }
+    }
+
+    static void rejectPromise(Object promise, String code, String message) {
+        if (promise instanceof Promise) {
+            ((Promise) promise).reject(code, message);
+        }
+    }
+
+    /**
+     * SYNCHRONOUS, same as invokeSync's setMode: the implementation wins when
+     * registered - nativeGetSherloConstants() returns null when
+     * sherlo-shim-jni.cpp's resolveImpl() found nothing to pull in, which is
+     * this method's signal to fall back to SherloModuleCore's own pre-main
+     * read instead.
      */
     @Override
     public WritableMap getSherloConstants() {
-        return moduleCore.getSherloConstants();
-    }
-
-    // ==== Storybook Methods ====
-
-    /**
-     * Toggles between Storybook and default mode.
-     */
-    @Override
-    public void toggleStorybook() {
-        moduleCore.toggleStorybook();
+        String fromImpl = nativeGetSherloConstants();
+        WritableMap parsed = fromImpl != null ? parseSherloConstantsJson(fromImpl) : null;
+        return parsed != null ? parsed : moduleCore.getSherloConstants();
     }
 
     /**
-     * Explicitly switches to Storybook mode.
+     * The implementation's getSherloConstants answer is a JSON object encoded
+     * as a string (see ios/SherloImplV1.h's identical contract) with exactly
+     * the four keys SherloModuleCore.getSherloConstants() also produces.
+     * Returns null on any malformed input so the caller falls back to Core.
      */
-    @Override
-    public void openStorybook() {
-        moduleCore.openStorybook();
+    private static WritableMap parseSherloConstantsJson(String json) {
+        try {
+            JSONObject obj = new JSONObject(json);
+            WritableMap map = Arguments.createMap();
+            map.putString("mode", obj.isNull("mode") ? null : obj.getString("mode"));
+            map.putString("config", obj.isNull("config") ? null : obj.getString("config"));
+            map.putString("lastState", obj.isNull("lastState") ? null : obj.getString("lastState"));
+            map.putString("nativeVersion", obj.isNull("nativeVersion") ? null : obj.getString("nativeVersion"));
+            return map;
+        } catch (JSONException e) {
+            return null;
+        }
     }
 
-    /**
-     * Explicitly switches to default mode.
-     */
-    @Override
-    public void closeStorybook() {
-        moduleCore.closeStorybook();
-    }
-
-    // ==== Error Reporting ====
-
-    /**
-     * Sends a native error by writing a NATIVE_ERROR JSON line to protocol.sherlo.
-     *
-     * @param errorCode The error code
-     * @param message Human-readable error description
-     */
-    @Override
-    public void sendNativeError(String errorCode, String message, String dataJson) {
-        moduleCore.sendNativeError(errorCode, message, dataJson);
-    }
-
-    /**
-     * Synchronously writes a JS_ERROR entry for module-eval errors caught by the metro __r polyfill.
-     */
+    /** Must never throw: it runs when nothing else is guaranteed to work. */
     @Override
     public boolean reportEarlyJsError(String name, String message, String stack) {
-        return moduleCore.reportEarlyJsError(name, message, stack);
+        try {
+            return nativeReportEarlyJsError(name, message, stack);
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
-    // ==== File System Methods ====
+    @Override
+    public void appendFile(String path, String base64Content, Promise promise) {
+        nativeAppendFile(path, base64Content, promise);
+    }
+
+    @Override
+    public void readFile(String path, Promise promise) {
+        nativeReadFile(path, promise);
+    }
+
+    @Override
+    public void invoke(String name, String argsJson, Promise promise) {
+        nativeInvoke(name, argsJson, promise);
+    }
 
     /**
-     * Appends base64 encoded content to a file.
+     * The implementation wins when present, so a test run can behave
+     * differently from a developer toggle. The builtin is the FALLBACK, not an
+     * override - see SherloModuleCore.builtin().
      *
-     * @param filename The name of the file to append to
-     * @param base64Content The base64 encoded content to append
-     * @param promise Promise to resolve when the operation is complete
+     * An implementation that does not know a name is not an error here - the
+     * shim may still handle it. That is what lets a NEWER customer binary
+     * work with an OLDER implementation.
      */
     @Override
-    public void appendFile(String filename, String base64Content, Promise promise) {
-        moduleCore.appendFile(filename, base64Content, promise);
+    public String invokeSync(String name, String argsJson) {
+        String fromImpl = nativeInvokeSync(name, argsJson);
+        if (!fromImpl.contains("UNKNOWN_METHOD") && !fromImpl.contains("sherlo_no_implementation")) {
+            return fromImpl;
+        }
+        String builtin = moduleCore.builtin(name, argsJson);
+        return builtin != null ? builtin : fromImpl;
     }
-
-    /**
-     * Reads a file and returns its content as a base64 encoded string.
-     *
-     * @param filename The name of the file to read
-     * @param promise Promise to resolve with the file content
-     */
-    @Override
-    public void readFile(String filename, Promise promise) {
-        moduleCore.readFile(filename, promise);
-    }
-
-    // ==== Inspector Methods ====
-
-    /**
-     * Gets UI inspector data from the current view hierarchy.
-     *
-     * @param promise Promise to resolve with the inspector data
-     */
-    @Override
-    public void getInspectorData(Promise promise) {
-        Activity activity = getCurrentActivity();
-        moduleCore.getInspectorData(activity, promise);
-    }
-
-    /**
-     * Checks if the UI is stable by comparing consecutive screenshots.
-     *
-     * @param requiredMatches The number of consecutive matching screenshots needed
-     * @param minScreenshotsCount The minimum number of screenshots to take when checking for stability
-     * @param intervalMs The interval between each screenshot in milliseconds
-     * @param timeoutMs The overall timeout in milliseconds
-     * @param saveScreenshots Whether to save screenshots to the file system
-     * @param threshold Matching threshold (0.0 to 1.0); smaller values are more sensitive
-     * @param includeAA If false, ignore anti-aliased pixels when counting differences
-     * @param promise Promise to resolve with true if UI becomes stable, false if timeout occurs
-     */
-    @Override
-    public void stabilize(double requiredMatches, double minScreenshotsCount, double intervalMs, double timeoutMs, boolean saveScreenshots, double threshold, boolean includeAA, Promise promise) {
-        Activity activity = getCurrentActivity();
-        moduleCore.stabilize(activity, (int)requiredMatches, (int)minScreenshotsCount, (int)intervalMs, (int)timeoutMs, saveScreenshots, threshold, includeAA, promise);
-    }
-
-    /**
-     * Native paint barrier: resolves once a real frame is committed,
-     * or false if timeoutMs elapses first.
-     *
-     * @param timeoutMs Cap on how long to wait for a frame commit (ms)
-     * @param promise Promise to resolve with true on frame commit, false on timeout
-     */
-    @Override
-    public void awaitFrameCommit(double timeoutMs, Promise promise) {
-        Activity activity = getCurrentActivity();
-        moduleCore.awaitFrameCommit(activity, (int)timeoutMs, promise);
-    }
-
-    /**
-     * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
-     *
-     * @param promise Promise to resolve with boolean (true if scrollable, false otherwise)
-     */
-    @Override
-    public void isScrollable(Promise promise) {
-        Activity activity = getCurrentActivity();
-        moduleCore.isScrollable(activity, promise);
-    }
-
-    /**
-     * Deterministically scrolls to a checkpoint index.
-     *
-     * @param index The checkpoint index (0-based)
-     * @param offset The vertical offset per checkpoint (in pixels)
-     * @param maxIndex The maximum allowed index
-     */
-    @Override
-    public void scrollToCheckpoint(double index, double offset, double maxIndex, Promise promise) {
-        Activity activity = getCurrentActivity();
-        moduleCore.scrollToCheckpoint(activity, index, offset, maxIndex, promise);
-    }
-
-    /**
-     * Cancel signal for the native NOT_DISPLAYED watchdog timer.
-     * Called from JS getStorybook() to indicate Storybook is being used.
-     */
-    @Override
-    public void notifyGetStorybookCalled() {
-        SherloInitProvider.setGetStorybookCalled();
-        SherloInitProvider.cancelStorybookNotDisplayedTimer();
-    }
-
 }

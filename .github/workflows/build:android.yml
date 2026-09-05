@@ -12,6 +12,45 @@ on:
         required: true
         type: string
         description: 'Build profile to use (development, preview)'
+      libs_ref:
+        description: >-
+          Build the @sherlo/* client libraries from sherlo-api@<this ref> instead
+          of downloading the published canon. Empty (the default) keeps the canon
+          and is byte-identical to not passing it at all.
+
+          WHY IT EXISTS: packages/cli's source on an integration branch can depend
+          on lib changes that the published dev-stage canon predates, so its build
+          fails with type errors that have nothing to do with the branch under
+          test. pr_checks.yml solves the same problem for pull requests.
+
+          WHEN TO PASS IT: when the dispatched ref descends from the current
+          integration branch - today that is feature/sherlo-3, so pass
+          'feature/sherlo-3'. Pass nothing for a ref based on main.
+
+          WHY IT IS NOT AUTOMATIC: branch NAME does not tell the two apart. Of the
+          37 non-main branches on this remote, 18 descend from feature/sherlo-3 and
+          19 do not, and every prefix (epic/, lane/, feat/) contains both in
+          roughly even numbers - so any name-shaped condition is wrong for about
+          half of them, in a direction that silently swaps which libraries the
+          artifact is built against. Only the person dispatching knows.
+
+          WHEN THIS DIES: when the integration branch lands on main there is no
+          canon/source skew left to bridge, and this input and the token step it
+          gates should be deleted outright.
+        required: false
+        type: string
+        default: ''
+      pack_sdk_from_source:
+        description: >-
+          Pack packages/react-native-storybook from THIS commit into the fixture
+          instead of installing its committed sherlo-lib tarball. Off by default
+          so every artifact-producing caller keeps the frozen tarball, byte for
+          byte - flipping it changes which SDK the artifact embeds, which is a
+          delivery-model decision, not a build detail. Test-oriented callers
+          (test:device-sanity.yml) pass true.
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   android_build:
@@ -26,33 +65,73 @@ jobs:
           ref: ${{ github.ref }}
 
       - name: Set up Node.js
-        if: ${{ !inputs.skip_build }}
         uses: actions/setup-node@v4
         with:
           node-version: '24'
 
       - name: Setup Java Environment
-        if: ${{ !inputs.skip_build }}
         uses: actions/setup-java@v2
         with:
           java-version: '17'
           distribution: 'temurin'
+
+      # Minted only when a from-source libs build was actually asked for -
+      # mirrors pr_checks.yml, since GITHUB_TOKEN has no access to
+      # sherlo-io/sherlo-api (a separate private repo).
+      - name: Create GH App Token (sherlo-api clone)
+        if: inputs.libs_ref != ''
+        id: github_app_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.SHERLO_BOT_APP_ID }}
+          private_key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
 
       - name: Download Sherlo packages
         run: ./scripts/init-env.sh
         env:
           CLIENT_STAGE: dev
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          LIBS_REF: ${{ inputs.libs_ref }}
+          SHERLO_API_CLONE_TOKEN: ${{ steps.github_app_token.outputs.token }}
 
       - name: Install dependencies
         run: yarn && cd packages/cli && yarn build && cd ../react-native-storybook && yarn build
 
+      # Pack the SDK built in the step above over the fixture's tarball path, so
+      # the artifact is built from THIS commit's source instead of from the
+      # tarball frozen at the last hand re-pack (scripts/reset.sh). Gated,
+      # because turning it on for an artifact-producing caller would change
+      # which SDK that artifact embeds.
+      - name: Pack the SDK from this commit into the fixture
+        if: inputs.pack_sdk_from_source
+        run: |
+          mkdir -p testing/${{ inputs.project }}/sherlo-lib
+          cd packages/react-native-storybook
+          yarn pack --out ../../testing/${{ inputs.project }}/sherlo-lib/react-native-storybook.tgz
+
+      # The install has to match what the step above did, so both branches live
+      # here rather than in two steps that could drift apart.
+      #
+      # A `file:` tarball dependency carries a checksum in yarn.lock, so a fresh
+      # pack cannot pass --immutable. Yarn rewrites that checksum in the mutable
+      # branch, and EAS's own hardcoded --immutable install inside the build
+      # sandbox - which copies this working tree, not a git archive - then sees
+      # a lockfile that agrees with the tarball sitting beside it. This is not
+      # the failure the SDK README's tarball rationale describes: that one is a
+      # DIRECTORY reference re-packed independently in each environment, so two
+      # environments disagree. Here one job packs once and regenerates the
+      # lockfile against those same bytes moments later, and nothing packs
+      # again.
       - name: Install project dependencies
         working-directory: testing/${{ inputs.project }}
-        run: yarn install --immutable
+        run: |
+          if [ "${{ inputs.pack_sdk_from_source }}" = "true" ]; then
+            yarn install --no-immutable
+          else
+            yarn install --immutable
+          fi
 
       - name: Setup EAS
-        if: ${{ !inputs.skip_build }}
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
@@ -61,6 +140,32 @@ jobs:
       - name: Build Android
         working-directory: testing/${{ inputs.project }}
         run: yarn build:android:${{ inputs.profile }}
+
+      # The check the build already paid for: whether the native shim actually
+      # landed in the app, and whether the seam (which only the Sherlo CLI
+      # plants) stayed out of the JS bundle. Runs on the `preview` profile
+      # only - a `development` build is a dev client that loads its JS from
+      # Metro, so it embeds no bundle for the seam half to read.
+      #
+      # WHAT IT PROVES depends on pack_sdk_from_source, and both readings are
+      # worth knowing:
+      #   true  - the fixture installed the SDK packed from THIS commit, so the
+      #           artifact contains the source under test.
+      #   false - the default, and what every artifact-producing caller uses.
+      #           The fixture installed its COMMITTED tarball, so this covers
+      #           the PACKED SDK: it still proves the fixture's own native
+      #           project links the shim into the artifact and that an ordinary
+      #           no-CLI build carries no seam, but the source side of that
+      #           invariant is gated per commit elsewhere, by
+      #           repoInvariants.test.ts in pr_checks (CMakeLists builds the
+      #           shim library, an ios/*.h declares the registration symbol, no
+      #           shipped file names private source).
+      # Either way the frozen names are read from the fixture's OWN installed
+      # copy and never re-declared here, so the check always describes the SDK
+      # that is really inside the artifact.
+      - name: Assert the artifact carries the shim and no seam
+        if: inputs.profile == 'preview'
+        run: node scripts/assert-artifact-contains-shim.mjs android testing/${{ inputs.project }} testing/${{ inputs.project }}/builds/${{ inputs.profile }}/android.apk
 
       - name: Sanitize branch name
         id: branch

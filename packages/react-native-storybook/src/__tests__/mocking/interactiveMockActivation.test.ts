@@ -4,10 +4,6 @@ vi.mock('../../SherloModule', () => ({
   },
 }));
 
-vi.mock('../../helpers/RunnerBridge', () => ({
-  default: { log: vi.fn(), send: vi.fn() },
-}));
-
 import createMockable from '../../mocking/createMockable';
 import { clearMocks, __resetShimmedKeysForTests } from '../../mocking/registry';
 import {
