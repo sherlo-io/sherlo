@@ -95,17 +95,19 @@ describe('the dry-run transcript catalog', () => {
     ).toEqual([]);
   });
 
-  it('the six committed fixture paths are UNCHANGED - the legacy suites still consume them', () => {
+  it('the six LEGACY fixture paths are UNCHANGED - the legacy suites still consume them', () => {
     // Pinned as literals, not derived from FIXTURE_ROOTS: a case that composed
     // the expected paths the same way the catalog does would agree with any
     // move of the root, which is exactly the change it exists to catch. These
     // six are consumed by suites that are still green, so moving one is a red
     // capture night, not a refactor.
-    const declared = Object.fromEntries(
-      Object.entries(DRY_RUN_TRANSCRIPTS).map(([id, scenario]) => [id, scenario.fixture])
-    );
-
-    expect(declared).toEqual({
+    //
+    // It reads the six BY ID rather than comparing the whole catalog, because
+    // those are two different claims: "these six have not moved" is a law, and
+    // "there are exactly six" was never one - the catalog is meant to grow. A
+    // missing id still reds here (it reads back as undefined), so a deletion is
+    // caught as loudly as a move.
+    const legacyFixtures = {
       'dry-run-single-platform-nothing-to-capture':
         'e2e/suites/snapshots/test-bundled/06-single-platform.spec.ts-snapshots/u4-single-platform-cli-Test-Bundled-darwin.txt',
       'dry-run-cold-start':
@@ -118,7 +120,13 @@ describe('the dry-run transcript catalog', () => {
         'e2e/suites/snapshots/test-bundled-checks/02-failure-modes.spec.ts-snapshots/f6-detached-head-cli-Test-Bundled-Checks-darwin.txt',
       'dry-run-no-git':
         'e2e/suites/snapshots/test-bundled-checks/02-failure-modes.spec.ts-snapshots/f6-no-git-cli-Test-Bundled-Checks-darwin.txt',
-    });
+    };
+
+    const declared = Object.fromEntries(
+      Object.keys(legacyFixtures).map((id) => [id, DRY_RUN_TRANSCRIPTS[id]?.fixture])
+    );
+
+    expect(declared).toEqual(legacyFixtures);
   });
 
   it('every declared root is a path RELATIVE TO THE CHECKOUT ROOT', () => {
@@ -180,13 +188,34 @@ describe('the dry-run transcript catalog', () => {
 
   it.runIf(TESTER_AVAILABLE)('every scenario names a fixture that exists', () => {
     const missing = Object.entries(DRY_RUN_TRANSCRIPTS)
-      .filter(([, s]) => !fixtureExists(s.fixture))
+      .filter(([, s]) => !s.fixtureNotMintedYet && !fixtureExists(s.fixture))
       .map(([id, s]) => `${id} -> ${s.fixture}`);
     expect(missing, 'a scenario answers for a fixture that is not in the tree').toEqual([]);
   });
 
+  it.runIf(TESTER_AVAILABLE)('a NOT-MINTED-YET marker cannot outlive the mint', () => {
+    // The whole risk of that marker is that it becomes a permanent opt-out of
+    // the byte case. It cannot: the moment `yarn tester expected-render` writes
+    // the bytes, this case reds until the marker comes off - which is what turns
+    // the scenario back into a ratcheted one. A marker is a statement about the
+    // tree, and this is what keeps it true.
+    const stale = Object.entries(DRY_RUN_TRANSCRIPTS)
+      .filter(([, s]) => s.fixtureNotMintedYet && fixtureExists(s.fixture))
+      .map(([id, s]) => `${id} -> ${s.fixture}`);
+
+    expect(
+      stale,
+      'this fixture HAS been minted, so the scenario is ratchetable now: drop ' +
+        '`fixtureNotMintedYet` and let the byte case judge it'
+    ).toEqual([]);
+  });
+
   for (const id of DRY_RUN_TRANSCRIPT_IDS) {
-    it.runIf(TESTER_AVAILABLE)(
+    // A scenario whose fixture has never been minted has nothing to be identical
+    // TO - it is the render that will create those bytes. Every other case in
+    // this file still covers it, the determinism case below included, and the
+    // staleness case above turns this one back on the moment the mint lands.
+    it.runIf(TESTER_AVAILABLE && !DRY_RUN_TRANSCRIPTS[id].fixtureNotMintedYet)(
       `${id}: renders byte-identically to its committed fixture`,
       async () => {
         const scenario = DRY_RUN_TRANSCRIPTS[id];

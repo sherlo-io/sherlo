@@ -105,6 +105,25 @@ export type TranscriptScenario = {
    * {@link FIXTURE_ROOTS} for the roots this catalog draws from.
    */
   fixture: string;
+  /**
+   * Set ONLY while {@link fixture} names a path whose bytes DO NOT EXIST YET,
+   * because this scenario is what mints them.
+   *
+   * The suite-snapshot scenarios run the other way round: a real device run
+   * wrote the fixture, a person reviewed it into git, and the ratchet proves the
+   * CLI still reproduces it. A beats chapter has no such run to wait for - its
+   * expected transcript is minted THROUGH this catalog (`yarn tester
+   * expected-render` renders the scenario and writes the file), so the path must
+   * be named here before anything is there to compare against. Without this
+   * marker that ordering is simply a red ratchet: the byte case would read a
+   * file that cannot exist until the byte case passes.
+   *
+   * It is not a way to opt out of the ratchet, and it cannot linger: the ratchet
+   * REFUSES a scenario that carries this marker once its fixture is in the tree
+   * (`dryRunTranscripts.test.ts`), so the mint that creates the bytes is also
+   * what forces the marker off and the byte case on.
+   */
+  fixtureNotMintedYet?: true;
   state: DryRunTranscriptState;
 };
 
@@ -322,6 +341,56 @@ export const DRY_RUN_TRANSCRIPTS: Record<string, TranscriptScenario> = {
       platformsToTest: BOTH_PLATFORMS,
       bundles: { android: bundleFor('android'), ios: bundleFor('ios') },
       gitInfoAvailable: false,
+      decision: { outcome: 'answered', result: firstBuildEverywhere(BOTH_PLATFORMS) },
+    },
+  },
+
+  /**
+   * THE FIRST SCENARIO THAT ANSWERS FOR A BEAT rather than for a suite snapshot,
+   * and the one the Diff Scope Closure chapter is waiting on. Everything about
+   * it was read off that chapter rather than assumed:
+   *
+   *   - the fixture path is the slot's own sidecar. The chapter is
+   *     `e2e-beats/suites/diff-scope/closure/01-asking-costs-nothing.spec.ts`,
+   *     its Playwright project is `Diff Scope Closure`, and its kept-output slot
+   *     is `first-dry-run-capture-plan` - so Playwright's default template spells
+   *     `<slot>-Diff-Scope-Closure-darwin.txt` beside the chapter, which is also
+   *     the shape the beats report's own `committedSnapshot` looks for;
+   *   - BOTH platforms, because the chapter runs a BARE `sherlo test --dry-run`
+   *     and the `test-bundled` variant's config lists a Pixel and an iPhone;
+   *   - a confident FULL capture on each, because the chapter mints its project
+   *     in `beforeAll` and asks immediately: there is no ancestor to compare
+   *     against, which is the same rung the cold start answers on;
+   *   - `skipIntro: false`, because the beats dry-run action passes no `env` to
+   *     `runSherloTest`, so the wordmark prints - and the chapter keeps stdout
+   *     only, which is what its beat attaches.
+   *
+   * WHY THE STATE IS THE COLD START'S, DELIBERATELY. This renders the same bytes
+   * as `dry-run-cold-start`, and that is the strongest thing that could be true
+   * of a fixture nothing has captured yet: those bytes are already proven, by a
+   * committed fixture a real device run against the real backend produced, to be
+   * what this CLI prints for this state on this app. The denominator is not
+   * invented either - the `test-bundled` variant's narrowed Storybook glob fixes
+   * the manifest at seven stories, which is why the plan reads "all 7".
+   */
+  'diff-scope-closure-first-dry-run': {
+    description:
+      'THE DIFF SCOPE CLOSURE SKELETON, asking what would be photographed before anything is ' +
+      'pushed. A freshly minted project on the `test-bundled` variant has no ancestor to compare ' +
+      'against, so both platforms answer with a confident full capture and the plan reads "would ' +
+      'capture all 7 stories" - the dry run\'s own verb, never the live "capturing".',
+    groundedBy: {
+      kind: 'derived',
+      fromFixture: `${FIXTURE_ROOTS.suiteSnapshots}/test-bundled/09-cold-start.spec.ts-snapshots/c3-cold-start-cli-Test-Bundled-darwin.txt`,
+    },
+    ambient: { skipIntro: false },
+    capture: 'stdout',
+    fixture: `${FIXTURE_ROOTS.beatsSnapshots}/diff-scope/closure/01-asking-costs-nothing.spec.ts-snapshots/first-dry-run-capture-plan-Diff-Scope-Closure-darwin.txt`,
+    fixtureNotMintedYet: true,
+    state: {
+      platformsToTest: BOTH_PLATFORMS,
+      bundles: { android: bundleFor('android'), ios: bundleFor('ios') },
+      gitInfoAvailable: true,
       decision: { outcome: 'answered', result: firstBuildEverywhere(BOTH_PLATFORMS) },
     },
   },
