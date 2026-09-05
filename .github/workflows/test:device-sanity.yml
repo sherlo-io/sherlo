@@ -18,6 +18,11 @@ on:
         required: false
         type: string
         default: '34'
+      libs_ref:
+        description: "Build @sherlo/* libs from sherlo-api@<ref> - pass 'feature/sherlo-3' when this ref descends from it, empty for a main-based ref"
+        required: false
+        type: string
+        default: ''
 
 jobs:
   build:
@@ -30,6 +35,7 @@ jobs:
       # This workflow exists to sanity-check the SDK at THIS commit, so it opts
       # into the pack. Artifact-producing callers deliberately do not.
       pack_sdk_from_source: true
+      libs_ref: ${{ inputs.libs_ref }}
 
   sanity:
     name: Developer-mode sanity

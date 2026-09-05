@@ -12,6 +12,34 @@ on:
         required: true
         type: string
         description: 'Build profile to use (development, preview)'
+      libs_ref:
+        description: >-
+          Build the @sherlo/* client libraries from sherlo-api@<this ref> instead
+          of downloading the published canon. Empty (the default) keeps the canon
+          and is byte-identical to not passing it at all.
+
+          WHY IT EXISTS: packages/cli's source on an integration branch can depend
+          on lib changes that the published dev-stage canon predates, so its build
+          fails with type errors that have nothing to do with the branch under
+          test. pr_checks.yml solves the same problem for pull requests.
+
+          WHEN TO PASS IT: when the dispatched ref descends from the current
+          integration branch - today that is feature/sherlo-3, so pass
+          'feature/sherlo-3'. Pass nothing for a ref based on main.
+
+          WHY IT IS NOT AUTOMATIC: branch NAME does not tell the two apart. Of the
+          37 non-main branches on this remote, 18 descend from feature/sherlo-3 and
+          19 do not, and every prefix (epic/, lane/, feat/) contains both in
+          roughly even numbers - so any name-shaped condition is wrong for about
+          half of them, in a direction that silently swaps which libraries the
+          artifact is built against. Only the person dispatching knows.
+
+          WHEN THIS DIES: when the integration branch lands on main there is no
+          canon/source skew left to bridge, and this input and the token step it
+          gates should be deleted outright.
+        required: false
+        type: string
+        default: ''
       pack_sdk_from_source:
         description: >-
           Pack packages/react-native-storybook from THIS commit into the fixture
@@ -37,23 +65,34 @@ jobs:
           ref: ${{ github.ref }}
 
       - name: Set up Node.js
-        if: ${{ !inputs.skip_build }}
         uses: actions/setup-node@v4
         with:
           node-version: '24'
 
       - name: Setup Java Environment
-        if: ${{ !inputs.skip_build }}
         uses: actions/setup-java@v2
         with:
           java-version: '17'
           distribution: 'temurin'
+
+      # Minted only when a from-source libs build was actually asked for -
+      # mirrors pr_checks.yml, since GITHUB_TOKEN has no access to
+      # sherlo-io/sherlo-api (a separate private repo).
+      - name: Create GH App Token (sherlo-api clone)
+        if: inputs.libs_ref != ''
+        id: github_app_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.SHERLO_BOT_APP_ID }}
+          private_key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
 
       - name: Download Sherlo packages
         run: ./scripts/init-env.sh
         env:
           CLIENT_STAGE: dev
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          LIBS_REF: ${{ inputs.libs_ref }}
+          SHERLO_API_CLONE_TOKEN: ${{ steps.github_app_token.outputs.token }}
 
       - name: Install dependencies
         run: yarn && cd packages/cli && yarn build && cd ../react-native-storybook && yarn build
@@ -93,7 +132,6 @@ jobs:
           fi
 
       - name: Setup EAS
-        if: ${{ !inputs.skip_build }}
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest

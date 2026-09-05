@@ -48,6 +48,11 @@ on:
         required: false
         default: false
         type: boolean
+      libs_ref:
+        description: "Build @sherlo/* libs from sherlo-api@<ref> - pass 'feature/sherlo-3' when this ref descends from it, empty for a main-based ref"
+        required: false
+        default: ''
+        type: string
 
 jobs:
   rn_preview_ios:
@@ -59,6 +64,7 @@ jobs:
       profile: 'preview'
       project: 'react-native'
       pack_sdk_from_source: ${{ inputs.pack_sdk_from_source }}
+      libs_ref: ${{ inputs.libs_ref }}
 
   rn_preview_android:
     uses: ./.github/workflows/build:android.yml
@@ -69,6 +75,7 @@ jobs:
       profile: 'preview'
       project: 'react-native'
       pack_sdk_from_source: ${{ inputs.pack_sdk_from_source }}
+      libs_ref: ${{ inputs.libs_ref }}
 
   rn_development_ios:
     uses: ./.github/workflows/build:ios.yml
@@ -79,6 +86,7 @@ jobs:
       profile: 'development'
       project: 'react-native'
       pack_sdk_from_source: ${{ inputs.pack_sdk_from_source }}
+      libs_ref: ${{ inputs.libs_ref }}
 
   rn_development_android:
     uses: ./.github/workflows/build:android.yml
@@ -89,6 +97,7 @@ jobs:
       profile: 'development'
       project: 'react-native'
       pack_sdk_from_source: ${{ inputs.pack_sdk_from_source }}
+      libs_ref: ${{ inputs.libs_ref }}
 
   expo_preview_ios:
     uses: ./.github/workflows/build:ios.yml
@@ -99,6 +108,7 @@ jobs:
       profile: 'preview'
       project: 'expo'
       pack_sdk_from_source: ${{ inputs.pack_sdk_from_source }}
+      libs_ref: ${{ inputs.libs_ref }}
 
   expo_preview_android:
     uses: ./.github/workflows/build:android.yml
@@ -109,6 +119,7 @@ jobs:
       profile: 'preview'
       project: 'expo'
       pack_sdk_from_source: ${{ inputs.pack_sdk_from_source }}
+      libs_ref: ${{ inputs.libs_ref }}
 
   expo_development_ios:
     uses: ./.github/workflows/build:ios.yml
@@ -119,6 +130,7 @@ jobs:
       profile: 'development'
       project: 'expo'
       pack_sdk_from_source: ${{ inputs.pack_sdk_from_source }}
+      libs_ref: ${{ inputs.libs_ref }}
 
   expo_development_android:
     uses: ./.github/workflows/build:android.yml
@@ -129,3 +141,4 @@ jobs:
       profile: 'development'
       project: 'expo'
       pack_sdk_from_source: ${{ inputs.pack_sdk_from_source }}
+      libs_ref: ${{ inputs.libs_ref }}
