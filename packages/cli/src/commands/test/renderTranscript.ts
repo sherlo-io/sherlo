@@ -34,6 +34,7 @@
  * against the real backend produced.
  */
 import { createHash } from 'crypto';
+import { readFileSync } from 'fs';
 import printSherloIntro from '../../helpers/printSherloIntro';
 import { captureTranscript, type CapturedTranscript } from '../../helpers/transcriptSink';
 import { degradeGitInfo, type GitInfo } from '../../helpers/getGitInfo';
@@ -50,7 +51,12 @@ import {
 import { VERDICT_TRANSCRIPTS, type VerdictTranscriptScenario } from './verdict.transcripts';
 import { renderVerdictScenarioTranscript } from './renderVerdictTranscript';
 import { VIEW_TRANSCRIPTS, type ViewTranscriptScenario } from '../view/view.transcripts';
-import { renderViewScenarioTranscript } from '../view/renderViewTranscript';
+import {
+  renderViewPoseTranscript,
+  renderViewScenarioTranscript,
+  viewPoseOutcome,
+} from '../view/renderViewTranscript';
+import { decodeViewPose, type ViewTranscriptPose } from '../view/viewPose';
 
 /**
  * Which command's transcript a scenario is.
@@ -195,13 +201,95 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
 
   const { family, scenario } = entry;
 
-  const first = await renderEntry(entry);
-  const second = await renderEntry(entry);
+  await renderTwiceAndWrite({
+    scenarioId,
+    family,
+    fixture: fixtureFor(entry),
+    grounded: groundingFor(entry),
+    command: `sherlo test --dry-run --render-transcript ${scenarioId}`,
+    capture: scenario.capture,
+    ambient: scenario.ambient,
+    // Neither a dry run nor a scripted wait creates anything or routes
+    // anything; both always complete.
+    exitCode: 0,
+    render: () => renderEntry(entry),
+  });
+}
+
+/**
+ * `sherlo test --dry-run --render-transcript-state <path|->` - THE POSE ROAD.
+ *
+ * The verb above renders a transcript the CLI ships a NAME for. This one renders
+ * a transcript the caller DESCRIBES: a JSON pose carrying the whole of one
+ * command's state (see contracts/transcript.contract.ts), so somebody prototyping
+ * what `sherlo view` would print for a build shape does not first have to get
+ * that shape into the shipped catalog - or run a real build to see it.
+ *
+ * IT IS THE SAME ROAD FROM HERE ON, and that is the point rather than an
+ * economy. The pose is decoded into the very value the catalog holds
+ * (../view/viewPose), rendered by the same producer, checked by the same two-pass
+ * determinism gate, and published under the same stderr envelope. A second
+ * renderer would be a second set of bytes to keep in step with the product, and
+ * the catalog road would stop being evidence about the pose road.
+ *
+ * Only the `view` family is posable today. The other two families script effects
+ * a pose has no vocabulary for yet - a bundler's answers, a sequence of poll
+ * responses - so `family` is checked rather than assumed, and a pose naming one
+ * of them is refused by name instead of being rendered as something else.
+ */
+export async function runRenderTranscriptState(source: string): Promise<void> {
+  const pose = readPose(source);
+  const { exitCode, capture } = viewPoseOutcome(pose);
+
+  await renderTwiceAndWrite({
+    scenarioId: POSED_SCENARIO_ID,
+    family: 'view',
+    // A posed transcript has no committed fixture BY CONSTRUCTION: it depicts a
+    // state the caller invented this second, which no capture has ever run.
+    fixture: null,
+    grounded: 'declared-pose',
+    command: `sherlo test --dry-run --render-transcript-state ${source}`,
+    // `view` prints its transcript to stdout; the one thing it can put on stderr
+    // is the not-found refusal, which is part of that pose's answer.
+    capture,
+    ambient: pose.ambient,
+    exitCode,
+    render: () => renderViewPoseTranscript(pose),
+  });
+}
+
+/* ========================================================================== */
+
+/**
+ * Render twice, refuse if the two passes disagree, then publish - the whole of
+ * what both `--render-transcript` roads do once they know WHAT to render.
+ *
+ * TWO PASSES, ALWAYS - see this file's header. It proves determinism rather than
+ * truth, and what it catches is a real-clock or ambient leak on the render path.
+ *
+ * Never returns: like every other producer verb, it ends the process so a caller
+ * reading the two streams gets exactly one transcript and one envelope. The
+ * producer itself exits 0 whenever it produced something; the RUN's exit code is
+ * a field of the envelope, because the two answer different questions.
+ */
+async function renderTwiceAndWrite(job: {
+  scenarioId: string;
+  family: TranscriptFamily;
+  fixture: string | null;
+  grounded: string;
+  command: string;
+  capture: TranscriptScenario['capture'];
+  ambient: TranscriptScenario['ambient'];
+  exitCode: number;
+  render: () => Promise<CapturedTranscript>;
+}): Promise<void> {
+  const first = await job.render();
+  const second = await job.render();
 
   if (sha256(first) !== sha256(second)) {
     console.error(
-      `REFUSING TO RENDER (reproducibility): scenario '${scenarioId}' rendered differently on two ` +
-        `passes (${sha256(first)} vs ${sha256(second)}).\n` +
+      `REFUSING TO RENDER (reproducibility): scenario '${job.scenarioId}' rendered differently on ` +
+        `two passes (${sha256(first)} vs ${sha256(second)}).\n` +
         '  A fixture the producer cannot reproduce is not a fixture, it is a coin toss. Something ' +
         'on the render path is reading a clock, a counter, or the environment.'
     );
@@ -209,16 +297,14 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
   }
 
   const envelope: TranscriptEnvelope = {
-    scenarioId,
-    family,
-    fixture: fixtureFor(entry),
-    grounded: groundingFor(entry),
-    command: `sherlo test --dry-run --render-transcript ${scenarioId}`,
-    // Neither a dry run nor a scripted wait creates anything or routes
-    // anything; both always complete.
-    exitCode: 0,
-    capture: scenario.capture,
-    ambient: scenario.ambient,
+    scenarioId: job.scenarioId,
+    family: job.family,
+    fixture: job.fixture,
+    grounded: job.grounded,
+    command: job.command,
+    exitCode: job.exitCode,
+    capture: job.capture,
+    ambient: job.ambient,
     stderr: first.stderr,
     sha256: sha256(first),
   };
@@ -226,6 +312,47 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
   process.stdout.write(first.stdout);
   process.stderr.write(`${JSON.stringify(envelope)}\n`);
   process.exit(0);
+}
+
+/**
+ * What a posed transcript is called where a catalog transcript has an id.
+ *
+ * A pose has no name - the caller wrote it a moment ago - and inventing one from
+ * its contents would let two different poses claim the same id. A fixed marker
+ * says plainly which road produced these bytes.
+ */
+const POSED_SCENARIO_ID = 'declared-pose';
+
+/** Read the pose document from a file, or from stdin when the source is `-`. */
+function readPose(source: string): ViewTranscriptPose {
+  let text: string;
+  try {
+    text = source === '-' ? readFileSync(0, 'utf8') : readFileSync(source, 'utf8');
+  } catch (error) {
+    console.error(
+      `REFUSING TO RENDER (unreadable pose): could not read ${
+        source === '-' ? 'the pose from stdin' : `'${source}'`
+      } - ${(error as Error).message}`
+    );
+    process.exit(1);
+  }
+
+  let document: unknown;
+  try {
+    document = JSON.parse(text);
+  } catch (error) {
+    console.error(
+      `REFUSING TO RENDER (unparsable pose): the pose is not JSON - ${(error as Error).message}`
+    );
+    process.exit(1);
+  }
+
+  try {
+    return decodeViewPose(document);
+  } catch (error) {
+    console.error((error as Error).message);
+    process.exit(1);
+  }
 }
 
 /* ========================================================================== */

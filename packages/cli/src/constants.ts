@@ -83,6 +83,8 @@ export const EMIT_BUNDLE_DIR_OPTION = 'emitBundleDir';
 export const DRY_RUN_OPTION = 'dryRun';
 export const EMIT_EXPECTATION_OPTION = 'emitExpectation';
 export const RENDER_TRANSCRIPT_OPTION = 'renderTranscript';
+/** Render a transcript from a caller-declared pose (see commands/view/viewPose). */
+export const RENDER_TRANSCRIPT_STATE_OPTION = 'renderTranscriptState';
 export const GIT_BRANCH_OPTION = 'gitBranch';
 export const CONFIG_OPTION = 'config';
 export const DIAGNOSTICS_OPTION = 'diagnostics';
