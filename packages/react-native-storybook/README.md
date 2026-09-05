@@ -171,14 +171,24 @@ recognises), so asserting on the artifact is the check that catches both failure
 
 ## Local Development
 
-The `testing/expo` and `testing/react-native` apps reference `@sherlo/react-native-storybook` via a **committed** pre-packed tarball at `./sherlo-lib/react-native-storybook.tgz`.
+The two testing apps reach `@sherlo/react-native-storybook` differently, and the difference is the point of each.
 
-**Why a committed tarball instead of a directory `file:` reference?**  
+### `testing/expo` - the workspace package, linked
+
+`testing/expo` declares `"@sherlo/react-native-storybook": "portal:../../packages/react-native-storybook"`, the same way it already reaches the CLI (`sherlo: portal:../../packages/cli`). Yarn symlinks the package instead of packing it, so the app under test is always *this* checkout's SDK - no re-pack step, nothing to forget to commit, and `testing/device-tests` exercises the code you just changed.
+
+A `portal:` reference records no checksum in the lockfile (it is `linkType: soft`), so EAS's hardcoded `--immutable` has nothing to disagree about. That is what makes it safe here, and it is exactly the problem a directory `file:` reference would have - see below.
+
+### `testing/react-native` - a committed tarball
+
+`testing/react-native` still references a **committed** pre-packed tarball at `./sherlo-lib/react-native-storybook.tgz`.
+
+**Why a committed tarball instead of a directory `file:` reference?**
 Yarn hashes the packed output of a directory reference at install time. TypeScript build output is not byte-identical across environments (Mac vs Linux vs EAS sandbox), so the hash recorded in the lockfile on one machine differs from the hash computed on another. EAS's `--immutable` flag (hardcoded by `eas-cli-local-build-plugin`, not overridable via `.yarnrc.yml`) then rejects the mismatch. A committed `.tgz` is hashed once - based on its file bytes, not a fresh re-pack - and travels unchanged from the git checkout into every environment, so `--immutable` always passes.
 
-**Tradeoff:** The committed tarball is frozen at the last pack time. If you change SDK source code you must re-pack, regenerate the lockfiles, and commit the updated tarball + lockfiles. CI does **not** rebuild the tarball - the checked-out tarball is the single source of truth.
+**Tradeoff:** The committed tarball is frozen at the last pack time. If you change SDK source code you must re-pack, regenerate the lockfile, and commit the updated tarball + lockfile. CI does **not** rebuild the tarball - the checked-out tarball is the single source of truth.
 
-### Rebuilding the tarball after SDK changes
+### Rebuilding `testing/react-native`'s tarball after SDK changes
 
 Run from the repo root (`sherlo/`):
 
@@ -186,24 +196,20 @@ Run from the repo root (`sherlo/`):
 # 1. Build the SDK
 yarn build  # or: cd packages/react-native-storybook && yarn build
 
-# 2. Pack it into both testing apps (overwrites the committed tarballs)
-mkdir -p testing/expo/sherlo-lib testing/react-native/sherlo-lib
-(cd packages/react-native-storybook && yarn pack --out ../../testing/expo/sherlo-lib/react-native-storybook.tgz)
-cp testing/expo/sherlo-lib/react-native-storybook.tgz testing/react-native/sherlo-lib/react-native-storybook.tgz
+# 2. Pack it into the testing app (overwrites the committed tarball)
+mkdir -p testing/react-native/sherlo-lib
+(cd packages/react-native-storybook && yarn pack --out ../../testing/react-native/sherlo-lib/react-native-storybook.tgz)
 
-# 3. Reinstall testing app deps so the lockfiles record the new tarball checksum
-(cd testing/expo && yarn install)
+# 3. Reinstall so the lockfile records the new tarball checksum
 (cd testing/react-native && yarn install)
 
-# 4. Commit the updated tarballs and lockfiles
-git add testing/expo/sherlo-lib/react-native-storybook.tgz \
-        testing/react-native/sherlo-lib/react-native-storybook.tgz \
-        testing/expo/yarn.lock \
+# 4. Commit the updated tarball and lockfile
+git add testing/react-native/sherlo-lib/react-native-storybook.tgz \
         testing/react-native/yarn.lock
-git commit -m "chore: update react-native-storybook tarball and lockfiles"
+git commit -m "chore: update react-native-storybook tarball and lockfile"
 ```
 
-Or run the full reset script (`yarn reset`) which performs steps 1–3 automatically.
+Or run the full reset script (`yarn reset`) which performs steps 1-3 automatically.
 
 ---
 

@@ -62,6 +62,15 @@ jobs:
         working-directory: testing/${{ inputs.project }}
         run: yarn build:android:${{ inputs.profile }}
 
+      # The check the build already paid for: whether the native shim actually
+      # landed in the app, and whether the seam (which only the Sherlo CLI
+      # plants) stayed out of the JS bundle. Runs on the `preview` profile
+      # only - a `development` build is a dev client that loads its JS from
+      # Metro, so it embeds no bundle for the seam half to read.
+      - name: Assert the artifact carries the shim and no seam
+        if: inputs.profile == 'preview'
+        run: node scripts/assert-artifact-contains-shim.mjs android testing/${{ inputs.project }}/builds/${{ inputs.profile }}/android.apk
+
       - name: Sanitize branch name
         id: branch
         run: echo "name=$(echo '${{ github.head_ref || github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT

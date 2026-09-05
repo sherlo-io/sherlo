@@ -1,0 +1,78 @@
+name: 'test:device-sanity'
+
+# Builds testing/expo and then runs testing/device-tests against it on an
+# emulator: install the app with nothing injected, press "Open Storybook", and
+# check that a story renders and that no Sherlo diagnostic line reached the log.
+#
+# Dispatch-only, because it costs a full native build plus an emulator boot -
+# far more than a PR check should spend. Android only: adb ships with the
+# Android SDK every runner already has, while the iOS equivalent would need a
+# UI driver this repo does not carry. The iOS shim is covered on the artifact
+# instead, by build:ios.yml's assert-artifact-contains-shim step.
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_level:
+        description: 'Android API level for the emulator'
+        required: false
+        type: string
+        default: '34'
+
+jobs:
+  build:
+    name: Build the app under test
+    uses: ./.github/workflows/build:android.yml
+    secrets: inherit
+    with:
+      project: 'expo'
+      profile: 'preview'
+
+  sanity:
+    name: Developer-mode sanity
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      # The build job names its artifact after the branch, sanitized the same
+      # way - see build:android.yml's own "Sanitize branch name" step.
+      - name: Sanitize branch name
+        id: branch
+        run: echo "name=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT
+
+      - name: Download the APK the build job produced
+        uses: actions/download-artifact@v4
+        with:
+          name: android-preview-expo-${{ steps.branch.outputs.name }}
+          path: ${{ runner.temp }}/apk
+
+      - name: Download Sherlo packages
+        run: ./scripts/init-env.sh
+        env:
+          CLIENT_STAGE: dev
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      # Without this the emulator falls back to software rendering and the boot
+      # takes long enough to time out.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Developer-mode sanity on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          SHERLO_APK_PATH: ${{ runner.temp }}/apk/android.apk
+        with:
+          api-level: ${{ inputs.api_level }}
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: yarn workspace @sherlo/device-tests test

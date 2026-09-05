@@ -2393,7 +2393,7 @@ __metadata:
     "@react-native-async-storage/async-storage": "npm:2.2.0"
     "@react-native-community/datetimepicker": "npm:8.4.4"
     "@react-native-community/slider": "npm:5.0.1"
-    "@sherlo/react-native-storybook": "file:./sherlo-lib/react-native-storybook.tgz"
+    "@sherlo/react-native-storybook": "portal:../../packages/react-native-storybook"
     "@storybook/addon-ondevice-actions": "npm:^9.1.2"
     "@storybook/addon-ondevice-backgrounds": "npm:^9.1.2"
     "@storybook/addon-ondevice-controls": "npm:^9.1.2"
@@ -2426,29 +2426,28 @@ __metadata:
     react-native-svg: "npm:15.12.1"
     react-native-turbo-image: "npm:^1.22.4"
     react-native-worklets: "npm:0.5.1"
+    sherlo: "portal:../../packages/cli"
     storybook: "npm:^9.1.19"
     tamagui: "npm:^1.126.12"
     typescript: "npm:~5.9.2"
   languageName: unknown
   linkType: soft
 
-"@sherlo/react-native-storybook@file:./sherlo-lib/react-native-storybook.tgz::locator=%40sherlo%2Fexpo%40workspace%3A.":
-  version: 2.0.1
-  resolution: "@sherlo/react-native-storybook@file:./sherlo-lib/react-native-storybook.tgz#./sherlo-lib/react-native-storybook.tgz::hash=703485&locator=%40sherlo%2Fexpo%40workspace%3A."
+"@sherlo/react-native-storybook@portal:../../packages/react-native-storybook::locator=%40sherlo%2Fexpo%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "@sherlo/react-native-storybook@portal:../../packages/react-native-storybook::locator=%40sherlo%2Fexpo%40workspace%3A."
   dependencies:
     base-64: "npm:1.0.0"
     deepmerge: "npm:4.3.1"
     its-fine: "npm:2.0.0"
-    sherlo: "npm:^2.0.1"
     utf8: "npm:3.0.0"
   peerDependencies:
     "@storybook/react-native": ">=8.0.0"
     react: "*"
-    react-native: ">=0.74.0"
+    react-native: ">=0.76.0"
     react-native-safe-area-context: "*"
-  checksum: 10/c66b244bd029d249ee64a99a54233d965ad7bd7fe9a5f1d1a0c504f213972074555a48fd2f2c4f1b87a985542ca7c1bdefbef0a1078f5273d85fc9e75ad4eec0
   languageName: node
-  linkType: hard
+  linkType: soft
 
 "@sinclair/typebox@npm:^0.27.8":
   version: 0.27.10
