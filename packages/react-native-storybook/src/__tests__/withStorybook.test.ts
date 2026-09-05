@@ -300,13 +300,14 @@ describe('generated storybook-wrapper.js - content', () => {
 describe('package.json exports map - deep-import subpaths', () => {
   const PKG_ROOT = path.resolve(__dirname, '../..');
   const pkgJson = JSON.parse(fs.readFileSync(path.join(PKG_ROOT, 'package.json'), 'utf8'));
-  const distDir = path.join(PKG_ROOT, 'dist');
-  const distBuilt = fs.existsSync(distDir);
 
-  const DEEP_IMPORTS: Array<{ subpath: string; resolvedFile: string }> = [
-    { subpath: './dist/SherloModule.js', resolvedFile: 'dist/SherloModule.js' },
-    { subpath: './dist/getStorybook/index.js', resolvedFile: 'dist/getStorybook/index.js' },
-    { subpath: './dist/addStorybookToDevMenu.js', resolvedFile: 'dist/addStorybookToDevMenu.js' },
+  // That each subpath's TARGET exists on disk is asserted for every export at
+  // once in repoInvariants.test.ts - here we only pin that the deep-import
+  // subpaths the generated wrapper requires by literal string are declared.
+  const DEEP_IMPORT_SUBPATHS = [
+    './dist/SherloModule.js',
+    './dist/getStorybook/index.js',
+    './dist/addStorybookToDevMenu.js',
   ];
 
   it('publishes every metro/ file withStorybook.js requires at runtime', () => {
@@ -327,16 +328,10 @@ describe('package.json exports map - deep-import subpaths', () => {
     expect(exports['./dist/*/index.js']).toBeUndefined();
   });
 
-  for (const { subpath, resolvedFile } of DEEP_IMPORTS) {
+  for (const subpath of DEEP_IMPORT_SUBPATHS) {
     it(`explicit export exists for ${subpath}`, () => {
       const exports = pkgJson.exports as Record<string, unknown>;
       expect(exports[subpath]).toBe(subpath);
     });
-
-    if (distBuilt) {
-      it(`dist file exists on disk: ${resolvedFile}`, () => {
-        expect(fs.existsSync(path.join(PKG_ROOT, resolvedFile))).toBe(true);
-      });
-    }
   }
 });

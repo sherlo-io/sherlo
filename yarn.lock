@@ -2961,6 +2961,15 @@ __metadata:
   languageName: node
   linkType: soft
 
+"@sherlo/device-tests@workspace:testing/device-tests":
+  version: 0.0.0-use.local
+  resolution: "@sherlo/device-tests@workspace:testing/device-tests"
+  dependencies:
+    "@types/node": "npm:^22.0.0"
+    vitest: "npm:^4.0.0"
+  languageName: unknown
+  linkType: soft
+
 "@sherlo/react-native-storybook@workspace:packages/react-native-storybook":
   version: 0.0.0-use.local
   resolution: "@sherlo/react-native-storybook@workspace:packages/react-native-storybook"
@@ -2972,6 +2981,7 @@ __metadata:
     "@types/utf8": "npm:^3.0.1"
     base-64: "npm:1.0.0"
     deepmerge: "npm:4.3.1"
+    esbuild: "npm:^0.27.0"
     its-fine: "npm:2.0.0"
     react-native-safe-area-context: "npm:4.11.0"
     terser: "npm:^5.46.0"
@@ -3508,6 +3518,15 @@ __metadata:
   version: 16.18.126
   resolution: "@types/node@npm:16.18.126"
   checksum: 10/33e0fa9209a4a96459a8fdf6b078ca9590eb67a8d51899180cfac8afecb9aa133c755d1c38a8b947b9f384f2faa184cabf4e567f5f6dded285be1b31588ec199
+  languageName: node
+  linkType: hard
+
+"@types/node@npm:^22.0.0":
+  version: 22.20.1
+  resolution: "@types/node@npm:22.20.1"
+  dependencies:
+    undici-types: "npm:~6.21.0"
+  checksum: 10/0949e49d0383569ebd1222a2f65a9adb9328a6a6dbed459a02cdb37c61147755386c004c4ffbe436de59f5859df1774b1dd6bf168f7aeee46884bb190e0c384f
   languageName: node
   linkType: hard
 
@@ -12646,6 +12665,13 @@ __metadata:
     has-symbols: "npm:^1.1.0"
     which-boxed-primitive: "npm:^1.1.1"
   checksum: 10/fadb347020f66b2c8aeacf8b9a79826fa34cc5e5457af4eb0bbc4e79bd87fed0fa795949825df534320f7c13f199259516ad30abc55a6e7b91d8d996ca069e50
+  languageName: node
+  linkType: hard
+
+"undici-types@npm:~6.21.0":
+  version: 6.21.0
+  resolution: "undici-types@npm:6.21.0"
+  checksum: 10/ec8f41aa4359d50f9b59fa61fe3efce3477cc681908c8f84354d8567bb3701fafdddf36ef6bff307024d3feb42c837cf6f670314ba37fc8145e219560e473d14
   languageName: node
   linkType: hard
 

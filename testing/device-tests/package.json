@@ -1,0 +1,12 @@
+{
+  "name": "@sherlo/device-tests",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "../../scripts/require-test-exec-optin.sh && vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "vitest": "^4.0.0"
+  }
+}
