@@ -28,6 +28,7 @@ import {
   EMIT_EXPECTATION_OPTION,
   FINGERPRINT_COMMAND,
   RENDER_TRANSCRIPT_OPTION,
+  RENDER_TRANSCRIPT_STATE_OPTION,
   GIT_BRANCH_OPTION,
   INCLUDE_OPTION,
   INIT_COMMAND,
@@ -209,6 +210,15 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
       'stderr. Pass "list" to print every scenario. Makes no build, no bundle, no network ' +
       'call. Mint captures from a world; render computes from a scenario.',
   ],
+  [RENDER_TRANSCRIPT_STATE_OPTION]: [
+    '--render-transcript-state <path>',
+    'Transcript-render mode over a pose you write (requires --dry-run): reads one ' +
+      "command's whole state - the build the read answered with, and the ambient the run " +
+      "had - from a JSON document and renders it through the CLI's OWN print path, with the " +
+      'same envelope on stderr as --render-transcript. Pass "-" to read the document from ' +
+      'stdin. Every field is required unless the wire itself makes it optional, and an ' +
+      'unknown field is refused by name rather than ignored.',
+  ],
   [MESSAGE_OPTION]: [`--${MESSAGE_OPTION} <message>`, 'Custom message to label the test'],
   [METADATA_OPTION]: [
     `--${METADATA_OPTION}`,
@@ -279,6 +289,7 @@ function addTestCommand(program: Command) {
       DRY_RUN_OPTION,
       EMIT_EXPECTATION_OPTION,
       RENDER_TRANSCRIPT_OPTION,
+      RENDER_TRANSCRIPT_STATE_OPTION,
       WAIT_OPTION,
       WAIT_TIMEOUT_OPTION,
       METADATA_OPTION,

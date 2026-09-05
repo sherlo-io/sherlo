@@ -49,7 +49,7 @@ import { emit } from '../../helpers/transcriptSink';
 import { readBuildStatus } from '../../helpers/waitForBuildResult';
 import { Options } from '../../types';
 import { THIS_COMMAND } from './constants';
-import { printBuildView } from './printBuildView';
+import { printBuildView, refuseBuildNotFound } from './printBuildView';
 
 async function view(
   buildArgument: string | undefined,
@@ -80,11 +80,7 @@ async function view(
   });
 
   if (!build) {
-    throwError({
-      message:
-        `Build #${buildIndex} does not exist in this project. ` +
-        'Check the index (it is the `b=` value of a build URL) and the token.',
-    });
+    refuseBuildNotFound(buildIndex);
   }
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });

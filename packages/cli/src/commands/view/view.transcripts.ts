@@ -33,6 +33,7 @@
  * enforcement mechanism either way: a fact this catalog scripts that the wire
  * cannot send is still a `tsc` failure, not a runtime one.
  */
+import getAppBuildUrl from '../../helpers/getAppBuildUrl';
 import type { BuildStatus } from '../../helpers/waitForBuildResult';
 
 /** Where a view scenario's values came from, and whether it is real today. */
@@ -71,8 +72,32 @@ export type ViewTranscriptScenario = {
 /** The suite these scenarios describe, so the arithmetic in each one adds up. */
 const SUITE_SIZE = 44;
 
-/** Where every scenario's link points. Fixed ids - nothing here reads a token. */
-export const SCENARIO_BUILD_URL = 'https://app.sherlo.io/build?t=tm000001&p=7&b=7';
+/**
+ * The team and project every scripted link is composed under. Fixed ids -
+ * nothing here reads a token, and no scenario needs a real one to be renderable.
+ */
+const SCENARIO_TEAM_ID = 'tm000001';
+const SCENARIO_PROJECT_INDEX = 7;
+
+/**
+ * Where a scripted transcript's link points, composed by the SHIPPED url helper
+ * rather than written out - so a change to the app's build-url shape reaches
+ * these transcripts the same day it reaches a real run.
+ *
+ * It takes the build index because a POSE may name any build (see ./viewPose),
+ * and a transcript about build 3 that linked to build 7 would be lying about the
+ * one thing in it a reader would click.
+ */
+export function scenarioBuildUrl(buildIndex: number): string {
+  return getAppBuildUrl({
+    buildIndex,
+    projectIndex: SCENARIO_PROJECT_INDEX,
+    teamId: SCENARIO_TEAM_ID,
+  });
+}
+
+/** The link every scenario in the catalog below shows - all of them are build 7. */
+export const SCENARIO_BUILD_URL = scenarioBuildUrl(7);
 
 const COVERED_BY =
   'the visible-shape gate in commands/view/__tests__/viewTranscripts.test.ts and the ' +
