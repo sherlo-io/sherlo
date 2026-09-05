@@ -126,23 +126,23 @@ void SherloShimRegisterImplV1(SherloImplV1 *impl) {
 }
 
 - (void)appendFile:(NSString *)path
-          content:(NSString *)content
-          resolve:(RCTPromiseResolveBlock)resolve
-           reject:(RCTPromiseRejectBlock)reject
+     base64Content:(NSString *)base64Content
+           resolve:(RCTPromiseResolveBlock)resolve
+            reject:(RCTPromiseRejectBlock)reject
 {
   SherloImplV1 *impl = gImpl.load(std::memory_order_acquire);
   if (impl == NULL) {
     reject(@"sherlo_no_implementation", @"the shim is present but nothing was injected", nil);
     return;
   }
-  impl->appendFile(path ?: @"", content ?: @"",
+  impl->appendFile(path ?: @"", base64Content ?: @"",
                    ^(NSString *value) { resolve(value); },
                    ^(NSString *code, NSString *message) { reject(code, message, nil); });
 }
 
 - (void)readFile:(NSString *)path
-        resolve:(RCTPromiseResolveBlock)resolve
-         reject:(RCTPromiseRejectBlock)reject
+         resolve:(RCTPromiseResolveBlock)resolve
+          reject:(RCTPromiseRejectBlock)reject
 {
   SherloImplV1 *impl = gImpl.load(std::memory_order_acquire);
   if (impl == NULL) {
