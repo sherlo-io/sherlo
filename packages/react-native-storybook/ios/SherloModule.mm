@@ -39,11 +39,6 @@ static void SherloEarlyInit(void) {
     return YES;
 }
 
-// Specifies the dispatch queue on which the module's methods should be executed.
-- (dispatch_queue_t)methodQueue {
-    return RCTGetUIManagerQueue();
-}
-
 // ---------------------------------------------------------------------------
 // The dispatch table.
 // ---------------------------------------------------------------------------
