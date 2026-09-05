@@ -15,41 +15,49 @@
 //      never by the Metro plugin alone - so an ordinary app build like this
 //      one must not carry it.
 //
-// The frozen names are read from the package that was actually built into the
-// artifact (packages/react-native-storybook), never re-declared here: a
-// second copy of them could drift out of sync with what the shim emits.
+// The frozen names are never re-declared here - a second copy could drift out
+// of sync with what the shim actually emits. They are read from the SDK copy
+// the fixture installed and built against, inside its own node_modules, not
+// from packages/react-native-storybook: the fixture installs the SDK from a
+// committed tarball, which by design lags the workspace between re-packs, and
+// this check must judge the artifact against the version that is really in it.
 //
-// Usage: node scripts/assert-artifact-contains-shim.mjs <android|ios> <artifact path>
-//   android  <artifact> is the .apk
-//   ios      <artifact> is the .tar.gz the build uploads (a packed .app)
+// Usage:
+//   node scripts/assert-artifact-contains-shim.mjs <android|ios> <fixture dir> <artifact>
+//     <fixture dir>  the app that produced the artifact, e.g. testing/expo
+//     <artifact>     android: the .apk; ios: the .tar.gz the build uploads (a packed .app)
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
 
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const CONSTANTS_PATH = path.join(REPO_ROOT, 'packages/react-native-storybook/dist/constants.js');
-
-const [platform, artifactPath] = process.argv.slice(2);
+const [platform, fixtureDir, artifactPath] = process.argv.slice(2);
 
 if (platform !== 'android' && platform !== 'ios') {
   fail(`first argument must be "android" or "ios", got ${JSON.stringify(platform)}`);
 }
+if (!fixtureDir || !existsSync(fixtureDir)) {
+  fail(`no fixture directory at ${fixtureDir}`);
+}
 if (!artifactPath || !existsSync(artifactPath)) {
   fail(`no artifact at ${artifactPath}`);
 }
-if (!existsSync(CONSTANTS_PATH)) {
+
+const constantsPath = path.resolve(
+  fixtureDir,
+  'node_modules/@sherlo/react-native-storybook/dist/constants.js'
+);
+if (!existsSync(constantsPath)) {
   fail(
-    `${CONSTANTS_PATH} is missing - build the SDK (yarn build in ` +
-      'packages/react-native-storybook) before checking an artifact built from it'
+    `${constantsPath} is missing - install ${fixtureDir}'s dependencies so the SDK the ` +
+      'artifact was built against is on disk, then check the artifact'
   );
 }
 
 const { ANDROID_SHIM_LIBRARY_NAME, IOS_SHIM_REGISTRATION_SYMBOL, SEAM_VERSION_GATE_REGEX } =
-  createRequire(import.meta.url)(CONSTANTS_PATH);
+  createRequire(import.meta.url)(constantsPath);
 
 if (platform === 'android') {
   assertAndroid(artifactPath);

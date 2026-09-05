@@ -45,12 +45,11 @@ yarn build
 echo "✓ All packages built"
 echo ""
 
-# testing/expo links the workspace package directly (portal:), so it needs no
-# tarball. testing/react-native still installs one from ./sherlo-lib.
-echo "Packing react-native-storybook SDK for testing/react-native..."
-mkdir -p "$APP_ROOT_DIR/testing/react-native/sherlo-lib"
-(cd "$APP_ROOT_DIR/packages/react-native-storybook" && yarn pack --out ../../testing/react-native/sherlo-lib/react-native-storybook.tgz)
-echo "✓ SDK packed to testing/react-native/sherlo-lib/react-native-storybook.tgz"
+echo "Packing react-native-storybook SDK..."
+mkdir -p "$APP_ROOT_DIR/testing/expo/sherlo-lib" "$APP_ROOT_DIR/testing/react-native/sherlo-lib"
+(cd "$APP_ROOT_DIR/packages/react-native-storybook" && yarn pack --out ../../testing/expo/sherlo-lib/react-native-storybook.tgz)
+cp "$APP_ROOT_DIR/testing/expo/sherlo-lib/react-native-storybook.tgz" "$APP_ROOT_DIR/testing/react-native/sherlo-lib/react-native-storybook.tgz"
+echo "✓ SDK packed to testing/*/sherlo-lib/react-native-storybook.tgz"
 echo ""
 
 echo "Installing dependencies for testing/expo..."

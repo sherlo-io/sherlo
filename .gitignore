@@ -20,6 +20,9 @@ builds/
 testing/**/android/.kotlin/
 
 sherlo-lib/
+!testing/expo/sherlo-lib/
+testing/expo/sherlo-lib/*
+!testing/expo/sherlo-lib/react-native-storybook.tgz
 !testing/react-native/sherlo-lib/
 testing/react-native/sherlo-lib/*
 !testing/react-native/sherlo-lib/react-native-storybook.tgz

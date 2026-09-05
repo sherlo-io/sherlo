@@ -27,6 +27,9 @@ jobs:
     with:
       project: 'expo'
       profile: 'preview'
+      # This workflow exists to sanity-check the SDK at THIS commit, so it opts
+      # into the pack. Artifact-producing callers deliberately do not.
+      pack_sdk_from_source: true
 
   sanity:
     name: Developer-mode sanity
