@@ -11,6 +11,7 @@ import {
   EAS_BUILD_SCRIPT_NAME_OPTION,
   EMIT_EXPECTATION_OPTION,
   RENDER_TRANSCRIPT_OPTION,
+  RENDER_TRANSCRIPT_STATE_OPTION,
   GIT_BRANCH_OPTION,
   INCLUDE_OPTION,
   INIT_COMMAND,
@@ -146,6 +147,13 @@ type CommandOptions = {
      * ../commands/test/renderTranscript.
      */
     [RENDER_TRANSCRIPT_OPTION]?: string;
+    /**
+     * Transcript-render mode over a CALLER-DECLARED pose (requires --dry-run):
+     * reads one command's whole state from a JSON document and renders the bytes
+     * that state produces, then exits - no bundling, no build, no network. The
+     * document's shape is contracts/transcript.contract.ts. `-` reads stdin.
+     */
+    [RENDER_TRANSCRIPT_STATE_OPTION]?: string;
   };
   /**
    * `sherlo view` takes no options of its own: the build it looks at is a

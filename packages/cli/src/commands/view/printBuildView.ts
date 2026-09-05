@@ -1,5 +1,6 @@
 import { buildViewMetadataJson } from '../../helpers/buildDetails';
 import printResultsUrl from '../../helpers/printResultsUrl';
+import throwError from '../../helpers/throwError';
 import { emit } from '../../helpers/transcriptSink';
 import type { BuildStatus } from '../../helpers/waitForBuildResult';
 
@@ -60,4 +61,38 @@ export function printBuildView({
 
   emit({ kind: 'blank-line' });
   printResultsUrl(url);
+}
+
+/**
+ * What `sherlo view` says about a build index the backend does not know, and the
+ * end of that run.
+ *
+ * It lives beside the print path rather than inside ./view for the same reason
+ * the print path itself does: it is one of the two things the command can produce
+ * from one read, so a producer that renders the command's transcripts has to be
+ * able to reach it without dragging in token resolution and config validation.
+ */
+export function refuseBuildNotFound(buildIndex: number): never {
+  throwError({
+    message:
+      `Build #${buildIndex} does not exist in this project. ` +
+      'Check the index (it is the `b=` value of a build URL) and the token.',
+  });
+}
+
+/**
+ * The bytes {@link refuseBuildNotFound} puts on stderr, for a caller that wants
+ * the refusal's TEXT rather than the refusal.
+ *
+ * It gets them by letting the refusal happen and reading the message off it, so
+ * the label, the colour and the trailing newline all come from the CLI's own
+ * error formatter. A second copy of that formatting here is exactly the drift
+ * this whole layer exists to rule out.
+ */
+export function buildNotFoundRefusal(buildIndex: number): string {
+  try {
+    refuseBuildNotFound(buildIndex);
+  } catch (error) {
+    return (error as Error).message;
+  }
 }
