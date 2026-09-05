@@ -110,3 +110,20 @@ describe('repo invariant - the iOS shim implements the selectors the spec genera
     expect(implemented).toContain(selector);
   });
 });
+
+/**
+ * The shim must take React Native's own dedicated TurboModule queue, not
+ * override it. Leaving `methodQueue` unimplemented makes
+ * `RCTTurboModuleManager` fall back to its `_sharedModuleQueue` - a serial
+ * queue that exists solely to run native-module methods. Overriding it to
+ * return `RCTGetUIManagerQueue()` instead puts every Sherlo native call on
+ * the Shadow Queue, the same queue reanimated, gesture-handler and svg use
+ * for their own shadow-tree work, so Sherlo calls queue up behind whatever
+ * those libraries are doing.
+ */
+describe('repo invariant - the iOS shim takes React Native’s own TurboModule queue', () => {
+  it('SherloModule.mm declares no methodQueue override', () => {
+    const shimSource = fs.readFileSync(SHIM_PATH, 'utf8');
+    expect(shimSource).not.toMatch(/-\s*\(dispatch_queue_t\)\s*methodQueue/);
+  });
+});
