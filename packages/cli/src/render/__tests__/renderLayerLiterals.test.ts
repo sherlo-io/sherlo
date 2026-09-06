@@ -667,6 +667,39 @@ const PINS: Pin[] = [
       ['Typography - Scales   review-required  two baselines (#2, #4)'],
     ],
   },
+
+  /* -------------------- project create -------------------- */
+
+  {
+    kind: 'project-created',
+    what: "everything `sherlo project create` prints - and the shape that keeps the project token OFF a key=value line, because those lines exist for CI to scrape and a secret must not be put on that journey",
+    segment: {
+      kind: 'project-created',
+      project: {
+        name: 'Design System',
+        index: 12,
+        projectToken: 'pppppppppppppppppppppppppppppppp team1234 12',
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[32m✔${ESC}[39m  Created project ${ESC}[1mDesign System${ESC}[22m`],
+      [''],
+      ['projectIndex=12'],
+      ['projectName=Design System'],
+      [''],
+      [
+        `${ESC}[33mProject token - shown once. Store it now; it cannot be shown again.${ESC}[39m`,
+      ],
+      [''],
+      ['  pppppppppppppppppppppppppppppppp team1234 12'],
+      [''],
+      [
+        `${ESC}[2mUse it as the \`token\` in sherlo.config.json, or as SHERLO_TOKEN in CI.${ESC}[22m`,
+      ],
+      [''],
+    ],
+  },
 ];
 
 /**
