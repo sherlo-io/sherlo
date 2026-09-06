@@ -392,8 +392,9 @@ function readPose(source: string): DeclaredPose {
     if (family === 'project-create') return decodeProjectCreatePose(document);
     if (family === 'view' || family === undefined) return decodeViewPose(document);
     console.error(
-      `REFUSING TO RENDER (unknown pose family): '${String(family)}' is not a family this CLI can ` +
-        "render. Posable families: 'view', 'project-create'."
+      `REFUSING TO RENDER (unknown pose family): '${String(
+        family
+      )}' is not a family this CLI can ` + "render. Posable families: 'view', 'project-create'."
     );
     process.exit(1);
   } catch (error) {

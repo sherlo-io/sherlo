@@ -51,7 +51,9 @@ export function decodeProjectCreatePose(document: unknown): ProjectCreateTranscr
     refusals.push('project.index: expected an integer');
   }
   if (typeof project.projectToken !== 'string' || project.projectToken.length === 0) {
-    refusals.push('project.projectToken: expected a non-empty string (mask it in the pose - the bytes are what is rendered, and a real token in a committed pose is a leaked token)');
+    refusals.push(
+      'project.projectToken: expected a non-empty string (mask it in the pose - the bytes are what is rendered, and a real token in a committed pose is a leaked token)'
+    );
   }
 
   const ambient = (doc.ambient ?? {}) as Record<string, unknown>;
