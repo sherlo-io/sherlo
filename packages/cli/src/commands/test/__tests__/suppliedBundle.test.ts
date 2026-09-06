@@ -204,6 +204,11 @@ function scriptedBundle(
 
   return {
     bundlePath,
+    // Matches the mocked detectEntryFile('index.js') above: this fixture
+    // stands in for buildBundleForPlatform's real result, which is
+    // generateSherloEntry's output when the SDK exposes it, and
+    // detectEntryFile's raw value when it does not (or here, scripted).
+    entryFile: 'index.js',
     bundleFormat: 'plain-js',
     bundleSizeMb: parseFloat((buffer.length / (1024 * 1024)).toFixed(2)),
     bundleHash: 'irrelevant-the-emitter-rehashes',
@@ -575,7 +580,10 @@ describe('a sidecar that does not match is refused by field', () => {
 
   it('refuses a changed babel config, by name', async () => {
     await emit(['android']);
-    write('babel.config.js', 'module.exports = { presets: ["module:metro-react-native-babel-preset"] };');
+    write(
+      'babel.config.js',
+      'module.exports = { presets: ["module:metro-react-native-babel-preset"] };'
+    );
 
     const error = await refusalFrom('android');
 
@@ -584,11 +592,16 @@ describe('a sidecar that does not match is refused by field', () => {
 
   it('refuses a changed dependency set, by name', async () => {
     await emit(['android']);
-    write('package.json', JSON.stringify({ dependencies: { 'react-native': '0.76.0', lodash: '4.17.21' } }));
+    write(
+      'package.json',
+      JSON.stringify({ dependencies: { 'react-native': '0.76.0', lodash: '4.17.21' } })
+    );
 
     const error = await refusalFrom('android');
 
-    expect(error.message).toMatch(/dependencies: the dependencies declared in package\.json differ/);
+    expect(error.message).toMatch(
+      /dependencies: the dependencies declared in package\.json differ/
+    );
   });
 
   it('reports the dependency SOURCE change on its own, since two sources cannot be compared', async () => {

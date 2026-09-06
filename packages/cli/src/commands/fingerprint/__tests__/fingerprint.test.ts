@@ -58,7 +58,7 @@ function yarnLock(packages: Record<string, string>): string {
   const blocks = Object.entries(packages).map(
     ([name, version]) => `${name}@^${version}:\n  version "${version}"\n`
   );
-  return `# yarn lockfile v1\n\n\n${blocks.join("\n")}`;
+  return `# yarn lockfile v1\n\n\n${blocks.join('\n')}`;
 }
 
 /** A bare project with a lockfile and one app source file. */
@@ -120,11 +120,9 @@ describe('sherlo fingerprint', () => {
 
     const lines = output().split('\n');
     expect(lines[0]).toBe('native        layer1-hash');
-    expect(lines[1]).toMatch(/^dependencies  [0-9a-f]{64}$/);
-    expect(lines[2]).toMatch(
-      /^js            not computed \(needs a module manifest; pass --bundle-dir/
-    );
-    expect(lines[3]).toMatch(/^base          [0-9a-f]{64}$/);
+    expect(lines[1]).toMatch(/^dependencies {2}[0-9a-f]{64}$/);
+    expect(lines[2]).toMatch(/^js {12}not computed \(needs a module manifest; pass --bundle-dir/);
+    expect(lines[3]).toMatch(/^base {10}[0-9a-f]{64}$/);
     expect(process.exitCode).toBeUndefined();
   });
 
@@ -164,7 +162,7 @@ describe('sherlo fingerprint', () => {
 
     await fingerprint({ projectRoot: dir, bundleDir, write: documentPath });
 
-    expect(output()).toMatch(/^js android    [0-9a-f]{64}$/m);
+    expect(output()).toMatch(/^js android {4}[0-9a-f]{64}$/m);
     const document = JSON.parse(fs.readFileSync(documentPath, 'utf8'));
     expect(document.js.android.fileCount).toBe(1);
     expect(document.js.android.files).toEqual([
@@ -289,7 +287,11 @@ describe('sherlo fingerprint', () => {
       logSpy.mockClear();
 
       // A lockfile edit that resolves nothing new moves only the base layer.
-      writeText(dir, 'yarn.lock', `${yarnLock({ react: '18.2.0', 'left-pad': '1.3.0' })}# edited\n`);
+      writeText(
+        dir,
+        'yarn.lock',
+        `${yarnLock({ react: '18.2.0', 'left-pad': '1.3.0' })}# edited\n`
+      );
       mockCreateFingerprintAsync.mockResolvedValue({
         ...EXPO_FINGERPRINT,
         hash: 'layer1-hash-2',

@@ -21,7 +21,6 @@ import fs from 'fs';
 import path from 'path';
 import { Platform } from '@sherlo/api-types';
 import { emit } from '../../helpers/transcriptSink';
-import { detectEntryFile } from '../../commands/showError/detectBundler';
 import type { BaseFingerprintResult, GateMetadataInput } from '../../helpers/fingerprint';
 import { FALLBACK_LINE as SHARED_FALLBACK_LINE } from './stagedGateRefusal';
 import { buildBundleForPlatform, buildGateMetadata, type BundleResult } from './buildBundle';
@@ -133,7 +132,11 @@ export async function emitBundleDir({
         sizeBytes: bundleBuffer.length,
         format: result.bundleFormat,
         bundler: result.bundler,
-        entryFile: detectEntryFile(projectRoot),
+        // The Sherlo-generated entry buildBundleForPlatform actually pointed
+        // the bundler at, not a fresh detectEntryFile(projectRoot) - the two
+        // must record the SAME value, and re-deriving here would silently
+        // drop the seam requires from the recorded entry.
+        entryFile: result.entryFile,
       },
       assets: {
         dir: result.assetsDest ? assetsDirName(platform) : null,

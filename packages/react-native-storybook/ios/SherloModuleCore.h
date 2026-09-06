@@ -2,17 +2,13 @@
 #import <React/RCTBridgeModule.h>
 
 @class FileSystemHelper;
-@class InspectorHelper;
-@class ConfigHelper;
-@class LastStateHelper;
-@class KeyboardHelper;
-@class StabilityHelper;
 @class RCTBridge;
 
 /**
- * Core implementation for Sherlo's React Native module.
- * Manages application modes (default, storybook, testing) and provides
- * functionality for file operations, UI inspection, and UI stability testing.
+ * The shim's own state: the pre-main config read and the developer-path mode
+ * switch. Everything that used to run after JS existed (screenshots, settle,
+ * scroll, inspector data) has moved to the injected implementation - see
+ * SherloModule.mm's dispatch table.
  */
 @interface SherloModuleCore : NSObject
 
@@ -22,137 +18,23 @@
  */
 - (instancetype)init;
 
-/** Returns the current mode string (e.g. 'default', 'testing', 'storybook'). */
-+ (NSString *)currentMode;
-
-/** Records that getStorybook() was called; prevents the NOT_DISPLAYED timer from firing. */
-+ (void)setGetStorybookCalled;
-
-/** Cancels the pending NOT_DISPLAYED watchdog timer. Safe to call even after it fired. */
-+ (void)cancelStorybookNotDisplayedTimer;
-
 /**
- * Returns constants exposed to the JavaScript side
- * @return Dictionary with mode, config, and lastState
+ * Returns constants derived entirely from the pre-main read: mode/config as
+ * this device's OWN files on disk determine them, with nothing injected. This
+ * is the shim's fallback answer - see SherloModule.mm's getSherloConstants,
+ * which prefers a registered implementation's own synchronous answer first.
+ * @return Dictionary with mode, config, lastState and nativeVersion
  */
 - (NSDictionary *)getSherloConstants;
 
 /**
- * Toggles between Storybook and default modes.
- * If in default mode, switches to Storybook mode; if in Storybook mode, switches to default mode.
- * 
- * @param bridge The React Native bridge needed for reloading
- */
-- (void)toggleStorybook:(RCTBridge *)bridge;
-
-/**
- * Switches to Storybook mode.
- * 
- * @param bridge The React Native bridge needed for reloading
- */
-- (void)openStorybook:(RCTBridge *)bridge;
-
-/**
- * Switches to default mode.
- * 
- * @param bridge The React Native bridge needed for reloading
- */
-- (void)closeStorybook:(RCTBridge *)bridge;
-
-/**
- * Writes a NATIVE_ERROR JSON line to protocol.sherlo.
- * @param errorCode The error code (e.g. ERROR_SDK_COMPATIBILITY)
- * @param message Human-readable error description
- */
-- (void)sendNativeError:(NSString *)errorCode message:(NSString *)message dataJson:(NSString *)dataJson;
-
-/**
- * Synchronously writes a JS_ERROR entry for module-eval errors caught by the metro __r polyfill.
- * Must never throw. Returns YES on success, NO on failure.
- */
-- (BOOL)reportEarlyJsError:(NSString *)name message:(NSString *)message stack:(NSString *)stack;
-
-/**
- * Appends base64 encoded content to a file
- * @param filename Name of the file
- * @param content Base64 encoded content to append
- * @param resolve Promise resolver
- * @param reject Promise rejecter
- */
-- (void)appendFile:(NSString *)filename withContent:(NSString *)content resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
-
-/**
- * Reads a file and returns its content as base64
- * @param filename Name of the file to read
- * @param resolve Promise resolver
- * @param reject Promise rejecter
- */
-- (void)readFile:(NSString *)filename resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
-
-/**
- * Gets inspector data from the current UI hierarchy
- * @param resolve Promise resolver
- * @param reject Promise rejecter
- */
-- (void)getInspectorData:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
-
-/**
- * Checks if the UI is stable by comparing screenshots
- * @param requiredMatches Number of matching screenshots needed
- * @param minScreenshotsCount Minimum number of screenshots to take when checking for stability
- * @param intervalMs Interval between checks in milliseconds
- * @param timeoutMs Maximum time to wait in milliseconds
- * @param saveScreenshots Whether to save screenshots to filesystem during tests
- * @param threshold Matching threshold (0.0 to 1.0); smaller values are more sensitive
- * @param includeAA If false, ignore anti-aliased pixels when counting differences
- * @param resolve Promise resolver
- * @param reject Promise rejecter
- */
-- (void)stabilize:(double)requiredMatches
-        minScreenshotsCount:(double)minScreenshotsCount
-        intervalMs:(double)intervalMs
-        timeoutMs:(double)timeoutMs
-        saveScreenshots:(BOOL)saveScreenshots
-        threshold:(double)threshold
-        includeAA:(BOOL)includeAA
-        resolve:(RCTPromiseResolveBlock)resolve
-        reject:(RCTPromiseRejectBlock)reject;
-
-/**
- * Native paint barrier: forces a redraw and resolves on the next
- * real display frame, capped at timeoutMs.
- * @param timeoutMs Cap on how long to wait for a frame (ms)
- * @param resolve Promise resolver called with @YES on frame commit, @NO on timeout
- * @param reject Promise rejecter (unused; the barrier is best-effort)
- */
-- (void)awaitFrameCommit:(double)timeoutMs
-                 resolve:(RCTPromiseResolveBlock)resolve
-                  reject:(RCTPromiseRejectBlock)reject;
-
-/**
- * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
- * Uses read-only view inspection: finds a primary scroll container, checks scroll metrics,
- * and validates with a small programmatic nudge that is immediately restored.
+ * The developer path: set the mode and, when requested, reload the JS context.
+ * Deliberately mechanical - no policy, because policy frozen at a customer's
+ * build can never be corrected.
  *
- * @param resolve Promise resolver called with boolean (true if scrollable, false otherwise)
- * @param reject Promise rejecter called if an error occurs
+ * @param mode One of 'default', 'storybook', 'testing'
+ * @param reload Whether to trigger a JS reload after setting the mode
  */
- - (void)isScrollable:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
+- (void)setMode:(NSString *)mode reload:(BOOL)reload;
 
-/**
- * Deterministically scrolls the currently visible screen to a specific checkpoint offset.
- * Used for stitching long screenshots.
- *
- * @param index The checkpoint index (0-based)
- * @param offset The vertical offset per checkpoint (in pixels/points)
- * @param maxIndex The maximum allowed index
- * @param resolve Promise resolver called with scroll result metrics
- * @param reject Promise rejecter called if an error occurs
- */
-- (void)scrollToCheckpoint:(double)index
-                    offset:(double)offset
-                  maxIndex:(double)maxIndex
-                   resolve:(RCTPromiseResolveBlock)resolve
-                    reject:(RCTPromiseRejectBlock)reject;
-
-@end 
+@end

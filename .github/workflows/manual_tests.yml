@@ -155,6 +155,12 @@ jobs:
           CLIENT_STAGE: dev
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
+      # See pr_checks.yml: three suites judge the BUILT package, so dist/ has
+      # to exist before the suite runs.
+      - name: Build the SDK (three suites judge the built package)
+        working-directory: packages/react-native-storybook
+        run: yarn build
+
       - name: Unit tests
         working-directory: packages/react-native-storybook
         env:

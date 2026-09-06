@@ -1,6 +1,6 @@
 /**
  * The single path for installing ONE story's merged mock set, shared by both
- * activation entry points: the testing-capture path (TestingMode.tsx) and the
+ * activation entry points: the private capture-mode path (moved to sherlo-runner) and the
  * interactive initial-story path (interactiveMockActivation.ts). Routing both
  * through here means global-level mocks can never activate in one but not the other.
  *

@@ -1,6 +1,6 @@
 /**
- * Interactive-mode counterpart to the testing-mode activation wired in TestingMode.tsx:
- * whenever the user picks a different story in Storybook's UI, install that story's
+ * Interactive-mode counterpart to the private capture-mode activation (moved to
+ * sherlo-runner): whenever the user picks a different story in Storybook's UI, install that story's
  * merged mock set before it renders, and clear it when Storybook is torn down.
  *
  * CHANNEL / EVENT-NAME CHOICE

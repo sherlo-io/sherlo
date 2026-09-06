@@ -68,6 +68,17 @@ jobs:
       - name: Typecheck
         run: yarn tsc --noEmit -p ${{ matrix.package.dir }}
 
+      # THE BUILT-PACKAGE GATE, react-native-storybook only. Three suites judge
+      # the package a customer installs rather than the source tree
+      # (customerApi, mocking/emittedShims, repoInvariants), so dist/ has to
+      # exist before `yarn test`. One explicit step rather than a lazy
+      # per-file build: a missing dist/ is then a red step with a name, not a
+      # confusing test failure.
+      - name: Build the SDK (three suites judge the built package)
+        if: matrix.package.name == 'react-native-storybook'
+        working-directory: ${{ matrix.package.dir }}
+        run: yarn build
+
       # THE PACKAGED-BUILD GATE, cli only - the command the e2e suites run when a
       # run is dispatched with `cli_ref=<this branch>`. A ref whose packaged build
       # fails kills EVERY e2e run that names it, at install, before a single test

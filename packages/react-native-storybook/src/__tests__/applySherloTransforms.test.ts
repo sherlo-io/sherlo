@@ -86,6 +86,77 @@ describe('applySherloTransforms - native marker files for ERROR_STORYBOOK_DISABL
 });
 
 // ---------------------------------------------------------------------------
+// Optional peers, scoped to the seam
+// ---------------------------------------------------------------------------
+
+describe('applySherloTransforms - optional-peer empty-module branch (scoped to the seam)', () => {
+  const seamPath = require.resolve('../../src/seam.js');
+
+  function fakeContextThatThrows(originModulePath: string) {
+    return {
+      originModulePath,
+      resolveRequest: () => {
+        throw new Error('module not found');
+      },
+    };
+  }
+
+  it('a request from the SEAM for an unresolvable optional peer resolves to an empty module', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-optional-peer-seam-'));
+    const result = applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: true });
+
+    const resolved = result.resolver.resolveRequest(
+      fakeContextThatThrows(seamPath),
+      'expo-dev-menu',
+      'android'
+    );
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
+    expect(resolved).toEqual({ type: 'empty' });
+  });
+
+  it("the SAME unresolvable optional peer from the customer's own code still throws - only the seam is exempted", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-optional-peer-customer-'));
+    const result = applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: true });
+
+    expect(() =>
+      result.resolver.resolveRequest(
+        fakeContextThatThrows('/project/src/SomeCustomerFile.tsx'),
+        'expo-dev-menu',
+        'android'
+      )
+    ).toThrow('module not found');
+
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('a non-optional-peer request from the seam is unaffected (falls through to the normal resolve path)', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-optional-peer-nonpeer-'));
+    const result = applySherloTransforms(
+      {
+        projectRoot: tmpDir,
+        resolver: {
+          resolveRequest: (_ctx: unknown, name: string) => ({
+            type: 'sourceFile',
+            filePath: `/resolved/${name}`,
+          }),
+        },
+      },
+      { enabled: true }
+    );
+
+    const resolved = result.resolver.resolveRequest(
+      { originModulePath: seamPath, resolveRequest: () => ({ type: 'empty' }) },
+      'react',
+      'android'
+    );
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
+    expect((resolved as { filePath: string }).filePath).toBe('/resolved/react');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // generateWrapper export
 // ---------------------------------------------------------------------------
 
@@ -379,7 +450,7 @@ describe('applySherloTransforms – module manifest sidecar (enabled)', () => {
 
   it('writes module-manifest.json with per-module hashes keyed by source path + a header', () => {
     const { manifest } = emitAndRead();
-    expect(manifest.version).toBe(1);
+    expect(manifest.version).toBe(2);
     expect(typeof manifest.header).toBe('object');
     expect('metroVersion' in manifest.header).toBe(true);
     expect('envDigest' in manifest.header).toBe(true);
@@ -387,6 +458,30 @@ describe('applySherloTransforms – module manifest sidecar (enabled)', () => {
     // Every source module is hashed with a sha256 (64 hex chars), keyed by source path.
     expect(manifest.moduleHashes['./src/Button.tsx']).toMatch(/^[0-9a-f]{64}$/);
     expect(manifest.moduleHashes['./src/shared/Label.tsx']).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('header carries seamVersion (frozen) and platform (from SHERLO_MODULE_MANIFEST_PLATFORM)', () => {
+    const previous = process.env.SHERLO_MODULE_MANIFEST_PLATFORM;
+    process.env.SHERLO_MODULE_MANIFEST_PLATFORM = 'ios';
+    try {
+      const { manifest } = emitAndRead();
+      expect(manifest.header.seamVersion).toBe(1);
+      expect(manifest.header.platform).toBe('ios');
+    } finally {
+      if (previous === undefined) delete process.env.SHERLO_MODULE_MANIFEST_PLATFORM;
+      else process.env.SHERLO_MODULE_MANIFEST_PLATFORM = previous;
+    }
+  });
+
+  it('header.platform is null when SHERLO_MODULE_MANIFEST_PLATFORM is unset', () => {
+    const previous = process.env.SHERLO_MODULE_MANIFEST_PLATFORM;
+    delete process.env.SHERLO_MODULE_MANIFEST_PLATFORM;
+    try {
+      const { manifest } = emitAndRead();
+      expect(manifest.header.platform).toBeNull();
+    } finally {
+      if (previous !== undefined) process.env.SHERLO_MODULE_MANIFEST_PLATFORM = previous;
+    }
   });
 
   it('story closure is the transitive forward dependency set (reached through require.context)', () => {

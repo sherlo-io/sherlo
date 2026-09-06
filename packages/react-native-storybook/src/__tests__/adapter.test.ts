@@ -5,7 +5,6 @@ vi.mock('../SherloModule', () => ({
 }));
 
 import { enumerateStories } from '../storybook/adapter';
-import prepareSnapshots from '../getStorybook/components/TestingMode/useTestAllStories/prepareSnapshots';
 import type { StorybookView } from '../types';
 
 // ---------------------------------------------------------------------------
@@ -63,24 +62,6 @@ describe('enumerateStories – importPath bridge (Diff Scope)', () => {
     expect(storyMetas).toHaveLength(1);
     // importPath comes from _storyIndex.entries[id].importPath for auto-titled stories
     expect(storyMetas[0].importPath).toBe('./src/AutoBtn.stories.tsx');
-  });
-
-  it('propagates importPath into the Snapshot sent in the START payload', () => {
-    const fileExports = {
-      default: { title: 'Components/Badge' },
-      Default: {},
-    };
-    const req = Object.assign((_filename: string) => fileExports, {
-      keys: () => ['./Badge.stories.tsx'],
-    });
-    (globalThis as any).STORIES = [{ directory: './src', req }];
-
-    const view = { _storyIndex: { entries: {} } } as unknown as StorybookView;
-    const storyMetas = enumerateStories(view);
-    const snapshots = prepareSnapshots({ storyMetas });
-
-    expect(snapshots).toHaveLength(1);
-    expect(snapshots[0].importPath).toBe('./src/Badge.stories.tsx');
   });
 });
 
@@ -324,23 +305,8 @@ describe('enumerateStories – auto-titled stories (component: without title:)',
       disableScrollCapture: true,
     });
 
-    // Non-sherlo story-level params must also survive - consumed inside the
-    // SDK (TestingMode.tsx, useTestStory.tsx) to suppress SafeAreaProvider
+    // Non-sherlo story-level params must also survive - consumed by the private
+    // capture loop (reused through the seam) to suppress SafeAreaProvider.
     expect(meta.parameters.noSafeArea).toBe(true);
-
-    // Verify the full-pipeline artifact (prepareSnapshots) also carries them
-    const snapshots = prepareSnapshots({ storyMetas });
-    expect(snapshots).toHaveLength(1);
-    const snap = snapshots[0];
-
-    // sherloParameters is what the runner directly consumes
-    expect(snap.sherloParameters).toMatchObject({
-      platform: 'android',
-      exclude: true,
-      disableScrollCapture: true,
-    });
-
-    // parameters.noSafeArea is consumed in-SDK
-    expect(snap.parameters.noSafeArea).toBe(true);
   });
 });

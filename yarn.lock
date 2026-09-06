@@ -2961,6 +2961,15 @@ __metadata:
   languageName: node
   linkType: soft
 
+"@sherlo/device-tests@workspace:testing/device-tests":
+  version: 0.0.0-use.local
+  resolution: "@sherlo/device-tests@workspace:testing/device-tests"
+  dependencies:
+    "@types/node": "npm:^22.0.0"
+    vitest: "npm:^4.0.0"
+  languageName: unknown
+  linkType: soft
+
 "@sherlo/react-native-storybook@workspace:packages/react-native-storybook":
   version: 0.0.0-use.local
   resolution: "@sherlo/react-native-storybook@workspace:packages/react-native-storybook"
@@ -2972,16 +2981,17 @@ __metadata:
     "@types/utf8": "npm:^3.0.1"
     base-64: "npm:1.0.0"
     deepmerge: "npm:4.3.1"
+    esbuild: "npm:^0.27.0"
     its-fine: "npm:2.0.0"
     react-native-safe-area-context: "npm:4.11.0"
-    sherlo: "npm:^2.0.2"
+    terser: "npm:^5.46.0"
     typescript: "npm:^5.3.3"
     utf8: "npm:3.0.0"
     vitest: "npm:^4.0.0"
   peerDependencies:
     "@storybook/react-native": ">=8.0.0"
     react: "*"
-    react-native: ">=0.74.0"
+    react-native: ">=0.76.0"
     react-native-safe-area-context: "*"
   languageName: unknown
   linkType: soft
@@ -3508,6 +3518,15 @@ __metadata:
   version: 16.18.126
   resolution: "@types/node@npm:16.18.126"
   checksum: 10/33e0fa9209a4a96459a8fdf6b078ca9590eb67a8d51899180cfac8afecb9aa133c755d1c38a8b947b9f384f2faa184cabf4e567f5f6dded285be1b31588ec199
+  languageName: node
+  linkType: hard
+
+"@types/node@npm:^22.0.0":
+  version: 22.20.1
+  resolution: "@types/node@npm:22.20.1"
+  dependencies:
+    undici-types: "npm:~6.21.0"
+  checksum: 10/0949e49d0383569ebd1222a2f65a9adb9328a6a6dbed459a02cdb37c61147755386c004c4ffbe436de59f5859df1774b1dd6bf168f7aeee46884bb190e0c384f
   languageName: node
   linkType: hard
 
@@ -11557,7 +11576,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sherlo@npm:^2.0.2, sherlo@workspace:packages/cli":
+"sherlo@workspace:packages/cli":
   version: 0.0.0-use.local
   resolution: "sherlo@workspace:packages/cli"
   dependencies:
@@ -12177,6 +12196,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"terser@npm:^5.46.0":
+  version: 5.51.2
+  resolution: "terser@npm:5.51.2"
+  dependencies:
+    "@jridgewell/source-map": "npm:^0.3.3"
+    acorn: "npm:^8.15.0"
+    commander: "npm:^2.20.0"
+    source-map-support: "npm:~0.5.20"
+  bin:
+    terser: bin/terser
+  checksum: 10/1cb6f4189eba6406ef3aad5356ce1441bfe5ab419b5e66a1054db254fd92ce881d6c4718097621044c777922282640397104fb22e651974245bbabd5e138f3d9
+  languageName: node
+  linkType: hard
+
 "test-exclude@npm:^6.0.0":
   version: 6.0.0
   resolution: "test-exclude@npm:6.0.0"
@@ -12632,6 +12665,13 @@ __metadata:
     has-symbols: "npm:^1.1.0"
     which-boxed-primitive: "npm:^1.1.1"
   checksum: 10/fadb347020f66b2c8aeacf8b9a79826fa34cc5e5457af4eb0bbc4e79bd87fed0fa795949825df534320f7c13f199259516ad30abc55a6e7b91d8d996ca069e50
+  languageName: node
+  linkType: hard
+
+"undici-types@npm:~6.21.0":
+  version: 6.21.0
+  resolution: "undici-types@npm:6.21.0"
+  checksum: 10/ec8f41aa4359d50f9b59fa61fe3efce3477cc681908c8f84354d8567bb3701fafdddf36ef6bff307024d3feb42c837cf6f670314ba37fc8145e219560e473d14
   languageName: node
   linkType: hard
 

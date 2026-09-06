@@ -6,6 +6,12 @@ var crypto = require('crypto');
 
 var mockShims = require('./mockShims');
 
+// Keep in sync with src/seam.js's `seamVersion` / `__SHERLO_SEAM_VERSION__` -
+// applySherloTransforms.js runs at Metro config load, in plain Node, and must
+// not require seam.js directly (it requires 'react-native' at module scope,
+// which is not meaningful outside a bundle).
+var SEAM_VERSION = 1;
+
 // ---------------------------------------------------------------------------
 // Module path helper (shared by the Diff Scope module manifest)
 // ---------------------------------------------------------------------------
@@ -253,11 +259,18 @@ function buildManifestHeader(projectRoot) {
     .update(stableStringify(env))
     .digest('hex');
 
+  // seamVersion and platform ride here (Diff Scope): this is the one carrier
+  // already emitted on every road and already uploaded alongside the bundle.
+  // platform arrives via SHERLO_MODULE_MANIFEST_PLATFORM, set by the CLI
+  // beside SHERLO_MODULE_MANIFEST in the same bundler subprocess env - Metro
+  // config load has no other way to know which platform it is building.
   return {
     metroVersion: metroVersion,
     babelConfigDigest: babelConfigDigest,
     envDigest: envDigest,
     envKeys: envKeys,
+    seamVersion: SEAM_VERSION,
+    platform: process.env.SHERLO_MODULE_MANIFEST_PLATFORM || null,
   };
 }
 
@@ -373,7 +386,8 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
     }
 
     var manifest = {
-      version: 1,
+      // Bumped from 1: the header now carries seamVersion and platform.
+      version: 2,
       header: header,
       moduleHashes: moduleHashes,
       storyClosures: storyClosures,
@@ -490,6 +504,31 @@ function applySherloTransforms(result, opts) {
     return !!absPath && !!mocksDir && absPath.indexOf(mocksDir + path.sep) === 0;
   }
 
+  // ---- Optional peers, scoped to the seam ----
+  //
+  // The seam (src/seam.js) reaches for these inside a bare `try { require(x) }
+  // catch {}`, which Metro's own isOptionalDependency rule already exempts from
+  // build-time resolution failures on every config this repo's fixtures cover
+  // (SDK inventory spike finding: "optional peers are not optional to Metro"
+  // does not reproduce here). This branch is the guard for a config that has
+  // turned that Metro option OFF: resolving to an empty module restores the
+  // seam's intent (absent means absent) without changing what a customer's own
+  // import of the same package does - that import must still fail loudly, so
+  // the branch is scoped to requests whose ORIGIN is the seam itself.
+  var seamPath = require.resolve('../src/seam.js');
+  var OPTIONAL_PEERS = {
+    'react/jsx-runtime': true,
+    'react-native-safe-area-context': true,
+    'its-fine': true,
+    deepmerge: true,
+    '@storybook/react-native-theming': true,
+    'expo-dev-menu': true,
+    'expo-constants': true,
+    'expo-splash-screen': true,
+    'react-native-splash-screen': true,
+    'react-native-bootsplash': true,
+  };
+
   var existingResolveRequest =
     result && result.resolver && result.resolver.resolveRequest
       ? result.resolver.resolveRequest
@@ -508,6 +547,14 @@ function applySherloTransforms(result, opts) {
 
     if (moduleName === '@storybook/react-native') {
       return { type: 'sourceFile', filePath: wrapperPath };
+    }
+
+    if (OPTIONAL_PEERS[moduleName] === true && context.originModulePath === seamPath) {
+      try {
+        return delegateResolve(context, moduleName, platform);
+      } catch (_) {
+        return { type: 'empty' };
+      }
     }
 
     var resolution = delegateResolve(context, moduleName, platform);

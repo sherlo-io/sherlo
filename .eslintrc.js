@@ -5,6 +5,11 @@ module.exports = {
     'react-native/no-inline-styles': 'off',
     'react/react-in-jsx-scope': 'off',
     curly: ['error', 'multi-line'],
+    // The suites are vitest, not jest, and vitest's expect takes a second
+    // argument: the message shown when the assertion fails. The rule still
+    // catches a genuinely malformed expect - it just has to know the real
+    // maximum is two.
+    'jest/valid-expect': ['warn', { maxArgs: 2 }],
     // Allow the _name convention for intentionally-unused destructured bindings
     '@typescript-eslint/no-unused-vars': [
       'error',
