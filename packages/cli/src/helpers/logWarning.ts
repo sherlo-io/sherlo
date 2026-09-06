@@ -1,16 +1,7 @@
-import chalk from 'chalk';
-import printLink from './printLink';
+import { emit } from './transcriptSink';
 
 function logWarning({ learnMoreLink, message }: { message: string; learnMoreLink?: string }): void {
-  const warningMessage = chalk.yellow(`WARNING: ${message}`);
-
-  const lines = [warningMessage];
-
-  if (learnMoreLink) {
-    lines.push(chalk.dim(`↳ Learn more: ${printLink(learnMoreLink)}`));
-  }
-
-  console.log(lines.join('\n'));
+  emit({ kind: 'notice', level: 'warning', message, ...(learnMoreLink ? { learnMoreLink } : {}) });
 }
 
 export default logWarning;

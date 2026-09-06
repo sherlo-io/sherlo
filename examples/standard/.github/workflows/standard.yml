@@ -151,10 +151,11 @@ jobs:
         with:
           merge-multiple: true
 
-      # Uses 'test:standard' mode (standard / eas-update / eas-cloud-build)
+      # Build paths make this a full run: the binaries are tested and registered
+      # as the native base, so a later run with no build paths can test JS alone.
       - name: 🧪 Run Sherlo test
         run: |
-          npx sherlo test:standard \
+          npx sherlo test \
             --android android.apk \
             --ios ios.tar.gz \
             --token ${{ secrets.SHERLO_TOKEN }}

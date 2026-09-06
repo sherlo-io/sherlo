@@ -1,5 +1,7 @@
+import fs from 'fs';
 import { Build } from '@sherlo/api-types';
 import runShellCommand from './runShellCommand';
+import { emit } from './transcriptSink';
 
 /**
  * Git metadata captured for a build.
@@ -52,6 +54,17 @@ export type GitInfo = Build['gitInfo'] & {
   isShallow?: boolean;
   /** Whether the working tree has uncommitted changes. */
   isDirty?: boolean;
+  /**
+   * The repository's DEFAULT branch (its main line), bare - e.g. `main`.
+   *
+   * This is the repository-level fact ("which branch is this project's trunk"),
+   * never the branch being built ({@link GitInfo.branchName}). It lets the
+   * server infer a project's main line instead of guessing at a name.
+   *
+   * Captured on a best-effort basis and omitted - never guessed - when no
+   * source answers. See {@link getDefaultBranch} for each rung's honesty.
+   */
+  defaultBranch?: string;
 };
 
 /** Maximum number of ancestor SHAs captured per ancestry window. */
@@ -71,6 +84,89 @@ function isPullRequestMergeRef(): boolean {
   const refName = process.env.GITHUB_REF_NAME;
   if (!refName) return false;
   return /^\d+\/merge$/.test(refName) || refName.startsWith('gh-readonly-queue/');
+}
+
+/**
+ * The real PR-head SHA reported directly by GitHub Actions, independent of the
+ * local clone depth.
+ *
+ * On a `pull_request` event GitHub writes the triggering event's JSON payload to
+ * the file named by `GITHUB_EVENT_PATH`, and `pull_request.head.sha` in that
+ * payload is the tip of the PR branch - exactly the second parent (HEAD^2) of
+ * the synthetic `refs/pull/N/merge` commit. We read it as a shallow-clone-proof
+ * source for the PR head: on GitHub's default fetch-depth:1 checkout the merge
+ * commit's parents are grafted away, so `git rev-parse HEAD^2` can't recover
+ * this SHA locally. Returns undefined when the file or field is absent (e.g. a
+ * merge_group event, which carries no PR head).
+ */
+function getPrHeadShaFromGitHubEvent(): string | undefined {
+  const eventPath = process.env.GITHUB_EVENT_PATH;
+  if (!eventPath) return undefined;
+  try {
+    const payload = JSON.parse(fs.readFileSync(eventPath, 'utf8'));
+    const sha = payload?.pull_request?.head?.sha;
+    return typeof sha === 'string' && sha.length > 0 ? sha : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The repository's default branch as reported by GitHub Actions.
+ *
+ * The runner writes the triggering event's JSON payload to the file named by
+ * `GITHUB_EVENT_PATH` - the same road {@link getPrHeadShaFromGitHubEvent}
+ * travels - and MOST events (push, pull_request, workflow_dispatch, …) embed
+ * the full `repository` object, whose `default_branch` is the branch GitHub
+ * itself considers the project's main line. That makes this the most
+ * authoritative rung: it is the platform's own answer, and it holds even on a
+ * fetch-depth:1 checkout that carries no remote refs at all.
+ *
+ * Returns undefined when the variable, the file, or the field is absent (e.g.
+ * outside GitHub Actions, or on an event type that carries no `repository`).
+ */
+function getDefaultBranchFromGitHubEvent(): string | undefined {
+  const eventPath = process.env.GITHUB_EVENT_PATH;
+  if (!eventPath) return undefined;
+  try {
+    const payload = JSON.parse(fs.readFileSync(eventPath, 'utf8'));
+    const branch = payload?.repository?.default_branch;
+    return typeof branch === 'string' && branch.length > 0 ? branch : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Resolves the repository's default branch, most authoritative rung first:
+ *
+ * 1. **GitHub Actions event payload** - `repository.default_branch`, the
+ *    platform's own answer (see {@link getDefaultBranchFromGitHubEvent}).
+ * 2. **`git symbolic-ref refs/remotes/origin/HEAD`** - the generic, host-
+ *    agnostic fallback. That ref is written by a normal `git clone` and points
+ *    at the remote's HEAD, so on a full clone it is an honest local record of
+ *    the default branch. It is ABSENT on many CI checkouts (shallow or
+ *    `--single-branch` clones fetch no such ref, and `actions/checkout` never
+ *    writes one), in which case the command fails.
+ * 3. **undefined** - neither source answered. We never fall back to a guess
+ *    like "main"/"master": a wrong main line is worse for the server than no
+ *    main line, which it can simply treat as unknown.
+ */
+async function getDefaultBranch(projectRoot: string): Promise<string | undefined> {
+  const fromEvent = getDefaultBranchFromGitHubEvent();
+  if (fromEvent) return fromEvent;
+
+  try {
+    // e.g. "refs/remotes/origin/main" -> "main"
+    const ref = await runShellCommand({
+      command: 'git symbolic-ref refs/remotes/origin/HEAD',
+      projectRoot,
+    });
+    const branch = ref.trim().replace(/^refs\/remotes\/origin\//, '');
+    return branch.length > 0 && branch !== ref.trim() ? branch : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -185,23 +281,44 @@ async function getAdditionalGitInfo(
     }
   };
 
+  // Resolves a git revision to its SHA, returning undefined instead of throwing
+  // when the revision can't be resolved (e.g. HEAD^2 on a shallow clone whose
+  // parent objects were grafted away).
+  const safeRevParse = async (rev: string): Promise<string | undefined> => {
+    try {
+      return await runShellCommand({ command: `git rev-parse ${rev}`, projectRoot });
+    } catch {
+      return undefined;
+    }
+  };
+
   const onMergeRef = isPullRequestMergeRef();
 
-  // Determine the canonical commit SHA to anchor all ancestry queries.
-  // On a PR merge ref the real PR head is the SECOND parent (HEAD^2).
+  // On a synthetic merge-ref checkout, resolve the REAL PR head.
+  //
+  // The PR head is the second parent (HEAD^2) of the merge commit. On a full
+  // clone `git rev-parse HEAD^2` returns it directly. On GitHub's DEFAULT
+  // fetch-depth:1 shallow checkout the parent objects are grafted away and that
+  // command fails, so we fall back to the PR-head SHA GitHub records in the
+  // pull_request event payload.
+  //
+  // `prHeadCommitHash` must carry the real PR head in BOTH cases: the server
+  // keys the commit-hash GSI on it, so a wrong value (e.g. the ephemeral merge
+  // SHA) makes an approved PR build invisible to later builds. It also signals
+  // that this build originates from a synthetic merge ref - without it a
+  // canonicalised commitHash is indistinguishable from a direct push.
+  //
+  // `canonicalSha` anchors the LOCAL ancestry queries below. We only set it when
+  // the PR head actually exists in this clone (deep clone); on a shallow clone
+  // it stays undefined so those queries run against HEAD and degrade gracefully
+  // instead of failing on a grafted-away object.
   let canonicalSha: string | undefined;
-  await safe(async () => {
-    if (onMergeRef) {
-      canonicalSha = await runShellCommand({
-        command: 'git rev-parse HEAD^2',
-        projectRoot,
-      });
-      // Signal to the server that this build originates from a synthetic merge
-      // ref.  Without this field a canonicalised commitHash is indistinguishable
-      // from a direct push to the same SHA.
-      additional.prHeadCommitHash = canonicalSha;
-    }
-  });
+  if (onMergeRef) {
+    const localPrHead = await safeRevParse('HEAD^2');
+    const prHead = localPrHead ?? getPrHeadShaFromGitHubEvent();
+    if (prHead) additional.prHeadCommitHash = prHead;
+    canonicalSha = localPrHead;
+  }
 
   // Parent SHAs of the canonical commit.
   await safe(async () => {
@@ -281,6 +398,12 @@ async function getAdditionalGitInfo(
     additional.isShallow = isShallow.trim() === 'true';
   });
 
+  // defaultBranch: the repository's main line (NOT the branch being built).
+  await safe(async () => {
+    const defaultBranch = await getDefaultBranch(projectRoot);
+    if (defaultBranch) additional.defaultBranch = defaultBranch;
+  });
+
   await safe(async () => {
     const status = await runShellCommand({
       command: 'git status --porcelain',
@@ -328,14 +451,27 @@ async function getGitInfo(
 
     return { commitName, commitHash, branchName, ...additional };
   } catch (error) {
-    console.warn("Couldn't get git info", error);
-
-    return {
-      commitName: 'unknown',
-      commitHash: 'unknown',
-      branchName: 'unknown',
-    };
+    return degradeGitInfo(error);
   }
+}
+
+/**
+ * The git read failed: warn, and carry on with unknown commit/branch. The CLI
+ * never fails a run over this.
+ *
+ * Exported because it is BOTH halves of one behaviour - the warn a user sees and
+ * the values everything downstream then works from - and a scenario that scripts
+ * "this project has no git" must produce both, from here, rather than from a
+ * second author's idea of them.
+ */
+export function degradeGitInfo(error: unknown): GitInfo {
+  emit({ kind: 'git-info-unavailable', error });
+
+  return {
+    commitName: 'unknown',
+    commitHash: 'unknown',
+    branchName: 'unknown',
+  };
 }
 
 export default getGitInfo;

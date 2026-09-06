@@ -9,10 +9,10 @@ import prepareSnapshots from '../getStorybook/components/TestingMode/useTestAllS
 import type { StorybookView } from '../types';
 
 // ---------------------------------------------------------------------------
-// importPath emission (TurboSnap bridge)
+// importPath emission (Diff Scope bridge)
 // ---------------------------------------------------------------------------
 
-describe('enumerateStories – importPath bridge (TurboSnap)', () => {
+describe('enumerateStories – importPath bridge (Diff Scope)', () => {
   it('includes importPath for titled stories (primary require.context path)', () => {
     const fileExports = {
       default: { title: 'Components/Button' },

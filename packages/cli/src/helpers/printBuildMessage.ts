@@ -1,5 +1,15 @@
-import chalk from 'chalk';
+import { emit } from './transcriptSink';
 
+/**
+ * The generic `➜ ` / `✔ ` build line, for the call sites that compose their own
+ * message string (testEasCloudBuild, getBuildData).
+ *
+ * The push spine does NOT go through here any more - its two lines carry data
+ * (`binary-uploading`, `binary-reused`) so a scenario cannot hand a rendered
+ * sentence to the renderer. Both roads share the same icon-and-spacing
+ * implementation in ../render/pushSpine, so an unfixtured call site cannot drift
+ * from a fixtured one.
+ */
 function printBuildMessage({
   message,
   type,
@@ -9,13 +19,7 @@ function printBuildMessage({
   type: 'info' | 'success';
   endsWithNewLine?: boolean;
 }) {
-  const iconColor = type === 'success' ? 'green' : 'blue';
-  const icon = type === 'success' ? '✔' : '➜';
-
-  // Adding 2 spaces after the icon to align the text with section titles
-  console.log(`${chalk[iconColor](icon)}  ${message}`);
-
-  if (endsWithNewLine) console.log();
+  emit({ kind: 'build-message', message, type, ...(endsWithNewLine ? { endsWithNewLine } : {}) });
 }
 
 export default printBuildMessage;

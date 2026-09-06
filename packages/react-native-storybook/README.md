@@ -19,8 +19,12 @@ This will automatically install `@sherlo/react-native-storybook` and configure y
 ### 2. Run visual tests
 
 ```bash
-npx sherlo test
+npx sherlo test --android <path> --ios <path>
 ```
+
+That first run registers your builds as the base. After it, plain `npx sherlo
+test` tests JS-only changes with no native rebuild - and tells you when a fresh
+native build is needed.
 
 <br />
 
@@ -64,6 +68,41 @@ import { Button } from 'react-native';
 
 <Button onPress={openStorybook} title="Open Storybook" />;
 ```
+
+---
+
+## Mocking
+
+`@sherlo/react-native-storybook` can mock any module a story imports, scoped to that story. Declare mocks under `parameters.sherlo.mocks`; each key is a module specifier (an npm package, a scoped package, a subpath, or a project-root-relative app path), and each value is a factory that receives the real module and returns the exports to replace.
+
+> Mocking is experimental and **off** by default, so a normal App Store / Play Store build ships zero mocking code. Opt in per build profile by passing `experimentalMocks: true` to `withStorybook` in your Metro config. Leave it **off** (or unset) for your production build profile.
+
+```js
+// metro.config.js
+module.exports = withStorybook(config, { experimentalMocks: true });
+```
+
+```ts
+const meta = {
+  title: 'Mocking/Factories',
+  parameters: {
+    sherlo: {
+      mocks: {
+        './src/mocking/modules/factories/spread': (original) => ({
+          ...original,
+          color: 'mock-color',
+        }),
+      },
+    },
+  },
+};
+```
+
+Mocks can also be declared in a story's meta (applies to every story in the file) or globally in `.rnstorybook/preview.ts` (applies everywhere); the most specific level wins per module key. A mock only applies while its story is active in a Sherlo test run or interactive Storybook; every other screen gets the real module.
+
+A couple of things to know before you start: mocking `react`, `react-native`, `@storybook/*`, or `@sherlo/*` directly is not allowed (wrap them instead), and mocking a module for the first time needs a Metro restart before it takes effect.
+
+See the full [Module Mocking guide](https://sherlo.io/docs/stories/mocking) for factory patterns, precedence rules, module key edge cases, and known limitations.
 
 ---
 

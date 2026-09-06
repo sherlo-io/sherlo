@@ -309,6 +309,17 @@ describe('package.json exports map - deep-import subpaths', () => {
     { subpath: './dist/addStorybookToDevMenu.js', resolvedFile: 'dist/addStorybookToDevMenu.js' },
   ];
 
+  it('publishes every metro/ file withStorybook.js requires at runtime', () => {
+    // metro/ files are reached by relative require, not through the exports map,
+    // so a missing "files" entry only shows up as a broken install downstream.
+    const files = pkgJson.files as string[];
+    const metroDir = path.join(PKG_ROOT, 'metro');
+    for (const entry of fs.readdirSync(metroDir)) {
+      if (!entry.endsWith('.js')) continue;
+      expect(files).toContain('metro/' + entry);
+    }
+  });
+
   it('exports map uses explicit subpath exports (no dist/* wildcards)', () => {
     const exports = pkgJson.exports as Record<string, unknown>;
     expect(exports['./dist/*.js']).toBeUndefined();

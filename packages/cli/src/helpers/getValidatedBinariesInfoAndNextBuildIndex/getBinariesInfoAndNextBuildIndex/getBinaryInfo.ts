@@ -1,38 +1,20 @@
 import { GetNextBuildInfoReturn, Platform } from '@sherlo/api-types';
-import {
-  EAS_BUILD_ON_COMPLETE_COMMAND,
-  PLATFORM_LABEL,
-  TEST_EAS_UPDATE_COMMAND,
-} from '../../../constants';
-import { BinaryInfo, BuildType, Command, CommandParams } from '../../../types';
-import { validatePlatformPaths } from '../../shared';
+import { PLATFORM_LABEL } from '../../../constants';
+import { BinaryInfo, BuildType } from '../../../types';
 import throwError from '../../throwError';
 import getLocalBinariesInfo from './getLocalBinariesInfo';
 
-type Params = EasBuildOnCompleteCommandParams | OtherCommandParams;
-
-type BaseParams = {
+function getBinaryInfo({
+  localBinariesInfo,
+  platform,
+  platforms,
+  remoteBinariesInfoOrUploadInfo,
+}: {
   localBinariesInfo: Awaited<ReturnType<typeof getLocalBinariesInfo>>;
   platform: Platform;
   platforms: Platform[];
   remoteBinariesInfoOrUploadInfo: GetNextBuildInfoReturn['binariesInfo'];
-};
-
-type EasBuildOnCompleteCommandParams = BaseParams & {
-  command: EAS_BUILD_ON_COMPLETE_COMMAND;
-};
-type OtherCommandParams = BaseParams & {
-  command: OTHER_COMMAND;
-  commandParams: CommandParams<OTHER_COMMAND>;
-};
-
-type EAS_BUILD_ON_COMPLETE_COMMAND = typeof EAS_BUILD_ON_COMPLETE_COMMAND;
-type OTHER_COMMAND = Exclude<Command, EAS_BUILD_ON_COMPLETE_COMMAND>;
-
-function getBinaryInfo(params: Params): BinaryInfo | undefined {
-  const { command, localBinariesInfo, platform, platforms, remoteBinariesInfoOrUploadInfo } =
-    params;
-
+}): BinaryInfo | undefined {
   if (!platforms.includes(platform)) {
     return;
   }
@@ -44,8 +26,7 @@ function getBinaryInfo(params: Params): BinaryInfo | undefined {
     });
   }
 
-  // Local binary info is always required for every non TEST_EAS_UPDATE_COMMAND
-  if (!localBinariesInfo[platform] && command !== TEST_EAS_UPDATE_COMMAND) {
+  if (!localBinariesInfo[platform]) {
     throwError({
       type: 'unexpected',
       error: new Error(`${PLATFORM_LABEL[platform]} local binary info is missing`),
@@ -60,24 +41,10 @@ function getBinaryInfo(params: Params): BinaryInfo | undefined {
   };
 
   if (checkIfBinaryInfoIsMissingRequiredFields(binaryInfo)) {
-    if (command === TEST_EAS_UPDATE_COMMAND) {
-      /**
-       * For TEST_EAS_UPDATE_COMMAND, we delay platform paths validation until this stage
-       * to first check if we can reuse previously uploaded builds (from remoteBinariesInfo)
-       */
-
-      validatePlatformPaths({
-        platformsToValidate: [platform],
-        android: params.commandParams.android,
-        ios: params.commandParams.ios,
-        command,
-      });
-    } else {
-      throwError({
-        type: 'unexpected',
-        error: new Error(`${PLATFORM_LABEL[platform]} binary info is missing required fields`),
-      });
-    }
+    throwError({
+      type: 'unexpected',
+      error: new Error(`${PLATFORM_LABEL[platform]} binary info is missing required fields`),
+    });
   }
 
   if (!isValidBinaryInfo(binaryInfo)) {

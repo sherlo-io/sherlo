@@ -2,7 +2,6 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { describe, it, expect, afterEach } from 'vitest';
-import { TEST_STANDARD_COMMAND } from '../../../../../constants';
 import getLocalBinariesInfo from '../getLocalBinariesInfo';
 
 const tmpRoots: string[] = [];
@@ -31,7 +30,6 @@ describe('getLocalBinariesInfo - iOS .app directory', () => {
       paths: { ios: appDir },
       platforms: ['ios'],
       projectRoot: appDir,
-      command: TEST_STANDARD_COMMAND,
     });
 
     expect(result.ios?.sdkVersion).toBeUndefined();
@@ -49,7 +47,6 @@ describe('getLocalBinariesInfo - iOS .app directory', () => {
       paths: { ios: appDir },
       platforms: ['ios'],
       projectRoot: appDir,
-      command: TEST_STANDARD_COMMAND,
     });
 
     expect(result.ios?.sdkVersion).toBe('1.2.3');
@@ -65,7 +62,6 @@ describe('getLocalBinariesInfo - iOS .app directory', () => {
         paths: { ios: appDir },
         platforms: ['ios'],
         projectRoot: appDir,
-        command: TEST_STANDARD_COMMAND,
       })
     ).rejects.toThrow('Invalid assets/sherlo.json in iOS build');
   });

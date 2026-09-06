@@ -9,6 +9,9 @@ node_modules/
 .local-data/
 
 dist/
+# The CLI copy the GitHub Action carries (actions/carried-cli) is built by
+# scripts/build-carried-cli.sh and committed onto release refs with `git add -f`.
+# On every other ref it is absent, and the rules above keep a local build untracked.
 builds/
 *.apk
 *.app
@@ -23,6 +26,7 @@ testing/react-native/sherlo-lib/*
 !testing/react-native/sherlo-lib/react-native-storybook.tgz
 .env
 sherlo.config.json
+!examples/*/sherlo.config.json
 
 *storybook.log
 storybook-static

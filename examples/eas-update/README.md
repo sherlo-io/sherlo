@@ -1,6 +1,6 @@
 # ⚡️ EAS Update Example • Sherlo
 
-A minimal example app showing Sherlo running automated [visual regression testing for React Native](https://sherlo.io). Sherlo captures Storybook stories on iOS and Android simulators in the cloud. App binaries receive JavaScript updates over-the-air via EAS Update.
+A minimal example app showing Sherlo running automated [visual regression testing for React Native](https://sherlo.io). Sherlo captures Storybook stories on iOS and Android simulators in the cloud. App binaries are built from an EAS development profile and reused across runs; each test renders the JavaScript in the current checkout.
 
 - Sherlo integration
 - GitHub Actions workflow
@@ -9,7 +9,7 @@ A minimal example app showing Sherlo running automated [visual regression testin
 
 ## 🔄 Workflow
 
-Run visual tests using **Over-The-Air JavaScript updates** - without full app rebuilds
+Reuse app binaries across runs and rebuild natively only when native code changes
 
 ```mermaid
 flowchart TB
@@ -22,15 +22,13 @@ flowchart TB
       Android ~~~ iOS
       style Build fill:#b8885f21,stroke:#b8885fa6
    end
-   Update(⚡ OTA Update)
    Test(🧪 Run Test)
    Review(👀 Review Results)
 
    UI --> Check
    Check -->|No| Reuse
    Check -->|Yes| Build
-   Reuse & Build --> Update
-   Update --> Test
+   Reuse & Build --> Test
    Test --> Review
 ```
 
@@ -59,14 +57,11 @@ yarn install
 
 ### 2. Configure EAS (Expo)
 
-Set up EAS to build your app binaries and ship JavaScript updates:
+Set up EAS to build your app binaries:
 
 ```bash
 # Link project to your Expo account
 npx eas-cli init
-
-# Configure EAS Update for Over-The-Air updates
-npx eas-cli update:configure
 ```
 
 _💡 This example uses EAS Build; for other build tools, see our [documentation](https://sherlo.io/docs/builds?type=development-simulator#build-types)_
@@ -97,15 +92,7 @@ This token authenticates your account and links tests to your project
 
    _💡 Build once and reuse them for future test runs_
 
-2. **Publish OTA update**
-
-   Publish your JavaScript changes to EAS Update:
-
-   ```bash
-   yarn eas-update
-   ```
-
-3. **Run test**
+2. **Run test**
 
    Run Sherlo visual test with the latest JavaScript changes:
 
@@ -174,11 +161,12 @@ _💡 **Own project?** Run `npx sherlo init` to automatically integrate Sherlo i
 
 ## 📚 Learn More
 
-To learn more about **EAS Update** testing method, visit our [documentation](https://sherlo.io/docs/testing?method=eas-update#testing-methods)
+To learn more about testing with Sherlo, visit our [documentation](https://sherlo.io/docs/testing)
 
 <br />
 
 ## 🔗 Other Examples
 
 - 📦 **[Standard](../standard)** – Test app builds with bundled JavaScript
+- ⚡ **[Staged](../staged)** – Route CI to a JS-only fast lane when native is unchanged
 - ☁️ **[EAS Cloud Build](../eas-cloud-build)** – Automatically test builds created on Expo servers
