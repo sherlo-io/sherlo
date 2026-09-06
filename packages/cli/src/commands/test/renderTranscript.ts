@@ -57,6 +57,14 @@ import {
   viewPoseOutcome,
 } from '../view/renderViewTranscript';
 import { decodeViewPose, type ViewTranscriptPose } from '../view/viewPose';
+import {
+  decodeProjectCreatePose,
+  type ProjectCreateTranscriptPose,
+} from '../projectCreate/projectCreatePose';
+import {
+  projectCreatePoseOutcome,
+  renderProjectCreatePoseTranscript,
+} from '../projectCreate/renderProjectCreateTranscript';
 
 /**
  * Which command's transcript a scenario is.
@@ -74,7 +82,7 @@ import { decodeViewPose, type ViewTranscriptPose } from '../view/viewPose';
  * `sherlo test --android/--ios` runs, a push family scripting THAT state (a
  * fresh bundle and its upload slots) belongs here, grounded on those fixtures.
  */
-export type TranscriptFamily = 'dry-run' | 'verdict' | 'view';
+export type TranscriptFamily = 'dry-run' | 'verdict' | 'view' | 'project-create';
 
 /** One catalog entry, whichever family it belongs to. */
 type CatalogEntry =
@@ -239,6 +247,27 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
  */
 export async function runRenderTranscriptState(source: string): Promise<void> {
   const pose = readPose(source);
+
+  // A pose says which command it depicts, and the family is DISPATCHED on that
+  // rather than assumed. Before 2026-09-06 this road decoded every document as a
+  // `view` pose, so a `project create` beat had no way to a pane at all and ten
+  // tester chapters shipped quoting a claim they never proved.
+  if (pose.family === 'project-create') {
+    const { exitCode, capture } = projectCreatePoseOutcome();
+    await renderTwiceAndWrite({
+      scenarioId: POSED_SCENARIO_ID,
+      family: 'project-create',
+      fixture: null,
+      grounded: 'declared-pose',
+      command: `sherlo test --dry-run --render-transcript-state ${source}`,
+      capture,
+      ambient: pose.ambient,
+      exitCode,
+      render: () => renderProjectCreatePoseTranscript(pose),
+    });
+    return;
+  }
+
   const { exitCode, capture } = viewPoseOutcome(pose);
 
   await renderTwiceAndWrite({
@@ -323,8 +352,19 @@ async function renderTwiceAndWrite(job: {
  */
 const POSED_SCENARIO_ID = 'declared-pose';
 
-/** Read the pose document from a file, or from stdin when the source is `-`. */
-function readPose(source: string): ViewTranscriptPose {
+/** Every pose shape `--render-transcript-state` can be handed, by its own family tag. */
+type DeclaredPose = ViewTranscriptPose | ProjectCreateTranscriptPose;
+
+/**
+ * Read the pose document from a file, or from stdin when the source is `-`.
+ *
+ * THE FAMILY TAG IS READ FIRST and decides which decoder runs. Every pose carries
+ * one, so this is a lookup rather than a guess - and a document naming a family
+ * this CLI has no decoder for is refused BY NAME, which is the diagnosis a caller
+ * needs. Decoding everything as `view` (what this did until 2026-09-06) turned a
+ * project-create pose into a list of view-field refusals that named nothing real.
+ */
+function readPose(source: string): DeclaredPose {
   let text: string;
   try {
     text = source === '-' ? readFileSync(0, 'utf8') : readFileSync(source, 'utf8');
@@ -347,8 +387,15 @@ function readPose(source: string): ViewTranscriptPose {
     process.exit(1);
   }
 
+  const family = (document as { family?: unknown } | null)?.family;
   try {
-    return decodeViewPose(document);
+    if (family === 'project-create') return decodeProjectCreatePose(document);
+    if (family === 'view' || family === undefined) return decodeViewPose(document);
+    console.error(
+      `REFUSING TO RENDER (unknown pose family): '${String(family)}' is not a family this CLI can ` +
+        "render. Posable families: 'view', 'project-create'."
+    );
+    process.exit(1);
   } catch (error) {
     console.error((error as Error).message);
     process.exit(1);
