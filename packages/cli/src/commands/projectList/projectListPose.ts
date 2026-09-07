@@ -38,7 +38,8 @@ export function decodeProjectListPose(document: unknown): ProjectListTranscriptP
   } else {
     doc.projects.forEach((entry, at) => {
       const project = (entry ?? {}) as Record<string, unknown>;
-      if (!Number.isInteger(project.index) || (project.index as number) < 1) refusals.push(`projects[${at}].index: expected a positive integer`);
+      // Zero is a real index - a team's first project - and the plan's placeholder for one not yet allocated.
+      if (!Number.isInteger(project.index) || (project.index as number) < 0) refusals.push(`projects[${at}].index: expected a non-negative integer`);
       if (typeof project.name !== 'string' || project.name.length === 0) refusals.push(`projects[${at}].name: expected a non-empty string`);
       if (!Number.isInteger(project.buildCount) || (project.buildCount as number) < 0) refusals.push(`projects[${at}].buildCount: expected a non-negative integer`);
       if (project.mainBranch !== null && typeof project.mainBranch !== 'string') refusals.push(`projects[${at}].mainBranch: expected a string or null`);
