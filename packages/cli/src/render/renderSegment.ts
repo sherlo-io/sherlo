@@ -47,6 +47,7 @@ import {
 import { renderProjectCreated } from './projectCreated';
 import { renderTeamCreated } from './teamCreated';
 import { renderProjectList } from './projectList';
+import { renderTeamList } from './teamList';
 import type { TranscriptSegment, TranscriptStream } from './segments';
 import {
   renderVerdictCaptureAccounting,
@@ -405,6 +406,12 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return {
         stream: 'stdout',
         prints: renderProjectList(segment.list).map((line) => [line]),
+      };
+
+    case 'team-list':
+      return {
+        stream: 'stdout',
+        prints: renderTeamList(segment.list).map((line) => [line]),
       };
   }
 }

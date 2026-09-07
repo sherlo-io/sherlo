@@ -692,6 +692,30 @@ const PINS: Pin[] = [
   },
 
   {
+    kind: 'team-list',
+    what: 'everything `sherlo team list` prints - id first because it is what --team takes everywhere, counts and role dimmed as context, no teams an answer rather than an error',
+    segment: {
+      kind: 'team-list',
+      list: {
+        teams: [
+          { id: 'team_br4nch', name: 'Branching Team', projectCount: 3, role: 'owner' },
+          { id: 'team_9f3a2c', name: 'Design Guild', projectCount: 0, role: 'member' },
+        ],
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[32m✔${ESC}[39m  2 teams`],
+      [``],
+      [`  team_br4nch  Branching Team  ${ESC}[2m3 projects${ESC}[22m  ${ESC}[2mowner${ESC}[22m`],
+      [`  team_9f3a2c  Design Guild    ${ESC}[2mno projects yet${ESC}[22m  ${ESC}[2mmember${ESC}[22m`],
+      [``],
+      [`${ESC}[2mNext: \`sherlo project list --team <id>\` shows a team's projects; \`sherlo team create <name>\` adds a team.${ESC}[22m`],
+      [``],
+    ],
+  },
+
+  {
     kind: 'project-list',
     what: 'everything `sherlo project list` prints - index first because it is what every other command takes, counts and branch dimmed because they are context, and an empty team is an answer rather than an error',
     segment: {

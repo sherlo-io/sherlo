@@ -31,6 +31,7 @@ import type { DryRunPlatformPreview } from './dryRunPlan';
 import type { ProjectCreated } from './projectCreated';
 import type { TeamCreated } from './teamCreated';
 import type { ProjectList } from './projectList';
+import type { TeamList } from './teamList';
 
 /** Which of the process's two streams a segment is written to. */
 export type TranscriptStream = 'stdout' | 'stderr';
@@ -252,7 +253,9 @@ export type TranscriptSegment =
   /** The whole success output of `sherlo team create`. See ./teamCreated. */
   | { kind: 'team-created'; team: TeamCreated }
   /** The whole output of `sherlo project list`. See ./projectList. */
-  | { kind: 'project-list'; list: ProjectList };
+  | { kind: 'project-list'; list: ProjectList }
+  /** The whole output of `sherlo team list`. See ./teamList. */
+  | { kind: 'team-list'; list: TeamList };
 
 /**
  * Where rendered segments go. The CLI installs a sink that writes to the

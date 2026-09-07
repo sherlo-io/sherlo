@@ -77,6 +77,12 @@ import {
   renderProjectListPoseTranscript,
   type ProjectListTranscriptPose,
 } from '../projectList/projectListPose';
+import {
+  decodeTeamListPose,
+  renderTeamListPoseTranscript,
+  teamListPoseOutcome,
+  type TeamListTranscriptPose,
+} from '../teamList/teamListPose';
 
 /**
  * Which command's transcript a scenario is.
@@ -94,7 +100,7 @@ import {
  * `sherlo test --android/--ios` runs, a push family scripting THAT state (a
  * fresh bundle and its upload slots) belongs here, grounded on those fixtures.
  */
-export type TranscriptFamily = 'dry-run' | 'verdict' | 'view' | 'project-create' | 'team-create' | 'project-list';
+export type TranscriptFamily = 'dry-run' | 'verdict' | 'view' | 'project-create' | 'team-create' | 'project-list' | 'team-list';
 
 /** One catalog entry, whichever family it belongs to. */
 type CatalogEntry =
@@ -307,6 +313,23 @@ export async function runRenderTranscriptState(source: string): Promise<void> {
     return;
   }
 
+  if (pose.family === 'team-list') {
+    const { exitCode, capture } = teamListPoseOutcome();
+    await renderTwiceAndWrite({
+      scenarioId: POSED_SCENARIO_ID,
+      family: 'team-list',
+      fixture: null,
+      grounded: 'declared-pose',
+      command: `sherlo test --dry-run --render-transcript-state ${source}`,
+      depicts: 'sherlo team list',
+      capture,
+      ambient: pose.ambient,
+      exitCode,
+      render: () => renderTeamListPoseTranscript(pose),
+    });
+    return;
+  }
+
   if (pose.family === 'project-list') {
     const { exitCode, capture } = projectListPoseOutcome();
     await renderTwiceAndWrite({
@@ -412,7 +435,7 @@ async function renderTwiceAndWrite(job: {
 const POSED_SCENARIO_ID = 'declared-pose';
 
 /** Every pose shape `--render-transcript-state` can be handed, by its own family tag. */
-type DeclaredPose = ViewTranscriptPose | ProjectCreateTranscriptPose | TeamCreateTranscriptPose | ProjectListTranscriptPose;
+type DeclaredPose = ViewTranscriptPose | ProjectCreateTranscriptPose | TeamCreateTranscriptPose | ProjectListTranscriptPose | TeamListTranscriptPose;
 
 /**
  * Read the pose document from a file, or from stdin when the source is `-`.
@@ -451,11 +474,12 @@ function readPose(source: string): DeclaredPose {
     if (family === 'project-create') return decodeProjectCreatePose(document);
     if (family === 'team-create') return decodeTeamCreatePose(document);
     if (family === 'project-list') return decodeProjectListPose(document);
+    if (family === 'team-list') return decodeTeamListPose(document);
     if (family === 'view' || family === undefined) return decodeViewPose(document);
     console.error(
       `REFUSING TO RENDER (unknown pose family): '${String(
         family
-      )}' is not a family this CLI can ` + "render. Posable families: 'view', 'project-create', 'team-create', 'project-list'."
+      )}' is not a family this CLI can ` + "render. Posable families: 'view', 'project-create', 'team-create', 'project-list', 'team-list'."
     );
     process.exit(1);
   } catch (error) {
