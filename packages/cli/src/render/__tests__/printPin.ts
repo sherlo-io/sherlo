@@ -20,12 +20,18 @@ chalk.level = 1;
 
 const source = process.argv[2];
 if (!source) {
-  console.error('usage: npx tsx src/render/__tests__/printPin.ts \'<segment json>\'');
+  console.error("usage: npx tsx src/render/__tests__/printPin.ts '<segment json>'");
   process.exit(2);
 }
 
 const spell = (value: unknown): string =>
-  '`' + String(value).replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${').replace(/\x1b/g, '${ESC}') + '`';
+  '`' +
+  String(value)
+    .replace(/\\/g, '\\\\')
+    .replace(/`/g, '\\`')
+    .replace(/\$\{/g, '\\${')
+    .replace(/\x1b/g, '${ESC}') +
+  '`';
 
 // The package is CommonJS, so no top-level await: the render module is loaded inside main.
 void (async () => {

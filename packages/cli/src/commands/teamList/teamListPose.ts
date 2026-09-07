@@ -22,7 +22,9 @@ export function decodeTeamListPose(document: unknown): TeamListTranscriptPose {
   const refusals: string[] = [];
   const doc = (document ?? {}) as Record<string, unknown>;
 
-  if (doc.family !== 'team-list') refusals.push(`family: expected 'team-list', got ${JSON.stringify(doc.family)}`);
+  if (doc.family !== 'team-list') {
+    refusals.push(`family: expected 'team-list', got ${JSON.stringify(doc.family)}`);
+  }
 
   const teams: TeamListed[] = [];
   if (!Array.isArray(doc.teams)) {
@@ -30,24 +32,49 @@ export function decodeTeamListPose(document: unknown): TeamListTranscriptPose {
   } else {
     doc.teams.forEach((entry, at) => {
       const team = (entry ?? {}) as Record<string, unknown>;
-      if (typeof team.id !== 'string' || team.id.length === 0) refusals.push(`teams[${at}].id: expected a non-empty string`);
-      if (typeof team.name !== 'string' || team.name.length === 0) refusals.push(`teams[${at}].name: expected a non-empty string`);
-      if (!Number.isInteger(team.projectCount) || (team.projectCount as number) < 0) refusals.push(`teams[${at}].projectCount: expected a non-negative integer`);
-      if (team.role !== undefined && team.role !== null && typeof team.role !== 'string') refusals.push(`teams[${at}].role: expected a string or null`);
-      teams.push({ id: team.id as string, name: team.name as string, projectCount: team.projectCount as number, role: (team.role as string | null | undefined) ?? null });
+      if (typeof team.id !== 'string' || team.id.length === 0) {
+        refusals.push(`teams[${at}].id: expected a non-empty string`);
+      }
+      if (typeof team.name !== 'string' || team.name.length === 0) {
+        refusals.push(`teams[${at}].name: expected a non-empty string`);
+      }
+      if (!Number.isInteger(team.projectCount) || (team.projectCount as number) < 0) {
+        refusals.push(`teams[${at}].projectCount: expected a non-negative integer`);
+      }
+      if (team.role !== undefined && team.role !== null && typeof team.role !== 'string') {
+        refusals.push(`teams[${at}].role: expected a string or null`);
+      }
+      teams.push({
+        id: team.id as string,
+        name: team.name as string,
+        projectCount: team.projectCount as number,
+        role: (team.role as string | null | undefined) ?? null,
+      });
     });
   }
 
   const ambient = (doc.ambient ?? {}) as Record<string, unknown>;
-  if (typeof ambient.skipIntro !== 'boolean') refusals.push('ambient.skipIntro: expected a boolean');
+  if (typeof ambient.skipIntro !== 'boolean') {
+    refusals.push('ambient.skipIntro: expected a boolean');
+  }
 
-  if (refusals.length > 0) throw new Error(`REFUSING TO RENDER (un-renderable team-list pose):\n  ${refusals.join('\n  ')}`);
+  if (refusals.length > 0) {
+    throw new Error(
+      `REFUSING TO RENDER (un-renderable team-list pose):\n  ${refusals.join('\n  ')}`
+    );
+  }
 
-  return { family: 'team-list', ambient: { skipIntro: ambient.skipIntro as boolean }, list: { teams } };
+  return {
+    family: 'team-list',
+    ambient: { skipIntro: ambient.skipIntro as boolean },
+    list: { teams },
+  };
 }
 
 /** The PRODUCER for a posed `sherlo team list` transcript, through the shipped `team-list` segment. */
-export async function renderTeamListPoseTranscript(pose: TeamListTranscriptPose): Promise<CapturedTranscript> {
+export async function renderTeamListPoseTranscript(
+  pose: TeamListTranscriptPose
+): Promise<CapturedTranscript> {
   const previous = process.env.SKIP_INTRO;
   process.env.SKIP_INTRO = pose.ambient.skipIntro ? 'true' : 'false';
   try {
