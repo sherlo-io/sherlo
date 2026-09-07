@@ -692,6 +692,31 @@ const PINS: Pin[] = [
   },
 
   {
+    kind: 'project-list',
+    what: 'everything `sherlo project list` prints - index first because it is what every other command takes, counts and branch dimmed because they are context, and an empty team is an answer rather than an error',
+    segment: {
+      kind: 'project-list',
+      list: {
+        team: { name: 'Branching Team', id: 'team_br4nch' },
+        projects: [
+          { index: 1, name: 'Mobile App', buildCount: 128, mainBranch: 'main' },
+          { index: 2, name: 'Design System', buildCount: 0, mainBranch: null },
+        ],
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[32m✔${ESC}[39m  2 projects in team ${ESC}[1mBranching Team${ESC}[22m`],
+      [''],
+      [`  1  Mobile App     ${ESC}[2m128 builds${ESC}[22m  ${ESC}[2mmain${ESC}[22m`],
+      [`  2  Design System  ${ESC}[2mno builds yet${ESC}[22m`],
+      [''],
+      [`${ESC}[2mNext: \`sherlo project create <name> --team <id>\` adds one; \`sherlo view <build>\` opens a build.${ESC}[22m`],
+      [''],
+    ],
+  },
+
+  {
     kind: 'project-created',
     what: "everything `sherlo project create` prints - and the shape that keeps the project token OFF a key=value line, because those lines exist for CI to scrape and a secret must not be put on that journey",
     segment: {

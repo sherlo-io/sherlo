@@ -46,6 +46,7 @@ import {
 } from './pushSpine';
 import { renderProjectCreated } from './projectCreated';
 import { renderTeamCreated } from './teamCreated';
+import { renderProjectList } from './projectList';
 import type { TranscriptSegment, TranscriptStream } from './segments';
 import {
   renderVerdictCaptureAccounting,
@@ -397,6 +398,13 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return {
         stream: 'stdout',
         prints: renderTeamCreated(segment.team).map((line) => [line]),
+      };
+
+    case 'project-list':
+      // The read-side sibling of project-created: one row per project, index first.
+      return {
+        stream: 'stdout',
+        prints: renderProjectList(segment.list).map((line) => [line]),
       };
   }
 }
