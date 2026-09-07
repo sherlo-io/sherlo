@@ -45,6 +45,7 @@ import {
   PROJECT_COMMAND,
   PROJECT_CREATE_SUBCOMMAND,
   PROJECT_ROOT_OPTION,
+  NAME_OPTION,
   TEAM_OPTION,
   SHOW_ERROR_COMMAND,
   TEST_COMMAND,
@@ -258,6 +259,10 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
       `may do only what your current role on the team allows. Defaults to ${PERSONAL_TOKEN_ENV_VAR}. ` +
       `NOT the project token \`--${TOKEN_OPTION}\` takes, and deliberately not read from SHERLO_TOKEN.`,
   ],
+  [NAME_OPTION]: [
+    `--${NAME_OPTION} <name>`,
+    'The name of the project to create, as the web app will show it. Quote a name with spaces.',
+  ],
   [TEAM_OPTION]: [
     `--${TEAM_OPTION} <teamId>`,
     "The team to create the project in - the `t=` value in the web app's URL. Required: " +
@@ -419,26 +424,27 @@ function addFingerprintCommand(program: Command) {
 }
 
 /**
- * `sherlo project create <name>` - the first MANAGEMENT command, registered as a
+ * `sherlo project create --name <name>` - the first MANAGEMENT command, registered as a
  * noun-verb pair (see the COMMANDS block in ./constants for that convention).
  *
- * Wired by hand rather than through `addCommand`, for the same reason `view` is:
- * it takes a POSITIONAL argument. `project` itself is a group with no action, so
- * running it bare prints commander's own help for the group.
+ * Wired by hand rather than through `addCommand` because it hangs off a GROUP:
+ * `project` itself has no action, so running it bare prints commander's own help
+ * for the group. Every value it takes is a named flag - the name included - so
+ * nothing is read off its position after the verb.
  */
 function addProjectCommand(program: Command) {
   const projectGroup = program.command(PROJECT_COMMAND).description('Manage Sherlo projects');
 
   const createInstance = projectGroup
-    .command(`${PROJECT_CREATE_SUBCOMMAND} [name]`)
+    .command(PROJECT_CREATE_SUBCOMMAND)
     .description(COMMAND_DESCRIPTION[`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}`]);
 
-  addOptionsToCommand(createInstance, [TEAM_OPTION, PERSONAL_TOKEN_OPTION]);
+  addOptionsToCommand(createInstance, [NAME_OPTION, TEAM_OPTION, PERSONAL_TOKEN_OPTION]);
 
-  createInstance.action(async (name: string | undefined, actionOptions) => {
+  createInstance.action(async (actionOptions) => {
     setReportingContext(`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}`, actionOptions);
 
-    await projectCreate(name, actionOptions);
+    await projectCreate(actionOptions);
   });
 }
 

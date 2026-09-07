@@ -93,7 +93,7 @@ export const FINGERPRINT_COMMAND = 'fingerprint';
 export const VIEW_COMMAND = 'view';
 /** The `project` resource group. It does nothing on its own - see PROJECT_CREATE_SUBCOMMAND. */
 export const PROJECT_COMMAND = 'project';
-/** `sherlo project create <name>` - the first management operation (see the note above). */
+/** `sherlo project create --name <name>` - the first management operation (see the note above). */
 export const PROJECT_CREATE_SUBCOMMAND = 'create';
 export const FULL_INIT_COMMAND = 'npx sherlo init';
 
@@ -139,6 +139,12 @@ export const PERSONAL_TOKEN_OPTION = 'personalToken';
 export const PERSONAL_TOKEN_FLAG = 'personal-token';
 /** `sherlo project create`: which team the new project belongs to. */
 export const TEAM_OPTION = 'team';
+/**
+ * `sherlo project create`: the name of the thing being created. A NAMED FLAG RATHER THAN A
+ * POSITIONAL, so a name is never whatever happened to follow the verb (operator ruling 2026-09-07):
+ * `sherlo project create --name "Design System"`, and the same flag on every create that follows.
+ */
+export const NAME_OPTION = 'name';
 /** `sherlo fingerprint`: print every source, package and file under its layer. */
 export const VERBOSE_OPTION = 'verbose';
 /** `sherlo fingerprint`: the file to write the fingerprint document to. */

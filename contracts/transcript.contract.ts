@@ -73,7 +73,7 @@ export type ViewTranscriptPose = {
 };
 
 /**
- * Everything `sherlo project create <name>` needed in order to print what it printed.
+ * Everything `sherlo project create --name <name>` needed in order to print what it printed.
  * The values are the API's answers - the index the team allocated and the project
  * token minted once - which a plan states as what the report will show for them.
  */
@@ -89,7 +89,7 @@ export type ProjectCreateTranscriptPose = {
   };
 };
 
-/** Everything `sherlo team create <name>` needed in order to print what it printed. */
+/** Everything `sherlo team create --name <name>` needed in order to print what it printed. */
 export type TeamCreateTranscriptPose = {
   family: 'team-create';
   ambient: { skipIntro: boolean };

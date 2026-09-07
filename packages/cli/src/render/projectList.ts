@@ -30,7 +30,7 @@ export type ProjectList = {
   projects: ProjectListed[];
 };
 
-const NEXT_STEP = 'Next: `sherlo project create <name> --team <id>` adds one; `sherlo view <build>` opens a build.';
+const NEXT_STEP = 'Next: `sherlo project create --name <name> --team <id>` adds one; `sherlo view <build>` opens a build.';
 
 /** Every line the command prints on success, in order. */
 export function renderProjectList({ team, projects }: ProjectList): string[] {

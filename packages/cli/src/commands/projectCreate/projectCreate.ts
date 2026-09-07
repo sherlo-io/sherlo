@@ -1,5 +1,5 @@
 /**
- * `sherlo project create <name> --team <teamId>` - the CLI's first MANAGEMENT
+ * `sherlo project create --name <name> --team <teamId>` - the CLI's first MANAGEMENT
  * command, and the first thing a PERSONAL token can drive.
  *
  * See ../../constants (the COMMANDS block) for why this one is noun-verb while
@@ -51,6 +51,7 @@
  */
 import {
   MAX_PROJECT_NAME_LENGTH,
+  NAME_OPTION,
   PERSONAL_TOKEN_ENV_VAR,
   PERSONAL_TOKEN_FLAG,
   PERSONAL_TOKEN_OPTION,
@@ -64,17 +65,15 @@ import createProjectRequest, { CreateProjectAuthError } from './createProjectReq
 import { THIS_COMMAND } from './constants';
 
 export type ProjectCreateOptions = {
+  [NAME_OPTION]?: string;
   [TEAM_OPTION]?: string;
   [PERSONAL_TOKEN_OPTION]?: string;
 };
 
-async function projectCreate(
-  nameArgument: string | undefined,
-  passedOptions: ProjectCreateOptions
-): Promise<void> {
+async function projectCreate(passedOptions: ProjectCreateOptions): Promise<void> {
   printSherloIntro();
 
-  const name = resolveName(nameArgument);
+  const name = resolveName(passedOptions[NAME_OPTION]);
   const teamId = resolveTeamId(passedOptions[TEAM_OPTION]);
   const personalToken = resolvePersonalToken(passedOptions[PERSONAL_TOKEN_OPTION]);
 
@@ -99,14 +98,14 @@ export default projectCreate;
 
 /* ========================================================================== */
 
-function resolveName(nameArgument: string | undefined): string {
-  const name = nameArgument?.trim();
+function resolveName(passedName: string | undefined): string {
+  const name = passedName?.trim();
 
   if (!name) {
     throwError({
       message:
         `\`sherlo ${THIS_COMMAND}\` needs a name for the project, e.g.\n` +
-        `  \`sherlo ${THIS_COMMAND} "Design System" --${TEAM_OPTION} <teamId>\`.`,
+        `  \`sherlo ${THIS_COMMAND} --${NAME_OPTION} "Design System" --${TEAM_OPTION} <teamId>\`.`,
     });
   }
 
