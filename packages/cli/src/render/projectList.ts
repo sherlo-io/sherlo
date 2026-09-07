@@ -30,25 +30,40 @@ export type ProjectList = {
   projects: ProjectListed[];
 };
 
-const NEXT_STEP = 'Next: `sherlo project create --name <name> --team <id>` adds one; `sherlo view <build>` opens a build.';
+const NEXT_STEP =
+  'Next: `sherlo project create --name <name> --team <id>` adds one; `sherlo view <build>` opens a build.';
 
 /** Every line the command prints on success, in order. */
 export function renderProjectList({ team, projects }: ProjectList): string[] {
   if (projects.length === 0) {
-    return [`${chalk.yellow('◦')}  No projects yet in team ${chalk.bold(team.name)}`, '', chalk.dim(NEXT_STEP), ''];
+    return [
+      `${chalk.yellow('◦')}  No projects yet in team ${chalk.bold(team.name)}`,
+      '',
+      chalk.dim(NEXT_STEP),
+      '',
+    ];
   }
 
   const indexWidth = Math.max(...projects.map((project) => String(project.index).length));
   const nameWidth = Math.max(...projects.map((project) => project.name.length));
   const rows = projects.map((project) => {
-    const builds = project.buildCount === 0 ? 'no builds yet' : `${project.buildCount} build${project.buildCount === 1 ? '' : 's'}`;
-    const cells = [`  ${String(project.index).padStart(indexWidth)}`, project.name.padEnd(nameWidth), chalk.dim(builds)];
+    const builds =
+      project.buildCount === 0
+        ? 'no builds yet'
+        : `${project.buildCount} build${project.buildCount === 1 ? '' : 's'}`;
+    const cells = [
+      `  ${String(project.index).padStart(indexWidth)}`,
+      project.name.padEnd(nameWidth),
+      chalk.dim(builds),
+    ];
     if (project.mainBranch) cells.push(chalk.dim(project.mainBranch));
     return cells.join('  ');
   });
 
   return [
-    `${chalk.green('✔')}  ${projects.length} project${projects.length === 1 ? '' : 's'} in team ${chalk.bold(team.name)}`,
+    `${chalk.green('✔')}  ${projects.length} project${
+      projects.length === 1 ? '' : 's'
+    } in team ${chalk.bold(team.name)}`,
     '',
     ...rows,
     '',

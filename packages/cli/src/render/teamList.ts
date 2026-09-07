@@ -27,23 +27,43 @@ export type TeamList = {
   teams: TeamListed[];
 };
 
-const NEXT_STEP = 'Next: `sherlo project list --team <id>` shows a team\'s projects; `sherlo team create --name <name>` adds a team.';
+const NEXT_STEP =
+  "Next: `sherlo project list --team <id>` shows a team's projects; `sherlo team create --name <name>` adds a team.";
 const EMPTY_NEXT_STEP = 'Next: `sherlo team create --name <name>` makes your first team.';
 
 /** Every line the command prints on success, in order. */
 export function renderTeamList({ teams }: TeamList): string[] {
   if (teams.length === 0) {
-    return [`${chalk.yellow('◦')}  You are not in any team yet`, '', chalk.dim(EMPTY_NEXT_STEP), ''];
+    return [
+      `${chalk.yellow('◦')}  You are not in any team yet`,
+      '',
+      chalk.dim(EMPTY_NEXT_STEP),
+      '',
+    ];
   }
 
   const idWidth = Math.max(...teams.map((team) => team.id.length));
   const nameWidth = Math.max(...teams.map((team) => team.name.length));
   const rows = teams.map((team) => {
-    const projects = team.projectCount === 0 ? 'no projects yet' : `${team.projectCount} project${team.projectCount === 1 ? '' : 's'}`;
-    const cells = [`  ${team.id.padEnd(idWidth)}`, team.name.padEnd(nameWidth), chalk.dim(projects)];
+    const projects =
+      team.projectCount === 0
+        ? 'no projects yet'
+        : `${team.projectCount} project${team.projectCount === 1 ? '' : 's'}`;
+    const cells = [
+      `  ${team.id.padEnd(idWidth)}`,
+      team.name.padEnd(nameWidth),
+      chalk.dim(projects),
+    ];
     if (team.role) cells.push(chalk.dim(team.role));
     return cells.join('  ');
   });
 
-  return [`${chalk.green('✔')}  ${teams.length} team${teams.length === 1 ? '' : 's'}`, '', ...rows, '', chalk.dim(NEXT_STEP), ''];
+  return [
+    `${chalk.green('✔')}  ${teams.length} team${teams.length === 1 ? '' : 's'}`,
+    '',
+    ...rows,
+    '',
+    chalk.dim(NEXT_STEP),
+    '',
+  ];
 }

@@ -100,7 +100,14 @@ import {
  * `sherlo test --android/--ios` runs, a push family scripting THAT state (a
  * fresh bundle and its upload slots) belongs here, grounded on those fixtures.
  */
-export type TranscriptFamily = 'dry-run' | 'verdict' | 'view' | 'project-create' | 'team-create' | 'project-list' | 'team-list';
+export type TranscriptFamily =
+  | 'dry-run'
+  | 'verdict'
+  | 'view'
+  | 'project-create'
+  | 'team-create'
+  | 'project-list'
+  | 'team-list';
 
 /** One catalog entry, whichever family it belongs to. */
 type CatalogEntry =
@@ -435,7 +442,12 @@ async function renderTwiceAndWrite(job: {
 const POSED_SCENARIO_ID = 'declared-pose';
 
 /** Every pose shape `--render-transcript-state` can be handed, by its own family tag. */
-type DeclaredPose = ViewTranscriptPose | ProjectCreateTranscriptPose | TeamCreateTranscriptPose | ProjectListTranscriptPose | TeamListTranscriptPose;
+type DeclaredPose =
+  | ViewTranscriptPose
+  | ProjectCreateTranscriptPose
+  | TeamCreateTranscriptPose
+  | ProjectListTranscriptPose
+  | TeamListTranscriptPose;
 
 /**
  * Read the pose document from a file, or from stdin when the source is `-`.
@@ -479,7 +491,8 @@ function readPose(source: string): DeclaredPose {
     console.error(
       `REFUSING TO RENDER (unknown pose family): '${String(
         family
-      )}' is not a family this CLI can ` + "render. Posable families: 'view', 'project-create', 'team-create', 'project-list', 'team-list'."
+      )}' is not a family this CLI can ` +
+        "render. Posable families: 'view', 'project-create', 'team-create', 'project-list', 'team-list'."
     );
     process.exit(1);
   } catch (error) {

@@ -708,9 +708,13 @@ const PINS: Pin[] = [
       [`${ESC}[32m✔${ESC}[39m  2 teams`],
       [``],
       [`  team_br4nch  Branching Team  ${ESC}[2m3 projects${ESC}[22m  ${ESC}[2mowner${ESC}[22m`],
-      [`  team_9f3a2c  Design Guild    ${ESC}[2mno projects yet${ESC}[22m  ${ESC}[2mmember${ESC}[22m`],
+      [
+        `  team_9f3a2c  Design Guild    ${ESC}[2mno projects yet${ESC}[22m  ${ESC}[2mmember${ESC}[22m`,
+      ],
       [``],
-      [`${ESC}[2mNext: \`sherlo project list --team <id>\` shows a team's projects; \`sherlo team create --name <name>\` adds a team.${ESC}[22m`],
+      [
+        `${ESC}[2mNext: \`sherlo project list --team <id>\` shows a team's projects; \`sherlo team create --name <name>\` adds a team.${ESC}[22m`,
+      ],
       [``],
     ],
   },
@@ -735,14 +739,16 @@ const PINS: Pin[] = [
       [`  1  Mobile App     ${ESC}[2m128 builds${ESC}[22m  ${ESC}[2mmain${ESC}[22m`],
       [`  2  Design System  ${ESC}[2mno builds yet${ESC}[22m`],
       [''],
-      [`${ESC}[2mNext: \`sherlo project create --name <name> --team <id>\` adds one; \`sherlo view <build>\` opens a build.${ESC}[22m`],
+      [
+        `${ESC}[2mNext: \`sherlo project create --name <name> --team <id>\` adds one; \`sherlo view <build>\` opens a build.${ESC}[22m`,
+      ],
       [''],
     ],
   },
 
   {
     kind: 'project-created',
-    what: "everything `sherlo project create` prints - and the shape that keeps the project token OFF a key=value line, because those lines exist for CI to scrape and a secret must not be put on that journey",
+    what: 'everything `sherlo project create` prints - and the shape that keeps the project token OFF a key=value line, because those lines exist for CI to scrape and a secret must not be put on that journey',
     segment: {
       kind: 'project-created',
       project: {
@@ -758,9 +764,7 @@ const PINS: Pin[] = [
       ['projectIndex=12'],
       ['projectName=Design System'],
       [''],
-      [
-        `${ESC}[33mProject token - shown once. Store it now; it cannot be shown again.${ESC}[39m`,
-      ],
+      [`${ESC}[33mProject token - shown once. Store it now; it cannot be shown again.${ESC}[39m`],
       [''],
       ['  pppppppppppppppppppppppppppppppp team1234 12'],
       [''],

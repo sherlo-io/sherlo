@@ -42,7 +42,9 @@ export function decodeTeamCreatePose(document: unknown): TeamCreateTranscriptPos
   }
 
   if (refusals.length > 0) {
-    throw new Error(`REFUSING TO RENDER (un-renderable team-create pose):\n  ${refusals.join('\n  ')}`);
+    throw new Error(
+      `REFUSING TO RENDER (un-renderable team-create pose):\n  ${refusals.join('\n  ')}`
+    );
   }
 
   return {
@@ -59,7 +61,9 @@ export function decodeTeamCreatePose(document: unknown): TeamCreateTranscriptPos
  * command exists. It lives beside the decoder rather than in its own file because the
  * pose files are the plan layer's (architect-readonly.sh) and the command directory is not.
  */
-export async function renderTeamCreatePoseTranscript(pose: TeamCreateTranscriptPose): Promise<CapturedTranscript> {
+export async function renderTeamCreatePoseTranscript(
+  pose: TeamCreateTranscriptPose
+): Promise<CapturedTranscript> {
   const previous = process.env.SKIP_INTRO;
   process.env.SKIP_INTRO = pose.ambient.skipIntro ? 'true' : 'false';
 
