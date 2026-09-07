@@ -42,25 +42,21 @@
  * infer from the token (impossible - a personal token names a person, not a
  * team, which is the entire design), or take a flag. So: a flag.
  *
- * THE NICE VERSION IS `sherlo team list`, printing the id next to each team
- * name so a human can copy one, and it should be the next management command
- * built. It needs one api operation opened to a personal token (a `teams:read`
- * scope, listing the owner's memberships) and it is NOT built here - this
- * command would not use it anyway; the flag is what it would help someone fill
- * in.
+ * THE NICE VERSION IS `sherlo team list` (../teamList), printing the id next to
+ * each team name so a human can copy one. This command does not call it - the
+ * flag is what it would help someone fill in - and it is what most people will
+ * still run first, so the flag stays required rather than becoming optional
+ * now that the lookup exists.
  */
 import {
   MAX_PROJECT_NAME_LENGTH,
   NAME_OPTION,
-  PERSONAL_TOKEN_ENV_VAR,
-  PERSONAL_TOKEN_FLAG,
   PERSONAL_TOKEN_OPTION,
-  PERSONAL_TOKEN_PREFIX,
   TEAM_OPTION,
-  TOKEN_OPTION,
 } from '../../constants';
-import { isPersonalToken, printSherloIntro, reporting, throwError } from '../../helpers';
+import { printSherloIntro, reporting, throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
+import { resolvePersonalToken, resolveTeamId } from '../shared';
 import createProjectRequest, { CreateProjectAuthError } from './createProjectRequest';
 import { THIS_COMMAND } from './constants';
 
@@ -74,8 +70,14 @@ async function projectCreate(passedOptions: ProjectCreateOptions): Promise<void>
   printSherloIntro();
 
   const name = resolveName(passedOptions[NAME_OPTION]);
-  const teamId = resolveTeamId(passedOptions[TEAM_OPTION]);
-  const personalToken = resolvePersonalToken(passedOptions[PERSONAL_TOKEN_OPTION]);
+  const teamId = resolveTeamId(passedOptions[TEAM_OPTION], {
+    thisCommand: THIS_COMMAND,
+    purpose: 'the team the project belongs to',
+  });
+  const personalToken = resolvePersonalToken(passedOptions[PERSONAL_TOKEN_OPTION], {
+    thisCommand: THIS_COMMAND,
+    tokenContextLine: 'that one names a project, and the project does not exist yet.',
+  });
 
   // The team is the one fact here worth having on a crash report. The token is
   // not, in any form: no hash, no prefix, no length.
@@ -120,59 +122,6 @@ function resolveName(passedName: string | undefined): string {
   return name;
 }
 
-function resolveTeamId(passedTeamId: string | undefined): string {
-  const teamId = passedTeamId?.trim();
-
-  if (!teamId) {
-    throwError({
-      message:
-        `\`sherlo ${THIS_COMMAND}\` needs the team the project belongs to: ` +
-        `\`--${TEAM_OPTION} <teamId>\`.\n` +
-        '\n' +
-        '  A personal token names a person, not a team, so there is nothing to infer it\n' +
-        "  from. The id is the `t=` value in the web app's URL while you are looking at\n" +
-        '  that team.',
-    });
-  }
-
-  return teamId;
-}
-
-/**
- * The personal token, from the flag or the environment, refusing anything that
- * is not one BEFORE it is sent anywhere.
- */
-function resolvePersonalToken(passedToken: string | undefined): string {
-  const personalToken = (passedToken ?? process.env[PERSONAL_TOKEN_ENV_VAR])?.trim();
-
-  if (!personalToken) {
-    throwError({
-      type: 'auth',
-      message:
-        `\`sherlo ${THIS_COMMAND}\` needs a personal token: ` +
-        `\`--${PERSONAL_TOKEN_FLAG} <token>\` or ${PERSONAL_TOKEN_ENV_VAR}.\n` +
-        '\n' +
-        '  Mint one in the Sherlo web app - the CLI cannot mint tokens, by design.\n' +
-        `  This is NOT the project token from \`--${TOKEN_OPTION}\` / sherlo.config.json:\n` +
-        '  that one names a project, and the project does not exist yet.',
-    });
-  }
-
-  if (!isPersonalToken(personalToken)) {
-    throwError({
-      type: 'auth',
-      message:
-        `\`--${PERSONAL_TOKEN_FLAG}\` wants a personal token, and this is not one - a ` +
-        `personal\n  token starts with \`${PERSONAL_TOKEN_PREFIX}\`.\n` +
-        '\n' +
-        '  If you pasted your project token: that one names an existing project and\n' +
-        '  cannot create a new one. Mint a personal token in the Sherlo web app.',
-    });
-  }
-
-  return personalToken;
-}
-
 /**
  * What the CLI says when the backend refuses the token.
  *
@@ -191,7 +140,7 @@ function refuseRejectedToken(teamId: string): never {
       '\n' +
       '  It does not say which of these it is, so check them in this order:\n' +
       '    - the token is revoked or expired (the web app lists both);\n' +
-      '    - it was minted without the `projects:write` scope;\n' +
+      '    - it was minted without the `project:write` scope;\n' +
       '    - you are not a member of that team, or the team id is wrong;\n' +
       '    - the token was mistyped or truncated in transit.',
   });

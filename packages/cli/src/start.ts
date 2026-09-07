@@ -6,7 +6,10 @@ import {
   fingerprint,
   init,
   projectCreate,
+  projectList,
   showError,
+  teamCreate,
+  teamList,
   test,
   testEasCloudBuild,
   view,
@@ -44,8 +47,12 @@ import {
   PROFILE_OPTION,
   PROJECT_COMMAND,
   PROJECT_CREATE_SUBCOMMAND,
+  PROJECT_LIST_SUBCOMMAND,
   PROJECT_ROOT_OPTION,
   NAME_OPTION,
+  TEAM_COMMAND,
+  TEAM_CREATE_SUBCOMMAND,
+  TEAM_LIST_SUBCOMMAND,
   TEAM_OPTION,
   SHOW_ERROR_COMMAND,
   TEST_COMMAND,
@@ -87,6 +94,8 @@ async function start() {
     addFingerprintCommand(program);
 
     addProjectCommand(program);
+
+    addTeamCommand(program);
 
     if (process.argv.length === 2) {
       console.log('Choose a Sherlo command. Use --help for more information.');
@@ -143,6 +152,18 @@ const COMMAND_DESCRIPTION = {
     `  which is a different credential from the \`--${TOKEN_OPTION}\` every other command\n` +
     '  takes: a personal token names a person, a project token names a project.\n' +
     '  The project token it prints cannot be shown again - store it when you see it.',
+  [`${PROJECT_COMMAND} ${PROJECT_LIST_SUBCOMMAND}`]:
+    "List a team's projects: index, name, build count and main branch.\n" +
+    `  Authorized by a PERSONAL token (\`--${PERSONAL_TOKEN_FLAG}\` or ${PERSONAL_TOKEN_ENV_VAR}),\n` +
+    `  same as \`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}\`. Uploads nothing, creates nothing.`,
+  [`${TEAM_COMMAND} ${TEAM_CREATE_SUBCOMMAND}`]:
+    'Create a team and print its id.\n' +
+    `  Authorized by a PERSONAL token (\`--${PERSONAL_TOKEN_FLAG}\` or ${PERSONAL_TOKEN_ENV_VAR}),\n` +
+    `  same as \`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}\`.`,
+  [`${TEAM_COMMAND} ${TEAM_LIST_SUBCOMMAND}`]:
+    'List every team you belong to: id, name and project count.\n' +
+    `  Authorized by a PERSONAL token (\`--${PERSONAL_TOKEN_FLAG}\` or ${PERSONAL_TOKEN_ENV_VAR}).\n` +
+    `  Takes no \`--${TEAM_OPTION}\`: it answers for every team the token's owner belongs to.`,
   [FINGERPRINT_COMMAND]:
     'Print the fingerprints `test` computes for this project, one line per layer\n' +
     '  (native, dependencies, js, base). Runs entirely locally: no token, no upload.\n' +
@@ -424,13 +445,14 @@ function addFingerprintCommand(program: Command) {
 }
 
 /**
- * `sherlo project create --name <name>` - the first MANAGEMENT command, registered as a
- * noun-verb pair (see the COMMANDS block in ./constants for that convention).
+ * `sherlo project create --name <name>` / `sherlo project list --team <id>` -
+ * the `project` MANAGEMENT group, registered as noun-verb pairs (see the
+ * COMMANDS block in ./constants for that convention).
  *
  * Wired by hand rather than through `addCommand` because it hangs off a GROUP:
  * `project` itself has no action, so running it bare prints commander's own help
- * for the group. Every value it takes is a named flag - the name included - so
- * nothing is read off its position after the verb.
+ * for the group. Every value either subcommand takes is a named flag - the
+ * name included - so nothing is read off its position after the verb.
  */
 function addProjectCommand(program: Command) {
   const projectGroup = program.command(PROJECT_COMMAND).description('Manage Sherlo projects');
@@ -445,6 +467,52 @@ function addProjectCommand(program: Command) {
     setReportingContext(`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}`, actionOptions);
 
     await projectCreate(actionOptions);
+  });
+
+  const listInstance = projectGroup
+    .command(PROJECT_LIST_SUBCOMMAND)
+    .description(COMMAND_DESCRIPTION[`${PROJECT_COMMAND} ${PROJECT_LIST_SUBCOMMAND}`]);
+
+  addOptionsToCommand(listInstance, [TEAM_OPTION, PERSONAL_TOKEN_OPTION]);
+
+  listInstance.action(async (actionOptions) => {
+    setReportingContext(`${PROJECT_COMMAND} ${PROJECT_LIST_SUBCOMMAND}`, actionOptions);
+
+    await projectList(actionOptions);
+  });
+}
+
+/**
+ * `sherlo team create --name <name>` / `sherlo team list` - the `team`
+ * MANAGEMENT group, the sibling of `addProjectCommand` above. `team list`
+ * takes no `--team`: a personal token names a person, not a team, so it
+ * answers for every team that person belongs to rather than one named team.
+ */
+function addTeamCommand(program: Command) {
+  const teamGroup = program.command(TEAM_COMMAND).description('Manage Sherlo teams');
+
+  const createInstance = teamGroup
+    .command(TEAM_CREATE_SUBCOMMAND)
+    .description(COMMAND_DESCRIPTION[`${TEAM_COMMAND} ${TEAM_CREATE_SUBCOMMAND}`]);
+
+  addOptionsToCommand(createInstance, [NAME_OPTION, PERSONAL_TOKEN_OPTION]);
+
+  createInstance.action(async (actionOptions) => {
+    setReportingContext(`${TEAM_COMMAND} ${TEAM_CREATE_SUBCOMMAND}`, actionOptions);
+
+    await teamCreate(actionOptions);
+  });
+
+  const listInstance = teamGroup
+    .command(TEAM_LIST_SUBCOMMAND)
+    .description(COMMAND_DESCRIPTION[`${TEAM_COMMAND} ${TEAM_LIST_SUBCOMMAND}`]);
+
+  addOptionsToCommand(listInstance, [PERSONAL_TOKEN_OPTION]);
+
+  listInstance.action(async (actionOptions) => {
+    setReportingContext(`${TEAM_COMMAND} ${TEAM_LIST_SUBCOMMAND}`, actionOptions);
+
+    await teamList(actionOptions);
   });
 }
 
