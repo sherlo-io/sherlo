@@ -685,7 +685,7 @@ const PINS: Pin[] = [
       ['teamName=Design Guild'],
       [''],
       [
-        `${ESC}[2mInvite members from the web app, or create its first project: \`sherlo project create <name> --team <id>\`.${ESC}[22m`,
+        `${ESC}[2mNext: invite members from the web app, or create its first project with \`sherlo project create <name> --team <id>\`.${ESC}[22m`,
       ],
       [''],
     ],

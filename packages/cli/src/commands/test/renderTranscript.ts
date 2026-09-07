@@ -182,7 +182,15 @@ type TranscriptEnvelope = {
    * a consumer must not read such a transcript as the DEFAULT experience.
    */
   grounded: string;
+  /** The producer invocation that rendered these bytes (the road, not the depicted command). */
   command: string;
+  /**
+   * THE COMMAND LINE THE TRANSCRIPT DEPICTS - what a user typed to see these bytes
+   * (`sherlo team create "Design Guild"`), as distinct from `command`, the render road.
+   * A report prints it as the prompt line above the pane, the way a beat's pane opens
+   * with the command the beat ran; without it a consumer had to guess it from the family.
+   */
+  depicts: string;
   exitCode: number;
   capture: TranscriptScenario['capture'];
   ambient: TranscriptScenario['ambient'];
@@ -221,6 +229,7 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
     fixture: fixtureFor(entry),
     grounded: groundingFor(entry),
     command: `sherlo test --dry-run --render-transcript ${scenarioId}`,
+    depicts: family === 'dry-run' ? 'sherlo test --dry-run' : 'sherlo test',
     capture: scenario.capture,
     ambient: scenario.ambient,
     // Neither a dry run nor a scripted wait creates anything or routes
@@ -266,6 +275,7 @@ export async function runRenderTranscriptState(source: string): Promise<void> {
       fixture: null,
       grounded: 'declared-pose',
       command: `sherlo test --dry-run --render-transcript-state ${source}`,
+      depicts: `sherlo project create ${JSON.stringify(pose.project.name)}`,
       capture,
       ambient: pose.ambient,
       exitCode,
@@ -282,6 +292,7 @@ export async function runRenderTranscriptState(source: string): Promise<void> {
       fixture: null,
       grounded: 'declared-pose',
       command: `sherlo test --dry-run --render-transcript-state ${source}`,
+      depicts: `sherlo team create ${JSON.stringify(pose.team.name)}`,
       capture,
       ambient: pose.ambient,
       exitCode,
@@ -300,6 +311,7 @@ export async function runRenderTranscriptState(source: string): Promise<void> {
     fixture: null,
     grounded: 'declared-pose',
     command: `sherlo test --dry-run --render-transcript-state ${source}`,
+    depicts: `sherlo view ${pose.buildIndex}`,
     // `view` prints its transcript to stdout; the one thing it can put on stderr
     // is the not-found refusal, which is part of that pose's answer.
     capture,
@@ -329,6 +341,7 @@ async function renderTwiceAndWrite(job: {
   fixture: string | null;
   grounded: string;
   command: string;
+  depicts: string;
   capture: TranscriptScenario['capture'];
   ambient: TranscriptScenario['ambient'];
   exitCode: number;
@@ -353,6 +366,7 @@ async function renderTwiceAndWrite(job: {
     fixture: job.fixture,
     grounded: job.grounded,
     command: job.command,
+    depicts: job.depicts,
     exitCode: job.exitCode,
     capture: job.capture,
     ambient: job.ambient,
