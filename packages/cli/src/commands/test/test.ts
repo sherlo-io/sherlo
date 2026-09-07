@@ -52,6 +52,15 @@ import { THIS_COMMAND } from './constants';
 async function test(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
   const hasNativeBuildPaths = Boolean(passedOptions[ANDROID_OPTION] || passedOptions[IOS_OPTION]);
 
+  // THE TRANSCRIPT-RENDER ROADS READ NO CONFIG. `--render-transcript` / `--render-transcript-state`
+  // replay a scripted scenario through the shipped formatter and touch none of this invocation's
+  // real options - so they are dispatched before the sim check below, which parses
+  // sherlo.config.json to answer a question these roads never ask. Without this, rendering a
+  // transcript from anywhere but a configured project root died on "Config file not found".
+  if (passedOptions.renderTranscript !== undefined || passedOptions.renderTranscriptState !== undefined) {
+    return stagedRun(passedOptions);
+  }
+
   const simWorldDirPath = resolveSimulationWorldPath(passedOptions);
   if (simWorldDirPath !== undefined) {
     const simTrigger = `\`${SIMULATION_CONFIG_FIELD}\` in the config file`;
