@@ -45,6 +45,7 @@ import {
   renderRunHeader,
 } from './pushSpine';
 import { renderProjectCreated } from './projectCreated';
+import { renderTeamCreated } from './teamCreated';
 import type { TranscriptSegment, TranscriptStream } from './segments';
 import {
   renderVerdictCaptureAccounting,
@@ -390,6 +391,12 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return {
         stream: 'stdout',
         prints: renderProjectCreated(segment.project).map((line) => [line]),
+      };
+
+    case 'team-created':
+      return {
+        stream: 'stdout',
+        prints: renderTeamCreated(segment.team).map((line) => [line]),
       };
   }
 }

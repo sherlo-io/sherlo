@@ -65,6 +65,12 @@ import {
   projectCreatePoseOutcome,
   renderProjectCreatePoseTranscript,
 } from '../projectCreate/renderProjectCreateTranscript';
+import {
+  decodeTeamCreatePose,
+  renderTeamCreatePoseTranscript,
+  teamCreatePoseOutcome,
+  type TeamCreateTranscriptPose,
+} from '../teamCreate/teamCreatePose';
 
 /**
  * Which command's transcript a scenario is.
@@ -82,7 +88,7 @@ import {
  * `sherlo test --android/--ios` runs, a push family scripting THAT state (a
  * fresh bundle and its upload slots) belongs here, grounded on those fixtures.
  */
-export type TranscriptFamily = 'dry-run' | 'verdict' | 'view' | 'project-create';
+export type TranscriptFamily = 'dry-run' | 'verdict' | 'view' | 'project-create' | 'team-create';
 
 /** One catalog entry, whichever family it belongs to. */
 type CatalogEntry =
@@ -268,6 +274,22 @@ export async function runRenderTranscriptState(source: string): Promise<void> {
     return;
   }
 
+  if (pose.family === 'team-create') {
+    const { exitCode, capture } = teamCreatePoseOutcome();
+    await renderTwiceAndWrite({
+      scenarioId: POSED_SCENARIO_ID,
+      family: 'team-create',
+      fixture: null,
+      grounded: 'declared-pose',
+      command: `sherlo test --dry-run --render-transcript-state ${source}`,
+      capture,
+      ambient: pose.ambient,
+      exitCode,
+      render: () => renderTeamCreatePoseTranscript(pose),
+    });
+    return;
+  }
+
   const { exitCode, capture } = viewPoseOutcome(pose);
 
   await renderTwiceAndWrite({
@@ -353,7 +375,7 @@ async function renderTwiceAndWrite(job: {
 const POSED_SCENARIO_ID = 'declared-pose';
 
 /** Every pose shape `--render-transcript-state` can be handed, by its own family tag. */
-type DeclaredPose = ViewTranscriptPose | ProjectCreateTranscriptPose;
+type DeclaredPose = ViewTranscriptPose | ProjectCreateTranscriptPose | TeamCreateTranscriptPose;
 
 /**
  * Read the pose document from a file, or from stdin when the source is `-`.
@@ -390,11 +412,12 @@ function readPose(source: string): DeclaredPose {
   const family = (document as { family?: unknown } | null)?.family;
   try {
     if (family === 'project-create') return decodeProjectCreatePose(document);
+    if (family === 'team-create') return decodeTeamCreatePose(document);
     if (family === 'view' || family === undefined) return decodeViewPose(document);
     console.error(
       `REFUSING TO RENDER (unknown pose family): '${String(
         family
-      )}' is not a family this CLI can ` + "render. Posable families: 'view', 'project-create'."
+      )}' is not a family this CLI can ` + "render. Posable families: 'view', 'project-create', 'team-create'."
     );
     process.exit(1);
   } catch (error) {

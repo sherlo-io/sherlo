@@ -671,6 +671,27 @@ const PINS: Pin[] = [
   /* -------------------- project create -------------------- */
 
   {
+    kind: 'team-created',
+    what: 'everything `sherlo team create` prints - two key=value facts a script can hand to `project create --team`, and no credential, because a team carries none',
+    segment: {
+      kind: 'team-created',
+      team: { name: 'Design Guild', id: 'team_9f3a2c' },
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[32m✔${ESC}[39m  Created team ${ESC}[1mDesign Guild${ESC}[22m`],
+      [''],
+      ['teamId=team_9f3a2c'],
+      ['teamName=Design Guild'],
+      [''],
+      [
+        `${ESC}[2mInvite members from the web app, or create its first project: \`sherlo project create <name> --team <id>\`.${ESC}[22m`,
+      ],
+      [''],
+    ],
+  },
+
+  {
     kind: 'project-created',
     what: "everything `sherlo project create` prints - and the shape that keeps the project token OFF a key=value line, because those lines exist for CI to scrape and a secret must not be put on that journey",
     segment: {
