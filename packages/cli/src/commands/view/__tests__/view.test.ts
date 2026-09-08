@@ -149,6 +149,52 @@ describe('which build `sherlo view` looks at', () => {
   });
 });
 
+describe('the eager read racing the build it names', () => {
+  // `--wait` is meant to be chainable straight after whatever opened the
+  // build, and opening it plus this read are two separate backend calls with
+  // no ordering guarantee - so a `--wait` miss gets a short second chance
+  // before it is treated as a real refusal. Fake timers stand in for that
+  // wait so the case resolves instantly.
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('retries a `--wait` miss until the build appears, inside the grace period', async () => {
+    readBuildStatus
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(FINISHED_BUILD);
+
+    const runPromise = runView('7', { wait: true });
+    await vi.advanceTimersByTimeAsync(10_000);
+    await runPromise;
+
+    expect(readBuildStatus).toHaveBeenCalledTimes(3);
+    expect(exitCodes).toEqual([0]);
+  });
+
+  it('still refuses a `--wait` build that never appears, once the grace period runs out', async () => {
+    readBuildStatus.mockResolvedValue(null);
+
+    const assertion = expect(runView('7', { wait: true })).rejects.toThrow(
+      /Build #7 does not exist/
+    );
+    await vi.advanceTimersByTimeAsync(60_000);
+    await assertion;
+  });
+
+  it('gives a miss no second chance without `--wait`', async () => {
+    readBuildStatus.mockResolvedValueOnce(null);
+
+    await expect(runView('99')).rejects.toThrow(/Build #99 does not exist/);
+    expect(readBuildStatus).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('the exit-code split', () => {
   it('without --wait it does not wait, and does not exit on the verdict', async () => {
     await runView('7');
