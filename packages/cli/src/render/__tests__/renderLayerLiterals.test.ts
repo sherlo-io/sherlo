@@ -858,7 +858,7 @@ function pinnedBytes(pin: Pin, actual: RenderedSegment): void {
 /* The gate                                                                   */
 /* ========================================================================== */
 
-describe('the render layer emits the literals it is pinned to', () => {
+describe('A MANAGEMENT COMMAND PRINTS ITS FACTS AS KEY=VALUE LINES AND NEVER A CREDENTIAL', () => {
   it.each(PINS.map((pin) => [pin.what, pin] as const))('%s', (_what, pin) => {
     pinnedBytes(pin, renderSegment(pin.segment));
   });
