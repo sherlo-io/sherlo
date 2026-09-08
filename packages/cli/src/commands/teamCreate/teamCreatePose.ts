@@ -59,7 +59,7 @@ export function decodeTeamCreatePose(document: unknown): TeamCreateTranscriptPos
  * ../projectCreate/renderProjectCreateTranscript has, rendering through the shipped
  * `team-created` segment so the plan's bytes cannot drift from the product's once the
  * command exists. It lives beside the decoder rather than in its own file because the
- * pose files are the plan layer's (architect-readonly.sh) and the command directory is not.
+ * pose files and command files are maintained under different rules in this repo.
  */
 export async function renderTeamCreatePoseTranscript(
   pose: TeamCreateTranscriptPose

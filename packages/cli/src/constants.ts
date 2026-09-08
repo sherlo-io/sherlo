@@ -149,7 +149,7 @@ export const PERSONAL_TOKEN_FLAG = 'personal-token';
 export const TEAM_OPTION = 'team';
 /**
  * `sherlo project create`: the name of the thing being created. A NAMED FLAG RATHER THAN A
- * POSITIONAL, so a name is never whatever happened to follow the verb (operator ruling 2026-09-07):
+ * POSITIONAL, so a name is never whatever happened to follow the verb (decided 2026-09-07):
  * `sherlo project create --name "Design System"`, and the same flag on every create that follows.
  */
 export const NAME_OPTION = 'name';

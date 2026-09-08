@@ -2,14 +2,14 @@
  * THE POSE `sherlo project create` RENDERS FROM - the same road `view` has, for
  * the command that makes a project.
  *
- * WHY IT EXISTS (operator ruling 2026-09-06). Every `sherlo-cli` beat in the
+ * WHY IT EXISTS (decided 2026-09-06). Every `sherlo-cli` beat in the
  * tester's planned report must show the bytes the command prints, and it must get
  * them from the SHIPPED CLI rather than composing them itself - a second renderer
  * drifts from the product the day someone edits the real one. Before this file
  * the `project-create` beats had no road to a pane at all: `--render-transcript-state`
  * decoded every document as a `view` pose, so a project-create beat could only
- * quote a claim it never proved. Ten chapters shipped that way and the operator
- * read the empty panes as a regression, which is exactly what they were.
+ * quote a claim it never proved. Ten chapters shipped that way, and the empty
+ * panes read as a regression - which is exactly what they were.
  *
  * WHAT A POSE HOLDS is the whole of what the command needed in order to print what
  * it printed: the three named facts the renderer takes, and nothing else. The
