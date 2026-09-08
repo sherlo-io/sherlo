@@ -82,18 +82,15 @@ describe('the listTeams lookup', () => {
     expect(firstField).toBe('listTeams');
   });
 
-  it(
-    "refuses when teamId is not among the caller's teams, WITHOUT calling listProjects at all",
-    async () => {
-      const effects = effectsAnswering({ listTeams: { body: { data: { listTeams: TEAMS } } } });
+  it("refuses when teamId is not among the caller's teams, WITHOUT calling listProjects at all", async () => {
+    const effects = effectsAnswering({ listTeams: { body: { data: { listTeams: TEAMS } } } });
 
-      await expect(
-        listProjectsRequest({ teamId: 'unknown-team', personalToken: PERSONAL_TOKEN }, effects)
-      ).rejects.toThrow(/was not found among the teams/);
+    await expect(
+      listProjectsRequest({ teamId: 'unknown-team', personalToken: PERSONAL_TOKEN }, effects)
+    ).rejects.toThrow(/was not found among the teams/);
 
-      expect(effects.fetch).toHaveBeenCalledTimes(1);
-    }
-  );
+    expect(effects.fetch).toHaveBeenCalledTimes(1);
+  });
 
   it('maps a 401 on the listTeams call to an auth error', async () => {
     const effects = effectsAnswering({ listTeams: { status: 401, body: {} } });
@@ -121,23 +118,20 @@ describe('the listProjects call', () => {
     expect(firstField).toBe('listProjects');
   });
 
-  it(
-    'carries the personal token in the Authorization envelope of BOTH calls, and in nothing else',
-    async () => {
-      const effects = effectsAnswering({
-        listTeams: { body: { data: { listTeams: TEAMS } } },
-        listProjects: { body: { data: { listProjects: PROJECTS } } },
-      });
+  it('carries the personal token in the Authorization envelope of BOTH calls, and in nothing else', async () => {
+    const effects = effectsAnswering({
+      listTeams: { body: { data: { listTeams: TEAMS } } },
+      listProjects: { body: { data: { listProjects: PROJECTS } } },
+    });
 
-      await listProjectsRequest({ teamId: TEAM_ID, personalToken: PERSONAL_TOKEN }, effects);
+    await listProjectsRequest({ teamId: TEAM_ID, personalToken: PERSONAL_TOKEN }, effects);
 
-      for (const index of [0, 1]) {
-        const { init, body } = requestAt(effects, index);
-        expect(JSON.parse(init.headers.Authorization)).toEqual({ authToken: PERSONAL_TOKEN });
-        expect(JSON.stringify(body)).not.toContain(PERSONAL_TOKEN);
-      }
+    for (const index of [0, 1]) {
+      const { init, body } = requestAt(effects, index);
+      expect(JSON.parse(init.headers.Authorization)).toEqual({ authToken: PERSONAL_TOKEN });
+      expect(JSON.stringify(body)).not.toContain(PERSONAL_TOKEN);
     }
-  );
+  });
 
   it('maps a 401 on the listProjects call to an auth error', async () => {
     const effects = effectsAnswering({

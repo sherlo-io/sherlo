@@ -72,21 +72,18 @@ describe('listTeams payload', () => {
 });
 
 describe('listTeams response', () => {
-  it(
-    "maps the api shape to what render/teamList prints, with the caller's own non-null role",
-    async () => {
-      const effects = effectsAnswering({ data: { listTeams: TEAMS } });
+  it("maps the api shape to what render/teamList prints, with the caller's own non-null role", async () => {
+    const effects = effectsAnswering({ data: { listTeams: TEAMS } });
 
-      const list = await listTeamsRequest({ personalToken: PERSONAL_TOKEN }, effects);
+    const list = await listTeamsRequest({ personalToken: PERSONAL_TOKEN }, effects);
 
-      expect(list).toEqual({
-        teams: [
-          { id: 'team1234', name: 'Acme', projectCount: 2, role: 'owner' },
-          { id: 'team5678', name: 'Solo Co', projectCount: 0, role: 'member' },
-        ],
-      });
-    }
-  );
+    expect(list).toEqual({
+      teams: [
+        { id: 'team1234', name: 'Acme', projectCount: 2, role: 'owner' },
+        { id: 'team5678', name: 'Solo Co', projectCount: 0, role: 'member' },
+      ],
+    });
+  });
 
   it('uses projectsCount directly rather than counting a nested list', async () => {
     // No `projects` array in the response at all - `listTeams` never sends one;

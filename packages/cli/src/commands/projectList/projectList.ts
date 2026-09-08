@@ -63,7 +63,7 @@ function refuseRejectedToken(teamId: string): never {
       '\n' +
       '  It does not say which of these it is, so check them in this order:\n' +
       '    - the token is revoked or expired (the web app lists both);\n' +
-      '    - it was minted without the `project:read` scope (lists the team\'s\n' +
+      "    - it was minted without the `project:read` scope (lists the team's\n" +
       '      projects) or the `team:read` scope (looks the team up by id);\n' +
       '    - the token was mistyped or truncated in transit.\n' +
       '\n' +
