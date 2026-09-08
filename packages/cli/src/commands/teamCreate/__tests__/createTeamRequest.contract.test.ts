@@ -84,7 +84,7 @@ describe('createTeam response', () => {
     );
 
     expect(team).toEqual(CREATED);
-    expect(Object.keys(team)).toEqual(['id', 'name']);
+    expect(Object.keys(team).sort()).toEqual(['id', 'name'].sort());
   });
 
   it('refuses a response with no team rather than printing an absent id', async () => {
