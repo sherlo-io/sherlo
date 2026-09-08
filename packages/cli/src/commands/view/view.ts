@@ -68,38 +68,31 @@ async function view(
 
   reporting.setTag('build_index', String(buildIndex));
 
-  // ONE read before anything is printed, even on the `--wait` road. The loop
-  // would answer "Build not found, retrying..." for the whole timeout on a
-  // mistyped index; reading first turns that into an immediate refusal, and the
-  // second read the loop then makes is one poll of a build that exists.
+  // ONE read before anything is printed - but its miss means two different
+  // things depending on whether `--wait` was asked for, so only ONE of them
+  // treats a miss as final.
   //
-  // BUT ONLY UNDER `--wait` DOES A MISS GET A SECOND CHANCE FIRST. `sherlo
-  // view <index> --wait` is meant to be chainable straight after whatever
-  // opened that build - `sherlo test` prints the index and exits before this
-  // command's read can be guaranteed to see it, since opening a build and this
-  // read are two separate calls to the backend with no ordering guarantee
-  // between them. A `--wait` caller has already said "the build may still be
-  // on its way", so this read gets `buildIsStillComingGraceMs` to keep
-  // believing that before it agrees with a caller who did not ask to wait: a
-  // bare `sherlo view <index>` names a build the caller believes already
-  // exists, and keeps its instant refusal on a miss.
-  const build = commandParams.wait
-    ? await readBuildStatusWhileItMayStillBeArriving({
-        token: commandParams.token,
-        buildIndex,
-        projectIndex,
-        teamId,
-      })
-    : await readBuildStatus({
-        token: commandParams.token,
-        buildIndex,
-        projectIndex,
-        teamId,
-      });
-
-  if (!build) {
-    refuseBuildNotFound(buildIndex);
-  }
+  // Without `--wait`, a miss IS the answer: the caller named a build they
+  // believe already exists, so refusing here rather than guessing is the
+  // whole point of this read.
+  //
+  // With `--wait`, a miss proves nothing. `sherlo view <index> --wait` is
+  // meant to be chainable straight after whatever opened that build - a `git
+  // push` that fires a CI run which checks out, installs, builds and only
+  // THEN calls `sherlo test` to open the build this command is asked to read.
+  // Minutes, not a network round trip, separate "pushed" from "the build
+  // exists at Sherlo" - so a single miss here says nothing about whether the
+  // index was ever real. `waitForBuildResult` already answers exactly this
+  // ("build not found, retrying...") for every later poll in the loop, bound
+  // by the caller's own `--wait-timeout`; a `--wait` miss on THIS read hands
+  // straight over to it instead of refusing, so a mistyped index costs the
+  // patience the caller asked `--wait` for, and nothing more.
+  const build = await readBuildStatus({
+    token: commandParams.token,
+    buildIndex,
+    projectIndex,
+    teamId,
+  });
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
   const showDetails = commandParams.metadata === true;
@@ -108,7 +101,13 @@ async function view(
     // The verdict belongs to the wait loop from here on, so the tally and the
     // status sentence are NOT printed first: they would describe a build that is
     // still moving, and be contradicted by the closer a minute later.
-    emit({ kind: 'build-view-header', buildIndex, runStatus: build.runStatus });
+    //
+    // No header names a `runStatus` when the eager read above missed - there
+    // is none to name yet. The loop's own "build not found, retrying..." line
+    // says exactly that until the build appears.
+    if (build) {
+      emit({ kind: 'build-view-header', buildIndex, runStatus: build.runStatus });
+    }
     emit({ kind: 'blank-line' });
     printResultsUrl(url);
 
@@ -131,42 +130,16 @@ async function view(
     return;
   }
 
+  if (!build) {
+    refuseBuildNotFound(buildIndex);
+  }
+
   printBuildView({ build, buildIndex, url, showDetails });
 }
 
 export default view;
 
 /* ========================================================================== */
-
-/**
- * How long a `--wait` read keeps believing a build that is not answering yet
- * is still on its way in, rather than gone - this is not the build taking a
- * moment to finish, it is the eager read above outrunning whatever call
- * opened the build. Short on purpose: it exists to absorb the ordering gap
- * between two backend calls, not to duplicate the `--wait` loop's own patience
- * for a build that is genuinely still running.
- */
-const buildIsStillComingGraceMs = 20_000;
-const buildIsStillComingPollMs = 2_000;
-
-/**
- * The same single read {@link readBuildStatus} performs, retried on a miss
- * until {@link buildIsStillComingGraceMs} runs out - see the comment at this
- * function's one call site for why only the `--wait` road gets this patience.
- */
-async function readBuildStatusWhileItMayStillBeArriving(
-  params: Parameters<typeof readBuildStatus>[0]
-): ReturnType<typeof readBuildStatus> {
-  const deadline = Date.now() + buildIsStillComingGraceMs;
-
-  while (true) {
-    const build = await readBuildStatus(params);
-    if (build || Date.now() >= deadline) {
-      return build;
-    }
-    await new Promise((resolve) => setTimeout(resolve, buildIsStillComingPollMs));
-  }
-}
 
 /**
  * The build to look at, or a refusal that says what to pass and why there is no
