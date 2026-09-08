@@ -1,6 +1,5 @@
 /**
- * EVERY MANAGEMENT COMMAND TAKES ITS NAME AS --name, NEVER A POSITIONAL
- * (epic law, `.brain/epics/branching-saga-captured/laws/sherlo.md`) - the
+ * EVERY MANAGEMENT COMMAND TAKES ITS NAME AS --name, NEVER A POSITIONAL - the
  * option-grammar test over `project create`, `project list`, `team create`
  * and `team list`, as registered in ../../start.
  *
@@ -11,11 +10,11 @@
  * check for that, not running the CLI and scraping rendered `--help` output.
  *
  * `view [build]` and `show-error <slug>` DO take a positional (start.ts:363,
- * 412) and are deliberately out of scope: the law is about MANAGEMENT
+ * 412) and are deliberately out of scope: the rule is about MANAGEMENT
  * commands - noun-verb pairs acting on a Sherlo resource - not every command
  * the CLI has. `sherlo project create <name>` is exactly the positional
- * grammar the operator refused on 2026-09-07 (../projectCreate/projectCreate's
- * own header tells that story); this test is what keeps it refused.
+ * grammar this repo moved away from on 2026-09-07 (../projectCreate/projectCreate's
+ * own header tells that story); this test is what keeps it that way.
  */
 import * as fs from 'fs';
 import * as path from 'path';

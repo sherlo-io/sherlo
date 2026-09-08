@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * `yarn repo <section> <verb>` - THIS REPO'S OWN DOOR ONTO THE WORK STAGES (operator ruling
+ * `yarn repo <section> <verb>` - THIS REPO'S OWN DOOR ONTO THE WORK STAGES (decided
  * 2026-09-07). Every product repo carries the same two sections, spelled the same way:
  *
  *   plan     produce what the PLANNED report draws from this repo - here, a TRANSCRIPT: what the
@@ -11,7 +11,7 @@
  * CLI's OWN formatter prints, and only the CLI can say what that is: a hand-typed fixture is a
  * second copy that drifts silently. The tester used to reach into this repo for the built dist and
  * the scenario catalog; the repo that owns a surface owns the producer for it, so the tester calls
- * this verb, and so does an architect prototyping a new screen of output.
+ * this verb, and so does anyone drafting a new screen of output before it ships.
  *
  * WHY IT RUNS NOTHING BUT THE RENDERER. `sherlo test --dry-run --render-transcript` supplies the
  * three effects a dry run performs (bundle, git, one read-only question) from a script and runs the
