@@ -671,8 +671,84 @@ const PINS: Pin[] = [
   /* -------------------- project create -------------------- */
 
   {
+    kind: 'team-created',
+    what: 'everything `sherlo team create` prints - two key=value facts a script can hand to `project create --team`, and no credential, because a team carries none',
+    segment: {
+      kind: 'team-created',
+      team: { name: 'Design Guild', id: 'team_9f3a2c' },
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[32m✔${ESC}[39m  Created team ${ESC}[1mDesign Guild${ESC}[22m`],
+      [''],
+      ['teamId=team_9f3a2c'],
+      ['teamName=Design Guild'],
+      [''],
+      [
+        `${ESC}[2mNext: invite members from the web app, or create its first project with \`sherlo project create --name <name> --team <id>\`.${ESC}[22m`,
+      ],
+      [''],
+    ],
+  },
+
+  {
+    kind: 'team-list',
+    what: 'everything `sherlo team list` prints - id first because it is what --team takes everywhere, counts and role dimmed as context, no teams an answer rather than an error',
+    segment: {
+      kind: 'team-list',
+      list: {
+        teams: [
+          { id: 'team_br4nch', name: 'Branching Team', projectCount: 3, role: 'owner' },
+          { id: 'team_9f3a2c', name: 'Design Guild', projectCount: 0, role: 'member' },
+        ],
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[32m✔${ESC}[39m  2 teams`],
+      [``],
+      [`  team_br4nch  Branching Team  ${ESC}[2m3 projects${ESC}[22m  ${ESC}[2mowner${ESC}[22m`],
+      [
+        `  team_9f3a2c  Design Guild    ${ESC}[2mno projects yet${ESC}[22m  ${ESC}[2mmember${ESC}[22m`,
+      ],
+      [``],
+      [
+        `${ESC}[2mNext: \`sherlo project list --team <id>\` shows a team's projects; \`sherlo team create --name <name>\` adds a team.${ESC}[22m`,
+      ],
+      [``],
+    ],
+  },
+
+  {
+    kind: 'project-list',
+    what: 'everything `sherlo project list` prints - index first because it is what every other command takes, counts and branch dimmed because they are context, and an empty team is an answer rather than an error',
+    segment: {
+      kind: 'project-list',
+      list: {
+        team: { name: 'Branching Team', id: 'team_br4nch' },
+        projects: [
+          { index: 1, name: 'Mobile App', buildCount: 128, mainBranch: 'main' },
+          { index: 2, name: 'Design System', buildCount: 0, mainBranch: null },
+        ],
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[32m✔${ESC}[39m  2 projects in team ${ESC}[1mBranching Team${ESC}[22m`],
+      [''],
+      [`  1  Mobile App     ${ESC}[2m128 builds${ESC}[22m  ${ESC}[2mmain${ESC}[22m`],
+      [`  2  Design System  ${ESC}[2mno builds yet${ESC}[22m`],
+      [''],
+      [
+        `${ESC}[2mNext: \`sherlo project create --name <name> --team <id>\` adds one; \`sherlo view <build>\` opens a build.${ESC}[22m`,
+      ],
+      [''],
+    ],
+  },
+
+  {
     kind: 'project-created',
-    what: "everything `sherlo project create` prints - and the shape that keeps the project token OFF a key=value line, because those lines exist for CI to scrape and a secret must not be put on that journey",
+    what: 'everything `sherlo project create` prints - and the shape that keeps the project token OFF a key=value line, because those lines exist for CI to scrape and a secret must not be put on that journey',
     segment: {
       kind: 'project-created',
       project: {
@@ -688,9 +764,7 @@ const PINS: Pin[] = [
       ['projectIndex=12'],
       ['projectName=Design System'],
       [''],
-      [
-        `${ESC}[33mProject token - shown once. Store it now; it cannot be shown again.${ESC}[39m`,
-      ],
+      [`${ESC}[33mProject token - shown once. Store it now; it cannot be shown again.${ESC}[39m`],
       [''],
       ['  pppppppppppppppppppppppppppppppp team1234 12'],
       [''],
@@ -784,7 +858,7 @@ function pinnedBytes(pin: Pin, actual: RenderedSegment): void {
 /* The gate                                                                   */
 /* ========================================================================== */
 
-describe('the render layer emits the literals it is pinned to', () => {
+describe('A MANAGEMENT COMMAND PRINTS ITS FACTS AS KEY=VALUE LINES AND NEVER A CREDENTIAL', () => {
   it.each(PINS.map((pin) => [pin.what, pin] as const))('%s', (_what, pin) => {
     pinnedBytes(pin, renderSegment(pin.segment));
   });

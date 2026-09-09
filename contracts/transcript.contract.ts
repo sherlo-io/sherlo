@@ -73,6 +73,61 @@ export type ViewTranscriptPose = {
 };
 
 /**
+ * Everything `sherlo project create --name <name>` needed in order to print what it printed.
+ * The values are the API's answers - the index the team allocated and the project
+ * token minted once - which a plan states as what the report will show for them.
+ */
+export type ProjectCreateTranscriptPose = {
+  family: 'project-create';
+  ambient: { skipIntro: boolean };
+  project: {
+    name: string;
+    /** The index the team allocated - what `--project` and `sherlo view` take. */
+    index: number;
+    /** The credential printed exactly once. A plan poses a placeholder, never a real one. */
+    projectToken: string;
+  };
+};
+
+/** Everything `sherlo team create --name <name>` needed in order to print what it printed. */
+export type TeamCreateTranscriptPose = {
+  family: 'team-create';
+  ambient: { skipIntro: boolean };
+  team: {
+    name: string;
+    /** The team's id as the API minted it - what `--team` takes everywhere else. */
+    id: string;
+  };
+};
+
+/** Everything `sherlo team list` needed in order to print what it printed. */
+export type TeamListTranscriptPose = {
+  family: 'team-list';
+  ambient: { skipIntro: boolean };
+  teams: {
+    id: string;
+    name: string;
+    projectCount: number;
+    /** The caller's membership role, or null when the API does not say. */
+    role: string | null;
+  }[];
+};
+
+/** Everything `sherlo project list --team <id>` needed in order to print what it printed. */
+export type ProjectListTranscriptPose = {
+  family: 'project-list';
+  ambient: { skipIntro: boolean };
+  team: { name: string; id: string };
+  projects: {
+    index: number;
+    name: string;
+    buildCount: number;
+    /** The branch its baselines are kept on, or null while the project has never chosen one. */
+    mainBranch: string | null;
+  }[];
+};
+
+/**
  * The `getBuildStatus` answer, exactly as the CLI's query selects it.
  *
  * Optional fields here are optional ON THE WIRE - an older backend simply does

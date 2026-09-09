@@ -35,7 +35,18 @@
 import type { BuildStatus } from '../packages/cli/src/helpers/waitForBuildResult';
 import type { ViewTranscriptScenario } from '../packages/cli/src/commands/view/view.transcripts';
 import type { ViewTranscriptPose as CliViewTranscriptPose } from '../packages/cli/src/commands/view/viewPose';
-import type { PosedBuildStatus, ViewTranscriptPose } from './transcript.contract';
+import type { ProjectCreateTranscriptPose as CliProjectCreateTranscriptPose } from '../packages/cli/src/commands/projectCreate/projectCreatePose';
+import type { TeamCreateTranscriptPose as CliTeamCreateTranscriptPose } from '../packages/cli/src/commands/teamCreate/teamCreatePose';
+import type { TeamListTranscriptPose as CliTeamListTranscriptPose } from '../packages/cli/src/commands/teamList/teamListPose';
+import type { ProjectListTranscriptPose as CliProjectListTranscriptPose } from '../packages/cli/src/commands/projectList/projectListPose';
+import type {
+  PosedBuildStatus,
+  ProjectCreateTranscriptPose,
+  ProjectListTranscriptPose,
+  TeamCreateTranscriptPose,
+  TeamListTranscriptPose,
+  ViewTranscriptPose,
+} from './transcript.contract';
 
 /** `A` is assignable to `B`. Distributed off by the tuple, so unions stay whole. */
 type IsAssignable<A, B> = [A] extends [B] ? true : false;
@@ -49,6 +60,16 @@ type Assert<T extends true> = T;
 
 type PoseMatchesCli = Assert<IsAssignable<ViewTranscriptPose, CliViewTranscriptPose>>;
 type CliMatchesPose = Assert<IsAssignable<CliViewTranscriptPose, ViewTranscriptPose>>;
+
+/* The management families, pinned the same way in both directions (2026-09-07). */
+type ProjectCreatePoseMatchesCli = Assert<IsAssignable<ProjectCreateTranscriptPose, CliProjectCreateTranscriptPose>>;
+type CliMatchesProjectCreatePose = Assert<IsAssignable<CliProjectCreateTranscriptPose, ProjectCreateTranscriptPose>>;
+type TeamCreatePoseMatchesCli = Assert<IsAssignable<TeamCreateTranscriptPose, CliTeamCreateTranscriptPose>>;
+type CliMatchesTeamCreatePose = Assert<IsAssignable<CliTeamCreateTranscriptPose, TeamCreateTranscriptPose>>;
+type TeamListPoseMatchesCli = Assert<IsAssignable<TeamListTranscriptPose, CliTeamListTranscriptPose>>;
+type CliMatchesTeamListPose = Assert<IsAssignable<CliTeamListTranscriptPose, TeamListTranscriptPose>>;
+type ProjectListPoseMatchesCli = Assert<IsAssignable<ProjectListTranscriptPose, CliProjectListTranscriptPose>>;
+type CliMatchesProjectListPose = Assert<IsAssignable<CliProjectListTranscriptPose, ProjectListTranscriptPose>>;
 
 /* -------------------------------------------------------------------------- *
  * EXACT: the build the contract poses IS the build the wire sends.            *
@@ -95,5 +116,13 @@ export const TRANSCRIPT_CONTRACT_LAWS: [
   CliMatchesPose,
   PosedBuildMatchesWire,
   WireMatchesPosedBuild,
-  PoseCoversScenarioState
-] = [true, true, true, true, true];
+  PoseCoversScenarioState,
+  ProjectCreatePoseMatchesCli,
+  CliMatchesProjectCreatePose,
+  TeamCreatePoseMatchesCli,
+  CliMatchesTeamCreatePose,
+  TeamListPoseMatchesCli,
+  CliMatchesTeamListPose,
+  ProjectListPoseMatchesCli,
+  CliMatchesProjectListPose
+] = [true, true, true, true, true, true, true, true, true, true, true, true, true];
