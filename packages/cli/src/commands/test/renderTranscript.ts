@@ -140,6 +140,21 @@ function groundingFor(entry: CatalogEntry): string {
   return entry.scenario.groundedBy.kind;
 }
 
+/**
+ * Whether the scenario's fixture is a path this render is about to CREATE rather
+ * than one it must match.
+ *
+ * Published because the consumer cannot work it out and would otherwise get it
+ * wrong in the worst direction: `expected-render --check` reads a missing file
+ * as a DIVERGENCE, so a scenario naming a beats sidecar nothing has minted yet
+ * would report as "the CLI changed what a user sees" - the one message that
+ * road must never say untruthfully. `false` for every family but the dry-run
+ * one, which is the only family whose fixtures are minted through this road.
+ */
+function fixtureNotMintedYetFor(entry: CatalogEntry): boolean {
+  return entry.family === 'dry-run' && entry.scenario.fixtureNotMintedYet === true;
+}
+
 /** The git info a scenario that CAN read git reports. Fixed, never a wall-clock read. */
 const SCRIPTED_GIT_INFO: GitInfo = {
   commitName: 'the commit this scenario was grounded on',
@@ -168,6 +183,8 @@ type TranscriptEnvelope = {
    * a consumer must not read such a transcript as the DEFAULT experience.
    */
   grounded: string;
+  /** `true` -> {@link fixture} is this render's mint TARGET, not a baseline it must match. */
+  fixtureNotMintedYet: boolean;
   command: string;
   exitCode: number;
   capture: TranscriptScenario['capture'];
@@ -206,6 +223,7 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
     family,
     fixture: fixtureFor(entry),
     grounded: groundingFor(entry),
+    fixtureNotMintedYet: fixtureNotMintedYetFor(entry),
     command: `sherlo test --dry-run --render-transcript ${scenarioId}`,
     capture: scenario.capture,
     ambient: scenario.ambient,
@@ -248,6 +266,9 @@ export async function runRenderTranscriptState(source: string): Promise<void> {
     // state the caller invented this second, which no capture has ever run.
     fixture: null,
     grounded: 'declared-pose',
+    // Nothing to mint either: a pose names no path, so there is no file this
+    // render would be creating and none it must match.
+    fixtureNotMintedYet: false,
     command: `sherlo test --dry-run --render-transcript-state ${source}`,
     // `view` prints its transcript to stdout; the one thing it can put on stderr
     // is the not-found refusal, which is part of that pose's answer.
@@ -277,6 +298,8 @@ async function renderTwiceAndWrite(job: {
   family: TranscriptFamily;
   fixture: string | null;
   grounded: string;
+  /** `true` -> {@link fixture} is this render's mint TARGET, not a baseline it must match. */
+  fixtureNotMintedYet: boolean;
   command: string;
   capture: TranscriptScenario['capture'];
   ambient: TranscriptScenario['ambient'];
@@ -301,6 +324,7 @@ async function renderTwiceAndWrite(job: {
     family: job.family,
     fixture: job.fixture,
     grounded: job.grounded,
+    fixtureNotMintedYet: job.fixtureNotMintedYet,
     command: job.command,
     exitCode: job.exitCode,
     capture: job.capture,
@@ -493,6 +517,8 @@ type CatalogIndexEntry = {
   capture: string;
   /** `gated-shipped` -> the shipped path emits these, but only when opted in. */
   grounded: string;
+  /** `true` -> the fixture is a mint TARGET; a `--check` must not read its absence as a divergence. */
+  fixtureNotMintedYet: boolean;
 };
 
 function transcriptCatalogIndex(): Record<string, CatalogIndexEntry> {
@@ -503,6 +529,7 @@ function transcriptCatalogIndex(): Record<string, CatalogIndexEntry> {
       fixture: fixtureFor(entry),
       capture: entry.scenario.capture,
       grounded: groundingFor(entry),
+      fixtureNotMintedYet: fixtureNotMintedYetFor(entry),
     };
   }
   return index;
@@ -536,7 +563,9 @@ function formatTranscriptCatalog(): string {
     const provenance =
       fixture === null
         ? `    fixture: none - ${WHY_NO_FIXTURE[grounding] ?? grounding}`
-        : `    fixture: ${fixture}`;
+        : `    fixture: ${fixture}${
+            fixtureNotMintedYetFor(entry) ? ' (NOT MINTED YET - this render creates it)' : ''
+          }`;
 
     return (
       `  ${id}  (${entry.family})\n    ${entry.scenario.description}\n${provenance}\n` +
