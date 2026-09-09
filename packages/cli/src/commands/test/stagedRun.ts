@@ -76,7 +76,7 @@ import { emitBundleDir } from './emitBundleDir';
 import { resolveBaseFingerprintForSuppliedBundle } from './recordedBaseFingerprint';
 import { resolveSuppliedBundles } from './suppliedBundle';
 import { runEmitExpectation } from './emitExpectation';
-import { runRenderTranscript } from './renderTranscript';
+import { runRenderTranscript, runRenderTranscriptState } from './renderTranscript';
 import { countBundleStories, type ValidatedModuleManifest } from './readModuleManifest';
 import {
   formatDiffScopeReport,
@@ -150,6 +150,21 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     return { url: '' }; // unreachable - runEmitExpectation always exits the process
   }
 
+  // The two transcript-render roads are opposites and only one can run: one names
+  // a transcript the CLI ships, the other describes one the caller wrote. Refused
+  // rather than resolved by precedence - a caller who passed both is asking for
+  // two different things and should be told, not guessed at.
+  if (
+    passedOptions.renderTranscript !== undefined &&
+    passedOptions.renderTranscriptState !== undefined
+  ) {
+    throwError({
+      message:
+        '`--render-transcript` names a transcript the CLI ships and `--render-transcript-state` ' +
+        'describes one you wrote, so they cannot be combined. Pass whichever one this run means.',
+    });
+  }
+
   // --render-transcript (transcript-render mode): the same shape as the mode
   // above - it rides --dry-run, builds its own scenario-specific input, and needs
   // none of this invocation's real options. See ./renderTranscript.
@@ -161,6 +176,21 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     }
     await runRenderTranscript(passedOptions.renderTranscript);
     return { url: '' }; // unreachable - runRenderTranscript always exits the process
+  }
+
+  // --render-transcript-state (the pose road): the same mode over state the
+  // CALLER declares instead of a catalog id. Named separately rather than folded
+  // into the flag above because the two take different arguments - a scenario id
+  // and a document path - and a single flag guessing which one it was handed is
+  // how a mistyped id would become a missing file, or worse, the reverse.
+  if (passedOptions.renderTranscriptState !== undefined) {
+    if (passedOptions.dryRun !== true) {
+      throwError({
+        message: '--render-transcript-state requires --dry-run',
+      });
+    }
+    await runRenderTranscriptState(passedOptions.renderTranscriptState);
+    return { url: '' }; // unreachable - runRenderTranscriptState always exits the process
   }
 
   // 1. Validate params (no platform binary paths required - bundle only).

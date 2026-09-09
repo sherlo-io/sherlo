@@ -44,6 +44,7 @@ import {
   renderOutputKeys,
   renderRunHeader,
 } from './pushSpine';
+import { renderProjectCreated } from './projectCreated';
 import type { TranscriptSegment, TranscriptStream } from './segments';
 import {
   renderVerdictCaptureAccounting,
@@ -381,6 +382,14 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return {
         stream: 'stdout',
         prints: renderStoriesTable(segment.stories).map((line) => [line]),
+      };
+
+    /* --------------------- project management ------------------------ */
+
+    case 'project-created':
+      return {
+        stream: 'stdout',
+        prints: renderProjectCreated(segment.project).map((line) => [line]),
       };
   }
 }

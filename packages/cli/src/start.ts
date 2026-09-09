@@ -5,6 +5,7 @@ import {
   easBuildOnComplete,
   fingerprint,
   init,
+  projectCreate,
   showError,
   test,
   testEasCloudBuild,
@@ -28,6 +29,7 @@ import {
   EMIT_EXPECTATION_OPTION,
   FINGERPRINT_COMMAND,
   RENDER_TRANSCRIPT_OPTION,
+  RENDER_TRANSCRIPT_STATE_OPTION,
   GIT_BRANCH_OPTION,
   INCLUDE_OPTION,
   INIT_COMMAND,
@@ -35,9 +37,15 @@ import {
   IOS_OPTION,
   MESSAGE_OPTION,
   METADATA_OPTION,
+  PERSONAL_TOKEN_ENV_VAR,
+  PERSONAL_TOKEN_FLAG,
+  PERSONAL_TOKEN_OPTION,
   PLATFORM_LABEL,
   PROFILE_OPTION,
+  PROJECT_COMMAND,
+  PROJECT_CREATE_SUBCOMMAND,
   PROJECT_ROOT_OPTION,
+  TEAM_OPTION,
   SHOW_ERROR_COMMAND,
   TEST_COMMAND,
   TEST_EAS_CLOUD_BUILD_COMMAND,
@@ -76,6 +84,8 @@ async function start() {
     addShowErrorCommand(program);
 
     addFingerprintCommand(program);
+
+    addProjectCommand(program);
 
     if (process.argv.length === 2) {
       console.log('Choose a Sherlo command. Use --help for more information.');
@@ -126,6 +136,12 @@ const COMMAND_DESCRIPTION = {
     `  nothing. \`--${WAIT_OPTION}\` blocks until the build is terminal and exits under the\n` +
     `  same contract as \`test --${WAIT_OPTION}\`; without it the exit code is 0 whatever the\n` +
     '  build says.',
+  [`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}`]:
+    'Create a project in a team and print its project token ONCE.\n' +
+    `  Authorized by a PERSONAL token (\`--${PERSONAL_TOKEN_FLAG}\` or ${PERSONAL_TOKEN_ENV_VAR}),\n` +
+    `  which is a different credential from the \`--${TOKEN_OPTION}\` every other command\n` +
+    '  takes: a personal token names a person, a project token names a project.\n' +
+    '  The project token it prints cannot be shown again - store it when you see it.',
   [FINGERPRINT_COMMAND]:
     'Print the fingerprints `test` computes for this project, one line per layer\n' +
     '  (native, dependencies, js, base). Runs entirely locally: no token, no upload.\n' +
@@ -209,6 +225,15 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
       'stderr. Pass "list" to print every scenario. Makes no build, no bundle, no network ' +
       'call. Mint captures from a world; render computes from a scenario.',
   ],
+  [RENDER_TRANSCRIPT_STATE_OPTION]: [
+    '--render-transcript-state <path>',
+    'Transcript-render mode over a pose you write (requires --dry-run): reads one ' +
+      "command's whole state - the build the read answered with, and the ambient the run " +
+      "had - from a JSON document and renders it through the CLI's OWN print path, with the " +
+      'same envelope on stderr as --render-transcript. Pass "-" to read the document from ' +
+      'stdin. Every field is required unless the wire itself makes it optional, and an ' +
+      'unknown field is refused by name rather than ignored.',
+  ],
   [MESSAGE_OPTION]: [`--${MESSAGE_OPTION} <message>`, 'Custom message to label the test'],
   [METADATA_OPTION]: [
     `--${METADATA_OPTION}`,
@@ -227,6 +252,17 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `Path to the root directory of your project (default: ${DEFAULT_PROJECT_ROOT})`,
   ],
   [TOKEN_OPTION]: [`--${TOKEN_OPTION} <token>`, 'Authentication token for the project'],
+  [PERSONAL_TOKEN_OPTION]: [
+    `--${PERSONAL_TOKEN_FLAG} <token>`,
+    'Your PERSONAL token (`sht_...`), minted in the Sherlo web app. Acts as you, and ' +
+      `may do only what your current role on the team allows. Defaults to ${PERSONAL_TOKEN_ENV_VAR}. ` +
+      `NOT the project token \`--${TOKEN_OPTION}\` takes, and deliberately not read from SHERLO_TOKEN.`,
+  ],
+  [TEAM_OPTION]: [
+    `--${TEAM_OPTION} <teamId>`,
+    "The team to create the project in - the `t=` value in the web app's URL. Required: " +
+      'a personal token names a person, so there is no team to infer.',
+  ],
   [VERBOSE_OPTION]: [
     `--${VERBOSE_OPTION}`,
     'List every native source, package and file under its layer, with its digest',
@@ -279,6 +315,7 @@ function addTestCommand(program: Command) {
       DRY_RUN_OPTION,
       EMIT_EXPECTATION_OPTION,
       RENDER_TRANSCRIPT_OPTION,
+      RENDER_TRANSCRIPT_STATE_OPTION,
       WAIT_OPTION,
       WAIT_TIMEOUT_OPTION,
       METADATA_OPTION,
@@ -381,6 +418,30 @@ function addFingerprintCommand(program: Command) {
   });
 }
 
+/**
+ * `sherlo project create <name>` - the first MANAGEMENT command, registered as a
+ * noun-verb pair (see the COMMANDS block in ./constants for that convention).
+ *
+ * Wired by hand rather than through `addCommand`, for the same reason `view` is:
+ * it takes a POSITIONAL argument. `project` itself is a group with no action, so
+ * running it bare prints commander's own help for the group.
+ */
+function addProjectCommand(program: Command) {
+  const projectGroup = program.command(PROJECT_COMMAND).description('Manage Sherlo projects');
+
+  const createInstance = projectGroup
+    .command(`${PROJECT_CREATE_SUBCOMMAND} [name]`)
+    .description(COMMAND_DESCRIPTION[`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}`]);
+
+  addOptionsToCommand(createInstance, [TEAM_OPTION, PERSONAL_TOKEN_OPTION]);
+
+  createInstance.action(async (name: string | undefined, actionOptions) => {
+    setReportingContext(`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}`, actionOptions);
+
+    await projectCreate(name, actionOptions);
+  });
+}
+
 function addCommand({
   program,
   command,
@@ -438,12 +499,22 @@ function showDeprecationWarning({
   process.env.SKIP_INTRO = 'true';
 }
 
+/**
+ * EVERY option whose name ends in `token` is redacted, not just `--token`.
+ *
+ * The list used to be one entry long, and a second credential (`--personal-token`)
+ * is exactly the kind of thing that gets added to the CLI without anyone
+ * remembering this function. Matching on the NAME means the next one is redacted
+ * on the day it is added rather than on the day someone notices it in Sentry.
+ */
 function setReportingContext(command: string, options: any) {
-  const optionsWithHiddenToken = options[TOKEN_OPTION]
-    ? { ...options, [TOKEN_OPTION]: '[hidden]' }
-    : options;
+  const commandOptions = Object.fromEntries(
+    Object.entries(options ?? {}).map(([key, value]) =>
+      /token$/i.test(key) && value ? [key, '[hidden]'] : [key, value]
+    )
+  );
 
-  reporting.setContext('Command', { command, commandOptions: optionsWithHiddenToken });
+  reporting.setContext('Command', { command, commandOptions });
 }
 
 function addOptionsToCommand(command: Command, optionKeys: (keyof typeof OPTION_DEFINITION)[]) {

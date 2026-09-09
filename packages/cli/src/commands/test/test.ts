@@ -75,6 +75,7 @@ async function test(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string
       passedOptions.emitBundleDir !== undefined ? '--emit-bundle-dir' : undefined,
       passedOptions.emitExpectation !== undefined ? '--emit-expectation' : undefined,
       passedOptions.renderTranscript !== undefined ? '--render-transcript' : undefined,
+      passedOptions.renderTranscriptState !== undefined ? '--render-transcript-state' : undefined,
     ].find((flag) => flag !== undefined);
 
     if (bundlerRoadFlag !== undefined) {

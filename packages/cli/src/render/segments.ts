@@ -28,6 +28,7 @@ import type { BundleFormat } from '../commands/test/buildBundle';
 import type { Config } from '../types';
 import type { BuildDetails, ViewMetadataJson, ViewMetadataStory } from './buildView';
 import type { DryRunPlatformPreview } from './dryRunPlan';
+import type { ProjectCreated } from './projectCreated';
 
 /** Which of the process's two streams a segment is written to. */
 export type TranscriptStream = 'stdout' | 'stderr';
@@ -238,7 +239,14 @@ export type TranscriptSegment =
    * The per-story table `sherlo view` prints (without `--metadata`): one row
    * per story with its status and baseline. See ./buildView.
    */
-  | { kind: 'build-view-stories-table'; stories: ViewMetadataStory[] };
+  | { kind: 'build-view-stories-table'; stories: ViewMetadataStory[] }
+  /* ---------------------------------------------------------------------- *
+   * PROJECT MANAGEMENT - what `sherlo project create` prints. See           *
+   * ./projectCreated for why this segment carries three named fields rather *
+   * than the api response it was built from.                                *
+   * ---------------------------------------------------------------------- */
+  /** The whole success output of `sherlo project create`, token line included. */
+  | { kind: 'project-created'; project: ProjectCreated };
 
 /**
  * Where rendered segments go. The CLI installs a sink that writes to the
