@@ -1013,9 +1013,18 @@ describe('fetchServerBypassReason', () => {
 describe('waitForBuildResult settles stories[] before closing on a finished build', () => {
   const GREEN = { approved: 0, noChanges: 2, reported: 0, unreviewed: 0 };
   const CAPTURED = { capturedSnapshotCount: 2, inheritedSnapshotCount: 0 };
-  const story = (name: string, baseline: number | null) => ({ name, status: 'unchanged', baseline: baseline === null ? null : { buildIndex: baseline } });
+  const story = (name: string, baseline: number | null) => ({
+    name,
+    status: 'unchanged',
+    baseline: baseline === null ? null : { buildIndex: baseline },
+  });
   const finished = (stories: unknown[] | undefined) => ({
-    getBuildStatus: { runStatus: 'finished', viewStatusesCount: GREEN, diffScopeInfo: CAPTURED, ...(stories ? { stories } : {}) },
+    getBuildStatus: {
+      runStatus: 'finished',
+      viewStatusesCount: GREEN,
+      diffScopeInfo: CAPTURED,
+      ...(stories ? { stories } : {}),
+    },
   });
 
   beforeEach(() => {
@@ -1031,7 +1040,12 @@ describe('waitForBuildResult settles stories[] before closing on a finished buil
     mockGraphqlResponse(200, finished([story('Hello - Basic', 1), story('Typography - Dense', 1)]));
     mockGraphqlResponse(200, finished([story('Hello - Basic', 1), story('Typography - Dense', 1)]));
 
-    const promise = waitForBuildResult({ token: TOKEN, buildIndex: BUILD_INDEX, projectIndex: PROJECT_INDEX, teamId: TEAM_ID });
+    const promise = waitForBuildResult({
+      token: TOKEN,
+      buildIndex: BUILD_INDEX,
+      projectIndex: PROJECT_INDEX,
+      teamId: TEAM_ID,
+    });
     await vi.runAllTimersAsync();
 
     expect(await promise).toBe(EXIT_GREEN);
@@ -1040,11 +1054,19 @@ describe('waitForBuildResult settles stories[] before closing on a finished buil
 
   it('keeps reading while the stories are still arriving, and closes once they hold still', async () => {
     mockGraphqlResponse(200, finished([story('Hello - Basic', 1)]));
-    mockGraphqlResponse(200, finished([story('Hello - Basic', 1), story('Typography - Dense', null)]));
+    mockGraphqlResponse(
+      200,
+      finished([story('Hello - Basic', 1), story('Typography - Dense', null)])
+    );
     mockGraphqlResponse(200, finished([story('Hello - Basic', 1), story('Typography - Dense', 1)]));
     mockGraphqlResponse(200, finished([story('Hello - Basic', 1), story('Typography - Dense', 1)]));
 
-    const promise = waitForBuildResult({ token: TOKEN, buildIndex: BUILD_INDEX, projectIndex: PROJECT_INDEX, teamId: TEAM_ID });
+    const promise = waitForBuildResult({
+      token: TOKEN,
+      buildIndex: BUILD_INDEX,
+      projectIndex: PROJECT_INDEX,
+      teamId: TEAM_ID,
+    });
     await vi.runAllTimersAsync();
 
     expect(await promise).toBe(EXIT_GREEN);
@@ -1054,7 +1076,12 @@ describe('waitForBuildResult settles stories[] before closing on a finished buil
   it('closes at once on a finished build whose wire carries no stories - there is nothing to settle', async () => {
     mockGraphqlResponse(200, finished(undefined));
 
-    const promise = waitForBuildResult({ token: TOKEN, buildIndex: BUILD_INDEX, projectIndex: PROJECT_INDEX, teamId: TEAM_ID });
+    const promise = waitForBuildResult({
+      token: TOKEN,
+      buildIndex: BUILD_INDEX,
+      projectIndex: PROJECT_INDEX,
+      teamId: TEAM_ID,
+    });
     await vi.runAllTimersAsync();
 
     expect(await promise).toBe(EXIT_GREEN);
@@ -1064,7 +1091,12 @@ describe('waitForBuildResult settles stories[] before closing on a finished buil
   it('does not hold an errored build - there is no comparison to wait for', async () => {
     mockGraphqlResponse(200, buildResponse('error', undefined, 'boom'));
 
-    const promise = waitForBuildResult({ token: TOKEN, buildIndex: BUILD_INDEX, projectIndex: PROJECT_INDEX, teamId: TEAM_ID });
+    const promise = waitForBuildResult({
+      token: TOKEN,
+      buildIndex: BUILD_INDEX,
+      projectIndex: PROJECT_INDEX,
+      teamId: TEAM_ID,
+    });
     await vi.runAllTimersAsync();
 
     expect(await promise).toBe(EXIT_ERROR);

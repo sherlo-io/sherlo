@@ -264,7 +264,9 @@ async function waitForBuildResult({
   // deadline, so a timeout fires on time instead of overshooting by up to one
   // poll interval - and is raced against SIGINT so Ctrl-C never has to wait
   // out a sleep.
-  const sleepUnlessInterrupted = async (intervalMs = POLL_INTERVAL_MS): Promise<'elapsed' | 'sigint'> => {
+  const sleepUnlessInterrupted = async (
+    intervalMs = POLL_INTERVAL_MS
+  ): Promise<'elapsed' | 'sigint'> => {
     const remainingMs = Math.max(deadline - now(), 0);
     return Promise.race([
       sleep(Math.min(intervalMs, remainingMs)).then(() => 'elapsed' as const),
@@ -521,7 +523,12 @@ async function fetchBuildStatus(
 function storiesFingerprint(build: BuildStatus): string | null {
   if (!build.stories) return null;
   return build.stories
-    .map((story) => `${story.name}|${story.status}|${story.baseline?.buildIndex ?? 'none'}|${story.reason ?? ''}`)
+    .map(
+      (story) =>
+        `${story.name}|${story.status}|${story.baseline?.buildIndex ?? 'none'}|${
+          story.reason ?? ''
+        }`
+    )
     .join('\n');
 }
 
