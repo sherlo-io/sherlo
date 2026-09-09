@@ -67,7 +67,7 @@ function refuseRejectedToken(teamId: string): never {
       '      projects) or the `team:read` scope (looks the team up by id);\n' +
       '    - the token was mistyped or truncated in transit.\n' +
       '\n' +
-      `  Find the team id with \`sherlo team list\`, or by creating a project first:\n` +
+      '  Find the team id with `sherlo team list`, or by creating a project first:\n' +
       `  \`sherlo project create --${NAME_OPTION} <name> --${TEAM_OPTION} <teamId>\`.`,
   });
 }
