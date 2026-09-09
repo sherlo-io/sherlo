@@ -14,6 +14,23 @@ import { decideSparseBuildVerdict, routesThroughSparseVerdict } from './sparseBu
 
 const DEFAULT_WAIT_TIMEOUT_MINUTES = 45;
 const POLL_INTERVAL_MS = 15_000; // fixed interval, no API hammering
+/**
+ * THE STORIES MUST HAVE STOPPED MOVING BEFORE A VERDICT IS PRINTED (2026-09-09).
+ *
+ * `runStatus: finished` says the runner is done; it does not say the comparison
+ * is. The per-story rows behind `stories[]` (names, statuses, the baseline each
+ * was judged against) are written after the build closes, one at a time, so a
+ * read taken the instant the build turns terminal can see a half-populated list
+ * - and a `--metadata` read chained after `--wait` would print it as the truth.
+ * The e2e harness used to paper over this with a private GraphQL poll of its
+ * own; a user has no such poll, so the wait has to be right here.
+ *
+ * The rule: once finished, the verdict is held until two consecutive reads of
+ * `stories[]` are identical. The confirming read comes a few seconds after the
+ * first, not a whole poll interval later - a settled build pays seconds, an
+ * unsettled one waits exactly as long as it takes.
+ */
+const SETTLE_CONFIRM_MS = 3_000;
 
 /**
  * The `getBuildStatus` wire shape, exported because two things outside this file
@@ -234,6 +251,9 @@ async function waitForBuildResult({
 
   let lastStatus = '';
   let pollCount = 0;
+  // The `stories[]` the previous read of a FINISHED build carried (see
+  // SETTLE_CONFIRM_MS); `undefined` until a finished build has been read once.
+  let storiesLastRead: string | undefined;
 
   // Overrides Node's default "exit immediately" SIGINT behavior so the wait
   // loop can stop cleanly and exit(130) itself instead of killing the process
@@ -244,10 +264,10 @@ async function waitForBuildResult({
   // deadline, so a timeout fires on time instead of overshooting by up to one
   // poll interval - and is raced against SIGINT so Ctrl-C never has to wait
   // out a sleep.
-  const sleepUnlessInterrupted = async (): Promise<'elapsed' | 'sigint'> => {
+  const sleepUnlessInterrupted = async (intervalMs = POLL_INTERVAL_MS): Promise<'elapsed' | 'sigint'> => {
     const remainingMs = Math.max(deadline - now(), 0);
     return Promise.race([
-      sleep(Math.min(POLL_INTERVAL_MS, remainingMs)).then(() => 'elapsed' as const),
+      sleep(Math.min(intervalMs, remainingMs)).then(() => 'elapsed' as const),
       sigint.promise.then(() => 'sigint' as const),
     ]);
   };
@@ -334,6 +354,18 @@ async function waitForBuildResult({
       const exitCode = evaluateTerminalState(build);
 
       if (exitCode !== null) {
+        // A FINISHED BUILD IS CLOSED ON ONLY ONCE ITS STORIES HAVE STOPPED MOVING
+        // (SETTLE_CONFIRM_MS). An errored or canceled build has no comparison to
+        // wait for, and a wire that carries no `stories` at all has nothing to
+        // settle; both close at once, as before.
+        const storiesNow = build.runStatus === 'finished' ? storiesFingerprint(build) : null;
+        if (storiesNow !== null && storiesNow !== storiesLastRead) {
+          storiesLastRead = storiesNow;
+          if ((await sleepUnlessInterrupted(SETTLE_CONFIRM_MS)) === 'sigint') {
+            return printSigintCloser();
+          }
+          continue;
+        }
         if (metadata) {
           emit({ kind: 'build-details', details: buildDetailsOf(build, metadata.git) });
           emit({ kind: 'blank-line' });
@@ -480,6 +512,17 @@ async function fetchBuildStatus(
   }
 
   return json.data?.getBuildStatus ?? null;
+}
+
+/**
+ * One line per story - name, status, baseline build, review reason - so two reads
+ * compare as strings. `null` when the wire carried no `stories` at all.
+ */
+function storiesFingerprint(build: BuildStatus): string | null {
+  if (!build.stories) return null;
+  return build.stories
+    .map((story) => `${story.name}|${story.status}|${story.baseline?.buildIndex ?? 'none'}|${story.reason ?? ''}`)
+    .join('\n');
 }
 
 function evaluateTerminalState(
