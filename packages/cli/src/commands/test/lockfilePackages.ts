@@ -81,8 +81,8 @@ export function readLockfilePackages(lockfilePath: string, name: LockfileName): 
     name === 'yarn.lock'
       ? parseYarnLock(text)
       : name === 'package-lock.json'
-        ? parsePackageLock(text)
-        : parsePnpmLock(text);
+      ? parsePackageLock(text)
+      : parsePnpmLock(text);
 
   return [...versionsByName.keys()].sort().map((packageName) => ({
     name: packageName,
@@ -195,7 +195,10 @@ function parsePnpmLock(text: string): Map<string, Set<string>> {
     const isPackageKey = /^ {2}\S/.test(line) && line.trimEnd().endsWith(':');
     if (!isPackageKey) continue;
 
-    const key = line.trim().slice(0, -1).replace(/^['"]|['"]$/g, '');
+    const key = line
+      .trim()
+      .slice(0, -1)
+      .replace(/^['"]|['"]$/g, '');
     const parsed = parsePnpmPackageKey(key);
     if (parsed) record(versionsByName, parsed.name, parsed.version);
   }
@@ -214,7 +217,10 @@ function parsePnpmPackageKey(key: string): { name: string; version: string } | n
 
   const atSeparator = withoutPeers.indexOf('@', withoutPeers.startsWith('@') ? 1 : 0);
   if (atSeparator !== -1) {
-    return { name: withoutPeers.slice(0, atSeparator), version: withoutPeers.slice(atSeparator + 1) };
+    return {
+      name: withoutPeers.slice(0, atSeparator),
+      version: withoutPeers.slice(atSeparator + 1),
+    };
   }
 
   const slashSeparator = withoutPeers.lastIndexOf('/');
