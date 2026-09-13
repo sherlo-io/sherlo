@@ -154,7 +154,7 @@ export function resolveSimulationWorldPath(options: {
     throwError({
       message:
         `\`${SIMULATION_CONFIG_FIELD}\` in ${configFilePath} must be a non-empty string - the path ` +
-        `of the sim world DIRECTORY, relative to the config file's directory (got ` +
+        "of the sim world DIRECTORY, relative to the config file's directory (got " +
         `${JSON.stringify(simulation)}).`,
     });
   }

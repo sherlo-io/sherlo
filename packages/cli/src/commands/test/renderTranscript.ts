@@ -57,6 +57,32 @@ import {
   viewPoseOutcome,
 } from '../view/renderViewTranscript';
 import { decodeViewPose, type ViewTranscriptPose } from '../view/viewPose';
+import {
+  decodeProjectCreatePose,
+  type ProjectCreateTranscriptPose,
+} from '../projectCreate/projectCreatePose';
+import {
+  projectCreatePoseOutcome,
+  renderProjectCreatePoseTranscript,
+} from '../projectCreate/renderProjectCreateTranscript';
+import {
+  decodeTeamCreatePose,
+  renderTeamCreatePoseTranscript,
+  teamCreatePoseOutcome,
+  type TeamCreateTranscriptPose,
+} from '../teamCreate/teamCreatePose';
+import {
+  decodeProjectListPose,
+  projectListPoseOutcome,
+  renderProjectListPoseTranscript,
+  type ProjectListTranscriptPose,
+} from '../projectList/projectListPose';
+import {
+  decodeTeamListPose,
+  renderTeamListPoseTranscript,
+  teamListPoseOutcome,
+  type TeamListTranscriptPose,
+} from '../teamList/teamListPose';
 
 /**
  * Which command's transcript a scenario is.
@@ -74,7 +100,14 @@ import { decodeViewPose, type ViewTranscriptPose } from '../view/viewPose';
  * `sherlo test --android/--ios` runs, a push family scripting THAT state (a
  * fresh bundle and its upload slots) belongs here, grounded on those fixtures.
  */
-export type TranscriptFamily = 'dry-run' | 'verdict' | 'view';
+export type TranscriptFamily =
+  | 'dry-run'
+  | 'verdict'
+  | 'view'
+  | 'project-create'
+  | 'team-create'
+  | 'project-list'
+  | 'team-list';
 
 /** One catalog entry, whichever family it belongs to. */
 type CatalogEntry =
@@ -168,7 +201,15 @@ type TranscriptEnvelope = {
    * a consumer must not read such a transcript as the DEFAULT experience.
    */
   grounded: string;
+  /** The producer invocation that rendered these bytes (the road, not the depicted command). */
   command: string;
+  /**
+   * THE COMMAND LINE THE TRANSCRIPT DEPICTS - what a user typed to see these bytes
+   * (`sherlo team create "Design Guild"`), as distinct from `command`, the render road.
+   * A report prints it as the prompt line above the pane, the way a beat's pane opens
+   * with the command the beat ran; without it a consumer had to guess it from the family.
+   */
+  depicts: string;
   exitCode: number;
   capture: TranscriptScenario['capture'];
   ambient: TranscriptScenario['ambient'];
@@ -207,6 +248,7 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
     fixture: fixtureFor(entry),
     grounded: groundingFor(entry),
     command: `sherlo test --dry-run --render-transcript ${scenarioId}`,
+    depicts: family === 'dry-run' ? 'sherlo test --dry-run' : 'sherlo test',
     capture: scenario.capture,
     ambient: scenario.ambient,
     // Neither a dry run nor a scripted wait creates anything or routes
@@ -239,6 +281,79 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
  */
 export async function runRenderTranscriptState(source: string): Promise<void> {
   const pose = readPose(source);
+
+  // A pose says which command it depicts, and the family is DISPATCHED on that
+  // rather than assumed. Before 2026-09-06 this road decoded every document as a
+  // `view` pose, so a `project create` beat had no way to a pane at all and ten
+  // tester chapters shipped quoting a claim they never proved.
+  if (pose.family === 'project-create') {
+    const { exitCode, capture } = projectCreatePoseOutcome();
+    await renderTwiceAndWrite({
+      scenarioId: POSED_SCENARIO_ID,
+      family: 'project-create',
+      fixture: null,
+      grounded: 'declared-pose',
+      command: `sherlo test --dry-run --render-transcript-state ${source}`,
+      depicts: `sherlo project create ${JSON.stringify(pose.project.name)}`,
+      capture,
+      ambient: pose.ambient,
+      exitCode,
+      render: () => renderProjectCreatePoseTranscript(pose),
+    });
+    return;
+  }
+
+  if (pose.family === 'team-create') {
+    const { exitCode, capture } = teamCreatePoseOutcome();
+    await renderTwiceAndWrite({
+      scenarioId: POSED_SCENARIO_ID,
+      family: 'team-create',
+      fixture: null,
+      grounded: 'declared-pose',
+      command: `sherlo test --dry-run --render-transcript-state ${source}`,
+      depicts: `sherlo team create ${JSON.stringify(pose.team.name)}`,
+      capture,
+      ambient: pose.ambient,
+      exitCode,
+      render: () => renderTeamCreatePoseTranscript(pose),
+    });
+    return;
+  }
+
+  if (pose.family === 'team-list') {
+    const { exitCode, capture } = teamListPoseOutcome();
+    await renderTwiceAndWrite({
+      scenarioId: POSED_SCENARIO_ID,
+      family: 'team-list',
+      fixture: null,
+      grounded: 'declared-pose',
+      command: `sherlo test --dry-run --render-transcript-state ${source}`,
+      depicts: 'sherlo team list',
+      capture,
+      ambient: pose.ambient,
+      exitCode,
+      render: () => renderTeamListPoseTranscript(pose),
+    });
+    return;
+  }
+
+  if (pose.family === 'project-list') {
+    const { exitCode, capture } = projectListPoseOutcome();
+    await renderTwiceAndWrite({
+      scenarioId: POSED_SCENARIO_ID,
+      family: 'project-list',
+      fixture: null,
+      grounded: 'declared-pose',
+      command: `sherlo test --dry-run --render-transcript-state ${source}`,
+      depicts: `sherlo project list --team ${pose.list.team.id}`,
+      capture,
+      ambient: pose.ambient,
+      exitCode,
+      render: () => renderProjectListPoseTranscript(pose),
+    });
+    return;
+  }
+
   const { exitCode, capture } = viewPoseOutcome(pose);
 
   await renderTwiceAndWrite({
@@ -249,6 +364,7 @@ export async function runRenderTranscriptState(source: string): Promise<void> {
     fixture: null,
     grounded: 'declared-pose',
     command: `sherlo test --dry-run --render-transcript-state ${source}`,
+    depicts: `sherlo view ${pose.buildIndex}`,
     // `view` prints its transcript to stdout; the one thing it can put on stderr
     // is the not-found refusal, which is part of that pose's answer.
     capture,
@@ -278,6 +394,7 @@ async function renderTwiceAndWrite(job: {
   fixture: string | null;
   grounded: string;
   command: string;
+  depicts: string;
   capture: TranscriptScenario['capture'];
   ambient: TranscriptScenario['ambient'];
   exitCode: number;
@@ -302,6 +419,7 @@ async function renderTwiceAndWrite(job: {
     fixture: job.fixture,
     grounded: job.grounded,
     command: job.command,
+    depicts: job.depicts,
     exitCode: job.exitCode,
     capture: job.capture,
     ambient: job.ambient,
@@ -323,8 +441,24 @@ async function renderTwiceAndWrite(job: {
  */
 const POSED_SCENARIO_ID = 'declared-pose';
 
-/** Read the pose document from a file, or from stdin when the source is `-`. */
-function readPose(source: string): ViewTranscriptPose {
+/** Every pose shape `--render-transcript-state` can be handed, by its own family tag. */
+type DeclaredPose =
+  | ViewTranscriptPose
+  | ProjectCreateTranscriptPose
+  | TeamCreateTranscriptPose
+  | ProjectListTranscriptPose
+  | TeamListTranscriptPose;
+
+/**
+ * Read the pose document from a file, or from stdin when the source is `-`.
+ *
+ * THE FAMILY TAG IS READ FIRST and decides which decoder runs. Every pose carries
+ * one, so this is a lookup rather than a guess - and a document naming a family
+ * this CLI has no decoder for is refused BY NAME, which is the diagnosis a caller
+ * needs. Decoding everything as `view` (what this did until 2026-09-06) turned a
+ * project-create pose into a list of view-field refusals that named nothing real.
+ */
+function readPose(source: string): DeclaredPose {
   let text: string;
   try {
     text = source === '-' ? readFileSync(0, 'utf8') : readFileSync(source, 'utf8');
@@ -347,8 +481,20 @@ function readPose(source: string): ViewTranscriptPose {
     process.exit(1);
   }
 
+  const family = (document as { family?: unknown } | null)?.family;
   try {
-    return decodeViewPose(document);
+    if (family === 'project-create') return decodeProjectCreatePose(document);
+    if (family === 'team-create') return decodeTeamCreatePose(document);
+    if (family === 'project-list') return decodeProjectListPose(document);
+    if (family === 'team-list') return decodeTeamListPose(document);
+    if (family === 'view' || family === undefined) return decodeViewPose(document);
+    console.error(
+      `REFUSING TO RENDER (unknown pose family): '${String(
+        family
+      )}' is not a family this CLI can ` +
+        "render. Posable families: 'view', 'project-create', 'team-create', 'project-list', 'team-list'."
+    );
+    process.exit(1);
   } catch (error) {
     console.error((error as Error).message);
     process.exit(1);

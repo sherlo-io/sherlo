@@ -68,20 +68,31 @@ async function view(
 
   reporting.setTag('build_index', String(buildIndex));
 
-  // ONE read before anything is printed, even on the `--wait` road. The loop
-  // would answer "Build not found, retrying..." for the whole timeout on a
-  // mistyped index; reading first turns that into an immediate refusal, and the
-  // second read the loop then makes is one poll of a build that exists.
+  // ONE read before anything is printed - but its miss means two different
+  // things depending on whether `--wait` was asked for, so only ONE of them
+  // treats a miss as final.
+  //
+  // Without `--wait`, a miss IS the answer: the caller named a build they
+  // believe already exists, so refusing here rather than guessing is the
+  // whole point of this read.
+  //
+  // With `--wait`, a miss proves nothing. `sherlo view <index> --wait` is
+  // meant to be chainable straight after whatever opened that build - a `git
+  // push` that fires a CI run which checks out, installs, builds and only
+  // THEN calls `sherlo test` to open the build this command is asked to read.
+  // Minutes, not a network round trip, separate "pushed" from "the build
+  // exists at Sherlo" - so a single miss here says nothing about whether the
+  // index was ever real. `waitForBuildResult` already answers exactly this
+  // ("build not found, retrying...") for every later poll in the loop, bound
+  // by the caller's own `--wait-timeout`; a `--wait` miss on THIS read hands
+  // straight over to it instead of refusing, so a mistyped index costs the
+  // patience the caller asked `--wait` for, and nothing more.
   const build = await readBuildStatus({
     token: commandParams.token,
     buildIndex,
     projectIndex,
     teamId,
   });
-
-  if (!build) {
-    refuseBuildNotFound(buildIndex);
-  }
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
   const showDetails = commandParams.metadata === true;
@@ -90,7 +101,13 @@ async function view(
     // The verdict belongs to the wait loop from here on, so the tally and the
     // status sentence are NOT printed first: they would describe a build that is
     // still moving, and be contradicted by the closer a minute later.
-    emit({ kind: 'build-view-header', buildIndex, runStatus: build.runStatus });
+    //
+    // No header names a `runStatus` when the eager read above missed - there
+    // is none to name yet. The loop's own "build not found, retrying..." line
+    // says exactly that until the build appears.
+    if (build) {
+      emit({ kind: 'build-view-header', buildIndex, runStatus: build.runStatus });
+    }
     emit({ kind: 'blank-line' });
     printResultsUrl(url);
 
@@ -111,6 +128,10 @@ async function view(
     // Unreachable - the line above ends the process. Written out so a reader
     // never has to prove that to know the block below is not printed too.
     return;
+  }
+
+  if (!build) {
+    refuseBuildNotFound(buildIndex);
   }
 
   printBuildView({ build, buildIndex, url, showDetails });

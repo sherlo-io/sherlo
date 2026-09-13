@@ -68,9 +68,9 @@ export const MIN_STORYBOOK_REACT_NATIVE_VERSION = '8.0.0';
  * otherwise the next one is named by whoever types first.
  *
  *   A PRIMARY FLOW IS A VERB.       `sherlo test`, `sherlo view`, `sherlo init`
- *   A MANAGEMENT OPERATION IS       `sherlo project create`
- *   NOUN-VERB.                      (and later `sherlo team list`, `sherlo
- *                                    project delete`, ...)
+ *   A MANAGEMENT OPERATION IS       `sherlo project create`, `sherlo project list`,
+ *   NOUN-VERB.                      `sherlo team create`, `sherlo team list`
+ *                                    (and later `sherlo project delete`, ...)
  *
  * The split is about what a reader is doing, not about how much the command
  * does. A primary flow is the daily loop - you run tests, you look at a build -
@@ -91,10 +91,18 @@ export const EAS_BUILD_ON_COMPLETE_COMMAND = 'eas-build-on-complete';
 export const SHOW_ERROR_COMMAND = 'show-error';
 export const FINGERPRINT_COMMAND = 'fingerprint';
 export const VIEW_COMMAND = 'view';
-/** The `project` resource group. It does nothing on its own - see PROJECT_CREATE_SUBCOMMAND. */
+/** The `project` resource group. It does nothing on its own - see the subcommands below. */
 export const PROJECT_COMMAND = 'project';
-/** `sherlo project create <name>` - the first management operation (see the note above). */
+/** `sherlo project create --name <name>` - the first management operation (see the note above). */
 export const PROJECT_CREATE_SUBCOMMAND = 'create';
+/** `sherlo project list --team <teamId>` - one row per project of a team. */
+export const PROJECT_LIST_SUBCOMMAND = 'list';
+/** The `team` resource group. It does nothing on its own - see the subcommands below. */
+export const TEAM_COMMAND = 'team';
+/** `sherlo team create --name <name>`. */
+export const TEAM_CREATE_SUBCOMMAND = 'create';
+/** `sherlo team list` - one row per team the caller belongs to. */
+export const TEAM_LIST_SUBCOMMAND = 'list';
 export const FULL_INIT_COMMAND = 'npx sherlo init';
 
 /* OPTIONS */
@@ -139,6 +147,12 @@ export const PERSONAL_TOKEN_OPTION = 'personalToken';
 export const PERSONAL_TOKEN_FLAG = 'personal-token';
 /** `sherlo project create`: which team the new project belongs to. */
 export const TEAM_OPTION = 'team';
+/**
+ * `sherlo project create`: the name of the thing being created. A NAMED FLAG RATHER THAN A
+ * POSITIONAL, so a name is never whatever happened to follow the verb (decided 2026-09-07):
+ * `sherlo project create --name "Design System"`, and the same flag on every create that follows.
+ */
+export const NAME_OPTION = 'name';
 /** `sherlo fingerprint`: print every source, package and file under its layer. */
 export const VERBOSE_OPTION = 'verbose';
 /** `sherlo fingerprint`: the file to write the fingerprint document to. */
@@ -165,8 +179,8 @@ export const WAIT_TIMEOUT_OPTION = 'waitTimeout';
  *   project - it is resolved server-side to the PERSON who minted it, and what
  *   it may do is its scopes intersected with that person's current role on the
  *   team the request names. It is what `--personal-token` /
- *   SHERLO_PERSONAL_TOKEN mean, and today it does exactly one thing: create a
- *   project.
+ *   SHERLO_PERSONAL_TOKEN mean, and it drives every management command:
+ *   `project create`, `project list`, `team create`, `team list`.
  *
  * SLICING A PERSONAL TOKEN THE WAY A PROJECT TOKEN IS SLICED WOULD PRODUCE A
  * PLAUSIBLE-LOOKING TEAM ID out of eight characters of random. That is the
@@ -190,6 +204,8 @@ export const PERSONAL_TOKEN_ENV_VAR = 'SHERLO_PERSONAL_TOKEN';
 
 /** Refused locally, so an over-long name costs no round trip. Mirrors the API's own limit. */
 export const MAX_PROJECT_NAME_LENGTH = 64;
+/** Refused locally, so an over-long name costs no round trip. Mirrors the API's own limit. */
+export const MAX_TEAM_NAME_LENGTH = 32;
 
 export const COLOR = {
   reported: 'FFB36C',
