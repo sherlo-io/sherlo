@@ -147,10 +147,7 @@ function diffJsLayers(baseline: FingerprintDocument, current: FingerprintDocumen
   });
 }
 
-export function diffPackages(
-  before: PackageVersions[],
-  after: PackageVersions[]
-): DeltaEntry[] {
+export function diffPackages(before: PackageVersions[], after: PackageVersions[]): DeltaEntry[] {
   const beforeByName = new Map(before.map((pkg) => [pkg.name, pkg.versions.join(', ')]));
   const afterByName = new Map(after.map((pkg) => [pkg.name, pkg.versions.join(', ')]));
 

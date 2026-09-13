@@ -149,6 +149,36 @@ describe('which build `sherlo view` looks at', () => {
   });
 });
 
+describe('the eager read racing the build it names', () => {
+  // `sherlo view <index> --wait` is meant to be chainable straight after
+  // whatever opened that build - a CI run that pushes, builds, and only then
+  // calls `sherlo test`. Minutes can separate that push from the build
+  // existing at Sherlo, so a single miss on THIS read says nothing about
+  // whether the index is real: only a caller who did not ask to wait treats
+  // a miss as final.
+  it('hands a `--wait` miss straight to the wait loop instead of refusing', async () => {
+    readBuildStatus.mockResolvedValue(null);
+    waitForBuildResult.mockResolvedValue(0);
+
+    await runView('7', { wait: true });
+
+    expect(waitForBuildResult).toHaveBeenCalledWith(
+      expect.objectContaining({ buildIndex: 7, projectIndex: PROJECT_INDEX, teamId: TEAM_ID })
+    );
+    expect(exitCodes, 'the wait loop is the one thing that can still refuse this').toEqual([0]);
+  });
+
+  it('gives a miss no second chance without `--wait`', async () => {
+    readBuildStatus.mockResolvedValueOnce(null);
+
+    await expect(runView('99')).rejects.toThrow(/Build #99 does not exist/);
+    expect(
+      waitForBuildResult,
+      'a bare read never falls back to the wait loop'
+    ).not.toHaveBeenCalled();
+  });
+});
+
 describe('the exit-code split', () => {
   it('without --wait it does not wait, and does not exit on the verdict', async () => {
     await runView('7');

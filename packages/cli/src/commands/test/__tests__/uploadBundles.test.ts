@@ -115,7 +115,9 @@ describe('uploadBundles', () => {
   });
 
   it('realBundleUploadEffects uploads through uploadStagedArtifacts and asks the client for slots', async () => {
-    const client = { getStagedUploadUrls: vi.fn().mockResolvedValue({ stagedPresignedUploadUrls: {} }) };
+    const client = {
+      getStagedUploadUrls: vi.fn().mockResolvedValue({ stagedPresignedUploadUrls: {} }),
+    };
 
     const effects = realBundleUploadEffects(client as any);
     await effects.requestUploadSlots({ platforms: ['ios'], projectIndex: 1, teamId: 't' });

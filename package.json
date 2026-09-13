@@ -25,6 +25,7 @@
   },
   "scripts": {
     "build": "lerna run build",
+    "repo": "node scripts/repo.mjs",
     "lint": "NODE_ENV=production yarn run -T eslint --ext .ts,.tsx packages/cli/src packages/react-native-storybook/src",
     "lint:circular-dependencies": "npx madge --extensions ts --circular .",
     "lint:js": "cross-env NODE_ENV=production eslint --cache --cache-location=.cache/eslint --ext .js,.jsx,.html,.ts,.tsx,.mjs --report-unused-disable-directives",

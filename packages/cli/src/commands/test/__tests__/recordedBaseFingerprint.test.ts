@@ -115,7 +115,9 @@ describe('what the emit side records', () => {
   });
 
   it('records nothing when the emitting machine computed no fingerprint', () => {
-    expect(recordBaseFingerprint({ hash: null, debugMessage: 'no native dirs' }, projectRoot)).toBeNull();
+    expect(
+      recordBaseFingerprint({ hash: null, debugMessage: 'no native dirs' }, projectRoot)
+    ).toBeNull();
   });
 });
 
@@ -201,7 +203,10 @@ describe('what the accept side trusts', () => {
   it('computes instead when a native input changed and the install is there', async () => {
     writeSidecar('android', recordBaseFingerprint(COMPUTED, projectRoot));
     write('ios/Podfile', "platform :ios, '16.0'");
-    mocks.computeBaseFingerprint.mockResolvedValue({ hash: 'fresh', nativeFingerprint: 'fresh-native' });
+    mocks.computeBaseFingerprint.mockResolvedValue({
+      hash: 'fresh',
+      nativeFingerprint: 'fresh-native',
+    });
 
     const result = await resolveBaseFingerprintForSuppliedBundle({
       bundleDir,
