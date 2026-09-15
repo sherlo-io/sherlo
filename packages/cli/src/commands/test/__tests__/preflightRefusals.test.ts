@@ -84,7 +84,29 @@
  * (`render/__tests__/renderLayerLiterals.test.ts`) as its ONLY cover for the chalk
  * class, this family does not - the byte ratchet below covers it directly, and the
  * case at the bottom asserts that property rather than assuming it.
+ *
+ * ==========================================================================
+ * PENDING RE-MINT (cli-emit-expectation-whole-screen, sherlo#265)
+ * ==========================================================================
+ *
+ * `renderEmittedStdout` now renders the WHOLE refusal screen - the guard's
+ * message plus the "Need Help?" epilogue - not the message alone. Every
+ * `fixtures` path in `preflight.refusals.ts` still holds the OLD, message-only
+ * bytes; sherlo-tester re-mints them from this road only after this change
+ * lands (the architect's own capture/story loop reaches into that repository,
+ * a CLI PR cannot). So the per-fixture byte comparison against `committedFixture`
+ * below is marked `.fails` - it is EXPECTED to fail (the tester bytes ARE
+ * stale) until the re-mint, at which point it will start unexpectedly
+ * PASSING and red the suite, forcing the `.fails` back off in that follow-up.
+ * `fixtureExists` is still asserted unconditionally, so a path drift (like the
+ * beats-port move that caused sherlo#265's CI to red) still reds immediately
+ * rather than hiding behind the pending-remint marker.
+ *
+ * The real, current proof for this PR is the LOCAL fixture ratchet at the
+ * bottom of this file: `renderEmittedStdout` against bytes this repo commits
+ * and reviews into git right here, needing no sherlo-tester checkout at all.
  */
+import * as fs from 'fs';
 import * as path from 'path';
 import { describe, expect, it } from 'vitest';
 import chalk from 'chalk';
@@ -100,6 +122,11 @@ import {
   declareTesterCheckoutGate,
   fixtureExists,
 } from './testerCheckout';
+
+/** Reads a fixture this repo commits under `preflightRefusals.fixtures/`. */
+function localFixture(fileName: string): string {
+  return fs.readFileSync(path.join(__dirname, 'preflightRefusals.fixtures', fileName), 'utf8');
+}
 
 /**
  * Colour is pinned ON, once, before anything renders. The refusal formatter bakes
@@ -185,18 +212,46 @@ describe('the preflight refusal catalog', () => {
   });
 
   for (const { id, fixture } of everyBoundPair()) {
-    it.runIf(TESTER_AVAILABLE)(`${id}: renders every byte of ${path.basename(fixture)}`, () => {
-      expect(
-        renderEmittedStdout(id),
-        'THE CLI NO LONGER PRODUCES WHAT THIS REFUSAL FIXTURE COMMITTED. The fixture was minted ' +
-          'from the CLI itself (`sherlo test --dry-run --emit-expectation <scenario>`) and ' +
-          'reviewed into git by a person; a divergence means the refusal a real user reads has ' +
-          'changed - its wording, its colour, its blank lines or its box. That is a product ' +
-          'change to argue for, not a fixture to re-record: if the new text is intended, re-mint ' +
-          'this fixture in the same PR and say so.'
-      ).toBe(committedFixture(fixture));
-    });
+    // PENDING RE-MINT (see the file header): every one of these currently fails
+    // for real - the committed fixture is message-only, `renderEmittedStdout`
+    // now renders the whole screen. `.fails` keeps that failure from redding
+    // CI while it is expected; it will red the SUITE the day it unexpectedly
+    // passes, which is exactly the signal to remove `.fails` here.
+    it.runIf(TESTER_AVAILABLE).fails(
+      `${id}: renders every byte of ${path.basename(fixture)}`,
+      () => {
+        expect(
+          renderEmittedStdout(id),
+          'THE CLI NO LONGER PRODUCES WHAT THIS REFUSAL FIXTURE COMMITTED. The fixture was minted ' +
+            'from the CLI itself (`sherlo test --dry-run --emit-expectation <scenario>`) and ' +
+            'reviewed into git by a person; a divergence means the refusal a real user reads has ' +
+            'changed - its wording, its colour, its blank lines or its box. That is a product ' +
+            'change to argue for, not a fixture to re-record: if the new text is intended, re-mint ' +
+            'this fixture in the same PR and say so.'
+        ).toBe(committedFixture(fixture));
+      }
+    );
   }
+
+  describe('the LOCAL fixture ratchet (needs no sherlo-tester checkout)', () => {
+    // The real, current proof for this PR: `renderEmittedStdout` against bytes
+    // this repo commits under `preflightRefusals.fixtures/` and reviews into
+    // git through this very change - see the file header's "PENDING RE-MINT".
+    for (const id of PREFLIGHT_REFUSAL_IDS) {
+      const { localFixture: fileName } = PREFLIGHT_REFUSALS[id];
+
+      it(`${id}: renders every byte of ${fileName}`, () => {
+        expect(renderEmittedStdout(id)).toBe(localFixture(fileName));
+      });
+    }
+
+    it('CONTROL: a corrupted render is REJECTED (the comparison still rejects what it should)', () => {
+      const id = PREFLIGHT_REFUSAL_IDS[0];
+      expect(`${renderEmittedStdout(id)} `).not.toBe(
+        localFixture(PREFLIGHT_REFUSALS[id].localFixture)
+      );
+    });
+  });
 
   it.runIf(TESTER_AVAILABLE)('renders the same bytes twice', () => {
     // Determinism, not truth - a producer agrees with itself by construction.
