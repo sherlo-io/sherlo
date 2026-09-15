@@ -133,13 +133,19 @@ type DiffScopeInfoWithPlatformReasons = {
 // ---------------------------------------------------------------------------
 
 async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
-  printSherloIntro();
-
   // --emit-expectation (expectation-emit mode): rides the --dry-run path rather
   // than a parallel print path. Runs before command params are even validated -
   // the mode builds its own synthetic, scenario-specific input for the guard it
   // exercises, so it needs none of this invocation's real options. See
   // ./emitExpectation for the scenario catalogue and placeholder vocabulary.
+  //
+  // DISPATCHED BEFORE THE INTRO, on purpose. What the mode prints is the WHOLE
+  // refusal screen of the scenario it was asked for, intro included where the
+  // live road prints one - so an intro printed by THIS invocation would be a
+  // second one, belonging to the mint run rather than to the refusal being
+  // minted, and `config-missing` (whose live refusal precedes the intro) would
+  // carry one it must not have. Dispatching first is what makes the process's
+  // stdout equal `renderEmittedStdout`'s return value, byte for byte.
   if (passedOptions.emitExpectation !== undefined) {
     if (passedOptions.dryRun !== true) {
       throwError({
@@ -149,6 +155,8 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     runEmitExpectation(passedOptions.emitExpectation);
     return { url: '' }; // unreachable - runEmitExpectation always exits the process
   }
+
+  printSherloIntro();
 
   // The two transcript-render roads are opposites and only one can run: one names
   // a transcript the CLI ships, the other describes one the caller wrote. Refused

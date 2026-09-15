@@ -1,0 +1,12 @@
+[31mERROR: Config file `<SHERLO_CONFIG_PATH>` not found[39m
+[31m[39m
+[31mPlease:[39m
+[31m1. Make sure the config file exists in your project root[39m
+[31m2. If your project root is different, use the `--projectRoot` option[39m
+[2m↳ Learn more: [4mhttps://sherlo.io/docs/config[24m[22m
+
+[2m══════════[22m
+[2m[22m
+[2mNeed Help?[22m
+[2m➜ [22m[2mhttps://discord.gg/G7eqTBkWZt[22m
+[2m➜ [22m[2mcontact@sherlo.io[22m
