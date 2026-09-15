@@ -14,8 +14,10 @@ import { describe, expect, it } from 'vitest';
 import {
   EXPECTATION_PLACEHOLDERS,
   EXPECTATION_SCENARIO_IDS,
+  renderEmittedStdout,
   renderExpectation,
 } from '../emitExpectation';
+import { renderNeedHelpEpilogue } from '../../../helpers/needHelpEpilogue';
 import parseConfigFile from '../../../helpers/getValidatedCommandParams/getNormalizedConfig/parseConfigFile';
 import validateDevices from '../../../helpers/getValidatedCommandParams/validateCommandParams/validateDevices';
 import validateToken from '../../../helpers/getValidatedCommandParams/validateCommandParams/validateToken';
@@ -145,5 +147,42 @@ describe('renderExpectation - scenario catalogue', () => {
     expect(() => renderExpectation('does-not-exist')).toThrow(
       /Unknown --emit-expectation scenario/
     );
+  });
+});
+
+/**
+ * `renderEmittedStdout` renders the WHOLE refusal screen - the guard's message
+ * plus the "Need Help?" epilogue `start.ts` prints on every uncaught command
+ * error - not the guard's message alone. These tests are the part of the
+ * one-formatter law `renderExpectation`'s tests above do not cover: that the
+ * epilogue text comes from the same shared producer the live path prints from,
+ * appears exactly once, and does not disturb the placeholder masking already
+ * proven above.
+ */
+describe('renderEmittedStdout - the Need Help epilogue', () => {
+  it('a minted refusal ends with the same Need Help epilogue the live command prints', () => {
+    const epilogue = renderNeedHelpEpilogue();
+
+    expect(epilogue).toContain('Need Help?');
+    expect(renderEmittedStdout('config-missing').endsWith(epilogue)).toBe(true);
+  });
+
+  it('the epilogue is printed once, by the one place that owns it', () => {
+    const emitted = renderEmittedStdout('config-missing');
+    const epilogue = renderNeedHelpEpilogue();
+
+    // `split` on the exact epilogue bytes: one occurrence means exactly one
+    // producer wrote it; a second, hand-written copy anywhere in the emit
+    // path would show up here as more than one split part.
+    expect(emitted.split(epilogue).length - 1).toBe(1);
+    expect(emitted.split('Need Help?').length - 1).toBe(1);
+  });
+
+  it('config-missing still folds the config path to <SHERLO_CONFIG_PATH>', () => {
+    const configPath = '/Users/sherlo-user/my-app/sherlo.config.json';
+    const emitted = renderEmittedStdout('config-missing');
+
+    expect(emitted).toContain(EXPECTATION_PLACEHOLDERS.CONFIG_PATH);
+    expect(emitted).not.toContain(configPath);
   });
 });

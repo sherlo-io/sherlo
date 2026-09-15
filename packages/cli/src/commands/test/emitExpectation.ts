@@ -16,6 +16,11 @@
  * validateDevices, parseConfigFile, validatePlatformPaths, validateBinariesInfo)
  * runs entirely against local input and never touches the network, matching
  * every real invocation of these guards elsewhere in the CLI.
+ *
+ * The rendered text is the WHOLE screen a real refusal puts on a user's
+ * terminal, not the guard's message alone: {@link renderEmittedStdout} follows
+ * it with the same "Need Help?" epilogue `start.ts` prints on every uncaught
+ * command error, via the one shared producer in `helpers/needHelpEpilogue`.
  */
 import { TEST_COMMAND } from '../../constants';
 import { BinariesInfo, InvalidatedConfig } from '../../types';
@@ -24,6 +29,7 @@ import validateDevices from '../../helpers/getValidatedCommandParams/validateCom
 import validateToken from '../../helpers/getValidatedCommandParams/validateCommandParams/validateToken';
 import validateBinariesInfo from '../../helpers/getValidatedBinariesInfoAndNextBuildIndex/validateBinariesInfo';
 import { validatePlatformPaths } from '../../helpers/shared';
+import { renderNeedHelpEpilogue } from '../../helpers/needHelpEpilogue';
 
 /**
  * Placeholder vocabulary for volatile values a guard's message may embed. Defined
@@ -173,19 +179,31 @@ export function renderExpectation(scenarioId: string): string {
 }
 
 /**
- * THE BYTES A MINT COMMITS - the scenario's rendered text plus the ONE trailing
- * newline `console.log` appends, which lands in the fixture like any other byte.
+ * THE BYTES A MINT COMMITS - the guard's message, the blank line that follows
+ * it live, and the "Need Help?" epilogue every uncaught command error prints -
+ * the WHOLE screen a real refusal puts on a user's terminal, not the guard's
+ * message alone.
+ *
+ * The blank line is not added here: `throwError` already terminates every
+ * guard message with its own trailing newline, and the live path's
+ * `console.error(message)` appends another - the pair is what turns into a
+ * blank line on screen. Reproducing that means adding exactly one more `\n`
+ * before the epilogue, which is what happens below.
+ *
+ * The epilogue itself has ONE producer, {@link renderNeedHelpEpilogue} - the
+ * same text `printNeedHelpEpilogue` prints from `start.ts`'s catch block, so
+ * this can never drift from what a real run shows.
  *
  * Named and exported rather than left implicit inside {@link runEmitExpectation}
  * because the ratchet (preflightRefusals.test.ts) compares against committed
- * fixtures that CONTAIN that newline. Without this, the ratchet would have to
- * re-derive the closer as `renderExpectation(id) + '\n'` - a second, private copy
- * of a formatting decision this file owns, and one that would silently stop
- * matching the day the emit road changed how it terminates its output. One
- * producer, two callers: the command prints it, the ratchet compares it.
+ * fixtures that CONTAIN these bytes. Without this, the ratchet would have to
+ * re-derive the closer itself - a second, private copy of a formatting decision
+ * this file owns, and one that would silently stop matching the day the emit
+ * road changed how it terminates its output. One producer, two callers: the
+ * command prints it, the ratchet compares it.
  */
 export function renderEmittedStdout(scenarioId: string): string {
-  return `${renderExpectation(scenarioId)}\n`;
+  return `${renderExpectation(scenarioId)}\n${renderNeedHelpEpilogue()}`;
 }
 
 /**
@@ -207,9 +225,9 @@ export function runEmitExpectation(scenarioId: string): void {
     process.exit(1);
   }
 
-  // `process.stdout.write`, not `console.log`, because the trailing newline is
-  // now part of what renderEmittedStdout returns. Byte-for-byte the same output
-  // as the `console.log(rendered)` this replaced - a user sees no difference.
+  // `process.stdout.write`, not `console.log`, because every newline the live
+  // screen shows - after the message and inside the epilogue - is already part
+  // of what renderEmittedStdout returns.
   process.stdout.write(emitted);
   process.exit(0);
 }

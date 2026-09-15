@@ -19,11 +19,9 @@ import {
   ANDROID_OPTION,
   BASELINE_OPTION,
   CONFIG_OPTION,
-  CONTACT_EMAIL,
   DEFAULT_CONFIG_FILENAME,
   DEFAULT_PROJECT_ROOT,
   DIAGNOSTICS_OPTION,
-  DISCORD_URL,
   BUNDLE_DIR_OPTION,
   DRY_RUN_OPTION,
   EMIT_BUNDLE_DIR_OPTION,
@@ -65,7 +63,7 @@ import {
   WAIT_TIMEOUT_OPTION,
   WRITE_OPTION,
 } from './constants';
-import { logWarning, reporting, withCommandTimeout } from './helpers';
+import { logWarning, printNeedHelpEpilogue, reporting, withCommandTimeout } from './helpers';
 
 // Disable all Node.js warnings
 process.removeAllListeners('warning');
@@ -113,10 +111,7 @@ async function start() {
     await reporting.flush().finally(() => {
       console.error((error as Error).message);
 
-      console.log(chalk.dim('═'.repeat(10) + '\n'));
-      console.log(chalk.dim('Need Help?'));
-      console.log(chalk.dim('➜ ') + chalk.dim(DISCORD_URL));
-      console.log(chalk.dim('➜ ') + chalk.dim(CONTACT_EMAIL));
+      printNeedHelpEpilogue();
 
       process.exit(error.code || 1);
     });
