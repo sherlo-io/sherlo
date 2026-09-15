@@ -7,7 +7,8 @@ import { MAX_TEAM_NAME_LENGTH, NAME_OPTION, PERSONAL_TOKEN_OPTION } from '../../
 import { printSherloIntro, reporting, throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
 import { resolvePersonalToken } from '../shared';
-import createTeamRequest, { CreateTeamAuthError } from './createTeamRequest';
+import { CreateTeamAuthError } from './createTeamRequest';
+import { serverCalls } from '../../seams/serverCalls';
 import { THIS_COMMAND } from './constants';
 
 export type TeamCreateOptions = {
@@ -24,11 +25,13 @@ async function teamCreate(passedOptions: TeamCreateOptions): Promise<void> {
     tokenContextLine: 'that one names a project; this command creates a team, not a project.',
   });
 
-  const team = await createTeamRequest({ name, personalToken }).catch((error: Error) => {
-    if (error instanceof CreateTeamAuthError) refuseRejectedToken();
+  const team = await serverCalls()
+    .createTeam({ name, personalToken })
+    .catch((error: Error) => {
+      if (error instanceof CreateTeamAuthError) refuseRejectedToken();
 
-    throwError({ message: error.message, errorToReport: error });
-  });
+      throwError({ message: error.message, errorToReport: error });
+    });
 
   reporting.setTag('team_id', team.id);
 

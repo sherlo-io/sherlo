@@ -66,6 +66,7 @@ import type { TranscriptSegment } from '../segments';
 let renderSegment: (segment: TranscriptSegment) => RenderedSegment;
 let emit: (segment: TranscriptSegment) => void;
 let captureTranscript: (body: () => Promise<void>) => Promise<CapturedTranscript>;
+let machineIsReading: () => boolean;
 
 beforeAll(async () => {
   chalk.level = 1;
@@ -73,29 +74,45 @@ beforeAll(async () => {
   // the closer reads it - so it is cleared here and set on purpose in the one case about it.
   delete process.env.CI;
   ({ renderSegment } = await import('../renderSegment'));
+  ({ default: machineIsReading } = await import('../../helpers/machineIsReading'));
   ({ emit, captureTranscript } = await import('../../helpers/transcriptSink'));
 });
 
 describe('THE CLOSER PRINTS THE ADDRESS ONCE FOR A PERSON AND ADDS THE url= LINE FOR A MACHINE', () => {
   const url = 'https://app.sherlo.io/build?t=tm000001&p=7&b=1';
 
-  it('under CI the machine-readable url= line comes first, then the link', () => {
-    process.env.CI = 'true';
-    try {
-      expect(renderSegment({ kind: 'results-url', url }).prints).toEqual([
-        [`url=${url}`],
-        [`🔗 [4m${url}[24m\n`],
-      ]);
-    } finally {
-      delete process.env.CI;
-    }
+  it('for a machine the machine-readable url= line comes first, then the link', () => {
+    expect(renderSegment({ kind: 'results-url', url, machineIsReading: true }).prints).toEqual([
+      [`url=${url}`],
+      [`\u{1F517} ${ESC}[4m${url}${ESC}[24m\n`],
+    ]);
   });
 
-  it('CI=false and CI= are a person, not a machine', () => {
-    for (const value of ['false', '0', '']) {
-      process.env.CI = value;
+  it('for a person the link is printed once and nothing else', () => {
+    expect(renderSegment({ kind: 'results-url', url, machineIsReading: false }).prints).toEqual([
+      [`\u{1F517} ${ESC}[4m${url}${ESC}[24m\n`],
+    ]);
+  });
+
+  it('WHO is reading is decided by `helpers/machineIsReading`, off `CI`, and NOT by this layer', () => {
+    // The renderer above is handed the answer - ambient reaches it as a declared input, which is
+    // the rule ./renderLayerPurity.test.ts keeps. This is the one place the question is asked,
+    // so the values a CI convention actually takes are asked about here.
+    const answers: Array<[string | undefined, boolean]> = [
+      ['true', true],
+      ['1', true],
+      ['false', false],
+      ['0', false],
+      ['', false],
+      [undefined, false],
+    ];
+
+    for (const [value, machine] of answers) {
+      if (value === undefined) delete process.env.CI;
+      else process.env.CI = value;
+
       try {
-        expect(renderSegment({ kind: 'results-url', url }).prints).toHaveLength(1);
+        expect(machineIsReading(), `CI=${JSON.stringify(value)}`).toBe(machine);
       } finally {
         delete process.env.CI;
       }
@@ -392,7 +409,11 @@ const PINS: Pin[] = [
   {
     kind: 'results-url',
     what: 'the closer on a terminal - the human link once, with its trailing blank line, and no `url=` line',
-    segment: { kind: 'results-url', url: 'https://app.sherlo.io/build?t=tm000001&p=7&b=1' },
+    segment: {
+      kind: 'results-url',
+      url: 'https://app.sherlo.io/build?t=tm000001&p=7&b=1',
+      machineIsReading: false,
+    },
     stream: 'stdout',
     prints: [[`🔗 ${ESC}[4mhttps://app.sherlo.io/build?t=tm000001&p=7&b=1${ESC}[24m\n`]],
   },

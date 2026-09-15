@@ -10,20 +10,23 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
-[31mERROR: Missing required Android preview simulator build path[39m
-Pass using `--android` option or set `android` in the config file
+[1m[22m
+[1m📦 Bundling for dry-run preview...[22m
+[1m[22m
+[36m[39m
+[36m🤖 Building android bundle...[39m
+[32m  ✓ Bundle: bundle.android.js[39m (4.29 MB, plain-js, expo)
+[32m  ✓ Assets: 2 files[39m
+[36m[39m
+[36m🍎 Building ios bundle...[39m
+[32m  ✓ Bundle: bundle.ios.js[39m (4.29 MB, plain-js, expo)
+[32m  ✓ Assets: 2 files[39m
+[1m📸 Capture plan (dry run)[22m
+  [36m🤖 Android[39m - [1mwould capture all 7 stories in this bundle[22m
+[2m     why: first build - nothing to compare against yet[22m
+  [36m🍎 iOS[39m - [1mwould capture all 7 stories in this bundle[22m
+[2m     why: first build - nothing to compare against yet[22m
 
-[34m[2m╭─[22m[39m[34m Preview Simulator Build [39m[34m[2m────────────────────────────────────────────╮[22m[39m
-[34m[2m│[22m[39m Standard testing requires a [1mpreview simulator build[22m (with JS bundle) [34m[2m│[22m[39m
-[34m[2m│[22m[39m                                                                      [34m[2m│[22m[39m
-[34m[2m│[22m[39m How to build:                                                        [34m[2m│[22m[39m
-[34m[2m│[22m[39m [4mhttps://sherlo.io/docs/builds?type=preview-simulator#build-types[24m     [34m[2m│[22m[39m
-[34m[2m╰──────────────────────────────────────────────────────────────────────╯[22m[39m
+◦ Dry run - no build created, nothing uploaded
 
-[34mINFO: Testing one platform? Remove unwanted devices from sherlo.config.json[39m
-
-[2m══════════[22m
-[2m[22m
-[2mNeed Help?[22m
-[2m➜ [22m[2mhttps://discord.gg/G7eqTBkWZt[22m
-[2m➜ [22m[2mcontact@sherlo.io[22m
+[exit 0]

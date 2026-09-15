@@ -103,6 +103,11 @@ export const TEAM_COMMAND = 'team';
 export const TEAM_CREATE_SUBCOMMAND = 'create';
 /** `sherlo team list` - one row per team the caller belongs to. */
 export const TEAM_LIST_SUBCOMMAND = 'list';
+/**
+ * `sherlo pose <pose.json|->` - run one command against a declared world and print its screen.
+ * Hidden unless SHERLO_DEVTOOLS=1: a tool for the people who work on the tool.
+ */
+export const POSE_COMMAND = 'pose';
 export const FULL_INIT_COMMAND = 'npx sherlo init';
 
 /* OPTIONS */

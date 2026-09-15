@@ -20,13 +20,30 @@
  * than in a fixture nobody regenerates.
  */
 import chalk from 'chalk';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import stripAnsi from '../../../helpers/stripAnsi';
 import { renderViewScenarioTranscript } from '../renderViewTranscript';
 import { SCENARIO_BUILD_URL, VIEW_TRANSCRIPTS, VIEW_TRANSCRIPT_IDS } from '../view.transcripts';
 
 /** Colour is pinned ON so the "colour survived" case below means something. */
 chalk.level = 1;
+
+/**
+ * THE PINS BELOW ARE A PERSON'S SCREEN.
+ *
+ * The closer prints the review address ONCE for a person and adds the machine-readable `url=`
+ * line for a machine (operator direction 2026-09-15), reading `CI` to tell them apart - and `CI`
+ * is set on the runner these tests run on. Left alone, every pin here would hold one shape
+ * locally and another in CI, for a reason that has nothing to do with `sherlo view`. So it is
+ * cleared, and the machine's closer gets a case of its own at the bottom.
+ */
+const previousCI = process.env.CI;
+delete process.env.CI;
+
+afterAll(() => {
+  if (previousCI === undefined) delete process.env.CI;
+  else process.env.CI = previousCI;
+});
 
 /**
  * One ANSI escape, spelled with the control character rather than as a bare
@@ -36,8 +53,8 @@ chalk.level = 1;
 // eslint-disable-next-line no-control-regex
 const ANSI_ESCAPE = /\u001b\[/;
 
-/** The closer every scenario ends the printed part with. */
-const LINK_LINES = [`url=${SCENARIO_BUILD_URL}`, `🔗 ${SCENARIO_BUILD_URL}`, ''];
+/** The closer every scenario ends the printed part with, on a person's terminal. */
+const LINK_LINES = [`🔗 ${SCENARIO_BUILD_URL}`, ''];
 
 /**
  * What each scenario prints, line by line, with the escapes stripped.
@@ -261,6 +278,22 @@ describe('what `sherlo view` prints', () => {
     // One byte. Without this case a comparison that had degenerated into
     // `expect(x).toBe(x)` would look exactly as green as a real proof.
     expect(`${rendered} `).not.toBe(rendered);
+  });
+
+  it('for a MACHINE the same closer adds the url= line above the link', async () => {
+    // The mirror of the pins above, and the reason they clear `CI` rather than inherit it: a CI
+    // job reads the `url=` line to republish the address, and a person reads it once.
+    process.env.CI = 'true';
+    try {
+      const rendered = await renderStripped('view-finished-no-changes');
+
+      expect(rendered).toContain(`url=${SCENARIO_BUILD_URL}`);
+      expect(rendered.indexOf(`url=${SCENARIO_BUILD_URL}`)).toBeLessThan(
+        rendered.indexOf(`🔗 ${SCENARIO_BUILD_URL}`)
+      );
+    } finally {
+      delete process.env.CI;
+    }
   });
 
   it("`--metadata`'s JSON is COLOURLESS, which is what makes it parseable", async () => {

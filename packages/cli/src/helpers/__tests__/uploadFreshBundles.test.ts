@@ -19,7 +19,12 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../../commands/test/bundleAndPreview', () => ({
   buildBundles: mocks.buildBundles,
-  REAL_BUNDLING_EFFECTS: { bundleFor: mocks.buildBundleForPlatform, gateMetadataFor: vi.fn() },
+}));
+// The real bundler is reached through the seam now (../../seams/bundler), so that is what this
+// file stubs - `realFreshBundleEffects` asks the seam for the bundler IN FORCE rather than
+// naming the real one.
+vi.mock('../../seams/bundler', () => ({
+  bundler: () => ({ bundleFor: mocks.buildBundleForPlatform, gateMetadataFor: vi.fn() }),
 }));
 vi.mock('../../commands/test/suppliedBundle', () => ({
   resolveSuppliedBundles: mocks.resolveSuppliedBundles,
@@ -164,7 +169,12 @@ describe('realFreshBundleEffects', () => {
 
     const effects = realFreshBundleEffects(client as any);
 
-    expect(effects.bundling.bundleFor).toBe(mocks.buildBundleForPlatform);
+    // Bundling goes to the bundler IN FORCE (../../seams/bundler), asked for at call time - so
+    // this is proved by CALLING it, not by comparing function identities: a posed run installs
+    // its own bundler, and a road that had captured the real one at module load would bundle for
+    // real inside a pose.
+    await effects.bundling.bundleFor('/proj', 'ios');
+    expect(mocks.buildBundleForPlatform).toHaveBeenCalledWith('/proj', 'ios');
     // The binary's own gate metadata is what gets registered; the bundle probe
     // the shared loops build alongside is declared absent, not fabricated.
     await expect(effects.bundling.gateMetadataFor('/proj', 'ios', {} as any)).resolves.toEqual({

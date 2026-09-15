@@ -17,7 +17,7 @@ import type { GitInfo } from './getGitInfo';
 import type { ValidatedBinariesInfo } from '../types';
 import getAppBuildUrl from './getAppBuildUrl';
 import getBuildRunConfig from './getBuildRunConfig';
-import getGitInfo from './getGitInfo';
+import { getGitInfo } from '../seams/surroundings';
 import getTokenParts from './getTokenParts';
 import getValidatedBinariesInfoAndNextBuildIndex from './getValidatedBinariesInfoAndNextBuildIndex';
 import handleClientError from './handleClientError';

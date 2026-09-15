@@ -23,11 +23,8 @@
 import { Platform } from '@sherlo/api-types';
 import sdkClient from '@sherlo/sdk-client';
 import chalk from 'chalk';
-import {
-  buildBundles,
-  REAL_BUNDLING_EFFECTS,
-  type BundlingEffects,
-} from '../commands/test/bundleAndPreview';
+import { buildBundles, type BundlingEffects } from '../commands/test/bundleAndPreview';
+import { bundler } from '../seams/bundler';
 import type { BundleResult } from '../commands/test/buildBundle';
 import { resolveSuppliedBundles } from '../commands/test/suppliedBundle';
 import {
@@ -64,7 +61,8 @@ const NO_BUNDLE_DERIVED_GATE_METADATA: GateMetadataInput = { derivedFrom: 'none'
 export function realFreshBundleEffects(client: ReturnType<typeof sdkClient>): FreshBundleEffects {
   return {
     bundling: {
-      bundleFor: REAL_BUNDLING_EFFECTS.bundleFor,
+      // The bundler IN FORCE - a posed run installs its own (../seams/bundler).
+      bundleFor: (projectRoot, platform) => bundler().bundleFor(projectRoot, platform),
       gateMetadataFor: async () => NO_BUNDLE_DERIVED_GATE_METADATA,
     },
     upload: realBundleUploadEffects(client),

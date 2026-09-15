@@ -2,7 +2,7 @@
   "pose": 1,
   "argv": ["team", "list"],
   "files": {},
-  "env": { "SKIP_INTRO": "true", "SHERLO_PERSONAL_TOKEN": "<A_PERSONAL_TOKEN>" },
+  "env": { "SKIP_INTRO": "true", "SHERLO_PERSONAL_TOKEN": "sht_posepersonaltoken000000000000" },
   "git": "none",
   "bundles": {},
   "api": [
@@ -17,5 +17,5 @@
       }
     }
   ],
-  "masks": { "<MASKED>": "<A_PERSONAL_TOKEN>" }
+  "masks": { "<MASKED>": "sht_posepersonaltoken000000000000" }
 }

@@ -10,3 +10,5 @@
 [2mNeed Help?[22m
 [2m➜ [22m[2mhttps://discord.gg/G7eqTBkWZt[22m
 [2m➜ [22m[2mcontact@sherlo.io[22m
+
+[exit 1]
