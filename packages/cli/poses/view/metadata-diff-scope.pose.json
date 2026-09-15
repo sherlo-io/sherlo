@@ -1,0 +1,28 @@
+{
+  "pose": 1,
+  "argv": ["view", "7", "--metadata"],
+  "files": {
+    "sherlo.config.json": { "token": "posetokenposetokenposetokenpose1tm0000017", "devices": [{ "id": "iphone.15", "osVersion": "17.0" }] }
+  },
+  "env": { "SKIP_INTRO": "true" },
+  "git": { "branch": "feature/checkout", "commit": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b", "dirty": false },
+  "bundles": {},
+  "api": [
+    {
+      "call": "getBuildStatus",
+      "with": { "buildIndex": 7 },
+      "answer": {
+        "runStatus": "finished",
+        "status": "unreviewed",
+        "gitInfo": { "branchName": "feature/checkout", "commitHash": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b" },
+        "viewStatusesCount": { "approved": 0, "noChanges": 1, "reported": 0, "unreviewed": 1 },
+        "stories": [
+          { "name": "Sanity/Hello - Basic", "status": "changed", "baseline": { "buildIndex": 6 } },
+          { "name": "Typography - Dense", "status": "not-captured", "baseline": { "buildIndex": 6 } }
+        ],
+        "diffScope": { "reason": "Card.stories.tsx changed", "captured": ["Sanity/Hello - Basic"], "inherited": ["Typography - Dense"], "ancestorBuildIndex": 6 }
+      }
+    }
+  ],
+  "masks": { "<MASKED>": "posetokenposetokenposetokenpose1tm0000017" }
+}

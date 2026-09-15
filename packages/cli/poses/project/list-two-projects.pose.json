@@ -1,0 +1,22 @@
+{
+  "pose": 1,
+  "argv": ["project", "list", "--team", "tm000001"],
+  "files": {},
+  "env": { "SKIP_INTRO": "true", "SHERLO_PERSONAL_TOKEN": "<A_PERSONAL_TOKEN>" },
+  "git": "none",
+  "bundles": {},
+  "api": [
+    {
+      "call": "listProjects",
+      "with": { "teamId": "tm000001" },
+      "answer": {
+        "team": { "name": "Storefront", "id": "tm000001" },
+        "projects": [
+          { "index": 1, "name": "Storefront App", "buildCount": 12, "mainBranch": "main" },
+          { "index": 2, "name": "Storefront Web", "buildCount": 0, "mainBranch": null }
+        ]
+      }
+    }
+  ],
+  "masks": { "<MASKED>": "<A_PERSONAL_TOKEN>" }
+}
