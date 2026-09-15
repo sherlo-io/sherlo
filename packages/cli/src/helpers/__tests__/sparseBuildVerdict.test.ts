@@ -30,6 +30,7 @@
  * what order; the exact escapes each line is made of are pinned, per segment,
  * in render/__tests__/renderLayerLiterals.test.ts.
  */
+import fs from 'fs';
 import chalk from 'chalk';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { captureTranscript } from '../transcriptSink';
@@ -37,8 +38,8 @@ import waitForBuildResult from '../waitForBuildResult';
 import type { BuildStatus } from '../waitForBuildResult';
 import { EXIT_BLOCK, EXIT_GREEN } from '../exitCodes';
 import { decideSparseBuildVerdict, routesThroughSparseVerdict } from '../sparseBuildVerdict';
-import { VERDICT_TRANSCRIPTS } from '../../commands/test/verdict.transcripts';
-import { renderVerdictScenarioTranscript } from '../../commands/test/renderVerdictTranscript';
+import { catalogue } from '../../commands/pose/catalogue';
+import { readPoseDocument, type ScriptedCall } from '../../commands/pose/readPose';
 
 beforeAll(() => {
   chalk.level = 0;
@@ -311,67 +312,59 @@ describe('an opted-in build takes its verdict from the server, not from the tall
 });
 
 /* ========================================================================== */
-/* THE TRANSCRIPTS NOW RENDER FROM THE SHIPPED PATH                           */
+/* THE VERDICT POSES DECLARE THE GATE THEIR BEHAVIOUR DEPENDS ON              */
 /* ========================================================================== */
 
 /**
- * The three sparse transcripts were authored and reviewed as a DRAWING, before
- * the behaviour existed - rendered by calling the decider directly. They are now
- * rendered by the shipped wait loop over a scripted poll answer, and these
- * assertions are the proof that the drawing and the behaviour agree: the bytes
- * below are the bytes that commit put in front of an operator.
+ * The byte-for-byte proof that these scenarios render correctly now lives in
+ * the pose catalogue: `packages/cli/poses/view/verdict-*.pose.json`, rendered
+ * through the REAL `sherlo view --wait` dispatch and ratcheted against a
+ * committed, colour-preserving fixture by
+ * `commands/pose/__tests__/catalogue.test.ts` - a stronger proof than a
+ * hand-rolled literal compared against an isolated call to the wait loop ever
+ * was, because it exercises the whole command rather than one function inside
+ * it.
  *
- * The literals are written out rather than compared to a fixture because this
- * family has no usable baseline (see commands/test/verdict.transcripts.ts). If
- * the wiring were reverted, `renderVerdictScenarioTranscript` would render the
- * ungated closers and every one of these would red.
+ * What a byte diff cannot show is WHY a pose renders what it does: that the
+ * poses claiming to be the GATED sparse path actually script a build that
+ * reaches it, and the poses claiming to be the everyday path do not. That is
+ * the one thing still worth asserting here, directly against the poses
+ * themselves rather than against a second, unratcheted catalogue of the same
+ * scenarios.
  */
-describe('the sparse transcripts render from the shipped wait loop', () => {
-  const EXPECTED: Record<string, string> = {
-    'verdict-branch-build-nothing-differed':
-      `${WAIT_PREAMBLE}\n✅ No visual changes - all snapshots match their baselines.\n` +
-      '   3 captured on this branch, 41 inherited unchanged\n\n',
+describe('the verdict poses declare the gate their behaviour depends on', () => {
+  /** The three poses whose whole point is the server-set sparse-build gate. */
+  const GATED_POSE_NAMES = new Set([
+    'view/verdict-branch-build-nothing-differed',
+    'view/verdict-branch-build-only-the-branch-stories',
+    'view/verdict-branch-build-recorded-nothing',
+  ]);
 
-    'verdict-branch-build-only-the-branch-stories':
-      `${WAIT_PREAMBLE}\n⚠️  Build finished with changes requiring review.\n` +
-      '   2 story/stories unreviewed.\n' +
-      '   3 captured on this branch, 41 inherited unchanged\n\n',
+  const verdictPoses = catalogue()
+    .filter(({ name }) => name.startsWith('view/verdict-'))
+    .map(({ name, posePath }) => ({
+      name,
+      build: scriptedBuildStatus(readPoseDocument(fs.readFileSync(posePath, 'utf8')).api),
+    }));
 
-    'verdict-branch-build-recorded-nothing':
-      `${WAIT_PREAMBLE}\n⚠️  Build finished without recording any snapshots.\n` +
-      '   Nothing was captured and nothing was inherited, so this build is not\n' +
-      '   evidence that nothing changed. Check the run in Sherlo.\n\n',
-  };
-
-  it.each(Object.keys(EXPECTED))('%s', async (id) => {
-    const captured = await renderVerdictScenarioTranscript(VERDICT_TRANSCRIPTS[id]);
-
-    expect(captured.stdout).toBe(EXPECTED[id]);
-    expect(captured.stderr).toBe('');
+  it('has both a gated and an ungated verdict pose to compare', () => {
+    expect(verdictPoses.some(({ name }) => GATED_POSE_NAMES.has(name))).toBe(true);
+    expect(verdictPoses.some(({ name }) => !GATED_POSE_NAMES.has(name))).toBe(true);
   });
 
-  it('every sparse scenario declares the gate it needs, and turns it on', () => {
-    for (const id of Object.keys(EXPECTED)) {
-      const scenario = VERDICT_TRANSCRIPTS[id];
+  it.each(verdictPoses.map(({ name }) => name))('%s', (name) => {
+    const { build } = verdictPoses.find((pose) => pose.name === name)!;
 
-      expect(scenario.groundedBy.kind).toBe('gated-shipped');
-      expect(scenario.build.showsOnlyBranchChanges).toBe(true);
-      expect(routesThroughSparseVerdict(scenario.build)).toBe(true);
-    }
-  });
-
-  /**
-   * And the present-proving half of the family must NOT be gated - if one of
-   * those ever acquired the flag it would stop describing the default
-   * experience while still claiming to, which is the one confusion this family
-   * is built to prevent.
-   */
-  it('the present-proving scenarios carry no gate', () => {
-    for (const [id, scenario] of Object.entries(VERDICT_TRANSCRIPTS)) {
-      if (id in EXPECTED) continue;
-
-      expect(scenario.groundedBy.kind).toBe('awaiting-remint');
-      expect(routesThroughSparseVerdict(scenario.build)).toBe(false);
-    }
+    expect(routesThroughSparseVerdict(build)).toBe(GATED_POSE_NAMES.has(name));
   });
 });
+
+/** The `getBuildStatus` answer a pose scripts, typed back down to the wait loop's own shape. */
+function scriptedBuildStatus(api: ScriptedCall[]): BuildStatus {
+  const call = api.find((scriptedCall) => scriptedCall.call === 'getBuildStatus');
+  if (call === undefined || call.answer === null || 'error' in call.answer) {
+    throw new Error('expected this pose to script a successful getBuildStatus answer');
+  }
+
+  return call.answer;
+}

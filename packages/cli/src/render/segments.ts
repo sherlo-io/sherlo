@@ -135,10 +135,15 @@ export type TranscriptSegment =
    */
   | { kind: 'build-message'; message: string; type: 'info' | 'success'; endsWithNewLine?: boolean }
   /**
-   * The closer of a run that reached a build: the machine-readable `url=` line
-   * a CI republishes, then the human `🔗` link, then a blank.
+   * The closer of a run that reached a build: the human `🔗` link, then a blank.
+   * For a MACHINE the machine-readable `url=` line a CI republishes comes first;
+   * a person at a terminal sees the address once (operator direction 2026-09-15).
+   *
+   * Who is reading is a DECLARED INPUT, not something this layer reads: the emitter asks
+   * `helpers/machineIsReading` and states the answer here, so a pose that declares `CI` in its
+   * env gets the machine's closer and the renderer stays pure.
    */
-  | { kind: 'results-url'; url: string }
+  | { kind: 'results-url'; url: string; machineIsReading: boolean }
   /** Machine-readable `key=value` answer lines. A key with no value is not printed. */
   | { kind: 'output-keys'; entries: Record<string, string | number | boolean | undefined> }
   /* ---------------------------------------------------------------------- *

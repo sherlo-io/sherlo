@@ -137,7 +137,6 @@ describe('the sim road', () => {
     ['--dry-run', { dryRun: true }],
     ['--bundle-dir', { bundleDir: '/tmp/bundles' }],
     ['--emit-bundle-dir', { emitBundleDir: '/tmp/bundles' }],
-    ['--emit-expectation', { dryRun: true, emitExpectation: 'token-missing' }],
   ])('refuses a sim world together with %s', async (flagName, flags) => {
     mockResolveSimulationWorldPath.mockReturnValue('/proj/sim-world');
 
@@ -161,11 +160,8 @@ describe('the sim road', () => {
 // build. The standard road always creates one, so the combination is refused
 // rather than silently ignored.
 describe('preview flags are staged-road only', () => {
-  it.each([
-    ['--dry-run', { dryRun: true }],
-    ['--emit-expectation', { dryRun: true, emitExpectation: 'token-missing' }],
-  ])('refuses %s together with a build path', async (_name, previewFlags) => {
-    await expect(test({ token: 'tok', android: 'app.apk', ...previewFlags })).rejects.toThrow();
+  it('refuses --dry-run together with a build path', async () => {
+    await expect(test({ token: 'tok', android: 'app.apk', dryRun: true })).rejects.toThrow();
 
     expect(mockStandardRun).not.toHaveBeenCalled();
     expect(mockStagedRun).not.toHaveBeenCalled();

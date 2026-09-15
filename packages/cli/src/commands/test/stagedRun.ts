@@ -47,6 +47,7 @@ import {
   waitForBuildResult,
 } from '../../helpers';
 import parseWaitTimeout from '../../helpers/parseWaitTimeout';
+import machineIsReading from '../../helpers/machineIsReading';
 import printLink from '../../helpers/printLink';
 import printOutputKeys from '../../helpers/printOutputKeys';
 import {
@@ -75,9 +76,8 @@ import { buildBundles, runDryRunFlow } from './bundleAndPreview';
 import { emitBundleDir } from './emitBundleDir';
 import { resolveBaseFingerprintForSuppliedBundle } from './recordedBaseFingerprint';
 import { resolveSuppliedBundles } from './suppliedBundle';
-import { runEmitExpectation } from './emitExpectation';
-import { runRenderTranscript, runRenderTranscriptState } from './renderTranscript';
 import { countBundleStories, type ValidatedModuleManifest } from './readModuleManifest';
+import { serverCalls } from '../../seams/serverCalls';
 import {
   formatDiffScopeReport,
   formatDiffScopeSummaryLine,
@@ -133,73 +133,7 @@ type DiffScopeInfoWithPlatformReasons = {
 // ---------------------------------------------------------------------------
 
 async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
-  // --emit-expectation (expectation-emit mode): rides the --dry-run path rather
-  // than a parallel print path. Runs before command params are even validated -
-  // the mode builds its own synthetic, scenario-specific input for the guard it
-  // exercises, so it needs none of this invocation's real options. See
-  // ./emitExpectation for the scenario catalogue and placeholder vocabulary.
-  //
-  // DISPATCHED BEFORE THE INTRO, on purpose. What the mode prints is the WHOLE
-  // refusal screen of the scenario it was asked for, intro included where the
-  // live road prints one - so an intro printed by THIS invocation would be a
-  // second one, belonging to the mint run rather than to the refusal being
-  // minted, and `config-missing` (whose live refusal precedes the intro) would
-  // carry one it must not have. Dispatching first is what makes the process's
-  // stdout equal `renderEmittedStdout`'s return value, byte for byte.
-  if (passedOptions.emitExpectation !== undefined) {
-    if (passedOptions.dryRun !== true) {
-      throwError({
-        message: '--emit-expectation requires --dry-run',
-      });
-    }
-    runEmitExpectation(passedOptions.emitExpectation);
-    return { url: '' }; // unreachable - runEmitExpectation always exits the process
-  }
-
   printSherloIntro();
-
-  // The two transcript-render roads are opposites and only one can run: one names
-  // a transcript the CLI ships, the other describes one the caller wrote. Refused
-  // rather than resolved by precedence - a caller who passed both is asking for
-  // two different things and should be told, not guessed at.
-  if (
-    passedOptions.renderTranscript !== undefined &&
-    passedOptions.renderTranscriptState !== undefined
-  ) {
-    throwError({
-      message:
-        '`--render-transcript` names a transcript the CLI ships and `--render-transcript-state` ' +
-        'describes one you wrote, so they cannot be combined. Pass whichever one this run means.',
-    });
-  }
-
-  // --render-transcript (transcript-render mode): the same shape as the mode
-  // above - it rides --dry-run, builds its own scenario-specific input, and needs
-  // none of this invocation's real options. See ./renderTranscript.
-  if (passedOptions.renderTranscript !== undefined) {
-    if (passedOptions.dryRun !== true) {
-      throwError({
-        message: '--render-transcript requires --dry-run',
-      });
-    }
-    await runRenderTranscript(passedOptions.renderTranscript);
-    return { url: '' }; // unreachable - runRenderTranscript always exits the process
-  }
-
-  // --render-transcript-state (the pose road): the same mode over state the
-  // CALLER declares instead of a catalog id. Named separately rather than folded
-  // into the flag above because the two take different arguments - a scenario id
-  // and a document path - and a single flag guessing which one it was handed is
-  // how a mistyped id would become a missing file, or worse, the reverse.
-  if (passedOptions.renderTranscriptState !== undefined) {
-    if (passedOptions.dryRun !== true) {
-      throwError({
-        message: '--render-transcript-state requires --dry-run',
-      });
-    }
-    await runRenderTranscriptState(passedOptions.renderTranscriptState);
-    return { url: '' }; // unreachable - runRenderTranscriptState always exits the process
-  }
 
   // 1. Validate params (no platform binary paths required - bundle only).
   const commandParams = getValidatedCommandParams(
@@ -460,7 +394,9 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
 
   let openBuildReturn;
   try {
-    openBuildReturn = await client.openBuild({
+    // Through the server seam (../../seams/serverCalls), so a pose answers this call instead of
+    // the network. The payload is the one this run composed, unchanged.
+    openBuildReturn = await serverCalls().openBuild(client, {
       teamId,
       projectIndex,
       buildRunConfig,
@@ -744,12 +680,19 @@ export function printCapturePlanAndCloser({
   }
 
   // The closer, LAST (SHERLO-1919 ordering). A live run has no "Build created"
-  // line (SHERLO-1937 operator ruling) - the Review URL IS the ending. The
-  // machine-readable `url=` line goes just above it, so a CI can republish the
-  // link the developer is reading (a server-bypassed build returns above without
-  // either one - there is no review to link to).
-  console.log();
-  printOutputKeys({ url });
+  // line (SHERLO-1937 operator ruling) - the Review URL IS the ending.
+  //
+  // ONE LINK FOR A PERSON, THE `url=` LINE FOR A MACHINE (operator direction 2026-09-15).
+  // This closer used to print the review address twice on every screen, which is the same
+  // defect the render layer's `results-url` segment was corrected for - and it makes the
+  // SAME decision, through the one producer of it (`helpers/machineIsReading`) rather than a
+  // second copy of the rule. The `url=` line is a documented contract a CI job reads, so it stays exactly
+  // where a machine is reading; a person at a terminal sees the address once. (A
+  // server-bypassed build returns above without either one - there is no review to link to.)
+  if (machineIsReading()) {
+    console.log();
+    printOutputKeys({ url });
+  }
 
   console.log(`\n🔗 Review: ${printLink(url)}`);
 }
