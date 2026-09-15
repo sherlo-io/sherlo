@@ -1,10 +1,12 @@
 /**
  * THE RATCHET, for the PREFLIGHT REFUSAL family (F3) - the CLI's validation and
- * refusal outputs, at 8 committed fixtures across 5 suite locations.
+ * refusal outputs.
  *
- * Every scenario in the catalog must render BYTE-IDENTICALLY to the fixture
- * already committed in sherlo-tester. Nothing here regenerates a fixture. The
- * committed bytes ARE the evidence.
+ * Every scenario in the catalog must render BYTE-IDENTICALLY to a fixture this
+ * repository commits under `preflightRefusals.fixtures/`. Nothing here
+ * regenerates a fixture from a formula; the committed bytes ARE the evidence,
+ * and they are `renderEmittedStdout`'s own output, reviewed into git through
+ * whichever PR touches them.
  *
  * ==========================================================================
  * WHY THIS FAMILY WAS ALIGNED, NOT MIGRATED ONTO THE SEGMENT/SINK LAYER
@@ -22,89 +24,37 @@
  * way. The "one render layer, two callers" shape the program is after is
  * therefore ALREADY the shape here; it simply arrived by a different road.
  *
- * So the two candidate costs are:
- *
- *   MIGRATE - decompose these refusals into segment kinds and route the shipped
- *   guards through the new layer. Cost: touching five shipped guards
- *   (validateToken, validateDevices, parseConfigFile, validatePlatformPaths,
- *   validateBinariesInfo) that sit on the CLI's most user-facing path, to invent
- *   a segment vocabulary for text that has exactly one producer already. Risk:
- *   the hard constraint is that nothing may change what a real user sees, and
- *   every byte here is a refusal a user reads when their run fails. Benefit:
- *   uniformity - one road instead of two.
- *
- *   ALIGN - leave the producing road alone and add the thing the family actually
- *   lacked. Cost: two roads to expected bytes rather than one. But that second
- *   road is not accidental drift: sherlo-tester's `MINTING_COMMANDS` already names
- *   both deliberately, with the distinction argued - `--emit-expectation` renders
- *   a guard's own thrown text, `--render-transcript` renders a whole transcript
- *   from scripted wire state. Both satisfy the doctrine's test (a person authored
- *   the input and would read the red); neither is a capture from the run being
- *   judged.
- *
- * ALIGN's cost is smaller, and the deciding fact is that migration buys ZERO
- * byte-level assurance: byte-identity against all 8 fixtures is achievable today,
- * against the code as shipped, and is what this file now enforces. Migration
- * would spend risk on live refusal text to purchase a uniformity the enforcement
- * layer does not need - the ratchet is what makes a family safe, and a ratchet
- * does not care which road produced the bytes it compares. What the family was
- * missing was never a layer. It was THIS FILE.
- *
- * WHAT PROVENANCE DID NOT COVER. These four directories have been inside
- * sherlo-tester's `MINTED_FIXTURE_DIRS` since s3cv-minted-expectations, so the
- * family already looked enforced. But that sweep checks only that a `.minted.json`
- * SIDECAR EXISTS naming a minting command - it never re-renders anything. A
- * sidecar says a fixture WAS minted once; it cannot notice that the CLI has since
- * stopped producing those bytes. `emitExpectation.test.ts` does not close that
- * either: it compares the minted text to a live guard call made IN THAT SAME FILE
- * with the same synthetic input, so it proves the one-formatter law and nothing
- * about the committed bytes - change a refusal's wording and it stays green while
- * every fixture in git goes stale. This file is the missing half.
- *
  * ==========================================================================
- * THIS FAMILY IS ANSI-PRESERVING WHERE IT IS ENFORCED
+ * ONE REPOSITORY, ONE FIXTURE - NO CROSS-REPO PATHS (operator ruling,
+ * sherlo#265 review, 2026-09-15)
  * ==========================================================================
  *
- * The masker regime SPLITS here, and the split falls exactly along the exemption
- * line - which is why the enforced set has no blind spot:
+ * This file used to also open sherlo-tester's committed baselines by path and
+ * compare against them (marked `.fails` while they were known-stale after
+ * cli-emit-expectation-whole-screen taught `renderEmittedStdout` to render the
+ * whole refusal screen, not the guard's message alone). That is gone: a
+ * repository must not read another repository's files by path, and a
+ * `.fails` wrap is a trap, not a ratchet - the day sherlo-tester re-mints its
+ * baselines, that comparison starts unexpectedly PASSING, which under
+ * `.fails` reds the NEXT CLI run that clones sherlo-tester's matching branch,
+ * for a reason nobody watching this repo caused.
  *
- *   - The 8 fixtures bound below capture through `maskPushOutput`, which PRESERVES
- *     colour (03-path-errors.spec.ts; the three cli-*-refusals chapters say so in
- *     their report-expectations.ts). So this ratchet is NOT blind to the chalk
- *     class: a hoisted newline, a moved style boundary or whitespace inside a
- *     styled span moves real escape bytes, and this comparison sees them. The
- *     boxed panel in `binary-path-missing` is the sharpest case - its rows pad
- *     with spaces INSIDE `\u001b[34m\u001b[2m...\u001b[22m\u001b[39m` runs.
- *   - The 2 fixtures NOT bound (04-abi-preflight, the Expo ABI pair) capture
- *     through `stripAnsi`, and are ANSI-blind. They are also exactly the two
- *     already exempt in sherlo-tester, for an unrelated reason (wrong hint
- *     branch). So no fixture is both enforced and colour-blind.
- *
- * The consequence for coverage: where the dry-run family leans on the literal pin
- * (`render/__tests__/renderLayerLiterals.test.ts`) as its ONLY cover for the chalk
- * class, this family does not - the byte ratchet below covers it directly, and the
- * case at the bottom asserts that property rather than assuming it.
+ * So the ratchet below proves exactly one thing, unconditionally, needing no
+ * checkout of anything but this repository: `renderEmittedStdout(id)` matches
+ * the fixture this repo commits for `id`. Sherlo-tester's own story run is the
+ * separate proof that ITS committed panes match what this CLI prints; see
+ * `preflight.refusals.ts`'s header for where that proof lives instead.
  *
  * ==========================================================================
- * PENDING RE-MINT (cli-emit-expectation-whole-screen, sherlo#265)
+ * THIS FAMILY IS ANSI-PRESERVING
  * ==========================================================================
  *
- * `renderEmittedStdout` now renders the WHOLE refusal screen - the guard's
- * message plus the "Need Help?" epilogue - not the message alone. Every
- * `fixtures` path in `preflight.refusals.ts` still holds the OLD, message-only
- * bytes; sherlo-tester re-mints them from this road only after this change
- * lands (the architect's own capture/story loop reaches into that repository,
- * a CLI PR cannot). So the per-fixture byte comparison against `committedFixture`
- * below is marked `.fails` - it is EXPECTED to fail (the tester bytes ARE
- * stale) until the re-mint, at which point it will start unexpectedly
- * PASSING and red the suite, forcing the `.fails` back off in that follow-up.
- * `fixtureExists` is still asserted unconditionally, so a path drift (like the
- * beats-port move that caused sherlo#265's CI to red) still reds immediately
- * rather than hiding behind the pending-remint marker.
- *
- * The real, current proof for this PR is the LOCAL fixture ratchet at the
- * bottom of this file: `renderEmittedStdout` against bytes this repo commits
- * and reviews into git right here, needing no sherlo-tester checkout at all.
+ * The fixtures below are captured WITH colour - a hoisted newline, a moved
+ * style boundary or whitespace inside a styled span moves real escape bytes,
+ * and the comparison below sees them. The boxed panel in `binary-path-missing`
+ * is the sharpest case - its rows pad with spaces INSIDE
+ * `\x1b[34m\x1b[2m...\x1b[22m\x1b[39m` runs. The case at the bottom
+ * asserts that property rather than assuming it.
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -116,12 +66,6 @@ import {
   PREFLIGHT_REFUSAL_IDS,
   UNBOUND_SCENARIOS,
 } from '../preflight.refusals';
-import {
-  TESTER_AVAILABLE,
-  committedFixture,
-  declareTesterCheckoutGate,
-  fixtureExists,
-} from './testerCheckout';
 
 /** Reads a fixture this repo commits under `preflightRefusals.fixtures/`. */
 function localFixture(fileName: string): string {
@@ -136,44 +80,24 @@ function localFixture(fileName: string): string {
  */
 chalk.level = 1;
 
-/** Every (scenario, fixture) pair the ratchet must prove - the flattened catalog. */
-function everyBoundPair(): { id: string; fixture: string }[] {
-  return PREFLIGHT_REFUSAL_IDS.flatMap((id) =>
-    PREFLIGHT_REFUSALS[id].fixtures.map((fixture) => ({ id, fixture }))
-  );
-}
-
 describe('the preflight refusal catalog', () => {
-  declareTesterCheckoutGate();
-
   it('has scenarios (an emptied catalog would pass every case below by covering nothing)', () => {
     expect(PREFLIGHT_REFUSAL_IDS.length).toBeGreaterThan(0);
-    expect(everyBoundPair().length).toBeGreaterThan(0);
   });
 
-  it('every scenario declares a description and only `.txt` fixtures', () => {
+  it('every scenario declares a description and a `.txt` local fixture that exists', () => {
     const unstated: string[] = [];
     for (const [id, scenario] of Object.entries(PREFLIGHT_REFUSALS)) {
       if (!scenario.description.trim()) unstated.push(`${id} - empty description`);
-      if (scenario.fixtures.length === 0) unstated.push(`${id} - answers for no fixture`);
-      for (const fixture of scenario.fixtures) {
-        if (!fixture.endsWith('.txt')) unstated.push(`${id} - ${fixture} is not a .txt path`);
+      if (!scenario.localFixture.endsWith('.txt')) {
+        unstated.push(`${id} - localFixture "${scenario.localFixture}" is not a .txt path`);
+      } else if (
+        !fs.existsSync(path.join(__dirname, 'preflightRefusals.fixtures', scenario.localFixture))
+      ) {
+        unstated.push(`${id} - localFixture "${scenario.localFixture}" does not exist`);
       }
     }
     expect(unstated).toEqual([]);
-  });
-
-  it('no two scenarios answer for the same fixture', () => {
-    // A duplicated fixture path would mean one committed baseline is proved twice
-    // and another not at all, while the counts above still looked right.
-    const seen = new Map<string, string>();
-    const duplicates: string[] = [];
-    for (const { id, fixture } of everyBoundPair()) {
-      const previous = seen.get(fixture);
-      if (previous) duplicates.push(`${fixture} - both ${previous} and ${id}`);
-      else seen.set(fixture, id);
-    }
-    expect(duplicates).toEqual([]);
   });
 
   it('every emit scenario is either bound to a fixture or listed as unbound, with a reason', () => {
@@ -204,56 +128,22 @@ describe('the preflight refusal catalog', () => {
     expect(vanished, 'UNBOUND_SCENARIOS names a scenario the CLI no longer has').toEqual([]);
   });
 
-  it.runIf(TESTER_AVAILABLE)('every bound fixture exists', () => {
-    const missing = everyBoundPair()
-      .filter(({ fixture }) => !fixtureExists(fixture))
-      .map(({ id, fixture }) => `${id} -> ${fixture}`);
-    expect(missing, 'a scenario answers for a fixture that is not in the tree').toEqual([]);
-  });
+  for (const id of PREFLIGHT_REFUSAL_IDS) {
+    const { localFixture: fileName } = PREFLIGHT_REFUSALS[id];
 
-  for (const { id, fixture } of everyBoundPair()) {
-    // PENDING RE-MINT (see the file header): every one of these currently fails
-    // for real - the committed fixture is message-only, `renderEmittedStdout`
-    // now renders the whole screen. `.fails` keeps that failure from redding
-    // CI while it is expected; it will red the SUITE the day it unexpectedly
-    // passes, which is exactly the signal to remove `.fails` here.
-    it.runIf(TESTER_AVAILABLE).fails(
-      `${id}: renders every byte of ${path.basename(fixture)}`,
-      () => {
-        expect(
-          renderEmittedStdout(id),
-          'THE CLI NO LONGER PRODUCES WHAT THIS REFUSAL FIXTURE COMMITTED. The fixture was minted ' +
-            'from the CLI itself (`sherlo test --dry-run --emit-expectation <scenario>`) and ' +
-            'reviewed into git by a person; a divergence means the refusal a real user reads has ' +
-            'changed - its wording, its colour, its blank lines or its box. That is a product ' +
-            'change to argue for, not a fixture to re-record: if the new text is intended, re-mint ' +
-            'this fixture in the same PR and say so.'
-        ).toBe(committedFixture(fixture));
-      }
-    );
+    it(`${id}: renders every byte of ${fileName}`, () => {
+      expect(
+        renderEmittedStdout(id),
+        'THE CLI NO LONGER PRODUCES WHAT THIS FIXTURE COMMITTED. The fixture is ' +
+          "`renderEmittedStdout`'s own output, reviewed into git by a person; a divergence " +
+          'means the refusal a real user reads has changed - its wording, its colour, its ' +
+          'blank lines or its box. That is a product change to argue for, not a fixture to ' +
+          're-record: if the new text is intended, re-mint this fixture in the same PR and say so.'
+      ).toBe(localFixture(fileName));
+    });
   }
 
-  describe('the LOCAL fixture ratchet (needs no sherlo-tester checkout)', () => {
-    // The real, current proof for this PR: `renderEmittedStdout` against bytes
-    // this repo commits under `preflightRefusals.fixtures/` and reviews into
-    // git through this very change - see the file header's "PENDING RE-MINT".
-    for (const id of PREFLIGHT_REFUSAL_IDS) {
-      const { localFixture: fileName } = PREFLIGHT_REFUSALS[id];
-
-      it(`${id}: renders every byte of ${fileName}`, () => {
-        expect(renderEmittedStdout(id)).toBe(localFixture(fileName));
-      });
-    }
-
-    it('CONTROL: a corrupted render is REJECTED (the comparison still rejects what it should)', () => {
-      const id = PREFLIGHT_REFUSAL_IDS[0];
-      expect(`${renderEmittedStdout(id)} `).not.toBe(
-        localFixture(PREFLIGHT_REFUSALS[id].localFixture)
-      );
-    });
-  });
-
-  it.runIf(TESTER_AVAILABLE)('renders the same bytes twice', () => {
+  it('renders the same bytes twice', () => {
     // Determinism, not truth - a producer agrees with itself by construction.
     // What this catches is a clock, a counter or an environment read leaking onto
     // the refusal path, which would make the fixtures unmintable rather than wrong.
@@ -262,47 +152,39 @@ describe('the preflight refusal catalog', () => {
     }
   });
 
-  it.runIf(TESTER_AVAILABLE)(
-    'CONTROL: a corrupted render is REJECTED (the comparison still rejects what it should)',
-    () => {
-      const { id, fixture } = everyBoundPair()[0];
-      // One byte. Without this case a comparison that had degenerated into
-      // `expect(x).toBe(x)` would look exactly as green as a real proof.
-      expect(`${renderEmittedStdout(id)} `).not.toBe(committedFixture(fixture));
-    }
-  );
+  it('CONTROL: a corrupted render is REJECTED (the comparison still rejects what it should)', () => {
+    const id = PREFLIGHT_REFUSAL_IDS[0];
+    // One byte. Without this case a comparison that had degenerated into
+    // `expect(x).toBe(x)` would look exactly as green as a real proof.
+    expect(`${renderEmittedStdout(id)} `).not.toBe(
+      localFixture(PREFLIGHT_REFUSALS[id].localFixture)
+    );
+  });
 
-  it.runIf(TESTER_AVAILABLE)(
-    'the enforced fixtures KEEP colour, so the comparison above is NOT blind to chalk boundaries',
-    () => {
-      // The load-bearing property of this family, asserted rather than assumed.
-      // These fixtures capture through `maskPushOutput` (colour-preserving); if
-      // one were ever re-minted through a stripping masker, every case above
-      // would keep passing while going blind to every colour and style-boundary
-      // change - and nothing else would say so.
-      // eslint-disable-next-line no-control-regex
-      const ansi = /\u001b\[[0-9;]*m/g;
-      const colourless = everyBoundPair()
-        .filter(({ fixture }) => (committedFixture(fixture).match(ansi) ?? []).length === 0)
-        .map(({ fixture }) => fixture);
-      expect(
-        colourless,
-        'an enforced refusal fixture carries no ANSI - this family is supposed to preserve it, ' +
-          'and a stripped baseline would make the byte ratchet blind to the chalk class'
-      ).toEqual([]);
-    }
-  );
+  it('the enforced fixtures KEEP colour, so the comparison above is NOT blind to chalk boundaries', () => {
+    // The load-bearing property of this family, asserted rather than assumed.
+    // If a fixture were ever re-minted through a stripping masker, every case
+    // above would keep passing while going blind to every colour and
+    // style-boundary change - and nothing else would say so.
+    // eslint-disable-next-line no-control-regex
+    const ansi = /\x1b\[[0-9;]*m/g;
+    const colourless = PREFLIGHT_REFUSAL_IDS.filter(
+      (id) => (localFixture(PREFLIGHT_REFUSALS[id].localFixture).match(ansi) ?? []).length === 0
+    );
+    expect(
+      colourless,
+      'an enforced refusal fixture carries no ANSI - this family is supposed to preserve it, ' +
+        'and a stripped baseline would make the byte ratchet blind to the chalk class'
+    ).toEqual([]);
+  });
 
-  it.runIf(TESTER_AVAILABLE)(
-    'the boxed refusal pads INSIDE its styled spans, so whitespace changes there are caught',
-    () => {
-      // The sharpest instance of the property above, pinned by name. The
-      // "Preview Simulator Build" panel aligns its rows with spaces that sit
-      // between a style-open and its close - the exact shape a stripping masker
-      // renders invisible.
-      const boxed = committedFixture(PREFLIGHT_REFUSALS['binary-path-missing'].fixtures[0]);
-      expect(boxed).toContain('\u001b[34m\u001b[2m│\u001b[22m\u001b[39m ');
-      expect(boxed).toContain('\u001b[1mpreview simulator build\u001b[22m');
-    }
-  );
+  it('the boxed refusal pads INSIDE its styled spans, so whitespace changes there are caught', () => {
+    // The sharpest instance of the property above, pinned by name. The
+    // "Preview Simulator Build" panel aligns its rows with spaces that sit
+    // between a style-open and its close - the exact shape a stripping masker
+    // renders invisible.
+    const boxed = localFixture(PREFLIGHT_REFUSALS['binary-path-missing'].localFixture);
+    expect(boxed).toContain('\x1b[34m\x1b[2m│\x1b[22m\x1b[39m ');
+    expect(boxed).toContain('\x1b[1mpreview simulator build\x1b[22m');
+  });
 });
