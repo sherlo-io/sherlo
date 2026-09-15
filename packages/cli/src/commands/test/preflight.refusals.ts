@@ -20,6 +20,11 @@
  * from a scenario to the fixture this repo commits, so the ratchet can require
  * byte-identity against it.
  *
+ * A fixture holds the WHOLE screen, so it opens with the sherlo intro wherever
+ * the live road prints one before the guard refuses; `config-missing` and
+ * `project-root-invalid` carry none, because the config file is read before
+ * anything is printed (see `emitExpectation.ts`'s `introPrecedes`).
+ *
  * ==========================================================================
  * ONE REPOSITORY, ONE FIXTURE - NO CROSS-REPO PATHS (operator ruling,
  * sherlo#265 review, 2026-09-15)

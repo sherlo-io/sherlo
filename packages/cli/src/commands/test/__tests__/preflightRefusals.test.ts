@@ -178,6 +178,26 @@ describe('the preflight refusal catalog', () => {
     ).toEqual([]);
   });
 
+  it('a fixture carries the sherlo intro exactly where the live road prints one', () => {
+    // The byte comparisons above would catch a missing (or a doubled) intro as a
+    // diff, but only as a diff - this says in words what the fixtures hold, so a
+    // re-mint that quietly dropped the wordmark is read as the product change it
+    // is. `token-malformed` refuses inside `stagedRun`, which prints the intro
+    // first; `config-missing` refuses while `test.ts` is still reading the config
+    // file, with nothing yet on screen. Checked on the stripped text because the
+    // gradient colours the wordmark one character at a time.
+    // eslint-disable-next-line no-control-regex
+    const stripAnsi = (text: string): string => text.replace(/\x1b\[[0-9;]*m/g, '');
+    const wordmarkLastRow = '\'88888P\' 888  888  "Y8888  888     888  "Y88P"';
+
+    const introCarrying = stripAnsi(localFixture('token-malformed.txt'));
+    expect(introCarrying.split(wordmarkLastRow).length - 1).toBe(1);
+
+    const introLess = stripAnsi(localFixture('config-missing.txt'));
+    expect(introLess).not.toContain(wordmarkLastRow);
+    expect(introLess.startsWith('ERROR:')).toBe(true);
+  });
+
   it('the boxed refusal pads INSIDE its styled spans, so whitespace changes there are caught', () => {
     // The sharpest instance of the property above, pinned by name. The
     // "Preview Simulator Build" panel aligns its rows with spaces that sit
