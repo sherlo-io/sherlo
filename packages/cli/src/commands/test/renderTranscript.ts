@@ -248,7 +248,7 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
     fixture: fixtureFor(entry),
     grounded: groundingFor(entry),
     command: `sherlo test --dry-run --render-transcript ${scenarioId}`,
-    depicts: family === 'dry-run' ? 'sherlo test --dry-run' : 'sherlo test',
+    depicts: depictedCommandOf(entry),
     capture: scenario.capture,
     ambient: scenario.ambient,
     // Neither a dry run nor a scripted wait creates anything or routes
@@ -256,6 +256,28 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
     exitCode: 0,
     render: () => renderEntry(entry),
   });
+}
+
+/**
+ * THE COMMAND LINE A TRANSCRIPT DEPICTS, derived from the scenario and never typed. Until
+ * 2026-09-15 every named scenario outside the dry-run family was captioned "sherlo test", so a
+ * `sherlo view 7 --metadata` transcript sat under the wrong command on every planned report that
+ * showed it. A caption is a fact about the scenario: the view family knows its build index and
+ * whether `--metadata` was asked for, the verdict family is what `--wait` prints.
+ */
+function depictedCommandOf(entry: CatalogEntry): string {
+  switch (entry.family) {
+    case 'view':
+      return viewCommandLine(entry.scenario.buildIndex, entry.scenario.showDetails);
+    case 'verdict':
+      return 'sherlo test --wait';
+    case 'dry-run':
+      return 'sherlo test --dry-run';
+  }
+}
+
+function viewCommandLine(buildIndex: number, showDetails: boolean): string {
+  return `sherlo view ${buildIndex}${showDetails ? ' --metadata' : ''}`;
 }
 
 /**
@@ -364,7 +386,7 @@ export async function runRenderTranscriptState(source: string): Promise<void> {
     fixture: null,
     grounded: 'declared-pose',
     command: `sherlo test --dry-run --render-transcript-state ${source}`,
-    depicts: `sherlo view ${pose.buildIndex}`,
+    depicts: viewCommandLine(pose.buildIndex, pose.showDetails),
     // `view` prints its transcript to stdout; the one thing it can put on stderr
     // is the not-found refusal, which is part of that pose's answer.
     capture,
