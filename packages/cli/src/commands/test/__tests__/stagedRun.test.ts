@@ -22,7 +22,7 @@
 import chalk from 'chalk';
 chalk.level = 0;
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER } from '@sherlo/shared';
 import { keysTheApiRejects } from '../../../helpers/__tests__/openBuildPlatformConfigKeys';
 
@@ -154,11 +154,27 @@ const mockFetchServerBypassReason = vi.mocked(_fetchServerBypassReason);
 
 let stagedRun: (passedOptions: any) => Promise<{ url: string }>;
 
+/**
+ * EVERY CASE BELOW IS A PERSON'S SCREEN UNLESS IT SAYS OTHERWISE.
+ *
+ * The closer reads `CI` to decide whether to print the machine-readable `url=` line, and
+ * `CI` is set on the runner these tests run on - so a case that did not clear it would
+ * print one line locally and two in CI, for a reason that has nothing to do with what it
+ * is testing. It is cleared here and set on purpose in the one case about it.
+ */
+const previousCI = process.env.CI;
+
 beforeEach(async () => {
   vi.clearAllMocks();
+  delete process.env.CI;
   mockPrintSherloIntro.mockImplementation(() => {});
   const mod = await import('../stagedRun');
   stagedRun = mod.default;
+});
+
+afterAll(() => {
+  if (previousCI === undefined) delete process.env.CI;
+  else process.env.CI = previousCI;
 });
 
 function mockOptions(): any {
@@ -1090,5 +1106,42 @@ describe('server-bypassed build (SHERLO-1952)', () => {
 
     expect(withWait).toBe(withoutWait);
     expect(withoutWait).toMatchSnapshot();
+  });
+
+  /* ------------------------------------------------------------------------ *
+   * THE CLOSER PRINTS THE ADDRESS ONCE FOR A PERSON AND ADDS THE url= LINE    *
+   * FOR A MACHINE (operator direction 2026-09-15).                           *
+   *                                                                          *
+   * The staged road closes with its own wording, so it needs its own pair of  *
+   * cases: the render layer's `results-url` pins say nothing about this line. *
+   * ------------------------------------------------------------------------ */
+
+  it('a person at a terminal reads the review address ONCE - no `url=` line', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({ wait: false, bypassed: false });
+
+    await stagedRun(mockOptions());
+
+    const out = printed(logSpy);
+    expect(out).toContain('🔗 Review: http://app/build');
+    expect(out).not.toContain('url=http://app/build');
+    // The address appears exactly once on the whole screen.
+    expect(out.split('http://app/build').length - 1).toBe(1);
+
+    logSpy.mockRestore();
+  });
+
+  it('under CI the machine-readable `url=` line comes first, then the link', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    process.env.CI = 'true';
+    setup({ wait: false, bypassed: false });
+
+    await stagedRun(mockOptions());
+
+    const out = printed(logSpy);
+    expect(out).toContain('url=http://app/build');
+    expect(out.indexOf('url=http://app/build')).toBeLessThan(out.indexOf('🔗 Review:'));
+
+    logSpy.mockRestore();
   });
 });

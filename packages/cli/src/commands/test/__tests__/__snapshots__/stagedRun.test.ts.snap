@@ -32,7 +32,5 @@ native-needed=false
 reason=the registered base still matches this commit - running JS-only
 base-fingerprint=BASE_FP
 
-url=http://app/build
-
 🔗 Review: http://app/build"
 `;

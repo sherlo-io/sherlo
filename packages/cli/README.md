@@ -50,7 +50,7 @@ The answers are plain `key=value` lines on stdout, so any CI can read them:
 native-needed=false
 reason=the registered base still matches this commit - running JS-only
 base-fingerprint=<hash>
-url=<review url>            # printed by a run that reached a build
+url=<review url>            # printed under CI, by a run that reached a build
 ```
 
 A genuine tool error (bad token, network failure) throws and publishes **no**

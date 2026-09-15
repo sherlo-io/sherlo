@@ -260,10 +260,18 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       };
 
     case 'results-url':
+      // ONE LINK FOR A PERSON, THE `url=` LINE FOR A MACHINE (operator direction 2026-09-15).
+      // The closer used to print the review address twice on every screen. The machine line is
+      // a documented contract a CI job reads (README: "printed by a run that reached a build"),
+      // so it stays exactly where a machine is reading, and a person at a terminal sees the link
+      // once. WHO is reading arrives on the segment - see `helpers/machineIsReading` for why
+      // this layer is handed the answer rather than reading `CI` itself.
       return {
         stream: 'stdout',
         prints: [
-          ...renderOutputKeys({ url: segment.url }).map((line) => [line]),
+          ...(segment.machineIsReading
+            ? renderOutputKeys({ url: segment.url }).map((line) => [line])
+            : []),
           [`🔗 ${formatLink(segment.url)}\n`],
         ],
       };

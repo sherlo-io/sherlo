@@ -7,7 +7,8 @@ import { PERSONAL_TOKEN_OPTION } from '../../constants';
 import { printSherloIntro, throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
 import { resolvePersonalToken } from '../shared';
-import listTeamsRequest, { ListTeamsAuthError } from './listTeamsRequest';
+import { ListTeamsAuthError } from './listTeamsRequest';
+import { serverCalls } from '../../seams/serverCalls';
 import { THIS_COMMAND } from './constants';
 
 export type TeamListOptions = {
@@ -22,11 +23,13 @@ async function teamList(passedOptions: TeamListOptions): Promise<void> {
     tokenContextLine: 'that one names a project; this command lists the teams you belong to.',
   });
 
-  const list = await listTeamsRequest({ personalToken }).catch((error: Error) => {
-    if (error instanceof ListTeamsAuthError) refuseRejectedToken();
+  const list = await serverCalls()
+    .listTeams({ personalToken })
+    .catch((error: Error) => {
+      if (error instanceof ListTeamsAuthError) refuseRejectedToken();
 
-    throwError({ message: error.message, errorToReport: error });
-  });
+      throwError({ message: error.message, errorToReport: error });
+    });
 
   emit({ kind: 'team-list', list });
 }

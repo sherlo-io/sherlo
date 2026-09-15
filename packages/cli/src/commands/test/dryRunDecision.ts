@@ -30,6 +30,7 @@
 import sdkClient from '@sherlo/sdk-client';
 import { Platform } from '@sherlo/api-types';
 import reporting from '../../helpers/reporting';
+import { serverCalls } from '../../seams/serverCalls';
 import type { GitInfo } from '../../helpers/getGitInfo';
 import { countBundleStories, type ValidatedModuleManifest } from './readModuleManifest';
 
@@ -163,12 +164,14 @@ export type DryRunDecisionInput = {
 };
 
 /**
- * Thrown when the `computeDiffScopeDryRun` query method is not present on the
- * sdk-client at runtime (the api-side method has not been republished into this
- * repo's sdk-client yet). runDryRunPreview catches it and bails open.
+ * Thrown when the `computeDiffScopeDryRun` query method is not present on the sdk-client at
+ * runtime (the api-side method has not been republished into this repo's sdk-client yet).
+ * runDryRunPreview catches it and bails open.
+ *
+ * It is RAISED by the live half of the server seam, which is the only half that has an
+ * sdk-client to look at, and named here for every caller that already reads it from this module.
  */
-export const DRY_RUN_DECISION_UNAVAILABLE =
-  'The Diff Scope dry-run decision query (computeDiffScopeDryRun) is not available on this sdk-client build.';
+export { DRY_RUN_DECISION_UNAVAILABLE } from '../../seams/serverCalls';
 
 // ---------------------------------------------------------------------------
 // Public API - the contract seam
@@ -198,12 +201,6 @@ export async function requestDryRunDecision(
     level: 'info',
   });
 
-  const query = input.client.computeDiffScopeDryRun;
-  if (typeof query !== 'function') {
-    // The api-side method is not wired into this sdk-client build yet -> bail open.
-    throw new Error(DRY_RUN_DECISION_UNAVAILABLE);
-  }
-
   // Local "M" for each platform's "N of M" line: the story-closure count in the
   // manifest THIS build just produced. There is no server total field.
   const totalByPlatform = new Map<Platform, number>();
@@ -223,7 +220,10 @@ export async function requestDryRunDecision(
     ...(p.manifest ? { manifest: p.manifest.raw.toString('utf8') } : {}),
   }));
 
-  const result = await query({
+  // Through the server seam (../../seams/serverCalls), so a pose answers this read instead of
+  // the network. The seam's live half still guards for the method being absent from this
+  // sdk-client build and throws, which reaches the bail-open above exactly as it always did.
+  const result = await serverCalls().computeDiffScopeDryRun(input.client, {
     projectIndex: input.projectIndex,
     teamId: input.teamId,
     gitInfo: input.gitInfo,

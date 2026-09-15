@@ -1,0 +1,81 @@
+{
+  "pose": 1,
+  "argv": [
+    "view",
+    "13",
+    "--wait"
+  ],
+  "files": {
+    "sherlo.config.json": {
+      "token": "posetokenposetokenposetokenpose1tm0000017",
+      "devices": [
+        {
+          "id": "pixel.7",
+          "osVersion": "13"
+        }
+      ]
+    }
+  },
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": {
+    "branch": "feature/login-copy",
+    "commit": "4f3a9c1e77b0d2a6f5c8419e3b7d0a1c2e6f8b04",
+    "dirty": false
+  },
+  "bundles": {},
+  "api": [
+    {
+      "call": "getBuildStatus",
+      "with": {
+        "buildIndex": 13
+      },
+      "answer": {
+        "runStatus": "finished",
+        "viewStatusesCount": {
+          "approved": 0,
+          "noChanges": 44,
+          "reported": 0,
+          "unreviewed": 0
+        },
+        "diffScopeInfo": {
+          "capturedSnapshotCount": 0,
+          "inheritedSnapshotCount": 44,
+          "platforms": {
+            "android": {
+              "reason": "no change on this branch reaches any story"
+            }
+          }
+        }
+      }
+    },
+    {
+      "call": "getBuildStatus",
+      "with": {
+        "buildIndex": 13
+      },
+      "answer": {
+        "runStatus": "finished",
+        "viewStatusesCount": {
+          "approved": 0,
+          "noChanges": 44,
+          "reported": 0,
+          "unreviewed": 0
+        },
+        "diffScopeInfo": {
+          "capturedSnapshotCount": 0,
+          "inheritedSnapshotCount": 44,
+          "platforms": {
+            "android": {
+              "reason": "no change on this branch reaches any story"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "masks": {
+    "<MASKED>": "posetokenposetokenposetokenpose1tm0000017"
+  }
+}

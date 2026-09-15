@@ -27,10 +27,7 @@ import {
   EMIT_BUNDLE_DIR_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EAS_BUILD_SCRIPT_NAME_OPTION,
-  EMIT_EXPECTATION_OPTION,
   FINGERPRINT_COMMAND,
-  RENDER_TRANSCRIPT_OPTION,
-  RENDER_TRANSCRIPT_STATE_OPTION,
   GIT_BRANCH_OPTION,
   INCLUDE_OPTION,
   INIT_COMMAND,
@@ -42,6 +39,7 @@ import {
   PERSONAL_TOKEN_FLAG,
   PERSONAL_TOKEN_OPTION,
   PLATFORM_LABEL,
+  POSE_COMMAND,
   PROFILE_OPTION,
   PROJECT_COMMAND,
   PROJECT_CREATE_SUBCOMMAND,
@@ -94,6 +92,8 @@ async function start() {
     addProjectCommand(program);
 
     addTeamCommand(program);
+
+    addPoseCommand(program);
 
     if (process.argv.length === 2) {
       console.log('Choose a Sherlo command. Use --help for more information.');
@@ -159,6 +159,12 @@ const COMMAND_DESCRIPTION = {
     'List every team you belong to: id, name and project count.\n' +
     `  Authorized by a PERSONAL token (\`--${PERSONAL_TOKEN_FLAG}\` or ${PERSONAL_TOKEN_ENV_VAR}).\n` +
     `  Takes no \`--${TEAM_OPTION}\`: it answers for every team the token's owner belongs to.`,
+  [POSE_COMMAND]:
+    'Run ONE command against a declared world and print the whole screen it would put\n' +
+    '  on a terminal, with the exit code the real run would have had. The world - the\n' +
+    "  project folder, the settings, git, the bundler's answer and the server's - is a\n" +
+    '  JSON document (contracts/pose.contract.ts); pass `-` to read it from stdin.\n' +
+    '  Touches no network and no project. Hidden unless SHERLO_DEVTOOLS=1.',
   [FINGERPRINT_COMMAND]:
     'Print the fingerprints `test` computes for this project, one line per layer\n' +
     '  (native, dependencies, js, base). Runs entirely locally: no token, no upload.\n' +
@@ -225,31 +231,6 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
       'Bundles and produces the manifest locally, asks the server for a read-only ' +
       'decision, and prints the per-platform "would capture" lists with reasons. ' +
       'Creates no build and uploads nothing.',
-  ],
-  [EMIT_EXPECTATION_OPTION]: [
-    '--emit-expectation <scenario>',
-    'Expectation-emit mode (requires --dry-run): renders the exact refusal text a real ' +
-      'run would print for <scenario> - the same guard, the same formatter - with every ' +
-      'volatile value (an absolute path, a build file name) replaced by a stable ' +
-      'placeholder (e.g. <SHERLO_CONFIG_PATH>). Pass "list" to print every scenario and ' +
-      'the full placeholder vocabulary. Makes no build, no upload, no network call.',
-  ],
-  [RENDER_TRANSCRIPT_OPTION]: [
-    '--render-transcript <scenario>',
-    "Transcript-render mode (requires --dry-run): renders the named scenario's scripted " +
-      "wire state through the CLI's OWN dry-run code path and writes the transcript it " +
-      'printed to stdout, with a JSON envelope (exit code, command, ambient, stderr) on ' +
-      'stderr. Pass "list" to print every scenario. Makes no build, no bundle, no network ' +
-      'call. Mint captures from a world; render computes from a scenario.',
-  ],
-  [RENDER_TRANSCRIPT_STATE_OPTION]: [
-    '--render-transcript-state <path>',
-    'Transcript-render mode over a pose you write (requires --dry-run): reads one ' +
-      "command's whole state - the build the read answered with, and the ambient the run " +
-      "had - from a JSON document and renders it through the CLI's OWN print path, with the " +
-      'same envelope on stderr as --render-transcript. Pass "-" to read the document from ' +
-      'stdin. Every field is required unless the wire itself makes it optional, and an ' +
-      'unknown field is refused by name rather than ignored.',
   ],
   [MESSAGE_OPTION]: [`--${MESSAGE_OPTION} <message>`, 'Custom message to label the test'],
   [METADATA_OPTION]: [
@@ -322,7 +303,7 @@ function addInitCommand(program: Command) {
 
 // `sherlo test` is the ONE testing command: it carries the union of both roads'
 // options. The platform paths pick the standard road; without them the staged
-// road runs and --dry-run / --emit-expectation preview its bundling decision.
+// road runs and --dry-run previews its bundling decision.
 function addTestCommand(program: Command) {
   const devtoolsOptions = process.env.SHERLO_DEVTOOLS === '1' ? [DIAGNOSTICS_OPTION] : [];
 
@@ -334,9 +315,6 @@ function addTestCommand(program: Command) {
       BUNDLE_DIR_OPTION,
       EMIT_BUNDLE_DIR_OPTION,
       DRY_RUN_OPTION,
-      EMIT_EXPECTATION_OPTION,
-      RENDER_TRANSCRIPT_OPTION,
-      RENDER_TRANSCRIPT_STATE_OPTION,
       WAIT_OPTION,
       WAIT_TIMEOUT_OPTION,
       METADATA_OPTION,
@@ -509,6 +487,30 @@ function addTeamCommand(program: Command) {
 
     await teamList(actionOptions);
   });
+}
+
+/**
+ * `sherlo pose <pose.json|->` - run one command against a declared world and print the whole
+ * screen it put on a terminal (see ./commands/pose/pose).
+ *
+ * HIDDEN UNLESS `SHERLO_DEVTOOLS=1`, the same gate `--diagnostics` sits behind: this is a tool
+ * for the people who work on the tool, and a user who runs `sherlo --help` has no use for a verb
+ * that takes a JSON document describing a run they are not making.
+ *
+ * The command is loaded only when it runs. It reaches back into THIS module - the routing it
+ * exists to exercise is `start` itself - so a static import here would be a load-time cycle.
+ */
+function addPoseCommand(program: Command) {
+  if (process.env.SHERLO_DEVTOOLS !== '1') return;
+
+  program
+    .command(`${POSE_COMMAND} <pose>`)
+    .description(COMMAND_DESCRIPTION[POSE_COMMAND])
+    .action(async (documentPath: string) => {
+      const { pose } = await import('./commands/pose/pose');
+
+      await pose(documentPath);
+    });
 }
 
 function addCommand({

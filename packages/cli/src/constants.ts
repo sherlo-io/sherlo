@@ -103,6 +103,11 @@ export const TEAM_COMMAND = 'team';
 export const TEAM_CREATE_SUBCOMMAND = 'create';
 /** `sherlo team list` - one row per team the caller belongs to. */
 export const TEAM_LIST_SUBCOMMAND = 'list';
+/**
+ * `sherlo pose <pose.json|->` - run one command against a declared world and print its screen.
+ * Hidden unless SHERLO_DEVTOOLS=1: a tool for the people who work on the tool.
+ */
+export const POSE_COMMAND = 'pose';
 export const FULL_INIT_COMMAND = 'npx sherlo init';
 
 /* OPTIONS */
@@ -115,10 +120,6 @@ export const BUNDLE_DIR_OPTION = 'bundleDir';
 /** Produce a bundle directory `--bundle-dir` will accept (see commands/test/emitBundleDir). */
 export const EMIT_BUNDLE_DIR_OPTION = 'emitBundleDir';
 export const DRY_RUN_OPTION = 'dryRun';
-export const EMIT_EXPECTATION_OPTION = 'emitExpectation';
-export const RENDER_TRANSCRIPT_OPTION = 'renderTranscript';
-/** Render a transcript from a caller-declared pose (see commands/view/viewPose). */
-export const RENDER_TRANSCRIPT_STATE_OPTION = 'renderTranscriptState';
 export const GIT_BRANCH_OPTION = 'gitBranch';
 export const CONFIG_OPTION = 'config';
 export const DIAGNOSTICS_OPTION = 'diagnostics';
