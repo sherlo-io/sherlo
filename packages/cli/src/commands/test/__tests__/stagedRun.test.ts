@@ -157,10 +157,10 @@ let stagedRun: (passedOptions: any) => Promise<{ url: string }>;
 /**
  * EVERY CASE BELOW IS A PERSON'S SCREEN UNLESS IT SAYS OTHERWISE.
  *
- * The closer reads `CI` to decide whether to print the machine-readable `url=` line, and
- * `CI` is set on the runner these tests run on - so a case that did not clear it would
- * print one line locally and two in CI, for a reason that has nothing to do with what it
- * is testing. It is cleared here and set on purpose in the one case about it.
+ * The closer used to read `CI` to decide whether to print a machine-readable `url=` line
+ * (gone since 2026-09-15 - the address is printed once, whoever is reading). `CI` is still
+ * cleared here so no case depends on the runner it happens to run on, and set on purpose in
+ * the one case that proves the closer no longer cares.
  */
 const previousCI = process.env.CI;
 
@@ -1109,10 +1109,10 @@ describe('server-bypassed build (SHERLO-1952)', () => {
   });
 
   /* ------------------------------------------------------------------------ *
-   * THE CLOSER PRINTS THE ADDRESS ONCE FOR A PERSON AND ADDS THE url= LINE    *
-   * FOR A MACHINE (operator direction 2026-09-15).                           *
-   *                                                                          *
-   * The staged road closes with its own wording, so it needs its own pair of  *
+   * THE CLOSER PRINTS THE ADDRESS ONCE, ON THE LINE WITH THE EMOJI, WHOEVER   *
+   * IS READING (operator ruling 2026-09-15). The `url=` line a machine used   *
+   * to get above the link is gone: the same address twice on a screen was the *
+   * defect. The staged road closes with its own wording, so it needs its own  *
    * cases: the render layer's `results-url` pins say nothing about this line. *
    * ------------------------------------------------------------------------ */
 
@@ -1131,7 +1131,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     logSpy.mockRestore();
   });
 
-  it('under CI the machine-readable `url=` line comes first, then the link', async () => {
+  it('under CI the address is printed once too - never a `url=` line', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     process.env.CI = 'true';
     setup({ wait: false, bypassed: false });
@@ -1139,8 +1139,8 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('url=http://app/build');
-    expect(out.indexOf('url=http://app/build')).toBeLessThan(out.indexOf('🔗 Review:'));
+    expect(out).not.toContain('url=');
+    expect(out.split('http://app/build').length - 1).toBe(1);
 
     logSpy.mockRestore();
   });

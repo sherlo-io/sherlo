@@ -50,8 +50,11 @@ The answers are plain `key=value` lines on stdout, so any CI can read them:
 native-needed=false
 reason=the registered base still matches this commit - running JS-only
 base-fingerprint=<hash>
-url=<review url>            # printed under CI, by a run that reached a build
 ```
+
+A run that reached a build ends with its review address on one line, `🔗 <review url>`
+(`🔗 Review: <review url>` on the staged road) - printed once, for a person and a machine
+alike; the GitHub Action reads the address off that line.
 
 A genuine tool error (bad token, network failure) throws and publishes **no**
 `native-needed` key at all - that, not the exit code, is how a CI job tells an
