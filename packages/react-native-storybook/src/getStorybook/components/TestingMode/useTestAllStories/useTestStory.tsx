@@ -8,6 +8,7 @@ import { readStoryError, clearStoryError } from '../../../storyErrorRegistry';
 import { Config } from '../../../../helpers/RunnerBridge/types';
 import { StorybookView } from '../../../../types';
 import { getStorybookChannel, waitForStoryRendered } from './storyRenderedReadiness';
+import { clearMocks } from '../../../../mocking';
 
 // Readiness defaults, applied SDK-side so an OLD runner that omits
 // these fields still works. Documented in Config (RunnerBridge/types.ts).
@@ -372,6 +373,10 @@ function useTestStory({
       } catch (error) {
         // @ts-ignore
         RunnerBridge.log('story capturing failed', { errorMessage: error?.message });
+      } finally {
+        // IS-07: the run for this story is over - pass every mocked module through to
+        // its real implementation again, regardless of how the try block above exited.
+        clearMocks();
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps

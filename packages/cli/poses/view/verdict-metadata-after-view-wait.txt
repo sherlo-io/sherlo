@@ -1,0 +1,17 @@
+[32mBuild #17[39m · finished
+
+🔗 [4mhttps://app.sherlo.io/build?t=tm000001&p=7&b=17[24m
+
+[2m⏳ Waiting for build results (timeout: 45min)...[22m
+[2m   🟢 Finished[22m
+
+[33m⚠️  Build finished with changes requiring review.[39m
+[33m   3 story/stories unreviewed.[39m
+
+── details ──
+runner:        finished
+diff scope:    captured 3 · inherited 41
+verdicts cast: 0
+
+
+[exit 1]

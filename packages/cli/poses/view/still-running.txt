@@ -1,0 +1,7 @@
+[32mBuild #7[39m · inProgress
+[34m🔵 Running visual tests - Sherlo is capturing and comparing snapshots for this commit.[39m
+
+🔗 [4mhttps://app.sherlo.io/build?t=tm000001&p=7&b=7[24m
+
+
+[exit 0]

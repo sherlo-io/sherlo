@@ -1,0 +1,18 @@
+{
+  "pose": 1,
+  "argv": ["view", "7", "--metadata"],
+  "files": {
+    "sherlo.config.json": { "token": "posetokenposetokenposetokenpose1tm0000017", "devices": [{ "id": "iphone.15", "osVersion": "17" }] }
+  },
+  "env": { "SKIP_INTRO": "true" },
+  "git": { "branch": "main", "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c", "dirty": false },
+  "bundles": {},
+  "api": [
+    {
+      "call": "getBuildStatus",
+      "with": { "buildIndex": 7 },
+      "answer": { "runStatus": "error", "runError": "user_runner" }
+    }
+  ],
+  "masks": { "<MASKED>": "posetokenposetokenposetokenpose1tm0000017" }
+}

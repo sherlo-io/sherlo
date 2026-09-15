@@ -39,6 +39,12 @@
       "require": "./metro/withStorybook.js",
       "default": "./metro/withStorybook.js"
     },
+    "./mocking": {
+      "types": "./dist/mocking/index.d.ts",
+      "react-native": "./dist/mocking/index.js",
+      "require": "./dist/mocking/index.js",
+      "default": "./dist/mocking/index.js"
+    },
     "./metro/polyfill": {
       "require": "./metro/polyfill.js",
       "default": "./metro/polyfill.js"
@@ -62,7 +68,10 @@
     "metro/withStorybook.js",
     "metro/withStorybook.d.ts",
     "metro/polyfill.js",
-    "metro/applySherloTransforms.js"
+    "metro/applySherloTransforms.js",
+    "metro/ensureStorybookRequires.js",
+    "metro/mockScan.js",
+    "metro/mockShims.js"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p .",

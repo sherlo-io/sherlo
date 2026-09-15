@@ -1,10 +1,6 @@
 import { Platform } from '@sherlo/api-types';
 import sdkClient from '@sherlo/sdk-client';
-import {
-  DEFAULT_PROJECT_ROOT,
-  EAS_BUILD_ON_COMPLETE_COMMAND,
-  TEST_EAS_UPDATE_COMMAND,
-} from '../../../constants';
+import { DEFAULT_PROJECT_ROOT, EAS_BUILD_ON_COMPLETE_COMMAND } from '../../../constants';
 import { BinariesInfo, Command, CommandParams } from '../../../types';
 import handleClientError from '../../handleClientError';
 import reporting from '../../reporting';
@@ -46,7 +42,6 @@ async function getBinariesInfoAndNextBuildIndex(
       command === EAS_BUILD_ON_COMPLETE_COMMAND
         ? DEFAULT_PROJECT_ROOT
         : params.commandParams.projectRoot,
-    command,
   });
 
   // Validate local binary data before making API call - fail fast on wrong build type,
@@ -72,23 +67,20 @@ async function getBinariesInfoAndNextBuildIndex(
       platforms,
       projectIndex,
       teamId,
-      binaryReuseMode:
-        command === TEST_EAS_UPDATE_COMMAND
-          ? 'requireHashMatchOrLatestExpoDev'
-          : 'requireHashMatch',
+      binaryReuseMode: 'requireHashMatch',
     })
     .catch(handleClientError);
 
   const binariesInfo = {
     android: getBinaryInfo({
-      ...params,
       platform: 'android',
+      platforms,
       localBinariesInfo,
       remoteBinariesInfoOrUploadInfo,
     }),
     ios: getBinaryInfo({
-      ...params,
       platform: 'ios',
+      platforms,
       localBinariesInfo,
       remoteBinariesInfoOrUploadInfo,
     }),

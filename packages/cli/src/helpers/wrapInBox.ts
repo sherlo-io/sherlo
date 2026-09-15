@@ -53,7 +53,12 @@ const BOX = {
 };
 
 function getWrappedLines(text: string, type?: Type): string[] {
-  const terminalWidth = process.stdout.columns ?? 80;
+  // `||`, NOT `??`. A pty whose window size was never set reports columns as 0, not undefined, so
+  // `?? 80` let a 0 through and every box wrapped at a negative maxBoxWidth - one token per line,
+  // with the border drawn around the longest single word. That is not hypothetical: recording
+  // `sherlo init` through script(1) produces exactly such a pty, and it rendered both Storybook
+  // Access code samples unreadable. Any width that is not a usable positive number falls back to 80.
+  const terminalWidth = process.stdout.columns || 80;
   const maxBoxWidth = terminalWidth - 2 * (PADDING + BOX.VERTICAL.length);
 
   // Special handling for command type - split on -- flags only if needed

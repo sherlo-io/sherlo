@@ -1,0 +1,8 @@
+[32mBuild #7[39m · finished
+[2mapproved 0 · reported 0 · unreviewed 3 · noChanges 41[22m
+[33m⚠️  Visual changes need review - snapshots changed and are awaiting review in Sherlo.[39m
+
+🔗 [4mhttps://app.sherlo.io/build?t=tm000001&p=7&b=7[24m
+
+
+[exit 0]

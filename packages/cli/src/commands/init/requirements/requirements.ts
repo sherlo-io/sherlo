@@ -8,7 +8,7 @@ import {
   STORYBOOK_REACT_NATIVE_PACKAGE_NAME,
   TOKEN_OPTION,
 } from '../../../constants';
-import { isValidToken, printLink, throwError } from '../../../helpers';
+import { isValidToken, printLink, refuseIfPersonalToken, throwError } from '../../../helpers';
 import { printMessage, printTitle, trackProgress } from '../helpers';
 import { EVENT } from './constants';
 import getPackageVersion from './getPackageVersion';
@@ -74,6 +74,10 @@ async function validateRequirements(token?: string): Promise<void> {
     await validateHasWithStorybookInMetroConfig();
 
     validateCorePackagesVersions();
+
+    // Named refusal first. The generic branch below reports the token string
+    // itself to Sentry, which must never happen to a live personal credential.
+    if (token) refuseIfPersonalToken(token);
 
     if (token && !isValidToken(token)) {
       throwError({

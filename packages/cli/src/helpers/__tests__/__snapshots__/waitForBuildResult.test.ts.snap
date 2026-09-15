@@ -1,0 +1,8 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`waitForBuildResult > server-bypassed build closing message > pins the compact bypassed closer and the absence of all device-run output 1`] = `
+"
+✅ Nothing needed capturing - no change reaches any story
+   closed by the server - no device run was needed
+"
+`;
