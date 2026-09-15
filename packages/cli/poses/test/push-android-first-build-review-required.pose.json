@@ -1,0 +1,121 @@
+{
+  "pose": 1,
+  "argv": [
+    "test",
+    "--android",
+    "builds/app-release.apk",
+    "--wait"
+  ],
+  "files": {
+    "sherlo.config.json": {
+      "token": "posetokenposetokenposetokenpose1tm0000017",
+      "devices": [
+        {
+          "id": "pixel.7",
+          "osVersion": "13"
+        }
+      ]
+    },
+    "builds/app-release.apk": "a preview build - the bytes are not part of a pose; what the tool reads out of them is `push`"
+  },
+  "env": {},
+  "git": {
+    "branch": "feature/checkout",
+    "commit": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b",
+    "dirty": false
+  },
+  "bundles": {
+    "android": {
+      "bundlePath": "node_modules/.cache/sherlo/bundle.android.js",
+      "bundleSizeMb": 4.29,
+      "bundleFormat": "plain-js",
+      "bundler": "expo",
+      "assets": [
+        "icon.png",
+        "splash.png"
+      ],
+      "storyClosureKeys": [
+        "src/components/Storefront/ProductCard.stories.tsx",
+        "src/components/Storefront/Checkout.stories.tsx"
+      ]
+    }
+  },
+  "api": [
+    {
+      "call": "getNextBuildInfo",
+      "with": {
+        "platforms": [
+          "android"
+        ]
+      },
+      "answer": {
+        "nextBuildIndex": 1,
+        "binaries": {
+          "android": {
+            "upload": true
+          }
+        }
+      }
+    },
+    {
+      "call": "getStagedUploadUrls",
+      "with": {
+        "platforms": [
+          "android"
+        ]
+      },
+      "answer": {}
+    },
+    {
+      "call": "openBuild",
+      "with": {
+        "platforms": [
+          "android"
+        ]
+      },
+      "answer": {
+        "buildIndex": 1,
+        "url": "https://app.sherlo.io/build?t=tm000001&p=7&b=1"
+      }
+    },
+    {
+      "call": "getBuildStatus",
+      "with": {
+        "buildIndex": 1
+      },
+      "answer": {
+        "runStatus": "finished",
+        "viewStatusesCount": {
+          "approved": 0,
+          "noChanges": 0,
+          "reported": 0,
+          "unreviewed": 2
+        }
+      }
+    }
+  ],
+  "masks": {
+    "<MASKED>": "posetokenposetokenposetokenpose1tm0000017"
+  },
+  "push": {
+    "now": "2026-09-15T12:00:00.000Z",
+    "binaries": {
+      "android": {
+        "hash": "3f7c1a9e5b2d4c6f8a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f",
+        "sizeMb": "48.12",
+        "sdkVersion": "2.0.2",
+        "hasEmbeddedBundle": true,
+        "bundleFormat": "plain-js",
+        "expoUpdatesEnabled": false,
+        "hasExpoDevClient": false,
+        "expoSdkVersion": "53.0.0",
+        "androidAbis": [
+          "arm64-v8a"
+        ]
+      }
+    },
+    "fingerprint": {
+      "hash": "b4c9e2f7a1d3c5b8e0f2a4c6d8b0e2f4a6c8d0b2e4f6a8c0d2b4e6f8a0c2d4e6"
+    }
+  }
+}

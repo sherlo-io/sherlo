@@ -32,8 +32,8 @@ const EXPO_DEV_CLIENT_ANDROID_MANIFEST_ACTIVITY =
 
 const IOS_TAR_BUNDLE_PREFIX = '*.app/';
 
-type LocalBinariesInfo = { android?: LocalBinaryInfo; ios?: LocalBinaryInfo };
-type LocalBinaryInfo = Pick<
+export type LocalBinariesInfo = { android?: LocalBinaryInfo; ios?: LocalBinaryInfo };
+export type LocalBinaryInfo = Pick<
   BinaryInfo,
   | 'hash'
   | 'buildType'

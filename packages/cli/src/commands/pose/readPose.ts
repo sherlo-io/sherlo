@@ -32,6 +32,45 @@ export type CommandPose = {
   bundles: Record<string, PosedBundle>;
   api: ScriptedCall[];
   masks: Record<string, string>;
+  /**
+   * What a real push read off the machine - the binaries it was handed, the base fingerprint,
+   * the clock. THE ONE OPTIONAL FIELD: only `sherlo test --android/--ios` reads the machine, and
+   * a refusal on that road never reaches it. A command that reaches the machine with no `push`
+   * is refused at run time, like a call the pose did not script.
+   */
+  push?: PosedPush;
+};
+
+/** What a real push read off the machine, as a pose states it. */
+export type PosedPush = {
+  /** The instant the run read the clock at, ISO 8601. */
+  now: string;
+  /** The binaries the command was handed, per platform. */
+  binaries: Record<string, PosedBinary>;
+  /** The base fingerprint over the project's native inputs, or why there was none. */
+  fingerprint: { hash: string } | { unavailable: string };
+};
+
+/** One binary as a pose states it - what the reader would have found inside the file. */
+export type PosedBinary = {
+  /** The file's hash, sent to the server to ask whether it has seen this binary. Never printed. */
+  hash: string;
+  /** What the upload line announces, e.g. `"48.12"`. */
+  sizeMb: string;
+  /** The Sherlo SDK version baked into the binary; `null` poses the missing-Sherlo refusal. */
+  sdkVersion: string | null;
+  /** Whether a JS bundle sits at the platform-default path - a preview build has one, a development build does not. */
+  hasEmbeddedBundle: boolean;
+  /** The bundle's format, as the gate reads it off the embedded bundle's header. */
+  bundleFormat: 'plain-js' | 'hermes-bytecode' | 'ram';
+  /** Whether expo-updates is enabled in the binary - an Android binary with it cannot be a base. */
+  expoUpdatesEnabled: boolean;
+  /** Whether the binary carries expo-dev-client. */
+  hasExpoDevClient: boolean;
+  /** The Expo SDK the binary was built with, when it was built with Expo. */
+  expoSdkVersion?: string;
+  /** The ABIs an Android binary carries (`["arm64-v8a"]`); absent for an iOS build. */
+  androidAbis?: string[];
 };
 
 /**
@@ -114,7 +153,27 @@ export type ScriptedCall =
       call: 'computeDiffScopeDryRun';
       with: { branch: string; commit: string };
       answer: DiffScopeDryRunAnswer | ApiError;
+    }
+  | {
+      call: 'getNextBuildInfo';
+      with: { platforms: string[] };
+      answer: NextBuildInfoAnswer | ApiError;
+    }
+  | {
+      call: 'getStagedUploadUrls';
+      with: { platforms: string[] };
+      answer: Record<string, never> | ApiError;
     };
+
+/**
+ * What the push's first question answers: which build comes next and, per binary, whether the
+ * server wants it uploaded or already holds it from an earlier build (the reuse line's build
+ * number and "N minutes ago" come from `reuse`).
+ */
+export type NextBuildInfoAnswer = {
+  nextBuildIndex: number;
+  binaries: Record<string, { upload: true } | { reuse: { buildIndex: number; createdAt: string } }>;
+};
 
 /** The operation names a pose may script, in the order the contract declares them. */
 export const SCRIPTED_CALL_NAMES = [
@@ -125,6 +184,8 @@ export const SCRIPTED_CALL_NAMES = [
   'listProjects',
   'openBuild',
   'computeDiffScopeDryRun',
+  'getNextBuildInfo',
+  'getStagedUploadUrls',
 ] as const;
 
 export type ScriptedCallName = (typeof SCRIPTED_CALL_NAMES)[number];
@@ -174,10 +235,11 @@ export function readPose(document: unknown): CommandPose {
   readBundles(pose, argv, problems);
   readApi(pose, problems);
   readStringMap(pose, 'masks', problems);
+  readPush(pose, argv, problems);
 
   reportUnknownFields(
     pose,
-    ['pose', 'argv', 'files', 'env', 'git', 'bundles', 'api', 'masks'],
+    ['pose', 'argv', 'files', 'env', 'git', 'bundles', 'api', 'masks', 'push'],
     '',
     problems
   );
@@ -325,6 +387,90 @@ function readBundles(pose: Record<string, unknown>, argv: string[], problems: st
   }
 }
 
+/**
+ * `push` is read only when it is there: it is the one optional field, because only a real push
+ * reads the machine. Stated for a command that never does, it describes a step that command does
+ * not have, and is refused the way `bundles` is.
+ */
+function readPush(pose: Record<string, unknown>, argv: string[], problems: string[]): void {
+  if (!('push' in pose)) return;
+
+  const push = asObject(pose.push, '`push`', problems);
+  if (!push) return;
+
+  if (!commandBundles(argv)) {
+    problems.push(
+      `\`push\`: \`${argv[0] ?? ''}\` never reads a native build, so there is no push for it to ` +
+        'describe. Leave the field out.'
+    );
+  }
+
+  expectString(push, 'now', '`push`', problems);
+  if (typeof push.now === 'string' && Number.isNaN(Date.parse(push.now))) {
+    problems.push(`\`push\`.now: expected an ISO 8601 instant, got ${describe(push.now)}`);
+  }
+
+  const binaries = asObject(push.binaries, '`push.binaries`', problems);
+  if (binaries) {
+    for (const platform of Object.keys(binaries)) {
+      const where = `\`push.binaries["${platform}"]\``;
+
+      if (platform !== 'android' && platform !== 'ios') {
+        problems.push(
+          `${where}: \`${platform}\` is not a platform - the tool is handed \`android\` and \`ios\` builds`
+        );
+      }
+
+      const binary = asObject(binaries[platform], where, problems);
+      if (!binary) continue;
+
+      expectString(binary, 'hash', where, problems);
+      expectString(binary, 'sizeMb', where, problems);
+      expectStringOrNull(binary, 'sdkVersion', where, problems);
+      expectBoolean(binary, 'hasEmbeddedBundle', where, problems);
+      expectOneOf(binary, 'bundleFormat', ['plain-js', 'hermes-bytecode', 'ram'], where, problems);
+      expectBoolean(binary, 'expoUpdatesEnabled', where, problems);
+      expectBoolean(binary, 'hasExpoDevClient', where, problems);
+      if ('expoSdkVersion' in binary) expectString(binary, 'expoSdkVersion', where, problems);
+      if ('androidAbis' in binary) expectStringArray(binary, 'androidAbis', where, problems);
+      reportUnknownFields(
+        binary,
+        [
+          'hash',
+          'sizeMb',
+          'sdkVersion',
+          'hasEmbeddedBundle',
+          'bundleFormat',
+          'expoUpdatesEnabled',
+          'hasExpoDevClient',
+          'expoSdkVersion',
+          'androidAbis',
+        ],
+        where,
+        problems
+      );
+    }
+  }
+
+  const fingerprint = asObject(push.fingerprint, '`push.fingerprint`', problems);
+  if (fingerprint) {
+    if ('hash' in fingerprint) {
+      expectString(fingerprint, 'hash', '`push.fingerprint`', problems);
+      reportUnknownFields(fingerprint, ['hash'], '`push.fingerprint`', problems);
+    } else if ('unavailable' in fingerprint) {
+      expectString(fingerprint, 'unavailable', '`push.fingerprint`', problems);
+      reportUnknownFields(fingerprint, ['unavailable'], '`push.fingerprint`', problems);
+    } else {
+      problems.push(
+        '`push.fingerprint`: expected `{ hash }` or `{ unavailable }` - the base fingerprint, or ' +
+          'why there was none'
+      );
+    }
+  }
+
+  reportUnknownFields(push, ['now', 'binaries', 'fingerprint'], '`push`', problems);
+}
+
 function readApi(pose: Record<string, unknown>, problems: string[]): void {
   const api = pose.api;
 
@@ -402,6 +548,11 @@ function readCallArguments(
       expectString(args, 'branch', where, problems);
       expectString(args, 'commit', where, problems);
       reportUnknownFields(args, ['branch', 'commit'], where, problems);
+      return;
+    case 'getNextBuildInfo':
+    case 'getStagedUploadUrls':
+      expectStringArray(args, 'platforms', where, problems);
+      reportUnknownFields(args, ['platforms'], where, problems);
       return;
   }
 }
@@ -498,6 +649,42 @@ function readCallAnswer(
         );
       });
       reportUnknownFields(body, ['platforms'], where, problems);
+      return;
+    case 'getNextBuildInfo': {
+      expectNumber(body, 'nextBuildIndex', where, problems);
+      const binaries = asObject(body.binaries, `${where}.binaries`, problems);
+      if (binaries) {
+        for (const platform of Object.keys(binaries)) {
+          const binaryWhere = `${where}.binaries["${platform}"]`;
+          const decision = asObject(binaries[platform], binaryWhere, problems);
+          if (!decision) continue;
+          if ('upload' in decision) {
+            if (decision.upload !== true) {
+              problems.push(`${binaryWhere}.upload: expected \`true\`, got ${describe(decision.upload)}`);
+            }
+            reportUnknownFields(decision, ['upload'], binaryWhere, problems);
+          } else if ('reuse' in decision) {
+            const reuse = asObject(decision.reuse, `${binaryWhere}.reuse`, problems);
+            if (reuse) {
+              expectNumber(reuse, 'buildIndex', `${binaryWhere}.reuse`, problems);
+              expectString(reuse, 'createdAt', `${binaryWhere}.reuse`, problems);
+              reportUnknownFields(reuse, ['buildIndex', 'createdAt'], `${binaryWhere}.reuse`, problems);
+            }
+            reportUnknownFields(decision, ['reuse'], binaryWhere, problems);
+          } else {
+            problems.push(
+              `${binaryWhere}: expected \`{ upload: true }\` or \`{ reuse: { buildIndex, createdAt } }\``
+            );
+          }
+        }
+      }
+      reportUnknownFields(body, ['nextBuildIndex', 'binaries'], where, problems);
+      return;
+    }
+    case 'getStagedUploadUrls':
+      // The call is scripted so the pose says it was made; there is nothing in the answer a pose
+      // could meaningfully state (see ../../seams/serverCalls, `stagedUploadUrlsAnswerOf`).
+      reportUnknownFields(body, [], where, problems);
       return;
   }
 }
