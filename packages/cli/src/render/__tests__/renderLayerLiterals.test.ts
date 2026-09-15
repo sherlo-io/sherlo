@@ -69,8 +69,38 @@ let captureTranscript: (body: () => Promise<void>) => Promise<CapturedTranscript
 
 beforeAll(async () => {
   chalk.level = 1;
+  // The pins below are a PERSON's screen. `CI` is set on the runner these tests run on, and
+  // the closer reads it - so it is cleared here and set on purpose in the one case about it.
+  delete process.env.CI;
   ({ renderSegment } = await import('../renderSegment'));
   ({ emit, captureTranscript } = await import('../../helpers/transcriptSink'));
+});
+
+describe('THE CLOSER PRINTS THE ADDRESS ONCE FOR A PERSON AND ADDS THE url= LINE FOR A MACHINE', () => {
+  const url = 'https://app.sherlo.io/build?t=tm000001&p=7&b=1';
+
+  it('under CI the machine-readable url= line comes first, then the link', () => {
+    process.env.CI = 'true';
+    try {
+      expect(renderSegment({ kind: 'results-url', url }).prints).toEqual([
+        [`url=${url}`],
+        [`🔗 [4m${url}[24m\n`],
+      ]);
+    } finally {
+      delete process.env.CI;
+    }
+  });
+
+  it('CI=false and CI= are a person, not a machine', () => {
+    for (const value of ['false', '0', '']) {
+      process.env.CI = value;
+      try {
+        expect(renderSegment({ kind: 'results-url', url }).prints).toHaveLength(1);
+      } finally {
+        delete process.env.CI;
+      }
+    }
+  });
 });
 
 /* ========================================================================== */
@@ -361,13 +391,10 @@ const PINS: Pin[] = [
   },
   {
     kind: 'results-url',
-    what: 'the closer - the machine-readable `url=` line FIRST, then the human link with its trailing blank line',
+    what: 'the closer on a terminal - the human link once, with its trailing blank line, and no `url=` line',
     segment: { kind: 'results-url', url: 'https://app.sherlo.io/build?t=tm000001&p=7&b=1' },
     stream: 'stdout',
-    prints: [
-      ['url=https://app.sherlo.io/build?t=tm000001&p=7&b=1'],
-      [`🔗 ${ESC}[4mhttps://app.sherlo.io/build?t=tm000001&p=7&b=1${ESC}[24m\n`],
-    ],
+    prints: [[`🔗 ${ESC}[4mhttps://app.sherlo.io/build?t=tm000001&p=7&b=1${ESC}[24m\n`]],
   },
   {
     kind: 'output-keys',

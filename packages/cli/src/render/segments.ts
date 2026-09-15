@@ -135,8 +135,9 @@ export type TranscriptSegment =
    */
   | { kind: 'build-message'; message: string; type: 'info' | 'success'; endsWithNewLine?: boolean }
   /**
-   * The closer of a run that reached a build: the machine-readable `url=` line
-   * a CI republishes, then the human `🔗` link, then a blank.
+   * The closer of a run that reached a build: the human `🔗` link, then a blank.
+   * Under `CI` the machine-readable `url=` line a CI republishes comes first;
+   * a person at a terminal sees the address once (operator direction 2026-09-15).
    */
   | { kind: 'results-url'; url: string }
   /** Machine-readable `key=value` answer lines. A key with no value is not printed. */
