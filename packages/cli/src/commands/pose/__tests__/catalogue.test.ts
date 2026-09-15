@@ -37,27 +37,41 @@ describe('the pose catalogue under packages/cli/poses', () => {
     expect(POSES.length).toBeGreaterThan(0);
   });
 
-  for (const { name, posePath, screenPath } of POSES) {
-    it(`every catalog pose renders and its rendered bytes are committed beside it: ${name}`, async () => {
+  it('every catalog pose renders and its rendered bytes are committed beside it', async () => {
+    // ONE CASE OVER THE WHOLE CATALOGUE, not one per pose. The name IS the rule, and a rule
+    // spelled out once with the poses that break it named in the failure reads better than a
+    // hundred near-identical case names - and it is the name the plan sign-off promised.
+    const diverged: string[] = [];
+
+    for (const { name, posePath, screenPath } of POSES) {
       const rendered = await renderPose(posePath);
 
       if (process.env.MINT_POSES === '1') {
         fs.writeFileSync(screenPath, rendered);
-        return;
+        continue;
       }
 
-      expect(fs.existsSync(screenPath), `${name} has no committed screen - re-mint it`).toBe(true);
+      if (!fs.existsSync(screenPath)) {
+        diverged.push(`${name} - no committed screen`);
+        continue;
+      }
 
-      expect(
-        rendered,
-        'THE TOOL NO LONGER PRINTS WHAT THIS SCREEN COMMITTED. The committed file is the ' +
-          'tool\'s own output for this pose, reviewed into git by a person; a divergence means ' +
-          'the screen a real user reads has changed - its wording, its colour, its blank lines, ' +
-          'its box or its exit code. That is a product change to argue for, not a file to ' +
-          're-record: if the new screen is intended, re-mint it in the same PR and say so.'
-      ).toBe(fs.readFileSync(screenPath, 'utf8'));
-    });
-  }
+      const committed = fs.readFileSync(screenPath, 'utf8');
+      if (rendered === committed) continue;
+
+      diverged.push(`${name} - ${describeFirstDivergence(rendered, committed)}`);
+    }
+
+    expect(
+      diverged,
+      'THE TOOL NO LONGER PRINTS WHAT THESE SCREENS COMMITTED. A committed screen is the ' +
+        "tool's own output for that pose, reviewed into git by a person; a divergence means the " +
+        'screen a real user reads has changed - its wording, its colour, its blank lines, its ' +
+        'box or its exit code. That is a product change to argue for, not a file to re-record: ' +
+        'if the new screen is intended, re-mint it in the same PR (see this file\'s header) and ' +
+        'say so.'
+    ).toEqual([]);
+  });
 
   it('renders the same bytes twice', async () => {
     // Determinism, not truth - a producer agrees with itself by construction. What this catches
@@ -142,4 +156,25 @@ describe('the pose catalogue under packages/cli/poses', () => {
 /** `--metadata` prints the JSON contract instead of the human view, and that carries no colour. */
 function printsTheJsonContract(posePath: string): boolean {
   return readPoseDocument(fs.readFileSync(posePath, 'utf8')).argv.includes('--metadata');
+}
+
+/**
+ * The first line the two screens disagree on, said so a reader can act on it without opening a
+ * diff tool. Escapes are shown, because a moved style boundary is exactly the kind of change
+ * this catalogue exists to catch and it is invisible otherwise.
+ */
+function describeFirstDivergence(rendered: string, committed: string): string {
+  const renderedLines = rendered.split('\n');
+  const committedLines = committed.split('\n');
+
+  for (let line = 0; line < Math.max(renderedLines.length, committedLines.length); line += 1) {
+    if (renderedLines[line] === committedLines[line]) continue;
+
+    return (
+      `line ${line + 1}: committed ${JSON.stringify(committedLines[line] ?? null)}, ` +
+      `now ${JSON.stringify(renderedLines[line] ?? null)}`
+    );
+  }
+
+  return 'the screens differ in a way a line-by-line read cannot see';
 }

@@ -161,8 +161,8 @@ describe('uploadFreshBundles - supplied (--bundle-dir)', () => {
   });
 });
 
-describe('realFreshBundleEffects', () => {
-  it('bundles with the staged bundler, derives no bundle-side gate metadata, and uploads through the client', async () => {
+describe('the real fresh-bundle effects bundle through the seam and upload through the client', () => {
+  it('asks the seam for the bundler in force, declares no bundle-side gate metadata, and hands the upload the client', async () => {
     const client = { getStagedUploadUrls: vi.fn() };
     const uploadEffects = { requestUploadSlots: vi.fn(), uploadBundle: vi.fn() };
     mocks.realBundleUploadEffects.mockReturnValue(uploadEffects);
