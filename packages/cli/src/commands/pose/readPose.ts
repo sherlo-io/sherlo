@@ -72,7 +72,11 @@ export type DiffScopeDryRunAnswer = {
 
 /** One scripted answer. The `call` names the operation as the tool's own client names it. */
 export type ScriptedCall =
-  | { call: 'getBuildStatus'; with: { buildIndex: number }; answer: BuildStatusAnswer | null | ApiError }
+  | {
+      call: 'getBuildStatus';
+      with: { buildIndex: number };
+      answer: BuildStatusAnswer | null | ApiError;
+    }
   | {
       call: 'createProject';
       with: { teamId: string; name: string };
@@ -92,11 +96,20 @@ export type ScriptedCall =
       answer:
         | {
             team: { name: string; id: string };
-            projects: Array<{ index: number; name: string; buildCount: number; mainBranch: string | null }>;
+            projects: Array<{
+              index: number;
+              name: string;
+              buildCount: number;
+              mainBranch: string | null;
+            }>;
           }
         | ApiError;
     }
-  | { call: 'openBuild'; with: { platforms: string[] }; answer: { buildIndex: number; url: string } | ApiError }
+  | {
+      call: 'openBuild';
+      with: { platforms: string[] };
+      answer: { buildIndex: number; url: string } | ApiError;
+    }
   | {
       call: 'computeDiffScopeDryRun';
       with: { branch: string; commit: string };
@@ -122,7 +135,7 @@ export class PoseRefusal extends Error {
 
   constructor(problems: string[]) {
     super(
-      `This is not a CommandPose (contracts/pose.contract.ts). ` +
+      'This is not a CommandPose (contracts/pose.contract.ts). ' +
         `${problems.length} ${problems.length === 1 ? 'problem' : 'problems'}:\n` +
         problems.map((problem) => `  - ${problem}`).join('\n')
     );
@@ -162,7 +175,12 @@ export function readPose(document: unknown): CommandPose {
   readApi(pose, problems);
   readStringMap(pose, 'masks', problems);
 
-  reportUnknownFields(pose, ['pose', 'argv', 'files', 'env', 'git', 'bundles', 'api', 'masks'], '', problems);
+  reportUnknownFields(
+    pose,
+    ['pose', 'argv', 'files', 'env', 'git', 'bundles', 'api', 'masks'],
+    '',
+    problems
+  );
 
   if (problems.length > 0) throw new PoseRefusal(problems);
 
@@ -185,12 +203,16 @@ function commandBundles(argv: string[]): boolean {
 
 function readVersion(pose: Record<string, unknown>, problems: string[]): void {
   if (!('pose' in pose)) {
-    problems.push('`pose`: missing - a reader refuses a version it does not know, so it must be stated');
+    problems.push(
+      '`pose`: missing - a reader refuses a version it does not know, so it must be stated'
+    );
     return;
   }
 
   if (pose.pose !== 1) {
-    problems.push(`\`pose\`: this reader knows version 1, and this document says ${describe(pose.pose)}`);
+    problems.push(
+      `\`pose\`: this reader knows version 1, and this document says ${describe(pose.pose)}`
+    );
   }
 }
 
@@ -227,7 +249,11 @@ function readFiles(pose: Record<string, unknown>, problems: string[]): void {
   }
 }
 
-function readStringMap(pose: Record<string, unknown>, field: 'env' | 'masks', problems: string[]): void {
+function readStringMap(
+  pose: Record<string, unknown>,
+  field: 'env' | 'masks',
+  problems: string[]
+): void {
   const map = asObject(pose[field], `\`${field}\``, problems);
   if (!map) return;
 
@@ -245,7 +271,8 @@ function readGit(pose: Record<string, unknown>, problems: string[]): void {
 
   if (!isPlainObject(git)) {
     problems.push(
-      '`git`: expected `"none"`, `"unavailable"`, or `{ branch, commit, dirty }`, got ' + describe(git)
+      '`git`: expected `"none"`, `"unavailable"`, or `{ branch, commit, dirty }`, got ' +
+        describe(git)
     );
     return;
   }
@@ -264,7 +291,9 @@ function readBundles(pose: Record<string, unknown>, argv: string[], problems: st
 
   if (platforms.length > 0 && !commandBundles(argv)) {
     problems.push(
-      `\`bundles\`: \`${argv[0] ?? ''}\` never reaches a bundler, so there is no bundling step for ` +
+      `\`bundles\`: \`${
+        argv[0] ?? ''
+      }\` never reaches a bundler, so there is no bundling step for ` +
         `${platforms.map((platform) => `\`${platform}\``).join(', ')} to answer. Use \`{}\`.`
     );
   }
@@ -273,7 +302,9 @@ function readBundles(pose: Record<string, unknown>, argv: string[], problems: st
     const where = `\`bundles["${platform}"]\``;
 
     if (platform !== 'android' && platform !== 'ios') {
-      problems.push(`${where}: \`${platform}\` is not a platform - the tool bundles \`android\` and \`ios\``);
+      problems.push(
+        `${where}: \`${platform}\` is not a platform - the tool bundles \`android\` and \`ios\``
+      );
     }
 
     const bundle = asObject(bundles[platform], where, problems);
@@ -314,7 +345,9 @@ function readScriptedCall(entry: unknown, where: string, problems: string[]): vo
   if (typeof name !== 'string' || !SCRIPTED_CALL_NAMES.includes(name as ScriptedCallName)) {
     problems.push(
       `${where}.call: ${describe(name)} is not an operation a pose may script - ` +
-        `the contract names ${SCRIPTED_CALL_NAMES.map((operation) => `\`${operation}\``).join(', ')}`
+        `the contract names ${SCRIPTED_CALL_NAMES.map((operation) => `\`${operation}\``).join(
+          ', '
+        )}`
     );
     return;
   }
@@ -373,12 +406,19 @@ function readCallArguments(
   }
 }
 
-function readCallAnswer(name: ScriptedCallName, answer: unknown, where: string, problems: string[]): void {
+function readCallAnswer(
+  name: ScriptedCallName,
+  answer: unknown,
+  where: string,
+  problems: string[]
+): void {
   // `getBuildStatus` is the one call whose "the build is not there" answer is null, and the
   // build-not-found screen is posed with it.
   if (answer === null) {
     if (name !== 'getBuildStatus') {
-      problems.push(`${where}: only \`getBuildStatus\` answers \`null\` (the build does not exist)`);
+      problems.push(
+        `${where}: only \`getBuildStatus\` answers \`null\` (the build does not exist)`
+      );
     }
     return;
   }
@@ -429,7 +469,12 @@ function readCallAnswer(name: ScriptedCallName, answer: unknown, where: string, 
         expectString(project, 'name', projectWhere, problems);
         expectNumber(project, 'buildCount', projectWhere, problems);
         expectStringOrNull(project, 'mainBranch', projectWhere, problems);
-        reportUnknownFields(project, ['index', 'name', 'buildCount', 'mainBranch'], projectWhere, problems);
+        reportUnknownFields(
+          project,
+          ['index', 'name', 'buildCount', 'mainBranch'],
+          projectWhere,
+          problems
+        );
       });
       reportUnknownFields(body, ['team', 'projects'], where, problems);
       return;
@@ -462,7 +507,11 @@ function readCallAnswer(name: ScriptedCallName, answer: unknown, where: string, 
  * does not send them, and the tool's behaviour for an absent field differs from its behaviour
  * for a zero or an empty list - so an absent one is never filled in here.
  */
-function readBuildStatusAnswer(build: Record<string, unknown>, where: string, problems: string[]): void {
+function readBuildStatusAnswer(
+  build: Record<string, unknown>,
+  where: string,
+  problems: string[]
+): void {
   expectOneOf(
     build,
     'runStatus',
@@ -471,9 +520,17 @@ function readBuildStatusAnswer(build: Record<string, unknown>, where: string, pr
     problems
   );
 
-  if ('showsOnlyBranchChanges' in build) expectBoolean(build, 'showsOnlyBranchChanges', where, problems);
+  if ('showsOnlyBranchChanges' in build) {
+    expectBoolean(build, 'showsOnlyBranchChanges', where, problems);
+  }
   if ('status' in build) {
-    expectOneOf(build, 'status', ['approved', 'noChanges', 'reported', 'unreviewed'], where, problems);
+    expectOneOf(
+      build,
+      'status',
+      ['approved', 'noChanges', 'reported', 'unreviewed'],
+      where,
+      problems
+    );
   }
 
   if ('viewStatusesCount' in build) {
@@ -494,7 +551,9 @@ function readBuildStatusAnswer(build: Record<string, unknown>, where: string, pr
   // `runError` is whatever the backend recorded about a failed run - its shape is the backend's,
   // so anything at all passes here, and that is the contract, not a gap.
 
-  if ('diffScopeInfo' in build) readDiffScopeInfo(build.diffScopeInfo, `${where}.diffScopeInfo`, problems);
+  if ('diffScopeInfo' in build) {
+    readDiffScopeInfo(build.diffScopeInfo, `${where}.diffScopeInfo`, problems);
+  }
 
   if ('gitInfo' in build) {
     const gitInfo = asObject(build.gitInfo, `${where}.gitInfo`, problems);
@@ -526,9 +585,16 @@ function readBuildStatusAnswer(build: Record<string, unknown>, where: string, pr
         });
       }
       if (!('baseline' in story)) {
-        problems.push(`${storyWhere}.baseline: missing - state the build it was judged against, or \`null\``);
+        problems.push(
+          `${storyWhere}.baseline: missing - state the build it was judged against, or \`null\``
+        );
       }
-      reportUnknownFields(story, ['name', 'status', 'baseline', 'reason', 'candidates'], storyWhere, problems);
+      reportUnknownFields(
+        story,
+        ['name', 'status', 'baseline', 'reason', 'candidates'],
+        storyWhere,
+        problems
+      );
     });
   }
 
@@ -573,7 +639,9 @@ function readDiffScopeInfo(value: unknown, where: string, problems: string[]): v
   if (!info) return;
 
   if ('capturedSnapshotCount' in info) expectNumber(info, 'capturedSnapshotCount', where, problems);
-  if ('inheritedSnapshotCount' in info) expectNumber(info, 'inheritedSnapshotCount', where, problems);
+  if ('inheritedSnapshotCount' in info) {
+    expectNumber(info, 'inheritedSnapshotCount', where, problems);
+  }
 
   if ('platforms' in info) {
     const platforms = asObject(info.platforms, `${where}.platforms`, problems);
@@ -611,13 +679,22 @@ function isApiError(body: Record<string, unknown>): boolean {
   return fields.length === 1 && fields[0] === 'error';
 }
 
-function asObject(value: unknown, where: string, problems: string[]): Record<string, unknown> | undefined {
+function asObject(
+  value: unknown,
+  where: string,
+  problems: string[]
+): Record<string, unknown> | undefined {
   if (isPlainObject(value)) return value;
   problems.push(`${where}: expected an object, got ${describe(value)}`);
   return undefined;
 }
 
-function expectString(host: Record<string, unknown>, field: string, where: string, problems: string[]): void {
+function expectString(
+  host: Record<string, unknown>,
+  field: string,
+  where: string,
+  problems: string[]
+): void {
   if (typeof host[field] !== 'string') {
     problems.push(`${where}.${field}: expected a string, got ${describe(host[field])}`);
   }
@@ -634,13 +711,23 @@ function expectStringOrNull(
   }
 }
 
-function expectNumber(host: Record<string, unknown>, field: string, where: string, problems: string[]): void {
+function expectNumber(
+  host: Record<string, unknown>,
+  field: string,
+  where: string,
+  problems: string[]
+): void {
   if (typeof host[field] !== 'number' || !Number.isFinite(host[field])) {
     problems.push(`${where}.${field}: expected a number, got ${describe(host[field])}`);
   }
 }
 
-function expectBoolean(host: Record<string, unknown>, field: string, where: string, problems: string[]): void {
+function expectBoolean(
+  host: Record<string, unknown>,
+  field: string,
+  where: string,
+  problems: string[]
+): void {
   if (typeof host[field] !== 'boolean') {
     problems.push(`${where}.${field}: expected true or false, got ${describe(host[field])}`);
   }

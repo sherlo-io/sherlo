@@ -72,15 +72,15 @@ export type PosedScreen = {
  * it. The command line is the pose's; this process's own arguments are not visible to the
  * command at all.
  */
-export async function runPose(pose: CommandPose): Promise<PosedScreen> {
-  const files = posedProjectFiles(pose.files);
-  const api = posedServerCalls(pose.api);
-  const world = posedSurroundings({ env: pose.env, git: pose.git });
+export async function runPose(commandPose: CommandPose): Promise<PosedScreen> {
+  const files = posedProjectFiles(commandPose.files);
+  const api = posedServerCalls(commandPose.api);
+  const world = posedSurroundings({ env: commandPose.env, git: commandPose.git });
 
   const uninstall = [
     installProjectFiles(files),
     installSurroundings(world),
-    installBundler(posedBundler(pose.bundles)),
+    installBundler(posedBundler(commandPose.bundles)),
     installServerCalls(api),
     // The settings go in LAST and come out FIRST: the folder above is laid out while this
     // process still has its own environment, and nothing after this line should.
@@ -89,10 +89,10 @@ export async function runPose(pose: CommandPose): Promise<PosedScreen> {
 
   // Resolved while the posed folder is installed, because that is what it resolves FROM - and
   // the screen it is folded out of is read after the seams have been taken out again.
-  const configPath = resolvedConfigPath(pose.argv);
+  const configPath = resolvedConfigPath(commandPose.argv);
 
   const capture = captureBothStreams();
-  const restoreArgv = installArgv(pose.argv);
+  const restoreArgv = installArgv(commandPose.argv);
   const restoreColour = forceColour();
 
   let threw = false;
@@ -109,7 +109,7 @@ export async function runPose(pose: CommandPose): Promise<PosedScreen> {
     for (const undo of [...uninstall].reverse()) undo();
   }
 
-  const screen = applyMasks(capture.screen(), pose, { root: files.root(), configPath });
+  const screen = applyMasks(capture.screen(), commandPose, { root: files.root(), configPath });
   files.remove();
 
   // A run that neither exited nor threw ran to the end of its command, which is an exit of 0.
@@ -149,8 +149,8 @@ export default pose;
 /** The refusal block printed under the screen so far. */
 export function formatRefusals(refusals: Array<{ call: string; problem: string }>): string {
   return (
-    `\nTHE POSE COULD NOT ANSWER THIS RUN. The screen above is everything the command printed ` +
-    `before it asked:\n` +
+    '\nTHE POSE COULD NOT ANSWER THIS RUN. The screen above is everything the command printed ' +
+    'before it asked:\n' +
     refusals.map(({ call, problem }) => `  - \`${call}\`: ${problem}\n`).join('')
   );
 }
@@ -334,13 +334,13 @@ function forceColour(): () => void {
  */
 export function applyMasks(
   screen: string,
-  pose: CommandPose,
+  commandPose: CommandPose,
   machineOnly: { root: string; configPath: string }
 ): string {
   let masked = screen.split(machineOnly.configPath).join('<SHERLO_CONFIG_PATH>');
   masked = masked.split(machineOnly.root).join('<PROJECT_ROOT>');
 
-  for (const [placeholder, literal] of Object.entries(pose.masks)) {
+  for (const [placeholder, literal] of Object.entries(commandPose.masks)) {
     masked = masked.split(literal).join(placeholder);
   }
 

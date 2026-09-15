@@ -114,9 +114,9 @@ export const liveServerCalls: ServerCalls = {
       throw new Error(DRY_RUN_DECISION_UNAVAILABLE);
     }
 
-    return (query as (input: ComputeDiffScopeDryRunRequest) => Promise<ComputeDiffScopeDryRunResult>)(
-      request
-    );
+    return (
+      query as (input: ComputeDiffScopeDryRunRequest) => Promise<ComputeDiffScopeDryRunResult>
+    )(request);
   },
 };
 

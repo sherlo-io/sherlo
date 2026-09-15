@@ -63,7 +63,9 @@ export type PosedProjectFiles = ProjectFiles & {
  * reached through a symlink, and the tool prints the resolved path - so folding the unresolved one
  * out of the output would miss.
  */
-export function posedProjectFiles(files: Record<string, string | Record<string, unknown>>): PosedProjectFiles {
+export function posedProjectFiles(
+  files: Record<string, string | Record<string, unknown>>
+): PosedProjectFiles {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-pose-')));
 
   for (const [relativePath, content] of Object.entries(files)) {

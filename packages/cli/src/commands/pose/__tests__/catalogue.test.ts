@@ -68,7 +68,7 @@ describe('the pose catalogue under packages/cli/poses', () => {
         "tool's own output for that pose, reviewed into git by a person; a divergence means the " +
         'screen a real user reads has changed - its wording, its colour, its blank lines, its ' +
         'box or its exit code. That is a product change to argue for, not a file to re-record: ' +
-        'if the new screen is intended, re-mint it in the same PR (see this file\'s header) and ' +
+        "if the new screen is intended, re-mint it in the same PR (see this file's header) and " +
         'say so.'
     ).toEqual([]);
   });
@@ -125,9 +125,7 @@ describe('the pose catalogue under packages/cli/poses', () => {
     const withLeftovers: string[] = [];
 
     for (const { name, posePath } of POSES) {
-      const { unusedCalls } = await runPose(
-        readPoseDocument(fs.readFileSync(posePath, 'utf8'))
-      );
+      const { unusedCalls } = await runPose(readPoseDocument(fs.readFileSync(posePath, 'utf8')));
 
       if (unusedCalls.length > 0) {
         withLeftovers.push(`${name} - ${unusedCalls.map(({ call }) => call).join(', ')}`);
@@ -143,12 +141,12 @@ describe('the pose catalogue under packages/cli/poses', () => {
     // make the catalogue red for whoever ran it next, for a reason that is nobody's change.
     const leaking = POSES.filter(
       ({ screenPath }) =>
-        fs.existsSync(screenPath) && /sherlo-pose-[A-Za-z0-9]+/.test(fs.readFileSync(screenPath, 'utf8'))
+        fs.existsSync(screenPath) &&
+        /sherlo-pose-[A-Za-z0-9]+/.test(fs.readFileSync(screenPath, 'utf8'))
     ).map(({ name }) => name);
 
     expect(leaking, 'a committed screen names the temporary folder it was rendered in').toEqual([]);
   });
-
 });
 
 /* ========================================================================== */

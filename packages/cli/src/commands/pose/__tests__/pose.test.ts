@@ -208,10 +208,10 @@ function recordThroughAPty(argv: string[], projectRoot: string): string {
   //     the end-of-input it is handed - the two characters `^D`, then two backspaces to rub them
   //     out again - before the child has printed anything at all. That is the recorder typing,
   //     not the tool printing.
-  return fs
-    .readFileSync(recording, 'utf8')
-    .replace(/^\^D\x08\x08/, '')
-    .replace(/\r\n/g, '\n');
+  // eslint-disable-next-line no-control-regex
+  const recorderEcho = /^\^D\x08\x08/;
+
+  return fs.readFileSync(recording, 'utf8').replace(recorderEcho, '').replace(/\r\n/g, '\n');
 }
 
 /** One word of a shell command line, quoted so a path with a space in it survives. */

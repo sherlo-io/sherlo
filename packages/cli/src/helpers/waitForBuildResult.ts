@@ -40,7 +40,6 @@ const SETTLE_CONFIRM_MS = 3_000;
  */
 export type { BuildStatus, BuildStatusResponse } from './buildStatusRequest';
 
-
 async function waitForBuildResult({
   token,
   buildIndex,
@@ -506,7 +505,13 @@ export async function readBuildStatus({
   projectIndex: number;
   teamId: string;
 }): Promise<BuildStatus | null> {
-  return serverCalls().getBuildStatus({ token, buildIndex, projectIndex, teamId, boundedRead: true });
+  return serverCalls().getBuildStatus({
+    token,
+    buildIndex,
+    projectIndex,
+    teamId,
+    boundedRead: true,
+  });
 }
 
 /**
