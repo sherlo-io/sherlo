@@ -1,14 +1,15 @@
 /**
  * Unit tests for getSherloNativeModule's release-build safety.
  *
- * The third probe (global.__r('react-native') to reach NativeModules) was removed
+ * A second probe (global.__r('react-native') to reach NativeModules) was removed
  * from metro/polyfill.js: metro-runtime's metroRequire only resolves a string module
  * id when __DEV__ is true. In a release bundle it is passed straight through,
  * modules.get() misses, and guardedLoadModule's catch routes the resulting
  * unknownModuleError to ErrorUtils.reportFatalError instead of throwing - so a
- * try/catch around the call never runs and the app is fatally killed ~10s after JS
- * start, once the ERROR_STORYBOOK_NOT_DISPLAYED timer calls getSherloNativeModule()
- * and probes 1-2 (TurboModuleProxy / nativeModuleProxy) both miss.
+ * try/catch around the call never runs and the app is fatally killed. This can only
+ * be observed when getSherloNativeModule() is actually invoked from the error path
+ * (reportToNative, via the __d wrap on a module-eval throw) with the __turboModuleProxy
+ * probe missing (RN 0.76 New Architecture only - there is no old-arch fallback probe).
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -24,47 +25,60 @@ function runPolyfill(fakeGlobal: Record<string, any>) {
 
 describe('metro/polyfill.js - getSherloNativeModule release-build safety', () => {
   it(
-    'does not call global.__r and does not trigger a fatal error when probes 1-2 ' +
-      'miss in a release bundle (__DEV__ false, string module ids unresolved)',
+    'does not call global.__r and does not trigger a fatal error when the ' +
+      '__turboModuleProxy probe misses in a release bundle (__DEV__ false, string module ids unresolved)',
     () => {
-      vi.useFakeTimers();
-      try {
-        const reportFatalError = vi.fn();
-        // Mirrors metro-runtime's release-mode metroRequire: a string moduleId is not
-        // converted to a numeric id (that only happens when __DEV__), so it falls
-        // through to guardedLoadModule's catch -> ErrorUtils.reportFatalError, with no
-        // throw and no return value.
-        const releaseModeRequire = vi.fn((moduleId: unknown) => {
-          if (typeof moduleId === 'string') {
-            reportFatalError(new Error(`Requiring unknown module "${moduleId}".`));
-            return undefined;
-          }
+      const reportFatalError = vi.fn();
+      // Mirrors metro-runtime's release-mode metroRequire: a string moduleId is not
+      // converted to a numeric id (that only happens when __DEV__), so it falls
+      // through to guardedLoadModule's catch -> ErrorUtils.reportFatalError, with no
+      // throw and no return value.
+      const releaseModeRequire = vi.fn((moduleId: unknown) => {
+        if (typeof moduleId === 'string') {
+          reportFatalError(new Error(`Requiring unknown module "${moduleId}".`));
           return undefined;
-        });
+        }
+        return undefined;
+      });
 
-        const fakeGlobal: Record<string, any> = {
-          ErrorUtils: {
-            setGlobalHandler: vi.fn(),
-            getGlobalHandler: vi.fn(() => null),
-            reportFatalError,
-          },
-          // Probes 1 & 2 both miss - SherloModule genuinely not linked.
-          __turboModuleProxy: undefined,
-          nativeModuleProxy: {},
-          __r: releaseModeRequire,
-        };
+      const originalD = vi.fn();
+      const fakeGlobal: Record<string, any> = {
+        ErrorUtils: {
+          setGlobalHandler: vi.fn(),
+          getGlobalHandler: vi.fn(() => null),
+          reportFatalError,
+        },
+        // The only probe misses - SherloModule genuinely not linked.
+        __turboModuleProxy: undefined,
+        __r: releaseModeRequire,
+        __d: originalD,
+      };
 
-        runPolyfill(fakeGlobal);
+      runPolyfill(fakeGlobal);
 
-        // Fires the ERROR_STORYBOOK_NOT_DISPLAYED timer, which calls
-        // getSherloNativeModule() again after module factories would have registered.
-        vi.advanceTimersByTime(10000);
+      // Trigger the module-eval capture path (reportToNative -> getSherloNativeModule())
+      // by defining a module whose factory throws, the way a real module-eval
+      // crash would. fakeGlobal.__d is now the polyfill's sherloGuardedDefine.
+      const throwingFactory = () => {
+        throw new Error('module-eval crash');
+      };
+      fakeGlobal.__d(throwingFactory, 'moduleId', []);
+      const wrappedFactory = originalD.mock.calls[0][0];
 
-        expect(releaseModeRequire).not.toHaveBeenCalled();
-        expect(reportFatalError).not.toHaveBeenCalled();
-      } finally {
-        vi.useRealTimers();
-      }
+      expect(() =>
+        wrappedFactory(
+          {},
+          () => {},
+          () => {},
+          () => {},
+          {},
+          {},
+          []
+        )
+      ).toThrow('module-eval crash');
+
+      expect(releaseModeRequire).not.toHaveBeenCalled();
+      expect(reportFatalError).not.toHaveBeenCalled();
     }
   );
 });

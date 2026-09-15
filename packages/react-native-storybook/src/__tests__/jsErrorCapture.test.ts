@@ -178,7 +178,7 @@ describe('metro/polyfill.js - ErrorUtils.setGlobalHandler', () => {
     expect(() => handler(new Error('test'), false)).not.toThrow();
   });
 
-  it('falls back to nativeModuleProxy when __turboModuleProxy is absent', async () => {
+  it('does NOT fall back to nativeModuleProxy when __turboModuleProxy is absent - RN 0.76 New Architecture only, no old-arch probe', async () => {
     const reportFn = vi.fn();
     const nm = makeNativeModule(reportFn);
     const fakeGlobal = buildFakeGlobal();
@@ -187,8 +187,8 @@ describe('metro/polyfill.js - ErrorUtils.setGlobalHandler', () => {
     runPolyfill(fakeGlobal);
     await Promise.resolve();
     const handler = getInstalledHandler(fakeGlobal);
-    handler(new Error('native fallback'), false);
-    expect(reportFn).toHaveBeenCalledOnce();
+    expect(() => handler(new Error('no turbo proxy'), false)).not.toThrow();
+    expect(reportFn).not.toHaveBeenCalled();
   });
 
   it('only reports the first error to native - subsequent calls skip reportEarlyJsError', async () => {
@@ -363,31 +363,63 @@ describe('metro/polyfill.js - getSherloNativeModule', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Tests: android/consumer-rules.pro - CatalystInstanceImpl.mJSExceptionHandler
-// R8 protection
+// Tests: metro/polyfill.js - all four IIFE-time facts, evaluated together
+// against a fake __turboModuleProxy
 // ---------------------------------------------------------------------------
-// SherloInitProvider.wrapCatalystJsExceptionHandler reflects into
-// CatalystInstanceImpl.mJSExceptionHandler by literal field name at runtime to install
-// the primary JS-fatal capture path. Without a keep rule, R8 minification in a
-// customer's release build can rename that field, silently breaking the reflection
-// lookup with no JS_ERROR ever written - a release-only, 100%-reproducible failure
-// mode (unlike a timing race) matching the reported incident.
 
-describe('android/consumer-rules.pro', () => {
-  const CONSUMER_RULES_PATH = path.join(__dirname, '../../android/consumer-rules.pro');
-  const BUILD_GRADLE_PATH = path.join(__dirname, '../../android/build.gradle');
+describe('metro/polyfill.js - IIFE-time facts (testing mode)', () => {
+  it('sets __sherloWithStorybookApplied, records __sherloPolyfillFacts.mode, installs the __d wrap, and defers the ErrorUtils install', async () => {
+    const nm = { getSherloConstants: () => ({ mode: 'testing' }) };
+    const fakeGlobal = buildFakeGlobalWithD(nm as any);
+    const originalD = fakeGlobal.__d;
 
-  it('keeps CatalystInstanceImpl.mJSExceptionHandler from R8 renaming', () => {
-    const rules = fs.readFileSync(CONSUMER_RULES_PATH, 'utf8');
-    expect(rules).toMatch(
-      /-keepclassmembers class com\.facebook\.react\.bridge\.CatalystInstanceImpl/
-    );
-    expect(rules).toMatch(/mJSExceptionHandler/);
+    runPolyfill(fakeGlobal);
+
+    // 1. The applied marker - set before anything else, unconditionally.
+    expect(fakeGlobal.__sherloWithStorybookApplied).toBe(true);
+
+    // 2. The mode gate's fact - what the gate actually saw, not just its effect.
+    expect(fakeGlobal.__sherloPolyfillFacts).toEqual({ mode: 'testing' });
+
+    // 3. The __d wrap - installed synchronously, in testing mode. __d itself is
+    // replaced with a guarded wrapper; the original is only invoked lazily,
+    // when a module actually gets defined (not asserted here).
+    expect(fakeGlobal.__d).not.toBe(originalD);
+    expect(fakeGlobal.__sherloDefineWrapped).toBe(true);
+
+    // 4. The ErrorUtils install - deferred to a microtask, so not yet installed
+    // synchronously, but installed once the microtask queue flushes.
+    expect(fakeGlobal._setGlobalHandler).not.toHaveBeenCalled();
+    await Promise.resolve();
+    expect(fakeGlobal._setGlobalHandler).toHaveBeenCalledOnce();
   });
 
-  it('wires consumer-rules.pro into the library build via consumerProguardFiles', () => {
-    const gradle = fs.readFileSync(BUILD_GRADLE_PATH, 'utf8');
-    expect(gradle).toMatch(/consumerProguardFiles\s+'consumer-rules\.pro'/);
+  it('the same four facts hold when mode is unreadable (no proxy at all) - only the recorded mode differs', async () => {
+    const fakeGlobal = buildFakeGlobalWithD();
+    const originalD = fakeGlobal.__d;
+
+    runPolyfill(fakeGlobal);
+
+    expect(fakeGlobal.__sherloWithStorybookApplied).toBe(true);
+    expect(fakeGlobal.__sherloPolyfillFacts).toEqual({ mode: 'no-shim' });
+    expect(fakeGlobal.__d).not.toBe(originalD);
+    expect(fakeGlobal.__sherloDefineWrapped).toBe(true);
+
+    await Promise.resolve();
+    expect(fakeGlobal._setGlobalHandler).toHaveBeenCalledOnce();
+  });
+
+  it('mode default/storybook: the applied marker and the fact are still set, but the __d wrap and ErrorUtils install are skipped (early return)', async () => {
+    const nm = { getSherloConstants: () => ({ mode: 'storybook' }) };
+    const fakeGlobal = buildFakeGlobalWithD(nm as any);
+
+    runPolyfill(fakeGlobal);
+    await Promise.resolve();
+
+    expect(fakeGlobal.__sherloWithStorybookApplied).toBe(true);
+    expect(fakeGlobal.__sherloPolyfillFacts).toEqual({ mode: 'storybook' });
+    expect(fakeGlobal._originalD).not.toHaveBeenCalled();
+    expect(fakeGlobal._setGlobalHandler).not.toHaveBeenCalled();
   });
 });
 

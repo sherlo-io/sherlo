@@ -624,6 +624,7 @@ describe('buildGateMetadata (test:bundled = source)', () => {
   function bundleResult(overrides: Partial<BundleResult> = {}): BundleResult {
     return {
       bundlePath: '/tmp/bundle.android.js',
+      entryFile: '/tmp/node_modules/.cache/sherlo/entry.js',
       bundleFormat: 'plain-js',
       bundleSizeMb: 1.2,
       bundleHash: 'deadbeef',
@@ -812,5 +813,122 @@ describe('buildBundleForPlatform - module-manifest cross-platform isolation', ()
     // Both read a manifest - the delete never suppresses a genuinely-emitted sidecar.
     expect(iosResult.moduleManifest).toBeDefined();
     expect(androidResult.moduleManifest).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The generated entry - feature-detected against the installed SDK's shape
+// (architect ruling 2026-09-04: a new CLI must keep working against a
+// project whose @sherlo/react-native-storybook predates the split).
+// ---------------------------------------------------------------------------
+
+describe('buildBundleForPlatform - generated entry, feature-detected', () => {
+  /** Records every --entry-file value the bundler command was invoked with. */
+  function captureEntryFileArg(bundleContent: Buffer) {
+    setupBundleBuild(bundleContent);
+    const seen: string[] = [];
+    mockExecSync.mockImplementation(((cmd: string) => {
+      const entryMatch = cmd.match(/--entry-file[= ](\S+)/);
+      if (entryMatch) seen.push(entryMatch[1]);
+
+      const bundleMatch = cmd.match(/--bundle-output[= ](\S+)/);
+      if (bundleMatch) {
+        const outPath = bundleMatch[1];
+        fs.mkdirSync(path.dirname(outPath), { recursive: true });
+        fs.writeFileSync(outPath, bundleContent);
+      }
+      return Buffer.alloc(0);
+    }) as any);
+    return seen;
+  }
+
+  it("OLD package shape (no metro/entry.js) - falls back to detectEntryFile's result, byte for byte", async () => {
+    // No node_modules/@sherlo/react-native-storybook at all in tempDir: this is
+    // exactly what every other test in this file already exercises, made explicit.
+    const entryFileArgs = captureEntryFileArg(plainJsBundle());
+
+    const result = await buildBundleForPlatform({
+      projectRoot: tempDir,
+      platform: 'android' as Platform,
+    });
+
+    expect(result.entryFile).toBe('index.js');
+    expect(entryFileArgs).toEqual(['index.js']);
+  });
+
+  it('NEW package shape (metro/entry.js present) - the bundler is pointed at the generated entry', async () => {
+    const sherloPkgDir = path.join(tempDir, 'node_modules', '@sherlo', 'react-native-storybook');
+    fs.mkdirSync(path.join(sherloPkgDir, 'metro'), { recursive: true });
+    fs.mkdirSync(path.join(sherloPkgDir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(sherloPkgDir, 'package.json'),
+      JSON.stringify({ name: '@sherlo/react-native-storybook', version: '3.0.0' })
+    );
+    fs.writeFileSync(path.join(sherloPkgDir, 'src', 'seam.js'), 'module.exports = {};\n');
+    fs.writeFileSync(
+      path.join(sherloPkgDir, 'metro', 'entry.js'),
+      [
+        "var fs = require('fs');",
+        "var path = require('path');",
+        'function generateEntry(projectRoot, realEntry) {',
+        "  var outDir = path.join(projectRoot, 'node_modules', '.cache', 'sherlo');",
+        '  fs.mkdirSync(outDir, { recursive: true });',
+        "  var generated = path.join(outDir, 'entry.js');",
+        "  fs.writeFileSync(generated, 'require(' + JSON.stringify(realEntry) + ');\\n');",
+        '  return generated;',
+        '}',
+        'module.exports = { generateEntry: generateEntry };',
+      ].join('\n')
+    );
+
+    const entryFileArgs = captureEntryFileArg(plainJsBundle());
+
+    const result = await buildBundleForPlatform({
+      projectRoot: tempDir,
+      platform: 'android' as Platform,
+    });
+
+    const expectedGeneratedPath = path.join(
+      tempDir,
+      'node_modules',
+      '.cache',
+      'sherlo',
+      'entry.js'
+    );
+    expect(result.entryFile).toBe(expectedGeneratedPath);
+    expect(entryFileArgs).toEqual([expectedGeneratedPath]);
+    expect(fs.existsSync(expectedGeneratedPath)).toBe(true);
+  });
+
+  it('generator present but THROWS - the build fails loudly, never silently falls back to detectEntryFile', async () => {
+    // A bug inside generateEntry is not the same failure as an absent, older
+    // SDK: falling back here would ship a seam-less bundle the runner later
+    // refuses with no signal at build time, so this must propagate instead.
+    const sherloPkgDir = path.join(tempDir, 'node_modules', '@sherlo', 'react-native-storybook');
+    fs.mkdirSync(path.join(sherloPkgDir, 'metro'), { recursive: true });
+    fs.mkdirSync(path.join(sherloPkgDir, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(sherloPkgDir, 'package.json'),
+      JSON.stringify({ name: '@sherlo/react-native-storybook', version: '3.0.0' })
+    );
+    fs.writeFileSync(path.join(sherloPkgDir, 'src', 'seam.js'), 'module.exports = {};\n');
+    fs.writeFileSync(
+      path.join(sherloPkgDir, 'metro', 'entry.js'),
+      [
+        'function generateEntry() {',
+        "  throw new Error('generateEntry blew up');",
+        '}',
+        'module.exports = { generateEntry: generateEntry };',
+      ].join('\n')
+    );
+
+    setupBundleBuild(plainJsBundle());
+
+    await expect(
+      buildBundleForPlatform({
+        projectRoot: tempDir,
+        platform: 'android' as Platform,
+      })
+    ).rejects.toThrow('generateEntry blew up');
   });
 });

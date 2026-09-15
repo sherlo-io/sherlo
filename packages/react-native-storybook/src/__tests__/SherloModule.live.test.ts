@@ -1,51 +1,40 @@
 /**
  * Tests for the live SherloModule wrapper (createSherloModule).
- * Mocks the underlying TurboModule (NativeSherloModule spec) and asserts:
+ * Mocks the underlying TurboModule (the six-method NativeSherloModule spec)
+ * and asserts:
  *  - appendFile base64-encodes the content before calling native
  *  - readFile base64-decodes the native return value
- *  - getMode/getConfig/getLastState delegate to getConstants()
- *  - constants merge correctly across new-arch (getSherloConstants) and old-arch (getConstants)
+ *  - getMode/getConfig/getLastState delegate to getSherloConstants()
+ *  - the public invoke()/invokeSync() generic transport JSON-encodes args;
+ *    invoke() decodes the resolved JSON, invokeSync() returns the parsed
+ *    {ok, value?, code?, message?} envelope UNCHANGED - never unwrapped to a
+ *    bare value, so a not-ok answer's code survives instead of looking like
+ *    an empty answer - everything beyond the frozen named methods
+ *    (screenshots, settle, scroll, inspector data, sendNativeError, ...) is
+ *    the PRIVATE runtime calling through these two by name, never a named
+ *    method here
  */
 import base64 from 'base-64';
 import utf8 from 'utf8';
 
 // vi.hoisted() runs before mock factories, making these safe to use in factory closures.
-const {
-  mockGetSherloConstants,
-  mockGetConstants,
-  mockAppendFile,
-  mockReadFile,
-  mockSendNativeError,
-  mockGetInspectorData,
-  mockStabilize,
-  mockIsScrollable,
-  mockScrollToCheckpoint,
-} = vi.hoisted(() => ({
-  mockGetSherloConstants: vi.fn(),
-  mockGetConstants: vi.fn(),
-  mockAppendFile: vi.fn(),
-  mockReadFile: vi.fn(),
-  mockSendNativeError: vi.fn(),
-  mockGetInspectorData: vi.fn(),
-  mockStabilize: vi.fn(),
-  mockIsScrollable: vi.fn(),
-  mockScrollToCheckpoint: vi.fn(),
-}));
+const { mockGetSherloConstants, mockAppendFile, mockReadFile, mockInvoke, mockInvokeSync } =
+  vi.hoisted(() => ({
+    mockGetSherloConstants: vi.fn(),
+    mockAppendFile: vi.fn(),
+    mockReadFile: vi.fn(),
+    mockInvoke: vi.fn(),
+    mockInvokeSync: vi.fn(),
+  }));
 
 vi.mock('../specs/NativeSherloModule', () => ({
   default: {
     getSherloConstants: mockGetSherloConstants,
-    getConstants: mockGetConstants,
+    reportEarlyJsError: vi.fn(),
     appendFile: mockAppendFile,
     readFile: mockReadFile,
-    sendNativeError: mockSendNativeError,
-    getInspectorData: mockGetInspectorData,
-    stabilize: mockStabilize,
-    isScrollable: mockIsScrollable,
-    scrollToCheckpoint: mockScrollToCheckpoint,
-    openStorybook: vi.fn(),
-    toggleStorybook: vi.fn(),
-    notifyGetStorybookCalled: vi.fn(),
+    invoke: mockInvoke,
+    invokeSync: mockInvokeSync,
   },
 }));
 
@@ -72,22 +61,6 @@ const NEW_ARCH_CONSTANTS = {
   }),
   lastState: JSON.stringify({ nextSnapshot: { storyId: 'comp--story' }, requestId: 'req-1' }),
   nativeVersion: '2.0.0',
-};
-
-const OLD_ARCH_CONSTANTS = {
-  mode: 'default',
-  config: JSON.stringify({
-    stabilization: {
-      requiredMatches: 2,
-      minScreenshotsCount: 2,
-      intervalMs: 300,
-      timeoutMs: 4000,
-      threshold: 0,
-      includeAA: false,
-    },
-  }),
-  lastState: '',
-  nativeVersion: '1.5.0',
 };
 
 beforeEach(() => {
@@ -121,26 +94,17 @@ describe('SherloModule live - readFile base64 decoding', () => {
   });
 });
 
-describe('SherloModule live - constants merge (new-arch vs old-arch)', () => {
-  it('new-arch (getSherloConstants) supplies mode and nativeVersion', () => {
+describe('SherloModule live - constants', () => {
+  it('getSherloConstants supplies mode and nativeVersion', () => {
     mockGetSherloConstants.mockReturnValue(NEW_ARCH_CONSTANTS);
-    mockGetConstants.mockReturnValue({});
     expect(SherloModule.getMode()).toBe('testing');
     expect(SherloModule.getNativeVersion()).toBe('2.0.0');
-  });
-
-  it('old-arch (getConstants only) supplies mode when getSherloConstants returns empty', () => {
-    mockGetSherloConstants.mockReturnValue({});
-    mockGetConstants.mockReturnValue(OLD_ARCH_CONSTANTS);
-    expect(SherloModule.getMode()).toBe('default');
-    expect(SherloModule.getNativeVersion()).toBe('1.5.0');
   });
 });
 
 describe('SherloModule live - getConfig / getLastState', () => {
   beforeEach(() => {
     mockGetSherloConstants.mockReturnValue(NEW_ARCH_CONSTANTS);
-    mockGetConstants.mockReturnValue({});
   });
 
   it('getConfig() parses the config JSON string', () => {
@@ -169,19 +133,39 @@ describe('SherloModule live - getConfig / getLastState', () => {
     expect(SherloModule.getLastState()).toBeUndefined();
   });
 
-  it('sendNativeError() JSON-stringifies data before calling native', () => {
-    const data = { jsVersion: '2.0.0', nativeVersion: '1.0.0' };
-    SherloModule.sendNativeError('ERROR_SDK_COMPATIBILITY', 'msg', data);
-    expect(mockSendNativeError).toHaveBeenCalledWith(
-      'ERROR_SDK_COMPATIBILITY',
-      'msg',
-      JSON.stringify(data)
-    );
+  it('invoke() JSON-encodes name and args, and decodes the resolved JSON', async () => {
+    mockInvoke.mockResolvedValue(JSON.stringify({ scrollable: false }));
+    const result = await SherloModule.invoke<{ scrollable: boolean }>('isScrollable', {
+      viewTag: 42,
+    });
+    expect(mockInvoke).toHaveBeenCalledWith('isScrollable', JSON.stringify({ viewTag: 42 }));
+    expect(result).toEqual({ scrollable: false });
   });
 
-  it('sendNativeError() passes empty string when data is undefined', () => {
-    SherloModule.sendNativeError('ERROR_CODE', 'msg');
-    expect(mockSendNativeError).toHaveBeenCalledWith('ERROR_CODE', 'msg', '');
+  it('invoke() defaults args to {} when omitted', async () => {
+    mockInvoke.mockResolvedValue('null');
+    await SherloModule.invoke('notifyGetStorybookCalled');
+    expect(mockInvoke).toHaveBeenCalledWith('notifyGetStorybookCalled', JSON.stringify({}));
+  });
+
+  it('invokeSync() JSON-encodes name and args, and returns the parsed envelope UNCHANGED (not unwrapped to value)', () => {
+    mockInvokeSync.mockReturnValue(JSON.stringify({ ok: true, value: { stable: true } }));
+    const result = SherloModule.invokeSync<{ stable: boolean }>('stabilize', {
+      requiredMatches: 3,
+    });
+    expect(mockInvokeSync).toHaveBeenCalledWith(
+      'stabilize',
+      JSON.stringify({ requiredMatches: 3 })
+    );
+    expect(result).toEqual({ ok: true, value: { stable: true } });
+  });
+
+  it('invokeSync() returns the not-ok envelope, code included, rather than throwing the code away', () => {
+    mockInvokeSync.mockReturnValue(JSON.stringify({ ok: false, code: 'UNKNOWN_METHOD' }));
+    expect(SherloModule.invokeSync('unknownCapability')).toEqual({
+      ok: false,
+      code: 'UNKNOWN_METHOD',
+    });
   });
 
   it('isTurboModule is true when TurboModule is present', () => {

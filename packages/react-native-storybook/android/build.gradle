@@ -1,64 +1,13 @@
 def DEFAULT_COMPILE_SDK_VERSION = 30
 def DEFAULT_TARGET_SDK_VERSION = 30
-def DEFAULT_MIN_SDK_VERSION = 16
+def DEFAULT_MIN_SDK_VERSION = 24
 
 def safeExtGet(prop, fallback) {
     rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
 }
 
-def isNewArchitectureEnabled() {
-    return project.hasProperty("newArchEnabled") && project.newArchEnabled == "true"
-}
-
-/**
- * Resolves the react-native root directory for the host application.
- *
- * Strategy (in order of preference):
- *  1. `REACT_NATIVE_NODE_MODULES_DIR` ext property set by the app (worklets pattern)
- *  2. `react.reactNativeDir` from the `com.facebook.react` plugin (new-arch apps)
- *  3. Node-based lookup from the app root (rootProject.projectDir.parent)
- *  4. Simple path guess relative to the app root
- *
- * Returns the absolute path as a String, or throws if nothing resolves.
- */
-def resolveReactNativeDir() {
-    // 1. Explicit ext property (apps may set this in their own build.gradle)
-    if (rootProject.ext.has('REACT_NATIVE_NODE_MODULES_DIR')) {
-        def d = rootProject.ext.get('REACT_NATIVE_NODE_MODULES_DIR')
-        if (d) return d.toString()
-    }
-
-    // 2. react.reactNativeDir set by the com.facebook.react plugin
-    try {
-        def rnDir = rootProject.extensions.findByName('react')?.reactNativeDir
-        if (rnDir) return rnDir.absolutePath
-    } catch (ignored) {}
-
-    // 3. Node lookup from the app root
-    def appRoot = rootProject.projectDir.parentFile
-    try {
-        def rnPkgPath = ["node", "--print",
-            "require.resolve('react-native/package.json')"]
-            .execute(null, appRoot).text.trim()
-        if (rnPkgPath) {
-            return new File(rnPkgPath).parentFile.absolutePath
-        }
-    } catch (ignored) {}
-
-    // 4. Fallback: conventional path
-    def fallback = new File(appRoot, "node_modules/react-native")
-    if (fallback.exists()) return fallback.absolutePath
-
-    throw new GradleException(
-        "[sherlo] Cannot locate react-native. Set REACT_NATIVE_NODE_MODULES_DIR " +
-        "in your app's build.gradle ext block, e.g.:\n" +
-        "  ext { REACT_NATIVE_NODE_MODULES_DIR = rootDir.parent + '/node_modules/react-native' }")
-}
-
 apply plugin: 'com.android.library'
-if (isNewArchitectureEnabled()) {
-    apply plugin: 'com.facebook.react'
-}
+apply plugin: 'com.facebook.react'
 
 android {
     compileSdkVersion safeExtGet('compileSdkVersion', DEFAULT_COMPILE_SDK_VERSION)
@@ -68,28 +17,12 @@ android {
         targetSdkVersion safeExtGet('targetSdkVersion', DEFAULT_TARGET_SDK_VERSION)
         versionCode 1
         versionName "1.0"
-        buildConfigField("boolean", "IS_NEW_ARCHITECTURE_ENABLED", isNewArchitectureEnabled().toString())
-        // Protects SherloInitProvider's reflection-based access to
-        // CatalystInstanceImpl.mJSExceptionHandler from R8 field renaming in
-        // consuming apps' release builds - see android/consumer-rules.pro.
-        consumerProguardFiles 'consumer-rules.pro'
-        // Pass the resolved react-native directory to CMake so SherloJsiReader.cpp
-        // can include <jsi/jsi.h> from the correct react-native version.
-        externalNativeBuild {
-            cmake {
-                arguments "-DREACT_NATIVE_DIR=${resolveReactNativeDir()}"
-            }
-        }
     }
 
     sourceSets {
         main {
             assets.srcDirs = ['src/main/assets']
-            if (isNewArchitectureEnabled()) {
-                java.srcDirs += ['src/newarch']
-            } else {
-                java.srcDirs += ['src/oldarch']
-            }
+            java.srcDirs += ['src/newarch']
         }
     }
 
@@ -97,7 +30,7 @@ android {
         buildConfig true
     }
 
-    // Build the JNI helper that reads JS globals via JSI (SherloJsiReader).
+    // Builds libsherloshim.so - the shim's JNI dispatch table. See CMakeLists.txt.
     externalNativeBuild {
         cmake {
             path "CMakeLists.txt"

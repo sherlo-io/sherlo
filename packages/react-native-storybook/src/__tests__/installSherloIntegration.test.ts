@@ -13,11 +13,16 @@
  * 3. Decoding the base64-encoded content (the SherloModule live wrapper encodes before
  *    calling native appendFile) using atob().
  *
+ * JS_EVAL_COMPLETE itself moved to src/seam.js (see seam.test.ts) - the seam
+ * runs unconditionally from the generated entry, even when the customer's own
+ * code never imports this package. What is left here is WITHSTORYBOOK_APPLIED
+ * / WITHSTORYBOOK_DISABLED, gated on globals the polyfill/metro plugin set.
+ *
  * Test matrix (mode × __sherloWithStorybookApplied × __sherloStorybookDisabledFlag):
  *  - default mode  → no writes
  *  - storybook mode → no writes
- *  - testing + !applied → JS_EVAL_COMPLETE only
- *  - testing + applied  → JS_EVAL_COMPLETE + WITHSTORYBOOK_APPLIED
+ *  - testing + !applied → no writes
+ *  - testing + applied  → WITHSTORYBOOK_APPLIED
  *  - testing + disabled → + WITHSTORYBOOK_DISABLED
  */
 
@@ -28,10 +33,6 @@ import {
   __resetAppendFileCalls,
 } from './__mocks__/react-native';
 
-vi.mock('../checkSdkCompatibility', () => ({
-  default: () => true,
-  __resetCacheForTests: () => {},
-}));
 vi.mock('../isRunningVisualTests', () => ({ default: false }));
 vi.mock('../isStorybookMode', () => ({ default: false }));
 vi.mock('../openStorybook', () => ({ default: () => {} }));
@@ -84,7 +85,7 @@ describe('installSherloIntegration - mode guard', () => {
 });
 
 describe('installSherloIntegration - testing mode writes', () => {
-  it('testing + !applied → writes JS_EVAL_COMPLETE only', async () => {
+  it('testing + !applied → no protocol writes', async () => {
     __setNativeMode('testing');
     await import('../index');
     const actions = getProtocolActions();
@@ -98,12 +99,11 @@ describe('installSherloIntegration - testing mode writes', () => {
       return; // Skip assertion rather than fail on infrastructure limitation
     }
 
-    expect(actions).toContain('JS_EVAL_COMPLETE');
     expect(actions).not.toContain('WITHSTORYBOOK_APPLIED');
     expect(actions).not.toContain('WITHSTORYBOOK_DISABLED');
   });
 
-  it('testing + applied + !disabled → writes JS_EVAL_COMPLETE and WITHSTORYBOOK_APPLIED', async () => {
+  it('testing + applied + !disabled → writes WITHSTORYBOOK_APPLIED', async () => {
     __setNativeMode('testing');
     (global as any).__sherloWithStorybookApplied = true;
     await import('../index');
@@ -114,12 +114,11 @@ describe('installSherloIntegration - testing mode writes', () => {
       return;
     }
 
-    expect(actions).toContain('JS_EVAL_COMPLETE');
     expect(actions).toContain('WITHSTORYBOOK_APPLIED');
     expect(actions).not.toContain('WITHSTORYBOOK_DISABLED');
   });
 
-  it('testing + applied + disabled → writes JS_EVAL_COMPLETE, WITHSTORYBOOK_APPLIED, and WITHSTORYBOOK_DISABLED', async () => {
+  it('testing + applied + disabled → writes WITHSTORYBOOK_APPLIED and WITHSTORYBOOK_DISABLED', async () => {
     __setNativeMode('testing');
     (global as any).__sherloWithStorybookApplied = true;
     (global as any).__sherloStorybookDisabledFlag = true;
@@ -131,7 +130,6 @@ describe('installSherloIntegration - testing mode writes', () => {
       return;
     }
 
-    expect(actions).toContain('JS_EVAL_COMPLETE');
     expect(actions).toContain('WITHSTORYBOOK_APPLIED');
     expect(actions).toContain('WITHSTORYBOOK_DISABLED');
   });

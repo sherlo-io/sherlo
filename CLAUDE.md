@@ -8,10 +8,11 @@ This repository is public - anything committed here (workflows, scripts, docs) i
 
 ## Test Execution
 
-There is no root `test` script in this repo. The unit suites are per-package (both vitest), each invoked via that package's own `yarn test`:
+There is no root `test` script in this repo. The suites live per package (all vitest), each invoked via that package's own `yarn test`:
 
 - `packages/cli/` - CLI unit tests
-- `packages/react-native-storybook/` - SDK unit tests
+- `packages/react-native-storybook/` - SDK unit tests. Three of them judge the BUILT package (`customerApi`, `mocking/emittedShims`, `repoInvariants`), so `yarn build` must run in that package first - CI does it in a named step before `yarn test`.
+- `testing/device-tests/` - the developer-mode sanity run on a real Android device. Needs an installable build of `testing/expo` and a booted emulator, so it is not part of `pr_checks`; CI runs it through the `test:device-sanity` workflow (`workflow_dispatch`).
 
 Each package's `test` script is guarded by `../../scripts/require-test-exec-optin.sh`, which refuses to run unless `CI=true` (set automatically on GitHub Actions) or `ALLOW_LOCAL_TEST_EXEC=1`. To run a suite on your own machine, set the local override:
 

@@ -1,9 +1,17 @@
 import { activateMocks, isKeyShimmed } from './registry';
 import { MockSet } from './types';
-import RunnerBridge from '../helpers/RunnerBridge';
 
 // Stable log key the runner (and the FG-03 device test) tails from log.sherlo.
 export const UNSHIMMED_KEYS_LOG = 'mock declared but unshimmed';
+
+interface AttachedRuntime {
+  log?: (key: string, parameters?: Record<string, unknown>) => void;
+}
+
+function getAttachedRuntime(): AttachedRuntime | null | undefined {
+  return (globalThis as unknown as { __SHERLO_HOST__?: { runtime?: AttachedRuntime | null } })
+    .__SHERLO_HOST__?.runtime;
+}
 
 // FG-03: a key declared in `sherlo.mocks` with no generated shim can never take effect -
 // the module import was never redirected, so createMockable never ran for it (typically
@@ -12,9 +20,10 @@ export const UNSHIMMED_KEYS_LOG = 'mock declared but unshimmed';
 // had the chance to load (see enumerateStories, which forces every shim to evaluate).
 //
 // The warning goes out on TWO channels: console.warn (visible in a dev session) AND
-// RunnerBridge.log (written to log.sherlo). The second channel is what makes FG-03
-// observable during a capture run, where setupErrorSilencing nulls console.warn - the
-// runner reads the log line even though the console message is swallowed.
+// a seam hop into whatever runtime is attached (log.sherlo, when one is). The second
+// channel is what makes FG-03 observable during a capture run, where setupErrorSilencing
+// nulls console.warn - the runner reads the log line even though the console message is
+// swallowed. On the developer path (nothing attached) only the console channel fires.
 function warnUnshimmedKeys(mocks: MockSet): void {
   const unshimmedKeys = Object.keys(mocks).filter((key) => !isKeyShimmed(key));
   if (unshimmedKeys.length === 0) return;
@@ -32,7 +41,11 @@ function warnUnshimmedKeys(mocks: MockSet): void {
     } composed at runtime, list ${plural ? 'them' : 'it'} under mockModules in your Sherlo config.`;
 
   console.warn(message);
-  RunnerBridge.log(UNSHIMMED_KEYS_LOG, { keys: unshimmedKeys });
+  try {
+    getAttachedRuntime()?.log?.(UNSHIMMED_KEYS_LOG, { keys: unshimmedKeys });
+  } catch (_) {
+    /* no runtime attached, or it declined the call - the console warning already fired */
+  }
 }
 
 // Installs `mocks` as the active set for one story (replacing whatever was active

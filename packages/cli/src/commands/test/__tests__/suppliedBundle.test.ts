@@ -204,6 +204,11 @@ function scriptedBundle(
 
   return {
     bundlePath,
+    // Matches the mocked detectEntryFile('index.js') above: this fixture
+    // stands in for buildBundleForPlatform's real result, which is
+    // generateSherloEntry's output when the SDK exposes it, and
+    // detectEntryFile's raw value when it does not (or here, scripted).
+    entryFile: 'index.js',
     bundleFormat: 'plain-js',
     bundleSizeMb: parseFloat((buffer.length / (1024 * 1024)).toFixed(2)),
     bundleHash: 'irrelevant-the-emitter-rehashes',

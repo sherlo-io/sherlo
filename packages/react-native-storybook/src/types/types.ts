@@ -40,32 +40,30 @@ export interface SherloParameters {
    * platforms specified in sherlo.config.json.
    */
   platform?: 'ios' | 'android';
+
+  /**
+   * Suppresses the SafeAreaProvider inset applied around a captured story.
+   * Read by the private capture loop (reused through the seam) - this type
+   * only publishes the vocabulary; the reader stays private.
+   */
+  noSafeArea?: boolean;
+
+  /**
+   * Overrides Storybook's theme for the duration of this story's capture,
+   * merged over the default theme. Read privately; typed loosely here since
+   * the theming package (@storybook/react-native-theming) is an optional peer.
+   */
+  theme?: Record<string, unknown>;
+
+  /**
+   * Whether this story captures a single viewport ('deviceHeight', the
+   * default) or the full scrollable content ('fullHeight'). Read privately -
+   * see SnapshotMode.
+   */
+  mode?: SnapshotMode;
 }
 
 export type StoryId = `${string}--${string}`;
-
-export type Snapshot = {
-  // sherlo exclusive parameters
-  viewId: string; // components-avatar--basic-deviceHeight
-  mode: SnapshotMode; // deviceHeight
-  displayName: string; // components/Avatar - Basic
-  sherloParameters?: SherloParameters;
-  /**
-   * Project-root-relative import path of the story file (e.g. "./src/Button.stories.tsx").
-   * Emitted by the device so Diff Scope can map storyId → source file server-side.
-   * Absent on older SDK versions; runner captures every story when missing.
-   */
-  importPath?: string;
-
-  // storybook parameters
-  componentId: string; // components-avatar
-  componentTitle: string; // components/Avatar
-  storyId: StoryId; // components-avatar--basic
-  storyTitle: string; // Basic
-  parameters: any;
-  argTypes: any;
-  args: any;
-};
 
 export type SnapshotMode = 'deviceHeight' | 'fullHeight';
 
@@ -90,23 +88,3 @@ export type StorybookParams = StorybookParamsRaw extends infer U
  * you need to disable animations or mock data during test runs.
  */
 export type StorybookViewMode = 'testing' | 'default' | 'storybook';
-
-export type InspectorDataNode = {
-  id: number;
-  className: string;
-  isVisible: boolean;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  adjustedWidth?: number;
-  adjustedHeight?: number;
-  properties?: Record<string, any>;
-  children?: InspectorDataNode[];
-};
-
-export type InspectorData = {
-  viewHierarchy: InspectorDataNode;
-  density: number;
-  fontScale: number;
-};
