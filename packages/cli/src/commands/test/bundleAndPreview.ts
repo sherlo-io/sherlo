@@ -12,7 +12,8 @@ import { emit } from '../../helpers/transcriptSink';
 import { reporting } from '../../helpers';
 import type { GitInfo } from '../../helpers/getGitInfo';
 import type { GateMetadataInput } from '../../helpers/fingerprint';
-import { buildBundleForPlatform, buildGateMetadata, type BundleResult } from './buildBundle';
+import type { BundleResult } from './buildBundle';
+import { bundler, liveBundler, type Bundler } from '../../seams/bundler';
 import { runDryRunPreview } from './dryRun';
 import type { DryRunDecisionClient } from './dryRunDecision';
 
@@ -25,19 +26,15 @@ import type { DryRunDecisionClient } from './dryRunDecision';
  * A bundling failure is user-facing and already carries the fallback line, so it
  * is printed and exits here rather than propagating as a crash.
  *
- * THE TWO EFFECTS ARE PARAMETERS SO AN EXPECTATION PRODUCER RUNS THIS EXACT LOOP.
+ * THE TWO EFFECTS ARE A SEAM SO AN EXPECTATION PRODUCER RUNS THIS EXACT LOOP.
  * The transcript's per-platform block is emitted from HERE, in this order, around
  * these two awaits - so a producer that re-implemented the loop could drift from
- * it silently. Instead it supplies the two effects and runs the shipped code:
- * `bundleFor` resolves a scripted {@link BundleResult} (the same type the bundler
- * returns) and `gateMetadataFor` returns nothing a transcript can see. Nothing
- * else here is substitutable, and nothing else needs to be.
+ * it silently. Instead it installs a bundler (../../seams/bundler) and runs the
+ * shipped code: `bundleFor` resolves a {@link BundleResult} - the same type the
+ * real bundler returns - and `gateMetadataFor` returns nothing a transcript can
+ * see. Nothing else here is substitutable, and nothing else needs to be.
  */
-export const REAL_BUNDLING_EFFECTS: BundlingEffects = {
-  bundleFor: (projectRoot, platform) => buildBundleForPlatform({ projectRoot, platform }),
-  gateMetadataFor: (projectRoot, platform, bundleResult) =>
-    buildGateMetadata({ projectRoot, platform, bundleResult }),
-};
+export const REAL_BUNDLING_EFFECTS: BundlingEffects = liveBundler;
 
 /**
  * THE WHOLE `--dry-run` TRANSCRIPT, from the bundling header to the closer.
@@ -89,20 +86,18 @@ export async function runDryRunFlow({
   });
 }
 
-/** The two awaits the bundling loop wraps its transcript around. */
-export type BundlingEffects = {
-  bundleFor: (projectRoot: string, platform: Platform) => Promise<BundleResult>;
-  gateMetadataFor: (
-    projectRoot: string,
-    platform: Platform,
-    bundleResult: BundleResult
-  ) => Promise<GateMetadataInput>;
-};
+/**
+ * The two awaits the bundling loop wraps its transcript around. Declared by the seam that owns
+ * them (../../seams/bundler) and named here for every existing caller.
+ */
+export type BundlingEffects = Bundler;
 
 export async function buildBundles({
   projectRoot,
   platformsToTest,
-  effects = REAL_BUNDLING_EFFECTS,
+  // The bundler IN FORCE, not the real one by name: a posed run installs its own and this loop
+  // never learns which it got.
+  effects = bundler(),
 }: {
   projectRoot: string;
   platformsToTest: Platform[];

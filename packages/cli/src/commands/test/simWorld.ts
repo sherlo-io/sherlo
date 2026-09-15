@@ -55,8 +55,8 @@
 import fs from 'fs';
 import path from 'path';
 import { SIM_WORLD_VERSION, type SimRunOutcome } from '@sherlo/api-types';
-import { DEFAULT_CONFIG_FILENAME, DEFAULT_PROJECT_ROOT } from '../../constants';
 import parseConfigFile from '../../helpers/getValidatedCommandParams/getNormalizedConfig/parseConfigFile';
+import resolveConfigPath from '../../helpers/getValidatedCommandParams/getNormalizedConfig/resolveConfigPath';
 import throwError from '../../helpers/throwError';
 
 /** The config field that declares a run's sim world - its presence IS sim mode. */
@@ -137,10 +137,7 @@ export function resolveSimulationWorldPath(options: {
   config?: string;
   projectRoot?: string;
 }): string | undefined {
-  const configFilePath = path.resolve(
-    options.projectRoot || DEFAULT_PROJECT_ROOT,
-    options.config || DEFAULT_CONFIG_FILENAME
-  );
+  const configFilePath = resolveConfigPath(options);
 
   const { simulation } = parseConfigFile(configFilePath) as {
     simulation?: unknown;

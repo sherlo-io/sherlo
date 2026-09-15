@@ -47,6 +47,7 @@ import {
   waitForBuildResult,
 } from '../../helpers';
 import parseWaitTimeout from '../../helpers/parseWaitTimeout';
+import machineIsReading from '../../helpers/machineIsReading';
 import printLink from '../../helpers/printLink';
 import printOutputKeys from '../../helpers/printOutputKeys';
 import {
@@ -78,6 +79,7 @@ import { resolveSuppliedBundles } from './suppliedBundle';
 import { runEmitExpectation } from './emitExpectation';
 import { runRenderTranscript, runRenderTranscriptState } from './renderTranscript';
 import { countBundleStories, type ValidatedModuleManifest } from './readModuleManifest';
+import { serverCalls } from '../../seams/serverCalls';
 import {
   formatDiffScopeReport,
   formatDiffScopeSummaryLine,
@@ -460,7 +462,9 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
 
   let openBuildReturn;
   try {
-    openBuildReturn = await client.openBuild({
+    // Through the server seam (../../seams/serverCalls), so a pose answers this call instead of
+    // the network. The payload is the one this run composed, unchanged.
+    openBuildReturn = await serverCalls().openBuild(client, {
       teamId,
       projectIndex,
       buildRunConfig,
@@ -744,12 +748,19 @@ export function printCapturePlanAndCloser({
   }
 
   // The closer, LAST (SHERLO-1919 ordering). A live run has no "Build created"
-  // line (SHERLO-1937 operator ruling) - the Review URL IS the ending. The
-  // machine-readable `url=` line goes just above it, so a CI can republish the
-  // link the developer is reading (a server-bypassed build returns above without
-  // either one - there is no review to link to).
-  console.log();
-  printOutputKeys({ url });
+  // line (SHERLO-1937 operator ruling) - the Review URL IS the ending.
+  //
+  // ONE LINK FOR A PERSON, THE `url=` LINE FOR A MACHINE (operator direction 2026-09-15).
+  // This closer used to print the review address twice on every screen, which is the same
+  // defect the render layer's `results-url` segment was corrected for - and it makes the
+  // SAME decision, through the one producer of it (`helpers/machineIsReading`) rather than a
+  // second copy of the rule. The `url=` line is a documented contract a CI job reads, so it stays exactly
+  // where a machine is reading; a person at a terminal sees the address once. (A
+  // server-bypassed build returns above without either one - there is no review to link to.)
+  if (machineIsReading()) {
+    console.log();
+    printOutputKeys({ url });
+  }
 
   console.log(`\n🔗 Review: ${printLink(url)}`);
 }

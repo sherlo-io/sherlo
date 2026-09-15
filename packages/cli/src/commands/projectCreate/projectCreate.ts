@@ -57,7 +57,8 @@ import {
 import { printSherloIntro, reporting, throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
 import { resolvePersonalToken, resolveTeamId } from '../shared';
-import createProjectRequest, { CreateProjectAuthError } from './createProjectRequest';
+import { CreateProjectAuthError } from './createProjectRequest';
+import { serverCalls } from '../../seams/serverCalls';
 import { THIS_COMMAND } from './constants';
 
 export type ProjectCreateOptions = {
@@ -83,13 +84,13 @@ async function projectCreate(passedOptions: ProjectCreateOptions): Promise<void>
   // not, in any form: no hash, no prefix, no length.
   reporting.setTag('team_id', teamId);
 
-  const project = await createProjectRequest({ name, teamId, personalToken }).catch(
-    (error: Error) => {
+  const project = await serverCalls()
+    .createProject({ name, teamId, personalToken })
+    .catch((error: Error) => {
       if (error instanceof CreateProjectAuthError) refuseRejectedToken(teamId);
 
       throwError({ message: error.message, errorToReport: error });
-    }
-  );
+    });
 
   // ONE segment, carrying three named fields - never the response. See
   // ../../render/projectCreated for why that distinction is the point.

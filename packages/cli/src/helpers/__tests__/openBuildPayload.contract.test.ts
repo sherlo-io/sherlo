@@ -69,7 +69,17 @@ vi.mock('../getValidatedBinariesInfoAndNextBuildIndex', () => ({
   default: mocks.getValidatedBinariesInfoAndNextBuildIndex,
 }));
 vi.mock('../uploadOrPrintBinaryReuse', () => ({ default: mocks.uploadOrPrintBinaryReuse }));
-vi.mock('../getGitInfo', () => ({ default: mocks.getGitInfo }));
+// `getGitInfo` is the SEAM's dispatcher (../../seams/surroundings) now, and what this file
+// stubs is the git read behind it. The seam's live half reaches for `readGitInfoFromDisk`, so a
+// factory that returned only a default would leave that import undefined at module load.
+vi.mock('../getGitInfo', () => ({
+  readGitInfoFromDisk: mocks.getGitInfo,
+  degradeGitInfo: vi.fn(),
+}));
+vi.mock('../../seams/surroundings', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../seams/surroundings')>()),
+  getGitInfo: mocks.getGitInfo,
+}));
 vi.mock('../getBuildRunConfig', () => ({ default: mocks.getBuildRunConfig }));
 vi.mock('../getAppBuildUrl', () => ({ default: mocks.getAppBuildUrl }));
 vi.mock('../printBuildIntroMessage', () => ({ default: mocks.printBuildIntroMessage }));

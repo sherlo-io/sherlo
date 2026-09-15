@@ -96,12 +96,6 @@ export type RenderedSegment = {
   prints: unknown[][];
 };
 
-/** Whether a machine, not a person, is reading this run's output: the `CI` convention every CI sets. */
-function machineIsReading(): boolean {
-  const ci = process.env.CI;
-  return ci !== undefined && ci !== '' && ci !== 'false' && ci !== '0';
-}
-
 /** Turn one segment into the exact print calls the CLI makes for it. */
 export function renderSegment(segment: TranscriptSegment): RenderedSegment {
   switch (segment.kind) {
@@ -269,13 +263,15 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       // ONE LINK FOR A PERSON, THE `url=` LINE FOR A MACHINE (operator direction 2026-09-15).
       // The closer used to print the review address twice on every screen. The machine line is
       // a documented contract a CI job reads (README: "printed by a run that reached a build"),
-      // so it stays exactly where a machine is reading - under `CI` - and a person at a terminal
-      // sees the link once. `CI` is the one signal both sides can declare: a pose states it in
-      // its env, GitHub Actions sets it, a terminal has it unset.
+      // so it stays exactly where a machine is reading, and a person at a terminal sees the link
+      // once. WHO is reading arrives on the segment - see `helpers/machineIsReading` for why
+      // this layer is handed the answer rather than reading `CI` itself.
       return {
         stream: 'stdout',
         prints: [
-          ...(machineIsReading() ? renderOutputKeys({ url: segment.url }).map((line) => [line]) : []),
+          ...(segment.machineIsReading
+            ? renderOutputKeys({ url: segment.url }).map((line) => [line])
+            : []),
           [`🔗 ${formatLink(segment.url)}\n`],
         ],
       };

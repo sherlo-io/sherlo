@@ -2,7 +2,9 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import getGitInfo, { ANCESTOR_LIMIT } from '../getGitInfo';
+// The REAL git read, not the seam's dispatcher (../../seams/surroundings): this suite is
+// about what the tool asks a real repository.
+import { ANCESTOR_LIMIT, readGitInfoFromDisk as getGitInfo } from '../getGitInfo';
 import GitFixture from './support/gitFixture';
 
 /**

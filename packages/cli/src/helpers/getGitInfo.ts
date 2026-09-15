@@ -431,7 +431,14 @@ function parseRepoSlug(remoteUrl: string): string | undefined {
   return undefined;
 }
 
-async function getGitInfo(
+/**
+ * THE REAL GIT READ - what the tool asks a real repository, in a real folder.
+ *
+ * Exported as the LIVE half of the surroundings seam (../seams/surroundings): `getGitInfo` below
+ * is the dispatcher every caller uses, and it answers from whichever surroundings are in force.
+ * This function is the one the shipped path lands on, and it is unchanged.
+ */
+export async function readGitInfoFromDisk(
   projectRoot: string,
   opts?: { branchOverride?: string }
 ): Promise<GitInfo> {
@@ -474,4 +481,11 @@ export function degradeGitInfo(error: unknown): GitInfo {
   };
 }
 
-export default getGitInfo;
+/*
+ * THERE IS NO DEFAULT EXPORT HERE, AND THAT IS THE POINT.
+ *
+ * `getGitInfo` - the function every caller in the tool uses - lives in ../seams/surroundings,
+ * because what the git read answers is one of the two things a pose replaces. This file is the
+ * LIVE half of that seam and nothing else. A default export here would be a second way in, and
+ * the caller that took it would be the one caller a posed run could not answer for.
+ */

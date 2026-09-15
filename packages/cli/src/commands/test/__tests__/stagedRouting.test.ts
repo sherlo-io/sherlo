@@ -23,7 +23,7 @@
 import chalk from 'chalk';
 chalk.level = 0;
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { mockGetStagedUploadUrls, mockOpenBuild, mockCheckStagedGate } = vi.hoisted(() => ({
   mockGetStagedUploadUrls: vi.fn(),
@@ -112,8 +112,21 @@ const IOS_DEVICE = {
   fontScale: '1.0',
 };
 
+/**
+ * `CI` decides whether the closer publishes its machine-readable `url=` line, and it is set on
+ * the runner this suite runs on - so it is cleared before every case and stated on purpose in
+ * the two that are about it.
+ */
+const previousCI = process.env.CI;
+
+afterAll(() => {
+  if (previousCI === undefined) delete process.env.CI;
+  else process.env.CI = previousCI;
+});
+
 beforeEach(async () => {
   vi.clearAllMocks();
+  delete process.env.CI;
 
   exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: number) => {
     throw new Error(`process.exit(${code})`);
@@ -304,18 +317,34 @@ describe('fast path ran to completion', () => {
   });
 
   it('publishes native-needed=false, opens the build, and returns the review URL', async () => {
+    // The run reached a build, so the link is published as a key too - that is what a CI wrapper
+    // turns into the `url` output. It is published FOR A MACHINE only (operator direction
+    // 2026-09-15): a person at a terminal reads the address once, in the `🔗 Review:` line. The
+    // routing keys this file is about are published either way, so `CI` is stated here rather
+    // than inherited from whatever machine runs the suite.
+    process.env.CI = 'true';
+
     const result = await stagedRun({});
 
     const output = outputKeys();
     expect(output['native-needed']).toBe('false');
     expect(output['base-fingerprint']).toBe('BASE_FP');
-    // The run reached a build, so the link is published as a key too - that is
-    // what a CI wrapper turns into the `url` output.
     expect(output.url).toBe('http://app/build');
 
     expect(mockOpenBuild).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ url: 'http://app/build' });
     expect(exitSpy).not.toHaveBeenCalled();
+  });
+
+  it('publishes the routing keys for a person too, and the url= line is the only difference', async () => {
+    delete process.env.CI;
+
+    await stagedRun({});
+
+    const output = outputKeys();
+    expect(output['native-needed']).toBe('false');
+    expect(output['base-fingerprint']).toBe('BASE_FP');
+    expect(output.url).toBeUndefined();
   });
 
   it("publishes the answer BEFORE the run's own closer, so the URL is still last", async () => {
