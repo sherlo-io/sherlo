@@ -1,6 +1,6 @@
 /**
- * THE CATALOG for the PREFLIGHT REFUSAL family (F3) - which committed fixture in
- * sherlo-tester each `--emit-expectation` scenario answers for.
+ * THE CATALOG for the PREFLIGHT REFUSAL family (F3) - which fixture this repo
+ * commits each `--emit-expectation` scenario answers for.
  *
  * The peer families (`dryRun.transcripts.ts`, `verdict.transcripts.ts`) each carry a
  * catalog of SCRIPTED WIRE STATE plus the fixture it renders. This family's
@@ -17,66 +17,94 @@
  * here because the refusal text never had a parallel print path to begin with.
  *
  * So what this file adds is the ONE thing the family was missing: the binding
- * from a scenario to the bytes already committed in git, so the ratchet can
- * require byte-identity against them. Provenance (the `.minted.json` sidecars)
- * says a fixture WAS minted; only this binding proves it STILL renders.
+ * from a scenario to the fixture this repo commits, so the ratchet can require
+ * byte-identity against it.
+ *
+ * A fixture holds the WHOLE screen, so it opens with the sherlo intro wherever
+ * the live road prints one before the guard refuses; `config-missing` and
+ * `project-root-invalid` carry none, because the config file is read before
+ * anything is printed (see `emitExpectation.ts`'s `introPrecedes`).
+ *
+ * ==========================================================================
+ * ONE REPOSITORY, ONE FIXTURE - NO CROSS-REPO PATHS (operator ruling,
+ * sherlo#265 review, 2026-09-15)
+ * ==========================================================================
+ *
+ * This catalog used to also carry paths into sherlo-tester's committed
+ * baselines, and the ratchet opened them by path to compare against. That is
+ * gone: a repository must not read another repository's files by path. The
+ * CLI's own local fixture (`localFixture`, under
+ * `__tests__/preflightRefusals.fixtures/`) is this repository's entire
+ * ratchet, proven unconditionally - it IS `renderEmittedStdout`'s output,
+ * reviewed into git through the PR that touches it. Sherlo-tester's committed
+ * panes are a SEPARATE proof, carried by sherlo-tester's own story run (it
+ * mints its baselines from this same CLI and re-runs when the board is quiet -
+ * see `packages/cli/src/commands/test/emitExpectation.ts`'s header and the
+ * epic's `e2e` note); this repo does not - and must not - reach into that
+ * repository to check it.
+ *
+ * Where a scenario corresponds to a specific sherlo-tester suite, that is
+ * named in `description` as PROSE, for a reader's orientation only - never a
+ * path any test here opens.
  */
 
-/** A scenario id from `emitExpectation.ts`, bound to the fixtures it answers for. */
+/** A scenario id from `emitExpectation.ts`, bound to the fixture it answers for. */
 export type PreflightRefusalScenario = {
-  /** Why this refusal exists and what a reader should learn from its fixture. */
+  /**
+   * Why this refusal exists, what a reader should learn from its fixture, and
+   * (in prose, not a path) which sherlo-tester suite mints the matching
+   * baseline - informational only, never opened by a test in this repo.
+   */
   description: string;
   /**
-   * Every committed fixture, relative to the sherlo-tester repo root, whose bytes
-   * this scenario must render exactly.
-   *
-   * A LIST, not a single path, because Playwright writes one baseline per PROJECT
-   * name: `...-CLI-Errors-darwin.txt` and `...-CLI-Errors-Smokes-darwin.txt` are
-   * the same refusal captured under two project names. Both are committed, so both
-   * are proved - listing only one would leave a real committed baseline unproven
-   * while the counts still looked complete.
+   * Filename under `__tests__/preflightRefusals.fixtures/` holding the bytes
+   * THIS repo commits and re-mints from `renderEmittedStdout` - the ratchet's
+   * entire gate.
    */
-  fixtures: readonly string[];
+  localFixture: string;
 };
 
 export const PREFLIGHT_REFUSALS: Record<string, PreflightRefusalScenario> = {
   'token-malformed': {
     description:
       'A `token` is present but is not a valid Sherlo token - the refusal a user with a ' +
-      'mistyped or expired token actually sees.',
-    fixtures: ['e2e/helpers/cli-token-refusals/fixtures/token-rejection.txt'],
+      "mistyped or expired token actually sees. Minted independently in sherlo-tester's " +
+      'token-refusals suite (invalid-token-rejection / empty-token-rejection panes).',
+    localFixture: 'token-malformed.txt',
   },
   'devices-empty': {
-    description: 'Config `devices` is an empty array - nothing to test on.',
-    fixtures: ['e2e/helpers/cli-config-refusals/fixtures/empty-devices-rejection.txt'],
+    description:
+      'Config `devices` is an empty array - nothing to test on. Minted independently in ' +
+      "sherlo-tester's config-refusals suite (empty-devices-rejection pane).",
+    localFixture: 'devices-empty.txt',
   },
   'config-missing': {
-    description: 'No config file at the resolved (default project root) path.',
-    fixtures: ['e2e/helpers/cli-config-refusals/fixtures/missing-config-rejection.txt'],
+    description:
+      'No config file at the resolved (default project root) path. Minted independently in ' +
+      "sherlo-tester's config-refusals suite (missing-config-rejection pane).",
+    localFixture: 'config-missing.txt',
   },
   'project-root-invalid': {
     description:
       '--project-root points at a directory with no config file. Renders byte-identical to ' +
-      '`config-missing`, and the two fixtures below are separately committed proof of that: ' +
-      'the CLI has ONE message for "no config file at the resolved path", not a second one for ' +
-      'a wrong project root.',
-    fixtures: ['e2e/helpers/cli-project-root-refusal/fixtures/project-root-rejection.txt'],
+      '`config-missing` - the CLI has ONE message for "no config file at the resolved path", ' +
+      "not a second one for a wrong project root. Minted independently in sherlo-tester's " +
+      'project-root-refusal suite.',
+    localFixture: 'config-missing.txt',
   },
   'binary-path-missing': {
     description:
       'Neither --android nor the config `android` property was passed. Carries the boxed ' +
-      '"Preview Simulator Build" panel and the INFO footer - the family\'s most structured bytes.',
-    fixtures: [
-      'e2e/suites/cli/binary-preflight/03-path-errors.spec.ts-snapshots/missing-android-path-rejection-CLI-Errors-darwin.txt',
-      'e2e/suites/cli/binary-preflight/03-path-errors.spec.ts-snapshots/missing-android-path-rejection-CLI-Errors-Smokes-darwin.txt',
-    ],
+      '"Preview Simulator Build" panel and the INFO footer - the family\'s most structured ' +
+      "bytes. Minted independently in sherlo-tester's binary-preflight suite " +
+      '(missing-android-path-rejection panes).',
+    localFixture: 'binary-path-missing.txt',
   },
   'binary-path-nonexistent': {
-    description: 'An --android path was passed but nothing exists there.',
-    fixtures: [
-      'e2e/suites/cli/binary-preflight/03-path-errors.spec.ts-snapshots/nonexistent-binary-path-rejection-CLI-Errors-darwin.txt',
-      'e2e/suites/cli/binary-preflight/03-path-errors.spec.ts-snapshots/nonexistent-binary-path-rejection-CLI-Errors-Smokes-darwin.txt',
-    ],
+    description:
+      'An --android path was passed but nothing exists there. Minted independently in ' +
+      "sherlo-tester's binary-preflight suite (nonexistent-binary-path-rejection panes).",
+    localFixture: 'binary-path-nonexistent.txt',
   },
 };
 
@@ -90,15 +118,14 @@ export const PREFLIGHT_REFUSAL_IDS = Object.keys(PREFLIGHT_REFUSALS);
 export const UNBOUND_SCENARIOS: Record<string, string> = {
   'token-missing':
     'the `token` option/config property omitted entirely. A real refusal with a real emit ' +
-    'scenario, but no suite in sherlo-tester commits a baseline for it - the token chapter ' +
-    'captures the MALFORMED token instead. Nothing to ratchet against until a suite mints one; ' +
-    'listing it here keeps that gap visible rather than letting the catalog look complete.',
+    'scenario, but no suite mints a baseline for it - the token chapter captures the ' +
+    'MALFORMED token instead. Nothing to ratchet against until a suite mints one; listing it ' +
+    'here keeps that gap visible rather than letting the catalog look complete.',
   'binary-abi-x86-only':
-    'the Android ABI refusal. Its two committed fixtures (04-abi-preflight) are the EXPO ' +
-    'variant, and the emit scenario renders the BARE-RN fix hint - its synthetic BinariesInfo ' +
-    'carries no expoSdkVersion, so it prints the `reactNativeArchitectures` branch where the ' +
-    'fixtures print the `expo-build-properties` one. Those two fixtures are already named in ' +
-    "sherlo-tester's EXEMPT_FIXTURES for exactly this reason. Binding them here would demand " +
-    'byte-identity between two DIFFERENT branches of a real refusal. Unblocked by an ' +
+    "the Android ABI refusal. sherlo-tester's two committed panes (04-abi-preflight) are the " +
+    'EXPO variant, and the emit scenario renders the BARE-RN fix hint - its synthetic ' +
+    'BinariesInfo carries no expoSdkVersion, so it prints the `reactNativeArchitectures` ' +
+    'branch where those panes print the `expo-build-properties` one. Binding them here would ' +
+    'demand byte-identity between two DIFFERENT branches of a real refusal. Unblocked by an ' +
     'Expo-specific scenario id, not by relaxing the comparison.',
 };
