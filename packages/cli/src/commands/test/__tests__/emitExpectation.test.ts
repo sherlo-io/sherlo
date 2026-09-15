@@ -10,7 +10,9 @@
  * the placeholder span, the two are byte-for-byte identical, and the placeholder
  * sits exactly where the volatile value was.
  */
+import { format } from 'util';
 import { describe, expect, it } from 'vitest';
+import { renderSegment } from '../../../render/renderSegment';
 import {
   EXPECTATION_PLACEHOLDERS,
   EXPECTATION_SCENARIO_IDS,
@@ -184,5 +186,75 @@ describe('renderEmittedStdout - the Need Help epilogue', () => {
 
     expect(emitted).toContain(EXPECTATION_PLACEHOLDERS.CONFIG_PATH);
     expect(emitted).not.toContain(configPath);
+  });
+});
+
+/**
+ * THE INTRO HALF OF THE WHOLE SCREEN. A live refusal shows the sherlo wordmark
+ * and tagline whenever the road printed them before the guard refused, so a mint
+ * that omitted them would hand a consumer an expectation no real terminal ever
+ * showed.
+ *
+ * Which scenarios carry it is a property of the ROAD, and each scenario states
+ * it: the guards reached inside `stagedRun` / `standardRun` refuse after the
+ * intro is printed, while the config file is read in `test.ts` before either is
+ * entered - so `config-missing` and `project-root-invalid` refuse with nothing
+ * yet on screen.
+ *
+ * The bytes are compared against the ONE producer the live road uses - the
+ * `intro` segment through `renderSegment` - assembled here the way a sink
+ * assembles any segment (node's own `util.format` per print call, plus the `\n`
+ * `console.log` appends). A second, hand-written copy of the wordmark anywhere
+ * on the emit path would fail the first case below rather than quietly shipping.
+ */
+describe('renderEmittedStdout - the sherlo intro', () => {
+  /** The intro's bytes, assembled from the segment the live road emits. */
+  function introBytes(): string {
+    const { prints } = renderSegment({ kind: 'intro' });
+    return prints.map((args) => `${format(...args)}\n`).join('');
+  }
+
+  // eslint-disable-next-line no-control-regex
+  const stripAnsi = (text: string): string => text.replace(/\x1b\[[0-9;]*m/g, '');
+
+  /** The wordmark's last row - present in the intro and nowhere else on the screen. */
+  const WORDMARK_LAST_ROW = '\'88888P\' 888  888  "Y8888  888     888  "Y88P"';
+
+  it('a refusal the intro precedes opens with exactly the live intro bytes', () => {
+    expect(renderEmittedStdout('token-malformed')).toBe(
+      introBytes() + renderExpectation('token-malformed') + '\n' + renderNeedHelpEpilogue()
+    );
+  });
+
+  it('config-missing opens with the guard, because the config is read before the intro', () => {
+    expect(renderEmittedStdout('config-missing')).toBe(
+      renderExpectation('config-missing') + '\n' + renderNeedHelpEpilogue()
+    );
+    expect(renderEmittedStdout('project-root-invalid')).toBe(
+      renderExpectation('project-root-invalid') + '\n' + renderNeedHelpEpilogue()
+    );
+  });
+
+  it('the wordmark is rendered once, never twice', () => {
+    // The failure this catches is a process that prints its own intro AND mints
+    // one - the shape the emit road had before `--emit-expectation` was
+    // dispatched ahead of `printSherloIntro`. Counted on the stripped text
+    // because the gradient colours the wordmark one character at a time.
+    const withIntro = stripAnsi(renderEmittedStdout('token-malformed'));
+    const withoutIntro = stripAnsi(renderEmittedStdout('config-missing'));
+
+    expect(withIntro.split(WORDMARK_LAST_ROW).length - 1).toBe(1);
+    expect(withoutIntro).not.toContain(WORDMARK_LAST_ROW);
+  });
+
+  it('the screen reads wordmark, blank line, tagline, blank line, ERROR - what a pty recorded', () => {
+    const lines = stripAnsi(renderEmittedStdout('token-malformed')).split('\n');
+    const errorLine = lines.findIndex((line) => line.startsWith('ERROR:'));
+
+    expect(errorLine).toBeGreaterThan(0);
+    expect(lines[errorLine - 1]).toBe('');
+    expect(lines[errorLine - 2]).not.toBe(''); // the tagline
+    expect(lines[errorLine - 3]).toBe('');
+    expect(lines[errorLine - 4]).toBe(`    ${WORDMARK_LAST_ROW}`);
   });
 });
