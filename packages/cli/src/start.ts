@@ -27,10 +27,7 @@ import {
   EMIT_BUNDLE_DIR_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EAS_BUILD_SCRIPT_NAME_OPTION,
-  EMIT_EXPECTATION_OPTION,
   FINGERPRINT_COMMAND,
-  RENDER_TRANSCRIPT_OPTION,
-  RENDER_TRANSCRIPT_STATE_OPTION,
   GIT_BRANCH_OPTION,
   INCLUDE_OPTION,
   INIT_COMMAND,
@@ -235,31 +232,6 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
       'decision, and prints the per-platform "would capture" lists with reasons. ' +
       'Creates no build and uploads nothing.',
   ],
-  [EMIT_EXPECTATION_OPTION]: [
-    '--emit-expectation <scenario>',
-    'Expectation-emit mode (requires --dry-run): renders the exact refusal text a real ' +
-      'run would print for <scenario> - the same guard, the same formatter - with every ' +
-      'volatile value (an absolute path, a build file name) replaced by a stable ' +
-      'placeholder (e.g. <SHERLO_CONFIG_PATH>). Pass "list" to print every scenario and ' +
-      'the full placeholder vocabulary. Makes no build, no upload, no network call.',
-  ],
-  [RENDER_TRANSCRIPT_OPTION]: [
-    '--render-transcript <scenario>',
-    "Transcript-render mode (requires --dry-run): renders the named scenario's scripted " +
-      "wire state through the CLI's OWN dry-run code path and writes the transcript it " +
-      'printed to stdout, with a JSON envelope (exit code, command, ambient, stderr) on ' +
-      'stderr. Pass "list" to print every scenario. Makes no build, no bundle, no network ' +
-      'call. Mint captures from a world; render computes from a scenario.',
-  ],
-  [RENDER_TRANSCRIPT_STATE_OPTION]: [
-    '--render-transcript-state <path>',
-    'Transcript-render mode over a pose you write (requires --dry-run): reads one ' +
-      "command's whole state - the build the read answered with, and the ambient the run " +
-      "had - from a JSON document and renders it through the CLI's OWN print path, with the " +
-      'same envelope on stderr as --render-transcript. Pass "-" to read the document from ' +
-      'stdin. Every field is required unless the wire itself makes it optional, and an ' +
-      'unknown field is refused by name rather than ignored.',
-  ],
   [MESSAGE_OPTION]: [`--${MESSAGE_OPTION} <message>`, 'Custom message to label the test'],
   [METADATA_OPTION]: [
     `--${METADATA_OPTION}`,
@@ -331,7 +303,7 @@ function addInitCommand(program: Command) {
 
 // `sherlo test` is the ONE testing command: it carries the union of both roads'
 // options. The platform paths pick the standard road; without them the staged
-// road runs and --dry-run / --emit-expectation preview its bundling decision.
+// road runs and --dry-run previews its bundling decision.
 function addTestCommand(program: Command) {
   const devtoolsOptions = process.env.SHERLO_DEVTOOLS === '1' ? [DIAGNOSTICS_OPTION] : [];
 
@@ -343,9 +315,6 @@ function addTestCommand(program: Command) {
       BUNDLE_DIR_OPTION,
       EMIT_BUNDLE_DIR_OPTION,
       DRY_RUN_OPTION,
-      EMIT_EXPECTATION_OPTION,
-      RENDER_TRANSCRIPT_OPTION,
-      RENDER_TRANSCRIPT_STATE_OPTION,
       WAIT_OPTION,
       WAIT_TIMEOUT_OPTION,
       METADATA_OPTION,

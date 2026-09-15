@@ -21,7 +21,7 @@ export { default as isValidToken } from './isValidToken';
 export { default as refuseIfPersonalToken } from './refuseIfPersonalToken';
 export { default as logInfo } from './logInfo';
 export { default as logWarning } from './logWarning';
-export { printNeedHelpEpilogue, renderNeedHelpEpilogue } from './needHelpEpilogue';
+export { printNeedHelpEpilogue } from './needHelpEpilogue';
 export { default as printBuildMessage } from './printBuildMessage';
 export { default as printBuildPlatformLabel } from './printBuildPlatformLabel';
 export { default as printLink } from './printLink';

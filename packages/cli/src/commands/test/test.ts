@@ -52,18 +52,6 @@ import { THIS_COMMAND } from './constants';
 async function test(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
   const hasNativeBuildPaths = Boolean(passedOptions[ANDROID_OPTION] || passedOptions[IOS_OPTION]);
 
-  // THE TRANSCRIPT-RENDER ROADS READ NO CONFIG. `--render-transcript` / `--render-transcript-state`
-  // replay a scripted scenario through the shipped formatter and touch none of this invocation's
-  // real options - so they are dispatched before the sim check below, which parses
-  // sherlo.config.json to answer a question these roads never ask. Without this, rendering a
-  // transcript from anywhere but a configured project root died on "Config file not found".
-  if (
-    passedOptions.renderTranscript !== undefined ||
-    passedOptions.renderTranscriptState !== undefined
-  ) {
-    return stagedRun(passedOptions);
-  }
-
   const simWorldDirPath = resolveSimulationWorldPath(passedOptions);
   if (simWorldDirPath !== undefined) {
     const simTrigger = `\`${SIMULATION_CONFIG_FIELD}\` in the config file`;
@@ -85,9 +73,6 @@ async function test(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string
       passedOptions.dryRun === true ? '--dry-run' : undefined,
       passedOptions.bundleDir !== undefined ? '--bundle-dir' : undefined,
       passedOptions.emitBundleDir !== undefined ? '--emit-bundle-dir' : undefined,
-      passedOptions.emitExpectation !== undefined ? '--emit-expectation' : undefined,
-      passedOptions.renderTranscript !== undefined ? '--render-transcript' : undefined,
-      passedOptions.renderTranscriptState !== undefined ? '--render-transcript-state' : undefined,
     ].find((flag) => flag !== undefined);
 
     if (bundlerRoadFlag !== undefined) {
@@ -105,14 +90,14 @@ async function test(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string
     return stagedRun(passedOptions);
   }
 
-  // --dry-run / --emit-expectation preview what the staged road would decide
-  // and create no build. The standard road always creates one, so there is
-  // nothing for them to preview there. Refuse the combination rather than
-  // silently ignoring the flag.
-  if (passedOptions.dryRun === true || passedOptions.emitExpectation !== undefined) {
+  // --dry-run previews what the staged road would decide and creates no
+  // build. The standard road always creates one, so there is nothing for it
+  // to preview there. Refuse the combination rather than silently ignoring
+  // the flag.
+  if (passedOptions.dryRun === true) {
     throwError({
       message:
-        '`--dry-run` and `--emit-expectation` preview the staged (JS-only) road, so they cannot be ' +
+        '`--dry-run` previews the staged (JS-only) road, so it cannot be ' +
         `combined with \`--${ANDROID_OPTION}\` / \`--${IOS_OPTION}\`. Drop the build paths to preview.`,
     });
   }

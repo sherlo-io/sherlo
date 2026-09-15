@@ -9,9 +9,6 @@ import {
   EMIT_BUNDLE_DIR_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EAS_BUILD_SCRIPT_NAME_OPTION,
-  EMIT_EXPECTATION_OPTION,
-  RENDER_TRANSCRIPT_OPTION,
-  RENDER_TRANSCRIPT_STATE_OPTION,
   GIT_BRANCH_OPTION,
   INCLUDE_OPTION,
   INIT_COMMAND,
@@ -134,26 +131,6 @@ type CommandOptions = {
      * Uploads nothing and creates no build. Staged road only.
      */
     [EMIT_BUNDLE_DIR_OPTION]?: string;
-    /**
-     * Expectation-emit mode (requires --dry-run): renders the exact refusal text a
-     * live run would print for the named preflight scenario, then exits - no
-     * bundling, no build, no network. See ../commands/test/emitExpectation.
-     */
-    [EMIT_EXPECTATION_OPTION]?: string;
-    /**
-     * Transcript-render mode (requires --dry-run): renders the named scenario's
-     * scripted state through the CLI's OWN dry-run code path and writes the bytes
-     * it printed, then exits - no bundling, no build, no network. See
-     * ../commands/test/renderTranscript.
-     */
-    [RENDER_TRANSCRIPT_OPTION]?: string;
-    /**
-     * Transcript-render mode over a CALLER-DECLARED pose (requires --dry-run):
-     * reads one command's whole state from a JSON document and renders the bytes
-     * that state produces, then exits - no bundling, no build, no network. The
-     * document's shape is contracts/transcript.contract.ts. `-` reads stdin.
-     */
-    [RENDER_TRANSCRIPT_STATE_OPTION]?: string;
   };
   /**
    * `sherlo view` takes no options of its own: the build it looks at is a
