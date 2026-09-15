@@ -173,6 +173,21 @@ function groundingFor(entry: CatalogEntry): string {
   return entry.scenario.groundedBy.kind;
 }
 
+/**
+ * Whether the scenario's fixture is a path this render is about to CREATE rather
+ * than one it must match.
+ *
+ * Published because the consumer cannot work it out and would otherwise get it
+ * wrong in the worst direction: `expected-render --check` reads a missing file
+ * as a DIVERGENCE, so a scenario naming a beats sidecar nothing has minted yet
+ * would report as "the CLI changed what a user sees" - the one message that
+ * road must never say untruthfully. `false` for every family but the dry-run
+ * one, which is the only family whose fixtures are minted through this road.
+ */
+function fixtureNotMintedYetFor(entry: CatalogEntry): boolean {
+  return entry.family === 'dry-run' && entry.scenario.fixtureNotMintedYet === true;
+}
+
 /** The git info a scenario that CAN read git reports. Fixed, never a wall-clock read. */
 const SCRIPTED_GIT_INFO: GitInfo = {
   commitName: 'the commit this scenario was grounded on',
@@ -201,6 +216,8 @@ type TranscriptEnvelope = {
    * a consumer must not read such a transcript as the DEFAULT experience.
    */
   grounded: string;
+  /** `true` -> {@link fixture} is this render's mint TARGET, not a baseline it must match. */
+  fixtureNotMintedYet: boolean;
   /** The producer invocation that rendered these bytes (the road, not the depicted command). */
   command: string;
   /**
@@ -247,6 +264,7 @@ export async function runRenderTranscript(scenarioId: string): Promise<void> {
     family,
     fixture: fixtureFor(entry),
     grounded: groundingFor(entry),
+    fixtureNotMintedYet: fixtureNotMintedYetFor(entry),
     command: `sherlo test --dry-run --render-transcript ${scenarioId}`,
     depicts: family === 'dry-run' ? 'sherlo test --dry-run' : 'sherlo test',
     capture: scenario.capture,
@@ -293,6 +311,7 @@ export async function runRenderTranscriptState(source: string): Promise<void> {
       family: 'project-create',
       fixture: null,
       grounded: 'declared-pose',
+      fixtureNotMintedYet: false,
       command: `sherlo test --dry-run --render-transcript-state ${source}`,
       depicts: `sherlo project create ${JSON.stringify(pose.project.name)}`,
       capture,
@@ -310,6 +329,7 @@ export async function runRenderTranscriptState(source: string): Promise<void> {
       family: 'team-create',
       fixture: null,
       grounded: 'declared-pose',
+      fixtureNotMintedYet: false,
       command: `sherlo test --dry-run --render-transcript-state ${source}`,
       depicts: `sherlo team create ${JSON.stringify(pose.team.name)}`,
       capture,
@@ -327,6 +347,7 @@ export async function runRenderTranscriptState(source: string): Promise<void> {
       family: 'team-list',
       fixture: null,
       grounded: 'declared-pose',
+      fixtureNotMintedYet: false,
       command: `sherlo test --dry-run --render-transcript-state ${source}`,
       depicts: 'sherlo team list',
       capture,
@@ -344,6 +365,7 @@ export async function runRenderTranscriptState(source: string): Promise<void> {
       family: 'project-list',
       fixture: null,
       grounded: 'declared-pose',
+      fixtureNotMintedYet: false,
       command: `sherlo test --dry-run --render-transcript-state ${source}`,
       depicts: `sherlo project list --team ${pose.list.team.id}`,
       capture,
@@ -363,6 +385,7 @@ export async function runRenderTranscriptState(source: string): Promise<void> {
     // state the caller invented this second, which no capture has ever run.
     fixture: null,
     grounded: 'declared-pose',
+    fixtureNotMintedYet: false,
     command: `sherlo test --dry-run --render-transcript-state ${source}`,
     depicts: `sherlo view ${pose.buildIndex}`,
     // `view` prints its transcript to stdout; the one thing it can put on stderr
@@ -393,6 +416,12 @@ async function renderTwiceAndWrite(job: {
   family: TranscriptFamily;
   fixture: string | null;
   grounded: string;
+  /**
+   * `true` -> {@link fixture} is this render's mint TARGET rather than a baseline
+   * it must match. Always `false` on a POSE road: a pose names no fixture path at
+   * all, so there is no file the render would be creating and none to match.
+   */
+  fixtureNotMintedYet: boolean;
   command: string;
   depicts: string;
   capture: TranscriptScenario['capture'];
@@ -418,6 +447,7 @@ async function renderTwiceAndWrite(job: {
     family: job.family,
     fixture: job.fixture,
     grounded: job.grounded,
+    fixtureNotMintedYet: job.fixtureNotMintedYet,
     command: job.command,
     depicts: job.depicts,
     exitCode: job.exitCode,
@@ -639,6 +669,8 @@ type CatalogIndexEntry = {
   capture: string;
   /** `gated-shipped` -> the shipped path emits these, but only when opted in. */
   grounded: string;
+  /** `true` -> the fixture is a mint TARGET; a `--check` must not read its absence as a divergence. */
+  fixtureNotMintedYet: boolean;
 };
 
 function transcriptCatalogIndex(): Record<string, CatalogIndexEntry> {
@@ -649,6 +681,7 @@ function transcriptCatalogIndex(): Record<string, CatalogIndexEntry> {
       fixture: fixtureFor(entry),
       capture: entry.scenario.capture,
       grounded: groundingFor(entry),
+      fixtureNotMintedYet: fixtureNotMintedYetFor(entry),
     };
   }
   return index;
@@ -682,7 +715,9 @@ function formatTranscriptCatalog(): string {
     const provenance =
       fixture === null
         ? `    fixture: none - ${WHY_NO_FIXTURE[grounding] ?? grounding}`
-        : `    fixture: ${fixture}`;
+        : `    fixture: ${fixture}${
+            fixtureNotMintedYetFor(entry) ? ' (NOT MINTED YET - this render creates it)' : ''
+          }`;
 
     return (
       `  ${id}  (${entry.family})\n    ${entry.scenario.description}\n${provenance}\n` +
