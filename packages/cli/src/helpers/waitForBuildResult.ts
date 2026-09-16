@@ -70,7 +70,7 @@ async function waitForBuildResult({
    * build is already terminal, so the first poll returns immediately - but we
    * suppress the output that implies device work happened: the "waiting" line
    * below and the "🟢 Finished" progress line. The compact bypassed closer is
-   * printed by evaluateTerminalState off the poll's verbatim reason.
+   * printed by printTerminalCloser off the poll's verbatim reason.
    */
   serverBypassed?: boolean;
   /**
@@ -231,7 +231,7 @@ async function waitForBuildResult({
         lastStatus = build.runStatus;
       }
 
-      const exitCode = evaluateTerminalState(build);
+      const exitCode = decideTerminalState(build);
 
       if (exitCode !== null) {
         // A FINISHED BUILD IS CLOSED ON ONLY ONCE ITS STORIES HAVE STOPPED MOVING
@@ -246,6 +246,12 @@ async function waitForBuildResult({
           }
           continue;
         }
+        // THE ONE PLACE THE CLOSER PRINTS. Every earlier read of a finished build
+        // that is still settling its stories[] (the branch above) decided and
+        // moved on without printing anything - this is the only call site that
+        // ever reaches printTerminalCloser, and it is reached at most once per
+        // build.
+        printTerminalCloser(build);
         if (metadata) {
           emit({ kind: 'build-details', details: buildDetailsOf(build, metadata.git) });
           emit({ kind: 'blank-line' });
@@ -292,10 +298,17 @@ function storiesFingerprint(build: BuildStatus): string | null {
     .join('\n');
 }
 
-function evaluateTerminalState(
+/**
+ * DECIDING, not printing. Reads a poll answer and returns the exit code the
+ * build has reached, or `null` when it has not reached one yet (still running,
+ * or a finished poll whose counts have not landed). This is the ONLY thing
+ * called on every read of a settling build - see {@link printTerminalCloser}
+ * for the closer this decision earns, which the loop calls at most once.
+ */
+function decideTerminalState(
   build: NonNullable<BuildStatusResponse['getBuildStatus']>
 ): number | null {
-  const { runStatus, viewStatusesCount, diffScopeInfo } = build;
+  const { runStatus, viewStatusesCount } = build;
 
   switch (runStatus) {
     case 'finished': {
@@ -312,47 +325,16 @@ function evaluateTerminalState(
       // that predates the field - skips this entirely and falls through to the
       // block below, which is unchanged to the byte.
       if (routesThroughSparseVerdict(build)) {
-        return closeUnderSparseRules(build);
+        return decideSparseBuildVerdict(build)?.exitCode ?? null;
       }
 
-      const unreviewed = viewStatusesCount.unreviewed;
-      const reported = viewStatusesCount.reported;
-
-      if (unreviewed === 0 && reported === 0) {
-        emit({ kind: 'blank-line' });
-        const serverBypassReason = getServerBypassReason(diffScopeInfo);
-        if (serverBypassReason) {
-          // Server-bypassed build (SHERLO-1952): there is nothing to review (zero
-          // new screenshots) and the review page cannot render this build shape
-          // yet (SHERLO-1974), so the closer stays compact and points at no URL.
-          // The caller (printCapturePlanAndCloser) has already withheld the review
-          // URL for a bypassed build, so omitting it here loses no link.
-          printServerBypassCloser(serverBypassReason);
-        } else {
-          // No verbatim reason -> today's generic message. Covers the
-          // forward-compat degrade of a counts-bypassed build whose poll carries
-          // no prose, and every ordinary green build. The build's link was
-          // already printed once, right when the build became ready - never
-          // repeated here.
-          emit({ kind: 'verdict-passed' });
-        }
-        emit({ kind: 'blank-line' });
-        return EXIT_GREEN;
-      }
-
-      emit({ kind: 'blank-line' });
-      emit({ kind: 'verdict-review-required', unreviewed, reported });
-      emit({ kind: 'blank-line' });
-      return EXIT_BLOCK;
+      const { unreviewed, reported } = viewStatusesCount;
+      return unreviewed === 0 && reported === 0 ? EXIT_GREEN : EXIT_BLOCK;
     }
 
     case 'error':
-    case 'canceled': {
-      emit({ kind: 'blank-line' });
-      emit({ kind: 'verdict-run-errored', runStatus, runError: build.runError });
-      emit({ kind: 'blank-line' });
+    case 'canceled':
       return EXIT_ERROR;
-    }
 
     default:
       // queued, waiting, inProgress - still running
@@ -361,9 +343,65 @@ function evaluateTerminalState(
 }
 
 /**
- * The finished branch for a build the server marked `showsOnlyBranchChanges` -
- * the sparse-build redesign's CLI half, and the ONLY new closing path in this
- * file.
+ * PRINTING, not deciding. Emits the closer for a build {@link decideTerminalState}
+ * has already declared terminal - called from exactly one place in the wait
+ * loop, on the single read that actually closes (after the settle-confirm has
+ * passed for a finished build; immediately for an errored or canceled one,
+ * which has no settle to wait for). Re-reads the same `build` the decision was
+ * made from rather than taking a flag, so there is nothing here that can print
+ * the wrong words for the exit code just decided.
+ */
+function printTerminalCloser(build: NonNullable<BuildStatusResponse['getBuildStatus']>): void {
+  const { runStatus, viewStatusesCount, diffScopeInfo } = build;
+
+  if (runStatus === 'error' || runStatus === 'canceled') {
+    emit({ kind: 'blank-line' });
+    emit({ kind: 'verdict-run-errored', runStatus, runError: build.runError });
+    emit({ kind: 'blank-line' });
+    return;
+  }
+
+  if (routesThroughSparseVerdict(build)) {
+    printSparseCloser(build);
+    return;
+  }
+
+  // runStatus is 'finished' here (the only other caller-guaranteed terminal
+  // state), with viewStatusesCount already confirmed present by the decision.
+  const { unreviewed, reported } = viewStatusesCount!;
+
+  emit({ kind: 'blank-line' });
+  if (unreviewed === 0 && reported === 0) {
+    const serverBypassReason = getServerBypassReason(diffScopeInfo);
+    if (serverBypassReason) {
+      // Server-bypassed build (SHERLO-1952): there is nothing to review (zero
+      // new screenshots) and the review page cannot render this build shape
+      // yet (SHERLO-1974), so the closer stays compact and points at no URL.
+      // The caller (printCapturePlanAndCloser) has already withheld the review
+      // URL for a bypassed build, so omitting it here loses no link.
+      printServerBypassCloser(serverBypassReason);
+    } else {
+      // No verbatim reason -> today's generic message. Covers the
+      // forward-compat degrade of a counts-bypassed build whose poll carries
+      // no prose, and every ordinary green build. The build's link was
+      // already printed once, right when the build became ready - never
+      // repeated here.
+      emit({ kind: 'verdict-passed' });
+    }
+  } else {
+    emit({ kind: 'verdict-review-required', unreviewed, reported });
+  }
+  emit({ kind: 'blank-line' });
+}
+
+/**
+ * PRINTING half of the finished branch for a build the server marked
+ * `showsOnlyBranchChanges` - the sparse-build redesign's CLI half, and the
+ * ONLY new closing path in this file. The DECIDING half lives inline in
+ * {@link decideTerminalState}, which calls {@link decideSparseBuildVerdict}
+ * directly for just its exit code; this function re-derives the same verdict
+ * to emit its words, called only once {@link decideTerminalState} has already
+ * confirmed the build terminal.
  *
  * It emits the same frame every closer in this loop has always sat inside (one
  * blank line above, one below), and inside it either the sparse verdict's
@@ -375,17 +413,17 @@ function evaluateTerminalState(
  * Its exit code is `EXIT_GREEN` on both paths, so precedence changes the words
  * and never the verdict.
  *
- * `null` means "not terminal, poll again", the same answer the ungated branch
- * gives for a counts race. It is unreachable from the current call site (which
- * has already checked both) and is returned rather than assumed, because a
- * false GREEN is the one answer that must never be reachable by accident.
+ * A `null` verdict here (the counts race the ungated branch also guards
+ * against) is unreachable in practice - the caller only ever reaches this
+ * function after {@link decideTerminalState} decided the SAME build terminal
+ * off the SAME check - and is treated as "print nothing" rather than assumed
+ * impossible, because a false closer is the one answer that must never be
+ * reachable by accident.
  */
-function closeUnderSparseRules(
-  build: NonNullable<BuildStatusResponse['getBuildStatus']>
-): number | null {
+function printSparseCloser(build: NonNullable<BuildStatusResponse['getBuildStatus']>): void {
   const verdict = decideSparseBuildVerdict(build);
   if (!verdict) {
-    return null;
+    return;
   }
 
   emit({ kind: 'blank-line' });
@@ -400,7 +438,6 @@ function closeUnderSparseRules(
   }
 
   emit({ kind: 'blank-line' });
-  return verdict.exitCode;
 }
 
 /**

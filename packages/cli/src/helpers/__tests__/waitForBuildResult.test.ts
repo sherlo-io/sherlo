@@ -1102,4 +1102,124 @@ describe('waitForBuildResult settles stories[] before closing on a finished buil
     expect(await promise).toBe(EXIT_ERROR);
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
+
+  /**
+   * Counts console.log calls whose FIRST argument contains `text` - the verdict
+   * lines this loop prints are each their own `console.log` call (one line per
+   * emitted segment), so counting matching calls is counting printed verdicts.
+   */
+  function countPrinted(logSpy: ReturnType<typeof vi.spyOn>, text: string): number {
+    return logSpy.mock.calls.filter((call: unknown[]) => String(call[0] ?? '').includes(text))
+      .length;
+  }
+
+  it('a finished build with stories prints its verdict once - after the settle-confirm re-read, never before it', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    // Same two stories on both reads: the first read stores the fingerprint and
+    // waits out SETTLE_CONFIRM_MS, the second confirms it unchanged and closes.
+    // Before this fix, the closer printed on BOTH reads.
+    mockGraphqlResponse(200, finished([story('Hello - Basic', 1), story('Typography - Dense', 1)]));
+    mockGraphqlResponse(200, finished([story('Hello - Basic', 1), story('Typography - Dense', 1)]));
+
+    const promise = waitForBuildResult({
+      token: TOKEN,
+      buildIndex: BUILD_INDEX,
+      projectIndex: PROJECT_INDEX,
+      teamId: TEAM_ID,
+    });
+    await vi.runAllTimersAsync();
+
+    expect(await promise).toBe(EXIT_GREEN);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(countPrinted(logSpy, 'All stories passed')).toBe(1);
+
+    logSpy.mockRestore();
+  });
+
+  it('a finished build that carries no stories, and an errored or canceled build, still close on the first read with one verdict', async () => {
+    // No `stories[]` at all - nothing to settle, so the single read both
+    // decides and closes.
+    const noStoriesLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    mockGraphqlResponse(200, finished(undefined));
+
+    const noStoriesPromise = waitForBuildResult({
+      token: TOKEN,
+      buildIndex: BUILD_INDEX,
+      projectIndex: PROJECT_INDEX,
+      teamId: TEAM_ID,
+    });
+    await vi.runAllTimersAsync();
+
+    expect(await noStoriesPromise).toBe(EXIT_GREEN);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(countPrinted(noStoriesLog, 'All stories passed')).toBe(1);
+    noStoriesLog.mockRestore();
+
+    mockFetch.mockReset();
+
+    // Errored - no comparison to wait for, closes on the first read.
+    const erroredLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    mockGraphqlResponse(200, buildResponse('error', undefined, 'boom'));
+
+    const erroredPromise = waitForBuildResult({
+      token: TOKEN,
+      buildIndex: BUILD_INDEX,
+      projectIndex: PROJECT_INDEX,
+      teamId: TEAM_ID,
+    });
+    await vi.runAllTimersAsync();
+
+    expect(await erroredPromise).toBe(EXIT_ERROR);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(countPrinted(erroredLog, 'Build ended in "error" state')).toBe(1);
+    erroredLog.mockRestore();
+
+    mockFetch.mockReset();
+
+    // Canceled - same as errored, no settle to wait for.
+    const canceledLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    mockGraphqlResponse(200, buildResponse('canceled'));
+
+    const canceledPromise = waitForBuildResult({
+      token: TOKEN,
+      buildIndex: BUILD_INDEX,
+      projectIndex: PROJECT_INDEX,
+      teamId: TEAM_ID,
+    });
+    await vi.runAllTimersAsync();
+
+    expect(await canceledPromise).toBe(EXIT_ERROR);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(countPrinted(canceledLog, 'Build ended in "canceled" state')).toBe(1);
+    canceledLog.mockRestore();
+  });
+
+  it('a finished build whose stories move between reads prints nothing until they stop, then one verdict', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    // Three unsettled reads (the story list keeps changing), then a fourth that
+    // finally repeats the third - only that last read may print.
+    mockGraphqlResponse(200, finished([story('Hello - Basic', 1)]));
+    mockGraphqlResponse(
+      200,
+      finished([story('Hello - Basic', 1), story('Typography - Dense', null)])
+    );
+    mockGraphqlResponse(200, finished([story('Hello - Basic', 1), story('Typography - Dense', 1)]));
+    mockGraphqlResponse(200, finished([story('Hello - Basic', 1), story('Typography - Dense', 1)]));
+
+    const promise = waitForBuildResult({
+      token: TOKEN,
+      buildIndex: BUILD_INDEX,
+      projectIndex: PROJECT_INDEX,
+      teamId: TEAM_ID,
+    });
+    await vi.runAllTimersAsync();
+
+    expect(await promise).toBe(EXIT_GREEN);
+    expect(mockFetch).toHaveBeenCalledTimes(4);
+    expect(countPrinted(logSpy, 'All stories passed')).toBe(1);
+
+    logSpy.mockRestore();
+  });
 });
