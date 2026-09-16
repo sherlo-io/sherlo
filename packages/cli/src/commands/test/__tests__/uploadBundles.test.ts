@@ -127,7 +127,11 @@ describe('uploadBundles', () => {
       projectIndex: 1,
       teamId: 't',
     });
-    expect(effects.uploadBundle).toBe(mocks.uploadStagedArtifacts);
+    // The upload goes through the machine seam in force (../../seams/nativeBuild), which on the
+    // real machine is `uploadStagedArtifacts` - so the effect is a thunk onto it, not the function.
+    const uploadParams = { platform: 'ios', slots: {} } as any;
+    await effects.uploadBundle(uploadParams);
+    expect(mocks.uploadStagedArtifacts).toHaveBeenCalledWith(uploadParams);
   });
 });
 
