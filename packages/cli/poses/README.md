@@ -41,6 +41,13 @@ quietly rewrite its own baseline is not a ratchet.
   command actually made the call with.
 - `masks` - placeholders for values only a machine knows. The temporary project folder and the
   resolved config path are folded without being asked.
+- `push` - what a real push (`test --android <apk>`) read off the machine: per binary, what the
+  tool found inside the file (its hash, its size, the SDK baked in, whether it embeds a bundle,
+  the gate facts); the base fingerprint, or why there was none; and the clock. The one optional
+  field - only that road reads the machine, and a pose that states it for any other command is
+  refused. The server's two answers on that road (`getNextBuildInfo`, `getStagedUploadUrls`) are
+  scripted in `api` like every other call; `reuse` on the first is what the
+  `reusing unchanged build (Test 1, 7 minutes ago)` line is printed from.
 
 ## What a pose may not say
 
@@ -54,16 +61,15 @@ what reaches the screen is the tool's own word for them, which is what a real ru
 
 ## Open seams
 
-`binary-abi-x86-only` (a native build whose libraries carry no arm64 slice) poses what the tool
-reads OUT OF A BINARY, not a file's bytes. That is a fourth seam - the binary inspector - and it is
-not in the contract yet; the scenario stays in the emit road's table until the seam is declared.
+A REAL PUSH IS POSABLE (2026-09-15): `test/push-*` pose `sherlo test --android <apk> --wait` from
+the run header through the verdict, through the fifth seam - `src/seams/nativeBuild.ts`, what the
+tool reads off the machine. `binary-abi-x86-only` (a native build whose libraries carry no arm64
+slice) is now a pose away: `push.binaries.android.androidAbis` without `arm64-v8a`.
 
-`sherlo test --wait` - the staged road's own screen, from the bundling block through the verdict -
-cannot be posed yet, and the catalogue says so by not containing one. That road asks the backend
-two questions the contract does not name (`checkStagedGate`, and the staged upload slots) and
-computes a base fingerprint off a real React Native project before it asks either, so a pose of it
-routes to `native-needed=true` long before it reaches `openBuild`. The verdict screens in
-`view/verdict-*` pose the SAME closers through `sherlo view <build> --wait`, which reaches them
-through `getBuildStatus` alone. The one verdict screen that has no posed form at all is the
-`── details ──` block after `sherlo test --wait --metadata`: its git rows come from the run that
-opened the build, and only the staged road has them to give.
+`sherlo test --wait` WITHOUT build paths - the staged road's own screen - still cannot be posed,
+and the catalogue says so by not containing one. That road asks the backend one question the
+contract does not name (`checkStagedGate`) before it bundles, so a pose of it routes to
+`native-needed=true` long before it reaches `openBuild`. The verdict screens in `view/verdict-*`
+pose the SAME closers through `sherlo view <build> --wait`, which reaches them through
+`getBuildStatus` alone. The `── details ──` block after `sherlo test --wait --metadata` is now
+reachable through a push pose, since the run that opened the build has the git rows to give.

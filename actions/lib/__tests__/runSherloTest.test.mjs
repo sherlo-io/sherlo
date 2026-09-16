@@ -31,7 +31,7 @@ if (process.env.FAKE_KEYS === 'routing') {
 }
 if (process.env.FAKE_KEYS === 'completed') {
   console.log('native-needed=false');
-  console.log('url=https://app.sherlo.io/build/7');
+  console.log('🔗 https://app.sherlo.io/build/7');
 }
 console.error('a line on stderr');
 process.exit(Number(process.env.FAKE_EXIT || 0));

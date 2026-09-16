@@ -62,6 +62,18 @@ describe('sherlo pose runs one command against a declared world', () => {
     expect(exitCode).toBe(1);
   });
 
+  it('a push that reaches the machine with no `push` is refused before any binary on this machine is read', async () => {
+    const { push: _unstated, ...withoutPush } = poseFrom(
+      path.join(POSES_ROOT, 'test', 'push-android-first-build-review-required.pose.json')
+    );
+    const { refusals, screen } = await runPose(withoutPush);
+
+    expect(refusals.map((refusal) => refusal.call)).toEqual(['readBinary']);
+    expect(refusals[0].problem).toContain('states no `push`');
+    // The run stopped at its first read of the machine: no upload line, no build address.
+    expect(screen).not.toContain('uploading build');
+  });
+
   it('a call scripted with different arguments than the command made it with is refused too', async () => {
     const { refusals } = await runPose({
       ...poseFrom(path.join(POSES_ROOT, 'view', 'finished-no-changes.pose.json')),
@@ -80,7 +92,7 @@ describe('sherlo pose runs one command against a declared world', () => {
   });
 
   it('leaves this process exactly as it found it', async () => {
-    // The run swaps the environment, the streams, the console and four seams. A run that left any
+    // The run swaps the environment, the streams, the console and five seams. A run that left any
     // of them swapped would make the NEXT thing in this process - another pose, another test -
     // read the world through a pose it never asked for.
     const environmentBefore = { ...process.env };

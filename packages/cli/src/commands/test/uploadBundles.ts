@@ -24,8 +24,10 @@ import { Platform, StagedPlatformUploadUrls } from '@sherlo/api-types';
 import sdkClient from '@sherlo/sdk-client';
 import chalk from 'chalk';
 import { handleClientError, reporting } from '../../helpers';
+import { nativeBuild } from '../../seams/nativeBuild';
+import { serverCalls } from '../../seams/serverCalls';
 import type { BundleResult } from './buildBundle';
-import uploadStagedArtifacts, { type StagedUploadKeys } from './uploadStagedArtifacts';
+import { type StagedUploadKeys } from './uploadStagedArtifacts';
 
 /**
  * The two effects the upload step performs, as parameters so an expectation
@@ -47,9 +49,12 @@ export type BundleUploadEffects = {
 };
 
 export function realBundleUploadEffects(client: ReturnType<typeof sdkClient>): BundleUploadEffects {
+  // The server and the machine IN FORCE - a posed run installs its own of each
+  // (../../seams/serverCalls, ../../seams/nativeBuild).
   return {
-    requestUploadSlots: (params) => client.getStagedUploadUrls(params).catch(handleClientError),
-    uploadBundle: uploadStagedArtifacts,
+    requestUploadSlots: (params) =>
+      serverCalls().getStagedUploadUrls(client, params).catch(handleClientError),
+    uploadBundle: (params) => nativeBuild().uploadStagedArtifacts(params),
   };
 }
 

@@ -27,7 +27,10 @@ import type {
   BuildStatusAnswer as CliBuildStatusAnswer,
   CommandPose as CliCommandPose,
   DiffScopeDryRunAnswer as CliDiffScopeDryRunAnswer,
+  NextBuildInfoAnswer as CliNextBuildInfoAnswer,
+  PosedBinary as CliPosedBinary,
   PosedBundle as CliPosedBundle,
+  PosedPush as CliPosedPush,
   ScriptedCall as CliScriptedCall,
 } from '../packages/cli/src/commands/pose/readPose';
 import type { BuildStatus } from '../packages/cli/src/helpers/waitForBuildResult';
@@ -35,7 +38,10 @@ import type {
   BuildStatusAnswer,
   CommandPose,
   DiffScopeDryRunAnswer,
+  NextBuildInfoAnswer,
+  PosedBinary,
   PosedBundle,
+  PosedPush,
   ScriptedCall,
 } from './pose.contract';
 
@@ -67,6 +73,15 @@ type CliMatchesPosedBundle = Assert<IsAssignable<CliPosedBundle, PosedBundle>>;
 type DryRunAnswerMatchesCli = Assert<IsAssignable<DiffScopeDryRunAnswer, CliDiffScopeDryRunAnswer>>;
 type CliMatchesDryRunAnswer = Assert<IsAssignable<CliDiffScopeDryRunAnswer, DiffScopeDryRunAnswer>>;
 
+type PosedPushMatchesCli = Assert<IsAssignable<PosedPush, CliPosedPush>>;
+type CliMatchesPosedPush = Assert<IsAssignable<CliPosedPush, PosedPush>>;
+
+type PosedBinaryMatchesCli = Assert<IsAssignable<PosedBinary, CliPosedBinary>>;
+type CliMatchesPosedBinary = Assert<IsAssignable<CliPosedBinary, PosedBinary>>;
+
+type NextBuildInfoMatchesCli = Assert<IsAssignable<NextBuildInfoAnswer, CliNextBuildInfoAnswer>>;
+type CliMatchesNextBuildInfo = Assert<IsAssignable<CliNextBuildInfoAnswer, NextBuildInfoAnswer>>;
+
 /* -------------------------------------------------------------------------- *
  * EXACT: the build the contract poses IS the build the wire sends.            *
  *                                                                            *
@@ -96,7 +111,13 @@ export const POSE_CONTRACT_LAWS: [
   CliMatchesPosedBundle,
   DryRunAnswerMatchesCli,
   CliMatchesDryRunAnswer,
+  PosedPushMatchesCli,
+  CliMatchesPosedPush,
+  PosedBinaryMatchesCli,
+  CliMatchesPosedBinary,
+  NextBuildInfoMatchesCli,
+  CliMatchesNextBuildInfo,
   PosedBuildMatchesWire,
   WireMatchesPosedBuild,
   CliBuildIsTheWire
-] = [true, true, true, true, true, true, true, true, true, true, true];
+] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
