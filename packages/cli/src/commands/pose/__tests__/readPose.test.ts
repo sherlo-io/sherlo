@@ -208,7 +208,9 @@ describe('reading a CommandPose', () => {
       ...push,
       push: {
         now: 'yesterday afternoon',
-        binaries: { android: { ...pushOfOneAndroidBuild().binaries.android, bundleFormat: 'zip', abis: [] } },
+        binaries: {
+          android: { ...pushOfOneAndroidBuild().binaries.android, bundleFormat: 'zip', abis: [] },
+        },
         fingerprint: { hash: 'a1', unavailable: 'no' },
       },
     };
@@ -227,7 +229,12 @@ describe('reading a CommandPose', () => {
         {
           call: 'getNextBuildInfo',
           with: { platforms: ['android'] },
-          answer: { nextBuildIndex: 2, binaries: { android: { reuse: { buildIndex: 1, createdAt: '2026-09-15T11:53:00.000Z' } } } },
+          answer: {
+            nextBuildIndex: 2,
+            binaries: {
+              android: { reuse: { buildIndex: 1, createdAt: '2026-09-15T11:53:00.000Z' } },
+            },
+          },
         },
         { call: 'getStagedUploadUrls', with: { platforms: ['android'] }, answer: {} },
       ],
@@ -237,7 +244,13 @@ describe('reading a CommandPose', () => {
 
     const undecided = {
       ...scripted,
-      api: [{ call: 'getNextBuildInfo', with: { platforms: ['android'] }, answer: { nextBuildIndex: 2, binaries: { android: {} } } }],
+      api: [
+        {
+          call: 'getNextBuildInfo',
+          with: { platforms: ['android'] },
+          answer: { nextBuildIndex: 2, binaries: { android: {} } },
+        },
+      ],
     };
     expect(problemsOf(undecided).join()).toContain('expected `{ upload: true }` or `{ reuse:');
   });

@@ -23,7 +23,11 @@
  */
 import { Platform, StagedPlatformUploadUrls } from '@sherlo/api-types';
 import type { BaseFingerprintResult } from '../helpers/fingerprint';
-import { computeBaseFingerprint, extractGateMetadata, type GateMetadataInput } from '../helpers/fingerprint';
+import {
+  computeBaseFingerprint,
+  extractGateMetadata,
+  type GateMetadataInput,
+} from '../helpers/fingerprint';
 import getLocalBinariesInfo, {
   type LocalBinariesInfo,
 } from '../helpers/getValidatedBinariesInfoAndNextBuildIndex/getBinariesInfoAndNextBuildIndex/getLocalBinariesInfo';
@@ -202,7 +206,9 @@ export function posedNativeBuild(push: PosedPush | undefined): PosedNativeBuild 
     uploadStagedArtifacts: async ({ bundleResult, urls }) => ({
       jsBundleS3Key: urls.jsBundle.s3Key,
       ...(bundleResult.assetsDest ? { assetsS3Key: urls.assets.s3Key } : {}),
-      ...(bundleResult.moduleManifest && urls.manifest ? { manifestS3Key: urls.manifest.s3Key } : {}),
+      ...(bundleResult.moduleManifest && urls.manifest
+        ? { manifestS3Key: urls.manifest.s3Key }
+        : {}),
     }),
   };
 }

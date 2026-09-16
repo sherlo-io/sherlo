@@ -116,7 +116,10 @@ async function uploadOrReuseBuildsAndRunTests({
             command,
           })
         : machine.computeFingerprint(commandParams.projectRoot, command),
-    openBuild: (input) => serverCalls().openBuild(client, input as never).catch(handleClientError),
+    openBuild: (input) =>
+      serverCalls()
+        .openBuild(client, input as never)
+        .catch(handleClientError),
     binaryUpload: {
       readBinary: (buildPath, platform, projectRoot) =>
         machine.readBinaryForUpload(buildPath, platform, projectRoot),
