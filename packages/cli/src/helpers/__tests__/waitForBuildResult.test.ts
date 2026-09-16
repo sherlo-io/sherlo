@@ -63,7 +63,7 @@ function mockGraphqlResponse(status: number, data: unknown) {
   });
 }
 
-describe('waitForBuildResult', () => {
+describe('waitForBuildResult exits with the code its build outcome earns', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     mockFetch.mockReset();
@@ -896,7 +896,7 @@ describe('waitForBuildResult', () => {
 /* it throwing). Real timers - the mocked fetch resolves synchronously.         */
 /* ========================================================================== */
 
-describe('fetchServerBypassReason', () => {
+describe('fetchServerBypassReason reads the bypass reason once and never throws', () => {
   const args = {
     token: TOKEN,
     buildIndex: BUILD_INDEX,
