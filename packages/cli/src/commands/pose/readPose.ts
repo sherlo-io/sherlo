@@ -660,7 +660,9 @@ function readCallAnswer(
           if (!decision) continue;
           if ('upload' in decision) {
             if (decision.upload !== true) {
-              problems.push(`${binaryWhere}.upload: expected \`true\`, got ${describe(decision.upload)}`);
+              problems.push(
+                `${binaryWhere}.upload: expected \`true\`, got ${describe(decision.upload)}`
+              );
             }
             reportUnknownFields(decision, ['upload'], binaryWhere, problems);
           } else if ('reuse' in decision) {
@@ -668,7 +670,12 @@ function readCallAnswer(
             if (reuse) {
               expectNumber(reuse, 'buildIndex', `${binaryWhere}.reuse`, problems);
               expectString(reuse, 'createdAt', `${binaryWhere}.reuse`, problems);
-              reportUnknownFields(reuse, ['buildIndex', 'createdAt'], `${binaryWhere}.reuse`, problems);
+              reportUnknownFields(
+                reuse,
+                ['buildIndex', 'createdAt'],
+                `${binaryWhere}.reuse`,
+                problems
+              );
             }
             reportUnknownFields(decision, ['reuse'], binaryWhere, problems);
           } else {
