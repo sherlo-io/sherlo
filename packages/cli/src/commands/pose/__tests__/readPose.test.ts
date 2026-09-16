@@ -23,6 +23,26 @@ function validPose(): Record<string, unknown> {
   };
 }
 
+/** What a real push of one Android preview build read off the machine - the `push` a valid pose states. */
+function pushOfOneAndroidBuild() {
+  return {
+    now: '2026-09-15T12:00:00.000Z',
+    binaries: {
+      android: {
+        hash: '3f7c1a9e',
+        sizeMb: '48.12',
+        sdkVersion: '2.0.2',
+        hasEmbeddedBundle: true,
+        bundleFormat: 'plain-js',
+        expoUpdatesEnabled: false,
+        hasExpoDevClient: false,
+        androidAbis: ['arm64-v8a'],
+      },
+    },
+    fingerprint: { hash: 'b4c9e2f7' },
+  };
+}
+
 /** The problems a document is refused with, or a failure saying it was accepted. */
 function problemsOf(document: unknown): string[] {
   try {
@@ -167,6 +187,72 @@ describe('reading a CommandPose', () => {
       api: [{ call: 'listTeams', with: {}, answer: null }],
     };
     expect(problemsOf(teamIsNotThere).join()).toContain('only `getBuildStatus` answers `null`');
+  });
+
+  it('refuses a `push` stated for a command that never reads a native build', () => {
+    const viewWithAPush = { ...validPose(), push: pushOfOneAndroidBuild() };
+
+    expect(problemsOf(viewWithAPush).join()).toContain('never reads a native build');
+  });
+
+  it('accepts a `push` on the command that does, and refuses one that says a binary wrong', () => {
+    const push = {
+      ...validPose(),
+      argv: ['test', '--android', 'builds/app.apk'],
+      api: [],
+      push: pushOfOneAndroidBuild(),
+    };
+    expect(readPose(push).push?.binaries.android?.sizeMb).toBe('48.12');
+
+    const wrong = {
+      ...push,
+      push: {
+        now: 'yesterday afternoon',
+        binaries: {
+          android: { ...pushOfOneAndroidBuild().binaries.android, bundleFormat: 'zip', abis: [] },
+        },
+        fingerprint: { hash: 'a1', unavailable: 'no' },
+      },
+    };
+    const problems = problemsOf(wrong);
+    expect(problems.join('\n')).toContain('`push`.now: expected an ISO 8601 instant');
+    expect(problems.join('\n')).toContain('bundleFormat: expected one of');
+    expect(problems.join('\n')).toContain('abis: unknown field');
+    expect(problems.join('\n')).toContain('`push.fingerprint`.unavailable: unknown field');
+  });
+
+  it("reads a push's two server answers, and refuses a binary decision that is neither an upload nor a reuse", () => {
+    const scripted = {
+      ...validPose(),
+      argv: ['test', '--android', 'builds/app.apk'],
+      api: [
+        {
+          call: 'getNextBuildInfo',
+          with: { platforms: ['android'] },
+          answer: {
+            nextBuildIndex: 2,
+            binaries: {
+              android: { reuse: { buildIndex: 1, createdAt: '2026-09-15T11:53:00.000Z' } },
+            },
+          },
+        },
+        { call: 'getStagedUploadUrls', with: { platforms: ['android'] }, answer: {} },
+      ],
+      push: pushOfOneAndroidBuild(),
+    };
+    expect(readPose(scripted).api).toHaveLength(2);
+
+    const undecided = {
+      ...scripted,
+      api: [
+        {
+          call: 'getNextBuildInfo',
+          with: { platforms: ['android'] },
+          answer: { nextBuildIndex: 2, binaries: { android: {} } },
+        },
+      ],
+    };
+    expect(problemsOf(undecided).join()).toContain('expected `{ upload: true }` or `{ reuse:');
   });
 
   it('a document that is not JSON is refused the same way as one that is the wrong shape', () => {

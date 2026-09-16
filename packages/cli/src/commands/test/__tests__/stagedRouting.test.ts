@@ -316,12 +316,12 @@ describe('fast path ran to completion', () => {
     mockCheckStagedGate.mockResolvedValue({ outcome: 'fast', diff: [] });
   });
 
-  it('publishes native-needed=false, opens the build, and returns the review URL', async () => {
-    // The run reached a build, so the link is published as a key too - that is what a CI wrapper
-    // turns into the `url` output. It is published FOR A MACHINE only (operator direction
-    // 2026-09-15): a person at a terminal reads the address once, in the `🔗 Review:` line. The
-    // routing keys this file is about are published either way, so `CI` is stated here rather
-    // than inherited from whatever machine runs the suite.
+  it('publishes native-needed=false, opens the build, and returns the review URL - never as a url= line', async () => {
+    // The run reached a build. The address is printed ONCE, on the `🔗 Review:` line, whoever is
+    // reading (operator ruling 2026-09-15): there is no `url=` key for a machine, the GitHub
+    // Action reads the address off the emoji line (actions/lib/cliOutputs.mjs). The routing keys
+    // this file is about are published either way, so `CI` is stated here rather than inherited
+    // from whatever machine runs the suite.
     process.env.CI = 'true';
 
     const result = await stagedRun({});
@@ -329,14 +329,14 @@ describe('fast path ran to completion', () => {
     const output = outputKeys();
     expect(output['native-needed']).toBe('false');
     expect(output['base-fingerprint']).toBe('BASE_FP');
-    expect(output.url).toBe('http://app/build');
+    expect(output.url).toBeUndefined();
 
     expect(mockOpenBuild).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ url: 'http://app/build' });
     expect(exitSpy).not.toHaveBeenCalled();
   });
 
-  it('publishes the routing keys for a person too, and the url= line is the only difference', async () => {
+  it('publishes the same routing keys for a person, and no url= line either', async () => {
     delete process.env.CI;
 
     await stagedRun({});
