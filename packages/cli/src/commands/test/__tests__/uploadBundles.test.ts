@@ -55,7 +55,7 @@ beforeEach(() => {
   vi.spyOn(console, 'log').mockImplementation(() => {});
 });
 
-describe('uploadBundles', () => {
+describe('uploadBundles asks for one slot per tested platform and uploads each bundle into its own', () => {
   it('requests slots for every tested platform and uploads each bundle into its own', async () => {
     const requestUploadSlots = vi.fn().mockResolvedValue({
       stagedPresignedUploadUrls: { android: ANDROID_URLS, ios: IOS_URLS },
@@ -135,7 +135,7 @@ describe('uploadBundles', () => {
   });
 });
 
-describe('applyBundleToPlatformConfig', () => {
+describe('applyBundleToPlatformConfig writes the bundle fields the runner reads and never the s3 key', () => {
   it('writes every field the runner reads, and the optional keys only when uploaded', () => {
     const platformConfig: Record<string, unknown> = { devices: [], s3Key: 'binary-key' };
 
