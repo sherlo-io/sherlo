@@ -4,10 +4,12 @@
  *
  * `sherlo pose <pose.json|->` runs ONE command the way a user would and prints the whole screen:
  * both streams in the order they were written, then the exit code the real run would have had.
- * The command's code is the shipped code, untouched. What the pose replaces is exactly three
+ * The command's code is the shipped code, untouched. What the pose replaces is exactly five
  * seams the command reaches through: the project folder it reads, the settings and git it
- * consults, and the client it talks to the server with. Everything between those seams - the
- * routing, the checks, the logo, the wording, the help footer - is the customer's road.
+ * consults, what bundling answers, the client it talks to the server with, and - for a real
+ * push - what it reads off the machine (the binary, the base fingerprint, the clock). Everything
+ * between those seams - the routing, the checks, the logo, the wording, the help footer - is the
+ * customer's road.
  *
  * A POSE SAYS INPUTS AND ANSWERS, NEVER WORDS. It cannot supply a sentence, a colour or a line of
  * output; the screen is the output. That is what makes a rendered transcript evidence about the
@@ -31,9 +33,9 @@
  * ------------------------------------------------------------------------
  * WHAT IS REFUSED, AND WHY NOTHING IS GUESSED.
  *
- * Every field below is required. A missing field, an unknown key or a value of the wrong type is
- * refused, and the refusal names EVERY problem in one message, so a hand-written pose is fixed in
- * one pass. A default that quietly filled a gap would let somebody review a state they never asked
+ * Every field below is required, save `push`, which only a real push reads. A missing field, an
+ * unknown key or a value of the wrong type is refused, and the refusal names EVERY problem in one
+ * message, so a hand-written pose is fixed in one pass. A default that quietly filled a gap would let somebody review a state they never asked
  * for. And a call the command makes that the pose did not script is refused too, with the screen
  * so far printed under the refusal: a pose can never pass on a road it did not describe.
  */
@@ -90,6 +92,51 @@ export type CommandPose = {
    * name), so the fold is exact and reviewable.
    */
   masks: Record<string, string>;
+  /**
+   * What a real push (`sherlo test --android <apk> [--ios <app>]`) read off the machine: the
+   * binaries it was handed, the base fingerprint over the project's native inputs, and the clock.
+   * THE ONE OPTIONAL FIELD, because only that road reads the machine - a refusal on it never gets
+   * that far, and no other command opens a binary. A pose that states it for a command that never
+   * reads a native build is refused; a push that reaches the machine with no `push` is refused at
+   * run time, exactly like a call the pose did not script.
+   */
+  push?: PosedPush;
+};
+
+/** What a real push read off the machine, as a pose states it. */
+export type PosedPush = {
+  /** The instant the run read the clock at, ISO 8601 - what "7 minutes ago" on a reuse line is measured against. */
+  now: string;
+  /** The binaries the command was handed, per platform (`android`, `ios`). */
+  binaries: Record<string, PosedBinary>;
+  /** The base fingerprint over the project's native inputs, or why there was none (the tool prints its own warning for it). */
+  fingerprint: { hash: string } | { unavailable: string };
+};
+
+/**
+ * One binary as a pose states it - what the tool would have read out of the file. A pose states
+ * no `buildType`: the tool derives preview-or-development from `hasEmbeddedBundle` by its own
+ * rule, and whether the binary can be a base from the three gate facts by its own rule too.
+ */
+export type PosedBinary = {
+  /** The file's hash, sent to the server to ask whether it has seen this binary. Never printed. */
+  hash: string;
+  /** What the upload line announces, e.g. `"48.12"`. */
+  sizeMb: string;
+  /** The Sherlo SDK version baked into the binary; `null` poses the missing-Sherlo refusal. */
+  sdkVersion: string | null;
+  /** Whether a JS bundle sits at the platform-default path - a preview build has one, a development build does not. */
+  hasEmbeddedBundle: boolean;
+  /** The bundle's format, as the gate reads it off the embedded bundle's header. */
+  bundleFormat: 'plain-js' | 'hermes-bytecode' | 'ram';
+  /** Whether expo-updates is enabled in the binary - an Android binary with it cannot be a base. */
+  expoUpdatesEnabled: boolean;
+  /** Whether the binary carries expo-dev-client. */
+  hasExpoDevClient: boolean;
+  /** The Expo SDK the binary was built with, when it was built with Expo. */
+  expoSdkVersion?: string;
+  /** The ABIs an Android binary carries (`["arm64-v8a"]`); absent for an iOS build. */
+  androidAbis?: string[];
 };
 
 /** One scripted answer. The `call` names the operation as the tool's own client names it. */
@@ -132,7 +179,32 @@ export type ScriptedCall =
       call: 'computeDiffScopeDryRun';
       with: { branch: string; commit: string };
       answer: DiffScopeDryRunAnswer | ApiError;
+    }
+  | {
+      /** A real push's first question: has the server seen these binaries, and which build is next. */
+      call: 'getNextBuildInfo';
+      with: { platforms: string[] };
+      answer: NextBuildInfoAnswer | ApiError;
+    }
+  | {
+      /**
+       * The staged slots a fresh bundle is uploaded into. Scripted so the pose says the call was
+       * made; the answer holds nothing a pose could state, because nothing the tool prints reads it.
+       */
+      call: 'getStagedUploadUrls';
+      with: { platforms: string[] };
+      answer: Record<string, never> | ApiError;
     };
+
+/**
+ * What `getNextBuildInfo` answers: which build comes next and, per binary, whether the server
+ * wants it uploaded or already holds it from an earlier build - `reuse` is what the
+ * `reusing unchanged build (Test 1, 7 minutes ago)` line is printed from.
+ */
+export type NextBuildInfoAnswer = {
+  nextBuildIndex: number;
+  binaries: Record<string, { upload: true } | { reuse: { buildIndex: number; createdAt: string } }>;
+};
 
 /** The error the server sends, as the tool's client surfaces it. */
 export type ApiError = { error: string };

@@ -4,9 +4,10 @@ import { DEFAULT_PROJECT_ROOT, EAS_BUILD_ON_COMPLETE_COMMAND } from '../../../co
 import { BinariesInfo, Command, CommandParams } from '../../../types';
 import handleClientError from '../../handleClientError';
 import reporting from '../../reporting';
+import { nativeBuild } from '../../../seams/nativeBuild';
+import { serverCalls } from '../../../seams/serverCalls';
 import validateBinariesInfo from '../validateBinariesInfo';
 import getBinaryInfo from './getBinaryInfo';
-import getLocalBinariesInfo from './getLocalBinariesInfo';
 
 type Params = EasBuildOnCompleteCommandParams | OtherCommandParams;
 
@@ -35,7 +36,8 @@ async function getBinariesInfoAndNextBuildIndex(
 ): Promise<{ binariesInfo: BinariesInfo; nextBuildIndex: number }> {
   const { command, client, platforms, projectIndex, teamId, android, ios } = params;
 
-  const localBinariesInfo = await getLocalBinariesInfo({
+  // The binaries IN FORCE - a posed run answers these reads from its `push` (../../../seams/nativeBuild).
+  const localBinariesInfo = await nativeBuild().readBinaries({
     paths: { android, ios },
     platforms,
     projectRoot:
@@ -61,8 +63,8 @@ async function getBinariesInfoAndNextBuildIndex(
     level: 'info',
   });
 
-  let { binariesInfo: remoteBinariesInfoOrUploadInfo, nextBuildIndex } = await client
-    .getNextBuildInfo({
+  const { binariesInfo: remoteBinariesInfoOrUploadInfo, nextBuildIndex } = await serverCalls()
+    .getNextBuildInfo(client, {
       binaryHashes: { android: localBinariesInfo.android?.hash, ios: localBinariesInfo.ios?.hash },
       platforms,
       projectIndex,

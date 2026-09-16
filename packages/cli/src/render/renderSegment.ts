@@ -260,20 +260,13 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       };
 
     case 'results-url':
-      // ONE LINK FOR A PERSON, THE `url=` LINE FOR A MACHINE (operator direction 2026-09-15).
-      // The closer used to print the review address twice on every screen. The machine line is
-      // a documented contract a CI job reads (README: "printed by a run that reached a build"),
-      // so it stays exactly where a machine is reading, and a person at a terminal sees the link
-      // once. WHO is reading arrives on the segment - see `helpers/machineIsReading` for why
-      // this layer is handed the answer rather than reading `CI` itself.
+      // THE ADDRESS IS PRINTED ONCE, ON THE LINE WITH THE EMOJI (operator ruling 2026-09-15). The
+      // closer printed it twice under CI - a `url=` line for a machine above the link for a
+      // person - and the ruling is that no screen ever carries the second copy, whoever is
+      // reading. The GitHub Action reads the address off this line (actions/lib/cliOutputs.mjs).
       return {
         stream: 'stdout',
-        prints: [
-          ...(segment.machineIsReading
-            ? renderOutputKeys({ url: segment.url }).map((line) => [line])
-            : []),
-          [`🔗 ${formatLink(segment.url)}\n`],
-        ],
+        prints: [[`🔗 ${formatLink(segment.url)}\n`]],
       };
 
     case 'output-keys':

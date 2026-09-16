@@ -55,7 +55,7 @@ beforeEach(() => {
   vi.spyOn(console, 'log').mockImplementation(() => {});
 });
 
-describe('uploadBundles', () => {
+describe('uploadBundles asks for one slot per tested platform and uploads each bundle into its own', () => {
   it('requests slots for every tested platform and uploads each bundle into its own', async () => {
     const requestUploadSlots = vi.fn().mockResolvedValue({
       stagedPresignedUploadUrls: { android: ANDROID_URLS, ios: IOS_URLS },
@@ -127,11 +127,15 @@ describe('uploadBundles', () => {
       projectIndex: 1,
       teamId: 't',
     });
-    expect(effects.uploadBundle).toBe(mocks.uploadStagedArtifacts);
+    // The upload goes through the machine seam in force (../../seams/nativeBuild), which on the
+    // real machine is `uploadStagedArtifacts` - so the effect is a thunk onto it, not the function.
+    const uploadParams = { platform: 'ios', slots: {} } as any;
+    await effects.uploadBundle(uploadParams);
+    expect(mocks.uploadStagedArtifacts).toHaveBeenCalledWith(uploadParams);
   });
 });
 
-describe('applyBundleToPlatformConfig', () => {
+describe('applyBundleToPlatformConfig writes the bundle fields the runner reads and never the s3 key', () => {
   it('writes every field the runner reads, and the optional keys only when uploaded', () => {
     const platformConfig: Record<string, unknown> = { devices: [], s3Key: 'binary-key' };
 

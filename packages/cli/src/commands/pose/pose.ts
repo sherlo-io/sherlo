@@ -2,13 +2,15 @@
  * `sherlo pose <pose.json|->` - run ONE command against a declared world and print the whole
  * screen it put on a terminal, with the exit code the real run would have had.
  *
- * THE COMMAND'S CODE IS THE SHIPPED CODE. What a pose replaces is the four seams a command
+ * THE COMMAND'S CODE IS THE SHIPPED CODE. What a pose replaces is the five seams a command
  * reaches through, each installed here for the length of one run and taken out afterwards:
  *
  *     ../../seams/projectFiles   the folder it reads
  *     ../../seams/surroundings   the settings it reads, and what git answers
  *     ../../seams/bundler        what bundling answers
  *     ../../seams/serverCalls    what the backend answers
+ *     ../../seams/nativeBuild    what a real push reads off the machine - the binary, the base
+ *                                fingerprint, the clock - and the uploads it makes
  *
  * Everything between those seams - the routing in ../../start, the checks, the logo, the
  * wording, the help footer, the exit code - is the customer's road, unforked. That is what makes
@@ -35,6 +37,7 @@ import { installProjectFiles, posedProjectFiles } from '../../seams/projectFiles
 import { installSurroundings, posedSurroundings } from '../../seams/surroundings';
 import { installBundler, posedBundler } from '../../seams/bundler';
 import { installServerCalls, posedServerCalls } from '../../seams/serverCalls';
+import { installNativeBuild, posedNativeBuild } from '../../seams/nativeBuild';
 import { readPoseDocument, type CommandPose } from './readPose';
 import resolveConfigPath from '../../helpers/getValidatedCommandParams/getNormalizedConfig/resolveConfigPath';
 
@@ -76,12 +79,14 @@ export async function runPose(commandPose: CommandPose): Promise<PosedScreen> {
   const files = posedProjectFiles(commandPose.files);
   const api = posedServerCalls(commandPose.api);
   const world = posedSurroundings({ env: commandPose.env, git: commandPose.git });
+  const machine = posedNativeBuild(commandPose.push);
 
   const uninstall = [
     installProjectFiles(files),
     installSurroundings(world),
     installBundler(posedBundler(commandPose.bundles)),
     installServerCalls(api),
+    installNativeBuild(machine),
     // The settings go in LAST and come out FIRST: the folder above is laid out while this
     // process still has its own environment, and nothing after this line should.
     world.installSettings(),
@@ -116,7 +121,8 @@ export async function runPose(commandPose: CommandPose): Promise<PosedScreen> {
   return {
     screen,
     exitCode: capture.exitCode() ?? (threw ? 1 : 0),
-    refusals: api.refusals(),
+    // A read of the machine the pose could not answer is a refusal exactly as an unscripted call is.
+    refusals: [...api.refusals(), ...machine.refusals()],
     unusedCalls: api.unusedCalls(),
   };
 }

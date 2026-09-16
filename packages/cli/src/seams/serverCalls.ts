@@ -53,6 +53,11 @@ export const DRY_RUN_DECISION_UNAVAILABLE =
 type SdkClient = ReturnType<typeof sdkClient>;
 export type OpenBuildRequest = Parameters<SdkClient['openBuild']>[0];
 export type OpenBuildAnswer = Awaited<ReturnType<SdkClient['openBuild']>>;
+/** The two questions a real push asks before it opens a build - the sdk client's own shapes. */
+export type NextBuildInfoRequest = Parameters<SdkClient['getNextBuildInfo']>[0];
+export type NextBuildInfoAnswer = Awaited<ReturnType<SdkClient['getNextBuildInfo']>>;
+export type StagedUploadUrlsRequest = Parameters<SdkClient['getStagedUploadUrls']>[0];
+export type StagedUploadUrlsAnswer = Awaited<ReturnType<SdkClient['getStagedUploadUrls']>>;
 
 /** Every operation a command asks the backend, and nothing else. */
 export type ServerCalls = {
@@ -79,6 +84,15 @@ export type ServerCalls = {
 
   openBuild(client: SdkClient, request: OpenBuildRequest): Promise<OpenBuildAnswer>;
 
+  /** Has the server seen these binaries, and which build comes next - the push's first question. */
+  getNextBuildInfo(client: SdkClient, request: NextBuildInfoRequest): Promise<NextBuildInfoAnswer>;
+
+  /** The staged slots a fresh bundle is PUT into - asked by every road that uploads one. */
+  getStagedUploadUrls(
+    client: SdkClient,
+    request: StagedUploadUrlsRequest
+  ): Promise<StagedUploadUrlsAnswer>;
+
   computeDiffScopeDryRun(
     client: DryRunDecisionClient,
     request: ComputeDiffScopeDryRunRequest
@@ -104,6 +118,10 @@ export const liveServerCalls: ServerCalls = {
   listProjects: (request) => listProjectsRequest(request),
 
   openBuild: (client, request) => client.openBuild(request),
+
+  getNextBuildInfo: (client, request) => client.getNextBuildInfo(request),
+
+  getStagedUploadUrls: (client, request) => client.getStagedUploadUrls(request),
 
   computeDiffScopeDryRun: (client, request) => {
     // The published sdk-client this repo typechecks against may not carry the query yet, so the
@@ -226,10 +244,28 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
     // The platforms this run opened a build for are the ones its build-run config carries - the
     // command composed that, so it is read off the payload rather than restated by the pose.
     openBuild: async (_client, request) => {
-      const platforms = Object.keys(request.buildRunConfig ?? {});
+      // The config carries `include`/`exclude` beside the platforms, and the standard road writes
+      // a platform key it has no binary for as undefined - so the platforms are the two keys
+      // that hold a config, never every key.
+      const config = (request.buildRunConfig ?? {}) as Record<string, unknown>;
+      const platforms = ['android', 'ios'].filter((platform) => config[platform] !== undefined);
       const answer = answerFor('openBuild', { platforms }) as { buildIndex: number; url: string };
 
       return openBuildAnswerOf(answer.buildIndex, platforms as Platform[]);
+    },
+
+    getNextBuildInfo: async (_client, request) => {
+      const answer = answerFor('getNextBuildInfo', {
+        platforms: request.platforms,
+      }) as NextBuildInfoScript;
+
+      return nextBuildInfoAnswerOf(answer, request.platforms);
+    },
+
+    getStagedUploadUrls: async (_client, request) => {
+      answerFor('getStagedUploadUrls', { platforms: request.platforms });
+
+      return stagedUploadUrlsAnswerOf(request.platforms);
     },
 
     computeDiffScopeDryRun: async (_client, request) =>
@@ -257,6 +293,70 @@ function openBuildAnswerOf(buildIndex: number, platforms: Platform[]): OpenBuild
     build: { index: buildIndex },
     buildRun: { config: Object.fromEntries(platforms.map((platform) => [platform, {}])) },
   } as unknown as OpenBuildAnswer;
+}
+
+/** What a pose says the server answered about each binary: a slot to upload it into, or the build it already has it from. */
+type NextBuildInfoScript = {
+  nextBuildIndex: number;
+  binaries: Record<string, { upload: true } | { reuse: { buildIndex: number; createdAt: string } }>;
+};
+
+/**
+ * The `getNextBuildInfo` response the tool reads, from the two facts a pose states about it.
+ *
+ * A pose says which build comes next and, per binary, whether the server wants it uploaded or
+ * already holds it from an earlier build. The slot address and the storage key are the server's
+ * own business - nothing the tool prints reads either - so they are stand-ins here, shaped the
+ * way the tool tells an upload from a reuse: an upload has a `url`, a reuse has none.
+ */
+function nextBuildInfoAnswerOf(
+  script: NextBuildInfoScript,
+  platforms: NextBuildInfoRequest['platforms']
+): NextBuildInfoAnswer {
+  const binariesInfo: Record<string, unknown> = {};
+
+  for (const platform of platforms) {
+    const scripted = script.binaries[platform];
+    if (!scripted) continue;
+
+    binariesInfo[platform] =
+      'upload' in scripted
+        ? { s3Key: `posed/${platform}/binary`, url: `https://posed.upload/${platform}` }
+        : {
+            s3Key: `posed/${platform}/build-${scripted.reuse.buildIndex}`,
+            buildIndex: scripted.reuse.buildIndex,
+            buildCreatedAt: scripted.reuse.createdAt,
+          };
+  }
+
+  return { binariesInfo, nextBuildIndex: script.nextBuildIndex } as unknown as NextBuildInfoAnswer;
+}
+
+/**
+ * The `getStagedUploadUrls` response the tool reads. A pose states nothing about it beyond that
+ * the call was made: the slots are addresses the posed machine never sends to, and the keys they
+ * carry reach the build config the tool composes, never the screen.
+ */
+function stagedUploadUrlsAnswerOf(
+  platforms: StagedUploadUrlsRequest['platforms']
+): StagedUploadUrlsAnswer {
+  const slot = (platform: string, artifact: string) => ({
+    url: `https://posed.upload/${platform}/${artifact}`,
+    s3Key: `posed/${platform}/${artifact}`,
+  });
+
+  return {
+    stagedPresignedUploadUrls: Object.fromEntries(
+      platforms.map((platform: string) => [
+        platform,
+        {
+          jsBundle: slot(platform, 'bundle'),
+          assets: slot(platform, 'assets'),
+          manifest: slot(platform, 'manifest'),
+        },
+      ])
+    ),
+  } as unknown as StagedUploadUrlsAnswer;
 }
 
 /** The first argument the pose and the command disagree about, said in one sentence. */

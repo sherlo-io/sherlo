@@ -17,19 +17,30 @@
 /** The exit code `sherlo test` uses for "a native build is needed first". */
 export const EXIT_NATIVE_NEEDED = 4;
 
-/** Every key the CLI publishes, and therefore every output this action exposes. */
+/** Every output this action exposes: the three routing keys the CLI prints, and the review address. */
 export const OUTPUT_KEYS = ['native-needed', 'reason', 'base-fingerprint', 'url'];
+
+/** The routing keys, printed as `key=value` lines. */
+const KEY_LINE_KEYS = ['native-needed', 'reason', 'base-fingerprint'];
+
+/**
+ * THE REVIEW ADDRESS IS READ OFF THE `🔗` LINE (operator ruling 2026-09-15). A run that reached a
+ * build prints its address once, on the line with the emoji (`🔗 <url>` on the standard road,
+ * `🔗 Review: <url>` on the staged one), and never as a `url=` line - the same address twice on a
+ * screen was the defect. The address is the last `http(s)://` word on that line.
+ */
+const LINK_LINE_PATTERN = /^\u{1F517}\s.*?(https?:\/\/\S+)\s*$/u;
 
 /** Colour codes, so a coloured line still parses (the CLI drops colour off a TTY). */
 // eslint-disable-next-line no-control-regex
 const ANSI_PATTERN = /\x1b\[[0-9;]*[a-zA-Z]/g;
 
 /**
- * Every published key found in the CLI's output, as a plain object. A key the CLI
+ * Every published output found in the CLI's screen, as a plain object. An output the CLI
  * did not print is ABSENT - never an empty string, which a caller could not tell
  * from a real empty answer.
  *
- * A key printed more than once keeps its LAST value: later output describes a
+ * An output printed more than once keeps its LAST value: later output describes a
  * later stage of the same run.
  */
 export function parseCliOutputs(output) {
@@ -37,11 +48,18 @@ export function parseCliOutputs(output) {
 
   for (const rawLine of String(output).split('\n')) {
     const line = rawLine.replace(ANSI_PATTERN, '').trim();
+
+    const link = LINK_LINE_PATTERN.exec(line);
+    if (link) {
+      outputs.url = link[1];
+      continue;
+    }
+
     const separator = line.indexOf('=');
     if (separator === -1) continue;
 
     const key = line.slice(0, separator);
-    if (!OUTPUT_KEYS.includes(key)) continue;
+    if (!KEY_LINE_KEYS.includes(key)) continue;
 
     outputs[key] = line.slice(separator + 1);
   }

@@ -35,9 +35,7 @@ const FAST_RUN_OUTPUT = [
   'reason=the registered base still matches this commit - running JS-only',
   'base-fingerprint=BASE_FP',
   '',
-  'url=https://app.sherlo.io/build/7',
-  '',
-  'Review: https://app.sherlo.io/build/7',
+  '🔗 Review: https://app.sherlo.io/build/7',
 ].join('\n');
 
 describe('parseCliOutputs', () => {
@@ -54,7 +52,7 @@ describe('parseCliOutputs', () => {
   });
 
   it('keeps the whole value when it contains an "=" of its own', () => {
-    expect(parseCliOutputs('url=https://app.sherlo.io/build?index=7&team=abc').url).toBe(
+    expect(parseCliOutputs('🔗 https://app.sherlo.io/build?index=7&team=abc').url).toBe(
       'https://app.sherlo.io/build?index=7&team=abc'
     );
   });

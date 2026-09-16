@@ -18,6 +18,8 @@ import type { ValidatedBinariesInfo } from '../types';
 import getAppBuildUrl from './getAppBuildUrl';
 import getBuildRunConfig from './getBuildRunConfig';
 import { getGitInfo } from '../seams/surroundings';
+import { nativeBuild } from '../seams/nativeBuild';
+import { serverCalls } from '../seams/serverCalls';
 import getTokenParts from './getTokenParts';
 import getValidatedBinariesInfoAndNextBuildIndex from './getValidatedBinariesInfoAndNextBuildIndex';
 import handleClientError from './handleClientError';
@@ -26,9 +28,7 @@ import printBuildIntroMessage from './printBuildIntroMessage';
 import printResultsUrl from './printResultsUrl';
 import reporting from './reporting';
 import throwError from './throwError';
-import { computeBaseFingerprint, registerBase, type GateMetadataInput } from './fingerprint';
-import { REAL_BASE_REGISTRATION_EFFECTS } from './fingerprint/registerBase';
-import { REAL_BINARY_UPLOAD_EFFECTS } from './uploadOrPrintBinaryReuse/uploadBuild';
+import { registerBase, type GateMetadataInput } from './fingerprint';
 import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
 import waitForBuildResult from './waitForBuildResult';
 
@@ -89,8 +89,11 @@ async function uploadOrReuseBuildsAndRunTests({
 
   const command = TEST_COMMAND;
 
+  // THE SEAMS IN FORCE, not the real machine by name: a posed run installs its own machine and
+  // server (../seams/nativeBuild, ../seams/serverCalls) and this spine never learns which it got.
+  const machine = nativeBuild();
   const io: PushEffects = effects ?? {
-    now: () => new Date(),
+    now: () => machine.now(),
     resolveBinaries: () =>
       getValidatedBinariesInfoAndNextBuildIndex({
         client,
@@ -112,10 +115,19 @@ async function uploadOrReuseBuildsAndRunTests({
             platforms: platformsWithBinaries(commandParams),
             command,
           })
-        : computeBaseFingerprint(commandParams.projectRoot, { command }),
-    openBuild: (input) => client.openBuild(input as never).catch(handleClientError),
-    binaryUpload: REAL_BINARY_UPLOAD_EFFECTS,
-    baseRegistration: REAL_BASE_REGISTRATION_EFFECTS,
+        : machine.computeFingerprint(commandParams.projectRoot, command),
+    openBuild: (input) =>
+      serverCalls()
+        .openBuild(client, input as never)
+        .catch(handleClientError),
+    binaryUpload: {
+      readBinary: (buildPath, platform, projectRoot) =>
+        machine.readBinaryForUpload(buildPath, platform, projectRoot),
+      putBinary: (uploadUrl, data) => machine.putBinary(uploadUrl, data),
+    },
+    baseRegistration: {
+      extractGateMetadataFor: (params) => machine.extractGateMetadataFor(params),
+    },
     freshBundle: realFreshBundleEffects(client),
   };
 
