@@ -1,0 +1,84 @@
+
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+    [93m.[39m[93md[39m[93m8[39m[93m8[39m[93m8[39m[93m8[39m[93mb[39m  [93m8[39m[93m8[39m[93m8[39m [93m8[39m[93mb[39m[93m.[39m   [97m.[39m[97md[39m[97m8[39m[97m8[39m[97mb[39m[97m.[39m  [97m.[39m[97md[39m[97m8[39m[97m8[39m[97m8[39m[97m8[39m[97m8[39m [97m8[39m[97m8[39m[97m8[39m  [97m.[39m[97md[39m[97m8[39m[97m8[39m[97mb[39m[97m.[39m  
+    [97m8[39m[97m8[39m[97mK[39m      [97m8[39m[97m8[39m[97m8[39m [97m"[39m[97m8[39m[97m8[39m[97mb[39m [97md[39m[97m8[39m[97mP[39m  [97mY[39m[97m8[39m[97mb[39m [97m8[39m[97m8[39m[97m8[39m[97m"[39m    [97m8[39m[97m8[39m[97m8[39m [97md[39m[97m8[39m[97m8[39m[97m"[39m[97m"[39m[97m8[39m[97m8[39m[97mb[39m 
+    [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96mb[39m[96m.[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m 
+         [96mX[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m [96mY[39m[96m8[39m[96mb[39m[96m.[39m     [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m [96mY[39m[96m8[39m[96m8[39m[96m.[39m[96m.[39m[96m8[39m[96m8[39m[96mP[39m 
+    [96m'[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96mP[39m[96m'[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m  [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m  [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96mP[39m[96m"[39m
+
+[2m[3mMake sure your mobile app looks perfect on every device[23m[22m
+
+Initializing Sherlo in your project...
+
+
+[1m✅ Requirements[22m
+[2m═══════════════[22m
+
+[?25l[1G[1G⠋ Checking requirements[1G[0K[?25h[32m✔[39m React Native
+[32m✔[39m Storybook
+
+
+[1m💾 Dependencies[22m
+[2m═══════════════[22m
+
+[?25l[1G[1G⠋ Installing Sherlo[1G[0K[?25h✔ Installed Sherlo
+
+
+[1m🧩 Metro Config[22m
+[2m═══════════════[22m
+
+[32m✔[39m Updated: <PROJECT_ROOT>/metro.config.js
+
+
+[1m🔑 Storybook Access[22m
+[2m═══════════════════[22m
+
+To enable Sherlo to access Storybook, choose one:
+
+
+[1mOption 1: Standalone Storybook[22m
+
+  Provide a build that [4mopens straight into Storybook[24m
+
+  [34m[2m╭─[22m[39m[34m Root component [39m[34m[2m────────────────────────╮[22m[39m
+  [34m[2m│[22m[39m [36mimport[39m Storybook [36mfrom[39m [35m"./.rnstorybook"[39m; [34m[2m│[22m[39m
+  [34m[2m│[22m[39m                                         [34m[2m│[22m[39m
+  [34m[2m│[22m[39m [36mexport default function[39m [32mApp[39m() {         [34m[2m│[22m[39m
+  [34m[2m│[22m[39m   [36mreturn[39m <[35mStorybook[39m />;                 [34m[2m│[22m[39m
+  [34m[2m│[22m[39m }                                       [34m[2m│[22m[39m
+  [34m[2m╰─────────────────────────────────────────╯[22m[39m
+
+
+[1mOption 2: Integrated Storybook[22m
+
+  Update your Root component [3m(could be App.jsx or app/_layout.jsx)[23m:
+
+  [34m[2m╭─[22m[39m[34m Root component [39m[34m[2m──────────────────────────────────────────────────╮[22m[39m
+  [34m[2m│[22m[39m [36mimport[39m { isStorybookMode } [36mfrom[39m [35m"@sherlo/react-native-storybook"[39m; [34m[2m│[22m[39m
+  [34m[2m│[22m[39m [36mimport[39m Storybook [36mfrom[39m [35m"./.rnstorybook"[39m;                           [34m[2m│[22m[39m
+  [34m[2m│[22m[39m                                                                   [34m[2m│[22m[39m
+  [34m[2m│[22m[39m [36mexport default function[39m [32mApp[39m() {                                   [34m[2m│[22m[39m
+  [34m[2m│[22m[39m   [36mif[39m (isStorybookMode) {                                          [34m[2m│[22m[39m
+  [34m[2m│[22m[39m     [36mreturn[39m <[35mStorybook[39m />;                                         [34m[2m│[22m[39m
+  [34m[2m│[22m[39m   }                                                               [34m[2m│[22m[39m
+  [34m[2m│[22m[39m                                                                   [34m[2m│[22m[39m
+  [34m[2m│[22m[39m   [36mreturn[39m <[35mYourApp[39m />;                                             [34m[2m│[22m[39m
+  [34m[2m│[22m[39m }                                                                 [34m[2m│[22m[39m
+  [34m[2m╰───────────────────────────────────────────────────────────────────╯[22m[39m
+
+[33mWARNING: Provide Storybook access by choosing one of the options above[39m
+[2m↳ Learn more: [4mhttps://sherlo.io/docs/setup#storybook-access[24m[22m
+
+[1m👉 Ready to move on? Press Enter...[22m
+
+[31mERROR: Setup cancelled[39m
+
+[2m══════════[22m
+[2m[22m
+[2mNeed Help?[22m
+[2m➜ [22m[2mhttps://discord.gg/G7eqTBkWZt[22m
+[2m➜ [22m[2mcontact@sherlo.io[22m
+
+[exit 1]

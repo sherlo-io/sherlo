@@ -4,12 +4,12 @@
  *
  * `sherlo pose <pose.json|->` runs ONE command the way a user would and prints the whole screen:
  * both streams in the order they were written, then the exit code the real run would have had.
- * The command's code is the shipped code, untouched. What the pose replaces is exactly five
- * seams the command reaches through: the project folder it reads, the settings and git it
- * consults, what bundling answers, the client it talks to the server with, and - for a real
- * push - what it reads off the machine (the binary, the base fingerprint, the clock). Everything
- * between those seams - the routing, the checks, the logo, the wording, the help footer - is the
- * customer's road.
+ * The command's code is the shipped code, untouched. What the pose replaces is exactly six seams
+ * the command reaches through: the project folder it reads, the settings and git it consults,
+ * what bundling answers, the client it talks to the server with, what a real push reads off the
+ * machine (the binary, the base fingerprint, the clock), and what an `init` DOES to the machine
+ * (the package it installs, the key it waits for). Everything between those seams - the routing,
+ * the checks, the logo, the wording, the help footer - is the customer's road.
  *
  * A POSE SAYS INPUTS AND ANSWERS, NEVER WORDS. It cannot supply a sentence, a colour or a line of
  * output; the screen is the output. That is what makes a rendered transcript evidence about the
@@ -33,11 +33,12 @@
  * ------------------------------------------------------------------------
  * WHAT IS REFUSED, AND WHY NOTHING IS GUESSED.
  *
- * Every field below is required, save `push`, which only a real push reads. A missing field, an
- * unknown key or a value of the wrong type is refused, and the refusal names EVERY problem in one
- * message, so a hand-written pose is fixed in one pass. A default that quietly filled a gap would let somebody review a state they never asked
- * for. And a call the command makes that the pose did not script is refused too, with the screen
- * so far printed under the refusal: a pose can never pass on a road it did not describe.
+ * Every field below is required, save `push`, which only a real push reads, and `workstation`,
+ * which only an `init` acts through. A missing field, an unknown key or a value of the wrong type
+ * is refused, and the refusal names EVERY problem in one message, so a hand-written pose is fixed
+ * in one pass. A default that quietly filled a gap would let somebody review a state they never
+ * asked for. And a call the command makes that the pose did not script is refused too, with the
+ * screen so far printed under the refusal: a pose can never pass on a road it did not describe.
  */
 
 /** The whole of what one command run needed in order to print what it printed. */
@@ -101,6 +102,30 @@ export type CommandPose = {
    * run time, exactly like a call the pose did not script.
    */
   push?: PosedPush;
+  /**
+   * What `sherlo init` did TO the machine: the package the manager answered the install with, and
+   * whether anybody pressed Enter at the prompt. THE OTHER OPTIONAL FIELD, because `init` is the
+   * only command that ACTS on the machine rather than reading it - it adds a package and it stops
+   * for a key, and neither exists on a machine that only has the pose. A pose that states it for a
+   * command that does neither is refused; an `init` that reaches either act with no `workstation`
+   * is refused at run time, exactly like a call the pose did not script.
+   */
+  workstation?: PosedWorkstation;
+};
+
+/** The two acts `sherlo init` performs on the machine, as a pose states them. */
+export type PosedWorkstation = {
+  /**
+   * What the package manager answered when asked to add Sherlo: the package it installed, version
+   * and all (`"@sherlo/react-native-storybook@2.0.2"`). Checked against the package the command
+   * actually asked for, so a pose cannot answer an install the command never made.
+   */
+  install: { package: string };
+  /**
+   * Whether a person pressed Enter at the prompt, or the terminal was closed on it. `"closed"` is
+   * what a run nobody is watching gets, and the tool's own cancel branch prints for it.
+   */
+  enter: 'pressed' | 'closed';
 };
 
 /** What a real push read off the machine, as a pose states it. */
@@ -194,6 +219,17 @@ export type ScriptedCall =
       call: 'getStagedUploadUrls';
       with: { platforms: string[] };
       answer: Record<string, never> | ApiError;
+    }
+  | {
+      /**
+       * One progress report `sherlo init` sends as it goes, named by the step that sent it
+       * (`"0_init"`, `"3_metro_config"`). The answer is the session the whole setup is recorded
+       * under, which the command carries into the next report - so a pose of an `init` scripts one
+       * of these per step, in order, and a step the pose did not script is refused.
+       */
+      call: 'trackCliInit';
+      with: { event: string };
+      answer: { sessionId: string } | ApiError;
     };
 
 /**

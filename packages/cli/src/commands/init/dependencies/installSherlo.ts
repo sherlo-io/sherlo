@@ -4,7 +4,8 @@ import ora from 'ora';
 import { detect, resolveCommand } from 'package-manager-detector';
 import { join } from 'path';
 import { FULL_INIT_COMMAND, SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../constants';
-import { getCwd, getErrorWithCustomMessage, runShellCommand, throwError } from '../../../helpers';
+import { getCwd, getErrorWithCustomMessage, throwError } from '../../../helpers';
+import { workstation } from '../../../seams/workstation';
 
 async function installSherlo(): Promise<void> {
   const spinner = ora('Installing Sherlo').start();
@@ -39,7 +40,9 @@ async function installSherlo(): Promise<void> {
     ? `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@${sdkVersion}`
     : SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME;
 
-  const packageManager = (await detect())?.name ?? 'npm';
+  // Detected FROM THE PROJECT, not from wherever the process happens to be standing - the project
+  // is what the manager will be run in, and it is what a pose lays out in `files`.
+  const packageManager = (await detect({ cwd: getCwd() }))?.name ?? 'npm';
   const resolvedCommand = resolveCommand(
     packageManager,
     'add',
@@ -61,7 +64,10 @@ async function installSherlo(): Promise<void> {
   const commandToRun = `${command} ${args.join(' ')}`;
 
   try {
-    await runShellCommand({
+    // Through the workstation seam - the one place `sherlo init` acts on the machine it runs on -
+    // so a posed run answers the install from its `workstation` and never starts a real manager.
+    await workstation().addPackage({
+      packageSpec,
       command: commandToRun,
       projectRoot: getCwd(),
       env: packageManager === 'yarn' ? { YARN_ENABLE_IMMUTABLE_INSTALLS: 'false' } : undefined,

@@ -31,6 +31,7 @@ import type {
   PosedBinary as CliPosedBinary,
   PosedBundle as CliPosedBundle,
   PosedPush as CliPosedPush,
+  PosedWorkstation as CliPosedWorkstation,
   ScriptedCall as CliScriptedCall,
 } from '../packages/cli/src/commands/pose/readPose';
 import type { BuildStatus } from '../packages/cli/src/helpers/waitForBuildResult';
@@ -42,6 +43,7 @@ import type {
   PosedBinary,
   PosedBundle,
   PosedPush,
+  PosedWorkstation,
   ScriptedCall,
 } from './pose.contract';
 
@@ -79,6 +81,9 @@ type CliMatchesPosedPush = Assert<IsAssignable<CliPosedPush, PosedPush>>;
 type PosedBinaryMatchesCli = Assert<IsAssignable<PosedBinary, CliPosedBinary>>;
 type CliMatchesPosedBinary = Assert<IsAssignable<CliPosedBinary, PosedBinary>>;
 
+type PosedWorkstationMatchesCli = Assert<IsAssignable<PosedWorkstation, CliPosedWorkstation>>;
+type CliMatchesPosedWorkstation = Assert<IsAssignable<CliPosedWorkstation, PosedWorkstation>>;
+
 type NextBuildInfoMatchesCli = Assert<IsAssignable<NextBuildInfoAnswer, CliNextBuildInfoAnswer>>;
 type CliMatchesNextBuildInfo = Assert<IsAssignable<CliNextBuildInfoAnswer, NextBuildInfoAnswer>>;
 
@@ -115,9 +120,31 @@ export const POSE_CONTRACT_LAWS: [
   CliMatchesPosedPush,
   PosedBinaryMatchesCli,
   CliMatchesPosedBinary,
+  PosedWorkstationMatchesCli,
+  CliMatchesPosedWorkstation,
   NextBuildInfoMatchesCli,
   CliMatchesNextBuildInfo,
   PosedBuildMatchesWire,
   WireMatchesPosedBuild,
   CliBuildIsTheWire
-] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
+] = [
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+];
