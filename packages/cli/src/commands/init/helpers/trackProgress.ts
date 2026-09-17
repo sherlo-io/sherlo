@@ -1,5 +1,6 @@
 import sdkClient from '@sherlo/sdk-client';
 import { getTokenParts, reporting, stripAnsi } from '../../../helpers';
+import { serverCalls } from '../../../seams/serverCalls';
 
 async function trackProgress({
   event,
@@ -31,8 +32,10 @@ async function trackProgress({
     typeof value === 'string' ? stripAnsi(value).trim() : value
   );
 
-  return sdkClient({ authToken: apiToken })
-    .trackCliInit({
+  // Through the server seam, like every other backend call, so a posed `init` answers its progress
+  // reports from the pose's `api` instead of reaching the real backend.
+  return serverCalls()
+    .trackCliInit(sdkClient({ authToken: apiToken }), {
       event,
       stringifiedParams,
       hasStarted,
