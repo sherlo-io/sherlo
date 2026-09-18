@@ -66,6 +66,13 @@ export type ComputeDiffScopeDryRunRequest = {
   teamId: string;
   gitInfo: GitInfo;
   platforms: DiffScopeDryRunPlatformInput[];
+  /**
+   * The config's own include/exclude lists - the SAME narrowing `getBuildRunConfig` sends a real
+   * build. Absent when the config names none, so the server answers unnarrowed, exactly as it did
+   * before these existed.
+   */
+  include?: string[];
+  exclude?: string[];
 };
 
 /** One platform's server result. Mirrors `DiffScopeDryRunPlatformResult`. */
@@ -161,6 +168,13 @@ export type DryRunDecisionInput = {
   projectIndex: number;
   teamId: string;
   platforms: DryRunPlatformRequest[];
+  /**
+   * The config's include/exclude lists, read from the SAME config object `getBuildRunConfig`
+   * reads them from for a real build - not re-read from disk here. Absent when the config names
+   * none.
+   */
+  include?: string[];
+  exclude?: string[];
 };
 
 /**
@@ -228,6 +242,10 @@ export async function requestDryRunDecision(
     teamId: input.teamId,
     gitInfo: input.gitInfo,
     platforms,
+    // Same narrowing a real build sends via getBuildRunConfig - omit rather than send an absent
+    // list, so a config that names neither asks exactly what it asked before these existed.
+    ...(input.include !== undefined ? { include: input.include } : {}),
+    ...(input.exclude !== undefined ? { exclude: input.exclude } : {}),
   });
 
   if (!result || !Array.isArray(result.platforms)) {

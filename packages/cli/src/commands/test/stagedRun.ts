@@ -257,6 +257,8 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       // decision query takes the identical GitInfoInput; do not build a second one.
       resolveGitInfo: () =>
         getGitInfo(commandParams.projectRoot, { branchOverride: commandParams.gitBranch }),
+      include: commandParams.include,
+      exclude: commandParams.exclude,
     });
     return { url: '' };
   }
