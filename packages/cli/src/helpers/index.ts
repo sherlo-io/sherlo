@@ -29,6 +29,7 @@ export { default as printOutputKeys } from './printOutputKeys';
 export { default as printResultsUrl } from './printResultsUrl';
 export { default as printSherloIntro } from './printSherloIntro';
 export { default as reporting } from './reporting';
+export { default as spinner } from './spinner';
 export {
   describeDiffSources,
   GATE_DIFF_LABELS,

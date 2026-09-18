@@ -2,7 +2,7 @@
  * `sherlo pose <pose.json|->` - run ONE command against a declared world and print the whole
  * screen it put on a terminal, with the exit code the real run would have had.
  *
- * THE COMMAND'S CODE IS THE SHIPPED CODE. What a pose replaces is the five seams a command
+ * THE COMMAND'S CODE IS THE SHIPPED CODE. What a pose replaces is the six seams a command
  * reaches through, each installed here for the length of one run and taken out afterwards:
  *
  *     ../../seams/projectFiles   the folder it reads
@@ -11,6 +11,8 @@
  *     ../../seams/serverCalls    what the backend answers
  *     ../../seams/nativeBuild    what a real push reads off the machine - the binary, the base
  *                                fingerprint, the clock - and the uploads it makes
+ *     ../../seams/workstation    what an `init` DOES to the machine - the package it installs,
+ *                                the key it waits for
  *
  * Everything between those seams - the routing in ../../start, the checks, the logo, the
  * wording, the help footer, the exit code - is the customer's road, unforked. That is what makes
@@ -29,6 +31,7 @@
  * of them reaching a screen the real run would not have shown.
  */
 import fs from 'fs';
+import readline from 'readline';
 import { Console } from 'console';
 import { Writable } from 'stream';
 import chalk from 'chalk';
@@ -38,6 +41,7 @@ import { installSurroundings, posedSurroundings } from '../../seams/surroundings
 import { installBundler, posedBundler } from '../../seams/bundler';
 import { installServerCalls, posedServerCalls } from '../../seams/serverCalls';
 import { installNativeBuild, posedNativeBuild } from '../../seams/nativeBuild';
+import { installWorkstation, posedWorkstation } from '../../seams/workstation';
 import { readPoseDocument, type CommandPose } from './readPose';
 import resolveConfigPath from '../../helpers/getValidatedCommandParams/getNormalizedConfig/resolveConfigPath';
 
@@ -80,6 +84,7 @@ export async function runPose(commandPose: CommandPose): Promise<PosedScreen> {
   const api = posedServerCalls(commandPose.api);
   const world = posedSurroundings({ env: commandPose.env, git: commandPose.git });
   const machine = posedNativeBuild(commandPose.push);
+  const acts = posedWorkstation(commandPose.workstation);
 
   const uninstall = [
     installProjectFiles(files),
@@ -87,6 +92,7 @@ export async function runPose(commandPose: CommandPose): Promise<PosedScreen> {
     installBundler(posedBundler(commandPose.bundles)),
     installServerCalls(api),
     installNativeBuild(machine),
+    installWorkstation(acts),
     // The settings go in LAST and come out FIRST: the folder above is laid out while this
     // process still has its own environment, and nothing after this line should.
     world.installSettings(),
@@ -99,6 +105,7 @@ export async function runPose(commandPose: CommandPose): Promise<PosedScreen> {
   const capture = captureBothStreams();
   const restoreArgv = installArgv(commandPose.argv);
   const restoreColour = forceColour();
+  const restoreRedraws = holdTheRedrawsStill();
 
   let threw = false;
   try {
@@ -108,6 +115,7 @@ export async function runPose(commandPose: CommandPose): Promise<PosedScreen> {
     // - so the code is read off the capture, which recorded the FIRST one.
     threw = true;
   } finally {
+    restoreRedraws();
     restoreColour();
     restoreArgv();
     capture.restore();
@@ -121,8 +129,9 @@ export async function runPose(commandPose: CommandPose): Promise<PosedScreen> {
   return {
     screen,
     exitCode: capture.exitCode() ?? (threw ? 1 : 0),
-    // A read of the machine the pose could not answer is a refusal exactly as an unscripted call is.
-    refusals: [...api.refusals(), ...machine.refusals()],
+    // A read of the machine, or an act ON it, that the pose could not answer is a refusal exactly
+    // as an unscripted call is.
+    refusals: [...api.refusals(), ...machine.refusals(), ...acts.refusals()],
     unusedCalls: api.unusedCalls(),
   };
 }
@@ -276,26 +285,48 @@ function captureBothStreams(): {
  * The width is fixed rather than inherited because the boxed refusals wrap to it: a screen
  * rendered at whatever window the renderer happened to have would not be the screen anybody else
  * gets, and the committed catalogue would change with the reader.
+ *
+ * THE CURSOR MOVES ARE PUT ON TOO, and that is not decoration. A stream that says it is a
+ * terminal gets treated as one: the spinner `sherlo init` draws its steps with calls
+ * `cursorTo` and `clearLine` on it, and those methods exist only on a real terminal's stream -
+ * on a pipe's they are simply absent, which is a crash rather than a missing escape. They are
+ * defined here for EVERY run rather than only when missing, because the alternative renders one
+ * set of bytes in somebody's terminal and another in CI: what a real terminal's own method does
+ * is write the escape sequence through {@link readline}, so delegating there IS the native
+ * behaviour, on every machine.
  */
 function pretendTheStreamsAreATerminal(): () => void {
+  const faked = ['isTTY', 'columns', 'cursorTo', 'clearLine', 'moveCursor', 'clearScreenDown'];
+
   const previous = [process.stdout, process.stderr].map((stream) => ({
     stream,
-    isTTY: Object.getOwnPropertyDescriptor(stream, 'isTTY'),
-    columns: Object.getOwnPropertyDescriptor(stream, 'columns'),
+    descriptors: faked.map((name) => ({
+      name,
+      descriptor: Object.getOwnPropertyDescriptor(stream, name),
+    })),
   }));
 
   for (const { stream } of previous) {
-    Object.defineProperty(stream, 'isTTY', { value: true, configurable: true });
-    Object.defineProperty(stream, 'columns', {
-      value: POSED_TERMINAL_WIDTH,
-      configurable: true,
-    });
+    const terminal = {
+      isTTY: true,
+      columns: POSED_TERMINAL_WIDTH,
+      cursorTo: (x: number, y?: number, callback?: () => void) =>
+        readline.cursorTo(stream, x, y, callback),
+      clearLine: (direction: -1 | 0 | 1, callback?: () => void) =>
+        readline.clearLine(stream, direction, callback),
+      moveCursor: (dx: number, dy: number, callback?: () => void) =>
+        readline.moveCursor(stream, dx, dy, callback),
+      clearScreenDown: (callback?: () => void) => readline.clearScreenDown(stream, callback),
+    };
+
+    for (const [name, value] of Object.entries(terminal)) {
+      Object.defineProperty(stream, name, { value, configurable: true, writable: true });
+    }
   }
 
   return () => {
-    for (const { stream, isTTY, columns } of previous) {
-      restoreProperty(stream, 'isTTY', isTTY);
-      restoreProperty(stream, 'columns', columns);
+    for (const { stream, descriptors } of previous) {
+      for (const { name, descriptor } of descriptors) restoreProperty(stream, name, descriptor);
     }
   };
 }
@@ -324,6 +355,43 @@ function forceColour(): () => void {
   chalk.level = 1;
   return () => {
     chalk.level = previous;
+  };
+}
+
+/**
+ * A posed screen is drawn ONCE, so nothing on it may be redrawn on a timer.
+ *
+ * THE SPINNER IS WHY. `sherlo init` draws its steps with a spinner, and a spinner advances its
+ * frame on an interval - so the bytes a run committed would be whichever frame the machine
+ * happened to reach: one frame on a fast machine, another on a loaded one, and a catalogue that
+ * goes red for nobody's change. The frame drawn when the step STARTS is the whole of what a
+ * single-instant transcript can honestly hold, and that one is drawn straight away, before any
+ * interval is asked for.
+ *
+ * So for the length of the run, an interval is set for longer than the run can last and released
+ * from holding the process open. It is a REAL timer, so whoever asked for it can hold it, clear it
+ * and unreference it exactly as always - a stand-in object would break the first caller that did
+ * any of the three - and it simply never comes due. Nothing in this tool's own source sets an
+ * interval; only the spinner's library does, which is what makes a cut this wide precise.
+ */
+function holdTheRedrawsStill(): () => void {
+  /** The longest delay a timer takes. One set for it is one that never comes due. */
+  const NEVER = 2 ** 31 - 1;
+
+  const globals = globalThis as unknown as {
+    setInterval: (callback: () => void, delay: number) => { unref(): unknown };
+  };
+  const realSetInterval = globals.setInterval;
+
+  globals.setInterval = () => {
+    const timer = realSetInterval(() => undefined, NEVER);
+    timer.unref();
+
+    return timer;
+  };
+
+  return () => {
+    globals.setInterval = realSetInterval;
   };
 }
 
