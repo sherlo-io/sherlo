@@ -65,6 +65,15 @@ Twice the two vocabularies differ, on purpose: a pose says `metro` and `hermes-b
 tool prints `rn` and `hbc`. The pose names the bundler and the format a person writing one knows;
 what reaches the screen is the tool's own word for them, which is what a real run prints.
 
+## Open seams
+
+`sherlo test --wait` WITHOUT build paths - the staged road's own screen - still cannot be posed,
+and the catalogue says so by not containing one. That road asks the backend one question the
+contract does not name (`checkStagedGate`) before it bundles, so a pose of it routes to
+`native-needed=true` long before it reaches `openBuild`. The verdict screens in `view/verdict-*`
+pose the SAME closers through `sherlo view <build> --wait`, which reaches them through
+`getBuildStatus` alone.
+
 ## Closed seams
 
 A REAL PUSH IS POSABLE (2026-09-15): `test/push-*` pose `sherlo test --android <apk> --wait` from
@@ -79,15 +88,3 @@ A REAL SETUP IS POSABLE (2026-09-17): `init/*` pose `sherlo init` end to end, th
 `workstation`, the progress reports from `api`, and the project the tool reads - `package.json`,
 `metro.config.js`, and the packages it resolves versions out of under `node_modules/` - is laid out
 in `files` like any other pose's.
-
-`sherlo test --wait` WITHOUT build paths - the staged road's own screen - is posable since
-2026-09-18 (epic legacy-road-closed): the gate the road asks before it bundles is a scripted call
-(`checkStagedGate`, asked once per platform before the bundle and once after it with the bundle's
-real identity), and a wait that runs out is posed through the pose's `clock` - the instants the
-wait reads, in order, so a deadline can pass without a timer. The tester's push saga poses both;
-this catalogue holds a screen for both now: `test/staged-borrows-the-base`, `test/staged-needs-native`
-and `test/staged-no-base` pose the gate's three outcomes, and `test/wait-runs-out` poses a push whose
-clock passes its `--wait-timeout` deadline. The verdict screens in `view/verdict-*` pose the SAME
-closers through `sherlo view <build> --wait`, which reaches them through `getBuildStatus` alone. The
-`── details ──` block after `sherlo test --wait --metadata` is now reachable through a push pose,
-since the run that opened the build has the git rows to give.

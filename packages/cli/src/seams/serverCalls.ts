@@ -101,12 +101,6 @@ export type ServerCalls = {
     request: ComputeDiffScopeDryRunRequest
   ): Promise<ComputeDiffScopeDryRunResult>;
 
-  /** The staged road's gate: can this commit reuse the base registered under this fingerprint? Asked per platform. */
-  checkStagedGate(
-    client: SdkClient,
-    request: CheckStagedGateRequest
-  ): Promise<CheckStagedGateAnswer>;
-
   /**
    * One progress report `sherlo init` sends as it walks its steps. It rides this seam like every
    * other backend call - the two acts init performs ON the machine are the separate
@@ -115,10 +109,6 @@ export type ServerCalls = {
    */
   trackCliInit(client: SdkClient, request: TrackCliInitRequest): Promise<TrackCliInitAnswer>;
 };
-
-/** What the staged gate is asked and what it answers - the sdk client's own shapes. */
-export type CheckStagedGateRequest = Parameters<SdkClient['checkStagedGate']>[0];
-export type CheckStagedGateAnswer = Awaited<ReturnType<SdkClient['checkStagedGate']>>;
 
 /** The shipped answers: the real requests, unchanged. */
 export const liveServerCalls: ServerCalls = {
@@ -159,8 +149,6 @@ export const liveServerCalls: ServerCalls = {
       query as (input: ComputeDiffScopeDryRunRequest) => Promise<ComputeDiffScopeDryRunResult>
     )(request);
   },
-
-  checkStagedGate: (client, request) => client.checkStagedGate(request),
 };
 
 let installed: ServerCalls = liveServerCalls;
@@ -298,14 +286,6 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
         branch: request.gitInfo.branchName,
         commit: request.gitInfo.commitHash,
       }) as ComputeDiffScopeDryRunResult,
-
-    // The gate is asked per platform with the base fingerprint the tool computed; the pose states
-    // both, so a pose cannot answer a question about a base the run never measured.
-    checkStagedGate: async (_client, request) =>
-      answerFor('checkStagedGate', {
-        platform: request.platform,
-        baseFingerprint: request.baseFingerprint,
-      }) as CheckStagedGateAnswer,
 
     // The step that sent the report is the one thing a pose can meaningfully state about it: the
     // params carry whatever that step measured, which the command composed rather than the pose.

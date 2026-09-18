@@ -82,12 +82,7 @@ export type PosedScreen = {
 export async function runPose(commandPose: CommandPose): Promise<PosedScreen> {
   const files = posedProjectFiles(commandPose.files);
   const api = posedServerCalls(commandPose.api);
-  const world = posedSurroundings({
-    env: commandPose.env,
-    git: commandPose.git,
-    clock: commandPose.clock,
-    startedAt: commandPose.push?.now,
-  });
+  const world = posedSurroundings({ env: commandPose.env, git: commandPose.git });
   const machine = posedNativeBuild(commandPose.push);
   const acts = posedWorkstation(commandPose.workstation);
 
