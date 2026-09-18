@@ -146,13 +146,15 @@ describe('reading a CommandPose', () => {
   });
 
   it('refuses an operation the contract does not name, and says which it does', () => {
+    // `checkStagedGate` used to stand in for an operation the contract had not yet named; the
+    // contract has named it since, so a genuinely unknown one takes its place here.
     const unknownCall = {
       ...validPose(),
-      api: [{ call: 'checkStagedGate', with: {}, answer: { outcome: 'fast' } }],
+      api: [{ call: 'deleteEverything', with: {}, answer: {} }],
     };
 
     const said = problemsOf(unknownCall).join();
-    expect(said).toContain('checkStagedGate');
+    expect(said).toContain('deleteEverything');
     expect(said).toContain('`getBuildStatus`');
   });
 
