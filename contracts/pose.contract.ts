@@ -101,6 +101,15 @@ export type CommandPose = {
    * run time, exactly like a call the pose did not script.
    */
   push?: PosedPush;
+  /**
+   * WHAT THE CLOCK ANSWERS WHILE THE COMMAND WAITS, ISO 8601, in the order the wait reads it. A
+   * wait reads the clock once at its start and once before every poll; after the last instant
+   * here the clock stands still. Absent, the clock stands at `push.now` (or at the run's start)
+   * for the whole wait, so a wait ends only when a scripted `getBuildStatus` answer is terminal.
+   * A clock that passes the deadline is how a wait that ran out is posed - the timed-out closer,
+   * and exit code 3. A posed wait never sleeps: the instants here are the whole passage of time.
+   */
+  clock?: string[];
 };
 
 /** What a real push read off the machine, as a pose states it. */
@@ -194,7 +203,29 @@ export type ScriptedCall =
       call: 'getStagedUploadUrls';
       with: { platforms: string[] };
       answer: Record<string, never> | ApiError;
+    }
+  | {
+      /**
+       * The staged road's first question, asked once per platform BEFORE anything is bundled: can
+       * this commit reuse the base registered under this fingerprint? `fast` takes the road;
+       * `full-build-needed` names which layers of the bundle's identity moved (`diff`), and
+       * `not-stageable` is a project that can never take it. The post-bundle check asks the same
+       * question again with the bundle's real identity, so a bare push scripts it TWICE per
+       * platform when the first answer is `fast`.
+       */
+      call: 'checkStagedGate';
+      with: { platform: string; baseFingerprint: string };
+      answer: StagedGateAnswer | ApiError;
     };
+
+/** What the staged gate answers, exactly as the tool's client surfaces it. */
+export type StagedGateAnswer = {
+  outcome: 'fast' | 'full-build-needed' | 'not-stageable';
+  /** The layers of the bundle's identity that moved - named on a refusal, empty otherwise. */
+  diff: Array<
+    'engineClass' | 'assetInventory' | 'expoUpdatesEnabled' | 'sdkProtocolVersion' | 'buildMetadata' | 'bundleFormat'
+  >;
+};
 
 /**
  * What `getNextBuildInfo` answers: which build comes next and, per binary, whether the server

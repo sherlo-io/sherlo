@@ -66,10 +66,12 @@ the run header through the verdict, through the fifth seam - `src/seams/nativeBu
 tool reads off the machine. `binary-abi-x86-only` (a native build whose libraries carry no arm64
 slice) is now a pose away: `push.binaries.android.androidAbis` without `arm64-v8a`.
 
-`sherlo test --wait` WITHOUT build paths - the staged road's own screen - still cannot be posed,
-and the catalogue says so by not containing one. That road asks the backend one question the
-contract does not name (`checkStagedGate`) before it bundles, so a pose of it routes to
-`native-needed=true` long before it reaches `openBuild`. The verdict screens in `view/verdict-*`
-pose the SAME closers through `sherlo view <build> --wait`, which reaches them through
-`getBuildStatus` alone. The `── details ──` block after `sherlo test --wait --metadata` is now
+`sherlo test --wait` WITHOUT build paths - the staged road's own screen - is posable since
+2026-09-18 (epic legacy-road-closed): the gate the road asks before it bundles is a scripted call
+(`checkStagedGate`, asked once per platform before the bundle and once after it with the bundle's
+real identity), and a wait that runs out is posed through the pose's `clock` - the instants the
+wait reads, in order, so a deadline can pass without a timer. The tester's push saga poses both;
+this catalogue does not hold a screen for them yet (the storyline tasks of that epic mint them). The
+verdict screens in `view/verdict-*` pose the SAME closers through `sherlo view <build> --wait`,
+which reaches them through `getBuildStatus` alone. The `── details ──` block after `sherlo test --wait --metadata` is now
 reachable through a push pose, since the run that opened the build has the git rows to give.

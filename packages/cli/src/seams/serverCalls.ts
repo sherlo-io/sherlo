@@ -97,7 +97,14 @@ export type ServerCalls = {
     client: DryRunDecisionClient,
     request: ComputeDiffScopeDryRunRequest
   ): Promise<ComputeDiffScopeDryRunResult>;
+
+  /** The staged road's gate: can this commit reuse the base registered under this fingerprint? Asked per platform. */
+  checkStagedGate(client: SdkClient, request: CheckStagedGateRequest): Promise<CheckStagedGateAnswer>;
 };
+
+/** What the staged gate is asked and what it answers - the sdk client's own shapes. */
+export type CheckStagedGateRequest = Parameters<SdkClient['checkStagedGate']>[0];
+export type CheckStagedGateAnswer = Awaited<ReturnType<SdkClient['checkStagedGate']>>;
 
 /** The shipped answers: the real requests, unchanged. */
 export const liveServerCalls: ServerCalls = {
@@ -136,6 +143,8 @@ export const liveServerCalls: ServerCalls = {
       query as (input: ComputeDiffScopeDryRunRequest) => Promise<ComputeDiffScopeDryRunResult>
     )(request);
   },
+
+  checkStagedGate: (client, request) => client.checkStagedGate(request),
 };
 
 let installed: ServerCalls = liveServerCalls;
@@ -273,6 +282,14 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
         branch: request.gitInfo.branchName,
         commit: request.gitInfo.commitHash,
       }) as ComputeDiffScopeDryRunResult,
+
+    // The gate is asked per platform with the base fingerprint the tool computed; the pose states
+    // both, so a pose cannot answer a question about a base the run never measured.
+    checkStagedGate: async (_client, request) =>
+      answerFor('checkStagedGate', {
+        platform: request.platform,
+        baseFingerprint: request.baseFingerprint,
+      }) as CheckStagedGateAnswer,
   };
 }
 

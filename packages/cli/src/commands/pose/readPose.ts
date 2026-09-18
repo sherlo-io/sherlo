@@ -39,6 +39,15 @@ export type CommandPose = {
    * is refused at run time, like a call the pose did not script.
    */
   push?: PosedPush;
+  /**
+   * WHAT THE CLOCK ANSWERS WHILE THE COMMAND WAITS, ISO 8601, in the order the wait reads it. A
+   * wait reads the clock once at its start and once before every poll; after the last instant
+   * here the clock stands still. Absent, the clock stands at `push.now` (or at the run's start)
+   * for the whole wait, so a wait ends only when a scripted `getBuildStatus` answer is terminal.
+   * A clock that passes the deadline is how a wait that ran out is posed - the timed-out closer,
+   * and exit code 3. A posed wait never sleeps: the instants here are the whole passage of time.
+   */
+  clock?: string[];
 };
 
 /** What a real push read off the machine, as a pose states it. */
@@ -163,7 +172,40 @@ export type ScriptedCall =
       call: 'getStagedUploadUrls';
       with: { platforms: string[] };
       answer: Record<string, never> | ApiError;
+    }
+  | {
+      /**
+       * The staged road's first question, asked once per platform BEFORE anything is bundled: can
+       * this commit reuse the base registered under this fingerprint? `fast` takes the road;
+       * `full-build-needed` names which layers of the bundle's identity moved (`diff`), and
+       * `not-stageable` is a project that can never take it. The post-bundle check asks the same
+       * question again with the bundle's real identity, so a bare push scripts it TWICE per
+       * platform when the first answer is `fast`.
+       */
+      call: 'checkStagedGate';
+      with: { platform: string; baseFingerprint: string };
+      answer: StagedGateAnswer | ApiError;
     };
+
+/** What the staged gate answers, exactly as the tool's client surfaces it. */
+export type StagedGateAnswer = {
+  outcome: 'fast' | 'full-build-needed' | 'not-stageable';
+  /** The layers of the bundle's identity that moved - named on a refusal, empty otherwise. */
+  diff: Array<
+    'engineClass' | 'assetInventory' | 'expoUpdatesEnabled' | 'sdkProtocolVersion' | 'buildMetadata' | 'bundleFormat'
+  >;
+};
+
+/** The outcomes and diff sources the gate can answer with, as the reader checks them. */
+const GATE_OUTCOMES = ['fast', 'full-build-needed', 'not-stageable'];
+const GATE_DIFF_SOURCES = [
+  'engineClass',
+  'assetInventory',
+  'expoUpdatesEnabled',
+  'sdkProtocolVersion',
+  'buildMetadata',
+  'bundleFormat',
+];
 
 /**
  * What the push's first question answers: which build comes next and, per binary, whether the
@@ -186,6 +228,7 @@ export const SCRIPTED_CALL_NAMES = [
   'computeDiffScopeDryRun',
   'getNextBuildInfo',
   'getStagedUploadUrls',
+  'checkStagedGate',
 ] as const;
 
 export type ScriptedCallName = (typeof SCRIPTED_CALL_NAMES)[number];
@@ -236,10 +279,11 @@ export function readPose(document: unknown): CommandPose {
   readApi(pose, problems);
   readStringMap(pose, 'masks', problems);
   readPush(pose, argv, problems);
+  readClock(pose, problems);
 
   reportUnknownFields(
     pose,
-    ['pose', 'argv', 'files', 'env', 'git', 'bundles', 'api', 'masks', 'push'],
+    ['pose', 'argv', 'files', 'env', 'git', 'bundles', 'api', 'masks', 'push', 'clock'],
     '',
     problems
   );
@@ -471,6 +515,23 @@ function readPush(pose: Record<string, unknown>, argv: string[], problems: strin
   reportUnknownFields(push, ['now', 'binaries', 'fingerprint'], '`push`', problems);
 }
 
+/** The instants the clock answers while the command waits - each one an ISO 8601 instant, or the field left out. */
+function readClock(pose: Record<string, unknown>, problems: string[]): void {
+  if (!('clock' in pose)) return;
+
+  const clock = pose.clock;
+  if (!Array.isArray(clock)) {
+    problems.push(`\`clock\`: expected an array of ISO 8601 instants, got ${describe(clock)}`);
+    return;
+  }
+
+  clock.forEach((instant, index) => {
+    if (typeof instant !== 'string' || Number.isNaN(Date.parse(instant))) {
+      problems.push(`\`clock[${index}]\`: expected an ISO 8601 instant, got ${describe(instant)}`);
+    }
+  });
+}
+
 function readApi(pose: Record<string, unknown>, problems: string[]): void {
   const api = pose.api;
 
@@ -553,6 +614,11 @@ function readCallArguments(
     case 'getStagedUploadUrls':
       expectStringArray(args, 'platforms', where, problems);
       reportUnknownFields(args, ['platforms'], where, problems);
+      return;
+    case 'checkStagedGate':
+      expectOneOf(args, 'platform', ['android', 'ios'], where, problems);
+      expectString(args, 'baseFingerprint', where, problems);
+      reportUnknownFields(args, ['platform', 'baseFingerprint'], where, problems);
       return;
   }
 }
@@ -692,6 +758,21 @@ function readCallAnswer(
       // The call is scripted so the pose says it was made; there is nothing in the answer a pose
       // could meaningfully state (see ../../seams/serverCalls, `stagedUploadUrlsAnswerOf`).
       reportUnknownFields(body, [], where, problems);
+      return;
+    case 'checkStagedGate':
+      expectOneOf(body, 'outcome', GATE_OUTCOMES, where, problems);
+      expectStringArray(body, 'diff', where, problems);
+      if (Array.isArray(body.diff)) {
+        body.diff.forEach((source, index) => {
+          if (!GATE_DIFF_SOURCES.includes(source as string)) {
+            problems.push(
+              `${where}.diff[${index}]: ${describe(source)} is not a layer the gate diffs - ` +
+                `one of ${GATE_DIFF_SOURCES.map((name) => `\`${name}\``).join(', ')}`
+            );
+          }
+        });
+      }
+      reportUnknownFields(body, ['outcome', 'diff'], where, problems);
       return;
   }
 }
