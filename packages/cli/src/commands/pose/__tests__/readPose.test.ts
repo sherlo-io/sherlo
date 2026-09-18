@@ -257,6 +257,67 @@ describe('reading a CommandPose', () => {
     expect(problemsOf(undecided).join()).toContain('expected `{ upload: true }` or `{ reuse:');
   });
 
+  it("accepts an openBuild answer's capture decision, and refuses one with a bad platform, field or type", () => {
+    const openBuildPose = (captureDecision: unknown) => ({
+      ...validPose(),
+      argv: ['test', '--wait'],
+      api: [
+        {
+          call: 'openBuild',
+          with: { platforms: ['android'] },
+          answer: { buildIndex: 2, url: 'https://app.sherlo.io/build?b=2', captureDecision },
+        },
+      ],
+    });
+
+    expect(
+      readPose(
+        openBuildPose({
+          platforms: { android: { full: false, storyFilePaths: ['a.stories.tsx'], reason: 'x' } },
+          fullCaptureTriggerReason: 'y',
+          ancestorBuildIndex: 1,
+        })
+      ).api
+    ).toHaveLength(1);
+
+    const problems = problemsOf(
+      openBuildPose({
+        platforms: { windows: { full: 'yes' }, android: { full: true, extra: true } },
+      })
+    );
+
+    expect(problems.join('\n')).toContain('`windows` is not a platform');
+    expect(problems.join('\n')).toContain('.full: expected true or false');
+    expect(problems.join('\n')).toContain('extra: unknown field');
+  });
+
+  it('a story row may state a null reason and null candidates, because the wire sends them', () => {
+    const pose = {
+      ...validPose(),
+      api: [
+        {
+          call: 'getBuildStatus',
+          with: { buildIndex: 7 },
+          answer: {
+            runStatus: 'finished',
+            stories: [
+              { name: 'Storefront/ProductCard', status: 'unreviewed', baseline: null },
+              {
+                name: 'Storefront/Checkout',
+                status: 'noChanges',
+                baseline: { buildIndex: 6 },
+                reason: null,
+                candidates: null,
+              },
+            ],
+          },
+        },
+      ],
+    };
+
+    expect(readPose(pose).api).toHaveLength(1);
+  });
+
   it('a document that is not JSON is refused the same way as one that is the wrong shape', () => {
     expect(() => readPoseDocument('{ not json')).toThrow(PoseRefusal);
     expect(() => readPoseDocument('{ not json')).toThrow('not valid JSON');

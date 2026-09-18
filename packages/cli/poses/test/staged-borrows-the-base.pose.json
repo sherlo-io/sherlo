@@ -78,7 +78,15 @@
       },
       "answer": {
         "buildIndex": 2,
-        "url": "https://app.sherlo.io/build?t=tm000001&p=7&b=2"
+        "url": "https://app.sherlo.io/build?t=tm000001&p=7&b=2",
+        "captureDecision": {
+          "platforms": {
+            "android": {
+              "full": true,
+              "reason": "no main branch set for this project - every build captures every story"
+            }
+          }
+        }
       }
     },
     {

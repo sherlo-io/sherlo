@@ -207,7 +207,9 @@ export type ScriptedCall =
   | {
       call: 'openBuild';
       with: { platforms: string[] };
-      answer: { buildIndex: number; url: string } | ApiError;
+      answer:
+        | { buildIndex: number; url: string; captureDecision?: PosedCaptureDecision }
+        | ApiError;
     }
   | {
       call: 'computeDiffScopeDryRun';
@@ -253,6 +255,36 @@ export type ScriptedCall =
       with: { event: string };
       answer: { sessionId: string } | ApiError;
     };
+
+/**
+ * The server's capture decision at `openBuild`, per platform - what the "📸 Capture plan" block
+ * and the one-line "Diff Scope:" summary print (SHERLO-1919). THE ONE OPTIONAL FIELD ON
+ * `openBuild`'s answer: absent means the server made no decision (an older API, or Diff Scope
+ * off) - the tool prints no plan block and closes straight to the Review link, exactly as it does
+ * today. A platform absent from `platforms` gets the same silent treatment, one platform at a time.
+ */
+export type PosedCaptureDecision = {
+  /** Per platform (`android`, `ios`): whether every story was captured, and which weren't, when not. */
+  platforms: Record<string, PosedPlatformCaptureDecision>;
+  /**
+   * The build-wide reason a FULL capture prints when the platform has none of its own - the
+   * "why:" row under "capturing all N stories" (absent -> the "! couldn't compute what changed"
+   * safety row instead).
+   */
+  fullCaptureTriggerReason?: string;
+  /** The build this decision diffed against - the "inheriting N from build #A" clause. */
+  ancestorBuildIndex?: number;
+};
+
+/** One platform's capture decision, as a pose states it. */
+export type PosedPlatformCaptureDecision = {
+  /** `true` prints "capturing all N stories in this bundle"; `false` prints the partial closure-diff. */
+  full: boolean;
+  /** The story files captured, when `full` is `false`. Ignored (the block reads "all N") when `full` is `true`. */
+  storyFilePaths?: string[];
+  /** The server's per-platform reason, printed verbatim after "why: " (or before the summary's colon). */
+  reason?: string;
+};
 
 /** What the staged gate answers, exactly as the tool's client surfaces it. */
 export type StagedGateAnswer = {
@@ -317,8 +349,10 @@ export type BuildStatusAnswer = {
     name: string;
     status: string;
     baseline: { buildIndex: number } | null;
-    reason?: string;
-    candidates?: Array<{ buildIndex: number }>;
+    /** `null` on a row the wire has nothing to say about - not the same as absent (an older API). */
+    reason?: string | null;
+    /** `null` on a row the wire has nothing to say about - not the same as absent (an older API). */
+    candidates?: Array<{ buildIndex: number }> | null;
   }>;
   /** The build's Diff Scope block. Absent on an older backend. */
   diffScope?: { reason: string; captured: string[]; inherited: string[]; ancestorBuildIndex: number | null };
