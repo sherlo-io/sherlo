@@ -1,0 +1,129 @@
+{
+  "pose": 1,
+  "argv": [
+    "init"
+  ],
+  "files": {
+    "package.json": "{\n  \"name\": \"sherlo-pre-init-tester\",\n  \"version\": \"1.0.0\",\n  \"private\": true,\n  \"main\": \"index.ts\",\n  \"scripts\": {\n    \"android\": \"expo run:android\",\n    \"ios\": \"expo run:ios\",\n    \"start\": \"expo start\",\n    \"storybook\": \"sb-rn-get-stories && expo start\"\n  },\n  \"dependencies\": {\n    \"@babel/core\": \"^7.20.0\",\n    \"@gorhom/bottom-sheet\": \"^5.2.8\",\n    \"@storybook/react-native\": \"^10.4.0\",\n    \"@types/react\": \"~19.1.10\",\n    \"expo\": \"^54.0.0\",\n    \"expo-dev-client\": \"~6.0.15\",\n    \"expo-updates\": \"~29.0.12\",\n    \"react\": \"19.1.0\",\n    \"react-native\": \"0.81.5\",\n    \"react-native-gesture-handler\": \"~2.28.0\",\n    \"react-native-reanimated\": \"~4.1.1\",\n    \"react-native-safe-area-context\": \"~5.6.0\",\n    \"react-native-svg\": \"~15.15.3\",\n    \"react-native-worklets\": \"^0.7.4\",\n    \"storybook\": \"^10.0.0\",\n    \"typescript\": \"~5.9.2\"\n  },\n  \"engines\": {\n    \"node\": \">=18\",\n    \"yarn\": \">=4.3.1\"\n  },\n  \"packageManager\": \"yarn@4.3.1\",\n  \"devDependencies\": {\n    \"@sherlo/react-native-storybook\": \"^2.0.2\"\n  }\n}\n",
+    "metro.config.js": "const path = require('path');\nconst { getDefaultConfig } = require('expo/metro-config');\nconst withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');\n\nconst config = getDefaultConfig(__dirname);\n\nmodule.exports = withStorybook(config, {\n  enabled: true,\n  configPath: path.resolve(__dirname, '.storybook'),\n});",
+    "app.config.js": "const { withAndroidManifest } = require('@expo/config-plugins');\n\n// EXPO-UPDATES IS EXCLUDED FROM THIS APP, for the reason apps/integrated-app-expo/app.config.js\n// gives in full: `sherlo test` splices the bundle it builds into the binary at the platform-default\n// bundle path, and an Android binary with expo-updates enabled would load its JS from the updates\n// runtime instead, so the CLI refuses it. The CLI Init storyline builds this app and pushes it, so\n// the compiled AndroidManifest must carry ZERO `expo.modules.updates.*` meta-data entries - and\n// `updates.enabled: false` alone does not achieve that (SHERLO-1744), only stripping the meta-data\n// after prebuild has written it does.\nconst EXPO_UPDATES_META_PREFIX = 'expo.modules.updates.';\nfunction withoutExpoUpdatesManifest(config) {\n  return withAndroidManifest(config, (config) => {\n    const application = config.modResults.manifest.application?.[0];\n    if (application && Array.isArray(application['meta-data'])) {\n      application['meta-data'] = application['meta-data'].filter(\n        (item) => !item.$?.['android:name']?.startsWith(EXPO_UPDATES_META_PREFIX),\n      );\n    }\n    return config;\n  });\n}\n\nmodule.exports = () => {\n  return {\n    expo: {\n      name: 'Sherlo Pre-Init Tester',\n      slug: 'sherlo-pre-init-tester',\n      owner: 'sherlo',\n      version: '1.0.0',\n      orientation: 'portrait',\n      icon: './assets/icon.png',\n      userInterfaceStyle: 'light',\n      splash: {\n        image: './assets/splash.png',\n        resizeMode: 'contain',\n        backgroundColor: '#ffffff'\n      },\n      newArchEnabled: true,\n      updates: {\n        enabled: false,\n      },\n      plugins: [withoutExpoUpdatesManifest],\n      runtimeVersion: '1.0.0',\n      assetBundlePatterns: ['**/*'],\n      ios: {\n        supportsTablet: true,\n        bundleIdentifier: 'io.sherlo.preinittester',\n        infoPlist: {\n          ITSAppUsesNonExemptEncryption: false\n        }\n      },\n      android: {\n        adaptiveIcon: {\n          foregroundImage: './assets/adaptive-icon.png',\n          backgroundColor: '#ffffff'\n        },\n        package: 'io.sherlo.preinittester'\n      },\n      extra: {\n        eas: {\n          projectId: '0cdafdf4-6d91-4621-9966-b74e13b648cb'\n        }\n      }\n    }\n  };\n};\n",
+    "node_modules/react-native/package.json": {
+      "name": "react-native",
+      "version": "0.81.5",
+      "main": "index.js"
+    },
+    "node_modules/react-native/index.js": "",
+    "node_modules/@storybook/react-native/package.json": {
+      "name": "@storybook/react-native",
+      "version": "10.4.0",
+      "main": "index.js"
+    },
+    "node_modules/@storybook/react-native/index.js": "",
+    "node_modules/expo/package.json": {
+      "name": "expo",
+      "version": "54.0.0",
+      "main": "index.js"
+    },
+    "node_modules/expo/index.js": "",
+    "sherlo.config.json": {
+      "devices": [
+        {
+          "id": "iphone.15.pro",
+          "osVersion": "17"
+        },
+        {
+          "id": "pixel.7.pro",
+          "osVersion": "13"
+        }
+      ]
+    }
+  },
+  "env": {},
+  "git": {
+    "branch": "main",
+    "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c",
+    "dirty": false
+  },
+  "bundles": {},
+  "api": [
+    {
+      "call": "trackCliInit",
+      "with": {
+        "event": "0_init"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
+    },
+    {
+      "call": "trackCliInit",
+      "with": {
+        "event": "1_requirements"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
+    },
+    {
+      "call": "trackCliInit",
+      "with": {
+        "event": "2_dependencies"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
+    },
+    {
+      "call": "trackCliInit",
+      "with": {
+        "event": "3_metro_config"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
+    },
+    {
+      "call": "trackCliInit",
+      "with": {
+        "event": "4_storybook_access"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
+    },
+    {
+      "call": "trackCliInit",
+      "with": {
+        "event": "5_config"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
+    },
+    {
+      "call": "trackCliInit",
+      "with": {
+        "event": "6_builds"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
+    },
+    {
+      "call": "trackCliInit",
+      "with": {
+        "event": "7_testing"
+      },
+      "answer": {
+        "sessionId": "init-session-1"
+      }
+    }
+  ],
+  "masks": {},
+  "workstation": {
+    "install": {
+      "package": "@sherlo/react-native-storybook@2.0.2"
+    },
+    "enter": "pressed"
+  }
+}
