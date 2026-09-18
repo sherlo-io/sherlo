@@ -106,7 +106,11 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     // before the tree renders, and the app that is not waiting yet is an app that missed it.
     try {
       startOpenStoryChannel({ view, channel: getStorybookChannel(view) });
-    } catch (_e) {}
+    } catch (_e) {
+      // Ignored: a Storybook whose channel this could not read, or a device with no reachable
+      // bundler beside it. Either one costs `sherlo open` its road into this app and costs the app
+      // nothing else, so it is not worth crashing the Storybook a developer is working in.
+    }
   }
 
   const isTestingMode = mode === 'testing';
