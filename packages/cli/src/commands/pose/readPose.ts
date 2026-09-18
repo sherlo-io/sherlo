@@ -16,9 +16,11 @@
  * review a state they never asked for. So every field is required, an unknown key is refused by
  * name rather than ignored, and the refusal lists everything it found.
  *
- * The one check here that is about MEANING rather than shape is `bundles`: a pose that supplies
- * bundles to a command that never bundles is describing a step that command does not have, and
- * is refused (see {@link commandBundles}).
+ * The checks here that are about MEANING rather than shape are the three optional-by-command
+ * fields: a pose that supplies `bundles` to a command that never bundles, a `push` to a command
+ * that never reads a native build, or a `workstation` to a command that never acts on the machine
+ * is describing a step that command does not have, and is refused (see {@link commandBundles} and
+ * {@link commandActsOnTheMachine}).
  */
 import type { BuildStatus } from '../../helpers/waitForBuildResult';
 
@@ -48,6 +50,21 @@ export type CommandPose = {
    * and exit code 3. A posed wait never sleeps: the instants here are the whole passage of time.
    */
   clock?: string[];
+  /**
+   * What `sherlo init` did TO the machine: the package the manager answered the install with, and
+   * whether anybody pressed Enter at the prompt. THE OTHER OPTIONAL FIELD, because `init` is the
+   * only command that acts on the machine rather than reading it. A command that acts on the
+   * machine with no `workstation` is refused at run time, like a call the pose did not script.
+   */
+  workstation?: PosedWorkstation;
+};
+
+/** The two acts `sherlo init` performs on the machine, as a pose states them. */
+export type PosedWorkstation = {
+  /** What the package manager answered when asked to add Sherlo: the package it installed. */
+  install: { package: string };
+  /** Whether a person pressed Enter at the prompt, or the terminal was closed on it. */
+  enter: 'pressed' | 'closed';
 };
 
 /** What a real push read off the machine, as a pose states it. */
@@ -185,6 +202,11 @@ export type ScriptedCall =
       call: 'checkStagedGate';
       with: { platform: string; baseFingerprint: string };
       answer: StagedGateAnswer | ApiError;
+    }
+  | {
+      call: 'trackCliInit';
+      with: { event: string };
+      answer: { sessionId: string } | ApiError;
     };
 
 /** What the staged gate answers, exactly as the tool's client surfaces it. */
@@ -234,6 +256,7 @@ export const SCRIPTED_CALL_NAMES = [
   'getNextBuildInfo',
   'getStagedUploadUrls',
   'checkStagedGate',
+  'trackCliInit',
 ] as const;
 
 export type ScriptedCallName = (typeof SCRIPTED_CALL_NAMES)[number];
@@ -285,10 +308,23 @@ export function readPose(document: unknown): CommandPose {
   readStringMap(pose, 'masks', problems);
   readPush(pose, argv, problems);
   readClock(pose, problems);
+  readWorkstation(pose, argv, problems);
 
   reportUnknownFields(
     pose,
-    ['pose', 'argv', 'files', 'env', 'git', 'bundles', 'api', 'masks', 'push', 'clock'],
+    [
+      'pose',
+      'argv',
+      'files',
+      'env',
+      'git',
+      'bundles',
+      'api',
+      'masks',
+      'push',
+      'clock',
+      'workstation',
+    ],
     '',
     problems
   );
@@ -308,6 +344,18 @@ export function readPose(document: unknown): CommandPose {
  */
 function commandBundles(argv: string[]): boolean {
   return argv[0] === 'test';
+}
+
+/**
+ * Whether a command's road ACTS on the machine - runs its package manager, waits on its keyboard -
+ * decided from the FIRST WORD of the command line and nothing else.
+ *
+ * `sherlo init` is the only one. Every other command reads the machine and reports; none of them
+ * installs anything or stops for a key, so a `workstation` supplied to one of those describes two
+ * acts that never happen.
+ */
+function commandActsOnTheMachine(argv: string[]): boolean {
+  return argv[0] === 'init';
 }
 
 /* ========================================================================== */
@@ -537,6 +585,34 @@ function readClock(pose: Record<string, unknown>, problems: string[]): void {
   });
 }
 
+/**
+ * `workstation` is read only when it is there: it is optional because only `sherlo init` acts on
+ * the machine. Stated for a command that does not, it describes two acts that command never
+ * performs, and is refused the way `bundles` and `push` are.
+ */
+function readWorkstation(pose: Record<string, unknown>, argv: string[], problems: string[]): void {
+  if (!('workstation' in pose)) return;
+
+  const workstation = asObject(pose.workstation, '`workstation`', problems);
+  if (!workstation) return;
+
+  if (!commandActsOnTheMachine(argv)) {
+    problems.push(
+      `\`workstation\`: \`${argv[0] ?? ''}\` never installs a package or waits for a key, so ` +
+        'there is no workstation for it to describe. Leave the field out.'
+    );
+  }
+
+  const install = asObject(workstation.install, '`workstation.install`', problems);
+  if (install) {
+    expectString(install, 'package', '`workstation.install`', problems);
+    reportUnknownFields(install, ['package'], '`workstation.install`', problems);
+  }
+
+  expectOneOf(workstation, 'enter', ['pressed', 'closed'], '`workstation`', problems);
+  reportUnknownFields(workstation, ['install', 'enter'], '`workstation`', problems);
+}
+
 function readApi(pose: Record<string, unknown>, problems: string[]): void {
   const api = pose.api;
 
@@ -624,6 +700,10 @@ function readCallArguments(
       expectOneOf(args, 'platform', ['android', 'ios'], where, problems);
       expectString(args, 'baseFingerprint', where, problems);
       reportUnknownFields(args, ['platform', 'baseFingerprint'], where, problems);
+      return;
+    case 'trackCliInit':
+      expectString(args, 'event', where, problems);
+      reportUnknownFields(args, ['event'], where, problems);
       return;
   }
 }
@@ -778,6 +858,12 @@ function readCallAnswer(
         });
       }
       reportUnknownFields(body, ['outcome', 'diff'], where, problems);
+      return;
+    case 'trackCliInit':
+      // The one thing the backend answers a progress report with, and the one thing the command
+      // carries into the next report: the session the whole setup is recorded under.
+      expectString(body, 'sessionId', where, problems);
+      reportUnknownFields(body, ['sessionId'], where, problems);
       return;
   }
 }

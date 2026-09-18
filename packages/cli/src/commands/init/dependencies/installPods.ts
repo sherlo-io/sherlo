@@ -1,11 +1,10 @@
 import chalk from 'chalk';
-import ora from 'ora';
 import { FULL_INIT_COMMAND } from '../../../constants';
-import { getCwd, runShellCommand, throwError } from '../../../helpers';
+import { getCwd, runShellCommand, spinner as createSpinner, throwError } from '../../../helpers';
 import { IOS_DIR } from './constants';
 
 async function installPods(): Promise<void> {
-  const spinner = ora('Installing Pods').start();
+  const spinner = createSpinner('Installing Pods').start();
 
   const command = `cd ${IOS_DIR} && pod install`;
 

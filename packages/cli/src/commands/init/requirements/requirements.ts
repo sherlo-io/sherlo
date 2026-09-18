@@ -1,4 +1,3 @@
-import ora from 'ora';
 import chalk from 'chalk';
 import {
   APP_DOMAIN,
@@ -8,7 +7,13 @@ import {
   STORYBOOK_REACT_NATIVE_PACKAGE_NAME,
   TOKEN_OPTION,
 } from '../../../constants';
-import { isValidToken, printLink, refuseIfPersonalToken, throwError } from '../../../helpers';
+import {
+  isValidToken,
+  printLink,
+  refuseIfPersonalToken,
+  spinner as createSpinner,
+  throwError,
+} from '../../../helpers';
 import { printMessage, printTitle, trackProgress } from '../helpers';
 import { EVENT } from './constants';
 import getPackageVersion from './getPackageVersion';
@@ -34,7 +39,7 @@ async function requirements({ token, sessionId }: { token?: string; sessionId: s
 
   printTitle('✅ Requirements', 15);
 
-  const spinner = ora('Checking requirements').start();
+  const spinner = createSpinner('Checking requirements').start();
 
   await trackProgress({
     event: EVENT,

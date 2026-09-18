@@ -58,6 +58,9 @@ export type NextBuildInfoRequest = Parameters<SdkClient['getNextBuildInfo']>[0];
 export type NextBuildInfoAnswer = Awaited<ReturnType<SdkClient['getNextBuildInfo']>>;
 export type StagedUploadUrlsRequest = Parameters<SdkClient['getStagedUploadUrls']>[0];
 export type StagedUploadUrlsAnswer = Awaited<ReturnType<SdkClient['getStagedUploadUrls']>>;
+/** What one of `sherlo init`'s progress reports is sent with, and what it answers back. */
+export type TrackCliInitRequest = Parameters<SdkClient['trackCliInit']>[0];
+export type TrackCliInitAnswer = Awaited<ReturnType<SdkClient['trackCliInit']>>;
 
 /** Every operation a command asks the backend, and nothing else. */
 export type ServerCalls = {
@@ -103,6 +106,14 @@ export type ServerCalls = {
     client: SdkClient,
     request: CheckStagedGateRequest
   ): Promise<CheckStagedGateAnswer>;
+
+  /**
+   * One progress report `sherlo init` sends as it walks its steps. It rides this seam like every
+   * other backend call - the two acts init performs ON the machine are the separate
+   * ../seams/workstation - so a posed init answers its reports from the pose's `api` and never
+   * reaches the real backend.
+   */
+  trackCliInit(client: SdkClient, request: TrackCliInitRequest): Promise<TrackCliInitAnswer>;
 };
 
 /** What the staged gate is asked and what it answers - the sdk client's own shapes. */
@@ -132,6 +143,8 @@ export const liveServerCalls: ServerCalls = {
   getNextBuildInfo: (client, request) => client.getNextBuildInfo(request),
 
   getStagedUploadUrls: (client, request) => client.getStagedUploadUrls(request),
+
+  trackCliInit: (client, request) => client.trackCliInit(request),
 
   computeDiffScopeDryRun: (client, request) => {
     // The published sdk-client this repo typechecks against may not carry the query yet, so the
@@ -293,6 +306,11 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
         platform: request.platform,
         baseFingerprint: request.baseFingerprint,
       }) as CheckStagedGateAnswer,
+
+    // The step that sent the report is the one thing a pose can meaningfully state about it: the
+    // params carry whatever that step measured, which the command composed rather than the pose.
+    trackCliInit: async (_client, request) =>
+      answerFor('trackCliInit', { event: request.event }) as TrackCliInitAnswer,
   };
 }
 

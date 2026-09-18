@@ -92,7 +92,7 @@ describe('sherlo pose runs one command against a declared world', () => {
   });
 
   it('leaves this process exactly as it found it', async () => {
-    // The run swaps the environment, the streams, the console and five seams. A run that left any
+    // The run swaps the environment, the streams, the console and six seams. A run that left any
     // of them swapped would make the NEXT thing in this process - another pose, another test -
     // read the world through a pose it never asked for.
     const environmentBefore = { ...process.env };

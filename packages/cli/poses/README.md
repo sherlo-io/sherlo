@@ -43,11 +43,17 @@ quietly rewrite its own baseline is not a ratchet.
   resolved config path are folded without being asked.
 - `push` - what a real push (`test --android <apk>`) read off the machine: per binary, what the
   tool found inside the file (its hash, its size, the SDK baked in, whether it embeds a bundle,
-  the gate facts); the base fingerprint, or why there was none; and the clock. The one optional
-  field - only that road reads the machine, and a pose that states it for any other command is
-  refused. The server's two answers on that road (`getNextBuildInfo`, `getStagedUploadUrls`) are
-  scripted in `api` like every other call; `reuse` on the first is what the
+  the gate facts); the base fingerprint, or why there was none; and the clock. Optional - only
+  that road reads the machine, and a pose that states it for any other command is refused. The
+  server's two answers on that road (`getNextBuildInfo`, `getStagedUploadUrls`) are scripted in
+  `api` like every other call; `reuse` on the first is what the
   `reusing unchanged build (Test 1, 7 minutes ago)` line is printed from.
+- `workstation` - what `sherlo init` DID to the machine: `install.package` is the package its
+  package manager answered with, and `enter` is whether a person pressed Enter at the prompt
+  (`"pressed"`) or the terminal was closed on it (`"closed"`, which is the screen ending in
+  `Setup cancelled`). Optional - `init` is the only command that acts on the machine rather than
+  reading it, and a pose that states it for any other command is refused. The progress init
+  reports as it goes rides `api` like every other call, one `trackCliInit` per step, in order.
 
 ## What a pose may not say
 
@@ -59,12 +65,20 @@ Twice the two vocabularies differ, on purpose: a pose says `metro` and `hermes-b
 tool prints `rn` and `hbc`. The pose names the bundler and the format a person writing one knows;
 what reaches the screen is the tool's own word for them, which is what a real run prints.
 
-## Open seams
+## Closed seams
 
 A REAL PUSH IS POSABLE (2026-09-15): `test/push-*` pose `sherlo test --android <apk> --wait` from
-the run header through the verdict, through the fifth seam - `src/seams/nativeBuild.ts`, what the
-tool reads off the machine. `binary-abi-x86-only` (a native build whose libraries carry no arm64
-slice) is now a pose away: `push.binaries.android.androidAbis` without `arm64-v8a`.
+the run header through the verdict, through `src/seams/nativeBuild.ts` - what the tool reads off
+the machine. `binary-abi-x86-only` (a native build whose libraries carry no arm64 slice) is a pose
+away: `push.binaries.android.androidAbis` without `arm64-v8a`. The `── details ──` block after
+`sherlo test --wait --metadata` is reachable through a push pose too, since the run that opened the
+build has the git rows to give.
+
+A REAL SETUP IS POSABLE (2026-09-17): `init/*` pose `sherlo init` end to end, through
+`src/seams/workstation.ts` - what the tool DOES to the machine. The install and the key come from
+`workstation`, the progress reports from `api`, and the project the tool reads - `package.json`,
+`metro.config.js`, and the packages it resolves versions out of under `node_modules/` - is laid out
+in `files` like any other pose's.
 
 `sherlo test --wait` WITHOUT build paths - the staged road's own screen - is posable since
 2026-09-18 (epic legacy-road-closed): the gate the road asks before it bundles is a scripted call
