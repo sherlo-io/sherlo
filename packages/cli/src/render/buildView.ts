@@ -367,8 +367,10 @@ export type ViewMetadataStory = {
   name: string;
   status: string;
   baseline: { buildIndex: number } | null;
-  reason?: string;
-  candidates?: { buildIndex: number }[];
+  /** `null` is a row the wire sent with nothing to say - distinct from absent (an older API). */
+  reason?: string | null;
+  /** `null` is a row the wire sent with nothing to say - distinct from absent (an older API). */
+  candidates?: { buildIndex: number }[] | null;
 };
 
 /**

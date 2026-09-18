@@ -2,6 +2,7 @@ import type { BuildDetailsGitFacts } from '../render/buildView';
 import { buildDetailsOf } from './buildDetails';
 import { AuthError, type BuildStatus, type BuildStatusResponse } from './buildStatusRequest';
 import { serverCalls } from '../seams/serverCalls';
+import { surroundings } from '../seams/surroundings';
 import getTokenParts from './getTokenParts';
 import { emit } from './transcriptSink';
 import { EXIT_BLOCK, EXIT_ERROR, EXIT_GREEN, EXIT_SIGINT, EXIT_TIMEOUT } from './exitCodes';
@@ -48,7 +49,10 @@ async function waitForBuildResult({
   waitTimeoutMinutes,
   serverBypassed = false,
   metadata,
-  now = Date.now,
+  // THE CLOCK IS THE SURROUNDINGS' - the wall clock on a live run, the pose's instants on a posed
+  // one (../seams/surroundings) - and it is read lazily so a seam installed after this module
+  // loaded is still the one consulted.
+  now = () => surroundings().now(),
   pollBuildStatus,
 }: {
   token: string;
@@ -589,8 +593,9 @@ export async function fetchServerBypassReason({
   }
 }
 
+/** Let time pass between polls - a real timer on a live run, nothing at all on a posed one (the pose's clock is the time). */
 function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return surroundings().sleep(ms);
 }
 
 /**

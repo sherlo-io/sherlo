@@ -42,6 +42,15 @@ export type CommandPose = {
    */
   push?: PosedPush;
   /**
+   * WHAT THE CLOCK ANSWERS WHILE THE COMMAND WAITS, ISO 8601, in the order the wait reads it. A
+   * wait reads the clock once at its start and once before every poll; after the last instant
+   * here the clock stands still. Absent, the clock stands at `push.now` (or at the run's start)
+   * for the whole wait, so a wait ends only when a scripted `getBuildStatus` answer is terminal.
+   * A clock that passes the deadline is how a wait that ran out is posed - the timed-out closer,
+   * and exit code 3. A posed wait never sleeps: the instants here are the whole passage of time.
+   */
+  clock?: string[];
+  /**
    * What `sherlo init` did TO the machine: the package the manager answered the install with, and
    * whether anybody pressed Enter at the prompt. THE OTHER OPTIONAL FIELD, because `init` is the
    * only command that acts on the machine rather than reading it. A command that acts on the
@@ -164,7 +173,9 @@ export type ScriptedCall =
   | {
       call: 'openBuild';
       with: { platforms: string[] };
-      answer: { buildIndex: number; url: string } | ApiError;
+      answer:
+        | { buildIndex: number; url: string; captureDecision?: PosedCaptureDecision }
+        | ApiError;
     }
   | {
       call: 'computeDiffScopeDryRun';
@@ -182,10 +193,78 @@ export type ScriptedCall =
       answer: Record<string, never> | ApiError;
     }
   | {
+      /**
+       * The staged road's first question, asked once per platform BEFORE anything is bundled: can
+       * this commit reuse the base registered under this fingerprint? `fast` takes the road;
+       * `full-build-needed` names which layers of the bundle's identity moved (`diff`), and
+       * `not-stageable` is a project that can never take it. The post-bundle check asks the same
+       * question again with the bundle's real identity, so a bare push scripts it TWICE per
+       * platform when the first answer is `fast`.
+       */
+      call: 'checkStagedGate';
+      with: { platform: string; baseFingerprint: string };
+      answer: StagedGateAnswer | ApiError;
+    }
+  | {
       call: 'trackCliInit';
       with: { event: string };
       answer: { sessionId: string } | ApiError;
     };
+
+/**
+ * The server's capture decision at `openBuild`, per platform - what the "📸 Capture plan" block
+ * and the one-line "Diff Scope:" summary print (SHERLO-1919). THE ONE OPTIONAL FIELD ON
+ * `openBuild`'s answer: absent means the server made no decision (an older API, or Diff Scope
+ * off) - the tool prints no plan block and closes straight to the Review link, exactly as it does
+ * today. A platform absent from `platforms` gets the same silent treatment, one platform at a time.
+ */
+export type PosedCaptureDecision = {
+  /** Per platform (`android`, `ios`): whether every story was captured, and which weren't, when not. */
+  platforms: Record<string, PosedPlatformCaptureDecision>;
+  /**
+   * The build-wide reason a FULL capture prints when the platform has none of its own - the
+   * "why:" row under "capturing all N stories" (absent -> the "! couldn't compute what changed"
+   * safety row instead).
+   */
+  fullCaptureTriggerReason?: string;
+  /** The build this decision diffed against - the "inheriting N from build #A" clause. */
+  ancestorBuildIndex?: number;
+};
+
+/** One platform's capture decision, as a pose states it. */
+export type PosedPlatformCaptureDecision = {
+  /** `true` prints "capturing all N stories in this bundle"; `false` prints the partial closure-diff. */
+  full: boolean;
+  /** The story files captured, when `full` is `false`. Ignored (the block reads "all N") when `full` is `true`. */
+  storyFilePaths?: string[];
+  /** The server's per-platform reason, printed verbatim after "why: " (or before the summary's colon). */
+  reason?: string;
+};
+
+/** What the staged gate answers, exactly as the tool's client surfaces it. */
+export type StagedGateAnswer = {
+  outcome: 'fast' | 'full-build-needed' | 'not-stageable';
+  /** The layers of the bundle's identity that moved - named on a refusal, empty otherwise. */
+  diff: Array<
+    | 'engineClass'
+    | 'assetInventory'
+    | 'expoUpdatesEnabled'
+    | 'sdkProtocolVersion'
+    | 'buildMetadata'
+    | 'bundleFormat'
+  >;
+};
+
+/** The outcomes and diff sources the gate can answer with, as the reader checks them. */
+const GATE_OUTCOMES = ['fast', 'full-build-needed', 'not-stageable'];
+const GATE_DIFF_SOURCES = [
+  'engineClass',
+  'assetInventory',
+  'expoUpdatesEnabled',
+  'sdkProtocolVersion',
+  'buildMetadata',
+  'bundleFormat',
+];
 
 /**
  * What the push's first question answers: which build comes next and, per binary, whether the
@@ -208,6 +287,7 @@ export const SCRIPTED_CALL_NAMES = [
   'computeDiffScopeDryRun',
   'getNextBuildInfo',
   'getStagedUploadUrls',
+  'checkStagedGate',
   'trackCliInit',
 ] as const;
 
@@ -259,11 +339,24 @@ export function readPose(document: unknown): CommandPose {
   readApi(pose, problems);
   readStringMap(pose, 'masks', problems);
   readPush(pose, argv, problems);
+  readClock(pose, problems);
   readWorkstation(pose, argv, problems);
 
   reportUnknownFields(
     pose,
-    ['pose', 'argv', 'files', 'env', 'git', 'bundles', 'api', 'masks', 'push', 'workstation'],
+    [
+      'pose',
+      'argv',
+      'files',
+      'env',
+      'git',
+      'bundles',
+      'api',
+      'masks',
+      'push',
+      'clock',
+      'workstation',
+    ],
     '',
     problems
   );
@@ -507,6 +600,23 @@ function readPush(pose: Record<string, unknown>, argv: string[], problems: strin
   reportUnknownFields(push, ['now', 'binaries', 'fingerprint'], '`push`', problems);
 }
 
+/** The instants the clock answers while the command waits - each one an ISO 8601 instant, or the field left out. */
+function readClock(pose: Record<string, unknown>, problems: string[]): void {
+  if (!('clock' in pose)) return;
+
+  const clock = pose.clock;
+  if (!Array.isArray(clock)) {
+    problems.push(`\`clock\`: expected an array of ISO 8601 instants, got ${describe(clock)}`);
+    return;
+  }
+
+  clock.forEach((instant, index) => {
+    if (typeof instant !== 'string' || Number.isNaN(Date.parse(instant))) {
+      problems.push(`\`clock[${index}]\`: expected an ISO 8601 instant, got ${describe(instant)}`);
+    }
+  });
+}
+
 /**
  * `workstation` is read only when it is there: it is optional because only `sherlo init` acts on
  * the machine. Stated for a command that does not, it describes two acts that command never
@@ -618,6 +728,11 @@ function readCallArguments(
       expectStringArray(args, 'platforms', where, problems);
       reportUnknownFields(args, ['platforms'], where, problems);
       return;
+    case 'checkStagedGate':
+      expectOneOf(args, 'platform', ['android', 'ios'], where, problems);
+      expectString(args, 'baseFingerprint', where, problems);
+      reportUnknownFields(args, ['platform', 'baseFingerprint'], where, problems);
+      return;
     case 'trackCliInit':
       expectString(args, 'event', where, problems);
       reportUnknownFields(args, ['event'], where, problems);
@@ -701,7 +816,10 @@ function readCallAnswer(
     case 'openBuild':
       expectNumber(body, 'buildIndex', where, problems);
       expectString(body, 'url', where, problems);
-      reportUnknownFields(body, ['buildIndex', 'url'], where, problems);
+      if ('captureDecision' in body) {
+        readCaptureDecision(body.captureDecision, `${where}.captureDecision`, problems);
+      }
+      reportUnknownFields(body, ['buildIndex', 'url', 'captureDecision'], where, problems);
       return;
     case 'computeDiffScopeDryRun':
       eachEntryOf(body, 'platforms', where, problems, (platform, platformWhere) => {
@@ -761,6 +879,21 @@ function readCallAnswer(
       // could meaningfully state (see ../../seams/serverCalls, `stagedUploadUrlsAnswerOf`).
       reportUnknownFields(body, [], where, problems);
       return;
+    case 'checkStagedGate':
+      expectOneOf(body, 'outcome', GATE_OUTCOMES, where, problems);
+      expectStringArray(body, 'diff', where, problems);
+      if (Array.isArray(body.diff)) {
+        body.diff.forEach((source, index) => {
+          if (!GATE_DIFF_SOURCES.includes(source as string)) {
+            problems.push(
+              `${where}.diff[${index}]: ${describe(source)} is not a layer the gate diffs - ` +
+                `one of ${GATE_DIFF_SOURCES.map((name) => `\`${name}\``).join(', ')}`
+            );
+          }
+        });
+      }
+      reportUnknownFields(body, ['outcome', 'diff'], where, problems);
+      return;
     case 'trackCliInit':
       // The one thing the backend answers a progress report with, and the one thing the command
       // carries into the next report: the session the whole setup is recorded under.
@@ -768,6 +901,49 @@ function readCallAnswer(
       reportUnknownFields(body, ['sessionId'], where, problems);
       return;
   }
+}
+
+/** The server's capture decision at `openBuild`, as a pose states it - see {@link PosedCaptureDecision}. */
+function readCaptureDecision(value: unknown, where: string, problems: string[]): void {
+  const decision = asObject(value, where, problems);
+  if (!decision) return;
+
+  const platforms = asObject(decision.platforms, `${where}.platforms`, problems);
+  if (platforms) {
+    for (const platform of Object.keys(platforms)) {
+      const platformWhere = `${where}.platforms["${platform}"]`;
+
+      if (platform !== 'android' && platform !== 'ios') {
+        problems.push(
+          `${platformWhere}: \`${platform}\` is not a platform - the tool captures \`android\` and \`ios\``
+        );
+      }
+
+      const entry = asObject(platforms[platform], platformWhere, problems);
+      if (!entry) continue;
+
+      expectBoolean(entry, 'full', platformWhere, problems);
+      if ('storyFilePaths' in entry) {
+        expectStringArray(entry, 'storyFilePaths', platformWhere, problems);
+      }
+      if ('reason' in entry) expectString(entry, 'reason', platformWhere, problems);
+      reportUnknownFields(entry, ['full', 'storyFilePaths', 'reason'], platformWhere, problems);
+    }
+  }
+
+  if ('fullCaptureTriggerReason' in decision) {
+    expectString(decision, 'fullCaptureTriggerReason', where, problems);
+  }
+  if ('ancestorBuildIndex' in decision) {
+    expectNumber(decision, 'ancestorBuildIndex', where, problems);
+  }
+
+  reportUnknownFields(
+    decision,
+    ['platforms', 'fullCaptureTriggerReason', 'ancestorBuildIndex'],
+    where,
+    problems
+  );
 }
 
 /**
@@ -845,8 +1021,10 @@ function readBuildStatusAnswer(
           reportUnknownFields(baseline, ['buildIndex'], `${storyWhere}.baseline`, problems);
         }
       }
-      if ('reason' in story) expectString(story, 'reason', storyWhere, problems);
-      if ('candidates' in story) {
+      // `null` is a row the wire sent with nothing to say - distinct from the field being absent
+      // altogether (an older API that never sends it).
+      if ('reason' in story) expectStringOrNull(story, 'reason', storyWhere, problems);
+      if ('candidates' in story && story.candidates !== null) {
         eachEntryOf(story, 'candidates', storyWhere, problems, (candidate, candidateWhere) => {
           expectNumber(candidate, 'buildIndex', candidateWhere, problems);
           reportUnknownFields(candidate, ['buildIndex'], candidateWhere, problems);
