@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import spinner from '../spinner';
 
-describe('spinner', () => {
+describe('the spinner helper treats an unknown-width terminal as 80 columns, not zero', () => {
   it('a spinner on a stream that reports zero columns animates as on an 80-column terminal and never writes more than one clear per frame', () => {
     const zeroColumnsStream = createFakeStream(0);
     const eightyColumnsStream = createFakeStream(80);
