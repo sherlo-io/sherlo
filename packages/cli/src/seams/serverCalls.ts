@@ -99,7 +99,10 @@ export type ServerCalls = {
   ): Promise<ComputeDiffScopeDryRunResult>;
 
   /** The staged road's gate: can this commit reuse the base registered under this fingerprint? Asked per platform. */
-  checkStagedGate(client: SdkClient, request: CheckStagedGateRequest): Promise<CheckStagedGateAnswer>;
+  checkStagedGate(
+    client: SdkClient,
+    request: CheckStagedGateRequest
+  ): Promise<CheckStagedGateAnswer>;
 };
 
 /** What the staged gate is asked and what it answers - the sdk client's own shapes. */
