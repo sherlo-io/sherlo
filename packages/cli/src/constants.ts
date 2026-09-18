@@ -108,7 +108,14 @@ export const TEAM_LIST_SUBCOMMAND = 'list';
  * Hidden unless SHERLO_DEVTOOLS=1: a tool for the people who work on the tool.
  */
 export const POSE_COMMAND = 'pose';
+/** `sherlo open --story <id>` - put the running app on one named story. A primary flow, so a verb. */
+export const OPEN_COMMAND = 'open';
+/** `sherlo inspect` - name the story the running app is showing now. The read-side sibling. */
+export const INSPECT_COMMAND = 'inspect';
 export const FULL_INIT_COMMAND = 'npx sherlo init';
+
+/** The port a React Native bundler serves on unless somebody moved it. */
+export const DEFAULT_BUNDLER_PORT = 8081;
 
 /* OPTIONS */
 
@@ -161,6 +168,16 @@ export const WRITE_OPTION = 'write';
 export const INCLUDE_OPTION = 'include';
 export const WAIT_FOR_EAS_BUILD_OPTION = 'waitForEasBuild';
 export const WAIT_OPTION = 'wait';
+/** `sherlo open --story <id>` - which story to put on screen. */
+export const STORY_OPTION = 'story';
+/** Where the bundler is, for the rare project that moved it off {@link DEFAULT_BUNDLER_PORT}. */
+export const PORT_OPTION = 'port';
+/**
+ * How long `sherlo open --wait` waits, in SECONDS - deliberately not `--wait-timeout`, which is
+ * the one `test` and `view` take and is counted in minutes. Two flags that sound alike and count
+ * differently is one flag too many.
+ */
+export const TIMEOUT_OPTION = 'timeout';
 export const WAIT_TIMEOUT_OPTION = 'waitTimeout';
 
 /* TOKENS - there are two kinds and they must never be confusable */
