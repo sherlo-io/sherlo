@@ -27,6 +27,8 @@ async function inspect(passedOptions: InspectOptions): Promise<void> {
   const state: InspectedStory =
     answer.kind === 'showing'
       ? { kind: 'showing', storyId: answer.storyId }
+      : answer.kind === 'not-at-story-browser'
+      ? { kind: 'not-at-story-browser' }
       : { kind: answer.kind, port };
 
   emit({ kind: 'inspected-story', state });

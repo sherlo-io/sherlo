@@ -182,4 +182,15 @@ describe('the tool posting to the letterbox', () => {
     });
     expect(bundler.asked).toEqual([{ method: 'GET', posted: undefined }]);
   });
+
+  it('an app that is not at the story browser is not reported as absent', async () => {
+    // The app IS attached to the bundler - it simply has nothing on screen to name, most often
+    // because it is showing itself rather than the story browser. `no-app` would tell a developer
+    // to do something they have already done.
+    const bundler = await bundlerSaying(() => ({ kind: 'not-at-story-browser' }));
+
+    expect(await liveLetterbox.showing({ port: bundler.port })).toEqual({
+      kind: 'not-at-story-browser',
+    });
+  });
 });

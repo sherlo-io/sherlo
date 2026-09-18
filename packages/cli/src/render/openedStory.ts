@@ -26,6 +26,8 @@ export type OpenedStory =
 export type InspectedStory =
   | { kind: 'no-bundler'; port: number }
   | { kind: 'no-app'; port: number }
+  /** An app IS attached to the bundler; it is showing itself rather than the story browser. */
+  | { kind: 'not-at-story-browser' }
   | { kind: 'showing'; storyId: string };
 
 const START_THE_APP = 'Start your app with the bundler running, then try again.';
@@ -100,6 +102,16 @@ export function renderInspectedStory(state: InspectedStory): string[] {
         )}, and no Sherlo app is attached to it`,
         '',
         chalk.dim('Open the app on a device or simulator, then try again.'),
+        '',
+      ];
+
+    case 'not-at-story-browser':
+      return [
+        `${chalk.yellow('◦')}  The app is attached, and is not showing a story right now`,
+        '',
+        chalk.dim(
+          'It is showing itself rather than the story browser. `sherlo open --story <id>` sends it there.'
+        ),
         '',
       ];
 

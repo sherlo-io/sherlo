@@ -824,6 +824,24 @@ const PINS: Pin[] = [
   },
 
   {
+    kind: 'inspected-story',
+    what: 'what `sherlo inspect` prints when an app is attached and is not showing a story - not the same ending as no app being there at all, because the developer has already done what that ending would tell them to do',
+    segment: {
+      kind: 'inspected-story',
+      state: { kind: 'not-at-story-browser' },
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[33m◦${ESC}[39m  The app is attached, and is not showing a story right now`],
+      [''],
+      [
+        `${ESC}[2mIt is showing itself rather than the story browser. \`sherlo open --story <id>\` sends it there.${ESC}[22m`,
+      ],
+      [''],
+    ],
+  },
+
+  {
     kind: 'project-created',
     what: 'everything `sherlo project create` prints - and the shape that keeps the project token OFF a key=value line, because those lines exist for CI to scrape and a secret must not be put on that journey',
     segment: {

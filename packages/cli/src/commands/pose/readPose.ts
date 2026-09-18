@@ -65,7 +65,11 @@ export type PosedLetterbox =
       stories: string[];
       /** What the app reported for the story it was asked to show. */
       rendered?: 'yes' | 'timed-out';
-      /** The story the app says it is showing now, for the command that only asks. */
+      /**
+       * The story the app says it is showing now, for the command that only asks. Absent poses an
+       * app that is attached and has nothing on screen to name - most often one showing itself
+       * rather than the story browser - which is a different fact from no app being there at all.
+       */
       showing?: string;
     };
 
