@@ -192,7 +192,12 @@ export type StagedGateAnswer = {
   outcome: 'fast' | 'full-build-needed' | 'not-stageable';
   /** The layers of the bundle's identity that moved - named on a refusal, empty otherwise. */
   diff: Array<
-    'engineClass' | 'assetInventory' | 'expoUpdatesEnabled' | 'sdkProtocolVersion' | 'buildMetadata' | 'bundleFormat'
+    | 'engineClass'
+    | 'assetInventory'
+    | 'expoUpdatesEnabled'
+    | 'sdkProtocolVersion'
+    | 'buildMetadata'
+    | 'bundleFormat'
   >;
 };
 
