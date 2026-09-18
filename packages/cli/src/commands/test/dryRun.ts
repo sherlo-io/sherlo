@@ -62,6 +62,8 @@ export async function runDryRunPreview({
   teamId,
   gitInfo,
   baseReference,
+  include,
+  exclude,
 }: {
   client: DryRunDecisionClient;
   bundles: Partial<Record<Platform, BundleResult>>;
@@ -75,6 +77,12 @@ export async function runDryRunPreview({
    * none was computed. Absent -> the server previews native-changed (full).
    */
   baseReference?: string;
+  /**
+   * The config's include/exclude lists - the SAME narrowing a real build sends via
+   * getBuildRunConfig, passed straight through to the query. Absent when the config names none.
+   */
+  include?: string[];
+  exclude?: string[];
 }): Promise<void> {
   reporting.addBreadcrumb({
     category: 'api',
@@ -101,6 +109,8 @@ export async function runDryRunPreview({
       projectIndex,
       teamId,
       platforms,
+      include,
+      exclude,
     });
 
     // Key previews off platformsToTest so ordering is deterministic and a
