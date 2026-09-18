@@ -1,14 +1,18 @@
 import chalk from 'chalk';
 import { readFile } from 'fs/promises';
-import ora from 'ora';
 import { detect, resolveCommand } from 'package-manager-detector';
 import { join } from 'path';
 import { FULL_INIT_COMMAND, SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../constants';
-import { getCwd, getErrorWithCustomMessage, throwError } from '../../../helpers';
+import {
+  getCwd,
+  getErrorWithCustomMessage,
+  spinner as createSpinner,
+  throwError,
+} from '../../../helpers';
 import { workstation } from '../../../seams/workstation';
 
 async function installSherlo(): Promise<void> {
-  const spinner = ora('Installing Sherlo').start();
+  const spinner = createSpinner('Installing Sherlo').start();
 
   let packageJson;
   const packageJsonPath = join(getCwd(), 'package.json');
