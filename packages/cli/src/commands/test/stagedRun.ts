@@ -532,7 +532,9 @@ async function checkGate({
 
   try {
     for (const platform of platformsToTest) {
-      const { outcome, diff } = await client.checkStagedGate({
+      // Through the server seam, so a posed run answers the gate from its pose (the tester's
+      // staged storyline) and never reaches the network.
+      const { outcome, diff } = await serverCalls().checkStagedGate(client, {
         baseFingerprint,
         gateMetadata: gateMetadata(platform) as GateMetadata,
         platform,
