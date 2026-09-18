@@ -24,6 +24,7 @@ import {
   SINGLE_READ_TIMEOUT_MS,
   type BuildStatus,
 } from '../helpers/buildStatusRequest';
+import type { PosedCaptureDecision } from '../commands/pose/readPose';
 import getTokenParts from '../helpers/getTokenParts';
 import createProjectRequest from '../commands/projectCreate/createProjectRequest';
 import createTeamRequest from '../commands/teamCreate/createTeamRequest';
@@ -274,9 +275,13 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
       // that hold a config, never every key.
       const config = (request.buildRunConfig ?? {}) as Record<string, unknown>;
       const platforms = ['android', 'ios'].filter((platform) => config[platform] !== undefined);
-      const answer = answerFor('openBuild', { platforms }) as { buildIndex: number; url: string };
+      const answer = answerFor('openBuild', { platforms }) as {
+        buildIndex: number;
+        url: string;
+        captureDecision?: PosedCaptureDecision;
+      };
 
-      return openBuildAnswerOf(answer.buildIndex, platforms as Platform[]);
+      return openBuildAnswerOf(answer.buildIndex, platforms as Platform[], answer.captureDecision);
     },
 
     getNextBuildInfo: async (_client, request) => {
@@ -317,20 +322,63 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
 /* ========================================================================== */
 
 /**
- * The `openBuild` response the tool reads, built from the one fact a pose states about it.
+ * The `openBuild` response the tool reads, built from the facts a pose states about it.
  *
- * A pose says which build the server opened. Everything else the tool reads off this response -
- * the per-platform capture scope, the build-wide capture accounting - is a DECISION the server
- * made, and the contract has no field for it: a pose that could state one would be drawing the
- * capture plan itself instead of posing the run that produced it. So it is absent, which is the
- * tool's own "the server made no decision for this platform" - it prints no plan block and
- * closes with the link, exactly as it does against a backend that does not send one.
+ * A pose says which build the server opened, and MAY say the server's capture decision
+ * ({@link PosedCaptureDecision}) - a DECISION the server made, which `printCapturePlanAndCloser`
+ * reads off `buildRun.config[platform].captureScope` and `build.diffScopeInfo`. Absent, this is
+ * the tool's own "the server made no decision" - it prints no plan block and closes with the
+ * link, exactly as it does against a backend that does not send one.
  */
-function openBuildAnswerOf(buildIndex: number, platforms: Platform[]): OpenBuildAnswer {
+function openBuildAnswerOf(
+  buildIndex: number,
+  platforms: Platform[],
+  captureDecision: PosedCaptureDecision | undefined
+): OpenBuildAnswer {
   return {
-    build: { index: buildIndex },
-    buildRun: { config: Object.fromEntries(platforms.map((platform) => [platform, {}])) },
+    build: { index: buildIndex, diffScopeInfo: diffScopeInfoOf(captureDecision) },
+    buildRun: {
+      config: Object.fromEntries(
+        platforms.map((platform) => [platform, platformConfigOf(captureDecision, platform)])
+      ),
+    },
   } as unknown as OpenBuildAnswer;
+}
+
+/** One platform's `buildRun.config` entry - its capture scope, when the pose states a decision for it. */
+function platformConfigOf(
+  captureDecision: PosedCaptureDecision | undefined,
+  platform: string
+): Record<string, unknown> {
+  const decision = captureDecision?.platforms[platform];
+  if (!decision) return {};
+
+  return { captureScope: { full: decision.full, storyFilePaths: decision.storyFilePaths } };
+}
+
+/** `build.diffScopeInfo`, from the pose's capture decision - undefined when the pose states none. */
+function diffScopeInfoOf(
+  captureDecision: PosedCaptureDecision | undefined
+): Record<string, unknown> | undefined {
+  if (!captureDecision) return undefined;
+
+  return {
+    fullCaptureTriggerReason: captureDecision.fullCaptureTriggerReason,
+    ancestorBuildIndex: captureDecision.ancestorBuildIndex,
+    platforms: {
+      android: platformReasonOf(captureDecision, 'android'),
+      ios: platformReasonOf(captureDecision, 'ios'),
+    },
+  };
+}
+
+/** One platform's `diffScopeInfo.platforms[platform]` entry - its reason, when the pose states one. */
+function platformReasonOf(
+  captureDecision: PosedCaptureDecision,
+  platform: string
+): { reason: string } | undefined {
+  const reason = captureDecision.platforms[platform]?.reason;
+  return reason !== undefined ? { reason } : undefined;
 }
 
 /** What a pose says the server answered about each binary: a slot to upload it into, or the build it already has it from. */

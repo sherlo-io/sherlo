@@ -173,7 +173,9 @@ export type ScriptedCall =
   | {
       call: 'openBuild';
       with: { platforms: string[] };
-      answer: { buildIndex: number; url: string } | ApiError;
+      answer:
+        | { buildIndex: number; url: string; captureDecision?: PosedCaptureDecision }
+        | ApiError;
     }
   | {
       call: 'computeDiffScopeDryRun';
@@ -208,6 +210,36 @@ export type ScriptedCall =
       with: { event: string };
       answer: { sessionId: string } | ApiError;
     };
+
+/**
+ * The server's capture decision at `openBuild`, per platform - what the "📸 Capture plan" block
+ * and the one-line "Diff Scope:" summary print (SHERLO-1919). THE ONE OPTIONAL FIELD ON
+ * `openBuild`'s answer: absent means the server made no decision (an older API, or Diff Scope
+ * off) - the tool prints no plan block and closes straight to the Review link, exactly as it does
+ * today. A platform absent from `platforms` gets the same silent treatment, one platform at a time.
+ */
+export type PosedCaptureDecision = {
+  /** Per platform (`android`, `ios`): whether every story was captured, and which weren't, when not. */
+  platforms: Record<string, PosedPlatformCaptureDecision>;
+  /**
+   * The build-wide reason a FULL capture prints when the platform has none of its own - the
+   * "why:" row under "capturing all N stories" (absent -> the "! couldn't compute what changed"
+   * safety row instead).
+   */
+  fullCaptureTriggerReason?: string;
+  /** The build this decision diffed against - the "inheriting N from build #A" clause. */
+  ancestorBuildIndex?: number;
+};
+
+/** One platform's capture decision, as a pose states it. */
+export type PosedPlatformCaptureDecision = {
+  /** `true` prints "capturing all N stories in this bundle"; `false` prints the partial closure-diff. */
+  full: boolean;
+  /** The story files captured, when `full` is `false`. Ignored (the block reads "all N") when `full` is `true`. */
+  storyFilePaths?: string[];
+  /** The server's per-platform reason, printed verbatim after "why: " (or before the summary's colon). */
+  reason?: string;
+};
 
 /** What the staged gate answers, exactly as the tool's client surfaces it. */
 export type StagedGateAnswer = {
@@ -784,7 +816,10 @@ function readCallAnswer(
     case 'openBuild':
       expectNumber(body, 'buildIndex', where, problems);
       expectString(body, 'url', where, problems);
-      reportUnknownFields(body, ['buildIndex', 'url'], where, problems);
+      if ('captureDecision' in body) {
+        readCaptureDecision(body.captureDecision, `${where}.captureDecision`, problems);
+      }
+      reportUnknownFields(body, ['buildIndex', 'url', 'captureDecision'], where, problems);
       return;
     case 'computeDiffScopeDryRun':
       eachEntryOf(body, 'platforms', where, problems, (platform, platformWhere) => {
@@ -868,6 +903,49 @@ function readCallAnswer(
   }
 }
 
+/** The server's capture decision at `openBuild`, as a pose states it - see {@link PosedCaptureDecision}. */
+function readCaptureDecision(value: unknown, where: string, problems: string[]): void {
+  const decision = asObject(value, where, problems);
+  if (!decision) return;
+
+  const platforms = asObject(decision.platforms, `${where}.platforms`, problems);
+  if (platforms) {
+    for (const platform of Object.keys(platforms)) {
+      const platformWhere = `${where}.platforms["${platform}"]`;
+
+      if (platform !== 'android' && platform !== 'ios') {
+        problems.push(
+          `${platformWhere}: \`${platform}\` is not a platform - the tool captures \`android\` and \`ios\``
+        );
+      }
+
+      const entry = asObject(platforms[platform], platformWhere, problems);
+      if (!entry) continue;
+
+      expectBoolean(entry, 'full', platformWhere, problems);
+      if ('storyFilePaths' in entry) {
+        expectStringArray(entry, 'storyFilePaths', platformWhere, problems);
+      }
+      if ('reason' in entry) expectString(entry, 'reason', platformWhere, problems);
+      reportUnknownFields(entry, ['full', 'storyFilePaths', 'reason'], platformWhere, problems);
+    }
+  }
+
+  if ('fullCaptureTriggerReason' in decision) {
+    expectString(decision, 'fullCaptureTriggerReason', where, problems);
+  }
+  if ('ancestorBuildIndex' in decision) {
+    expectNumber(decision, 'ancestorBuildIndex', where, problems);
+  }
+
+  reportUnknownFields(
+    decision,
+    ['platforms', 'fullCaptureTriggerReason', 'ancestorBuildIndex'],
+    where,
+    problems
+  );
+}
+
 /**
  * The build the read answered with. Optional fields are optional ON THE WIRE - an older backend
  * does not send them, and the tool's behaviour for an absent field differs from its behaviour
@@ -943,8 +1021,10 @@ function readBuildStatusAnswer(
           reportUnknownFields(baseline, ['buildIndex'], `${storyWhere}.baseline`, problems);
         }
       }
-      if ('reason' in story) expectString(story, 'reason', storyWhere, problems);
-      if ('candidates' in story) {
+      // `null` is a row the wire sent with nothing to say - distinct from the field being absent
+      // altogether (an older API that never sends it).
+      if ('reason' in story) expectStringOrNull(story, 'reason', storyWhere, problems);
+      if ('candidates' in story && story.candidates !== null) {
         eachEntryOf(story, 'candidates', storyWhere, problems, (candidate, candidateWhere) => {
           expectNumber(candidate, 'buildIndex', candidateWhere, problems);
           reportUnknownFields(candidate, ['buildIndex'], candidateWhere, problems);

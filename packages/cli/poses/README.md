@@ -90,4 +90,7 @@ and `test/staged-no-base` pose the gate's three outcomes, and `test/wait-runs-ou
 clock passes its `--wait-timeout` deadline. The verdict screens in `view/verdict-*` pose the SAME
 closers through `sherlo view <build> --wait`, which reaches them through `getBuildStatus` alone. The
 `── details ──` block after `sherlo test --wait --metadata` is now reachable through a push pose,
-since the run that opened the build has the git rows to give.
+since the run that opened the build has the git rows to give. `openBuild`'s answer can also state the
+server's capture decision (`captureDecision`, per platform) - absent prints no plan, as it always
+has; `test/staged-borrows-the-base` states one, and its committed screen carries the "📸 Capture
+plan" block and the "Diff Scope:" line a real staged push prints.

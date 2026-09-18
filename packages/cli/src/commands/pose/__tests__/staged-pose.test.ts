@@ -8,13 +8,18 @@ import path from 'path';
 import { describe, expect, it } from 'vitest';
 import { POSES_ROOT, renderPose } from '../catalogue';
 import { runPose } from '../pose';
-import { readPoseDocument } from '../readPose';
+import { readPoseDocument, type CommandPose } from '../readPose';
 import { EXIT_NATIVE_NEEDED } from '../../test/constants';
 
 /** One catalogued `test/*.pose.json`, read the same way the catalogue itself reads it. */
 function stagedPose(name: string) {
   const posePath = path.join(POSES_ROOT, 'test', `${name}.pose.json`);
   return { posePath, document: readPoseDocument(fs.readFileSync(posePath, 'utf8')) };
+}
+
+/** The android platform's story count the catalogued base pose's bundle carries - never a literal. */
+function androidStoryCount(document: CommandPose): number {
+  return document.bundles.android?.storyClosureKeys.length ?? 0;
 }
 
 describe('a bare push is posable', () => {
@@ -65,5 +70,38 @@ describe('a bare push is posable', () => {
     expect(screen).not.toContain('Bundling for staged upload');
     expect(screen).not.toContain('🔗 Review:');
     expect(exitCode).toBe(EXIT_NATIVE_NEEDED);
+  });
+
+  it('a posed bare push whose openBuild answer states a full capture prints the capture plan and the Diff Scope line a real one prints', async () => {
+    const { document } = stagedPose('staged-borrows-the-base');
+    const { screen, refusals } = await runPose(document);
+    const M = androidStoryCount(document);
+
+    expect(refusals).toEqual([]);
+    expect(screen).toContain('📸 Capture plan');
+    expect(screen).toContain(`capturing all ${M} stories in this bundle`);
+    expect(screen).toContain(
+      'why: no main branch set for this project - every build captures every story'
+    );
+    expect(screen).toContain(
+      `Diff Scope: capturing all ${M} stories: no main branch set for this project - every build captures every story`
+    );
+  });
+
+  it('a posed bare push whose openBuild answer states no capture decision prints no plan, as it does today', async () => {
+    const { document } = stagedPose('staged-borrows-the-base');
+    // The SAME scripted run, minus the one fact this test is about - so the only thing that could
+    // change the screen is the field this test removes.
+    const withoutDecision: CommandPose = JSON.parse(JSON.stringify(document));
+    const openBuildCall = withoutDecision.api.find((call) => call.call === 'openBuild');
+    const answer = openBuildCall?.answer as { captureDecision?: unknown } | undefined;
+    delete answer?.captureDecision;
+
+    const { screen, refusals } = await runPose(withoutDecision);
+
+    expect(refusals).toEqual([]);
+    expect(screen).not.toContain('📸 Capture plan');
+    expect(screen).not.toContain('Diff Scope:');
+    expect(screen).toContain('🔗 Review:');
   });
 });
