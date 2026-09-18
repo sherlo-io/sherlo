@@ -3,7 +3,8 @@
  * down.
  *
  *     live   - the address Sherlo adds to the bundler: post a story there, and the SDK inside the
- *              running app is handed it. NOT BUILT YET - see the debt below.
+ *              running app is handed it. The bundler's half of that address is the SDK's
+ *              `metro/openStoryLetterbox.js`, and the app's half its `src/openStoryChannel.ts`.
  *     posed  - the pose's `letterbox`: whether a bundler is up, whether an app ever connected,
  *              which stories that app has, and what it said about the one it was asked for.
  *
@@ -11,19 +12,6 @@
  * another process on it - a bundler, with an app attached to it - which is why it could not be
  * folded into an existing seam: `serverCalls` is Sherlo's backend, and `workstation` is what the
  * tool does to the machine it runs on.
- *
- * ------------------------------------------------------------------------
- * PLAN-LAYER SEAM, AND THE DEBT IS NAMED HERE ON PURPOSE.
- *
- * The live half of this seam does not exist. It is written as one refusal that names itself, so
- * nothing can mistake it for a road that works: a real `sherlo open` run says the feature is not
- * built rather than hanging on a socket nobody is listening to.
- *
- * It is here at all because the expected report of an epic is drawn by running the SHIPPED tool
- * against a posed world - a screen is evidence about the product, never about whoever posed it -
- * and a command that does not exist prints nothing to review. So the command, its printed screens
- * and this seam's POSED half were written to draw the plan, and the live half is the epic's first
- * task. A reader who finds this comment still here after that task landed has found a bug.
  */
 import type { PosedLetterbox } from '../commands/pose/readPose';
 
@@ -47,24 +35,168 @@ export type ShowingResult =
 /** Everything the tool asks of a running app, and nothing else. */
 export type Letterbox = {
   /** Post one story to the waiting app, waiting for it to reach the screen when asked to. */
-  openStory(params: { storyId: string; wait: boolean }): Promise<OpenStoryResult>;
+  openStory(params: {
+    storyId: string;
+    wait: boolean;
+    port: number;
+    timeoutSeconds: number;
+  }): Promise<OpenStoryResult>;
   /** Ask which story the app is showing now. */
-  showing(): Promise<ShowingResult>;
+  showing(params: { port: number }): Promise<ShowingResult>;
 };
 
-/** The message both live answers carry, so the debt reads the same wherever it surfaces. */
-const NOT_BUILT =
-  'the letterbox is not built yet - `sherlo open` and `sherlo inspect` can be posed, not run';
+/** The one address the SDK adds to the bundler; the bundler's half of it serves this path. */
+const LETTERBOX_PATH = '/sherlo/letterbox';
 
-/** The shipped answers, once there are any. Today each one refuses and says why. */
+/**
+ * How long the tool waits for an answer that is not a `--wait`. The letterbox answers these at
+ * once, so any real delay here is a port that is serving something else entirely.
+ */
+const REPLY_PATIENCE_MS = 5000;
+
+/**
+ * How much longer than the wait it asked for the tool stays on the line. The bundler was told the
+ * deadline and answers on it, so this is a grace margin rather than a second timeout.
+ */
+const PATIENCE_BEYOND_THE_WAIT_MS = 2000;
+
+/** The shipped answers: a real bundler, with a real app attached to it. */
 export const liveLetterbox: Letterbox = {
-  openStory: async () => {
-    throw new Error(NOT_BUILT);
+  openStory: async ({ storyId, wait, port, timeoutSeconds }) => {
+    const answer = await askTheLetterbox({
+      port,
+      method: 'POST',
+      posting: { storyId, wait, timeoutSeconds },
+      patienceMs: wait ? timeoutSeconds * 1000 + PATIENCE_BEYOND_THE_WAIT_MS : REPLY_PATIENCE_MS,
+    });
+
+    if (answer.kind === 'nothing-on-the-port') return { kind: 'no-bundler' };
+    if (answer.kind === 'not-in-sherlos-words') return { kind: 'no-app' };
+    if (answer.kind === 'gave-up-waiting') {
+      // Nobody answered in time. On a `--wait` the story was posted before the silence began and
+      // the app may still be loading it, which is the same ending as the bundler's own wait
+      // running out; without one there is nothing to say the address was ever reached.
+      return wait ? { kind: 'handed-over', storyId, rendered: 'timed-out' } : { kind: 'no-app' };
+    }
+
+    return readOpenStoryAnswer(answer.said, storyId);
   },
-  showing: async () => {
-    throw new Error(NOT_BUILT);
+
+  showing: async ({ port }) => {
+    const answer = await askTheLetterbox({
+      port,
+      method: 'GET',
+      patienceMs: REPLY_PATIENCE_MS,
+    });
+
+    if (answer.kind === 'nothing-on-the-port') return { kind: 'no-bundler' };
+    if (answer.kind !== 'said') return { kind: 'no-app' };
+
+    const said = answer.said as { kind?: unknown; storyId?: unknown };
+    return said.kind === 'showing' && typeof said.storyId === 'string'
+      ? { kind: 'showing', storyId: said.storyId }
+      : { kind: 'no-app' };
   },
 };
+
+/* ========================================================================== */
+/* Talking to the address                                                     */
+/* ========================================================================== */
+
+/** What came back from the port. */
+type LetterboxAnswer =
+  /** Nothing accepted a connection. */
+  | { kind: 'nothing-on-the-port' }
+  /** Something answered, and not in words this tool can read: a bundler nobody routed through
+   * Sherlo, or a different server on the port entirely. */
+  | { kind: 'not-in-sherlos-words' }
+  /** Nothing answered before the tool stopped listening. */
+  | { kind: 'gave-up-waiting' }
+  /** The letterbox answered, and here is what it said. */
+  | { kind: 'said'; said: unknown };
+
+async function askTheLetterbox({
+  port,
+  method,
+  posting,
+  patienceMs,
+}: {
+  port: number;
+  method: 'GET' | 'POST';
+  posting?: unknown;
+  patienceMs: number;
+}): Promise<LetterboxAnswer> {
+  let response: Response;
+
+  try {
+    response = await fetch(`http://localhost:${port}${LETTERBOX_PATH}`, {
+      method,
+      ...(posting !== undefined && {
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(posting),
+      }),
+      signal: AbortSignal.timeout(patienceMs),
+    });
+  } catch (error) {
+    if (isNothingOnThePort(error)) return { kind: 'nothing-on-the-port' };
+    if ((error as Error | undefined)?.name === 'TimeoutError') return { kind: 'gave-up-waiting' };
+    return { kind: 'not-in-sherlos-words' };
+  }
+
+  if (!response.ok) return { kind: 'not-in-sherlos-words' };
+
+  try {
+    return { kind: 'said', said: await response.json() };
+  } catch (_error) {
+    return { kind: 'not-in-sherlos-words' };
+  }
+}
+
+/**
+ * `localhost` is two addresses on most machines, so a refusal can arrive as one code or as a list
+ * of them - one per address tried. Both shapes mean the same thing: nothing accepted a connection.
+ */
+function isNothingOnThePort(error: unknown): boolean {
+  const cause = (error as { cause?: { code?: unknown; errors?: { code?: unknown }[] } } | undefined)
+    ?.cause;
+  const codes = [cause?.code, ...(cause?.errors ?? []).map((one) => one.code)];
+
+  return codes.some((code) => code === 'ECONNREFUSED' || code === 'ENOTFOUND');
+}
+
+/**
+ * What the letterbox said about a posted story, as this seam's answer.
+ *
+ * The story id is the one that was POSTED rather than the one that came back: a caller reads the
+ * refusal about the id they typed, and an answer that named a different story would be answering
+ * about something nobody asked for.
+ */
+function readOpenStoryAnswer(said: unknown, storyId: string): OpenStoryResult {
+  const answer = said as { kind?: unknown; known?: unknown; rendered?: unknown };
+
+  if (answer.kind === 'no-app') return { kind: 'no-app' };
+
+  if (answer.kind === 'no-such-story') {
+    const known = Array.isArray(answer.known) ? answer.known.filter(isString) : [];
+    return { kind: 'no-such-story', known };
+  }
+
+  if (answer.kind === 'handed-over') {
+    const rendered =
+      answer.rendered === 'yes' ||
+      answer.rendered === 'timed-out' ||
+      answer.rendered === 'not-waited'
+        ? answer.rendered
+        : 'not-waited';
+    return { kind: 'handed-over', storyId, rendered };
+  }
+
+  return { kind: 'no-app' };
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
 
 let installed: Letterbox = liveLetterbox;
 
@@ -141,7 +273,8 @@ export function posedLetterbox(
       if (posed.showing === undefined) {
         refusals.push({
           call: 'showing',
-          problem: 'the pose states a `letterbox` with no `showing`, and the command asked what is on screen',
+          problem:
+            'the pose states a `letterbox` with no `showing`, and the command asked what is on screen',
         });
         return { kind: 'no-app' };
       }

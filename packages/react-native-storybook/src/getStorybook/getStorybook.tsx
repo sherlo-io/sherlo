@@ -19,6 +19,7 @@ import {
   startInteractiveMockActivation,
   stopInteractiveMockActivation,
 } from './interactiveMockActivation';
+import { startOpenStoryChannel, stopOpenStoryChannel } from '../openStoryChannel';
 
 let isSdkCompatible = true;
 if (SherloModule.getMode() === 'testing') {
@@ -99,6 +100,13 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     try {
       startInteractiveMockActivation(view, getStorybookChannel(view), initialStoryId);
     } catch (_e) {}
+
+    // Start waiting on the bundler's letterbox, so `sherlo open --story <id>` reaches this app.
+    // Here rather than in a hook for the same reason as the listener above: a story may be posted
+    // before the tree renders, and the app that is not waiting yet is an app that missed it.
+    try {
+      startOpenStoryChannel({ view, channel: getStorybookChannel(view) });
+    } catch (_e) {}
   }
 
   const isTestingMode = mode === 'testing';
@@ -145,12 +153,14 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
       } catch (_e) {}
     }, []);
 
-    // Leaving Storybook (unmount) tears down the mock activation started above:
-    // stop tracking selection changes and pass every module through to real again.
+    // Leaving Storybook (unmount) tears down both things started above: stop tracking selection
+    // changes and pass every module through to real again, and stop waiting on the bundler's
+    // letterbox - an app that is no longer showing Storybook has nowhere to put a story.
     useEffect(() => {
       if (!isStorybookMode) return;
       return () => {
         stopInteractiveMockActivation();
+        stopOpenStoryChannel();
       };
     }, []);
 

@@ -8,9 +8,9 @@
  * AN AGENT IS A FIRST-CLASS READER HERE, which is why every ending is named and none of them is a
  * bare stack trace. A person skims the first line; an agent reads the same line and acts on it.
  *
- * PLAN-LAYER PRESENTATION. These are the screens the operator signs; the road that produces the
- * state they print - the letterbox on the bundler - is the epic's first task (../seams/letterbox).
- * A transcript rendered from here is a designed pose, not a captured run.
+ * The road that produces the state they print is the letterbox on the bundler (../seams/letterbox),
+ * and these screens are the same either way: a posed run states the answer, a real run gets it from
+ * a bundler with an app attached, and neither changes a line of what is printed.
  */
 import chalk from 'chalk';
 

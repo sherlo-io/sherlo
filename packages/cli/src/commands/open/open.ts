@@ -9,7 +9,13 @@
  * and acts on it, and "something went wrong" is not something to act on. The exit code separates
  * the two kinds of ending a caller cares about - the story is on screen, or it is not.
  */
-import { DEFAULT_BUNDLER_PORT, PORT_OPTION, STORY_OPTION, TIMEOUT_OPTION, WAIT_OPTION } from '../../constants';
+import {
+  DEFAULT_BUNDLER_PORT,
+  PORT_OPTION,
+  STORY_OPTION,
+  TIMEOUT_OPTION,
+  WAIT_OPTION,
+} from '../../constants';
 import { throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
 import { EXIT_BLOCK } from '../../helpers/exitCodes';
@@ -43,7 +49,7 @@ async function open(passedOptions: OpenOptions): Promise<void> {
   const seconds = readTimeout(passedOptions[TIMEOUT_OPTION]);
   const wait = Boolean(passedOptions[WAIT_OPTION]);
 
-  const answer = await letterbox().openStory({ storyId, wait });
+  const answer = await letterbox().openStory({ storyId, wait, port, timeoutSeconds: seconds });
   const state = describe(answer, { storyId, port, wait, seconds });
 
   emit({ kind: 'opened-story', state });
@@ -86,7 +92,9 @@ function readPort(passed: string | undefined): number {
 
   const port = Number(passed);
   if (!Number.isInteger(port) || port <= 0 || port > 65535) {
-    throwError({ message: `\`--${PORT_OPTION}\` takes a port number, and \`${passed}\` is not one.` });
+    throwError({
+      message: `\`--${PORT_OPTION}\` takes a port number, and \`${passed}\` is not one.`,
+    });
   }
 
   return port;

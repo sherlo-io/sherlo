@@ -22,7 +22,7 @@ export type InspectOptions = {
 
 async function inspect(passedOptions: InspectOptions): Promise<void> {
   const port = readPort(passedOptions[PORT_OPTION]);
-  const answer = await letterbox().showing();
+  const answer = await letterbox().showing({ port });
 
   const state: InspectedStory =
     answer.kind === 'showing'
@@ -43,7 +43,9 @@ function readPort(passed: string | undefined): number {
 
   const port = Number(passed);
   if (!Number.isInteger(port) || port <= 0 || port > 65535) {
-    throwError({ message: `\`--${PORT_OPTION}\` takes a port number, and \`${passed}\` is not one.` });
+    throwError({
+      message: `\`--${PORT_OPTION}\` takes a port number, and \`${passed}\` is not one.`,
+    });
   }
 
   return port;
