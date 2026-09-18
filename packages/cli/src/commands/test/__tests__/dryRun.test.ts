@@ -236,6 +236,37 @@ describe('runDryRunPreview', () => {
     logSpy.mockRestore();
   });
 
+  it('forwards the config include/exclude lists straight through to the decision seam', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockRequestDryRunDecision.mockResolvedValue([
+      {
+        platform: 'ios',
+        isFullCapture: false,
+        capturedStoryFilePaths: [],
+        totalStories: 3,
+        reason: 'App.tsx changed',
+      },
+    ] as DryRunPlatformDecision[]);
+
+    await runDryRunPreview({
+      client,
+      bundles: { ios: bundleWithManifest() },
+      platformsToTest: ['ios'],
+      projectIndex: 7,
+      teamId: 'team-42',
+      gitInfo,
+      baseReference: 'fp-123',
+      include: ['src/Storefront/**'],
+      exclude: ['src/Storefront/Internal/**'],
+    });
+
+    const arg = mockRequestDryRunDecision.mock.calls[0][0];
+    expect(arg.include).toEqual(['src/Storefront/**']);
+    expect(arg.exclude).toEqual(['src/Storefront/Internal/**']);
+
+    logSpy.mockRestore();
+  });
+
   it('sends a manifest-less platform through the SAME call (no local drop)', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     // Server previews the manifest-less platform as manifest-missing (full).
