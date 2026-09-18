@@ -1,3 +1,5 @@
+import { describe, it } from 'vitest';
+
 /**
  * THE PREVIEW SENDS THE CONFIG'S SCOPE - written as a skeleton in plan (epic diff-scope-closure, task
  * preview-answers-inside-the-scope). The worker fills the bodies and never renames a case.

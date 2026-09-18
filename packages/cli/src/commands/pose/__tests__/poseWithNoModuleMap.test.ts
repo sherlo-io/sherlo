@@ -1,3 +1,5 @@
+import { describe, it } from 'vitest';
+
 /**
  * A POSE CAN STATE A BUNDLE THAT CAME WITH NO MODULE MAP - written as a skeleton in plan (epic
  * diff-scope-closure, task pose-states-no-module-map). The worker fills the bodies and never renames
