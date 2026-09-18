@@ -8,7 +8,6 @@ import { validatePlatformPaths } from '../../shared';
 import getPlatformsToTest from '../../getPlatformsToTest';
 import validateConfigProperties from './validateConfigProperties';
 import validateDevices from './validateDevices';
-import validateMaxWaitTime from './validateMaxWaitTime';
 import validateToken from './validateToken';
 
 function validateCommandParams<C extends Command>(
@@ -20,8 +19,6 @@ function validateCommandParams<C extends Command>(
   validateToken(commandParams);
 
   validateDevices(commandParams);
-
-  validateMaxWaitTime(commandParams);
 
   if (requirePlatformPaths) {
     const platformsToValidate = getPlatformsToTest(

@@ -1,5 +1,7 @@
 import { StorybookView } from '../types';
 import SherloModule from '../SherloModule';
+import { mergeMockSet } from '../mocking/mergeMocks';
+import { MockSet } from '../mocking/types';
 
 export interface StoryMeta {
   id: string;
@@ -8,11 +10,20 @@ export interface StoryMeta {
   parameters: Record<string, any>;
   /**
    * Project-root-relative import path of the story file (e.g. "./src/Button.stories.tsx").
-   * Lets a storyId be mapped to its source file without static reconstruction.
+   * Used by Diff Scope to map storyId → source file without static reconstruction.
    * Sourced from _storyIndex.entries[id].importPath; derived from the require.context
    * directory + filename for the primary (titled) path.
    */
   importPath?: string;
+  /**
+   * Module Mocking (SHERLO-1735): the story's mock set, already merged per module key
+   * across global/meta/story parameters (precedence story > meta > global - see
+   * mergeMockSet). Computed from the three RAW `parameters.sherlo.mocks` levels, not
+   * from `parameters` above - that field is a shallow spread of all three levels, so a
+   * story's `parameters.sherlo` replaces meta's and global's wholesale and the
+   * per-key mock precedence would otherwise be lost.
+   */
+  mocks: MockSet;
 }
 
 const SANITIZE_REGEX = /[ '–-―′¿'`~!@#$%^&*()_|+\-=?;:'",.<>{}[\]\\/]/gi;
@@ -48,12 +59,26 @@ interface ViewInternal {
   _storyIndex?: {
     entries?: Record<string, { id: string; title: string; name: string; importPath: string }>;
   };
+  // Storybook's live Preview instance (PreviewWithSelection). Not on the public
+  // StorybookView type, so - like the other internal fields here and in
+  // getStorybook.tsx - it is reached through a cast. `storyStoreValue` is the
+  // StoryStore that Storybook builds once the preview is ready; its
+  // `projectAnnotations.parameters` holds the composed PROJECT (preview-level)
+  // parameters, including `parameters.sherlo.mocks` declared in the app's
+  // .rnstorybook/preview.ts. This is the only runtime source of global-level
+  // mocks on device (see readGlobalParameters).
+  _preview?: {
+    storyStoreValue?: {
+      projectAnnotations?: { parameters?: Record<string, any> };
+    };
+  };
 }
 
 export function enumerateStories(view: StorybookView): StoryMeta[] {
   const indexEntries = (view as unknown as ViewInternal)._storyIndex?.entries ?? {};
   const storyEntries = readStoryEntries();
-  const globalParams = readGlobalParameters();
+  const globalParams = readGlobalParameters(view);
+  const globalMocks: MockSet = globalParams?.sherlo?.mocks ?? {};
   const result: StoryMeta[] = [];
   const seen = new Set<string>();
 
@@ -143,12 +168,15 @@ export function enumerateStories(view: StorybookView): StoryMeta[] {
           ...(meta.parameters ?? {}),
           ...(annotations.parameters ?? {}),
         };
+        const metaMocks: MockSet = meta.parameters?.sherlo?.mocks ?? {};
+        const storyMocks: MockSet = annotations.parameters?.sherlo?.mocks ?? {};
         result.push({
           id,
           title: titleStr,
           name: displayName,
           parameters,
           importPath: primaryImportPath,
+          mocks: mergeMockSet(globalMocks, metaMocks, storyMocks),
         });
       }
     }
@@ -188,6 +216,8 @@ export function enumerateStories(view: StorybookView): StoryMeta[] {
           break;
         }
       }
+      const metaMocks: MockSet = cached.meta.parameters?.sherlo?.mocks ?? {};
+      const storyMocks: MockSet = storyAnnotations.parameters?.sherlo?.mocks ?? {};
       result.push({
         id,
         title: indexEntry.title,
@@ -198,6 +228,7 @@ export function enumerateStories(view: StorybookView): StoryMeta[] {
           ...(storyAnnotations.parameters ?? {}),
         },
         importPath: indexEntry.importPath,
+        mocks: mergeMockSet(globalMocks, metaMocks, storyMocks),
       });
     } else {
       result.push({
@@ -206,6 +237,7 @@ export function enumerateStories(view: StorybookView): StoryMeta[] {
         name: indexEntry.name,
         parameters: { ...(globalParams ?? {}) },
         importPath: indexEntry.importPath,
+        mocks: globalMocks,
       });
     }
   }
@@ -229,11 +261,23 @@ function readStoryEntries(): Array<{
   return stories;
 }
 
-function readGlobalParameters(): Record<string, any> {
-  try {
-    const sbRnPreview = (require as any)('@storybook/react-native/preview');
-    return (sbRnPreview && sbRnPreview.default && sbRnPreview.default.parameters) || {};
-  } catch (_) {
-    return {};
-  }
+// Preview-level (global) parameters, sourced from Storybook's live preview object.
+//
+// On device the app's `.rnstorybook/preview.ts` annotations are composed into
+// view._preview.storyStoreValue.projectAnnotations, the SAME merged project object
+// getStorybook.tsx reads via view._preview; it carries `parameters.sherlo.mocks`.
+//
+// TIMING: this composition is ASYNCHRONOUS - Storybook populates storyStoreValue
+// during preview init (view._preview.ready() resolves at that point). On a fresh boot,
+// enumerateStories can run BEFORE it, so this returns {} and global-level mocks are
+// absent. That is by design here: callers that must include global mocks (the mock
+// activation path) re-read once the preview is ready - see storyMockActivation. Do NOT
+// assume this is populated on the first call.
+//
+// The old source - require('@storybook/react-native/preview') - resolves to an
+// internal package stub that never carries the user's project annotations, so
+// global-level mocks were silently dropped on device (SHERLO-1743, Defect 1).
+function readGlobalParameters(view: StorybookView): Record<string, any> {
+  const preview = (view as unknown as ViewInternal)._preview;
+  return preview?.storyStoreValue?.projectAnnotations?.parameters ?? {};
 }

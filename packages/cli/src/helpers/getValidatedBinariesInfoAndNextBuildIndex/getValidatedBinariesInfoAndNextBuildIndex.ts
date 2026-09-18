@@ -1,7 +1,7 @@
 import { Platform } from '@sherlo/api-types';
 import sdkClient from '@sherlo/sdk-client';
 import { EAS_BUILD_ON_COMPLETE_COMMAND } from '../../constants';
-import { BinariesInfo, Command, CommandParams } from '../../types';
+import { Command, CommandParams, ValidatedBinariesInfo } from '../../types';
 import getPlatformsToTest from '../getPlatformsToTest';
 import throwError from '../throwError';
 import getBinariesInfoAndNextBuildIndex from './getBinariesInfoAndNextBuildIndex';
@@ -29,7 +29,7 @@ type OTHER_COMMAND = Exclude<Command, EAS_BUILD_ON_COMPLETE_COMMAND>;
 
 async function getValidatedBinariesInfoAndNextBuildIndex(
   params: Params
-): Promise<{ binariesInfo: BinariesInfo & { sdkVersion: string }; nextBuildIndex: number }> {
+): Promise<{ binariesInfo: ValidatedBinariesInfo; nextBuildIndex: number }> {
   const { command } = params;
 
   let platforms: Platform[];

@@ -11584,6 +11584,7 @@ __metadata:
     find-up: "npm:^7.0.0"
     gradient-string: "npm:^2.0.1"
     graphql: "npm:^16.6.0"
+    js-yaml: "npm:^4.1.0"
     magicast: "npm:^0.5.2"
     node-fetch: "npm:^2.6.11"
     ora: "npm:^8.2.0"

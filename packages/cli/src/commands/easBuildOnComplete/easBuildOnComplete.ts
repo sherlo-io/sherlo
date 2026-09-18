@@ -1,9 +1,11 @@
 import sdkClient from '@sherlo/sdk-client';
 import {
+  ANDROID_OPTION,
   DOCS_LINK,
+  IOS_OPTION,
   PROFILE_OPTION,
+  TEST_COMMAND,
   TEST_EAS_CLOUD_BUILD_COMMAND,
-  TEST_STANDARD_COMMAND,
 } from '../../constants';
 import {
   getTokenParts,
@@ -37,8 +39,8 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
       message:
         'EAS builds were created locally\n\n' +
         `The \`sherlo ${THIS_COMMAND}\` command works only with \`sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\`\n` +
-        `To test builds available locally, use \`sherlo ${TEST_STANDARD_COMMAND}\` instead\n`,
-      learnMoreLink: DOCS_LINK.testStandard,
+        `To test builds available locally, use \`sherlo ${TEST_COMMAND} --${ANDROID_OPTION} <path> --${IOS_OPTION} <path>\` instead\n`,
+      learnMoreLink: DOCS_LINK.testing,
     });
 
     console.log();
