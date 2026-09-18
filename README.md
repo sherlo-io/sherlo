@@ -16,7 +16,7 @@
 <div align="center">
   <a href="https://www.npmjs.com/package/@sherlo/react-native-storybook"><img src="https://img.shields.io/npm/v/@sherlo/react-native-storybook.svg" alt="npm version"></a>
   <a href="https://www.npmjs.com/package/@sherlo/react-native-storybook"><img src="https://img.shields.io/npm/dm/@sherlo/react-native-storybook.svg" alt="npm downloads"></a>
-  <a href="[https://www.npmjs.com/package/@sherlo/react-native-storybook](https://discord.gg/G7eqTBkWZt)"><img src="https://img.shields.io/discord/1194981477130190929?label=discord" alt="discord"></a>
+  <a href="https://discord.gg/G7eqTBkWZt"><img src="https://img.shields.io/discord/1194981477130190929?label=discord" alt="discord"></a>
 </div>
 
 
@@ -39,7 +39,7 @@
 
 ### How It Works
 
-1. **📸 Capture** - Sherlo takes screenshots of your UI on iOS and Android devices in the cloud
+1. **📸 Capture** - Sherlo takes screenshots of your UI on iOS and Android simulators in the cloud
 2. **🔍 Detect** - All visual changes are automatically detected by comparison with previous versions
 3. **👍 Review** - Your team reviews detected changes before they go live
 
@@ -101,7 +101,7 @@ Review visual changes across devices in one web app as a team - from developers 
 ### Features
 
 - **📸 Visual Comparison** - Compare before/after screenshots with highlighted changes
-- **💬 Team Feedback** - Approve or reject changes and leave comments
+- **💬 Team Feedback** - Approve or report changes and leave comments
 - **🔍 Code Inspector** - Inspect React Native styles directly in the browser
 - **🎨 Figma Preview** - Compare UI with Figma designs side-by-side
 - …and more
