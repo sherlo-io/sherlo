@@ -104,13 +104,19 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     // Start waiting on the bundler's letterbox, so `sherlo open --story <id>` reaches this app.
     // Here rather than in a hook for the same reason as the listener above: a story may be posted
     // before the tree renders, and the app that is not waiting yet is an app that missed it.
-    try {
-      startOpenStoryChannel({ view, channel: getStorybookChannel(view) });
-    } catch (_e) {
-      // Ignored: a Storybook whose channel this could not read, or a device with no reachable
-      // bundler beside it. Either one costs `sherlo open` its road into this app and costs the app
-      // nothing else, so it is not worth crashing the Storybook a developer is working in.
-    }
+    startWaitingOnTheLetterbox(view, true);
+  }
+
+  // An app showing ITSELF waits on the same address, and is sent to the story browser when a story
+  // is posted for it - which is the whole point of `sherlo open`: see one story right now, rather
+  // than launch the app and go and find it. Getting there restarts the app, so this side collects
+  // nothing; the letterbox holds the story until the storybook-mode listener above asks for it.
+  //
+  // This is the ONE thing Sherlo does in default mode, and it costs a store build nothing: a built
+  // app's JavaScript came from a file on the device rather than from a bundler, so there is no
+  // address to wait on and nothing starts (see openStoryChannel's `bundlerLetterbox`).
+  if (mode === 'default') {
+    startWaitingOnTheLetterbox(view, false);
   }
 
   const isTestingMode = mode === 'testing';
@@ -185,6 +191,18 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 }
 
 export default getStorybook;
+
+/* ========================================================================== */
+
+function startWaitingOnTheLetterbox(view: StorybookView, atTheStoryBrowser: boolean): void {
+  try {
+    startOpenStoryChannel({ view, channel: getStorybookChannel(view), atTheStoryBrowser });
+  } catch (_e) {
+    // Ignored: a Storybook whose channel this could not read, or a device with no reachable
+    // bundler beside it. Either one costs `sherlo open` its road into this app and costs the app
+    // nothing else, so it is not worth crashing the app a developer is working in.
+  }
+}
 
 export function __resetForTests(): void {
   isSdkCompatible = true;

@@ -2,14 +2,16 @@
  * THE LETTERBOX ON THE BUNDLER - the road something outside a running app tells the SDK which story
  * to show.
  *
- * WHAT THESE FOUR HOLD, and why they are worth holding. The first two are the road itself: a story
+ * WHAT THE FIRST FOUR HOLD, and why they are worth holding. The first two are the road itself: a story
  * posted at the bundler's address reaches whichever app is waiting, and the app answers back at the
  * same address once the story is painted - which is what lets `sherlo open --wait` make an
  * end-to-end claim rather than report a message sent. The third is the one that is easy to get
  * wrong: the letterbox REMEMBERS the story it was last given rather than relaying it, because
  * reaching the story browser costs a restart and a relay would drop the ask on the floor. The
  * fourth says the road is live rather than launch-time - the story on screen is replaced where it
- * stands.
+ * stands. The two after them are what the third one is FOR: an app showing itself is sent to the
+ * story browser and the story is still there when it arrives, because `sherlo open` is for seeing
+ * one story right now rather than launching the app and going to find it.
  *
  * THE FIRST THREE ARE HELD OVER REAL HTTP, against the middleware mounted on a real server on a
  * real port. The thing under test is an address, and an address that is only ever called as a
@@ -32,6 +34,16 @@ import {
 
 const STORY = 'components-button--primary';
 const OTHER_STORY = 'components-avatar--basic';
+
+/** What the app says about itself every time it asks. */
+type Ask = { stories: string[]; showing: string | null; atTheStoryBrowser: boolean };
+
+/** Called when the SDK asks the app to go to the story browser; set by the test that watches for it. */
+let openedStorybook: (() => void) | null = null;
+
+vi.mock('../openStorybook', () => ({
+  default: () => openedStorybook?.(),
+}));
 
 /* ========================================================================== */
 /* A bundler with the letterbox on it                                         */
@@ -71,13 +83,17 @@ async function startBundlerWithLetterbox(settings?: {
 /** The app's side of the address: say what I have and what is on screen, get the next story back. */
 function appWaitsForAStory(
   bundler: RunningBundler,
-  saying: { stories: string[]; showing: string | null }
-): Promise<{ storyId: string | null }> {
+  saying: { stories: string[]; showing: string | null; atTheStoryBrowser?: boolean }
+): Promise<{ storyId?: string | null; goToTheStoryBrowser?: boolean }> {
   return fetch(`${bundler.origin}/sherlo/letterbox`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(saying),
-  }).then((response) => response.json() as Promise<{ storyId: string | null }>);
+    // Every app in these cases is at the story browser unless it says otherwise.
+    body: JSON.stringify({ atTheStoryBrowser: true, ...saying }),
+  }).then(
+    (response) =>
+      response.json() as Promise<{ storyId?: string | null; goToTheStoryBrowser?: boolean }>
+  );
 }
 
 /** The tool's side of the address: post a story, and read what became of it. */
@@ -97,6 +113,7 @@ describe('the letterbox on the bundler', () => {
 
   afterEach(async () => {
     while (runningBundlers.length) await runningBundlers.pop()!.close();
+    openedStorybook = null;
     stopOpenStoryChannel();
     __resetStoryRenderedTrackingForTests();
   });
@@ -166,7 +183,7 @@ describe('the letterbox on the bundler', () => {
     startStoryRenderedTracking(channel);
     channel.emit('storyRendered', OTHER_STORY);
 
-    const asked: Array<{ stories: string[]; showing: string | null }> = [];
+    const asked: Ask[] = [];
     const askedAgain = new Promise<void>((resolve) => {
       const letterbox: BundlerLetterbox = {
         waitForStory: async (saying) => {
@@ -175,10 +192,10 @@ describe('the letterbox on the bundler', () => {
             resolve();
             return new Promise(() => {}); // the app goes on waiting; the test is done asking
           }
-          return STORY;
+          return { storyId: STORY };
         },
       };
-      startOpenStoryChannel({ view, channel, letterbox });
+      startOpenStoryChannel({ view, channel, atTheStoryBrowser: true, letterbox });
     });
 
     // The story travels Storybook's own channel - the app is not restarted and nothing is reloaded.
@@ -188,9 +205,66 @@ describe('the letterbox on the bundler', () => {
     channel.emit('storyRendered', STORY);
 
     await askedAgain;
-    expect(asked[0]).toEqual({ stories: [STORY, OTHER_STORY], showing: OTHER_STORY });
+    expect(asked[0]).toEqual({
+      stories: [STORY, OTHER_STORY],
+      showing: OTHER_STORY,
+      atTheStoryBrowser: true,
+    });
     // Having painted it, the app now names the new story as the one on screen.
-    expect(asked[1]).toEqual({ stories: [STORY, OTHER_STORY], showing: STORY });
+    expect(asked[1]).toEqual({
+      stories: [STORY, OTHER_STORY],
+      showing: STORY,
+      atTheStoryBrowser: true,
+    });
+  });
+
+  it('an app that is not at the story browser is sent there, and the story waits for it', async () => {
+    const running = await bundler();
+
+    // An app showing itself, not the story browser.
+    const held = appWaitsForAStory(running, {
+      stories: [STORY],
+      showing: null,
+      atTheStoryBrowser: false,
+    });
+    await letTheRequestLand();
+
+    expect(await toolPostsAStory(running, { storyId: STORY })).toEqual({
+      kind: 'handed-over',
+      storyId: STORY,
+      rendered: 'not-waited',
+    });
+    // It is sent to the story browser rather than handed a story it cannot paint.
+    expect(await held).toEqual({ goToTheStoryBrowser: true });
+
+    // Getting there restarts the app, and the story is still here when it comes back.
+    expect(await appWaitsForAStory(running, { stories: [STORY], showing: null })).toEqual({
+      storyId: STORY,
+    });
+  });
+
+  it('an app showing itself goes to the story browser rather than swallowing the story', async () => {
+    const channel = makeChannel();
+    const view = { _storyIndex: { entries: { [STORY]: {} } } } as never;
+
+    const asked: Ask[] = [];
+    const wentToTheStoryBrowser = new Promise<void>((resolve) => {
+      openedStorybook = resolve;
+      const letterbox: BundlerLetterbox = {
+        waitForStory: async (saying) => {
+          asked.push(saying);
+          return { goToTheStoryBrowser: true };
+        },
+      };
+      startOpenStoryChannel({ view, channel, atTheStoryBrowser: false, letterbox });
+    });
+
+    await wentToTheStoryBrowser;
+
+    expect(asked).toEqual([{ stories: [STORY], showing: null, atTheStoryBrowser: false }]);
+    // Nothing was put on screen here - there is no screen to put it on - and nothing was asked
+    // again, because the app is on its way out.
+    expect(channel.emitted('setCurrentStory')).toEqual([]);
   });
 });
 

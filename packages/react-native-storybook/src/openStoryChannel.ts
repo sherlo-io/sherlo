@@ -12,6 +12,12 @@
  * stories. The runner's road is the other one and is not this: it names a story before Storybook
  * opens and starts the screen over for the next.
  *
+ * AN APP SHOWING ITSELF GOES TO THE STORY BROWSER. `sherlo open` is for a developer who wants to
+ * see one story right now rather than launch the app and find it, so an app that is not at the
+ * story browser and is told a story is waiting goes there. Getting there costs a restart and
+ * nothing waiting inside the app survives one, which is exactly why the letterbox holds the story
+ * rather than handing it over: this app collects it after it comes back.
+ *
  * CHANNEL / EVENT-NAME CHOICE. `setCurrentStory` is a literal for the same reason `storyRendered`
  * and `storyChanged` are elsewhere in this SDK: the `storybook` core package is only a peer
  * dependency of `@storybook/react-native` and is not guaranteed to be resolvable from here, while
@@ -19,6 +25,7 @@
  */
 import { NativeModules } from 'react-native';
 import { StorybookView } from './types';
+import openStorybook from './openStorybook';
 import {
   lastRenderedStory,
   startStoryRenderedTracking,
@@ -44,14 +51,26 @@ const RETRY_AFTER_SILENCE_MS = 2000;
 /** How long the app waits for a story it was handed to reach the screen before asking again. */
 const PAINT_TIMEOUT_MS = 10000;
 
+/** What the letterbox answers an app that has been waiting. */
+export type LetterboxAnswer = {
+  /** The story to put on screen. Only ever sent to an app that is at the story browser. */
+  storyId?: string | null;
+  /** A story is waiting, and this app has to reach the story browser to collect it. */
+  goToTheStoryBrowser?: boolean;
+};
+
 /** What the app asks of the letterbox, and nothing else. */
 export type BundlerLetterbox = {
   /**
-   * Hold a request open at the bundler until there is a story for this app, saying what this app
-   * has and what is on screen now. Resolves with the story to show, or null when the hold ran out
-   * with nothing posted.
+   * Hold a request open at the bundler until there is something for this app, saying what this app
+   * has, where it is, and what is on screen now. Resolves with an empty answer when the hold ran
+   * out with nothing posted.
    */
-  waitForStory(saying: { stories: string[]; showing: string | null }): Promise<string | null>;
+  waitForStory(saying: {
+    stories: string[];
+    showing: string | null;
+    atTheStoryBrowser: boolean;
+  }): Promise<LetterboxAnswer>;
 };
 
 let collecting = false;
@@ -60,6 +79,10 @@ let collecting = false;
  * Start waiting on the bundler's address. Idempotent - a second call while the first is still
  * collecting is a no-op, because there is one app and one channel to put stories on.
  *
+ * `atTheStoryBrowser` says which side of the door this app is on: true while it is showing
+ * Storybook, false while it is showing itself. The two wait on the same address and are answered
+ * differently - one is handed stories, the other is sent to where stories can be shown.
+ *
  * `letterbox` defaults to the bundler this app's JavaScript came from. A built app's JavaScript
  * came from inside the app, so there is no bundler beside it and no letterbox to wait on: nothing
  * starts, and `sherlo open` is refused by the tool rather than waited on by anybody.
@@ -67,10 +90,12 @@ let collecting = false;
 export function startOpenStoryChannel({
   view,
   channel,
+  atTheStoryBrowser,
   letterbox,
 }: {
   view: StorybookView;
   channel: StorybookChannel | null;
+  atTheStoryBrowser: boolean;
   letterbox?: BundlerLetterbox | null;
 }): void {
   if (collecting || !channel) return;
@@ -83,7 +108,7 @@ export function startOpenStoryChannel({
   startStoryRenderedTracking(channel);
 
   collecting = true;
-  collectStories({ view, channel, letterbox: road });
+  collectStories({ view, channel, atTheStoryBrowser, letterbox: road });
 }
 
 /** Stop waiting. The request already in flight is left to finish and its answer dropped. */
@@ -96,27 +121,42 @@ export function stopOpenStoryChannel(): void {
 async function collectStories({
   view,
   channel,
+  atTheStoryBrowser,
   letterbox,
 }: {
   view: StorybookView;
   channel: StorybookChannel;
+  atTheStoryBrowser: boolean;
   letterbox: BundlerLetterbox;
 }): Promise<void> {
   while (collecting) {
-    let storyId: string | null = null;
+    let answer: LetterboxAnswer;
 
     try {
-      storyId = await letterbox.waitForStory({
+      answer = await letterbox.waitForStory({
         stories: storiesIn(view),
         showing: lastRenderedStory() ?? null,
+        atTheStoryBrowser,
       });
     } catch (_e) {
       await delay(RETRY_AFTER_SILENCE_MS);
       continue;
     }
 
-    if (!collecting || !storyId) continue;
+    if (!collecting) return;
 
+    if (answer.goToTheStoryBrowser) {
+      // This app is on its way out: changing mode restarts it, and the story it is going to fetch
+      // is still in the letterbox for the app that comes back to collect. Stop waiting here rather
+      // than ask again - if the restart never happens, the next launch collects it instead.
+      collecting = false;
+      openStorybook();
+      return;
+    }
+
+    if (!answer.storyId) continue;
+
+    const { storyId } = answer;
     channel.emit(SET_CURRENT_STORY, { storyId });
     // Ask again only once the story is on screen, so the asking carries the answer.
     await waitForStoryRendered({ storyId, timeoutMs: PAINT_TIMEOUT_MS, channel });
@@ -157,8 +197,8 @@ export function bundlerLetterbox(): BundlerLetterbox | null {
           // controller produces, though the runtime object is the same - hence the cast.
           signal: giveUp.signal as unknown as RequestInit['signal'],
         });
-        const answer = (await response.json()) as { storyId?: unknown };
-        return typeof answer?.storyId === 'string' ? answer.storyId : null;
+        const answer = (await response.json()) as LetterboxAnswer;
+        return answer && typeof answer === 'object' ? answer : {};
       } finally {
         clearTimeout(timer);
       }

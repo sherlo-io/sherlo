@@ -4,14 +4,21 @@
  * THE LETTERBOX ON THE BUNDLER - one address, three verbs, and the road `sherlo open` reaches a
  * running app down.
  *
- *   PUT   the app: "these are my stories, this one is on screen - hold my request until there is a
- *         story for me". The answer is the next story to show, or nothing when the hold runs out.
+ *   PUT   the app: "these are my stories, this one is on screen, and here is whether I am at the
+ *         story browser - hold my request until there is a story for me". The answer is the next
+ *         story to show, an instruction to go to the story browser, or nothing when the hold runs
+ *         out.
  *   POST  the tool: "show this story". The answer says what became of it.
  *   GET   the tool: "which story is on screen".
  *
  * IT REMEMBERS RATHER THAN RELAYS. A story posted while no app holds a request is kept until one
  * connects, because reaching the story browser costs a restart and a relay would drop the ask on
  * the floor in the middle of it.
+ *
+ * AND THAT IS WHAT THE REMEMBERING IS FOR. An app showing itself rather than the story browser is
+ * not handed the story: it is told to go there, and the story stays here until it arrives. Nothing
+ * that was waiting inside the app survives the restart that getting there costs, so the only place
+ * the ask can wait is this one.
  *
  * THE APP'S OWN REQUEST IS ITS ANSWER TOO. Every PUT carries the story the app has painted, so
  * `--wait` is held here until a PUT names the story that was posted - the tool reports a story on
@@ -42,9 +49,9 @@ function createOpenStoryLetterbox(settings) {
   var appHoldMs = (settings && settings.appHoldMs) || APP_HOLD_MS;
 
   /**
-   * What the app last said about itself: the stories it has, and the one it has painted. Null
-   * until an app has connected even once - which is how the tool tells "no app has ever been
-   * here" from "the app is between requests".
+   * What the app last said about itself: the stories it has, whether it is at the story browser,
+   * and the story it has painted. Null until an app has connected even once - which is how the
+   * tool tells "no app has ever been here" from "the app is between requests".
    */
   var appLastSaid = null;
 
@@ -67,12 +74,16 @@ function createOpenStoryLetterbox(settings) {
     return next();
   }
 
-  /** The app: say what I have and what I am showing, then hold my request until there is a story. */
+  /** The app: say what I have and where I am, then hold my request until there is a story. */
   function appWaitsForAStory(request, response) {
     readJsonBody(request, function (said) {
+      var atTheStoryBrowser = said.atTheStoryBrowser === true;
+
       appLastSaid = {
         stories: Array.isArray(said.stories) ? said.stories : [],
-        showing: typeof said.showing === 'string' ? said.showing : null,
+        atTheStoryBrowser: atTheStoryBrowser,
+        // An app showing itself has no story on screen, whatever it last painted.
+        showing: atTheStoryBrowser && typeof said.showing === 'string' ? said.showing : null,
       };
 
       // This request is also the app's answer: a story it names as painted releases the `--wait`
@@ -80,17 +91,20 @@ function createOpenStoryLetterbox(settings) {
       releasePaintWaiters(appLastSaid.showing);
 
       if (storyToHandOver !== null) {
+        if (!atTheStoryBrowser) return sendJson(response, { goToTheStoryBrowser: true });
+
         var remembered = storyToHandOver;
         storyToHandOver = null;
         return sendJson(response, { storyId: remembered });
       }
 
-      holdAppRequest(response);
+      holdAppRequest(response, atTheStoryBrowser);
     });
   }
 
-  function holdAppRequest(response) {
+  function holdAppRequest(response, atTheStoryBrowser) {
     var held = {
+      atTheStoryBrowser: atTheStoryBrowser,
       done: false,
 
       /** Take this hold off the list, once. True when this call is the one that took it off. */
@@ -104,13 +118,13 @@ function createOpenStoryLetterbox(settings) {
         return true;
       },
 
-      answer: function (storyId) {
-        if (held.stopWaiting()) sendJson(response, { storyId: storyId });
+      answer: function (payload) {
+        if (held.stopWaiting()) sendJson(response, payload);
       },
     };
 
     held.timer = setTimeout(function () {
-      held.answer(null);
+      held.answer({ storyId: null });
     }, appHoldMs);
 
     // A device that went away frees its slot; the story it never collected stays remembered. This
@@ -156,25 +170,42 @@ function createOpenStoryLetterbox(settings) {
 
   /** The tool: which story is on screen. */
   function toolAsksWhatIsOnScreen(response) {
-    // An app that has connected but has painted nothing yet is no more use to this question than
-    // one that never connected, and `no-app` is the answer that tells the reader what to do.
+    // An app showing itself, or one that has painted nothing yet, has no story to name - and is no
+    // more use to this question than one that never connected. `no-app` is the answer that tells
+    // the reader what to do about it.
     if (!appLastSaid || !appLastSaid.showing) return sendJson(response, { kind: 'no-app' });
 
     return sendJson(response, { kind: 'showing', storyId: appLastSaid.showing });
   }
 
   /**
-   * Hand the remembered story to every app holding a request. A developer usually has one device on
-   * a bundler and this hands it to that one; with two, both go to the story, which is the only
-   * answer that is not a coin toss about which device the developer meant.
+   * Hand the remembered story to every app holding a request AT THE STORY BROWSER, and send every
+   * other one there. A developer usually has one device on a bundler and this reaches that one;
+   * with two, both go to the story, which is the only answer that is not a coin toss about which
+   * device the developer meant.
+   *
+   * The story is only cleared when an app that can paint it took it. An app on its way to the story
+   * browser has not taken anything - it is about to restart, and the story has to be here when it
+   * comes back.
    */
   function handOverToWaitingApps() {
     if (storyToHandOver === null || appsWaiting.length === 0) return;
 
+    var waiting = appsWaiting.slice();
+
+    waiting.forEach(function (held) {
+      if (!held.atTheStoryBrowser) held.answer({ goToTheStoryBrowser: true });
+    });
+
+    var readyForIt = waiting.filter(function (held) {
+      return held.atTheStoryBrowser;
+    });
+    if (readyForIt.length === 0) return;
+
     var storyId = storyToHandOver;
     storyToHandOver = null;
-    appsWaiting.slice().forEach(function (held) {
-      held.answer(storyId);
+    readyForIt.forEach(function (held) {
+      held.answer({ storyId: storyId });
     });
   }
 
