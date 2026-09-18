@@ -581,3 +581,21 @@ describe('applySherloTransforms - cross-machine absolute-path guard (SHERLO-1894
     expect(leaked.manifest.header.absolutePathLeaks).toContain('./src/Button.tsx');
   });
 });
+
+/**
+ * THE SWAP THE WHOLE SDK RESTS ON, and until now nothing held it.
+ *
+ * Sherlo reaches inside Storybook by answering every request for the Storybook package with a
+ * generated file, which hands back the real Storybook with its opening function replaced. Every
+ * other thing the SDK does to Storybook - which story opens first, whether the last one is
+ * remembered, whether it talks to a server - is downstream of that one move, and there were tests
+ * either side of it and none on it.
+ *
+ * SHELL. Named here so the book page that states it has a test to point at
+ * (sherlo / The Storybook integration); the epic that touches this code writes the body.
+ */
+describe("the swap", () => {
+  it.todo(
+    "the Storybook package resolves to the generated wrapper, and the wrapper hands back Storybook with the opening function swapped"
+  );
+});
