@@ -283,7 +283,19 @@ export function readPose(document: unknown): CommandPose {
 
   reportUnknownFields(
     pose,
-    ['pose', 'argv', 'files', 'env', 'git', 'bundles', 'api', 'masks', 'push', 'workstation', 'letterbox'],
+    [
+      'pose',
+      'argv',
+      'files',
+      'env',
+      'git',
+      'bundles',
+      'api',
+      'masks',
+      'push',
+      'workstation',
+      'letterbox',
+    ],
     '',
     problems
   );

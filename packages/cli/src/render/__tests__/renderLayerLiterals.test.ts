@@ -798,7 +798,9 @@ const PINS: Pin[] = [
     },
     stream: 'stdout',
     prints: [
-      [`${ESC}[31m✖${ESC}[39m  No story ${ESC}[1mfoundation-typografy--scales${ESC}[22m in this app`],
+      [
+        `${ESC}[31m✖${ESC}[39m  No story ${ESC}[1mfoundation-typografy--scales${ESC}[22m in this app`,
+      ],
       [''],
       [`${ESC}[2mThis app has:${ESC}[22m`],
       ['  foundation-typography--scales'],

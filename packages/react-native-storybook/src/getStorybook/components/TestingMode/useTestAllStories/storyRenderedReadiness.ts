@@ -35,10 +35,15 @@
 // Storybook core wire-protocol event names (stable across 8.x / 9.x).
 const STORY_RENDERED = 'storyRendered';
 
-/** Minimal shape of the Storybook channel we rely on. */
-type StorybookChannel = {
+/**
+ * Minimal shape of the Storybook channel we rely on. `emit` is here because the same resolved
+ * channel is how a story asked for from outside is put on screen (../../../../openStoryChannel);
+ * this module only listens.
+ */
+export type StorybookChannel = {
   on: (event: string, listener: (...args: unknown[]) => void) => void;
   off: (event: string, listener: (...args: unknown[]) => void) => void;
+  emit: (event: string, ...args: unknown[]) => void;
 };
 
 type Waiter = (storyId: string) => void;
@@ -91,7 +96,8 @@ export function getStorybookChannel(view?: unknown): StorybookChannel | null {
   if (
     candidate &&
     typeof (candidate as StorybookChannel).on === 'function' &&
-    typeof (candidate as StorybookChannel).off === 'function'
+    typeof (candidate as StorybookChannel).off === 'function' &&
+    typeof (candidate as StorybookChannel).emit === 'function'
   ) {
     return candidate as StorybookChannel;
   }
@@ -110,6 +116,15 @@ export function startStoryRenderedTracking(channel: StorybookChannel | null): bo
   trackedChannel = channel;
   channel.on(STORY_RENDERED, handleStoryRendered as (...args: unknown[]) => void);
   return true;
+}
+
+/**
+ * The story Storybook last reported rendered, or undefined when none has been. The tracker already
+ * buffers it for the readiness wait, and it is also the answer to what is on screen now - which is
+ * what the app tells the letterbox on the bundler (../../../../openStoryChannel).
+ */
+export function lastRenderedStory(): string | undefined {
+  return lastRenderedStoryId;
 }
 
 export type ReadinessPath =

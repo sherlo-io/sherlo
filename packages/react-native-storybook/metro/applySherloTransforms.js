@@ -5,6 +5,7 @@ var path = require('path');
 var crypto = require('crypto');
 
 var mockShims = require('./mockShims');
+var createOpenStoryLetterbox = require('./openStoryLetterbox');
 
 // ---------------------------------------------------------------------------
 // Module path helper (shared by the Diff Scope module manifest)
@@ -585,6 +586,31 @@ function applySherloTransforms(result, opts) {
     }
   }
 
+  // ---- The letterbox on the bundler ----
+  // One address served beside the bundle, and the whole road `sherlo open` and `sherlo inspect`
+  // reach a running app down (see openStoryLetterbox.js). It is installed unconditionally: with no
+  // Sherlo app attached the address simply has nobody to hand a story to, and a developer never
+  // has to add anything for it to be there.
+  var letterbox = createOpenStoryLetterbox();
+
+  var existingEnhanceMiddleware =
+    result && result.server && typeof result.server.enhanceMiddleware === 'function'
+      ? result.server.enhanceMiddleware
+      : null;
+
+  function enhanceMiddleware(metroMiddleware, metroServer) {
+    var enhanced = existingEnhanceMiddleware
+      ? existingEnhanceMiddleware(metroMiddleware, metroServer)
+      : metroMiddleware;
+
+    return function sherloLetterboxMiddleware(request, response, next) {
+      // Sherlo's address first, everything else untouched behind it.
+      return letterbox.middleware(request, response, function () {
+        return enhanced(request, response, next);
+      });
+    };
+  }
+
   var baseResult = result || {};
 
   var serializer = Object.assign({}, baseResult.serializer, {
@@ -603,6 +629,9 @@ function applySherloTransforms(result, opts) {
     }),
     resolver: Object.assign({}, baseResult.resolver, {
       resolveRequest: resolveRequest,
+    }),
+    server: Object.assign({}, baseResult.server, {
+      enhanceMiddleware: enhanceMiddleware,
     }),
     serializer: serializer,
   });
@@ -691,6 +720,7 @@ module.exports = applySherloTransforms;
 module.exports.applySherloTransforms = applySherloTransforms;
 module.exports.generateWrapper = generateWrapper;
 module.exports.writeDisabledFlagPolyfill = writeDisabledFlagPolyfill;
+module.exports.createOpenStoryLetterbox = createOpenStoryLetterbox;
 // Exported for SHERLO-1890 spike unit tests (module manifest sidecar).
 module.exports.emitModuleManifestSidecar = emitModuleManifestSidecar;
 module.exports.stableStringify = stableStringify;
