@@ -19,7 +19,7 @@
 [32m  ✓ Assets: 2 files[39m
 [1m📸 Capture plan (dry run)[22m
   [36m🤖 Android[39m - [1mwould capture all stories[22m
-[2m     why: manifest-missing[22m
+[2m     why: no module map for this build - capturing everything[22m
 
 ◦ Dry run - no build created, nothing uploaded
 

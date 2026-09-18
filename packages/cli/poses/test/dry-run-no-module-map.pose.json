@@ -22,7 +22,7 @@
       "with": { "branch": "feature/checkout", "commit": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b" },
       "answer": {
         "platforms": [
-          { "platform": "android", "isFullCapture": true, "reason": "manifest-missing", "capturedStoryFilePaths": [] }
+          { "platform": "android", "isFullCapture": true, "reason": "no module map for this build - capturing everything", "capturedStoryFilePaths": [] }
         ]
       }
     }
