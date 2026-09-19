@@ -764,6 +764,84 @@ const PINS: Pin[] = [
   },
 
   {
+    kind: 'opened-story',
+    what: 'what `sherlo open` prints when the app reports the story on screen - the story id bold, because the id is the answer and everything else is a sentence around it',
+    segment: {
+      kind: 'opened-story',
+      state: { kind: 'opened', storyId: 'foundation-typography--scales', waited: true },
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[32m✔${ESC}[39m  ${ESC}[1mfoundation-typography--scales${ESC}[22m is on screen`],
+      [''],
+      [`${ESC}[2mNext: \`sherlo inspect\` says what is showing now.${ESC}[22m`],
+      [''],
+    ],
+  },
+
+  {
+    kind: 'opened-story',
+    what: 'the refusal that earns its keep - a mistyped story id, answered with the ids the app really has and a count of the rest, because a refusal that listed hundreds would have told the reader nothing',
+    segment: {
+      kind: 'opened-story',
+      state: {
+        kind: 'no-such-story',
+        storyId: 'foundation-typografy--scales',
+        known: [
+          'foundation-typography--scales',
+          'foundation-colour--palette',
+          'controls-button--primary',
+          'controls-button--disabled',
+          'controls-input--empty',
+        ],
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[31m✖${ESC}[39m  No story ${ESC}[1mfoundation-typografy--scales${ESC}[22m in this app`,
+      ],
+      [''],
+      [`${ESC}[2mThis app has:${ESC}[22m`],
+      ['  foundation-typography--scales'],
+      ['  foundation-colour--palette'],
+      ['  controls-button--primary'],
+      ['  controls-button--disabled'],
+      [`${ESC}[2m  ... and 1 more${ESC}[22m`],
+      [''],
+    ],
+  },
+
+  {
+    kind: 'inspected-story',
+    what: 'what `sherlo inspect` prints - one line, the story id and nothing else, because the caller between two edits wants the answer rather than a sentence containing it',
+    segment: {
+      kind: 'inspected-story',
+      state: { kind: 'showing', storyId: 'controls-button--disabled' },
+    },
+    stream: 'stdout',
+    prints: [[`${ESC}[1mcontrols-button--disabled${ESC}[22m`], ['']],
+  },
+
+  {
+    kind: 'inspected-story',
+    what: 'what `sherlo inspect` prints when an app is attached and is not showing a story - not the same ending as no app being there at all, because the developer has already done what that ending would tell them to do',
+    segment: {
+      kind: 'inspected-story',
+      state: { kind: 'not-at-story-browser' },
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[33m◦${ESC}[39m  The app is attached, and is not showing a story right now`],
+      [''],
+      [
+        `${ESC}[2mIt is showing itself rather than the story browser. \`sherlo open --story <id>\` sends it there.${ESC}[22m`,
+      ],
+      [''],
+    ],
+  },
+
+  {
     kind: 'project-created',
     what: 'everything `sherlo project create` prints - and the shape that keeps the project token OFF a key=value line, because those lines exist for CI to scrape and a secret must not be put on that journey',
     segment: {

@@ -120,7 +120,45 @@ export type CommandPose = {
    * is refused at run time, exactly like a call the pose did not script.
    */
   workstation?: PosedWorkstation;
+  /**
+   * What the bundler's letterbox answered - the road `sherlo open` and `sherlo inspect` reach the
+   * developer's running app down. THE THIRD OPTIONAL FIELD, and for the same reason as the other
+   * two: no other command has a running app to talk to, and a machine that only has the pose has
+   * no bundler and no app. A pose that states it for a command that never posts to the letterbox
+   * is refused; a command that reaches the letterbox with no `letterbox` is refused at run time,
+   * exactly like a call the pose did not script.
+   */
+  letterbox?: PosedLetterbox;
 };
+
+/**
+ * What the letterbox on the bundler answered, as a pose states it.
+ *
+ * A pose never supplies the words the screen shows. It says which stories the running app has,
+ * whether an app was listening at all, and - for a command that waited - what the app reported
+ * back about the story it was asked for. The tool prints whatever it prints for that.
+ */
+export type PosedLetterbox =
+  /** No bundler on the address at all: nothing is serving, so there is nowhere to post. */
+  | 'no-bundler'
+  /** A bundler is up, and no app carrying the SDK has ever connected to its letterbox. */
+  | 'no-app'
+  | {
+      /** Every story the running app's Storybook knows, by id, in the order it lists them. */
+      stories: string[];
+      /**
+       * What the app reported for the story it was asked for: that it is on screen, or that it
+       * never got there before the wait ran out. Absent for a command that only asks what is
+       * showing rather than changing it.
+       */
+      rendered?: 'yes' | 'timed-out';
+      /**
+       * The story the app says it is showing now, for the command that only asks. Absent poses an
+       * app that is attached and has nothing on screen to name - most often one showing itself
+       * rather than the story browser - which is a different fact from no app being there at all.
+       */
+      showing?: string;
+    };
 
 /** The two acts `sherlo init` performs on the machine, as a pose states them. */
 export type PosedWorkstation = {

@@ -1,0 +1,6 @@
+[33m◦[39m  [1mcontrols-button--primary[22m was sent, and the app did not report it within 30s
+
+[2mThe app may still be loading it. `sherlo inspect` says what is showing now.[22m
+
+
+[exit 1]

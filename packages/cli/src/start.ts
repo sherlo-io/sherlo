@@ -10,6 +10,8 @@ import {
   showError,
   teamCreate,
   teamList,
+  inspect,
+  open,
   test,
   testEasCloudBuild,
   view,
@@ -56,6 +58,12 @@ import {
   TOKEN_OPTION,
   VERBOSE_OPTION,
   VIEW_COMMAND,
+  OPEN_COMMAND,
+  INSPECT_COMMAND,
+  STORY_OPTION,
+  PORT_OPTION,
+  TIMEOUT_OPTION,
+  DEFAULT_BUNDLER_PORT,
   WAIT_FOR_EAS_BUILD_OPTION,
   WAIT_OPTION,
   WAIT_TIMEOUT_OPTION,
@@ -92,6 +100,10 @@ async function start() {
     addProjectCommand(program);
 
     addTeamCommand(program);
+
+    addOpenCommand(program);
+
+    addInspectCommand(program);
 
     addPoseCommand(program);
 
@@ -141,6 +153,14 @@ const COMMAND_DESCRIPTION = {
     `  nothing. \`--${WAIT_OPTION}\` blocks until the build is terminal and exits under the\n` +
     `  same contract as \`test --${WAIT_OPTION}\`; without it the exit code is 0 whatever the\n` +
     '  build says.',
+  [OPEN_COMMAND]:
+    'Put the app you are running on one named Storybook story.\n' +
+    '  Talks to your own bundler, never to Sherlo: no token, no upload, nothing leaves\n' +
+    `  the machine. \`--${WAIT_OPTION}\` holds until the app reports the story on screen.\n` +
+    '  Exit 0 when the story is showing, 1 when it is not.',
+  [INSPECT_COMMAND]:
+    'Print the story the app you are running is showing now, one line.\n' +
+    '  The read-side sibling of `open`, down the same road and with the same refusals.',
   [`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}`]:
     'Create a project in a team and print its project token ONCE.\n' +
     `  Authorized by a PERSONAL token (\`--${PERSONAL_TOKEN_FLAG}\` or ${PERSONAL_TOKEN_ENV_VAR}),\n` +
@@ -273,9 +293,28 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${WAIT_FOR_EAS_BUILD_OPTION}`,
     'Start waiting for EAS Build to be triggered manually',
   ],
+  [STORY_OPTION]: [
+    `--${STORY_OPTION} <id>`,
+    'The story to put on screen, by the id Storybook gives it (e.g. foundation-typography--scales)',
+  ],
+  [PORT_OPTION]: [
+    `--${PORT_OPTION} <port>`,
+    `Where the bundler is listening (default: ${DEFAULT_BUNDLER_PORT})`,
+  ],
+  [TIMEOUT_OPTION]: [
+    `--${TIMEOUT_OPTION} <seconds>`,
+    `How long \`--${WAIT_OPTION}\` waits for the app to report the story (default: 30)`,
+  ],
+  /*
+   * ONE ENTRY FOR ONE FLAG. `--wait` is the same word on `test`, `view` and `open`, so it is one
+   * key here whatever each command does with it - the table is keyed by the flag a person types.
+   * What each wait waits FOR belongs to that command's own description above, which is where a
+   * reader of `sherlo open --help` is already looking.
+   */
   [WAIT_OPTION]: [
     `--${WAIT_OPTION}`,
-    'Wait for test results and exit with a code encoding the outcome:\n' +
+    'Wait for the run to finish rather than returning as soon as it has started.\n' +
+      '  On `test` and `view` the exit code then encodes the outcome:\n' +
       '  0 = GREEN (no changes), 1 = changes require review,\n' +
       '  2 = build/system error, 3 = timeout (block, never pass), 130 = interrupted (Ctrl-C)',
   ],
@@ -290,6 +329,29 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
       `to <file> as JSON, for a later \`--${BASELINE_OPTION}\`.`,
   ],
 };
+
+// `sherlo open` and `sherlo inspect` are the two commands that never leave the machine: no token,
+// no project folder, no backend. Their whole world is the bundler's letterbox (../seams/letterbox),
+// and `withTimeout: false` because a wait the caller asked for is not a hang.
+function addOpenCommand(program: Command) {
+  addCommand({
+    program,
+    command: OPEN_COMMAND,
+    options: [STORY_OPTION, WAIT_OPTION, TIMEOUT_OPTION, PORT_OPTION],
+    action: open,
+    withTimeout: false,
+  });
+}
+
+function addInspectCommand(program: Command) {
+  addCommand({
+    program,
+    command: INSPECT_COMMAND,
+    options: [PORT_OPTION],
+    action: inspect,
+    withTimeout: false,
+  });
+}
 
 function addInitCommand(program: Command) {
   addCommand({

@@ -57,7 +57,30 @@ export type CommandPose = {
    * machine with no `workstation` is refused at run time, like a call the pose did not script.
    */
   workstation?: PosedWorkstation;
+  /**
+   * What the bundler's letterbox answered. THE THIRD OPTIONAL FIELD, because `open` and `inspect`
+   * are the only commands with a running app to talk to. A command that reaches the letterbox with
+   * no `letterbox` is refused at run time, like a call the pose did not script.
+   */
+  letterbox?: PosedLetterbox;
 };
+
+/** What the letterbox on the bundler answered, as a pose states it. */
+export type PosedLetterbox =
+  | 'no-bundler'
+  | 'no-app'
+  | {
+      /** Every story the running app's Storybook knows, by id, in the order it lists them. */
+      stories: string[];
+      /** What the app reported for the story it was asked to show. */
+      rendered?: 'yes' | 'timed-out';
+      /**
+       * The story the app says it is showing now, for the command that only asks. Absent poses an
+       * app that is attached and has nothing on screen to name - most often one showing itself
+       * rather than the story browser - which is a different fact from no app being there at all.
+       */
+      showing?: string;
+    };
 
 /** The two acts `sherlo init` performs on the machine, as a pose states them. */
 export type PosedWorkstation = {
@@ -341,6 +364,7 @@ export function readPose(document: unknown): CommandPose {
   readPush(pose, argv, problems);
   readClock(pose, problems);
   readWorkstation(pose, argv, problems);
+  readLetterbox(pose, argv, problems);
 
   reportUnknownFields(
     pose,
@@ -356,6 +380,7 @@ export function readPose(document: unknown): CommandPose {
       'push',
       'clock',
       'workstation',
+      'letterbox',
     ],
     '',
     problems
@@ -388,6 +413,11 @@ function commandBundles(argv: string[]): boolean {
  */
 function commandActsOnTheMachine(argv: string[]): boolean {
   return argv[0] === 'init';
+}
+
+/** The two commands that post to the bundler's letterbox, and so may pose one. */
+function commandReachesTheLetterbox(argv: string[]): boolean {
+  return argv[0] === 'open' || argv[0] === 'inspect';
 }
 
 /* ========================================================================== */
@@ -643,6 +673,39 @@ function readWorkstation(pose: Record<string, unknown>, argv: string[], problems
 
   expectOneOf(workstation, 'enter', ['pressed', 'closed'], '`workstation`', problems);
   reportUnknownFields(workstation, ['install', 'enter'], '`workstation`', problems);
+}
+
+/**
+ * `letterbox` is read only when it is there: it is optional because only `open` and `inspect` have
+ * a running app to talk to. Stated for any other command it describes a road that command never
+ * travels, and is refused the way `push` and `workstation` are.
+ *
+ * The two bare states are strings rather than objects with a flag, because "no bundler" and "no
+ * app" have nothing else to say: a pose that had to write `{ bundler: false, stories: [] }` would
+ * invite somebody to fill the stories in and wonder why they never showed.
+ */
+function readLetterbox(pose: Record<string, unknown>, argv: string[], problems: string[]): void {
+  if (!('letterbox' in pose)) return;
+
+  if (!commandReachesTheLetterbox(argv)) {
+    problems.push(
+      `\`letterbox\`: \`${argv[0] ?? ''}\` never posts to the bundler, so there is no letterbox ` +
+        'for it to describe. Leave the field out.'
+    );
+    return;
+  }
+
+  if (pose.letterbox === 'no-bundler' || pose.letterbox === 'no-app') return;
+
+  const letterbox = asObject(pose.letterbox, '`letterbox`', problems);
+  if (!letterbox) return;
+
+  expectStringArray(letterbox, 'stories', '`letterbox`', problems);
+  if ('rendered' in letterbox) {
+    expectOneOf(letterbox, 'rendered', ['yes', 'timed-out'], '`letterbox`', problems);
+  }
+  if ('showing' in letterbox) expectString(letterbox, 'showing', '`letterbox`', problems);
+  reportUnknownFields(letterbox, ['stories', 'rendered', 'showing'], '`letterbox`', problems);
 }
 
 function readApi(pose: Record<string, unknown>, problems: string[]): void {

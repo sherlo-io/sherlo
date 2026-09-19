@@ -6,6 +6,8 @@
 export { default as easBuildOnComplete } from './easBuildOnComplete';
 export { default as fingerprint } from './fingerprint';
 export { default as init } from './init';
+export { default as inspect } from './inspect';
+export { default as open } from './open';
 export { default as projectCreate } from './projectCreate';
 export { default as projectList } from './projectList';
 export { default as showError } from './showError';
