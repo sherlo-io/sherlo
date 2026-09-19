@@ -112,7 +112,8 @@ export type PosedBundle = {
   bundleFormat: 'plain-js' | 'hermes-bytecode';
   bundler: 'expo' | 'metro';
   assets: string[];
-  storyClosureKeys: string[];
+  /** `null` poses a bundle that came with no module map - see `contracts/pose.contract.ts`. */
+  storyClosureKeys: string[] | null;
 };
 
 /** The error the server sends, as the tool's client surfaces it. */
@@ -506,7 +507,7 @@ function readBundles(pose: Record<string, unknown>, argv: string[], problems: st
     expectOneOf(bundle, 'bundleFormat', ['plain-js', 'hermes-bytecode'], where, problems);
     expectOneOf(bundle, 'bundler', ['expo', 'metro'], where, problems);
     expectStringArray(bundle, 'assets', where, problems);
-    expectStringArray(bundle, 'storyClosureKeys', where, problems);
+    expectStringArrayOrNull(bundle, 'storyClosureKeys', where, problems);
     reportUnknownFields(
       bundle,
       ['bundlePath', 'bundleSizeMb', 'bundleFormat', 'bundler', 'assets', 'storyClosureKeys'],
@@ -1210,6 +1211,17 @@ function expectStringArray(
       problems.push(`${where}.${field}[${index}]: expected a string, got ${describe(entry)}`);
     }
   });
+}
+
+function expectStringArrayOrNull(
+  host: Record<string, unknown>,
+  field: string,
+  where: string,
+  problems: string[]
+): void {
+  const value = host[field];
+  if (value === null) return;
+  expectStringArray(host, field, where, problems);
 }
 
 /** Runs `readEntry` over every entry of an array-valued field, naming each entry's position. */

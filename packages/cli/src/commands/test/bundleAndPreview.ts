@@ -55,6 +55,8 @@ export async function runDryRunFlow({
   baseFingerprint,
   resolveGitInfo,
   effects,
+  include,
+  exclude,
 }: {
   projectRoot: string;
   platformsToTest: Platform[];
@@ -64,6 +66,12 @@ export async function runDryRunFlow({
   baseFingerprint: string;
   resolveGitInfo: () => Promise<GitInfo>;
   effects?: BundlingEffects;
+  /**
+   * The config's include/exclude lists - the SAME narrowing a real build sends via
+   * getBuildRunConfig, passed straight through to the preview. Absent when the config names none.
+   */
+  include?: string[];
+  exclude?: string[];
 }): Promise<void> {
   emit({ kind: 'dry-run-bundling-header' });
 
@@ -83,6 +91,8 @@ export async function runDryRunFlow({
     teamId,
     gitInfo,
     baseReference: baseFingerprint,
+    include,
+    exclude,
   });
 }
 
