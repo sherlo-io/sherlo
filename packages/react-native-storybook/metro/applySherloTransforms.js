@@ -110,16 +110,34 @@ function moduleOutputLeaksAbsolutePath(module, projectRoot) {
 }
 
 /**
- * Collects the absolute paths of every story module: the targets of every
- * require.context() edge in the graph. A require.context dependency is a
- * synthetic module whose own dependencies are the matched files.
+ * Collects the absolute paths of every story module: the targets of the
+ * require.context() edge declared in Storybook's own generated requires file
+ * (STORYBOOK_REQUIRES_BASENAMES, matched by basename exactly like
+ * describeGeneratedFiles below). require.context is an ordinary Metro feature
+ * an app is free to use for its own gathering (icons, fonts, locale files) -
+ * a require.context dependency is a synthetic module whose own dependencies
+ * are the matched files, and nothing in its shape distinguishes "this is a
+ * story list" from "this is an icon folder". Matching only the DECLARING
+ * MODULE, not the context's directory or filter regex (an app may legitimately
+ * reuse either), is what tells the two apart.
+ *
+ * Found via the Diff Scope fixture app's StorefrontBadge component, which
+ * gathers its own icons with `require.context('./badgeIcons', false, /\.ts$/)`:
+ * before this guard, truck.ts and cart.ts were counted as stories neither is,
+ * inflating every capture's story count by 2 and giving each icon a
+ * storyClosures entry it should never have had.
+ *
+ * Bail-open: if no such generated file is in the graph (e.g. a machine that
+ * never bundled - see describeGeneratedFiles), the result is an empty story
+ * list, exactly as for an app with no require.context at all.
  *
  * @returns {string[]} unique story absolute paths.
  */
 function collectStoryAbsPaths(graph) {
   var seen = {};
   var stories = [];
-  graph.dependencies.forEach(function (module) {
+  graph.dependencies.forEach(function (module, absPath) {
+    if (STORYBOOK_REQUIRES_BASENAMES.indexOf(path.basename(absPath)) === -1) return;
     if (!module.dependencies || !(module.dependencies instanceof Map)) return;
     module.dependencies.forEach(function (dep) {
       var contextParams = dep.data && dep.data.data && dep.data.data.contextParams;
