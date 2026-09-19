@@ -330,6 +330,45 @@ function buildFakeGraph(root: string) {
   return { graph: { dependencies: deps }, storiesPath, buttonPath, labelPath };
 }
 
+// Extends buildFakeGraph's graph with an app-owned require.context, modeled on
+// the Diff Scope fixture app's StorefrontBadge component
+// (apps/integrated-app-expo/.../StorefrontBadge.tsx), which gathers its own
+// icons with `require.context('./badgeIcons', false, /\.ts$/)`:
+//   StorefrontBadge.tsx --require.context--> (synthetic ctx) --> [truck.ts, cart.ts]
+// Neither icon is a story, and this edge is declared by an ordinary app module,
+// not by storybook.requires.ts.
+function addAppOwnedContext(root: string, graph: ReturnType<typeof buildFakeGraph>['graph']) {
+  const badgePath = path.join(root, 'src', 'StorefrontBadge.tsx');
+  const badgeCtxPath = path.join(root, 'src', 'StorefrontBadge.tsx?ctx');
+  const truckPath = path.join(root, 'src', 'badgeIcons', 'truck.ts');
+  const cartPath = path.join(root, 'src', 'badgeIcons', 'cart.ts');
+
+  const mod = (code: string, deps: Map<string, unknown>) => ({
+    output: [{ data: { code } }],
+    dependencies: deps,
+  });
+
+  graph.dependencies.set(
+    badgePath,
+    mod(
+      'BADGE_CODE',
+      new Map([['ctx', { absolutePath: badgeCtxPath, data: { data: { contextParams: {} } } }]])
+    )
+  );
+  graph.dependencies.set(
+    badgeCtxPath,
+    mod(
+      'CTX_CODE',
+      new Map([
+        ['truck', { absolutePath: truckPath, data: { data: {} } }],
+        ['cart', { absolutePath: cartPath, data: { data: {} } }],
+      ])
+    )
+  );
+  graph.dependencies.set(truckPath, mod('TRUCK_CODE', new Map()));
+  graph.dependencies.set(cartPath, mod('CART_CODE', new Map()));
+}
+
 describe('applySherloTransforms – module manifest sidecar (enabled)', () => {
   const manifestRelPath = ['node_modules', '.cache', 'sherlo', 'module-manifest.json'];
 
@@ -393,6 +432,43 @@ describe('applySherloTransforms – module manifest sidecar (enabled)', () => {
     const { manifest } = emitAndRead();
     const closure = manifest.storyClosures['./src/Button.stories.tsx'];
     expect(closure).toEqual(['./src/Button.tsx', './src/shared/Label.tsx']);
+  });
+
+  it('a require.context written by the app is not a story source', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-app-ctx-'));
+    const result = applySherloTransforms(
+      { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: () => 'BYTES' } },
+      { enabled: true }
+    );
+    const built = buildFakeGraph(tmpDir);
+    addAppOwnedContext(tmpDir, built.graph);
+    result.serializer.customSerializer('index.js', [], built.graph, { projectRoot: tmpDir });
+    const manifest = JSON.parse(fs.readFileSync(path.join(tmpDir, ...manifestRelPath), 'utf8'));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
+    // truck.ts and cart.ts are gathered by the app's own require.context, not
+    // storybook.requires.ts - neither is a story, so neither gets a closure.
+    expect(Object.keys(manifest.storyClosures)).toEqual(['./src/Button.stories.tsx']);
+  });
+
+  it('the stories still come from storybook.requires when the app has a require.context of its own', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-app-ctx-plus-story-'));
+    const result = applySherloTransforms(
+      { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: () => 'BYTES' } },
+      { enabled: true }
+    );
+    const built = buildFakeGraph(tmpDir);
+    addAppOwnedContext(tmpDir, built.graph);
+    result.serializer.customSerializer('index.js', [], built.graph, { projectRoot: tmpDir });
+    const manifest = JSON.parse(fs.readFileSync(path.join(tmpDir, ...manifestRelPath), 'utf8'));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
+    // The real story, declared by storybook.requires.ts, is unaffected by the
+    // app's own require.context living elsewhere in the graph.
+    expect(manifest.storyClosures['./src/Button.stories.tsx']).toEqual([
+      './src/Button.tsx',
+      './src/shared/Label.tsx',
+    ]);
   });
 
   it('is emitted deterministically: two runs of the same graph produce byte-identical manifests', () => {
