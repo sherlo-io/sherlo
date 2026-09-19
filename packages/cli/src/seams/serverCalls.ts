@@ -445,12 +445,29 @@ function stagedUploadUrlsAnswerOf(
   } as unknown as StagedUploadUrlsAnswer;
 }
 
-/** The first argument the pose and the command disagree about, said in one sentence. */
+/**
+ * The first argument the pose and the command disagree about, said in one sentence.
+ *
+ * `platforms` IS COMPARED AS A SET, NOT AS AN ARRAY - same members, any order. The two call sites
+ * that assemble it disagree with each other about the order: `getPlatformsToTest` walks `devices`
+ * in sherlo.config.json, and a real push instead walks the binaries the command line named, where
+ * `--android` is written before `--ios`. Neither order is a claim about behaviour - it is which
+ * object the tool happened to iterate - so a pose asserting one order over the other would be
+ * asserting an implementation detail, and refusing the WHOLE RUN to do it (this cost the Diff
+ * Scope saga two capture rounds: run 35415047617 posed `["android","ios"]` against a
+ * `getNextBuildInfo` made with `["ios","android"]`, and after that order was "fixed", run
+ * 35451053180 refused on `getStagedUploadUrls` making the SAME call with the OTHER order). Every
+ * other argument a pose scripts is either a scalar or, like `checkStagedGate`'s `platform`, a
+ * single value - `platforms` is the only array among them, so this is the one field this
+ * comparison treats specially.
+ */
 function firstMismatch(
   scripted: Record<string, unknown>,
   asked: Record<string, unknown>
 ): string | undefined {
   for (const field of Object.keys(scripted)) {
+    if (field === 'platforms' && sameSetOfPlatforms(scripted[field], asked[field])) continue;
+
     const expected = JSON.stringify(scripted[field]);
     const actual = JSON.stringify(asked[field]);
     if (expected !== actual) {
@@ -459,4 +476,14 @@ function firstMismatch(
   }
 
   return undefined;
+}
+
+/** Whether two values are both arrays holding the same platforms, order aside. */
+function sameSetOfPlatforms(scripted: unknown, asked: unknown): boolean {
+  if (!Array.isArray(scripted) || !Array.isArray(asked)) return false;
+  if (scripted.length !== asked.length) return false;
+
+  const sortedScripted = [...scripted].sort();
+  const sortedAsked = [...asked].sort();
+  return sortedScripted.every((platform, index) => platform === sortedAsked[index]);
 }

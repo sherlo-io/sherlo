@@ -8,6 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { PoseRefusal, readPose, readPoseDocument } from '../readPose';
+import { posedServerCalls } from '../../../seams/serverCalls';
 
 /** A pose with nothing wrong with it - the thing every case below breaks in exactly one way. */
 function validPose(): Record<string, unknown> {
@@ -321,5 +322,40 @@ describe('reading a CommandPose', () => {
   it('a document that is not JSON is refused the same way as one that is the wrong shape', () => {
     expect(() => readPoseDocument('{ not json')).toThrow(PoseRefusal);
     expect(() => readPoseDocument('{ not json')).toThrow('not valid JSON');
+  });
+});
+
+/**
+ * A scripted call's `platforms` argument is matched against what the command asked with AS A
+ * SET, not as an array - see the docblock on `firstMismatch` in ../../../seams/serverCalls for
+ * why: the tool itself assembles the list in different orders from different call sites, and a
+ * pose asserting either order would be asserting an implementation detail while refusing the
+ * whole run to do it.
+ */
+describe("a posed call's platforms are matched against the call as a set", () => {
+  it('a posed platform list matches the same platforms in a different order', async () => {
+    const api = posedServerCalls([
+      { call: 'getStagedUploadUrls', with: { platforms: ['ios', 'android'] }, answer: {} },
+    ]);
+
+    await expect(
+      api.getStagedUploadUrls({} as never, { platforms: ['android', 'ios'] } as never)
+    ).resolves.toBeDefined();
+    expect(api.refusals()).toEqual([]);
+  });
+
+  it('CONTROL: a posed platform list still refuses a different SET of platforms', async () => {
+    const api = posedServerCalls([
+      { call: 'getStagedUploadUrls', with: { platforms: ['ios', 'android'] }, answer: {} },
+    ]);
+
+    await expect(
+      api.getStagedUploadUrls({} as never, { platforms: ['android'] } as never)
+    ).rejects.toThrow();
+
+    expect(api.refusals()).toHaveLength(1);
+    expect(api.refusals()[0].problem).toContain('`platforms`');
+    expect(api.refusals()[0].problem).toContain('"ios"');
+    expect(api.refusals()[0].problem).toContain('"android"');
   });
 });
