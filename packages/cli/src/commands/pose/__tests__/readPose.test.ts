@@ -358,4 +358,42 @@ describe("a posed call's platforms are matched against the call as a set", () =>
     expect(api.refusals()[0].problem).toContain('"ios"');
     expect(api.refusals()[0].problem).toContain('"android"');
   });
+
+  // `openBuild`'s asked `platforms` is not read off the request - it is composed at the call site
+  // from the build config's keys (`serverCalls.ts`'s `openBuild` handler) - so it goes through the
+  // same `firstMismatch` as every other call, but is worth its own case: it is the call two real
+  // capture runs (35457874350, 35459204774) still refused on AFTER this set-match landed.
+  it('openBuild accepts a posed platform list in the other order', async () => {
+    const api = posedServerCalls([
+      {
+        call: 'openBuild',
+        with: { platforms: ['ios', 'android'] },
+        answer: { buildIndex: 1, url: 'https://app.sherlo.io/build?t=tm000001&p=7&b=1' },
+      },
+    ]);
+
+    await expect(
+      api.openBuild({} as never, { buildRunConfig: { android: {}, ios: {} } } as never)
+    ).resolves.toBeDefined();
+    expect(api.refusals()).toEqual([]);
+  });
+
+  it('CONTROL: openBuild still refuses a different SET of platforms', async () => {
+    const api = posedServerCalls([
+      {
+        call: 'openBuild',
+        with: { platforms: ['ios', 'android'] },
+        answer: { buildIndex: 1, url: 'https://app.sherlo.io/build?t=tm000001&p=7&b=1' },
+      },
+    ]);
+
+    await expect(
+      api.openBuild({} as never, { buildRunConfig: { android: {} } } as never)
+    ).rejects.toThrow();
+
+    expect(api.refusals()).toHaveLength(1);
+    expect(api.refusals()[0].problem).toContain('`platforms`');
+    expect(api.refusals()[0].problem).toContain('"ios"');
+    expect(api.refusals()[0].problem).toContain('"android"');
+  });
 });
