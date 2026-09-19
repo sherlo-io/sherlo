@@ -30,6 +30,12 @@ export type OpenStoryResult =
 export type ShowingResult =
   | { kind: 'no-bundler' }
   | { kind: 'no-app' }
+  /**
+   * An app IS attached to the bundler - it is just not showing a story right now, most often
+   * because it is showing itself rather than the story browser. A different fact from `no-app`,
+   * and answering `no-app` for it would tell a reader to do something they have already done.
+   */
+  | { kind: 'not-at-story-browser' }
   | { kind: 'showing'; storyId: string };
 
 /** Everything the tool asks of a running app, and nothing else. */
@@ -93,9 +99,12 @@ export const liveLetterbox: Letterbox = {
     if (answer.kind !== 'said') return { kind: 'no-app' };
 
     const said = answer.said as { kind?: unknown; storyId?: unknown };
-    return said.kind === 'showing' && typeof said.storyId === 'string'
-      ? { kind: 'showing', storyId: said.storyId }
-      : { kind: 'no-app' };
+    if (said.kind === 'showing' && typeof said.storyId === 'string') {
+      return { kind: 'showing', storyId: said.storyId };
+    }
+    if (said.kind === 'not-at-story-browser') return { kind: 'not-at-story-browser' };
+
+    return { kind: 'no-app' };
   },
 };
 
@@ -268,16 +277,9 @@ export function posedLetterbox(
       }
       if (posed === 'no-bundler') return { kind: 'no-bundler' };
       if (posed === 'no-app') return { kind: 'no-app' };
-      // A pose that lists stories but never says which is showing is answering the wrong question,
-      // and the first story is a guess this seam may not make.
-      if (posed.showing === undefined) {
-        refusals.push({
-          call: 'showing',
-          problem:
-            'the pose states a `letterbox` with no `showing`, and the command asked what is on screen',
-        });
-        return { kind: 'no-app' };
-      }
+      // A pose with stories but no `showing` is an app that is attached and has nothing on screen
+      // to name - not a gap the pose forgot to fill.
+      if (posed.showing === undefined) return { kind: 'not-at-story-browser' };
       return { kind: 'showing', storyId: posed.showing };
     },
   };

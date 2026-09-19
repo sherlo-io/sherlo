@@ -108,6 +108,15 @@ function toolPostsAStory(
   }).then((response) => response.json() as Promise<{ kind: string }>);
 }
 
+/** The tool's side of the address: ask which story is on screen right now. */
+function toolAsksWhatIsOnScreen(
+  bundler: RunningBundler
+): Promise<{ kind: string; storyId?: string }> {
+  return fetch(`${bundler.origin}/sherlo/letterbox`, { method: 'GET' }).then(
+    (response) => response.json() as Promise<{ kind: string; storyId?: string }>
+  );
+}
+
 describe('the letterbox on the bundler', () => {
   const runningBundlers: RunningBundler[] = [];
 
@@ -265,6 +274,41 @@ describe('the letterbox on the bundler', () => {
     // Nothing was put on screen here - there is no screen to put it on - and nothing was asked
     // again, because the app is on its way out.
     expect(channel.emitted('setCurrentStory')).toEqual([]);
+  });
+
+  it('no app ever having connected is a different fact from an app that is attached and simply has nothing on screen', async () => {
+    const running = await bundler();
+
+    // Nothing has ever asked this address for a story.
+    expect(await toolAsksWhatIsOnScreen(running)).toEqual({ kind: 'no-app' });
+
+    // An app connects, showing itself rather than the story browser - it is attached, and there is
+    // still nothing to name as being on screen.
+    const held = appWaitsForAStory(running, {
+      stories: [STORY],
+      showing: null,
+      atTheStoryBrowser: false,
+    });
+    await letTheRequestLand();
+
+    expect(await toolAsksWhatIsOnScreen(running)).toEqual({ kind: 'not-at-story-browser' });
+
+    held.catch(() => {
+      // Still holding this one open when the test ends and the bundler goes away.
+    });
+  });
+
+  it('reads the story an attached app has painted', async () => {
+    const running = await bundler();
+
+    const held = appWaitsForAStory(running, { stories: [STORY], showing: STORY });
+    await letTheRequestLand();
+
+    expect(await toolAsksWhatIsOnScreen(running)).toEqual({ kind: 'showing', storyId: STORY });
+
+    held.catch(() => {
+      // Still holding this one open when the test ends and the bundler goes away.
+    });
   });
 });
 

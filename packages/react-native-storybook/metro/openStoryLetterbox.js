@@ -9,7 +9,9 @@
  *         story to show, an instruction to go to the story browser, or nothing when the hold runs
  *         out.
  *   POST  the tool: "show this story". The answer says what became of it.
- *   GET   the tool: "which story is on screen".
+ *   GET   the tool: "which story is on screen" - answered with the story, with `no-app` when
+ *         nothing has ever connected, or with `not-at-story-browser` when an app is attached and
+ *         simply has nothing on screen to name.
  *
  * IT REMEMBERS RATHER THAN RELAYS. A story posted while no app holds a request is kept until one
  * connects, because reaching the story browser costs a restart and a relay would drop the ask on
@@ -170,10 +172,14 @@ function createOpenStoryLetterbox(settings) {
 
   /** The tool: which story is on screen. */
   function toolAsksWhatIsOnScreen(response) {
-    // An app showing itself, or one that has painted nothing yet, has no story to name - and is no
-    // more use to this question than one that never connected. `no-app` is the answer that tells
-    // the reader what to do about it.
-    if (!appLastSaid || !appLastSaid.showing) return sendJson(response, { kind: 'no-app' });
+    // `no-app` means what it says: nothing carrying the SDK has ever connected here.
+    if (!appLastSaid) return sendJson(response, { kind: 'no-app' });
+
+    // The app IS attached - it is just not showing a story right now, because it is showing itself
+    // rather than the story browser (or it reached the story browser and has not painted one yet).
+    // That is a different fact from no app being there at all, and answering `no-app` for it would
+    // tell the reader to do something they have already done.
+    if (!appLastSaid.showing) return sendJson(response, { kind: 'not-at-story-browser' });
 
     return sendJson(response, { kind: 'showing', storyId: appLastSaid.showing });
   }
