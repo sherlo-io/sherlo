@@ -1,0 +1,111 @@
+{
+  "pose": 1,
+  "argv": [
+    "test",
+    "--wait"
+  ],
+  "files": {
+    "sherlo.config.json": {
+      "token": "posetokenposetokenposetokenpose1tm0000017",
+      "devices": [
+        {
+          "id": "pixel.7",
+          "osVersion": "13"
+        }
+      ]
+    }
+  },
+  "env": {},
+  "git": {
+    "branch": "feature/checkout",
+    "commit": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b",
+    "dirty": false
+  },
+  "bundles": {
+    "android": {
+      "bundlePath": "node_modules/.cache/sherlo/bundle.android.js",
+      "bundleSizeMb": 4.29,
+      "bundleFormat": "plain-js",
+      "bundler": "expo",
+      "assets": [
+        "icon.png",
+        "splash.png"
+      ],
+      "storyClosureKeys": [
+        "src/components/Storefront/ProductCard.stories.tsx",
+        "src/components/Storefront/Checkout.stories.tsx"
+      ]
+    }
+  },
+  "api": [
+    {
+      "call": "checkStagedGate",
+      "with": {
+        "platform": "android",
+        "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d"
+      },
+      "answer": {
+        "outcome": "fast",
+        "diff": []
+      }
+    },
+    {
+      "call": "checkStagedGate",
+      "with": {
+        "platform": "android",
+        "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d"
+      },
+      "answer": {
+        "outcome": "fast",
+        "diff": []
+      }
+    },
+    {
+      "call": "getStagedUploadUrls",
+      "with": {
+        "platforms": [
+          "android"
+        ]
+      },
+      "answer": {}
+    },
+    {
+      "call": "openBuild",
+      "with": {
+        "platforms": [
+          "android"
+        ]
+      },
+      "answer": {
+        "buildIndex": 2,
+        "url": "https://app.sherlo.io/build?t=tm000001&p=7&b=2",
+        "captureDecision": {
+          "platforms": {
+            "android": {
+              "full": true,
+              "reason": "no main branch set for this project - every build captures every story"
+            }
+          }
+        }
+      }
+    },
+    {
+      "call": "getBuildStatus",
+      "with": {
+        "buildIndex": 2
+      },
+      "answer": {
+        "runStatus": "finished",
+        "viewStatusesCount": {
+          "approved": 0,
+          "noChanges": 2,
+          "reported": 0,
+          "unreviewed": 0
+        }
+      }
+    }
+  ],
+  "masks": {
+    "<MASKED>": "posetokenposetokenposetokenpose1tm0000017"
+  }
+}

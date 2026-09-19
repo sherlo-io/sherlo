@@ -29,14 +29,23 @@ export type Surroundings = {
   installSettings(): () => void;
   /** What the git read answers for a project folder. */
   readGitInfo(projectRoot: string, options?: { branchOverride?: string }): Promise<GitInfo>;
+  /**
+   * What the clock answers while a command waits, in milliseconds since the epoch - the wait
+   * loop's deadline and every "has the deadline passed" read come through here.
+   */
+  now(): number;
+  /** Let time pass between two polls of the wait loop. A posed run never sleeps: its clock is the pose's. */
+  sleep(ms: number): Promise<void>;
 };
 
-/** The shipped answers: the process's own environment, and a real `git`. */
+/** The shipped answers: the process's own environment, a real `git`, the wall clock. */
 export const liveSurroundings: Surroundings = {
   // The process's environment is already the answer, so there is nothing to install and nothing
   // to undo.
   installSettings: () => () => undefined,
   readGitInfo: readGitInfoFromDisk,
+  now: () => Date.now(),
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 };
 
 /**
@@ -85,11 +94,32 @@ export type PosedGit = { branch: string; commit: string; dirty: boolean } | 'non
 export function posedSurroundings({
   env,
   git,
+  clock = [],
+  startedAt,
 }: {
   env: Record<string, string>;
   git: PosedGit;
+  /** The instants the clock answers, in order; after the last it stands still (the pose's `clock`). */
+  clock?: string[];
+  /** Where the clock stands before the first instant - the pose's `push.now`, or this run's own start. */
+  startedAt?: string;
 }): Surroundings {
+  // THE POSED CLOCK: each read hands out the next instant the pose listed; once the list is spent
+  // the clock stands still at the last one, and a pose that listed none stands at `startedAt` for
+  // the whole run. Time never passes on its own, so a posed wait ends only through the pose.
+  const instants = clock.map((instant) => Date.parse(instant));
+  let standing = startedAt === undefined ? Date.now() : Date.parse(startedAt);
+  let next = 0;
+
   return {
+    now: () => {
+      if (next < instants.length) standing = instants[next++];
+      return standing;
+    },
+
+    // A posed run never waits on a timer: the instants above are the whole passage of time.
+    sleep: async () => undefined,
+
     installSettings: () => {
       const previous = process.env;
       process.env = { ...env };

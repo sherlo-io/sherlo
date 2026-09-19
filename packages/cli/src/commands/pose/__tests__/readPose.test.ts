@@ -146,13 +146,15 @@ describe('reading a CommandPose', () => {
   });
 
   it('refuses an operation the contract does not name, and says which it does', () => {
+    // `checkStagedGate` used to stand in for an operation the contract had not yet named; the
+    // contract has named it since, so a genuinely unknown one takes its place here.
     const unknownCall = {
       ...validPose(),
-      api: [{ call: 'checkStagedGate', with: {}, answer: { outcome: 'fast' } }],
+      api: [{ call: 'deleteEverything', with: {}, answer: {} }],
     };
 
     const said = problemsOf(unknownCall).join();
-    expect(said).toContain('checkStagedGate');
+    expect(said).toContain('deleteEverything');
     expect(said).toContain('`getBuildStatus`');
   });
 
@@ -253,6 +255,67 @@ describe('reading a CommandPose', () => {
       ],
     };
     expect(problemsOf(undecided).join()).toContain('expected `{ upload: true }` or `{ reuse:');
+  });
+
+  it("accepts an openBuild answer's capture decision, and refuses one with a bad platform, field or type", () => {
+    const openBuildPose = (captureDecision: unknown) => ({
+      ...validPose(),
+      argv: ['test', '--wait'],
+      api: [
+        {
+          call: 'openBuild',
+          with: { platforms: ['android'] },
+          answer: { buildIndex: 2, url: 'https://app.sherlo.io/build?b=2', captureDecision },
+        },
+      ],
+    });
+
+    expect(
+      readPose(
+        openBuildPose({
+          platforms: { android: { full: false, storyFilePaths: ['a.stories.tsx'], reason: 'x' } },
+          fullCaptureTriggerReason: 'y',
+          ancestorBuildIndex: 1,
+        })
+      ).api
+    ).toHaveLength(1);
+
+    const problems = problemsOf(
+      openBuildPose({
+        platforms: { windows: { full: 'yes' }, android: { full: true, extra: true } },
+      })
+    );
+
+    expect(problems.join('\n')).toContain('`windows` is not a platform');
+    expect(problems.join('\n')).toContain('.full: expected true or false');
+    expect(problems.join('\n')).toContain('extra: unknown field');
+  });
+
+  it('a story row may state a null reason and null candidates, because the wire sends them', () => {
+    const pose = {
+      ...validPose(),
+      api: [
+        {
+          call: 'getBuildStatus',
+          with: { buildIndex: 7 },
+          answer: {
+            runStatus: 'finished',
+            stories: [
+              { name: 'Storefront/ProductCard', status: 'unreviewed', baseline: null },
+              {
+                name: 'Storefront/Checkout',
+                status: 'noChanges',
+                baseline: { buildIndex: 6 },
+                reason: null,
+                candidates: null,
+              },
+            ],
+          },
+        },
+      ],
+    };
+
+    expect(readPose(pose).api).toHaveLength(1);
   });
 
   it('a document that is not JSON is refused the same way as one that is the wrong shape', () => {
