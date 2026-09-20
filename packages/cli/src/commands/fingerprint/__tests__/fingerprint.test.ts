@@ -9,8 +9,11 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'fs';
+import http from 'http';
+import https from 'https';
 import os from 'os';
 import path from 'path';
+import runShellCommand from '../../../helpers/runShellCommand';
 
 const mockCreateFingerprintAsync = vi.fn();
 
@@ -375,11 +378,137 @@ describe('sherlo fingerprint', () => {
     });
   });
 
-  // One layer, one digest: the shape a build cache reads. Shells filed in plan;
-  // the task `one-layer-one-digest` makes them green.
+  // One layer, one digest: the shape a build cache reads - `FP=$(sherlo
+  // fingerprint --layer base)`, four lines of shell, no JSON parser.
   describe('--layer', () => {
-    it.todo('asks for one layer and is given one digest');
-    it.todo('a layer that cannot be computed is refused with its reason');
-    it.todo('reaches no server, starts no build and asks for no token');
+    it('asks for one layer and is given one digest', async () => {
+      const dir = project();
+      const bundleDir = makeBundleDir();
+      cleanupDirs.push(bundleDir);
+
+      // The report first, so every layer's digest is known and the single-layer
+      // answers can be checked to BE those numbers rather than merely to look
+      // like digests.
+      await fingerprint({ projectRoot: dir, bundleDir });
+      // Each report line is `<layer name><column padding><digest>`, so two or
+      // more spaces separate the two - `js android` keeps its single one.
+      const reported = Object.fromEntries(
+        output()
+          .split('\n')
+          .map((line) => line.split(/ {2,}/))
+      );
+
+      // The `--layer` argument, and the line of the report it must agree with.
+      for (const [layer, reportedLayer] of [
+        ['native', 'native'],
+        ['dependencies', 'dependencies'],
+        ['base', 'base'],
+        ['js:android', 'js android'],
+      ]) {
+        logSpy.mockClear();
+
+        await fingerprint({ projectRoot: dir, bundleDir, layer });
+
+        // ONE call, ONE argument, the digest and nothing around it: no label, no
+        // `key=value`, no blank line. `console.log` adds the single newline a
+        // shell's `$(...)` strips.
+        expect(logSpy.mock.calls).toEqual([[reported[reportedLayer]]]);
+        expect(process.exitCode).toBeUndefined();
+      }
+    });
+
+    it('a layer that cannot be computed is refused with its reason', async () => {
+      const dir = project();
+      const androidOnlyBundleDir = makeBundleDir();
+      cleanupDirs.push(androidOnlyBundleDir);
+
+      // The js layer of a platform this bundle directory was never emitted for:
+      // its own message, naming ios - not the report's "no manifest at all".
+      await expect(
+        fingerprint({ projectRoot: dir, bundleDir: androidOnlyBundleDir, layer: 'js:ios' })
+      ).rejects.toThrow(/js ios layer could not be computed.*holds no ios module manifest/s);
+
+      // The same layer with no bundle directory supplied at all.
+      await expect(fingerprint({ projectRoot: dir, layer: 'js:android' })).rejects.toThrow(
+        /js android layer could not be computed.*--bundle-dir/s
+      );
+
+      // A layer name the command does not have.
+      await expect(fingerprint({ projectRoot: dir, layer: 'js' })).rejects.toThrow(
+        /Unknown layer "js".*js:android, js:ios/s
+      );
+
+      // The fail-soft base fingerprint: `computeBaseFingerprint` degrades to a
+      // null hash with a reason so a push still works, and this path turns that
+      // null into a refusal carrying the same reason.
+      mockCreateFingerprintAsync.mockRejectedValue(new Error('no native project'));
+
+      await expect(fingerprint({ projectRoot: dir, layer: 'base' })).rejects.toThrow(
+        /base layer could not be computed: .+/
+      );
+      await expect(fingerprint({ projectRoot: dir, layer: 'native' })).rejects.toThrow(
+        /native layer could not be computed: .+/
+      );
+
+      // Not one of the refusals above reached stdout: a caller that reads an
+      // empty line as "nothing changed" would skip a build it needed.
+      expect(logSpy).not.toHaveBeenCalled();
+    });
+
+    it('reaches no server, starts no build and asks for no token', async () => {
+      const dir = project();
+      const bundleDir = makeBundleDir();
+      cleanupDirs.push(bundleDir);
+      // Every request this CLI makes leaves through node's http/https - the one
+      // door `node-fetch` and the reporting client both go out of.
+      const requestSpies = [vi.spyOn(http, 'request'), vi.spyOn(https, 'request')];
+      // The command takes no token option; these are the two env vars a token
+      // would arrive in, and it must answer without either.
+      const tokenVariables = ['SHERLO_TOKEN', 'SHERLO_PERSONAL_TOKEN'];
+      const savedTokens = tokenVariables.map((name) => [name, process.env[name]] as const);
+      for (const name of tokenVariables) delete process.env[name];
+      logSpy.mockClear();
+
+      try {
+        await fingerprint({ projectRoot: dir, bundleDir, layer: 'base' });
+        await fingerprint({ projectRoot: dir, bundleDir, layer: 'js:android' });
+        await fingerprint({ projectRoot: dir, bundleDir });
+
+        // Three answers, with no token anywhere to be found.
+        expect(logSpy).toHaveBeenCalledTimes(3);
+        for (const spy of requestSpies) expect(spy).not.toHaveBeenCalled();
+
+        // The only subprocesses are the read-only autolinking probes the base
+        // fingerprint resolves its module set with. Nothing bundles, nothing
+        // builds, nothing uploads.
+        for (const [options] of vi.mocked(runShellCommand).mock.calls) {
+          expect(options.command).toMatch(
+            /^npx (react-native config|expo-modules-autolinking resolve|expo config)/
+          );
+        }
+      } finally {
+        for (const spy of requestSpies) spy.mockRestore();
+        for (const [name, value] of savedTokens) {
+          if (value === undefined) delete process.env[name];
+          else process.env[name] = value;
+        }
+      }
+    });
+
+    it('refuses the options that write to the same stdout', async () => {
+      const dir = project();
+
+      for (const conflicting of [
+        { write: path.join(dir, 'written.json') },
+        { baseline: path.join(dir, 'baseline.json') },
+        { verbose: true },
+      ]) {
+        await expect(
+          fingerprint({ projectRoot: dir, layer: 'base', ...conflicting })
+        ).rejects.toThrow(/`--layer` prints one digest and nothing else/);
+      }
+
+      expect(fs.existsSync(path.join(dir, 'written.json'))).toBe(false);
+    });
   });
 });
