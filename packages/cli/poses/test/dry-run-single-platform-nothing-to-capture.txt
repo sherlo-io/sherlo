@@ -19,7 +19,7 @@
 [32m  ✓ Assets: 2 files[39m
 [1m📸 Capture plan (dry run)[22m
   [36m🤖 Android[39m - [1mnothing to capture - no change reaches any story[22m
-[32m     ✓[39m[2m all 7 stories reused from the previous build[22m
+[32m     ✓[39m[2m none of the 7 stories in this bundle need capture[22m
 
 ◦ Dry run - no build created, nothing uploaded
 
