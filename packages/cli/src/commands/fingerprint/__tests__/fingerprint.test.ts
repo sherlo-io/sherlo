@@ -374,4 +374,12 @@ describe('sherlo fingerprint', () => {
       );
     });
   });
+
+  // One layer, one digest: the shape a build cache reads. Shells filed in plan;
+  // the task `one-layer-one-digest` makes them green.
+  describe('--layer', () => {
+    it.todo('asks for one layer and is given one digest');
+    it.todo('a layer that cannot be computed is refused with its reason');
+    it.todo('reaches no server, starts no build and asks for no token');
+  });
 });
