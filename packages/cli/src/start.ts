@@ -35,6 +35,7 @@ import {
   INIT_COMMAND,
   IOS_FILE_TYPES,
   IOS_OPTION,
+  LAYER_OPTION,
   MESSAGE_OPTION,
   METADATA_OPTION,
   PERSONAL_TOKEN_ENV_VAR,
@@ -191,7 +192,9 @@ const COMMAND_DESCRIPTION = {
     `  With \`--${WRITE_OPTION} <file>\`: also writes the digests and what they were computed\n` +
     '  over (package versions, file digests) to <file>.\n' +
     `  With \`--${BASELINE_OPTION} <file>\`: diffs the current project against a file written by\n` +
-    `  \`--${WRITE_OPTION}\` and prints what changed per layer. Exits 1 when any layer changed.`,
+    `  \`--${WRITE_OPTION}\` and prints what changed per layer. Exits 1 when any layer changed.\n` +
+    `  With \`--${LAYER_OPTION} <layer>\`: prints THAT layer's digest alone, for a shell that\n` +
+    '  captures one value instead of parsing a report.',
 };
 
 const OPTION_DEFINITION: Record<string, [string, string]> = {
@@ -222,6 +225,17 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   [IOS_OPTION]: [
     `--${IOS_OPTION} <path>`,
     `Path to ${PLATFORM_LABEL.ios} build (${IOS_FILE_TYPES.join(', ')})`,
+  ],
+  [LAYER_OPTION]: [
+    `--${LAYER_OPTION} <layer>`,
+    "Print ONE layer's digest on stdout and nothing else: `native`, `dependencies`, `base`, " +
+      '`js:android` or `js:ios`. THE BARE DIGEST, deliberately not the `key=value` form ' +
+      `\`${TEST_COMMAND}\` prints for the same numbers: that form serves a reader parsing many ` +
+      'keys out of one run, this one serves a shell capturing a single value ' +
+      '(`FP=$(sherlo fingerprint --layer base)`). A layer that cannot be computed exits ' +
+      'non-zero and says why, so silence can never be read as "nothing changed". Cannot be ' +
+      `combined with \`--${WRITE_OPTION}\`, \`--${BASELINE_OPTION}\` or \`--${VERBOSE_OPTION}\`, ` +
+      'which write to the same stdout.',
   ],
   [BASELINE_OPTION]: [
     `--${BASELINE_OPTION} <file>`,
@@ -464,6 +478,7 @@ function addFingerprintCommand(program: Command) {
     .description(COMMAND_DESCRIPTION[FINGERPRINT_COMMAND]);
   addOptionsToCommand(commandInstance, [
     PROJECT_ROOT_OPTION,
+    LAYER_OPTION,
     WRITE_OPTION,
     BASELINE_OPTION,
     VERBOSE_OPTION,

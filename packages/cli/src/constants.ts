@@ -132,6 +132,11 @@ export const CONFIG_OPTION = 'config';
 export const DIAGNOSTICS_OPTION = 'diagnostics';
 export const EAS_BUILD_SCRIPT_NAME_OPTION = 'easBuildScriptName';
 export const IOS_OPTION = 'ios';
+/**
+ * `sherlo fingerprint`: print ONE layer's digest on stdout and nothing else, for
+ * a shell that captures a single value (see commands/fingerprint/fingerprint).
+ */
+export const LAYER_OPTION = 'layer';
 /** `sherlo view` / `sherlo test --wait`: print the `-- details --` block. */
 export const METADATA_OPTION = 'metadata';
 export const MESSAGE_OPTION = 'message';
