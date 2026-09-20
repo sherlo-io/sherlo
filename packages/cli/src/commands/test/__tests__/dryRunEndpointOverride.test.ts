@@ -1,38 +1,106 @@
 /**
- * SITE TWO, proven past the seam that hid it (architect review, sherlo#293).
+ * SITE TWO, proven past the seam that hid it TWICE (architect review, sherlo#293).
  *
- * Every other dry-run test mocks `requestDryRunDecision` (or answers it through a posed
- * `serverCalls()`), so none of them can tell whether the SDK client `sherlo test` builds
- * actually reaches the address a `SHERLO_API_URL` override names - they never let the
- * command build a real client and dial out. That gap is exactly how the endpoint-override
- * bug hid: a real dry run pointed at an address nothing listens on still asked the REAL
- * default server (SHERLO_API_URL was never read on the test path), got a confident answer,
- * and printed "first build" instead of bailing open.
+ * The first pass at this test built the SDK client itself - `sdkClient(tokens,
+ * getEndpointUrl())` - and handed it straight to `runDryRunPreview`. That proves the
+ * plumbing BELOW the client (the decision query, the bail-open) honours whatever client it is
+ * given, but it can never catch a regression in the ONE line that matters: `stagedRun.ts`
+ * constructing that client without the endpoint argument again. A test that builds its own
+ * (correct) client can pass forever while the shipped command silently drops the override.
  *
- * This file mocks NOTHING. It builds the real `@sherlo/sdk-client` the way `stagedRun.ts` /
- * `simRun.ts` / `uploadOrReuseBuildsAndRunTests.ts` now do - `sdkClient(tokens,
- * getEndpointUrl())` - points it at a loopback port nothing listens on, and drives the real
- * `runDryRunPreview` end to end. If the endpoint override were ever dropped again, the
- * request would reach the real backend instead of failing fast, and this test would hang or
- * print a confident decision instead of "could not tell".
+ * This test drives `stagedRun` itself - the real `sherlo test --dry-run` entry point - so the
+ * client is the ONE `stagedRun.ts` builds, not a stand-in. Only the parts that would make this
+ * slow or non-deterministic are replaced: command-line validation, git, the base fingerprint,
+ * and the bundler. The decision query, the SDK client, and the address it dials are real. It
+ * points `SHERLO_API_URL` at a loopback port nothing listens on and asserts the printed plan
+ * says it could not tell - never the server's own "first build" reading of a fresh project,
+ * which is what a dropped override would actually produce (the real default server would
+ * answer, honestly, about the wrong project).
  */
+const {
+  mockGetValidatedCommandParams,
+  mockGetGitInfo,
+  mockComputeBaseFingerprint,
+  mockBuildBundleForPlatform,
+  mockBuildGateMetadata,
+} = vi.hoisted(() => ({
+  mockGetValidatedCommandParams: vi.fn(),
+  mockGetGitInfo: vi.fn(),
+  mockComputeBaseFingerprint: vi.fn(),
+  mockBuildBundleForPlatform: vi.fn(),
+  mockBuildGateMetadata: vi.fn(),
+}));
+
+// Only command-line validation and the git read are stood in for - everything else this pulls
+// in from '../../../helpers' (getTokenParts, getPlatformsToTest, printSherloIntro, reporting, …)
+// stays real.
+vi.mock('../../../helpers', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../helpers')>()),
+  getValidatedCommandParams: mockGetValidatedCommandParams,
+  getGitInfo: mockGetGitInfo,
+}));
+
+// The base fingerprint is real @expo/fingerprint work against this machine's own tree - replaced
+// with a fixed value, exactly as it plays no part in which address the decision query dials.
+vi.mock('../../../helpers/fingerprint', () => ({
+  computeBaseFingerprint: mockComputeBaseFingerprint,
+}));
+
+// The bundler is real Metro/expo work - replaced with a fixed manifest. Everything downstream of
+// it (buildBundles, runDryRunPreview, requestDryRunDecision, the sdk client) is real.
+vi.mock('../buildBundle', () => ({
+  buildBundleForPlatform: mockBuildBundleForPlatform,
+  buildGateMetadata: mockBuildGateMetadata,
+}));
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import sdkClient from '@sherlo/sdk-client';
-import { runDryRunPreview } from '../dryRun';
-import { getEndpointUrl } from '../../../helpers/buildStatusRequest';
+import stagedRun from '../stagedRun';
 
 // A loopback port nothing listens on: the connection is refused immediately (no timeout to
 // wait out), which is what makes this test fast AND deterministic in any sandbox - no real
 // network egress, just a local TCP RST.
 const NOTHING_LISTENS_HERE = 'http://127.0.0.1:1/graphql';
 
+// A well-shaped PROJECT token (32-char api token + 8-char team id + project index) - real
+// `getTokenParts` slices it apart, so it must be the real shape, not a placeholder string.
+const PROJECT_TOKEN = `${'a'.repeat(32)}teamteam1`;
+
 const originalApiUrl = process.env.SHERLO_API_URL;
 
 beforeEach(() => {
+  vi.clearAllMocks();
+
   // The exact override the real e2e beat sets (sherlo-tester's `apiUnreachable`,
-  // UNROUTABLE_API_URL) - reading it through `getEndpointUrl()` is what proves the CLI's OWN
-  // resolution is what's under test, not just the SDK client's second argument.
+  // UNROUTABLE_API_URL) - reading it through the tool's OWN `getEndpointUrl()` call, inside
+  // `stagedRun.ts`, is what proves the command's own resolution is under test here.
   process.env.SHERLO_API_URL = NOTHING_LISTENS_HERE;
+
+  mockGetValidatedCommandParams.mockReturnValue({
+    projectRoot: '/proj',
+    token: PROJECT_TOKEN,
+    devices: [
+      { id: 'iphone.14', osVersion: '17.0', theme: 'light', locale: 'en', fontScale: '1.0' },
+    ],
+    wait: false,
+  } as any);
+
+  mockGetGitInfo.mockResolvedValue({ branchName: 'feature', commitHash: 'abc', commitName: 'msg' });
+
+  mockComputeBaseFingerprint.mockResolvedValue({ hash: 'fp-123' });
+
+  mockBuildBundleForPlatform.mockResolvedValue({
+    bundlePath: '/tmp/bundle.ios.js',
+    bundleFormat: 'plain-js',
+    bundleSizeMb: 1,
+    bundleHash: 'abc123',
+    assetInventory: [],
+    bundler: 'expo',
+    moduleManifest: {
+      raw: Buffer.from('{}'),
+      parsed: { version: 1, header: {}, moduleHashes: {}, storyClosures: {} },
+    },
+  } as any);
+  mockBuildGateMetadata.mockResolvedValue({ engineClass: 'hermes' } as any);
 });
 
 afterEach(() => {
@@ -41,29 +109,10 @@ afterEach(() => {
 });
 
 describe('the dry-run decision honours an endpoint override end to end', () => {
-  it('a real client pointed at an address nothing listens on says it could not tell, never a first build', async () => {
+  it('a dry run sends its capture decision to the address the tool was pointed at', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    // The exact construction the three `sherlo test` roads use: the endpoint travels with the
-    // client, not through the SDK's own (unreliable, on the published package) env fallback.
-    const client = sdkClient({ authToken: 'pose-token' }, getEndpointUrl());
-
-    await runDryRunPreview({
-      client,
-      bundles: {
-        ios: {
-          moduleManifest: {
-            raw: Buffer.from('{}'),
-            parsed: { version: 1, header: {}, moduleHashes: {}, storyClosures: {} },
-          },
-        },
-      } as any,
-      platformsToTest: ['ios'],
-      projectIndex: 1,
-      teamId: 'team-42',
-      gitInfo: { branchName: 'feature', commitHash: 'abc', commitName: 'msg' } as any,
-      baseReference: 'fp-123',
-    });
+    await stagedRun({ dryRun: true } as any);
 
     const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
     expect(printed).toContain('🍎 iOS - would capture all stories');

@@ -466,6 +466,37 @@ export async function readGitInfoFromDisk(
 const GIT_INFO_UNKNOWN = 'unknown';
 
 /**
+ * The one sentence a git failure is worth: the shell error `executeCommand` throws carries the
+ * subprocess's own stderr (e.g. `fatal: not a git repository (or any of the parent
+ * directories): .git`), which is the reason a reader needs - everything else on that error
+ * (its stack, `code`/`killed`/`signal`, this machine's paths) is the tool's own internals, not
+ * theirs to read. Falls back to the error's `message` for anything that isn't a failed shell
+ * command (e.g. a plain `Error` a caller states directly).
+ */
+function reasonFor(error: unknown): string {
+  if (error && typeof error === 'object') {
+    const { stderr, message } = error as { stderr?: unknown; message?: unknown };
+    if (typeof stderr === 'string' && stderr.trim().length > 0) return stderr.trim();
+    if (typeof message === 'string') return message;
+  }
+  return String(error);
+}
+
+/**
+ * Rebuilds `error` as one line: a message and nothing else - no frames, no `code`/`killed`/
+ * `signal`/`stdout` object tail. Node's `console.error(text, error)` inspects a SECOND-argument
+ * Error by its `.stack`, so an error whose stack IS its one-line message (nothing appended)
+ * prints as `[Error: <reason>]` and nothing more; a real multi-frame stack prints the whole
+ * dump this exists to prevent.
+ */
+function oneLineError(error: unknown): Error {
+  const reason = reasonFor(error);
+  const oneLine = new Error(reason);
+  oneLine.stack = `Error: ${reason}`;
+  return oneLine;
+}
+
+/**
  * The git read failed: warn, and carry on with unknown commit/branch. The CLI
  * never fails a run over this.
  *
@@ -475,7 +506,7 @@ const GIT_INFO_UNKNOWN = 'unknown';
  * second author's idea of them.
  */
 export function degradeGitInfo(error: unknown): GitInfo {
-  emit({ kind: 'git-info-unavailable', error });
+  emit({ kind: 'git-info-unavailable', error: oneLineError(error) });
 
   return {
     commitName: GIT_INFO_UNKNOWN,
