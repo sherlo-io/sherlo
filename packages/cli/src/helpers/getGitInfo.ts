@@ -462,6 +462,9 @@ export async function readGitInfoFromDisk(
   }
 }
 
+/** What every field of {@link GitInfo} reads when the git read failed. */
+const GIT_INFO_UNKNOWN = 'unknown';
+
 /**
  * The git read failed: warn, and carry on with unknown commit/branch. The CLI
  * never fails a run over this.
@@ -475,10 +478,25 @@ export function degradeGitInfo(error: unknown): GitInfo {
   emit({ kind: 'git-info-unavailable', error });
 
   return {
-    commitName: 'unknown',
-    commitHash: 'unknown',
-    branchName: 'unknown',
+    commitName: GIT_INFO_UNKNOWN,
+    commitHash: GIT_INFO_UNKNOWN,
+    branchName: GIT_INFO_UNKNOWN,
   };
+}
+
+/**
+ * True when `gitInfo` is the sentinel {@link degradeGitInfo} returns - the git
+ * read itself failed, NOT that this project genuinely has no git history. A
+ * caller that would otherwise ask a question keyed on commit/branch identity
+ * (e.g. the `--dry-run` capture decision) must tell the two apart: asking with
+ * this sentinel gets an answer about "unknown", never about this project.
+ */
+export function isGitInfoUnavailable(gitInfo: GitInfo): boolean {
+  return (
+    gitInfo.commitName === GIT_INFO_UNKNOWN &&
+    gitInfo.commitHash === GIT_INFO_UNKNOWN &&
+    gitInfo.branchName === GIT_INFO_UNKNOWN
+  );
 }
 
 /*
