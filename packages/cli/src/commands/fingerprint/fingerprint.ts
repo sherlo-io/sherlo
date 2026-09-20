@@ -25,11 +25,24 @@
  * `--baseline` exits 1 when any layer changed and 0 otherwise, so CI can gate on
  * it. Every other failure (an unreadable file, a wrong format version) is an
  * error like any other command's.
+ *
+ * `--layer <layer>` ANSWERS ONE LAYER INSTEAD OF PRINTING THE REPORT: one digest
+ * on stdout and nothing else, so a build cache is `FP=$(sherlo fingerprint
+ * --layer base)` rather than a JSON parser that breaks the day the document's
+ * shape moves. A layer it cannot compute EXITS NON-ZERO and says why - never an
+ * empty line, because a caller reading this digest decides whether to skip a
+ * twenty-five-minute build and must never read silence as "nothing changed".
  */
 import fs from 'fs';
 import path from 'path';
 import { Platform } from '@sherlo/api-types';
-import { DEFAULT_PROJECT_ROOT } from '../../constants';
+import {
+  BASELINE_OPTION,
+  DEFAULT_PROJECT_ROOT,
+  LAYER_OPTION,
+  VERBOSE_OPTION,
+  WRITE_OPTION,
+} from '../../constants';
 import { computeBaseFingerprint } from '../../helpers/fingerprint';
 import throwError from '../../helpers/throwError';
 import {
@@ -49,7 +62,7 @@ import {
   type FingerprintDocument,
   type JsLayer,
 } from './fingerprintDocument';
-import { renderDelta, renderLayers } from './renderFingerprint';
+import { JS_NOT_COMPUTED_REASON, renderDelta, renderLayers } from './renderFingerprint';
 
 export type FingerprintOptions = {
   projectRoot?: string;
@@ -61,14 +74,36 @@ export type FingerprintOptions = {
   bundleDir?: string;
   /** Print every source, package and file under its layer. */
   verbose?: boolean;
+  /** Print ONE layer's digest and nothing else, instead of the report. */
+  layer?: string;
 };
 
 const PLATFORMS: Platform[] = ['android', 'ios'];
+
+/**
+ * What `--layer` accepts. `js` carries its platform because the app-source
+ * closure is computed per platform - there is no one js digest to hand back.
+ */
+const LAYER_ARGUMENTS = ['native', 'dependencies', 'base', 'js:android', 'js:ios'] as const;
+
+type LayerArgument = (typeof LAYER_ARGUMENTS)[number];
 
 async function fingerprint(options: FingerprintOptions): Promise<void> {
   // The same root `sherlo test` hands to the same functions: the option as given,
   // defaulting to '.', resolved by each computation the way it always is.
   const projectRoot = options.projectRoot || DEFAULT_PROJECT_ROOT;
+
+  if (options.layer !== undefined) {
+    refuseOptionsThatAlsoWriteToStdout(options);
+    console.log(
+      await computeOneLayerDigest({
+        layer: options.layer,
+        projectRoot,
+        bundleDir: options.bundleDir,
+      })
+    );
+    return;
+  }
 
   const document = await computeFingerprintDocument({ projectRoot, bundleDir: options.bundleDir });
 
@@ -157,24 +192,8 @@ function computeJsLayers({
   const layers: Partial<Record<Platform, JsLayer>> = {};
 
   for (const platform of PLATFORMS) {
-    const manifestPath = path.join(bundleDir, moduleManifestFileName(platform));
-    if (!fs.existsSync(manifestPath)) continue;
-
-    const manifest = validateModuleManifestBuffer(fs.readFileSync(manifestPath));
-    if (!manifest) {
-      throwError({
-        message:
-          `The ${platform} module manifest at ${manifestPath} is not a valid manifest ` +
-          '(expected version, header, moduleHashes, storyClosures). ' +
-          'Re-emit the bundle directory with `sherlo test --emit-bundle-dir <dir>`.',
-      });
-    }
-
-    const closure = computeAppSourceClosure({
-      projectRoot,
-      ...moduleManifestAppSourceInputs(manifest),
-    });
-    layers[platform] = { hash: closure.hash, fileCount: closure.fileCount, files: closure.files };
+    const layer = computeJsLayer({ projectRoot, bundleDir, platform });
+    if (layer) layers[platform] = layer;
   }
 
   if (Object.keys(layers).length === 0) {
@@ -187,4 +206,148 @@ function computeJsLayers({
   }
 
   return layers;
+}
+
+/**
+ * One platform's js layer, or undefined when the bundle directory holds no
+ * manifest for that platform. A manifest that is THERE but unreadable is an
+ * error either way - only an absent one is the caller's to interpret, and the
+ * two callers interpret it differently: the report skips the platform, the
+ * one-digest path refuses and names it.
+ */
+function computeJsLayer({
+  projectRoot,
+  bundleDir,
+  platform,
+}: {
+  projectRoot: string;
+  bundleDir: string;
+  platform: Platform;
+}): JsLayer | undefined {
+  const manifestPath = path.join(bundleDir, moduleManifestFileName(platform));
+  if (!fs.existsSync(manifestPath)) return undefined;
+
+  const manifest = validateModuleManifestBuffer(fs.readFileSync(manifestPath));
+  if (!manifest) {
+    throwError({
+      message:
+        `The ${platform} module manifest at ${manifestPath} is not a valid manifest ` +
+        '(expected version, header, moduleHashes, storyClosures). ' +
+        'Re-emit the bundle directory with `sherlo test --emit-bundle-dir <dir>`.',
+    });
+  }
+
+  const closure = computeAppSourceClosure({
+    projectRoot,
+    ...moduleManifestAppSourceInputs(manifest),
+  });
+
+  return { hash: closure.hash, fileCount: closure.fileCount, files: closure.files };
+}
+
+/**
+ * THE ONE-DIGEST PATH. Computes exactly the asked-for layer and returns its
+ * digest - no other layer is computed, and nothing else is printed.
+ *
+ * Every way this can fail THROWS. `computeBaseFingerprint` deliberately degrades
+ * to `hash: null` with a reason so a customer without `@expo/fingerprint` can
+ * still push; that softness is right for a push and wrong here, so the null is
+ * turned into a refusal ON THIS PATH ONLY - the helper itself is untouched.
+ */
+async function computeOneLayerDigest({
+  layer,
+  projectRoot,
+  bundleDir,
+}: {
+  layer: string;
+  projectRoot: string;
+  bundleDir?: string;
+}): Promise<string> {
+  if (!isLayerArgument(layer)) {
+    throwError({
+      message:
+        `Unknown layer "${layer}". ` +
+        `\`--${LAYER_OPTION}\` takes one of: ${LAYER_ARGUMENTS.join(', ')}.`,
+    });
+  }
+
+  if (layer === 'dependencies') {
+    // The dependency closure always resolves to a digest: a project with no
+    // lockfile and no install hashes its declared ranges.
+    return computeDependencyClosure(projectRoot).hash;
+  }
+
+  if (layer === 'native' || layer === 'base') {
+    // THIS_COMMAND is what makes this digest the same number `sherlo test`
+    // computes - the reporting breadcrumb the cross-command determinism test
+    // holds on to. Do not drop it.
+    const base = await computeBaseFingerprint(projectRoot, { command: THIS_COMMAND });
+    const hash = layer === 'native' ? base.nativeFingerprint ?? null : base.hash;
+
+    if (hash === null) {
+      throwError({
+        message: `The ${layer} layer could not be computed: ${
+          base.debugMessage ?? 'unknown reason'
+        }`,
+      });
+    }
+
+    return hash;
+  }
+
+  const platform = jsLayerPlatform(layer);
+
+  if (bundleDir === undefined) {
+    throwError({
+      message: `The js ${platform} layer could not be computed: ${JS_NOT_COMPUTED_REASON}.`,
+    });
+  }
+
+  const jsLayer = computeJsLayer({ projectRoot, bundleDir, platform });
+  if (!jsLayer) {
+    // NOT the report's "no module manifest found at all" message: the caller
+    // named a platform, so the answer names the platform whose manifest is
+    // missing - a directory bundled for android only must not read as a
+    // directory that was never bundled.
+    throwError({
+      message:
+        `The js ${platform} layer could not be computed: ${bundleDir} holds no ${platform} ` +
+        `module manifest (expected ${moduleManifestFileName(platform)}). ` +
+        `Emit the bundle directory from a run that tests ${platform}: ` +
+        '`sherlo test --emit-bundle-dir <dir>`.',
+    });
+  }
+
+  return jsLayer.hash;
+}
+
+/**
+ * `--layer` OWNS STDOUT, so the options that also write to it are refused rather
+ * than silently ignored. Refusing is the safer of the two readings: a caller who
+ * passed both gets told, where a silent `--layer` would hand back a digest and
+ * quietly skip the file `--write` was asked for.
+ */
+function refuseOptionsThatAlsoWriteToStdout(options: FingerprintOptions): void {
+  const alsoAsked = [
+    options.write !== undefined ? `--${WRITE_OPTION}` : null,
+    options.baseline !== undefined ? `--${BASELINE_OPTION}` : null,
+    options.verbose ? `--${VERBOSE_OPTION}` : null,
+  ].filter((flag): flag is string => flag !== null);
+
+  if (alsoAsked.length === 0) return;
+
+  throwError({
+    message:
+      `\`--${LAYER_OPTION}\` prints one digest and nothing else, so it cannot be combined with ` +
+      `${alsoAsked.join(' or ')}. Run them as separate commands.`,
+  });
+}
+
+function isLayerArgument(layer: string): layer is LayerArgument {
+  return (LAYER_ARGUMENTS as readonly string[]).includes(layer);
+}
+
+/** `js:ios` -> `ios`. Only ever called with a `js:` layer argument. */
+function jsLayerPlatform(layer: 'js:android' | 'js:ios'): Platform {
+  return layer.slice('js:'.length) as Platform;
 }
