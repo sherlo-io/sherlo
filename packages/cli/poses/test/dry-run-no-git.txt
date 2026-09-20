@@ -23,10 +23,10 @@
 [32m  ✓ Assets: 2 files[39m
 Couldn't get git info [Error: not a git repository]
 [1m📸 Capture plan (dry run)[22m
-  [36m🤖 Android[39m - [1mwould capture all 7 stories in this bundle[22m
-[2m     why: first build - nothing to compare against yet[22m
-  [36m🍎 iOS[39m - [1mwould capture all 7 stories in this bundle[22m
-[2m     why: first build - nothing to compare against yet[22m
+  [36m🤖 Android[39m - [1mwould capture all stories[22m
+[33m     ! couldn't compute what changed - capturing everything to be safe[39m
+  [36m🍎 iOS[39m - [1mwould capture all stories[22m
+[33m     ! couldn't compute what changed - capturing everything to be safe[39m
 
 ◦ Dry run - no build created, nothing uploaded
 
