@@ -3,49 +3,65 @@ import { Command } from 'commander';
 import { version } from '../package.json';
 import {
   easBuildOnComplete,
+  fingerprint,
   init,
+  projectCreate,
+  projectList,
   showError,
+  teamCreate,
+  teamList,
   test,
   testEasCloudBuild,
-  testEasUpdate,
-  testStandard,
+  view,
 } from './commands';
 import {
   ANDROID_FILE_TYPES,
   ANDROID_OPTION,
-  BRANCH_OPTION,
+  BASELINE_OPTION,
   CONFIG_OPTION,
-  CONTACT_EMAIL,
   DEFAULT_CONFIG_FILENAME,
   DEFAULT_PROJECT_ROOT,
   DIAGNOSTICS_OPTION,
-  DISCORD_URL,
-  EAS_ANDROID_URL_OPTION,
+  BUNDLE_DIR_OPTION,
+  DRY_RUN_OPTION,
+  EMIT_BUNDLE_DIR_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EAS_BUILD_SCRIPT_NAME_OPTION,
-  EAS_IOS_URL_OPTION,
-  EAS_UPDATE_SLUG_OPTION,
+  FINGERPRINT_COMMAND,
   GIT_BRANCH_OPTION,
   INCLUDE_OPTION,
   INIT_COMMAND,
   IOS_FILE_TYPES,
   IOS_OPTION,
-  MAX_WAIT_TIME_OPTION,
   MESSAGE_OPTION,
+  METADATA_OPTION,
+  PERSONAL_TOKEN_ENV_VAR,
+  PERSONAL_TOKEN_FLAG,
+  PERSONAL_TOKEN_OPTION,
   PLATFORM_LABEL,
+  POSE_COMMAND,
   PROFILE_OPTION,
+  PROJECT_COMMAND,
+  PROJECT_CREATE_SUBCOMMAND,
+  PROJECT_LIST_SUBCOMMAND,
   PROJECT_ROOT_OPTION,
+  NAME_OPTION,
+  TEAM_COMMAND,
+  TEAM_CREATE_SUBCOMMAND,
+  TEAM_LIST_SUBCOMMAND,
+  TEAM_OPTION,
   SHOW_ERROR_COMMAND,
   TEST_COMMAND,
   TEST_EAS_CLOUD_BUILD_COMMAND,
-  TEST_EAS_UPDATE_COMMAND,
-  TEST_STANDARD_COMMAND,
   TOKEN_OPTION,
+  VERBOSE_OPTION,
+  VIEW_COMMAND,
   WAIT_FOR_EAS_BUILD_OPTION,
   WAIT_OPTION,
+  WAIT_TIMEOUT_OPTION,
+  WRITE_OPTION,
 } from './constants';
-import { logWarning, reporting, withCommandTimeout } from './helpers';
-import { WAIT_TIMEOUT_MINUTES } from './helpers/waitForBuildResult/constants';
+import { logWarning, printNeedHelpEpilogue, reporting, withCommandTimeout } from './helpers';
 
 // Disable all Node.js warnings
 process.removeAllListeners('warning');
@@ -65,13 +81,19 @@ async function start() {
 
     addTestCommand(program);
 
-    addTestStandardCommand(program);
-
-    addTestEasUpdateCommand(program);
+    addViewCommand(program);
 
     addTestEasCloudBuildCommand(program);
 
     addShowErrorCommand(program);
+
+    addFingerprintCommand(program);
+
+    addProjectCommand(program);
+
+    addTeamCommand(program);
+
+    addPoseCommand(program);
 
     if (process.argv.length === 2) {
       console.log('Choose a Sherlo command. Use --help for more information.');
@@ -89,10 +111,7 @@ async function start() {
     await reporting.flush().finally(() => {
       console.error((error as Error).message);
 
-      console.log(chalk.dim('═'.repeat(10) + '\n'));
-      console.log(chalk.dim('Need Help?'));
-      console.log(chalk.dim('➜ ') + chalk.dim(DISCORD_URL));
-      console.log(chalk.dim('➜ ') + chalk.dim(CONTACT_EMAIL));
+      printNeedHelpEpilogue();
 
       process.exit(error.code || 1);
     });
@@ -105,23 +124,60 @@ export default start;
 
 const COMMAND_DESCRIPTION = {
   [INIT_COMMAND]: 'Initialize Sherlo',
-  [TEST_COMMAND]: 'Run test interactively',
-  [TEST_STANDARD_COMMAND]: 'Test standard builds',
-  [TEST_EAS_UPDATE_COMMAND]: 'Test builds with dynamic JavaScript (OTA) updates',
+  [TEST_COMMAND]:
+    'Run visual tests.\n' +
+    `  Without \`--${ANDROID_OPTION}\`/\`--${IOS_OPTION}\`: tests JS-only changes against the registered\n` +
+    '  native base. Prints `native-needed=true` and builds nothing when this commit needs\n' +
+    '  a native rebuild first, `native-needed=false` when it ran the test to completion.\n' +
+    `  With \`--${ANDROID_OPTION} <path>\` (and optionally \`--${IOS_OPTION} <path>\`): runs a full test on\n` +
+    '  those builds and registers them as the new base.',
   [TEST_EAS_CLOUD_BUILD_COMMAND]: 'Test cloud builds created on Expo servers',
   [EAS_BUILD_ON_COMPLETE_COMMAND]: `Process EAS Build (required for \`${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
   [SHOW_ERROR_COMMAND]:
     'Decode a minified JS error stack trace using the slug printed on the Sherlo build error page',
+  [VIEW_COMMAND]:
+    'Look at a build without touching it: its run status, its review tally, the same\n' +
+    '  status sentence the GitHub check posts, and its link. Opens nothing and uploads\n' +
+    `  nothing. \`--${WAIT_OPTION}\` blocks until the build is terminal and exits under the\n` +
+    `  same contract as \`test --${WAIT_OPTION}\`; without it the exit code is 0 whatever the\n` +
+    '  build says.',
+  [`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}`]:
+    'Create a project in a team and print its project token ONCE.\n' +
+    `  Authorized by a PERSONAL token (\`--${PERSONAL_TOKEN_FLAG}\` or ${PERSONAL_TOKEN_ENV_VAR}),\n` +
+    `  which is a different credential from the \`--${TOKEN_OPTION}\` every other command\n` +
+    '  takes: a personal token names a person, a project token names a project.\n' +
+    '  The project token it prints cannot be shown again - store it when you see it.',
+  [`${PROJECT_COMMAND} ${PROJECT_LIST_SUBCOMMAND}`]:
+    "List a team's projects: index, name, build count and main branch.\n" +
+    `  Authorized by a PERSONAL token (\`--${PERSONAL_TOKEN_FLAG}\` or ${PERSONAL_TOKEN_ENV_VAR}),\n` +
+    `  same as \`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}\`. Uploads nothing, creates nothing.`,
+  [`${TEAM_COMMAND} ${TEAM_CREATE_SUBCOMMAND}`]:
+    'Create a team and print its id.\n' +
+    `  Authorized by a PERSONAL token (\`--${PERSONAL_TOKEN_FLAG}\` or ${PERSONAL_TOKEN_ENV_VAR}),\n` +
+    `  same as \`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}\`.`,
+  [`${TEAM_COMMAND} ${TEAM_LIST_SUBCOMMAND}`]:
+    'List every team you belong to: id, name and project count.\n' +
+    `  Authorized by a PERSONAL token (\`--${PERSONAL_TOKEN_FLAG}\` or ${PERSONAL_TOKEN_ENV_VAR}).\n` +
+    `  Takes no \`--${TEAM_OPTION}\`: it answers for every team the token's owner belongs to.`,
+  [POSE_COMMAND]:
+    'Run ONE command against a declared world and print the whole screen it would put\n' +
+    '  on a terminal, with the exit code the real run would have had. The world - the\n' +
+    "  project folder, the settings, git, the bundler's answer and the server's - is a\n" +
+    '  JSON document (contracts/pose.contract.ts); pass `-` to read it from stdin.\n' +
+    '  Touches no network and no project. Hidden unless SHERLO_DEVTOOLS=1.',
+  [FINGERPRINT_COMMAND]:
+    'Print the fingerprints `test` computes for this project, one line per layer\n' +
+    '  (native, dependencies, js, base). Runs entirely locally: no token, no upload.\n' +
+    `  With \`--${WRITE_OPTION} <file>\`: also writes the digests and what they were computed\n` +
+    '  over (package versions, file digests) to <file>.\n' +
+    `  With \`--${BASELINE_OPTION} <file>\`: diffs the current project against a file written by\n` +
+    `  \`--${WRITE_OPTION}\` and prints what changed per layer. Exits 1 when any layer changed.`,
 };
 
 const OPTION_DEFINITION: Record<string, [string, string]> = {
   [ANDROID_OPTION]: [
     `--${ANDROID_OPTION} <path>`,
     `Path to ${PLATFORM_LABEL.android} build (${ANDROID_FILE_TYPES.join(', ')})`,
-  ],
-  [BRANCH_OPTION]: [
-    `--${BRANCH_OPTION} <branch>`,
-    'Name of the EAS Update branch to fetch the latest update from',
   ],
   [GIT_BRANCH_OPTION]: [
     '--git-branch <branch>',
@@ -135,21 +191,9 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${DIAGNOSTICS_OPTION} <names>`,
     'Diagnostics to collect, comma-separated (e.g. androidWindowDump,stabilizationFrames,sherloAtRoot)',
   ],
-  [EAS_ANDROID_URL_OPTION]: [
-    `--${EAS_ANDROID_URL_OPTION} <url>`,
-    'Direct Android EAS Update URL (bypasses expo config and eas-cli lookup)',
-  ],
   [EAS_BUILD_SCRIPT_NAME_OPTION]: [
     `--${EAS_BUILD_SCRIPT_NAME_OPTION} <name>`,
     'Name of the package.json script that triggers EAS Build',
-  ],
-  [EAS_IOS_URL_OPTION]: [
-    `--${EAS_IOS_URL_OPTION} <url>`,
-    'Direct iOS EAS Update URL (bypasses expo config and eas-cli lookup)',
-  ],
-  [EAS_UPDATE_SLUG_OPTION]: [
-    `--${EAS_UPDATE_SLUG_OPTION} <slug>`,
-    'EAS project slug (bypasses expo config lookup)',
   ],
   [INCLUDE_OPTION]: [
     `--${INCLUDE_OPTION} <stories>`,
@@ -159,7 +203,44 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${IOS_OPTION} <path>`,
     `Path to ${PLATFORM_LABEL.ios} build (${IOS_FILE_TYPES.join(', ')})`,
   ],
+  [BASELINE_OPTION]: [
+    `--${BASELINE_OPTION} <file>`,
+    `Diff the current fingerprints against a file written by \`--${WRITE_OPTION}\`. ` +
+      'Prints, per layer, unchanged or changed followed by the changed packages and files. ' +
+      'Exits 1 when any layer changed, 0 otherwise.',
+  ],
+  [BUNDLE_DIR_OPTION]: [
+    '--bundle-dir <path>',
+    'Use a prebuilt bundle from <path> instead of running the bundler. The directory ' +
+      'must hold, for each tested platform, the bundle, its assets, its module manifest ' +
+      'and the sidecar recording what it was built from - produce one with ' +
+      '`--emit-bundle-dir`. Every field of that sidecar is checked against this project ' +
+      'first, and a mismatch is refused rather than bundled around. The checks read the ' +
+      'checkout and the lockfile only: the accepting machine needs no `node_modules`.',
+  ],
+  [EMIT_BUNDLE_DIR_OPTION]: [
+    '--emit-bundle-dir <path>',
+    'Bundle as usual, write the result to <path> in the layout `--bundle-dir` accepts, ' +
+      'then exit. Uploads nothing, creates no build, makes no network call. Use it to ' +
+      'build the bundle once (in CI, in a monorepo pipeline) and hand it to every run ' +
+      'that follows.',
+  ],
+  [DRY_RUN_OPTION]: [
+    '--dry-run',
+    'Preview which stories a real run would capture (Diff Scope), then exit. ' +
+      'Bundles and produces the manifest locally, asks the server for a read-only ' +
+      'decision, and prints the per-platform "would capture" lists with reasons. ' +
+      'Creates no build and uploads nothing.',
+  ],
   [MESSAGE_OPTION]: [`--${MESSAGE_OPTION} <message>`, 'Custom message to label the test'],
+  [METADATA_OPTION]: [
+    `--${METADATA_OPTION}`,
+    'Print a `\u2500\u2500 details \u2500\u2500` block after the normal output - ONE LINE PER FACT THE API\n' +
+      '  PROVIDES, and nothing for one it does not: what the build was judged over, what the\n' +
+      '  runner did, the capture accounting, and how many verdicts a human has cast. On\n' +
+      `  \`${TEST_COMMAND}\` it also names the branch and commit the run was made from, which that run\n` +
+      '  composed itself. Plain aligned text, no colour.',
+  ],
   [PROFILE_OPTION]: [
     `--${PROFILE_OPTION} <profile>`,
     `EAS Build profile (must match profile used in \`${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
@@ -169,20 +250,44 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `Path to the root directory of your project (default: ${DEFAULT_PROJECT_ROOT})`,
   ],
   [TOKEN_OPTION]: [`--${TOKEN_OPTION} <token>`, 'Authentication token for the project'],
+  [PERSONAL_TOKEN_OPTION]: [
+    `--${PERSONAL_TOKEN_FLAG} <token>`,
+    'Your PERSONAL token (`sht_...`), minted in the Sherlo web app. Acts as you, and ' +
+      `may do only what your current role on the team allows. Defaults to ${PERSONAL_TOKEN_ENV_VAR}. ` +
+      `NOT the project token \`--${TOKEN_OPTION}\` takes, and deliberately not read from SHERLO_TOKEN.`,
+  ],
+  [NAME_OPTION]: [
+    `--${NAME_OPTION} <name>`,
+    'The name of the project to create, as the web app will show it. Quote a name with spaces.',
+  ],
+  [TEAM_OPTION]: [
+    `--${TEAM_OPTION} <teamId>`,
+    "The team to create the project in - the `t=` value in the web app's URL. Required: " +
+      'a personal token names a person, so there is no team to infer.',
+  ],
+  [VERBOSE_OPTION]: [
+    `--${VERBOSE_OPTION}`,
+    'List every native source, package and file under its layer, with its digest',
+  ],
   [WAIT_FOR_EAS_BUILD_OPTION]: [
     `--${WAIT_FOR_EAS_BUILD_OPTION}`,
     'Start waiting for EAS Build to be triggered manually',
   ],
   [WAIT_OPTION]: [
     `--${WAIT_OPTION}`,
-    `Wait for the test run to finish (times out after ${WAIT_TIMEOUT_MINUTES} minutes, ` +
-      `override with --${MAX_WAIT_TIME_OPTION}). Exit code: ` +
-      '0 = nothing to review, 1 = changes to review, 2 = error, 3 = timeout',
+    'Wait for test results and exit with a code encoding the outcome:\n' +
+      '  0 = GREEN (no changes), 1 = changes require review,\n' +
+      '  2 = build/system error, 3 = timeout (block, never pass), 130 = interrupted (Ctrl-C)',
   ],
-  [MAX_WAIT_TIME_OPTION]: [
-    `--${MAX_WAIT_TIME_OPTION} <minutes>`,
-    `Override how long --${WAIT_OPTION} waits before timing out (default: ${WAIT_TIMEOUT_MINUTES} minutes). ` +
-      'Must be an integer of at least 1',
+  [WAIT_TIMEOUT_OPTION]: [
+    '--wait-timeout <minutes>',
+    'Max minutes to wait for results (default: 45). Exit code 3 on timeout.',
+  ],
+  [WRITE_OPTION]: [
+    `--${WRITE_OPTION} <file>`,
+    'Write the digests and their pre-image (native sources, lockfiles, autolinked modules, ' +
+      'installed packages, app source files - identifiers and digests only, never contents) ' +
+      `to <file> as JSON, for a later \`--${BASELINE_OPTION}\`.`,
   ],
 };
 
@@ -196,6 +301,9 @@ function addInitCommand(program: Command) {
   });
 }
 
+// `sherlo test` is the ONE testing command: it carries the union of both roads'
+// options. The platform paths pick the standard road; without them the staged
+// road runs and --dry-run previews its bundling decision.
 function addTestCommand(program: Command) {
   const devtoolsOptions = process.env.SHERLO_DEVTOOLS === '1' ? [DIAGNOSTICS_OPTION] : [];
 
@@ -204,49 +312,46 @@ function addTestCommand(program: Command) {
     command: TEST_COMMAND,
     options: [
       ...getTestCommonOptions('withPlatformPaths'),
+      BUNDLE_DIR_OPTION,
+      EMIT_BUNDLE_DIR_OPTION,
+      DRY_RUN_OPTION,
       WAIT_OPTION,
-      MAX_WAIT_TIME_OPTION,
+      WAIT_TIMEOUT_OPTION,
+      METADATA_OPTION,
       ...devtoolsOptions,
     ],
     action: test,
   });
 }
 
-function addTestStandardCommand(program: Command) {
-  const devtoolsOptions = process.env.SHERLO_DEVTOOLS === '1' ? [DIAGNOSTICS_OPTION] : [];
+/**
+ * `sherlo view [build]` takes its build as a POSITIONAL argument, so it is
+ * registered by hand rather than through `addCommand` - which only knows how to
+ * wire options. The argument is OPTIONAL at the parser so the command can refuse
+ * in its own words, with the reason there is no default yet (see
+ * ./commands/view); commander's bare "missing required argument" would say less.
+ */
+function addViewCommand(program: Command) {
+  const commandInstance = program
+    .command(`${VIEW_COMMAND} [build]`)
+    .description(COMMAND_DESCRIPTION[VIEW_COMMAND]);
 
-  addCommand({
-    program,
-    command: TEST_STANDARD_COMMAND,
-    oldCommand: 'local-builds',
-    options: [
-      ...getTestCommonOptions('withPlatformPaths'),
-      WAIT_OPTION,
-      MAX_WAIT_TIME_OPTION,
-      ...devtoolsOptions,
-    ],
-    action: testStandard,
-  });
-}
+  addOptionsToCommand(commandInstance, [
+    TOKEN_OPTION,
+    CONFIG_OPTION,
+    PROJECT_ROOT_OPTION,
+    WAIT_OPTION,
+    WAIT_TIMEOUT_OPTION,
+    METADATA_OPTION,
+  ]);
 
-function addTestEasUpdateCommand(program: Command) {
-  const devtoolsOptions =
-    process.env.SHERLO_DEVTOOLS === '1'
-      ? [EAS_ANDROID_URL_OPTION, EAS_IOS_URL_OPTION, EAS_UPDATE_SLUG_OPTION, DIAGNOSTICS_OPTION]
-      : [];
+  commandInstance.action(async (build: string | undefined, actionOptions) => {
+    setReportingContext(VIEW_COMMAND, actionOptions);
 
-  addCommand({
-    program,
-    command: TEST_EAS_UPDATE_COMMAND,
-    oldCommand: 'expo-update',
-    options: [
-      BRANCH_OPTION,
-      ...getTestCommonOptions('withPlatformPaths'),
-      WAIT_OPTION,
-      MAX_WAIT_TIME_OPTION,
-      ...devtoolsOptions,
-    ],
-    action: testEasUpdate,
+    // `withCommandTimeout` wraps a one-argument command, and it already skips
+    // its own 30-minute race whenever `--wait` is set - which is the case that
+    // legitimately runs longer and owns exit code 3.
+    await withCommandTimeout(() => view(build, actionOptions))(actionOptions);
   });
 }
 
@@ -286,6 +391,125 @@ function addShowErrorCommand(program: Command) {
     .action(async (slug: string) => {
       setReportingContext(SHOW_ERROR_COMMAND, { slug });
       await showError(slug);
+    });
+}
+
+// `sherlo fingerprint` reuses `--bundle-dir` with its own meaning: the directory is
+// READ for its module manifests (the js layer's file list), never checked or run.
+function addFingerprintCommand(program: Command) {
+  const commandInstance = program
+    .command(FINGERPRINT_COMMAND)
+    .description(COMMAND_DESCRIPTION[FINGERPRINT_COMMAND]);
+  addOptionsToCommand(commandInstance, [
+    PROJECT_ROOT_OPTION,
+    WRITE_OPTION,
+    BASELINE_OPTION,
+    VERBOSE_OPTION,
+  ]);
+  commandInstance.option(
+    '--bundle-dir <path>',
+    'Compute the js layer from the module manifests in a directory written by ' +
+      '`sherlo test --emit-bundle-dir`. Without it the js layer is not computed.'
+  );
+  commandInstance.action(async (actionOptions) => {
+    setReportingContext(FINGERPRINT_COMMAND, actionOptions);
+    await fingerprint(actionOptions);
+  });
+}
+
+/**
+ * `sherlo project create --name <name>` / `sherlo project list --team <id>` -
+ * the `project` MANAGEMENT group, registered as noun-verb pairs (see the
+ * COMMANDS block in ./constants for that convention).
+ *
+ * Wired by hand rather than through `addCommand` because it hangs off a GROUP:
+ * `project` itself has no action, so running it bare prints commander's own help
+ * for the group. Every value either subcommand takes is a named flag - the
+ * name included - so nothing is read off its position after the verb.
+ */
+function addProjectCommand(program: Command) {
+  const projectGroup = program.command(PROJECT_COMMAND).description('Manage Sherlo projects');
+
+  const createInstance = projectGroup
+    .command(PROJECT_CREATE_SUBCOMMAND)
+    .description(COMMAND_DESCRIPTION[`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}`]);
+
+  addOptionsToCommand(createInstance, [NAME_OPTION, TEAM_OPTION, PERSONAL_TOKEN_OPTION]);
+
+  createInstance.action(async (actionOptions) => {
+    setReportingContext(`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}`, actionOptions);
+
+    await projectCreate(actionOptions);
+  });
+
+  const listInstance = projectGroup
+    .command(PROJECT_LIST_SUBCOMMAND)
+    .description(COMMAND_DESCRIPTION[`${PROJECT_COMMAND} ${PROJECT_LIST_SUBCOMMAND}`]);
+
+  addOptionsToCommand(listInstance, [TEAM_OPTION, PERSONAL_TOKEN_OPTION]);
+
+  listInstance.action(async (actionOptions) => {
+    setReportingContext(`${PROJECT_COMMAND} ${PROJECT_LIST_SUBCOMMAND}`, actionOptions);
+
+    await projectList(actionOptions);
+  });
+}
+
+/**
+ * `sherlo team create --name <name>` / `sherlo team list` - the `team`
+ * MANAGEMENT group, the sibling of `addProjectCommand` above. `team list`
+ * takes no `--team`: a personal token names a person, not a team, so it
+ * answers for every team that person belongs to rather than one named team.
+ */
+function addTeamCommand(program: Command) {
+  const teamGroup = program.command(TEAM_COMMAND).description('Manage Sherlo teams');
+
+  const createInstance = teamGroup
+    .command(TEAM_CREATE_SUBCOMMAND)
+    .description(COMMAND_DESCRIPTION[`${TEAM_COMMAND} ${TEAM_CREATE_SUBCOMMAND}`]);
+
+  addOptionsToCommand(createInstance, [NAME_OPTION, PERSONAL_TOKEN_OPTION]);
+
+  createInstance.action(async (actionOptions) => {
+    setReportingContext(`${TEAM_COMMAND} ${TEAM_CREATE_SUBCOMMAND}`, actionOptions);
+
+    await teamCreate(actionOptions);
+  });
+
+  const listInstance = teamGroup
+    .command(TEAM_LIST_SUBCOMMAND)
+    .description(COMMAND_DESCRIPTION[`${TEAM_COMMAND} ${TEAM_LIST_SUBCOMMAND}`]);
+
+  addOptionsToCommand(listInstance, [PERSONAL_TOKEN_OPTION]);
+
+  listInstance.action(async (actionOptions) => {
+    setReportingContext(`${TEAM_COMMAND} ${TEAM_LIST_SUBCOMMAND}`, actionOptions);
+
+    await teamList(actionOptions);
+  });
+}
+
+/**
+ * `sherlo pose <pose.json|->` - run one command against a declared world and print the whole
+ * screen it put on a terminal (see ./commands/pose/pose).
+ *
+ * HIDDEN UNLESS `SHERLO_DEVTOOLS=1`, the same gate `--diagnostics` sits behind: this is a tool
+ * for the people who work on the tool, and a user who runs `sherlo --help` has no use for a verb
+ * that takes a JSON document describing a run they are not making.
+ *
+ * The command is loaded only when it runs. It reaches back into THIS module - the routing it
+ * exists to exercise is `start` itself - so a static import here would be a load-time cycle.
+ */
+function addPoseCommand(program: Command) {
+  if (process.env.SHERLO_DEVTOOLS !== '1') return;
+
+  program
+    .command(`${POSE_COMMAND} <pose>`)
+    .description(COMMAND_DESCRIPTION[POSE_COMMAND])
+    .action(async (documentPath: string) => {
+      const { pose } = await import('./commands/pose/pose');
+
+      await pose(documentPath);
     });
 }
 
@@ -346,12 +570,22 @@ function showDeprecationWarning({
   process.env.SKIP_INTRO = 'true';
 }
 
+/**
+ * EVERY option whose name ends in `token` is redacted, not just `--token`.
+ *
+ * The list used to be one entry long, and a second credential (`--personal-token`)
+ * is exactly the kind of thing that gets added to the CLI without anyone
+ * remembering this function. Matching on the NAME means the next one is redacted
+ * on the day it is added rather than on the day someone notices it in Sentry.
+ */
 function setReportingContext(command: string, options: any) {
-  const optionsWithHiddenToken = options[TOKEN_OPTION]
-    ? { ...options, [TOKEN_OPTION]: '[hidden]' }
-    : options;
+  const commandOptions = Object.fromEntries(
+    Object.entries(options ?? {}).map(([key, value]) =>
+      /token$/i.test(key) && value ? [key, '[hidden]'] : [key, value]
+    )
+  );
 
-  reporting.setContext('Command', { command, commandOptions: optionsWithHiddenToken });
+  reporting.setContext('Command', { command, commandOptions });
 }
 
 function addOptionsToCommand(command: Command, optionKeys: (keyof typeof OPTION_DEFINITION)[]) {

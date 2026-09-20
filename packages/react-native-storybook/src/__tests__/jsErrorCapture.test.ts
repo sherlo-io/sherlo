@@ -358,7 +358,7 @@ describe('metro/polyfill.js - getSherloNativeModule', () => {
     // Only asserts the removed call form (the fallback used to assign its result to
     // `rn`) - explanatory comments elsewhere in the file legitimately mention
     // "global.__r(" as prose and should not trip this regression guard.
-    expect(polyfillSource).not.toMatch(/=\s*global\.__r\(/);
+    expect(polyfillSource).not.toMatch(/[=]\s*global\.__r\(/);
   });
 });
 

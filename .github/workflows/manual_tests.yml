@@ -21,6 +21,11 @@ on:
         type: string
         required: false
         default: ""
+      tester_ref:
+        description: "sherlo-tester ref to ratchet the CLI's render layer against (empty = the branch this runs on, falling back to sherlo-tester's dev)"
+        type: string
+        required: false
+        default: ""
 
 jobs:
   cli:
@@ -34,17 +39,93 @@ jobs:
         with:
           node-version: '24'
 
+      # Mirrors pr_checks.yml: feature/sherlo-3 and every epic/** branch build
+      # their @sherlo/* deps from sherlo-api source, because the S3 dev-stage
+      # canon can predate lib changes the CLI's source already depends on. The
+      # packaged-build gate below is only honest against the SAME deps the e2e
+      # from-ref install resolves, so this resolution is not optional here.
+      - name: Resolve sherlo-lib source
+        id: libs
+        run: |
+          if [ "$GITHUB_REF_NAME" = "feature/sherlo-3" ] || [[ "$GITHUB_REF_NAME" == epic/* ]]; then
+            echo "ref=feature/sherlo-3" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GH App Token (sherlo-api clone)
+        if: steps.libs.outputs.ref != ''
+        id: github_app_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.SHERLO_BOT_APP_ID }}
+          private_key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
+
       - name: Download Sherlo packages
         run: ./scripts/init-env.sh
         env:
           CLIENT_STAGE: dev
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          LIBS_REF: ${{ steps.libs.outputs.ref }}
+          SHERLO_API_CLONE_TOKEN: ${{ steps.github_app_token.outputs.token }}
+
+      # THE PACKAGED-BUILD GATE. This is the command the e2e suites run when a
+      # run is dispatched with `cli_ref=<this branch>`: they clone the ref and
+      # `yarn build` packages/cli. If it does not compile, EVERY e2e run on the
+      # ref dies at install before a single test starts - not just the CLI
+      # suite, but every storyline that names the ref.
+      #
+      # It lives on the DISPATCH path, not only in pr_checks, because that is
+      # the gap this step was added to close: on 2026-08-25 a push-spine refactor
+      # typed an effects seam as `BinariesInfo` where the producer answers
+      # `ValidatedBinariesInfo`, dropping `sdkVersion` from the type while the
+      # value still flowed at runtime. Every lane that night validated with
+      # `tsc --noEmit` plus a unit dispatch and all of them went green; the
+      # branch was un-e2e-able for hours.
+      #
+      # It is NOT redundant with `tsc --noEmit`, and swapping one for the other
+      # is the mistake to avoid. `tsc -p` checks every file under the package;
+      # ncc type-checks only the graph reachable from `src/index.ts` but is the
+      # command that actually ships. The two disagree in both directions, and
+      # only this one gates the e2e runs.
+      #
+      # It is a workflow step rather than a vitest gate on purpose: a test can
+      # only assert about a build it can run, and packages/cli cannot be built
+      # on a developer machine - the S3 dev-stage @sherlo/api-types is behind
+      # this branch's source, so a local `tsc --noEmit` reports ~19 skew errors
+      # that swallow a real 20th. CI is the only place the deps resolve
+      # correctly, so CI is the only place the gate can tell the truth.
+      - name: Packaged build (the gate every e2e run installs through)
+        working-directory: packages/cli
+        run: yarn build
+
+      # THE BYTE RATCHET's other half. packages/cli's render-layer suites compare
+      # what the CLI renders against fixtures committed in sherlo-tester; without
+      # this checkout those cases classify as SKIPPED and the suite goes green
+      # having proved nothing about what a real user sees. The checkout gate in
+      # packages/cli/src/commands/test/__tests__/testerCheckout.ts REDS in CI if
+      # this step is ever removed, so deleting it cannot quietly restore that
+      # silence. See scripts/checkout-tester.sh for the ref-resolution rules.
+      - name: Create GH App Token (sherlo-tester clone)
+        id: tester_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.SHERLO_BOT_APP_ID }}
+          private_key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
+
+      - name: Check out sherlo-tester (byte-ratchet fixtures)
+        run: ./scripts/checkout-tester.sh "${{ inputs.tester_ref || github.ref_name }}" "${{ runner.temp }}/sherlo-tester"
+        env:
+          TESTER_CLONE_TOKEN: ${{ steps.tester_token.outputs.token }}
 
       - name: Unit tests
         working-directory: packages/cli
         env:
           PATH_FILTER: ${{ inputs.path_filter }}
           TEST_NAME: ${{ inputs.test_name }}
+          # Deliberately OUTSIDE this repository's tree, so 4,700 sherlo-tester
+          # files never reach eslint, tsc or vitest's own file discovery.
+          SHERLO_TESTER_ROOT: ${{ runner.temp }}/sherlo-tester
         run: |
           args=()
           if [ -n "$PATH_FILTER" ]; then

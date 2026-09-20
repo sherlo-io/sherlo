@@ -1,6 +1,7 @@
 import { DOCS_LINK, TOKEN_OPTION } from '../../../constants';
 import { InvalidatedConfig } from '../../../types';
 import isValidToken from '../../isValidToken';
+import refuseIfPersonalToken from '../../refuseIfPersonalToken';
 import throwError from '../../throwError';
 
 function validateToken<T extends InvalidatedConfig>(
@@ -15,6 +16,10 @@ function validateToken<T extends InvalidatedConfig>(
   if (typeof token !== 'string') {
     throwError(getError('invalid_type'));
   }
+
+  // Before the format check, because "invalid token" is the wrong thing to say
+  // to someone who pasted a perfectly good credential of the other kind.
+  refuseIfPersonalToken(token);
 
   if (!isValidToken(token)) {
     throwError(getError('invalid_format'));

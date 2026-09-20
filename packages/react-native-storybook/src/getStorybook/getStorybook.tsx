@@ -15,6 +15,10 @@ import {
   getStorybookChannel,
   startStoryRenderedTracking,
 } from './components/TestingMode/useTestAllStories/storyRenderedReadiness';
+import {
+  startInteractiveMockActivation,
+  stopInteractiveMockActivation,
+} from './interactiveMockActivation';
 
 let isSdkCompatible = true;
 if (SherloModule.getMode() === 'testing') {
@@ -73,9 +77,10 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
   }
 
   if (mode === 'storybook') {
+    let initialStoryId: string | undefined;
     try {
       const config = SherloModule.getConfig();
-      const initialStoryId = config.inspect?.initialStoryId;
+      initialStoryId = config.inspect?.initialStoryId;
       // Force shouldPersistSelection:false so inspect.initialStoryId always wins
       // over persisted AsyncStorage state from a previous launch.
       params = {
@@ -83,6 +88,16 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
         shouldPersistSelection: false,
         ...(initialStoryId && { initialSelection: initialStoryId as InitialSelection }),
       };
+    } catch (_e) {}
+
+    // Attach the story-change listener here - the earliest JS access to the channel in
+    // this mode, before the component tree below ever renders - so the very first
+    // selection Storybook resolves on mount is not missed. Pass initialStoryId so the
+    // story Storybook lands on has its mocks activated immediately: storyChanged does
+    // not fire for that first selection, so without this a direct launch onto a mocked
+    // story would serve real values.
+    try {
+      startInteractiveMockActivation(view, getStorybookChannel(view), initialStoryId);
     } catch (_e) {}
   }
 
@@ -128,6 +143,15 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
         inspectLogReported.current = true;
         SherloModule.appendFile(LOG_FILE, `INSPECT_STORY_OPENED:${storyId}\n`);
       } catch (_e) {}
+    }, []);
+
+    // Leaving Storybook (unmount) tears down the mock activation started above:
+    // stop tracking selection changes and pass every module through to real again.
+    useEffect(() => {
+      if (!isStorybookMode) return;
+      return () => {
+        stopInteractiveMockActivation();
+      };
     }, []);
 
     if (isTestingMode) {

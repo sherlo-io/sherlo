@@ -1,0 +1,21 @@
+{
+  "pose": 1,
+  "argv": ["team", "list"],
+  "files": {},
+  "env": { "SKIP_INTRO": "true", "SHERLO_PERSONAL_TOKEN": "sht_posepersonaltoken000000000000" },
+  "git": "none",
+  "bundles": {},
+  "api": [
+    {
+      "call": "listTeams",
+      "with": {},
+      "answer": {
+        "teams": [
+          { "id": "tm000001", "name": "Storefront", "projectCount": 2, "role": "owner" },
+          { "id": "tm000002", "name": "Design System", "projectCount": 0, "role": null }
+        ]
+      }
+    }
+  ],
+  "masks": { "<MASKED>": "sht_posepersonaltoken000000000000" }
+}
