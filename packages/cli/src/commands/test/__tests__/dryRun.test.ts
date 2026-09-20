@@ -52,6 +52,14 @@ vi.mock('../../../helpers/runShellCommand', () => ({
 import { formatDryRunPreview, runDryRunPreview, type DryRunPlatformPreview } from '../dryRun';
 import type { DryRunPlatformDecision } from '../dryRunDecision';
 import { computeBaseFingerprint } from '../../../helpers/fingerprint';
+import reporting from '../../../helpers/reporting';
+
+/** The sentinel `../../../helpers/getGitInfo`'s `degradeGitInfo` returns when the git read fails. */
+const unreadableGitInfo: any = {
+  commitName: 'unknown',
+  commitHash: 'unknown',
+  branchName: 'unknown',
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -411,6 +419,61 @@ describe('runDryRunPreview', () => {
     expect(printed).toContain('• x/X');
     expect(printed).toContain('🤖 Android - would capture all 4 stories in this bundle');
     expect(printed).toContain('why: native-changed');
+
+    logSpy.mockRestore();
+  });
+
+  it('a preview that cannot read git warns, and says it captured everything because it could not tell', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runDryRunPreview({
+      client,
+      bundles: { ios: bundleWithManifest() },
+      platformsToTest: ['ios'],
+      projectIndex: 7,
+      teamId: 'team-42',
+      gitInfo: unreadableGitInfo,
+      baseReference: 'fp-123',
+    });
+
+    // Unreadable git identity is never sent to the server as if it meant something -
+    // the decision query is never asked.
+    expect(mockRequestDryRunDecision).not.toHaveBeenCalled();
+
+    expect(reporting.addBreadcrumb).toHaveBeenCalledWith(
+      expect.objectContaining({ level: 'warning' })
+    );
+
+    const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(printed).toContain('🍎 iOS - would capture all stories');
+    expect(printed).toContain("! couldn't compute what changed - capturing everything to be safe");
+    expect(printed).not.toContain('first build');
+
+    logSpy.mockRestore();
+  });
+
+  it('a preview whose server cannot be reached says it could not tell, and never reports a first build', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockRequestDryRunDecision.mockRejectedValue(new Error('connect ECONNREFUSED 127.0.0.1:443'));
+
+    await runDryRunPreview({
+      client,
+      bundles: { ios: bundleWithManifest() },
+      platformsToTest: ['ios'],
+      projectIndex: 7,
+      teamId: 'team-42',
+      gitInfo,
+      baseReference: 'fp-123',
+    });
+
+    const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(printed).toContain('🍎 iOS - would capture all stories');
+    expect(printed).toContain("! couldn't compute what changed - capturing everything to be safe");
+    // A bail-open never sounds precise about a count, and never borrows the server's
+    // own "first build" reading of an absent base reference.
+    expect(printed).not.toContain('in this bundle');
+    expect(printed).not.toContain('first build');
+    expect(printed).not.toContain('ECONNREFUSED');
 
     logSpy.mockRestore();
   });
