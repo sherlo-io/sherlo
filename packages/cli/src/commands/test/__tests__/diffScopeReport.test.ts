@@ -133,7 +133,7 @@ describe('approved output (verbatim)', () => {
       [
         '📸 Capture plan',
         '  🤖 Android - nothing to capture - no change reaches any story',
-        '     ✓ all 22 stories reused from the previous build',
+        '     ✓ none of the 22 stories in this bundle need capture',
       ].join('\n')
     );
   });
@@ -193,7 +193,7 @@ describe('approved output (verbatim)', () => {
         '     stories:',
         '       • Storefront/ProductCard',
         '  🤖 Android - nothing to capture - the change never reaches the Android app',
-        '     ✓ all 22 stories reused from the previous build',
+        '     ✓ none of the 22 stories in this bundle need capture',
       ].join('\n')
     );
   });
@@ -254,7 +254,7 @@ describe('formatDiffScopeBlock', () => {
     expect(out).not.toContain('reusing');
   });
 
-  it('renders a PARTIAL zero-capture as "nothing to capture" with the whole bundle reused', () => {
+  it('renders a PARTIAL zero-capture as "nothing to capture" naming the bundle, with no reuse claim', () => {
     const block = decided({
       platform: 'android',
       full: false,
@@ -268,12 +268,40 @@ describe('formatDiffScopeBlock', () => {
     expect(out).toBe(
       [
         '  🤖 Android - nothing to capture - no change reaches any story',
-        '     ✓ all 22 stories reused from the previous build',
+        '     ✓ none of the 22 stories in this bundle need capture',
       ].join('\n')
     );
     // A partial-zero is NOT a full capture and never lists stories.
     expect(out).not.toContain('capturing');
     expect(out).not.toContain('stories:');
+  });
+
+  it('a zero capture names the bundle as its universe and promises no reuse', () => {
+    // The Diff Scope storyline caught this saying "all 8 stories reused from the
+    // previous build" for a bundle whose eighth story the ancestor never had - no
+    // snapshot exists for a story the previous build never held, and a story
+    // outside the configured scope is not tested at all. Neither is "reused".
+    const block = decided({
+      platform: 'android',
+      full: false,
+      capturedStoryFilePaths: [],
+      totalStoriesInBundle: 8,
+      reason: 'no change reaches any story',
+    });
+
+    const out = formatDiffScopeBlock(block, 'capturing').join('\n');
+
+    expect(out).toBe(
+      [
+        '  🤖 Android - nothing to capture - no change reaches any story',
+        '     ✓ none of the 8 stories in this bundle need capture',
+      ].join('\n')
+    );
+    // Names the same universe its FULL/PARTIAL siblings name...
+    expect(out).toContain('in this bundle');
+    // ...and never claims a snapshot was reused.
+    expect(out).not.toContain('reused');
+    expect(out).not.toContain('reuse');
   });
 
   it('degrades to a bare count (no "of M", no reuse clause) when the bundle has no manifest', () => {
@@ -344,7 +372,7 @@ describe('formatDiffScopeBlock', () => {
     expect(out).not.toContain('capturing all stories');
   });
 
-  it('SINGULAR at M === 1: a zero-capture reads "all 1 story reused", not "all 1 stories reused"', () => {
+  it('SINGULAR at M === 1: a zero-capture reads "the 1 story ... needs capture", not "stories ... need"', () => {
     const block = decided({
       platform: 'android',
       full: false,
@@ -358,10 +386,10 @@ describe('formatDiffScopeBlock', () => {
     expect(out).toBe(
       [
         '  🤖 Android - nothing to capture - no change reaches any story',
-        '     ✓ all 1 story reused from the previous build',
+        '     ✓ none of the 1 story in this bundle needs capture',
       ].join('\n')
     );
-    expect(out).not.toContain('all 1 stories');
+    expect(out).not.toContain('1 stories');
   });
 
   it('drops the "reusing 0" clause when nothing is reused (partial 1 of 1)', () => {

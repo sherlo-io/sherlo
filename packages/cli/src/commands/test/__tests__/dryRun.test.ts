@@ -140,7 +140,7 @@ describe('formatDryRunPreview', () => {
     const output = formatDryRunPreview([{ status: 'decided', decision }]);
 
     expect(output).toContain('🤖 Android - nothing to capture - no change reaches any story');
-    expect(output).toContain('     ✓ all 5 stories reused from the previous build');
+    expect(output).toContain('     ✓ none of the 5 stories in this bundle need capture');
     // A partial-zero has no capture verb at all.
     expect(output).not.toContain('would capture');
   });
