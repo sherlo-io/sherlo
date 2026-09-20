@@ -52,7 +52,11 @@ function toRelativePath(absPath, projectRoot) {
 //                      which renumbers on any import add/remove/reorder).
 //   2. storyClosures - story source-path -> its transitive forward dependency
 //                      set (source paths). Stories are the require.context
-//                      targets collectStoryAbsPaths resolves below.
+//                      targets collectStoryAbsPaths resolves below. Unioned into
+//                      EVERY story's set: the preview module (collectPreviewAbsPaths)
+//                      and its own transitive closure - Storybook applies the
+//                      preview's annotations/decorators around every story, so no
+//                      story's own downward walk ever reaches it (SHERLO-3).
 //   3. header        - toolchain/env fingerprint (metro version, transformer/
 //                      babel config digest, env digest) so a build produced by a
 //                      different toolchain/env is never mistaken for an unchanged one,
@@ -153,6 +157,51 @@ function collectStoryAbsPaths(graph) {
     });
   });
   return stories;
+}
+
+/**
+ * True when a basename is a Storybook preview entry (`preview.<ext>`, e.g.
+ * `.rnstorybook/preview.ts`) - same convention mockScan.js's isScanTarget uses
+ * for the module-mocking scan, kept independent here since this walks the
+ * Metro graph rather than the filesystem.
+ */
+function isPreviewBasename(basename) {
+  var ext = path.extname(basename);
+  return basename.slice(0, basename.length - ext.length) === 'preview';
+}
+
+/**
+ * Absolute paths of every preview module: an ORDINARY (non-require.context)
+ * dependency of the generated requires file whose basename matches the
+ * preview convention (`require('./preview')` in storybook.requires.ts).
+ *
+ * The requires file sits ABOVE every story - Storybook applies its
+ * `annotations` (which include the preview module) around every story it
+ * renders, so no story ever imports preview.ts itself and a downward walk
+ * from a story can never reach it (SHERLO-3: "a global decorator captures
+ * every story"). This is the other direction: walking OUT of the requires
+ * file along its ordinary edges to find the preview module that wraps
+ * everything.
+ *
+ * @returns {string[]} unique preview absolute paths.
+ */
+function collectPreviewAbsPaths(graph) {
+  var seen = {};
+  var previews = [];
+  graph.dependencies.forEach(function (module, absPath) {
+    if (STORYBOOK_REQUIRES_BASENAMES.indexOf(path.basename(absPath)) === -1) return;
+    if (!module.dependencies || !(module.dependencies instanceof Map)) return;
+    module.dependencies.forEach(function (dep) {
+      var depAbs = dep.absolutePath;
+      if (!depAbs || seen[depAbs]) return;
+      var contextParams = dep.data && dep.data.data && dep.data.data.contextParams;
+      if (contextParams) return; // require.context edge -> stories, not the preview
+      if (!isPreviewBasename(path.basename(depAbs))) return;
+      seen[depAbs] = true;
+      previews.push(depAbs);
+    });
+  });
+  return previews;
 }
 
 /**
@@ -362,12 +411,33 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
     });
     absolutePathLeaks.sort();
 
+    // Files that reach every story from ABOVE (the preview module and its own
+    // transitive closure), unioned into every story's closure below. A story's
+    // own downward walk can never find these - Storybook applies the preview
+    // around the story, the story never imports it.
+    /** @type {Record<string, boolean>} */
+    var globalRelPaths = {};
+    collectPreviewAbsPaths(graph).forEach(function (previewAbsPath) {
+      var previewRel = toRelativePath(previewAbsPath, projectRoot);
+      if (previewRel) globalRelPaths[previewRel] = true;
+      collectForwardClosure(graph, previewAbsPath, projectRoot).forEach(function (rel) {
+        globalRelPaths[rel] = true;
+      });
+    });
+
     /** @type {Record<string, string[]>} */
     var storyClosures = {};
     collectStoryAbsPaths(graph).forEach(function (storyAbsPath) {
       var storyRel = toRelativePath(storyAbsPath, projectRoot);
       if (!storyRel) return;
-      storyClosures[storyRel] = collectForwardClosure(graph, storyAbsPath, projectRoot);
+      var closureSet = {};
+      collectForwardClosure(graph, storyAbsPath, projectRoot).forEach(function (rel) {
+        closureSet[rel] = true;
+      });
+      Object.keys(globalRelPaths).forEach(function (rel) {
+        closureSet[rel] = true;
+      });
+      storyClosures[storyRel] = Object.keys(closureSet).sort();
     });
 
     var header = buildManifestHeader(projectRoot);

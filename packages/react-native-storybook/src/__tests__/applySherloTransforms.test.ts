@@ -369,6 +369,40 @@ function addAppOwnedContext(root: string, graph: ReturnType<typeof buildFakeGrap
   graph.dependencies.set(cartPath, mod('CART_CODE', new Map()));
 }
 
+// Extends buildFakeGraph's graph with a preview module, modeled on
+// storybook.requires.ts's own generated `annotations` array:
+//   `const annotations = [require('./preview'), require('@storybook/react-native/preview')];`
+// This is an ORDINARY edge from the requires file (no contextParams) - unlike
+// the require.context edge collectStoryAbsPaths matches, so preview.ts is
+// never mistaken for a story. Storybook applies preview's decorators around
+// every story it renders, so preview.ts sits ABOVE every story - no story
+// ever imports it, and a downward walk from a story can never reach it.
+function addPreviewImport(root: string, graph: ReturnType<typeof buildFakeGraph>['graph']) {
+  const requiresPath = path.join(root, 'src', '.rnstorybook', 'storybook.requires.ts');
+  const previewPath = path.join(root, 'src', '.rnstorybook', 'preview.ts');
+  const themePath = path.join(root, 'src', 'shared', 'theme.ts');
+
+  const mod = (code: string, deps: Map<string, unknown>) => ({
+    output: [{ data: { code } }],
+    dependencies: deps,
+  });
+
+  // preview.ts imports theme.ts.
+  graph.dependencies.set(
+    previewPath,
+    mod('PREVIEW_CODE', new Map([['t', { absolutePath: themePath, data: { data: {} } }]]))
+  );
+  graph.dependencies.set(themePath, mod('THEME_CODE', new Map()));
+
+  // storybook.requires.ts requires preview.ts as an ordinary (non-context) edge.
+  const requiresModule = graph.dependencies.get(requiresPath) as {
+    dependencies: Map<string, unknown>;
+  };
+  requiresModule.dependencies.set('preview', { absolutePath: previewPath, data: { data: {} } });
+
+  return { previewPath, themePath };
+}
+
 describe('applySherloTransforms – module manifest sidecar (enabled)', () => {
   const manifestRelPath = ['node_modules', '.cache', 'sherlo', 'module-manifest.json'];
 
@@ -432,6 +466,53 @@ describe('applySherloTransforms – module manifest sidecar (enabled)', () => {
     const { manifest } = emitAndRead();
     const closure = manifest.storyClosures['./src/Button.stories.tsx'];
     expect(closure).toEqual(['./src/Button.tsx', './src/shared/Label.tsx']);
+  });
+
+  it("a file the preview imports is in every story's closure", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-preview-'));
+    const result = applySherloTransforms(
+      { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: () => 'BYTES' } },
+      { enabled: true }
+    );
+    const built = buildFakeGraph(tmpDir);
+    addPreviewImport(tmpDir, built.graph);
+    result.serializer.customSerializer('index.js', [], built.graph, { projectRoot: tmpDir });
+    const manifest = JSON.parse(fs.readFileSync(path.join(tmpDir, ...manifestRelPath), 'utf8'));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
+    // preview.ts is applied around every story by Storybook, not imported BY any
+    // story - a downward walk from Button.stories.tsx alone would never reach it.
+    // Both preview.ts itself and the file it imports must still land in the
+    // story's closure, or an edit to either is reported as "nothing changed".
+    const closure = manifest.storyClosures['./src/Button.stories.tsx'];
+    expect(closure).toContain('./src/.rnstorybook/preview.ts');
+    expect(closure).toContain('./src/shared/theme.ts');
+  });
+
+  it('CONTROL: a file no story and no preview reaches is in no closure', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-control-'));
+    const result = applySherloTransforms(
+      { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: () => 'BYTES' } },
+      { enabled: true }
+    );
+    const built = buildFakeGraph(tmpDir);
+    addPreviewImport(tmpDir, built.graph);
+    const orphanPath = path.join(tmpDir, 'src', 'shared', 'Orphan.ts');
+    built.graph.dependencies.set(orphanPath, {
+      output: [{ data: { code: 'ORPHAN_CODE' } }],
+      dependencies: new Map(),
+    });
+    result.serializer.customSerializer('index.js', [], built.graph, { projectRoot: tmpDir });
+    const manifest = JSON.parse(fs.readFileSync(path.join(tmpDir, ...manifestRelPath), 'utf8'));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
+    // Orphan.ts is hashed (it's in the graph)...
+    expect(manifest.moduleHashes['./src/shared/Orphan.ts']).toMatch(/^[0-9a-f]{64}$/);
+    // ...but reached by neither a story nor the preview, so the fix must not have
+    // made every module reach every closure - the feature must stay discriminating.
+    Object.values(manifest.storyClosures as Record<string, string[]>).forEach((closure) => {
+      expect(closure).not.toContain('./src/shared/Orphan.ts');
+    });
   });
 
   it('a require.context written by the app is not a story source', () => {
