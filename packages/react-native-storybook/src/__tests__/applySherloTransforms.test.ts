@@ -738,3 +738,178 @@ describe('applySherloTransforms - cross-machine absolute-path guard (SHERLO-1894
     expect(leaked.manifest.header.absolutePathLeaks).toContain('./src/Button.tsx');
   });
 });
+
+// ---------------------------------------------------------------------------
+// The letterbox's address on the bundler
+// ---------------------------------------------------------------------------
+//
+// The address itself is held by openStoryChannel.test.ts; this holds the one thing that puts it on
+// a developer's bundler at all - the middleware Sherlo adds to the config it hands back. Without
+// it there is no road, and every test either side of it still passes.
+
+describe('applySherloTransforms - the letterbox address', () => {
+  function enhancedMiddlewareFor(config: Record<string, unknown>) {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-letterbox-address-'));
+    const result = applySherloTransforms(
+      { projectRoot: tmpDir, resolver: {}, ...config },
+      { enabled: true }
+    );
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    return result.server.enhanceMiddleware;
+  }
+
+  /** A request/response pair with just the parts the letterbox reads and writes. */
+  function requestFor(url: string, method: string) {
+    const request = {
+      url,
+      method,
+      on: (event: string, listener: (chunk?: unknown) => void) => {
+        if (event === 'end') listener();
+        return request;
+      },
+    };
+    const written: string[] = [];
+    const response = {
+      written,
+      on: () => response,
+      writeHead: () => response,
+      end: (body: string) => written.push(body),
+    };
+    return { request, response };
+  }
+
+  it("serves Sherlo's address, and hands everything else to the bundler", () => {
+    const reachedTheBundler: string[] = [];
+    const enhance = enhancedMiddlewareFor({});
+    const middleware = enhance((request: any) => reachedTheBundler.push(request.url));
+
+    const letterbox = requestFor('/sherlo/letterbox', 'GET');
+    middleware(letterbox.request, letterbox.response, () => {});
+    expect(letterbox.response.written).toEqual([JSON.stringify({ kind: 'no-app' })]);
+    expect(reachedTheBundler).toEqual([]);
+
+    const bundle = requestFor('/index.bundle?platform=ios', 'GET');
+    middleware(bundle.request, bundle.response, () => {});
+    expect(bundle.response.written).toEqual([]);
+    expect(reachedTheBundler).toEqual(['/index.bundle?platform=ios']);
+  });
+
+  it("keeps a project's own enhanceMiddleware in the chain", () => {
+    const chain: string[] = [];
+    const enhance = enhancedMiddlewareFor({
+      server: {
+        enhanceMiddleware: (metroMiddleware: any) => (request: any, response: any, next: any) => {
+          chain.push('the project');
+          return metroMiddleware(request, response, next);
+        },
+      },
+    });
+    const middleware = enhance((request: any) => chain.push(`the bundler: ${request.url}`));
+
+    const bundle = requestFor('/index.bundle', 'GET');
+    middleware(bundle.request, bundle.response, () => {});
+
+    expect(chain).toEqual(['the project', 'the bundler: /index.bundle']);
+  });
+});
+
+/**
+ * THE SWAP THE WHOLE SDK RESTS ON, and until now nothing held it.
+ *
+ * Sherlo reaches inside Storybook by answering every request for the Storybook package with a
+ * generated file, which hands back the real Storybook with its opening function replaced. Every
+ * other thing the SDK does to Storybook - which story opens first, whether the last one is
+ * remembered, whether it talks to a server - is downstream of that one move, and there were tests
+ * either side of it and none on it.
+ *
+ * The wrapper is loaded here the way the bundle loads it - as its own source, with a `require` that
+ * answers for the two packages it reaches for - because what the swap does is decided by the bytes
+ * that are written, not by the function that wrote them.
+ */
+describe('the swap', () => {
+  it('the Storybook package resolves to the generated wrapper, and the wrapper hands back Storybook with the opening function swapped', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-the-swap-'));
+    const result = applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: true });
+
+    // 1. Every request for the Storybook package resolves to Sherlo's generated wrapper.
+    const resolved = result.resolver.resolveRequest(
+      {
+        originModulePath: path.join(tmpDir, 'src', '.rnstorybook', 'index.tsx'),
+        resolveRequest: () => ({ type: 'sourceFile', filePath: '/the/real/storybook' }),
+      },
+      '@storybook/react-native',
+      'ios'
+    );
+    const wrapperPath = path.join(
+      tmpDir,
+      'node_modules',
+      '.cache',
+      'sherlo',
+      'storybook-wrapper.js'
+    );
+    expect(resolved).toEqual({ type: 'sourceFile', filePath: wrapperPath });
+
+    // 2. That wrapper hands back the real Storybook...
+    const wrapper = loadWrapper(fs.readFileSync(wrapperPath, 'utf8'));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
+    expect(wrapper.exports.addons).toBe(realStorybook.addons);
+
+    // ...with its opening function swapped: the view Storybook returns is the same view, and the
+    // one thing on it that opens a story screen now runs through Sherlo.
+    expect(wrapper.exports.start).not.toBe(realStorybook.start);
+
+    const view = wrapper.exports.start({ storybook: 'config' });
+    expect(view).toBe(realStorybookView);
+    expect(realStorybook.startedWith).toEqual({ storybook: 'config' });
+
+    const params = { theme: 'dark' };
+    view.getStorybookUI(params);
+    expect(sherloGetStorybookCalls).toEqual([[realStorybookView, params]]);
+  });
+});
+
+/* ========================================================================== */
+
+const realStorybookView: any = {
+  getStorybookUI: () => () => null,
+};
+
+const realStorybook: any = {
+  addons: { some: 'addon' },
+  startedWith: undefined,
+  start: (config: unknown) => {
+    realStorybook.startedWith = config;
+    return realStorybookView;
+  },
+};
+
+const sherloGetStorybookCalls: unknown[][] = [];
+
+/**
+ * Run the generated wrapper's own source as the bundle would, answering the two packages it
+ * requires: the real Storybook, and Sherlo's own story screen.
+ */
+function loadWrapper(source: string): { exports: any } {
+  const wrapper = { exports: {} as any };
+
+  const answerRequire = (name: string): unknown => {
+    if (name === '@storybook/react-native') return realStorybook;
+    if (name === '@sherlo/react-native-storybook/dist/getStorybook/index.js') {
+      return {
+        default: (...args: unknown[]) => {
+          sherloGetStorybookCalls.push(args);
+          return () => null;
+        },
+      };
+    }
+    if (name === '@sherlo/react-native-storybook/dist/addStorybookToDevMenu.js') {
+      return { default: () => {} };
+    }
+    throw new Error(`the wrapper asked for an unexpected module: ${name}`);
+  };
+
+  // eslint-disable-next-line no-new-func
+  new Function('exports', 'require', 'module', source)(wrapper.exports, answerRequire, wrapper);
+  return wrapper;
+}
