@@ -5,6 +5,7 @@ var path = require('path');
 var crypto = require('crypto');
 
 var mockShims = require('./mockShims');
+var storyTitleReader = require('./storyTitleReader');
 
 // ---------------------------------------------------------------------------
 // Module path helper (shared by the Diff Scope module manifest)
@@ -52,12 +53,22 @@ function toRelativePath(absPath, projectRoot) {
 //                      which renumbers on any import add/remove/reorder).
 //   2. storyClosures - story source-path -> its transitive forward dependency
 //                      set (source paths). Stories are the require.context
-//                      targets collectStoryAbsPaths resolves below. Unioned into
+//                      targets collectStories resolves below. Unioned into
 //                      EVERY story's set: the preview module (collectPreviewAbsPaths)
 //                      and its own transitive closure - Storybook applies the
 //                      preview's annotations/decorators around every story, so no
 //                      story's own downward walk ever reaches it (SHERLO-3).
-//   3. header        - toolchain/env fingerprint (metro version, transformer/
+//   3. storyTitles   - story source-path -> the Storybook TITLE of that story
+//                      file. The other two maps are keyed by path and the
+//                      runner knows nothing about paths, so without this the
+//                      server's include/exclude narrowing and the runner's are
+//                      done in two different namespaces. A story whose title
+//                      cannot be read without evaluating its source is OMITTED
+//                      rather than guessed. NOT SUFFICIENT on its own to drop a
+//                      story certainly - the runner matches a PER-EXPORT display
+//                      name and this is per file - see the header of
+//                      metro/storyTitleReader.js before narrowing by it.
+//   4. header        - toolchain/env fingerprint (metro version, transformer/
 //                      babel config digest, env digest) so a build produced by a
 //                      different toolchain/env is never mistaken for an unchanged one,
 //                      plus `generatedFiles`: the graph files a tool wrote at
@@ -114,6 +125,21 @@ function moduleOutputLeaksAbsolutePath(module, projectRoot) {
 }
 
 /**
+ * The directory a Metro require.context module gathers from, read back out of
+ * its own synthetic path.
+ *
+ * Metro builds that path as `<directory>?ctx=<hash>` and nowhere else records
+ * the directory (a dependency's `contextParams` carries the filter and mode, not
+ * the directory), so this suffix is the only source for it. A path without the
+ * marker is not a Metro context module and yields null, which leaves the stories
+ * behind it without titles rather than with invented ones.
+ */
+function contextDirectoryOf(contextModuleAbsPath) {
+  var marker = contextModuleAbsPath.indexOf('?ctx=');
+  return marker === -1 ? null : contextModuleAbsPath.slice(0, marker);
+}
+
+/**
  * Collects the absolute paths of every story module: the targets of the
  * require.context() edge declared in Storybook's own generated requires file
  * (STORYBOOK_REQUIRES_BASENAMES, matched by basename exactly like
@@ -135,23 +161,34 @@ function moduleOutputLeaksAbsolutePath(module, projectRoot) {
  * never bundled - see describeGeneratedFiles), the result is an empty story
  * list, exactly as for an app with no require.context at all.
  *
- * @returns {string[]} unique story absolute paths.
+ * Each story is returned with the two paths its TITLE is derived from: the
+ * require.context directory it was gathered from, and the generated requires
+ * file that declared that context (see storyTitleReader.js). Either can be null on
+ * an unrecognised shape; a story then simply gets no title.
+ *
+ * @returns {{ absPath: string, contextDirAbsPath: string|null, requiresAbsPath: string }[]}
+ *   one entry per unique story absolute path.
  */
-function collectStoryAbsPaths(graph) {
+function collectStories(graph) {
   var seen = {};
   var stories = [];
-  graph.dependencies.forEach(function (module, absPath) {
-    if (STORYBOOK_REQUIRES_BASENAMES.indexOf(path.basename(absPath)) === -1) return;
+  graph.dependencies.forEach(function (module, requiresAbsPath) {
+    if (STORYBOOK_REQUIRES_BASENAMES.indexOf(path.basename(requiresAbsPath)) === -1) return;
     if (!module.dependencies || !(module.dependencies instanceof Map)) return;
     module.dependencies.forEach(function (dep) {
       var contextParams = dep.data && dep.data.data && dep.data.data.contextParams;
       if (!contextParams) return;
       var ctxModule = graph.dependencies.get(dep.absolutePath);
       if (!ctxModule || !(ctxModule.dependencies instanceof Map)) return;
+      var contextDirAbsPath = contextDirectoryOf(dep.absolutePath);
       ctxModule.dependencies.forEach(function (ctxDep) {
         if (ctxDep.absolutePath && !seen[ctxDep.absolutePath]) {
           seen[ctxDep.absolutePath] = true;
-          stories.push(ctxDep.absolutePath);
+          stories.push({
+            absPath: ctxDep.absolutePath,
+            contextDirAbsPath: contextDirAbsPath,
+            requiresAbsPath: requiresAbsPath,
+          });
         }
       });
     });
@@ -427,17 +464,40 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
 
     /** @type {Record<string, string[]>} */
     var storyClosures = {};
-    collectStoryAbsPaths(graph).forEach(function (storyAbsPath) {
-      var storyRel = toRelativePath(storyAbsPath, projectRoot);
+    /**
+     * @type {Record<string, string>} story source-path -> the Storybook title
+     * the runner matches its snapshots by. A story is absent here when its
+     * title cannot be read without evaluating its source; the server must read
+     * an absent key as "unknown", never as "untitled".
+     */
+    var storyTitles = {};
+    /** @type {Record<string, object[]>} requires-file path -> its loader entries. */
+    var loaderEntriesByRequiresFile = {};
+
+    collectStories(graph).forEach(function (story) {
+      var storyRel = toRelativePath(story.absPath, projectRoot);
       if (!storyRel) return;
       var closureSet = {};
-      collectForwardClosure(graph, storyAbsPath, projectRoot).forEach(function (rel) {
+      collectForwardClosure(graph, story.absPath, projectRoot).forEach(function (rel) {
         closureSet[rel] = true;
       });
       Object.keys(globalRelPaths).forEach(function (rel) {
         closureSet[rel] = true;
       });
       storyClosures[storyRel] = Object.keys(closureSet).sort();
+
+      if (!loaderEntriesByRequiresFile[story.requiresAbsPath]) {
+        loaderEntriesByRequiresFile[story.requiresAbsPath] = storyTitleReader.readStoryLoaderEntries(
+          story.requiresAbsPath
+        );
+      }
+      var loaderEntry = storyTitleReader.findLoaderEntry(
+        loaderEntriesByRequiresFile[story.requiresAbsPath],
+        story.contextDirAbsPath
+      );
+      if (!loaderEntry) return;
+      var title = storyTitleReader.readStoryTitle(story.absPath, loaderEntry);
+      if (title) storyTitles[storyRel] = title;
     });
 
     var header = buildManifestHeader(projectRoot);
@@ -460,11 +520,20 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
       );
     }
 
+    // version stays 1 across the addition of storyTitles: the map
+    // is additive, and the two things a consumer must tell apart are already
+    // told apart without it - a manifest with NO storyTitles key was written by
+    // an SDK that predates titles, and a key missing from the map is a story
+    // this SDK could not be certain about. Neither is an empty title, and
+    // neither lets the server narrow that story away. Bumping would instead
+    // make every manifest unreadable to the server already deployed, which is
+    // exactly the window this change was ordered to land before.
     var manifest = {
       version: 1,
       header: header,
       moduleHashes: moduleHashes,
       storyClosures: storyClosures,
+      storyTitles: storyTitles,
     };
 
     fs.writeFileSync(

@@ -71,7 +71,8 @@
     "metro/applySherloTransforms.js",
     "metro/ensureStorybookRequires.js",
     "metro/mockScan.js",
-    "metro/mockShims.js"
+    "metro/mockShims.js",
+    "metro/storyTitleReader.js"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p .",
