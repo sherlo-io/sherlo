@@ -156,6 +156,11 @@ describe('module manifest - a story newly taken into the Storybook glob', () => 
  * read without evaluating the story file is OMITTED rather than guessed: the
  * server reads an absent title as "cannot rule this story out" and captures it,
  * while a guessed one would be the same defect wearing a different hat.
+ *
+ * A title is the first half of a display name and no more, so these tests pin
+ * what the manifest SAYS, never a narrowing decision made from it - a per-file
+ * title cannot make a certain drop at all. See the header of
+ * metro/storyTitleReader.js for why.
  */
 describe('module manifest - the title the runner matches a story by', () => {
   const ENV_FLAG = 'SHERLO_MODULE_MANIFEST';

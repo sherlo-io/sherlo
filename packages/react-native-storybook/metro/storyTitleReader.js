@@ -10,8 +10,21 @@
 // entirely: a snapshot's display name, which prepareSnapshots.ts builds as
 // `"<title> - <story name>"` - where <title> is the Storybook TITLE of the
 // story's file. Paths and titles are two namespaces, so a server matching paths
-// can drop a story the runner would photograph. This module emits the missing
-// half: the title, read the same two ways Storybook reads it.
+// can drop a story the runner would photograph. This module emits the title.
+//
+// READ THIS BEFORE YOU NARROW ANYTHING BY IT. A title is PER FILE and the
+// string the runner matches is PER EXPORT, so a title is only the first half of
+// every display name a file produces (`"Sanity/Hello - Empty"`, and every other
+// export beside it). That is not enough to drop a story and be CERTAIN the
+// runner would have dropped it too: the scope is matched with picomatch under
+// `contains`, so a pattern matches if it appears ANYWHERE in the display name -
+// including inside the story-name half, which a per-file title does not
+// constrain at all. A title is therefore NECESSARY and NOT SUFFICIENT for a
+// certain drop. What would be sufficient is the per-export display name, which
+// is a separate and much larger read (every named export, isExportStory
+// honouring includeStories/excludeStories, storyName and name annotations) and
+// is deliberately not attempted here. Build the certain-drop rung on THAT, not
+// on this map (architect ruling, 2026-09-21).
 //
 // Storybook titles a story file in exactly one of two ways (see
 // @storybook/react-native's prepareStories -> userOrAutoTitleFromSpecifier):
@@ -21,6 +34,12 @@
 //   2. it declares none -> the title is DERIVED from the file's path relative
 //      to the loader entry's directory (deriveAutoTitle below is a port of
 //      Storybook's own arithmetic, down to its file-name quirks).
+//
+// THE LOADER ENTRY GATES BOTH BRANCHES, which is easy to get wrong: Storybook
+// prefixes a DECLARED title with the entry's titlePrefix exactly as it prefixes
+// a derived one, so a project with a non-empty titlePrefix has no certain title
+// in either branch until that entry has been read. There is no "declared titles
+// need no loader" shortcut.
 //
 // CERTAINTY IS THE WHOLE POINT. A title that is computed, imported or spread
 // into the default export cannot be read without evaluating the file, and a

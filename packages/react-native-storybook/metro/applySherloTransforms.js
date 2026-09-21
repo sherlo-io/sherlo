@@ -58,14 +58,16 @@ function toRelativePath(absPath, projectRoot) {
 //                      and its own transitive closure - Storybook applies the
 //                      preview's annotations/decorators around every story, so no
 //                      story's own downward walk ever reaches it (SHERLO-3).
-//   3. storyTitles   - story source-path -> the Storybook TITLE the runner
-//                      matches that story's snapshots by. The other two maps
-//                      are keyed by path and the runner knows nothing about
-//                      paths, so without this the server's include/exclude
-//                      narrowing and the runner's are done in two different
-//                      namespaces. A story whose title cannot be read without
-//                      evaluating its source is OMITTED from this map rather
-//                      than guessed - see metro/storyTitleReader.js.
+//   3. storyTitles   - story source-path -> the Storybook TITLE of that story
+//                      file. The other two maps are keyed by path and the
+//                      runner knows nothing about paths, so without this the
+//                      server's include/exclude narrowing and the runner's are
+//                      done in two different namespaces. A story whose title
+//                      cannot be read without evaluating its source is OMITTED
+//                      rather than guessed. NOT SUFFICIENT on its own to drop a
+//                      story certainly - the runner matches a PER-EXPORT display
+//                      name and this is per file - see the header of
+//                      metro/storyTitleReader.js before narrowing by it.
 //   4. header        - toolchain/env fingerprint (metro version, transformer/
 //                      babel config digest, env digest) so a build produced by a
 //                      different toolchain/env is never mistaken for an unchanged one,
