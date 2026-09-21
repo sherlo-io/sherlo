@@ -1,0 +1,15 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": [
+    "inspect"
+  ],
+  "letterbox": "no-app"
+}

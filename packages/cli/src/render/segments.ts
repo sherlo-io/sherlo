@@ -31,6 +31,7 @@ import type { DryRunPlatformPreview } from './dryRunPlan';
 import type { ProjectCreated } from './projectCreated';
 import type { TeamCreated } from './teamCreated';
 import type { ProjectList } from './projectList';
+import type { InspectedStory, OpenedStory } from './openedStory';
 import type { TeamList } from './teamList';
 import type { VerdictScreen } from './verdictCloser';
 
@@ -268,7 +269,11 @@ export type TranscriptSegment =
   /** The whole output of `sherlo project list`. See ./projectList. */
   | { kind: 'project-list'; list: ProjectList }
   /** The whole output of `sherlo team list`. See ./teamList. */
-  | { kind: 'team-list'; list: TeamList };
+  | { kind: 'team-list'; list: TeamList }
+  /** The whole output of `sherlo open`. See ./openedStory. */
+  | { kind: 'opened-story'; state: OpenedStory }
+  /** The whole output of `sherlo inspect`. See ./openedStory. */
+  | { kind: 'inspected-story'; state: InspectedStory };
 
 /**
  * Where rendered segments go. The CLI installs a sink that writes to the
