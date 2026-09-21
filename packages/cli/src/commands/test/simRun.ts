@@ -51,6 +51,7 @@ import {
   waitForBuildResult,
 } from '../../helpers';
 import { isServerBypassed } from '../../helpers/waitForBuildResult';
+import { getEndpointUrl } from '../../helpers/buildStatusRequest';
 import { THIS_COMMAND } from './constants';
 import composeSimWorldFile from './composeSimWorldFile';
 import deriveSimManifest from './deriveSimManifest';
@@ -118,7 +119,7 @@ async function simRun(
   const worldFile = composeSimWorldFile(world.parsed);
 
   const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
-  const client = sdkClient({ authToken: apiToken });
+  const client = sdkClient({ authToken: apiToken }, getEndpointUrl());
 
   // 4. Upload both artifacts to staged slots, per platform.
   const simKeys = await uploadSimArtifacts({

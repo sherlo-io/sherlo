@@ -61,31 +61,7 @@
       ]
     }
   },
-  "api": [
-    {
-      "call": "computeDiffScopeDryRun",
-      "with": {
-        "branch": "unknown",
-        "commit": "unknown"
-      },
-      "answer": {
-        "platforms": [
-          {
-            "platform": "android",
-            "isFullCapture": true,
-            "reason": "first build - nothing to compare against yet",
-            "capturedStoryFilePaths": []
-          },
-          {
-            "platform": "ios",
-            "isFullCapture": true,
-            "reason": "first build - nothing to compare against yet",
-            "capturedStoryFilePaths": []
-          }
-        ]
-      }
-    }
-  ],
+  "api": [],
   "masks": {
     "<MASKED>": "posetokenposetokenposetokenpose1tm0000017"
   }

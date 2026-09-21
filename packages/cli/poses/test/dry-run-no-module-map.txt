@@ -17,16 +17,9 @@
 [36m🤖 Building android bundle...[39m
 [32m  ✓ Bundle: bundle.android.js[39m (4.29 MB, plain-js, expo)
 [32m  ✓ Assets: 2 files[39m
-[36m[39m
-[36m🍎 Building ios bundle...[39m
-[32m  ✓ Bundle: bundle.ios.js[39m (4.29 MB, plain-js, expo)
-[32m  ✓ Assets: 2 files[39m
-Couldn't get git info [Error: fatal: not a git repository (or any of the parent directories): .git]
 [1m📸 Capture plan (dry run)[22m
   [36m🤖 Android[39m - [1mwould capture all stories[22m
-[33m     ! couldn't compute what changed - capturing everything to be safe[39m
-  [36m🍎 iOS[39m - [1mwould capture all stories[22m
-[33m     ! couldn't compute what changed - capturing everything to be safe[39m
+[2m     why: no module map for this build - capturing everything[22m
 
 ◦ Dry run - no build created, nothing uploaded
 
