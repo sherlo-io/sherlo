@@ -19,6 +19,9 @@
 import chalk from 'chalk';
 chalk.level = 0;
 
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { mockRequestDryRunDecision } = vi.hoisted(() => ({
@@ -33,11 +36,34 @@ vi.mock('../../../helpers/reporting', () => ({
   default: { addBreadcrumb: vi.fn() },
 }));
 
+// The base-identity test below exercises the real computeBaseFingerprint - its
+// only external effects are @expo/fingerprint and a shell-spawning autolinking
+// resolve, both mocked out exactly as helpers/fingerprint's own suite mocks
+// them, so the test stays fast and hermetic.
+const mockCreateFingerprintAsync = vi.fn();
+vi.mock('@expo/fingerprint', () => ({
+  createFingerprintAsync: (...args: unknown[]) => mockCreateFingerprintAsync(...args),
+  SourceSkips: { None: 0, ExpoConfigVersions: 1, ExpoConfigRuntimeVersionIfString: 2 },
+}));
+vi.mock('../../../helpers/runShellCommand', () => ({
+  default: vi.fn().mockRejectedValue(new Error('not available in test')),
+}));
+
 import { formatDryRunPreview, runDryRunPreview, type DryRunPlatformPreview } from '../dryRun';
 import type { DryRunPlatformDecision } from '../dryRunDecision';
+import { computeBaseFingerprint } from '../../../helpers/fingerprint';
+import reporting from '../../../helpers/reporting';
+
+/** The sentinel `../../../helpers/getGitInfo`'s `degradeGitInfo` returns when the git read fails. */
+const unreadableGitInfo: any = {
+  commitName: 'unknown',
+  commitHash: 'unknown',
+  branchName: 'unknown',
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockCreateFingerprintAsync.mockResolvedValue({ hash: 'fp-layer1-stable' });
 });
 
 // ---------------------------------------------------------------------------
@@ -114,7 +140,7 @@ describe('formatDryRunPreview', () => {
     const output = formatDryRunPreview([{ status: 'decided', decision }]);
 
     expect(output).toContain('🤖 Android - nothing to capture - no change reaches any story');
-    expect(output).toContain('     ✓ all 5 stories reused from the previous build');
+    expect(output).toContain('     ✓ none of the 5 stories in this bundle need capture');
     // A partial-zero has no capture verb at all.
     expect(output).not.toContain('would capture');
   });
@@ -232,6 +258,37 @@ describe('runDryRunPreview', () => {
     );
     expect(printed).toContain('why: App.tsx changed');
     expect(printed).toContain('◦ Dry run - no build created, nothing uploaded');
+
+    logSpy.mockRestore();
+  });
+
+  it('forwards the config include/exclude lists straight through to the decision seam', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockRequestDryRunDecision.mockResolvedValue([
+      {
+        platform: 'ios',
+        isFullCapture: false,
+        capturedStoryFilePaths: [],
+        totalStories: 3,
+        reason: 'App.tsx changed',
+      },
+    ] as DryRunPlatformDecision[]);
+
+    await runDryRunPreview({
+      client,
+      bundles: { ios: bundleWithManifest() },
+      platformsToTest: ['ios'],
+      projectIndex: 7,
+      teamId: 'team-42',
+      gitInfo,
+      baseReference: 'fp-123',
+      include: ['src/Storefront/**'],
+      exclude: ['src/Storefront/Internal/**'],
+    });
+
+    const arg = mockRequestDryRunDecision.mock.calls[0][0];
+    expect(arg.include).toEqual(['src/Storefront/**']);
+    expect(arg.exclude).toEqual(['src/Storefront/Internal/**']);
 
     logSpy.mockRestore();
   });
@@ -364,5 +421,135 @@ describe('runDryRunPreview', () => {
     expect(printed).toContain('why: native-changed');
 
     logSpy.mockRestore();
+  });
+
+  it('a preview that cannot read git warns, and says it captured everything because it could not tell', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runDryRunPreview({
+      client,
+      bundles: { ios: bundleWithManifest() },
+      platformsToTest: ['ios'],
+      projectIndex: 7,
+      teamId: 'team-42',
+      gitInfo: unreadableGitInfo,
+      baseReference: 'fp-123',
+    });
+
+    // Unreadable git identity is never sent to the server as if it meant something -
+    // the decision query is never asked.
+    expect(mockRequestDryRunDecision).not.toHaveBeenCalled();
+
+    expect(reporting.addBreadcrumb).toHaveBeenCalledWith(
+      expect.objectContaining({ level: 'warning' })
+    );
+
+    const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(printed).toContain('🍎 iOS - would capture all stories');
+    expect(printed).toContain("! couldn't compute what changed - capturing everything to be safe");
+    expect(printed).not.toContain('first build');
+
+    logSpy.mockRestore();
+  });
+
+  it('a preview whose server cannot be reached says it could not tell, and never reports a first build', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockRequestDryRunDecision.mockRejectedValue(new Error('connect ECONNREFUSED 127.0.0.1:443'));
+
+    await runDryRunPreview({
+      client,
+      bundles: { ios: bundleWithManifest() },
+      platformsToTest: ['ios'],
+      projectIndex: 7,
+      teamId: 'team-42',
+      gitInfo,
+      baseReference: 'fp-123',
+    });
+
+    const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(printed).toContain('🍎 iOS - would capture all stories');
+    expect(printed).toContain("! couldn't compute what changed - capturing everything to be safe");
+    // A bail-open never sounds precise about a count, and never borrows the server's
+    // own "first build" reading of an absent base reference.
+    expect(printed).not.toContain('in this bundle');
+    expect(printed).not.toContain('first build');
+    expect(printed).not.toContain('ECONNREFUSED');
+
+    logSpy.mockRestore();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The base identity a dry run hands to `baseReference` (SHERLO-1919 follow-up)
+// ---------------------------------------------------------------------------
+//
+// runDryRunPreview itself only forwards whatever baseReference it is given
+// (asserted above) - the identity's correctness is computeBaseFingerprint's
+// job. It is exercised here, directly, because THIS is the exact shape a dry
+// run puts it through: bundle + fingerprint, no install step of its own.
+
+describe('the base identity a dry run states (computeBaseFingerprint)', () => {
+  function makeProjectDir(): string {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-dryrun-baseid-'));
+    fs.writeFileSync(
+      path.join(dir, 'yarn.lock'),
+      '# yarn lockfile\nexisting-package@1.0.0:\n  version "1.0.0"\n'
+    );
+    return dir;
+  }
+
+  function writePackageJson(dir: string, dependencies: Record<string, string>): void {
+    fs.writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify({ name: 'dry-run-fixture', version: '1.0.0', dependencies })
+    );
+  }
+
+  it('a dry run states a base identity that moves when a native-linking dependency is added', async () => {
+    const dir = makeProjectDir();
+    try {
+      // Before: the declared dependency set the ancestor build was fingerprinted
+      // with - nothing native-linking added yet.
+      writePackageJson(dir, {});
+      const before = await computeBaseFingerprint(dir);
+      expect(before.hash).toMatch(/^[a-f0-9]{64}$/);
+
+      // After: package.json now declares a native-linking dependency (exactly
+      // what "native-dep-added" does), but a dry run bundles and fingerprints
+      // without ever running an install - node_modules never gains it, so
+      // neither the lockfile nor the autolinked-module resolve can see it.
+      writePackageJson(dir, { 'expo-crypto': '~1.0.0' });
+      const after = await computeBaseFingerprint(dir);
+
+      // The identity MOVES: from a confirmed match to a confirmed "cannot say" -
+      // never the old, now-stale, hash repeated as if nothing had changed. A
+      // dry-run preview reads an absent baseReference exactly like a changed
+      // one (see dryRunDecision/computeDiffScopeDecision), so this is the one
+      // honest way for the identity to move when install state can't confirm it.
+      expect(after.hash).toBeNull();
+      expect(after.hash).not.toBe(before.hash);
+      expect(after.debugMessage).toContain('expo-crypto');
+      expect(after.debugMessage).toContain('not installed');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('a dependency already resolvable from node_modules does not block the identity', async () => {
+    const dir = makeProjectDir();
+    try {
+      fs.mkdirSync(path.join(dir, 'node_modules', 'expo-crypto'), { recursive: true });
+      fs.writeFileSync(
+        path.join(dir, 'node_modules', 'expo-crypto', 'package.json'),
+        JSON.stringify({ name: 'expo-crypto', version: '1.0.0' })
+      );
+      writePackageJson(dir, { 'expo-crypto': '~1.0.0' });
+
+      const result = await computeBaseFingerprint(dir);
+
+      expect(result.hash).toMatch(/^[a-f0-9]{64}$/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

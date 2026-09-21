@@ -9,6 +9,7 @@ import {
   type FreshBundleEffects,
 } from './uploadFreshBundles';
 import { applyBundleToPlatformConfig } from '../commands/test/uploadBundles';
+import { getEndpointUrl } from './buildStatusRequest';
 import { resolveBaseFingerprintForSuppliedBundle } from '../commands/test/recordedBaseFingerprint';
 import type { BinaryUploadEffects } from './uploadOrPrintBinaryReuse/uploadBuild';
 import type { BaseRegistrationEffects } from './fingerprint/registerBase';
@@ -85,7 +86,7 @@ async function uploadOrReuseBuildsAndRunTests({
   effects?: PushEffects;
 }): Promise<{ url: string }> {
   const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
-  const client = sdkClient({ authToken: apiToken });
+  const client = sdkClient({ authToken: apiToken }, getEndpointUrl());
 
   const command = TEST_COMMAND;
 

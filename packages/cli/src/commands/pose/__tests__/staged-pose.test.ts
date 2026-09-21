@@ -17,9 +17,16 @@ function stagedPose(name: string) {
   return { posePath, document: readPoseDocument(fs.readFileSync(posePath, 'utf8')) };
 }
 
-/** The android platform's story count the catalogued base pose's bundle carries - never a literal. */
+/**
+ * The android platform's story count the catalogued base pose's bundle carries - never a literal.
+ *
+ * `storyClosureKeys` became optional when a pose gained the ability to state a bundle that came
+ * with NO module map at all (epic diff-scope-closure, task pose-states-no-module-map), so the walk
+ * to the count is optional the whole way down. A bundle with no map counts zero stories here, which
+ * is the same answer this returned for a platform the pose does not state at all.
+ */
 function androidStoryCount(document: CommandPose): number {
-  return document.bundles.android?.storyClosureKeys.length ?? 0;
+  return document.bundles.android?.storyClosureKeys?.length ?? 0;
 }
 
 describe('a bare push is posable', () => {

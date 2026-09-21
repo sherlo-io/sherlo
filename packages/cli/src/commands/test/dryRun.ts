@@ -16,9 +16,14 @@
  *   - a CONFIDENT full capture: the server answered `isFullCapture: true` with a
  *     rung-code reason (main-branch, native-changed, manifest-missing, …) - or
  *     its own in-band error, `reason: "dry-run-error: <message>"`;
- *   - a CLI bail-open: the decision query threw (method absent, network,
- *     malformed/null response), so we could not get a trustworthy answer for ANY
- *     platform and preview every one as capture-everything.
+ *   - a CLI bail-open: we could not ask a trustworthy question at all - either
+ *     the decision query threw (method absent, network, malformed/null
+ *     response), or the git read itself failed
+ *     ({@link isGitInfoUnavailable}), so `gitInfo` carries no real commit/branch
+ *     identity to key a decision on. EITHER WAY the query is never trusted with
+ *     an answer it cannot honestly give, and every platform previews as
+ *     capture-everything with NO reason attached - never the server's own
+ *     "why", which describes ITS certainty, not the CLI's.
  *
  * The server's reasons are PATH-LEGIBLE on a partial (they name source paths,
  * e.g. `captured 2 - closure changed via src/components/Storefront/SharedButton.tsx`)
@@ -27,7 +32,7 @@
 import { Platform } from '@sherlo/api-types';
 import reporting from '../../helpers/reporting';
 import { emit } from '../../helpers/transcriptSink';
-import type { GitInfo } from '../../helpers/getGitInfo';
+import { isGitInfoUnavailable, type GitInfo } from '../../helpers/getGitInfo';
 import type { BundleResult } from './buildBundle';
 import {
   requestDryRunDecision,
@@ -62,6 +67,8 @@ export async function runDryRunPreview({
   teamId,
   gitInfo,
   baseReference,
+  include,
+  exclude,
 }: {
   client: DryRunDecisionClient;
   bundles: Partial<Record<Platform, BundleResult>>;
@@ -75,6 +82,12 @@ export async function runDryRunPreview({
    * none was computed. Absent -> the server previews native-changed (full).
    */
   baseReference?: string;
+  /**
+   * The config's include/exclude lists - the SAME narrowing a real build sends via
+   * getBuildRunConfig, passed straight through to the query. Absent when the config names none.
+   */
+  include?: string[];
+  exclude?: string[];
 }): Promise<void> {
   reporting.addBreadcrumb({
     category: 'api',
@@ -83,53 +96,82 @@ export async function runDryRunPreview({
     level: 'info',
   });
 
-  // One request carries every platform. A platform whose build produced no
-  // manifest is NOT dropped and NOT special-cased locally: it is sent with an
-  // absent manifest, and the server previews it as manifest-missing (full).
-  const platforms: DryRunPlatformRequest[] = platformsToTest.map((platform) => ({
-    platform,
-    bundled: true,
-    baseReference: baseReference || undefined,
-    manifest: bundles[platform]?.moduleManifest,
-  }));
-
   let previews: DryRunPlatformPreview[];
-  try {
-    const decisions = await requestDryRunDecision({
-      client,
-      gitInfo,
-      projectIndex,
-      teamId,
-      platforms,
-    });
 
-    // Key previews off platformsToTest so ordering is deterministic and a
-    // platform the server omitted still gets a (bail-open) block, never a drop.
-    previews = platformsToTest.map((platform) => {
-      const decision = decisions.find((d) => d.platform === platform);
-      if (!decision) {
-        return {
-          status: 'bailed-open',
-          platform,
-          reason: 'the dry-run decision returned no result for this platform',
-        };
-      }
-      return { status: 'decided', decision };
-    });
-  } catch (error) {
-    // Any decision-query failure bails open for EVERY platform. The preview still
-    // completes; the safe answer ("would capture everything") is shown for each.
-    const reason = error instanceof Error ? error.message : String(error);
-    reporting.addBreadcrumb({
-      category: 'api',
-      message: 'Dry-run decision bailed open',
-      data: { platforms: platformsToTest, reason },
-      level: 'warning',
-    });
-    previews = platformsToTest.map((platform) => ({ status: 'bailed-open', platform, reason }));
+  if (isGitInfoUnavailable(gitInfo)) {
+    // The git read itself failed (see ../../helpers/getGitInfo), so `gitInfo` carries no real
+    // commit/branch identity. Asking the server a diff-scope question keyed on "unknown"/"unknown"
+    // would get back an honest answer to a question we made up, not to this project's actual
+    // history - and printing that answer's reason would read as a confident claim about the
+    // project when the truth is the CLI couldn't tell. Bail open WITHOUT asking.
+    previews = bailOpenForEveryPlatform(
+      platformsToTest,
+      'the git read failed, so the decision has no commit/branch identity to key on'
+    );
+  } else {
+    // One request carries every platform. A platform whose build produced no
+    // manifest is NOT dropped and NOT special-cased locally: it is sent with an
+    // absent manifest, and the server previews it as manifest-missing (full).
+    const platforms: DryRunPlatformRequest[] = platformsToTest.map((platform) => ({
+      platform,
+      bundled: true,
+      baseReference: baseReference || undefined,
+      manifest: bundles[platform]?.moduleManifest,
+    }));
+
+    try {
+      const decisions = await requestDryRunDecision({
+        client,
+        gitInfo,
+        projectIndex,
+        teamId,
+        platforms,
+        include,
+        exclude,
+      });
+
+      // Key previews off platformsToTest so ordering is deterministic and a
+      // platform the server omitted still gets a (bail-open) block, never a drop.
+      previews = platformsToTest.map((platform) => {
+        const decision = decisions.find((d) => d.platform === platform);
+        if (!decision) {
+          return {
+            status: 'bailed-open',
+            platform,
+            reason: 'the dry-run decision returned no result for this platform',
+          };
+        }
+        return { status: 'decided', decision };
+      });
+    } catch (error) {
+      // Any decision-query failure bails open for EVERY platform. The preview still
+      // completes; the safe answer ("would capture everything") is shown for each.
+      const reason = error instanceof Error ? error.message : String(error);
+      previews = bailOpenForEveryPlatform(platformsToTest, reason);
+    }
   }
 
   emit({ kind: 'dry-run-capture-plan', previews });
+}
+
+/**
+ * Preview every platform as a bail-open: "would capture everything", with the reason kept OFF the
+ * user's line (it stays in the breadcrumb) so the render layer falls to its own "couldn't compute
+ * what changed" safety row rather than a reason meant for telemetry. Shared by every trigger of
+ * the ONE bail-open class this module has - the git read failing and the decision query failing -
+ * so a caller can never tell the two apart from the printed output, only from the breadcrumb.
+ */
+function bailOpenForEveryPlatform(
+  platformsToTest: Platform[],
+  reason: string
+): DryRunPlatformPreview[] {
+  reporting.addBreadcrumb({
+    category: 'api',
+    message: 'Dry-run decision bailed open',
+    data: { platforms: platformsToTest, reason },
+    level: 'warning',
+  });
+  return platformsToTest.map((platform) => ({ status: 'bailed-open', platform, reason }));
 }
 
 export default runDryRunPreview;

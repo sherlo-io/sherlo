@@ -48,6 +48,7 @@ import {
 } from '../../helpers';
 import parseWaitTimeout from '../../helpers/parseWaitTimeout';
 import printLink from '../../helpers/printLink';
+import { getEndpointUrl } from '../../helpers/buildStatusRequest';
 import {
   isServerBypassed,
   fetchServerBypassReason,
@@ -235,9 +236,12 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     return { url: '' };
   }
 
-  // 4. Resolve token + SDK client.
+  // 4. Resolve token + SDK client. The endpoint is resolved the SAME way the four
+  //    non-sdk-client commands (project/team create+list) already do - one address
+  //    governs the whole tool, so a SHERLO_API_URL override reaches every call this
+  //    road makes, including the read-only dry-run decision query.
   const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
-  const client = sdkClient({ authToken: apiToken });
+  const client = sdkClient({ authToken: apiToken }, getEndpointUrl());
 
   // 5-dry. --dry-run (SHERLO-1895 Phase C): bundle for real, preview which
   //   stories a real run would capture, and STOP here. A dry run never runs the
@@ -257,6 +261,8 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       // decision query takes the identical GitInfoInput; do not build a second one.
       resolveGitInfo: () =>
         getGitInfo(commandParams.projectRoot, { branchOverride: commandParams.gitBranch }),
+      include: commandParams.include,
+      exclude: commandParams.exclude,
     });
     return { url: '' };
   }
