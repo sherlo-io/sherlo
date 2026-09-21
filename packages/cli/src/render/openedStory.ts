@@ -73,7 +73,7 @@ export function renderOpenedStory(state: OpenedStory): string[] {
         '',
         chalk.dim(
           state.waited
-            ? 'Next: `sherlo inspect` says what is showing now.'
+            ? 'Next: `sherlo capture` records it the way a test run would.'
             : 'Next: `sherlo open --story <id> --wait` waits until the story has drawn.'
         ),
         '',

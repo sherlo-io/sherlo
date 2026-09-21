@@ -43,6 +43,7 @@ import { installServerCalls, posedServerCalls } from '../../seams/serverCalls';
 import { installNativeBuild, posedNativeBuild } from '../../seams/nativeBuild';
 import { installWorkstation, posedWorkstation } from '../../seams/workstation';
 import { installLetterbox, posedLetterbox } from '../../seams/letterbox';
+import { installCaptureSocket, posedCaptureSocket } from '../../seams/captureSocket';
 import { readPoseDocument, type CommandPose } from './readPose';
 import resolveConfigPath from '../../helpers/getValidatedCommandParams/getNormalizedConfig/resolveConfigPath';
 
@@ -92,6 +93,7 @@ export async function runPose(commandPose: CommandPose): Promise<PosedScreen> {
   const machine = posedNativeBuild(commandPose.push);
   const acts = posedWorkstation(commandPose.workstation);
   const app = posedLetterbox(commandPose.letterbox);
+  const socket = posedCaptureSocket(commandPose.capture);
 
   const uninstall = [
     installProjectFiles(files),
@@ -101,6 +103,7 @@ export async function runPose(commandPose: CommandPose): Promise<PosedScreen> {
     installNativeBuild(machine),
     installWorkstation(acts),
     installLetterbox(app),
+    installCaptureSocket(socket),
     // The settings go in LAST and come out FIRST: the folder above is laid out while this
     // process still has its own environment, and nothing after this line should.
     world.installSettings(),
@@ -139,7 +142,7 @@ export async function runPose(commandPose: CommandPose): Promise<PosedScreen> {
     exitCode: capture.exitCode() ?? (threw ? 1 : 0),
     // A read of the machine, or an act ON it, that the pose could not answer is a refusal exactly
     // as an unscripted call is.
-    refusals: [...api.refusals(), ...machine.refusals(), ...acts.refusals(), ...app.refusals()],
+    refusals: [...api.refusals(), ...machine.refusals(), ...acts.refusals(), ...app.refusals(), ...socket.refusals()],
     unusedCalls: api.unusedCalls(),
   };
 }

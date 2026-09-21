@@ -3,6 +3,7 @@
  * block of ../constants: primary flows are verbs (`test`, `view`, `init`),
  * management operations on a Sherlo resource are noun-verb (`project create`).
  */
+export { default as capture } from './capture';
 export { default as easBuildOnComplete } from './easBuildOnComplete';
 export { default as fingerprint } from './fingerprint';
 export { default as init } from './init';

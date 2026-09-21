@@ -63,6 +63,34 @@ export type CommandPose = {
    * no `letterbox` is refused at run time, like a call the pose did not script.
    */
   letterbox?: PosedLetterbox;
+  /**
+   * What the running app answered down the capture socket. THE FOURTH OPTIONAL FIELD, for the one
+   * command that talks to it: a pose that states it for any other command is refused.
+   */
+  capture?: PosedCapture;
+};
+
+/** What the running app answered for a capture, as a pose states it. */
+export type PosedCapture =
+  | 'no-bundler'
+  | 'no-app'
+  | {
+      /** Every story the running app's Storybook knows, by id. */
+      stories: string[];
+      /** How the stabilization ended: settled after so long over so many frames, or gave up. */
+      settled: { ms: number; frames: number } | 'timed-out';
+      /** What the story threw while rendering, in its own words. Absent for a clean story. */
+      threw?: { name: string; message: string };
+      /** The view tree the app read, from the story's own root. */
+      tree: PosedView;
+    };
+
+/** One view in a posed tree. Only what the view has is stated. */
+export type PosedView = {
+  primitive: string;
+  components?: string[];
+  text?: string;
+  children?: PosedView[];
 };
 
 /** What the letterbox on the bundler answered, as a pose states it. */
@@ -372,6 +400,7 @@ export function readPose(document: unknown): CommandPose {
   readClock(pose, problems);
   readWorkstation(pose, argv, problems);
   readLetterbox(pose, argv, problems);
+  readCapture(pose, argv, problems);
 
   reportUnknownFields(
     pose,
@@ -388,6 +417,7 @@ export function readPose(document: unknown): CommandPose {
       'clock',
       'workstation',
       'letterbox',
+      'capture',
     ],
     '',
     problems
@@ -726,6 +756,70 @@ function readLetterbox(pose: Record<string, unknown>, argv: string[], problems: 
     '`letterbox`',
     problems
   );
+}
+
+/**
+ * `capture` is read only when it is there, and only `sherlo capture` may state it - the same rule
+ * `letterbox` keeps, for the same reason.
+ */
+function readCapture(pose: Record<string, unknown>, argv: string[], problems: string[]): void {
+  if (!('capture' in pose)) return;
+
+  if (argv[0] !== 'capture') {
+    problems.push(
+      `\`capture\`: \`${argv[0] ?? ''}\` never asks the app for a capture, so there is nothing ` +
+        'for it to describe. Leave the field out.'
+    );
+    return;
+  }
+
+  if (pose.capture === 'no-bundler' || pose.capture === 'no-app') return;
+
+  const capture = asObject(pose.capture, '`capture`', problems);
+  if (!capture) return;
+
+  expectStringArray(capture, 'stories', '`capture`', problems);
+
+  if (capture.settled !== 'timed-out') {
+    const settled = asObject(capture.settled, '`capture`.settled', problems);
+    if (settled) {
+      expectNumber(settled, 'ms', '`capture`.settled', problems);
+      expectNumber(settled, 'frames', '`capture`.settled', problems);
+      reportUnknownFields(settled, ['ms', 'frames'], '`capture`.settled', problems);
+    }
+  }
+
+  if ('threw' in capture) {
+    const threw = asObject(capture.threw, '`capture`.threw', problems);
+    if (threw) {
+      expectString(threw, 'name', '`capture`.threw', problems);
+      expectString(threw, 'message', '`capture`.threw', problems);
+      reportUnknownFields(threw, ['name', 'message'], '`capture`.threw', problems);
+    }
+  }
+
+  readPosedView(capture.tree, '`capture`.tree', problems);
+  reportUnknownFields(capture, ['stories', 'settled', 'threw', 'tree'], '`capture`', problems);
+}
+
+/** One posed view, and every view under it. */
+function readPosedView(value: unknown, where: string, problems: string[]): void {
+  const view = asObject(value, where, problems);
+  if (!view) return;
+
+  expectString(view, 'primitive', where, problems);
+  if ('components' in view) expectStringArray(view, 'components', where, problems);
+  if ('text' in view) expectString(view, 'text', where, problems);
+  if ('children' in view) {
+    if (!Array.isArray(view.children)) {
+      problems.push(`${where}.children: must be a list of views`);
+    } else {
+      view.children.forEach((child, index) =>
+        readPosedView(child, `${where}.children[${index}]`, problems)
+      );
+    }
+  }
+  reportUnknownFields(view, ['primitive', 'components', 'text', 'children'], where, problems);
 }
 
 function readApi(pose: Record<string, unknown>, problems: string[]): void {

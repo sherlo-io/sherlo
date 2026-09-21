@@ -1,0 +1,22 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--story", "errors--broken-profile"],
+  "capture": {
+    "stories": ["errors--broken-profile", "foundation-typography--scales"],
+    "settled": { "ms": 800, "frames": 6 },
+    "threw": { "name": "TypeError", "message": "Cannot read properties of undefined (reading 'name')" },
+    "tree": {
+      "primitive": "View",
+      "components": ["StoryErrorBoundary"],
+      "children": [{ "primitive": "Text", "text": "Cannot read properties of undefined (reading 'name')" }]
+    }
+  }
+}

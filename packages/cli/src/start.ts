@@ -11,6 +11,7 @@ import {
   teamCreate,
   teamList,
   inspect,
+  capture,
   open,
   test,
   testEasCloudBuild,
@@ -61,6 +62,8 @@ import {
   VIEW_COMMAND,
   OPEN_COMMAND,
   INSPECT_COMMAND,
+  CAPTURE_COMMAND,
+  JSON_OPTION,
   STORY_OPTION,
   PORT_OPTION,
   TIMEOUT_OPTION,
@@ -105,6 +108,8 @@ async function start() {
     addOpenCommand(program);
 
     addInspectCommand(program);
+
+    addCaptureCommand(program);
 
     addPoseCommand(program);
 
@@ -162,6 +167,11 @@ const COMMAND_DESCRIPTION = {
   [INSPECT_COMMAND]:
     'Print the story the app you are running is showing now, one line.\n' +
     '  The read-side sibling of `open`, down the same road and with the same refusals.',
+  [CAPTURE_COMMAND]:
+    'Record one story the way a Sherlo test run does, on the app you are running.\n' +
+    '  Testing mode, the same stabilization, the same view tree - printed here, uploaded\n' +
+    `  nowhere. \`--${JSON_OPTION}\` prints the whole record for a program to read.\n` +
+    '  Exit 0 when a record came back, 1 when it did not.',
   [`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}`]:
     'Create a project in a team and print its project token ONCE.\n' +
     `  Authorized by a PERSONAL token (\`--${PERSONAL_TOKEN_FLAG}\` or ${PERSONAL_TOKEN_ENV_VAR}),\n` +
@@ -315,6 +325,7 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${PORT_OPTION} <port>`,
     `Where the bundler is listening (default: ${DEFAULT_BUNDLER_PORT})`,
   ],
+  [JSON_OPTION]: [`--${JSON_OPTION}`, 'Print the whole record as JSON instead of a screen'],
   [TIMEOUT_OPTION]: [
     `--${TIMEOUT_OPTION} <seconds>`,
     `How long \`--${WAIT_OPTION}\` waits for the app to report the story (default: 30)`,
@@ -353,6 +364,18 @@ function addOpenCommand(program: Command) {
     command: OPEN_COMMAND,
     options: [STORY_OPTION, WAIT_OPTION, TIMEOUT_OPTION, PORT_OPTION],
     action: open,
+    withTimeout: false,
+  });
+}
+
+// The third command that never leaves the machine. Its world is the capture socket on the bundler
+// (../seams/captureSocket); `withTimeout: false` because stabilization is a wait the story sets.
+function addCaptureCommand(program: Command) {
+  addCommand({
+    program,
+    command: CAPTURE_COMMAND,
+    options: [STORY_OPTION, PORT_OPTION, JSON_OPTION],
+    action: capture,
     withTimeout: false,
   });
 }
