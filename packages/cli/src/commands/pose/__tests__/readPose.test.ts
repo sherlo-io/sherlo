@@ -8,6 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { PoseRefusal, readPose, readPoseDocument } from '../readPose';
+import { posedServerCalls } from '../../../seams/serverCalls';
 
 /** A pose with nothing wrong with it - the thing every case below breaks in exactly one way. */
 function validPose(): Record<string, unknown> {
@@ -321,5 +322,78 @@ describe('reading a CommandPose', () => {
   it('a document that is not JSON is refused the same way as one that is the wrong shape', () => {
     expect(() => readPoseDocument('{ not json')).toThrow(PoseRefusal);
     expect(() => readPoseDocument('{ not json')).toThrow('not valid JSON');
+  });
+});
+
+/**
+ * A scripted call's `platforms` argument is matched against what the command asked with AS A
+ * SET, not as an array - see the docblock on `firstMismatch` in ../../../seams/serverCalls for
+ * why: the tool itself assembles the list in different orders from different call sites, and a
+ * pose asserting either order would be asserting an implementation detail while refusing the
+ * whole run to do it.
+ */
+describe("a posed call's platforms are matched against the call as a set", () => {
+  it('a posed platform list matches the same platforms in a different order', async () => {
+    const api = posedServerCalls([
+      { call: 'getStagedUploadUrls', with: { platforms: ['ios', 'android'] }, answer: {} },
+    ]);
+
+    await expect(
+      api.getStagedUploadUrls({} as never, { platforms: ['android', 'ios'] } as never)
+    ).resolves.toBeDefined();
+    expect(api.refusals()).toEqual([]);
+  });
+
+  it('CONTROL: a posed platform list still refuses a different SET of platforms', async () => {
+    const api = posedServerCalls([
+      { call: 'getStagedUploadUrls', with: { platforms: ['ios', 'android'] }, answer: {} },
+    ]);
+
+    await expect(
+      api.getStagedUploadUrls({} as never, { platforms: ['android'] } as never)
+    ).rejects.toThrow();
+
+    expect(api.refusals()).toHaveLength(1);
+    expect(api.refusals()[0].problem).toContain('`platforms`');
+    expect(api.refusals()[0].problem).toContain('"ios"');
+    expect(api.refusals()[0].problem).toContain('"android"');
+  });
+
+  // `openBuild`'s asked `platforms` is not read off the request - it is composed at the call site
+  // from the build config's keys (`serverCalls.ts`'s `openBuild` handler) - so it goes through the
+  // same `firstMismatch` as every other call, but is worth its own case: it is the call two real
+  // capture runs (35457874350, 35459204774) still refused on AFTER this set-match landed.
+  it('openBuild accepts a posed platform list in the other order', async () => {
+    const api = posedServerCalls([
+      {
+        call: 'openBuild',
+        with: { platforms: ['ios', 'android'] },
+        answer: { buildIndex: 1, url: 'https://app.sherlo.io/build?t=tm000001&p=7&b=1' },
+      },
+    ]);
+
+    await expect(
+      api.openBuild({} as never, { buildRunConfig: { android: {}, ios: {} } } as never)
+    ).resolves.toBeDefined();
+    expect(api.refusals()).toEqual([]);
+  });
+
+  it('CONTROL: openBuild still refuses a different SET of platforms', async () => {
+    const api = posedServerCalls([
+      {
+        call: 'openBuild',
+        with: { platforms: ['ios', 'android'] },
+        answer: { buildIndex: 1, url: 'https://app.sherlo.io/build?t=tm000001&p=7&b=1' },
+      },
+    ]);
+
+    await expect(
+      api.openBuild({} as never, { buildRunConfig: { android: {} } } as never)
+    ).rejects.toThrow();
+
+    expect(api.refusals()).toHaveLength(1);
+    expect(api.refusals()[0].problem).toContain('`platforms`');
+    expect(api.refusals()[0].problem).toContain('"ios"');
+    expect(api.refusals()[0].problem).toContain('"android"');
   });
 });

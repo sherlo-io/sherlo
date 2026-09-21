@@ -1,7 +1,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // The REAL git read, not the seam's dispatcher (../../seams/surroundings): this suite is
 // about what the tool asks a real repository.
 import { ANCESTOR_LIMIT, readGitInfoFromDisk as getGitInfo } from '../getGitInfo';
@@ -948,6 +948,36 @@ describe('getGitInfo - failure fallback', () => {
         branchName: 'unknown',
       });
     } finally {
+      fs.rmSync(nonRepo, { recursive: true, force: true });
+    }
+  });
+
+  it('a git read that failed warns in one line, naming the reason and nothing about this machine', async () => {
+    const fs = await import('fs');
+    const os = await import('os');
+    const path = await import('path');
+    const nonRepo = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-not-a-repo-'));
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    try {
+      await getGitInfo(nonRepo);
+
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      const printed = warnSpy.mock.calls[0].join(' ');
+
+      // One line: no stack frames, no `node:child_process` internals, no trailing
+      // `{ code, killed, signal, cmd, stdout, stderr }` object dump.
+      expect(printed.split('\n')).toHaveLength(1);
+      expect(printed).not.toContain('    at ');
+      expect(printed).not.toContain('node:child_process');
+      // Nothing about THIS machine: neither the project checkout path nor the
+      // source file that ran the failing command.
+      expect(printed).not.toContain(nonRepo);
+      expect(printed).not.toContain('executeCommand.ts');
+      // The reason a reader needs - git's own explanation - is what's left.
+      expect(printed).toContain('not a git repository');
+    } finally {
+      warnSpy.mockRestore();
       fs.rmSync(nonRepo, { recursive: true, force: true });
     }
   });

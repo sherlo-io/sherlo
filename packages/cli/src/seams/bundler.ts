@@ -57,7 +57,8 @@ export type PosedBundle = {
   bundleFormat: 'plain-js' | 'hermes-bytecode';
   bundler: 'expo' | 'metro';
   assets: string[];
-  storyClosureKeys: string[];
+  /** `null` poses a bundle that came with no module map - see `contracts/pose.contract.ts`. */
+  storyClosureKeys: string[] | null;
 };
 
 /**
@@ -93,7 +94,10 @@ export function posedBundler(bundles: Record<string, PosedBundle>): Bundler {
         assetsDest: posed.assets.length > 0 ? 'assets' : undefined,
         assetInventory: posed.assets,
         bundler: posed.bundler === 'metro' ? 'rn' : 'expo',
-        moduleManifest: moduleManifestOf(posed.storyClosureKeys),
+        // `null` poses a bundle that came with no module map at all - the same shape a real
+        // bundle carries when Metro is configured without Sherlo's wrapper.
+        moduleManifest:
+          posed.storyClosureKeys === null ? undefined : moduleManifestOf(posed.storyClosureKeys),
       };
     },
 
