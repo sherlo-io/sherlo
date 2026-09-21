@@ -18,6 +18,11 @@
  * nothing waiting inside the app survives one, which is exactly why the letterbox holds the story
  * rather than handing it over: this app collects it after it comes back.
  *
+ * AND IT SAYS WHETHER THAT STORY BROKE. A story that threw while rendering records what it threw
+ * in the one registry the error boundary fills (./getStorybook/storyErrorRegistry), and the app
+ * reports that alongside the story it painted - so `sherlo open` tells a developer their story is
+ * broken from the same fact the runner already trusts, rather than deciding it a second way.
+ *
  * CHANNEL / EVENT-NAME CHOICE. `setCurrentStory` is a literal for the same reason `storyRendered`
  * and `storyChanged` are elsewhere in this SDK: the `storybook` core package is only a peer
  * dependency of `@storybook/react-native` and is not guaranteed to be resolvable from here, while
@@ -26,6 +31,7 @@
 import { NativeModules } from 'react-native';
 import { StorybookView } from './types';
 import openStorybook from './openStorybook';
+import { readStoryError } from './getStorybook/storyErrorRegistry';
 import {
   lastRenderedStory,
   startStoryRenderedTracking,
@@ -59,6 +65,9 @@ export type LetterboxAnswer = {
   goToTheStoryBrowser?: boolean;
 };
 
+/** What a story threw while rendering, as the app reports it to the bundler. */
+export type StoryThrew = { name: string; message: string };
+
 /** What the app asks of the letterbox, and nothing else. */
 export type BundlerLetterbox = {
   /**
@@ -70,6 +79,8 @@ export type BundlerLetterbox = {
     stories: string[];
     showing: string | null;
     atTheStoryBrowser: boolean;
+    /** What the story named by `showing` threw while rendering, or null when it drew cleanly. */
+    threw: StoryThrew | null;
   }): Promise<LetterboxAnswer>;
 };
 
@@ -132,11 +143,14 @@ async function collectStories({
   while (collecting) {
     let answer: LetterboxAnswer;
 
+    const showing = lastRenderedStory() ?? null;
+
     try {
       answer = await letterbox.waitForStory({
         stories: storiesIn(view),
-        showing: lastRenderedStory() ?? null,
+        showing,
         atTheStoryBrowser,
+        threw: showing === null ? null : whatTheStoryThrew(showing),
       });
     } catch (_e) {
       await delay(RETRY_AFTER_SILENCE_MS);
@@ -161,6 +175,19 @@ async function collectStories({
     // Ask again only once the story is on screen, so the asking carries the answer.
     await waitForStoryRendered({ storyId, timeoutMs: PAINT_TIMEOUT_MS, channel });
   }
+}
+
+/**
+ * What the story on screen threw while rendering, or null when it drew cleanly.
+ *
+ * Read from the registry the error boundary fills and the runner already reads
+ * (./getStorybook/storyErrorRegistry) - there is ONE way of knowing a story is broken in this SDK,
+ * and this is a second reader of it rather than a second way. The stack and component stack it
+ * also holds are left behind: what reaches a developer's terminal is the error's own words.
+ */
+function whatTheStoryThrew(storyId: string): StoryThrew | null {
+  const recorded = readStoryError(storyId);
+  return recorded ? { name: recorded.name, message: recorded.message } : null;
 }
 
 /** Every story this app has, as Storybook's own index inside it knows them. */

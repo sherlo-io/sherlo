@@ -813,6 +813,30 @@ const PINS: Pin[] = [
   },
 
   {
+    kind: 'opened-story',
+    what: 'the broken-story screen names the story and the error it recorded - the story id bold because it is the answer, and the error in the words the story itself threw, because a paraphrase would send the developer looking for a line their app never printed',
+    segment: {
+      kind: 'opened-story',
+      state: {
+        kind: 'painted-and-threw',
+        storyId: 'foundation-typography--scales',
+        threw: { name: 'TypeError', message: "Cannot read property 'label' of undefined" },
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[31m✖${ESC}[39m  ${ESC}[1mfoundation-typography--scales${ESC}[22m is on screen, and it threw while rendering`,
+      ],
+      [''],
+      [`  TypeError: Cannot read property 'label' of undefined`],
+      [''],
+      [`${ESC}[2mThe app is showing that error in place of the story.${ESC}[22m`],
+      [''],
+    ],
+  },
+
+  {
     kind: 'inspected-story',
     what: 'what `sherlo inspect` prints - one line, the story id and nothing else, because the caller between two edits wants the answer rather than a sentence containing it',
     segment: {

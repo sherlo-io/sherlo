@@ -15,6 +15,13 @@
  */
 import type { PosedLetterbox } from '../commands/pose/readPose';
 
+/**
+ * What a story threw while rendering, as the app recorded it and the letterbox passed it on. The
+ * same two fields the SDK's own `StoryThrew` sends, under the same name, because they are the same
+ * fact crossing a wire.
+ */
+export type StoryThrew = { name: string; message: string };
+
 /** What the letterbox answered about a story the command asked it to show. */
 export type OpenStoryResult =
   /** Nothing is serving on the address: no bundler is running.  */
@@ -23,8 +30,17 @@ export type OpenStoryResult =
   | { kind: 'no-app' }
   /** The running app's Storybook has no story by that id; these are the ones it has. */
   | { kind: 'no-such-story'; known: string[] }
-  /** The app was handed the story, and said whether it reached the screen. */
-  | { kind: 'handed-over'; storyId: string; rendered: 'yes' | 'timed-out' | 'not-waited' };
+  /**
+   * The app was handed the story, and said whether it reached the screen - and, when the story
+   * threw while rendering, what it threw. A story only reports its own breakage once it has
+   * painted, so `threw` never travels without `rendered: 'yes'`.
+   */
+  | {
+      kind: 'handed-over';
+      storyId: string;
+      rendered: 'yes' | 'timed-out' | 'not-waited';
+      threw?: StoryThrew;
+    };
 
 /** What the letterbox answered about the story an app is showing now. */
 export type ShowingResult =
@@ -181,7 +197,7 @@ function isNothingOnThePort(error: unknown): boolean {
  * about something nobody asked for.
  */
 function readOpenStoryAnswer(said: unknown, storyId: string): OpenStoryResult {
-  const answer = said as { kind?: unknown; known?: unknown; rendered?: unknown };
+  const answer = said as { kind?: unknown; known?: unknown; rendered?: unknown; threw?: unknown };
 
   if (answer.kind === 'no-app') return { kind: 'no-app' };
 
@@ -197,7 +213,8 @@ function readOpenStoryAnswer(said: unknown, storyId: string): OpenStoryResult {
       answer.rendered === 'not-waited'
         ? answer.rendered
         : 'not-waited';
-    return { kind: 'handed-over', storyId, rendered };
+    const threw = readThrew(answer.threw);
+    return { kind: 'handed-over', storyId, rendered, ...(threw && { threw }) };
   }
 
   return { kind: 'no-app' };
@@ -205,6 +222,17 @@ function readOpenStoryAnswer(said: unknown, storyId: string): OpenStoryResult {
 
 function isString(value: unknown): value is string {
   return typeof value === 'string';
+}
+
+/**
+ * What the app said its story threw, or nothing when it said nothing readable. The error's own
+ * name and message are the whole of it: those are the words printed to the developer whose story
+ * broke, and a paraphrase of them would be this tool's opinion rather than their story's.
+ */
+function readThrew(said: unknown): StoryThrew | undefined {
+  const threw = said as { name?: unknown; message?: unknown } | undefined;
+  if (!isString(threw?.name) || !isString(threw?.message)) return undefined;
+  return { name: threw.name, message: threw.message };
 }
 
 let installed: Letterbox = liveLetterbox;
@@ -263,11 +291,12 @@ export function posedLetterbox(
       if (!posed.stories.includes(storyId)) {
         return { kind: 'no-such-story', known: posed.stories };
       }
-      return {
-        kind: 'handed-over',
-        storyId,
-        rendered: wait ? posed.rendered ?? 'yes' : 'not-waited',
-      };
+      const rendered = wait ? posed.rendered ?? 'yes' : 'not-waited';
+      // A story that never painted has told nobody what it threw, so a pose that states both is
+      // answered with the story's silence rather than with a fact the road could not carry.
+      const threw = rendered === 'yes' ? posed.threw : undefined;
+
+      return { kind: 'handed-over', storyId, rendered, ...(threw && { threw }) };
     },
 
     showing: async () => {

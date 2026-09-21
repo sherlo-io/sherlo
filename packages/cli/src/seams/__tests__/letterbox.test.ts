@@ -11,6 +11,7 @@
 import * as http from 'http';
 import { afterEach, describe, expect, it } from 'vitest';
 import { liveLetterbox } from '../letterbox';
+import { endingFor, storyIsOnScreen } from '../../commands/open/open';
 
 const STORY = 'components-button--primary';
 
@@ -171,6 +172,40 @@ describe('the tool posting to the letterbox', () => {
         timeoutSeconds: 0.1,
       })
     ).toEqual({ kind: 'handed-over', storyId: STORY, rendered: 'timed-out' });
+  });
+
+  it('the tool reports a story that painted and threw, and still exits zero', async () => {
+    const threw = { name: 'TypeError', message: "Cannot read property 'label' of undefined" };
+    const bundler = await bundlerSaying(() => ({
+      kind: 'handed-over',
+      storyId: STORY,
+      rendered: 'yes',
+      threw,
+    }));
+
+    const answer = await liveLetterbox.openStory({
+      storyId: STORY,
+      wait: true,
+      port: bundler.port,
+      timeoutSeconds: 5,
+    });
+
+    // What the story itself threw, in its own words - the tool passes it along rather than
+    // paraphrasing it, because the developer reading it is the one who has to go and fix it.
+    expect(answer).toEqual({ kind: 'handed-over', storyId: STORY, rendered: 'yes', threw });
+
+    // And the ending it becomes is its own, named like every other ending this command has.
+    const ending = endingFor(answer, {
+      storyId: STORY,
+      port: bundler.port,
+      wait: true,
+      seconds: 5,
+    });
+    expect(ending).toEqual({ kind: 'painted-and-threw', storyId: STORY, threw });
+
+    // The story IS on screen - showing what it threw - so `sherlo open` did what it was asked and
+    // exits zero. A non-zero ending here would say the tool failed, when what failed is the story.
+    expect(storyIsOnScreen(ending)).toBe(true);
   });
 
   it('reads the story the app is showing', async () => {

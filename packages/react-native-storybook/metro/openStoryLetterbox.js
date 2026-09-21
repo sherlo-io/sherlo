@@ -24,7 +24,9 @@
  *
  * THE APP'S OWN REQUEST IS ITS ANSWER TOO. Every PUT carries the story the app has painted, so
  * `--wait` is held here until a PUT names the story that was posted - the tool reports a story on
- * screen only because the app said so first.
+ * screen only because the app said so first. The same PUT carries what that story threw while
+ * rendering, when it threw, and that travels back to the waiting tool with it: a developer who
+ * asked to see a broken story is told it is broken.
  *
  * It lives beside the bundler rather than on a port of its own: the bundler's address is the one
  * every device a developer uses can already reach - a simulator, a phone on the same network, a
@@ -81,16 +83,20 @@ function createOpenStoryLetterbox(settings) {
     readJsonBody(request, function (said) {
       var atTheStoryBrowser = said.atTheStoryBrowser === true;
 
+      var showing = atTheStoryBrowser && typeof said.showing === 'string' ? said.showing : null;
+
       appLastSaid = {
         stories: Array.isArray(said.stories) ? said.stories : [],
         atTheStoryBrowser: atTheStoryBrowser,
         // An app showing itself has no story on screen, whatever it last painted.
-        showing: atTheStoryBrowser && typeof said.showing === 'string' ? said.showing : null,
+        showing: showing,
+        // What the story on screen threw, and so only meaningful when there is a story on screen.
+        threw: showing === null ? null : readThrew(said.threw),
       };
 
       // This request is also the app's answer: a story it names as painted releases the `--wait`
-      // caller that posted it.
-      releasePaintWaiters(appLastSaid.showing);
+      // caller that posted it, carrying what that story threw when it threw.
+      releasePaintWaiters(appLastSaid.showing, appLastSaid.threw);
 
       if (storyToHandOver !== null) {
         if (!atTheStoryBrowser) return sendJson(response, { goToTheStoryBrowser: true });
@@ -160,12 +166,16 @@ function createOpenStoryLetterbox(settings) {
         });
       }
 
-      waitForPaint(storyId, secondsOf(posted.timeoutSeconds), function (painted) {
-        sendJson(response, {
+      waitForPaint(storyId, secondsOf(posted.timeoutSeconds), function (painted, threw) {
+        var answer = {
           kind: 'handed-over',
           storyId: storyId,
           rendered: painted ? 'yes' : 'timed-out',
-        });
+        };
+        // Said only when the story broke: a story that drew cleanly has nothing to report, and an
+        // always-present empty field invites a reader to wonder what an empty one means.
+        if (threw) answer.threw = threw;
+        sendJson(response, answer);
       });
     });
   }
@@ -218,27 +228,27 @@ function createOpenStoryLetterbox(settings) {
   function waitForPaint(storyId, timeoutSeconds, report) {
     var waiter = {
       storyId: storyId,
-      report: function (painted) {
+      report: function (painted, threw) {
         if (waiter.reported) return;
         waiter.reported = true;
         clearTimeout(waiter.timer);
         waitingForPaint = waitingForPaint.filter(function (other) {
           return other !== waiter;
         });
-        report(painted);
+        report(painted, threw);
       },
       reported: false,
       timer: null,
     };
 
     waiter.timer = setTimeout(function () {
-      waiter.report(false);
+      waiter.report(false, null);
     }, timeoutSeconds * 1000);
 
     waitingForPaint.push(waiter);
   }
 
-  function releasePaintWaiters(paintedStoryId) {
+  function releasePaintWaiters(paintedStoryId, threw) {
     if (!paintedStoryId) return;
 
     waitingForPaint
@@ -246,7 +256,7 @@ function createOpenStoryLetterbox(settings) {
         return waiter.storyId === paintedStoryId;
       })
       .forEach(function (waiter) {
-        waiter.report(true);
+        waiter.report(true, threw);
       });
   }
 
@@ -286,6 +296,17 @@ function sendJson(response, payload) {
     'Content-Length': Buffer.byteLength(body),
   });
   response.end(body);
+}
+
+/**
+ * What the app said its story threw, or null when it said nothing readable. The app sends the
+ * error's name and message and nothing else, because those are the words that reach a developer's
+ * terminal - anything else here would be a shape this address invented.
+ */
+function readThrew(said) {
+  if (!said || typeof said !== 'object') return null;
+  if (typeof said.name !== 'string' || typeof said.message !== 'string') return null;
+  return { name: said.name, message: said.message };
 }
 
 /** A timeout the tool did not state, or stated nonsensically, falls back to half a minute. */

@@ -20,6 +20,12 @@ export type OpenedStory =
   | { kind: 'no-app'; port: number }
   | { kind: 'no-such-story'; storyId: string; known: string[] }
   | { kind: 'opened'; storyId: string; waited: boolean }
+  /**
+   * The app painted the story and the story threw while it did. The error is the one the story
+   * itself recorded, carried here word for word: the developer reading this is the one who has to
+   * fix it, and a paraphrase would send them looking for words their app never printed.
+   */
+  | { kind: 'painted-and-threw'; storyId: string; threw: { name: string; message: string } }
   | { kind: 'timed-out'; storyId: string; seconds: number };
 
 /** How a run of `sherlo inspect` ended. */
@@ -70,6 +76,18 @@ export function renderOpenedStory(state: OpenedStory): string[] {
             ? 'Next: `sherlo inspect` says what is showing now.'
             : 'Next: `sherlo open --story <id> --wait` waits until the story has drawn.'
         ),
+        '',
+      ];
+
+    case 'painted-and-threw':
+      return [
+        `${chalk.red('✖')}  ${chalk.bold(
+          state.storyId
+        )} is on screen, and it threw while rendering`,
+        '',
+        `  ${state.threw.name}: ${state.threw.message}`,
+        '',
+        chalk.dim('The app is showing that error in place of the story.'),
         '',
       ];
 
