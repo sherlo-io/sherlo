@@ -353,7 +353,13 @@ export type PosedBundle = {
   bundleFormat: 'plain-js' | 'hermes-bytecode';
   bundler: 'expo' | 'metro';
   assets: string[];
-  storyClosureKeys: string[];
+  /**
+   * The story-file source paths the bundler's module manifest closes over - what the dry-run
+   * plan's "of N stories" counts. `null` poses a bundle that came with no module map at all,
+   * which is what a real bundle is when Metro is configured without Sherlo's wrapper: the plan
+   * line then reads "all stories", with no count.
+   */
+  storyClosureKeys: string[] | null;
 };
 
 /**

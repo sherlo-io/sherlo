@@ -236,6 +236,28 @@ export async function computeBaseFingerprint(
   // otherwise produce different Layer-1 hashes over the same tree.
   const resolvedProjectRoot = path.resolve(projectRoot);
 
+  // Honesty gate, before any layer runs: every layer below reads INSTALLED
+  // state - lockfile bytes, and an autolinking subprocess that resolves
+  // against node_modules - never package.json's declared dependency list
+  // directly. A dependency just added to package.json but not yet installed
+  // (the exact shape of a dry-run preview, which bundles and fingerprints
+  // without ever running an install) is therefore invisible to every layer:
+  // the computed hash would equal what it was before the addition, a silent
+  // (and wrong) "unchanged" answer for a tree whose native identity may have
+  // just changed. Refusing to compute here, rather than returning that stale
+  // match, is what lets a caller (the dry-run preview, the staged gate) treat
+  // this tree's native identity as UNKNOWN - which every caller already
+  // treats as "assume changed" - instead of as confirmed-unchanged.
+  const uninstalledDependency = findUninstalledDependency(resolvedProjectRoot);
+  if (uninstalledDependency) {
+    return {
+      hash: null,
+      debugMessage:
+        `package.json declares "${uninstalledDependency}", which is not installed in ` +
+        'node_modules; the native identity cannot be honestly computed until dependencies are installed.',
+    };
+  }
+
   // ------------------------------------------------------------------
   // Layer 3 - workflow detection (must happen first so Layers 1-2 can
   //           adapt to the project shape).
@@ -340,6 +362,48 @@ export async function computeBaseFingerprint(
       autolinkedModules: autolinkedModules ? autolinkedModules.split('\n') : [],
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Honesty gate - a declared dependency node_modules doesn't have yet
+// ---------------------------------------------------------------------------
+
+/**
+ * True when `name` resolves under `fromDir`'s own node_modules or one of its
+ * ancestors' - the same lookup order Node's own `require` uses for
+ * non-PnP installs. A single fixed `<projectRoot>/node_modules/<name>` check
+ * would false-positive in a hoisting monorepo, where a project's own
+ * dependencies commonly resolve from a parent workspace root instead.
+ */
+function isDependencyInstalled(fromDir: string, name: string): boolean {
+  let dir = fromDir;
+  let parent = path.dirname(dir);
+  while (parent !== dir) {
+    if (fs.existsSync(path.join(dir, 'node_modules', name))) return true;
+    dir = parent;
+    parent = path.dirname(dir);
+  }
+  return fs.existsSync(path.join(dir, 'node_modules', name));
+}
+
+/**
+ * The first dependency `package.json` declares that isn't actually installed,
+ * or null when every declared dependency resolves (or there is no readable
+ * package.json - Layer 1 below will fail on that in its own, already-handled
+ * way).
+ */
+function findUninstalledDependency(projectRoot: string): string | null {
+  let packageJson: { dependencies?: Record<string, string> };
+  try {
+    packageJson = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'));
+  } catch {
+    return null;
+  }
+
+  for (const name of Object.keys(packageJson.dependencies ?? {})) {
+    if (!isDependencyInstalled(projectRoot, name)) return name;
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------

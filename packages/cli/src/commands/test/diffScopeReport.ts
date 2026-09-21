@@ -175,9 +175,16 @@ export function formatDiffScopeBlock(
     const tail = block.reason ? ` ${SEPARATOR} ${block.reason}` : '';
     lines.push(headingLine(block.platform, `nothing to capture${tail}`));
     if (M !== undefined) {
+      // "in this bundle" names the same universe the FULL and PARTIAL siblings
+      // name above (M is the whole bundle's story set, NOT the --include scope).
+      // This never says "reused": a story the previous build never held, or one
+      // outside the configured scope, has nothing to reuse - the honest claim is
+      // only that nothing in the bundle needs capturing.
       const noun = M === 1 ? 'story' : 'stories';
+      const need = M === 1 ? 'needs' : 'need';
       lines.push(
-        chalk.green(`${ROW}✓`) + chalk.dim(` all ${M} ${noun} reused from the previous build`)
+        chalk.green(`${ROW}✓`) +
+          chalk.dim(` none of the ${M} ${noun} in this bundle ${need} capture`)
       );
     }
     return lines;

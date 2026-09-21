@@ -601,7 +601,7 @@ describe('live capture plan', () => {
     logSpy.mockRestore();
   });
 
-  it('Case 3: nothing to capture - the whole bundle reused, no "Build created" closer', async () => {
+  it('Case 3: nothing to capture - none of the bundle needs capture, no "Build created" closer', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       storyCount: 22,
@@ -623,7 +623,7 @@ describe('live capture plan', () => {
 
     const out = printed(logSpy);
     expect(out).toContain('🍎 iOS - nothing to capture - no change reaches any story');
-    expect(out).toContain('     ✓ all 22 stories reused from the previous build');
+    expect(out).toContain('     ✓ none of the 22 stories in this bundle need capture');
     // No "Build created" line (SHERLO-1937) - the Review URL is the ending.
     expect(out).not.toContain('Build created');
     expect(out).toContain('🔗 Review: http://app/build');
@@ -755,7 +755,7 @@ describe('live capture plan', () => {
     expect(out).toContain(
       '🤖 Android - nothing to capture - the change never reaches the Android app'
     );
-    expect(out).toContain('     ✓ all 22 stories reused from the previous build');
+    expect(out).toContain('     ✓ none of the 22 stories in this bundle need capture');
     // No "Build created" line (SHERLO-1937) - even though iOS captured a story,
     // there is no "- running on devices" suffix either.
     expect(out).not.toContain('Build created');

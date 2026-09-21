@@ -6,6 +6,7 @@ var crypto = require('crypto');
 
 var mockShims = require('./mockShims');
 var createOpenStoryLetterbox = require('./openStoryLetterbox');
+var storyTitleReader = require('./storyTitleReader');
 
 // ---------------------------------------------------------------------------
 // Module path helper (shared by the Diff Scope module manifest)
@@ -53,8 +54,22 @@ function toRelativePath(absPath, projectRoot) {
 //                      which renumbers on any import add/remove/reorder).
 //   2. storyClosures - story source-path -> its transitive forward dependency
 //                      set (source paths). Stories are the require.context
-//                      targets collectStoryAbsPaths resolves below.
-//   3. header        - toolchain/env fingerprint (metro version, transformer/
+//                      targets collectStories resolves below. Unioned into
+//                      EVERY story's set: the preview module (collectPreviewAbsPaths)
+//                      and its own transitive closure - Storybook applies the
+//                      preview's annotations/decorators around every story, so no
+//                      story's own downward walk ever reaches it (SHERLO-3).
+//   3. storyTitles   - story source-path -> the Storybook TITLE of that story
+//                      file. The other two maps are keyed by path and the
+//                      runner knows nothing about paths, so without this the
+//                      server's include/exclude narrowing and the runner's are
+//                      done in two different namespaces. A story whose title
+//                      cannot be read without evaluating its source is OMITTED
+//                      rather than guessed. NOT SUFFICIENT on its own to drop a
+//                      story certainly - the runner matches a PER-EXPORT display
+//                      name and this is per file - see the header of
+//                      metro/storyTitleReader.js before narrowing by it.
+//   4. header        - toolchain/env fingerprint (metro version, transformer/
 //                      babel config digest, env digest) so a build produced by a
 //                      different toolchain/env is never mistaken for an unchanged one,
 //                      plus `generatedFiles`: the graph files a tool wrote at
@@ -111,31 +126,120 @@ function moduleOutputLeaksAbsolutePath(module, projectRoot) {
 }
 
 /**
- * Collects the absolute paths of every story module: the targets of every
- * require.context() edge in the graph. A require.context dependency is a
- * synthetic module whose own dependencies are the matched files.
+ * The directory a Metro require.context module gathers from, read back out of
+ * its own synthetic path.
  *
- * @returns {string[]} unique story absolute paths.
+ * Metro builds that path as `<directory>?ctx=<hash>` and nowhere else records
+ * the directory (a dependency's `contextParams` carries the filter and mode, not
+ * the directory), so this suffix is the only source for it. A path without the
+ * marker is not a Metro context module and yields null, which leaves the stories
+ * behind it without titles rather than with invented ones.
  */
-function collectStoryAbsPaths(graph) {
+function contextDirectoryOf(contextModuleAbsPath) {
+  var marker = contextModuleAbsPath.indexOf('?ctx=');
+  return marker === -1 ? null : contextModuleAbsPath.slice(0, marker);
+}
+
+/**
+ * Collects the absolute paths of every story module: the targets of the
+ * require.context() edge declared in Storybook's own generated requires file
+ * (STORYBOOK_REQUIRES_BASENAMES, matched by basename exactly like
+ * describeGeneratedFiles below). require.context is an ordinary Metro feature
+ * an app is free to use for its own gathering (icons, fonts, locale files) -
+ * a require.context dependency is a synthetic module whose own dependencies
+ * are the matched files, and nothing in its shape distinguishes "this is a
+ * story list" from "this is an icon folder". Matching only the DECLARING
+ * MODULE, not the context's directory or filter regex (an app may legitimately
+ * reuse either), is what tells the two apart.
+ *
+ * Found via the Diff Scope fixture app's StorefrontBadge component, which
+ * gathers its own icons with `require.context('./badgeIcons', false, /\.ts$/)`:
+ * before this guard, truck.ts and cart.ts were counted as stories neither is,
+ * inflating every capture's story count by 2 and giving each icon a
+ * storyClosures entry it should never have had.
+ *
+ * Bail-open: if no such generated file is in the graph (e.g. a machine that
+ * never bundled - see describeGeneratedFiles), the result is an empty story
+ * list, exactly as for an app with no require.context at all.
+ *
+ * Each story is returned with the two paths its TITLE is derived from: the
+ * require.context directory it was gathered from, and the generated requires
+ * file that declared that context (see storyTitleReader.js). Either can be null on
+ * an unrecognised shape; a story then simply gets no title.
+ *
+ * @returns {{ absPath: string, contextDirAbsPath: string|null, requiresAbsPath: string }[]}
+ *   one entry per unique story absolute path.
+ */
+function collectStories(graph) {
   var seen = {};
   var stories = [];
-  graph.dependencies.forEach(function (module) {
+  graph.dependencies.forEach(function (module, requiresAbsPath) {
+    if (STORYBOOK_REQUIRES_BASENAMES.indexOf(path.basename(requiresAbsPath)) === -1) return;
     if (!module.dependencies || !(module.dependencies instanceof Map)) return;
     module.dependencies.forEach(function (dep) {
       var contextParams = dep.data && dep.data.data && dep.data.data.contextParams;
       if (!contextParams) return;
       var ctxModule = graph.dependencies.get(dep.absolutePath);
       if (!ctxModule || !(ctxModule.dependencies instanceof Map)) return;
+      var contextDirAbsPath = contextDirectoryOf(dep.absolutePath);
       ctxModule.dependencies.forEach(function (ctxDep) {
         if (ctxDep.absolutePath && !seen[ctxDep.absolutePath]) {
           seen[ctxDep.absolutePath] = true;
-          stories.push(ctxDep.absolutePath);
+          stories.push({
+            absPath: ctxDep.absolutePath,
+            contextDirAbsPath: contextDirAbsPath,
+            requiresAbsPath: requiresAbsPath,
+          });
         }
       });
     });
   });
   return stories;
+}
+
+/**
+ * True when a basename is a Storybook preview entry (`preview.<ext>`, e.g.
+ * `.rnstorybook/preview.ts`) - same convention mockScan.js's isScanTarget uses
+ * for the module-mocking scan, kept independent here since this walks the
+ * Metro graph rather than the filesystem.
+ */
+function isPreviewBasename(basename) {
+  var ext = path.extname(basename);
+  return basename.slice(0, basename.length - ext.length) === 'preview';
+}
+
+/**
+ * Absolute paths of every preview module: an ORDINARY (non-require.context)
+ * dependency of the generated requires file whose basename matches the
+ * preview convention (`require('./preview')` in storybook.requires.ts).
+ *
+ * The requires file sits ABOVE every story - Storybook applies its
+ * `annotations` (which include the preview module) around every story it
+ * renders, so no story ever imports preview.ts itself and a downward walk
+ * from a story can never reach it (SHERLO-3: "a global decorator captures
+ * every story"). This is the other direction: walking OUT of the requires
+ * file along its ordinary edges to find the preview module that wraps
+ * everything.
+ *
+ * @returns {string[]} unique preview absolute paths.
+ */
+function collectPreviewAbsPaths(graph) {
+  var seen = {};
+  var previews = [];
+  graph.dependencies.forEach(function (module, absPath) {
+    if (STORYBOOK_REQUIRES_BASENAMES.indexOf(path.basename(absPath)) === -1) return;
+    if (!module.dependencies || !(module.dependencies instanceof Map)) return;
+    module.dependencies.forEach(function (dep) {
+      var depAbs = dep.absolutePath;
+      if (!depAbs || seen[depAbs]) return;
+      var contextParams = dep.data && dep.data.data && dep.data.data.contextParams;
+      if (contextParams) return; // require.context edge -> stories, not the preview
+      if (!isPreviewBasename(path.basename(depAbs))) return;
+      seen[depAbs] = true;
+      previews.push(depAbs);
+    });
+  });
+  return previews;
 }
 
 /**
@@ -345,12 +449,56 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
     });
     absolutePathLeaks.sort();
 
+    // Files that reach every story from ABOVE (the preview module and its own
+    // transitive closure), unioned into every story's closure below. A story's
+    // own downward walk can never find these - Storybook applies the preview
+    // around the story, the story never imports it.
+    /** @type {Record<string, boolean>} */
+    var globalRelPaths = {};
+    collectPreviewAbsPaths(graph).forEach(function (previewAbsPath) {
+      var previewRel = toRelativePath(previewAbsPath, projectRoot);
+      if (previewRel) globalRelPaths[previewRel] = true;
+      collectForwardClosure(graph, previewAbsPath, projectRoot).forEach(function (rel) {
+        globalRelPaths[rel] = true;
+      });
+    });
+
     /** @type {Record<string, string[]>} */
     var storyClosures = {};
-    collectStoryAbsPaths(graph).forEach(function (storyAbsPath) {
-      var storyRel = toRelativePath(storyAbsPath, projectRoot);
+    /**
+     * @type {Record<string, string>} story source-path -> the Storybook title
+     * the runner matches its snapshots by. A story is absent here when its
+     * title cannot be read without evaluating its source; the server must read
+     * an absent key as "unknown", never as "untitled".
+     */
+    var storyTitles = {};
+    /** @type {Record<string, object[]>} requires-file path -> its loader entries. */
+    var loaderEntriesByRequiresFile = {};
+
+    collectStories(graph).forEach(function (story) {
+      var storyRel = toRelativePath(story.absPath, projectRoot);
       if (!storyRel) return;
-      storyClosures[storyRel] = collectForwardClosure(graph, storyAbsPath, projectRoot);
+      var closureSet = {};
+      collectForwardClosure(graph, story.absPath, projectRoot).forEach(function (rel) {
+        closureSet[rel] = true;
+      });
+      Object.keys(globalRelPaths).forEach(function (rel) {
+        closureSet[rel] = true;
+      });
+      storyClosures[storyRel] = Object.keys(closureSet).sort();
+
+      if (!loaderEntriesByRequiresFile[story.requiresAbsPath]) {
+        loaderEntriesByRequiresFile[story.requiresAbsPath] = storyTitleReader.readStoryLoaderEntries(
+          story.requiresAbsPath
+        );
+      }
+      var loaderEntry = storyTitleReader.findLoaderEntry(
+        loaderEntriesByRequiresFile[story.requiresAbsPath],
+        story.contextDirAbsPath
+      );
+      if (!loaderEntry) return;
+      var title = storyTitleReader.readStoryTitle(story.absPath, loaderEntry);
+      if (title) storyTitles[storyRel] = title;
     });
 
     var header = buildManifestHeader(projectRoot);
@@ -373,11 +521,20 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
       );
     }
 
+    // version stays 1 across the addition of storyTitles: the map
+    // is additive, and the two things a consumer must tell apart are already
+    // told apart without it - a manifest with NO storyTitles key was written by
+    // an SDK that predates titles, and a key missing from the map is a story
+    // this SDK could not be certain about. Neither is an empty title, and
+    // neither lets the server narrow that story away. Bumping would instead
+    // make every manifest unreadable to the server already deployed, which is
+    // exactly the window this change was ordered to land before.
     var manifest = {
       version: 1,
       header: header,
       moduleHashes: moduleHashes,
       storyClosures: storyClosures,
+      storyTitles: storyTitles,
     };
 
     fs.writeFileSync(
