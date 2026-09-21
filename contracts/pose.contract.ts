@@ -129,6 +129,46 @@ export type CommandPose = {
    * exactly like a call the pose did not script.
    */
   letterbox?: PosedLetterbox;
+  /**
+   * What the running app answered down the capture socket - the road `sherlo capture` reaches it
+   * down. THE FOURTH OPTIONAL FIELD, for the one command that talks to it: a pose that states it
+   * for any other command is refused, and a capture with no `capture` is refused at run time.
+   */
+  capture?: PosedCapture;
+};
+
+/**
+ * What the running app answered for a capture, as a pose states it.
+ *
+ * As with the letterbox, a pose never supplies the words the screen shows: it states what the app
+ * recorded - how the stabilization ended, what the story threw, the view tree - and the tool prints
+ * whatever it prints for that.
+ */
+export type PosedCapture =
+  /** No bundler on the address at all. */
+  | 'no-bundler'
+  /** A bundler is up, and no app carrying the SDK is attached to it. */
+  | 'no-app'
+  | {
+      /** Every story the running app's Storybook knows, by id. */
+      stories: string[];
+      /** How the stabilization ended: settled after so long over so many frames, or gave up. */
+      settled: { ms: number; frames: number } | 'timed-out';
+      /** What the story threw while rendering, in its own words. Absent for a clean story. */
+      threw?: { name: string; message: string };
+      /** The view tree the app read, from the story's own root. */
+      tree: PosedView;
+    };
+
+/**
+ * One view in a posed tree. Only what the view has is stated: `components` are the app's own
+ * components that render it, outermost first; `text` is what a text view says.
+ */
+export type PosedView = {
+  primitive: string;
+  components?: string[];
+  text?: string;
+  children?: PosedView[];
 };
 
 /**
