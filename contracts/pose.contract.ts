@@ -153,6 +153,12 @@ export type PosedLetterbox =
        */
       rendered?: 'yes' | 'timed-out';
       /**
+       * What the story the app was asked for threw while rendering, in the story's own words. A
+       * story only reports its own breakage once it has painted, so this is stated alongside
+       * `rendered: 'yes'` and nowhere else. Absent poses a story that drew cleanly.
+       */
+      threw?: { name: string; message: string };
+      /**
        * The story the app says it is showing now, for the command that only asks. Absent poses an
        * app that is attached and has nothing on screen to name - most often one showing itself
        * rather than the story browser - which is a different fact from no app being there at all.

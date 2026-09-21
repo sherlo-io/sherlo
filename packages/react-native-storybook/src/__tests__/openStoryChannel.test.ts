@@ -13,6 +13,13 @@
  * story browser and the story is still there when it arrives, because `sherlo open` is for seeing
  * one story right now rather than launching the app and going to find it.
  *
+ * THE LAST TWO ARE THE BROKEN STORY. A story that throws while rendering records what it threw in
+ * the SDK's one story-error registry, and the app reports that alongside the story it painted - so
+ * the developer who typed `sherlo open` because they are working on that story is the one told it
+ * is broken. The first of the two holds the app's half (it reads the registry the error boundary
+ * fills, rather than deciding brokenness a second way) and the second holds the bundler's (what
+ * the app said travels back to the tool holding a `--wait` open).
+ *
  * THE FIRST THREE ARE HELD OVER REAL HTTP, against the middleware mounted on a real server on a
  * real port. The thing under test is an address, and an address that is only ever called as a
  * function has not been shown to be one.
@@ -31,12 +38,18 @@ import {
   startStoryRenderedTracking,
   __resetStoryRenderedTrackingForTests,
 } from '../getStorybook/components/TestingMode/useTestAllStories/storyRenderedReadiness';
+import { clearStoryError, recordStoryError } from '../getStorybook/storyErrorRegistry';
 
 const STORY = 'components-button--primary';
 const OTHER_STORY = 'components-avatar--basic';
 
 /** What the app says about itself every time it asks. */
-type Ask = { stories: string[]; showing: string | null; atTheStoryBrowser: boolean };
+type Ask = {
+  stories: string[];
+  showing: string | null;
+  atTheStoryBrowser: boolean;
+  threw: { name: string; message: string } | null;
+};
 
 /** Called when the SDK asks the app to go to the story browser; set by the test that watches for it. */
 let openedStorybook: (() => void) | null = null;
@@ -83,7 +96,12 @@ async function startBundlerWithLetterbox(settings?: {
 /** The app's side of the address: say what I have and what is on screen, get the next story back. */
 function appWaitsForAStory(
   bundler: RunningBundler,
-  saying: { stories: string[]; showing: string | null; atTheStoryBrowser?: boolean }
+  saying: {
+    stories: string[];
+    showing: string | null;
+    atTheStoryBrowser?: boolean;
+    threw?: { name: string; message: string };
+  }
 ): Promise<{ storyId?: string | null; goToTheStoryBrowser?: boolean }> {
   return fetch(`${bundler.origin}/sherlo/letterbox`, {
     method: 'PUT',
@@ -100,7 +118,13 @@ function appWaitsForAStory(
 function toolPostsAStory(
   bundler: RunningBundler,
   posting: { storyId: string; wait?: boolean; timeoutSeconds?: number }
-): Promise<{ kind: string; storyId?: string; rendered?: string; known?: string[] }> {
+): Promise<{
+  kind: string;
+  storyId?: string;
+  rendered?: string;
+  known?: string[];
+  threw?: { name: string; message: string };
+}> {
   return fetch(`${bundler.origin}/sherlo/letterbox`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -125,6 +149,7 @@ describe('the letterbox on the bundler', () => {
     openedStorybook = null;
     stopOpenStoryChannel();
     __resetStoryRenderedTrackingForTests();
+    clearStoryError(STORY);
   });
 
   async function bundler(settings?: { appHoldMs?: number }): Promise<RunningBundler> {
@@ -218,12 +243,15 @@ describe('the letterbox on the bundler', () => {
       stories: [STORY, OTHER_STORY],
       showing: OTHER_STORY,
       atTheStoryBrowser: true,
+      threw: null,
     });
-    // Having painted it, the app now names the new story as the one on screen.
+    // Having painted it, the app now names the new story as the one on screen - and says it drew
+    // cleanly, which is a fact it states every time rather than one it only mentions when it is bad.
     expect(asked[1]).toEqual({
       stories: [STORY, OTHER_STORY],
       showing: STORY,
       atTheStoryBrowser: true,
+      threw: null,
     });
   });
 
@@ -270,10 +298,85 @@ describe('the letterbox on the bundler', () => {
 
     await wentToTheStoryBrowser;
 
-    expect(asked).toEqual([{ stories: [STORY], showing: null, atTheStoryBrowser: false }]);
+    expect(asked).toEqual([
+      { stories: [STORY], showing: null, atTheStoryBrowser: false, threw: null },
+    ]);
     // Nothing was put on screen here - there is no screen to put it on - and nothing was asked
     // again, because the app is on its way out.
     expect(channel.emitted('setCurrentStory')).toEqual([]);
+  });
+
+  it('a story that threw while rendering is reported as shown AND broken', async () => {
+    const channel = makeChannel();
+    const view = { _storyIndex: { entries: { [STORY]: {}, [OTHER_STORY]: {} } } } as never;
+
+    startStoryRenderedTracking(channel);
+    channel.emit('storyRendered', OTHER_STORY);
+
+    const asked: Ask[] = [];
+    const askedAgain = new Promise<void>((resolve) => {
+      const letterbox: BundlerLetterbox = {
+        waitForStory: async (saying) => {
+          asked.push(saying);
+          if (asked.length > 1) {
+            resolve();
+            return new Promise(() => {}); // the app goes on waiting; the test is done asking
+          }
+          return { storyId: STORY };
+        },
+      };
+      startOpenStoryChannel({ view, channel, atTheStoryBrowser: true, letterbox });
+    });
+
+    await vi.waitFor(() =>
+      expect(channel.emitted('setCurrentStory')).toEqual([{ storyId: STORY }])
+    );
+
+    // The story throws on its way to the screen: the error boundary around it records what it
+    // threw, exactly as it does for the runner, and Storybook still reports the story rendered -
+    // its error view is what is on screen.
+    recordStoryError(STORY, {
+      name: 'TypeError',
+      message: "Cannot read property 'label' of undefined",
+      stack: 'at Button (Button.tsx:12)',
+      componentStack: '',
+    });
+    channel.emit('storyRendered', STORY);
+
+    await askedAgain;
+    // BOTH facts in one breath: the story IS on screen, and the screen is its error. Nothing here
+    // decides that a second time - it is the registry the runner reads, read again.
+    expect(asked[1]).toEqual({
+      stories: [STORY, OTHER_STORY],
+      showing: STORY,
+      atTheStoryBrowser: true,
+      threw: { name: 'TypeError', message: "Cannot read property 'label' of undefined" },
+    });
+  });
+
+  it('what the app says its story threw reaches the tool waiting on that story', async () => {
+    const running = await bundler();
+    const held = appWaitsForAStory(running, { stories: [STORY], showing: null });
+    await letTheRequestLand();
+
+    const waiting = toolPostsAStory(running, { storyId: STORY, wait: true, timeoutSeconds: 5 });
+    expect(await held).toEqual({ storyId: STORY });
+
+    // The app paints the story, and the same request that says so says what it threw.
+    appWaitsForAStory(running, {
+      stories: [STORY],
+      showing: STORY,
+      threw: { name: 'TypeError', message: "Cannot read property 'label' of undefined" },
+    }).catch(() => {
+      // The app is still holding this one open when the test ends and the bundler goes away.
+    });
+
+    expect(await waiting).toEqual({
+      kind: 'handed-over',
+      storyId: STORY,
+      rendered: 'yes',
+      threw: { name: 'TypeError', message: "Cannot read property 'label' of undefined" },
+    });
   });
 
   it('no app ever having connected is a different fact from an app that is attached and simply has nothing on screen', async () => {

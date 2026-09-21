@@ -958,6 +958,46 @@ describe('A MANAGEMENT COMMAND PRINTS ITS FACTS AS KEY=VALUE LINES AND NEVER A C
     pinnedBytes(pin, renderSegment(pin.segment));
   });
 
+  /**
+   * WRITTEN OUT RATHER THAN ADDED TO THE TABLE ABOVE. `it.each` assembles its case titles from
+   * each pin's `what`, so no case name in this family exists as a searchable sentence in the
+   * source. This screen's does, because it is the one a developer meets at the worst moment - the
+   * story they asked to see is broken - and a case whose name can only be read by running it is a
+   * case that can be renamed without anybody noticing.
+   *
+   * The pin itself is the same instrument: the exact bytes, compared through `pinnedBytes`.
+   */
+  it('the broken-story screen names the story and the error it recorded', () => {
+    // The story id bold because it is the answer, and the error on a line of its own in the words
+    // the story itself threw - a paraphrase would send the developer looking for a line their app
+    // never printed.
+    const pin: Pin = {
+      kind: 'opened-story',
+      what: 'the broken-story screen',
+      segment: {
+        kind: 'opened-story',
+        state: {
+          kind: 'painted-and-threw',
+          storyId: 'foundation-typography--scales',
+          threw: { name: 'TypeError', message: "Cannot read property 'label' of undefined" },
+        },
+      },
+      stream: 'stdout',
+      prints: [
+        [
+          `${ESC}[31m✖${ESC}[39m  ${ESC}[1mfoundation-typography--scales${ESC}[22m is on screen, and it threw while rendering`,
+        ],
+        [''],
+        [`  TypeError: Cannot read property 'label' of undefined`],
+        [''],
+        [`${ESC}[2mThe app is showing that error in place of the story.${ESC}[22m`],
+        [''],
+      ],
+    };
+
+    pinnedBytes(pin, renderSegment(pin.segment));
+  });
+
   it('the intro: wordmark shape, styled tagline, and the bare newline that closes it', () => {
     const { stream, prints } = renderSegment({ kind: 'intro' });
 

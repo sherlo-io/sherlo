@@ -50,13 +50,13 @@ async function open(passedOptions: OpenOptions): Promise<void> {
   const wait = Boolean(passedOptions[WAIT_OPTION]);
 
   const answer = await letterbox().openStory({ storyId, wait, port, timeoutSeconds: seconds });
-  const state = describe(answer, { storyId, port, wait, seconds });
+  const state = endingFor(answer, { storyId, port, wait, seconds });
 
   emit({ kind: 'opened-story', state });
 
   // A story that is not on screen is the one failure a caller has to be able to branch on, and it
   // is not an error in the tool - the screen above already said what happened, in its own words.
-  if (state.kind !== 'opened') process.exit(EXIT_BLOCK);
+  if (!storyIsOnScreen(state)) process.exit(EXIT_BLOCK);
 }
 
 export default open;
@@ -69,7 +69,7 @@ export default open;
  * The story id comes from the run rather than the answer, because the refusal a reader needs is
  * about the id they typed - an app that does not have it cannot hand it back.
  */
-function describe(
+export function endingFor(
   answer: OpenStoryResult,
   run: { storyId: string; port: number; wait: boolean; seconds: number }
 ): OpenedStory {
@@ -81,10 +81,27 @@ function describe(
     case 'no-such-story':
       return { kind: 'no-such-story', storyId: run.storyId, known: answer.known };
     case 'handed-over':
-      return answer.rendered === 'timed-out'
-        ? { kind: 'timed-out', storyId: answer.storyId, seconds: run.seconds }
-        : { kind: 'opened', storyId: answer.storyId, waited: run.wait };
+      if (answer.rendered === 'timed-out') {
+        return { kind: 'timed-out', storyId: answer.storyId, seconds: run.seconds };
+      }
+      // The app painted it and said it threw doing so. That is the developer's news, not the
+      // tool's failure - the story IS on screen, showing what it threw.
+      if (answer.threw) {
+        return { kind: 'painted-and-threw', storyId: answer.storyId, threw: answer.threw };
+      }
+      return { kind: 'opened', storyId: answer.storyId, waited: run.wait };
   }
+}
+
+/**
+ * Whether the story reached the screen, which is the only thing this command's exit code says.
+ *
+ * A story that threw reached it: the developer is looking at their own error where the story
+ * should have been, which is exactly what they asked to see. Exiting non-zero there would tell a
+ * caller `sherlo open` failed, when what failed is the story.
+ */
+export function storyIsOnScreen(state: OpenedStory): boolean {
+  return state.kind === 'opened' || state.kind === 'painted-and-threw';
 }
 
 function readPort(passed: string | undefined): number {

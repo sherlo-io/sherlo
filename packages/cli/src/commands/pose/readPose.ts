@@ -75,6 +75,12 @@ export type PosedLetterbox =
       /** What the app reported for the story it was asked to show. */
       rendered?: 'yes' | 'timed-out';
       /**
+       * What the story the app was asked to show threw while rendering. A story tells the road it
+       * broke only once it has painted, so this is answered with `rendered: 'yes'` and with
+       * nothing else.
+       */
+      threw?: { name: string; message: string };
+      /**
        * The story the app says it is showing now, for the command that only asks. Absent poses an
        * app that is attached and has nothing on screen to name - most often one showing itself
        * rather than the story browser - which is a different fact from no app being there at all.
@@ -706,7 +712,20 @@ function readLetterbox(pose: Record<string, unknown>, argv: string[], problems: 
     expectOneOf(letterbox, 'rendered', ['yes', 'timed-out'], '`letterbox`', problems);
   }
   if ('showing' in letterbox) expectString(letterbox, 'showing', '`letterbox`', problems);
-  reportUnknownFields(letterbox, ['stories', 'rendered', 'showing'], '`letterbox`', problems);
+  if ('threw' in letterbox) {
+    const threw = asObject(letterbox.threw, '`letterbox`.threw', problems);
+    if (threw) {
+      expectString(threw, 'name', '`letterbox`.threw', problems);
+      expectString(threw, 'message', '`letterbox`.threw', problems);
+      reportUnknownFields(threw, ['name', 'message'], '`letterbox`.threw', problems);
+    }
+  }
+  reportUnknownFields(
+    letterbox,
+    ['stories', 'rendered', 'showing', 'threw'],
+    '`letterbox`',
+    problems
+  );
 }
 
 function readApi(pose: Record<string, unknown>, problems: string[]): void {
