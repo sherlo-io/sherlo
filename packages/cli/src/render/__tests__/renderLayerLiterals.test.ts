@@ -812,9 +812,12 @@ const PINS: Pin[] = [
     ],
   },
 
+  // The story id bold because it is the answer, and the error on a line of its own in the words
+  // the story itself threw - a paraphrase would send the developer looking for a line their app
+  // never printed.
   {
     kind: 'opened-story',
-    what: 'the broken-story screen names the story and the error it recorded - the story id bold because it is the answer, and the error in the words the story itself threw, because a paraphrase would send the developer looking for a line their app never printed',
+    what: 'the broken-story screen names the story and the error it recorded',
     segment: {
       kind: 'opened-story',
       state: {
