@@ -65,6 +65,8 @@ export function endingFor(answer: CaptureResult, run: { storyId: string; port: n
       return { kind: 'no-app', port: run.port };
     case 'no-such-story':
       return { kind: 'no-such-story', storyId: run.storyId, known: answer.known };
+    case 'crashed':
+      return { kind: 'crashed', storyId: answer.storyId, ...(answer.error && { error: answer.error }) };
     case 'captured':
       if (answer.threw) {
         return { kind: 'captured-and-threw', storyId: answer.storyId, threw: answer.threw, tree: answer.tree };

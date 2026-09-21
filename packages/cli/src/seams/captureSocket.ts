@@ -39,6 +39,11 @@ export type CaptureResult =
   | { kind: 'no-app' }
   | { kind: 'no-such-story'; known: string[] }
   | {
+      kind: 'crashed';
+      storyId: string;
+      error?: { name: string; message: string };
+    }
+  | {
       kind: 'captured';
       storyId: string;
       /** How the stabilization ended: settled after so long over so many frames, or gave up. */
@@ -110,6 +115,16 @@ export function posedCaptureSocket(
       if (posed === 'no-bundler') return { kind: 'no-bundler' };
       if (posed === 'no-app') return { kind: 'no-app' };
       if (!posed.stories.includes(storyId)) return { kind: 'no-such-story', known: posed.stories };
+
+      if ('crashed' in posed) {
+        return {
+          kind: 'crashed',
+          storyId,
+          ...(posed.crashed.name && posed.crashed.message && {
+            error: { name: posed.crashed.name, message: posed.crashed.message },
+          }),
+        };
+      }
 
       return {
         kind: 'captured',

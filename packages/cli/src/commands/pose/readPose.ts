@@ -77,6 +77,15 @@ export type PosedCapture =
   | {
       /** Every story the running app's Storybook knows, by id. */
       stories: string[];
+      /**
+       * The app stopped answering mid-capture - a fatal error or a native crash - and what it said
+       * before it died, when it said anything. An empty object is a crash that said nothing.
+       */
+      crashed: { name?: string; message?: string };
+    }
+  | {
+      /** Every story the running app's Storybook knows, by id. */
+      stories: string[];
       /** How the stabilization ended: settled after so long over so many frames, or gave up. */
       settled: { ms: number; frames: number } | 'timed-out';
       /** What the story threw while rendering, in its own words. Absent for a clean story. */
@@ -779,6 +788,17 @@ function readCapture(pose: Record<string, unknown>, argv: string[], problems: st
   if (!capture) return;
 
   expectStringArray(capture, 'stories', '`capture`', problems);
+
+  if ('crashed' in capture) {
+    const crashed = asObject(capture.crashed, '`capture`.crashed', problems);
+    if (crashed) {
+      if ('name' in crashed) expectString(crashed, 'name', '`capture`.crashed', problems);
+      if ('message' in crashed) expectString(crashed, 'message', '`capture`.crashed', problems);
+      reportUnknownFields(crashed, ['name', 'message'], '`capture`.crashed', problems);
+    }
+    reportUnknownFields(capture, ['stories', 'crashed'], '`capture`', problems);
+    return;
+  }
 
   if (capture.settled !== 'timed-out') {
     const settled = asObject(capture.settled, '`capture`.settled', problems);

@@ -31,7 +31,17 @@ export type CapturedStory =
   | { kind: 'no-bundler'; port: number }
   | { kind: 'no-app'; port: number }
   | { kind: 'no-such-story'; storyId: string; known: string[] }
-  | { kind: 'captured'; storyId: string; settledMs: number; frames: number; tree: CapturedView }
+  | {
+      kind: 'captured';
+      storyId: string;
+      settledMs: number;
+      frames: number;
+      /** How many screenfuls the story was captured in - absent or 1 is a story that fits one screen. */
+      parts?: number;
+      /** Whether any view in the story loads an image over the network. */
+      hasNetworkImage?: boolean;
+      tree: CapturedView;
+    }
   /**
    * The screen never stopped changing before the stabilization gave up. A cloud run would hit the
    * same limit on the same story, which is exactly why a developer needs to hear it here.
@@ -43,6 +53,13 @@ export type CapturedStory =
       storyId: string;
       threw: { name: string; message: string };
       tree: CapturedView;
+    }
+  /** The app stopped answering mid-capture - a fatal error, a native crash, or the app being closed. */
+  | {
+      kind: 'crashed';
+      storyId: string;
+      /** The fatal error's own words, when the app reported it before it died. */
+      error?: { name: string; message: string };
     };
 
 /** How many views the short account shows before it says how many more there are. */
@@ -85,6 +102,12 @@ export function renderCapturedStory(state: CapturedStory): string[] {
         chalk.dim(
           `   settled in ${seconds(state.settledMs)} over ${state.frames} frames · testing mode`
         ),
+        ...(state.parts !== undefined && state.parts > 1
+          ? [chalk.dim(`   captured in ${state.parts} screenfuls - the story scrolls past the first`)]
+          : []),
+        ...(state.hasNetworkImage
+          ? [chalk.dim('   has images loaded over the network - a cloud capture depends on them')]
+          : []),
         '',
         ...treeLines(state.tree),
         '',
@@ -108,6 +131,20 @@ export function renderCapturedStory(state: CapturedStory): string[] {
         `  ${state.threw.name}: ${state.threw.message}`,
         '',
         ...treeLines(state.tree),
+        '',
+      ];
+
+    case 'crashed':
+      return [
+        `${chalk.red('✖')}  ${chalk.bold(state.storyId)} captured to a crash - the app stopped answering`,
+        '',
+        ...(state.error
+          ? [`  ${state.error.name}: ${state.error.message}`]
+          : [
+              chalk.dim(
+                '   The app said nothing before it died - a native crash, or the app was closed.'
+              ),
+            ]),
         '',
       ];
   }
