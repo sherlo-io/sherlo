@@ -1,0 +1,25 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": [
+    "inspect"
+  ],
+  "letterbox": {
+    "stories": [
+      "foundation-typography--scales",
+      "foundation-colour--palette",
+      "controls-button--primary",
+      "controls-button--disabled",
+      "controls-input--empty",
+      "layout-card--basic"
+    ],
+    "showing": "controls-button--disabled"
+  }
+}

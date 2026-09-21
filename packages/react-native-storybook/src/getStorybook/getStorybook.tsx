@@ -19,6 +19,7 @@ import {
   startInteractiveMockActivation,
   stopInteractiveMockActivation,
 } from './interactiveMockActivation';
+import { startOpenStoryChannel, stopOpenStoryChannel } from '../openStoryChannel';
 
 let isSdkCompatible = true;
 if (SherloModule.getMode() === 'testing') {
@@ -99,6 +100,23 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     try {
       startInteractiveMockActivation(view, getStorybookChannel(view), initialStoryId);
     } catch (_e) {}
+
+    // Start waiting on the bundler's letterbox, so `sherlo open --story <id>` reaches this app.
+    // Here rather than in a hook for the same reason as the listener above: a story may be posted
+    // before the tree renders, and the app that is not waiting yet is an app that missed it.
+    startWaitingOnTheLetterbox(view, true);
+  }
+
+  // An app showing ITSELF waits on the same address, and is sent to the story browser when a story
+  // is posted for it - which is the whole point of `sherlo open`: see one story right now, rather
+  // than launch the app and go and find it. Getting there restarts the app, so this side collects
+  // nothing; the letterbox holds the story until the storybook-mode listener above asks for it.
+  //
+  // This is the ONE thing Sherlo does in default mode, and it costs a store build nothing: a built
+  // app's JavaScript came from a file on the device rather than from a bundler, so there is no
+  // address to wait on and nothing starts (see openStoryChannel's `bundlerLetterbox`).
+  if (mode === 'default') {
+    startWaitingOnTheLetterbox(view, false);
   }
 
   const isTestingMode = mode === 'testing';
@@ -145,12 +163,14 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
       } catch (_e) {}
     }, []);
 
-    // Leaving Storybook (unmount) tears down the mock activation started above:
-    // stop tracking selection changes and pass every module through to real again.
+    // Leaving Storybook (unmount) tears down both things started above: stop tracking selection
+    // changes and pass every module through to real again, and stop waiting on the bundler's
+    // letterbox - an app that is no longer showing Storybook has nowhere to put a story.
     useEffect(() => {
       if (!isStorybookMode) return;
       return () => {
         stopInteractiveMockActivation();
+        stopOpenStoryChannel();
       };
     }, []);
 
@@ -171,6 +191,18 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 }
 
 export default getStorybook;
+
+/* ========================================================================== */
+
+function startWaitingOnTheLetterbox(view: StorybookView, atTheStoryBrowser: boolean): void {
+  try {
+    startOpenStoryChannel({ view, channel: getStorybookChannel(view), atTheStoryBrowser });
+  } catch (_e) {
+    // Ignored: a Storybook whose channel this could not read, or a device with no reachable
+    // bundler beside it. Either one costs `sherlo open` its road into this app and costs the app
+    // nothing else, so it is not worth crashing the app a developer is working in.
+  }
+}
 
 export function __resetForTests(): void {
   isSdkCompatible = true;
