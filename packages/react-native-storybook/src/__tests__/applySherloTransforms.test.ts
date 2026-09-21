@@ -373,7 +373,7 @@ function addAppOwnedContext(root: string, graph: ReturnType<typeof buildFakeGrap
 // storybook.requires.ts's own generated `annotations` array:
 //   `const annotations = [require('./preview'), require('@storybook/react-native/preview')];`
 // This is an ORDINARY edge from the requires file (no contextParams) - unlike
-// the require.context edge collectStoryAbsPaths matches, so preview.ts is
+// the require.context edge collectStories matches, so preview.ts is
 // never mistaken for a story. Storybook applies preview's decorators around
 // every story it renders, so preview.ts sits ABOVE every story - no story
 // ever imports it, and a downward walk from a story can never reach it.
