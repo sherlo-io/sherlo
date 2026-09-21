@@ -393,7 +393,11 @@ function printTerminalCloser(build: NonNullable<BuildStatusResponse['getBuildSta
       emit({ kind: 'verdict-passed' });
     }
   } else {
-    emit({ kind: 'verdict-review-required', unreviewed, reported });
+    emit({
+      kind: 'verdict-review-required',
+      screens: build.stories,
+      counts: { unreviewed, reported },
+    });
   }
   emit({ kind: 'blank-line' });
 }
