@@ -49,6 +49,7 @@ import SherloModule from './SherloModule';
 import { InspectorData, InspectorDataNode, StorybookView } from './types';
 import { componentNamesByNativeTag, type ComponentNamesByNativeTag } from './componentNames';
 import { collectAppMetadata } from './appMetadata';
+import { STORY_ERROR_FALLBACK_TEXT } from './constants';
 import { prepareInspectorData } from './getStorybook/components/TestingMode/useTestAllStories/prepareInspectorData';
 import { readStoryError } from './getStorybook/storyErrorRegistry';
 import {
@@ -118,12 +119,20 @@ export type CapturedAnswer =
 /**
  * The stabilization numbers a capture is handed, as the runner writes them today. Every one is
  * optional here because the app falls back to its own config when a value is missing.
+ *
+ * threshold AND includeAA ARE HERE FOR THE SAME REASON AS THE TIMINGS. They decide whether two
+ * frames count as the same frame, so they decide whether a story is reported settled or never
+ * settled - the ending a developer reads. Falling back to the app's own config would be falling back
+ * to the SDK's defaults on an app that has never taken a test run, which is the app a capture runs
+ * on, and a capture would then call a story never-settled that the run settles.
  */
 export type CaptureSettings = {
   requiredMatches?: number;
   minScreenshotsCount?: number;
   intervalMs?: number;
   timeoutMs?: number;
+  threshold?: number;
+  includeAA?: boolean;
 };
 
 /** What the bundler hands an app that has been waiting: the instruction to act on. */
@@ -256,7 +265,12 @@ async function captureTheStory({
 
     // Asking how many screenfuls the story is puts it back at its top, so it is asked before the
     // tree is read: the tree a capture records is the story as it renders from the beginning.
-    const parts = await screenfulsOfTheStory();
+    //
+    // A BROKEN STORY IS NOT MEASURED, because a run does not measure one: the run reads the story's
+    // error before it measures anything, so the story it hands over counts as one screenful however
+    // tall the view on screen is. Measuring the error view instead would tell the developer their
+    // story scrolls when what scrolls is the fallback drawn in its place.
+    const parts = theStoryIsBroken(storyId) ? 1 : await screenfulsOfTheStory();
     const recorded = await readTheStory(storyId);
 
     const threw = whatTheStoryThrew(storyId);
@@ -304,6 +318,11 @@ async function waitForTheStoryOnScreen({
 /**
  * Run the stability loop the way a test run does, and say how it ended. A capture saves no
  * screenshots, so saveScreenshots is off and nothing is written to the device.
+ *
+ * EVERY value the tool sent is used, and the app's own config is read only for what it did not send.
+ * That order matters most for threshold and includeAA: they are what decide whether the screen counts
+ * as settled, so taking them from the app instead would let a capture disagree with the run about the
+ * ending itself.
  */
 async function stabilizeTheStory(
   settings: CaptureSettings | undefined
@@ -320,8 +339,8 @@ async function stabilizeTheStory(
     settings?.intervalMs ?? stabilization.intervalMs,
     settings?.timeoutMs ?? stabilization.timeoutMs,
     false, // a capture records a tree, not screenshots
-    stabilization.threshold,
-    stabilization.includeAA
+    settings?.threshold ?? stabilization.threshold,
+    settings?.includeAA ?? stabilization.includeAA
   );
 
   return isStable ? { ms: Date.now() - startedAt, frames } : 'timed-out';
@@ -390,11 +409,18 @@ async function readTheStory(storyId: string): Promise<RecordedStory> {
  * published - nothing rendered this app the way a run renders it - there is no story to start at
  * and no image to report: what the inspector answered is recorded as it stands, the whole window
  * rather than the story.
+ *
+ * A BROKEN STORY IS NOT RE-ROOTED, because a run does not re-root one. The run skips that step
+ * whenever the story contains an error and keeps the inspector's tree as it answered it
+ * (useTestStory), so a capture that prepared a thrown story would record a tree no run ever makes -
+ * more thorough than the run at the one moment the story is broken, which is the opposite of what a
+ * capture is for. Both states that make a run skip it are read here: the error the boundary recorded
+ * and the words that stand in for a story that failed to render (see theStoryIsBroken).
  */
 function theStorysOwnTree(inspectorData: InspectorData, storyId: string): RecordedStory {
   const metadata = collectAppMetadata();
 
-  if (!metadata) {
+  if (!metadata || theStoryIsBroken(storyId)) {
     return {
       tree: captureViewTree(inspectorData.viewHierarchy, componentNamesByNativeTag()),
       hasNetworkImage: false,
@@ -407,6 +433,28 @@ function theStorysOwnTree(inspectorData: InspectorData, storyId: string): Record
     tree: captureViewTree(prepared.inspectorData.viewHierarchy, componentNamesByNativeTag()),
     hasNetworkImage: prepared.hasNetworkImage,
   };
+}
+
+/**
+ * Whether the story on screen is broken, by the run's own two readings of it (useTestStory gives the
+ * same two to `containsError`): the error the boundary recorded for the story, or the words that
+ * stand in for a story that failed to render.
+ *
+ * BOTH ARE READ BECAUSE EITHER CAN BE TRUE WITHOUT THE OTHER. Sherlo's own boundary records the
+ * error and then throws it on, so an error the next boundary out is the one that draws leaves the
+ * registry empty while the words are on screen. A capture that read only one of the two would go on
+ * to re-root a story a run would leave alone, which is the divergence this gate exists to close.
+ *
+ * `false` while no app has published its views, which is not this: a story nothing rendered the way
+ * a run renders it is left alone for a plainer reason (see theStorysOwnTree).
+ */
+function theStoryIsBroken(storyId: string): boolean {
+  const metadata = collectAppMetadata();
+
+  return (
+    readStoryError(storyId) !== undefined ||
+    (metadata?.texts.includes(STORY_ERROR_FALLBACK_TEXT) ?? false)
+  );
 }
 
 /**

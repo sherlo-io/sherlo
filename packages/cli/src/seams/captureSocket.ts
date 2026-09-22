@@ -21,12 +21,24 @@ import type { CapturedView } from '../render/capturedStory';
  * TWO COPIES OF ONE SET OF NUMBERS, and this is the second. The runner writes the same values into
  * the file it hands the app. They are meant to come from Sherlo's API, read by both, and this copy
  * goes away then; until then a change to the runner's numbers must be made here too.
+ *
+ * EVERY SETTING THAT DECIDES WHETHER A STORY SETTLED IS HERE, which is why `threshold` and
+ * `includeAA` are not optional extras: they decide whether two frames count as the same frame, so a
+ * capture that left them to the app's own config would call a story never-settled that a test run
+ * would have settled. The app's config holds the SDK's fallback values on an app that has never taken
+ * a run, which is exactly the app a developer captures on.
+ *
+ * `saveScreenshots` is the one runner setting deliberately left out: the runner sets it true, and a
+ * capture writes nothing to the device, so the app turns it off itself rather than being told to.
+ * There are seven numbers in the runner's file; a capture sends the other six.
  */
 export const STABILIZATION_SETTINGS = {
   requiredMatches: 3,
   minScreenshotsCount: 6,
   intervalMs: 500,
   timeoutMs: 20_000,
+  threshold: 0.02,
+  includeAA: true,
 } as const;
 
 /** What the app answered about the story the command asked it to capture. */

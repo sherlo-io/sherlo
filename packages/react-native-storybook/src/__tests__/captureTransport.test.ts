@@ -70,6 +70,7 @@ import {
 import { __resetStoryRenderedTrackingForTests } from '../getStorybook/components/TestingMode/useTestAllStories/storyRenderedReadiness';
 import { rememberAppMetadataCollector } from '../appMetadata';
 import { rememberStoryOfTheApp } from '../componentNames';
+import { clearStoryError, recordStoryError } from '../getStorybook/storyErrorRegistry';
 
 const STORY = 'components-button--primary';
 
@@ -89,13 +90,16 @@ const CONFIG = {
 
 /**
  * What the tool hands over with the story. Every number differs from the app's own config, so a walk
- * that used the config instead of what it was handed would be caught here.
+ * that used the config instead of what it was handed would be caught here - including the two that
+ * decide whether the screen counts as settled, which is what the ending itself turns on.
  */
 const STABILIZATION_SETTINGS = {
   requiredMatches: 2,
   minScreenshotsCount: 4,
   intervalMs: 250,
   timeoutMs: 9000,
+  threshold: 0.02,
+  includeAA: true,
 };
 
 /**
@@ -164,6 +168,37 @@ const RECORDED_TREE = {
   ],
 };
 
+/**
+ * The app's whole window as the inspector answered it: Sherlo's frame, Storybook's, the view
+ * Storybook wraps a story in, and the story under it. No view is re-rooted and none is named.
+ *
+ * This is what a capture records in the two states where a test run leaves its tree alone - nothing
+ * rendered this app the way a run renders it, and a story that failed to render.
+ */
+const THE_WHOLE_WINDOW = {
+  primitive: 'View',
+  components: [],
+  children: [
+    {
+      primitive: 'View',
+      components: [],
+      children: [
+        {
+          primitive: 'View',
+          components: [],
+          children: [
+            {
+              primitive: 'ScrollView',
+              components: [],
+              children: [{ primitive: 'Text', components: [], children: [] }],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
 /** One screenful: the story is exactly as tall as the screen it is drawn in. */
 const ONE_SCREENFUL = {
   reachedBottom: true,
@@ -205,6 +240,9 @@ afterEach(() => {
   __resetStoryRenderedTrackingForTests();
   rememberStoryOfTheApp(undefined);
   rememberAppMetadataCollector(undefined);
+  // The registry is a module-level map the whole app shares, so a test that records an error has to
+  // take it back out again or every test after it walks a story that is already broken.
+  clearStoryError(STORY);
 });
 
 describe('a capture walks the same story path a test run does', () => {
@@ -222,8 +260,10 @@ describe('a capture walks the same story path a test run does', () => {
     // The same path a test run walks - told by name over the socket, answered over the same socket.
     expect(asked[0]).toEqual({ mode: 'testing', stories: [STORY], answer: null });
     expect(mockAwaitFrameCommit).toHaveBeenCalledWith(1000);
-    // The tool's numbers, not the app's own: the config supplies only what the tool left out.
-    expect(mockStabilize).toHaveBeenCalledWith(2, 4, 250, 9000, false, 0.2, false);
+    // The tool's numbers, not the app's own: the config supplies only what the tool left out. The last
+    // two matter as much as the timings - they decide whether the screen counts as settled at all, so
+    // a capture that read them off the app could call a story never-settled that a run settles.
+    expect(mockStabilize).toHaveBeenCalledWith(2, 4, 250, 9000, false, 0.02, true);
     expect(mockGetInspectorData).toHaveBeenCalled();
     expect(answer).toEqual({
       kind: 'captured',
@@ -233,6 +273,15 @@ describe('a capture walks the same story path a test run does', () => {
       hasNetworkImage: false,
       tree: RECORDED_TREE,
     });
+  });
+
+  it('falls back to the app config for every number the tool did not send', async () => {
+    await walkOneStory({ requiredMatches: 2 });
+
+    // The tool sends what it has; what it does not send is not replaced with the runner's numbers or
+    // any other guess. The app answers for those itself, which is what an app does when a run leaves
+    // a value out - so a setting the tool never mentioned cannot silently become a runner default.
+    expect(mockStabilize).toHaveBeenCalledWith(2, 8, 1000, 30000, false, 0.2, false);
   });
 });
 
@@ -255,29 +304,42 @@ describe("the tree a capture records starts where a test run's tree starts", () 
     // No view carries a story id, so there is no story to start at and nothing to name the app's
     // components by. The window is recorded as the inspector answered it - and every class is still
     // read through the table, so the screen still prints words the developer knows.
-    expect(answer.tree).toEqual({
-      primitive: 'View',
-      components: [],
-      children: [
-        {
-          primitive: 'View',
-          components: [],
-          children: [
-            {
-              primitive: 'View',
-              components: [],
-              children: [
-                {
-                  primitive: 'ScrollView',
-                  components: [],
-                  children: [{ primitive: 'Text', components: [], children: [] }],
-                },
-              ],
-            },
-          ],
-        },
-      ],
+    expect(answer.tree).toEqual(THE_WHOLE_WINDOW);
+  });
+});
+
+describe('a story that failed to render is recorded the way a run records it', () => {
+  it('records the whole window when the boundary recorded that the story threw', async () => {
+    recordStoryError(STORY, {
+      name: 'TypeError',
+      message: 'nothing here is a function',
+      stack: '',
+      componentStack: '',
     });
+
+    const answer = await walkOneStory();
+
+    // The run leaves its tree unprepared when a story contains an error, and a capture answers what a
+    // run answers: re-rooting a thrown story would record a tree no run ever makes. The ending is
+    // still the capture-and-threw one, so what threw is reported beside the tree.
+    console.log('DEBUGTREE', JSON.stringify(answer.tree));
+    expect(answer.tree).toEqual(THE_WHOLE_WINDOW);
+    expect(answer.threw).toEqual({ name: 'TypeError', message: 'nothing here is a function' });
+  });
+
+  it('records the whole window when the words of a failed render are on screen', async () => {
+    rememberAppMetadataCollector(() => ({
+      ...VIEW_METADATA,
+      texts: ['Something went wrong rendering your story'],
+    }));
+
+    const answer = await walkOneStory();
+
+    // A story can be broken without the registry knowing: Sherlo's boundary records the error and
+    // then throws it on, so the boundary that ends up drawing the fallback can be the next one out.
+    // The run reads the words off the screen as well as it reads the registry, so a capture does too -
+    // reading only the registry would re-root a story a run leaves alone.
+    expect(answer.tree).toEqual(THE_WHOLE_WINDOW);
   });
 });
 
@@ -464,7 +526,9 @@ describe('a walk that throws is the crash ending', () => {
 /* ========================================================================== */
 
 /** Start the road for one story, with the bundler stood up as a socket handing that story over. */
-function startTheRoad(): {
+function startTheRoad(
+  settings: Partial<typeof STABILIZATION_SETTINGS> | undefined = STABILIZATION_SETTINGS
+): {
   answered: Promise<CapturedAnswer>;
   channel: ReturnType<typeof makeChannel>;
   asked: Saying[]; // what the app said each time it asked the bundler
@@ -482,7 +546,7 @@ function startTheRoad(): {
           resolve(saying.answer);
           return new Promise<never>(() => {});
         }
-        return { storyId: STORY, settings: STABILIZATION_SETTINGS };
+        return { storyId: STORY, settings };
       },
     };
     startCaptureTransport({ view: makeView(), channel, capture });
@@ -498,8 +562,10 @@ function startTheRoad(): {
  * story and waits for Storybook to say it did, so a test that crashes earlier drives the road itself
  * through `startTheRoad().answered` rather than waiting on a screen that is never coming.
  */
-async function answerOneStory(): Promise<CapturedAnswer> {
-  const { answered, channel } = startTheRoad();
+async function answerOneStory(
+  settings?: Partial<typeof STABILIZATION_SETTINGS>
+): Promise<CapturedAnswer> {
+  const { answered, channel } = startTheRoad(settings);
 
   await vi.waitFor(() => expect(channel.emitted('setCurrentStory')).toEqual([{ storyId: STORY }]));
   channel.emit('storyRendered', STORY);
@@ -508,8 +574,10 @@ async function answerOneStory(): Promise<CapturedAnswer> {
 }
 
 /** Walk one story through the real road and hand back what the app recorded. */
-async function walkOneStory(): Promise<CapturedStory> {
-  const answer = await answerOneStory();
+async function walkOneStory(
+  settings?: Partial<typeof STABILIZATION_SETTINGS>
+): Promise<CapturedStory> {
+  const answer = await answerOneStory(settings);
   if (answer.kind !== 'captured') throw new Error(`the story was not captured: ${answer.kind}`);
   return answer;
 }

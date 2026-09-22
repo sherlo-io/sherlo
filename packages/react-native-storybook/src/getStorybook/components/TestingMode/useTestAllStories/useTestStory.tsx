@@ -9,6 +9,7 @@ import { Config } from '../../../../helpers/RunnerBridge/types';
 import { StorybookView } from '../../../../types';
 import { getStorybookChannel, waitForStoryRendered } from './storyRenderedReadiness';
 import { clearMocks } from '../../../../mocking';
+import { STORY_ERROR_FALLBACK_TEXT } from '../../../../constants';
 
 // Readiness defaults, applied SDK-side so an OLD runner that omits
 // these fields still works. Documented in Config (RunnerBridge/types.ts).
@@ -190,7 +191,7 @@ function useTestStory({
         const recordedError = readStoryError(nextSnapshot.storyId);
         const containsError =
           recordedError !== undefined ||
-          fabricMetadata?.texts.includes('Something went wrong rendering your story');
+          fabricMetadata?.texts.includes(STORY_ERROR_FALLBACK_TEXT);
 
         let finalInspectorData = inspectorData;
         let hasNetworkImage = false;
