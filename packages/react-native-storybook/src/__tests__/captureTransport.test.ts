@@ -359,6 +359,45 @@ describe('a capture walks the same story path a test run does', () => {
   });
 });
 
+describe('the app that comes back from the restart is told which story to show', () => {
+  it('re-tells the app once its own default selection has overwritten the first telling, and does not stop until the story it asked for is the one that actually rendered', async () => {
+    // A capture's restarted app has no `initialSelection` to land on (see the file header): it boots
+    // onto a placeholder and runs its OWN default selection to get somewhere. The first
+    // `setCurrentStory` this test's road sends can lose that race - which looks, from here, exactly
+    // like silence: no storyRendered arrives for it, not ever, not because nothing happened but
+    // because the app's own default selection undid it. A single telling that only waits would end
+    // exactly where the real device did: the story browser's own empty state, `storyRendered` never
+    // fired.
+    const { answered, channel } = startTheRoad();
+
+    await vi.waitFor(() =>
+      expect(channel.emitted('setCurrentStory')).toEqual([{ storyId: STORY }])
+    );
+    // Nothing answers the first telling - the same silence a lost race leaves behind on a real
+    // device. If the app only asked once, it would still be asleep waiting for a render that is
+    // never coming for this asking.
+
+    // The retry lands after whatever was racing it the first time has already settled, so this
+    // second telling has nothing left to lose to - and this time the app reports it rendered.
+    await vi.waitFor(
+      () =>
+        expect(channel.emitted('setCurrentStory')).toEqual([
+          { storyId: STORY },
+          { storyId: STORY },
+        ]),
+      { timeout: 2000 }
+    );
+    channel.emit('storyRendered', STORY);
+
+    const answer = await answered;
+    if (answer.kind !== 'captured') throw new Error(`the story was not captured: ${answer.kind}`);
+
+    // The capture recorded the story it asked for - not the app's own placeholder, and not a crash
+    // for a story that eventually did render, just not on the first asking.
+    expect(answer.tree).toEqual(RECORDED_TREE);
+  });
+});
+
 describe('a capture needs no config on disk to walk a story', () => {
   it('a capture answers from an app that came back into testing mode with nothing on its disk', async () => {
     // A capture writes nothing to the device before asking for the restart into testing mode (see

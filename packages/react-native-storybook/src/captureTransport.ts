@@ -8,10 +8,21 @@
  * the story to capture with the stabilization settings to use. It walks that story, then asks again,
  * and that next asking - carrying what it just recorded - is its answer to the tool.
  *
- * THE SAME STORY PATH A TEST RUN WALKS, READ AGAIN. Put the story on screen through Storybook's own
- * channel, wait for it to render, close the last-frame gap, stabilize, and read the view tree - the
- * same steps the runner drives, told over a socket rather than the runner's file and answered over
- * the same socket rather than the runner's file. That is the whole of the difference.
+ * THE SAME STORY PATH A TEST RUN WALKS, READ AGAIN - WITH ONE STEP A RUN NEVER TAKES. A run restarts
+ * once per story, so it never has to move Storybook off a story already on screen: the native side
+ * hands the story it wants as `initialSelection`, and Storybook lands on it the moment it boots. A
+ * capture restarts once and then walks MANY stories in the SAME boot, so after the first it has no
+ * restart left to spend - moving to the next story has to happen through Storybook's own channel, the
+ * same way `sherlo open` moves a story that is already showing. Wait for it to render, close the
+ * last-frame gap, stabilize, and read the view tree - THAT part is the run's own steps, told over a
+ * socket rather than the runner's file and answered over the same socket rather than the runner's file.
+ *
+ * THE FIRST STORY OF A SESSION HAS NO INITIAL SELECTION TO LAND ON. A capture writes nothing to disk
+ * before it restarts (see below), so the native side has no story to hand over as `initialSelection` -
+ * Storybook boots onto its own placeholder, which names no real story, and runs its own default
+ * selection to get there. That default selection is what a capture has to move Storybook OFF of for
+ * story number one too, over the exact same channel it uses for every story after - not a special
+ * case, just the first race this file's retry already has to win (see waitForTheStoryOnScreen).
  *
  * THE TREE STARTS WHERE THE RUN'S TREE STARTS. The app's window holds more than the story: Sherlo's
  * own frame, Storybook's, the story view Storybook wraps a story in. A test run collapses all of it
@@ -83,6 +94,15 @@ const RETRY_AFTER_SILENCE_MS = 2000;
 
 /** How long a test run waits for STORY_RENDERED before the scrollable fallback. A capture has no fallback. */
 const STORY_RENDERED_TIMEOUT_MS = 5000;
+
+/**
+ * How often a capture repeats "show this story" over the channel while it has not yet been told the
+ * story rendered - not a poll for a reading that already exists somewhere, but a retry of an act that
+ * can lose a one-time race against the restarted app's own default selection (see the file header).
+ * Short relative to STORY_RENDERED_TIMEOUT_MS, so a race lost once still leaves room to be told again
+ * and win the next one well inside the same ceiling a single telling already had.
+ */
+const SELECT_STORY_RETRY_INTERVAL_MS = 250;
 
 /** How long a test run lets the paint barrier run before the stability loop proceeds. */
 const PAINT_BARRIER_TIMEOUT_MS = 1000;
@@ -364,7 +384,18 @@ async function captureTheStory({
   }
 }
 
-/** Put the story on screen and wait until it has rendered and painted, as a test run does. */
+/**
+ * Put the story on screen and wait until it has rendered and painted, as a test run does.
+ *
+ * THE FIRST TELLING CAN LOSE A RACE THAT ONLY EXISTS ON A CAPTURE'S RESTART. Storybook is booting up
+ * this same instant, with no `initialSelection` to land on (see the file header) - so this call and
+ * Storybook's own default-selection effect are both trying to decide what is on screen, and whichever
+ * finishes last wins. A capture told once and asleep for STORY_RENDERED has no way to tell the two
+ * outcomes apart: "the app has not gotten to it yet" and "the app already overwrote it" both look like
+ * silence. So this keeps telling it again - not merely once, and not only for the first story of a
+ * session - every SELECT_STORY_RETRY_INTERVAL_MS until STORY_RENDERED names this exact story, which is
+ * the one signal that says the race is over and nothing is going to move Storybook off of it again.
+ */
 async function waitForTheStoryOnScreen({
   storyId,
   channel,
@@ -376,18 +407,33 @@ async function waitForTheStoryOnScreen({
   // read here - that absence is a normal state, not an error, and falls back to the SDK's own
   // defaults rather than throwing.
   const config = SherloModule.getConfigOrDefault();
+  const timeoutMs = config.storyRenderedTimeoutMs ?? STORY_RENDERED_TIMEOUT_MS;
+  const startedAt = Date.now();
 
   // The story was handed over by name; put it on screen the way Storybook moves between stories,
-  // then wait for it to be reported rendered.
+  // then wait for it to be reported rendered - re-telling it, inside the same overall ceiling a
+  // single telling already had, until it is.
   channel.emit(SET_CURRENT_STORY, { storyId });
-  await waitForStoryRendered({
+  let readiness = await waitForStoryRendered({
     storyId,
-    timeoutMs: config.storyRenderedTimeoutMs ?? STORY_RENDERED_TIMEOUT_MS,
+    timeoutMs: Math.min(SELECT_STORY_RETRY_INTERVAL_MS, timeoutMs),
     channel,
   });
 
+  while (!readiness.rendered && Date.now() - startedAt < timeoutMs) {
+    channel.emit(SET_CURRENT_STORY, { storyId });
+    const remainingMs = Math.max(timeoutMs - (Date.now() - startedAt), 0);
+    readiness = await waitForStoryRendered({
+      storyId,
+      timeoutMs: Math.min(SELECT_STORY_RETRY_INTERVAL_MS, remainingMs),
+      channel,
+    });
+  }
+
   // Close the last-frame gap before stabilizing, best-effort: the stability loop runs afterwards
-  // regardless.
+  // regardless - the same fallthrough a run itself takes when STORY_RENDERED never came (see
+  // awaitStoryReadyAndPaint), so a story that genuinely never rendered is stabilized and recorded
+  // rather than left to hang.
   await SherloModule.awaitFrameCommit(
     config.paintBarrierTimeoutMs ?? PAINT_BARRIER_TIMEOUT_MS
   ).catch(() => false);
