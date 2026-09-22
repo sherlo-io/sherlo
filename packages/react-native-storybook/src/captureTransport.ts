@@ -99,6 +99,27 @@ const METADATA_TIMEOUT_MS = 2000;
 /** How often the wait above re-checks, between one short wait and the next. */
 const METADATA_POLL_INTERVAL_MS = 10;
 
+/**
+ * How long a capture keeps re-reading the inspector, once the app's own reading already names the
+ * story, for the STORY'S OWN VIEWS to actually be in the tree the inspector answers with - not
+ * merely for the app to have reported the story rendered.
+ *
+ * TWO DIFFERENT CLOCKS, NOT ONE. METADATA_TIMEOUT_MS above survives a reading that has not yet
+ * caught up to this story; this ceiling survives a DIFFERENT gap one clock later. The app's
+ * published reading is built from the fiber tree, where the story exists as soon as JavaScript has
+ * rendered it. The inspector answers with the NATIVE view hierarchy, where the story's views do not
+ * exist until the host views are mounted. A reading can already name the story while the inspector
+ * still answers with nothing past the app's shell - most of all on the first capture after a
+ * restart, the exact condition METADATA_TIMEOUT_MS exists for one clock earlier.
+ *
+ * Sized the same way: what this has to survive is native mounting work queued behind other work on
+ * a loaded device, not the race itself, which is normally over within a frame or two.
+ */
+const STORY_VIEWS_TIMEOUT_MS = 2000;
+
+/** How often the wait above re-reads the inspector, between one poll and the next. */
+const STORY_VIEWS_POLL_INTERVAL_MS = 10;
+
 /** What a story threw while rendering, as the app reports it to the bundler. */
 export type StoryThrew = { name: string; message: string };
 
@@ -403,24 +424,57 @@ type RecordedStory = {
 /**
  * Read the story off the native inspector, retrying the way a test run does.
  *
- * THE METADATA IS READ FIRST, AND THE INSPECTOR IS READ ONLY ONCE IT NAMES THE STORY - not the other
- * way around. prepareInspectorData pairs the two readings by native tag
- * (fabricMetadata.viewProps[node.id]), so they only describe the same view tree when they are taken
- * at the same moment. Reading the inspector first and then waiting on the metadata would read the
- * tree at one instant and re-root that older tree with a newer reading of a different instant -
- * exactly the gap metadataOfTheApp exists to close, reopened one line below it. Waiting on the
- * metadata first and reading the inspector immediately after makes the two adjacent by construction
- * instead of by luck.
+ * THE METADATA IS READ FIRST, AND THE INSPECTOR IS RE-READ UNTIL ITS OWN TREE HOLDS THE STORY - not
+ * merely once, and not merely once the metadata names it. prepareInspectorData pairs the two
+ * readings by native tag (fabricMetadata.viewProps[node.id]), so they only describe the same view
+ * tree when the inspector's own tree actually contains the view that tag names. The metadata can
+ * already name the story - JavaScript has rendered it - while the inspector still answers with the
+ * app's shell, because the native views for that story have not mounted yet (see
+ * STORY_VIEWS_TIMEOUT_MS below). Reading the inspector once and trusting a metadata match alone
+ * would re-root against a tree with no such node in it - the same window-instead-of-story bug
+ * metadataOfTheApp already closes on its own clock, reopened one clock later.
  */
 async function readTheStory(storyId: string): Promise<RecordedStory> {
   const metadata = await metadataOfTheApp(storyId);
-  const inspectorData = await inspectorDataOfTheApp();
+  const inspectorData = await inspectorDataOfTheApp(storyId, metadata);
 
   return theStorysOwnTree(inspectorData, metadata, storyId);
 }
 
-/** Read the app's whole window off the native inspector, retrying the way a test run does. */
-async function inspectorDataOfTheApp(): Promise<InspectorData> {
+/**
+ * Read the app's whole window off the native inspector, retrying the way a test run does - and,
+ * once the app's own reading already names this story, re-reading until the story's own views are
+ * actually in that window rather than reading once and hoping.
+ *
+ * NO METADATA, OR A BROKEN STORY, SKIPS THE SECOND WAIT. theStorysOwnTree never re-roots either case
+ * (below), so polling for a node it will never look for would spend the ceiling for nothing - the
+ * same reasoning theStoryIsBroken is read for everywhere else in this file.
+ *
+ * A TIMEOUT HERE IS NOT A CRASH. Giving up leaves inspectorData exactly as it last answered, and the
+ * honest answer is still what that was: theStorysOwnTree re-roots it if the story's node turned out
+ * to be there, and records the whole window if not.
+ */
+async function inspectorDataOfTheApp(
+  storyId: string,
+  metadata: ReturnType<typeof collectAppMetadata>
+): Promise<InspectorData> {
+  let inspectorData = await theInspectorsOwnAnswer();
+  if (!metadata || theStoryIsBroken(storyId)) return inspectorData;
+
+  const startedAt = Date.now();
+  while (
+    !theStorysViewsAreInTheTree(inspectorData, metadata, storyId) &&
+    Date.now() - startedAt < STORY_VIEWS_TIMEOUT_MS
+  ) {
+    await delay(STORY_VIEWS_POLL_INTERVAL_MS);
+    inspectorData = await theInspectorsOwnAnswer();
+  }
+
+  return inspectorData;
+}
+
+/** Keep asking the native inspector until it answers at all, giving up after INSPECTOR_TIMEOUT_MS. */
+async function theInspectorsOwnAnswer(): Promise<InspectorData> {
   let inspectorData: InspectorData | undefined;
   const startedAt = Date.now();
 
@@ -432,6 +486,31 @@ async function inspectorDataOfTheApp(): Promise<InspectorData> {
   }
 
   return inspectorData;
+}
+
+/**
+ * Whether the inspector's OWN tree - the native view hierarchy it just answered with, not the app's
+ * published reading of it - already holds the view Storybook wraps this story in: the same view
+ * prepareInspectorData re-roots the tree at. Checked by the same two conditions prepareInspectorData
+ * uses to find that node (properties.testID === storyId, and the node has at least one child), so a
+ * tree this accepts is a tree prepareInspectorData can actually re-root.
+ */
+function theStorysViewsAreInTheTree(
+  inspectorData: InspectorData,
+  metadata: ReturnType<typeof collectAppMetadata>,
+  storyId: string
+): boolean {
+  if (!metadata) return false;
+  const viewProps = metadata.viewProps;
+
+  function nodeIsTheStorysRoot(node: InspectorDataNode): boolean {
+    if (viewProps[node.id]?.testID === storyId) {
+      return Array.isArray(node.children) && node.children.length > 0;
+    }
+    return (node.children ?? []).some(nodeIsTheStorysRoot);
+  }
+
+  return nodeIsTheStorysRoot(inspectorData.viewHierarchy);
 }
 
 /**
