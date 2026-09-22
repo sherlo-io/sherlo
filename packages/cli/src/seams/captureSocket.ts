@@ -11,10 +11,6 @@
  * A SEAM OF ITS OWN, NOT THE LETTERBOX. The letterbox remembers one story and hands it to whoever
  * asks; a capture is a conversation - settings one way, a whole view tree the other - and the two
  * roads fail differently.
- *
- * PLAN-LAYER ONLY, SAID OUT LOUD. The live road is not built yet: {@link liveCaptureSocket} refuses
- * by name. Only the posed road exists, so the screens can be drawn and judged before anything is
- * built. Building the live road is the epic's own work, not a gap this file hides.
  */
 import type { PosedCapture, PosedView } from '../commands/pose/readPose';
 import type { CapturedView } from '../render/capturedStory';
@@ -61,12 +57,34 @@ export type CaptureSocket = {
   }): Promise<CaptureResult>;
 };
 
+/** The one address the SDK adds to the bundler; the bundler's half of it serves this path. */
+const CAPTURE_PATH = '/sherlo/capture';
+
+/**
+ * How long the command stays on the line for the app to answer. A capture restarts the app and
+ * waits for a story to settle, so this is a generous ceiling rather than a second timeout: the app
+ * answers the moment it has the tree, and the only real delay is an app that died mid-capture.
+ */
+const CAPTURE_PATIENCE_MS = 60_000;
+
+/** The shipped answers: a real bundler, with a real app attached to it. */
 export const liveCaptureSocket: CaptureSocket = {
-  captureStory: async () => {
-    throw new Error(
-      'sherlo capture is plan-layer only: the socket to the running app is not built yet. ' +
-        'Its screens are drawn from poses.'
-    );
+  captureStory: async ({ storyId, port, settings }) => {
+    const answer = await askTheCaptureSocket({
+      port,
+      posting: { storyId, settings },
+      patienceMs: CAPTURE_PATIENCE_MS,
+    });
+
+    if (answer.kind === 'nothing-on-the-port') return { kind: 'no-bundler' };
+    if (answer.kind === 'not-in-sherlos-words') return { kind: 'no-app' };
+    if (answer.kind === 'gave-up-waiting') {
+      // The app was handed the story and then stopped answering - a fatal error, a native crash,
+      // or the app being closed. Nothing more can be said about it.
+      return { kind: 'crashed', storyId };
+    }
+
+    return readCaptureAnswer(answer.said, storyId);
   },
 };
 
@@ -84,6 +102,159 @@ export function installCaptureSocket(next: CaptureSocket): () => void {
   return () => {
     installed = previous;
   };
+}
+
+/* ========================================================================== */
+/* Talking to the address                                                     */
+/* ========================================================================== */
+
+/** What came back from the port. */
+type CaptureSocketAnswer =
+  /** Nothing accepted a connection. */
+  | { kind: 'nothing-on-the-port' }
+  /** Something answered, and not in words this tool can read: a bundler nobody routed through
+   * Sherlo, or a different server on the port entirely. */
+  | { kind: 'not-in-sherlos-words' }
+  /** Nothing answered before the tool stopped listening. */
+  | { kind: 'gave-up-waiting' }
+  /** The relay answered, and here is what it said. */
+  | { kind: 'said'; said: unknown };
+
+/**
+ * Post one capture to the relay and hold the line until the app answers. The relay keeps the post
+ * open across the app's restart into testing mode, so the only waits here are a port with nothing
+ * on it and an app that never comes back.
+ */
+async function askTheCaptureSocket({
+  port,
+  posting,
+  patienceMs,
+}: {
+  port: number;
+  posting: unknown;
+  patienceMs: number;
+}): Promise<CaptureSocketAnswer> {
+  let response: Response;
+
+  try {
+    response = await fetch(`http://localhost:${port}${CAPTURE_PATH}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(posting),
+      signal: AbortSignal.timeout(patienceMs),
+    });
+  } catch (error) {
+    if (isNothingOnThePort(error)) return { kind: 'nothing-on-the-port' };
+    if ((error as Error | undefined)?.name === 'TimeoutError') return { kind: 'gave-up-waiting' };
+    return { kind: 'not-in-sherlos-words' };
+  }
+
+  if (!response.ok) return { kind: 'not-in-sherlos-words' };
+
+  try {
+    return { kind: 'said', said: await response.json() };
+  } catch (_error) {
+    return { kind: 'not-in-sherlos-words' };
+  }
+}
+
+/**
+ * `localhost` is two addresses on most machines, so a refusal can arrive as one code or as a list
+ * of them - one per address tried. Both shapes mean the same thing: nothing accepted a connection.
+ */
+function isNothingOnThePort(error: unknown): boolean {
+  const cause = (error as { cause?: { code?: unknown; errors?: { code?: unknown }[] } } | undefined)
+    ?.cause;
+  const codes = [cause?.code, ...(cause?.errors ?? []).map((one) => one.code)];
+
+  return codes.some((code) => code === 'ECONNREFUSED' || code === 'ENOTFOUND');
+}
+
+/**
+ * What the relay said about the story it was asked to capture, as this seam's answer.
+ *
+ * The story id is the one that was POSTED rather than the one that came back, for the same reason
+ * the letterbox reads it that way: a caller reads the answer about the id they typed.
+ */
+function readCaptureAnswer(said: unknown, storyId: string): CaptureResult {
+  const answer = said as {
+    kind?: unknown;
+    known?: unknown;
+    settled?: unknown;
+    threw?: unknown;
+    error?: unknown;
+    tree?: unknown;
+  };
+
+  if (answer.kind === 'no-app') return { kind: 'no-app' };
+
+  if (answer.kind === 'no-such-story') {
+    const known = Array.isArray(answer.known) ? answer.known.filter(isString) : [];
+    return { kind: 'no-such-story', known };
+  }
+
+  if (answer.kind === 'crashed') {
+    const error = readError(answer.error);
+    return { kind: 'crashed', storyId, ...(error && { error }) };
+  }
+
+  if (answer.kind === 'captured') {
+    const threw = readError(answer.threw);
+    return {
+      kind: 'captured',
+      storyId,
+      settled: readSettled(answer.settled),
+      ...(threw && { threw }),
+      tree: readCapturedView(answer.tree),
+    };
+  }
+
+  return { kind: 'no-app' };
+}
+
+/** How the stabilization ended, or `timed-out` when the relay said nothing readable about it. */
+function readSettled(value: unknown): { ms: number; frames: number } | 'timed-out' {
+  if (value === 'timed-out') return 'timed-out';
+  const settled = value as { ms?: unknown; frames?: unknown } | null | undefined;
+  if (typeof settled?.ms === 'number' && typeof settled?.frames === 'number') {
+    return { ms: settled.ms, frames: settled.frames };
+  }
+  return 'timed-out';
+}
+
+/**
+ * What the app said its story threw, or what it said crashed, in its own words - or nothing when
+ * it said nothing readable. The error's own name and message are the whole of it.
+ */
+function readError(said: unknown): { name: string; message: string } | undefined {
+  const error = said as { name?: unknown; message?: unknown } | null | undefined;
+  if (typeof error?.name !== 'string' || typeof error?.message !== 'string') return undefined;
+  return { name: error.name, message: error.message };
+}
+
+/**
+ * One view tree from the wire, read the way the screen needs it: every node's lists filled in, and
+ * only the fields that are there kept. A node the app did not name has no component names, and a
+ * text view that says nothing has no text.
+ */
+function readCapturedView(value: unknown): CapturedView {
+  const view = value as
+    | { primitive?: unknown; components?: unknown; text?: unknown; children?: unknown }
+    | null
+    | undefined;
+
+  return {
+    primitive: typeof view?.primitive === 'string' ? view.primitive : '',
+    components: Array.isArray(view?.components)
+      ? view.components.filter((name): name is string => typeof name === 'string')
+      : [],
+    ...(typeof view?.text === 'string' && { text: view.text }),
+    children: Array.isArray(view?.children) ? view.children.map(readCapturedView) : [],
+  };
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
 }
 
 /* ========================================================================== */

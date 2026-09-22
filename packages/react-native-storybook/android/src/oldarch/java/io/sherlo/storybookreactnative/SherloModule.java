@@ -82,6 +82,14 @@ public class SherloModule extends ReactContextBaseJavaModule {
         moduleCore.closeStorybook();
     }
 
+    /**
+     * Explicitly switches to testing mode.
+     */
+    @ReactMethod
+    public void openTesting() {
+        moduleCore.openTesting();
+    }
+
     // ==== Error Reporting ====
 
     /**
