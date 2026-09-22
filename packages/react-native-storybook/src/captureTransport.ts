@@ -17,13 +17,16 @@
  * a capture needs neither, so it stabilizes with saveScreenshots off and never touches a file. The
  * view tree comes straight from the native inspector, over the socket, in memory the whole way.
  *
- * THE TREE IS A SHORT ACCOUNT. A capture has no runner and therefore no fabric metadata to name
- * each component, so every node reports its native class and nothing else - which is exactly what
- * the command prints until `--json` is asked for.
+ * THE TREE NAMES THE APP'S COMPONENTS. Every node reports its native class, and beside it the
+ * names of the app's components that render that view, outermost first - so the command prints
+ * `SampleLine › Text` where a bare `Text` would leave a developer guessing (./componentNames).
+ * The names come from the app's own functions, so a view the app did not write is nameless, and a
+ * bundle that dropped the names leaves them absent rather than invented.
  */
 import { NativeModules } from 'react-native';
 import SherloModule from './SherloModule';
 import { InspectorData, InspectorDataNode, StorybookView } from './types';
+import { componentNamesByNativeTag, type ComponentNamesByNativeTag } from './componentNames';
 import { readStoryError } from './getStorybook/storyErrorRegistry';
 import {
   startStoryRenderedTracking,
@@ -58,7 +61,11 @@ const INSPECTOR_TIMEOUT_MS = 10000;
 /** What a story threw while rendering, as the app reports it to the bundler. */
 export type StoryThrew = { name: string; message: string };
 
-/** One view in the tree a capture records - the native class of every node, and no names. */
+/**
+ * One view in the tree a capture records - the native class of the node, and the names of the
+ * app's components that render it, outermost first. No names means the app did not write this
+ * view, or its bundle did not keep the names.
+ */
 export type CapturedViewTree = {
   primitive: string;
   components: string[];
@@ -293,15 +300,23 @@ async function readTheViewTree(): Promise<CapturedViewTree> {
     inspectorData = await SherloModule.getInspectorData().catch(() => undefined);
   }
 
-  return captureViewTree(inspectorData.viewHierarchy);
+  return captureViewTree(inspectorData.viewHierarchy, componentNamesByNativeTag());
 }
 
-/** One view tree as the command prints it: the native class of every node, and no names. */
-function captureViewTree(node: InspectorDataNode): CapturedViewTree {
+/**
+ * One view tree as the command prints it: the native class of every node, and the app's component
+ * names above it. The names are read from the fibers the story was rendered from, keyed by the
+ * same native tag the inspector reports for the view, so a view the app did not render is simply
+ * absent from that reading and comes out nameless.
+ */
+function captureViewTree(
+  node: InspectorDataNode,
+  names: ComponentNamesByNativeTag
+): CapturedViewTree {
   return {
     primitive: node.className,
-    components: [],
-    children: (node.children ?? []).map(captureViewTree),
+    components: names.get(node.id) ?? [],
+    children: (node.children ?? []).map((child) => captureViewTree(child, names)),
   };
 }
 

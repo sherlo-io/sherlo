@@ -21,6 +21,7 @@ import {
 } from './interactiveMockActivation';
 import { startOpenStoryChannel, stopOpenStoryChannel } from '../openStoryChannel';
 import { startCaptureTransport } from '../captureTransport';
+import { StoryOfTheApp } from '../storyOfTheApp';
 
 let isSdkCompatible = true;
 if (SherloModule.getMode() === 'testing') {
@@ -68,7 +69,9 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
           decorators: [
             (Story: any, context: any) => (
               <SherloStoryErrorBoundary storyId={context.id}>
-                <Story />
+                <StoryOfTheApp>
+                  <Story />
+                </StoryOfTheApp>
               </SherloStoryErrorBoundary>
             ),
             ...(annotations.decorators ?? []),
