@@ -13,20 +13,44 @@
  * same steps the runner drives, told over a socket rather than the runner's file and answered over
  * the same socket rather than the runner's file. That is the whole of the difference.
  *
+ * THE TREE STARTS WHERE THE RUN'S TREE STARTS. The app's window holds more than the story: Sherlo's
+ * own frame, Storybook's, the story view Storybook wraps a story in. A test run collapses all of it
+ * by handing the inspector's tree to the one step that knows where a story begins
+ * (./getStorybook/components/TestingMode/useTestAllStories/prepareInspectorData), and a capture
+ * records the same tree, so it goes through that same step rather than a second reading of its own.
+ * That step needs the app's view metadata, which the run holds as a React ref and a capture, having
+ * no renderer, reads from the seam the renderer publishes it on (./appMetadata).
+ *
  * NOTHING IS READ OR WRITTEN IN STORAGE. A test run saves screenshots and writes the protocol file;
  * a capture needs neither, so it stabilizes with saveScreenshots off and never touches a file. The
  * view tree comes straight from the native inspector, over the socket, in memory the whole way.
  *
- * THE TREE NAMES THE APP'S COMPONENTS. Every node reports its native class, and beside it the
- * names of the app's components that render that view, outermost first - so the command prints
- * `SampleLine › Text` where a bare `Text` would leave a developer guessing (./componentNames).
+ * THE TREE NAMES THE APP'S COMPONENTS. Every node reports the primitive it is drawn by, and beside
+ * it the names of the app's components that render that view, outermost first - so the command
+ * prints `SampleLine › Text` where a bare `Text` would leave a developer guessing (./componentNames).
  * The names come from the app's own functions, so a view the app did not write is nameless, and a
  * bundle that dropped the names leaves them absent rather than invented.
+ *
+ * THE PRIMITIVE IS ONE OF THREE WORDS. A view is drawn by a native class, and the class is named
+ * for the platform rather than for the developer who reads the tree: `ReactTextView` on Android,
+ * `RCTText` on both. What the command prints is `View`, `Text`, `Image` - the words the tool's own
+ * screen documents - so every class is read through one table, below.
+ *
+ * TWO FACTS BESIDE THE TREE, because a developer cannot see either from where they are sitting: how
+ * many screenfuls the story is, so a story that scrolls past the first screen is not mistaken for
+ * one that fits, and whether it is loaded over the network - which a cloud capture depends on, and
+ * which a developer cannot do anything about from where they are. Both are read the way the test
+ * run reads them and from the same places: the native side is asked to measure the story, and the
+ * network image is the second answer the run's own tree preparation gives beside the tree it
+ * prepares.
  */
 import { NativeModules } from 'react-native';
 import SherloModule from './SherloModule';
 import { InspectorData, InspectorDataNode, StorybookView } from './types';
 import { componentNamesByNativeTag, type ComponentNamesByNativeTag } from './componentNames';
+import { collectAppMetadata } from './appMetadata';
+import { STORY_ERROR_FALLBACK_TEXT } from './constants';
+import { prepareInspectorData } from './getStorybook/components/TestingMode/useTestAllStories/prepareInspectorData';
 import { readStoryError } from './getStorybook/storyErrorRegistry';
 import {
   startStoryRenderedTracking,
@@ -80,6 +104,10 @@ export type CapturedAnswer =
       /** How the stabilization ended: settled after so long over so many frames, or gave up. */
       settled: { ms: number; frames: number } | 'timed-out';
       threw?: StoryThrew;
+      /** How many screenfuls the story was captured in - 1 is a story that fits the screen. */
+      parts: number;
+      /** Whether any view in the story loads an image over the network. */
+      hasNetworkImage: boolean;
       tree: CapturedViewTree;
     }
   | {
@@ -91,12 +119,20 @@ export type CapturedAnswer =
 /**
  * The stabilization numbers a capture is handed, as the runner writes them today. Every one is
  * optional here because the app falls back to its own config when a value is missing.
+ *
+ * threshold AND includeAA ARE HERE FOR THE SAME REASON AS THE TIMINGS. They decide whether two
+ * frames count as the same frame, so they decide whether a story is reported settled or never
+ * settled - the ending a developer reads. Falling back to the app's own config would be falling back
+ * to the SDK's defaults on an app that has never taken a test run, which is the app a capture runs
+ * on, and a capture would then call a story never-settled that the run settles.
  */
 export type CaptureSettings = {
   requiredMatches?: number;
   minScreenshotsCount?: number;
   intervalMs?: number;
   timeoutMs?: number;
+  threshold?: number;
+  includeAA?: boolean;
 };
 
 /** What the bundler hands an app that has been waiting: the instruction to act on. */
@@ -226,10 +262,27 @@ async function captureTheStory({
   try {
     await waitForTheStoryOnScreen({ storyId, channel });
     const settled = await stabilizeTheStory(settings);
-    const tree = await readTheViewTree();
+
+    // Asking how many screenfuls the story is puts it back at its top, so it is asked before the
+    // tree is read: the tree a capture records is the story as it renders from the beginning.
+    //
+    // A BROKEN STORY IS NOT MEASURED, because a run does not measure one: the run reads the story's
+    // error before it measures anything, so the story it hands over counts as one screenful however
+    // tall the view on screen is. Measuring the error view instead would tell the developer their
+    // story scrolls when what scrolls is the fallback drawn in its place.
+    const parts = theStoryIsBroken(storyId) ? 1 : await screenfulsOfTheStory();
+    const recorded = await readTheStory(storyId);
 
     const threw = whatTheStoryThrew(storyId);
-    return { kind: 'captured', storyId, settled, ...(threw && { threw }), tree };
+    return {
+      kind: 'captured',
+      storyId,
+      settled,
+      ...(threw && { threw }),
+      parts,
+      hasNetworkImage: recorded.hasNetworkImage,
+      tree: recorded.tree,
+    };
   } catch (error) {
     const report = readError(error);
     return { kind: 'crashed', storyId, ...(report && { error: report }) };
@@ -265,6 +318,11 @@ async function waitForTheStoryOnScreen({
 /**
  * Run the stability loop the way a test run does, and say how it ended. A capture saves no
  * screenshots, so saveScreenshots is off and nothing is written to the device.
+ *
+ * EVERY value the tool sent is used, and the app's own config is read only for what it did not send.
+ * That order matters most for threshold and includeAA: they are what decide whether the screen counts
+ * as settled, so taking them from the app instead would let a capture disagree with the run about the
+ * ending itself.
  */
 async function stabilizeTheStory(
   settings: CaptureSettings | undefined
@@ -281,15 +339,48 @@ async function stabilizeTheStory(
     settings?.intervalMs ?? stabilization.intervalMs,
     settings?.timeoutMs ?? stabilization.timeoutMs,
     false, // a capture records a tree, not screenshots
-    stabilization.threshold,
-    stabilization.includeAA
+    settings?.threshold ?? stabilization.threshold,
+    settings?.includeAA ?? stabilization.includeAA
   );
 
   return isStable ? { ms: Date.now() - startedAt, frames } : 'timed-out';
 }
 
-/** Read the view tree straight from the native inspector, retrying the way a test run does. */
-async function readTheViewTree(): Promise<CapturedViewTree> {
+/**
+ * How many screenfuls the story is, asked of the scroll view the story is drawn in.
+ *
+ * A test run splits a story that scrolled past its first screen into parts, and the tool tells the
+ * developer when a story it captured would have been split - so the count has to come from the same
+ * place the run's scrolling does. The native side only reports the story's size while it is
+ * scrolling it, so this asks for the checkpoint at the very top: the story is where it already is,
+ * and the answer carries the screen's height and the story's own.
+ *
+ * One screenful whenever the story does not scroll, and whenever the native side answered with no
+ * measurements - a story that cannot scroll is one screenful by definition, and a number invented
+ * from nothing would be worse than saying nothing.
+ */
+async function screenfulsOfTheStory(): Promise<number> {
+  const scrollable = await SherloModule.isScrollable().catch(() => ({ scrollable: false }));
+  if (!scrollable.scrollable) return 1;
+
+  const measured = await SherloModule.scrollToCheckpoint(0, 0, 0).catch(() => undefined);
+  if (!measured || measured.viewportPx <= 0 || measured.contentPx <= 0) return 1;
+
+  return Math.ceil(measured.contentPx / measured.viewportPx);
+}
+
+/**
+ * What a capture recorded of the story: its view tree, and whether anything on screen is loaded
+ * over the network. Both are read off the one step that prepares the tree, so a capture and a test
+ * run cannot answer differently about the same story.
+ */
+type RecordedStory = {
+  tree: CapturedViewTree;
+  hasNetworkImage: boolean;
+};
+
+/** Read the story off the native inspector, retrying the way a test run does. */
+async function readTheStory(storyId: string): Promise<RecordedStory> {
   let inspectorData: InspectorData | undefined;
   const startedAt = Date.now();
 
@@ -300,24 +391,119 @@ async function readTheViewTree(): Promise<CapturedViewTree> {
     inspectorData = await SherloModule.getInspectorData().catch(() => undefined);
   }
 
-  return captureViewTree(inspectorData.viewHierarchy, componentNamesByNativeTag());
+  return theStorysOwnTree(inspectorData, storyId);
 }
 
 /**
- * One view tree as the command prints it: the native class of every node, and the app's component
- * names above it. The names are read from the fibers the story was rendered from, keyed by the
- * same native tag the inspector reports for the view, so a view the app did not render is simply
- * absent from that reading and comes out nameless.
+ * The story a capture records, starting where a test run's story starts.
+ *
+ * The inspector answers with the app's whole window, which holds Sherlo's own frame, Storybook's,
+ * and the view Storybook wraps a story in. The one step that knows where the story begins among all
+ * of that is the step the test run hands its tree to (prepareInspectorData): it re-points the tree
+ * at the view carrying the story's own id, names every view by the class the fiber drew it by, and
+ * says whether anything on screen is loaded over the network. A capture records the same story, so
+ * it takes all three from that one step rather than reading the window a second way of its own.
+ *
+ * The step needs the app's view metadata, which a run holds as a React ref and a capture, having no
+ * renderer, reads from the seam the renderer publishes it on (./appMetadata). With no metadata
+ * published - nothing rendered this app the way a run renders it - there is no story to start at
+ * and no image to report: what the inspector answered is recorded as it stands, the whole window
+ * rather than the story.
+ *
+ * A BROKEN STORY IS NOT RE-ROOTED, because a run does not re-root one. The run skips that step
+ * whenever the story contains an error and keeps the inspector's tree as it answered it
+ * (useTestStory), so a capture that prepared a thrown story would record a tree no run ever makes -
+ * more thorough than the run at the one moment the story is broken, which is the opposite of what a
+ * capture is for. Both states that make a run skip it are read here: the error the boundary recorded
+ * and the words that stand in for a story that failed to render (see theStoryIsBroken).
+ */
+function theStorysOwnTree(inspectorData: InspectorData, storyId: string): RecordedStory {
+  const metadata = collectAppMetadata();
+
+  if (!metadata || theStoryIsBroken(storyId)) {
+    return {
+      tree: captureViewTree(inspectorData.viewHierarchy, componentNamesByNativeTag()),
+      hasNetworkImage: false,
+    };
+  }
+
+  const prepared = prepareInspectorData(inspectorData, metadata, storyId);
+
+  return {
+    tree: captureViewTree(prepared.inspectorData.viewHierarchy, componentNamesByNativeTag()),
+    hasNetworkImage: prepared.hasNetworkImage,
+  };
+}
+
+/**
+ * Whether the story on screen is broken, by the run's own two readings of it (useTestStory gives the
+ * same two to `containsError`): the error the boundary recorded for the story, or the words that
+ * stand in for a story that failed to render.
+ *
+ * BOTH ARE READ BECAUSE EITHER CAN BE TRUE WITHOUT THE OTHER. Sherlo's own boundary records the
+ * error and then throws it on, so an error the next boundary out is the one that draws leaves the
+ * registry empty while the words are on screen. A capture that read only one of the two would go on
+ * to re-root a story a run would leave alone, which is the divergence this gate exists to close.
+ *
+ * `false` while no app has published its views, which is not this: a story nothing rendered the way
+ * a run renders it is left alone for a plainer reason (see theStorysOwnTree).
+ */
+function theStoryIsBroken(storyId: string): boolean {
+  const metadata = collectAppMetadata();
+
+  return (
+    readStoryError(storyId) !== undefined ||
+    (metadata?.texts.includes(STORY_ERROR_FALLBACK_TEXT) ?? false)
+  );
+}
+
+/**
+ * One view tree as the command prints it: the primitive the view is drawn by, and the app's
+ * component names above it. The names are read from the fibers the story was rendered from, keyed
+ * by the same native tag the inspector reports for the view, so a view the app did not render is
+ * simply absent from that reading and comes out nameless.
  */
 function captureViewTree(
   node: InspectorDataNode,
   names: ComponentNamesByNativeTag
 ): CapturedViewTree {
   return {
-    primitive: node.className,
+    primitive: thePrimitiveTheCommandPrints(node.className),
     components: names.get(node.id) ?? [],
     children: (node.children ?? []).map((child) => captureViewTree(child, names)),
   };
+}
+
+/**
+ * The word the command prints for a view, by the class that draws it.
+ *
+ * A native class is named for the platform, not for the developer reading the tree: Android names
+ * its views after the Java class that draws them (`ReactTextView`), and iOS after its own prefix
+ * (`RCTText`), which is also the name a fiber draws a view by on both platforms. The command
+ * prints `View`, `Text` and `Image`, so the two are paired here.
+ *
+ * AN EXPLICIT TABLE, NOT A STRIPPED PREFIX. The pairings below are the contract between this SDK
+ * and what `sherlo capture` prints, so correcting one is one line here. A view drawn by a class
+ * this table does not pair keeps its own name: a name this file guessed would be worse than a name
+ * a developer can look up, and a primitive invented for an unknown view would be a lie.
+ */
+const PRIMITIVE_BY_DRAWING_CLASS: Record<string, string> = {
+  ReactViewGroup: 'View',
+  ReactTextView: 'Text',
+  ReactImageView: 'Image',
+  ReactScrollView: 'ScrollView',
+
+  RCTView: 'View',
+  RCTText: 'Text',
+  RCTVirtualText: 'Text',
+  RCTImageView: 'Image',
+  RCTScrollView: 'ScrollView',
+};
+
+/** The primitive the command prints for the class a view is drawn by, or nothing when it said none. */
+function thePrimitiveTheCommandPrints(drawingClass: unknown): string {
+  if (typeof drawingClass !== 'string') return '';
+  return PRIMITIVE_BY_DRAWING_CLASS[drawingClass] ?? drawingClass;
 }
 
 /**

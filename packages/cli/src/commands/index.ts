@@ -7,7 +7,6 @@ export { default as capture } from './capture';
 export { default as easBuildOnComplete } from './easBuildOnComplete';
 export { default as fingerprint } from './fingerprint';
 export { default as init } from './init';
-export { default as inspect } from './inspect';
 export { default as open } from './open';
 export { default as projectCreate } from './projectCreate';
 export { default as projectList } from './projectList';

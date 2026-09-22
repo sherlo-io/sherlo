@@ -121,8 +121,8 @@ export type CommandPose = {
    */
   workstation?: PosedWorkstation;
   /**
-   * What the bundler's letterbox answered - the road `sherlo open` and `sherlo inspect` reach the
-   * developer's running app down. THE THIRD OPTIONAL FIELD, and for the same reason as the other
+   * What the bundler's letterbox answered - the road `sherlo open` reaches the developer's running
+   * app down. THE THIRD OPTIONAL FIELD, and for the same reason as the other
    * two: no other command has a running app to talk to, and a machine that only has the pose has
    * no bundler and no app. A pose that states it for a command that never posts to the letterbox
    * is refused; a command that reaches the letterbox with no `letterbox` is refused at run time,
@@ -152,10 +152,26 @@ export type PosedCapture =
   | {
       /** Every story the running app's Storybook knows, by id. */
       stories: string[];
+      /**
+       * The app stopped answering mid-capture - a fatal error or a native crash - and what it said
+       * before it died, when it said anything. An empty object is a crash that said nothing.
+       */
+      crashed: { name?: string; message?: string };
+    }
+  | {
+      /** Every story the running app's Storybook knows, by id. */
+      stories: string[];
       /** How the stabilization ended: settled after so long over so many frames, or gave up. */
       settled: { ms: number; frames: number } | 'timed-out';
       /** What the story threw while rendering, in its own words. Absent for a clean story. */
       threw?: { name: string; message: string };
+      /**
+       * How many screenfuls the story was captured in. Absent says as little as an app that never
+       * mentioned it, which prints the same as `1`: a story that fits the screen.
+       */
+      parts?: number;
+      /** Whether any view in the story loads an image over the network. Absent prints nothing. */
+      hasNetworkImage?: boolean;
       /** The view tree the app read, from the story's own root. */
       tree: PosedView;
     };
@@ -188,8 +204,7 @@ export type PosedLetterbox =
       stories: string[];
       /**
        * What the app reported for the story it was asked for: that it is on screen, or that it
-       * never got there before the wait ran out. Absent for a command that only asks what is
-       * showing rather than changing it.
+       * never got there before the wait ran out. Absent for a post that did not ask to wait.
        */
       rendered?: 'yes' | 'timed-out';
       /**
@@ -198,12 +213,6 @@ export type PosedLetterbox =
        * `rendered: 'yes'` and nowhere else. Absent poses a story that drew cleanly.
        */
       threw?: { name: string; message: string };
-      /**
-       * The story the app says it is showing now, for the command that only asks. Absent poses an
-       * app that is attached and has nothing on screen to name - most often one showing itself
-       * rather than the story browser - which is a different fact from no app being there at all.
-       */
-      showing?: string;
     };
 
 /** The two acts `sherlo init` performs on the machine, as a pose states them. */

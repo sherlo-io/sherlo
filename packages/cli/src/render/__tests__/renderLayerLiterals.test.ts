@@ -813,35 +813,6 @@ const PINS: Pin[] = [
   },
 
   {
-    kind: 'inspected-story',
-    what: 'what `sherlo inspect` prints - one line, the story id and nothing else, because the caller between two edits wants the answer rather than a sentence containing it',
-    segment: {
-      kind: 'inspected-story',
-      state: { kind: 'showing', storyId: 'controls-button--disabled' },
-    },
-    stream: 'stdout',
-    prints: [[`${ESC}[1mcontrols-button--disabled${ESC}[22m`], ['']],
-  },
-
-  {
-    kind: 'inspected-story',
-    what: 'what `sherlo inspect` prints when an app is attached and is not showing a story - not the same ending as no app being there at all, because the developer has already done what that ending would tell them to do',
-    segment: {
-      kind: 'inspected-story',
-      state: { kind: 'not-at-story-browser' },
-    },
-    stream: 'stdout',
-    prints: [
-      [`${ESC}[33m◦${ESC}[39m  The app is attached, and is not showing a story right now`],
-      [''],
-      [
-        `${ESC}[2mIt is showing itself rather than the story browser. \`sherlo open --story <id>\` sends it there.${ESC}[22m`,
-      ],
-      [''],
-    ],
-  },
-
-  {
     kind: 'captured-story',
     what: 'what `sherlo capture` prints for a story that fits one screen - the green head, the settled line, the named tree, and the view count',
     segment: {

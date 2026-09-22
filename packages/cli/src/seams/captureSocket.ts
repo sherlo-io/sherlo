@@ -21,12 +21,24 @@ import type { CapturedView } from '../render/capturedStory';
  * TWO COPIES OF ONE SET OF NUMBERS, and this is the second. The runner writes the same values into
  * the file it hands the app. They are meant to come from Sherlo's API, read by both, and this copy
  * goes away then; until then a change to the runner's numbers must be made here too.
+ *
+ * EVERY SETTING THAT DECIDES WHETHER A STORY SETTLED IS HERE, which is why `threshold` and
+ * `includeAA` are not optional extras: they decide whether two frames count as the same frame, so a
+ * capture that left them to the app's own config would call a story never-settled that a test run
+ * would have settled. The app's config holds the SDK's fallback values on an app that has never taken
+ * a run, which is exactly the app a developer captures on.
+ *
+ * `saveScreenshots` is the one runner setting deliberately left out: the runner sets it true, and a
+ * capture writes nothing to the device, so the app turns it off itself rather than being told to.
+ * There are seven numbers in the runner's file; a capture sends the other six.
  */
 export const STABILIZATION_SETTINGS = {
   requiredMatches: 3,
   minScreenshotsCount: 6,
   intervalMs: 500,
   timeoutMs: 20_000,
+  threshold: 0.02,
+  includeAA: true,
 } as const;
 
 /** What the app answered about the story the command asked it to capture. */
@@ -45,6 +57,13 @@ export type CaptureResult =
       /** How the stabilization ended: settled after so long over so many frames, or gave up. */
       settled: { ms: number; frames: number } | 'timed-out';
       threw?: { name: string; message: string };
+      /**
+       * How many screenfuls the story was captured in - 1 is a story that fits the screen. Absent
+       * when the app said nothing readable about it, which an app older than this field does.
+       */
+      parts?: number;
+      /** Whether any view in the story loads an image over the network. Absent for the same reason. */
+      hasNetworkImage?: boolean;
       tree: CapturedView;
     };
 
@@ -183,6 +202,8 @@ function readCaptureAnswer(said: unknown, storyId: string): CaptureResult {
     settled?: unknown;
     threw?: unknown;
     error?: unknown;
+    parts?: unknown;
+    hasNetworkImage?: unknown;
     tree?: unknown;
   };
 
@@ -200,11 +221,16 @@ function readCaptureAnswer(said: unknown, storyId: string): CaptureResult {
 
   if (answer.kind === 'captured') {
     const threw = readError(answer.threw);
+    const parts = readParts(answer.parts);
     return {
       kind: 'captured',
       storyId,
       settled: readSettled(answer.settled),
       ...(threw && { threw }),
+      ...(parts !== undefined && { parts }),
+      ...(typeof answer.hasNetworkImage === 'boolean' && {
+        hasNetworkImage: answer.hasNetworkImage,
+      }),
       tree: readCapturedView(answer.tree),
     };
   }
@@ -220,6 +246,16 @@ function readSettled(value: unknown): { ms: number; frames: number } | 'timed-ou
     return { ms: settled.ms, frames: settled.frames };
   }
   return 'timed-out';
+}
+
+/**
+ * How many screenfuls the app said the story was, or nothing when it said nothing readable about
+ * it. Nothing is a real answer - an app older than this field has no such number to give - and the
+ * screen says no more for it than it says for a story that fits one screen.
+ */
+function readParts(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+  return value;
 }
 
 /**
@@ -304,6 +340,8 @@ export function posedCaptureSocket(
         storyId,
         settled: posed.settled,
         ...(posed.threw && { threw: posed.threw }),
+        ...(posed.parts !== undefined && { parts: posed.parts }),
+        ...(posed.hasNetworkImage !== undefined && { hasNetworkImage: posed.hasNetworkImage }),
         tree: withChildren(posed.tree),
       };
     },

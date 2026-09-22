@@ -10,7 +10,6 @@ import {
   showError,
   teamCreate,
   teamList,
-  inspect,
   capture,
   open,
   test,
@@ -61,7 +60,6 @@ import {
   VERBOSE_OPTION,
   VIEW_COMMAND,
   OPEN_COMMAND,
-  INSPECT_COMMAND,
   CAPTURE_COMMAND,
   JSON_OPTION,
   STORY_OPTION,
@@ -106,8 +104,6 @@ async function start() {
     addTeamCommand(program);
 
     addOpenCommand(program);
-
-    addInspectCommand(program);
 
     addCaptureCommand(program);
 
@@ -164,9 +160,6 @@ const COMMAND_DESCRIPTION = {
     '  Talks to your own bundler, never to Sherlo: no token, no upload, nothing leaves\n' +
     `  the machine. \`--${WAIT_OPTION}\` holds until the app reports the story on screen.\n` +
     '  Exit 0 when the story is showing, 1 when it is not.',
-  [INSPECT_COMMAND]:
-    'Print the story the app you are running is showing now, one line.\n' +
-    '  The read-side sibling of `open`, down the same road and with the same refusals.',
   [CAPTURE_COMMAND]:
     'Record one story the way a Sherlo test run does, on the app you are running.\n' +
     '  Testing mode, the same stabilization, the same view tree - printed here, uploaded\n' +
@@ -355,9 +348,9 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   ],
 };
 
-// `sherlo open` and `sherlo inspect` are the two commands that never leave the machine: no token,
-// no project folder, no backend. Their whole world is the bundler's letterbox (../seams/letterbox),
-// and `withTimeout: false` because a wait the caller asked for is not a hang.
+// `sherlo open` is one of the two commands that never leave the machine: no token, no project
+// folder, no backend. Its whole world is the bundler's letterbox (../seams/letterbox), and
+// `withTimeout: false` because a wait the caller asked for is not a hang.
 function addOpenCommand(program: Command) {
   addCommand({
     program,
@@ -368,7 +361,7 @@ function addOpenCommand(program: Command) {
   });
 }
 
-// The third command that never leaves the machine. Its world is the capture socket on the bundler
+// The other command that never leaves the machine. Its world is the capture socket on the bundler
 // (../seams/captureSocket); `withTimeout: false` because stabilization is a wait the story sets.
 function addCaptureCommand(program: Command) {
   addCommand({
@@ -376,16 +369,6 @@ function addCaptureCommand(program: Command) {
     command: CAPTURE_COMMAND,
     options: [STORY_OPTION, PORT_OPTION, JSON_OPTION],
     action: capture,
-    withTimeout: false,
-  });
-}
-
-function addInspectCommand(program: Command) {
-  addCommand({
-    program,
-    command: INSPECT_COMMAND,
-    options: [PORT_OPTION],
-    action: inspect,
     withTimeout: false,
   });
 }

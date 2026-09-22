@@ -80,6 +80,36 @@ function letTheRequestLand(): Promise<void> {
   return new Promise((landed) => setTimeout(landed, 50));
 }
 
+/** A port nothing is serving on: one is opened and closed, so the number is certainly free. */
+async function portWithNothingOnIt(): Promise<number> {
+  const empty = await startRelay();
+  await empty.close();
+  return empty.port;
+}
+
+/**
+ * One whole capture, in the order the address carries it: the app waits for work, the tool asks for
+ * a story, and the app comes back with what it recorded.
+ */
+async function aCapture(
+  r: RunningRelay,
+  { askedFor, stories, recorded }: { askedFor: string; stories: string[]; recorded: unknown }
+): Promise<unknown> {
+  const appWaits = appReports(r.origin, { mode: 'testing', stories, answer: null });
+  await letTheRequestLand();
+
+  const toolAsks = liveCaptureSocket.captureStory({
+    storyId: askedFor,
+    port: r.port,
+    settings: STABILIZATION_SETTINGS,
+  });
+
+  await appWaits;
+  await appReports(r.origin, { mode: 'testing', stories, answer: recorded });
+
+  return toolAsks;
+}
+
 describe('the bundler relays the capture between the command and the app, and holds nothing of its own', () => {
   const running: RunningRelay[] = [];
 
@@ -131,5 +161,111 @@ describe('the bundler relays the capture between the command and the app, and ho
       settled: { ms: 340, frames: 6 },
       tree: { primitive: 'RCTTextView', components: [], children: [] },
     });
+  });
+});
+
+describe("the app's answer, read into this seam's own endings", () => {
+  const running: RunningRelay[] = [];
+
+  afterEach(async () => {
+    while (running.length) await running.pop()!.close();
+  });
+
+  async function relay(): Promise<RunningRelay> {
+    const r = await startRelay();
+    running.push(r);
+    return r;
+  }
+
+  it('a port with nothing on it is no bundler, not a crash', async () => {
+    const port = await portWithNothingOnIt();
+
+    expect(
+      await liveCaptureSocket.captureStory({
+        storyId: STORY_A,
+        port,
+        settings: STABILIZATION_SETTINGS,
+      })
+    ).toEqual({ kind: 'no-bundler' });
+  });
+
+  it('a relay no Sherlo app ever reached has no app behind it', async () => {
+    const r = await relay();
+
+    expect(
+      await liveCaptureSocket.captureStory({
+        storyId: STORY_A,
+        port: r.port,
+        settings: STABILIZATION_SETTINGS,
+      })
+    ).toEqual({ kind: 'no-app' });
+  });
+
+  it('the stories the app really has come back when it does not have the one asked for', async () => {
+    const r = await relay();
+
+    expect(
+      await aCapture(r, { askedFor: STORY_A, stories: [STORY_B], recorded: ANSWER_B })
+    ).toEqual({ kind: 'no-such-story', known: [STORY_B] });
+  });
+
+  it('the two facts beside the tree - the screenfuls and the network image - come back with it', async () => {
+    const r = await relay();
+
+    expect(
+      await aCapture(r, {
+        askedFor: STORY_A,
+        stories: [STORY_A],
+        recorded: { ...ANSWER_A, parts: 3, hasNetworkImage: true },
+      })
+    ).toEqual({
+      kind: 'captured',
+      storyId: STORY_A,
+      settled: { ms: 120, frames: 6 },
+      parts: 3,
+      hasNetworkImage: true,
+      tree: { primitive: 'RCTView', components: [], children: [] },
+    });
+  });
+
+  it('an app older than the two facts leaves them absent rather than guessed at', async () => {
+    const r = await relay();
+
+    // What a story that fits one screen and carries no network image would say, and what an app
+    // that has never heard of either field says too: nothing. The screen says no more for both,
+    // which is why an absent fact must not arrive here as a `false` or a `1` this side invented.
+    expect(
+      await aCapture(r, { askedFor: STORY_A, stories: [STORY_A], recorded: ANSWER_A })
+    ).toEqual({
+      kind: 'captured',
+      storyId: STORY_A,
+      settled: { ms: 120, frames: 6 },
+      tree: { primitive: 'RCTView', components: [], children: [] },
+    });
+  });
+
+  it('an app that died mid-capture is a crash, and its last words come with it', async () => {
+    const r = await relay();
+    const died = { name: 'RangeError', message: 'Maximum call stack size exceeded' };
+
+    expect(
+      await aCapture(r, {
+        askedFor: STORY_A,
+        stories: [STORY_A],
+        recorded: { kind: 'crashed', storyId: STORY_A, error: died },
+      })
+    ).toEqual({ kind: 'crashed', storyId: STORY_A, error: died });
+  });
+
+  it('an app that died without saying anything is still a crash, and still the story that was asked for', async () => {
+    const r = await relay();
+
+    expect(
+      await aCapture(r, {
+        askedFor: STORY_A,
+        stories: [STORY_A],
+        recorded: { kind: 'crashed', storyId: STORY_A },
+      })
+    ).toEqual({ kind: 'crashed', storyId: STORY_A });
   });
 });

@@ -1,9 +1,9 @@
 /**
- * WHAT `sherlo open` AND `sherlo inspect` PRINT.
+ * WHAT `sherlo open` PRINTS.
  *
- * Pure, like everything under ./: state in, lines out. Two commands share one file because they
- * share one road and one set of refusals - a bundler that is not there, an app that never
- * connected - and a reader comparing their screens should not have to open two.
+ * Pure, like everything under ./: state in, lines out. The refusals are word for word the ones
+ * `sherlo capture` prints (./capturedStory), because they are the same facts about a road beside the
+ * same bundler - a developer who has met one command's refusal has already met the other's.
  *
  * AN AGENT IS A FIRST-CLASS READER HERE, which is why every ending is named and none of them is a
  * bare stack trace. A person skims the first line; an agent reads the same line and acts on it.
@@ -27,14 +27,6 @@ export type OpenedStory =
    */
   | { kind: 'painted-and-threw'; storyId: string; threw: { name: string; message: string } }
   | { kind: 'timed-out'; storyId: string; seconds: number };
-
-/** How a run of `sherlo inspect` ended. */
-export type InspectedStory =
-  | { kind: 'no-bundler'; port: number }
-  | { kind: 'no-app'; port: number }
-  /** An app IS attached to the bundler; it is showing itself rather than the story browser. */
-  | { kind: 'not-at-story-browser' }
-  | { kind: 'showing'; storyId: string };
 
 const START_THE_APP = 'Start your app with the bundler running, then try again.';
 
@@ -96,45 +88,11 @@ export function renderOpenedStory(state: OpenedStory): string[] {
         `${chalk.yellow('◦')}  ${chalk.bold(state.storyId)} was sent, and the app did not report ` +
           `it within ${state.seconds}s`,
         '',
-        chalk.dim('The app may still be loading it. `sherlo inspect` says what is showing now.'),
-        '',
-      ];
-  }
-}
-
-/** Every line `sherlo inspect` prints, in order. */
-export function renderInspectedStory(state: InspectedStory): string[] {
-  switch (state.kind) {
-    case 'no-bundler':
-      return [
-        `${chalk.red('✖')}  No bundler on port ${chalk.bold(String(state.port))}`,
-        '',
-        chalk.dim(START_THE_APP),
-        '',
-      ];
-
-    case 'no-app':
-      return [
-        `${chalk.red('✖')}  A bundler is running on port ${chalk.bold(
-          String(state.port)
-        )}, and no Sherlo app is attached to it`,
-        '',
-        chalk.dim('Open the app on a device or simulator, then try again.'),
-        '',
-      ];
-
-    case 'not-at-story-browser':
-      return [
-        `${chalk.yellow('◦')}  The app is attached, and is not showing a story right now`,
-        '',
         chalk.dim(
-          'It is showing itself rather than the story browser. `sherlo open --story <id>` sends it there.'
+          'The app may still be loading it. `sherlo capture` records it once it has drawn.'
         ),
         '',
       ];
-
-    case 'showing':
-      return [`${chalk.bold(state.storyId)}`, ''];
   }
 }
 
