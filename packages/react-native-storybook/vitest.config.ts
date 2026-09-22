@@ -12,7 +12,10 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['src/__tests__/**/*.test.ts'],
+    // src/__tests__/**/*.test.ts covers today's tests; src/**/__tests__/**/*.test.tsx also picks
+    // up a test co-located with the module it covers (getStorybook/__tests__), same as the rest
+    // of this SDK's source tree is organized per-feature rather than flat.
+    include: ['src/__tests__/**/*.test.ts', 'src/**/__tests__/**/*.test.tsx'],
     globals: true,
   },
 });

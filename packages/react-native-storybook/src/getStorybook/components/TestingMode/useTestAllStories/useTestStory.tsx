@@ -114,7 +114,12 @@ function useTestStory({
   metadataProviderRef: React.RefObject<MetadataProviderRef>;
   view?: StorybookView;
 }): void {
-  const config = SherloModule.getConfig();
+  // Testing mode used to imply a config on disk - native derives the mode FROM the config, so a
+  // run could not reach here without one. A capture breaks that: it restarts the app into testing
+  // mode with nothing written to the device (see captureTransport.ts), so this read has to survive
+  // that absence too. The value below is only consumed inside the `if (!lastState) return` guard,
+  // which a capture never passes, so the default never actually reaches a real capture's walk.
+  const config = SherloModule.getConfigOrDefault();
   const lastState = SherloModule.getLastState();
   const insets = useSafeAreaInsets();
 

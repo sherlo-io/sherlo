@@ -13,10 +13,36 @@ interface SherloConstants {
   nativeVersion: string | null;
 }
 
+/**
+ * What a test run leaves behind is config.sherlo; its absence means no run is in progress, which
+ * is a normal state (a capture is exactly that state - see captureTransport.ts) rather than an
+ * error. These are the same numbers the SDK answers with when it is not wired into a build at all
+ * (createDummySherloModule below), so a device with no config on disk behaves the way a device
+ * with no native module at all already does.
+ */
+const DEFAULT_CONFIG: Config = {
+  stabilization: {
+    requiredMatches: 3,
+    minScreenshotsCount: 3,
+    intervalMs: 500,
+    timeoutMs: 5_000,
+    saveScreenshots: true,
+    threshold: 0.0,
+    includeAA: true,
+  },
+  scrollableFallbackDelayMs: 3000,
+  storyRenderedTimeoutMs: 5000,
+  paintBarrierTimeoutMs: 1000,
+  paintBarrierPerScrollPart: true,
+};
+
 type SherloModule = {
   isTurboModule: boolean;
   getMode: () => StorybookViewMode;
+  /** Throws when there is no config.sherlo on disk - use getConfigOrDefault where that is normal. */
   getConfig: () => Config;
+  /** The app's own config, or the SDK's defaults when there is none. Never throws. */
+  getConfigOrDefault: () => Config;
   getLastState: () => LastState | undefined;
   getNativeVersion: () => string | null;
   sendNativeError: (
@@ -139,6 +165,14 @@ function createSherloModule(): SherloModule {
       }
       return config;
     },
+    getConfigOrDefault: () => {
+      try {
+        const config = JSON.parse(getConstants().config) as Config | undefined;
+        return config ?? DEFAULT_CONFIG;
+      } catch (_e) {
+        return DEFAULT_CONFIG;
+      }
+    },
     getLastState: () => {
       const lastState = getConstants().lastState;
       const parsedLastState = lastState ? JSON.parse(lastState) : undefined;
@@ -197,23 +231,8 @@ function createDummySherloModule(): SherloModule {
     getNativeVersion: () => null,
     sendNativeError: () => {},
     getLastState: () => undefined,
-    getConfig: () => ({
-      stabilization: {
-        requiredMatches: 3,
-        minScreenshotsCount: 3,
-        intervalMs: 500,
-        timeoutMs: 5_000,
-        saveScreenshots: true,
-        threshold: 0.0,
-        includeAA: true,
-      },
-      // Readiness knobs - represented here so the dummy config shape
-      // matches the real one.
-      scrollableFallbackDelayMs: 3000,
-      storyRenderedTimeoutMs: 5000,
-      paintBarrierTimeoutMs: 1000,
-      paintBarrierPerScrollPart: true,
-    }),
+    getConfig: () => DEFAULT_CONFIG,
+    getConfigOrDefault: () => DEFAULT_CONFIG,
     appendFile: async () => {},
     readFile: async () => '',
     openStorybook: () => {},

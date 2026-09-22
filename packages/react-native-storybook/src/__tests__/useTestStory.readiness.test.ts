@@ -59,6 +59,7 @@ vi.mock('../helpers', () => ({
 vi.mock('../SherloModule', () => ({
   default: {
     getConfig: mockGetConfig,
+    getConfigOrDefault: mockGetConfig,
     getLastState: mockGetLastState,
     stabilize: mockStabilize,
     getInspectorData: mockGetInspectorData,

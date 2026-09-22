@@ -35,6 +35,11 @@ describe('SherloModule dummy (no native module)', () => {
     expect(typeof config.stabilization.requiredMatches).toBe('number');
   });
 
+  it('getConfigOrDefault() returns the same defaults, and never throws', () => {
+    expect(() => SherloModule.getConfigOrDefault()).not.toThrow();
+    expect(SherloModule.getConfigOrDefault()).toEqual(SherloModule.getConfig());
+  });
+
   it('sendNativeError() does not throw', () => {
     expect(() => SherloModule.sendNativeError('ERROR_CODE', 'message')).not.toThrow();
   });
