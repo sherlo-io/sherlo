@@ -1,6 +1,5 @@
 /**
- * THE TOOL'S HALF OF THE LETTERBOX - what `sherlo open` and `sherlo inspect` make of what the
- * bundler's address said.
+ * THE TOOL'S HALF OF THE LETTERBOX - what `sherlo open` makes of what the bundler's address said.
  *
  * The address's own half is held in the SDK (`openStoryChannel.test.ts` there). What is held HERE
  * is the mapping this side owns: every answer becomes one of the named endings the screens print,
@@ -141,7 +140,6 @@ describe('the tool posting to the letterbox', () => {
     expect(
       await liveLetterbox.openStory({ storyId: STORY, wait: false, port, timeoutSeconds: 30 })
     ).toEqual({ kind: 'no-bundler' });
-    expect(await liveLetterbox.showing({ port })).toEqual({ kind: 'no-bundler' });
   });
 
   it('a port serving something that is not this address has no app behind it', async () => {
@@ -149,7 +147,6 @@ describe('the tool posting to the letterbox', () => {
     // answered, in words this tool cannot read, and there is no Sherlo app reachable through it.
     const somethingElse = await bundlerSaying(() => ({ hello: 'from somewhere else' }));
 
-    expect(await liveLetterbox.showing({ port: somethingElse.port })).toEqual({ kind: 'no-app' });
     expect(
       await liveLetterbox.openStory({
         storyId: STORY,
@@ -206,26 +203,5 @@ describe('the tool posting to the letterbox', () => {
     // The story IS on screen - showing what it threw - so `sherlo open` did what it was asked and
     // exits zero. A non-zero ending here would say the tool failed, when what failed is the story.
     expect(storyIsOnScreen(ending)).toBe(true);
-  });
-
-  it('reads the story the app is showing', async () => {
-    const bundler = await bundlerSaying(() => ({ kind: 'showing', storyId: STORY }));
-
-    expect(await liveLetterbox.showing({ port: bundler.port })).toEqual({
-      kind: 'showing',
-      storyId: STORY,
-    });
-    expect(bundler.asked).toEqual([{ method: 'GET', posted: undefined }]);
-  });
-
-  it('an app that is not at the story browser is not reported as absent', async () => {
-    // The app IS attached to the bundler - it simply has nothing on screen to name, most often
-    // because it is showing itself rather than the story browser. `no-app` would tell a developer
-    // to do something they have already done.
-    const bundler = await bundlerSaying(() => ({ kind: 'not-at-story-browser' }));
-
-    expect(await liveLetterbox.showing({ port: bundler.port })).toEqual({
-      kind: 'not-at-story-browser',
-    });
   });
 });

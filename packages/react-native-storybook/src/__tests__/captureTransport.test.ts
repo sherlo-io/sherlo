@@ -1,7 +1,7 @@
 /**
  * THE APP'S HALF OF THE CAPTURE SOCKET - the JavaScript that walks one story for `sherlo capture`.
  *
- * Three facts are pinned here, one per describe:
+ * Four facts are pinned here, one per describe:
  *
  *   - the walk IS the test-run walk: put the story on screen through Storybook's own channel, wait
  *     for STORY_RENDERED, close the last-frame gap, stabilize, and read the view tree - told and
@@ -11,6 +11,8 @@
  *     records. The app records nothing on the way out.
  *   - nothing touches the device's storage: a test run saves screenshots and writes the protocol
  *     file; a capture stabilizes with saveScreenshots off and never reads or writes a file.
+ *   - the two facts the tool prints beside the tree - how many screenfuls the story is, and whether
+ *     it carries an image loaded over the network - are read off the story the run reads them from.
  *
  * The bundler is injected as a `capture` (a CaptureTransport), so no real bundler or NativeModules
  * source is needed - the same way openStoryChannel.test.ts injects the letterbox.
@@ -23,6 +25,8 @@ const {
   mockStabilize,
   mockAwaitFrameCommit,
   mockGetInspectorData,
+  mockIsScrollable,
+  mockScrollToCheckpoint,
   mockOpenTesting,
   mockAppendFile,
   mockReadFile,
@@ -32,6 +36,8 @@ const {
   mockStabilize: vi.fn(),
   mockAwaitFrameCommit: vi.fn(),
   mockGetInspectorData: vi.fn(),
+  mockIsScrollable: vi.fn(),
+  mockScrollToCheckpoint: vi.fn(),
   mockOpenTesting: vi.fn(),
   mockAppendFile: vi.fn(),
   mockReadFile: vi.fn(),
@@ -44,6 +50,8 @@ vi.mock('../SherloModule', () => ({
     stabilize: mockStabilize,
     awaitFrameCommit: mockAwaitFrameCommit,
     getInspectorData: mockGetInspectorData,
+    isScrollable: mockIsScrollable,
+    scrollToCheckpoint: mockScrollToCheckpoint,
     openTesting: mockOpenTesting,
     appendFile: mockAppendFile,
     readFile: mockReadFile,
@@ -57,6 +65,7 @@ import {
   type CapturedAnswer,
 } from '../captureTransport';
 import { __resetStoryRenderedTrackingForTests } from '../getStorybook/components/TestingMode/useTestAllStories/storyRenderedReadiness';
+import { rememberStoryOfTheApp } from '../componentNames';
 
 const STORY = 'components-button--primary';
 
@@ -103,6 +112,18 @@ const INSPECTOR_DATA = {
 /** What the app says about itself every time it asks. */
 type Saying = { mode: string; stories: string[]; answer: CapturedAnswer | null };
 
+/** One screenful: the story is exactly as tall as the screen it is drawn in. */
+const ONE_SCREENFUL = {
+  reachedBottom: true,
+  appliedIndex: 0,
+  appliedOffsetPx: 0,
+  viewportPx: 800,
+  contentPx: 800,
+};
+
+/** A story three screens tall, measured by the scroll view it is drawn in. */
+const THREE_SCREENFULS = { ...ONE_SCREENFUL, contentPx: 2400 };
+
 beforeEach(() => {
   vi.clearAllMocks();
   __resetStoryRenderedTrackingForTests();
@@ -111,11 +132,16 @@ beforeEach(() => {
   mockStabilize.mockResolvedValue(true);
   mockAwaitFrameCommit.mockResolvedValue(true);
   mockGetInspectorData.mockResolvedValue(INSPECTOR_DATA);
+  // By default the story fits the screen it is drawn in: nothing scrolls, and nothing under the
+  // story loads an image over the network.
+  mockIsScrollable.mockResolvedValue({ scrollable: false });
+  mockScrollToCheckpoint.mockResolvedValue(ONE_SCREENFUL);
 });
 
 afterEach(() => {
   stopCaptureTransport();
   __resetStoryRenderedTrackingForTests();
+  rememberStoryOfTheApp(undefined);
 });
 
 /** The app's Storybook view, as much of it as this road reads. */

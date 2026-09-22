@@ -58,9 +58,9 @@ export type CommandPose = {
    */
   workstation?: PosedWorkstation;
   /**
-   * What the bundler's letterbox answered. THE THIRD OPTIONAL FIELD, because `open` and `inspect`
-   * are the only commands with a running app to talk to. A command that reaches the letterbox with
-   * no `letterbox` is refused at run time, like a call the pose did not script.
+   * What the bundler's letterbox answered. THE THIRD OPTIONAL FIELD, because `open` is the only
+   * command with a running app to talk to. A command that reaches the letterbox with no
+   * `letterbox` is refused at run time, like a call the pose did not script.
    */
   letterbox?: PosedLetterbox;
   /**
@@ -90,6 +90,13 @@ export type PosedCapture =
       settled: { ms: number; frames: number } | 'timed-out';
       /** What the story threw while rendering, in its own words. Absent for a clean story. */
       threw?: { name: string; message: string };
+      /**
+       * How many screenfuls the story was captured in. Absent says as little as an app that never
+       * mentioned it, which prints the same as `1`: a story that fits the screen.
+       */
+      parts?: number;
+      /** Whether any view in the story loads an image over the network. Absent prints nothing. */
+      hasNetworkImage?: boolean;
       /** The view tree the app read, from the story's own root. */
       tree: PosedView;
     };
@@ -117,12 +124,6 @@ export type PosedLetterbox =
        * nothing else.
        */
       threw?: { name: string; message: string };
-      /**
-       * The story the app says it is showing now, for the command that only asks. Absent poses an
-       * app that is attached and has nothing on screen to name - most often one showing itself
-       * rather than the story browser - which is a different fact from no app being there at all.
-       */
-      showing?: string;
     };
 
 /** The two acts `sherlo init` performs on the machine, as a pose states them. */
@@ -461,9 +462,9 @@ function commandActsOnTheMachine(argv: string[]): boolean {
   return argv[0] === 'init';
 }
 
-/** The two commands that post to the bundler's letterbox, and so may pose one. */
+/** The one command that posts to the bundler's letterbox, and so may pose one. */
 function commandReachesTheLetterbox(argv: string[]): boolean {
-  return argv[0] === 'open' || argv[0] === 'inspect';
+  return argv[0] === 'open';
 }
 
 /* ========================================================================== */
@@ -722,9 +723,9 @@ function readWorkstation(pose: Record<string, unknown>, argv: string[], problems
 }
 
 /**
- * `letterbox` is read only when it is there: it is optional because only `open` and `inspect` have
- * a running app to talk to. Stated for any other command it describes a road that command never
- * travels, and is refused the way `push` and `workstation` are.
+ * `letterbox` is read only when it is there: it is optional because only `open` has a running app
+ * to talk to. Stated for any other command it describes a road that command never travels, and is
+ * refused the way `push` and `workstation` are.
  *
  * The two bare states are strings rather than objects with a flag, because "no bundler" and "no
  * app" have nothing else to say: a pose that had to write `{ bundler: false, stories: [] }` would
@@ -750,7 +751,6 @@ function readLetterbox(pose: Record<string, unknown>, argv: string[], problems: 
   if ('rendered' in letterbox) {
     expectOneOf(letterbox, 'rendered', ['yes', 'timed-out'], '`letterbox`', problems);
   }
-  if ('showing' in letterbox) expectString(letterbox, 'showing', '`letterbox`', problems);
   if ('threw' in letterbox) {
     const threw = asObject(letterbox.threw, '`letterbox`.threw', problems);
     if (threw) {
@@ -759,12 +759,7 @@ function readLetterbox(pose: Record<string, unknown>, argv: string[], problems: 
       reportUnknownFields(threw, ['name', 'message'], '`letterbox`.threw', problems);
     }
   }
-  reportUnknownFields(
-    letterbox,
-    ['stories', 'rendered', 'showing', 'threw'],
-    '`letterbox`',
-    problems
-  );
+  reportUnknownFields(letterbox, ['stories', 'rendered', 'threw'], '`letterbox`', problems);
 }
 
 /**
@@ -818,8 +813,18 @@ function readCapture(pose: Record<string, unknown>, argv: string[], problems: st
     }
   }
 
+  if ('parts' in capture) expectNumber(capture, 'parts', '`capture`', problems);
+  if ('hasNetworkImage' in capture) {
+    expectBoolean(capture, 'hasNetworkImage', '`capture`', problems);
+  }
+
   readPosedView(capture.tree, '`capture`.tree', problems);
-  reportUnknownFields(capture, ['stories', 'settled', 'threw', 'tree'], '`capture`', problems);
+  reportUnknownFields(
+    capture,
+    ['stories', 'settled', 'threw', 'parts', 'hasNetworkImage', 'tree'],
+    '`capture`',
+    problems
+  );
 }
 
 /** One posed view, and every view under it. */

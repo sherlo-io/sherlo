@@ -45,6 +45,13 @@ export type CaptureResult =
       /** How the stabilization ended: settled after so long over so many frames, or gave up. */
       settled: { ms: number; frames: number } | 'timed-out';
       threw?: { name: string; message: string };
+      /**
+       * How many screenfuls the story was captured in - 1 is a story that fits the screen. Absent
+       * when the app said nothing readable about it, which an app older than this field does.
+       */
+      parts?: number;
+      /** Whether any view in the story loads an image over the network. Absent for the same reason. */
+      hasNetworkImage?: boolean;
       tree: CapturedView;
     };
 
@@ -183,6 +190,8 @@ function readCaptureAnswer(said: unknown, storyId: string): CaptureResult {
     settled?: unknown;
     threw?: unknown;
     error?: unknown;
+    parts?: unknown;
+    hasNetworkImage?: unknown;
     tree?: unknown;
   };
 
@@ -200,11 +209,16 @@ function readCaptureAnswer(said: unknown, storyId: string): CaptureResult {
 
   if (answer.kind === 'captured') {
     const threw = readError(answer.threw);
+    const parts = readParts(answer.parts);
     return {
       kind: 'captured',
       storyId,
       settled: readSettled(answer.settled),
       ...(threw && { threw }),
+      ...(parts !== undefined && { parts }),
+      ...(typeof answer.hasNetworkImage === 'boolean' && {
+        hasNetworkImage: answer.hasNetworkImage,
+      }),
       tree: readCapturedView(answer.tree),
     };
   }
@@ -220,6 +234,16 @@ function readSettled(value: unknown): { ms: number; frames: number } | 'timed-ou
     return { ms: settled.ms, frames: settled.frames };
   }
   return 'timed-out';
+}
+
+/**
+ * How many screenfuls the app said the story was, or nothing when it said nothing readable about
+ * it. Nothing is a real answer - an app older than this field has no such number to give - and the
+ * screen says no more for it than it says for a story that fits one screen.
+ */
+function readParts(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+  return value;
 }
 
 /**
@@ -304,6 +328,8 @@ export function posedCaptureSocket(
         storyId,
         settled: posed.settled,
         ...(posed.threw && { threw: posed.threw }),
+        ...(posed.parts !== undefined && { parts: posed.parts }),
+        ...(posed.hasNetworkImage !== undefined && { hasNetworkImage: posed.hasNetworkImage }),
         tree: withChildren(posed.tree),
       };
     },

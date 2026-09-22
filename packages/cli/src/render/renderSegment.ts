@@ -47,7 +47,7 @@ import {
 import { renderProjectCreated } from './projectCreated';
 import { renderTeamCreated } from './teamCreated';
 import { renderProjectList } from './projectList';
-import { renderInspectedStory, renderOpenedStory } from './openedStory';
+import { renderOpenedStory } from './openedStory';
 import { renderCapturedStory } from './capturedStory';
 import { renderTeamList } from './teamList';
 import type { TranscriptSegment, TranscriptStream } from './segments';
@@ -415,12 +415,6 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return {
         stream: 'stdout',
         prints: renderOpenedStory(segment.state).map((line) => [line]),
-      };
-
-    case 'inspected-story':
-      return {
-        stream: 'stdout',
-        prints: renderInspectedStory(segment.state).map((line) => [line]),
       };
 
     case 'captured-story':

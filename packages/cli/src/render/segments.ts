@@ -31,7 +31,7 @@ import type { DryRunPlatformPreview } from './dryRunPlan';
 import type { ProjectCreated } from './projectCreated';
 import type { TeamCreated } from './teamCreated';
 import type { ProjectList } from './projectList';
-import type { InspectedStory, OpenedStory } from './openedStory';
+import type { OpenedStory } from './openedStory';
 import type { CapturedStory } from './capturedStory';
 import type { TeamList } from './teamList';
 
@@ -262,8 +262,6 @@ export type TranscriptSegment =
   | { kind: 'team-list'; list: TeamList }
   /** The whole output of `sherlo open`. See ./openedStory. */
   | { kind: 'opened-story'; state: OpenedStory }
-  /** The whole output of `sherlo inspect`. See ./openedStory. */
-  | { kind: 'inspected-story'; state: InspectedStory }
   /** The whole screen output of `sherlo capture`. See ./capturedStory. */
   | { kind: 'captured-story'; state: CapturedStory };
 

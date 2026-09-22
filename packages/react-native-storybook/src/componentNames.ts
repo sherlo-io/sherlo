@@ -59,6 +59,15 @@ export function rememberStoryOfTheApp(fiber: RenderedFiber | undefined): void {
 }
 
 /**
+ * The fiber the app's story is rendered from, or nothing before it has rendered - the top of any
+ * walk over the story. Naming the views is one such walk; reading another fact off the story's own
+ * fibers is another (../captureTransport), and both start here.
+ */
+export function storyOfTheAppFiber(): RenderedFiber | undefined {
+  return storyOfTheApp;
+}
+
+/**
  * Every name the app on screen carries, by the native tag of the view it belongs to. A view whose
  * bundle kept no names for it is absent rather than listed with none, because a caller drawing a
  * tree does the same thing with both and an absent entry costs nothing to build.

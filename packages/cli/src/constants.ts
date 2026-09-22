@@ -110,8 +110,6 @@ export const TEAM_LIST_SUBCOMMAND = 'list';
 export const POSE_COMMAND = 'pose';
 /** `sherlo open --story <id>` - put the running app on one named story. A primary flow, so a verb. */
 export const OPEN_COMMAND = 'open';
-/** `sherlo inspect` - name the story the running app is showing now. The read-side sibling. */
-export const INSPECT_COMMAND = 'inspect';
 /** `sherlo capture --story <id>` - record one story the way a test run does, on the running app. */
 export const CAPTURE_COMMAND = 'capture';
 export const FULL_INIT_COMMAND = 'npx sherlo init';

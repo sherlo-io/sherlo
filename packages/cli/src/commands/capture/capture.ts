@@ -96,6 +96,8 @@ export function endingFor(
         storyId: answer.storyId,
         settledMs: answer.settled.ms,
         frames: answer.settled.frames,
+        ...(answer.parts !== undefined && { parts: answer.parts }),
+        ...(answer.hasNetworkImage !== undefined && { hasNetworkImage: answer.hasNetworkImage }),
         tree: answer.tree,
       };
   }

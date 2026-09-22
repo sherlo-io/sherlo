@@ -13,20 +13,47 @@
  * same steps the runner drives, told over a socket rather than the runner's file and answered over
  * the same socket rather than the runner's file. That is the whole of the difference.
  *
+ * THE TREE STARTS WHERE THE RUN'S TREE STARTS. The app's window holds more than the story: Sherlo's
+ * own frame, Storybook's, the story view Storybook wraps a story in. A test run collapses all of it
+ * by handing the inspector's tree to the one step that knows where a story begins
+ * (./getStorybook/components/TestingMode/useTestAllStories/prepareInspectorData), and a capture
+ * records the same tree, so it goes through that same step rather than a second reading of its own.
+ * That step needs the app's view metadata, which the run holds as a React ref and a capture, having
+ * no renderer, reads from the seam the renderer publishes it on (./appMetadata).
+ *
  * NOTHING IS READ OR WRITTEN IN STORAGE. A test run saves screenshots and writes the protocol file;
  * a capture needs neither, so it stabilizes with saveScreenshots off and never touches a file. The
  * view tree comes straight from the native inspector, over the socket, in memory the whole way.
  *
- * THE TREE NAMES THE APP'S COMPONENTS. Every node reports its native class, and beside it the
- * names of the app's components that render that view, outermost first - so the command prints
- * `SampleLine › Text` where a bare `Text` would leave a developer guessing (./componentNames).
+ * THE TREE NAMES THE APP'S COMPONENTS. Every node reports the primitive it is drawn by, and beside
+ * it the names of the app's components that render that view, outermost first - so the command
+ * prints `SampleLine › Text` where a bare `Text` would leave a developer guessing (./componentNames).
  * The names come from the app's own functions, so a view the app did not write is nameless, and a
  * bundle that dropped the names leaves them absent rather than invented.
+ *
+ * THE PRIMITIVE IS ONE OF THREE WORDS. A view is drawn by a native class, and the class is named
+ * for the platform rather than for the developer who reads the tree: `ReactTextView` on Android,
+ * `RCTText` on both. What the command prints is `View`, `Text`, `Image` - the words the tool's own
+ * screen documents - so every class is read through one table, below.
+ *
+ * TWO FACTS BESIDE THE TREE, because a developer cannot see either from where they are sitting: how
+ * many screenfuls the story is, so a story that scrolls past the first screen is not mistaken for
+ * one that fits, and whether anything in it is loaded over the network, which a cloud capture
+ * depends on. Both are read the way the test run reads them - the native side is asked to measure
+ * the story, and the story's own fibers are asked about the images.
  */
 import { NativeModules } from 'react-native';
 import SherloModule from './SherloModule';
 import { InspectorData, InspectorDataNode, StorybookView } from './types';
-import { componentNamesByNativeTag, type ComponentNamesByNativeTag } from './componentNames';
+import {
+  componentNamesByNativeTag,
+  storyOfTheAppFiber,
+  type ComponentNamesByNativeTag,
+  type RenderedFiber,
+} from './componentNames';
+import { collectAppMetadata } from './appMetadata';
+import { isNetworkImageComponent } from './getStorybook/components/TestingMode/networkImageDetection';
+import { prepareInspectorData } from './getStorybook/components/TestingMode/useTestAllStories/prepareInspectorData';
 import { readStoryError } from './getStorybook/storyErrorRegistry';
 import {
   startStoryRenderedTracking,
@@ -80,6 +107,10 @@ export type CapturedAnswer =
       /** How the stabilization ended: settled after so long over so many frames, or gave up. */
       settled: { ms: number; frames: number } | 'timed-out';
       threw?: StoryThrew;
+      /** How many screenfuls the story was captured in - 1 is a story that fits the screen. */
+      parts: number;
+      /** Whether any view in the story loads an image over the network. */
+      hasNetworkImage: boolean;
       tree: CapturedViewTree;
     }
   | {
@@ -226,10 +257,23 @@ async function captureTheStory({
   try {
     await waitForTheStoryOnScreen({ storyId, channel });
     const settled = await stabilizeTheStory(settings);
-    const tree = await readTheViewTree();
+
+    // Asking how many screenfuls the story is puts it back at its top, so it is asked before the
+    // tree is read: the tree a capture records is the story as it renders from the beginning.
+    const parts = await screenfulsOfTheStory();
+    const tree = await readTheViewTree(storyId);
+    const hasNetworkImage = theStoryLoadsANetworkImage();
 
     const threw = whatTheStoryThrew(storyId);
-    return { kind: 'captured', storyId, settled, ...(threw && { threw }), tree };
+    return {
+      kind: 'captured',
+      storyId,
+      settled,
+      ...(threw && { threw }),
+      parts,
+      hasNetworkImage,
+      tree,
+    };
   } catch (error) {
     const report = readError(error);
     return { kind: 'crashed', storyId, ...(report && { error: report }) };
@@ -288,8 +332,59 @@ async function stabilizeTheStory(
   return isStable ? { ms: Date.now() - startedAt, frames } : 'timed-out';
 }
 
-/** Read the view tree straight from the native inspector, retrying the way a test run does. */
-async function readTheViewTree(): Promise<CapturedViewTree> {
+/**
+ * How many screenfuls the story is, asked of the scroll view the story is drawn in.
+ *
+ * A test run splits a story that scrolled past its first screen into parts, and the tool tells the
+ * developer when a story it captured would have been split - so the count has to come from the same
+ * place the run's scrolling does. The native side only reports the story's size while it is
+ * scrolling it, so this asks for the checkpoint at the very top: the story is where it already is,
+ * and the answer carries the screen's height and the story's own.
+ *
+ * One screenful whenever the story does not scroll, and whenever the native side answered with no
+ * measurements - a story that cannot scroll is one screenful by definition, and a number invented
+ * from nothing would be worse than saying nothing.
+ */
+async function screenfulsOfTheStory(): Promise<number> {
+  const scrollable = await SherloModule.isScrollable().catch(() => ({ scrollable: false }));
+  if (!scrollable.scrollable) return 1;
+
+  const measured = await SherloModule.scrollToCheckpoint(0, 0, 0).catch(() => undefined);
+  if (!measured || measured.viewportPx <= 0 || measured.contentPx <= 0) return 1;
+
+  return Math.ceil(measured.contentPx / measured.viewportPx);
+}
+
+/**
+ * Whether any view in the story on screen loads an image over the network - the fact a cloud capture
+ * lives by, because it has to reach the network to record the same story, and one the developer can
+ * do nothing about from here.
+ *
+ * The test run asks this of the fabric metadata it collects inside the render: the story's own
+ * fibers, view by view, through the one predicate this SDK has for it. A capture renders nothing of
+ * its own, so it walks the story's fibers from the root the story published while it rendered
+ * (./componentNames) and asks the same predicate of each - the same fibers, the same question.
+ */
+function theStoryLoadsANetworkImage(): boolean {
+  const story = storyOfTheAppFiber();
+  if (!story) return false;
+
+  return anyFiberUnder(story, isNetworkImageComponent);
+}
+
+/** Whether this fiber, or anything drawn under it, matches. */
+function anyFiberUnder(fiber: RenderedFiber, matches: (fiber: RenderedFiber) => boolean): boolean {
+  if (matches(fiber)) return true;
+
+  for (let child = fiber.child; child; child = child.sibling) {
+    if (anyFiberUnder(child, matches)) return true;
+  }
+
+  return false;
+}
+
+/** Read the story's view tree straight from the native inspector, retrying the way a test run does. */
+async function readTheViewTree(storyId: string): Promise<CapturedViewTree> {
   let inspectorData: InspectorData | undefined;
   const startedAt = Date.now();
 
@@ -300,24 +395,85 @@ async function readTheViewTree(): Promise<CapturedViewTree> {
     inspectorData = await SherloModule.getInspectorData().catch(() => undefined);
   }
 
-  return captureViewTree(inspectorData.viewHierarchy, componentNamesByNativeTag());
+  return theStorysOwnTree(inspectorData, storyId);
 }
 
 /**
- * One view tree as the command prints it: the native class of every node, and the app's component
- * names above it. The names are read from the fibers the story was rendered from, keyed by the
- * same native tag the inspector reports for the view, so a view the app did not render is simply
- * absent from that reading and comes out nameless.
+ * The tree a capture records, starting where a test run's tree starts.
+ *
+ * The inspector answers with the app's whole window, which holds Sherlo's frame, Storybook's, and
+ * the story view Storybook wraps a story in. The one step that knows where the story begins among
+ * all of that is the step the test run hands its tree to (prepareInspectorData): it re-points the
+ * tree at the view carrying the story's own id, and names every view with the class the fiber drew
+ * it by. A capture records the same tree, so it goes through the same step - the step needs the
+ * app's view metadata, which is read from the renderer's published reading (./appMetadata).
+ *
+ * With no metadata - no app rendered this way - the tree is recorded as the inspector answered it,
+ * which is the whole window rather than the story.
+ */
+function theStorysOwnTree(inspectorData: InspectorData, storyId: string): CapturedViewTree {
+  const metadata = collectAppMetadata();
+  const prepared = metadata
+    ? prepareInspectorData(inspectorData, metadata, storyId).inspectorData
+    : inspectorData;
+
+  if (!prepared.viewHierarchy) return emptyViewTree();
+
+  return captureViewTree(prepared.viewHierarchy, componentNamesByNativeTag());
+}
+
+/**
+ * One view tree as the command prints it: the primitive the view is drawn by, and the app's
+ * component names above it. The names are read from the fibers the story was rendered from, keyed
+ * by the same native tag the inspector reports for the view, so a view the app did not render is
+ * simply absent from that reading and comes out nameless.
  */
 function captureViewTree(
   node: InspectorDataNode,
   names: ComponentNamesByNativeTag
 ): CapturedViewTree {
   return {
-    primitive: node.className,
+    primitive: thePrimitiveTheCommandPrints(node.className),
     components: names.get(node.id) ?? [],
     children: (node.children ?? []).map((child) => captureViewTree(child, names)),
   };
+}
+
+/**
+ * The word the command prints for a view, by the class that draws it.
+ *
+ * A native class is named for the platform, not for the developer reading the tree: Android names
+ * its views after the Java class that draws them (`ReactTextView`), and iOS after its own prefix
+ * (`RCTText`), which is also the name a fiber draws a view by on both platforms. The command
+ * prints `View`, `Text` and `Image`, so the two are paired here.
+ *
+ * AN EXPLICIT TABLE, NOT A STRIPPED PREFIX. The pairings below are the contract between this SDK
+ * and what `sherlo capture` prints, so correcting one is one line here. A view drawn by a class
+ * this table does not pair keeps its own name: a name this file guessed would be worse than a name
+ * a developer can look up, and a primitive invented for an unknown view would be a lie.
+ */
+const PRIMITIVE_BY_DRAWING_CLASS: Record<string, string> = {
+  ReactViewGroup: 'View',
+  ReactTextView: 'Text',
+  ReactImageView: 'Image',
+  ReactScrollView: 'ScrollView',
+
+  RCTView: 'View',
+  RCTText: 'Text',
+  RCTVirtualText: 'Text',
+  RCTImageView: 'Image',
+  RCTScrollView: 'ScrollView',
+};
+
+/** The primitive the command prints for the class a view is drawn by, or nothing when it said none. */
+function thePrimitiveTheCommandPrints(drawingClass: unknown): string {
+  if (typeof drawingClass !== 'string') return '';
+  return PRIMITIVE_BY_DRAWING_CLASS[drawingClass] ?? drawingClass;
+}
+
+/** A view tree with nothing in it - what a story with no views on screen records. */
+function emptyViewTree(): CapturedViewTree {
+  return { primitive: '', components: [], children: [] };
 }
 
 /**

@@ -323,6 +323,63 @@ describe('reading a CommandPose', () => {
     expect(() => readPoseDocument('{ not json')).toThrow(PoseRefusal);
     expect(() => readPoseDocument('{ not json')).toThrow('not valid JSON');
   });
+
+  it('reads what the app answered for a capture: the stories, the crash, and the facts beside the tree', () => {
+    const captured = {
+      ...validPose(),
+      argv: ['capture', '--story', 'controls-button--primary'],
+      capture: {
+        stories: ['controls-button--primary'],
+        settled: { ms: 1400, frames: 6 },
+        parts: 3,
+        hasNetworkImage: true,
+        tree: { primitive: 'ScrollView', components: ['Feed'], children: [] },
+      },
+    };
+    const died = {
+      ...validPose(),
+      argv: ['capture', '--story', 'controls-button--primary'],
+      capture: { stories: ['controls-button--primary'], crashed: { name: 'RangeError' } },
+    };
+    const said = {
+      ...validPose(),
+      argv: ['capture', '--story', 'controls-button--primary'],
+      capture: { stories: ['controls-button--primary'], crashed: {} },
+    };
+
+    expect(readPose(captured).capture).toMatchObject({ parts: 3, hasNetworkImage: true });
+    // A crash is stated with what the app said before it died, and the app may have said nothing.
+    expect(readPose(died).capture).toMatchObject({ crashed: { name: 'RangeError' } });
+    expect(readPose(said).capture).toMatchObject({ crashed: {} });
+  });
+
+  it('refuses a capture that describes a road the command never walks, or a spelling the app never sends', () => {
+    const notACapture = {
+      ...validPose(),
+      capture: { stories: [], settled: 'timed-out', tree: { primitive: 'View' } },
+    };
+    const unknownFact = {
+      ...validPose(),
+      argv: ['capture', '--story', 'controls-button--primary'],
+      capture: {
+        stories: ['controls-button--primary'],
+        settled: { ms: 1400, frames: 6 },
+        // The name the letterbox's answer uses, on the capture's answer: a pole that would be read
+        // past and printed as nothing, which is what the reader exists to catch.
+        showing: 'controls-button--primary',
+        tree: { primitive: 'View' },
+      },
+    };
+    const crashNotAnObject = {
+      ...validPose(),
+      argv: ['capture', '--story', 'controls-button--primary'],
+      capture: { stories: ['controls-button--primary'], crashed: 'yes' },
+    };
+
+    expect(problemsOf(notACapture).join('\n')).toContain('never asks the app for a capture');
+    expect(problemsOf(unknownFact).join('\n')).toContain('`capture`.showing: unknown field');
+    expect(problemsOf(crashNotAnObject).join('\n')).toContain('`capture`.crashed');
+  });
 });
 
 /**
