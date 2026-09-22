@@ -439,6 +439,29 @@ describe("the tree a capture records starts where a test run's tree starts", () 
     // STORY - so the walk starts at the view Storybook wraps the story in, not at the app's window.
     expect(answer.tree).toEqual(RECORDED_TREE);
   });
+
+  it("a capture waits for the story's own views to be in the tree, not just for the app to say it rendered", async () => {
+    // The app's own reading already names STORY on the very first check (VIEW_METADATA is remembered
+    // in beforeEach, unlike the two tests above). But the inspector's OWN tree - the native view
+    // hierarchy, a different clock - still answers with the app's shell alone: node 3, the view
+    // Storybook wraps the story in, has not mounted yet. A metadata match is not proof the native
+    // tree has caught up to it.
+    const THE_APPS_SHELL = {
+      viewHierarchy: node('ReactViewGroup', 1, [node('ReactViewGroup', 2, [])]),
+      density: 3,
+      fontScale: 1,
+    };
+    mockGetInspectorData.mockResolvedValueOnce(THE_APPS_SHELL);
+    mockGetInspectorData.mockResolvedValueOnce(THE_APPS_SHELL);
+
+    const answer = await walkOneStory();
+
+    // The inspector was asked more than once - not accepted on its first, story-less answer just
+    // because the metadata already named the story - and the tree finally recorded is the story's
+    // own, not the shell a single, unwaited read would have recorded.
+    expect(mockGetInspectorData.mock.calls.length).toBeGreaterThan(1);
+    expect(answer.tree).toEqual(RECORDED_TREE);
+  });
 });
 
 describe('a story that failed to render is recorded the way a run records it', () => {
