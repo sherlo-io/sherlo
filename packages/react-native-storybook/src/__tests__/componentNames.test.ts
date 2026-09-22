@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-describe('each native view carries the names of the app\'s components that render it', () => {
+describe("each native view carries the names of the app's components that render it", () => {
   it('carries the component name beside each primitive', () => {
     expect(true).toBe(true);
   });

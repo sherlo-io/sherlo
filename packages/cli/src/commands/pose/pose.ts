@@ -142,7 +142,13 @@ export async function runPose(commandPose: CommandPose): Promise<PosedScreen> {
     exitCode: capture.exitCode() ?? (threw ? 1 : 0),
     // A read of the machine, or an act ON it, that the pose could not answer is a refusal exactly
     // as an unscripted call is.
-    refusals: [...api.refusals(), ...machine.refusals(), ...acts.refusals(), ...app.refusals(), ...socket.refusals()],
+    refusals: [
+      ...api.refusals(),
+      ...machine.refusals(),
+      ...acts.refusals(),
+      ...app.refusals(),
+      ...socket.refusals(),
+    ],
     unusedCalls: api.unusedCalls(),
   };
 }

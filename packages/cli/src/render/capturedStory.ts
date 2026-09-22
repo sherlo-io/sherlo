@@ -103,7 +103,11 @@ export function renderCapturedStory(state: CapturedStory): string[] {
           `   settled in ${seconds(state.settledMs)} over ${state.frames} frames · testing mode`
         ),
         ...(state.parts !== undefined && state.parts > 1
-          ? [chalk.dim(`   captured in ${state.parts} screenfuls - the story scrolls past the first`)]
+          ? [
+              chalk.dim(
+                `   captured in ${state.parts} screenfuls - the story scrolls past the first`
+              ),
+            ]
           : []),
         ...(state.hasNetworkImage
           ? [chalk.dim('   has images loaded over the network - a cloud capture depends on them')]
@@ -136,7 +140,9 @@ export function renderCapturedStory(state: CapturedStory): string[] {
 
     case 'crashed':
       return [
-        `${chalk.red('✖')}  ${chalk.bold(state.storyId)} captured to a crash - the app stopped answering`,
+        `${chalk.red('✖')}  ${chalk.bold(
+          state.storyId
+        )} captured to a crash - the app stopped answering`,
         '',
         ...(state.error
           ? [`  ${state.error.name}: ${state.error.message}`]
