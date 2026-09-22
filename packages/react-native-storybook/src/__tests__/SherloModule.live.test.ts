@@ -149,6 +149,11 @@ describe('SherloModule live - getConfig / getLastState', () => {
     expect(config.stabilization.requiredMatches).toBe(3);
   });
 
+  it('getConfigOrDefault() parses the config JSON string too, when there is one', () => {
+    const config = SherloModule.getConfigOrDefault();
+    expect(config.stabilization.requiredMatches).toBe(3);
+  });
+
   it('getLastState() returns parsed last state when set', () => {
     const state = SherloModule.getLastState();
     expect(state).toBeDefined();
@@ -186,5 +191,25 @@ describe('SherloModule live - getConfig / getLastState', () => {
 
   it('isTurboModule is true when TurboModule is present', () => {
     expect(SherloModule.isTurboModule).toBe(true);
+  });
+});
+
+describe('SherloModule live - getConfigOrDefault() with nothing on disk', () => {
+  // A capture restarts the app into testing mode with no config.sherlo ever written to the
+  // device. Native reports that absence as null (NSNull on iOS, a null JSONObject on Android),
+  // which crosses the bridge as the constant `config: null` below.
+  const NO_CONFIG_ON_DISK = { ...NEW_ARCH_CONSTANTS, config: null as unknown as string };
+
+  it('getConfig() throws, because there is nothing to parse', () => {
+    mockGetSherloConstants.mockReturnValue(NO_CONFIG_ON_DISK);
+    mockGetConstants.mockReturnValue({});
+    expect(() => SherloModule.getConfig()).toThrow('Config is undefined');
+  });
+
+  it('getConfigOrDefault() falls back to the SDK defaults instead of throwing', () => {
+    mockGetSherloConstants.mockReturnValue(NO_CONFIG_ON_DISK);
+    mockGetConstants.mockReturnValue({});
+    const config = SherloModule.getConfigOrDefault();
+    expect(config.stabilization.requiredMatches).toBe(3);
   });
 });

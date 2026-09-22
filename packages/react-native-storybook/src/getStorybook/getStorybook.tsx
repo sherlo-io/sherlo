@@ -45,12 +45,13 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
   startWaitingForACapture(view);
 
   // Only set up testing-mode story decorators when SDK is compatible.
-  // When isSdkCompatible=false the component returns null anyway, and calling
-  // getConfig() here can throw if config.sherlo isn't on disk yet (EAS-update
-  // timing edge case), which would crash the app before the async iOS
-  // sendNativeError(ERROR_SDK_COMPATIBILITY) write completes.
+  // When isSdkCompatible=false the component returns null anyway. A capture writes no config to
+  // the device before restarting the app into testing mode, so testing mode with nothing on disk
+  // is a normal state here too (see captureTransport.ts) - getConfigOrDefault falls back to the
+  // SDK's own defaults instead of throwing, which used to crash the app before the async iOS
+  // sendNativeError(ERROR_SDK_COMPATIBILITY) write could complete.
   if (mode === 'testing' && isSdkCompatible) {
-    const testingConfig = SherloModule.getConfig();
+    const testingConfig = SherloModule.getConfigOrDefault();
     const delayMs = testingConfig.initialStoryRenderDelayMs;
 
     // Attach the early STORY_RENDERED listener here - the earliest JS access to

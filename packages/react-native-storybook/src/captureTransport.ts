@@ -297,7 +297,10 @@ async function waitForTheStoryOnScreen({
   storyId: string;
   channel: StorybookChannel;
 }): Promise<void> {
-  const config = SherloModule.getConfig();
+  // A capture writes nothing to the device (see the file header), so there is usually no config to
+  // read here - that absence is a normal state, not an error, and falls back to the SDK's own
+  // defaults rather than throwing.
+  const config = SherloModule.getConfigOrDefault();
 
   // The story was handed over by name; put it on screen the way Storybook moves between stories,
   // then wait for it to be reported rendered.
@@ -327,7 +330,8 @@ async function waitForTheStoryOnScreen({
 async function stabilizeTheStory(
   settings: CaptureSettings | undefined
 ): Promise<{ ms: number; frames: number } | 'timed-out'> {
-  const config = SherloModule.getConfig();
+  // Same absence, same fallback as waitForTheStoryOnScreen above.
+  const config = SherloModule.getConfigOrDefault();
   const stabilization = config.stabilization;
 
   const frames = settings?.minScreenshotsCount ?? stabilization.minScreenshotsCount;

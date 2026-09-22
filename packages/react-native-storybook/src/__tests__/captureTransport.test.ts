@@ -24,7 +24,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   mockGetMode,
-  mockGetConfig,
+  mockGetConfigOrDefault,
   mockStabilize,
   mockAwaitFrameCommit,
   mockGetInspectorData,
@@ -35,7 +35,7 @@ const {
   mockReadFile,
 } = vi.hoisted(() => ({
   mockGetMode: vi.fn(),
-  mockGetConfig: vi.fn(),
+  mockGetConfigOrDefault: vi.fn(),
   mockStabilize: vi.fn(),
   mockAwaitFrameCommit: vi.fn(),
   mockGetInspectorData: vi.fn(),
@@ -49,7 +49,10 @@ const {
 vi.mock('../SherloModule', () => ({
   default: {
     getMode: mockGetMode,
-    getConfig: mockGetConfig,
+    // The capture road never calls the throwing getConfig() - only the non-throwing
+    // getConfigOrDefault, which falls back to the SDK's own defaults when there is nothing on
+    // disk to read (see the describe below named for exactly that case).
+    getConfigOrDefault: mockGetConfigOrDefault,
     stabilize: mockStabilize,
     awaitFrameCommit: mockAwaitFrameCommit,
     getInspectorData: mockGetInspectorData,
@@ -83,6 +86,25 @@ const CONFIG = {
     timeoutMs: 30000,
     threshold: 0.2,
     includeAA: false,
+  },
+  storyRenderedTimeoutMs: 5000,
+  paintBarrierTimeoutMs: 1000,
+};
+
+/**
+ * What getConfigOrDefault answers with when nothing was ever written to the device - the same
+ * numbers the SDK falls back to when it is not wired into a build at all (see DEFAULT_CONFIG in
+ * ../SherloModule). A capture's freshly-restarted app finds exactly this: no config.sherlo, because
+ * a capture writes nothing to the device before asking for the restart.
+ */
+const CONFIG_WHEN_NOTHING_IS_ON_DISK = {
+  stabilization: {
+    requiredMatches: 3,
+    minScreenshotsCount: 3,
+    intervalMs: 500,
+    timeoutMs: 5000,
+    threshold: 0.0,
+    includeAA: true,
   },
   storyRenderedTimeoutMs: 5000,
   paintBarrierTimeoutMs: 1000,
@@ -252,7 +274,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   __resetStoryRenderedTrackingForTests();
   mockGetMode.mockReturnValue('testing');
-  mockGetConfig.mockReturnValue(CONFIG);
+  mockGetConfigOrDefault.mockReturnValue(CONFIG);
   mockStabilize.mockResolvedValue(true);
   mockAwaitFrameCommit.mockResolvedValue(true);
   mockGetInspectorData.mockResolvedValue(INSPECTOR_DATA);
@@ -313,6 +335,25 @@ describe('a capture walks the same story path a test run does', () => {
     // any other guess. The app answers for those itself, which is what an app does when a run leaves
     // a value out - so a setting the tool never mentioned cannot silently become a runner default.
     expect(mockStabilize).toHaveBeenCalledWith(2, 8, 1000, 30000, false, 0.2, false);
+  });
+});
+
+describe('a capture needs no config on disk to walk a story', () => {
+  it('a capture answers from an app that came back into testing mode with nothing on its disk', async () => {
+    // A capture writes nothing to the device before asking for the restart into testing mode (see
+    // "a capture reads and writes nothing in the device's storage" below), so the app that comes
+    // back finds no config.sherlo. getConfigOrDefault answers with the SDK's own defaults rather
+    // than throwing - this is what that absence looks like on the capture road.
+    mockGetConfigOrDefault.mockReturnValue(CONFIG_WHEN_NOTHING_IS_ON_DISK);
+
+    // The tool sends no numbers of its own either, so every one of them has to come from the
+    // fallback - there is nowhere else left for them to come from.
+    const answer = await walkOneStory({});
+
+    // The walk completed and answered the tool, rather than dying under the transport the way it
+    // did before the restart could come back alive.
+    expect(answer.kind).toBe('captured');
+    expect(mockStabilize).toHaveBeenCalledWith(3, 3, 500, 5000, false, 0.0, true);
   });
 });
 
@@ -561,18 +602,18 @@ describe("a capture reads and writes nothing in the device's storage", () => {
 
 describe('a walk that throws is the crash ending', () => {
   it('answers with the crash, and the words of what threw', async () => {
-    mockGetConfig.mockImplementation(() => {
-      throw new TypeError('No Sherlo config on disk');
-    });
+    // getConfigOrDefault never throws (see the describe below) - what still can is the walk
+    // itself, mid-story, the way stabilizing genuinely can fail on a real device.
+    mockStabilize.mockRejectedValue(new TypeError('the app stopped answering'));
 
-    const answer = await startTheRoad().answered;
+    const answer = await answerOneStory();
 
     // The app stopped answering mid-walk: the tool is told so rather than left waiting, and it is
     // told what threw, so a developer reads the reason instead of an empty screen.
     expect(answer).toEqual({
       kind: 'crashed',
       storyId: STORY,
-      error: { name: 'TypeError', message: 'No Sherlo config on disk' },
+      error: { name: 'TypeError', message: 'the app stopped answering' },
     });
   });
 

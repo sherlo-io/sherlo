@@ -20,8 +20,19 @@ function useSetInitialTestingData({ view }: { view: StorybookView }): void {
     if (lastState) return;
 
     (async () => {
+      // This effect starts the protocol-file handshake with a real runner (RunnerBridge.send
+      // below writes to the device), so it needs a real run's config to mean anything. A capture
+      // restarts into testing mode with no config on disk and no runner behind it (see
+      // captureTransport.ts) - that is nothing to start, not an error, and the capture must still
+      // read and write nothing in storage, so this skips rather than falls back to a default.
+      let config: ReturnType<typeof SherloModule.getConfig>;
+      try {
+        config = SherloModule.getConfig();
+      } catch (_e) {
+        return;
+      }
+
       const storyMetas = enumerateStories(view);
-      const config = SherloModule.getConfig();
       const filteredStoryMetas = filterStoryMetas(
         storyMetas,
         config.discoveryFilter?.includeStoryIds
