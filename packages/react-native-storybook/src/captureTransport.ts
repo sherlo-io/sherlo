@@ -570,7 +570,7 @@ async function inspectorDataOfTheApp(
 
   // No metadata, or a broken story: theStorysOwnTree never re-roots either case (see there), so
   // there is nothing this wait could usefully poll for - one read is the whole of it.
-  if (!metadata || theStoryIsBroken(storyId)) {
+  if (!metadata || theStoryIsBroken(storyId, inspectorData)) {
     return {
       inspectorData,
       wait: { outcome: 'first-check', ms: Date.now() - startedAt, rereads: 0 },
@@ -667,7 +667,7 @@ async function theStorysOwnTree(
   metadata: ReturnType<typeof collectAppMetadata>,
   storyId: string
 ): Promise<{ tree: CapturedViewTree; hasNetworkImage: boolean; at: 'story' | 'window' }> {
-  if (!metadata || theStoryIsBroken(storyId)) {
+  if (!metadata || theStoryIsBroken(storyId, inspectorData)) {
     return {
       tree: captureViewTree(inspectorData.viewHierarchy, componentNamesByNativeTag()),
       hasNetworkImage: false,
@@ -754,14 +754,49 @@ function namesTheStory(metadata: ReturnType<typeof collectAppMetadata>, storyId:
  *
  * `false` while no app has published its views, which is not this: a story nothing rendered the way
  * a run renders it is left alone for a plainer reason (see theStorysOwnTree).
+ *
+ * THE FALLBACK WORDS ARE CHECKED AGAINST THE LIVE INSPECTOR READING, NOT AGAINST EVERY GENERATION
+ * THIS APP HAS EVER PUBLISHED. A capture's FIRST story of a boot is put on screen by moving
+ * Storybook off whatever it booted onto by itself (see waitForTheStoryOnScreen) - so the app's
+ * published metadata (./appMetadata) can still be carrying the PREVIOUS story's own fallback text,
+ * merged in from a fiber generation this exact story switch has already moved past (see
+ * `Metadata.generations`). A blanket check across every generation would call THIS story broken
+ * because an EARLIER one was - the same window-instead-of-story bug this whole file exists to
+ * close, one gate later. Passed `inspectorData` (the native, unambiguously current reading) is
+ * what tells the two apart: only a generation whose OWN testID-carrying view is still live in it
+ * is read for the fallback text. Every caller that already has an inspector reading in hand passes
+ * it; the one caller that does not (captureTheStory's own use, before the walk that would produce
+ * one) falls back to the merged reading, the same check this always did.
  */
-function theStoryIsBroken(storyId: string): boolean {
-  const metadata = collectAppMetadata();
+function theStoryIsBroken(storyId: string, inspectorData?: InspectorData): boolean {
+  if (readStoryError(storyId) !== undefined) return true;
 
-  return (
-    readStoryError(storyId) !== undefined ||
-    (metadata?.texts.includes(STORY_ERROR_FALLBACK_TEXT) ?? false)
+  const metadata = collectAppMetadata();
+  if (!metadata) return false;
+
+  if (!inspectorData) return metadata.texts.includes(STORY_ERROR_FALLBACK_TEXT);
+
+  const liveTags = liveNativeTags(inspectorData.viewHierarchy);
+  const liveGeneration = (metadata.generations ?? [metadata]).find((generation) =>
+    Object.entries(generation.viewProps).some(
+      ([tag, props]) => props.testID === storyId && liveTags.has(Number(tag))
+    )
   );
+
+  return (liveGeneration ?? metadata).texts.includes(STORY_ERROR_FALLBACK_TEXT);
+}
+
+/** Every native tag the live inspector reading currently holds a view for, root included. */
+function liveNativeTags(node: InspectorDataNode): Set<number> {
+  const tags = new Set<number>();
+
+  function visit(current: InspectorDataNode): void {
+    tags.add(current.id);
+    (current.children ?? []).forEach(visit);
+  }
+
+  visit(node);
+  return tags;
 }
 
 /**

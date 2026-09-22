@@ -74,6 +74,7 @@ import { __resetStoryRenderedTrackingForTests } from '../getStorybook/components
 import { rememberAppMetadataCollector } from '../appMetadata';
 import { rememberStoryOfTheApp } from '../componentNames';
 import { clearStoryError, recordStoryError } from '../getStorybook/storyErrorRegistry';
+import { STORY_ERROR_FALLBACK_TEXT } from '../constants';
 
 const STORY = 'components-button--primary';
 
@@ -720,6 +721,75 @@ describe('a story that failed to render is recorded the way a run records it', (
     // Whether an image is loaded over the network is read off the step that prepares the tree, and a
     // broken story skips that step, so the run has nothing to report and neither does a capture.
     expect(answer.hasNetworkImage).toBe(false);
+  });
+});
+
+describe('a story that broke on an EARLIER screen does not make THIS one look broken', () => {
+  // The app's published metadata (../appMetadata) is read from its own current fiber and that
+  // fiber's `.alternate` (see MetadataProvider's collectMetadata) - so it can carry TWO fiber
+  // generations at once: the one on screen now, and the one that was on screen a render ago. The
+  // words a broken story leaves behind (STORY_ERROR_FALLBACK_TEXT) sit in whichever generation
+  // rendered them, forever - even after the app has moved cleanly on to a different, working
+  // story. A capture's FIRST story of a boot is exactly this: Storybook renders its own default
+  // selection first, then this road moves it to the requested story over the channel (see the
+  // file header) - so the default story's OWN fiber generation, error or not, is still sitting in
+  // `.alternate` by the time this story's metadata is read. `metadata.generations` is what tells
+  // the two apart: only the generation whose OWN testID-carrying view is still live in the
+  // inspector's reading is read for the fallback words.
+  const A_DIFFERENT_STORYS_OWN_NATIVE_TAG = 99;
+  const THE_SCREEN_BEFORE_THIS_ONE_THREW = {
+    viewProps: {
+      [A_DIFFERENT_STORYS_OWN_NATIVE_TAG]: {
+        className: 'RCTView',
+        testID: 'components-splash--default',
+      },
+    },
+    texts: [STORY_ERROR_FALLBACK_TEXT],
+  };
+  const THIS_STORYS_OWN_SCREEN = { viewProps: VIEW_METADATA.viewProps, texts: [] };
+
+  beforeEach(() => {
+    rememberAppMetadataCollector(() => ({
+      // The merged reading a real collector hands back: every view from both generations (the
+      // splash screen's own tag never collides with this story's, so nothing is overwritten), and
+      // every word either one ever rendered - fallback text included, because it really was on
+      // screen a moment ago. This is exactly what pollutes a check that does not know which
+      // generation is which.
+      viewProps: {
+        ...THE_SCREEN_BEFORE_THIS_ONE_THREW.viewProps,
+        ...THIS_STORYS_OWN_SCREEN.viewProps,
+      },
+      texts: [...THE_SCREEN_BEFORE_THIS_ONE_THREW.texts, ...THIS_STORYS_OWN_SCREEN.texts],
+      generations: [THE_SCREEN_BEFORE_THIS_ONE_THREW, THIS_STORYS_OWN_SCREEN],
+    }));
+  });
+
+  it("starts at the story's own root, not the window, even though a stale generation's fallback words are still in the merged reading", async () => {
+    const answer = await walkOneStory();
+
+    // A_DIFFERENT_STORYS_OWN_NATIVE_TAG (99) is not in INSPECTOR_DATA at all, so the generation
+    // carrying the fallback words is not the live one - only THIS_STORYS_OWN_SCREEN's tag (3) is,
+    // and it recorded no error. Recording the window here would be the exact bug this file exists
+    // to close, one gate later than the one the rest of this suite already covers.
+    expect(answer.tree).toEqual(RECORDED_TREE);
+    expect(answer.threw).toBeUndefined();
+  });
+
+  it('still records the whole window when the fallback words belong to the LIVE generation itself', async () => {
+    // The genuine case: THIS story is the one that threw, not an earlier one. Swap which
+    // generation carries the fallback words so it is the one whose tag IS live.
+    rememberAppMetadataCollector(() => ({
+      viewProps: { ...THE_SCREEN_BEFORE_THIS_ONE_THREW.viewProps, ...VIEW_METADATA.viewProps },
+      texts: [STORY_ERROR_FALLBACK_TEXT],
+      generations: [
+        { viewProps: THE_SCREEN_BEFORE_THIS_ONE_THREW.viewProps, texts: [] },
+        { viewProps: VIEW_METADATA.viewProps, texts: [STORY_ERROR_FALLBACK_TEXT] },
+      ],
+    }));
+
+    const answer = await walkOneStory();
+
+    expect(answer.tree).toEqual(THE_WHOLE_WINDOW_NAMED_BY_THE_APP);
   });
 });
 

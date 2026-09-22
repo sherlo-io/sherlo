@@ -1,19 +1,97 @@
 import React, { ReactNode, forwardRef, useCallback, useEffect, useImperativeHandle } from 'react';
-import { FiberProvider, useFiber } from 'its-fine';
+import { FiberProvider, useFiber, type Fiber } from 'its-fine';
 import { RunnerBridge } from '../../../helpers';
 import { publishAppMetadata } from '../../../appMetadata';
 import { isNetworkImageComponent } from './networkImageDetection';
 
-export interface Metadata {
-  viewProps: {
-    [nativeTag: number]: {
-      className?: string;
-      style?: any;
-      testID?: string;
-      hasNetworkImage?: boolean;
-    };
+export type ViewProps = {
+  [nativeTag: number]: {
+    className?: string;
+    style?: any;
+    testID?: string;
+    hasNetworkImage?: boolean;
   };
+};
+
+export interface Metadata {
+  viewProps: ViewProps;
   texts: string[];
+  /**
+   * The same reading above, kept SEPARATE per fiber generation this collector walked - `fiber`
+   * and its `.alternate` (see the comment on `roots` in `collectMetadata`). `viewProps`/`texts`
+   * are the two MERGED across every generation, which is right for "what does the app's views
+   * look like" - a view's own native tag is never reused across a story switch, so a stale
+   * generation can only ADD harmless extra entries for views no longer mounted, never overwrite
+   * a live one. It is NOT right for "is the story ON SCREEN NOW throwing": a story that threw a
+   * switch or two ago left its fallback text sitting in the merged reading forever, under no tag
+   * a live inspector reading will ever match again. A caller asking that question reads this
+   * instead, picking the one generation whose own testID-carrying view is still live.
+   */
+  generations: { viewProps: ViewProps; texts: string[] }[];
+}
+
+/** Extract every string found in a fiber's props, straight or nested one level under `children`. */
+function extractTextFromProps(props: any, texts: string[]): void {
+  if (!props) return;
+
+  if (typeof props === 'string') {
+    texts.push(props);
+    return;
+  }
+
+  if (typeof props === 'object') {
+    if (props.children) {
+      if (typeof props.children === 'string') {
+        texts.push(props.children);
+      } else if (Array.isArray(props.children)) {
+        props.children.forEach((child: any) => {
+          if (typeof child === 'string') {
+            texts.push(child);
+          }
+        });
+      }
+    }
+  }
+}
+
+/**
+ * Walk one fiber generation - a `fiber` its-fine handed back, or its `.alternate` - collecting the
+ * same two readings `collectMetadata` merges: every view by its native tag, and every string found
+ * in props anywhere in the generation.
+ */
+function collectFromRoot(root: Fiber): { viewProps: ViewProps; texts: string[] } {
+  const viewProps: ViewProps = {};
+  const texts: string[] = [];
+  const visited = new Set();
+  const queue = [root];
+
+  while (queue.length > 0) {
+    const currentFiber = queue.shift();
+    if (!currentFiber || visited.has(currentFiber)) continue;
+    visited.add(currentFiber);
+
+    const { pendingProps, stateNode, memoizedProps, type } = currentFiber;
+
+    // In new architecture, the native tag is on the canonical fiber
+    const nativeTag = stateNode?._nativeTag || stateNode?.canonical?.nativeTag;
+
+    if (nativeTag) {
+      viewProps[nativeTag] = {
+        style: pendingProps.style,
+        testID: pendingProps.testID,
+        className: type || undefined,
+        hasNetworkImage: isNetworkImageComponent(currentFiber),
+      };
+    }
+
+    extractTextFromProps(pendingProps, texts);
+    extractTextFromProps(memoizedProps, texts);
+
+    if (currentFiber.child) queue.push(currentFiber.child);
+    if (currentFiber.sibling) queue.push(currentFiber.sibling);
+  }
+
+  return { viewProps, texts };
 }
 
 export interface MetadataProviderRef {
@@ -27,49 +105,23 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
     const collectMetadata = useCallback((): Metadata => {
       if (!fiber) {
         RunnerBridge.log('No fiber node available.');
-        return {
-          viewProps: {},
-          texts: [],
-        };
+        return { viewProps: {}, texts: [], generations: [] };
       }
 
-      const metadata: Metadata = {
-        viewProps: {},
-        texts: [],
-      };
+      // `fiber` is captured once, at this component's own first render, and stays fixed for the
+      // app's lifetime - its-fine's useFiber() has no cheap way to say which of a fiber and its
+      // `.alternate` React currently shows (see its own [e, e.alternate] search), so both have to
+      // be walked to be sure whichever one is current is among them. Kept as separate generations
+      // rather than one combined walk, because a reader asking "is the story on screen right now
+      // broken" needs to know which generation a fact came from - see `Metadata.generations`.
+      const roots = [fiber, fiber.alternate].filter((root): root is Fiber => !!root);
+      const generations = roots.map(collectFromRoot);
 
-      const visited = new Set();
-      const queue = [fiber, fiber.alternate];
-
-      while (queue.length > 0) {
-        const currentFiber = queue.shift();
-        if (!currentFiber || visited.has(currentFiber)) continue;
-        visited.add(currentFiber);
-
-        const { pendingProps, stateNode, memoizedProps, type } = currentFiber;
-
-        // In new architecture, the native tag is on the canonical fiber
-        const nativeTag = stateNode?._nativeTag || stateNode?.canonical?.nativeTag;
-
-        // Collect view props with native tags
-        if (nativeTag) {
-          metadata.viewProps[nativeTag] = {
-            style: pendingProps.style,
-            testID: pendingProps.testID,
-            className: type || undefined,
-            hasNetworkImage: isNetworkImageComponent(currentFiber),
-          };
-        }
-
-        // Extract text from props
-        extractTextFromProps(pendingProps, metadata.texts);
-        extractTextFromProps(memoizedProps, metadata.texts);
-
-        if (currentFiber.child) queue.push(currentFiber.child);
-        if (currentFiber.sibling) queue.push(currentFiber.sibling);
+      const metadata: Metadata = { viewProps: {}, texts: [], generations };
+      for (const generation of generations) {
+        Object.assign(metadata.viewProps, generation.viewProps);
+        metadata.texts.push(...generation.texts);
       }
-
-      // Remove duplicates
       metadata.texts = [...new Set(metadata.texts)];
 
       return metadata;
@@ -80,33 +132,6 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
     // A capture is plain JavaScript outside the renderer and holds no ref, so the reading is
     // published where it can find it (../../../appMetadata) for as long as the app is rendered.
     useEffect(() => publishAppMetadata(collectMetadata), [collectMetadata]);
-
-    // Simplified helper that focuses on children
-    function extractTextFromProps(props: any, texts: string[]) {
-      if (!props) return;
-
-      // Direct string
-      if (typeof props === 'string') {
-        texts.push(props);
-        return;
-      }
-
-      // Process object properties - focus on children
-      if (typeof props === 'object') {
-        // Check children
-        if (props.children) {
-          if (typeof props.children === 'string') {
-            texts.push(props.children);
-          } else if (Array.isArray(props.children)) {
-            props.children.forEach((child: any) => {
-              if (typeof child === 'string') {
-                texts.push(child);
-              }
-            });
-          }
-        }
-      }
-    }
 
     return children;
   }
