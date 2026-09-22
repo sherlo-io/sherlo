@@ -378,6 +378,30 @@ describe("the tree a capture records starts where a test run's tree starts", () 
     // read through the table, so the screen still prints words the developer knows.
     expect(answer.tree).toEqual(THE_WHOLE_WINDOW);
   });
+
+  it("the first capture after the restart starts at the story's own root, not at the app window", async () => {
+    // The app publishes its view metadata (../appMetadata) from an effect that runs once the app
+    // has rendered. On a real device, the FIRST capture after a restart can reach the inspector
+    // before that effect has had its turn - the seam is still unpublished the instant Storybook
+    // reports the story rendered, and arrives a beat later, the way a pending effect does.
+    rememberAppMetadataCollector(undefined);
+
+    const { answered, channel } = startTheRoad();
+    await vi.waitFor(() =>
+      expect(channel.emitted('setCurrentStory')).toEqual([{ storyId: STORY }])
+    );
+    channel.emit('storyRendered', STORY);
+
+    setTimeout(() => rememberAppMetadataCollector(() => VIEW_METADATA), 20);
+
+    const answer = await answered;
+    if (answer.kind !== 'captured') throw new Error(`the story was not captured: ${answer.kind}`);
+
+    // The metadata arrived a beat late, not never - so the walk still starts at the view Storybook
+    // wraps the story in, the same root every later capture in the session starts at, rather than
+    // mistaking the pending effect for an app that rendered nothing.
+    expect(answer.tree).toEqual(RECORDED_TREE);
+  });
 });
 
 describe('a story that failed to render is recorded the way a run records it', () => {
