@@ -1,7 +1,7 @@
 import React, { ReactNode, forwardRef, useCallback, useEffect, useImperativeHandle } from 'react';
 import { FiberProvider, useFiber } from 'its-fine';
 import { RunnerBridge } from '../../../helpers';
-import { rememberAppMetadataCollector } from '../../../appMetadata';
+import { publishAppMetadata } from '../../../appMetadata';
 import { isNetworkImageComponent } from './networkImageDetection';
 
 export interface Metadata {
@@ -79,10 +79,7 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
 
     // A capture is plain JavaScript outside the renderer and holds no ref, so the reading is
     // published where it can find it (../../../appMetadata) for as long as the app is rendered.
-    useEffect(() => {
-      rememberAppMetadataCollector(collectMetadata);
-      return () => rememberAppMetadataCollector(undefined);
-    }, [collectMetadata]);
+    useEffect(() => publishAppMetadata(collectMetadata), [collectMetadata]);
 
     // Simplified helper that focuses on children
     function extractTextFromProps(props: any, texts: string[]) {

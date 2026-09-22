@@ -165,12 +165,21 @@ describe("the settings a capture sends are the runner's stabilization values", (
 
     // The numbers themselves, written out: the runner's, not this command's to choose. Changing one
     // is changing what a capture means, so it is a diff a reader gets to see rather than a copy that
-    // drifts. `timeoutMs` is also what the `never settled` screen says out loud, one case above.
+    // drifts. `timeoutMs` is also what the `never settled` screen says out loud, one case above, and
+    // `threshold` and `includeAA` are what decide whether two frames count as the same frame: a
+    // capture that left those two to the app's own config would call a story never-settled that a
+    // test run would have settled.
+    //
+    // `saveScreenshots` is the one runner setting deliberately not here, and its absence is the
+    // point: the runner sets it true, and a capture writes nothing to the device, so the app turns
+    // it off itself rather than being told to.
     expect(STABILIZATION_SETTINGS).toEqual({
       requiredMatches: 3,
       minScreenshotsCount: 6,
       intervalMs: 500,
       timeoutMs: 20_000,
+      threshold: 0.02,
+      includeAA: true,
     });
   });
 });

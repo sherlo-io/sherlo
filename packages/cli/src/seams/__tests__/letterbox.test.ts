@@ -78,6 +78,30 @@ async function silentBundler(): Promise<PretendBundler> {
   };
 }
 
+/**
+ * A port serving something that is not this address: everything asked of it is a 404, which is what
+ * any other server on the port answers. Nothing readable comes back, which is the whole of the
+ * difference between this and a relay that answered in words this tool has no reading for.
+ */
+async function portServingSomethingElse(): Promise<PretendBundler> {
+  const server = http.createServer((_request, response) => {
+    response.writeHead(404, { 'Content-Type': 'text/plain' });
+    response.end('not here');
+  });
+
+  await new Promise<void>((listening) => server.listen(0, '127.0.0.1', listening));
+
+  return {
+    port: (server.address() as { port: number }).port,
+    asked: [],
+    close: () =>
+      new Promise<void>((closed) => {
+        (server as { closeAllConnections?: () => void }).closeAllConnections?.();
+        server.close(() => closed());
+      }),
+  };
+}
+
 /** A port nothing is serving on: one is opened and closed, so the number is certainly free. */
 async function portWithNothingOnIt(): Promise<number> {
   const empty = await pretendBundler(() => ({}));
@@ -142,10 +166,27 @@ describe('the tool posting to the letterbox', () => {
     ).toEqual({ kind: 'no-bundler' });
   });
 
+  it('an answer this tool has no reading for has no app behind it', async () => {
+    // A sherlo address that answered with something other than the kinds this tool knows - a
+    // bundler relay from another version, or something else wearing the address. Nothing here says
+    // an app is running, so the ending is the plain one.
+    const unrecognisable = await bundlerSaying(() => ({ hello: 'from somewhere else' }));
+
+    expect(
+      await liveLetterbox.openStory({
+        storyId: STORY,
+        wait: false,
+        port: unrecognisable.port,
+        timeoutSeconds: 30,
+      })
+    ).toEqual({ kind: 'no-app' });
+  });
+
   it('a port serving something that is not this address has no app behind it', async () => {
-    // A bundler nobody routed through Sherlo, or another server on the port entirely: something
-    // answered, in words this tool cannot read, and there is no Sherlo app reachable through it.
-    const somethingElse = await bundlerSaying(() => ({ hello: 'from somewhere else' }));
+    // Another server on the port entirely: it answers, and not to Sherlo - so nothing was ever
+    // posted to a relay and no app is reachable through it.
+    const somethingElse = await portServingSomethingElse();
+    running.push(somethingElse);
 
     expect(
       await liveLetterbox.openStory({

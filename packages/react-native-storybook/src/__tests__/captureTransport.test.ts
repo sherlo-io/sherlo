@@ -172,8 +172,8 @@ const RECORDED_TREE = {
  * The app's whole window as the inspector answered it: Sherlo's frame, Storybook's, the view
  * Storybook wraps a story in, and the story under it. No view is re-rooted and none is named.
  *
- * This is what a capture records in the two states where a test run leaves its tree alone - nothing
- * rendered this app the way a run renders it, and a story that failed to render.
+ * This is what a capture records when nothing rendered this app the way a run renders it: there is
+ * no view carrying a story id to start at, and no published name to print beside a view.
  */
 const THE_WHOLE_WINDOW = {
   primitive: 'View',
@@ -191,6 +191,37 @@ const THE_WHOLE_WINDOW = {
               primitive: 'ScrollView',
               components: [],
               children: [{ primitive: 'Text', components: [], children: [] }],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+/**
+ * The same window, with the names the app published for its views - what a capture records when the
+ * story on screen is broken.
+ *
+ * A broken story is re-rooted by nobody, but it is still named where the app named it: the names come
+ * from the capture's own reading of the fibers, which is not the step a run skips.
+ */
+const THE_WHOLE_WINDOW_NAMED_BY_THE_APP = {
+  primitive: 'View',
+  components: [],
+  children: [
+    {
+      primitive: 'View',
+      components: [],
+      children: [
+        {
+          primitive: 'View',
+          components: [],
+          children: [
+            {
+              primitive: 'ScrollView',
+              components: ['TypographyScales'],
+              children: [{ primitive: 'Text', components: ['SectionTitle'], children: [] }],
             },
           ],
         },
@@ -322,8 +353,7 @@ describe('a story that failed to render is recorded the way a run records it', (
     // The run leaves its tree unprepared when a story contains an error, and a capture answers what a
     // run answers: re-rooting a thrown story would record a tree no run ever makes. The ending is
     // still the capture-and-threw one, so what threw is reported beside the tree.
-    console.log('DEBUGTREE', JSON.stringify(answer.tree));
-    expect(answer.tree).toEqual(THE_WHOLE_WINDOW);
+    expect(answer.tree).toEqual(THE_WHOLE_WINDOW_NAMED_BY_THE_APP);
     expect(answer.threw).toEqual({ name: 'TypeError', message: 'nothing here is a function' });
   });
 
@@ -339,7 +369,43 @@ describe('a story that failed to render is recorded the way a run records it', (
     // then throws it on, so the boundary that ends up drawing the fallback can be the next one out.
     // The run reads the words off the screen as well as it reads the registry, so a capture does too -
     // reading only the registry would re-root a story a run leaves alone.
-    expect(answer.tree).toEqual(THE_WHOLE_WINDOW);
+    expect(answer.tree).toEqual(THE_WHOLE_WINDOW_NAMED_BY_THE_APP);
+  });
+
+  it('does not measure a broken story, because a run does not measure one', async () => {
+    recordStoryError(STORY, {
+      name: 'TypeError',
+      message: 'nothing here is a function',
+      stack: '',
+      componentStack: '',
+    });
+    // The story would be three screenfuls tall if the capture asked the native side for its size.
+    mockIsScrollable.mockResolvedValue({ scrollable: true });
+    mockScrollToCheckpoint.mockResolvedValue(THREE_SCREENFULS);
+
+    const answer = await walkOneStory();
+
+    // The run reads the story's error before it measures anything, so a broken story is one
+    // screenful however tall the view on screen is. Measuring the error view instead would tell the
+    // developer their story scrolls past the first screen when what scrolls is the fallback drawn in
+    // its place - and measuring it would also put it back at its top before the tree is read.
+    expect(mockIsScrollable).not.toHaveBeenCalled();
+    expect(answer.parts).toBe(1);
+  });
+
+  it('reports no network image for a broken story, as a run reports none', async () => {
+    recordStoryError(STORY, {
+      name: 'TypeError',
+      message: 'nothing here is a function',
+      stack: '',
+      componentStack: '',
+    });
+
+    const answer = await walkOneStory();
+
+    // Whether an image is loaded over the network is read off the step that prepares the tree, and a
+    // broken story skips that step, so the run has nothing to report and neither does a capture.
+    expect(answer.hasNetworkImage).toBe(false);
   });
 });
 

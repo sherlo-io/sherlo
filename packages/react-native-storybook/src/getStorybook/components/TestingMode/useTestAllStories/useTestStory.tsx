@@ -190,8 +190,7 @@ function useTestStory({
 
         const recordedError = readStoryError(nextSnapshot.storyId);
         const containsError =
-          recordedError !== undefined ||
-          fabricMetadata?.texts.includes(STORY_ERROR_FALLBACK_TEXT);
+          recordedError !== undefined || fabricMetadata?.texts.includes(STORY_ERROR_FALLBACK_TEXT);
 
         let finalInspectorData = inspectorData;
         let hasNetworkImage = false;
