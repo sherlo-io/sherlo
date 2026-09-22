@@ -1,7 +1,7 @@
 import type { Theme } from '@storybook/react-native-theming';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DUMMY_STORY_ID, VERIFICATION_TEST_ID, PROTOCOL_FILE } from '../../../constants';
+import { VERIFICATION_TEST_ID, PROTOCOL_FILE } from '../../../constants';
 import { StorybookParams, StorybookView } from '../../../types';
 import { getStorybookComponent } from '../../helpers';
 import { RunnerBridge } from '../../../helpers';
@@ -30,8 +30,15 @@ function Storybook({
   const reportedSherloJSLoaded = useRef(false);
 
   // Sherlo runs Storybook in non-interactive testing mode. We supply param overrides
-  // that disable on-device UI, the websocket dev-menu connection, persistent selection,
-  // and force a specific initial story (the runner's queued snapshot, or a placeholder).
+  // that disable on-device UI, the websocket dev-menu connection, and persistent selection.
+  //
+  // A run's restart always has a queued story to hand over as initialSelection, and Storybook
+  // lands on it directly. A capture's restart has none (a capture writes nothing to the device
+  // before restarting - see captureTransport.ts), so initialSelection is left undefined: with
+  // shouldPersistSelection false, Storybook's own preview falls back to its "*" specifier, which
+  // always resolves to a real, renderable story. A made-up id here (there used to be one) sends
+  // that resolution down the NoStoryMatchError branch instead - the preview never calls
+  // renderToCanvas, so no channel-driven selection, retried or not, ever has anything to replace.
   const lastState = SherloModule.getLastState();
   const storyId = lastState?.nextSnapshot.storyId;
   const testingParams: StorybookParams = {
@@ -40,7 +47,7 @@ function Storybook({
     enableWebsockets: false,
     onDeviceUI: false,
     shouldPersistSelection: false,
-    initialSelection: storyId || DUMMY_STORY_ID,
+    initialSelection: storyId,
   };
 
   const StorybookComponent = getStorybookComponent({

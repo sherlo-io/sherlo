@@ -398,6 +398,43 @@ describe('the app that comes back from the restart is told which story to show',
   });
 });
 
+describe("a capture's first story appears even though the app booted onto the placeholder", () => {
+  it('keeps re-telling the app through a run of silence, not just one lost race, until the story it asked for renders', async () => {
+    // A capture's restart has no real story to hand over as `initialSelection`, so Storybook's own
+    // preview is resolving its OWN default selection at the same time this road starts telling it
+    // which story to show - and that default selection can keep the channel silent for more than
+    // one retry interval before it settles (see Storybook.tsx: the fix this test covers is what that
+    // default selection resolves to, not this file - this road only has to prove the retry survives
+    // however long that silence runs). Four tellings pass with no answer at all, not the single lost
+    // race the test above covers, before the fifth is finally the one Storybook renders.
+    const { answered, channel } = startTheRoad();
+
+    await vi.waitFor(() =>
+      expect(channel.emitted('setCurrentStory')).toEqual([{ storyId: STORY }])
+    );
+
+    await vi.waitFor(
+      () =>
+        expect(channel.emitted('setCurrentStory')).toEqual([
+          { storyId: STORY },
+          { storyId: STORY },
+          { storyId: STORY },
+          { storyId: STORY },
+          { storyId: STORY },
+        ]),
+      { timeout: 3000 }
+    );
+    channel.emit('storyRendered', STORY);
+
+    const answer = await answered;
+    if (answer.kind !== 'captured') throw new Error(`the story was not captured: ${answer.kind}`);
+
+    // The first story of the session is the one on screen at the end - not the empty state a
+    // placeholder that never resolves to a real story would have left behind forever.
+    expect(answer.tree).toEqual(RECORDED_TREE);
+  });
+});
+
 describe('a capture needs no config on disk to walk a story', () => {
   it('a capture answers from an app that came back into testing mode with nothing on its disk', async () => {
     // A capture writes nothing to the device before asking for the restart into testing mode (see
