@@ -1,0 +1,22 @@
+[32m✔[39m  [1mfoundation-typography--scales[22m captured, the way a test run records it
+[2m   settled in 1.4s over 6 frames · testing mode[22m
+
+   TypographyScales › [1mScrollView[22m
+   ├─ SectionTitle › [1mText[22m  [2m"FONT SIZES"[22m
+   ├─ SampleLine › [1mText[22m  [2m"10px - The quick brown fox"[22m
+   ├─ SampleLine › [1mText[22m  [2m"12px - The quick brown fox"[22m
+   ├─ SampleLine › [1mText[22m  [2m"14px - The quick brown fox"[22m
+   ├─ SampleLine › [1mText[22m  [2m"16px - The quick brown fox"[22m
+   ├─ SampleLine › [1mText[22m  [2m"18px - The quick brown fox"[22m
+   ├─ SampleLine › [1mText[22m  [2m"20px - The quick brown fox"[22m
+   ├─ SampleLine › [1mText[22m  [2m"24px - The quick brown fox"[22m
+   ├─ SampleLine › [1mText[22m  [2m"28px - The quick brown fox"[22m
+   ├─ SampleLine › [1mText[22m  [2m"32px - The quick brown fox"[22m
+   ├─ SampleLine › [1mText[22m  [2m"40px - The quick brown fox"[22m
+   ├─ SectionTitle › [1mText[22m  [2m"FONT WEIGHTS"[22m
+[2m   … 4 more views[22m
+
+[2m   17 views · add --json for the full record[22m
+
+
+[exit 0]

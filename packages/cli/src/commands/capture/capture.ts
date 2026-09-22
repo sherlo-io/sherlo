@@ -57,7 +57,10 @@ export default capture;
 /* ========================================================================== */
 
 /** What the screen shows for what the app answered. */
-export function endingFor(answer: CaptureResult, run: { storyId: string; port: number }): CapturedStory {
+export function endingFor(
+  answer: CaptureResult,
+  run: { storyId: string; port: number }
+): CapturedStory {
   switch (answer.kind) {
     case 'no-bundler':
       return { kind: 'no-bundler', port: run.port };
@@ -66,10 +69,19 @@ export function endingFor(answer: CaptureResult, run: { storyId: string; port: n
     case 'no-such-story':
       return { kind: 'no-such-story', storyId: run.storyId, known: answer.known };
     case 'crashed':
-      return { kind: 'crashed', storyId: answer.storyId, ...(answer.error && { error: answer.error }) };
+      return {
+        kind: 'crashed',
+        storyId: answer.storyId,
+        ...(answer.error && { error: answer.error }),
+      };
     case 'captured':
       if (answer.threw) {
-        return { kind: 'captured-and-threw', storyId: answer.storyId, threw: answer.threw, tree: answer.tree };
+        return {
+          kind: 'captured-and-threw',
+          storyId: answer.storyId,
+          threw: answer.threw,
+          tree: answer.tree,
+        };
       }
       if (answer.settled === 'timed-out') {
         return {

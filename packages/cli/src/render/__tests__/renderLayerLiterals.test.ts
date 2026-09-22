@@ -774,7 +774,7 @@ const PINS: Pin[] = [
     prints: [
       [`${ESC}[32m✔${ESC}[39m  ${ESC}[1mfoundation-typography--scales${ESC}[22m is on screen`],
       [''],
-      [`${ESC}[2mNext: \`sherlo inspect\` says what is showing now.${ESC}[22m`],
+      [`${ESC}[2mNext: \`sherlo capture\` records it the way a test run would.${ESC}[22m`],
       [''],
     ],
   },
@@ -837,6 +837,54 @@ const PINS: Pin[] = [
       [
         `${ESC}[2mIt is showing itself rather than the story browser. \`sherlo open --story <id>\` sends it there.${ESC}[22m`,
       ],
+      [''],
+    ],
+  },
+
+  {
+    kind: 'captured-story',
+    what: 'what `sherlo capture` prints for a story that fits one screen - the green head, the settled line, the named tree, and the view count',
+    segment: {
+      kind: 'captured-story',
+      state: {
+        kind: 'captured',
+        storyId: 'foundation-typography--scales',
+        settledMs: 1400,
+        frames: 6,
+        tree: {
+          primitive: 'ScrollView',
+          components: ['TypographyScales'],
+          children: [
+            {
+              primitive: 'Text',
+              components: ['SectionTitle'],
+              text: 'FONT SIZES',
+              children: [],
+            },
+            {
+              primitive: 'Text',
+              components: ['SampleLine'],
+              text: '10px - The quick brown fox',
+              children: [],
+            },
+          ],
+        },
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[32m✔${ESC}[39m  ${ESC}[1mfoundation-typography--scales${ESC}[22m captured, the way a test run records it`,
+      ],
+      [`${ESC}[2m   settled in 1.4s over 6 frames · testing mode${ESC}[22m`],
+      [''],
+      [`   TypographyScales › ${ESC}[1mScrollView${ESC}[22m`],
+      [`   ├─ SectionTitle › ${ESC}[1mText${ESC}[22m  ${ESC}[2m"FONT SIZES"${ESC}[22m`],
+      [
+        `   └─ SampleLine › ${ESC}[1mText${ESC}[22m  ${ESC}[2m"10px - The quick brown fox"${ESC}[22m`,
+      ],
+      [''],
+      [`${ESC}[2m   3 views · add --json for the full record${ESC}[22m`],
       [''],
     ],
   },
