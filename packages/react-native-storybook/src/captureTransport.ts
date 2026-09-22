@@ -43,6 +43,14 @@
  * run reads them and from the same places: the native side is asked to measure the story, and the
  * network image is the second answer the run's own tree preparation gives beside the tree it
  * prepares.
+ *
+ * A CAPTURE REPORTS HOW IT WAITED, NOT ONLY WHAT IT RECORDED. A capture that waited its whole
+ * ceiling and gave up answers with the same shape as one that found everything on the first check -
+ * both report `kind: 'captured'`, both carry a tree. The answer also carries how the two waits this
+ * file runs (for a published reading that names the story, and for that story's own views to be in
+ * the inspector's tree) each ended - on the first check, after polling, or by running out - and what
+ * the tree that was finally recorded is rooted at (see WaitOutcome). Carried in the answer, never
+ * inferred on the other end of the socket from what it received.
  */
 import { NativeModules } from 'react-native';
 import SherloModule from './SherloModule';
@@ -124,6 +132,21 @@ const STORY_VIEWS_POLL_INTERVAL_MS = 10;
 export type StoryThrew = { name: string; message: string };
 
 /**
+ * How one of the two waits below ended: on the very first check, after re-checking one or more
+ * times, or by running out its ceiling without ever seeing what it was waiting for.
+ *
+ * THIS EXISTS BECAUSE FOUR ROUNDS OF FIXING THE WRONG WAIT COULD NOT TELL THEMSELVES APART (see the
+ * file header). A capture that waited its whole ceiling and gave up recorded the same shape as one
+ * that found everything on the first check - `outcome` and `ms` are the difference reaching the
+ * terminal, at last, instead of only a tree that happens to be wrong.
+ */
+export type WaitOutcome = {
+  outcome: 'first-check' | 'polled' | 'timed-out';
+  /** How long the wait took, start to finish, in ms. */
+  ms: number;
+};
+
+/**
  * One view in the tree a capture records - the native class of the node, and the names of the
  * app's components that render it, outermost first. No names means the app did not write this
  * view, or its bundle did not keep the names.
@@ -147,6 +170,18 @@ export type CapturedAnswer =
       /** Whether any view in the story loads an image over the network. */
       hasNetworkImage: boolean;
       tree: CapturedViewTree;
+      /**
+       * How the two waits a capture cannot see through the drawn screen went: the wait for the
+       * app's own reading of its views to name this story (./appMetadata), and the wait for the
+       * story's own views to actually be in the inspector's tree once that reading did.
+       */
+      waited: {
+        metadata: WaitOutcome;
+        /** The same three answers, plus how many times the inspector was re-read. */
+        storyViews: WaitOutcome & { rereads: number };
+      };
+      /** What the recorded tree is rooted at - the story's own root, or the app's whole window - and how many nodes it holds. */
+      root: { at: 'story' | 'window'; nodeCount: number };
     }
   | {
       kind: 'crashed';
@@ -320,6 +355,8 @@ async function captureTheStory({
       parts,
       hasNetworkImage: recorded.hasNetworkImage,
       tree: recorded.tree,
+      waited: recorded.waited,
+      root: recorded.root,
     };
   } catch (error) {
     const report = readError(error);
@@ -412,13 +449,20 @@ async function screenfulsOfTheStory(): Promise<number> {
 }
 
 /**
- * What a capture recorded of the story: its view tree, and whether anything on screen is loaded
- * over the network. Both are read off the one step that prepares the tree, so a capture and a test
- * run cannot answer differently about the same story.
+ * What a capture recorded of the story: its view tree, whether anything on screen is loaded over
+ * the network, how the two waits below went, and what the tree is rooted at. The tree and the
+ * network fact are read off the one step that prepares the tree, so a capture and a test run
+ * cannot answer differently about the same story; the waits and the root are what that agreement
+ * alone could never say - see WaitOutcome.
  */
 type RecordedStory = {
   tree: CapturedViewTree;
   hasNetworkImage: boolean;
+  waited: {
+    metadata: WaitOutcome;
+    storyViews: WaitOutcome & { rereads: number };
+  };
+  root: { at: 'story' | 'window'; nodeCount: number };
 };
 
 /**
@@ -435,10 +479,22 @@ type RecordedStory = {
  * metadataOfTheApp already closes on its own clock, reopened one clock later.
  */
 async function readTheStory(storyId: string): Promise<RecordedStory> {
-  const metadata = await metadataOfTheApp(storyId);
-  const inspectorData = await inspectorDataOfTheApp(storyId, metadata);
+  const { metadata, wait: metadataWait } = await metadataOfTheApp(storyId);
+  const { inspectorData, wait: storyViewsWait } = await inspectorDataOfTheApp(storyId, metadata);
 
-  return theStorysOwnTree(inspectorData, metadata, storyId);
+  const { tree, hasNetworkImage, at } = await theStorysOwnTree(inspectorData, metadata, storyId);
+
+  return {
+    tree,
+    hasNetworkImage,
+    waited: { metadata: metadataWait, storyViews: storyViewsWait },
+    root: { at, nodeCount: countNodes(tree) },
+  };
+}
+
+/** How many nodes a recorded tree holds, root included. */
+function countNodes(tree: CapturedViewTree): number {
+  return 1 + tree.children.reduce((total, child) => total + countNodes(child), 0);
 }
 
 /**
@@ -453,24 +509,46 @@ async function readTheStory(storyId: string): Promise<RecordedStory> {
  * A TIMEOUT HERE IS NOT A CRASH. Giving up leaves inspectorData exactly as it last answered, and the
  * honest answer is still what that was: theStorysOwnTree re-roots it if the story's node turned out
  * to be there, and records the whole window if not.
+ *
+ * THE WAIT ITSELF IS HANDED BACK ALONGSIDE THE READING, because the reading alone cannot say which
+ * of those two endings it was - a tree with the story's node in it and a tree without one look the
+ * same until something asks whether the node is there, which is exactly what this wait already
+ * asked and theStorysOwnTree is about to ask again.
  */
 async function inspectorDataOfTheApp(
   storyId: string,
   metadata: ReturnType<typeof collectAppMetadata>
-): Promise<InspectorData> {
-  let inspectorData = await theInspectorsOwnAnswer();
-  if (!metadata || theStoryIsBroken(storyId)) return inspectorData;
-
+): Promise<{ inspectorData: InspectorData; wait: WaitOutcome & { rereads: number } }> {
   const startedAt = Date.now();
+  let inspectorData = await theInspectorsOwnAnswer();
+
+  // No metadata, or a broken story: theStorysOwnTree never re-roots either case (see there), so
+  // there is nothing this wait could usefully poll for - one read is the whole of it.
+  if (!metadata || theStoryIsBroken(storyId)) {
+    return {
+      inspectorData,
+      wait: { outcome: 'first-check', ms: Date.now() - startedAt, rereads: 0 },
+    };
+  }
+
+  let rereads = 0;
   while (
     !theStorysViewsAreInTheTree(inspectorData, metadata, storyId) &&
     Date.now() - startedAt < STORY_VIEWS_TIMEOUT_MS
   ) {
     await delay(STORY_VIEWS_POLL_INTERVAL_MS);
     inspectorData = await theInspectorsOwnAnswer();
+    rereads += 1;
   }
 
-  return inspectorData;
+  const found = theStorysViewsAreInTheTree(inspectorData, metadata, storyId);
+  const outcome: WaitOutcome['outcome'] = !found
+    ? 'timed-out'
+    : rereads === 0
+    ? 'first-check'
+    : 'polled';
+
+  return { inspectorData, wait: { outcome, ms: Date.now() - startedAt, rereads } };
 }
 
 /** Keep asking the native inspector until it answers at all, giving up after INSPECTOR_TIMEOUT_MS. */
@@ -542,19 +620,26 @@ async function theStorysOwnTree(
   inspectorData: InspectorData,
   metadata: ReturnType<typeof collectAppMetadata>,
   storyId: string
-): Promise<RecordedStory> {
+): Promise<{ tree: CapturedViewTree; hasNetworkImage: boolean; at: 'story' | 'window' }> {
   if (!metadata || theStoryIsBroken(storyId)) {
     return {
       tree: captureViewTree(inspectorData.viewHierarchy, componentNamesByNativeTag()),
       hasNetworkImage: false,
+      at: 'window',
     };
   }
 
+  // The same question inspectorDataOfTheApp's own wait already asked, of the same reading it
+  // handed back: whether the story's node actually made it into this tree. prepareInspectorData
+  // re-roots at that node when it is there and leaves the window alone when it is not, so this is
+  // what the tree about to be built is rooted at - not a guess made after the fact.
+  const at = theStorysViewsAreInTheTree(inspectorData, metadata, storyId) ? 'story' : 'window';
   const prepared = prepareInspectorData(inspectorData, metadata, storyId);
 
   return {
     tree: captureViewTree(prepared.inspectorData.viewHierarchy, componentNamesByNativeTag()),
     hasNetworkImage: prepared.hasNetworkImage,
+    at,
   };
 }
 
@@ -572,20 +657,32 @@ async function theStorysOwnTree(
  * to close. Every later capture in the same session finds a reading that already names its story and
  * returns on the first check.
  *
- * `undefined` when the wait ran out without ever seeing a reading that names this story - the same
- * "nothing rendered this app" state theStorysOwnTree already falls back to, just no longer mistaking
- * a reading of the wrong screen for it.
+ * `metadata` is `undefined` when the wait ran out without ever seeing a reading that names this
+ * story - the same "nothing rendered this app" state theStorysOwnTree already falls back to, just
+ * no longer mistaking a reading of the wrong screen for it. `wait` says which of the three ways the
+ * wait ended, and how long it took - see WaitOutcome.
  */
-async function metadataOfTheApp(storyId: string): Promise<ReturnType<typeof collectAppMetadata>> {
+async function metadataOfTheApp(
+  storyId: string
+): Promise<{ metadata: ReturnType<typeof collectAppMetadata>; wait: WaitOutcome }> {
   const startedAt = Date.now();
   let metadata = collectAppMetadata();
+  let checks = 1;
 
   while (!namesTheStory(metadata, storyId) && Date.now() - startedAt < METADATA_TIMEOUT_MS) {
     await delay(METADATA_POLL_INTERVAL_MS);
     metadata = collectAppMetadata();
+    checks += 1;
   }
 
-  return namesTheStory(metadata, storyId) ? metadata : undefined;
+  const named = namesTheStory(metadata, storyId);
+  const outcome: WaitOutcome['outcome'] = !named
+    ? 'timed-out'
+    : checks === 1
+    ? 'first-check'
+    : 'polled';
+
+  return { metadata: named ? metadata : undefined, wait: { outcome, ms: Date.now() - startedAt } };
 }
 
 /**

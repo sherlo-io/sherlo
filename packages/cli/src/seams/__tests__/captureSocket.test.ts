@@ -244,6 +244,46 @@ describe("the app's answer, read into this seam's own endings", () => {
     });
   });
 
+  it('how the app waited, and what the tree it recorded was rooted at, come back with it', async () => {
+    const r = await relay();
+
+    // What the app says over the wire when a wait had to poll before it saw what it was waiting
+    // for - carried across, not reconstructed from the tree or the timing alone.
+    expect(
+      await aCapture(r, {
+        askedFor: STORY_A,
+        stories: [STORY_A],
+        recorded: {
+          ...ANSWER_A,
+          waited: {
+            metadata: { outcome: 'polled', ms: 24 },
+            storyViews: { outcome: 'timed-out', ms: 2001, rereads: 187 },
+          },
+          root: { at: 'window', nodeCount: 9 },
+        },
+      })
+    ).toEqual({
+      kind: 'captured',
+      storyId: STORY_A,
+      settled: { ms: 120, frames: 6 },
+      tree: { primitive: 'RCTView', components: [], children: [] },
+      waited: {
+        metadata: { outcome: 'polled', ms: 24 },
+        storyViews: { outcome: 'timed-out', ms: 2001, rereads: 187 },
+      },
+      root: { at: 'window', nodeCount: 9 },
+    });
+  });
+
+  it('an app older than the wait facts leaves them absent too', async () => {
+    const r = await relay();
+
+    const answer = await aCapture(r, { askedFor: STORY_A, stories: [STORY_A], recorded: ANSWER_A });
+
+    expect(answer).not.toHaveProperty('waited');
+    expect(answer).not.toHaveProperty('root');
+  });
+
   it('an app that died mid-capture is a crash, and its last words come with it', async () => {
     const r = await relay();
     const died = { name: 'RangeError', message: 'Maximum call stack size exceeded' };
