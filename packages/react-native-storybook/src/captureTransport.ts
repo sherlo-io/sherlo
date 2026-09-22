@@ -83,15 +83,16 @@ const PAINT_BARRIER_TIMEOUT_MS = 1000;
 const INSPECTOR_TIMEOUT_MS = 10000;
 
 /**
- * How long a capture waits for the app to publish its own view metadata (./appMetadata) before it
- * gives up and records the window. The wait exists to survive one pending passive effect on the
- * FIRST capture after a restart (see metadataOfTheApp below) - on every ordinary check it returns
- * on the first poll, so this ceiling costs nothing in the paths that are not racing anything.
+ * How long a capture waits for the app to publish a reading of ITS OWN STORY (./appMetadata) before
+ * it gives up and records the window. The wait exists to survive one pending passive effect on the
+ * FIRST capture after a restart (see metadataOfTheApp below) - on every ordinary check the published
+ * reading already names the story on the first poll, so this ceiling costs nothing in the paths that
+ * are not racing anything.
  *
- * THIS BOUNDS A GENUINELY ABSENT READING, NOT THE RACE. The race itself is normally over within a
- * frame or two; what this number has to survive is a passive effect queued behind other work on a
- * loaded device - the exact condition a CI emulator produces - so it is sized like the command's
- * other genuine give-ups (INSPECTOR_TIMEOUT_MS at 10s), not like a fast-path poll.
+ * THIS BOUNDS A READING THAT NEVER NAMES THE STORY, NOT THE RACE. The race itself is normally over
+ * within a frame or two; what this number has to survive is a passive effect queued behind other
+ * work on a loaded device - the exact condition a CI emulator produces - so it is sized like the
+ * command's other genuine give-ups (INSPECTOR_TIMEOUT_MS at 10s), not like a fast-path poll.
  */
 const METADATA_TIMEOUT_MS = 2000;
 
@@ -441,7 +442,7 @@ async function theStorysOwnTree(
   inspectorData: InspectorData,
   storyId: string
 ): Promise<RecordedStory> {
-  const metadata = await metadataOfTheApp();
+  const metadata = await metadataOfTheApp(storyId);
 
   if (!metadata || theStoryIsBroken(storyId)) {
     return {
@@ -459,25 +460,44 @@ async function theStorysOwnTree(
 }
 
 /**
- * The app's own reading of its views (../appMetadata), giving the one race a capture can lose a
- * fair chance to resolve first: the effect that publishes it is still pending, on the FIRST capture
- * after a restart, at the moment Storybook has already reported the story rendered - the inspector
- * answers over a socket and can come back before that effect gets its turn. Every later capture in
- * the same session finds the reading already published and returns on the first check.
+ * The app's own reading of its views (../appMetadata) - but only once that reading NAMES THE STORY
+ * this capture asked for, not merely once a reading exists.
  *
- * `undefined` when the wait ran out - the same "nothing rendered this app" state theStorysOwnTree
- * already falls back to, just no longer mistaking a pending effect for it.
+ * A reading can be published and still be about the wrong screen: on the FIRST capture after a
+ * restart, the app has just booted, something rendered, the effect published a reading of THAT, and
+ * the story this capture asked for had not been drawn into it yet - the inspector answers over a
+ * socket and can report the story rendered before that reading catches up to it. A reading that
+ * exists but does not name this story would satisfy a poll that only checked for existence, and
+ * prepareInspectorData would then find no view carrying the story's id to re-root at - silently
+ * recording the app's whole window instead of the story, which is exactly the bug this wait exists
+ * to close. Every later capture in the same session finds a reading that already names its story and
+ * returns on the first check.
+ *
+ * `undefined` when the wait ran out without ever seeing a reading that names this story - the same
+ * "nothing rendered this app" state theStorysOwnTree already falls back to, just no longer mistaking
+ * a reading of the wrong screen for it.
  */
-async function metadataOfTheApp(): Promise<ReturnType<typeof collectAppMetadata>> {
+async function metadataOfTheApp(storyId: string): Promise<ReturnType<typeof collectAppMetadata>> {
   const startedAt = Date.now();
   let metadata = collectAppMetadata();
 
-  while (!metadata && Date.now() - startedAt < METADATA_TIMEOUT_MS) {
+  while (!namesTheStory(metadata, storyId) && Date.now() - startedAt < METADATA_TIMEOUT_MS) {
     await delay(METADATA_POLL_INTERVAL_MS);
     metadata = collectAppMetadata();
   }
 
-  return metadata;
+  return namesTheStory(metadata, storyId) ? metadata : undefined;
+}
+
+/**
+ * Whether a reading of the app's views carries the view Storybook wraps this story in - the same
+ * view prepareInspectorData re-roots the tree at (testID === storyId). Checked here by the same key
+ * prepareInspectorData reads it by, so a reading this function accepts is a reading prepareInspectorData
+ * can actually re-root the tree with.
+ */
+function namesTheStory(metadata: ReturnType<typeof collectAppMetadata>, storyId: string): boolean {
+  if (!metadata) return false;
+  return Object.values(metadata.viewProps).some((props) => props.testID === storyId);
 }
 
 /**
