@@ -82,6 +82,22 @@ const PAINT_BARRIER_TIMEOUT_MS = 1000;
 /** How long a test run keeps asking the inspector for the view tree before it gives up. */
 const INSPECTOR_TIMEOUT_MS = 10000;
 
+/**
+ * How long a capture waits for the app to publish its own view metadata (./appMetadata) before it
+ * gives up and records the window. The wait exists to survive one pending passive effect on the
+ * FIRST capture after a restart (see metadataOfTheApp below) - on every ordinary check it returns
+ * on the first poll, so this ceiling costs nothing in the paths that are not racing anything.
+ *
+ * THIS BOUNDS A GENUINELY ABSENT READING, NOT THE RACE. The race itself is normally over within a
+ * frame or two; what this number has to survive is a passive effect queued behind other work on a
+ * loaded device - the exact condition a CI emulator produces - so it is sized like the command's
+ * other genuine give-ups (INSPECTOR_TIMEOUT_MS at 10s), not like a fast-path poll.
+ */
+const METADATA_TIMEOUT_MS = 2000;
+
+/** How often the wait above re-checks, between one short wait and the next. */
+const METADATA_POLL_INTERVAL_MS = 10;
+
 /** What a story threw while rendering, as the app reports it to the bundler. */
 export type StoryThrew = { name: string; message: string };
 
@@ -421,8 +437,11 @@ async function readTheStory(storyId: string): Promise<RecordedStory> {
  * capture is for. Both states that make a run skip it are read here: the error the boundary recorded
  * and the words that stand in for a story that failed to render (see theStoryIsBroken).
  */
-function theStorysOwnTree(inspectorData: InspectorData, storyId: string): RecordedStory {
-  const metadata = collectAppMetadata();
+async function theStorysOwnTree(
+  inspectorData: InspectorData,
+  storyId: string
+): Promise<RecordedStory> {
+  const metadata = await metadataOfTheApp();
 
   if (!metadata || theStoryIsBroken(storyId)) {
     return {
@@ -437,6 +456,28 @@ function theStorysOwnTree(inspectorData: InspectorData, storyId: string): Record
     tree: captureViewTree(prepared.inspectorData.viewHierarchy, componentNamesByNativeTag()),
     hasNetworkImage: prepared.hasNetworkImage,
   };
+}
+
+/**
+ * The app's own reading of its views (../appMetadata), giving the one race a capture can lose a
+ * fair chance to resolve first: the effect that publishes it is still pending, on the FIRST capture
+ * after a restart, at the moment Storybook has already reported the story rendered - the inspector
+ * answers over a socket and can come back before that effect gets its turn. Every later capture in
+ * the same session finds the reading already published and returns on the first check.
+ *
+ * `undefined` when the wait ran out - the same "nothing rendered this app" state theStorysOwnTree
+ * already falls back to, just no longer mistaking a pending effect for it.
+ */
+async function metadataOfTheApp(): Promise<ReturnType<typeof collectAppMetadata>> {
+  const startedAt = Date.now();
+  let metadata = collectAppMetadata();
+
+  while (!metadata && Date.now() - startedAt < METADATA_TIMEOUT_MS) {
+    await delay(METADATA_POLL_INTERVAL_MS);
+    metadata = collectAppMetadata();
+  }
+
+  return metadata;
 }
 
 /**
