@@ -38,21 +38,17 @@
  *
  * TWO FACTS BESIDE THE TREE, because a developer cannot see either from where they are sitting: how
  * many screenfuls the story is, so a story that scrolls past the first screen is not mistaken for
- * one that fits, and whether anything in it is loaded over the network, which a cloud capture
- * depends on. Both are read the way the test run reads them - the native side is asked to measure
- * the story, and the story's own fibers are asked about the images.
+ * one that fits, and whether it is loaded over the network - which a cloud capture depends on, and
+ * which a developer cannot do anything about from where they are. Both are read the way the test
+ * run reads them and from the same places: the native side is asked to measure the story, and the
+ * network image is the second answer the run's own tree preparation gives beside the tree it
+ * prepares.
  */
 import { NativeModules } from 'react-native';
 import SherloModule from './SherloModule';
 import { InspectorData, InspectorDataNode, StorybookView } from './types';
-import {
-  componentNamesByNativeTag,
-  storyOfTheAppFiber,
-  type ComponentNamesByNativeTag,
-  type RenderedFiber,
-} from './componentNames';
+import { componentNamesByNativeTag, type ComponentNamesByNativeTag } from './componentNames';
 import { collectAppMetadata } from './appMetadata';
-import { isNetworkImageComponent } from './getStorybook/components/TestingMode/networkImageDetection';
 import { prepareInspectorData } from './getStorybook/components/TestingMode/useTestAllStories/prepareInspectorData';
 import { readStoryError } from './getStorybook/storyErrorRegistry';
 import {
@@ -261,8 +257,7 @@ async function captureTheStory({
     // Asking how many screenfuls the story is puts it back at its top, so it is asked before the
     // tree is read: the tree a capture records is the story as it renders from the beginning.
     const parts = await screenfulsOfTheStory();
-    const tree = await readTheViewTree(storyId);
-    const hasNetworkImage = theStoryLoadsANetworkImage();
+    const recorded = await readTheStory(storyId);
 
     const threw = whatTheStoryThrew(storyId);
     return {
@@ -271,8 +266,8 @@ async function captureTheStory({
       settled,
       ...(threw && { threw }),
       parts,
-      hasNetworkImage,
-      tree,
+      hasNetworkImage: recorded.hasNetworkImage,
+      tree: recorded.tree,
     };
   } catch (error) {
     const report = readError(error);
@@ -356,35 +351,17 @@ async function screenfulsOfTheStory(): Promise<number> {
 }
 
 /**
- * Whether any view in the story on screen loads an image over the network - the fact a cloud capture
- * lives by, because it has to reach the network to record the same story, and one the developer can
- * do nothing about from here.
- *
- * The test run asks this of the fabric metadata it collects inside the render: the story's own
- * fibers, view by view, through the one predicate this SDK has for it. A capture renders nothing of
- * its own, so it walks the story's fibers from the root the story published while it rendered
- * (./componentNames) and asks the same predicate of each - the same fibers, the same question.
+ * What a capture recorded of the story: its view tree, and whether anything on screen is loaded
+ * over the network. Both are read off the one step that prepares the tree, so a capture and a test
+ * run cannot answer differently about the same story.
  */
-function theStoryLoadsANetworkImage(): boolean {
-  const story = storyOfTheAppFiber();
-  if (!story) return false;
+type RecordedStory = {
+  tree: CapturedViewTree;
+  hasNetworkImage: boolean;
+};
 
-  return anyFiberUnder(story, isNetworkImageComponent);
-}
-
-/** Whether this fiber, or anything drawn under it, matches. */
-function anyFiberUnder(fiber: RenderedFiber, matches: (fiber: RenderedFiber) => boolean): boolean {
-  if (matches(fiber)) return true;
-
-  for (let child = fiber.child; child; child = child.sibling) {
-    if (anyFiberUnder(child, matches)) return true;
-  }
-
-  return false;
-}
-
-/** Read the story's view tree straight from the native inspector, retrying the way a test run does. */
-async function readTheViewTree(storyId: string): Promise<CapturedViewTree> {
+/** Read the story off the native inspector, retrying the way a test run does. */
+async function readTheStory(storyId: string): Promise<RecordedStory> {
   let inspectorData: InspectorData | undefined;
   const startedAt = Date.now();
 
@@ -399,27 +376,37 @@ async function readTheViewTree(storyId: string): Promise<CapturedViewTree> {
 }
 
 /**
- * The tree a capture records, starting where a test run's tree starts.
+ * The story a capture records, starting where a test run's story starts.
  *
- * The inspector answers with the app's whole window, which holds Sherlo's frame, Storybook's, and
- * the story view Storybook wraps a story in. The one step that knows where the story begins among
- * all of that is the step the test run hands its tree to (prepareInspectorData): it re-points the
- * tree at the view carrying the story's own id, and names every view with the class the fiber drew
- * it by. A capture records the same tree, so it goes through the same step - the step needs the
- * app's view metadata, which is read from the renderer's published reading (./appMetadata).
+ * The inspector answers with the app's whole window, which holds Sherlo's own frame, Storybook's,
+ * and the view Storybook wraps a story in. The one step that knows where the story begins among all
+ * of that is the step the test run hands its tree to (prepareInspectorData): it re-points the tree
+ * at the view carrying the story's own id, names every view by the class the fiber drew it by, and
+ * says whether anything on screen is loaded over the network. A capture records the same story, so
+ * it takes all three from that one step rather than reading the window a second way of its own.
  *
- * With no metadata - no app rendered this way - the tree is recorded as the inspector answered it,
- * which is the whole window rather than the story.
+ * The step needs the app's view metadata, which a run holds as a React ref and a capture, having no
+ * renderer, reads from the seam the renderer publishes it on (./appMetadata). With no metadata
+ * published - nothing rendered this app the way a run renders it - there is no story to start at
+ * and no image to report: what the inspector answered is recorded as it stands, the whole window
+ * rather than the story.
  */
-function theStorysOwnTree(inspectorData: InspectorData, storyId: string): CapturedViewTree {
+function theStorysOwnTree(inspectorData: InspectorData, storyId: string): RecordedStory {
   const metadata = collectAppMetadata();
-  const prepared = metadata
-    ? prepareInspectorData(inspectorData, metadata, storyId).inspectorData
-    : inspectorData;
 
-  if (!prepared.viewHierarchy) return emptyViewTree();
+  if (!metadata) {
+    return {
+      tree: captureViewTree(inspectorData.viewHierarchy, componentNamesByNativeTag()),
+      hasNetworkImage: false,
+    };
+  }
 
-  return captureViewTree(prepared.viewHierarchy, componentNamesByNativeTag());
+  const prepared = prepareInspectorData(inspectorData, metadata, storyId);
+
+  return {
+    tree: captureViewTree(prepared.inspectorData.viewHierarchy, componentNamesByNativeTag()),
+    hasNetworkImage: prepared.hasNetworkImage,
+  };
 }
 
 /**
@@ -469,11 +456,6 @@ const PRIMITIVE_BY_DRAWING_CLASS: Record<string, string> = {
 function thePrimitiveTheCommandPrints(drawingClass: unknown): string {
   if (typeof drawingClass !== 'string') return '';
   return PRIMITIVE_BY_DRAWING_CLASS[drawingClass] ?? drawingClass;
-}
-
-/** A view tree with nothing in it - what a story with no views on screen records. */
-function emptyViewTree(): CapturedViewTree {
-  return { primitive: '', components: [], children: [] };
 }
 
 /**
