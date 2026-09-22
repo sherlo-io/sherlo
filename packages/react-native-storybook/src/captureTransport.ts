@@ -92,8 +92,8 @@ export type CaptureSettings = {
   timeoutMs?: number;
 };
 
-/** What the bundler answers an app that has been waiting. */
-export type CaptureAnswer = {
+/** What the bundler hands an app that has been waiting: the instruction to act on. */
+export type CaptureInstruction = {
   /** The app is not in testing mode; restart there, and the capture waits for the app that returns. */
   restartIntoTesting?: boolean;
   /** The story to capture, sent only to an app already in testing mode. */
@@ -113,7 +113,7 @@ export type CaptureTransport = {
     mode: string;
     stories: string[];
     answer: CapturedAnswer | null;
-  }): Promise<CaptureAnswer>;
+  }): Promise<CaptureInstruction>;
 };
 
 let collecting = false;
@@ -167,7 +167,7 @@ async function collectCaptures({
   let answer: CapturedAnswer | null = null;
 
   while (collecting) {
-    let asked: CaptureAnswer;
+    let asked: CaptureInstruction;
 
     try {
       asked = await capture.waitForACapture({
@@ -358,7 +358,7 @@ export function bundlerCapture(): CaptureTransport | null {
           // controller produces, though the runtime object is the same - hence the cast.
           signal: giveUp.signal as unknown as RequestInit['signal'],
         });
-        const answer = (await response.json()) as CaptureAnswer;
+        const answer = (await response.json()) as CaptureInstruction;
         return answer && typeof answer === 'object' ? answer : {};
       } finally {
         clearTimeout(timer);
