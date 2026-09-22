@@ -1,6 +1,6 @@
 [32m✔[39m  [1mfoundation-typography--scales[22m is on screen
 
-[2mNext: `sherlo inspect` says what is showing now.[22m
+[2mNext: `sherlo capture` records it the way a test run would.[22m
 
 
 [exit 0]
