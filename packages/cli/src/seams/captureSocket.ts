@@ -108,7 +108,8 @@ export function posedCaptureSocket(
       if (!posed) {
         refusals.push({
           call: 'captureStory',
-          problem: 'the pose states no `capture`, and the command asked for one - say what answered',
+          problem:
+            'the pose states no `capture`, and the command asked for one - say what answered',
         });
         return { kind: 'no-bundler' };
       }
@@ -120,9 +121,10 @@ export function posedCaptureSocket(
         return {
           kind: 'crashed',
           storyId,
-          ...(posed.crashed.name && posed.crashed.message && {
-            error: { name: posed.crashed.name, message: posed.crashed.message },
-          }),
+          ...(posed.crashed.name &&
+            posed.crashed.message && {
+              error: { name: posed.crashed.name, message: posed.crashed.message },
+            }),
         };
       }
 

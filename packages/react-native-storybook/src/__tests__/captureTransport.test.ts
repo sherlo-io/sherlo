@@ -20,7 +20,7 @@ describe('a capture restarts the app into testing mode, so isRunningVisualTests 
   });
 });
 
-describe('a capture reads and writes nothing in the device\'s storage', () => {
+describe("a capture reads and writes nothing in the device's storage", () => {
   it('reads and writes nothing in storage', () => {
     expect(true).toBe(true);
   });
