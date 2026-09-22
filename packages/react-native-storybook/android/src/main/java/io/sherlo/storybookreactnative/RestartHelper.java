@@ -18,6 +18,7 @@ import com.facebook.react.bridge.Promise;
 
 import static io.sherlo.storybookreactnative.SherloModuleCore.MODE_DEFAULT;
 import static io.sherlo.storybookreactnative.SherloModuleCore.MODE_STORYBOOK;
+import static io.sherlo.storybookreactnative.SherloModuleCore.MODE_TESTING;
 
 
 public class RestartHelper {
@@ -26,10 +27,10 @@ public class RestartHelper {
     private static final String REACT_APPLICATION_CLASS_NAME = "com.facebook.react.ReactApplication";
     private static final String REACT_NATIVE_HOST_CLASS_NAME = "com.facebook.react.ReactNativeHost";
     private static final String PREFS_NAME = "SherloPrefs";
-    private static final String PREF_STORYBOOK_ENABLED = "storybookEnabled";
-    private static final String PREF_STORYBOOK_TIMESTAMP = "storybookEnabledTimestamp";
-    private static final long MODE_PERSISTENCE_TIMEOUT_MS = 10000; 
-    
+    private static final String PREF_MODE = "mode";
+    private static final String PREF_MODE_TIMESTAMP = "modeTimestamp";
+    private static final long MODE_PERSISTENCE_TIMEOUT_MS = 10000;
+
     private ReactApplicationContext reactContext = null;
 
     private LifecycleEventListener mLifecycleEventListener = null;
@@ -39,59 +40,61 @@ public class RestartHelper {
     }
 
     /**
-     * Persists storybook mode state with timestamp, but only if it's MODE_STORYBOOK
-     * If MODE_DEFAULT, removes any existing persisted state
+     * Persists the mode to come back up in, with a timestamp, but only when it is a mode the
+     * app should survive a restart in (storybook or testing). A default-mode restart clears any
+     * persisted mode: default is what config already resolves to, and persisting it would hide
+     * a config change.
      */
     private void persistMode(String mode) {
         SharedPreferences prefs = reactContext.getSharedPreferences(PREFS_NAME, 0);
-        
-        if (MODE_STORYBOOK.equals(mode)) {
+
+        if (MODE_STORYBOOK.equals(mode) || MODE_TESTING.equals(mode)) {
             prefs.edit()
-                .putBoolean(PREF_STORYBOOK_ENABLED, true)
-                .putLong(PREF_STORYBOOK_TIMESTAMP, System.currentTimeMillis())
+                .putString(PREF_MODE, mode)
+                .putLong(PREF_MODE_TIMESTAMP, System.currentTimeMillis())
                 .apply();
-            Log.d(TAG, "Persisted storybook mode enabled for restart");
+            Log.d(TAG, "Persisted mode for restart: " + mode);
         } else {
             prefs.edit()
-                .remove(PREF_STORYBOOK_ENABLED)
-                .remove(PREF_STORYBOOK_TIMESTAMP)
+                .remove(PREF_MODE)
+                .remove(PREF_MODE_TIMESTAMP)
                 .apply();
-            Log.d(TAG, "Cleared persisted storybook mode (switching to: " + mode + ")");
+            Log.d(TAG, "Cleared persisted mode (switching to: " + mode + ")");
         }
     }
 
     /**
-     * Retrieves the persisted mode from SharedPreferences if it's recent enough
-     * Returns MODE_STORYBOOK if enabled and valid, otherwise null (for config fallback)
-     * Clears the persisted state after reading (one-time use)
+     * Retrieves the persisted mode from SharedPreferences if it's recent enough.
+     * Returns the mode name if still valid, otherwise null (for config fallback).
+     * Clears the persisted state after reading (one-time use).
      */
     public String getPersistedMode() {
         SharedPreferences prefs = reactContext.getSharedPreferences(PREFS_NAME, 0);
-        boolean storybookEnabled = prefs.getBoolean(PREF_STORYBOOK_ENABLED, false);
-        long timestamp = prefs.getLong(PREF_STORYBOOK_TIMESTAMP, 0);
-        
-        if (storybookEnabled && timestamp > 0) {
+        String mode = prefs.getString(PREF_MODE, null);
+        long timestamp = prefs.getLong(PREF_MODE_TIMESTAMP, 0);
+
+        if (mode != null && timestamp > 0) {
             long timeDiff = System.currentTimeMillis() - timestamp;
-            
+
             if (timeDiff <= MODE_PERSISTENCE_TIMEOUT_MS) {
                 prefs.edit()
-                    .remove(PREF_STORYBOOK_ENABLED)
-                    .remove(PREF_STORYBOOK_TIMESTAMP)
+                    .remove(PREF_MODE)
+                    .remove(PREF_MODE_TIMESTAMP)
                     .apply();
-                
-                Log.d(TAG, "Using persisted storybook mode from restart (age: " + timeDiff + "ms)");
-                return MODE_STORYBOOK;
+
+                Log.d(TAG, "Using persisted mode from restart (age: " + timeDiff + "ms): " + mode);
+                return mode;
             } else {
                 // Expired, clear it
                 prefs.edit()
-                    .remove(PREF_STORYBOOK_ENABLED)
-                    .remove(PREF_STORYBOOK_TIMESTAMP)
+                    .remove(PREF_MODE)
+                    .remove(PREF_MODE_TIMESTAMP)
                     .apply();
-                
-                Log.d(TAG, "Persisted storybook mode expired (age: " + timeDiff + "ms), no persisted mode");
+
+                Log.d(TAG, "Persisted mode expired (age: " + timeDiff + "ms), no persisted mode");
             }
         }
-        
+
         return null;
     }
 

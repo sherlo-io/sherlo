@@ -80,6 +80,14 @@ public class SherloModule extends NativeSherloModuleSpec {
         moduleCore.closeStorybook();
     }
 
+    /**
+     * Explicitly switches to testing mode.
+     */
+    @Override
+    public void openTesting() {
+        moduleCore.openTesting();
+    }
+
     // ==== Error Reporting ====
 
     /**

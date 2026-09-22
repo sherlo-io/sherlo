@@ -10,6 +10,7 @@ export interface Spec extends TurboModule {
   openStorybook: () => void;
   closeStorybook: () => void;
   toggleStorybook: () => void;
+  openTesting: () => void;
   stabilize: (
     requiredMatches: number,
     minScreenshotsCount: number,

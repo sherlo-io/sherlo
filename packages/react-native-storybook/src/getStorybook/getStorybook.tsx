@@ -20,6 +20,7 @@ import {
   stopInteractiveMockActivation,
 } from './interactiveMockActivation';
 import { startOpenStoryChannel, stopOpenStoryChannel } from '../openStoryChannel';
+import { startCaptureTransport } from '../captureTransport';
 
 let isSdkCompatible = true;
 if (SherloModule.getMode() === 'testing') {
@@ -33,6 +34,14 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
   // Safe in all modes: the dummy SherloModule is a no-op; the real native
   // implementation is idempotent (safe to call even after the timer fired).
   SherloModule.notifyGetStorybookCalled();
+
+  // Start waiting on the bundler's capture address, in every mode. Unlike the letterbox - which
+  // only matters while Storybook is on screen - a capture can be asked for at any time, and
+  // answering one restarts the app into testing mode: the app that comes back is in testing mode,
+  // and it must still be listening for the capture that is waiting for it. startCaptureTransport is
+  // idempotent and cheap, so starting it unconditionally costs a built app nothing (no bundler
+  // beside it, nothing starts - see captureTransport's `bundlerCapture`).
+  startWaitingForACapture(view);
 
   // Only set up testing-mode story decorators when SDK is compatible.
   // When isSdkCompatible=false the component returns null anyway, and calling
@@ -201,6 +210,16 @@ function startWaitingOnTheLetterbox(view: StorybookView, atTheStoryBrowser: bool
     // Ignored: a Storybook whose channel this could not read, or a device with no reachable
     // bundler beside it. Either one costs `sherlo open` its road into this app and costs the app
     // nothing else, so it is not worth crashing the app a developer is working in.
+  }
+}
+
+function startWaitingForACapture(view: StorybookView): void {
+  try {
+    startCaptureTransport({ view, channel: getStorybookChannel(view) });
+  } catch (_e) {
+    // Ignored: a device with no reachable bundler beside it. That costs `sherlo capture` its road
+    // into this app and costs the app nothing else, so it is not worth crashing the app a
+    // developer is working in.
   }
 }
 

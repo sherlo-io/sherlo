@@ -215,6 +215,15 @@ public class SherloModuleCore {
     }
 
     /**
+     * Switches to testing mode and restarts the React context.
+     * The restart a capture asks for: the same full process restart `sherlo open` uses,
+     * but into testing mode so the app comes back up with isRunningVisualTests true.
+     */
+    public void openTesting() {
+        restartHelper.restart(MODE_TESTING);
+    }
+
+    /**
      * Writes a NATIVE_ERROR JSON line to protocol.sherlo.
      *
      * @param errorCode The error code (e.g. ERROR_SDK_COMPATIBILITY)

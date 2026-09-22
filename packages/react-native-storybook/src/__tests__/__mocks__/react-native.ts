@@ -67,6 +67,7 @@ export const NativeModules: Record<string, any> = {
     openStorybook: () => {},
     closeStorybook: () => {},
     toggleStorybook: () => {},
+    openTesting: () => {},
     isScrollable: () => Promise.resolve({ scrollable: false }),
     scrollToCheckpoint: () =>
       Promise.resolve({

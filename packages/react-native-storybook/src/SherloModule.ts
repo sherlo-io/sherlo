@@ -29,6 +29,7 @@ type SherloModule = {
   readFile: (path: string) => Promise<string>;
   openStorybook: () => void;
   toggleStorybook: () => void;
+  openTesting: () => void;
   stabilize: (
     requiredMatches: number,
     minScreenshotsCount: number,
@@ -159,6 +160,7 @@ function createSherloModule(): SherloModule {
     },
     openStorybook: () => module.openStorybook(),
     toggleStorybook: () => module.toggleStorybook(),
+    openTesting: () => module.openTesting(),
     isScrollable: () => module.isScrollable(),
     scrollToCheckpoint: (index: number, offset: number, maxIndex: number) =>
       module.scrollToCheckpoint(index, offset, maxIndex),
@@ -216,6 +218,7 @@ function createDummySherloModule(): SherloModule {
     readFile: async () => '',
     openStorybook: () => {},
     toggleStorybook: () => {},
+    openTesting: () => {},
     awaitFrameCommit: async () => false,
     isScrollable: async () => ({ scrollable: false }),
     scrollToCheckpoint: async () => ({

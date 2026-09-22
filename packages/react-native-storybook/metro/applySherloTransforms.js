@@ -6,6 +6,7 @@ var crypto = require('crypto');
 
 var mockShims = require('./mockShims');
 var createOpenStoryLetterbox = require('./openStoryLetterbox');
+var createCaptureSocket = require('./captureSocket');
 var storyTitleReader = require('./storyTitleReader');
 
 // ---------------------------------------------------------------------------
@@ -743,12 +744,14 @@ function applySherloTransforms(result, opts) {
     }
   }
 
-  // ---- The letterbox on the bundler ----
-  // One address served beside the bundle, and the whole road `sherlo open` and `sherlo inspect`
-  // reach a running app down (see openStoryLetterbox.js). It is installed unconditionally: with no
-  // Sherlo app attached the address simply has nobody to hand a story to, and a developer never
-  // has to add anything for it to be there.
+  // ---- Sherlo's addresses on the bundler ----
+  // Two addresses served beside the bundle: the letterbox and the capture socket. The letterbox is
+  // the road `sherlo open` and `sherlo inspect` reach a running app down (see openStoryLetterbox.js);
+  // the capture socket is the road `sherlo capture` reaches it down (see captureSocket.js). Both are
+  // installed unconditionally: with no Sherlo app attached an address simply has nobody to answer,
+  // and a developer never has to add anything for them to be there.
   var letterbox = createOpenStoryLetterbox();
+  var captureSocket = createCaptureSocket();
 
   var existingEnhanceMiddleware =
     result && result.server && typeof result.server.enhanceMiddleware === 'function'
@@ -760,10 +763,12 @@ function applySherloTransforms(result, opts) {
       ? existingEnhanceMiddleware(metroMiddleware, metroServer)
       : metroMiddleware;
 
-    return function sherloLetterboxMiddleware(request, response, next) {
-      // Sherlo's address first, everything else untouched behind it.
-      return letterbox.middleware(request, response, function () {
-        return enhanced(request, response, next);
+    return function sherloMiddleware(request, response, next) {
+      // Sherlo's addresses first, everything else untouched behind them.
+      return captureSocket.middleware(request, response, function () {
+        return letterbox.middleware(request, response, function () {
+          return enhanced(request, response, next);
+        });
       });
     };
   }
@@ -878,6 +883,7 @@ module.exports.applySherloTransforms = applySherloTransforms;
 module.exports.generateWrapper = generateWrapper;
 module.exports.writeDisabledFlagPolyfill = writeDisabledFlagPolyfill;
 module.exports.createOpenStoryLetterbox = createOpenStoryLetterbox;
+module.exports.createCaptureSocket = createCaptureSocket;
 // Exported for SHERLO-1890 spike unit tests (module manifest sidecar).
 module.exports.emitModuleManifestSidecar = emitModuleManifestSidecar;
 module.exports.stableStringify = stableStringify;

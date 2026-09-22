@@ -54,10 +54,17 @@
 
 /**
  * Switches to default mode.
- * 
+ *
  * @param bridge The React Native bridge needed for reloading
  */
 - (void)closeStorybook:(RCTBridge *)bridge;
+
+/**
+ * Switches to testing mode.
+ *
+ * @param bridge The React Native bridge needed for reloading
+ */
+- (void)openTesting:(RCTBridge *)bridge;
 
 /**
  * Writes a NATIVE_ERROR JSON line to protocol.sherlo.

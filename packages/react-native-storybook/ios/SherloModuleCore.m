@@ -198,6 +198,18 @@ static FileSystemHelper *fileSystemHelper;
 }
 
 /**
+ * Switches to testing mode and reloads the React Native application.
+ * The restart a capture asks for: the same reload `sherlo open` uses, but into
+ * testing mode so the app comes back up with isRunningVisualTests true.
+ *
+ * @param bridge The React Native bridge needed for reloading
+ */
+- (void)openTesting:(RCTBridge *)bridge {
+    currentMode = MODE_TESTING;
+    [RestartHelper restart:bridge];
+}
+
+/**
  * Writes a NATIVE_ERROR JSON line to protocol.sherlo.
  *
  * @param errorCode The error code (e.g. ERROR_SDK_COMPATIBILITY)
