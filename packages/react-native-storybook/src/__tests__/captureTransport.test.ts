@@ -361,8 +361,8 @@ describe('a capture walks the same story path a test run does', () => {
 
 describe('the app that comes back from the restart is told which story to show', () => {
   it('re-tells the app once its own default selection has overwritten the first telling, and does not stop until the story it asked for is the one that actually rendered', async () => {
-    // A capture's restarted app has no `initialSelection` to land on (see the file header): it boots
-    // onto a placeholder and runs its OWN default selection to get somewhere. The first
+    // A capture's restarted app has no `initialSelection` to land on (see the file header), so
+    // Storybook resolves its OWN default selection to get somewhere. The first
     // `setCurrentStory` this test's road sends can lose that race - which looks, from here, exactly
     // like silence: no storyRendered arrives for it, not ever, not because nothing happened but
     // because the app's own default selection undid it. A single telling that only waits would end
@@ -392,13 +392,14 @@ describe('the app that comes back from the restart is told which story to show',
     const answer = await answered;
     if (answer.kind !== 'captured') throw new Error(`the story was not captured: ${answer.kind}`);
 
-    // The capture recorded the story it asked for - not the app's own placeholder, and not a crash
-    // for a story that eventually did render, just not on the first asking.
+    // The capture recorded the story it asked for - not whichever story the app's own default
+    // selection landed on, and not a crash for a story that eventually did render, just not on the
+    // first asking.
     expect(answer.tree).toEqual(RECORDED_TREE);
   });
 });
 
-describe("a capture's first story appears even though the app booted onto the placeholder", () => {
+describe("a capture's first story appears even though the app booted onto a story of its own choosing", () => {
   it('keeps re-telling the app through a run of silence, not just one lost race, until the story it asked for renders', async () => {
     // A capture's restart has no real story to hand over as `initialSelection`, so Storybook's own
     // preview is resolving its OWN default selection at the same time this road starts telling it
