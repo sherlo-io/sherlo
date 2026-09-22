@@ -84,12 +84,16 @@ const INSPECTOR_TIMEOUT_MS = 10000;
 
 /**
  * How long a capture waits for the app to publish its own view metadata (./appMetadata) before it
- * gives up and records the window. The app publishes it from an effect that runs once the app has
- * rendered, and on the FIRST capture after a restart that effect can still be pending by the time
- * Storybook has already reported the story rendered - a race no later capture in the same session
- * hits, because the effect runs once and what it publishes stays published from then on.
+ * gives up and records the window. The wait exists to survive one pending passive effect on the
+ * FIRST capture after a restart (see metadataOfTheApp below) - on every ordinary check it returns
+ * on the first poll, so this ceiling costs nothing in the paths that are not racing anything.
+ *
+ * THIS BOUNDS A GENUINELY ABSENT READING, NOT THE RACE. The race itself is normally over within a
+ * frame or two; what this number has to survive is a passive effect queued behind other work on a
+ * loaded device - the exact condition a CI emulator produces - so it is sized like the command's
+ * other genuine give-ups (INSPECTOR_TIMEOUT_MS at 10s), not like a fast-path poll.
  */
-const METADATA_TIMEOUT_MS = 200;
+const METADATA_TIMEOUT_MS = 2000;
 
 /** How often the wait above re-checks, between one short wait and the next. */
 const METADATA_POLL_INTERVAL_MS = 10;
