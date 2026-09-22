@@ -270,6 +270,19 @@ type Saying = { mode: string; stories: string[]; answer: CapturedAnswer | null }
 /** The story the app recorded, once it recorded one. */
 type CapturedStory = Extract<CapturedAnswer, { kind: 'captured' }>;
 
+/**
+ * A published reading that exists but is not about this story - the screen the app rendered before
+ * the one this capture asked for. None of its native tags overlap the inspector's (1-5), and its one
+ * view carries a different testID, so prepareInspectorData can neither re-root the tree with it nor
+ * name any view in it: a poll that accepted this reading as "good enough" would record the window.
+ */
+const METADATA_OF_A_DIFFERENT_SCREEN = {
+  viewProps: {
+    99: { className: 'RCTView', testID: 'components-splash--default' },
+  },
+  texts: [],
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   __resetStoryRenderedTrackingForTests();
@@ -402,6 +415,30 @@ describe("the tree a capture records starts where a test run's tree starts", () 
     // mistaking the pending effect for an app that rendered nothing.
     expect(answer.tree).toEqual(RECORDED_TREE);
   });
+
+  it('a capture waits for the reading that names its own story, not merely for a reading to exist', async () => {
+    // A reading is already published the instant the story is asked for - but it is a reading of the
+    // screen the app booted into, not of this story. A wait that stopped on existence alone would
+    // accept it immediately and never see the reading that actually names STORY.
+    rememberAppMetadataCollector(() => METADATA_OF_A_DIFFERENT_SCREEN);
+
+    const { answered, channel } = startTheRoad();
+    await vi.waitFor(() =>
+      expect(channel.emitted('setCurrentStory')).toEqual([{ storyId: STORY }])
+    );
+    channel.emit('storyRendered', STORY);
+
+    // The story's own reading arrives a beat later, replacing the one of the wrong screen - the way
+    // a real device's effect catches up once the story is actually drawn into what it reads.
+    setTimeout(() => rememberAppMetadataCollector(() => VIEW_METADATA), 20);
+
+    const answer = await answered;
+    if (answer.kind !== 'captured') throw new Error(`the story was not captured: ${answer.kind}`);
+
+    // The wait outlasted the reading that named the wrong story and kept polling until one named
+    // STORY - so the walk starts at the view Storybook wraps the story in, not at the app's window.
+    expect(answer.tree).toEqual(RECORDED_TREE);
+  });
 });
 
 describe('a story that failed to render is recorded the way a run records it', () => {
@@ -512,16 +549,23 @@ describe('the primitive is one of the words the screen prints, whatever class th
 
   it('prints no primitive at all when the view was named by something that is not a name', async () => {
     // A fiber that draws a view is named by a string; anything else - a component, a wrapper - is not
-    // a class the table can pair, and must not be printed as one.
+    // a class the table can pair, and must not be printed as one. The reading still has to name the
+    // story for the wait to accept it at all (see "a capture waits for the reading that names its own
+    // story" above) - VIEW_METADATA's own testID entry on node 3 does that; only node 4's className
+    // is made malformed here.
     rememberAppMetadataCollector(() => ({
-      viewProps: { 1: { className: { name: 'FontScales' } as never } },
+      viewProps: {
+        ...VIEW_METADATA.viewProps,
+        4: { className: { name: 'FontScales' } as never },
+      },
       texts: [],
     }));
     rememberStoryOfTheApp(undefined);
 
     const answer = await walkOneStory();
 
-    expect(answer.tree.primitive).toBe('');
+    // Node 4 is the story's own ScrollView, re-rooted one level under the tree's own top.
+    expect(answer.tree.children[0].primitive).toBe('');
   });
 });
 
