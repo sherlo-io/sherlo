@@ -338,6 +338,14 @@ describe('a capture walks the same story path a test run does', () => {
       parts: 1,
       hasNetworkImage: false,
       tree: RECORDED_TREE,
+      // Both waits are settled the first time this story's own reading and tree are checked - see
+      // "a capture reports how each of its waits ended" below for what each of the other endings
+      // looks like.
+      waited: {
+        metadata: { outcome: 'first-check', ms: expect.any(Number) },
+        storyViews: { outcome: 'first-check', ms: expect.any(Number), rereads: 0 },
+      },
+      root: { at: 'story', nodeCount: 3 },
     });
   });
 
@@ -462,6 +470,110 @@ describe("the tree a capture records starts where a test run's tree starts", () 
     expect(mockGetInspectorData.mock.calls.length).toBeGreaterThan(1);
     expect(answer.tree).toEqual(RECORDED_TREE);
   });
+});
+
+describe('a capture reports how each of its waits ended, not only what it recorded', () => {
+  it('reports both waits as settled on the first check, and the tree as rooted at the story', async () => {
+    // Nothing here makes either wait poll: VIEW_METADATA already names STORY and the inspector's
+    // tree already holds its views, both from the very first read (beforeEach).
+    const answer = await walkOneStory();
+
+    expect(answer.waited).toEqual({
+      metadata: { outcome: 'first-check', ms: expect.any(Number) },
+      storyViews: { outcome: 'first-check', ms: expect.any(Number), rereads: 0 },
+    });
+    // RECORDED_TREE is the story's own root (View), one ScrollView under it, one Text under that -
+    // three nodes, and the one a run's tree also starts at.
+    expect(answer.root).toEqual({ at: 'story', nodeCount: 3 });
+  });
+
+  it('reports the metadata wait as polled once the reading needed a beat to name the story', async () => {
+    // The same race "a capture waits for the reading that names its own story" walks: a reading of
+    // the wrong screen is published first, and the one naming STORY arrives 20ms later.
+    rememberAppMetadataCollector(() => METADATA_OF_A_DIFFERENT_SCREEN);
+
+    const { answered, channel } = startTheRoad();
+    await vi.waitFor(() =>
+      expect(channel.emitted('setCurrentStory')).toEqual([{ storyId: STORY }])
+    );
+    channel.emit('storyRendered', STORY);
+    setTimeout(() => rememberAppMetadataCollector(() => VIEW_METADATA), 20);
+
+    const answer = await answered;
+    if (answer.kind !== 'captured') throw new Error(`the story was not captured: ${answer.kind}`);
+
+    expect(answer.waited.metadata.outcome).toBe('polled');
+    // The wait for the story's own views did not have to poll: the inspector's tree already held
+    // them the moment the (now-correct) metadata was checked against it.
+    expect(answer.waited.storyViews).toEqual({
+      outcome: 'first-check',
+      ms: expect.any(Number),
+      rereads: 0,
+    });
+  });
+
+  it('reports the story-views wait as polled, and how many times the inspector was re-read', async () => {
+    // The same race "a capture waits for the story's own views to be in the tree" walks: the
+    // metadata already names STORY, but the inspector answers with the app's shell alone twice
+    // before its tree catches up.
+    const THE_APPS_SHELL = {
+      viewHierarchy: node('ReactViewGroup', 1, [node('ReactViewGroup', 2, [])]),
+      density: 3,
+      fontScale: 1,
+    };
+    mockGetInspectorData.mockResolvedValueOnce(THE_APPS_SHELL);
+    mockGetInspectorData.mockResolvedValueOnce(THE_APPS_SHELL);
+
+    const answer = await walkOneStory();
+
+    // The metadata was already there on the first check; the two false reads of the inspector are
+    // what made the story-views wait poll.
+    expect(answer.waited.metadata.outcome).toBe('first-check');
+    expect(answer.waited.storyViews).toEqual({
+      outcome: 'polled',
+      ms: expect.any(Number),
+      rereads: 2,
+    });
+    expect(answer.root).toEqual({ at: 'story', nodeCount: 3 });
+  });
+
+  it('reports a timed-out metadata wait, and a tree rooted at the window, when no reading ever names the story', async () => {
+    // Nothing ever publishes a reading that names STORY, so the metadata wait runs out its whole
+    // ceiling - the same state "records the whole window when nothing rendered this app" walks.
+    rememberAppMetadataCollector(undefined);
+    rememberStoryOfTheApp(undefined);
+
+    const answer = await walkOneStory();
+
+    expect(answer.waited.metadata.outcome).toBe('timed-out');
+    // No metadata means theStorysOwnTree never re-roots (see there), so the story-views wait has
+    // nothing to poll for either - it is the same one-read shape a first-check is.
+    expect(answer.waited.storyViews).toEqual({
+      outcome: 'first-check',
+      ms: expect.any(Number),
+      rereads: 0,
+    });
+    expect(answer.root.at).toBe('window');
+  }, 10000);
+
+  it('reports a timed-out story-views wait, and a tree rooted at the window, when the inspector never catches up', async () => {
+    // The metadata already names STORY, but the inspector's own tree never grows the story's views -
+    // the wait that watches for that runs out its whole ceiling instead of polling forever.
+    const THE_APPS_SHELL = {
+      viewHierarchy: node('ReactViewGroup', 1, [node('ReactViewGroup', 2, [])]),
+      density: 3,
+      fontScale: 1,
+    };
+    mockGetInspectorData.mockResolvedValue(THE_APPS_SHELL);
+
+    const answer = await walkOneStory();
+
+    expect(answer.waited.metadata.outcome).toBe('first-check');
+    expect(answer.waited.storyViews.outcome).toBe('timed-out');
+    expect(answer.waited.storyViews.rereads).toBeGreaterThan(0);
+    // prepareInspectorData found no node to re-root at, so the tree recorded is the app's shell.
+    expect(answer.root.at).toBe('window');
+  }, 10000);
 });
 
 describe('a story that failed to render is recorded the way a run records it', () => {

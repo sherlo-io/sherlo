@@ -65,7 +65,24 @@ export type CaptureResult =
       /** Whether any view in the story loads an image over the network. Absent for the same reason. */
       hasNetworkImage?: boolean;
       tree: CapturedView;
+      /**
+       * How the app's two waits for this story went - for a published reading that names it, and
+       * for that story's own views to be in the inspector's tree - and what the tree it recorded is
+       * rooted at. Carried across the socket in the app's own answer, never reconstructed here from
+       * what came back; absent for the same reason `parts` can be.
+       */
+      waited?: {
+        metadata: WaitOutcome;
+        storyViews: WaitOutcome & { rereads: number };
+      };
+      root?: { at: 'story' | 'window'; nodeCount: number };
     };
+
+/** How one of the app's waits ended, as it reports it - see the SDK's own WaitOutcome. */
+export type WaitOutcome = {
+  outcome: 'first-check' | 'polled' | 'timed-out';
+  ms: number;
+};
 
 /** Everything the tool asks of a running app down this road, and nothing else. */
 export type CaptureSocket = {
@@ -205,6 +222,8 @@ function readCaptureAnswer(said: unknown, storyId: string): CaptureResult {
     parts?: unknown;
     hasNetworkImage?: unknown;
     tree?: unknown;
+    waited?: unknown;
+    root?: unknown;
   };
 
   if (answer.kind === 'no-app') return { kind: 'no-app' };
@@ -222,6 +241,8 @@ function readCaptureAnswer(said: unknown, storyId: string): CaptureResult {
   if (answer.kind === 'captured') {
     const threw = readError(answer.threw);
     const parts = readParts(answer.parts);
+    const waited = readWaited(answer.waited);
+    const root = readRoot(answer.root);
     return {
       kind: 'captured',
       storyId,
@@ -232,6 +253,8 @@ function readCaptureAnswer(said: unknown, storyId: string): CaptureResult {
         hasNetworkImage: answer.hasNetworkImage,
       }),
       tree: readCapturedView(answer.tree),
+      ...(waited && { waited }),
+      ...(root && { root }),
     };
   }
 
@@ -256,6 +279,53 @@ function readSettled(value: unknown): { ms: number; frames: number } | 'timed-ou
 function readParts(value: unknown): number | undefined {
   if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
   return value;
+}
+
+/**
+ * How the app's two waits for this story went, or nothing when it said nothing readable about
+ * them - an app older than this field does. Read straight off the wire, never reconstructed: a
+ * value read only here and nowhere inferred is the whole point of carrying it across the socket.
+ */
+function readWaited(
+  value: unknown
+): { metadata: WaitOutcome; storyViews: WaitOutcome & { rereads: number } } | undefined {
+  const waited = value as { metadata?: unknown; storyViews?: unknown } | null | undefined;
+  const metadata = readWaitOutcome(waited?.metadata);
+  const storyViews = readStoryViewsWait(waited?.storyViews);
+  if (!metadata || !storyViews) return undefined;
+  return { metadata, storyViews };
+}
+
+function readWaitOutcome(value: unknown): WaitOutcome | undefined {
+  const outcome = value as { outcome?: unknown; ms?: unknown } | null | undefined;
+  if (
+    (outcome?.outcome === 'first-check' ||
+      outcome?.outcome === 'polled' ||
+      outcome?.outcome === 'timed-out') &&
+    typeof outcome.ms === 'number'
+  ) {
+    return { outcome: outcome.outcome, ms: outcome.ms };
+  }
+  return undefined;
+}
+
+function readStoryViewsWait(value: unknown): (WaitOutcome & { rereads: number }) | undefined {
+  const outcome = readWaitOutcome(value);
+  const rereads = (value as { rereads?: unknown } | null | undefined)?.rereads;
+  if (!outcome || typeof rereads !== 'number') return undefined;
+  return { ...outcome, rereads };
+}
+
+/**
+ * What the tree the app recorded is rooted at, and how many nodes it holds - or nothing when the
+ * app said nothing readable about it, for the same reason `waited` can be absent.
+ */
+function readRoot(value: unknown): { at: 'story' | 'window'; nodeCount: number } | undefined {
+  const root = value as { at?: unknown; nodeCount?: unknown } | null | undefined;
+  if ((root?.at === 'story' || root?.at === 'window') && typeof root.nodeCount === 'number') {
+    return { at: root.at, nodeCount: root.nodeCount };
+  }
+  return undefined;
 }
 
 /**
