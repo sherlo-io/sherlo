@@ -633,6 +633,9 @@ describe('a capture reports how each of its waits ended, not only what it record
       rereads: 0,
     });
     expect(answer.root.at).toBe('window');
+    // The record says WHY it rooted at the window, not only that it did: no reading of the app's
+    // own views ever named this story, so there was no node to re-root at in the first place.
+    expect(answer.root.reason).toEqual({ cause: 'no-metadata' });
   }, 10000);
 
   it('reports a timed-out story-views wait, and a tree rooted at the window, when the inspector never catches up', async () => {
@@ -652,6 +655,10 @@ describe('a capture reports how each of its waits ended, not only what it record
     expect(answer.waited.storyViews.rereads).toBeGreaterThan(0);
     // prepareInspectorData found no node to re-root at, so the tree recorded is the app's shell.
     expect(answer.root.at).toBe('window');
+    // Metadata named the story and it was not broken - the ONLY thing that ran out was the wait
+    // for the story's own views to be in the inspector's tree, which `waited.storyViews` already
+    // says timed out; `reason` names this third way of ending at the window without repeating it.
+    expect(answer.root.reason).toEqual({ cause: 'story-not-in-tree' });
   }, 10000);
 });
 
@@ -671,6 +678,12 @@ describe('a story that failed to render is recorded the way a run records it', (
     // still the capture-and-threw one, so what threw is reported beside the tree.
     expect(answer.tree).toEqual(THE_WHOLE_WINDOW_NAMED_BY_THE_APP);
     expect(answer.threw).toEqual({ name: 'TypeError', message: 'nothing here is a function' });
+    // The record names the registry as the reading that called it broken, not merely "broken".
+    expect(answer.root).toEqual({
+      at: 'window',
+      nodeCount: expect.any(Number),
+      reason: { cause: 'story-broken', source: 'error-registry' },
+    });
   });
 
   it('records the whole window when the words of a failed render are on screen', async () => {
@@ -686,6 +699,33 @@ describe('a story that failed to render is recorded the way a run records it', (
     // The run reads the words off the screen as well as it reads the registry, so a capture does too -
     // reading only the registry would re-root a story a run leaves alone.
     expect(answer.tree).toEqual(THE_WHOLE_WINDOW_NAMED_BY_THE_APP);
+    // This reading has no stale generation to tell apart from the live one - the one generation
+    // it carries IS the live one (its testID tag, 3, is in the inspector's tree) - so the record
+    // names it `live`, the same as any reading with only itself to read.
+    expect(answer.root.reason).toEqual({
+      cause: 'story-broken',
+      source: 'fallback-text',
+      generation: 'live',
+    });
+  });
+
+  it("falls back to the merged reading when no generation's own tag is live in the inspector at all", async () => {
+    // The app named the story - metadataOfTheApp resolves on any reading whose testID matches,
+    // wherever the fiber that drew it happens to sit - but this reading's own tag (999) is not
+    // among the tags INSPECTOR_DATA's tree carries, so `theStoryIsBroken` finds no live generation
+    // to pick and reads the merged reading itself, fallback words and all.
+    rememberAppMetadataCollector(() => ({
+      viewProps: { 999: { className: 'RCTView', testID: STORY } },
+      texts: [STORY_ERROR_FALLBACK_TEXT],
+    }));
+
+    const answer = await walkOneStory();
+
+    expect(answer.root.reason).toEqual({
+      cause: 'story-broken',
+      source: 'fallback-text',
+      generation: 'merged',
+    });
   });
 
   it('does not measure a broken story, because a run does not measure one', async () => {
@@ -774,6 +814,9 @@ describe('a story that broke on an EARLIER screen does not make THIS one look br
     // to close, one gate later than the one the rest of this suite already covers.
     expect(answer.tree).toEqual(RECORDED_TREE);
     expect(answer.threw).toBeUndefined();
+    // The story was not broken at all, so there is nothing to say why the window was recorded -
+    // it was not, this is the story's own root.
+    expect(answer.root).toEqual({ at: 'story', nodeCount: 3 });
   });
 
   it('still records the whole window when the fallback words belong to the LIVE generation itself', async () => {
@@ -791,6 +834,13 @@ describe('a story that broke on an EARLIER screen does not make THIS one look br
     const answer = await walkOneStory();
 
     expect(answer.tree).toEqual(THE_WHOLE_WINDOW_NAMED_BY_THE_APP);
+    // This time the fallback words sit in the LIVE generation - the one whose own testID-carrying
+    // view actually made it into the inspector's tree - so the record names it `live`, not `merged`.
+    expect(answer.root.reason).toEqual({
+      cause: 'story-broken',
+      source: 'fallback-text',
+      generation: 'live',
+    });
   });
 });
 

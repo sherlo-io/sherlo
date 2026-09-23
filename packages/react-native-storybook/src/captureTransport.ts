@@ -81,6 +81,17 @@
  * the inspector's tree) each ended - on the first check, after polling, or by running out - and what
  * the tree that was finally recorded is rooted at (see WaitOutcome). Carried in the answer, never
  * inferred on the other end of the socket from what it received.
+ *
+ * AND, WHEN IT IS ROOTED AT THE WINDOW, WHY - because "window" alone leaves a reader guessing among
+ * every branch that can produce it, the same guessing eight rounds of this epic already did from
+ * outside the device. `theStorysOwnTree` takes that branch for one of two reasons - no reading of
+ * the app's views ever named the story, or the story on screen is broken - and, when it is broken,
+ * by one of two readings of its own - the error registry, or the fallback words, and if the words,
+ * which fiber generation the live-tag check picked them from (see the file's own note on generations
+ * further down). A third way the window is recorded needs no naming beyond what `waited.storyViews`
+ * already carries: the metadata named the story and it was not broken, but the inspector's own tree
+ * never grew the story's views before the wait for that gave up. `root.reason` names whichever of
+ * these fired, read off the same checks that decided `root.at` rather than guessed at afterwards.
  */
 import { NativeModules } from 'react-native';
 import SherloModule from './SherloModule';
@@ -186,6 +197,23 @@ export type WaitOutcome = {
 };
 
 /**
+ * WHY `theStorysOwnTree` recorded the window rather than the story - the branch it took, carried
+ * out instead of thrown away. See the file header's own paragraph on this.
+ */
+export type WindowReason =
+  /** No reading of the app's own views ever named this story (see metadataOfTheApp). */
+  | { cause: 'no-metadata' }
+  /** The story on screen is broken, by the registry Sherlo's own boundary fills. */
+  | { cause: 'story-broken'; source: 'error-registry' }
+  /**
+   * The story on screen is broken, by the fallback words being on screen - and which fiber
+   * generation the live-tag check read them off (see theStoryIsBroken's own note on generations).
+   */
+  | { cause: 'story-broken'; source: 'fallback-text'; generation: 'live' | 'merged' }
+  /** Metadata named the story and it was not broken, but the inspector's own tree never grew it. */
+  | { cause: 'story-not-in-tree' };
+
+/**
  * One view in the tree a capture records - the native class of the node, and the names of the
  * app's components that render it, outermost first. No names means the app did not write this
  * view, or its bundle did not keep the names.
@@ -219,8 +247,12 @@ export type CapturedAnswer =
         /** The same three answers, plus how many times the inspector was re-read. */
         storyViews: WaitOutcome & { rereads: number };
       };
-      /** What the recorded tree is rooted at - the story's own root, or the app's whole window - and how many nodes it holds. */
-      root: { at: 'story' | 'window'; nodeCount: number };
+      /**
+       * What the recorded tree is rooted at - the story's own root, or the app's whole window - how
+       * many nodes it holds, and, for a window, WHY (see WindowReason) - absent for a story root,
+       * which is never asked why.
+       */
+      root: { at: 'story' | 'window'; nodeCount: number; reason?: WindowReason };
     }
   | {
       kind: 'crashed';
@@ -532,7 +564,7 @@ type RecordedStory = {
     metadata: WaitOutcome;
     storyViews: WaitOutcome & { rereads: number };
   };
-  root: { at: 'story' | 'window'; nodeCount: number };
+  root: { at: 'story' | 'window'; nodeCount: number; reason?: WindowReason };
 };
 
 /**
@@ -552,13 +584,17 @@ async function readTheStory(storyId: string): Promise<RecordedStory> {
   const { metadata, wait: metadataWait } = await metadataOfTheApp(storyId);
   const { inspectorData, wait: storyViewsWait } = await inspectorDataOfTheApp(storyId, metadata);
 
-  const { tree, hasNetworkImage, at } = await theStorysOwnTree(inspectorData, metadata, storyId);
+  const { tree, hasNetworkImage, at, reason } = await theStorysOwnTree(
+    inspectorData,
+    metadata,
+    storyId
+  );
 
   return {
     tree,
     hasNetworkImage,
     waited: { metadata: metadataWait, storyViews: storyViewsWait },
-    root: { at, nodeCount: countNodes(tree) },
+    root: { at, nodeCount: countNodes(tree), ...(reason && { reason }) },
   };
 }
 
@@ -690,12 +726,32 @@ async function theStorysOwnTree(
   inspectorData: InspectorData,
   metadata: ReturnType<typeof collectAppMetadata>,
   storyId: string
-): Promise<{ tree: CapturedViewTree; hasNetworkImage: boolean; at: 'story' | 'window' }> {
-  if (!metadata || theStoryIsBroken(storyId, inspectorData)) {
+): Promise<{
+  tree: CapturedViewTree;
+  hasNetworkImage: boolean;
+  at: 'story' | 'window';
+  reason?: WindowReason;
+}> {
+  if (!metadata) {
     return {
       tree: captureViewTree(inspectorData.viewHierarchy, componentNamesByNativeTag()),
       hasNetworkImage: false,
       at: 'window',
+      reason: { cause: 'no-metadata' },
+    };
+  }
+
+  const broken = brokenStoryReason(storyId, inspectorData);
+  if (broken) {
+    const reason: WindowReason =
+      broken.source === 'error-registry'
+        ? { cause: 'story-broken', source: 'error-registry' }
+        : { cause: 'story-broken', source: 'fallback-text', generation: broken.generation };
+    return {
+      tree: captureViewTree(inspectorData.viewHierarchy, componentNamesByNativeTag()),
+      hasNetworkImage: false,
+      at: 'window',
+      reason,
     };
   }
 
@@ -710,6 +766,7 @@ async function theStorysOwnTree(
     tree: captureViewTree(prepared.inspectorData.viewHierarchy, componentNamesByNativeTag()),
     hasNetworkImage: prepared.hasNetworkImage,
     at,
+    ...(at === 'window' && { reason: { cause: 'story-not-in-tree' } as const }),
   };
 }
 
@@ -793,12 +850,33 @@ function namesTheStory(metadata: ReturnType<typeof collectAppMetadata>, storyId:
  * one) falls back to the merged reading, the same check this always did.
  */
 function theStoryIsBroken(storyId: string, inspectorData?: InspectorData): boolean {
-  if (readStoryError(storyId) !== undefined) return true;
+  return brokenStoryReason(storyId, inspectorData) !== null;
+}
+
+/**
+ * The same question theStoryIsBroken answers, with WHICH of its two readings answered it - the
+ * error registry, or the fallback words and which generation the live-tag check picked them off of
+ * (see theStoryIsBroken's own doc for why both readings exist and why the generation matters).
+ * `null` when neither reading calls the story broken - theStoryIsBroken's own `false`, with the
+ * "which" a plain boolean cannot carry.
+ */
+function brokenStoryReason(
+  storyId: string,
+  inspectorData?: InspectorData
+):
+  | { source: 'error-registry' }
+  | { source: 'fallback-text'; generation: 'live' | 'merged' }
+  | null {
+  if (readStoryError(storyId) !== undefined) return { source: 'error-registry' };
 
   const metadata = collectAppMetadata();
-  if (!metadata) return false;
+  if (!metadata) return null;
 
-  if (!inspectorData) return metadata.texts.includes(STORY_ERROR_FALLBACK_TEXT);
+  if (!inspectorData) {
+    return metadata.texts.includes(STORY_ERROR_FALLBACK_TEXT)
+      ? { source: 'fallback-text', generation: 'merged' }
+      : null;
+  }
 
   const liveTags = liveNativeTags(inspectorData.viewHierarchy);
   const liveGeneration = (metadata.generations ?? [metadata]).find((generation) =>
@@ -807,7 +885,10 @@ function theStoryIsBroken(storyId: string, inspectorData?: InspectorData): boole
     )
   );
 
-  return (liveGeneration ?? metadata).texts.includes(STORY_ERROR_FALLBACK_TEXT);
+  const picked = liveGeneration ?? metadata;
+  if (!picked.texts.includes(STORY_ERROR_FALLBACK_TEXT)) return null;
+
+  return { source: 'fallback-text', generation: liveGeneration ? 'live' : 'merged' };
 }
 
 /** Every native tag the live inspector reading currently holds a view for, root included. */
