@@ -758,6 +758,91 @@ describe('a capture reports how each of its waits ended, not only what it record
   }, 20000);
 });
 
+describe('the crash carries what Storybook itself was doing when the gate gave up', () => {
+  // Nothing ever publishes a reading that names STORY in any of these - the "never arrives" state
+  // this section exists for - so every one of them takes the metadataOfTheApp branch of the gate.
+  beforeEach(() => {
+    rememberAppMetadataCollector(undefined);
+    __resetProviderFirstRenderedAtForTests();
+    rememberStoryOfTheApp(undefined);
+  });
+
+  it('says the index never finished loading, when Storybook never reports itself ready', async () => {
+    // No `_ready`, no stories in the index - Storybook's own preview never got anywhere, which is
+    // one of the four states this diagnostic exists to tell apart from the other three below.
+    const answer = await answerOneStory(undefined, makeView({ ready: false, storyIds: [] }));
+
+    expect(answer.kind).toBe('crashed');
+    const crashed = answer as Extract<CapturedAnswer, { kind: 'crashed' }>;
+    expect(crashed.error?.message).toContain(
+      'Storybook itself: never reported itself ready, 0 stories in its index, and has selected no story'
+    );
+  }, 20000);
+
+  it('says the index loaded onto the wrong story, when Storybook is ready but selected a different one', async () => {
+    const answer = await answerOneStory(
+      undefined,
+      makeView({
+        ready: true,
+        storyIds: [STORY, 'components-splash--default'],
+        selectedStoryId: 'components-splash--default',
+      })
+    );
+
+    expect(answer.kind).toBe('crashed');
+    const crashed = answer as Extract<CapturedAnswer, { kind: 'crashed' }>;
+    expect(crashed.error?.message).toContain(
+      'Storybook itself: reports itself ready, 2 stories in its index, and has selected ' +
+        '"components-splash--default" instead'
+    );
+  }, 20000);
+
+  it("says the right story's own render is what failed, when Storybook is ready and has this story selected", async () => {
+    // Ready, the index holds this story, and Storybook even believes THIS story is selected - and
+    // still no reading ever names it. That leaves only one culprit: the story function itself.
+    const answer = await answerOneStory(
+      undefined,
+      makeView({ ready: true, storyIds: [STORY], selectedStoryId: STORY })
+    );
+
+    expect(answer.kind).toBe('crashed');
+    const crashed = answer as Extract<CapturedAnswer, { kind: 'crashed' }>;
+    expect(crashed.error?.message).toContain(
+      'Storybook itself: reports itself ready, 1 story in its index, and has this story selected'
+    );
+  }, 20000);
+});
+
+describe('the classifier never quotes identical evidence and calls it changed', () => {
+  it('reports "unchanged", not "changed", when the only difference between the two readings is an empty testID', async () => {
+    // A view with no testID at all, and a view with the empty string, both exist on real screens -
+    // and an empty string is not a name for anything. A reading that adds or drops one between the
+    // start and the end of the wait must not read as "the reading changed": describeWhatWasHeld's
+    // "before" and "after" quote the same real id here, and only the invisible empty entry used to
+    // make the classifier reach for its other branch (see testIdsIn's own note on this).
+    rememberAppMetadataCollector(() => ({
+      viewProps: {
+        ...METADATA_OF_A_DIFFERENT_SCREEN.viewProps,
+        // No testID naming this story, but a view with the EMPTY STRING testID - the phantom entry
+        // that used to make an unchanged reading look changed and leave a dangling separator.
+        100: { className: 'RCTView', testID: '' },
+      },
+      texts: [],
+    }));
+
+    const answer = await answerOneStory();
+
+    expect(answer.kind).toBe('crashed');
+    const crashed = answer as Extract<CapturedAnswer, { kind: 'crashed' }>;
+    // The one real id, quoted once, with no dangling ", " left by the empty id that used to be
+    // concatenated in unconditionally - and "unchanged", because it never held anything else.
+    expect(crashed.error?.message).toContain(
+      'it held only components-splash--default the whole time it waited, unchanged'
+    );
+    expect(crashed.error?.message).not.toContain('it changed, but never to this story');
+  }, 20000);
+});
+
 describe('a story that failed to render is recorded the way a run records it', () => {
   it('still clears the load-bearing gate, because a story that threw still gets its wrapper committed', async () => {
     // Storybook's StoryView wraps every story in its testID-carrying View OUTSIDE the error boundary,
@@ -1193,7 +1278,8 @@ describe('a walk that throws is the crash ending', () => {
 
 /** Start the road for one story, with the bundler stood up as a socket handing that story over. */
 function startTheRoad(
-  settings: Partial<typeof STABILIZATION_SETTINGS> | undefined = STABILIZATION_SETTINGS
+  settings: Partial<typeof STABILIZATION_SETTINGS> | undefined = STABILIZATION_SETTINGS,
+  view: ReturnType<typeof makeView> = makeView()
 ): {
   answered: Promise<CapturedAnswer>;
   channel: ReturnType<typeof makeChannel>;
@@ -1215,7 +1301,7 @@ function startTheRoad(
         return { storyId: STORY, settings };
       },
     };
-    startCaptureTransport({ view: makeView(), channel, capture });
+    startCaptureTransport({ view, channel, capture });
   });
 
   return { answered, channel, asked };
@@ -1229,9 +1315,10 @@ function startTheRoad(
  * through `startTheRoad().answered` rather than waiting on a screen that is never coming.
  */
 async function answerOneStory(
-  settings?: Partial<typeof STABILIZATION_SETTINGS>
+  settings?: Partial<typeof STABILIZATION_SETTINGS>,
+  view?: ReturnType<typeof makeView>
 ): Promise<CapturedAnswer> {
-  const { answered, channel } = startTheRoad(settings);
+  const { answered, channel } = startTheRoad(settings, view);
 
   await vi.waitFor(() => expect(channel.emitted('setCurrentStory')).toEqual([{ storyId: STORY }]));
   channel.emit('storyRendered', STORY);
@@ -1248,9 +1335,22 @@ async function walkOneStory(
   return answer;
 }
 
-/** The app's Storybook view, as much of it as this road reads. */
-function makeView() {
-  return { _storyIndex: { entries: { [STORY]: {} } } } as never;
+/**
+ * The app's Storybook view, as much of it as this road reads - `_storyIndex` for the stories a
+ * capture reports to the bundler, and, for a crash's own diagnostics, whatever `_ready` and
+ * `_preview.currentSelection` a test wants Storybook to be reporting of itself at the moment the
+ * gate gives up. Left at their real-code defaults (not ready, no selection) unless a test overrides
+ * them.
+ */
+function makeView(
+  overrides: { ready?: boolean; storyIds?: string[]; selectedStoryId?: string } = {}
+) {
+  const { ready = false, storyIds = [STORY], selectedStoryId } = overrides;
+  return {
+    _ready: ready,
+    _storyIndex: { entries: Object.fromEntries(storyIds.map((id) => [id, {}])) },
+    _preview: { currentSelection: selectedStoryId ? { storyId: selectedStoryId } : null },
+  } as never;
 }
 
 /** Storybook's channel, as much of it as this road uses. */
