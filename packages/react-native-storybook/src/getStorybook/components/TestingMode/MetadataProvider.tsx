@@ -1,4 +1,10 @@
-import React, { ReactNode, forwardRef, useCallback, useEffect, useImperativeHandle } from 'react';
+import React, {
+  ReactNode,
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useLayoutEffect,
+} from 'react';
 import { FiberProvider, useFiber, type Fiber } from 'its-fine';
 import { RunnerBridge } from '../../../helpers';
 import { publishAppMetadata } from '../../../appMetadata';
@@ -131,7 +137,20 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
 
     // A capture is plain JavaScript outside the renderer and holds no ref, so the reading is
     // published where it can find it (../../../appMetadata) for as long as the app is rendered.
-    useEffect(() => publishAppMetadata(collectMetadata), [collectMetadata]);
+    //
+    // PUBLISHED FROM useLayoutEffect, NOT useEffect - a capture's FIRST story of a boot raced this
+    // against Storybook's own "story rendered" signal and lost (root.reason.cause: 'no-metadata' on
+    // that first capture, never on the ones after - see captureTransport.ts's metadataOfTheApp).
+    // React 18 defers a passive effect's FIRST run to a task the Scheduler queues after the commit,
+    // even for the initial mount; a layout effect has no such queue; it runs synchronously inside the
+    // same commit that mounted this component, before control ever returns to whatever is racing it.
+    // Storybook's own phase machine emits "story rendered" once its story has mounted, which is a
+    // commit at or below this one - so a layout effect here is guaranteed to have already published
+    // by the time that signal can possibly fire, where a passive effect was only ever going to be
+    // usually early enough. Every capture after the first was never actually racing anything (this
+    // component mounted once, long before): this only changes when the ONE publish that was ever
+    // late enough to matter runs.
+    useLayoutEffect(() => publishAppMetadata(collectMetadata), [collectMetadata]);
 
     return children;
   }

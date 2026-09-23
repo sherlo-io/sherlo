@@ -142,15 +142,23 @@ const INSPECTOR_TIMEOUT_MS = 10000;
 
 /**
  * How long a capture waits for the app to publish a reading of ITS OWN STORY (./appMetadata) before
- * it gives up and records the window. The wait exists to survive one pending passive effect on the
- * FIRST capture after a restart (see metadataOfTheApp below) - on every ordinary check the published
- * reading already names the story on the first poll, so this ceiling costs nothing in the paths that
- * are not racing anything.
+ * it gives up and records the window. On every ordinary check the published reading already names
+ * the story on the first poll, so this ceiling costs nothing in the paths that are not racing
+ * anything.
  *
- * THIS BOUNDS A READING THAT NEVER NAMES THE STORY, NOT THE RACE. The race itself is normally over
- * within a frame or two; what this number has to survive is a passive effect queued behind other
- * work on a loaded device - the exact condition a CI emulator produces - so it is sized like the
- * command's other genuine give-ups (INSPECTOR_TIMEOUT_MS at 10s), not like a fast-path poll.
+ * THE RACE THIS ONCE HAD TO SURVIVE IS CLOSED AT THE SOURCE, NOT WAITED OUT. A capture's FIRST story
+ * of a boot used to lose this exact race: MetadataProvider published from a passive effect
+ * (useEffect), which React 18 defers to a task the Scheduler queues after the commit even for the
+ * initial mount, and Storybook's own "story rendered" signal - emitted once its story has mounted, a
+ * commit at or below MetadataProvider's own - could fire first. That recorded the window with
+ * `root.reason.cause: 'no-metadata'`, never on the second story or the third, because only the first
+ * ever raced a fresh mount. MetadataProvider now publishes from useLayoutEffect, which runs
+ * synchronously inside the same commit that mounted it - no queue left to lose a race in (see
+ * MetadataProvider.tsx). What this ceiling still bounds is everything else that can leave a reading
+ * unpublished a beat longer: a passive-effect flush still queued behind other work on a loaded
+ * device for the FIRST commit of an app whose native side is old enough to have no `initialSelection`
+ * to hand over (see the file header) - so it is sized like the command's other genuine give-ups
+ * (INSPECTOR_TIMEOUT_MS at 10s), not like a fast-path poll.
  */
 const METADATA_TIMEOUT_MS = 2000;
 
