@@ -90,7 +90,17 @@ export type WaitOutcome = {
  * SDK's own WindowReason (packages/react-native-storybook/src/captureTransport.ts).
  */
 export type WindowReason =
-  | { cause: 'no-metadata' }
+  | {
+      cause: 'no-metadata';
+      /** Whether the app had published any reading of its views the moment the app's poll began. */
+      publishedAtPollStart: boolean;
+      /**
+       * How the app's MetadataProvider first rendering relates to when its poll began: positive is
+       * that many ms after, negative is that many ms before, `undefined` is that it had not
+       * rendered at all by the time the poll gave up.
+       */
+      providerRenderedRelativeToPollMs?: number;
+    }
   | { cause: 'story-broken'; source: 'error-registry' }
   | { cause: 'story-broken'; source: 'fallback-text'; generation: 'live' | 'merged' }
   | { cause: 'story-not-in-tree' };
@@ -349,11 +359,25 @@ function readRoot(
  */
 function readWindowReason(value: unknown): WindowReason | undefined {
   const reason = value as
-    | { cause?: unknown; source?: unknown; generation?: unknown }
+    | {
+        cause?: unknown;
+        source?: unknown;
+        generation?: unknown;
+        publishedAtPollStart?: unknown;
+        providerRenderedRelativeToPollMs?: unknown;
+      }
     | null
     | undefined;
 
-  if (reason?.cause === 'no-metadata') return { cause: 'no-metadata' };
+  if (reason?.cause === 'no-metadata') {
+    return {
+      cause: 'no-metadata',
+      publishedAtPollStart: reason.publishedAtPollStart === true,
+      ...(typeof reason.providerRenderedRelativeToPollMs === 'number' && {
+        providerRenderedRelativeToPollMs: reason.providerRenderedRelativeToPollMs,
+      }),
+    };
+  }
   if (reason?.cause === 'story-not-in-tree') return { cause: 'story-not-in-tree' };
 
   if (reason?.cause === 'story-broken') {

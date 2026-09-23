@@ -97,7 +97,7 @@ import { NativeModules } from 'react-native';
 import SherloModule from './SherloModule';
 import { InspectorData, InspectorDataNode, StorybookView } from './types';
 import { componentNamesByNativeTag, type ComponentNamesByNativeTag } from './componentNames';
-import { collectAppMetadata } from './appMetadata';
+import { collectAppMetadata, providerFirstRenderedAt } from './appMetadata';
 import { STORY_ERROR_FALLBACK_TEXT } from './constants';
 import { prepareInspectorData } from './getStorybook/components/TestingMode/useTestAllStories/prepareInspectorData';
 import { readStoryError } from './getStorybook/storyErrorRegistry';
@@ -212,8 +212,23 @@ export type WaitOutcome = {
  * out instead of thrown away. See the file header's own paragraph on this.
  */
 export type WindowReason =
-  /** No reading of the app's own views ever named this story (see metadataOfTheApp). */
-  | { cause: 'no-metadata' }
+  /**
+   * No reading of the app's own views ever named this story (see metadataOfTheApp) - carrying the
+   * two facts a poll cannot show through the drawn screen alone: whether the app had published ANY
+   * reading at all (of any story) the moment this poll began, and when MetadataProvider - the
+   * component that publishes one - first rendered in this boot, relative to that same moment.
+   */
+  | {
+      cause: 'no-metadata';
+      /** Whether `collectAppMetadata()` already answered with something when this poll began. */
+      publishedAtPollStart: boolean;
+      /**
+       * How MetadataProvider's first render in this boot relates to when this poll began: positive
+       * is that many ms AFTER the poll started, negative is that many ms BEFORE it, and `undefined`
+       * is that the provider had not rendered at all by the time the poll gave up.
+       */
+      providerRenderedRelativeToPollMs?: number;
+    }
   /** The story on screen is broken, by the registry Sherlo's own boundary fills. */
   | { cause: 'story-broken'; source: 'error-registry' }
   /**
@@ -592,13 +607,14 @@ type RecordedStory = {
  * metadataOfTheApp already closes on its own clock, reopened one clock later.
  */
 async function readTheStory(storyId: string): Promise<RecordedStory> {
-  const { metadata, wait: metadataWait } = await metadataOfTheApp(storyId);
+  const { metadata, wait: metadataWait, noMetadataDiagnostics } = await metadataOfTheApp(storyId);
   const { inspectorData, wait: storyViewsWait } = await inspectorDataOfTheApp(storyId, metadata);
 
   const { tree, hasNetworkImage, at, reason } = await theStorysOwnTree(
     inspectorData,
     metadata,
-    storyId
+    storyId,
+    noMetadataDiagnostics
   );
 
   return {
@@ -736,7 +752,8 @@ function theStorysViewsAreInTheTree(
 async function theStorysOwnTree(
   inspectorData: InspectorData,
   metadata: ReturnType<typeof collectAppMetadata>,
-  storyId: string
+  storyId: string,
+  noMetadataDiagnostics: NoMetadataDiagnostics
 ): Promise<{
   tree: CapturedViewTree;
   hasNetworkImage: boolean;
@@ -748,7 +765,7 @@ async function theStorysOwnTree(
       tree: captureViewTree(inspectorData.viewHierarchy, componentNamesByNativeTag()),
       hasNetworkImage: false,
       at: 'window',
-      reason: { cause: 'no-metadata' },
+      reason: { cause: 'no-metadata', ...noMetadataDiagnostics },
     };
   }
 
@@ -800,11 +817,14 @@ async function theStorysOwnTree(
  * no longer mistaking a reading of the wrong screen for it. `wait` says which of the three ways the
  * wait ended, and how long it took - see WaitOutcome.
  */
-async function metadataOfTheApp(
-  storyId: string
-): Promise<{ metadata: ReturnType<typeof collectAppMetadata>; wait: WaitOutcome }> {
+async function metadataOfTheApp(storyId: string): Promise<{
+  metadata: ReturnType<typeof collectAppMetadata>;
+  wait: WaitOutcome;
+  noMetadataDiagnostics: NoMetadataDiagnostics;
+}> {
   const startedAt = Date.now();
   let metadata = collectAppMetadata();
+  const publishedAtPollStart = metadata !== undefined;
   let checks = 1;
 
   while (!namesTheStory(metadata, storyId) && Date.now() - startedAt < METADATA_TIMEOUT_MS) {
@@ -820,8 +840,33 @@ async function metadataOfTheApp(
     ? 'first-check'
     : 'polled';
 
-  return { metadata: named ? metadata : undefined, wait: { outcome, ms: Date.now() - startedAt } };
+  // Read once the poll is over, not merely at its start: the provider can render DURING the poll,
+  // and this is the same moment theStorysOwnTree is about to ask whether a `no-metadata` reason
+  // needs recording (see WindowReason and the file header's own reasoning about the race this
+  // closes).
+  const renderedAt = providerFirstRenderedAt();
+  const noMetadataDiagnostics: NoMetadataDiagnostics = {
+    publishedAtPollStart,
+    providerRenderedRelativeToPollMs: renderedAt === undefined ? undefined : renderedAt - startedAt,
+  };
+
+  return {
+    metadata: named ? metadata : undefined,
+    wait: { outcome, ms: Date.now() - startedAt },
+    noMetadataDiagnostics,
+  };
 }
+
+/**
+ * The two facts `theStorysOwnTree` cannot see through the drawn screen alone, when it is about to
+ * record `cause: 'no-metadata'` - see WindowReason for what each one means. Computed by
+ * metadataOfTheApp regardless of how its own poll ended, because whether that poll timed out is
+ * exactly what decides whether theStorysOwnTree goes on to use them.
+ */
+type NoMetadataDiagnostics = {
+  publishedAtPollStart: boolean;
+  providerRenderedRelativeToPollMs?: number;
+};
 
 /**
  * Whether a reading of the app's views carries the view Storybook wraps this story in - the same

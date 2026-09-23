@@ -15,7 +15,12 @@
  * (./componentNames.test.ts) is held the same way, and for the same reason.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { collectAppMetadata, rememberAppMetadataCollector } from '../appMetadata';
+import {
+  __resetProviderFirstRenderedAtForTests,
+  collectAppMetadata,
+  providerFirstRenderedAt,
+  rememberAppMetadataCollector,
+} from '../appMetadata';
 import type { Metadata } from '../getStorybook/components/TestingMode/MetadataProvider';
 
 /** What the app published about itself, as the provider builds it: views by tag, and the words. */
@@ -31,7 +36,10 @@ const OTHER_VIEWS: Metadata = {
 
 // The seam is one module the whole app shares, so a test that published an app has to forget it
 // again or every test after it reads an app that is no longer on screen.
-afterEach(() => rememberAppMetadataCollector(undefined));
+afterEach(() => {
+  rememberAppMetadataCollector(undefined);
+  __resetProviderFirstRenderedAtForTests();
+});
 
 describe('the app publishes its own views where a capture can read them', () => {
   it('reads the app back for as long as it is rendered', () => {
@@ -58,5 +66,34 @@ describe('the app publishes its own views where a capture can read them', () => 
     rememberAppMetadataCollector(() => OTHER_VIEWS);
 
     expect(collectAppMetadata()).toEqual(OTHER_VIEWS);
+  });
+});
+
+describe('when the provider that publishes here first rendered in this boot', () => {
+  it('has no answer before the provider has ever rendered', () => {
+    expect(providerFirstRenderedAt()).toBeUndefined();
+  });
+
+  it('is the moment of the first render, not of every render after it', () => {
+    rememberAppMetadataCollector(() => THE_APPS_VIEWS);
+    const firstRender = providerFirstRenderedAt();
+    expect(firstRender).toEqual(expect.any(Number));
+
+    // A re-render publishes a fresh reading (see the describe above), but it is still the SAME
+    // component that already rendered once - the timestamp names when it started, not when it last
+    // published.
+    rememberAppMetadataCollector(() => OTHER_VIEWS);
+    expect(providerFirstRenderedAt()).toBe(firstRender);
+  });
+
+  it('is not forgotten when the provider unmounts, unlike the reading itself', () => {
+    rememberAppMetadataCollector(() => THE_APPS_VIEWS);
+    const firstRender = providerFirstRenderedAt();
+
+    // The provider's own unmount cleanup withdraws the reading (see the describe above), but the
+    // component still rendered once during this boot, and this answers that question, not "is it
+    // rendered right now".
+    rememberAppMetadataCollector(undefined);
+    expect(providerFirstRenderedAt()).toBe(firstRender);
   });
 });
