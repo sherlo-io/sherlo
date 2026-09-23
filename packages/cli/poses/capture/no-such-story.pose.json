@@ -8,10 +8,8 @@
   "bundles": {},
   "api": [],
   "masks": {},
-  "argv": [
-    "inspect"
-  ],
-  "letterbox": {
+  "argv": ["capture", "--story", "foundation-typography--scale"],
+  "capture": {
     "stories": [
       "foundation-typography--scales",
       "foundation-colour--palette",
@@ -20,6 +18,7 @@
       "controls-input--empty",
       "layout-card--basic"
     ],
-    "showing": "controls-button--disabled"
+    "settled": "timed-out",
+    "tree": { "primitive": "View" }
   }
 }

@@ -1,0 +1,11 @@
+[33m◦[39m  [1manimations--spinner[22m never stopped changing within 20s
+[2m   A test run of this story would stop at the same limit. What it read then:[22m
+
+   Spinner › [1mView[22m
+   ├─ SpinnerRing › [1mView[22m
+   └─ [1mText[22m  [2m"Loading..."[22m
+
+[2m   3 views · add --json for the full record[22m
+
+
+[exit 0]

@@ -1,6 +1,0 @@
-[33m◦[39m  The app is attached, and is not showing a story right now
-
-[2mIt is showing itself rather than the story browser. `sherlo open --story <id>` sends it there.[22m
-
-
-[exit 1]

@@ -1,0 +1,45 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--story", "foundation-typography--scales"],
+  "capture": {
+    "stories": [
+      "foundation-typography--scales",
+      "foundation-colour--palette",
+      "controls-button--primary",
+      "controls-button--disabled",
+      "controls-input--empty",
+      "layout-card--basic"
+    ],
+    "settled": { "ms": 1400, "frames": 6 },
+    "tree": {
+      "primitive": "ScrollView",
+      "components": ["TypographyScales"],
+      "children": [
+        { "primitive": "Text", "components": ["SectionTitle"], "text": "FONT SIZES" },
+        { "primitive": "Text", "components": ["SampleLine"], "text": "10px - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "text": "12px - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "text": "14px - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "text": "16px - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "text": "18px - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "text": "20px - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "text": "24px - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "text": "28px - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "text": "32px - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "text": "40px - The quick brown fox" },
+        { "primitive": "Text", "components": ["SectionTitle"], "text": "FONT WEIGHTS" },
+        { "primitive": "Text", "components": ["SampleLine"], "text": "Weight 100 - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "text": "Weight 200 - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "text": "Weight 300 - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "text": "Weight 400 - The quick brown fox" }
+      ]
+    }
+  }
+}
