@@ -111,6 +111,13 @@ export type WindowReason =
        * rendered at all by the time the poll gave up.
        */
       providerRenderedRelativeToPollMs?: number;
+      /**
+       * The distinct testIDs the reading held when the app's poll gave up, never this story's own -
+       * see the SDK's own WindowReason.testIdsAtGiveUp. Empty means the reading held no story's
+       * testID at all; one or more means it held a DIFFERENT story's - two different bugs the record
+       * could not otherwise tell apart.
+       */
+      testIdsAtGiveUp: string[];
     }
   | { cause: 'story-broken'; source: 'error-registry' }
   | { cause: 'story-broken'; source: 'fallback-text'; generation: 'live' | 'merged' }
@@ -376,6 +383,7 @@ function readWindowReason(value: unknown): WindowReason | undefined {
         generation?: unknown;
         publishedAtPollStart?: unknown;
         providerRenderedRelativeToPollMs?: unknown;
+        testIdsAtGiveUp?: unknown;
       }
     | null
     | undefined;
@@ -395,6 +403,9 @@ function readWindowReason(value: unknown): WindowReason | undefined {
       ...(typeof reason.providerRenderedRelativeToPollMs === 'number' && {
         providerRenderedRelativeToPollMs: reason.providerRenderedRelativeToPollMs,
       }),
+      testIdsAtGiveUp: Array.isArray(reason.testIdsAtGiveUp)
+        ? reason.testIdsAtGiveUp.filter(isString)
+        : [],
     };
   }
   if (reason?.cause === 'story-not-in-tree') return { cause: 'story-not-in-tree' };

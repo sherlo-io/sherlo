@@ -177,6 +177,14 @@ const METADATA_TIMEOUT_MS = 2000;
 const METADATA_POLL_INTERVAL_MS = 10;
 
 /**
+ * How many of the testIDs a 'story-unnamed' reading held are kept, at most - see
+ * WindowReason.testIdsAtGiveUp. Answering "empty, or some other story's" needs a few names, not the
+ * whole reading, so an app whose screen happens to carry an unusual number of testIDs cannot grow
+ * this record past a handful.
+ */
+const MAX_TEST_IDS_IN_STORY_UNNAMED_REASON = 5;
+
+/**
  * How long a capture keeps re-reading the inspector, once the app's own reading already names the
  * story, for the STORY'S OWN VIEWS to actually be in the tree the inspector answers with - not
  * merely for the app to have reported the story rendered.
@@ -260,6 +268,17 @@ export type WindowReason =
        * treats as "published", even though THIS poll's own MetadataProvider render never happened.
        */
       providerRenderedRelativeToPollMs?: number;
+      /**
+       * The distinct testIDs the reading held at the moment this poll gave up - never this story's
+       * own, since 'story-unnamed' already means it held no view carrying that one, but whatever
+       * OTHER testIDs (if any) its views carried. Empty means the reading held no story's testID at
+       * all - a traversal that is not finding a story's views, of any story. One or more means it
+       * held a DIFFERENT story's - the app describing a different story than the one this capture
+       * asked for, a selection bug wearing a metadata costume. The two are indistinguishable without
+       * this, and point at different code (see the file header's note on the race this narrows).
+       * Capped at MAX_TEST_IDS_IN_STORY_UNNAMED_REASON entries.
+       */
+      testIdsAtGiveUp: string[];
     }
   /** The story on screen is broken, by the registry Sherlo's own boundary fills. */
   | { cause: 'story-broken'; source: 'error-registry' }
@@ -886,7 +905,15 @@ async function metadataOfTheApp(storyId: string): Promise<{
     renderedAt === undefined ? undefined : renderedAt - startedAt;
 
   const noMetadataDiagnostics: NoMetadataDiagnostics = everPublished
-    ? { cause: 'story-unnamed', publishedAtPollStart, providerRenderedRelativeToPollMs }
+    ? {
+        cause: 'story-unnamed',
+        publishedAtPollStart,
+        providerRenderedRelativeToPollMs,
+        // The same `metadata` this poll is about to give up on - not the story-naming one `named`
+        // asks about (there is none, that is why this branch is taken), but whatever it actually
+        // held at this last check, read for the same reason `renderedAt` was: once the poll is over.
+        testIdsAtGiveUp: testIdsIn(metadata),
+      }
     : { cause: 'nothing-published', providerRenderedRelativeToPollMs };
 
   return {
@@ -917,6 +944,21 @@ type NoMetadataDiagnostics = Extract<
 function namesTheStory(metadata: ReturnType<typeof collectAppMetadata>, storyId: string): boolean {
   if (!metadata) return false;
   return Object.values(metadata.viewProps).some((props) => props.testID === storyId);
+}
+
+/**
+ * The distinct testIDs a reading holds, in the order its views carry them, capped at
+ * MAX_TEST_IDS_IN_STORY_UNNAMED_REASON - what a 'story-unnamed' reason keeps of the reading it gave
+ * up on (see WindowReason.testIdsAtGiveUp). `undefined` metadata (no reading at that exact check)
+ * holds none.
+ */
+function testIdsIn(metadata: ReturnType<typeof collectAppMetadata>): string[] {
+  if (!metadata) return [];
+  const ids = new Set<string>();
+  for (const props of Object.values(metadata.viewProps)) {
+    if (props.testID !== undefined) ids.add(props.testID);
+  }
+  return Array.from(ids).slice(0, MAX_TEST_IDS_IN_STORY_UNNAMED_REASON);
 }
 
 /**
