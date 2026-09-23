@@ -75,7 +75,8 @@ export type CaptureResult =
         metadata: WaitOutcome;
         storyViews: WaitOutcome & { rereads: number };
       };
-      root?: { at: 'story' | 'window'; nodeCount: number };
+      /** What the tree is rooted at, how many nodes it holds, and, for a window, WHY - see WindowReason. */
+      root?: { at: 'story' | 'window'; nodeCount: number; reason?: WindowReason };
     };
 
 /** How one of the app's waits ended, as it reports it - see the SDK's own WaitOutcome. */
@@ -83,6 +84,16 @@ export type WaitOutcome = {
   outcome: 'first-check' | 'polled' | 'timed-out';
   ms: number;
 };
+
+/**
+ * WHY the app's answer is rooted at the window rather than the story, as it reports it - see the
+ * SDK's own WindowReason (packages/react-native-storybook/src/captureTransport.ts).
+ */
+export type WindowReason =
+  | { cause: 'no-metadata' }
+  | { cause: 'story-broken'; source: 'error-registry' }
+  | { cause: 'story-broken'; source: 'fallback-text'; generation: 'live' | 'merged' }
+  | { cause: 'story-not-in-tree' };
 
 /** Everything the tool asks of a running app down this road, and nothing else. */
 export type CaptureSocket = {
@@ -320,11 +331,43 @@ function readStoryViewsWait(value: unknown): (WaitOutcome & { rereads: number })
  * What the tree the app recorded is rooted at, and how many nodes it holds - or nothing when the
  * app said nothing readable about it, for the same reason `waited` can be absent.
  */
-function readRoot(value: unknown): { at: 'story' | 'window'; nodeCount: number } | undefined {
-  const root = value as { at?: unknown; nodeCount?: unknown } | null | undefined;
-  if ((root?.at === 'story' || root?.at === 'window') && typeof root.nodeCount === 'number') {
-    return { at: root.at, nodeCount: root.nodeCount };
+function readRoot(
+  value: unknown
+): { at: 'story' | 'window'; nodeCount: number; reason?: WindowReason } | undefined {
+  const root = value as { at?: unknown; nodeCount?: unknown; reason?: unknown } | null | undefined;
+  if (!(root?.at === 'story' || root?.at === 'window') || typeof root.nodeCount !== 'number') {
+    return undefined;
   }
+  const reason = readWindowReason(root.reason);
+  return { at: root.at, nodeCount: root.nodeCount, ...(reason && { reason }) };
+}
+
+/**
+ * WHY a window root was reported, read straight off the wire the way `readRoot`'s own fields are -
+ * or nothing when the app said nothing readable about it, which an app older than this field does,
+ * and which a story root always does (it is never asked why).
+ */
+function readWindowReason(value: unknown): WindowReason | undefined {
+  const reason = value as
+    | { cause?: unknown; source?: unknown; generation?: unknown }
+    | null
+    | undefined;
+
+  if (reason?.cause === 'no-metadata') return { cause: 'no-metadata' };
+  if (reason?.cause === 'story-not-in-tree') return { cause: 'story-not-in-tree' };
+
+  if (reason?.cause === 'story-broken') {
+    if (reason.source === 'error-registry') {
+      return { cause: 'story-broken', source: 'error-registry' };
+    }
+    if (
+      reason.source === 'fallback-text' &&
+      (reason.generation === 'live' || reason.generation === 'merged')
+    ) {
+      return { cause: 'story-broken', source: 'fallback-text', generation: reason.generation };
+    }
+  }
+
   return undefined;
 }
 

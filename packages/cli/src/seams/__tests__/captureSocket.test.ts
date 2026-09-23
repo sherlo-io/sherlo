@@ -284,6 +284,69 @@ describe("the app's answer, read into this seam's own endings", () => {
     expect(answer).not.toHaveProperty('root');
   });
 
+  it('why a window root was recorded comes back with it, read straight off the wire', async () => {
+    const r = await relay();
+
+    // What the app says when the story on screen was judged broken by its fallback words, and
+    // which fiber generation the live-tag check read them off - carried across, not reconstructed
+    // here from a tree that merely happens to be the whole window.
+    expect(
+      await aCapture(r, {
+        askedFor: STORY_A,
+        stories: [STORY_A],
+        recorded: {
+          ...ANSWER_A,
+          root: {
+            at: 'window',
+            nodeCount: 5,
+            reason: { cause: 'story-broken', source: 'fallback-text', generation: 'live' },
+          },
+        },
+      })
+    ).toEqual({
+      kind: 'captured',
+      storyId: STORY_A,
+      settled: { ms: 120, frames: 6 },
+      tree: { primitive: 'RCTView', components: [], children: [] },
+      root: {
+        at: 'window',
+        nodeCount: 5,
+        reason: { cause: 'story-broken', source: 'fallback-text', generation: 'live' },
+      },
+    });
+  });
+
+  it('a story root carries no reason, because it is never asked why', async () => {
+    const r = await relay();
+
+    const answer = await aCapture(r, {
+      askedFor: STORY_A,
+      stories: [STORY_A],
+      recorded: { ...ANSWER_A, root: { at: 'story', nodeCount: 3 } },
+    });
+
+    expect((answer as { root: { at: string; reason?: unknown } }).root).toEqual({
+      at: 'story',
+      nodeCount: 3,
+    });
+  });
+
+  it('an app older than the reason field leaves it absent, and keeps the rest of the root', async () => {
+    const r = await relay();
+
+    const answer = await aCapture(r, {
+      askedFor: STORY_A,
+      stories: [STORY_A],
+      recorded: { ...ANSWER_A, root: { at: 'window', nodeCount: 9 } },
+    });
+
+    expect((answer as { root: { at: string; nodeCount: number } }).root).toEqual({
+      at: 'window',
+      nodeCount: 9,
+    });
+    expect(answer).not.toHaveProperty('root.reason');
+  });
+
   it('an app that died mid-capture is a crash, and its last words come with it', async () => {
     const r = await relay();
     const died = { name: 'RangeError', message: 'Maximum call stack size exceeded' };
