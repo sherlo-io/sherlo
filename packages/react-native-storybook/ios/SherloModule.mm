@@ -70,9 +70,9 @@ static void SherloEarlyInit(void) {
 /**
  * Explicitly switches to testing mode.
  */
-- (void)openTesting
+- (void)openTesting:(NSString *)storyId
 {
-  [core openTesting:self.bridge];
+  [core openTesting:self.bridge storyId:storyId];
 }
 
 /**
@@ -222,8 +222,8 @@ RCT_EXPORT_METHOD(closeStorybook) {
 /**
  * Explicitly switches to testing mode.
  */
-RCT_EXPORT_METHOD(openTesting) {
-  [core openTesting:self.bridge];
+RCT_EXPORT_METHOD(openTesting:(NSString *)storyId) {
+  [core openTesting:self.bridge storyId:storyId];
 }
 
 /**

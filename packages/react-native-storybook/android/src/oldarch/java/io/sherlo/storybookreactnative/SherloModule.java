@@ -84,10 +84,12 @@ public class SherloModule extends ReactContextBaseJavaModule {
 
     /**
      * Explicitly switches to testing mode.
+     *
+     * @param storyId the story to land the restarted app on directly, or empty when there is none.
      */
     @ReactMethod
-    public void openTesting() {
-        moduleCore.openTesting();
+    public void openTesting(String storyId) {
+        moduleCore.openTesting(storyId);
     }
 
     // ==== Error Reporting ====

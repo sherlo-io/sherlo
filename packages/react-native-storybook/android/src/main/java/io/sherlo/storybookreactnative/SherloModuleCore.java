@@ -128,6 +128,19 @@ public class SherloModuleCore {
             // We have a valid persisted mode that hasn't expired, use it
             this.currentMode = persistedMode;
             Log.d(TAG, "Using persisted mode: " + currentMode);
+
+            // A capture's restart-into-testing has no config.sherlo on disk (see openTesting), so
+            // the config-based branch below - the one that would otherwise populate lastState -
+            // never runs for it. The story the relay handed over at restart (see RestartHelper) is
+            // read here instead, in the same shape LastStateHelper.getLastState produces for a real
+            // run, so TestingMode/Storybook.tsx's `lastState?.nextSnapshot.storyId` needs no change
+            // to land on it.
+            if (MODE_TESTING.equals(currentMode)) {
+                String initialStoryId = restartHelper.getPersistedInitialStoryId();
+                if (initialStoryId != null && !initialStoryId.isEmpty()) {
+                    this.lastState = lastStateForInitialStory(initialStoryId);
+                }
+            }
         } else if (this.config != null) {
             // Fallback to config-based mode
             this.currentMode = ConfigHelper.determineModeFromConfig(this.config);
@@ -140,7 +153,25 @@ public class SherloModuleCore {
 
         Log.d(TAG, "SherloModuleCore initialized with mode: " + currentMode);
     }
-    
+
+    /**
+     * The `lastState` shape a real run's own protocol file produces (see LastStateHelper), built
+     * instead from a story handed over across a capture's restart. `requestId` is left out - a
+     * capture has none, and every reader of `lastState` already treats it as optional.
+     */
+    private static JSONObject lastStateForInitialStory(String storyId) {
+        try {
+            JSONObject nextSnapshot = new JSONObject();
+            nextSnapshot.put("storyId", storyId);
+            JSONObject state = new JSONObject();
+            state.put("nextSnapshot", nextSnapshot);
+            return state;
+        } catch (org.json.JSONException e) {
+            Log.e(TAG, "Failed to build lastState for initial story", e);
+            return null;
+        }
+    }
+
     /**
      * Returns the current mode string. Safe to call before constructor - falls back to
      * MODE_DEFAULT. Used by the JSI bindings (SherloModuleJSIBindings.cpp) to read the
@@ -218,9 +249,12 @@ public class SherloModuleCore {
      * Switches to testing mode and restarts the React context.
      * The restart a capture asks for: the same full process restart `sherlo open` uses,
      * but into testing mode so the app comes back up with isRunningVisualTests true.
+     *
+     * @param storyId the story to hand the restarted app over as its initial selection (see
+     *                lastStateForInitialStory), or empty when there is none to hand over.
      */
-    public void openTesting() {
-        restartHelper.restart(MODE_TESTING);
+    public void openTesting(String storyId) {
+        restartHelper.restart(MODE_TESTING, storyId);
     }
 
     /**

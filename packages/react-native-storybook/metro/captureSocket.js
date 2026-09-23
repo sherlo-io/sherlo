@@ -10,6 +10,13 @@
  *          the hold runs out.
  *   POST  the tool: "capture this story with these settings". The answer is what the app recorded.
  *
+ * THE RESTART INSTRUCTION CARRIES THE STORY TOO, NOT JUST THE ASK TO RESTART. The relay already knows
+ * which story the tool is waiting for at the exact moment it tells the app to restart into testing
+ * mode - that story and the restart are decided from the same held POST - so it hands both over
+ * together rather than making the app come back and ask a second time. What the app does with that
+ * story id before it restarts is the app's own concern (see captureTransport.ts); the relay's part is
+ * only to stop throwing the one fact away that the app cannot get any other way.
+ *
  * IT RELAYS RATHER THAN REMEMBERS. A capture is a conversation - settings one way, a whole view tree
  * the other - and the relay only ever pairs one waiting app with one waiting tool. Once the answer
  * has crossed, it holds nothing: there is no story to remember across a restart the way the
@@ -92,8 +99,10 @@ function createCaptureSocket(settings) {
 
         if (mode !== 'testing') {
           // The story the app walks has to count as a test run, so the app must be in testing mode.
-          // Tell it to restart there; the tool's POST stays held across the restart.
-          return sendJson(response, { restartIntoTesting: true });
+          // Tell it to restart there; the tool's POST stays held across the restart. The story id
+          // rides along so the app can land on it directly instead of booting onto a story of its
+          // own choosing and moving off it afterwards (see the file header).
+          return sendJson(response, { restartIntoTesting: true, storyId: toolWaiting.storyId });
         }
 
         return sendJson(response, {
@@ -166,7 +175,7 @@ function createCaptureSocket(settings) {
       }
 
       if (held.mode !== 'testing') {
-        held.answer({ restartIntoTesting: true });
+        held.answer({ restartIntoTesting: true, storyId: storyId });
       } else {
         held.answer({ storyId: storyId, settings: settings });
       }

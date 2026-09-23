@@ -55,7 +55,12 @@ type SherloModule = {
   readFile: (path: string) => Promise<string>;
   openStorybook: () => void;
   toggleStorybook: () => void;
-  openTesting: () => void;
+  /**
+   * Restart into testing mode. `storyId`, when given, is the story to land the restarted app on
+   * directly - a capture's first story of a session, handed over the same way a run's restart
+   * always has a story to land `initialSelection` on (see captureTransport.ts).
+   */
+  openTesting: (storyId?: string) => void;
   stabilize: (
     requiredMatches: number,
     minScreenshotsCount: number,
@@ -194,7 +199,10 @@ function createSherloModule(): SherloModule {
     },
     openStorybook: () => module.openStorybook(),
     toggleStorybook: () => module.toggleStorybook(),
-    openTesting: () => module.openTesting(),
+    // The turbo module spec takes a required string, following the same empty-string-for-"nothing"
+    // convention sendNativeError's dataJson already uses - there is no separate optional-arg shape
+    // to keep in sync between the JS side and the generated native one.
+    openTesting: (storyId?: string) => module.openTesting(storyId ?? ''),
     isScrollable: () => module.isScrollable(),
     scrollToCheckpoint: (index: number, offset: number, maxIndex: number) =>
       module.scrollToCheckpoint(index, offset, maxIndex),
