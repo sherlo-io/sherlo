@@ -20,6 +20,7 @@ const {
   mockStabilize,
   mockIsScrollable,
   mockScrollToCheckpoint,
+  mockOpenTesting,
 } = vi.hoisted(() => ({
   mockGetSherloConstants: vi.fn(),
   mockGetConstants: vi.fn(),
@@ -30,6 +31,7 @@ const {
   mockStabilize: vi.fn(),
   mockIsScrollable: vi.fn(),
   mockScrollToCheckpoint: vi.fn(),
+  mockOpenTesting: vi.fn(),
 }));
 
 vi.mock('../specs/NativeSherloModule', () => ({
@@ -46,6 +48,7 @@ vi.mock('../specs/NativeSherloModule', () => ({
     openStorybook: vi.fn(),
     toggleStorybook: vi.fn(),
     notifyGetStorybookCalled: vi.fn(),
+    openTesting: mockOpenTesting,
   },
 }));
 
@@ -191,6 +194,35 @@ describe('SherloModule live - getConfig / getLastState', () => {
 
   it('isTurboModule is true when TurboModule is present', () => {
     expect(SherloModule.isTurboModule).toBe(true);
+  });
+
+  it("getDriver() reads the `driver` constant a run's config-based boot reports", () => {
+    mockGetSherloConstants.mockReturnValue({ ...NEW_ARCH_CONSTANTS, driver: 'runner' });
+    expect(SherloModule.getDriver()).toBe('runner');
+  });
+
+  it("getDriver() reads the `driver` constant a capture's restart reports", () => {
+    mockGetSherloConstants.mockReturnValue({ ...NEW_ARCH_CONSTANTS, driver: 'capture' });
+    expect(SherloModule.getDriver()).toBe('capture');
+  });
+
+  it('getDriver() returns undefined outside testing mode, where native reports no driver', () => {
+    mockGetSherloConstants.mockReturnValue({ ...NEW_ARCH_CONSTANTS, driver: null });
+    expect(SherloModule.getDriver()).toBeUndefined();
+  });
+});
+
+describe('SherloModule live - openTesting', () => {
+  it('JSON-encodes the config and defaults a missing storyId to the empty string', () => {
+    const config = { stabilization: { requiredMatches: 3 } } as any;
+    SherloModule.openTesting(undefined, config);
+    expect(mockOpenTesting).toHaveBeenCalledWith('', JSON.stringify(config));
+  });
+
+  it('passes the storyId through when given', () => {
+    const config = { stabilization: { requiredMatches: 3 } } as any;
+    SherloModule.openTesting('comp--story', config);
+    expect(mockOpenTesting).toHaveBeenCalledWith('comp--story', JSON.stringify(config));
   });
 });
 

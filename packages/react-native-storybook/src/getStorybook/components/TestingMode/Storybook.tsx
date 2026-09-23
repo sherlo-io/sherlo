@@ -33,12 +33,16 @@ function Storybook({
   // that disable on-device UI, the websocket dev-menu connection, and persistent selection.
   //
   // A run's restart always has a queued story to hand over as initialSelection, and Storybook
-  // lands on it directly. A capture's restart has none (a capture writes nothing to the device
-  // before restarting - see captureTransport.ts), so initialSelection is left undefined: with
-  // shouldPersistSelection false, Storybook's own preview falls back to its "*" specifier, which
-  // always resolves to a real, renderable story. A made-up id here (there used to be one) sends
-  // that resolution down the NoStoryMatchError branch instead - the preview never calls
-  // renderToCanvas, so no channel-driven selection, retried or not, ever has anything to replace.
+  // lands on it directly. A capture's restart is meant to as well: captureTransport.ts hands the
+  // story to SherloModule.openTesting, and the native side that comes back builds `lastState` in
+  // this exact shape from what crossed the restart in memory (see SherloModuleCore on each
+  // platform) - no filesystem write involved. Only an app whose native side predates that
+  // hand-over, or one the relay could not reach a storyId for, still comes back with storyId
+  // undefined: with shouldPersistSelection false, Storybook's own preview then falls back to its
+  // "*" specifier, which always resolves to a real, renderable story. A made-up id here (there
+  // used to be one) sends that resolution down the NoStoryMatchError branch instead - the preview
+  // never calls renderToCanvas, so no channel-driven selection, retried or not, ever has anything
+  // to replace.
   const lastState = SherloModule.getLastState();
   const storyId = lastState?.nextSnapshot.storyId;
   const testingParams: StorybookParams = {

@@ -34,6 +34,7 @@ const {
   mockOpenTesting,
   mockAppendFile,
   mockReadFile,
+  mockGetLastState,
 } = vi.hoisted(() => ({
   mockGetMode: vi.fn(),
   mockGetConfigOrDefault: vi.fn(),
@@ -45,6 +46,7 @@ const {
   mockOpenTesting: vi.fn(),
   mockAppendFile: vi.fn(),
   mockReadFile: vi.fn(),
+  mockGetLastState: vi.fn(),
 }));
 
 vi.mock('../SherloModule', () => ({
@@ -62,6 +64,10 @@ vi.mock('../SherloModule', () => ({
     openTesting: mockOpenTesting,
     appendFile: mockAppendFile,
     readFile: mockReadFile,
+    // Read by describeStorybookState's own diagnostic (see the crash-message describe below) the
+    // same way TestingMode/Storybook.tsx reads it into initialSelection - undefined by default,
+    // the state of an app whose restart handed no story over.
+    getLastState: mockGetLastState,
   },
 }));
 
@@ -271,6 +277,9 @@ beforeEach(() => {
   // image loaded over the network.
   mockIsScrollable.mockResolvedValue({ scrollable: false });
   mockScrollToCheckpoint.mockResolvedValue(ONE_SCREENFUL);
+  // No story handed over unless a test says otherwise - see "the crash carries what Storybook
+  // itself was doing" below for the case where one was.
+  mockGetLastState.mockReturnValue(undefined);
   // The provider has not rendered at all yet, unless a test says otherwise below - the fresh-boot
   // state `__resetProviderFirstRenderedAtForTests` names.
   __resetProviderFirstRenderedAtForTests();
@@ -811,6 +820,35 @@ describe('the crash carries what Storybook itself was doing when the gate gave u
       'Storybook itself: reports itself ready, 1 story in its index, and has this story selected'
     );
   }, 20000);
+
+  it('says no story was handed over at boot, when the restart carried none', async () => {
+    // The default of this describe's own beforeEach (mockGetLastState answers undefined) - stated
+    // explicitly here because this is the fact this test exists to check, not incidental setup.
+    mockGetLastState.mockReturnValue(undefined);
+
+    const answer = await answerOneStory(undefined, makeView({ ready: false, storyIds: [] }));
+
+    expect(answer.kind).toBe('crashed');
+    const crashed = answer as Extract<CapturedAnswer, { kind: 'crashed' }>;
+    // THE ONE FACT THAT TELLS APART "the selection raced the index load" from "the restart's
+    // handover is silently broken": whether SherloModule.getLastState() - the same field
+    // TestingMode/Storybook.tsx reads into initialSelection - actually named a story for this boot.
+    expect(crashed.error?.message).toContain(
+      'the app booted with no story handed over as its initial selection'
+    );
+  }, 20000);
+
+  it('names the story that was handed over at boot, when the restart carried one', async () => {
+    mockGetLastState.mockReturnValue({ nextSnapshot: { storyId: STORY }, requestId: '' });
+
+    const answer = await answerOneStory(undefined, makeView({ ready: false, storyIds: [] }));
+
+    expect(answer.kind).toBe('crashed');
+    const crashed = answer as Extract<CapturedAnswer, { kind: 'crashed' }>;
+    expect(crashed.error?.message).toContain(
+      `the app booted with "${STORY}" handed over as its initial selection`
+    );
+  }, 20000);
 });
 
 describe('the classifier never quotes identical evidence and calls it changed', () => {
@@ -1207,8 +1245,10 @@ describe('a capture restarts the app into testing mode, so isRunningVisualTests 
     await vi.waitFor(() => expect(mockOpenTesting).toHaveBeenCalledTimes(1));
 
     expect(asked).toEqual([{ mode: 'default', stories: [STORY], answer: null }]);
-    // The relay sent no story alongside this restart, and none is invented on the way out.
-    expect(mockOpenTesting).toHaveBeenCalledWith(undefined);
+    // The relay sent no story alongside this restart, and none is invented on the way out. The
+    // app's own config rides along regardless - getConfigOrDefault()'s answer, since a capture has
+    // no config.sherlo of its own to send (see the file header).
+    expect(mockOpenTesting).toHaveBeenCalledWith(undefined, CONFIG);
     expect(mockStabilize).not.toHaveBeenCalled();
     expect(mockGetInspectorData).not.toHaveBeenCalled();
     expect(mockAwaitFrameCommit).not.toHaveBeenCalled();
@@ -1227,7 +1267,7 @@ describe('a capture restarts the app into testing mode, so isRunningVisualTests 
 
     // The story rides straight through to the native side - the same hand-over a run's own restart
     // already gets, now given to a capture's first story too (see the file header).
-    await vi.waitFor(() => expect(mockOpenTesting).toHaveBeenCalledWith(STORY));
+    await vi.waitFor(() => expect(mockOpenTesting).toHaveBeenCalledWith(STORY, CONFIG));
   });
 });
 

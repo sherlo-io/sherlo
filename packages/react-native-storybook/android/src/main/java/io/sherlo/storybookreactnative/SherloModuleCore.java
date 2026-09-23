@@ -29,10 +29,16 @@ public class SherloModuleCore {
     public static final String MODE_STORYBOOK = "storybook";
     public static final String MODE_TESTING = "testing";
 
+    // Driver constants - who drives a testing-mode boot's own walk (see the `driver` field on
+    // getSherloConstants and TestDriver in SherloModule.ts).
+    public static final String DRIVER_RUNNER = "runner";
+    public static final String DRIVER_CAPTURE = "capture";
+
     // Module state
     private static JSONObject config = null;
     private static JSONObject lastState = null;
     private static volatile String currentMode = MODE_DEFAULT;
+    private static volatile String driver = null;
     private static String nativeVersion = null;
 
     // Guards early protocol emission to a single occurrence per process. Set once by
@@ -129,13 +135,20 @@ public class SherloModuleCore {
             this.currentMode = persistedMode;
             Log.d(TAG, "Using persisted mode: " + currentMode);
 
-            // A capture's restart-into-testing has no config.sherlo on disk (see openTesting), so
-            // the config-based branch below - the one that would otherwise populate lastState -
-            // never runs for it. The story the relay handed over at restart (see RestartHelper) is
-            // read here instead, in the same shape LastStateHelper.getLastState produces for a real
-            // run, so TestingMode/Storybook.tsx's `lastState?.nextSnapshot.storyId` needs no change
-            // to land on it.
+            // A capture drove this restart (see openTesting): there is no config.sherlo on disk for
+            // it, so the config-based branch below - the one that would otherwise populate `config`
+            // and `lastState` - never runs. What openTesting handed across the restart is read here
+            // instead, and built into the SAME shape the config-based branch produces: the story the
+            // capture is landing on, in `lastState`, and the config it is running with, in `config` -
+            // same fields, same types, as a run's own config.sherlo/protocol.sherlo would produce, so
+            // nothing downstream (getConfig(), TestingMode/Storybook.tsx's
+            // `lastState?.nextSnapshot.storyId`) has to know which way either one arrived.
             if (MODE_TESTING.equals(currentMode)) {
+                this.driver = DRIVER_CAPTURE;
+
+                String initialConfigJson = restartHelper.getPersistedInitialConfigJson();
+                this.config = parseConfigJson(initialConfigJson);
+
                 String initialStoryId = restartHelper.getPersistedInitialStoryId();
                 if (initialStoryId != null && !initialStoryId.isEmpty()) {
                     this.lastState = lastStateForInitialStory(initialStoryId);
@@ -147,6 +160,7 @@ public class SherloModuleCore {
             Log.d(TAG, "Using config-based mode: " + currentMode);
 
             if (currentMode.equals(MODE_TESTING)) {
+                this.driver = DRIVER_RUNNER;
                 this.lastState = LastStateHelper.getLastState(this.fileSystemHelper);
             }
         }
@@ -156,8 +170,9 @@ public class SherloModuleCore {
 
     /**
      * The `lastState` shape a real run's own protocol file produces (see LastStateHelper), built
-     * instead from a story handed over across a capture's restart. `requestId` is left out - a
-     * capture has none, and every reader of `lastState` already treats it as optional.
+     * instead from a story handed over across a capture's restart. `requestId` is the empty string -
+     * a capture has none - matching LastStateHelper's own default for the same field, rather than
+     * leaving the key out: same fields, same types, as a run's own lastState.
      */
     private static JSONObject lastStateForInitialStory(String storyId) {
         try {
@@ -165,9 +180,25 @@ public class SherloModuleCore {
             nextSnapshot.put("storyId", storyId);
             JSONObject state = new JSONObject();
             state.put("nextSnapshot", nextSnapshot);
+            state.put("requestId", "");
             return state;
         } catch (org.json.JSONException e) {
             Log.e(TAG, "Failed to build lastState for initial story", e);
+            return null;
+        }
+    }
+
+    /**
+     * The `config` a capture's restart hands across in memory (see openTesting), parsed into the
+     * same shape ConfigHelper.loadConfig produces from a run's own config.sherlo. Never throws -
+     * a parse failure here must not crash the app any more than a corrupt config.sherlo does.
+     */
+    private static JSONObject parseConfigJson(String configJson) {
+        if (configJson == null || configJson.isEmpty()) return null;
+        try {
+            return new JSONObject(configJson);
+        } catch (org.json.JSONException e) {
+            Log.e(TAG, "Failed to parse config handed over from a capture's restart", e);
             return null;
         }
     }
@@ -219,6 +250,7 @@ public class SherloModuleCore {
         constants.putString("config", this.config != null ? this.config.toString() : null);
         constants.putString("lastState", this.lastState != null ? this.lastState.toString() : null);
         constants.putString("nativeVersion", this.nativeVersion);
+        constants.putString("driver", this.driver);
         return constants;
     }
 
@@ -250,11 +282,14 @@ public class SherloModuleCore {
      * The restart a capture asks for: the same full process restart `sherlo open` uses,
      * but into testing mode so the app comes back up with isRunningVisualTests true.
      *
-     * @param storyId the story to hand the restarted app over as its initial selection (see
-     *                lastStateForInitialStory), or empty when there is none to hand over.
+     * @param storyId    the story to hand the restarted app over as its initial selection (see
+     *                   lastStateForInitialStory), or empty when there is none to hand over.
+     * @param configJson the config to hand the restarted app over as `config` (see parseConfigJson)
+     *                   - a capture has no config.sherlo of its own, so the JS caller sends
+     *                   getConfigOrDefault()'s answer instead (see captureTransport.ts).
      */
-    public void openTesting(String storyId) {
-        restartHelper.restart(MODE_TESTING, storyId);
+    public void openTesting(String storyId, String configJson) {
+        restartHelper.restart(MODE_TESTING, storyId, configJson);
     }
 
     /**

@@ -14,8 +14,10 @@ export interface Spec extends TurboModule {
    * Restart into testing mode. `storyId` is the story to land the restarted app on directly, or an
    * empty string when there is none to hand over - codegen has no optional-string shape here, so an
    * empty string is the sentinel, the same convention sendNativeError's dataJson already uses.
+   * `config` is the JSON-encoded Config to carry across the restart, so the native side that comes
+   * back can produce the same `config` shape a run's own config.sherlo would (see SherloModuleCore).
    */
-  openTesting: (storyId: string) => void;
+  openTesting: (storyId: string, config: string) => void;
   stabilize: (
     requiredMatches: number,
     minScreenshotsCount: number,
