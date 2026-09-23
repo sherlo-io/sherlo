@@ -503,8 +503,15 @@ async function collectCaptures({
       // header). Handing it to openTesting lets the native side land the app on it directly, the
       // same way a run's restart always has a story to hand over as initialSelection - so the app
       // that comes back is not left to boot onto a placeholder and get moved off it afterwards.
+      //
+      // THE APP'S OWN CONFIG RIDES ALONG TOO, because a capture has no config.sherlo for the
+      // native side to read the way a run's does. getConfigOrDefault() answers with the SDK's own
+      // defaults - there is nothing else to send here, a capture's real settings arrive later, per
+      // story, over this same socket (see CaptureSettings) - and the native side that comes back
+      // carries it as `config`, the same field and shape a run's own config file produces (see
+      // SherloModuleCore on each platform).
       collecting = false;
-      SherloModule.openTesting(asked.storyId);
+      SherloModule.openTesting(asked.storyId, SherloModule.getConfigOrDefault());
       return;
     }
 
@@ -733,6 +740,14 @@ async function waitForTheStorysOwnViews(
  * the wrong story", or "it finished onto the right one and that story's own render is what failed" -
  * `ready`, how many stories the index holds, and which one Storybook believes is selected split those
  * apart. `selectedStoryId` is left out when Storybook exposes no selection yet, rather than guessed at.
+ *
+ * AND WHETHER THIS BOOT HAD A STORY HANDED OVER AT ALL. `TestingMode/Storybook.tsx` reads
+ * `SherloModule.getLastState()?.nextSnapshot.storyId` into `initialSelection` at construction time -
+ * the same field the native side now builds for a capture's restart in the exact shape a run's own
+ * config.sherlo/protocol.sherlo would produce (see SherloModuleCore on each platform). Whether that
+ * handover actually reached this boot, and with which story, is a fact this file could otherwise
+ * only guess at from the outside - so it is read here, once, the same way every other fact in this
+ * message is: straight off the source, not inferred.
  */
 function describeStorybookState(view: StorybookView, storyId: string): string {
   const asView = view as unknown as {
@@ -744,6 +759,7 @@ function describeStorybookState(view: StorybookView, storyId: string): string {
   const ready = asView._ready === true;
   const storyCount = Object.keys(asView._storyIndex?.entries ?? {}).length;
   const selectedStoryId = asView._preview?.currentSelection?.storyId;
+  const handedOverStoryId = SherloModule.getLastState()?.nextSnapshot.storyId;
 
   const selection =
     typeof selectedStoryId !== 'string'
@@ -752,9 +768,14 @@ function describeStorybookState(view: StorybookView, storyId: string): string {
       ? 'has this story selected'
       : `has selected "${selectedStoryId}" instead`;
 
+  const handover = handedOverStoryId
+    ? `the app booted with "${handedOverStoryId}" handed over as its initial selection`
+    : 'the app booted with no story handed over as its initial selection';
+
   return (
     `Storybook itself: ${ready ? 'reports itself ready' : 'never reported itself ready'}, ` +
-    `${storyCount} ${storyCount === 1 ? 'story' : 'stories'} in its index, and ${selection}`
+    `${storyCount} ${storyCount === 1 ? 'story' : 'stories'} in its index, and ${selection} - ` +
+    `${handover}`
   );
 }
 

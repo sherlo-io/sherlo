@@ -110,15 +110,22 @@ async function awaitStoryReadyAndPaint({
 function useTestStory({
   metadataProviderRef,
   view,
+  enabled = true,
 }: {
   metadataProviderRef: React.RefObject<MetadataProviderRef>;
   view?: StorybookView;
+  /**
+   * Whether this hook's report loop may run at all - false for a capture, which is driven over
+   * the socket instead and reports nothing over protocol files (see useTestAllStories, the one
+   * place that reads SherloModule.getDriver() to decide). Defaults to true so a caller that never
+   * drives a capture (every test in this file included) does not have to pass it.
+   */
+  enabled?: boolean;
 }): void {
-  // Testing mode used to imply a config on disk - native derives the mode FROM the config, so a
-  // run could not reach here without one. A capture breaks that: it restarts the app into testing
-  // mode with nothing written to the device (see captureTransport.ts), so this read has to survive
-  // that absence too. The value below is only consumed inside the `if (!lastState) return` guard,
-  // which a capture never passes, so the default never actually reaches a real capture's walk.
+  // Every testing-mode boot now carries a real config, whether it came from a run's own
+  // config.sherlo or from the SDK defaults a capture hands across its restart (see
+  // SherloModuleCore on each platform) - getConfigOrDefault still reads through the dummy module
+  // outside a build wired to native at all, which is the one absence left to fall back from.
   const config = SherloModule.getConfigOrDefault();
   const lastState = SherloModule.getLastState();
   const insets = useSafeAreaInsets();
@@ -126,7 +133,10 @@ function useTestStory({
   useEffect(() => {
     (async (): Promise<void> => {
       try {
-        if (!lastState) return;
+        // `enabled` is who may run this loop at all (see the param doc above); `lastState` is
+        // whether there is a story queued to run it for yet - a run's own first boot, before the
+        // runner has answered START, has none either.
+        if (!enabled || !lastState) return;
 
         const { nextSnapshot, requestId } = lastState;
 

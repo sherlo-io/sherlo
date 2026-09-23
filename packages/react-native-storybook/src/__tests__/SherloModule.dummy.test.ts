@@ -28,6 +28,10 @@ describe('SherloModule dummy (no native module)', () => {
     expect(SherloModule.getLastState()).toBeUndefined();
   });
 
+  it('getDriver() returns undefined', () => {
+    expect(SherloModule.getDriver()).toBeUndefined();
+  });
+
   it('getConfig() returns an object with stabilization defaults', () => {
     const config = SherloModule.getConfig();
     expect(config).toBeDefined();

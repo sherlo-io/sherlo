@@ -30,6 +30,7 @@ public class RestartHelper {
     private static final String PREF_MODE = "mode";
     private static final String PREF_MODE_TIMESTAMP = "modeTimestamp";
     private static final String PREF_INITIAL_STORY_ID = "initialStoryId";
+    private static final String PREF_INITIAL_CONFIG_JSON = "initialConfigJson";
     private static final long MODE_PERSISTENCE_TIMEOUT_MS = 10000;
 
     private ReactApplicationContext reactContext = null;
@@ -47,34 +48,43 @@ public class RestartHelper {
      * a config change.
      */
     private void persistMode(String mode) {
-        persistMode(mode, null);
+        persistMode(mode, null, null);
     }
 
     /**
-     * The same persistence as {@link #persistMode(String)}, plus the story a testing-mode restart
-     * should land on directly - a capture's first story of a session, handed over the same way a
-     * run's restart always has a story to hand over as `initialSelection` (see captureTransport.ts).
+     * The same persistence as {@link #persistMode(String)}, plus the FULL set of criteria a
+     * testing-mode restart should come back up with - the story to land directly on (a capture's
+     * first story of a session, handed over the same way a run's restart always has a story to
+     * hand over as `initialSelection`), and the config to carry across, so the native side that
+     * comes back can produce the exact same `config`/`lastState` shape a run's own config.sherlo
+     * would (see SherloModuleCore's constructor). See captureTransport.ts for the JS side of both.
      *
      * THIS IS NOT A NEW KIND OF WRITE. `mode` itself already has to survive the same restart
      * (ProcessPhoenix kills the process), so it already crosses through this exact SharedPreferences
-     * slot - ephemeral, read once, cleared after. `storyId` rides in the same slot rather than
-     * opening a second one: one small write to survive one restart, not two.
+     * slot - ephemeral, read once, cleared after. `storyId` and `configJson` ride in the same slot
+     * rather than opening more of them: one small write to survive one restart, not several.
      *
-     * `storyId` is ignored outside `MODE_TESTING` - only a capture's restart-into-testing has a
-     * story to hand over - and cleared whenever this call does not carry one, so a stale value from
-     * an earlier restart can never leak into a later one that did not ask for it.
+     * `storyId` and `configJson` are both ignored outside `MODE_TESTING` - only a capture's
+     * restart-into-testing carries either - and cleared whenever this call does not carry one, so a
+     * stale value from an earlier restart can never leak into a later one that did not ask for it.
      */
-    private void persistMode(String mode, String storyId) {
+    private void persistMode(String mode, String storyId, String configJson) {
         SharedPreferences prefs = reactContext.getSharedPreferences(PREFS_NAME, 0);
 
         if (MODE_STORYBOOK.equals(mode) || MODE_TESTING.equals(mode)) {
             SharedPreferences.Editor editor = prefs.edit()
                 .putString(PREF_MODE, mode)
                 .putLong(PREF_MODE_TIMESTAMP, System.currentTimeMillis())
-                .remove(PREF_INITIAL_STORY_ID);
+                .remove(PREF_INITIAL_STORY_ID)
+                .remove(PREF_INITIAL_CONFIG_JSON);
 
-            if (MODE_TESTING.equals(mode) && storyId != null && !storyId.isEmpty()) {
-                editor.putString(PREF_INITIAL_STORY_ID, storyId);
+            if (MODE_TESTING.equals(mode)) {
+                if (storyId != null && !storyId.isEmpty()) {
+                    editor.putString(PREF_INITIAL_STORY_ID, storyId);
+                }
+                if (configJson != null && !configJson.isEmpty()) {
+                    editor.putString(PREF_INITIAL_CONFIG_JSON, configJson);
+                }
             }
 
             editor.apply();
@@ -84,6 +94,7 @@ public class RestartHelper {
                 .remove(PREF_MODE)
                 .remove(PREF_MODE_TIMESTAMP)
                 .remove(PREF_INITIAL_STORY_ID)
+                .remove(PREF_INITIAL_CONFIG_JSON)
                 .apply();
             Log.d(TAG, "Cleared persisted mode (switching to: " + mode + ")");
         }
@@ -111,12 +122,14 @@ public class RestartHelper {
                 Log.d(TAG, "Using persisted mode from restart (age: " + timeDiff + "ms): " + mode);
                 return mode;
             } else {
-                // Expired, clear it - the initial story id too, so an expired testing-mode restart
-                // never leaves one behind for a later, unrelated restart to pick up.
+                // Expired, clear it - the initial story id and config too, so an expired
+                // testing-mode restart never leaves either behind for a later, unrelated restart
+                // to pick up.
                 prefs.edit()
                     .remove(PREF_MODE)
                     .remove(PREF_MODE_TIMESTAMP)
                     .remove(PREF_INITIAL_STORY_ID)
+                    .remove(PREF_INITIAL_CONFIG_JSON)
                     .apply();
 
                 Log.d(TAG, "Persisted mode expired (age: " + timeDiff + "ms), no persisted mode");
@@ -127,9 +140,9 @@ public class RestartHelper {
     }
 
     /**
-     * The story a persisted testing-mode restart should land on, read once and cleared - the
-     * Android half of the hand-over described on {@link #persistMode(String, String)}. Call only
-     * after {@link #getPersistedMode()} has returned `testing`: a story id is meaningless, and never
+     * The story a persisted testing-mode restart should land on, read once and cleared - one half
+     * of the hand-over described on {@link #persistMode(String, String, String)}. Call only after
+     * {@link #getPersistedMode()} has returned `testing`: a story id is meaningless, and never
      * written, for any other persisted mode.
      *
      * @return the story id, or null when this restart carried none.
@@ -143,6 +156,25 @@ public class RestartHelper {
         }
 
         return storyId;
+    }
+
+    /**
+     * The config a persisted testing-mode restart should come back up with, read once and cleared -
+     * the other half of the hand-over described on {@link #persistMode(String, String, String)}.
+     * Call only after {@link #getPersistedMode()} has returned `testing`, the same rule
+     * {@link #getPersistedInitialStoryId()} follows.
+     *
+     * @return the config as a JSON string, or null when this restart carried none.
+     */
+    public String getPersistedInitialConfigJson() {
+        SharedPreferences prefs = reactContext.getSharedPreferences(PREFS_NAME, 0);
+        String configJson = prefs.getString(PREF_INITIAL_CONFIG_JSON, null);
+
+        if (configJson != null) {
+            prefs.edit().remove(PREF_INITIAL_CONFIG_JSON).apply();
+        }
+
+        return configJson;
     }
 
     private Activity getCurrentActivity() {
@@ -225,16 +257,16 @@ public class RestartHelper {
     }
 
     public void restart(String newMode) {
-        restart(newMode, null);
+        restart(newMode, null, null);
     }
 
     /**
-     * The same restart, with a story to persist alongside `newMode` for the app that comes back -
-     * see {@link #persistMode(String, String)}.
+     * The same restart, with the story and config to persist alongside `newMode` for the app that
+     * comes back - see {@link #persistMode(String, String, String)}.
      */
-    public void restart(String newMode, String storyId) {
+    public void restart(String newMode, String storyId, String configJson) {
 
-        persistMode(newMode, storyId);
+        persistMode(newMode, storyId, configJson);
 
         final Activity currentActivity = getCurrentActivity();
         if (currentActivity != null) {

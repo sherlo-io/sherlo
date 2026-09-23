@@ -83,11 +83,12 @@ public class SherloModule extends NativeSherloModuleSpec {
     /**
      * Explicitly switches to testing mode.
      *
-     * @param storyId the story to land the restarted app on directly, or empty when there is none.
+     * @param storyId    the story to land the restarted app on directly, or empty when there is none.
+     * @param configJson the config to hand the restarted app over as `config`.
      */
     @Override
-    public void openTesting(String storyId) {
-        moduleCore.openTesting(storyId);
+    public void openTesting(String storyId, String configJson) {
+        moduleCore.openTesting(storyId, configJson);
     }
 
     // ==== Error Reporting ====
