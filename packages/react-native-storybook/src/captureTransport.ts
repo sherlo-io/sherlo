@@ -510,7 +510,12 @@ async function collectCaptures({
 
     if (!asked.storyId) continue;
 
-    answer = await captureTheStory({ storyId: asked.storyId, settings: asked.settings, channel });
+    answer = await captureTheStory({
+      storyId: asked.storyId,
+      settings: asked.settings,
+      channel,
+      view,
+    });
   }
 }
 
@@ -525,13 +530,15 @@ async function captureTheStory({
   storyId,
   settings,
   channel,
+  view,
 }: {
   storyId: string;
   settings: CaptureSettings | undefined;
   channel: StorybookChannel;
+  view: StorybookView;
 }): Promise<CapturedAnswer> {
   try {
-    const onScreen = await waitForTheStoryOnScreen({ storyId, channel });
+    const onScreen = await waitForTheStoryOnScreen({ storyId, channel, view });
     const settled = await stabilizeTheStory(settings);
 
     // Asking how many screenfuls the story is puts it back at its top, so it is asked before the
@@ -589,9 +596,11 @@ type StoryOnScreen = {
 async function waitForTheStoryOnScreen({
   storyId,
   channel,
+  view,
 }: {
   storyId: string;
   channel: StorybookChannel;
+  view: StorybookView;
 }): Promise<StoryOnScreen> {
   // A capture writes nothing to the device (see the file header), so there is usually no config to
   // read here - that absence is a normal state, not an error, and falls back to the SDK's own
@@ -628,7 +637,7 @@ async function waitForTheStoryOnScreen({
     config.paintBarrierTimeoutMs ?? PAINT_BARRIER_TIMEOUT_MS
   ).catch(() => false);
 
-  return waitForTheStorysOwnViews(storyId);
+  return waitForTheStorysOwnViews(storyId, view);
 }
 
 /**
@@ -660,8 +669,19 @@ async function waitForTheStoryOnScreen({
  * carries the two facts a developer (or the next round of this epic) needs to tell "the wait was too
  * short" apart from "something is actually stuck": how long this gate waited, and whether what it
  * was reading ever changed in that time - see describeWhatWasHeld.
+ *
+ * AND, BECAUSE "THE STORY NEVER ARRIVES" LEAVES SEVERAL DIFFERENT BUGS LOOKING IDENTICAL FROM OUT
+ * HERE, WHAT STORYBOOK ITSELF WAS DOING - see describeStorybookState. A capture measured this app
+ * alive and answering the whole fifteen seconds, with no story testID anywhere in it - a state that
+ * is equally consistent with Storybook's own index never finishing, finishing empty, finishing onto
+ * the wrong story, or finishing onto the right one whose render itself failed to bind. Those four are
+ * different bugs with different fixes, and only Storybook's own `_ready`/index/selection tell them
+ * apart - so the error carries them alongside the wait, rather than leaving the next round to guess.
  */
-async function waitForTheStorysOwnViews(storyId: string): Promise<StoryOnScreen> {
+async function waitForTheStorysOwnViews(
+  storyId: string,
+  view: StorybookView
+): Promise<StoryOnScreen> {
   const {
     metadata,
     wait: metadataWait,
@@ -689,7 +709,8 @@ async function waitForTheStorysOwnViews(storyId: string): Promise<StoryOnScreen>
     throw new Error(
       `Sherlo: story "${storyId}" never reached the screen - waited ${metadataWait.ms}ms for the ` +
         "app's own reading to name it, then gave up: " +
-        `${describeWhatWasHeld(metadataTestIdsAtPollStart, testIdsAtGiveUp)}.`
+        `${describeWhatWasHeld(metadataTestIdsAtPollStart, testIdsAtGiveUp)}. ` +
+        `${describeStorybookState(view, storyId)}.`
     );
   }
 
@@ -698,7 +719,42 @@ async function waitForTheStorysOwnViews(storyId: string): Promise<StoryOnScreen>
     `Sherlo: story "${storyId}" never reached the screen - the app's own reading named it, but its ` +
       `views never appeared in the native view tree: waited ${storyViewsWait.ms}ms across ` +
       `${storyViewsWait.rereads} re-read(s), then gave up: ` +
-      `${describeWhatWasHeld(liveTestIdsAtPollStart, testIdsAtGiveUp)}.`
+      `${describeWhatWasHeld(liveTestIdsAtPollStart, testIdsAtGiveUp)}. ` +
+      `${describeStorybookState(view, storyId)}.`
+  );
+}
+
+/**
+ * WHAT STORYBOOK ITSELF WAS DOING, read straight off its own `View` instance the way `storiesIn`
+ * below already does - never a second reading invented on top of it. Storybook's `StoryView` is the
+ * only thing that mounts a view carrying a story's testID, and it renders nothing at all until the
+ * index has finished loading (`view._ready`), so a capture that never sees this story's testID
+ * cannot yet tell "the index never finished" apart from "it finished onto nothing", "it finished onto
+ * the wrong story", or "it finished onto the right one and that story's own render is what failed" -
+ * `ready`, how many stories the index holds, and which one Storybook believes is selected split those
+ * apart. `selectedStoryId` is left out when Storybook exposes no selection yet, rather than guessed at.
+ */
+function describeStorybookState(view: StorybookView, storyId: string): string {
+  const asView = view as unknown as {
+    _ready?: unknown;
+    _storyIndex?: { entries?: Record<string, unknown> };
+    _preview?: { currentSelection?: { storyId?: unknown } | null };
+  };
+
+  const ready = asView._ready === true;
+  const storyCount = Object.keys(asView._storyIndex?.entries ?? {}).length;
+  const selectedStoryId = asView._preview?.currentSelection?.storyId;
+
+  const selection =
+    typeof selectedStoryId !== 'string'
+      ? 'has selected no story'
+      : selectedStoryId === storyId
+      ? 'has this story selected'
+      : `has selected "${selectedStoryId}" instead`;
+
+  return (
+    `Storybook itself: ${ready ? 'reports itself ready' : 'never reported itself ready'}, ` +
+    `${storyCount} ${storyCount === 1 ? 'story' : 'stories'} in its index, and ${selection}`
   );
 }
 
@@ -912,7 +968,9 @@ async function inspectorDataOfTheApp(
  * against the app's own reading of what each tag is (metadata.viewProps), read here as a
  * diagnostic instead of a live-vs-merged decision. "Live" matters the same way it does there: a
  * stale fiber generation's testID must never be reported as something the CURRENT screen holds.
- * `undefined` metadata (nothing published) holds none, the same as testIdsIn.
+ * `undefined` metadata (nothing published) holds none, the same as testIdsIn. An EMPTY STRING testID
+ * is treated the same as no testID at all (see testIdsIn's own note) - it names nothing, so it must
+ * never be counted as something the screen holds.
  */
 function testIdsLiveInTheInspector(
   inspectorData: InspectorData,
@@ -922,7 +980,7 @@ function testIdsLiveInTheInspector(
   const live = liveNativeTags(inspectorData.viewHierarchy);
   const ids = new Set<string>();
   for (const [tag, props] of Object.entries(metadata.viewProps)) {
-    if (props.testID !== undefined && live.has(Number(tag))) ids.add(props.testID);
+    if (props.testID && live.has(Number(tag))) ids.add(props.testID);
   }
   return Array.from(ids).slice(0, MAX_TEST_IDS_IN_DIAGNOSTICS);
 }
@@ -1151,13 +1209,17 @@ function namesTheStory(metadata: ReturnType<typeof collectAppMetadata>, storyId:
  * The distinct testIDs a reading holds, in the order its views carry them, capped at
  * MAX_TEST_IDS_IN_DIAGNOSTICS - what a 'story-unnamed' reason keeps of the reading it gave
  * up on (see WindowReason.testIdsAtGiveUp). `undefined` metadata (no reading at that exact check)
- * holds none.
+ * holds none - and neither does a view whose testID is the EMPTY STRING: it names nothing, so
+ * counting it as a testID the reading "holds" is what used to make describeWhatWasHeld compare a
+ * before and an after that print identically but differ by that one invisible entry, printing
+ * "it changed" over evidence that had not - and leave a dangling `, ` where the empty id was
+ * joined in. `!== undefined` was never enough for that reason; only a real, non-empty id counts.
  */
 function testIdsIn(metadata: ReturnType<typeof collectAppMetadata>): string[] {
   if (!metadata) return [];
   const ids = new Set<string>();
   for (const props of Object.values(metadata.viewProps)) {
-    if (props.testID !== undefined) ids.add(props.testID);
+    if (props.testID) ids.add(props.testID);
   }
   return Array.from(ids).slice(0, MAX_TEST_IDS_IN_DIAGNOSTICS);
 }
