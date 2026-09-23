@@ -50,10 +50,34 @@ function Storybook({
     initialSelection: storyId,
   };
 
-  const StorybookComponent = getStorybookComponent({
-    view,
-    params: testingParams,
-  });
+  // Built ONCE per boot, not on every render of this component. getStorybookComponent() calls
+  // view.getStorybookUI(params), which constructs a FRESH closure component and kicks off a fresh
+  // story-selection cycle (this._getInitialStory(params), addons.loadAddons(...)) every time it
+  // runs - so a second call does not "update" the running preview, it hands back a component with
+  // a NEW function identity. React treats a changed element type at the same position as a
+  // completely different component: it unmounts whatever Storybook had already mounted (dropping
+  // its `ready` state and any story context already selected) and mounts the new one from
+  // scratch, restarting createPreparedStoryMapping() - which reloads EVERY story in the index -
+  // and the whole initial-selection dance.
+  //
+  // This component re-renders for reasons that have nothing to do with which story is on screen:
+  // `insets` (react-native-safe-area-context settles its real value asynchronously after the
+  // first native layout, often a beat after this first mounts) and `uiSettings`/`params` (new
+  // object identities from TestingMode on every one of ITS re-renders). Before this ref, any such
+  // re-render early in a boot silently threw away Storybook's in-flight story selection and started
+  // it over - a plausible way for the FIRST story of a boot to still be mid-reset, showing neither
+  // the placeholder nor the target story's testID, when a capture's metadata poll gives up. Story
+  // switches after that first selection never go through this component's props at all (they run
+  // over Storybook's own channel - see captureTransport.ts), so they were never at risk here; only
+  // the first selection, racing whatever causes this component's own first re-render, was.
+  const storybookComponentRef = useRef<(() => JSX.Element) | null>(null);
+  if (!storybookComponentRef.current) {
+    storybookComponentRef.current = getStorybookComponent({
+      view,
+      params: testingParams,
+    });
+  }
+  const StorybookComponent = storybookComponentRef.current;
 
   const style = {
     flex: 1,

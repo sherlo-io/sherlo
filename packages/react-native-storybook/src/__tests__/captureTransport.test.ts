@@ -196,37 +196,6 @@ const RECORDED_TREE = {
 };
 
 /**
- * The app's whole window as the inspector answered it: Sherlo's frame, Storybook's, the view
- * Storybook wraps a story in, and the story under it. No view is re-rooted and none is named.
- *
- * This is what a capture records when nothing rendered this app the way a run renders it: there is
- * no view carrying a story id to start at, and no published name to print beside a view.
- */
-const THE_WHOLE_WINDOW = {
-  primitive: 'View',
-  components: [],
-  children: [
-    {
-      primitive: 'View',
-      components: [],
-      children: [
-        {
-          primitive: 'View',
-          components: [],
-          children: [
-            {
-              primitive: 'ScrollView',
-              components: [],
-              children: [{ primitive: 'Text', components: [], children: [] }],
-            },
-          ],
-        },
-      ],
-    },
-  ],
-};
-
-/**
  * The same window, with the names the app published for its views - what a capture records when the
  * story on screen is broken.
  *
@@ -474,17 +443,24 @@ describe("the tree a capture records starts where a test run's tree starts", () 
     expect(answer.tree).toEqual(RECORDED_TREE);
   });
 
-  it('records the whole window when nothing rendered this app the way a run renders it', async () => {
+  it('crashes with a reason instead of recording the whole window, when nothing rendered this app the way a run renders it', async () => {
+    // This used to record the inspector's whole window as it stood, silently, with nothing to say
+    // a capture never actually found its story. waitForTheStoryOnScreen now gates on
+    // the same fact (see WindowReason's own note on this) and fails loudly instead: a capture whose
+    // reading never names its story has nothing worth recording as a tree at all.
     rememberAppMetadataCollector(undefined);
     __resetProviderFirstRenderedAtForTests();
     rememberStoryOfTheApp(undefined);
 
-    const answer = await walkOneStory();
+    const answer = await answerOneStory();
 
-    // No view carries a story id, so there is no story to start at and nothing to name the app's
-    // components by. The window is recorded as the inspector answered it - and every class is still
-    // read through the table, so the screen still prints words the developer knows.
-    expect(answer.tree).toEqual(THE_WHOLE_WINDOW);
+    expect(answer.kind).toBe('crashed');
+    if (answer.kind !== 'crashed') return;
+    expect(answer.error?.message).toContain(STORY);
+    expect(diagnosticsIn(answer.error?.message)).toEqual({
+      cause: 'nothing-published',
+      providerRenderedRelativeToPollMs: undefined,
+    });
   });
 
   it("the first capture after the restart starts at the story's own root, not at the app window", async () => {
@@ -625,91 +601,84 @@ describe('a capture reports how each of its waits ended, not only what it record
     expect(answer.root).toEqual({ at: 'story', nodeCount: 3 });
   });
 
-  it('reports a timed-out metadata wait, and a tree rooted at the window, when no reading ever names the story', async () => {
-    // Nothing ever publishes a reading that names STORY, so the metadata wait runs out its whole
-    // ceiling - the same state "records the whole window when nothing rendered this app" walks. The
-    // provider never rendered at all during the poll, not merely rendered without naming the story.
+  it('crashes with the full diagnostics, when no reading ever names the story', async () => {
+    // Nothing ever publishes a reading that names STORY, so the metadata wait inside
+    // waitForTheStoryOnScreen runs out its whole ceiling and throws (see waitForMetadataToNameTheStory)
+    // instead of letting the walk continue to a silently-recorded window. The provider never
+    // rendered at all during the wait, not merely rendered without naming the story.
     rememberAppMetadataCollector(undefined);
     __resetProviderFirstRenderedAtForTests();
     rememberStoryOfTheApp(undefined);
 
-    const answer = await walkOneStory();
+    const answer = await answerOneStory();
 
-    expect(answer.waited.metadata.outcome).toBe('timed-out');
-    // No metadata means theStorysOwnTree never re-roots (see there), so the story-views wait has
-    // nothing to poll for either - it is the same one-read shape a first-check is.
-    expect(answer.waited.storyViews).toEqual({
-      outcome: 'first-check',
-      ms: expect.any(Number),
-      rereads: 0,
-    });
-    expect(answer.root.at).toBe('window');
-    // The record says WHY it rooted at the window, not only that it did: no reading of the app's
-    // own views ever named this story, so there was no node to re-root at in the first place. And,
-    // since nothing ever published, MetadataProvider itself never rendered anywhere in the two
-    // seconds this poll ran - there is no relative timing to give, only the fact of it. `cause` is
-    // 'nothing-published' rather than the merged 'no-metadata' this used to be - see WindowReason.
-    expect(answer.root.reason).toEqual({
+    expect(answer.kind).toBe('crashed');
+    if (answer.kind !== 'crashed') return;
+    expect(answer.error?.message).toContain(STORY);
+    // `cause` is 'nothing-published' rather than the merged 'no-metadata' this used to be - see
+    // WindowReason - and since nothing ever published, MetadataProvider itself never rendered
+    // anywhere in the wait, so there is no relative timing to give, only the fact of it.
+    expect(diagnosticsIn(answer.error?.message)).toEqual({
       cause: 'nothing-published',
       providerRenderedRelativeToPollMs: undefined,
     });
   }, 10000);
 
-  it('says the provider had already rendered before the poll began, when a reading existed but never named the story', async () => {
-    // A reading is published from the very first check - the provider rendered before this poll
+  it('says the provider had already rendered before the wait began, when a reading existed but never named the story', async () => {
+    // A reading is published from the very first check - the provider rendered before this wait
     // ever started - but it is of a different screen than the one this capture asked for, and
     // nothing ever replaces it with one that names STORY. This is a different bug from the provider
-    // never rendering: the record has to be able to tell the two apart, which is exactly why this
-    // is `cause: 'story-unnamed'` rather than the same cause the never-published test above records.
+    // never rendering: the crash has to be able to tell the two apart, which is exactly why this
+    // is `cause: 'story-unnamed'` rather than the same cause the never-published test above hits.
     rememberAppMetadataCollector(() => METADATA_OF_A_DIFFERENT_SCREEN);
 
-    const answer = await walkOneStory();
+    const answer = await answerOneStory();
 
-    expect(answer.waited.metadata.outcome).toBe('timed-out');
-    expect(answer.root.reason).toEqual({
-      cause: 'story-unnamed',
-      publishedAtPollStart: true,
-      providerRenderedRelativeToPollMs: expect.any(Number),
-      // The reading never held this story's testID, but it held one - a DIFFERENT story's, the way
-      // METADATA_OF_A_DIFFERENT_SCREEN is built - which is the "some other story" half of the
-      // question this field answers, not the "genuinely empty" half.
-      testIdsAtGiveUp: ['components-splash--default'],
-    });
-    // "Before" the poll began, not merely "known" - a positive number here would say the opposite of
-    // what happened.
-    const reason = answer.root.reason as Extract<
-      typeof answer.root.reason,
-      { cause: 'story-unnamed' }
-    >;
-    expect(reason.providerRenderedRelativeToPollMs).toBeLessThanOrEqual(0);
+    expect(answer.kind).toBe('crashed');
+    if (answer.kind !== 'crashed') return;
+    const diagnostics = diagnosticsIn(answer.error?.message) as {
+      cause: string;
+      publishedAtPollStart: boolean;
+      providerRenderedRelativeToPollMs: number;
+      testIdsAtGiveUp: string[];
+    };
+    expect(diagnostics.cause).toBe('story-unnamed');
+    expect(diagnostics.publishedAtPollStart).toBe(true);
+    // The reading never held this story's testID, but it held one - a DIFFERENT story's, the way
+    // METADATA_OF_A_DIFFERENT_SCREEN is built - which is the "some other story" half of the
+    // question this field answers, not the "genuinely empty" half.
+    expect(diagnostics.testIdsAtGiveUp).toEqual(['components-splash--default']);
+    // "Before" the wait began, not merely "known" - a positive number here would say the opposite
+    // of what happened.
+    expect(diagnostics.providerRenderedRelativeToPollMs).toBeLessThanOrEqual(0);
   }, 10000);
 
-  it('says the provider first rendered after the poll began, when it mounted mid-poll but still never named the story', async () => {
-    // Nothing is published when the poll starts, so the provider has not rendered yet. It renders a
-    // beat later - inside the same poll, well past whatever setup this walk needed before its poll
-    // could start - but with a reading of a different screen, one that never catches up to naming
-    // STORY before the ceiling runs out. A reading DID appear mid-poll, so this is still
-    // 'story-unnamed' even though `publishedAtPollStart` is false - the two are independent facts.
+  it('says the provider first rendered after the wait began, when it mounted mid-wait but still never named the story', async () => {
+    // Nothing is published when the wait starts, so the provider has not rendered yet. It renders a
+    // beat later - inside the same wait, well past whatever setup this walk needed before it could
+    // start - but with a reading of a different screen, one that never catches up to naming STORY
+    // before the ceiling runs out. A reading DID appear mid-wait, so this is still 'story-unnamed'
+    // even though `publishedAtPollStart` is false - the two are independent facts.
     rememberAppMetadataCollector(undefined);
     __resetProviderFirstRenderedAtForTests();
     setTimeout(() => rememberAppMetadataCollector(() => METADATA_OF_A_DIFFERENT_SCREEN), 300);
 
-    const answer = await walkOneStory();
+    const answer = await answerOneStory();
 
-    expect(answer.waited.metadata.outcome).toBe('timed-out');
-    expect(answer.root.reason).toEqual({
-      cause: 'story-unnamed',
-      publishedAtPollStart: false,
-      providerRenderedRelativeToPollMs: expect.any(Number),
-      testIdsAtGiveUp: ['components-splash--default'],
-    });
-    const reason = answer.root.reason as Extract<
-      typeof answer.root.reason,
-      { cause: 'story-unnamed' }
-    >;
-    // Rendered AFTER the poll started, and well inside its 2-second ceiling.
-    expect(reason.providerRenderedRelativeToPollMs).toBeGreaterThan(0);
-    expect(reason.providerRenderedRelativeToPollMs).toBeLessThan(2000);
+    expect(answer.kind).toBe('crashed');
+    if (answer.kind !== 'crashed') return;
+    const diagnostics = diagnosticsIn(answer.error?.message) as {
+      cause: string;
+      publishedAtPollStart: boolean;
+      providerRenderedRelativeToPollMs: number;
+      testIdsAtGiveUp: string[];
+    };
+    expect(diagnostics.cause).toBe('story-unnamed');
+    expect(diagnostics.publishedAtPollStart).toBe(false);
+    expect(diagnostics.testIdsAtGiveUp).toEqual(['components-splash--default']);
+    // Rendered AFTER the wait started, and well inside its 2-second ceiling.
+    expect(diagnostics.providerRenderedRelativeToPollMs).toBeGreaterThan(0);
+    expect(diagnostics.providerRenderedRelativeToPollMs).toBeLessThan(2000);
   }, 10000);
 
   it('reports no testIDs at all when the published reading is genuinely empty of story content', async () => {
@@ -721,15 +690,18 @@ describe('a capture reports how each of its waits ended, not only what it record
       texts: [],
     }));
 
-    const answer = await walkOneStory();
+    const answer = await answerOneStory();
 
-    expect(answer.waited.metadata.outcome).toBe('timed-out');
-    expect(answer.root.reason).toEqual({
-      cause: 'story-unnamed',
-      publishedAtPollStart: true,
-      providerRenderedRelativeToPollMs: expect.any(Number),
-      testIdsAtGiveUp: [],
-    });
+    expect(answer.kind).toBe('crashed');
+    if (answer.kind !== 'crashed') return;
+    const diagnostics = diagnosticsIn(answer.error?.message) as {
+      cause: string;
+      publishedAtPollStart: boolean;
+      testIdsAtGiveUp: string[];
+    };
+    expect(diagnostics.cause).toBe('story-unnamed');
+    expect(diagnostics.publishedAtPollStart).toBe(true);
+    expect(diagnostics.testIdsAtGiveUp).toEqual([]);
   }, 10000);
 
   it('caps testIdsAtGiveUp rather than growing it with however many testIDs the reading holds', async () => {
@@ -747,26 +719,27 @@ describe('a capture reports how each of its waits ended, not only what it record
       texts: [],
     }));
 
-    const answer = await walkOneStory();
+    const answer = await answerOneStory();
 
-    const reason = answer.root.reason as Extract<
-      typeof answer.root.reason,
-      { cause: 'story-unnamed' }
-    >;
-    expect(reason.testIdsAtGiveUp).toHaveLength(5);
+    expect(answer.kind).toBe('crashed');
+    if (answer.kind !== 'crashed') return;
+    const diagnostics = diagnosticsIn(answer.error?.message) as { testIdsAtGiveUp: string[] };
+    expect(diagnostics.testIdsAtGiveUp).toHaveLength(5);
   }, 10000);
 
-  it('reports nothing-published, never story-unnamed, when a reading is published only AFTER the poll gives up', async () => {
+  it('reports nothing-published, never story-unnamed, when a reading is published only AFTER the wait gives up', async () => {
     // A reading that appears too late to matter - after METADATA_TIMEOUT_MS has already run out -
-    // must not be counted as "ever published" during the wait: the poll never saw it, so from the
-    // poll's own perspective nothing was published, the same as if it never appeared at all.
+    // must not be counted as "ever published" during the wait: the wait never saw it, so from its
+    // own perspective nothing was published, the same as if it never appeared at all.
     rememberAppMetadataCollector(undefined);
     __resetProviderFirstRenderedAtForTests();
     setTimeout(() => rememberAppMetadataCollector(() => METADATA_OF_A_DIFFERENT_SCREEN), 2500);
 
-    const answer = await walkOneStory();
+    const answer = await answerOneStory();
 
-    expect(answer.root.reason).toEqual({
+    expect(answer.kind).toBe('crashed');
+    if (answer.kind !== 'crashed') return;
+    expect(diagnosticsIn(answer.error?.message)).toEqual({
       cause: 'nothing-published',
       providerRenderedRelativeToPollMs: undefined,
     });
@@ -993,9 +966,12 @@ describe('the primitive is one of the words the screen prints, whatever class th
       density: 3,
       fontScale: 1,
     });
-    // Nothing published a reading of this app, so no view is renamed by a fiber and the table is all
-    // that names these - which is what makes this case read as the table itself.
-    rememberAppMetadataCollector(undefined);
+    // A broken story is recorded as the raw window too (captureViewTree straight off the
+    // inspector's own tree, not re-rooted) - the same shape "nothing published" used to reach
+    // before that became a crash (see waitForTheStoryOnScreen). VIEW_METADATA (beforeEach) still
+    // names STORY, so the wait for it is satisfied; rememberStoryOfTheApp(undefined) is what keeps
+    // no view renamed by a fiber, so the table is all that names these.
+    recordStoryError(STORY, { name: 'TypeError', message: 'boom', stack: '', componentStack: '' });
     rememberStoryOfTheApp(undefined);
 
     const answer = await walkOneStory();
@@ -1183,6 +1159,34 @@ describe('a walk that throws is the crash ending', () => {
 
     expect(answer).toEqual({ kind: 'crashed', storyId: STORY });
   });
+
+  it('does not return a captured window when storyRendered fires but the reading never catches up to naming the story', async () => {
+    // storyRendered is Storybook's own phase-machine bookkeeping - a synchronous jotai atom write
+    // (view._setStory) - not React actually committing this story's views (see
+    // waitForTheStoryOnScreen's own note on this). "the app says the story rendered, and the app's
+    // own reading of its views never grows this story's testID" is the exact combination this whole
+    // epic chased: before this fix, it reached theStorysOwnTree and came back as a CAPTURED answer
+    // rooted at the window - a photograph of the app's shell, silently mistaken for the story. It
+    // must now stop the walk before that ever happens.
+    rememberAppMetadataCollector(undefined);
+    __resetProviderFirstRenderedAtForTests();
+
+    const { answered, channel } = startTheRoad();
+    await vi.waitFor(() =>
+      expect(channel.emitted('setCurrentStory')).toEqual([{ storyId: STORY }])
+    );
+    // Storybook's own bookkeeping says the story rendered - but nothing ever publishes a reading
+    // that names it.
+    channel.emit('storyRendered', STORY);
+
+    const answer = await answered;
+
+    expect(answer.kind).toBe('crashed');
+    // The walk never got past waitForTheStoryOnScreen's own gate to stabilize or read the
+    // inspector at all - the window this used to silently record was never even built.
+    expect(mockStabilize).not.toHaveBeenCalled();
+    expect(mockGetInspectorData).not.toHaveBeenCalled();
+  }, 10000);
 });
 
 /* ========================================================================== */
@@ -1242,6 +1246,17 @@ async function walkOneStory(
   const answer = await answerOneStory(settings);
   if (answer.kind !== 'captured') throw new Error(`the story was not captured: ${answer.kind}`);
   return answer;
+}
+
+/**
+ * Pulls the diagnostics object back out of a crash's message (see waitForMetadataToNameTheStory,
+ * which reports the app's own NoMetadataDiagnostics whole, JSON-encoded, rather than a hand-picked
+ * subset of it - so a test can still assert on every fact it carries, not merely that it crashed).
+ */
+function diagnosticsIn(message: string | undefined): unknown {
+  const match = message?.match(/: (\{.*\})$/);
+  if (!match) throw new Error(`no diagnostics JSON found in crash message: ${message}`);
+  return JSON.parse(match[1]);
 }
 
 /** The app's Storybook view, as much of it as this road reads. */
