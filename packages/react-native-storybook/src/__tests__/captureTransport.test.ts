@@ -670,6 +670,10 @@ describe('a capture reports how each of its waits ended, not only what it record
       cause: 'story-unnamed',
       publishedAtPollStart: true,
       providerRenderedRelativeToPollMs: expect.any(Number),
+      // The reading never held this story's testID, but it held one - a DIFFERENT story's, the way
+      // METADATA_OF_A_DIFFERENT_SCREEN is built - which is the "some other story" half of the
+      // question this field answers, not the "genuinely empty" half.
+      testIdsAtGiveUp: ['components-splash--default'],
     });
     // "Before" the poll began, not merely "known" - a positive number here would say the opposite of
     // what happened.
@@ -697,6 +701,7 @@ describe('a capture reports how each of its waits ended, not only what it record
       cause: 'story-unnamed',
       publishedAtPollStart: false,
       providerRenderedRelativeToPollMs: expect.any(Number),
+      testIdsAtGiveUp: ['components-splash--default'],
     });
     const reason = answer.root.reason as Extract<
       typeof answer.root.reason,
@@ -705,6 +710,50 @@ describe('a capture reports how each of its waits ended, not only what it record
     // Rendered AFTER the poll started, and well inside its 2-second ceiling.
     expect(reason.providerRenderedRelativeToPollMs).toBeGreaterThan(0);
     expect(reason.providerRenderedRelativeToPollMs).toBeLessThan(2000);
+  }, 10000);
+
+  it('reports no testIDs at all when the published reading is genuinely empty of story content', async () => {
+    // A reading exists - something published - but none of its views carry a testID at all: the
+    // traversal never reached ANY story's own views, this one's or another's. Different from the
+    // "some other story" case above: `testIdsAtGiveUp` has to be able to tell the two apart.
+    rememberAppMetadataCollector(() => ({
+      viewProps: { 1: { className: 'RCTView' }, 2: { className: 'RCTView' } },
+      texts: [],
+    }));
+
+    const answer = await walkOneStory();
+
+    expect(answer.waited.metadata.outcome).toBe('timed-out');
+    expect(answer.root.reason).toEqual({
+      cause: 'story-unnamed',
+      publishedAtPollStart: true,
+      providerRenderedRelativeToPollMs: expect.any(Number),
+      testIdsAtGiveUp: [],
+    });
+  }, 10000);
+
+  it('caps testIdsAtGiveUp rather than growing it with however many testIDs the reading holds', async () => {
+    // Six distinct testIDs, none of them STORY's - more than the cap keeps, so the record stays a
+    // handful of names rather than tracking the reading one-for-one.
+    rememberAppMetadataCollector(() => ({
+      viewProps: {
+        1: { className: 'RCTView', testID: 'a--one' },
+        2: { className: 'RCTView', testID: 'a--two' },
+        3: { className: 'RCTView', testID: 'a--three' },
+        4: { className: 'RCTView', testID: 'a--four' },
+        5: { className: 'RCTView', testID: 'a--five' },
+        6: { className: 'RCTView', testID: 'a--six' },
+      },
+      texts: [],
+    }));
+
+    const answer = await walkOneStory();
+
+    const reason = answer.root.reason as Extract<
+      typeof answer.root.reason,
+      { cause: 'story-unnamed' }
+    >;
+    expect(reason.testIdsAtGiveUp).toHaveLength(5);
   }, 10000);
 
   it('reports nothing-published, never story-unnamed, when a reading is published only AFTER the poll gives up', async () => {

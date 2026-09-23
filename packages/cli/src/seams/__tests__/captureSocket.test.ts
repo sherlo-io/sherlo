@@ -316,13 +316,14 @@ describe("the app's answer, read into this seam's own endings", () => {
     });
   });
 
-  it('why the app found a published reading that never named the story comes back with it: whether it had published anything yet, and when its provider first rendered relative to its poll', async () => {
+  it('why the app found a published reading that never named the story comes back with it: whether it had published anything yet, when its provider first rendered relative to its poll, and what the reading held', async () => {
     const r = await relay();
 
     // What the app says when its poll for a reading naming the story ran out, having found ONE that
     // never did - carried across, not reconstructed here from the fact the tree happens to be the
     // whole window. `cause: 'story-unnamed'`, not the merged `'no-metadata'` this used to be (see
-    // the SDK's own WindowReason).
+    // the SDK's own WindowReason). `testIdsAtGiveUp` names the OTHER story the reading held - the
+    // fact that tells a traversal bug (empty) apart from a selection bug (some other story's id).
     expect(
       await aCapture(r, {
         askedFor: STORY_A,
@@ -336,6 +337,7 @@ describe("the app's answer, read into this seam's own endings", () => {
               cause: 'story-unnamed',
               publishedAtPollStart: false,
               providerRenderedRelativeToPollMs: 340,
+              testIdsAtGiveUp: ['components-splash--default'],
             },
           },
         },
@@ -352,8 +354,36 @@ describe("the app's answer, read into this seam's own endings", () => {
           cause: 'story-unnamed',
           publishedAtPollStart: false,
           providerRenderedRelativeToPollMs: 340,
+          testIdsAtGiveUp: ['components-splash--default'],
         },
       },
+    });
+  });
+
+  it('reads testIdsAtGiveUp as empty, never dropped, when an older app sent a story-unnamed reason with no such field', async () => {
+    const r = await relay();
+
+    // An app built before this field existed sends `story-unnamed` with none of it - the same
+    // "older app" case the no-metadata-cause test below covers for the whole reason, but this reason
+    // must still come back whole rather than being dropped for one missing field: an empty reading
+    // and an absent field mean the same thing here (nothing known to name), so this reads as [].
+    const answer = await aCapture(r, {
+      askedFor: STORY_A,
+      stories: [STORY_A],
+      recorded: {
+        ...ANSWER_A,
+        root: {
+          at: 'window',
+          nodeCount: 5,
+          reason: { cause: 'story-unnamed', publishedAtPollStart: true },
+        },
+      },
+    });
+
+    expect((answer as { root: { reason: unknown } }).root.reason).toEqual({
+      cause: 'story-unnamed',
+      publishedAtPollStart: true,
+      testIdsAtGiveUp: [],
     });
   });
 
