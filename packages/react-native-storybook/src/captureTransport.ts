@@ -710,7 +710,8 @@ async function waitForTheStorysOwnViews(
       `Sherlo: story "${storyId}" never reached the screen - waited ${metadataWait.ms}ms for the ` +
         "app's own reading to name it, then gave up: " +
         `${describeWhatWasHeld(metadataTestIdsAtPollStart, testIdsAtGiveUp)}. ` +
-        `${describeStorybookState(view, storyId)}.`
+        `${describeStorybookState(view, storyId)}. ` +
+        `${describeNativeTree(testIdsInTheNativeTree(inspectorData.viewHierarchy), storyId)}.`
     );
   }
 
@@ -755,6 +756,45 @@ function describeStorybookState(view: StorybookView, storyId: string): string {
   return (
     `Storybook itself: ${ready ? 'reports itself ready' : 'never reported itself ready'}, ` +
     `${storyCount} ${storyCount === 1 ? 'story' : 'stories'} in its index, and ${selection}`
+  );
+}
+
+/**
+ * THE ONE FACT NOTHING ABOVE CAN ANSWER: whether the story's own view is on the phone's NATIVE tree
+ * right now, when the app's own reading (metadataOfTheApp) never named it. `metadata` never existing
+ * for this poll means every diagnostic above is read off the JS side - the app's published reading,
+ * and Storybook's own bookkeeping - and neither can tell "the story rendered and only our metadata
+ * walk missed it" apart from "the story genuinely never rendered". Both look identical from there.
+ *
+ * Read straight off `InspectorDataNode.testID` - set by the NATIVE side, off the platform's own
+ * identifier (accessibilityIdentifier on iOS, the react_test_id view tag on Android), never through
+ * MetadataProvider's fiber walk (see ios/InspectorHelper.m and android's InspectorHelper.java). A
+ * capture that finds the story's testID here despite `!metadata` has its answer: the view is there,
+ * the metadata walk is what missed it. One that does not has a different bug entirely - Storybook
+ * reports a story selected that never made it to the native tree at all.
+ */
+function testIdsInTheNativeTree(node: InspectorDataNode): string[] {
+  const ids = new Set<string>();
+
+  function visit(current: InspectorDataNode): void {
+    if (current.testID) ids.add(current.testID);
+    (current.children ?? []).forEach(visit);
+  }
+
+  visit(node);
+  return Array.from(ids).slice(0, MAX_TEST_IDS_IN_DIAGNOSTICS);
+}
+
+/** The prose for testIdsInTheNativeTree's own reading - the same handful-and-a-verdict shape describeStorybookState prints, for the one question it exists to settle. */
+function describeNativeTree(nativeTestIds: string[], storyId: string): string {
+  if (nativeTestIds.length === 0) {
+    return "The phone's native tree: holds no testID-carrying view at all";
+  }
+
+  const hasThisStory = nativeTestIds.includes(storyId);
+  return (
+    `The phone's native tree: holds ${nativeTestIds.join(', ')} - this story's view is ` +
+    `${hasThisStory ? 'AMONG them' : 'NOT among them'}`
   );
 }
 

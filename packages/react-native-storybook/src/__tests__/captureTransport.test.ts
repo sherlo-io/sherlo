@@ -758,6 +758,73 @@ describe('a capture reports how each of its waits ended, not only what it record
   }, 20000);
 });
 
+describe("when the app's reading never names the story, the crash also says what the phone's native tree itself held - independent of that reading", () => {
+  it("says the story's view IS among the native tree's testIDs, when the metadata walk missed a view the native side actually mounted", async () => {
+    // Nothing ever publishes a reading naming STORY, but the LIVE native tree - read straight off
+    // the platform's own identifier, never through the app's own fiber walk - already carries a
+    // view with STORY's own testID. This is the YES branch the epic could never previously tell
+    // apart from the NO branch below: the story rendered, and only the metadata walk missed it.
+    rememberAppMetadataCollector(undefined);
+    __resetProviderFirstRenderedAtForTests();
+    rememberStoryOfTheApp(undefined);
+    mockGetInspectorData.mockResolvedValue({
+      viewHierarchy: node('ReactViewGroup', 1, [
+        node('ReactViewGroup', 2, [node('ReactScrollView', 3, [], STORY)]),
+      ]),
+      density: 3,
+      fontScale: 1,
+    });
+
+    const answer = await answerOneStory();
+
+    expect(answer.kind).toBe('crashed');
+    const crashed = answer as Extract<CapturedAnswer, { kind: 'crashed' }>;
+    expect(crashed.error?.message).toContain(`The phone's native tree: holds ${STORY}`);
+    expect(crashed.error?.message).toContain("this story's view is AMONG them");
+  }, 20000);
+
+  it("says the story's view is NOT among the native tree's testIDs, when the native tree holds only some other view", async () => {
+    // The native tree holds a testID, but not this story's - the NO branch: the story genuinely
+    // never made it to the phone's native tree at all.
+    rememberAppMetadataCollector(() => METADATA_OF_A_DIFFERENT_SCREEN);
+    mockGetInspectorData.mockResolvedValue({
+      viewHierarchy: node('ReactViewGroup', 1, [
+        node('ReactViewGroup', 99, [], 'components-splash--default'),
+      ]),
+      density: 3,
+      fontScale: 1,
+    });
+
+    const answer = await answerOneStory();
+
+    expect(answer.kind).toBe('crashed');
+    const crashed = answer as Extract<CapturedAnswer, { kind: 'crashed' }>;
+    expect(crashed.error?.message).toContain(
+      "The phone's native tree: holds components-splash--default"
+    );
+    expect(crashed.error?.message).toContain("this story's view is NOT among them");
+  }, 20000);
+
+  it('says the native tree holds no testID-carrying view at all, when it genuinely holds none', async () => {
+    rememberAppMetadataCollector(undefined);
+    __resetProviderFirstRenderedAtForTests();
+    rememberStoryOfTheApp(undefined);
+    mockGetInspectorData.mockResolvedValue({
+      viewHierarchy: node('ReactViewGroup', 1, [node('ReactViewGroup', 2, [])]),
+      density: 3,
+      fontScale: 1,
+    });
+
+    const answer = await answerOneStory();
+
+    expect(answer.kind).toBe('crashed');
+    const crashed = answer as Extract<CapturedAnswer, { kind: 'crashed' }>;
+    expect(crashed.error?.message).toContain(
+      "The phone's native tree: holds no testID-carrying view at all"
+    );
+  }, 20000);
+});
+
 describe('the crash carries what Storybook itself was doing when the gate gave up', () => {
   // Nothing ever publishes a reading that names STORY in any of these - the "never arrives" state
   // this section exists for - so every one of them takes the metadataOfTheApp branch of the gate.
@@ -1375,6 +1442,16 @@ function makeChannel() {
 }
 
 /** One view the inspector reports, with everything this road reads filled in. */
-function node(className: string, id: number, children: unknown[]) {
-  return { id, className, isVisible: true, x: 0, y: 0, width: 390, height: 844, children };
+function node(className: string, id: number, children: unknown[], testID?: string) {
+  return {
+    id,
+    className,
+    isVisible: true,
+    x: 0,
+    y: 0,
+    width: 390,
+    height: 844,
+    children,
+    ...(testID !== undefined && { testID }),
+  };
 }

@@ -102,6 +102,13 @@ export type InspectorDataNode = {
   adjustedWidth?: number;
   adjustedHeight?: number;
   properties?: Record<string, any>;
+  /**
+   * The view's `testID`, read by the native side straight off the platform's own identifier
+   * (`accessibilityIdentifier` on iOS, the `react_test_id` view tag on Android) - never through the
+   * app's own JS metadata walk. Absent for a view with no testID, the same as an app old enough to
+   * have never sent this field at all.
+   */
+  testID?: string;
   children?: InspectorDataNode[];
 };
 

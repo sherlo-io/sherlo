@@ -248,6 +248,14 @@ static const NSInteger MAX_NODES = 10000;
         }
     }
 
+    // testID - React Native's RCTViewManager maps the `testID` prop straight onto
+    // accessibilityIdentifier, so this is read off the platform view itself, independent of
+    // whatever the app's own JS metadata walk did or did not cover.
+    NSString *testID = view.accessibilityIdentifier;
+    if (testID && testID.length > 0) {
+        [viewDict setObject:testID forKey:@"testID"];
+    }
+
     // Add children array
     // Skip children if we hit depth or node count limits
     // Skip children whose bounds are entirely outside the viewport

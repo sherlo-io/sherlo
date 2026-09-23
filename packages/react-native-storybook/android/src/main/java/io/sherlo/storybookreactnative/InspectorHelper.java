@@ -120,6 +120,14 @@ public class InspectorHelper {
             viewObject.put("id", nativeTag);
         }
 
+        // testID - React Native's BaseViewManager tags the view with it directly
+        // (view.setTag(R.id.react_test_id, testId)), so this is read off the platform view
+        // itself, independent of whatever the app's own JS metadata walk did or did not cover.
+        Object testIdTag = view.getTag(R.id.react_test_id);
+        if (testIdTag instanceof String && !((String) testIdTag).isEmpty()) {
+            viewObject.put("testID", testIdTag);
+        }
+
         // Add children array for hierarchical structure
         // Skip children if we hit depth or node count limits
         // Skip children whose bounds are entirely outside the viewport
