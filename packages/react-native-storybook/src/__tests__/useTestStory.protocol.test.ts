@@ -66,6 +66,7 @@ vi.mock('../helpers', () => ({
 vi.mock('../SherloModule', () => ({
   default: {
     getConfig: mockGetConfig,
+    getConfigOrDefault: mockGetConfig,
     getLastState: mockGetLastState,
     stabilize: mockStabilize,
     getInspectorData: mockGetInspectorData,
@@ -209,6 +210,15 @@ describe('useTestStory protocol - basic REQUEST_SNAPSHOT flow', () => {
   it('does nothing when lastState is undefined', async () => {
     mockGetLastState.mockReturnValue(undefined);
     useTestStory({ metadataProviderRef: makeMetadataRef() });
+    await flushAll();
+    expect(mockSend).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when enabled is false, even with a story queued in lastState', async () => {
+    // A capture's boot now carries a lastState just like a run's does (see SherloModuleCore on
+    // each platform) - `enabled` (driven by SherloModule.getDriver() in useTestAllStories) is the
+    // one thing standing between this and reporting to a runner that was never there to answer it.
+    useTestStory({ metadataProviderRef: makeMetadataRef(), enabled: false });
     await flushAll();
     expect(mockSend).not.toHaveBeenCalled();
   });

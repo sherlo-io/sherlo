@@ -1,6 +1,5 @@
 /**
- * THE LETTERBOX SEAM - the road `sherlo open` and `sherlo inspect` reach a developer's running app
- * down.
+ * THE LETTERBOX SEAM - the road `sherlo open` reaches a developer's running app down.
  *
  *     live   - the address Sherlo adds to the bundler: post a story there, and the SDK inside the
  *              running app is handed it. The bundler's half of that address is the SDK's
@@ -42,18 +41,6 @@ export type OpenStoryResult =
       threw?: StoryThrew;
     };
 
-/** What the letterbox answered about the story an app is showing now. */
-export type ShowingResult =
-  | { kind: 'no-bundler' }
-  | { kind: 'no-app' }
-  /**
-   * An app IS attached to the bundler - it is just not showing a story right now, most often
-   * because it is showing itself rather than the story browser. A different fact from `no-app`,
-   * and answering `no-app` for it would tell a reader to do something they have already done.
-   */
-  | { kind: 'not-at-story-browser' }
-  | { kind: 'showing'; storyId: string };
-
 /** Everything the tool asks of a running app, and nothing else. */
 export type Letterbox = {
   /** Post one story to the waiting app, waiting for it to reach the screen when asked to. */
@@ -63,8 +50,6 @@ export type Letterbox = {
     port: number;
     timeoutSeconds: number;
   }): Promise<OpenStoryResult>;
-  /** Ask which story the app is showing now. */
-  showing(params: { port: number }): Promise<ShowingResult>;
 };
 
 /** The one address the SDK adds to the bundler; the bundler's half of it serves this path. */
@@ -87,7 +72,6 @@ export const liveLetterbox: Letterbox = {
   openStory: async ({ storyId, wait, port, timeoutSeconds }) => {
     const answer = await askTheLetterbox({
       port,
-      method: 'POST',
       posting: { storyId, wait, timeoutSeconds },
       patienceMs: wait ? timeoutSeconds * 1000 + PATIENCE_BEYOND_THE_WAIT_MS : REPLY_PATIENCE_MS,
     });
@@ -102,25 +86,6 @@ export const liveLetterbox: Letterbox = {
     }
 
     return readOpenStoryAnswer(answer.said, storyId);
-  },
-
-  showing: async ({ port }) => {
-    const answer = await askTheLetterbox({
-      port,
-      method: 'GET',
-      patienceMs: REPLY_PATIENCE_MS,
-    });
-
-    if (answer.kind === 'nothing-on-the-port') return { kind: 'no-bundler' };
-    if (answer.kind !== 'said') return { kind: 'no-app' };
-
-    const said = answer.said as { kind?: unknown; storyId?: unknown };
-    if (said.kind === 'showing' && typeof said.storyId === 'string') {
-      return { kind: 'showing', storyId: said.storyId };
-    }
-    if (said.kind === 'not-at-story-browser') return { kind: 'not-at-story-browser' };
-
-    return { kind: 'no-app' };
   },
 };
 
@@ -142,24 +107,20 @@ type LetterboxAnswer =
 
 async function askTheLetterbox({
   port,
-  method,
   posting,
   patienceMs,
 }: {
   port: number;
-  method: 'GET' | 'POST';
-  posting?: unknown;
+  posting: unknown;
   patienceMs: number;
 }): Promise<LetterboxAnswer> {
   let response: Response;
 
   try {
     response = await fetch(`http://localhost:${port}${LETTERBOX_PATH}`, {
-      method,
-      ...(posting !== undefined && {
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(posting),
-      }),
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(posting),
       signal: AbortSignal.timeout(patienceMs),
     });
   } catch (error) {
@@ -297,19 +258,6 @@ export function posedLetterbox(
       const threw = rendered === 'yes' ? posed.threw : undefined;
 
       return { kind: 'handed-over', storyId, rendered, ...(threw && { threw }) };
-    },
-
-    showing: async () => {
-      if (!posed) {
-        refuse('showing');
-        return { kind: 'no-bundler' };
-      }
-      if (posed === 'no-bundler') return { kind: 'no-bundler' };
-      if (posed === 'no-app') return { kind: 'no-app' };
-      // A pose with stories but no `showing` is an app that is attached and has nothing on screen
-      // to name - not a gap the pose forgot to fill.
-      if (posed.showing === undefined) return { kind: 'not-at-story-browser' };
-      return { kind: 'showing', storyId: posed.showing };
     },
   };
 }

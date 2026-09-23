@@ -9,6 +9,7 @@ import { Config } from '../../../../helpers/RunnerBridge/types';
 import { StorybookView } from '../../../../types';
 import { getStorybookChannel, waitForStoryRendered } from './storyRenderedReadiness';
 import { clearMocks } from '../../../../mocking';
+import { STORY_ERROR_FALLBACK_TEXT } from '../../../../constants';
 
 // Readiness defaults, applied SDK-side so an OLD runner that omits
 // these fields still works. Documented in Config (RunnerBridge/types.ts).
@@ -109,18 +110,33 @@ async function awaitStoryReadyAndPaint({
 function useTestStory({
   metadataProviderRef,
   view,
+  enabled = true,
 }: {
   metadataProviderRef: React.RefObject<MetadataProviderRef>;
   view?: StorybookView;
+  /**
+   * Whether this hook's report loop may run at all - false for a capture, which is driven over
+   * the socket instead and reports nothing over protocol files (see useTestAllStories, the one
+   * place that reads SherloModule.getDriver() to decide). Defaults to true so a caller that never
+   * drives a capture (every test in this file included) does not have to pass it.
+   */
+  enabled?: boolean;
 }): void {
-  const config = SherloModule.getConfig();
+  // Every testing-mode boot now carries a real config, whether it came from a run's own
+  // config.sherlo or from the SDK defaults a capture hands across its restart (see
+  // SherloModuleCore on each platform) - getConfigOrDefault still reads through the dummy module
+  // outside a build wired to native at all, which is the one absence left to fall back from.
+  const config = SherloModule.getConfigOrDefault();
   const lastState = SherloModule.getLastState();
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
     (async (): Promise<void> => {
       try {
-        if (!lastState) return;
+        // `enabled` is who may run this loop at all (see the param doc above); `lastState` is
+        // whether there is a story queued to run it for yet - a run's own first boot, before the
+        // runner has answered START, has none either.
+        if (!enabled || !lastState) return;
 
         const { nextSnapshot, requestId } = lastState;
 
@@ -189,8 +205,7 @@ function useTestStory({
 
         const recordedError = readStoryError(nextSnapshot.storyId);
         const containsError =
-          recordedError !== undefined ||
-          fabricMetadata?.texts.includes('Something went wrong rendering your story');
+          recordedError !== undefined || fabricMetadata?.texts.includes(STORY_ERROR_FALLBACK_TEXT);
 
         let finalInspectorData = inspectorData;
         let hasNetworkImage = false;

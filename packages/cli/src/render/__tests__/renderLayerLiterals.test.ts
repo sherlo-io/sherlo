@@ -796,7 +796,7 @@ const PINS: Pin[] = [
     prints: [
       [`${ESC}[32m✔${ESC}[39m  ${ESC}[1mfoundation-typography--scales${ESC}[22m is on screen`],
       [''],
-      [`${ESC}[2mNext: \`sherlo inspect\` says what is showing now.${ESC}[22m`],
+      [`${ESC}[2mNext: \`sherlo capture\` records it the way a test run would.${ESC}[22m`],
       [''],
     ],
   },
@@ -835,32 +835,74 @@ const PINS: Pin[] = [
   },
 
   {
-    kind: 'inspected-story',
-    what: 'what `sherlo inspect` prints - one line, the story id and nothing else, because the caller between two edits wants the answer rather than a sentence containing it',
+    kind: 'captured-story',
+    what: 'what `sherlo capture` prints for a story that fits one screen - the green head, the settled line, the named tree, and the view count',
     segment: {
-      kind: 'inspected-story',
-      state: { kind: 'showing', storyId: 'controls-button--disabled' },
-    },
-    stream: 'stdout',
-    prints: [[`${ESC}[1mcontrols-button--disabled${ESC}[22m`], ['']],
-  },
-
-  {
-    kind: 'inspected-story',
-    what: 'what `sherlo inspect` prints when an app is attached and is not showing a story - not the same ending as no app being there at all, because the developer has already done what that ending would tell them to do',
-    segment: {
-      kind: 'inspected-story',
-      state: { kind: 'not-at-story-browser' },
+      kind: 'captured-story',
+      state: {
+        kind: 'captured',
+        storyId: 'foundation-typography--scales',
+        settledMs: 1400,
+        frames: 6,
+        tree: {
+          primitive: 'ScrollView',
+          components: ['TypographyScales'],
+          children: [
+            {
+              primitive: 'Text',
+              components: ['SectionTitle'],
+              text: 'FONT SIZES',
+              children: [],
+            },
+            {
+              primitive: 'Text',
+              components: ['SampleLine'],
+              text: '10px - The quick brown fox',
+              children: [],
+            },
+          ],
+        },
+      },
     },
     stream: 'stdout',
     prints: [
-      [`${ESC}[33m◦${ESC}[39m  The app is attached, and is not showing a story right now`],
-      [''],
       [
-        `${ESC}[2mIt is showing itself rather than the story browser. \`sherlo open --story <id>\` sends it there.${ESC}[22m`,
+        `${ESC}[32m✔${ESC}[39m  ${ESC}[1mfoundation-typography--scales${ESC}[22m captured, the way a test run records it`,
+      ],
+      [`${ESC}[2m   settled in 1.4s over 6 frames · testing mode${ESC}[22m`],
+      [''],
+      [`   TypographyScales › ${ESC}[1mScrollView${ESC}[22m`],
+      [`   ├─ SectionTitle › ${ESC}[1mText${ESC}[22m  ${ESC}[2m"FONT SIZES"${ESC}[22m`],
+      [
+        `   └─ SampleLine › ${ESC}[1mText${ESC}[22m  ${ESC}[2m"10px - The quick brown fox"${ESC}[22m`,
       ],
       [''],
+      [`${ESC}[2m   3 views · add --json for the full record${ESC}[22m`],
+      [''],
     ],
+  },
+
+  {
+    kind: 'captured-log',
+    what: '`sherlo capture --logs` with lines the app pushed - the dim count line, then each line verbatim, indented',
+    segment: {
+      kind: 'captured-log',
+      logs: ['12:34:56: storybook style : {"style":"dark"}'],
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[2mThe app's own log - 1 line recorded during this capture:${ESC}[22m`],
+      ['  12:34:56: storybook style : {"style":"dark"}'],
+      [''],
+    ],
+  },
+
+  {
+    kind: 'captured-log',
+    what: '`sherlo capture --logs` with an empty feed - a plain dim sentence, not a zero',
+    segment: { kind: 'captured-log', logs: [] },
+    stream: 'stdout',
+    prints: [[`${ESC}[2mThe app logged nothing during this capture.${ESC}[22m`], ['']],
   },
 
   {

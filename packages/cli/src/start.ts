@@ -10,7 +10,7 @@ import {
   showError,
   teamCreate,
   teamList,
-  inspect,
+  capture,
   open,
   test,
   testEasCloudBuild,
@@ -60,7 +60,9 @@ import {
   VERBOSE_OPTION,
   VIEW_COMMAND,
   OPEN_COMMAND,
-  INSPECT_COMMAND,
+  CAPTURE_COMMAND,
+  JSON_OPTION,
+  LOGS_OPTION,
   STORY_OPTION,
   PORT_OPTION,
   TIMEOUT_OPTION,
@@ -104,7 +106,7 @@ async function start() {
 
     addOpenCommand(program);
 
-    addInspectCommand(program);
+    addCaptureCommand(program);
 
     addPoseCommand(program);
 
@@ -159,9 +161,12 @@ const COMMAND_DESCRIPTION = {
     '  Talks to your own bundler, never to Sherlo: no token, no upload, nothing leaves\n' +
     `  the machine. \`--${WAIT_OPTION}\` holds until the app reports the story on screen.\n` +
     '  Exit 0 when the story is showing, 1 when it is not.',
-  [INSPECT_COMMAND]:
-    'Print the story the app you are running is showing now, one line.\n' +
-    '  The read-side sibling of `open`, down the same road and with the same refusals.',
+  [CAPTURE_COMMAND]:
+    'Record one story the way a Sherlo test run does, on the app you are running.\n' +
+    '  Testing mode, the same stabilization, the same view tree - printed here, uploaded\n' +
+    `  nowhere. \`--${JSON_OPTION}\` prints the whole record for a program to read, which\n` +
+    `  includes the app's own log lines; \`--${LOGS_OPTION}\` prints those lines on the screen too.\n` +
+    '  Exit 0 when a record came back, 1 when it did not.',
   [`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}`]:
     'Create a project in a team and print its project token ONCE.\n' +
     `  Authorized by a PERSONAL token (\`--${PERSONAL_TOKEN_FLAG}\` or ${PERSONAL_TOKEN_ENV_VAR}),\n` +
@@ -315,6 +320,11 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${PORT_OPTION} <port>`,
     `Where the bundler is listening (default: ${DEFAULT_BUNDLER_PORT})`,
   ],
+  [JSON_OPTION]: [`--${JSON_OPTION}`, 'Print the whole record as JSON instead of a screen'],
+  [LOGS_OPTION]: [
+    `--${LOGS_OPTION}`,
+    "Also print the app's own log lines from this capture, after the story",
+  ],
   [TIMEOUT_OPTION]: [
     `--${TIMEOUT_OPTION} <seconds>`,
     `How long \`--${WAIT_OPTION}\` waits for the app to report the story (default: 30)`,
@@ -344,9 +354,9 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   ],
 };
 
-// `sherlo open` and `sherlo inspect` are the two commands that never leave the machine: no token,
-// no project folder, no backend. Their whole world is the bundler's letterbox (../seams/letterbox),
-// and `withTimeout: false` because a wait the caller asked for is not a hang.
+// `sherlo open` is one of the two commands that never leave the machine: no token, no project
+// folder, no backend. Its whole world is the bundler's letterbox (../seams/letterbox), and
+// `withTimeout: false` because a wait the caller asked for is not a hang.
 function addOpenCommand(program: Command) {
   addCommand({
     program,
@@ -357,12 +367,14 @@ function addOpenCommand(program: Command) {
   });
 }
 
-function addInspectCommand(program: Command) {
+// The other command that never leaves the machine. Its world is the capture socket on the bundler
+// (../seams/captureSocket); `withTimeout: false` because stabilization is a wait the story sets.
+function addCaptureCommand(program: Command) {
   addCommand({
     program,
-    command: INSPECT_COMMAND,
-    options: [PORT_OPTION],
-    action: inspect,
+    command: CAPTURE_COMMAND,
+    options: [STORY_OPTION, PORT_OPTION, JSON_OPTION, LOGS_OPTION],
+    action: capture,
     withTimeout: false,
   });
 }

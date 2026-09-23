@@ -40,8 +40,7 @@ async function open(passedOptions: OpenOptions): Promise<void> {
       message:
         `\`sherlo open\` needs the story to open: \`--${STORY_OPTION} <id>\`.\n` +
         '\n' +
-        '  A story id is what Storybook calls it, e.g. `foundation-typography--scales`.\n' +
-        '  `sherlo inspect` names the one your app is showing now.',
+        '  A story id is what Storybook calls it, e.g. `foundation-typography--scales`.',
     });
   }
 

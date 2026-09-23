@@ -21,10 +21,16 @@ NSString * const MODE_DEFAULT = @"default";
 NSString * const MODE_STORYBOOK = @"storybook";
 NSString * const MODE_TESTING = @"testing";
 
+// Driver constants - who drives a testing-mode boot's own walk (see the `driver` field on
+// getSherloConstants and TestDriver in SherloModule.ts).
+static NSString * const DRIVER_RUNNER = @"runner";
+static NSString * const DRIVER_CAPTURE = @"capture";
+
 // Module state
 static NSDictionary *config = nil;
 static NSDictionary *lastState = nil;
 static NSString *currentMode = MODE_DEFAULT;
+static NSString *driver = nil;
 static NSString *nativeVersion = nil;
 
 // Native NOT_DISPLAYED watchdog timer state
@@ -61,6 +67,8 @@ static FileSystemHelper *fileSystemHelper;
         currentMode = [ConfigHelper determineModeFromConfig:config];
 
         if ([currentMode isEqualToString:MODE_TESTING]) {
+            driver = DRIVER_RUNNER;
+
             [ProtocolHelper writeNativeInitStarted:fileSystemHelper];
 
             [KeyboardHelper setupKeyboardSwizzling];
@@ -126,6 +134,10 @@ static FileSystemHelper *fileSystemHelper;
     return currentMode ?: MODE_DEFAULT;
 }
 
++ (NSString *)driver {
+    return driver;
+}
+
 /**
  * Returns constants that will be exposed to JavaScript.
  * Includes mode constants, current mode, and configuration.
@@ -155,7 +167,8 @@ static FileSystemHelper *fileSystemHelper;
         @"mode": currentMode,
         @"config": configString ?: [NSNull null],
         @"lastState": lastStateString ?: [NSNull null],
-        @"nativeVersion": nativeVersion ?: [NSNull null]
+        @"nativeVersion": nativeVersion ?: [NSNull null],
+        @"driver": driver ?: [NSNull null]
     };
 }
 
@@ -194,6 +207,47 @@ static FileSystemHelper *fileSystemHelper;
  */
 - (void)closeStorybook:(RCTBridge *)bridge {
     currentMode = MODE_DEFAULT;
+    [RestartHelper restart:bridge];
+}
+
+/**
+ * Switches to testing mode and reloads the React Native application.
+ * The restart a capture asks for: the same reload `sherlo open` uses, but into
+ * testing mode so the app comes back up with isRunningVisualTests true.
+ *
+ * THE FULL SET OF CRITERIA SURVIVES THE RELOAD FOR FREE. Unlike Android's ProcessPhoenix, this
+ * reload never kills the process (see RestartHelper.m) - `config`, `lastState` and `driver` are all
+ * statics, so setting them here, before the reload, is enough for them to still be there once the
+ * JS context comes back up. No persistence needed: this class's `init` only overwrites them from a
+ * config.sherlo a capture never writes (see the top of this file), so the values set here are what
+ * a capture's first story reads back through getConfig()/getLastState() - the exact shape a real
+ * run's own config.sherlo/protocol.sherlo produce, with an empty requestId because a capture has
+ * none (matching LastStateHelper's own default for the same field).
+ *
+ * @param bridge The React Native bridge needed for reloading
+ * @param storyId The story to land the restarted app on directly, or empty when there is none.
+ * @param configJson The config to hand over as `config` - the caller's getConfigOrDefault()
+ *                    answer, since a capture has no config.sherlo of its own to send.
+ */
+- (void)openTesting:(RCTBridge *)bridge storyId:(NSString *)storyId configJson:(NSString *)configJson {
+    currentMode = MODE_TESTING;
+    driver = DRIVER_CAPTURE;
+
+    if (configJson.length > 0) {
+        NSData *jsonData = [configJson dataUsingEncoding:NSUTF8StringEncoding];
+        NSError *jsonError = nil;
+        NSDictionary *parsedConfig = [NSJSONSerialization JSONObjectWithData:jsonData options:0 error:&jsonError];
+        if (!jsonError && parsedConfig) {
+            config = parsedConfig;
+        } else {
+            NSLog(@"[%@] Failed to parse config handed over from a capture's restart: %@", LOG_TAG, jsonError.localizedDescription);
+        }
+    }
+
+    if (storyId.length > 0) {
+        lastState = @{ @"nextSnapshot": @{ @"storyId": storyId }, @"requestId": @"" };
+    }
+
     [RestartHelper restart:bridge];
 }
 

@@ -71,6 +71,8 @@
     "metro/applySherloTransforms.js",
     "metro/ensureStorybookRequires.js",
     "metro/openStoryLetterbox.js",
+    "metro/captureSocket.js",
+    "metro/captureLogSocket.js",
     "metro/mockScan.js",
     "metro/mockShims.js",
     "metro/storyTitleReader.js"

@@ -8,8 +8,6 @@
   "bundles": {},
   "api": [],
   "masks": {},
-  "argv": [
-    "inspect"
-  ],
-  "letterbox": "no-app"
+  "argv": ["capture", "--story", "foundation-typography--scales"],
+  "capture": "no-app"
 }
