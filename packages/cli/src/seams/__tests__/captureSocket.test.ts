@@ -316,11 +316,13 @@ describe("the app's answer, read into this seam's own endings", () => {
     });
   });
 
-  it('why the app found no metadata comes back with it: whether it had published anything yet, and when its provider first rendered relative to its poll', async () => {
+  it('why the app found a published reading that never named the story comes back with it: whether it had published anything yet, and when its provider first rendered relative to its poll', async () => {
     const r = await relay();
 
-    // What the app says when its poll for a reading naming the story ran out - carried across, not
-    // reconstructed here from the fact the tree happens to be the whole window.
+    // What the app says when its poll for a reading naming the story ran out, having found ONE that
+    // never did - carried across, not reconstructed here from the fact the tree happens to be the
+    // whole window. `cause: 'story-unnamed'`, not the merged `'no-metadata'` this used to be (see
+    // the SDK's own WindowReason).
     expect(
       await aCapture(r, {
         askedFor: STORY_A,
@@ -331,7 +333,7 @@ describe("the app's answer, read into this seam's own endings", () => {
             at: 'window',
             nodeCount: 5,
             reason: {
-              cause: 'no-metadata',
+              cause: 'story-unnamed',
               publishedAtPollStart: false,
               providerRenderedRelativeToPollMs: 340,
             },
@@ -347,7 +349,7 @@ describe("the app's answer, read into this seam's own endings", () => {
         at: 'window',
         nodeCount: 5,
         reason: {
-          cause: 'no-metadata',
+          cause: 'story-unnamed',
           publishedAtPollStart: false,
           providerRenderedRelativeToPollMs: 340,
         },
@@ -355,22 +357,52 @@ describe("the app's answer, read into this seam's own endings", () => {
     });
   });
 
-  it('an app older than the no-metadata diagnostics still names the cause, with no relative timing to give', async () => {
+  it('why the app found nothing published at all comes back with it, with no publishedAtPollStart to carry', async () => {
     const r = await relay();
 
+    // 'nothing-published' has no `publishedAtPollStart` field: it is always false by definition of
+    // the cause (something published at poll start would BE a published reading), so carrying it
+    // would only repeat what the cause already says.
     const answer = await aCapture(r, {
       askedFor: STORY_A,
       stories: [STORY_A],
       recorded: {
         ...ANSWER_A,
-        root: { at: 'window', nodeCount: 5, reason: { cause: 'no-metadata' } },
+        root: {
+          at: 'window',
+          nodeCount: 5,
+          reason: { cause: 'nothing-published', providerRenderedRelativeToPollMs: undefined },
+        },
       },
     });
 
     expect((answer as { root: { reason: unknown } }).root.reason).toEqual({
-      cause: 'no-metadata',
-      publishedAtPollStart: false,
+      cause: 'nothing-published',
     });
+  });
+
+  it('an app whose no-metadata cause predates the split names no reason, rather than guessing which of the two it meant', async () => {
+    const r = await relay();
+
+    // An app old enough to still send the single, merged `'no-metadata'` cause this was split from
+    // (see the SDK's own WindowReason) cannot be told apart into 'nothing-published' or
+    // 'story-unnamed' after the fact - that is exactly the distinction this app never made. Reading
+    // it as either would be a guess, so this seam drops the reason instead of inventing one, the
+    // same way it drops any field an older app never sent.
+    const answer = await aCapture(r, {
+      askedFor: STORY_A,
+      stories: [STORY_A],
+      recorded: {
+        ...ANSWER_A,
+        root: {
+          at: 'window',
+          nodeCount: 5,
+          reason: { cause: 'no-metadata', publishedAtPollStart: false },
+        },
+      },
+    });
+
+    expect((answer as { root: { reason: unknown } }).root.reason).toBeUndefined();
   });
 
   it('a story root carries no reason, because it is never asked why', async () => {

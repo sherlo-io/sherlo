@@ -144,7 +144,8 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
     // React runs a child's effects - layout or passive - before its parent's, always. Whatever inside
     // Storybook's own tree fires "story rendered" is a descendant, so it was always going to finish
     // first regardless of which effect hook this used. A capture's FIRST story of a boot lost that
-    // race (root.reason.cause: 'no-metadata' - see captureTransport.ts's metadataOfTheApp); every
+    // race (what root.reason.cause called 'no-metadata' at the time - a single cause since split
+    // into 'nothing-published' and 'story-unnamed', see captureTransport.ts's WindowReason); every
     // capture after it never raced anything, because this component was already mounted by the
     // previous story.
     //
@@ -157,6 +158,17 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
     // collectMetadata walks the live tree when CALLED, not when published, so it is safe to publish
     // immediately and still answers correctly for children that render later in this same commit.
     // Only the withdrawal on unmount needs an effect - there is no render-phase hook for "gone".
+    //
+    // THIS CLOSED THE RACE IT NAMES, BUT THE FIRST STORY OF A BOOT STILL MISSES ITS OWN METADATA. A
+    // later, real-device measurement found `cause: 'story-unnamed'` for the first story - a reading
+    // published and answering seconds before the metadata poll even started, never naming it - which
+    // is not this race (a lost race against an effect looks like nothing published yet, not like a
+    // reading that has existed for seconds). A fiber-reconciler experiment built to check the leading
+    // theory here (that `fiber`/`fiber.alternate` go stale across the async gap between a placeholder
+    // render and the story's real, keyed view mounting under it) did NOT reproduce the miss - the
+    // pair kept tracking the live tree correctly across that exact transition. What actually
+    // withholds this one story's testID from the merged reading is still unmeasured; do not re-move
+    // this publish call on the strength of the reasoning above alone.
     rememberAppMetadataCollector(collectMetadata);
     useLayoutEffect(() => () => rememberAppMetadataCollector(undefined), []);
 

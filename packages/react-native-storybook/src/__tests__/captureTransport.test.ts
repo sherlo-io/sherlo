@@ -647,10 +647,10 @@ describe('a capture reports how each of its waits ended, not only what it record
     // The record says WHY it rooted at the window, not only that it did: no reading of the app's
     // own views ever named this story, so there was no node to re-root at in the first place. And,
     // since nothing ever published, MetadataProvider itself never rendered anywhere in the two
-    // seconds this poll ran - there is no relative timing to give, only the fact of it.
+    // seconds this poll ran - there is no relative timing to give, only the fact of it. `cause` is
+    // 'nothing-published' rather than the merged 'no-metadata' this used to be - see WindowReason.
     expect(answer.root.reason).toEqual({
-      cause: 'no-metadata',
-      publishedAtPollStart: false,
+      cause: 'nothing-published',
       providerRenderedRelativeToPollMs: undefined,
     });
   }, 10000);
@@ -659,14 +659,15 @@ describe('a capture reports how each of its waits ended, not only what it record
     // A reading is published from the very first check - the provider rendered before this poll
     // ever started - but it is of a different screen than the one this capture asked for, and
     // nothing ever replaces it with one that names STORY. This is a different bug from the provider
-    // never rendering: the record has to be able to tell the two apart.
+    // never rendering: the record has to be able to tell the two apart, which is exactly why this
+    // is `cause: 'story-unnamed'` rather than the same cause the never-published test above records.
     rememberAppMetadataCollector(() => METADATA_OF_A_DIFFERENT_SCREEN);
 
     const answer = await walkOneStory();
 
     expect(answer.waited.metadata.outcome).toBe('timed-out');
     expect(answer.root.reason).toEqual({
-      cause: 'no-metadata',
+      cause: 'story-unnamed',
       publishedAtPollStart: true,
       providerRenderedRelativeToPollMs: expect.any(Number),
     });
@@ -674,7 +675,7 @@ describe('a capture reports how each of its waits ended, not only what it record
     // what happened.
     const reason = answer.root.reason as Extract<
       typeof answer.root.reason,
-      { cause: 'no-metadata' }
+      { cause: 'story-unnamed' }
     >;
     expect(reason.providerRenderedRelativeToPollMs).toBeLessThanOrEqual(0);
   }, 10000);
@@ -683,7 +684,8 @@ describe('a capture reports how each of its waits ended, not only what it record
     // Nothing is published when the poll starts, so the provider has not rendered yet. It renders a
     // beat later - inside the same poll, well past whatever setup this walk needed before its poll
     // could start - but with a reading of a different screen, one that never catches up to naming
-    // STORY before the ceiling runs out.
+    // STORY before the ceiling runs out. A reading DID appear mid-poll, so this is still
+    // 'story-unnamed' even though `publishedAtPollStart` is false - the two are independent facts.
     rememberAppMetadataCollector(undefined);
     __resetProviderFirstRenderedAtForTests();
     setTimeout(() => rememberAppMetadataCollector(() => METADATA_OF_A_DIFFERENT_SCREEN), 300);
@@ -692,17 +694,33 @@ describe('a capture reports how each of its waits ended, not only what it record
 
     expect(answer.waited.metadata.outcome).toBe('timed-out');
     expect(answer.root.reason).toEqual({
-      cause: 'no-metadata',
+      cause: 'story-unnamed',
       publishedAtPollStart: false,
       providerRenderedRelativeToPollMs: expect.any(Number),
     });
     const reason = answer.root.reason as Extract<
       typeof answer.root.reason,
-      { cause: 'no-metadata' }
+      { cause: 'story-unnamed' }
     >;
     // Rendered AFTER the poll started, and well inside its 2-second ceiling.
     expect(reason.providerRenderedRelativeToPollMs).toBeGreaterThan(0);
     expect(reason.providerRenderedRelativeToPollMs).toBeLessThan(2000);
+  }, 10000);
+
+  it('reports nothing-published, never story-unnamed, when a reading is published only AFTER the poll gives up', async () => {
+    // A reading that appears too late to matter - after METADATA_TIMEOUT_MS has already run out -
+    // must not be counted as "ever published" during the wait: the poll never saw it, so from the
+    // poll's own perspective nothing was published, the same as if it never appeared at all.
+    rememberAppMetadataCollector(undefined);
+    __resetProviderFirstRenderedAtForTests();
+    setTimeout(() => rememberAppMetadataCollector(() => METADATA_OF_A_DIFFERENT_SCREEN), 2500);
+
+    const answer = await walkOneStory();
+
+    expect(answer.root.reason).toEqual({
+      cause: 'nothing-published',
+      providerRenderedRelativeToPollMs: undefined,
+    });
   }, 10000);
 
   it('reports a timed-out story-views wait, and a tree rooted at the window, when the inspector never catches up', async () => {
