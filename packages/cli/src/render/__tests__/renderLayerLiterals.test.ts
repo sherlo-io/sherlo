@@ -861,6 +861,29 @@ const PINS: Pin[] = [
   },
 
   {
+    kind: 'captured-log',
+    what: '`sherlo capture --logs` with lines the app pushed - the dim count line, then each line verbatim, indented',
+    segment: {
+      kind: 'captured-log',
+      logs: ['12:34:56: storybook style : {"style":"dark"}'],
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[2mThe app's own log - 1 line recorded during this capture:${ESC}[22m`],
+      ['  12:34:56: storybook style : {"style":"dark"}'],
+      [''],
+    ],
+  },
+
+  {
+    kind: 'captured-log',
+    what: '`sherlo capture --logs` with an empty feed - a plain dim sentence, not a zero',
+    segment: { kind: 'captured-log', logs: [] },
+    stream: 'stdout',
+    prints: [[`${ESC}[2mThe app logged nothing during this capture.${ESC}[22m`], ['']],
+  },
+
+  {
     kind: 'project-created',
     what: 'everything `sherlo project create` prints - and the shape that keeps the project token OFF a key=value line, because those lines exist for CI to scrape and a secret must not be put on that journey',
     segment: {

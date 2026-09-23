@@ -79,6 +79,8 @@ import {
 import { rememberStoryOfTheApp } from '../componentNames';
 import { clearStoryError, recordStoryError } from '../getStorybook/storyErrorRegistry';
 import { STORY_ERROR_FALLBACK_TEXT } from '../constants';
+import RunnerBridge from '../helpers/RunnerBridge';
+import { NativeModules } from 'react-native';
 
 const STORY = 'components-button--primary';
 
@@ -365,6 +367,70 @@ describe('a capture walks the same story path a test run does', () => {
     // any other guess. The app answers for those itself, which is what an app does when a run leaves
     // a value out - so a setting the tool never mentioned cannot silently become a runner default.
     expect(mockStabilize).toHaveBeenCalledWith(2, 8, 1000, 30000, false, 0.2, false);
+  });
+});
+
+describe("a capture pushes the app's own log lines live, as they are formed", () => {
+  const ORIGIN = 'http://localhost:8081';
+
+  beforeEach(() => {
+    // log() reads __DEV__ to decide whether to also print to the system console (see
+    // ../helpers/RunnerBridge/actions/log.ts) - a real React Native global this test environment
+    // never defines.
+    vi.stubGlobal('__DEV__', true);
+    // bundlerOrigin() reads this to resolve the address a capture pushes to - unset by the shared
+    // react-native mock, so every OTHER test in this file still finds no origin and pushes nothing.
+    NativeModules.SourceCode = {
+      getConstants: () => ({ scriptURL: `${ORIGIN}/index.bundle?platform=ios` }),
+    };
+  });
+
+  afterEach(() => {
+    delete NativeModules.SourceCode;
+  });
+
+  it("posts each line to the bundler's own live feed the instant RunnerBridge.log forms it - not carried home inside the capture's own answer", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { channel, answered } = startTheRoad();
+
+    RunnerBridge.log('storybook style', { style: 'dark' });
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`${ORIGIN}/sherlo/capture-log`);
+    expect(init.method).toBe('POST');
+    const body = JSON.parse(init.body as string);
+    // The exact line log() forms for the file sink - a time, the key, and the parameters as JSON.
+    expect(body.line).toMatch(/^\d{2}:\d{2}:\d{2}: storybook style : \{"style":"dark"\}$/);
+
+    // Let the walk finish cleanly rather than leave it hanging past this test.
+    await vi.waitFor(() =>
+      expect(channel.emitted('setCurrentStory')).toEqual([{ storyId: STORY }])
+    );
+    channel.emit('storyRendered', STORY);
+    const answer = await answered;
+
+    // The push is a separate channel from the answer, exactly the point of pushing live: nothing
+    // about it rides inside a payload that a hang or a crash could keep from ever being sent.
+    expect(answer).not.toHaveProperty('logs');
+  });
+
+  it('stops pushing once the transport is stopped', () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    // Both calls are synchronous, and so is the assertion below: collectCaptures cannot have
+    // resumed past its first await yet, so this proves the sink was cleared before the walk ever
+    // got a chance to use it - not merely that it stopped being used once the walk was done.
+    startTheRoad();
+    stopCaptureTransport();
+
+    RunnerBridge.log('after stop');
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

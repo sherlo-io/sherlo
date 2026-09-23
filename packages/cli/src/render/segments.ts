@@ -34,6 +34,8 @@ import type { ProjectList } from './projectList';
 import type { OpenedStory } from './openedStory';
 import type { CapturedStory } from './capturedStory';
 import type { TeamList } from './teamList';
+// capturedLog is the print side of `sherlo capture --logs`, kept apart from ./capturedStory - see
+// ./capturedLog's own header for why.
 
 /** Which of the process's two streams a segment is written to. */
 export type TranscriptStream = 'stdout' | 'stderr';
@@ -263,7 +265,9 @@ export type TranscriptSegment =
   /** The whole output of `sherlo open`. See ./openedStory. */
   | { kind: 'opened-story'; state: OpenedStory }
   /** The whole screen output of `sherlo capture`. See ./capturedStory. */
-  | { kind: 'captured-story'; state: CapturedStory };
+  | { kind: 'captured-story'; state: CapturedStory }
+  /** `sherlo capture --logs` - the app's own log lines, printed after the story. See ./capturedLog. */
+  | { kind: 'captured-log'; logs: string[] };
 
 /**
  * Where rendered segments go. The CLI installs a sink that writes to the
