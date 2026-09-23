@@ -520,7 +520,7 @@ async function captureTheStory({
   channel: StorybookChannel;
 }): Promise<CapturedAnswer> {
   try {
-    await waitForTheStoryOnScreen({ storyId, channel });
+    const onScreen = await waitForTheStoryOnScreen({ storyId, channel });
     const settled = await stabilizeTheStory(settings);
 
     // Asking how many screenfuls the story is puts it back at its top, so it is asked before the
@@ -531,7 +531,7 @@ async function captureTheStory({
     // tall the view on screen is. Measuring the error view instead would tell the developer their
     // story scrolls when what scrolls is the fallback drawn in its place.
     const parts = theStoryIsBroken(storyId) ? 1 : await screenfulsOfTheStory();
-    const recorded = await readTheStory(storyId);
+    const recorded = await readTheStory(storyId, onScreen);
 
     const threw = whatTheStoryThrew(storyId);
     return {
@@ -551,8 +551,20 @@ async function captureTheStory({
   }
 }
 
+/** What waiting for the story to actually be on screen hands back to the walk that photographs it. */
+type StoryOnScreen = {
+  metadata: ReturnType<typeof collectAppMetadata>;
+  waited: {
+    metadata: WaitOutcome;
+    storyViews: WaitOutcome & { rereads: number };
+  };
+  noMetadataDiagnostics: NoMetadataDiagnostics;
+};
+
 /**
- * Put the story on screen and wait until it has rendered and painted, as a test run does.
+ * Put the story on screen and wait until it has rendered, painted, and - load-bearing - until its
+ * OWN VIEWS ARE ACTUALLY THERE. `storyRendered` alone is not that: see waitForTheStorysOwnViews for
+ * why, and for what happens when they never arrive.
  *
  * THE FIRST TELLING CAN LOSE A RACE THAT ONLY EXISTS ON A CAPTURE'S RESTART. Storybook is booting up
  * this same instant, with no `initialSelection` to land on (see the file header) - so this call and
@@ -569,7 +581,7 @@ async function waitForTheStoryOnScreen({
 }: {
   storyId: string;
   channel: StorybookChannel;
-}): Promise<void> {
+}): Promise<StoryOnScreen> {
   // A capture writes nothing to the device (see the file header), so there is usually no config to
   // read here - that absence is a normal state, not an error, and falls back to the SDK's own
   // defaults rather than throwing.
@@ -597,13 +609,59 @@ async function waitForTheStoryOnScreen({
     });
   }
 
-  // Close the last-frame gap before stabilizing, best-effort: the stability loop runs afterwards
+  // Close the last-frame gap before the real gate, best-effort: the wait below runs afterwards
   // regardless - the same fallthrough a run itself takes when STORY_RENDERED never came (see
-  // awaitStoryReadyAndPaint), so a story that genuinely never rendered is stabilized and recorded
-  // rather than left to hang.
+  // awaitStoryReadyAndPaint), so a story that genuinely never rendered still gets the full wait for
+  // its own views rather than being left to hang on the paint barrier alone.
   await SherloModule.awaitFrameCommit(
     config.paintBarrierTimeoutMs ?? PAINT_BARRIER_TIMEOUT_MS
   ).catch(() => false);
+
+  return waitForTheStorysOwnViews(storyId);
+}
+
+/**
+ * THE REAL GATE, NOT THE PROXY `storyRendered` ABOVE IS. For this adapter, Storybook counts a story
+ * "rendered" the instant `renderToCanvas` returns - a synchronous write to Storybook core's own phase
+ * bookkeeping, decoupled from React actually COMMITTING the story's views to the native tree. A
+ * capture measured on a real device found exactly that gap: `storyRendered` had already fired while
+ * the app's native surface still held nothing of the story - two bare views under it, neither one the
+ * story's (see the file header's own account of that measurement). So the `storyRendered` wait above
+ * is kept as a first, earlier gate, and this is the one this whole task exists to add after it: the
+ * SAME check `theStorysOwnTree` already used, further down, to decide whether it was safe to re-root -
+ * the app's own reading naming this story, and the native inspector's own tree actually holding the
+ * view that reading names - run here, before anything is stabilized or read for the answer, and
+ * LOAD-BEARING. A story that never clears it throws, the way a failed inspector walk already does
+ * (see theInspectorsOwnAnswer), rather than falling through to record whatever is on screen: a capture
+ * that photographs the app's shell and calls it the story is a wrong answer that looks like a right
+ * one, and this SDK would rather fail loudly than hand one over.
+ *
+ * A STORY THAT THREW STILL CLEARS THIS. Storybook's StoryView wraps the story in its testID-carrying
+ * View OUTSIDE the error boundary, so a broken story still gets that wrapper committed - which is
+ * exactly what theStoryIsBroken/theStorysViewsAreInTheTree already treat as "there" for the same
+ * reason downstream (see theStorysOwnTree). This gate asks the same two questions, so a broken story
+ * clears it the same way. What a story that clears here goes on to be RECORDED as - re-rooted, or the
+ * window because it is broken - is entirely theStorysOwnTree's decision, unchanged by this gate.
+ */
+async function waitForTheStorysOwnViews(storyId: string): Promise<StoryOnScreen> {
+  const { metadata, wait: metadataWait, noMetadataDiagnostics } = await metadataOfTheApp(storyId);
+  const { inspectorData, wait: storyViewsWait } = await inspectorDataOfTheApp(storyId, metadata);
+  const waited = { metadata: metadataWait, storyViews: storyViewsWait };
+
+  if (
+    metadata &&
+    (theStoryIsBroken(storyId, inspectorData) ||
+      theStorysViewsAreInTheTree(inspectorData, metadata, storyId))
+  ) {
+    return { metadata, waited, noMetadataDiagnostics };
+  }
+
+  const found = metadata
+    ? "the app's own reading named this story, but its views never appeared in the native view tree"
+    : `the app never published a reading naming this story (${JSON.stringify(
+        noMetadataDiagnostics
+      )})`;
+  throw new Error(`Sherlo: story "${storyId}" never reached the screen - ${found}`);
 }
 
 /**
@@ -679,21 +737,18 @@ type RecordedStory = {
 };
 
 /**
- * Read the story off the native inspector, retrying the way a test run does.
+ * Read the story off the native inspector - once, fresh, now that stabilizing has run.
  *
- * THE METADATA IS READ FIRST, AND THE INSPECTOR IS RE-READ UNTIL ITS OWN TREE HOLDS THE STORY - not
- * merely once, and not merely once the metadata names it. prepareInspectorData pairs the two
- * readings by native tag (fabricMetadata.viewProps[node.id]), so they only describe the same view
- * tree when the inspector's own tree actually contains the view that tag names. The metadata can
- * already name the story - JavaScript has rendered it - while the inspector still answers with the
- * app's shell, because the native views for that story have not mounted yet (see
- * STORY_VIEWS_TIMEOUT_MS below). Reading the inspector once and trusting a metadata match alone
- * would re-root against a tree with no such node in it - the same window-instead-of-story bug
- * metadataOfTheApp already closes on its own clock, reopened one clock later.
+ * THE WAITING IS ALREADY DONE. waitForTheStorysOwnViews already polled the app's own reading and the
+ * inspector's own tree until both agreed this story was there - load-bearingly, before anything was
+ * stabilized - and its outcome is what `onScreen.waited` reports below. What could still have moved
+ * since then is the SCREEN ITSELF: stabilizing runs after that gate, so the tree this function reads
+ * is read fresh, post-stabilization, rather than reusing the gate's own (pre-stabilization) reading -
+ * the same reasoning that always kept this a separate read from the gate's.
  */
-async function readTheStory(storyId: string): Promise<RecordedStory> {
-  const { metadata, wait: metadataWait, noMetadataDiagnostics } = await metadataOfTheApp(storyId);
-  const { inspectorData, wait: storyViewsWait } = await inspectorDataOfTheApp(storyId, metadata);
+async function readTheStory(storyId: string, onScreen: StoryOnScreen): Promise<RecordedStory> {
+  const { metadata, waited, noMetadataDiagnostics } = onScreen;
+  const inspectorData = await theInspectorsOwnAnswer();
 
   const { tree, hasNetworkImage, at, reason } = await theStorysOwnTree(
     inspectorData,
@@ -705,7 +760,7 @@ async function readTheStory(storyId: string): Promise<RecordedStory> {
   return {
     tree,
     hasNetworkImage,
-    waited: { metadata: metadataWait, storyViews: storyViewsWait },
+    waited,
     root: { at, nodeCount: countNodes(tree), ...(reason && { reason }) },
   };
 }
