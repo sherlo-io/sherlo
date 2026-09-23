@@ -1,0 +1,11 @@
+[31m✖[39m  [1merrors--broken-profile[22m captured, and it threw while rendering
+
+  TypeError: Cannot read properties of undefined (reading 'name')
+
+   StoryErrorBoundary › [1mView[22m
+   └─ [1mText[22m  [2m"Cannot read properties of undefined (reading 'name')"[22m
+
+[2m   2 views · add --json for the full record[22m
+
+
+[exit 0]

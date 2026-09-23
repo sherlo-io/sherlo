@@ -110,8 +110,8 @@ export const TEAM_LIST_SUBCOMMAND = 'list';
 export const POSE_COMMAND = 'pose';
 /** `sherlo open --story <id>` - put the running app on one named story. A primary flow, so a verb. */
 export const OPEN_COMMAND = 'open';
-/** `sherlo inspect` - name the story the running app is showing now. The read-side sibling. */
-export const INSPECT_COMMAND = 'inspect';
+/** `sherlo capture --story <id>` - record one story the way a test run does, on the running app. */
+export const CAPTURE_COMMAND = 'capture';
 export const FULL_INIT_COMMAND = 'npx sherlo init';
 
 /** The port a React Native bundler serves on unless somebody moved it. */
@@ -184,6 +184,13 @@ export const PORT_OPTION = 'port';
  */
 export const TIMEOUT_OPTION = 'timeout';
 export const WAIT_TIMEOUT_OPTION = 'waitTimeout';
+/** `sherlo capture --json` - print the whole record as JSON instead of a screen. */
+export const JSON_OPTION = 'json';
+/**
+ * `sherlo capture --logs` - print the app's own log lines after the story. The record already
+ * carries them (see `--json`); this is the one flag that puts them on the screen too.
+ */
+export const LOGS_OPTION = 'logs';
 
 /* TOKENS - there are two kinds and they must never be confusable */
 

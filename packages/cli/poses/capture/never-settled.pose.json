@@ -1,0 +1,24 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--story", "animations--spinner"],
+  "capture": {
+    "stories": ["animations--spinner", "foundation-typography--scales"],
+    "settled": "timed-out",
+    "tree": {
+      "primitive": "View",
+      "components": ["Spinner"],
+      "children": [
+        { "primitive": "View", "components": ["SpinnerRing"] },
+        { "primitive": "Text", "text": "Loading..." }
+      ]
+    }
+  }
+}
