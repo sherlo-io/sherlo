@@ -90,8 +90,19 @@ export type WaitOutcome = {
  * SDK's own WindowReason (packages/react-native-storybook/src/captureTransport.ts).
  */
 export type WindowReason =
+  /** The app never published any reading of its views, of any story, at any point the poll ran. */
   | {
-      cause: 'no-metadata';
+      cause: 'nothing-published';
+      /**
+       * How the app's MetadataProvider first rendering relates to when its poll began: positive is
+       * that many ms after, negative is that many ms before, `undefined` is that it never rendered
+       * at all - or rendered once, earlier in the same boot, and was withdrawn before this poll ran.
+       */
+      providerRenderedRelativeToPollMs?: number;
+    }
+  /** A reading WAS published - the app's poll got an answer at some point - but it never named this story. */
+  | {
+      cause: 'story-unnamed';
       /** Whether the app had published any reading of its views the moment the app's poll began. */
       publishedAtPollStart: boolean;
       /**
@@ -369,9 +380,17 @@ function readWindowReason(value: unknown): WindowReason | undefined {
     | null
     | undefined;
 
-  if (reason?.cause === 'no-metadata') {
+  if (reason?.cause === 'nothing-published') {
     return {
-      cause: 'no-metadata',
+      cause: 'nothing-published',
+      ...(typeof reason.providerRenderedRelativeToPollMs === 'number' && {
+        providerRenderedRelativeToPollMs: reason.providerRenderedRelativeToPollMs,
+      }),
+    };
+  }
+  if (reason?.cause === 'story-unnamed') {
+    return {
+      cause: 'story-unnamed',
       publishedAtPollStart: reason.publishedAtPollStart === true,
       ...(typeof reason.providerRenderedRelativeToPollMs === 'number' && {
         providerRenderedRelativeToPollMs: reason.providerRenderedRelativeToPollMs,

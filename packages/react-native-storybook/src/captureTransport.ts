@@ -153,15 +153,23 @@ const INSPECTOR_TIMEOUT_MS = 10000;
  * Storybook renders below it (see TestingMode.tsx), and React always runs a child's effects, of
  * either kind, before its parent's - so whatever inside Storybook's tree fires "story rendered" was
  * always going to finish first, whichever effect hook MetadataProvider published from. That recorded
- * the window with `root.reason.cause: 'no-metadata'`, never on the second story or the third, because
- * only the first ever raced a fresh mount. MetadataProvider now publishes from its render body,
- * before `children` (Storybook, the story below it) is even returned - ahead of the whole subtree's
- * render, not merely ahead of its effects, so nothing racing this can observe the reading unset (see
- * MetadataProvider.tsx). What this ceiling still bounds is everything else that can leave a reading
- * unpublished a beat longer: render work still queued behind other work on a loaded device for the
- * FIRST commit of an app whose native side is old enough to have no `initialSelection` to hand over
- * (see the file header) - so it is sized like the command's other genuine give-ups
- * (INSPECTOR_TIMEOUT_MS at 10s), not like a fast-path poll.
+ * the window with what the code then called `root.reason.cause: 'no-metadata'` (a single cause, before
+ * it was split - see WindowReason), never on the second story or the third, because only the first
+ * ever raced a fresh mount. MetadataProvider now publishes from its render body, before `children`
+ * (Storybook, the story below it) is even returned - ahead of the whole subtree's render, not merely
+ * ahead of its effects, so nothing racing THIS can observe the reading unset (see MetadataProvider.tsx).
+ * What this ceiling still bounds is everything else that can leave a reading unpublished a beat
+ * longer: render work still queued behind other work on a loaded device for the FIRST commit of an
+ * app whose native side is old enough to have no `initialSelection` to hand over (see the file
+ * header) - so it is sized like the command's other genuine give-ups (INSPECTOR_TIMEOUT_MS at 10s),
+ * not like a fast-path poll.
+ *
+ * THIS RACE WAS REAL AND IS STILL CLOSED, BUT IT WAS NOT THE WHOLE STORY. A later measurement on a
+ * real device found the first story of a boot still recording `cause: 'story-unnamed'` long after
+ * this fix landed - MetadataProvider had rendered and published SEVEN SECONDS before the poll even
+ * started, answering, and still never naming the first story - which this race could not have caused
+ * (it is a race against effects, and seven seconds is not a lost race, it is something else). What
+ * that something else is remains open; see `'story-unnamed'` on WindowReason.
  */
 const METADATA_TIMEOUT_MS = 2000;
 
@@ -213,19 +221,43 @@ export type WaitOutcome = {
  */
 export type WindowReason =
   /**
-   * No reading of the app's own views ever named this story (see metadataOfTheApp) - carrying the
-   * two facts a poll cannot show through the drawn screen alone: whether the app had published ANY
-   * reading at all (of any story) the moment this poll began, and when MetadataProvider - the
-   * component that publishes one - first rendered in this boot, relative to that same moment.
+   * The app never published ANY reading of its views, of any story, at any point this poll ran
+   * (see metadataOfTheApp) - nothing rendered this app the way a run renders it. Carries when
+   * MetadataProvider - the component that would have published one - first rendered in this boot,
+   * relative to when this poll began, because the provider can still have rendered ONCE, earlier in
+   * this same boot, and then been withdrawn (unmounted) before this poll ever started - `undefined`
+   * is that it never rendered at all.
+   *
+   * SPLIT FROM A SINGLE `'no-metadata'` CAUSE THAT USED TO COVER THIS AND `'story-unnamed'` BOTH
+   * (sherlo-capture-the-reading-never-names-the-first-story). A capture measured on a real device
+   * found the app's own reading published and ANSWERING, seconds before its poll even started, and
+   * still never naming the first story of the boot - a state the old single cause could not tell
+   * apart from "nothing published at all", which is why ten rounds of this epic kept aiming fixes at
+   * the wrong target. The two are different failures with different next steps: this one asks why
+   * MetadataProvider never rendered (or was torn down); `'story-unnamed'` below asks why a reading
+   * that DID exist never grew this story's testID.
    */
   | {
-      cause: 'no-metadata';
+      cause: 'nothing-published';
+      providerRenderedRelativeToPollMs?: number;
+    }
+  /**
+   * A reading of the app's views WAS published - `collectAppMetadata()` answered with something at
+   * some point this poll ran - but it never named this story (see metadataOfTheApp). Carries the
+   * same two facts `'nothing-published'` does, for the same reason: whether the reading already
+   * existed the moment this poll began, and when MetadataProvider first rendered relative to that
+   * moment - both read off the SAME published-but-wrong reading, not off its absence.
+   */
+  | {
+      cause: 'story-unnamed';
       /** Whether `collectAppMetadata()` already answered with something when this poll began. */
       publishedAtPollStart: boolean;
       /**
        * How MetadataProvider's first render in this boot relates to when this poll began: positive
        * is that many ms AFTER the poll started, negative is that many ms BEFORE it, and `undefined`
-       * is that the provider had not rendered at all by the time the poll gave up.
+       * is that the provider had not rendered at all by the time the poll gave up - which can still
+       * happen here: a LATER poll check found a reading (of some prior story) that this diagnostic
+       * treats as "published", even though THIS poll's own MetadataProvider render never happened.
        */
       providerRenderedRelativeToPollMs?: number;
     }
@@ -765,7 +797,7 @@ async function theStorysOwnTree(
       tree: captureViewTree(inspectorData.viewHierarchy, componentNamesByNativeTag()),
       hasNetworkImage: false,
       at: 'window',
-      reason: { cause: 'no-metadata', ...noMetadataDiagnostics },
+      reason: noMetadataDiagnostics,
     };
   }
 
@@ -825,11 +857,16 @@ async function metadataOfTheApp(storyId: string): Promise<{
   const startedAt = Date.now();
   let metadata = collectAppMetadata();
   const publishedAtPollStart = metadata !== undefined;
+  // Whether ANY check across the WHOLE wait ever saw a reading, not merely the first one - a reading
+  // that only appears mid-poll (the provider renders a beat after this poll started, say) still means
+  // something published, which is a different failure from nothing ever having (see NoMetadataDiagnostics).
+  let everPublished = publishedAtPollStart;
   let checks = 1;
 
   while (!namesTheStory(metadata, storyId) && Date.now() - startedAt < METADATA_TIMEOUT_MS) {
     await delay(METADATA_POLL_INTERVAL_MS);
     metadata = collectAppMetadata();
+    if (metadata !== undefined) everPublished = true;
     checks += 1;
   }
 
@@ -841,14 +878,16 @@ async function metadataOfTheApp(storyId: string): Promise<{
     : 'polled';
 
   // Read once the poll is over, not merely at its start: the provider can render DURING the poll,
-  // and this is the same moment theStorysOwnTree is about to ask whether a `no-metadata` reason
+  // and this is the same moment theStorysOwnTree is about to ask whether a no-metadata reason
   // needs recording (see WindowReason and the file header's own reasoning about the race this
   // closes).
   const renderedAt = providerFirstRenderedAt();
-  const noMetadataDiagnostics: NoMetadataDiagnostics = {
-    publishedAtPollStart,
-    providerRenderedRelativeToPollMs: renderedAt === undefined ? undefined : renderedAt - startedAt,
-  };
+  const providerRenderedRelativeToPollMs =
+    renderedAt === undefined ? undefined : renderedAt - startedAt;
+
+  const noMetadataDiagnostics: NoMetadataDiagnostics = everPublished
+    ? { cause: 'story-unnamed', publishedAtPollStart, providerRenderedRelativeToPollMs }
+    : { cause: 'nothing-published', providerRenderedRelativeToPollMs };
 
   return {
     metadata: named ? metadata : undefined,
@@ -858,15 +897,16 @@ async function metadataOfTheApp(storyId: string): Promise<{
 }
 
 /**
- * The two facts `theStorysOwnTree` cannot see through the drawn screen alone, when it is about to
- * record `cause: 'no-metadata'` - see WindowReason for what each one means. Computed by
- * metadataOfTheApp regardless of how its own poll ended, because whether that poll timed out is
- * exactly what decides whether theStorysOwnTree goes on to use them.
+ * WHICH of the two `no-metadata`-shaped causes theStorysOwnTree is about to record, and the facts
+ * behind it - see WindowReason for what `'nothing-published'` and `'story-unnamed'` each mean, and
+ * for why they used to be one cause and no longer are. Computed by metadataOfTheApp regardless of
+ * how its own poll ended, because whether that poll timed out is exactly what decides whether
+ * theStorysOwnTree goes on to use this at all.
  */
-type NoMetadataDiagnostics = {
-  publishedAtPollStart: boolean;
-  providerRenderedRelativeToPollMs?: number;
-};
+type NoMetadataDiagnostics = Extract<
+  WindowReason,
+  { cause: 'nothing-published' | 'story-unnamed' }
+>;
 
 /**
  * Whether a reading of the app's views carries the view Storybook wraps this story in - the same
