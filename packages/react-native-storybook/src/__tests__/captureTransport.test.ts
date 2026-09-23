@@ -520,7 +520,7 @@ describe("the tree a capture records starts where a test run's tree starts", () 
     // photograph the app's window and call it the story - it crashes instead, the way a failed
     // inspector walk already does.
     expect(answer.kind).toBe('crashed');
-  }, 10000);
+  }, 20000);
 
   it("the first capture after the restart starts at the story's own root, not at the app window", async () => {
     // The app publishes its view metadata (../appMetadata) from an effect that runs once the app
@@ -673,12 +673,15 @@ describe('a capture reports how each of its waits ended, not only what it record
 
     expect(answer.kind).toBe('crashed');
     const crashed = answer as Extract<CapturedAnswer, { kind: 'crashed' }>;
-    // The reason names the story and says nothing was ever published - the same diagnostic the old
-    // window-reason used to carry as `cause: 'nothing-published'`, now in the words of a failure
-    // instead of the shape of a success.
+    // The message carries the number this whole sharpening exists to produce - how long it waited -
+    // and says the reading was stuck the entire time, not merely "timed out": that is what tells
+    // apart a wait that was simply too short from one watching something genuinely never move.
     expect(crashed.error?.message).toContain(STORY);
-    expect(crashed.error?.message).toContain('nothing-published');
-  }, 10000);
+    expect(crashed.error?.message).toContain('waited 15');
+    expect(crashed.error?.message).toContain(
+      'it never held anything at all the whole time it waited'
+    );
+  }, 20000);
 
   it('fails loudly instead of recording the window, when a reading exists but never names this story', async () => {
     // A reading is published from the very first check, but it is of a different screen than the
@@ -691,8 +694,14 @@ describe('a capture reports how each of its waits ended, not only what it record
 
     expect(answer.kind).toBe('crashed');
     const crashed = answer as Extract<CapturedAnswer, { kind: 'crashed' }>;
-    expect(crashed.error?.message).toContain('story-unnamed');
-  }, 10000);
+    // The reading held SOMETHING the whole time - a different story's testID - and it never changed:
+    // exactly the "held only X, unchanged" diagnosis this sharpening exists to produce, distinct from
+    // "never held anything at all" above.
+    expect(crashed.error?.message).toContain('waited 15');
+    expect(crashed.error?.message).toContain(
+      'it held only components-splash--default the whole time it waited, unchanged'
+    );
+  }, 20000);
 
   it("fails loudly instead of recording the window, when the app's reading names the story but its views never mount natively", async () => {
     // THE MEASURED BUG ITSELF: the app's own reading already names STORY - JavaScript rendered it -
@@ -710,8 +719,43 @@ describe('a capture reports how each of its waits ended, not only what it record
 
     expect(answer.kind).toBe('crashed');
     const crashed = answer as Extract<CapturedAnswer, { kind: 'crashed' }>;
+    // The measurement this task exists to produce: how long the gate waited, and that the native
+    // tree held nothing of any story the whole time - "never changed at all", not a bare timeout.
     expect(crashed.error?.message).toContain('native view tree');
-  }, 10000);
+    expect(crashed.error?.message).toContain('waited 15');
+    expect(crashed.error?.message).toContain(
+      'it never held anything at all the whole time it waited'
+    );
+  }, 20000);
+
+  it("says what the native tree held instead, when it holds a different story's view the whole time", async () => {
+    // The metadata already names STORY, but the LIVE native tree holds some OTHER story's wrapper -
+    // live, and unmoving, across the whole wait. This is the "held only X, unchanged" half of the
+    // diagnosis for the native-tree failure, the same shape the metadata failure above can report.
+    const A_DIFFERENT_STORYS_LIVE_WRAPPER = {
+      viewHierarchy: node('ReactViewGroup', 1, [
+        node('ReactViewGroup', 2, [node('ReactViewGroup', 99, [node('ReactTextView', 100, [])])]),
+      ]),
+      density: 3,
+      fontScale: 1,
+    };
+    mockGetInspectorData.mockResolvedValue(A_DIFFERENT_STORYS_LIVE_WRAPPER);
+    rememberAppMetadataCollector(() => ({
+      viewProps: {
+        ...VIEW_METADATA.viewProps,
+        99: { className: 'RCTView', testID: 'components-splash--default' },
+      },
+      texts: [],
+    }));
+
+    const answer = await answerOneStory();
+
+    expect(answer.kind).toBe('crashed');
+    const crashed = answer as Extract<CapturedAnswer, { kind: 'crashed' }>;
+    expect(crashed.error?.message).toContain(
+      'it held only components-splash--default the whole time it waited, unchanged'
+    );
+  }, 20000);
 });
 
 describe('a story that failed to render is recorded the way a run records it', () => {

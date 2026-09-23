@@ -152,9 +152,9 @@ const INSPECTOR_TIMEOUT_MS = 10000;
 
 /**
  * How long a capture waits for the app to publish a reading of ITS OWN STORY (./appMetadata) before
- * it gives up and records the window. On every ordinary check the published reading already names
- * the story on the first poll, so this ceiling costs nothing in the paths that are not racing
- * anything.
+ * it gives up and fails the capture (see waitForTheStorysOwnViews). On every ordinary check the
+ * published reading already names the story on the first poll, so this ceiling costs nothing in the
+ * paths that are not racing anything.
  *
  * THE RACE THIS ONCE HAD TO SURVIVE IS CLOSED AT THE SOURCE, NOT WAITED OUT. A capture's FIRST story
  * of a boot used to lose this exact race: MetadataProvider published from an effect - first a passive
@@ -180,19 +180,26 @@ const INSPECTOR_TIMEOUT_MS = 10000;
  * started, answering, and still never naming the first story - which this race could not have caused
  * (it is a race against effects, and seven seconds is not a lost race, it is something else). What
  * that something else is remains open; see `'story-unnamed'` on WindowReason.
+ *
+ * WIDENED FROM 2000MS TO 15000MS WHEN THIS BECAME LOAD-BEARING (sherlo-capture-refuses-to-
+ * photograph-the-window). Two seconds was chosen for a best-effort check nobody acted on; a gate
+ * that can now fail the whole capture must not be the thing that turns a slow-but-working app into
+ * a false negative. 15s is generous enough to survive a first boot loading the whole story index on
+ * a loaded device - the same class of work INSPECTOR_TIMEOUT_MS already gives 10s to survive one
+ * clock over - while still only costing a genuinely broken story 15 extra seconds, not minutes.
  */
-const METADATA_TIMEOUT_MS = 2000;
+const METADATA_TIMEOUT_MS = 15000;
 
 /** How often the wait above re-checks, between one short wait and the next. */
 const METADATA_POLL_INTERVAL_MS = 10;
 
 /**
- * How many of the testIDs a 'story-unnamed' reading held are kept, at most - see
- * WindowReason.testIdsAtGiveUp. Answering "empty, or some other story's" needs a few names, not the
- * whole reading, so an app whose screen happens to carry an unusual number of testIDs cannot grow
- * this record past a handful.
+ * How many of the testIDs a diagnostic reading holds are kept, at most - see
+ * WindowReason.testIdsAtGiveUp and testIdsLiveInTheInspector. Answering "empty, or some other
+ * story's" needs a few names, not the whole reading, so an app whose screen happens to carry an
+ * unusual number of testIDs cannot grow a diagnostic past a handful.
  */
-const MAX_TEST_IDS_IN_STORY_UNNAMED_REASON = 5;
+const MAX_TEST_IDS_IN_DIAGNOSTICS = 5;
 
 /**
  * How long a capture keeps re-reading the inspector, once the app's own reading already names the
@@ -209,8 +216,12 @@ const MAX_TEST_IDS_IN_STORY_UNNAMED_REASON = 5;
  *
  * Sized the same way: what this has to survive is native mounting work queued behind other work on
  * a loaded device, not the race itself, which is normally over within a frame or two.
+ *
+ * WIDENED FROM 2000MS TO 15000MS ALONGSIDE METADATA_TIMEOUT_MS ABOVE, same reasoning and same
+ * number: this ceiling is now load-bearing too (see waitForTheStorysOwnViews), and a real device's
+ * first-boot mounting work deserves the same room to finish as a first-boot story-index load does.
  */
-const STORY_VIEWS_TIMEOUT_MS = 2000;
+const STORY_VIEWS_TIMEOUT_MS = 15000;
 
 /** How often the wait above re-reads the inspector, between one poll and the next. */
 const STORY_VIEWS_POLL_INTERVAL_MS = 10;
@@ -286,7 +297,7 @@ export type WindowReason =
        * held a DIFFERENT story's - the app describing a different story than the one this capture
        * asked for, a selection bug wearing a metadata costume. The two are indistinguishable without
        * this, and point at different code (see the file header's note on the race this narrows).
-       * Capped at MAX_TEST_IDS_IN_STORY_UNNAMED_REASON entries.
+       * Capped at MAX_TEST_IDS_IN_DIAGNOSTICS entries.
        */
       testIdsAtGiveUp: string[];
     }
@@ -642,10 +653,26 @@ async function waitForTheStoryOnScreen({
  * reason downstream (see theStorysOwnTree). This gate asks the same two questions, so a broken story
  * clears it the same way. What a story that clears here goes on to be RECORDED as - re-rooted, or the
  * window because it is broken - is entirely theStorysOwnTree's decision, unchanged by this gate.
+ *
+ * A FAILURE HERE IS THE MEASUREMENT THIS EPIC HAS NEVER HAD, NOT A BARE TIMEOUT. Eleven rounds of
+ * this epic guessed at how long after `storyRendered` the story's views actually arrive; a message
+ * that only said "timed out" would still be a guess wearing an error's clothes. So the thrown error
+ * carries the two facts a developer (or the next round of this epic) needs to tell "the wait was too
+ * short" apart from "something is actually stuck": how long this gate waited, and whether what it
+ * was reading ever changed in that time - see describeWhatWasHeld.
  */
 async function waitForTheStorysOwnViews(storyId: string): Promise<StoryOnScreen> {
-  const { metadata, wait: metadataWait, noMetadataDiagnostics } = await metadataOfTheApp(storyId);
-  const { inspectorData, wait: storyViewsWait } = await inspectorDataOfTheApp(storyId, metadata);
+  const {
+    metadata,
+    wait: metadataWait,
+    noMetadataDiagnostics,
+    testIdsAtPollStart: metadataTestIdsAtPollStart,
+  } = await metadataOfTheApp(storyId);
+  const {
+    inspectorData,
+    wait: storyViewsWait,
+    liveTestIdsAtPollStart,
+  } = await inspectorDataOfTheApp(storyId, metadata);
   const waited = { metadata: metadataWait, storyViews: storyViewsWait };
 
   if (
@@ -656,12 +683,51 @@ async function waitForTheStorysOwnViews(storyId: string): Promise<StoryOnScreen>
     return { metadata, waited, noMetadataDiagnostics };
   }
 
-  const found = metadata
-    ? "the app's own reading named this story, but its views never appeared in the native view tree"
-    : `the app never published a reading naming this story (${JSON.stringify(
-        noMetadataDiagnostics
-      )})`;
-  throw new Error(`Sherlo: story "${storyId}" never reached the screen - ${found}`);
+  if (!metadata) {
+    const testIdsAtGiveUp =
+      noMetadataDiagnostics.cause === 'story-unnamed' ? noMetadataDiagnostics.testIdsAtGiveUp : [];
+    throw new Error(
+      `Sherlo: story "${storyId}" never reached the screen - waited ${metadataWait.ms}ms for the ` +
+        "app's own reading to name it, then gave up: " +
+        `${describeWhatWasHeld(metadataTestIdsAtPollStart, testIdsAtGiveUp)}.`
+    );
+  }
+
+  const testIdsAtGiveUp = testIdsLiveInTheInspector(inspectorData, metadata);
+  throw new Error(
+    `Sherlo: story "${storyId}" never reached the screen - the app's own reading named it, but its ` +
+      `views never appeared in the native view tree: waited ${storyViewsWait.ms}ms across ` +
+      `${storyViewsWait.rereads} re-read(s), then gave up: ` +
+      `${describeWhatWasHeld(liveTestIdsAtPollStart, testIdsAtGiveUp)}.`
+  );
+}
+
+/**
+ * "It held only X, unchanged" versus "it started at X and ended at Y" versus "it never held
+ * anything" - the one comparison waitForTheStorysOwnViews exists to report, because a bare timeout
+ * cannot tell a wait that was simply too short (the reading was still moving when it gave up) apart
+ * from a wait that was watching something genuinely stuck (the same reading, unmoving, the whole
+ * time). `atStart` and `atGiveUp` are read off the SAME KIND of reading - both the app's published
+ * metadata, or both the live native inspector tree - never mixed.
+ */
+function describeWhatWasHeld(atStart: string[], atGiveUp: string[]): string {
+  if (atStart.length === 0 && atGiveUp.length === 0) {
+    return 'it never held anything at all the whole time it waited';
+  }
+  if (sameTestIds(atStart, atGiveUp)) {
+    return `it held only ${atGiveUp.join(', ')} the whole time it waited, unchanged`;
+  }
+  return (
+    `it started holding ${atStart.length ? atStart.join(', ') : 'nothing'} and ended holding ` +
+    `${atGiveUp.length ? atGiveUp.join(', ') : 'nothing'} - it changed, but never to this story`
+  );
+}
+
+/** Whether two testID lists name the same set, regardless of order. */
+function sameTestIds(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const bSet = new Set(b);
+  return a.every((id) => bSet.has(id));
 }
 
 /**
@@ -787,13 +853,24 @@ function countNodes(tree: CapturedViewTree): number {
  * of those two endings it was - a tree with the story's node in it and a tree without one look the
  * same until something asks whether the node is there, which is exactly what this wait already
  * asked and theStorysOwnTree is about to ask again.
+ *
+ * `liveTestIdsAtPollStart` IS FOR A FAILURE'S SAKE, NOT A SUCCESS'S. It costs nothing extra to
+ * compute - the very first inspector read this function does anyway, read once more through
+ * testIdsLiveInTheInspector - and it is what lets waitForTheStorysOwnViews tell "this was moving
+ * and simply ran out of ceiling" apart from "this was stuck the whole time" when the wait fails
+ * (see describeWhatWasHeld there).
  */
 async function inspectorDataOfTheApp(
   storyId: string,
   metadata: ReturnType<typeof collectAppMetadata>
-): Promise<{ inspectorData: InspectorData; wait: WaitOutcome & { rereads: number } }> {
+): Promise<{
+  inspectorData: InspectorData;
+  wait: WaitOutcome & { rereads: number };
+  liveTestIdsAtPollStart: string[];
+}> {
   const startedAt = Date.now();
   let inspectorData = await theInspectorsOwnAnswer();
+  const liveTestIdsAtPollStart = testIdsLiveInTheInspector(inspectorData, metadata);
 
   // No metadata, or a broken story: theStorysOwnTree never re-roots either case (see there), so
   // there is nothing this wait could usefully poll for - one read is the whole of it.
@@ -801,6 +878,7 @@ async function inspectorDataOfTheApp(
     return {
       inspectorData,
       wait: { outcome: 'first-check', ms: Date.now() - startedAt, rereads: 0 },
+      liveTestIdsAtPollStart,
     };
   }
 
@@ -821,7 +899,32 @@ async function inspectorDataOfTheApp(
     ? 'first-check'
     : 'polled';
 
-  return { inspectorData, wait: { outcome, ms: Date.now() - startedAt, rereads } };
+  return {
+    inspectorData,
+    wait: { outcome, ms: Date.now() - startedAt, rereads },
+    liveTestIdsAtPollStart,
+  };
+}
+
+/**
+ * The distinct testIDs the LIVE native inspector reading currently holds a view for - the same
+ * live-tag cross-reference theStoryIsBroken's generation check already makes (liveNativeTags)
+ * against the app's own reading of what each tag is (metadata.viewProps), read here as a
+ * diagnostic instead of a live-vs-merged decision. "Live" matters the same way it does there: a
+ * stale fiber generation's testID must never be reported as something the CURRENT screen holds.
+ * `undefined` metadata (nothing published) holds none, the same as testIdsIn.
+ */
+function testIdsLiveInTheInspector(
+  inspectorData: InspectorData,
+  metadata: ReturnType<typeof collectAppMetadata>
+): string[] {
+  if (!metadata) return [];
+  const live = liveNativeTags(inspectorData.viewHierarchy);
+  const ids = new Set<string>();
+  for (const [tag, props] of Object.entries(metadata.viewProps)) {
+    if (props.testID !== undefined && live.has(Number(tag))) ids.add(props.testID);
+  }
+  return Array.from(ids).slice(0, MAX_TEST_IDS_IN_DIAGNOSTICS);
 }
 
 /** Keep asking the native inspector until it answers at all, giving up after INSPECTOR_TIMEOUT_MS. */
@@ -956,14 +1059,22 @@ async function theStorysOwnTree(
  * story - the same "nothing rendered this app" state theStorysOwnTree already falls back to, just
  * no longer mistaking a reading of the wrong screen for it. `wait` says which of the three ways the
  * wait ended, and how long it took - see WaitOutcome.
+ *
+ * `testIdsAtPollStart` COSTS NOTHING EXTRA, the same reasoning as inspectorDataOfTheApp's own
+ * `liveTestIdsAtPollStart`: it is read off the very first `collectAppMetadata()` call this function
+ * makes anyway, before the loop even begins. It exists for waitForTheStorysOwnViews to tell a
+ * reading that was moving (just never fast enough) apart from one that never moved at all, when
+ * this wait fails - see describeWhatWasHeld there.
  */
 async function metadataOfTheApp(storyId: string): Promise<{
   metadata: ReturnType<typeof collectAppMetadata>;
   wait: WaitOutcome;
   noMetadataDiagnostics: NoMetadataDiagnostics;
+  testIdsAtPollStart: string[];
 }> {
   const startedAt = Date.now();
   let metadata = collectAppMetadata();
+  const testIdsAtPollStart = testIdsIn(metadata);
   const publishedAtPollStart = metadata !== undefined;
   // Whether ANY check across the WHOLE wait ever saw a reading, not merely the first one - a reading
   // that only appears mid-poll (the provider renders a beat after this poll started, say) still means
@@ -1009,6 +1120,7 @@ async function metadataOfTheApp(storyId: string): Promise<{
     metadata: named ? metadata : undefined,
     wait: { outcome, ms: Date.now() - startedAt },
     noMetadataDiagnostics,
+    testIdsAtPollStart,
   };
 }
 
@@ -1037,7 +1149,7 @@ function namesTheStory(metadata: ReturnType<typeof collectAppMetadata>, storyId:
 
 /**
  * The distinct testIDs a reading holds, in the order its views carry them, capped at
- * MAX_TEST_IDS_IN_STORY_UNNAMED_REASON - what a 'story-unnamed' reason keeps of the reading it gave
+ * MAX_TEST_IDS_IN_DIAGNOSTICS - what a 'story-unnamed' reason keeps of the reading it gave
  * up on (see WindowReason.testIdsAtGiveUp). `undefined` metadata (no reading at that exact check)
  * holds none.
  */
@@ -1047,7 +1159,7 @@ function testIdsIn(metadata: ReturnType<typeof collectAppMetadata>): string[] {
   for (const props of Object.values(metadata.viewProps)) {
     if (props.testID !== undefined) ids.add(props.testID);
   }
-  return Array.from(ids).slice(0, MAX_TEST_IDS_IN_STORY_UNNAMED_REASON);
+  return Array.from(ids).slice(0, MAX_TEST_IDS_IN_DIAGNOSTICS);
 }
 
 /**
