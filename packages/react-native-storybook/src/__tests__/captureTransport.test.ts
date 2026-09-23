@@ -443,6 +443,62 @@ describe('the app that comes back from the restart is told which story to show',
   });
 });
 
+describe("the app asks again once Storybook's own index finishes loading, not on a guess at how long that takes", () => {
+  it('asks again the moment Storybook reports itself ready, after the interval retry above has already given up asking', async () => {
+    // THE RACE THE INTERVAL RETRY ABOVE CANNOT WIN. This story was handed over as `initialSelection`,
+    // and Storybook resolved it before its own story index had finished loading (see the file
+    // header) - so every telling the interval retry sends while the index is still loading is a
+    // no-op, not a lost race against a DIFFERENT selection the way the describe above covers. No
+    // amount of asking again sooner changes when the index finishes, so that retry exhausts its own
+    // budget with nothing to show for it. Shrink that budget to almost nothing so this test does not
+    // need real seconds to prove the point.
+    mockGetConfigOrDefault.mockReturnValue({ ...CONFIG, storyRenderedTimeoutMs: 50 });
+
+    const view = makeView({ ready: false });
+    const { answered, channel } = startTheRoad(undefined, view);
+
+    await vi.waitFor(() => expect(channel.emitted('setCurrentStory').length).toBeGreaterThan(0));
+    const askedBeforeReady = channel.emitted('setCurrentStory').length;
+
+    // Nothing has rendered yet - not because the app stopped asking, but because nothing it can ask
+    // for succeeds until the index is actually there. Once it is...
+    (view as unknown as { _ready: boolean })._ready = true;
+
+    // ...this road asks again on its own, with nothing prompting it but Storybook's own readiness -
+    // not a longer guess at the same interval.
+    await vi.waitFor(() =>
+      expect(channel.emitted('setCurrentStory').length).toBeGreaterThan(askedBeforeReady)
+    );
+    channel.emit('storyRendered', STORY);
+
+    const answer = await answered;
+    if (answer.kind !== 'captured') throw new Error(`the story was not captured: ${answer.kind}`);
+
+    // The first story of the boot is the one on screen at the end, not the placeholder Storybook
+    // resolved its initial selection against before the index was there to answer it.
+    expect(answer.tree).toEqual(RECORDED_TREE);
+  });
+
+  it('never asks again for a story that already rendered, because the render wait above already caught it', async () => {
+    // Every capture after the first finds Storybook already ready - the case this test guards: an
+    // app that already put the right story on screen must not be asked a needless third time.
+    const view = makeView({ ready: true });
+    const { answered, channel } = startTheRoad(undefined, view);
+
+    await vi.waitFor(() =>
+      expect(channel.emitted('setCurrentStory')).toEqual([{ storyId: STORY }])
+    );
+    channel.emit('storyRendered', STORY);
+
+    const answer = await answered;
+    if (answer.kind !== 'captured') throw new Error(`the story was not captured: ${answer.kind}`);
+
+    expect(answer.tree).toEqual(RECORDED_TREE);
+    // Exactly the one telling - ready from the start leaves nothing for the readiness wait to do.
+    expect(channel.emitted('setCurrentStory')).toEqual([{ storyId: STORY }]);
+  });
+});
+
 describe("a capture's first story appears even though the app booted onto a story of its own choosing", () => {
   it('keeps re-telling the app through a run of silence, not just one lost race, until the story it asked for renders', async () => {
     // A capture's restart has no real story to hand over as `initialSelection`, so Storybook's own

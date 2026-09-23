@@ -144,6 +144,24 @@ const STORY_RENDERED_TIMEOUT_MS = 5000;
  */
 const SELECT_STORY_RETRY_INTERVAL_MS = 250;
 
+/**
+ * How long waitForTheStoryOnScreen leaves Storybook's own story index to finish loading, once
+ * SELECT_STORY_RETRY_INTERVAL_MS's own retries have already given up - see the ready-driven wait in
+ * that function for the race this exists to close, one this SDK cannot win by asking again sooner.
+ *
+ * A SEPARATE CLOCK FROM STORY_RENDERED_TIMEOUT_MS, ON PURPOSE. How long a story index takes to finish
+ * loading and how long an already-loaded story takes to paint are two different questions - folding
+ * the first into the second's much shorter budget is exactly the "a timer would make this rarer on
+ * fast devices and no better on slow ones" failure this file's own history already lived through once
+ * (see waitForTheStorysOwnViews's own account of eleven rounds of tuning a single guessed number).
+ * 15s matches METADATA_TIMEOUT_MS / STORY_VIEWS_TIMEOUT_MS below - the other ceilings in this file
+ * sized for something a real device may simply take a while to finish, not for a fast path.
+ */
+const STORYBOOK_READY_TIMEOUT_MS = 15000;
+
+/** How often the wait above re-checks Storybook's own readiness, between one poll and the next. */
+const STORYBOOK_READY_POLL_INTERVAL_MS = 10;
+
 /** How long a test run lets the paint barrier run before the stability loop proceeds. */
 const PAINT_BARRIER_TIMEOUT_MS = 1000;
 
@@ -629,6 +647,22 @@ async function waitForTheStoryOnScreen({
     });
   }
 
+  // THE RACE THE RETRY ABOVE CANNOT WIN. That retry beats Storybook's own default selection (see the
+  // file header - it is a safety net, not the only defense), but when THIS story's first channel-
+  // driven ask reached Storybook before its own story index had finished loading, no amount of
+  // re-asking on a guessed interval helps: the index has to finish loading first, and how long that
+  // takes is not this SDK's to guess. So, only once the retry above has given up on this exact story,
+  // wait for Storybook to report itself ready - however long that takes, up to its own generous
+  // ceiling, resolving immediately if it already is - and ask exactly once more. A story that
+  // rendered above never reaches this at all.
+  if (!readiness.rendered) {
+    const becameReady = await waitUntilStorybookIsReady(view, STORYBOOK_READY_TIMEOUT_MS);
+    if (becameReady) {
+      channel.emit(SET_CURRENT_STORY, { storyId });
+      readiness = await waitForStoryRendered({ storyId, timeoutMs, channel });
+    }
+  }
+
   // Close the last-frame gap before the real gate, best-effort: the wait below runs afterwards
   // regardless - the same fallthrough a run itself takes when STORY_RENDERED never came (see
   // awaitStoryReadyAndPaint), so a story that genuinely never rendered still gets the full wait for
@@ -638,6 +672,41 @@ async function waitForTheStoryOnScreen({
   ).catch(() => false);
 
   return waitForTheStorysOwnViews(storyId, view);
+}
+
+/**
+ * Whether Storybook itself reports its story index loaded - the same field describeStorybookState
+ * reads for its own diagnostic, read directly rather than through a second reading of it.
+ *
+ * A DELIBERATE COUPLING TO A PRIVATE VENDOR FIELD, NOT AN ACCIDENTAL ONE. `@storybook/react-native`
+ * exposes no public "is the index loaded" API - `_ready` is an internal flag on its `View` instance,
+ * underscore-prefixed and not part of any documented contract. describeStorybookState already read
+ * it for a diagnostic message, where being wrong costs a worse-worded error; waitUntilStorybookIsReady
+ * below now reads it to decide WHEN TO ACT, where being wrong costs the fix this file exists for. If a
+ * future Storybook version renames or removes this field, `storybookIsReady` reads `undefined`
+ * forever, `waitUntilStorybookIsReady` always times out at STORYBOOK_READY_TIMEOUT_MS, and
+ * waitForTheStoryOnScreen falls back to exactly its pre-existing behavior (the interval retry above,
+ * and no more) - a silent loss of this fix, not a crash, and the diagnostic gate's own message would
+ * degrade the same way at the same time, which is the nearest thing to a canary this file has for it.
+ */
+function storybookIsReady(view: StorybookView): boolean {
+  return (view as unknown as { _ready?: unknown })._ready === true;
+}
+
+/**
+ * Wait for Storybook to report itself ready, or give up after timeoutMs. Polls `_ready` - the exact
+ * field storybookIsReady reads - rather than a version-specific promise, so this works the same way
+ * the gate's own diagnostic already does, on whatever Storybook version the app carries.
+ */
+async function waitUntilStorybookIsReady(view: StorybookView, timeoutMs: number): Promise<boolean> {
+  const startedAt = Date.now();
+
+  while (!storybookIsReady(view)) {
+    if (Date.now() - startedAt >= timeoutMs) return false;
+    await delay(Math.min(STORYBOOK_READY_POLL_INTERVAL_MS, timeoutMs - (Date.now() - startedAt)));
+  }
+
+  return true;
 }
 
 /**
