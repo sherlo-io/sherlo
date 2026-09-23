@@ -72,7 +72,10 @@ import {
   type CapturedAnswer,
 } from '../captureTransport';
 import { __resetStoryRenderedTrackingForTests } from '../getStorybook/components/TestingMode/useTestAllStories/storyRenderedReadiness';
-import { rememberAppMetadataCollector } from '../appMetadata';
+import {
+  __resetProviderFirstRenderedAtForTests,
+  rememberAppMetadataCollector,
+} from '../appMetadata';
 import { rememberStoryOfTheApp } from '../componentNames';
 import { clearStoryError, recordStoryError } from '../getStorybook/storyErrorRegistry';
 import { STORY_ERROR_FALLBACK_TEXT } from '../constants';
@@ -297,6 +300,9 @@ beforeEach(() => {
   // image loaded over the network.
   mockIsScrollable.mockResolvedValue({ scrollable: false });
   mockScrollToCheckpoint.mockResolvedValue(ONE_SCREENFUL);
+  // The provider has not rendered at all yet, unless a test says otherwise below - the fresh-boot
+  // state `__resetProviderFirstRenderedAtForTests` names.
+  __resetProviderFirstRenderedAtForTests();
   // The app on screen published its own reading of its views, as it does whenever it renders under
   // the metadata provider a test run and a capture share.
   rememberAppMetadataCollector(() => VIEW_METADATA);
@@ -308,6 +314,7 @@ afterEach(() => {
   __resetStoryRenderedTrackingForTests();
   rememberStoryOfTheApp(undefined);
   rememberAppMetadataCollector(undefined);
+  __resetProviderFirstRenderedAtForTests();
   // The registry is a module-level map the whole app shares, so a test that records an error has to
   // take it back out again or every test after it walks a story that is already broken.
   clearStoryError(STORY);
@@ -469,6 +476,7 @@ describe("the tree a capture records starts where a test run's tree starts", () 
 
   it('records the whole window when nothing rendered this app the way a run renders it', async () => {
     rememberAppMetadataCollector(undefined);
+    __resetProviderFirstRenderedAtForTests();
     rememberStoryOfTheApp(undefined);
 
     const answer = await walkOneStory();
@@ -485,6 +493,7 @@ describe("the tree a capture records starts where a test run's tree starts", () 
     // before that effect has had its turn - the seam is still unpublished the instant Storybook
     // reports the story rendered, and arrives a beat later, the way a pending effect does.
     rememberAppMetadataCollector(undefined);
+    __resetProviderFirstRenderedAtForTests();
 
     const { answered, channel } = startTheRoad();
     await vi.waitFor(() =>
@@ -618,8 +627,10 @@ describe('a capture reports how each of its waits ended, not only what it record
 
   it('reports a timed-out metadata wait, and a tree rooted at the window, when no reading ever names the story', async () => {
     // Nothing ever publishes a reading that names STORY, so the metadata wait runs out its whole
-    // ceiling - the same state "records the whole window when nothing rendered this app" walks.
+    // ceiling - the same state "records the whole window when nothing rendered this app" walks. The
+    // provider never rendered at all during the poll, not merely rendered without naming the story.
     rememberAppMetadataCollector(undefined);
+    __resetProviderFirstRenderedAtForTests();
     rememberStoryOfTheApp(undefined);
 
     const answer = await walkOneStory();
@@ -634,8 +645,64 @@ describe('a capture reports how each of its waits ended, not only what it record
     });
     expect(answer.root.at).toBe('window');
     // The record says WHY it rooted at the window, not only that it did: no reading of the app's
-    // own views ever named this story, so there was no node to re-root at in the first place.
-    expect(answer.root.reason).toEqual({ cause: 'no-metadata' });
+    // own views ever named this story, so there was no node to re-root at in the first place. And,
+    // since nothing ever published, MetadataProvider itself never rendered anywhere in the two
+    // seconds this poll ran - there is no relative timing to give, only the fact of it.
+    expect(answer.root.reason).toEqual({
+      cause: 'no-metadata',
+      publishedAtPollStart: false,
+      providerRenderedRelativeToPollMs: undefined,
+    });
+  }, 10000);
+
+  it('says the provider had already rendered before the poll began, when a reading existed but never named the story', async () => {
+    // A reading is published from the very first check - the provider rendered before this poll
+    // ever started - but it is of a different screen than the one this capture asked for, and
+    // nothing ever replaces it with one that names STORY. This is a different bug from the provider
+    // never rendering: the record has to be able to tell the two apart.
+    rememberAppMetadataCollector(() => METADATA_OF_A_DIFFERENT_SCREEN);
+
+    const answer = await walkOneStory();
+
+    expect(answer.waited.metadata.outcome).toBe('timed-out');
+    expect(answer.root.reason).toEqual({
+      cause: 'no-metadata',
+      publishedAtPollStart: true,
+      providerRenderedRelativeToPollMs: expect.any(Number),
+    });
+    // "Before" the poll began, not merely "known" - a positive number here would say the opposite of
+    // what happened.
+    const reason = answer.root.reason as Extract<
+      typeof answer.root.reason,
+      { cause: 'no-metadata' }
+    >;
+    expect(reason.providerRenderedRelativeToPollMs).toBeLessThanOrEqual(0);
+  }, 10000);
+
+  it('says the provider first rendered after the poll began, when it mounted mid-poll but still never named the story', async () => {
+    // Nothing is published when the poll starts, so the provider has not rendered yet. It renders a
+    // beat later - inside the same poll, well past whatever setup this walk needed before its poll
+    // could start - but with a reading of a different screen, one that never catches up to naming
+    // STORY before the ceiling runs out.
+    rememberAppMetadataCollector(undefined);
+    __resetProviderFirstRenderedAtForTests();
+    setTimeout(() => rememberAppMetadataCollector(() => METADATA_OF_A_DIFFERENT_SCREEN), 300);
+
+    const answer = await walkOneStory();
+
+    expect(answer.waited.metadata.outcome).toBe('timed-out');
+    expect(answer.root.reason).toEqual({
+      cause: 'no-metadata',
+      publishedAtPollStart: false,
+      providerRenderedRelativeToPollMs: expect.any(Number),
+    });
+    const reason = answer.root.reason as Extract<
+      typeof answer.root.reason,
+      { cause: 'no-metadata' }
+    >;
+    // Rendered AFTER the poll started, and well inside its 2-second ceiling.
+    expect(reason.providerRenderedRelativeToPollMs).toBeGreaterThan(0);
+    expect(reason.providerRenderedRelativeToPollMs).toBeLessThan(2000);
   }, 10000);
 
   it('reports a timed-out story-views wait, and a tree rooted at the window, when the inspector never catches up', async () => {

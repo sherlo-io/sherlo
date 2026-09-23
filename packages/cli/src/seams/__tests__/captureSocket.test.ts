@@ -316,6 +316,63 @@ describe("the app's answer, read into this seam's own endings", () => {
     });
   });
 
+  it('why the app found no metadata comes back with it: whether it had published anything yet, and when its provider first rendered relative to its poll', async () => {
+    const r = await relay();
+
+    // What the app says when its poll for a reading naming the story ran out - carried across, not
+    // reconstructed here from the fact the tree happens to be the whole window.
+    expect(
+      await aCapture(r, {
+        askedFor: STORY_A,
+        stories: [STORY_A],
+        recorded: {
+          ...ANSWER_A,
+          root: {
+            at: 'window',
+            nodeCount: 5,
+            reason: {
+              cause: 'no-metadata',
+              publishedAtPollStart: false,
+              providerRenderedRelativeToPollMs: 340,
+            },
+          },
+        },
+      })
+    ).toEqual({
+      kind: 'captured',
+      storyId: STORY_A,
+      settled: { ms: 120, frames: 6 },
+      tree: { primitive: 'RCTView', components: [], children: [] },
+      root: {
+        at: 'window',
+        nodeCount: 5,
+        reason: {
+          cause: 'no-metadata',
+          publishedAtPollStart: false,
+          providerRenderedRelativeToPollMs: 340,
+        },
+      },
+    });
+  });
+
+  it('an app older than the no-metadata diagnostics still names the cause, with no relative timing to give', async () => {
+    const r = await relay();
+
+    const answer = await aCapture(r, {
+      askedFor: STORY_A,
+      stories: [STORY_A],
+      recorded: {
+        ...ANSWER_A,
+        root: { at: 'window', nodeCount: 5, reason: { cause: 'no-metadata' } },
+      },
+    });
+
+    expect((answer as { root: { reason: unknown } }).root.reason).toEqual({
+      cause: 'no-metadata',
+      publishedAtPollStart: false,
+    });
+  });
+
   it('a story root carries no reason, because it is never asked why', async () => {
     const r = await relay();
 
