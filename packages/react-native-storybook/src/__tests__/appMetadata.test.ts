@@ -15,11 +15,7 @@
  * (./componentNames.test.ts) is held the same way, and for the same reason.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import {
-  collectAppMetadata,
-  publishAppMetadata,
-  rememberAppMetadataCollector,
-} from '../appMetadata';
+import { collectAppMetadata, rememberAppMetadataCollector } from '../appMetadata';
 import type { Metadata } from '../getStorybook/components/TestingMode/MetadataProvider';
 
 /** What the app published about itself, as the provider builds it: views by tag, and the words. */
@@ -39,27 +35,27 @@ afterEach(() => rememberAppMetadataCollector(undefined));
 
 describe('the app publishes its own views where a capture can read them', () => {
   it('reads the app back for as long as it is rendered', () => {
-    publishAppMetadata(() => THE_APPS_VIEWS);
+    rememberAppMetadataCollector(() => THE_APPS_VIEWS);
 
     // A capture reads the same reading the provider would have answered its own renderer with.
     expect(collectAppMetadata()).toEqual(THE_APPS_VIEWS);
   });
 
   it('reads nothing once the app is gone', () => {
-    const theAppWentAway = publishAppMetadata(() => THE_APPS_VIEWS);
+    rememberAppMetadataCollector(() => THE_APPS_VIEWS);
     expect(collectAppMetadata()).toEqual(THE_APPS_VIEWS);
 
-    // The effect that published hands this back to React when the app unmounts. A reading left
-    // behind would be a capture answering from views that are no longer on screen.
-    theAppWentAway();
+    // The provider hands this back to React as its unmount cleanup. A reading left behind would be
+    // a capture answering from views that are no longer on screen.
+    rememberAppMetadataCollector(undefined);
     expect(collectAppMetadata()).toBeUndefined();
   });
 
   it('reads the app that is on screen now, not the one before it', () => {
-    publishAppMetadata(() => THE_APPS_VIEWS);
+    rememberAppMetadataCollector(() => THE_APPS_VIEWS);
 
     // The provider's fiber changes as the app re-renders, which publishes a fresh reading.
-    publishAppMetadata(() => OTHER_VIEWS);
+    rememberAppMetadataCollector(() => OTHER_VIEWS);
 
     expect(collectAppMetadata()).toEqual(OTHER_VIEWS);
   });

@@ -29,18 +29,6 @@ export function rememberAppMetadataCollector(collect: CollectAppMetadata | undef
 }
 
 /**
- * Publish the app's reading of its views for as long as the app is rendered, and withdraw it when it
- * is not. Returns the withdrawal, which is what the effect that called this hands back to React.
- *
- * The two halves belong together because a reading left behind is worse than none at all: the next
- * capture would read a renderer that is no longer there and answer from views that are gone.
- */
-export function publishAppMetadata(theAppsReading: CollectAppMetadata): () => void {
-  rememberAppMetadataCollector(theAppsReading);
-  return () => rememberAppMetadataCollector(undefined);
-}
-
-/**
  * The app's views as the renderer that drew them reads them - every view by its native tag, with
  * the story id it carries - or nothing before the app has rendered.
  */

@@ -7,7 +7,7 @@ import React, {
 } from 'react';
 import { FiberProvider, useFiber, type Fiber } from 'its-fine';
 import { RunnerBridge } from '../../../helpers';
-import { publishAppMetadata } from '../../../appMetadata';
+import { rememberAppMetadataCollector } from '../../../appMetadata';
 import { isNetworkImageComponent } from './networkImageDetection';
 
 export type ViewProps = {
@@ -138,19 +138,27 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
     // A capture is plain JavaScript outside the renderer and holds no ref, so the reading is
     // published where it can find it (../../../appMetadata) for as long as the app is rendered.
     //
-    // PUBLISHED FROM useLayoutEffect, NOT useEffect - a capture's FIRST story of a boot raced this
-    // against Storybook's own "story rendered" signal and lost (root.reason.cause: 'no-metadata' on
-    // that first capture, never on the ones after - see captureTransport.ts's metadataOfTheApp).
-    // React 18 defers a passive effect's FIRST run to a task the Scheduler queues after the commit,
-    // even for the initial mount; a layout effect has no such queue; it runs synchronously inside the
-    // same commit that mounted this component, before control ever returns to whatever is racing it.
-    // Storybook's own phase machine emits "story rendered" once its story has mounted, which is a
-    // commit at or below this one - so a layout effect here is guaranteed to have already published
-    // by the time that signal can possibly fire, where a passive effect was only ever going to be
-    // usually early enough. Every capture after the first was never actually racing anything (this
-    // component mounted once, long before): this only changes when the ONE publish that was ever
-    // late enough to matter runs.
-    useLayoutEffect(() => publishAppMetadata(collectMetadata), [collectMetadata]);
+    // PUBLISHED FROM THE RENDER BODY, NOT AN EFFECT OF EITHER KIND - useLayoutEffect still lost the
+    // race it was moved here to close, because this component is the PARENT of the story Storybook
+    // renders below it (<MetadataProvider><Storybook /></MetadataProvider>, see TestingMode.tsx), and
+    // React runs a child's effects - layout or passive - before its parent's, always. Whatever inside
+    // Storybook's own tree fires "story rendered" is a descendant, so it was always going to finish
+    // first regardless of which effect hook this used. A capture's FIRST story of a boot lost that
+    // race (root.reason.cause: 'no-metadata' - see captureTransport.ts's metadataOfTheApp); every
+    // capture after it never raced anything, because this component was already mounted by the
+    // previous story.
+    //
+    // Publishing here, before `children` (Storybook, the story below it) is returned, moves this
+    // ahead of the whole subtree's RENDER, not merely ahead of its effects - nothing below this line
+    // has even started rendering yet, so nothing racing this can observe the reading unset.
+    // (TestingMode.tsx uses the same render-body technique, for the same reason, to install a story's
+    // mocks before Storybook mounts it.) `fiber` above is already resolved at this point - its-fine's
+    // useFiber searches the fiber tree inside a useMemo, which runs during render - and
+    // collectMetadata walks the live tree when CALLED, not when published, so it is safe to publish
+    // immediately and still answers correctly for children that render later in this same commit.
+    // Only the withdrawal on unmount needs an effect - there is no render-phase hook for "gone".
+    rememberAppMetadataCollector(collectMetadata);
+    useLayoutEffect(() => () => rememberAppMetadataCollector(undefined), []);
 
     return children;
   }

@@ -147,17 +147,20 @@ const INSPECTOR_TIMEOUT_MS = 10000;
  * anything.
  *
  * THE RACE THIS ONCE HAD TO SURVIVE IS CLOSED AT THE SOURCE, NOT WAITED OUT. A capture's FIRST story
- * of a boot used to lose this exact race: MetadataProvider published from a passive effect
- * (useEffect), which React 18 defers to a task the Scheduler queues after the commit even for the
- * initial mount, and Storybook's own "story rendered" signal - emitted once its story has mounted, a
- * commit at or below MetadataProvider's own - could fire first. That recorded the window with
- * `root.reason.cause: 'no-metadata'`, never on the second story or the third, because only the first
- * ever raced a fresh mount. MetadataProvider now publishes from useLayoutEffect, which runs
- * synchronously inside the same commit that mounted it - no queue left to lose a race in (see
+ * of a boot used to lose this exact race: MetadataProvider published from an effect - first a passive
+ * one (useEffect), then a layout one (useLayoutEffect) - and either kind loses to Storybook's own
+ * "story rendered" signal by construction, not by luck. MetadataProvider is the PARENT of the story
+ * Storybook renders below it (see TestingMode.tsx), and React always runs a child's effects, of
+ * either kind, before its parent's - so whatever inside Storybook's tree fires "story rendered" was
+ * always going to finish first, whichever effect hook MetadataProvider published from. That recorded
+ * the window with `root.reason.cause: 'no-metadata'`, never on the second story or the third, because
+ * only the first ever raced a fresh mount. MetadataProvider now publishes from its render body,
+ * before `children` (Storybook, the story below it) is even returned - ahead of the whole subtree's
+ * render, not merely ahead of its effects, so nothing racing this can observe the reading unset (see
  * MetadataProvider.tsx). What this ceiling still bounds is everything else that can leave a reading
- * unpublished a beat longer: a passive-effect flush still queued behind other work on a loaded
- * device for the FIRST commit of an app whose native side is old enough to have no `initialSelection`
- * to hand over (see the file header) - so it is sized like the command's other genuine give-ups
+ * unpublished a beat longer: render work still queued behind other work on a loaded device for the
+ * FIRST commit of an app whose native side is old enough to have no `initialSelection` to hand over
+ * (see the file header) - so it is sized like the command's other genuine give-ups
  * (INSPECTOR_TIMEOUT_MS at 10s), not like a fast-path poll.
  */
 const METADATA_TIMEOUT_MS = 2000;
