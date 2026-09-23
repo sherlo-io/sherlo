@@ -226,17 +226,6 @@ export type WaitOutcome = {
 /**
  * WHY `theStorysOwnTree` recorded the window rather than the story - the branch it took, carried
  * out instead of thrown away. See the file header's own paragraph on this.
- *
- * 'nothing-published' AND 'story-unnamed' NO LONGER REACH `theStorysOwnTree` AT ALL, AND THIS TYPE
- * KEEPS THEM ANYWAY. They used to be exactly that: a WindowReason theStorysOwnTree recorded,
- * silently, when the app's own reading never named this story - the fallback that hid a capture's
- * story never being found for this whole epic. waitForTheStoryOnScreen now gates on the same fact
- * BEFORE any of theStorysOwnTree runs, and fails loudly (throws, becoming a `kind: 'crashed'`
- * answer) instead of letting a capture reach here with no metadata to show for it - see
- * waitForMetadataToNameTheStory. Both variants stay on this type because their SHAPE is still
- * exactly the diagnostic that error's message is built from (see the throw there), and because an
- * older SDK build without this fix can still send a `root.reason` in this shape - a newer CLI
- * reading an older app's capture still has to understand it.
  */
 export type WindowReason =
   /**
@@ -497,7 +486,7 @@ async function captureTheStory({
   channel: StorybookChannel;
 }): Promise<CapturedAnswer> {
   try {
-    const { metadata, wait: metadataWait } = await waitForTheStoryOnScreen({ storyId, channel });
+    await waitForTheStoryOnScreen({ storyId, channel });
     const settled = await stabilizeTheStory(settings);
 
     // Asking how many screenfuls the story is puts it back at its top, so it is asked before the
@@ -508,7 +497,7 @@ async function captureTheStory({
     // tall the view on screen is. Measuring the error view instead would tell the developer their
     // story scrolls when what scrolls is the fallback drawn in its place.
     const parts = theStoryIsBroken(storyId) ? 1 : await screenfulsOfTheStory();
-    const recorded = await readTheStory(storyId, metadata, metadataWait);
+    const recorded = await readTheStory(storyId);
 
     const threw = whatTheStoryThrew(storyId);
     return {
@@ -539,23 +528,6 @@ async function captureTheStory({
  * silence. So this keeps telling it again - not merely once, and not only for the first story of a
  * session - every SELECT_STORY_RETRY_INTERVAL_MS until STORY_RENDERED names this exact story, which is
  * the one signal that says the race is over and nothing is going to move Storybook off of it again.
- *
- * STORY_RENDERED IS NOT THE REAL GATE, THOUGH - IT USED TO BE TREATED AS ONE. `storyRendered` is
- * Storybook core's own phase-machine bookkeeping: for this RN adapter, "render" completes the
- * instant `renderToCanvas` returns, and `renderToCanvas` here is just a synchronous jotai atom
- * write (view._setStory, see @storybook/react-native's dist/index.js). That write is decoupled
- * from React actually committing this story's own views - the component that owns the one testID
- * a capture can key on (Storybook's StoryView) only picks up the new atom value once its own
- * subscription effect flushes and re-renders it, and does not even exist yet while Storybook's
- * preview is still preparing its story index (see Storybook.tsx). So `storyRendered` firing only
- * ever proved Storybook's bookkeeping caught up, never that this story is actually on screen -
- * which is exactly how a capture used to sail past this wait, stabilize and photograph whatever
- * the app's shell looked like, and quietly record a window instead of the story (see WindowReason's
- * 'story-unnamed', and METADATA_TIMEOUT_MS's own note on this race). The wait below closes that:
- * it is the same reading a capture would otherwise only check AFTER already stabilizing and
- * reading the inspector, moved here and made load-bearing - failing loudly (see
- * waitForMetadataToNameTheStory) instead of letting a doomed capture run to the end and answer
- * with the window.
  */
 async function waitForTheStoryOnScreen({
   storyId,
@@ -563,7 +535,7 @@ async function waitForTheStoryOnScreen({
 }: {
   storyId: string;
   channel: StorybookChannel;
-}): Promise<{ metadata: NonNullable<ReturnType<typeof collectAppMetadata>>; wait: WaitOutcome }> {
+}): Promise<void> {
   // A capture writes nothing to the device (see the file header), so there is usually no config to
   // read here - that absence is a normal state, not an error, and falls back to the SDK's own
   // defaults rather than throwing.
@@ -591,52 +563,13 @@ async function waitForTheStoryOnScreen({
     });
   }
 
-  // Close the last-frame gap before checking the app's own reading, best-effort: the check below
-  // runs regardless of whether this settles - the same fallthrough a run itself takes when
-  // STORY_RENDERED never came (see awaitStoryReadyAndPaint), so a story that genuinely never
-  // rendered is still asked about honestly rather than left to hang on a native call that may
-  // never resolve.
+  // Close the last-frame gap before stabilizing, best-effort: the stability loop runs afterwards
+  // regardless - the same fallthrough a run itself takes when STORY_RENDERED never came (see
+  // awaitStoryReadyAndPaint), so a story that genuinely never rendered is stabilized and recorded
+  // rather than left to hang.
   await SherloModule.awaitFrameCommit(
     config.paintBarrierTimeoutMs ?? PAINT_BARRIER_TIMEOUT_MS
   ).catch(() => false);
-
-  // The real gate: not "Storybook says it rendered", but "the app's own reading of its views
-  // names this story" - see the comment above this function for why those are not the same thing.
-  // Reuses metadataOfTheApp - the same poll a capture used to only run AFTER stabilizing and
-  // reading the inspector, whose timeout used to be swallowed into a silently-recorded window (see
-  // WindowReason's 'story-unnamed') - so this is not a second, different wait, it is that one made
-  // load-bearing and moved to where a capture can still act on it, and its result (not merely
-  // whether it succeeded) is handed back so readTheStory never has to ask the same question twice.
-  const { metadata, wait, noMetadataDiagnostics } = await metadataOfTheApp(storyId);
-
-  // THROWING HERE, RATHER THAN RETURNING, IS THE POINT. A story whose testID never shows up in the
-  // app's own reading has nothing worth stabilizing, screenshotting or recording - continuing on
-  // only produces a capture that photographs the app's shell and calls it the story. captureTheStory
-  // already turns any thrown error into a `kind: 'crashed'` answer carrying the error's name and
-  // message (readError), the same shape theInspectorsOwnAnswer's own timeout already crashes with -
-  // so a capture that cannot find its story now says so instead of answering with the window.
-  //
-  // A STORY THAT RENDERED AND THREW STILL PASSES THIS. Storybook's StoryView wraps the story in a
-  // `<View testID={id}>` BEFORE the inner ErrorBoundary that catches whatever the story itself
-  // throws (see @storybook/react-native's StoryView.tsx) - so a broken story still gets its wrapper
-  // view, and its testID, committed. This only ever fails a story whose wrapper was never committed
-  // at all; theStorysOwnTree's existing 'story-broken' handling, downstream, is untouched.
-  if (!metadata) {
-    // The full diagnostics object, not a hand-picked subset of it: everything metadataOfTheApp
-    // already worked out about WHY (see NoMetadataDiagnostics) - whether anything published at
-    // all, when MetadataProvider first rendered relative to this wait, and which OTHER testIDs (if
-    // any) the reading held - is exactly what a developer needs to tell "nothing ever rendered
-    // this app" apart from "a selection bug wearing a metadata costume" apart from "the traversal
-    // is not finding a story's views at all", the same three-way question WindowReason's own
-    // comments describe. Reporting it whole here is what keeps ten rounds of hard-won diagnosis
-    // reachable from a crash, instead of re-deriving a prose summary that can drift from it.
-    throw new Error(
-      `Story ${storyId} never appeared in the app's own reading of its views within ` +
-        `${METADATA_TIMEOUT_MS}ms of being told to render: ${JSON.stringify(noMetadataDiagnostics)}`
-    );
-  }
-
-  return { metadata, wait };
 }
 
 /**
@@ -714,35 +647,25 @@ type RecordedStory = {
 /**
  * Read the story off the native inspector, retrying the way a test run does.
  *
- * METADATA IS A PARAMETER HERE, NOT A READ THIS FUNCTION TAKES ITSELF - the caller
- * (waitForTheStoryOnScreen) already waited for the app's own reading to name this story before
- * this runs at all, so re-polling for the same fact here would only ask a question already
- * answered (and, worse, hide the ceiling that answer has a right to fail loudly past - see
- * waitForTheStoryOnScreen). `metadataWait` is that same wait's own outcome, carried through so the
- * answer a capture hands back still reports how long it actually took, rather than the
- * always-instant "first-check" a second poll starting from an answer already in hand would report.
- *
- * THE INSPECTOR IS STILL RE-READ UNTIL ITS OWN TREE HOLDS THE STORY - not merely once, and not
- * merely because the metadata already names it. prepareInspectorData pairs the two readings by
- * native tag (fabricMetadata.viewProps[node.id]), so they only describe the same view tree when
- * the inspector's own tree actually contains the view that tag names. The metadata can already
- * name the story - JavaScript has rendered it - while the inspector still answers with the app's
- * shell, because the native views for that story have not mounted yet (see STORY_VIEWS_TIMEOUT_MS
- * below). Reading the inspector once and trusting a metadata match alone would re-root against a
- * tree with no such node in it - a second, later version of the exact race
- * waitForTheStoryOnScreen's own wait already closed one clock earlier.
+ * THE METADATA IS READ FIRST, AND THE INSPECTOR IS RE-READ UNTIL ITS OWN TREE HOLDS THE STORY - not
+ * merely once, and not merely once the metadata names it. prepareInspectorData pairs the two
+ * readings by native tag (fabricMetadata.viewProps[node.id]), so they only describe the same view
+ * tree when the inspector's own tree actually contains the view that tag names. The metadata can
+ * already name the story - JavaScript has rendered it - while the inspector still answers with the
+ * app's shell, because the native views for that story have not mounted yet (see
+ * STORY_VIEWS_TIMEOUT_MS below). Reading the inspector once and trusting a metadata match alone
+ * would re-root against a tree with no such node in it - the same window-instead-of-story bug
+ * metadataOfTheApp already closes on its own clock, reopened one clock later.
  */
-async function readTheStory(
-  storyId: string,
-  metadata: NonNullable<ReturnType<typeof collectAppMetadata>>,
-  metadataWait: WaitOutcome
-): Promise<RecordedStory> {
+async function readTheStory(storyId: string): Promise<RecordedStory> {
+  const { metadata, wait: metadataWait, noMetadataDiagnostics } = await metadataOfTheApp(storyId);
   const { inspectorData, wait: storyViewsWait } = await inspectorDataOfTheApp(storyId, metadata);
 
   const { tree, hasNetworkImage, at, reason } = await theStorysOwnTree(
     inspectorData,
     metadata,
-    storyId
+    storyId,
+    noMetadataDiagnostics
   );
 
   return {
@@ -862,13 +785,13 @@ function theStorysViewsAreInTheTree(
  * says whether anything on screen is loaded over the network. A capture records the same story, so
  * it takes all three from that one step rather than reading the window a second way of its own.
  *
- * METADATA IS NEVER ABSENT HERE. It used to be, and this function used to answer that with a
- * silently-recorded window (WindowReason's 'nothing-published'/'story-unnamed') - the exact fallback
- * that hid a capture's story never being found for this whole epic. The caller now only ever gets
- * this far once waitForTheStoryOnScreen has already confirmed the app's own reading names this
- * story - failing loudly, before any of this runs, when it does not (see there). What is left for
- * this function to record as a window is narrower, and true either way: a story that rendered and
- * threw, or a story whose views never made it into the inspector's own tree.
+ * The step needs the app's view metadata, which a run holds as a React ref and a capture, having no
+ * renderer, reads from the seam the renderer publishes it on (./appMetadata) - already waited for by
+ * the caller (metadataOfTheApp, read in readTheStory before the inspector itself) so that it names
+ * this story and was read at the same moment as the inspector data handed in here. With no metadata
+ * published - nothing rendered this app the way a run renders it - there is no story to start at
+ * and no image to report: what the inspector answered is recorded as it stands, the whole window
+ * rather than the story.
  *
  * A BROKEN STORY IS NOT RE-ROOTED, because a run does not re-root one. The run skips that step
  * whenever the story contains an error and keeps the inspector's tree as it answered it
@@ -879,14 +802,24 @@ function theStorysViewsAreInTheTree(
  */
 async function theStorysOwnTree(
   inspectorData: InspectorData,
-  metadata: NonNullable<ReturnType<typeof collectAppMetadata>>,
-  storyId: string
+  metadata: ReturnType<typeof collectAppMetadata>,
+  storyId: string,
+  noMetadataDiagnostics: NoMetadataDiagnostics
 ): Promise<{
   tree: CapturedViewTree;
   hasNetworkImage: boolean;
   at: 'story' | 'window';
   reason?: WindowReason;
 }> {
+  if (!metadata) {
+    return {
+      tree: captureViewTree(inspectorData.viewHierarchy, componentNamesByNativeTag()),
+      hasNetworkImage: false,
+      at: 'window',
+      reason: noMetadataDiagnostics,
+    };
+  }
+
   const broken = brokenStoryReason(storyId, inspectorData);
   if (broken) {
     const reason: WindowReason =
