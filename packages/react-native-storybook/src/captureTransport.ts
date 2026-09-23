@@ -802,6 +802,14 @@ async function waitForTheStorysOwnViews(
  * the wrong story", or "it finished onto the right one and that story's own render is what failed" -
  * `ready`, how many stories the index holds, and which one Storybook believes is selected split those
  * apart. `selectedStoryId` is left out when Storybook exposes no selection yet, rather than guessed at.
+ *
+ * AND WHETHER THIS BOOT HAD A STORY HANDED OVER AT ALL. `TestingMode/Storybook.tsx` reads
+ * `SherloModule.getLastState()?.nextSnapshot.storyId` into `initialSelection` at construction time -
+ * the same field a run's own restart populates, and the one a capture's restart is meant to populate
+ * too (`SherloModule.openTesting(storyId)`, native side persists it and rebuilds it into this exact
+ * shape - see sherlo#316). Whether that handover actually reached this boot, and with which story, is
+ * a fact this file could otherwise only guess at from the outside - so it is read here, once, the same
+ * way every other fact in this message is: straight off the source, not inferred.
  */
 function describeStorybookState(view: StorybookView, storyId: string): string {
   const asView = view as unknown as {
@@ -813,6 +821,7 @@ function describeStorybookState(view: StorybookView, storyId: string): string {
   const ready = asView._ready === true;
   const storyCount = Object.keys(asView._storyIndex?.entries ?? {}).length;
   const selectedStoryId = asView._preview?.currentSelection?.storyId;
+  const handedOverStoryId = SherloModule.getLastState()?.nextSnapshot.storyId;
 
   const selection =
     typeof selectedStoryId !== 'string'
@@ -821,9 +830,14 @@ function describeStorybookState(view: StorybookView, storyId: string): string {
       ? 'has this story selected'
       : `has selected "${selectedStoryId}" instead`;
 
+  const handover = handedOverStoryId
+    ? `the app booted with "${handedOverStoryId}" handed over as its initial selection`
+    : 'the app booted with no story handed over as its initial selection';
+
   return (
     `Storybook itself: ${ready ? 'reports itself ready' : 'never reported itself ready'}, ` +
-    `${storyCount} ${storyCount === 1 ? 'story' : 'stories'} in its index, and ${selection}`
+    `${storyCount} ${storyCount === 1 ? 'story' : 'stories'} in its index, and ${selection} - ` +
+    `${handover}`
   );
 }
 
