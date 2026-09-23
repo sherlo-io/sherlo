@@ -50,6 +50,14 @@ export type CaptureResult =
       kind: 'crashed';
       storyId: string;
       error?: { name: string; message: string };
+      /**
+       * Every line the app's own RunnerBridge.log formed since the previous capture (or since it
+       * booted, for the first one), drained from the bundler's own live feed - not carried in the
+       * app's own answer, which a crash inside the walk can leave never sent at all (see
+       * drainCaptureLog and the SDK's captureLogSink.ts). Absent when nothing was logged, or the
+       * feed itself is unreachable.
+       */
+      logs?: string[];
     }
   | {
       kind: 'captured';
@@ -77,6 +85,12 @@ export type CaptureResult =
       };
       /** What the tree is rooted at, how many nodes it holds, and, for a window, WHY - see WindowReason. */
       root?: { at: 'story' | 'window'; nodeCount: number; reason?: WindowReason };
+      /**
+       * Every line the app's own RunnerBridge.log formed since the previous capture (or since it
+       * booted, for the first one), drained from the bundler's own live feed - see the `crashed`
+       * variant above for why it is drained rather than carried in the answer.
+       */
+      logs?: string[];
     };
 
 /** How one of the app's waits ended, as it reports it - see the SDK's own WaitOutcome. */
@@ -136,6 +150,13 @@ export type CaptureSocket = {
 const CAPTURE_PATH = '/sherlo/capture';
 
 /**
+ * The app's own live log feed, beside the capture address - the other half is the SDK's
+ * captureLogSink.ts and metro/captureLogSocket.js. Drained once per capture, after the app's answer
+ * is known (or given up on) - see drainCaptureLog.
+ */
+const CAPTURE_LOG_PATH = '/sherlo/capture-log';
+
+/**
  * How long the command stays on the line for the app to answer. A capture restarts the app and
  * waits for a story to settle, so this is a generous ceiling rather than a second timeout: the app
  * answers the moment it has the tree, and the only real delay is an app that died mid-capture.
@@ -153,15 +174,50 @@ export const liveCaptureSocket: CaptureSocket = {
 
     if (answer.kind === 'nothing-on-the-port') return { kind: 'no-bundler' };
     if (answer.kind === 'not-in-sherlos-words') return { kind: 'no-app' };
+
     if (answer.kind === 'gave-up-waiting') {
       // The app was handed the story and then stopped answering - a fatal error, a native crash,
-      // or the app being closed. Nothing more can be said about it.
-      return { kind: 'crashed', storyId };
+      // or the app being closed. The tree and the settle time are gone with it, but whatever it
+      // logged on the way is not: it was already pushed to the bundler's own feed, live, before
+      // whatever silenced the app had a chance to (see drainCaptureLog).
+      const logs = await drainCaptureLog(port);
+      return { kind: 'crashed', storyId, ...(logs.length > 0 && { logs }) };
     }
 
-    return readCaptureAnswer(answer.said, storyId);
+    const result = readCaptureAnswer(answer.said, storyId);
+    if (result.kind === 'captured' || result.kind === 'crashed') {
+      const logs = await drainCaptureLog(port);
+      if (logs.length > 0) result.logs = logs;
+    }
+    return result;
   },
 };
+
+/**
+ * Drain the app's own live log feed - every line pushed since the last drain, which is either this
+ * app's boot (nobody has read the feed yet) or this capture's own previous story. Best-effort: an
+ * unreachable feed (an app old enough to have never pushed to it, a bundler that went away between
+ * the main answer and this read) answers with nothing readable, and that is not this capture's own
+ * failure to report - it already has its answer.
+ */
+async function drainCaptureLog(port: number): Promise<string[]> {
+  let response: Response;
+
+  try {
+    response = await fetch(`http://localhost:${port}${CAPTURE_LOG_PATH}`);
+  } catch (_error) {
+    return [];
+  }
+
+  if (!response.ok) return [];
+
+  try {
+    const said = (await response.json()) as { lines?: unknown };
+    return Array.isArray(said.lines) ? said.lines.filter(isString) : [];
+  } catch (_error) {
+    return [];
+  }
+}
 
 let installed: CaptureSocket = liveCaptureSocket;
 

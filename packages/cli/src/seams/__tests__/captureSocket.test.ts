@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { liveCaptureSocket, STABILIZATION_SETTINGS } from '../captureSocket';
 
 const createCaptureSocket = require('../../../../react-native-storybook/metro/captureSocket.js');
+const createCaptureLogSocket = require('../../../../react-native-storybook/metro/captureLogSocket.js');
 
 const STORY_A = 'components-button--primary';
 const STORY_B = 'components-avatar--basic';
@@ -42,25 +43,59 @@ const ANSWER_B = {
 /** A bundler with the capture relay on it. */
 async function startRelay(): Promise<RunningRelay> {
   const relay = createCaptureSocket();
-  const server = http.createServer((request, response) => {
+  return serve((request, response) => {
     relay.middleware(request, response, () => {
       response.writeHead(404);
       response.end();
     });
   });
+}
 
-  await new Promise<void>((listening) => server.listen(0, '127.0.0.1', listening));
-  const port = (server.address() as { port: number }).port;
+/**
+ * A bundler with BOTH the capture relay and its live log feed on it - the same pairing
+ * applySherloTransforms.js mounts on a real bundler (see metro/captureLogSocket.js).
+ */
+async function startRelayWithLogFeed(): Promise<RunningRelay> {
+  const relay = createCaptureSocket();
+  const logFeed = createCaptureLogSocket();
+  return serve((request, response) => {
+    relay.middleware(request, response, () => {
+      logFeed.middleware(request, response, () => {
+        response.writeHead(404);
+        response.end();
+      });
+    });
+  });
+}
 
-  return {
-    origin: `http://127.0.0.1:${port}`,
-    port,
-    close: () =>
-      new Promise<void>((closed) => {
-        (server as { closeAllConnections?: () => void }).closeAllConnections?.();
-        server.close(() => closed());
-      }),
-  };
+function serve(
+  handler: (request: http.IncomingMessage, response: http.ServerResponse) => void
+): Promise<RunningRelay> {
+  const server = http.createServer(handler);
+
+  return new Promise<RunningRelay>((listening) => {
+    server.listen(0, '127.0.0.1', () => {
+      const port = (server.address() as { port: number }).port;
+      listening({
+        origin: `http://127.0.0.1:${port}`,
+        port,
+        close: () =>
+          new Promise<void>((closed) => {
+            (server as { closeAllConnections?: () => void }).closeAllConnections?.();
+            server.close(() => closed());
+          }),
+      });
+    });
+  });
+}
+
+/** Push one line to the app's own live log feed, the way the SDK's captureLogSink.ts does. */
+function appLogs(origin: string, line: string): Promise<unknown> {
+  return fetch(`${origin}/sherlo/capture-log`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ line }),
+  }).then((response) => response.json());
 }
 
 /** The app's side of the address: say what mode and stories I have, and what I last recorded. */
@@ -489,5 +524,91 @@ describe("the app's answer, read into this seam's own endings", () => {
         recorded: { kind: 'crashed', storyId: STORY_A },
       })
     ).toEqual({ kind: 'crashed', storyId: STORY_A });
+  });
+});
+
+describe("the app's own log lines, drained from its live feed once the answer is known", () => {
+  const running: RunningRelay[] = [];
+
+  afterEach(async () => {
+    while (running.length) await running.pop()!.close();
+  });
+
+  async function relay(): Promise<RunningRelay> {
+    const r = await startRelayWithLogFeed();
+    running.push(r);
+    return r;
+  }
+
+  it('carries whatever the app pushed to its live feed during the walk - not merely what its own answer said', async () => {
+    const r = await relay();
+    await appLogs(r.origin, '12:00:00: storybook style : {"style":"dark"}');
+    await appLogs(r.origin, '12:00:01: attempt to test story');
+
+    const answer = await aCapture(r, { askedFor: STORY_A, stories: [STORY_A], recorded: ANSWER_A });
+
+    expect(answer).toEqual({
+      kind: 'captured',
+      storyId: STORY_A,
+      settled: { ms: 120, frames: 6 },
+      tree: { primitive: 'RCTView', components: [], children: [] },
+      logs: ['12:00:00: storybook style : {"style":"dark"}', '12:00:01: attempt to test story'],
+    });
+  });
+
+  it('carries no `logs` field at all when the feed was empty, rather than an empty array', async () => {
+    const r = await relay();
+
+    const answer = await aCapture(r, { askedFor: STORY_A, stories: [STORY_A], recorded: ANSWER_A });
+
+    expect(answer).not.toHaveProperty('logs');
+  });
+
+  it("a second capture's own read never sees the first capture's lines again - the feed is drained, not merely peeked", async () => {
+    const r = await relay();
+    await appLogs(r.origin, 'only capture A logged this');
+
+    await aCapture(r, { askedFor: STORY_A, stories: [STORY_A], recorded: ANSWER_A });
+    const secondAnswer = await aCapture(r, {
+      askedFor: STORY_B,
+      stories: [STORY_B],
+      recorded: ANSWER_B,
+    });
+
+    expect(secondAnswer).not.toHaveProperty('logs');
+  });
+
+  it('the crash ending carries whatever reached the feed before the app said it died', async () => {
+    const r = await relay();
+    await appLogs(r.origin, '12:00:00: paint barrier error : {"error":"timed out"}');
+    const died = { name: 'RangeError', message: 'Maximum call stack size exceeded' };
+
+    const answer = await aCapture(r, {
+      askedFor: STORY_A,
+      stories: [STORY_A],
+      recorded: { kind: 'crashed', storyId: STORY_A, error: died },
+    });
+
+    expect(answer).toEqual({
+      kind: 'crashed',
+      storyId: STORY_A,
+      error: died,
+      logs: ['12:00:00: paint barrier error : {"error":"timed out"}'],
+    });
+  });
+
+  it('a relay with no log feed mounted (an older SDK) is read as silence, not a failure', async () => {
+    // A bundler running an SDK older than this feed never mounts metro/captureLogSocket.js at all -
+    // the same bare double every other describe block in this file already uses.
+    const bareRelay = await startRelay();
+    running.push(bareRelay);
+
+    const answer = await aCapture(bareRelay, {
+      askedFor: STORY_A,
+      stories: [STORY_A],
+      recorded: ANSWER_A,
+    });
+
+    expect(answer).not.toHaveProperty('logs');
   });
 });

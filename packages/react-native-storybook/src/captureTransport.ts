@@ -106,11 +106,21 @@ import {
   waitForStoryRendered,
   type StorybookChannel,
 } from './getStorybook/components/TestingMode/useTestAllStories/storyRenderedReadiness';
+import { setCaptureLogSink } from './helpers/RunnerBridge/captureLogSink';
 
 const SET_CURRENT_STORY = 'setCurrentStory';
 
 /** The one address Sherlo adds to the bundler; the other half of it is metro/captureSocket.js. */
 const CAPTURE_PATH = '/sherlo/capture';
+
+/**
+ * The address a capture pushes its own log lines to, live - the other half is
+ * metro/captureLogSocket.js. A plain append, never held open: the app posts and moves on, so a line
+ * reaches the bundler's own memory (a process that outlives the app's own crash) the instant
+ * RunnerBridge.log forms it, rather than waiting on whatever this capture's own walk is doing (see
+ * ./helpers/RunnerBridge/captureLogSink.ts).
+ */
+const CAPTURE_LOG_PATH = '/sherlo/capture-log';
 
 /**
  * How long the app leaves a request hanging before it gives up on it. Longer than the bundler's own
@@ -404,6 +414,14 @@ export function startCaptureTransport({
   const road = capture === undefined ? bundlerCapture() : capture;
   if (!road) return;
 
+  // Every RunnerBridge.log line from here on is pushed live to the bundler, not carried home
+  // inside this capture's own answer (see ./helpers/RunnerBridge/captureLogSink.ts for why). The
+  // origin can differ from bundlerCapture()'s own (a real device with no origin to resolve, say),
+  // in which case there is nowhere to push to and the sink is simply never registered - the same
+  // "nothing to wait on" state bundlerCapture() itself falls back to.
+  const origin = bundlerOrigin();
+  if (origin) setCaptureLogSink((line) => pushLogLineToBundler(origin, line));
+
   // The same tracker the test run uses: it buffers the story last rendered, which is what
   // waitForStoryRendered reads after a story is put on screen.
   startStoryRenderedTracking(channel);
@@ -415,6 +433,22 @@ export function startCaptureTransport({
 /** Stop waiting. The request already in flight is left to finish and its answer dropped. */
 export function stopCaptureTransport(): void {
   collecting = false;
+  setCaptureLogSink(undefined);
+}
+
+/**
+ * Push one log line to the bundler's live feed, best-effort. Never awaited by a caller and never
+ * throws into the app: a lost line here is no worse than the silence this whole file exists to
+ * replace, and RunnerBridge.log must never be slowed down or broken by its own diagnostics.
+ */
+function pushLogLineToBundler(origin: string, line: string): void {
+  fetch(`${origin}${CAPTURE_LOG_PATH}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ line }),
+  }).catch(() => {
+    // Nothing to do with a failed push - see this function's own header.
+  });
 }
 
 /* ========================================================================== */

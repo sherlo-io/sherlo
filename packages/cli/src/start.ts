@@ -62,6 +62,7 @@ import {
   OPEN_COMMAND,
   CAPTURE_COMMAND,
   JSON_OPTION,
+  LOGS_OPTION,
   STORY_OPTION,
   PORT_OPTION,
   TIMEOUT_OPTION,
@@ -163,7 +164,8 @@ const COMMAND_DESCRIPTION = {
   [CAPTURE_COMMAND]:
     'Record one story the way a Sherlo test run does, on the app you are running.\n' +
     '  Testing mode, the same stabilization, the same view tree - printed here, uploaded\n' +
-    `  nowhere. \`--${JSON_OPTION}\` prints the whole record for a program to read.\n` +
+    `  nowhere. \`--${JSON_OPTION}\` prints the whole record for a program to read, which\n` +
+    `  includes the app's own log lines; \`--${LOGS_OPTION}\` prints those lines on the screen too.\n` +
     '  Exit 0 when a record came back, 1 when it did not.',
   [`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}`]:
     'Create a project in a team and print its project token ONCE.\n' +
@@ -319,6 +321,10 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `Where the bundler is listening (default: ${DEFAULT_BUNDLER_PORT})`,
   ],
   [JSON_OPTION]: [`--${JSON_OPTION}`, 'Print the whole record as JSON instead of a screen'],
+  [LOGS_OPTION]: [
+    `--${LOGS_OPTION}`,
+    "Also print the app's own log lines from this capture, after the story",
+  ],
   [TIMEOUT_OPTION]: [
     `--${TIMEOUT_OPTION} <seconds>`,
     `How long \`--${WAIT_OPTION}\` waits for the app to report the story (default: 30)`,
@@ -367,7 +373,7 @@ function addCaptureCommand(program: Command) {
   addCommand({
     program,
     command: CAPTURE_COMMAND,
-    options: [STORY_OPTION, PORT_OPTION, JSON_OPTION],
+    options: [STORY_OPTION, PORT_OPTION, JSON_OPTION, LOGS_OPTION],
     action: capture,
     withTimeout: false,
   });

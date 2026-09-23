@@ -19,7 +19,7 @@ import { captureTranscript } from '../../../helpers/transcriptSink';
 import { STABILIZATION_SETTINGS, installCaptureSocket } from '../../../seams/captureSocket';
 import type { CaptureResult, CaptureSocket } from '../../../seams/captureSocket';
 import type { CapturedView } from '../../../render/capturedStory';
-import { STORY_OPTION } from '../../../constants';
+import { JSON_OPTION, LOGS_OPTION, STORY_OPTION } from '../../../constants';
 
 const STORY = 'components-button--primary';
 
@@ -218,6 +218,67 @@ describe('every ending the capture screen draws is reached from an answer the ap
   });
 });
 
+describe("the app's own log lines never reach the drawn screen unasked, and `--logs` is the one door that puts them there", () => {
+  const WITH_LOGS: CaptureResult = {
+    kind: 'captured',
+    storyId: STORY,
+    settled: SETTLED,
+    tree: ONE_VIEW,
+    logs: ['12:00:00: storybook style : {"style":"dark"}'],
+  };
+
+  it('the default screen never shows a log line, even when the answer carries some', async () => {
+    const { screen } = await captureOneStory(WITH_LOGS);
+
+    expect(screen).not.toContain('storybook style');
+  });
+
+  it('`--logs` prints them after the story, with a count line first', async () => {
+    const { screen } = await captureOneStory(WITH_LOGS, { [LOGS_OPTION]: true });
+
+    expect(screen).toContain('captured, the way a test run records it');
+    expect(screen).toContain('1 line recorded during this capture');
+    expect(screen).toContain('12:00:00: storybook style : {"style":"dark"}');
+  });
+
+  it('`--logs` says so plainly when the app logged nothing, rather than printing an empty block', async () => {
+    const { screen } = await captureOneStory(
+      { kind: 'captured', storyId: STORY, settled: SETTLED, tree: ONE_VIEW },
+      { [LOGS_OPTION]: true }
+    );
+
+    expect(screen).toContain('The app logged nothing during this capture.');
+  });
+
+  it('`--logs` prints nothing extra for an ending that never reached an app - there is no log to have asked for', async () => {
+    const { screen } = await captureOneStory(
+      { kind: 'no-such-story', known: ['foundation-typography--scales'] },
+      { [LOGS_OPTION]: true }
+    );
+
+    expect(screen).not.toContain('recorded during this capture');
+    expect(screen).not.toContain('logged nothing');
+  });
+
+  it('`--json` carries the log lines regardless of `--logs`', async () => {
+    // `--json` writes straight to process.stdout, not through the emit() sink captureOneStory
+    // otherwise reads - so this reads that stream directly instead.
+    let written = '';
+    const write = vi.spyOn(process.stdout, 'write').mockImplementation(((chunk: string) => {
+      written += chunk;
+      return true;
+    }) as never);
+
+    try {
+      await captureOneStory(WITH_LOGS, { [JSON_OPTION]: true });
+    } finally {
+      write.mockRestore();
+    }
+
+    expect(JSON.parse(written)).toEqual(WITH_LOGS);
+  });
+});
+
 /* ========================================================================== */
 
 /**
@@ -227,7 +288,8 @@ describe('every ending the capture screen draws is reached from an answer the ap
  * what the cases read is the command's own output - not a renderer called by hand.
  */
 async function captureOneStory(
-  answer: CaptureResult
+  answer: CaptureResult,
+  extraOptions: Partial<Record<typeof JSON_OPTION | typeof LOGS_OPTION, boolean>> = {}
 ): Promise<{ screen: string; exitCode: number | undefined; asked: unknown }> {
   let asked: unknown;
   const socket: CaptureSocket = {
@@ -248,7 +310,7 @@ async function captureOneStory(
   try {
     const { stdout } = await captureTranscript(async () => {
       try {
-        await capture({ [STORY_OPTION]: STORY });
+        await capture({ [STORY_OPTION]: STORY, ...extraOptions });
       } catch (error) {
         // A refusal ends the process, which this case has stubbed to throw so it can read on.
         if (!(error instanceof LeftTheProcess)) throw error;

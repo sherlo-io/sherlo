@@ -811,6 +811,17 @@ describe('applySherloTransforms - the letterbox address', () => {
 
     expect(chain).toEqual(['the project', 'the bundler: /index.bundle']);
   });
+
+  it("serves the capture log feed's own address too, ahead of the letterbox and the bundler", () => {
+    const reachedTheBundler: string[] = [];
+    const enhance = enhancedMiddlewareFor({});
+    const middleware = enhance((request: any) => reachedTheBundler.push(request.url));
+
+    const reader = requestFor('/sherlo/capture-log', 'GET');
+    middleware(reader.request, reader.response, () => {});
+    expect(reader.response.written).toEqual([JSON.stringify({ lines: [] })]);
+    expect(reachedTheBundler).toEqual([]);
+  });
 });
 
 /**

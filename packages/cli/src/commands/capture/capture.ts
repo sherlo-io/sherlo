@@ -10,7 +10,13 @@
  * thing a caller branches on: whether a record came back. A story that threw, or never settled,
  * still came back with a record - that is the developer's news, not the tool's failure.
  */
-import { DEFAULT_BUNDLER_PORT, JSON_OPTION, PORT_OPTION, STORY_OPTION } from '../../constants';
+import {
+  DEFAULT_BUNDLER_PORT,
+  JSON_OPTION,
+  LOGS_OPTION,
+  PORT_OPTION,
+  STORY_OPTION,
+} from '../../constants';
 import { throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
 import { EXIT_BLOCK } from '../../helpers/exitCodes';
@@ -22,6 +28,7 @@ export type CaptureOptions = {
   [STORY_OPTION]?: string;
   [PORT_OPTION]?: string;
   [JSON_OPTION]?: boolean;
+  [LOGS_OPTION]?: boolean;
 };
 
 async function capture(passedOptions: CaptureOptions): Promise<void> {
@@ -44,9 +51,18 @@ async function capture(passedOptions: CaptureOptions): Promise<void> {
   });
 
   if (passedOptions[JSON_OPTION]) {
+    // The record already carries the app's own log lines (see ../../seams/captureSocket) - `--json`
+    // is a program's own door, so it gets them whether or not `--logs` was also passed.
     process.stdout.write(`${JSON.stringify(answer, null, 2)}\n`);
   } else {
     emit({ kind: 'captured-story', state: endingFor(answer, { storyId, port }) });
+
+    // The one door that puts the app's own log on a terminal: opt-in, and never woven into the
+    // fixed screen above (see ../../render/capturedLog). 'no-bundler' / 'no-app' / 'no-such-story'
+    // never reached an app, so there is no log to have asked for.
+    if (passedOptions[LOGS_OPTION] && (answer.kind === 'captured' || answer.kind === 'crashed')) {
+      emit({ kind: 'captured-log', logs: answer.logs ?? [] });
+    }
   }
 
   if (answer.kind !== 'captured') process.exit(EXIT_BLOCK);
