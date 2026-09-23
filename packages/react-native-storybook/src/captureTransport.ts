@@ -587,18 +587,41 @@ type StoryOnScreen = {
 };
 
 /**
+ * Whether THIS boot already landed on `storyId` as its initial selection - the same field
+ * `describeStorybookState` reads for its diagnostic, and the same field `TestingMode/Storybook.tsx`
+ * reads into `initialSelection` at construction time (see the file header). A capture asking for the
+ * exact story its own restart just handed over has nothing left to tell Storybook - the native side
+ * already landed it there - so this is the one fact that tells that story apart from every other
+ * asking, which still has to move Storybook off whatever it is currently showing.
+ */
+function bootAlreadySelected(storyId: string): boolean {
+  return SherloModule.getLastState()?.nextSnapshot.storyId === storyId;
+}
+
+/**
  * Put the story on screen and wait until it has rendered, painted, and - load-bearing - until its
  * OWN VIEWS ARE ACTUALLY THERE. `storyRendered` alone is not that: see waitForTheStorysOwnViews for
  * why, and for what happens when they never arrive.
  *
- * THE FIRST TELLING CAN LOSE A RACE THAT ONLY EXISTS ON A CAPTURE'S RESTART. Storybook is booting up
- * this same instant, with no `initialSelection` to land on (see the file header) - so this call and
- * Storybook's own default-selection effect are both trying to decide what is on screen, and whichever
- * finishes last wins. A capture told once and asleep for STORY_RENDERED has no way to tell the two
- * outcomes apart: "the app has not gotten to it yet" and "the app already overwrote it" both look like
- * silence. So this keeps telling it again - not merely once, and not only for the first story of a
- * session - every SELECT_STORY_RETRY_INTERVAL_MS until STORY_RENDERED names this exact story, which is
- * the one signal that says the race is over and nothing is going to move Storybook off of it again.
+ * THE FIRST TELLING CAN LOSE A RACE THAT ONLY EXISTS ON A CAPTURE'S RESTART - AND ONLY WHEN THE
+ * RESTART HANDED NOTHING OVER. Storybook is booting up this same instant with no `initialSelection`
+ * to land on (see the file header) - so this call and Storybook's own default-selection effect are
+ * both trying to decide what is on screen, and whichever finishes last wins. A capture told once and
+ * asleep for STORY_RENDERED has no way to tell the two outcomes apart: "the app has not gotten to it
+ * yet" and "the app already overwrote it" both look like silence. So this keeps telling it again -
+ * not merely once, and not only for the first story of a session - every SELECT_STORY_RETRY_INTERVAL_MS
+ * until STORY_RENDERED names this exact story, which is the one signal that says the race is over and
+ * nothing is going to move Storybook off of it again.
+ *
+ * WHEN THE RESTART DID HAND THIS STORY OVER, THERE IS NO RACE TO WIN AND NOTHING TO TELL. The native
+ * side already landed Storybook on `storyId` before this JavaScript ever ran (`initialSelection`,
+ * built from the SAME `nextSnapshot.storyId` `bootAlreadySelected` reads here) - the exact way a test
+ * run's own boot works (see useTestStory.tsx: `awaitStoryReadyAndPaint` never emits SET_CURRENT_STORY
+ * either, it only waits). Emitting SET_CURRENT_STORY anyway is not harmless here: it is what raced
+ * Storybook's own end-of-index-load `selectSpecifiedStory()` in the first place - two selections
+ * landing on the same preview while it is still mid-boot, one of them unasked-for. So this asking
+ * behaves exactly like a run's own boot: wait for STORY_RENDERED once, over the same ceiling a single
+ * telling always had, and never emit at all.
  */
 async function waitForTheStoryOnScreen({
   storyId,
@@ -614,26 +637,33 @@ async function waitForTheStoryOnScreen({
   // defaults rather than throwing.
   const config = SherloModule.getConfigOrDefault();
   const timeoutMs = config.storyRenderedTimeoutMs ?? STORY_RENDERED_TIMEOUT_MS;
-  const startedAt = Date.now();
 
-  // The story was handed over by name; put it on screen the way Storybook moves between stories,
-  // then wait for it to be reported rendered - re-telling it, inside the same overall ceiling a
-  // single telling already had, until it is.
-  channel.emit(SET_CURRENT_STORY, { storyId });
-  let readiness = await waitForStoryRendered({
-    storyId,
-    timeoutMs: Math.min(SELECT_STORY_RETRY_INTERVAL_MS, timeoutMs),
-    channel,
-  });
+  let readiness: Awaited<ReturnType<typeof waitForStoryRendered>>;
 
-  while (!readiness.rendered && Date.now() - startedAt < timeoutMs) {
+  if (bootAlreadySelected(storyId)) {
+    readiness = await waitForStoryRendered({ storyId, timeoutMs, channel });
+  } else {
+    const startedAt = Date.now();
+
+    // The story was handed over by name; put it on screen the way Storybook moves between stories,
+    // then wait for it to be reported rendered - re-telling it, inside the same overall ceiling a
+    // single telling already had, until it is.
     channel.emit(SET_CURRENT_STORY, { storyId });
-    const remainingMs = Math.max(timeoutMs - (Date.now() - startedAt), 0);
     readiness = await waitForStoryRendered({
       storyId,
-      timeoutMs: Math.min(SELECT_STORY_RETRY_INTERVAL_MS, remainingMs),
+      timeoutMs: Math.min(SELECT_STORY_RETRY_INTERVAL_MS, timeoutMs),
       channel,
     });
+
+    while (!readiness.rendered && Date.now() - startedAt < timeoutMs) {
+      channel.emit(SET_CURRENT_STORY, { storyId });
+      const remainingMs = Math.max(timeoutMs - (Date.now() - startedAt), 0);
+      readiness = await waitForStoryRendered({
+        storyId,
+        timeoutMs: Math.min(SELECT_STORY_RETRY_INTERVAL_MS, remainingMs),
+        channel,
+      });
+    }
   }
 
   // Close the last-frame gap before the real gate, best-effort: the wait below runs afterwards

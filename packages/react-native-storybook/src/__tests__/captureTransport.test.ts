@@ -838,17 +838,71 @@ describe('the crash carries what Storybook itself was doing when the gate gave u
     );
   }, 20000);
 
-  it('names the story that was handed over at boot, when the restart carried one', async () => {
-    mockGetLastState.mockReturnValue({ nextSnapshot: { storyId: STORY }, requestId: '' });
+  it('names the story that was handed over at boot, when the restart carried a DIFFERENT story', async () => {
+    // A different story than the one being captured, deliberately: the boot-selection story is
+    // handed over as the FIRST story of a session, but this diagnostic is read for whichever story
+    // is being captured right now - and when it names one this boot never selected, the app still
+    // gets told to show it (see "the story a boot already selected" below for the matching case,
+    // which never reaches this diagnostic because setCurrentStory is what would normally win the
+    // race this test's own silence stands in for).
+    mockGetLastState.mockReturnValue({
+      nextSnapshot: { storyId: 'components-splash--default' },
+      requestId: '',
+    });
 
     const answer = await answerOneStory(undefined, makeView({ ready: false, storyIds: [] }));
 
     expect(answer.kind).toBe('crashed');
     const crashed = answer as Extract<CapturedAnswer, { kind: 'crashed' }>;
     expect(crashed.error?.message).toContain(
-      `the app booted with "${STORY}" handed over as its initial selection`
+      'the app booted with "components-splash--default" handed over as its initial selection'
     );
   }, 20000);
+});
+
+describe('the story a boot already selected is never told again', () => {
+  // waitForTheStoryOnScreen emitted SET_CURRENT_STORY unconditionally, first and on every retry,
+  // with no regard for whether this exact story was the one the native side already landed
+  // Storybook on at boot (SherloModule.getLastState()?.nextSnapshot.storyId - the same field
+  // TestingMode/Storybook.tsx reads into initialSelection). On the first capture of a boot that
+  // emit could fire while Storybook's own preview was still mid-index-load, racing the selection
+  // Storybook was about to apply for itself at the end of that load - two selections, one of them
+  // unasked-for. A run never takes this risk: it boots onto its story and never tells Storybook
+  // again (see useTestStory.tsx's awaitStoryReadyAndPaint, which only waits). A capture now does
+  // the same whenever the story it was asked for is the one already handed over.
+  it('does not emit setCurrentStory when this boot already selected the story being captured', async () => {
+    mockGetLastState.mockReturnValue({ nextSnapshot: { storyId: STORY }, requestId: '' });
+
+    const { answered, channel } = startTheRoad();
+    // Nothing waits for an emit here - there is none to wait for. The channel is told the story
+    // rendered exactly as Storybook itself would report it once its own boot-time selection lands.
+    channel.emit('storyRendered', STORY);
+
+    const answer = await answered;
+    if (answer.kind !== 'captured') throw new Error(`the story was not captured: ${answer.kind}`);
+
+    expect(channel.emitted('setCurrentStory')).toEqual([]);
+    expect(answer.tree).toEqual(RECORDED_TREE);
+  });
+
+  it('still emits setCurrentStory when this boot handed over a different story', async () => {
+    mockGetLastState.mockReturnValue({
+      nextSnapshot: { storyId: 'components-splash--default' },
+      requestId: '',
+    });
+
+    const answer = await walkOneStory();
+
+    expect(answer.tree).toEqual(RECORDED_TREE);
+  });
+
+  it('still emits setCurrentStory when this boot handed over no story at all', async () => {
+    mockGetLastState.mockReturnValue(undefined);
+
+    const answer = await walkOneStory();
+
+    expect(answer.tree).toEqual(RECORDED_TREE);
+  });
 });
 
 describe('the classifier never quotes identical evidence and calls it changed', () => {
