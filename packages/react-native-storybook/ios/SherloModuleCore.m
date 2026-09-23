@@ -202,10 +202,22 @@ static FileSystemHelper *fileSystemHelper;
  * The restart a capture asks for: the same reload `sherlo open` uses, but into
  * testing mode so the app comes back up with isRunningVisualTests true.
  *
+ * THE STORY SURVIVES THE RELOAD FOR FREE. Unlike Android's ProcessPhoenix, this reload never kills
+ * the process (see RestartHelper.m) - `lastState` is a static, so setting it here, before the
+ * reload, is enough for it to still be there once the JS context comes back up. No persistence
+ * needed: this class's `init` only overwrites `lastState` from a config.sherlo a capture never
+ * writes (see the top of this file), so the value set here is what a capture's first story reads
+ * back as `lastState?.nextSnapshot.storyId` (see TestingMode/Storybook.tsx) - the exact shape a real
+ * run's own protocol file produces, with no requestId because a capture has none.
+ *
  * @param bridge The React Native bridge needed for reloading
+ * @param storyId The story to land the restarted app on directly, or empty when there is none.
  */
-- (void)openTesting:(RCTBridge *)bridge {
+- (void)openTesting:(RCTBridge *)bridge storyId:(NSString *)storyId {
     currentMode = MODE_TESTING;
+    if (storyId.length > 0) {
+        lastState = @{ @"nextSnapshot": @{ @"storyId": storyId } };
+    }
     [RestartHelper restart:bridge];
 }
 

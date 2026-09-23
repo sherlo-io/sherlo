@@ -63,8 +63,10 @@
  * Switches to testing mode.
  *
  * @param bridge The React Native bridge needed for reloading
+ * @param storyId The story to land the restarted app on directly (as `initialSelection` - see
+ *                TestingMode/Storybook.tsx), or empty when there is none to hand over.
  */
-- (void)openTesting:(RCTBridge *)bridge;
+- (void)openTesting:(RCTBridge *)bridge storyId:(NSString *)storyId;
 
 /**
  * Writes a NATIVE_ERROR JSON line to protocol.sherlo.

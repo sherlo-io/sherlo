@@ -17,12 +17,19 @@
  * last-frame gap, stabilize, and read the view tree - THAT part is the run's own steps, told over a
  * socket rather than the runner's file and answered over the same socket rather than the runner's file.
  *
- * THE FIRST STORY OF A SESSION HAS NO INITIAL SELECTION TO LAND ON. A capture writes nothing to disk
- * before it restarts (see below), so the native side has no story to hand over as `initialSelection` -
- * Storybook boots onto its own placeholder, which names no real story, and runs its own default
- * selection to get there. That default selection is what a capture has to move Storybook OFF of for
- * story number one too, over the exact same channel it uses for every story after - not a special
- * case, just the first race this file's retry already has to win (see waitForTheStoryOnScreen).
+ * THE FIRST STORY OF A SESSION IS HANDED OVER AT BOOT, THE SAME WAY A RUN HANDS ONE OVER. The relay
+ * already knows which story the tool is waiting for at the exact moment it tells this app to restart
+ * into testing mode (see metro/captureSocket.js), so that instruction carries the story id along with
+ * it. This file passes it straight to `SherloModule.openTesting`, which hands it to the native side to
+ * land on as `initialSelection` the way a run's restart always has a story to land on - so the app
+ * that comes back boots directly onto the story instead of Storybook's own placeholder.
+ *
+ * THE RETRY BELOW IS A SAFETY NET NOW, NOT THE ONLY DEFENSE. An app whose native side is older than
+ * this hand-over, or one the relay could not reach a storyId for, still comes back with no
+ * `initialSelection` and boots onto Storybook's own default selection - the exact race this file's
+ * retry exists to win (see waitForTheStoryOnScreen). Every story after the first was always reached
+ * this way too, moving Storybook off a story already on screen rather than off a boot-time
+ * placeholder, and still is.
  *
  * THE TREE STARTS WHERE THE RUN'S TREE STARTS. The app's window holds more than the story: Sherlo's
  * own frame, Storybook's, the story view Storybook wraps a story in. A test run collapses all of it
@@ -32,9 +39,21 @@
  * That step needs the app's view metadata, which the run holds as a React ref and a capture, having
  * no renderer, reads from the seam the renderer publishes it on (./appMetadata).
  *
- * NOTHING IS READ OR WRITTEN IN STORAGE. A test run saves screenshots and writes the protocol file;
- * a capture needs neither, so it stabilizes with saveScreenshots off and never touches a file. The
- * view tree comes straight from the native inspector, over the socket, in memory the whole way.
+ * NO TEST-RUN ARTIFACT IS EVER WRITTEN. A test run saves screenshots and writes the protocol file;
+ * a capture needs neither, so it stabilizes with saveScreenshots off and never appends to a file
+ * from here - the view tree comes straight from the native inspector, over the socket, in memory the
+ * whole way. This is narrower than "nothing touches storage" (an earlier version of this comment said
+ * exactly that): handing the first story over at boot has to survive the SAME restart a run's own
+ * story hand-over already had to survive, and on Android that restart is a full process kill
+ * (ProcessPhoenix), which no in-memory value can live through. Surviving it needs a persisted flag -
+ * but not a new kind of one. Android's mode itself already crosses this exact restart through a
+ * SharedPreferences slot sized in seconds and read once (RestartHelper.persistMode /
+ * getPersistedMode) - not the protocol/screenshot storage this invariant was written to keep clear
+ * of, which is where a run's own evidence lives and where a stray capture write would corrupt it. The
+ * story id now rides in that same short-lived slot, read back once and cleared, never touching the
+ * files a run's own artifacts live in. iOS never had to add anything: its restart is a same-process
+ * bridge reload (see ios/RestartHelper.m), so the story id survives as the plain in-memory value
+ * SherloModuleCore already carries mode in.
  *
  * THE TREE NAMES THE APP'S COMPONENTS. Every node reports the primitive it is drawn by, and beside
  * it the names of the app's components that render that view, outermost first - so the command
@@ -325,8 +344,13 @@ async function collectCaptures({
       // This app is on its way out: changing mode restarts it, and the capture waits for the app
       // that comes back in testing mode. Stop waiting here rather than ask again - the app that
       // returns collects the capture instead.
+      //
+      // THE STORY RIDES ALONG WITH THE RESTART, when the relay had one to send (see the file
+      // header). Handing it to openTesting lets the native side land the app on it directly, the
+      // same way a run's restart always has a story to hand over as initialSelection - so the app
+      // that comes back is not left to boot onto a placeholder and get moved off it afterwards.
       collecting = false;
-      SherloModule.openTesting();
+      SherloModule.openTesting(asked.storyId);
       return;
     }
 

@@ -29,6 +29,7 @@ public class RestartHelper {
     private static final String PREFS_NAME = "SherloPrefs";
     private static final String PREF_MODE = "mode";
     private static final String PREF_MODE_TIMESTAMP = "modeTimestamp";
+    private static final String PREF_INITIAL_STORY_ID = "initialStoryId";
     private static final long MODE_PERSISTENCE_TIMEOUT_MS = 10000;
 
     private ReactApplicationContext reactContext = null;
@@ -46,18 +47,43 @@ public class RestartHelper {
      * a config change.
      */
     private void persistMode(String mode) {
+        persistMode(mode, null);
+    }
+
+    /**
+     * The same persistence as {@link #persistMode(String)}, plus the story a testing-mode restart
+     * should land on directly - a capture's first story of a session, handed over the same way a
+     * run's restart always has a story to hand over as `initialSelection` (see captureTransport.ts).
+     *
+     * THIS IS NOT A NEW KIND OF WRITE. `mode` itself already has to survive the same restart
+     * (ProcessPhoenix kills the process), so it already crosses through this exact SharedPreferences
+     * slot - ephemeral, read once, cleared after. `storyId` rides in the same slot rather than
+     * opening a second one: one small write to survive one restart, not two.
+     *
+     * `storyId` is ignored outside `MODE_TESTING` - only a capture's restart-into-testing has a
+     * story to hand over - and cleared whenever this call does not carry one, so a stale value from
+     * an earlier restart can never leak into a later one that did not ask for it.
+     */
+    private void persistMode(String mode, String storyId) {
         SharedPreferences prefs = reactContext.getSharedPreferences(PREFS_NAME, 0);
 
         if (MODE_STORYBOOK.equals(mode) || MODE_TESTING.equals(mode)) {
-            prefs.edit()
+            SharedPreferences.Editor editor = prefs.edit()
                 .putString(PREF_MODE, mode)
                 .putLong(PREF_MODE_TIMESTAMP, System.currentTimeMillis())
-                .apply();
+                .remove(PREF_INITIAL_STORY_ID);
+
+            if (MODE_TESTING.equals(mode) && storyId != null && !storyId.isEmpty()) {
+                editor.putString(PREF_INITIAL_STORY_ID, storyId);
+            }
+
+            editor.apply();
             Log.d(TAG, "Persisted mode for restart: " + mode);
         } else {
             prefs.edit()
                 .remove(PREF_MODE)
                 .remove(PREF_MODE_TIMESTAMP)
+                .remove(PREF_INITIAL_STORY_ID)
                 .apply();
             Log.d(TAG, "Cleared persisted mode (switching to: " + mode + ")");
         }
@@ -85,10 +111,12 @@ public class RestartHelper {
                 Log.d(TAG, "Using persisted mode from restart (age: " + timeDiff + "ms): " + mode);
                 return mode;
             } else {
-                // Expired, clear it
+                // Expired, clear it - the initial story id too, so an expired testing-mode restart
+                // never leaves one behind for a later, unrelated restart to pick up.
                 prefs.edit()
                     .remove(PREF_MODE)
                     .remove(PREF_MODE_TIMESTAMP)
+                    .remove(PREF_INITIAL_STORY_ID)
                     .apply();
 
                 Log.d(TAG, "Persisted mode expired (age: " + timeDiff + "ms), no persisted mode");
@@ -96,6 +124,25 @@ public class RestartHelper {
         }
 
         return null;
+    }
+
+    /**
+     * The story a persisted testing-mode restart should land on, read once and cleared - the
+     * Android half of the hand-over described on {@link #persistMode(String, String)}. Call only
+     * after {@link #getPersistedMode()} has returned `testing`: a story id is meaningless, and never
+     * written, for any other persisted mode.
+     *
+     * @return the story id, or null when this restart carried none.
+     */
+    public String getPersistedInitialStoryId() {
+        SharedPreferences prefs = reactContext.getSharedPreferences(PREFS_NAME, 0);
+        String storyId = prefs.getString(PREF_INITIAL_STORY_ID, null);
+
+        if (storyId != null) {
+            prefs.edit().remove(PREF_INITIAL_STORY_ID).apply();
+        }
+
+        return storyId;
     }
 
     private Activity getCurrentActivity() {
@@ -178,9 +225,17 @@ public class RestartHelper {
     }
 
     public void restart(String newMode) {
-        
-        persistMode(newMode);
-        
+        restart(newMode, null);
+    }
+
+    /**
+     * The same restart, with a story to persist alongside `newMode` for the app that comes back -
+     * see {@link #persistMode(String, String)}.
+     */
+    public void restart(String newMode, String storyId) {
+
+        persistMode(newMode, storyId);
+
         final Activity currentActivity = getCurrentActivity();
         if (currentActivity != null) {
             ProcessPhoenix.triggerRebirth(currentActivity);

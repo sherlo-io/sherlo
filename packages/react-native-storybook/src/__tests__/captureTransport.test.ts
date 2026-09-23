@@ -13,8 +13,9 @@
  *   - the two facts beside the tree - how many screenfuls the story is, and whether an image in it
  *     is loaded over the network - are read where the run reads them.
  *   - a capture restarts the app into testing mode, which is what makes isRunningVisualTests true
- *     for the story it records.
- *   - nothing touches the device's storage.
+ *     for the story it records - and, when the relay handed one over, that restart carries the
+ *     story to land on directly.
+ *   - no test-run artifact is ever written: this road never appends to or reads a file.
  *   - a walk that throws is the crash ending, and the app says what threw.
  *
  * The bundler is injected as a `capture` (a CaptureTransport), the same way openStoryChannel.test.ts
@@ -933,18 +934,38 @@ describe('a capture restarts the app into testing mode, so isRunningVisualTests 
     await vi.waitFor(() => expect(mockOpenTesting).toHaveBeenCalledTimes(1));
 
     expect(asked).toEqual([{ mode: 'default', stories: [STORY], answer: null }]);
+    // The relay sent no story alongside this restart, and none is invented on the way out.
+    expect(mockOpenTesting).toHaveBeenCalledWith(undefined);
     expect(mockStabilize).not.toHaveBeenCalled();
     expect(mockGetInspectorData).not.toHaveBeenCalled();
     expect(mockAwaitFrameCommit).not.toHaveBeenCalled();
   });
+
+  it('hands the restart the story the relay asked for, so the app that comes back can land on it directly', async () => {
+    // The relay already knows which story the tool is waiting for at the exact moment it tells the
+    // app to restart into testing mode (see metro/captureSocket.js), so it sends the story id
+    // alongside the restart instruction rather than making the app ask a second time.
+    mockGetMode.mockReturnValue('default');
+
+    const capture: CaptureTransport = {
+      waitForACapture: async () => ({ restartIntoTesting: true, storyId: STORY }),
+    };
+    startCaptureTransport({ view: makeView(), channel: makeChannel(), capture });
+
+    // The story rides straight through to the native side - the same hand-over a run's own restart
+    // already gets, now given to a capture's first story too (see the file header).
+    await vi.waitFor(() => expect(mockOpenTesting).toHaveBeenCalledWith(STORY));
+  });
 });
 
-describe("a capture reads and writes nothing in the device's storage", () => {
+describe('a capture never writes a test-run artifact', () => {
   it('reads and writes nothing in storage', async () => {
     await walkOneStory();
 
     // A test run saves screenshots and writes the protocol file; a capture does neither. The story is
-    // read in memory, straight from the inspector, and saveScreenshots is off.
+    // read in memory, straight from the inspector, and saveScreenshots is off. (The restart-into-
+    // testing hand-over is a different, narrower write - see the file header - and this file has
+    // nothing to do with it: this road never calls appendFile/readFile at all, restart or not.)
     expect(mockAppendFile).not.toHaveBeenCalled();
     expect(mockReadFile).not.toHaveBeenCalled();
   });

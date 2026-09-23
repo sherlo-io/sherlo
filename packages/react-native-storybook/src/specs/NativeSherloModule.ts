@@ -10,7 +10,12 @@ export interface Spec extends TurboModule {
   openStorybook: () => void;
   closeStorybook: () => void;
   toggleStorybook: () => void;
-  openTesting: () => void;
+  /**
+   * Restart into testing mode. `storyId` is the story to land the restarted app on directly, or an
+   * empty string when there is none to hand over - codegen has no optional-string shape here, so an
+   * empty string is the sentinel, the same convention sendNativeError's dataJson already uses.
+   */
+  openTesting: (storyId: string) => void;
   stabilize: (
     requiredMatches: number,
     minScreenshotsCount: number,
