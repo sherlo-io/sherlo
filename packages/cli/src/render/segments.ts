@@ -34,6 +34,7 @@ import type { ProjectList } from './projectList';
 import type { OpenedStory } from './openedStory';
 import type { CapturedStory } from './capturedStory';
 import type { TeamList } from './teamList';
+import type { VerdictScreen } from './verdictCloser';
 // capturedLog is the print side of `sherlo capture --logs`, kept apart from ./capturedStory - see
 // ./capturedLog's own header for why.
 
@@ -191,8 +192,18 @@ export type TranscriptSegment =
    * here and not a branch.
    */
   | { kind: 'verdict-server-bypassed'; reason: string }
-  /** `⚠️  Build finished with changes requiring review.` plus whichever counts are non-zero. */
-  | { kind: 'verdict-review-required'; unreviewed: number; reported: number }
+  /**
+   * `⚠️  Build finished with changes requiring review.`, then the screens that
+   * need a person BY NAME when the wait learned them, and the build's own tally
+   * when it did not. See ./verdictCloser's {@link renderVerdictReviewRequired}.
+   */
+  | {
+      kind: 'verdict-review-required';
+      /** Every screen the build has, in the order `sherlo view` lists them. Absent on an older API. */
+      screens?: VerdictScreen[];
+      /** The build's tally, printed when the screens name nobody. */
+      counts: { unreviewed: number; reported: number };
+    }
   /** `❌ Build ended in "error" state.` plus the server's error blob, if any. */
   | { kind: 'verdict-run-errored'; runStatus: string; runError: unknown }
   /* ---------------------------------------------------------------------- *
