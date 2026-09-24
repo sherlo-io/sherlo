@@ -161,7 +161,11 @@ export function decideSparseBuildVerdict(build: BuildStatus): SparseBuildVerdict
     checkState,
     exitCode: EXIT_BLOCK,
     segments: [
-      { kind: 'verdict-review-required', unreviewed: counts.unreviewed, reported: counts.reported },
+      {
+        kind: 'verdict-review-required',
+        screens: build.stories,
+        counts: { unreviewed: counts.unreviewed, reported: counts.reported },
+      },
       ...captureAccounting(build),
     ],
   };

@@ -1,0 +1,40 @@
+
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+    [93m.[39m[93md[39m[93m8[39m[93m8[39m[93m8[39m[93m8[39m[93mb[39m  [93m8[39m[93m8[39m[93m8[39m [93m8[39m[93mb[39m[93m.[39m   [97m.[39m[97md[39m[97m8[39m[97m8[39m[97mb[39m[97m.[39m  [97m.[39m[97md[39m[97m8[39m[97m8[39m[97m8[39m[97m8[39m[97m8[39m [97m8[39m[97m8[39m[97m8[39m  [97m.[39m[97md[39m[97m8[39m[97m8[39m[97mb[39m[97m.[39m  
+    [97m8[39m[97m8[39m[97mK[39m      [97m8[39m[97m8[39m[97m8[39m [97m"[39m[97m8[39m[97m8[39m[97mb[39m [97md[39m[97m8[39m[97mP[39m  [97mY[39m[97m8[39m[97mb[39m [97m8[39m[97m8[39m[97m8[39m[97m"[39m    [97m8[39m[97m8[39m[97m8[39m [97md[39m[97m8[39m[97m8[39m[97m"[39m[97m"[39m[97m8[39m[97m8[39m[97mb[39m 
+    [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96mb[39m[96m.[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m 
+         [96mX[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m [96mY[39m[96m8[39m[96mb[39m[96m.[39m     [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m [96mY[39m[96m8[39m[96m8[39m[96m.[39m[96m.[39m[96m8[39m[96m8[39m[96mP[39m 
+    [96m'[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96mP[39m[96m'[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m  [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m  [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96mP[39m[96m"[39m
+
+[2m[3mMake sure your mobile app looks perfect on every device[23m[22m
+
+[32mTest 4[39m will run on [34m1 device[39m (1 Android)
+
+📦 [1mAndroid[22m
+[34m➜[39m  uploading build... (48.12 MB)
+[32m✔[39m  upload complete
+
+[1m[22m
+[1m📦 Bundling for this run...[22m
+[1m[22m
+[36m[39m
+[36m🤖 Building android bundle...[39m
+[32m  ✓ Bundle: bundle.android.js[39m (4.29 MB, plain-js, expo)
+[32m  ✓ Assets: 2 files[39m
+[36m[39m
+[36m⬆️  Uploading android bundle...[39m
+🔗 [4mhttps://app.sherlo.io/build?t=tm000001&p=7&b=4[24m
+
+[2m⏳ Waiting for build results (timeout: 45min)...[22m
+[2m   🟢 Finished[22m
+
+[33m⚠️  Build finished with changes requiring review.[39m
+[33m   unreviewed: Storefront/ProductCard - Default[39m
+[33m   unreviewed: Storefront/ProductCard - Sale badge[39m
+[33m   reported: Storefront/Checkout - Empty cart[39m
+[2m   3 more settled - approved, unchanged or inherited.[22m
+
+
+[exit 1]

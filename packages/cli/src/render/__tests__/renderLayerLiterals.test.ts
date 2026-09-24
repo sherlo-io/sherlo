@@ -497,13 +497,35 @@ const PINS: Pin[] = [
   },
   {
     kind: 'verdict-review-required',
-    what: 'the block closer with BOTH counts non-zero - three print calls, because how many lines it makes is a function of the state',
-    segment: { kind: 'verdict-review-required', unreviewed: 2, reported: 1 },
+    what: 'the block closer of a build whose screens the wait never learned - BOTH counts non-zero, three print calls, because how many lines it makes is a function of the state',
+    segment: { kind: 'verdict-review-required', counts: { unreviewed: 2, reported: 1 } },
     stream: 'stdout',
     prints: [
       [`${ESC}[33m⚠️  Build finished with changes requiring review.${ESC}[39m`],
       [`${ESC}[33m   2 story/stories unreviewed.${ESC}[39m`],
       [`${ESC}[33m   1 story/stories reported.${ESC}[39m`],
+    ],
+  },
+  {
+    kind: 'verdict-review-required',
+    what: 'the same closer over a build whose screens the wait DID learn - one yellow line per screen that needs a person, then the settled ones in ONE dim line',
+    segment: {
+      kind: 'verdict-review-required',
+      screens: [
+        { name: 'Storefront - ProductCard', status: 'changed' },
+        { name: 'Storefront - Checkout', status: 'rejected' },
+        { name: 'Storefront - Banner', status: 'error' },
+        { name: 'Storefront - Footer', status: 'unchanged' },
+      ],
+      counts: { unreviewed: 1, reported: 1 },
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[33m⚠️  Build finished with changes requiring review.${ESC}[39m`],
+      [`${ESC}[33m   unreviewed: Storefront - ProductCard${ESC}[39m`],
+      [`${ESC}[33m   reported: Storefront - Checkout${ESC}[39m`],
+      [`${ESC}[33m   errored: Storefront - Banner${ESC}[39m`],
+      [`${ESC}[2m   1 more settled - approved, unchanged or inherited.${ESC}[22m`],
     ],
   },
   {

@@ -105,12 +105,112 @@ export function renderVerdictServerBypassed(reason: string): string[] {
 }
 
 /**
- * The block closer: something is waiting for a human. The two count lines are
- * printed only for a non-zero count, which is why this returns a LIST whose
- * length is itself a function of the state.
+ * One screen of the build a wait is closing on - the two fields this closer
+ * reads, and nothing else.
+ *
+ * Spelled here rather than reusing buildView's `ViewMetadataStory` because a
+ * closer that declared a `baseline` it never looks at would invite the next
+ * reader to wonder where it is printed. The wire rows satisfy this type as
+ * they are.
  */
-export function renderVerdictReviewRequired(unreviewed: number, reported: number): string[] {
-  const lines = [chalk.yellow('⚠️  Build finished with changes requiring review.')];
+export type VerdictScreen = {
+  name: string;
+  /**
+   * The per-screen status, as the plain string the wire sends (`changed`,
+   * `rejected`, `not-captured`, ...). Not narrowed, for the reason the wire
+   * shape gives (helpers/buildStatusRequest): a value this CLI has not learned
+   * yet must still pass through.
+   */
+  status: string;
+};
+
+/**
+ * The screens that are DONE - nobody has to open the build because of them.
+ *
+ * `approved` and `unchanged` are the obvious two. `not-captured` is the third:
+ * Diff Scope left that screen out of this build and carried its accepted image
+ * forward, so it is settled by inheritance rather than by a fresh comparison.
+ * Everything NOT in here is named, including a status this table has not
+ * learned - an unknown status is far likelier to be something new that wants a
+ * person than something new that does not.
+ */
+const SETTLED_STATUSES = new Set(['approved', 'unchanged', 'not-captured']);
+
+/**
+ * The word the closer says a screen under, per wire status.
+ *
+ * The three words are the ones the build's own tally uses - `unreviewed`,
+ * `reported` - plus `errored` for a capture that failed, so a reader who has
+ * seen `2 story/stories unreviewed.` before reads the same vocabulary here. A
+ * status with no entry is said under its own wire spelling rather than dropped.
+ */
+const SCREEN_LABEL: Record<string, string> = {
+  new: 'unreviewed',
+  changed: 'unreviewed',
+  'review-required': 'unreviewed',
+  rejected: 'reported',
+  error: 'errored',
+};
+
+/**
+ * How many screens the closer names before it stops naming and counts the rest.
+ *
+ * TEN, because this block is read at the END OF A CI LOG, where `--wait` is the
+ * common path and `sherlo view` is the opt-in one. Ten names still fit the tail
+ * a CI UI shows without expanding the log, and a developer looking at more than
+ * ten screens that need them is going to open the build anyway - the eleventh
+ * name would not change what they do next, while a hundred of them would bury
+ * the verdict line that says what happened.
+ */
+const NAMED_SCREEN_LIMIT = 10;
+
+/**
+ * The block closer: something is waiting for a human, and this says WHO it is
+ * waiting on.
+ *
+ * Given the build's screens it names the ones that need a person and counts the
+ * ones that do not - the same facts `sherlo view` prints, so a developer who
+ * waited does not have to run a second command to learn which screen it is.
+ *
+ * `screens` is absent when the wait never learned them (an older backend, or a
+ * status read that came back without the rows), and a screen list that names
+ * nobody says less than the tally does. Both fall back to `counts` - the two
+ * lines this closer has always printed, byte for byte.
+ */
+export function renderVerdictReviewRequired(
+  screens: VerdictScreen[] | undefined,
+  counts: { unreviewed: number; reported: number }
+): string[] {
+  const headline = chalk.yellow('⚠️  Build finished with changes requiring review.');
+
+  const allScreens = screens ?? [];
+  const needAPerson = allScreens.filter((screen) => !SETTLED_STATUSES.has(screen.status));
+  if (needAPerson.length === 0) return [headline, ...renderCountLines(counts)];
+
+  const named = needAPerson.slice(0, NAMED_SCREEN_LIMIT);
+  const unnamed = needAPerson.length - named.length;
+  const settled = allScreens.length - needAPerson.length;
+
+  return [
+    headline,
+    ...named.map((screen) =>
+      chalk.yellow(`   ${SCREEN_LABEL[screen.status] ?? screen.status}: ${screen.name}`)
+    ),
+    ...(unnamed > 0 ? [chalk.yellow(`   ... and ${unnamed} more needing review.`)] : []),
+    ...(settled > 0
+      ? [chalk.dim(`   ${settled} more settled - approved, unchanged or inherited.`)]
+      : []),
+  ];
+}
+
+/**
+ * The tally lines, printed only for a non-zero count - which is why this returns
+ * a LIST whose length is itself a function of the state.
+ */
+function renderCountLines(counts: { unreviewed: number; reported: number }): string[] {
+  const { unreviewed, reported } = counts;
+
+  const lines: string[] = [];
   if (unreviewed > 0) lines.push(chalk.yellow(`   ${unreviewed} story/stories unreviewed.`));
   if (reported > 0) lines.push(chalk.yellow(`   ${reported} story/stories reported.`));
   return lines;
