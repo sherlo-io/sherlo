@@ -33,6 +33,19 @@ export type CommandPose = {
   git: PosedGit;
   bundles: Record<string, PosedBundle>;
   api: ScriptedCall[];
+  /**
+   * PLACEHOLDER -> THE LITERAL THE SCENARIO ITSELF PUT ON THE SCREEN, and nothing else.
+   *
+   * The tool folds every value only a machine knows on its own, by class and by shape - the
+   * temporary project folder, the resolved config path, a token, a build address, a size, a
+   * duration, the time since a build, a commit, a fingerprint, the progress lines a wait printed
+   * (./maskScreen). None of that is a pose's business, and the catalogue refuses a pose that
+   * names one of those classes here: an entry that duplicates the masker buys nothing and rots
+   * the day the class moves.
+   *
+   * What is left for this field is the one thing only a scenario knows: a literal the pose put
+   * on the screen through its own `files`, `env` or `api` and wants read as a placeholder.
+   */
   masks: Record<string, string>;
   /**
    * What a real push read off the machine - the binaries it was handed, the base fingerprint,

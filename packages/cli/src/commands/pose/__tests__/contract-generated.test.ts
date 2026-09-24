@@ -10,9 +10,17 @@
 import { describe, it } from 'vitest';
 
 describe('the pose contract and its reader are generated from the seam types', () => {
-  it.todo('the pose contract and its reader are generated from the seam types, and a hand edit to either fails the check');
+  it.todo(
+    'the pose contract and its reader are generated from the seam types, and a hand edit to either fails the check'
+  );
   it.todo('the generated contract carries no import, so a consumer can copy it verbatim');
-  it.todo('a field added to a seam answer type appears in the contract and is accepted by the reader after one generation');
-  it.todo('the reader still refuses a missing field, an unknown key and a wrong type, naming every problem in one message');
-  it.todo('the meaning checks the generator cannot derive - which commands bundle, which act on the machine - stay hand-written beside the generated reader');
+  it.todo(
+    'a field added to a seam answer type appears in the contract and is accepted by the reader after one generation'
+  );
+  it.todo(
+    'the reader still refuses a missing field, an unknown key and a wrong type, naming every problem in one message'
+  );
+  it.todo(
+    'the meaning checks the generator cannot derive - which commands bundle, which act on the machine - stay hand-written beside the generated reader'
+  );
 });
