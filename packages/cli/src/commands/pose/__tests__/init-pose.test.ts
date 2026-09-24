@@ -19,7 +19,8 @@ import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { liveWorkstation } from '../../../seams/workstation';
 import { POSES_ROOT } from '../catalogue';
 import { runPose } from '../pose';
-import { readPoseDocument, type CommandPose } from '../readPose';
+import type { CommandPose } from '../../../seams/commandPose';
+import { readPoseDocument } from '../readPose';
 
 /**
  * Every command a real package manager run would have been started with.

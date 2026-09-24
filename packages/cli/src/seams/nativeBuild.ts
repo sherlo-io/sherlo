@@ -36,7 +36,6 @@ import uploadStagedArtifacts, {
   type StagedUploadKeys,
 } from '../commands/test/uploadStagedArtifacts';
 import type { BundleResult } from '../commands/test/buildBundle';
-import type { PosedBinary, PosedPush } from '../commands/pose/readPose';
 
 /** Every read of the machine a real push makes, and every byte it sends up. */
 export type NativeBuild = {
@@ -106,6 +105,42 @@ export function installNativeBuild(next: NativeBuild): () => void {
 /* ========================================================================== */
 /* The posed machine                                                          */
 /* ========================================================================== */
+
+/** What a real push read off the machine, as a pose states it. */
+export type PosedPush = {
+  /** The instant the run read the clock at, ISO 8601 - what "7 minutes ago" on a reuse line is measured against. */
+  now: string;
+  /** The binaries the command was handed, per platform (`android`, `ios`). */
+  binaries: Record<string, PosedBinary>;
+  /** The base fingerprint over the project's native inputs, or why there was none (the tool prints its own warning for it). */
+  fingerprint: { hash: string } | { unavailable: string };
+};
+
+/**
+ * One binary as a pose states it - what the tool would have read out of the file. A pose states
+ * no `buildType`: the tool derives preview-or-development from `hasEmbeddedBundle` by its own
+ * rule, and whether the binary can be a base from the three gate facts by its own rule too.
+ */
+export type PosedBinary = {
+  /** The file's hash, sent to the server to ask whether it has seen this binary. Never printed. */
+  hash: string;
+  /** What the upload line announces, e.g. `"48.12"`. */
+  sizeMb: string;
+  /** The Sherlo SDK version baked into the binary; `null` poses the missing-Sherlo refusal. */
+  sdkVersion: string | null;
+  /** Whether a JS bundle sits at the platform-default path - a preview build has one, a development build does not. */
+  hasEmbeddedBundle: boolean;
+  /** The bundle's format, as the gate reads it off the embedded bundle's header. */
+  bundleFormat: 'plain-js' | 'hermes-bytecode' | 'ram';
+  /** Whether expo-updates is enabled in the binary - an Android binary with it cannot be a base. */
+  expoUpdatesEnabled: boolean;
+  /** Whether the binary carries expo-dev-client. */
+  hasExpoDevClient: boolean;
+  /** The Expo SDK the binary was built with, when it was built with Expo. */
+  expoSdkVersion?: string;
+  /** The ABIs an Android binary carries (`["arm64-v8a"]`); absent for an iOS build. */
+  androidAbis?: string[];
+};
 
 /** A read the pose could not answer, and the reason - recorded the way an unscripted call is. */
 export type UnposedRead = { call: string; problem: string };

@@ -39,7 +39,8 @@ import type { BuildStatus } from '../waitForBuildResult';
 import { EXIT_BLOCK, EXIT_GREEN } from '../exitCodes';
 import { decideSparseBuildVerdict, routesThroughSparseVerdict } from '../sparseBuildVerdict';
 import { catalogue } from '../../commands/pose/catalogue';
-import { readPoseDocument, type ScriptedCall } from '../../commands/pose/readPose';
+import { readPoseDocument } from '../../commands/pose/readPose';
+import type { ScriptedCall } from '../../seams/serverCalls';
 
 beforeAll(() => {
   chalk.level = 0;

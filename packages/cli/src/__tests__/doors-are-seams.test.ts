@@ -11,8 +11,14 @@
 import { describe, it } from 'vitest';
 
 describe('every door is a seam', () => {
-  it.todo('outside src/seams no module imports the SDK client, opens a socket, spawns a process, or reads a file outside the project folder');
-  it.todo('the named exceptions are exactly the modules a pose can never reach - the EAS hooks, showError, and the devtools - each with its reason');
+  it.todo(
+    'outside src/seams no module imports the SDK client, opens a socket, spawns a process, or reads a file outside the project folder'
+  );
+  it.todo(
+    'the named exceptions are exactly the modules a pose can never reach - the EAS hooks, showError, and the devtools - each with its reason'
+  );
   it.todo('a new module that imports the SDK client outside src/seams fails the lint by name');
-  it.todo('the staged run opens its build through the server seam, never through a client of its own');
+  it.todo(
+    'the staged run opens its build through the server seam, never through a client of its own'
+  );
 });
