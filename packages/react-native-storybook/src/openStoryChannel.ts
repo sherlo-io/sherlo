@@ -32,6 +32,7 @@ import { NativeModules } from 'react-native';
 import { StorybookView } from './types';
 import openStorybook from './openStorybook';
 import { readStoryError } from './getStorybook/storyErrorRegistry';
+import { sherloFetch } from './mocking/network';
 import {
   lastRenderedStory,
   startStoryRenderedTracking,
@@ -216,7 +217,7 @@ export function bundlerLetterbox(): BundlerLetterbox | null {
       const timer = setTimeout(() => giveUp.abort(), HOLD_TIMEOUT_MS);
 
       try {
-        const response = await fetch(origin + LETTERBOX_PATH, {
+        const response = await sherloFetch(origin + LETTERBOX_PATH, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(saying),
