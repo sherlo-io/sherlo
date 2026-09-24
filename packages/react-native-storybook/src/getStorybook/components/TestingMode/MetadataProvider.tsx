@@ -16,6 +16,14 @@ export type ViewProps = {
     style?: any;
     testID?: string;
     hasNetworkImage?: boolean;
+    /** The words this view's own fiber draws, when it draws any - see wordsInChildren. */
+    text?: string;
+    /** A `TextInput`'s own placeholder, kept only for the fiber that carries one. */
+    placeholder?: string;
+    /** A `Text`'s own numberOfLines, kept only for the fiber that carries one. */
+    numberOfLines?: number;
+    /** A view's own accessibilityLabel - the only words an icon or image with no Text has. */
+    accessibilityLabel?: string;
   };
 };
 
@@ -61,6 +69,30 @@ function extractTextFromProps(props: any, texts: string[]): void {
 }
 
 /**
+ * Every word a fiber's own `children` prop draws, in order: a string is a word, an array is
+ * walked, and a React element is entered through its own `props.children`. That last case is what
+ * a nested text span is - `<Text>Hello <Text>World</Text></Text>` has no native view of its own
+ * (see the `text` field on captureTransport.ts's CapturedViewTree), so its words never show up as
+ * a child NODE for captureViewTree to fold in - they only ever reach the record by being walked
+ * here, into the outer Text fiber's own words.
+ */
+function wordsInChildren(children: unknown, words: string[]): void {
+  if (typeof children === 'string') {
+    words.push(children);
+    return;
+  }
+
+  if (Array.isArray(children)) {
+    children.forEach((child) => wordsInChildren(child, words));
+    return;
+  }
+
+  if (children && typeof children === 'object' && 'props' in children) {
+    wordsInChildren((children as { props?: { children?: unknown } }).props?.children, words);
+  }
+}
+
+/**
  * Walk one fiber generation - a `fiber` its-fine handed back, or its `.alternate` - collecting the
  * same two readings `collectMetadata` merges: every view by its native tag, and every string found
  * in props anywhere in the generation.
@@ -82,11 +114,26 @@ function collectFromRoot(root: Fiber): { viewProps: ViewProps; texts: string[] }
     const nativeTag = stateNode?._nativeTag || stateNode?.canonical?.nativeTag;
 
     if (nativeTag) {
+      // The words THIS fiber draws - its own, and any nested span's, since a span has no native
+      // view of its own to be read separately (see wordsInChildren).
+      const words: string[] = [];
+      wordsInChildren(pendingProps.children, words);
+
       viewProps[nativeTag] = {
         style: pendingProps.style,
         testID: pendingProps.testID,
         className: type || undefined,
         hasNetworkImage: isNetworkImageComponent(currentFiber),
+        ...(words.length > 0 && { text: words.join('') }),
+        ...(typeof pendingProps.placeholder === 'string' && {
+          placeholder: pendingProps.placeholder,
+        }),
+        ...(typeof pendingProps.numberOfLines === 'number' && {
+          numberOfLines: pendingProps.numberOfLines,
+        }),
+        ...(typeof pendingProps.accessibilityLabel === 'string' && {
+          accessibilityLabel: pendingProps.accessibilityLabel,
+        }),
       };
     }
 

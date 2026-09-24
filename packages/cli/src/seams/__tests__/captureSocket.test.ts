@@ -263,6 +263,47 @@ describe("the app's answer, read into this seam's own endings", () => {
     });
   });
 
+  it("a view's size, style, testID and props come back with it, merged into one props set", async () => {
+    const r = await relay();
+
+    expect(
+      await aCapture(r, {
+        askedFor: STORY_A,
+        stories: [STORY_A],
+        recorded: {
+          ...ANSWER_A,
+          tree: {
+            primitive: 'RCTScrollView',
+            components: [],
+            size: { width: 130, height: 281 },
+            style: { backgroundColor: 'red' },
+            testID: 'the-story',
+            props: { numberOfLines: 2, accessibilityLabel: 'Font sizes list' },
+            children: [],
+          },
+        },
+      })
+    ).toEqual({
+      kind: 'captured',
+      storyId: STORY_A,
+      settled: { ms: 120, frames: 6 },
+      tree: {
+        primitive: 'RCTScrollView',
+        components: [],
+        size: { width: 130, height: 281 },
+        style: { backgroundColor: 'red' },
+        // testID rides inside props, beside the placeholder/numberOfLines/accessibilityLabel a
+        // fiber's own props carried - the same set the screen draws as one set of attributes.
+        props: {
+          testID: 'the-story',
+          numberOfLines: 2,
+          accessibilityLabel: 'Font sizes list',
+        },
+        children: [],
+      },
+    });
+  });
+
   it('an app older than the two facts leaves them absent rather than guessed at', async () => {
     const r = await relay();
 
