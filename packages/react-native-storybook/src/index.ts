@@ -4,6 +4,8 @@ import { PROTOCOL_FILE } from './constants';
 export { default as isRunningVisualTests } from './isRunningVisualTests';
 export { default as isStorybookMode } from './isStorybookMode';
 export { default as openStorybook } from './openStorybook';
+export { mock } from './mocking/mockDeclaration';
+export type { MockDeclaration } from './mocking/mockDeclaration';
 
 export * from './types';
 

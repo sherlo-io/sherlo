@@ -10,13 +10,16 @@
 // It does two things and nothing more:
 //   1. findScanFiles(projectRoot)  - locate story files and preview.* files.
 //   2. collectMockKeysFromSource() - shallow-parse one file with the Babel
-//      parser Metro already ships and return the STRING-LITERAL keys declared
-//      under any `sherlo: { mocks: { ... } }` object.
+//      parser Metro already ships and return the module keys declared under any
+//      `sherlo: { mocks: ... }`, in either form a story may write:
+//        - a list of declarations, where each names its module with an import
+//          expression: `mock(() => import('some-module'), ...)`,
+//        - the older object, whose STRING-LITERAL keys name the modules.
 //
-// Deliberately narrow: it extracts string-literal KEYS only. It never reads,
-// evaluates, or otherwise touches the mock VALUES - those live entirely in the
-// Phase 1 runtime. Tolerant of TypeScript `as`/`satisfies` annotations wrapped
-// around the parameters object (or any node on the way down).
+// Deliberately narrow: it extracts module KEYS only. It never reads, evaluates,
+// or otherwise touches the mock VALUES - those live entirely in the Phase 1
+// runtime. Tolerant of TypeScript `as`/`satisfies` annotations wrapped around
+// the parameters object (or any node on the way down).
 
 var fs = require('fs');
 var path = require('path');
@@ -127,21 +130,68 @@ function collectKeysFromMocksObject(mocksObject, out) {
   }
 }
 
-// Walk the AST looking for any `sherlo: { mocks: { ... } }` shape and harvest
-// the string-literal keys of every `mocks` object we find. Runs for both
-// meta-level and story-level parameter declarations because it visits the whole
-// tree; TS wrappers on any value are unwrapped on the way down.
-function walkForMockKeys(node, out) {
+// Node fields that hold position and comment metadata rather than child nodes.
+var METADATA_FIELDS = {
+  loc: true,
+  start: true,
+  end: true,
+  range: true,
+  leadingComments: true,
+  trailingComments: true,
+  innerComments: true,
+};
+
+// Call `visit` on every node in the tree, in no particular order.
+function walkNodes(node, visit) {
   if (!node || typeof node !== 'object') return;
 
   if (Array.isArray(node)) {
-    for (var i = 0; i < node.length; i++) walkForMockKeys(node[i], out);
+    for (var i = 0; i < node.length; i++) walkNodes(node[i], visit);
     return;
   }
 
   if (typeof node.type !== 'string') return;
 
-  if (node.type === 'ObjectExpression') {
+  visit(node);
+
+  for (var field in node) {
+    if (METADATA_FIELDS[field]) continue;
+    walkNodes(node[field], visit);
+  }
+}
+
+// The string literal an import expression names, or null when it names anything else. Babel
+// parses `import('x')` either as a call whose callee is `Import` or, on newer versions, as an
+// `ImportExpression`; both spellings are read here.
+function importedSpecifier(node) {
+  var specifier = null;
+  if (node.type === 'CallExpression' && node.callee && node.callee.type === 'Import') {
+    specifier = (node.arguments || [])[0];
+  } else if (node.type === 'ImportExpression') {
+    specifier = node.source;
+  }
+  return specifier && specifier.type === 'StringLiteral' ? specifier.value : null;
+}
+
+// Collect the module each declaration in a `mocks: [ ... ]` list names. A declaration names
+// its module with an import expression - `mock(() => import('some-module'), ...)` - so every
+// string literal imported anywhere under the list is a mocked module. An import whose
+// specifier is not a string literal names nothing the build can see and is ignored, exactly as
+// a computed object key is.
+function collectKeysFromMockDeclarations(declarationList, out) {
+  walkNodes(declarationList, function (node) {
+    var specifier = importedSpecifier(node);
+    if (specifier !== null) out.add(specifier);
+  });
+}
+
+// Harvest the module keys of every `sherlo: { mocks: ... }` in the tree. Runs for the
+// preview-, meta- and story-level parameter declarations alike, because it visits the whole
+// tree; TS wrappers on any value are unwrapped on the way down.
+function walkForMockKeys(ast, out) {
+  walkNodes(ast, function (node) {
+    if (node.type !== 'ObjectExpression') return;
+
     var props = node.properties || [];
     for (var p = 0; p < props.length; p++) {
       var prop = props[p];
@@ -155,33 +205,16 @@ function walkForMockKeys(node, out) {
         var sherloProp = sherloProps[s];
         if (sherloProp.type !== 'ObjectProperty' || propertyName(sherloProp) !== 'mocks') continue;
 
-        var mocksObject = unwrapExpression(sherloProp.value);
-        if (mocksObject && mocksObject.type === 'ObjectExpression') {
-          collectKeysFromMocksObject(mocksObject, out);
-        }
+        var mocks = unwrapExpression(sherloProp.value);
+        if (!mocks) continue;
+        if (mocks.type === 'ObjectExpression') collectKeysFromMocksObject(mocks, out);
+        if (mocks.type === 'ArrayExpression') collectKeysFromMockDeclarations(mocks, out);
       }
     }
-  }
-
-  // Recurse into every child node, skipping metadata that cannot hold keys.
-  for (var key in node) {
-    if (
-      key === 'loc' ||
-      key === 'start' ||
-      key === 'end' ||
-      key === 'range' ||
-      key === 'leadingComments' ||
-      key === 'trailingComments' ||
-      key === 'innerComments'
-    ) {
-      continue;
-    }
-    walkForMockKeys(node[key], out);
-  }
+  });
 }
 
-// Parse one file's source and return the distinct string-literal mock keys it
-// declares. Parse failures are non-fatal: a malformed file simply yields no
+// Parse one file's source and return the distinct module keys it declares. Parse failures are non-fatal: a malformed file simply yields no
 // keys rather than breaking the Metro config.
 function collectMockKeysFromSource(source) {
   var parser = getBabelParser();

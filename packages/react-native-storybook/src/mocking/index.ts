@@ -1,6 +1,8 @@
 export { default as createMockable } from './createMockable';
 export { activateMocks, clearMocks, isKeyShimmed } from './registry';
 export { default as activateStoryMocks } from './activateStoryMocks';
-export { mergeMockSet } from './mergeMocks';
+export { mergeStoryMocks } from './mergeMocks';
+export { mock, resolveDeclarations, declarationsOf } from './mockDeclaration';
+export type { MockDeclaration, StoryMocks } from './mockDeclaration';
 export { MOCK_DENY_LIST } from './denyList';
 export * from './types';

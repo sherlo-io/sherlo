@@ -1,20 +1,20 @@
-import { mergeMockSet } from '../../mocking/mergeMocks';
+import { mergeStoryMocks } from '../../mocking/mergeMocks';
 
-describe('mergeMockSet - per-module-key precedence (CP-01..CP-05, CP-07)', () => {
+describe('mergeStoryMocks - per-module-key precedence (CP-01..CP-05, CP-07)', () => {
   it('CP-01: global mocks apply everywhere', () => {
-    const merged = mergeMockSet({ 'pkg/a': { value: 'global' } }, {}, {});
+    const merged = mergeStoryMocks({ 'pkg/a': { value: 'global' } }, {}, {});
 
     expect(merged).toEqual({ 'pkg/a': { value: 'global' } });
   });
 
   it('CP-02: meta mocks apply to the file', () => {
-    const merged = mergeMockSet({}, { 'pkg/a': { value: 'meta' } }, {});
+    const merged = mergeStoryMocks({}, { 'pkg/a': { value: 'meta' } }, {});
 
     expect(merged).toEqual({ 'pkg/a': { value: 'meta' } });
   });
 
   it('CP-03: story overrides meta for the same key', () => {
-    const merged = mergeMockSet(
+    const merged = mergeStoryMocks(
       {},
       { 'pkg/a': { value: 'meta', extra: 'only-on-meta' } },
       { 'pkg/a': { value: 'story' } }
@@ -26,7 +26,7 @@ describe('mergeMockSet - per-module-key precedence (CP-01..CP-05, CP-07)', () =>
   });
 
   it('CP-04: story overrides global while untouched global keys still apply', () => {
-    const merged = mergeMockSet(
+    const merged = mergeStoryMocks(
       { 'pkg/a': { value: 'global' }, 'pkg/b': { value: 'global - untouched' } },
       {},
       { 'pkg/a': { value: 'story' } }
@@ -39,7 +39,7 @@ describe('mergeMockSet - per-module-key precedence (CP-01..CP-05, CP-07)', () =>
   });
 
   it('CP-05: story adds a module alongside inherited ones', () => {
-    const merged = mergeMockSet(
+    const merged = mergeStoryMocks(
       { 'pkg/a': { value: 'global' }, 'pkg/shared-global': { value: 'global-shared' } },
       { 'pkg/b': { value: 'meta' } },
       { 'pkg/c': { value: 'story-new' } }
@@ -56,7 +56,7 @@ describe('mergeMockSet - per-module-key precedence (CP-01..CP-05, CP-07)', () =>
   });
 
   it('CP-07: story with no own mocks inherits global', () => {
-    const merged = mergeMockSet(
+    const merged = mergeStoryMocks(
       { 'pkg/a': { value: 'global' } },
       { 'pkg/b': { value: 'meta - unrelated key' } },
       {}
@@ -71,7 +71,7 @@ describe('mergeMockSet - per-module-key precedence (CP-01..CP-05, CP-07)', () =>
   });
 
   it('meta overrides global for the same key wholesale', () => {
-    const merged = mergeMockSet(
+    const merged = mergeStoryMocks(
       { 'pkg/a': { value: 'global', extra: 'only-on-global' } },
       { 'pkg/a': { value: 'meta' } },
       {}
@@ -83,7 +83,7 @@ describe('mergeMockSet - per-module-key precedence (CP-01..CP-05, CP-07)', () =>
   });
 
   it('untouched keys from every level all survive in the merged set', () => {
-    const merged = mergeMockSet(
+    const merged = mergeStoryMocks(
       { 'pkg/global-only': { value: 'global' } },
       { 'pkg/meta-only': { value: 'meta' } },
       { 'pkg/story-only': { value: 'story' } }
@@ -97,7 +97,7 @@ describe('mergeMockSet - per-module-key precedence (CP-01..CP-05, CP-07)', () =>
   });
 
   it('story wins even when all three levels declare the same key', () => {
-    const merged = mergeMockSet(
+    const merged = mergeStoryMocks(
       { 'pkg/a': { value: 'global' } },
       { 'pkg/a': { value: 'meta' } },
       { 'pkg/a': { value: 'story' } }
@@ -107,6 +107,6 @@ describe('mergeMockSet - per-module-key precedence (CP-01..CP-05, CP-07)', () =>
   });
 
   it('defaults every level to an empty set, returning {} when nothing is declared', () => {
-    expect(mergeMockSet()).toEqual({});
+    expect(mergeStoryMocks()).toEqual({});
   });
 });
