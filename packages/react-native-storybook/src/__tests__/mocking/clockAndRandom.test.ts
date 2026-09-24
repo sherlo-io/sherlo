@@ -4,13 +4,13 @@
  */
 import { describe, it } from 'vitest';
 
-describe('the clock', () => {
+describe('the clock is frozen by the story', () => {
   it.todo('the clock reads the moment the story names');
   it.todo('a Date made with arguments is untouched; only now is frozen');
   it.todo('leaving the story restores the real clock');
 });
 
-describe('random', () => {
+describe('random is seeded by the story', () => {
   it.todo('random repeats the same sequence from the seed on every activation');
   it.todo('leaving the story restores the real random');
 });
