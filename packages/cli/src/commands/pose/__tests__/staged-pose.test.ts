@@ -8,7 +8,8 @@ import path from 'path';
 import { describe, expect, it } from 'vitest';
 import { POSES_ROOT, renderPose } from '../catalogue';
 import { runPose } from '../pose';
-import { readPoseDocument, type CommandPose } from '../readPose';
+import type { CommandPose } from '../../../seams/commandPose';
+import { readPoseDocument } from '../readPose';
 import { EXIT_NATIVE_NEEDED } from '../../test/constants';
 
 /** One catalogued `test/*.pose.json`, read the same way the catalogue itself reads it. */
