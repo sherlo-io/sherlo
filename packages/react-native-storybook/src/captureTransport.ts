@@ -31,6 +31,13 @@
  * this way too, moving Storybook off a story already on screen rather than off a boot-time
  * placeholder, and still is.
  *
+ * A STORY'S MOCKS ARE THIS FILE'S TO INSTALL AND TO TAKE BACK OUT, FOR EVERY STORY AFTER THE FIRST.
+ * A test run boots once per story, so its mocks go in at boot (TestingMode.tsx) and come out when
+ * that story is done (useTestStory.tsx). A capture reuses one boot for many stories, so only the
+ * first one is covered by the boot's own activation - every story after it is selected from here,
+ * and so must be mocked from here too, and unmocked again once its record is read (see
+ * captureTheStory and waitForTheStoryOnScreen).
+ *
  * THE TREE STARTS WHERE THE RUN'S TREE STARTS. The app's window holds more than the story: Sherlo's
  * own frame, Storybook's, the story view Storybook wraps a story in. A test run collapses all of it
  * by handing the inspector's tree to the one step that knows where a story begins
@@ -113,6 +120,8 @@ import {
   type StorybookChannel,
 } from './getStorybook/components/TestingMode/useTestAllStories/storyRenderedReadiness';
 import { setCaptureLogSink } from './helpers/RunnerBridge/captureLogSink';
+import { activateMocksForStory } from './getStorybook/storyMockActivation';
+import { clearMocks } from './mocking';
 import { sherloFetch } from './mocking/network';
 
 const SET_CURRENT_STORY = 'setCurrentStory';
@@ -564,6 +573,15 @@ async function collectCaptures({
  * A story that threw while rendering still counts as captured - the error view is what is on screen
  * - and the fact it threw is reported alongside the tree. A story whose walk itself failed (the
  * inspector never answered, say) is a crash: the app stops and says why.
+ *
+ * THE STORY'S MOCKS ARE THIS WALK'S OWN, AND THEY DO NOT OUTLIVE IT. A run gets one boot per story,
+ * so its mocks are installed at boot (TestingMode.tsx) and dropped when the story is done
+ * (useTestStory.tsx's own finally). A capture walks MANY stories in ONE boot, so the same two steps
+ * have to happen here, around each walk: the mocks are installed before the story is put on screen
+ * (see waitForTheStoryOnScreen) and cleared once the record is read, however this walk ended. Without
+ * the clearing, the next story would be photographed through the last story's mocks - which is
+ * exactly what a capture of the mocking stories recorded before this existed: every story after the
+ * first one showed the first one's mocked values.
  */
 async function captureTheStory({
   storyId,
@@ -607,6 +625,11 @@ async function captureTheStory({
   } catch (error) {
     const report = readError(error);
     return { kind: 'crashed', storyId, ...(report && { error: report }) };
+  } finally {
+    // The record is read; put every mocked module, the clock, the randomness and the network back
+    // the way they really are, so the next story asked for in this same boot starts from nothing -
+    // and a story that declares no mocks at all shows the real values.
+    clearMocks();
   }
 }
 
@@ -675,9 +698,24 @@ async function waitForTheStoryOnScreen({
   let readiness: Awaited<ReturnType<typeof waitForStoryRendered>>;
 
   if (bootAlreadySelected(storyId)) {
+    // Nothing to activate either: the boot that landed on this story already installed its mocks
+    // from the same story id (TestingMode.tsx), and activating a second time would re-resolve the
+    // same imports for a story that is already on screen with them.
     readiness = await waitForStoryRendered({ storyId, timeoutMs, channel });
   } else {
     const startedAt = Date.now();
+
+    // THE STORY'S MOCKS GO IN BEFORE THE STORY DOES, AND THE STORY WAITS FOR THEM. This is the boot's
+    // own step (TestingMode.tsx), told again for every story after the first: a mock declared by an
+    // import expression cannot install until that import resolves, so activateMocksForStory hands
+    // back a promise while one is outstanding and the story must not render while it is - a story
+    // that rendered first would read the REAL module, and this capture photographs it once.
+    //
+    // ONCE, BEFORE THE FIRST TELLING - never per re-telling below: the re-tells exist to win a
+    // selection race, and re-activating on each would re-resolve the same imports for a story whose
+    // mocks are already in place.
+    const installingMocks = activateMocksForStory(view, storyId);
+    if (installingMocks) await installingMocks;
 
     // The story was handed over by name; put it on screen the way Storybook moves between stories,
     // then wait for it to be reported rendered - re-telling it, inside the same overall ceiling a
