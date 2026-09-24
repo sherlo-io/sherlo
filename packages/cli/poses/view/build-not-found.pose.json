@@ -10,5 +10,5 @@
   "api": [
     { "call": "getBuildStatus", "with": { "buildIndex": 99 }, "answer": null }
   ],
-  "masks": { "<MASKED>": "posetokenposetokenposetokenpose1tm0000017" }
+  "masks": {}
 }

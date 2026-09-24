@@ -1,5 +1,5 @@
 [32m✔[39m  [1mfoundation-typography--scales[22m captured, the way a test run records it
-[2m   settled in 1.4s over 6 frames · testing mode[22m
+[2m   settled in <SETTLED> over 6 frames · testing mode[22m
 
    [93m<[39m[95mTypographyScales[39m[93m>[39m
      [93m<[39m[36mScrollView[39m
@@ -8,7 +8,7 @@
          [37mpadding[39m[97m:[39m [93m16[39m[97m,[39m
          [37mbackgroundColor[39m[97m:[39m [93m"[39m[97m#FFFFFF[39m[93m"[39m
        [36m}}[39m
-     [93m>[39m [36m(360 x 800)[39m
+     [93m>[39m [36m(<SIZE>)[39m
        [93m<[39m[95mSectionTitle[39m[93m>[39m
          [93m<[39m[36mText[39m
            [37mstyle[39m[32m=[39m[36m{{[39m
@@ -18,7 +18,7 @@
              [37mfontSize[39m[97m:[39m [93m12[39m[97m,[39m
              [37mletterSpacing[39m[97m:[39m [93m1[39m
            [36m}}[39m
-         [93m>[39m [36m(328 x 16)[39m
+         [93m>[39m [36m(<SIZE>)[39m
            FONT SIZES
          [93m</[39m[36mText[39m[93m>[39m
        [93m</[39m[95mSectionTitle[39m[93m>[39m
@@ -29,7 +29,7 @@
              [37mcolor[39m[97m:[39m [93m"[39m[30m#111827[39m[93m"[39m[97m,[39m
              [37mfontSize[39m[97m:[39m [93m10[39m
            [36m}}[39m
-         [93m>[39m [36m(328 x 14)[39m
+         [93m>[39m [36m(<SIZE>)[39m
            10px - The quick brown fox
          [93m</[39m[36mText[39m[93m>[39m
        [93m</[39m[95mSampleLine[39m[93m>[39m
@@ -40,7 +40,7 @@
              [37mcolor[39m[97m:[39m [93m"[39m[30m#111827[39m[93m"[39m[97m,[39m
              [37mfontSize[39m[97m:[39m [93m12[39m
            [36m}}[39m
-         [93m>[39m [36m(328 x 16)[39m
+         [93m>[39m [36m(<SIZE>)[39m
            12px - The quick brown fox
          [93m</[39m[36mText[39m[93m>[39m
        [93m</[39m[95mSampleLine[39m[93m>[39m
@@ -51,7 +51,7 @@
              [37mcolor[39m[97m:[39m [93m"[39m[30m#111827[39m[93m"[39m[97m,[39m
              [37mfontSize[39m[97m:[39m [93m14[39m
            [36m}}[39m
-         [93m>[39m [36m(328 x 19)[39m
+         [93m>[39m [36m(<SIZE>)[39m
            14px - The quick brown fox
          [93m</[39m[36mText[39m[93m>[39m
        [93m</[39m[95mSampleLine[39m[93m>[39m
@@ -62,7 +62,7 @@
              [37mcolor[39m[97m:[39m [93m"[39m[30m#111827[39m[93m"[39m[97m,[39m
              [37mfontSize[39m[97m:[39m [93m16[39m
            [36m}}[39m
-         [93m>[39m [36m(328 x 22)[39m
+         [93m>[39m [36m(<SIZE>)[39m
            16px - The quick brown fox
          [93m</[39m[36mText[39m[93m>[39m
        [93m</[39m[95mSampleLine[39m[93m>[39m
@@ -73,7 +73,7 @@
              [37mcolor[39m[97m:[39m [93m"[39m[30m#111827[39m[93m"[39m[97m,[39m
              [37mfontSize[39m[97m:[39m [93m18[39m
            [36m}}[39m
-         [93m>[39m [36m(328 x 24)[39m
+         [93m>[39m [36m(<SIZE>)[39m
            18px - The quick brown fox
          [93m</[39m[36mText[39m[93m>[39m
        [93m</[39m[95mSampleLine[39m[93m>[39m
@@ -84,7 +84,7 @@
              [37mcolor[39m[97m:[39m [93m"[39m[30m#111827[39m[93m"[39m[97m,[39m
              [37mfontSize[39m[97m:[39m [93m20[39m
            [36m}}[39m
-         [93m>[39m [36m(328 x 27)[39m
+         [93m>[39m [36m(<SIZE>)[39m
            20px - The quick brown fox
          [93m</[39m[36mText[39m[93m>[39m
        [93m</[39m[95mSampleLine[39m[93m>[39m
@@ -95,7 +95,7 @@
              [37mcolor[39m[97m:[39m [93m"[39m[30m#111827[39m[93m"[39m[97m,[39m
              [37mfontSize[39m[97m:[39m [93m24[39m
            [36m}}[39m
-         [93m>[39m [36m(328 x 32)[39m
+         [93m>[39m [36m(<SIZE>)[39m
            24px - The quick brown fox
          [93m</[39m[36mText[39m[93m>[39m
        [93m</[39m[95mSampleLine[39m[93m>[39m
@@ -106,7 +106,7 @@
              [37mcolor[39m[97m:[39m [93m"[39m[30m#111827[39m[93m"[39m[97m,[39m
              [37mfontSize[39m[97m:[39m [93m28[39m
            [36m}}[39m
-         [93m>[39m [36m(328 x 38)[39m
+         [93m>[39m [36m(<SIZE>)[39m
            28px - The quick brown fox
          [93m</[39m[36mText[39m[93m>[39m
        [93m</[39m[95mSampleLine[39m[93m>[39m
@@ -117,7 +117,7 @@
              [37mcolor[39m[97m:[39m [93m"[39m[30m#111827[39m[93m"[39m[97m,[39m
              [37mfontSize[39m[97m:[39m [93m32[39m
            [36m}}[39m
-         [93m>[39m [36m(328 x 43)[39m
+         [93m>[39m [36m(<SIZE>)[39m
            32px - The quick brown fox
          [93m</[39m[36mText[39m[93m>[39m
        [93m</[39m[95mSampleLine[39m[93m>[39m
@@ -128,7 +128,7 @@
              [37mcolor[39m[97m:[39m [93m"[39m[30m#111827[39m[93m"[39m[97m,[39m
              [37mfontSize[39m[97m:[39m [93m40[39m
            [36m}}[39m
-         [93m>[39m [36m(328 x 54)[39m
+         [93m>[39m [36m(<SIZE>)[39m
            40px - The quick brown fox
          [93m</[39m[36mText[39m[93m>[39m
        [93m</[39m[95mSampleLine[39m[93m>[39m
@@ -142,7 +142,7 @@
              [37mfontSize[39m[97m:[39m [93m12[39m[97m,[39m
              [37mletterSpacing[39m[97m:[39m [93m1[39m
            [36m}}[39m
-         [93m>[39m [36m(328 x 16)[39m
+         [93m>[39m [36m(<SIZE>)[39m
            FONT WEIGHTS
          [93m</[39m[36mText[39m[93m>[39m
        [93m</[39m[95mSectionTitle[39m[93m>[39m
@@ -154,7 +154,7 @@
              [37mfontWeight[39m[97m:[39m [93m"100"[39m[97m,[39m
              [37mfontSize[39m[97m:[39m [93m16[39m
            [36m}}[39m
-         [93m>[39m [36m(328 x 22)[39m
+         [93m>[39m [36m(<SIZE>)[39m
            Weight 100 - The quick brown fox
          [93m</[39m[36mText[39m[93m>[39m
        [93m</[39m[95mSampleLine[39m[93m>[39m
@@ -166,7 +166,7 @@
              [37mfontWeight[39m[97m:[39m [93m"200"[39m[97m,[39m
              [37mfontSize[39m[97m:[39m [93m16[39m
            [36m}}[39m
-         [93m>[39m [36m(328 x 22)[39m
+         [93m>[39m [36m(<SIZE>)[39m
            Weight 200 - The quick brown fox
          [93m</[39m[36mText[39m[93m>[39m
        [93m</[39m[95mSampleLine[39m[93m>[39m
@@ -178,7 +178,7 @@
              [37mfontWeight[39m[97m:[39m [93m"300"[39m[97m,[39m
              [37mfontSize[39m[97m:[39m [93m16[39m
            [36m}}[39m
-         [93m>[39m [36m(328 x 22)[39m
+         [93m>[39m [36m(<SIZE>)[39m
            Weight 300 - The quick brown fox
          [93m</[39m[36mText[39m[93m>[39m
        [93m</[39m[95mSampleLine[39m[93m>[39m
@@ -190,7 +190,7 @@
              [37mfontWeight[39m[97m:[39m [93m"400"[39m[97m,[39m
              [37mfontSize[39m[97m:[39m [93m16[39m
            [36m}}[39m
-         [93m>[39m [36m(328 x 22)[39m
+         [93m>[39m [36m(<SIZE>)[39m
            Weight 400 - The quick brown fox
          [93m</[39m[36mText[39m[93m>[39m
        [93m</[39m[95mSampleLine[39m[93m>[39m

@@ -1,9 +1,9 @@
 [32mBuild #13[39m · finished
 
-🔗 [4mhttps://app.sherlo.io/build?t=tm000001&p=7&b=13[24m
+🔗 [4mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[24m
 
 [2m⏳ Waiting for build results (timeout: 45min)...[22m
-[2m   🟢 Finished[22m
+   <build progress masked>
 
 [32m✅ Nothing needed capturing - no change on this branch reaches any story[39m
 [2m   closed by the server - no device run was needed[22m

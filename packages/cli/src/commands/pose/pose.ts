@@ -46,6 +46,7 @@ import { installLetterbox, posedLetterbox } from '../../seams/letterbox';
 import { installCaptureSocket, posedCaptureSocket } from '../../seams/captureSocket';
 import type { CommandPose } from '../../seams/commandPose';
 import { readPoseDocument } from './readPose';
+import { maskScreen } from './maskScreen';
 import resolveConfigPath from '../../helpers/getValidatedCommandParams/getNormalizedConfig/resolveConfigPath';
 
 /**
@@ -416,21 +417,25 @@ function holdTheRedrawsStill(): () => void {
 /**
  * Fold the values only this machine knows out of the screen.
  *
- * THE TWO PATH FOLDS ARE NOT ASKED FOR - the tool always makes them, because a posed run's
- * project folder is a temporary directory with a random name in it and no transcript may carry
- * one. The CONFIG PATH goes first because it sits inside the project root, and folding the root
- * first would leave half a path behind.
+ * NOTHING IS FOLDED HERE. Every class a screen carries - the two machine paths, a token, a build
+ * address, a size, a duration, a commit, a fingerprint, a wait's progress lines - is folded by
+ * ./maskScreen, the ONE masker, so that a live run's screen folded through `sherlo mask` and a
+ * posed screen folded here come out the same. A second copy of any of those rules living in this
+ * file is exactly the drift that module exists to prevent.
  *
- * The pose's own masks go LAST, each one replacing the literal the pose itself put on the screen
- * - a token, a commit, a build file name - with the placeholder it named.
+ * The pose's own masks go LAST, each one replacing a literal the SCENARIO put on the screen with
+ * the placeholder it named. That is all a pose may still say: a class the tool recognises by
+ * shape is not a scenario's business, and the catalogue refuses a pose that names one.
  */
 export function applyMasks(
   screen: string,
   commandPose: CommandPose,
   machineOnly: { root: string; configPath: string }
 ): string {
-  let masked = screen.split(machineOnly.configPath).join('<SHERLO_CONFIG_PATH>');
-  masked = masked.split(machineOnly.root).join('<PROJECT_ROOT>');
+  let masked = maskScreen(screen, {
+    projectRoot: machineOnly.root,
+    configPath: machineOnly.configPath,
+  });
 
   for (const [placeholder, literal] of Object.entries(commandPose.masks)) {
     masked = masked.split(literal).join(placeholder);

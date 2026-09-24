@@ -12,5 +12,5 @@
       "answer": { "name": "Storefront App", "index": 1, "projectToken": "<A_MINTED_PROJECT_TOKEN>" }
     }
   ],
-  "masks": { "<MASKED>": "<A_MINTED_PROJECT_TOKEN>" }
+  "masks": {}
 }
