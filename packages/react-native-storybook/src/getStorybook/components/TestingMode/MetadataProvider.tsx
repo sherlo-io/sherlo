@@ -16,6 +16,12 @@ export type ViewProps = {
     style?: any;
     testID?: string;
     hasNetworkImage?: boolean;
+    /** The words this view's own fiber draws, when it draws any - see extractTextFromProps. */
+    text?: string;
+    /** A `TextInput`'s own placeholder, kept only for the fiber that carries one. */
+    placeholder?: string;
+    /** A `Text`'s own numberOfLines, kept only for the fiber that carries one. */
+    numberOfLines?: number;
   };
 };
 
@@ -82,11 +88,24 @@ function collectFromRoot(root: Fiber): { viewProps: ViewProps; texts: string[] }
     const nativeTag = stateNode?._nativeTag || stateNode?.canonical?.nativeTag;
 
     if (nativeTag) {
+      // Only the words THIS fiber's own children prop carries - not its descendants'. A nested
+      // text span is a fiber of its own, reached by this same walk under its own native tag, and
+      // captureViewTree is what folds a span's words into the text of the view that holds it.
+      const ownWords: string[] = [];
+      extractTextFromProps(pendingProps, ownWords);
+
       viewProps[nativeTag] = {
         style: pendingProps.style,
         testID: pendingProps.testID,
         className: type || undefined,
         hasNetworkImage: isNetworkImageComponent(currentFiber),
+        ...(ownWords.length > 0 && { text: ownWords.join('') }),
+        ...(typeof pendingProps.placeholder === 'string' && {
+          placeholder: pendingProps.placeholder,
+        }),
+        ...(typeof pendingProps.numberOfLines === 'number' && {
+          numberOfLines: pendingProps.numberOfLines,
+        }),
       };
     }
 

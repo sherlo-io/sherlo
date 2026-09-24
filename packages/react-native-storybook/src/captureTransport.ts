@@ -61,10 +61,12 @@
  * The names come from the app's own functions, so a view the app did not write is nameless, and a
  * bundle that dropped the names leaves them absent rather than invented.
  *
- * THE PRIMITIVE IS ONE OF THREE WORDS. A view is drawn by a native class, and the class is named
- * for the platform rather than for the developer who reads the tree: `ReactTextView` on Android,
- * `RCTText` on both. What the command prints is `View`, `Text`, `Image` - the words the tool's own
- * screen documents - so every class is read through one table, below.
+ * THE PRIMITIVE IS THE FIBER MATCHED TO THE VIEW, OR THE VIEW'S OWN CLASS WHEN NONE MATCHED. A
+ * view is drawn by a native class named for the platform, not for the developer who reads the
+ * tree: `ReactTextView` on Android, `RCTText` on both - so the record prefers the matched fiber's
+ * own React type, which reads the same on both platforms, and strips the `RCT` prefix the same
+ * way the web inspector does (see thePrimitiveTheCommandPrints). A view nothing of the app
+ * rendered - a native-only view above the story - keeps its own drawing class instead, unguessed.
  *
  * TWO FACTS BESIDE THE TREE, because a developer cannot see either from where they are sitting: how
  * many screenfuls the story is, so a story that scrolls past the first screen is not mistaken for
@@ -96,7 +98,11 @@
 import { NativeModules } from 'react-native';
 import SherloModule from './SherloModule';
 import { InspectorData, InspectorDataNode, StorybookView } from './types';
-import { componentNamesByNativeTag, type ComponentNamesByNativeTag } from './componentNames';
+import {
+  componentNamesByNativeTag,
+  primitiveOfHostType,
+  type ComponentNamesByNativeTag,
+} from './componentNames';
 import { collectAppMetadata, providerFirstRenderedAt } from './appMetadata';
 import { STORY_ERROR_FALLBACK_TEXT } from './constants';
 import { prepareInspectorData } from './getStorybook/components/TestingMode/useTestAllStories/prepareInspectorData';
@@ -312,13 +318,34 @@ export type WindowReason =
   | { cause: 'story-not-in-tree' };
 
 /**
- * One view in the tree a capture records - the native class of the node, and the names of the
- * app's components that render it, outermost first. No names means the app did not write this
- * view, or its bundle did not keep the names.
+ * One view in the tree a capture records - everything the inspector read for it, plus what the
+ * test run's own preparation matched to it (see captureViewTree).
+ *
+ * `components` is the names of the app's components that render this view, outermost first. No
+ * names means the app did not write this view, or its bundle did not keep the names. `style` and
+ * `testID` are absent for the same reason `components` can be empty: no fiber matched this view,
+ * either because nothing of the app's rendered it (a native-only view above the story) or the
+ * story on screen is broken, in which case a run reads none of this either (see theStorysOwnTree).
  */
 export type CapturedViewTree = {
   primitive: string;
   components: string[];
+  visible: boolean;
+  /** The view's box in pixels, as the native side measured it. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** The same box in points - pixels divided by the device's own density, and rounded. */
+  size: { width: number; height: number };
+  /** The view's React style, as one object - a style array merged in order, later wins. */
+  style?: Record<string, unknown>;
+  testID?: string;
+  /** What a text view draws - the words among the children prop of the fiber that drew it, and of
+   * every nested text span it holds. Absent for a view that draws no words of its own or nested. */
+  text?: string;
+  /** A `TextInput`'s placeholder, or a `Text`'s numberOfLines when it is set - nothing else. */
+  props?: Record<string, string | number>;
   children: CapturedViewTree[];
 };
 
@@ -334,6 +361,9 @@ export type CapturedAnswer =
       parts: number;
       /** Whether any view in the story loads an image over the network. */
       hasNetworkImage: boolean;
+      /** The device's own density and font scale - a size in pixels means nothing without them. */
+      density: number;
+      fontScale: number;
       tree: CapturedViewTree;
       /**
        * How the two waits a capture cannot see through the drawn screen went: the wait for the
@@ -566,6 +596,8 @@ async function captureTheStory({
       ...(threw && { threw }),
       parts,
       hasNetworkImage: recorded.hasNetworkImage,
+      density: recorded.density,
+      fontScale: recorded.fontScale,
       tree: recorded.tree,
       waited: recorded.waited,
       root: recorded.root,
@@ -902,6 +934,8 @@ async function screenfulsOfTheStory(): Promise<number> {
 type RecordedStory = {
   tree: CapturedViewTree;
   hasNetworkImage: boolean;
+  density: number;
+  fontScale: number;
   waited: {
     metadata: WaitOutcome;
     storyViews: WaitOutcome & { rereads: number };
@@ -933,6 +967,8 @@ async function readTheStory(storyId: string, onScreen: StoryOnScreen): Promise<R
   return {
     tree,
     hasNetworkImage,
+    density: inspectorData.density,
+    fontScale: inspectorData.fontScale,
     waited,
     root: { at, nodeCount: countNodes(tree), ...(reason && { reason }) },
   };
@@ -1114,7 +1150,11 @@ async function theStorysOwnTree(
 }> {
   if (!metadata) {
     return {
-      tree: captureViewTree(inspectorData.viewHierarchy, componentNamesByNativeTag()),
+      tree: captureViewTree(
+        inspectorData.viewHierarchy,
+        componentNamesByNativeTag(),
+        inspectorData.density
+      ),
       hasNetworkImage: false,
       at: 'window',
       reason: noMetadataDiagnostics,
@@ -1127,8 +1167,15 @@ async function theStorysOwnTree(
       broken.source === 'error-registry'
         ? { cause: 'story-broken', source: 'error-registry' }
         : { cause: 'story-broken', source: 'fallback-text', generation: broken.generation };
+    // A RUN NEVER ENHANCES A BROKEN STORY'S READING EITHER (see useTestStory.tsx: prepareInspectorData
+    // is only ever called when !containsError), so this stays the raw inspector reading - no fiber
+    // matched, no style or testID, the same way a view above the story never gets any either.
     return {
-      tree: captureViewTree(inspectorData.viewHierarchy, componentNamesByNativeTag()),
+      tree: captureViewTree(
+        inspectorData.viewHierarchy,
+        componentNamesByNativeTag(),
+        inspectorData.density
+      ),
       hasNetworkImage: false,
       at: 'window',
       reason,
@@ -1143,7 +1190,11 @@ async function theStorysOwnTree(
   const prepared = prepareInspectorData(inspectorData, metadata, storyId);
 
   return {
-    tree: captureViewTree(prepared.inspectorData.viewHierarchy, componentNamesByNativeTag()),
+    tree: captureViewTree(
+      prepared.inspectorData.viewHierarchy,
+      componentNamesByNativeTag(),
+      inspectorData.density
+    ),
     hasNetworkImage: prepared.hasNetworkImage,
     at,
     ...(at === 'window' && { reason: { cause: 'story-not-in-tree' } as const }),
@@ -1357,52 +1408,129 @@ function liveNativeTags(node: InspectorDataNode): Set<number> {
 }
 
 /**
- * One view tree as the command prints it: the primitive the view is drawn by, and the app's
- * component names above it. The names are read from the fibers the story was rendered from, keyed
- * by the same native tag the inspector reports for the view, so a view the app did not render is
- * simply absent from that reading and comes out nameless.
+ * One view tree as the record carries it: everything the inspector read for the view, matched to
+ * what the test run's own preparation (prepareInspectorData) found for it - the same fields, read
+ * the same way, so a capture and a run never disagree about the same story.
+ *
+ * `node.properties` IS THAT MATCH, ALREADY MADE. prepareInspectorData sets it, per node, from the
+ * fiber whose native tag matches - style, testID, and (since MetadataProvider.tsx now keeps them
+ * too) a text view's own words and a `TextInput`'s placeholder or a `Text`'s numberOfLines. A node
+ * no fiber matched - a native-only view above the story, or any view at all when the story never
+ * went through that preparation (see theStorysOwnTree's broken-story branch) - simply has none of
+ * these, the same absence `components` already reads as "the app did not write this".
  */
 function captureViewTree(
   node: InspectorDataNode,
-  names: ComponentNamesByNativeTag
+  names: ComponentNamesByNativeTag,
+  density: number
 ): CapturedViewTree {
+  const primitive = thePrimitiveTheCommandPrints(node);
+  const properties = node.properties as
+    | {
+        style?: unknown;
+        testID?: unknown;
+        text?: unknown;
+        placeholder?: unknown;
+        numberOfLines?: unknown;
+      }
+    | undefined;
+
+  const style = mergedStyle(properties?.style);
+  const testID = typeof properties?.testID === 'string' ? properties.testID : undefined;
+  const props = primitiveProps(properties?.placeholder, properties?.numberOfLines);
+  const children = (node.children ?? []).map((child) => captureViewTree(child, names, density));
+
+  // A text view's words are its own fiber's, plus whatever a nested text span - a further Text
+  // drawn one level down in this same tree, contributing upward the same way this node's own words
+  // contribute to WHATEVER holds it - adds beneath it (see MetadataProvider.tsx's own note on why
+  // a span's words are kept separately rather than pre-merged there). No primitive check gates
+  // this: a view with nothing of its own and no text-bearing child simply joins to nothing, which
+  // is the same absence a view that never drew any words has.
+  const ownWords = typeof properties?.text === 'string' ? properties.text : undefined;
+  const text =
+    [ownWords, ...children.map((child) => child.text)].filter(isString).join('') || undefined;
+
   return {
-    primitive: thePrimitiveTheCommandPrints(node.className),
+    primitive,
     components: names.get(node.id) ?? [],
-    children: (node.children ?? []).map((child) => captureViewTree(child, names)),
+    visible: node.isVisible,
+    x: node.x,
+    y: node.y,
+    width: node.width,
+    height: node.height,
+    size: { width: Math.round(node.width / density), height: Math.round(node.height / density) },
+    ...(style && { style }),
+    ...(testID && { testID }),
+    ...(text && { text }),
+    ...(props && { props }),
+    children,
   };
 }
 
 /**
- * The word the command prints for a view, by the class that draws it.
- *
- * A native class is named for the platform, not for the developer reading the tree: Android names
- * its views after the Java class that draws them (`ReactTextView`), and iOS after its own prefix
- * (`RCTText`), which is also the name a fiber draws a view by on both platforms. The command
- * prints `View`, `Text` and `Image`, so the two are paired here.
- *
- * AN EXPLICIT TABLE, NOT A STRIPPED PREFIX. The pairings below are the contract between this SDK
- * and what `sherlo capture` prints, so correcting one is one line here. A view drawn by a class
- * this table does not pair keeps its own name: a name this file guessed would be worse than a name
- * a developer can look up, and a primitive invented for an unknown view would be a lie.
+ * A view's React style, as ONE object - the way the inspector's own leaf collector merges it. The
+ * source can write `style` as one object, an array of them (later entries win, the way
+ * `StyleSheet.flatten` and JSX itself already resolve a style array), or arrays nested inside
+ * arrays - falsy entries (`false`, `null`, `undefined`, from a `condition && style`) contribute
+ * nothing. `undefined` when nothing of it ever amounted to a style, rather than an empty object -
+ * absence is a fact this record keeps, not one it hides behind an empty container.
  */
-const PRIMITIVE_BY_DRAWING_CLASS: Record<string, string> = {
-  ReactViewGroup: 'View',
-  ReactTextView: 'Text',
-  ReactImageView: 'Image',
-  ReactScrollView: 'ScrollView',
+function mergedStyle(style: unknown): Record<string, unknown> | undefined {
+  const merged: Record<string, unknown> = {};
+  let sawAnything = false;
 
-  RCTView: 'View',
-  RCTText: 'Text',
-  RCTVirtualText: 'Text',
-  RCTImageView: 'Image',
-  RCTScrollView: 'ScrollView',
-};
+  function apply(value: unknown): void {
+    if (Array.isArray(value)) {
+      value.forEach(apply);
+      return;
+    }
+    if (value && typeof value === 'object') {
+      Object.assign(merged, value);
+      sawAnything = true;
+    }
+  }
 
-/** The primitive the command prints for the class a view is drawn by, or nothing when it said none. */
-function thePrimitiveTheCommandPrints(drawingClass: unknown): string {
-  if (typeof drawingClass !== 'string') return '';
-  return PRIMITIVE_BY_DRAWING_CLASS[drawingClass] ?? drawingClass;
+  apply(style);
+  return sawAnything ? merged : undefined;
+}
+
+/**
+ * The other props the record keeps: a `TextInput`'s placeholder, and a `Text`'s numberOfLines when
+ * it is set - nothing else a fiber's props hold, because nothing else is what a developer reading
+ * the tree needs from them.
+ */
+function primitiveProps(
+  placeholder: unknown,
+  numberOfLines: unknown
+): Record<string, string | number> | undefined {
+  const props: Record<string, string | number> = {};
+  if (typeof placeholder === 'string') props.placeholder = placeholder;
+  if (typeof numberOfLines === 'number') props.numberOfLines = numberOfLines;
+  return Object.keys(props).length > 0 ? props : undefined;
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+/**
+ * The word the record names a view by - the fiber matched to it, or the view's own drawing class
+ * when no fiber matched.
+ *
+ * `node.properties` IS THE SIGN OF WHICH CASE THIS IS, not merely `node.className`'s own shape.
+ * prepareInspectorData sets `properties` on a node ONLY when a fiber's native tag matched it - and,
+ * on that same node, overwrites `className` with that fiber's own React type (obfuscation-proof,
+ * since it comes straight from the source rather than from whatever the native side calls the
+ * class it drew). So a matched view's `className` is a REACT type - `RCTView`, `RCTText` - and gets
+ * the platform's own `RCT` prefix stripped, exactly the rule the web inspector applies. An
+ * unmatched view - a native-only view above the story, or any view at all when the story never
+ * went through that preparation (see theStorysOwnTree's broken-story branch) - keeps its native
+ * drawing class exactly as the native side reported it, unstripped: `ReactViewGroup` stays
+ * `ReactViewGroup`, because it was never a React type to begin with.
+ */
+function thePrimitiveTheCommandPrints(node: InspectorDataNode): string {
+  if (typeof node.className !== 'string') return '';
+  return node.properties !== undefined ? primitiveOfHostType(node.className) : node.className;
 }
 
 /**

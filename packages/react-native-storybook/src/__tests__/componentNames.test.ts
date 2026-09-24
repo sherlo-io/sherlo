@@ -159,6 +159,31 @@ function siblings(children: RenderedFiber[]): RenderedFiber | null {
  */
 
 describe("a component named as the view it draws is not one of the app's", () => {
-  it("React Native's own View around a View, and its Text around a Text, are left out of the names", () => {});
-  it("an app component that happens to share a primitive's name but draws a different view is kept", () => {});
+  it("React Native's own View around a View, and its Text around a Text, are left out of the names", () => {
+    // React Native's own `View` component wraps every `<View>` the source writes, and its own
+    // `Text` wraps every `<Text>` - both are the view itself under another name, so a tree that
+    // named them too would print each view twice for nothing.
+    rememberStoryOfTheApp(
+      story(
+        appComponent(
+          'ProfileCard',
+          view('View', SCROLL_VIEW, appComponent('View', view('View', TITLE)))
+        )
+      )
+    );
+
+    const names = componentNamesByNativeTag();
+
+    expect(names.get(SCROLL_VIEW)).toEqual(['ProfileCard']);
+    // `View` around a `View` names nothing here - it is left out, not merely deduplicated.
+    expect(names.get(TITLE)).toEqual([]);
+  });
+
+  it("an app component that happens to share a primitive's name but draws a different view is kept", () => {
+    // A component named `View` that renders a Text is not the view itself under another name - it
+    // draws something else entirely, so its name is a real fact about the tree and stays.
+    rememberStoryOfTheApp(story(appComponent('View', view('Text', TITLE))));
+
+    expect(componentNamesByNativeTag().get(TITLE)).toEqual(['View']);
+  });
 });
