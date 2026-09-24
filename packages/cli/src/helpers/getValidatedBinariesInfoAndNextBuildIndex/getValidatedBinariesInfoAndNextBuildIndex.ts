@@ -1,5 +1,4 @@
 import { Platform } from '@sherlo/api-types';
-import sdkClient from '@sherlo/sdk-client';
 import { EAS_BUILD_ON_COMPLETE_COMMAND } from '../../constants';
 import { Command, CommandParams, ValidatedBinariesInfo } from '../../types';
 import getPlatformsToTest from '../getPlatformsToTest';
@@ -9,7 +8,8 @@ import getBinariesInfoAndNextBuildIndex from './getBinariesInfoAndNextBuildIndex
 type Params = EasBuildOnCompleteCommandParams | OtherCommandParams;
 
 type BaseParams = {
-  client: ReturnType<typeof sdkClient>;
+  /** The raw project token - the seam builds its own sdk client from it (../../seams/serverCalls). */
+  token: string;
   projectIndex: number;
   teamId: string;
 };

@@ -37,7 +37,7 @@ async function asyncUploadBuildAndRunTests({
 
   const { binariesInfo } = await getValidatedBinariesInfoAndNextBuildIndex({
     buildPath,
-    client,
+    token,
     command: THIS_COMMAND,
     platform,
     projectIndex,
