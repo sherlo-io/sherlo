@@ -9,13 +9,13 @@
          [37mpadding[39m[97m:[39m [93m24[39m[97m,[39m
          [37mbackgroundColor[39m[97m:[39m [93m"[39m[97m#FFF5F5[39m[93m"[39m
        [36m}}[39m
-     [93m>[39m [36m(360 x 800)[39m
+     [93m>[39m [36m(<SIZE>)[39m
        [93m<[39m[36mText[39m
          [37mstyle[39m[32m=[39m[36m{{[39m
            [37mcolor[39m[97m:[39m [93m"[39m[31m#B91C1C[39m[93m"[39m[97m,[39m
            [37mfontSize[39m[97m:[39m [93m14[39m
          [36m}}[39m
-       [93m>[39m [36m(312 x 40)[39m
+       [93m>[39m [36m(<SIZE>)[39m
          Cannot read properties of undefined (reading 'name')
        [93m</[39m[36mText[39m[93m>[39m
      [93m</[39m[36mView[39m[93m>[39m

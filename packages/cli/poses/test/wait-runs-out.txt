@@ -13,7 +13,7 @@
 [32mTest 1[39m will run on [34m1 device[39m (1 Android)
 
 📦 [1mAndroid[22m
-[34m➜[39m  uploading build... (48.12 MB)
+[34m➜[39m  uploading build... (<SIZE> MB)
 [32m✔[39m  upload complete
 
 [1m[22m
@@ -21,16 +21,16 @@
 [1m[22m
 [36m[39m
 [36m🤖 Building android bundle...[39m
-[32m  ✓ Bundle: bundle.android.js[39m (4.29 MB, plain-js, expo)
+[32m  ✓ Bundle: bundle.android.js[39m (<SIZE> MB, plain-js, expo)
 [32m  ✓ Assets: 2 files[39m
 [36m[39m
 [36m⬆️  Uploading android bundle...[39m
-🔗 [4mhttps://app.sherlo.io/build?t=tm000001&p=7&b=1[24m
+🔗 [4mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[24m
 
 [2m⏳ Waiting for build results (timeout: 1min)...[22m
-[2m   🔵 Running[22m
+   <build progress masked>
 
-[33m⏰ Timeout reached after 1 minutes.[39m
+[33m⏰ Timeout reached after <N> minutes.[39m
 [33m   The build may still be running.[39m
 
 

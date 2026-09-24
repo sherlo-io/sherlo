@@ -2,7 +2,7 @@
   "runStatus": "finished",
   "buildIndex": 7,
   "commit": {
-    "sha": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c",
+    "sha": "<SHA>",
     "branch": "e2e/sherlo-3/dev"
   },
   "viewStatusesCount": {
