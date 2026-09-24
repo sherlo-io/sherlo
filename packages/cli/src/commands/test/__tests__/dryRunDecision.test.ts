@@ -13,7 +13,7 @@
  *   - it THROWS (so the caller bails open) when the query method is absent at
  *     runtime, or the result is null / malformed.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../helpers/reporting', () => ({
   default: { addBreadcrumb: vi.fn() },
@@ -24,9 +24,26 @@ import {
   DRY_RUN_DECISION_UNAVAILABLE,
   type DryRunPlatformRequest,
 } from '../dryRunDecision';
+import { installServerCalls, type ServerCalls } from '../../../seams/serverCalls';
+
+const TOKEN = 'test-token';
+
+// The query this suite drives directly - installed as the whole server seam's
+// `computeDiffScopeDryRun`, since the real client (and the token it is built from) now lives
+// entirely inside ../../../seams/serverCalls.
+let query: ReturnType<typeof vi.fn>;
+let restoreServerCalls: () => void;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  query = vi.fn();
+  restoreServerCalls = installServerCalls({
+    computeDiffScopeDryRun: query as unknown as ServerCalls['computeDiffScopeDryRun'],
+  } as unknown as ServerCalls);
+});
+
+afterEach(() => {
+  restoreServerCalls();
 });
 
 const gitInfo: any = { branchName: 'feature', commitHash: 'abc', commitName: 'msg' };
@@ -41,13 +58,9 @@ function manifest(storyCount: number, bytes = '{"v":1}'): any {
   };
 }
 
-function clientWith(computeDiffScopeDryRun: any): any {
-  return { computeDiffScopeDryRun };
-}
-
 describe('requestDryRunDecision', () => {
   it('issues one call with the mapped platforms array and returns mapped decisions', async () => {
-    const query = vi.fn().mockResolvedValue({
+    query.mockResolvedValue({
       platforms: [
         {
           platform: 'ios',
@@ -70,7 +83,7 @@ describe('requestDryRunDecision', () => {
     ];
 
     const decisions = await requestDryRunDecision({
-      client: clientWith(query),
+      token: TOKEN,
       gitInfo,
       projectIndex: 9,
       teamId: 'team-x',
@@ -108,9 +121,9 @@ describe('requestDryRunDecision', () => {
   });
 
   it('omits an empty baseReference', async () => {
-    const query = vi.fn().mockResolvedValue({ platforms: [] });
+    query.mockResolvedValue({ platforms: [] });
     await requestDryRunDecision({
-      client: clientWith(query),
+      token: TOKEN,
       gitInfo,
       projectIndex: 1,
       teamId: 't',
@@ -121,9 +134,10 @@ describe('requestDryRunDecision', () => {
   });
 
   it('throws (caller bails open) when the query method is absent at runtime', async () => {
+    query.mockRejectedValue(new Error(DRY_RUN_DECISION_UNAVAILABLE));
     await expect(
       requestDryRunDecision({
-        client: clientWith(undefined),
+        token: TOKEN,
         gitInfo,
         projectIndex: 1,
         teamId: 't',
@@ -133,10 +147,10 @@ describe('requestDryRunDecision', () => {
   });
 
   it('throws (caller bails open) when the result is null', async () => {
-    const query = vi.fn().mockResolvedValue(null);
+    query.mockResolvedValue(null);
     await expect(
       requestDryRunDecision({
-        client: clientWith(query),
+        token: TOKEN,
         gitInfo,
         projectIndex: 1,
         teamId: 't',
@@ -146,10 +160,10 @@ describe('requestDryRunDecision', () => {
   });
 
   it('propagates a transport error (caller bails open)', async () => {
-    const query = vi.fn().mockRejectedValue(new Error('network exploded'));
+    query.mockRejectedValue(new Error('network exploded'));
     await expect(
       requestDryRunDecision({
-        client: clientWith(query),
+        token: TOKEN,
         gitInfo,
         projectIndex: 1,
         teamId: 't',

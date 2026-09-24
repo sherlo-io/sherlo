@@ -424,7 +424,7 @@ describe("a posed call's platforms are matched against the call as a set", () =>
     ]);
 
     await expect(
-      api.getStagedUploadUrls({} as never, { platforms: ['android', 'ios'] } as never)
+      api.getStagedUploadUrls({ platforms: ['android', 'ios'] } as never)
     ).resolves.toBeDefined();
     expect(api.refusals()).toEqual([]);
   });
@@ -434,9 +434,7 @@ describe("a posed call's platforms are matched against the call as a set", () =>
       { call: 'getStagedUploadUrls', with: { platforms: ['ios', 'android'] }, answer: {} },
     ]);
 
-    await expect(
-      api.getStagedUploadUrls({} as never, { platforms: ['android'] } as never)
-    ).rejects.toThrow();
+    await expect(api.getStagedUploadUrls({ platforms: ['android'] } as never)).rejects.toThrow();
 
     expect(api.refusals()).toHaveLength(1);
     expect(api.refusals()[0].problem).toContain('`platforms`');
@@ -458,7 +456,7 @@ describe("a posed call's platforms are matched against the call as a set", () =>
     ]);
 
     await expect(
-      api.openBuild({} as never, { buildRunConfig: { android: {}, ios: {} } } as never)
+      api.openBuild({ buildRunConfig: { android: {}, ios: {} } } as never)
     ).resolves.toBeDefined();
     expect(api.refusals()).toEqual([]);
   });
@@ -472,9 +470,7 @@ describe("a posed call's platforms are matched against the call as a set", () =>
       },
     ]);
 
-    await expect(
-      api.openBuild({} as never, { buildRunConfig: { android: {} } } as never)
-    ).rejects.toThrow();
+    await expect(api.openBuild({ buildRunConfig: { android: {} } } as never)).rejects.toThrow();
 
     expect(api.refusals()).toHaveLength(1);
     expect(api.refusals()[0].problem).toContain('`platforms`');

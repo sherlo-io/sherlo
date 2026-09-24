@@ -86,26 +86,23 @@ export type ServerCalls = {
 
   listProjects(request: { teamId: string; personalToken: string }): Promise<ProjectList>;
 
-  openBuild(client: SdkClient, request: OpenBuildRequest): Promise<OpenBuildAnswer>;
+  openBuild(request: OpenBuildRequest & { token: string }): Promise<OpenBuildAnswer>;
 
   /** Has the server seen these binaries, and which build comes next - the push's first question. */
-  getNextBuildInfo(client: SdkClient, request: NextBuildInfoRequest): Promise<NextBuildInfoAnswer>;
+  getNextBuildInfo(request: NextBuildInfoRequest & { token: string }): Promise<NextBuildInfoAnswer>;
 
   /** The staged slots a fresh bundle is PUT into - asked by every road that uploads one. */
   getStagedUploadUrls(
-    client: SdkClient,
-    request: StagedUploadUrlsRequest
+    request: StagedUploadUrlsRequest & { token: string }
   ): Promise<StagedUploadUrlsAnswer>;
 
   computeDiffScopeDryRun(
-    client: DryRunDecisionClient,
-    request: ComputeDiffScopeDryRunRequest
+    request: ComputeDiffScopeDryRunRequest & { token: string }
   ): Promise<ComputeDiffScopeDryRunResult>;
 
   /** The staged road's gate: can this commit reuse the base registered under this fingerprint? Asked per platform. */
   checkStagedGate(
-    client: SdkClient,
-    request: CheckStagedGateRequest
+    request: CheckStagedGateRequest & { token: string }
   ): Promise<CheckStagedGateAnswer>;
 
   /**
@@ -114,7 +111,7 @@ export type ServerCalls = {
    * ../seams/workstation - so a posed init answers its reports from the pose's `api` and never
    * reaches the real backend.
    */
-  trackCliInit(client: SdkClient, request: TrackCliInitRequest): Promise<TrackCliInitAnswer>;
+  trackCliInit(request: TrackCliInitRequest & { token: string }): Promise<TrackCliInitAnswer>;
 };
 
 /** What the staged gate is asked and what it answers - the sdk client's own shapes. */
@@ -139,29 +136,45 @@ export const liveServerCalls: ServerCalls = {
   listTeams: (request) => listTeamsRequest(request),
   listProjects: (request) => listProjectsRequest(request),
 
-  openBuild: (client, request) => client.openBuild(request),
+  openBuild: ({ token, ...request }) => {
+    const { apiToken } = getTokenParts(token);
+    return sdkClient({ authToken: apiToken }, getEndpointUrl()).openBuild(request);
+  },
 
-  getNextBuildInfo: (client, request) => client.getNextBuildInfo(request),
+  getNextBuildInfo: ({ token, ...request }) => {
+    const { apiToken } = getTokenParts(token);
+    return sdkClient({ authToken: apiToken }, getEndpointUrl()).getNextBuildInfo(request);
+  },
 
-  getStagedUploadUrls: (client, request) => client.getStagedUploadUrls(request),
+  getStagedUploadUrls: ({ token, ...request }) => {
+    const { apiToken } = getTokenParts(token);
+    return sdkClient({ authToken: apiToken }, getEndpointUrl()).getStagedUploadUrls(request);
+  },
 
-  trackCliInit: (client, request) => client.trackCliInit(request),
+  trackCliInit: ({ token, ...request }) => {
+    const { apiToken } = getTokenParts(token);
+    return sdkClient({ authToken: apiToken }, getEndpointUrl()).trackCliInit(request);
+  },
 
-  computeDiffScopeDryRun: (client, request) => {
+  computeDiffScopeDryRun: ({ token, ...request }) => {
+    const { apiToken } = getTokenParts(token);
+    const client = sdkClient({ authToken: apiToken }, getEndpointUrl()) as DryRunDecisionClient;
+
     // The published sdk-client this repo typechecks against may not carry the query yet, so the
     // method is reached defensively - exactly as ../commands/test/dryRunDecision does.
-    const query = (client as unknown as Record<string, unknown>).computeDiffScopeDryRun;
+    const query = client.computeDiffScopeDryRun;
 
     if (typeof query !== 'function') {
       throw new Error(DRY_RUN_DECISION_UNAVAILABLE);
     }
 
-    return (
-      query as (input: ComputeDiffScopeDryRunRequest) => Promise<ComputeDiffScopeDryRunResult>
-    )(request);
+    return query(request);
   },
 
-  checkStagedGate: (client, request) => client.checkStagedGate(request),
+  checkStagedGate: ({ token, ...request }) => {
+    const { apiToken } = getTokenParts(token);
+    return sdkClient({ authToken: apiToken }, getEndpointUrl()).checkStagedGate(request);
+  },
 };
 
 let installed: ServerCalls = liveServerCalls;
@@ -269,7 +282,7 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
 
     // The platforms this run opened a build for are the ones its build-run config carries - the
     // command composed that, so it is read off the payload rather than restated by the pose.
-    openBuild: async (_client, request) => {
+    openBuild: async (request) => {
       // The config carries `include`/`exclude` beside the platforms, and the standard road writes
       // a platform key it has no binary for as undefined - so the platforms are the two keys
       // that hold a config, never every key.
@@ -284,7 +297,7 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
       return openBuildAnswerOf(answer.buildIndex, platforms as Platform[], answer.captureDecision);
     },
 
-    getNextBuildInfo: async (_client, request) => {
+    getNextBuildInfo: async (request) => {
       const answer = answerFor('getNextBuildInfo', {
         platforms: request.platforms,
       }) as NextBuildInfoScript;
@@ -292,13 +305,13 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
       return nextBuildInfoAnswerOf(answer, request.platforms);
     },
 
-    getStagedUploadUrls: async (_client, request) => {
+    getStagedUploadUrls: async (request) => {
       answerFor('getStagedUploadUrls', { platforms: request.platforms });
 
       return stagedUploadUrlsAnswerOf(request.platforms);
     },
 
-    computeDiffScopeDryRun: async (_client, request) =>
+    computeDiffScopeDryRun: async (request) =>
       answerFor('computeDiffScopeDryRun', {
         branch: request.gitInfo.branchName,
         commit: request.gitInfo.commitHash,
@@ -306,7 +319,7 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
 
     // The gate is asked per platform with the base fingerprint the tool computed; the pose states
     // both, so a pose cannot answer a question about a base the run never measured.
-    checkStagedGate: async (_client, request) =>
+    checkStagedGate: async (request) =>
       answerFor('checkStagedGate', {
         platform: request.platform,
         baseFingerprint: request.baseFingerprint,
@@ -314,7 +327,7 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
 
     // The step that sent the report is the one thing a pose can meaningfully state about it: the
     // params carry whatever that step measured, which the command composed rather than the pose.
-    trackCliInit: async (_client, request) =>
+    trackCliInit: async (request) =>
       answerFor('trackCliInit', { event: request.event }) as TrackCliInitAnswer,
   };
 }

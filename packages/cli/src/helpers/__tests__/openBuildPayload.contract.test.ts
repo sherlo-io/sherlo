@@ -366,7 +366,9 @@ describe('the fresh bundle on the platform config', () => {
       // producer swaps to run this exact step offline. Identity is the assertion.
       effects: mocks.freshBundleEffects,
     });
-    expect(mocks.realFreshBundleEffects).toHaveBeenCalledWith(mocks.client);
+    // The seam builds its own client from the raw token now (../../seams/serverCalls) - the
+    // step is handed the token, never a client.
+    expect(mocks.realFreshBundleEffects).toHaveBeenCalledWith('the-token');
   });
 
   it('keeps the REAL binary s3Key and writes the bundle fields beside it, per platform', async () => {
