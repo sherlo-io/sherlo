@@ -11,5 +11,5 @@
     { "call": "getBuildStatus", "with": { "buildIndex": 8 }, "answer": { "runStatus": "finished", "status": "noChanges", "viewStatusesCount": { "approved": 5, "noChanges": 39, "reported": 0, "unreviewed": 0 } } },
     { "call": "getBuildStatus", "with": { "buildIndex": 8 }, "answer": { "runStatus": "finished", "status": "noChanges", "viewStatusesCount": { "approved": 5, "noChanges": 39, "reported": 0, "unreviewed": 0 } } }
   ],
-  "masks": { "<MASKED>": "posetokenposetokenposetokenpose1tm0000017" }
+  "masks": {}
 }

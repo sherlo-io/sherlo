@@ -17,7 +17,7 @@
 
 native-needed=true
 reason=android: changed since the base build: native build metadata
-base-fingerprint=a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d
+base-fingerprint=<FINGERPRINT>
 [33m[39m
 [33mA native build is required before this commit can be tested: android: changed since the base build: native build metadata.[39m
 [33mNothing was built and no test ran.[39m

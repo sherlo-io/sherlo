@@ -108,6 +108,12 @@ export const TEAM_LIST_SUBCOMMAND = 'list';
  * Hidden unless SHERLO_DEVTOOLS=1: a tool for the people who work on the tool.
  */
 export const POSE_COMMAND = 'pose';
+/**
+ * `sherlo mask` - read a screen on stdin, print it with every volatile class folded to its
+ * placeholder, exit 0. The same folding `sherlo pose` applies to a screen it printed itself, on a
+ * screen a live run printed. Hidden behind the same gate, for the same reason.
+ */
+export const MASK_COMMAND = 'mask';
 /** `sherlo open --story <id>` - put the running app on one named story. A primary flow, so a verb. */
 export const OPEN_COMMAND = 'open';
 /** `sherlo capture --story <id>` - record one story the way a test run does, on the running app. */

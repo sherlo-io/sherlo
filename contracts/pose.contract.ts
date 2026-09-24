@@ -86,11 +86,19 @@ export type CommandPose = {
    */
   api: ScriptedCall[];
   /**
-   * Placeholders for the values only a machine knows. The tool always folds its own temporary
-   * project folder to `<PROJECT_ROOT>` and the resolved config path to `<SHERLO_CONFIG_PATH>`
-   * without being asked. Anything else that must not reach a committed transcript is named here:
-   * placeholder -> the literal the pose itself put on the screen (a commit hash, a build file
-   * name), so the fold is exact and reviewable.
+   * Placeholder -> the literal the SCENARIO itself put on the screen, and nothing else.
+   *
+   * The tool folds every value only a machine knows on its own, by class and by shape: its
+   * temporary project folder to `<PROJECT_ROOT>`, the resolved config path to
+   * `<SHERLO_CONFIG_PATH>`, a token to `<MASKED>`, a build address, a size in megabytes, a
+   * duration, the time since a build, a commit id, a base fingerprint, and the progress lines a
+   * `--wait` printed while it waited. The same folding is reachable from outside as `sherlo mask`
+   * (stdin in, folded text out), so a live run's screen is folded by the same rule as a posed one.
+   *
+   * A pose that hand-types one of those placeholders here is describing the masker rather than
+   * its scenario, and is refused. What is left for this field is the one thing only a scenario
+   * knows: a literal it put on the screen itself, through its own `files`, `env` or `api`, and
+   * wants read as a placeholder.
    */
   masks: Record<string, string>;
   /**
@@ -293,14 +301,24 @@ export type ScriptedCall =
       call: 'listTeams';
       with: Record<string, never>;
       /** `role` is the caller's membership role, or null when the API does not say. */
-      answer: { teams: Array<{ id: string; name: string; projectCount: number; role: string | null }> } | ApiError;
+      answer:
+        | { teams: Array<{ id: string; name: string; projectCount: number; role: string | null }> }
+        | ApiError;
     }
   | {
       call: 'listProjects';
       with: { teamId: string };
       /** `mainBranch` is null while the project has never chosen one. */
       answer:
-        | { team: { name: string; id: string }; projects: Array<{ index: number; name: string; buildCount: number; mainBranch: string | null }> }
+        | {
+            team: { name: string; id: string };
+            projects: Array<{
+              index: number;
+              name: string;
+              buildCount: number;
+              mainBranch: string | null;
+            }>;
+          }
         | ApiError;
     }
   | {
@@ -390,7 +408,12 @@ export type StagedGateAnswer = {
   outcome: 'fast' | 'full-build-needed' | 'not-stageable';
   /** The layers of the bundle's identity that moved - named on a refusal, empty otherwise. */
   diff: Array<
-    'engineClass' | 'assetInventory' | 'expoUpdatesEnabled' | 'sdkProtocolVersion' | 'buildMetadata' | 'bundleFormat'
+    | 'engineClass'
+    | 'assetInventory'
+    | 'expoUpdatesEnabled'
+    | 'sdkProtocolVersion'
+    | 'buildMetadata'
+    | 'bundleFormat'
   >;
 };
 
@@ -460,7 +483,12 @@ export type BuildStatusAnswer = {
     candidates?: Array<{ buildIndex: number }> | null;
   }>;
   /** The build's Diff Scope block. Absent on an older backend. */
-  diffScope?: { reason: string; captured: string[]; inherited: string[]; ancestorBuildIndex: number | null };
+  diffScope?: {
+    reason: string;
+    captured: string[];
+    inherited: string[];
+    ancestorBuildIndex: number | null;
+  };
 };
 
 /** What the dry-run road's one read-only question answers: per platform, full capture or the story files reached. */
