@@ -20,11 +20,20 @@ export interface MockDeclaration {
 export type StoryMocks = MockDeclaration[] | MockSet;
 
 /**
- * The name every import that reached no shim is filed under, so activation warns about it the
- * way it warns about any declared-but-unshimmed module (FG-03). No module is ever called this,
- * so nothing declared under it can apply - which is exactly the state being warned about.
+ * The name an import that reached no shim is filed under, so activation warns about it the way
+ * it warns about any declared-but-unshimmed module (FG-03). The module has no name to give -
+ * that IS the failure - so the declaration is named by what it declares, which is what a
+ * developer greps their story files for to find it. No module is ever called this, so nothing
+ * filed under it can apply, which is exactly the state being warned about.
  */
-export const UNSHIMMED_IMPORT_KEY = '<an import that reached no mock shim>';
+function unshimmedImportName(definition: MockDefinition): string {
+  if (typeof definition === 'function') return 'an import with no shim, declaring a factory';
+
+  const exportNames = Object.keys(definition);
+  if (exportNames.length === 0) return 'an import with no shim, declaring nothing';
+
+  return `an import with no shim, declaring ${exportNames.join(', ')}`;
+}
 
 /**
  * Declare a mock for the module `importModule` imports.
@@ -62,7 +71,8 @@ export async function resolveDeclarations(declarations: MockDeclaration[]): Prom
 
   const mocks: MockSet = {};
   keys.forEach((key, index) => {
-    mocks[key ?? UNSHIMMED_IMPORT_KEY] = declarations[index].definition;
+    const { definition } = declarations[index];
+    mocks[key ?? unshimmedImportName(definition)] = definition;
   });
   return mocks;
 }

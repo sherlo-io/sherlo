@@ -22,6 +22,8 @@ import { declarationsOf, mock, resolveDeclarations } from '../../mocking/mockDec
 import { mergeStoryMocks } from '../../mocking/mergeMocks';
 import { activateStoryMocks } from '../../mocking';
 import { clearMocks, __resetShimmedKeysForTests } from '../../mocking/registry';
+import { activateMocksForStory } from '../../getStorybook/storyMockActivation';
+import type { StorybookView } from '../../types';
 
 const mockScan = require('../../../metro/mockScan');
 const applySherloTransforms = require('../../../metro/applySherloTransforms');
@@ -32,6 +34,7 @@ afterEach(() => {
   clearMocks();
   __resetShimmedKeysForTests();
   vi.clearAllMocks();
+  delete (globalThis as any).STORIES;
 });
 
 // ---------------------------------------------------------------------------
@@ -117,6 +120,28 @@ function realModulePathIn(root: string): string {
   return path.join(root, 'node_modules', 'expo-localization', 'index.js');
 }
 
+// A Storybook view holding one story, "Mocking/Declared", that declares `mocks`. The preview
+// is already composed, so no global-level second pass is scheduled and the only thing the
+// activation waits on is the declaration's own import.
+function viewDeclaring(mocks: unknown): { view: StorybookView; storyId: string } {
+  const fileExports = {
+    default: { title: 'Mocking/Declared' },
+    Default: { parameters: { sherlo: { mocks } } },
+  };
+  const req = Object.assign(() => fileExports, { keys: () => ['./Declared.stories.tsx'] });
+  (globalThis as any).STORIES = [{ directory: './src', req }];
+
+  const view = {
+    _storyIndex: { entries: {} },
+    _preview: {
+      storyStoreValue: { projectAnnotations: { parameters: {} } },
+      ready: () => Promise.resolve(),
+    },
+  } as unknown as StorybookView;
+
+  return { view, storyId: 'mocking-declared--default' };
+}
+
 describe('a mock is declared by its import expression', () => {
   it('a mock is typed by the module its import expression names', () => {
     expect(typeErrorsIn(storyDeclaring(`{ whoAmI: () => 'Ada Lovelace' }`))).toBe('');
@@ -175,18 +200,27 @@ describe('a mock is declared by its import expression', () => {
     expect(Object.keys(resolved)).toEqual(['pkg/interop']);
   });
 
-  it('warns about a declaration whose import reached no shim, like any unshimmed module', async () => {
+  it('warns about a declaration whose import reached no shim, naming what it declared', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    // Nothing redirected this import, so the module it yields answers with no name at all.
-    const declaration = mock(() => Promise.resolve({ whoAmI: () => 'real' }), {
-      whoAmI: () => 'mocked',
-    });
+    // Nothing redirected these imports, so the modules they yield answer with no name at all.
+    // The warning must still say WHICH declarations they were, or there is nothing to go on:
+    // it names each by what the definition declares.
+    const declarations = [
+      mock(() => Promise.resolve({ whoAmI: () => 'real' }), { whoAmI: () => 'mocked' }),
+      mock(
+        () => Promise.resolve({ getLocales: () => [] }),
+        (original) => original
+      ),
+    ];
 
-    activateStoryMocks(await resolveDeclarations([declaration]));
+    activateStoryMocks(await resolveDeclarations(declarations));
 
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0][0]).toContain('mock declared but unshimmed');
+    const message = warn.mock.calls[0][0] as string;
+    expect(message).toContain('mock declared but unshimmed');
+    expect(message).toContain('declaring whoAmI');
+    expect(message).toContain('declaring a factory');
   });
 
   it('the object form keyed by strings is still accepted, untyped', async () => {
@@ -348,5 +382,44 @@ describe('the mock layer is always on', () => {
 
     expect(mocksDirExists).toBe(false); // no shim emitted
     expect(resolved.filePath).toBe(realPath); // no redirect - the import reaches the real module
+  });
+});
+
+describe('a declaration is installed before the story renders', () => {
+  it("a declaration's mock is installed before the story renders", async () => {
+    const shim = createMockable('pkg/late', { label: 'real' });
+
+    // An import that has not resolved yet - the state every declaration passes through, and
+    // the window in which a story that rendered would read the REAL module.
+    let finishImport: (module: { label: string }) => void = () => {};
+    const lateImport = new Promise<{ label: string }>((resolve) => {
+      finishImport = resolve;
+    });
+
+    const { view, storyId } = viewDeclaring([mock(() => lateImport, { label: 'mocked' })]);
+
+    const installingMocks = activateMocksForStory(view, storyId);
+
+    // The caller is handed a promise instead of null, which is what tells it there IS
+    // something to wait for - TestingMode holds its Storybook tree back on exactly this.
+    expect(installingMocks).toBeInstanceOf(Promise);
+    expect(shim.label).toBe('real');
+
+    finishImport(shim as unknown as { label: string });
+    await installingMocks;
+
+    // Settled means installed: anything rendering after this point reads the mock.
+    expect(shim.label).toBe('mocked');
+  });
+
+  it('the object form has nothing to wait for, so the story is never held back', () => {
+    const shim = createMockable('pkg/prompt', { label: 'real' });
+
+    const { view, storyId } = viewDeclaring({ 'pkg/prompt': { label: 'mocked' } });
+
+    // Null, and the mock is already in - the synchronous guarantee the object form has always
+    // had, unchanged.
+    expect(activateMocksForStory(view, storyId)).toBeNull();
+    expect(shim.label).toBe('mocked');
   });
 });

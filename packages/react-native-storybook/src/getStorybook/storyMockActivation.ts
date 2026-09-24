@@ -39,19 +39,22 @@ function getPreview(view: StorybookView): PreviewInternal | undefined {
 // resolution finishes after a newer attempt has already installed must not overwrite it.
 let latestInstall = 0;
 
-function applyStoryMocks(view: StorybookView, storyId: string): void {
+// Installs one pass of `storyId`'s mocks. Returns null once they ARE installed, or the promise
+// that settles when they are - which is the whole difference a declaration makes: it names its
+// module by import, so nothing can be installed until that import resolves. A caller that is
+// about to render the story must not render while a promise is outstanding.
+function applyStoryMocks(view: StorybookView, storyId: string): Promise<void> | null {
   const storyMeta = enumerateStories(view).find((story) => story.id === storyId);
   const mocks = storyMeta?.mocks ?? {};
   const install = (latestInstall += 1);
 
-  // The object form already names every module it mocks, so it installs at once - which is
-  // what the meta/story-level pass below relies on to beat the story's render.
+  // The object form already names every module it mocks, so it installs at once.
   if (!Array.isArray(mocks)) {
     activateStoryMocks(mocks);
-    return;
+    return null;
   }
 
-  resolveDeclarations(mocks).then((resolvedMocks) => {
+  return resolveDeclarations(mocks).then((resolvedMocks) => {
     if (install !== latestInstall) return;
     activateStoryMocks(resolvedMocks);
   });
@@ -65,16 +68,28 @@ function applyStoryMocks(view: StorybookView, storyId: string): void {
 let activationGeneration = 0;
 
 /**
- * Install `storyId`'s merged mocks. Meta/story mocks apply immediately - declarations as soon
- * as their imports resolve; global mocks fold in once the preview is ready (see file header).
- * Safe to call before the story renders - the ready() re-apply completes ahead of the render.
+ * Install `storyId`'s merged mocks, and say when they ARE installed: null when that has already
+ * happened - the object form, and a story with no mocks at all - or the promise that settles
+ * once it has, for declarations, whose modules are only named once their imports resolve.
+ *
+ * THE CALLER MUST NOT RENDER THE STORY WHILE THAT PROMISE IS OUTSTANDING. A story that renders
+ * first reads the real module, and a capture that renders once and never again would record the
+ * real value - which is the whole point of the mock. TestingMode holds its Storybook tree back
+ * on exactly this promise.
+ *
+ * Global mocks still fold in later, once the preview is ready (see the file header); the
+ * returned promise covers the meta/story pass, which is the one that has to beat the render -
+ * the same guarantee the object form has always had by installing synchronously.
  */
-export function activateMocksForStory(view: StorybookView, storyId: string | undefined): void {
-  if (!storyId) return;
+export function activateMocksForStory(
+  view: StorybookView,
+  storyId: string | undefined
+): Promise<void> | null {
+  if (!storyId) return null;
 
   const generation = (activationGeneration += 1);
 
-  applyStoryMocks(view, storyId);
+  const installing = applyStoryMocks(view, storyId);
 
   // If the preview has not yet composed its project (global) params, the pass above
   // saw none - re-apply once it has, so global-level mocks are included.
@@ -92,4 +107,6 @@ export function activateMocksForStory(view: StorybookView, storyId: string | und
       }
     );
   }
+
+  return installing;
 }
