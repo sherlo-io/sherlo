@@ -50,14 +50,19 @@ export function installBundler(next: Bundler): () => void {
   };
 }
 
-/** One platform's bundle, exactly as a pose states it. */
+/** One platform's bundle as the bundler reports it - the same fields the dry-run plan prints. */
 export type PosedBundle = {
   bundlePath: string;
   bundleSizeMb: number;
   bundleFormat: 'plain-js' | 'hermes-bytecode';
   bundler: 'expo' | 'metro';
   assets: string[];
-  /** `null` poses a bundle that came with no module map - see `contracts/pose.contract.ts`. */
+  /**
+   * The story-file source paths the bundler's module manifest closes over - what the dry-run
+   * plan's "of N stories" counts. `null` poses a bundle that came with no module map at all,
+   * which is what a real bundle is when Metro is configured without Sherlo's wrapper: the plan
+   * line then reads "all stories", with no count.
+   */
   storyClosureKeys: string[] | null;
 };
 

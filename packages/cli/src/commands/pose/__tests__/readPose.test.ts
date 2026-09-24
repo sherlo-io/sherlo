@@ -93,7 +93,9 @@ describe('reading a CommandPose', () => {
   });
 
   it('refuses a version it does not know', () => {
-    expect(problemsOf({ ...validPose(), pose: 2 }).join()).toContain('knows version 1');
+    // Version 1 is the one this reader knows, and it is stated as the field's own type - so the
+    // generated shape check is what refuses a 2, naming the version it reads.
+    expect(problemsOf({ ...validPose(), pose: 2 }).join()).toContain('`pose`: expected `1`');
   });
 
   it('refuses a `git` that is neither the two words nor the three facts', () => {
@@ -189,7 +191,11 @@ describe('reading a CommandPose', () => {
       argv: ['team', 'list'],
       api: [{ call: 'listTeams', with: {}, answer: null }],
     };
-    expect(problemsOf(teamIsNotThere).join()).toContain('only `getBuildStatus` answers `null`');
+    // `null` is a branch of what `getBuildStatus` answers and of no other call's, so a `null`
+    // anywhere else is refused naming the answers that call CAN have.
+    const refused = problemsOf(teamIsNotThere).join();
+    expect(refused).toContain('`api[0]`.answer');
+    expect(refused).toContain('got `null`');
   });
 
   it('refuses a `push` stated for a command that never reads a native build', () => {
@@ -221,7 +227,7 @@ describe('reading a CommandPose', () => {
     expect(problems.join('\n')).toContain('`push`.now: expected an ISO 8601 instant');
     expect(problems.join('\n')).toContain('bundleFormat: expected one of');
     expect(problems.join('\n')).toContain('abis: unknown field');
-    expect(problems.join('\n')).toContain('`push.fingerprint`.unavailable: unknown field');
+    expect(problems.join('\n')).toContain('`push`.fingerprint.unavailable: unknown field');
   });
 
   it("reads a push's two server answers, and refuses a binary decision that is neither an upload nor a reuse", () => {
@@ -405,7 +411,7 @@ describe('reading a CommandPose', () => {
       '`capture`.tree.size.height: expected a number'
     );
     expect(problemsOf(propsIsAnObject).join('\n')).toContain(
-      '`capture`.tree.props.testID: must be a string, a number or true/false'
+      '`capture`.tree.props["testID"]: expected a string, a number or true/false'
     );
   });
 });

@@ -76,7 +76,11 @@ export function installSurroundings(next: Surroundings): () => void {
   };
 }
 
-/** What a pose says the git read answers. */
+/**
+ * What the git read answers. `"none"` is a folder that is not a repository at all;
+ * `"unavailable"` is a read that failed (the tool prints its own warning for it); otherwise the
+ * three facts the tool asks for.
+ */
 export type PosedGit = { branch: string; commit: string; dirty: boolean } | 'none' | 'unavailable';
 
 /**

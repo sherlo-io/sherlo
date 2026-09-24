@@ -19,7 +19,8 @@ import fs from 'fs';
 import path from 'path';
 import { describe, expect, it } from 'vitest';
 import { applyMasks, resolvedConfigPath, runPose } from '../pose';
-import { readPoseDocument, type CommandPose } from '../readPose';
+import type { CommandPose } from '../../../seams/commandPose';
+import { readPoseDocument } from '../readPose';
 import { installProjectFiles, posedProjectFiles } from '../../../seams/projectFiles';
 import { POSES_ROOT } from '../catalogue';
 

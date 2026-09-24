@@ -44,7 +44,8 @@ import { installNativeBuild, posedNativeBuild } from '../../seams/nativeBuild';
 import { installWorkstation, posedWorkstation } from '../../seams/workstation';
 import { installLetterbox, posedLetterbox } from '../../seams/letterbox';
 import { installCaptureSocket, posedCaptureSocket } from '../../seams/captureSocket';
-import { readPoseDocument, type CommandPose } from './readPose';
+import type { CommandPose } from '../../seams/commandPose';
+import { readPoseDocument } from './readPose';
 import { maskScreen } from './maskScreen';
 import resolveConfigPath from '../../helpers/getValidatedCommandParams/getNormalizedConfig/resolveConfigPath';
 
