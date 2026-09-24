@@ -9,7 +9,7 @@ import {
   wordsInChildren,
 } from '../getStorybook/components/TestingMode/metadataWalk';
 
-describe('wordsInChildren', () => {
+describe('wordsInChildren collects every word a children prop draws, in order', () => {
   it('collects a string child as a word', () => {
     const words: string[] = [];
     wordsInChildren('Hello', words);
@@ -44,7 +44,7 @@ describe('wordsInChildren', () => {
   );
 });
 
-describe('hostDrawsItsOwnChildrenAsWords', () => {
+describe('a host only draws its children as words when it is a Text or a VirtualText', () => {
   it('is true for a Text host', () => {
     expect(hostDrawsItsOwnChildrenAsWords('RCTText')).toBe(true);
   });
