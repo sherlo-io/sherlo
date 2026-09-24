@@ -16,7 +16,16 @@
     "tree": {
       "primitive": "View",
       "components": ["StoryErrorBoundary"],
-      "children": [{ "primitive": "Text", "text": "Cannot read properties of undefined (reading 'name')" }]
+      "size": { "width": 360, "height": 800 },
+      "style": { "flex": 1, "padding": 24, "backgroundColor": "#fff5f5" },
+      "children": [
+        {
+          "primitive": "Text",
+          "size": { "width": 312, "height": 40 },
+          "style": { "fontSize": 14, "color": "#b91c1c" },
+          "text": "Cannot read properties of undefined (reading 'name')"
+        }
+      ]
     }
   }
 }

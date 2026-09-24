@@ -47,6 +47,16 @@ export type RenderedFiber = {
 /** The names of the app's components that render each native view, by the view's native tag. */
 export type ComponentNamesByNativeTag = Map<number, string[]>;
 
+/**
+ * The word a host fiber's own React type names a view by - the platform's own `RCT` prefix
+ * removed, exactly the rule the web inspector applies. Shared with captureTransport.ts, which
+ * applies this same rule wherever a fiber matched a view - so a host fiber's `type`, read here,
+ * and a matched view's `className`, read there, come out as the same word either way.
+ */
+export function primitiveOfHostType(type: string): string {
+  return type.startsWith('RCT') ? type.slice(3) : type;
+}
+
 /** The top of the app's story, or nothing before it has been rendered. */
 let storyOfTheApp: RenderedFiber | undefined;
 
@@ -90,7 +100,18 @@ function collectComponentNames(
 ): void {
   if (typeof fiber.type === 'string') {
     const nativeTag = nativeTagOf(fiber);
-    if (nativeTag !== undefined) names.set(nativeTag, namesAbove);
+    if (nativeTag !== undefined) {
+      // A name equal to the primitive this exact view draws is the view itself under another
+      // name - React Native's own `View` around a view it draws, its `Text` around a text - and a
+      // tree that printed each view twice would read worse than one that named nothing. A name
+      // that draws a DIFFERENT view (elsewhere in the tree) is unaffected: this check only ever
+      // looks at the names collected for THIS host, never at another one's.
+      const primitive = primitiveOfHostType(fiber.type);
+      names.set(
+        nativeTag,
+        namesAbove.filter((name) => name !== primitive)
+      );
+    }
     forEachFiberUnder(fiber, (child) => collectComponentNames(child, [], names));
     return;
   }

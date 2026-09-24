@@ -106,6 +106,12 @@ export type PosedView = {
   primitive: string;
   components?: string[];
   text?: string;
+  /** The view's box in points, as the inspector reports it. */
+  size?: { width: number; height: number };
+  /** The React style matched to the view, one object, with the keys the source wrote. */
+  style?: Record<string, unknown>;
+  /** The other props the screen prints beside the style: a placeholder, a testID, numberOfLines. */
+  props?: Record<string, string | number | boolean>;
   children?: PosedView[];
 };
 
@@ -835,6 +841,25 @@ function readPosedView(value: unknown, where: string, problems: string[]): void 
   expectString(view, 'primitive', where, problems);
   if ('components' in view) expectStringArray(view, 'components', where, problems);
   if ('text' in view) expectString(view, 'text', where, problems);
+  if ('size' in view) {
+    const size = asObject(view.size, `${where}.size`, problems);
+    if (size) {
+      expectNumber(size, 'width', `${where}.size`, problems);
+      expectNumber(size, 'height', `${where}.size`, problems);
+      reportUnknownFields(size, ['width', 'height'], `${where}.size`, problems);
+    }
+  }
+  if ('style' in view) asObject(view.style, `${where}.style`, problems);
+  if ('props' in view) {
+    const props = asObject(view.props, `${where}.props`, problems);
+    if (props) {
+      for (const [name, value] of Object.entries(props)) {
+        if (!['string', 'number', 'boolean'].includes(typeof value)) {
+          problems.push(`${where}.props.${name}: must be a string, a number or true/false`);
+        }
+      }
+    }
+  }
   if ('children' in view) {
     if (!Array.isArray(view.children)) {
       problems.push(`${where}.children: must be a list of views`);
@@ -844,7 +869,12 @@ function readPosedView(value: unknown, where: string, problems: string[]): void 
       );
     }
   }
-  reportUnknownFields(view, ['primitive', 'components', 'text', 'children'], where, problems);
+  reportUnknownFields(
+    view,
+    ['primitive', 'components', 'text', 'size', 'style', 'props', 'children'],
+    where,
+    problems
+  );
 }
 
 function readApi(pose: Record<string, unknown>, problems: string[]): void {
