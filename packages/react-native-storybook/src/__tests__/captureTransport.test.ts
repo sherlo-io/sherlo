@@ -1472,3 +1472,29 @@ function makeChannel() {
 function node(className: string, id: number, children: unknown[]) {
   return { id, className, isVisible: true, x: 0, y: 0, width: 390, height: 844, children };
 }
+
+/* ========================================================================== */
+/*
+ * THE RECORD IS THE INSPECTOR'S (sherlo book, What a capture records). The shells below are the
+ * rules that page marks; the task that makes them true fills them in and never renames one.
+ */
+
+describe('a capture carries every field the inspector recorded for a view', () => {
+  it('carries the tag the inspector names the view by, whether it is visible, its box in pixels and in points, its style, its testID and its children', () => {});
+  it('names the tag the way the inspector does: the React type with its RCT prefix removed, and the native class when no React type matches', () => {});
+  it('carries a placeholder and numberOfLines as the props they are, and nothing else a fiber holds', () => {});
+});
+
+describe('a capture carries the density and font scale beside the tree', () => {
+  it('reads both off the inspector and answers with them beside the tree', () => {});
+});
+
+describe('a text view carries the words it draws', () => {
+  it('reads the words off the props of the component that drew the text', () => {});
+  it('joins the strings of a text made of several', () => {});
+  it('carries no words for a view that draws none', () => {});
+});
+
+describe('the record nests a view under the view the platform placed it in', () => {
+  it("a view's children are the views the inspector reported inside it, and no view moves beside its container", () => {});
+});

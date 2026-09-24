@@ -151,3 +151,14 @@ function siblings(children: RenderedFiber[]): RenderedFiber | null {
   });
   return children[0] ?? null;
 }
+
+/* ========================================================================== */
+/*
+ * A rule the sherlo book marks (What a capture records); the task that makes it true fills the
+ * shells in and never renames one.
+ */
+
+describe("a component named as the view it draws is not one of the app's", () => {
+  it("React Native's own View around a View, and its Text around a Text, are left out of the names", () => {});
+  it("an app component that happens to share a primitive's name but draws a different view is kept", () => {});
+});

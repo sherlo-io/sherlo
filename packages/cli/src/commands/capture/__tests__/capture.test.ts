@@ -323,3 +323,36 @@ async function captureOneStory(
     uninstall();
   }
 }
+
+/* ========================================================================== */
+/*
+ * THE SCREEN IS THE RECORD DRAWN THE WAY THE INSPECTOR DRAWS IT (sherlo book, What a capture
+ * records). The shells below are the rules that page marks; the task that makes them true fills
+ * them in and never renames one.
+ */
+
+describe("the screen draws every view of the record, the way the build page's inspector draws it", () => {
+  it('prints every view of a two-hundred-view record, and counts them on the last line', () => {});
+  it('opens a tag over several lines when the view has a style or a prop, and on one line when it has neither', () => {});
+  it("prints a view's size in points after its opening tag", () => {});
+  it('prints a colour in itself, as the upper-case hex the inspector shows', () => {});
+});
+
+describe('the words a text view draws print between its tags', () => {
+  it('puts the words on their own line between the opening and the closing tag', () => {});
+  it('prints a placeholder as the prop it is, on the opening tag', () => {});
+});
+
+describe('the app\'s components print as tags around the view they render', () => {
+  it('wraps the view in one tag per component, outermost first, in the components\' own colour', () => {});
+  it('prints no component tag for a view the app did not name', () => {});
+});
+
+describe('`--json` prints the record and nothing else', () => {
+  it('prints the record as JSON with the size, style and props of every view, and no screen', () => {});
+});
+
+describe("the style block follows the inspector's property order and shorthands", () => {
+  it('orders the keys layout first, then box, then typography, then effects, the way the inspector does', () => {});
+  it('folds four equal paddings, margins or corners into the one key the inspector prints', () => {});
+});
