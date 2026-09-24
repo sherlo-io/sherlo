@@ -179,7 +179,7 @@ const INK = {
   value: chalk.hex('#E6C07B'),
   comment: chalk.hex('#7B7E84'),
   /** The one colour the inspector does not have: the app's own components, which it never shows. */
-  component: chalk.hex('#E8A87C'),
+  component: chalk.hex('#D97AB8'),
 };
 
 /** The whole tree, every view, drawn as the inspector draws it, then how many views that was. */
