@@ -35,6 +35,8 @@ const {
   mockAppendFile,
   mockReadFile,
   mockGetLastState,
+  mockActivateMocksForStory,
+  mockClearMocks,
 } = vi.hoisted(() => ({
   mockGetMode: vi.fn(),
   mockGetConfigOrDefault: vi.fn(),
@@ -47,6 +49,8 @@ const {
   mockAppendFile: vi.fn(),
   mockReadFile: vi.fn(),
   mockGetLastState: vi.fn(),
+  mockActivateMocksForStory: vi.fn(),
+  mockClearMocks: vi.fn(),
 }));
 
 vi.mock('../SherloModule', () => ({
@@ -69,6 +73,18 @@ vi.mock('../SherloModule', () => ({
     // the state of an app whose restart handed no story over.
     getLastState: mockGetLastState,
   },
+}));
+
+// The two halves of a story's mock set, stood in for so this file can see WHEN each one happens -
+// the installing before the story is selected, and the clearing after the record is read. What they
+// actually install is storyMockActivation.test.ts's and the mocking suite's own subject.
+vi.mock('../getStorybook/storyMockActivation', () => ({
+  activateMocksForStory: mockActivateMocksForStory,
+}));
+
+vi.mock('../mocking', async (importOriginal) => ({
+  ...((await importOriginal()) as object),
+  clearMocks: mockClearMocks,
 }));
 
 import {
@@ -329,6 +345,9 @@ beforeEach(() => {
   // No story handed over unless a test says otherwise - see "the crash carries what Storybook
   // itself was doing" below for the case where one was.
   mockGetLastState.mockReturnValue(undefined);
+  // The object form of a mock set: everything it names is installed the moment it is asked for, so
+  // there is nothing for the caller to wait on. The describe below covers the other form too.
+  mockActivateMocksForStory.mockReturnValue(null);
   // The provider has not rendered at all yet, unless a test says otherwise below - the fresh-boot
   // state `__resetProviderFirstRenderedAtForTests` names.
   __resetProviderFirstRenderedAtForTests();
@@ -1414,6 +1433,136 @@ describe('a walk that throws is the crash ending', () => {
 
     expect(answer).toEqual({ kind: 'crashed', storyId: STORY });
   });
+});
+
+describe('every story a capture asks for gets its own mocks, and the one before it leaves none behind', () => {
+  // A test run gets one boot per story, so its mocks are installed at boot (TestingMode.tsx) and
+  // dropped when the story is done (useTestStory.tsx). A capture walks many stories in ONE boot, and
+  // took neither step for any story after the first: the boot's mocks were installed once and never
+  // replaced, so `mocking--library` recorded the real storage answer, `mocking--frozen-clock` the
+  // real time, and the no-mock control story the FIRST story's mock. Both steps now happen around
+  // each walk, here.
+  const SECOND_STORY = 'components-button--secondary';
+
+  /** The story whose view the app's own reading names - the one actually on screen. */
+  let storyOnScreen = STORY;
+
+  beforeEach(() => {
+    storyOnScreen = STORY;
+    rememberAppMetadataCollector(() => ({
+      viewProps: { ...VIEW_METADATA.viewProps, 3: { className: 'RCTView', testID: storyOnScreen } },
+      texts: [],
+    }));
+  });
+
+  it("a capture activates the asked story's mocks before it selects the story, and waits for them to be installed", async () => {
+    // The declaration form: the mock names its module by import, so nothing is installed until that
+    // import resolves - and the story must not render before it does, or it reads the real module.
+    let theImportResolves: () => void = () => {};
+    mockActivateMocksForStory.mockReturnValue(
+      new Promise<void>((resolve) => {
+        theImportResolves = resolve;
+      })
+    );
+
+    const { answered, channel } = startTheRoad();
+
+    await vi.waitFor(() =>
+      expect(mockActivateMocksForStory).toHaveBeenCalledWith(expect.anything(), STORY)
+    );
+    // Storybook has not been told to show the story yet: the mocks are not in place.
+    expect(channel.emitted('setCurrentStory')).toEqual([]);
+
+    theImportResolves();
+
+    await vi.waitFor(() =>
+      expect(channel.emitted('setCurrentStory')).toEqual([{ storyId: STORY }])
+    );
+    channel.emit('storyRendered', STORY);
+
+    expect(await answered).toMatchObject({ kind: 'captured', storyId: STORY });
+  });
+
+  it("a story captured after another in the same boot never sees the earlier story's mocks", async () => {
+    const whatHappened: string[] = [];
+    mockActivateMocksForStory.mockImplementation((_view: unknown, storyId: string) => {
+      whatHappened.push(`activated ${storyId}`);
+      return null;
+    });
+    mockClearMocks.mockImplementation(() => {
+      whatHappened.push('cleared');
+    });
+
+    const answers = await walkTwoStoriesInOneBoot();
+
+    expect(answers.map((answer) => answer.storyId)).toEqual([STORY, SECOND_STORY]);
+    // Each story's own mocks go in before it is shown, and are gone again before the next story is
+    // activated - so the second story is photographed through its own set and nothing else's.
+    expect(whatHappened).toEqual([
+      `activated ${STORY}`,
+      'cleared',
+      `activated ${SECOND_STORY}`,
+      'cleared',
+    ]);
+  });
+
+  it('the first story of a boot is activated once, by the boot, and the capture does not activate it again', async () => {
+    // This boot landed on the story it is being asked for (the restart handed it over), so
+    // TestingMode already installed its mocks from that same story id. Activating again would
+    // re-resolve the same imports for a story that is already on screen with them.
+    mockGetLastState.mockReturnValue({ nextSnapshot: { storyId: STORY }, requestId: '' });
+
+    const { answered, channel } = startTheRoad();
+    channel.emit('storyRendered', STORY);
+
+    expect(await answered).toMatchObject({ kind: 'captured', storyId: STORY });
+    expect(mockActivateMocksForStory).not.toHaveBeenCalled();
+    // The clearing is still this walk's own: whoever installed them, they do not outlive the story.
+    expect(mockClearMocks).toHaveBeenCalled();
+  });
+
+  /**
+   * Walk two stories over one socket, in one boot - the shape a capture actually has, and the one
+   * `startTheRoad` (built for a single story) cannot make. Hands back what the app recorded for each.
+   */
+  async function walkTwoStoriesInOneBoot(): Promise<CapturedStory[]> {
+    const channel = makeChannel();
+    const view = makeView({ storyIds: [STORY, SECOND_STORY] });
+    const recorded: CapturedAnswer[] = [];
+    const leftToAsk = [STORY, SECOND_STORY];
+
+    const bothWalked = new Promise<void>((resolve) => {
+      const capture: CaptureTransport = {
+        waitForACapture: async (saying) => {
+          if (saying.answer) recorded.push(saying.answer);
+
+          const next = leftToAsk.shift();
+          if (!next) {
+            resolve();
+            return new Promise<never>(() => {});
+          }
+          return { storyId: next, settings: STABILIZATION_SETTINGS };
+        },
+      };
+      startCaptureTransport({ view, channel, capture });
+    });
+
+    for (const storyId of [STORY, SECOND_STORY]) {
+      await vi.waitFor(() =>
+        expect(channel.emitted('setCurrentStory').at(-1)).toEqual({ storyId })
+      );
+      // The app now draws this story, so its own reading names this story's view.
+      storyOnScreen = storyId;
+      channel.emit('storyRendered', storyId);
+    }
+
+    await bothWalked;
+
+    return recorded.map((answer) => {
+      if (answer.kind !== 'captured') throw new Error(`the story was not captured: ${answer.kind}`);
+      return answer;
+    });
+  }
 });
 
 /* ========================================================================== */
