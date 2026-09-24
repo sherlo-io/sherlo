@@ -86,6 +86,11 @@ function storyDeclaring(definition: string): string {
   `;
 }
 
+// The module keys one story source declares, whichever form named them.
+function mockKeysIn(source: string): string[] {
+  return mockScan.collectMockEntriesFromSource(source).map((entry: { key: string }) => entry.key);
+}
+
 // ---------------------------------------------------------------------------
 // Metro scaffolding: a throwaway project whose imports one fake resolver answers
 // ---------------------------------------------------------------------------
@@ -259,7 +264,7 @@ describe('the bundler scan reads the import expression', () => {
       };
     `;
 
-    expect(mockScan.collectMockKeysFromSource(source)).toEqual(['expo-localization']);
+    expect(mockKeysIn(source)).toEqual(['expo-localization']);
   });
 
   it('collects the import expression from every level: preview, meta and story', () => {
@@ -279,11 +284,54 @@ describe('the bundler scan reads the import expression', () => {
       };
     `;
 
-    expect(mockScan.collectMockKeysFromSource(source).sort()).toEqual([
-      './src/clock',
-      '@scope/pkg',
-      'expo-localization',
-    ]);
+    expect(mockKeysIn(source).sort()).toEqual(['./src/clock', '@scope/pkg', 'expo-localization']);
+  });
+
+  it('a relative import in a story names the module beside the story file, not beside the project root', () => {
+    // The story imports its own neighbour, the way the screen it renders does. The module the
+    // build must shim is that neighbour - the project root holds a different module of the
+    // same name, and the story never named it.
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-relative-import-'));
+    fs.mkdirSync(path.join(root, 'src', 'components'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'whoAmI.ts'), 'export default {};', 'utf8');
+    fs.writeFileSync(
+      path.join(root, 'src', 'components', 'whoAmI.ts'),
+      'export default {};',
+      'utf8'
+    );
+    fs.writeFileSync(
+      path.join(root, 'src', 'components', 'Mocking.stories.tsx'),
+      `export const Default = {
+        parameters: {
+          sherlo: {
+            mocks: [mock(() => import('./whoAmI'), { whoAmI: () => 'Ada Lovelace' })],
+          },
+        },
+      };`,
+      'utf8'
+    );
+
+    const result = applySherloTransforms({ projectRoot: root, resolver: {} });
+    const besideStory = path.join(root, 'src', 'components', 'whoAmI.ts');
+    const besideProjectRoot = path.join(root, 'whoAmI.ts');
+    const context = (realPath: string) => ({
+      originModulePath: path.join(root, 'src', 'components', 'Mocking.tsx'),
+      resolveRequest: () => ({ type: 'sourceFile', filePath: realPath }),
+    });
+
+    const storysModule = result.resolver.resolveRequest(context(besideStory), './whoAmI', 'ios');
+    const rootModule = result.resolver.resolveRequest(
+      context(besideProjectRoot),
+      './whoAmI',
+      'ios'
+    );
+    const shim = fs.readFileSync(storysModule.filePath, 'utf8');
+    fs.rmSync(root, { recursive: true, force: true });
+
+    expect(storysModule.filePath).toContain(MOCKS_DIR_FRAGMENT);
+    expect(shim).toContain(path.join('src', 'components', 'whoAmI'));
+    // The module at the project root was never named, so nothing redirects it.
+    expect(rootModule.filePath).toBe(besideProjectRoot);
   });
 
   it('ignores an import whose specifier is not a string literal', () => {
@@ -299,7 +347,7 @@ describe('the bundler scan reads the import expression', () => {
     `;
 
     // Only the literal is a module the build can see; the composed name is left to mockModules.
-    expect(mockScan.collectMockKeysFromSource(source)).toEqual(['@scope/pkg']);
+    expect(mockKeysIn(source)).toEqual(['@scope/pkg']);
   });
 });
 
