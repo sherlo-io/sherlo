@@ -5,7 +5,7 @@ import { Metadata } from '../MetadataProvider';
  * Enhances inspectorData with properties from fabricMetadata
  * by matching id values with fabricMetadata keys.
  * If a node with testID matching storyId is found, sets viewHierarchy
- * to point to the first child of that node.
+ * to point to that node itself.
  */
 export function prepareInspectorData(
   inspectorData: InspectorData,

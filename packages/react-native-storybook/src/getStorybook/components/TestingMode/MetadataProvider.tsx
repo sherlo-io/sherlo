@@ -8,16 +8,7 @@ import React, {
 import { FiberProvider, useFiber, type Fiber } from 'its-fine';
 import { RunnerBridge } from '../../../helpers';
 import { rememberAppMetadataCollector } from '../../../appMetadata';
-import { isNetworkImageComponent } from './networkImageDetection';
-
-export type ViewProps = {
-  [nativeTag: number]: {
-    className?: string;
-    style?: any;
-    testID?: string;
-    hasNetworkImage?: boolean;
-  };
-};
+import { collectFromRoot, type ViewProps } from './metadataWalk';
 
 export interface Metadata {
   viewProps: ViewProps;
@@ -34,70 +25,6 @@ export interface Metadata {
    * instead, picking the one generation whose own testID-carrying view is still live.
    */
   generations: { viewProps: ViewProps; texts: string[] }[];
-}
-
-/** Extract every string found in a fiber's props, straight or nested one level under `children`. */
-function extractTextFromProps(props: any, texts: string[]): void {
-  if (!props) return;
-
-  if (typeof props === 'string') {
-    texts.push(props);
-    return;
-  }
-
-  if (typeof props === 'object') {
-    if (props.children) {
-      if (typeof props.children === 'string') {
-        texts.push(props.children);
-      } else if (Array.isArray(props.children)) {
-        props.children.forEach((child: any) => {
-          if (typeof child === 'string') {
-            texts.push(child);
-          }
-        });
-      }
-    }
-  }
-}
-
-/**
- * Walk one fiber generation - a `fiber` its-fine handed back, or its `.alternate` - collecting the
- * same two readings `collectMetadata` merges: every view by its native tag, and every string found
- * in props anywhere in the generation.
- */
-function collectFromRoot(root: Fiber): { viewProps: ViewProps; texts: string[] } {
-  const viewProps: ViewProps = {};
-  const texts: string[] = [];
-  const visited = new Set();
-  const queue = [root];
-
-  while (queue.length > 0) {
-    const currentFiber = queue.shift();
-    if (!currentFiber || visited.has(currentFiber)) continue;
-    visited.add(currentFiber);
-
-    const { pendingProps, stateNode, memoizedProps, type } = currentFiber;
-
-    // In new architecture, the native tag is on the canonical fiber
-    const nativeTag = stateNode?._nativeTag || stateNode?.canonical?.nativeTag;
-
-    if (nativeTag) {
-      viewProps[nativeTag] = {
-        style: pendingProps.style,
-        testID: pendingProps.testID,
-        className: type || undefined,
-        hasNetworkImage: isNetworkImageComponent(currentFiber),
-      };
-    }
-
-    extractTextFromProps(pendingProps, texts);
-    extractTextFromProps(memoizedProps, texts);
-
-    if (currentFiber.child) queue.push(currentFiber.child);
-    if (currentFiber.sibling) queue.push(currentFiber.sibling);
-  }
-
-  return { viewProps, texts };
 }
 
 export interface MetadataProviderRef {
