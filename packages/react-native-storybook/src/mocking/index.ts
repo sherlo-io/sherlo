@@ -4,5 +4,7 @@ export { default as activateStoryMocks } from './activateStoryMocks';
 export { mergeStoryMocks } from './mergeMocks';
 export { mock, resolveDeclarations, declarationsOf } from './mockDeclaration';
 export type { MockDeclaration, StoryMocks } from './mockDeclaration';
+export { mockClock } from './clock';
+export { mockRandom } from './random';
 export { MOCK_DENY_LIST } from './denyList';
 export * from './types';
