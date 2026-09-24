@@ -11,9 +11,9 @@
  *
  * THE VIEW TREE IS THE RECORD, DRAWN THE WAY SHERLO'S WEB INSPECTOR DRAWS IT. Every view, none
  * left out, as the tag the inspector names it by, its style block one key per line in the
- * inspector's order (./inspectorStyle), its size in points after the opening tag, and - the one
- * thing the inspector has no line for - the words a text view draws, between its tags, and the
- * app's own component names as a comment above it. `--json` prints the record itself, no screen.
+ * inspector's order (./inspectorStyle), its size in points after the opening tag, and - the two
+ * things the inspector does not show - the words a text view draws, between its tags, and the
+ * app's own components as tags around the view they render. `--json` prints the record, no screen.
  */
 import chalk from 'chalk';
 import { inkOn, inspectorHex, inspectorStyleEntries, isColourKey } from './inspectorStyle';
@@ -178,6 +178,8 @@ const INK = {
   curly: chalk.hex('#5FA8B7'),
   value: chalk.hex('#E6C07B'),
   comment: chalk.hex('#7B7E84'),
+  /** The one colour the inspector does not have: the app's own components, which it never shows. */
+  component: chalk.hex('#E8A87C'),
 };
 
 /** The whole tree, every view, drawn as the inspector draws it, then how many views that was. */
@@ -189,16 +191,37 @@ function treeLines(root: CapturedView): string[] {
  * One view as the inspector draws it, and everything under it. A view with nothing but a tag is
  * `<View>` on one line; a view with props opens its tag over several, the style block one key per
  * line, and closes it on a line of its own. The size follows the opening tag, in points. What a
- * text view says goes between its tags, where JSX would put it; the app's own component names go
- * above the tag as a comment, because the inspector has no line for them.
+ * text view says goes between its tags, where JSX would put it.
+ *
+ * THE APP'S OWN COMPONENTS ARE TAGS OF THE TREE, in a colour of their own: `SectionTitle` renders
+ * a `Text`, so the screen shows `<SectionTitle>` wrapping `<Text>`, outermost first, the way the
+ * source nests them. They are part of the tree rather than a note beside it, because a reviewer
+ * points at "the header" and a developer looks for the component they wrote.
  */
 function viewLines(view: CapturedView, depth: number): string[] {
-  const pad = `   ${'  '.repeat(depth)}`;
   const lines: string[] = [];
 
-  if (view.components.length > 0) {
-    lines.push(`${pad}${INK.comment(`{/* ${view.components.join(' › ')} */}`)}`);
+  view.components.forEach((name, index) => {
+    lines.push(`${indent(depth + index)}${INK.punct('<')}${INK.component(name)}${INK.punct('>')}`);
+  });
+  lines.push(...primitiveLines(view, depth + view.components.length));
+  for (let index = view.components.length - 1; index >= 0; index -= 1) {
+    lines.push(
+      `${indent(depth + index)}${INK.punct('</')}${INK.component(view.components[index])}${INK.punct('>')}`
+    );
   }
+
+  return lines;
+}
+
+function indent(depth: number): string {
+  return `   ${'  '.repeat(depth)}`;
+}
+
+/** The native view itself: its tag, its props, its style block, its size, its words and its children. */
+function primitiveLines(view: CapturedView, depth: number): string[] {
+  const pad = indent(depth);
+  const lines: string[] = [];
 
   const tag = INK.tag(view.primitive);
   const size = view.size ? ` ${INK.comment(`(${view.size.width} x ${view.size.height})`)}` : '';
