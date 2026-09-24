@@ -96,11 +96,12 @@ describe('the pose catalogue under packages/cli/poses', () => {
     // ever re-minted through a stripping masker, every case above would keep passing while going
     // blind to every colour and style-boundary change - and nothing else would say so.
     //
-    // THE ONE COLOURLESS SCREEN IS `--metadata`, AND IT IS COLOURLESS ON PURPOSE: that flag
-    // prints the JSON contract and nothing else - no header, no colour, no url line - because it
-    // is meant to be piped and parsed (commands/view/printBuildView). Reading that exception off
-    // the POSE rather than off a list of names is what keeps this case exact: a stripping masker
-    // would turn every OTHER screen colourless too, and this would say so.
+    // THE COLOURLESS SCREENS ARE `--metadata` AND `--json`, AND BOTH ARE COLOURLESS ON PURPOSE:
+    // each flag prints a JSON contract and nothing else - no header, no colour, no url line -
+    // because each is meant to be piped and parsed (commands/view/printBuildView; commands/capture
+    // writes the record straight to process.stdout). Reading that exception off the POSE rather
+    // than off a list of names is what keeps this case exact: a stripping masker would turn every
+    // OTHER screen colourless too, and this would say so.
     // eslint-disable-next-line no-control-regex
     const ansi = /\x1b\[[0-9;]*m/g;
 
@@ -151,9 +152,10 @@ describe('the pose catalogue under packages/cli/poses', () => {
 
 /* ========================================================================== */
 
-/** `--metadata` prints the JSON contract instead of the human view, and that carries no colour. */
+/** `--metadata` and `--json` print a JSON contract instead of the human view, and that carries no colour. */
 function printsTheJsonContract(posePath: string): boolean {
-  return readPoseDocument(fs.readFileSync(posePath, 'utf8')).argv.includes('--metadata');
+  const { argv } = readPoseDocument(fs.readFileSync(posePath, 'utf8'));
+  return argv.includes('--metadata') || argv.includes('--json');
 }
 
 /**

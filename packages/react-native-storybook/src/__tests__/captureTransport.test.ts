@@ -83,6 +83,10 @@ import {
   rememberAppMetadataCollector,
 } from '../appMetadata';
 import { rememberStoryOfTheApp } from '../componentNames';
+import {
+  collectFromRoot,
+  type WalkedFiber,
+} from '../getStorybook/components/TestingMode/metadataWalk';
 import { clearStoryError, recordStoryError } from '../getStorybook/storyErrorRegistry';
 import { STORY_ERROR_FALLBACK_TEXT } from '../constants';
 import RunnerBridge from '../helpers/RunnerBridge';
@@ -186,19 +190,39 @@ const SCROLL_HOST = { type: 'RCTScrollView', stateNode: { _nativeTag: 4 }, child
 const TYPOGRAPHY_SCALES = { type: { name: 'TypographyScales' }, child: SCROLL_HOST };
 const THE_STORY = { type: { name: 'Scales' }, child: TYPOGRAPHY_SCALES };
 
+/** The box every `node()` above is drawn in, in pixels - and the same box in points, at density 3. */
+const BOX_IN_PIXELS = { x: 0, y: 0, width: 390, height: 844 };
+const BOX_IN_POINTS = { width: 130, height: 281 };
+
 /**
  * What the app records of this story: the view Storybook wraps the story in comes first, then the
  * story as the app renders it. The two views above Storybook's are gone, and the story's own root is
- * one line in.
+ * one line in - carrying the testID that matched it, the same one VIEW_METADATA gave its view.
  */
 const RECORDED_TREE = {
   primitive: 'View',
   components: [],
+  visible: true,
+  ...BOX_IN_PIXELS,
+  size: BOX_IN_POINTS,
+  testID: STORY,
   children: [
     {
       primitive: 'ScrollView',
       components: ['TypographyScales'],
-      children: [{ primitive: 'Text', components: ['SectionTitle'], children: [] }],
+      visible: true,
+      ...BOX_IN_PIXELS,
+      size: BOX_IN_POINTS,
+      children: [
+        {
+          primitive: 'Text',
+          components: ['SectionTitle'],
+          visible: true,
+          ...BOX_IN_PIXELS,
+          size: BOX_IN_POINTS,
+          children: [],
+        },
+      ],
     },
   ],
 };
@@ -207,25 +231,50 @@ const RECORDED_TREE = {
  * The same window, with the names the app published for its views - what a capture records when the
  * story on screen is broken.
  *
- * A broken story is re-rooted by nobody, but it is still named where the app named it: the names come
- * from the capture's own reading of the fibers, which is not the step a run skips.
+ * A broken story is re-rooted by nobody, but it is still named where the app named it: the component
+ * names come from the capture's own reading of the fibers, which is not the step a run skips. The
+ * PRIMITIVES do not: a run never enhances a broken story's reading either (useTestStory.tsx calls
+ * prepareInspectorData only when the story does not contain an error), so no fiber is ever matched to
+ * any view here - every primitive is the view's own native drawing class, unguessed, and none of them
+ * carry a style or a testID.
  */
 const THE_WHOLE_WINDOW_NAMED_BY_THE_APP = {
-  primitive: 'View',
+  primitive: 'ReactViewGroup',
   components: [],
+  visible: true,
+  ...BOX_IN_PIXELS,
+  size: BOX_IN_POINTS,
   children: [
     {
-      primitive: 'View',
+      primitive: 'ReactViewGroup',
       components: [],
+      visible: true,
+      ...BOX_IN_PIXELS,
+      size: BOX_IN_POINTS,
       children: [
         {
-          primitive: 'View',
+          primitive: 'ReactViewGroup',
           components: [],
+          visible: true,
+          ...BOX_IN_PIXELS,
+          size: BOX_IN_POINTS,
           children: [
             {
-              primitive: 'ScrollView',
+              primitive: 'ReactScrollView',
               components: ['TypographyScales'],
-              children: [{ primitive: 'Text', components: ['SectionTitle'], children: [] }],
+              visible: true,
+              ...BOX_IN_PIXELS,
+              size: BOX_IN_POINTS,
+              children: [
+                {
+                  primitive: 'ReactTextView',
+                  components: ['SectionTitle'],
+                  visible: true,
+                  ...BOX_IN_PIXELS,
+                  size: BOX_IN_POINTS,
+                  children: [],
+                },
+              ],
             },
           ],
         },
@@ -326,6 +375,8 @@ describe('a capture walks the same story path a test run does', () => {
       settled: { ms: expect.any(Number), frames: 4 },
       parts: 1,
       hasNetworkImage: false,
+      density: 3,
+      fontScale: 1,
       tree: RECORDED_TREE,
       // Both waits are settled the first time this story's own reading and tree are checked - see
       // "a capture reports how each of its waits ended" below for what each of the other endings
@@ -1146,57 +1197,55 @@ describe('a story that broke on an EARLIER screen does not make THIS one look br
   });
 });
 
-describe('the primitive is one of the words the screen prints, whatever class the view was drawn by', () => {
-  it('pairs both platforms, and keeps the name of a class the table does not pair', async () => {
-    mockGetInspectorData.mockResolvedValue({
-      viewHierarchy: node('ReactViewGroup', 1, [
-        node('ReactTextView', 2, []),
-        node('RCTView', 3, []),
-        node('RCTText', 4, []),
-        node('RCTVirtualText', 5, []),
-        node('ReactImageView', 6, []),
-        node('RCTScrollView', 7, []),
-        node('RCTModalHostView', 8, []),
-      ]),
-      density: 3,
-      fontScale: 1,
-    });
-    // The story is marked broken, so theStorysOwnTree records the whole window without re-rooting -
-    // the window-recording path this test exercises, reached through the broken-story exception to
-    // the load-bearing gate rather than through a reading that never named this story at all (which
-    // now fails the capture outright - see "fails loudly instead of recording the window" above).
+describe("the primitive is the fiber matched to the view, RCT-stripped, or the view's own class when none matched", () => {
+  it("strips the platform's own RCT prefix off the fiber matched to the view - the same rule for whatever word follows it", async () => {
+    rememberAppMetadataCollector(() => ({
+      viewProps: {
+        ...VIEW_METADATA.viewProps,
+        // Every one of these has a fiber matched to it (a viewProps entry of its own), so every one
+        // is read off that fiber's own React type - stripped by the ONE rule, `RCT` gone and
+        // nothing else, not by a table of known words. `RCTImageView` becomes `ImageView`, not the
+        // friendlier `Image` the old table used to pair it with, which is what proves this: a
+        // class this app never heard of (`RCTSinglelineTextInputView`) strips exactly the same way.
+        4: { className: 'RCTImageView' },
+        5: { className: 'RCTSinglelineTextInputView' },
+      },
+      texts: [],
+    }));
+
+    const answer = await walkOneStory();
+
+    // Node 3 (the re-rooted root) is RCTView; its children are nodes 4 and 5.
+    expect(answer.tree.primitive).toBe('View');
+    expect(answer.tree.children[0].primitive).toBe('ImageView');
+    expect(answer.tree.children[0].children[0].primitive).toBe('SinglelineTextInputView');
+  });
+
+  it("keeps the view's own native class name, unstripped, when no fiber matched it", async () => {
+    // A native-only view above the story never has a fiber of its own, so it is never enhanced -
+    // exactly what the broken-story path exercises: theStorysOwnTree calls captureViewTree straight
+    // on the raw inspector reading, matching what a run does for a story that contains an error
+    // (see useTestStory.tsx: prepareInspectorData only runs when there is none).
     recordStoryError(STORY, {
       name: 'TypeError',
       message: 'nothing here is a function',
       stack: '',
       componentStack: '',
     });
-    // No view is renamed by a fiber, so the table is all that names these - which is what makes this
-    // case read as the table itself.
-    rememberStoryOfTheApp(undefined);
 
     const answer = await walkOneStory();
 
-    // The window's own root is a View; these are what it holds.
-    expect(answer.tree.children.map((child) => child.primitive)).toEqual([
-      'Text',
-      'View',
-      'Text',
-      'Text',
-      'Image',
-      'ScrollView',
-      // A class the table does not pair keeps its own name: a word this file guessed for it would be
-      // worse than one a developer can look up.
-      'RCTModalHostView',
-    ]);
+    // The whole window, named by nobody: every primitive is the raw native class the inspector
+    // reported it by - `ReactScrollView` is never printed as `ScrollView` here, because no React
+    // type was ever matched to tell it apart from the platform's own name for it.
+    expect(answer.tree).toEqual(THE_WHOLE_WINDOW_NAMED_BY_THE_APP);
   });
 
   it('prints no primitive at all when the view was named by something that is not a name', async () => {
-    // A fiber that draws a view is named by a string; anything else - a component, a wrapper - is not
-    // a class the table can pair, and must not be printed as one. The reading still has to name the
-    // story for the wait to accept it at all (see "a capture waits for the reading that names its own
-    // story" above) - VIEW_METADATA's own testID entry on node 3 does that; only node 4's className
-    // is made malformed here.
+    // A fiber that draws a view is named by a string; anything else - a component, a wrapper - must
+    // not be printed as a primitive. The reading still has to name the story for the wait to accept
+    // it at all (see "a capture waits for the reading that names its own story" above) -
+    // VIEW_METADATA's own testID entry on node 3 does that; only node 4's className is malformed.
     rememberAppMetadataCollector(() => ({
       viewProps: {
         ...VIEW_METADATA.viewProps,
@@ -1204,7 +1253,6 @@ describe('the primitive is one of the words the screen prints, whatever class th
       },
       texts: [],
     }));
-    rememberStoryOfTheApp(undefined);
 
     const answer = await walkOneStory();
 
@@ -1472,3 +1520,312 @@ function makeChannel() {
 function node(className: string, id: number, children: unknown[]) {
   return { id, className, isVisible: true, x: 0, y: 0, width: 390, height: 844, children };
 }
+
+/* ========================================================================== */
+/*
+ * THE RECORD IS THE INSPECTOR'S (sherlo book, What a capture records). The shells below are the
+ * rules that page marks; the task that makes them true fills them in and never renames one.
+ */
+
+describe('a capture carries every field the inspector recorded for a view', () => {
+  it('carries the tag the inspector names the view by, whether it is visible, its box in pixels and in points, its style, its testID and its children', async () => {
+    rememberAppMetadataCollector(() => ({
+      viewProps: {
+        ...VIEW_METADATA.viewProps,
+        4: { className: 'RCTScrollView', style: { backgroundColor: 'red' } },
+      },
+      texts: [],
+    }));
+
+    const answer = await walkOneStory();
+
+    // The story's own root - the view Storybook wraps it in - carries the testID matched to it,
+    // its box in both units, and its own visibility, the same as every node this fixture reports.
+    expect(answer.tree).toEqual({
+      primitive: 'View',
+      components: [],
+      visible: true,
+      ...BOX_IN_PIXELS,
+      size: BOX_IN_POINTS,
+      testID: STORY,
+      children: [
+        {
+          primitive: 'ScrollView',
+          components: ['TypographyScales'],
+          visible: true,
+          ...BOX_IN_PIXELS,
+          size: BOX_IN_POINTS,
+          style: { backgroundColor: 'red' },
+          children: [
+            {
+              primitive: 'Text',
+              components: ['SectionTitle'],
+              visible: true,
+              ...BOX_IN_PIXELS,
+              size: BOX_IN_POINTS,
+              children: [],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('names the tag the way the inspector does: the React type with its RCT prefix removed, and the native class when no React type matches', async () => {
+    mockGetInspectorData.mockResolvedValue({
+      viewHierarchy: node('RCTView', 1, [node('RCTSherloOverlayHostView', 2, [])]),
+      density: 3,
+      fontScale: 1,
+    });
+    rememberAppMetadataCollector(() => ({
+      viewProps: { 1: { className: 'RCTView', testID: STORY } },
+      texts: [],
+    }));
+
+    const answer = await walkOneStory();
+
+    // Node 1 has a fiber matched to it, so its React type - RCT-stripped - names it.
+    expect(answer.tree.primitive).toBe('View');
+    // Node 2 has none: nothing of the app ever rendered it, so it keeps its own native class,
+    // unstripped - it was never a React type to begin with.
+    expect(answer.tree.children[0].primitive).toBe('RCTSherloOverlayHostView');
+  });
+
+  it('carries a placeholder and numberOfLines as the props they are, and nothing else a fiber holds', async () => {
+    rememberAppMetadataCollector(() => ({
+      viewProps: {
+        ...VIEW_METADATA.viewProps,
+        // An extra key a fiber's props might carry (a handler, here) proves the record keeps
+        // none of these once they cross into `props` - only a placeholder, numberOfLines and
+        // accessibilityLabel do.
+        4: {
+          className: 'RCTScrollView',
+          numberOfLines: 2,
+          accessibilityLabel: 'Font sizes list',
+          onPress: () => {},
+        } as never,
+        5: { className: 'RCTText', placeholder: 'Type here' } as never,
+      },
+      texts: [],
+    }));
+
+    const answer = await walkOneStory();
+
+    // accessibilityLabel rides beside testID, placeholder and numberOfLines - it is what a mocked
+    // value often lands on, an icon or image with no Text, where it is the only words the view has.
+    expect(answer.tree.children[0].props).toEqual({
+      numberOfLines: 2,
+      accessibilityLabel: 'Font sizes list',
+    });
+    expect(answer.tree.children[0].children[0].props).toEqual({ placeholder: 'Type here' });
+  });
+});
+
+describe('a capture carries the density and font scale beside the tree', () => {
+  it('reads both off the inspector and answers with them beside the tree', async () => {
+    mockGetInspectorData.mockResolvedValue({ ...INSPECTOR_DATA, density: 2, fontScale: 1.3 });
+
+    const answer = await walkOneStory();
+
+    expect(answer.density).toBe(2);
+    expect(answer.fontScale).toBe(1.3);
+  });
+});
+
+describe('a text view carries the words it draws', () => {
+  it('reads the words off the props of the component that drew the text', async () => {
+    rememberAppMetadataCollector(() => ({
+      viewProps: { ...VIEW_METADATA.viewProps, 5: { className: 'RCTText', text: 'Font sizes' } },
+      texts: [],
+    }));
+
+    const answer = await walkOneStory();
+
+    expect(answer.tree.children[0].children[0].text).toBe('Font sizes');
+  });
+
+  it('joins the strings of a text made of several', async () => {
+    // A text made of a plain string and a nested span: `<Text>Hello <Text>World</Text></Text>`.
+    // The span is a further Text one level down in the JSX, but it draws no native view of its
+    // own - RCTVirtualText never appears in the inspector's tree - so its words are already
+    // folded into the outer Text fiber's own by MetadataProvider, with no node of its own here.
+    mockGetInspectorData.mockResolvedValue({
+      viewHierarchy: node('RCTView', 1, [node('RCTText', 2, [])]),
+      density: 3,
+      fontScale: 1,
+    });
+    rememberAppMetadataCollector(() => ({
+      viewProps: {
+        1: { className: 'RCTView', testID: STORY },
+        2: { className: 'RCTText', text: 'Hello World' },
+      },
+      texts: [],
+    }));
+
+    const answer = await walkOneStory();
+
+    expect(answer.tree.children[0].text).toBe('Hello World');
+  });
+
+  it('carries no words for a view that draws none', async () => {
+    const answer = await walkOneStory();
+
+    // VIEW_METADATA's Text (node 5) says nothing - the same absence a view that is not even a
+    // Text primitive already carries, which its ScrollView parent proves alongside it.
+    expect(answer.tree.children[0].children[0].text).toBeUndefined();
+    expect(answer.tree.children[0].text).toBeUndefined();
+  });
+
+  it('carries no words of its own for a container holding two Text children', async () => {
+    // A plain View holding two Text views: each Text keeps its own words, and the View that
+    // holds them - which draws none of its own - never picks up either.
+    mockGetInspectorData.mockResolvedValue({
+      viewHierarchy: node('RCTView', 1, [
+        node('RCTView', 2, [node('RCTText', 3, []), node('RCTText', 4, [])]),
+      ]),
+      density: 3,
+      fontScale: 1,
+    });
+    rememberAppMetadataCollector(() => ({
+      viewProps: {
+        1: { className: 'RCTView', testID: STORY },
+        2: { className: 'RCTView' },
+        3: { className: 'RCTText', text: 'A' },
+        4: { className: 'RCTText', text: 'B' },
+      },
+      texts: [],
+    }));
+
+    const answer = await walkOneStory();
+
+    const container = answer.tree.children[0];
+    expect(container.text).toBeUndefined();
+    expect(container.children[0].text).toBe('A');
+    expect(container.children[1].text).toBe('B');
+  });
+
+  it('a container carries no words though its children draw them', async () => {
+    // The same shape as the case above, but driven through the REAL walk (collectFromRoot,
+    // MetadataProvider.tsx) rather than a metadata reading typed in by hand - so this proves the
+    // rule where it lives: a View's own `children` prop is exactly the React elements of its two
+    // Text children, and the fix is that no host but a Text ever has wordsInChildren run on it.
+    mockGetInspectorData.mockResolvedValue({
+      viewHierarchy: node('RCTView', 1, [
+        node('RCTView', 2, [node('RCTText', 3, []), node('RCTText', 4, [])]),
+      ]),
+      density: 3,
+      fontScale: 1,
+    });
+
+    const textA: WalkedFiber = {
+      type: 'RCTText',
+      stateNode: { _nativeTag: 3 },
+      pendingProps: { children: 'A' },
+      memoizedProps: {},
+    };
+    const textB: WalkedFiber = {
+      type: 'RCTText',
+      stateNode: { _nativeTag: 4 },
+      pendingProps: { children: 'B' },
+      memoizedProps: {},
+    };
+    const container: WalkedFiber = {
+      type: 'RCTView',
+      stateNode: { _nativeTag: 2 },
+      // What a View's own `children` prop actually is: the React elements of its child views (here
+      // shaped as plain `{ props }` objects, the one part of a React element wordsInChildren reads)
+      // - the exact shape that used to make wordsInChildren walk straight into them from the
+      // container.
+      pendingProps: {
+        children: [{ props: { children: 'A' } }, { props: { children: 'B' } }],
+      },
+      memoizedProps: {},
+      child: { ...textA, sibling: textB },
+    };
+    const root: WalkedFiber = {
+      type: 'RCTView',
+      stateNode: { _nativeTag: 1 },
+      pendingProps: { testID: STORY },
+      memoizedProps: {},
+      child: container,
+    };
+
+    const { viewProps } = collectFromRoot(root);
+    rememberAppMetadataCollector(() => ({ viewProps, texts: [] }));
+
+    const answer = await walkOneStory();
+
+    const recordedContainer = answer.tree.children[0];
+    expect(recordedContainer.text).toBeUndefined();
+    expect(recordedContainer.children[0].text).toBe('A');
+    expect(recordedContainer.children[1].text).toBe('B');
+  });
+
+  it("a number among a text's children is a word", async () => {
+    // `{size}px — The quick brown fox` where `size` is 10 - React draws a number as its digits, so
+    // the recorded words must too, not drop it the way a check for only strings and elements would.
+    mockGetInspectorData.mockResolvedValue({
+      viewHierarchy: node('RCTView', 1, [node('RCTText', 2, [])]),
+      density: 3,
+      fontScale: 1,
+    });
+
+    const root: WalkedFiber = {
+      type: 'RCTView',
+      stateNode: { _nativeTag: 1 },
+      pendingProps: { testID: STORY },
+      memoizedProps: {},
+      child: {
+        type: 'RCTText',
+        stateNode: { _nativeTag: 2 },
+        pendingProps: { children: [10, 'px — The quick brown fox'] },
+        memoizedProps: {},
+      },
+    };
+
+    const { viewProps } = collectFromRoot(root);
+    rememberAppMetadataCollector(() => ({ viewProps, texts: [] }));
+
+    const answer = await walkOneStory();
+
+    expect(answer.tree.children[0].text).toBe('10px — The quick brown fox');
+  });
+});
+
+describe('the record nests a view under the view the platform placed it in', () => {
+  it("a view's children are the views the inspector reported inside it, and no view moves beside its container", async () => {
+    // A container (node 4) holding two rows (nodes 5 and 6), the shape a device once flattened -
+    // recording the rows as siblings of the View that holds them instead of nested under it.
+    mockGetInspectorData.mockResolvedValue({
+      viewHierarchy: node('RCTView', 1, [
+        node('RCTView', 2, [
+          node('RCTScrollView', 3, [
+            node('RCTView', 4, [node('RCTView', 5, []), node('RCTView', 6, [])]),
+          ]),
+        ]),
+      ]),
+      density: 3,
+      fontScale: 1,
+    });
+    rememberAppMetadataCollector(() => ({
+      viewProps: {
+        2: { className: 'RCTView', testID: STORY },
+        3: { className: 'RCTScrollView' },
+        4: { className: 'RCTView' },
+        5: { className: 'RCTView' },
+        6: { className: 'RCTView' },
+      },
+      texts: [],
+    }));
+
+    const answer = await walkOneStory();
+
+    const scrollView = answer.tree.children[0];
+    const container = scrollView.children[0];
+    // The ScrollView holds only its own content container - never the rows themselves, moved up a
+    // level to sit beside it.
+    expect(scrollView.children).toHaveLength(1);
+    // The rows stay nested under the container the platform placed them in.
+    expect(container.children).toHaveLength(2);
+  });
+});
