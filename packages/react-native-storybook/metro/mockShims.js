@@ -49,8 +49,12 @@ function isDeniedKey(key) {
   return false;
 }
 
+function isRelativeKey(key) {
+  return key.charAt(0) === '.';
+}
+
 function isRelativeOrAbsolute(key) {
-  return key.charAt(0) === '.' || path.isAbsolute(key);
+  return isRelativeKey(key) || path.isAbsolute(key);
 }
 
 // Reduce an absolute module path to a platform/extension-independent identity so
@@ -107,11 +111,14 @@ function resolveAppModuleFile(basePath) {
 // Build the app-module resolution result shared by the './'-prefixed and the
 // dotless project-root-relative branches: canonical identity and require
 // specifier are the same realpath-normalised, extensionless absolute path so
-// Metro re-resolves the platform-split file per platform.
-function appModuleResult(file) {
+// Metro re-resolves the platform-split file per platform. moduleKey is the name
+// the shim registers - see resolveMockKey.
+function appModuleResult(file, moduleKey) {
+  var modulePath = canonicalizeModulePath(file);
   return {
-    canonicalRealPath: canonicalizeModulePath(file),
-    requireSpecifier: canonicalizeModulePath(file),
+    moduleKey: moduleKey,
+    canonicalRealPath: modulePath,
+    requireSpecifier: modulePath,
   };
 }
 
@@ -221,6 +228,10 @@ function packageRootAlternateCanonicalPaths(key, resolved, primaryCanonicalPath)
 }
 
 // Resolve one mock key to:
+//   - moduleKey:         the name the shim registers, and the name a declaration reads back
+//     off that shim. A key a story wrote is that name; a relative key an import expression
+//     named is named by the module it resolved to instead, because two stories may both write
+//     './whoAmI' for two different files and each must name its own module.
 //   - canonicalRealPath: the identity the resolver matches delegate output on,
 //   - requireSpecifier:  what the shim's inner require() targets. Bare package
 //     keys keep their specifier so Metro re-resolves per platform (MK-06);
@@ -228,14 +239,20 @@ function packageRootAlternateCanonicalPaths(key, resolved, primaryCanonicalPath)
 //     the platform-split file per platform.
 //   - alternateCanonicalPaths: extra identities (for package roots) that Metro
 //     might resolve the same key to, all pointing at the same shim (MK-02).
+//
+// importedFromFile is the story or preview file whose import expression named the key; it is
+// what makes a relative key point beside that file, the way that file's own imports do. A key
+// a story wrote as a string, or the mockModules option named, has no such file and is read
+// from the project root.
 // Throws when the key cannot be resolved (FG-01).
-function resolveMockKey(key, projectRoot) {
+function resolveMockKey(key, projectRoot, importedFromFile) {
   // Explicit './'-prefixed or absolute keys are always app modules.
   if (isRelativeOrAbsolute(key)) {
-    var basePath = path.resolve(projectRoot, key);
-    var file = resolveAppModuleFile(basePath);
+    var namedBesideFile = !!importedFromFile && isRelativeKey(key);
+    var fromDir = namedBesideFile ? path.dirname(importedFromFile) : projectRoot;
+    var file = resolveAppModuleFile(path.resolve(fromDir, key));
     if (!file) throw new Error('cannot resolve app module');
-    return appModuleResult(file);
+    return appModuleResult(file, namedBesideFile ? canonicalizeModulePath(file) : key);
   }
 
   // Otherwise the key is a bare specifier. Try node_modules resolution FIRST so
@@ -247,38 +264,35 @@ function resolveMockKey(key, projectRoot) {
     var resolved = require.resolve(key, { paths: [projectRoot] });
     var canonicalRealPath = canonicalizeModulePath(resolved);
     return {
+      moduleKey: key,
       canonicalRealPath: canonicalRealPath,
       requireSpecifier: key,
-      alternateCanonicalPaths: packageRootAlternateCanonicalPaths(
-        key,
-        resolved,
-        canonicalRealPath
-      ),
+      alternateCanonicalPaths: packageRootAlternateCanonicalPaths(key, resolved, canonicalRealPath),
     };
   } catch (_) {
     var appFile = resolveAppModuleFile(path.resolve(projectRoot, key));
-    if (appFile) return appModuleResult(appFile);
+    if (appFile) return appModuleResult(appFile, key);
     throw new Error('cannot resolve mock key');
   }
 }
 
-// Deterministic shim filename: a short hash of the key. Same key -> same file,
-// so shim content only changes when the key set changes.
-function shimFileName(key) {
-  var hash = crypto.createHash('sha1').update(key).digest('hex').slice(0, 16);
+// Deterministic shim filename: a short hash of the module's name. Same name -> same file,
+// so shim content only changes when the set of mocked modules changes.
+function shimFileName(moduleKey) {
+  var hash = crypto.createHash('sha1').update(moduleKey).digest('hex').slice(0, 16);
   return 'mock-' + hash + '.js';
 }
 
 // The one-line shim body: a single createMockable call requiring the real
 // module. requireSpecifier is emitted as a require() so Metro (not us) does the
 // real resolution at bundle time - which re-resolves platform-split files.
-function generateShimContent(key, requireSpecifier) {
+function generateShimContent(moduleKey, requireSpecifier) {
   return (
     "'use strict';\n" +
     'module.exports = require(' +
     JSON.stringify(CREATE_MOCKABLE_SPECIFIER) +
     ').createMockable(' +
-    JSON.stringify(key) +
+    JSON.stringify(moduleKey) +
     ', require(' +
     JSON.stringify(requireSpecifier) +
     '));\n'
@@ -288,7 +302,7 @@ function generateShimContent(key, requireSpecifier) {
 // -------------------------------------------------------------------------
 // Config-time scan overhead budget (WS7 / SHERLO-1738 Phase 6)
 // -------------------------------------------------------------------------
-// setupMocks (scanProjectForMockKeys + deny-list + per-key resolve + shim
+// setupMocks (scanProjectForMocks + deny-list + per-key resolve + shim
 // emission) runs ONCE per `metro` config load, not per request. Measured on
 // the fixtures in this repo (Apple M-series, warm fs cache):
 //   - largest real fixture (integrated-app-expo-sb8, ~520 files): ~0.7 ms scan
@@ -325,21 +339,36 @@ function setupMocks(opts) {
   var cacheDir = opts.cacheDir;
   var mockModules = Array.isArray(opts.mockModules) ? opts.mockModules : [];
 
-  // 1. Collect keys: static scan + the mockModules escape hatch (MK-10).
-  var keyToSource = opts.scanFiles
-    ? scanFilesToKeyMap(opts.scanFiles)
-    : scan.scanProjectForMockKeys(projectRoot);
+  // 1. Collect what the project declares: static scan + the mockModules escape hatch (MK-10).
+  var declaredMocks = opts.scanFiles
+    ? scanFilesForMocks(opts.scanFiles)
+    : scan.scanProjectForMocks(projectRoot);
   for (var m = 0; m < mockModules.length; m++) {
-    if (!keyToSource.has(mockModules[m])) {
-      keyToSource.set(mockModules[m], '<mockModules option>');
-    }
+    // A key the option names sits in no file, so it is read from the project root.
+    declaredMocks.push({
+      key: mockModules[m],
+      file: '<mockModules option>',
+      namedByImport: false,
+    });
   }
+
+  // One shim per module, however many stories declare it. Two stories that both write
+  // './whoAmI' name two DIFFERENT modules, each beside its own story file, so a declaration
+  // is filed under where its key points and never under the key's bare text.
+  var mocksByModulePath = new Map();
+  declaredMocks.forEach(function (declared) {
+    var declaringFile = importExpressionFile(declared);
+    var modulePath = declaringFile
+      ? path.resolve(path.dirname(declaringFile), declared.key)
+      : declared.key;
+    if (!mocksByModulePath.has(modulePath)) mocksByModulePath.set(modulePath, declared);
+  });
 
   // 2. Rewrite the mocks directory from scratch so no stale shims survive. A project that
   // declares no mock gets no directory at all, so it pays nothing for a layer it does not use.
   var mocksDir = path.join(cacheDir, 'mocks');
   fs.rmSync(mocksDir, { recursive: true, force: true });
-  if (keyToSource.size > 0) fs.mkdirSync(mocksDir, { recursive: true });
+  if (mocksByModulePath.size > 0) fs.mkdirSync(mocksDir, { recursive: true });
 
   // 3. Resolve each key and emit its shim.
   //
@@ -352,14 +381,16 @@ function setupMocks(opts) {
   var mockedPathToShim = new Map();
   var shimPaths = [];
 
-  keyToSource.forEach(function (source, key) {
+  mocksByModulePath.forEach(function (declared) {
+    var key = declared.key;
+    var declaredIn = declared.file;
     // Deny list (FG-02): react, react-native, @storybook/*, and @sherlo/* are off-limits.
     if (isDeniedKey(key)) {
       console.warn(
         '[Sherlo] Skipping mock key "' +
           key +
           '" in ' +
-          source +
+          declaredIn +
           ': react, react-native, @storybook/*, and @sherlo/* cannot be mocked directly. ' +
           'Create a wrapper module in your own code that re-exports what you need from "' +
           key +
@@ -370,21 +401,25 @@ function setupMocks(opts) {
 
     var resolved;
     try {
-      resolved = resolveMockKey(key, projectRoot);
+      resolved = resolveMockKey(key, projectRoot, importExpressionFile(declared));
     } catch (_) {
       console.warn(
         '[Sherlo] Skipping mock key "' +
           key +
           '" in ' +
-          source +
+          declaredIn +
           ': it did not resolve to a real module. Check for a typo, confirm the package is installed, ' +
           'or write the path relative to the project root (with or without a leading "./").'
       );
       return;
     }
 
-    var shimPath = path.join(mocksDir, shimFileName(key));
-    fs.writeFileSync(shimPath, generateShimContent(key, resolved.requireSpecifier), 'utf8');
+    var shimPath = path.join(mocksDir, shimFileName(resolved.moduleKey));
+    fs.writeFileSync(
+      shimPath,
+      generateShimContent(resolved.moduleKey, resolved.requireSpecifier),
+      'utf8'
+    );
 
     // Register the primary identity plus any alternate package-root entries
     // (main/react-native/exports) so the redirect hits whichever file Metro
@@ -404,22 +439,21 @@ function setupMocks(opts) {
   };
 }
 
-// Scan an explicit list of files into a key -> source-file Map (test entry).
-function scanFilesToKeyMap(files) {
-  var keyToFile = new Map();
+// The file whose import expression named this key, when that is what makes the key point at a
+// module: a relative key reads from beside the file that wrote it, exactly as that file's own
+// imports do. A key a story wrote as a string, a bare package, and a key the mockModules
+// option named all read from the project root and have no such file.
+function importExpressionFile(declared) {
+  return declared.namedByImport && isRelativeKey(declared.key) ? declared.file : null;
+}
+
+// Scan an explicit list of files for the mocks they declare (test entry).
+function scanFilesForMocks(files) {
+  var declaredMocks = [];
   for (var i = 0; i < files.length; i++) {
-    var source;
-    try {
-      source = fs.readFileSync(files[i], 'utf8');
-    } catch (_) {
-      continue;
-    }
-    var keys = scan.collectMockKeysFromSource(source);
-    for (var k = 0; k < keys.length; k++) {
-      if (!keyToFile.has(keys[k])) keyToFile.set(keys[k], files[i]);
-    }
+    declaredMocks = declaredMocks.concat(scan.scanFileForMocks(files[i]));
   }
-  return keyToFile;
+  return declaredMocks;
 }
 
 module.exports = {
