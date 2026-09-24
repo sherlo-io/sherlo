@@ -9,20 +9,29 @@
  * ones `sherlo open` prints (./openedStory), because they are the same facts about the same road -
  * a developer who has met one command's refusal has already met the other's.
  *
- * THE VIEW TREE IS A SHORT ACCOUNT, NOT THE RECORD. A screenful of it, starting at the story's own
- * root, with the app's own component names to the left of the primitive each one renders. The
- * whole record is `--json`, which prints no screen at all - it is JSON for a program to read.
+ * THE VIEW TREE IS THE RECORD, DRAWN THE WAY SHERLO'S WEB INSPECTOR DRAWS IT. Every view, none
+ * left out, as the tag the inspector names it by, its style block one key per line in the
+ * inspector's order (./inspectorStyle), its size in points after the opening tag, and - the two
+ * things the inspector does not show - the words a text view draws, between its tags, and the
+ * app's own components as tags around the view they render. `--json` prints the record, no screen.
  */
 import chalk from 'chalk';
+import { inspectorHex, inspectorStyleEntries, isColourKey } from './inspectorStyle';
 
 /** One view in the tree, as the screen needs it. */
 export type CapturedView = {
-  /** The native primitive: `View`, `Text`, `Image`. */
+  /** The tag the inspector names the view by: `View`, `Text`, `Image`. */
   primitive: string;
   /** The app's own components that render this view, outermost first. Empty when none have names. */
   components: string[];
   /** What a text view says, when it says anything. */
   text?: string;
+  /** The view's box in points, as the inspector reports it. */
+  size?: { width: number; height: number };
+  /** The React style matched to the view, as one object, with the keys the source wrote. */
+  style?: Record<string, unknown>;
+  /** The other props the screen prints beside the style: a placeholder, a testID, numberOfLines. */
+  props?: Record<string, string | number | boolean>;
   children: CapturedView[];
 };
 
@@ -61,9 +70,6 @@ export type CapturedStory =
       /** The fatal error's own words, when the app reported it before it died. */
       error?: { name: string; message: string };
     };
-
-/** How many views the short account shows before it says how many more there are. */
-const VIEWS_SHOWN = 12;
 
 const START_THE_APP = 'Start your app with the bundler running, then try again.';
 
@@ -159,40 +165,143 @@ export function renderCapturedStory(state: CapturedStory): string[] {
 /* ========================================================================== */
 
 /**
- * The tree as a screenful: the root on its own line, then its descendants drawn with branches,
- * stopping after {@link VIEWS_SHOWN} and saying how many more there are and where the rest is.
+ * The inspector's palette, colour for colour, so the screen and the build page read as one
+ * rendering. A terminal with fewer colours shows the nearest it has.
  */
+const INK = {
+  punct: chalk.hex('#CEB87D'),
+  tag: chalk.hex('#67B5A4'),
+  attr: chalk.hex('#BABABA'),
+  eq: chalk.hex('#7DA776'),
+  key: chalk.hex('#BA83BA'),
+  inner: chalk.hex('#BCBEC3'),
+  curly: chalk.hex('#5FA8B7'),
+  value: chalk.hex('#E6C07B'),
+  comment: chalk.hex('#7B7E84'),
+  /** The one colour the inspector does not have: the app's own components, which it never shows. */
+  component: chalk.hex('#D97AB8'),
+};
+
+/** The whole tree, every view, drawn as the inspector draws it, then how many views that was. */
 function treeLines(root: CapturedView): string[] {
-  const lines = [`   ${label(root)}`];
-  const flat = descendants(root);
+  return [
+    ...viewLines(root, 0),
+    '',
+    chalk.dim(`   ${countViews(root)} views · --json prints the record`),
+  ];
+}
 
-  const shown = flat.slice(0, VIEWS_SHOWN);
-  shown.forEach(({ view, depth, last }) => {
-    lines.push(`   ${'│  '.repeat(depth)}${last ? '└─' : '├─'} ${label(view)}`);
+/**
+ * One view as the inspector draws it, and everything under it. A view with nothing but a tag is
+ * `<View>` on one line; a view with props opens its tag over several, the style block one key per
+ * line, and closes it on a line of its own. The size follows the opening tag, in points. What a
+ * text view says goes between its tags, where JSX would put it.
+ *
+ * THE APP'S OWN COMPONENTS ARE TAGS OF THE TREE, in a colour of their own: `SectionTitle` renders
+ * a `Text`, so the screen shows `<SectionTitle>` wrapping `<Text>`, outermost first, the way the
+ * source nests them. They are part of the tree rather than a note beside it, because a reviewer
+ * points at "the header" and a developer looks for the component they wrote.
+ */
+function viewLines(view: CapturedView, depth: number): string[] {
+  const lines: string[] = [];
+
+  view.components.forEach((name, index) => {
+    lines.push(`${indent(depth + index)}${INK.punct('<')}${INK.component(name)}${INK.punct('>')}`);
   });
+  lines.push(...primitiveLines(view, depth + view.components.length));
+  for (let index = view.components.length - 1; index >= 0; index -= 1) {
+    const name = view.components[index];
+    lines.push(`${indent(depth + index)}${INK.punct('</')}${INK.component(name)}${INK.punct('>')}`);
+  }
 
-  const rest = flat.length - shown.length;
-  if (rest > 0) lines.push(chalk.dim(`   … ${rest} more views`));
-
-  lines.push('', chalk.dim(`   ${flat.length + 1} views · add --json for the full record`));
   return lines;
 }
 
-/** `SectionTitle › Text  "FONT SIZES"` - the app's names, the primitive, and what it says. */
-function label(view: CapturedView): string {
-  const names = view.components.length > 0 ? `${view.components.join(' › ')} › ` : '';
-  const text = view.text === undefined ? '' : `  ${chalk.dim(JSON.stringify(view.text))}`;
-  return `${names}${chalk.bold(view.primitive)}${text}`;
+function indent(depth: number): string {
+  return `   ${'  '.repeat(depth)}`;
 }
 
-function descendants(
-  view: CapturedView,
-  depth = 0
-): { view: CapturedView; depth: number; last: boolean }[] {
-  return view.children.flatMap((child, index) => [
-    { view: child, depth, last: index === view.children.length - 1 },
-    ...descendants(child, depth + 1),
-  ]);
+/** The native view itself: its tag, its props, its style block, its size, its words and its children. */
+function primitiveLines(view: CapturedView, depth: number): string[] {
+  const pad = indent(depth);
+  const lines: string[] = [];
+
+  const tag = INK.tag(view.primitive);
+  const size = view.size ? ` ${INK.tag(`(${view.size.width} x ${view.size.height})`)}` : '';
+  const props = Object.entries(view.props ?? {});
+  const style = inspectorStyleEntries(view.style);
+  const hasBody = view.text !== undefined || view.children.length > 0;
+  const closer = hasBody ? INK.punct('>') : INK.punct('/>');
+
+  if (props.length === 0 && style.length === 0) {
+    lines.push(`${pad}${INK.punct('<')}${tag}${hasBody ? '' : ' '}${closer}${size}`);
+  } else {
+    lines.push(`${pad}${INK.punct('<')}${tag}`);
+    for (const [name, value] of props) {
+      lines.push(`${pad}  ${INK.attr(name)}${INK.eq('=')}${propValue(value)}`);
+    }
+    if (style.length > 0) {
+      lines.push(`${pad}  ${INK.attr('style')}${INK.eq('=')}${INK.curly('{{')}`);
+      style.forEach(([key, value], index) => {
+        const comma = index < style.length - 1 ? INK.inner(',') : '';
+        lines.push(`${pad}    ${INK.key(key)}${INK.inner(':')} ${styleValue(key, value)}${comma}`);
+      });
+      lines.push(`${pad}  ${INK.curly('}}')}`);
+    }
+    lines.push(`${pad}${closer}${size}`);
+  }
+
+  if (hasBody) {
+    if (view.text !== undefined) lines.push(`${pad}  ${view.text}`);
+    for (const child of view.children) lines.push(...viewLines(child, depth + 1));
+    lines.push(`${pad}${INK.punct('</')}${tag}${INK.punct('>')}`);
+  }
+
+  return lines;
+}
+
+/** A prop the way JSX writes it: a string in quotes, anything else in braces. */
+function propValue(value: string | number | boolean): string {
+  if (typeof value === 'string') return INK.value(JSON.stringify(value));
+  return `${INK.curly('{')}${INK.value(String(value))}${INK.curly('}')}`;
+}
+
+/**
+ * A style value the way the inspector shows it: a colour on a swatch of itself, a string in
+ * quotes, a number bare, and a transform as its parts.
+ */
+function styleValue(key: string, value: unknown): string {
+  if (typeof value === 'string') {
+    if (isColourKey(key) && value !== 'transparent') {
+      const hex = inspectorHex(value);
+      // The colour itself, printed in itself: a terminal can show it, so it does.
+      if (hex.startsWith('#')) return `${INK.value('"')}${chalk.hex(hex)(hex)}${INK.value('"')}`;
+    }
+    return INK.value(JSON.stringify(value));
+  }
+  if (Array.isArray(value) || (value !== null && typeof value === 'object')) {
+    return INK.value(JSON.stringify(transformParts(value)));
+  }
+  return INK.value(String(value));
+}
+
+/** `[{ rotate: "45deg" }, { scale: 1.2 }]` reads as `rotate(45deg) scale(1.2)`, as the inspector shows it. */
+function transformParts(value: unknown): string {
+  const entries = Array.isArray(value) ? value : [value];
+  return entries
+    .map((entry) => {
+      if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+        return Object.entries(entry as Record<string, unknown>)
+          .map(([name, part]) => `${name}(${Array.isArray(part) ? part.join(', ') : String(part)})`)
+          .join(' ');
+      }
+      return String(entry);
+    })
+    .join(', ');
+}
+
+function countViews(view: CapturedView): number {
+  return 1 + view.children.reduce((sum, child) => sum + countViews(child), 0);
 }
 
 function seconds(ms: number): string {
