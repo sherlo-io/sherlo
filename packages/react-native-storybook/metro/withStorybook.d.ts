@@ -9,19 +9,9 @@ export interface WithStorybookOptions {
   configPath?: string;
 
   /**
-   * Opt in to the experimental module-mocking pipeline (SHERLO-1764). Default `false`.
-   *
-   * When `false` (the default) no story mock scan runs, no shims are emitted, no
-   * resolver redirect is installed, and the `./mocking` runtime never reaches the
-   * bundle - so a normal App Store / Play Store release ships zero mocking artifacts.
-   * Set to `true` only in Storybook/testing build lanes where `parameters.sherlo.mocks`
-   * should take effect.
-   */
-  experimentalMocks?: boolean;
-
-  /**
-   * Extra mock keys the static story scan cannot see (keys composed at runtime).
-   * Only has an effect when `experimentalMocks` is `true`.
+   * Extra module keys to make mockable that the story scan cannot see - a module whose
+   * name a story composes while the app runs, rather than naming it with an import
+   * expression the scan can read.
    */
   mockModules?: string[];
 

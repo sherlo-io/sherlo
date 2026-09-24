@@ -29,7 +29,9 @@ function warnUnshimmedKeys(mocks: MockSet): void {
     } will not apply. Restart Metro so the build-time scan ` +
     `can find ${plural ? 'newly added keys' : 'a newly added key'}, or, if ${
       plural ? 'the keys are' : 'the key is'
-    } composed at runtime, list ${plural ? 'them' : 'it'} under mockModules in your Sherlo config.`;
+    } composed at runtime, list ${
+      plural ? 'them' : 'it'
+    } under the mockModules option of withStorybook in metro.config.js.`;
 
   console.warn(message);
   RunnerBridge.log(UNSHIMMED_KEYS_LOG, { keys: unshimmedKeys });

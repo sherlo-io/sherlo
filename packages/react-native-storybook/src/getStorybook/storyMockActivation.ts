@@ -6,7 +6,7 @@
  *
  * WHY GLOBAL MOCKS NEED A SECOND PASS
  * A story's mocks are merged from three levels (global > meta > story - see
- * enumerateStories / mergeMockSet). Meta- and story-level mocks come from the story
+ * enumerateStories / mergeStoryMocks). Meta- and story-level mocks come from the story
  * exports, which are loaded synchronously, so they apply on the first pass. Global-level
  * mocks live ONLY in the app's `.rnstorybook/preview.ts`, which Storybook composes into
  * view._preview.storyStoreValue.projectAnnotations ASYNCHRONOUSLY during preview init.
@@ -19,7 +19,7 @@
  */
 import { StorybookView } from '../types';
 import { enumerateStories } from '../storybook/adapter';
-import { activateStoryMocks } from '../mocking';
+import { activateStoryMocks, resolveDeclarations } from '../mocking';
 
 // The live preview fields we rely on. `ready()` resolves once the StoryStore -
 // and thus projectAnnotations (global params) - exists; `storyStoreValue` is
@@ -34,9 +34,27 @@ function getPreview(view: StorybookView): PreviewInternal | undefined {
   return (view as unknown as { _preview?: PreviewInternal })._preview;
 }
 
+// Monotonic id for the latest attempt to install a story's mocks. A declaration names its
+// module by import, so its name is only known once that import resolves - and an attempt whose
+// resolution finishes after a newer attempt has already installed must not overwrite it.
+let latestInstall = 0;
+
 function applyStoryMocks(view: StorybookView, storyId: string): void {
   const storyMeta = enumerateStories(view).find((story) => story.id === storyId);
-  activateStoryMocks(storyMeta?.mocks ?? {});
+  const mocks = storyMeta?.mocks ?? {};
+  const install = (latestInstall += 1);
+
+  // The object form already names every module it mocks, so it installs at once - which is
+  // what the meta/story-level pass below relies on to beat the story's render.
+  if (!Array.isArray(mocks)) {
+    activateStoryMocks(mocks);
+    return;
+  }
+
+  resolveDeclarations(mocks).then((resolvedMocks) => {
+    if (install !== latestInstall) return;
+    activateStoryMocks(resolvedMocks);
+  });
 }
 
 // Monotonic id for the latest activation. Each activateMocksForStory call bumps it and
@@ -47,9 +65,9 @@ function applyStoryMocks(view: StorybookView, storyId: string): void {
 let activationGeneration = 0;
 
 /**
- * Install `storyId`'s merged mock set. Meta/story mocks apply immediately; global
- * mocks fold in once the preview is ready (see file header). Safe to call before the
- * story renders - the ready() re-apply completes ahead of the render.
+ * Install `storyId`'s merged mocks. Meta/story mocks apply immediately - declarations as soon
+ * as their imports resolve; global mocks fold in once the preview is ready (see file header).
+ * Safe to call before the story renders - the ready() re-apply completes ahead of the render.
  */
 export function activateMocksForStory(view: StorybookView, storyId: string | undefined): void {
   if (!storyId) return;

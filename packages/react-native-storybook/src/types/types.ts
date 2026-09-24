@@ -1,16 +1,19 @@
 import type { View } from '@storybook/react-native';
-import type { MockSet } from '../mocking/types';
+import type { StoryMocks } from '../mocking/mockDeclaration';
 
 export interface SherloParameters {
   /**
-   * Module Mocking (SHERLO-1734): a map of module specifier -> mock definition,
-   * applied for the duration of the story's snapshot. Declaring a key here also
-   * registers it for the config-time Metro scan, which emits the shim that makes
-   * the module mockable. The key must be a string literal so the static scan can
-   * see it. Deny-listed modules (react, react-native, @storybook/*, @sherlo/*)
-   * cannot be mocked - mock a wrapper module you own instead.
+   * Module Mocking (SHERLO-1734): the mocks this story declares, applied for the duration
+   * of the story's snapshot. Each is made by `mock(() => import('...'), definition)`, which
+   * names the module by its import so the definition is checked against that module's own
+   * types. The import's specifier must be a string literal so the config-time Metro scan can
+   * see it and emit the shim that makes the module mockable.
+   *
+   * The older form - an object keyed by module-specifier strings - is still accepted, and
+   * stays untyped. Deny-listed modules (react, react-native, @storybook/*, @sherlo/*) cannot
+   * be mocked - mock a wrapper module you own instead.
    */
-  mocks?: MockSet;
+  mocks?: StoryMocks;
 
   /**
    * Setting exclude to true skips the story during testing. This might be

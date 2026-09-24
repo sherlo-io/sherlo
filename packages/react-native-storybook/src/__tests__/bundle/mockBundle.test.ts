@@ -6,9 +6,10 @@
 //
 // JS-only lane (no device/emulator): it builds a tiny fixture app with REAL
 // Metro programmatically and asserts on the bundle output:
-//   - experimentalMocks: true  -> the mock shim is present (the mocked import was
+//   - a story declares a mock  -> the mock shim is present (the mocked import was
 //                                 redirected through createMockable).
-//   - experimentalMocks: false -> zero mocking artifacts (opt-in gate off, SHERLO-1764).
+//   - no story declares one    -> zero mocking artifacts, even though the layer is
+//                                 installed for every project with no option named.
 //
 // This runs under `yarn test` alongside the unit tests, so a red bundle lane
 // fails the PR.
@@ -25,13 +26,16 @@ const MOCKS_DIR_FRAGMENT = path.join('.cache', 'sherlo', 'mocks');
 
 // Builds the fixture project on disk and returns its root directory.
 //
+// `declaresMock` decides whether the story file declares a mock at all - the only
+// difference between the two cases below, now that no option turns the layer on or off.
+//
 // Layout:
 //   index.js                         entry - imports the mocked lib (CommonJS)
-//   src/Widget.stories.js            declares parameters.sherlo.mocks
+//   src/Widget.stories.js            declares parameters.sherlo.mocks (or nothing)
 //   node_modules/mocked-lib          the module being mocked
 //   node_modules/@sherlo/...         a minimal stand-in for the SDK package that
 //                                    provides the `./mocking` export the shim needs
-function createFixture(): string {
+function createFixture(declaresMock: boolean): string {
   // realpath so projectRoot matches the path Metro's file watcher indexes
   // (macOS /var -> /private/var); otherwise Metro cannot SHA-1 the entry file.
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-bundle-fixture-')));
@@ -48,7 +52,10 @@ function createFixture(): string {
   // Story file: only ever read from disk by the config-time scan.
   write(
     'src/Widget.stories.js',
-    "export const Basic = { parameters: { sherlo: { mocks: { 'mocked-lib': { greeting: () => 'mocked' } } } } };\n"
+    declaresMock
+      ? "import { mock } from '@sherlo/react-native-storybook';\n" +
+          "export const Basic = { parameters: { sherlo: { mocks: [mock(() => import('mocked-lib'), { greeting: () => 'mocked' })] } } };\n"
+      : 'export const Basic = {};\n'
   );
 
   // The module being mocked - carries a distinctive marker so we can find it.
@@ -87,7 +94,7 @@ function createFixture(): string {
   return root;
 }
 
-async function buildBundle(root: string, opts: { experimentalMocks: boolean }): Promise<string> {
+async function buildBundle(root: string): Promise<string> {
   const baseConfig = await getDefaultConfig(root);
 
   // Metro's own runtime/polyfills and babel helpers live in the repo
@@ -105,7 +112,7 @@ async function buildBundle(root: string, opts: { experimentalMocks: boolean }): 
   baseConfig.resetCache = true;
 
   // applySherloTransforms is exactly what withStorybook() applies under the hood.
-  const config = applySherloTransforms(baseConfig, opts);
+  const config = applySherloTransforms(baseConfig, {});
 
   const { code } = await Metro.runBuild(config, {
     entry: 'index.js',
@@ -121,11 +128,11 @@ describe('bundle lane - module mocking shims in real Metro output', () => {
   const TIMEOUT = 120_000;
 
   it(
-    'experimentalMocks: true -> the mocked import is redirected through a createMockable shim',
+    'a declared mock -> the mocked import is redirected through a createMockable shim',
     async () => {
-      const root = createFixture();
+      const root = createFixture(true);
       try {
-        const code = await buildBundle(root, { experimentalMocks: true });
+        const code = await buildBundle(root);
 
         // The shim's body (a createMockable call for the mocked key) is bundled.
         expect(code).toContain('createMockable');
@@ -145,11 +152,11 @@ describe('bundle lane - module mocking shims in real Metro output', () => {
   );
 
   it(
-    'experimentalMocks: false -> the bundle contains zero mocking artifacts (opt-in gate off)',
+    'a project with no mock declared -> the bundle contains zero mocking artifacts',
     async () => {
-      const root = createFixture();
+      const root = createFixture(false);
       try {
-        const code = await buildBundle(root, { experimentalMocks: false });
+        const code = await buildBundle(root);
 
         // The real module is bundled directly, with no shim indirection.
         expect(code).toContain('MOCKED_LIB_REAL_MODULE');

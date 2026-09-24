@@ -335,10 +335,11 @@ function setupMocks(opts) {
     }
   }
 
-  // 2. Rewrite the mocks directory from scratch so no stale shims survive.
+  // 2. Rewrite the mocks directory from scratch so no stale shims survive. A project that
+  // declares no mock gets no directory at all, so it pays nothing for a layer it does not use.
   var mocksDir = path.join(cacheDir, 'mocks');
   fs.rmSync(mocksDir, { recursive: true, force: true });
-  fs.mkdirSync(mocksDir, { recursive: true });
+  if (keyToSource.size > 0) fs.mkdirSync(mocksDir, { recursive: true });
 
   // 3. Resolve each key and emit its shim.
   //
