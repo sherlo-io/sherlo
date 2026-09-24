@@ -184,7 +184,11 @@ const INK = {
 
 /** The whole tree, every view, drawn as the inspector draws it, then how many views that was. */
 function treeLines(root: CapturedView): string[] {
-  return [...viewLines(root, 0), '', chalk.dim(`   ${countViews(root)} views · --json prints the record`)];
+  return [
+    ...viewLines(root, 0),
+    '',
+    chalk.dim(`   ${countViews(root)} views · --json prints the record`),
+  ];
 }
 
 /**
@@ -206,9 +210,8 @@ function viewLines(view: CapturedView, depth: number): string[] {
   });
   lines.push(...primitiveLines(view, depth + view.components.length));
   for (let index = view.components.length - 1; index >= 0; index -= 1) {
-    lines.push(
-      `${indent(depth + index)}${INK.punct('</')}${INK.component(view.components[index])}${INK.punct('>')}`
-    );
+    const name = view.components[index];
+    lines.push(`${indent(depth + index)}${INK.punct('</')}${INK.component(name)}${INK.punct('>')}`);
   }
 
   return lines;

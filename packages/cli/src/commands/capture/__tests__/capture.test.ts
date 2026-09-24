@@ -343,8 +343,8 @@ describe('the words a text view draws print between its tags', () => {
   it('prints a placeholder as the prop it is, on the opening tag', () => {});
 });
 
-describe('the app\'s components print as tags around the view they render', () => {
-  it('wraps the view in one tag per component, outermost first, in the components\' own colour', () => {});
+describe("the app's components print as tags around the view they render", () => {
+  it("wraps the view in one tag per component, outermost first, in the components' own colour", () => {});
   it('prints no component tag for a view the app did not name', () => {});
 });
 
