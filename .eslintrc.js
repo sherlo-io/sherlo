@@ -11,14 +11,14 @@ const NODE_CORE_DOOR_SYNTAX = [
   {
     selector: `ImportDeclaration[source.value=/^(${NODE_CORE_DOORS.join('|')})$/]`,
     message:
-      'A door outside src/seams/ - this module belongs to the live half of the seam that owns it (see packages/cli/src/__tests__/doors-are-seams.test.ts).',
+      'A door outside src/seams/ - this module belongs to the live half of the seam that owns it, reached only from its seam or from another live half (see packages/cli/src/__tests__/doors-are-seams.test.ts).',
   },
   {
     selector: `CallExpression[callee.name='require'][arguments.0.value=/^(${NODE_CORE_DOORS.join(
       '|'
     )})$/]`,
     message:
-      'A door outside src/seams/ - this module belongs to the live half of the seam that owns it (see packages/cli/src/__tests__/doors-are-seams.test.ts).',
+      'A door outside src/seams/ - this module belongs to the live half of the seam that owns it, reached only from its seam or from another live half (see packages/cli/src/__tests__/doors-are-seams.test.ts).',
   },
 ];
 
@@ -121,9 +121,10 @@ module.exports = {
       },
     },
     {
-      // THE LIVE HALF OF A SEAM. Reached only from the src/seams/*.ts file named beside it below
-      // (doors-are-seams.test.ts asserts exactly that reach), so the node-core call it makes is
-      // never taken by a posed run - only the sdk-client and fs rules still apply here.
+      // THE LIVE HALF OF A SEAM. Reached only from its seam or from another live half
+      // (doors-are-seams.test.ts asserts exactly that reach - the full named set lives there),
+      // so the node-core call it makes is never taken by a posed run - only the sdk-client and
+      // fs rules still apply here.
       files: [
         // nativeBuild (packages/cli/src/seams/nativeBuild.ts)
         'packages/cli/src/helpers/uploadOrPrintBinaryReuse/uploadBuild/uploadBuild.ts',

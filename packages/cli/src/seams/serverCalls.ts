@@ -118,6 +118,12 @@ export type ServerCalls = {
 export type CheckStagedGateRequest = Parameters<SdkClient['checkStagedGate']>[0];
 export type CheckStagedGateAnswer = Awaited<ReturnType<SdkClient['checkStagedGate']>>;
 
+/** The one place a raw project token becomes a real sdk client - every live operation below goes through it. */
+function clientFor(token: string): SdkClient {
+  const { apiToken } = getTokenParts(token);
+  return sdkClient({ authToken: apiToken }, getEndpointUrl());
+}
+
 /** The shipped answers: the real requests, unchanged. */
 export const liveServerCalls: ServerCalls = {
   getBuildStatus: ({ token, buildIndex, projectIndex, teamId, boundedRead }) => {
@@ -136,29 +142,16 @@ export const liveServerCalls: ServerCalls = {
   listTeams: (request) => listTeamsRequest(request),
   listProjects: (request) => listProjectsRequest(request),
 
-  openBuild: ({ token, ...request }) => {
-    const { apiToken } = getTokenParts(token);
-    return sdkClient({ authToken: apiToken }, getEndpointUrl()).openBuild(request);
-  },
+  openBuild: ({ token, ...request }) => clientFor(token).openBuild(request),
 
-  getNextBuildInfo: ({ token, ...request }) => {
-    const { apiToken } = getTokenParts(token);
-    return sdkClient({ authToken: apiToken }, getEndpointUrl()).getNextBuildInfo(request);
-  },
+  getNextBuildInfo: ({ token, ...request }) => clientFor(token).getNextBuildInfo(request),
 
-  getStagedUploadUrls: ({ token, ...request }) => {
-    const { apiToken } = getTokenParts(token);
-    return sdkClient({ authToken: apiToken }, getEndpointUrl()).getStagedUploadUrls(request);
-  },
+  getStagedUploadUrls: ({ token, ...request }) => clientFor(token).getStagedUploadUrls(request),
 
-  trackCliInit: ({ token, ...request }) => {
-    const { apiToken } = getTokenParts(token);
-    return sdkClient({ authToken: apiToken }, getEndpointUrl()).trackCliInit(request);
-  },
+  trackCliInit: ({ token, ...request }) => clientFor(token).trackCliInit(request),
 
   computeDiffScopeDryRun: ({ token, ...request }) => {
-    const { apiToken } = getTokenParts(token);
-    const client = sdkClient({ authToken: apiToken }, getEndpointUrl()) as DryRunDecisionClient;
+    const client = clientFor(token) as DryRunDecisionClient;
 
     // The published sdk-client this repo typechecks against may not carry the query yet, so the
     // method is reached defensively - exactly as ../commands/test/dryRunDecision does.
@@ -171,10 +164,7 @@ export const liveServerCalls: ServerCalls = {
     return query(request);
   },
 
-  checkStagedGate: ({ token, ...request }) => {
-    const { apiToken } = getTokenParts(token);
-    return sdkClient({ authToken: apiToken }, getEndpointUrl()).checkStagedGate(request);
-  },
+  checkStagedGate: ({ token, ...request }) => clientFor(token).checkStagedGate(request),
 };
 
 let installed: ServerCalls = liveServerCalls;
