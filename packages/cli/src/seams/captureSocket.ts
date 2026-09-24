@@ -497,10 +497,11 @@ function readError(said: unknown): { name: string; message: string } | undefined
  * view that says nothing has no text, and an app older than `size`/`style`/`props` leaves them
  * absent rather than invented.
  *
- * `testID` RIDES INSIDE `props`, THE SAME PLACE `placeholder` AND `numberOfLines` DO. The wire
- * carries it as its own field (see CapturedViewTree in the SDK), because it is matched to the view
- * the same way style is, not read off a fiber's props the way the other two are - but the screen
- * draws all three as one set of attributes on the tag, so this is where they are merged into one.
+ * `testID` RIDES INSIDE `props`, THE SAME PLACE `placeholder`, `numberOfLines` AND
+ * `accessibilityLabel` DO. The wire carries it as its own field (see CapturedViewTree in the SDK),
+ * because it is matched to the view the same way style is, not read off a fiber's props the way
+ * the other three are - but the screen draws all four as one set of attributes on the tag, so this
+ * is where they are merged into one.
  */
 function readCapturedView(value: unknown): CapturedView {
   const view = value as
@@ -547,17 +548,26 @@ function readCapturedViewStyle(value: unknown): Record<string, unknown> | undefi
   return value as Record<string, unknown>;
 }
 
-/** The testID matched to the view, and the placeholder/numberOfLines its own fiber carried. */
+/**
+ * The testID matched to the view, and the placeholder/numberOfLines/accessibilityLabel its own
+ * fiber carried.
+ */
 function readCapturedViewProps(
   testID: unknown,
   props: unknown
 ): Record<string, string | number | boolean> | undefined {
-  const wireProps = props as { placeholder?: unknown; numberOfLines?: unknown } | null | undefined;
+  const wireProps = props as
+    | { placeholder?: unknown; numberOfLines?: unknown; accessibilityLabel?: unknown }
+    | null
+    | undefined;
   const read: Record<string, string | number | boolean> = {};
 
   if (typeof testID === 'string') read.testID = testID;
   if (typeof wireProps?.placeholder === 'string') read.placeholder = wireProps.placeholder;
   if (typeof wireProps?.numberOfLines === 'number') read.numberOfLines = wireProps.numberOfLines;
+  if (typeof wireProps?.accessibilityLabel === 'string') {
+    read.accessibilityLabel = wireProps.accessibilityLabel;
+  }
 
   return Object.keys(read).length > 0 ? read : undefined;
 }

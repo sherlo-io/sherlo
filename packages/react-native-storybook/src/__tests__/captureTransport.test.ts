@@ -1592,8 +1592,14 @@ describe('a capture carries every field the inspector recorded for a view', () =
       viewProps: {
         ...VIEW_METADATA.viewProps,
         // An extra key a fiber's props might carry (a handler, here) proves the record keeps
-        // neither of these once they cross into `props` - only a placeholder and numberOfLines do.
-        4: { className: 'RCTScrollView', numberOfLines: 2, onPress: () => {} } as never,
+        // none of these once they cross into `props` - only a placeholder, numberOfLines and
+        // accessibilityLabel do.
+        4: {
+          className: 'RCTScrollView',
+          numberOfLines: 2,
+          accessibilityLabel: 'Font sizes list',
+          onPress: () => {},
+        } as never,
         5: { className: 'RCTText', placeholder: 'Type here' } as never,
       },
       texts: [],
@@ -1601,7 +1607,12 @@ describe('a capture carries every field the inspector recorded for a view', () =
 
     const answer = await walkOneStory();
 
-    expect(answer.tree.children[0].props).toEqual({ numberOfLines: 2 });
+    // accessibilityLabel rides beside testID, placeholder and numberOfLines - it is what a mocked
+    // value often lands on, an icon or image with no Text, where it is the only words the view has.
+    expect(answer.tree.children[0].props).toEqual({
+      numberOfLines: 2,
+      accessibilityLabel: 'Font sizes list',
+    });
     expect(answer.tree.children[0].children[0].props).toEqual({ placeholder: 'Type here' });
   });
 });

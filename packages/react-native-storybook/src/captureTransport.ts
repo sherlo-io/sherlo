@@ -344,7 +344,8 @@ export type CapturedViewTree = {
   /** What a text view draws - the words among the children prop of the fiber that drew it, and of
    * every nested text span it holds. Absent for a view that draws no words of its own or nested. */
   text?: string;
-  /** A `TextInput`'s placeholder, or a `Text`'s numberOfLines when it is set - nothing else. */
+  /** A `TextInput`'s placeholder, a `Text`'s numberOfLines when it is set, and a view's own
+   * accessibilityLabel - nothing else a fiber's props hold. */
   props?: Record<string, string | number>;
   children: CapturedViewTree[];
 };
@@ -1432,12 +1433,17 @@ function captureViewTree(
         text?: unknown;
         placeholder?: unknown;
         numberOfLines?: unknown;
+        accessibilityLabel?: unknown;
       }
     | undefined;
 
   const style = mergedStyle(properties?.style);
   const testID = typeof properties?.testID === 'string' ? properties.testID : undefined;
-  const props = primitiveProps(properties?.placeholder, properties?.numberOfLines);
+  const props = primitiveProps(
+    properties?.placeholder,
+    properties?.numberOfLines,
+    properties?.accessibilityLabel
+  );
   const children = (node.children ?? []).map((child) => captureViewTree(child, names, density));
 
   // A text view's words are its own fiber's, plus whatever a nested text span - a further Text
@@ -1495,17 +1501,20 @@ function mergedStyle(style: unknown): Record<string, unknown> | undefined {
 }
 
 /**
- * The other props the record keeps: a `TextInput`'s placeholder, and a `Text`'s numberOfLines when
- * it is set - nothing else a fiber's props hold, because nothing else is what a developer reading
- * the tree needs from them.
+ * The other props the record keeps: a `TextInput`'s placeholder, a `Text`'s numberOfLines when it
+ * is set, and a view's own accessibilityLabel - the only words an icon or image with no `Text`
+ * has. Nothing else a fiber's props hold, because nothing else is what a developer reading the
+ * tree needs from them. Same rule as the others: carried when the fiber has it, absent otherwise.
  */
 function primitiveProps(
   placeholder: unknown,
-  numberOfLines: unknown
+  numberOfLines: unknown,
+  accessibilityLabel: unknown
 ): Record<string, string | number> | undefined {
   const props: Record<string, string | number> = {};
   if (typeof placeholder === 'string') props.placeholder = placeholder;
   if (typeof numberOfLines === 'number') props.numberOfLines = numberOfLines;
+  if (typeof accessibilityLabel === 'string') props.accessibilityLabel = accessibilityLabel;
   return Object.keys(props).length > 0 ? props : undefined;
 }
 

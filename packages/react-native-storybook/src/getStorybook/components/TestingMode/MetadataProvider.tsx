@@ -22,6 +22,8 @@ export type ViewProps = {
     placeholder?: string;
     /** A `Text`'s own numberOfLines, kept only for the fiber that carries one. */
     numberOfLines?: number;
+    /** A view's own accessibilityLabel - the only words an icon or image with no Text has. */
+    accessibilityLabel?: string;
   };
 };
 
@@ -105,6 +107,9 @@ function collectFromRoot(root: Fiber): { viewProps: ViewProps; texts: string[] }
         }),
         ...(typeof pendingProps.numberOfLines === 'number' && {
           numberOfLines: pendingProps.numberOfLines,
+        }),
+        ...(typeof pendingProps.accessibilityLabel === 'string' && {
+          accessibilityLabel: pendingProps.accessibilityLabel,
         }),
       };
     }
