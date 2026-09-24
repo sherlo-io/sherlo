@@ -72,6 +72,13 @@ export type CaptureResult =
       parts?: number;
       /** Whether any view in the story loads an image over the network. Absent for the same reason. */
       hasNetworkImage?: boolean;
+      /**
+       * The device's own density and font scale - a size in pixels means nothing without them.
+       * Absent for the same reason `parts` can be: an app older than these two fields says nothing
+       * readable about them.
+       */
+      density?: number;
+      fontScale?: number;
       tree: CapturedView;
       /**
        * How the app's two waits for this story went - for a published reading that names it, and
@@ -316,6 +323,8 @@ function readCaptureAnswer(said: unknown, storyId: string): CaptureResult {
     error?: unknown;
     parts?: unknown;
     hasNetworkImage?: unknown;
+    density?: unknown;
+    fontScale?: unknown;
     tree?: unknown;
     waited?: unknown;
     root?: unknown;
@@ -347,6 +356,8 @@ function readCaptureAnswer(said: unknown, storyId: string): CaptureResult {
       ...(typeof answer.hasNetworkImage === 'boolean' && {
         hasNetworkImage: answer.hasNetworkImage,
       }),
+      ...(typeof answer.density === 'number' && { density: answer.density }),
+      ...(typeof answer.fontScale === 'number' && { fontScale: answer.fontScale }),
       tree: readCapturedView(answer.tree),
       ...(waited && { waited }),
       ...(root && { root }),

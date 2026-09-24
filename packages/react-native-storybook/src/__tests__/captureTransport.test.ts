@@ -83,6 +83,10 @@ import {
   rememberAppMetadataCollector,
 } from '../appMetadata';
 import { rememberStoryOfTheApp } from '../componentNames';
+import {
+  collectFromRoot,
+  type WalkedFiber,
+} from '../getStorybook/components/TestingMode/metadataWalk';
 import { clearStoryError, recordStoryError } from '../getStorybook/storyErrorRegistry';
 import { STORY_ERROR_FALLBACK_TEXT } from '../constants';
 import RunnerBridge from '../helpers/RunnerBridge';
@@ -1698,6 +1702,93 @@ describe('a text view carries the words it draws', () => {
     expect(container.text).toBeUndefined();
     expect(container.children[0].text).toBe('A');
     expect(container.children[1].text).toBe('B');
+  });
+
+  it('a container carries no words though its children draw them', async () => {
+    // The same shape as the case above, but driven through the REAL walk (collectFromRoot,
+    // MetadataProvider.tsx) rather than a metadata reading typed in by hand - so this proves the
+    // rule where it lives: a View's own `children` prop is exactly the React elements of its two
+    // Text children, and the fix is that no host but a Text ever has wordsInChildren run on it.
+    mockGetInspectorData.mockResolvedValue({
+      viewHierarchy: node('RCTView', 1, [
+        node('RCTView', 2, [node('RCTText', 3, []), node('RCTText', 4, [])]),
+      ]),
+      density: 3,
+      fontScale: 1,
+    });
+
+    const textA: WalkedFiber = {
+      type: 'RCTText',
+      stateNode: { _nativeTag: 3 },
+      pendingProps: { children: 'A' },
+      memoizedProps: {},
+    };
+    const textB: WalkedFiber = {
+      type: 'RCTText',
+      stateNode: { _nativeTag: 4 },
+      pendingProps: { children: 'B' },
+      memoizedProps: {},
+    };
+    const container: WalkedFiber = {
+      type: 'RCTView',
+      stateNode: { _nativeTag: 2 },
+      // What a View's own `children` prop actually is: the React elements of its child views (here
+      // shaped as plain `{ props }` objects, the one part of a React element wordsInChildren reads)
+      // - the exact shape that used to make wordsInChildren walk straight into them from the
+      // container.
+      pendingProps: {
+        children: [{ props: { children: 'A' } }, { props: { children: 'B' } }],
+      },
+      memoizedProps: {},
+      child: { ...textA, sibling: textB },
+    };
+    const root: WalkedFiber = {
+      type: 'RCTView',
+      stateNode: { _nativeTag: 1 },
+      pendingProps: { testID: STORY },
+      memoizedProps: {},
+      child: container,
+    };
+
+    const { viewProps } = collectFromRoot(root);
+    rememberAppMetadataCollector(() => ({ viewProps, texts: [] }));
+
+    const answer = await walkOneStory();
+
+    const recordedContainer = answer.tree.children[0];
+    expect(recordedContainer.text).toBeUndefined();
+    expect(recordedContainer.children[0].text).toBe('A');
+    expect(recordedContainer.children[1].text).toBe('B');
+  });
+
+  it("a number among a text's children is a word", async () => {
+    // `{size}px — The quick brown fox` where `size` is 10 - React draws a number as its digits, so
+    // the recorded words must too, not drop it the way a check for only strings and elements would.
+    mockGetInspectorData.mockResolvedValue({
+      viewHierarchy: node('RCTView', 1, [node('RCTText', 2, [])]),
+      density: 3,
+      fontScale: 1,
+    });
+
+    const root: WalkedFiber = {
+      type: 'RCTView',
+      stateNode: { _nativeTag: 1 },
+      pendingProps: { testID: STORY },
+      memoizedProps: {},
+      child: {
+        type: 'RCTText',
+        stateNode: { _nativeTag: 2 },
+        pendingProps: { children: [10, 'px — The quick brown fox'] },
+        memoizedProps: {},
+      },
+    };
+
+    const { viewProps } = collectFromRoot(root);
+    rememberAppMetadataCollector(() => ({ viewProps, texts: [] }));
+
+    const answer = await walkOneStory();
+
+    expect(answer.tree.children[0].text).toBe('10px — The quick brown fox');
   });
 });
 
