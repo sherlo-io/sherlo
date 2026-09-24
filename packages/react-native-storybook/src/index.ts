@@ -6,6 +6,15 @@ export { default as isStorybookMode } from './isStorybookMode';
 export { default as openStorybook } from './openStorybook';
 export { mock } from './mocking/mockDeclaration';
 export type { MockDeclaration } from './mocking/mockDeclaration';
+export { mockRequest } from './mocking/networkDeclaration';
+export type {
+  HttpMethod,
+  NetworkMockDeclaration,
+  NetworkRule,
+  RequestAnswer,
+  RequestMatcher,
+} from './mocking/networkDeclaration';
+export { UnmockedRequestError } from './mocking/networkRules';
 export { mockClock } from './mocking/clock';
 export { mockRandom } from './mocking/random';
 

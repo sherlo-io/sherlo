@@ -113,6 +113,7 @@ import {
   type StorybookChannel,
 } from './getStorybook/components/TestingMode/useTestAllStories/storyRenderedReadiness';
 import { setCaptureLogSink } from './helpers/RunnerBridge/captureLogSink';
+import { sherloFetch } from './mocking/network';
 
 const SET_CURRENT_STORY = 'setCurrentStory';
 
@@ -484,7 +485,7 @@ export function stopCaptureTransport(): void {
  * replace, and RunnerBridge.log must never be slowed down or broken by its own diagnostics.
  */
 function pushLogLineToBundler(origin: string, line: string): void {
-  fetch(`${origin}${CAPTURE_LOG_PATH}`, {
+  sherloFetch(`${origin}${CAPTURE_LOG_PATH}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ line }),
@@ -1579,7 +1580,7 @@ export function bundlerCapture(): CaptureTransport | null {
       const timer = setTimeout(() => giveUp.abort(), HOLD_TIMEOUT_MS);
 
       try {
-        const response = await fetch(origin + CAPTURE_PATH, {
+        const response = await sherloFetch(origin + CAPTURE_PATH, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(saying),

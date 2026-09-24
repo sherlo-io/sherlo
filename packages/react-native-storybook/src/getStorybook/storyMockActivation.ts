@@ -19,7 +19,14 @@
  */
 import { StorybookView } from '../types';
 import { enumerateStories } from '../storybook/adapter';
-import { activateStoryMocks, resolveDeclarations } from '../mocking';
+import {
+  activateNetworkMocks,
+  activateStoryMocks,
+  networkMocksOf,
+  resolveDeclarations,
+  UnmockedRequestError,
+} from '../mocking';
+import { recordStoryError } from './storyErrorRegistry';
 
 // The live preview fields we rely on. `ready()` resolves once the StoryStore -
 // and thus projectAnnotations (global params) - exists; `storyStoreValue` is
@@ -48,6 +55,10 @@ function applyStoryMocks(view: StorybookView, storyId: string): Promise<void> | 
   const mocks = storyMeta?.mocks ?? {};
   const install = (latestInstall += 1);
 
+  // Network rules are plain values the story wrote, so they are in effect at once - no import to
+  // wait for. A story that declares none puts the real fetch and XMLHttpRequest back.
+  activateNetworkMocks(networkMocksOf(mocks), (refusal) => recordRefusal(storyId, refusal));
+
   // The object form already names every module it mocks, so it installs at once.
   if (!Array.isArray(mocks)) {
     activateStoryMocks(mocks);
@@ -57,6 +68,24 @@ function applyStoryMocks(view: StorybookView, storyId: string): Promise<void> | 
   return resolveDeclarations(mocks).then((resolvedMocks) => {
     if (install !== latestInstall) return;
     activateStoryMocks(resolvedMocks);
+  });
+}
+
+/**
+ * A request no rule matched is recorded exactly the way a render error is, in the one registry the
+ * error boundary fills (./storyErrorRegistry). That is what makes the capture and the test run
+ * both report the story as one that threw, with the refusal's own name and message: there is ONE
+ * way of knowing a story is broken in this SDK, and a refused request is another writer of it.
+ *
+ * This is also the only place a refusal meets a story: the interceptor itself knows nothing but
+ * the rules in effect.
+ */
+function recordRefusal(storyId: string, refusal: UnmockedRequestError): void {
+  recordStoryError(storyId, {
+    name: refusal.name,
+    message: refusal.message,
+    stack: refusal.stack ?? '',
+    componentStack: '',
   });
 }
 

@@ -1,23 +1,43 @@
+import type { NetworkMockDeclaration } from './networkDeclaration';
 import { MockDefinition, MockSet, MOCKED_MODULE_KEY } from './types';
 
 /**
- * One mock a story hands over: the module it stands in for, and what to serve for it.
+ * One module mock a story hands over: the module it stands in for, and what to serve for it.
  *
  * `moduleKey` answers the name of that module. A declaration made by `mock` learns the name
  * by awaiting its own import: the bundler has redirected that import to the module's shim,
  * and the shim answers `MOCKED_MODULE_KEY` with the key it was made for. So the name is never
  * a string the story wrote, and never the importer's source text read back as one.
  */
-export interface MockDeclaration {
+export interface ModuleMockDeclaration {
+  kind: 'module';
   moduleKey: () => Promise<string | undefined>;
   definition: MockDefinition;
 }
+
+/**
+ * One mock a story hands over, of whichever kind: a module's exports (`mock`) or a network rule
+ * (`mockRequest`). `kind` is what tells them apart everywhere both travel in one list.
+ */
+export type MockDeclaration = ModuleMockDeclaration | NetworkMockDeclaration;
 
 /**
  * A story's mocks: the declarations it lists, or the older object keyed by module-name
  * strings, which stays accepted and stays untyped.
  */
 export type StoryMocks = MockDeclaration[] | MockSet;
+
+export function isModuleDeclaration(
+  declaration: MockDeclaration
+): declaration is ModuleMockDeclaration {
+  return declaration.kind === 'module';
+}
+
+export function isNetworkDeclaration(
+  declaration: MockDeclaration
+): declaration is NetworkMockDeclaration {
+  return declaration.kind === 'network';
+}
 
 /**
  * The name an import that reached no shim is filed under, so activation warns about it the way
@@ -48,8 +68,9 @@ function unshimmedImportName(definition: MockDefinition): string {
 export function mock<M>(
   importModule: () => Promise<M>,
   definition: Partial<M> | ((original: M) => Partial<M>)
-): MockDeclaration {
+): ModuleMockDeclaration {
   return {
+    kind: 'module',
     moduleKey: () => importModule().then(readModuleKey),
     definition: definition as MockDefinition,
   };
@@ -63,15 +84,19 @@ export function mock<M>(
  * the object form's per-key precedence does.
  */
 export async function resolveDeclarations(declarations: MockDeclaration[]): Promise<MockSet> {
+  // Network rules are not modules and name none; they are read straight off the same list by
+  // networkMocksOf (./networkDeclaration).
+  const moduleDeclarations = declarations.filter(isModuleDeclaration);
+
   const keys = await Promise.all(
     // An import that fails to load names no module, and is warned about like one that reached
     // no shim - it must not take the story's other mocks down with it.
-    declarations.map((declaration) => declaration.moduleKey().catch(() => undefined))
+    moduleDeclarations.map((declaration) => declaration.moduleKey().catch(() => undefined))
   );
 
   const mocks: MockSet = {};
   keys.forEach((key, index) => {
-    const { definition } = declarations[index];
+    const { definition } = moduleDeclarations[index];
     mocks[key ?? unshimmedImportName(definition)] = definition;
   });
   return mocks;
@@ -85,6 +110,7 @@ export function declarationsOf(mocks: StoryMocks): MockDeclaration[] {
   if (Array.isArray(mocks)) return mocks;
 
   return Object.keys(mocks).map((key) => ({
+    kind: 'module' as const,
     moduleKey: () => Promise.resolve(key),
     definition: mocks[key],
   }));

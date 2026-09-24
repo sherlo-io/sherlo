@@ -1,4 +1,4 @@
-import { MockDeclaration } from './mockDeclaration';
+import { ModuleMockDeclaration } from './mockDeclaration';
 import { MockDefinition } from './types';
 
 // No real module is ever imported under this key, so a random declaration can never collide
@@ -15,8 +15,10 @@ export interface RandomDefinition {
  *
  *   mocks: [mockRandom(42)]
  */
-export function mockRandom(seed: number): MockDeclaration {
+export function mockRandom(seed: number): ModuleMockDeclaration {
   return {
+    // It rides the module-declaration channel, so it is one - see the note on the key above.
+    kind: 'module',
     moduleKey: () => Promise.resolve(RANDOM_MOCK_KEY),
     definition: { seed } as MockDefinition,
   };

@@ -1,4 +1,4 @@
-import { MockDeclaration } from './mockDeclaration';
+import { ModuleMockDeclaration } from './mockDeclaration';
 import { MockDefinition } from './types';
 
 // No real module is ever imported under this key, so a clock declaration can never collide
@@ -15,8 +15,10 @@ export interface ClockDefinition {
  *
  *   mocks: [mockClock('2020-01-02T03:04:05.000Z')]
  */
-export function mockClock(moment: string | number | Date): MockDeclaration {
+export function mockClock(moment: string | number | Date): ModuleMockDeclaration {
   return {
+    // It rides the module-declaration channel, so it is one - see the note on the key above.
+    kind: 'module',
     moduleKey: () => Promise.resolve(CLOCK_MOCK_KEY),
     definition: { moment } as MockDefinition,
   };

@@ -1,3 +1,4 @@
+import { clearNetworkMocks } from './network';
 import { MockSet, ModuleExports } from './types';
 import SherloModule from '../SherloModule';
 import { restoreClock } from './clock';
@@ -37,11 +38,13 @@ function activateMocks(mocks: MockSet): void {
   activeActivation = { mocks, resolved: new Map() };
 }
 
-// Removes the active mock set; every createMockable trap then passes through to the real module.
+// Removes the active mock set; every createMockable trap then passes through to the real module,
+// and the real fetch and XMLHttpRequest are back in place (see ./network).
 function clearMocks(): void {
   restoreClock();
   restoreRandom();
   activeActivation = null;
+  clearNetworkMocks();
 }
 
 // Returns the resolved mock exports for `key`, or undefined if the module isn't mocked in the
