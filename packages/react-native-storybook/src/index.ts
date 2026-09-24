@@ -15,6 +15,8 @@ export type {
   RequestMatcher,
 } from './mocking/networkDeclaration';
 export { UnmockedRequestError } from './mocking/networkRules';
+export { mockClock } from './mocking/clock';
+export { mockRandom } from './mocking/random';
 
 export * from './types';
 
