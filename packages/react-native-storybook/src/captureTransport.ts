@@ -1446,15 +1446,11 @@ function captureViewTree(
   );
   const children = (node.children ?? []).map((child) => captureViewTree(child, names, density));
 
-  // A text view's words are its own fiber's, plus whatever a nested text span - a further Text
-  // drawn one level down in this same tree, contributing upward the same way this node's own words
-  // contribute to WHATEVER holds it - adds beneath it (see MetadataProvider.tsx's own note on why
-  // a span's words are kept separately rather than pre-merged there). No primitive check gates
-  // this: a view with nothing of its own and no text-bearing child simply joins to nothing, which
-  // is the same absence a view that never drew any words has.
-  const ownWords = typeof properties?.text === 'string' ? properties.text : undefined;
-  const text =
-    [ownWords, ...children.map((child) => child.text)].filter(isString).join('') || undefined;
+  // A view's `text` is its own fiber's words alone, never a child node's. A nested text span has
+  // no native view of its own to appear as a child here, so MetadataProvider already folded its
+  // words into the outer Text fiber's own (see MetadataProvider.tsx) - there is nothing left for
+  // this node to fold up from its children.
+  const text = typeof properties?.text === 'string' ? properties.text : undefined;
 
   return {
     primitive,
@@ -1516,10 +1512,6 @@ function primitiveProps(
   if (typeof numberOfLines === 'number') props.numberOfLines = numberOfLines;
   if (typeof accessibilityLabel === 'string') props.accessibilityLabel = accessibilityLabel;
   return Object.keys(props).length > 0 ? props : undefined;
-}
-
-function isString(value: unknown): value is string {
-  return typeof value === 'string';
 }
 
 /**

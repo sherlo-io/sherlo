@@ -1641,25 +1641,25 @@ describe('a text view carries the words it draws', () => {
   });
 
   it('joins the strings of a text made of several', async () => {
-    // A text made of a plain string and a nested span: `<Text>Hello <Text>World</Text></Text>`,
-    // where the span is a Text of its own, one level down in the same tree the inspector reports.
+    // A text made of a plain string and a nested span: `<Text>Hello <Text>World</Text></Text>`.
+    // The span is a further Text one level down in the JSX, but it draws no native view of its
+    // own - RCTVirtualText never appears in the inspector's tree - so its words are already
+    // folded into the outer Text fiber's own by MetadataProvider, with no node of its own here.
     mockGetInspectorData.mockResolvedValue({
-      viewHierarchy: node('RCTView', 1, [node('RCTText', 2, [node('RCTVirtualText', 3, [])])]),
+      viewHierarchy: node('RCTView', 1, [node('RCTText', 2, [])]),
       density: 3,
       fontScale: 1,
     });
     rememberAppMetadataCollector(() => ({
       viewProps: {
         1: { className: 'RCTView', testID: STORY },
-        2: { className: 'RCTText', text: 'Hello ' },
-        3: { className: 'RCTVirtualText', text: 'World' },
+        2: { className: 'RCTText', text: 'Hello World' },
       },
       texts: [],
     }));
 
     const answer = await walkOneStory();
 
-    // The span's own words join the words of the text that holds it, in order.
     expect(answer.tree.children[0].text).toBe('Hello World');
   });
 
@@ -1670,6 +1670,34 @@ describe('a text view carries the words it draws', () => {
     // Text primitive already carries, which its ScrollView parent proves alongside it.
     expect(answer.tree.children[0].children[0].text).toBeUndefined();
     expect(answer.tree.children[0].text).toBeUndefined();
+  });
+
+  it('carries no words of its own for a container holding two Text children', async () => {
+    // A plain View holding two Text views: each Text keeps its own words, and the View that
+    // holds them - which draws none of its own - never picks up either.
+    mockGetInspectorData.mockResolvedValue({
+      viewHierarchy: node('RCTView', 1, [
+        node('RCTView', 2, [node('RCTText', 3, []), node('RCTText', 4, [])]),
+      ]),
+      density: 3,
+      fontScale: 1,
+    });
+    rememberAppMetadataCollector(() => ({
+      viewProps: {
+        1: { className: 'RCTView', testID: STORY },
+        2: { className: 'RCTView' },
+        3: { className: 'RCTText', text: 'A' },
+        4: { className: 'RCTText', text: 'B' },
+      },
+      texts: [],
+    }));
+
+    const answer = await walkOneStory();
+
+    const container = answer.tree.children[0];
+    expect(container.text).toBeUndefined();
+    expect(container.children[0].text).toBe('A');
+    expect(container.children[1].text).toBe('B');
   });
 });
 
