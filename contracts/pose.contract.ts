@@ -184,6 +184,12 @@ export type PosedView = {
   primitive: string;
   components?: string[];
   text?: string;
+  /** The view's box in points, as the inspector reports it. */
+  size?: { width: number; height: number };
+  /** The React style matched to the view, one object, with the keys the source wrote. */
+  style?: Record<string, unknown>;
+  /** The other props the screen prints beside the style: a placeholder, a testID, numberOfLines. */
+  props?: Record<string, string | number | boolean>;
   children?: PosedView[];
 };
 

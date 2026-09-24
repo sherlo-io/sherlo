@@ -577,6 +577,9 @@ function withChildren(view: PosedView): CapturedView {
     primitive: view.primitive,
     components: view.components ?? [],
     ...(view.text !== undefined && { text: view.text }),
+    ...(view.size !== undefined && { size: view.size }),
+    ...(view.style !== undefined && { style: view.style }),
+    ...(view.props !== undefined && { props: view.props }),
     children: (view.children ?? []).map(withChildren),
   };
 }
