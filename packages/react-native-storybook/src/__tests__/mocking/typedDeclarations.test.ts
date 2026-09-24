@@ -8,7 +8,9 @@ describe('a mock is declared by its import expression', () => {
   it.todo('a mock is typed by the module its import expression names');
   it.todo('a mock declares a default export against the type of the module default');
   it.todo('a factory receives the real module typed as the module its import expression names');
-  it.todo('the declaration resolves the module name at runtime through the shim, never by calling a string key');
+  it.todo(
+    'the declaration resolves the module name at runtime through the shim, never by calling a string key'
+  );
   it.todo('the object form keyed by strings is still accepted, untyped');
 });
 

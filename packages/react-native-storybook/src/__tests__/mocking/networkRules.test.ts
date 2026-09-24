@@ -21,5 +21,7 @@ describe('a request no rule names', () => {
 
 describe('the rules follow the story', () => {
   it.todo('the rules are installed only in testing and storybook mode');
-  it.todo('switching stories replaces the rules, and clearing the mocks restores the real fetch and XMLHttpRequest');
+  it.todo(
+    'switching stories replaces the rules, and clearing the mocks restores the real fetch and XMLHttpRequest'
+  );
 });
