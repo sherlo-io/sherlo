@@ -263,6 +263,25 @@ describe("the app's answer, read into this seam's own endings", () => {
     });
   });
 
+  it("the device's own density and font scale come back beside the tree", async () => {
+    const r = await relay();
+
+    expect(
+      await aCapture(r, {
+        askedFor: STORY_A,
+        stories: [STORY_A],
+        recorded: { ...ANSWER_A, density: 3, fontScale: 1.3 },
+      })
+    ).toEqual({
+      kind: 'captured',
+      storyId: STORY_A,
+      settled: { ms: 120, frames: 6 },
+      density: 3,
+      fontScale: 1.3,
+      tree: { primitive: 'RCTView', components: [], children: [] },
+    });
+  });
+
   it("a view's size, style, testID and props come back with it, merged into one props set", async () => {
     const r = await relay();
 
