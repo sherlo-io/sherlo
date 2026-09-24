@@ -380,6 +380,34 @@ describe('reading a CommandPose', () => {
     expect(problemsOf(unknownFact).join('\n')).toContain('`capture`.showing: unknown field');
     expect(problemsOf(crashNotAnObject).join('\n')).toContain('`capture`.crashed');
   });
+
+  it("refuses a view's size that is missing a side, and a props value that is neither a string, a number nor true/false", () => {
+    const sizeMissingASide = {
+      ...validPose(),
+      argv: ['capture', '--story', 'controls-button--primary'],
+      capture: {
+        stories: ['controls-button--primary'],
+        settled: { ms: 1400, frames: 6 },
+        tree: { primitive: 'View', size: { width: 100 }, children: [] },
+      },
+    };
+    const propsIsAnObject = {
+      ...validPose(),
+      argv: ['capture', '--story', 'controls-button--primary'],
+      capture: {
+        stories: ['controls-button--primary'],
+        settled: { ms: 1400, frames: 6 },
+        tree: { primitive: 'View', props: { testID: { nested: true } }, children: [] },
+      },
+    };
+
+    expect(problemsOf(sizeMissingASide).join('\n')).toContain(
+      '`capture`.tree.size.height: expected a number'
+    );
+    expect(problemsOf(propsIsAnObject).join('\n')).toContain(
+      '`capture`.tree.props.testID: must be a string, a number or true/false'
+    );
+  });
 });
 
 /**
