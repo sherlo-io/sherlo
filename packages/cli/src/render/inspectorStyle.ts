@@ -205,12 +205,3 @@ export function inspectorHex(value: string): string {
 export function isColourKey(key: string): boolean {
   return key.toLowerCase().includes('color');
 }
-
-/** Black or white, whichever reads on this colour - the inspector's rule for its swatch. */
-export function inkOn(hex: string): '#000000' | '#FFFFFF' {
-  const digits = /^#([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})/i.exec(hex);
-  if (!digits) return '#FFFFFF';
-  const [r, g, b] = digits.slice(1).map((pair) => parseInt(pair, 16));
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.5 ? '#000000' : '#FFFFFF';
-}

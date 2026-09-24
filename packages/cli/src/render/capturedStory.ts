@@ -16,7 +16,7 @@
  * app's own components as tags around the view they render. `--json` prints the record, no screen.
  */
 import chalk from 'chalk';
-import { inkOn, inspectorHex, inspectorStyleEntries, isColourKey } from './inspectorStyle';
+import { inspectorHex, inspectorStyleEntries, isColourKey } from './inspectorStyle';
 
 /** One view in the tree, as the screen needs it. */
 export type CapturedView = {
@@ -224,7 +224,7 @@ function primitiveLines(view: CapturedView, depth: number): string[] {
   const lines: string[] = [];
 
   const tag = INK.tag(view.primitive);
-  const size = view.size ? ` ${INK.comment(`(${view.size.width} x ${view.size.height})`)}` : '';
+  const size = view.size ? ` ${INK.tag(`(${view.size.width} x ${view.size.height})`)}` : '';
   const props = Object.entries(view.props ?? {});
   const style = inspectorStyleEntries(view.style);
   const hasBody = view.text !== undefined || view.children.length > 0;
@@ -271,9 +271,8 @@ function styleValue(key: string, value: unknown): string {
   if (typeof value === 'string') {
     if (isColourKey(key) && value !== 'transparent') {
       const hex = inspectorHex(value);
-      if (hex.startsWith('#')) {
-        return `${INK.value('"')}${chalk.bgHex(hex).hex(inkOn(hex))(hex)}${INK.value('"')}`;
-      }
+      // The colour itself, printed in itself: a terminal can show it, so it does.
+      if (hex.startsWith('#')) return `${INK.value('"')}${chalk.hex(hex)(hex)}${INK.value('"')}`;
     }
     return INK.value(JSON.stringify(value));
   }
