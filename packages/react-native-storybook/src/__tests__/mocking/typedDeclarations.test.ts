@@ -1,6 +1,6 @@
 /**
  * A mock is declared with the module it names as an import expression, never a string, so the
- * declaration is checked against the module's own types (sherlo-brain, books/sherlo/mocking-a-story.md).
+ * declaration is checked against the module's own types.
  */
 vi.mock('../../SherloModule', () => ({
   default: {

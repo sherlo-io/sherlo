@@ -1,6 +1,6 @@
 /**
  * A story freezes the clock to a moment and seeds random, so a screen that shows a date or a
- * shuffle shows the same thing every time (sherlo-brain, books/sherlo/mocking-a-story.md).
+ * shuffle shows the same thing every time.
  */
 const { mockGetMode } = vi.hoisted(() => ({ mockGetMode: vi.fn() }));
 

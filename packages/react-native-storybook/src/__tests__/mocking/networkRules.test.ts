@@ -1,6 +1,6 @@
 /**
  * A story declares the answers to the requests its screen makes, and the SDK answers fetch and
- * XMLHttpRequest from those rules while the story is active (sherlo-brain, books/sherlo/mocking-a-story.md).
+ * XMLHttpRequest from those rules while the story is active.
  */
 const { mockGetMode } = vi.hoisted(() => ({ mockGetMode: vi.fn() }));
 
