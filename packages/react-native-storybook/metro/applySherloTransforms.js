@@ -624,24 +624,19 @@ function applySherloTransforms(result, opts) {
   var cacheDir = path.dirname(wrapperPath);
 
   // ---- Module Mocking (SHERLO-1734 Phase 2) ----
-  // Gated entirely behind the opt-in `experimentalMocks` flag (SHERLO-1764):
-  // default OFF, so a normal store release ships zero mocking artifacts. When the
-  // flag is absent or false we scan nothing, emit no shims, and install no
-  // resolver branch, and the `./mocking` runtime stays unreachable from the bundle.
-  // This is INDEPENDENT of `opts.enabled`, which gates the storybook-disabled
-  // polyfill path below and must not influence mocking either way.
-  var mockingEnabled = !!(opts && opts.experimentalMocks);
-  var mocksDir = null;
-  var mockedPathToShim = null;
-  if (mockingEnabled) {
-    var mockSetup = mockShims.setupMocks({
-      projectRoot: projectRoot,
-      cacheDir: cacheDir,
-      mockModules: opts && opts.mockModules,
-    });
-    mocksDir = mockSetup.mocksDir;
-    mockedPathToShim = mockSetup.mockedPathToShim;
-  }
+  // Installed for every project, with no option to name: the scan reads the modules the
+  // project's stories declare, one shim is emitted per module, and the resolver redirects
+  // those imports to their shims. A project that declares none gets no shim, no resolver
+  // redirect and no mocks directory, so it pays nothing - and the `./mocking` runtime stays
+  // unreachable from its bundle. This is INDEPENDENT of `opts.enabled`, which gates the
+  // storybook-disabled polyfill path below and must not influence mocking either way.
+  var mockSetup = mockShims.setupMocks({
+    projectRoot: projectRoot,
+    cacheDir: cacheDir,
+    mockModules: opts && opts.mockModules,
+  });
+  var mocksDir = mockSetup.mocksDir;
+  var mockedPathToShim = mockSetup.mockedPathToShim;
 
   // True when a module path lives inside the emitted mocks directory. Requests
   // originating from a shim must NEVER be redirected back into a shim, otherwise
@@ -676,8 +671,6 @@ function applySherloTransforms(result, opts) {
     // to the shim when the resolved absolute path belongs to a mocked module and
     // the importer is not itself a shim (MK-01..04, MK-08).
     if (
-      mockingEnabled &&
-      mockedPathToShim &&
       mockedPathToShim.size > 0 &&
       resolution &&
       resolution.type === 'sourceFile' &&

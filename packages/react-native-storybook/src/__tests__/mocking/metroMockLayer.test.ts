@@ -92,7 +92,12 @@ function cleanup(root: string): void {
 // MK-09 - config-time scan of parameters.sherlo.mocks keys
 // ---------------------------------------------------------------------------
 
-describe('mockScan.collectMockKeysFromSource (MK-09)', () => {
+// The module keys one source declares, whichever form named them.
+function mockKeysIn(source: string): string[] {
+  return mockScan.collectMockEntriesFromSource(source).map((entry: { key: string }) => entry.key);
+}
+
+describe('mockScan.collectMockEntriesFromSource (MK-09)', () => {
   it('collects meta-level and story-level string-literal keys', () => {
     const src = `
       const meta = {
@@ -104,11 +109,7 @@ describe('mockScan.collectMockKeysFromSource (MK-09)', () => {
         parameters: { sherlo: { mocks: { '@scope/pkg': {}, 'pkg/submodule': {} } } },
       };
     `;
-    expect(mockScan.collectMockKeysFromSource(src).sort()).toEqual([
-      '@scope/pkg',
-      'expo-localization',
-      'pkg/submodule',
-    ]);
+    expect(mockKeysIn(src).sort()).toEqual(['@scope/pkg', 'expo-localization', 'pkg/submodule']);
   });
 
   it('tolerates `satisfies` and `as` annotations around the parameters object', () => {
@@ -121,7 +122,7 @@ describe('mockScan.collectMockKeysFromSource (MK-09)', () => {
         parameters: { sherlo: { mocks: { 'b-mod': {} } as any } },
       };
     `;
-    expect(mockScan.collectMockKeysFromSource(src).sort()).toEqual(['a-mod', 'b-mod']);
+    expect(mockKeysIn(src).sort()).toEqual(['a-mod', 'b-mod']);
   });
 
   it('extracts KEYS only - never touches mock values (no value extraction)', () => {
@@ -133,7 +134,7 @@ describe('mockScan.collectMockKeysFromSource (MK-09)', () => {
         } } },
       };
     `;
-    expect(mockScan.collectMockKeysFromSource(src).sort()).toEqual(['with-factory', 'with-object']);
+    expect(mockKeysIn(src).sort()).toEqual(['with-factory', 'with-object']);
   });
 
   it('ignores non-string-literal keys (identifier / computed)', () => {
@@ -143,16 +144,16 @@ describe('mockScan.collectMockKeysFromSource (MK-09)', () => {
         parameters: { sherlo: { mocks: { 'quoted-key': {}, [dynamicKey]: {}, bareIdent: {} } } },
       };
     `;
-    expect(mockScan.collectMockKeysFromSource(src)).toEqual(['quoted-key']);
+    expect(mockKeysIn(src)).toEqual(['quoted-key']);
   });
 
   it('returns nothing for files without sherlo mocks', () => {
-    expect(mockScan.collectMockKeysFromSource('export const x = 1;')).toEqual([]);
-    expect(mockScan.collectMockKeysFromSource('this is not valid <<< js')).toEqual([]);
+    expect(mockKeysIn('export const x = 1;')).toEqual([]);
+    expect(mockKeysIn('this is not valid <<< js')).toEqual([]);
   });
 });
 
-describe('mockScan.findScanFiles / scanProjectForMockKeys (MK-09 discovery)', () => {
+describe('mockScan.findScanFiles / scanProjectForMocks (MK-09 discovery)', () => {
   it('finds *.stories.* and preview.* files, skipping node_modules', () => {
     const root = mkProject('sherlo-scan-find-');
     writeFile(root, 'src/Button.stories.tsx', 'export const A = {};');
@@ -172,17 +173,19 @@ describe('mockScan.findScanFiles / scanProjectForMockKeys (MK-09 discovery)', ()
     expect(files.some((f: string) => f.indexOf('node_modules') !== -1)).toBe(false);
   });
 
-  it('scanProjectForMockKeys maps each key to its declaring file', () => {
+  it('scanProjectForMocks carries the declaring file beside each key', () => {
     const root = mkProject('sherlo-scan-project-');
     writeFile(
       root,
       'src/Comp.stories.tsx',
       `export const S = { parameters: { sherlo: { mocks: { 'expo-localization': {} } } } };`
     );
-    const map = mockScan.scanProjectForMockKeys(root);
+    const declared = mockScan.scanProjectForMocks(root);
     cleanup(root);
 
-    expect(map.get('expo-localization')).toContain('Comp.stories.tsx');
+    expect(declared).toHaveLength(1);
+    expect(declared[0].key).toBe('expo-localization');
+    expect(declared[0].file).toContain('Comp.stories.tsx');
   });
 });
 
@@ -395,6 +398,40 @@ describe('mockShims.resolveMockKey', () => {
     expect(resolved.requireSpecifier).not.toContain('.android');
   });
 
+  it('a key the scan found in a story file is resolved from that file when it is relative', () => {
+    const root = mkProject('sherlo-resolvekey-beside-story-');
+    const storyFile = writeFile(root, 'src/components/Mocking.stories.tsx', 'export const S = {};');
+    writeFile(root, 'src/components/whoAmI.ts', 'export default {};');
+    // A module of the same name at the project root: the key must NOT land on it.
+    writeFile(root, 'whoAmI.ts', 'export default {};');
+    const realRoot = fs.realpathSync(root);
+
+    const resolved = mockShims.resolveMockKey('./whoAmI', root, storyFile);
+    cleanup(root);
+
+    const besideStory = path.join(realRoot, 'src', 'components', 'whoAmI');
+    expect(resolved.canonicalRealPath).toBe(besideStory);
+    expect(resolved.requireSpecifier).toBe(besideStory);
+    // Two stories may both write './whoAmI' for different files, so the module is named by
+    // the path the key resolved to and not by the string the story wrote.
+    expect(resolved.moduleKey).toBe(besideStory);
+  });
+
+  it('a key a story wrote as a string is still read from the project root', () => {
+    const root = mkProject('sherlo-resolvekey-string-key-');
+    writeFile(root, 'src/components/Comp.stories.tsx', 'export const S = {};');
+    writeFile(root, 'src/utils/localization.ts', 'export default {};');
+    const realRoot = fs.realpathSync(root);
+
+    // No file is passed: no import expression named this key, so nothing puts it beside the
+    // story - and the name the shim registers stays the string the story looks its mock up by.
+    const resolved = mockShims.resolveMockKey('./src/utils/localization', root);
+    cleanup(root);
+
+    expect(resolved.canonicalRealPath).toBe(path.join(realRoot, 'src', 'utils', 'localization'));
+    expect(resolved.moduleKey).toBe('./src/utils/localization');
+  });
+
   it('throws for an unresolvable key (drives FG-01)', () => {
     const root = mkProject('sherlo-resolvekey-fail-');
     expect(() => mockShims.resolveMockKey('totally-not-installed', root)).toThrow();
@@ -503,10 +540,7 @@ describe('applySherloTransforms resolver redirect', () => {
       `export const S = { parameters: { sherlo: { mocks: { 'expo-localization': {} } } } };`
     );
 
-    const result = applySherloTransforms(
-      { projectRoot: root, resolver: {} },
-      { experimentalMocks: true }
-    );
+    const result = applySherloTransforms({ projectRoot: root, resolver: {} });
     const realPath = path.join(root, 'node_modules', 'expo-localization', 'index.js');
     const ctx = makeContext(path.join(root, 'src', 'Screen.tsx'), {
       'expo-localization': realPath,
@@ -533,10 +567,7 @@ describe('applySherloTransforms resolver redirect', () => {
       `export const S = { parameters: { sherlo: { mocks: { '@scope/pkg': {}, 'libpkg/submodule': {} } } } };`
     );
 
-    const result = applySherloTransforms(
-      { projectRoot: root, resolver: {} },
-      { experimentalMocks: true }
-    );
+    const result = applySherloTransforms({ projectRoot: root, resolver: {} });
     const scopedReal = path.join(root, 'node_modules', '@scope', 'pkg', 'index.js');
     const subReal = path.join(root, 'node_modules', 'libpkg', 'submodule.js');
     const ctx = makeContext(path.join(root, 'src', 'Screen.tsx'), {
@@ -571,10 +602,7 @@ describe('applySherloTransforms resolver redirect', () => {
       `export const S = { parameters: { sherlo: { mocks: { '@react-native-async-storage/async-storage': {} } } } };`
     );
 
-    const result = applySherloTransforms(
-      { projectRoot: root, resolver: {} },
-      { experimentalMocks: true }
-    );
+    const result = applySherloTransforms({ projectRoot: root, resolver: {} });
     // Metro resolves the import to the react-native entry, NOT the main entry.
     const metroEntry = path.join(
       root,
@@ -607,10 +635,7 @@ describe('applySherloTransforms resolver redirect', () => {
       `export const S = { parameters: { sherlo: { mocks: { './src/utils/localization': {} } } } };`
     );
 
-    const result = applySherloTransforms(
-      { projectRoot: root, resolver: {} },
-      { experimentalMocks: true }
-    );
+    const result = applySherloTransforms({ projectRoot: root, resolver: {} });
     const realPath = path.join(root, 'src', 'utils', 'localization.ts');
     // Importer uses a relative specifier that Metro resolves to the same file.
     const ctx = makeContext(path.join(root, 'src', 'screens', 'Home.tsx'), {
@@ -632,10 +657,7 @@ describe('applySherloTransforms resolver redirect', () => {
       `export const S = { parameters: { sherlo: { mocks: { 'src/utils/localization': {} } } } };`
     );
 
-    const result = applySherloTransforms(
-      { projectRoot: root, resolver: {} },
-      { experimentalMocks: true }
-    );
+    const result = applySherloTransforms({ projectRoot: root, resolver: {} });
     const realPath = path.join(root, 'src', 'utils', 'localization.ts');
     // Importer uses a relative specifier that Metro resolves to the same file.
     const ctx = makeContext(path.join(root, 'src', 'screens', 'Home.tsx'), {
@@ -659,6 +681,41 @@ describe('applySherloTransforms resolver redirect', () => {
     expect(shimExists).toBe(true);
   });
 
+  it('two stories that both write ./whoAmI each get their own module and shim', () => {
+    const root = mkProject('sherlo-redirect-two-whoami-');
+    writeFile(root, 'src/ada/whoAmI.ts', 'export default {};');
+    writeFile(root, 'src/grace/whoAmI.ts', 'export default {};');
+    const story = (name: string) =>
+      `export const S = { parameters: { sherlo: { mocks: [mock(() => import('./whoAmI'), { whoAmI: () => '${name}' })] } } };`;
+    writeFile(root, 'src/ada/Ada.stories.tsx', story('Ada Lovelace'));
+    writeFile(root, 'src/grace/Grace.stories.tsx', story('Grace Hopper'));
+
+    const result = applySherloTransforms({ projectRoot: root, resolver: {} });
+    const adaReal = path.join(root, 'src', 'ada', 'whoAmI.ts');
+    const graceReal = path.join(root, 'src', 'grace', 'whoAmI.ts');
+    const adaCtx = makeContext(path.join(root, 'src', 'ada', 'Screen.tsx'), {
+      './whoAmI': adaReal,
+    });
+    const graceCtx = makeContext(path.join(root, 'src', 'grace', 'Screen.tsx'), {
+      './whoAmI': graceReal,
+    });
+
+    const adaResolved = result.resolver.resolveRequest(adaCtx, './whoAmI', 'ios');
+    const graceResolved = result.resolver.resolveRequest(graceCtx, './whoAmI', 'ios');
+    const adaShim = fs.readFileSync(adaResolved.filePath, 'utf8');
+    const graceShim = fs.readFileSync(graceResolved.filePath, 'utf8');
+    cleanup(root);
+
+    // Neither story's module is dropped for sharing a key with the other's, and each shim
+    // stands for - and names - the module beside its own story.
+    expect(adaResolved.filePath).toContain(path.join('.cache', 'sherlo', 'mocks'));
+    expect(graceResolved.filePath).toContain(path.join('.cache', 'sherlo', 'mocks'));
+    expect(adaResolved.filePath).not.toBe(graceResolved.filePath);
+    expect(adaShim).toContain(path.join('ada', 'whoAmI'));
+    expect(adaShim).not.toContain(path.join('grace', 'whoAmI'));
+    expect(graceShim).toContain(path.join('grace', 'whoAmI'));
+  });
+
   it('MK-06: both platform variants redirect to the SAME single shim', () => {
     const root = mkProject('sherlo-redirect-plat-');
     writeFile(root, 'src/Plat.ios.tsx', 'export default {};');
@@ -669,10 +726,7 @@ describe('applySherloTransforms resolver redirect', () => {
       `export const S = { parameters: { sherlo: { mocks: { './src/Plat': {} } } } };`
     );
 
-    const result = applySherloTransforms(
-      { projectRoot: root, resolver: {} },
-      { experimentalMocks: true }
-    );
+    const result = applySherloTransforms({ projectRoot: root, resolver: {} });
     const iosCtx = makeContext(path.join(root, 'src', 'App.tsx'), {
       './Plat': path.join(root, 'src', 'Plat.ios.tsx'),
     });
@@ -697,10 +751,7 @@ describe('applySherloTransforms resolver redirect', () => {
       `export const S = { parameters: { sherlo: { mocks: { 'expo-localization': {} } } } };`
     );
 
-    const result = applySherloTransforms(
-      { projectRoot: root, resolver: {} },
-      { experimentalMocks: true }
-    );
+    const result = applySherloTransforms({ projectRoot: root, resolver: {} });
     const realPath = path.join(root, 'node_modules', 'expo-localization', 'index.js');
     // Origin is a file INSIDE node_modules (a transitive dependency).
     const ctx = makeContext(path.join(root, 'node_modules', 'some-lib', 'index.js'), {
@@ -722,10 +773,7 @@ describe('applySherloTransforms resolver redirect', () => {
       `export const S = { parameters: { sherlo: { mocks: { 'expo-localization': {} } } } };`
     );
 
-    const result = applySherloTransforms(
-      { projectRoot: root, resolver: {} },
-      { experimentalMocks: true }
-    );
+    const result = applySherloTransforms({ projectRoot: root, resolver: {} });
     const realPath = path.join(root, 'node_modules', 'expo-localization', 'index.js');
     const shimPath = path.join(
       root,
@@ -751,7 +799,7 @@ describe('applySherloTransforms resolver redirect', () => {
 
     const result = applySherloTransforms(
       { projectRoot: root, resolver: {} },
-      { experimentalMocks: true, mockModules: ['native-only-lib'] }
+      { mockModules: ['native-only-lib'] }
     );
     const realPath = path.join(root, 'node_modules', 'native-only-lib', 'index.js');
     const ctx = makeContext(path.join(root, 'src', 'Screen.tsx'), { 'native-only-lib': realPath });
@@ -771,10 +819,7 @@ describe('applySherloTransforms resolver redirect', () => {
       `export const S = { parameters: { sherlo: { mocks: { 'expo-localization': {} } } } };`
     );
 
-    const result = applySherloTransforms(
-      { projectRoot: root, resolver: {} },
-      { experimentalMocks: true }
-    );
+    const result = applySherloTransforms({ projectRoot: root, resolver: {} });
     const shimPath = path.join(
       root,
       'node_modules',
@@ -806,10 +851,7 @@ describe('applySherloTransforms resolver redirect', () => {
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     // A bad key must never fail the build - this call must not throw.
-    const result = applySherloTransforms(
-      { projectRoot: root, resolver: {} },
-      { experimentalMocks: true }
-    );
+    const result = applySherloTransforms({ projectRoot: root, resolver: {} });
 
     const warnings = warnSpy.mock.calls.map((c) => String(c[0]));
     const badWarning = warnings.find((m) => m.includes('not-installed-pkg'));
@@ -848,10 +890,7 @@ describe('applySherloTransforms resolver redirect', () => {
     );
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const result = applySherloTransforms(
-      { projectRoot: root, resolver: {} },
-      { experimentalMocks: true }
-    );
+    const result = applySherloTransforms({ projectRoot: root, resolver: {} });
 
     const warnings = warnSpy.mock.calls.map((c) => String(c[0]));
     const denyWarning = warnings.find((m) => m.includes('react-native'));
@@ -903,10 +942,7 @@ describe('mockShims - workspace package resolution (MK-05)', () => {
       `export const S = { parameters: { sherlo: { mocks: { '@myorg/ui': {} } } } };`
     );
 
-    const result = applySherloTransforms(
-      { projectRoot: root, resolver: {} },
-      { experimentalMocks: true }
-    );
+    const result = applySherloTransforms({ projectRoot: root, resolver: {} });
 
     // Metro resolves the import through the symlinked node_modules path.
     const metroPath = path.join(root, 'node_modules', '@myorg', 'ui', 'index.js');
@@ -975,10 +1011,10 @@ describe('applySherloTransforms - composes with a pre-existing resolveRequest wr
       return context.resolveRequest(context, moduleName, platform);
     };
 
-    const result = applySherloTransforms(
-      { projectRoot: root, resolver: { resolveRequest: existingResolveRequest } },
-      { experimentalMocks: true }
-    );
+    const result = applySherloTransforms({
+      projectRoot: root,
+      resolver: { resolveRequest: existingResolveRequest },
+    });
     return { root, result, svgComponentPath, routerVirtualPath };
   }
 
@@ -1015,74 +1051,5 @@ describe('applySherloTransforms - composes with a pre-existing resolveRequest wr
     cleanup(root);
 
     expect(resolved.filePath).toBe(otherReal);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// SHERLO-1764 - experimentalMocks opt-in gate (default OFF)
-// ---------------------------------------------------------------------------
-
-describe('experimentalMocks opt-in gate (SHERLO-1764)', () => {
-  // Every off-case (flag absent, flag false, and the unrelated enabled:false) must
-  // emit no shims and install no resolver redirect - the whole mocking pipeline is
-  // dormant unless the caller explicitly opts in.
-  const OFF_CASES: Array<[string, Record<string, unknown>]> = [
-    ['flag absent (default)', {}],
-    ['experimentalMocks: false', { experimentalMocks: false }],
-    ['enabled: true but no experimentalMocks', { enabled: true }],
-    ['enabled: false', { enabled: false }],
-  ];
-
-  OFF_CASES.forEach(([label, opts]) => {
-    it(`${label}: no scan, no shims, no resolver redirect`, () => {
-      const root = mkProject('sherlo-gate-off-');
-      writePackage(root, 'expo-localization', 'index.js', { 'index.js': 'module.exports = {};' });
-      writeFile(
-        root,
-        'src/Comp.stories.tsx',
-        `export const S = { parameters: { sherlo: { mocks: { 'expo-localization': {} } } } };`
-      );
-
-      const result = applySherloTransforms({ projectRoot: root, resolver: {} }, opts);
-
-      const mocksDir = path.join(root, 'node_modules', '.cache', 'sherlo', 'mocks');
-      const mocksDirExists = fs.existsSync(mocksDir);
-
-      const realPath = path.join(root, 'node_modules', 'expo-localization', 'index.js');
-      const ctx = makeContext(path.join(root, 'src', 'Screen.tsx'), {
-        'expo-localization': realPath,
-      });
-      const resolved = result.resolver.resolveRequest(ctx, 'expo-localization', 'ios');
-      cleanup(root);
-
-      expect(mocksDirExists).toBe(false); // no shims emitted
-      expect(resolved.filePath).toBe(realPath); // no redirect - reaches the real module
-    });
-  });
-
-  it('experimentalMocks: true: scans, emits a shim, and redirects the mocked import', () => {
-    const root = mkProject('sherlo-gate-on-');
-    writePackage(root, 'expo-localization', 'index.js', { 'index.js': 'module.exports = {};' });
-    writeFile(
-      root,
-      'src/Comp.stories.tsx',
-      `export const S = { parameters: { sherlo: { mocks: { 'expo-localization': {} } } } };`
-    );
-
-    const result = applySherloTransforms(
-      { projectRoot: root, resolver: {} },
-      { experimentalMocks: true }
-    );
-
-    const realPath = path.join(root, 'node_modules', 'expo-localization', 'index.js');
-    const ctx = makeContext(path.join(root, 'src', 'Screen.tsx'), {
-      'expo-localization': realPath,
-    });
-    const resolved = result.resolver.resolveRequest(ctx, 'expo-localization', 'ios');
-    const shimExists = fs.existsSync(resolved.filePath);
-    cleanup(root);
-
-    expect(resolved.filePath).toContain(path.join('.cache', 'sherlo', 'mocks')); // redirected
-    expect(shimExists).toBe(true);
   });
 });

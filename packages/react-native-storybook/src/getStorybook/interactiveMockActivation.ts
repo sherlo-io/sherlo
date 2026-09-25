@@ -25,9 +25,10 @@
  * (e.g. inspect.initialStoryId) would serve REAL values until the user navigated away
  * and back. We therefore activate the initial story's mocks IMMEDIATELY when tracking
  * starts, using the same activation path as the storyChanged handler so the two can
- * never diverge. Story- and meta-level mocks resolve synchronously; global-level mocks
- * fold in once the preview is ready - activateMocksForStory (the shared path used by
- * the testing-capture entry point too) handles both.
+ * never diverge. Story- and meta-level mocks in the object form install synchronously; ones
+ * declared by an import expression install as soon as that import resolves; global-level mocks
+ * fold in once the preview is ready - activateMocksForStory (the shared path used by the
+ * testing-capture entry point too) handles all three.
  */
 import { StorybookView } from '../types';
 import { activateMocksForStory } from './storyMockActivation';
@@ -55,6 +56,12 @@ function extractStoryId(args: unknown[]): string | undefined {
 
 function handleStoryChanged(...args: unknown[]): void {
   if (!trackedView) return;
+
+  // Storybook's own render of the newly selected story is not ours to hold back, so a mock
+  // declared by an import expression is installed as soon as that import resolves and no
+  // sooner. In a built app the module is already in the bundle, so the import resolves in a
+  // microtask - ahead of the render Storybook schedules for the selection. The testing-capture
+  // path, where a late mock would be recorded forever, does hold its render (see TestingMode).
   activateMocksForStory(trackedView, extractStoryId(args));
 }
 
@@ -64,17 +71,22 @@ function handleStoryChanged(...args: unknown[]): void {
  * safe to call once from getStorybook(). `initialStoryId` is the story Storybook lands
  * on at launch; its mocks are activated immediately because storyChanged does not fire
  * for that first selection (see INITIAL STORY above).
+ *
+ * Returns what activateMocksForStory returns for that initial story: null once its mocks are
+ * installed, or the promise that settles when they are, so a caller in a position to wait
+ * before the story renders can. getStorybook() is not such a caller - it runs synchronously at
+ * app boot, before there is a tree to hold - so it drops the value today.
  */
 export function startInteractiveMockActivation(
   view: StorybookView,
   channel: StorybookChannel | null,
   initialStoryId?: string
-): void {
-  if (trackedChannel || !channel) return;
+): Promise<void> | null {
+  if (trackedChannel || !channel) return null;
   trackedChannel = channel;
   trackedView = view;
   channel.on(STORY_CHANGED, handleStoryChanged as (...args: unknown[]) => void);
-  activateMocksForStory(view, initialStoryId);
+  return activateMocksForStory(view, initialStoryId);
 }
 
 /** Call when Storybook is torn down / left: stop tracking and clear the active mock set. */

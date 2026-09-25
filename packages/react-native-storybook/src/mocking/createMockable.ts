@@ -1,5 +1,5 @@
 import { registerShimmedKey, resolveMockExports } from './registry';
-import { ModuleExports } from './types';
+import { ModuleExports, MOCKED_MODULE_KEY } from './types';
 
 const hasOwn = (obj: ModuleExports, prop: PropertyKey): boolean =>
   Object.prototype.hasOwnProperty.call(obj, prop);
@@ -31,6 +31,12 @@ function createMockable<T extends ModuleExports>(key: string, realModule: T): T 
 
   return new Proxy(delegate, {
     get(_target, prop) {
+      // The shim says which module it stands for. A story's declaration awaits its own import,
+      // which the bundler redirected here, and reads the name off this answer - so a mock is
+      // named by the module it imports and never by a string. Hidden on purpose: the symbol is
+      // absent from `ownKeys`, so nothing enumerating the module ever sees it.
+      if (prop === MOCKED_MODULE_KEY) return key;
+
       const mock = resolveMockExports(key, realModule);
       return mock && hasOwn(mock, prop) ? mock[prop] : realModule[prop];
     },

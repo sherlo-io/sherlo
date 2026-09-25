@@ -1,5 +1,8 @@
+import { clearNetworkMocks } from './network';
 import { MockSet, ModuleExports } from './types';
 import SherloModule from '../SherloModule';
+import { restoreClock } from './clock';
+import { restoreRandom } from './random';
 
 type Activation = {
   mocks: MockSet;
@@ -22,16 +25,26 @@ const shimmedKeys = new Set<string>();
 // the single choke point - activateStoryMocks delegates here, so both public entry
 // points are covered. Interactive 'storybook' mode is a legitimate mock context and
 // is intentionally NOT blocked.
-function activateMocks(mocks: MockSet): void {
+// The same check clock/random installation gates on (activateStoryMocks), so a shipped app -
+// which reports 'default' - never installs any of it.
+function isMockingModeActive(): boolean {
   const mode = SherloModule.getMode();
-  if (mode !== 'testing' && mode !== 'storybook') return;
+  return mode === 'testing' || mode === 'storybook';
+}
+
+function activateMocks(mocks: MockSet): void {
+  if (!isMockingModeActive()) return;
 
   activeActivation = { mocks, resolved: new Map() };
 }
 
-// Removes the active mock set; every createMockable trap then passes through to the real module.
+// Removes the active mock set; every createMockable trap then passes through to the real module,
+// and the real fetch and XMLHttpRequest are back in place (see ./network).
 function clearMocks(): void {
+  restoreClock();
+  restoreRandom();
   activeActivation = null;
+  clearNetworkMocks();
 }
 
 // Returns the resolved mock exports for `key`, or undefined if the module isn't mocked in the
@@ -82,5 +95,6 @@ export {
   resolveMockExports,
   registerShimmedKey,
   isKeyShimmed,
+  isMockingModeActive,
   __resetShimmedKeysForTests,
 };
