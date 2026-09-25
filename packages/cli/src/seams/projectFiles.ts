@@ -48,6 +48,15 @@ export function installProjectFiles(files: ProjectFiles): () => void {
   };
 }
 
+/**
+ * The project folder a pose declares: relative path -> content. A string is written as is; an
+ * object is written as JSON. `{"sherlo.config.json": {"devices": []}}` poses the empty-devices
+ * refusal; `{}` poses a folder with no config file. Nothing touches the disk outside the
+ * temporary root below: the tool's file reads answer from what this map laid down, and a path
+ * outside it does not exist.
+ */
+export type PosedFiles = Record<string, string | Record<string, unknown>>;
+
 /** A folder laid out from a pose's `files`, plus the two things a posed run needs to know about it. */
 export type PosedProjectFiles = ProjectFiles & {
   /** Delete the temporary folder. */
@@ -63,9 +72,7 @@ export type PosedProjectFiles = ProjectFiles & {
  * reached through a symlink, and the tool prints the resolved path - so folding the unresolved one
  * out of the output would miss.
  */
-export function posedProjectFiles(
-  files: Record<string, string | Record<string, unknown>>
-): PosedProjectFiles {
+export function posedProjectFiles(files: PosedFiles): PosedProjectFiles {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-pose-')));
 
   for (const [relativePath, content] of Object.entries(files)) {

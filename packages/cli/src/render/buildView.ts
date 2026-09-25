@@ -395,7 +395,8 @@ export type ViewMetadataJson = {
     reported: number;
     unreviewed: number;
   };
-  stories?: ViewMetadataStory[];
+  /** `null` is what the wire sends for a build whose run errored before any view row existed. */
+  stories?: ViewMetadataStory[] | null;
   /**
    * The Diff Scope block (view-metadata, operator ruling 2026-09-03): what
    * `sherlo view --metadata` prints as `diffScope`. `reason` is the primary

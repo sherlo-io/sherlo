@@ -7,7 +7,7 @@ Typography - Scales   review-required  two baselines (#2, #4)
 Typography - Dense    unchanged        build #1
 Sanity/Hello - Basic  approved         build #1
 
-🔗 [4mhttps://app.sherlo.io/build?t=tm000001&p=7&b=7[24m
+🔗 [4mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[24m
 
 
 [exit 0]

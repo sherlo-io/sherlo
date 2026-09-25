@@ -3,16 +3,18 @@
  * the code it describes.
  *
  * The contract is written out to primitives and string literals because a consumer COPIES it and
- * could not resolve an import (see its header). The price of writing a type out by hand is that
- * the hand-written copy can go stale in total silence: a field renamed in the CLI leaves a
- * contract that still compiles, still reads plausibly, and describes a pose the CLI will refuse.
+ * could not resolve an import (see its header). It is GENERATED from the seams' own types now, so
+ * the hand-written copy that could go stale in silence is gone - but a generated file is only as
+ * fresh as the last run of its generator, and a copy that was never regenerated still compiles and
+ * still reads plausibly.
  *
- * So the contract is pinned HERE instead, by assignability rather than by review. These are
- * type-level assertions with no runtime body: `tsc` either accepts them or names the field that
- * moved. This file is NOT part of the contract and is not copied anywhere - it lives next to it
- * so a reader who finds one finds the other, and it imports the CLI freely because it never
- * leaves this repository. It is the same law ./transcript.contract.law.ts keeps for the
- * transcript contract, written the same way for the same reason.
+ * So the contract is pinned HERE, by assignability rather than by review, straight to the types
+ * the seams declare. These are type-level assertions with no runtime body: `tsc` either accepts
+ * them or names the field that moved. This file is NOT part of the contract and is not copied
+ * anywhere - it lives next to it so a reader who finds one finds the other, and it imports the CLI
+ * freely because it never leaves this repository. `yarn check:pose-contract` catches the same drift
+ * the other way round, by regenerating and diffing; between them there is no way to change a seam
+ * type and leave the contract behind.
  *
  * ------------------------------------------------------------------------
  * EVERY PIN HERE IS EXACT - BOTH DIRECTIONS - AND THE PAIR IS THE POINT.
@@ -23,17 +25,23 @@
  * CLI-to-contract direction (the CLI's reader would refuse it as an unknown field). One
  * direction alone would let the contract drift the other way in silence.
  */
+import type { CommandPose as CliCommandPose } from '../packages/cli/src/seams/commandPose';
+import type { PosedBundle as CliPosedBundle } from '../packages/cli/src/seams/bundler';
+import type { PosedCapture as CliPosedCapture } from '../packages/cli/src/seams/captureSocket';
+import type { PosedLetterbox as CliPosedLetterbox } from '../packages/cli/src/seams/letterbox';
+import type {
+  PosedBinary as CliPosedBinary,
+  PosedPush as CliPosedPush,
+} from '../packages/cli/src/seams/nativeBuild';
+import type { PosedFiles as CliPosedFiles } from '../packages/cli/src/seams/projectFiles';
 import type {
   BuildStatusAnswer as CliBuildStatusAnswer,
-  CommandPose as CliCommandPose,
   DiffScopeDryRunAnswer as CliDiffScopeDryRunAnswer,
   NextBuildInfoAnswer as CliNextBuildInfoAnswer,
-  PosedBinary as CliPosedBinary,
-  PosedBundle as CliPosedBundle,
-  PosedPush as CliPosedPush,
-  PosedWorkstation as CliPosedWorkstation,
   ScriptedCall as CliScriptedCall,
-} from '../packages/cli/src/commands/pose/readPose';
+} from '../packages/cli/src/seams/serverCalls';
+import type { PosedGit as CliPosedGit } from '../packages/cli/src/seams/surroundings';
+import type { PosedWorkstation as CliPosedWorkstation } from '../packages/cli/src/seams/workstation';
 import type { BuildStatus } from '../packages/cli/src/helpers/waitForBuildResult';
 import type {
   BuildStatusAnswer,
@@ -42,6 +50,10 @@ import type {
   NextBuildInfoAnswer,
   PosedBinary,
   PosedBundle,
+  PosedCapture,
+  PosedFiles,
+  PosedGit,
+  PosedLetterbox,
   PosedPush,
   PosedWorkstation,
   ScriptedCall,
@@ -61,10 +73,17 @@ type PoseMatchesCli = Assert<IsAssignable<CommandPose, CliCommandPose>>;
 type CliMatchesPose = Assert<IsAssignable<CliCommandPose, CommandPose>>;
 
 /* -------------------------------------------------------------------------- *
- * EXACT, per part. Implied by the pair above, and asserted anyway: these are   *
+ * EXACT, per seam. Implied by the pair above, and asserted anyway: these are   *
  * the assertions whose failure a reader can act on directly, because each      *
- * names the ONE type a consumer writing that part of a pose is describing.     *
+ * names the ONE type a consumer writing that part of a pose is describing -    *
+ * and the ONE seam that answers it.                                            *
  * -------------------------------------------------------------------------- */
+
+type PosedFilesMatchesCli = Assert<IsAssignable<PosedFiles, CliPosedFiles>>;
+type CliMatchesPosedFiles = Assert<IsAssignable<CliPosedFiles, PosedFiles>>;
+
+type PosedGitMatchesCli = Assert<IsAssignable<PosedGit, CliPosedGit>>;
+type CliMatchesPosedGit = Assert<IsAssignable<CliPosedGit, PosedGit>>;
 
 type ScriptedCallMatchesCli = Assert<IsAssignable<ScriptedCall, CliScriptedCall>>;
 type CliMatchesScriptedCall = Assert<IsAssignable<CliScriptedCall, ScriptedCall>>;
@@ -84,14 +103,20 @@ type CliMatchesPosedBinary = Assert<IsAssignable<CliPosedBinary, PosedBinary>>;
 type PosedWorkstationMatchesCli = Assert<IsAssignable<PosedWorkstation, CliPosedWorkstation>>;
 type CliMatchesPosedWorkstation = Assert<IsAssignable<CliPosedWorkstation, PosedWorkstation>>;
 
+type PosedLetterboxMatchesCli = Assert<IsAssignable<PosedLetterbox, CliPosedLetterbox>>;
+type CliMatchesPosedLetterbox = Assert<IsAssignable<CliPosedLetterbox, PosedLetterbox>>;
+
+type PosedCaptureMatchesCli = Assert<IsAssignable<PosedCapture, CliPosedCapture>>;
+type CliMatchesPosedCapture = Assert<IsAssignable<CliPosedCapture, PosedCapture>>;
+
 type NextBuildInfoMatchesCli = Assert<IsAssignable<NextBuildInfoAnswer, CliNextBuildInfoAnswer>>;
 type CliMatchesNextBuildInfo = Assert<IsAssignable<CliNextBuildInfoAnswer, NextBuildInfoAnswer>>;
 
 /* -------------------------------------------------------------------------- *
  * EXACT: the build the contract poses IS the build the wire sends.            *
  *                                                                            *
- * The CLI does not re-type this one - its reader imports the wire shape - so  *
- * the pair below pins the CONTRACT's hand-written copy straight to the        *
+ * The server seam does not re-type this one - it aliases the wire shape - so  *
+ * the pair below pins the CONTRACT's written-out copy straight to the         *
  * `getBuildStatus` response the shipped query selects. A pose describing a    *
  * build the backend cannot send would let a product design be approved off a  *
  * state that can never occur.                                                 *
@@ -110,6 +135,10 @@ type CliBuildIsTheWire = Assert<IsAssignable<CliBuildStatusAnswer, BuildStatus>>
 export const POSE_CONTRACT_LAWS: [
   PoseMatchesCli,
   CliMatchesPose,
+  PosedFilesMatchesCli,
+  CliMatchesPosedFiles,
+  PosedGitMatchesCli,
+  CliMatchesPosedGit,
   ScriptedCallMatchesCli,
   CliMatchesScriptedCall,
   PosedBundleMatchesCli,
@@ -122,12 +151,24 @@ export const POSE_CONTRACT_LAWS: [
   CliMatchesPosedBinary,
   PosedWorkstationMatchesCli,
   CliMatchesPosedWorkstation,
+  PosedLetterboxMatchesCli,
+  CliMatchesPosedLetterbox,
+  PosedCaptureMatchesCli,
+  CliMatchesPosedCapture,
   NextBuildInfoMatchesCli,
   CliMatchesNextBuildInfo,
   PosedBuildMatchesWire,
   WireMatchesPosedBuild,
   CliBuildIsTheWire
 ] = [
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
   true,
   true,
   true,

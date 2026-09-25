@@ -12,7 +12,6 @@
  * folded into an existing seam: `serverCalls` is Sherlo's backend, and `workstation` is what the
  * tool does to the machine it runs on.
  */
-import type { PosedLetterbox } from '../commands/pose/readPose';
 
 /**
  * What a story threw while rendering, as the app recorded it and the letterbox passed it on. The
@@ -227,6 +226,34 @@ export type UnansweredAsk = { call: string; problem: string };
  * is RECORDED and the run carries on, the way an unscripted server call is: throwing would replace
  * the screen the pose exists to show with the tool's own error screen.
  */
+/**
+ * What the letterbox on the bundler answered, as a pose states it.
+ *
+ * A pose never supplies the words the screen shows. It says which stories the running app has,
+ * whether an app was listening at all, and - for a command that waited - what the app reported
+ * back about the story it was asked for. The tool prints whatever it prints for that.
+ */
+export type PosedLetterbox =
+  /** No bundler on the address at all: nothing is serving, so there is nowhere to post. */
+  | 'no-bundler'
+  /** A bundler is up, and no app carrying the SDK has ever connected to its letterbox. */
+  | 'no-app'
+  | {
+      /** Every story the running app's Storybook knows, by id, in the order it lists them. */
+      stories: string[];
+      /**
+       * What the app reported for the story it was asked for: that it is on screen, or that it
+       * never got there before the wait ran out. Absent for a post that did not ask to wait.
+       */
+      rendered?: 'yes' | 'timed-out';
+      /**
+       * What the story the app was asked for threw while rendering, in the story's own words. A
+       * story only reports its own breakage once it has painted, so this is stated alongside
+       * `rendered: 'yes'` and nowhere else. Absent poses a story that drew cleanly.
+       */
+      threw?: { name: string; message: string };
+    };
+
 export function posedLetterbox(
   posed: PosedLetterbox | undefined
 ): Letterbox & { refusals(): UnansweredAsk[] } {

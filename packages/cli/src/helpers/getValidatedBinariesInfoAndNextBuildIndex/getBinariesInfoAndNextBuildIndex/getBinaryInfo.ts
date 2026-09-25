@@ -2,7 +2,7 @@ import { GetNextBuildInfoReturn, Platform } from '@sherlo/api-types';
 import { PLATFORM_LABEL } from '../../../constants';
 import { BinaryInfo, BuildType } from '../../../types';
 import throwError from '../../throwError';
-import getLocalBinariesInfo from './getLocalBinariesInfo';
+import type getLocalBinariesInfo from './getLocalBinariesInfo';
 
 function getBinaryInfo({
   localBinariesInfo,
