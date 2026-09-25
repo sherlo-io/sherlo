@@ -418,6 +418,65 @@ describe('a capture walks the same story path a test run does', () => {
   });
 });
 
+describe('a capture reads the story again once it has settled, not only once it is on screen', () => {
+  it('the words a capture records are the words on screen once the story settled, not the words it drew first', async () => {
+    const LOADING = {
+      viewProps: { ...VIEW_METADATA.viewProps, 5: { className: 'RCTText', text: 'loading…' } },
+      texts: [],
+    };
+    const SETTLED = {
+      viewProps: { ...VIEW_METADATA.viewProps, 5: { className: 'RCTText', text: 'Grace Hopper' } },
+      texts: [],
+    };
+    rememberAppMetadataCollector(() => LOADING);
+    // The value arrives one promise after mount - the same shape a mocked request or a mocked
+    // storage read takes - so it is not there yet when the story is put on screen, only once
+    // stabilizing (which runs after) has had a chance to let it land.
+    mockStabilize.mockImplementation(async () => {
+      rememberAppMetadataCollector(() => SETTLED);
+      return true;
+    });
+
+    const answer = await walkOneStory();
+
+    expect(answer.tree.children[0].children[0].text).toBe('Grace Hopper');
+  });
+
+  it('a capture keeps the reading that named the story when the reading after settling no longer does', async () => {
+    rememberAppMetadataCollector(() => VIEW_METADATA);
+    // The re-read comes back empty - the same window a reading that stopped naming the story would
+    // otherwise be blamed on - which must not undo what the wait already proved.
+    mockStabilize.mockImplementation(async () => {
+      rememberAppMetadataCollector(undefined);
+      return true;
+    });
+
+    const answer = await walkOneStory();
+
+    expect(answer.tree).toEqual(RECORDED_TREE);
+    expect(answer.root.at).toBe('story');
+  });
+
+  it("the metadata wait's outcome is the wait's, not the re-read's", async () => {
+    // The same race "a capture waits for the reading that names its own story" walks: a reading of
+    // the wrong screen is published first, and the one naming STORY arrives 20ms later - so the
+    // wait itself has to poll to reach it.
+    rememberAppMetadataCollector(() => METADATA_OF_A_DIFFERENT_SCREEN);
+
+    const { answered, channel } = startTheRoad();
+    await vi.waitFor(() =>
+      expect(channel.emitted('setCurrentStory')).toEqual([{ storyId: STORY }])
+    );
+    channel.emit('storyRendered', STORY);
+    setTimeout(() => rememberAppMetadataCollector(() => VIEW_METADATA), 20);
+
+    const answer = await answered;
+    if (answer.kind !== 'captured') throw new Error(`the story was not captured: ${answer.kind}`);
+
+    expect(answer.waited.metadata.outcome).toBe('polled');
+  });
+});
+
 describe("a capture pushes the app's own log lines live, as they are formed", () => {
   const ORIGIN = 'http://localhost:8081';
 
