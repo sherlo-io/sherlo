@@ -35,6 +35,25 @@ import fs from 'fs';
  */
 const ESCAPE = '\\u001b';
 
+/** A whole colour escape, from its opening byte to the letter that closes it (`ESC[34m`). */
+const COLOR_ESCAPE = `${ESCAPE}\\[[0-9;?]*[A-Za-z]`;
+
+/**
+ * `\b`, made to see past a colour escape.
+ *
+ * `\b` is a transition between a word character and a non-word one, and a colour escape's own
+ * closing byte IS a word character (`ESC[34m` ends in the letter `m`) - so the plain rule never
+ * fires between that letter and the digit or letter of the value it was painted onto. Every class
+ * below opens (and some close) right there, which is exactly where the tool prints its values, so
+ * `\b` is replaced everywhere in this module by one of these: true wherever `\b` was already true,
+ * OR immediately after a colour escape has just ended (`ESCAPE_AWARE_BOUNDARY.before`), OR
+ * immediately before one is about to start (`ESCAPE_AWARE_BOUNDARY.after`).
+ */
+const ESCAPE_AWARE_BOUNDARY = {
+  before: `(?:(?<![A-Za-z0-9_])|(?<=${COLOR_ESCAPE}))`,
+  after: `(?:(?![A-Za-z0-9_])|(?=${COLOR_ESCAPE}))`,
+};
+
 /**
  * The two paths only the machine that ran the command knows.
  *
@@ -170,8 +189,14 @@ function foldTokens(screen: string): string {
     .replace(/(--(?:personal-)?token[ =])[^\s"'\u001b]+/g, '$1<MASKED>')
     .replace(/("?[A-Za-z]*[tT]oken"?:[ \t]*"?)[^\s",'\u001b]+/g, '$1<MASKED>')
     .replace(/(Authorization:[ \t]*(?:Basic|Bearer)[ \t]+)[^\s"'\u001b]+/g, '$1<MASKED>')
-    .replace(/\bsht_[A-Za-z0-9]+/g, '<MASKED>')
-    .replace(/\b[A-Za-z0-9]{40}\d{1,6}\b/g, '<MASKED>');
+    .replace(new RegExp(`${ESCAPE_AWARE_BOUNDARY.before}sht_[A-Za-z0-9]+`, 'g'), '<MASKED>')
+    .replace(
+      new RegExp(
+        `${ESCAPE_AWARE_BOUNDARY.before}[A-Za-z0-9]{40}\\d{1,6}${ESCAPE_AWARE_BOUNDARY.after}`,
+        'g'
+      ),
+      '<MASKED>'
+    );
 }
 
 /**
@@ -192,12 +217,18 @@ function foldBuildUrl(screen: string): string {
 
 /** `projectIndex=1` - the index the server gave a project, printed for a script to read. */
 function foldProjectIndex(screen: string): string {
-  return screen.replace(/\bprojectIndex=\d+/g, 'projectIndex=<PROJECT>');
+  return screen.replace(
+    new RegExp(`${ESCAPE_AWARE_BOUNDARY.before}projectIndex=\\d+`, 'g'),
+    'projectIndex=<PROJECT>'
+  );
 }
 
 /** `teamId=tm000001` - the id the server gave a team. */
 function foldTeamId(screen: string): string {
-  return screen.replace(/\bteamId=[^\s,)\u001b]+/g, 'teamId=<TEAM>');
+  return screen.replace(
+    new RegExp(`${ESCAPE_AWARE_BOUNDARY.before}teamId=[^\\s,)${ESCAPE}]+`, 'g'),
+    'teamId=<TEAM>'
+  );
 }
 
 /**
@@ -230,19 +261,37 @@ function foldMintedProjectToken(screen: string): string {
  * between two runs of the same thing.
  */
 function foldByteSize(screen: string): string {
-  return screen.replace(/\b\d+(?:\.\d+)?\s(?:KB|MB|GB)\b/g, '<SIZE> MB');
+  return screen.replace(
+    new RegExp(
+      `${ESCAPE_AWARE_BOUNDARY.before}\\d+(?:\\.\\d+)?\\s(?:KB|MB|GB)${ESCAPE_AWARE_BOUNDARY.after}`,
+      'g'
+    ),
+    '<SIZE> MB'
+  );
 }
 
 /** How long ago something happened - `7 minutes ago`, and the `└─ created:` line's own time. */
 function foldTimeAgo(screen: string): string {
   return screen
-    .replace(/\b\d+\s(?:second|minute|hour|day|week|month|year)s?\sago\b/g, '<TIME_AGO>')
+    .replace(
+      new RegExp(
+        `${ESCAPE_AWARE_BOUNDARY.before}\\d+\\s(?:second|minute|hour|day|week|month|year)s?\\sago${ESCAPE_AWARE_BOUNDARY.after}`,
+        'g'
+      ),
+      '<TIME_AGO>'
+    )
     .replace(/(└─ created:)[^\n\u001b]*/g, '$1 <TIME_AGO>');
 }
 
 /** `base-fingerprint=<64 hex>` - a digest over the project's native inputs. */
 function foldBaseFingerprint(screen: string): string {
-  return screen.replace(/\bbase-fingerprint=[0-9a-f]{64}\b/g, 'base-fingerprint=<FINGERPRINT>');
+  return screen.replace(
+    new RegExp(
+      `${ESCAPE_AWARE_BOUNDARY.before}base-fingerprint=[0-9a-f]{64}${ESCAPE_AWARE_BOUNDARY.after}`,
+      'g'
+    ),
+    'base-fingerprint=<FINGERPRINT>'
+  );
 }
 
 /**
@@ -301,7 +350,10 @@ function foldRunError(screen: string): string {
 
 /** A commit id: forty hex characters and no more - a longer run is a digest, not a commit. */
 function foldCommitSha(screen: string): string {
-  return screen.replace(/\b[0-9a-f]{40}\b/g, '<SHA>');
+  return screen.replace(
+    new RegExp(`${ESCAPE_AWARE_BOUNDARY.before}[0-9a-f]{40}${ESCAPE_AWARE_BOUNDARY.after}`, 'g'),
+    '<SHA>'
+  );
 }
 
 /**
@@ -312,7 +364,10 @@ function foldCommitSha(screen: string): string {
  * pose declares and this must never touch.
  */
 function foldRunNamespace(screen: string): string {
-  return screen.replace(/\be2e\/\d{6,}(?:-[A-Za-z0-9]+)?\//g, 'e2e/<run>/');
+  return screen.replace(
+    new RegExp(`${ESCAPE_AWARE_BOUNDARY.before}e2e\\/\\d{6,}(?:-[A-Za-z0-9]+)?\\/`, 'g'),
+    'e2e/<run>/'
+  );
 }
 
 /** The Android build a push was handed: where it sat, and what it was called. */
@@ -352,7 +407,7 @@ function foldNativeBuild(
   let folded = screen;
 
   for (const extension of extensions) {
-    const named = `${escapeForPattern(extension)}\\b`;
+    const named = `${escapeForPattern(extension)}${ESCAPE_AWARE_BOUNDARY.after}`;
 
     folded = folded
       .replace(new RegExp(`${PATH_CHARACTER}*/${PATH_CHARACTER}*${named}`, 'g'), placeholder.path)

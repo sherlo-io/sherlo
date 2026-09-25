@@ -242,6 +242,43 @@ describe('the masker folds every volatile class the tool prints', () => {
     expect(maskScreen(posedSpinner, {})).toBe('✔ Installed Sherlo');
   });
 
+  it('a class that sits right after a colour escape folds the same as one on plain text', () => {
+    // A COLOUR ESCAPE ENDS IN A LETTER (`ESC[34m`), and a letter next to a digit is not a word
+    // boundary - which is exactly where the tool prints its values, right after switching colour.
+    // Every class below is put right there, once with the escapes on and once with them stripped,
+    // and both must fold to the same placeholder.
+    const withEscapes = [
+      `✔  reusing unchanged build (Test 1, ${ESC}[34m1 minute ago${ESC}[39m)`,
+      `➜  uploading build... (${ESC}[2m48.12 MB${ESC}[22m)`,
+      `${ESC}[32m4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c${ESC}[39m`,
+      `${ESC}[32mbase-fingerprint=${'a0'.repeat(32)}${ESC}[39m`,
+      `${ESC}[32mteamId=tm913377${ESC}[39m`,
+      `${ESC}[32mprojectIndex=12${ESC}[39m`,
+    ].join('\n');
+
+    const withoutEscapes = [
+      '✔  reusing unchanged build (Test 1, 1 minute ago)',
+      '➜  uploading build... (48.12 MB)',
+      '4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c',
+      `base-fingerprint=${'a0'.repeat(32)}`,
+      'teamId=tm913377',
+      'projectIndex=12',
+    ].join('\n');
+
+    const foldedWithEscapes = maskScreen(withEscapes, {});
+    const foldedWithoutEscapes = maskScreen(withoutEscapes, {});
+
+    expect(foldedWithEscapes.replace(new RegExp(`${ESC}\\[[0-9;?]*[A-Za-z]`, 'g'), '')).toBe(
+      foldedWithoutEscapes
+    );
+    expect(foldedWithEscapes).toContain('<TIME_AGO>');
+    expect(foldedWithEscapes).toContain('<SIZE> MB');
+    expect(foldedWithEscapes).toContain('<SHA>');
+    expect(foldedWithEscapes).toContain('base-fingerprint=<FINGERPRINT>');
+    expect(foldedWithEscapes).toContain('teamId=<TEAM>');
+    expect(foldedWithEscapes).toContain('projectIndex=<PROJECT>');
+  });
+
   it('never folds a value the pose declares - a story count, a wait deadline, a branch name', () => {
     const declared = [
       'Test 4 will run on 1 device (1 Android)',
