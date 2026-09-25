@@ -22,7 +22,10 @@ describe('a wait that runs out is posable', () => {
     const { screen, exitCode, refusals } = await runPose(waitRunsOutPose());
 
     expect(refusals).toEqual([]);
-    expect(screen).toContain('⏰ Timeout reached after 1 minutes.');
+    // The minutes read `<N>`: a run that reached this closer passed a clock of its own, so the
+    // masker folds the number on every screen (../maskScreen). The closer and the exit code are
+    // what this case is about, and both are here.
+    expect(screen).toContain('⏰ Timeout reached after <N> minutes.');
     expect(exitCode).toBe(EXIT_TIMEOUT);
   });
 

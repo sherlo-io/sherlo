@@ -14,5 +14,5 @@
       "answer": { "runStatus": "error", "runError": "user_runner" }
     }
   ],
-  "masks": { "<MASKED>": "posetokenposetokenposetokenpose1tm0000017" }
+  "masks": {}
 }

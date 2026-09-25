@@ -9,7 +9,7 @@
          [37mjustifyContent[39m[97m:[39m [93m"center"[39m[97m,[39m
          [37mbackgroundColor[39m[97m:[39m [93m"[39m[97m#FFFFFF[39m[93m"[39m
        [36m}}[39m
-     [93m>[39m [36m(360 x 800)[39m
+     [93m>[39m [36m(<SIZE>)[39m
        [93m<[39m[95mSpinnerRing[39m[93m>[39m
          [93m<[39m[36mView[39m
            [37mstyle[39m[32m=[39m[36m{{[39m
@@ -21,7 +21,7 @@
              [37mtransform[39m[97m:[39m [93m"rotate(137deg)"[39m[97m,[39m
              [37mborderTopColor[39m[97m:[39m [93m"transparent"[39m
            [36m}}[39m
-         [93m/>[39m [36m(48 x 48)[39m
+         [93m/>[39m [36m(<SIZE>)[39m
        [93m</[39m[95mSpinnerRing[39m[93m>[39m
        [93m<[39m[36mText[39m
          [37mstyle[39m[32m=[39m[36m{{[39m
@@ -29,7 +29,7 @@
            [37mcolor[39m[97m:[39m [93m"[39m[34m#6B7280[39m[93m"[39m[97m,[39m
            [37mfontSize[39m[97m:[39m [93m14[39m
          [36m}}[39m
-       [93m>[39m [36m(72 x 20)[39m
+       [93m>[39m [36m(<SIZE>)[39m
          Loading...
        [93m</[39m[36mText[39m[93m>[39m
      [93m</[39m[36mView[39m[93m>[39m

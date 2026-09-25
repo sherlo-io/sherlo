@@ -12,7 +12,6 @@
  * asks; a capture is a conversation - settings one way, a whole view tree the other - and the two
  * roads fail differently.
  */
-import type { PosedCapture, PosedView } from '../commands/pose/readPose';
 import type { CapturedView } from '../render/capturedStory';
 
 /**
@@ -597,6 +596,62 @@ function isString(value: unknown): value is string {
  * A pose with no `capture` running `sherlo capture` is refused and RECORDED, the way the letterbox
  * records an unscripted ask: throwing would replace the screen the pose exists to show.
  */
+/**
+ * What the running app answered for a capture, as a pose states it.
+ *
+ * As with the letterbox, a pose never supplies the words the screen shows: it states what the app
+ * recorded - how the stabilization ended, what the story threw, the view tree - and the tool prints
+ * whatever it prints for that.
+ */
+export type PosedCapture =
+  /** No bundler on the address at all. */
+  | 'no-bundler'
+  /** A bundler is up, and no app carrying the SDK is attached to it. */
+  | 'no-app'
+  | {
+      /** Every story the running app's Storybook knows, by id. */
+      stories: string[];
+      /**
+       * The app stopped answering mid-capture - a fatal error or a native crash - and what it said
+       * before it died, when it said anything. An empty object is a crash that said nothing.
+       */
+      crashed: { name?: string; message?: string };
+    }
+  | {
+      /** Every story the running app's Storybook knows, by id. */
+      stories: string[];
+      /** How the stabilization ended: settled after so long over so many frames, or gave up. */
+      settled: { ms: number; frames: number } | 'timed-out';
+      /** What the story threw while rendering, in its own words. Absent for a clean story. */
+      threw?: { name: string; message: string };
+      /**
+       * How many screenfuls the story was captured in. Absent says as little as an app that never
+       * mentioned it, which prints the same as `1`: a story that fits the screen.
+       */
+      parts?: number;
+      /** Whether any view in the story loads an image over the network. Absent prints nothing. */
+      hasNetworkImage?: boolean;
+      /** The view tree the app read, from the story's own root. */
+      tree: PosedView;
+    };
+
+/**
+ * One view in a posed tree. Only what the view has is stated: `components` are the app's own
+ * components that render it, outermost first; `text` is what a text view says.
+ */
+export type PosedView = {
+  primitive: string;
+  components?: string[];
+  text?: string;
+  /** The view's box in points, as the inspector reports it. */
+  size?: { width: number; height: number };
+  /** The React style matched to the view, one object, with the keys the source wrote. */
+  style?: Record<string, unknown>;
+  /** The other props the screen prints beside the style: a placeholder, a testID, numberOfLines. */
+  props?: Record<string, string | number | boolean>;
+  children?: PosedView[];
+};
+
 export function posedCaptureSocket(
   posed: PosedCapture | undefined
 ): CaptureSocket & { refusals(): { call: string; problem: string }[] } {

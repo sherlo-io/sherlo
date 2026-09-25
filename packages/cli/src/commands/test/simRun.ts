@@ -33,7 +33,6 @@
  * degrade to without them.
  */
 import zlib from 'zlib';
-import sdkClient from '@sherlo/sdk-client';
 import { Platform } from '@sherlo/api-types';
 import chalk from 'chalk';
 import { Options } from '../../types';
@@ -51,7 +50,7 @@ import {
   waitForBuildResult,
 } from '../../helpers';
 import { isServerBypassed } from '../../helpers/waitForBuildResult';
-import { getEndpointUrl } from '../../helpers/buildStatusRequest';
+import { serverCalls } from '../../seams/serverCalls';
 import { THIS_COMMAND } from './constants';
 import composeSimWorldFile from './composeSimWorldFile';
 import deriveSimManifest from './deriveSimManifest';
@@ -118,12 +117,12 @@ async function simRun(
   //    is the CLI's; the wire format is the API's, unchanged (./composeSimWorldFile).
   const worldFile = composeSimWorldFile(world.parsed);
 
-  const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
-  const client = sdkClient({ authToken: apiToken }, getEndpointUrl());
+  const { projectIndex, teamId } = getTokenParts(commandParams.token);
+  const token = commandParams.token;
 
   // 4. Upload both artifacts to staged slots, per platform.
   const simKeys = await uploadSimArtifacts({
-    client,
+    token,
     platformsToTest,
     manifest,
     worldFile,
@@ -164,7 +163,8 @@ async function simRun(
 
   let openBuildReturn;
   try {
-    openBuildReturn = await client.openBuild({
+    openBuildReturn = await serverCalls().openBuild({
+      token,
       teamId,
       projectIndex,
       buildRunConfig,
@@ -232,14 +232,15 @@ export default simRun;
  * of the real roads: a sim run without either artifact is not a run.
  */
 async function uploadSimArtifacts({
-  client,
+  token,
   platformsToTest,
   manifest,
   worldFile,
   projectIndex,
   teamId,
 }: {
-  client: ReturnType<typeof sdkClient>;
+  /** The raw project token - the seam builds its own sdk client from it (../../seams/serverCalls). */
+  token: string;
   platformsToTest: Platform[];
   manifest: ValidatedModuleManifest;
   worldFile: Buffer;
@@ -253,8 +254,10 @@ async function uploadSimArtifacts({
     level: 'info',
   });
 
-  const { stagedPresignedUploadUrls } = await client
-    .getStagedUploadUrls({ platforms: platformsToTest, projectIndex, teamId })
+  // Through the server seam (../../seams/serverCalls), so a pose answers this call instead of the
+  // network - the same door every other staged upload uses (../../commands/test/uploadBundles).
+  const { stagedPresignedUploadUrls } = await serverCalls()
+    .getStagedUploadUrls({ token, platforms: platformsToTest, projectIndex, teamId })
     .catch(handleClientError);
 
   const gzippedManifest = zlib.gzipSync(manifest.raw);

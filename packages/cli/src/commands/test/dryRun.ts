@@ -34,11 +34,7 @@ import reporting from '../../helpers/reporting';
 import { emit } from '../../helpers/transcriptSink';
 import { isGitInfoUnavailable, type GitInfo } from '../../helpers/getGitInfo';
 import type { BundleResult } from './buildBundle';
-import {
-  requestDryRunDecision,
-  type DryRunDecisionClient,
-  type DryRunPlatformRequest,
-} from './dryRunDecision';
+import { requestDryRunDecision, type DryRunPlatformRequest } from './dryRunDecision';
 
 /**
  * The preview shape and its formatter live in the render layer now
@@ -60,7 +56,7 @@ export { formatDryRunPreview } from '../../render/dryRunPlan';
  * platforms) on any decision-query failure.
  */
 export async function runDryRunPreview({
-  client,
+  token,
   bundles,
   platformsToTest,
   projectIndex,
@@ -70,7 +66,8 @@ export async function runDryRunPreview({
   include,
   exclude,
 }: {
-  client: DryRunDecisionClient;
+  /** The raw project token - the seam builds its own sdk client from it (../../seams/serverCalls). */
+  token: string;
   bundles: Partial<Record<Platform, BundleResult>>;
   platformsToTest: Platform[];
   projectIndex: number;
@@ -121,7 +118,7 @@ export async function runDryRunPreview({
 
     try {
       const decisions = await requestDryRunDecision({
-        client,
+        token,
         gitInfo,
         projectIndex,
         teamId,

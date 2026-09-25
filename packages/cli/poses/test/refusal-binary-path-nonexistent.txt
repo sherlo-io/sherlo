@@ -10,7 +10,7 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
-[31mERROR: Android preview simulator build not found at path: "<PROJECT_ROOT>/builds/app-release.apk"[39m
+[31mERROR: Android preview simulator build not found at path: "<SHERLO_ANDROID_BUILD_PATH>"[39m
 Pass using `--android` option or set `android` in the config file
 
 [34m[2m╭─[22m[39m[34m Preview Simulator Build [39m[34m[2m────────────────────────────────────────────╮[22m[39m

@@ -1,5 +1,6 @@
 import { PLATFORM_LABEL, PLATFORMS } from '../../constants';
 import { BinariesInfo } from '../../types';
+import { nativeBuild } from '../../seams/nativeBuild';
 import printBuildPlatformLabel from '../printBuildPlatformLabel';
 import throwError from '../throwError';
 import printBuildReuse from './printBuildReuse';
@@ -45,7 +46,13 @@ async function uploadOrPrintBinaryReuse(params: {
         platform,
         projectRoot: params.projectRoot,
         uploadUrl: binaryInfo.url,
-        ...(params.uploadEffects ? { effects: params.uploadEffects } : {}),
+        // The machine IN FORCE, not uploadBuild's own real-machine default - a posed run installs
+        // its own (../../seams/nativeBuild), so this never falls through to a real upload.
+        effects: params.uploadEffects ?? {
+          readBinary: (buildPath, binaryPlatform, projectRoot) =>
+            nativeBuild().readBinaryForUpload(buildPath, binaryPlatform, projectRoot),
+          putBinary: (uploadUrl, data) => nativeBuild().putBinary(uploadUrl, data),
+        },
       });
     }
   }

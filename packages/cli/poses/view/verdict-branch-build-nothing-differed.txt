@@ -1,9 +1,9 @@
 [32mBuild #14[39m · finished
 
-🔗 [4mhttps://app.sherlo.io/build?t=tm000001&p=7&b=14[24m
+🔗 [4mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[24m
 
 [2m⏳ Waiting for build results (timeout: 45min)...[22m
-[2m   🟢 Finished[22m
+   <build progress masked>
 
 [32m✅ No visual changes - all snapshots match their baselines.[39m
 [2m   3 captured on this branch, 41 inherited unchanged[22m

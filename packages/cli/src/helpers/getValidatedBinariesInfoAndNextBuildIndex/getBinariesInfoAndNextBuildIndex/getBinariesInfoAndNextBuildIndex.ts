@@ -1,5 +1,4 @@
 import { Platform } from '@sherlo/api-types';
-import sdkClient from '@sherlo/sdk-client';
 import { DEFAULT_PROJECT_ROOT, EAS_BUILD_ON_COMPLETE_COMMAND } from '../../../constants';
 import { BinariesInfo, Command, CommandParams } from '../../../types';
 import handleClientError from '../../handleClientError';
@@ -20,7 +19,8 @@ type OtherCommandParams = BaseParams & {
 };
 
 type BaseParams = {
-  client: ReturnType<typeof sdkClient>;
+  /** The raw project token - the seam builds its own sdk client from it (../../../seams/serverCalls). */
+  token: string;
   platforms: Platform[];
   projectIndex: number;
   teamId: string;
@@ -34,7 +34,7 @@ type OTHER_COMMAND = Exclude<Command, EAS_BUILD_ON_COMPLETE_COMMAND>;
 async function getBinariesInfoAndNextBuildIndex(
   params: Params
 ): Promise<{ binariesInfo: BinariesInfo; nextBuildIndex: number }> {
-  const { command, client, platforms, projectIndex, teamId, android, ios } = params;
+  const { command, token, platforms, projectIndex, teamId, android, ios } = params;
 
   // The binaries IN FORCE - a posed run answers these reads from its `push` (../../../seams/nativeBuild).
   const localBinariesInfo = await nativeBuild().readBinaries({
@@ -64,7 +64,8 @@ async function getBinariesInfoAndNextBuildIndex(
   });
 
   const { binariesInfo: remoteBinariesInfoOrUploadInfo, nextBuildIndex } = await serverCalls()
-    .getNextBuildInfo(client, {
+    .getNextBuildInfo({
+      token,
       binaryHashes: { android: localBinariesInfo.android?.hash, ios: localBinariesInfo.ios?.hash },
       platforms,
       projectIndex,

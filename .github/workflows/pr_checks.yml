@@ -68,6 +68,24 @@ jobs:
       - name: Typecheck
         run: yarn tsc --noEmit -p ${{ matrix.package.dir }}
 
+      # THE POSE CONTRACT AND ITS READER ARE GENERATED from the types the CLI's seams
+      # declare (packages/cli/scripts/generate-pose-contract.ts). This regenerates both
+      # and diffs: a hand edit to either, or a seam type changed without regenerating,
+      # reds here by name. Without it the two copies drift back apart silently, which is
+      # the whole defect generating them removes.
+      - name: Pose contract is what the seam types say
+        if: matrix.package.name == 'cli'
+        working-directory: ${{ matrix.package.dir }}
+        run: yarn check:pose-contract
+
+      # THE LAW'S OWN TYPECHECK, and it has no other home: packages/cli/tsconfig.json
+      # includes only `src`, so contracts/pose.contract.law.ts - which pins the contract
+      # to the live seam types in BOTH directions - was never compiled in CI. A law
+      # nobody runs pins nothing.
+      - name: Typecheck the pose contract law
+        if: matrix.package.name == 'cli'
+        run: yarn tsc --noEmit -p contracts
+
       # THE PACKAGED-BUILD GATE, cli only - the command the e2e suites run when a
       # run is dispatched with `cli_ref=<this branch>`. A ref whose packaged build
       # fails kills EVERY e2e run that names it, at install, before a single test

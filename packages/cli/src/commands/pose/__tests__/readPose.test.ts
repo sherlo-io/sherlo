@@ -93,7 +93,9 @@ describe('reading a CommandPose', () => {
   });
 
   it('refuses a version it does not know', () => {
-    expect(problemsOf({ ...validPose(), pose: 2 }).join()).toContain('knows version 1');
+    // Version 1 is the one this reader knows, and it is stated as the field's own type - so the
+    // generated shape check is what refuses a 2, naming the version it reads.
+    expect(problemsOf({ ...validPose(), pose: 2 }).join()).toContain('`pose`: expected `1`');
   });
 
   it('refuses a `git` that is neither the two words nor the three facts', () => {
@@ -189,7 +191,11 @@ describe('reading a CommandPose', () => {
       argv: ['team', 'list'],
       api: [{ call: 'listTeams', with: {}, answer: null }],
     };
-    expect(problemsOf(teamIsNotThere).join()).toContain('only `getBuildStatus` answers `null`');
+    // `null` is a branch of what `getBuildStatus` answers and of no other call's, so a `null`
+    // anywhere else is refused naming the answers that call CAN have.
+    const refused = problemsOf(teamIsNotThere).join();
+    expect(refused).toContain('`api[0]`.answer');
+    expect(refused).toContain('got `null`');
   });
 
   it('refuses a `push` stated for a command that never reads a native build', () => {
@@ -221,7 +227,7 @@ describe('reading a CommandPose', () => {
     expect(problems.join('\n')).toContain('`push`.now: expected an ISO 8601 instant');
     expect(problems.join('\n')).toContain('bundleFormat: expected one of');
     expect(problems.join('\n')).toContain('abis: unknown field');
-    expect(problems.join('\n')).toContain('`push.fingerprint`.unavailable: unknown field');
+    expect(problems.join('\n')).toContain('`push`.fingerprint.unavailable: unknown field');
   });
 
   it("reads a push's two server answers, and refuses a binary decision that is neither an upload nor a reuse", () => {
@@ -319,6 +325,24 @@ describe('reading a CommandPose', () => {
     expect(readPose(pose).api).toHaveLength(1);
   });
 
+  it('a build errored before any view row existed may state stories as null, because the wire sends it that way (run 36186659445)', () => {
+    const pose = {
+      ...validPose(),
+      api: [
+        {
+          call: 'getBuildStatus',
+          with: { buildIndex: 7 },
+          answer: {
+            runStatus: 'error',
+            stories: null,
+          },
+        },
+      ],
+    };
+
+    expect(readPose(pose).api).toHaveLength(1);
+  });
+
   it('a document that is not JSON is refused the same way as one that is the wrong shape', () => {
     expect(() => readPoseDocument('{ not json')).toThrow(PoseRefusal);
     expect(() => readPoseDocument('{ not json')).toThrow('not valid JSON');
@@ -405,7 +429,7 @@ describe('reading a CommandPose', () => {
       '`capture`.tree.size.height: expected a number'
     );
     expect(problemsOf(propsIsAnObject).join('\n')).toContain(
-      '`capture`.tree.props.testID: must be a string, a number or true/false'
+      '`capture`.tree.props["testID"]: expected a string, a number or true/false'
     );
   });
 });
@@ -424,7 +448,7 @@ describe("a posed call's platforms are matched against the call as a set", () =>
     ]);
 
     await expect(
-      api.getStagedUploadUrls({} as never, { platforms: ['android', 'ios'] } as never)
+      api.getStagedUploadUrls({ platforms: ['android', 'ios'] } as never)
     ).resolves.toBeDefined();
     expect(api.refusals()).toEqual([]);
   });
@@ -434,9 +458,7 @@ describe("a posed call's platforms are matched against the call as a set", () =>
       { call: 'getStagedUploadUrls', with: { platforms: ['ios', 'android'] }, answer: {} },
     ]);
 
-    await expect(
-      api.getStagedUploadUrls({} as never, { platforms: ['android'] } as never)
-    ).rejects.toThrow();
+    await expect(api.getStagedUploadUrls({ platforms: ['android'] } as never)).rejects.toThrow();
 
     expect(api.refusals()).toHaveLength(1);
     expect(api.refusals()[0].problem).toContain('`platforms`');
@@ -458,7 +480,7 @@ describe("a posed call's platforms are matched against the call as a set", () =>
     ]);
 
     await expect(
-      api.openBuild({} as never, { buildRunConfig: { android: {}, ios: {} } } as never)
+      api.openBuild({ buildRunConfig: { android: {}, ios: {} } } as never)
     ).resolves.toBeDefined();
     expect(api.refusals()).toEqual([]);
   });
@@ -472,9 +494,7 @@ describe("a posed call's platforms are matched against the call as a set", () =>
       },
     ]);
 
-    await expect(
-      api.openBuild({} as never, { buildRunConfig: { android: {} } } as never)
-    ).rejects.toThrow();
+    await expect(api.openBuild({ buildRunConfig: { android: {} } } as never)).rejects.toThrow();
 
     expect(api.refusals()).toHaveLength(1);
     expect(api.refusals()[0].problem).toContain('`platforms`');
