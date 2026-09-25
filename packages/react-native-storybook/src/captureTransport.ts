@@ -994,8 +994,25 @@ type RecordedStory = {
  * the same reasoning that always kept this a separate read from the gate's.
  */
 async function readTheStory(storyId: string, onScreen: StoryOnScreen): Promise<RecordedStory> {
-  const { metadata, waited, noMetadataDiagnostics } = onScreen;
+  const { waited, noMetadataDiagnostics } = onScreen;
   const inspectorData = await theInspectorsOwnAnswer();
+
+  // A RUN READS ITS OWN VALUE AFTER STABILIZING, SO A CAPTURE DOES TOO. `onScreen.metadata` is the
+  // reading the wait above took to prove the story was there at all - before stabilizing ever ran.
+  // A story that mounts with a placeholder and sets its real value a beat later (a promise, a
+  // mocked request, a mocked storage read - see useTestStory.tsx's own order: stabilize, THEN
+  // collectMetadata) is still holding that placeholder in the wait's reading, however long
+  // stabilizing then waits for pixels to stop moving - pixels are not words, and settled pixels do
+  // not mean the reading of them is still current. So this reads the app's own reading again, fresh,
+  // now that stabilizing has run, and builds the tree from THAT.
+  //
+  // THE FALLBACK IS THE WAIT'S OWN READING, NOT A GUESS. A fresh read can come back `undefined`
+  // (nothing published at this exact instant) or naming some other screen - both states the wait
+  // above already spent its whole ceiling proving are not what is on screen now, so falling back to
+  // them here would be re-opening the very race the wait exists to close, not avoiding it. The wait's
+  // reading already named this story; keep that one instead.
+  const fresh = collectAppMetadata();
+  const metadata = fresh && namesTheStory(fresh, storyId) ? fresh : onScreen.metadata;
 
   const { tree, hasNetworkImage, at, reason } = await theStorysOwnTree(
     inspectorData,
