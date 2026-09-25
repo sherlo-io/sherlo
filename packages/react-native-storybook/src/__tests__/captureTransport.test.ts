@@ -35,6 +35,8 @@ const {
   mockAppendFile,
   mockReadFile,
   mockGetLastState,
+  mockActivateMocksForStory,
+  mockClearMocks,
 } = vi.hoisted(() => ({
   mockGetMode: vi.fn(),
   mockGetConfigOrDefault: vi.fn(),
@@ -47,6 +49,8 @@ const {
   mockAppendFile: vi.fn(),
   mockReadFile: vi.fn(),
   mockGetLastState: vi.fn(),
+  mockActivateMocksForStory: vi.fn(),
+  mockClearMocks: vi.fn(),
 }));
 
 vi.mock('../SherloModule', () => ({
@@ -71,6 +75,18 @@ vi.mock('../SherloModule', () => ({
   },
 }));
 
+// The two halves of a story's mock set, stood in for so this file can see WHEN each one happens -
+// the installing before the story is selected, and the clearing after the record is read. What they
+// actually install is storyMockActivation.test.ts's and the mocking suite's own subject.
+vi.mock('../getStorybook/storyMockActivation', () => ({
+  activateMocksForStory: mockActivateMocksForStory,
+}));
+
+vi.mock('../mocking', async (importOriginal) => ({
+  ...((await importOriginal()) as object),
+  clearMocks: mockClearMocks,
+}));
+
 import {
   startCaptureTransport,
   stopCaptureTransport,
@@ -85,6 +101,7 @@ import {
 import { rememberStoryOfTheApp } from '../componentNames';
 import {
   collectFromRoot,
+  mergeGenerations,
   type WalkedFiber,
 } from '../getStorybook/components/TestingMode/metadataWalk';
 import { clearStoryError, recordStoryError } from '../getStorybook/storyErrorRegistry';
@@ -329,6 +346,9 @@ beforeEach(() => {
   // No story handed over unless a test says otherwise - see "the crash carries what Storybook
   // itself was doing" below for the case where one was.
   mockGetLastState.mockReturnValue(undefined);
+  // The object form of a mock set: everything it names is installed the moment it is asked for, so
+  // there is nothing for the caller to wait on. The describe below covers the other form too.
+  mockActivateMocksForStory.mockReturnValue(null);
   // The provider has not rendered at all yet, unless a test says otherwise below - the fresh-boot
   // state `__resetProviderFirstRenderedAtForTests` names.
   __resetProviderFirstRenderedAtForTests();
@@ -396,6 +416,65 @@ describe('a capture walks the same story path a test run does', () => {
     // any other guess. The app answers for those itself, which is what an app does when a run leaves
     // a value out - so a setting the tool never mentioned cannot silently become a runner default.
     expect(mockStabilize).toHaveBeenCalledWith(2, 8, 1000, 30000, false, 0.2, false);
+  });
+});
+
+describe('a capture reads the story again once it has settled, not only once it is on screen', () => {
+  it('the words a capture records are the words on screen once the story settled, not the words it drew first', async () => {
+    const LOADING = {
+      viewProps: { ...VIEW_METADATA.viewProps, 5: { className: 'RCTText', text: 'loading…' } },
+      texts: [],
+    };
+    const SETTLED = {
+      viewProps: { ...VIEW_METADATA.viewProps, 5: { className: 'RCTText', text: 'Grace Hopper' } },
+      texts: [],
+    };
+    rememberAppMetadataCollector(() => LOADING);
+    // The value arrives one promise after mount - the same shape a mocked request or a mocked
+    // storage read takes - so it is not there yet when the story is put on screen, only once
+    // stabilizing (which runs after) has had a chance to let it land.
+    mockStabilize.mockImplementation(async () => {
+      rememberAppMetadataCollector(() => SETTLED);
+      return true;
+    });
+
+    const answer = await walkOneStory();
+
+    expect(answer.tree.children[0].children[0].text).toBe('Grace Hopper');
+  });
+
+  it('a capture keeps the reading that named the story when the reading after settling no longer does', async () => {
+    rememberAppMetadataCollector(() => VIEW_METADATA);
+    // The re-read comes back empty - the same window a reading that stopped naming the story would
+    // otherwise be blamed on - which must not undo what the wait already proved.
+    mockStabilize.mockImplementation(async () => {
+      rememberAppMetadataCollector(undefined);
+      return true;
+    });
+
+    const answer = await walkOneStory();
+
+    expect(answer.tree).toEqual(RECORDED_TREE);
+    expect(answer.root.at).toBe('story');
+  });
+
+  it("the metadata wait's outcome is the wait's, not the re-read's", async () => {
+    // The same race "a capture waits for the reading that names its own story" walks: a reading of
+    // the wrong screen is published first, and the one naming STORY arrives 20ms later - so the
+    // wait itself has to poll to reach it.
+    rememberAppMetadataCollector(() => METADATA_OF_A_DIFFERENT_SCREEN);
+
+    const { answered, channel } = startTheRoad();
+    await vi.waitFor(() =>
+      expect(channel.emitted('setCurrentStory')).toEqual([{ storyId: STORY }])
+    );
+    channel.emit('storyRendered', STORY);
+    setTimeout(() => rememberAppMetadataCollector(() => VIEW_METADATA), 20);
+
+    const answer = await answered;
+    if (answer.kind !== 'captured') throw new Error(`the story was not captured: ${answer.kind}`);
+
+    expect(answer.waited.metadata.outcome).toBe('polled');
   });
 });
 
@@ -1416,6 +1495,136 @@ describe('a walk that throws is the crash ending', () => {
   });
 });
 
+describe('every story a capture asks for gets its own mocks, and the one before it leaves none behind', () => {
+  // A test run gets one boot per story, so its mocks are installed at boot (TestingMode.tsx) and
+  // dropped when the story is done (useTestStory.tsx). A capture walks many stories in ONE boot, and
+  // took neither step for any story after the first: the boot's mocks were installed once and never
+  // replaced, so `mocking--library` recorded the real storage answer, `mocking--frozen-clock` the
+  // real time, and the no-mock control story the FIRST story's mock. Both steps now happen around
+  // each walk, here.
+  const SECOND_STORY = 'components-button--secondary';
+
+  /** The story whose view the app's own reading names - the one actually on screen. */
+  let storyOnScreen = STORY;
+
+  beforeEach(() => {
+    storyOnScreen = STORY;
+    rememberAppMetadataCollector(() => ({
+      viewProps: { ...VIEW_METADATA.viewProps, 3: { className: 'RCTView', testID: storyOnScreen } },
+      texts: [],
+    }));
+  });
+
+  it("a capture activates the asked story's mocks before it selects the story, and waits for them to be installed", async () => {
+    // The declaration form: the mock names its module by import, so nothing is installed until that
+    // import resolves - and the story must not render before it does, or it reads the real module.
+    let theImportResolves: () => void = () => {};
+    mockActivateMocksForStory.mockReturnValue(
+      new Promise<void>((resolve) => {
+        theImportResolves = resolve;
+      })
+    );
+
+    const { answered, channel } = startTheRoad();
+
+    await vi.waitFor(() =>
+      expect(mockActivateMocksForStory).toHaveBeenCalledWith(expect.anything(), STORY)
+    );
+    // Storybook has not been told to show the story yet: the mocks are not in place.
+    expect(channel.emitted('setCurrentStory')).toEqual([]);
+
+    theImportResolves();
+
+    await vi.waitFor(() =>
+      expect(channel.emitted('setCurrentStory')).toEqual([{ storyId: STORY }])
+    );
+    channel.emit('storyRendered', STORY);
+
+    expect(await answered).toMatchObject({ kind: 'captured', storyId: STORY });
+  });
+
+  it("a story captured after another in the same boot never sees the earlier story's mocks", async () => {
+    const whatHappened: string[] = [];
+    mockActivateMocksForStory.mockImplementation((_view: unknown, storyId: string) => {
+      whatHappened.push(`activated ${storyId}`);
+      return null;
+    });
+    mockClearMocks.mockImplementation(() => {
+      whatHappened.push('cleared');
+    });
+
+    const answers = await walkTwoStoriesInOneBoot();
+
+    expect(answers.map((answer) => answer.storyId)).toEqual([STORY, SECOND_STORY]);
+    // Each story's own mocks go in before it is shown, and are gone again before the next story is
+    // activated - so the second story is photographed through its own set and nothing else's.
+    expect(whatHappened).toEqual([
+      `activated ${STORY}`,
+      'cleared',
+      `activated ${SECOND_STORY}`,
+      'cleared',
+    ]);
+  });
+
+  it('the first story of a boot is activated once, by the boot, and the capture does not activate it again', async () => {
+    // This boot landed on the story it is being asked for (the restart handed it over), so
+    // TestingMode already installed its mocks from that same story id. Activating again would
+    // re-resolve the same imports for a story that is already on screen with them.
+    mockGetLastState.mockReturnValue({ nextSnapshot: { storyId: STORY }, requestId: '' });
+
+    const { answered, channel } = startTheRoad();
+    channel.emit('storyRendered', STORY);
+
+    expect(await answered).toMatchObject({ kind: 'captured', storyId: STORY });
+    expect(mockActivateMocksForStory).not.toHaveBeenCalled();
+    // The clearing is still this walk's own: whoever installed them, they do not outlive the story.
+    expect(mockClearMocks).toHaveBeenCalled();
+  });
+
+  /**
+   * Walk two stories over one socket, in one boot - the shape a capture actually has, and the one
+   * `startTheRoad` (built for a single story) cannot make. Hands back what the app recorded for each.
+   */
+  async function walkTwoStoriesInOneBoot(): Promise<CapturedStory[]> {
+    const channel = makeChannel();
+    const view = makeView({ storyIds: [STORY, SECOND_STORY] });
+    const recorded: CapturedAnswer[] = [];
+    const leftToAsk = [STORY, SECOND_STORY];
+
+    const bothWalked = new Promise<void>((resolve) => {
+      const capture: CaptureTransport = {
+        waitForACapture: async (saying) => {
+          if (saying.answer) recorded.push(saying.answer);
+
+          const next = leftToAsk.shift();
+          if (!next) {
+            resolve();
+            return new Promise<never>(() => {});
+          }
+          return { storyId: next, settings: STABILIZATION_SETTINGS };
+        },
+      };
+      startCaptureTransport({ view, channel, capture });
+    });
+
+    for (const storyId of [STORY, SECOND_STORY]) {
+      await vi.waitFor(() =>
+        expect(channel.emitted('setCurrentStory').at(-1)).toEqual({ storyId })
+      );
+      // The app now draws this story, so its own reading names this story's view.
+      storyOnScreen = storyId;
+      channel.emit('storyRendered', storyId);
+    }
+
+    await bothWalked;
+
+    return recorded.map((answer) => {
+      if (answer.kind !== 'captured') throw new Error(`the story was not captured: ${answer.kind}`);
+      return answer;
+    });
+  }
+});
+
 /* ========================================================================== */
 
 /** Start the road for one story, with the bundler stood up as a socket handing that story over. */
@@ -1789,6 +1998,82 @@ describe('a text view carries the words it draws', () => {
     const answer = await walkOneStory();
 
     expect(answer.tree.children[0].text).toBe('10px — The quick brown fox');
+  });
+});
+
+describe('a view updated in place is read with its current words, not its stale generation', () => {
+  // A Text that changes its words IN PLACE keeps its native tag and appears in both generations,
+  // with the old words on the stale fiber's pendingProps and the new words on the current one - so
+  // which of the two the merge assigns LAST decides which words the reading carries. A HostRoot
+  // fiber `H` whose `stateNode` is `{ current: H }` is the CURRENT generation (FiberRoot.current
+  // points at itself); its alternate `H2`, sharing the same stateNode, is the STALE one.
+  const NATIVE_TAG = 5;
+
+  function textFiber(root: WalkedFiber, words: string): WalkedFiber {
+    return {
+      type: 'RCTText',
+      stateNode: { _nativeTag: NATIVE_TAG },
+      pendingProps: { children: words },
+      memoizedProps: {},
+      return: root,
+    };
+  }
+
+  function hostRoot(): { current: WalkedFiber } {
+    const fiberRoot: { current: WalkedFiber } = { current: undefined as unknown as WalkedFiber };
+    const root: WalkedFiber = {
+      type: null,
+      tag: 3,
+      stateNode: fiberRoot,
+      pendingProps: {},
+      memoizedProps: {},
+    };
+    fiberRoot.current = root;
+    return fiberRoot;
+  }
+
+  it("a view updated in place is read with its current words when the collector's own fiber is the stale generation", () => {
+    const currentFiberRoot = hostRoot();
+    const current = currentFiberRoot.current;
+    const stale: WalkedFiber = { ...current, stateNode: currentFiberRoot };
+    current.child = textFiber(current, 'Grace Hopper');
+    stale.child = textFiber(stale, 'loading…');
+
+    const merged = mergeGenerations([stale, current]);
+
+    expect(merged.viewProps[NATIVE_TAG].text).toBe('Grace Hopper');
+  });
+
+  it("a view updated in place is read with its current words when the collector's own fiber is the current generation", () => {
+    const currentFiberRoot = hostRoot();
+    const current = currentFiberRoot.current;
+    const stale: WalkedFiber = { ...current, stateNode: currentFiberRoot };
+    current.child = textFiber(current, 'Grace Hopper');
+    stale.child = textFiber(stale, 'loading…');
+
+    const merged = mergeGenerations([current, stale]);
+
+    expect(merged.viewProps[NATIVE_TAG].text).toBe('Grace Hopper');
+  });
+
+  it('a view only the stale generation still holds is kept in the reading, under its own tag', () => {
+    const STALE_ONLY_TAG = 999;
+    const currentFiberRoot = hostRoot();
+    const current = currentFiberRoot.current;
+    const stale: WalkedFiber = { ...current, stateNode: currentFiberRoot };
+    current.child = textFiber(current, 'Grace Hopper');
+    stale.child = {
+      type: 'RCTText',
+      stateNode: { _nativeTag: STALE_ONLY_TAG },
+      pendingProps: { children: 'no longer mounted' },
+      memoizedProps: {},
+      return: stale,
+    };
+
+    const merged = mergeGenerations([stale, current]);
+
+    expect(merged.viewProps[NATIVE_TAG].text).toBe('Grace Hopper');
+    expect(merged.viewProps[STALE_ONLY_TAG].text).toBe('no longer mounted');
   });
 });
 

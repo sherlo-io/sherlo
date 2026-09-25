@@ -1,7 +1,7 @@
 import { StorybookView } from '../types';
 import SherloModule from '../SherloModule';
-import { mergeMockSet } from '../mocking/mergeMocks';
-import { MockSet } from '../mocking/types';
+import { mergeStoryMocks } from '../mocking/mergeMocks';
+import { StoryMocks } from '../mocking/mockDeclaration';
 
 export interface StoryMeta {
   id: string;
@@ -16,14 +16,14 @@ export interface StoryMeta {
    */
   importPath?: string;
   /**
-   * Module Mocking (SHERLO-1735): the story's mock set, already merged per module key
-   * across global/meta/story parameters (precedence story > meta > global - see
-   * mergeMockSet). Computed from the three RAW `parameters.sherlo.mocks` levels, not
-   * from `parameters` above - that field is a shallow spread of all three levels, so a
-   * story's `parameters.sherlo` replaces meta's and global's wholesale and the
-   * per-key mock precedence would otherwise be lost.
+   * Module Mocking (SHERLO-1735): the story's mocks, already merged per module across
+   * global/meta/story parameters (precedence story > meta > global - see mergeStoryMocks).
+   * Computed from the three RAW `parameters.sherlo.mocks` levels, not from `parameters`
+   * above - that field is a shallow spread of all three levels, so a story's
+   * `parameters.sherlo` replaces meta's and global's wholesale and the per-module mock
+   * precedence would otherwise be lost.
    */
-  mocks: MockSet;
+  mocks: StoryMocks;
 }
 
 const SANITIZE_REGEX = /[ '–-―′¿'`~!@#$%^&*()_|+\-=?;:'",.<>{}[\]\\/]/gi;
@@ -78,7 +78,7 @@ export function enumerateStories(view: StorybookView): StoryMeta[] {
   const indexEntries = (view as unknown as ViewInternal)._storyIndex?.entries ?? {};
   const storyEntries = readStoryEntries();
   const globalParams = readGlobalParameters(view);
-  const globalMocks: MockSet = globalParams?.sherlo?.mocks ?? {};
+  const globalMocks: StoryMocks = globalParams?.sherlo?.mocks ?? {};
   const result: StoryMeta[] = [];
   const seen = new Set<string>();
 
@@ -168,15 +168,15 @@ export function enumerateStories(view: StorybookView): StoryMeta[] {
           ...(meta.parameters ?? {}),
           ...(annotations.parameters ?? {}),
         };
-        const metaMocks: MockSet = meta.parameters?.sherlo?.mocks ?? {};
-        const storyMocks: MockSet = annotations.parameters?.sherlo?.mocks ?? {};
+        const metaMocks: StoryMocks = meta.parameters?.sherlo?.mocks ?? {};
+        const storyMocks: StoryMocks = annotations.parameters?.sherlo?.mocks ?? {};
         result.push({
           id,
           title: titleStr,
           name: displayName,
           parameters,
           importPath: primaryImportPath,
-          mocks: mergeMockSet(globalMocks, metaMocks, storyMocks),
+          mocks: mergeStoryMocks(globalMocks, metaMocks, storyMocks),
         });
       }
     }
@@ -216,8 +216,8 @@ export function enumerateStories(view: StorybookView): StoryMeta[] {
           break;
         }
       }
-      const metaMocks: MockSet = cached.meta.parameters?.sherlo?.mocks ?? {};
-      const storyMocks: MockSet = storyAnnotations.parameters?.sherlo?.mocks ?? {};
+      const metaMocks: StoryMocks = cached.meta.parameters?.sherlo?.mocks ?? {};
+      const storyMocks: StoryMocks = storyAnnotations.parameters?.sherlo?.mocks ?? {};
       result.push({
         id,
         title: indexEntry.title,
@@ -228,7 +228,7 @@ export function enumerateStories(view: StorybookView): StoryMeta[] {
           ...(storyAnnotations.parameters ?? {}),
         },
         importPath: indexEntry.importPath,
-        mocks: mergeMockSet(globalMocks, metaMocks, storyMocks),
+        mocks: mergeStoryMocks(globalMocks, metaMocks, storyMocks),
       });
     } else {
       result.push({
