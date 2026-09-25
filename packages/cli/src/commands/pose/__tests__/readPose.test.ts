@@ -325,6 +325,24 @@ describe('reading a CommandPose', () => {
     expect(readPose(pose).api).toHaveLength(1);
   });
 
+  it('a build errored before any view row existed may state stories as null, because the wire sends it that way (run 36186659445)', () => {
+    const pose = {
+      ...validPose(),
+      api: [
+        {
+          call: 'getBuildStatus',
+          with: { buildIndex: 7 },
+          answer: {
+            runStatus: 'error',
+            stories: null,
+          },
+        },
+      ],
+    };
+
+    expect(readPose(pose).api).toHaveLength(1);
+  });
+
   it('a document that is not JSON is refused the same way as one that is the wrong shape', () => {
     expect(() => readPoseDocument('{ not json')).toThrow(PoseRefusal);
     expect(() => readPoseDocument('{ not json')).toThrow('not valid JSON');
