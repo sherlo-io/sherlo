@@ -928,91 +928,103 @@ function readBuildStatusAnswer(value: unknown, path: string, problems: string[])
       }
     }
     if ('stories' in object1) {
-      const where14 = at(path, 'stories');
-      const list15 = asArray(object1.stories, where14, problems);
-      if (list15) {
-        list15.forEach((entry16, index17) => {
-          const where18 = atIndex(where14, index17);
-          const object19 = asObject(entry16, where18, problems);
-          if (object19) {
-            expectString(object19.name, at(where18, 'name'), problems);
-            expectString(object19.status, at(where18, 'status'), problems);
-            const oneOf20 = object19.baseline;
-            const where21 = at(where18, 'baseline');
-            if (oneOf20 === null) {
-              // the value is one of these
-            } else if (isPlainObject(oneOf20)) {
-              const object22 = asObject(oneOf20, where21, problems);
-              if (object22) {
-                expectNumber(object22.buildIndex, at(where21, 'buildIndex'), problems);
-                reportUnknownFields(object22, ['buildIndex'], where21, problems);
-              }
-            } else {
-              reportWrongShape(oneOf20, '`{ buildIndex: number }` or `null`', where21, problems);
-            }
-            if ('reason' in object19) {
-              const oneOf23 = object19.reason;
-              const where24 = at(where18, 'reason');
-              if (typeof oneOf23 === 'string' || oneOf23 === null) {
+      const oneOf14 = object1.stories;
+      const where15 = at(path, 'stories');
+      if (oneOf14 === null) {
+        // the value is one of these
+      } else if (Array.isArray(oneOf14)) {
+        const list16 = asArray(oneOf14, where15, problems);
+        if (list16) {
+          list16.forEach((entry17, index18) => {
+            const where19 = atIndex(where15, index18);
+            const object20 = asObject(entry17, where19, problems);
+            if (object20) {
+              expectString(object20.name, at(where19, 'name'), problems);
+              expectString(object20.status, at(where19, 'status'), problems);
+              const oneOf21 = object20.baseline;
+              const where22 = at(where19, 'baseline');
+              if (oneOf21 === null) {
                 // the value is one of these
-              } else {
-                reportWrongShape(oneOf23, 'a string or `null`', where24, problems);
-              }
-            }
-            if ('candidates' in object19) {
-              const oneOf25 = object19.candidates;
-              const where26 = at(where18, 'candidates');
-              if (oneOf25 === null) {
-                // the value is one of these
-              } else if (Array.isArray(oneOf25)) {
-                const list27 = asArray(oneOf25, where26, problems);
-                if (list27) {
-                  list27.forEach((entry28, index29) => {
-                    const where30 = atIndex(where26, index29);
-                    const object31 = asObject(entry28, where30, problems);
-                    if (object31) {
-                      expectNumber(object31.buildIndex, at(where30, 'buildIndex'), problems);
-                      reportUnknownFields(object31, ['buildIndex'], where30, problems);
-                    }
-                  });
+              } else if (isPlainObject(oneOf21)) {
+                const object23 = asObject(oneOf21, where22, problems);
+                if (object23) {
+                  expectNumber(object23.buildIndex, at(where22, 'buildIndex'), problems);
+                  reportUnknownFields(object23, ['buildIndex'], where22, problems);
                 }
               } else {
-                reportWrongShape(
-                  oneOf25,
-                  '`Array<{ buildIndex: number }>` or `null`',
-                  where26,
-                  problems
-                );
+                reportWrongShape(oneOf21, '`{ buildIndex: number }` or `null`', where22, problems);
               }
+              if ('reason' in object20) {
+                const oneOf24 = object20.reason;
+                const where25 = at(where19, 'reason');
+                if (typeof oneOf24 === 'string' || oneOf24 === null) {
+                  // the value is one of these
+                } else {
+                  reportWrongShape(oneOf24, 'a string or `null`', where25, problems);
+                }
+              }
+              if ('candidates' in object20) {
+                const oneOf26 = object20.candidates;
+                const where27 = at(where19, 'candidates');
+                if (oneOf26 === null) {
+                  // the value is one of these
+                } else if (Array.isArray(oneOf26)) {
+                  const list28 = asArray(oneOf26, where27, problems);
+                  if (list28) {
+                    list28.forEach((entry29, index30) => {
+                      const where31 = atIndex(where27, index30);
+                      const object32 = asObject(entry29, where31, problems);
+                      if (object32) {
+                        expectNumber(object32.buildIndex, at(where31, 'buildIndex'), problems);
+                        reportUnknownFields(object32, ['buildIndex'], where31, problems);
+                      }
+                    });
+                  }
+                } else {
+                  reportWrongShape(
+                    oneOf26,
+                    '`Array<{ buildIndex: number }>` or `null`',
+                    where27,
+                    problems
+                  );
+                }
+              }
+              reportUnknownFields(
+                object20,
+                ['name', 'status', 'baseline', 'reason', 'candidates'],
+                where19,
+                problems
+              );
             }
-            reportUnknownFields(
-              object19,
-              ['name', 'status', 'baseline', 'reason', 'candidates'],
-              where18,
-              problems
-            );
-          }
-        });
+          });
+        }
+      } else {
+        reportWrongShape(
+          oneOf14,
+          '`Array<{ name: string; status: string; baseline: { buildIndex: number } | null; reason?: string | null; candidates?: Array<{ buildIndex: number }> | null }>` or `null`',
+          where15,
+          problems
+        );
       }
     }
     if ('diffScope' in object1) {
-      const where32 = at(path, 'diffScope');
-      const object33 = asObject(object1.diffScope, where32, problems);
-      if (object33) {
-        expectString(object33.reason, at(where32, 'reason'), problems);
-        expectStringArray(object33.captured, at(where32, 'captured'), problems);
-        expectStringArray(object33.inherited, at(where32, 'inherited'), problems);
-        const oneOf34 = object33.ancestorBuildIndex;
-        const where35 = at(where32, 'ancestorBuildIndex');
-        if (typeof oneOf34 === 'number' || oneOf34 === null) {
+      const where33 = at(path, 'diffScope');
+      const object34 = asObject(object1.diffScope, where33, problems);
+      if (object34) {
+        expectString(object34.reason, at(where33, 'reason'), problems);
+        expectStringArray(object34.captured, at(where33, 'captured'), problems);
+        expectStringArray(object34.inherited, at(where33, 'inherited'), problems);
+        const oneOf35 = object34.ancestorBuildIndex;
+        const where36 = at(where33, 'ancestorBuildIndex');
+        if (typeof oneOf35 === 'number' || oneOf35 === null) {
           // the value is one of these
         } else {
-          reportWrongShape(oneOf34, 'a number or `null`', where35, problems);
+          reportWrongShape(oneOf35, 'a number or `null`', where36, problems);
         }
         reportUnknownFields(
-          object33,
+          object34,
           ['reason', 'captured', 'inherited', 'ancestorBuildIndex'],
-          where32,
+          where33,
           problems
         );
       }
