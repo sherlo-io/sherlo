@@ -8,21 +8,22 @@ import React, {
 import { FiberProvider, useFiber, type Fiber } from 'its-fine';
 import { RunnerBridge } from '../../../helpers';
 import { rememberAppMetadataCollector } from '../../../appMetadata';
-import { collectFromRoot, type ViewProps } from './metadataWalk';
+import { mergeGenerations, type ViewProps } from './metadataWalk';
 
 export interface Metadata {
   viewProps: ViewProps;
   texts: string[];
   /**
    * The same reading above, kept SEPARATE per fiber generation this collector walked - `fiber`
-   * and its `.alternate` (see the comment on `roots` in `collectMetadata`). `viewProps`/`texts`
-   * are the two MERGED across every generation, which is right for "what does the app's views
-   * look like" - a view's own native tag is never reused across a story switch, so a stale
-   * generation can only ADD harmless extra entries for views no longer mounted, never overwrite
-   * a live one. It is NOT right for "is the story ON SCREEN NOW throwing": a story that threw a
-   * switch or two ago left its fallback text sitting in the merged reading forever, under no tag
-   * a live inspector reading will ever match again. A caller asking that question reads this
-   * instead, picking the one generation whose own testID-carrying view is still live.
+   * and its `.alternate` (see the comment on `roots` in `collectMetadata`) - CURRENT GENERATION
+   * FIRST. `viewProps`/`texts` are the two MERGED across every generation, current one last, so
+   * for a native tag present in both a stale entry can only ADD an entry no live view holds
+   * (never reused across a story switch), never survive over what the current generation drew
+   * for a tag it shares with the stale one (reused every time a view updates in place, keeping
+   * its native tag). It is NOT right for "is the story ON SCREEN NOW throwing": a story that
+   * threw a switch or two ago left its fallback text sitting in the merged reading forever, under
+   * no tag a live inspector reading will ever match again. A caller asking that question reads
+   * this instead, picking the one generation whose own testID-carrying view is still live.
    */
   generations: { viewProps: ViewProps; texts: string[] }[];
 }
@@ -48,16 +49,7 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
       // rather than one combined walk, because a reader asking "is the story on screen right now
       // broken" needs to know which generation a fact came from - see `Metadata.generations`.
       const roots = [fiber, fiber.alternate].filter((root): root is Fiber => !!root);
-      const generations = roots.map(collectFromRoot);
-
-      const metadata: Metadata = { viewProps: {}, texts: [], generations };
-      for (const generation of generations) {
-        Object.assign(metadata.viewProps, generation.viewProps);
-        metadata.texts.push(...generation.texts);
-      }
-      metadata.texts = [...new Set(metadata.texts)];
-
-      return metadata;
+      return mergeGenerations(roots);
     }, [fiber]);
 
     useImperativeHandle(ref, () => ({ collectMetadata }), [collectMetadata]);

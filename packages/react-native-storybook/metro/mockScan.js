@@ -8,15 +8,18 @@
 // does the app declare under `parameters.sherlo.mocks`?
 //
 // It does two things and nothing more:
-//   1. findScanFiles(projectRoot)  - locate story files and preview.* files.
-//   2. collectMockKeysFromSource() - shallow-parse one file with the Babel
-//      parser Metro already ships and return the STRING-LITERAL keys declared
-//      under any `sherlo: { mocks: { ... } }` object.
+//   1. findScanFiles(projectRoot)     - locate story files and preview.* files.
+//   2. collectMockEntriesFromSource() - shallow-parse one file with the Babel
+//      parser Metro already ships and return the module keys declared under any
+//      `sherlo: { mocks: ... }`, in either form a story may write:
+//        - a list of declarations, where each names its module with an import
+//          expression: `mock(() => import('some-module'), ...)`,
+//        - the older object, whose STRING-LITERAL keys name the modules.
 //
-// Deliberately narrow: it extracts string-literal KEYS only. It never reads,
-// evaluates, or otherwise touches the mock VALUES - those live entirely in the
-// Phase 1 runtime. Tolerant of TypeScript `as`/`satisfies` annotations wrapped
-// around the parameters object (or any node on the way down).
+// Deliberately narrow: it extracts module KEYS only. It never reads, evaluates,
+// or otherwise touches the mock VALUES - those live entirely in the Phase 1
+// runtime. Tolerant of TypeScript `as`/`satisfies` annotations wrapped around
+// the parameters object (or any node on the way down).
 
 var fs = require('fs');
 var path = require('path');
@@ -112,7 +115,7 @@ function propertyName(prop) {
 // Collect the STRING-LITERAL keys of a `mocks: { ... }` object. Identifier,
 // numeric, computed, and spread keys are intentionally ignored - module
 // specifiers are always string literals, and this keeps the contract simple.
-function collectKeysFromMocksObject(mocksObject, out) {
+function collectKeysFromMocksObject(mocksObject, addMockKey) {
   var props = mocksObject.properties || [];
   for (var i = 0; i < props.length; i++) {
     var prop = props[i];
@@ -122,26 +125,73 @@ function collectKeysFromMocksObject(mocksObject, out) {
       prop.key.type === 'StringLiteral' &&
       !prop.computed
     ) {
-      out.add(prop.key.value);
+      addMockKey(prop.key.value, false);
     }
   }
 }
 
-// Walk the AST looking for any `sherlo: { mocks: { ... } }` shape and harvest
-// the string-literal keys of every `mocks` object we find. Runs for both
-// meta-level and story-level parameter declarations because it visits the whole
-// tree; TS wrappers on any value are unwrapped on the way down.
-function walkForMockKeys(node, out) {
+// Node fields that hold position and comment metadata rather than child nodes.
+var METADATA_FIELDS = {
+  loc: true,
+  start: true,
+  end: true,
+  range: true,
+  leadingComments: true,
+  trailingComments: true,
+  innerComments: true,
+};
+
+// Call `visit` on every node in the tree, in no particular order.
+function walkNodes(node, visit) {
   if (!node || typeof node !== 'object') return;
 
   if (Array.isArray(node)) {
-    for (var i = 0; i < node.length; i++) walkForMockKeys(node[i], out);
+    for (var i = 0; i < node.length; i++) walkNodes(node[i], visit);
     return;
   }
 
   if (typeof node.type !== 'string') return;
 
-  if (node.type === 'ObjectExpression') {
+  visit(node);
+
+  for (var field in node) {
+    if (METADATA_FIELDS[field]) continue;
+    walkNodes(node[field], visit);
+  }
+}
+
+// The string literal an import expression names, or null when it names anything else. Babel
+// parses `import('x')` either as a call whose callee is `Import` or, on newer versions, as an
+// `ImportExpression`; both spellings are read here.
+function importedSpecifier(node) {
+  var specifier = null;
+  if (node.type === 'CallExpression' && node.callee && node.callee.type === 'Import') {
+    specifier = (node.arguments || [])[0];
+  } else if (node.type === 'ImportExpression') {
+    specifier = node.source;
+  }
+  return specifier && specifier.type === 'StringLiteral' ? specifier.value : null;
+}
+
+// Collect the module each declaration in a `mocks: [ ... ]` list names. A declaration names
+// its module with an import expression - `mock(() => import('some-module'), ...)` - so every
+// string literal imported anywhere under the list is a mocked module. An import whose
+// specifier is not a string literal names nothing the build can see and is ignored, exactly as
+// a computed object key is.
+function collectKeysFromMockDeclarations(declarationList, addMockKey) {
+  walkNodes(declarationList, function (node) {
+    var specifier = importedSpecifier(node);
+    if (specifier !== null) addMockKey(specifier, true);
+  });
+}
+
+// Harvest the module keys of every `sherlo: { mocks: ... }` in the tree. Runs for the
+// preview-, meta- and story-level parameter declarations alike, because it visits the whole
+// tree; TS wrappers on any value are unwrapped on the way down.
+function walkForMockKeys(ast, addMockKey) {
+  walkNodes(ast, function (node) {
+    if (node.type !== 'ObjectExpression') return;
+
     var props = node.properties || [];
     for (var p = 0; p < props.length; p++) {
       var prop = props[p];
@@ -155,35 +205,22 @@ function walkForMockKeys(node, out) {
         var sherloProp = sherloProps[s];
         if (sherloProp.type !== 'ObjectProperty' || propertyName(sherloProp) !== 'mocks') continue;
 
-        var mocksObject = unwrapExpression(sherloProp.value);
-        if (mocksObject && mocksObject.type === 'ObjectExpression') {
-          collectKeysFromMocksObject(mocksObject, out);
-        }
+        var mocks = unwrapExpression(sherloProp.value);
+        if (!mocks) continue;
+        if (mocks.type === 'ObjectExpression') collectKeysFromMocksObject(mocks, addMockKey);
+        if (mocks.type === 'ArrayExpression') collectKeysFromMockDeclarations(mocks, addMockKey);
       }
     }
-  }
-
-  // Recurse into every child node, skipping metadata that cannot hold keys.
-  for (var key in node) {
-    if (
-      key === 'loc' ||
-      key === 'start' ||
-      key === 'end' ||
-      key === 'range' ||
-      key === 'leadingComments' ||
-      key === 'trailingComments' ||
-      key === 'innerComments'
-    ) {
-      continue;
-    }
-    walkForMockKeys(node[key], out);
-  }
+  });
 }
 
-// Parse one file's source and return the distinct string-literal mock keys it
-// declares. Parse failures are non-fatal: a malformed file simply yields no
-// keys rather than breaking the Metro config.
-function collectMockKeysFromSource(source) {
+// Parse one file's source and return the distinct modules it declares a mock for: each as
+// its key and whether an import expression named it. The two forms name a module differently,
+// so they are read differently later - an import expression is written relative to the file it
+// sits in, exactly like that file's own imports, while a string key is written from the
+// project root. Parse failures are non-fatal: a malformed file simply yields nothing rather
+// than breaking the Metro config.
+function collectMockEntriesFromSource(source) {
   var parser = getBabelParser();
   var ast;
   try {
@@ -195,35 +232,52 @@ function collectMockKeysFromSource(source) {
   } catch (_) {
     return [];
   }
-  var out = new Set();
-  walkForMockKeys(ast.program || ast, out);
-  return Array.from(out);
+
+  var namedByImport = new Map();
+  walkForMockKeys(ast.program || ast, function (key, fromImportExpression) {
+    // A story that writes a string key looks its mock up by that same string at runtime, so
+    // when one file names the same module both ways, the string form is the one that decides.
+    if (!namedByImport.has(key) || !fromImportExpression) {
+      namedByImport.set(key, fromImportExpression);
+    }
+  });
+
+  var entries = [];
+  namedByImport.forEach(function (fromImportExpression, key) {
+    entries.push({ key: key, namedByImport: fromImportExpression });
+  });
+  return entries;
 }
 
-// Scan every story/preview file under projectRoot and return a Map of
-// mockKey -> the first file that declared it (used for FG-01 error messages).
-function scanProjectForMockKeys(projectRoot) {
-  var keyToFile = new Map();
+// Scan every story/preview file under projectRoot and return one entry per mock declared:
+// its key, the file that declared it (used for the FG-01 warning, and to find a relative key's
+// module beside that file), and which form named it.
+function scanProjectForMocks(projectRoot) {
+  var declaredMocks = [];
   var files = findScanFiles(projectRoot);
   for (var i = 0; i < files.length; i++) {
-    var file = files[i];
-    var source;
-    try {
-      source = fs.readFileSync(file, 'utf8');
-    } catch (_) {
-      continue;
-    }
-    var keys = collectMockKeysFromSource(source);
-    for (var k = 0; k < keys.length; k++) {
-      if (!keyToFile.has(keys[k])) keyToFile.set(keys[k], file);
-    }
+    declaredMocks = declaredMocks.concat(scanFileForMocks(files[i]));
   }
-  return keyToFile;
+  return declaredMocks;
+}
+
+// The mocks one file declares, or nothing when the file cannot be read.
+function scanFileForMocks(file) {
+  var source;
+  try {
+    source = fs.readFileSync(file, 'utf8');
+  } catch (_) {
+    return [];
+  }
+  return collectMockEntriesFromSource(source).map(function (entry) {
+    return { key: entry.key, file: file, namedByImport: entry.namedByImport };
+  });
 }
 
 module.exports = {
   findScanFiles: findScanFiles,
   isScanTarget: isScanTarget,
-  collectMockKeysFromSource: collectMockKeysFromSource,
-  scanProjectForMockKeys: scanProjectForMockKeys,
+  collectMockEntriesFromSource: collectMockEntriesFromSource,
+  scanFileForMocks: scanFileForMocks,
+  scanProjectForMocks: scanProjectForMocks,
 };
