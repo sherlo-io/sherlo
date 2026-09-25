@@ -1,4 +1,3 @@
-import sdkClient from '@sherlo/sdk-client';
 import { getTokenParts, reporting, stripAnsi } from '../../../helpers';
 import { serverCalls } from '../../../seams/serverCalls';
 
@@ -17,7 +16,7 @@ async function trackProgress({
   hasFinished?: boolean;
   token?: string;
 }): Promise<{ sessionId: string | null }> {
-  const { apiToken, projectIndex, teamId } = token ? getTokenParts(token) : {};
+  const { projectIndex, teamId } = token ? getTokenParts(token) : {};
 
   if (params && params.error instanceof Error) {
     const errorObj = params.error as Error & { cause?: unknown };
@@ -35,7 +34,8 @@ async function trackProgress({
   // Through the server seam, like every other backend call, so a posed `init` answers its progress
   // reports from the pose's `api` instead of reaching the real backend.
   return serverCalls()
-    .trackCliInit(sdkClient({ authToken: apiToken }), {
+    .trackCliInit({
+      token: token ?? '',
       event,
       stringifiedParams,
       hasStarted,

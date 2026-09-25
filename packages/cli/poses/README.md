@@ -17,6 +17,15 @@ tool. Pass `-` to read the document from stdin.
 SHERLO_DEVTOOLS=1 sherlo pose packages/cli/poses/view/finished-no-changes.pose.json
 ```
 
+## Folding a screen the tool did not print itself
+
+`sherlo mask` applies the SAME folding to a screen on stdin, so the test repository can fold a real
+run's screen and compare it against a posed one. Hidden behind the same gate.
+
+```
+SHERLO_DEVTOOLS=1 sherlo mask --project-root <dir> --config-path <file> < screen.txt
+```
+
 ## Re-minting the screens
 
 When the tool's wording changes on purpose, re-mint in the SAME pull request that changed it and
@@ -39,8 +48,12 @@ quietly rewrite its own baseline is not a ratchet.
 - `bundles` - what bundling answers, per platform, for the commands that bundle. `{}` otherwise.
 - `api` - the server's answers, one per call, in order, each checked against the arguments the
   command actually made the call with.
-- `masks` - placeholders for values only a machine knows. The temporary project folder and the
-  resolved config path are folded without being asked.
+- `masks` - placeholder -> a literal the SCENARIO itself put on the screen, and nothing else. The
+  tool folds every value only a machine knows on its own, by shape: the temporary project folder,
+  the resolved config path, a token, a build address, a size, a duration, the time since a build, a
+  commit, a base fingerprint, the progress lines a wait printed
+  (`src/commands/pose/maskScreen.ts`). Naming one of those classes here is describing the masker
+  rather than the scenario, and the catalogue refuses it.
 - `push` - what a real push (`test --android <apk>`) read off the machine: per binary, what the
   tool found inside the file (its hash, its size, the SDK baked in, whether it embeds a bundle,
   the gate facts); the base fingerprint, or why there was none; and the clock. Optional - only

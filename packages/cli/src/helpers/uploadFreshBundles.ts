@@ -21,7 +21,6 @@
  * other failure throws to the caller.
  */
 import { Platform } from '@sherlo/api-types';
-import sdkClient from '@sherlo/sdk-client';
 import chalk from 'chalk';
 import { buildBundles, type BundlingEffects } from '../commands/test/bundleAndPreview';
 import { bundler } from '../seams/bundler';
@@ -58,14 +57,14 @@ export type FreshBundleEffects = {
  */
 const NO_BUNDLE_DERIVED_GATE_METADATA: GateMetadataInput = { derivedFrom: 'none' };
 
-export function realFreshBundleEffects(client: ReturnType<typeof sdkClient>): FreshBundleEffects {
+export function realFreshBundleEffects(token: string): FreshBundleEffects {
   return {
     bundling: {
       // The bundler IN FORCE - a posed run installs its own (../seams/bundler).
       bundleFor: (projectRoot, platform) => bundler().bundleFor(projectRoot, platform),
       gateMetadataFor: async () => NO_BUNDLE_DERIVED_GATE_METADATA,
     },
-    upload: realBundleUploadEffects(client),
+    upload: realBundleUploadEffects(token),
   };
 }
 

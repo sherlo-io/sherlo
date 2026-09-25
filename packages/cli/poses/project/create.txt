@@ -1,6 +1,6 @@
 [32m✔[39m  Created project [1mStorefront App[22m
 
-projectIndex=1
+projectIndex=<PROJECT>
 projectName=Storefront App
 
 [33mProject token - shown once. Store it now; it cannot be shown again.[39m

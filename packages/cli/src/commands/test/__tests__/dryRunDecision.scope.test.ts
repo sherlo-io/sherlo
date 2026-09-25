@@ -1,10 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../../helpers/reporting', () => ({
   default: { addBreadcrumb: vi.fn() },
 }));
 
 import { requestDryRunDecision, type DryRunPlatformRequest } from '../dryRunDecision';
+import { installServerCalls, type ServerCalls } from '../../../seams/serverCalls';
 
 /**
  * THE PREVIEW SENDS THE CONFIG'S SCOPE - written as a skeleton in plan (epic diff-scope-closure, task
@@ -13,15 +14,26 @@ import { requestDryRunDecision, type DryRunPlatformRequest } from '../dryRunDeci
  * A real build's decision is narrowed to the config's include and exclude lists; the preview's
  * request carried neither, so a preview could name a story the real build would skip.
  */
+const TOKEN = 'test-token';
+
+// Installed as the whole server seam's `computeDiffScopeDryRun` - the real client (and the token
+// it is built from) now lives entirely inside ../../../seams/serverCalls.
+let query: ReturnType<typeof vi.fn>;
+let restoreServerCalls: () => void;
+
 beforeEach(() => {
   vi.clearAllMocks();
+  query = vi.fn().mockResolvedValue({ platforms: [] });
+  restoreServerCalls = installServerCalls({
+    computeDiffScopeDryRun: query as unknown as ServerCalls['computeDiffScopeDryRun'],
+  } as unknown as ServerCalls);
+});
+
+afterEach(() => {
+  restoreServerCalls();
 });
 
 const gitInfo: any = { branchName: 'feature', commitHash: 'abc', commitName: 'msg' };
-
-function clientWith(computeDiffScopeDryRun: any): any {
-  return { computeDiffScopeDryRun };
-}
 
 const platforms: DryRunPlatformRequest[] = [
   { platform: 'ios', bundled: true, manifest: undefined },
@@ -29,10 +41,8 @@ const platforms: DryRunPlatformRequest[] = [
 
 describe('the preview sends the config scope', () => {
   it('the preview request carries the include and exclude lists the config names', async () => {
-    const query = vi.fn().mockResolvedValue({ platforms: [] });
-
     await requestDryRunDecision({
-      client: clientWith(query),
+      token: TOKEN,
       gitInfo,
       projectIndex: 1,
       teamId: 't',
@@ -47,10 +57,8 @@ describe('the preview sends the config scope', () => {
   });
 
   it('a config with neither list sends neither, and the request is what it was before', async () => {
-    const query = vi.fn().mockResolvedValue({ platforms: [] });
-
     await requestDryRunDecision({
-      client: clientWith(query),
+      token: TOKEN,
       gitInfo,
       projectIndex: 1,
       teamId: 't',

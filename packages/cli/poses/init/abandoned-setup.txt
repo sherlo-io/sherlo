@@ -16,14 +16,14 @@ Initializing Sherlo in your project...
 [1m✅ Requirements[22m
 [2m═══════════════[22m
 
-[?25l[1G[1G⠋ Checking requirements[1G[0K[?25h[32m✔[39m React Native
+[32m✔[39m React Native
 [32m✔[39m Storybook
 
 
 [1m💾 Dependencies[22m
 [2m═══════════════[22m
 
-[?25l[1G[1G⠋ Installing Sherlo[1G[0K[?25h✔ Installed Sherlo
+✔ Installed Sherlo
 
 
 [1m🧩 Metro Config[22m

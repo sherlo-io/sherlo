@@ -15,7 +15,6 @@ import type { GateMetadataInput } from '../../helpers/fingerprint';
 import type { BundleResult } from './buildBundle';
 import { bundler, liveBundler, type Bundler } from '../../seams/bundler';
 import { runDryRunPreview } from './dryRun';
-import type { DryRunDecisionClient } from './dryRunDecision';
 
 /**
  * Build the production bundle + assets for every platform and, alongside each,
@@ -42,14 +41,14 @@ export const REAL_BUNDLING_EFFECTS: BundlingEffects = liveBundler;
  * Extracted out of {@link stagedRun}'s dry-run branch so an expectation producer
  * runs THIS function rather than a re-implementation of it. The producer supplies
  * the three effects a dry run performs - bundling, the git read, and the
- * read-only decision query (which reaches this code as `client`, a parameter
+ * read-only decision query (which reaches this code as `token`, a parameter
  * `runDryRunPreview` already had) - and the segment order, the bail-open
  * branching and every literal come from the shipped code, unforked.
  */
 export async function runDryRunFlow({
   projectRoot,
   platformsToTest,
-  client,
+  token,
   projectIndex,
   teamId,
   baseFingerprint,
@@ -60,7 +59,8 @@ export async function runDryRunFlow({
 }: {
   projectRoot: string;
   platformsToTest: Platform[];
-  client: DryRunDecisionClient;
+  /** The raw project token - the seam builds its own sdk client from it (../../seams/serverCalls). */
+  token: string;
   projectIndex: number;
   teamId: string;
   baseFingerprint: string;
@@ -84,7 +84,7 @@ export async function runDryRunFlow({
   const gitInfo = await resolveGitInfo();
 
   await runDryRunPreview({
-    client,
+    token,
     bundles: bundles.results,
     platformsToTest,
     projectIndex,

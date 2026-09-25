@@ -105,7 +105,5 @@
       }
     }
   ],
-  "masks": {
-    "<MASKED>": "posetokenposetokenposetokenpose1tm0000017"
-  }
+  "masks": {}
 }

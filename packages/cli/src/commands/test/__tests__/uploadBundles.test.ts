@@ -29,6 +29,7 @@ import {
   StagedSlotMissingError,
   uploadBundles,
 } from '../uploadBundles';
+import { installServerCalls, type ServerCalls } from '../../../seams/serverCalls';
 
 function bundleResult(bundleSizeMb: number): any {
   return {
@@ -114,24 +115,30 @@ describe('uploadBundles asks for one slot per tested platform and uploads each b
     expect(uploadBundle.mock.calls[0][0].platform).toBe('android');
   });
 
-  it('realBundleUploadEffects uploads through uploadStagedArtifacts and asks the client for slots', async () => {
-    const client = {
-      getStagedUploadUrls: vi.fn().mockResolvedValue({ stagedPresignedUploadUrls: {} }),
-    };
+  it('realBundleUploadEffects uploads through uploadStagedArtifacts and asks the server seam for slots', async () => {
+    const getStagedUploadUrls = vi.fn().mockResolvedValue({ stagedPresignedUploadUrls: {} });
+    const restoreServerCalls = installServerCalls({
+      getStagedUploadUrls,
+    } as unknown as ServerCalls);
 
-    const effects = realBundleUploadEffects(client as any);
-    await effects.requestUploadSlots({ platforms: ['ios'], projectIndex: 1, teamId: 't' });
+    try {
+      const effects = realBundleUploadEffects('test-token');
+      await effects.requestUploadSlots({ platforms: ['ios'], projectIndex: 1, teamId: 't' });
 
-    expect(client.getStagedUploadUrls).toHaveBeenCalledWith({
-      platforms: ['ios'],
-      projectIndex: 1,
-      teamId: 't',
-    });
-    // The upload goes through the machine seam in force (../../seams/nativeBuild), which on the
-    // real machine is `uploadStagedArtifacts` - so the effect is a thunk onto it, not the function.
-    const uploadParams = { platform: 'ios', slots: {} } as any;
-    await effects.uploadBundle(uploadParams);
-    expect(mocks.uploadStagedArtifacts).toHaveBeenCalledWith(uploadParams);
+      expect(getStagedUploadUrls).toHaveBeenCalledWith({
+        token: 'test-token',
+        platforms: ['ios'],
+        projectIndex: 1,
+        teamId: 't',
+      });
+      // The upload goes through the machine seam in force (../../seams/nativeBuild), which on the
+      // real machine is `uploadStagedArtifacts` - so the effect is a thunk onto it, not the function.
+      const uploadParams = { platform: 'ios', slots: {} } as any;
+      await effects.uploadBundle(uploadParams);
+      expect(mocks.uploadStagedArtifacts).toHaveBeenCalledWith(uploadParams);
+    } finally {
+      restoreServerCalls();
+    }
   });
 });
 

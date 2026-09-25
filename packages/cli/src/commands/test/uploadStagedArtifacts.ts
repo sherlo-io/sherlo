@@ -8,26 +8,23 @@
  *             gzipped tar (one S3 object) and PUT. Only when the bundler
  *             actually produced assets (bundleResult.assetsDest is set).
  *
- * Uses the same protocol-appropriate keep-alive agent + retry loop as the
- * binary uploadBuild helper so local-S3 (http) and AWS (https) both work.
+ * Each PUT goes through the native-build seam's `putBinary` (../../seams/nativeBuild) - the same
+ * door the binary upload uses - wrapped in its own retry loop, so a posed run sends nothing real.
  */
 import { execFileSync } from 'child_process';
 import fs from 'fs';
-import http from 'http';
-import https from 'https';
 import os from 'os';
 import path from 'path';
 import zlib from 'zlib';
 import { Platform, StagedPlatformUploadUrls, StagedPresignedUploadUrl } from '@sherlo/api-types';
-import fetch from 'node-fetch';
 import { PLATFORM_LABEL } from '../../constants';
 import logWarning from '../../helpers/logWarning';
 import reporting from '../../helpers/reporting';
 import throwError from '../../helpers/throwError';
+import { nativeBuild } from '../../seams/nativeBuild';
 import type { BundleResult } from './buildBundle';
 
 const MAX_RETRIES = 3;
-const TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
 export type StagedUploadKeys = {
   jsBundleS3Key: string;
@@ -129,10 +126,10 @@ export default uploadStagedArtifacts;
 /* ========================================================================== */
 
 /**
- * PUTs a buffer to a presigned S3 URL with protocol-appropriate keep-alive +
- * retry. Exported so other staged-upload producers (e.g. the standard road's
- * module-manifest pass, SHERLO-1943) reuse the exact same upload mechanics
- * instead of re-implementing the retry/agent logic.
+ * PUTs a buffer to a presigned S3 URL through the native-build seam's `putBinary`
+ * (../../seams/nativeBuild), retrying on failure. Exported so other staged-upload producers (e.g.
+ * the standard road's module-manifest pass, SHERLO-1943, and the sim road's world + manifest
+ * pass, ./simRun) reuse the exact same upload mechanics instead of re-implementing the retry loop.
  */
 export async function putBuffer({
   platform,
@@ -152,24 +149,12 @@ export async function putBuffer({
     level: 'info',
   });
 
-  // Protocol-appropriate agent (HTTP for local S3, HTTPS for AWS).
-  const agent = uploadUrl.startsWith('https')
-    ? new https.Agent({ keepAlive: true, timeout: TIMEOUT })
-    : new http.Agent({ keepAlive: true, timeout: TIMEOUT });
-
   let attempt = 0;
   while (attempt < MAX_RETRIES) {
     try {
-      const response = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: buffer,
-        headers: {
-          'Content-Length': buffer.length.toString(),
-          'Content-Type': 'application/octet-stream',
-        },
-        timeout: TIMEOUT,
-        agent,
-      });
+      // The machine IN FORCE, not a fetch of its own - a posed run installs its own
+      // (../../seams/nativeBuild), so a posed sim/staged upload sends nothing real.
+      const response = await nativeBuild().putBinary(uploadUrl, buffer);
 
       if (!response.ok) {
         const responseText = await response.text();

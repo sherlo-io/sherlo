@@ -27,7 +27,7 @@
  * result here (keyed off `isFullCapture`), not a throw - both render as
  * "capture everything", so both are safe.
  */
-import sdkClient from '@sherlo/sdk-client';
+import type sdkClient from '@sherlo/sdk-client';
 import { Platform } from '@sherlo/api-types';
 import reporting from '../../helpers/reporting';
 import { serverCalls } from '../../seams/serverCalls';
@@ -162,7 +162,8 @@ export type DryRunPlatformRequest = {
 };
 
 export type DryRunDecisionInput = {
-  client: DryRunDecisionClient;
+  /** The raw project token - the seam builds its own sdk client from it (../../seams/serverCalls). */
+  token: string;
   /** The SAME git info openBuild is given - reuse it, do not build a second one. */
   gitInfo: GitInfo;
   projectIndex: number;
@@ -237,7 +238,8 @@ export async function requestDryRunDecision(
   // Through the server seam (../../seams/serverCalls), so a pose answers this read instead of
   // the network. The seam's live half still guards for the method being absent from this
   // sdk-client build and throws, which reaches the bail-open above exactly as it always did.
-  const result = await serverCalls().computeDiffScopeDryRun(input.client, {
+  const result = await serverCalls().computeDiffScopeDryRun({
+    token: input.token,
     projectIndex: input.projectIndex,
     teamId: input.teamId,
     gitInfo: input.gitInfo,
