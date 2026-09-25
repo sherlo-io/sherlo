@@ -116,17 +116,22 @@ export type BuildStatusResponse = {
      * rather than a narrowed union, because `@sherlo/api-types` is not the
      * source of this hand-written wire shape (see this file's module doc) and a
      * value this CLI has not learned yet must still pass through rather than
-     * fail to parse. Absent for a build with no view rows yet.
+     * fail to parse. Absent for a build with no view rows yet on an older API.
+     * `null` is what the server sends for a build whose run ended in `error`
+     * before any view row existed (run 36186659445, sherlo-tester's Honest
+     * Failure storyline, slot `errored-build`).
      */
-    stories?: {
-      name: string;
-      status: string;
-      baseline: { buildIndex: number } | null;
-      /** `null` is a row the wire sent with nothing to say - distinct from absent (an older API). */
-      reason?: string | null;
-      /** `null` is a row the wire sent with nothing to say - distinct from absent (an older API). */
-      candidates?: { buildIndex: number }[] | null;
-    }[];
+    stories?:
+      | {
+          name: string;
+          status: string;
+          baseline: { buildIndex: number } | null;
+          /** `null` is a row the wire sent with nothing to say - distinct from absent (an older API). */
+          reason?: string | null;
+          /** `null` is a row the wire sent with nothing to say - distinct from absent (an older API). */
+          candidates?: { buildIndex: number }[] | null;
+        }[]
+      | null;
     /**
      * The Diff Scope block (view-metadata, operator ruling 2026-09-03): what
      * `sherlo view --metadata` prints as `diffScope`. Hand-typed rather than

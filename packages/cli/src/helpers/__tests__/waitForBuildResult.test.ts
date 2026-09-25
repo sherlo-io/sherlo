@@ -1103,6 +1103,28 @@ describe('waitForBuildResult settles stories[] before closing on a finished buil
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
+  it('closes at once on a finished build whose wire sends stories as null - treated the same as no stories at all', async () => {
+    mockGraphqlResponse(200, {
+      getBuildStatus: {
+        runStatus: 'finished',
+        viewStatusesCount: GREEN,
+        diffScopeInfo: CAPTURED,
+        stories: null,
+      },
+    });
+
+    const promise = waitForBuildResult({
+      token: TOKEN,
+      buildIndex: BUILD_INDEX,
+      projectIndex: PROJECT_INDEX,
+      teamId: TEAM_ID,
+    });
+    await vi.runAllTimersAsync();
+
+    expect(await promise).toBe(EXIT_GREEN);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
   /**
    * Counts console.log calls whose FIRST argument contains `text` - the verdict
    * lines this loop prints are each their own `console.log` call (one line per

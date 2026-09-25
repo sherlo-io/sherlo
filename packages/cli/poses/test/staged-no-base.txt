@@ -16,7 +16,7 @@
 
 native-needed=true
 reason=android: native inputs changed since the base build
-base-fingerprint=a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d
+base-fingerprint=<FINGERPRINT>
 [33m[39m
 [33mA native build is required before this commit can be tested: android: native inputs changed since the base build.[39m
 [33mNothing was built and no test ran.[39m

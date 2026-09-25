@@ -39,7 +39,6 @@
  */
 import ansiEscapes from 'ansi-escapes';
 import runShellCommand from '../helpers/runShellCommand';
-import type { PosedWorkstation } from '../commands/pose/readPose';
 
 /** Every act `sherlo init` performs on the machine it runs on, and nothing else. */
 export type Workstation = {
@@ -146,6 +145,21 @@ export type UnansweredAct = { call: string; problem: string };
  * nobody sits at: the install is refused and the prompt is refused, and neither one reaches a real
  * package manager or a real keyboard.
  */
+/** The two acts `sherlo init` performs on the machine, as a pose states them. */
+export type PosedWorkstation = {
+  /**
+   * What the package manager answered when asked to add Sherlo: the package it installed, version
+   * and all (`"@sherlo/react-native-storybook@2.0.2"`). Checked against the package the command
+   * actually asked for, so a pose cannot answer an install the command never made.
+   */
+  install: { package: string };
+  /**
+   * Whether a person pressed Enter at the prompt, or the terminal was closed on it. `"closed"` is
+   * what a run nobody is watching gets, and the tool's own cancel branch prints for it.
+   */
+  enter: 'pressed' | 'closed';
+};
+
 export function posedWorkstation(
   posed: PosedWorkstation | undefined
 ): Workstation & { refusals(): UnansweredAct[] } {

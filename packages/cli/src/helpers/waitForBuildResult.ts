@@ -395,7 +395,7 @@ function printTerminalCloser(build: NonNullable<BuildStatusResponse['getBuildSta
   } else {
     emit({
       kind: 'verdict-review-required',
-      screens: build.stories,
+      screens: build.stories ?? undefined,
       counts: { unreviewed, reported },
     });
   }

@@ -24,7 +24,8 @@ import { emit } from '../../helpers/transcriptSink';
 import { detectEntryFile } from '../../commands/showError/detectBundler';
 import type { BaseFingerprintResult, GateMetadataInput } from '../../helpers/fingerprint';
 import { FALLBACK_LINE as SHARED_FALLBACK_LINE } from './stagedGateRefusal';
-import { buildBundleForPlatform, buildGateMetadata, type BundleResult } from './buildBundle';
+import { bundler } from '../../seams/bundler';
+import type { BundleResult } from './buildBundle';
 import {
   SIDECAR_VERSION,
   assetsDirName,
@@ -55,9 +56,11 @@ export async function emitBundleDir({
   platformsToTest,
   bundleDir,
   baseFingerprint,
-  bundleFor = (root, platform) => buildBundleForPlatform({ projectRoot: root, platform }),
+  // The bundler IN FORCE, not the real one by name - a posed `--emit-bundle-dir` installs its own
+  // (../../seams/bundler), exactly like the built road's own bundling loop (./bundleAndPreview).
+  bundleFor = (root, platform) => bundler().bundleFor(root, platform),
   gateMetadataFor = (root, platform, bundleResult) =>
-    buildGateMetadata({ projectRoot: root, platform, bundleResult }),
+    bundler().gateMetadataFor(root, platform, bundleResult),
 }: {
   projectRoot: string;
   platformsToTest: Platform[];

@@ -1,4 +1,3 @@
-import sdkClient from '@sherlo/sdk-client';
 import { Platform } from '@sherlo/api-types';
 import logWarning from './logWarning';
 import { PLATFORM_LABEL, TEST_COMMAND } from '../constants';
@@ -9,7 +8,6 @@ import {
   type FreshBundleEffects,
 } from './uploadFreshBundles';
 import { applyBundleToPlatformConfig } from '../commands/test/uploadBundles';
-import { getEndpointUrl } from './buildStatusRequest';
 import { resolveBaseFingerprintForSuppliedBundle } from '../commands/test/recordedBaseFingerprint';
 import type { BinaryUploadEffects } from './uploadOrPrintBinaryReuse/uploadBuild';
 import type { BaseRegistrationEffects } from './fingerprint/registerBase';
@@ -85,8 +83,8 @@ async function uploadOrReuseBuildsAndRunTests({
   commandParams: CommandParams;
   effects?: PushEffects;
 }): Promise<{ url: string }> {
-  const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
-  const client = sdkClient({ authToken: apiToken }, getEndpointUrl());
+  const { projectIndex, teamId } = getTokenParts(commandParams.token);
+  const token = commandParams.token;
 
   const command = TEST_COMMAND;
 
@@ -97,7 +95,7 @@ async function uploadOrReuseBuildsAndRunTests({
     now: () => machine.now(),
     resolveBinaries: () =>
       getValidatedBinariesInfoAndNextBuildIndex({
-        client,
+        token,
         command,
         commandParams,
         projectIndex,
@@ -119,7 +117,7 @@ async function uploadOrReuseBuildsAndRunTests({
         : machine.computeFingerprint(commandParams.projectRoot, command),
     openBuild: (input) =>
       serverCalls()
-        .openBuild(client, input as never)
+        .openBuild({ token, ...input } as never)
         .catch(handleClientError),
     binaryUpload: {
       readBinary: (buildPath, platform, projectRoot) =>
@@ -129,7 +127,7 @@ async function uploadOrReuseBuildsAndRunTests({
     baseRegistration: {
       extractGateMetadataFor: (params) => machine.extractGateMetadataFor(params),
     },
-    freshBundle: realFreshBundleEffects(client),
+    freshBundle: realFreshBundleEffects(token),
   };
 
   const { binariesInfo, nextBuildIndex } = await io.resolveBinaries();
