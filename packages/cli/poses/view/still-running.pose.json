@@ -14,5 +14,5 @@
       "answer": { "runStatus": "inProgress", "status": "unreviewed" }
     }
   ],
-  "masks": { "<MASKED>": "posetokenposetokenposetokenpose1tm0000017" }
+  "masks": {}
 }

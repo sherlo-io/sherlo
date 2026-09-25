@@ -215,7 +215,7 @@ describe('formatDryRunPreview', () => {
 // ---------------------------------------------------------------------------
 
 describe('runDryRunPreview', () => {
-  const client: any = { note: 'sdk-client stub' };
+  const token = 'test-token';
 
   it('issues ONE decision call for all platforms and prints the decided preview', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -230,7 +230,7 @@ describe('runDryRunPreview', () => {
     ] as DryRunPlatformDecision[]);
 
     await runDryRunPreview({
-      client,
+      token,
       bundles: { ios: bundleWithManifest() },
       platformsToTest: ['ios'],
       projectIndex: 7,
@@ -242,7 +242,7 @@ describe('runDryRunPreview', () => {
     // The seam was called ONCE with the exact inputs it needs to issue the query.
     expect(mockRequestDryRunDecision).toHaveBeenCalledTimes(1);
     const arg = mockRequestDryRunDecision.mock.calls[0][0];
-    expect(arg.client).toBe(client);
+    expect(arg.token).toBe(token);
     expect(arg.projectIndex).toBe(7);
     expect(arg.teamId).toBe('team-42');
     expect(arg.gitInfo).toBe(gitInfo);
@@ -275,7 +275,7 @@ describe('runDryRunPreview', () => {
     ] as DryRunPlatformDecision[]);
 
     await runDryRunPreview({
-      client,
+      token,
       bundles: { ios: bundleWithManifest() },
       platformsToTest: ['ios'],
       projectIndex: 7,
@@ -306,7 +306,7 @@ describe('runDryRunPreview', () => {
     ] as DryRunPlatformDecision[]);
 
     await runDryRunPreview({
-      client,
+      token,
       bundles: { android: bundleWithoutManifest() },
       platformsToTest: ['android'],
       projectIndex: 1,
@@ -337,7 +337,7 @@ describe('runDryRunPreview', () => {
 
     await expect(
       runDryRunPreview({
-        client,
+        token,
         bundles: { ios: bundleWithManifest(), android: bundleWithManifest() },
         platformsToTest: ['ios', 'android'],
         projectIndex: 1,
@@ -369,7 +369,7 @@ describe('runDryRunPreview', () => {
     ] as DryRunPlatformDecision[]);
 
     await runDryRunPreview({
-      client,
+      token,
       bundles: { ios: bundleWithManifest(), android: bundleWithManifest() },
       platformsToTest: ['ios', 'android'],
       projectIndex: 1,
@@ -404,7 +404,7 @@ describe('runDryRunPreview', () => {
     ] as DryRunPlatformDecision[]);
 
     await runDryRunPreview({
-      client,
+      token,
       bundles: { ios: bundleWithManifest(), android: bundleWithManifest() },
       platformsToTest: ['ios', 'android'],
       projectIndex: 1,
@@ -427,7 +427,7 @@ describe('runDryRunPreview', () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     await runDryRunPreview({
-      client,
+      token,
       bundles: { ios: bundleWithManifest() },
       platformsToTest: ['ios'],
       projectIndex: 7,
@@ -457,7 +457,7 @@ describe('runDryRunPreview', () => {
     mockRequestDryRunDecision.mockRejectedValue(new Error('connect ECONNREFUSED 127.0.0.1:443'));
 
     await runDryRunPreview({
-      client,
+      token,
       bundles: { ios: bundleWithManifest() },
       platformsToTest: ['ios'],
       projectIndex: 7,

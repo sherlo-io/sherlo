@@ -24,7 +24,6 @@ import {
   SINGLE_READ_TIMEOUT_MS,
   type BuildStatus,
 } from '../helpers/buildStatusRequest';
-import type { PosedCaptureDecision } from '../commands/pose/readPose';
 import getTokenParts from '../helpers/getTokenParts';
 import createProjectRequest from '../commands/projectCreate/createProjectRequest';
 import createTeamRequest from '../commands/teamCreate/createTeamRequest';
@@ -56,7 +55,7 @@ export type OpenBuildRequest = Parameters<SdkClient['openBuild']>[0];
 export type OpenBuildAnswer = Awaited<ReturnType<SdkClient['openBuild']>>;
 /** The two questions a real push asks before it opens a build - the sdk client's own shapes. */
 export type NextBuildInfoRequest = Parameters<SdkClient['getNextBuildInfo']>[0];
-export type NextBuildInfoAnswer = Awaited<ReturnType<SdkClient['getNextBuildInfo']>>;
+export type SdkNextBuildInfoAnswer = Awaited<ReturnType<SdkClient['getNextBuildInfo']>>;
 export type StagedUploadUrlsRequest = Parameters<SdkClient['getStagedUploadUrls']>[0];
 export type StagedUploadUrlsAnswer = Awaited<ReturnType<SdkClient['getStagedUploadUrls']>>;
 /** What one of `sherlo init`'s progress reports is sent with, and what it answers back. */
@@ -86,26 +85,25 @@ export type ServerCalls = {
 
   listProjects(request: { teamId: string; personalToken: string }): Promise<ProjectList>;
 
-  openBuild(client: SdkClient, request: OpenBuildRequest): Promise<OpenBuildAnswer>;
+  openBuild(request: OpenBuildRequest & { token: string }): Promise<OpenBuildAnswer>;
 
   /** Has the server seen these binaries, and which build comes next - the push's first question. */
-  getNextBuildInfo(client: SdkClient, request: NextBuildInfoRequest): Promise<NextBuildInfoAnswer>;
+  getNextBuildInfo(
+    request: NextBuildInfoRequest & { token: string }
+  ): Promise<SdkNextBuildInfoAnswer>;
 
   /** The staged slots a fresh bundle is PUT into - asked by every road that uploads one. */
   getStagedUploadUrls(
-    client: SdkClient,
-    request: StagedUploadUrlsRequest
+    request: StagedUploadUrlsRequest & { token: string }
   ): Promise<StagedUploadUrlsAnswer>;
 
   computeDiffScopeDryRun(
-    client: DryRunDecisionClient,
-    request: ComputeDiffScopeDryRunRequest
+    request: ComputeDiffScopeDryRunRequest & { token: string }
   ): Promise<ComputeDiffScopeDryRunResult>;
 
   /** The staged road's gate: can this commit reuse the base registered under this fingerprint? Asked per platform. */
   checkStagedGate(
-    client: SdkClient,
-    request: CheckStagedGateRequest
+    request: CheckStagedGateRequest & { token: string }
   ): Promise<CheckStagedGateAnswer>;
 
   /**
@@ -114,12 +112,18 @@ export type ServerCalls = {
    * ../seams/workstation - so a posed init answers its reports from the pose's `api` and never
    * reaches the real backend.
    */
-  trackCliInit(client: SdkClient, request: TrackCliInitRequest): Promise<TrackCliInitAnswer>;
+  trackCliInit(request: TrackCliInitRequest & { token: string }): Promise<TrackCliInitAnswer>;
 };
 
 /** What the staged gate is asked and what it answers - the sdk client's own shapes. */
 export type CheckStagedGateRequest = Parameters<SdkClient['checkStagedGate']>[0];
 export type CheckStagedGateAnswer = Awaited<ReturnType<SdkClient['checkStagedGate']>>;
+
+/** The one place a raw project token becomes a real sdk client - every live operation below goes through it. */
+function clientFor(token: string): SdkClient {
+  const { apiToken } = getTokenParts(token);
+  return sdkClient({ authToken: apiToken }, getEndpointUrl());
+}
 
 /** The shipped answers: the real requests, unchanged. */
 export const liveServerCalls: ServerCalls = {
@@ -139,29 +143,29 @@ export const liveServerCalls: ServerCalls = {
   listTeams: (request) => listTeamsRequest(request),
   listProjects: (request) => listProjectsRequest(request),
 
-  openBuild: (client, request) => client.openBuild(request),
+  openBuild: ({ token, ...request }) => clientFor(token).openBuild(request),
 
-  getNextBuildInfo: (client, request) => client.getNextBuildInfo(request),
+  getNextBuildInfo: ({ token, ...request }) => clientFor(token).getNextBuildInfo(request),
 
-  getStagedUploadUrls: (client, request) => client.getStagedUploadUrls(request),
+  getStagedUploadUrls: ({ token, ...request }) => clientFor(token).getStagedUploadUrls(request),
 
-  trackCliInit: (client, request) => client.trackCliInit(request),
+  trackCliInit: ({ token, ...request }) => clientFor(token).trackCliInit(request),
 
-  computeDiffScopeDryRun: (client, request) => {
+  computeDiffScopeDryRun: ({ token, ...request }) => {
+    const client = clientFor(token) as DryRunDecisionClient;
+
     // The published sdk-client this repo typechecks against may not carry the query yet, so the
     // method is reached defensively - exactly as ../commands/test/dryRunDecision does.
-    const query = (client as unknown as Record<string, unknown>).computeDiffScopeDryRun;
+    const query = client.computeDiffScopeDryRun;
 
     if (typeof query !== 'function') {
       throw new Error(DRY_RUN_DECISION_UNAVAILABLE);
     }
 
-    return (
-      query as (input: ComputeDiffScopeDryRunRequest) => Promise<ComputeDiffScopeDryRunResult>
-    )(request);
+    return query(request);
   },
 
-  checkStagedGate: (client, request) => client.checkStagedGate(request),
+  checkStagedGate: ({ token, ...request }) => clientFor(token).checkStagedGate(request),
 };
 
 let installed: ServerCalls = liveServerCalls;
@@ -184,12 +188,177 @@ export function installServerCalls(next: ServerCalls): () => void {
 /* The posed server                                                           */
 /* ========================================================================== */
 
-/** One scripted answer, exactly as a pose states it. */
-export type ScriptedCall = {
-  call: string;
-  with: Record<string, unknown>;
-  answer: unknown;
+/** The error the server sends, as the tool's client surfaces it. */
+export type ApiError = { error: string };
+
+/**
+ * What `getBuildStatus` answers. THE WIRE'S OWN SHAPE, aliased rather than re-typed: a pose
+ * describing a build the backend cannot send would let a product design be approved off a state
+ * that can never occur.
+ */
+export type BuildStatusAnswer = BuildStatus;
+
+/** What the dry-run road's one read-only question answers. */
+export type DiffScopeDryRunAnswer = {
+  platforms: Array<{
+    platform: 'android' | 'ios';
+    isFullCapture: boolean;
+    reason: string;
+    capturedStoryFilePaths: string[];
+  }>;
 };
+
+/**
+ * What the push's first question answers: which build comes next and, per binary, whether the
+ * server wants it uploaded or already holds it from an earlier build - `reuse` is what the
+ * `reusing unchanged build (Test 1, 7 minutes ago)` line is printed from.
+ */
+export type NextBuildInfoAnswer = {
+  nextBuildIndex: number;
+  binaries: Record<string, { upload: true } | { reuse: { buildIndex: number; createdAt: string } }>;
+};
+
+/** What the staged gate answers, exactly as the tool's client surfaces it. */
+export type StagedGateAnswer = {
+  outcome: 'fast' | 'full-build-needed' | 'not-stageable';
+  /** The layers of the bundle's identity that moved - named on a refusal, empty otherwise. */
+  diff: Array<
+    | 'engineClass'
+    | 'assetInventory'
+    | 'expoUpdatesEnabled'
+    | 'sdkProtocolVersion'
+    | 'buildMetadata'
+    | 'bundleFormat'
+  >;
+};
+
+/**
+ * The server's capture decision at `openBuild`, per platform - what the "📸 Capture plan"
+ * block and the one-line "Diff Scope:" summary print (SHERLO-1919). THE ONE OPTIONAL FIELD ON
+ * `openBuild`'s answer: absent means the server made no decision (an older API, or Diff Scope
+ * off) - the tool prints no plan block and closes straight to the Review link, exactly as it does
+ * today. A platform absent from `platforms` gets the same silent treatment, one platform at a time.
+ */
+export type PosedCaptureDecision = {
+  /** Per platform (`android`, `ios`): whether every story was captured, and which weren't, when not. */
+  platforms: Record<string, PosedPlatformCaptureDecision>;
+  /**
+   * The build-wide reason a FULL capture prints when the platform has none of its own - the
+   * "why:" row under "capturing all N stories" (absent -> the "! couldn't compute what changed"
+   * safety row instead).
+   */
+  fullCaptureTriggerReason?: string;
+  /** The build this decision diffed against - the "inheriting N from build #A" clause. */
+  ancestorBuildIndex?: number;
+};
+
+/** One platform's capture decision, as a pose states it. */
+export type PosedPlatformCaptureDecision = {
+  /** `true` prints "capturing all N stories in this bundle"; `false` prints the partial closure-diff. */
+  full: boolean;
+  /** The story files captured, when `full` is `false`. Ignored (the block reads "all N") when `full` is `true`. */
+  storyFilePaths?: string[];
+  /** The server's per-platform reason, printed verbatim after "why: " (or before the summary's colon). */
+  reason?: string;
+};
+
+/**
+ * ONE SCRIPTED ANSWER, and the declaration every copy of the pose shape is generated from: the
+ * `call` names the operation as the tool's own client names it, `with` names the few arguments a
+ * pose can meaningfully state, and `answer` is what the server said - which may be the error it
+ * would have sent instead.
+ */
+export type ScriptedCall =
+  | {
+      call: 'getBuildStatus';
+      with: { buildIndex: number };
+      answer: BuildStatusAnswer | null | ApiError;
+    }
+  | {
+      call: 'createProject';
+      with: { teamId: string; name: string };
+      answer: { name: string; index: number; projectToken: string } | ApiError;
+    }
+  | {
+      call: 'createTeam';
+      with: { name: string };
+      answer: { id: string; name: string } | ApiError;
+    }
+  | {
+      call: 'listTeams';
+      with: Record<string, never>;
+      /** `role` is the caller's membership role, or null when the API does not say. */
+      answer:
+        | { teams: Array<{ id: string; name: string; projectCount: number; role: string | null }> }
+        | ApiError;
+    }
+  | {
+      call: 'listProjects';
+      with: { teamId: string };
+      /** `mainBranch` is null while the project has never chosen one. */
+      answer:
+        | {
+            team: { name: string; id: string };
+            projects: Array<{
+              index: number;
+              name: string;
+              buildCount: number;
+              mainBranch: string | null;
+            }>;
+          }
+        | ApiError;
+    }
+  | {
+      call: 'openBuild';
+      with: { platforms: string[] };
+      answer:
+        | { buildIndex: number; url: string; captureDecision?: PosedCaptureDecision }
+        | ApiError;
+    }
+  | {
+      call: 'computeDiffScopeDryRun';
+      with: { branch: string; commit: string };
+      answer: DiffScopeDryRunAnswer | ApiError;
+    }
+  | {
+      /** A real push's first question: has the server seen these binaries, and which build is next. */
+      call: 'getNextBuildInfo';
+      with: { platforms: string[] };
+      answer: NextBuildInfoAnswer | ApiError;
+    }
+  | {
+      /**
+       * The staged slots a fresh bundle is uploaded into. Scripted so the pose says the call was
+       * made; the answer holds nothing a pose could state, because nothing the tool prints reads it.
+       */
+      call: 'getStagedUploadUrls';
+      with: { platforms: string[] };
+      answer: Record<string, never> | ApiError;
+    }
+  | {
+      /**
+       * The staged road's first question, asked once per platform BEFORE anything is bundled: can
+       * this commit reuse the base registered under this fingerprint? `fast` takes the road;
+       * `full-build-needed` names which layers of the bundle's identity moved (`diff`), and
+       * `not-stageable` is a project that can never take it. The post-bundle check asks the same
+       * question again with the bundle's real identity, so a bare push scripts it TWICE per
+       * platform when the first answer is `fast`.
+       */
+      call: 'checkStagedGate';
+      with: { platform: string; baseFingerprint: string };
+      answer: StagedGateAnswer | ApiError;
+    }
+  | {
+      /**
+       * One progress report `sherlo init` sends as it goes, named by the step that sent it
+       * (`"0_init"`, `"3_metro_config"`). The answer is the session the whole setup is recorded
+       * under, which the command carries into the next report - so a pose of an `init` scripts one
+       * of these per step, in order, and a step the pose did not script is refused.
+       */
+      call: 'trackCliInit';
+      with: { event: string };
+      answer: { sessionId: string } | ApiError;
+    };
 
 /**
  * A call the pose could not answer, and the reason. Recorded rather than only thrown, because
@@ -269,7 +438,7 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
 
     // The platforms this run opened a build for are the ones its build-run config carries - the
     // command composed that, so it is read off the payload rather than restated by the pose.
-    openBuild: async (_client, request) => {
+    openBuild: async (request) => {
       // The config carries `include`/`exclude` beside the platforms, and the standard road writes
       // a platform key it has no binary for as undefined - so the platforms are the two keys
       // that hold a config, never every key.
@@ -284,21 +453,21 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
       return openBuildAnswerOf(answer.buildIndex, platforms as Platform[], answer.captureDecision);
     },
 
-    getNextBuildInfo: async (_client, request) => {
+    getNextBuildInfo: async (request) => {
       const answer = answerFor('getNextBuildInfo', {
         platforms: request.platforms,
-      }) as NextBuildInfoScript;
+      }) as NextBuildInfoAnswer;
 
       return nextBuildInfoAnswerOf(answer, request.platforms);
     },
 
-    getStagedUploadUrls: async (_client, request) => {
+    getStagedUploadUrls: async (request) => {
       answerFor('getStagedUploadUrls', { platforms: request.platforms });
 
       return stagedUploadUrlsAnswerOf(request.platforms);
     },
 
-    computeDiffScopeDryRun: async (_client, request) =>
+    computeDiffScopeDryRun: async (request) =>
       answerFor('computeDiffScopeDryRun', {
         branch: request.gitInfo.branchName,
         commit: request.gitInfo.commitHash,
@@ -306,7 +475,7 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
 
     // The gate is asked per platform with the base fingerprint the tool computed; the pose states
     // both, so a pose cannot answer a question about a base the run never measured.
-    checkStagedGate: async (_client, request) =>
+    checkStagedGate: async (request) =>
       answerFor('checkStagedGate', {
         platform: request.platform,
         baseFingerprint: request.baseFingerprint,
@@ -314,7 +483,7 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
 
     // The step that sent the report is the one thing a pose can meaningfully state about it: the
     // params carry whatever that step measured, which the command composed rather than the pose.
-    trackCliInit: async (_client, request) =>
+    trackCliInit: async (request) =>
       answerFor('trackCliInit', { event: request.event }) as TrackCliInitAnswer,
   };
 }
@@ -381,12 +550,6 @@ function platformReasonOf(
   return reason !== undefined ? { reason } : undefined;
 }
 
-/** What a pose says the server answered about each binary: a slot to upload it into, or the build it already has it from. */
-type NextBuildInfoScript = {
-  nextBuildIndex: number;
-  binaries: Record<string, { upload: true } | { reuse: { buildIndex: number; createdAt: string } }>;
-};
-
 /**
  * The `getNextBuildInfo` response the tool reads, from the two facts a pose states about it.
  *
@@ -396,13 +559,13 @@ type NextBuildInfoScript = {
  * way the tool tells an upload from a reuse: an upload has a `url`, a reuse has none.
  */
 function nextBuildInfoAnswerOf(
-  script: NextBuildInfoScript,
+  posed: NextBuildInfoAnswer,
   platforms: NextBuildInfoRequest['platforms']
-): NextBuildInfoAnswer {
+): SdkNextBuildInfoAnswer {
   const binariesInfo: Record<string, unknown> = {};
 
   for (const platform of platforms) {
-    const scripted = script.binaries[platform];
+    const scripted = posed.binaries[platform];
     if (!scripted) continue;
 
     binariesInfo[platform] =
@@ -415,7 +578,10 @@ function nextBuildInfoAnswerOf(
           };
   }
 
-  return { binariesInfo, nextBuildIndex: script.nextBuildIndex } as unknown as NextBuildInfoAnswer;
+  return {
+    binariesInfo,
+    nextBuildIndex: posed.nextBuildIndex,
+  } as unknown as SdkNextBuildInfoAnswer;
 }
 
 /**

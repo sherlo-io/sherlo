@@ -8,5 +8,5 @@
   "api": [
     { "call": "listTeams", "with": {}, "answer": { "teams": [] } }
   ],
-  "masks": { "<MASKED>": "sht_posepersonaltoken000000000000" }
+  "masks": {}
 }

@@ -26,7 +26,6 @@
  * config carries the ASYNC_UPLOAD_S3_KEY_PLACEHOLDER for `s3Key` (mirrored
  * server-side) alongside the real jsBundleS3Key / assetsS3Key.
  */
-import sdkClient from '@sherlo/sdk-client';
 import { GateMetadata, GateMetadataByPlatform, Platform } from '@sherlo/api-types';
 import { PLATFORMS } from '../../constants';
 import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER } from '@sherlo/shared';
@@ -48,7 +47,6 @@ import {
 } from '../../helpers';
 import parseWaitTimeout from '../../helpers/parseWaitTimeout';
 import printLink from '../../helpers/printLink';
-import { getEndpointUrl } from '../../helpers/buildStatusRequest';
 import {
   isServerBypassed,
   fetchServerBypassReason,
@@ -76,7 +74,7 @@ import { emitBundleDir } from './emitBundleDir';
 import { resolveBaseFingerprintForSuppliedBundle } from './recordedBaseFingerprint';
 import { resolveSuppliedBundles } from './suppliedBundle';
 import { countBundleStories, type ValidatedModuleManifest } from './readModuleManifest';
-import { serverCalls } from '../../seams/serverCalls';
+import { serverCalls, type OpenBuildAnswer } from '../../seams/serverCalls';
 import {
   formatDiffScopeReport,
   formatDiffScopeSummaryLine,
@@ -236,12 +234,11 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     return { url: '' };
   }
 
-  // 4. Resolve token + SDK client. The endpoint is resolved the SAME way the four
-  //    non-sdk-client commands (project/team create+list) already do - one address
-  //    governs the whole tool, so a SHERLO_API_URL override reaches every call this
-  //    road makes, including the read-only dry-run decision query.
-  const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
-  const client = sdkClient({ authToken: apiToken }, getEndpointUrl());
+  // 4. Resolve the token's parts. The endpoint every call this road makes - including the
+  //    read-only dry-run decision query - is resolved inside the server seam itself
+  //    (../../seams/serverCalls), from the raw token this road hands it.
+  const { projectIndex, teamId } = getTokenParts(commandParams.token);
+  const token = commandParams.token;
 
   // 5-dry. --dry-run (SHERLO-1895 Phase C): bundle for real, preview which
   //   stories a real run would capture, and STOP here. A dry run never runs the
@@ -253,7 +250,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     await runDryRunFlow({
       projectRoot: commandParams.projectRoot,
       platformsToTest,
-      client,
+      token,
       projectIndex,
       teamId,
       baseFingerprint,
@@ -271,7 +268,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   //    alone answers "can this commit reuse the registered base?", so a commit
   //    that needs a native build costs a single API call and no bundler run.
   const probeRefusals = await checkGate({
-    client,
+    token,
     platformsToTest,
     baseFingerprint,
     gateMetadata: () => PROBE_GATE_METADATA,
@@ -322,7 +319,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   //    bundle format, asset inventory and SDK protocol version the gate diffs.
   //    A refusal here is the same routing answer, just better informed.
   const identityRefusals = await checkGate({
-    client,
+    token,
     platformsToTest,
     baseFingerprint,
     // Unreachable fallback: buildBundles fills every tested platform or exits.
@@ -351,7 +348,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       bundles,
       projectIndex,
       teamId,
-      effects: realBundleUploadEffects(client),
+      effects: realBundleUploadEffects(token),
     });
   } catch (error) {
     if (!(error instanceof StagedSlotMissingError)) throw error;
@@ -400,7 +397,8 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   try {
     // Through the server seam (../../seams/serverCalls), so a pose answers this call instead of
     // the network. The payload is the one this run composed, unchanged.
-    openBuildReturn = await serverCalls().openBuild(client, {
+    openBuildReturn = await serverCalls().openBuild({
+      token,
       teamId,
       projectIndex,
       buildRunConfig,
@@ -511,14 +509,15 @@ export default stagedRun;
  * real bundle-derived identity.
  */
 async function checkGate({
-  client,
+  token,
   platformsToTest,
   baseFingerprint,
   gateMetadata,
   projectIndex,
   teamId,
 }: {
-  client: ReturnType<typeof sdkClient>;
+  /** The raw project token - the seam builds its own sdk client from it (../../seams/serverCalls). */
+  token: string;
   platformsToTest: Platform[];
   baseFingerprint: string;
   gateMetadata: (platform: Platform) => GateMetadataInput;
@@ -538,7 +537,8 @@ async function checkGate({
     for (const platform of platformsToTest) {
       // Through the server seam, so a posed run answers the gate from its pose (the tester's
       // staged storyline) and never reaches the network.
-      const { outcome, diff } = await serverCalls().checkStagedGate(client, {
+      const { outcome, diff } = await serverCalls().checkStagedGate({
+        token,
         baseFingerprint,
         gateMetadata: gateMetadata(platform) as GateMetadata,
         platform,
@@ -616,7 +616,7 @@ export function printCapturePlanAndCloser({
   url,
   serverBypassed,
 }: {
-  openBuildReturn: Awaited<ReturnType<ReturnType<typeof sdkClient>['openBuild']>>;
+  openBuildReturn: OpenBuildAnswer;
   moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>>;
   platformsToTest: Platform[];
   url: string;

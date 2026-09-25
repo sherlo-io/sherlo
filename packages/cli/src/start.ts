@@ -36,6 +36,7 @@ import {
   IOS_FILE_TYPES,
   IOS_OPTION,
   LAYER_OPTION,
+  MASK_COMMAND,
   MESSAGE_OPTION,
   METADATA_OPTION,
   PERSONAL_TOKEN_ENV_VAR,
@@ -109,6 +110,8 @@ async function start() {
     addCaptureCommand(program);
 
     addPoseCommand(program);
+
+    addMaskCommand(program);
 
     if (process.argv.length === 2) {
       console.log('Choose a Sherlo command. Use --help for more information.');
@@ -191,6 +194,12 @@ const COMMAND_DESCRIPTION = {
     "  project folder, the settings, git, the bundler's answer and the server's - is a\n" +
     '  JSON document (contracts/pose.contract.ts); pass `-` to read it from stdin.\n' +
     '  Touches no network and no project. Hidden unless SHERLO_DEVTOOLS=1.',
+  [MASK_COMMAND]:
+    'Read a screen on stdin and print it with every value only a machine knows folded\n' +
+    '  to its placeholder - a token, a build address, a size, a duration, a commit, a\n' +
+    '  fingerprint, the progress lines a wait printed. The SAME folding `sherlo pose`\n' +
+    "  applies to a screen it printed itself, so a live run's screen and a posed one\n" +
+    '  can be compared. Hidden unless SHERLO_DEVTOOLS=1.',
   [FINGERPRINT_COMMAND]:
     'Print the fingerprints `test` computes for this project, one line per layer\n' +
     '  (native, dependencies, js, base). Runs entirely locally: no token, no upload.\n' +
@@ -599,6 +608,31 @@ function addPoseCommand(program: Command) {
       const { pose } = await import('./commands/pose/pose');
 
       await pose(documentPath);
+    });
+}
+
+/**
+ * `sherlo mask` - fold a screen this tool did not print itself (see ./commands/pose/maskScreen).
+ *
+ * HIDDEN BEHIND THE SAME GATE AS `sherlo pose`, and for the same reason: it is a tool for the
+ * people who work on the tool. The test repository pipes a real run's screen through it and
+ * compares the result against a posed screen, which only works while both go through one masker.
+ *
+ * The two flags are the two paths a run knew that nobody else can: a live run has its own project
+ * folder and its own resolved config file, and neither can be guessed from the screen.
+ */
+function addMaskCommand(program: Command) {
+  if (process.env.SHERLO_DEVTOOLS !== '1') return;
+
+  program
+    .command(MASK_COMMAND)
+    .description(COMMAND_DESCRIPTION[MASK_COMMAND])
+    .option('--project-root <dir>', 'The project folder the run read')
+    .option('--config-path <file>', 'The config file path the run resolved')
+    .action(async (actionOptions: { projectRoot?: string; configPath?: string }) => {
+      const { mask } = await import('./commands/pose/maskScreen');
+
+      mask(actionOptions);
     });
 }
 

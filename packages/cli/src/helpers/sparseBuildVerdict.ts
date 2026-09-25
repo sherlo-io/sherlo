@@ -163,7 +163,7 @@ export function decideSparseBuildVerdict(build: BuildStatus): SparseBuildVerdict
     segments: [
       {
         kind: 'verdict-review-required',
-        screens: build.stories,
+        screens: build.stories ?? undefined,
         counts: { unreviewed: counts.unreviewed, reported: counts.reported },
       },
       ...captureAccounting(build),
