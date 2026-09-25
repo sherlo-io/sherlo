@@ -101,6 +101,7 @@ import {
 import { rememberStoryOfTheApp } from '../componentNames';
 import {
   collectFromRoot,
+  mergeGenerations,
   type WalkedFiber,
 } from '../getStorybook/components/TestingMode/metadataWalk';
 import { clearStoryError, recordStoryError } from '../getStorybook/storyErrorRegistry';
@@ -1997,6 +1998,82 @@ describe('a text view carries the words it draws', () => {
     const answer = await walkOneStory();
 
     expect(answer.tree.children[0].text).toBe('10px — The quick brown fox');
+  });
+});
+
+describe('a view updated in place is read with its current words, not its stale generation', () => {
+  // A Text that changes its words IN PLACE keeps its native tag and appears in both generations,
+  // with the old words on the stale fiber's pendingProps and the new words on the current one - so
+  // which of the two the merge assigns LAST decides which words the reading carries. A HostRoot
+  // fiber `H` whose `stateNode` is `{ current: H }` is the CURRENT generation (FiberRoot.current
+  // points at itself); its alternate `H2`, sharing the same stateNode, is the STALE one.
+  const NATIVE_TAG = 5;
+
+  function textFiber(root: WalkedFiber, words: string): WalkedFiber {
+    return {
+      type: 'RCTText',
+      stateNode: { _nativeTag: NATIVE_TAG },
+      pendingProps: { children: words },
+      memoizedProps: {},
+      return: root,
+    };
+  }
+
+  function hostRoot(): { current: WalkedFiber } {
+    const fiberRoot: { current: WalkedFiber } = { current: undefined as unknown as WalkedFiber };
+    const root: WalkedFiber = {
+      type: null,
+      tag: 3,
+      stateNode: fiberRoot,
+      pendingProps: {},
+      memoizedProps: {},
+    };
+    fiberRoot.current = root;
+    return fiberRoot;
+  }
+
+  it("a view updated in place is read with its current words when the collector's own fiber is the stale generation", () => {
+    const currentFiberRoot = hostRoot();
+    const current = currentFiberRoot.current;
+    const stale: WalkedFiber = { ...current, stateNode: currentFiberRoot };
+    current.child = textFiber(current, 'Grace Hopper');
+    stale.child = textFiber(stale, 'loading…');
+
+    const merged = mergeGenerations([stale, current]);
+
+    expect(merged.viewProps[NATIVE_TAG].text).toBe('Grace Hopper');
+  });
+
+  it("a view updated in place is read with its current words when the collector's own fiber is the current generation", () => {
+    const currentFiberRoot = hostRoot();
+    const current = currentFiberRoot.current;
+    const stale: WalkedFiber = { ...current, stateNode: currentFiberRoot };
+    current.child = textFiber(current, 'Grace Hopper');
+    stale.child = textFiber(stale, 'loading…');
+
+    const merged = mergeGenerations([current, stale]);
+
+    expect(merged.viewProps[NATIVE_TAG].text).toBe('Grace Hopper');
+  });
+
+  it('a view only the stale generation still holds is kept in the reading, under its own tag', () => {
+    const STALE_ONLY_TAG = 999;
+    const currentFiberRoot = hostRoot();
+    const current = currentFiberRoot.current;
+    const stale: WalkedFiber = { ...current, stateNode: currentFiberRoot };
+    current.child = textFiber(current, 'Grace Hopper');
+    stale.child = {
+      type: 'RCTText',
+      stateNode: { _nativeTag: STALE_ONLY_TAG },
+      pendingProps: { children: 'no longer mounted' },
+      memoizedProps: {},
+      return: stale,
+    };
+
+    const merged = mergeGenerations([stale, current]);
+
+    expect(merged.viewProps[NATIVE_TAG].text).toBe('Grace Hopper');
+    expect(merged.viewProps[STALE_ONLY_TAG].text).toBe('no longer mounted');
   });
 });
 

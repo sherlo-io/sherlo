@@ -104,7 +104,62 @@ export type WalkedFiber = {
   type: any;
   child?: WalkedFiber | null;
   sibling?: WalkedFiber | null;
+  return?: WalkedFiber | null;
+  tag?: number;
 };
+
+/** React's own numbering for a HostRoot fiber - the root of a whole tree, above every component. */
+const HOST_ROOT_TAG = 3;
+
+/**
+ * Whether `generationRoot` - a generation's own root fiber, either `fiber` or `fiber.alternate` -
+ * is the one React is currently showing. Walk `return` up from it to its own HostRoot fiber
+ * (`tag === HOST_ROOT_TAG`): a HostRoot's `stateNode` is the FiberRoot, and `FiberRoot.current` is
+ * always the HostRoot fiber of the tree React is showing right now - so `generationRoot` is
+ * current exactly when that HostRoot's `current` points back at itself, and stale when `current`
+ * points at its `alternate` instead.
+ *
+ * EXPORTED FOR TESTS, so the three cases in MetadataProvider's merge order can be built on a
+ * hand-built fiber pair, the way the walk itself already is (see collectFromRoot).
+ */
+export function isCurrentGeneration(generationRoot: WalkedFiber): boolean {
+  let fiber: WalkedFiber | null | undefined = generationRoot;
+  while (fiber && fiber.tag !== HOST_ROOT_TAG) {
+    fiber = fiber.return;
+  }
+  return !!fiber && fiber.stateNode?.current === fiber;
+}
+
+/**
+ * Walk every generation root handed over (a fiber its-fine returned, and its `.alternate` when it
+ * has one) and merge them into one reading - current generation first in the returned
+ * `generations` array (see the doc comment on `Metadata.generations` in MetadataProvider.tsx), and
+ * the merged `viewProps`/`texts` built stale-first, current-last: for a native tag both
+ * generations hold (a view updated in place, keeping its tag), the current generation's own entry
+ * is what survives; a tag only the stale generation holds is kept, under its own words.
+ *
+ * EXPORTED FOR TESTS, so the merge order is exercised without a React runtime, the same way
+ * collectFromRoot already is.
+ */
+export function mergeGenerations(roots: WalkedFiber[]): {
+  viewProps: ViewProps;
+  texts: string[];
+  generations: { viewProps: ViewProps; texts: string[] }[];
+} {
+  const orderedRoots = [...roots].sort(
+    (a, b) => Number(isCurrentGeneration(b)) - Number(isCurrentGeneration(a))
+  );
+  const generations = orderedRoots.map(collectFromRoot);
+
+  const viewProps: ViewProps = {};
+  const texts: string[] = [];
+  for (const generation of [...generations].reverse()) {
+    Object.assign(viewProps, generation.viewProps);
+    texts.push(...generation.texts);
+  }
+
+  return { viewProps, texts: [...new Set(texts)], generations };
+}
 
 /**
  * Walk one fiber generation - a `fiber` its-fine handed back, or its `.alternate` - collecting the
