@@ -303,6 +303,17 @@ function stableStringify(value) {
 }
 
 /**
+ * Expo's CLI sets this itself, inside the bundler process, to the absolute path of
+ * the project root being bundled - "required for @expo/metro-runtime to format
+ * paths in the web LogBox" (@expo/cli's withMetroMultiPlatform.js). It reaches no
+ * module (the header's own absolutePathLeaks guard is the proof), so it is never a
+ * legitimate reason for the header to differ - unlike every other EXPO_PUBLIC_ var,
+ * which really is string-inlined into the bundle by babel-preset-expo. Excluded by
+ * name, not by pattern, so a real EXPO_PUBLIC_ var still changes the header.
+ */
+var EXPO_PROJECT_ROOT_ENV_VAR = 'EXPO_PUBLIC_PROJECT_ROOT';
+
+/**
  * The env vars whose values can inline into a bundle, so a change to any of them
  * is a legitimate reason for otherwise-unchanged source to produce a different
  * bundle. Populated from Phase A spike question 4 (measured empirically, not read
@@ -314,6 +325,7 @@ function stableStringify(value) {
 function selectBundleInliningEnv() {
   var picked = {};
   Object.keys(process.env).forEach(function (name) {
+    if (name === EXPO_PROJECT_ROOT_ENV_VAR) return;
     if (
       name === 'NODE_ENV' ||
       name === 'BABEL_ENV' ||

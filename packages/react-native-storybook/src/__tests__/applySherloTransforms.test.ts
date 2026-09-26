@@ -740,6 +740,70 @@ describe('applySherloTransforms - cross-machine absolute-path guard (SHERLO-1894
 });
 
 // ---------------------------------------------------------------------------
+// The header does not depend on where the project sits on disk
+// ---------------------------------------------------------------------------
+//
+// Expo sets EXPO_PUBLIC_PROJECT_ROOT to the absolute project root inside the bundler process. The
+// same project bundled from two different folders must produce the same header, or two builds of
+// identical code are never comparable.
+
+describe('applySherloTransforms - the header is the same wherever the project sits', () => {
+  const manifestRelPath = ['node_modules', '.cache', 'sherlo', 'module-manifest.json'];
+
+  beforeEach(() => {
+    process.env.SHERLO_MODULE_MANIFEST = '1';
+  });
+  afterEach(() => {
+    delete process.env.SHERLO_MODULE_MANIFEST;
+    delete process.env.EXPO_PUBLIC_PROJECT_ROOT;
+    delete process.env.EXPO_PUBLIC_API_URL;
+  });
+
+  function headerFor(projectRoot: string) {
+    const result = applySherloTransforms(
+      { projectRoot, resolver: {}, serializer: { customSerializer: () => 'BYTES' } },
+      { enabled: true }
+    );
+    const { graph } = buildFakeGraph(projectRoot);
+    result.serializer.customSerializer('index.js', [], graph, { projectRoot });
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(projectRoot, ...manifestRelPath), 'utf8')
+    );
+    return manifest.header;
+  }
+
+  it('the same project in two folders produces the same module map header', () => {
+    const folderA = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-header-folder-a-'));
+    const folderB = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-header-folder-b-'));
+
+    // Expo's CLI sets this to the absolute project root inside the bundler process -
+    // the one thing that necessarily differs between the two folders.
+    process.env.EXPO_PUBLIC_PROJECT_ROOT = folderA;
+    const headerA = headerFor(folderA);
+    process.env.EXPO_PUBLIC_PROJECT_ROOT = folderB;
+    const headerB = headerFor(folderB);
+
+    fs.rmSync(folderA, { recursive: true, force: true });
+    fs.rmSync(folderB, { recursive: true, force: true });
+
+    expect(headerA).toEqual(headerB);
+  });
+
+  it('an EXPO_PUBLIC_ value that differs for another reason still changes the header', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-header-real-var-'));
+
+    process.env.EXPO_PUBLIC_API_URL = 'https://one.example.com';
+    const headerOne = headerFor(tmpDir);
+    process.env.EXPO_PUBLIC_API_URL = 'https://two.example.com';
+    const headerTwo = headerFor(tmpDir);
+
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
+    expect(headerOne).not.toEqual(headerTwo);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // The letterbox's address on the bundler
 // ---------------------------------------------------------------------------
 //
