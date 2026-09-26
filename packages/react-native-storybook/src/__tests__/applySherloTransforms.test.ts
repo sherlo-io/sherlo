@@ -740,6 +740,19 @@ describe('applySherloTransforms - cross-machine absolute-path guard (SHERLO-1894
 });
 
 // ---------------------------------------------------------------------------
+// The header does not depend on where the project sits on disk
+// ---------------------------------------------------------------------------
+//
+// Expo sets EXPO_PUBLIC_PROJECT_ROOT to the absolute project root inside the bundler process. The
+// same project bundled from two different folders must produce the same header, or two builds of
+// identical code are never comparable.
+
+describe('applySherloTransforms - the header is the same wherever the project sits', () => {
+  it.todo('the same project in two folders produces the same module map header');
+  it.todo('an EXPO_PUBLIC_ value that differs for another reason still changes the header');
+});
+
+// ---------------------------------------------------------------------------
 // The letterbox's address on the bundler
 // ---------------------------------------------------------------------------
 //
