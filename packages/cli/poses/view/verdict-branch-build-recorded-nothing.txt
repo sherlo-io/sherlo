@@ -1,0 +1,13 @@
+[32mBuild #16[39m · finished
+
+🔗 [4mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[24m
+
+[2m⏳ Waiting for build results (timeout: 45min)...[22m
+   <build progress masked>
+
+[33m⚠️  Build finished without recording any snapshots.[39m
+[33m   Nothing was captured and nothing was inherited, so this build is not[39m
+[33m   evidence that nothing changed. Check the run in Sherlo.[39m
+
+
+[exit 1]

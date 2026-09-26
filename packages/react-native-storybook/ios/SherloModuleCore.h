@@ -25,6 +25,9 @@
 /** Returns the current mode string (e.g. 'default', 'testing', 'storybook'). */
 + (NSString *)currentMode;
 
+/** Who drives this boot's testing walk ('runner' or 'capture'), or nil outside testing mode. */
++ (NSString *)driver;
+
 /** Records that getStorybook() was called; prevents the NOT_DISPLAYED timer from firing. */
 + (void)setGetStorybookCalled;
 
@@ -54,10 +57,22 @@
 
 /**
  * Switches to default mode.
- * 
+ *
  * @param bridge The React Native bridge needed for reloading
  */
 - (void)closeStorybook:(RCTBridge *)bridge;
+
+/**
+ * Switches to testing mode.
+ *
+ * @param bridge The React Native bridge needed for reloading
+ * @param storyId The story to land the restarted app on directly (as `initialSelection` - see
+ *                TestingMode/Storybook.tsx), or empty when there is none to hand over.
+ * @param configJson The config to hand the restarted app over as `config` - a capture has no
+ *                    config.sherlo of its own, so the JS caller sends getConfigOrDefault()'s
+ *                    answer instead (see captureTransport.ts).
+ */
+- (void)openTesting:(RCTBridge *)bridge storyId:(NSString *)storyId configJson:(NSString *)configJson;
 
 /**
  * Writes a NATIVE_ERROR JSON line to protocol.sherlo.

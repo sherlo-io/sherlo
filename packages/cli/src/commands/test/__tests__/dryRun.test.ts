@@ -1,0 +1,555 @@
+/**
+ * Tests for the test:bundled --dry-run capture-plan preview (SHERLO-1919, format
+ * replacing SHERLO-1895/1915).
+ *
+ * Covers the two contract-INDEPENDENT halves of the dry run:
+ *   - formatDryRunPreview: the plain-text rendering of decided (partial + full)
+ *     and bailed-open platforms, including that server reason strings are printed
+ *     VERBATIM, that an isFullCapture=true result with an EMPTY
+ *     capturedStoryFilePaths list renders as "would capture all N stories" (never
+ *     "nothing"), and that the "◦ Dry run" closer is appended.
+ *   - runDryRunPreview: orchestration + bail-open. It issues ONE decision call for
+ *     all platforms; a platform the server omits, or a query that throws, is
+ *     previewed as "would capture all stories" (bail-open safety) and never
+ *     dropped; the run never throws for a decision problem.
+ *
+ * The decision query itself (requestDryRunDecision) is the contract seam and is
+ * mocked here - this suite asserts everything AROUND it.
+ */
+import chalk from 'chalk';
+chalk.level = 0;
+
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { mockRequestDryRunDecision } = vi.hoisted(() => ({
+  mockRequestDryRunDecision: vi.fn(),
+}));
+
+vi.mock('../dryRunDecision', () => ({
+  requestDryRunDecision: mockRequestDryRunDecision,
+}));
+
+vi.mock('../../../helpers/reporting', () => ({
+  default: { addBreadcrumb: vi.fn() },
+}));
+
+// The base-identity test below exercises the real computeBaseFingerprint - its
+// only external effects are @expo/fingerprint and a shell-spawning autolinking
+// resolve, both mocked out exactly as helpers/fingerprint's own suite mocks
+// them, so the test stays fast and hermetic.
+const mockCreateFingerprintAsync = vi.fn();
+vi.mock('@expo/fingerprint', () => ({
+  createFingerprintAsync: (...args: unknown[]) => mockCreateFingerprintAsync(...args),
+  SourceSkips: { None: 0, ExpoConfigVersions: 1, ExpoConfigRuntimeVersionIfString: 2 },
+}));
+vi.mock('../../../helpers/runShellCommand', () => ({
+  default: vi.fn().mockRejectedValue(new Error('not available in test')),
+}));
+
+import { formatDryRunPreview, runDryRunPreview, type DryRunPlatformPreview } from '../dryRun';
+import type { DryRunPlatformDecision } from '../dryRunDecision';
+import { computeBaseFingerprint } from '../../../helpers/fingerprint';
+import reporting from '../../../helpers/reporting';
+
+/** The sentinel `../../../helpers/getGitInfo`'s `degradeGitInfo` returns when the git read fails. */
+const unreadableGitInfo: any = {
+  commitName: 'unknown',
+  commitHash: 'unknown',
+  branchName: 'unknown',
+};
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockCreateFingerprintAsync.mockResolvedValue({ hash: 'fp-layer1-stable' });
+});
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** A bundle whose only relevant field for the dry run is the module manifest. */
+function bundleWithManifest(): any {
+  return {
+    moduleManifest: {
+      raw: Buffer.from('{}'),
+      parsed: { version: 1, header: {}, moduleHashes: {}, storyClosures: {} },
+    },
+  };
+}
+
+function bundleWithoutManifest(): any {
+  return { moduleManifest: undefined };
+}
+
+/** The git info the CLI already built for openBuild - passed straight through. */
+const gitInfo: any = { branchName: 'feature', commitHash: 'abc', commitName: 'msg' };
+
+// ---------------------------------------------------------------------------
+// formatDryRunPreview
+// ---------------------------------------------------------------------------
+
+describe('formatDryRunPreview', () => {
+  it('Case 6: renders a partial platform verbatim, closing with the dry-run notice', () => {
+    const decision: DryRunPlatformDecision = {
+      platform: 'android',
+      isFullCapture: false,
+      capturedStoryFilePaths: [
+        'src/components/Storefront/CheckoutScreen.stories.tsx',
+        'src/components/Storefront/PriceTag.stories.tsx',
+        'src/components/Storefront/PriceTagInline.stories.tsx',
+        'src/components/Storefront/ProductCard.stories.tsx',
+        'src/components/Storefront/ProductCardCompact.stories.tsx',
+        'src/components/Storefront/SharedButton.stories.tsx',
+      ],
+      totalStories: 22,
+      reason: 'SharedButton.tsx changed',
+    };
+
+    const output = formatDryRunPreview([{ status: 'decided', decision }]);
+
+    expect(output).toBe(
+      [
+        '📸 Capture plan (dry run)',
+        '  🤖 Android - would capture 6 of 22 stories in this bundle, reusing 16 from the previous build',
+        '     why: SharedButton.tsx changed',
+        '     stories:',
+        '       • Storefront/CheckoutScreen',
+        '       • Storefront/PriceTag',
+        '       • Storefront/PriceTagInline',
+        '       • Storefront/ProductCard',
+        '       • Storefront/ProductCardCompact',
+        '       • Storefront/SharedButton',
+        '',
+        '◦ Dry run - no build created, nothing uploaded',
+      ].join('\n')
+    );
+  });
+
+  it('renders a PARTIAL zero-capture as "nothing to capture" with its verbatim reason', () => {
+    const decision: DryRunPlatformDecision = {
+      platform: 'android',
+      isFullCapture: false,
+      capturedStoryFilePaths: [],
+      totalStories: 5,
+      reason: 'no change reaches any story',
+    };
+
+    const output = formatDryRunPreview([{ status: 'decided', decision }]);
+
+    expect(output).toContain('🤖 Android - nothing to capture - no change reaches any story');
+    expect(output).toContain('     ✓ none of the 5 stories in this bundle need capture');
+    // A partial-zero has no capture verb at all.
+    expect(output).not.toContain('would capture');
+  });
+
+  it('renders a FULL capture (isFullCapture=true, EMPTY list) as "would capture all N stories"', () => {
+    const decision: DryRunPlatformDecision = {
+      platform: 'ios',
+      isFullCapture: true,
+      capturedStoryFilePaths: [],
+      totalStories: 12,
+      reason: 'main-branch',
+    };
+
+    const output = formatDryRunPreview([{ status: 'decided', decision }]);
+
+    expect(output).toContain('🍎 iOS - would capture all 12 stories in this bundle');
+    expect(output).toContain('     why: main-branch');
+    // The dangerous misreads: never render the empty list as "nothing".
+    expect(output).not.toContain('nothing to capture');
+    expect(output).not.toContain('would capture 0');
+    expect(output).not.toContain('stories:');
+  });
+
+  it("renders a full capture from the server's in-band bail-open reason verbatim", () => {
+    // The server bails open IN-BAND: isFullCapture=true + reason "dry-run-error: ...".
+    const decision: DryRunPlatformDecision = {
+      platform: 'android',
+      isFullCapture: true,
+      capturedStoryFilePaths: [],
+      totalStories: 8,
+      reason: 'dry-run-error: base ancestry lookup timed out',
+    };
+
+    const output = formatDryRunPreview([{ status: 'decided', decision }]);
+
+    expect(output).toContain('🤖 Android - would capture all 8 stories in this bundle');
+    expect(output).toContain('     why: dry-run-error: base ancestry lookup timed out');
+  });
+
+  it('omits the "of M" total on a partial when the decision does not report one', () => {
+    const decision: DryRunPlatformDecision = {
+      platform: 'ios',
+      isFullCapture: false,
+      capturedStoryFilePaths: ['src/components/a/A.stories.tsx'],
+      reason: 'a.ts changed',
+    };
+
+    const output = formatDryRunPreview([{ status: 'decided', decision }]);
+
+    expect(output).toContain('would capture 1 story');
+    expect(output).not.toContain(' of ');
+  });
+
+  it('renders a bailed-open platform as "would capture all stories" with the couldn\'t-compute row', () => {
+    const previews: DryRunPlatformPreview[] = [
+      { status: 'bailed-open', platform: 'ios', reason: 'network exploded' },
+    ];
+
+    const output = formatDryRunPreview(previews);
+
+    expect(output).toContain('🍎 iOS - would capture all stories');
+    expect(output).toContain(
+      "     ! couldn't compute what changed - capturing everything to be safe"
+    );
+    // The raw error stays in telemetry, not on the user's line.
+    expect(output).not.toContain('network exploded');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// runDryRunPreview
+// ---------------------------------------------------------------------------
+
+describe('runDryRunPreview', () => {
+  const token = 'test-token';
+
+  it('issues ONE decision call for all platforms and prints the decided preview', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockRequestDryRunDecision.mockResolvedValue([
+      {
+        platform: 'ios',
+        isFullCapture: false,
+        capturedStoryFilePaths: ['src/components/App/App.stories.tsx'],
+        totalStories: 3,
+        reason: 'App.tsx changed',
+      },
+    ] as DryRunPlatformDecision[]);
+
+    await runDryRunPreview({
+      token,
+      bundles: { ios: bundleWithManifest() },
+      platformsToTest: ['ios'],
+      projectIndex: 7,
+      teamId: 'team-42',
+      gitInfo,
+      baseReference: 'fp-123',
+    });
+
+    // The seam was called ONCE with the exact inputs it needs to issue the query.
+    expect(mockRequestDryRunDecision).toHaveBeenCalledTimes(1);
+    const arg = mockRequestDryRunDecision.mock.calls[0][0];
+    expect(arg.token).toBe(token);
+    expect(arg.projectIndex).toBe(7);
+    expect(arg.teamId).toBe('team-42');
+    expect(arg.gitInfo).toBe(gitInfo);
+    expect(arg.platforms).toHaveLength(1);
+    expect(arg.platforms[0].platform).toBe('ios');
+    expect(arg.platforms[0].bundled).toBe(true);
+    expect(arg.platforms[0].baseReference).toBe('fp-123');
+    expect(arg.platforms[0].manifest.parsed.version).toBe(1);
+
+    const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(printed).toContain(
+      '🍎 iOS - would capture 1 of 3 stories in this bundle, reusing 2 from the previous build'
+    );
+    expect(printed).toContain('why: App.tsx changed');
+    expect(printed).toContain('◦ Dry run - no build created, nothing uploaded');
+
+    logSpy.mockRestore();
+  });
+
+  it('forwards the config include/exclude lists straight through to the decision seam', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockRequestDryRunDecision.mockResolvedValue([
+      {
+        platform: 'ios',
+        isFullCapture: false,
+        capturedStoryFilePaths: [],
+        totalStories: 3,
+        reason: 'App.tsx changed',
+      },
+    ] as DryRunPlatformDecision[]);
+
+    await runDryRunPreview({
+      token,
+      bundles: { ios: bundleWithManifest() },
+      platformsToTest: ['ios'],
+      projectIndex: 7,
+      teamId: 'team-42',
+      gitInfo,
+      baseReference: 'fp-123',
+      include: ['src/Storefront/**'],
+      exclude: ['src/Storefront/Internal/**'],
+    });
+
+    const arg = mockRequestDryRunDecision.mock.calls[0][0];
+    expect(arg.include).toEqual(['src/Storefront/**']);
+    expect(arg.exclude).toEqual(['src/Storefront/Internal/**']);
+
+    logSpy.mockRestore();
+  });
+
+  it('sends a manifest-less platform through the SAME call (no local drop)', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    // Server previews the manifest-less platform as manifest-missing (full).
+    mockRequestDryRunDecision.mockResolvedValue([
+      {
+        platform: 'android',
+        isFullCapture: true,
+        capturedStoryFilePaths: [],
+        reason: 'manifest-missing',
+      },
+    ] as DryRunPlatformDecision[]);
+
+    await runDryRunPreview({
+      token,
+      bundles: { android: bundleWithoutManifest() },
+      platformsToTest: ['android'],
+      projectIndex: 1,
+      teamId: 'team',
+      gitInfo,
+    });
+
+    // Still ONE call - the platform is sent with an absent manifest, not dropped.
+    expect(mockRequestDryRunDecision).toHaveBeenCalledTimes(1);
+    const arg = mockRequestDryRunDecision.mock.calls[0][0];
+    expect(arg.platforms).toHaveLength(1);
+    expect(arg.platforms[0].platform).toBe('android');
+    expect(arg.platforms[0].manifest).toBeUndefined();
+    // No base fingerprint was passed -> baseReference omitted.
+    expect(arg.platforms[0].baseReference).toBeUndefined();
+
+    const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
+    // No manifest total -> full capture degrades to "all stories" (no number).
+    expect(printed).toContain('🤖 Android - would capture all stories');
+    expect(printed).toContain('why: manifest-missing');
+
+    logSpy.mockRestore();
+  });
+
+  it('bails open for EVERY platform (never throws) when the decision query fails', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockRequestDryRunDecision.mockRejectedValue(new Error('network exploded'));
+
+    await expect(
+      runDryRunPreview({
+        token,
+        bundles: { ios: bundleWithManifest(), android: bundleWithManifest() },
+        platformsToTest: ['ios', 'android'],
+        projectIndex: 1,
+        teamId: 'team',
+        gitInfo,
+      })
+    ).resolves.toBeUndefined();
+
+    const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(printed).toContain('🍎 iOS - would capture all stories');
+    expect(printed).toContain('🤖 Android - would capture all stories');
+    expect(printed).toContain("! couldn't compute what changed - capturing everything to be safe");
+    // The raw error is telemetry-only, never on the user's line.
+    expect(printed).not.toContain('network exploded');
+
+    logSpy.mockRestore();
+  });
+
+  it('bails open only the platform the server omitted from its results', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockRequestDryRunDecision.mockResolvedValue([
+      {
+        platform: 'ios',
+        isFullCapture: false,
+        capturedStoryFilePaths: ['src/components/x/X.stories.tsx'],
+        reason: 'x.tsx changed',
+      },
+      // android intentionally absent from the server's results.
+    ] as DryRunPlatformDecision[]);
+
+    await runDryRunPreview({
+      token,
+      bundles: { ios: bundleWithManifest(), android: bundleWithManifest() },
+      platformsToTest: ['ios', 'android'],
+      projectIndex: 1,
+      teamId: 'team',
+      gitInfo,
+    });
+
+    const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(printed).toContain('🍎 iOS - would capture 1 story');
+    expect(printed).toContain('🤖 Android - would capture all stories');
+
+    logSpy.mockRestore();
+  });
+
+  it('renders a mix: one platform partial, one full', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockRequestDryRunDecision.mockResolvedValue([
+      {
+        platform: 'ios',
+        isFullCapture: false,
+        capturedStoryFilePaths: ['src/components/x/X.stories.tsx'],
+        totalStories: 4,
+        reason: 'x.tsx changed',
+      },
+      {
+        platform: 'android',
+        isFullCapture: true,
+        capturedStoryFilePaths: [],
+        totalStories: 4,
+        reason: 'native-changed',
+      },
+    ] as DryRunPlatformDecision[]);
+
+    await runDryRunPreview({
+      token,
+      bundles: { ios: bundleWithManifest(), android: bundleWithManifest() },
+      platformsToTest: ['ios', 'android'],
+      projectIndex: 1,
+      teamId: 'team',
+      gitInfo,
+    });
+
+    const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(printed).toContain(
+      '🍎 iOS - would capture 1 of 4 stories in this bundle, reusing 3 from the previous build'
+    );
+    expect(printed).toContain('• x/X');
+    expect(printed).toContain('🤖 Android - would capture all 4 stories in this bundle');
+    expect(printed).toContain('why: native-changed');
+
+    logSpy.mockRestore();
+  });
+
+  it('a preview that cannot read git warns, and says it captured everything because it could not tell', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await runDryRunPreview({
+      token,
+      bundles: { ios: bundleWithManifest() },
+      platformsToTest: ['ios'],
+      projectIndex: 7,
+      teamId: 'team-42',
+      gitInfo: unreadableGitInfo,
+      baseReference: 'fp-123',
+    });
+
+    // Unreadable git identity is never sent to the server as if it meant something -
+    // the decision query is never asked.
+    expect(mockRequestDryRunDecision).not.toHaveBeenCalled();
+
+    expect(reporting.addBreadcrumb).toHaveBeenCalledWith(
+      expect.objectContaining({ level: 'warning' })
+    );
+
+    const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(printed).toContain('🍎 iOS - would capture all stories');
+    expect(printed).toContain("! couldn't compute what changed - capturing everything to be safe");
+    expect(printed).not.toContain('first build');
+
+    logSpy.mockRestore();
+  });
+
+  it('a preview whose server cannot be reached says it could not tell, and never reports a first build', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockRequestDryRunDecision.mockRejectedValue(new Error('connect ECONNREFUSED 127.0.0.1:443'));
+
+    await runDryRunPreview({
+      token,
+      bundles: { ios: bundleWithManifest() },
+      platformsToTest: ['ios'],
+      projectIndex: 7,
+      teamId: 'team-42',
+      gitInfo,
+      baseReference: 'fp-123',
+    });
+
+    const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(printed).toContain('🍎 iOS - would capture all stories');
+    expect(printed).toContain("! couldn't compute what changed - capturing everything to be safe");
+    // A bail-open never sounds precise about a count, and never borrows the server's
+    // own "first build" reading of an absent base reference.
+    expect(printed).not.toContain('in this bundle');
+    expect(printed).not.toContain('first build');
+    expect(printed).not.toContain('ECONNREFUSED');
+
+    logSpy.mockRestore();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The base identity a dry run hands to `baseReference` (SHERLO-1919 follow-up)
+// ---------------------------------------------------------------------------
+//
+// runDryRunPreview itself only forwards whatever baseReference it is given
+// (asserted above) - the identity's correctness is computeBaseFingerprint's
+// job. It is exercised here, directly, because THIS is the exact shape a dry
+// run puts it through: bundle + fingerprint, no install step of its own.
+
+describe('the base identity a dry run states (computeBaseFingerprint)', () => {
+  function makeProjectDir(): string {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-dryrun-baseid-'));
+    fs.writeFileSync(
+      path.join(dir, 'yarn.lock'),
+      '# yarn lockfile\nexisting-package@1.0.0:\n  version "1.0.0"\n'
+    );
+    return dir;
+  }
+
+  function writePackageJson(dir: string, dependencies: Record<string, string>): void {
+    fs.writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify({ name: 'dry-run-fixture', version: '1.0.0', dependencies })
+    );
+  }
+
+  it('a dry run states a base identity that moves when a native-linking dependency is added', async () => {
+    const dir = makeProjectDir();
+    try {
+      // Before: the declared dependency set the ancestor build was fingerprinted
+      // with - nothing native-linking added yet.
+      writePackageJson(dir, {});
+      const before = await computeBaseFingerprint(dir);
+      expect(before.hash).toMatch(/^[a-f0-9]{64}$/);
+
+      // After: package.json now declares a native-linking dependency (exactly
+      // what "native-dep-added" does), but a dry run bundles and fingerprints
+      // without ever running an install - node_modules never gains it, so
+      // neither the lockfile nor the autolinked-module resolve can see it.
+      writePackageJson(dir, { 'expo-crypto': '~1.0.0' });
+      const after = await computeBaseFingerprint(dir);
+
+      // The identity MOVES: from a confirmed match to a confirmed "cannot say" -
+      // never the old, now-stale, hash repeated as if nothing had changed. A
+      // dry-run preview reads an absent baseReference exactly like a changed
+      // one (see dryRunDecision/computeDiffScopeDecision), so this is the one
+      // honest way for the identity to move when install state can't confirm it.
+      expect(after.hash).toBeNull();
+      expect(after.hash).not.toBe(before.hash);
+      expect(after.debugMessage).toContain('expo-crypto');
+      expect(after.debugMessage).toContain('not installed');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('a dependency already resolvable from node_modules does not block the identity', async () => {
+    const dir = makeProjectDir();
+    try {
+      fs.mkdirSync(path.join(dir, 'node_modules', 'expo-crypto'), { recursive: true });
+      fs.writeFileSync(
+        path.join(dir, 'node_modules', 'expo-crypto', 'package.json'),
+        JSON.stringify({ name: 'expo-crypto', version: '1.0.0' })
+      );
+      writePackageJson(dir, { 'expo-crypto': '~1.0.0' });
+
+      const result = await computeBaseFingerprint(dir);
+
+      expect(result.hash).toMatch(/^[a-f0-9]{64}$/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});

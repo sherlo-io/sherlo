@@ -1,0 +1,36 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--story", "animations--spinner"],
+  "capture": {
+    "stories": ["animations--spinner", "foundation-typography--scales"],
+    "settled": "timed-out",
+    "tree": {
+      "primitive": "View",
+      "components": ["Spinner"],
+      "size": { "width": 360, "height": 800 },
+      "style": { "flex": 1, "alignItems": "center", "justifyContent": "center", "backgroundColor": "#fff" },
+      "children": [
+        {
+          "primitive": "View",
+          "components": ["SpinnerRing"],
+          "size": { "width": 48, "height": 48 },
+          "style": { "width": 48, "height": 48, "borderWidth": 4, "borderColor": "#0066cc", "borderTopColor": "transparent", "borderRadius": 24, "transform": [{ "rotate": "137deg" }] }
+        },
+        {
+          "primitive": "Text",
+          "size": { "width": 72, "height": 20 },
+          "style": { "marginTop": 12, "fontSize": 14, "color": "#6b7280" },
+          "text": "Loading..."
+        }
+      ]
+    }
+  }
+}

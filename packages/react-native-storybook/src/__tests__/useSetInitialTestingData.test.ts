@@ -99,6 +99,22 @@ describe('useSetInitialTestingData', () => {
     expect(RunnerBridge.send).not.toHaveBeenCalled();
   });
 
+  it('returns early and does NOT send START when enabled is false, even with no lastState', async () => {
+    // The state a capture with no storyId handed over is in: no lastState to stop the
+    // `if (lastState) return` guard on its own, so `enabled` (driven by SherloModule.getDriver() in
+    // useTestAllStories) is the one thing standing between this and writing protocol.sherlo for a
+    // runner that was never there to answer it.
+    (SherloModule.getLastState as ReturnType<typeof vi.fn>).mockReturnValue(undefined);
+
+    const view = {} as any;
+    useSetInitialTestingData({ view, enabled: false });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(RunnerBridge.send).not.toHaveBeenCalled();
+  });
+
   it('applies discoveryFilter when config.discoveryFilter.includeStoryIds is set', async () => {
     (SherloModule.getLastState as ReturnType<typeof vi.fn>).mockReturnValue(undefined);
     const allMetas = [

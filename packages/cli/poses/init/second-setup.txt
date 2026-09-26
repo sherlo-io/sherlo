@@ -1,0 +1,107 @@
+
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+    [93m.[39m[93md[39m[93m8[39m[93m8[39m[93m8[39m[93m8[39m[93mb[39m  [93m8[39m[93m8[39m[93m8[39m [93m8[39m[93mb[39m[93m.[39m   [97m.[39m[97md[39m[97m8[39m[97m8[39m[97mb[39m[97m.[39m  [97m.[39m[97md[39m[97m8[39m[97m8[39m[97m8[39m[97m8[39m[97m8[39m [97m8[39m[97m8[39m[97m8[39m  [97m.[39m[97md[39m[97m8[39m[97m8[39m[97mb[39m[97m.[39m  
+    [97m8[39m[97m8[39m[97mK[39m      [97m8[39m[97m8[39m[97m8[39m [97m"[39m[97m8[39m[97m8[39m[97mb[39m [97md[39m[97m8[39m[97mP[39m  [97mY[39m[97m8[39m[97mb[39m [97m8[39m[97m8[39m[97m8[39m[97m"[39m    [97m8[39m[97m8[39m[97m8[39m [97md[39m[97m8[39m[97m8[39m[97m"[39m[97m"[39m[97m8[39m[97m8[39m[97mb[39m 
+    [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96mb[39m[96m.[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m 
+         [96mX[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m [96mY[39m[96m8[39m[96mb[39m[96m.[39m     [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m [96mY[39m[96m8[39m[96m8[39m[96m.[39m[96m.[39m[96m8[39m[96m8[39m[96mP[39m 
+    [96m'[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96mP[39m[96m'[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m  [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m  [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96mP[39m[96m"[39m
+
+[2m[3mMake sure your mobile app looks perfect on every device[23m[22m
+
+Initializing Sherlo in your project...
+
+
+[1m✅ Requirements[22m
+[2m═══════════════[22m
+
+[32m✔[39m React Native
+[32m✔[39m Storybook
+
+
+[1m💾 Dependencies[22m
+[2m═══════════════[22m
+
+✔ Installed Sherlo
+
+
+[1m🧩 Metro Config[22m
+[2m═══════════════[22m
+
+[32m✔[39m Already updated: <PROJECT_ROOT>/metro.config.js
+
+
+[1m🔑 Storybook Access[22m
+[2m═══════════════════[22m
+
+To enable Sherlo to access Storybook, choose one:
+
+
+[1mOption 1: Standalone Storybook[22m
+
+  Provide a build that [4mopens straight into Storybook[24m
+
+  [34m[2m╭─[22m[39m[34m Root component [39m[34m[2m────────────────────────╮[22m[39m
+  [34m[2m│[22m[39m [36mimport[39m Storybook [36mfrom[39m [35m"./.rnstorybook"[39m; [34m[2m│[22m[39m
+  [34m[2m│[22m[39m                                         [34m[2m│[22m[39m
+  [34m[2m│[22m[39m [36mexport default function[39m [32mApp[39m() {         [34m[2m│[22m[39m
+  [34m[2m│[22m[39m   [36mreturn[39m <[35mStorybook[39m />;                 [34m[2m│[22m[39m
+  [34m[2m│[22m[39m }                                       [34m[2m│[22m[39m
+  [34m[2m╰─────────────────────────────────────────╯[22m[39m
+
+
+[1mOption 2: Integrated Storybook[22m
+
+  Update your Root component [3m(could be App.jsx or app/_layout.jsx)[23m:
+
+  [34m[2m╭─[22m[39m[34m Root component [39m[34m[2m──────────────────────────────────────────────────╮[22m[39m
+  [34m[2m│[22m[39m [36mimport[39m { isStorybookMode } [36mfrom[39m [35m"@sherlo/react-native-storybook"[39m; [34m[2m│[22m[39m
+  [34m[2m│[22m[39m [36mimport[39m Storybook [36mfrom[39m [35m"./.rnstorybook"[39m;                           [34m[2m│[22m[39m
+  [34m[2m│[22m[39m                                                                   [34m[2m│[22m[39m
+  [34m[2m│[22m[39m [36mexport default function[39m [32mApp[39m() {                                   [34m[2m│[22m[39m
+  [34m[2m│[22m[39m   [36mif[39m (isStorybookMode) {                                          [34m[2m│[22m[39m
+  [34m[2m│[22m[39m     [36mreturn[39m <[35mStorybook[39m />;                                         [34m[2m│[22m[39m
+  [34m[2m│[22m[39m   }                                                               [34m[2m│[22m[39m
+  [34m[2m│[22m[39m                                                                   [34m[2m│[22m[39m
+  [34m[2m│[22m[39m   [36mreturn[39m <[35mYourApp[39m />;                                             [34m[2m│[22m[39m
+  [34m[2m│[22m[39m }                                                                 [34m[2m│[22m[39m
+  [34m[2m╰───────────────────────────────────────────────────────────────────╯[22m[39m
+
+[33mWARNING: Provide Storybook access by choosing one of the options above[39m
+[2m↳ Learn more: [4mhttps://sherlo.io/docs/setup#storybook-access[24m[22m
+
+[1m👉 Ready to move on? Press Enter...[22m[2K[1A[2K[G[G
+
+[1m📋 Config[22m
+[2m═════════[22m
+
+[32m✔[39m Already created: sherlo.config.json
+
+
+[1m📦 Builds[22m
+[2m═════════[22m
+
+[33m╭─[39m[33m Before building [39m[33m────────────────────────────╮[39m
+[33m│[39m Make sure you have provided [1mStorybook Access[22m [33m│[39m
+[33m╰──────────────────────────────────────────────╯[39m
+
+Create builds aligned with your chosen testing method:
+  [36m[4mhttps://sherlo.io/docs/builds[24m[39m
+
+
+[1m🧪 Testing[22m
+[2m══════════[22m
+
+[33m╭─[39m[33m Before testing [39m[33m──────────────────────────╮[39m
+[33m│[39m Make sure you have prepared proper [1mBuilds[22m [33m│[39m
+[33m╰───────────────────────────────────────────╯[39m
+
+To test your app run:
+  [36mnpx sherlo test --android <path> --ios <path>[39m
+
+[34mINFO: That first run registers your builds as the base. After it, plain `npx sherlo test` tests JS-only changes with no native rebuild, and tells you when a fresh native build is needed[39m
+[2m↳ Learn more: [4mhttps://sherlo.io/docs/testing[24m[22m
+
+
+[exit 0]

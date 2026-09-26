@@ -8,11 +8,21 @@ function executeCommand({
   projectRoot,
   encoding,
   env,
+  envMode = 'merge',
 }: {
   command: string;
   projectRoot: string;
   encoding: 'utf8' | 'buffer';
   env?: NodeJS.ProcessEnv;
+  /**
+   * How `env` combines with the CLI's ambient environment:
+   *   - 'merge'   (default): `{ ...process.env, ...env }` - inherit everything.
+   *   - 'replace': `{ ...env }` ONLY - the child gets exactly what is passed and
+   *     does NOT inherit the ambient env. Used where subprocess output must be
+   *     deterministic across commands regardless of the env the CLI was launched
+   *     with (SHERLO-1744 - the autolinking resolve subprocess).
+   */
+  envMode?: 'merge' | 'replace';
 }): Promise<string | Buffer> {
   return new Promise((resolve, reject) => {
     const options: {
@@ -23,7 +33,10 @@ function executeCommand({
     } = {
       cwd: projectRoot,
       maxBuffer: 1 * 1024 * 1024 * 1024, // 1GB max buffer - very safe limit
-      env: { ...process.env, FORCE_COLOR: 'true', ...env },
+      env:
+        envMode === 'replace'
+          ? { FORCE_COLOR: 'true', ...env }
+          : { ...process.env, FORCE_COLOR: 'true', ...env },
     };
 
     // Set encoding only if it's 'utf8', for 'buffer' we don't set it to get Buffer output

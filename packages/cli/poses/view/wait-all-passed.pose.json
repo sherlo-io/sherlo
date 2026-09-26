@@ -1,0 +1,15 @@
+{
+  "pose": 1,
+  "argv": ["view", "8", "--wait"],
+  "files": {
+    "sherlo.config.json": { "token": "posetokenposetokenposetokenpose1tm0000017", "devices": [{ "id": "pixel.7", "osVersion": "13" }] }
+  },
+  "env": { "SKIP_INTRO": "true" },
+  "git": { "branch": "main", "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c", "dirty": false },
+  "bundles": {},
+  "api": [
+    { "call": "getBuildStatus", "with": { "buildIndex": 8 }, "answer": { "runStatus": "finished", "status": "noChanges", "viewStatusesCount": { "approved": 5, "noChanges": 39, "reported": 0, "unreviewed": 0 } } },
+    { "call": "getBuildStatus", "with": { "buildIndex": 8 }, "answer": { "runStatus": "finished", "status": "noChanges", "viewStatusesCount": { "approved": 5, "noChanges": 39, "reported": 0, "unreviewed": 0 } } }
+  ],
+  "masks": {}
+}

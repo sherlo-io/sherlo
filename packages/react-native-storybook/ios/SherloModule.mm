@@ -68,6 +68,14 @@ static void SherloEarlyInit(void) {
 }
 
 /**
+ * Explicitly switches to testing mode.
+ */
+- (void)openTesting:(NSString *)storyId config:(NSString *)config
+{
+  [core openTesting:self.bridge storyId:storyId configJson:config];
+}
+
+/**
  * Sends a native error by writing a NATIVE_ERROR JSON line to protocol.sherlo.
  */
 - (void)sendNativeError:(NSString *)errorCode
@@ -209,6 +217,14 @@ RCT_EXPORT_METHOD(openStorybook) {
  */
 RCT_EXPORT_METHOD(closeStorybook) {
   [core closeStorybook:self.bridge];
+}
+
+/**
+ * Explicitly switches to testing mode.
+ */
+RCT_EXPORT_METHOD(openTesting:(NSString *)storyId
+                  config:(NSString *)config) {
+  [core openTesting:self.bridge storyId:storyId configJson:config];
 }
 
 /**
