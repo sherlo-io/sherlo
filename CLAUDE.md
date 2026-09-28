@@ -6,6 +6,16 @@ Public monorepo for Sherlo's React Native SDK. Two published packages live in `p
 
 This repository is public - anything committed here (workflows, scripts, docs) is visible to external contributors, so it must never reference internal-only infrastructure.
 
+## Type Checking
+
+Type-check the whole repository from the root:
+
+```bash
+yarn typecheck
+```
+
+It checks `packages/cli`, `packages/react-native-storybook` and `contracts`, the same projects `.github/workflows/pr_checks.yml` checks.
+
 ## Test Execution
 
 There is no root `test` script in this repo. The unit suites are per-package (both vitest), each invoked via that package's own `yarn test`:
