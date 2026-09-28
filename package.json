@@ -26,11 +26,12 @@
   "scripts": {
     "build": "lerna run build",
     "repo": "node scripts/repo.mjs",
-    "lint": "NODE_ENV=production yarn run -T eslint --ext .ts,.tsx packages/cli/src packages/react-native-storybook/src",
+    "lint": "NODE_ENV=production yarn run -T eslint --cache --cache-location=.cache/eslint-packages --ext .ts,.tsx packages/cli/src packages/react-native-storybook/src",
     "lint:circular-dependencies": "npx madge --extensions ts --circular .",
     "lint:js": "cross-env NODE_ENV=production eslint --cache --cache-location=.cache/eslint --ext .js,.jsx,.html,.ts,.tsx,.mjs --report-unused-disable-directives",
     "lint:js:fix": "cross-env NODE_ENV=production eslint --fix --cache --cache-location=.cache/eslint --ext .js,.jsx,.html,.ts,.tsx,.mjs --report-unused-disable-directives",
     "lint:types": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p packages/cli && tsc --noEmit -p packages/react-native-storybook && tsc --noEmit -p contracts",
     "reset": "./scripts/reset.sh",
     "switch-env:test": "./scripts/switch-env.sh test",
     "switch-env:dev": "./scripts/switch-env.sh dev",
