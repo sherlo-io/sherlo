@@ -62,7 +62,11 @@ jobs:
         env:
           CLONE_TOKEN: ${{ steps.github_app_token.outputs.token }}
           LIBS_BRANCH: ${{ steps.libs.outputs.ref }}
+        # Run outside this checkout: actions/checkout leaves this repository's own token in its
+        # git config as an extra header, and git would send that instead of CLONE_TOKEN.
+        working-directory: ${{ runner.temp }}
         run: |
+          set -o pipefail
           sha=$(git ls-remote "https://x-access-token:${CLONE_TOKEN}@github.com/sherlo-io/sherlo-api.git" "refs/heads/$LIBS_BRANCH" | cut -f1)
           if [ -z "$sha" ]; then
             echo "Error: '$LIBS_BRANCH' names no branch in sherlo-io/sherlo-api" >&2
