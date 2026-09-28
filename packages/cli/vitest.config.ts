@@ -1,5 +1,10 @@
 import { defineConfig } from 'vitest/config';
 
+// A machine that runs several jobs side by side sets BRAIN_SLOT_CPUS to this run's share of its
+// cores, so the run does not take them all. Unset (a plain local run, or CI), vitest's own default.
+const slotCpus = Number(process.env.BRAIN_SLOT_CPUS);
+const maxWorkers = slotCpus > 0 ? slotCpus : undefined;
+
 export default defineConfig({
   test: {
     include: [
@@ -13,5 +18,6 @@ export default defineConfig({
       '../../actions/lib/__tests__/**/*.test.mjs',
     ],
     globals: true,
+    maxWorkers,
   },
 });

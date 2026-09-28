@@ -75,11 +75,11 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
                 </StoryOfTheApp>
               </SherloStoryErrorBoundary>
             ),
-            ...(annotations.decorators ?? []),
+            ...toList(annotations.decorators),
           ],
           ...(delayMs !== undefined && {
             loaders: [
-              ...(annotations.loaders ?? []),
+              ...toList(annotations.loaders),
               async () => {
                 await new Promise((r) => setTimeout(r, delayMs));
               },
@@ -206,6 +206,13 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 export default getStorybook;
 
 /* ========================================================================== */
+
+// Storybook lets a project write `decorators` and `loaders` as one function or as a list of them.
+function toList<T>(oneOrMany: T | T[] | undefined): T[] {
+  if (oneOrMany === undefined) return [];
+
+  return Array.isArray(oneOrMany) ? oneOrMany : [oneOrMany];
+}
 
 function startWaitingOnTheLetterbox(view: StorybookView, atTheStoryBrowser: boolean): void {
   try {
