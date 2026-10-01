@@ -56,6 +56,10 @@ jobs:
           TEST_VERSION="${VERSION}-test.${GITHUB_RUN_ID}"
           echo "test-version=${TEST_VERSION}" >> $GITHUB_OUTPUT
 
+          # Pack the SDK before the rename below: yarn finds a workspace by its name, and the
+          # SDK's prepack runs yarn.
+          (cd packages/react-native-storybook && npm run prepack)
+
           node -e "
             const fs = require('fs');
 
@@ -73,7 +77,7 @@ jobs:
           "
 
           cd packages/cli && npm publish --tag test
-          cd ../react-native-storybook && npm publish --tag test
+          cd ../react-native-storybook && npm publish --ignore-scripts --tag test
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
