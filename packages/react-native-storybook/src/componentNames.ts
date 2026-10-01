@@ -5,7 +5,8 @@
  * The names live on the fibers the app is rendered from, and a capture is plain JavaScript with no
  * component of its own: the one component that renders the story (./storyOfTheApp) publishes the
  * fiber it renders from here, and the core reads it through its host (`storyOfTheAppFiber`) and
- * walks the tree under it (`componentNamesByNativeTag` on the core). This file keeps no React.
+ * walks the tree under it itself, while it captures. The SDK never walks it. This file keeps no
+ * React.
  */
 
 /**

@@ -94,6 +94,7 @@
     "@types/utf8": "^3.0.1",
     "@vercel/ncc": "latest",
     "react-native-safe-area-context": "4.11.0",
+    "terser": "^5.46.0",
     "typescript": "^5.3.3",
     "vitest": "^4.0.0"
   },

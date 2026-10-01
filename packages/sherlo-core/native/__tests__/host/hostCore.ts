@@ -164,7 +164,6 @@ export function decideStillness(
 
 export const PLATFORM_IOS = 1;
 export const PLATFORM_ANDROID = 2;
-export const SCROLL_NO_CANDIDATE = -3;
 
 /** sherlo_scroll_metrics: what each number means on each platform is said in sherlo_core.h. */
 export type ScrollMetrics = {
@@ -269,29 +268,10 @@ function candidateWords(candidate: ScrollCandidate): string[] {
   ];
 }
 
-/** sherlo_scroll_pick: the index picked, SCROLL_NO_CANDIDATE, or an error. */
-export function pickScrollCandidate(
-  driver: string,
-  platform: number,
-  screenWidth: number,
-  screenHeight: number,
-  candidates: ScrollCandidate[]
-): number {
-  const command = [
-    'scroll_pick',
-    platform,
-    numberWord(screenWidth),
-    numberWord(screenHeight),
-    candidates.length,
-    ...candidates.flatMap(candidateWords),
-  ].join(' ');
-  return Number(runDriver(driver, [command])[0]);
-}
-
 /**
- * The pick as the glue walks it: for each candidate in turn, sherlo_scroll_candidate_is_eligible,
+ * The pick as both glues walk it: for each candidate in turn, sherlo_scroll_candidate_is_eligible,
  * then for an eligible one sherlo_scroll_candidate_fits, stopping at the first that fits. Returns
- * its index, or SCROLL_NO_CANDIDATE, and how many candidates the walk read in full.
+ * its index, or null when none fits.
  */
 export function walkScrollCandidates(
   driver: string,
@@ -299,7 +279,7 @@ export function walkScrollCandidates(
   screenWidth: number,
   screenHeight: number,
   candidates: ScrollCandidate[]
-): { index: number; readInFull: number } {
+): number | null {
   // Each answer depends on its own candidate alone, so all of them are asked in one run.
   const ask = (question: string) =>
     runDriver(
@@ -310,13 +290,10 @@ export function walkScrollCandidates(
     ).map(Number);
   const eligible = candidates.length > 0 ? ask('scroll_candidate_is_eligible') : [];
   const fits = candidates.length > 0 ? ask('scroll_candidate_fits') : [];
-  let readInFull = 0;
   for (let index = 0; index < candidates.length; index++) {
-    if (eligible[index] !== 1) continue;
-    readInFull++;
-    if (fits[index] === 1) return { index, readInFull };
+    if (eligible[index] === 1 && fits[index] === 1) return index;
   }
-  return { index: SCROLL_NO_CANDIDATE, readInFull };
+  return null;
 }
 
 /** sherlo_scroll_is_scrollable: 1, 0, or an error. */

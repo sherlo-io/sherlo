@@ -148,19 +148,6 @@ int32_t sherlo_scroll_candidate_fits(int32_t platform, const sherlo_scroll_candi
                                          : android_fits(candidate, screen_width, screen_height);
 }
 
-int32_t sherlo_scroll_pick(int32_t platform, const sherlo_scroll_candidate *candidates,
-                           int32_t count, double screen_width, double screen_height) {
-  if (!is_known_platform(platform) || count < 0 || (candidates == NULL && count > 0)) {
-    return SHERLO_ERROR_BAD_ARGUMENT;
-  }
-  for (int32_t index = 0; index < count; index++) {
-    if (sherlo_scroll_candidate_fits(platform, &candidates[index], screen_width, screen_height)) {
-      return index;
-    }
-  }
-  return SHERLO_SCROLL_NO_CANDIDATE;
-}
-
 // ---- The nudge -----------------------------------------------------------------------------------
 
 // iOS tried one move: 3 points down, or up when down is at the end, kept inside the scroll range.

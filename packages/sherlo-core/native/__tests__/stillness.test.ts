@@ -1,6 +1,5 @@
 /**
- * The stillness decision, run in the C core compiled for the machine running the suite. Each name
- * is a rule the book marks on "When a story is ready to photograph".
+ * The stillness decision, run in the C core compiled for the machine running the suite.
  *
  * A step here hands the core two tiny screenshots: the same colour twice is a pair with no
  * differing pixel, two colours a pair that differs.

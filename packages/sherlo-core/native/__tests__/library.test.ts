@@ -1,7 +1,6 @@
 /**
  * The C core as the glue sees it: its one header, the core compiled for the machine running the
- * suite, and the stripped iOS and Android libraries read back with `nm`. Each name is a rule the
- * book marks on "The sealed core".
+ * suite, and the stripped iOS and Android libraries read back with `nm`.
  */
 import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
@@ -90,7 +89,6 @@ describe('the compiled C core', () => {
       'sherlo_still_begin',
       'sherlo_still_step',
       'sherlo_still_end',
-      'sherlo_scroll_pick',
       'sherlo_scroll_candidate_is_eligible',
       'sherlo_scroll_candidate_fits',
       'sherlo_scroll_is_scrollable',

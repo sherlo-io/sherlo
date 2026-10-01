@@ -24,7 +24,6 @@ yarn run ncc build metro/withStorybook.js --minify --out "$WORK_DIR/withStoryboo
 
 mv "$WORK_DIR/withStorybook/index.js" "$OUTPUT_DIR/withStorybook.js"
 # The polyfill is only minified, never wrapped as a module. toplevel stays off so its writes to
-# global names keep those names. terser is the repository's own (packages/sherlo-core declares it),
-# found by node's resolution because this package does not declare it.
+# global names keep those names. terser is one of this package's own devDependencies.
 node "$(node -p "require.resolve('terser/bin/terser')")" metro/polyfill.js --compress toplevel=false --mangle toplevel=false \
   --output "$OUTPUT_DIR/polyfill.js"

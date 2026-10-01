@@ -130,7 +130,6 @@ beforeEach(() => {
     } as unknown as SealedCoreHost['native'],
     runner: { send: mockSend, log: mockLog },
     storyErrors: {
-      record: vi.fn(),
       read: () => undefined,
       clear: vi.fn(),
       fallbackText: STORY_ERROR_FALLBACK_TEXT,

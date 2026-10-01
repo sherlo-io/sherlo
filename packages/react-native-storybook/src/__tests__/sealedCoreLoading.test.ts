@@ -1,6 +1,6 @@
 /**
  * Loading the sealed core: what the SDK does with the core native code hands it, and what it does
- * with none. Each rule is one the book marks on "The sealed core".
+ * with none.
  *
  * Native code is the react-native stub (./__mocks__/react-native): each test chooses what its
  * loadCore() answers, then imports the SDK fresh, because the core loads once per import.

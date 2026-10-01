@@ -10,7 +10,6 @@
 //               <time_limit_ms> <threshold> <include_aa> <now_ms>
 //   still_step <now_ms> <focus_was_cleared> <image previous> <image current>
 //   still_end
-//   scroll_pick <platform> <screen_width> <screen_height> <count> <candidate>...
 //   scroll_candidate_is_eligible <platform> <screen_width> <screen_height> <candidate>
 //   scroll_candidate_fits <platform> <screen_width> <screen_height> <candidate>
 //   scroll_is_scrollable <platform> <metrics>
@@ -122,18 +121,6 @@ static void scroll_candidate(int ask_fits) {
                        : sherlo_scroll_candidate_is_eligible(platform, &candidate);
   printf("%" PRId32 "\n", answer);
   free((void *)candidate.class_name);
-}
-
-static void scroll_pick(void) {
-  int32_t platform = (int32_t)read_integer();
-  double screen_width = read_number();
-  double screen_height = read_number();
-  int32_t count = (int32_t)read_integer();
-  sherlo_scroll_candidate *candidates = calloc(count > 0 ? (size_t)count : 1, sizeof(*candidates));
-  for (int32_t index = 0; index < count; index++) candidates[index] = read_candidate();
-  printf("%" PRId32 "\n", sherlo_scroll_pick(platform, candidates, count, screen_width, screen_height));
-  for (int32_t index = 0; index < count; index++) free((void *)candidates[index].class_name);
-  free(candidates);
 }
 
 static void inspector_json(void) {
@@ -249,8 +236,6 @@ int main(void) {
       sherlo_still_end(state);
       state = NULL;
       printf("ended\n");
-    } else if (strcmp(command, "scroll_pick") == 0) {
-      scroll_pick();
     } else if (strcmp(command, "scroll_candidate_is_eligible") == 0) {
       scroll_candidate(0);
     } else if (strcmp(command, "scroll_candidate_fits") == 0) {

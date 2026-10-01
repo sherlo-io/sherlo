@@ -274,7 +274,6 @@ function hostOverTheApp(tree: InspectorData): SealedCoreHost {
     storyOfTheAppFiber: () => THE_APPS_FIBERS,
     storyErrors: {
       read: () => undefined,
-      record: () => {},
       clear: () => {},
       fallbackText: 'Something went wrong rendering your story',
     },

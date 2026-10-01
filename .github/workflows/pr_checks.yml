@@ -142,6 +142,14 @@ jobs:
       - name: Typecheck
         run: yarn tsc --noEmit -p ${{ matrix.package.dir }}
 
+      # The sealed core's source types itself against the SDK's seam
+      # (packages/react-native-storybook/src/sealedCore/seam.ts), and only the type check holds the
+      # two together. It runs here, not in the core job: seam.ts pulls in react-native's types,
+      # which only this job's full install carries.
+      - name: Typecheck the sealed core
+        if: matrix.package.name == 'react-native-storybook'
+        run: yarn tsc --noEmit -p packages/sherlo-core
+
       # THE POSE CONTRACT AND ITS READER ARE GENERATED from the types the CLI's seams
       # declare (packages/cli/scripts/generate-pose-contract.ts). This regenerates both
       # and diffs: a hand edit to either, or a seam type changed without regenerating,

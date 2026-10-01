@@ -15,11 +15,7 @@
  */
 import type { SealedCore } from '../../../react-native-storybook/src/sealedCore/seam';
 import { installHost } from './host';
-import { enumerateStories } from './adapter';
-import prepareSnapshots from './prepareSnapshots';
-import { prepareInspectorData } from './prepareInspectorData';
 import { mergeGenerations } from './metadataWalk';
-import { componentNamesByNativeTag, primitiveOfHostType } from './componentNames';
 import { startTestSession } from './startTestSession';
 import { testStory } from './testStory';
 import { startStoryRenderedTracking } from './storyRenderedReadiness';
@@ -37,12 +33,7 @@ const core: SealedCore = {
   version: VERSION,
   seam: SEAM,
   install: installHost,
-  enumerateStories,
-  prepareSnapshots,
-  prepareInspectorData,
   mergeGenerations,
-  componentNamesByNativeTag,
-  primitiveOfHostType,
   startTestSession,
   testStory,
   startStoryRenderedTracking,

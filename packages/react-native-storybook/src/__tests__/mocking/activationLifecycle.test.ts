@@ -16,11 +16,17 @@ import { UNSHIMMED_KEYS_LOG } from '../../mocking/activateStoryMocks';
 import RunnerBridge from '../../helpers/RunnerBridge';
 import { clearMocks, __resetShimmedKeysForTests } from '../../mocking/registry';
 import { getSealedCore } from '../../sealedCore/loadSealedCore';
+import { enumerateStories as enumerateStoriesFromCoreSource } from '../../../../sherlo-core/js/src/adapter';
 import type { StorybookView } from '../../types';
 
-/** The stories, as the SDK's sealed core lists them (the core built from its source). */
+/**
+ * The stories, as the sealed core lists them. The core calls this itself, so the SDK cannot: it is
+ * taken from the core's source, after the SDK loaded and installed that core with its host, which
+ * the listing reads.
+ */
 function enumerateStories(view: StorybookView) {
-  return getSealedCore()!.enumerateStories(view);
+  expect(getSealedCore()).not.toBeNull();
+  return enumerateStoriesFromCoreSource(view);
 }
 
 afterEach(() => {
