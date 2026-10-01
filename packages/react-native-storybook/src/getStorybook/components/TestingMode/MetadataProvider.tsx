@@ -8,7 +8,8 @@ import React, {
 import { FiberProvider, useFiber, type Fiber } from 'its-fine';
 import { RunnerBridge } from '../../../helpers';
 import { rememberAppMetadataCollector } from '../../../appMetadata';
-import { mergeGenerations, type ViewProps } from './metadataWalk';
+import { getSealedCore } from '../../../sealedCore/loadSealedCore';
+import type { ViewProps } from '../../../sealedCore/seam';
 
 export interface Metadata {
   viewProps: ViewProps;
@@ -42,6 +43,10 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
         return { viewProps: {}, texts: [], generations: [] };
       }
 
+      // The walk is the sealed core's; with no core, Sherlo's features are off and nothing is read.
+      const core = getSealedCore();
+      if (!core) return { viewProps: {}, texts: [], generations: [] };
+
       // `fiber` is captured once, at this component's own first render, and stays fixed for the
       // app's lifetime - its-fine's useFiber() has no cheap way to say which of a fiber and its
       // `.alternate` React currently shows (see its own [e, e.alternate] search), so both have to
@@ -49,7 +54,7 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
       // rather than one combined walk, because a reader asking "is the story on screen right now
       // broken" needs to know which generation a fact came from - see `Metadata.generations`.
       const roots = [fiber, fiber.alternate].filter((root): root is Fiber => !!root);
-      return mergeGenerations(roots);
+      return core.mergeGenerations(roots);
     }, [fiber]);
 
     useImperativeHandle(ref, () => ({ collectMetadata }), [collectMetadata]);

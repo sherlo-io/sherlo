@@ -4,6 +4,7 @@
 #import <React/RCTBridge.h>
 #import "SherloModuleCore.h"
 #import "SherloIOSExceptionHandler.h"
+#import "SherloCoreLoader.h"
 
 @implementation SherloModule
 
@@ -35,6 +36,13 @@ static void SherloEarlyInit(void) {
 }
 
 #ifdef RCT_NEW_ARCH_ENABLED // ------------------- NEW ARCH -------------------
+
+/**
+ * The sealed JS core native code picked, as JSON. Synchronous: JavaScript evaluates it on import.
+ */
+- (NSString *)loadCore {
+  return [SherloCoreLoader loadCoreJson];
+}
 
 /**
  * Returns the Sherlo constants.
@@ -189,6 +197,13 @@ static void SherloEarlyInit(void) {
 }
 
 #else // ------------------- OLD ARCH -------------------
+
+/**
+ * The sealed JS core native code picked, as JSON. Synchronous: JavaScript evaluates it on import.
+ */
+RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(loadCore) {
+  return [SherloCoreLoader loadCoreJson];
+}
 
 /**
  * Returns the Sherlo constants.

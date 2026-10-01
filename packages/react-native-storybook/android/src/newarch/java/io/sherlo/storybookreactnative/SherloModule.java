@@ -54,6 +54,14 @@ public class SherloModule extends NativeSherloModuleSpec {
         return moduleCore.getSherloConstants();
     }
 
+    /**
+     * The sealed JS core native code picked, as JSON. Synchronous: JavaScript evaluates it on import.
+     */
+    @Override
+    public String loadCore() {
+        return SherloCoreLoader.loadCoreJson(getReactApplicationContext());
+    }
+
     // ==== Storybook Methods ====
 
     /**

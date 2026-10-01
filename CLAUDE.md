@@ -14,19 +14,20 @@ Type-check the whole repository from the root:
 yarn typecheck
 ```
 
-It checks `packages/cli`, `packages/react-native-storybook` and `contracts`, the same projects `.github/workflows/pr_checks.yml` checks.
+It checks `packages/cli`, `packages/react-native-storybook`, `packages/sherlo-core` and `contracts`, the same projects `.github/workflows/pr_checks.yml` checks (`packages/sherlo-core` in the react-native-storybook job, whose install carries the react-native types the core's seam reads).
 
 ## Test Execution
 
-There is no root `test` script in this repo. The unit suites are per-package (both vitest), each invoked via that package's own `yarn test`:
+There is no root `test` script in this repo. The unit suites are per-package (all vitest), each invoked via that package's own `yarn test`:
 
 - `packages/cli/` - CLI unit tests
 - `packages/react-native-storybook/` - SDK unit tests
+- `packages/sherlo-core/` - the sealed cores' suites: the JS core's, and the C core's (compiled and run on the machine running the suite)
 
 Each package's `test` script is guarded by `../../scripts/require-test-exec-optin.sh`, which refuses to run unless `CI=true` (set automatically on GitHub Actions) or `ALLOW_LOCAL_TEST_EXEC=1`. To run a suite on your own machine, set the local override:
 
 ```bash
-ALLOW_LOCAL_TEST_EXEC=1 yarn test   # run from packages/cli or packages/react-native-storybook
+ALLOW_LOCAL_TEST_EXEC=1 yarn test   # run from packages/cli, packages/react-native-storybook or packages/sherlo-core
 ```
 
 Otherwise the suites run on GitHub Actions - automatically on pull requests via `.github/workflows/pr_checks.yml`, and on demand via `.github/workflows/manual_tests.yml`:

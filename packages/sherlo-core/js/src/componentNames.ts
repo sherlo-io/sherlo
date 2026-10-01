@@ -1,0 +1,133 @@
+/**
+ * THE APP'S OWN COMPONENT NAMES, for the view tree a capture records.
+ *
+ * A capture prints one line per native view, and `ProfileHeader › Text` tells a developer where
+ * they are while `RCTTextView` tells them nothing. So every native view carries, beside its
+ * primitive, the names of the app's components that render it, outermost first.
+ *
+ * A NAME BELONGS TO ONE NATIVE VIEW, AND TO EVERYTHING IT DRAWS UNTIL THE NEXT ONE. The names a
+ * view carries are the components between it and the native view above it: the `Text` a
+ * `SampleLine` returns reads `SampleLine › Text`, and the `View` a `Spinner` returns reads
+ * `Spinner › View`. A name is not repeated on everything underneath that view, which is what keeps
+ * a tree readable instead of stamping the whole app onto every leaf.
+ *
+ * ONLY THE APP'S OWN COMPONENTS ARE NAMED. A story is rendered inside Storybook, which is itself
+ * rendered inside Sherlo, and none of that is the app: a reading starts where the app's story
+ * starts, so a view above the story carries no names at all and no view carries Storybook's or
+ * Sherlo's. Storybook's own wrappers around a story are anonymous functions, so they name nothing
+ * even inside that range.
+ *
+ * THE NAMES COME FROM THE FUNCTIONS THEMSELVES - a component's own name, or the one its author
+ * gave it. They survive only in a bundle that kept them: a minified bundle renames the functions
+ * and an anonymous one has no name at all, so a name that is not there is absent rather than
+ * invented. A development bundle is never minified, and a test run's bundle is built unminified
+ * for this reason, so the cloud and a capture print the same names.
+ *
+ * WHO HANDS THE FIBERS OVER. The names live on the fibers the app is rendered from. The one
+ * component that renders the story (the SDK's StoryOfTheApp) publishes the fiber it renders from,
+ * and the host hands it here (`storyOfTheAppFiber`); this walk reads off the names of the native
+ * views under it. Nothing here needs a renderer.
+ */
+import type {
+  ComponentNamesByNativeTag,
+  RenderedFiber,
+} from '../../../react-native-storybook/src/sealedCore/seam';
+import { theHost } from './host';
+
+/**
+ * The word a host fiber's own React type names a view by - the platform's own `RCT` prefix
+ * removed, exactly the rule the web inspector applies. Shared with the capture driver
+ * (./captureTransport), which applies this same rule wherever a fiber matched a view - so a
+ * host fiber's `type`, read here, and a matched view's `className`, read there, come out as the
+ * same word either way.
+ */
+// Read for every host fiber of the metadata walk, which a capture polls every 10 ms, so it is
+// lightly scrambled - see build.js.
+/*! javascript-obfuscator:disable */
+export function primitiveOfHostType(type: string): string {
+  return type.startsWith('RCT') ? type.slice(3) : type;
+}
+/*! javascript-obfuscator:enable */
+
+/**
+ * Every name the app on screen carries, by the native tag of the view it belongs to. A view whose
+ * bundle kept no names for it is absent rather than listed with none, because a caller drawing a
+ * tree does the same thing with both and an absent entry costs nothing to build.
+ *
+ * Empty until a story has rendered inside the SDK's StoryOfTheApp, and empty again once it
+ * unmounts.
+ */
+export function componentNamesByNativeTag(): ComponentNamesByNativeTag {
+  const names: ComponentNamesByNativeTag = new Map();
+  const story = theHost().storyOfTheAppFiber();
+
+  // The story itself names nothing - the walk starts at what it draws, so Sherlo's own wrapper is
+  // never mistaken for one of the app's components.
+  if (story) forEachFiberUnder(story, (fiber) => collectComponentNames(fiber, [], names));
+
+  return names;
+}
+
+/* ========================================================================== */
+
+/**
+ * Walk one fiber and everything drawn under it, carrying down the names of the components on the
+ * way. A native view keeps the names it was handed, then hands its own children none: the view
+ * itself is what now stands between them and the app's components.
+ */
+function collectComponentNames(
+  fiber: RenderedFiber,
+  namesAbove: string[],
+  names: ComponentNamesByNativeTag
+): void {
+  if (typeof fiber.type === 'string') {
+    const nativeTag = nativeTagOf(fiber);
+    if (nativeTag !== undefined) {
+      // A name equal to the primitive this exact view draws is the view itself under another
+      // name - React Native's own `View` around a view it draws, its `Text` around a text - and a
+      // tree that printed each view twice would read worse than one that named nothing. A name
+      // that draws a DIFFERENT view (elsewhere in the tree) is unaffected: this check only ever
+      // looks at the names collected for THIS host, never at another one's.
+      const primitive = primitiveOfHostType(fiber.type);
+      names.set(
+        nativeTag,
+        namesAbove.filter((name) => name !== primitive)
+      );
+    }
+    forEachFiberUnder(fiber, (child) => collectComponentNames(child, [], names));
+    return;
+  }
+
+  const name = componentName(fiber.type);
+  forEachFiberUnder(fiber, (child) =>
+    collectComponentNames(child, name === undefined ? namesAbove : [...namesAbove, name], names)
+  );
+}
+
+/** Everything hanging under one fiber: its first child, and each child's next sibling. */
+function forEachFiberUnder(fiber: RenderedFiber, visit: (child: RenderedFiber) => void): void {
+  for (let child = fiber.child; child; child = child.sibling) visit(child);
+}
+
+/** The name a component carries, or nothing when the bundle this app was built into kept none. */
+function componentName(type: unknown): string | undefined {
+  const component = type as { displayName?: unknown; name?: unknown } | null | undefined;
+
+  if (typeof component?.displayName === 'string' && component.displayName) {
+    return component.displayName;
+  }
+  if (typeof component?.name === 'string' && component.name) return component.name;
+  return undefined;
+}
+
+/** The native view a fiber draws, as React tagged it - the id the inspector reports for it. */
+function nativeTagOf(fiber: RenderedFiber): number | undefined {
+  const host = fiber.stateNode as
+    | { _nativeTag?: unknown; canonical?: { nativeTag?: unknown } }
+    | null
+    | undefined;
+
+  // The old architecture tags the view itself; the new one keeps the tag on the canonical node.
+  const nativeTag = host?._nativeTag ?? host?.canonical?.nativeTag;
+  return typeof nativeTag === 'number' ? nativeTag : undefined;
+}
