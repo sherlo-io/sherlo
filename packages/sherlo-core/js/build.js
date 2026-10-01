@@ -43,7 +43,10 @@ async function buildSealedCore() {
   const bundled = bundle.outputFiles[0].text;
   refuseAnyImport(bundled);
 
-  const minified = (await minify(bundled, { compress: true, mangle: true })).code;
+  // reduce_vars off: with it on, terser writes each function the core object names straight into
+  // the object, and the scrambler leaves the keys of an object holding functions readable.
+  const minifyOptions = { compress: { reduce_vars: false }, mangle: true };
+  const minified = (await minify(bundled, minifyOptions)).code;
 
   const scrambled = JavaScriptObfuscator.obfuscate(minified, {
     compact: true,
@@ -53,7 +56,12 @@ async function buildSealedCore() {
     stringArray: true,
     stringArrayEncoding: ['base64'],
     stringArrayThreshold: 1,
+    // The core object's keys are the seam's function names (enumerateStories, ...): moved into
+    // the encoded string array, they are not readable in the file.
+    transformObjectKeys: true,
     identifierNamesGenerator: 'hexadecimal',
+    // A fixed seed: the same source always builds the same file.
+    seed: 1,
     // Hermes runs no eval of its own source, and self-defending relies on reading it back.
     selfDefending: false,
     target: 'browser-no-eval',

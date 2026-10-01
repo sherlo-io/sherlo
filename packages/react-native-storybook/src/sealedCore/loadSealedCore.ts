@@ -23,6 +23,7 @@ import {
   recordStoryError,
 } from '../getStorybook/storyErrorRegistry';
 import { activateMocksForStory } from '../getStorybook/storyMockActivation';
+import { mergeStoryMocks } from '../mocking/mergeMocks';
 import { collectAppMetadata } from '../appMetadata';
 import { storyOfTheAppFiber } from '../componentNames';
 import { sherloFetch } from '../mocking/network';
@@ -103,6 +104,7 @@ function hostForTheCore(): SealedCoreHost {
     bundlerOrigin,
     storyErrors: { record: recordStoryError, read: readStoryError, clear: clearStoryError },
     activateMocksForStory,
+    mergeStoryMocks,
     collectAppMetadata,
     storyOfTheAppFiber,
     setCaptureLogSink,

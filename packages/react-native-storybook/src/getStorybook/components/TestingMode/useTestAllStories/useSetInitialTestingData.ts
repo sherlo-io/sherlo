@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
 import { RunnerBridge } from '../../../../helpers';
 import SherloModule from '../../../../SherloModule';
-import prepareSnapshots from './prepareSnapshots';
 import { StorybookView } from '../../../../types';
-import { enumerateStories } from '../../../../storybook/adapter';
+import { getSealedCore } from '../../../../sealedCore/loadSealedCore';
 
 export function filterStoryMetas<T extends { id: string }>(
   storyMetas: T[],
@@ -34,18 +33,25 @@ function useSetInitialTestingData({
     // boot may start it at all (see the param doc above).
     if (!enabled || lastState) return;
 
+    // The stories are listed by the sealed core; with no core, Sherlo's features are off.
+    const core = getSealedCore();
+    if (!core) return;
+
     (async () => {
       // Every testing-mode boot now carries a real config - a run's own config.sherlo, or the SDK
       // defaults a capture hands across its restart (see SherloModuleCore on each platform) - so
       // there is nothing left here to fall back from.
       const config = SherloModule.getConfig();
 
-      const storyMetas = enumerateStories(view);
+      const storyMetas = core.enumerateStories(view);
       const filteredStoryMetas = filterStoryMetas(
         storyMetas,
         config.discoveryFilter?.includeStoryIds
       );
-      const allStories = prepareSnapshots({ storyMetas: filteredStoryMetas, splitByMode: true });
+      const allStories = core.prepareSnapshots({
+        storyMetas: filteredStoryMetas,
+        splitByMode: true,
+      });
 
       RunnerBridge.log('start testing session', {
         storiesCount: allStories.length,

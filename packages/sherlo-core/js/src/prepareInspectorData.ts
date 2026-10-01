@@ -1,5 +1,8 @@
-import { InspectorData, InspectorDataNode } from '../../../../types';
-import { Metadata } from '../MetadataProvider';
+import type {
+  InspectorData,
+  InspectorDataNode,
+  Metadata,
+} from '../../../react-native-storybook/src/sealedCore/seam';
 
 /**
  * Enhances inspectorData with properties from fabricMetadata

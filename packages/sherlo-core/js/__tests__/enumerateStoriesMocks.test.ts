@@ -1,11 +1,9 @@
-vi.mock('../../SherloModule', () => ({
-  default: {
-    getMode: vi.fn().mockReturnValue('default'),
-  },
-}));
+import { enumerateStories } from '../src/adapter';
+import type { StorybookView } from '../../../react-native-storybook/src/sealedCore/seam';
+import { installTestHost } from './testHost';
 
-import { enumerateStories } from '../../storybook/adapter';
-import type { StorybookView } from '../../types';
+// The host carries the SDK's own mergeStoryMocks, the one the SDK hands the core.
+beforeEach(() => installTestHost());
 
 afterEach(() => {
   delete (globalThis as any).STORIES;

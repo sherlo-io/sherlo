@@ -106,14 +106,9 @@ import { bundlerOrigin } from './bundlerOrigin';
 import { getSealedCore } from './sealedCore/loadSealedCore';
 import SherloModule from './SherloModule';
 import { InspectorData, InspectorDataNode, StorybookView } from './types';
-import {
-  componentNamesByNativeTag,
-  primitiveOfHostType,
-  type ComponentNamesByNativeTag,
-} from './componentNames';
+import type { ComponentNamesByNativeTag } from './sealedCore/seam';
 import { collectAppMetadata, providerFirstRenderedAt } from './appMetadata';
 import { STORY_ERROR_FALLBACK_TEXT } from './constants';
-import { prepareInspectorData } from './getStorybook/components/TestingMode/useTestAllStories/prepareInspectorData';
 import { readStoryError } from './getStorybook/storyErrorRegistry';
 import {
   startStoryRenderedTracking,
@@ -1212,7 +1207,7 @@ async function theStorysOwnTree(
     return {
       tree: captureViewTree(
         inspectorData.viewHierarchy,
-        componentNamesByNativeTag(),
+        componentNamesOnScreen(),
         inspectorData.density
       ),
       hasNetworkImage: false,
@@ -1233,7 +1228,7 @@ async function theStorysOwnTree(
     return {
       tree: captureViewTree(
         inspectorData.viewHierarchy,
-        componentNamesByNativeTag(),
+        componentNamesOnScreen(),
         inspectorData.density
       ),
       hasNetworkImage: false,
@@ -1247,18 +1242,30 @@ async function theStorysOwnTree(
   // re-roots at that node when it is there and leaves the window alone when it is not, so this is
   // what the tree about to be built is rooted at - not a guess made after the fact.
   const at = theStorysViewsAreInTheTree(inspectorData, metadata, storyId) ? 'story' : 'window';
-  const prepared = prepareInspectorData(inspectorData, metadata, storyId);
+  const core = getSealedCore();
+  const prepared = core
+    ? core.prepareInspectorData(inspectorData, metadata, storyId)
+    : { inspectorData, hasNetworkImage: false };
 
   return {
     tree: captureViewTree(
       prepared.inspectorData.viewHierarchy,
-      componentNamesByNativeTag(),
+      componentNamesOnScreen(),
       inspectorData.density
     ),
     hasNetworkImage: prepared.hasNetworkImage,
     at,
     ...(at === 'window' && { reason: { cause: 'story-not-in-tree' } as const }),
   };
+}
+
+/**
+ * The names of the app's components on screen, by native tag - walked by the sealed core. A
+ * capture only starts with the core installed (startCaptureTransport); were it missing, every view
+ * would simply go unnamed.
+ */
+function componentNamesOnScreen(): ComponentNamesByNativeTag {
+  return getSealedCore()?.componentNamesByNativeTag() ?? new Map();
 }
 
 /**
@@ -1590,7 +1597,8 @@ function primitiveProps(
  */
 function thePrimitiveTheCommandPrints(node: InspectorDataNode): string {
   if (typeof node.className !== 'string') return '';
-  return node.properties !== undefined ? primitiveOfHostType(node.className) : node.className;
+  if (node.properties === undefined) return node.className;
+  return getSealedCore()?.primitiveOfHostType(node.className) ?? node.className;
 }
 
 /**

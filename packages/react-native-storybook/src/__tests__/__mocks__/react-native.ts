@@ -10,6 +10,7 @@
  * __appendFileCalls is a global accumulator used by installSherloIntegration tests
  * to capture protocol writes without needing to intercept vi.mock + require paths.
  */
+import { sourceThatPutsTheCoreFromSourceOnTheGlobal } from './sealedCoreFromSource';
 
 // Use globalThis so the accumulator persists across module resets
 (globalThis as any).__sherloTestAppendFileCalls =
@@ -81,7 +82,8 @@ export function nativePickOf(source: string | null): string {
 /**
  * The native side's loadCore for the next import: a function to answer with, or null for a
  * native build that has no loader at all. Kept on globalThis, like the mode, so it survives
- * vi.resetModules(). Unset, every suite runs against a fake core of this SDK's seam.
+ * vi.resetModules(). Unset, every suite runs against the core built from the core package's
+ * source (./sealedCoreFromSource).
  */
 export function __setNativeLoadCore(loadCore: (() => string) | null): void {
   (globalThis as any).__sherloTestNativeLoadCore = loadCore;
@@ -104,7 +106,7 @@ export function __resetSealedCoreNative(): void {
 }
 
 function defaultLoadCore(): string {
-  return nativePickOf(fakeSealedCoreSource(1));
+  return nativePickOf(sourceThatPutsTheCoreFromSourceOnTheGlobal);
 }
 
 export const NativeModules: Record<string, any> = {

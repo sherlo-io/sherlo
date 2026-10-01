@@ -8,7 +8,7 @@ import {
   isNetworkImageSourceFilter,
   isNetworkImageSource,
   isNetworkImageComponent,
-} from '../getStorybook/components/TestingMode/networkImageDetection';
+} from '../src/networkImageDetection';
 
 describe('isNetworkImageSourceFilter', () => {
   it('returns true for HTTPS URL', () => {

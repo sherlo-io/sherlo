@@ -23,21 +23,19 @@ vi.mock('../SherloModule', () => ({
   },
 }));
 
-vi.mock('../storybook/adapter', () => ({
-  enumerateStories: vi.fn().mockReturnValue([]),
-}));
-
-vi.mock('../getStorybook/components/TestingMode/useTestAllStories/prepareSnapshots', () => ({
-  default: vi.fn().mockReturnValue([]),
-}));
-
 import useSetInitialTestingData, {
   filterStoryMetas,
 } from '../getStorybook/components/TestingMode/useTestAllStories/useSetInitialTestingData';
 import { RunnerBridge } from '../helpers';
 import SherloModule from '../SherloModule';
-import { enumerateStories } from '../storybook/adapter';
-import prepareSnapshots from '../getStorybook/components/TestingMode/useTestAllStories/prepareSnapshots';
+import { getSealedCore } from '../sealedCore/loadSealedCore';
+
+// The stories are listed and shaped by the sealed core (the one built from its source, see
+// ./__mocks__/sealedCoreFromSource); here its two steps are stood in for, to see what this hook
+// hands them and sends.
+const core = getSealedCore()!;
+const enumerateStories = vi.spyOn(core, 'enumerateStories').mockReturnValue([]);
+const prepareSnapshots = vi.spyOn(core, 'prepareSnapshots').mockReturnValue([]);
 
 beforeEach(() => {
   vi.clearAllMocks();

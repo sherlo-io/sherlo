@@ -155,6 +155,7 @@ describe('loading the sealed core', () => {
   });
 
   it('the SDK installs the core with the host it hands it', async () => {
+    __setNativeLoadCore(() => nativePickOf(fakeSealedCoreSource(1)));
     const { getSealedCore } = await freshLoader();
     const core = getSealedCore();
 
@@ -167,6 +168,7 @@ describe('loading the sealed core', () => {
         'bundlerOrigin',
         'collectAppMetadata',
         'fetch',
+        'mergeStoryMocks',
         'native',
         'runner',
         'setCaptureLogSink',
@@ -183,6 +185,7 @@ describe('loading the sealed core', () => {
     const appsOwnFetch = vi.fn(async () => new Response('from the real network'));
     globalThis.fetch = appsOwnFetch as unknown as typeof fetch;
     __setNativeMode('storybook');
+    __setNativeLoadCore(() => nativePickOf(fakeSealedCoreSource(1)));
 
     (await freshLoader()).getSealedCore();
     const host = coreOnTheGlobal()!.installedWith as { fetch: typeof fetch };
@@ -273,7 +276,6 @@ describe('running with no core', () => {
     const { startInteractiveMockActivation, stopInteractiveMockActivation } = await import(
       '../getStorybook/interactiveMockActivation'
     );
-    const { enumerateStories } = await import('../storybook/adapter');
     const { clearMocks } = await import('../mocking/registry');
 
     const storyFile = {
@@ -286,18 +288,31 @@ describe('running with no core', () => {
     });
     (globalThis as { STORIES?: unknown }).STORIES = [{ directory: './src', req }];
 
-    const view = { _storyIndex: { entries: {} } } as never;
-    const stories = enumerateStories(view);
-    const first = stories.find((story) => story.id.endsWith('--first'))!;
-    const second = stories.find((story) => story.id.endsWith('--second'))!;
+    // Storybook's index holds the file's two stories; mocking finds each one through it.
+    const firstStoryId = 'mocking-switch--first';
+    const secondStoryId = 'mocking-switch--second';
+    const importPath = './src/Switch.stories.tsx';
+    const view = {
+      _storyIndex: {
+        entries: {
+          [firstStoryId]: { id: firstStoryId, title: 'Mocking/Switch', name: 'First', importPath },
+          [secondStoryId]: {
+            id: secondStoryId,
+            title: 'Mocking/Switch',
+            name: 'Second',
+            importPath,
+          },
+        },
+      },
+    } as never;
     const mockable = createMockable('pkg/switch', { label: 'real-switch' });
     const channel = makeChannel();
 
     expect(getSealedCore()).toBeNull();
-    startInteractiveMockActivation(view, channel, first.id);
+    startInteractiveMockActivation(view, channel, firstStoryId);
     expect(mockable.label).toBe('first-mock');
 
-    channel.emit('storyChanged', second.id);
+    channel.emit('storyChanged', secondStoryId);
     expect(mockable.label).toBe('second-mock');
 
     stopInteractiveMockActivation();

@@ -1,6 +1,9 @@
-import { prepareInspectorData } from '../getStorybook/components/TestingMode/useTestAllStories/prepareInspectorData';
-import { InspectorData, InspectorDataNode } from '../types/types';
-import { Metadata } from '../getStorybook/components/TestingMode/MetadataProvider';
+import { prepareInspectorData } from '../src/prepareInspectorData';
+import type {
+  InspectorData,
+  InspectorDataNode,
+  Metadata,
+} from '../../../react-native-storybook/src/sealedCore/seam';
 
 const makeNode = (overrides: Partial<InspectorDataNode> = {}): InspectorDataNode => ({
   id: 1,
@@ -22,6 +25,7 @@ const makeInspectorData = (viewHierarchy: InspectorDataNode, density = 1): Inspe
 const makeMetadata = (viewProps: Metadata['viewProps'] = {}, texts: string[] = []): Metadata => ({
   viewProps,
   texts,
+  generations: [],
 });
 
 describe('prepareInspectorData', () => {

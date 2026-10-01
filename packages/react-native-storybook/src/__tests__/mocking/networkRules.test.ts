@@ -108,7 +108,16 @@ async function activateStory(levels: {
   (globalThis as { STORIES?: unknown }).STORIES = [{ directory: './src', req }];
 
   const view = {
-    _storyIndex: { entries: {} },
+    _storyIndex: {
+      entries: {
+        [STORY_ID]: {
+          id: STORY_ID,
+          title: 'Mocking/Network',
+          name: 'Default',
+          importPath: './src/Network.stories.tsx',
+        },
+      },
+    },
     _preview: {
       // Composed upfront, so the first pass already reads the project's own mocks.
       storyStoreValue: {

@@ -4,14 +4,23 @@
  * A capture carries, beside every primitive in the view tree, the name of the app component that
  * renders it - and only when the bundle kept that name. A stripped bundle drops the name, so the
  * name is absent rather than invented.
+ *
+ * The story on screen reaches the core through its host (`storyOfTheAppFiber`): here, the test's
+ * own `rememberStoryOfTheApp` stands in for the SDK's StoryOfTheApp.
  */
-import { afterEach, describe, expect, it } from 'vitest';
-import {
-  componentNamesByNativeTag,
-  rememberStoryOfTheApp,
-  type RenderedFiber,
-} from '../componentNames';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { RenderedFiber } from '../../../react-native-storybook/src/sealedCore/seam';
+import { componentNamesByNativeTag } from '../src/componentNames';
+import { installTestHost } from './testHost';
 
+let storyOfTheApp: RenderedFiber | undefined;
+
+/** The app's story is on screen, rendered from this fiber; `undefined` forgets it. */
+function rememberStoryOfTheApp(fiber: RenderedFiber | undefined): void {
+  storyOfTheApp = fiber;
+}
+
+beforeEach(() => installTestHost({ storyOfTheAppFiber: () => storyOfTheApp }));
 afterEach(() => rememberStoryOfTheApp(undefined));
 
 describe("each native view carries the names of the app's components that render it", () => {
