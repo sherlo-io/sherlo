@@ -37,7 +37,6 @@ import {
   getBuildRunConfig,
   getGitInfo,
   getPlatformsToTest,
-  getTokenParts,
   getValidatedCommandParams,
   handleClientError,
   printSherloIntro,
@@ -234,11 +233,11 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     return { url: '' };
   }
 
-  // 4. Resolve the token's parts. The endpoint every call this road makes - including the
-  //    read-only dry-run decision query - is resolved inside the server seam itself
-  //    (../../seams/serverCalls), from the raw token this road hands it.
-  const { projectIndex, teamId } = getTokenParts(commandParams.token);
-  const token = commandParams.token;
+  // 4. The credential and its project, resolved before any request (getValidatedCommandParams).
+  //    The endpoint every call this road makes - including the read-only dry-run decision
+  //    query - is resolved inside the server seam itself (../../seams/serverCalls), from the
+  //    token this road hands it.
+  const { token, projectIndex, teamId } = commandParams.credential;
 
   // 5-dry. --dry-run (SHERLO-1895 Phase C): bundle for real, preview which
   //   stories a real run would capture, and STOP here. A dry run never runs the
@@ -419,7 +418,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
         baseFingerprint,
       });
     }
-    handleClientError(error); // always throws
+    handleClientError(error, token); // always throws
     throw error; // unreachable - satisfies control flow / typing
   }
 
@@ -462,7 +461,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
 
   if (commandParams.wait) {
     const exitCode = await waitForBuildResult({
-      token: commandParams.token,
+      token,
       buildIndex,
       projectIndex,
       teamId,
@@ -483,7 +482,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     // server's verbatim reason with a single getBuildStatus read and print the
     // compact closer here (SHERLO-1952). Best-effort - see printBypassedCloser.
     await printBypassedCloser({
-      token: commandParams.token,
+      token,
       buildIndex,
       projectIndex,
       teamId,
@@ -516,7 +515,7 @@ async function checkGate({
   projectIndex,
   teamId,
 }: {
-  /** The raw project token - the seam builds its own sdk client from it (../../seams/serverCalls). */
+  /** The token the push spends - the seam builds its own sdk client from it (../../seams/serverCalls). */
   token: string;
   platformsToTest: Platform[];
   baseFingerprint: string;
@@ -551,7 +550,7 @@ async function checkGate({
       }
     }
   } catch (error) {
-    handleClientError(error); // always throws (bad token, network, ...)
+    handleClientError(error, token); // always throws (bad token, network, ...)
     throw error; // unreachable - satisfies control flow / typing
   }
 

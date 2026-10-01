@@ -4,6 +4,7 @@ import { AuthError, type BuildStatus, type BuildStatusResponse } from './buildSt
 import { serverCalls } from '../seams/serverCalls';
 import { surroundings } from '../seams/surroundings';
 import getTokenParts from './getTokenParts';
+import isPersonalToken from './isPersonalToken';
 import { emit } from './transcriptSink';
 import { EXIT_BLOCK, EXIT_ERROR, EXIT_GREEN, EXIT_SIGINT, EXIT_TIMEOUT } from './exitCodes';
 import { decideSparseBuildVerdict, routesThroughSparseVerdict } from './sparseBuildVerdict';
@@ -119,9 +120,10 @@ async function waitForBuildResult({
   const poll = pollBuildStatus ?? realPoll();
 
   function realPoll(): () => Promise<BuildStatus | null> {
-    // The token is parsed HERE rather than inside the call, so a malformed one still throws out
-    // of the call rather than inside the loop's retry catch (see the note above).
-    getTokenParts(token);
+    // A project token is parsed HERE rather than inside the call, so a malformed one still throws
+    // out of the call rather than inside the loop's retry catch (see the note above). A personal
+    // token has no parts to parse: it is sent whole.
+    if (!isPersonalToken(token)) getTokenParts(token);
     return () => serverCalls().getBuildStatus({ token, buildIndex, projectIndex, teamId });
   }
 

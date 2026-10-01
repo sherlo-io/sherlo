@@ -29,7 +29,8 @@ async function projectList(passedOptions: ProjectListOptions): Promise<void> {
     passedOptions[PERSONAL_TOKEN_OPTION],
     {
       thisCommand: THIS_COMMAND,
-      tokenContextLine: 'The project token names one project, and this command lists a whole team.',
+      tokenContextLine:
+        'The project token names one project, and this command lists the projects of a whole team.',
     }
   );
 

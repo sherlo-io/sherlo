@@ -26,6 +26,7 @@ import {
   type BuildStatus,
 } from '../helpers/buildStatusRequest';
 import getTokenParts from '../helpers/getTokenParts';
+import isPersonalToken from '../helpers/isPersonalToken';
 import createProjectRequest from '../commands/projectCreate/createProjectRequest';
 import createTeamRequest from '../commands/teamCreate/createTeamRequest';
 import listProjectsRequest from '../commands/projectList/listProjectsRequest';
@@ -156,20 +157,25 @@ export type CliLoginAnswer =
 export type CheckStagedGateRequest = Parameters<SdkClient['checkStagedGate']>[0];
 export type CheckStagedGateAnswer = Awaited<ReturnType<SdkClient['checkStagedGate']>>;
 
-/** The one place a raw project token becomes a real sdk client - every live operation below goes through it. */
+/**
+ * What the service is sent for the token a push spends: a project token's api part, or a personal
+ * token whole - a personal token, the saved login's included, has no parts.
+ */
+function authTokenFor(token: string): string {
+  return isPersonalToken(token) ? token : getTokenParts(token).apiToken;
+}
+
+/** The one place a push's token becomes a real sdk client - every live operation below goes through it. */
 function clientFor(token: string): SdkClient {
-  const { apiToken } = getTokenParts(token);
-  return sdkClient({ authToken: apiToken }, getEndpointUrl());
+  return sdkClient({ authToken: authTokenFor(token) }, getEndpointUrl());
 }
 
 /** The shipped answers: the real requests, unchanged. */
 export const liveServerCalls: ServerCalls = {
   getBuildStatus: ({ token, buildIndex, projectIndex, teamId, boundedRead }) => {
-    const { apiToken } = getTokenParts(token);
-
     return fetchBuildStatus(
       getEndpointUrl(),
-      apiToken,
+      authTokenFor(token),
       { index: buildIndex, projectIndex, teamId },
       boundedRead ? SINGLE_READ_TIMEOUT_MS : undefined
     );

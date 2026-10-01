@@ -41,7 +41,6 @@ import {
   getBuildRunConfig,
   getGitInfo,
   getPlatformsToTest,
-  getTokenParts,
   getValidatedCommandParams,
   handleClientError,
   printSherloIntro,
@@ -117,8 +116,8 @@ async function simRun(
   //    is the CLI's; the wire format is the API's, unchanged (./composeSimWorldFile).
   const worldFile = composeSimWorldFile(world.parsed);
 
-  const { projectIndex, teamId } = getTokenParts(commandParams.token);
-  const token = commandParams.token;
+  // The credential and its project, resolved before any request (getValidatedCommandParams).
+  const { token, projectIndex, teamId } = commandParams.credential;
 
   // 4. Upload both artifacts to staged slots, per platform.
   const simKeys = await uploadSimArtifacts({
@@ -172,7 +171,7 @@ async function simRun(
       message: commandParams.message,
     });
   } catch (error) {
-    handleClientError(error); // always throws
+    handleClientError(error, token); // always throws
     throw error; // unreachable - satisfies control flow / typing
   }
 
@@ -195,7 +194,7 @@ async function simRun(
 
   if (commandParams.wait) {
     const exitCode = await waitForBuildResult({
-      token: commandParams.token,
+      token,
       buildIndex,
       projectIndex,
       teamId,
@@ -209,7 +208,7 @@ async function simRun(
     });
   } else if (serverBypassed) {
     await printBypassedCloser({
-      token: commandParams.token,
+      token,
       buildIndex,
       projectIndex,
       teamId,
@@ -239,7 +238,7 @@ async function uploadSimArtifacts({
   projectIndex,
   teamId,
 }: {
-  /** The raw project token - the seam builds its own sdk client from it (../../seams/serverCalls). */
+  /** The token the push spends - the seam builds its own sdk client from it (../../seams/serverCalls). */
   token: string;
   platformsToTest: Platform[];
   manifest: ValidatedModuleManifest;
@@ -258,7 +257,7 @@ async function uploadSimArtifacts({
   // network - the same door every other staged upload uses (../../commands/test/uploadBundles).
   const { stagedPresignedUploadUrls } = await serverCalls()
     .getStagedUploadUrls({ token, platforms: platformsToTest, projectIndex, teamId })
-    .catch(handleClientError);
+    .catch((error) => handleClientError(error, token));
 
   const gzippedManifest = zlib.gzipSync(manifest.raw);
   const simKeys: Partial<Record<Platform, SimStagedKeys>> = {};

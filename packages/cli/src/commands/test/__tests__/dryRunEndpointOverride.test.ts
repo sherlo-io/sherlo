@@ -61,9 +61,19 @@ import stagedRun from '../stagedRun';
 // network egress, just a local TCP RST.
 const NOTHING_LISTENS_HERE = 'http://127.0.0.1:1/graphql';
 
-// A well-shaped PROJECT token (32-char api token + 8-char team id + project index) - real
-// `getTokenParts` slices it apart, so it must be the real shape, not a placeholder string.
+// A well-shaped PROJECT token (32-char api token + 8-char team id + project index) - the server
+// seam slices it apart with the real `getTokenParts`, so it must be the real shape, not a
+// placeholder string.
 const PROJECT_TOKEN = `${'a'.repeat(32)}teamteam1`;
+
+/** That token as getValidatedCommandParams resolves it. */
+const PROJECT_TOKEN_CREDENTIAL = {
+  kind: 'projectToken',
+  token: PROJECT_TOKEN,
+  apiToken: 'a'.repeat(32),
+  teamId: 'teamteam',
+  projectIndex: 1,
+} as const;
 
 const originalApiUrl = process.env.SHERLO_API_URL;
 
@@ -77,7 +87,7 @@ beforeEach(() => {
 
   mockGetValidatedCommandParams.mockReturnValue({
     projectRoot: '/proj',
-    token: PROJECT_TOKEN,
+    credential: PROJECT_TOKEN_CREDENTIAL,
     devices: [
       { id: 'iphone.14', osVersion: '17.0', theme: 'light', locale: 'en', fontScale: '1.0' },
     ],

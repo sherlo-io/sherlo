@@ -117,7 +117,6 @@ import {
   getBuildRunConfig as _getBuildRunConfig,
   getGitInfo as _getGitInfo,
   getPlatformsToTest as _getPlatformsToTest,
-  getTokenParts as _getTokenParts,
   getValidatedCommandParams as _getValidatedCommandParams,
   printResultsUrl as _printResultsUrl,
   printSherloIntro as _printSherloIntro,
@@ -136,7 +135,6 @@ const mockGetAppBuildUrl = vi.mocked(_getAppBuildUrl);
 const mockGetBuildRunConfig = vi.mocked(_getBuildRunConfig);
 const mockGetGitInfo = vi.mocked(_getGitInfo);
 const mockGetPlatformsToTest = vi.mocked(_getPlatformsToTest);
-const mockGetTokenParts = vi.mocked(_getTokenParts);
 const mockGetValidatedCommandParams = vi.mocked(_getValidatedCommandParams);
 const mockPrintResultsUrl = vi.mocked(_printResultsUrl);
 const mockPrintSherloIntro = vi.mocked(_printSherloIntro);
@@ -147,6 +145,15 @@ const mockUploadStagedArtifacts = vi.mocked(_uploadStagedArtifacts);
 const mockRunDryRunPreview = vi.mocked(_runDryRunPreview);
 const mockWaitForBuildResult = vi.mocked(_waitForBuildResult);
 const mockFetchServerBypassReason = vi.mocked(_fetchServerBypassReason);
+
+/** The project token this road spends, as getValidatedCommandParams resolves it. */
+const PROJECT_TOKEN_CREDENTIAL = {
+  kind: 'projectToken',
+  token: 'token-value',
+  apiToken: 'api',
+  projectIndex: 3,
+  teamId: 'team',
+} as const;
 
 // ---------------------------------------------------------------------------
 // Subject under test
@@ -259,7 +266,7 @@ describe('gitInfo parity with the standard road', () => {
   beforeEach(() => {
     mockGetValidatedCommandParams.mockReturnValue({
       projectRoot: '/proj',
-      token: 'token-value',
+      credential: PROJECT_TOKEN_CREDENTIAL,
       devices: [IOS_DEVICE],
       gitBranch: 'flag-branch',
       message: 'a message',
@@ -271,11 +278,6 @@ describe('gitInfo parity with the standard road', () => {
     mockCheckStagedGate.mockResolvedValue({ outcome: 'fast', diff: [] });
     mockBuildBundleForPlatform.mockResolvedValue(bundleResult());
     mockBuildGateMetadata.mockResolvedValue({ engineClass: 'hermes' } as any);
-    mockGetTokenParts.mockReturnValue({
-      apiToken: 'api',
-      projectIndex: 3,
-      teamId: 'team',
-    });
     mockGetStagedUploadUrls.mockResolvedValue({
       stagedPresignedUploadUrls: {
         ios: {
@@ -388,14 +390,13 @@ describe('--dry-run', () => {
   beforeEach(() => {
     mockGetValidatedCommandParams.mockReturnValue({
       projectRoot: '/proj',
-      token: 'token-value',
+      credential: PROJECT_TOKEN_CREDENTIAL,
       devices: [IOS_DEVICE],
     } as any);
     mockGetPlatformsToTest.mockReturnValue(['ios'] as any);
     mockComputeBaseFingerprint.mockResolvedValue({ hash: 'BASE_FP' } as any);
     mockBuildBundleForPlatform.mockResolvedValue(bundleResult());
     mockBuildGateMetadata.mockResolvedValue({ engineClass: 'hermes' } as any);
-    mockGetTokenParts.mockReturnValue({ apiToken: 'api', projectIndex: 3, teamId: 'team' });
     mockRunDryRunPreview.mockResolvedValue(undefined);
   });
 
@@ -492,7 +493,7 @@ describe('live capture plan', () => {
   }): void {
     mockGetValidatedCommandParams.mockReturnValue({
       projectRoot: '/proj',
-      token: 'token-value',
+      credential: PROJECT_TOKEN_CREDENTIAL,
       devices: platforms.map((p) => (p === 'ios' ? IOS_DEVICE : ANDROID_DEVICE)),
       wait: false,
     } as any);
@@ -503,7 +504,6 @@ describe('live capture plan', () => {
       bundleResult({ moduleManifest: manifest(storyCount) })
     );
     mockBuildGateMetadata.mockResolvedValue({ engineClass: 'hermes' } as any);
-    mockGetTokenParts.mockReturnValue({ apiToken: 'api', projectIndex: 3, teamId: 'team' });
     mockGetStagedUploadUrls.mockResolvedValue({
       stagedPresignedUploadUrls: Object.fromEntries(
         platforms.map((p) => [p, { jsBundle: { s3Key: `js-${p}`, url: `http://s3/${p}` } }])
@@ -937,7 +937,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
   function setup({ wait, bypassed }: { wait: boolean; bypassed: boolean }): void {
     mockGetValidatedCommandParams.mockReturnValue({
       projectRoot: '/proj',
-      token: 'token-value',
+      credential: PROJECT_TOKEN_CREDENTIAL,
       devices: [IOS_DEVICE],
       wait,
       waitTimeout: undefined,
@@ -947,7 +947,6 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     mockCheckStagedGate.mockResolvedValue({ outcome: 'fast', diff: [] });
     mockBuildBundleForPlatform.mockResolvedValue(bundleResult());
     mockBuildGateMetadata.mockResolvedValue({ engineClass: 'hermes' } as any);
-    mockGetTokenParts.mockReturnValue({ apiToken: 'api', projectIndex: 3, teamId: 'team' });
     mockGetStagedUploadUrls.mockResolvedValue({
       stagedPresignedUploadUrls: { ios: { jsBundle: { s3Key: 'js', url: 'http://s3/js' } } },
     });

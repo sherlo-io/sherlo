@@ -8,7 +8,7 @@ import getBinariesInfoAndNextBuildIndex from './getBinariesInfoAndNextBuildIndex
 type Params = EasBuildOnCompleteCommandParams | OtherCommandParams;
 
 type BaseParams = {
-  /** The raw project token - the seam builds its own sdk client from it (../../seams/serverCalls). */
+  /** The token the push spends - the seam builds its own sdk client from it (../../seams/serverCalls). */
   token: string;
   projectIndex: number;
   teamId: string;

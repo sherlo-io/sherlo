@@ -29,7 +29,6 @@ const mocks = vi.hoisted(() => {
     openBuild,
     client: CLIENT,
     sdkClient: vi.fn().mockReturnValue(CLIENT),
-    getTokenParts: vi.fn(),
     getValidatedBinariesInfoAndNextBuildIndex: vi.fn(),
     uploadOrPrintBinaryReuse: vi.fn(),
     getGitInfo: vi.fn(),
@@ -64,7 +63,6 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock('@sherlo/sdk-client', () => ({ default: mocks.sdkClient }));
-vi.mock('../getTokenParts', () => ({ default: mocks.getTokenParts }));
 vi.mock('../getValidatedBinariesInfoAndNextBuildIndex', () => ({
   default: mocks.getValidatedBinariesInfoAndNextBuildIndex,
 }));
@@ -129,7 +127,13 @@ const BINARIES_INFO = {
 
 const COMMAND_PARAMS = {
   projectRoot: '/proj',
-  token: 'the-token',
+  credential: {
+    kind: 'projectToken',
+    token: 'the-token',
+    apiToken: 'api-tok',
+    projectIndex: 7,
+    teamId: 'team1234',
+  },
   android: '/builds/app.apk',
   ios: '/builds/app.app',
   message: 'my build message',
@@ -178,7 +182,6 @@ function lastOpenBuildPayload() {
 // ---------------------------------------------------------------------------
 
 beforeEach(() => {
-  mocks.getTokenParts.mockReturnValue({ apiToken: 'api-tok', projectIndex: 7, teamId: 'team1234' });
   mocks.getValidatedBinariesInfoAndNextBuildIndex.mockResolvedValue({
     binariesInfo: BINARIES_INFO,
     nextBuildIndex: 3,
