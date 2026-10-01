@@ -18,6 +18,7 @@ import {
   METADATA_OPTION,
   PERSONAL_TOKEN_OPTION,
   PROFILE_OPTION,
+  PROJECT_OPTION,
   PROJECT_ROOT_OPTION,
   TEST_COMMAND,
   TEST_EAS_CLOUD_BUILD_COMMAND,
@@ -150,7 +151,14 @@ type CommandOptions = {
   [VIEW_COMMAND]: {
     [PERSONAL_TOKEN_OPTION]?: string;
   };
-  [INIT_COMMAND]: {};
+  /**
+   * `sherlo init` names the project with `--project`, and spends `--personal-token` to check it or
+   * to choose one (commands/init/project). `--token` is common to every command.
+   */
+  [INIT_COMMAND]: {
+    [PERSONAL_TOKEN_OPTION]?: string;
+    [PROJECT_OPTION]?: string;
+  };
   any: Partial<
     CommandOptions[typeof TEST_EAS_CLOUD_BUILD_COMMAND] &
       CommandOptions[typeof TEST_COMMAND] &

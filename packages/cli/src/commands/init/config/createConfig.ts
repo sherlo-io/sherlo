@@ -3,13 +3,15 @@ import { InvalidatedConfig } from '../../../types';
 import { printMessage } from '../helpers';
 import { DEFAULT_DEVICES } from './constants';
 import printDefaultDevicesMessage from './printDefaultDevicesMessage';
+import printProjectAddedMessage from './printProjectAddedMessage';
 import writeConfig from './writeConfig';
 
+/** A new config: the project and the default devices. Never a token - the file is committed. */
 async function createConfig(
-  token?: string
+  project: string
 ): Promise<{ createdConfig: InvalidatedConfig; hasAddedDefaultDevices: boolean }> {
   const config = {
-    ...(token && { token }),
+    project,
     devices: DEFAULT_DEVICES,
   };
 
@@ -19,6 +21,8 @@ async function createConfig(
     type: 'success',
     message: `Created: ${DEFAULT_CONFIG_FILENAME}`,
   });
+
+  printProjectAddedMessage(project);
 
   printDefaultDevicesMessage();
 
