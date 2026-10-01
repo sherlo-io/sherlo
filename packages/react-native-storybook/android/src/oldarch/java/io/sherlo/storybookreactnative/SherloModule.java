@@ -56,6 +56,14 @@ public class SherloModule extends ReactContextBaseJavaModule {
         return moduleCore.getSherloConstants().toHashMap();
     }
 
+    /**
+     * The sealed JS core native code picked, as JSON. Synchronous: JavaScript evaluates it on import.
+     */
+    @ReactMethod(isBlockingSynchronousMethod = true)
+    public String loadCore() {
+        return SherloCoreLoader.loadCoreJson(getReactApplicationContext());
+    }
+
     // ==== Storybook Methods ====
 
     /**

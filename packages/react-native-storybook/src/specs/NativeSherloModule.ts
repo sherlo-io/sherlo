@@ -52,6 +52,11 @@ export interface Spec extends TurboModule {
    * observed, false if the cap elapsed first. Content-agnostic.
    */
   awaitFrameCommit: (timeoutMs: number) => Promise<boolean>;
+  /**
+   * The sealed JS core native code picked, as JSON `{source, origin, version, reason}` (see
+   * SherloCoreLoader on each platform). Synchronous: the SDK evaluates it while it is imported.
+   */
+  loadCore: () => string;
 }
 
 let SherloModule: Spec | null = null;

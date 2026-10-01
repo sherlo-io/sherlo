@@ -68,6 +68,11 @@ export function rememberStoryOfTheApp(fiber: RenderedFiber | undefined): void {
   storyOfTheApp = fiber;
 }
 
+/** The top of the app's story, or nothing before it has been rendered. */
+export function storyOfTheAppFiber(): RenderedFiber | undefined {
+  return storyOfTheApp;
+}
+
 /**
  * Every name the app on screen carries, by the native tag of the view it belongs to. A view whose
  * bundle kept no names for it is absent rather than listed with none, because a caller drawing a

@@ -28,7 +28,8 @@
  * dependency of `@storybook/react-native` and is not guaranteed to be resolvable from here, while
  * the event name itself is part of Storybook's stable wire protocol on 8.x and 9.x alike.
  */
-import { NativeModules } from 'react-native';
+import { bundlerOrigin } from './bundlerOrigin';
+import { getSealedCore } from './sealedCore/loadSealedCore';
 import { StorybookView } from './types';
 import openStorybook from './openStorybook';
 import { readStoryError } from './getStorybook/storyErrorRegistry';
@@ -111,6 +112,8 @@ export function startOpenStoryChannel({
   letterbox?: BundlerLetterbox | null;
 }): void {
   if (collecting || !channel) return;
+  // No sealed core, no `sherlo open`: the core holds what this road will need.
+  if (!getSealedCore()) return;
 
   const road = letterbox === undefined ? bundlerLetterbox() : letterbox;
   if (!road) return;
@@ -232,15 +235,4 @@ export function bundlerLetterbox(): BundlerLetterbox | null {
       }
     },
   };
-}
-
-function bundlerOrigin(): string | null {
-  const sourceCode = NativeModules.SourceCode as
-    | { getConstants?: () => { scriptURL?: string }; scriptURL?: string }
-    | undefined;
-  const scriptURL = sourceCode?.getConstants?.().scriptURL ?? sourceCode?.scriptURL;
-  if (typeof scriptURL !== 'string') return null;
-
-  const origin = /^(https?:\/\/[^/]+)/.exec(scriptURL);
-  return origin ? origin[1] : null;
 }

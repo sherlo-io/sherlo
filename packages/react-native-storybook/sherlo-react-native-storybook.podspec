@@ -15,6 +15,8 @@ Pod::Spec.new do |s|
   s.source       = { :git => "https://github.com/sherlo-io/sherlo.git", :tag => "v#{s.version}" }
   s.source_files  = "ios/**/*.{h,m,mm}"
   s.resources = "ios/Resources/**/*"
+  # The sealed core loader verifies a newer core's signature with the Security framework.
+  s.frameworks = "Security"
 
   s.dependency 'React-Core'
 
