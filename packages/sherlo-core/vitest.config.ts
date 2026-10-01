@@ -7,7 +7,7 @@ const maxWorkers = slotCpus > 0 ? slotCpus : undefined;
 
 export default defineConfig({
   test: {
-    // The JS core's tests, and (later tasks) the C core's harness.
+    // The JS core's tests, and the C core's harness (compiled for this machine with its `cc`).
     include: ['js/__tests__/**/*.test.ts', 'native/__tests__/**/*.test.ts'],
     globals: true,
     maxWorkers,

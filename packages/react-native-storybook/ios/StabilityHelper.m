@@ -1,8 +1,63 @@
 #import "StabilityHelper.h"
-#import "Pixelmatch.h"
+#import "sherlo_core.h"
 #import <QuartzCore/QuartzCore.h>
 
 static NSString *const LOG_TAG = @"SherloModule:StabilityHelper";
+
+// The C core's ABI this glue knows (SHERLO_CORE_ABI when it was written). The core is linked in
+// from SherloCore.xcframework; one that reports another ABI is refused, and no screen is still.
+static const int32_t KNOWN_CORE_ABI = 1;
+
+// Milliseconds on a clock that only moves forward.
+static int64_t nowMs(void) {
+    return (int64_t)(CACurrentMediaTime() * 1000.0);
+}
+
+/**
+ * One screenshot drawn once into premultiplied RGBA8, the bytes the C core compares. Each
+ * screenshot is drawn once and kept until the next one has been compared with it.
+ */
+@interface SherloScreenshotPixels : NSObject
+@property (nonatomic, readonly) NSMutableData *bytes;
+@property (nonatomic, readonly) size_t width;
+@property (nonatomic, readonly) size_t height;
+@end
+
+@implementation SherloScreenshotPixels
+
+- (instancetype)initWithImage:(UIImage *)image {
+    if ((self = [super init])) {
+        CGImageRef cgImage = image.CGImage;
+        _width = CGImageGetWidth(cgImage);
+        _height = CGImageGetHeight(cgImage);
+        _bytes = [NSMutableData dataWithLength:_width * _height * 4];
+
+        CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+        CGContextRef context = CGBitmapContextCreate(_bytes.mutableBytes, _width, _height, 8, _width * 4, colorSpace,
+                                                     kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
+        CGColorSpaceRelease(colorSpace);
+        if (!context) {
+            @throw [NSException exceptionWithName:NSInternalInconsistencyException
+                                           reason:@"Failed to create bitmap context."
+                                         userInfo:nil];
+        }
+        CGContextDrawImage(context, CGRectMake(0, 0, _width, _height), cgImage);
+        CGContextRelease(context);
+    }
+    return self;
+}
+
+- (sherlo_image)coreImage {
+    sherlo_image image;
+    image.pixels = (const uint8_t *)self.bytes.bytes;
+    image.width = (int32_t)self.width;
+    image.height = (int32_t)self.height;
+    image.stride_bytes = (int32_t)(self.width * 4);
+    image.format = SHERLO_PIXELS_RGBA8_PREMULTIPLIED;
+    return image;
+}
+
+@end
 
 /**
  * One-shot CADisplayLink target for the native paint barrier. CADisplayLink
@@ -47,76 +102,102 @@ static NSString *const LOG_TAG = @"SherloModule:StabilityHelper";
         includeAA:(BOOL)includeAA
         resolve:(RCTPromiseResolveBlock)resolve
         reject:(RCTPromiseRejectBlock)reject {
-    
+    int32_t coreAbi = sherlo_core_abi();
+    if (coreAbi != KNOWN_CORE_ABI) {
+        NSLog(@"[%@] UI is not stable - the C core speaks ABI %d, this SDK knows ABI %d", LOG_TAG, coreAbi, KNOWN_CORE_ABI);
+        resolve(@NO);
+        return;
+    }
+
     // Ensure that UI operations are performed on the main thread.
     dispatch_async(dispatch_get_main_queue(), ^{
-        __block UIImage *lastScreenshot = [self captureScreenshot];
-        if (!lastScreenshot) {
+        UIImage *firstScreenshot = [self captureScreenshot];
+        if (!firstScreenshot) {
             reject(@"SCREENSHOT_FAILED", @"Failed to capture initial screenshot", nil);
             return;
         }
-        
+
         if (saveScreenshots) {
-            [self saveScreenshot:lastScreenshot withIndex:0];
+            [self saveScreenshot:firstScreenshot withIndex:0];
         }
-        
-        __block NSInteger consecutiveMatches = 0;
+        __block SherloScreenshotPixels *lastPixels = [[SherloScreenshotPixels alloc] initWithImage:firstScreenshot];
+
+        // iOS's own constants: the clock starts once the first screenshot is taken, and that
+        // screenshot does not count towards the minimum.
+        sherlo_still_params params;
+        params.required_still_pairs = (int32_t)requiredMatches;
+        params.minimum_screenshots = (int32_t)minScreenshotsCount;
+        params.counts_first_screenshot = 0;
+        params.time_limit_ms = (int64_t)timeoutMs;
+        params.threshold = threshold;
+        params.include_aa = includeAA ? 1 : 0;
+        sherlo_still_state *stillness = sherlo_still_begin(&params, nowMs());
+        if (!stillness) {
+            NSLog(@"[%@] UI is not stable - the C core could not start a stillness decision", LOG_TAG);
+            resolve(@NO);
+            return;
+        }
+
         __block NSInteger screenshotCounter = 0;
-        NSDate *startTime = [NSDate date];
-        
+
         // Create a timer to check for UI stability
-        NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:(MAX(intervalMs, 1) / 1000.0)
+        [NSTimer scheduledTimerWithTimeInterval:(MAX(intervalMs, 1) / 1000.0)
                                         repeats:YES
                                           block:^(NSTimer * _Nonnull t) {
             @autoreleasepool {
                 screenshotCounter++;
-                
-                NSTimeInterval elapsedSeconds = -[startTime timeIntervalSinceNow];
-                NSInteger elapsedMs = (NSInteger)(elapsedSeconds * 1000);
-                
+                // iOS reads its clock when the timer fires, before the screenshot.
+                int64_t tickMs = nowMs();
+
                 UIImage *currentScreenshot = [self captureScreenshot];
                 if (!currentScreenshot) {
                     [t invalidate];
+                    sherlo_still_end(stillness);
                     reject(@"SCREENSHOT_FAILED", @"Failed to capture screenshot during stability check", nil);
                     return;
                 }
-                
+
                 if (saveScreenshots) {
                     [self saveScreenshot:currentScreenshot withIndex:screenshotCounter];
                 }
-                
-                NSUInteger differentPixels = [Pixelmatch pixelmatchImage:currentScreenshot 
-                                                           againstImage:lastScreenshot 
-                                                              threshold:threshold 
-                                                               includeAA:includeAA];
-                
-                BOOL imagesMatch = (differentPixels == 0);
-                
-                if (imagesMatch) {
-                    NSLog(@"[%@] Consecutive match number: %ld", LOG_TAG, (long)consecutiveMatches);
-                    consecutiveMatches++;
+                SherloScreenshotPixels *currentPixels = [[SherloScreenshotPixels alloc] initWithImage:currentScreenshot];
+
+                sherlo_image previousImage = [lastPixels coreImage];
+                sherlo_image currentImage = [currentPixels coreImage];
+                int64_t differentPixels = 0;
+                int32_t verdict = sherlo_still_step(stillness, &previousImage, &currentImage, tickMs, 0, &differentPixels);
+
+                if (differentPixels == SHERLO_ERROR_SIZE_MISMATCH) {
+                    // As before the C core: a screenshot of another size throws.
+                    NSString *reason = [NSString stringWithFormat:
+                        @"Image sizes do not match. Image1: %lux%lu, Image2: %lux%lu",
+                        (unsigned long)currentPixels.width, (unsigned long)currentPixels.height,
+                        (unsigned long)lastPixels.width, (unsigned long)lastPixels.height];
+                    @throw [NSException exceptionWithName:NSInvalidArgumentException reason:reason userInfo:nil];
+                }
+
+                if (differentPixels == 0) {
+                    NSLog(@"[%@] Consecutive match", LOG_TAG);
                 } else {
-                    NSLog(@"[%@] No consecutive match - %lu different pixels", LOG_TAG, (unsigned long)differentPixels);
-                    consecutiveMatches = 0; // Reset if the screenshots don't match.
+                    NSLog(@"[%@] No consecutive match - %lld different pixels", LOG_TAG, (long long)differentPixels);
                 }
-                
-                // Release previous screenshot to free memory
-                UIImage *tempImage = lastScreenshot;
-                lastScreenshot = currentScreenshot;
-                tempImage = nil;
-                
-                // Check if we have achieved the required number of consecutive matches.
-                if (consecutiveMatches >= requiredMatches) {
+
+                // The previous screenshot has been compared: only the newest is kept.
+                lastPixels = currentPixels;
+
+                if (verdict == SHERLO_STILL_CONTINUE) {
+                    return;
+                }
+                if (verdict == SHERLO_STILL_STABLE) {
                     NSLog(@"[%@] UI is stable", LOG_TAG);
-                    [t invalidate];
-                    resolve(@YES);
-                }
-                // Check if we've exceeded the timeout for matching but have taken minimum screenshots
-                else if (elapsedMs >= timeoutMs && consecutiveMatches == 0 && screenshotCounter >= minScreenshotsCount) {
+                } else if (verdict == SHERLO_STILL_UNSTABLE) {
                     NSLog(@"[%@] UI is unstable", LOG_TAG);
-                    [t invalidate];
-                    resolve(@NO);
+                } else {
+                    NSLog(@"[%@] UI is not stable - the C core refused the screenshots (%d)", LOG_TAG, verdict);
                 }
+                [t invalidate];
+                sherlo_still_end(stillness);
+                resolve(verdict == SHERLO_STILL_STABLE ? @YES : @NO);
             }
         }];
     });
