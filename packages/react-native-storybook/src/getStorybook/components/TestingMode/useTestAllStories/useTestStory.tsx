@@ -1,112 +1,15 @@
 import { useEffect } from 'react';
-import { RunnerBridge } from '../../../../helpers';
-import SherloModule from '../../../../SherloModule';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MetadataProviderRef } from '../MetadataProvider';
 import { getSealedCore } from '../../../../sealedCore/loadSealedCore';
-import { readStoryError, clearStoryError } from '../../../storyErrorRegistry';
-import { Config } from '../../../../helpers/RunnerBridge/types';
 import { StorybookView } from '../../../../types';
-import { getStorybookChannel, waitForStoryRendered } from './storyRenderedReadiness';
 import { clearMocks } from '../../../../mocking';
-import { STORY_ERROR_FALLBACK_TEXT } from '../../../../constants';
-
-// Readiness defaults, applied SDK-side so an OLD runner that omits
-// these fields still works. Documented in Config (RunnerBridge/types.ts).
-const READINESS_DEFAULTS = {
-  scrollableFallbackDelayMs: 3000,
-  storyRenderedTimeoutMs: 5000,
-  paintBarrierTimeoutMs: 1000,
-  paintBarrierPerScrollPart: true,
-} as const;
-
-const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
-
-type ReadinessConfig = {
-  scrollableFallbackDelayMs: number;
-  storyRenderedTimeoutMs: number;
-  paintBarrierTimeoutMs: number;
-  paintBarrierPerScrollPart: boolean;
-};
-
-function resolveReadinessConfig(config: Config): ReadinessConfig {
-  return {
-    scrollableFallbackDelayMs:
-      config.scrollableFallbackDelayMs ?? READINESS_DEFAULTS.scrollableFallbackDelayMs,
-    storyRenderedTimeoutMs:
-      config.storyRenderedTimeoutMs ?? READINESS_DEFAULTS.storyRenderedTimeoutMs,
-    paintBarrierTimeoutMs: config.paintBarrierTimeoutMs ?? READINESS_DEFAULTS.paintBarrierTimeoutMs,
-    paintBarrierPerScrollPart:
-      config.paintBarrierPerScrollPart ?? READINESS_DEFAULTS.paintBarrierPerScrollPart,
-  };
-}
 
 /**
- * Run the native paint barrier (force a redraw, resolve on the next real frame
- * commit). Best-effort: on timeout/error we warn and proceed - the stability
- * loop runs afterwards regardless (design decision 3).
+ * A launch with a story: the sealed core waits until the story is ready and reports it to the
+ * runner (its testStory). This hook hands it the view, the screen's insets and the app's metadata,
+ * and turns the story's mocks off however the walk ended - mocking stays in the SDK.
  */
-async function runPaintBarrier(
-  readiness: ReadinessConfig,
-  context: Record<string, any>
-): Promise<void> {
-  const painted = await SherloModule.awaitFrameCommit(readiness.paintBarrierTimeoutMs).catch(
-    (error) => {
-      RunnerBridge.log('paint barrier error', { error: error?.message, ...context });
-      return false;
-    }
-  );
-  RunnerBridge.log('paint barrier', {
-    painted,
-    timeoutMs: readiness.paintBarrierTimeoutMs,
-    ...context,
-  });
-}
-
-/**
- * New readiness path: wait for Storybook's STORY_RENDERED (exact
- * storyId), or fall back to the configured scrollable delay, then run the native
- * paint barrier - so the stability loop that follows settles on real painted
- * content rather than a frozen spinner or blank.
- */
-async function awaitStoryReadyAndPaint({
-  view,
-  storyId,
-  readiness,
-}: {
-  view: StorybookView | undefined;
-  storyId: string;
-  readiness: ReadinessConfig;
-}): Promise<void> {
-  const channel = getStorybookChannel(view);
-  const result = await waitForStoryRendered({
-    storyId,
-    timeoutMs: readiness.storyRenderedTimeoutMs,
-    channel,
-  });
-  RunnerBridge.log('readiness result', {
-    path: result.path,
-    rendered: result.rendered,
-    waitedMs: result.waitedMs,
-  });
-
-  if (!result.rendered) {
-    // STORY_RENDERED never arrived (timeout) or no channel was reachable.
-    // For scrollable snapshots wait the configured fallback before stabilizing.
-    const probe = await SherloModule.isScrollable().catch(() => ({ scrollable: false }));
-    if (probe.scrollable) {
-      RunnerBridge.log('readiness fallback delay (scrollable)', {
-        delayMs: readiness.scrollableFallbackDelayMs,
-      });
-      await delay(readiness.scrollableFallbackDelayMs);
-    } else {
-      RunnerBridge.log('readiness fallback skipped (not scrollable)');
-    }
-  }
-
-  await runPaintBarrier(readiness, { phase: 'initial' });
-}
-
 function useTestStory({
   metadataProviderRef,
   view,
@@ -115,286 +18,28 @@ function useTestStory({
   metadataProviderRef: React.RefObject<MetadataProviderRef>;
   view?: StorybookView;
   /**
-   * Whether this hook's report loop may run at all - false for a capture, which is driven over
-   * the socket instead and reports nothing over protocol files (see useTestAllStories, the one
-   * place that reads SherloModule.getDriver() to decide). Defaults to true so a caller that never
-   * drives a capture (every test in this file included) does not have to pass it.
+   * Whether the walk may run at all - false for a capture, which is driven over the socket instead
+   * and reports nothing over protocol files (see useTestAllStories, the one place that reads
+   * SherloModule.getDriver() to decide). Defaults to true.
    */
   enabled?: boolean;
 }): void {
-  // Every testing-mode boot now carries a real config, whether it came from a run's own
-  // config.sherlo or from the SDK defaults a capture hands across its restart (see
-  // SherloModuleCore on each platform) - getConfigOrDefault still reads through the dummy module
-  // outside a build wired to native at all, which is the one absence left to fall back from.
-  const config = SherloModule.getConfigOrDefault();
-  const lastState = SherloModule.getLastState();
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
     (async (): Promise<void> => {
       try {
-        // `enabled` is who may run this loop at all (see the param doc above); `lastState` is
-        // whether there is a story queued to run it for yet - a run's own first boot, before the
-        // runner has answered START, has none either.
-        if (!enabled || !lastState) return;
-
-        const { nextSnapshot, requestId } = lastState;
-
-        RunnerBridge.log('attempt to test story', {
-          nextSnapshot,
-          requestId,
-        });
-
-        const readiness = resolveReadinessConfig(config);
-
-        // We wait until the story is displayed in the UI
-        // before we start stabilizing and taking screenshots
-        // This is to avoid taking screenshots of the loading state.
-        //
-        // Observability: log BOTH the readiness config received from the
-        // runner and the values actually applied after defaults. Confirming a
-        // value is honored is a log read, not an investigation.
-        RunnerBridge.log('readiness config', {
-          received: {
-            scrollableFallbackDelayMs: config.scrollableFallbackDelayMs,
-            storyRenderedTimeoutMs: config.storyRenderedTimeoutMs,
-            paintBarrierTimeoutMs: config.paintBarrierTimeoutMs,
-            paintBarrierPerScrollPart: config.paintBarrierPerScrollPart,
-          },
-          applied: readiness,
-        });
-
-        await awaitStoryReadyAndPaint({
-          view,
-          storyId: nextSnapshot.storyId,
-          readiness,
-        });
-
-        const isStable = await SherloModule.stabilize(
-          config.stabilization.requiredMatches,
-          config.stabilization.minScreenshotsCount,
-          config.stabilization.intervalMs,
-          config.stabilization.timeoutMs,
-          !!config.stabilization.saveScreenshots,
-          config.stabilization.threshold,
-          config.stabilization.includeAA
-        ).catch((error) => {
-          RunnerBridge.log('error checking if stable', { error: error.message });
-          throw error;
-        });
-
-        RunnerBridge.log('checked if stable', { isStable });
-
-        let inspectorData;
-        const inspectorDataStart = Date.now();
-        while (!inspectorData) {
-          if (Date.now() - inspectorDataStart > 10000) {
-            RunnerBridge.log('getInspectorData timed out after 10s');
-            throw new Error('getInspectorData timed out after 10s');
-          }
-          inspectorData = await SherloModule.getInspectorData().catch((error) => {
-            RunnerBridge.log('error getting inspector data', { error: JSON.stringify(error) });
-          });
-        }
-
-        RunnerBridge.log('got inspector data');
-
-        const fabricMetadata = metadataProviderRef?.current?.collectMetadata();
-
-        RunnerBridge.log('got fabric metadata');
-
-        const recordedError = readStoryError(nextSnapshot.storyId);
-        const containsError =
-          recordedError !== undefined || fabricMetadata?.texts.includes(STORY_ERROR_FALLBACK_TEXT);
-
-        let finalInspectorData = inspectorData;
-        let hasNetworkImage = false;
-        let isScrollable = false;
-        let scrollViewFrame: { x: number; y: number; width: number; height: number } | undefined;
-        let safeAreaMetadata;
-
-        // A test run only starts with the sealed core installed (getStorybook). Were it missing,
-        // the tree would go out as the inspector answered it.
         const core = getSealedCore();
+        if (!enabled || !core) return;
 
-        if (!containsError) {
-          if (fabricMetadata && core) {
-            const preparedInspectorData = core.prepareInspectorData(
-              inspectorData,
-              fabricMetadata,
-              nextSnapshot.storyId
-            );
-            finalInspectorData = preparedInspectorData.inspectorData;
-            hasNetworkImage = preparedInspectorData.hasNetworkImage;
-          }
-
-          // Detect if the screen is scrollable for long-screenshot capture
-          const scrollableResult = await SherloModule.isScrollable().catch((error) => {
-            RunnerBridge.log('error checking if scrollable', { error: error.message });
-            return { scrollable: false, scrollViewFrame: undefined };
-          });
-
-          isScrollable = scrollableResult.scrollable;
-          scrollViewFrame = scrollableResult.scrollViewFrame;
-
-          RunnerBridge.log('checked if scrollable', { isScrollable, scrollViewFrame });
-
-          safeAreaMetadata = {
-            shouldAddSafeArea: !nextSnapshot.parameters?.noSafeArea,
-            insetBottom: Math.round(insets.bottom * finalInspectorData.density),
-            insetTop: Math.round(insets.top * finalInspectorData.density),
-          };
-        }
-
-        let checkpointIndex = 0;
-        let currentRequestId = requestId;
-        let isAtEnd = false;
-        let currentScrollOffset = 0;
-
-        // Initial Send
-        RunnerBridge.log('requesting screenshot from master script', {
-          action: 'REQUEST_SNAPSHOT',
-          hasError: containsError,
-          finalInspectorData: !!finalInspectorData,
-          isStable,
-          isScrollable,
-          requestId: currentRequestId,
-          safeAreaMetadata,
-          hasNetworkImage,
-          isAtEnd,
-          scrollOffset: currentScrollOffset,
+        await core.testStory({
+          view,
+          insets,
+          collectMetadata: () => metadataProviderRef?.current?.collectMetadata(),
         });
-
-        let response = await RunnerBridge.send({
-          action: 'REQUEST_SNAPSHOT',
-          storyId: nextSnapshot.storyId,
-          error: recordedError,
-          hasError: containsError,
-          inspectorData: JSON.stringify(finalInspectorData),
-          isStable,
-          isScrollable,
-          requestId: currentRequestId,
-          safeAreaMetadata,
-          hasNetworkImage,
-          isAtEnd,
-          scrollOffset: currentScrollOffset,
-          scrollViewFrame,
-        });
-
-        // Loop if runner requests more scrolling
-        while (response && response.action === 'ACK_SCROLL_REQUEST') {
-          const { scrollIndex, offsetPx, requestId: nextRequestId } = response;
-          RunnerBridge.log('received ACK_SCROLL_REQUEST', { scrollIndex, offsetPx, nextRequestId });
-
-          if (nextRequestId) {
-            currentRequestId = nextRequestId;
-          }
-
-          let isStableAfterScroll = true;
-
-          if (scrollIndex > 0) {
-            // Scroll to target
-            const scrollResult = await SherloModule.scrollToCheckpoint(
-              scrollIndex,
-              offsetPx,
-              50 // Guardrail max index
-            ).catch((error) => {
-              RunnerBridge.log('error scrolling to checkpoint', { error: error.message });
-              throw error;
-            });
-
-            // Check if we reached bottom locally
-            if (scrollResult.reachedBottom) {
-              RunnerBridge.log('reached bottom locally during scroll');
-              isAtEnd = true;
-            }
-
-            // Re-run the native paint barrier for this scroll part
-            // so the post-scroll stabilize settles on freshly-painted content.
-            if (readiness.paintBarrierPerScrollPart) {
-              await runPaintBarrier(readiness, { phase: 'scroll-part', scrollIndex });
-            }
-
-            // Stabilize
-            isStableAfterScroll = await SherloModule.stabilize(
-              config.stabilization.requiredMatches,
-              config.stabilization.minScreenshotsCount,
-              config.stabilization.intervalMs,
-              config.stabilization.timeoutMs,
-              !!config.stabilization.saveScreenshots,
-              config.stabilization.threshold,
-              config.stabilization.includeAA
-            ).catch((error) => {
-              RunnerBridge.log('error stabilizing after scroll', { error: error.message });
-              throw error;
-            });
-
-            if (!isStableAfterScroll) {
-              RunnerBridge.log('warning: UI not stable after scroll');
-            }
-            currentScrollOffset = scrollResult.appliedOffsetPx;
-
-            // Recapture Metadata after scroll to get dynamic elements (below fold)
-            let newInspectorData;
-            const scrollInspectorStart = Date.now();
-            while (!newInspectorData) {
-              if (Date.now() - scrollInspectorStart > 10000) {
-                RunnerBridge.log('getInspectorData (scroll) timed out after 10s');
-                throw new Error('getInspectorData (scroll) timed out after 10s');
-              }
-              newInspectorData = await SherloModule.getInspectorData().catch((error) => {
-                RunnerBridge.log('error getting inspector data (scroll)', {
-                  error: JSON.stringify(error),
-                });
-              });
-            }
-
-            const newFabricMetadata = metadataProviderRef?.current?.collectMetadata();
-
-            if (newInspectorData && core) {
-              const prepared = core.prepareInspectorData(
-                newInspectorData,
-                newFabricMetadata!,
-                nextSnapshot.storyId // We assume story ID doesn't change
-              );
-              finalInspectorData = prepared.inspectorData;
-              hasNetworkImage = prepared.hasNetworkImage;
-            }
-          }
-
-          checkpointIndex = scrollIndex;
-
-          // Send next part
-          RunnerBridge.log('requesting next screenshot part', {
-            scrollIndex: checkpointIndex,
-            requestId: currentRequestId,
-            isAtEnd,
-            scrollOffset: currentScrollOffset,
-          });
-
-          response = await RunnerBridge.send({
-            action: 'REQUEST_SNAPSHOT',
-            storyId: nextSnapshot.storyId,
-            error: recordedError,
-            hasError: containsError,
-            inspectorData: JSON.stringify(finalInspectorData),
-            isStable: isStableAfterScroll,
-            isScrollable,
-            requestId: currentRequestId,
-            safeAreaMetadata,
-            hasNetworkImage,
-            isAtEnd,
-            scrollOffset: currentScrollOffset,
-            scrollViewFrame,
-          });
-        }
-        clearStoryError(nextSnapshot.storyId);
-      } catch (error) {
-        // @ts-ignore
-        RunnerBridge.log('story capturing failed', { errorMessage: error?.message });
       } finally {
-        // IS-07: the run for this story is over - pass every mocked module through to
-        // its real implementation again, regardless of how the try block above exited.
+        // IS-07: the walk for this story is over - pass every mocked module through to its real
+        // implementation again, however it ended.
         clearMocks();
       }
     })();

@@ -24,7 +24,7 @@ export type Config = {
    *
    * All optional: an OLD runner that omits them, paired with this SDK, still
    * works because every value falls back to a SDK-side default (see
-   * READINESS_DEFAULTS in useTestStory).
+   * READINESS_DEFAULTS in the sealed core's testStory).
    */
   /**
    * When STORY_RENDERED is not received in time (or no Storybook channel is

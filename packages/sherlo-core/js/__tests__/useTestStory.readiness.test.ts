@@ -1,5 +1,6 @@
 /**
- * STORY_RENDERED readiness + native paint barrier.
+ * STORY_RENDERED readiness + native paint barrier, in the sealed core's walk of one story
+ * (testStory, which the SDK's useTestStory hook calls).
  *
  * These tests are MUST-GO-RED: they assert behavior that only exists with the
  * readiness path (STORY_RENDERED subscription + native paint barrier). Swap the
@@ -9,86 +10,37 @@
  * What they cover (all SEQUENCING / behavioral, NOT pixel content):
  *  - committed-but-not-painted repro: stabilize must run AFTER the paint barrier
  *  - STORY_RENDERED readiness via a MOCKED channel, EXACT storyId match
- *  - early-buffer: a story that rendered before useTestStory mounted
+ *  - early-buffer: a story that rendered before the walk started waiting
  *  - timeout -> scrollable fallback delay
  *  - paint-barrier sequencing (awaitFrameCommit resolves before stabilize)
  *  - per-scroll-part paint barrier
  */
-
-const {
-  mockSend,
-  mockLog,
-  mockGetLastState,
-  mockGetConfig,
-  mockStabilize,
-  mockGetInspectorData,
-  mockIsScrollable,
-  mockScrollToCheckpoint,
-  mockAwaitFrameCommit,
-} = vi.hoisted(() => ({
-  mockSend: vi.fn(),
-  mockLog: vi.fn(),
-  mockGetLastState: vi.fn(),
-  mockGetConfig: vi.fn(),
-  mockStabilize: vi.fn(),
-  mockGetInspectorData: vi.fn(),
-  mockIsScrollable: vi.fn(),
-  mockScrollToCheckpoint: vi.fn(),
-  mockAwaitFrameCommit: vi.fn(),
-}));
-
-vi.mock('react', async () => {
-  const actual = await vi.importActual<typeof import('react')>('react');
-  return {
-    ...actual,
-    useEffect: (fn: () => void | (() => void)) => {
-      fn();
-    },
-  };
-});
-
-vi.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ bottom: 0, top: 0, left: 0, right: 0 }),
-}));
-
-vi.mock('../helpers', () => ({
-  RunnerBridge: { send: mockSend, log: mockLog },
-  isExpoGo: false,
-}));
-
-vi.mock('../SherloModule', () => ({
-  default: {
-    getConfig: mockGetConfig,
-    getConfigOrDefault: mockGetConfig,
-    getLastState: mockGetLastState,
-    stabilize: mockStabilize,
-    getInspectorData: mockGetInspectorData,
-    isScrollable: mockIsScrollable,
-    scrollToCheckpoint: mockScrollToCheckpoint,
-    awaitFrameCommit: mockAwaitFrameCommit,
-  },
-}));
-
-vi.mock('../getStorybook/storyErrorRegistry', () => ({
-  readStoryError: () => undefined,
-  clearStoryError: vi.fn(),
-  // The sealed core's host carries the registry's writer too.
-  recordStoryError: vi.fn(),
-}));
-
-import useTestStory from '../getStorybook/components/TestingMode/useTestAllStories/useTestStory';
-import { getSealedCore } from '../sealedCore/loadSealedCore';
-
-// The sealed core's preparation of the inspector's tree is stood in for: the tree goes out as it
-// came in, with no network image.
-vi.spyOn(getSealedCore()!, 'prepareInspectorData').mockImplementation((inspectorData) => ({
-  inspectorData,
-  hasNetworkImage: false,
-}));
+import type { SealedCoreHost } from '../../../react-native-storybook/src/sealedCore/seam';
+import { STORY_ERROR_FALLBACK_TEXT } from '../../../react-native-storybook/src/constants';
+import { installTestHost } from './testHost';
+import { testStory } from '../src/testStory';
 import {
   startStoryRenderedTracking,
   __resetStoryRenderedTrackingForTests,
-} from '../getStorybook/components/TestingMode/useTestAllStories/storyRenderedReadiness';
+} from '../src/storyRenderedReadiness';
+
+// The core's preparation of the inspector's tree is stood in for: the tree goes out as it came in,
+// with no network image.
+vi.mock('../src/prepareInspectorData', () => ({
+  prepareInspectorData: (inspectorData: unknown) => ({ inspectorData, hasNetworkImage: false }),
+}));
+
+const mockSend = vi.fn();
+const mockLog = vi.fn();
+const mockGetLastState = vi.fn();
+const mockGetConfig = vi.fn();
+const mockStabilize = vi.fn();
+const mockGetInspectorData = vi.fn();
+const mockIsScrollable = vi.fn();
+const mockScrollToCheckpoint = vi.fn();
+const mockAwaitFrameCommit = vi.fn();
+
+const NO_INSETS = { bottom: 0, top: 0, left: 0, right: 0 };
 
 const FAKE_STORY_ID = 'components-button--primary';
 const FAKE_REQUEST_ID = 'req-abc-123';
@@ -133,12 +85,10 @@ function makeLastState(storyId = FAKE_STORY_ID, requestId = FAKE_REQUEST_ID) {
 
 // collectMetadata that does NOT contain the storyId, so the legacy substring
 // poll could never resolve from it - readiness MUST come from STORY_RENDERED.
-function makeMetadataRefWithout() {
-  return {
-    current: {
-      collectMetadata: () => ({ texts: ['unrelated'], images: [] }),
-    },
-  } as any;
+const collectMetadataWithout = () => ({ texts: ['unrelated'], images: [] }) as any;
+
+function walkTheStory(view: ReturnType<typeof makeView>): Promise<void> {
+  return testStory({ view, insets: NO_INSETS, collectMetadata: collectMetadataWithout });
 }
 
 const FAKE_INSPECTOR_DATA = {
@@ -168,6 +118,25 @@ beforeEach(() => {
   vi.clearAllMocks();
   __resetStoryRenderedTrackingForTests();
 
+  installTestHost({
+    native: {
+      getConfigOrDefault: mockGetConfig,
+      getLastState: mockGetLastState,
+      stabilize: mockStabilize,
+      getInspectorData: mockGetInspectorData,
+      isScrollable: mockIsScrollable,
+      scrollToCheckpoint: mockScrollToCheckpoint,
+      awaitFrameCommit: mockAwaitFrameCommit,
+    } as unknown as SealedCoreHost['native'],
+    runner: { send: mockSend, log: mockLog },
+    storyErrors: {
+      record: vi.fn(),
+      read: () => undefined,
+      clear: vi.fn(),
+      fallbackText: STORY_ERROR_FALLBACK_TEXT,
+    },
+  });
+
   mockGetConfig.mockReturnValue(READINESS_CONFIG);
   mockGetLastState.mockReturnValue(makeLastState());
   mockStabilize.mockResolvedValue(true);
@@ -190,7 +159,7 @@ async function flushAll(ticks = 30): Promise<void> {
 describe('useTestStory readiness - STORY_RENDERED', () => {
   it('resolves readiness via STORY_RENDERED exact-id match (substring tree never matches)', async () => {
     const channel = makeChannel();
-    // Pre-seed: story rendered before useTestStory runs (buffered case also).
+    // Pre-seed: story rendered before the walk runs (buffered case also).
     startStoryRenderedTracking(channel);
     channel.emit('storyRendered', FAKE_STORY_ID);
 
@@ -200,7 +169,7 @@ describe('useTestStory readiness - STORY_RENDERED', () => {
       requestId: 'req-next',
     });
 
-    useTestStory({ metadataProviderRef: makeMetadataRefWithout(), view: makeView(channel) });
+    walkTheStory(makeView(channel));
     await flushAll();
 
     expect(mockSend).toHaveBeenCalledWith(
@@ -221,7 +190,7 @@ describe('useTestStory readiness - STORY_RENDERED', () => {
     });
     mockIsScrollable.mockResolvedValue({ scrollable: false });
 
-    useTestStory({ metadataProviderRef: makeMetadataRefWithout(), view: makeView(channel) });
+    walkTheStory(makeView(channel));
     // Only run microtasks + the storyRenderedTimeoutMs timer once; readiness
     // should fall through to timeout (not match the variant id).
     await vi.advanceTimersByTimeAsync(100);
@@ -230,7 +199,7 @@ describe('useTestStory readiness - STORY_RENDERED', () => {
 
   it('early-buffer: a story rendered before useTestStory mounted is not missed', async () => {
     const channel = makeChannel();
-    // Tracking attached early (as getStorybook would), event fires, THEN the hook runs.
+    // Tracking attached early (as getStorybook would), event fires, THEN the walk runs.
     startStoryRenderedTracking(channel);
     channel.emit('storyRendered', FAKE_STORY_ID);
 
@@ -240,7 +209,7 @@ describe('useTestStory readiness - STORY_RENDERED', () => {
       requestId: 'req-next',
     });
 
-    useTestStory({ metadataProviderRef: makeMetadataRefWithout(), view: makeView(channel) });
+    walkTheStory(makeView(channel));
     await flushAll();
 
     expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({ action: 'REQUEST_SNAPSHOT' }));
@@ -258,7 +227,7 @@ describe('useTestStory readiness - STORY_RENDERED', () => {
       requestId: 'req-next',
     });
 
-    useTestStory({ metadataProviderRef: makeMetadataRefWithout(), view: makeView(channel) });
+    walkTheStory(makeView(channel));
     await flushAll();
 
     // It must eventually proceed (fallback path), and the paint barrier must run.
@@ -293,7 +262,7 @@ describe('useTestStory readiness - native paint barrier sequencing', () => {
       requestId: 'req-next',
     });
 
-    useTestStory({ metadataProviderRef: makeMetadataRefWithout(), view: makeView(channel) });
+    walkTheStory(makeView(channel));
     await flushAll();
 
     expect(capturedSurface).toBe('real');
@@ -310,7 +279,7 @@ describe('useTestStory readiness - native paint barrier sequencing', () => {
       requestId: 'req-next',
     });
 
-    useTestStory({ metadataProviderRef: makeMetadataRefWithout(), view: makeView(channel) });
+    walkTheStory(makeView(channel));
     await flushAll();
 
     expect(mockAwaitFrameCommit).toHaveBeenCalled();
@@ -352,7 +321,7 @@ describe('useTestStory readiness - per-scroll-part paint barrier', () => {
         requestId: 'req-final',
       });
 
-    useTestStory({ metadataProviderRef: makeMetadataRefWithout(), view: makeView(channel) });
+    walkTheStory(makeView(channel));
     await flushAll(40);
 
     // Initial barrier + per-scroll-part barrier => at least 2 calls.
