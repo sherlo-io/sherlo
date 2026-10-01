@@ -16,7 +16,7 @@
 import fs from 'fs';
 import path from 'path';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
-import { liveWorkstation } from '../../../seams/workstation';
+import { liveWorkstation, type PosedWorkstation } from '../../../seams/workstation';
 import { POSES_ROOT } from '../catalogue';
 import { runPose } from '../pose';
 import type { CommandPose } from '../../../seams/commandPose';
@@ -38,6 +38,23 @@ vi.mock('../../../helpers/runShellCommand/executeCommand', () => ({
   },
 }));
 
+/**
+ * Every `sherlo.config.json` the run wrote, by path. The write still happens - into the posed
+ * folder - and is only watched, because the screen's "Created" line alone could not tell a written
+ * file from a printed claim.
+ */
+const { configFilesWritten } = vi.hoisted(() => ({ configFilesWritten: [] as string[] }));
+
+vi.mock('fs/promises', async (importOriginal) => {
+  const real = await importOriginal<typeof import('fs/promises')>();
+  const writeFile: typeof real.writeFile = (file, ...rest) => {
+    if (String(file).endsWith('sherlo.config.json')) configFilesWritten.push(String(file));
+    return real.writeFile(file, ...rest);
+  };
+
+  return { ...real, default: { ...real, writeFile }, writeFile };
+});
+
 /** Whether the run put a real terminal into raw mode - what reading a real keyboard begins with. */
 let rawModeSet = false;
 const stdinDescriptor = Object.getOwnPropertyDescriptor(process.stdin, 'setRawMode');
@@ -53,6 +70,7 @@ Object.defineProperty(process.stdin, 'setRawMode', {
 
 afterEach(() => {
   packageManagerRuns.length = 0;
+  configFilesWritten.length = 0;
   rawModeSet = false;
 });
 
@@ -118,7 +136,61 @@ describe('init through the sixth seam', () => {
   });
 
   // Epic setup-saga: an agent or a CI job runs setup with no keyboard behind it.
-  it.todo('a pose that says nobody is at the keyboard skips the prompt and the setup finishes with the config file written');
+  it('a pose that says nobody is at the keyboard skips the prompt and the setup finishes with the config file written', async () => {
+    const { screen, exitCode, refusals } = await runPose(
+      withWorkstation('first-setup', { enter: 'nobody' })
+    );
+
+    expect(refusals).toEqual([]);
+    // Never asked: no question on the screen, and no keyboard read.
+    expect(plain(screen)).not.toContain('Ready to move on? Press Enter...');
+    expect(rawModeSet).toBe(false);
+    // And the run went on past where the question would have been, to the config file.
+    expect(configFilesWritten).toEqual([expect.stringMatching(/[/\\]sherlo\.config\.json$/)]);
+    expect(plain(screen)).toContain('Created: sherlo.config.json');
+    expect(plain(screen)).toContain('To test your app run:');
+    expect(exitCode).toBe(0);
+  });
+
+  it('a project with an iOS Podfile has its pods answered by the pose, never by a real pod install', async () => {
+    const { screen, exitCode, refusals } = await runPose(
+      withWorkstation(
+        'first-setup',
+        { pods: 'installed' },
+        { 'ios/Podfile': "platform :ios, '15.1'" }
+      )
+    );
+
+    expect(refusals).toEqual([]);
+    expect(packageManagerRuns).toEqual([]);
+    expect(plain(screen)).toContain('Installed Pods');
+    expect(exitCode).toBe(0);
+  });
+
+  it('a pod install the pose did not answer is a refusal of the pose, never a real pod install', async () => {
+    const { refusals } = await runPose(
+      withWorkstation('first-setup', {}, { 'ios/Podfile': "platform :ios, '15.1'" })
+    );
+
+    expect(refusals.map(({ call }) => call)).toEqual(['installPods']);
+    expect(packageManagerRuns).toEqual([]);
+  });
+
+  it('pods stated for a project with no Podfile are a refusal of the pose, an answer to a pod install the command never ran', async () => {
+    const { refusals } = await runPose(withWorkstation('first-setup', { pods: 'installed' }));
+
+    expect(refusals.map(({ call }) => call)).toEqual(['installPods']);
+    expect(packageManagerRuns).toEqual([]);
+  });
+
+  it('CONTROL: the watched door IS the one a live pod install goes through', async () => {
+    await liveWorkstation.installPods({
+      command: 'cd ios && pod install',
+      projectRoot: '/nowhere',
+    });
+
+    expect(packageManagerRuns).toEqual(['cd ios && pod install']);
+  });
 
   it('CONTROL: the watched door IS the one a live install goes through', async () => {
     // Without this, a mock aimed at a path nothing imports any more would leave every "no real
@@ -168,6 +240,24 @@ function withNoWorkstation(): CommandPose {
   delete terminalNobodySitsAt.workstation;
 
   return terminalNobodySitsAt;
+}
+
+/**
+ * A committed init pose with its `workstation` answers changed and, optionally, files added to its
+ * project - built from the committed pose for the same reason as {@link withNoWorkstation}.
+ */
+function withWorkstation(
+  name: string,
+  answers: Partial<PosedWorkstation>,
+  addedFiles: Record<string, string> = {}
+): CommandPose {
+  const committed = poseNamed(name);
+
+  return {
+    ...committed,
+    files: { ...committed.files, ...addedFiles },
+    workstation: { ...committed.workstation!, ...answers },
+  };
 }
 
 /** A screen with its colour taken off, for a case that is about words rather than styling. */

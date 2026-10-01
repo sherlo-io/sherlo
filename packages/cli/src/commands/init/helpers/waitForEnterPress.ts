@@ -1,14 +1,15 @@
 import ansiEscapes from 'ansi-escapes';
-import chalk from 'chalk';
+import { renderEnterPrompt } from '../../../render/initStorybookAccess';
 import { workstation } from '../../../seams/workstation';
 
 /**
  * Stop the setup on "Ready to move on? Press Enter..." so a developer can act on the Storybook
  * Access instructions before the run goes on.
  *
- * THE PROMPT'S BYTES ARE WRITTEN HERE and the keyboard is reached through ../../../seams/workstation:
- * whether there is anybody to ask, and the key they press, are the two things this machine answers
- * and a pose answers instead - the beep, the question, the erase are the tool's own either way.
+ * THE PROMPT'S BYTES ARE WRITTEN HERE, its words drawn by ../../../render/initStorybookAccess, and
+ * the keyboard is reached through ../../../seams/workstation: whether there is anybody to ask, and
+ * the key they press, are the two things this machine answers and a pose answers instead - the
+ * beep, the question, the erase are the tool's own either way.
  */
 async function waitForEnterPress(): Promise<void> {
   // Skip the prompt whenever nobody could answer it (piped stdin, or any CI - including one that
@@ -21,7 +22,7 @@ async function waitForEnterPress(): Promise<void> {
   process.stdout.write(ansiEscapes.beep);
 
   // Display prompt message
-  process.stdout.write('\n' + chalk.bold('👉 Ready to move on? Press Enter...'));
+  process.stdout.write(renderEnterPrompt());
 
   await workstation().readEnterPress();
 

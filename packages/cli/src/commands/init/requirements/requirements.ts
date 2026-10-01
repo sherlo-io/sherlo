@@ -14,7 +14,8 @@ import {
   spinner as createSpinner,
   throwError,
 } from '../../../helpers';
-import { printMessage, printTitle, trackProgress } from '../helpers';
+import { renderRequirementsMet, renderRequirementsTitle } from '../../../render/initRequirements';
+import { printLines, trackProgress } from '../helpers';
 import { EVENT } from './constants';
 import getPackageVersion from './getPackageVersion';
 import validateCorePackagesVersions from './validateCorePackagesVersions';
@@ -35,9 +36,7 @@ async function requirements({ token, sessionId }: { token?: string; sessionId: s
     throw error;
   }
 
-  console.log('Initializing Sherlo in your project...');
-
-  printTitle('✅ Requirements', 15);
+  printLines(renderRequirementsTitle());
 
   const spinner = createSpinner('Checking requirements').start();
 
@@ -53,15 +52,7 @@ async function requirements({ token, sessionId }: { token?: string; sessionId: s
 
   spinner.stop();
 
-  printMessage({
-    type: 'success',
-    message: 'React Native',
-  });
-
-  printMessage({
-    type: 'success',
-    message: 'Storybook',
-  });
+  printLines(renderRequirementsMet());
 }
 
 export default requirements;

@@ -1,19 +1,9 @@
-import chalk from 'chalk';
-import { CONTACT_EMAIL, DISCORD_URL } from '../../../constants';
-import { printTitle, trackProgress } from '../helpers';
+import { renderNeedHelp } from '../../../render/initNeedHelp';
+import { printLines, trackProgress } from '../helpers';
 import { EVENT } from './constants';
 
 async function needHelp(sessionId: string | null): Promise<void> {
-  printTitle('🤝 Need Help?');
-
-  console.log('Help is just a message away!');
-
-  console.log();
-
-  console.log('- Discord: ' + chalk.blue(DISCORD_URL));
-  console.log('- Email: ' + chalk.blue(CONTACT_EMAIL));
-
-  console.log();
+  printLines(renderNeedHelp());
 
   await trackProgress({
     event: EVENT,
