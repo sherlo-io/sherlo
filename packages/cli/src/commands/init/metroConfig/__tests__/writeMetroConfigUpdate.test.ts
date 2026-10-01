@@ -59,6 +59,28 @@ module.exports = withStorybook(getDefaultConfig(__dirname), {
 });`;
 
 describe('writeMetroConfigUpdate', () => {
+  it("keeps the file's final newline when it rewrites the config", async () => {
+    const content = `${SINGLE_LINE}\n`;
+    const filePath = await writeFixture('metro.config.js', content);
+    const result = await writeMetroConfigUpdate({ path: filePath, content });
+
+    expect(result.applied).toBe(true);
+
+    const output = await fs.promises.readFile(filePath, 'utf-8');
+    expect(output).toContain(`require('@sherlo/react-native-storybook/metro/withStorybook')`);
+    expect(output.endsWith(';\n')).toBe(true);
+  });
+
+  it('adds no final newline to a config that had none', async () => {
+    const filePath = await writeFixture('metro.config.js', SINGLE_LINE);
+    const result = await writeMetroConfigUpdate({ path: filePath, content: SINGLE_LINE });
+
+    expect(result.applied).toBe(true);
+
+    const output = await fs.promises.readFile(filePath, 'utf-8');
+    expect(output.endsWith('\n')).toBe(false);
+  });
+
   it('replaces storybook require with sherlo withStorybook require (single-line)', async () => {
     const filePath = await writeFixture('metro.config.js', SINGLE_LINE);
     const result = await writeMetroConfigUpdate({ path: filePath, content: SINGLE_LINE });

@@ -78,6 +78,12 @@ async function writeMetroConfigUpdate(state: {
     modified = modified.replace(WITH_STORYBOOK_IMPORT_RE, '').replace(/\n\n+/g, '\n\n').trimStart();
   }
 
+  // Recast's printer drops the file's final newline: the result ends with one exactly when the
+  // file it read did.
+  const inputEndsWithNewline = state.content.endsWith('\n');
+  if (inputEndsWithNewline && !modified.endsWith('\n')) modified += '\n';
+  if (!inputEndsWithNewline) modified = modified.replace(/\n+$/, '');
+
   try {
     babelParse(modified, { sourceType: 'unambiguous', plugins: ['typescript', 'jsx'] });
   } catch {
