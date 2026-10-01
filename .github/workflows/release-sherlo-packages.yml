@@ -23,7 +23,10 @@ permissions:
 
 jobs:
   release-to-prod:
-    runs-on: ubuntu-latest
+    # macOS because the SDK's pack builds the C core: the iOS xcframework needs Xcode, the Android
+    # libraries need the NDK, and this runner image carries both (the Android SDK's ndk folder, found
+    # through ANDROID_NDK_HOME). A pack that cannot build either fails the release.
+    runs-on: macos-15
 
     env:
       SLACK_WEBHOOK_URL: ${{secrets.SLACK_WEBHOOK_URL}}
@@ -95,8 +98,23 @@ jobs:
           push: true
           branch: ${{ github.ref_name }}
 
+      # THE PUBLIC KEY THE APP'S NATIVE LOADERS TRUST. The repository's loaders carry a test key so
+      # local packs work; a release swaps in Sherlo's real public key for the pack only. It is
+      # stamped AFTER the version commit above so it never lands in git, and the loaders are restored
+      # right after the publish. Only the public half lives in this repository's settings. With no
+      # key set this step fails, and SHERLO_RELEASE_BUILD makes the pack refuse a test key anyway.
+      - name: Stamp Sherlo's public key into the native loaders
+        run: node packages/react-native-storybook/scripts/sealedCoreKey.js stamp
+        env:
+          SHERLO_CORE_PUBLIC_KEY: ${{ vars.SHERLO_CORE_PUBLIC_KEY }}
+
       - name: Publish to npm
         run: npx lerna publish from-package --no-private --yes --dist-tag ${{ github.event.inputs.IS_ALPHA == 'true' && 'alpha' || 'latest' }}
+        env:
+          SHERLO_RELEASE_BUILD: 'true'
+
+      - name: Restore the native loaders to the test key
+        run: git checkout -- packages/react-native-storybook/ios/SherloCoreLoader.m packages/react-native-storybook/android/src/main/java/io/sherlo/storybookreactnative/SherloCoreLoader.java
 
       - name: Tag Commit
         if: ${{ github.event.inputs.IS_ALPHA != 'true' }}

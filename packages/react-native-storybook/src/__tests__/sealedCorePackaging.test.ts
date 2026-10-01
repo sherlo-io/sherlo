@@ -1,10 +1,10 @@
 /**
  * What the published SDK carries, and what the repository does not: each name is a rule the book
- * marks on "The sealed core" and "Working on the SDK". The bodies of the readable-source and
- * release-key rules come with their own tasks; they stay empty shells here.
+ * marks on "The sealed core" and "Working on the SDK".
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
+import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -15,10 +15,18 @@ import {
   missingAndroidTools,
   missingIosTools,
 } from '../../../sherlo-core/native/build.js';
+import {
+  LOADERS,
+  refuseTestPublicKey,
+  stampPublicKey,
+  TEST_KEY_NAME,
+} from '../../scripts/sealedCoreKey.js';
 
 // packages/react-native-storybook root: this file is at src/__tests__/.
 const SDK_ROOT = path.resolve(__dirname, '..', '..');
 const REPO_ROOT = path.resolve(SDK_ROOT, '..', '..');
+const CORE_JS_SOURCE_DIR = path.join(REPO_ROOT, 'packages', 'sherlo-core', 'js', 'src');
+const CORE_NATIVE_SOURCE_DIR = path.join(REPO_ROOT, 'packages', 'sherlo-core', 'native', 'src');
 
 const IOS_ASSET = 'ios/Resources/assets/sherlo-core.js';
 const ANDROID_ASSET = 'android/src/main/assets/sherlo-core.js';
@@ -51,6 +59,17 @@ function packIntoTemporaryFolder(): { unpackedPackageDir: string; packedFilePath
   };
 }
 
+/** The two native loaders, copied to a temporary folder so a test may stamp them freely. */
+function copyLoadersToTemporaryFolder(): typeof LOADERS {
+  const temporaryDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-loaders-'));
+  const copyOf = ({ file, derFormat }: { file: string; derFormat: string }) => {
+    const copiedFile = path.join(temporaryDir, path.basename(file));
+    fs.copyFileSync(file, copiedFile);
+    return { file: copiedFile, derFormat };
+  };
+  return { ios: copyOf(LOADERS.ios), android: copyOf(LOADERS.android) };
+}
+
 /** Every sealed part a pack builds into the SDK, removed, so a pack must build each again. */
 function removeBuiltSealedParts() {
   for (const builtPart of [IOS_ASSET, ANDROID_ASSET, XCFRAMEWORK, 'android/src/main/jniLibs']) {
@@ -77,25 +96,51 @@ function loadSegmentAlignments(library: Buffer): number[] {
   return alignments;
 }
 
+/**
+ * Every path (relative to the SDK) a pack would carry. It builds the JS core assets the way the
+ * SDK's prepack does first, then asks npm - so this holds whether or not a dry-run pack runs the
+ * prepack lifecycle itself.
+ */
+function listFilesAPackCarries(): string[] {
+  execFileSync('node', ['scripts/packSealedCore.js', 'js'], {
+    cwd: SDK_ROOT,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'inherit'],
+  });
+  const output = execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {
+    cwd: SDK_ROOT,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'inherit'],
+  });
+  const [packed] = JSON.parse(output) as Array<{ files: Array<{ path: string }> }>;
+  return packed.files.map((file) => file.path);
+}
+
+/** The JS assets a dry-run pack built; cleared so a local run leaves no sealed part behind. */
+function removeBuiltJsCoreAssets() {
+  for (const asset of [IOS_ASSET, ANDROID_ASSET]) {
+    fs.rmSync(path.join(SDK_ROOT, asset), { force: true });
+  }
+}
+
+/** Every file under `directory`, as an absolute path. */
+function listFilesUnder(directory: string): string[] {
+  return fs
+    .readdirSync(directory, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => path.join(entry.parentPath, entry.name));
+}
+
+function hashOfFile(filePath: string): string {
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
 describe('what the published package carries', () => {
   describe('the published files carry the JS core as an asset for iOS and Android', () => {
     let packedFiles: string[];
 
     beforeAll(() => {
-      // Build and copy the assets the way the SDK's prepack does, then ask npm what a pack would
-      // carry - so this holds whether or not a dry-run pack runs the prepack lifecycle itself.
-      execFileSync('node', ['scripts/packSealedCore.js', 'js'], {
-        cwd: SDK_ROOT,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'inherit'],
-      });
-      const output = execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {
-        cwd: SDK_ROOT,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'inherit'],
-      });
-      const [packed] = JSON.parse(output) as Array<{ files: Array<{ path: string }> }>;
-      packedFiles = packed.files.map((file) => file.path);
+      packedFiles = listFilesAPackCarries();
     }, 120_000);
 
     it('the published files carry the JS core as an asset for iOS and Android', () => {
@@ -103,12 +148,7 @@ describe('what the published package carries', () => {
       expect(packedFiles).toContain(ANDROID_ASSET);
     });
 
-    afterAll(() => {
-      // The dry-run built the assets; clear them so a local run leaves no sealed part behind.
-      for (const asset of [IOS_ASSET, ANDROID_ASSET]) {
-        fs.rmSync(path.join(SDK_ROOT, asset), { force: true });
-      }
-    });
+    afterAll(removeBuiltJsCoreAssets);
   });
 
   describe('the C core, from a real pack', () => {
@@ -201,7 +241,26 @@ describe('what the published package carries', () => {
     });
   });
 
-  it('the published files carry no readable source of either core', () => {});
+  it('the published files carry no readable source of either core', () => {
+    const packedFiles = listFilesAPackCarries();
+    try {
+      // No path from either core's source folder, and no C file anywhere.
+      expect(packedFiles.filter((file) => file.includes('sherlo-core/'))).toEqual([]);
+      expect(packedFiles.filter((file) => file.endsWith('.c'))).toEqual([]);
+
+      // And no packed file is a copy of one, whatever it is named.
+      const sourceHashes = new Set(
+        [CORE_JS_SOURCE_DIR, CORE_NATIVE_SOURCE_DIR].flatMap(listFilesUnder).map(hashOfFile)
+      );
+      expect(sourceHashes.size).toBeGreaterThan(0);
+      const copiedSources = packedFiles.filter((file) =>
+        sourceHashes.has(hashOfFile(path.join(SDK_ROOT, file)))
+      );
+      expect(copiedSources).toEqual([]);
+    } finally {
+      removeBuiltJsCoreAssets();
+    }
+  }, 120_000);
 
   it('the published bundler plugin is a minified bundle that requires no file of its own source', () => {
     const { unpackedPackageDir, packedFilePaths } = packIntoTemporaryFolder();
@@ -290,5 +349,47 @@ describe('what the published package carries', () => {
     }
   });
 
-  it('a release build refuses the test public key', () => {});
+  it('a release build refuses the test public key', () => {
+    // The repository's own loaders carry the test key, so a release pack stops before it builds.
+    const releasePack = () =>
+      execFileSync('node', ['scripts/packSealedCore.js', 'js'], {
+        cwd: SDK_ROOT,
+        encoding: 'utf8',
+        stdio: 'pipe',
+        env: { ...process.env, SHERLO_RELEASE_BUILD: 'true' },
+      });
+    expect(releasePack).toThrow(/still holds the test key/);
+
+    // Stamped with a real-looking key, the same loaders pass the guard, each in its own format.
+    const { publicKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const stampedLoaders = copyLoadersToTemporaryFolder();
+    try {
+      stampPublicKey(publicKey.export({ type: 'spki', format: 'pem' }) as string, stampedLoaders);
+      expect(() => refuseTestPublicKey(stampedLoaders)).not.toThrow();
+      const readKey = (file: string) =>
+        fs.readFileSync(file, 'utf8').match(/SHERLO_CORE_PUBLIC_KEY\s*=\s*@?"([^"]+)"/)![1];
+      expect(readKey(stampedLoaders.android.file)).toBe(
+        publicKey.export({ type: 'spki', format: 'der' }).toString('base64')
+      );
+      expect(readKey(stampedLoaders.ios.file)).toBe(
+        publicKey.export({ type: 'pkcs1', format: 'der' }).toString('base64')
+      );
+    } finally {
+      fs.rmSync(path.dirname(stampedLoaders.ios.file), { recursive: true, force: true });
+    }
+  });
+
+  it('a local pack keeps the test key', () => {
+    // The pack step with no part to build runs only its guard; without SHERLO_RELEASE_BUILD it
+    // must let the test key through, and leave the loaders as they were.
+    const { SHERLO_RELEASE_BUILD: _releaseFlag, ...localEnv } = process.env;
+    execFileSync(
+      'node',
+      ['-e', "require('./scripts/packSealedCore.js').packSealedCore([]).catch((e) => { console.error(e); process.exit(1); })"],
+      { cwd: SDK_ROOT, env: localEnv, stdio: 'pipe' }
+    );
+    for (const { file } of Object.values(LOADERS)) {
+      expect(fs.readFileSync(file, 'utf8')).toContain(TEST_KEY_NAME);
+    }
+  });
 });

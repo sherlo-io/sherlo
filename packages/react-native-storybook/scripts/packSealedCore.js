@@ -10,11 +10,16 @@
  *
  * None of these is committed: the root .gitignore holds every path.
  *
+ * A release pack (SHERLO_RELEASE_BUILD=true) first refuses to run while the native loaders still
+ * carry the test public key: scripts/sealedCoreKey.js says how the real one is stamped in. A local
+ * pack keeps the test key.
+ *
  * `node scripts/packSealedCore.js [js] [ios] [android]` builds the named parts, or all three.
  */
 const fs = require('node:fs');
 const path = require('node:path');
 const { buildSealedCore } = require('../../sherlo-core/js/build.js');
+const { refuseTestPublicKey } = require('./sealedCoreKey.js');
 const { buildAndroidCore, buildIosCore } = require('../../sherlo-core/native/build.js');
 
 const IOS_ASSET = path.join(__dirname, '..', 'ios', 'Resources', 'assets', 'sherlo-core.js');
@@ -36,6 +41,8 @@ const PARTS = {
 };
 
 async function packSealedCore(partNames = Object.keys(PARTS)) {
+  if (process.env.SHERLO_RELEASE_BUILD === 'true') refuseTestPublicKey();
+
   for (const partName of partNames) {
     const buildPart = PARTS[partName];
     if (!buildPart) throw new Error('unknown sealed part "' + partName + '": name js, ios or android');
