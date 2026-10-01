@@ -173,6 +173,7 @@ describe('loading the sealed core', () => {
         'runner',
         'setCaptureLogSink',
         'storyErrors',
+        'storybookChannelOf',
         'storyOfTheAppFiber',
         'warn',
       ].sort()

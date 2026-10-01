@@ -1,5 +1,6 @@
 /**
- * SIMPLIFIED protocol-loop test for useTestStory.
+ * SIMPLIFIED protocol-loop test for the sealed core's walk of one story (testStory, which the
+ * SDK's useTestStory hook calls).
  *
  * What this test covers:
  *  - Basic REQUEST_SNAPSHOT flow: lastState present → readiness (no-channel quick
@@ -10,88 +11,42 @@
  *  - isAtEnd flag set correctly when scrollToCheckpoint returns reachedBottom=true
  *
  * What is STUBBED / simplified:
- *  - useSafeAreaInsets() → static zeroes
+ *  - the safe-area insets → static zeroes
  *  - prepareInspectorData() → returns input inspector data unchanged + hasNetworkImage=false
  *  - No Storybook channel is wired, so the (now unconditional) readiness path
  *    resolves immediately via its no-channel quick path; awaitFrameCommit is
  *    mocked to resolve true for the paint barrier that follows
  *  - vi.useFakeTimers() replaces real setTimeout (vi.runAllTimersAsync() flushes)
- *  - readStoryError() returns undefined; clearStoryError() is a no-op
- *  - React useEffect runs synchronously via mock
+ *  - the story error registry reads undefined; its clear is a no-op
+ *
+ * Whether a capture's launch runs the walk at all is the hook's own question, tested in the SDK
+ * (packages/react-native-storybook/src/__tests__/useTestStory.test.ts).
  *
  * For realistic device validation see sherlo-tester scroll-capture.spec.ts.
  */
+import type { SealedCoreHost } from '../../../react-native-storybook/src/sealedCore/seam';
+import { STORY_ERROR_FALLBACK_TEXT } from '../../../react-native-storybook/src/constants';
+import { installTestHost } from './testHost';
+import { testStory } from '../src/testStory';
+import { __resetStoryRenderedTrackingForTests } from '../src/storyRenderedReadiness';
 
-const {
-  mockSend,
-  mockLog,
-  mockGetLastState,
-  mockGetConfig,
-  mockStabilize,
-  mockGetInspectorData,
-  mockIsScrollable,
-  mockScrollToCheckpoint,
-  mockAwaitFrameCommit,
-} = vi.hoisted(() => ({
-  mockSend: vi.fn(),
-  mockLog: vi.fn(),
-  mockGetLastState: vi.fn(),
-  mockGetConfig: vi.fn(),
-  mockStabilize: vi.fn(),
-  mockGetInspectorData: vi.fn(),
-  mockIsScrollable: vi.fn(),
-  mockScrollToCheckpoint: vi.fn(),
-  mockAwaitFrameCommit: vi.fn(),
+// The core's preparation of the inspector's tree is stood in for: the tree goes out as it came in,
+// with no network image.
+vi.mock('../src/prepareInspectorData', () => ({
+  prepareInspectorData: (inspectorData: unknown) => ({ inspectorData, hasNetworkImage: false }),
 }));
 
-vi.mock('react', async () => {
-  const actual = await vi.importActual<typeof import('react')>('react');
-  return {
-    ...actual,
-    useEffect: (fn: () => void | (() => void), _deps?: any[]) => {
-      fn();
-    },
-  };
-});
+const mockSend = vi.fn();
+const mockLog = vi.fn();
+const mockGetLastState = vi.fn();
+const mockGetConfig = vi.fn();
+const mockStabilize = vi.fn();
+const mockGetInspectorData = vi.fn();
+const mockIsScrollable = vi.fn();
+const mockScrollToCheckpoint = vi.fn();
+const mockAwaitFrameCommit = vi.fn();
 
-vi.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ bottom: 0, top: 0, left: 0, right: 0 }),
-}));
-
-vi.mock('../helpers', () => ({
-  RunnerBridge: { send: mockSend, log: mockLog },
-  isExpoGo: false,
-}));
-
-vi.mock('../SherloModule', () => ({
-  default: {
-    getConfig: mockGetConfig,
-    getConfigOrDefault: mockGetConfig,
-    getLastState: mockGetLastState,
-    stabilize: mockStabilize,
-    getInspectorData: mockGetInspectorData,
-    isScrollable: mockIsScrollable,
-    scrollToCheckpoint: mockScrollToCheckpoint,
-    awaitFrameCommit: mockAwaitFrameCommit,
-  },
-}));
-
-vi.mock('../getStorybook/storyErrorRegistry', () => ({
-  readStoryError: () => undefined,
-  clearStoryError: vi.fn(),
-  // The sealed core's host carries the registry's writer too.
-  recordStoryError: vi.fn(),
-}));
-
-import useTestStory from '../getStorybook/components/TestingMode/useTestAllStories/useTestStory';
-import { getSealedCore } from '../sealedCore/loadSealedCore';
-
-// The sealed core's preparation of the inspector's tree is stood in for: the tree goes out as it
-// came in, with no network image.
-vi.spyOn(getSealedCore()!, 'prepareInspectorData').mockImplementation((inspectorData) => ({
-  inspectorData,
-  hasNetworkImage: false,
-}));
+const NO_INSETS = { bottom: 0, top: 0, left: 0, right: 0 };
 
 const FAKE_STORY_ID = 'components-button--primary';
 const FAKE_REQUEST_ID = 'req-abc-123';
@@ -114,15 +69,12 @@ function makeLastState(storyId = FAKE_STORY_ID, requestId = FAKE_REQUEST_ID) {
   };
 }
 
-function makeMetadataRef(storyId = FAKE_STORY_ID) {
-  return {
-    current: {
-      collectMetadata: () => ({
-        texts: [storyId],
-        images: [],
-      }),
-    },
-  } as any;
+// The app's metadata, as the SDK's MetadataProvider collects it.
+const collectMetadata = () => ({ texts: [FAKE_STORY_ID], images: [] }) as any;
+
+/** The walk with no Storybook view, so readiness takes its no-channel quick path. */
+function walkTheStory(): Promise<void> {
+  return testStory({ view: undefined, insets: NO_INSETS, collectMetadata });
 }
 
 const FAKE_INSPECTOR_DATA = {
@@ -134,6 +86,26 @@ const FAKE_INSPECTOR_DATA = {
 beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
+  __resetStoryRenderedTrackingForTests();
+
+  installTestHost({
+    native: {
+      getConfigOrDefault: mockGetConfig,
+      getLastState: mockGetLastState,
+      stabilize: mockStabilize,
+      getInspectorData: mockGetInspectorData,
+      isScrollable: mockIsScrollable,
+      scrollToCheckpoint: mockScrollToCheckpoint,
+      awaitFrameCommit: mockAwaitFrameCommit,
+    } as unknown as SealedCoreHost['native'],
+    runner: { send: mockSend, log: mockLog },
+    storyErrors: {
+      record: vi.fn(),
+      read: () => undefined,
+      clear: vi.fn(),
+      fallbackText: STORY_ERROR_FALLBACK_TEXT,
+    },
+  });
 
   mockGetConfig.mockReturnValue({
     stabilization: {
@@ -156,7 +128,7 @@ beforeEach(() => {
   mockStabilize.mockResolvedValue(true);
   mockGetInspectorData.mockResolvedValue(FAKE_INSPECTOR_DATA);
   mockIsScrollable.mockResolvedValue({ scrollable: false });
-  // With the readiness path now unconditional, useTestStory always runs the
+  // With the readiness path now unconditional, the walk always runs the
   // native paint barrier. No view/channel is passed here, so readiness takes
   // the no-channel quick path (non-scrollable => no fallback delay) and the
   // REQUEST_SNAPSHOT / ACK_SCROLL_REQUEST loop below is exercised as before.
@@ -182,7 +154,7 @@ describe('useTestStory protocol - basic REQUEST_SNAPSHOT flow', () => {
       requestId: 'req-next',
     });
 
-    useTestStory({ metadataProviderRef: makeMetadataRef() });
+    walkTheStory();
     await flushAll();
 
     expect(mockSend).toHaveBeenCalledWith(
@@ -201,7 +173,7 @@ describe('useTestStory protocol - basic REQUEST_SNAPSHOT flow', () => {
       requestId: 'req-next',
     });
 
-    useTestStory({ metadataProviderRef: makeMetadataRef() });
+    walkTheStory();
     await flushAll();
 
     const call = mockSend.mock.calls[0][0];
@@ -212,16 +184,7 @@ describe('useTestStory protocol - basic REQUEST_SNAPSHOT flow', () => {
 
   it('does nothing when lastState is undefined', async () => {
     mockGetLastState.mockReturnValue(undefined);
-    useTestStory({ metadataProviderRef: makeMetadataRef() });
-    await flushAll();
-    expect(mockSend).not.toHaveBeenCalled();
-  });
-
-  it('does nothing when enabled is false, even with a story queued in lastState', async () => {
-    // A capture's boot now carries a lastState just like a run's does (see SherloModuleCore on
-    // each platform) - `enabled` (driven by SherloModule.getDriver() in useTestAllStories) is the
-    // one thing standing between this and reporting to a runner that was never there to answer it.
-    useTestStory({ metadataProviderRef: makeMetadataRef(), enabled: false });
+    walkTheStory();
     await flushAll();
     expect(mockSend).not.toHaveBeenCalled();
   });
@@ -250,7 +213,7 @@ describe('useTestStory protocol - ACK_SCROLL_REQUEST loop', () => {
       contentPx: 2000,
     });
 
-    useTestStory({ metadataProviderRef: makeMetadataRef() });
+    walkTheStory();
     await flushAll(30);
 
     expect(mockScrollToCheckpoint).toHaveBeenCalledWith(1, 500, 50);
@@ -283,7 +246,7 @@ describe('useTestStory protocol - ACK_SCROLL_REQUEST loop', () => {
       contentPx: 844,
     });
 
-    useTestStory({ metadataProviderRef: makeMetadataRef() });
+    walkTheStory();
     await flushAll(30);
 
     const secondCall = mockSend.mock.calls[1][0];

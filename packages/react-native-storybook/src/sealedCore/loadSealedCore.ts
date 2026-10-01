@@ -22,6 +22,8 @@ import {
   readStoryError,
   recordStoryError,
 } from '../getStorybook/storyErrorRegistry';
+import { STORY_ERROR_FALLBACK_TEXT } from '../constants';
+import { getStorybookChannel } from '../getStorybook/storybookChannel';
 import { activateMocksForStory } from '../getStorybook/storyMockActivation';
 import { mergeStoryMocks } from '../mocking/mergeMocks';
 import { collectAppMetadata } from '../appMetadata';
@@ -102,7 +104,13 @@ function hostForTheCore(): SealedCoreHost {
     native: SherloModule,
     runner: { send: RunnerBridge.send, log: RunnerBridge.log },
     bundlerOrigin,
-    storyErrors: { record: recordStoryError, read: readStoryError, clear: clearStoryError },
+    storyErrors: {
+      record: recordStoryError,
+      read: readStoryError,
+      clear: clearStoryError,
+      fallbackText: STORY_ERROR_FALLBACK_TEXT,
+    },
+    storybookChannelOf: getStorybookChannel,
     activateMocksForStory,
     mergeStoryMocks,
     collectAppMetadata,

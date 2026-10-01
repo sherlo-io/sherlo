@@ -13,11 +13,12 @@
  * Types only: nothing here runs.
  */
 import type SherloModule from '../SherloModule';
-import type { LogFn, SendFn } from '../helpers/RunnerBridge/types';
+import type { Config, LogFn, SendFn } from '../helpers/RunnerBridge/types';
 import type { StoryError } from '../getStorybook/storyErrorRegistry';
 import type { Metadata } from '../getStorybook/components/TestingMode/MetadataProvider';
 import type { RenderedFiber } from '../componentNames';
 import type { StoryMocks } from '../mocking/mockDeclaration';
+import type { StorybookChannel } from '../getStorybook/storybookChannel';
 import type {
   InspectorData,
   InspectorDataNode,
@@ -28,6 +29,7 @@ import type {
 } from '../types';
 
 export type {
+  Config,
   InspectorData,
   InspectorDataNode,
   Metadata,
@@ -36,6 +38,7 @@ export type {
   SnapshotMode,
   StoryId,
   StoryMocks,
+  StorybookChannel,
   StorybookView,
 };
 
@@ -51,7 +54,11 @@ export type SealedCoreHost = {
     record: (storyId: string, error: StoryError) => void;
     read: (storyId: string) => StoryError | undefined;
     clear: (storyId: string) => void;
+    /** The words Sherlo's error boundary draws in place of a story that threw. */
+    fallbackText: string;
   };
+  /** The Storybook channel of a `view`, or null when nothing usable is reachable. */
+  storybookChannelOf: (view: StorybookView | undefined) => StorybookChannel | null;
   /** Turn on one story's mocks; a promise while some are still installing, else null. */
   activateMocksForStory: (view: StorybookView, storyId: string | undefined) => Promise<void> | null;
   /** One story's mocks from its project's, its file's and its own, the most specific winning. */
@@ -92,6 +99,50 @@ export type SealedCore = {
   componentNamesByNativeTag: () => ComponentNamesByNativeTag;
   /** The word a host fiber's React type names a view by: the platform's `RCT` prefix removed. */
   primitiveOfHostType: (type: string) => string;
+
+  /**
+   * A run's first launch: list every story, keep the ones the run asked for, and send them to the
+   * runner. A launch that already has a story does nothing.
+   */
+  startTestSession: (view: StorybookView) => Promise<void>;
+  /**
+   * A launch with a story: wait until it is ready, report it, and report every further part of a
+   * tall screen the runner asks for. A launch with no story does nothing. Never throws.
+   */
+  testStory: (story: {
+    view: StorybookView | undefined;
+    insets: SafeAreaInsets;
+    collectMetadata: () => Metadata | undefined;
+  }) => Promise<void>;
+
+  /** Listen for Storybook's rendered event from now on. True once a channel is listened to. */
+  startStoryRenderedTracking: (channel: StorybookChannel | null) => boolean;
+  /** Wait until Storybook says this exact story rendered, or until the time runs out. */
+  waitForStoryRendered: (wait: {
+    storyId: string;
+    timeoutMs: number;
+    channel: StorybookChannel | null;
+  }) => Promise<ReadinessResult>;
+  /** The story Storybook last said rendered, or undefined when none has. */
+  lastRenderedStory: () => string | undefined;
+  /** Tests only: forget the channel, the last rendered story and every waiter. */
+  __resetStoryRenderedTrackingForTests: () => void;
+};
+
+/** The screen's safe-area insets, in points. */
+export type SafeAreaInsets = { top: number; bottom: number };
+
+/** How a wait for Storybook's rendered event ended. */
+export type ReadinessPath =
+  | 'story-rendered' // the event arrived while it waited
+  | 'story-rendered-buffered' // the event had already arrived before it waited
+  | 'timeout' // a channel was there, but the event never came in time
+  | 'no-channel'; // no Storybook channel was reachable
+
+export type ReadinessResult = {
+  path: ReadinessPath;
+  rendered: boolean;
+  waitedMs: number;
 };
 
 /** One story the core found, before it is split into one entry per screen mode. */
