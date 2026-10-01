@@ -212,7 +212,7 @@ describe('what the published package carries', () => {
       );
       expect(podspec).toContain('s.vendored_frameworks = "' + XCFRAMEWORK + '"');
       const manifest = JSON.parse(fs.readFileSync(path.join(SDK_ROOT, 'package.json'), 'utf8'));
-      expect(manifest.files).toContain(XCFRAMEWORK);
+      expect(manifest.files).toContain(XCFRAMEWORK + '/**/*');
 
       if (missingTools.length > 0) {
         console.warn('the xcframework itself was not built here, so its slices are not checked');
@@ -228,6 +228,31 @@ describe('what the published package carries', () => {
       const libraryPaths = [...infoPlist.matchAll(libraryPathPattern)].map((match) => match[1]);
       expect(libraryPaths).toEqual(['libsherlocore.a', 'libsherlocore.a']);
     });
+
+    it('a yarn pack carries the C core xcframework too', (context) => {
+      if (missingTools.length > 0) {
+        console.warn('not packed here: ' + missingTools.join('; '));
+        context.skip();
+      }
+      const yarnReleasePath = fs
+        .readFileSync(path.join(REPO_ROOT, '.yarnrc.yml'), 'utf8')
+        .match(/^yarnPath:\s*(\S+)\s*$/m)![1];
+      const temporaryDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-sdk-yarn-pack-'));
+      const yarnTarball = path.join(temporaryDir, 'sdk.tgz');
+      execFileSync('node', [path.join(REPO_ROOT, yarnReleasePath), 'pack', '-o', yarnTarball], {
+        cwd: SDK_ROOT,
+        stdio: ['ignore', 'ignore', 'inherit'],
+      });
+      const yarnPackedFiles = execFileSync('tar', ['-tzf', yarnTarball], { encoding: 'utf8' })
+        .trim()
+        .split('\n')
+        .map((entry) => entry.replace(/^package\//, ''));
+
+      for (const slice of XCFRAMEWORK_SLICES) expect(yarnPackedFiles).toContain(slice);
+      for (const sliceName of ['ios-arm64', 'ios-arm64_x86_64-simulator']) {
+        expect(yarnPackedFiles).toContain(XCFRAMEWORK + '/' + sliceName + '/Headers/sherlo_core.h');
+      }
+    }, 300_000);
 
     it('the published files carry a C core library for every Android ABI', (context) => {
       if (missingTools.length > 0) {
