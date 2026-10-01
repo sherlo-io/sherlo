@@ -5,6 +5,8 @@ import {
   easBuildOnComplete,
   fingerprint,
   init,
+  login,
+  logout,
   projectCreate,
   projectList,
   showError,
@@ -73,6 +75,8 @@ import {
   WAIT_TIMEOUT_OPTION,
   WRITE_OPTION,
 } from './constants';
+import { LOGIN_COMMAND } from './commands/login/constants';
+import { LOGOUT_COMMAND } from './commands/logout/constants';
 import { logWarning, printNeedHelpEpilogue, reporting, withCommandTimeout } from './helpers';
 
 // Disable all Node.js warnings
@@ -90,6 +94,10 @@ async function start() {
       .description('Sherlo CLI: Visual testing for React Native');
 
     addInitCommand(program);
+
+    addLoginCommand(program);
+
+    addLogoutCommand(program);
 
     addTestCommand(program);
 
@@ -142,6 +150,10 @@ export default start;
 
 const COMMAND_DESCRIPTION = {
   [INIT_COMMAND]: 'Initialize Sherlo',
+  [LOGIN_COMMAND]:
+    'Log this terminal in to Sherlo through your browser. Prints a link, opens the\n' +
+    '  browser on it, and finishes by itself once you click Authorize.',
+  [LOGOUT_COMMAND]: 'End the login and delete it from this computer.',
   [TEST_COMMAND]:
     'Run visual tests.\n' +
     `  Without \`--${ANDROID_OPTION}\`/\`--${IOS_OPTION}\`: tests JS-only changes against the registered\n` +
@@ -385,6 +397,27 @@ function addCaptureCommand(program: Command) {
     options: [STORY_OPTION, PORT_OPTION, JSON_OPTION, LOGS_OPTION],
     action: capture,
     withTimeout: false,
+  });
+}
+
+// `sherlo login` waits for a person in the browser, up to the ten minutes a pending login lives -
+// a wait the service bounds, so `withTimeout: false`.
+function addLoginCommand(program: Command) {
+  addCommand({
+    program,
+    command: LOGIN_COMMAND,
+    options: [],
+    action: login,
+    withTimeout: false,
+  });
+}
+
+function addLogoutCommand(program: Command) {
+  addCommand({
+    program,
+    command: LOGOUT_COMMAND,
+    options: [],
+    action: logout,
   });
 }
 

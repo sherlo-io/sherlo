@@ -936,10 +936,78 @@ const PINS: Pin[] = [
       [''],
       ['  pppppppppppppppppppppppppppppppp team1234 12'],
       [''],
-      [
-        `${ESC}[2mUse it as the \`token\` in sherlo.config.json, or as SHERLO_TOKEN in CI.${ESC}[22m`,
-      ],
+      [`${ESC}[2mAdd it to your CI as the SHERLO_TOKEN secret.${ESC}[22m`],
       [''],
+    ],
+  },
+
+  /* ------------------------------ logging in ------------------------------ */
+
+  {
+    kind: 'login-link',
+    what: 'the authorize link, alone on its own line, printed before the browser is asked to open it',
+    segment: { kind: 'login-link', authorizeUrl: 'https://app.sherlo.io/cli-login/lg7Qm2Xa' },
+    stream: 'stdout',
+    prints: [
+      [`Log in to Sherlo at this link:`],
+      [``],
+      [`  ${ESC}[36mhttps://app.sherlo.io/cli-login/lg7Qm2Xa${ESC}[39m`],
+      [``],
+    ],
+  },
+  {
+    kind: 'login-waiting',
+    what: 'the wait, after the line that says no browser came up - the link above still stands',
+    segment: { kind: 'login-waiting', browserOpened: false },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[2mNo browser opened on this computer. Open the link above on any device.${ESC}[22m`],
+      [``],
+      [
+        `${ESC}[33m⏳${ESC}[39m Waiting for you to click Authorize... ${ESC}[2m(Ctrl+C to stop)${ESC}[22m`,
+      ],
+    ],
+  },
+  {
+    kind: 'logged-in',
+    what: 'the login is saved: the email of the person who authorized it, and never the token',
+    segment: { kind: 'logged-in', email: 'anna@example.com' },
+    stream: 'stdout',
+    prints: [
+      [``],
+      [`${ESC}[32m✔${ESC}[39m  Logged in as ${ESC}[1manna@example.com${ESC}[22m`],
+      [``],
+    ],
+  },
+  {
+    kind: 'already-logged-in',
+    what: 'a saved login the service still accepts - no new login is started',
+    segment: { kind: 'already-logged-in', email: 'anna@example.com' },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[32m✔${ESC}[39m  Already logged in as ${ESC}[1manna@example.com${ESC}[22m`],
+      [``],
+      [`${ESC}[2mRun \`sherlo logout\` to log out.${ESC}[22m`],
+      [``],
+    ],
+  },
+  {
+    kind: 'logged-out',
+    what: 'the login is ended on the service and deleted from this computer',
+    segment: { kind: 'logged-out', email: 'anna@example.com' },
+    stream: 'stdout',
+    prints: [[`${ESC}[32m✔${ESC}[39m  Logged out ${ESC}[1manna@example.com${ESC}[22m`], [``]],
+  },
+  {
+    kind: 'not-logged-in',
+    what: 'a logout with no saved login - an answer, not an error',
+    segment: { kind: 'not-logged-in' },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[33m◦${ESC}[39m  Not logged in`],
+      [``],
+      [`${ESC}[2mRun \`sherlo login\` to log in.${ESC}[22m`],
+      [``],
     ],
   },
 ];

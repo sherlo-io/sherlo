@@ -13,8 +13,9 @@
  *
  * The MEANING is here, and it is everything a type cannot state:
  *
- *     which commands bundle, act on the machine, post to a letterbox or ask for a capture
- *                                     ({@link commandBundles} and the three beside it)
+ *     which commands bundle, act on the machine, post to a letterbox, ask for a capture, open
+ *     the browser or read the saved logins
+ *                                     ({@link commandBundles} and the five beside it)
  *     which platform names a map may use ({@link reportForeignPlatforms})
  *     what counts as an instant         ({@link reportNonInstants})
  *     that a command line says something at all
@@ -117,6 +118,19 @@ function commandAsksForACapture(argv: string[]): boolean {
   return argv[0] === 'capture';
 }
 
+/** `sherlo login` opens the browser, and so does `sherlo init` when it runs the login itself. */
+function commandOpensTheBrowser(argv: string[]): boolean {
+  return argv[0] === 'login' || argv[0] === 'init';
+}
+
+/**
+ * Every command that spends a credential may spend the saved login, and `login` and `logout` keep
+ * it. The four that send no credential at all never read one.
+ */
+function commandReadsSavedLogins(argv: string[]): boolean {
+  return !['open', 'capture', 'fingerprint', 'show-error'].includes(argv[0] ?? '');
+}
+
 function reportRoadsThisCommandDoesNotTake(
   pose: Record<string, unknown>,
   argv: string[],
@@ -157,6 +171,20 @@ function reportRoadsThisCommandDoesNotTake(
     problems.push(
       `\`capture\`: \`${command}\` never asks the app for a capture, so there is nothing ` +
         'for it to describe. Leave the field out.'
+    );
+  }
+
+  if ('browser' in pose && !commandOpensTheBrowser(argv)) {
+    problems.push(
+      `\`browser\`: \`${command}\` never opens a browser, so there is no browser for it to ` +
+        'describe. Leave the field out.'
+    );
+  }
+
+  if ('logins' in pose && !commandReadsSavedLogins(argv)) {
+    problems.push(
+      `\`logins\`: \`${command}\` sends no credential, so it never reads a saved login. ` +
+        'Leave the field out.'
     );
   }
 }

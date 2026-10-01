@@ -51,6 +51,14 @@ import { renderOpenedStory } from './openedStory';
 import { renderCapturedStory } from './capturedStory';
 import { renderCapturedLog } from './capturedLog';
 import { renderTeamList } from './teamList';
+import {
+  renderAlreadyLoggedIn,
+  renderLoggedIn,
+  renderLoggedOut,
+  renderLoginLink,
+  renderLoginWaiting,
+  renderNotLoggedIn,
+} from './login';
 import type { TranscriptSegment, TranscriptStream } from './segments';
 import {
   renderVerdictCaptureAccounting,
@@ -433,6 +441,35 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
         stream: 'stdout',
         prints: renderTeamList(segment.list).map((line) => [line]),
       };
+
+    /* --------------------------- logging in -------------------------- */
+
+    case 'login-link':
+      return {
+        stream: 'stdout',
+        prints: renderLoginLink(segment.authorizeUrl).map((line) => [line]),
+      };
+
+    case 'login-waiting':
+      return {
+        stream: 'stdout',
+        prints: renderLoginWaiting(segment.browserOpened).map((line) => [line]),
+      };
+
+    case 'logged-in':
+      return { stream: 'stdout', prints: renderLoggedIn(segment.email).map((line) => [line]) };
+
+    case 'already-logged-in':
+      return {
+        stream: 'stdout',
+        prints: renderAlreadyLoggedIn(segment.email).map((line) => [line]),
+      };
+
+    case 'logged-out':
+      return { stream: 'stdout', prints: renderLoggedOut(segment.email).map((line) => [line]) };
+
+    case 'not-logged-in':
+      return { stream: 'stdout', prints: renderNotLoggedIn().map((line) => [line]) };
   }
 }
 

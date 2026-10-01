@@ -16,7 +16,7 @@ function validateCommandParams<C extends Command>(
   config: InvalidatedConfig,
   { requirePlatformPaths }: { requirePlatformPaths: boolean }
 ): asserts commandParams is CommandParams<C> {
-  validateToken(commandParams);
+  validateToken(command, commandParams);
 
   validateDevices(commandParams);
 

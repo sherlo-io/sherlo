@@ -4,6 +4,7 @@ import logWarning from '../../logWarning';
 
 const supportedProperties = [
   'token',
+  'project',
   'android',
   'ios',
   'devices',

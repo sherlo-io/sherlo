@@ -143,6 +143,19 @@ export type CommandPose = {
    * for any other command is refused, and a capture with no `capture` is refused at run time.
    */
   capture?: PosedCapture;
+  /**
+   * What the browser did when `sherlo login` opened it on the authorize link: whether it came up.
+   * For the commands that log in - `login`, and `init` when it runs the login itself - and refused
+   * for any other. Nothing opens on a posed run; a login with no `browser` is refused at run time.
+   */
+  browser?: PosedBrowser;
+  /**
+   * The logins saved on the machine before the run, by the service address each was made against
+   * (the run talks to **SHERLO_API_URL** when `env` sets it). Absent is a machine nobody has
+   * logged in on. A posed run reads and writes no saved-login file: what the command saves or
+   * deletes changes only this list, for the rest of the run.
+   */
+  logins?: PosedLogins;
 };
 
 /**
@@ -332,6 +345,48 @@ export type ScriptedCall =
         | {
             sessionId: string;
           };
+    }
+  | {
+      /**
+       * `sherlo login` starts a pending login. The answer is the login's id, the page to open and when
+       * the login expires; the poll secret is the run's own and never posed.
+       */
+      call: 'startCliLogin';
+      with: Record<string, never>;
+      answer:
+        | ApiError
+        | {
+            loginId: string;
+            authorizeUrl: string;
+            expiresAt: string;
+          };
+    }
+  | {
+      /**
+       * One poll of the pending login: `pending` until the person answers, then `approved` with the
+       * token and the person's email, or `cancelled`, `expired` or `used`. A login that waited scripts
+       * one `pending` per poll before its answer.
+       */
+      call: 'pollCliLogin';
+      with: {
+        loginId: string;
+      };
+      answer:
+        | ApiError
+        | {
+            status: 'pending' | 'cancelled' | 'expired' | 'used';
+          }
+        | {
+            status: 'approved';
+            email: string;
+            token: string;
+          };
+    }
+  | {
+      /** `sherlo logout` ends the saved login on the service. An error is a service it could not reach. */
+      call: 'logOutCli';
+      with: Record<string, never>;
+      answer: ApiError | Record<string, never>;
     };
 
 /** What a real push read off the machine, as a pose states it. */
@@ -449,6 +504,29 @@ export type PosedCapture =
       /** The view tree the app read, from the story's own root. */
       tree: PosedView;
     };
+
+/** What the browser did when a login opened it, as a pose states it. */
+export type PosedBrowser = {
+  /**
+   * Whether a browser came up on the authorize link. `false` is a machine with no browser, such as
+   * a session over SSH: the tool still prints the link, and says the browser did not open.
+   */
+  opened: boolean;
+};
+
+/**
+ * The logins saved on the machine before the run, keyed by the service address each was made
+ * against - the same address the run talks to, which is **SHERLO_API_URL** when the pose's `env`
+ * sets it. An address with no entry has no login, and a pose with no `logins` is a machine nobody
+ * has logged in on.
+ */
+export type PosedLogins = Record<
+  string,
+  {
+    email: string;
+    token: string;
+  }
+>;
 
 /** The error the server sends, as the tool's client surfaces it. */
 export type ApiError = {

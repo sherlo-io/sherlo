@@ -85,6 +85,12 @@ function readCommandPose(value: unknown, path: string, problems: string[]): void
     if ('capture' in object1) {
       readPosedCapture(object1.capture, at(path, 'capture'), problems);
     }
+    if ('browser' in object1) {
+      readPosedBrowser(object1.browser, at(path, 'browser'), problems);
+    }
+    if ('logins' in object1) {
+      readPosedLogins(object1.logins, at(path, 'logins'), problems);
+    }
     reportUnknownFields(
       object1,
       [
@@ -101,6 +107,8 @@ function readCommandPose(value: unknown, path: string, problems: string[]): void
         'workstation',
         'letterbox',
         'capture',
+        'browser',
+        'logins',
       ],
       path,
       problems
@@ -612,6 +620,121 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
         }
         reportUnknownFields(object76, ['call', 'with', 'answer'], path, problems);
       }
+    } else if (oneOf1.call === 'startCliLogin') {
+      const object82 = asObject(oneOf1, path, problems);
+      if (object82) {
+        expectLiteral(object82.call, 'startCliLogin', at(path, 'call'), problems);
+        const where83 = at(path, 'with');
+        const map84 = asObject(object82.with, where83, problems);
+        if (map84) {
+          reportUnknownFields(map84, [], where83, problems);
+        }
+        const oneOf85 = object82.answer;
+        const where86 = at(path, 'answer');
+        if (isPlainObject(oneOf85)) {
+          if ('error' in oneOf85) {
+            readApiError(oneOf85, where86, problems);
+          } else if ('loginId' in oneOf85) {
+            const object87 = asObject(oneOf85, where86, problems);
+            if (object87) {
+              expectString(object87.loginId, at(where86, 'loginId'), problems);
+              expectString(object87.authorizeUrl, at(where86, 'authorizeUrl'), problems);
+              expectString(object87.expiresAt, at(where86, 'expiresAt'), problems);
+              reportUnknownFields(
+                object87,
+                ['loginId', 'authorizeUrl', 'expiresAt'],
+                where86,
+                problems
+              );
+            }
+          } else {
+            reportWrongShape(
+              oneOf85,
+              '`ApiError` or `{ loginId: string; authorizeUrl: string; expiresAt: string }`',
+              where86,
+              problems
+            );
+          }
+        } else {
+          reportWrongShape(
+            oneOf85,
+            '`ApiError` or `{ loginId: string; authorizeUrl: string; expiresAt: string }`',
+            where86,
+            problems
+          );
+        }
+        reportUnknownFields(object82, ['call', 'with', 'answer'], path, problems);
+      }
+    } else if (oneOf1.call === 'pollCliLogin') {
+      const object88 = asObject(oneOf1, path, problems);
+      if (object88) {
+        expectLiteral(object88.call, 'pollCliLogin', at(path, 'call'), problems);
+        const where89 = at(path, 'with');
+        const object90 = asObject(object88.with, where89, problems);
+        if (object90) {
+          expectString(object90.loginId, at(where89, 'loginId'), problems);
+          reportUnknownFields(object90, ['loginId'], where89, problems);
+        }
+        const oneOf91 = object88.answer;
+        const where92 = at(path, 'answer');
+        if (isPlainObject(oneOf91)) {
+          if ('error' in oneOf91) {
+            readApiError(oneOf91, where92, problems);
+          } else if ('email' in oneOf91) {
+            const object93 = asObject(oneOf91, where92, problems);
+            if (object93) {
+              expectLiteral(object93.status, 'approved', at(where92, 'status'), problems);
+              expectString(object93.email, at(where92, 'email'), problems);
+              expectString(object93.token, at(where92, 'token'), problems);
+              reportUnknownFields(object93, ['status', 'email', 'token'], where92, problems);
+            }
+          } else {
+            const object94 = asObject(oneOf91, where92, problems);
+            if (object94) {
+              expectOneOf(
+                object94.status,
+                ['pending', 'cancelled', 'expired', 'used'],
+                at(where92, 'status'),
+                problems
+              );
+              reportUnknownFields(object94, ['status'], where92, problems);
+            }
+          }
+        } else {
+          reportWrongShape(
+            oneOf91,
+            "`ApiError`, `{ status: 'pending' | 'cancelled' | 'expired' | 'used' }` or `{ status: 'approved'; email: string; token: string }`",
+            where92,
+            problems
+          );
+        }
+        reportUnknownFields(object88, ['call', 'with', 'answer'], path, problems);
+      }
+    } else if (oneOf1.call === 'logOutCli') {
+      const object95 = asObject(oneOf1, path, problems);
+      if (object95) {
+        expectLiteral(object95.call, 'logOutCli', at(path, 'call'), problems);
+        const where96 = at(path, 'with');
+        const map97 = asObject(object95.with, where96, problems);
+        if (map97) {
+          reportUnknownFields(map97, [], where96, problems);
+        }
+        const oneOf98 = object95.answer;
+        const where99 = at(path, 'answer');
+        if (isPlainObject(oneOf98)) {
+          if ('error' in oneOf98) {
+            readApiError(oneOf98, where99, problems);
+          } else {
+            const map100 = asObject(oneOf98, where99, problems);
+            if (map100) {
+              reportUnknownFields(map100, [], where99, problems);
+            }
+          }
+        } else {
+          reportWrongShape(oneOf98, '`ApiError` or an object', where99, problems);
+        }
+        reportUnknownFields(object95, ['call', 'with', 'answer'], path, problems);
+      }
     } else {
       reportUnknownName(
         oneOf1.call,
@@ -627,6 +750,9 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
           'getStagedUploadUrls',
           'checkStagedGate',
           'trackCliInit',
+          'startCliLogin',
+          'pollCliLogin',
+          'logOutCli',
         ],
         at(path, 'call'),
         problems
@@ -635,7 +761,7 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
   } else {
     reportWrongShape(
       oneOf1,
-      "`{ call: 'getBuildStatus'; with: { buildIndex: number }; answer: ApiError | BuildStatusAnswer | null }`, `{ call: 'createProject'; with: { teamId: string; name: string }; answer: ApiError | { name: string; index: number; projectToken: string } }`, `{ call: 'createTeam'; with: { name: string }; answer: ApiError | { id: string; name: string } }`, `{ call: 'listTeams'; with: Record<string, never>; answer: ApiError | { teams: Array<{ id: string; name: string; projectCount: number; role: string | null }> } }`, `{ call: 'listProjects'; with: { teamId: string }; answer: ApiError | { team: { name: string; id: string }; projects: Array<{ index: number; name: string; buildCount: number; mainBranch: string | null }> } }`, `{ call: 'openBuild'; with: { platforms: string[] }; answer: ApiError | { buildIndex: number; url: string; captureDecision?: PosedCaptureDecision } }`, `{ call: 'computeDiffScopeDryRun'; with: { branch: string; commit: string }; answer: ApiError | DiffScopeDryRunAnswer }`, `{ call: 'getNextBuildInfo'; with: { platforms: string[] }; answer: ApiError | NextBuildInfoAnswer }`, `{ call: 'getStagedUploadUrls'; with: { platforms: string[] }; answer: ApiError | Record<string, never> }`, `{ call: 'checkStagedGate'; with: { platform: string; baseFingerprint: string }; answer: ApiError | StagedGateAnswer }` or `{ call: 'trackCliInit'; with: { event: string }; answer: ApiError | { sessionId: string } }`",
+      "`{ call: 'getBuildStatus'; with: { buildIndex: number }; answer: ApiError | BuildStatusAnswer | null }`, `{ call: 'createProject'; with: { teamId: string; name: string }; answer: ApiError | { name: string; index: number; projectToken: string } }`, `{ call: 'createTeam'; with: { name: string }; answer: ApiError | { id: string; name: string } }`, `{ call: 'listTeams'; with: Record<string, never>; answer: ApiError | { teams: Array<{ id: string; name: string; projectCount: number; role: string | null }> } }`, `{ call: 'listProjects'; with: { teamId: string }; answer: ApiError | { team: { name: string; id: string }; projects: Array<{ index: number; name: string; buildCount: number; mainBranch: string | null }> } }`, `{ call: 'openBuild'; with: { platforms: string[] }; answer: ApiError | { buildIndex: number; url: string; captureDecision?: PosedCaptureDecision } }`, `{ call: 'computeDiffScopeDryRun'; with: { branch: string; commit: string }; answer: ApiError | DiffScopeDryRunAnswer }`, `{ call: 'getNextBuildInfo'; with: { platforms: string[] }; answer: ApiError | NextBuildInfoAnswer }`, `{ call: 'getStagedUploadUrls'; with: { platforms: string[] }; answer: ApiError | Record<string, never> }`, `{ call: 'checkStagedGate'; with: { platform: string; baseFingerprint: string }; answer: ApiError | StagedGateAnswer }`, `{ call: 'trackCliInit'; with: { event: string }; answer: ApiError | { sessionId: string } }`, `{ call: 'startCliLogin'; with: Record<string, never>; answer: ApiError | { loginId: string; authorizeUrl: string; expiresAt: string } }`, `{ call: 'pollCliLogin'; with: { loginId: string }; answer: ApiError | { status: 'pending' | 'cancelled' | 'expired' | 'used' } | { status: 'approved'; email: string; token: string } }` or `{ call: 'logOutCli'; with: Record<string, never>; answer: ApiError | Record<string, never> }`",
       path,
       problems
     );
@@ -816,6 +942,31 @@ function readPosedCapture(value: unknown, path: string, problems: string[]): voi
       path,
       problems
     );
+  }
+}
+
+/** The shape of a `PosedBrowser`, as `contracts/pose.contract.ts` publishes it. */
+function readPosedBrowser(value: unknown, path: string, problems: string[]): void {
+  const object1 = asObject(value, path, problems);
+  if (object1) {
+    expectBoolean(object1.opened, at(path, 'opened'), problems);
+    reportUnknownFields(object1, ['opened'], path, problems);
+  }
+}
+
+/** The shape of a `PosedLogins`, as `contracts/pose.contract.ts` publishes it. */
+function readPosedLogins(value: unknown, path: string, problems: string[]): void {
+  const map1 = asObject(value, path, problems);
+  if (map1) {
+    for (const key2 of Object.keys(map1)) {
+      const where3 = atKey(path, key2);
+      const object4 = asObject(map1[key2], where3, problems);
+      if (object4) {
+        expectString(object4.email, at(where3, 'email'), problems);
+        expectString(object4.token, at(where3, 'token'), problems);
+        reportUnknownFields(object4, ['email', 'token'], where3, problems);
+      }
+    }
   }
 }
 

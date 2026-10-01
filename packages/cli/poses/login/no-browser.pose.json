@@ -1,0 +1,30 @@
+{
+  "pose": 1,
+  "argv": ["login"],
+  "files": {},
+  "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "git": "none",
+  "bundles": {},
+  "api": [
+    {
+      "call": "startCliLogin",
+      "with": {},
+      "answer": {
+        "loginId": "lg7Qm2Xa",
+        "authorizeUrl": "https://app.sherlo.io/cli-login/lg7Qm2Xa",
+        "expiresAt": "2026-10-01T12:10:00.000Z"
+      }
+    },
+    {
+      "call": "pollCliLogin",
+      "with": { "loginId": "lg7Qm2Xa" },
+      "answer": {
+        "status": "approved",
+        "email": "anna@example.com",
+        "token": "sht_poselogintoken00000000000000000"
+      }
+    }
+  ],
+  "masks": {},
+  "browser": { "opened": false }
+}

@@ -113,7 +113,47 @@ export type ServerCalls = {
    * reaches the real backend.
    */
   trackCliInit(request: TrackCliInitRequest & { token: string }): Promise<TrackCliInitAnswer>;
+
+  /**
+   * `sherlo login`'s first question: start a pending login. Asked with no credential; the live half
+   * sends this computer's name, which the authorize page shows. The poll secret is known only to
+   * this run, and only ever sent back to {@link ServerCalls.pollCliLogin}.
+   */
+  startCliLogin(): Promise<PendingCliLogin>;
+
+  /** Has the person answered the pending login yet? Asked about every two seconds while it waits. */
+  pollCliLogin(request: { loginId: string; pollSecret: string }): Promise<CliLoginAnswer>;
+
+  /** `sherlo logout`: end exactly the login whose token this is, on the service. */
+  logOutCli(request: { personalToken: string }): Promise<void>;
 };
+
+/** A login the service started for this run: what to open, and what only this run may ask with. */
+export type PendingCliLogin = {
+  loginId: string;
+  /** Known only to this run. Never printed. */
+  pollSecret: string;
+  /** The web app page the person opens to click Authorize or Cancel. */
+  authorizeUrl: string;
+  /** When the pending login expires if nobody answers it, ISO 8601. */
+  expiresAt: string;
+};
+
+/**
+ * What a poll of a pending login answers. Only `approved` carries the token, and only once: a
+ * later poll of the same login answers `used` (sherlo-api / Logging in from the CLI).
+ */
+export type CliLoginAnswer =
+  | { status: 'pending' | 'cancelled' | 'expired' | 'used' }
+  | { status: 'approved'; email: string; token: string };
+
+/**
+ * PLAN STAND-IN (epic cli-login): the live halves of the three login operations are a build task.
+ * Until they land, each refuses rather than pretend to have asked the service.
+ */
+function loginOperationNotBuilt(operation: string): never {
+  throw new Error(`\`${operation}\` is not built into this version of the CLI yet.`);
+}
 
 /** What the staged gate is asked and what it answers - the sdk client's own shapes. */
 export type CheckStagedGateRequest = Parameters<SdkClient['checkStagedGate']>[0];
@@ -166,6 +206,10 @@ export const liveServerCalls: ServerCalls = {
   },
 
   checkStagedGate: ({ token, ...request }) => clientFor(token).checkStagedGate(request),
+
+  startCliLogin: async () => loginOperationNotBuilt('startCliLogin'),
+  pollCliLogin: async () => loginOperationNotBuilt('pollCliLogin'),
+  logOutCli: async () => loginOperationNotBuilt('logOutCli'),
 };
 
 let installed: ServerCalls = liveServerCalls;
@@ -358,6 +402,34 @@ export type ScriptedCall =
       call: 'trackCliInit';
       with: { event: string };
       answer: { sessionId: string } | ApiError;
+    }
+  | {
+      /**
+       * `sherlo login` starts a pending login. The answer is the login's id, the page to open and
+       * when the login expires; the poll secret is the run's own and never posed.
+       */
+      call: 'startCliLogin';
+      with: Record<string, never>;
+      answer: { loginId: string; authorizeUrl: string; expiresAt: string } | ApiError;
+    }
+  | {
+      /**
+       * One poll of the pending login: `pending` until the person answers, then `approved` with
+       * the token and the person's email, or `cancelled`, `expired` or `used`. A login that waited
+       * scripts one `pending` per poll before its answer.
+       */
+      call: 'pollCliLogin';
+      with: { loginId: string };
+      answer:
+        | { status: 'pending' | 'cancelled' | 'expired' | 'used' }
+        | { status: 'approved'; email: string; token: string }
+        | ApiError;
+    }
+  | {
+      /** `sherlo logout` ends the saved login on the service. An error is a service it could not reach. */
+      call: 'logOutCli';
+      with: Record<string, never>;
+      answer: Record<string, never> | ApiError;
     };
 
 /**
@@ -485,6 +557,19 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
     // params carry whatever that step measured, which the command composed rather than the pose.
     trackCliInit: async (request) =>
       answerFor('trackCliInit', { event: request.event }) as TrackCliInitAnswer,
+
+    // The poll secret is this run's own and never printed, so a pose does not state one: the
+    // posed login carries a stand-in, and the poll is checked by its login id alone.
+    startCliLogin: async () => {
+      const answer = answerFor('startCliLogin', {}) as Omit<PendingCliLogin, 'pollSecret'>;
+      return { ...answer, pollSecret: 'posed-poll-secret' };
+    },
+
+    pollCliLogin: async ({ loginId }) => answerFor('pollCliLogin', { loginId }) as CliLoginAnswer,
+
+    logOutCli: async () => {
+      answerFor('logOutCli', {});
+    },
   };
 }
 

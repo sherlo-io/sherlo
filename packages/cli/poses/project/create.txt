@@ -7,7 +7,7 @@ projectName=Storefront App
 
   <MASKED>
 
-[2mUse it as the `token` in sherlo.config.json, or as SHERLO_TOKEN in CI.[22m
+[2mAdd it to your CI as the SHERLO_TOKEN secret.[22m
 
 
 [exit 0]
