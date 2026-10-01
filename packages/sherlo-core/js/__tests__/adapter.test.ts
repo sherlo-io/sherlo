@@ -1,12 +1,9 @@
-vi.mock('../SherloModule', () => ({
-  default: {
-    getMode: vi.fn().mockReturnValue('default'),
-  },
-}));
+import { enumerateStories } from '../src/adapter';
+import prepareSnapshots from '../src/prepareSnapshots';
+import type { StorybookView } from '../../../react-native-storybook/src/sealedCore/seam';
+import { installTestHost } from './testHost';
 
-import { enumerateStories } from '../storybook/adapter';
-import prepareSnapshots from '../getStorybook/components/TestingMode/useTestAllStories/prepareSnapshots';
-import type { StorybookView } from '../types';
+beforeEach(() => installTestHost());
 
 // ---------------------------------------------------------------------------
 // importPath emission (Diff Scope bridge)

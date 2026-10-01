@@ -79,16 +79,19 @@ vi.mock('../SherloModule', () => ({
 vi.mock('../getStorybook/storyErrorRegistry', () => ({
   readStoryError: () => undefined,
   clearStoryError: vi.fn(),
-}));
-
-vi.mock('../getStorybook/components/TestingMode/useTestAllStories/prepareInspectorData', () => ({
-  prepareInspectorData: (inspectorData: any) => ({
-    inspectorData,
-    hasNetworkImage: false,
-  }),
+  // The sealed core's host carries the registry's writer too.
+  recordStoryError: vi.fn(),
 }));
 
 import useTestStory from '../getStorybook/components/TestingMode/useTestAllStories/useTestStory';
+import { getSealedCore } from '../sealedCore/loadSealedCore';
+
+// The sealed core's preparation of the inspector's tree is stood in for: the tree goes out as it
+// came in, with no network image.
+vi.spyOn(getSealedCore()!, 'prepareInspectorData').mockImplementation((inspectorData) => ({
+  inspectorData,
+  hasNetworkImage: false,
+}));
 
 const FAKE_STORY_ID = 'components-button--primary';
 const FAKE_REQUEST_ID = 'req-abc-123';

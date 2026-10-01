@@ -1,5 +1,9 @@
-import { Snapshot, SnapshotMode, StoryId } from '../../../../types';
-import { StoryMeta } from '../../../../storybook/adapter';
+import type {
+  Snapshot,
+  SnapshotMode,
+  StoryId,
+  StoryMeta,
+} from '../../../react-native-storybook/src/sealedCore/seam';
 
 function prepareSnapshots({
   storyMetas,

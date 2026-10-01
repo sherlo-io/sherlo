@@ -1,11 +1,12 @@
-import prepareSnapshots from '../getStorybook/components/TestingMode/useTestAllStories/prepareSnapshots';
-import { StoryMeta } from '../storybook/adapter';
+import prepareSnapshots from '../src/prepareSnapshots';
+import type { StoryMeta } from '../../../react-native-storybook/src/sealedCore/seam';
 
 const makeMeta = (overrides: Partial<StoryMeta> = {}): StoryMeta => ({
   id: 'components-button--primary',
   title: 'components/Button',
   name: 'Primary',
   parameters: {},
+  mocks: {},
   ...overrides,
 });
 

@@ -1,13 +1,10 @@
 /**
- * WORDS IN CHILDREN - the pure rule captureTransport.test.ts's "a text view carries the words it
- * draws" exercises through the real fiber walk. This file tests wordsInChildren and its gate,
- * hostDrawsItsOwnChildrenAsWords, directly - the two pieces of metadataWalk.ts that decide it.
+ * WORDS IN CHILDREN - the pure rule the SDK's captureTransport.test.ts "a text view carries the
+ * words it draws" exercises through the real fiber walk. This file tests wordsInChildren and its
+ * gate, hostDrawsItsOwnChildrenAsWords, directly - the two pieces of metadataWalk.ts that decide it.
  */
 import { describe, expect, it } from 'vitest';
-import {
-  hostDrawsItsOwnChildrenAsWords,
-  wordsInChildren,
-} from '../getStorybook/components/TestingMode/metadataWalk';
+import { hostDrawsItsOwnChildrenAsWords, wordsInChildren } from '../src/metadataWalk';
 
 describe('wordsInChildren collects every word a children prop draws, in order', () => {
   it('collects a string child as a word', () => {

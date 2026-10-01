@@ -1,27 +1,11 @@
 /**
  * THE PURE WALK OF ONE FIBER GENERATION - no JSX, no React runtime needed to run it, so a test can
- * import it as a plain value (see MetadataProvider.tsx, which wires this to the app's own fiber tree
- * through its-fine, and captureTransport.test.ts, which drives it on a hand-built fiber directly).
+ * import it as a plain value. The SDK's MetadataProvider.tsx hands it the app's own fiber tree
+ * through its-fine (the core's `mergeGenerations`), and the tests drive it on a hand-built fiber.
  */
-import { primitiveOfHostType } from '../../../componentNames';
+import type { ViewProps, WalkedFiber } from '../../../react-native-storybook/src/sealedCore/seam';
+import { primitiveOfHostType } from './componentNames';
 import { isNetworkImageComponent } from './networkImageDetection';
-
-export type ViewProps = {
-  [nativeTag: number]: {
-    className?: string;
-    style?: any;
-    testID?: string;
-    hasNetworkImage?: boolean;
-    /** The words this view's own fiber draws, when it draws any - see wordsInChildren. */
-    text?: string;
-    /** A `TextInput`'s own placeholder, kept only for the fiber that carries one. */
-    placeholder?: string;
-    /** A `Text`'s own numberOfLines, kept only for the fiber that carries one. */
-    numberOfLines?: number;
-    /** A view's own accessibilityLabel - the only words an icon or image with no Text has. */
-    accessibilityLabel?: string;
-  };
-};
 
 /** Extract every string found in a fiber's props, straight or nested one level under `children`. */
 function extractTextFromProps(props: any, texts: string[]): void {
@@ -92,22 +76,6 @@ export function hostDrawsItsOwnChildrenAsWords(type: unknown): boolean {
   return primitive === 'Text' || primitive === 'VirtualText';
 }
 
-/**
- * As much of a fiber as walking one generation reads - a structural subset of its-fine's own
- * `Fiber`, so a test can build one by hand (see collectFromRoot) without satisfying every field
- * react-reconciler's own type carries. Every real `Fiber` its-fine hands back already has these.
- */
-export type WalkedFiber = {
-  pendingProps: any;
-  memoizedProps: any;
-  stateNode?: any;
-  type: any;
-  child?: WalkedFiber | null;
-  sibling?: WalkedFiber | null;
-  return?: WalkedFiber | null;
-  tag?: number;
-};
-
 /** React's own numbering for a HostRoot fiber - the root of a whole tree, above every component. */
 const HOST_ROOT_TAG = 3;
 
@@ -137,9 +105,6 @@ export function isCurrentGeneration(generationRoot: WalkedFiber): boolean {
  * the merged `viewProps`/`texts` built stale-first, current-last: for a native tag both
  * generations hold (a view updated in place, keeping its tag), the current generation's own entry
  * is what survives; a tag only the stale generation holds is kept, under its own words.
- *
- * EXPORTED FOR TESTS, so the merge order is exercised without a React runtime, the same way
- * collectFromRoot already is.
  */
 export function mergeGenerations(roots: WalkedFiber[]): {
   viewProps: ViewProps;

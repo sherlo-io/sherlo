@@ -65,8 +65,17 @@ function setupView({
   };
   if (readyUpfront) resolveReady();
 
+  // toId(title, 'Default') - kebab-cases the title the same way Storybook does for
+  // the simple ASCII titles these tests use.
+  const storyId = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}--default`;
+
+  // Storybook's index holds the story under that id; a story's mocks are found through it.
   const view = {
-    _storyIndex: { entries: {} },
+    _storyIndex: {
+      entries: {
+        [storyId]: { id: storyId, title, name: 'Default', importPath: './src/Config.stories.tsx' },
+      },
+    },
     _preview: preview,
   } as unknown as StorybookView;
 
@@ -76,9 +85,6 @@ function setupView({
     await readyPromise; // flush the ready() .then re-apply before the test asserts
   };
 
-  // toId(title, 'Default') - kebab-cases the title the same way Storybook does for
-  // the simple ASCII titles these tests use.
-  const storyId = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}--default`;
   return { view, storyId, becomeReady };
 }
 

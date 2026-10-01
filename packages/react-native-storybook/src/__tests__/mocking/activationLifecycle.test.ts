@@ -15,8 +15,13 @@ import { activateStoryMocks } from '../../mocking';
 import { UNSHIMMED_KEYS_LOG } from '../../mocking/activateStoryMocks';
 import RunnerBridge from '../../helpers/RunnerBridge';
 import { clearMocks, __resetShimmedKeysForTests } from '../../mocking/registry';
-import { enumerateStories } from '../../storybook/adapter';
+import { getSealedCore } from '../../sealedCore/loadSealedCore';
 import type { StorybookView } from '../../types';
+
+/** The stories, as the SDK's sealed core lists them (the core built from its source). */
+function enumerateStories(view: StorybookView) {
+  return getSealedCore()!.enumerateStories(view);
+}
 
 afterEach(() => {
   clearMocks();
@@ -159,6 +164,10 @@ describe('activateStoryMocks - declared-but-unshimmed tripwire (FG-03)', () => {
     (globalThis as any).STORIES = [{ directory: './src', req }];
 
     const view = { _storyIndex: { entries: {} } } as unknown as StorybookView;
+    // This holds the core's path - a test run, where the sealed core's enumerateStories loads
+    // every story file before any activation. Activation itself reads only the selected story
+    // (storyMocksOf), so with no core a shim reached only through another story's file may not
+    // have evaluated yet (see the note on warnUnshimmedKeys in activateStoryMocks.ts).
     // enumerateStories eagerly requires every story file - by the time it returns,
     // every reachable shim (including pkg/widget-dep's) has already registered.
     const storyMetas = enumerateStories(view);

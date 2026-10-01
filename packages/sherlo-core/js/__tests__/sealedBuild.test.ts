@@ -7,7 +7,7 @@ import * as path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { buildSealedCore } from '../build.js';
 
-const SOURCE = path.join(__dirname, '..', 'src', 'index.ts');
+const SOURCE_FOLDER = path.join(__dirname, '..', 'src');
 const LERNA_JSON = path.join(__dirname, '..', '..', '..', '..', 'lerna.json');
 
 let builtCore: string;
@@ -46,9 +46,12 @@ describe('the sealed JS core', () => {
   });
 
   it("the built core holds none of its source's function names", () => {
-    const source = fs.readFileSync(SOURCE, 'utf8');
+    const source = fs
+      .readdirSync(SOURCE_FOLDER)
+      .map((file) => fs.readFileSync(path.join(SOURCE_FOLDER, file), 'utf8'))
+      .join('\n');
     const functionNames = [...source.matchAll(/function\s+([A-Za-z_$][\w$]*)/g)].map((m) => m[1]);
-    expect(functionNames).toContain('storeHost');
+    expect(functionNames).toContain('enumerateStories');
     for (const name of functionNames) {
       expect(scrambledBody).not.toContain(name);
     }

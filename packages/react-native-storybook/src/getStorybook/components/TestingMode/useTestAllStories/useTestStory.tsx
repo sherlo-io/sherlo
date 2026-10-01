@@ -3,7 +3,7 @@ import { RunnerBridge } from '../../../../helpers';
 import SherloModule from '../../../../SherloModule';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MetadataProviderRef } from '../MetadataProvider';
-import { prepareInspectorData } from './prepareInspectorData';
+import { getSealedCore } from '../../../../sealedCore/loadSealedCore';
 import { readStoryError, clearStoryError } from '../../../storyErrorRegistry';
 import { Config } from '../../../../helpers/RunnerBridge/types';
 import { StorybookView } from '../../../../types';
@@ -213,9 +213,13 @@ function useTestStory({
         let scrollViewFrame: { x: number; y: number; width: number; height: number } | undefined;
         let safeAreaMetadata;
 
+        // A test run only starts with the sealed core installed (getStorybook). Were it missing,
+        // the tree would go out as the inspector answered it.
+        const core = getSealedCore();
+
         if (!containsError) {
-          if (fabricMetadata) {
-            const preparedInspectorData = prepareInspectorData(
+          if (fabricMetadata && core) {
+            const preparedInspectorData = core.prepareInspectorData(
               inspectorData,
               fabricMetadata,
               nextSnapshot.storyId
@@ -347,8 +351,8 @@ function useTestStory({
 
             const newFabricMetadata = metadataProviderRef?.current?.collectMetadata();
 
-            if (newInspectorData) {
-              const prepared = prepareInspectorData(
+            if (newInspectorData && core) {
+              const prepared = core.prepareInspectorData(
                 newInspectorData,
                 newFabricMetadata!,
                 nextSnapshot.storyId // We assume story ID doesn't change

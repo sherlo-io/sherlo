@@ -99,11 +99,10 @@ import {
   rememberAppMetadataCollector,
 } from '../appMetadata';
 import { rememberStoryOfTheApp } from '../componentNames';
-import {
-  collectFromRoot,
-  mergeGenerations,
-  type WalkedFiber,
-} from '../getStorybook/components/TestingMode/metadataWalk';
+// The sealed core's walk of the app's fibers, from the core package's own source: the same code
+// the SDK suite's core is built from (./__mocks__/sealedCoreFromSource).
+import { collectFromRoot, mergeGenerations } from '../../../sherlo-core/js/src/metadataWalk';
+import type { WalkedFiber } from '../sealedCore/seam';
 import { clearStoryError, recordStoryError } from '../getStorybook/storyErrorRegistry';
 import { STORY_ERROR_FALLBACK_TEXT } from '../constants';
 import RunnerBridge from '../helpers/RunnerBridge';

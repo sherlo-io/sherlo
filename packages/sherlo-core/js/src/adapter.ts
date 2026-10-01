@@ -1,30 +1,16 @@
-import { StorybookView } from '../types';
-import SherloModule from '../SherloModule';
-import { mergeStoryMocks } from '../mocking/mergeMocks';
-import { StoryMocks } from '../mocking/mockDeclaration';
-
-export interface StoryMeta {
-  id: string;
-  title: string;
-  name: string;
-  parameters: Record<string, any>;
-  /**
-   * Project-root-relative import path of the story file (e.g. "./src/Button.stories.tsx").
-   * Used by Diff Scope to map storyId → source file without static reconstruction.
-   * Sourced from _storyIndex.entries[id].importPath; derived from the require.context
-   * directory + filename for the primary (titled) path.
-   */
-  importPath?: string;
-  /**
-   * Module Mocking (SHERLO-1735): the story's mocks, already merged per module across
-   * global/meta/story parameters (precedence story > meta > global - see mergeStoryMocks).
-   * Computed from the three RAW `parameters.sherlo.mocks` levels, not from `parameters`
-   * above - that field is a shallow spread of all three levels, so a story's
-   * `parameters.sherlo` replaces meta's and global's wholesale and the per-module mock
-   * precedence would otherwise be lost.
-   */
-  mocks: StoryMocks;
-}
+/**
+ * THE STORIES THE APP CAN SHOW, read from the story files Storybook's generated requires file
+ * hands over (the runtime global `STORIES`), and filled in from Storybook's own index.
+ *
+ * A story's mocks are merged by the SDK's open mocking code (the host's `mergeStoryMocks`), and the
+ * warning for a run that finds no story goes out through the host's `warn`.
+ */
+import type {
+  StoryMeta,
+  StoryMocks,
+  StorybookView,
+} from '../../../react-native-storybook/src/sealedCore/seam';
+import { theHost } from './host';
 
 const SANITIZE_REGEX = /[ '–-―′¿'`~!@#$%^&*()_|+\-=?;:'",.<>{}[\]\\/]/gi;
 
@@ -60,7 +46,7 @@ interface ViewInternal {
     entries?: Record<string, { id: string; title: string; name: string; importPath: string }>;
   };
   // Storybook's live Preview instance (PreviewWithSelection). Not on the public
-  // StorybookView type, so - like the other internal fields here and in
+  // StorybookView type, so - like the other internal fields here and in the SDK's
   // getStorybook.tsx - it is reached through a cast. `storyStoreValue` is the
   // StoryStore that Storybook builds once the preview is ready; its
   // `projectAnnotations.parameters` holds the composed PROJECT (preview-level)
@@ -75,6 +61,7 @@ interface ViewInternal {
 }
 
 export function enumerateStories(view: StorybookView): StoryMeta[] {
+  const { mergeStoryMocks } = theHost();
   const indexEntries = (view as unknown as ViewInternal)._storyIndex?.entries ?? {};
   const storyEntries = readStoryEntries();
   const globalParams = readGlobalParameters(view);
@@ -242,8 +229,8 @@ export function enumerateStories(view: StorybookView): StoryMeta[] {
     }
   }
 
-  if (result.length === 0 && SherloModule.getMode() === 'testing') {
-    console.warn(
+  if (result.length === 0 && theHost().native.getMode() === 'testing') {
+    theHost().warn(
       '[Sherlo] enumerated zero stories - check storybook.requires.ts or your Storybook config'
     );
   }
@@ -265,14 +252,14 @@ function readStoryEntries(): Array<{
 //
 // On device the app's `.rnstorybook/preview.ts` annotations are composed into
 // view._preview.storyStoreValue.projectAnnotations, the SAME merged project object
-// getStorybook.tsx reads via view._preview; it carries `parameters.sherlo.mocks`.
+// the SDK's getStorybook.tsx reads via view._preview; it carries `parameters.sherlo.mocks`.
 //
 // TIMING: this composition is ASYNCHRONOUS - Storybook populates storyStoreValue
 // during preview init (view._preview.ready() resolves at that point). On a fresh boot,
 // enumerateStories can run BEFORE it, so this returns {} and global-level mocks are
 // absent. That is by design here: callers that must include global mocks (the mock
-// activation path) re-read once the preview is ready - see storyMockActivation. Do NOT
-// assume this is populated on the first call.
+// activation path) re-read once the preview is ready - see the SDK's storyMockActivation.
+// Do NOT assume this is populated on the first call.
 //
 // The old source - require('@storybook/react-native/preview') - resolves to an
 // internal package stub that never carries the user's project annotations, so
