@@ -3,6 +3,7 @@ import { FULL_INIT_COMMAND } from '../../../constants';
 import { getCwd, spinner as createSpinner, throwError } from '../../../helpers';
 import { workstation } from '../../../seams/workstation';
 import { IOS_DIR } from './constants';
+import getFailedCommandOutput from './getFailedCommandOutput';
 
 async function installPods(): Promise<void> {
   const spinner = createSpinner('Installing Pods').start();
@@ -30,6 +31,7 @@ async function installPods(): Promise<void> {
         '\n' +
         chalk.reset('Then re-run:\n') +
         chalk.cyan(`  ${FULL_INIT_COMMAND}`),
+      below: getFailedCommandOutput(error),
       errorToReport: error,
     });
   }
