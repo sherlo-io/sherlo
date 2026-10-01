@@ -11,10 +11,7 @@ import { useHideSplashScreen } from './hooks';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import SherloStoryErrorBoundary from './components/SherloStoryErrorBoundary';
 import { LOG_FILE, PROTOCOL_FILE } from '../constants';
-import {
-  getStorybookChannel,
-  startStoryRenderedTracking,
-} from './components/TestingMode/useTestAllStories/storyRenderedReadiness';
+import { getStorybookChannel } from './storybookChannel';
 import {
   startInteractiveMockActivation,
   stopInteractiveMockActivation,
@@ -22,10 +19,19 @@ import {
 import { startOpenStoryChannel, stopOpenStoryChannel } from '../openStoryChannel';
 import { startCaptureTransport } from '../captureTransport';
 import { StoryOfTheApp } from '../storyOfTheApp';
+import { getSealedCore } from '../sealedCore/loadSealedCore';
 
 let isSdkCompatible = true;
 if (SherloModule.getMode() === 'testing') {
   isSdkCompatible = checkSdkCompatibility();
+}
+
+/**
+ * Whether a test walk can run in this launch: the SDK matches its native side, and the sealed core
+ * that will hold the walk is installed. Without the core, testing mode renders nothing.
+ */
+function canWalkTheStories(): boolean {
+  return isSdkCompatible && getSealedCore() !== null;
 }
 
 function getStorybook(view: StorybookView, params?: StorybookParams): () => ReactElement {
@@ -50,15 +56,15 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
   // is a normal state here too (see captureTransport.ts) - getConfigOrDefault falls back to the
   // SDK's own defaults instead of throwing, which used to crash the app before the async iOS
   // sendNativeError(ERROR_SDK_COMPATIBILITY) write could complete.
-  if (mode === 'testing' && isSdkCompatible) {
+  if (mode === 'testing' && canWalkTheStories()) {
     const testingConfig = SherloModule.getConfigOrDefault();
     const delayMs = testingConfig.initialStoryRenderDelayMs;
 
-    // Attach the early STORY_RENDERED listener here - the earliest JS access to
+    // Attach the core's early STORY_RENDERED listener here - the earliest JS access to
     // the Storybook channel - so a story that renders before useTestStory mounts
-    // is buffered, not missed.
+    // is buffered, not missed. canWalkTheStories() above means the core is installed.
     try {
-      startStoryRenderedTracking(getStorybookChannel(view));
+      getSealedCore()?.startStoryRenderedTracking(getStorybookChannel(view));
     } catch (_e) {}
 
     const originalGetProjectAnnotations = view._preview.getProjectAnnotations.bind(view._preview);
@@ -188,7 +194,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     }, []);
 
     if (isTestingMode) {
-      if (!isSdkCompatible) return null as unknown as ReactElement;
+      if (!canWalkTheStories()) return null as unknown as ReactElement;
 
       return (
         <SafeAreaProvider>

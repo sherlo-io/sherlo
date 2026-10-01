@@ -11,7 +11,11 @@ export const UNSHIMMED_KEYS_LOG = 'mock declared but unshimmed';
 // the module import was never redirected, so createMockable never ran for it (typically
 // a static-scan miss, or a key added after the last Metro start). Warn loudly, once per
 // activation, naming the key and both fixes - callers must call this only once shims have
-// had the chance to load (see enumerateStories, which forces every shim to evaluate).
+// had the chance to load. Activation reads only the selected story (./storyMocksOf),
+// which loads that story's own file. In a test run the sealed core's enumerateStories has
+// already loaded every story file first, so every shim has evaluated and the guard holds. With
+// no core (Expo Go), a project-level mock whose shim sits only in ANOTHER story's import graph
+// may not have evaluated yet, and is warned about though it would apply once that story loads.
 //
 // The warning goes out on TWO channels: console.warn (visible in a dev session) AND
 // RunnerBridge.log (written to log.sherlo). The second channel is what makes FG-03

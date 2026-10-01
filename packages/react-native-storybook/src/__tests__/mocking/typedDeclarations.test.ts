@@ -136,15 +136,25 @@ function viewDeclaring(mocks: unknown): { view: StorybookView; storyId: string }
   const req = Object.assign(() => fileExports, { keys: () => ['./Declared.stories.tsx'] });
   (globalThis as any).STORIES = [{ directory: './src', req }];
 
+  const storyId = 'mocking-declared--default';
   const view = {
-    _storyIndex: { entries: {} },
+    _storyIndex: {
+      entries: {
+        [storyId]: {
+          id: storyId,
+          title: 'Mocking/Declared',
+          name: 'Default',
+          importPath: './src/Declared.stories.tsx',
+        },
+      },
+    },
     _preview: {
       storyStoreValue: { projectAnnotations: { parameters: {} } },
       ready: () => Promise.resolve(),
     },
   } as unknown as StorybookView;
 
-  return { view, storyId: 'mocking-declared--default' };
+  return { view, storyId };
 }
 
 describe('a mock is declared by its import expression', () => {
