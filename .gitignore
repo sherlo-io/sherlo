@@ -4,6 +4,9 @@ node_modules
 packages/sherlo-core/sherlo-core.js
 packages/react-native-storybook/ios/Resources/assets/sherlo-core.js
 packages/react-native-storybook/android/src/main/assets/sherlo-core.js
+packages/react-native-storybook/ios/SherloCore.xcframework
+packages/react-native-storybook/android/src/main/jniLibs
+packages/sherlo-core/native/build
 
 .expo/
 .next/

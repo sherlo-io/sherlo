@@ -1,12 +1,19 @@
 /**
  * What the published SDK carries, and what the repository does not: each name is a rule the book
- * marks on "The sealed core" and "Working on the SDK". The bodies of the C-core, bundler-plugin and
+ * marks on "The sealed core" and "Working on the SDK". The bodies of the readable-source and
  * release-key rules come with their own tasks; they stay empty shells here.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
+import {
+  ANDROID_ABIS,
+  ANDROID_PAGE_SIZE,
+  missingAndroidTools,
+  missingIosTools,
+} from '../../../sherlo-core/native/build.js';
 
 // packages/react-native-storybook root: this file is at src/__tests__/.
 const SDK_ROOT = path.resolve(__dirname, '..', '..');
@@ -14,24 +21,25 @@ const REPO_ROOT = path.resolve(SDK_ROOT, '..', '..');
 
 const IOS_ASSET = 'ios/Resources/assets/sherlo-core.js';
 const ANDROID_ASSET = 'android/src/main/assets/sherlo-core.js';
-
-import { execFileSync } from 'child_process';
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
-
-const PACKAGE_ROOT = path.resolve(__dirname, '../..');
+const XCFRAMEWORK = 'ios/SherloCore.xcframework';
+const XCFRAMEWORK_SLICES = [
+  XCFRAMEWORK + '/ios-arm64/libsherlocore.a',
+  XCFRAMEWORK + '/ios-arm64_x86_64-simulator/libsherlocore.a',
+];
+const ANDROID_LIBRARIES = ANDROID_ABIS.map(
+  ({ abi }: { abi: string }) => 'android/src/main/jniLibs/' + abi + '/libsherlocore.so'
+);
 
 // Builds the bundler plugin, packs the SDK into a temporary folder and unpacks the tarball there,
 // so the test reads what a customer would install. The build runs as its own step and the pack
 // skips lifecycle scripts, so the pack's JSON output is never mixed with build logs.
 function packIntoTemporaryFolder(): { unpackedPackageDir: string; packedFilePaths: string[] } {
   const temporaryDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-sdk-pack-'));
-  execFileSync('yarn', ['build:metro'], { cwd: PACKAGE_ROOT, stdio: 'ignore' });
+  execFileSync('yarn', ['build:metro'], { cwd: SDK_ROOT, stdio: 'ignore' });
   const packOutput = execFileSync(
     'npm',
     ['pack', '--json', '--ignore-scripts', '--pack-destination', temporaryDir],
-    { cwd: PACKAGE_ROOT, encoding: 'utf8' }
+    { cwd: SDK_ROOT, encoding: 'utf8' }
   );
   const [{ filename, files }] = JSON.parse(packOutput);
   execFileSync('tar', ['-xzf', path.join(temporaryDir, filename), '-C', temporaryDir]);
@@ -42,16 +50,40 @@ function packIntoTemporaryFolder(): { unpackedPackageDir: string; packedFilePath
   };
 }
 
+/** Every sealed part a pack builds into the SDK, removed, so a pack must build each again. */
+function removeBuiltSealedParts() {
+  for (const builtPart of [IOS_ASSET, ANDROID_ASSET, XCFRAMEWORK, 'android/src/main/jniLibs']) {
+    fs.rmSync(path.join(SDK_ROOT, builtPart), { recursive: true, force: true });
+  }
+}
+
+/** The alignment of each loadable segment of an ELF shared library. */
+function loadSegmentAlignments(library: Buffer): number[] {
+  const is64Bit = library[4] === 2;
+  const readWord = (offset: number) =>
+    is64Bit ? Number(library.readBigUInt64LE(offset)) : library.readUInt32LE(offset);
+  const programHeadersAt = readWord(is64Bit ? 0x20 : 0x1c);
+  const programHeaderSize = library.readUInt16LE(is64Bit ? 0x36 : 0x2a);
+  const programHeaderCount = library.readUInt16LE(is64Bit ? 0x38 : 0x2c);
+  const LOADABLE = 1;
+
+  const alignments: number[] = [];
+  for (let index = 0; index < programHeaderCount; index++) {
+    const header = programHeadersAt + index * programHeaderSize;
+    if (library.readUInt32LE(header) !== LOADABLE) continue;
+    alignments.push(readWord(header + (is64Bit ? 0x30 : 0x1c)));
+  }
+  return alignments;
+}
+
 describe('what the published package carries', () => {
   describe('the published files carry the JS core as an asset for iOS and Android', () => {
-    // npm pack runs the SDK's prepack, which builds the core and copies it into both asset folders,
-    // so a dry-run pack lists exactly what a publish would upload. The build is the slow part.
     let packedFiles: string[];
 
     beforeAll(() => {
       // Build and copy the assets the way the SDK's prepack does, then ask npm what a pack would
       // carry - so this holds whether or not a dry-run pack runs the prepack lifecycle itself.
-      execFileSync('node', ['scripts/packSealedCore.js'], {
+      execFileSync('node', ['scripts/packSealedCore.js', 'js'], {
         cwd: SDK_ROOT,
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'inherit'],
@@ -78,9 +110,95 @@ describe('what the published package carries', () => {
     });
   });
 
-  it('the podspec vendors the C core xcframework', () => {});
+  describe('the C core, from a real pack', () => {
+    // The C core builds with Xcode and the Android NDK. On a machine without both, a pack cannot
+    // run, and these rules check what they can without one.
+    const missingTools = [missingIosTools(), missingAndroidTools()].filter(Boolean) as string[];
+    let packedFiles: string[] = [];
+    let unpackedPackageDir = '';
 
-  it('the published files carry a C core library for every Android ABI', () => {});
+    beforeAll(() => {
+      if (missingTools.length > 0) {
+        console.warn('no real pack on this machine: ' + missingTools.join('; '));
+        return;
+      }
+      // Pack as a publish does, prepack and all, with no sealed part built beforehand.
+      removeBuiltSealedParts();
+      const temporaryDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-sdk-real-pack-'));
+      execFileSync('npm', ['pack', '--pack-destination', temporaryDir], {
+        cwd: SDK_ROOT,
+        stdio: ['ignore', 'ignore', 'inherit'],
+      });
+      const tarball = fs.readdirSync(temporaryDir).find((name) => name.endsWith('.tgz'))!;
+      execFileSync('tar', ['-xzf', path.join(temporaryDir, tarball), '-C', temporaryDir]);
+      packedFiles = execFileSync('tar', ['-tzf', path.join(temporaryDir, tarball)], {
+        encoding: 'utf8',
+      })
+        .trim()
+        .split('\n')
+        .map((entry) => entry.replace(/^package\//, ''));
+      unpackedPackageDir = path.join(temporaryDir, 'package');
+    }, 300_000);
+
+    afterAll(() => {
+      // The pack built every sealed part into the SDK; clear them so a local run leaves none.
+      if (missingTools.length === 0) removeBuiltSealedParts();
+    });
+
+    it('the podspec vendors the C core xcframework', () => {
+      const podspec = fs.readFileSync(
+        path.join(SDK_ROOT, 'sherlo-react-native-storybook.podspec'),
+        'utf8'
+      );
+      expect(podspec).toContain('s.vendored_frameworks = "' + XCFRAMEWORK + '"');
+      const manifest = JSON.parse(fs.readFileSync(path.join(SDK_ROOT, 'package.json'), 'utf8'));
+      expect(manifest.files).toContain(XCFRAMEWORK);
+
+      if (missingTools.length > 0) {
+        console.warn('the xcframework itself was not built here, so its slices are not checked');
+        return;
+      }
+      for (const slice of XCFRAMEWORK_SLICES) expect(packedFiles).toContain(slice);
+      // Both slices are named libsherlocore.a, or CocoaPods refuses the xcframework.
+      const infoPlist = fs.readFileSync(
+        path.join(unpackedPackageDir, XCFRAMEWORK, 'Info.plist'),
+        'utf8'
+      );
+      const libraryPathPattern = /<key>LibraryPath<\/key>\s*<string>([^<]+)<\/string>/g;
+      const libraryPaths = [...infoPlist.matchAll(libraryPathPattern)].map((match) => match[1]);
+      expect(libraryPaths).toEqual(['libsherlocore.a', 'libsherlocore.a']);
+    });
+
+    it('the published files carry a C core library for every Android ABI', (context) => {
+      if (missingTools.length > 0) {
+        console.warn('not checked here: ' + missingTools.join('; '));
+        context.skip();
+      }
+      // The rule that keeps CompiledCore's native method names under R8 ships with them.
+      expect(packedFiles).toContain('android/consumer-rules.pro');
+      for (const library of ANDROID_LIBRARIES) {
+        expect(packedFiles).toContain(library);
+        // 16 KB page aligned: every loadable segment.
+        const libraryBytes = fs.readFileSync(path.join(unpackedPackageDir, library));
+        const alignments = loadSegmentAlignments(libraryBytes);
+        expect(alignments.length, library).toBeGreaterThan(0);
+        for (const alignment of alignments) expect(alignment, library).toBe(ANDROID_PAGE_SIZE);
+      }
+    });
+
+    it('a pack builds both sealed parts before it packs', (context) => {
+      const manifest = JSON.parse(fs.readFileSync(path.join(SDK_ROOT, 'package.json'), 'utf8'));
+      expect(manifest.scripts.prepack).toMatch(/^node scripts\/packSealedCore\.js &&/);
+
+      if (missingTools.length > 0) {
+        console.warn('not packed here: ' + missingTools.join('; '));
+        context.skip();
+      }
+      // None of these was in the SDK when the pack started.
+      const builtParts = [IOS_ASSET, ANDROID_ASSET, ...XCFRAMEWORK_SLICES, ...ANDROID_LIBRARIES];
+      for (const builtPart of builtParts) expect(packedFiles).toContain(builtPart);
+    });
+  });
 
   it('the published files carry no readable source of either core', () => {});
 
@@ -127,13 +245,13 @@ describe('what the published package carries', () => {
     }
   }, 120_000);
 
-  it('a pack builds both sealed parts before it packs', () => {});
-
   it('no built sealed part is committed', () => {
     const builtSealedParts = [
       'packages/sherlo-core/sherlo-core.js',
       'packages/react-native-storybook/ios/Resources/assets/sherlo-core.js',
       'packages/react-native-storybook/android/src/main/assets/sherlo-core.js',
+      'packages/react-native-storybook/' + XCFRAMEWORK,
+      ...ANDROID_LIBRARIES.map((library) => 'packages/react-native-storybook/' + library),
     ];
 
     for (const builtPart of builtSealedParts) {

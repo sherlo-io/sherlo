@@ -6,6 +6,7 @@
   "license": "MIT",
   "scripts": {
     "build": "node js/build.js",
+    "build:native": "node native/build.js",
     "test": "../../scripts/require-test-exec-optin.sh && vitest run"
   },
   "devDependencies": {
