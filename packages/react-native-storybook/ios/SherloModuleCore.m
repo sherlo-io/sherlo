@@ -1,4 +1,5 @@
 #import "SherloModuleCore.h"
+#import "CompiledCore.h"
 #import "FileSystemHelper.h"
 #import "InspectorHelper.h"
 #import "ConfigHelper.h"
@@ -380,11 +381,14 @@ static UIScrollView *lockedScrollView = nil;
  * Main detection logic for scrollable views. Returns a result dict with scrollable + optional frame.
  */
 - (NSDictionary *)detectScrollableView {
-    const CGFloat EPSILON = 4.0;
-    const CGFloat NUDGE_PX = 3.0;
-
     // Reset lock for each new story detection
     lockedScrollView = nil;
+
+    NSString *unusableReason = CompiledCoreUnusableReason();
+    if (unusableReason) {
+        NSLog(@"[%@] isScrollable: the C core cannot decide - %@", LOG_TAG, unusableReason);
+        return @{@"scrollable": @(NO)};
+    }
 
     UIWindow *keyWindow = [self getKeyWindow];
     if (!keyWindow) {
@@ -410,11 +414,12 @@ static UIScrollView *lockedScrollView = nil;
     }
 
     // Metric-based scrollability check
-    BOOL scrollable = [self isScrollableByMetrics:candidate epsilon:EPSILON];
+    sherlo_scroll_metrics metrics = [self scrollMetricsOf:candidate];
+    BOOL scrollable = sherlo_scroll_is_scrollable(SHERLO_PLATFORM_IOS, &metrics) == 1;
 
     if (!scrollable) {
         // Fallback: nudge and restore
-        scrollable = [self validateWithNudge:candidate nudgePx:NUDGE_PX];
+        scrollable = [self validateWithNudge:candidate];
         if (SCROLL_DEBUG) {
             NSLog(@"[%@] isScrollable: Nudge validation result: %@", LOG_TAG, scrollable ? @"YES" : @"NO");
         }
@@ -462,13 +467,11 @@ static UIScrollView *lockedScrollView = nil;
 
 /**
  * BFS traversal from root to find the first (shallowest / most-wrapping) scrollable UIScrollView.
- * BFS guarantees breadth-first order so the outermost scrollable view is found first.
- * Filters out framework-internal views and non-scrollable views.
+ * BFS guarantees breadth-first order so the outermost scrollable view is found first. The C core
+ * judges each UIScrollView as the walk reaches it - shown and not framework-internal, then
+ * scrollable by its numbers and big enough - and the walk stops at the first that fits.
  */
 - (UIScrollView *)findBestScrollViewBFS:(UIWindow *)window {
-    CGFloat screenArea = window.bounds.size.width * window.bounds.size.height;
-    CGFloat minArea = screenArea * 0.10;
-
     NSMutableArray<UIView *> *queue = [NSMutableArray array];
 
     // Walk the view controller presentation chain so modals (presentedViewController) are included.
@@ -495,31 +498,36 @@ static UIScrollView *lockedScrollView = nil;
         [queue removeObjectAtIndex:0];
 
         if ([view isKindOfClass:[UIScrollView class]]) {
-            UIScrollView *sv = (UIScrollView *)view;
+            UIScrollView *scrollView = (UIScrollView *)view;
+            NSString *className = NSStringFromClass([scrollView class]);
 
-            // Must be visible, scroll-enabled, and in window
-            if (sv.hidden || sv.alpha < 0.01 || !sv.isScrollEnabled || !sv.window) {
-                // Skip but still traverse children
-            } else if ([self isFrameworkInternalScrollView:sv]) {
-                if (SCROLL_DEBUG) {
-                    NSLog(@"[%@] BFS: Skipping framework-internal %@", LOG_TAG, NSStringFromClass([sv class]));
-                }
-            } else if ([self isScrollableByMetrics:sv epsilon:1.0]) {
-                // Check minimum area - skip tiny scrollable views (toasts, badges, etc.)
-                CGRect frameInWindow = [sv convertRect:sv.bounds toView:window];
+            // First what is cheap to read: shown, enabled, in a window, not framework-internal.
+            sherlo_scroll_candidate candidate;
+            memset(&candidate, 0, sizeof(candidate));
+            candidate.class_name = className.UTF8String;
+            candidate.is_hidden = scrollView.hidden ? 1 : 0;
+            candidate.alpha = scrollView.alpha;
+            candidate.metrics.can_scroll = scrollView.isScrollEnabled ? 1 : 0;
+            candidate.metrics.is_shown = scrollView.window != nil ? 1 : 0;
+
+            if (sherlo_scroll_candidate_is_eligible(SHERLO_PLATFORM_IOS, &candidate) == 1) {
+                // Then its numbers and the part of it on screen
+                candidate.metrics = [self scrollMetricsOf:scrollView];
+                CGRect frameInWindow = [scrollView convertRect:scrollView.bounds toView:window];
                 CGRect visible = CGRectIntersection(frameInWindow, window.bounds);
-                CGFloat area = CGRectIsNull(visible) ? 0 : visible.size.width * visible.size.height;
+                candidate.is_on_screen = CGRectIsNull(visible) ? 0 : 1;
+                candidate.visible_width = CGRectIsNull(visible) ? 0 : visible.size.width;
+                candidate.visible_height = CGRectIsNull(visible) ? 0 : visible.size.height;
 
-                if (area < minArea) {
+                if (sherlo_scroll_candidate_fits(SHERLO_PLATFORM_IOS, &candidate, window.bounds.size.width,
+                                                 window.bounds.size.height) == 1) {
                     if (SCROLL_DEBUG) {
-                        NSLog(@"[%@] BFS: Skipping too-small scrollable view %@ (area %.0f < min %.0f)",
-                              LOG_TAG, NSStringFromClass([sv class]), area, minArea);
+                        NSLog(@"[%@] BFS: Found scrollable view %@", LOG_TAG, className);
                     }
-                } else {
-                    if (SCROLL_DEBUG) {
-                        NSLog(@"[%@] BFS: Found scrollable view %@", LOG_TAG, NSStringFromClass([sv class]));
-                    }
-                    return sv;
+                    return scrollView;
+                }
+                if (SCROLL_DEBUG) {
+                    NSLog(@"[%@] BFS: Skipping %@ (not scrollable enough, or too small)", LOG_TAG, className);
                 }
             }
         }
@@ -533,15 +541,18 @@ static UIScrollView *lockedScrollView = nil;
 }
 
 /**
- * Returns YES if the scroll view is a framework-internal view that should not be used as a scroll target.
+ * A scroll view's vertical numbers, as the C core reads them, in points.
  */
-- (BOOL)isFrameworkInternalScrollView:(UIScrollView *)scrollView {
-    NSString *className = NSStringFromClass([scrollView class]);
-    // Apple private classes use underscore prefix
-    if ([className hasPrefix:@"_"]) {
-        return YES;
-    }
-    return NO;
+- (sherlo_scroll_metrics)scrollMetricsOf:(UIScrollView *)scrollView {
+    sherlo_scroll_metrics metrics;
+    metrics.can_scroll = scrollView.isScrollEnabled ? 1 : 0;
+    metrics.is_shown = scrollView.window != nil ? 1 : 0;
+    metrics.viewport_height = scrollView.bounds.size.height;
+    metrics.content_height = scrollView.contentSize.height;
+    metrics.inset_top = scrollView.adjustedContentInset.top;
+    metrics.inset_bottom = scrollView.adjustedContentInset.bottom;
+    metrics.scroll_extent = -1;
+    return metrics;
 }
 
 /**
@@ -559,90 +570,44 @@ static UIScrollView *lockedScrollView = nil;
 }
 
 /**
- * Metric-based check for scrollability.
+ * Validate control by tiny nudge + restore: the C core says where to move the view, the view is
+ * moved, read back and put back, and the C core judges whether it moved.
  */
-- (BOOL)isScrollableByMetrics:(UIScrollView *)scrollView epsilon:(CGFloat)epsilon {
-    if (!scrollView.isScrollEnabled) {
-        return NO;
-    }
+- (BOOL)validateWithNudge:(UIScrollView *)scrollView {
+    sherlo_scroll_metrics metrics = [self scrollMetricsOf:scrollView];
+    sherlo_scroll_position original;
+    original.offset = scrollView.contentOffset.y;
+    original.scroll_y = 0;
 
-    CGFloat viewportH = scrollView.bounds.size.height;
-    CGFloat contentH = scrollView.contentSize.height;
-    UIEdgeInsets insets = scrollView.adjustedContentInset;
-    CGFloat totalInsets = insets.top + insets.bottom;
-    CGFloat scrollRange = contentH + totalInsets - viewportH;
+    double targetY = 0;
+    for (int32_t attempt = 0; sherlo_scroll_nudge_target(SHERLO_PLATFORM_IOS, attempt, &metrics, &original, &targetY) == 1; attempt++) {
+        // Apply nudge
+        [scrollView setContentOffset:CGPointMake(scrollView.contentOffset.x, targetY) animated:NO];
+        [scrollView layoutIfNeeded];
 
-    if (SCROLL_DEBUG) {
-        NSLog(@"[%@] Scroll metrics - viewportH: %.1f, contentH: %.1f, insets: %.1f, scrollRange: %.1f",
-              LOG_TAG, viewportH, contentH, totalInsets, scrollRange);
-    }
+        // Read back
+        sherlo_scroll_position applied;
+        applied.offset = scrollView.contentOffset.y;
+        applied.scroll_y = 0;
 
-    // Basic checks
-    if (viewportH <= 0) {
-        return NO;
-    }
-    if (scrollRange <= epsilon) {
-        return NO;
-    }
+        // Restore immediately
+        [scrollView setContentOffset:CGPointMake(scrollView.contentOffset.x, original.offset) animated:NO];
+        [scrollView layoutIfNeeded];
 
-    // Check if in window and visible
-    if (!scrollView.window) {
-        return NO;
-    }
-
-    return YES;
-}
-
-/**
- * Validate control by tiny nudge + restore.
- */
-- (BOOL)validateWithNudge:(UIScrollView *)scrollView nudgePx:(CGFloat)nudgePx {
-    CGFloat viewportH = scrollView.bounds.size.height;
-    CGFloat contentH = scrollView.contentSize.height;
-    UIEdgeInsets insets = scrollView.adjustedContentInset;
-
-    CGFloat minY = -insets.top;
-    CGFloat maxY = contentH - viewportH + insets.bottom;
-
-    CGFloat originalOffsetY = scrollView.contentOffset.y;
-    CGFloat targetY = originalOffsetY + nudgePx;
-
-    // Clamp target
-    targetY = MAX(minY, MIN(maxY, targetY));
-
-    // If at clamp limit, try opposite direction
-    if (fabs(targetY - originalOffsetY) < 1.0) {
-        targetY = originalOffsetY - nudgePx;
-        targetY = MAX(minY, MIN(maxY, targetY));
-    }
-
-    // If still can't move, fail
-    if (fabs(targetY - originalOffsetY) < 1.0) {
+        BOOL moved = sherlo_scroll_nudge_moved(SHERLO_PLATFORM_IOS, &original, &applied) == 1;
         if (SCROLL_DEBUG) {
-            NSLog(@"[%@] Nudge: Cannot move from offset %.1f (minY: %.1f, maxY: %.1f)",
-                  LOG_TAG, originalOffsetY, minY, maxY);
+            NSLog(@"[%@] Nudge: original=%.1f, target=%.1f, applied=%.1f, moved=%@",
+                  LOG_TAG, original.offset, targetY, applied.offset, moved ? @"YES" : @"NO");
         }
-        return NO;
+        if (moved) {
+            return YES;
+        }
     }
 
-    // Apply nudge
-    [scrollView setContentOffset:CGPointMake(scrollView.contentOffset.x, targetY) animated:NO];
-    [scrollView layoutIfNeeded];
-
-    // Read back
-    CGFloat appliedOffsetY = scrollView.contentOffset.y;
-
-    // Restore immediately
-    [scrollView setContentOffset:CGPointMake(scrollView.contentOffset.x, originalOffsetY) animated:NO];
-    [scrollView layoutIfNeeded];
-
-    CGFloat delta = fabs(appliedOffsetY - originalOffsetY);
     if (SCROLL_DEBUG) {
-        NSLog(@"[%@] Nudge: original=%.1f, target=%.1f, applied=%.1f, delta=%.1f",
-              LOG_TAG, originalOffsetY, targetY, appliedOffsetY, delta);
+        NSLog(@"[%@] Nudge: Did not move from offset %.1f", LOG_TAG, original.offset);
     }
-
-    return delta >= 1.0;
+    return NO;
 }
 
 #pragma mark - Checkpoint Scrolling
@@ -693,84 +658,34 @@ static UIScrollView *lockedScrollView = nil;
     }
 
     UIWindow *keyWindow = [self getKeyWindow];
-    
-    // 2. Compute Metrics
+
+    // 2. Plan the checkpoint: the C core keeps the index in range and the target offset, in
+    // points, inside the scroll range. The incoming offset is in physical pixels.
     CGFloat scale = [UIScreen mainScreen].scale;
-    CGFloat viewportPt = candidate.bounds.size.height;
-    CGFloat contentPt = candidate.contentSize.height;
-    CGFloat insetsTop = candidate.adjustedContentInset.top;
-    CGFloat insetsBottom = candidate.adjustedContentInset.bottom;
-    
-    // Determine min/max offsets in points
-    // minOffset is usually -topInset (e.g. 0 if no inset, or negative if navigation bar is translucent)
-    CGFloat minOffsetPt = -insetsTop;
-    CGFloat maxAvailableScrollPt = MAX(0, contentPt + insetsBottom + insetsTop - viewportPt);
-    CGFloat maxOffsetPt = minOffsetPt + maxAvailableScrollPt;
-    
-    // 3. Convert Offset Units
-    // The incoming offset is in physical pixels (as per requirement)
-    CGFloat stepPt = offsetPx / scale;
-    
-    // 4. Calculate Target
-    NSInteger clampedIndex = index;
-    if (clampedIndex < 0) clampedIndex = 0;
-    if (clampedIndex > maxIndex) clampedIndex = maxIndex;
-    
-    CGFloat targetPt;
-    if (clampedIndex == 0) {
-        targetPt = minOffsetPt; // Force top
-    } else {
-        targetPt = minOffsetPt + (clampedIndex * stepPt);
-    }
-    
-    // Clamp target to valid bounds
-    CGFloat clampedPt = MAX(minOffsetPt, MIN(maxOffsetPt, targetPt));
-    
-    // 5. Apply Scroll
-    // Only scroll if we are not already there (within small epsilon)
-    // But for index 0, always ensure we are at top
+    sherlo_scroll_metrics metrics = [self scrollMetricsOf:candidate];
+    sherlo_checkpoint_plan plan;
+    sherlo_checkpoint_plan_for(SHERLO_PLATFORM_IOS, index, offsetPx, maxIndex, &metrics, scale, &plan);
+
+    // 3. Apply Scroll
     if (SCROLL_DEBUG) {
-        NSLog(@"[%@] Scrolling to index: %ld, targetPt: %.1f, clampedPt: %.1f", LOG_TAG, (long)clampedIndex, targetPt, clampedPt);
+        NSLog(@"[%@] Scrolling to index: %lld, targetPt: %.1f", LOG_TAG, (long long)plan.applied_index, plan.target_offset);
     }
-    
-    [candidate setContentOffset:CGPointMake(candidate.contentOffset.x, clampedPt) animated:NO];
+
+    [candidate setContentOffset:CGPointMake(candidate.contentOffset.x, plan.target_offset) animated:NO];
     [candidate layoutIfNeeded];
-    
-    // 6. Read Back
-    CGFloat actualOffsetPt = candidate.contentOffset.y;
-    CGFloat actualOffsetPx = actualOffsetPt * scale; // Convert back to pixels for return value
-    // Adjust actualOffsetPx relative to minOffset (scrolled distance)
-    // We want to return "how many pixels we scrolled from top"
-    // So if minOffsetPt is -44, and we are at -44, scrolled distance is 0.
-    // If we are at 0, scrolled distance is 44pt.
-    CGFloat scrolledDistancePt = actualOffsetPt - minOffsetPt;
-    CGFloat scrolledDistancePx = scrolledDistancePt * scale;
-    
-    // 7. Detect Bottom
-    CGFloat epsilonPt = 2.0 / scale; // ~2px tolerance
-    BOOL reachedBottom = NO;
-    
-    // Reached bottom if:
-    // a) Actual offset is close to max offset
-    // b) There was no scroll range to begin with (maxAvailableScrollPt is small)
-    if (actualOffsetPt >= maxOffsetPt - epsilonPt) {
-        reachedBottom = YES;
-    }
-    if (maxAvailableScrollPt <= epsilonPt) {
-        reachedBottom = YES;
-    }
-    
-    // Also if we requested an index > 0 but couldn't move past previous checkpoint, 
-    // it implies stuck or bottom. But strictly check bounds here.
-    
+
+    // 4. Read Back: the distance scrolled from the top, in pixels, and whether this is the bottom
+    sherlo_checkpoint_result result;
+    sherlo_checkpoint_read_back(&plan, candidate.contentOffset.y, &result);
+
     NSDictionary *scrollViewFrame = [self getScrollViewFrameInPhysicalPixels:candidate window:keyWindow];
 
     return @{
-        @"reachedBottom": @(reachedBottom),
-        @"appliedIndex": @(clampedIndex),
-        @"appliedOffsetPx": @(scrolledDistancePx), // Return relative scrolled distance
-        @"viewportPx": @(viewportPt * scale),
-        @"contentPx": @(contentPt * scale),
+        @"reachedBottom": @(result.reached_bottom == 1),
+        @"appliedIndex": @((NSInteger)result.applied_index),
+        @"appliedOffsetPx": @(result.applied_offset_px),
+        @"viewportPx": @(result.viewport_px),
+        @"contentPx": @(result.content_px),
         @"scrollViewFrame": scrollViewFrame,
     };
 }

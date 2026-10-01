@@ -23,7 +23,9 @@ const INCLUDE_DIR = path.join(HERE, 'include');
 const HEADER = path.join(INCLUDE_DIR, 'sherlo_core.h');
 const SOURCE_DIR = path.join(HERE, 'src');
 // The core itself, which every platform compiles; the JNI face is Android's alone.
-const CORE_SOURCES = ['core.c', 'pixels.c', 'stillness.c'].map((name) => path.join(SOURCE_DIR, name));
+const CORE_SOURCES = ['core.c', 'pixels.c', 'stillness.c', 'scroll.c', 'inspector.c'].map((name) =>
+  path.join(SOURCE_DIR, name)
+);
 const JNI_SOURCE = path.join(SOURCE_DIR, 'sherlo_core_jni.c');
 // Object files and unstripped libraries on the way (git-ignored).
 const WORK_DIR = path.join(HERE, 'build');

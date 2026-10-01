@@ -1,10 +1,12 @@
 /**
  * THE ONE-TIME RECORDER of the parity fixtures: what the Objective-C and Java code the C core
- * replaced answered, written to ../pixel-compare.json and ../stillness.json for parity.test.ts.
+ * replaced answered, written to ../pixel-compare.json, ../stillness.json, ../scroll.json and
+ * ../inspector.json for parity.test.ts.
  *
  * Run once, on macOS with Xcode and a JDK: `node native/__tests__/fixtures/recorder/record.js`.
  *
- * The code it runs is taken from git, from the commit just before this change (ORIGINALS_COMMIT):
+ * The code it runs is taken from git, from the commits just before each change (ORIGINALS_COMMIT,
+ * VIEWS_ORIGINALS_COMMIT):
  *
  * - The pixel compare is the original code, run. iOS: Pixelmatch.m, compiled for macOS against
  *   CoreGraphics, with a two-line UIImage in place of UIKit's (ios/UIKit/UIKit.h). Android:
@@ -14,11 +16,21 @@
  * - The stillness loops are each platform's decision lines, transcribed into ios/record.m and
  *   android/Record.java around the original Pixelmatch, with the timer, the screenshots and the
  *   focus clearing replaced by a scripted timeline. That part is recorded by reading the code.
+ * - The inspector is the original code, run on a scripted view tree (viewCases.js). iOS:
+ *   InspectorHelper.m, compiled for macOS against stand-in views, windows and screen
+ *   (ios/UIKit/UIKit.h, ios/React), its JSON written by the real NSJSONSerialization. Android:
+ *   InspectorHelper.java on the JVM against stand-in views (android/android, android/com), and an
+ *   org.json written as Android's own behaves (android/org/json) - the JVM has none.
+ * - The scroll engines are each platform's lines, transcribed into ios/recordViews.m and
+ *   android/RecordViews.java around scripted scroll views (viewCases.js), which keep an offset
+ *   between two scripted ends. That part is recorded by reading the code.
  */
 const { execFileSync } = require('node:child_process');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const viewCases = require('./viewCases.js');
 
 const HERE = __dirname;
 const REPO_ROOT = path.join(HERE, '..', '..', '..', '..', '..', '..');
@@ -32,6 +44,15 @@ const ORIGINAL_IOS_HEADER = SDK + '/ios/Pixelmatch.h';
 const ORIGINAL_IOS_SOURCE = SDK + '/ios/Pixelmatch.m';
 const ORIGINAL_JAVA_SOURCE =
   SDK + '/android/src/main/java/io/sherlo/storybookreactnative/Pixelmatch.java';
+
+// The commit on main just before the C core took the scroll engine and the inspector: the
+// recorder reads the original InspectorHelper.{h,m} and InspectorHelper.java from it, and the
+// scroll engine's lines were transcribed from its SherloModuleCore.{m,java}.
+const VIEWS_ORIGINALS_COMMIT = '2a3d04109012febba4a3b6f3a2df4fa5e689c0dc';
+const ORIGINAL_IOS_INSPECTOR_HEADER = SDK + '/ios/InspectorHelper.h';
+const ORIGINAL_IOS_INSPECTOR_SOURCE = SDK + '/ios/InspectorHelper.m';
+const ORIGINAL_JAVA_INSPECTOR_SOURCE =
+  SDK + '/android/src/main/java/io/sherlo/storybookreactnative/InspectorHelper.java';
 
 // ---- The inputs ----------------------------------------------------------------------------------
 
@@ -288,10 +309,11 @@ function stillnessInput(scenarios) {
 
 // ---- Running the originals -----------------------------------------------------------------------
 
-function original(file) {
-  return execFileSync('git', ['show', ORIGINALS_COMMIT + ':' + file], {
+function original(file, commit = ORIGINALS_COMMIT) {
+  return execFileSync('git', ['show', commit + ':' + file], {
     cwd: REPO_ROOT,
     encoding: 'utf8',
+    maxBuffer: 16 * 1024 * 1024,
   });
 }
 
@@ -300,6 +322,8 @@ function recordIos(workDir, inputs) {
   fs.mkdirSync(iosDir, { recursive: true });
   fs.writeFileSync(path.join(iosDir, 'Pixelmatch.h'), original(ORIGINAL_IOS_HEADER));
   fs.writeFileSync(path.join(iosDir, 'Pixelmatch.m'), original(ORIGINAL_IOS_SOURCE));
+  fs.writeFileSync(path.join(iosDir, 'InspectorHelper.h'), original(ORIGINAL_IOS_INSPECTOR_HEADER, VIEWS_ORIGINALS_COMMIT));
+  fs.writeFileSync(path.join(iosDir, 'InspectorHelper.m'), original(ORIGINAL_IOS_INSPECTOR_SOURCE, VIEWS_ORIGINALS_COMMIT));
   const recorder = path.join(iosDir, 'record');
   execFileSync('xcrun', [
     'clang',
@@ -310,7 +334,9 @@ function recordIos(workDir, inputs) {
     '-I',
     iosDir,
     path.join(iosDir, 'Pixelmatch.m'),
+    path.join(iosDir, 'InspectorHelper.m'),
     path.join(HERE, 'ios', 'record.m'),
+    path.join(HERE, 'ios', 'recordViews.m'),
     '-framework',
     'Foundation',
     '-framework',
@@ -318,7 +344,7 @@ function recordIos(workDir, inputs) {
     '-o',
     recorder,
   ]);
-  return runRecorder(recorder, [], workDir, inputs);
+  return runRecorder(recorder, [], workDir, inputs.ios);
 }
 
 function recordAndroid(workDir, inputs) {
@@ -326,37 +352,108 @@ function recordAndroid(workDir, inputs) {
   const packageDir = path.join(javaDir, 'io', 'sherlo', 'storybookreactnative');
   fs.mkdirSync(packageDir, { recursive: true });
   fs.writeFileSync(path.join(packageDir, 'Pixelmatch.java'), original(ORIGINAL_JAVA_SOURCE));
+  fs.writeFileSync(path.join(packageDir, 'InspectorHelper.java'), original(ORIGINAL_JAVA_INSPECTOR_SOURCE, VIEWS_ORIGINALS_COMMIT));
   const classes = path.join(javaDir, 'classes');
+  // The stand-ins (android/...) are found on the source path as the originals name them.
   execFileSync('javac', [
+    '-encoding',
+    'UTF-8',
     '-d',
     classes,
+    '-sourcepath',
+    path.join(HERE, 'android') + path.delimiter + javaDir,
     path.join(packageDir, 'Pixelmatch.java'),
-    path.join(HERE, 'android', 'android', 'graphics', 'Bitmap.java'),
+    path.join(packageDir, 'InspectorHelper.java'),
     path.join(HERE, 'android', 'Record.java'),
+    path.join(HERE, 'android', 'RecordViews.java'),
   ]);
-  return runRecorder('java', ['-cp', classes, 'Record'], workDir, inputs);
+  return runRecorder('java', ['-Dfile.encoding=UTF-8', '-cp', classes, 'Record'], workDir, inputs.android);
 }
 
-/** Runs a recorder with the two input files; returns its answers, one list per input file. */
+/** Runs a recorder with the four input files; returns its answers, one list per input file. */
 function runRecorder(command, args, workDir, inputs) {
-  const pixelFile = path.join(workDir, 'pixel-compare.txt');
-  const stillnessFile = path.join(workDir, 'stillness.txt');
-  fs.writeFileSync(pixelFile, inputs.pixelCompare + '\n');
-  fs.writeFileSync(stillnessFile, inputs.stillness + '\n');
-  const output = execFileSync(command, [...args, pixelFile, stillnessFile], { encoding: 'utf8' });
-  const [pixelAnswers, stillnessAnswers] = output.trim().split('\n---\n');
-  return { pixelCompare: pixelAnswers.split('\n'), stillness: stillnessAnswers.split('\n') };
+  const files = ['pixelCompare', 'stillness', 'scroll', 'inspector'].map((name) => {
+    const file = path.join(workDir, name + '.txt');
+    fs.writeFileSync(file, inputs[name] + '\n');
+    return file;
+  });
+  const output = execFileSync(command, [...args, ...files], {
+    encoding: 'utf8',
+    maxBuffer: 256 * 1024 * 1024,
+  });
+  const [pixelAnswers, stillnessAnswers, scrollAnswers, inspectorAnswers] = output
+    .trim()
+    .split('\n---\n');
+  return {
+    pixelCompare: pixelAnswers.split('\n'),
+    stillness: stillnessAnswers.split('\n'),
+    scroll: scrollAnswers.split('\n'),
+    inspector: inspectorAnswers.split('\n'),
+  };
+}
+
+// An answer this long is kept as its length and hash, not its text.
+const LONGEST_KEPT_JSON = 20000;
+
+/** What the fixture keeps of one inspector answer: its JSON, or its refusal. */
+function inspectorAnswer(recorded) {
+  if (recorded.startsWith('error ')) return { error: recorded.slice('error '.length) };
+  const json = Buffer.from(recorded, 'hex').toString('utf8');
+  if (json.length <= LONGEST_KEPT_JSON) return { json };
+  return {
+    jsonLength: Buffer.byteLength(json, 'utf8'),
+    jsonSha256: crypto.createHash('sha256').update(json, 'utf8').digest('hex'),
+  };
 }
 
 function record() {
   const cases = pixelCompareCases();
   const scenarios = stillnessScenarios();
-  const inputs = { pixelCompare: pixelCompareInput(cases), stillness: stillnessInput(scenarios) };
+  const iosScroll = viewCases.iosScrollCases();
+  const androidScroll = viewCases.androidScrollCases();
+  const iosTrees = viewCases.iosInspectorTrees();
+  const androidTrees = viewCases.androidInspectorTrees();
+  const shared = { pixelCompare: pixelCompareInput(cases), stillness: stillnessInput(scenarios) };
+  const inputs = {
+    ios: {
+      ...shared,
+      scroll: iosScroll.map(viewCases.iosScrollLine).join('\n'),
+      inspector: iosTrees.map(viewCases.iosInspectorLine).join('\n'),
+    },
+    android: {
+      ...shared,
+      scroll: androidScroll.map(viewCases.androidScrollLine).join('\n'),
+      inspector: androidTrees.map(viewCases.androidInspectorLine).join('\n'),
+    },
+  };
 
   const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-parity-recorder-'));
   const ios = recordIos(workDir, inputs);
   const android = recordAndroid(workDir, inputs);
   fs.rmSync(workDir, { recursive: true, force: true });
+
+  // The scroll cases and the inspector trees are viewCases.js's: the fixtures keep each one's name
+  // and what the originals answered.
+  const scrollFixture = {
+    recordedFrom: VIEWS_ORIGINALS_COMMIT,
+    inputs: 'recorder/viewCases.js: iosScrollCases() and androidScrollCases()',
+    ios: iosScroll.map((scrollCase, index) => ({ name: scrollCase.name, answer: ios.scroll[index] })),
+    android: androidScroll.map((scrollCase, index) => ({
+      name: scrollCase.name,
+      answer: android.scroll[index],
+    })),
+  };
+  const inspectorFixture = {
+    recordedFrom: VIEWS_ORIGINALS_COMMIT,
+    inputs: 'recorder/viewCases.js: iosInspectorTrees() and androidInspectorTrees()',
+    ios: iosTrees.map((tree, index) => ({ name: tree.name, ...inspectorAnswer(ios.inspector[index]) })),
+    android: androidTrees.map((tree, index) => ({
+      name: tree.name,
+      ...inspectorAnswer(android.inspector[index]),
+    })),
+  };
+  fs.writeFileSync(path.join(FIXTURES, 'scroll.json'), JSON.stringify(scrollFixture, null, 2) + '\n');
+  fs.writeFileSync(path.join(FIXTURES, 'inspector.json'), JSON.stringify(inspectorFixture, null, 2) + '\n');
 
   const answer = (word) => (word === 'size-mismatch' ? word : Number(word));
   const pixelFixture = {
@@ -377,7 +474,11 @@ function record() {
   };
   fs.writeFileSync(path.join(FIXTURES, 'pixel-compare.json'), JSON.stringify(pixelFixture, null, 2) + '\n');
   fs.writeFileSync(path.join(FIXTURES, 'stillness.json'), JSON.stringify(stillnessFixture, null, 2) + '\n');
-  console.log('recorded ' + cases.length + ' pixel compares and ' + scenarios.length + ' stillness loops');
+  console.log(
+    'recorded ' + cases.length + ' pixel compares, ' + scenarios.length + ' stillness loops, ' +
+      (iosScroll.length + androidScroll.length) + ' scroll cases and ' +
+      (iosTrees.length + androidTrees.length) + ' inspector trees'
+  );
 }
 
 module.exports = { record };

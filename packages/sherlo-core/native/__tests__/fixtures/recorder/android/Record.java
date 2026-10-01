@@ -10,16 +10,22 @@ import java.util.List;
 /**
  * The Android half of the parity recorder (record.js runs it): the original Pixelmatch.java
  * answers each pixel compare, and the stillness loop of StabilityHelper.checkIfStable (its lines
- * 292-384, transcribed below) decides each scripted timeline.
+ * 292-384, transcribed below) decides each scripted timeline. The scroll cases and the inspector
+ * trees are RecordViews.java's.
  *
- * Usage: java Record <pixel-compare.txt> <stillness.txt>. Prints one answer line per pixel
- * compare, a line "---", then one line of verdicts per stillness timeline.
+ * Usage: java Record <pixel-compare.txt> <stillness.txt> <scroll.txt> <inspector.txt>. Prints one
+ * answer line per pixel compare, a line "---", one line of verdicts per stillness timeline, "---",
+ * one line per scroll case, "---", and one line per inspector tree.
  */
 public class Record {
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws Exception {
         recordPixelCompares(args[0]);
         System.out.println("---");
         recordStillnessLoops(args[1]);
+        System.out.println("---");
+        RecordViews.recordScrollCases(args[2]);
+        System.out.println("---");
+        RecordViews.recordInspectorTrees(args[3]);
     }
 
     private static byte[] bytesFromHex(String hex) {
