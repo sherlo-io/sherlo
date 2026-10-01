@@ -154,10 +154,11 @@ export type PosedWorkstation = {
    */
   install: { package: string };
   /**
-   * Whether a person pressed Enter at the prompt, or the terminal was closed on it. `"closed"` is
-   * what a run nobody is watching gets, and the tool's own cancel branch prints for it.
+   * What happened at the prompt: a person pressed Enter, the terminal was closed on it (the tool's
+   * own cancel branch prints for it), or nobody was at the keyboard at all - no terminal, or `CI`
+   * set, as when an agent or a CI job runs setup - so the prompt is never asked and the run goes on.
    */
-  enter: 'pressed' | 'closed';
+  enter: 'pressed' | 'closed' | 'nobody';
 };
 
 export function posedWorkstation(
@@ -194,9 +195,10 @@ export function posedWorkstation(
       }
     },
 
-    // A pose that says what happened at the prompt is a pose that says somebody was asked, so the
-    // prompt prints and `enter` below decides what they did. A pose that says nothing is a
-    // terminal nobody sits at, and the tool's own cancel branch is what a reader should see.
+    // A pose that says Enter was pressed or the terminal closed says somebody was asked, so the
+    // prompt prints and `enter` below decides what they did. `nobody` is the run with no keyboard
+    // behind it, so the prompt is never asked. A pose that says nothing is a terminal nobody sits
+    // at, and the tool's own cancel branch is what a reader should see.
     somebodyIsAtTheKeyboard: () => {
       if (!posed) {
         throw refuse(
@@ -206,7 +208,7 @@ export function posedWorkstation(
         );
       }
 
-      return true;
+      return posed.enter !== 'nobody';
     },
 
     readEnterPress: async () => {

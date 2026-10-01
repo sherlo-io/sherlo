@@ -367,10 +367,12 @@ export type PosedWorkstation = {
     package: string;
   };
   /**
-   * Whether a person pressed Enter at the prompt, or the terminal was closed on it. `"closed"` is
-   * what a run nobody is watching gets, and the tool's own cancel branch prints for it.
+   * What happened at the prompt: a person pressed Enter, the terminal was closed on it (the tool's
+   * own cancel branch prints for it), or nobody was at the keyboard at all - no terminal, or `CI`
+   * set, as when an agent or a CI job runs setup - so the prompt is never asked and the run goes
+   * on.
    */
-  enter: 'pressed' | 'closed';
+  enter: 'pressed' | 'closed' | 'nobody';
 };
 
 /**
