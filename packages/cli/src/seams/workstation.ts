@@ -62,7 +62,6 @@ export type Workstation = {
 
   /** Whether there is a person at the keyboard who could answer a prompt at all. */
   somebodyIsAtTheKeyboard(): boolean;
-
   /** Wait for the key they press: Enter resolves, a kill key rejects and the setup is cancelled. */
   readEnterPress(): Promise<void>;
 };
@@ -76,8 +75,17 @@ export const liveWorkstation: Workstation = {
     await runShellCommand({ command, projectRoot, env });
   },
 
+  // CocoaPods fails with `Unicode Normalization not appropriate for ASCII-8BIT` when no locale is
+  // set, as on a CI machine, so a locale the environment names is kept and none gets UTF-8.
   installPods: async ({ command, projectRoot }) => {
-    await runShellCommand({ command, projectRoot });
+    await runShellCommand({
+      command,
+      projectRoot,
+      env: {
+        LANG: process.env.LANG || 'en_US.UTF-8',
+        LC_ALL: process.env.LC_ALL || 'en_US.UTF-8',
+      },
+    });
   },
 
   /**
@@ -96,7 +104,6 @@ export const liveWorkstation: Workstation = {
    * GitHub Actions, GitLab, CircleCI, Travis and Buildkite alike.
    */
   somebodyIsAtTheKeyboard: () => Boolean(process.stdin.isTTY) && !process.env.CI,
-
   readEnterPress: () => {
     process.stdin.setRawMode(true);
     process.stdin.resume();
