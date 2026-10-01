@@ -87,7 +87,12 @@ function requiresFileExists(configDir) {
 function runGeneratorSynchronously(generateOptions) {
   // "./scripts/generate" is a public subpath in @storybook/react-native's
   // exports map on every version this package peers with (v8 through v10).
-  var generateModulePath = require.resolve('@storybook/react-native/scripts/generate');
+  // Resolved through createRequire, not a literal require.resolve: the published build is bundled,
+  // and a bundler turns a literal require.resolve of an external package into a module id instead
+  // of a file path. createRequire(__filename) resolves from this file's own folder either way.
+  var generateModulePath = require('module')
+    .createRequire(__filename)
+    .resolve('@storybook/react-native/scripts/generate');
 
   var script =
     'var generateModule = require(' +

@@ -3030,6 +3030,7 @@ __metadata:
     "@types/react": "npm:^18.2.0"
     "@types/react-native": "npm:^0.73.0"
     "@types/utf8": "npm:^3.0.1"
+    "@vercel/ncc": "npm:latest"
     base-64: "npm:1.0.0"
     deepmerge: "npm:4.3.1"
     its-fine: "npm:2.0.0"
