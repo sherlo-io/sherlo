@@ -694,8 +694,11 @@ function readPosedWorkstation(value: unknown, path: string, problems: string[]):
       expectString(object3.package, at(where2, 'package'), problems);
       reportUnknownFields(object3, ['package'], where2, problems);
     }
+    if ('pods' in object1) {
+      expectLiteral(object1.pods, 'installed', at(path, 'pods'), problems);
+    }
     expectOneOf(object1.enter, ['pressed', 'closed', 'nobody'], at(path, 'enter'), problems);
-    reportUnknownFields(object1, ['install', 'enter'], path, problems);
+    reportUnknownFields(object1, ['install', 'pods', 'enter'], path, problems);
   }
 }
 

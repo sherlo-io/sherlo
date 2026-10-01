@@ -383,6 +383,38 @@ const ALLOWED_ADDITIONAL_IMPORTERS: { file: string; of: string; reason: string }
   },
 ];
 
+/**
+ * Every import in one source that reaches the shell runner: one naming `runShellCommand`, whatever
+ * module it names (a folder's index re-exports it), or one resolving to a live half by path.
+ */
+function shellRunnerImports(file: string, text: string): string[] {
+  const liveHalfFiles = new Set(LIVE_HALF_SET.map((entry) => `packages/cli/src/${entry.file}`));
+  const sourceFile = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
+  const reaches: string[] = [];
+
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement)) continue;
+    if (!ts.isStringLiteral(statement.moduleSpecifier)) continue;
+
+    const namedBindings = statement.importClause?.namedBindings;
+    const namesTheRunner =
+      namedBindings !== undefined &&
+      ts.isNamedImports(namedBindings) &&
+      namedBindings.elements.some(
+        (element) => (element.propertyName ?? element.name).text === 'runShellCommand'
+      );
+    const target = resolveRelativeImport(file, statement.moduleSpecifier.text);
+    const reachesALiveHalf =
+      target !== undefined && liveHalfFiles.has(path.relative(REPO_ROOT, target));
+
+    if (namesTheRunner || reachesALiveHalf) {
+      reaches.push(`${path.relative(REPO_ROOT, file)}: ${statement.getText()}`);
+    }
+  }
+
+  return reaches;
+}
+
 /** `packages/cli/src/commands/showError/foo.ts` -> true for the directory `commands/showError`. */
 function isUnderDir(file: string, dir: string): boolean {
   const prefix = `packages/cli/src/${dir}/`;
@@ -482,6 +514,42 @@ describe('every door is a seam', () => {
     );
     expect(emitBundleDirSource).toMatch(/bundler\(\)\s*\.\s*bundleFor\(/);
     expect(emitBundleDirSource).not.toMatch(/buildBundleForPlatform\(/);
+  });
+
+  it('no init module reaches the shell runner outside the workstation seam, even through a re-export', () => {
+    // The import census above follows a file to the module it names, so a command importing
+    // `runShellCommand` from the `helpers` index is invisible to it - which is exactly how setup
+    // once ran a real `pod install` under a pose. So here the NAME is the door: no module under
+    // commands/init may import `runShellCommand` from anywhere, or any live half by path.
+    const initDir = path.join(CLI_SRC, 'commands/init');
+    const reaches = listSourceFiles(initDir)
+      .filter((file) => !file.includes(`${path.sep}__tests__${path.sep}`))
+      .flatMap((file) => shellRunnerImports(file, fs.readFileSync(file, 'utf8')));
+
+    // CONTROL: the scan still sees the import setup's pod install was written with before it
+    // became a seam act, so an empty list above means a clean tree, not a blind scan.
+    const podInstallBeforeTheSeam = "import { getCwd, runShellCommand } from '../../../helpers';";
+    expect(
+      shellRunnerImports(path.join(initDir, 'dependencies/installPods.ts'), podInstallBeforeTheSeam)
+    ).toHaveLength(1);
+
+    expect(
+      reaches,
+      reaches.length > 0
+        ? `These init modules reach the shell runner without the workstation seam:\n  ${reaches.join(
+            '\n  '
+          )}\nAdd the act to src/seams/workstation.ts and call it through workstation().`
+        : undefined
+    ).toEqual([]);
+
+    // And the two installs are the seam's acts, by name.
+    const initSource = (relative: string) => fs.readFileSync(path.join(initDir, relative), 'utf8');
+    expect(initSource('dependencies/installSherlo.ts')).toMatch(
+      /workstation\(\)\s*\.\s*addPackage\(/
+    );
+    expect(initSource('dependencies/installPods.ts')).toMatch(
+      /workstation\(\)\s*\.\s*installPods\(/
+    );
   });
 
   it('each live half is reached only from its seam or from another live half', () => {

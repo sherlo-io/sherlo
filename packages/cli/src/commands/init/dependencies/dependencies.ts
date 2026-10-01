@@ -1,13 +1,14 @@
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { getCwd } from '../../../helpers';
-import { printTitle, trackProgress } from '../helpers';
+import { renderDependenciesTitle } from '../../../render/initDependencies';
+import { printLines, trackProgress } from '../helpers';
 import { EVENT, IOS_DIR } from './constants';
 import installPods from './installPods';
 import installSherlo from './installSherlo';
 
 async function dependencies({ sessionId }: { sessionId: string | null }) {
-  printTitle('💾 Dependencies');
+  printLines(renderDependenciesTitle());
 
   try {
     await installSherlo();

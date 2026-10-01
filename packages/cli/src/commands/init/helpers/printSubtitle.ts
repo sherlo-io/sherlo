@@ -1,14 +1,2 @@
-import chalk from 'chalk';
-
-function printSubtitle(title: string, { hasTopMargin = true }: { hasTopMargin?: boolean } = {}) {
-  if (hasTopMargin) {
-    console.log();
-    console.log();
-  }
-
-  console.log(chalk.bold(title));
-
-  console.log();
-}
-
-export default printSubtitle;
+// DELETE THIS FILE: its words moved to src/render/initLines.ts (task cli-setup-render-and-pods).
+export {};

@@ -1,16 +1,17 @@
 /**
- * THE WORKSTATION SEAM - the two things `sherlo init` does TO this machine rather than reads off it.
+ * THE WORKSTATION SEAM - the things `sherlo init` does TO this machine rather than reads off it.
  *
- *     live   - the package manager, run inside the project; the person at the keyboard, and the
- *              key they press.
- *     posed  - the pose's `workstation`: the package the manager answered with, and whether
- *              anybody was there to press Enter.
+ *     live   - the package manager and `pod install`, run inside the project; the person at the
+ *              keyboard, and the key they press.
+ *     posed  - the pose's `workstation`: the package the manager answered with, whether the pods
+ *              installed, and whether anybody was there to press Enter.
  *
  * `sherlo init` is the one command that ACTS on the machine. It runs the package manager to add
- * Sherlo, and it stops at a prompt until somebody presses Enter. Neither exists on a machine that
- * only has the pose - there is no registry to install from and no keyboard to press - so both are
- * here, behind one answer, and the shipped code around them runs unforked: the spinner, the beep,
- * the prompt's own words, the erase, the cancel branch, every printed line.
+ * Sherlo, runs `pod install` when the project has an iOS Podfile, and stops at a prompt until
+ * somebody presses Enter. None of these exists on a machine that only has the pose - there is no
+ * registry to install from, no CocoaPods, and no keyboard to press - so all of them are here,
+ * behind one answer, and the shipped code around them runs unforked: the spinners, the beep, the
+ * prompt's own words, the erase, the cancel branch, every printed line.
  *
  * THE POSED HALF NEVER PRINTS, and that is the boundary. The prompt's bytes belong to
  * ../commands/init/helpers/waitForEnterPress, which still writes them itself; what a pose answers
@@ -25,10 +26,10 @@
  * ------------------------------------------------------------------------
  * WHY AN UNANSWERED INSTALL IS RECORDED AND NOT THROWN.
  *
- * The tool turns a failed install into its own refusal - "Failed to install Sherlo automatically" -
- * and ends the run there. A posed install that threw would therefore replace the screen the pose
- * exists to show with the tool's install-failure screen, and whoever read it would be looking at a
- * product state the pose never described. So the refusal is RECORDED, the run carries on, and the
+ * The tool turns a failed install into its own refusal - "Failed to install Sherlo automatically",
+ * or "Failed to install Pods automatically" - and ends the run there. A posed install that threw
+ * would therefore replace the screen the pose exists to show with the tool's install-failure
+ * screen, and whoever read it would be looking at a product state the pose never described. So the refusal is RECORDED, the run carries on, and the
  * refusal block printed under the screen - with exit 1 - is what says the pose owed an answer. It
  * is the same reason ../seams/serverCalls records rather than only throws.
  *
@@ -52,6 +53,13 @@ export type Workstation = {
     env?: NodeJS.ProcessEnv;
   }): Promise<void>;
 
+  /** Run `pod install` in the project's iOS folder. */
+  installPods(params: {
+    /** The whole command line, e.g. `cd ios && pod install`. */
+    command: string;
+    projectRoot: string;
+  }): Promise<void>;
+
   /** Whether there is a person at the keyboard who could answer a prompt at all. */
   somebodyIsAtTheKeyboard(): boolean;
 
@@ -59,10 +67,17 @@ export type Workstation = {
   readEnterPress(): Promise<void>;
 };
 
-/** The shipped answers: the package manager really runs, and the keyboard is really read. */
+/**
+ * The shipped answers: the package manager and CocoaPods really run, and the keyboard is really
+ * read.
+ */
 export const liveWorkstation: Workstation = {
   addPackage: async ({ command, projectRoot, env }) => {
     await runShellCommand({ command, projectRoot, env });
+  },
+
+  installPods: async ({ command, projectRoot }) => {
+    await runShellCommand({ command, projectRoot });
   },
 
   /**
@@ -140,12 +155,7 @@ export function installWorkstation(next: Workstation): () => void {
 /** An act the pose could not answer, and the reason - recorded the way an unscripted call is. */
 export type UnansweredAct = { call: string; problem: string };
 
-/**
- * The workstation a pose declares. A pose with no `workstation` running `init` is a terminal
- * nobody sits at: the install is refused and the prompt is refused, and neither one reaches a real
- * package manager or a real keyboard.
- */
-/** The two acts `sherlo init` performs on the machine, as a pose states them. */
+/** The acts `sherlo init` performs on the machine, as a pose states them. */
 export type PosedWorkstation = {
   /**
    * What the package manager answered when asked to add Sherlo: the package it installed, version
@@ -154,6 +164,12 @@ export type PosedWorkstation = {
    */
   install: { package: string };
   /**
+   * What `pod install` answered, for a project whose `files` hold `ios/Podfile`: the pods
+   * installed. Left out for a project with no Podfile, where setup never runs it. Either mismatch
+   * is a refusal of the pose: a Podfile and no `pods`, or `pods` and no Podfile.
+   */
+  pods?: 'installed';
+  /**
    * What happened at the prompt: a person pressed Enter, the terminal was closed on it (the tool's
    * own cancel branch prints for it), or nobody was at the keyboard at all - no terminal, or `CI`
    * set, as when an agent or a CI job runs setup - so the prompt is never asked and the run goes on.
@@ -161,10 +177,16 @@ export type PosedWorkstation = {
   enter: 'pressed' | 'closed' | 'nobody';
 };
 
+/**
+ * The workstation a pose declares. A pose with no `workstation` running `init` is a terminal
+ * nobody sits at: the installs are refused and the prompt is refused, and none of them reaches a
+ * real package manager, a real CocoaPods or a real keyboard.
+ */
 export function posedWorkstation(
   posed: PosedWorkstation | undefined
 ): Workstation & { refusals(): UnansweredAct[] } {
   const refusals: UnansweredAct[] = [];
+  let podInstallWasAsked = false;
 
   function refuse(call: string, problem: string): Error {
     refusals.push({ call, problem });
@@ -172,7 +194,20 @@ export function posedWorkstation(
   }
 
   return {
-    refusals: () => refusals,
+    // Read once the run is over, so an answer the command never asked for is known by then: pods
+    // stated for a project with no Podfile describe a `pod install` the setup never ran.
+    refusals: () =>
+      posed?.pods === 'installed' && !podInstallWasAsked
+        ? [
+            ...refusals,
+            {
+              call: 'installPods',
+              problem:
+                'the pose answers `pod install` with `"pods": "installed"`, and the command ' +
+                'never ran it - the project holds no `ios/Podfile`',
+            },
+          ]
+        : refusals,
 
     addPackage: async ({ packageSpec }) => {
       if (!posed) {
@@ -191,6 +226,19 @@ export function posedWorkstation(
           'addPackage',
           `the pose answers the install with \`${installedPackage}\`, and the command asked the ` +
             `package manager for \`${packageSpec}\``
+        );
+      }
+    },
+
+    installPods: async () => {
+      podInstallWasAsked = true;
+
+      if (posed?.pods !== 'installed') {
+        // Recorded, not thrown, exactly like an unanswered `addPackage` - see this file's header.
+        refuse(
+          'installPods',
+          'the project holds `ios/Podfile`, so the command ran `pod install` - say ' +
+            '`"pods": "installed"` in the workstation of the pose'
         );
       }
     },

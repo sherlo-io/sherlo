@@ -356,7 +356,7 @@ export type PosedPush = {
       };
 };
 
-/** The two acts `sherlo init` performs on the machine, as a pose states them. */
+/** The acts `sherlo init` performs on the machine, as a pose states them. */
 export type PosedWorkstation = {
   /**
    * What the package manager answered when asked to add Sherlo: the package it installed, version
@@ -366,6 +366,12 @@ export type PosedWorkstation = {
   install: {
     package: string;
   };
+  /**
+   * What `pod install` answered, for a project whose `files` hold `ios/Podfile`: the pods
+   * installed. Left out for a project with no Podfile, where setup never runs it. Either mismatch
+   * is a refusal of the pose: a Podfile and no `pods`, or `pods` and no Podfile.
+   */
+  pods?: 'installed';
   /**
    * What happened at the prompt: a person pressed Enter, the terminal was closed on it (the tool's
    * own cancel branch prints for it), or nobody was at the keyboard at all - no terminal, or `CI`
