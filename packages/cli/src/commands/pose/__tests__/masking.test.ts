@@ -204,6 +204,24 @@ describe('the masker folds every volatile class the tool prints', () => {
     );
   });
 
+  it("folds a CLI login's authorize link to one placeholder", () => {
+    // A posed login and a live one on a test stage: another host, another login id, the link
+    // painted cyan on one of them. All three read the same once folded.
+    const posedLink = `  ${ESC}[36mhttps://app.sherlo.io/cli-login/lg7Qm2Xa${ESC}[39m`;
+    const liveLink = '  https://app.test.sherlo.io/cli-login/8f2c1a9e-4b7d-4e0a-9c1f-2d3e4f5a6b7c';
+    const localLink = '  http://localhost:3000/cli-login/abc123';
+
+    expect(maskScreen(posedLink, {})).toBe(`  ${ESC}[36m<LOGIN_LINK>${ESC}[39m`);
+    expect(maskScreen(liveLink, {})).toBe('  <LOGIN_LINK>');
+    expect(maskScreen(localLink, {})).toBe('  <LOGIN_LINK>');
+
+    // Only a login link: a build address beside it keeps its own fold.
+    expect(maskScreen('https://app.sherlo.io/build?t=tm000001&p=7&b=4', {})).toBe(
+      'https://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>'
+    );
+    expect(CLASSES_THE_TOOL_FOLDS).toContain('<LOGIN_LINK>');
+  });
+
   it("folds a capture record's settle time, screenful count and measured size", () => {
     const folded = maskScreen(
       [

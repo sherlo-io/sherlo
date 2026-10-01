@@ -11,12 +11,8 @@
  *
  * THE POSED HALF NEVER PRINTS. What a pose answers is whether the browser came up, never a word on
  * the screen.
- *
- * ------------------------------------------------------------------------
- * PLAN STAND-IN (epic cli-login). The live half below opens nothing yet: opening the person's real
- * browser is a build task, and until it lands the live half throws, naming itself. The posed half
- * is the one a plan draws with.
  */
+import { spawn } from 'child_process';
 
 /** The one act `sherlo login` performs on the browser. */
 export type Browser = {
@@ -24,12 +20,68 @@ export type Browser = {
   open(url: string): Promise<boolean>;
 };
 
-/** The shipped answer. A build task: until it lands, it refuses rather than pretend. */
+/** How long the opener is given to say it failed before it is taken to have opened a browser. */
+const OPENER_GRACE_MS = 1500;
+
+/**
+ * The shipped answer: start the opener on the link and give it a short grace.
+ *
+ *     exits 0 within the grace         -> opened
+ *     exits non-zero within the grace  -> not opened (`xdg-open` on a machine with no browser)
+ *     still running when the grace ends -> opened: a `BROWSER` that is the browser itself runs
+ *                                          until the person closes it
+ *     cannot start at all              -> not opened
+ *
+ * NEVER WAITS LONGER THAN THE GRACE. The opener runs detached and is let go from the start, so a
+ * browser that keeps running never holds the login before the wait line.
+ *
+ * NEVER THROWS. When the answer is "not opened", the command says the browser did not open - the
+ * link is on the screen anyway.
+ */
 export const liveBrowser: Browser = {
-  open: async () => {
-    throw new Error('Opening a browser is not built into this version of the CLI yet.');
-  },
+  open: (url) =>
+    new Promise((resolve) => {
+      const [program, ...args] = openerCommand(url);
+
+      try {
+        const opener = spawn(program, args, {
+          detached: true,
+          stdio: 'ignore',
+          windowsVerbatimArguments: true,
+        });
+        opener.unref();
+
+        const stillRunningAfterGrace = setTimeout(() => resolve(true), OPENER_GRACE_MS);
+        const answer = (opened: boolean) => {
+          clearTimeout(stillRunningAfterGrace);
+          resolve(opened);
+        };
+
+        opener.on('error', () => answer(false));
+        opener.on('exit', (exitCode) => answer(exitCode === 0));
+      } catch {
+        resolve(false);
+      }
+    }),
 };
+
+/**
+ * The program that opens a link, and its arguments: the one `BROWSER` names when it is set, else
+ * the platform's own opener. Read here, in the live half only - a posed run never reads `BROWSER`.
+ *
+ * A test sets `BROWSER=true` for a browser that "opened" without opening anything: `true` is a
+ * program that exits 0 and does nothing else.
+ */
+function openerCommand(url: string): string[] {
+  const browserProgram = process.env.BROWSER?.trim();
+  if (browserProgram) return [browserProgram, url];
+
+  if (process.platform === 'darwin') return ['open', url];
+  // `start` takes its first quoted argument as a window title, so an empty title goes first.
+  if (process.platform === 'win32') return ['cmd', '/c', 'start', '""', url];
+
+  return ['xdg-open', url];
+}
 
 let installed: Browser = liveBrowser;
 

@@ -11,7 +11,7 @@
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
 [31mAUTH ERROR: `sherlo test:eas-cloud-build` takes a project token only, and found your login.[39m
-[31m  Its token travels to Expo's build machine, so a person's credential is never sent there.[39m
+[31m  Its token travels to Expo's build machine, so a person's login is never sent there.[39m
 [31m  Set the project token as SHERLO_TOKEN.[39m
 
 [2m══════════[22m

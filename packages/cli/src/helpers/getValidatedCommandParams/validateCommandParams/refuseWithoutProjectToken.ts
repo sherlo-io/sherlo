@@ -66,7 +66,7 @@ function refuseOnEas(personCredential: PersonCredential): never {
     message:
       `\`sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\` takes a project token only, and found ` +
       `${personCredential}.\n` +
-      "  Its token travels to Expo's build machine, so a person's credential is never sent there.\n" +
+      "  Its token travels to Expo's build machine, so a person's login is never sent there.\n" +
       `  Set the project token as ${PROJECT_TOKEN_ENV_VAR}.`,
   });
 }
@@ -75,7 +75,7 @@ function refuseNoProject(personCredential: PersonCredential): never {
   throwError({
     message:
       `sherlo.config.json names no project, so ${personCredential} has nowhere to push.\n` +
-      '  Run `sherlo init` to choose one; it writes `project` into the config.',
+      '  Run `sherlo init` to choose one. It writes `project` into the config.',
   });
 }
 

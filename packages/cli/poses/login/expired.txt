@@ -1,10 +1,10 @@
 Log in to Sherlo at this link:
 
-  [36mhttps://app.sherlo.io/cli-login/lg7Qm2Xa[39m
+  [36m<LOGIN_LINK>[39m
 
 [33m⏳[39m Waiting for you to click Authorize... [2m(Ctrl+C to stop)[22m
 
-[31mERROR: The login expired: nobody clicked Authorize within 10 minutes.[39m
+[31mERROR: The login expired. Nobody clicked Authorize within 10 minutes.[39m
 [31m  Run `sherlo login` to start a new one.[39m
 
 [2m══════════[22m

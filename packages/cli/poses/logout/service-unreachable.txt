@@ -1,6 +1,6 @@
-[31mERROR: Deleted the login of anna@example.com from this computer, but could not reach[39m
-[31m  Sherlo to end it there. Until it runs out, revoke it in the web app:[39m
-[31m  Account settings, Personal tokens.[39m
+[31mERROR: Deleted the login of anna@example.com from this computer, but Sherlo could not be reached to end it there.[39m
+[31m  Until it expires, revoke it in the web app.[39m
+[31m  Open Account settings, then Personal tokens.[39m
 
 [2m══════════[22m
 [2m[22m

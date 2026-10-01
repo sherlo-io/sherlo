@@ -14,6 +14,10 @@
  * `tokenContextLine` is the one line that differs per command - what a
  * project token would mean for THIS operation - because "the project does not
  * exist yet" (project create) reads as nonsense on `team list`.
+ *
+ * It also answers whether the token came from the saved login, because a
+ * refused saved login is answered differently from a refused token somebody
+ * gave: the person runs `sherlo login` again (./refuseRejectedLogin).
  */
 import {
   PERSONAL_TOKEN_ENV_VAR,
@@ -26,10 +30,13 @@ import { getEndpointUrl } from '../../helpers/buildStatusRequest';
 import { savedLogins } from '../../seams/savedLogins';
 import { LOGIN_COMMAND } from '../login/constants';
 
+/** The personal token a management command spends, and whether it is the saved login's. */
+export type ResolvedPersonalToken = { personalToken: string; fromSavedLogin: boolean };
+
 function resolvePersonalToken(
   passedToken: string | undefined,
   { thisCommand, tokenContextLine }: { thisCommand: string; tokenContextLine: string }
-): string {
+): ResolvedPersonalToken {
   const givenToken = (passedToken ?? process.env[PERSONAL_TOKEN_ENV_VAR])?.trim();
 
   // A token given on purpose always beats the login, so it is never overridden by whoever is
@@ -40,9 +47,9 @@ function resolvePersonalToken(
     throwError({
       type: 'auth',
       message:
-        `\`sherlo ${thisCommand}\` needs you to be logged in: run \`sherlo ${LOGIN_COMMAND}\`.\n` +
-        `  Or give a personal token with \`--${PERSONAL_TOKEN_FLAG}\` or ${PERSONAL_TOKEN_ENV_VAR}.\n` +
-        `  This is NOT the project token from \`--${TOKEN_OPTION}\` / sherlo.config.json:\n` +
+        `\`sherlo ${thisCommand}\` needs you to be logged in. Run \`sherlo ${LOGIN_COMMAND}\`.\n` +
+        `  Or pass a personal token with \`--${PERSONAL_TOKEN_FLAG}\` or ${PERSONAL_TOKEN_ENV_VAR}.\n` +
+        `  That is not the project token from \`--${TOKEN_OPTION}\` or sherlo.config.json.\n` +
         `  ${tokenContextLine}`,
     });
   }
@@ -59,7 +66,7 @@ function resolvePersonalToken(
     });
   }
 
-  return personalToken;
+  return { personalToken, fromSavedLogin: !givenToken };
 }
 
 export default resolvePersonalToken;

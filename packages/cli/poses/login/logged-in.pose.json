@@ -27,5 +27,6 @@
     }
   ],
   "masks": {},
+  "clock": ["2026-10-01T12:00:05.000Z"],
   "browser": { "opened": true }
 }

@@ -6,7 +6,7 @@
 import { PERSONAL_TOKEN_OPTION } from '../../constants';
 import { printSherloIntro, throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
-import { resolvePersonalToken } from '../shared';
+import { refuseRejectedLogin, resolvePersonalToken } from '../shared';
 import { ListTeamsAuthError } from './listTeamsRequest';
 import { serverCalls } from '../../seams/serverCalls';
 import { THIS_COMMAND } from './constants';
@@ -18,15 +18,22 @@ export type TeamListOptions = {
 async function teamList(passedOptions: TeamListOptions): Promise<void> {
   printSherloIntro();
 
-  const personalToken = resolvePersonalToken(passedOptions[PERSONAL_TOKEN_OPTION], {
-    thisCommand: THIS_COMMAND,
-    tokenContextLine: 'that one names a project; this command lists the teams you belong to.',
-  });
+  const { personalToken, fromSavedLogin } = resolvePersonalToken(
+    passedOptions[PERSONAL_TOKEN_OPTION],
+    {
+      thisCommand: THIS_COMMAND,
+      tokenContextLine:
+        'The project token names one project, and this command lists the teams you belong to.',
+    }
+  );
 
   const list = await serverCalls()
     .listTeams({ personalToken })
     .catch((error: Error) => {
-      if (error instanceof ListTeamsAuthError) refuseRejectedToken();
+      if (error instanceof ListTeamsAuthError) {
+        if (fromSavedLogin) refuseRejectedLogin();
+        refuseRejectedToken();
+      }
 
       throwError({ message: error.message, errorToReport: error });
     });

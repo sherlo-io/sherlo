@@ -6,7 +6,7 @@
 import { MAX_TEAM_NAME_LENGTH, NAME_OPTION, PERSONAL_TOKEN_OPTION } from '../../constants';
 import { printSherloIntro, reporting, throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
-import { resolvePersonalToken } from '../shared';
+import { refuseRejectedLogin, resolvePersonalToken } from '../shared';
 import { CreateTeamAuthError } from './createTeamRequest';
 import { serverCalls } from '../../seams/serverCalls';
 import { THIS_COMMAND } from './constants';
@@ -20,15 +20,21 @@ async function teamCreate(passedOptions: TeamCreateOptions): Promise<void> {
   printSherloIntro();
 
   const name = resolveName(passedOptions[NAME_OPTION]);
-  const personalToken = resolvePersonalToken(passedOptions[PERSONAL_TOKEN_OPTION], {
-    thisCommand: THIS_COMMAND,
-    tokenContextLine: 'that one names a project; this command creates a team, not a project.',
-  });
+  const { personalToken, fromSavedLogin } = resolvePersonalToken(
+    passedOptions[PERSONAL_TOKEN_OPTION],
+    {
+      thisCommand: THIS_COMMAND,
+      tokenContextLine: 'The project token names one project, and this command creates a team.',
+    }
+  );
 
   const team = await serverCalls()
     .createTeam({ name, personalToken })
     .catch((error: Error) => {
-      if (error instanceof CreateTeamAuthError) refuseRejectedToken();
+      if (error instanceof CreateTeamAuthError) {
+        if (fromSavedLogin) refuseRejectedLogin();
+        refuseRejectedToken();
+      }
 
       throwError({ message: error.message, errorToReport: error });
     });
