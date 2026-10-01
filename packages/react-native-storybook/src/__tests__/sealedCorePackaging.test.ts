@@ -8,6 +8,7 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import * as vm from 'node:vm';
 import {
   ANDROID_ABIS,
   ANDROID_PAGE_SIZE,
@@ -243,6 +244,24 @@ describe('what the published package carries', () => {
         true
       );
     }
+  }, 120_000);
+
+  it('the published polyfill runs as a plain script, with no module or require around it', () => {
+    const { unpackedPackageDir } = packIntoTemporaryFolder();
+    const polyfillSource = fs.readFileSync(
+      path.join(unpackedPackageDir, 'dist-metro', 'polyfill.js'),
+      'utf8'
+    );
+
+    expect(polyfillSource).not.toContain('module.exports');
+    expect(polyfillSource).not.toContain('__nccwpck_require__');
+
+    // Metro pastes the polyfill into the app bundle as a bare script: the context has the global
+    // object and none of module, exports or require.
+    const bareScriptContext: Record<string, unknown> = {};
+    bareScriptContext.globalThis = bareScriptContext;
+    bareScriptContext.global = bareScriptContext;
+    expect(() => vm.runInNewContext(polyfillSource, bareScriptContext)).not.toThrow();
   }, 120_000);
 
   it('no built sealed part is committed', () => {
