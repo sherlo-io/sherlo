@@ -1,0 +1,215 @@
+package io.sherlo.storybookreactnative;
+
+// Android Framework Imports
+import android.app.Activity;
+import android.util.Log;
+
+import androidx.annotation.NonNull;
+import com.facebook.react.bridge.ReactApplicationContext;
+import com.facebook.react.bridge.Promise;
+import com.facebook.react.bridge.WritableMap;
+
+// Java Utility and IO Imports
+import java.util.Map;
+
+/**
+ * This implementation works with the New Architecture as a TurboModule.
+ * This class needs to match the JS spec in NativeSherloModule.ts
+ * The actual generated interface will be created by codegen at build time.
+ */
+public class SherloModule extends NativeSherloModuleSpec {
+
+    public static final String NAME = "SherloModule";
+    private final SherloModuleCore moduleCore;
+
+    /**
+     * Initializes the module with the React context and creates the core implementation.
+     *
+     * @param reactContext The React Native application context
+     */
+    public SherloModule(ReactApplicationContext reactContext) {
+        super(reactContext);
+        Activity activity = getCurrentActivity();
+        this.moduleCore = new SherloModuleCore(reactContext, activity);
+    }
+
+    /**
+     * Returns the name of this module for React Native.
+     *
+     * @return The module name ("SherloModule")
+     */
+    @Override
+    @NonNull
+    public String getName() {
+        return NAME;
+    }
+
+    /**
+     * Exposes constants to JavaScript, including mode, config, and state information.
+     *
+     * @return A map of constants for the JavaScript side
+     */
+    @Override
+    public WritableMap getSherloConstants() {
+        return moduleCore.getSherloConstants();
+    }
+
+    // ==== Storybook Methods ====
+
+    /**
+     * Toggles between Storybook and default mode.
+     */
+    @Override
+    public void toggleStorybook() {
+        moduleCore.toggleStorybook();
+    }
+
+    /**
+     * Explicitly switches to Storybook mode.
+     */
+    @Override
+    public void openStorybook() {
+        moduleCore.openStorybook();
+    }
+
+    /**
+     * Explicitly switches to default mode.
+     */
+    @Override
+    public void closeStorybook() {
+        moduleCore.closeStorybook();
+    }
+
+    // ==== Error Reporting ====
+
+    /**
+     * Sends a native error by writing a NATIVE_ERROR JSON line to protocol.sherlo.
+     *
+     * @param errorCode The error code
+     * @param message Human-readable error description
+     */
+    @Override
+    public void sendNativeError(String errorCode, String message, String dataJson) {
+        moduleCore.sendNativeError(errorCode, message, dataJson);
+    }
+
+    /**
+     * Synchronously writes a JS_ERROR entry for module-eval errors caught by the metro __r polyfill.
+     */
+    @Override
+    public boolean reportEarlyJsError(String name, String message, String stack) {
+        return moduleCore.reportEarlyJsError(name, message, stack);
+    }
+
+    /**
+     * Spike swap-the-core: the sealed core the native loader picked, as JSON.
+     */
+    @Override
+    public String loadCore() {
+        return SherloCoreLoader.loadCoreJson(getReactApplicationContext());
+    }
+
+    // ==== File System Methods ====
+
+    /**
+     * Appends base64 encoded content to a file.
+     *
+     * @param filename The name of the file to append to
+     * @param base64Content The base64 encoded content to append
+     * @param promise Promise to resolve when the operation is complete
+     */
+    @Override
+    public void appendFile(String filename, String base64Content, Promise promise) {
+        moduleCore.appendFile(filename, base64Content, promise);
+    }
+
+    /**
+     * Reads a file and returns its content as a base64 encoded string.
+     *
+     * @param filename The name of the file to read
+     * @param promise Promise to resolve with the file content
+     */
+    @Override
+    public void readFile(String filename, Promise promise) {
+        moduleCore.readFile(filename, promise);
+    }
+
+    // ==== Inspector Methods ====
+
+    /**
+     * Gets UI inspector data from the current view hierarchy.
+     *
+     * @param promise Promise to resolve with the inspector data
+     */
+    @Override
+    public void getInspectorData(Promise promise) {
+        Activity activity = getCurrentActivity();
+        moduleCore.getInspectorData(activity, promise);
+    }
+
+    /**
+     * Checks if the UI is stable by comparing consecutive screenshots.
+     *
+     * @param requiredMatches The number of consecutive matching screenshots needed
+     * @param minScreenshotsCount The minimum number of screenshots to take when checking for stability
+     * @param intervalMs The interval between each screenshot in milliseconds
+     * @param timeoutMs The overall timeout in milliseconds
+     * @param saveScreenshots Whether to save screenshots to the file system
+     * @param threshold Matching threshold (0.0 to 1.0); smaller values are more sensitive
+     * @param includeAA If false, ignore anti-aliased pixels when counting differences
+     * @param promise Promise to resolve with true if UI becomes stable, false if timeout occurs
+     */
+    @Override
+    public void stabilize(double requiredMatches, double minScreenshotsCount, double intervalMs, double timeoutMs, boolean saveScreenshots, double threshold, boolean includeAA, Promise promise) {
+        Activity activity = getCurrentActivity();
+        moduleCore.stabilize(activity, (int)requiredMatches, (int)minScreenshotsCount, (int)intervalMs, (int)timeoutMs, saveScreenshots, threshold, includeAA, promise);
+    }
+
+    /**
+     * Native paint barrier: resolves once a real frame is committed,
+     * or false if timeoutMs elapses first.
+     *
+     * @param timeoutMs Cap on how long to wait for a frame commit (ms)
+     * @param promise Promise to resolve with true on frame commit, false on timeout
+     */
+    @Override
+    public void awaitFrameCommit(double timeoutMs, Promise promise) {
+        Activity activity = getCurrentActivity();
+        moduleCore.awaitFrameCommit(activity, (int)timeoutMs, promise);
+    }
+
+    /**
+     * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
+     *
+     * @param promise Promise to resolve with boolean (true if scrollable, false otherwise)
+     */
+    @Override
+    public void isScrollable(Promise promise) {
+        Activity activity = getCurrentActivity();
+        moduleCore.isScrollable(activity, promise);
+    }
+
+    /**
+     * Deterministically scrolls to a checkpoint index.
+     *
+     * @param index The checkpoint index (0-based)
+     * @param offset The vertical offset per checkpoint (in pixels)
+     * @param maxIndex The maximum allowed index
+     */
+    @Override
+    public void scrollToCheckpoint(double index, double offset, double maxIndex, Promise promise) {
+        Activity activity = getCurrentActivity();
+        moduleCore.scrollToCheckpoint(activity, index, offset, maxIndex, promise);
+    }
+
+    /**
+     * Cancel signal for the native NOT_DISPLAYED watchdog timer.
+     * Called from JS getStorybook() to indicate Storybook is being used.
+     */
+    @Override
+    public void notifyGetStorybookCalled() {
+        SherloInitProvider.setGetStorybookCalled();
+        SherloInitProvider.cancelStorybookNotDisplayedTimer();
+    }
+
+}

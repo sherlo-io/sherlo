@@ -3,12 +3,14 @@
   "scripts": {
     "build:android": "npx eas-cli build --local --platform android --profile preview-simulator --output builds/android.apk",
     "build:ios": "npx eas-cli build --local --platform ios --profile preview-simulator --output builds/ios.tar.gz",
-    "sherlo": "npx sherlo test --android builds/android.apk --ios builds/ios.tar.gz"
+    "sherlo": "npx sherlo test --android builds/android.apk --ios builds/ios.tar.gz",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.8",
     "@react-native-async-storage/async-storage": "^2.2.0",
-    "@sherlo/react-native-storybook": "^2.0.2",
+    "@sherlo/react-native-storybook": "file:./sherlo-lib/react-native-storybook.tgz",
     "@storybook/react-native": "^10.2.1",
     "expo": "54.0.31",
     "react": "19.1.0",

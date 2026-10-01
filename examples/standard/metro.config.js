@@ -12,5 +12,8 @@ const { getDefaultConfig } = require('expo/metro-config');
 const withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');
 
 const config = getDefaultConfig(__dirname);
+// Spike swap-the-core: this checkout sits under brain's .worktrees, which brain's own watchman
+// config ignores, so Metro would see no files at all. Crawl the folder directly instead.
+config.resolver.useWatchman = false;
 
 module.exports = withStorybook(config);

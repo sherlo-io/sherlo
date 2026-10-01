@@ -1,0 +1,112 @@
+{
+  "name": "@sherlo/react-native-storybook",
+  "version": "2.0.2",
+  "description": "Visual regression testing for React Native - Sherlo Storybook integration SDK",
+  "keywords": [
+    "react-native",
+    "storybook",
+    "expo",
+    "eas",
+    "ios",
+    "android",
+    "visual-testing",
+    "visual-regression-testing",
+    "screenshot-testing",
+    "ui-testing"
+  ],
+  "license": "MIT",
+  "author": "Sherlo",
+  "homepage": "https://sherlo.io",
+  "bugs": {
+    "url": "https://github.com/sherlo-io/sherlo/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sherlo-io/sherlo.git",
+    "directory": "packages/react-native-storybook"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "react-native": "./dist/index.js",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./metro/withStorybook": {
+      "types": "./metro/withStorybook.d.ts",
+      "require": "./metro/withStorybook.js",
+      "default": "./metro/withStorybook.js"
+    },
+    "./metro/polyfill": {
+      "require": "./metro/polyfill.js",
+      "default": "./metro/polyfill.js"
+    },
+    "./dist/getStorybook/index.js": "./dist/getStorybook/index.js",
+    "./dist/addStorybookToDevMenu.js": "./dist/addStorybookToDevMenu.js",
+    "./dist/SherloModule.js": "./dist/SherloModule.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src/specs/**/*",
+    "dist/**/*",
+    "android/src/**/*",
+    "android/CMakeLists.txt",
+    "android/build.gradle",
+    "ios/*.h",
+    "ios/*.m",
+    "ios/*.mm",
+    "ios/Resources/**/*",
+    "sherlo-react-native-storybook.podspec",
+    "metro/withStorybook.js",
+    "metro/withStorybook.d.ts",
+    "metro/polyfill.js",
+    "metro/applySherloTransforms.js"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p .",
+    "dev": "yarn build --watch",
+    "lint": "NODE_ENV=production yarn run -T eslint --ext .ts,.tsx src",
+    "test": "../../scripts/require-test-exec-optin.sh && vitest run"
+  },
+  "dependencies": {
+    "base-64": "1.0.0",
+    "deepmerge": "4.3.1",
+    "its-fine": "2.0.0",
+    "sherlo": "^2.0.2",
+    "utf8": "3.0.0"
+  },
+  "devDependencies": {
+    "@storybook/react-native": "9.1.4",
+    "@types/base-64": "^1.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-native": "^0.73.0",
+    "@types/utf8": "^3.0.1",
+    "react-native-safe-area-context": "4.11.0",
+    "typescript": "^5.3.3",
+    "vitest": "^4.0.0"
+  },
+  "peerDependencies": {
+    "@storybook/react-native": ">=8.0.0",
+    "react": "*",
+    "react-native": ">=0.74.0",
+    "react-native-safe-area-context": "*"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "codegenConfig": {
+    "name": "sherlo_codegen",
+    "type": "modules",
+    "jsSrcsDir": "./src/specs",
+    "android": {
+      "javaPackageName": "io.sherlo.storybookreactnative"
+    }
+  },
+  "gitHead": "4af90ab1c47fe0f139697e27c093073ca8ab994f"
+}
