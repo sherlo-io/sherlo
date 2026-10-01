@@ -3,6 +3,7 @@ import { InvalidatedConfig } from '../../../types';
 import { printMessage } from '../helpers';
 import { DEFAULT_DEVICES } from './constants';
 import printDefaultDevicesMessage from './printDefaultDevicesMessage';
+import printNoTokenWarning from './printNoTokenWarning';
 import writeConfig from './writeConfig';
 
 async function createConfig(
@@ -19,6 +20,8 @@ async function createConfig(
     type: 'success',
     message: `Created: ${DEFAULT_CONFIG_FILENAME}`,
   });
+
+  if (!token) printNoTokenWarning();
 
   printDefaultDevicesMessage();
 

@@ -3,6 +3,7 @@ import { InvalidatedConfig } from '../../../types';
 import { printMessage } from '../helpers';
 import { DEFAULT_DEVICES } from './constants';
 import printDefaultDevicesMessage from './printDefaultDevicesMessage';
+import printNoTokenWarning from './printNoTokenWarning';
 import readConfig from './readConfig';
 import writeConfig from './writeConfig';
 
@@ -28,6 +29,8 @@ async function updateConfig(
         ? `Updated token: ${DEFAULT_CONFIG_FILENAME}`
         : `Already created: ${DEFAULT_CONFIG_FILENAME}`,
   });
+
+  if (!updatedConfig.token) printNoTokenWarning();
 
   if (!hasDevices) {
     printDefaultDevicesMessage();

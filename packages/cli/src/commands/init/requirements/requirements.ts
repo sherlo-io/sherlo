@@ -80,8 +80,8 @@ async function validateRequirements(token?: string): Promise<void> {
 
     validateCorePackagesVersions();
 
-    // Named refusal first. The generic branch below reports the token string
-    // itself to Sentry, which must never happen to a live personal credential.
+    // Named refusal first: a personal token gets its own message, not the generic
+    // "invalid token" one below.
     if (token) refuseIfPersonalToken(token);
 
     if (token && !isValidToken(token)) {
@@ -92,7 +92,6 @@ async function validateRequirements(token?: string): Promise<void> {
           chalk.reset('Make sure you copied it correctly or generate a new one at ') +
           printLink(APP_DOMAIN),
         below: '\n' + chalk.reset('Then re-run:\n') + chalk.cyan(`  ${FULL_INIT_COMMAND}`),
-        errorToReport: new Error('Invalid token: ' + token),
       });
     }
   } catch (error) {

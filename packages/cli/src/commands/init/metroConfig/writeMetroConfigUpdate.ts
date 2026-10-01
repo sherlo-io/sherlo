@@ -16,31 +16,20 @@ async function writeMetroConfigUpdate(state: {
     const mod = parseModule(state.content);
     const body = (mod.$ast as any).body as any[];
 
-    // Find module.exports = X(...) and rename X to 'withStorybook'
-    let calleeName: string | null = null;
-    let wrapped = false;
-    for (const stmt of body) {
-      if (
+    // Only a config that exports a call is rewritten. The call itself is never touched, so
+    // another plugin around (or inside) withStorybook stays exactly as the developer wrote it.
+    const exportsACall = body.some(
+      (stmt) =>
         stmt.type === 'ExpressionStatement' &&
         stmt.expression.type === 'AssignmentExpression' &&
         stmt.expression.operator === '=' &&
         isModuleExports(stmt.expression.left) &&
-        stmt.expression.right.type === 'CallExpression' &&
-        stmt.expression.right.callee.type === 'Identifier'
-      ) {
-        calleeName = stmt.expression.right.callee.name;
-        if (calleeName !== 'withStorybook') {
-          stmt.expression.right.callee = { type: 'Identifier', name: 'withStorybook' };
-        }
-        wrapped = true;
-        break;
-      }
-    }
+        stmt.expression.right.type === 'CallExpression'
+    );
 
-    if (!wrapped) return { applied: false };
+    if (!exportsACall) return { applied: false };
 
-    // Find and rename the storybook require declaration to use sherlo's package
-    // Also rename the variable binding to 'withStorybook' if it differs
+    // Point Storybook's own withStorybook require at Sherlo's package, keeping the name it is bound to
     let storybookRequireIdx = -1;
     for (let i = 0; i < body.length; i++) {
       const stmt = body[i];
@@ -54,16 +43,13 @@ async function writeMetroConfigUpdate(state: {
           storybookRequireIdx = i;
           // Replace the require string
           decl.init.arguments[0] = { type: 'StringLiteral', value: NEW_IMPORT_PACKAGE };
-          // If the variable was named differently, rename it to 'withStorybook'
-          if (decl.id && decl.id.type === 'Identifier' && decl.id.name !== 'withStorybook') {
-            decl.id = { type: 'Identifier', name: 'withStorybook' };
-          }
-          // Handle destructured: const { withStorybook } = require(...)
+          // Handle destructured: const { withStorybook } = require(...) or
+          // const { withStorybook: sb } = require(...)
           if (decl.id && decl.id.type === 'ObjectPattern') {
-            // Replace with a simple identifier binding
+            // Replace with a simple identifier binding, under the name the developer's calls use
             stmt.declarations[0] = {
               type: 'VariableDeclarator',
-              id: { type: 'Identifier', name: 'withStorybook' },
+              id: { type: 'Identifier', name: getDestructuredLocalName(decl.id) },
               init: {
                 type: 'CallExpression',
                 callee: { type: 'Identifier', name: 'require' },
@@ -77,11 +63,9 @@ async function writeMetroConfigUpdate(state: {
       }
     }
 
-    if (storybookRequireIdx === -1) {
-      // No existing storybook require found; insert one at the top
-      const requireStmt = makeSimpleRequire('withStorybook', NEW_IMPORT_PACKAGE);
-      body.unshift(requireStmt);
-    }
+    // Without Storybook's own withStorybook require there is nothing to repoint, and an inserted
+    // require would be unused: leave the file for the manual-edit warning.
+    if (storybookRequireIdx === -1) return { applied: false };
 
     modified = generateCode(mod).code;
   } catch {
@@ -126,23 +110,14 @@ function isStorybookRequireCall(node: any): boolean {
   );
 }
 
-function makeSimpleRequire(varName: string, pkg: string): any {
-  return {
-    type: 'VariableDeclaration',
-    kind: 'const',
-    declarations: [
-      {
-        type: 'VariableDeclarator',
-        id: { type: 'Identifier', name: varName },
-        init: {
-          type: 'CallExpression',
-          callee: { type: 'Identifier', name: 'require' },
-          arguments: [{ type: 'StringLiteral', value: pkg }],
-          optional: false,
-        },
-      },
-    ],
-  };
+function getDestructuredLocalName(objectPattern: any): string {
+  const withStorybookProperty = objectPattern.properties.find(
+    (property: any) => property.key?.type === 'Identifier' && property.key.name === 'withStorybook'
+  );
+
+  return withStorybookProperty?.value?.type === 'Identifier'
+    ? withStorybookProperty.value.name
+    : 'withStorybook';
 }
 
 export default writeMetroConfigUpdate;
