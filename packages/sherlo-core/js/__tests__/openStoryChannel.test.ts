@@ -23,22 +23,31 @@
  * THE FIRST THREE ARE HELD OVER REAL HTTP, against the middleware mounted on a real server on a
  * real port. The thing under test is an address, and an address that is only ever called as a
  * function has not been shown to be one.
+ *
+ * The app's half is the collect loop in the sealed core (../src/openStoryChannel), handed the
+ * letterbox the way the SDK hands it in, with the test host (./testHost) carrying the SDK's own
+ * story-error registry and a native module that says when the app was sent to the story browser.
  */
 import * as http from 'http';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-
-const createOpenStoryLetterbox = require('../../metro/openStoryLetterbox');
-
-import {
-  startOpenStoryChannel,
-  stopOpenStoryChannel,
-  type BundlerLetterbox,
-} from '../openStoryChannel';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type {
+  BundlerLetterbox,
+  SealedCoreHost,
+} from '../../../react-native-storybook/src/sealedCore/seam';
+import { installTestHost } from './testHost';
+import { startOpenStoryChannel, stopOpenStoryChannel } from '../src/openStoryChannel';
 import {
   startStoryRenderedTracking,
   __resetStoryRenderedTrackingForTests,
-} from '../getStorybook/components/TestingMode/useTestAllStories/storyRenderedReadiness';
-import { clearStoryError, recordStoryError } from '../getStorybook/storyErrorRegistry';
+} from '../src/storyRenderedReadiness';
+import {
+  clearStoryError,
+  readStoryError,
+  recordStoryError,
+} from '../../../react-native-storybook/src/getStorybook/storyErrorRegistry';
+import { STORY_ERROR_FALLBACK_TEXT } from '../../../react-native-storybook/src/constants';
+
+const createOpenStoryLetterbox = require('../../../react-native-storybook/metro/openStoryLetterbox');
 
 const STORY = 'components-button--primary';
 const OTHER_STORY = 'components-avatar--basic';
@@ -51,12 +60,22 @@ type Ask = {
   threw: { name: string; message: string } | null;
 };
 
-/** Called when the SDK asks the app to go to the story browser; set by the test that watches for it. */
+/** Called when the app is sent to the story browser; set by the test that watches for it. */
 let openedStorybook: (() => void) | null = null;
 
-vi.mock('../openStorybook', () => ({
-  default: () => openedStorybook?.(),
-}));
+beforeEach(() => {
+  installTestHost({
+    native: {
+      openStorybook: () => openedStorybook?.(),
+    } as unknown as SealedCoreHost['native'],
+    storyErrors: {
+      record: recordStoryError,
+      read: readStoryError,
+      clear: clearStoryError,
+      fallbackText: STORY_ERROR_FALLBACK_TEXT,
+    },
+  });
+});
 
 /* ========================================================================== */
 /* A bundler with the letterbox on it                                         */

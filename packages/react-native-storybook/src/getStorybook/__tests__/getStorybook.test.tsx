@@ -21,7 +21,6 @@ const {
   mockNotifyGetStorybookCalled,
   mockStartCaptureTransport,
   mockGetStorybookChannel,
-  mockStartStoryRenderedTracking,
 } = vi.hoisted(() => ({
   mockGetMode: vi.fn(),
   mockGetConfig: vi.fn(),
@@ -30,7 +29,6 @@ const {
   mockNotifyGetStorybookCalled: vi.fn(),
   mockStartCaptureTransport: vi.fn(),
   mockGetStorybookChannel: vi.fn(),
-  mockStartStoryRenderedTracking: vi.fn(),
 }));
 
 // This package only peer-depends on react (see package.json) and no test here renders a
@@ -73,9 +71,8 @@ vi.mock('../../captureTransport', () => ({
   startCaptureTransport: mockStartCaptureTransport,
 }));
 
-vi.mock('../components/TestingMode/useTestAllStories/storyRenderedReadiness', () => ({
+vi.mock('../storybookChannel', () => ({
   getStorybookChannel: mockGetStorybookChannel,
-  startStoryRenderedTracking: mockStartStoryRenderedTracking,
 }));
 
 // The React tree itself is out of scope here (no renderer in this package's test setup) - these

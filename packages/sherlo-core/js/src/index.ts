@@ -8,9 +8,10 @@
  * (src/sealedCore/loadSealedCore.ts).
  *
  * It holds the SDK's know-how: how it lists stories, shapes the list the runner is sent, reads the
- * inspector's tree and walks the app's components, and a test run's walk - starting the session,
- * waiting for each story to be ready, and reporting it. A later task moves the capture driver in
- * here, behind this same seam.
+ * inspector's tree and walks the app's components, a test run's walk - starting the session,
+ * waiting for each story to be ready, and reporting it - and the two roads a developer's bundler
+ * drives: `sherlo capture`'s walk and `sherlo open`'s collect loop. The bundler's roads themselves
+ * stay in the SDK, which hands them in.
  */
 import type { SealedCore } from '../../../react-native-storybook/src/sealedCore/seam';
 import { installHost } from './host';
@@ -21,12 +22,9 @@ import { mergeGenerations } from './metadataWalk';
 import { componentNamesByNativeTag, primitiveOfHostType } from './componentNames';
 import { startTestSession } from './startTestSession';
 import { testStory } from './testStory';
-import {
-  __resetStoryRenderedTrackingForTests,
-  lastRenderedStory,
-  startStoryRenderedTracking,
-  waitForStoryRendered,
-} from './storyRenderedReadiness';
+import { startStoryRenderedTracking } from './storyRenderedReadiness';
+import { startCaptureTransport, stopCaptureTransport } from './captureTransport';
+import { startOpenStoryChannel, stopOpenStoryChannel } from './openStoryChannel';
 
 // build.js defines this as the SDK's version from lerna.json.
 declare const __SHERLO_CORE_VERSION__: string;
@@ -48,9 +46,10 @@ const core: SealedCore = {
   startTestSession,
   testStory,
   startStoryRenderedTracking,
-  waitForStoryRendered,
-  lastRenderedStory,
-  __resetStoryRenderedTrackingForTests,
+  startCaptureTransport,
+  stopCaptureTransport,
+  startOpenStoryChannel,
+  stopOpenStoryChannel,
 };
 
 (globalThis as { __SHERLO_CORE__?: SealedCore }).__SHERLO_CORE__ = core;

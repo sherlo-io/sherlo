@@ -1,5 +1,6 @@
 /**
- * THE APP'S HALF OF THE CAPTURE SOCKET - the JavaScript that walks one story for `sherlo capture`.
+ * THE APP'S HALF OF THE CAPTURE SOCKET - the capture driver in the sealed core, which walks one
+ * story for `sherlo capture`.
  *
  * One fact per describe:
  *
@@ -19,94 +20,62 @@
  *   - a walk that throws is the crash ending, and the app says what threw.
  *
  * The bundler is injected as a `capture` (a CaptureTransport), the same way openStoryChannel.test.ts
- * injects the letterbox, so no real socket or NativeModules source is needed.
+ * injects the letterbox, so no real socket is needed. The host is the test host (./testHost), with
+ * the SDK's own open seams the driver reads through it - the app's published reading of its views,
+ * the top of its story, the story-error registry and the live log sink - and a native module and
+ * mocking stood in for so this file can see what is asked of them.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-const {
-  mockGetMode,
-  mockGetConfigOrDefault,
-  mockStabilize,
-  mockAwaitFrameCommit,
-  mockGetInspectorData,
-  mockIsScrollable,
-  mockScrollToCheckpoint,
-  mockOpenTesting,
-  mockAppendFile,
-  mockReadFile,
-  mockGetLastState,
-  mockActivateMocksForStory,
-  mockClearMocks,
-} = vi.hoisted(() => ({
-  mockGetMode: vi.fn(),
-  mockGetConfigOrDefault: vi.fn(),
-  mockStabilize: vi.fn(),
-  mockAwaitFrameCommit: vi.fn(),
-  mockGetInspectorData: vi.fn(),
-  mockIsScrollable: vi.fn(),
-  mockScrollToCheckpoint: vi.fn(),
-  mockOpenTesting: vi.fn(),
-  mockAppendFile: vi.fn(),
-  mockReadFile: vi.fn(),
-  mockGetLastState: vi.fn(),
-  mockActivateMocksForStory: vi.fn(),
-  mockClearMocks: vi.fn(),
-}));
-
-vi.mock('../SherloModule', () => ({
-  default: {
-    getMode: mockGetMode,
-    // The capture road never calls the throwing getConfig() - only the non-throwing
-    // getConfigOrDefault, which falls back to the SDK's own defaults when there is nothing on
-    // disk to read (see the describe below named for exactly that case).
-    getConfigOrDefault: mockGetConfigOrDefault,
-    stabilize: mockStabilize,
-    awaitFrameCommit: mockAwaitFrameCommit,
-    getInspectorData: mockGetInspectorData,
-    isScrollable: mockIsScrollable,
-    scrollToCheckpoint: mockScrollToCheckpoint,
-    openTesting: mockOpenTesting,
-    appendFile: mockAppendFile,
-    readFile: mockReadFile,
-    // Read by describeStorybookState's own diagnostic (see the crash-message describe below) the
-    // same way TestingMode/Storybook.tsx reads it into initialSelection - undefined by default,
-    // the state of an app whose restart handed no story over.
-    getLastState: mockGetLastState,
-  },
-}));
-
-// The two halves of a story's mock set, stood in for so this file can see WHEN each one happens -
-// the installing before the story is selected, and the clearing after the record is read. What they
-// actually install is storyMockActivation.test.ts's and the mocking suite's own subject.
-vi.mock('../getStorybook/storyMockActivation', () => ({
-  activateMocksForStory: mockActivateMocksForStory,
-}));
-
-vi.mock('../mocking', async (importOriginal) => ({
-  ...((await importOriginal()) as object),
-  clearMocks: mockClearMocks,
-}));
-
-import {
-  startCaptureTransport,
-  stopCaptureTransport,
-  type CaptureTransport,
-  type CapturedAnswer,
-} from '../captureTransport';
-import { __resetStoryRenderedTrackingForTests } from '../getStorybook/components/TestingMode/useTestAllStories/storyRenderedReadiness';
+import type {
+  CaptureTransport,
+  CapturedAnswer,
+  SealedCoreHost,
+  WalkedFiber,
+} from '../../../react-native-storybook/src/sealedCore/seam';
+import { installTestHost } from './testHost';
+import { startCaptureTransport, stopCaptureTransport } from '../src/captureTransport';
+import { __resetStoryRenderedTrackingForTests } from '../src/storyRenderedReadiness';
+import { collectFromRoot, mergeGenerations } from '../src/metadataWalk';
 import {
   __resetProviderFirstRenderedAtForTests,
+  collectAppMetadata,
+  providerFirstRenderedAt,
   rememberAppMetadataCollector,
-} from '../appMetadata';
-import { rememberStoryOfTheApp } from '../componentNames';
-// The sealed core's walk of the app's fibers, from the core package's own source: the same code
-// the SDK suite's core is built from (./__mocks__/sealedCoreFromSource).
-import { collectFromRoot, mergeGenerations } from '../../../sherlo-core/js/src/metadataWalk';
-import type { WalkedFiber } from '../sealedCore/seam';
-import { clearStoryError, recordStoryError } from '../getStorybook/storyErrorRegistry';
-import { STORY_ERROR_FALLBACK_TEXT } from '../constants';
-import RunnerBridge from '../helpers/RunnerBridge';
-import { NativeModules } from 'react-native';
+} from '../../../react-native-storybook/src/appMetadata';
+import {
+  rememberStoryOfTheApp,
+  storyOfTheAppFiber,
+} from '../../../react-native-storybook/src/componentNames';
+import {
+  clearStoryError,
+  readStoryError,
+  recordStoryError,
+} from '../../../react-native-storybook/src/getStorybook/storyErrorRegistry';
+import { STORY_ERROR_FALLBACK_TEXT } from '../../../react-native-storybook/src/constants';
+import {
+  pushAppLogLine,
+  setCaptureLogSink,
+} from '../../../react-native-storybook/src/helpers/RunnerBridge/captureLogSink';
+
+const mockGetMode = vi.fn();
+const mockGetConfigOrDefault = vi.fn();
+const mockStabilize = vi.fn();
+const mockAwaitFrameCommit = vi.fn();
+const mockGetInspectorData = vi.fn();
+const mockIsScrollable = vi.fn();
+const mockScrollToCheckpoint = vi.fn();
+const mockOpenTesting = vi.fn();
+const mockAppendFile = vi.fn();
+const mockReadFile = vi.fn();
+const mockGetLastState = vi.fn();
+// The two halves of a story's mock set, stood in for so this file can see WHEN each one happens -
+// the installing before the story is selected, and the clearing after the record is read. What they
+// actually install is the SDK's mocking suite's own subject.
+const mockActivateMocksForStory = vi.fn();
+const mockClearMocks = vi.fn();
+
+/** The address of the bundler the app came from: none, unless a test stands one up. */
+let bundlerOriginOfTheApp: string | null = null;
 
 const STORY = 'components-button--primary';
 
@@ -127,8 +96,8 @@ const CONFIG = {
 /**
  * What getConfigOrDefault answers with when nothing was ever written to the device - the same
  * numbers the SDK falls back to when it is not wired into a build at all (see DEFAULT_CONFIG in
- * ../SherloModule). A capture's freshly-restarted app finds exactly this: no config.sherlo, because
- * a capture writes nothing to the device before asking for the restart.
+ * the SDK's SherloModule). A capture's freshly-restarted app finds exactly this: no config.sherlo,
+ * because a capture writes nothing to the device before asking for the restart.
  */
 const CONFIG_WHEN_NOTHING_IS_ON_DISK = {
   stabilization: {
@@ -198,7 +167,7 @@ const VIEW_METADATA = {
 
 /**
  * The fibers the story was rendered from, host views included - what the app's component names are
- * read off (../componentNames). The two host fibers carry the native tags the inspector reports.
+ * read off (../src/componentNames). The two host fibers carry the native tags the inspector reports.
  */
 const TEXT_HOST = { type: 'RCTText', stateNode: { _nativeTag: 5 } };
 const SECTION_TITLE = { type: { name: 'SectionTitle' }, child: TEXT_HOST };
@@ -249,7 +218,7 @@ const RECORDED_TREE = {
  *
  * A broken story is re-rooted by nobody, but it is still named where the app named it: the component
  * names come from the capture's own reading of the fibers, which is not the step a run skips. The
- * PRIMITIVES do not: a run never enhances a broken story's reading either (useTestStory.tsx calls
+ * PRIMITIVES do not: a run never enhances a broken story's reading either (the walk calls
  * prepareInspectorData only when the story does not contain an error), so no fiber is ever matched to
  * any view here - every primitive is the view's own native drawing class, unguessed, and none of them
  * carry a style or a testID.
@@ -333,6 +302,43 @@ const METADATA_OF_A_DIFFERENT_SCREEN = {
 beforeEach(() => {
   vi.clearAllMocks();
   __resetStoryRenderedTrackingForTests();
+  bundlerOriginOfTheApp = null;
+  installTestHost({
+    native: {
+      getMode: mockGetMode,
+      // The capture road never calls the throwing getConfig() - only the non-throwing
+      // getConfigOrDefault, which falls back to the SDK's own defaults when there is nothing on
+      // disk to read (see the describe below named for exactly that case).
+      getConfigOrDefault: mockGetConfigOrDefault,
+      stabilize: mockStabilize,
+      awaitFrameCommit: mockAwaitFrameCommit,
+      getInspectorData: mockGetInspectorData,
+      isScrollable: mockIsScrollable,
+      scrollToCheckpoint: mockScrollToCheckpoint,
+      openTesting: mockOpenTesting,
+      appendFile: mockAppendFile,
+      readFile: mockReadFile,
+      // Read by describeStorybookState's own diagnostic (see the crash-message describe below) the
+      // same way TestingMode/Storybook.tsx reads it into initialSelection - undefined by default,
+      // the state of an app whose restart handed no story over.
+      getLastState: mockGetLastState,
+    } as unknown as SealedCoreHost['native'],
+    activateMocksForStory: mockActivateMocksForStory,
+    clearMocks: mockClearMocks,
+    collectAppMetadata,
+    providerFirstRenderedAt,
+    storyOfTheAppFiber,
+    storyErrors: {
+      record: recordStoryError,
+      read: readStoryError,
+      clear: clearStoryError,
+      fallbackText: STORY_ERROR_FALLBACK_TEXT,
+    },
+    setCaptureLogSink,
+    bundlerOrigin: () => bundlerOriginOfTheApp,
+    // The app's own fetch, read when it is called, so a test can stand in for the network.
+    fetch: (...args: Parameters<typeof fetch>) => globalThis.fetch(...args),
+  });
   mockGetMode.mockReturnValue('testing');
   mockGetConfigOrDefault.mockReturnValue(CONFIG);
   mockStabilize.mockResolvedValue(true);
@@ -480,20 +486,13 @@ describe('a capture reads the story again once it has settled, not only once it 
 describe("a capture pushes the app's own log lines live, as they are formed", () => {
   const ORIGIN = 'http://localhost:8081';
 
-  beforeEach(() => {
-    // log() reads __DEV__ to decide whether to also print to the system console (see
-    // ../helpers/RunnerBridge/actions/log.ts) - a real React Native global this test environment
-    // never defines.
-    vi.stubGlobal('__DEV__', true);
-    // bundlerOrigin() reads this to resolve the address a capture pushes to - unset by the shared
-    // react-native mock, so every OTHER test in this file still finds no origin and pushes nothing.
-    NativeModules.SourceCode = {
-      getConstants: () => ({ scriptURL: `${ORIGIN}/index.bundle?platform=ios` }),
-    };
-  });
+  /** A line as RunnerBridge.log forms it for the file sink - a time, the key, the parameters. */
+  const A_LOG_LINE = '12:00:00: storybook style : {"style":"dark"}';
 
-  afterEach(() => {
-    delete NativeModules.SourceCode;
+  beforeEach(() => {
+    // The app came from a bundler at this address - unset in every OTHER test in this file, which
+    // so finds no origin and pushes nothing.
+    bundlerOriginOfTheApp = ORIGIN;
   });
 
   it("posts each line to the bundler's own live feed the instant RunnerBridge.log forms it - not carried home inside the capture's own answer", async () => {
@@ -502,7 +501,8 @@ describe("a capture pushes the app's own log lines live, as they are formed", ()
 
     const { channel, answered } = startTheRoad();
 
-    RunnerBridge.log('storybook style', { style: 'dark' });
+    // RunnerBridge.log hands every line it forms to the live sink (the SDK's captureLogSink).
+    pushAppLogLine(A_LOG_LINE);
 
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
 
@@ -510,8 +510,8 @@ describe("a capture pushes the app's own log lines live, as they are formed", ()
     expect(url).toBe(`${ORIGIN}/sherlo/capture-log`);
     expect(init.method).toBe('POST');
     const body = JSON.parse(init.body as string);
-    // The exact line log() forms for the file sink - a time, the key, and the parameters as JSON.
-    expect(body.line).toMatch(/^\d{2}:\d{2}:\d{2}: storybook style : \{"style":"dark"\}$/);
+    // The exact line log() formed, carried as it was formed.
+    expect(body.line).toBe(A_LOG_LINE);
 
     // Let the walk finish cleanly rather than leave it hanging past this test.
     await vi.waitFor(() =>
@@ -535,7 +535,7 @@ describe("a capture pushes the app's own log lines live, as they are formed", ()
     startTheRoad();
     stopCaptureTransport();
 
-    RunnerBridge.log('after stop');
+    pushAppLogLine('12:00:01: after stop');
 
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -543,8 +543,8 @@ describe("a capture pushes the app's own log lines live, as they are formed", ()
 
 describe('the app that comes back from the restart is told which story to show', () => {
   it('re-tells the app once its own default selection has overwritten the first telling, and does not stop until the story it asked for is the one that actually rendered', async () => {
-    // A capture's restarted app has no `initialSelection` to land on (see the file header), so
-    // Storybook resolves its OWN default selection to get somewhere. The first
+    // A capture's restarted app has no `initialSelection` to land on (see the driver's file header),
+    // so Storybook resolves its OWN default selection to get somewhere. The first
     // `setCurrentStory` this test's road sends can lose that race - which looks, from here, exactly
     // like silence: no storyRendered arrives for it, not ever, not because nothing happened but
     // because the app's own default selection undid it. A single telling that only waits would end
@@ -586,10 +586,10 @@ describe("a capture's first story appears even though the app booted onto a stor
     // A capture's restart has no real story to hand over as `initialSelection`, so Storybook's own
     // preview is resolving its OWN default selection at the same time this road starts telling it
     // which story to show - and that default selection can keep the channel silent for more than
-    // one retry interval before it settles (see Storybook.tsx: the fix this test covers is what that
-    // default selection resolves to, not this file - this road only has to prove the retry survives
-    // however long that silence runs). Four tellings pass with no answer at all, not the single lost
-    // race the test above covers, before the fifth is finally the one Storybook renders.
+    // one retry interval before it settles (see the SDK's Storybook.tsx: the fix this test covers is
+    // what that default selection resolves to, not this file - this road only has to prove the retry
+    // survives however long that silence runs). Four tellings pass with no answer at all, not the
+    // single lost race the test above covers, before the fifth is finally the one Storybook renders.
     const { answered, channel } = startTheRoad();
 
     await vi.waitFor(() =>
@@ -661,8 +661,8 @@ describe("the tree a capture records starts where a test run's tree starts", () 
   }, 20000);
 
   it("the first capture after the restart starts at the story's own root, not at the app window", async () => {
-    // The app publishes its view metadata (../appMetadata) from an effect that runs once the app
-    // has rendered. On a real device, the FIRST capture after a restart can reach the inspector
+    // The app publishes its view metadata (the SDK's appMetadata) from an effect that runs once the
+    // app has rendered. On a real device, the FIRST capture after a restart can reach the inspector
     // before that effect has had its turn - the seam is still unpublished the instant Storybook
     // reports the story rendered, and arrives a beat later, the way a pending effect does.
     rememberAppMetadataCollector(undefined);
@@ -997,8 +997,8 @@ describe('the story a boot already selected is never told again', () => {
   // emit could fire while Storybook's own preview was still mid-index-load, racing the selection
   // Storybook was about to apply for itself at the end of that load - two selections, one of them
   // unasked-for. A run never takes this risk: it boots onto its story and never tells Storybook
-  // again (see useTestStory.tsx's awaitStoryReadyAndPaint, which only waits). A capture now does
-  // the same whenever the story it was asked for is the one already handed over.
+  // again (see ../src/testStory, which only waits). A capture now does the same whenever the story
+  // it was asked for is the one already handed over.
   it('does not emit setCurrentStory when this boot already selected the story being captured', async () => {
     mockGetLastState.mockReturnValue({ nextSnapshot: { storyId: STORY }, requestId: '' });
 
@@ -1197,17 +1197,17 @@ describe('a story that failed to render is recorded the way a run records it', (
 });
 
 describe('a story that broke on an EARLIER screen does not make THIS one look broken', () => {
-  // The app's published metadata (../appMetadata) is read from its own current fiber and that
+  // The app's published metadata (the SDK's appMetadata) is read from its own current fiber and that
   // fiber's `.alternate` (see MetadataProvider's collectMetadata) - so it can carry TWO fiber
   // generations at once: the one on screen now, and the one that was on screen a render ago. The
   // words a broken story leaves behind (STORY_ERROR_FALLBACK_TEXT) sit in whichever generation
   // rendered them, forever - even after the app has moved cleanly on to a different, working
   // story. A capture's FIRST story of a boot is exactly this: Storybook renders its own default
   // selection first, then this road moves it to the requested story over the channel (see the
-  // file header) - so the default story's OWN fiber generation, error or not, is still sitting in
-  // `.alternate` by the time this story's metadata is read. `metadata.generations` is what tells
-  // the two apart: only the generation whose OWN testID-carrying view is still live in the
-  // inspector's reading is read for the fallback words.
+  // driver's file header) - so the default story's OWN fiber generation, error or not, is still
+  // sitting in `.alternate` by the time this story's metadata is read. `metadata.generations` is
+  // what tells the two apart: only the generation whose OWN testID-carrying view is still live in
+  // the inspector's reading is read for the fallback words.
   const A_DIFFERENT_STORYS_OWN_NATIVE_TAG = 99;
   const THE_SCREEN_BEFORE_THIS_ONE_THREW = {
     viewProps: {
@@ -1303,7 +1303,7 @@ describe("the primitive is the fiber matched to the view, RCT-stripped, or the v
     // A native-only view above the story never has a fiber of its own, so it is never enhanced -
     // exactly what the broken-story path exercises: theStorysOwnTree calls captureViewTree straight
     // on the raw inspector reading, matching what a run does for a story that contains an error
-    // (see useTestStory.tsx: prepareInspectorData only runs when there is none).
+    // (see ../src/testStory: prepareInspectorData only runs when there is none).
     recordStoryError(STORY, {
       name: 'TypeError',
       message: 'nothing here is a function',
@@ -1427,7 +1427,7 @@ describe('a capture restarts the app into testing mode, so isRunningVisualTests 
     expect(asked).toEqual([{ mode: 'default', stories: [STORY], answer: null }]);
     // The relay sent no story alongside this restart, and none is invented on the way out. The
     // app's own config rides along regardless - getConfigOrDefault()'s answer, since a capture has
-    // no config.sherlo of its own to send (see the file header).
+    // no config.sherlo of its own to send (see the driver's file header).
     expect(mockOpenTesting).toHaveBeenCalledWith(undefined, CONFIG);
     expect(mockStabilize).not.toHaveBeenCalled();
     expect(mockGetInspectorData).not.toHaveBeenCalled();
@@ -1446,7 +1446,7 @@ describe('a capture restarts the app into testing mode, so isRunningVisualTests 
     startCaptureTransport({ view: makeView(), channel: makeChannel(), capture });
 
     // The story rides straight through to the native side - the same hand-over a run's own restart
-    // already gets, now given to a capture's first story too (see the file header).
+    // already gets, now given to a capture's first story too (see the driver's file header).
     await vi.waitFor(() => expect(mockOpenTesting).toHaveBeenCalledWith(STORY, CONFIG));
   });
 });
@@ -1457,8 +1457,8 @@ describe('a capture never writes a test-run artifact', () => {
 
     // A test run saves screenshots and writes the protocol file; a capture does neither. The story is
     // read in memory, straight from the inspector, and saveScreenshots is off. (The restart-into-
-    // testing hand-over is a different, narrower write - see the file header - and this file has
-    // nothing to do with it: this road never calls appendFile/readFile at all, restart or not.)
+    // testing hand-over is a different, narrower write - see the driver's file header - and this
+    // road has nothing to do with it: it never calls appendFile/readFile at all, restart or not.)
     expect(mockAppendFile).not.toHaveBeenCalled();
     expect(mockReadFile).not.toHaveBeenCalled();
   });
@@ -1914,7 +1914,7 @@ describe('a text view carries the words it draws', () => {
 
   it('a container carries no words though its children draw them', async () => {
     // The same shape as the case above, but driven through the REAL walk (collectFromRoot,
-    // MetadataProvider.tsx) rather than a metadata reading typed in by hand - so this proves the
+    // ../src/metadataWalk) rather than a metadata reading typed in by hand - so this proves the
     // rule where it lives: a View's own `children` prop is exactly the React elements of its two
     // Text children, and the fix is that no host but a Text ever has wordsInChildren run on it.
     mockGetInspectorData.mockResolvedValue({
