@@ -5,8 +5,8 @@
  *
  * CHANNEL / EVENT-NAME CHOICE
  * Storybook emits `storyChanged` once a new selection settles, BEFORE the story
- * component itself renders - `storyRendered` (used by storyRenderedReadiness.ts for
- * testing-mode readiness) fires much later, after render AND play have finished. We
+ * component itself renders - `storyRendered` (used by the sealed core's readiness
+ * tracker for testing-mode readiness) fires much later, after render AND play have finished. We
  * deliberately do NOT import the event name from a `storybook` core package: it is only
  * a peer dependency of `@storybook/react-native` and isn't guaranteed resolvable from
  * this SDK. The literal string is part of Storybook's stable wire protocol (8.x/9.x).
@@ -14,7 +14,7 @@
  * SUBSCRIBE-EARLY
  * We attach the listener as soon as `getStorybook()` knows it is in interactive mode -
  * before the returned component tree ever renders - mirroring
- * storyRenderedReadiness.startStoryRenderedTracking. React flushes a child component's
+ * the core's startStoryRenderedTracking. React flushes a child component's
  * effects before its parent's, so a listener attached from a hook inside the rendered
  * tree could lose the race against Storybook's own initial-selection effects; attaching
  * imperatively from getStorybook() has no such race.

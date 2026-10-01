@@ -15,8 +15,19 @@ import { activateStoryMocks } from '../../mocking';
 import { UNSHIMMED_KEYS_LOG } from '../../mocking/activateStoryMocks';
 import RunnerBridge from '../../helpers/RunnerBridge';
 import { clearMocks, __resetShimmedKeysForTests } from '../../mocking/registry';
-import { enumerateStories } from '../../storybook/adapter';
+import { getSealedCore } from '../../sealedCore/loadSealedCore';
+import { enumerateStories as enumerateStoriesFromCoreSource } from '../../../../sherlo-core/js/src/adapter';
 import type { StorybookView } from '../../types';
+
+/**
+ * The stories, as the sealed core lists them. The core calls this itself, so the SDK cannot: it is
+ * taken from the core's source, after the SDK loaded and installed that core with its host, which
+ * the listing reads.
+ */
+function enumerateStories(view: StorybookView) {
+  expect(getSealedCore()).not.toBeNull();
+  return enumerateStoriesFromCoreSource(view);
+}
 
 afterEach(() => {
   clearMocks();
@@ -159,6 +170,10 @@ describe('activateStoryMocks - declared-but-unshimmed tripwire (FG-03)', () => {
     (globalThis as any).STORIES = [{ directory: './src', req }];
 
     const view = { _storyIndex: { entries: {} } } as unknown as StorybookView;
+    // This holds the core's path - a test run, where the sealed core's enumerateStories loads
+    // every story file before any activation. Activation itself reads only the selected story
+    // (storyMocksOf), so with no core a shim reached only through another story's file may not
+    // have evaluated yet (see the note on warnUnshimmedKeys in activateStoryMocks.ts).
     // enumerateStories eagerly requires every story file - by the time it returns,
     // every reachable shim (including pkg/widget-dep's) has already registered.
     const storyMetas = enumerateStories(view);

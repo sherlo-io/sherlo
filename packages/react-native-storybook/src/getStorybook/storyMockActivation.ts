@@ -6,19 +6,19 @@
  *
  * WHY GLOBAL MOCKS NEED A SECOND PASS
  * A story's mocks are merged from three levels (global > meta > story - see
- * enumerateStories / mergeStoryMocks). Meta- and story-level mocks come from the story
+ * storyMocksOf / mergeStoryMocks). Meta- and story-level mocks come from the story
  * exports, which are loaded synchronously, so they apply on the first pass. Global-level
  * mocks live ONLY in the app's `.rnstorybook/preview.ts`, which Storybook composes into
  * view._preview.storyStoreValue.projectAnnotations ASYNCHRONOUSLY during preview init.
  *
  * On a fresh boot (the single-story release capture, or an interactive session that
  * lands directly on a mocked story) the first pass runs BEFORE that composition, so
- * enumerateStories reads empty project params and global mocks resolve to {}. We
+ * storyMocksOf reads empty project params and global mocks resolve to {}. We
  * therefore re-apply once view._preview.ready() resolves - the exact point Storybook
  * populates storyStoreValue.projectAnnotations - which lands before the story renders.
  */
 import { StorybookView } from '../types';
-import { enumerateStories } from '../storybook/adapter';
+import { storyMocksOf } from '../mocking/storyMocksOf';
 import {
   activateNetworkMocks,
   activateStoryMocks,
@@ -31,7 +31,7 @@ import { recordStoryError } from './storyErrorRegistry';
 // The live preview fields we rely on. `ready()` resolves once the StoryStore -
 // and thus projectAnnotations (global params) - exists; `storyStoreValue` is
 // present iff that has already happened. Reached through a cast, like the other
-// internal preview access in adapter.ts / getStorybook.tsx.
+// internal preview access in ../mocking/storyMocksOf.ts and in getStorybook.tsx.
 interface PreviewInternal {
   ready?: () => Promise<unknown>;
   storyStoreValue?: unknown;
@@ -51,8 +51,7 @@ let latestInstall = 0;
 // module by import, so nothing can be installed until that import resolves. A caller that is
 // about to render the story must not render while a promise is outstanding.
 function applyStoryMocks(view: StorybookView, storyId: string): Promise<void> | null {
-  const storyMeta = enumerateStories(view).find((story) => story.id === storyId);
-  const mocks = storyMeta?.mocks ?? {};
+  const mocks = storyMocksOf(view, storyId);
   const install = (latestInstall += 1);
 
   // Network rules are plain values the story wrote, so they are in effect at once - no import to

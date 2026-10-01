@@ -8,7 +8,9 @@ on:
 
 jobs:
   release-to-dev:
-    runs-on: ubuntu-latest
+    # macOS: the SDK's pack builds the C core with Xcode and the Android NDK (see
+    # release-sherlo-packages.yml). This private copy is not a release, so it keeps the test key.
+    runs-on: macos-15
     concurrency: release-to-dev
     permissions:
       contents: read

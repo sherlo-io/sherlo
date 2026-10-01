@@ -15,7 +15,6 @@ import {
   stopInteractiveMockActivation,
   __resetInteractiveMockActivationForTests,
 } from '../../getStorybook/interactiveMockActivation';
-import { enumerateStories } from '../../storybook/adapter';
 import type { StorybookView } from '../../types';
 
 // A minimal stand-in for Storybook's channel: records on()/off() and lets a test
@@ -50,11 +49,24 @@ function setupTwoStoryView() {
   });
   (globalThis as any).STORIES = [{ directory: './src', req }];
 
-  const view = { _storyIndex: { entries: {} } } as unknown as StorybookView;
-  const stories = enumerateStories(view);
-  const initial = stories.find((s) => s.id.endsWith('--interactive'))!;
-  const other = stories.find((s) => s.id.endsWith('--other'))!;
-  return { view, initialStoryId: initial.id, otherStoryId: other.id };
+  // Storybook's index holds both stories; a story's mocks are found through it.
+  const initialStoryId = 'mocking-switch--interactive';
+  const otherStoryId = 'mocking-switch--other';
+  const importPath = './src/Switch.stories.tsx';
+  const view = {
+    _storyIndex: {
+      entries: {
+        [initialStoryId]: {
+          id: initialStoryId,
+          title: 'Mocking/Switch',
+          name: 'Interactive',
+          importPath,
+        },
+        [otherStoryId]: { id: otherStoryId, title: 'Mocking/Switch', name: 'Other', importPath },
+      },
+    },
+  } as unknown as StorybookView;
+  return { view, initialStoryId, otherStoryId };
 }
 
 afterEach(() => {

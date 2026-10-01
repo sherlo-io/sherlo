@@ -9,3 +9,10 @@
 -keepclassmembers class com.facebook.react.bridge.CatalystInstanceImpl {
     *** mJSExceptionHandler;
 }
+
+# The C core (libsherlocore.so) binds its JNI entry points by name:
+# Java_io_sherlo_storybookreactnative_CompiledCore_native*. R8 must keep the class and its native
+# methods named as they are, or the core's calls fail to link in a minified release build.
+-keepclasseswithmembernames class io.sherlo.storybookreactnative.CompiledCore {
+    native <methods>;
+}
