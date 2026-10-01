@@ -81,6 +81,7 @@ export function maskScreen(screen: string, context: MaskContext): string {
 
   folded = foldTokens(folded);
   folded = foldBuildUrl(folded);
+  folded = foldLoginLink(folded);
   folded = foldProjectIndex(folded);
   folded = foldTeamId(folded);
   folded = foldMintedProjectToken(folded);
@@ -135,6 +136,7 @@ export const CLASSES_THE_TOOL_FOLDS = [
   '<TEAM>',
   '<PROJECT>',
   '<BUILD>',
+  '<LOGIN_LINK>',
   '<SIZE>',
   '<TIME_AGO>',
   '<FINGERPRINT>',
@@ -213,6 +215,16 @@ function foldBuildUrl(screen: string): string {
     /https?:\/\/[^/\s\u001b]+\/build\?t=[^&\s\u001b]*&p=[^&\s\u001b]*&b=[^&\s\u001b]*/g,
     'https://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>'
   );
+}
+
+/**
+ * The link `sherlo login` prints for the person to click Authorize on: `<host>/cli-login/<id>`.
+ *
+ * THE WHOLE LINK FOLDS, host and all: the stage's web app is not app.sherlo.io on a test stage,
+ * and the login id is whatever the service handed out, so neither is the scenario's to state.
+ */
+function foldLoginLink(screen: string): string {
+  return screen.replace(/https?:\/\/[^/\s\u001b]+\/cli-login\/[^/\s\u001b]+/g, '<LOGIN_LINK>');
 }
 
 /** `projectIndex=1` - the index the server gave a project, printed for a script to read. */

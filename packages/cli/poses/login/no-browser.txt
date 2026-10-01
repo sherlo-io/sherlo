@@ -1,8 +1,8 @@
 Log in to Sherlo at this link:
 
-  [36mhttps://app.sherlo.io/cli-login/lg7Qm2Xa[39m
+  [36m<LOGIN_LINK>[39m
 
-[2mNo browser opened on this computer. Open the link above on any device.[22m
+[2mThe browser did not open. The link works on any device, so open it on your phone or another computer.[22m
 
 [33m⏳[39m Waiting for you to click Authorize... [2m(Ctrl+C to stop)[22m
 

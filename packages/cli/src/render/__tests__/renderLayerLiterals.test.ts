@@ -961,7 +961,9 @@ const PINS: Pin[] = [
     segment: { kind: 'login-waiting', browserOpened: false },
     stream: 'stdout',
     prints: [
-      [`${ESC}[2mNo browser opened on this computer. Open the link above on any device.${ESC}[22m`],
+      [
+        `${ESC}[2mThe browser did not open. The link works on any device, so open it on your phone or another computer.${ESC}[22m`,
+      ],
       [``],
       [
         `${ESC}[33m⏳${ESC}[39m Waiting for you to click Authorize... ${ESC}[2m(Ctrl+C to stop)${ESC}[22m`,

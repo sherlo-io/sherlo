@@ -14,12 +14,10 @@
  * against, and a command spends only the login of the address it talks to, so logins to the test,
  * dev and prod stages never mix (sherlo / Logging in from the terminal). The caller passes the
  * address it talks to; this seam never guesses one.
- *
- * ------------------------------------------------------------------------
- * PLAN STAND-IN (epic cli-login). The live half below touches no file yet: the saved-login file is
- * a build task. Until it lands, the live half reads as "no login saved" and refuses to save or
- * delete one, naming itself. The posed half is the one a plan draws with.
  */
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 
 /** One saved login: the token the service minted for it, and whose it is. */
 export type SavedLogin = {
@@ -39,16 +37,86 @@ export type SavedLogins = {
   remove(serviceAddress: string): void;
 };
 
-/** The shipped answers. A build task: until it lands, nothing is read or written. */
+/**
+ * The shipped answers: the saved-login file. A missing or unreadable file reads as no login, and
+ * every write leaves the file readable and writable by its owner alone.
+ */
 export const liveSavedLogins: SavedLogins = {
-  read: () => undefined,
-  save: () => {
-    throw new Error('Saving a login is not built into this version of the CLI yet.');
+  read: (serviceAddress) => {
+    const entry = readSavedLoginFile()[serviceAddress];
+    if (typeof entry?.token !== 'string' || typeof entry.email !== 'string') return undefined;
+
+    return { token: entry.token, email: entry.email };
   },
-  remove: () => {
-    throw new Error('Deleting a saved login is not built into this version of the CLI yet.');
+
+  save: (serviceAddress, login) => {
+    const entries = readSavedLoginFile();
+    entries[serviceAddress] = {
+      token: login.token,
+      email: login.email,
+      savedAt: new Date().toISOString(),
+    };
+    writeSavedLoginFile(entries);
+  },
+
+  remove: (serviceAddress) => {
+    const entries = readSavedLoginFile();
+    if (!(serviceAddress in entries)) return;
+
+    delete entries[serviceAddress];
+    writeSavedLoginFile(entries);
   },
 };
+
+/** The saved-login file's shape: one entry per service address. */
+type SavedLoginFile = Record<string, { token: string; email: string; savedAt: string }>;
+
+/** The file: its owner may read and write it, and nobody else may do either. */
+const OWNER_ONLY_FILE = 0o600;
+
+/** The `sherlo` folder: its owner alone may list, enter or change it. */
+const OWNER_ONLY_FOLDER = 0o700;
+
+/** `$XDG_CONFIG_HOME/sherlo/credentials.json`, or `~/.config/sherlo/credentials.json`. */
+export function savedLoginFilePath(): string {
+  const configHome = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
+  return path.join(configHome, 'sherlo', 'credentials.json');
+}
+
+function readSavedLoginFile(): SavedLoginFile {
+  try {
+    const parsed: unknown = JSON.parse(fs.readFileSync(savedLoginFilePath(), 'utf8'));
+    const isEntryMap = typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed);
+
+    return isEntryMap ? (parsed as SavedLoginFile) : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Write the whole file ATOMICALLY: into a new file beside it, created owner-only, then renamed over
+ * it. A token is never written into a file somebody loosened, and a crash mid-write leaves the old
+ * file whole rather than half a file.
+ */
+function writeSavedLoginFile(entries: SavedLoginFile): void {
+  const filePath = savedLoginFilePath();
+  const newFilePath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+
+  fs.mkdirSync(path.dirname(filePath), { recursive: true, mode: OWNER_ONLY_FOLDER });
+
+  try {
+    // `wx`: created here, never an existing file reused - so the mode below is the file's mode.
+    fs.writeFileSync(newFilePath, `${JSON.stringify(entries, null, 2)}\n`, {
+      mode: OWNER_ONLY_FILE,
+      flag: 'wx',
+    });
+    fs.renameSync(newFilePath, filePath);
+  } catch (error) {
+    fs.rmSync(newFilePath, { force: true });
+    throw error;
+  }
+}
 
 let installed: SavedLogins = liveSavedLogins;
 

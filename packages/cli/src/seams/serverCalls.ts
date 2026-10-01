@@ -16,6 +16,7 @@
  * ignores the rest: a pose cannot script an answer to a question the command did not ask, and it
  * is not asked to restate a payload it did not compose.
  */
+import os from 'os';
 import sdkClient from '@sherlo/sdk-client';
 import { Platform } from '@sherlo/api-types';
 import {
@@ -124,7 +125,11 @@ export type ServerCalls = {
   /** Has the person answered the pending login yet? Asked about every two seconds while it waits. */
   pollCliLogin(request: { loginId: string; pollSecret: string }): Promise<CliLoginAnswer>;
 
-  /** `sherlo logout`: end exactly the login whose token this is, on the service. */
+  /**
+   * `sherlo logout`: end exactly the login whose token this is, on the service. A service that
+   * answers but refuses the token throws {@link ServiceRefusedTokenError}; any other error is a
+   * service the tool could not reach.
+   */
   logOutCli(request: { personalToken: string }): Promise<void>;
 };
 
@@ -146,14 +151,6 @@ export type PendingCliLogin = {
 export type CliLoginAnswer =
   | { status: 'pending' | 'cancelled' | 'expired' | 'used' }
   | { status: 'approved'; email: string; token: string };
-
-/**
- * PLAN STAND-IN (epic cli-login): the live halves of the three login operations are a build task.
- * Until they land, each refuses rather than pretend to have asked the service.
- */
-function loginOperationNotBuilt(operation: string): never {
-  throw new Error(`\`${operation}\` is not built into this version of the CLI yet.`);
-}
 
 /** What the staged gate is asked and what it answers - the sdk client's own shapes. */
 export type CheckStagedGateRequest = Parameters<SdkClient['checkStagedGate']>[0];
@@ -207,10 +204,72 @@ export const liveServerCalls: ServerCalls = {
 
   checkStagedGate: ({ token, ...request }) => clientFor(token).checkStagedGate(request),
 
-  startCliLogin: async () => loginOperationNotBuilt('startCliLogin'),
-  pollCliLogin: async () => loginOperationNotBuilt('pollCliLogin'),
-  logOutCli: async () => loginOperationNotBuilt('logOutCli'),
+  // A login is started and polled with no credential at all: the poll secret is what proves this
+  // run started it. The computer's name is what the authorize page shows the person.
+  startCliLogin: async () => {
+    const { loginId, pollSecret, authorizeUrl, expiresAt } =
+      await clientWithNoCredential().startCliLogin({ computerName: os.hostname() });
+
+    return { loginId, pollSecret, authorizeUrl, expiresAt };
+  },
+
+  pollCliLogin: async ({ loginId, pollSecret }) => {
+    const answer = await clientWithNoCredential().pollCliLogin({ loginId, pollSecret });
+
+    if (answer.status !== 'approved') return { status: answer.status };
+
+    if (!answer.token || !answer.email) {
+      throw new Error('Sherlo approved the login but sent no token with it.');
+    }
+
+    return { status: 'approved', token: answer.token, email: answer.email };
+  },
+
+  // A login's token is a personal token, sent whole: it has no parts the way a project token has.
+  logOutCli: async ({ personalToken }) => {
+    try {
+      await sdkClient({ authToken: personalToken }, getEndpointUrl()).logOutCli();
+    } catch (error) {
+      if (serviceRefusedTheToken(error)) throw new ServiceRefusedTokenError();
+      throw error;
+    }
+  },
 };
+
+/** The service answered, and refused the token it was sent. */
+export class ServiceRefusedTokenError extends Error {
+  constructor() {
+    super('Sherlo refused the token.');
+    this.name = 'ServiceRefusedTokenError';
+  }
+}
+
+/**
+ * Whether an sdk client error is the service refusing the token, rather than a service the tool
+ * never reached. The authorizer refuses with HTTP 401 or 403; a refusal from inside the API comes
+ * back as a GraphQL error typed as unauthorized - thrown bare by the client, or inside its error.
+ */
+function serviceRefusedTheToken(error: unknown): boolean {
+  const clientError = error as {
+    errorType?: string;
+    networkError?: { statusCode?: number };
+    graphQLErrors?: Array<{ errorType?: string }>;
+  };
+
+  const httpStatus = clientError?.networkError?.statusCode;
+  if (httpStatus === 401 || httpStatus === 403) return true;
+
+  const errorTypes = [
+    clientError?.errorType,
+    ...(clientError?.graphQLErrors ?? []).map((graphQLError) => graphQLError.errorType),
+  ];
+  return errorTypes.some((errorType) => /unauthori[sz]ed|forbidden/i.test(errorType ?? ''));
+}
+
+/** An sdk client that sends no credential - for the login's own two questions. */
+function clientWithNoCredential(): SdkClient {
+  return sdkClient({ authToken: '' }, getEndpointUrl());
+}
 
 let installed: ServerCalls = liveServerCalls;
 

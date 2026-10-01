@@ -8,8 +8,8 @@
  * THE LOGIN TOKEN IS NOT AN INPUT TO ANY RENDERER HERE, and never will be. The tool saves it and
  * never prints it; a renderer that cannot be handed the token cannot print it.
  *
- * PLAN-LAYER PRESENTATION (epic cli-login). The words are placeholders the content department
- * replaces; the shapes - the link alone on its line, one line naming the person - are the pages'.
+ * The words are the content department's; the shapes - the link alone on its line, one line
+ * naming the person - are the pages'.
  */
 import chalk from 'chalk';
 
@@ -30,7 +30,9 @@ export function renderLoginWaiting(browserOpened: boolean): string[] {
   if (browserOpened) return [waiting];
 
   return [
-    chalk.dim('No browser opened on this computer. Open the link above on any device.'),
+    chalk.dim(
+      'The browser did not open. The link works on any device, so open it on your phone or another computer.'
+    ),
     '',
     waiting,
   ];

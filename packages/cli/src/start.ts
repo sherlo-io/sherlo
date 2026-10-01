@@ -150,10 +150,8 @@ export default start;
 
 const COMMAND_DESCRIPTION = {
   [INIT_COMMAND]: 'Initialize Sherlo',
-  [LOGIN_COMMAND]:
-    'Log this terminal in to Sherlo through your browser. Prints a link, opens the\n' +
-    '  browser on it, and finishes by itself once you click Authorize.',
-  [LOGOUT_COMMAND]: 'End the login and delete it from this computer.',
+  [LOGIN_COMMAND]: 'Log in to Sherlo through your browser and save the login on this computer',
+  [LOGOUT_COMMAND]: 'Log out of Sherlo and delete the login saved on this computer',
   [TEST_COMMAND]:
     'Run visual tests.\n' +
     `  Without \`--${ANDROID_OPTION}\`/\`--${IOS_OPTION}\`: tests JS-only changes against the registered\n` +
