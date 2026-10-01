@@ -36,7 +36,13 @@
  * the question "is somebody there" THROWS its refusal, and the tool's own cancel branch prints
  * "Setup cancelled" - which is what a real run whose terminal went away gets. The same branch is
  * what a pose stating `enter: "closed"` is asking to see.
+ *
+ * THE QUESTIONS SETUP ASKS - which team, which project, a new one's name - are the person at the
+ * keyboard too, so they are here: the live half asks them through `@inquirer/prompts`. A pose has
+ * no way to state an answer, so the posed half refuses every question and the setup is cancelled;
+ * a test that needs an answer installs a workstation of its own.
  */
+import { confirm, input, select } from '@inquirer/prompts';
 import ansiEscapes from 'ansi-escapes';
 import runShellCommand from '../helpers/runShellCommand';
 
@@ -57,6 +63,18 @@ export type Workstation = {
 
   /** Wait for the key they press: Enter resolves, a kill key rejects and the setup is cancelled. */
   readEnterPress(): Promise<void>;
+
+  /** Ask the person to pick one of the choices, and answer the value of the one they picked. */
+  chooseOne<Value>(params: {
+    question: string;
+    choices: { name: string; value: Value }[];
+  }): Promise<Value>;
+
+  /** Ask the person to type an answer, and answer what they typed. */
+  askForText(params: { question: string }): Promise<string>;
+
+  /** Ask the person a yes or no question, and answer whether they said yes. */
+  askYesOrNo(params: { question: string }): Promise<boolean>;
 };
 
 /** The shipped answers: the package manager really runs, and the keyboard is really read. */
@@ -115,6 +133,13 @@ export const liveWorkstation: Workstation = {
       process.stdin.on('data', handleKeypress);
     });
   },
+
+  // A person who presses Ctrl+C at one of these makes it reject, and the setup is cancelled.
+  chooseOne: ({ question, choices }) => select({ message: question, choices }),
+
+  askForText: ({ question }) => input({ message: question }),
+
+  askYesOrNo: ({ question }) => confirm({ message: question }),
 };
 
 let installed: Workstation = liveWorkstation;
@@ -213,6 +238,20 @@ export function posedWorkstation(
       // `closed` is the terminal going away where the tool waits, which is exactly what the kill
       // key a real run reads there does; `pressed` is a person, and the run goes on.
       if (posed?.enter === 'closed') throw new Error('nobody pressed Enter');
+    },
+
+    // A pose cannot state an answer to a question, so a posed run that reaches one is refused,
+    // the way `somebodyIsAtTheKeyboard` is with no `workstation`, and the setup is cancelled.
+    chooseOne: async ({ question }) => {
+      throw refuse('chooseOne', `the pose cannot answer the question "${question}"`);
+    },
+
+    askForText: async ({ question }) => {
+      throw refuse('askForText', `the pose cannot answer the question "${question}"`);
+    },
+
+    askYesOrNo: async ({ question }) => {
+      throw refuse('askYesOrNo', `the pose cannot answer the question "${question}"`);
     },
   };
 }

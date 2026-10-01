@@ -5,12 +5,14 @@ import hasConfigFile from './hasConfigFile';
 import printDevicesInfo from './printDevicesInfo';
 import updateConfig from './updateConfig';
 
+/** Writes `sherlo.config.json` with the project the project step settled, and never a token. */
 async function config({
   sessionId,
-  token,
+  project,
 }: {
   sessionId: string | null;
-  token?: string;
+  /** The team id, a slash and the project's number. */
+  project: string;
 }): Promise<void> {
   printTitle('📋 Config');
 
@@ -18,11 +20,11 @@ async function config({
 
   try {
     if (!hasConfigFile()) {
-      ({ createdConfig: configValue, hasAddedDefaultDevices } = await createConfig(token));
+      ({ createdConfig: configValue, hasAddedDefaultDevices } = await createConfig(project));
 
       action = 'created';
     } else {
-      ({ updatedConfig: configValue, hasAddedDefaultDevices } = await updateConfig(token));
+      ({ updatedConfig: configValue, hasAddedDefaultDevices } = await updateConfig(project));
 
       action = 'updated';
     }

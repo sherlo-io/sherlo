@@ -50,6 +50,7 @@ import {
   PROJECT_COMMAND,
   PROJECT_CREATE_SUBCOMMAND,
   PROJECT_LIST_SUBCOMMAND,
+  PROJECT_OPTION,
   PROJECT_ROOT_OPTION,
   NAME_OPTION,
   TEAM_COMMAND,
@@ -323,6 +324,10 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     "The team to create the project in - the `t=` value in the web app's URL. Required: " +
       'a personal token names a person, so there is no team to infer.',
   ],
+  [PROJECT_OPTION]: [
+    `--${PROJECT_OPTION} <teamId>/<projectIndex>`,
+    'The project this app belongs to: the team id, a slash and the project number (e.g. k3j9x2ab/4)',
+  ],
   [VERBOSE_OPTION]: [
     `--${VERBOSE_OPTION}`,
     'List every native source, package and file under its layer, with its digest',
@@ -423,7 +428,7 @@ function addInitCommand(program: Command) {
   addCommand({
     program,
     command: INIT_COMMAND,
-    options: [TOKEN_OPTION],
+    options: [TOKEN_OPTION, PERSONAL_TOKEN_OPTION, PROJECT_OPTION],
     action: init,
     withTimeout: false,
   });

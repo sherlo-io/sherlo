@@ -167,6 +167,11 @@ export const PERSONAL_TOKEN_FLAG = 'personal-token';
 /** `sherlo project create`: which team the new project belongs to. */
 export const TEAM_OPTION = 'team';
 /**
+ * `sherlo init --project <teamId>/<projectIndex>`: the project the app belongs to, the same line
+ * setup writes into the config's `project` (sherlo / How setup names the project).
+ */
+export const PROJECT_OPTION = 'project';
+/**
  * `sherlo project create`: the name of the thing being created. A NAMED FLAG RATHER THAN A
  * POSITIONAL, so a name is never whatever happened to follow the verb (decided 2026-09-07):
  * `sherlo project create --name "Design System"`, and the same flag on every create that follows.

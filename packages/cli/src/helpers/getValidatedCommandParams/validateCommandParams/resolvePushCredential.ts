@@ -169,7 +169,10 @@ const CONFIG_PROJECT_SHAPE = new RegExp(`^([^/\\s]{${TEAM_ID_LENGTH}})/([1-9][0-
  * The team and project the config's `project` names. The config file is JSON a person wrote, so
  * its `project` may be anything at all.
  */
-function parseConfigProject(configProject: unknown): { teamId: string; projectIndex: number } {
+export function parseConfigProject(configProject: unknown): {
+  teamId: string;
+  projectIndex: number;
+} {
   const match = typeof configProject === 'string' ? CONFIG_PROJECT_SHAPE.exec(configProject) : null;
 
   if (!match) refuseMalformedProject(configProject);
