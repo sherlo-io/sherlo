@@ -1,6 +1,8 @@
 /**
- * THE PERSONAL TOKEN, from the flag or the environment - refusing anything
- * that is not one BEFORE it is sent anywhere.
+ * THE PERSONAL TOKEN, from the flag, the environment or the saved login, in
+ * that order - refusing anything that is not one BEFORE it is sent anywhere
+ * (sherlo / Teams, projects and the personal token). The saved login is read
+ * through ../../seams/savedLogins, under the service address this run talks to.
  *
  * Shared across every management command (`project create`, `project list`,
  * `team create`, `team list`): all four take the same two flags
@@ -20,21 +22,26 @@ import {
   TOKEN_OPTION,
 } from '../../constants';
 import { isPersonalToken, throwError } from '../../helpers';
+import { getEndpointUrl } from '../../helpers/buildStatusRequest';
+import { savedLogins } from '../../seams/savedLogins';
+import { LOGIN_COMMAND } from '../login/constants';
 
 function resolvePersonalToken(
   passedToken: string | undefined,
   { thisCommand, tokenContextLine }: { thisCommand: string; tokenContextLine: string }
 ): string {
-  const personalToken = (passedToken ?? process.env[PERSONAL_TOKEN_ENV_VAR])?.trim();
+  const givenToken = (passedToken ?? process.env[PERSONAL_TOKEN_ENV_VAR])?.trim();
+
+  // A token given on purpose always beats the login, so it is never overridden by whoever is
+  // logged in. The login is a personal token the tool keeps, and is checked like one below.
+  const personalToken = givenToken || savedLogins().read(getEndpointUrl())?.token;
 
   if (!personalToken) {
     throwError({
       type: 'auth',
       message:
-        `\`sherlo ${thisCommand}\` needs a personal token: ` +
-        `\`--${PERSONAL_TOKEN_FLAG} <token>\` or ${PERSONAL_TOKEN_ENV_VAR}.\n` +
-        '\n' +
-        '  Mint one in the Sherlo web app - the CLI cannot mint tokens, by design.\n' +
+        `\`sherlo ${thisCommand}\` needs you to be logged in: run \`sherlo ${LOGIN_COMMAND}\`.\n` +
+        `  Or give a personal token with \`--${PERSONAL_TOKEN_FLAG}\` or ${PERSONAL_TOKEN_ENV_VAR}.\n` +
         `  This is NOT the project token from \`--${TOKEN_OPTION}\` / sherlo.config.json:\n` +
         `  ${tokenContextLine}`,
     });
