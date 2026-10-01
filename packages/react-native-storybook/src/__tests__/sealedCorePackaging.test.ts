@@ -4,9 +4,6 @@
  * release-key rules come with their own tasks; they stay empty shells here.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { execFileSync } from 'node:child_process';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 
 // packages/react-native-storybook root: this file is at src/__tests__/.
 const SDK_ROOT = path.resolve(__dirname, '..', '..');
@@ -19,6 +16,7 @@ import { execFileSync } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import vm from 'vm';
 
 const PACKAGE_ROOT = path.resolve(__dirname, '../..');
 
@@ -125,6 +123,24 @@ describe('what the published package carries', () => {
         true
       );
     }
+  }, 120_000);
+
+  it('the published polyfill runs as a plain script, with no module or require around it', () => {
+    const { unpackedPackageDir } = packIntoTemporaryFolder();
+    const polyfillSource = fs.readFileSync(
+      path.join(unpackedPackageDir, 'dist-metro', 'polyfill.js'),
+      'utf8'
+    );
+
+    expect(polyfillSource).not.toContain('module.exports');
+    expect(polyfillSource).not.toContain('__nccwpck_require__');
+
+    // Metro pastes the polyfill into the app bundle as a bare script: the context has the global
+    // object and none of module, exports or require.
+    const bareScriptContext: Record<string, unknown> = {};
+    bareScriptContext.globalThis = bareScriptContext;
+    bareScriptContext.global = bareScriptContext;
+    expect(() => vm.runInNewContext(polyfillSource, bareScriptContext)).not.toThrow();
   }, 120_000);
 
   it('a pack builds both sealed parts before it packs', () => {});
